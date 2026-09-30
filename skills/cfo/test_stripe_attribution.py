@@ -121,6 +121,26 @@ class StripeAttributionTest(unittest.TestCase):
         )
         self.assertIn("stripe://charges/ch_silent", trailing["evidence_refs"])
 
+    def test_unpaid_external_captured_charge_cannot_hide_missing_balance_transaction(self):
+        value = payloads()
+        charge = value["charges"]["data"][0]
+        charge.update(paid=False, amount_refunded=0, balance_transaction="txn_absent")
+        value["balance_transactions"]["data"] = [
+            transaction for transaction in value["balance_transactions"]["data"]
+            if transaction["id"] not in {"txn_charge_usd", "txn_refund_usd"}
+        ]
+        value["refunds"]["data"] = []
+
+        rows = adapt(value)
+        trailing = next(row for row in rows
+                        if row.get("record_type") == "coverage"
+                        and row.get("projection") == "trailing")
+        self.assertEqual(
+            (trailing["coverage_state"], trailing["reason"]),
+            ("gap", "unverified_receipt"),
+        )
+        self.assertIn("stripe://charges/ch_external_usd", trailing["evidence_refs"])
+
     def test_active_verified_provider_monthly_subscription_is_the_only_mrr(self):
         rows = adapt()
         snapshots = [row for row in rows if row["record_type"] == "subscription_snapshot"]
@@ -566,6 +586,69 @@ class StripeAttributionTest(unittest.TestCase):
         self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
         self.assertEqual({row["reason"] for row in financial}, {"read_failed"})
         self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+
+    def test_provider_lists_require_expected_object_and_endpoint_url(self):
+        expected_urls = {
+            "balance_transactions": "/v1/balance_transactions",
+            "charges": "/v1/charges",
+            "refunds": "/v1/refunds",
+            "subscriptions": "/v1/subscriptions",
+        }
+        swapped_urls = {
+            "balance_transactions": "/v1/charges",
+            "charges": "/v1/refunds",
+            "refunds": "/v1/subscriptions",
+            "subscriptions": "/v1/balance_transactions",
+        }
+        mutations = {
+            "wrong_object": lambda value, name: value[name].update(object="collection"),
+            "missing_url": lambda value, name: value[name].pop("url"),
+            "wrong_url_type": lambda value, name: value[name].update(url={}),
+            "wrong_url": lambda value, name: value[name].update(url="/v1/customers"),
+            "swapped_url": lambda value, name: value[name].update(url=swapped_urls[name]),
+        }
+        for name, expected_url in expected_urls.items():
+            self.assertEqual(payloads()[name]["url"], expected_url)
+            for case, mutate in mutations.items():
+                with self.subTest(name=name, case=case):
+                    value = payloads()
+                    mutate(value, name)
+                    rows = adapt(value)
+                    projection = "as_of" if name == "subscriptions" else "trailing"
+                    coverage = next(row for row in rows
+                                    if row.get("record_type") == "coverage"
+                                    and row.get("projection") == projection)
+                    self.assertEqual(
+                        (coverage["coverage_state"], coverage["reason"]),
+                        ("gap", "read_failed"),
+                    )
+
+    def test_subscription_item_list_requires_expected_object_and_endpoint_url(self):
+        mutations = {
+            "wrong_object": lambda items: items.update(object="collection"),
+            "missing_url": lambda items: items.pop("url"),
+            "wrong_url_type": lambda items: items.update(url={}),
+            "wrong_url": lambda items: items.update(url="/v1/refunds"),
+            "wrong_subscription": lambda items: items.update(
+                url="/v1/subscription_items?subscription=sub_other"
+            ),
+        }
+        for case, mutate in mutations.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value["subscriptions"]["data"][0]["items"])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("subscription_id") == "stripe:subscription:sub_monthly"
+                    for row in rows
+                ))
+                as_of = next(row for row in rows
+                             if row.get("record_type") == "coverage"
+                             and row.get("projection") == "as_of")
+                self.assertEqual(
+                    (as_of["coverage_state"], as_of["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
 
     def test_malformed_amount_becomes_coverage_gap_instead_of_escaping(self):
         for transaction_index in (0, 1, 5):

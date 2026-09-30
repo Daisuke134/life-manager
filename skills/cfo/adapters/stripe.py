@@ -45,6 +45,12 @@ SUBSCRIPTION_STATUSES = {
     "trialing", "unpaid",
 }
 FINANCIAL_CATEGORIES = [contract.REVENUE, contract.REFUND, "payment_fee", "provider_fee"]
+LIST_URLS = {
+    "balance_transactions": "/v1/balance_transactions",
+    "charges": "/v1/charges",
+    "refunds": "/v1/refunds",
+    "subscriptions": "/v1/subscriptions",
+}
 
 
 class StripeAttributionError(ValueError):
@@ -113,6 +119,7 @@ def _integer_minor(value: object, currency: str) -> str | None:
 def _read_list(payloads: dict, name: str) -> tuple[list[dict], bool]:
     value = payloads.get(name)
     if (not isinstance(value, dict) or value.get("object") != "list"
+            or value.get("url") != LIST_URLS[name]
             or not isinstance(value.get("data"), list) or value.get("has_more") is not False):
         return [], False
     return value["data"], True
@@ -202,14 +209,14 @@ def _charge_consistency_refs(transactions: dict[str, dict],
     for charge_id, charge in charges.items():
         metadata = charge.get("metadata")
         if (charge.get("object") != "charge" or charge.get("status") != "succeeded"
-                or charge.get("paid") is not True or charge.get("captured") is not True
-                or charge.get("livemode") is not True or charge.get("disputed") is not False
+                or charge.get("captured") is not True or charge.get("livemode") is not True
                 or not isinstance(metadata, dict)
                 or metadata.get("lm_economic_category") != contract.REVENUE):
             continue
         transaction_id = _identifier(charge.get("balance_transaction"))
         transaction = transactions.get(transaction_id or "")
-        if (transaction_id is None or not isinstance(transaction, dict)
+        if (charge.get("paid") is not True or charge.get("disputed") is not False
+                or transaction_id is None or not isinstance(transaction, dict)
                 or transaction.get("object") != "balance_transaction"
                 or transaction.get("type") not in CHARGE_TYPES
                 or transaction.get("source") != charge_id):
@@ -432,7 +439,9 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
     if active:
         items = row.get("items")
         if (not isinstance(items, dict) or items.get("object") != "list"
-                or items.get("has_more") is not False or not items.get("data")):
+                or items.get("url") != f"/v1/subscription_items?subscription={subscription_id}"
+                or items.get("has_more") is not False
+                or not isinstance(items.get("data"), list) or not items["data"]):
             return None
         for item in items["data"]:
             price = item.get("price") if isinstance(item, dict) else None
