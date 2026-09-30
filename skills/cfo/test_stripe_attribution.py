@@ -97,6 +97,30 @@ class StripeAttributionTest(unittest.TestCase):
             "stripe:balance_transaction:txn_charge_jpy",
         })
 
+    def test_complete_charge_collection_requires_matching_balance_transaction(self):
+        value = payloads()
+        value["charges"]["data"].append({
+            "id": "ch_silent", "object": "charge", "amount": 1200,
+            "amount_captured": 1200, "amount_refunded": 0,
+            "balance_transaction": "txn_absent", "captured": True,
+            "created": 1790808000, "currency": "usd", "customer": "cus_silent",
+            "disputed": False, "livemode": True,
+            "metadata": {"lm_economic_category": "settled_external_revenue"},
+            "paid": True, "refunded": False, "status": "succeeded",
+        })
+
+        rows = adapt(value)
+        self.assertFalse(any(row.get("receipt_id") ==
+                             "stripe:balance_transaction:txn_absent" for row in rows))
+        trailing = next(row for row in rows
+                        if row.get("record_type") == "coverage"
+                        and row.get("projection") == "trailing")
+        self.assertEqual(
+            (trailing["coverage_state"], trailing["reason"]),
+            ("gap", "unverified_receipt"),
+        )
+        self.assertIn("stripe://charges/ch_silent", trailing["evidence_refs"])
+
     def test_active_verified_provider_monthly_subscription_is_the_only_mrr(self):
         rows = adapt()
         snapshots = [row for row in rows if row["record_type"] == "subscription_snapshot"]
@@ -435,22 +459,26 @@ class StripeAttributionTest(unittest.TestCase):
             ("complete", None),
         )
 
-        proven = payloads()
-        proven["readback"]["queries"]["historical"] = {
+        history_start_only = payloads()
+        history_start_only["readback"]["queries"]["historical"] = {
             "history_start": "2025-01-01T00:00:00Z",
             "end": OBSERVED_AT,
             "has_more": False,
         }
-        proven_coverage = {
-            row["projection"]: row for row in adapt(proven)
+        history_start_only_coverage = {
+            row["projection"]: row for row in adapt(history_start_only)
             if row["record_type"] == "coverage"
         }
-        for projection in ("historical", "trailing"):
-            self.assertEqual(
-                (proven_coverage[projection]["coverage_state"],
-                 proven_coverage[projection]["reason"]),
-                ("complete", None),
-            )
+        self.assertEqual(
+            (history_start_only_coverage["historical"]["coverage_state"],
+             history_start_only_coverage["historical"]["reason"]),
+            ("gap", "read_failed"),
+        )
+        self.assertEqual(
+            (history_start_only_coverage["trailing"]["coverage_state"],
+             history_start_only_coverage["trailing"]["reason"]),
+            ("complete", None),
+        )
 
         inception_proven = payloads()
         inception_proven["readback"]["queries"]["historical"] = {
@@ -463,12 +491,35 @@ class StripeAttributionTest(unittest.TestCase):
             if row["record_type"] == "coverage"
         }
         self.assertEqual(
-            {inception_coverage[projection]["coverage_state"]
-             for projection in ("historical", "trailing")},
-            {"complete"},
+            (inception_coverage["historical"]["coverage_state"],
+             inception_coverage["historical"]["reason"]),
+            ("gap", "read_failed"),
+        )
+        self.assertEqual(
+            (inception_coverage["trailing"]["coverage_state"],
+             inception_coverage["trailing"]["reason"]),
+            ("complete", None),
         )
 
-        partial = copy.deepcopy(proven)
+        fully_proven = payloads()
+        fully_proven["readback"]["queries"]["historical"] = {
+            "account_inception": True,
+            "history_start": "2025-01-01T00:00:00Z",
+            "end": OBSERVED_AT,
+            "has_more": False,
+        }
+        fully_proven_coverage = {
+            row["projection"]: row for row in adapt(fully_proven)
+            if row["record_type"] == "coverage"
+        }
+        for projection in ("historical", "trailing"):
+            self.assertEqual(
+                (fully_proven_coverage[projection]["coverage_state"],
+                 fully_proven_coverage[projection]["reason"]),
+                ("complete", None),
+            )
+
+        partial = copy.deepcopy(fully_proven)
         partial["readback"]["queries"]["historical"]["has_more"] = True
         partial_coverage = {
             row["projection"]: row for row in adapt(partial)

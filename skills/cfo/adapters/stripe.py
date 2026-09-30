@@ -143,11 +143,10 @@ def _readback_reasons(payloads: dict, observed_at: str,
     historical_end = _record_instant(historical.get("end"))
     history_start = _record_instant(historical.get("history_start"))
     account_inception = historical.get("account_inception") is True
-    if historical_end is None or (history_start is None and not account_inception):
+    if historical_end is None or history_start is None or not account_inception:
         return None, "read_failed"
-    if (historical_end != observed_at
-            or (history_start is not None
-                and (history_start >= historical_end or history_start > trailing_start))):
+    if (historical_end != observed_at or history_start >= historical_end
+            or history_start > trailing_start):
         return None, "stale_readback"
     return None, None
 
@@ -193,6 +192,27 @@ def _refund_consistency_refs(transactions: dict[str, dict], charges: dict[str, d
                 or not isinstance(claimed, int) or claimed < 0
                 or claimed != refund_totals.get(charge_id, 0)
                 or claimed != transaction_totals.get(charge_id, 0)):
+            refs.append(_evidence("charges", charge_id))
+    return refs
+
+
+def _charge_consistency_refs(transactions: dict[str, dict],
+                             charges: dict[str, dict]) -> list[str]:
+    refs: list[str] = []
+    for charge_id, charge in charges.items():
+        metadata = charge.get("metadata")
+        if (charge.get("object") != "charge" or charge.get("status") != "succeeded"
+                or charge.get("paid") is not True or charge.get("captured") is not True
+                or charge.get("livemode") is not True or charge.get("disputed") is not False
+                or not isinstance(metadata, dict)
+                or metadata.get("lm_economic_category") != contract.REVENUE):
+            continue
+        transaction_id = _identifier(charge.get("balance_transaction"))
+        transaction = transactions.get(transaction_id or "")
+        if (transaction_id is None or not isinstance(transaction, dict)
+                or transaction.get("object") != "balance_transaction"
+                or transaction.get("type") not in CHARGE_TYPES
+                or transaction.get("source") != charge_id):
             refs.append(_evidence("charges", charge_id))
     return refs
 
@@ -509,6 +529,7 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
     financial_complete = balance_complete and charges_complete and refunds_complete
     if financial_complete:
         transactions = _index(balance_rows, "balance_transactions")
+        financial_refs.extend(_charge_consistency_refs(transactions, charges))
         financial_refs.extend(_refund_consistency_refs(transactions, charges, refunds))
         for transaction_id, transaction in sorted(transactions.items()):
             kind = transaction.get("type")
