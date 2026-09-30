@@ -7,6 +7,8 @@ const { buildRuntimeJob, enqueueJob } = require("./runtime-job-store.js");
 const { financialRecordId } = require("./financial-record-contract.js");
 const { createPostgresFinancialRecordStore } = require("./financial-record-store.js");
 const { usdMicrosFromDecimal } = require("./financial-money.js");
+const { buildFinancialManagerReport, renderFinancialManagerTelegram } = require("./financial-manager-report.js");
+const { deliverCloudCfoEmail } = require("./cfo-cloud-delivery.js");
 const { runFinancialManager } = require("./financial-manager-runtime.js");
 const { hashChatId, sendMessage } = require("./telegram.js");
 
@@ -258,6 +260,36 @@ async function runCloudFinancialManagerReport(request = {}, deps = {}) {
   const tenant = await readTenant(uid);
   if (!tenant || String(tenant.uid || "") !== uid) throw new Error("financial report tenant scope mismatch");
   if (tenant.notifications_enabled === false) return { status: "skipped", reason: "notifications_disabled", report_kind: kind };
+  const channel = tenant.cfo_report_channel || "email";
+  if (channel === "off") return { status: "skipped", reason: "notifications_disabled", report_kind: kind };
+  if (channel === "email") {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenant.email || "")) {
+      return { status: "skipped", reason: "email_unbound", report_kind: kind };
+    }
+    const timezone = String(tenant.call_time_zone || "Asia/Tokyo");
+    const reportingDate = reportingDateForZone(nowMs, timezone);
+    if (tenant.cfo_report_cadence === "daily" && !request.force && !dueConsolidatedReport("daily", nowMs, timezone)) {
+      return { status: "skipped", reason: "not_due", report_kind: kind };
+    }
+    const periodKey = tenant.cfo_report_cadence === "daily" ? reportingDate
+      : `${reportingDate}:${new Date(nowMs).toISOString().slice(11, 13)}`;
+    const store = deps.financialStore || createPostgresFinancialRecordStore({ query: deps.query });
+    if (tenant.agent_wallet_address) {
+      const readLedger = deps.readLedger || (wallet => walletLedgerRuntime().readWalletLedger(wallet, deps));
+      const readCosts = deps.readCosts || ((id, range) => legacyFinancialRuntime().readCostLedger(id, { ...deps, ...range }));
+      if (typeof deps.readBalance !== "function") throw new Error("Financial Manager Base balance reader is required");
+      const [ledgerRows, costRows, balanceAtomic] = await Promise.all([
+        readLedger(tenant.agent_wallet_address), readCosts(uid, { since: reportBounds("daily", nowMs, timezone).period_start }),
+        deps.readBalance(tenant.agent_wallet_address),
+      ]);
+      await appendCloudFinancialRecords({ store, subjectId: uid, walletAddress: tenant.agent_wallet_address,
+        ledgerRows, costRows, balanceAtomic, observedAt: new Date(nowMs).toISOString() });
+    }
+    const { report } = buildFinancialManagerReport(await store.read({ subjectId: uid }), reportingDate, { timezone });
+    const receipt = await deliverCloudCfoEmail({ uid, periodKey, recipient: tenant.email,
+      message: renderFinancialManagerTelegram(report), observedAt: new Date(nowMs).toISOString() }, deps);
+    return { ...receipt, report_kind: kind, period_key: periodKey };
+  }
   if (!String(tenant.telegram_chat_id || "")) return { status: "skipped", reason: "telegram_unbound", report_kind: kind };
   if (!String(tenant.agent_wallet_address || "")) return { status: "skipped", reason: "agent_wallet_unbound", report_kind: kind };
 
@@ -455,6 +487,19 @@ async function executeFinancialReportJob(job, deps = {}) {
   if (request.tenantId !== job.tenant_id) {
     throw new Error("financial report tenant scope mismatch");
   }
+  if (!deps.runReport) {
+    const readTenant = deps.readTenant || (uid => legacyFinancialRuntime().readFinancialTenant(uid, deps));
+    const tenant = await readTenant(job.tenant_id);
+    if (tenant && (tenant.cfo_report_channel || "email") !== "telegram") {
+      const result = await runCloudFinancialManagerReport({ uid: job.tenant_id, kind: request.kind,
+        nowMs: request.nowMs, force: request.force }, { ...deps, readTenant: async () => tenant });
+      return { receipt: { schema_version: 1, kind: "email_financial_report", status: result.status,
+        provider_message_id: result.providerMessageId || null,
+        recipient_hash: result.recipientHash || null, snapshot_hash: result.snapshotHash || null,
+        sent_at: result.sentAt || null, report_kind: request.kind,
+        period_key: result.period_key || null }, result };
+    }
+  }
   if (!deps.secretProvider || typeof deps.secretProvider.get !== "function") {
     throw new Error("financial report secret provider is required");
   }
@@ -559,6 +604,14 @@ function validFreshness(value) {
 }
 
 function verifyFinancialReportReceipt(receipt) {
+  if (receipt?.schema_version === 1 && receipt.kind === "email_financial_report") {
+    return ["sent", "duplicate"].includes(receipt.status)
+      ? typeof receipt.provider_message_id === "string" && receipt.provider_message_id.length > 0
+        && HASH.test(String(receipt.recipient_hash || "")) && HASH.test(String(receipt.snapshot_hash || ""))
+        && validIso(receipt.sent_at)
+      : receipt.status === "skipped" && REPORT_KINDS.has(receipt.report_kind);
+  }
+
   if (
     !receipt
     || typeof receipt !== "object"
@@ -581,6 +634,11 @@ function verifyFinancialReportReceipt(receipt) {
 }
 
 function safeFinancialReportSummary(receipt) {
+  if (receipt?.kind === "email_financial_report" && verifyFinancialReportReceipt(receipt)) {
+    return { status: receipt.status, channel: "email", provider_message_id: receipt.provider_message_id,
+      report_kind: receipt.report_kind, period_key: receipt.period_key };
+  }
+
   if (!verifyFinancialReportReceipt(receipt)) {
     throw new Error("financial report receipt verification failed");
   }

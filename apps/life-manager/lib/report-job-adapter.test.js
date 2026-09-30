@@ -48,6 +48,7 @@ function reportDeps(calls) {
     },
     readTenant: async () => ({
       uid: "tenant-a",
+      cfo_report_channel: "telegram",
       telegram_chat_id: "private-chat-id",
       agent_wallet_address: WALLET,
       notifications_enabled: true,
@@ -178,9 +179,9 @@ test("adapter routes cloud input through the shared Financial Manager body and e
     tenantId: "tenant-a",
     ref: "secret://telegram/bot-token",
   });
-  assert.match(send.body, /^💰 Financial Manager/);
-  assert.match(send.body, /事業（今日）\n収益：USD 1\.00/);
-  assert.match(send.body, /個人資産/);
+  assert.match(send.body, /^Life Manager/);
+  assert.match(send.body, /今日の確認済み売上: USD 1\.00/);
+  assert.doesNotMatch(send.body, /個人資産/);
   assert.match(receipt.receipt.snapshot_hash, /^[0-9a-f]{64}$/);
   assert.deepEqual({
     chat_id_hash: receipt.receipt.chat_id_hash,
@@ -458,4 +459,25 @@ test("a forced runtime job uses the durable job receipt as its one-shot dedupe b
   assert.equal(runtimeDeps.markReceiptSent, markReceiptSent);
   assert.equal(runtimeDeps.markReceiptFailed, markReceiptFailed);
   assert.equal(execution.receipt.status, "skipped");
+});
+
+test("cloud email default needs no Telegram binding or secret and uses tenant's address", async () => {
+  const calls = [];
+  const deps = reportDeps(calls);
+  deps.readTenant = async () => ({ uid: "tenant-a", email: "owner@example.test", notifications_enabled: true,
+    agent_wallet_address: WALLET, cfo_report_cadence: "hourly" });
+  let stored;
+  deps.cfoReceiptIO = { read: async () => stored,
+    claim: async (_, row) => { stored = row; return true; }, mark: async (_, patch) => Object.assign(stored, patch) };
+  deps.sendEmail = async args => { assert.equal(args.to, "owner@example.test");
+    assert.match(args.text, /今日の確認済み売上: USD 1\.00/); return { sent: true, id: "mail-id" }; };
+  deps.secretProvider = { get: async () => { throw new Error("Telegram must not be read"); } };
+  const job = buildFinancialReportJob({ tenantId: "tenant-a", kind: "daily", nowMs: NOW_MS,
+    telegramTokenRef: "secret://telegram/bot-token" });
+  const result = await executeFinancialReportJob(job, deps);
+  assert.equal(result.result.status, "sent");
+  assert.equal(result.receipt.kind, "email_financial_report");
+  assert.equal(result.receipt.provider_message_id, "mail-id");
+  assert.equal((await executeFinancialReportJob(job, deps)).result.status, "duplicate");
+  assert.equal(calls.filter(c => c.kind === "send").length, 0);
 });
