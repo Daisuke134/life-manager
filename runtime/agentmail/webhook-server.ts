@@ -14,7 +14,7 @@
 import express, { type Request, type Response } from "express";
 import bodyParser from "body-parser";
 import { Webhook, WebhookVerificationError } from "svix";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { agentMailQueuePath } from "./paths.ts";
 
@@ -29,6 +29,39 @@ const QUEUE_PATH = agentMailQueuePath;
 //   AGENTMAIL_WEBHOOK_SECRET_HERMES    — hermes org
 //   AGENTMAIL_WEBHOOK_SECRET_<NAME>    — any future org
 // We try each in turn; first match wins. Empty secrets are skipped.
+// Env-file fallback (2026-09-30 live incident): launch.sh sources the Life Manager env file
+// before exec, but any supervisor that starts webhook-server.ts directly bypasses that — the
+// process then runs with ZERO secrets. healthz reported ok:true despite signed:false and
+// secret_buckets:[]; requests were accepted as unverified, not authenticated.
+// If no AGENTMAIL_WEBHOOK_SECRET* is in the environment, load the env file here. The process
+// environment always wins; values are never logged.
+function loadEnvFileFallback(): void {
+  const hasSecret = Object.entries(process.env).some(([k, v]) =>
+    k.startsWith("AGENTMAIL_WEBHOOK_SECRET") && Boolean(v));
+  if (hasSecret) return;
+  const envFile = process.env.LIFE_MANAGER_ENV_FILE
+    ?? `${process.env.HOME}/.local/state/life-manager/.env`;
+  let text: string;
+  try {
+    text = readFileSync(envFile, "utf8");
+  } catch {
+    return; // no env file — healthz will report the unsigned state truthfully
+  }
+  for (const line of text.split("\n")) {
+    const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
+    if (!m) continue;
+    const [, key, raw] = m;
+    if (!key.startsWith("AGENTMAIL_WEBHOOK_SECRET")) continue;
+    if (process.env[key]) continue;
+    let value = raw.trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
+loadEnvFileFallback();
+
 const SECRETS: Array<{ name: string; secret: string }> = Object.entries(process.env)
   .filter(([k, v]) => k.startsWith("AGENTMAIL_WEBHOOK_SECRET") && typeof v === "string" && v.length > 0)
   .map(([k, v]) => ({
@@ -61,12 +94,15 @@ function enqueue(record: QueueRecord): void {
 const app = express();
 
 app.get("/healthz", (_req, res) => {
-  res.json({
-    ok: true,
+  // Readiness requires signature verification. Without secrets, requests are unverified.
+  const signed = SECRETS.length > 0;
+  res.status(signed ? 200 : 503).json({
+    ok: signed,
     port: PORT,
     queue: QUEUE_PATH,
-    signed: SECRETS.length > 0,
+    signed,
     secret_buckets: SECRETS.map(s => s.name),
+    ...(signed ? {} : { reason: "AGENTMAIL_WEBHOOK_SECRET* unset — inbound webhooks cannot be verified" }),
   });
 });
 
@@ -141,6 +177,14 @@ app.post(
     res.status(200).json({ ok: true, status });
   }
 );
+
+if (SECRETS.length === 0) {
+  process.stderr.write(JSON.stringify({
+    agentmail_webhook: "no_secrets",
+    detail: "no AGENTMAIL_WEBHOOK_SECRET* in env or env file — inbound webhooks will be unverified",
+    env_file: process.env.LIFE_MANAGER_ENV_FILE ?? "~/.local/state/life-manager/.env",
+  }) + "\n");
+}
 
 const server = app.listen(PORT, () => {
   process.stdout.write(`[agentmail-webhook] listening :${PORT} queue=${QUEUE_PATH}\n`);
