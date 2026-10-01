@@ -396,7 +396,18 @@ with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as h
 PY
       continue
     fi
-    if [ "$(date -u +%s)" -ge "$budget_deadline_epoch" ]; then
+    local remaining_budget_seconds
+    remaining_budget_seconds=$((budget_deadline_epoch - $(date -u +%s)))
+    if [ "$remaining_budget_seconds" -le 0 ]; then
+      budget_exceeded=1
+      break
+    fi
+    # Do not start another owner when the remaining fleet budget cannot cover its full bounded
+    # timeout. Starting it anyway lets the per-owner timeout (and its grace period) overrun the
+    # fleet deadline, which was observed as 1225s for a 1200s budget. If configuration gives an
+    # owner timeout larger than the fleet budget, fail closed before starting any owner rather than
+    # violating the fleet bound.
+    if [ "$remaining_budget_seconds" -lt "$per_owner_timeout_seconds" ]; then
       budget_exceeded=1
       break
     fi

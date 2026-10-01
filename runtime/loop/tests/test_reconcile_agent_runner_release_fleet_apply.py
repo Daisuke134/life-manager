@@ -50,6 +50,13 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    slow_first)
+      if [ "$target" = "${FAKE_SLOW_LOOP_ID:-}" ]; then
+        sleep 2.2
+      fi
+      echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
+      exit 0
+      ;;
   esac
 fi
 exit 0
@@ -167,6 +174,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             "LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS": "30",
             "LIFE_MANAGER_RECONCILE_TIMEOUT_SECONDS": "30",
             "LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS": "10",
+            "LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS": "2",
             "LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS": "100000",
             "LIFE_MANAGER_FLEET_APPLY_MIN_INTERVAL_SECONDS": "1800",
             "FAKE_LM_LOOP_CALLS_LOG": str(calls_log),
@@ -712,6 +720,41 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 calls_text.index("target=aaa-growth"),
                 "earn/revenue owners must run before growth owners",
             )
+
+    def test_owner_is_not_started_when_remaining_budget_is_less_than_per_owner_timeout(self):
+        """A bounded fleet budget must not be overrun by starting another full owner timeout."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root,
+                sha,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="slow_first")
+            env["FAKE_SLOW_LOOP_ID"] = "first-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+
+            result = self._run(env)
+
+            calls_text = calls_log.read_text()
+            self.assertIn("target=first-earn", calls_text)
+            self.assertNotIn(
+                "target=second-earn",
+                calls_text,
+                "the next owner must wait for a later retry when less than one full owner timeout remains",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            state = self._state(root)
+            self.assertEqual(state["status"], "partial")
+            self.assertIn("budget exceeded", state["message"])
 
 
 if __name__ == "__main__":
