@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "record_type": "marketplace_financial_readback",
+  "platform": "lancers",
+  "product_loop_id": "gig-lancers",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "coverage": {
+    "historical": {
+      "complete": true,
+      "window_start": null,
+      "window_end": "2026-10-01T00:00:00Z"
+    },
+    "trailing": {
+      "complete": true,
+      "window_start": "2026-09-24T00:00:00Z",
+      "window_end": "2026-10-01T00:00:00Z"
+    }
+  },
+  "pagination": {
+    "complete": true,
+    "pages_fetched": 1,
+    "records_fetched": 9,
+    "next_cursor": null
+  },
+  "receipt_map": {
+    "complete": true,
+    "records": [
+      {
+        "schema_version": 1,
+        "record_type": "payment_receipt",
+        "platform": "lancers",
+        "work_external_id": "work-1",
+        "payment_external_id": "payment-1",
+        "receipt_id": "payment-1",
+        "gross_amount_minor": 45000,
+        "fee_amount_minor": 4500,
+        "cost_amount_minor": 0,
+        "net_amount_minor": 40500,
+        "currency": "JPY",
+        "status": "settled",
+        "occurred_at": "2026-09-26T03:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "payment_receipt",
+        "platform": "lancers",
+        "work_external_id": "work-2",
+        "payment_external_id": "payment-2",
+        "receipt_id": "payment-2",
+        "gross_amount_minor": 10000,
+        "fee_amount_minor": 0,
+        "cost_amount_minor": 0,
+        "net_amount_minor": 10000,
+        "currency": "JPY",
+        "status": "settled",
+        "occurred_at": "2026-09-27T03:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "fee_receipt",
+        "platform": "lancers",
+        "payment_external_id": "payment-2",
+        "receipt_id": "fee-2",
+        "fee_type": "payment_fee",
+        "amount_minor": 200,
+        "currency": "JPY",
+        "occurred_at": "2026-09-27T03:00:00Z",
+        "settled_at": "2026-09-27T03:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "refund_receipt",
+        "platform": "lancers",
+        "payment_external_id": "payment-1",
+        "receipt_id": "refund-1",
+        "refund_amount_minor": 5000,
+        "currency": "JPY",
+        "status": "settled",
+        "occurred_at": "2026-09-28T03:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "payout_match_receipt",
+        "platform": "lancers",
+        "payment_external_id": "payment-1",
+        "payout_external_id": "payout-1",
+        "bank_transaction_external_id": "bank-1",
+        "status": "matched",
+        "amount_minor": 40500,
+        "currency": "JPY",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "pending_payment_receipt",
+        "platform": "lancers",
+        "payment_external_id": "payment-pending",
+        "receipt_id": "payment-pending",
+        "amount_minor": 7000,
+        "currency": "JPY",
+        "occurred_at": "2026-09-29T03:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "movement_receipt",
+        "platform": "lancers",
+        "movement_external_id": "self-pay-1",
+        "category": "self_payment",
+        "amount_minor": 1000,
+        "currency": "JPY",
+        "occurred_at": "2026-09-29T04:00:00Z",
+        "settled_at": "2026-09-29T04:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "movement_receipt",
+        "platform": "lancers",
+        "movement_external_id": "owner-deposit-1",
+        "category": "owner_deposit",
+        "amount_minor": 3000,
+        "currency": "JPY",
+        "occurred_at": "2026-09-29T05:00:00Z",
+        "settled_at": "2026-09-29T05:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      },
+      {
+        "schema_version": 1,
+        "record_type": "movement_receipt",
+        "platform": "lancers",
+        "movement_external_id": "internal-transfer-1",
+        "category": "internal_transfer",
+        "amount_minor": 2000,
+        "currency": "JPY",
+        "occurred_at": "2026-09-29T06:00:00Z",
+        "settled_at": "2026-09-29T06:00:00Z",
+        "observed_at": "2026-10-01T00:00:00Z"
+      }
+    ]
+  },
+  "aggregate": {
+    "currency": "JPY",
+    "sales_count": 2,
+    "net_amount_minor": 45300
+  },
+  "content_sha256": "37cba946f21631eba4de1096ca8ac4c9ac6957b21a3f2db9bc8739cbdb95d25c",
+  "evidence_ref": "marketplace://lancers/financial-readback/sha256/37cba946f21631eba4de1096ca8ac4c9ac6957b21a3f2db9bc8739cbdb95d25c"
+}
