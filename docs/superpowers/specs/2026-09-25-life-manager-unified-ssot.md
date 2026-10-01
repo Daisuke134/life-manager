@@ -2182,3 +2182,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. P1-1は「自然tickの成功」ではなく「`0ebdc38b` partialの正確な失敗境界」まで確定した。次はbackoff後の自然retryで、budget starvation・timeout owner・admission capacityの自己所有修正をsource-onlyで検証する。
 2. P1-2は未完了。自然retryが`partial`でない公式receiptになった後、未適用target（PromptBase、Connector、Self-Build、reconciler）とloaded SHA/argv/rollbackを一件ずつreadbackする。
 3. Capafyはtarget適用済みだが外部効果未確認、Job Hunterもtarget適用済みだがATS/Gmail/Ledger/Telegramの公式readback未確認。PromptBase/Writer、Connector/Mobile、Marketplace、Self-Build、Investment、Agent Economy、CFO、self-funding/cloudは従前の順序で未完了のまま進める。
+
+### 21. fleet budget order source fix のmerge後境界（2026-10-01 20:29–20:41 JST）
+
+- P1-1の再現可能なsource境界を、`bin/reconcile-agent-runner-release.sh`のfleet owner順序に確定した。従来はregistryのloop id順で、slowなgrowth/publish ownerが1200秒のfleet budget末尾を消費し、収益ownerが未適用のまま`partial`になり得た。
+- 専用branchで、`domain`（`earn`→`financial`→`growth`→`system`）、`priority`、`admission_class`、`loop_id`の決定的順序を追加し、収益・金融ownerを先に試行する最小修正を実装した。回帰テストを先にRED（`168`が`144`より小さくない）で確認し、修正後にfocused fleet apply suite `18/18 PASS`、`bash -n`、diff checkを通した。PR #6389はadmin squash mergeされ、`origin/main=f58edcba2ca3d161796a95f6c7c6836ee4c606fb`にsourceとtestが存在する。production/provider/browserへの手動effectは0件である。
+- ただし、現在の自然reconciler tick（parent PID `38551`、reconciler PID `38591`）はPR merge前に旧release `0ebdc38b`で起動しており、20:41 JST時点でも実行中である。したがって、現在の`current=/Users/anicca/loops/releases/20261001T195004-0ebdc38b`とその途中のowner logは、`f58edcba`の順序修正を読み込んだ証拠ではない。手動stop/restart/apply/retryは行わない。
+- 次の証拠境界は、(1)旧tickの自然終端receipt、(2)その後の自然tickが`f58edcba`由来immutable releaseをcutすること、(3)収益ownerがgrowth timeoutより前に処理されたowner log、(4)`status=ok`または各失敗の公式readback付きpartial、(5)target plistのloaded SHA/argvとhealthの一致、の順である。source修正がbudget overrunを残す場合だけ、同一原因を再現するfailing testを先に追加して、per-owner timeoutを予算予約する最小修正を別PRで検討する。timeout値を自己流で変更しない。
+- `fleet-apply-state`の最新確定値はなお`0ebdc38b / partial / changed=69 / skipped=13 / errors=3 / timeout=life-manager-anicca-buddha-tiktok`で、`df -k /`は20:40 JSTにfree `7,475,700 KB`。10GB安定・ENOSPC解消の二回readbackは未達であり、Capafy、PromptBase/Writer、foundation live fleet、14 loopのcost-complete P&Lは未完了のまま保持する。
+
+#### 21時点の原子cursor
+
+1. 旧releaseの自然tickを終端までread-only観測し、次の自然tickで`f58edcba`のrelease/owner orderを公式readbackする。
+2. `effect_unknown`中の手動apply・restart・retry・provider再送はしない。budget overrun/ENOSPCが再現した場合のみsource-only TDD修正を行う。
+3. P1 target provenanceを閉じた後、PromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-fundingのnamed TODOを既存順序で一件ずつ進める。
