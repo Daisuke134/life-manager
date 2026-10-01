@@ -2389,7 +2389,7 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 
 ### 35. 5b natural retry 2回目のpartial（2026-10-02 01:28 JST）
 
-- 次の5b natural retryは`2026-10-01T16:28:25Z`に終端し、`fleet-apply-state.json`は`status=partial / changed=11 / skipped=94 / errors=6 / message="timed out owners: none; budget exceeded" / sha=5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`となった。前回partialからtarget ownerのloaded SHAは増えたが、fleet収束ではない。
+- 次の5b natural retryは`2026-10-01T16:28:25Z`に終端し、`fleet-apply-state.json`は`status=partial / changed=11 / skipped=94 / errors=6 / message="timed out owners: life-manager-anicca-buddha-tiktok,life-manager-anicca-en-affirmation-instagram,life-manager-anicca-en-affirmation-tiktok,life-manager-anicca-en-slideshow-tiktok,life-manager-anicca-en-widget-instagram,life-manager-anicca-jp1-tiktok; budget exceeded" / sha=5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`となった。前回partialからtarget ownerのloaded SHAは増えたが、fleet収束ではない。
 - 今回のtyped timeout rowsは`life-manager-anicca-buddha-tiktok`、`life-manager-anicca-en-affirmation-instagram`、`life-manager-anicca-en-affirmation-tiktok`、`life-manager-anicca-en-slideshow-tiktok`、`life-manager-anicca-en-widget-instagram`、`life-manager-anicca-jp1-tiktok`。外部provider receiptなしで再送せず、次のbackoff/natural retryへ残す。
 - current release/target SHAは5b。disk freeは`2,386,436 KB`で、10GB安定条件を満たさない。Capafy/PromptBaseの公式listing・sale・settlement・payout、CFO `14/14`、self-fundingは未達のまま。
 
@@ -2404,3 +2404,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 - `fix/capacity-selfheal-20260930`（HEAD `09956e02b2`）をread-only監査した。baseは`3975ae8996`、current mainは`5b913ad218`で、mainとの差分は8 files / 655 additions+changes。`runtime/loop/runtime_reserve.py`、`lm_loop_run.py`、`runtime_event.py`、disk cleanupを横断する古い大差分である。
 - 現mainには既にdisk cleanupのmode-0600 receipt reserveとENOSPC retry testsが存在し、旧branchのruntime-wide reserveは未統合。current 5b fleet partialの直接原因はmobile owner timeoutとbudget exhaustionで、新しいENOSPC terminal eventはまだ観測していない。
 - したがって旧branchをそのままPR/mergeしない。Ponytail/YAGNIの最小境界として、fresh ENOSPC再現が出た場合だけcurrent mainから専用worktreeを作り、欠けているruntime bookkeeping writeを1つずつRED化する。現在cursorは5b natural retry/disk readbackのまま維持する。
+
+### 37. mobile owner timeoutの根因修正とmain統合（2026-10-02 02:00 JST）
+
+- 6 mobile ownerはいずれもloaded-idle・`safely_fenced`で、admission DBに`effect_unknown`履歴が488〜1,929行あった。`_admission_rebind_guard`は`rebind_queued_owner=not_queued`の後、全履歴を無制限に再評価していた。実process sampleでもPythonがgenerator/list/dict比較でCPUを消費しており、launchctl待ちではなかった。これがownerごとの120秒timeoutとfleet budget exhaustionの直接原因である。
+- current mainからbranch `fix/reconciler-pre-effect-bound-20261002`を作り、同じ場所で既存`PRE_EFFECT_RECONCILE_MAX_ROWS`を再利用する1行のbounded replayへ変更した。回帰testは旧codeでunbounded helper呼び出しを検出してRED、修正後GREEN。fresh検証はruntime apply/fleet suite `173 tests / 0 failures`、diff check、`lm-loop-contract=14 loops / 178 jobs / errors=[]`。
+- PR #6408はadmin squash mergeされ、`origin/main=25db7278987efa87c249d3fbfe509f53d18ef934`となった。GitHubのPython unittest、shell、PII、gitleaks、TruffleHogはPASS。既知FAILは`skills/capafy-autopublish`のmanifest inventory mismatchと30日超のstartup context/linkで、この2-file差分とは無関係である。
+- productionへmanual apply/restart/retryはしていない。`20261002T001513-5b913ad2`上の自然reconciler（PID 66236/66261）は02:00 JST時点で稼働中で、fleet stateは16:28:25Zの5b partialのまま。新main由来immutable releaseと6 ownerのtimeout解消はまだ未観測であり、P1-2bは未完了。`/System/Volumes/Data`のfreeは`1,481,204 KB`で、10GB安定二回条件も未達である。
+
+#### 37時点のcursor
+
+1. 旧5b natural reconcilerの終端をread-onlyで取得し、次の自然tickがmain `25db727898`由来releaseをcut/self-handoffするまで待つ。manual apply/restart/retryは禁止。
+2. 新releaseのfleet state、6 mobile ownerのloaded SHA/argvとtimeout有無、admission queue、disk free二回を公式readbackする。P1-2bは`status=ok`または理由・次手がtypedなpartialまで閉じない。
+3. 収束後にL9-13.1 TaskMarket no-effect discovery→BlockRun useful paid inference、PromptBase/Writer→Capafy→各named loop→CFO `14/14` cost-complete P&Lの順で進む。現時点で全14 loop修復・financial independence・self-fundingは未達である。
