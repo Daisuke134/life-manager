@@ -2372,3 +2372,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 次の5b natural retryのfleet state・owner log終端をread-onlyで取得する。
 2. 5b target owner loaded SHA/argv、admission queue、disk free二回安定を揃える。`effect_unknown`のmanual apply/restart/retryは禁止。
 3. `status=ok`またはreadback付きpartialの後に、PromptBase/Writer→Capafy→named loop→CFOへ進む。
+
+### 34. 5b fleet apply partialの終端と次の自然retry（2026-10-02 01:00 JST）
+
+- 5b natural fleet applyの公式stateは`2026-10-01T15:58:58Z`に終端し、`status=partial / changed=74 / skipped=23 / errors=2 / message="timed out owners: none; budget exceeded" / sha=5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`となった。5b owner logは106行、`rc=0:104 / rc=1:2`、合計owner実行時間は約1129秒である。
+- rc=1の境界は`hf-gig-apply-direct`（5秒）と`alpaca-investment-live`（31秒）。外部応募・注文の公式receipt/readbackなしで再送・manual sell・restartはしていない。次の自然retryはbackoff/queue境界として扱う。
+- target provenanceは部分収束した。`capafy-loop-daily`、`promptbase-loop-daily`、`agent-economy-loop`、`life-manager-cfo-hourly`、reconciler、handoff watcherは5bのloaded argv/SHA。`life-manager-connector-native`と`life-manager-selfbuild`は旧284bed、全target ownerの5b一致ではない。
+- fresh health（`2026-10-01T16:00:24Z`、exit `1`）は`total=178`、`running=22 / failed=43 / safely_fenced=69 / effect_unknown=9 / healthy=29 / telemetry_gap=6`。Capafyは旧b13 occurrenceの`safely_fenced`、PromptBaseは5b `telemetry_gap`、Connector/Self-Buildはprocess-only old SHA、Agent Economyは旧2d `entrypoint_exit_75`、reconcilerは5b `entrypoint_exit_1`である。`df -k /` freeは`2,513,480 KB`で、10GB安定条件は大幅未達。
+- P1-2a self-handoffはreceipt `status=ok`で完了したが、P1-2b fleet収束は未完了。5b partialは証拠として保存し、`effect_unknown` ownerへの手動再apply・restart・provider再送はしない。
+
+#### 34時点のcursor
+
+1. 5b partialのbackoff後natural retryをread-onlyで観測し、未適用Connector/Self-Build等のloaded SHA/argvを一件ずつ確認する。
+2. admission queueとdisk free二回安定を取得する。capacity/ENOSPCが再現する場合はsource境界を診断するが、timeout値を自己流に変更しない。
+3. fleetが安定してからPromptBase/Writer→Capafy→各named loop→CFOへ進む。現時点で14 loopのsettled revenueは`unknown`、cost-complete P&Lは`0/14`のまま。
