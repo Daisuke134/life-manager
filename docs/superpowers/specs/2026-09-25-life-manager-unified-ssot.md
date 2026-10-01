@@ -2502,3 +2502,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 04:26:49 JST以降のnatural fleet retryで旧25 ownerとprotected rootが減るか確認する。
 2. 3 HELDは公式readback付きtyped exceptionとして維持し、重複応募・注文・通知をしない。
 3. disk 10GB二回が自然cleanupだけで届かない場合、他agent/repository/stateを削除せず、ownerが証明できる再生成可能対象だけを次のsource TODOにする。
+
+### 44. 04:26 natural retryと154/178収束（2026-10-02 04:31 JST）
+
+- backoff中の60秒tickはshared/deterministic loaded-idle reconcileを行った後、fleet applyだけを`backoff until`でskipする。これは旧ownerを最大8件ずつ安全に前進させるため、pre-reconcile前の早期skipへ変更しない。
+- eligibility後のnatural retryは全177 ownerを処理し、`status=error / changed=1 / skipped=173 / errors=3 / timed out owners:none`。変更1件は`life-manager-anicca-ja-widget-instagram`で、3fへ正常更新された。errors 3は公式readback付きHELDのCoconala apply、Alpaca live、Instagram metricsのみで、新規failureはない。
+- plist readbackは154/178が3f、旧SHAは24件。主要target ownerと旧mobile timeout群は3fで、旧24件はhealth上`safely_fenced`または`effect_unknown`。protected release rootは16、open rootは2、release総数16で、自然cleanupはunprotected releaseを既に全削除している。
+- disk freeは約4.3〜5.4GBで変動し、10GB二回は未達。既存cleanup allowlistの再生成cacheは約200MBだけ。私所有のmerged worktreeは全て削除済みで、残る私所有worktreeはmain未統合かつactive PIDがcwdとして使用中なので保護した。別agent worktree、repository、OpenClaw credential/session/memoryは削除しない。
+
+#### 44時点のcursor
+
+1. 旧24 ownerは自然cadenceと次fleet retryでのみ前進させる。HELD 3件を再送・強制rebindしない。
+2. natural cleanupのfree_afterを二回追跡し、10GB未達が続く場合は証明済みの再生成対象だけをsource allowlist候補にする。
+3. 主要target provenanceと公式readback partialは揃ったため、disk gateが満たされた時点でP1-2b完了判定を行う。
