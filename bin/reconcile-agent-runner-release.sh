@@ -331,8 +331,21 @@ prev_failed = {
     if row.get("rc") not in (0, None)
 }
 
+def apply_order(loop_id):
+    entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
+    # Revenue/contract owners must not starve behind slow growth publishers when the bounded
+    # fleet budget is exhausted. Keep deterministic ordering inside each class.
+    domain_rank = {"earn": 0, "financial": 1, "growth": 2, "system": 3}.get(
+        entry.get("domain"), 4
+    )
+    priority_rank = {"critical_paid": 0, "revenue": 1, "support": 2}.get(
+        entry.get("priority"), 3
+    )
+    admission_rank = {"revenue": 0, "borrow": 1}.get(entry.get("admission_class"), 2)
+    return domain_rank, priority_rank, admission_rank, loop_id
+
 skip_current, clean, failed_last = [], [], []
-for loop_id in sorted(loops.keys()):
+for loop_id in sorted(loops.keys(), key=apply_order):
     if loop_id == own_loop_id:
         continue
     entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
