@@ -24,7 +24,8 @@ KEY_GATE_CALL_SITES = (
 class KeyHealthGateTest(unittest.TestCase):
     def run_gate(self, key_response, enable_alert=False, credits_remaining=25,
                  management_key="", healed_key_response=None, hard_cap="50",
-                 hosted_model_id=None, hosted_max_tokens=None):
+                 hosted_model_id=None, hosted_max_tokens=None,
+                 resource_exhaustion=False):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             fake_bin = root / "bin"
@@ -54,6 +55,35 @@ esac
                 encoding="utf-8",
             )
             fake_curl.chmod(fake_curl.stat().st_mode | stat.S_IXUSR)
+            python_calls = root / "python-calls.txt"
+            if resource_exhaustion:
+                fake_python = fake_bin / "python3"
+                fake_python.write_text(
+                    """#!/bin/sh
+count=0
+if [ -f "$FAKE_PYTHON_CALLS" ]; then
+  count=$(wc -l < "$FAKE_PYTHON_CALLS")
+fi
+count=$((count + 1))
+printf '%s\\n' "$*" >> "$FAKE_PYTHON_CALLS"
+if [ "$count" -eq 2 ]; then
+  echo 'No space left on device' >&2
+  exit 1
+fi
+exec "$FAKE_REAL_PYTHON" "$@"
+""",
+                    encoding="utf-8",
+                )
+                fake_python.chmod(fake_python.stat().st_mode | stat.S_IXUSR)
+                fake_df = fake_bin / "df"
+                fake_df.write_text(
+                    """#!/bin/sh
+printf '%s\\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on'
+printf '%s\\n' '/dev/test 1 1 0 100% /tmp'
+""",
+                    encoding="utf-8",
+                )
+                fake_df.chmod(fake_df.stat().st_mode | stat.S_IXUSR)
             alert_calls = root / "openclaw-calls.txt"
             if enable_alert:
                 fake_sender = fake_bin / "send-telegram.sh"
@@ -85,6 +115,13 @@ exit 0
                     "CAPAFY_KEY_DAILY_HARD_CAP_USD": hard_cap,
                 }
             )
+            if resource_exhaustion:
+                env.update(
+                    {
+                        "FAKE_PYTHON_CALLS": str(python_calls),
+                        "FAKE_REAL_PYTHON": sys.executable,
+                    }
+                )
             if enable_alert:
                 env["TELEGRAM_ALERT_CHAT_ID"] = "test-chat"
                 env["CAPAFY_TELEGRAM_SENDER"] = str(fake_sender)
@@ -106,6 +143,16 @@ exit 0
                 alert_calls.read_text(encoding="utf-8") if alert_calls.exists() else "",
                 len(list((root / "state" / "state").glob(".capafy-funding-alert-*"))),
             )
+
+    def test_resource_exhaustion_during_probe_is_not_reported_as_model_contract(self):
+        result, call_text, _, _ = self.run_gate(
+            {"data": {"limit_remaining": None}}, resource_exhaustion=True
+        )
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("resource_exhausted", output)
+        self.assertNotIn("invalid_hosted_model_contract", output)
+        self.assertNotIn("https://openrouter.ai/api/v1/chat/completions", call_text)
 
     def test_blocks_zero_or_negative_per_key_limit_before_live_probe(self):
         for remaining in (0, -0.01):
