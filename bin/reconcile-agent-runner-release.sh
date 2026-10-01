@@ -629,6 +629,35 @@ PY
   printf 'agent-runner self-handoff: scheduled release %s after parent exit\n' "$release_sha" >&2
 }
 
+if [ "${LIFE_MANAGER_RECONCILER_HANDOFF_ONLY:-0}" = "1" ]; then
+  handoff_release_root="$(cd "$CURRENT" 2>/dev/null && pwd -P || true)"
+  handoff_release_sha=""
+  if [ -n "$handoff_release_root" ]; then
+    handoff_release_sha="$("$runtime_python" - "$handoff_release_root/RELEASE.json" <<'PY'
+import json, sys
+try:
+    print(json.loads(open(sys.argv[1], encoding="utf-8").read()).get("sha", ""))
+except (OSError, ValueError, json.JSONDecodeError):
+    print("")
+PY
+    )"
+  fi
+  installed_reconciler_plist="${LIFE_MANAGER_LAUNCH_AGENTS_DIR:-$HOME/Library/LaunchAgents}/ai.anicca.life-manager-release-reconciler.plist"
+  installed_reconciler_sha="$("$runtime_python" - "$installed_reconciler_plist" <<'PY'
+import plistlib, sys
+try:
+    env = plistlib.loads(open(sys.argv[1], "rb").read()).get("EnvironmentVariables") or {}
+    print(env.get("LIFE_MANAGER_RELEASE_SHA", ""))
+except (OSError, ValueError, plistlib.InvalidFileException):
+    print("")
+PY
+  )"
+  if [ -n "$handoff_release_sha" ] && [ "$installed_reconciler_sha" != "$handoff_release_sha" ]; then
+    schedule_self_handoff "$handoff_release_root" "$handoff_release_sha"
+  fi
+  exit 0
+fi
+
 reconcile_release() {
   local release_root="$1"
   local status=0
