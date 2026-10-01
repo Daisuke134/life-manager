@@ -76,7 +76,7 @@ REPLY_DEADLINE_LOOP_IDS = frozenset({
     "lancers-revenue-negotiate",
     "mercor-revenue-reply",
 })
-REPLY_DEADLINE_STATUSES = frozenset({"overdue", "urgent", "upcoming", "unknown"})
+REPLY_DEADLINE_STATUSES = ("overdue", "urgent", "upcoming", "unknown")
 REPLY_DEADLINE_PATHS = (
     Path("reply/latest.json"),
     Path("latest.json"),
