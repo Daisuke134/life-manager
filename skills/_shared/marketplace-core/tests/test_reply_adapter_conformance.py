@@ -7,7 +7,7 @@ import sys
 import pytest
 
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 ADAPTERS = (
     ("coconala", ROOT / "skills/earn/gig/scripts/coconala_reply_adapter.py",
      "CoconalaReplyAdapter"),
