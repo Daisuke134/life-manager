@@ -42,6 +42,23 @@ test("an applied bundle is external-verified only with all provider, mail, and C
   }).external_registration_status, "verified");
 });
 
+test("the common write pipeline's complete result is also process-pass when all refs are present", () => {
+  const outcome = classifyConnectorOutcome({
+    ...TRACE,
+    result: {
+      status: "complete",
+      outcome: "verified_delivery",
+      journey: {
+        registration: { provider_receipt_ref: "provider-receipt://luma/receipt" },
+        confirmation_mail: { external_receipt_ref: "gmail-message://dais-local/mail" },
+        calendar: { calendar_event_ref: "calendar-evidence://google/event/event-1" },
+      },
+    },
+  });
+  assert.equal(outcome.process_status, "pass");
+  assert.equal(outcome.external_registration_status, "verified");
+});
+
 test("a failed process never claims an external registration", () => {
   assert.equal(classifyConnectorOutcome({
     ...TRACE,

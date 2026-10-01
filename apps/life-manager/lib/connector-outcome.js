@@ -30,7 +30,7 @@ function classifyConnectorOutcome(input = {}) {
   const releaseSha = String(input.release_sha || "unknown").trim();
   if (releaseSha !== "unknown" && !/^[0-9a-f]{40}$/.test(releaseSha)) invalid("release invalid");
   const status = String(result.status || "");
-  const processStatus = status === "applied_bundle" || status === "completed_no_effect" ? "pass" : "fail";
+  const processStatus = ["applied_bundle", "completed_no_effect", "complete"].includes(status) ? "pass" : "fail";
   const journey = result.journey && typeof result.journey === "object" && !Array.isArray(result.journey)
     ? result.journey : {};
   const registration = journey.registration || {};
