@@ -57,6 +57,43 @@ def _clear_pre_effect_hint():
         Path(hint).expanduser().resolve().unlink(missing_ok=True)
 
 
+_KNOWN_NO_EFFECT_STATUSES = frozenset({
+    "browser_unavailable",
+    "account_unavailable",
+    "profile_incomplete",
+    "eligibility_unknown",
+    "proposal_form_changed",
+    "financial_terms_required",
+    "profile_complete_no_eligible_open_job",
+})
+
+
+def _mark_pre_effect_failure(status: object) -> None:
+    """Tell lm-loop-run that a known no-effect outcome is safe to release."""
+    if status not in _KNOWN_NO_EFFECT_STATUSES:
+        return
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if not hint:
+        return
+    path = Path(hint).expanduser().resolve()
+    fd, temporary_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.")
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump({"status": "pre_effect_failure", "effect": 0}, handle,
+                      separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, path)
+        os.chmod(path, 0o600)
+    finally:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+
+
 def _group_cursor():
     try: value = json.loads((STATE / "application-owner.json").read_text(encoding="utf-8")).get("next_group_index", 0)
     except (OSError, ValueError, AttributeError): return 0
@@ -421,6 +458,8 @@ def main():
     result["eligibility_history"] = application.history_cache_status(
         STATE / "application-history.json"
     )
+    if result.get("effect_delta") == 0:
+        _mark_pre_effect_failure(result.get("status"))
     result["next_group_index"] = (group_cursor + GROUPS_READ_PER_WAKE) % len(JOB_GROUPS) if result.get("ok") else group_cursor
     result = _bind_runtime_occurrence(result, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     result["observed_at"]=now.isoformat();_write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 0 if result.get("ok") else 1

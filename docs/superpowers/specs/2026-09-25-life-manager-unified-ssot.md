@@ -2038,6 +2038,7 @@ flowchart LR
 - `skills/earn/crowdworks/scripts/application_tick.py` は公式`/e/proposals`のページ数を読み、各`/proposals/<id>`から数値の案件ID・発注者ID・`table.conditions`の日本語公式時刻を取得してRFC3339へ変換する。ページ／案件のどれかが読めない場合は`complete=false`を返す。
 - `skills/earn/crowdworks/scripts/application_owner.py` は候補へ発注者IDを付け、shared `eligibility.evaluate_reapplication`をsubmit前callbackへ接続した。履歴cacheは`~/.local/state/anicca/crowdworks/application-history.json`へ原子的に保存し、初回は1ページずつ進め、完了後は先頭ページのID差分だけを確認する。同期未完・ID欠落・履歴不整合は外部送信なしで`eligibility_unknown`となる。
 - owner status JSONにも`eligibility_history.status`（`missing／syncing／complete`）、`pages_read`、`page_count`、`next_page`だけを投影し、本文やcredentialを出さずに同期進捗を観測できるようにした。これはCLI healthの共通schema projectionではなく、次の接続点へ渡すbounded telemetryである。
+- `application-owner`は既知の外部効果ゼロ状態（履歴`eligibility_unknown`、案件なし、account/profile未準備）だけ、`entrypoint-result.json`へ`pre_effect_failure/effect=0`をatomicに残す。`submission_uncertain`やprovider readback失敗には絶対に書かないため、runnerのeffect fenceを安全に解放する境界と不確実な外部効果を分離できる。
 - 共通`event.schema.json`／`ApplicationReceipt`／transaction pending stateへ任意の`buyer_external_id`を追加し、応募receiptと再応募履歴を同じ発注者キーで結合できるようにした。旧receipt／旧pending stateはbuyer IDなしのまま後方互換で読める。
 - 実環境read-only probe（CrowdWorks CDP `9228`）で公式1ページ20件を取得し、案件ID・発注者ID・JST時刻の3点を全件readbackした。公式一覧は10ページを表示したため、10ページ全件のsource-complete同期とその後の自然run／公式receiptはまだ未完了である。
 - 検証: 履歴adapter・receipt buyer ID・eligibility／transaction focusedを含む`129 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`。

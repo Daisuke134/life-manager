@@ -49,6 +49,29 @@ def test_application_owner_clears_host_pre_effect_hint(tmp_path, monkeypatch):
     assert not hint.exists()
 
 
+def test_known_no_effect_status_writes_runner_pre_effect_proof(tmp_path, monkeypatch):
+    module = load()
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    module._mark_pre_effect_failure("eligibility_unknown")
+
+    assert json.loads(hint.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
+    }
+    assert hint.stat().st_mode & 0o777 == 0o600
+
+
+def test_submission_uncertain_never_gets_pre_effect_proof(tmp_path, monkeypatch):
+    module = load()
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    module._mark_pre_effect_failure("submission_uncertain")
+
+    assert not hint.exists()
+
+
 def test_receipt_writer_persists_runtime_occurrence(tmp_path, monkeypatch):
     module = load()
     module.LEDGER = tmp_path / "application-receipts.jsonl"
