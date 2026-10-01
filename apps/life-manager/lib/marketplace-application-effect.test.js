@@ -108,6 +108,28 @@ test("unknown pre-readback never executes and remains an unknown effect", async 
   assert.equal(executions, 0);
 });
 
+test("typed human-required proof skips before execution without human delegation", async () => {
+  const job = buildMarketplaceApplicationJob(input());
+  let executions = 0;
+  await assert.rejects(
+    runMarketplaceApplicationEffect(job, {
+      inspectApplication: async () => ({
+        state: "human_required",
+        requirements: ["interview", "free_form_response"],
+        evidence_ref: "provider-readback://lancers/job-123/requirements",
+      }),
+      executeOnce: async () => { executions += 1; },
+      verifyReceipt: (receipt) => receipt,
+    }),
+    (error) => error.code === "APPLICATION_HUMAN_REQUIRED"
+      && error.unknownEffect === false
+      && error.disposition === "skip"
+      && error.delegateToHuman === false
+      && error.bypassAllowed === false,
+  );
+  assert.equal(executions, 0);
+});
+
 test("post-readback failure is unknown after exactly one execution", async () => {
   const job = buildMarketplaceApplicationJob(input());
   let inspections = 0;
