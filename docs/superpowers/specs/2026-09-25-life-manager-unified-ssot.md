@@ -2515,3 +2515,15 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 旧24 ownerは自然cadenceと次fleet retryでのみ前進させる。HELD 3件を再送・強制rebindしない。
 2. natural cleanupのfree_afterを二回追跡し、10GB未達が続く場合は証明済みの再生成対象だけをsource allowlist候補にする。
 3. 主要target provenanceと公式readback partialは揃ったため、disk gateが満たされた時点でP1-2b完了判定を行う。
+
+### 45. disk 10GB gateの安全cleanup枯渇とHOLD（2026-10-02 04:36 JST）
+
+- 自己所有のmerged/clean/open-handleなしworktreeは全てremoveし、unprotected immutable releaseもnatural cleanupが全削除した。APFS local snapshotは0。既存allowlist cacheは約200MB、Xcode/Simulator/uv/npm等の既知再生成cacheも合計200MB未満で、10GB不足を埋めない。
+- 容量の大きいrootは`.openclaw`約4.8GB、`anicca-project`約4.86GB、`anicca`約3.48GBだが、前者はcredential/session/memory/stateと混在し、後二者は別repository/session ownerである。不可侵・他owner境界を越えて削除しない。残る私所有orchestration worktreeもmain未統合かつactive PIDのcwdであり保護する。
+- disk cleanupの唯一のhost errorはstale Codex Sparkle Updater。fresh read-only adversarial reviewで、実PIDはUID一致・PPID 1・4日超だが、Launcher/Installation/PersistentDownloadsが全てmissing、実行中binaryはunlinked`NLINK=0`と確認した。missing stagingをclosed扱いする案はLauncher identityも成立せず、missing/symlink/probe-errorを`None`へ潰す現APIでは誤killし得る。既存testはmissing staged directoryをpreserve/errorと明示し、過去hardeningの巻き戻しになるためHOLD、processへsignalしない。
+- natural fleetは154/178 plistを3fへ収束し、主要target provenanceと公式readback partial、mobile timeout 0を満たした。旧24件はtyped fence/cadence ownerで、強制rebindするとeffect safetyを破る。protected release root 16、disk freeは約4.3〜6.5GBで、10GB二回は未達のまま。
+- 同じdisk gateは3回以上のgoal turnで継続し、安全な自己所有cleanup、release GC、cache inventory、worktree retirement、snapshot確認、Updater reviewを尽くした。P1-2bの次の安全操作には、(a) protected範囲外で外部から最低5GBを空ける、または(b) active sessionを停止・調整した上で`.openclaw`か別repository rootの具体的な再生成対象をownerが承認する、のいずれかが必要である。
+
+#### 45時点のblocker
+
+`P1-2b`はofficial-readback partialまで完了しているが、disk free 10GB二回という明示gateだけが未達。現在のowner権限では安全に5GB追加回収できないため、外部容量変化または新しい削除権限までHOLDする。P1-2bを推測で完了扱いせず、後続L9-13.1へreorderしない。
