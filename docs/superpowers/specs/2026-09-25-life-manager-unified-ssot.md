@@ -2459,3 +2459,18 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 3f natural fleet terminalをread-onlyで取得し、全177 planに対するprocessed/changed/skipped/error/timeoutを確定する。
 2. 未適用ownerの次natural retry、loaded SHA/argv、admission queue、disk cleanupと10GB二回を確認する。
 3. P1-2bを閉じるまでprovider effectをmanual retryせず、その後L9-13.1以降へ進む。
+
+### 41. 3f全177 owner走査と残る3 effect境界（2026-10-02 04:01 JST）
+
+- 3fの1回目natural fleetは100 ownerを処理して`partial / changed=75 / skipped=23 / errors=2 / timed out owners:none`。2回目は172 ownerを処理して`partial / changed=53 / skipped=118 / errors=1 / timed out owners:none`。3回目は全177 ownerを処理し、公式stateは`status=error / changed=5 / skipped=169 / errors=3 / message="one or more owner applies failed" / timed out owners:none`となった。
+- 3回目のnonzeroは`hf-gig-apply-direct rc=1`、`alpaca-investment-live rc=1`、`life-manager-instagram-metrics rc=1`。旧mobile timeout ownerはEN affirmation Instagram/TikTok、EN slideshow TikTok、EN widget Instagram、JP1 TikTok、Larry JA Instagram、Honne ENを含め、全て40〜63秒で3fへ正常更新された。
+- plist公式readbackでは178件中152件が3fへ収束した。残る26件は旧SHA上で、effect fence、disabled、pending admission、自然wake/event provenance待ちを含む。release GCの保護rootは21件からまだ十分減っておらず、disk freeは約5.1GB、10GB二回条件は未達である。
+- `hf-gig-apply-direct`は旧`287d913c`、loaded-idle、effect_unknown occurrence `18d88651ee0bf088-46308`。cause eventはpassだが別runのclaim refを持ち、`auto_close_reason=no_pre_effect_terminal`、provider receipt/readbackはnull。Coconala公式application readbackなしに解放・再送しない。
+- `alpaca-investment-live`は旧`592c98cb`、disabled、effect_unknown occurrence `18d9e6f979d18818-14709`。cause eventは`entrypoint_exit_75`、`auto_close_reason=no_pre_effect_terminal`、provider receipt/readbackはnull。Alpaca公式order/activity readbackなしに解放・注文再送しない。fleet apply時のbootstrap I/O errorは旧jobをrestore済みである。
+- `life-manager-instagram-metrics`は旧`9a76dcc8`、loaded-idle、effect_unknown occurrence `18d9127d765110d8-47098`。journal rowがrotationで失われ`auto_close_reason=history_incomplete`、provider receipt/readbackはnull。Telegram公式履歴または同等のprovider readbackなしに解放・通知再送しない。
+
+#### 41時点のcursor
+
+1. 3 error ownerを順にread-only公式readbackする。HF/Coconala、Alpaca、Instagram metrics/Telegramを同時に触らず直列化し、effect有無をexact occurrenceへ結合する。
+2. 旧SHAの残26 ownerは自然wake→event provenance→次fleet retryで収束させ、loaded release root数とdisk freeを再測定する。
+3. 公式readback付きpartial、全target loaded SHA/argv、admission queue、10GB二回が揃うまでP1-2bを未完のまま維持する。
