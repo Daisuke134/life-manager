@@ -2125,3 +2125,13 @@ PR checksの`OSS self-contained boundary`は今回の差分外にある`skills/c
 11. **Self-funding/cloud:** DigitalOcean durable control plane、BlockRun x402、Nosana shelter、Akash fallback、Franklin successor handover 2回、surplus renewal、Akash restore、30日self-fundingの順に実測する。Mac Mini廃止/cloud-onlyはその後に判断する。
 
 以上により、P4 source gateはJob Hunter/Self-Buildのみ完了、Investmentは未達、Capafy/PromptBase/Writer/foundation live fleet/全体のself-healing・self-improving・financial independenceは引き続き未完了である。
+### 15. P1 reconciler natural tick の失敗境界追補（2026-10-01 19:42 JST）
+
+P4追補後に手動restart/applyをせず、`life-manager-release-reconciler`の自然tickをread-onlyで観測した。`lm-loop health --json`の二回目（`2026-10-01T19:31:17+09:00`）は`total=177`、`healthy=32 / running=24 / failed=38 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4`で、P1のfleet合格条件を満たさなかった。
+
+- `current`は`/Users/anicca/loops/releases/20261001T191420-b413b5f4`のままで、P4 mergeを含むreleaseへ進んでいない。
+- reconcilerは`PID 84294`で`loaded-running`、自然apply子processを持つが、最新の完了eventは`2026-10-01T10:13:14Z`の`entrypoint_exit_1`。fleet stateは`c5dd3a01`に対して`partial / changed=65 / skipped=14 / errors=2 / message=budget exceeded`であり、成功と数えない。
+- logsには別の再現可能なhost境界として、release copyの`No space left on device`、recovery intent appendの`Errno 28`、一時file作成失敗が残る。直近の長時間tickはまだ完了しておらず、自然終了receiptが取れるまで再送・再apply・restartしない。
+- `df -k /`の同時readbackは`7,472,180 KB`（約7.13GiB）で、10GB安定・ENOSPC解消の二回readbackは未達。容量値だけでcleanupを発明せず、実際の失敗境界と既存owner-aware cleanupのreadbackを先に結合する。
+
+したがってP1 cursorは、(a)現在の自然tickの完了receipt、(b)同一releaseのfleet applyが`partial`でなくなった公式readback、(c)P4込みreleaseへのtarget owner loaded SHA/argv一致、(d)disk free二回安定、の順である。これは「停止」ではなく、`effect_unknown`の再送を避けた安全な観測継続であり、Capafy/PromptBase/Writerの外部効果を先に作る理由にはならない。
