@@ -2276,3 +2276,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 旧reconcilerを手動停止せず、stable control-plane watcher/self-handoff discoveryのsource-only TDDを行う。
 2. 次natural releaseでwatcherがloaded SHA/argv、helper receipt、旧service absence、新reconciler readbackを閉じる。
 3. self-handoff後にbudget reservation実効、fleet収束、disk安定、named loop公式receipt、CFO、cloud/self-fundingへ戻る。
+
+### 28. stable handoff watcher source merge（2026-10-01 22:38–22:45 JST）
+
+- PR #6400はadmin squash mergeされ、`origin/main=ee75d62325d883454b4a6b80c543259f2efa46bc`になった。`aa-release-reconciler-handoff`をsystem/control ownerとしてregistryへ追加し、`bin/reconcile-agent-handoff-watch.sh`がcurrent releaseのreconciler scriptを`LIFE_MANAGER_RECONCILER_HANDOFF_ONLY=1`で呼ぶ。
+- old reconcilerのregistry alphabetic applyで先頭に載るよう`aa-` prefixを使い、queued/reserved coalescingとborrow/support admissionを明示した。watcherはloaded reconciler SHAがcurrent SHAと異なる時だけscheduleし、同じstateを二重applyしない。
+- source evidenceはwatcher/self-handoff focused tests、registry+health `160/160 PASS`、`bash -n`、diff check。GitHubの差分外gate（OSS manifest、startup context）は既知失敗としてPR本文へ記録した。production/provider/browser/launchctl mutationは0件。
+- 現在productionはまだ旧tick/旧reconcilerの自然処理中であり、`ee75d62325`を含むrelease cut、watcher loaded SHA、helper receipt、reconciler bootstrapは未確認である。
+
+#### 28時点の原子cursor
+
+1. 旧tick自然終端を待つ。
+2. 次natural tickで`ee75d62325`を含むreleaseをcutし、`aa-release-reconciler-handoff`のplist/argv/loaded SHAをreadbackする。
+3. watcherがhelperをscheduleし、receipt→旧service absence→新reconciler loaded SHA/argvを閉じる。
+4. その後にbudget reservation実効、fleet/disk収束、PromptBase/Writer、Capafy、named loop、CFO、cloud/self-fundingへ進む。
