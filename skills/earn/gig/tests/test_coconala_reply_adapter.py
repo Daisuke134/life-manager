@@ -149,6 +149,29 @@ def test_provider_inbox_access_errors_are_explicit_observation_waits(
     }
 
 
+@pytest.mark.parametrize(
+    "error_text",
+    [
+        "collector_unhealthy:missing_container",
+        "collector_unhealthy:inbox_coverage_incomplete",
+        "collector_unhealthy:login_redirect",
+    ],
+)
+def test_other_collector_boundaries_are_waits_not_failed_reply_wakes(
+    tmp_path, error_text,
+):
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [],
+    )
+
+    assert adapter.classify_observation_error(RuntimeError(error_text)) == {
+        "reason": "provider_inbox_observation_unavailable",
+        "remaining_work": [
+            "Retry the authenticated Coconala inbox observation before any reply effect",
+        ],
+    }
+
+
 def test_default_runtime_paths_stay_inside_the_release(tmp_path):
     adapter = adapter_module.CoconalaReplyAdapter(
         state_root=tmp_path,
