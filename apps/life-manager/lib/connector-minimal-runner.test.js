@@ -826,7 +826,7 @@ test("a Connpass confirm-unavailable tier does not invoke browser fallback", asy
     },
   });
   const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-confirm-unavailable", providers: ["connpass"] }, state.dependencies);
-  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "connpass_candidates_ineligible", telegram_provider_id: "9001" });
+  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "connpass_candidates_ineligible", telegram_provider_id: "9001", registration_attempted: true });
   assert.equal(state.calls.some(([name]) => name === "agent"), false);
   const directFailure = state.calls
     .filter(([name]) => name === "history")
@@ -1616,7 +1616,7 @@ test("non-Peatix readback-unavailable remains eligible for the existing Harness 
   });
 
   const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connector-luma-effect", providers: ["luma"] }, state.dependencies);
-  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted", telegram_provider_id: "9001" });
+  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted", telegram_provider_id: "9001", registration_attempted: true });
   assert.equal(state.calls.filter(([name]) => name === "direct").length, 1);
   assert.equal(state.calls.filter(([name]) => name === "agent").length, 1);
   assert.equal(state.calls.filter(([name]) => name === "close").length, 1);
@@ -1675,7 +1675,7 @@ test("each provider's session-expired reason skips Harness and ends that provide
       maxConsecutiveFailures: 1,
     }, state.dependencies);
 
-    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: safeReason, telegram_provider_id: "9001" });
+    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: safeReason, telegram_provider_id: "9001", registration_attempted: true });
     assert.equal(state.calls.some(([name]) => name === "agent"), false);
     assert.deepEqual(state.calls.find(([name]) => name === "report").slice(1), ["completed_no_effect", safeReason]);
   }
@@ -1708,6 +1708,7 @@ test("a session-expired provider does not block discovery of the next provider",
     status: "completed_no_effect",
     safe_reason: "doorkeeper_session_expired",
     telegram_provider_id: "9001",
+    registration_attempted: true,
   });
 });
 
@@ -2069,6 +2070,7 @@ test("verified reused bundle resets candidate failures", async () => {
     status: "completed_no_effect",
     safe_reason: "existing_bundles_reused",
     telegram_provider_id: "9001",
+    registration_attempted: true,
   });
   assert.deepEqual(state.calls.filter(([name]) => name === "evidence").map(([, eventRef]) => eventRef), [
     "luma-event://event/reused",
@@ -2203,7 +2205,7 @@ test("real runner production operations persist one positive wake delivery and d
   });
   try {
     const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connector-13b-ops", providers: ["luma"] }, state.dependencies);
-    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "existing_bundles_reused", telegram_provider_id: "7311" });
+    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "existing_bundles_reused", telegram_provider_id: "7311", registration_attempted: true });
     const duplicate = await operations.reportWake({ status: "completed_no_effect", safe_reason: "existing_bundles_reused", consecutive_failure_count: 0 });
     assert.deepEqual(duplicate, { telegram_provider_id: "7311" });
     assert.equal(sent.length, 1);

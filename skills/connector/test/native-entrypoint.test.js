@@ -108,9 +108,9 @@ test("native pass reports process and external status separately for one occurre
       dependencies: {
         recordNativeOutcome(value) { observed = value; },
       },
-      async runWake() { return { status: "completed_no_effect", safe_reason: "providers_exhausted" }; },
+      async runWake() { return { status: "completed_no_effect", safe_reason: "providers_exhausted", registration_attempted: false }; },
     });
-    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted" });
+    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted", registration_attempted: false });
     assert.deepEqual(observed, {
       schema_version: 1,
       occurrence_id: "life-manager-connector-native:occurrence-1",

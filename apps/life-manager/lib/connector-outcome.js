@@ -3,13 +3,6 @@
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{2,255}$/;
 const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
 const RECEIPT = /^(?:provider-receipt|gmail-message|calendar-evidence):\/\/[^\s]{3,1024}$/;
-const NO_ATTEMPT_SAFE_REASONS = new Set([
-  "providers_exhausted",
-  "provider_discovery_failed",
-  "connpass_action_boundary_failed",
-  "connpass_candidates_ineligible",
-  "luma_candidates_ineligible",
-]);
 
 function invalid() {
   throw new Error("Connector outcome invalid");
@@ -52,9 +45,13 @@ function classifyConnectorOutcome(input = {}) {
   const providerReceiptRef = optionalReceipt(registration.provider_receipt_ref);
   const confirmationMailRef = optionalReceipt(confirmation.external_receipt_ref);
   const calendarEventRef = optionalReceipt(calendar.calendar_event_ref);
+  const registrationAttempted = result.registration_attempted;
+  if (registrationAttempted != null && typeof registrationAttempted !== "boolean") {
+    invalid("registration attempt marker invalid");
+  }
+  const journeyHasReceipt = Boolean(providerReceiptRef || confirmationMailRef || calendarEventRef);
   const externalRegistrationStatus = status === "completed_no_effect"
-    && NO_ATTEMPT_SAFE_REASONS.has(safeReason)
-    ? "not_attempted"
+    ? registrationAttempted === false && !journeyHasReceipt ? "not_attempted" : "unknown"
     : processStatus === "pass"
       && occurrenceBound(registration)
       && occurrenceBound(confirmation)

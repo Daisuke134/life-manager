@@ -14,7 +14,7 @@ const TRACE = Object.freeze({
 test("a healthy process pass without a provider effect stays external-not-attempted", () => {
   assert.deepEqual(classifyConnectorOutcome({
     ...TRACE,
-    result: { status: "completed_no_effect", safe_reason: "providers_exhausted" },
+    result: { status: "completed_no_effect", safe_reason: "providers_exhausted", registration_attempted: false },
   }), {
     schema_version: 1,
     ...TRACE,
@@ -32,6 +32,55 @@ test("a reused bundle is not mislabeled as an unattempted external registration"
     ...TRACE,
     result: { status: "completed_no_effect", safe_reason: "existing_bundles_reused" },
   }).external_registration_status, "unknown");
+});
+
+test("a completed no-effect result without an attempt marker stays externally unknown", () => {
+  assert.equal(classifyConnectorOutcome({
+    ...TRACE,
+    result: { status: "completed_no_effect", safe_reason: "providers_exhausted" },
+  }).external_registration_status, "unknown");
+});
+
+test("a no-effect result with a prior registration attempt stays externally unknown", () => {
+  assert.equal(classifyConnectorOutcome({
+    ...TRACE,
+    result: { status: "completed_no_effect", safe_reason: "providers_exhausted", registration_attempted: true },
+  }).external_registration_status, "unknown");
+});
+
+test("a no-effect result with any journey receipt never claims not-attempted", () => {
+  assert.equal(classifyConnectorOutcome({
+    ...TRACE,
+    result: {
+      status: "completed_no_effect",
+      safe_reason: "providers_exhausted",
+      registration_attempted: false,
+      journey: { registration: { provider_receipt_ref: "provider-receipt://luma/receipt" } },
+    },
+}).external_registration_status, "unknown");
+});
+
+test("a completed no-effect result with all occurrence-bound receipts is still externally unknown", () => {
+  assert.equal(classifyConnectorOutcome({
+    ...TRACE,
+    result: {
+      status: "completed_no_effect",
+      safe_reason: "providers_exhausted",
+      registration_attempted: false,
+      journey: {
+        registration: { occurrence_id: TRACE.occurrence_id, provider_receipt_ref: "provider-receipt://luma/receipt" },
+        confirmation_mail: { occurrence_id: TRACE.occurrence_id, external_receipt_ref: "gmail-message://dais-local/mail" },
+        calendar: { occurrence_id: TRACE.occurrence_id, calendar_event_ref: "calendar-evidence://google/event/event-1" },
+      },
+    },
+  }).external_registration_status, "unknown");
+});
+
+test("an invalid registration attempt marker fails closed", () => {
+  assert.throws(() => classifyConnectorOutcome({
+    ...TRACE,
+    result: { status: "completed_no_effect", safe_reason: "providers_exhausted", registration_attempted: "false" },
+  }), /invalid/i);
 });
 
 test("a wake that defers fallback is not mislabeled as an unattempted external registration", () => {
