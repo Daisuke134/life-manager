@@ -2147,7 +2147,6 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 - `df -k /` は `11,000,432 KB` free を約2秒間隔で2回読めたが、長い自然間隔での10GB維持・ENOSPC解消の完了証拠にはしない。
 - 19:41 JSTの`lm-loop health --json`呼出しは30秒以内にJSONを返さなかったため、状態を推測して更新しない。直前の公式snapshot（19:38 JST、`177 jobs: running 23 / healthy 28 / failed 43 / safely_fenced 69 / effect_unknown 10 / telemetry_gap 4`）を最新の確定値として保持する。
 - この追補でもprovider/browserへのmutationは0件、Capafy/PromptBase/Writerの公式listing・sale・settlement・payout、14/14のcost-complete P&Lは未達のままであり、atomic cursorの順序は§16のまま変えない。
-
 ### 18. P1 natural apply 完了receipt追補（2026-10-01 19:50 JST）
 
 - 自然`life-manager-release-reconciler` tickのfleet stateは、`2026-10-01T10:48:48Z`に `sha=b413b5f42bbdf158cb54972533c40d3edf4736d2`、`status=partial`、`changed=68`、`skipped=13`、`errors=2`、`message="timed out owners: none; budget exceeded"`、`next_retry_epoch=1790852247`で終端した。83 owner rowの内訳は`rc=0`が81、`rc!=0`が2、timeout ownerは0であり、`status=ok`とは数えない。
