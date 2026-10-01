@@ -35,6 +35,14 @@ class BuildListingTest(unittest.TestCase):
         self.assertTrue(listing.prompt_instructions.startswith("[TOPIC"))
         self.assertIn(listing.example_input, listing.prompt_instructions)
 
+    def test_builds_from_football_analyst_demonstration_fixture(self):
+        catalog_dir = REPO_ROOT / "skills" / "capafy" / "catalog" / "football-match-analyst"
+        listing = build_listing(catalog_dir)
+
+        self.assertEqual(listing.slug, "football-match-analyst")
+        self.assertIn("Northbridge FC vs River Athletic", listing.example_input)
+        self.assertIn("No reliable ranking is produced.", listing.example_output)
+
     def test_title_never_exceeds_promptbase_limit(self):
         listing = build_listing(CATALOG_DIR)
         self.assertLessEqual(len(listing.title), 40)
