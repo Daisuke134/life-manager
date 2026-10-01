@@ -90,10 +90,10 @@
     },
     {
       "id": "agent-economy",
-      "job_ids": ["agent-economy-loop", "citizen-refill", "life-manager-x402-ledger", "sol-funding", "the402-provider", "the402-worker", "x402-acquisition-controller", "x402-claude-p", "x402-experiment-franklin1", "x402-franklin1", "x402-franklin2", "x402-inflow-watch", "x402-inflow-watch-claude-p", "x402-inflow-watch-franklin1", "x402-inflow-watch-franklin2", "x402-research-serve", "x402-sale-observer", "x402-seller-8404", "x402-settlement-recorder"],
+      "job_ids": ["agent-economy-loop", "citizen-refill", "life-manager-x402-ledger", "sol-funding", "taskmarket-paid-executor", "the402-provider", "the402-worker", "x402-acquisition-controller", "x402-claude-p", "x402-experiment-franklin1", "x402-franklin1", "x402-franklin2", "x402-inflow-watch", "x402-inflow-watch-claude-p", "x402-inflow-watch-franklin1", "x402-inflow-watch-franklin2", "x402-research-serve", "x402-sale-observer", "x402-seller-8404", "x402-settlement-recorder"],
       "name": "Agent Economy",
       "description": "Create an isolated citizen wallet and track agent revenue and receipt-gated compute cost without owner funds.",
-      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "model"],
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "model", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","recurring_usage"],"sources":{"funnel":{"adapter":"agent-economy-revenue-receipt","implementation":"implemented"},"financial":{"adapter":"agent-economy-financial-record","implementation":"implemented"},"cost":{"adapter":"x402-cost-observer","implementation":"implemented"}}},
       "requirements": [],
       "hosts": {

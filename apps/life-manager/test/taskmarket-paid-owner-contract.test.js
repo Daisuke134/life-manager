@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..', '..');
 const REGISTRY = join(ROOT, 'config/loop-registry.json');
+const CATALOG = join(ROOT, 'apps/life-manager/config/product-loop-catalog.json');
 const ENTRYPOINT = join(ROOT, 'skills/earn/taskmarket/scripts/paid-owner');
 
 test('TaskMarket paid owner has a repository entrypoint and production contract row', async () => {
@@ -24,4 +25,11 @@ test('TaskMarket paid owner has a repository entrypoint and production contract 
   assert.equal(row.log_root, '~/.local/state/life-manager/taskmarket/paid/logs');
   assert.equal(row.cadence.start_interval_seconds, 300);
   await access(ENTRYPOINT, constants.X_OK);
+});
+
+test('TaskMarket paid owner is mapped to Agent Economy', async () => {
+  const catalog = JSON.parse(await readFile(CATALOG, 'utf8'));
+  const loop = catalog.loops.find((item) => item.id === 'agent-economy');
+  assert.ok(loop, 'agent-economy product loop is required');
+  assert.ok(loop.job_ids.includes('taskmarket-paid-executor'));
 });
