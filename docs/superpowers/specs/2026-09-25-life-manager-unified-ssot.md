@@ -2140,3 +2140,11 @@ P4追補後に手動restart/applyをせず、`life-manager-release-reconciler`�
 追加のread-only snapshot（`2026-10-01T10:38:15Z`）では、`total=177`、state別に`running=23 / healthy=28 / failed=43 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4`。`current`は引き続き`b413b5f42bbdf158cb54972533c40d3edf4736d2`で、`capafy-loop-daily=effect_unknown`、`promptbase-loop-daily=telemetry_gap`、`life-manager-connector-native=healthy(process-only)`、`life-manager-release-reconciler=failed`、`job-search-daily=failed`、`life-manager-selfbuild=healthy(process-only)`である。これはP4込みrelease、公式provider readback、収益完了を意味しない。
 
 P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの最終receiptはまだない。`df -k /`は`7,394,972 KB`（約7.05GiB）で、diskの安定条件も未達のまま保持する。
+
+### 17. 最新read-only追補（2026-10-01 19:41 JST）
+
+- `readlink /Users/anicca/loops/current` は引き続き `/Users/anicca/loops/releases/20261001T191420-b413b5f4`、`RELEASE.json.sha` は `b413b5f42bbdf158cb54972533c40d3edf4736d2`（`provenance=ancestor-of-origin-main`、`release_paths=ALL`）だった。P4のJob Hunter/Self-Build mergeを含む新しいimmutable releaseへのfleet収束は未確認である。
+- `life-manager-release-reconciler` は `PID 84294` の `loaded-running`（子 `reconcile-agent-runner-release.sh`）のまま。自然完了receipt、`partial`でないfleet summary、対象ownerのloaded SHA一致はまだ無い。手動restart/apply/retryは行わない。
+- `df -k /` は `11,000,432 KB` free を約2秒間隔で2回読めたが、長い自然間隔での10GB維持・ENOSPC解消の完了証拠にはしない。
+- 19:41 JSTの`lm-loop health --json`呼出しは30秒以内にJSONを返さなかったため、状態を推測して更新しない。直前の公式snapshot（19:38 JST、`177 jobs: running 23 / healthy 28 / failed 43 / safely_fenced 69 / effect_unknown 10 / telemetry_gap 4`）を最新の確定値として保持する。
+- この追補でもprovider/browserへのmutationは0件、Capafy/PromptBase/Writerの公式listing・sale・settlement・payout、14/14のcost-complete P&Lは未達のままであり、atomic cursorの順序は§16のまま変えない。
