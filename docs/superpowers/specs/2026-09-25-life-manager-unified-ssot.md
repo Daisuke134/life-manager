@@ -2474,3 +2474,18 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 3 error ownerを順にread-only公式readbackする。HF/Coconala、Alpaca、Instagram metrics/Telegramを同時に触らず直列化し、effect有無をexact occurrenceへ結合する。
 2. 旧SHAの残26 ownerは自然wake→event provenance→次fleet retryで収束させ、loaded release root数とdisk freeを再測定する。
 3. 公式readback付きpartial、全target loaded SHA/argv、admission queue、10GB二回が揃うまでP1-2bを未完のまま維持する。
+
+### 42. 3f三回目全owner retryと3 error公式readback（2026-10-02 04:05 JST）
+
+- 3fの3回目natural retryはpre-fleetを約2分で通過後、全177 ownerを処理した。公式stateは`status=error / changed=5 / skipped=169 / errors=3 / message="one or more owner applies failed" / timed out owners:none`。nonzeroは`hf-gig-apply-direct`、`alpaca-investment-live`、`life-manager-instagram-metrics`の3件だけである。
+- mobile旧timeout群は3回目までに全て3fへ更新された。2回目retryだけでEN affirmation Instagram/TikTok、EN card Instagram、EN slideshow TikTok、EN widget Instagram、JP1 TikTok、Larry JA Instagram、Honne ENなどを40〜63秒で更新し、timeout 0を維持した。
+- Coconala公式readback adapterのpure discoveryは、claimed unknown occurrence 1件に対し`prepared + irreversible_attempt_started` intentが0件で、one-to-one mappingを作れなかった。adapterはbrowserを開かず`None`で停止した。journalには後続runのclaim refと`resource_heartbeat_unavailable` terminalがあるが、現proof contractはforeign claimを拒否するため、sourceの重要reviewなしにfenceを閉じない。
+- Alpaca GET-only `effect_reconcile.py --readback-only`は、queued時刻`2026-09-29T21:08:06Z`以後のofficial orders `4`、open orders `0`を返し、`reason=orders_present:after=4,open=0 / verified=false / HELD`となった。effect identityが`not_written`で4件をexact occurrenceへ結合できないため、注文再送・fence解放・live enableをしない。
+- Instagram metricsの外部effectはTelegram messageである。MTProto user sessionからLocal Life Managerの公式履歴5000件をread-only取得し、queued時刻`2026-09-27T04:17:37Z`後3時間に本文prefix`Life Manager::: anicca-iosのinstagram`のmessageは`0件`だった。absenceはgeneric resolverのprovider receipt要件を満たさないためfenceはHELDのまま。再通知しない。
+- plist readbackは178件中153件が3f、25件が旧SHA。loaded release rootは21→16、open release rootは4→2へ減少し、disk freeは`6,334,532 KB`まで改善した。10GB二回条件は未達である。
+
+#### 42時点のcursor
+
+1. Coconalaの後続claim pre-effect proofは高リスクfence変更として、重要なread-only review後にsource TDD可否を決める。AlpacaとInstagram metricsは公式readback付きHELDとして維持する。
+2. 旧SHA25 ownerを自然wakeと次fleet retryで減らし、loaded release rootとdisk freeを再測定する。provider effectをmanual retryしない。
+3. 10GB二回とtarget provenanceが揃えば、3 HELDをtyped exceptionとしてP1-2bのofficial-readback partial判定を行う。
