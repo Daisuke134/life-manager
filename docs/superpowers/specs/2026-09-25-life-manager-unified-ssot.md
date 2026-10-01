@@ -2290,3 +2290,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 2. 次natural tickで`ee75d62325`を含むreleaseをcutし、`aa-release-reconciler-handoff`のplist/argv/loaded SHAをreadbackする。
 3. watcherがhelperをscheduleし、receipt→旧service absence→新reconciler loaded SHA/argvを閉じる。
 4. その後にbudget reservation実効、fleet/disk収束、PromptBase/Writer、Capafy、named loop、CFO、cloud/self-fundingへ進む。
+
+### 29. watcher capacity-exemption source fix（2026-10-01 23:24–23:27 JST）
+
+- watcher natural runは`host_admission_deferred:resource_capacity_busy`で2回blockedした。watcherはno-effect control-planeなのに通常borrow admissionへ入っていたため、host capacityが埋まるとhandoff判断まで実行できない境界だった。
+- `aa-release-reconciler-handoff`を既存`CONTROL_PLANE_SAFETY_LOOPS`へ追加し、effect-free control wakeとしてadmission exemptionを再利用するsource-only fixを実装した。registry/health/watcher/self-handoff focused suite `160/160 PASS`、diff check PASS。PR #6403はmain `835d45d7c367b2b418e8eb5d9ef60c786d1e17a1`へ統合され、production/provider/browser/launchctl mutationは0件である。
+- 現在のb13 releaseはこのfixより前にcutされているため、watcherのcapacity exemptionはまだproductionへ入っていない。次のnatural releaseでloaded SHA/occurrenceが変わるまで、helper receipt・new reconciler bootstrapを完了扱いしない。
+
+#### 29時点の原子cursor
+
+1. b13 apply/natural retryを終端までread-only観測する。
+2. main `835d45d7c3`を含む次immutable releaseをcutし、watcherをcapacity exemptでnatural runさせる。
+3. watcherのno-effect PASS、helper receipt、旧service absence、新reconciler loaded SHA/argvを順にreadbackする。
+4. その後、budget reservation、fleet/disk収束、named loop公式receipt、CFO、cloud/self-fundingへ進む。
