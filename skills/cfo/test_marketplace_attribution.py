@@ -653,6 +653,62 @@ class MarketplaceAttributionTest(unittest.TestCase):
                         {"unverified_receipt"},
                     )
 
+    def test_invalid_same_identity_rows_are_validated_before_deduplication(self):
+        cases = (
+            ("schema_version_bool", "schema_version", True),
+            ("schema_version_float", "schema_version", 1.0),
+            ("gross_amount_float", "gross_amount_minor", 45000.0),
+            ("fee_amount_float", "fee_amount_minor", 4500.0),
+        )
+        for name, field, invalid in cases:
+            with self.subTest(name=name):
+                payload = self.fixture("marketplace-settled.json")
+                duplicate = copy.deepcopy(payload["receipt_map"]["records"][0])
+                duplicate[field] = invalid
+                payload["receipt_map"]["records"].append(duplicate)
+                payload["pagination"]["records_fetched"] += 1
+                self.bind(payload)
+
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"unverified_receipt"},
+                )
+
+    def test_promptbase_ordered_event_lists_remain_order_sensitive_in_evidence(self):
+        payload = self.fixture("marketplace-promptbase-aggregate.json")
+        payload["by_item"] = {
+            "prompt-1": {"ordered_events": ["first", "second"]},
+        }
+        reversed_payload = copy.deepcopy(payload)
+        reversed_payload["by_item"]["prompt-1"]["ordered_events"].reverse()
+
+        first = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+            platform="promptbase",
+            product_loop_id="writer",
+        )
+        reversed_rows = self.require_adapter().adapt(
+            reversed_payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+            platform="promptbase",
+            product_loop_id="writer",
+        )
+
+        first_evidence = [row["evidence_refs"] for row in first]
+        reversed_evidence = [row["evidence_refs"] for row in reversed_rows]
+        self.assertNotEqual(first_evidence, reversed_evidence)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -175,6 +175,20 @@ def _canonical(value: object) -> str:
     ).encode()).hexdigest()
 
 
+def _canonical_exact(value: object) -> tuple:
+    if isinstance(value, dict):
+        return (
+            "dict",
+            tuple(sorted(
+                (key, _canonical_exact(item))
+                for key, item in value.items()
+            )),
+        )
+    if isinstance(value, list):
+        return ("list", tuple(_canonical_exact(item) for item in value))
+    return (type(value).__name__, value)
+
+
 def _immutable_source_facts(value: object) -> object:
     if isinstance(value, dict):
         return {
@@ -183,13 +197,7 @@ def _immutable_source_facts(value: object) -> object:
             if key not in EVIDENCE_TRANSIENT_KEYS
         }
     if isinstance(value, list):
-        values = [_immutable_source_facts(item) for item in value]
-        return sorted(
-            values,
-            key=lambda item: json.dumps(
-                item, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-            ),
-        )
+        return [_immutable_source_facts(item) for item in value]
     return value
 
 
@@ -198,12 +206,22 @@ def _source_row_evidence(row: dict, platform: str) -> str:
     return f"marketplace://{platform}/financial-readback/source-row/sha256/{digest}"
 
 
+def _receipt_map_source_facts(rows: list[dict]) -> list[object]:
+    facts = [_immutable_source_facts(row) for row in rows]
+    return sorted(
+        facts,
+        key=lambda item: json.dumps(
+            item, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ),
+    )
+
+
 def _source_facts_evidence(payload: dict, platform: str, rows: list[dict]) -> str:
     facts = {
         "platform": platform,
         "product_loop_id": payload.get("product_loop_id"),
         "aggregate": _immutable_source_facts(payload.get("aggregate")),
-        "records": _immutable_source_facts(rows),
+        "records": _receipt_map_source_facts(rows),
     }
     digest = _canonical(facts)
     return f"marketplace://{platform}/financial-readback/source-facts/sha256/{digest}"
@@ -254,21 +272,33 @@ def _row_identity(row: dict) -> tuple[str, str] | None:
     return kind, row[field]
 
 
-def _deduplicate_source_rows(rows: list[object]) -> list[dict]:
-    indexed: dict[tuple[str, str], dict] = {}
+def _deduplicate_source_rows(
+    rows: list[object],
+    *,
+    platform: str,
+    product_loop_id: str,
+    observed_at: str,
+) -> list[dict]:
+    indexed: dict[tuple[str, str], tuple[tuple, dict]] = {}
     ordered: list[dict] = []
     for raw in rows:
         if not isinstance(raw, dict):
             _fail("unverified_receipt")
+        _validate_source_row(
+            raw,
+            platform=platform,
+            product_loop_id=product_loop_id,
+            observed_at=observed_at,
+        )
         identity = _row_identity(raw)
         if identity is None:
             _fail("unverified_receipt")
         previous = indexed.get(identity)
         if previous is not None:
-            if previous != raw:
+            if previous[0] != _canonical_exact(raw):
                 _fail("unverified_receipt")
             continue
-        indexed[identity] = raw
+        indexed[identity] = (_canonical_exact(raw), raw)
         ordered.append(raw)
     return ordered
 
@@ -586,6 +616,30 @@ def _movement(
     }
 
 
+def _validate_source_row(
+    row: dict,
+    *,
+    platform: str,
+    product_loop_id: str,
+    observed_at: str,
+) -> None:
+    kind = _record_type(row)
+    {
+        "payment_receipt": _payment,
+        "fee_receipt": _fee,
+        "refund_receipt": _refund,
+        "payout_match_receipt": _payout,
+        "pending_payment_receipt": _pending,
+        "movement_receipt": _movement,
+    }[kind](
+        row,
+        platform=platform,
+        product_loop_id=product_loop_id,
+        observed_at=observed_at,
+        evidence=_source_row_evidence(row, platform),
+    )
+
+
 def _append_receipt(
     receipts: list[dict],
     output_identities: dict[tuple[str, str], tuple[str, ...]],
@@ -687,7 +741,12 @@ def _convert_receipt_map(
     payouts: list[dict] = []
     receipts: list[dict] = []
     output_identities: dict[tuple[str, str], tuple[str, ...]] = {}
-    source_rows = _deduplicate_source_rows(rows)
+    source_rows = _deduplicate_source_rows(
+        rows,
+        platform=platform,
+        product_loop_id=product_loop_id,
+        observed_at=observed_at,
+    )
     for row in source_rows:
         kind = _record_type(row)
         converted = {
