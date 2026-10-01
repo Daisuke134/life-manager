@@ -697,12 +697,19 @@ class CrowdWorksReplyAdapter:
                 return {"authoritative_absent": True}
             route = self._provider_route(self.page.url)
             if route is not None and route[0] == "contracts" and isinstance(persisted, Mapping):
+                body = self.page.locator("body").inner_text()
+                if "この契約は途中終了されました" in body:
+                    return {
+                        "verified": True,
+                        "provider_receipt_id": f"contract:{route[1]}:terminated",
+                        "termination_state": "terminated",
+                        "observed_at": _now(),
+                    }
                 title = str(persisted.get("title") or "")
                 amount = str(persisted.get("amount") or "")
                 expected = [str(persisted.get(field) or "")
                             for field in ("client", "worker")]
                 expected = [value for value in expected if value]
-                body = self.page.locator("body").inner_text()
                 if (title and amount and title in self.page.title()
                         and amount in body and all(value in body for value in expected)):
                     return {"verified": True,

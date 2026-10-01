@@ -333,6 +333,36 @@ def test_contract_readback_does_not_require_reply_composer_after_agreement():
     assert receipt["provider_receipt_id"] == "condition-accepted:41879089"
 
 
+def test_contract_readback_records_provider_termination_after_agreement():
+    adapter, _, _, _ = _contract_adapter(status="contracted")
+    adapter.page.url = "https://crowdworks.jp/contracts/63570481"
+    adapter.page.mapping[
+        'a.intro-employer_proposed_project[href="#message-dialog-agreement"]'
+    ] = _Locator(count=0)
+    adapter.page.mapping["body"] = _Locator(
+        text=(
+            "この契約は途中終了されました。"
+            "契約名 【完全在宅×Webデザイン】"
+            "契約金額（税込） 12円"
+            "ネオ・ゲート採用 Kaito｜AI自動化"
+        )
+    )
+
+    receipt = adapter.readback({
+        "action": "accept_contract",
+        "thread_id": "thread-1",
+        "payload": {
+            "title": "対象案件",
+            "amount": "12円",
+            "client": "発注者",
+            "worker": "Kaito｜AI自動化",
+        },
+    })
+
+    assert receipt["verified"] is True
+    assert receipt["provider_receipt_id"] == "contract:63570481:terminated"
+
+
 def test_single_thread_observation_does_not_require_reply_composer():
     adapter, _, _, _ = _contract_adapter(status="proposed")
     opened = []
