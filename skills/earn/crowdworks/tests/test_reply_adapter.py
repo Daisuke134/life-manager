@@ -153,7 +153,7 @@ def test_contract_termination_is_a_shared_human_decision_and_never_a_click():
     }}
     adapter.conversations = {"thread-1": [{
         "event_id": "buyer-1", "role": "buyer", "sender": "buyer",
-        "sent_at": "2026-09-24T11:28:00+09:00",
+        "sent_at": "2026年09月24日 11:28",
         "body": "再応募は前回の応募から6ヶ月以上経過してからお願いします。",
         "links": ["https://crowdworks.jp/contracts/63570481"],
     }]}
@@ -176,6 +176,7 @@ def test_contract_termination_is_a_shared_human_decision_and_never_a_click():
     assert action["reason"] == "contract_termination_decision_required"
     assert action["handoff"]["url"] == "https://crowdworks.jp/contracts/63570481"
     assert action["handoff"]["deadline"] == "期限不明（公式画面で期限を取得できず）"
+    assert action["contract_termination"]["requested_at"] is None
     assert action["remaining_work"] == [
         "公式契約画面で契約途中終了の同意または拒否を一度だけ判断する",
         "判断後に契約状態とprovider receiptを公式readbackする",

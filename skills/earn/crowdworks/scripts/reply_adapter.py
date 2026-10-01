@@ -48,6 +48,20 @@ def _text(value: Any) -> str:
     return str(value).strip()
 
 
+def _rfc3339_or_none(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    raw = value.strip()
+    normalized = raw[:-1] + "+00:00" if raw.endswith(("Z", "z")) else raw
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 class CrowdWorksReplyAdapter:
     FORM_CONFIRMATION_BODY = (
         "先ほどご案内のGoogleフォームへの回答操作を行いましたが、送信完了画面の確認ができませんでした。"
@@ -318,7 +332,9 @@ class CrowdWorksReplyAdapter:
              )),
             None,
         )
-        requested_at = reason_message.get("sent_at") if reason_message else None
+        requested_at = _rfc3339_or_none(
+            reason_message.get("sent_at") if reason_message else None
+        )
         observed = contract_deadline.normalize_contract_termination({
             "platform": "crowdworks",
             "request_id": match.group(1),
