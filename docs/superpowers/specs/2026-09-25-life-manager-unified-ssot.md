@@ -2140,10 +2140,12 @@ flowchart LR
 通知の「本日が契約途中終了リクエストの返答期限です」はAdobeの解約ではなく、CrowdWorksの契約ID`63570481`に対するprovider側の契約途中終了申請である。通知には当日が返答期限と表示されているが、現時点で次の三点は別々に扱う。
 
 - **確認済み:** 9月のフォーム送信（発注者・フォームrevision hash・milestone`13798056`のprovider receipt）と、Paid stateの`delivered`はローカルreceiptで確認できる。
-- **未確認:** 現在の契約画面に表示される終了理由・条件、申請が未回答のままか、providerが自動終了済みか、今回の通知に対応する公式receipt/readback。過去の納品receiptは今回の終了申請の解決証拠ではない。
-- **操作状態:** このcursorでは承諾・拒否・再納品・再送を実行していない。条件が読めない状態で推測して送信しない。
+- **公式readback確認済み:** `https://crowdworks.jp/contracts/63570481`の契約画面は、契約相手を「ネオ・ゲート採用」、契約金額税込12円、期間「2026年09月10日〜現在」と表示し、「この契約は契約途中終了リクエストが送信されています」「契約途中終了に同意しますか？ 同意する／同意しない」「送信から1週間で未回答なら利用規約に沿って自動終了」と表示する。画面上は現在も両ボタンが存在し、今回のcursorではどちらも押していない。
+- **終了理由の公式readback:** 2026年9月24日11:28の相手メッセージは、以前にも同社求人へ応募し課題テストを受けていたため、前回応募から6か月未満の再応募は公平性のため受け付けない、と明記している。したがって、今回の契約途中終了の直接理由は品質不良ではなく、重複／短期再応募ポリシーである。
+- **別の品質指摘:** 2026年9月16日11:43には、staff宛メールは回答済みだがcustomer宛メールが未回答、と指摘されている。これはこちらの作業品質・完了判定の失敗だが、9月24日の終了理由とは別である。
+- **操作状態:** このcursorでは承諾・拒否・再納品・再送を実行していない。公式画面のread-only確認のみ完了した。
 
-**Underperformanceの判定:** 終了申請の理由自体は公式画面未確認なので、相手が品質不足を理由にしたとは断定しない。ただし、こちら側の実行不備は根拠付きで確認できる。最新buyer event`427573234`と`funded-contract-plan.json`には「staff emailは回答済みだがcustomer emailの回答が不足」とあり、同じ契約の次アクションも「不足したcustomer-address answerを作成してからformal deliver」と残っている。過去のフォーム／納品receiptが存在することだけを完了証拠にし、最新要求を結果へ結び付けられていなかった。
+**Underperformanceの判定:** 今回の終了申請の直接理由は公式readbackで重複／短期再応募ポリシーと確定したため、品質不良が終了原因だったとは扱わない。ただし、こちら側の実行不備は根拠付きで確認できる。最新buyer event`427573234`と`funded-contract-plan.json`には「staff emailは回答済みだがcustomer emailの回答が不足」とあり、同じ契約の次アクションも「不足したcustomer-address answerを作成してからformal deliver」と残っている。過去のフォーム／納品receiptが存在することだけを完了証拠にし、最新要求を結果へ結び付けられていなかった。
 
 今回こちらが間違えた点は、(a) staff側の部分回答をcustomer側の完了と混同した、(b) 最新buyer eventを新しい必須作業・期限としてdurable queueへ昇格しなかった、(c) `TargetClosedError`後の`reconcile_unknown`を期限前に解消できなかった、(d) `official_readback`なしの状態を収益／納品完了として扱える経路を残した、の四つである。改善条件は、request-to-result対応表、customer-visible readback、最新event優先の完了gate、期限通知、target-close再接続、receiptなしpass禁止を全platformのshared kernelで必須にすることである。
 
@@ -2161,7 +2163,7 @@ flowchart LR
 
 #### Contract Work Factoryの残TODO（この節を拡張順の正本とする）
 
-1. **[ ] CrowdWorks期限案件を閉じる:** まずowner付きbrowser recoveryと公式契約画面の読み取り経路を復旧し、契約ID`63570481`の終了申請を読み取り専用確認する。理由・条件・現状態・期限・provider receiptを保存し、併せて最新buyer event`427573234`の不足customer email回答をrequest-to-result表で照合する。その後、方針が確定している場合だけ同意／拒否を一度だけ実行して公式readbackを保存する。不明なら保留し、再納品・再送はしない。
+1. **[~] CrowdWorks期限案件を閉じる:** owner付きbrowser recoveryと公式契約画面の読み取り経路を確認し、契約ID`63570481`の現状態・終了条件・直接理由（重複／6か月未満の再応募）を公式readbackへ保存済み。残りは最新buyer event`427573234`の不足customer email回答をrequest-to-result表で照合し、同意／拒否方針が確定している場合だけ外部操作を一度だけ実行して公式readbackを保存する。不明なら保留し、再納品・再送はしない。
 2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類、CrowdWorks検出、応募前のshared fail-closed fence、CrowdWorks公式履歴adapterとdurable cache接続、10ページsource-complete同期（200件）、契約URLリダイレクトの公式readback、保存済み期限情報を期限超過→緊急→近日→不明→通常の順で直列化するshared reply queue、返信カーネルのbounded deadline telemetry（`deadline_status`・正規化済み`due_at`・案件ID、期限超過時の`deadline_missed`、run marker永続化）、reply loopだけを対象にした読み取り専用`lm-loop status/health`投影、既知no-effect理由の`safely_fenced` health投影、履歴cacheの`lm-loop status`投影、本文hashを捏造しない`ApplicationHistoryReceipt`の共通schema永続化は完了。履歴同期全体とCFO通知は残る。
 3. **[~] CrowdWorks laneを修正:** browser attach/inbox/threadの観測前`entrypoint_exit_1`はstructured waitへ分類済み。release SHA不一致はhealthで`telemetry_gap`として検知し`reconcile_current_release`へ誘導、receiptなし`pass`は`official_readback_required`へ戻す実装と回帰テストを完了。残りは孤児CDP portをowner付きで安全にreconcileするbrowser supervisor、終了申請のtarget-close回復、durable deadline再キュー、全revenue laneの同一immutable releaseへの反映、同一releaseで自然run→公式readback→replay-zeroを閉じる。
 4. **[~] Adapter conformance gate:** 既存Coconala/Lancers/CrowdWorks/Mercorのreply adapterが5 surface（observe_threads/observe_one/context/mutate/readback）と観測前structured waitを実装する共通contract testを持ち、Coconalaの`CollectorUnhealthy`（`missing_container`・coverage不足・login redirectを含む）とLancersのbrowser/account/thread/calendar観測失敗も送信失敗ではなく共有kernelの観測待機へ分類する。Coconala/Lancers/CrowdWorks/Mercorのpaid adapterが5 surface（observe_active/observe_one/context/mutate/readback）を共有Paid kernelへ渡す共通contract testを追加した。Paid kernelにもadapterが明示したmutation前のbrowser/session/lock観測障害を`waiting_external`・`pending`としてdurableに保存する分類境界を追加し、4つの既存paid adapterすべての再試行可能な観測待ちを同じcontractへ接続した。Mercorのsnapshot/Gmail source failure分類と外部効果0の回帰テストも完了。残りは新platformのadapter生成・検証、Coconalaの旧paid-direct delivery bridgeをshared kernelの自然runへ移すこと、application/storefront laneの同一effect fence確認、shared kernelのduplicate・ledger・P&L再実装が無いことの全adapter監査。
