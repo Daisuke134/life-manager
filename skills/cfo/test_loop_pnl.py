@@ -5,15 +5,19 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+import copy
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import loop_pnl as m  # noqa: E402
+from skills.cfo import economic_attribution as contract  # noqa: E402
 
 FIX = Path(__file__).parent / "fixtures" / "loop_pnl"
 DAY = date(2026, 9, 26)  # Asia/Tokyo: 2026-09-25T15:00Z .. 2026-09-26T15:00Z
+SNAPSHOT = "2026-10-01T00:00:00.000000Z"
+TRAILING_START = "2026-09-24T00:00:00.000000Z"
 
 
 def fixture(name):
@@ -26,6 +30,58 @@ def sums(entries):
         key = (e.loop_id, e.kind, e.currency)
         out[key] = out.get(key, Decimal(0)) + e.amount
     return out
+
+
+def b7_receipt(receipt_id, *, loop_id="self-build", provider="stripe",
+               occurred_at="2026-09-30T12:00:00Z", components=None,
+               currency="USD"):
+    components = components or [{"category": contract.REVENUE, "amount": "1"}]
+    return {
+        "schema_version": contract.SCHEMA_VERSION,
+        "record_type": "receipt",
+        "receipt_id": receipt_id,
+        "product_loop_id": loop_id,
+        "provider": provider,
+        "currency": currency,
+        "occurred_at": occurred_at,
+        "settled_at": occurred_at,
+        "verification_state": "verified",
+        "revenue_class": "one_time" if any(
+            component["category"] == contract.REVENUE
+            for component in components
+        ) else None,
+        "evidence_refs": [f"{provider}://receipts/{receipt_id}"],
+        "components": components,
+    }
+
+
+def b7_coverage(loop_id, projection, *, categories=None, source_id=None):
+    return {
+        "schema_version": contract.SCHEMA_VERSION,
+        "record_type": "coverage",
+        "product_loop_id": loop_id,
+        "source_id": source_id or f"{loop_id}-b7",
+        "projection": projection,
+        "window_start": TRAILING_START if projection == "trailing" else None,
+        "window_end": SNAPSHOT,
+        "coverage_state": "complete",
+        "reason": None,
+        "covered_categories": categories or (
+            ["mrr", "liquid_balance"] if projection == "as_of"
+            else list(contract.COUNTED_CATEGORIES)
+        ),
+        "observed_at": SNAPSHOT,
+        "evidence_refs": [f"lm-cfo://coverage/{loop_id}/{projection}"],
+    }
+
+
+def complete_b7_coverage(*, omit=()):
+    return [
+        b7_coverage(loop_id, projection)
+        for loop_id in contract.PRODUCT_LOOP_IDS
+        if loop_id not in set(omit)
+        for projection in ("historical", "trailing", "as_of")
+    ]
 
 
 class AlpacaTest(unittest.TestCase):
@@ -234,6 +290,147 @@ class UsageTest(unittest.TestCase):
         self.assertEqual(notes["missing_cost_events"], {"job-hunter": 1})
         self.assertEqual(notes["unattributed"]["codex-brain"]["events"], 1)
         self.assertEqual(notes["unparsed_lines"], 1)
+
+
+class B7IntegrationTest(unittest.TestCase):
+    def test_injected_b1_to_b6_records_project_once_with_fourteen_lanes_and_gaps(self):
+        adapter_records = {
+            "b1-capafy-mobile": [b7_receipt(
+                "capafy:payment:1", loop_id="capafy", provider="capafy",
+            )],
+            "b2-stripe": [b7_receipt("stripe:balance_transaction:1")],
+            "b3-affiliate": [b7_receipt(
+                "partnerstack:commission:1", loop_id="affiliate", provider="partnerstack",
+            )],
+            "b4-marketplace": [b7_receipt(
+                "marketplace:lancers:payment:1", loop_id="gig-lancers", provider="lancers",
+            )],
+            "b5-agent-economy-investment": [b7_receipt(
+                "x402:base:1:0", loop_id="agent-economy", provider="base",
+            )],
+            "b6-actual-cost": [b7_receipt(
+                "openai:invoice:1", loop_id="writer", provider="openai",
+                components=[{"category": "model_cost", "amount": "0.4"}],
+            )],
+        }
+        records = m.join_adapter_records(adapter_records)
+        records.extend(complete_b7_coverage(omit=("job-hunter",)))
+
+        result = m.project_records(
+            records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(set(result["historical"]["loops"]), set(contract.PRODUCT_LOOP_IDS))
+        self.assertEqual(set(result["trailing"]["loops"]), set(contract.PRODUCT_LOOP_IDS))
+        self.assertEqual(set(result["mrr"]["loops"]), set(contract.PRODUCT_LOOP_IDS))
+        self.assertEqual(result["snapshot_at"], SNAPSHOT)
+        self.assertEqual(result["trailing_start"], TRAILING_START)
+        self.assertEqual(result["historical"]["loops"]["job-hunter"]["status"], "unknown")
+        self.assertEqual(result["trailing"]["loops"]["job-hunter"]["status"], "unknown")
+
+    def test_source_cross_duplicate_is_counted_once_and_conflict_fails_closed(self):
+        row = b7_receipt("shared:receipt:1", provider="stripe")
+        result = m.project_records(
+            [row, copy.deepcopy(row), *complete_b7_coverage()],
+            snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(result["duplicate_receipts"], [
+            {"provider": "stripe", "receipt_id": "shared:receipt:1"},
+        ])
+        self.assertEqual(
+            result["historical"]["company"]["currencies"]["USD"][contract.REVENUE],
+            "1",
+        )
+
+        conflict = copy.deepcopy(row)
+        conflict["components"] = [{"category": contract.REVENUE, "amount": "2"}]
+        with self.assertRaisesRegex(contract.ContractError, "receipt_conflict"):
+            m.project_records(
+                [row, conflict, *complete_b7_coverage()],
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+
+    def test_trailing_boundary_mrr_cost_complete_net_and_runway_are_separate(self):
+        rows = complete_b7_coverage()
+        rows.extend([
+            b7_receipt(
+                "before-boundary:receipt", occurred_at="2026-09-23T23:59:59Z",
+                components=[{"category": contract.REVENUE, "amount": "10"}],
+            ),
+            b7_receipt(
+                "on-boundary:receipt", occurred_at=TRAILING_START,
+                components=[{"category": contract.REVENUE, "amount": "2"}],
+            ),
+            b7_receipt(
+                "trailing:receipt", occurred_at="2026-09-25T00:00:00Z",
+                components=[
+                    {"category": contract.REVENUE, "amount": "5"},
+                    {"category": contract.REFUND, "amount": "1"},
+                    *[{
+                        "category": category, "amount": "1"
+                    } for category in contract.COST_CATEGORIES],
+                ],
+            ),
+            {
+                "schema_version": contract.SCHEMA_VERSION,
+                "record_type": "subscription_snapshot",
+                "snapshot_id": "stripe:sub:active:2026-10-01",
+                "subscription_id": "stripe:sub:active",
+                "product_loop_id": "self-build",
+                "provider": "stripe",
+                "currency": "USD",
+                "normalized_monthly_amount": "30",
+                "normalization_basis": "provider_monthly",
+                "status": "active",
+                "observed_at": SNAPSHOT,
+                "verification_state": "verified",
+                "evidence_refs": ["stripe://subscriptions/active"],
+            },
+            {
+                "schema_version": contract.SCHEMA_VERSION,
+                "record_type": "subscription_snapshot",
+                "snapshot_id": "stripe:sub:inactive:2026-10-01",
+                "subscription_id": "stripe:sub:inactive",
+                "product_loop_id": "self-build",
+                "provider": "stripe",
+                "currency": "USD",
+                "normalized_monthly_amount": "90",
+                "normalization_basis": "provider_monthly",
+                "status": "inactive",
+                "observed_at": SNAPSHOT,
+                "verification_state": "verified",
+                "evidence_refs": ["stripe://subscriptions/inactive"],
+            },
+            {
+                "schema_version": contract.SCHEMA_VERSION,
+                "record_type": "liquid_balance",
+                "snapshot_id": "stripe:balance:2026-10-01",
+                "account_id": "operating",
+                "provider": "stripe",
+                "currency": "USD",
+                "amount": "100",
+                "observed_at": SNAPSHOT,
+                "verification_state": "verified",
+                "evidence_refs": ["stripe://balances/2026-10-01"],
+            },
+        ])
+
+        result = m.project_records(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        historical = result["historical"]["company"]["currencies"]["USD"]
+        trailing = result["trailing"]["company"]["currencies"]["USD"]
+        self.assertEqual(historical[contract.REVENUE], "17")
+        self.assertEqual(trailing[contract.REVENUE], "7")
+        self.assertEqual(trailing["total_cost"], "7")
+        self.assertEqual(trailing["net"], "-1")
+        self.assertEqual(result["mrr"]["company"], {
+            "status": "verified", "currencies": {"USD": "30"},
+            "reasons": [], "coverage_gaps": [],
+        })
+        self.assertEqual(result["runway"]["status"], "verified")
+        self.assertEqual(result["runway"]["currencies"]["USD"]["liquid_balance"], "100")
+        self.assertEqual(result["runway"]["currencies"]["USD"]["net_cash_burn"], "1")
 
 
 class TableTest(unittest.TestCase):

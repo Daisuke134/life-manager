@@ -24,6 +24,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from skills.cfo import economic_attribution as contract  # noqa: E402
+from skills.cfo.adapters import actual_cost, affiliate, agent_economy_investment
+from skills.cfo.adapters import capafy_mobile, marketplace, stripe  # noqa: E402
+
 CATALOG = ROOT / "apps/life-manager/config/product-loop-catalog.json"
 CREDENTIALS = Path("~/.local/share/anicca/credentials.json").expanduser()
 STATE = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", "~/.local/state/life-manager")).expanduser()
@@ -50,6 +56,210 @@ class SourceResult:
     entries: list[Entry] = field(default_factory=list)
     error: str | None = None  # set => every covered cell is unverified
     notes: dict = field(default_factory=dict)
+
+
+B7_ADAPTER_ORDER = (
+    "b1-capafy-mobile", "b2-stripe", "b3-affiliate", "b4-marketplace",
+    "b5-agent-economy-investment", "b6-actual-cost",
+)
+B7_SOURCE_LOOPS = {
+    "b1-capafy": ("capafy",), "b1-mobile": ("mobile-apps",),
+    "b2-stripe": ("self-build",), "b3-affiliate": ("affiliate",),
+    "b4-marketplace": ("gig-coconala", "gig-lancers", "gig-crowdworks"),
+    "b5-agent": ("agent-economy",), "b5-investment": ("investment",),
+}
+
+
+def join_adapter_records(adapter_records: dict[str, list[dict]]) -> list[dict]:
+    """Join B1-B6 normalized records once in a fixed order for the B0 projector."""
+    joined: list[dict] = []
+    for adapter_name in B7_ADAPTER_ORDER:
+        rows = adapter_records.get(adapter_name, [])
+        if rows is None:
+            continue
+        if not isinstance(rows, list):
+            raise TypeError(f"adapter_records_invalid:{adapter_name}")
+        joined.extend(rows)
+    return joined
+
+
+def project_records(records: list[dict], *, snapshot_at: str, trailing_start: str) -> dict:
+    """Pass the joined B1-B6 array through B0 exactly once."""
+    return contract.project(
+        list(records), snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+
+
+def _b7_gap_records(*, source_id: str, loop_ids: tuple[str, ...], reason: str,
+                    snapshot_at: str, trailing_start: str) -> list[dict]:
+    rows = []
+    for loop_id in loop_ids:
+        for projection, window_start, categories in (
+            ("historical", None, []),
+            ("trailing", trailing_start, []),
+            ("as_of", None, []),
+        ):
+            rows.append(contract.validate_record({
+                "schema_version": contract.SCHEMA_VERSION,
+                "record_type": "coverage",
+                "product_loop_id": loop_id,
+                "source_id": source_id,
+                "projection": projection,
+                "window_start": window_start,
+                "window_end": snapshot_at,
+                "coverage_state": "gap",
+                "reason": reason,
+                "covered_categories": categories,
+                "observed_at": snapshot_at,
+                "evidence_refs": [f"adapter://{source_id}/{reason}"],
+            }))
+    return rows
+
+
+def _read_b7_payload(path: str | Path):
+    source = Path(path)
+    text = source.read_text(encoding="utf-8")
+    if source.suffix == ".jsonl":
+        return [json.loads(line) for line in text.splitlines() if line.strip()]
+    return json.loads(text)
+
+
+def _paths(value: str | None) -> list[Path]:
+    return [Path(item) for item in str(value or "").split(os.pathsep) if item.strip()]
+
+
+def _safe_b7_adapter(call, *, source_id: str, loop_ids: tuple[str, ...],
+                     snapshot_at: str, trailing_start: str) -> list[dict]:
+    try:
+        rows = call()
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, KeyError):
+        rows = []
+    return rows if rows else _b7_gap_records(
+        source_id=source_id, loop_ids=loop_ids, reason="read_failed",
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+
+
+def collect_b7_records(*, snapshot_at: str, trailing_start: str,
+                       adapter_records: dict[str, list[dict]] | None = None,
+                       env: dict[str, str] | None = None) -> list[dict]:
+    """Read only already-captured B1-B6 artifacts and return one joined record array."""
+    if adapter_records is not None:
+        return join_adapter_records(adapter_records)
+    env = os.environ if env is None else env
+    sources: dict[str, list[dict]] = {name: [] for name in B7_ADAPTER_ORDER}
+
+    capafy_path = env.get("LM_CFO_CAPAFY_ANALYTICS")
+    sources["b1-capafy-mobile"].extend(
+        _safe_b7_adapter(
+            lambda: capafy_mobile.adapt_capafy(
+                capafy_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ) if capafy_path else [],
+            source_id="capafy-orders", loop_ids=B7_SOURCE_LOOPS["b1-capafy"],
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    )
+    mobile_path = env.get("LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES")
+    sources["b1-capafy-mobile"].extend(
+        _safe_b7_adapter(
+            lambda: capafy_mobile.adapt_mobile(
+                mobile_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ) if mobile_path else [],
+            source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    )
+
+    stripe_path = env.get("LM_CFO_STRIPE_READBACK")
+    sources["b2-stripe"] = _safe_b7_adapter(
+        lambda: stripe.adapt(
+            _read_b7_payload(stripe_path), product_loop_id="self-build",
+            observed_at=snapshot_at, trailing_start=trailing_start,
+        ) if stripe_path else [],
+        source_id="stripe-financial-record", loop_ids=B7_SOURCE_LOOPS["b2-stripe"],
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+
+    affiliate_path = env.get("LM_CFO_AFFILIATE_READBACK") or env.get("LM_CFO_AFFILIATE_LEDGER")
+    sources["b3-affiliate"] = _safe_b7_adapter(
+        lambda: affiliate.adapt_path(
+            affiliate_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ) if affiliate_path else [],
+        source_id="affiliate-financial-record", loop_ids=B7_SOURCE_LOOPS["b3-affiliate"],
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+
+    marketplace_paths = _paths(
+        env.get("LM_CFO_MARKETPLACE_READBACK") or env.get("LM_CFO_MARKETPLACE_RECEIPTS")
+    )
+    if marketplace_paths:
+        sources["b4-marketplace"] = []
+        for source_path in marketplace_paths:
+            sources["b4-marketplace"].extend(_safe_b7_adapter(
+                lambda source_path=source_path: marketplace.adapt_path(
+                    source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+                ),
+                source_id="marketplace-financial-record",
+                loop_ids=B7_SOURCE_LOOPS["b4-marketplace"],
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ))
+    else:
+        sources["b4-marketplace"] = _b7_gap_records(
+            source_id="marketplace-financial-record", loop_ids=B7_SOURCE_LOOPS["b4-marketplace"],
+            reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+
+    b5_paths = _paths(
+        env.get("LM_CFO_B5_READBACK")
+        or env.get("LM_CFO_AGENT_ECONOMY_READBACK")
+        or env.get("LM_CFO_INVESTMENT_READBACK")
+        or env.get("LM_CFO_AGENT_ECONOMY_RECEIPTS")
+        or env.get("REVENUE_RECEIPT_JOURNAL")
+    )
+    if b5_paths:
+        sources["b5-agent-economy-investment"] = []
+        for source_path in b5_paths:
+            sources["b5-agent-economy-investment"].extend(_safe_b7_adapter(
+                lambda source_path=source_path: agent_economy_investment.adapt_path(
+                    source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+                ),
+                source_id="b5-readback", loop_ids=("agent-economy", "investment"),
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ))
+    else:
+        sources["b5-agent-economy-investment"] = [
+            *_b7_gap_records(
+                source_id="x402-readback", loop_ids=B7_SOURCE_LOOPS["b5-agent"],
+                reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ),
+            *_b7_gap_records(
+                source_id="alpaca-orders", loop_ids=B7_SOURCE_LOOPS["b5-investment"],
+                reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ),
+        ]
+
+    actual_cost_path = env.get("LM_CFO_ACTUAL_COST_READBACK") or env.get("LM_CFO_ACTUAL_COST")
+    sources["b6-actual-cost"] = _safe_b7_adapter(
+        lambda: actual_cost.adapt(
+            _read_b7_payload(actual_cost_path), snapshot_at=snapshot_at,
+            trailing_start=trailing_start,
+        ) if actual_cost_path else [],
+        source_id="actual-cost-readback", loop_ids=("cfo",),
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+    return join_adapter_records(sources)
+
+
+def build_b7_projection(*, snapshot_at: str, trailing_start: str,
+                        adapter_records: dict[str, list[dict]] | None = None,
+                        env: dict[str, str] | None = None) -> dict:
+    return project_records(
+        collect_b7_records(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+            adapter_records=adapter_records, env=env,
+        ),
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
 
 
 def day_window(day: date) -> tuple[datetime, datetime]:
@@ -621,15 +831,52 @@ def collect(day: date, loops: list[dict]) -> list[SourceResult]:
     return sources
 
 
+def _utc_text(value: datetime) -> str:
+    return value.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
+        "+00:00", "Z"
+    )
+
+
+def _b7_window(day: date, snapshot_at: str | None, trailing_start: str | None) -> tuple[str, str]:
+    end = snapshot_at or _utc_text(day_window(day)[1])
+    start = trailing_start or _utc_text(
+        datetime.fromisoformat(end.replace("Z", "+00:00")) - timedelta(days=30)
+    )
+    return end, start
+
+
+def _b7_table(day: date, projection: dict, *, snapshot_at: str, trailing_start: str) -> dict:
+    return {
+        "reporting_date": day.isoformat(),
+        "timezone": "Asia/Tokyo",
+        "snapshot_at": projection["snapshot_at"],
+        "trailing_start": projection["trailing_start"],
+        "economic_attribution": projection,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--date", help="Asia/Tokyo reporting day, default today")
+    parser.add_argument("--snapshot-at", help="explicit B0 snapshot_at RFC3339 timestamp")
+    parser.add_argument("--trailing-start", help="explicit B0 trailing_start RFC3339 timestamp")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     day = date.fromisoformat(args.date) if args.date else datetime.now(JST).date()
-    loops = load_catalog()
-    table = build_table(loops, collect(day, loops), day)
-    print(json.dumps(table, default=_jsonable, indent=1) if args.json else render(table))
+    snapshot_at, trailing_start = _b7_window(day, args.snapshot_at, args.trailing_start)
+    try:
+        projection = build_b7_projection(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    except contract.ContractError as error:
+        print(json.dumps({"status": "failed", "reason": error.code, "field": error.field}))
+        return 1
+    table = _b7_table(
+        day, projection, snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+    print(json.dumps(table, ensure_ascii=False, indent=1) if args.json else json.dumps(
+        table, ensure_ascii=False, indent=1,
+    ))
     return 0
 
 
