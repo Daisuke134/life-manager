@@ -2398,3 +2398,9 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 5b backoff後natural retryをread-onlyで観測し、timeout ownerを一件ずつ確認する。
 2. disk/ENOSPC境界が続く場合は、既存capacity-selfheal source branchの証拠をレビューしてから最小PRを選ぶ。未検証の大差分はmergeしない。
 3. fleet convergence後にのみ、Agent Economy L9-13.1 TaskMarket no-effect discovery、PromptBase/Writer、Capafyへ進む。
+
+### 36. capacity-selfheal旧branchの再利用判定（2026-10-02 01:31 JST）
+
+- `fix/capacity-selfheal-20260930`（HEAD `09956e02b2`）をread-only監査した。baseは`3975ae8996`、current mainは`5b913ad218`で、mainとの差分は8 files / 655 additions+changes。`runtime/loop/runtime_reserve.py`、`lm_loop_run.py`、`runtime_event.py`、disk cleanupを横断する古い大差分である。
+- 現mainには既にdisk cleanupのmode-0600 receipt reserveとENOSPC retry testsが存在し、旧branchのruntime-wide reserveは未統合。current 5b fleet partialの直接原因はmobile owner timeoutとbudget exhaustionで、新しいENOSPC terminal eventはまだ観測していない。
+- したがって旧branchをそのままPR/mergeしない。Ponytail/YAGNIの最小境界として、fresh ENOSPC再現が出た場合だけcurrent mainから専用worktreeを作り、欠けているruntime bookkeeping writeを1つずつRED化する。現在cursorは5b natural retry/disk readbackのまま維持する。
