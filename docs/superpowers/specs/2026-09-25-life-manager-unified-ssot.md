@@ -2188,3 +2188,7 @@ shared Reply kernelは、保存済みstateが`verified`でproviderの`latest_eve
 2. [未完] disk cleanup/release reconcilerが`errors=0`・十分なheadroom・全対象ownerの同一release applyを返す境界を直す。ENOSPC中はeffect fenceを解放しない。
 3. [未完] CrowdWorks replyの450 fenceをowner adapterで一件ずつ公式会話readbackし、`replay_zero`またはprovider receiptが取れたものだけcloseする。pending/failedは再送せず、次のbounded retryへ残す。
 4. [未完] その後にLancers・Mercor・Freelancer・Upworkを同じreceipt/fence/settlement契約で順に検証し、最後にMeta Loopへ進む。
+
+**次platformのread-only監査（2026-10-01）**: Lancersは全laneが同一状態ではない。`lancers-revenue-browser`はc213で稼働、`lancers-revenue-negotiate`は自然run自体は`pass`だがeffect_unknown fenceが95件で公式receiptなし、`lancers-revenue-application`と`lancers-revenue-paid`は`entrypoint_exit_1`かつeffect unknown、`lancers-revenue-storefront`はinstalled c213に対してeventが旧`90332d1e`、`lancers-revenue-work-sync`は`entrypoint_exit_75`である。したがってLancersを完了・収益化済みとは扱わず、応募・交渉・paid・storefrontを再送しない。
+
+Mercorのapplication/reply/paidは3つとも旧release `67b3efcc`で`host_admission_deferred:resource_effect_unknown`、公式receiptなしである。Mercorもまだ次のmutationへ進めない。次の実行順は、(1)共有release reconcilerとdisk headroomを安定化、(2)Lancers stale eventをc213へ揃え、各laneの公式readback/fenceを一件ずつ確認、(3)Mercorを同じ順でtarget apply/readback、(4)その後にFreelancer/Upwork、最後にMeta Loopとする。
