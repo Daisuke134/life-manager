@@ -2021,3 +2021,40 @@ flowchart LR
 - Chrome Headless: https://developer.chrome.com/docs/automation-and-testing/headless
 
 今回の文書更新はsource truthと実行順だけを変更する。production owner、browser、provider、wallet、cloud resource、subscriptionは変更しない。
+
+### 12. P2並列バッチの実測と現在cursor（2026-10-01 19:01 JST）
+
+P2は、共有kernel・SSOT・production・provider/browserを触らない3つの非重複席を、`agmsg spawn ... --boot-prompt`で同時に起動した。plain terminalでのspawnはOS terminal ownerを証明できず失敗したため、orchestrator自身のtmux placement（`/private/tmp/tmux-501/default`、primary `%61`）を確認してからtmux driverで再起動した。3席の実際の稼働モデルは`gpt-5.6-luna max`であり、登録済みだが`no_placement_record`の席は稼働数へ数えていない。各席は完了後にdespawnし、production/provider/browserのeffectは0件である。
+
+| P2 lane | source成果 | main統合 | 未証明の境界 |
+|---|---|---|---|
+| L9-05 Writer / PromptBase | `football-match-analyst`のimmutable packaging回帰を追加。focused `5 passed`、build smoke、archive evidence readback | PR #6372、`ab34555058` | 対象release apply後の自然04:20、PromptBase管理画面/Gmail、公開listing、sale/settlement/payout、replay-zero |
+| L9-06 Affiliate | cancelled coalesced occurrenceをpredecessorへ採用しないhost-fence修正。host fence `10/10`、full Affiliate suite、commission replay-zero、diff check PASS | PR #6373、`e86abc2d59` | 公式page/post・commission/payout・actual costのreadback。readonly replayは`HELD / predecessor_report_not_unique`のまま |
+| L9-04 Fundraiser | occurrence-bound `pre_effect` / `effect_attempted` / `human_required` / `post_effect_verified` markerとfail-closed reconcile。runtime `13 passed`、Node eval `14 passed`、loop contract/source boundary PASS | PR #6374、`7a2eb6f0f5` | immutable release、target apply、自然run、application/provider status、外部inflow。provider/browser/natural wakeは未実施 |
+
+P2 source修正の統合は、loop完了を意味しない。P1のtarget applyとnatural readbackが先であり、`effect_unknown`の公式readbackなしに再送・再applyしない。
+
+#### P1 live readback追補（同時点）
+
+- `/Users/anicca/loops/current` は`/Users/anicca/loops/releases/20261001T183701-c5dd3a01`を指す。`RELEASE.json`のSHAは`c5dd3a01acd52e31f8486b67fa744e557632344e`で、Connector fix `b9727751ee`を含むが、P2 merge後のreleaseではない。
+- `capafy-loop-daily`はinstalled `c5dd3a01`、last exit `0`だがeffect `publish/unknown`、official receipt/readback `null`。eventは旧`813fd766`でrelease driftがあり、free slot `0`のため自然submitをしていない。継続出品・再提出・改善・marketing・sale/settlementを含むCapafy loopは未完了。
+- `promptbase-loop-daily`はinstalled `813fd766`、`loaded-idle`、diagnostic incomplete、occurrence・official readback・sale/settlementが無い。PromptBase/Writer loopは未完了。
+- `life-manager-connector-native`はinstalled/eventとも`813fd766`、exit `0`・effect `not_applicable`だがConnector official/provider/Gmail/Calendar refは無い。process passは外部成功ではない。
+- `life-manager-release-reconciler`はPID `78809`でloaded-runningだが、installed `4d10a7c9`、last exit `1`、`entrypoint_exit_1`。ログの`No space left on device`をcapacity境界として保持し、手動restartはしない。
+- fresh `lm-loop health --json` は`total=177, healthy=30, running=23, failed=40, safely_fenced=70, effect_unknown=10, telemetry_gap=4, human_required=0`でCLIは未合格。`df -k /`のfreeは`7,560,824 KB`（約7.56GB）で、10GB安定は未証明。
+- 2026-10-01の14 Product Loop合計売上・利益は`unknown`であり、0円とは報告しない。14/14のofficial settlement/refund/fee/actual cost joinがなく、cost-complete net P&Lは`0/14`。
+
+#### 残りの原子TODO（この順序をcursorとする）
+
+1. **P1-1 fleet収束:** 自然reconcilerの次tickをread-only観測し、対象ownerのapply完了、admission queueの二回安定、disk freeの二回readbackを採取する。ENOSPCが続く場合はcapacityの自己所有修正を先に行い、provider effectは触らない。
+2. **P1-2 target provenance:** P2 mergeを含むmain由来immutable releaseを自然/安全なreconciler境界で作り、`capafy-loop-daily`、`promptbase-loop-daily`、`life-manager-connector-native`のloaded SHAとargvを一件ずつreadbackする。symlinkだけでは完了にしない。
+3. **P1-3 PromptBase/Writer:** 次の自然04:20を待ち、管理画面/GmailでPending→審査状態を確認し、公開listing・sale・refund・fee・model cost・settlement・payout・replay-zeroを同一opportunity IDへ結合する。自然run前のmanual wake/submitは禁止。
+4. **P1-4 Capafy:** free slotが空いた後だけ自然実行を観測し、生成→無人submit→Capafy API listing/status→sale/refund/skill別actual model cost→settlement/payout→同一listing replay-zeroを閉じる。slot `0`の間はreview結果をread-onlyで読む。
+5. **P1-5 Connector/Mobile:** Connector候補発生時だけprovider receipt、confirmation mail、Google Calendar公式readbackを取り、Mobile 22 jobsのeffect-unknown ownerを一件ずつ公式readback付きで再開する。
+6. **P2-1 Fundraiser/Affiliate apply:** `7a2eb6f0f5`と`e86abc2d59`を含むreleaseで対象ownerだけを自然applyし、Fundraiserはapplication/status/inflow、Affiliateはpage/post/commission/payout/actual costを公式readbackする。未解決effectは再送しない。
+7. **L9-07〜L9-12:** Coconala、Lancers、CrowdWorks、Job Hunter、Self-Build、Investmentを各lane固有worktreeで、pre/effect/post fence、human-required gate、official receipt、replay-zeroの順に一つずつ閉じる。platform間でbrowser identity/stateを共有しない。
+8. **L9-13 Agent Economy:** TaskMarket immutable packaging（`662625b8d1`、PR #6301）はsource完了だがproduction current未反映。provider discovery no-effect、BlockRun paid inference、external paid job、wallet/treasury policy、surplus renewalを順に公式receiptで証明する。
+9. **L9-14 CFO:** 14 loop全てのsettled external revenue、refund、fee、model/tool/browser/server cost、net margin、runwayを同一receipt chainへjoinし、`unknown`を0円へ丸めない。cost-complete net P&L `14/14`が完了条件。
+10. **Self-funding/cloud:** DigitalOcean durable control plane、BlockRun x402、Nosana shelter、Akash fallbackをprovider-neutral interfaceへ接続し、Franklin successor handover 2回、外部surplusによるNosana renewal、Akash restore、30日self-fundingを順に実測する。Mac Mini廃止やcloud-only移行はこの証拠後に判断する。
+
+したがって、**Capafyは未完了、PromptBase/Writerも未完了、foundation observabilityはsource実装済みだがlive fleetは未合格、Life Manager全体のself-healing・self-improving・financially independentも未達**である。完了判定は上記の公式readbackとreceiptが揃った時だけ更新する。
