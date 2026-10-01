@@ -2043,6 +2043,7 @@ flowchart LR
 - `application-owner`の既知no-effect理由はstderrへ`lm_pre_effect_reason:<status>`としてboundedに記録し、`lm-loop status`が`pre_effect_<status>`／`retry_after_<status>`へ投影する。`lm-loop health`はこの証拠を`safely_fenced`として表示し、`effect_unknown`へ誤分類しない。`deadline_missed`・履歴同期全体・CFO通知までの横断projectionは未完了。
 - `application-owner.json`の`eligibility_history`（`missing／syncing／complete`、ページ進捗、次ページ、receipt件数）を、0600のprivate JSONから`lm-loop status`へboundedに投影する。履歴本文・credentialは読まず、壊れた値・不正permission・symlinkは`null`としてfail closedにする。productionは新immutable releaseへ反映するまで旧statusのままである。
 - 公式応募履歴の案件詳細読取は、DOMの一時的な失敗に限り同じproposalを一度だけ再読込するbounded retryを持つ。再試行後も読めない案件はページを未完のまま保持し、`eligibility_unknown`を解除しない。
+- CrowdWorks reply adapterは、browser attach・inbox・threadの観測前失敗をshared kernelのstructured waitへ分類する。`browser_connect_failed`等を未処理例外にせず、外部効果0の`provider_*_unavailable`としてblocked/pendingに保存する。mutation後のreadback失敗はこの分類でeffect unknownを解放しない。
 - 共通`event.schema.json`／`ApplicationReceipt`／transaction pending stateへ任意の`buyer_external_id`を追加し、応募receiptと再応募履歴を同じ発注者キーで結合できるようにした。旧receipt／旧pending stateはbuyer IDなしのまま後方互換で読める。履歴は本文hashを捏造せず、専用の`ApplicationHistoryReceipt`（案件ID・応募ID・発注者ID・provider送信時刻・観測時刻）として共通contracts parserで検証し、CrowdWorks durable cacheの`receipts`へ保存する。既存の完全cacheもcache-hit時に一度だけreceiptへ補完する。
 - 実環境read-only probe（CrowdWorks CDP `9228`）で公式一覧10ページ・200件をsource-complete同期し、案件ID・発注者ID・JST時刻の3点を全件readbackした。契約済みで応募URLが`/contracts/<id>`へリダイレクトする案件も、契約表の案件／発注者リンクと契約スレッドの`proposalId`・最初の自分の送信時刻を照合して履歴へ取り込んだ。durable cacheは`complete=true`、`pages_read=10`、`page_count=10`、`entries=200`、一意ID=200、mode`0600`である。これは履歴の公式readbackであり、自然応募・返信・納品・payoutの成功を意味しない。
 - 検証: 履歴adapter・契約リダイレクト・履歴receipt schema・receipt buyer ID・eligibility／transaction focusedを含む`573 passed`（marketplace-core + CrowdWorks）、`compileall` PASS、`git diff --check` PASS、`lm-loop-contract` `ok=true`。
@@ -2138,7 +2139,7 @@ flowchart LR
 
 1. **[ ] CrowdWorks期限案件を閉じる:** 契約ID`63570481`の同意／拒否方針を確定し、外部操作は一度だけ実行して公式readbackを保存する。
 2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類、CrowdWorks検出、応募前のshared fail-closed fence、CrowdWorks公式履歴adapterとdurable cache接続、10ページsource-complete同期（200件）、契約URLリダイレクトの公式readback、保存済み期限情報を期限超過→緊急→近日→不明→通常の順で直列化するshared reply queue、既知no-effect理由の`safely_fenced` health投影、履歴cacheの`lm-loop status`投影、本文hashを捏造しない`ApplicationHistoryReceipt`の共通schema永続化は完了。`deadline_missed`・履歴同期全体・CFO通知を含む横断health projectionは残る。
-3. **[ ] CrowdWorks laneを修正:** `entrypoint_exit_1`、release drift、receiptなし`pass`を直し、同一immutable releaseで自然run→公式readback→replay-zeroを閉じる。
+3. **[~] CrowdWorks laneを修正:** browser attach/inbox/threadの観測前`entrypoint_exit_1`はstructured waitへ分類済み。残りはrelease drift、receiptなし`pass`を直し、同一immutable releaseで自然run→公式readback→replay-zeroを閉じる。
 4. **[ ] Adapter conformance gate:** 既存Coconala/Lancers/Mercorと新platformが4 surfaceだけを実装し、shared kernelのduplicate・reply・ledger・P&Lを再実装していないことをcontract testで検証する。
 5. **[ ] Provider receipt chain:** 各platformでfunded contract、納品、payout、fee、costを同一occurrenceへ結合し、positive net P&Lが出る案件だけを拡大する。
 6. **[ ] Freelancer/Upwork:** approved automation terms、account-bound auth、funded contract/milestone、mutation authorization、payout readbackが揃うまでownerを有効化しない。

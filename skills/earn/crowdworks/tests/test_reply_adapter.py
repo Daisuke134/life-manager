@@ -741,6 +741,20 @@ def test_only_pre_dispatch_mutation_errors_become_waiting():
         assert classify(RuntimeError(message)) is None
 
 
+def test_observation_browser_and_provider_reads_become_structured_waits():
+    classify = adapter_module.CrowdWorksReplyAdapter.classify_observation_error
+    assert classify(RuntimeError("browser_connect_failed")) == {
+        "reason": "provider_browser_unavailable"
+    }
+    assert classify(RuntimeError("crowdworks_inbox_unavailable")) == {
+        "reason": "provider_inbox_unavailable"
+    }
+    assert classify(RuntimeError("crowdworks_thread_unavailable")) == {
+        "reason": "provider_thread_unavailable"
+    }
+    assert classify(RuntimeError("network_timeout")) is None
+
+
 def _grounded_adapter(tmp_path, composed):
     candidate = tmp_path / "candidate.json"
     candidate.write_text(__import__("json").dumps({

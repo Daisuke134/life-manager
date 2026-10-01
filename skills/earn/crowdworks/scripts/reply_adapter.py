@@ -402,6 +402,27 @@ class CrowdWorksReplyAdapter:
         }}
 
     @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, str] | None:
+        """Classify failures that happen before any provider mutation.
+
+        Browser attach and inbox/thread reads occur before the shared kernel has an intent or
+        dispatch fence. Returning a structured observation wait keeps an unavailable browser from
+        becoming an unhandled ``entrypoint_exit_1``/effect-unknown result.
+        """
+        reasons = {
+            "browser_connect_failed": "provider_browser_unavailable",
+            "crowdworks_browser_unavailable": "provider_browser_unavailable",
+            "crowdworks_inbox_unavailable": "provider_inbox_unavailable",
+            "crowdworks_inbox_invalid": "provider_inbox_unavailable",
+            "crowdworks_inbox_duplicate": "provider_inbox_unavailable",
+            "crowdworks_thread_unavailable": "provider_thread_unavailable",
+            "crowdworks_conversation_unavailable": "provider_thread_unavailable",
+            "crowdworks_conversation_invalid": "provider_thread_unavailable",
+        }
+        reason = reasons.get(str(error))
+        return {"reason": reason} if reason is not None else None
+
+    @staticmethod
     def _form_items(raw: Any) -> list[dict[str, Any]]:
         result = []
         if not isinstance(raw, list):
