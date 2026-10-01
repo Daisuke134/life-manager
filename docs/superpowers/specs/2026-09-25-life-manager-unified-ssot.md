@@ -2209,3 +2209,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 旧`0ebdc38b` tickの自然終端receiptをread-onlyで取得する。
 2. 次の自然tickが`071e270d`由来immutable releaseをcutし、収益owner優先順とbudget reservationがowner logに現れることを確認する。`status=ok`または公式readback付きpartial以外は収束と数えない。
 3. target plist loaded SHA/argv、health 4時計、admission queue、disk freeの安定readbackを揃えてから、PromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-fundingへ進む。
+
+### 23. `284bedab` natural release と新fleet applyの途中readback（2026-10-01 20:58–21:12 JST）
+
+- 旧`0ebdc38b` tickの自然終端後、次のreconciler tickがmain `284bedab241f0057c60d681c8c583467917cbeea`をcutした。`RELEASE.json`は`provenance=ancestor-of-origin-main`、`release_paths=ALL`、`cut_at=2026-10-01T11:58:42Z`で、`current` symlinkも`/Users/anicca/loops/releases/20261001T205630-284bedab`へ自然に進んだ。release内のsourceには`apply_order`と`remaining_budget_seconds`が存在する。
+- shared-agent-runnerとdeterministicのreconcile後、21:09 JSTに同じ`284bedab`のnatural fleet applyが開始した。21:12:18 JSTの途中readbackはowner 14件、累計186秒、`rc=0:13 / rc=1:1`。先頭順は`affiliate-*`→`agent-economy-loop`→`agentmail-*`→`alpaca-investment-*`→`article-*`で、収益/financial owner優先順が実行経路に入ったことを示す。
+- 途中の唯一の失敗は`alpaca-investment-live`（rc=1、36秒、旧job restoreのI/O error）であり、注文receipt/readbackなしのため再送・restart・manual sellはしていない。fleet stateはまだ前回`0ebdc38b / partial / changed=29 / skipped=80 / errors=6`のままで、新SHAの終端receiptは未取得である。
+- `df -k /`は21:12 JSTにfree `4,362,900 KB`。cutは成功したが10GB安定・ENOSPC解消の二回readbackは未達である。external listing/sale/application/settlement/payoutの公式receiptは今回0件であり、Capafy、PromptBase/Writer、foundation live fleet、14 loop cost-complete P&Lを完了扱いしない。
+
+#### 23時点の原子cursor
+
+1. `284bedab` natural fleet applyの終端stateとowner logを待ち、budget reservationで未開始になったownerを正確に記録する。
+2. 新SHAのpartial/ok receipt後にtarget plist loaded SHA/argvとhealth 4時計を照合し、effect_unknown中の手動再apply・restart・provider再送はしない。
+3. disk free二回安定またはENOSPCの再現境界をsource-onlyで閉じた後、named loop（PromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-funding）を既存順序で進める。
