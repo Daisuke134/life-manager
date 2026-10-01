@@ -27,6 +27,7 @@ EFFECT_RECONCILE_FIELDS = {"argv", "occurrence_flag", "resolve_flag", "timeout_s
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
+    "aa-release-reconciler-handoff",
     "capafy-loop-healthcheck",
     "life-manager-disk-cleanup",
     "life-manager-health-observer",
