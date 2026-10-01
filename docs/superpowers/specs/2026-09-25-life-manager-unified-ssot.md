@@ -2347,3 +2347,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 2. 次のimmutable releaseが`5b913ad218`を含み、watcherが新helper labelでscheduleすることを確認する。
 3. `receipt.json`（status ok、mode 0600）、old-service absence、reconciler plist loaded SHA/argv、helper cleanup、watcher replay-zeroを公式readbackする。
 4. その後にfleet budget reservation実効、admission/disk収束、Capafy/PromptBaseその他named loop、CFO、cloud/self-fundingへ戻る。
+
+### 32. self-handoff receipt PASSとP1-2a完了（2026-10-02 00:30 JST）
+
+- natural release `20261002T001513-5b913ad2`（main `5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`、`release_paths=ALL`）がcutされ、current symlinkが5bへ進んだ。watcher install eventは`2026-10-01T15:28:10Z`、natural watcher occurrence `18da71756df50928-57373`は`status=pass / exit_code=0`（`2026-10-01T15:29:15Z`）だった。
+- `self-handoff/receipt.json`はmode `0600`、`status=ok`、`helper_service=ai.anicca.life-manager-release-reconciler-self-handoff`、`old_service=ai.anicca.life-manager-release-reconciler`。receiptのreadbackは`loaded_arguments=[/Users/anicca/loops/releases/20261002T001513-5b913ad2/bin/lm-loop-run, life-manager-release-reconciler, /Users/anicca/loops/releases/20261002T001513-5b913ad2]`、`loaded_release_sha=5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`、`verified=true`である。helper plistはcleanupされ、同一label衝突は再現しなかった。
+- `launchctl print`でもreconciler plistのprogram/argv/envが5bへ一致し、watcher plistも5bへ一致した。serviceは次のStartInterval wake待ちで`active count=0`だが、receiptのbootout→bootstrap→loaded readbackがあるため、P1-2aの自己引継ぎ証拠として閉じる。provider/browser/外部金銭効果は0件。
+- P1-2a source fix（helper label分離）と自然readbackは完了。残るP1-2bは、5b reconcilerの次自然wakeでfleet applyの終端state、target owner loaded SHA/argv、admission queue、disk free二回安定を取得すること。現時点でCapafy/PromptBaseの外部listing/sale/settlement/payout、CFO `14/14`、self-fundingは未達のまま保持する。
+
+#### 32時点の原子cursor
+
+1. 5b loaded reconcilerの自然StartInterval wakeをread-only観測する。
+2. 5b fleet applyを`status=ok`または公式readback付きpartialとして記録し、未適用ownerを列挙する。`effect_unknown`の手動apply/restart/retryはしない。
+3. fleet/diskが安定した後に、PromptBase/Writer→Capafy→Connector/Mobile→Fundraiser/Affiliate→marketplace→Job Hunter→Self-Build→Investment→Agent Economy→CFO→cloud/self-fundingを続行する。
