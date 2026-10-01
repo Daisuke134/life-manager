@@ -21,6 +21,7 @@
       "occurred_at": "2026-09-29T13:00:00Z",
       "settled_at": "2026-09-29T13:00:01Z",
       "realized_pnl_usd": "20",
+      "pnl_basis": "net_after_fee_slippage",
       "fee_usd": "1",
       "slippage_usd": "0.50",
       "evidence_refs": ["lm-investment://evidence/alpaca/paper/roundtrip-001"]

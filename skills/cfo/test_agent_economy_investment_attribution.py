@@ -115,6 +115,46 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
                 ("gap", "unverified_receipt"),
             )
 
+    def test_taskmarket_award_gross_and_rank_mismatch_fails_closed(self):
+        base = fixture("agent-economy-finalized.json")
+        for field, value in (("grossAmount", "999999"), ("rank", 2)):
+            payload = copy.deepcopy(base)
+            payload["taskmarket"][0]["task"]["awards"][0][field] = value
+            rows = self.adapt_agent(payload)
+            self.assertFalse(any(
+                row.get("record_type") == "receipt" and row.get("provider") == "taskmarket"
+                for row in rows
+            ))
+            self.assertEqual(
+                coverage(rows, "agent-economy", "trailing")["reason"],
+                "unverified_receipt",
+            )
+
+    def test_taskmarket_award_and_settlement_receipt_tx_must_match(self):
+        payload = fixture("agent-economy-finalized.json")
+        payload["taskmarket"][0]["receipt"]["tx_hash"] = (
+            "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        )
+        rows = self.adapt_agent(payload)
+        self.assertFalse(any(
+            row.get("record_type") == "receipt" and row.get("provider") == "taskmarket"
+            for row in rows
+        ))
+        self.assertEqual(
+            coverage(rows, "agent-economy", "trailing")["reason"],
+            "unverified_receipt",
+        )
+
+        normalized = fixture("agent-economy-finalized.json")
+        normalized["taskmarket"][0]["receipt"]["tx_hash"] = (
+            "0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+        )
+        rows = self.adapt_agent(normalized)
+        self.assertTrue(any(
+            row.get("record_type") == "receipt" and row.get("provider") == "taskmarket"
+            for row in rows
+        ))
+
     def test_owner_deposit_self_payment_internal_transfer_pending_and_blockrun_are_not_revenue(self):
         rows = self.adapt_agent(fixture("agent-economy-excluded.json"))
         for row in rows:
@@ -158,15 +198,71 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
                 if component["category"] == category
             )
 
-        self.assertEqual(total(contract.REVENUE), contract.Decimal("5"))
+        self.assertEqual(total(contract.REVENUE), contract.Decimal("5.18"))
         self.assertEqual(total("provider_fee"), contract.Decimal("0.25"))
-        self.assertEqual(total("other_measured_cost"), contract.Decimal("1.56"))
+        self.assertEqual(total("other_measured_cost"), contract.Decimal("1.55"))
         loss = next(row for row in investment_receipts if row["receipt_id"].endswith("sell-002:pnl"))
-        self.assertEqual(loss["components"], [{"category": "other_measured_cost", "amount": "1.5"}])
+        self.assertEqual(loss["components"], [{"category": "other_measured_cost", "amount": "1.49"}])
+        gain_rows = [row for row in investment_receipts if "sell-001:" in row["receipt_id"]]
+        gain_components = {
+            component["category"]: contract.Decimal(component["amount"])
+            for row in gain_rows for component in row["components"]
+        }
+        self.assertEqual(
+            gain_components[contract.REVENUE]
+            - gain_components["provider_fee"]
+            - gain_components["other_measured_cost"],
+            contract.Decimal("5"),
+        )
+        loss_cost = sum(
+            contract.Decimal(component["amount"])
+            for row in investment_receipts if "sell-002:" in row["receipt_id"]
+            for component in row["components"]
+        )
+        self.assertEqual(-loss_cost, contract.Decimal("-1.50"))
         balance = next(row for row in rows if row["record_type"] == "liquid_balance")
         self.assertEqual(balance["amount"], "104.57")
         self.assertEqual(balance["verification_state"], "verified")
         self.assertEqual(coverage(rows, "investment", "as_of")["coverage_state"], "complete")
+
+    def test_missing_or_unknown_investment_pnl_basis_fails_closed(self):
+        base = fixture("investment-realized.json")
+        for basis in (None, "mystery_basis"):
+            payload = copy.deepcopy(base)
+            if basis is None:
+                payload["outcomes"][1].pop("pnl_basis")
+            else:
+                payload["outcomes"][1]["pnl_basis"] = basis
+            rows = self.adapt_investment(payload)
+            self.assertFalse(receipts(rows, "investment"))
+            self.assertEqual(
+                next(
+                    row for row in rows
+                    if row.get("record_type") == "coverage"
+                    and row["source_id"] == "alpaca-orders"
+                    and row["projection"] == "trailing"
+                )["reason"],
+                "unverified_receipt",
+            )
+
+    def test_negative_unrealized_is_excluded_without_dropping_realized_records(self):
+        payload = fixture("investment-realized.json")
+        payload["outcomes"][1]["unrealized_pnl_usd"] = "-2.25"
+        rows = self.adapt_investment(payload)
+        realized = next(
+            row for row in receipts(rows, "investment")
+            if row["receipt_id"].endswith("sell-001:pnl")
+        )
+        unrealized = next(
+            row for row in receipts(rows, "investment")
+            if row["receipt_id"].endswith("sell-001:unrealized")
+        )
+        self.assertEqual(realized["components"], [
+            {"category": "settled_external_revenue", "amount": "5.18"},
+        ])
+        self.assertEqual(unrealized["components"], [
+            {"category": "unrealized_investment_pnl", "amount": "2.25"},
+        ])
 
     def test_paper_token_appreciation_unrealized_and_unverified_balance_are_excluded(self):
         rows = self.adapt_investment(fixture("investment-paper-unrealized.json"))
@@ -226,6 +322,39 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
         rows = self.adapt_agent(stale)
         self.assertFalse(receipts(rows, "agent-economy"))
         self.assertEqual(coverage(rows, "agent-economy", "trailing")["reason"], "stale_readback")
+
+    def test_agent_bundle_root_reorg_fails_closed(self):
+        payload = fixture("agent-economy-finalized.json")
+        payload["reorg_detected"] = True
+        rows = self.adapt_agent(payload)
+        self.assertFalse(receipts(rows, "agent-economy"))
+        for source_id in ("x402-readback", "taskmarket-readback"):
+            for projection in ("historical", "trailing"):
+                row = next(
+                    row for row in rows
+                    if row.get("record_type") == "coverage"
+                    and row["source_id"] == source_id
+                    and row["projection"] == projection
+                )
+                self.assertEqual((row["coverage_state"], row["reason"]), ("gap", "unverified_receipt"))
+
+    def test_investment_bundle_root_reorg_fails_closed(self):
+        payload = fixture("investment-realized.json")
+        payload["reorg_detected"] = True
+        rows = self.adapt_investment(payload)
+        self.assertFalse(receipts(rows, "investment"))
+        self.assertFalse(any(row["record_type"] == "liquid_balance" for row in rows))
+        self.assertEqual(
+            coverage(rows, "investment", "trailing")["reason"],
+            "unverified_receipt",
+        )
+        account = next(
+            row for row in rows
+            if row.get("record_type") == "coverage"
+            and row["source_id"] == "alpaca-account"
+            and row["projection"] == "as_of"
+        )
+        self.assertEqual((account["coverage_state"], account["reason"]), ("gap", "unverified_receipt"))
 
     def test_combined_adapter_and_path_adapter_are_replay_deterministic(self):
         bundle = {

@@ -48,8 +48,10 @@
           {
             "workerAddress": "0x1111111111111111111111111111111111111111",
             "settlementTxHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "grossAmount": "1000000",
             "workerPayment": "925000",
-            "platformFee": "75000"
+            "platformFee": "75000",
+            "rank": 1
           }
         ]
       },

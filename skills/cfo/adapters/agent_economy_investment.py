@@ -184,6 +184,26 @@ def _address(value: Any) -> str:
     return value.lower()
 
 
+def _optional_rank(mapping: dict[str, Any]) -> int | None:
+    values = [mapping[key] for key in ("rank", "award_rank") if key in mapping]
+    if not values:
+        return None
+    parsed: list[int] = []
+    for value in values:
+        if type(value) is int:
+            rank = value
+        elif isinstance(value, str) and value.strip().isdigit():
+            rank = int(value.strip())
+        else:
+            raise AttributionError("rank_invalid")
+        if rank < 1:
+            raise AttributionError("rank_invalid")
+        parsed.append(rank)
+    if any(value != parsed[0] for value in parsed[1:]):
+        raise AttributionError("rank_conflict")
+    return parsed[0]
+
+
 def _chain_id(value: Any) -> int:
     if isinstance(value, bool) or value is None:
         raise AttributionError("chain_invalid")
@@ -263,6 +283,11 @@ def _readback_meta(payload: dict[str, Any], end: str) -> tuple[str, str | None, 
         or readback.get("historical_complete") is True
     )
     return observed, window_start, history_complete and window_end == end, _digest(payload)
+
+
+def _bundle_reorg_detected(payload: dict[str, Any]) -> bool:
+    readback = payload.get("readback") if isinstance(payload.get("readback"), dict) else {}
+    return payload.get("reorg_detected") is True or readback.get("reorg_detected") is True
 
 
 def _row_settlement(row: dict[str, Any], root: dict[str, Any]) -> None:
@@ -588,6 +613,7 @@ def _taskmarket_row(
     payment = _decimal(_first(award, "workerPayment", "worker_payment", "worker_payment_atomic"), atomic=True)
     fee = _decimal(_first(award, "platformFee", "platform_fee", "platform_fee_atomic"), atomic=True)
     gross = _decimal(_first(award, "grossAmount", "gross_amount", "gross_amount_atomic"), atomic=True)
+    rank = _optional_rank(award)
     if payment + fee != gross:
         raise AttributionError("amount_inconsistent")
     awards = task.get("awards")
@@ -608,6 +634,11 @@ def _taskmarket_row(
                 _first(item, "platformFee", "platform_fee", "platform_fee_atomic"),
                 atomic=True,
             )
+            item_gross = _decimal(
+                _first(item, "grossAmount", "gross_amount", "gross_amount_atomic"),
+                atomic=True,
+            )
+            item_rank = _optional_rank(item)
         except AttributionError:
             continue
         if (
@@ -615,6 +646,8 @@ def _taskmarket_row(
             and item_worker == worker
             and item_payment == payment
             and item_fee == fee
+            and item_gross == gross
+            and item_rank == rank
         ):
             matching.append(item)
     if len(matching) != 1:
@@ -634,8 +667,12 @@ def _taskmarket_row(
         or _decimal(_first(receipt_transfer, "amount_atomic", "amount"), atomic=True) != payment
     ):
         raise AttributionError("unverified_receipt")
+    receipt_tx = _tx(_first(
+        settlement, "tx_hash", "txHash", "transaction_hash", "transactionHash",
+    ))
+    if receipt_tx != tx:
+        raise AttributionError("unverified_receipt")
     merged = {**row, **settlement}
-    merged["tx_hash"] = tx
     _row_settlement(merged, root)
     proof_key, proof_suffix = _chain_proof(merged, settlement)
     occurred = _instant(_first(row, "occurred_at", "created_at") or _first(award, "settledAt", "settled_at"))
@@ -700,6 +737,13 @@ def adapt_agent_economy(
         ]
     del evidence_base
     evidence = f"lm-agent-economy://readback/{_digest(_digest_material(payload))}"
+    if _bundle_reorg_detected(payload):
+        return [
+            *_failure_coverages(loop_id=AGENT_LOOP, source_id="x402-readback", end=end, start=start,
+                                reason="unverified_receipt", evidence=evidence),
+            *_failure_coverages(loop_id=AGENT_LOOP, source_id="taskmarket-readback", end=end, start=start,
+                                reason="unverified_receipt", evidence=evidence, as_of=True),
+        ]
     try:
         observed, window_start, history_complete, _ = _readback_meta(payload, end)
         owned, self_wallets = _owned_wallets(payload)
@@ -828,6 +872,29 @@ def _investment_finalized(row: dict[str, Any], root: dict[str, Any]) -> None:
         raise AttributionError("unverified_receipt")
 
 
+def _investment_pnl_basis(row: dict[str, Any]) -> str:
+    values = [
+        row[key] for key in ("pnl_basis", "realized_pnl_basis", "realized_basis", "basis")
+        if key in row
+    ]
+    if not values:
+        raise AttributionError("pnl_basis_missing")
+    normalized: list[str] = []
+    for value in values:
+        if not isinstance(value, str):
+            raise AttributionError("pnl_basis_unknown")
+        basis = value.strip().lower()
+        if basis in {"net", "net_after_costs", "net_after_fee_slippage", "net_after_fee_and_slippage"}:
+            normalized.append("net")
+        elif basis in {"gross", "gross_pre_cost", "gross_before_costs"}:
+            normalized.append("gross")
+        else:
+            raise AttributionError("pnl_basis_unknown")
+    if any(value != normalized[0] for value in normalized[1:]):
+        raise AttributionError("pnl_basis_conflict")
+    return normalized[0]
+
+
 def _investment_metric_receipt(
     row: dict[str, Any],
     root: dict[str, Any],
@@ -870,13 +937,16 @@ def _investment_outcome_rows(
     paper = row.get("paper") is True or row.get("mode") == "paper"
     realized_present = any(key in row for key in ("realized_pnl_usd", "realized_pnl", "realizedPnlUsd"))
     unrealized = _amount_from_fields(
-        row, (), ("unrealized_pnl_usd", "unrealized_pnl", "unrealizedPnlUsd"), default=Decimal("0"),
+        row, (), ("unrealized_pnl_usd", "unrealized_pnl", "unrealizedPnlUsd"),
+        signed=True, default=Decimal("0"),
     )
     token_appreciation = _amount_from_fields(
         row, (), ("token_appreciation_usd", "token_appreciation", "tokenAppreciationUsd"), default=Decimal("0"),
     )
     _investment_finalized(row, root)
     if paper:
+        if realized_present:
+            _investment_pnl_basis(row)
         paper_value = _amount_from_fields(
             row, (), ("realized_pnl_usd", "realized_pnl", "realizedPnlUsd"),
             signed=True, default=Decimal("0"),
@@ -895,6 +965,13 @@ def _investment_outcome_rows(
         )]
     base_id = identity if identity.startswith("alpaca:") else f"alpaca:{identity}"
     rows: list[dict[str, Any]] = []
+    fee = _amount_from_fields(
+        row, ("fee_atomic",), ("fee_usd", "fees_usd", "trading_fee_usd", "buy_fee_usd", "sell_fee_usd"),
+        default=Decimal("0"),
+    )
+    slippage = _amount_from_fields(
+        row, ("slippage_atomic",), ("slippage_usd", "slippage"), default=Decimal("0"),
+    )
     if unrealized != 0:
         rows.append(_receipt(
             loop_id=INVESTMENT_LOOP, provider="alpaca", receipt_id=f"{base_id}:unrealized",
@@ -915,33 +992,28 @@ def _investment_outcome_rows(
         realized = _amount_from_fields(
             row, (), ("realized_pnl_usd", "realized_pnl", "realizedPnlUsd"), signed=True,
         )
+        basis = _investment_pnl_basis(row)
         broker = row.get("broker") if isinstance(row.get("broker"), dict) else {}
         side = str(_first(row, "side") or _first(broker, "side") or "").lower()
         if side != "sell":
             raise AttributionError("realized_sale_invalid")
-        if realized > 0:
+        gross_realized = realized + fee + slippage if basis == "net" else realized
+        if gross_realized > 0:
             rows.append(_investment_metric_receipt(
                 row, root, "alpaca", base_id, contract.REVENUE,
-                realized, occurred, settled, fallback_evidence, revenue_class="one_time",
+                gross_realized, occurred, settled, fallback_evidence, revenue_class="one_time",
                 metric_suffix="pnl",
             ))
-        elif realized < 0:
+        elif gross_realized < 0:
             rows.append(_investment_metric_receipt(
                 row, root, "alpaca", base_id, "other_measured_cost",
-                -realized, occurred, settled, fallback_evidence, metric_suffix="pnl",
+                -gross_realized, occurred, settled, fallback_evidence, metric_suffix="pnl",
             ))
-    fee = _amount_from_fields(
-        row, ("fee_atomic",), ("fee_usd", "fees_usd", "trading_fee_usd", "buy_fee_usd", "sell_fee_usd"),
-        default=Decimal("0"),
-    )
     if fee > 0:
         rows.append(_investment_metric_receipt(
             row, root, "alpaca", base_id, "provider_fee", fee,
             occurred, settled, fallback_evidence,
         ))
-    slippage = _amount_from_fields(
-        row, ("slippage_atomic",), ("slippage_usd", "slippage"), default=Decimal("0"),
-    )
     if slippage > 0:
         rows.append(_investment_metric_receipt(
             row, root, "alpaca", base_id, "other_measured_cost", slippage,
@@ -1026,13 +1098,14 @@ def adapt_investment(
         ]
     del evidence_base
     evidence = f"lm-investment://readback/{_digest(_digest_material(payload))}"
+    root_reorg = _bundle_reorg_detected(payload)
     try:
         observed, window_start, history_complete, _ = _readback_meta(payload, end)
     except AttributionError:
         observed, window_start, history_complete = end, None, False
-        root_failure = "read_failed"
+        root_failure = "unverified_receipt" if root_reorg else "read_failed"
     else:
-        root_failure = None
+        root_failure = "unverified_receipt" if root_reorg else None
     provider = payload.get("provider", "alpaca")
     if provider != "alpaca":
         root_failure = "unverified_receipt"
@@ -1042,7 +1115,7 @@ def adapt_investment(
     order_failure = root_failure
     if not isinstance(outcomes, list):
         order_failure = order_failure or "missing_coverage"
-    else:
+    elif order_failure is None:
         try:
             for row in outcomes:
                 records.extend(_investment_outcome_rows(row, payload, evidence))
@@ -1067,7 +1140,7 @@ def adapt_investment(
         records = []
         order_failure = order_failure or "stale_readback"
         balance = None
-        balance_failure = "stale_readback"
+        balance_failure = "unverified_receipt" if root_reorg else "stale_readback"
     if order_failure is not None:
         records = []
     if balance is not None and balance_failure is None:
