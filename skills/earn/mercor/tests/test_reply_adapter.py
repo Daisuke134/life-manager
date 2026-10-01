@@ -155,6 +155,31 @@ def test_stale_gmail_inventory_cannot_reach_model_or_mutation(tmp_path):
     assert adapter.posted == {}
 
 
+def test_observation_failures_are_structured_waits_before_mutation(tmp_path):
+    adapter = _adapter(tmp_path)
+    result = adapter.classify_observation_error(
+        RuntimeError("mercor_reply_snapshot_unavailable")
+    )
+    assert result == {"reason": "provider_source_unavailable"}
+
+    unknown = adapter.classify_observation_error(RuntimeError("unexpected_bug"))
+    assert unknown is None
+
+    def broken_observe_threads():
+        raise RuntimeError("mercor_reply_snapshot_unavailable")
+
+    adapter.observe_threads = broken_observe_threads
+
+    wake = kernel.run_wake(
+        adapter=adapter, decide=lambda _context: {"action": "noop"},
+        state_root=tmp_path / "shared",
+    )
+    assert wake["status"] == "blocked"
+    assert wake["blocker"] == "provider_source_unavailable"
+    assert wake["effect"] == 0
+    assert wake["failed"] == 0
+
+
 def test_every_official_reply_source_has_context_without_fabricating_actionability(tmp_path):
     adapter = _adapter(tmp_path)
     adapter.observe_threads()

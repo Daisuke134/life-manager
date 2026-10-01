@@ -217,6 +217,29 @@ class MercorReplyAdapter:
         except KeyError:
             raise RuntimeError("mercor_reply_event_unavailable") from None
 
+    @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, str] | None:
+        """Fence Mercor source failures before the shared kernel can mutate.
+
+        Snapshot/Gmail inventory and thread-shape failures happen before an
+        intent is persisted. They therefore become a typed provider wait with
+        effect zero; unknown exceptions remain unclassified so programming
+        defects still fail loudly.
+        """
+        reasons = {
+            "mercor_reply_snapshot_unavailable": "provider_source_unavailable",
+            "mercor_reply_snapshot_invalid": "provider_source_invalid",
+            "mercor_reply_application_invalid": "provider_source_invalid",
+            "mercor_reply_assessment_invalid": "provider_source_invalid",
+            "mercor_reply_notification_invalid": "provider_source_invalid",
+            "mercor_reply_contract_invalid": "provider_source_invalid",
+            "mercor_reply_interview_invalid": "provider_source_invalid",
+            "mercor_reply_gmail_invalid": "provider_source_invalid",
+            "mercor_reply_event_unavailable": "provider_event_unavailable",
+        }
+        reason = reasons.get(str(error))
+        return {"reason": reason} if reason is not None else None
+
     def context(self, thread_id: str) -> dict[str, Any]:
         row = self.rows[thread_id]
         raw, kind = row["raw"], row["kind"]
