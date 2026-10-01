@@ -537,6 +537,98 @@ PY
   return 0
 }
 
+schedule_self_handoff() {
+  local release_root="$1" release_sha="$2"
+  local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
+  local handoff_dir="$state_dir/self-handoff"
+  local helper_label="ai.anicca.life-manager-release-reconciler-handoff"
+  local helper_plist="$handoff_dir/helper.plist"
+  local target_plist_tmp="$handoff_dir/reconciler-target.plist.tmp"
+  local installed_plist="${LIFE_MANAGER_LAUNCH_AGENTS_DIR:-$HOME/Library/LaunchAgents}/ai.anicca.life-manager-release-reconciler.plist"
+  local receipt_path="$handoff_dir/receipt.json"
+  local helper_script="$release_root/bin/reconcile-agent-self-handoff.sh"
+  local launchctl_safe="$release_root/bin/launchctl-safe"
+  [ -x "$helper_script" ] || { printf 'agent-runner self-handoff: helper missing in release\n' >&2; return 1; }
+  [ -x "$launchctl_safe" ] || { printf 'agent-runner self-handoff: launchctl-safe missing in release\n' >&2; return 1; }
+  mkdir -p "$handoff_dir"
+  chmod 700 "$handoff_dir"
+  mkdir -p "$(dirname "$installed_plist")"
+
+  LIFE_MANAGER_RUNTIME_PYTHON="$runtime_python" PYTHONPATH="$release_root" \
+    "$runtime_python" - "$release_root" "$target_plist_tmp" "$installed_plist" \
+    "$helper_plist" "$helper_script" "$launchctl_safe" "$receipt_path" "$helper_label" "$$" <<'PY'
+import json, os, plistlib, sys, tempfile
+from pathlib import Path
+from runtime.loop.lm_loop_apply import _plist, _preserve_operational_attributes
+
+release_root = Path(sys.argv[1]).resolve(strict=True)
+target_path = Path(sys.argv[2])
+installed_path = Path(sys.argv[3])
+helper_path = Path(sys.argv[4])
+helper_script = sys.argv[5]
+launchctl_safe = sys.argv[6]
+receipt_path = sys.argv[7]
+helper_label = sys.argv[8]
+parent_pid = sys.argv[9]
+manifest = json.loads((release_root / "RELEASE.json").read_text(encoding="utf-8"))
+registry = json.loads((release_root / "config/loop-registry.json").read_text(encoding="utf-8"))
+loop_id = "life-manager-release-reconciler"
+entry = registry["loops"][loop_id]
+new_bytes = _plist(loop_id, entry, release_root, manifest["sha"])
+old_bytes = installed_path.read_bytes() if installed_path.is_file() else None
+new_bytes = _preserve_operational_attributes(
+    new_bytes, old_bytes, retired_environment_keys=("LIFE_MANAGER_SOURCE_REPO",))
+target_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+fd, temporary = tempfile.mkstemp(prefix=f".{target_path.name}.", dir=str(target_path.parent))
+try:
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(new_bytes)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, target_path)
+finally:
+    Path(temporary).unlink(missing_ok=True)
+helper = {
+    "Label": helper_label,
+    "ProgramArguments": [
+        helper_script, "--parent-pid", parent_pid,
+        "--old-service", "ai.anicca.life-manager-release-reconciler",
+        "--helper-service", helper_label,
+        "--target-plist", str(target_path),
+        "--installed-plist", str(installed_path),
+        "--handoff-plist", str(helper_path),
+        "--receipt", receipt_path,
+        "--launchctl", launchctl_safe,
+    ],
+    "ProcessType": "Background",
+    "RunAtLoad": True,
+    "ThrottleInterval": 60,
+    "EnvironmentVariables": {
+        "LIFE_MANAGER_RUNTIME_PYTHON": os.environ.get("LIFE_MANAGER_RUNTIME_PYTHON", sys.executable),
+    },
+}
+helper_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+fd, temporary = tempfile.mkstemp(prefix=f".{helper_path.name}.", dir=str(helper_path.parent))
+try:
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(plistlib.dumps(helper, fmt=plistlib.FMT_XML, sort_keys=True))
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, helper_path)
+finally:
+    Path(temporary).unlink(missing_ok=True)
+PY
+
+  if "$SCRIPT_ROOT/bin/launchctl-safe" print "gui/$(id -u)/$helper_label" >/dev/null 2>&1; then
+    printf 'agent-runner self-handoff: helper already loaded for release %s\n' "$release_sha" >&2
+    return 0
+  fi
+  "$SCRIPT_ROOT/bin/launchctl-safe" bootstrap "gui/$(id -u)" "$helper_plist"
+  printf 'agent-runner self-handoff: scheduled release %s after parent exit\n' "$release_sha" >&2
+}
+
 reconcile_release() {
   local release_root="$1"
   local status=0
@@ -621,7 +713,13 @@ reconcile_status=0
 reconcile_release "$RELEASE_ROOT" || reconcile_status=1
 fleet_apply_status=0
 run_fleet_apply "$RELEASE_ROOT" "$release_sha" || fleet_apply_status=1
-if [ "$reconcile_status" -ne 0 ] || [ "$fleet_apply_status" -ne 0 ]; then
+self_handoff_status=0
+script_sha="$(jq -r '.sha // ""' "$SCRIPT_ROOT/RELEASE.json" 2>/dev/null || true)"
+if [ -n "$script_sha" ] && [ "$release_sha" != "$script_sha" ]; then
+  schedule_self_handoff "$RELEASE_ROOT" "$release_sha" || self_handoff_status=1
+fi
+if [ "$reconcile_status" -ne 0 ] || [ "$fleet_apply_status" -ne 0 ] \
+  || [ "$self_handoff_status" -ne 0 ]; then
   exit 1
 fi
 exit 0
