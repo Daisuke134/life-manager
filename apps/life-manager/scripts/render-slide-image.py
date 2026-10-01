@@ -19,8 +19,7 @@ import json
 import os
 import sys
 
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 BOLD_FONT = "/System/Library/Fonts/ヒラギノ角ゴシック W8.ttc"
 FALLBACK_FONTS = [BOLD_FONT, "/System/Library/Fonts/Helvetica.ttc"]
@@ -104,13 +103,14 @@ def luminance(rgb):
 
 
 def measure_contrast(image, box):
-    region = np.asarray(image.crop(box).convert("RGB"), dtype=np.float64)
-    if region.size == 0:
+    region = image.crop(box).convert("L")
+    histogram = region.histogram()
+    pixel_count = sum(histogram)
+    if pixel_count == 0:
         return 0.0, False
-    luminances = 0.2126 * region[..., 0] + 0.7152 * region[..., 1] + 0.0722 * region[..., 2]
-    std = float(luminances.std())
-    bright = float((luminances > 200).mean())
-    dark = float((luminances < 90).mean())
+    std = float(ImageStat.Stat(region).stddev[0])
+    bright = sum(histogram[201:]) / pixel_count
+    dark = sum(histogram[:90]) / pixel_count
     # A legible white-fill/dark-outline title on any photo produces both a
     # meaningful bright cluster (the glyph fill) and a dark cluster (the
     # outline/scrim) with real separation -- a flat/blank slide never does.
