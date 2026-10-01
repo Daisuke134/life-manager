@@ -6,6 +6,7 @@ import copy
 import json
 import sys
 import unittest
+from decimal import Rounded, localcontext
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -134,6 +135,62 @@ class ActualCostAttributionTest(unittest.TestCase):
         self.assertEqual(
             [(row["product_loop_id"], row["components"][0]["amount"]) for row in split],
             [("affiliate", "1"), ("writer", "1")],
+        )
+
+    def test_oversized_integer_amount_is_a_gap_not_a_rounded_receipt(self):
+        payload = fixture("actual-cost-official.json")
+        oversized = "12345678901234567890123456789"
+        document = next(
+            document for document in payload["documents"]
+            if document["provider"] == "openai"
+        )
+        line = next(
+            line for line in document["line_items"]
+            if line["line_item_id"] == "openai-model-1"
+        )
+        line["amount"] = oversized
+        line["allocations"][0]["amount"] = oversized
+
+        rows = adapt(payload)
+
+        self.assertFalse(any(
+            row["provider"] == "openai"
+            and "openai-model-1" in row["receipt_id"]
+            for row in receipts(rows)
+        ))
+        self.assertTrue(any(
+            row["source_id"] == "actual-cost-openai"
+            and row["coverage_state"] == "gap"
+            and row["reason"] == "unverified_receipt"
+            for row in coverage(rows)
+        ))
+
+    def test_allocation_sum_uses_local_precision_for_exact_comparison(self):
+        payload = fixture("actual-cost-duplicate.json")
+        allocations = [
+            {
+                "allocation_id": "allocation-1",
+                "product_loop_id": "self-build",
+                "amount": "9999999999.999999999999999999",
+            },
+            {
+                "allocation_id": "allocation-2",
+                "product_loop_id": "self-build",
+                "amount": "0.000000000000000001",
+            },
+        ]
+        for line in payload["documents"][0]["line_items"]:
+            line["amount"] = "10000000000"
+            line["allocations"] = copy.deepcopy(allocations)
+
+        with localcontext() as context:
+            context.prec = 28
+            context.traps[Rounded] = True
+            rows = adapt(payload)
+
+        self.assertEqual(
+            sorted(row["components"][0]["amount"] for row in receipts(rows)),
+            ["0.000000000000000001", "9999999999.999999999999999999"],
         )
 
     def test_unpriced_estimate_quote_and_personal_subscription_are_not_costs(self):
@@ -303,6 +360,25 @@ class ActualCostAttributionTest(unittest.TestCase):
         )
         self.assertEqual(once["historical"], replayed["historical"])
         self.assertEqual(once["trailing"], replayed["trailing"])
+
+    def test_unknown_nested_pages_order_remains_evidence_significant(self):
+        payload = fixture("actual-cost-duplicate.json")
+        payload["opaque_provider_metadata"] = {
+            "pages": [
+                {"page": 1, "cursor": "first"},
+                {"page": 2, "cursor": "second"},
+            ],
+        }
+        reordered = copy.deepcopy(payload)
+        reordered["opaque_provider_metadata"]["pages"].reverse()
+
+        first = adapt(payload)
+        second = adapt(reordered)
+
+        self.assertNotEqual(
+            {ref for row in first for ref in row["evidence_refs"]},
+            {ref for row in second for ref in row["evidence_refs"]},
+        )
 
     def test_order_sensitive_cursor_chain_is_not_canonicalized_as_unordered(self):
         payload = fixture("actual-cost-duplicate.json")

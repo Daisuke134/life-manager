@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException, localcontext
 from typing import Any
 
 from skills.cfo import economic_attribution as contract
@@ -29,10 +29,31 @@ REASON_PRIORITY = (
     "stale_readback", "unsupported_currency", "unverified_receipt", "read_failed",
     "credential_missing", "missing_coverage", "missing_category",
 )
-_UNORDERED_COLLECTIONS = frozenset({
-    "sources", "documents", "invoices", "paid_receipts", "job_joins",
-    "line_items", "allocations", "pages", "document_ids", "product_loop_ids",
-    "estimates", "quotes", "personal_subscriptions",
+MAX_B0_AMOUNT_INTEGER_DIGITS = 26
+MAX_B0_AMOUNT_SIGNIFICANT_DIGITS = 28
+_UNORDERED_PATHS = frozenset({
+    ("sources",),
+    ("sources", "[]", "product_loop_ids"),
+    ("documents",),
+    ("documents", "[]", "line_items"),
+    ("documents", "[]", "line_items", "[]", "allocations"),
+    ("invoices",),
+    ("invoices", "[]", "line_items"),
+    ("invoices", "[]", "line_items", "[]", "allocations"),
+    ("paid_receipts",),
+    ("paid_receipts", "[]", "line_items"),
+    ("paid_receipts", "[]", "line_items", "[]", "allocations"),
+    ("job_joins",),
+    ("provider_pagination", "pages"),
+    ("provider_pagination", "pages", "[]", "document_ids"),
+    ("document_ids",),
+    ("product_loop_ids",),
+    ("estimates",),
+    ("estimates", "[]", "product_loop_ids"),
+    ("quotes",),
+    ("quotes", "[]", "product_loop_ids"),
+    ("personal_subscriptions",),
+    ("personal_subscriptions", "[]", "product_loop_ids"),
 })
 _UNORDERED_ID_FIELDS = {
     "sources": ("provider",),
@@ -77,7 +98,7 @@ def _canonical(value: Any) -> str:
             }
         if isinstance(item, list):
             normalized = [normalize(child, (*path, "[]")) for child in item]
-            if not path or path[-1] not in _UNORDERED_COLLECTIONS:
+            if path not in _UNORDERED_PATHS:
                 return normalized
             unique = {}
             for child in normalized:
@@ -119,16 +140,33 @@ def _instant(value: Any) -> str | None:
     )
 
 
+def _canonical_decimal_text(amount: Decimal) -> str:
+    text = format(amount, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def _amount(value: Any) -> str | None:
     if not isinstance(value, str) or not contract.POSITIVE_AMOUNT.fullmatch(value):
         return None
+    integer_part, _, fractional_part = value.partition(".")
+    if len(integer_part) > MAX_B0_AMOUNT_INTEGER_DIGITS:
+        return None
+    significant_digits = (integer_part + fractional_part).lstrip("0").rstrip("0")
+    if len(significant_digits) > MAX_B0_AMOUNT_SIGNIFICANT_DIGITS:
+        return None
     try:
         parsed = Decimal(value)
-    except InvalidOperation:
+        if not parsed.is_finite() or parsed <= 0:
+            return None
+        exact = _canonical_decimal_text(parsed)
+        with localcontext() as context:
+            context.prec = MAX_B0_AMOUNT_SIGNIFICANT_DIGITS
+            normalized = _canonical_decimal_text(parsed.normalize())
+    except (DecimalException, ArithmeticError):
         return None
-    if not parsed.is_finite() or parsed <= 0:
+    if normalized != exact:
         return None
-    return format(parsed.normalize(), "f")
+    return normalized
 
 
 def _provider(value: Any) -> str | None:
@@ -564,7 +602,7 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
             failures.update((loop, "unverified_receipt") for loop in source_loops)
             continue
 
-        allocation_total = Decimal(0)
+        allocation_values: list[str] = []
         eligible: list[tuple[str, str, str]] = []
         for allocation_id, (_, allocation) in unique_allocations.items():
             allocation_amount = _amount(allocation.get("amount"))
@@ -572,7 +610,7 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
             if allocation_amount is None:
                 failures.update((loop, "unverified_receipt") for loop in source_loops)
                 continue
-            allocation_total += Decimal(allocation_amount)
+            allocation_values.append(allocation_amount)
             if (allocation.get("scope") == "personal"
                     or allocation.get("allocation_status") == "unallocated"):
                 if loop_id is not None:
@@ -584,7 +622,21 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
                 failures.update((loop, "unverified_receipt") for loop in source_loops)
                 continue
             eligible.append((allocation_id, loop_id, allocation_amount))
-        if allocation_total != Decimal(amount):
+        with localcontext() as context:
+            context.prec = max(
+                MAX_B0_AMOUNT_SIGNIFICANT_DIGITS,
+                max(
+                    len(value.replace(".", ""))
+                    + len(str(max(1, len(allocation_values))))
+                    + 1
+                    for value in (amount, *allocation_values)
+                ),
+            )
+            allocation_total = sum(
+                (Decimal(value) for value in allocation_values), Decimal(0)
+            )
+            line_total = Decimal(amount)
+        if allocation_total != line_total:
             failures.update((loop, "unverified_receipt") for loop in source_loops)
             continue
         for allocation_id, loop_id, allocation_amount in eligible:
