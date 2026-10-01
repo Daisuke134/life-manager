@@ -155,6 +155,9 @@
         "opportunity_external_id": {
           "$ref": "#/$defs/identifier"
         },
+        "buyer_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
         "application_external_id": {
           "$ref": "#/$defs/identifier"
         },

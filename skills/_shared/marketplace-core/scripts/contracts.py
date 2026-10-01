@@ -115,6 +115,7 @@ class ApplicationReceipt:
     content_sha256: str
     idempotency_key: str
     observed_at: str
+    buyer_external_id: str | None = None
     # Optional so every existing lane's receipts stay valid unchanged. Without them a reader can
     # only report a bare id, which is why CrowdWorks reports read "案件: 案件 13422653".
     opportunity_title: str | None = None

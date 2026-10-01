@@ -26,7 +26,7 @@ def test_hourly_terms_are_receipt_backed_and_replay_zero(tmp_path):
     receipts = []
     arguments = dict(
         platform="crowdworks",
-        opportunity={"external_id": "13435160", "title": "WordPress・PHP開発"},
+        opportunity={"external_id": "13435160", "buyer_external_id": "buyer-1", "title": "WordPress・PHP開発"},
         proposal_text="対応できます。",
         proposed_amount_minor=2000,
         delivery_due_on=None,
@@ -55,6 +55,7 @@ def test_hourly_terms_are_receipt_backed_and_replay_zero(tmp_path):
     assert len(receipts) == 1
     assert receipts[0]["opportunity_external_id"] == "13435160"
     assert receipts[0]["application_external_id"] == "305200001"
+    assert receipts[0]["buyer_external_id"] == "buyer-1"
     assert receipts[0]["pricing_mode"] == "hourly"
     assert receipts[0]["proposed_hourly_rate_minor"] == 2000
     assert receipts[0]["weekly_limit_hours"] == 30

@@ -100,7 +100,7 @@ def _is_project_id(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-_OPTIONAL_PENDING_FIELDS = {"title"}
+_OPTIONAL_PENDING_FIELDS = {"title", "buyer_external_id"}
 
 
 def _read_state(path: Path) -> Tuple[Set[str], Dict[str, Dict[str, object]]]:
@@ -144,6 +144,9 @@ def _read_state(path: Path) -> Tuple[Set[str], Dict[str, Dict[str, object]]]:
         entry_title = raw_entry.get("title")
         if entry_title is not None and (not isinstance(entry_title, str) or not entry_title.strip()):
             raise _StateInvalid()
+        entry_buyer_external_id = raw_entry.get("buyer_external_id")
+        if entry_buyer_external_id is not None and not _is_project_id(entry_buyer_external_id):
+            raise _StateInvalid()
         proposal_id = raw_entry["proposal_id"]
         if proposal_id is not None and (
             not isinstance(proposal_id, str) or not proposal_id.strip()
@@ -184,6 +187,7 @@ def _read_state(path: Path) -> Tuple[Set[str], Dict[str, Dict[str, object]]]:
         # Rebuilding the entry field by field is the third place the title was dropped, after the
         # writer's field list and the reader's exact-set check.
         if isinstance(entry_title, str) and entry_title.strip(): entry["title"] = entry_title.strip()
+        if isinstance(entry_buyer_external_id, str) and entry_buyer_external_id.strip(): entry["buyer_external_id"] = entry_buyer_external_id.strip()
         if entry_fields != _LEGACY_PENDING_FIELDS:
             entry["project_id"] = project_id
         if entry_fields == _HOURLY_PENDING_FIELDS:
@@ -205,6 +209,7 @@ def _write_state(
             # The claim carries the job's name so a later reconcile can name it; dropping it here
             # is why receipts read "案件: 案件 13422653" instead of the job.
             **({"title": entry["title"]} if "title" in entry else {}),
+            **({"buyer_external_id": entry["buyer_external_id"]} if "buyer_external_id" in entry else {}),
         }
         for marker, entry in sorted(pending.items())
     }
@@ -410,6 +415,8 @@ def _reconcile_pending(
         # CrowdWorks reports read "案件: 案件 13422653" while Lancers names the job.
         title = pending_entry.get("title")
         if isinstance(title, str) and title.strip(): receipt["opportunity_title"] = title.strip()[:300]
+        buyer_external_id = pending_entry.get("buyer_external_id")
+        if isinstance(buyer_external_id, str) and buyer_external_id.strip(): receipt["buyer_external_id"] = buyer_external_id.strip()[:512]
         amount = pending_entry.get("amount_minor")
         if pricing_mode == "hourly":
             receipt.update({"pricing_mode": "hourly", "proposed_hourly_rate_minor": amount, "weekly_limit_hours": pending_entry["weekly_limit_hours"]})
@@ -524,6 +531,8 @@ def run_transaction(
                 # can still write a receipt a human can read.
                 claim_title = opportunity.get("title") if isinstance(opportunity, Mapping) else None
                 if isinstance(claim_title, str) and claim_title.strip(): pending_entry["title"] = claim_title.strip()[:300]
+                claim_buyer = opportunity.get("buyer_external_id") if isinstance(opportunity, Mapping) else None
+                if isinstance(claim_buyer, str) and claim_buyer.strip(): pending_entry["buyer_external_id"] = claim_buyer.strip()[:512]
                 claims.add(marker)
                 pending[marker] = pending_entry
                 try:
