@@ -74,11 +74,27 @@ MOVEMENT_KEYS = (
     "schema_version", "record_type", "platform", "movement_external_id", "category",
     "amount_minor", "currency", "occurred_at", "settled_at", "observed_at",
 )
+RECEIPT_MONEY_KEYS = (
+    "gross_amount_minor", "fee_amount_minor", "cost_amount_minor", "net_amount_minor",
+    "amount_minor", "refund_amount_minor",
+)
 ENVELOPE_AGGREGATE_KEYS = ("currency", "sales_count", "net_amount_minor")
 PROMPTBASE_AGGREGATE_KEYS = ("observed_at", "source", "sales_count", "net_usd", "by_item")
 EVIDENCE_TRANSIENT_KEYS = frozenset({
     "observed_at", "window_end", "content_sha256", "evidence_ref",
     "pages_fetched", "records_fetched", "next_cursor",
+})
+SOURCE_ROW_TRANSIENT_PATHS = frozenset({("observed_at",)})
+PROMPTBASE_TRANSIENT_PATHS = frozenset({("observed_at",)})
+FALLBACK_TRANSIENT_PATHS = frozenset({
+    ("observed_at",),
+    ("content_sha256",),
+    ("evidence_ref",),
+    ("coverage", "historical", "window_end"),
+    ("coverage", "trailing", "window_end"),
+    ("pagination", "pages_fetched"),
+    ("pagination", "records_fetched"),
+    ("pagination", "next_cursor"),
 })
 
 
@@ -169,10 +185,51 @@ def _amount(minor: int, currency: str) -> str:
     return amount
 
 
+def _validate_json_value(value: object, active: set[int]) -> None:
+    value_type = type(value)
+    if value_type in {type(None), bool, int, str}:
+        return
+    if value_type is float:
+        if not math.isfinite(value):
+            raise ValueError("canonical_non_finite")
+        return
+    if value_type is dict:
+        identity = id(value)
+        if identity in active:
+            raise ValueError("canonical_cycle")
+        active.add(identity)
+        try:
+            for key, item in value.items():
+                if type(key) is not str:
+                    raise TypeError("canonical_key_type")
+                _validate_json_value(item, active)
+        finally:
+            active.remove(identity)
+        return
+    if value_type is list:
+        identity = id(value)
+        if identity in active:
+            raise ValueError("canonical_cycle")
+        active.add(identity)
+        try:
+            for item in value:
+                _validate_json_value(item, active)
+        finally:
+            active.remove(identity)
+        return
+    raise TypeError("canonical_json_type")
+
+
 def _canonical(value: object) -> str:
-    return hashlib.sha256(json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-    ).encode()).hexdigest()
+    _validate_json_value(value, set())
+    serialized = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    return hashlib.sha256(serialized.encode()).hexdigest()
 
 
 def _canonical_exact(value: object) -> tuple:
@@ -189,25 +246,69 @@ def _canonical_exact(value: object) -> tuple:
     return (type(value).__name__, value)
 
 
-def _immutable_source_facts(value: object) -> object:
-    if isinstance(value, dict):
-        return {
-            key: _immutable_source_facts(item)
-            for key, item in value.items()
-            if key not in EVIDENCE_TRANSIENT_KEYS
-        }
-    if isinstance(value, list):
-        return [_immutable_source_facts(item) for item in value]
+def _immutable_source_facts(
+    value: object,
+    *,
+    transient_paths: frozenset[tuple[str, ...]] = frozenset(),
+    path: tuple[str, ...] = (),
+    active: set[int] | None = None,
+) -> object:
+    if active is None:
+        active = set()
+    if type(value) is dict:
+        identity = id(value)
+        if identity in active:
+            raise ValueError("evidence_cycle")
+        active.add(identity)
+        try:
+            return {
+                key: _immutable_source_facts(
+                    item,
+                    transient_paths=transient_paths,
+                    path=(*path, key),
+                    active=active,
+                )
+                for key, item in value.items()
+                if not (
+                    type(key) is str
+                    and (*path, key) in transient_paths
+                    and key in EVIDENCE_TRANSIENT_KEYS
+                )
+            }
+        finally:
+            active.remove(identity)
+    if type(value) is list:
+        identity = id(value)
+        if identity in active:
+            raise ValueError("evidence_cycle")
+        active.add(identity)
+        try:
+            return [
+                _immutable_source_facts(
+                    item,
+                    transient_paths=transient_paths,
+                    path=(*path, str(index)),
+                    active=active,
+                )
+                for index, item in enumerate(value)
+            ]
+        finally:
+            active.remove(identity)
     return value
 
 
 def _source_row_evidence(row: dict, platform: str) -> str:
-    digest = _canonical(_immutable_source_facts(row))
+    digest = _canonical(_immutable_source_facts(
+        row, transient_paths=SOURCE_ROW_TRANSIENT_PATHS,
+    ))
     return f"marketplace://{platform}/financial-readback/source-row/sha256/{digest}"
 
 
 def _receipt_map_source_facts(rows: list[dict]) -> list[object]:
-    facts = [_immutable_source_facts(row) for row in rows]
+    facts = [
+        _immutable_source_facts(row, transient_paths=SOURCE_ROW_TRANSIENT_PATHS)
+        for row in rows
+    ]
     return sorted(
         facts,
         key=lambda item: json.dumps(
@@ -243,7 +344,9 @@ def _validate_payload_integrity(payload: dict, platform: str) -> None:
 
 
 def _aggregate_evidence(payload: dict) -> str:
-    digest = _canonical(_immutable_source_facts(payload))
+    digest = _canonical(_immutable_source_facts(
+        payload, transient_paths=PROMPTBASE_TRANSIENT_PATHS,
+    ))
     return f"marketplace://promptbase/aggregate-readback/sha256/{digest}"
 
 
@@ -720,10 +823,31 @@ def _validate_envelope_aggregate(aggregate: object, metrics: dict) -> None:
     )
     if (
         aggregate["sales_count"] != metrics["settled_payment_count"]
-        or metrics["settlement_currencies"] != {currency}
         or expected_net < 0
         or expected_net > MAX_MINOR
         or declared_net != expected_net
+    ):
+        _fail("unverified_receipt")
+    settlement_currencies = metrics["settlement_currencies"]
+    if settlement_currencies:
+        if settlement_currencies != {currency}:
+            _fail("unverified_receipt")
+        return
+    if (
+        aggregate["sales_count"] != 0
+        or expected_net != 0
+        or declared_net != 0
+        or metrics["settled_payment_count"] != 0
+        or metrics["receipt_derived_money_minor"] != 0
+        or any(
+            metrics[name] != 0
+            for name in (
+                "gross_amount_minor",
+                "embedded_provider_fee_minor",
+                "itemized_fee_minor",
+                "refund_minor",
+            )
+        )
     ):
         _fail("unverified_receipt")
 
@@ -741,6 +865,7 @@ def _convert_receipt_map(
     payouts: list[dict] = []
     receipts: list[dict] = []
     output_identities: dict[tuple[str, str], tuple[str, ...]] = {}
+    receipt_derived_money_minor = 0
     source_rows = _deduplicate_source_rows(
         rows,
         platform=platform,
@@ -748,6 +873,11 @@ def _convert_receipt_map(
         observed_at=observed_at,
     )
     for row in source_rows:
+        receipt_derived_money_minor += sum(
+            row[field]
+            for field in RECEIPT_MONEY_KEYS
+            if type(row.get(field)) is int
+        )
         kind = _record_type(row)
         converted = {
             "payment_receipt": _payment,
@@ -845,6 +975,7 @@ def _convert_receipt_map(
                 payment["currency"] for payment in payments.values()
             } | {fee["currency"] for fee in fees}
               | {refund["currency"] for refund in refunds},
+            "receipt_derived_money_minor": receipt_derived_money_minor,
         },
     }
 
@@ -899,9 +1030,21 @@ def _fallback_context(
 
 
 def _fallback_evidence(payload: object, platform: str) -> str:
-    if isinstance(payload, dict):
-        digest = _canonical(_immutable_source_facts(payload))
-    else:
+    try:
+        facts = _immutable_source_facts(
+            payload, transient_paths=FALLBACK_TRANSIENT_PATHS,
+        )
+        if type(facts) is dict:
+            receipt_map = facts.get("receipt_map")
+            if type(receipt_map) is dict and type(receipt_map.get("records")) is list:
+                receipt_map["records"] = [
+                    _immutable_source_facts(
+                        row, transient_paths=SOURCE_ROW_TRANSIENT_PATHS,
+                    )
+                    for row in receipt_map["records"]
+                ]
+        digest = _canonical(facts)
+    except (TypeError, ValueError, RecursionError):
         digest = hashlib.sha256(b"marketplace-invalid-readback").hexdigest()
     return f"marketplace://{platform}/validation/sha256/{digest}"
 
@@ -1151,7 +1294,9 @@ def adapt(
             product_loop_id=product_loop_id,
             platform=platform,
         )
-    except (MarketplaceAttributionError, TypeError, ValueError, KeyError) as error:
+    except (
+        MarketplaceAttributionError, TypeError, ValueError, KeyError, RecursionError,
+    ) as error:
         context = _fallback_context(
             payload, product_loop_id=product_loop_id, platform=platform,
         )
@@ -1162,7 +1307,7 @@ def adapt(
             trailing = _instant(trailing_start)
             if trailing >= snapshot:
                 return []
-        except (MarketplaceAttributionError, TypeError, ValueError):
+        except (MarketplaceAttributionError, TypeError, ValueError, RecursionError):
             return []
         reason = (
             error.code

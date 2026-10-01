@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import unittest
 from pathlib import Path
 
@@ -708,6 +709,140 @@ class MarketplaceAttributionTest(unittest.TestCase):
         first_evidence = [row["evidence_refs"] for row in first]
         reversed_evidence = [row["evidence_refs"] for row in reversed_rows]
         self.assertNotEqual(first_evidence, reversed_evidence)
+
+    def test_complete_empty_settlement_is_not_an_unverified_gap(self):
+        payload = self.fixture("marketplace-settled.json")
+        payload["receipt_map"]["records"] = []
+        payload["pagination"]["records_fetched"] = 0
+        payload["aggregate"] = {
+            "currency": "JPY",
+            "sales_count": 0,
+            "net_amount_minor": 0,
+        }
+        self.bind(payload)
+
+        rows = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        coverage = {
+            row["projection"]: row
+            for row in rows
+            if row["record_type"] == "coverage"
+        }
+        for projection in ("historical", "trailing"):
+            self.assertEqual(
+                (coverage[projection]["coverage_state"], coverage[projection]["reason"]),
+                ("complete", None),
+            )
+
+        payload = self.fixture("marketplace-settled.json")
+        payload["receipt_map"]["records"] = [
+            copy.deepcopy(next(
+                row for row in payload["receipt_map"]["records"]
+                if row["record_type"] == "movement_receipt"
+            )),
+        ]
+        payload["pagination"]["records_fetched"] = 1
+        payload["aggregate"] = {
+            "currency": "JPY",
+            "sales_count": 0,
+            "net_amount_minor": 0,
+        }
+        self.bind(payload)
+        rows = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        self.assertEqual(
+            {row["reason"] for row in rows
+             if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+            {"unverified_receipt"},
+        )
+
+    def test_promptbase_only_top_level_observed_at_is_transient(self):
+        payload = self.fixture("marketplace-promptbase-aggregate.json")
+        payload["by_item"] = {
+            "prompt-1": {"event": {"observed_at": SNAPSHOT, "value": 1}},
+        }
+        top_level_reobserved = copy.deepcopy(payload)
+        top_level_reobserved["observed_at"] = "2026-10-02T00:00:00Z"
+        nested_changed = copy.deepcopy(payload)
+        nested_changed["by_item"]["prompt-1"]["event"]["observed_at"] = (
+            "2026-10-02T00:00:00Z"
+        )
+        kwargs = {
+            "snapshot_at": SNAPSHOT,
+            "trailing_start": TRAILING_START,
+            "platform": "promptbase",
+            "product_loop_id": "writer",
+        }
+
+        first = self.require_adapter().adapt(payload, **kwargs)
+        top_level_rows = self.require_adapter().adapt(top_level_reobserved, **kwargs)
+        nested_rows = self.require_adapter().adapt(nested_changed, **kwargs)
+
+        self.assertEqual(
+            [row["evidence_refs"] for row in first],
+            [row["evidence_refs"] for row in top_level_rows],
+        )
+        self.assertNotEqual(
+            [row["evidence_refs"] for row in first],
+            [row["evidence_refs"] for row in nested_rows],
+        )
+
+    def test_canonical_adversarial_values_fall_back_to_deterministic_gap(self):
+        cases = (
+            ("object", object()),
+            ("nan", math.nan),
+            ("infinity", math.inf),
+            ("negative_infinity", -math.inf),
+        )
+        for name, value in cases:
+            with self.subTest(name=name):
+                payload = self.fixture("marketplace-settled.json")
+                payload["aggregate"]["net_amount_minor"] = value
+                first = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                second = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertEqual(first, second)
+                self.assertFalse(any(row["record_type"] == "receipt" for row in first))
+                self.assertEqual(
+                    {row["reason"] for row in first
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"unverified_receipt"},
+                )
+
+        payload = self.fixture("marketplace-settled.json")
+        payload["aggregate"]["cycle"] = payload["aggregate"]
+        first = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        second = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertEqual(first, second)
+        self.assertFalse(any(row["record_type"] == "receipt" for row in first))
+        self.assertEqual(
+            {row["reason"] for row in first
+             if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+            {"unverified_receipt"},
+        )
 
 
 if __name__ == "__main__":
