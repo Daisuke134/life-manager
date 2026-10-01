@@ -2058,3 +2058,35 @@ P2 source修正の統合は、loop完了を意味しない。P1のtarget apply�
 10. **Self-funding/cloud:** DigitalOcean durable control plane、BlockRun x402、Nosana shelter、Akash fallbackをprovider-neutral interfaceへ接続し、Franklin successor handover 2回、外部surplusによるNosana renewal、Akash restore、30日self-fundingを順に実測する。Mac Mini廃止やcloud-only移行はこの証拠後に判断する。
 
 したがって、**Capafyは未完了、PromptBase/Writerも未完了、foundation observabilityはsource実装済みだがlive fleetは未合格、Life Manager全体のself-healing・self-improving・financially independentも未達**である。完了判定は上記の公式readbackとreceiptが揃った時だけ更新する。
+
+### 13. P3 source merge追補と最新live cursor（2026-10-01 19:17 JST）
+
+P3の3席はP2と同じAGMSG/tmux運用で、各自のloop directoryだけを変更した。次のsource gateは完了したが、target apply・natural terminal・provider receipt/readbackはまだ行っていない。
+
+| loop | source merge | focused evidence | 残る境界 |
+|---|---|---|---|
+| L9-07 Coconala | PR #6376、`b413b5f42b` | collector unhealthyをreply前のtyped observation waitへ分類。Coconala focused `92 + 43` passed、contract/source-boundary PASS | Coconala target apply、natural terminal、Ryu DMの再送なしread-only永続receipt、application/payment/payout/replay-zero |
+| L9-08 Lancers | PR #6377、`2c775fa0a4` | Paid human verificationをeffect `0`/exit `75`へ固定、stale inventory test同期、Lancers suite・shell・contract PASS | Human Verificationを突破せず、proposal/contract/delivery/paymentの公式readback、fee/payout/cost、replay-zero |
+| L9-09 CrowdWorks | PR #6378、`8751a44bdb` | Google Form・面接・試験・本人確認とroute failureを`human_required` hold。focused `59 passed`、contract PASS | target apply、自然thread readback、proposal/payment/payout/cost、application/reply replay-zero |
+
+P3 source merge後も、3 platformの外部効果は0件である。人手必須案件を自動化・迂回せずholdすることが正しい状態であり、これを「収益完了」と数えない。
+
+#### 最新production readback
+
+- `current`は引き続き`/Users/anicca/loops/releases/20261001T183701-c5dd3a01`。
+- `capafy-loop-daily`はinstalled/eventとも`c5dd3a01`、exit `0`・`loaded-idle`だがeffect `publish/unknown`、official receipt/readback `null`。occurrenceは`capafy-loop-daily:18da601eb3682228-76985`。slot/審査・listing・sale・settlement・payoutが閉じていないためCapafyは未完了。
+- `promptbase-loop-daily`はinstalled `813fd766`、occurrenceなし、diagnostic incomplete、official readbackなし。PromptBase/Writerは未完了。
+- `life-manager-connector-native`はinstalled/eventとも`813fd766`、exit `0`・effect `not_applicable`、provider/Gmail/Calendar refなし。外部成功ではない。
+- `life-manager-release-reconciler`はPID `78809`、installed/event `4d10a7c9`、last exit `1`、`reconcile_owner`。ENOSPC境界が残るため手動restartしない。
+- fresh health summaryは`total=177, healthy=30, running=24, failed=40, safely_fenced=69, effect_unknown=10, telemetry_gap=4, human_required=0`。free diskは`7,196,320 KB`（約7.20GB）で、10GB安定は未達。
+
+#### P3統合後の残り原子cursor
+
+1. P1 fleet/admission/diskの自然収束とreconciler ENOSPC境界をread-onlyで閉じる（二回安定readback）。
+2. P2/P3 mergeを含む新immutable releaseを作り、PromptBase、Connector、Coconala、Lancers、CrowdWorksをtarget owner単位でloaded SHA/argv/rollback receiptまでreadbackする。effect unknown中の再apply・再送は禁止。
+3. PromptBase自然04:20→管理画面/Gmail→公開listing/sale/economics、Capafy free-slot解放後の自然submit→API listing/status/sale/economicsを順番に閉じる。
+4. Connector候補発生時のprovider/Gmail/Calendar公式readback、Mobile 22 jobsの残りeffect-unknown ownerを一件ずつ公式readback付きで再開する。
+5. Coconala/Lancers/CrowdWorksのtarget apply後、provider receipt・official readback・payout・actual cost・replay-zeroを同一opportunity/occurrenceへ結合する。Human Verification、面接、試験、Google Form、本人確認は`human_required`でskipする。
+6. L9-10 Job Hunter、L9-11 Self-Build、L9-12 InvestmentをP4として非重複3席でsource-only修正し、Investmentは自然sell・30 round trips・realized P&L前にlive fundingをしない。
+7. L9-13 Agent EconomyのTaskMarket no-effect discovery→BlockRun paid inference→external paid job→treasury/surplus renewal、L9-14 CFOの14/14 cost-complete P&Lを閉じる。
+8. DigitalOcean/Nosana/Akash provider-neutral shelter、Franklin successor handover 2回、外部surplus renewal、Akash restore、30日self-fundingを実測してからMac Mini廃止/cloud-onlyを判断する。
