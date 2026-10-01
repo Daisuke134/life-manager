@@ -2039,7 +2039,7 @@ flowchart LR
 - `skills/earn/crowdworks/scripts/application_owner.py` は候補へ発注者IDを付け、shared `eligibility.evaluate_reapplication`をsubmit前callbackへ接続した。履歴cacheは`~/.local/state/anicca/crowdworks/application-history.json`へ原子的に保存し、初回は1ページずつ進め、完了後は先頭ページのID差分だけを確認する。同期未完・ID欠落・履歴不整合は外部送信なしで`eligibility_unknown`となる。
 - 共通`event.schema.json`／`ApplicationReceipt`／transaction pending stateへ任意の`buyer_external_id`を追加し、応募receiptと再応募履歴を同じ発注者キーで結合できるようにした。旧receipt／旧pending stateはbuyer IDなしのまま後方互換で読める。
 - 実環境read-only probe（CrowdWorks CDP `9228`）で公式1ページ20件を取得し、案件ID・発注者ID・JST時刻の3点を全件readbackした。公式一覧は10ページを表示したため、10ページ全件のsource-complete同期とその後の自然run／公式receiptはまだ未完了である。
-- 検証: eligibility／transaction focusedを含む`95 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`。
+- 検証: 履歴adapter・receipt buyer ID・eligibility／transaction focusedを含む`129 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`。
 
 ### Contract Work Factoryの共有境界と拡張計画（2026-10-01 09:40 JST）
 
