@@ -538,6 +538,121 @@ class MarketplaceAttributionTest(unittest.TestCase):
         self.assertEqual(second_payout["occurred_at"], first_payout["occurred_at"])
         self.assertEqual(second_payout["settled_at"], first_payout["settled_at"])
 
+    def test_immutable_source_facts_are_stable_across_reobserve_order_and_duplicate_append(self):
+        first = self.adapt("marketplace-settled.json")
+        first_receipts = [row for row in first if row["record_type"] == "receipt"]
+
+        reordered = self.fixture("marketplace-settled.json")
+        reordered["receipt_map"]["records"].reverse()
+        self.bind(reordered)
+        reordered_rows = self.require_adapter().adapt(
+            reordered,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertEqual(first, reordered_rows)
+
+        duplicate = self.fixture("marketplace-settled.json")
+        duplicate["receipt_map"]["records"].append(
+            copy.deepcopy(duplicate["receipt_map"]["records"][0])
+        )
+        duplicate["pagination"]["records_fetched"] += 1
+        self.bind(duplicate)
+        duplicate_rows = self.require_adapter().adapt(
+            duplicate,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertEqual(first, duplicate_rows)
+
+        reobserved = self.reobserve(
+            self.fixture("marketplace-settled.json"),
+            "2026-10-02T00:00:00Z",
+        )
+        reobserved_rows = self.require_adapter().adapt(
+            reobserved,
+            snapshot_at="2026-10-02T00:00:00Z",
+            trailing_start=TRAILING_START,
+        )
+        self.assertEqual(
+            first_receipts,
+            [row for row in reobserved_rows if row["record_type"] == "receipt"],
+        )
+
+        baseline = contract.project(
+            first,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        for replay in (reordered_rows, duplicate_rows):
+            projected = contract.project(
+                [*first, *replay],
+                snapshot_at=SNAPSHOT,
+                trailing_start=TRAILING_START,
+            )
+            self.assertEqual(
+                projected["historical"]["company"]["currencies"],
+                baseline["historical"]["company"]["currencies"],
+            )
+            self.assertEqual(
+                projected["trailing"]["company"]["currencies"],
+                baseline["trailing"]["company"]["currencies"],
+            )
+
+        later_baseline = contract.project(
+            reobserved_rows,
+            snapshot_at="2026-10-02T00:00:00Z",
+            trailing_start=TRAILING_START,
+        )
+        later_projected = contract.project(
+            [*first, *reobserved_rows],
+            snapshot_at="2026-10-02T00:00:00Z",
+            trailing_start=TRAILING_START,
+        )
+        self.assertEqual(
+            later_projected["historical"]["company"]["currencies"],
+            later_baseline["historical"]["company"]["currencies"],
+        )
+        self.assertEqual(
+            later_projected["trailing"]["company"]["currencies"],
+            later_baseline["trailing"]["company"]["currencies"],
+        )
+
+    def test_only_exact_integer_one_schema_version_is_accepted_for_envelope_and_every_row(self):
+        for invalid in (True, 1.0):
+            with self.subTest(scope="envelope", value=repr(invalid)):
+                payload = self.fixture("marketplace-settled.json")
+                payload["schema_version"] = invalid
+                self.bind(payload)
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"read_failed"},
+                )
+
+            for index in range(len(self.fixture("marketplace-settled.json")["receipt_map"]["records"])):
+                with self.subTest(scope="row", index=index, value=repr(invalid)):
+                    payload = self.fixture("marketplace-settled.json")
+                    payload["receipt_map"]["records"][index]["schema_version"] = invalid
+                    self.bind(payload)
+                    rows = self.require_adapter().adapt(
+                        payload,
+                        snapshot_at=SNAPSHOT,
+                        trailing_start=TRAILING_START,
+                    )
+                    self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                    self.assertEqual(
+                        {row["reason"] for row in rows
+                         if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                        {"unverified_receipt"},
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -76,6 +76,10 @@ MOVEMENT_KEYS = (
 )
 ENVELOPE_AGGREGATE_KEYS = ("currency", "sales_count", "net_amount_minor")
 PROMPTBASE_AGGREGATE_KEYS = ("observed_at", "source", "sales_count", "net_usd", "by_item")
+EVIDENCE_TRANSIENT_KEYS = frozenset({
+    "observed_at", "window_end", "content_sha256", "evidence_ref",
+    "pages_fetched", "records_fetched", "next_cursor",
+})
 
 
 class MarketplaceAttributionError(ValueError):
@@ -88,6 +92,11 @@ class MarketplaceAttributionError(ValueError):
 
 def _fail(code: str) -> None:
     raise MarketplaceAttributionError(code)
+
+
+def _schema_version(value: object, *, error: str = "unverified_receipt") -> None:
+    if type(value) is not int or value != 1:
+        _fail(error)
 
 
 def _exact_keys(value: object, expected: tuple[str, ...]) -> None:
@@ -160,13 +169,47 @@ def _amount(minor: int, currency: str) -> str:
     return amount
 
 
-def _canonical(value: dict) -> str:
+def _canonical(value: object) -> str:
     return hashlib.sha256(json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
     ).encode()).hexdigest()
 
 
-def _evidence_for_payload(payload: dict, platform: str) -> str:
+def _immutable_source_facts(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: _immutable_source_facts(item)
+            for key, item in value.items()
+            if key not in EVIDENCE_TRANSIENT_KEYS
+        }
+    if isinstance(value, list):
+        values = [_immutable_source_facts(item) for item in value]
+        return sorted(
+            values,
+            key=lambda item: json.dumps(
+                item, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            ),
+        )
+    return value
+
+
+def _source_row_evidence(row: dict, platform: str) -> str:
+    digest = _canonical(_immutable_source_facts(row))
+    return f"marketplace://{platform}/financial-readback/source-row/sha256/{digest}"
+
+
+def _source_facts_evidence(payload: dict, platform: str, rows: list[dict]) -> str:
+    facts = {
+        "platform": platform,
+        "product_loop_id": payload.get("product_loop_id"),
+        "aggregate": _immutable_source_facts(payload.get("aggregate")),
+        "records": _immutable_source_facts(rows),
+    }
+    digest = _canonical(facts)
+    return f"marketplace://{platform}/financial-readback/source-facts/sha256/{digest}"
+
+
+def _validate_payload_integrity(payload: dict, platform: str) -> None:
     digest = payload.get("content_sha256")
     if not isinstance(digest, str) or not SHA256.fullmatch(digest):
         _fail("unverified_receipt")
@@ -179,11 +222,10 @@ def _evidence_for_payload(payload: dict, platform: str) -> str:
     expected = f"marketplace://{platform}/financial-readback/sha256/{digest}"
     if payload.get("evidence_ref") != expected:
         _fail("unverified_receipt")
-    return expected
 
 
 def _aggregate_evidence(payload: dict) -> str:
-    digest = _canonical(payload)
+    digest = _canonical(_immutable_source_facts(payload))
     return f"marketplace://promptbase/aggregate-readback/sha256/{digest}"
 
 
@@ -279,7 +321,8 @@ def _payment(
     evidence: str,
 ) -> dict:
     _exact_keys(row, PAYMENT_KEYS)
-    if row["schema_version"] != 1 or row["record_type"] != "payment_receipt":
+    _schema_version(row["schema_version"])
+    if row["record_type"] != "payment_receipt":
         _fail("unverified_receipt")
     _check_platform(row, platform)
     _identifier(row["work_external_id"])
@@ -342,7 +385,8 @@ def _fee(
     evidence: str,
 ) -> dict:
     _exact_keys(row, FEE_KEYS)
-    if row["schema_version"] != 1 or row["record_type"] != "fee_receipt":
+    _schema_version(row["schema_version"])
+    if row["record_type"] != "fee_receipt":
         _fail("unverified_receipt")
     _check_platform(row, platform)
     payment_external_id = _identifier(row["payment_external_id"])
@@ -390,7 +434,8 @@ def _refund(
     evidence: str,
 ) -> dict:
     _exact_keys(row, REFUND_KEYS)
-    if row["schema_version"] != 1 or row["record_type"] != "refund_receipt":
+    _schema_version(row["schema_version"])
+    if row["record_type"] != "refund_receipt":
         _fail("unverified_receipt")
     _check_platform(row, platform)
     payment_external_id = _identifier(row["payment_external_id"])
@@ -434,7 +479,8 @@ def _payout(
     evidence: str,
 ) -> dict:
     _exact_keys(row, PAYOUT_KEYS)
-    if row["schema_version"] != 1 or row["record_type"] != "payout_match_receipt":
+    _schema_version(row["schema_version"])
+    if row["record_type"] != "payout_match_receipt":
         _fail("unverified_receipt")
     _check_platform(row, platform)
     payment_external_id = _identifier(row["payment_external_id"])
@@ -452,6 +498,7 @@ def _payout(
         "source_identity": ("payout", payment_external_id, payout_external_id),
         "currency": currency,
         "amount": amount,
+        "evidence": evidence,
     }
 
 
@@ -464,7 +511,8 @@ def _pending(
     evidence: str,
 ) -> dict:
     _exact_keys(row, PENDING_KEYS)
-    if row["schema_version"] != 1 or row["record_type"] != "pending_payment_receipt":
+    _schema_version(row["schema_version"])
+    if row["record_type"] != "pending_payment_receipt":
         _fail("unverified_receipt")
     _check_platform(row, platform)
     _identifier(row["payment_external_id"])
@@ -504,7 +552,8 @@ def _movement(
     evidence: str,
 ) -> dict:
     _exact_keys(row, MOVEMENT_KEYS)
-    if row["schema_version"] != 1 or row["record_type"] != "movement_receipt":
+    _schema_version(row["schema_version"])
+    if row["record_type"] != "movement_receipt":
         _fail("unverified_receipt")
     _check_platform(row, platform)
     movement_external_id = _identifier(row["movement_external_id"])
@@ -631,7 +680,6 @@ def _convert_receipt_map(
     platform: str,
     product_loop_id: str,
     observed_at: str,
-    evidence: str,
 ) -> dict:
     payments: dict[str, dict] = {}
     fees: list[dict] = []
@@ -639,7 +687,8 @@ def _convert_receipt_map(
     payouts: list[dict] = []
     receipts: list[dict] = []
     output_identities: dict[tuple[str, str], tuple[str, ...]] = {}
-    for row in _deduplicate_source_rows(rows):
+    source_rows = _deduplicate_source_rows(rows)
+    for row in source_rows:
         kind = _record_type(row)
         converted = {
             "payment_receipt": _payment,
@@ -653,7 +702,7 @@ def _convert_receipt_map(
             platform=platform,
             product_loop_id=product_loop_id,
             observed_at=observed_at,
-            evidence=evidence,
+            evidence=_source_row_evidence(row, platform),
         )
         if converted["kind"] == "payment":
             payments[converted["payment_external_id"]] = converted
@@ -718,7 +767,7 @@ def _convert_receipt_map(
             payment,
             platform=platform,
             product_loop_id=product_loop_id,
-            evidence=evidence,
+            evidence=payout["evidence"],
         )
         _append_receipt(receipts, output_identities, payout)
 
@@ -726,6 +775,7 @@ def _convert_receipt_map(
         _append_receipt(receipts, output_identities, payment)
     return {
         "receipts": sorted(receipts, key=lambda row: row["receipt_id"]),
+        "source_rows": source_rows,
         "metrics": {
             "settled_payment_count": len(payments),
             "gross_amount_minor": sum(payment["gross"] for payment in payments.values()),
@@ -791,7 +841,7 @@ def _fallback_context(
 
 def _fallback_evidence(payload: object, platform: str) -> str:
     if isinstance(payload, dict):
-        digest = _canonical(payload)
+        digest = _canonical(_immutable_source_facts(payload))
     else:
         digest = hashlib.sha256(b"marketplace-invalid-readback").hexdigest()
     return f"marketplace://{platform}/validation/sha256/{digest}"
@@ -925,12 +975,13 @@ def _envelope(
     platform: str | None,
 ) -> list[dict]:
     _exact_keys(payload, READBACK_KEYS)
-    if payload["schema_version"] != 1 or payload["record_type"] != READBACK_RECORD_TYPE:
+    _schema_version(payload["schema_version"], error="read_failed")
+    if payload["record_type"] != READBACK_RECORD_TYPE:
         _fail("read_failed")
     context = _context(payload, product_loop_id=product_loop_id, platform=platform)
     if context["platform"] in UNOWNED_PLATFORMS:
         _fail("missing_coverage")
-    evidence = _evidence_for_payload(payload, context["platform"])
+    _validate_payload_integrity(payload, context["platform"])
     observed_at = _instant(payload["observed_at"])
     if observed_at != snapshot_at:
         _fail("stale_readback")
@@ -974,10 +1025,14 @@ def _envelope(
         platform=context["platform"],
         product_loop_id=context["product_loop_id"],
         observed_at=observed_at,
-        evidence=evidence,
     )
     _validate_envelope_aggregate(payload["aggregate"], converted["metrics"])
     receipts = converted["receipts"]
+    evidence = _source_facts_evidence(
+        payload,
+        context["platform"],
+        converted["source_rows"],
+    )
     historical_reason = None if coverage_windows["historical"] else "missing_coverage"
     trailing_reason = None if coverage_windows["trailing"] else "missing_coverage"
     return [
