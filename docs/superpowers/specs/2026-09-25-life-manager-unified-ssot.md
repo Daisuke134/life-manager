@@ -2303,3 +2303,31 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 2. main `835d45d7c3`を含む次immutable releaseをcutし、watcherをcapacity exemptでnatural runさせる。
 3. watcherのno-effect PASS、helper receipt、旧service absence、新reconciler loaded SHA/argvを順にreadbackする。
 4. その後、budget reservation、fleet/disk収束、named loop公式receipt、CFO、cloud/self-fundingへ進む。
+
+### 30. 最新readbackと残り原子cursor（2026-10-02 08:43–08:50 JST、Claude引き継ぎ）
+
+この節が§29までのcursorを上書きする。証拠はすべてread-onlyで取得し、apply・restart・wake・provider送信は0件。
+
+**完了したもの（実物で確認）**
+- P1-2a self-handoff: `current=20261002T030847-3fdfa314`（`RELEASE.json.sha=3fdfa314…`、`ancestor-of-origin-main`、origin/main先頭と一致）。`release-reconciler/self-handoff/receipt.json`は`status=ok / verified=true / target_release_sha=3fdfa314`（2026-10-01T18:11:22Z）。reconciler・`capafy-loop-daily`・`promptbase-loop-daily`・`capafy-distribute-daily`のplistは`3fdfa314`を指す。
+- Capafy審査（Gmail公式通知）: 9/30に承認4本（Dissertation Discussion Humanizer 2264929931、YouTube Script Writer 7686597754、Football Match Analyst 1037238583、Sales Objection Reply Builder 3098034209）、却下2本（Customer Renewal Evidence Brief 4973250899、Marketing Strategist 9563867391、理由「2.2 Information accuracy」）。support@capafy.aiは9/30 03:24Zに「承認済みは公開手順が要る」と回答し、PR #6355で実装済み。9月の月次明細はclosing settlement balance **USD 59.00**（10/01 01:01Z）。
+
+**未完のもの（実測の止まり理由）**
+- fleet: `lm-loop health`（08:43）= 178 job中 healthy 34 / running 24 / failed 39 / safely_fenced 68 / effect_unknown 11 / telemetry_gap 2。reconcilerは`entrypoint_exit_1`。原因は`fleet-apply-state.json`（2026-10-01T23:18:08Z）`status=error / errors=2 / skipped=175`、owner rc=1は`alpaca-investment-live`・`life-manager-instagram-metrics`・`hf-gig-apply-direct`。以後backoff。
+- Capafy工場: 08:47まで毎回`HEALTHY-IDLE: CAP_FULL`、新規提出は9/30以降0。`inventory_status.py`=total 52 / online 47 / under_review 3（3661050861 User Interview Synthesizer含む）/ review_rejected 2。枠を塞ぐのはunder_review 3＋却下2（推論: 却下2本が枠を占有している。直し方は却下理由2.2に沿った修正→再提出）。売上はこのendpointに無く未取得。
+- Capafy宣伝: `capafy-distribute-daily`は9/30 00:29 JSTの記事＋X以降、実行0。毎回`host_admission_deferred:resource_effect_unknown`で起動前に止まる（自分の古いfenceが未解除）。
+- PromptBase: 10/02 04:20の自然runは`gen_examples.py:33`で`claude -p --model sonnet`がexit 1（launchd下）。10/01 19:20は`verified-demonstration.md`欠落（#6354で修正済み）。ledgerは`reels-hook-lab=submitted_pending_review`のままだが、Gmailでは9/30 13:34Zに再び**declined**（「example outputs are identical copies of the main prompt」）。ledgerと実物がずれている。売上$0。
+- Mobile: `post-metrics.jsonl`最終行2026-09-27T04:00Z（5日停止）。tiktok/instagram-metricsは`resource_effect_unknown` fence。
+- Writer（article-daily）、fundraiser、CFO-hourly、affiliate-loop: すべて`host_admission_deferred:resource_effect_unknown`。CFOの最終成功は9/26。connectorはhealthyだが外部登録0。
+- disk: 空き8.9GB（10GB未達）。大きいもの: `verify-loops-audit` 3.2G、`writer` 1.4G、releases 15本 1.4G。
+
+**横断の主因（推論）**: 多数のloopが「自分の過去occurrenceのeffect_unknown fence」で起動前に止まっている。公式readbackで閉じる読み戻し役が無いownerは永久に止まる（§C1・F2と同じ型）。
+
+#### 30時点の原子cursor（上から1つずつ。各行は公式readbackで閉じる）
+1. [ ] R1 reconciler: owner rc=1の3件（instagram-metrics・alpaca-investment-live・hf-gig-apply-direct）の失敗理由をowner logで特定し、fleet applyを`status=ok`に戻す（fleet-apply-state.jsonで確認）。
+2. [ ] F2 effect_unknown fenceの一括解消: `capafy-distribute-daily`・`article-daily`・`fundraiser`・`life-manager-cfo-hourly`・`affiliate-loop`・tiktok/instagram-metricsのfenceを、`capafy_distribute_fence_reconcile`の型を写した読み戻し役で公式readbackから閉じる（受領が無いものは再送しない）。
+3. [ ] PB1 PromptBase: launchd下の`claude -p` exit 1の原因を実際のstderrで特定（第一仮説: launchd envのUSER欠落〔memory: claude-cli-needs-user-env-var〕、第二: `--setting-sources`/認証、第三: model名）→ 直す → ledgerを管理画面/Gmailのdeclinedへ合わせる → 見本が本文の写しにならない検査を入れる → 自然04:20でPending。
+4. [ ] K6 Capafy: 却下2本（2.2 Information accuracy）を直して再提出し枠を回す → 工場の自然runで新規platform_status=1（Capafy API）。宣伝は2.のfence解除後に自然runで記事200＋X PUBLISHED。
+5. [ ] F4 disk: 空き10GB以上を間隔を置いて2回（`verify-loops-audit` 3.2Gの所有loopと保持方針を確認して自分で掃除させる）。
+6. [ ] C1 Mobile: tiktok-anicca-jpブラウザの常駐（§C1d）→ post-metrics.jsonlに今日の行 → C2〜C6。
+7. [ ] Writer → Ebook → Affiliate → Connector（候補発生時のprovider/Gmail/Calendar）→ Fundraiser → Coconala/Lancers/CrowdWorks → Job Hunter → Self-Build → Investment → Agent Economy → CFO 14/14 → cloud/self-funding（§7の順序を維持）。
