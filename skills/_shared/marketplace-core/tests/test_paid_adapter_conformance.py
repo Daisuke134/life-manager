@@ -15,6 +15,7 @@ ADAPTERS = (
     ("mercor", ROOT / "skills/earn/mercor/scripts/paid_adapter.py", "MercorPaidAdapter"),
 )
 SURFACE = ("observe_active", "observe_one", "context", "mutate", "readback")
+OBSERVATION_WAIT = "classify_observation_error"
 
 
 def _load(provider: str, path: Path):
@@ -36,3 +37,4 @@ def test_paid_adapter_exposes_shared_kernel_contract(provider, path, class_name)
 
     assert callable(getattr(module, "build", None))
     assert all(callable(getattr(adapter, method, None)) for method in SURFACE)
+    assert callable(getattr(adapter, OBSERVATION_WAIT, None))

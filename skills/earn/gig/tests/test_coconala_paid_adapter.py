@@ -279,3 +279,18 @@ def test_bridge_does_not_hide_non_auth_inventory_failure(tmp_path: Path) -> None
         pass
     else:
         raise AssertionError("unexpected inventory failure was hidden")
+
+
+def test_paid_observation_wait_classification_preserves_provider_auth_boundary():
+    module = load()
+    error = module.CoconalaPaidInventoryWait(
+        "provider_authentication_required", ["restore the authenticated session"]
+    )
+
+    assert module.CoconalaPaidAdapter.classify_observation_error(error) == {
+        "reason": "provider_authentication_required",
+        "remaining_work": ["restore the authenticated session"],
+    }
+    assert module.CoconalaPaidAdapter.classify_observation_error(
+        RuntimeError("coconala_paid_handoff_unavailable")
+    ) is None

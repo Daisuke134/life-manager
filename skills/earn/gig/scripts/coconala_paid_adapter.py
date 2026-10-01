@@ -194,6 +194,38 @@ class CoconalaPaidAdapter:
         except _PAID_HANDOFF.PaidHandoffMappingError as error:
             raise RuntimeError("coconala_paid_handoff_unavailable") from error
 
+    @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, Any] | None:
+        """Classify only retryable Coconala observation boundaries."""
+        if isinstance(error, CoconalaPaidInventoryWait):
+            return {
+                "reason": error.paid_wait_reason,
+                "remaining_work": list(error.paid_remaining_work),
+            }
+        waits = {
+            "coconala_paid_work_unavailable": (
+                "provider_work_observation_unavailable",
+                "retry the official Coconala work-item observation before any paid effect",
+            ),
+            "coconala_paid_context_unavailable": (
+                "provider_context_observation_unavailable",
+                "retry the official Coconala context observation before any paid effect",
+            ),
+            "coconala_paid_readback_unavailable": (
+                "provider_readback_unavailable",
+                "retry the official Coconala readback before any paid effect",
+            ),
+            "coconala_paid_runtime_unavailable": (
+                "provider_runtime_unavailable",
+                "restore the authenticated Coconala runtime and retry official observation",
+            ),
+        }
+        value = waits.get(str(error).strip())
+        if value is None:
+            return None
+        reason, remaining = value
+        return {"reason": reason, "remaining_work": [remaining]}
+
     def mutate(self, intent: dict[str, Any]) -> None:
         self.effect_runner(intent)
 

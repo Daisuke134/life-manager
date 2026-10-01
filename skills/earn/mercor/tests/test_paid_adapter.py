@@ -85,3 +85,18 @@ def test_submitted_is_noop():
 
 def test_paid_owner_requires_shared_funded_handoff_gate():
     assert "--require-paid-handoff" in OWNER.read_text(encoding="utf-8")
+
+
+def test_paid_observation_wait_classification_exposes_existing_snapshot_wait():
+    m = load()
+    error = m.MercorPaidWait(
+        "official_work_inventory_stale", ["refresh the official snapshot"]
+    )
+
+    assert m.MercorPaidAdapter.classify_observation_error(error) == {
+        "reason": "official_work_inventory_stale",
+        "remaining_work": ["refresh the official snapshot"],
+    }
+    assert m.MercorPaidAdapter.classify_observation_error(
+        RuntimeError("mercor_paid_handoff_unavailable")
+    ) is None

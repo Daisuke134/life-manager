@@ -1104,6 +1104,81 @@ class CrowdWorksPaidAdapter:
             # inventory thread never lends its CDP page to them.
             self.close()
 
+    @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, Any] | None:
+        """Classify only retryable CrowdWorks observation boundaries."""
+        if isinstance(error, CrowdWorksPaidWait):
+            return {
+                "reason": error.paid_wait_reason,
+                "remaining_work": list(error.paid_remaining_work),
+            }
+        code = getattr(error, "paid_error_code", None)
+        if not isinstance(code, str) or not code.strip():
+            code = str(error).strip()
+        waits = {
+            "crowdworks_paid_browser_unavailable": (
+                "provider_browser_unavailable",
+                "restore the authenticated CrowdWorks browser session and retry official observation",
+            ),
+            "crowdworks_paid_browser_context_unavailable": (
+                "provider_browser_context_unavailable",
+                "restore the authenticated CrowdWorks browser context and retry official observation",
+            ),
+            "crowdworks_paid_active_contracts_timeout": (
+                "provider_inventory_timeout",
+                "retry the official CrowdWorks active-contract inventory",
+            ),
+            "crowdworks_paid_contract_timeout": (
+                "provider_contract_timeout",
+                "retry the official CrowdWorks contract observation",
+            ),
+            "crowdworks_paid_proposal_timeout": (
+                "provider_proposal_timeout",
+                "retry the official CrowdWorks proposal observation",
+            ),
+            "crowdworks_paid_milestone_timeout": (
+                "provider_milestone_timeout",
+                "retry the official CrowdWorks milestone observation",
+            ),
+            "crowdworks_paid_contract_source_unavailable": (
+                "provider_contract_source_unavailable",
+                "retry the official CrowdWorks contract source observation",
+            ),
+            "crowdworks_paid_contract_unavailable": (
+                "provider_contract_unavailable",
+                "retry the official CrowdWorks contract observation",
+            ),
+            "crowdworks_paid_work_unavailable": (
+                "provider_work_observation_unavailable",
+                "retry the official CrowdWorks work-item observation",
+            ),
+            "crowdworks_paid_task_unavailable": (
+                "provider_task_observation_unavailable",
+                "retry the official CrowdWorks task observation",
+            ),
+            "crowdworks_paid_message_thread_unavailable": (
+                "provider_message_thread_unavailable",
+                "retry the official CrowdWorks message-thread observation",
+            ),
+            "crowdworks_paid_message_thread_invalid": (
+                "provider_message_thread_unavailable",
+                "retry the official CrowdWorks message-thread observation",
+            ),
+            "crowdworks_paid_context_unavailable": (
+                "provider_context_observation_unavailable",
+                "retry the official CrowdWorks context observation",
+            ),
+            "crowdworks_paid_state_unavailable": (
+                "provider_state_observation_unavailable",
+                "retry the official CrowdWorks state observation",
+            ),
+        }
+        value = waits.get(code)
+        if value is None:
+            return None
+        reason, remaining = value
+        return {"reason": reason, "remaining_work": [remaining]}
+
     def observe_one(self, work_id: str) -> dict[str, Any]:
         try:
             if self.inventory_reader is None:

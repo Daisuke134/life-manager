@@ -99,6 +99,22 @@ class MercorPaidAdapter:
                  "latest_event_id":row["event_id"], "provider_state":row["state"], "observed_at":row["observed_at"]}
                 for work_id, row in latest.items() if row["state"] in ACTIVE_STATES]
     def observe_active(self): return self._inventory()
+
+    @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, Any] | None:
+        """Expose Mercor's existing official-snapshot waits to the shared kernel."""
+        if isinstance(error, MercorPaidWait):
+            return {
+                "reason": error.paid_wait_reason,
+                "remaining_work": list(error.paid_remaining_work),
+            }
+        if str(error).strip() == "mercor_paid_work_unavailable":
+            return {
+                "reason": "provider_work_observation_unavailable",
+                "remaining_work": ["retry the official Mercor work-item observation"],
+            }
+        return None
+
     def observe_one(self, work_id: str):
         matches = [row for row in self._inventory() if row["work_id"] == work_id]
         if len(matches) != 1: raise RuntimeError("mercor_paid_work_unavailable")

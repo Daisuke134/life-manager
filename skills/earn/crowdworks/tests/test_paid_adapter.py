@@ -3009,3 +3009,19 @@ def test_owner_uses_shared_kernel_and_provider_adapter_state_root():
     assert '--state-root "$STATE_ROOT/paid"' in source
     assert '--state-path "$STATE_ROOT/paid"' in source
     assert '--max-workers 1' in source
+
+
+def test_paid_observation_wait_classification_exposes_only_retryable_boundaries():
+    module = load()
+    timeout = module.CrowdWorksPaidActiveContractsTimeout()
+    browser = module.CrowdWorksPaidBrowserUnavailable("crowdworks_paid_browser_unavailable")
+
+    assert module.CrowdWorksPaidAdapter.classify_observation_error(timeout)["reason"] == (
+        "provider_inventory_timeout"
+    )
+    assert module.CrowdWorksPaidAdapter.classify_observation_error(browser)["reason"] == (
+        "provider_browser_unavailable"
+    )
+    assert module.CrowdWorksPaidAdapter.classify_observation_error(
+        RuntimeError("crowdworks_paid_contract_terms_invalid")
+    ) is None
