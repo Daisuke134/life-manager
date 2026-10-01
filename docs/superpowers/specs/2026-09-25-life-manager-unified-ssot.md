@@ -2168,3 +2168,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 自然reconcilerの`0ebdc38b` tickを終端までread-only観測し、新しいfleet receipt、target owner loaded SHA/argv、admission queue、disk freeの安定readbackを採取する。
 2. `effect_unknown`の公式readbackなしに手動apply・restart・retry・provider再送をしない。自然tickが終了してからのみ、P1-2以降を同じ順序で進める。
 3. AGMSG read-only席は報告済みのためdespawnし、登録済み`no_placement_record`を稼働中と数えない。
+
+### 20. 0ebdc38b自然fleet applyのpartial終端（2026-10-01 20:24–20:25 JST）
+
+- 自然reconcilerの`0ebdc38b78c6d75c6ba91c7ecbcae33ba5786578` applyは`2026-10-01T11:24:00Z`に終端した。公式`fleet-apply-state.json`は`status=partial / changed=69 / skipped=13 / errors=3 / message="timed out owners: life-manager-anicca-buddha-tiktok; budget exceeded"`。owner logは85行、`rc=0:82 / rc=1:2 / rc=124:1`、timeout 1、合計1225秒であり、`status=ok`とは数えない。
+- 失敗境界は、`alpaca-investment-live`（rc=1、33秒、I/O failureで旧jobへrestore）、`hf-gig-apply-direct`（rc=1、9秒、`effect_unknown` admission拒否）、`life-manager-anicca-buddha-tiktok`（rc=124、120秒timeout）である。公式provider receipt/readbackなしの注文・応募・再送は行っていない。
+- target provenanceは部分的に進んだ。LaunchAgent plistのloaded SHAは`capafy-loop-daily=0ebdc38b`、`job-search-daily=0ebdc38b`になった。一方、`promptbase-loop-daily`、`life-manager-connector-native`、`life-manager-selfbuild`は`813fd766`、reconciler本体は`4d10a7c9`のままである。したがってsymlink/currentの更新だけでfleet収束とは数えない。
+- 20:25:05 JSTのfresh `lm-loop health --json`（exit 1）は`total=177`、`healthy=29 / running=24 / failed=40 / safely_fenced=70 / effect_unknown=10 / telemetry_gap=4 / human_required=0`。Capafyは新`0ebdc38b` occurrenceで`effect_unknown`（`host_admission_deferred:resource_capacity_busy`、provider receipt/readbackなし）、PromptBaseは`telemetry_gap`、Connector/Self-Buildはprocess-only healthy、Job Hunterは旧`b413b5f4`のcapacity failure、reconcilerは旧`4d10a7c9`の`entrypoint_exit_1`である。外部listing、応募、Gmail/Calendar、settlementは未証明である。
+- `df -k /`は`7,590,292 KB`（約7.59GB free）へ回復したが、10GB安定二回readbackとENOSPC解消の完了条件はまだ満たさない。fleet stateのbackoff中は手動apply/restart/retryをしない。
+
+#### 更新後の原子cursor
+
+1. P1-1は「自然tickの成功」ではなく「`0ebdc38b` partialの正確な失敗境界」まで確定した。次はbackoff後の自然retryで、budget starvation・timeout owner・admission capacityの自己所有修正をsource-onlyで検証する。
+2. P1-2は未完了。自然retryが`partial`でない公式receiptになった後、未適用target（PromptBase、Connector、Self-Build、reconciler）とloaded SHA/argv/rollbackを一件ずつreadbackする。
+3. Capafyはtarget適用済みだが外部効果未確認、Job Hunterもtarget適用済みだがATS/Gmail/Ledger/Telegramの公式readback未確認。PromptBase/Writer、Connector/Mobile、Marketplace、Self-Build、Investment、Agent Economy、CFO、self-funding/cloudは従前の順序で未完了のまま進める。
