@@ -144,9 +144,10 @@
     ]
   },
   "aggregate": {
+    "currency": "JPY",
     "sales_count": 2,
     "net_amount_minor": 45300
   },
-  "content_sha256": "f8179f7c975b752b88f0f43e83b2750fcb4b7dfb318b4abd5b76e08f1df00027",
-  "evidence_ref": "marketplace://lancers/financial-readback/sha256/f8179f7c975b752b88f0f43e83b2750fcb4b7dfb318b4abd5b76e08f1df00027"
+  "content_sha256": "37cba946f21631eba4de1096ca8ac4c9ac6957b21a3f2db9bc8739cbdb95d25c",
+  "evidence_ref": "marketplace://lancers/financial-readback/sha256/37cba946f21631eba4de1096ca8ac4c9ac6957b21a3f2db9bc8739cbdb95d25c"
 }

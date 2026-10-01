@@ -74,7 +74,7 @@ MOVEMENT_KEYS = (
     "schema_version", "record_type", "platform", "movement_external_id", "category",
     "amount_minor", "currency", "occurred_at", "settled_at", "observed_at",
 )
-ENVELOPE_AGGREGATE_KEYS = ("sales_count", "net_amount_minor")
+ENVELOPE_AGGREGATE_KEYS = ("currency", "sales_count", "net_amount_minor")
 PROMPTBASE_AGGREGATE_KEYS = ("observed_at", "source", "sales_count", "net_usd", "by_item")
 
 
@@ -290,6 +290,8 @@ def _payment(
     _observed(row, observed_at)
     currency = _currency(row["currency"])
     occurred_at = _instant(row["occurred_at"])
+    if occurred_at > observed_at:
+        _fail("unverified_receipt")
     gross = _minor(row["gross_amount_minor"], positive=True)
     fee = _minor(row["fee_amount_minor"])
     cost = _minor(row["cost_amount_minor"])
@@ -471,6 +473,8 @@ def _pending(
     currency = _currency(row["currency"])
     occurred_at = _instant(row["occurred_at"])
     amount = _minor(row["amount_minor"], positive=True)
+    if occurred_at > observed_at:
+        _fail("unverified_receipt")
     return {
         "kind": "pending",
         "payment_external_id": row["payment_external_id"],
@@ -512,7 +516,7 @@ def _movement(
     occurred_at = _instant(row["occurred_at"])
     settled_at = _instant(row["settled_at"])
     amount = _minor(row["amount_minor"], positive=True)
-    if settled_at < occurred_at:
+    if not occurred_at <= settled_at <= observed_at:
         _fail("unverified_receipt")
     return {
         "kind": "movement",
@@ -601,6 +605,7 @@ def _payout_receipt(
 
 def _validate_envelope_aggregate(aggregate: object, metrics: dict) -> None:
     _exact_keys(aggregate, ENVELOPE_AGGREGATE_KEYS)
+    currency = _currency(aggregate["currency"])
     if type(aggregate["sales_count"]) is not int or aggregate["sales_count"] < 0:
         _fail("unverified_receipt")
     declared_net = _minor(aggregate["net_amount_minor"])
@@ -612,6 +617,7 @@ def _validate_envelope_aggregate(aggregate: object, metrics: dict) -> None:
     )
     if (
         aggregate["sales_count"] != metrics["settled_payment_count"]
+        or metrics["settlement_currencies"] != {currency}
         or expected_net < 0
         or expected_net > MAX_MINOR
         or declared_net != expected_net
@@ -726,6 +732,10 @@ def _convert_receipt_map(
             "embedded_provider_fee_minor": sum(payment["fee"] for payment in payments.values()),
             "itemized_fee_minor": itemized_fee_minor,
             "refund_minor": refund_minor,
+            "settlement_currencies": {
+                payment["currency"] for payment in payments.values()
+            } | {fee["currency"] for fee in fees}
+              | {refund["currency"] for refund in refunds},
         },
     }
 

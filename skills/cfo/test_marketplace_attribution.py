@@ -337,6 +337,87 @@ class MarketplaceAttributionTest(unittest.TestCase):
         net_conflict["aggregate"]["net_amount_minor"] = 45301
         cases.append(("net amount conflict", net_conflict))
 
+        missing_currency = self.fixture("marketplace-settled.json")
+        missing_currency["aggregate"].pop("currency", None)
+        cases.append(("missing aggregate currency", missing_currency))
+
+        for name, payload in cases:
+            with self.subTest(name=name):
+                self.bind(payload)
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"unverified_receipt"},
+                )
+
+    def test_mixed_receipt_currencies_are_a_gap_for_single_currency_aggregate(self):
+        payload = self.fixture("marketplace-settled.json")
+        payload["aggregate"]["currency"] = "JPY"
+        usd_payment = copy.deepcopy(payload["receipt_map"]["records"][1])
+        usd_payment.update({
+            "work_external_id": "work-usd",
+            "payment_external_id": "payment-usd",
+            "receipt_id": "payment-usd",
+            "gross_amount_minor": 1000,
+            "net_amount_minor": 1000,
+            "currency": "USD",
+            "occurred_at": "2026-09-28T03:00:00Z",
+        })
+        payload["receipt_map"]["records"].append(usd_payment)
+        payload["pagination"]["records_fetched"] += 1
+        payload["aggregate"]["sales_count"] = 3
+        payload["aggregate"]["net_amount_minor"] = 46300
+        self.bind(payload)
+        rows = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        self.assertEqual(
+            {row["reason"] for row in rows
+             if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+            {"unverified_receipt"},
+        )
+
+    def test_payment_pending_and_movement_future_times_are_gaps(self):
+        cases = []
+
+        future_payment = self.fixture("marketplace-settled.json")
+        payment = next(row for row in future_payment["receipt_map"]["records"]
+                       if row.get("record_type") == "payment_receipt"
+                       and row.get("payment_external_id") == "payment-2")
+        payment["occurred_at"] = "2026-10-01T00:00:01Z"
+        future_payment["receipt_map"]["records"] = [
+            row for row in future_payment["receipt_map"]["records"]
+            if not (
+                row.get("record_type") == "fee_receipt"
+                and row.get("payment_external_id") == "payment-2"
+            )
+        ]
+        future_payment["pagination"]["records_fetched"] -= 1
+        future_payment["aggregate"]["net_amount_minor"] = 45500
+        cases.append(("payment after readback", future_payment))
+
+        future_pending = self.fixture("marketplace-settled.json")
+        pending = next(row for row in future_pending["receipt_map"]["records"]
+                       if row.get("record_type") == "pending_payment_receipt")
+        pending["occurred_at"] = "2026-10-01T00:00:01Z"
+        cases.append(("pending payment after readback", future_pending))
+
+        future_movement = self.fixture("marketplace-settled.json")
+        movement = next(row for row in future_movement["receipt_map"]["records"]
+                        if row.get("record_type") == "movement_receipt")
+        movement["occurred_at"] = "2026-10-01T00:00:01Z"
+        movement["settled_at"] = "2026-10-01T00:00:01Z"
+        cases.append(("movement after readback", future_movement))
+
         for name, payload in cases:
             with self.subTest(name=name):
                 self.bind(payload)
