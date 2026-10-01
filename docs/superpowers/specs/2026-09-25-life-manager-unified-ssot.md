@@ -2263,3 +2263,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 2. 次のnatural tickがmain `7335941341`を含むimmutable releaseをcutし、`bin/reconcile-agent-self-handoff.sh`を含むことをreadbackする。
 3. helper receipt、old service absence、reconciler target plist loaded SHA/argv、health、replay-zeroを公式readbackし、初めてP1-2aを完了扱いする。
 4. self-handoff後にbudget reservationの実効経路を確認し、未適用owner→PromptBase/Writer→Capafy→各named loop→CFO→cloud/self-fundingへ進む。
+
+### 27. helper入りrelease cutと旧reconciler循環境界（2026-10-01 22:34–22:37 JST）
+
+- 旧tickの自然終端後、natural cutがmain `6c0513fd773a14918b1a03da68b93282d35df554`を含むimmutable release `/Users/anicca/loops/releases/20261001T223353-6c0513fd`を作成し、`current`へ切り替えた。`RELEASE.json`は`provenance=ancestor-of-origin-main`、`release_paths=ALL`で、`bin/reconcile-agent-self-handoff.sh`もrelease内に存在する。
+- しかし22:37 JST時点のloaded reconciler plistは依然`4d10a7c9`、argvも`/Users/anicca/loops/releases/20260930T115527-4d10a7c9/bin/lm-loop-run`で、self-handoff receiptは存在しない。新releaseのschedule glueは旧reconciler scriptにまだ実行されていないため、`helper入りcurrent`だけではself-handoff成功とは数えない。
+- これはproduction root causeを一段狭めた。self-exclusionの問題だけでなく、旧reconcilerが新releaseのhandoff schedulerを発見する経路がない。次のsource-only cursorは、既存ownerを再利用するか専用のstable control-plane watcherを追加し、旧reconcilerが自然終了する前に同じproduction stateを二重applyせず、helperを一度だけ起動できる境界をTDDすることである。
+- 外部listing/sale/application/settlement/payoutは今回0件、14 loop合計売上は`unknown`、cost-complete P&Lは`0/14`。Capafy、PromptBase/Writer、foundation live fleet、financial independenceは未完了のまま保持する。
+
+#### 27時点の原子cursor
+
+1. 旧reconcilerを手動停止せず、stable control-plane watcher/self-handoff discoveryのsource-only TDDを行う。
+2. 次natural releaseでwatcherがloaded SHA/argv、helper receipt、旧service absence、新reconciler readbackを閉じる。
+3. self-handoff後にbudget reservation実効、fleet収束、disk安定、named loop公式receipt、CFO、cloud/self-fundingへ戻る。
