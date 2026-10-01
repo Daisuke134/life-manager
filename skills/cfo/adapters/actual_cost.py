@@ -163,6 +163,7 @@ def _readback_state(payload: dict, *, end: str, start: str) -> tuple[str, dict[s
     if observed_at is None:
         return end, {"historical": "read_failed", "trailing": "read_failed"}
     reasons: dict[str, str] = {}
+    fatal_window_shape = False
     for projection, expected_start in (("historical", None), ("trailing", start)):
         query = readback.get(projection)
         if not isinstance(query, dict) or query.get("complete") is not True:
@@ -171,12 +172,19 @@ def _readback_state(payload: dict, *, end: str, start: str) -> tuple[str, dict[s
                 "read_failed",
             )
             continue
-        query_start = None if query.get("window_start") is None else _instant(query.get("window_start"))
+        raw_start = query.get("window_start")
+        query_start = None if raw_start is None else _instant(raw_start)
+        if raw_start is not None and query_start is None:
+            reasons[projection] = "read_failed"
+            fatal_window_shape |= projection == "historical"
+            continue
         query_end = _instant(query.get("window_end"))
         if query_start != expected_start or query_end != end or observed_at != end:
             reasons[projection] = "stale_readback"
     if observed_at != end:
         reasons = {projection: "stale_readback" for projection in ("historical", "trailing")}
+    elif fatal_window_shape:
+        reasons = {projection: "read_failed" for projection in ("historical", "trailing")}
     return observed_at, reasons
 
 
@@ -276,6 +284,74 @@ def _job_index(payload: dict) -> tuple[dict[tuple[str, str], dict], set[tuple[st
     return index, conflicts
 
 
+def _excluded_failures(payload: dict, sources: dict[str, dict[str, Any]]) -> dict[tuple[str, str, str], set[str]]:
+    """Keep non-actual producer rows visible as gaps without treating them as receipts."""
+    failures: dict[tuple[str, str, str], set[str]] = {}
+
+    def add_failure(provider: str, loop_id: str) -> None:
+        source_id = _source_id(provider)
+        failures.setdefault((provider, loop_id, source_id), set()).add("missing_coverage")
+
+    def explicit_loops(row: dict) -> tuple[set[str], bool]:
+        raw = row.get("product_loop_ids")
+        if raw is None and "product_loop_id" in row:
+            raw = [row.get("product_loop_id")]
+        if raw is None:
+            return set(), False
+        if not isinstance(raw, list):
+            return set(), True
+        loops, malformed = set(), False
+        for value in raw:
+            loop_id = _loop_id(value)
+            if loop_id is None:
+                malformed = True
+            else:
+                loops.add(loop_id)
+        return loops, malformed
+
+    for field in ("estimates", "quotes", "personal_subscriptions"):
+        rows = payload.get(field)
+        if rows is None:
+            continue
+        if not isinstance(rows, list):
+            sources.setdefault("exclusions", {
+                "loops": set(), "status": "available", "reason": None, "conflict": False,
+            })["loops"].add("cfo")
+            add_failure("exclusions", "cfo")
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                sources.setdefault("exclusions", {
+                    "loops": set(), "status": "available", "reason": None, "conflict": False,
+                })["loops"].add("cfo")
+                add_failure("exclusions", "cfo")
+                continue
+            provider = _provider(row.get("provider"))
+            loops, malformed = explicit_loops(row)
+            source = sources.get(provider) if provider is not None else None
+            source_loops = set(source.get("loops", set())) if source is not None else set()
+            if provider is not None and source_loops:
+                target_provider, target_loops = provider, source_loops
+            elif provider is not None and loops and not malformed:
+                target_provider, target_loops = provider, loops
+                sources.setdefault(provider, {
+                    "loops": set(), "status": "available", "reason": None, "conflict": False,
+                })["loops"].update(loops)
+            else:
+                target_provider, target_loops = "exclusions", {"cfo"}
+                sources.setdefault("exclusions", {
+                    "loops": set(), "status": "available", "reason": None, "conflict": False,
+                })["loops"].add("cfo")
+            for loop_id in target_loops:
+                add_failure(target_provider, loop_id)
+            if malformed:
+                sources.setdefault("exclusions", {
+                    "loops": set(), "status": "available", "reason": None, "conflict": False,
+                })["loops"].add("cfo")
+                add_failure("exclusions", "cfo")
+    return failures
+
+
 def _document_identity(row: dict) -> tuple[str, str, str] | None:
     provider = _provider(row.get("provider"))
     document_type = row.get("document_type")
@@ -350,7 +426,8 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
     if (row.get("official") is not True
             or row.get("source_type") != OFFICIAL_SOURCE_TYPES[document_type]
             or not isinstance(row.get("status"), str)
-            or row.get("status") not in {"paid", "settled"}):
+            or row.get("status") not in {"paid", "settled"}
+            or (provider == "blockrun" and document_type != "paid_receipt")):
         return [], {(loop, "unverified_receipt") for loop in source_loops}, set()
     currency = _currency(row.get("currency"))
     if currency is None:
@@ -434,6 +511,10 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
         for allocation_id, (_, allocation) in unique_allocations.items():
             allocation_amount = _amount(allocation.get("amount"))
             loop_id = _loop_id(allocation.get("product_loop_id"))
+            if allocation_amount is None:
+                failures.update((loop, "unverified_receipt") for loop in source_loops)
+                continue
+            allocation_total += Decimal(allocation_amount)
             if (allocation.get("scope") == "personal"
                     or allocation.get("allocation_status") == "unallocated"):
                 if loop_id is not None:
@@ -441,10 +522,9 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
                 else:
                     failures.update((loop, "missing_coverage") for loop in source_loops)
                 continue
-            if allocation_amount is None or loop_id is None:
+            if loop_id is None:
                 failures.update((loop, "unverified_receipt") for loop in source_loops)
                 continue
-            allocation_total += Decimal(allocation_amount)
             eligible.append((allocation_id, loop_id, allocation_amount))
         if allocation_total != Decimal(amount):
             failures.update((loop, "unverified_receipt") for loop in source_loops)
@@ -507,6 +587,7 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str) -> list[dict]
     if document_shape_failure:
         source_failures.add(document_shape_failure)
     jobs, job_conflicts = _job_index(payload)
+    exclusion_failures = _excluded_failures(payload, sources)
 
     deduped, document_conflicts, document_failures = _document_rows_deduped(documents)
     source_failures.update(document_failures)
@@ -526,8 +607,10 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str) -> list[dict]
             })
 
     receipts_by_group: dict[tuple[str, str, str], list[dict]] = {}
-    failures_by_group: dict[tuple[str, str, str], set[str]] = {}
-    if not projection_reasons.get("historical") and not projection_reasons.get("trailing"):
+    failures_by_group: dict[tuple[str, str, str], set[str]] = {
+        group: set(reasons) for group, reasons in exclusion_failures.items()
+    }
+    if not projection_reasons.get("historical") or not projection_reasons.get("trailing"):
         for document in deduped:
             identity = _document_identity(document)
             if identity is None:

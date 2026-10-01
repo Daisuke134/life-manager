@@ -257,12 +257,12 @@
     {"provider": "blockrun", "job_id": "br-job-1", "product_loop_id": "agent-economy", "status": "completed"}
   ],
   "estimates": [
-    {"provider": "openai", "currency": "USD_API_EQUIV", "amount": "999", "basis": "api_equivalent_estimate"}
+    {"provider": "openai", "product_loop_ids": ["self-build"], "currency": "USD_API_EQUIV", "amount": "999", "basis": "api_equivalent_estimate"}
   ],
   "quotes": [
-    {"provider": "nosana", "currency": "USD", "amount": "888", "basis": "provider_quote"}
+    {"provider": "nosana", "product_loop_ids": ["agent-economy"], "currency": "USD", "amount": "888", "basis": "provider_quote"}
   ],
   "personal_subscriptions": [
-    {"provider": "anthropic", "currency": "USD", "amount": "49", "allocation_status": "unallocated"}
+    {"provider": "anthropic", "product_loop_ids": ["writer"], "currency": "USD", "amount": "49", "allocation_status": "unallocated"}
   ]
 }
