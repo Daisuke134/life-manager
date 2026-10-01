@@ -942,7 +942,8 @@ def _admission_rebind_guard(
                 # terminal event. Only the exact pre-effect proof may close
                 # that stale fence; an evidence-free external-effect fence
                 # must remain blocked.
-                _resolve_pre_effect_admission_unknown(loop_id, entry)
+                _resolve_pre_effect_admission_rows(
+                    loop_id, entry, max_rows=PRE_EFFECT_RECONCILE_MAX_ROWS)
             elif loaded_idle_verified:
                 clear_no_effect_unknown(loop_id)
             yield None

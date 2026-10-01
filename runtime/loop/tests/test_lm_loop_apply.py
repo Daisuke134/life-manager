@@ -1146,6 +1146,35 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_bounds_pre_effect_replay_when_queue_row_drained(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+            "effect_class": "publish",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="not_queued"),
+            patch.object(
+                lm_loop, "_resolve_pre_effect_admission_unknown",
+                side_effect=AssertionError("unbounded proof replay must not run during apply"),
+            ),
+            patch.object(
+                lm_loop, "_resolve_pre_effect_admission_rows", return_value=([], []),
+            ) as reconcile,
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+            ) as decision,
+        ):
+            self.assertIsNone(decision)
+        reconcile.assert_called_once_with(
+            "example", entry, max_rows=lm_loop.PRE_EFFECT_RECONCILE_MAX_ROWS,
+        )
+
     def test_admission_rebind_guard_installs_when_pending_owner_is_unloaded(self):
         entry = {
             "resource_class": "agent",
