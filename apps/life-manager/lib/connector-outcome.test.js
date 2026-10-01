@@ -27,6 +27,20 @@ test("a healthy process pass without a provider effect stays external-not-attemp
   });
 });
 
+test("a reused bundle is not mislabeled as an unattempted external registration", () => {
+  assert.equal(classifyConnectorOutcome({
+    ...TRACE,
+    result: { status: "completed_no_effect", safe_reason: "existing_bundles_reused" },
+  }).external_registration_status, "unknown");
+});
+
+test("a wake that defers fallback is not mislabeled as an unattempted external registration", () => {
+  assert.equal(classifyConnectorOutcome({
+    ...TRACE,
+    result: { status: "completed_no_effect", safe_reason: "fallback_deferred_for_wake_budget" },
+  }).external_registration_status, "unknown");
+});
+
 test("an applied bundle is external-verified only with all provider, mail, and Calendar refs", () => {
   assert.equal(classifyConnectorOutcome({
     ...TRACE,

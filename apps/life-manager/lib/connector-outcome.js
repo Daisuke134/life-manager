@@ -3,6 +3,13 @@
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{2,255}$/;
 const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
 const RECEIPT = /^(?:provider-receipt|gmail-message|calendar-evidence):\/\/[^\s]{3,1024}$/;
+const NO_ATTEMPT_SAFE_REASONS = new Set([
+  "providers_exhausted",
+  "provider_discovery_failed",
+  "connpass_action_boundary_failed",
+  "connpass_candidates_ineligible",
+  "luma_candidates_ineligible",
+]);
 
 function invalid() {
   throw new Error("Connector outcome invalid");
@@ -31,6 +38,8 @@ function classifyConnectorOutcome(input = {}) {
   if (releaseSha !== "unknown" && !/^[0-9a-f]{40}$/.test(releaseSha)) invalid("release invalid");
   const status = String(result.status || "");
   const processStatus = ["applied_bundle", "completed_no_effect", "complete"].includes(status) ? "pass" : "fail";
+  const safeReason = String(result.safe_reason || (status === "applied_bundle" ? "applied_bundle" : "unknown")).trim();
+  if (!SAFE_REASON.test(safeReason)) invalid("safe reason invalid");
   const journey = result.journey && typeof result.journey === "object" && !Array.isArray(result.journey)
     ? result.journey : {};
   const registration = journey.registration || {};
@@ -44,6 +53,7 @@ function classifyConnectorOutcome(input = {}) {
   const confirmationMailRef = optionalReceipt(confirmation.external_receipt_ref);
   const calendarEventRef = optionalReceipt(calendar.calendar_event_ref);
   const externalRegistrationStatus = status === "completed_no_effect"
+    && NO_ATTEMPT_SAFE_REASONS.has(safeReason)
     ? "not_attempted"
     : processStatus === "pass"
       && occurrenceBound(registration)
@@ -51,8 +61,6 @@ function classifyConnectorOutcome(input = {}) {
       && occurrenceBound(calendar)
       && providerReceiptRef && confirmationMailRef && calendarEventRef
       ? "verified" : "unknown";
-  const safeReason = String(result.safe_reason || (status === "applied_bundle" ? "applied_bundle" : "unknown")).trim();
-  if (!SAFE_REASON.test(safeReason)) invalid("safe reason invalid");
   return Object.freeze({
     schema_version: 1,
     occurrence_id: occurrenceId,
