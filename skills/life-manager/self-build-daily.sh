@@ -86,7 +86,7 @@ unset GIG_DISK_HEADROOM_KIB GIG_HOST_STATE_DIR GIG_STATE_DIR
 unset GIG_IGNORE_DISK_PRESSURE_BLOCK GIG_IGNORE_DISK_WRITERS_STOP
 unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR
 
-TG_TARGET="${LM_SELFBUILD_TELEGRAM_TARGET:-${TELEGRAM_ALERT_CHAT_ID:?LM_SELFBUILD_TELEGRAM_TARGET or TELEGRAM_ALERT_CHAT_ID is required}}"
+TG_TARGET="${LM_SELFBUILD_TELEGRAM_TARGET:-${TELEGRAM_ALERT_CHAT_ID:-}}"
 TELEGRAM_SENDER="$REPO_ROOT/skills/_shared/send-telegram.sh"
 
 if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true >>"$LOG" 2>&1; then
@@ -181,8 +181,12 @@ REPORT="$REPORT
 $STREAK"
 
 printf '%s\n' "$REPORT" >>"$LOG"
-"$TELEGRAM_SENDER" "$REPORT" "$TG_TARGET" >>"$LOG" 2>&1 \
-  || printf 'Telegram report failed\n' >>"$LOG"
+if [ -n "$TG_TARGET" ]; then
+  "$TELEGRAM_SENDER" "$REPORT" "$TG_TARGET" >>"$LOG" 2>&1 \
+    || printf 'Telegram report failed\n' >>"$LOG"
+else
+  printf 'Telegram report skipped: LM_SELFBUILD_TELEGRAM_TARGET/TELEGRAM_ALERT_CHAT_ID unavailable\n' >>"$LOG"
+fi
 
 printf '=== life-manager self-build done rc=%s %s ===\n' "$RC" "$(date '+%F %T %Z')" >>"$LOG"
 if [ "$RC" -eq 0 ]; then
