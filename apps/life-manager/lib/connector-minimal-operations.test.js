@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
+const { spawn } = require("node:child_process");
 
 const { createMinimalProductionOperations } = require("./connector-minimal-operations.js");
 
@@ -83,6 +84,112 @@ test("operations persist safe history and a positive every-wake Telegram receipt
     assert.ok(fsyncs >= 1);
   } finally {
     fs.fsyncSync = originalFsync;
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("operations persist one occurrence-bound native outcome without claiming external success", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-outcome-operations-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir,
+      wakeId: "wake-20261001-outcome",
+      telegramTarget: "private-target",
+      now: () => new Date("2026-10-01T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    const outcome = {
+      schema_version: 1,
+      occurrence_id: "life-manager-connector-native:occurrence-1",
+      run_id: "run-1",
+      release_sha: "a".repeat(40),
+      process_status: "pass",
+      external_registration_status: "not_attempted",
+      provider_receipt_ref: null,
+      confirmation_mail_ref: null,
+      calendar_event_ref: null,
+      safe_reason: "providers_exhausted",
+    };
+    await operations.recordNativeOutcome(outcome);
+    await operations.recordNativeOutcome(outcome);
+    const file = path.join(stateDir, "native-outcomes.jsonl");
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8").trim()), outcome);
+    assert.equal(fs.readFileSync(file, "utf8").trim().split("\n").length, 1);
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("native outcome persistence rejects pre-existing competing rows instead of adopting the first", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-outcome-conflict-"));
+  const outcome = {
+    schema_version: 1,
+    occurrence_id: "life-manager-connector-native:occurrence-conflict",
+    run_id: "run-conflict",
+    release_sha: "a".repeat(40),
+    process_status: "pass",
+    external_registration_status: "unknown",
+    provider_receipt_ref: null,
+    confirmation_mail_ref: null,
+    calendar_event_ref: null,
+    safe_reason: "providers_exhausted",
+  };
+  try {
+    const file = path.join(stateDir, "native-outcomes.jsonl");
+    fs.writeFileSync(file, `${JSON.stringify(outcome)}\n${JSON.stringify({ ...outcome, safe_reason: "wake_deadline" })}\n`, { mode: 0o600 });
+    const operations = createMinimalProductionOperations({
+      stateDir,
+      wakeId: "wake-conflict",
+      telegramTarget: "private-target",
+      now: () => new Date("2026-10-01T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await assert.rejects(() => operations.recordNativeOutcome(outcome), /invalid/i);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("native outcome persistence serializes multiprocess identical writes to one row", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-outcome-multiprocess-"));
+  const modulePath = path.join(__dirname, "connector-minimal-operations.js");
+  const outcome = {
+    schema_version: 1,
+    occurrence_id: "life-manager-connector-native:occurrence-multiprocess",
+    run_id: "run-multiprocess",
+    release_sha: "a".repeat(40),
+    process_status: "pass",
+    external_registration_status: "unknown",
+    provider_receipt_ref: null,
+    confirmation_mail_ref: null,
+    calendar_event_ref: null,
+    safe_reason: "providers_exhausted",
+  };
+  const childSource = `
+    const { createMinimalProductionOperations } = require(process.argv[1]);
+    (async () => {
+      const operations = createMinimalProductionOperations({
+        stateDir: process.argv[2], wakeId: process.argv[3], telegramTarget: 'private-target',
+        now: () => new Date('2026-10-01T08:30:00.000Z'),
+        async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+      });
+      await operations.recordNativeOutcome(JSON.parse(process.argv[4]));
+      process.stdout.write('ok\\n');
+    })().catch((error) => { process.stderr.write(String(error && error.message || error)); process.exitCode = 1; });
+  `;
+  const run = (index) => new Promise((resolve) => {
+    const child = spawn(process.execPath, ["-e", childSource, modulePath, stateDir, `wake-${index}`, JSON.stringify(outcome)], { stdio: ["ignore", "pipe", "pipe"] });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("close", (code) => resolve({ code, stderr }));
+  });
+  try {
+    const results = await Promise.all(Array.from({ length: 8 }, (_, index) => run(index)));
+    assert.deepEqual(results.filter((result) => result.code !== 0), [], results.map((result) => result.stderr).join(" | "));
+    const rows = fs.readFileSync(path.join(stateDir, "native-outcomes.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    assert.deepEqual(rows, [outcome]);
+  } finally {
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });

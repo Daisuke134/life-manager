@@ -201,6 +201,25 @@ test("a chosen candidate write pipeline is available as an explicit orchestrator
   assert.equal(typeof runNativeConnectorWrite, "function");
 });
 
+test("one occurrence binds discovery, qualification, registration, mail, and Calendar refs", async () => {
+  const result = await runNativeConnectorWrite({
+    ...input(),
+    occurrenceId: "life-manager-connector-native:occurrence-1",
+  }, depsFor([]));
+
+  assert.equal(result.occurrence_id, "life-manager-connector-native:occurrence-1");
+  assert.deepEqual(Object.keys(result.journey), [
+    "discovery", "qualification", "registration", "confirmation_mail", "calendar",
+  ]);
+  for (const stage of Object.values(result.journey)) {
+    assert.equal(stage.occurrence_id, result.occurrence_id);
+  }
+  assert.equal(result.journey.discovery.event_ref, EVENT_REF);
+  assert.equal(result.journey.registration.provider_receipt_ref, "provider-receipt://luma/fixture");
+  assert.match(result.journey.confirmation_mail.external_receipt_ref, /^gmail-message:\/\//);
+  assert.equal(result.journey.calendar.calendar_event_ref, "calendar-evidence://google/event/event-1");
+});
+
 test("verified Connpass inventory enters the common write chain without a fabricated Luma goal", async () => {
   const calls = [];
   const result = await runNativeConnectorWrite(await connpassInput(), depsFor(calls, {
