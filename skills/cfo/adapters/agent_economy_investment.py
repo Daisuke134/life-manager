@@ -585,21 +585,40 @@ def _taskmarket_row(
         classification = "self_payment"
     tx_value = _first(award, "settlementTxHash", "settlement_tx_hash", "tx")
     tx = _tx(tx_value)
-    awards = task.get("awards")
-    if not isinstance(awards, list) or task.get("awardCount", task.get("award_count")) != len(awards):
-        raise AttributionError("unverified_receipt")
-    matching = [
-        item for item in awards if isinstance(item, dict)
-        and _first(item, "settlementTxHash", "settlement_tx_hash", "tx") == tx
-        and _first(item, "workerAddress", "worker_address", "worker") == worker
-    ]
-    if len(matching) != 1:
-        raise AttributionError("unverified_receipt")
     payment = _decimal(_first(award, "workerPayment", "worker_payment", "worker_payment_atomic"), atomic=True)
     fee = _decimal(_first(award, "platformFee", "platform_fee", "platform_fee_atomic"), atomic=True)
     gross = _decimal(_first(award, "grossAmount", "gross_amount", "gross_amount_atomic"), atomic=True)
     if payment + fee != gross:
         raise AttributionError("amount_inconsistent")
+    awards = task.get("awards")
+    if not isinstance(awards, list) or task.get("awardCount", task.get("award_count")) != len(awards):
+        raise AttributionError("unverified_receipt")
+    matching = []
+    for item in awards:
+        if not isinstance(item, dict):
+            continue
+        try:
+            item_tx = _tx(_first(item, "settlementTxHash", "settlement_tx_hash", "tx"))
+            item_worker = _address(_first(item, "workerAddress", "worker_address", "worker"))
+            item_payment = _decimal(
+                _first(item, "workerPayment", "worker_payment", "worker_payment_atomic"),
+                atomic=True,
+            )
+            item_fee = _decimal(
+                _first(item, "platformFee", "platform_fee", "platform_fee_atomic"),
+                atomic=True,
+            )
+        except AttributionError:
+            continue
+        if (
+            item_tx == tx
+            and item_worker == worker
+            and item_payment == payment
+            and item_fee == fee
+        ):
+            matching.append(item)
+    if len(matching) != 1:
+        raise AttributionError("unverified_receipt")
     receipt_transfer = settlement.get("transfer") if isinstance(settlement.get("transfer"), dict) else {}
     transfers = settlement.get("transfers")
     transfer_count = settlement.get("transfer_count")
@@ -628,7 +647,7 @@ def _taskmarket_row(
     else:
         components.append({
             "category": contract.REVENUE,
-            "amount": _money(payment / Decimal("1000000")),
+            "amount": _money(gross / Decimal("1000000")),
         })
         if fee > 0:
             components.append({

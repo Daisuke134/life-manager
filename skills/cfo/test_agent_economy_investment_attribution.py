@@ -71,8 +71,18 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
             ]["components"],
             [
                 {"category": "provider_fee", "amount": "0.075"},
-                {"category": "settled_external_revenue", "amount": "0.925"},
+                {"category": "settled_external_revenue", "amount": "1"},
             ],
+        )
+        taskmarket = by_id[
+            "taskmarket:base:0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:9"
+        ]
+        taskmarket_revenue = contract.Decimal("1")
+        taskmarket_fee = contract.Decimal("0.075")
+        self.assertEqual(taskmarket_revenue - taskmarket_fee, contract.Decimal("0.925"))
+        self.assertEqual(
+            taskmarket["components"][1]["amount"],
+            str(taskmarket_revenue),
         )
         revenue = sum(
             contract.Decimal(component["amount"])
@@ -80,9 +90,30 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
             for component in row["components"]
             if component["category"] == contract.REVENUE
         )
-        self.assertEqual(revenue, contract.Decimal("2.175"))
+        self.assertEqual(revenue, contract.Decimal("2.25"))
         self.assertEqual(coverage(rows, "agent-economy", "historical")["coverage_state"], "complete")
         self.assertEqual(coverage(rows, "agent-economy", "trailing")["coverage_state"], "complete")
+
+    def test_taskmarket_award_amount_mismatch_fails_closed(self):
+        base = fixture("agent-economy-finalized.json")
+        for field, value in (("workerPayment", "924999"), ("platformFee", "75001")):
+            payload = copy.deepcopy(base)
+            payload["taskmarket"][0]["task"]["awards"][0][field] = value
+            rows = self.adapt_agent(payload)
+            self.assertFalse(any(
+                row.get("record_type") == "receipt" and row.get("provider") == "taskmarket"
+                for row in rows
+            ))
+            taskmarket_trailing = next(
+                row for row in rows
+                if row.get("record_type") == "coverage"
+                and row["source_id"] == "taskmarket-readback"
+                and row["projection"] == "trailing"
+            )
+            self.assertEqual(
+                (taskmarket_trailing["coverage_state"], taskmarket_trailing["reason"]),
+                ("gap", "unverified_receipt"),
+            )
 
     def test_owner_deposit_self_payment_internal_transfer_pending_and_blockrun_are_not_revenue(self):
         rows = self.adapt_agent(fixture("agent-economy-excluded.json"))
