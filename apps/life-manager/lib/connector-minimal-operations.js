@@ -1,5 +1,6 @@
 "use strict";
 
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -41,6 +42,8 @@ const CANDIDATE_ATTEMPT_KEYS = "capability_version,event_ref,outcome,retry_after
 const STATUSES = new Set(["applied_bundle", "completed_no_effect", "circuit_open"]);
 const DIAGNOSTIC_COUNTER_STATUSES = new Set(["counted", "not_counted_at_stage"]);
 const DIAGNOSTIC_EFFECT_STATUSES = new Set(["none", "not_applicable", "unknown", "started", "verified", "reconciled"]);
+const NATIVE_OUTCOME_KEYS = "calendar_event_ref,confirmation_mail_ref,external_registration_status,occurrence_id,process_status,provider_receipt_ref,release_sha,run_id,safe_reason,schema_version";
+const NATIVE_OUTCOME_STATUSES = new Set(["not_attempted", "unknown", "verified"]);
 const SAFE_DIAGNOSTIC_ENDPOINT = /^(?:unknown|https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):[1-9][0-9]{0,4})$/;
 const SAFE_RELEASE_SHA = /^(?:unknown|[0-9a-f]{40})$/;
 // Ceiling for observed/normalized/window/free_open/calendar_free counts: matches the
@@ -104,6 +107,78 @@ function appendDurable(file, value) {
   fs.chmodSync(file, 0o600);
 }
 
+function waitBriefly() {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2);
+}
+
+const NATIVE_OUTCOME_LOCK_STALE_MS = 30_000;
+
+function readNativeOutcomeLock(lockPath) {
+  let stat;
+  try { stat = fs.statSync(lockPath); } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
+  let record;
+  try { record = JSON.parse(fs.readFileSync(lockPath, "utf8")); } catch { return { invalid: true, stat }; }
+  if (!record || record.schema_version !== 1 || typeof record.token !== "string" || !record.token
+    || !Number.isSafeInteger(record.pid) || record.pid < 1
+    || !Number.isSafeInteger(record.started_ms) || record.started_ms < 1) {
+    return { invalid: true, stat };
+  }
+  return { record, stat };
+}
+
+function nativeOutcomeOwnerAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error && error.code === "EPERM";
+  }
+}
+
+function acquireNativeOutcomeLock(lockPath) {
+  const token = randomUUID();
+  for (let attempt = 0; attempt < 1_000; attempt += 1) {
+    try {
+      const descriptor = fs.openSync(lockPath, "wx", 0o600);
+      fs.writeSync(descriptor, JSON.stringify({ schema_version: 1, token, pid: process.pid, started_ms: Date.now() }));
+      fs.fsyncSync(descriptor);
+      const inode = fs.fstatSync(descriptor).ino;
+      return {
+        release() {
+          try { fs.closeSync(descriptor); } catch {}
+          const current = readNativeOutcomeLock(lockPath);
+          if (current && !current.invalid && current.stat.ino === inode && current.record.token === token) {
+            try { fs.unlinkSync(lockPath); } catch (error) { if (!error || error.code !== "ENOENT") throw error; }
+          }
+        },
+      };
+    } catch (error) {
+      if (!error || error.code !== "EEXIST") throw error;
+      const current = readNativeOutcomeLock(lockPath);
+      if (!current) continue;
+      const age = Date.now() - Number(current.record?.started_ms || current.stat.mtimeMs || 0);
+      if (age > NATIVE_OUTCOME_LOCK_STALE_MS && (current.invalid || !nativeOutcomeOwnerAlive(current.record.pid))) {
+        const confirm = readNativeOutcomeLock(lockPath);
+        if (confirm && confirm.stat.ino === current.stat.ino
+          && (confirm.invalid || confirm.record.token === current.record.token)) {
+          try { fs.unlinkSync(lockPath); } catch (unlinkError) { if (!unlinkError || unlinkError.code !== "ENOENT") throw unlinkError; }
+        }
+        continue;
+      }
+      waitBriefly();
+    }
+  }
+  invalid();
+}
+
+function withNativeOutcomeLock(lockPath, callback) {
+  const lock = acquireNativeOutcomeLock(lockPath);
+  try { return callback(); } finally { lock.release(); }
+}
+
 function safeAction(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) invalid();
   const keys = Object.keys(input).sort().join(",");
@@ -160,6 +235,25 @@ function safeReport(input, wakeId, createdAt) {
     consecutive_failure_count: input.consecutive_failure_count,
     created_at: createdAt,
   });
+}
+
+function safeNativeOutcome(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).sort().join(",") !== NATIVE_OUTCOME_KEYS
+    || input.schema_version !== 1
+    || !SAFE_ID.test(String(input.occurrence_id || ""))
+    || !SAFE_ID.test(String(input.run_id || ""))
+    || (input.release_sha !== "unknown" && !/^[0-9a-f]{40}$/.test(String(input.release_sha || "")))
+    || !["pass", "fail"].includes(input.process_status)
+    || !NATIVE_OUTCOME_STATUSES.has(input.external_registration_status)
+    || !SAFE_REASON.test(String(input.safe_reason || ""))) invalid();
+  const receipt = (value) => value == null || /^(?:provider-receipt|gmail-message|calendar-evidence):\/\/[^\s]{3,1024}$/.test(String(value));
+  if (![input.provider_receipt_ref, input.confirmation_mail_ref, input.calendar_event_ref].every(receipt)) invalid();
+  const refs = [input.provider_receipt_ref, input.confirmation_mail_ref, input.calendar_event_ref];
+  if (input.external_registration_status === "verified" && refs.some((value) => value == null)) invalid();
+  if (input.external_registration_status === "not_attempted" && refs.some((value) => value != null)) invalid();
+  if (input.process_status === "fail" && input.external_registration_status !== "unknown") invalid();
+  return Object.freeze({ ...input });
 }
 
 function safeDiagnostic(input, wakeId, createdAt) {
@@ -445,10 +539,23 @@ function createMinimalProductionOperations(options = {}) {
   const eventbriteDiscoveryAuditFile = path.join(stateDir, "eventbrite-discovery-audits.jsonl");
   const techPlayDiscoveryAuditFile = path.join(stateDir, "techplay-discovery-audits.jsonl");
   const kokuchproDiscoveryAuditFile = path.join(stateDir, "kokuchpro-discovery-audits.jsonl");
+  const nativeOutcomeFile = path.join(stateDir, "native-outcomes.jsonl");
 
   async function recordAction(input) {
     const action = safeAction(input);
     append(historyFile, Object.freeze({ schema_version: 1, wake_id: wakeId, ...action }));
+  }
+
+  async function recordNativeOutcome(input) {
+    const outcome = safeNativeOutcome(input);
+    withNativeOutcomeLock(`${nativeOutcomeFile}.lock`, () => {
+      const existing = readRows(nativeOutcomeFile).filter((row) => row.occurrence_id === outcome.occurrence_id);
+      if (existing.length > 0) {
+        if (existing.length !== 1 || JSON.stringify(existing[0]) !== JSON.stringify(outcome)) invalid();
+        return;
+      }
+      appendDurable(nativeOutcomeFile, outcome);
+    });
   }
 
   async function recordDiscoveryAudit(input) {
@@ -630,7 +737,7 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   return Object.freeze({
-    recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordCandidateRankingAudit, recordCandidateDispatchAudit, recordPeatixDiscoveryAudit,
+    recordAction, recordNativeOutcome, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordCandidateRankingAudit, recordCandidateDispatchAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,
     recordTechPlayDiscoveryAudit, recordKokuchProDiscoveryAudit,
     recordCandidateAttempt, readActiveSuppressedEventRefs,

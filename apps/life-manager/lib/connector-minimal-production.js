@@ -882,6 +882,7 @@ function createMinimalProductionDependencies(options = {}) {
       ? connpassActionTelegram.reportQuestionnaire : undefined,
     reportWake: operations.reportWake,
     recordAction: operations.recordAction,
+    recordNativeOutcome: operations.recordNativeOutcome,
     recordCandidateDispatchAudit: operations.recordCandidateDispatchAudit,
     recordCandidateAttempt: operations.recordCandidateAttempt,
   });

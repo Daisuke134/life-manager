@@ -35,6 +35,15 @@ MIN="${1:-20.00}"
 # buyer request, so the default gate must exercise the cheap, bounded route.
 REQUEST_HEADROOM="${CAPAFY_REQUEST_HEADROOM_USD:-20.00}"
 SELF_HEAL_RESERVE="${CAPAFY_KEY_SELF_HEAL_RESERVE_USD:-10.00}"
+report_python_failure() {
+  local fallback="$1" available
+  available="$(df -Pk "${TMPDIR:-$HOME}" 2>/dev/null | awk 'NR == 2 {print $4}')"
+  if [ "$available" = "0" ]; then
+    echo "KEY_HEALTH=FAIL reason=host_resource_exhausted error_class=resource_exhausted"
+  else
+    echo "KEY_HEALTH=FAIL reason=$fallback"
+  fi
+}
 SELF_HEAL_HARD_CAP="$(python3 - "${CAPAFY_KEY_DAILY_HARD_CAP_USD:-50.00}" <<'PY'
 import math, sys
 try:
@@ -45,10 +54,7 @@ if not math.isfinite(configured) or configured <= 0:
     raise SystemExit(1)
 print(min(configured, 50.0))
 PY
-)" || {
-  echo "KEY_HEALTH=FAIL reason=invalid_key_daily_hard_cap"
-  exit 1
-}
+)" || { report_python_failure "invalid_key_daily_hard_cap"; exit 1; }
 # Warn while still passing but getting low, so user tops up BEFORE an outage.
 ALERT_CUSHION="${CAPAFY_FUNDING_ALERT_USD:-25.00}"
 HOSTED_MODEL_ID="${CAPAFY_HOSTED_MODEL_ID:-deepseek/deepseek-v4.1-flash}"
@@ -65,7 +71,7 @@ if not model or limit < 1 or limit > 128000:
 print(json.dumps({"model": model, "messages": [{"role": "user", "content": "say ok"}],
                   "max_tokens": limit}))
 PY
-)" || { echo "KEY_HEALTH=FAIL reason=invalid_hosted_model_contract"; exit 1; }
+)" || { report_python_failure "invalid_hosted_model_contract"; exit 1; }
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 STATE_DIR="$LIFE_MANAGER_STATE_HOME/state"
 mkdir -p "$STATE_DIR" 2>/dev/null || true

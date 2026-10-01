@@ -14,6 +14,7 @@ const { runMinimalConnectorWake } = require(
 );
 const { loadConnectorEnv } = require("./lib/load-connector-env.js");
 const { readConnectorProfile } = require("../../apps/life-manager/lib/connector-profile.js");
+const { classifyConnectorOutcome } = require("../../apps/life-manager/lib/connector-outcome.js");
 
 function providersForSlot(nowMs) {
   const slot = Math.floor(nowMs / 1_800_000);
@@ -174,19 +175,46 @@ async function runNativePass(options = {}) {
     ? options.createDependencies : createMinimalProductionDependencies;
   const nowMs = Number((options.now || Date.now)());
   if (!Number.isFinite(nowMs) || nowMs < 0) unavailable();
+  const wakeId = `wake-${createHash("sha256").update(ownerToken).digest("hex").slice(0, 24)}`;
+  const suppliedEnv = options.env && typeof options.env === "object" && !Array.isArray(options.env)
+    ? options.env : process.env;
+  const traceId = (value, fallback) => /^[A-Za-z0-9][A-Za-z0-9:._-]{2,255}$/.test(String(value || "").trim())
+    ? String(value).trim() : fallback;
+  const occurrenceId = traceId(options.occurrenceId || options.occurrence_id
+    || suppliedEnv.LIFE_MANAGER_OCCURRENCE_ID || process.env.LIFE_MANAGER_OCCURRENCE_ID
+    || `life-manager-connector-native:${wakeId}`, `life-manager-connector-native:${wakeId}`);
+  const runId = traceId(options.runId || options.run_id
+    || suppliedEnv.LIFE_MANAGER_RUN_ID || process.env.LIFE_MANAGER_RUN_ID
+    || wakeId, wakeId);
+  const releaseCandidate = String(options.releaseSha || options.release_sha
+    || suppliedEnv.LIFE_MANAGER_RELEASE_SHA || process.env.LIFE_MANAGER_RELEASE_SHA
+    || "unknown").trim();
+  const releaseSha = /^[0-9a-f]{40}$/.test(releaseCandidate) ? releaseCandidate : "unknown";
   const dependencies = options.dependencies || createDependencies(
     productionConfig(options, stateDir, ownerToken),
   );
   if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) unavailable();
 
-  return runWake(Object.freeze({
+  const result = await runWake(Object.freeze({
     ownerToken,
     stateDir,
     providers: providersForSlot(nowMs),
     maxConsecutiveFailures: 3,
     maxWakeMs: 600_000,
     maxAgentSteps: 15,
+    occurrenceId,
+    runId,
+    releaseSha,
   }), dependencies);
+  if (typeof dependencies.recordNativeOutcome === "function") {
+    await dependencies.recordNativeOutcome(classifyConnectorOutcome({
+      occurrence_id: occurrenceId,
+      run_id: runId,
+      release_sha: releaseSha,
+      result,
+    }));
+  }
+  return result;
 }
 
 function cliArguments(argv = process.argv.slice(2)) {

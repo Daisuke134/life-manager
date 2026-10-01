@@ -37,6 +37,7 @@ const TENANT = /^[a-z0-9][a-z0-9._-]{0,199}$/;
 const POSITIVE_REF = /^[^\x00-\x1f\x7f]{1,1024}$/;
 const PRIORITY_CLASSES = Object.freeze(["yc_hackathon", "open_talk", "ai", "crypto", "startup", "other"]);
 const TALK_STATES = Object.freeze(["not_open", "application_ready", "submitted", "provider_verified", "accepted", "rejected", "human_action_required"]);
+const OCCURRENCE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{2,255}$/;
 
 function invalid(message = "Connector native write pipeline invalid") {
   throw new Error(message);
@@ -117,6 +118,7 @@ function failureResult(stage, context, error) {
     attempt_ref: attemptRef(context.job),
     event_ref: context.eventRef,
     canonical_url: context.eventUrl,
+    occurrence_id: context.occurrenceId,
   });
 }
 
@@ -129,6 +131,7 @@ function reconciliationResult(context, error) {
     attempt_ref: attemptRef(context.job),
     event_ref: context.eventRef,
     canonical_url: context.eventUrl,
+    occurrence_id: context.occurrenceId,
   });
 }
 
@@ -227,6 +230,13 @@ function selectedContext(input) {
     "registration identity",
     100,
   );
+  const occurrenceId = text(
+    application.occurrenceId || application.occurrence_id || input.occurrenceId || input.occurrence_id
+      || profile.occurrence_id || "connector-write:unknown",
+    "occurrence",
+    256,
+  );
+  if (!OCCURRENCE_ID.test(occurrenceId)) invalid("occurrence invalid");
   const ranked = goalDecision && Array.isArray(goalDecision.ranked_events)
     ? goalDecision.ranked_events.find((candidate) => candidate.event_ref === eventRef) : null;
   const priorityClass = String(application.priorityClass || application.priority_class || "other");
@@ -257,6 +267,7 @@ function selectedContext(input) {
     telegramTarget: telegramTarget == null ? "" : String(telegramTarget).trim(),
     calendarCoverageUrl: calendarCoverageUrl == null ? "" : String(calendarCoverageUrl).trim(),
     registrationIdentity,
+    occurrenceId,
     selection: Object.freeze({
       priority_class: priorityClass,
       preference_reason: preferenceReason,
@@ -353,6 +364,7 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
 
   const provider = injected.provider;
   const executeDependencies = {
+    occurrence_id: context.occurrenceId,
     provider,
     readExternalReceipt: injected.readExternalReceipt,
     readArtifact: injected.readArtifact,
@@ -392,6 +404,7 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
       || typeof injected.recordLumaTicketQr !== "function"
     ) throw new Error("Luma mail and ticket services unavailable");
     const message = await injected.readLumaConfirmation({
+      occurrence_id: context.occurrenceId,
       registrationStartedAt: context.now,
       registrationCompletedAt: receipt.verified_at,
       eventUrl: context.eventUrl,
@@ -428,6 +441,7 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
   }
 
   const syncInput = {
+    occurrence_id: context.occurrenceId,
     calendar: context.calendar,
     calendarId: context.calendarId,
     dateInventory: context.dateInventory,
@@ -446,6 +460,7 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
   let registrationEvidence;
   try {
     registrationEvidence = buildRegistrationEvidence({
+      occurrence_id: context.occurrenceId,
       dateInventory: context.dateInventory,
       calendarSync,
     });
@@ -457,6 +472,7 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
   if (ticket) {
     try {
       ticketDelivery = await deliverTicket({
+        occurrence_id: context.occurrenceId,
         tenantId: context.tenantId,
         telegramTarget: context.telegramTarget,
         artifactRef: ticket.artifact_ref,
@@ -519,6 +535,7 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
     selection: context.selection,
   }];
   const telegramInput = {
+    occurrence_id: context.occurrenceId,
     tenantId: context.tenantId,
     telegramTarget: context.telegramTarget,
     coverage,
@@ -571,6 +588,37 @@ async function runNativeConnectorWrite(input = {}, deps = {}) {
     attempt_ref: attemptRef(job),
     event_ref: context.eventRef,
     canonical_url: event.canonical_url,
+    occurrence_id: context.occurrenceId,
+    journey: Object.freeze({
+      discovery: Object.freeze({
+        occurrence_id: context.occurrenceId,
+        status: "verified",
+        event_ref: context.eventRef,
+        canonical_url: event.canonical_url,
+      }),
+      qualification: Object.freeze({
+        occurrence_id: context.occurrenceId,
+        status: "verified",
+        priority_class: context.selection.priority_class,
+        preference_reason: context.selection.preference_reason,
+        talk_state: context.selection.talk_state,
+      }),
+      registration: Object.freeze({
+        occurrence_id: context.occurrenceId,
+        status: receipt.status,
+        attempt_ref: receipt.attempt_ref,
+        provider_receipt_ref: receipt.external_receipt_ref,
+      }),
+      confirmation_mail: Object.freeze(confirmation
+        ? { occurrence_id: context.occurrenceId, status: "verified", external_receipt_ref: confirmation.external_receipt_ref }
+        : { occurrence_id: context.occurrenceId, status: "unavailable", reason: "CONFIRMATION_EVIDENCE_FAILED" }),
+      calendar: Object.freeze({
+        occurrence_id: context.occurrenceId,
+        status: calendarSync.status,
+        calendar_event_ref: calendarSync.calendar_event_ref,
+        calendar_event_url: calendarSync.calendar_event_url,
+      }),
+    }),
     registration_receipt: safeReceiptProjection(receipt),
     confirmation: confirmation
       ? Object.freeze({ external_receipt_ref: confirmation.external_receipt_ref })
