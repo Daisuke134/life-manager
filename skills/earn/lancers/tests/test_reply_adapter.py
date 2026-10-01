@@ -2,6 +2,8 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 
 MODULE = Path(__file__).parents[1] / "scripts" / "reply_adapter.py"
 SPEC = importlib.util.spec_from_file_location("lancers_reply_adapter_test", MODULE)
@@ -381,3 +383,22 @@ def test_classify_observation_error_recognizes_human_verification(tmp_path):
     assert adapter.classify_observation_error(error) == {
         "reason": "human_verification_required"
     }
+
+
+@pytest.mark.parametrize(
+    "error_text,expected_reason",
+    [
+        ("browser_connect_failed", "provider_browser_unavailable"),
+        ("account_unavailable", "provider_account_unavailable"),
+        ("reply_thread_unavailable", "provider_thread_unavailable"),
+        ("calendar_read_unavailable", "provider_calendar_unavailable"),
+    ],
+)
+def test_classify_provider_observation_failures_as_waits(tmp_path, error_text, expected_reason):
+    adapter = adapter_module.LancersReplyAdapter(tmp_path / "state.json")
+
+    assert adapter.classify_observation_error(
+        adapter_module.work_sync.SourceFailure(error_text)
+        if error_text != "browser_connect_failed"
+        else RuntimeError(error_text)
+    ) == {"reason": expected_reason}

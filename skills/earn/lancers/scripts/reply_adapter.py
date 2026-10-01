@@ -224,8 +224,21 @@ class LancersReplyAdapter:
         # that carries no effect at all.
         if type(error).__name__ == "BrowserAttachBusy":
             return {"reason": "browser_attach_busy"}
-        if isinstance(error, work_sync.SourceFailure) and str(error) == "human_verification_required":
-            return {"reason": "human_verification_required"}
+        reasons = {
+            "browser_connect_failed": "provider_browser_unavailable",
+            "external_browser_unavailable": "provider_external_browser_unavailable",
+            "external_booking_auth_required": "provider_external_auth_required",
+            "account_unavailable": "provider_account_unavailable",
+            "reply_thread_unavailable": "provider_thread_unavailable",
+            "message_sender_identity_unavailable": "provider_thread_unavailable",
+            "calendar_read_unavailable": "provider_calendar_unavailable",
+            "calendar_credential_unavailable": "provider_calendar_unavailable",
+            "candidate_profile_unavailable": "provider_profile_unavailable",
+            "human_verification_required": "human_verification_required",
+        }
+        reason = reasons.get(str(error))
+        if reason is not None:
+            return {"reason": reason}
         return None
 
     def context(self, thread_id: str) -> dict[str, Any]:
