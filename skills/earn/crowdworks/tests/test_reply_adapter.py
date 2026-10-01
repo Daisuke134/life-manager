@@ -341,7 +341,7 @@ def test_single_thread_observation_does_not_require_reply_composer():
     assert observation["decision_version"] == "official-actions-v3"
 
 
-def test_buyer_google_form_becomes_shared_external_action():
+def test_buyer_google_form_becomes_human_required_hold():
     adapter = adapter_module.CrowdWorksReplyAdapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
@@ -354,14 +354,12 @@ def test_buyer_google_form_becomes_shared_external_action():
 
     action = adapter._external_form_action("thread-1")
 
-    assert action["action"] == "external_action"
-    assert action["payload"]["kind"] == "submit_google_form"
-    assert action["payload"]["url"] == "https://forms.gle/AbCdEf123"
-    assert len(action["payload"]["url_sha256"]) == 64
-    assert "回答" in action["payload"]["completion_body"]
+    assert action["action"] == "human"
+    assert action["reason"] == "human_required"
+    assert "Google Form" in action["remaining_work"][0]
 
 
-def test_acknowledgement_after_google_form_keeps_external_action_outstanding():
+def test_acknowledgement_after_google_form_keeps_human_hold():
     adapter = adapter_module.CrowdWorksReplyAdapter({})
     adapter.conversations = {"thread-1": [
         {"event_id": "buyer-1", "role": "buyer", "sender": "buyer",
@@ -374,8 +372,8 @@ def test_acknowledgement_after_google_form_keeps_external_action_outstanding():
 
     action = adapter._external_form_action("thread-1")
 
-    assert action["action"] == "external_action"
-    assert action["payload"]["url"] == "https://forms.gle/AbCdEf123"
+    assert action["action"] == "human"
+    assert action["reason"] == "human_required"
 
 
 def test_external_form_action_rejects_untrusted_or_ambiguous_links():
@@ -388,7 +386,9 @@ def test_external_form_action_rejects_untrusted_or_ambiguous_links():
     adapter.conversations = {"thread-1": [{**base, "links": [
         "https://forms.gle/one", "https://docs.google.com/forms/d/e/two/viewform",
     ]}]}
-    assert adapter._external_form_action("thread-1") is None
+    action = adapter._external_form_action("thread-1")
+    assert action["action"] == "human"
+    assert action["reason"] == "human_required"
 
 
 def test_post_contract_thread_never_offers_google_form_action():
