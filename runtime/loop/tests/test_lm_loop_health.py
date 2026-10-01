@@ -206,6 +206,23 @@ class LmLoopHealthTest(unittest.TestCase):
         self.assertEqual(reconciled["state"], "healthy")
         self.assertFalse(reconciled["diagnostic"]["release_drift"])
 
+    def test_verified_pass_without_receipt_stays_a_telemetry_gap(self):
+        row = self.status_row(
+            system_role=None,
+            product_loop_id="gig-crowdworks",
+            effect_class="message",
+            effect_status="verified",
+            provider_receipt_id=None,
+            official_readback_ref=None,
+        )
+        value = health.project_health([row])
+        diagnostic = value["jobs"][0]["diagnostic"]
+
+        self.assertEqual(value["jobs"][0]["state"], "telemetry_gap")
+        self.assertEqual(diagnostic["error_class"], "receipt_missing_for_pass")
+        self.assertEqual(diagnostic["next_action"], "official_readback_required")
+        self.assertTrue(diagnostic["receipt_missing_for_pass"])
+
     def test_health_clocks_survive_a_newer_failed_runtime_event(self):
         loop_id = "agentmail-nudge"
 
@@ -735,7 +752,7 @@ class LmLoopHealthTest(unittest.TestCase):
             {
                 "release_sha", "run_id", "owner_id", "occurrence_id", "effect",
                 "readback", "provider_receipt_id", "error_class", "retryable",
-                "next_action", "release_drift",
+                "next_action", "release_drift", "receipt_missing_for_pass",
             },
         )
         self.assertFalse(diagnostic["additionalProperties"])

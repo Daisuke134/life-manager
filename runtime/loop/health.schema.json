@@ -61,6 +61,9 @@
             "null"
           ]
         },
+        "receipt_missing_for_pass": {
+          "type": "boolean"
+        },
         "release_drift": {
           "type": "boolean"
         },
@@ -91,6 +94,7 @@
         "owner_id",
         "provider_receipt_id",
         "readback",
+        "receipt_missing_for_pass",
         "release_drift",
         "release_sha",
         "retryable",

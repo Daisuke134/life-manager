@@ -25,6 +25,7 @@ JOB_FIELDS = frozenset({
 DIAGNOSTIC_FIELDS = frozenset({
     "release_sha", "run_id", "owner_id", "occurrence_id", "effect", "readback",
     "provider_receipt_id", "error_class", "retryable", "next_action", "release_drift",
+    "receipt_missing_for_pass",
 })
 RFC3339_PATTERN = (
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
@@ -141,6 +142,7 @@ def health_json_schema() -> dict:
                     "retryable": {"type": ["boolean", "null"]},
                     "next_action": nullable_string,
                     "release_drift": {"type": "boolean"},
+                    "receipt_missing_for_pass": {"type": "boolean"},
                 },
                 "additionalProperties": False,
             },
@@ -232,6 +234,10 @@ def _health_state(row: dict) -> str:
     if row.get("release_drift") is True:
         # The event was emitted by a different immutable release than the one
         # currently installed. Do not treat that event as current health.
+        return "telemetry_gap"
+    if row.get("receipt_missing_for_pass") is True:
+        # A terminal pass cannot prove an external effect without one of the
+        # two official receipt forms. Keep the lane fenced for readback.
         return "telemetry_gap"
     diagnostic_text = " ".join(str(row.get(key) or "") for key in (
         "blocker", "error_class", "next_action", "error_detail",
@@ -364,12 +370,23 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
             and isinstance(row.get("event_release_sha"), str)
             and row["installed_release_sha"] != row["event_release_sha"]
         )
+        receipt_missing_for_pass = (
+            row.get("effect_class") != "none"
+            and row.get("last_terminal_result") == "pass"
+            and row.get("effect_status") in {"verified", "reconciled"}
+            and not (row.get("provider_receipt_id") or row.get("official_readback_ref"))
+        )
         row["release_drift"] = release_drift
+        row["receipt_missing_for_pass"] = receipt_missing_for_pass
         if release_drift:
             # Reconcile provenance before retrying the provider action. This
             # is a read-only projection; it does not reload or restart a loop.
             row["next_action"] = "reconcile_current_release"
             row["retryable"] = True
+        elif receipt_missing_for_pass:
+            row["error_class"] = row.get("error_class") or "receipt_missing_for_pass"
+            row["next_action"] = "official_readback_required"
+            row["retryable"] = False
         state = _health_state(row)
         effect_status = row.get("effect_status")
         jobs.append({
@@ -406,6 +423,7 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
                 "retryable": row.get("retryable"),
                 "next_action": row.get("next_action"),
                 "release_drift": release_drift,
+                "receipt_missing_for_pass": receipt_missing_for_pass,
             },
         })
     summary = {state: 0 for state in sorted(HEALTH_STATES)}
@@ -491,7 +509,9 @@ def validate_health_document(value: dict) -> dict:
                 or any(item is not None and not isinstance(item, str)
                        for item in effect.values())):
             raise ValueError("invalid health diagnostic effect")
-        nullable_diagnostic_strings = DIAGNOSTIC_FIELDS - {"effect", "retryable", "release_drift"}
+        nullable_diagnostic_strings = DIAGNOSTIC_FIELDS - {
+            "effect", "retryable", "release_drift", "receipt_missing_for_pass",
+        }
         if any(diagnostic[name] is not None and not isinstance(diagnostic[name], str)
                for name in nullable_diagnostic_strings):
             raise ValueError("invalid health diagnostic value")
@@ -499,6 +519,8 @@ def validate_health_document(value: dict) -> dict:
             raise ValueError("invalid health diagnostic retryable")
         if type(diagnostic["release_drift"]) is not bool:
             raise ValueError("invalid health diagnostic release_drift")
+        if type(diagnostic["receipt_missing_for_pass"]) is not bool:
+            raise ValueError("invalid health diagnostic receipt_missing_for_pass")
     expected_summary = {state: 0 for state in sorted(HEALTH_STATES)}
     for job in value["jobs"]:
         expected_summary[job["state"]] += 1
