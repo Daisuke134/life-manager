@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from runtime.loop.macos_loop_registry import (
+    CONTROL_PLANE_SAFETY_LOOPS,
     loop_json_schema,
     render_job_models,
     render_loop_json_schema,
@@ -1504,6 +1505,30 @@ class MacosLoopRegistryTest(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         expected = (ROOT / "runtime/loop/tests/fixtures/macos-loop-jobs.json").read_bytes()
         self.assertEqual(render_job_models(registry), expected)
+
+    def test_finite_effect_free_control_wakes_declare_coalescing_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        missing = {}
+        for loop_id, row in registry["loops"].items():
+            interval = row.get("cadence", {}).get("start_interval_seconds")
+            if (
+                loop_id in CONTROL_PLANE_SAFETY_LOOPS
+                or row.get("effect_class") != "none"
+                or row.get("system_role") not in {"control", "shared"}
+                or type(interval) is not int
+                or not 1 <= interval <= 900
+            ):
+                continue
+            absent = [
+                field for field in (
+                    "coalesce_queued_wakes",
+                    "coalesce_reserved_wakes",
+                    "reconcile_queued_release",
+                ) if row.get(field) is not True
+            ]
+            if absent:
+                missing[loop_id] = absent
+        self.assertEqual(missing, {})
 
     def test_loop_json_schema_is_generated_from_the_registry_contract(self):
         schema_path = ROOT / "runtime/loop/loop.schema.json"

@@ -551,6 +551,7 @@
       "state_root": "~/.local/state/life-manager/writer"
     },
     "article-healthcheck": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -564,7 +565,12 @@
       "label": "ai.anicca.article-healthcheck",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "article-learn-whitelist": {
@@ -648,6 +654,7 @@
       "state_root": "~/.local/state/life-manager/writer"
     },
     "article-zenn-retry": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -661,7 +668,12 @@
       "label": "ai.anicca.article-zenn-retry",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "boot-panic-evidence": {
@@ -682,6 +694,7 @@
       "state_root": "~/.local/state/life-manager/boot-panic-evidence"
     },
     "bounty-core-healthcheck": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -695,7 +708,12 @@
       "label": "ai.anicca.bounty-core-healthcheck",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/bounty/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/bounty"
     },
     "browser-state-backup": {
@@ -1082,6 +1100,7 @@
       "state_root": "~/.local/state/life-manager/earn-watch"
     },
     "earning-health-allslots": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1095,7 +1114,12 @@
       "label": "ai.anicca.earning-health-allslots",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/earning-health-allslots/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/earning-health-allslots"
     },
     "effect-watch": {
@@ -1189,6 +1213,7 @@
       "state_root": "~/.franklin2-home/.blockrun"
     },
     "fuel-watch": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 900
       },
@@ -1202,7 +1227,12 @@
       "label": "ai.anicca.fuel-watch",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/fuel-watch/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/fuel-watch"
     },
     "fundraiser": {
@@ -1353,6 +1383,8 @@
       "label": "ai.anicca.hf-gig-apply-reconcile",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/coconala/apply-reconcile/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
       "priority": "revenue",
       "resource_class": "agent",
@@ -1527,6 +1559,7 @@
       "state_root": "~/.local/state/life-manager/reddit"
     },
     "hf-reddit-loop-healthcheck": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1540,7 +1573,12 @@
       "label": "ai.anicca.hf-reddit-loop-healthcheck",
       "system_role": "control",
       "log_root": "~/.local/state/life-manager/reddit/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/reddit"
     },
     "image-claude-p": {
@@ -1896,6 +1934,7 @@
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lateness-heartbeat": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1909,7 +1948,12 @@
       "label": "ai.anicca.lateness-heartbeat",
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/lateness-heartbeat/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/lateness-heartbeat"
     },
     "life-manager-anicca-en-affirmation-instagram": {
@@ -2376,8 +2420,11 @@
     },
     "life-manager-browser-capacity-probe": {
       "resource_class": "browser",
+      "admission_class": "borrow",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -2856,6 +2903,7 @@
       "state_root": "~/.local/state/life-manager/lm-recording-store"
     },
     "marketing-dashboard": {
+      "admission_class": "borrow",
       "adapter": "python",
       "cadence": {
         "start_interval_seconds": 900
@@ -2870,10 +2918,15 @@
       "label": "ai.anicca.marketing-dashboard",
       "system_role": "control",
       "log_root": "~/Library/Application Support/AniccaMarketing/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
       "command": [
         "dashboard"
       ],
+      "resource_class": "agent",
       "state_root": "~/Library/Application Support/AniccaMarketing"
     },
     "marketing-metrics": {
@@ -2896,6 +2949,8 @@
       "label": "ai.anicca.marketing-metrics",
       "system_role": "control",
       "log_root": "~/Library/Application Support/AniccaMarketing/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "provider_route": "shared-agent-runner",
       "state_root": "~/Library/Application Support/AniccaMarketing"
     },
