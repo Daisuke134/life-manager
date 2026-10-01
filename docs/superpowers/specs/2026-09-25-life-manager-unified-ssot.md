@@ -2527,3 +2527,9 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 #### 45時点のblocker
 
 `P1-2b`はofficial-readback partialまで完了しているが、disk free 10GB二回という明示gateだけが未達。現在のowner権限では安全に5GB追加回収できないため、外部容量変化または新しい削除権限までHOLDする。P1-2bを推測で完了扱いせず、後続L9-13.1へreorderしない。
+
+### 46. fresh再開後のENOSPC境界（2026-10-02 06:18 JST）
+
+- fresh再開後の自然reconciler PID `36593` はpre-fleetを通過したが、fleet stateは前回errorのbackoff（until `2026-10-02 06:31:53 JST`）でskipされた。manual retry/restart/applyは行っていない。
+- 同時刻のdisk freeは`1,185,868 KB`まで低下し、最低線`1,155,780,608 bytes`の直上である。disk cleanupの直近runも既知Sparkle updater errorで、release削除は0、reclaimedはほぼ0。外部cache/repository/state削除なしで10GB gateからさらに離れた。
+- これは前節の5〜6GB readbackより悪化したfresh host boundaryであり、P1-2bのdisk gateは未達のまま保持する。現在の安全な次手は自然cleanup/backoffのread-only観測だけで、process kill、protected root削除、他owner repository削除、provider retryはしない。
