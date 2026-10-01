@@ -1781,7 +1781,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 - B1 Capafy/Mobileはexact source SHA `80f3a3f76e87a0dadc241354ee486d02844792ce`、PR #6317、main merge `22dde158f8eed23596cdf95b535d25b01901cf7a`。指数表記、27桁整数、Decimal contextによる暗黙丸め、厳密schema型、競合duplicate、inventory、未知shape、不完全paginationをfail closedにした。focused＋B0＋`loop_pnl` 89/89、CFO full 120/120、remote provenance確認後runtime full 719/719、contract 14 loops・176 jobs・errors 0、fresh exact review SHIP、全GitHub checks PASS。Apple `Extended Partner Share`はgross salesでなくsettled proceedsとして扱い、未取得provider fee coverageはcompleteにしない。これはsource adapter完了であり、Capafyの自然販売、公式API sale、model cost、settlement、製品loop全体の完了証拠ではない。
 - B2 Stripeはexact source SHA `f5143f16ab401a95e7505839cfdb6e24d3eb7640`を最新mainへ通常mergeしたfeature SHA `1029d21bf4300e33a6e3550b6eea577484613a80`、PR #6320、main squash merge `da056af93e434e43ca220ed29905570b84addbb9`。settlement chronology、巨大minor-unit、重複/競合、Charge逆link、未知status、evidence切捨て、full-history、`captured`/`livemode`のmissing・string組合せをfail closedにした。focused＋B0＋`loop_pnl` 87/87、CFO full 160/160、remote provenance確認後runtime full 719/719、contract 14 loops・176 jobs・errors 0、Node registry 15/15、fresh exact review SHIP、全GitHub checks PASS。merge後のfeature remoteはprovider設定で自動削除されたが、PR `headRefOid`、local branch、mainの対象7 files byte一致を確認してworktreeを退役した。live Stripe credentialと公式当日売上readbackは未接続である。
 - B3 Affiliateはexact source SHA `81a4ede8d60a7c7ba43fb09a1b4dacee9c427879`、PR #6316、main merge `528d91da22d37de962e87af7456f13dddfcafa9d`。raw commissionの丸め前USD構文、float/bool/int、百万桁in-memory/JSON/JSONL、canonical hash/decode例外をboundedにfail closedとした。focused＋B0＋`loop_pnl` 78/78、producer契約14/14、compile、source boundary、diff check、fresh exact review SHIP、全GitHub checks PASS。現行`revenue_cli.py`のproducer schemaだけをpublic経路で受理し、自己申告extensionをverifiedへ昇格しない。
-- B4 Marketplace、B5 Agent Economy/Investment、B6 actual costはread-only source/test matrixまで完了し、次の実装cursorである。相互に非重複の新規adapter/test/fixtureだけを所有する3席を`spawn --boot-prompt`する。実装席は`gpt-5.6-luna`・reasoning `max`を明示し、起動画面の実model/effortをreadbackする。各exact commitの最終reviewはfresh read-only `gpt-5.6-sol`・`high`を使う。B4–B6統合後だけB7中央integrationを一席で直列実行する。
+- B4 Marketplace、B5 Agent Economy/Investment、B6 actual costは、相互に非重複の新規adapter/test/fixtureだけを所有する3席で並列実装中である。実装席は起動画面で`gpt-5.6-luna`・reasoning `max`を確認し、各exact commitのreviewはfresh read-only `gpt-5.6-sol`・`high`で行う。B4 candidate `829832573eee45553fddffd91806aaa3d588fcc2`は、aggregate通貨・receipt map・時刻上限を追加修正し、focused 63/63、CFO full 176/176、diff check、4-file ownershipをPASSしたが、fresh exact review前なので未完である。B5 candidate `175bd683f480d5f1bac341c4a87ecbeb477e8a49`はreviewでTaskMarket join、reorg、投資realized P&L basis、signed unrealizedの4欠陥が見つかり修正中である。B6 candidate `9f27e58061e04a660141340ef1d3a5ede9ad39b6`は、reviewで見つかったBlockRun paid receipt、excluded cost coverage、window分離、部分allocation、malformed historical windowの5欠陥を修正し、focused 15/15、B0 47/47、CFO full 175/175をPASSしたが、fresh exact review前なので未完である。いずれもwriterの自己申告やfixture PASSだけではmainへ入れず、fresh review `SHIP`、最新main merge後の再検証、remote SHA、GitHub checksまで確認する。B4–B6統合後だけB7中央integrationを一席で直列実行する。
 - **本日の14 Product Loop合計売上・利益は`unknown`であり、0円ではない。** 2026-10-01 JSTの既存`loop_pnl.py --json` read-only実測では、公式に確認できた部分inflowはAgent EconomyのBase receipt 1件・`0.01 USDC`、InvestmentとLancersは接続済みsource上0だった。Stripeはlive credential未接続、Capafy/Mobileは当日rowなし、Coconala/CrowdWorksはpayment ledger owner不在、Writer/Affiliate/Job Hunter等はsource adapter未接続である。`agent-usage`の`USD_API_EQUIV`はAPI価格推定でprovider invoiceではなく、実費・利益へ数えない。14/14を覆うofficial settlement/refund/fee/actual cost joinがまだ無く、cost-complete net P&Lが完成したloopは0/14であるため、B7統合前に`0.01 USDC`を「本日の全社売上」または利益とは報告しない。
 
 2. **[x] Health foundation:** `lm-loop.health.v1` schema/validator、全176 managed jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、runtime・productivity・effect safety・business・recoveryの5 facet、独立した`last_attempt`・`last_success`・`last_effect`・`last_receipt`の4時計、型付き`safely_fenced`・`effect_unknown`・`telemetry_gap`・`human_required`、構造化diagnostic、exit code 0/1/2を実装した。分類はproduct 103・system 73・重複/欠落0。実fleet queryは176 jobsを3.36秒で返し、snapshot/projection timeout 0、90個の`events.jsonl` pathは各1 read・1 projection以下、invalid loopはexit 2と`invalid_input`を返した。health focused 28/28、status/doctor・registry回帰170/170、primary focused 198/198、clean venv full loop 719/719、schema/Python validator parity、全GitHub checksがPASSし、独立read-only exact-SHA reviewもPASS。source head `85a5f103c3b2f96e3d5f5a76a9adb12d9d7936eb`、PR #6305、main merge `c9581cce35e56c14a5cab879b78d033e00fe57a6`。履歴projectionは各state rootの直近50,000 eventsにboundedされる。検証時のlive `telemetry_gap` 2件は既存diagnostic不足であり、今回のtimeout/実装不良ではない。production immutable release/apply、通知、収益・自律性はこの完了証拠に含めない。
@@ -1802,17 +1802,24 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 6. `status`のinvalid input、current snapshot、historical record、trailing windowを分離し、成功・失敗・timeoutのfocused evidenceを残す。
 7. 5分read-only observer、atomic latest snapshot、append-only history、state-change alert dedupe、typed recovery intentを実装する。observerはprovider mutationを行わない。
 8. `human_required` qualificationをshared kernelへ追加し、面接・試験・録音・camera・screen share・自由回答・継続承認が必要な案件を自動hold/skipする。
-9. 外部需要が確認でき、粗利gateを通るsellable offerを一つ選び、一つの測定可能なacquisition surfaceで販売する。
-10. pre-acceptance margin gateとactual cost calibrationを通し、外部顧客の一件を契約→納品→settlement→payout→net marginまで閉じる。
-11. BlockRun x402 paid inferenceをtreasury policy内で実用jobに使い、owner depositでなく外部settled revenueとの関係をledgerへ残す。
-12. DigitalOceanの全費用を公式invoice/readbackからCFOへ入れ、runwayを計算する。
-13. 既存Nosana operationsをprovider-neutral shelter interfaceの後ろへ置き、durable identity/ledger/scheduler/backupをdisposable jobから分離する。
-14. FRANKLIN-CONTINUITY-1を連続する二回のsuccessor handoverで閉じ、外部earned surplusからNosana leaseを一回renewする。
-15. Akash quote/deploy/restoreをcross-provider fallbackとして実証する。
-16. local→cloudをowner単位で移し、Mac dependency 0、reboot/recovery、official readback、cost-complete positive net cashflowを確認する。
-17. 完全self-funding benchmarkを30日保持してからreplicationとMac売却を判断する。
+9. **14 Product Loopを共通foundation上で修理する。** これはAgent Economyだけの作業ではない。各loopのDoneは、自然scheduler、正しいno-work terminal、effect fence、公式receipt/readback、replay-zero、main由来immutable release provenance、収益とactual costのcoverageが揃うこととする。需要や売上が無い自然runはhealth証拠にはなるが、収益証拠にはしない。非重複ownerで次のwaveを並列実行する。
+   - **Wave A — 現在の需要・売上に最も近いlane:** Capafy、Mobile Apps、Gig — Coconala、Gig — Lancers、Gig — CrowdWorks、Writer、Affiliate。
+   - **Wave B — acquisitionと供給を閉じるlane:** Job Hunter、Fundraiser、Connector。
+   - **Wave C — 自己改善・資本・agent取引:** Self-Build、Investment、Agent Economy。
+   - **Wave D — 全社集計:** CFOがA–Cと自分自身を14/14で再計算し、unknownを0に置換せず通知する。
+10. 外部需要が確認でき、粗利gateを通るsellable offerを一つ選び、一つの測定可能なacquisition surfaceで販売する。
+11. pre-acceptance margin gateとactual cost calibrationを通し、外部顧客の一件を契約→納品→settlement→payout→net marginまで閉じる。
+12. BlockRun x402 paid inferenceをtreasury policy内で実用jobに使い、owner depositでなく外部settled revenueとの関係をledgerへ残す。
+13. DigitalOceanの全費用を公式invoice/readbackからCFOへ入れ、runwayを計算する。
+14. 既存Nosana operationsをprovider-neutral shelter interfaceの後ろへ置き、durable identity/ledger/scheduler/backupをdisposable jobから分離する。
+15. FRANKLIN-CONTINUITY-1を連続する二回のsuccessor handoverで閉じ、外部earned surplusからNosana leaseを一回renewする。
+16. Akash quote/deploy/restoreをcross-provider fallbackとして実証する。
+17. local→cloudをowner単位で移し、Mac dependency 0、reboot/recovery、official readback、cost-complete positive net cashflowを確認する。
+18. 完全self-funding benchmarkを30日保持してからreplicationとMac売却を判断する。
 
-Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力的でも先に進めない。並列化は同じ順序を短縮するためだけに使い、未達gateを飛び越えない。
+順序変更: 旧順序はshared safety gateの直後に一つのoffer販売へ進み、14 loop個別修理を明示していなかった。新順序はB7、status/observer/human gateの後に14 loop修理をitem 9として置き、その後に外部paid E2Eへ進む。理由は、壊れた自然scheduler、effect fence、receipt pathを残したまま販売量を増やすと、売上機会よりsilent failureと二重送信を先に増やすためである。現在cursorはitem 3 B4–B6で変わらない。
+
+Items 1–11は収益critical pathである。cloud providerやwebsiteが魅力的でも先に進めない。並列化は同じ順序を短縮するためだけに使い、未達gateを飛び越えない。
 
 ### 8. AGMSG実行状態とsessionのGoal契約
 
@@ -1831,6 +1838,9 @@ Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力�
 | `lm-cfo-b1-capafy-mobile-1001` | B1 Capafy/Mobile source adapter | official hash/pagination/account inventory、Mobile 6製品、Financial Report settled proceeds、RevenueCat MRR、coverage/replay | 完了・despawn済み。`80f3a3f76e`、PR #6317、main `22dde158f8` |
 | `lm-cfo-b2-stripe-1001` | B2 Stripe source adapter | external settled charge/refund/fee、excluded movement fee、subscription MRR、historical/trailing coverage | 完了・despawn済み。`1029d21bf4`、PR #6320、main `da056af93e` |
 | `lm-cfo-b3-affiliate-1001` | B3 Affiliate source adapter | producer互換、paid commission、reversal、fee/payout除外、artifact evidence | 完了・despawn済み。`81a4ede8d6`、PR #6316、main `528d91da22` |
+| `lm-cfo-b4-marketplace-1001` | B4 Marketplace source adapter | marketplace settlement/refund/fee/payout、aggregate coverage、時刻・通貨境界、fresh exact review | 稼働中。candidate `829832573e`、focused 63/63、CFO 176/176、fresh review待ち |
+| `lm-cfo-b5-agent-invest-1001` | B5 Agent Economy/Investment source adapter | x402/TaskMarket join、realized P&L・fee・slippage、balance、除外分類 | 稼働中。candidate `175bd683f4`のfresh review 4件を修正中 |
+| `lm-cfo-b6-actual-cost-1001` | B6 actual cost source adapter | official paid model/tool/browser/infra cost、allocation、window別coverage | 稼働中。candidate `9f27e58061`、focused 15/15、CFO 175/175、fresh review待ち |
 
 既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。3監査の証拠を確認後、TaskMarketとHealthを直列に一席ずつ、B1–B3を非重複ownershipで並列に実行し、全てmain統合後にdespawnした。次のB4–B6も最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
 
