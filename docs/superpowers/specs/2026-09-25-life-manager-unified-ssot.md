@@ -2533,3 +2533,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 - fresh再開後の自然reconciler PID `36593` はpre-fleetを通過したが、fleet stateは前回errorのbackoff（until `2026-10-02 06:31:53 JST`）でskipされた。manual retry/restart/applyは行っていない。
 - 同時刻のdisk freeは`1,185,868 KB`まで低下し、最低線`1,155,780,608 bytes`の直上である。disk cleanupの直近runも既知Sparkle updater errorで、release削除は0、reclaimedはほぼ0。外部cache/repository/state削除なしで10GB gateからさらに離れた。
 - これは前節の5〜6GB readbackより悪化したfresh host boundaryであり、P1-2bのdisk gateは未達のまま保持する。現在の安全な次手は自然cleanup/backoffのread-only観測だけで、process kill、protected root削除、他owner repository削除、provider retryはしない。
+
+### 47. 10GB数値の完了gate撤回とTaskMarketへのcursor移動（2026-10-02 08:05 JST）
+
+- Daisの明示指示により、固定値`10GB freeを二回`をP1-2bの絶対完了条件から外す。disk freeは既存cleanup tier・ENOSPC・runwayのhealth telemetryとして継続観測するが、主要targetのrelease provenance、fleet timeout、effect fence、official readback partialを覆すgateにはしない。10GB未達だけを理由に収益critical pathを停止・reorderしない。
+- P1-2bの実測判定は、(a) main由来release/self-handoff、(b) shared/deterministic pre-fleet timeout解消、(c)主要targetのloaded SHA/argv、(d)全fleetのtyped terminal、(e)effect_unknownのofficial-readback付きHELDまたはverified resolution、(f)replay-zeroを採る。現状は(a)〜(e)を満たし、3件はHELD理由が公式readback付き、timeoutは0。残る旧24 ownerはeffect fence/cadence provenanceとして別cursorに残す。
+- disk原因の棚卸しで、`cloud-edition-cl01-05` worktree（clean、HEAD `9f644c610e`、remote branch保持、size約2.75GB）と、2日以上停止していたCodex read-only 2席、agent-browser、headless Chrome、関連rubyを対象限定で停止した。open-handleゼロをreadback後、exact worktreeをremoveし、branch/commitは保持した。freeは直後に約2.72GB回復したが、その後の自然release/cleanupで変動するため安定値とは扱わない。
+- 10GB gate撤回後の次のatomic cursorはAgent Economy `L9-13.1 TaskMarket no-effect discovery`である。TaskMarket release packaging/loopback no-effect source fixは既存mainに統合済みだが、production no-effect provider discoveryの公式readbackは未達。次に外部送信・wallet spendなしの一件を自然owner経由で実測し、provider discovery boundaryまで到達した証拠を保存する。
+
+#### 47時点のcursor
+
+1. TaskMarket no-effect discoveryを公式readbackで閉じる（外部効果なし、wallet spendなし、provider discovery boundary）。
+2. BlockRun paid inferenceをtreasury spend-cap内で一件成功させ、実用output・provider receipt・costを結合する。
+3. PromptBase/Writer→Capafy→残りnamed loops→CFO 14/14 cost-complete P&Lへ進む。diskはhealth/runway指標として並行観測し、固定10GBを理由に停止しない。
