@@ -422,6 +422,11 @@ class HostDiskGovernor:
         self.lsof = lsof
         self.usage = usage or self._usage
         self.clock = clock
+        # Discovery is intentionally fail-closed per artifact family.  Keep a
+        # typed note when the OS cannot even resolve its temporary directory so
+        # a pressure pass can still sweep the other exact allow-lists and leave
+        # an actionable receipt instead of crashing before the sweep.
+        self.discovery_errors: list[dict[str, str]] = []
         # Filesystem cleanup does not depend on the GUI bootstrap. Probing
         # Directory Services or launchctl here used to make the disk owner
         # fail precisely when the host was under pressure, and could emit
@@ -745,6 +750,27 @@ class HostDiskGovernor:
             return current == proof
         try:
             resolved = path.resolve()
+        except OSError:
+            return False
+        owner = item.get("owner")
+        if item.get("class") == "regenerable_output":
+            exact_caches = {
+                cache_owner: (self.home / relative).resolve()
+                for cache_owner, relative in EXACT_CACHE_ROOTS.items()
+            }
+            expected = exact_caches.get(owner)
+            if expected is not None:
+                return resolved == expected
+            if owner == "release-retention":
+                try:
+                    releases = (self.home / "loops" / "releases").resolve()
+                except OSError:
+                    return False
+                return (
+                    resolved.parent == releases
+                    and RELEASE_NAME_PATTERN.fullmatch(resolved.name) is not None
+                )
+        try:
             temporary = Path(tempfile.gettempdir()).resolve()
         except OSError:
             return False
@@ -764,23 +790,6 @@ class HostDiskGovernor:
                 and resolved.parent.name
                 in {"com.google.Chrome.code_sign_clone", "org.chromium.Chromium.code_sign_clone"}
                 and resolved.name.startswith("code_sign_clone.")
-            )
-        if item.get("class") == "regenerable_output":
-            exact_caches = {
-                owner: (self.home / relative).resolve()
-                for owner, relative in EXACT_CACHE_ROOTS.items()
-            }
-            expected = exact_caches.get(item.get("owner"))
-            if expected is not None:
-                return resolved == expected
-        if item.get("class") == "regenerable_output" and item.get("owner") == "release-retention":
-            try:
-                releases = (self.home / "loops" / "releases").resolve()
-            except OSError:
-                return False
-            return (
-                resolved.parent == releases
-                and RELEASE_NAME_PATTERN.fullmatch(resolved.name) is not None
             )
         return False
 
@@ -1185,6 +1194,7 @@ class HostDiskGovernor:
         a deletion candidate merely because it is large.
         """
         candidates: list[dict] = []
+        self.discovery_errors = []
         for owner, relative in EXACT_CACHE_ROOTS.items():
             cache = self.home / relative
             if cache.is_dir() and not cache.is_symlink():
@@ -1269,7 +1279,17 @@ class HostDiskGovernor:
                                 ),
                             }
                         )
-        temporary = Path(tempfile.gettempdir())
+        try:
+            temporary = Path(tempfile.gettempdir())
+        except OSError as exc:
+            self.discovery_errors.append(
+                {
+                    "family": "temporary-run",
+                    "error_class": type(exc).__name__,
+                    "next_action": "retry_after_temp_root_recovers",
+                }
+            )
+            return candidates
         temp_parent = temporary.parent
         clone_root = temp_parent / "X"
         for collection_name in (
@@ -1354,6 +1374,9 @@ class HostDiskGovernor:
             write_receipt=False,
             deadline=deadline,
         )
+        if self.discovery_errors:
+            result["discovery_errors"] = list(self.discovery_errors)
+            result["errors"] += len(self.discovery_errors)
         result["updater_recovery"] = updater_recovery
         result["errors"] += updater_recovery["errors"]
         # Cleanup must never pause revenue loops. Remove the retired shared
@@ -1421,10 +1444,25 @@ class HostDiskGovernor:
             requested = path.expanduser()
             resolved = requested.resolve()
             temporary = Path(tempfile.gettempdir()).resolve()
-        except OSError:
-            resolved = Path(canary_path)
-            temporary = Path(tempfile.gettempdir()).resolve()
-            requested = path.expanduser()
+        except OSError as exc:
+            result = {
+                "tier": classify_tier(free_before),
+                "evaluated": 0,
+                "reclaimed": 0,
+                "preserved": 1,
+                "errors": 1,
+                "protected_deletions": 0,
+                "reason": "temporary_root_unavailable",
+                "error_class": type(exc).__name__,
+                "next_action": "retry_after_temp_root_recovers",
+                "canary_path": canary_path,
+                "before_bytes": 0,
+                "after_bytes": 0,
+                "removed": False,
+                "duplicate_effect": 0,
+            }
+            self._canary_receipt(result)
+            return result
         if (
             requested.is_symlink()
             or resolved.parent != temporary

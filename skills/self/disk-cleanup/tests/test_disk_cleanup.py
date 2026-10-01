@@ -93,6 +93,68 @@ def test_open_or_protected_artifact_is_preserved(tmp_path: Path, monkeypatch) ->
     assert open_candidate.exists()
     assert protected.exists()
     assert result["preserved"] == 2
+
+
+def test_temp_root_probe_failure_preserves_temp_family_but_keeps_other_discovery(
+    tmp_path: Path, monkeypatch
+) -> None:
+    cache = tmp_path / "Library/Caches/Codex"
+    cache.mkdir(parents=True)
+    (cache / "payload").write_bytes(b"cache")
+
+    def unavailable_temp_root() -> str:
+        raise FileNotFoundError("No usable temporary directory")
+
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", unavailable_temp_root)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+
+    candidates = governor.discover_candidates()
+
+    assert [item["owner"] for item in candidates] == ["codex-cache"]
+    assert governor.discovery_errors == [
+        {
+            "family": "temporary-run",
+            "error_class": "FileNotFoundError",
+            "next_action": "retry_after_temp_root_recovers",
+        }
+    ]
+
+
+def test_run_once_records_temp_root_probe_failure_and_sweeps_cache(
+    tmp_path: Path, monkeypatch
+) -> None:
+    cache = tmp_path / "Library/Caches/Codex"
+    cache.mkdir(parents=True)
+    (cache / "payload").write_bytes(b"cache")
+
+    monkeypatch.setattr(
+        disk_cleanup.tempfile,
+        "gettempdir",
+        lambda: (_ for _ in ()).throw(FileNotFoundError("No usable temporary directory")),
+    )
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 1, "root_count": 1, "gaps": []}},
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (12 * GiB, 100 * GiB),
+    )
+
+    result = governor.run_once()
+
+    assert not cache.exists()
+    assert result["errors"] == 1
+    assert result["discovery_errors"] == [
+        {
+            "family": "temporary-run",
+            "error_class": "FileNotFoundError",
+            "next_action": "retry_after_temp_root_recovers",
+        }
+    ]
     assert result["protected_deletions"] == 0
 
 

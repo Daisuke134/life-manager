@@ -2135,15 +2135,29 @@ flowchart LR
 
 「数百万」を達成したと報告できる条件は、複数platform・複数契約のsettled external receipt、platform fee、全model/tool/browser/infra cost、refundを同じledgerへ結合し、期間のpositive net P&Lを再計算できることとする。応募数、画面表示、`pass`、未払い契約、owner入金は収益実績ではない。
 
+#### Current cursor — CrowdWorks契約途中終了リクエスト
+
+通知の「本日が契約途中終了リクエストの返答期限です」はAdobeの解約ではなく、CrowdWorksの契約ID`63570481`に対するprovider側の契約途中終了申請である。通知には当日が返答期限と表示されているが、現時点で次の三点は別々に扱う。
+
+- **確認済み:** 9月のフォーム送信（発注者・フォームrevision hash・milestone`13798056`のprovider receipt）と、Paid stateの`delivered`はローカルreceiptで確認できる。
+- **未確認:** 現在の契約画面に表示される終了理由・条件、申請が未回答のままか、providerが自動終了済みか、今回の通知に対応する公式receipt/readback。過去の納品receiptは今回の終了申請の解決証拠ではない。
+- **操作状態:** このcursorでは承諾・拒否・再納品・再送を実行していない。条件が読めない状態で推測して送信しない。
+
+内部の根因は、契約threadの観測中に`TargetClosedError`（`Page.goto: Target page, context or browser has been closed`）が発生し、thread stateが`reconcile_unknown`のまま残ったこと、reply laneの最新runが`entrypoint_exit_1`／`official_readback_required`で終わり、終了申請を独立したdurable deadline itemとして再キューできていなかったことである。加えて、hostのData volumeが100%（約1--2GiB free）となり、`ENOSPC`・SQLite `disk I/O error`・receipt書込み失敗を起こしうる。loaded releaseとevent releaseの不一致も、実行したコードとreadbackを取り違えるtelemetry gapを生む。
+
+今すぐの安全な境界は、(1)公式契約画面を読み取り専用で再観測して終了申請の現状態・理由・期限・条件・provider receiptを保存、(2)申請がまだ開いていて承諾／拒否方針が確定している場合だけ、外部操作を一度だけ実行し公式readbackを保存、(3)条件または方針が不明ならeffect fenceを解放せず保留、である。フォームや納品物を再送してこの申請を消そうとしてはいけない。
+
+この失敗を全platformで再発させない共通修正は、`contract_termination_request`・`due_at`・`deadline_status`・`provider_receipt_id`をshared schemaへ追加し、最新buyer eventを必ずdurable queue・期限通知・owner healthへ投影すること、browser target closeをtyped `observation_wait`としてbounded reattach→reconcileへ接続すること、`official_readback`が無い`pass`を成功扱いしないこと、disk headroom／receipt reserve／release provenanceをmutation前のadmission gateにすること、同一intentのdedupe keyとeffect fenceを全adapterで共有することである。
+
 #### Contract Work Factoryの残TODO（この節を拡張順の正本とする）
 
-1. **[ ] CrowdWorks期限案件を閉じる:** 契約ID`63570481`の同意／拒否方針を確定し、外部操作は一度だけ実行して公式readbackを保存する。
+1. **[ ] CrowdWorks期限案件を閉じる:** 契約ID`63570481`の終了申請を公式画面で読み取り専用確認し、理由・条件・現状態・期限・provider receiptを保存する。その後、方針が確定している場合だけ同意／拒否を一度だけ実行して公式readbackを保存する。不明なら保留し、再納品・再送はしない。
 2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類、CrowdWorks検出、応募前のshared fail-closed fence、CrowdWorks公式履歴adapterとdurable cache接続、10ページsource-complete同期（200件）、契約URLリダイレクトの公式readback、保存済み期限情報を期限超過→緊急→近日→不明→通常の順で直列化するshared reply queue、返信カーネルのbounded deadline telemetry（`deadline_status`・正規化済み`due_at`・案件ID、期限超過時の`deadline_missed`、run marker永続化）、reply loopだけを対象にした読み取り専用`lm-loop status/health`投影、既知no-effect理由の`safely_fenced` health投影、履歴cacheの`lm-loop status`投影、本文hashを捏造しない`ApplicationHistoryReceipt`の共通schema永続化は完了。履歴同期全体とCFO通知は残る。
-3. **[~] CrowdWorks laneを修正:** browser attach/inbox/threadの観測前`entrypoint_exit_1`はstructured waitへ分類済み。release SHA不一致はhealthで`telemetry_gap`として検知し`reconcile_current_release`へ誘導、receiptなし`pass`は`official_readback_required`へ戻す実装と回帰テストを完了。残りは全revenue laneの同一immutable releaseへの反映、同一releaseで自然run→公式readback→replay-zeroを閉じる。
+3. **[~] CrowdWorks laneを修正:** browser attach/inbox/threadの観測前`entrypoint_exit_1`はstructured waitへ分類済み。release SHA不一致はhealthで`telemetry_gap`として検知し`reconcile_current_release`へ誘導、receiptなし`pass`は`official_readback_required`へ戻す実装と回帰テストを完了。残りは終了申請のtarget-close回復、durable deadline再キュー、全revenue laneの同一immutable releaseへの反映、同一releaseで自然run→公式readback→replay-zeroを閉じる。
 4. **[~] Adapter conformance gate:** 既存Coconala/Lancers/CrowdWorks/Mercorのreply adapterが5 surface（observe_threads/observe_one/context/mutate/readback）と観測前structured waitを実装する共通contract testを持ち、Coconalaの`CollectorUnhealthy`（`missing_container`・coverage不足・login redirectを含む）とLancersのbrowser/account/thread/calendar観測失敗も送信失敗ではなく共有kernelの観測待機へ分類する。Coconala/Lancers/CrowdWorks/Mercorのpaid adapterが5 surface（observe_active/observe_one/context/mutate/readback）を共有Paid kernelへ渡す共通contract testを追加した。Paid kernelにもadapterが明示したmutation前のbrowser/session/lock観測障害を`waiting_external`・`pending`としてdurableに保存する分類境界を追加し、4つの既存paid adapterすべての再試行可能な観測待ちを同じcontractへ接続した。Mercorのsnapshot/Gmail source failure分類と外部効果0の回帰テストも完了。残りは新platformのadapter生成・検証、Coconalaの旧paid-direct delivery bridgeをshared kernelの自然runへ移すこと、application/storefront laneの同一effect fence確認、shared kernelのduplicate・ledger・P&L再実装が無いことの全adapter監査。
 5. **[~] Provider receipt chain:** 共通`validate_receipt_chain`で応募確認→accepted contract→authorization→QA→delivery→settled payment→matched payoutの順序・platform／ID／artifact／金額／時系列をfail-closed検証し、`financial_record.project_receipt_chain(s)`が同一chain evidenceを付けたgross・fee・cost・payoutを投影する。複数案件を含むprovider journalは7段の完全chain単位で全件検証し、1件でも部分・混在なら全体を出力しない。Financial Managerの既定ingestもcanonical prefixを含む入力をこのchain投影へ自動ルーティングし、部分chainは`unavailable`、payment+payout-onlyの既存journalは後方互換で個別投影する。netが0以下のchainは投影せず、payoutをrevenueへ二重計上しないfocused regressionを追加した。CFO marketplace adapterもsettled paymentのnet=0を`unverified_receipt`へ戻す。残りは各platformの実provider receipt producerをこの共通projectionへ接続し、CFOへoccurrence／settlement／model・tool・browser・infra costを同一periodで渡して公式readback付きpositive net P&Lを再計算すること。
 6. **[ ] Freelancer/Upwork:** approved automation terms、account-bound auth、funded contract/milestone、mutation authorization、payout readbackが揃うまでownerを有効化しない。
 7. **[ ] Meta Loop:** candidate durable state、discovery scheduler、adapter生成／検証、isolated canary、owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。
-8. **[ ] Cloud/self-healing:** localとcloudの同一business logic、全laneのhealth projection、bounded recovery、通知dedupe、release provenance、backup/restoreを実測する。
+8. **[ ] Cloud/self-healing:** localとcloudの同一business logic、全laneのhealth projection、bounded recovery、通知dedupe、release provenance、backup/restore、disk headroom／receipt reserve／ENOSPC回復を実測する。自己回復は原因を隠さず、`run_id`・`occurrence_id`・`release_sha`・`phase`・`effect`・`readback`・`provider_receipt_id`・`error_class`・`next_action`を構造化して残す。
 
 現時点で「共有kernelは存在するが、全platformの外部receipt・payout・cost-complete net P&L・Meta Loop昇格は未完了」である。したがって、Life Managerが契約仕事で大規模に稼ぐ設計はこの構造で可能だが、現在すでに数百万を稼いでいるとは報告しない。
