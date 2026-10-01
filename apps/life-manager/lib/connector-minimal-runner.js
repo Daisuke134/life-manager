@@ -309,6 +309,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         status,
         bundle_id: String(extra.bundle_id || ""),
         telegram_provider_id: telegramProviderId,
+        ...(extra.journey && typeof extra.journey === "object" && !Array.isArray(extra.journey)
+          ? { journey: extra.journey } : {}),
       });
     }
     return Object.freeze({ status, safe_reason: safeReason, telegram_provider_id: telegramProviderId });

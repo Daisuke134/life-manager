@@ -36,12 +36,19 @@ function classifyConnectorOutcome(input = {}) {
   const registration = journey.registration || {};
   const confirmation = journey.confirmation_mail || {};
   const calendar = journey.calendar || {};
+  const occurrenceBound = (stage) => Boolean(
+    stage && typeof stage === "object" && !Array.isArray(stage)
+      && stage.occurrence_id === occurrenceId,
+  );
   const providerReceiptRef = optionalReceipt(registration.provider_receipt_ref);
   const confirmationMailRef = optionalReceipt(confirmation.external_receipt_ref);
   const calendarEventRef = optionalReceipt(calendar.calendar_event_ref);
   const externalRegistrationStatus = status === "completed_no_effect"
     ? "not_attempted"
     : processStatus === "pass"
+      && occurrenceBound(registration)
+      && occurrenceBound(confirmation)
+      && occurrenceBound(calendar)
       && providerReceiptRef && confirmationMailRef && calendarEventRef
       ? "verified" : "unknown";
   const safeReason = String(result.safe_reason || (status === "applied_bundle" ? "applied_bundle" : "unknown")).trim();

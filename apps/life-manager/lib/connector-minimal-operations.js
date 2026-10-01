@@ -1,5 +1,6 @@
 "use strict";
 
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -104,6 +105,78 @@ function appendDurable(file, value) {
     fs.closeSync(fd);
   }
   fs.chmodSync(file, 0o600);
+}
+
+function waitBriefly() {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2);
+}
+
+const NATIVE_OUTCOME_LOCK_STALE_MS = 30_000;
+
+function readNativeOutcomeLock(lockPath) {
+  let stat;
+  try { stat = fs.statSync(lockPath); } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
+  let record;
+  try { record = JSON.parse(fs.readFileSync(lockPath, "utf8")); } catch { return { invalid: true, stat }; }
+  if (!record || record.schema_version !== 1 || typeof record.token !== "string" || !record.token
+    || !Number.isSafeInteger(record.pid) || record.pid < 1
+    || !Number.isSafeInteger(record.started_ms) || record.started_ms < 1) {
+    return { invalid: true, stat };
+  }
+  return { record, stat };
+}
+
+function nativeOutcomeOwnerAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error && error.code === "EPERM";
+  }
+}
+
+function acquireNativeOutcomeLock(lockPath) {
+  const token = randomUUID();
+  for (let attempt = 0; attempt < 1_000; attempt += 1) {
+    try {
+      const descriptor = fs.openSync(lockPath, "wx", 0o600);
+      fs.writeSync(descriptor, JSON.stringify({ schema_version: 1, token, pid: process.pid, started_ms: Date.now() }));
+      fs.fsyncSync(descriptor);
+      const inode = fs.fstatSync(descriptor).ino;
+      return {
+        release() {
+          try { fs.closeSync(descriptor); } catch {}
+          const current = readNativeOutcomeLock(lockPath);
+          if (current && !current.invalid && current.stat.ino === inode && current.record.token === token) {
+            try { fs.unlinkSync(lockPath); } catch (error) { if (!error || error.code !== "ENOENT") throw error; }
+          }
+        },
+      };
+    } catch (error) {
+      if (!error || error.code !== "EEXIST") throw error;
+      const current = readNativeOutcomeLock(lockPath);
+      if (!current) continue;
+      const age = Date.now() - Number(current.record?.started_ms || current.stat.mtimeMs || 0);
+      if (age > NATIVE_OUTCOME_LOCK_STALE_MS && (current.invalid || !nativeOutcomeOwnerAlive(current.record.pid))) {
+        const confirm = readNativeOutcomeLock(lockPath);
+        if (confirm && confirm.stat.ino === current.stat.ino
+          && (confirm.invalid || confirm.record.token === current.record.token)) {
+          try { fs.unlinkSync(lockPath); } catch (unlinkError) { if (!unlinkError || unlinkError.code !== "ENOENT") throw unlinkError; }
+        }
+        continue;
+      }
+      waitBriefly();
+    }
+  }
+  invalid();
+}
+
+function withNativeOutcomeLock(lockPath, callback) {
+  const lock = acquireNativeOutcomeLock(lockPath);
+  try { return callback(); } finally { lock.release(); }
 }
 
 function safeAction(input) {
@@ -475,12 +548,14 @@ function createMinimalProductionOperations(options = {}) {
 
   async function recordNativeOutcome(input) {
     const outcome = safeNativeOutcome(input);
-    const existing = readRows(nativeOutcomeFile).find((row) => row.occurrence_id === outcome.occurrence_id);
-    if (existing) {
-      if (JSON.stringify(existing) !== JSON.stringify(outcome)) invalid();
-      return;
-    }
-    appendDurable(nativeOutcomeFile, outcome);
+    withNativeOutcomeLock(`${nativeOutcomeFile}.lock`, () => {
+      const existing = readRows(nativeOutcomeFile).filter((row) => row.occurrence_id === outcome.occurrence_id);
+      if (existing.length > 0) {
+        if (existing.length !== 1 || JSON.stringify(existing[0]) !== JSON.stringify(outcome)) invalid();
+        return;
+      }
+      appendDurable(nativeOutcomeFile, outcome);
+    });
   }
 
   async function recordDiscoveryAudit(input) {

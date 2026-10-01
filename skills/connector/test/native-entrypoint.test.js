@@ -7,6 +7,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { nativeExitCode, runNativePass } = require("../native-pass.js");
+const { runMinimalConnectorWake } = require("../../../apps/life-manager/lib/connector-minimal-runner.js");
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const VALID_KANA = Object.freeze({ family: "サクラ", given: "テスト" });
@@ -122,6 +123,60 @@ test("native pass reports process and external status separately for one occurre
       calendar_event_ref: null,
       safe_reason: "providers_exhausted",
     });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("native pass preserves an applied bundle's five-stage journey through the runner and verifies it", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-applied-journey-"));
+  let observed;
+  const occurrenceId = "life-manager-connector-native:occurrence-applied";
+  const candidate = {
+    provider: "luma",
+    event_ref: "luma-event://event/applied-journey",
+    canonical_url: "https://luma.example.test/applied-journey",
+  };
+  const journey = {
+    discovery: { occurrence_id: occurrenceId, status: "verified", event_ref: candidate.event_ref },
+    qualification: { occurrence_id: occurrenceId, status: "verified" },
+    registration: { occurrence_id: occurrenceId, status: "registered", provider_receipt_ref: "provider-receipt://luma/applied" },
+    confirmation_mail: { occurrence_id: occurrenceId, status: "verified", external_receipt_ref: "gmail-message://dais-local/applied" },
+    calendar: { occurrence_id: occurrenceId, status: "verified", calendar_event_ref: "calendar-evidence://google/applied" },
+  };
+  try {
+    const result = await runNativePass({
+      repoRoot: REPO_ROOT,
+      stateDir: path.join(directory, "state"),
+      ownerToken: "native-pass-applied-journey-owner-123456",
+      now: () => 0,
+      occurrenceId,
+      runId: "run-applied-journey",
+      releaseSha: "a".repeat(40),
+      dependencies: {
+        now: () => "2026-10-01T00:00:00.000Z",
+        browserRail: {
+          async open() { return { session_id: "session-applied", target_id: "TARGETAPPLIED", page_websocket: "ws://localhost:9222/devtools/page/TARGETAPPLIED", page: {} }; },
+          async navigate() {},
+          async close() {},
+        },
+        async readCalendarGaps() { return []; },
+        async discoverCandidates(provider) { return provider === "luma" ? [candidate] : []; },
+        async runCachedAction() { return { status: "failed", safe_reason: "cache_miss" }; },
+        async runDirectAction() { return { status: "completed" }; },
+        async runAgentFallback() { return { status: "failed", safe_reason: "agent_not_needed" }; },
+        async readProviderState({ phase }) { return { status: phase === "pre_submit" ? "absent" : "registered" }; },
+        async completeEvidence() { return { status: "applied_bundle", bundle_id: "applied-journey", completion_disposition: "created", journey }; },
+        async saveRepairedActions() { return { status: "saved" }; },
+        async reportWake() { return { telegram_provider_id: "9001" }; },
+        async recordAction() {},
+        recordNativeOutcome(value) { observed = value; },
+      },
+      runWake: runMinimalConnectorWake,
+    });
+    assert.equal(result.status, "applied_bundle");
+    assert.equal(observed.external_registration_status, "verified");
+    assert.equal(observed.occurrence_id, occurrenceId);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }

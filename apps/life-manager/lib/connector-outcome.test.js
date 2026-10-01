@@ -34,9 +34,9 @@ test("an applied bundle is external-verified only with all provider, mail, and C
       status: "applied_bundle",
       safe_reason: "applied_bundle",
       journey: {
-        registration: { provider_receipt_ref: "provider-receipt://luma/receipt" },
-        confirmation_mail: { external_receipt_ref: "gmail-message://dais-local/mail" },
-        calendar: { calendar_event_ref: "calendar-evidence://google/event/event-1" },
+        registration: { occurrence_id: TRACE.occurrence_id, provider_receipt_ref: "provider-receipt://luma/receipt" },
+        confirmation_mail: { occurrence_id: TRACE.occurrence_id, external_receipt_ref: "gmail-message://dais-local/mail" },
+        calendar: { occurrence_id: TRACE.occurrence_id, calendar_event_ref: "calendar-evidence://google/event/event-1" },
       },
     },
   }).external_registration_status, "verified");
@@ -49,9 +49,9 @@ test("the common write pipeline's complete result is also process-pass when all 
       status: "complete",
       outcome: "verified_delivery",
       journey: {
-        registration: { provider_receipt_ref: "provider-receipt://luma/receipt" },
-        confirmation_mail: { external_receipt_ref: "gmail-message://dais-local/mail" },
-        calendar: { calendar_event_ref: "calendar-evidence://google/event/event-1" },
+        registration: { occurrence_id: TRACE.occurrence_id, provider_receipt_ref: "provider-receipt://luma/receipt" },
+        confirmation_mail: { occurrence_id: TRACE.occurrence_id, external_receipt_ref: "gmail-message://dais-local/mail" },
+        calendar: { occurrence_id: TRACE.occurrence_id, calendar_event_ref: "calendar-evidence://google/event/event-1" },
       },
     },
   });
@@ -64,4 +64,19 @@ test("a failed process never claims an external registration", () => {
     ...TRACE,
     result: { status: "circuit_open", safe_reason: "browser_open_failed" },
   }).external_registration_status, "unknown");
+});
+
+test("an applied bundle with any mismatched journey occurrence stays externally unknown", () => {
+  for (const stage of ["registration", "confirmation_mail", "calendar"]) {
+    const journey = {
+      registration: { occurrence_id: TRACE.occurrence_id, provider_receipt_ref: "provider-receipt://luma/receipt" },
+      confirmation_mail: { occurrence_id: TRACE.occurrence_id, external_receipt_ref: "gmail-message://dais-local/mail" },
+      calendar: { occurrence_id: TRACE.occurrence_id, calendar_event_ref: "calendar-evidence://google/event/event-1" },
+    };
+    journey[stage].occurrence_id = `${TRACE.occurrence_id}:other`;
+    assert.equal(classifyConnectorOutcome({
+      ...TRACE,
+      result: { status: "applied_bundle", safe_reason: "applied_bundle", journey },
+    }).external_registration_status, "unknown", stage);
+  }
 });
