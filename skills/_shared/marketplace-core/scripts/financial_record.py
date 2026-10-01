@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import sys
 import argparse
+from copy import deepcopy
 import json
 from typing import Mapping
 
@@ -77,7 +78,7 @@ def payment_to_financial_records(value: Mapping[str, object], *, subject_id: str
         component_identity = f"{scoped}\n{component}"
         idempotency_key = f"marketplace-financial:v1:{_hash(component_identity)}"
         records.append({
-            **base,
+            **deepcopy(base),
             "record_id": _record_id(str(base["subject_id"]), idempotency_key),
             "kind": kind,
             "direction": direction,
@@ -120,6 +121,43 @@ def project_receipts(values: list[Mapping[str, object]], *, subject_id: str) -> 
     return records
 
 
+def project_receipt_chain(
+    values: list[Mapping[str, object]], *, subject_id: str
+) -> list[dict[str, object]]:
+    """Project one complete provider chain only when it is profitable.
+
+    ``validate_receipt_chain`` is the single ordering/identity/status gate.  The
+    chain's payment net is then used as the positive-unit-economics gate before
+    any financial record is emitted.  The payout remains a separate transfer
+    record; it is never counted as additional revenue.  Every emitted record
+    carries the same chain evidence URI so CFO joins can prove they came from
+    one occurrence without provider-specific fields.
+    """
+
+    parsed = _CONTRACTS.validate_receipt_chain(values)
+    payment = parsed[5]
+    if payment.net_amount_minor <= 0:
+        raise ValueError("receipt chain net amount must be positive")
+
+    records = project_receipts([values[5], values[6]], subject_id=subject_id)
+    chain_identity = "\n".join(
+        (
+            payment.platform,
+            parsed[1].contract_external_id,
+            payment.work_external_id,
+            payment.payment_external_id,
+            parsed[6].payout_external_id,
+            parsed[6].bank_transaction_external_id,
+        )
+    )
+    chain_ref = f"marketplace://{payment.platform}/chain/{_hash(chain_identity)}"
+    for record in records:
+        evidence = record["verification"]["evidence_refs"]
+        if chain_ref not in evidence:
+            evidence.append(chain_ref)
+    return records
+
+
 def _main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--subject-id", required=True)
@@ -137,4 +175,5 @@ if __name__ == "__main__":
 
 __all__ = [
     "payment_to_financial_records", "payout_to_financial_record", "project_receipts",
+    "project_receipt_chain",
 ]

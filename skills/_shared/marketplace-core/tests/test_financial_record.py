@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 
@@ -63,3 +64,34 @@ def test_platform_with_underscore_uses_fixed_evidence_scheme():
     [record, *_] = financial.payment_to_financial_records(value, subject_id="tenant-1")
     assert record["verification"]["evidence_refs"][0].startswith("marketplace://crowd_works/")
     _validate(record)
+
+
+def _chain():
+    return json.loads(
+        (Path(__file__).parent / "fixtures" / "mercor-full-chain.json").read_text()
+    )
+
+
+def test_complete_positive_chain_projects_one_shared_chain_evidence():
+    records = financial.project_receipt_chain(_chain(), subject_id="tenant-1")
+
+    assert [record["kind"] for record in records] == [
+        "business_revenue", "fee", "business_cost", "payout",
+    ]
+    chain_refs = [
+        [ref for ref in record["verification"]["evidence_refs"] if "/chain/" in ref]
+        for record in records
+    ]
+    assert len({refs[0] for refs in chain_refs}) == 1
+    for record in records:
+        _validate(record)
+
+
+def test_non_positive_chain_is_not_projected():
+    value = _chain()
+    value[5]["fee_amount_minor"] = 9500
+    value[5]["net_amount_minor"] = 0
+    value[6]["amount_minor"] = 0
+
+    with pytest.raises(ValueError, match="net amount must be positive"):
+        financial.project_receipt_chain(value, subject_id="tenant-1")
