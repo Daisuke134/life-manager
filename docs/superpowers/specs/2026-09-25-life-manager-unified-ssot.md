@@ -2090,3 +2090,39 @@ P3 source merge後も、3 platformの外部効果は0件である。人手必須
 6. L9-10 Job Hunter、L9-11 Self-Build、L9-12 InvestmentをP4として非重複3席でsource-only修正し、Investmentは自然sell・30 round trips・realized P&L前にlive fundingをしない。
 7. L9-13 Agent EconomyのTaskMarket no-effect discovery→BlockRun paid inference→external paid job→treasury/surplus renewal、L9-14 CFOの14/14 cost-complete P&Lを閉じる。
 8. DigitalOcean/Nosana/Akash provider-neutral shelter、Franklin successor handover 2回、外部surplus renewal、Akash restore、30日self-fundingを実測してからMac Mini廃止/cloud-onlyを判断する。
+
+### 14. P4 source merge追補と最新live readback（2026-10-01 19:29 JST）
+
+P4は、Job HunterとSelf-Buildを非重複のsource-only席で実装し、Investmentは既存ownerを妨げないread-only観測で閉じた。source mergeは実装完了を意味するが、immutable release、natural wake、provider receipt、payout、cost-complete P&Lはまだ未達である。
+
+| lane | source merge | focused evidence | 未証明の境界 |
+|---|---|---|---|
+| L9-10 Job Hunter | PR #6380、main `0b94756dea89a90e4351e76261aba2a73bbd76e0` | `RowQueueSupervisor.collect`がpreferred行を先頭にしても正数deficitのqualified行を切り捨てない。0/不正値はfail-closedのまま。focused model-browser `145 passed`、shell、diff、loop contract PASS | P4を含むrelease、natural 30分wake、ATS/Gmail confirmed application、Ledger submitted、Telegram ACK、replay-zero、fee/model/browser/server cost |
+| L9-11 Self-Build | PR #6381、main `a803ba0d1e7624399809e2b2000d04a11ed8b1e9` | Telegram target未設定でparameter expansion exit 1になっていた境界を、通知skip・ledger/pass継続へ変更。focused runtime/recovery `92 passed`（orchestrator再実行 `51 passed`）、`bash -n`、diff、loop contract `14/177/errors0` PASS | immutable release、natural 04:10 wake、self-build ledger streak、PR/merge readback、Telegram delivery/readback、cost attribution |
+| L9-12 Investment | source変更なし（既存owner継続） | 公式paper GET read-only: equity `$99,996.80`、cash `$99,986.76`、unrealized `+$0.051409`、orders `3`、exit fillなし。latest natural schedulerは`resource_capacity_busy`でadmission defer。手動wake/sell/replay/live fundingなし | AT-13の自然sell判断、買い→売り1 round trip、30件、realized P&L、費用控除、二重注文ゼロ、AT-24/29 live gate |
+
+PR checksの`OSS self-contained boundary`は今回の差分外にある`skills/capafy-autopublish`の`manifest_inventory_mismatch`で失敗している。Job Hunter/Self-Buildの所有範囲へ迂回修正せず、PR本文へ境界を記録したうえでadmin squash mergeした。production/provider/browserへのP4 effectは0件である。
+
+#### P4後の最新production readback（read-only）
+
+- `current`は`/Users/anicca/loops/releases/20261001T191420-b413b5f4`へreconcilerが進めた。`RELEASE.json`のSHAは`b413b5f42bbdf158cb54972533c40d3edf4736d2`で、P4 mergeを含むimmutable releaseではない。
+- `lm-loop health --json`（`2026-10-01T19:27:57+09:00`）は`total=177`、state別に`healthy=33 / running=23 / failed=38 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4`。これはCLIの4時計・typed state readbackであり、fleet合格ではない。
+- 同じreadbackで`capafy-loop-daily`は`effect_unknown`（`host_admission_deferred:resource_capacity_busy`）、`promptbase-loop-daily`は`telemetry_gap`、`life-manager-connector-native`はprocess上`healthy`でもprovider/Gmail/Calendar receiptなし、`life-manager-release-reconciler`は`failed / entrypoint_exit_1`。したがってCapafy、PromptBase/Writer、Connector外部成功はいずれも未完了である。
+- `df -k /`のfreeは`7,505,644 KB`（約7.15GiB）。10GB安定、ENOSPC解消の二回readbackは未達。reconcilerの自然収束を観測し、effect_unknown中の手動restart/applyはしない。
+- 2026-10-01の14 Product Loopのsettled external revenue、refund、fee、model/tool/browser/server costを全receiptでjoinできていないため、合計は`unknown`であり0円とは報告しない。cost-complete net P&Lは引き続き`0/14`。
+
+#### P4統合後の残り原子cursor
+
+1. **P1 fleet収束:** reconcilerの自然tickをread-onlyで観測し、admission queue二回安定、disk free二回readback、ENOSPC境界を閉じる。`effect_unknown`の再apply・再送・restartは禁止。
+2. **P4込みimmutable release:** `0b94756dea`、`a803ba0d1e`を含むmain由来releaseを自然reconciler境界で作り、Job Hunter、Self-Build、Investment以外もtarget ownerごとにloaded SHA/argv/rollback receiptをreadbackする。
+3. **PromptBase/WriterとCapafy:** PromptBaseは次の自然04:20→管理画面/Gmail→listing/sale/economics、Capafyはfree-slot解放後の自然submit→API listing/status/sale/economics。未確認を完了扱いしない。
+4. **Connector/Mobile:** Connector候補発生時のみprovider receipt・confirmation mail・Google Calendar公式readback、Mobile残り22 jobsの`effect_unknown`をownerごとに一件ずつreadback付きで再開する。
+5. **Marketplace:** Coconala/Lancers/CrowdWorks target apply後、provider receipt・official readback・payout・actual cost・replay-zeroを結合する。面接、試験、Google Form、本人確認、Paid Verificationは`human_required` holdのまま。
+6. **Job Hunter:** P4 source mergeをreleaseへ入れ、natural wakeでATS/Gmail/Ledger/Telegram/replay-zeroを閉じる。応募を作らないsource PASSを収益完了と数えない。
+7. **Self-Build:** P4 source mergeをreleaseへ入れ、natural 04:10 wakeのledger、PR/merge、通知readbackとcost attributionを閉じる。
+8. **Investment:** ownerの自然schedulerをread-only観測し、AT-13からAT-29を順番に閉じる。30 round trips、realized P&L、費用、replay-zero前のlive funding・送金・上限増額はしない。
+9. **Agent Economy:** TaskMarket no-effect provider discovery→BlockRun paid inference→external paid job→treasury/surplus renewalを公式receiptで順に証明する。
+10. **CFO:** 14 loop全てをsettled external revenue、refund、fee、model/tool/browser/server cost、net margin、runwayへjoinし、`unknown`を0円へ丸めない。cost-complete P&L `14/14`を閉じる。
+11. **Self-funding/cloud:** DigitalOcean durable control plane、BlockRun x402、Nosana shelter、Akash fallback、Franklin successor handover 2回、surplus renewal、Akash restore、30日self-fundingの順に実測する。Mac Mini廃止/cloud-onlyはその後に判断する。
+
+以上により、P4 source gateはJob Hunter/Self-Buildのみ完了、Investmentは未達、Capafy/PromptBase/Writer/foundation live fleet/全体のself-healing・self-improving・financial independenceは引き続き未完了である。
