@@ -2140,7 +2140,6 @@ P4追補後に手動restart/applyをせず、`life-manager-release-reconciler`�
 追加のread-only snapshot（`2026-10-01T10:38:15Z`）では、`total=177`、state別に`running=23 / healthy=28 / failed=43 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4`。`current`は引き続き`b413b5f42bbdf158cb54972533c40d3edf4736d2`で、`capafy-loop-daily=effect_unknown`、`promptbase-loop-daily=telemetry_gap`、`life-manager-connector-native=healthy(process-only)`、`life-manager-release-reconciler=failed`、`job-search-daily=failed`、`life-manager-selfbuild=healthy(process-only)`である。これはP4込みrelease、公式provider readback、収益完了を意味しない。
 
 P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの最終receiptはまだない。`df -k /`は`7,394,972 KB`（約7.05GiB）で、diskの安定条件も未達のまま保持する。
-
 ### 17. 最新read-only追補（2026-10-01 19:41 JST）
 
 - `readlink /Users/anicca/loops/current` は引き続き `/Users/anicca/loops/releases/20261001T191420-b413b5f4`、`RELEASE.json.sha` は `b413b5f42bbdf158cb54972533c40d3edf4736d2`（`provenance=ancestor-of-origin-main`、`release_paths=ALL`）だった。P4のJob Hunter/Self-Build mergeを含む新しいimmutable releaseへのfleet収束は未確認である。
