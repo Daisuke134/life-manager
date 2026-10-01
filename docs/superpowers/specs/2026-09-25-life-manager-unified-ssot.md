@@ -1967,3 +1967,100 @@ flowchart LR
 8. **[ ] self-healing／observabilityを完了する:** 全wakeに`run_id`、`owner_id`、`occurrence_id`、`release_sha`、phase、failure_layer、error_class、next_action、evidence_refs、`provider_receipt_id`、`official_readback_ref`を保存し、`deadline_missed`、`eligibility_unknown`、`duplicate_prevented`、`effect_unknown`をCLIのhealth projectionとCFO通知へ結合する。bounded retryはpre-effectだけ、外部効果不明はfence保持、反復失敗はdead-letterへ送る。
 
 このincidentを閉じるまで、CrowdWorksを「完全稼働」「信頼回復」「収益化済み」と報告しない。現在はprofile／browser到達はPASS、契約終了の公式readbackは取得済み、外部返答・provider receipt・payoutは未完了である。
+
+### Contract Work Factoryの共有境界と拡張計画（2026-10-01 09:40 JST）
+
+#### 現行folder tree（実repoの正本境界）
+
+```text
+life-manager/
+├── config/
+│   └── loop-registry.json                 # owner・identity・cadence・effect class
+├── runtime/loop/                          # scheduler・dispatch・health・fence・recovery・release
+├── skills/
+│   ├── _shared/marketplace-core/           # 全gig共通のbusiness kernel
+│   │   ├── scripts/
+│   │   │   ├── application_transaction.py # claim→submit→readback→ledger
+│   │   │   ├── work_fit.py                # 適格性・禁止条件・human_required
+│   │   │   ├── reply_kernel.py            # 受信→判断→一回送信→readback
+│   │   │   ├── paid_kernel.py             # funded→作業→納品→効果fence
+│   │   │   ├── ledger.py                  # occurrence・receiptのdurable台帳
+│   │   │   ├── contracts.py               # lane/effect/receipt契約
+│   │   │   ├── platform_enrollment.py     # Meta Loopの昇格gate
+│   │   │   └── telegram_outbox.py         # 通知dedupe・retry・fence
+│   │   └── schemas/                        # opportunity・payment・eventの共通schema
+│   ├── browser/                            # identity lease・CDP・profile ownership・self-heal
+│   ├── earn/gig/                           # shared gig orchestration・schemas・provider helpers
+│   │   ├── scripts/coconala/               # Coconala固有selector/flow
+│   │   ├── scripts/providers/              # provider共通transport境界
+│   │   └── schemas/                         # apply/reply/paid/delivery判断schema
+│   ├── earn/crowdworks/                    # CrowdWorks固有discover/submit/readback
+│   ├── earn/lancers/                       # Lancers固有discover/submit/readback
+│   ├── earn/mercor/                        # Mercor固有auth/endpoint/readback
+│   └── earn/upwork-ai-api-delivery/        # Upwork adapter（ownerはfunded gate後のみ）
+├── skills/cfo/                             # settled revenue・fee・cost・net P&L
+├── apps/                                   # provider/runtimeの薄い起動wrapper
+└── docs/superpowers/specs/                 # 統合SSOT（この文書）
+```
+
+#### 「全部sharedか」への回答
+
+**まだ全部はsharedではない。** 共有kernelは既に存在するが、platform固有のdiscover・fetch・submit・readback、認証・規約・rate limit・DOM selectorはadapterとして残す必要がある。逆に、次の処理をplatform folderへコピーしてはいけない。
+
+- 適格性判定、禁止案件、人間必須案件のhold
+- duplicate／再応募／同一clientの履歴gate
+- claim→effect fence→official receipt→replay-zero
+- 返信本文のgrounding、重複送信防止、通知dedupe
+- state/event schema、health projection、release/readback、CFO P&L
+
+CrowdWorksの今回の6か月再応募と契約終了期限は、platform固有selectorで読むが、`eligibility → deadline → effect fence → official receipt`という判断契約はshared kernelへ戻す。platform adapterにこの判断を再実装すると、Coconala・Lancers・Mercorで同じ事故が再発する。
+
+新platform adapterの許可されるsurfaceは次の4つだけである。
+
+```python
+discover(query_or_facet) -> list[opportunity]
+fetch(opportunity_id) -> provider_observation
+submit(intent) -> provider_receipt_id
+readback(provider_receipt_id) -> official_state
+```
+
+#### 共有kernelから収益までの流れ
+
+```mermaid
+flowchart LR
+  M[Meta Loop\n候補発見・昇格判断] --> Q[Shared eligibility\n規約・重複・human_required]
+  Q --> A[Shared application/reply/paid kernel]
+  A --> X[Platform adapter\ndiscover/fetch/submit/readback]
+  X --> R[Provider receipt\n公式readback]
+  R --> D[Delivery + payout]
+  D --> F[CFO\nsettled gross - fee - model/tool/browser/infra cost]
+  F --> E[Quality/P&L evaluator\n勝ち筋・失敗クラス・cost]
+  E --> M
+  A --> H[Health/observability\noccurrence・release・effect fence]
+  H --> S[Bounded self-heal\npre-effectのみ自動回復]
+```
+
+#### Contract Workで大きな社内収益へ進む段階
+
+1. **一件を正しく閉じる:** platformごとに、応募→返信→funded contract→納品→payoutをprovider receipt付きで一件完了する。process `pass`や応募件数は売上に数えない。
+2. **一つのkernelで3 platformへ横展開:** Coconala、CrowdWorks、Lancersで、同じshared test contract・同じeffect fence・同じCFO schemaを使い、adapter差分だけを実装する。
+3. **単位経済性を固定:** `net = settled_external_revenue - provider_fee - model_cost - browser/tool_cost - infra_cost - refund`。positive net P&Lと品質gateを満たさない案件種別は、応募量を増やさず停止する。
+4. **安全な並列化:** 並列数はbrowser identity、provider rate limit、funded capacity、cost capで決める。同一identity・同一client・同一案件の二重送信は常に禁止する。
+5. **platform portfolioを増やす:** 新platformはMeta Loopのcandidate stateに置き、policy・account-bound auth・source-complete inventory・funded work・公式canary・rollback・payout readback・positive unit economicsを順に通過したものだけowner登録する。
+6. **収益を再投資する:** settled net P&Lから、追加identity、provider-approved account、compute、quality evaluatorへ再投資し、同じkernelで稼働laneを増やす。未settledの契約期待値や推定MRRを再投資原資にしない。
+7. **自律改善の閉路:** receipt・品質・失敗クラス・コストをshared evaluatorへ戻し、replay-zeroとcost-complete P&Lを通った改善だけをimmutable releaseへ昇格する。Meta Loopは候補発見だけで自動応募しない。
+
+「数百万」を達成したと報告できる条件は、複数platform・複数契約のsettled external receipt、platform fee、全model/tool/browser/infra cost、refundを同じledgerへ結合し、期間のpositive net P&Lを再計算できることとする。応募数、画面表示、`pass`、未払い契約、owner入金は収益実績ではない。
+
+#### Contract Work Factoryの残TODO（この節を拡張順の正本とする）
+
+1. **[ ] CrowdWorks期限案件を閉じる:** 契約ID`63570481`の同意／拒否方針を確定し、外部操作は一度だけ実行して公式readbackを保存する。
+2. **[ ] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。
+3. **[ ] CrowdWorks laneを修正:** `entrypoint_exit_1`、release drift、receiptなし`pass`を直し、同一immutable releaseで自然run→公式readback→replay-zeroを閉じる。
+4. **[ ] Adapter conformance gate:** 既存Coconala/Lancers/Mercorと新platformが4 surfaceだけを実装し、shared kernelのduplicate・reply・ledger・P&Lを再実装していないことをcontract testで検証する。
+5. **[ ] Provider receipt chain:** 各platformでfunded contract、納品、payout、fee、costを同一occurrenceへ結合し、positive net P&Lが出る案件だけを拡大する。
+6. **[ ] Freelancer/Upwork:** approved automation terms、account-bound auth、funded contract/milestone、mutation authorization、payout readbackが揃うまでownerを有効化しない。
+7. **[ ] Meta Loop:** candidate durable state、discovery scheduler、adapter生成／検証、isolated canary、owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。
+8. **[ ] Cloud/self-healing:** localとcloudの同一business logic、全laneのhealth projection、bounded recovery、通知dedupe、release provenance、backup/restoreを実測する。
+
+現時点で「共有kernelは存在するが、全platformの外部receipt・payout・cost-complete net P&L・Meta Loop昇格は未完了」である。したがって、Life Managerが契約仕事で大規模に稼ぐ設計はこの構造で可能だが、現在すでに数百万を稼いでいるとは報告しない。
