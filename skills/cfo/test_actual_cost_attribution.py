@@ -117,6 +117,43 @@ class ActualCostAttributionTest(unittest.TestCase):
         self.assertTrue(all(row["coverage_state"] == "gap" for row in blockrun_gaps))
         self.assertTrue(all(row["reason"] == "unverified_receipt" for row in blockrun_gaps))
 
+    def test_mixed_valid_and_unallocated_lines_keep_receipt_but_gap_coverage(self):
+        payload = fixture("actual-cost-official.json")
+        openai_invoice = next(
+            document for document in payload["documents"]
+            if document.get("provider") == "openai"
+        )
+        openai_invoice["line_items"].append({
+            "line_item_id": "openai-personal-unallocated",
+            "category": "model_cost",
+            "basis": "official_invoice",
+            "amount": "3.00",
+            "occurred_at": "2026-09-30T13:00:00Z",
+            "allocations": [{
+                "allocation_id": "allocation-personal",
+                "product_loop_id": "self-build",
+                "amount": "3.00",
+                "allocation_status": "unallocated",
+            }],
+        })
+
+        rows = adapt(payload)
+        self.assertTrue(any(
+            row["record_type"] == "receipt"
+            and row["provider"] == "openai"
+            and row["product_loop_id"] == "self-build"
+            for row in rows
+        ))
+        mixed_coverage = [
+            row for row in coverage(rows)
+            if row["source_id"] == "actual-cost-openai"
+            and row["product_loop_id"] == "self-build"
+        ]
+        self.assertEqual(len(mixed_coverage), 2)
+        self.assertTrue(all(row["coverage_state"] == "gap" for row in mixed_coverage))
+        self.assertTrue(all(row["reason"] in {"missing_coverage", "unverified_receipt"}
+                            for row in mixed_coverage))
+
     def test_missing_invoice_is_a_gap_and_never_zero(self):
         rows = adapt(fixture("actual-cost-missing-invoice.json"))
         self.assert_contract_rows(rows)

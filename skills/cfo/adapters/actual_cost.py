@@ -589,8 +589,8 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str) -> list[dict]
         base_reasons.update(failures_by_group.get(group, set()))
         for projection, window_start in (("historical", None), ("trailing", start)):
             reason = projection_reasons.get(projection)
-            if reason is None:
-                reason = _choose_reason(base_reasons, "missing_coverage") if not group_receipts else None
+            if reason is None and (base_reasons or not group_receipts):
+                reason = _choose_reason(base_reasons, "missing_coverage")
             categories = {
                 component["category"]
                 for row in group_receipts
