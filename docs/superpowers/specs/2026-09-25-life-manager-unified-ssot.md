@@ -2584,3 +2584,14 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 18. **30日benchmark** — 完全self-fundingのpositive net cashflow、settled receipts、cost、recovery、replay-zeroを30日連続保持してから、複製・Mac売却・「financially independent / self-healing / self-improving」の宣言を判断する。
 
 この順序の理由は、TaskMarketの無効果境界を先に閉じてから有料x402を許可し、既に需要実績があるPromptBase/Capafyで外部収益を測り、残りloopを同じcontractへ拡張し、最後にCFOとcloud/self-fundingを実測するためである。P5の古い実装完了記録だけで、自然承認・売上・利益を完了扱いしない。
+
+### 49. read-only並列監査の統合（2026-10-02 08:31 JST）
+
+AGMSGで3席を同時にread-only起動した。TaskMarket、PromptBase/Capafy、Mobile/Connectorは共有SSOT、production `current`、browser profile、wallet、provider mutationを触っていない。3席のplacementはtmuxで確認し、登録だけを稼働証拠には数えていない。
+
+- **TaskMarket:** 最新natural occurrence `life-manager-taskmarket-ledger:18da8b7fbc614c10-38078`（`2026-10-01T23:27:02.936941Z`、release `3fdfa314978dab2f620a058843c14c9e5b5c68d8`）は`exit=75`、`host_admission_deferred:resource_fifo_wait`でadmission層に止まり、provider discoveryへ到達していない。provider receipt/readbackはnull、wallet spendは観測されず、`wallet_files=[]`の到達証明も生成されていない。直前の`22:00:22Z` natural passには`tasks_seen=15 / pending=15 / recorded=0 / transactions=[]`と`no_verified_award`が残るが、同一occurrenceの公式summaryとの結合をread-onlyで証明できないため、L9-13.1は**未完**のまま保持する。別途、公式TaskMarket APIへのread-only呼出し（`2026-10-01T23:27:02.171Z`）は`tasks_seen=14 / pending=14 / rejected=0 / recorded=0 / transactions=[]`を返したが、これは自然owner occurrenceの完了証拠ではない。
+- **PromptBase:** seller dashboardの最新sales readback（`2026-10-01T19:20:31Z`）は`0件 / $0`、`19:45:51Z`のdaily readbackも`no_effect`。公開listing、sale receipt、payoutは未確認。P5a/b/dとpackagingは完了だが、P5cの自然Pending→Approved/Declined、公開・売上・settlement・payout・replay-zeroは未完。
+- **Capafy:** 公式API analytics（`2026-10-01T21:09:53Z`）は累計 gross/net `$102.75`、101 orders、refund `$0`、直近30日 gross/net `$82.77`、84 orders、actual model cost `$39.86`、actual profit `$26.36`、payout-able `$59.00`。一方、ledgerの最新payout snapshotは`payout=0 / total=0 / pending=0 / confirmed=0 / account blank`で不一致がある。52 skills中46件が売上0で、黒字上位と赤字skillも把握済みだが、current natural runのlisting/sale/fee/settlement/payout/replay-zeroは未完。Capafyを「修復済み」「利益確定」とは呼ばない。
+- **Mobile/Connector:** Mobileは22 jobsのplist/loaded argv整合を確認したが、process healthに留まり、ASC/RevenueCatのacquisition→purchase→Apple proceeds、app別actual cost、二重計上ゼロは未確認。Connectorは候補0件のnatural `exit=0`／no-effect process healthのみで、provider registration、confirmation mail、Google Calendar公式receipt/readback、replay-zeroは未達。次の自然occurrenceで同一IDへ結合する。
+
+したがって、この監査で完了したのは証拠の境界診断だけであり、TaskMarket no-effect、PromptBase P5c、Capafy販売、Mobile収益、Connector登録を完了項目へ昇格しない。次は手動wake・再送・追加applyをせず、TaskMarketの次の自然eligible runをread-onlyで待ち、そのoccurrenceに公式API discoveryとno-wallet/no-transaction結果を結合する。
