@@ -1773,7 +1773,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 
 1. **[x] TaskMarket immutable release packagingを修正する。** 原因は`bin/cut-loop-release.sh`の`DEPENDENCY_RELATIVES`に`skills/earn/taskmarket`がなく、lockfileがreleaseへ入っても`node_modules/.bin/taskmarket`が生成・linkされなかったこと。回帰testは修正前に`modules.is_symlink()`でFAILし、1要素追加後にPASSした。release focused tests 4/4、TaskMarket tests 16/16、shell syntax、diff check、全GitHub CIがPASS。実`npm ci` candidateはreadonly dependency bundleへの`node_modules` symlinkと実行可能な`.bin/taskmarket`を持つ。credentialなし・`TASKMARKET_API_URL=127.0.0.1`のloopbackで`task list`が`GET /api/tasks?status=open&limit=1`へ到達し、exit 0、stderr空、`wallet_files=[]`、実provider送信・wallet spend・browser操作0。source commit `662625b8d16dd16ed73449e1c5a28f20204edd0b`、PR #6301、main merge `d04f97702631fa9e18be85a95a76a20c3ec4952e`。独立read-only reviewは重大な問題なし。loopback JSONは一時実行ログで、candidate内の永続evidence fileではない。production currentはこの証明では切り替えていない。
 
-#### 現在cursor — S2 item 7 read-only observer/recovery intent（item 4 official read-only evidenceは並行観測）
+#### 現在cursor — S2 item 8 shared human-required qualification（item 4 official read-only evidenceは並行観測）
 
 2026-10-01のlive進行状態:
 
@@ -1784,6 +1784,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 - B4 Marketplace、B5 Agent Economy/Investment、B6 actual costはmainへ統合済みである。B4はPR #6325、main `2ae95db1a51f09514e338ba73b047d5cefe5517b`、B6はPR #6326、main `5c0e19ecd1bc332176b210f4cf9a837bcdab2fe5`、B5はPR #6327、main `3f504066ebe94a63815d55dbe150d029a6f21132`。各branchを最新mainへ通常mergeし、B4はCFO full 183/183、B6はB4同居後204/204、B5はB4+B6同居後228/228、source boundary、diff check、全GitHub checksをPASSした。B5の明示`finalized=False`、timestamp alias conflict、33件超evidence切捨て、B0 Decimal加算精度の4 blockerも回帰testで閉じた。S0実装/review席は全てdespawn済みで、`no_placement_record`の登録席は稼働へ数えない。
 - B7はbranch `feat/cfo-integration-20261001`上の`c09c6dddd7`で、B1–B6を固定順に一度だけjoinし、B0 projectionを一度だけ呼ぶ経路を既存`loop_pnl.py`→results-first summary→deliveryへ接続した。14/14 historical/trailing、source横断dedupe/conflict、MRR、net、runway、provider receipt付きperiod replayを実装した。重大境界だけのread-only reviewは1 findingのみで、次periodに別tenantが同じsent stateを引き継げる欠陥をREDで再現し、`a2641ffc12`でperiod判定前のtenant fail-closedへ修正した。CFO Python 231/231、関連Node 28/28、source boundary、diff checkがPASSし、GitHub checks 11/11もPASSした。PR #6328、main `aa43ebc284e2dde81c38a9b04a125be3611ef0a0`へ統合済みである。2026-10-01のread-only CLIはhistorical/trailing各14 loop、coverage gap各136、company revenue・MRR・runway `unknown`、duplicate receipt 0を返した。実装席とreview席はdespawn済み。これはlive settlement sourceが14/14揃った証拠ではないため、item 4の自然run/公式readbackを並行観測する。
 - S2 item 6はPR #6330、main `f08d46611e94913247dc98f9e4a64720305df5be`へ統合済みである。`lm-loop status`は未知loop/optionをstate read前にexit 2・`invalid_input`・non-retryableで拒否し、各rowを`current_snapshot`、`historical_record`、`trailing_window`へ分離する。snapshot timeout/failureはtyped diagnosticを返し、既存`watch`契約は維持する。実read-only CLIでconnector 1行の3区分とunknown targetを確認し、readonly+health 75/75、runtime/loop full 724/724、source boundary、compile、diff check、GitHub checks 10/10がPASSした。次はitem 7で、5分observer・atomic latest・append-only history・state-change alert dedupe・typed recovery intentを既存kernelへ接続する。
+- S2 item 7はPR #6333、main `043b22440add4105cf38164f04e87bc63108fa7f`へ統合済みである。既存`lm-loop health --json`と`recovery-intent-cli.mjs`を再利用する5分cadenceの`life-manager-health-observer`を追加し、完全版`latest.json`のatomic replace、compactなappend-only `history.jsonl`、material health state fingerprintによる`alerts.jsonl` dedupe、`mutates_external_effect=false`のtyped recovery intentを実装した。raw receipt/readback IDはbusiness evidenceとしてlatestへ残すがhealth alert fingerprintから除外し、正常な売上receiptを障害通知へ変換しない。実read-only run 2回は177 jobs、history 2行、alert fingerprint重複0、全intent effect-freeを返した。focused/health/registry 165/165、Python runtime/loop 732/732、対象Node 12/12、source boundary、entrypoint packaging、全GitHub checksがPASSした。full Node suiteの3 failureはworktreeの既存dependency未導入（`@solana/web3.js`、`fast-check`）で、対象Node testsはPASSした。production immutable release/applyと自然launchd runはitem 8後のS2 release gateに残る。
 - **本日の14 Product Loop合計売上・利益は`unknown`であり、0円ではない。** 2026-10-01 JSTの既存`loop_pnl.py --json` read-only実測では、公式に確認できた部分inflowはAgent EconomyのBase receipt 1件・`0.01 USDC`、InvestmentとLancersは接続済みsource上0だった。Stripeはlive credential未接続、Capafy/Mobileは当日rowなし、Coconala/CrowdWorksはpayment ledger owner不在、Writer/Affiliate/Job Hunter等はsource adapter未接続である。`agent-usage`の`USD_API_EQUIV`はAPI価格推定でprovider invoiceではなく、実費・利益へ数えない。14/14を覆うofficial settlement/refund/fee/actual cost joinがまだ無く、cost-complete net P&Lが完成したloopは0/14であるため、B7統合前に`0.01 USDC`を「本日の全社売上」または利益とは報告しない。
 
 2. **[x] Health foundation:** `lm-loop.health.v1` schema/validator、全176 managed jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、runtime・productivity・effect safety・business・recoveryの5 facet、独立した`last_attempt`・`last_success`・`last_effect`・`last_receipt`の4時計、型付き`safely_fenced`・`effect_unknown`・`telemetry_gap`・`human_required`、構造化diagnostic、exit code 0/1/2を実装した。分類はproduct 103・system 73・重複/欠落0。実fleet queryは176 jobsを3.36秒で返し、snapshot/projection timeout 0、90個の`events.jsonl` pathは各1 read・1 projection以下、invalid loopはexit 2と`invalid_input`を返した。health focused 28/28、status/doctor・registry回帰170/170、primary focused 198/198、clean venv full loop 719/719、schema/Python validator parity、全GitHub checksがPASSし、独立read-only exact-SHA reviewもPASS。source head `85a5f103c3b2f96e3d5f5a76a9adb12d9d7936eb`、PR #6305、main merge `c9581cce35e56c14a5cab879b78d033e00fe57a6`。履歴projectionは各state rootの直近50,000 eventsにboundedされる。検証時のlive `telemetry_gap` 2件は既存diagnostic不足であり、今回のtimeout/実装不良ではない。production immutable release/apply、通知、収益・自律性はこの完了証拠に含めない。
@@ -1802,7 +1803,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 #### foundation contract merge後の直列gate
 
 6. **[x] `status`のinvalid input、current snapshot、historical record、trailing windowを分離し、成功・失敗・timeoutのfocused evidenceを残す。** PR #6330、main `f08d46611e`。未知入力はstate read前にtyped exit 2、snapshot timeout/failureはtyped exit 1、current/history/trailingは別objectで返す。既存flat fieldと`watch`契約は維持した。
-7. 5分read-only observer、atomic latest snapshot、append-only history、state-change alert dedupe、typed recovery intentを実装する。observerはprovider mutationを行わない。
+7. **[x] 5分read-only observer、atomic latest snapshot、append-only history、state-change alert dedupe、typed recovery intentを実装する。** PR #6333、main `043b22440a`。observerは既存health/recovery kernelだけを呼び、provider/browser/network/launchctl mutationを持たない。production applyと自然runはitem 8後にshared foundationとして一回だけ行う。
 8. `human_required` qualificationをshared kernelへ追加し、面接・試験・録音・camera・screen share・自由回答・継続承認が必要な案件を自動hold/skipする。
 9. **[ ] 14 Product Loopを共通foundation上で一つずつ修理する。** これはAgent Economyだけの作業ではない。以下の`L9-01`〜`L9-14`が個別loopの唯一のAtomic TODOであり、loop名を省略したWaveだけでは完了扱いにしない。
 
@@ -1838,7 +1839,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 
    - **S0（完了、直列gate）:** B4/B5/B6の重大blocker修正→重要境界review→最新main merge→CIを一本ずつ統合した。mainは`3f504066eb`。
    - **S1（完了、直列）:** B7実装・重大review修正・PR #6328・GitHub checks 11/11・main `aa43ebc284`を一席で閉じた。`loop_pnl.py`、summary、delivery、共通schemaを複数writerへ渡していない。
-   - **S2（現在、直列）:** items 6–8のstatus/observer/recovery/human-required shared kernelを順に統合し、production immutable releaseを一回作る。item 4の自然run/公式readbackはmutationなしで並行観測する。
+   - **S2（現在、直列）:** items 6–7はmainへ統合済み。item 8のhuman-required shared kernelを統合してからproduction immutable releaseを一回作る。item 4の自然run/公式readbackはmutationなしで並行観測する。
    - **P1（loop固有codeは3席並列）:** `L9-01 Capafy`、`L9-02 Mobile Apps`、`L9-03 Connector`。Daisが固定した優先順を保ち、provider/browser natural runとproduction applyは一件ずつ直列にする。
    - **P2（loop固有codeは3席並列）:** `L9-04 Fundraiser`、`L9-05 Writer`、`L9-06 Affiliate`。共通marketing/CFO変更は提案だけ返し、integration ownerが直列で入れる。
    - **P3（loop固有codeは3席並列）:** `L9-07 Coconala`、`L9-08 Lancers`、`L9-09 CrowdWorks`。browser profile、submission、message、payment readbackは同時に触らず、lease owner一席で直列実行する。
@@ -1857,7 +1858,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 17. local→cloudをowner単位で移し、Mac dependency 0、reboot/recovery、official readback、cost-complete positive net cashflowを確認する。
 18. 完全self-funding benchmarkを30日保持してからreplicationとMac売却を判断する。
 
-順序変更: 旧順序はshared safety gateの直後に一つのoffer販売へ進み、14 loop個別修理を明示していなかった。新順序はB7、status/observer/human gateの後に14 loop修理をitem 9として置き、その後に外部paid E2Eへ進む。理由は、壊れた自然scheduler、effect fence、receipt pathを残したまま販売量を増やすと、売上機会よりsilent failureと二重送信を先に増やすためである。現在cursorはitem 3 B4–B6で変わらない。
+順序変更: 旧順序はshared safety gateの直後に一つのoffer販売へ進み、14 loop個別修理を明示していなかった。新順序はB7、status/observer/human gateの後に14 loop修理をitem 9として置き、その後に外部paid E2Eへ進む。理由は、壊れた自然scheduler、effect fence、receipt pathを残したまま販売量を増やすと、売上機会よりsilent failureと二重送信を先に増やすためである。現在cursorはitem 8である。
 
 Items 1–11は収益critical pathである。cloud providerやwebsiteが魅力的でも先に進めない。並列化は同じ順序を短縮するためだけに使い、未達gateを飛び越えない。
 
@@ -1884,7 +1885,7 @@ Items 1–11は収益critical pathである。cloud providerやwebsiteが魅力�
 | `lm-cfo-b7-impl-1001` | B7 central integration | B1–B6固定順join、B0 projection 1回、14/14、既存summary/delivery再利用 | 完了・despawn済み。`c09c6dddd7` |
 | `lm-cfo-b7-final-review-1001` | B7の重大境界だけをread-only確認 | 金額、unknown、dedupe、window、tenant/replay、二重経路 | 1 findingを`a2641ffc12`で修正後despawn済み。追加nitpick reviewなし |
 
-既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。3監査の証拠を確認後、TaskMarketとHealthを直列に一席ずつ、B1–B3を非重複ownershipで並列、B4–B6を非重複ownershipで並列、B7を共有file衝突を避けて直列に実行した。B7のwriter/reviewerは完了後にdespawn済みで、停止中の登録席を作業中へ数えない。
+既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが、最新`team --json` readbackでは全席`no_placement_record`であり、稼働中とは扱わない。現在のAGMSG active writerは0である。3監査の証拠を確認後、TaskMarketとHealthを直列に一席ずつ、B1–B3を非重複ownershipで並列、B4–B6を非重複ownershipで並列、B7を共有file衝突を避けて直列に実行した。B7のwriter/reviewerは完了後にdespawn済みで、停止中の登録席を作業中へ数えない。S2 item 7では共有kernelを一席だけに限定し、応答・差分が無かった一時Luna実装席を停止後、orchestratorが引き取って完了した。item 8とshared releaseは引き続き直列にし、P1到達後だけCapafy・Mobile Apps・Connectorをdirectory非重複のfresh sessionとして並列spawnする。
 
 監査で固定した事実:
 
