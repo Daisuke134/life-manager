@@ -70,6 +70,23 @@ AUTO_PRE_EFFECT_RECONCILE_ENABLED = False
 MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
 MAX_OWNER_STATUS_BYTES = 256 * 1024
 HISTORY_CACHE_STATUSES = frozenset({"missing", "syncing", "complete"})
+REPLY_DEADLINE_LOOP_IDS = frozenset({
+    "hf-gig-reply-detector",
+    "crowdworks-revenue-reply",
+    "lancers-revenue-negotiate",
+    "mercor-revenue-reply",
+})
+REPLY_DEADLINE_STATUSES = frozenset({"overdue", "urgent", "upcoming", "unknown"})
+REPLY_DEADLINE_PATHS = (
+    Path("reply/latest.json"),
+    Path("latest.json"),
+    Path("kernel/latest.json"),
+    Path("shared-reply/latest.json"),
+)
+REPLY_DEADLINE_TIMESTAMP = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+)
 ADMISSION_READ_RETRY_ATTEMPTS = 8
 ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
 _PRE_EFFECT_REASON_RE = re.compile(
@@ -262,6 +279,65 @@ def _eligibility_history_status(state_root: str) -> dict | None:
         "page_count": page_count,
         "next_page": next_page,
         "receipt_count": receipt_count,
+    }
+
+
+def _reply_deadline_status(loop_id: str, state_root: str) -> dict | None:
+    """Project one shared-reply deadline summary from a private owner output."""
+    if loop_id not in REPLY_DEADLINE_LOOP_IDS:
+        return None
+    root = Path(os.path.expanduser(state_root))
+    value = None
+    for relative in REPLY_DEADLINE_PATHS:
+        candidate = _private_json_object(root / relative)
+        if candidate is not None:
+            value = candidate
+            break
+    raw = value.get("deadline") if isinstance(value, dict) else None
+    if not isinstance(raw, dict):
+        return None
+    counts: dict[str, int] = {}
+    for status in REPLY_DEADLINE_STATUSES:
+        count = raw.get(status)
+        if type(count) is not int or count < 0 or count > 10000:
+            return None
+        counts[status] = count
+    if type(raw.get("deadline_missed")) is not bool:
+        return None
+    if raw["deadline_missed"] is not (counts["overdue"] > 0):
+        return None
+    items = raw.get("items")
+    if not isinstance(items, list) or len(items) > 256:
+        return None
+    bounded_items: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            return None
+        thread_id = item.get("thread_id")
+        status = item.get("deadline_status")
+        if (not isinstance(thread_id, str) or not 0 < len(thread_id) <= 256
+                or status not in REPLY_DEADLINE_STATUSES):
+            return None
+        bounded = {"thread_id": thread_id, "deadline_status": status}
+        due_at = item.get("due_at")
+        if due_at is not None:
+            if (not isinstance(due_at, str) or len(due_at) > 64
+                    or REPLY_DEADLINE_TIMESTAMP.fullmatch(due_at) is None):
+                return None
+            bounded["due_at"] = due_at
+        for field in ("request_id", "contract_id"):
+            identifier = item.get(field)
+            if identifier is not None:
+                if not isinstance(identifier, str) or not 0 < len(identifier) <= 256:
+                    return None
+                bounded[field] = identifier
+        bounded_items.append(bounded)
+    if len(bounded_items) != sum(counts.values()):
+        return None
+    return {
+        "deadline_missed": raw["deadline_missed"],
+        **counts,
+        "items": bounded_items,
     }
 
 
@@ -1127,6 +1203,18 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             next_action = active_harness_failure["next_action"]
             blocker = active_harness_failure["blocker"]
         eligibility_history = _eligibility_history_status(entry["state_root"])
+        reply_deadline = _reply_deadline_status(loop_id, entry["state_root"])
+        if isinstance(reply_deadline, dict) and reply_deadline["deadline_missed"]:
+            # A missed provider deadline is a real operational failure even if
+            # the last launchd event itself was a clean pass. Keep the full
+            # bounded summary on the status row for explain/health consumers.
+            if last_terminal_result in {None, "pass"}:
+                last_terminal_result = "fail"
+            failure_layer = failure_layer or "provider"
+            error_class = error_class or "reply_deadline_missed"
+            retryable = True if retryable is None else retryable
+            next_action = next_action or "official_deadline_readback"
+            blocker = blocker or "reply_deadline_missed"
         status_row = {
             "classification": "managed",
             "owner": "life-manager",
@@ -1181,6 +1269,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "stale_event": stale_event,
             "latest_harness_failure": latest_harness_failure,
             "eligibility_history": eligibility_history,
+            "reply_deadline": reply_deadline,
         }
         status_row.update(_status_windows(status_row, event))
         rows.append(status_row)
@@ -1323,6 +1412,7 @@ def explain_status_row(row: dict) -> dict:
             "missing_fields": row.get("diagnostic_missing_fields", []),
             "error": row.get("diagnostic_error"),
         },
+        "reply_deadline": row.get("reply_deadline"),
         "action_history_refs": action_history_refs,
         "action_history_status": (
             "reported" if action_history_refs else "not_reported"

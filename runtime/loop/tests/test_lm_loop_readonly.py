@@ -67,6 +67,79 @@ class LmLoopReadonlyTest(unittest.TestCase):
             )[0]
         self.assertEqual(row["eligibility_history"], value)
 
+    def test_reply_deadline_status_reads_only_bounded_private_owner_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "reply"
+            root.mkdir()
+            output = root / "latest.json"
+            output.write_text(json.dumps({
+                "status": "ok",
+                "deadline": {
+                    "deadline_missed": True,
+                    "overdue": 1,
+                    "urgent": 0,
+                    "upcoming": 0,
+                    "unknown": 0,
+                    "items": [{
+                        "thread_id": "thread-1",
+                        "contract_id": "contract-1",
+                        "deadline_status": "overdue",
+                        "due_at": "2026-09-30T12:00:00Z",
+                    }],
+                },
+            }), encoding="utf-8")
+            output.chmod(0o600)
+            self.assertEqual(
+                lm_loop._reply_deadline_status(
+                    "crowdworks-revenue-reply", directory,
+                ),
+                {
+                    "deadline_missed": True,
+                    "overdue": 1,
+                    "urgent": 0,
+                    "upcoming": 0,
+                    "unknown": 0,
+                    "items": [{
+                        "thread_id": "thread-1",
+                        "contract_id": "contract-1",
+                        "deadline_status": "overdue",
+                        "due_at": "2026-09-30T12:00:00Z",
+                    }],
+                },
+            )
+            output.write_text(json.dumps({
+                "deadline": {
+                    "deadline_missed": False,
+                    "overdue": 1,
+                    "urgent": 0,
+                    "upcoming": 0,
+                    "unknown": 0,
+                    "items": [{"thread_id": "thread-1", "deadline_status": "overdue"}],
+                },
+            }), encoding="utf-8")
+            self.assertIsNone(
+                lm_loop._reply_deadline_status("crowdworks-revenue-reply", directory)
+            )
+
+    def test_status_rows_promote_missed_reply_deadline_without_touching_provider(self):
+        value = {
+            "deadline_missed": True,
+            "overdue": 1,
+            "urgent": 0,
+            "upcoming": 0,
+            "unknown": 0,
+            "items": [{"thread_id": "thread-1", "deadline_status": "overdue"}],
+        }
+        with patch("runtime.loop.lm_loop._reply_deadline_status", return_value=value):
+            row = status_rows(
+                REGISTRY, loaded={}, disabled={}, events={}, installed_releases={},
+            )[0]
+        self.assertEqual(row["reply_deadline"], value)
+        self.assertEqual(row["last_terminal_result"], "fail")
+        self.assertEqual(row["error_class"], "reply_deadline_missed")
+        self.assertEqual(row["next_action"], "official_deadline_readback")
+        self.assertEqual(row["blocker"], "reply_deadline_missed")
+
     def test_browser_resolution_joins_loop_registry_to_resolver_readback(self):
         registry = {"schema_version": 2, "loops": {"connector": {
             "label": "ai.anicca.connector", "domain": "system", "entrypoint": "bin/connector.sh",
