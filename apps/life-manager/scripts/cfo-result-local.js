@@ -24,8 +24,8 @@ async function runResultCfo(options) {
   try { previous = JSON.parse(fs.readFileSync(file, "utf8")); } catch (error) {
     if (error.code !== "ENOENT") throw new Error("cfo_result_state_invalid");
   }
+  if (previous?.status === "sent" && previous.subjectId !== subjectId) throw new Error("cfo_sent_subject_changed");
   if (previous?.status === "sent" && previous.periodKey === periodKey) {
-    if (previous.subjectId !== subjectId) throw new Error("cfo_sent_subject_changed");
     if (!previous.providerMessageId) throw new Error("cfo_sent_provider_receipt_missing");
     return { status: "quiet", reason: "unchanged", reportingDate: date, delivered: false };
   }
