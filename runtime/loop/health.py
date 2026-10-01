@@ -24,7 +24,7 @@ JOB_FIELDS = frozenset({
 })
 DIAGNOSTIC_FIELDS = frozenset({
     "release_sha", "run_id", "owner_id", "occurrence_id", "effect", "readback",
-    "provider_receipt_id", "error_class", "retryable", "next_action",
+    "provider_receipt_id", "error_class", "retryable", "next_action", "release_drift",
 })
 RFC3339_PATTERN = (
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
@@ -140,6 +140,7 @@ def health_json_schema() -> dict:
                     "error_class": nullable_string,
                     "retryable": {"type": ["boolean", "null"]},
                     "next_action": nullable_string,
+                    "release_drift": {"type": "boolean"},
                 },
                 "additionalProperties": False,
             },
@@ -227,6 +228,10 @@ def _clock(row: dict, name: str, *, statuses: set[str] | None = None,
 def _health_state(row: dict) -> str:
     adapter_status = row.get("health_adapter_status")
     if adapter_status in {"timeout", "error"}:
+        return "telemetry_gap"
+    if row.get("release_drift") is True:
+        # The event was emitted by a different immutable release than the one
+        # currently installed. Do not treat that event as current health.
         return "telemetry_gap"
     diagnostic_text = " ".join(str(row.get(key) or "") for key in (
         "blocker", "error_class", "next_action", "error_detail",
@@ -354,6 +359,17 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
                 })
         adapted_rows.append(row)
     for row in adapted_rows:
+        release_drift = (
+            isinstance(row.get("installed_release_sha"), str)
+            and isinstance(row.get("event_release_sha"), str)
+            and row["installed_release_sha"] != row["event_release_sha"]
+        )
+        row["release_drift"] = release_drift
+        if release_drift:
+            # Reconcile provenance before retrying the provider action. This
+            # is a read-only projection; it does not reload or restart a loop.
+            row["next_action"] = "reconcile_current_release"
+            row["retryable"] = True
         state = _health_state(row)
         effect_status = row.get("effect_status")
         jobs.append({
@@ -389,6 +405,7 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
                 "error_class": row.get("error_class"),
                 "retryable": row.get("retryable"),
                 "next_action": row.get("next_action"),
+                "release_drift": release_drift,
             },
         })
     summary = {state: 0 for state in sorted(HEALTH_STATES)}
@@ -474,12 +491,14 @@ def validate_health_document(value: dict) -> dict:
                 or any(item is not None and not isinstance(item, str)
                        for item in effect.values())):
             raise ValueError("invalid health diagnostic effect")
-        nullable_diagnostic_strings = DIAGNOSTIC_FIELDS - {"effect", "retryable"}
+        nullable_diagnostic_strings = DIAGNOSTIC_FIELDS - {"effect", "retryable", "release_drift"}
         if any(diagnostic[name] is not None and not isinstance(diagnostic[name], str)
                for name in nullable_diagnostic_strings):
             raise ValueError("invalid health diagnostic value")
         if diagnostic["retryable"] is not None and type(diagnostic["retryable"]) is not bool:
             raise ValueError("invalid health diagnostic retryable")
+        if type(diagnostic["release_drift"]) is not bool:
+            raise ValueError("invalid health diagnostic release_drift")
     expected_summary = {state: 0 for state in sorted(HEALTH_STATES)}
     for job in value["jobs"]:
         expected_summary[job["state"]] += 1

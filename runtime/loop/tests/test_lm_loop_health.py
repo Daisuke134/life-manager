@@ -189,6 +189,23 @@ class LmLoopHealthTest(unittest.TestCase):
             {"runtime", "productivity", "effect_safety", "business", "recovery"},
         )
 
+    def test_release_drift_is_a_telemetry_gap_until_current_release_is_reconciled(self):
+        row = self.status_row(
+            installed_release_sha="b" * 40,
+            event_release_sha="a" * 40,
+        )
+        value = health.project_health([row])
+        job = value["jobs"][0]
+
+        self.assertEqual(job["state"], "telemetry_gap")
+        self.assertEqual(job["diagnostic"]["next_action"], "reconcile_current_release")
+        self.assertTrue(job["diagnostic"]["release_drift"])
+
+        row["event_release_sha"] = row["installed_release_sha"]
+        reconciled = health.project_health([row])["jobs"][0]
+        self.assertEqual(reconciled["state"], "healthy")
+        self.assertFalse(reconciled["diagnostic"]["release_drift"])
+
     def test_health_clocks_survive_a_newer_failed_runtime_event(self):
         loop_id = "agentmail-nudge"
 
@@ -718,7 +735,7 @@ class LmLoopHealthTest(unittest.TestCase):
             {
                 "release_sha", "run_id", "owner_id", "occurrence_id", "effect",
                 "readback", "provider_receipt_id", "error_class", "retryable",
-                "next_action",
+                "next_action", "release_drift",
             },
         )
         self.assertFalse(diagnostic["additionalProperties"])
