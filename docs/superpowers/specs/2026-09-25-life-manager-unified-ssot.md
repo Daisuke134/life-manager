@@ -2417,3 +2417,18 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 旧5b natural reconcilerの終端をread-onlyで取得し、次の自然tickがmain `25db727898`由来releaseをcut/self-handoffするまで待つ。manual apply/restart/retryは禁止。
 2. 新releaseのfleet state、6 mobile ownerのloaded SHA/argvとtimeout有無、admission queue、disk free二回を公式readbackする。P1-2bは`status=ok`または理由・次手がtypedなpartialまで閉じない。
 3. 収束後にL9-13.1 TaskMarket no-effect discovery→BlockRun useful paid inference、PromptBase/Writer→Capafy→各named loop→CFO `14/14` cost-complete P&Lの順で進む。現時点で全14 loop修復・financial independence・self-fundingは未達である。
+
+### 38. 25db natural releaseとproof評価前SQL bound（2026-10-02 02:19 JST）
+
+- 旧5b natural runは`2026-10-01T16:59:58Z`に`status=partial / changed=49 / skipped=117 / errors=7`で終端した。typed timeout ownerはLarry-ja Instagram、Honne-en、Buddha TikTok、EN affirmation Instagramの4件。このrunはPR #6408前の旧実装であり、P1-2b収束証拠ではない。
+- 次のnatural tickはmain `25db7278987efa87c249d3fbfe509f53d18ef934`を検出し、immutable release `/Users/anicca/loops/releases/20261002T020126-25db7278`をcutした。current symlink、reconciler plistのargv/env/SHA、mode-0600 self-handoff receiptは25dbへ一致し、receiptは`status=ok / verified=true`である。
+- 25db natural reconcilerはpre-fleetの`reconcile shared-agent-runner`と`reconcile deterministic`でそれぞれ300秒上限に達した。read-only process sampleとsource traceで、既存`max_rows=20`は`_pre_effect_admission_evaluate`がownerの全effect_unknown行とjournalを照合した後にのみtruncateしており、proof評価量をboundしていないことを確認した。つまりPR #6408はapply callerをbounded helperへ変更したが、helper内部の全件評価が残っていた。
+- fresh mainからbranch `fix/pre-effect-sql-bound-20261002`を作り、古い順のeffect_unknown rowをSQL `LIMIT`でproof評価前に切る最小修正をTDDした。REDは`max_rows=3`でproof call `5`、GREENは`3`。focused `3/3`、full apply/fleet `173/173`、Python compile、diff check、`lm-loop-contract=14 loops / 178 jobs / errors=[]`をPASSした。
+- PR #6409はadmin squash mergeされ、`origin/main=7b3ec48dbf735f8cfb0a6d3e944cb98d92367568`となった。productionへmanual apply/restart/retryはしていない。02:19 JST時点の25db natural fleet runは進行中で、article、Lancers paid、Mercor paidなどを25dbへ更新し、CrowdWorks/HF paid等はtyped skipで前進している。新SQL boundを含む7b releaseは次のnatural promotion待ちである。
+- `/System/Volumes/Data` freeは`1,237,072 KB`。新releaseは作成できたが、10GB安定二回条件は未達で、容量は依然P1-2bの重大境界である。
+
+#### 38時点のcursor
+
+1. 進行中25db natural fleet runの終端stateとowner logをread-onlyで取得する。外部effect ownerをmanual retryしない。
+2. 次のnatural tickでmain `7b3ec48dbf`由来immutable release、self-handoff、pre-reconcile時間、fleet state、mobile timeout解消をreadbackする。
+3. admission queueとdisk free二回安定を揃えてからP1-2bを閉じ、L9-13.1以降へ進む。14 loop revenue、cost-complete P&L、self-fundingは未達のまま維持する。
