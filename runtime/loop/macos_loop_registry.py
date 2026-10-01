@@ -29,6 +29,7 @@ ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
     "capafy-loop-healthcheck",
     "life-manager-disk-cleanup",
+    "life-manager-health-observer",
     "lm-fence-reconciler",
     "life-manager-recovery-supervisor",
     "life-manager-release-reconciler",
