@@ -350,6 +350,36 @@ class ActualCostAttributionTest(unittest.TestCase):
         self.assertTrue(all(ref.startswith("lm-actual-cost://")
                            for row in first for ref in row["evidence_refs"]))
 
+    def test_semantic_reordering_keeps_adapter_and_b0_replay_equal(self):
+        payload = fixture("actual-cost-official.json")
+        payload["provider_pagination"] = {
+            "pages": [
+                {"provider": "openai", "page": 1, "document_ids": ["inv-openai-202609"]},
+                {"provider": "openai", "page": 2, "document_ids": ["inv-openai-202609"]},
+            ]
+        }
+        reordered = copy.deepcopy(payload)
+        for field in ("sources", "documents", "job_joins"):
+            reordered[field].reverse()
+        for document in reordered["documents"]:
+            document["line_items"].reverse()
+            for line in document["line_items"]:
+                line["allocations"].reverse()
+        reordered["provider_pagination"]["pages"].reverse()
+
+        first = adapt(payload)
+        second = adapt(reordered)
+        self.assertEqual(first, second)
+
+        once = contract.project(
+            first, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        replayed = contract.project(
+            [*first, *second], snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(once["historical"], replayed["historical"])
+        self.assertEqual(once["trailing"], replayed["trailing"])
+
 
 if __name__ == "__main__":
     unittest.main()

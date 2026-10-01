@@ -32,7 +32,21 @@ REASON_PRIORITY = (
 
 
 def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    """Canonicalize billing facts independently of provider collection order."""
+    def normalize(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {key: normalize(child) for key, child in item.items()}
+        if isinstance(item, list):
+            normalized = [normalize(child) for child in item]
+            return sorted(
+                normalized,
+                key=lambda child: json.dumps(
+                    child, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                ),
+            )
+        return item
+
+    return json.dumps(normalize(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def _digest(value: Any) -> str:
