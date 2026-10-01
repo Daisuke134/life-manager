@@ -2660,6 +2660,26 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-payout"
     },
+    "life-manager-health-observer": {
+      "adapter": "python",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "runtime/loop/health_observer.py",
+      "label": "ai.anicca.life-manager-health-observer",
+      "log_root": "~/.local/state/life-manager/health-observer/logs",
+      "provider_route": "deterministic",
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/health-observer",
+      "system_role": "control"
+    },
     "life-manager-release-reconciler": {
       "cadence": {
         "start_interval_seconds": 60
