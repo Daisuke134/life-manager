@@ -24,7 +24,7 @@ from typing import Any, Callable, Mapping, Protocol
 
 MUTATIONS = frozenset({"reply", "estimate", "accept_contract", "external_action"})
 RESUMABLE_MUTATIONS = frozenset({"accept_contract", "external_action"})
-NO_EFFECT = frozenset({"awaiting_buyer", "closed", "no_reply", "noop"})
+NO_EFFECT = frozenset({"awaiting_buyer", "closed", "no_reply", "noop", "verified"})
 _DEADLINE_PRIORITY = {
     "overdue": 0,
     "urgent": 1,

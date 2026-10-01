@@ -501,6 +501,32 @@ def test_verified_effect_notifies_once_and_replay_does_not_duplicate(tmp_path):
     assert replay["effect"] == 0
     assert reports == [(adapter.effects[0]["effect_key"], "message-1")]
 
+
+def test_verified_state_replays_zero_without_provider_readback_when_event_is_unchanged(
+        tmp_path):
+    adapter = Adapter()
+    decide = lambda _context: {"action": "reply", "payload": {"body": "Thanks"}}
+    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    assert first["effect"] == 1
+
+    class NoProviderReadback(Adapter):
+        def observe_one(self, _thread_id):
+            raise AssertionError("unchanged verified state must not reopen provider thread")
+
+        def readback(self, _intent):
+            raise AssertionError("unchanged verified state must not reread provider receipt")
+
+        def context(self, _thread_id):
+            raise AssertionError("unchanged verified state must not rebuild context")
+
+    replay = reply_kernel.run_wake(
+        adapter=NoProviderReadback(adapter.rows), decide=decide, state_root=tmp_path,
+    )
+    assert replay["effect"] == 0
+    assert replay["readback"] == 1
+    assert replay["items"][0]["status"] == "verified"
+    assert replay["items"][0]["reason"] == "replay_zero"
+
 def test_new_buyer_event_gets_a_distinct_reply(tmp_path):
     adapter = Adapter()
     bodies = iter(("first", "second"))
