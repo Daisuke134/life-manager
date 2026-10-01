@@ -272,8 +272,9 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(runtimeScript, /disk-cleanup/);
   assert.match(runtimeScript, /"\$LOOP_CLI" restart life-manager-disk-cleanup/);
   assert.match(runtimeScript, /exit 75/);
-  assert.match(runtimeScript, /cdp_healthy/);
-  assert.match(runtimeScript, /"\$LOOP_CLI" restart life-manager-daily-driver/);
+  assert.match(runtimeScript, /BROWSER_GUARD=.*browser-guard\.sh/);
+  assert.match(runtimeScript, /"\$BROWSER_GUARD" acquire "\$BROWSER_IDENTITY"/);
+  assert.match(runtimeScript, /BROWSER_FOUNDATION=.*ensure_browser\.sh/);
   assert.match(runtimeScript, /json\/version/);
   assert.match(runtimeScript, /retry the same candidate observation once/);
   assert.match(dailyPrompt, /every visible question paired with the final rendered answer/);

@@ -36,8 +36,10 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import sqlite3
+import stat
 import sys
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -52,6 +54,9 @@ STATE_ROOT = Path("~/.local/state/life-manager/fundraiser").expanduser()
 EVENTS_PATH = STATE_ROOT / "events.jsonl"
 EVIDENCE_ROOT = STATE_ROOT / "evidence"
 RECEIPTS_PATH = STATE_ROOT / "application-receipts.jsonl"
+MARKERS_ROOT = STATE_ROOT / "effect-markers"
+SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+MARKER_PHASES = frozenset({"pre_effect", "effect_attempted", "human_required", "post_effect_verified"})
 # run.sh: RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$" and EVIDENCE_DIR="evidence/$RUN_ID".
 EVIDENCE_DIR_NAME = re.compile(r"^(\d{8}T\d{6}Z)-\d+$")
 # Preflight gates in run.sh exit either 2 (hard/misconfigured) or 75
@@ -106,6 +111,46 @@ def _occurrence_events(occurrence_id: str, events_path: Path) -> list[dict[str, 
     return [row for row in _read_jsonl(events_path) if row.get("occurrence_id") == occurrence_id]
 
 
+def _marker_path(markers_root: Path, owner_id: str, occurrence_id: str) -> Path | None:
+    if (owner_id != OWNER_ID or not SAFE_ID.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(f"{owner_id}:")):
+        return None
+    run_id = occurrence_id[len(owner_id) + 1:]
+    if not SAFE_ID.fullmatch(run_id):
+        return None
+    return markers_root / f"{run_id}.json"
+
+
+def _read_marker(path: Path | None, owner_id: str, occurrence_id: str) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    descriptor = -1
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            return None
+        with os.fdopen(descriptor, "r", encoding="utf-8") as source:
+            descriptor = -1
+            marker = json.load(source)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if (
+        not isinstance(marker, dict)
+        or marker.get("schema_version") != 1
+        or marker.get("owner_id") != owner_id
+        or marker.get("occurrence_id") != occurrence_id
+        or marker.get("phase") not in MARKER_PHASES
+        or marker.get("effect") not in {0, 1}
+    ):
+        return None
+    return marker
+
+
 def _evidence_dir_timestamps(evidence_root: Path) -> list[dt.datetime]:
     if not evidence_root.is_dir():
         return []
@@ -129,9 +174,39 @@ def pre_effect_proof(
     owner_id: str, occurrence_id: str, *,
     events_path: Path = EVENTS_PATH,
     evidence_root: Path = EVIDENCE_ROOT,
+    markers_root: Path = MARKERS_ROOT,
     now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     """Build a resolve_pre_effect_occurrence-shaped proof, or an unverified one."""
+    marker = _read_marker(_marker_path(markers_root, owner_id, occurrence_id), owner_id, occurrence_id)
+    if marker is not None:
+        phase = marker["phase"]
+        if phase == "pre_effect" and marker["effect"] == 0:
+            run_id = occurrence_id[len(owner_id) + 1:]
+            return {
+                "owner_id": owner_id,
+                "occurrence_id": occurrence_id,
+                "verified": True,
+                "proof_type": "pre_effect",
+                "classification": "pre_effect",
+                "evidence_ref": f"lm-fundraiser-marker://{owner_id}/{run_id}/effect-marker.json",
+                "checked_at": (now or dt.datetime.now(dt.timezone.utc)).isoformat(timespec="seconds"),
+            }
+        if phase == "human_required":
+            return {
+                "owner_id": owner_id,
+                "occurrence_id": occurrence_id,
+                "verified": False,
+                "classification": "human_required",
+                "reason": "human_required",
+            }
+        return {
+            "owner_id": owner_id,
+            "occurrence_id": occurrence_id,
+            "verified": False,
+            "classification": "post_effect",
+            "reason": "post_effect_readback_required",
+        }
     events = _occurrence_events(occurrence_id, events_path)
     started = next((row for row in events if row.get("status") == "running"), None)
     failed = next((
@@ -141,7 +216,10 @@ def pre_effect_proof(
         and row.get("effect_identity_status") == "not_written"
         and row.get("exit_code") in PRE_EFFECT_EXIT_CODES
     ), None)
-    unverified = {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": False}
+    unverified = {
+        "owner_id": owner_id, "occurrence_id": occurrence_id,
+        "verified": False, "classification": "unknown",
+    }
     if started is None or failed is None:
         return {**unverified, "reason": "no_entrypoint_preflight_signature"}
     try:
@@ -168,6 +246,7 @@ def reconcile(
     occurrence_id: str, *,
     events_path: Path = EVENTS_PATH,
     evidence_root: Path = EVIDENCE_ROOT,
+    markers_root: Path = MARKERS_ROOT,
     fenced_row_fn: Callable[[str, str], tuple[str, dt.datetime]] = fenced_row,
     resolve_fn: Callable[..., bool] | None = None,
     now: dt.datetime | None = None,
@@ -175,7 +254,8 @@ def reconcile(
 ) -> dict[str, Any]:
     state, _queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     proof = pre_effect_proof(
-        OWNER_ID, occurrence_id, events_path=events_path, evidence_root=evidence_root, now=now,
+        OWNER_ID, occurrence_id, events_path=events_path, evidence_root=evidence_root,
+        markers_root=markers_root, now=now,
     )
     result: dict[str, Any] = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
@@ -194,12 +274,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--occurrence", required=True)
     parser.add_argument("--events-path", type=Path, default=EVENTS_PATH)
     parser.add_argument("--evidence-root", type=Path, default=EVIDENCE_ROOT)
+    parser.add_argument("--markers-root", type=Path, default=MARKERS_ROOT)
     parser.add_argument("--resolve", action="store_true")
     args = parser.parse_args(argv)
     try:
         result = reconcile(
             args.occurrence, events_path=args.events_path, evidence_root=args.evidence_root,
-            resolve=args.resolve,
+            markers_root=args.markers_root, resolve=args.resolve,
         )
     except (OSError, ValueError, sqlite3.Error) as exc:
         print(json.dumps({

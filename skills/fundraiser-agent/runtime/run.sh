@@ -9,6 +9,17 @@ LOCK_HELPER="$REPO_ROOT/skills/fundraiser-agent/runtime/run-lock.sh"
 LOG="$STATE_ROOT/fundraiser.log"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 EVIDENCE_DIR="$STATE_ROOT/evidence/$RUN_ID"
+OCCURRENCE_ID="${LIFE_MANAGER_OCCURRENCE_ID:-fundraiser:$RUN_ID}"
+case "$OCCURRENCE_ID" in
+  fundraiser:*) OCCURRENCE_KEY="${OCCURRENCE_ID#fundraiser:}" ;;
+  *) echo "fundraiser: invalid occurrence identity" >&2; exit 2 ;;
+esac
+if ! [[ "$OCCURRENCE_KEY" =~ ^[A-Za-z0-9._:-]{1,127}$ ]]; then
+  echo "fundraiser: invalid occurrence identity" >&2
+  exit 2
+fi
+MARKERS_ROOT="$STATE_ROOT/effect-markers"
+MARKER_PATH="$MARKERS_ROOT/$OCCURRENCE_KEY.json"
 RUN_AGENT="$REPO_ROOT/skills/earn/marketing-engine/run_agent.sh"
 PROMPT="$REPO_ROOT/skills/fundraiser-agent/prompts/daily.md"
 SCHEMA="$REPO_ROOT/skills/fundraiser-agent/runtime/pass-result.schema.json"
@@ -29,6 +40,31 @@ BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-g
 BROWSER_FOUNDATION="${LIFE_MANAGER_BROWSER_FOUNDATION:-$REPO_ROOT/skills/browser/ensure_browser.sh}"
 BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-interactive:dais}"
 export CLOAK_BROWSER_OWNER="${LIFE_MANAGER_BROWSER_TARGET_OWNER:-fundraiser}"
+
+write_boundary_marker() {
+  local phase="$1" effect="$2" temporary
+  temporary="$MARKER_PATH.tmp.$$"
+  mkdir -p "$MARKERS_ROOT" || return 1
+  chmod 700 "$STATE_ROOT" "$MARKERS_ROOT" || return 1
+  if [ -e "$MARKER_PATH" ]; then
+    [ ! -L "$MARKER_PATH" ] || return 1
+    [ "$(sed -n 's/.*"phase":"\([^"]*\)".*/\1/p' "$MARKER_PATH" 2>/dev/null)" = "pre_effect" ] || return 1
+  fi
+  if ! (umask 077; printf '{"schema_version":1,"owner_id":"fundraiser","occurrence_id":"%s","phase":"%s","effect":%s,"updated_at":"%s"}\n' \
+      "$OCCURRENCE_ID" "$phase" "$effect" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$temporary"); then
+    rm -f "$temporary"
+    return 1
+  fi
+  chmod 600 "$temporary" && mv -f "$temporary" "$MARKER_PATH"
+}
+
+# This is the durable owner-side boundary. It is written before disk/browser
+# preflight, so a later read-only replay can distinguish no-submit from an
+# armed application without trusting a missing evidence directory.
+write_boundary_marker pre_effect 0 || {
+  echo "fundraiser: effect boundary marker unavailable" >&2
+  exit 75
+}
 
 available_kib() {
   df -Pk "$STATE_ROOT" 2>/dev/null | awk 'NR==2 {print $4}'
@@ -111,6 +147,8 @@ trap 'release_run_lock "$LOCK_DIR"; release_browser' EXIT
 export PATH="/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export LIFE_MANAGER_REPO="$REPO_ROOT"
 export FUNDRAISER_RUN_ID="$RUN_ID"
+export FUNDRAISER_OCCURRENCE_ID="$OCCURRENCE_ID"
+export FUNDRAISER_EFFECT_MARKER="$MARKER_PATH"
 export FUNDRAISER_STATE_ROOT="$STATE_ROOT"
 export FUNDRAISER_EVIDENCE_DIR="$EVIDENCE_DIR"
 export FUNDRAISER_RECEIPTS="$STATE_ROOT/application-receipts.jsonl"
@@ -222,6 +260,13 @@ print(f"submitted={submitted} unknown={unknown} checkpoints={checkpoints}")
 PY
 )" || true
   [ -n "$LEDGER_COUNTS" ] && COUNTS="$LEDGER_COUNTS"
+fi
+
+CHECKPOINTS="$(printf '%s\n' "$COUNTS" | sed -n 's/.*checkpoints=\([0-9][0-9]*\).*/\1/p')"
+CURRENT_PHASE="$(sed -n 's/.*"phase":"\([^"]*\)".*/\1/p' "$MARKER_PATH" 2>/dev/null || true)"
+if [ "$CURRENT_PHASE" = "pre_effect" ] \
+    && { [ "${CHECKPOINTS:-0}" -gt 0 ] || [ "$SUMMARY_STATUS" = "human_required" ]; }; then
+  write_boundary_marker human_required 0 || true
 fi
 
 REPORT="Codex::: Fundraiser wake $RUN_ID finished: status=$SUMMARY_STATUS, $COUNTS. Evidence: $EVIDENCE_DIR"

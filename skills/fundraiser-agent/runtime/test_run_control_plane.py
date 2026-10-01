@@ -1,4 +1,5 @@
 import os
+import json
 import subprocess
 from pathlib import Path
 
@@ -53,6 +54,12 @@ def test_low_disk_requests_cleanup_through_lm_loop(tmp_path):
     )
     assert result.returncode == 75
     assert calls.read_text().strip() == "restart life-manager-disk-cleanup"
+    markers = list((tmp_path / "home" / ".local" / "state" / "life-manager" / "fundraiser" / "effect-markers").glob("*.json"))
+    assert len(markers) == 1
+    marker = json.loads(markers[0].read_text())
+    assert marker["owner_id"] == "fundraiser"
+    assert marker["phase"] == "pre_effect"
+    assert marker["effect"] == 0
 
 
 def test_browser_lease_busy_defers_without_touching_foundation(tmp_path):

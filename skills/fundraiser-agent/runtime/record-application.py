@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import re
+import stat
 import tempfile
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
@@ -20,6 +21,8 @@ APPLICATION_FIELDS = (
     "contact", "question_answers", "attachments", "context_used",
     "context_version", "context_digest",
 )
+SAFE_OCCURRENCE = re.compile(r"fundraiser:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+MARKER_PHASES = {"pre_effect", "effect_attempted", "human_required", "post_effect_verified"}
 
 
 def fail(message: str) -> None:
@@ -132,6 +135,61 @@ def replace_json(path: pathlib.Path, data: dict) -> None:
     os.replace(temporary, path)
 
 
+def _effect_marker_context() -> tuple[pathlib.Path, str] | None:
+    path_value = os.environ.get("FUNDRAISER_EFFECT_MARKER")
+    occurrence_id = os.environ.get("FUNDRAISER_OCCURRENCE_ID")
+    if not path_value and not occurrence_id:
+        return None
+    if (not path_value or not occurrence_id
+            or not SAFE_OCCURRENCE.fullmatch(occurrence_id)):
+        fail("effect marker identity is invalid")
+    return pathlib.Path(path_value), occurrence_id
+
+
+def _read_effect_marker(path: pathlib.Path, occurrence_id: str) -> dict:
+    descriptor = -1
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            fail("effect marker permissions are invalid")
+        with os.fdopen(descriptor, "r", encoding="utf-8") as source:
+            descriptor = -1
+            marker = json.load(source)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        fail("effect marker is unavailable")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if (
+        not isinstance(marker, dict)
+        or marker.get("schema_version") != 1
+        or marker.get("owner_id") != "fundraiser"
+        or marker.get("occurrence_id") != occurrence_id
+        or marker.get("phase") not in MARKER_PHASES
+        or marker.get("effect") not in {0, 1}
+    ):
+        fail("effect marker shape is invalid")
+    return marker
+
+
+def _advance_effect_marker(expected_phase: str, next_phase: str, effect: int) -> None:
+    context = _effect_marker_context()
+    if context is None:
+        return
+    path, occurrence_id = context
+    marker = _read_effect_marker(path, occurrence_id)
+    if marker["phase"] != expected_phase:
+        fail(f"effect marker phase is {marker['phase']}, expected {expected_phase}")
+    marker.update({
+        "phase": next_phase,
+        "effect": effect,
+        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    })
+    replace_json(path, marker)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--draft", required=True)
@@ -180,6 +238,7 @@ def main() -> None:
         prior = read_rows(pathlib.Path(args.ledger)) + read_dossiers(pathlib.Path(args.applications_dir))
         if is_terminal_duplicate(data, identity_hash, prior):
             fail(f"duplicate terminal application: {identity_hash}")
+        _advance_effect_marker("pre_effect", "effect_attempted", 1)
         if data.get("submitted_at") is not None or data.get("evidence") is not None:
             fail("prepare requires a pre-submit draft without submitted_at or evidence")
         data["application_digest"] = digest
@@ -218,6 +277,7 @@ def main() -> None:
     prior = read_rows(ledger) + read_dossiers(pathlib.Path(args.applications_dir))
     if is_terminal_duplicate(data, identity_hash, prior):
         fail(f"duplicate terminal application: {identity_hash}")
+    _advance_effect_marker("effect_attempted", "post_effect_verified", 1)
 
     applications_dir = pathlib.Path(args.applications_dir)
     applications_dir.mkdir(parents=True, exist_ok=True, mode=0o700)

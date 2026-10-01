@@ -10,6 +10,21 @@ def _write_events(path: Path, rows: list[dict]) -> None:
     path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
 
 
+def _write_marker(root: Path, occurrence_id: str, phase: str) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    run_id = occurrence_id.split(":", 1)[1]
+    marker = {
+        "schema_version": 1,
+        "owner_id": "fundraiser",
+        "occurrence_id": occurrence_id,
+        "phase": phase,
+        "effect": 0 if phase in {"pre_effect", "human_required"} else 1,
+    }
+    path = root / f"{run_id}.json"
+    path.write_text(json.dumps(marker) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
 def test_entrypoint_preflight_death_with_no_evidence_dir_is_verified_pre_effect(tmp_path):
     occurrence_id = "fundraiser:18d93c1c4f16c148-65964"
     events_path = tmp_path / "events.jsonl"
@@ -112,3 +127,87 @@ def test_reconcile_calls_resolve_only_when_proof_verified_and_resolve_requested(
     )
     assert "closed" not in result
     assert calls == []
+
+
+def test_readonly_replay_uses_occurrence_marker_for_no_effect_after_agent_start(tmp_path):
+    occurrence_id = "fundraiser:18d9b0b6311a2018-87933"
+    events_path = tmp_path / "events.jsonl"
+    _write_events(events_path, [
+        {
+            "occurrence_id": occurrence_id, "phase": "execute", "status": "running",
+            "effect_status": "started", "timestamp": "2026-09-29T04:37:03.415461+00:00",
+        },
+        {
+            "occurrence_id": occurrence_id, "phase": "report", "status": "pass",
+            "effect_status": "unknown", "exit_code": 0, "failure_layer": "clean",
+            "timestamp": "2026-09-29T04:39:52.679916+00:00",
+        },
+    ])
+    evidence_root = tmp_path / "evidence"
+    (evidence_root / "20260929T043704Z-87970").mkdir(parents=True)
+    markers_root = tmp_path / "effect-markers"
+    _write_marker(markers_root, occurrence_id, "pre_effect")
+
+    proof = pre_effect_proof(
+        "fundraiser", occurrence_id, events_path=events_path,
+        evidence_root=evidence_root, markers_root=markers_root,
+    )
+
+    assert proof["verified"] is True
+    assert proof["proof_type"] == "pre_effect"
+    assert proof["classification"] == "pre_effect"
+    assert proof["evidence_ref"].startswith("lm-fundraiser-marker://")
+
+
+def test_readonly_replay_keeps_effect_attempted_marker_held_as_post_effect(tmp_path):
+    occurrence_id = "fundraiser:post-submit-1"
+    events_path = tmp_path / "events.jsonl"
+    _write_events(events_path, [
+        {
+            "occurrence_id": occurrence_id, "phase": "execute", "status": "running",
+            "effect_status": "started", "timestamp": "2026-10-01T01:00:00+00:00",
+        },
+        {
+            "occurrence_id": occurrence_id, "phase": "report", "status": "fail",
+            "effect_status": "unknown", "exit_code": 1, "failure_layer": "entrypoint",
+            "timestamp": "2026-10-01T01:01:00+00:00",
+        },
+    ])
+    markers_root = tmp_path / "effect-markers"
+    _write_marker(markers_root, occurrence_id, "effect_attempted")
+
+    proof = pre_effect_proof(
+        "fundraiser", occurrence_id, events_path=events_path,
+        evidence_root=tmp_path / "evidence", markers_root=markers_root,
+    )
+
+    assert proof["verified"] is False
+    assert proof["classification"] == "post_effect"
+    assert proof["reason"] == "post_effect_readback_required"
+
+
+def test_readonly_replay_keeps_human_required_marker_separate_from_effect_fence(tmp_path):
+    occurrence_id = "fundraiser:human-required-1"
+    events_path = tmp_path / "events.jsonl"
+    _write_events(events_path, [
+        {
+            "occurrence_id": occurrence_id, "phase": "execute", "status": "running",
+            "effect_status": "started", "timestamp": "2026-10-01T02:00:00+00:00",
+        },
+        {
+            "occurrence_id": occurrence_id, "phase": "report", "status": "pass",
+            "effect_status": "unknown", "exit_code": 0, "failure_layer": "clean",
+            "timestamp": "2026-10-01T02:01:00+00:00",
+        },
+    ])
+    markers_root = tmp_path / "effect-markers"
+    _write_marker(markers_root, occurrence_id, "human_required")
+
+    proof = pre_effect_proof(
+        "fundraiser", occurrence_id, events_path=events_path,
+        evidence_root=tmp_path / "evidence", markers_root=markers_root,
+    )
+
+    assert proof["verified"] is False
+    assert proof["classification"] == "human_required"
+    assert proof["reason"] == "human_required"
