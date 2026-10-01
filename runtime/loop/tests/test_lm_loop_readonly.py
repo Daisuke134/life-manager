@@ -132,7 +132,7 @@ class LmLoopReadonlyTest(unittest.TestCase):
                 side_effect=sqlite3.OperationalError("database is locked"),
              ),
              redirect_stdout(output)):
-            self.assertEqual(lm_loop_main(["status", "example"]), 1)
+            self.assertEqual(lm_loop_main(["status", "life-manager-connector-native"]), 1)
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["error"], "admission_fence_read_failed")
         self.assertEqual(payload["error_class"], "admission_database_locked")
@@ -311,11 +311,19 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(payload["schema_version"], "lm-loop.status-explain.v1")
         self.assertEqual(payload["target"], "life-manager-connector-native")
         self.assertEqual(payload["rows"][0]["next_action"], "resolve_browser_endpoint")
+        self.assertEqual(payload["rows"][0]["current_snapshot"], {
+            "installed_release_sha": "b" * 40,
+            "last_exit": "0",
+            "launchd_state": "loaded-idle",
+            "pid": None,
+        })
+        self.assertEqual(payload["rows"][0]["historical_record"]["run_id"], "run-1")
+        self.assertNotIn("historical_record", payload["rows"][0]["current_snapshot"])
 
     def test_fleet_cli_details_are_opt_in(self):
         for args, expected in ((["status", "all"], False),
                                (["status", "all", "--explain"], True),
-                               (["status", "example"], True)):
+                               (["status", "life-manager-connector-native"], True)):
             with patch("runtime.loop.lm_loop.snapshot", return_value=[]) as observe, \
                  redirect_stdout(io.StringIO()):
                 self.assertEqual(lm_loop_main(args), 0)
@@ -328,7 +336,106 @@ class LmLoopReadonlyTest(unittest.TestCase):
             result = lm_loop_main(["status", "connector", "--bogus"])
         self.assertEqual(result, 2)
         observe.assert_not_called()
-        self.assertEqual(json.loads(output.getvalue())["error"], "unknown status option: --bogus")
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["error"], "unknown status option: --bogus")
+        self.assertEqual(payload["error_class"], "invalid_input")
+        self.assertFalse(payload["retryable"])
+
+    def test_status_rejects_unknown_loop_before_reading_state(self):
+        output = io.StringIO()
+        with (patch("runtime.loop.lm_loop.snapshot") as observe,
+              redirect_stdout(output)):
+            result = lm_loop_main(["status", "does-not-exist"])
+
+        self.assertEqual(result, 2)
+        observe.assert_not_called()
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["error"], "unknown loop id: does-not-exist")
+        self.assertEqual(payload["error_class"], "invalid_input")
+        self.assertFalse(payload["retryable"])
+        self.assertEqual(payload["next_action"], "fix_arguments")
+
+    def test_status_timeout_is_typed_and_retryable(self):
+        output = io.StringIO()
+        with (patch(
+                "runtime.loop.lm_loop.snapshot",
+                side_effect=subprocess.TimeoutExpired("launchctl", 15),
+             ),
+             redirect_stdout(output)):
+            result = lm_loop_main(["status", "all"])
+
+        self.assertEqual(result, 1)
+        payload = json.loads(output.getvalue())
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error_class"], "status_snapshot_timeout")
+        self.assertTrue(payload["retryable"])
+        self.assertEqual(payload["next_action"], "retry_status_snapshot")
+
+    def test_status_failure_is_typed_and_retryable(self):
+        output = io.StringIO()
+        with (patch(
+                "runtime.loop.lm_loop.snapshot",
+                side_effect=RuntimeError("launchd read failed"),
+             ),
+             redirect_stdout(output)):
+            result = lm_loop_main(["status", "all"])
+
+        self.assertEqual(result, 1)
+        payload = json.loads(output.getvalue())
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error_class"], "status_snapshot_error")
+        self.assertTrue(payload["retryable"])
+        self.assertEqual(payload["next_action"], "inspect_status_snapshot")
+
+    def test_status_diagnostics_do_not_change_watch_invalid_input_contract(self):
+        output = io.StringIO()
+        with (patch(
+                "runtime.loop.lm_loop.snapshot",
+                side_effect=ValueError("unknown loop id: does-not-exist"),
+             ),
+             redirect_stdout(output)):
+            result = lm_loop_main(["watch", "does-not-exist"])
+
+        self.assertEqual(result, 2)
+        self.assertEqual(
+            json.loads(output.getvalue()),
+            {"ok": False, "error": "unknown loop id: does-not-exist"},
+        )
+
+    def test_status_row_separates_current_history_and_trailing_windows(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="none",
+            succeeded=True, blocker=None, exit_code=0,
+            product_loop_id=None, job_id="example", owner_id="example",
+            wake_id="wake-1", claimed_occurrence_id="example:occurrence-1",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        event["_health_clocks"] = {
+            "last_attempt": "2026-10-01T00:00:00+00:00",
+            "last_success": "2026-10-01T00:00:00+00:00",
+            "last_effect": None,
+            "last_receipt": None,
+        }
+        row = status_rows(
+            REGISTRY,
+            loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+            disabled={}, events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+
+        self.assertEqual(row["current_snapshot"], {
+            "launchd_state": "loaded-running",
+            "pid": "123",
+            "last_exit": "0",
+            "installed_release_sha": "b" * 40,
+        })
+        self.assertEqual(row["historical_record"]["run_id"], "run-1")
+        self.assertEqual(row["historical_record"]["status"], "pass")
+        self.assertEqual(row["historical_record"]["event_release_sha"], "b" * 40)
+        self.assertEqual(row["trailing_window"], event["_health_clocks"])
+        self.assertNotIn("pid", row["historical_record"])
+        self.assertNotIn("run_id", row["current_snapshot"])
 
     def test_old_event_remains_visible_but_diagnostic_is_incomplete(self):
         event = {
