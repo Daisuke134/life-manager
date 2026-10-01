@@ -138,7 +138,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             ["new-company", "old-rakuten"],
         )
 
-    def test_application_limit_is_applied_after_preferred_order(self):
+    def test_positive_application_limit_keeps_queued_rows_after_preferred_order(self):
         from job_search_loop.browser_agent.queue import RowQueueSupervisor
 
         rows = [
@@ -162,7 +162,10 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             },
         ):
             collected = RowQueueSupervisor.collect(ledger, active_provider="workday")
-        self.assertEqual([row["application_id"] for row in collected], ["new-company"])
+        self.assertEqual(
+            [row["application_id"] for row in collected],
+            ["new-company", "old-rakuten"],
+        )
 
     def test_zero_or_malformed_application_limit_closes_queue(self):
         from job_search_loop.browser_agent.queue import RowQueueSupervisor
