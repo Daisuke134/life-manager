@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd -P)"
+export ANICCA_HOME="${ANICCA_HOME:-$HOME/.anicca}"
+export ANICCA_ARGS="${ANICCA_ARGS:-{\"action\":\"execute\"}}"
+exec "$ROOT/skills/earn/taskmarket/run.sh" "$@"
