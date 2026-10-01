@@ -2222,3 +2222,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. `284bedab` natural fleet applyの終端stateとowner logを待ち、budget reservationで未開始になったownerを正確に記録する。
 2. 新SHAのpartial/ok receipt後にtarget plist loaded SHA/argvとhealth 4時計を照合し、effect_unknown中の手動再apply・restart・provider再送はしない。
 3. disk free二回安定またはENOSPCの再現境界をsource-onlyで閉じた後、named loop（PromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-funding）を既存順序で進める。
+
+### 24. `284bedab` natural fleet apply の終端readback（2026-10-01 21:29–21:30 JST）
+
+- `284bedab241f0057c60d681c8c583467917cbeea`のnatural fleet applyは、`2026-10-01T12:29:40Z`に公式stateを書いた。`status=partial / changed=68 / skipped=10 / errors=2 / message="timed out owners: none; budget exceeded" / next_retry_epoch=1790858339`で、owner logは80件・合計1199秒・`rc=0:78 / rc=1:2`だった。残り予算がper-owner timeout未満になった後に新ownerを開始せず、1200秒を超えなかったことはPR #6391の自然readbackである。ただし`partial`でありfleet収束とは数えない。
+- rc=1は`alpaca-investment-live`（36秒、I/O errorで旧job restore）と`hf-gig-apply-direct`（14秒、`effect_unknown` admission境界）で、公式注文・応募receipt/readbackなしの再送・restart・manual sellは行っていない。
+- target provenanceは部分適用に留まった。`capafy-loop-daily`、`job-search-daily`、`fundraiser`、`affiliate-loop`、`agent-economy-loop`のLaunchAgent plistはloaded SHA=`284bedab`へ進んだ。一方、`promptbase-loop-daily=813fd766`、`life-manager-connector-native=0ebdc38b`、`life-manager-selfbuild=0ebdc38b`、`life-manager-cfo-hourly=0ebdc38b`、`life-manager-release-reconciler=4d10a7c9`は旧SHAのままである。symlink/currentの更新だけで全fleet適用とは数えない。
+- 21:30:37 JSTのfresh `lm-loop health --json`（exit 1）は`total=177`、`healthy=27 / running=24 / failed=43 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4 / human_required=0`。`capafy-loop-daily`は旧occurrenceの`effect_unknown`でprovider receipt/readbackなし、PromptBaseは`telemetry_gap`、Connector/SelfBuildはprocess-only healthy、Job Hunterは旧capacity failure、CFOはeffect-unknown fence、reconcilerは旧`entrypoint_exit_1`である。外部listing、sale、application、Gmail/Calendar、settlement、payoutは今回0件である。
+- `df -k /`は21:30 JSTにfree `5,359,268 KB`（約5.36GB）へ戻ったが、10GB安定・ENOSPC解消の二回readbackは未達である。2026-10-01の14 Product Loop合計settled external revenueは依然`unknown`、cost-complete net P&Lは`0/14`であり、0円・利益・自律資金調達とは報告しない。
+
+#### 24時点の原子cursor
+
+1. `284bedab`のbackoff後natural retryで、未適用10 owner（PromptBase/Connector/SelfBuild/CFO/reconcilerを含む）が新SHAへ進むかを公式fleet state・plist・argvでreadbackする。`effect_unknown`中の手動apply/restart/retry/provider再送は禁止。
+2. disk free二回安定またはENOSPCのsource境界を閉じ、reconciler自体のloaded SHAをmain由来へそろえる。
+3. その後、PromptBase/Writerの自然04:20→管理画面/Gmail→listing/sale/economics、Capafy free-slot→API listing/status/sale/economics、Connector/Mobile公式receipt、Fundraiser/Affiliate、Coconala/Lancers/CrowdWorks、Job Hunter、Self-Build、Investment AT-13〜AT-29、Agent Economy、CFO 14/14、cloud/self-fundingをこの順で進める。
