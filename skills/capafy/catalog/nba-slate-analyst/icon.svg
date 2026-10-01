@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NBA Slate Analyst icon</title>
+  <desc id="desc">An orange basketball beside an evidence-bound analysis card.</desc>
+  <rect width="512" height="512" rx="88" fill="#111827"/>
+  <rect x="244" y="108" width="178" height="296" rx="24" fill="#f8fafc"/>
+  <path d="M282 178h102M282 226h102M282 274h66M282 322h90" stroke="#2563eb" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="188" cy="280" r="112" fill="#f97316" stroke="#fed7aa" stroke-width="10"/>
+  <path d="M80 280h216M188 168c42 46 42 178 0 224M188 168c-42 46-42 178 0 224" fill="none" stroke="#7c2d12" stroke-width="12" stroke-linecap="round"/>
+</svg>
