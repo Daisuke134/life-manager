@@ -16,7 +16,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -41,6 +41,8 @@ TX_RE = re.compile(r"^0x[0-9a-fA-F]{64}$")
 ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 ATOMIC_RE = re.compile(r"^[0-9]+$")
 SIGNED_DECIMAL_RE = re.compile(r"^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?$")
+MAX_B0_AMOUNT_INTEGER_DIGITS = 26
+ATOMIC_DECIMAL_PLACES = 6
 
 
 class AttributionError(ValueError):
@@ -75,49 +77,85 @@ def _probe_instant(value: Any) -> str:
     return _instant(value)
 
 
-def _decimal(value: Any, *, signed: bool = False, atomic: bool = False) -> Decimal:
+def _canonical_money_text(number: Decimal) -> str:
+    text = format(number, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def _bounded_decimal(
+    value: Any, *, signed: bool = False, atomic: bool = False,
+) -> Decimal:
     if value is None or isinstance(value, bool):
         raise AttributionError("amount_invalid")
+    raw = format(value, "f") if isinstance(value, Decimal) else None
     if atomic:
-        if type(value) is int:
+        if raw is None and type(value) is int:
             raw = str(value)
-        elif isinstance(value, str):
+        elif raw is None and isinstance(value, str):
             raw = value.strip()
-        else:
+        elif raw is None:
             raise AttributionError("amount_invalid")
         if not ATOMIC_RE.fullmatch(raw):
             raise AttributionError("amount_invalid")
-    else:
-        if type(value) is int:
-            raw = str(value)
-        elif isinstance(value, str):
-            raw = value.strip()
-        else:
+        if len(raw.lstrip("0") or "0") > MAX_B0_AMOUNT_INTEGER_DIGITS + ATOMIC_DECIMAL_PLACES:
             raise AttributionError("amount_invalid")
-        if not (SIGNED_DECIMAL_RE if signed else contract.AMOUNT).fullmatch(raw):
+    else:
+        if raw is None and type(value) is int:
+            raw = str(value)
+        elif raw is None and isinstance(value, str):
+            raw = value.strip()
+        elif raw is None:
+            raise AttributionError("amount_invalid")
+        unsigned = raw[1:] if signed and raw.startswith("-") else raw
+        if (
+            not (SIGNED_DECIMAL_RE if signed else contract.AMOUNT).fullmatch(unsigned)
+            or len(unsigned.partition(".")[0]) > MAX_B0_AMOUNT_INTEGER_DIGITS
+        ):
             raise AttributionError("amount_invalid")
     try:
         number = Decimal(raw)
-    except (InvalidOperation, ValueError) as error:
+        exact = _canonical_money_text(number.copy_abs())
+        normalized = _canonical_money_text(number.copy_abs().normalize())
+        if not number.is_finite() or normalized != exact:
+            raise AttributionError("amount_invalid")
+    except (ArithmeticError, ValueError) as error:
         raise AttributionError("amount_invalid") from error
-    if not number.is_finite() or (not signed and number < 0):
+    if not signed and number < 0:
         raise AttributionError("amount_invalid")
     return number
 
 
+def _decimal(value: Any, *, signed: bool = False, atomic: bool = False) -> Decimal:
+    return _bounded_decimal(value, signed=signed, atomic=atomic)
+
+
 def _money(number: Decimal, *, allow_zero: bool = False) -> str:
-    if not number.is_finite() or number < 0 or (not allow_zero and number == 0):
+    number = _bounded_decimal(number)
+    if number < 0 or (not allow_zero and number == 0):
         raise AttributionError("amount_invalid")
-    text = format(number.normalize(), "f")
-    if not contract.AMOUNT.fullmatch(text):
-        raise AttributionError("amount_invalid")
-    return text
+    return _canonical_money_text(number) if number else "0"
 
 
 def _signed_money(number: Decimal) -> str:
-    if not number.is_finite() or not SIGNED_DECIMAL_RE.fullmatch(format(number, "f")):
-        raise AttributionError("amount_invalid")
+    number = _bounded_decimal(number, signed=True)
     return format(number.normalize(), "f")
+
+
+def _exact_add(*numbers: Decimal) -> Decimal:
+    if not numbers:
+        return Decimal("0")
+    min_exponent = min(number.as_tuple().exponent for number in numbers)
+    max_adjusted = max(number.adjusted() if number else 0 for number in numbers)
+    precision = max(1, max_adjusted - min_exponent + 1) + len(numbers)
+    with localcontext() as context:
+        context.prec = precision
+        return sum(numbers, Decimal("0"))
+
+
+def _scale_atomic(number: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = max(2, len(number.as_tuple().digits) + 1)
+        return number / Decimal("1000000")
 
 
 def _amount_from_fields(
@@ -133,7 +171,7 @@ def _amount_from_fields(
     if atomic_values and decimal_values:
         atomic_value = _decimal(atomic_values[0], atomic=True)
         decimal_value = _decimal(decimal_values[0], signed=signed)
-        if (atomic_value / Decimal("1000000")) != decimal_value:
+        if _scale_atomic(atomic_value) != decimal_value:
             raise AttributionError("amount_inconsistent")
         if len(atomic_values) > 1 and any(
             _decimal(value, atomic=True) != atomic_value for value in atomic_values[1:]
@@ -155,7 +193,7 @@ def _amount_from_fields(
     ]
     if any(value != parsed[0] for value in parsed[1:]):
         raise AttributionError("amount_conflict")
-    return parsed[0] / Decimal("1000000") if atomic_values else parsed[0]
+    return _scale_atomic(parsed[0]) if atomic_values else parsed[0]
 
 
 def _currency(value: Any, expected: str) -> str:
@@ -614,7 +652,7 @@ def _taskmarket_row(
     fee = _decimal(_first(award, "platformFee", "platform_fee", "platform_fee_atomic"), atomic=True)
     gross = _decimal(_first(award, "grossAmount", "gross_amount", "gross_amount_atomic"), atomic=True)
     rank = _optional_rank(award)
-    if payment + fee != gross:
+    if _exact_add(payment, fee) != gross:
         raise AttributionError("amount_inconsistent")
     awards = task.get("awards")
     if not isinstance(awards, list) or task.get("awardCount", task.get("award_count")) != len(awards):
@@ -679,17 +717,20 @@ def _taskmarket_row(
     settled = _instant(_first(row, "settled_at") or _first(award, "settledAt", "settled_at"))
     evidence = _evidence(row, f"{fallback_evidence}/{task_id}")
     components: list[dict[str, str]] = []
+    payment_amount = _scale_atomic(payment)
+    gross_amount = _scale_atomic(gross)
+    fee_amount = _scale_atomic(fee)
     if classification is not None:
-        components.append({"category": classification, "amount": _money(payment / Decimal("1000000"))})
+        components.append({"category": classification, "amount": _money(payment_amount)})
     else:
         components.append({
             "category": contract.REVENUE,
-            "amount": _money(gross / Decimal("1000000")),
+            "amount": _money(gross_amount),
         })
         if fee > 0:
             components.append({
                 "category": "provider_fee",
-                "amount": _money(fee / Decimal("1000000")),
+                "amount": _money(fee_amount),
             })
     refund = _amount_from_fields(
         row, ("refund_atomic",), ("refund_decimal", "refund"), default=Decimal("0"),
@@ -997,7 +1038,7 @@ def _investment_outcome_rows(
         side = str(_first(row, "side") or _first(broker, "side") or "").lower()
         if side != "sell":
             raise AttributionError("realized_sale_invalid")
-        gross_realized = realized + fee + slippage if basis == "net" else realized
+        gross_realized = _exact_add(realized, fee, slippage) if basis == "net" else realized
         if gross_realized > 0:
             rows.append(_investment_metric_receipt(
                 row, root, "alpaca", base_id, contract.REVENUE,

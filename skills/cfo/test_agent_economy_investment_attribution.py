@@ -15,6 +15,8 @@ from skills.cfo.adapters import agent_economy_investment as adapter
 
 SNAPSHOT = "2026-10-01T00:00:00Z"
 TRAILING_START = "2026-09-24T00:00:00Z"
+SILENT_ROUND_AMOUNT = "123456789012345678901234567890.123456789012345678"
+OVERSIZED_ATOMIC = "123456789012345678901234567890123"
 FIXTURES = Path(__file__).parent / "fixtures/economic_attribution"
 
 
@@ -35,6 +37,16 @@ def coverage(rows: list[dict], loop_id: str, projection: str) -> dict:
         row for row in rows
         if row.get("record_type") == "coverage"
         and row["product_loop_id"] == loop_id
+        and row["projection"] == projection
+    )
+
+
+def source_coverage(rows: list[dict], loop_id: str, source_id: str, projection: str) -> dict:
+    return next(
+        row for row in rows
+        if row.get("record_type") == "coverage"
+        and row["product_loop_id"] == loop_id
+        and row["source_id"] == source_id
         and row["projection"] == projection
     )
 
@@ -224,6 +236,62 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
         self.assertEqual(balance["amount"], "104.57")
         self.assertEqual(balance["verification_state"], "verified")
         self.assertEqual(coverage(rows, "investment", "as_of")["coverage_state"], "complete")
+
+    def test_oversized_amounts_fail_closed_without_silent_rounding(self):
+        for field in (
+            "realized_pnl_usd", "fee_usd", "slippage_usd", "unrealized_pnl_usd",
+        ):
+            with self.subTest(source="investment", field=field):
+                payload = fixture("investment-realized.json")
+                payload["outcomes"][1][field] = SILENT_ROUND_AMOUNT
+                rows = self.adapt_investment(payload)
+                self.assertFalse(receipts(rows, "investment"))
+                order_coverage = source_coverage(rows, "investment", "alpaca-orders", "trailing")
+                self.assertEqual(
+                    (order_coverage["coverage_state"], order_coverage["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
+        with self.subTest(source="investment", field="balance"):
+            payload = fixture("investment-realized.json")
+            payload["balance"]["amount"] = SILENT_ROUND_AMOUNT
+            rows = self.adapt_investment(payload)
+            self.assertFalse(any(row["record_type"] == "liquid_balance" for row in rows))
+            self.assertEqual(
+                (coverage(rows, "investment", "as_of")["coverage_state"],
+                 coverage(rows, "investment", "as_of")["reason"]),
+                ("gap", "unverified_receipt"),
+            )
+
+        with self.subTest(source="x402", field="amount"):
+            payload = fixture("agent-economy-finalized.json")
+            payload["x402"][0]["gross_decimal"] = SILENT_ROUND_AMOUNT
+            rows = self.adapt_agent(payload)
+            self.assertFalse(any(
+                row.get("record_type") == "receipt" and row.get("provider") == "x402"
+                for row in rows
+            ))
+            x402_coverage = source_coverage(rows, "agent-economy", "x402-readback", "trailing")
+            self.assertEqual(
+                (x402_coverage["coverage_state"], x402_coverage["reason"]),
+                ("gap", "unverified_receipt"),
+            )
+
+        with self.subTest(source="taskmarket", field="amount"):
+            payload = fixture("agent-economy-finalized.json")
+            payload["taskmarket"][0]["award"]["grossAmount"] = OVERSIZED_ATOMIC
+            rows = self.adapt_agent(payload)
+            self.assertFalse(any(
+                row.get("record_type") == "receipt" and row.get("provider") == "taskmarket"
+                for row in rows
+            ))
+            taskmarket_coverage = source_coverage(
+                rows, "agent-economy", "taskmarket-readback", "trailing",
+            )
+            self.assertEqual(
+                (taskmarket_coverage["coverage_state"], taskmarket_coverage["reason"]),
+                ("gap", "unverified_receipt"),
+            )
 
     def test_missing_or_unknown_investment_pnl_basis_fails_closed(self):
         base = fixture("investment-realized.json")
