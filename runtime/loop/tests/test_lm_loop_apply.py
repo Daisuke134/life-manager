@@ -2818,7 +2818,8 @@ class LmLoopApplyTest(unittest.TestCase):
                 "reconcile", "deterministic", "--loaded-idle-only", "--max-owners", "1",
             ]), 0)
         bounded.assert_not_called()
-        fleet.assert_called_once()
+        fleet.assert_called_once_with(
+            value, "all", include_effect_details=False)
         targeted.assert_not_called()
         self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
 

@@ -2712,7 +2712,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             targets = set()
         if automatic_release_reconciler and not requested_ids:
-            rows = snapshot(registry, "all")
+            rows = snapshot(registry, "all", include_effect_details=False)
         elif requested_ids or max_owners is not None:
             rows = targeted_snapshot(
                 registry, targets, release_root / "bin/launchctl-safe")
