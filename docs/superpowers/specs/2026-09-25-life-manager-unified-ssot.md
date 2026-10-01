@@ -2546,3 +2546,41 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. TaskMarket no-effect discoveryを公式readbackで閉じる（外部効果なし、wallet spendなし、provider discovery boundary）。
 2. BlockRun paid inferenceをtreasury spend-cap内で一件成功させ、実用output・provider receipt・costを結合する。
 3. PromptBase/Writer→Capafy→残りnamed loops→CFO 14/14 cost-complete P&Lへ進む。diskはhealth/runway指標として並行観測し、固定10GBを理由に停止しない。
+
+### 48. 10GBゲート撤回後の最新live readbackと正本TODO（2026-10-02 08:16 JST）
+
+この節が現在の実行カーソルである。過去節の10GB固定値、P1/P2の古いrelease SHA、`[x]`でない過去cursorは履歴として残すが、現在の完了判定には使わない。ディスク空きはhealth/runway telemetryであり、固定値を完了条件にしない。
+
+**今回のread-only事実**:
+
+- production `current` は `/Users/anicca/loops/releases/20261002T030847-3fdfa314`、`RELEASE.json.sha=3fdfa314978dab2f620a058843c14c9e5b5c68d8`、`provenance=ancestor-of-origin-main`、`release_paths=ALL`。`lm-loop doctor` は `ok=false` で、唯一の未管理labelは `ai.anicca.provision-browser.capafy.kosuke`。従ってfoundationのsource mergeとlive fleet収束は別物であり、全体を「修復済み」と呼ばない。
+- `lm-loop health --json` は178 jobsを返し、`healthy=25 / running=24 / failed=47 / safely_fenced=69 / effect_unknown=11 / telemetry_gap=2`。これは観測kernelが動いている証拠であって、各loopの外部効果・収益成功の証拠ではない。`df -k /` の free `11,000,432 KB（約10.5GiB）`はこの時点の観測値であり、ゲートにしない。
+- **Agent Economy / TaskMarket:** immutable packaging source fixは完了（PR #6301、main `d04f97702631fa9e18be85a95a76a20c3ec4952e`）。しかし production `life-manager-taskmarket-ledger` は `host_admission_deferred:resource_capacity_busy` で、provider receipt、wallet spend、外部task discoveryの同一occurrence readbackはまだ無い。従ってL9-13.1は未完了。
+- **PromptBase / Writer:** P5a（題名照合）、P5b（house model-runnerで英語見本を再生成）、P5d（既存draft resume）の実装milestoneは完了記録がある。`football-match-analyst`のmissing evidence packagingもPR #6354→main `ff11e3cbfbfaf202d061833af07c1b305bf787fc`で完了した。一方、P5c（自然04:20のPending→承認）は未完了。最新ledgerのPromptBase公式seller dashboard readbackは `2026-10-01T19:45:51Z` の `football-match-analyst: no_effect`、sales readbackは `0件 / $0`。production healthは `promptbase-loop-daily=effect_unknown / entrypoint_exit_1 / official_readback_required` である。よって「P5完了」ではなく「P5a/b/dとpackaging完了、P5cと収益閉路未完了」と記録する。
+- **Capafy:** source adapter、packaging、自然no-effect readbackは存在するが、現在 `capafy-loop-daily=effect_unknown` で同一occurrenceのprovider receipt/readbackが無い。公式seller analyticsの別readbackには直近30日 `gross/net=$82.77`、actual model cost `$39.86`、`profit30_actual=$26.36` とあるが、これはCapafy accountの期間値であり、今日の売上でも14 loopのcost-complete P&Lでもない。free slot後の自然submit→listing/status→sale/refund/fee/model cost/settlement/payout→replay-zeroが未完了。
+- **Connector:** current healthは`healthy`だが、これは候補0件のprocess/no-effect境界であり、provider registration、confirmation mail、Google Calendar eventの公式receiptではない。候補発生時の外部readbackが残る。
+- **CFO:** source integrationはmainへ入っているが、live 14/14のsettled revenue・actual cost・net margin・MRR・runwayの公式joinは未完了。`unknown`を0へ丸めない。
+- AGMSGはこのsessionがteamへjoinしておらず、`team-list --scope all`で登録候補は見えるが、配置で稼働を証明できる席は0。独立writer/reviewerが進行中とは扱わない。並列化は新しい担当を増やすことではなく、共有SSOT・production current・provider/browser leaseを直列所有する前提で、非衝突のread-only観測だけに限定する。
+
+**残りTODO（現在の順序、原子完了条件付き）**:
+
+1. **L9-13.1 TaskMarket no-effect discovery** — admissionが空いた自然ownerで、外部送信・wallet spendなしにprovider discovery boundaryへ到達し、候補数、resolved path、HTTP境界、receiptなし、wallet filesなし、replay-zeroを同一occurrenceへ保存する。capacity deferのままなら再送せず次の自然eligible runを待つ。
+2. **L9-13.2 BlockRun paid inference** — treasury spend-cap内の一件だけを実用入力で実行し、provider receipt、output、USDC cost、ledger join、失敗時のfenceを確認する。bootstrap/owner depositは収益に数えない。
+3. **L9-05 Writer / PromptBase（P5c）** — 次の自然04:20 run、管理画面/GmailのPending→ApprovedまたはDeclined公式readback、公開listing、sale/refund/fee/model cost/settlement/payout、同一listing replay-zeroを閉じる。P5a/b/dはやり直さない。
+4. **L9-01 Capafy** — free slot後だけ自然submitを許可し、Capafy API listing/status、sale/refund/fee、skill別actual model cost、settlement/payout、同一listing replay-zeroを閉じる。slot満杯の間はread-only reviewだけ。
+5. **L9-02 Mobile Apps** — 22 jobsを一件ずつ診断し、ASC inventory、RevenueCat product/entitlement、自然投稿→acquisition→purchase/refund→Apple proceeds、app別actual cost、二重計上ゼロを公式readbackする。
+6. **L9-03 Connector** — 候補が出た時だけprovider登録、confirmation mail、Google Calendar eventの公式readbackとreplay-zeroを閉じる。候補0件はno-effect health証拠であり外部登録成功ではない。
+7. **L9-04 Fundraiser** — human-requiredをholdし、適格application receipt、provider status、外部inflow、actual cost、replay-zeroを閉じる。fundraisingは商品売上へ加算しない。
+8. **L9-06 Affiliate** — publish→click→conversion→paid commission、reversal/network fee/payout、actual model/browser cost、duplicate replay-zeroを閉じる。
+9. **L9-07 Gig — Coconala** — Apply/Storefront/Paid/Replyをoccurrence単位で診断し、Coconala公式thread/message/delivery/payment readback、fee/payout/cost、replay-zeroを閉じる。effect_unknownは再送しない。
+10. **L9-08 Gig — Lancers** — proposal→message→contract→delivery→paymentの公式readback、human-required hold、fee/payout/cost、replay-zeroを閉じる。
+11. **L9-09 Gig — CrowdWorks** — browser/thread/payment境界、Google Form・面接・試験・本人確認hold、proposal/message/payment readback、fee/payout/cost、replay-zeroを閉じる。
+12. **L9-10 Job Hunter** — discovery→fit→apply→reply→paidをjob IDで結合し、human-required案件をskip、provider/email/payment readback、actual cost、replay-zeroを閉じる。
+13. **L9-11 Self-Build / Product Improvement** — verified feedback→patch→tests→review→PR→main→release→natural outcomeをimprovement IDで閉じ、pre-effect self-healだけを自動化する。
+14. **L9-12 Investment（AT-13〜AT-29）** — paper natural sellを待ち、30 round tripsのbuy/sell/fee/slippage/system cost/replay-zeroを公式paper recordから再計算する。AT-24/AT-29とfresh反対意見review前のlive funding/orderは行わない。
+15. **L9-14 CFO** — 14 loopのsettled revenue、refund、fee、model/tool/browser/server actual cost、net margin、MRR、liquid balance、runwayを同一periodで再集計し、coverage gapは`unknown`、period/tenant/payout replay-zeroを確認する。
+16. **収益critical path** — 外部需要が確認でき、pre-acceptance margin gateを通るsellable offerを一つ選び、実顧客一件を契約→納品→settlement→payout→cost-complete net marginまで閉じる。
+17. **自己資金化とcloud移行** — DigitalOcean全費用→runway、BlockRun treasury、Nosana provider-neutral shelter、FRANKLIN-CONTINUITY-1二回、外部surplusによるrenewal、Akash fallback、cloud natural run/reboot/restore、Mac dependency 0を順に証明する。
+18. **30日benchmark** — 完全self-fundingのpositive net cashflow、settled receipts、cost、recovery、replay-zeroを30日連続保持してから、複製・Mac売却・「financially independent / self-healing / self-improving」の宣言を判断する。
+
+この順序の理由は、TaskMarketの無効果境界を先に閉じてから有料x402を許可し、既に需要実績があるPromptBase/Capafyで外部収益を測り、残りloopを同じcontractへ拡張し、最後にCFOとcloud/self-fundingを実測するためである。P5の古い実装完了記録だけで、自然承認・売上・利益を完了扱いしない。
