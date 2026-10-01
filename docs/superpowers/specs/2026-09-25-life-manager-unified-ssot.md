@@ -2446,3 +2446,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 進行中7b natural reconcilerの終端stateを取得する。
 2. 次のnatural tickでmain `3fdfa31497`由来release/self-handoffを確認し、shared-agent-runnerとdeterministicのphase時間が300秒未満になったことを実測する。
 3. fleet全target loaded SHA/argv、mobile timeout 0、admission queue、disk cleanup後10GB二回を揃えてP1-2bを閉じる。未達なら次のexact boundaryを同じ方法で診断する。
+
+### 40. 3f natural releaseでpre-fleet timeout解消（2026-10-02 03:18 JST）
+
+- 7b natural fleet runは`2026-10-01T18:07:40Z`に`status=partial / changed=75 / skipped=13 / errors=2 / message="timed out owners: none; budget exceeded"`で終端した。90 owner rowを処理し、nonzeroは`hf-gig-apply-direct rc=1`と`alpaca-investment-live rc=1`だけ。mobile timeoutは0件を維持した。
+- 次のnatural tickはmain `3fdfa314978dab2f620a058843c14c9e5b5c68d8`をimmutable release `/Users/anicca/loops/releases/20261002T030847-3fdfa314`へcutした。current symlink、reconciler plist、mode-0600 self-handoff receiptは3fへ一致し、receiptは`status=ok / verified=true`である。
+- 3f natural reconcilerは03:12:36 JST頃にshared-agent-runner reconcileを開始し、約41秒でdeterministicへ遷移した。deterministicは約95秒でfleet applyへ遷移した。旧7bでは両phaseが各300秒timeoutしていたため、automatic snapshotの`include_effect_details=False`でpre-fleet時間を約600秒から約136秒へ短縮し、timeoutを解消したことを実測した。
+- 03:18 JST時点で3f fleet applyは進行中、13 owner row、changed 3、skipped 10、errors 0、timeouts 0。disk freeは約4.6GBまで一時回復したが、10GB安定二回は未達である。release適用はlisting、sale、settlement、profitの証拠ではない。
+
+#### 40時点のcursor
+
+1. 3f natural fleet terminalをread-onlyで取得し、全177 planに対するprocessed/changed/skipped/error/timeoutを確定する。
+2. 未適用ownerの次natural retry、loaded SHA/argv、admission queue、disk cleanupと10GB二回を確認する。
+3. P1-2bを閉じるまでprovider effectをmanual retryせず、その後L9-13.1以降へ進む。
