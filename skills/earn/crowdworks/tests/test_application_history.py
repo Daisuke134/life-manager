@@ -268,6 +268,16 @@ def test_incremental_history_cache_advances_one_page_then_reads_without_detail_n
     assert second["complete"] is True
     assert second["pages_read"] == 2
     assert second["cache_hit"] is False
+    payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    assert len(payload["receipts"]) == 3
+    assert {row["record_type"] for row in payload["receipts"]} == {
+        "application_history_receipt"
+    }
+    assert {row["opportunity_external_id"] for row in payload["receipts"]} == {
+        "9001",
+        "9002",
+        "9003",
+    }
 
     cached_page = _Page(module)
     cached = module.read_application_history(
@@ -276,6 +286,24 @@ def test_incremental_history_cache_advances_one_page_then_reads_without_detail_n
     assert cached["complete"] is True
     assert cached["cache_hit"] is True
     assert cached_page.goto_log == ["https://crowdworks.jp/e/proposals"]
+
+
+def test_complete_legacy_cache_is_backfilled_with_validated_history_receipts(tmp_path):
+    module = load()
+    cache_path = tmp_path / "application-history.json"
+    page = _Page(module)
+    module.read_application_history(page, max_pages=10, cache_path=cache_path, page_budget=10)
+    payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    payload.pop("receipts")
+    cache_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    cached_page = _Page(module)
+    result = module.read_application_history(
+        cached_page, max_pages=10, cache_path=cache_path, page_budget=1
+    )
+
+    assert result["cache_hit"] is True
+    assert len(json.loads(cache_path.read_text(encoding="utf-8"))["receipts"]) == 3
 
 
 def test_history_cache_status_is_bounded_and_distinguishes_missing_syncing_complete(tmp_path):

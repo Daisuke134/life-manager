@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import importlib.util
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -401,6 +401,14 @@ def _load_history_cache(cache_path: Path) -> Mapping[str, object] | None:
     next_page = payload.get("next_page")
     if not isinstance(next_page, int) or next_page < 1:
         return None
+    receipts = payload.get("receipts", [])
+    if not isinstance(receipts, list):
+        return None
+    try:
+        for receipt in receipts:
+            load_marketplace_contracts().parse_application_history_receipt(receipt)
+    except Exception:
+        return None
     return payload
 
 
@@ -421,6 +429,34 @@ def _write_history_cache(cache_path: Path, payload: Mapping[str, object]) -> Non
             os.unlink(temporary_name)
         except FileNotFoundError:
             pass
+
+
+def _history_observed_at() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _history_receipts(
+    history: list[Mapping[str, object]], observed_at: str
+) -> list[Mapping[str, object]]:
+    """Convert raw eligibility rows into validated shared history receipts."""
+    receipts: list[Mapping[str, object]] = []
+    for row in history:
+        receipt: dict[str, object] = {
+            "schema_version": 1,
+            "record_type": "application_history_receipt",
+            "platform": "crowdworks",
+            "opportunity_external_id": row.get("external_id"),
+            "application_external_id": row.get("application_external_id"),
+            "status": "submitted",
+            "submitted_at": row.get("submitted_at"),
+            "observed_at": observed_at,
+        }
+        buyer_external_id = row.get("buyer_external_id")
+        if buyer_external_id is not None:
+            receipt["buyer_external_id"] = buyer_external_id
+        load_marketplace_contracts().parse_application_history_receipt(receipt)
+        receipts.append(receipt)
+    return receipts
 
 
 def history_cache_status(cache_path: Path) -> Mapping[str, object]:
@@ -476,6 +512,12 @@ def _read_application_history_incremental(
         and first_page_ids.issubset(cached_ids)
     )
     if cache_usable:
+        if len(cached.get("receipts", [])) != len(cached_history):
+            cached = {
+                **cached,
+                "receipts": _history_receipts(cached_history, _history_observed_at()),
+            }
+            _write_history_cache(cache_path, cached)
         return {
             "history": cached_history,
             "complete": True,
@@ -541,6 +583,10 @@ def _read_application_history_incremental(
     payload = {
         "version": _HISTORY_CACHE_VERSION,
         "history": [by_proposal[key] for key in sorted(by_proposal)],
+        "receipts": _history_receipts(
+            [by_proposal[key] for key in sorted(by_proposal)],
+            _history_observed_at(),
+        ),
         "complete": complete,
         "pages_read": pages_read,
         "page_count": page_count,

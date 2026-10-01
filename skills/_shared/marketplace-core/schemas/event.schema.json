@@ -10,6 +10,9 @@
       "$ref": "#/$defs/ApplicationReceipt"
     },
     {
+      "$ref": "#/$defs/ApplicationHistoryReceipt"
+    },
+    {
       "$ref": "#/$defs/ContractReceipt"
     },
     {
@@ -197,6 +200,50 @@
         "weekly_limit_hours": {
           "type": "integer",
           "minimum": 1
+        }
+      }
+    },
+    "ApplicationHistoryReceipt": {
+      "title": "MarketplaceApplicationHistoryReceipt",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "platform",
+        "opportunity_external_id",
+        "application_external_id",
+        "status",
+        "submitted_at",
+        "observed_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_type": {
+          "const": "application_history_receipt"
+        },
+        "platform": {
+          "$ref": "#/$defs/platform"
+        },
+        "opportunity_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "application_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "buyer_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "const": "submitted"
+        },
+        "submitted_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
         }
       }
     },

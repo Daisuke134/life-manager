@@ -43,6 +43,7 @@ _RECORD_TYPE_TO_SCHEMA = {
     "payment_receipt": "payment.schema.json",
     "application_intent": "event.schema.json",
     "application_receipt": "event.schema.json",
+    "application_history_receipt": "event.schema.json",
     "contract_receipt": "event.schema.json",
     "paid_handoff_receipt": "event.schema.json",
     "authorization_receipt": "event.schema.json",
@@ -123,6 +124,21 @@ class ApplicationReceipt:
     pricing_mode: str | None = None
     proposed_hourly_rate_minor: int | None = None
     weekly_limit_hours: int | None = None
+
+
+@dataclass(frozen=True)
+class ApplicationHistoryReceipt:
+    """Official provider history, distinct from a receipt for this submission."""
+
+    schema_version: int
+    record_type: str
+    platform: str
+    opportunity_external_id: str
+    application_external_id: str
+    status: str
+    submitted_at: str
+    observed_at: str
+    buyer_external_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -239,6 +255,7 @@ Contract = Union[
     PaymentReceipt,
     ApplicationIntent,
     ApplicationReceipt,
+    ApplicationHistoryReceipt,
     ContractReceipt,
     PaidHandoffReceipt,
     AuthorizationReceipt,
@@ -378,6 +395,7 @@ def schema_name_for_record(record: Mapping[str, Any]) -> str:
 _EVENT_DEFINITION_BY_RECORD_TYPE = {
     "application_intent": "ApplicationIntent",
     "application_receipt": "ApplicationReceipt",
+    "application_history_receipt": "ApplicationHistoryReceipt",
     "contract_receipt": "ContractReceipt",
     "paid_handoff_receipt": "PaidHandoffReceipt",
     "authorization_receipt": "AuthorizationReceipt",
@@ -543,6 +561,7 @@ _MODEL_BY_RECORD_TYPE: Dict[str, Type[Contract]] = {
     "payment_receipt": PaymentReceipt,
     "application_intent": ApplicationIntent,
     "application_receipt": ApplicationReceipt,
+    "application_history_receipt": ApplicationHistoryReceipt,
     "contract_receipt": ContractReceipt,
     "paid_handoff_receipt": PaidHandoffReceipt,
     "authorization_receipt": AuthorizationReceipt,
@@ -596,6 +615,13 @@ def parse_application_receipt(record: Mapping[str, Any]) -> ApplicationReceipt:
     parsed = parse_contract(record)
     if not isinstance(parsed, ApplicationReceipt):
         raise ContractValidationError(("$.record_type: expected application_receipt",))
+    return parsed
+
+
+def parse_application_history_receipt(record: Mapping[str, Any]) -> ApplicationHistoryReceipt:
+    parsed = parse_contract(record)
+    if not isinstance(parsed, ApplicationHistoryReceipt):
+        raise ContractValidationError(("$.record_type: expected application_history_receipt",))
     return parsed
 
 
@@ -740,6 +766,7 @@ to_dict = record_to_dict
 
 __all__ = [
     "ApplicationIntent",
+    "ApplicationHistoryReceipt",
     "ApplicationReceipt",
     "AuthorizationReceipt",
     "Contract",
@@ -759,6 +786,7 @@ __all__ = [
     "load_schema",
     "parse",
     "parse_application_intent",
+    "parse_application_history_receipt",
     "parse_application_receipt",
     "parse_authorization_receipt",
     "parse_delivery_intent",

@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import contracts as marketplace_contracts  # noqa: E402
 from contracts import (  # noqa: E402
     AuthorizationReceipt,
+    ApplicationHistoryReceipt,
     ContractValidationError,
     ContractReceipt,
     DeliveryReceipt,
@@ -44,6 +45,24 @@ class ContractReceiptTests(unittest.TestCase):
 
         self.assertIsInstance(receipt, ContractReceipt)
         self.assertEqual(receipt.contract_external_id, "contract-456")
+
+    def test_parses_history_without_fabricating_submission_content(self):
+        receipt = parse_contract(
+            {
+                "schema_version": 1,
+                "record_type": "application_history_receipt",
+                "platform": "crowdworks",
+                "opportunity_external_id": "job-123",
+                "application_external_id": "proposal-456",
+                "buyer_external_id": "buyer-789",
+                "status": "submitted",
+                "submitted_at": "2026-09-27T15:55:00+09:00",
+                "observed_at": "2026-10-01T00:00:00Z",
+            }
+        )
+
+        self.assertIsInstance(receipt, ApplicationHistoryReceipt)
+        self.assertEqual(receipt.application_external_id, "proposal-456")
 
     def test_parses_explicit_work_authorization(self):
         receipt = parse_contract(
