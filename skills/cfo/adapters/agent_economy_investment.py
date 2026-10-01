@@ -104,6 +104,22 @@ def _instant(value: Any) -> str:
         raise AttributionError("timestamp_invalid") from error
 
 
+def _strict_timestamp(
+    *sources: tuple[Any, tuple[str, ...]],
+    error: str,
+) -> str | None:
+    values = [
+        _instant(mapping[key])
+        for mapping, keys in sources
+        if isinstance(mapping, dict)
+        for key in keys
+        if key in mapping and mapping[key] is not None
+    ]
+    if values and any(value != values[0] for value in values[1:]):
+        raise AttributionError(error)
+    return values[0] if values else None
+
+
 def _probe_instant(value: Any) -> str:
     """Use B0's timestamp validator without importing a second contract."""
     return _instant(value)
@@ -318,7 +334,9 @@ def _evidence(row: dict[str, Any], fallback: str) -> list[str]:
         raise AttributionError("evidence_invalid")
     if len(set(refs)) != len(refs):
         raise AttributionError("evidence_duplicate")
-    return refs[:32]
+    if len(refs) > 32:
+        raise AttributionError("evidence_invalid")
+    return refs
 
 
 def _digest(value: Any) -> str:
@@ -341,12 +359,17 @@ def _digest_material(value: Any) -> Any:
 
 def _readback_meta(payload: dict[str, Any], end: str) -> tuple[str, str | None, bool, str]:
     readback = payload.get("readback") if isinstance(payload.get("readback"), dict) else {}
-    observed_raw = _first(payload, "observed_at", "read_at") or _first(readback, "observed_at", "read_at")
-    observed = _instant(observed_raw) if observed_raw is not None else end
-    window_end_raw = _first(payload, "window_end") or _first(readback, "window_end")
-    window_end = _instant(window_end_raw) if window_end_raw is not None else observed
-    window_start_raw = _first(payload, "window_start") or _first(readback, "window_start")
-    window_start = _instant(window_start_raw) if window_start_raw is not None else None
+    observed = _strict_timestamp(
+        (payload, ("observed_at", "read_at")),
+        (readback, ("observed_at", "read_at")),
+        error="read_failed",
+    ) or end
+    window_end = _strict_timestamp(
+        (payload, ("window_end",)), (readback, ("window_end",)), error="read_failed",
+    ) or observed
+    window_start = _strict_timestamp(
+        (payload, ("window_start",)), (readback, ("window_start",)), error="read_failed",
+    )
     history_complete = (
         payload.get("history_complete") is True
         or readback.get("history_complete") is True
@@ -593,7 +616,11 @@ def _x402_row(
             row, ("usdc_atomic", "amount_atomic", "gross_atomic"),
             ("gross_decimal", "gross", "amount_usdc", "usdc"),
         )
-        occurred = _instant(_first(row, "occurred_at", "observed_at"))
+        occurred = _strict_timestamp(
+            (row, ("occurred_at", "observed_at")), error="unverified_receipt",
+        )
+        if occurred is None:
+            raise AttributionError("timestamp_invalid")
         return _receipt(
             loop_id=AGENT_LOOP, provider="x402", receipt_id=f"x402:pending:{sale_id}",
             currency=currency, occurred_at=occurred, settled_at=None,
@@ -621,8 +648,14 @@ def _x402_row(
     classification = _classify_agent(classification_row, payer, recipient, self_wallets)
     if classification is None and recipient != pay_to:
         raise AttributionError("owner_boundary_invalid")
-    occurred = _instant(_first(row, "occurred_at", "observed_at"))
-    settled = _instant(_first(row, "settled_at", "occurred_at", "observed_at"))
+    occurred = _strict_timestamp(
+        (row, ("occurred_at", "observed_at")), error="unverified_receipt",
+    )
+    if occurred is None:
+        raise AttributionError("timestamp_invalid")
+    settled = _strict_timestamp(
+        (row, ("settled_at",)), error="unverified_receipt",
+    ) or occurred
     if classification is not None:
         return _receipt(
             loop_id=AGENT_LOOP, provider="x402", receipt_id=f"x402:{proof_suffix}",
@@ -749,8 +782,20 @@ def _taskmarket_row(
     merged = {**row, **settlement}
     _row_settlement(merged, root)
     proof_key, proof_suffix = _chain_proof(merged, settlement)
-    occurred = _instant(_first(row, "occurred_at", "created_at") or _first(award, "settledAt", "settled_at"))
-    settled = _instant(_first(row, "settled_at") or _first(award, "settledAt", "settled_at"))
+    occurred = _strict_timestamp(
+        (row, ("occurred_at", "created_at")), error="unverified_receipt",
+    )
+    if occurred is None:
+        occurred = _strict_timestamp(
+            (award, ("settledAt", "settled_at")), error="unverified_receipt",
+        )
+    if occurred is None:
+        raise AttributionError("timestamp_invalid")
+    settled = _strict_timestamp(
+        (row, ("settled_at",)),
+        (award, ("settledAt", "settled_at")),
+        error="unverified_receipt",
+    ) or occurred
     evidence = _evidence(row, f"{fallback_evidence}/{task_id}")
     components: list[dict[str, str]] = []
     payment_amount = _scale_atomic(payment)
@@ -931,10 +976,22 @@ def _investment_identity(row: dict[str, Any]) -> str:
 
 def _investment_times(row: dict[str, Any], root: dict[str, Any]) -> tuple[str, str]:
     nested = row.get("broker") if isinstance(row.get("broker"), dict) else {}
-    occurred = _first(row, "occurred_at", "filled_at", "recorded_at", "observed_at")
-    occurred = occurred or _first(nested, "filled_at", "occurred_at") or root.get("observed_at")
-    settled = _first(row, "settled_at", "completed_at", "recorded_at") or occurred
-    return _instant(occurred), _instant(settled)
+    occurred = _strict_timestamp(
+        (row, ("occurred_at", "filled_at", "recorded_at", "observed_at")),
+        (nested, ("filled_at", "occurred_at")),
+        error="unverified_receipt",
+    )
+    if occurred is None:
+        occurred = _strict_timestamp(
+            (root, ("observed_at",)), error="unverified_receipt",
+        )
+    if occurred is None:
+        raise AttributionError("timestamp_invalid")
+    settled = _strict_timestamp(
+        (row, ("settled_at", "completed_at", "recorded_at")),
+        error="unverified_receipt",
+    ) or occurred
+    return occurred, settled
 
 
 def _investment_finalized(row: dict[str, Any], root: dict[str, Any]) -> None:
@@ -1113,8 +1170,7 @@ def _investment_cash_flow(row: dict[str, Any], root: dict[str, Any], fallback_ev
     if category not in EXCLUDED:
         raise AttributionError("cash_flow_invalid")
     identity = _identity(_first(row, "receipt_id", "source_receipt_id", "id"), "receipt_id")
-    finalized = finalized_value is True or row.get("verification_state") == "verified"
-    if not finalized or str(row.get("status", "")).lower() not in SUCCESS_STATES:
+    if finalized_value is not True or str(row.get("status", "")).lower() not in SUCCESS_STATES:
         raise AttributionError("unverified_receipt")
     amount = _amount_from_fields(row, (), ("amount_usd", "amount"))
     occurred, settled = _investment_times(row, root)

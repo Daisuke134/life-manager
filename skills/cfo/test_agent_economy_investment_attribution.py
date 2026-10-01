@@ -237,6 +237,50 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
         self.assertEqual(balance["verification_state"], "verified")
         self.assertEqual(coverage(rows, "investment", "as_of")["coverage_state"], "complete")
 
+    def test_cash_flow_requires_explicit_finalized_true_even_when_verification_is_verified(self):
+        payload = fixture("investment-realized.json")
+        payload["cash_flows"][0].update(finalized=False, verification_state="verified")
+        rows = self.adapt_investment(payload)
+
+        self.assertFalse(receipts(rows, "investment"))
+        self.assertEqual(
+            source_coverage(rows, "investment", "alpaca-orders", "trailing")["reason"],
+            "unverified_receipt",
+        )
+
+    def test_root_and_row_timestamp_alias_conflicts_fail_closed(self):
+        root_conflict = fixture("investment-realized.json")
+        root_conflict["read_at"] = "2026-09-30T00:00:00Z"
+        root_rows = self.adapt_investment(root_conflict)
+        self.assertFalse(receipts(root_rows, "investment"))
+        self.assertEqual(
+            source_coverage(root_rows, "investment", "alpaca-orders", "trailing")["reason"],
+            "read_failed",
+        )
+
+        row_conflict = fixture("investment-realized.json")
+        row_conflict["outcomes"][1]["filled_at"] = "2026-09-29T14:00:00Z"
+        row_rows = self.adapt_investment(row_conflict)
+        self.assertFalse(receipts(row_rows, "investment"))
+        self.assertEqual(
+            source_coverage(row_rows, "investment", "alpaca-orders", "trailing")["reason"],
+            "unverified_receipt",
+        )
+
+    def test_evidence_refs_over_32_fail_closed_without_truncation(self):
+        payload = fixture("agent-economy-finalized.json")
+        payload["x402"][0]["evidence_refs"] = [f"lm-test://evidence/{index}" for index in range(33)]
+        rows = self.adapt_agent(payload)
+
+        self.assertFalse(any(
+            row.get("record_type") == "receipt" and row.get("provider") == "x402"
+            for row in rows
+        ))
+        self.assertEqual(
+            source_coverage(rows, "agent-economy", "x402-readback", "trailing")["reason"],
+            "unverified_receipt",
+        )
+
     def test_oversized_amounts_fail_closed_without_silent_rounding(self):
         for field in (
             "realized_pnl_usd", "fee_usd", "slippage_usd", "unrealized_pnl_usd",

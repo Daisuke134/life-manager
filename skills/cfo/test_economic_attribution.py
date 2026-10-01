@@ -11,6 +11,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 sys.path.insert(0, str(Path(__file__).parent))
 import economic_attribution as m  # noqa: E402
+from skills.cfo.adapters import agent_economy_investment as adapter
 
 
 SNAPSHOT = "2026-10-01T00:00:00Z"
@@ -131,6 +132,31 @@ class EconomicAttributionContractTest(unittest.TestCase):
         self.assertEqual(result["historical"]["loops"]["self-build"]["currencies"]["USD"], expected)
         self.assertEqual(result["historical"]["company"]["currencies"]["USD"], expected)
         self.assertEqual(result["historical"]["company"]["status"], "verified")
+
+    def test_b5_to_b0_preserves_two_26_digit_decimal_operands_exactly(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "economic_attribution" / "investment-realized.json"
+        payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+        amount = "99999999999999999999999999.99"
+        for outcome in payload["outcomes"]:
+            outcome["fee_usd"] = "0"
+            outcome["slippage_usd"] = "0"
+        for outcome in payload["outcomes"][1:]:
+            outcome["realized_pnl_usd"] = amount
+            outcome["pnl_basis"] = "net_after_fee_slippage"
+
+        b5_rows = adapter.adapt_investment(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        result = m.project(
+            [*b5_rows, *complete_coverage()],
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        usd = result["historical"]["company"]["currencies"]["USD"]
+        expected = "199999999999999999999999999.98"
+        self.assertEqual(usd["settled_external_revenue"], expected)
+        self.assertEqual(usd["total_cost"], "0")
+        self.assertEqual(usd["net"], expected)
 
     def test_every_non_revenue_class_is_preserved_and_excluded(self):
         categories = (
