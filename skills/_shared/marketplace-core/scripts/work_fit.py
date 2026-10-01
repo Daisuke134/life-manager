@@ -65,6 +65,7 @@ HARD_PROHIBITION_CLASSES = {
     # （ヒンディー語）」 unapplied-to. Translating lyrics produces text, and the class is about
     # producing audio.
     "music_or_audio_production": "producing the audio itself -- music, song, performance, singing, BGM, composition, arrangement, mixing or mastering -- as the required deliverable. Lyrics, translation, transcription, liner notes or any other text about music is a document and is never this class",
+    "recruitment_or_selection_process": "the buyer's text makes the seller a candidate in, or the operator of, a hiring or selection process: the seller must take an aptitude, skill or selection test, a screening assignment or an interview to get a job or engagement, apply for a position, or screen, test or interview the buyer's candidates. An ordinary paid deliverable the buyer will use (an article, design, code, analysis or document) is never this class even when the topic is hiring. A job, hiring or selection interview is this class even when called a contract-selection call; only an ordinary sales conversation about a deliverable the buyer will use is not",
     "outreach_or_account_operations": "the required outcome is recruiting, lead sourcing, individualized bulk outreach, social DM operations, account warming, posting operations, or ongoing third-party account management rather than an asynchronous buyer-visible artifact",
     # Sharpened 2026-09-07 after promotion. As written for Coconala this refused, on Lancers,
     # 「RPAツール『アシロボ』シナリオ作成」, 「Notesからサイボウズ Officeへの移行とアプリ開発」 and a

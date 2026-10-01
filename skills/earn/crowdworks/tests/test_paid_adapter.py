@@ -62,7 +62,8 @@ def funded():
     return {"work_id": "63570481", "title": "Webデザイン業務", "client": "buyer",
             "provider_state": "funded", "milestone_id": "13798056",
             "form_url": "https://forms.gle/abc123", "application_date": "2026-09-09",
-            "buyer_event_id": "427573234", "buyer_event_at": "2026-09-16T11:43:00+09:00"}
+            "buyer_event_id": "427573234", "buyer_event_at": "2026-09-16T11:43:00+09:00",
+            "work_fit": "workable"}
 
 
 def escrow():
@@ -2589,6 +2590,7 @@ def test_mutation_targeted_refresh_rejects_changed_contract_before_submit(tmp_pa
         return {"ok": True, "source_complete": True, "contract_candidates": [current]}
 
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638", inventory_reader=inventory)
+    adapter._work_fit_verdict = lambda item: "workable"
     adapter.readback = lambda intent: {"authoritative_absent": True}
     adapter._submit_form_once = lambda item: sent.append(item)
     result = kernel.run_wake(
@@ -3009,3 +3011,88 @@ def test_owner_uses_shared_kernel_and_provider_adapter_state_root():
     assert '--state-root "$STATE_ROOT/paid"' in source
     assert '--state-path "$STATE_ROOT/paid"' in source
     assert '--max-workers 1' in source
+
+
+def test_decide_waits_when_work_fit_refuses_or_is_missing_before_any_effect():
+    module = load()
+    for fit in ("refused:recruitment_or_selection_process", "unverified:JudgementUnavailable", None):
+        contract = {**funded(), "work_fit": fit}
+        if fit is None:
+            del contract["work_fit"]
+        action = module.decide({"context": {"contract": contract}})
+        assert action["action"] == "wait"
+        assert action["reason"] == ("work_fit_refused" if fit and fit.startswith("refused:")
+                                    else "work_fit_unverified")
+
+
+def test_work_fit_verdict_maps_judge_results_and_fails_closed(tmp_path, monkeypatch):
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    item = {**funded(), "buyer_context": "応募者の面接と選考テストを代行してください"}
+    fit = module._load("work_fit_test_paid", ROOT / "skills/_shared/marketplace-core/scripts/work_fit.py")
+    assert "recruitment_or_selection_process" in fit.HARD_PROHIBITION_CLASSES
+
+    def make(result):
+        def judge(postings, **kwargs):
+            if isinstance(result, Exception):
+                raise result
+            return result
+        return judge
+
+    monkeypatch.setattr(module, "_load", lambda name, path: type("M", (), {"judge": staticmethod(make({"63570481": ("recruitment_or_selection_process", "q")}))}))
+    assert adapter._work_fit_verdict(item) == "refused:recruitment_or_selection_process"
+    monkeypatch.setattr(module, "_load", lambda name, path: type("M", (), {"judge": staticmethod(make({"63570481": None}))}))
+    assert adapter._work_fit_verdict(item) == "workable"
+    monkeypatch.setattr(module, "_load", lambda name, path: type("M", (), {"judge": staticmethod(make({}))}))
+    assert adapter._work_fit_verdict(item) == "unverified:unjudged"
+    monkeypatch.setattr(module, "_load", lambda name, path: type("M", (), {"judge": staticmethod(make(RuntimeError("x")))}))
+    assert adapter._work_fit_verdict(item).startswith("unverified:")
+    assert adapter._work_fit_verdict({**item, "buyer_context": ""}) == "unverified:no_buyer_context"
+
+
+def test_work_fit_prompt_separates_seller_selection_tests_from_ordinary_deliverables():
+    fit = load_fit_for_semantics()
+    cls = fit.HARD_PROHIBITION_CLASSES["recruitment_or_selection_process"]
+    assert "candidate" in cls and "selection test" in cls and "interview" in cls
+    assert "never this class" in cls and "ordinary paid deliverable" in cls
+    synthetic = [
+        {"posting_id": "seller-test", "title": "選考テスト", "body": "【合成】採用選考の一環として適性テストを受け、後日面接に進んでいただきます"},
+        {"posting_id": "deliverable", "title": "記事作成", "body": "【合成】採用ブログ記事を2本納品してください"},
+        {"posting_id": "buyer-hiring", "title": "候補者面接", "body": "【合成】弊社の応募者10名の一次面接を代行してください"},
+        {"posting_id": "job-interview-as-call", "title": "契約前面談", "body": "【合成】業務委託として採用するか決める面接(契約選考面談)を受けてください"},
+        {"posting_id": "sales-call", "title": "LP制作", "body": "【合成】LP制作の発注前に、制作内容の打ち合わせを30分行います"},
+    ]
+    prompt = fit.build_judgement_prompt(synthetic)
+    assert "recruitment_or_selection_process" in prompt
+    for item in synthetic:
+        assert item["posting_id"] in prompt
+    # Verdict plumbing with a fake judge: only the judge's decision, not this test, classifies text.
+    runner = lambda text, directory: {"judgements": [
+        {"posting_id": "seller-test", "workable": False, "reason_code": "recruitment_or_selection_process", "quote": "適性テストを受け"},
+        {"posting_id": "deliverable", "workable": True, "reason_code": None, "quote": None},
+        {"posting_id": "buyer-hiring", "workable": False, "reason_code": "recruitment_or_selection_process", "quote": "一次面接を代行"},
+        {"posting_id": "job-interview-as-call", "workable": False, "reason_code": "recruitment_or_selection_process", "quote": "採用するか決める面接"},
+        {"posting_id": "sales-call", "workable": True, "reason_code": None, "quote": None}]}
+    out = fit.judge(synthetic, evidence_dir=Path("/tmp/wf-evidence"), runner=runner)
+    assert out["deliverable"] is None and out["sales-call"] is None
+    assert out["job-interview-as-call"] is not None
+    assert "A job, hiring or selection interview is this class" in cls
+    assert out["seller-test"][0] == out["buyer-hiring"][0] == "recruitment_or_selection_process"
+
+
+def load_fit_for_semantics():
+    return load()._load("work_fit_semantics_test", ROOT / "skills/_shared/marketplace-core/scripts/work_fit.py")
+
+
+def test_work_fit_refusal_writes_one_durable_blocker_without_buyer_text(tmp_path):
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    item = {**funded(), "buyer_context": "SECRET BUYER TEXT"}
+    adapter._record_work_fit_blocker(item, "refused:recruitment_or_selection_process")
+    path = tmp_path / "work-fit-blockers" / "63570481.json"
+    first = path.read_text(encoding="utf-8")
+    adapter._record_work_fit_blocker(item, "refused:recruitment_or_selection_process")
+    assert path.read_text(encoding="utf-8") == first
+    assert "SECRET BUYER TEXT" not in first
+    adapter._record_work_fit_blocker(item, "workable")
+    assert json.loads(first)["verdict"] == "refused:recruitment_or_selection_process"
