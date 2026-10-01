@@ -78,3 +78,57 @@ def test_account_lock_timeout_raises_without_waiting(tmp_path):
 
     assert attempts
     assert attempts[0] & fcntl.LOCK_NB
+
+
+def test_ineligible_application_stops_before_claim_or_provider_submit(tmp_path):
+    module = load()
+    submitted = []
+    result = module.run_transaction(
+        platform="crowdworks",
+        opportunity={"external_id": "13435160", "buyer_external_id": "buyer-1"},
+        proposal_text="対応できます。",
+        proposed_amount_minor=2000,
+        delivery_due_on="2026-10-08",
+        state_path=tmp_path / "application.json",
+        account_ready=lambda: True,
+        eligibility_check=lambda _opportunity: {
+            "status": "ineligible", "reason": "provider_reapply_cooldown",
+        },
+        submitter=lambda *args: submitted.append(args) or {"proposal_id": "proposal-1"},
+        readback=lambda *_args: {},
+        ledger_writer=lambda _receipt: None,
+        now=lambda: "2026-09-09T09:00:00Z",
+    )
+
+    assert result.ok is True
+    assert result.submitted is False
+    assert result.reason == "provider_reapply_cooldown"
+    assert submitted == []
+    assert not (tmp_path / "application.json").exists()
+
+
+def test_unknown_eligibility_stops_before_provider_submit(tmp_path):
+    module = load()
+    submitted = []
+    result = module.run_transaction(
+        platform="crowdworks",
+        opportunity={"external_id": "13435160", "buyer_external_id": "buyer-1"},
+        proposal_text="対応できます。",
+        proposed_amount_minor=2000,
+        delivery_due_on="2026-10-08",
+        state_path=tmp_path / "application.json",
+        account_ready=lambda: True,
+        eligibility_check=lambda _opportunity: {
+            "status": "unknown", "reason": "eligibility_unknown",
+        },
+        submitter=lambda *args: submitted.append(args) or {"proposal_id": "proposal-1"},
+        readback=lambda *_args: {},
+        ledger_writer=lambda _receipt: None,
+        now=lambda: "2026-09-09T09:00:00Z",
+    )
+
+    assert result.ok is False
+    assert result.error == "eligibility_unknown"
+    assert result.reason == "eligibility_unknown"
+    assert submitted == []
+    assert not (tmp_path / "application.json").exists()

@@ -430,6 +430,37 @@ def _reconcile_pending(
     )
 
 
+def _eligibility_result(
+    check: Callable[[Mapping[str, object]], Mapping[str, object]],
+    opportunity: Mapping[str, object],
+    project_id: str,
+) -> TickResult | None:
+    try:
+        decision = check(opportunity)
+    except Exception as error:
+        return TickResult(
+            ok=False, error="eligibility_unknown", reason=type(error).__name__,
+            project_id=project_id,
+        )
+    if not isinstance(decision, Mapping):
+        return TickResult(ok=False, error="eligibility_unknown", reason="decision_invalid",
+                          project_id=project_id)
+    status = decision.get("status")
+    reason = decision.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        return TickResult(ok=False, error="eligibility_unknown", reason="reason_invalid",
+                          project_id=project_id)
+    if status == "eligible":
+        return None
+    if status == "ineligible":
+        return TickResult(ok=True, reason=reason.strip(), project_id=project_id)
+    if status == "unknown":
+        return TickResult(ok=False, error="eligibility_unknown", reason=reason.strip(),
+                          project_id=project_id)
+    return TickResult(ok=False, error="eligibility_unknown", reason="status_invalid",
+                      project_id=project_id)
+
+
 def run_transaction(
     *,
     platform: str,
@@ -445,6 +476,7 @@ def run_transaction(
     now: Callable[[], object],
     pricing_mode: str = "fixed",
     weekly_limit_hours: Optional[int] = None,
+    eligibility_check: Optional[Callable[[Mapping[str, object]], Mapping[str, object]]] = None,
 ) -> TickResult:
     if not isinstance(platform, str) or _PLATFORM_RE.fullmatch(platform) is None:
         raise ValueError("invalid_platform")
@@ -471,6 +503,11 @@ def run_transaction(
             pending_entry = pending.get(marker)
             if marker in claims and pending_entry is None:
                 return TickResult(ok=True, reason="duplicate_project", project_id=project_id)
+
+            if eligibility_check is not None:
+                eligibility = _eligibility_result(eligibility_check, opportunity, project_id)
+                if eligibility is not None:
+                    return eligibility
 
             submitted_now = False
             if marker not in claims:
