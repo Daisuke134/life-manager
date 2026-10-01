@@ -2837,6 +2837,28 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-taskmarket-ledger"
     },
+    "taskmarket-paid-executor": {
+      "adapter": "exec",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "domain": "earn",
+      "effect_class": "money",
+      "entrypoint": "skills/earn/taskmarket/scripts/paid-owner",
+      "label": "ai.anicca.taskmarket-paid-executor",
+      "log_root": "~/.local/state/life-manager/taskmarket/paid/logs",
+      "priority": "critical_paid",
+      "provider_route": "deterministic",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "state_root": "~/.local/state/life-manager/taskmarket/paid"
+    },
     "life-manager-tiktok-metrics": {
       "reconcile_queued_release": true,
       "priority": "revenue",
