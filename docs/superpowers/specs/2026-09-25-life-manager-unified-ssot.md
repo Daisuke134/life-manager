@@ -2360,3 +2360,15 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 5b loaded reconcilerの自然StartInterval wakeをread-only観測する。
 2. 5b fleet applyを`status=ok`または公式readback付きpartialとして記録し、未適用ownerを列挙する。`effect_unknown`の手動apply/restart/retryはしない。
 3. fleet/diskが安定した後に、PromptBase/Writer→Capafy→Connector/Mobile→Fundraiser/Affiliate→marketplace→Job Hunter→Self-Build→Investment→Agent Economy→CFO→cloud/self-fundingを続行する。
+
+### 33. 5b fleet applyのbounded partial境界（2026-10-02 00:42 JST）
+
+- 5b reconcilerの自然StartInterval wakeはloaded SHA/argv 5bで開始した。`fleet-apply-owners.jsonl`には同SHAのowner readbackが追加され、先頭のeffect-free control owner `aa-release-reconciler-handoff`は`reason=current`、`article-daily`は`changed=1 / rc=0 / 63s`で5bのProgramArgumentsへ更新された。
+- しかしbounded `lm-loop apply`（120秒）がowner処理途中で終端し、`fleet-apply-state.json`はまだ2dの`status=skip / changed=65 / skipped=16 / errors=2 / production apply is already owned`のままである。5bのfleet summary、all-owner loaded SHA/argv、`status=ok`または公式readback付きpartialはまだ無い。これは一部target applyの証拠であり、fleet収束とは数えない。
+- 5b watcherはnatural `status=pass / exit_code=0`、helper receiptは既に`status=ok`だが、fleet applyの未終端を理由にPromptBase/Writer・Capafyのprovider effectを再送しない。disk freeは約7GB台で、10GB安定二回readbackも未達である。
+
+#### 33時点のcursor
+
+1. 次の5b natural retryのfleet state・owner log終端をread-onlyで取得する。
+2. 5b target owner loaded SHA/argv、admission queue、disk free二回安定を揃える。`effect_unknown`のmanual apply/restart/retryは禁止。
+3. `status=ok`またはreadback付きpartialの後に、PromptBase/Writer→Capafy→named loop→CFOへ進む。
