@@ -15,10 +15,78 @@ function decimalText(value) {
   const fraction = String(amount % (10n ** 18n)).padStart(18, "0").replace(/0+$/, "");
   return `${negative ? "-" : ""}${amount / (10n ** 18n)}${fraction ? `.${fraction}` : ""}`;
 }
-function renderResultSummary(table) {
-  if (!table || !Array.isArray(table.rows) || !/^\d{4}-\d{2}-\d{2}$/.test(table.reporting_date)) {
+function economicField(scope, field) {
+  if (!scope || scope.status !== "verified" || !scope.currencies || typeof scope.currencies !== "object") return null;
+  const entries = [];
+  for (const [currency, value] of Object.entries(scope.currencies).sort(([a], [b]) => a.localeCompare(b))) {
+    const amount = value && typeof value === "object" ? value[field] : value;
+    if (amount === null || amount === undefined) return null;
+    if (!/^[A-Z][A-Z0-9_]{2,19}$/.test(currency)) throw new Error("cfo_currency_invalid");
+    entries.push(`${currency} ${decimalText(decimalUnits(amount))}`);
+  }
+  return entries.length ? entries.join(" / ") : null;
+}
+function economicLoops(projection, window) {
+  return projection?.[window]?.loops && typeof projection[window].loops === "object"
+    ? projection[window].loops : {};
+}
+function renderEconomicSummary(table, projection) {
+  if (!projection || !projection.historical || !projection.trailing || !projection.mrr || !projection.runway) {
     throw new Error("cfo_result_table_invalid");
   }
+  const unknown = new Set();
+  for (const window of ["historical", "trailing"]) {
+    for (const [loopId, scope] of Object.entries(economicLoops(projection, window))) {
+      if (!["verified", "zero"].includes(scope?.status)) unknown.add(loopId);
+    }
+  }
+  const historicalRevenue = economicField(projection.historical.company, "settled_external_revenue");
+  const trailingRevenue = economicField(projection.trailing.company, "settled_external_revenue");
+  const historicalNet = economicField(projection.historical.company, "net");
+  const trailingNet = economicField(projection.trailing.company, "net");
+  const trailingCost = economicField(projection.trailing.company, "total_cost");
+  const mrr = economicField(projection.mrr.company, "monthly");
+  const runway = [];
+  if (["verified", "positive_cashflow"].includes(projection.runway.status) && projection.runway.currencies) {
+    for (const [currency, value] of Object.entries(projection.runway.currencies).sort(([a], [b]) => a.localeCompare(b))) {
+      if (!value || !["verified", "positive_cashflow"].includes(value.status)) continue;
+      if (value.runway_days === null || value.runway_days === undefined) runway.push(`${currency} positive_cashflow`);
+      else runway.push(`${currency} ${decimalText(decimalUnits(value.runway_days))} days`);
+    }
+  }
+  const lines = [
+    `Life Manager ${table.reporting_date} (${table.timezone || "Asia/Tokyo"})`,
+    `snapshot_at: ${projection.snapshot_at || "未確認"}`,
+    `trailing_start: ${projection.trailing_start || "未確認"}`,
+    `historical revenue: ${historicalRevenue || "未確認"}`,
+    `historical cost-complete net: ${historicalNet || "未確認"}`,
+    `trailing revenue: ${trailingRevenue || "未確認"}`,
+    `trailing cost-complete cost: ${trailingCost || "未確認"}`,
+    `trailing cost-complete net: ${trailingNet || "未確認"}`,
+    `MRR: ${mrr || "未確認"}`,
+    `runway: ${runway.join(" / ") || "未確認"}`,
+    "銀行への入金: 未確認",
+  ];
+  for (const window of ["historical", "trailing"]) {
+    for (const [loopId, scope] of Object.entries(economicLoops(projection, window))) {
+      if (scope?.status === "unknown" && Array.isArray(scope.coverage_gaps)) {
+        for (const gap of scope.coverage_gaps) unknown.add(`${loopId}(${gap.reason || "gap"})`);
+      }
+    }
+  }
+  if (unknown.size) lines.push(`未確認: ${[...unknown].join(", ")}`);
+  for (const duplicate of projection.duplicate_receipts || []) {
+    lines.push(`duplicate_receipts: ${duplicate.provider}/${duplicate.receipt_id}`);
+  }
+  lines.push("unknownは0にせず、未確認として保持。売上は銀行入金の証拠ではありません。");
+  return lines.join("\n");
+}
+function renderResultSummary(table) {
+  if (!table || !/^\d{4}-\d{2}-\d{2}$/.test(table.reporting_date)) {
+    throw new Error("cfo_result_table_invalid");
+  }
+  if (table.economic_attribution) return renderEconomicSummary(table, table.economic_attribution);
+  if (!Array.isArray(table.rows)) throw new Error("cfo_result_table_invalid");
   const totals = new Map();
   const known = [];
   const unknown = [];

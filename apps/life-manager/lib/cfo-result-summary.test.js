@@ -58,3 +58,39 @@ test("an empty API usage stream never proves zero actual spend", () => {
   assert.match(text, /今日の確認済み支出\(小計\): 未確認 \| 差引: 未確認/);
   assert.doesNotMatch(text, /支出: 0/);
 });
+
+test("economic attribution summary keeps historical and trailing facts, MRR, runway, and gaps", () => {
+  const verified = {
+    status: "verified", currencies: { USD: {
+      status: "verified", unknown_categories: [], settled_external_revenue: "5",
+      refund: "1", provider_fee: "1", model_cost: "1", tool_cost: "1",
+      browser_cost: "1", infra_cost: "1", payment_fee: "1",
+      other_measured_cost: "1", total_cost: "7", net: "-3",
+    }}, coverage_gaps: [], excluded: [],
+  };
+  const unknown = { status: "unknown", currencies: {}, coverage_gaps: [
+    { product_loop_id: "writer", reason: "missing_category" },
+  ], excluded: [] };
+  const projection = {
+    snapshot_at: "2026-10-01T00:00:00Z", trailing_start: "2026-09-24T00:00:00Z",
+    duplicate_receipts: [{ provider: "stripe", receipt_id: "shared:1" }],
+    historical: { loops: { capafy: verified, writer: unknown }, company: verified },
+    trailing: { loops: { capafy: verified, writer: unknown }, company: verified },
+    mrr: { company: { status: "verified", currencies: { USD: "30" }, reasons: [], coverage_gaps: [] },
+      loops: { capafy: { status: "verified", currencies: { USD: "30" }, reasons: [], coverage_gaps: [] } } },
+    runway: { status: "verified", currencies: { USD: {
+      status: "verified", liquid_balance: "100", net_cash_burn: "3", window_days: "7",
+      runway_days: "233.333333333333333333",
+    }}, reasons: [] },
+  };
+  const text = renderResultSummary({
+    reporting_date: "2026-10-01", timezone: "Asia/Tokyo", economic_attribution: projection,
+  });
+  assert.match(text, /historical/);
+  assert.match(text, /trailing/);
+  assert.match(text, /MRR: USD 30/);
+  assert.match(text, /runway: USD 233\.333333333333333333 days/);
+  assert.match(text, /duplicate_receipts: stripe\/shared:1/);
+  assert.match(text, /未確認: writer/);
+  assert.doesNotMatch(text, /writer: 0/);
+});

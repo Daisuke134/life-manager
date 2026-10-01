@@ -47,3 +47,40 @@ test("wrong-day and broken source collection never send", async t => {
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z", collect: async () => ({ reporting_date: "2026-09-29" }) }), /date_mismatch/);
   assert.equal(messages.length, 0);
 });
+
+test("same-period replay is quiet and never invokes the provider twice", async t => {
+  const { options, messages } = setup(t);
+  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "sent");
+  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "quiet");
+  await assert.rejects(
+    runResultCfo({ ...options, subjectId: "other-owner", now: "2026-09-30T12:00:00Z" }),
+    /subject_changed/,
+  );
+  assert.equal(messages.length, 1);
+});
+
+test("sent state rejects a different tenant in the next period", async t => {
+  const { options, messages } = setup(t);
+  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "sent");
+  await assert.rejects(
+    runResultCfo({ ...options, subjectId: "other-owner", now: "2026-09-30T13:00:00Z" }),
+    /subject_changed/,
+  );
+  assert.equal(messages.length, 1);
+});
+
+test("pending delivery is bound to subjectId and rejects a different tenant", async t => {
+  const { options, messages } = setup(t);
+  await assert.rejects(
+    runResultCfo({ ...options, notify: async input => {
+      messages.push(input);
+      return { delivery: "pending" };
+    }, now: "2026-09-30T12:00:00Z" }),
+    /receipt_missing/,
+  );
+  await assert.rejects(
+    runResultCfo({ ...options, subjectId: "other-owner", now: "2026-09-30T13:00:00Z" }),
+    /subject_changed/,
+  );
+  assert.equal(messages.length, 1);
+});
