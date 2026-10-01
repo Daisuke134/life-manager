@@ -146,6 +146,42 @@ def test_contract_action_requires_one_official_proposed_control_and_fingerprints
     assert ambiguous._contract_action("thread-1") is None
 
 
+def test_contract_termination_is_a_shared_human_decision_and_never_a_click():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "accepted",
+    }}
+    adapter.conversations = {"thread-1": [{
+        "event_id": "buyer-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-24T11:28:00+09:00",
+        "body": "再応募は前回の応募から6ヶ月以上経過してからお願いします。",
+        "links": ["https://crowdworks.jp/contracts/63570481"],
+    }]}
+    adapter.page = _Page({
+        'a[href^="/contract_termination_requests/"][href$="/agree"]': _Locator(
+            action="/contract_termination_requests/1427391/agree"
+        ),
+        'form[action^="/contract_termination_requests/"][action$="/reject"]': _Locator(),
+        "body": _Locator(text=(
+            "この契約は契約途中終了リクエストが送信されています。"
+            "契約途中終了に同意しますか？同意する同意しない"
+            "リクエスト送信から1週間が経過しても同意または拒否がされない場合"
+        )),
+    })
+    adapter._open_contract_page = lambda _url: None
+
+    action = adapter._contract_termination_action("thread-1", adapter.conversations["thread-1"])
+
+    assert action["action"] == "human"
+    assert action["reason"] == "contract_termination_decision_required"
+    assert action["handoff"]["url"] == "https://crowdworks.jp/contracts/63570481"
+    assert action["handoff"]["deadline"] == "期限不明（公式画面で期限を取得できず）"
+    assert action["remaining_work"] == [
+        "公式契約画面で契約途中終了の同意または拒否を一度だけ判断する",
+        "判断後に契約状態とprovider receiptを公式readbackする",
+    ]
+
+
 def test_contract_mutation_rejects_changed_terms_before_click():
     adapter, trigger, _, _ = _contract_adapter()
     intent = {"action": "accept_contract", "thread_id": "thread-1",

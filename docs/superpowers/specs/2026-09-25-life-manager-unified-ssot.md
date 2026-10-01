@@ -2012,7 +2012,7 @@ flowchart LR
 **このincidentのatomic TODO（実行順）**
 
 1. **[ ] 期限判断を安全に閉じる:** 契約ID`63570481`について、契約成果物・発注者の明示理由・プラットフォーム規約を照合し、`同意`または`拒否`の方針を決める。外部ボタンは不可逆な契約状態変更なので、方針確定と明示承認後に一度だけ実行し、公式readback（状態、時刻、receipt、評価影響）を同一occurrenceへ保存する。今回の検証では未実行である。
-2. **[ ] 期限付きcontract-termination detectorを共通kernelへ追加:** inbox／契約詳細から`request_id`、`contract_id`、`requested_at`、`due_at`、`current_state`、`agree_url`、`reject_flow`、`client_reason`を構造化し、期限順にreply queueへ入れる。期限が近い案件を通常の応募・Paidより先に検知し、effect unknown時は再送せずfenceする。
+2. **[~] 期限付きcontract-termination detectorを共通kernelへ追加:** inbox／契約詳細から`request_id`、`contract_id`、`requested_at`、`due_at`、`current_state`、`agree_url`、`reject_flow`、`client_reason`を構造化し、期限順にreply queueへ入れる。期限が近い案件を通常の応募・Paidより先に検知し、effect unknown時は再送せずfenceする。共有正規化・期限分類とCrowdWorksの読み取り専用検出は実装済み、reply queueへの優先投入と`due_at`公式readbackは未完了。
 3. **[ ] 再応募適格性を応募前gateにする:** providerごとの発注者／企業ID、案件ID、過去応募receipt、拒否・終了履歴、providerの再応募期間（CrowdWorksの6か月など）をdurable indexへ結合する。公式履歴が読めない時は応募せず`eligibility_unknown`にし、同じ発注者への重複応募を一件も外部送信しない。
 4. **[ ] CrowdWorks reply laneの失敗境界を直す:** `entrypoint_exit_1`のexact input／stack／provider page stateを一occurrenceずつ記録し、期限通知・通常返信・契約提案を別actionとしてfocused test→natural run→公式thread readbackで閉じる。`provider_receipt_id`なしの`pass`を許さない。
 5. **[ ] release driftを解消する:** `crowdworks-revenue-application`の自然terminal後、全CrowdWorks revenue laneを同一main由来immutable releaseへtarget applyし、loaded SHA、argv/env、identity lease、自然terminal、rollback receiptを確認する。loaded-running中の強制restart、旧occurrenceの再送はしない。
@@ -2021,6 +2021,13 @@ flowchart LR
 8. **[ ] self-healing／observabilityを完了する:** 全wakeに`run_id`、`owner_id`、`occurrence_id`、`release_sha`、phase、failure_layer、error_class、next_action、evidence_refs、`provider_receipt_id`、`official_readback_ref`を保存し、`deadline_missed`、`eligibility_unknown`、`duplicate_prevented`、`effect_unknown`をCLIのhealth projectionとCFO通知へ結合する。bounded retryはpre-effectだけ、外部効果不明はfence保持、反復失敗はdead-letterへ送る。
 
 このincidentを閉じるまで、CrowdWorksを「完全稼働」「信頼回復」「収益化済み」と報告しない。現在はprofile／browser到達はPASS、契約終了の公式readbackは取得済み、外部返答・provider receipt・payoutは未完了である。
+
+### Contract termination detectorの実装証拠（2026-10-01 JST）
+
+- `skills/_shared/marketplace-core/scripts/contract_deadline.py` を追加し、provider非依存の`ContractTermination`、RFC3339の正規化、`overdue／urgent／upcoming／unknown`分類を実装した。期限不明は`unknown`のまま保持し、同意／拒否の判断フィールドは持たない。
+- `skills/earn/crowdworks/scripts/reply_adapter.py` は契約リンクを一意に絞り、公式契約画面の終了request、`request_id=1427391`、`contract_id=63570481`、同意URL、拒否フロー、発注者理由を読み取り、shared reply kernelへ`human`待機handoffを返す。クリック・送信は行わない。
+- 公式画面には期限日時が露出しなかったため、`due_at=null`／`deadline_status=unknown`を保存した。メールや推測で期限を補完せず、期限の公式readbackを次の作業へ残す。
+- 検証: detector＋CrowdWorks reply focused `41 passed`、shared reply kernelを含む`73 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`（registry 176／mapped 103）。実環境の公式画面でも同じhandoffをread-onlyで取得した。
 
 ### Contract Work Factoryの共有境界と拡張計画（2026-10-01 09:40 JST）
 
@@ -2040,6 +2047,7 @@ life-manager/
 │   │   │   ├── paid_kernel.py             # funded→作業→納品→効果fence
 │   │   │   ├── ledger.py                  # occurrence・receiptのdurable台帳
 │   │   │   ├── contracts.py               # lane/effect/receipt契約
+│   │   │   ├── contract_deadline.py        # 契約終了期限の共通正規化・分類
 │   │   │   ├── platform_enrollment.py     # Meta Loopの昇格gate
 │   │   │   └── telegram_outbox.py         # 通知dedupe・retry・fence
 │   │   └── schemas/                        # opportunity・payment・eventの共通schema
@@ -2109,7 +2117,7 @@ flowchart LR
 #### Contract Work Factoryの残TODO（この節を拡張順の正本とする）
 
 1. **[ ] CrowdWorks期限案件を閉じる:** 契約ID`63570481`の同意／拒否方針を確定し、外部操作は一度だけ実行して公式readbackを保存する。
-2. **[ ] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。
+2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類とCrowdWorks検出は完了、schema永続化・期限優先queue・CLI health projectionは残る。
 3. **[ ] CrowdWorks laneを修正:** `entrypoint_exit_1`、release drift、receiptなし`pass`を直し、同一immutable releaseで自然run→公式readback→replay-zeroを閉じる。
 4. **[ ] Adapter conformance gate:** 既存Coconala/Lancers/Mercorと新platformが4 surfaceだけを実装し、shared kernelのduplicate・reply・ledger・P&Lを再実装していないことをcontract testで検証する。
 5. **[ ] Provider receipt chain:** 各platformでfunded contract、納品、payout、fee、costを同一occurrenceへ結合し、positive net P&Lが出る案件だけを拡大する。

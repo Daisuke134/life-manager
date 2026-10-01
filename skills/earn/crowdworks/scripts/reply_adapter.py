@@ -35,6 +35,7 @@ grounding_module = _load("crowdworks_reply_grounding", SHARED / "reply_grounding
 composer = _load("crowdworks_reply_composer", SHARED / "reply_composer.py")
 profile_module = _load("crowdworks_reply_profile", HERE / "profile.py")
 google_form = _load("crowdworks_reply_google_form", HERE / "google_form.py")
+contract_deadline = _load("crowdworks_contract_deadline", SHARED / "contract_deadline.py")
 
 
 def _now() -> str:
@@ -169,6 +170,18 @@ class CrowdWorksReplyAdapter:
         if self._provider_route(self.page.url) is None:
             raise RuntimeError("crowdworks_thread_unavailable")
 
+    def _open_contract_page(self, url: str) -> None:
+        self._open()
+        try:
+            self.page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+        except PlaywrightTimeoutError:
+            self._reset_page()
+            self.page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+        self.page.wait_for_timeout(1000)
+        route = self._provider_route(self.page.url)
+        if route is None or route[0] != "contracts":
+            raise RuntimeError("crowdworks_contract_unavailable")
+
     def _detail(self, thread_id: str) -> list[dict[str, Any]]:
         self._open_thread_page(thread_id)
         if self.page.locator(
@@ -227,7 +240,11 @@ class CrowdWorksReplyAdapter:
                     "auto_accept_official_proposals": True,
                     "post_contract_owner": "paid",
                 }}
-        required_action = self._contract_action(thread_id) or self._external_form_action(thread_id)
+        termination_action = self._contract_termination_action(thread_id, conversation)
+        if termination_action is not None:
+            result["contract_termination"] = termination_action["contract_termination"]
+        required_action = (termination_action or self._contract_action(thread_id)
+                           or self._external_form_action(thread_id))
         if required_action is not None:
             result["required_action"] = required_action
         return result
@@ -256,6 +273,81 @@ class CrowdWorksReplyAdapter:
 
     AWAITING_CLIENT = ("まだクライアントが契約に同意していません",
                        "クライアントが契約に同意すると契約成立")
+
+    def _contract_termination_action(
+        self, thread_id: str, conversation: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        contract_ids = sorted({
+            route[1]
+            for message in conversation
+            for link in message.get("links", [])
+            if isinstance(link, str)
+            for route in [self._provider_route(link)]
+            if route is not None and route[0] == "contracts"
+        })
+        if len(contract_ids) != 1:
+            return None
+        contract_id = contract_ids[0]
+        contract_url = f"https://crowdworks.jp/contracts/{contract_id}"
+        self._open_contract_page(contract_url)
+        body = self.page.locator("body").inner_text()
+        if "契約途中終了リクエスト" not in body:
+            return None
+        agree = self.page.locator(
+            'a[href^="/contract_termination_requests/"][href$="/agree"]'
+        )
+        if agree.count() != 1:
+            raise RuntimeError("crowdworks_termination_request_invalid")
+        href = str(agree.get_attribute("href") or "")
+        match = re.fullmatch(r"/contract_termination_requests/(\d+)/agree", href)
+        if match is None:
+            raise RuntimeError("crowdworks_termination_request_invalid")
+        reject = self.page.locator(
+            'form[action^="/contract_termination_requests/"][action$="/reject"]'
+        )
+        reject_flow = (
+            "official_confirmation_dialog"
+            if reject.count() == 1 and "同意しない" in body
+            else "official_reject_flow_unavailable"
+        )
+        reason_message = next(
+            (message for message in reversed(conversation)
+             if message.get("role") == "buyer" and any(
+                 marker in str(message.get("body") or "")
+                 for marker in ("再応募", "6ヶ月", "6か月")
+             )),
+            None,
+        )
+        requested_at = reason_message.get("sent_at") if reason_message else None
+        observed = contract_deadline.normalize_contract_termination({
+            "platform": "crowdworks",
+            "request_id": match.group(1),
+            "contract_id": contract_id,
+            "requested_at": requested_at,
+            "due_at": None,
+            "current_state": "requested",
+            "agree_url": f"https://crowdworks.jp{href}",
+            "reject_flow": reject_flow,
+            "client_reason": str(reason_message.get("body") or "")[:1000]
+            if reason_message else "",
+        })
+        deadline_status = contract_deadline.classify_deadline(observed)
+        return {
+            "action": "human",
+            "reason": "contract_termination_decision_required",
+            "remaining_work": [
+                "公式契約画面で契約途中終了の同意または拒否を一度だけ判断する",
+                "判断後に契約状態とprovider receiptを公式readbackする",
+            ],
+            "handoff": {
+                "title": f"CrowdWorks契約途中終了リクエスト {contract_id}",
+                "url": contract_url,
+                "deadline": observed.due_at or "期限不明（公式画面で期限を取得できず）",
+            },
+            "contract_termination": {
+                **observed.to_dict(), "deadline_status": deadline_status,
+            },
+        }
 
     def _refresh_post_contract_ownership(self, thread_id: str) -> bool:
         if thread_id not in self.rows:
