@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 
 
@@ -293,7 +293,21 @@ def validate_record(record: dict) -> dict:
 
 
 def _money_text(value: Decimal) -> str:
-    return format(value.normalize(), "f") if value else "0"
+    if not value:
+        return "0"
+    text = format(value, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def _exact_add(*numbers: Decimal) -> Decimal:
+    if not numbers:
+        return Decimal("0")
+    min_exponent = min(number.as_tuple().exponent for number in numbers)
+    max_adjusted = max(number.adjusted() if number else 0 for number in numbers)
+    precision = max(1, max_adjusted - min_exponent + 1) + len(numbers)
+    with localcontext() as context:
+        context.prec = precision
+        return sum(numbers, Decimal("0"))
 
 
 def _coverage(rows: list[dict], loop_id: str, projection: str, start: str | None, end: str,
@@ -352,7 +366,7 @@ def _summarize(receipts: list[dict], gaps: list[dict]) -> dict:
                 })
                 continue
             bucket = totals.setdefault(receipt["currency"], {name: Decimal(0) for name in COUNTED_CATEGORIES})
-            bucket[category] += Decimal(component["amount"])
+            bucket[category] = _exact_add(bucket[category], Decimal(component["amount"]))
     currencies = {}
     unknown_categories = set()
     if any("category" not in gap for gap in gaps):
@@ -360,7 +374,7 @@ def _summarize(receipts: list[dict], gaps: list[dict]) -> dict:
     else:
         unknown_categories.update(gap["category"] for gap in gaps)
     for currency, bucket in sorted(totals.items()):
-        total_cost = sum((bucket[name] for name in COST_CATEGORIES), Decimal(0))
+        total_cost = _exact_add(*(bucket[name] for name in COST_CATEGORIES))
         values = {
             name: None if name in unknown_categories else _money_text(bucket[name])
             for name in COUNTED_CATEGORIES
@@ -370,7 +384,9 @@ def _summarize(receipts: list[dict], gaps: list[dict]) -> dict:
         values["total_cost"] = (None if unknown_categories & set(COST_CATEGORIES)
                                 else _money_text(total_cost))
         values["net"] = (None if unknown_categories
-                         else _money_text(bucket[REVENUE] - bucket[REFUND] - total_cost))
+                         else _money_text(_exact_add(
+                             bucket[REVENUE], -bucket[REFUND], -total_cost,
+                         )))
         currencies[currency] = values
     all_gaps = [*gaps, *({"source_id": "receipt", "reason": "unverified_receipt", "receipt_id": value}
                          for value in sorted(set(unverified)))]

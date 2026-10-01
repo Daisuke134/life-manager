@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "provider": "alpaca",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-01T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "finality": "finalized",
+  "account_id": "alpaca-account-001",
+  "outcomes": [
+    {
+      "receipt_type": "outcome",
+      "effect_id": "effect-buy-001",
+      "receipt_id": "alpaca:activity:buy-001",
+      "mode": "live",
+      "paper": false,
+      "finalized": true,
+      "status": "filled",
+      "outcome": "broker_reconciled",
+      "side": "buy",
+      "symbol": "SPY",
+      "occurred_at": "2026-09-28T13:00:00Z",
+      "settled_at": "2026-09-28T13:00:01Z",
+      "fee_usd": "0.10",
+      "slippage_usd": "0.02",
+      "broker": {"id": "buy-001", "status": "filled"},
+      "evidence_refs": ["lm-investment://evidence/alpaca/activity/buy-001"]
+    },
+    {
+      "receipt_type": "outcome",
+      "effect_id": "effect-sell-001",
+      "receipt_id": "alpaca:activity:sell-001",
+      "mode": "live",
+      "paper": false,
+      "finalized": true,
+      "status": "filled",
+      "outcome": "broker_reconciled",
+      "side": "sell",
+      "symbol": "SPY",
+      "occurred_at": "2026-09-29T13:00:00Z",
+      "settled_at": "2026-09-29T13:00:01Z",
+      "realized_pnl_usd": "5.00",
+      "pnl_basis": "net_after_fee_slippage",
+      "fee_usd": "0.15",
+      "slippage_usd": "0.03",
+      "broker": {"id": "sell-001", "status": "filled"},
+      "evidence_refs": ["lm-investment://evidence/alpaca/activity/sell-001"]
+    },
+    {
+      "receipt_type": "outcome",
+      "effect_id": "effect-sell-002",
+      "receipt_id": "alpaca:activity:sell-002",
+      "mode": "live",
+      "paper": false,
+      "finalized": true,
+      "status": "filled",
+      "outcome": "broker_reconciled",
+      "side": "sell",
+      "symbol": "QQQ",
+      "occurred_at": "2026-09-30T13:00:00Z",
+      "settled_at": "2026-09-30T13:00:01Z",
+      "realized_pnl_usd": "-1.50",
+      "pnl_basis": "net_after_fee_slippage",
+      "fee_usd": "0",
+      "slippage_usd": "0.01",
+      "broker": {"id": "sell-002", "status": "filled"},
+      "evidence_refs": ["lm-investment://evidence/alpaca/activity/sell-002"]
+    }
+  ],
+  "cash_flows": [
+    {
+      "receipt_id": "alpaca:cash:owner-deposit-001",
+      "classification": "owner_deposit",
+      "amount_usd": "50",
+      "status": "settled",
+      "finalized": true,
+      "occurred_at": "2026-09-01T00:00:00Z",
+      "settled_at": "2026-09-01T00:00:01Z"
+    }
+  ],
+  "balance": {
+    "snapshot_id": "alpaca-account-readback:2026-10-01T00:00:00Z",
+    "account_id": "alpaca-account-001",
+    "currency": "USD",
+    "amount": "104.57",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "verification_state": "verified",
+    "finalized": true,
+    "evidence_refs": ["lm-investment://evidence/alpaca/account/2026-10-01"]
+  }
+}

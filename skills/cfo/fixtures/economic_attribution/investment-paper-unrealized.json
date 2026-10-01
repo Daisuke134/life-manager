@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "provider": "alpaca",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-01T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "finality": "finalized",
+  "account_id": "alpaca-account-001",
+  "outcomes": [
+    {
+      "receipt_type": "outcome",
+      "effect_id": "effect-paper-001",
+      "receipt_id": "alpaca:paper:roundtrip-001",
+      "mode": "paper",
+      "paper": true,
+      "finalized": true,
+      "status": "filled",
+      "outcome": "broker_reconciled",
+      "side": "sell",
+      "occurred_at": "2026-09-29T13:00:00Z",
+      "settled_at": "2026-09-29T13:00:01Z",
+      "realized_pnl_usd": "20",
+      "pnl_basis": "net_after_fee_slippage",
+      "fee_usd": "1",
+      "slippage_usd": "0.50",
+      "evidence_refs": ["lm-investment://evidence/alpaca/paper/roundtrip-001"]
+    },
+    {
+      "receipt_type": "outcome",
+      "effect_id": "effect-unrealized-001",
+      "receipt_id": "alpaca:position:unrealized-001",
+      "mode": "live",
+      "paper": false,
+      "finalized": true,
+      "status": "marked",
+      "side": "hold",
+      "occurred_at": "2026-09-30T13:00:00Z",
+      "settled_at": "2026-09-30T13:00:01Z",
+      "unrealized_pnl_usd": "30",
+      "token_appreciation_usd": "7",
+      "evidence_refs": ["lm-investment://evidence/alpaca/position/unrealized-001"]
+    }
+  ],
+  "balance": {
+    "snapshot_id": "alpaca-account-readback:unverified-2026-10-01",
+    "account_id": "alpaca-account-001",
+    "currency": "USD",
+    "amount": "104.57",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "verification_state": "unverified",
+    "finalized": true,
+    "evidence_refs": ["lm-investment://evidence/alpaca/account/unverified"]
+  }
+}
