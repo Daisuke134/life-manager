@@ -35,6 +35,14 @@ if (( KERNEL_RC == 1 )) \
   KERNEL_RC=75
 fi
 
+if (( KERNEL_RC == 1 )) \
+   && grep -Eq '"error_detail"[[:space:]]*:[[:space:]]*"lancers_paid_inventory_human_verification_required"' \
+        "$PAID_OUTPUT" 2>/dev/null; then
+  # A provider human-verification challenge is a typed no-effect boundary;
+  # keep it held and let the normal retry policy observe it again.
+  KERNEL_RC=75
+fi
+
 if (( KERNEL_RC != 0 )); then
   exit "$KERNEL_RC"
 fi
