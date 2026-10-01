@@ -12,7 +12,7 @@ const { runMinimalConnectorWake } = require("../../../apps/life-manager/lib/conn
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const VALID_KANA = Object.freeze({ family: "サクラ", given: "テスト" });
 const VALID_NAME_JA = "桜 太郎";
-const BASE_ENV = Object.freeze({ CONNPASS_API_KEY: "fixture-connpass-api-key-0000", GOG_ACCOUNT: "private@example.com", DAIS_LEGAL_NAME_ROMAJI: "Dais Example", GEMINI_API_KEY: "fixture-ranking-key", GOG_KEYRING_PASSWORD: "private-keyring", LM_CONNECTOR_TELEGRAM_TARGET: "private-target", TELEGRAM_BOT_TOKEN: "fixture-telegram-token" });
+const BASE_ENV = Object.freeze({ CONNPASS_API_KEY: "test", GOG_ACCOUNT: "private@example.com", DAIS_LEGAL_NAME_ROMAJI: "Dais Example", GEMINI_API_KEY: "fixture-ranking-key", GOG_KEYRING_PASSWORD: "private-keyring", LM_CONNECTOR_TELEGRAM_TARGET: "private-target", TELEGRAM_BOT_TOKEN: "fixture-telegram-token" });
 
 function writeKanaProfile(home, value = VALID_KANA, mode = 0o600, nameJa, identity = { name: BASE_ENV.DAIS_LEGAL_NAME_ROMAJI, preferred_name: "Dais" }) {
   const file = path.join(home, ".config", "anicca", "job-search", "profile.json");
