@@ -71,6 +71,11 @@ class ReplyPlanner:
                 "reason": reason.strip(),
                 "remaining_work": [item.strip() for item in remaining],
             }
+            termination = value.get("contract_termination")
+            if termination is not None:
+                if not isinstance(termination, Mapping):
+                    raise ValueError("reply_contract_termination_invalid")
+                result["contract_termination"] = dict(termination)
             if action == "human":
                 handoff = value.get("handoff")
                 if not isinstance(handoff, Mapping):

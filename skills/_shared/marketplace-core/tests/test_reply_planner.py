@@ -112,6 +112,31 @@ def test_structured_wait_is_normalized_and_invalid_effect_is_rejected():
         raise AssertionError("empty estimate payload was accepted")
 
 
+def test_human_handoff_preserves_shared_contract_termination_facts():
+    termination = {
+        "platform": "crowdworks",
+        "request_id": "1427391",
+        "contract_id": "63570481",
+        "due_at": None,
+        "deadline_status": "unknown",
+    }
+    planner = planner_module.ReplyPlanner(lambda _context: {
+        "action": "human",
+        "reason": "contract_termination_decision_required",
+        "remaining_work": ["公式画面で一度だけ判断"],
+        "handoff": {
+            "title": "CrowdWorks契約途中終了リクエスト",
+            "url": "https://crowdworks.jp/contracts/63570481",
+            "deadline": "期限不明",
+        },
+        "contract_termination": termination,
+    })
+
+    decision = planner(row())
+
+    assert decision["contract_termination"] == termination
+
+
 def test_validated_semantic_judgement_projects_to_shared_actions():
     planner = planner_module.ReplyPlanner(lambda _context: {
         "next_action": "send_estimate",

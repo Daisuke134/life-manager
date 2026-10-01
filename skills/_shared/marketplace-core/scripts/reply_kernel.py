@@ -433,6 +433,11 @@ def _run_locked(
                  "observation": row,
                  "status": "waiting_human" if action == "human" else "waiting_external",
                  "blocker": reason, "remaining_work": remaining}
+        termination = decision.get("contract_termination")
+        if termination is not None:
+            if not isinstance(termination, Mapping):
+                raise ValueError("reply_contract_termination_invalid")
+            saved["contract_termination"] = dict(termination)
         if action == "human":
             if isinstance(decision.get("handoff"), Mapping):
                 saved["handoff"] = dict(decision["handoff"])

@@ -2025,9 +2025,10 @@ flowchart LR
 ### Contract termination detectorの実装証拠（2026-10-01 JST）
 
 - `skills/_shared/marketplace-core/scripts/contract_deadline.py` を追加し、provider非依存の`ContractTermination`、RFC3339の正規化、`overdue／urgent／upcoming／unknown`分類を実装した。期限不明は`unknown`のまま保持し、同意／拒否の判断フィールドは持たない。
-- `skills/earn/crowdworks/scripts/reply_adapter.py` は契約リンクを一意に絞り、公式契約画面の終了request、`request_id=1427391`、`contract_id=63570481`、同意URL、拒否フロー、発注者理由を読み取り、shared reply kernelへ`human`待機handoffを返す。クリック・送信は行わない。
+- `skills/earn/crowdworks/scripts/reply_adapter.py` は契約リンクを一意に絞り、公式契約画面の終了request、`request_id=1427391`、`contract_id=63570481`、同意URL、拒否フロー、発注者理由を読み取り、shared reply kernelへ`human`待機handoffを返す。providerの同意／拒否クリックや返信送信は行わない。設定済みの`human_notify`がある本番wakeでは、判断待ち通知だけがTelegramへ送られ得るため、provider外部効果と通知効果を分離して記録する。
+- `skills/_shared/marketplace-core/scripts/reply_planner.py` と`reply_kernel.py` は`contract_termination`観測をplannerで落とさず、`waiting_human` stateへ保存する。これにより`due_at=null`／`deadline_status=unknown`とrequest identityを次の公式readbackへ渡せる。
 - 公式画面には期限日時が露出しなかったため、`due_at=null`／`deadline_status=unknown`を保存した。メールや推測で期限を補完せず、期限の公式readbackを次の作業へ残す。
-- 検証: detector＋CrowdWorks reply focused `41 passed`、shared reply kernelを含む`73 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`（registry 176／mapped 103）。実環境の公式画面でも同じhandoffをread-onlyで取得した。
+- 検証: detector＋CrowdWorks reply focused `41 passed`、planner/kernelを含む`86 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`（registry 176／mapped 103）。実環境の公式画面でも同じhandoffをread-onlyで取得し、provider effectは0だった。
 
 ### Contract Work Factoryの共有境界と拡張計画（2026-10-01 09:40 JST）
 

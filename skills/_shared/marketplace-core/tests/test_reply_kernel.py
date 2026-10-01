@@ -571,6 +571,41 @@ def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_
     assert state["human_notification"]["provider_message_id"] == "tg-1"
 
 
+def test_human_contract_termination_facts_are_durable_without_provider_effect(tmp_path):
+    adapter = Adapter()
+    termination = {
+        "platform": "crowdworks",
+        "request_id": "1427391",
+        "contract_id": "63570481",
+        "due_at": None,
+        "deadline_status": "unknown",
+    }
+
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: {
+            "action": "human",
+            "reason": "contract_termination_decision_required",
+            "remaining_work": ["公式画面で一度だけ判断"],
+            "handoff": {
+                "title": "CrowdWorks契約途中終了リクエスト",
+                "url": "https://crowdworks.jp/contracts/63570481",
+                "deadline": "期限不明",
+            },
+            "contract_termination": termination,
+        },
+        state_root=tmp_path,
+        max_workers=1,
+    )
+
+    state = reply_kernel._load(next(tmp_path.glob("threads/*/state.json")))
+    assert result["pending"] == 1
+    assert result["effect"] == 0
+    assert adapter.effects == []
+    assert state["status"] == "waiting_human"
+    assert state["contract_termination"] == termination
+
+
 def test_one_thread_failure_is_isolated(tmp_path):
     adapter = Adapter([event("bad", "buyer-1"), event("good", "buyer-2")])
 
