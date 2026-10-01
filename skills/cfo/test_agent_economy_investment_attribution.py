@@ -424,6 +424,283 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
         )
         self.assertEqual((account["coverage_state"], account["reason"]), ("gap", "unverified_receipt"))
 
+    def test_agent_strict_boolean_integer_types_and_alias_conflicts_fail_closed(self):
+        cases = (
+            (
+                "x402 finalized string",
+                lambda payload: payload["x402"][0].update(finalized="false"),
+                "x402-readback",
+                "x402",
+            ),
+            (
+                "x402 finalized alias conflict",
+                lambda payload: payload["x402"][0].update(receipt={"finalized": False}),
+                "x402-readback",
+                "x402",
+            ),
+            (
+                "taskmarket selfAward string",
+                lambda payload: payload["taskmarket"][0]["task"].update(selfAward="true"),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket self_award string",
+                lambda payload: payload["taskmarket"][0]["task"].update(self_award="true"),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket self-award alias conflict",
+                lambda payload: payload["taskmarket"][0]["task"].update(
+                    selfAward=True, self_award=False,
+                ),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket awardCount bool",
+                lambda payload: payload["taskmarket"][0]["task"].update(awardCount=True),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket award_count bool",
+                lambda payload: payload["taskmarket"][0]["task"].update(award_count=False),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket award-count alias conflict",
+                lambda payload: payload["taskmarket"][0]["task"].update(
+                    awardCount=1, award_count=2,
+                ),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket transfer_count bool",
+                lambda payload: payload["taskmarket"][0]["receipt"].update(transfer_count=True),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "taskmarket transfer-count list conflict",
+                lambda payload: payload["taskmarket"][0]["receipt"].update(
+                    transfer_count=1, transfers=[{}, {}],
+                ),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+            (
+                "x402 reorg string",
+                lambda payload: payload["x402"][0].update(reorg_detected="true"),
+                "x402-readback",
+                "x402",
+            ),
+            (
+                "taskmarket reorg string",
+                lambda payload: payload["taskmarket"][0]["receipt"].update(reorg_detected="false"),
+                "taskmarket-readback",
+                "taskmarket",
+            ),
+        )
+        for label, mutate, source_id, provider in cases:
+            with self.subTest(case=label):
+                payload = fixture("agent-economy-finalized.json")
+                mutate(payload)
+                rows = self.adapt_agent(payload)
+                self.assertFalse(any(
+                    row.get("record_type") == "receipt" and row.get("provider") == provider
+                    for row in rows
+                ))
+                trailing = source_coverage(
+                    rows, "agent-economy", source_id, "trailing",
+                )
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
+    def test_root_reorg_boolean_type_and_alias_conflict_fail_closed(self):
+        cases = (
+            ("root reorg string", lambda payload: payload.update(reorg_detected="true")),
+            (
+                "root reorg alias conflict",
+                lambda payload: payload.update(
+                    reorg_detected=False, readback={"reorg_detected": True},
+                ),
+            ),
+        )
+        for label, mutate in cases:
+            with self.subTest(case=label):
+                payload = fixture("agent-economy-finalized.json")
+                mutate(payload)
+                rows = self.adapt_agent(payload)
+                self.assertFalse(receipts(rows, "agent-economy"))
+                for source_id in ("x402-readback", "taskmarket-readback"):
+                    trailing = source_coverage(
+                        rows, "agent-economy", source_id, "trailing",
+                    )
+                    self.assertEqual(
+                        (trailing["coverage_state"], trailing["reason"]),
+                        ("gap", "unverified_receipt"),
+                    )
+
+    def test_investment_boolean_types_fail_closed_on_balance_cash_flow_and_nested_paths(self):
+        cases = (
+            (
+                "cash flow finalized string",
+                lambda payload: payload["cash_flows"][0].update(
+                    finalized="false", verification_state="verified",
+                ),
+                "alpaca-orders",
+            ),
+            (
+                "cash flow reorg string",
+                lambda payload: payload["cash_flows"][0].update(reorg_detected="false"),
+                "alpaca-orders",
+            ),
+            (
+                "outcome broker finalized string",
+                lambda payload: payload["outcomes"][0]["broker"].update(finalized="false"),
+                "alpaca-orders",
+            ),
+            (
+                "outcome broker reorg string",
+                lambda payload: payload["outcomes"][0]["broker"].update(reorg_detected="false"),
+                "alpaca-orders",
+            ),
+            (
+                "balance reorg string",
+                lambda payload: payload["balance"].update(reorg_detected="false"),
+                "alpaca-account",
+            ),
+        )
+        for label, mutate, source_id in cases:
+            with self.subTest(case=label):
+                payload = fixture("investment-realized.json")
+                mutate(payload)
+                rows = self.adapt_investment(payload)
+                if source_id == "alpaca-account":
+                    self.assertFalse(any(row["record_type"] == "liquid_balance" for row in rows))
+                else:
+                    self.assertFalse(receipts(rows, "investment"))
+                self.assertEqual(
+                    source_coverage(
+                        rows, "investment", source_id,
+                        "as_of" if source_id == "alpaca-account" else "trailing",
+                    )["reason"],
+                    "unverified_receipt",
+                )
+
+        for field in ("finalized", "reorg_detected"):
+            with self.subTest(source="x402-pending", field=field):
+                payload = fixture("agent-economy-excluded.json")
+                payload["x402"][3][field] = "false"
+                rows = self.adapt_agent(payload)
+                self.assertFalse(any(
+                    row.get("record_type") == "receipt" and row.get("provider") == "x402"
+                    for row in rows
+                ))
+                self.assertEqual(
+                    source_coverage(
+                        rows, "agent-economy", "x402-readback", "trailing",
+                    )["reason"],
+                    "unverified_receipt",
+                )
+
+    def test_datetime_boundary_errors_become_readback_gaps(self):
+        boundary_values = (
+            "0001-01-01T00:00:00+14:00",
+            "9999-12-31T23:59:59-14:00",
+        )
+        for boundary in boundary_values:
+            with self.subTest(source="agent-root", boundary=boundary):
+                payload = fixture("agent-economy-finalized.json")
+                payload["observed_at"] = boundary
+                rows = self.adapt_agent(payload)
+                self.assertFalse(receipts(rows, "agent-economy"))
+                self.assertEqual(
+                    {
+                        row["reason"] for row in rows
+                        if row.get("record_type") == "coverage"
+                        and row["product_loop_id"] == "agent-economy"
+                    },
+                    {"read_failed"},
+                )
+
+            with self.subTest(source="investment-root", boundary=boundary):
+                payload = fixture("investment-realized.json")
+                payload["observed_at"] = boundary
+                rows = self.adapt_investment(payload)
+                self.assertFalse(receipts(rows, "investment"))
+                self.assertEqual(
+                    {
+                        row["reason"] for row in rows
+                        if row.get("record_type") == "coverage"
+                        and row["product_loop_id"] == "investment"
+                    },
+                    {"read_failed"},
+                )
+
+        agent_rows = (
+            (
+                "x402 occurred underflow",
+                lambda payload: payload["x402"][0].update(
+                    occurred_at="0001-01-01T00:00:00+14:00",
+                ),
+            ),
+            (
+                "x402 settled overflow",
+                lambda payload: payload["x402"][0].update(
+                    settled_at="9999-12-31T23:59:59-14:00",
+                ),
+            ),
+        )
+        for label, mutate in agent_rows:
+            with self.subTest(source="agent-row", case=label):
+                payload = fixture("agent-economy-finalized.json")
+                mutate(payload)
+                rows = self.adapt_agent(payload)
+                self.assertFalse(any(
+                    row.get("record_type") == "receipt" and row.get("provider") == "x402"
+                    for row in rows
+                ))
+                self.assertEqual(
+                    source_coverage(
+                        rows, "agent-economy", "x402-readback", "trailing",
+                    )["reason"],
+                    "unverified_receipt",
+                )
+
+        investment_rows = (
+            (
+                "outcome occurred underflow",
+                lambda payload: payload["outcomes"][0].update(
+                    occurred_at="0001-01-01T00:00:00+14:00",
+                ),
+            ),
+            (
+                "outcome settled overflow",
+                lambda payload: payload["outcomes"][0].update(
+                    settled_at="9999-12-31T23:59:59-14:00",
+                ),
+            ),
+        )
+        for label, mutate in investment_rows:
+            with self.subTest(source="investment-row", case=label):
+                payload = fixture("investment-realized.json")
+                mutate(payload)
+                rows = self.adapt_investment(payload)
+                self.assertFalse(receipts(rows, "investment"))
+                self.assertEqual(
+                    source_coverage(
+                        rows, "investment", "alpaca-orders", "trailing",
+                    )["reason"],
+                    "unverified_receipt",
+                )
+
     def test_combined_adapter_and_path_adapter_are_replay_deterministic(self):
         bundle = {
             "agent_economy": fixture("agent-economy-finalized.json"),

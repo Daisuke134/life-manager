@@ -58,18 +58,50 @@ def _first(mapping: Any, *keys: str) -> Any:
     return None
 
 
+def _strict_bool(*mappings: Any, keys: tuple[str, ...]) -> bool | None:
+    values = [
+        mapping[key]
+        for mapping in mappings
+        if isinstance(mapping, dict)
+        for key in keys
+        if key in mapping
+    ]
+    if any(type(value) is not bool for value in values):
+        raise AttributionError("unverified_receipt")
+    if values and any(value != values[0] for value in values[1:]):
+        raise AttributionError("unverified_receipt")
+    return values[0] if values else None
+
+
+def _strict_int(*mappings: Any, keys: tuple[str, ...]) -> int | None:
+    values = [
+        mapping[key]
+        for mapping in mappings
+        if isinstance(mapping, dict)
+        for key in keys
+        if key in mapping
+    ]
+    if any(type(value) is not int or isinstance(value, bool) for value in values):
+        raise AttributionError("unverified_receipt")
+    if values and any(value != values[0] for value in values[1:]):
+        raise AttributionError("unverified_receipt")
+    return values[0] if values else None
+
+
 def _instant(value: Any) -> str:
     if not isinstance(value, str) or not contract.RFC3339.fullmatch(value):
         raise AttributionError("timestamp_invalid")
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as error:
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise AttributionError("timestamp_invalid")
+        return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
+            "+00:00", "Z"
+        )
+    except AttributionError:
+        raise
+    except (ValueError, OverflowError) as error:
         raise AttributionError("timestamp_invalid") from error
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise AttributionError("timestamp_invalid")
-    return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
-        "+00:00", "Z"
-    )
 
 
 def _probe_instant(value: Any) -> str:
@@ -325,7 +357,7 @@ def _readback_meta(payload: dict[str, Any], end: str) -> tuple[str, str | None, 
 
 def _bundle_reorg_detected(payload: dict[str, Any]) -> bool:
     readback = payload.get("readback") if isinstance(payload.get("readback"), dict) else {}
-    return payload.get("reorg_detected") is True or readback.get("reorg_detected") is True
+    return _strict_bool(payload, readback, keys=("reorg_detected",)) is True
 
 
 def _row_settlement(row: dict[str, Any], root: dict[str, Any]) -> None:
@@ -333,9 +365,7 @@ def _row_settlement(row: dict[str, Any], root: dict[str, Any]) -> None:
     if not settlement:
         settlement = row.get("settlement") if isinstance(row.get("settlement"), dict) else {}
     finality = _first(row, "finality") or _first(settlement, "finality") or root.get("finality")
-    explicit_finalized = row.get("finalized")
-    if explicit_finalized is None:
-        explicit_finalized = settlement.get("finalized")
+    explicit_finalized = _strict_bool(row, settlement, root, keys=("finalized",))
     finalized = (
         explicit_finalized is not False
         and (explicit_finalized is True or finality == "finalized")
@@ -347,7 +377,7 @@ def _row_settlement(row: dict[str, Any], root: dict[str, Any]) -> None:
     ).lower()
     if not finalized or status not in SUCCESS_STATES:
         raise AttributionError("unverified_receipt")
-    if row.get("reorg_detected") is True or settlement.get("reorg_detected") is True:
+    if _strict_bool(row, settlement, keys=("reorg_detected",)) is True:
         raise AttributionError("unverified_receipt")
     block = _first(row, "block_number", "block") or _first(settlement, "block_number", "block")
     finalized_block = _first(row, "finalized_block") or _first(settlement, "finalized_block")
@@ -547,6 +577,8 @@ def _x402_row(
 ) -> tuple[dict[str, Any] | None, str | None, str | None]:
     if not isinstance(row, dict):
         raise AttributionError("row_invalid")
+    _strict_bool(row, root, keys=("finalized",))
+    _strict_bool(row, keys=("reorg_detected",))
     sale_id = _identity(_first(row, "source_sale_id", "sale_id", "id"), "source_sale_id")
     currency = _currency(_first(row, "currency", "asset"), "USDC")
     payer = _address(_first(row, "from", "payer", "external_payer"))
@@ -635,7 +667,8 @@ def _taskmarket_row(
         raise AttributionError("receipt_invalid")
     if task.get("status") != "completed":
         raise AttributionError("unverified_receipt")
-    if task.get("selfAward") is True or task.get("self_award") is True:
+    self_award = _strict_bool(task, keys=("selfAward", "self_award"))
+    if self_award is True:
         classification = "self_payment"
     else:
         classification = None
@@ -655,7 +688,8 @@ def _taskmarket_row(
     if _exact_add(payment, fee) != gross:
         raise AttributionError("amount_inconsistent")
     awards = task.get("awards")
-    if not isinstance(awards, list) or task.get("awardCount", task.get("award_count")) != len(awards):
+    award_count = _strict_int(task, keys=("awardCount", "award_count"))
+    if not isinstance(awards, list) or award_count != len(awards):
         raise AttributionError("unverified_receipt")
     matching = []
     for item in awards:
@@ -692,9 +726,11 @@ def _taskmarket_row(
         raise AttributionError("unverified_receipt")
     receipt_transfer = settlement.get("transfer") if isinstance(settlement.get("transfer"), dict) else {}
     transfers = settlement.get("transfers")
-    transfer_count = settlement.get("transfer_count")
+    transfer_count = _strict_int(row, settlement, keys=("transfer_count",))
     if transfer_count is None and isinstance(transfers, list):
         transfer_count = len(transfers)
+    elif isinstance(transfers, list) and transfer_count != len(transfers):
+        raise AttributionError("unverified_receipt")
     if transfer_count != 1:
         raise AttributionError("unverified_receipt")
     if not receipt_transfer and isinstance(transfers, list):
@@ -778,7 +814,11 @@ def adapt_agent_economy(
         ]
     del evidence_base
     evidence = f"lm-agent-economy://readback/{_digest(_digest_material(payload))}"
-    if _bundle_reorg_detected(payload):
+    try:
+        root_reorg = _bundle_reorg_detected(payload)
+    except AttributionError:
+        root_reorg = True
+    if root_reorg:
         return [
             *_failure_coverages(loop_id=AGENT_LOOP, source_id="x402-readback", end=end, start=start,
                                 reason="unverified_receipt", evidence=evidence),
@@ -900,7 +940,7 @@ def _investment_times(row: dict[str, Any], root: dict[str, Any]) -> tuple[str, s
 def _investment_finalized(row: dict[str, Any], root: dict[str, Any]) -> None:
     broker = row.get("broker") if isinstance(row.get("broker"), dict) else {}
     status = str(_first(row, "status", "outcome") or _first(broker, "status") or "").lower()
-    explicit_finalized = row.get("finalized")
+    explicit_finalized = _strict_bool(row, broker, root, keys=("finalized",))
     finalized = (
         explicit_finalized is not False
         and (explicit_finalized is True
@@ -909,7 +949,7 @@ def _investment_finalized(row: dict[str, Any], root: dict[str, Any]) -> None:
     )
     if not finalized or status not in SUCCESS_STATES:
         raise AttributionError("unverified_receipt")
-    if row.get("reorg_detected") is True:
+    if _strict_bool(row, broker, keys=("reorg_detected",)) is True:
         raise AttributionError("unverified_receipt")
 
 
@@ -1066,11 +1106,14 @@ def _investment_outcome_rows(
 def _investment_cash_flow(row: dict[str, Any], root: dict[str, Any], fallback_evidence: str) -> dict[str, Any]:
     if not isinstance(row, dict):
         raise AttributionError("row_invalid")
+    finalized_value = _strict_bool(row, keys=("finalized",))
+    if _strict_bool(row, keys=("reorg_detected",)) is True:
+        raise AttributionError("unverified_receipt")
     category = row.get("classification") or row.get("kind")
     if category not in EXCLUDED:
         raise AttributionError("cash_flow_invalid")
     identity = _identity(_first(row, "receipt_id", "source_receipt_id", "id"), "receipt_id")
-    finalized = row.get("finalized") is True or row.get("verification_state") == "verified"
+    finalized = finalized_value is True or row.get("verification_state") == "verified"
     if not finalized or str(row.get("status", "")).lower() not in SUCCESS_STATES:
         raise AttributionError("unverified_receipt")
     amount = _amount_from_fields(row, (), ("amount_usd", "amount"))
@@ -1089,9 +1132,10 @@ def _investment_balance(payload: dict[str, Any], end: str, evidence: str) -> dic
     if not isinstance(balance, dict):
         account_readback = payload.get("account_readback")
         balance = account_readback if isinstance(account_readback, dict) else {}
-    if balance.get("verification_state") != "verified" or balance.get("finalized") is not True:
+    finalized = _strict_bool(balance, keys=("finalized",))
+    if balance.get("verification_state") != "verified" or finalized is not True:
         raise AttributionError("unverified_receipt")
-    if balance.get("reorg_detected") is True:
+    if _strict_bool(balance, keys=("reorg_detected",)) is True:
         raise AttributionError("unverified_receipt")
     observed = _instant(balance.get("observed_at"))
     if observed != end:
@@ -1139,14 +1183,22 @@ def adapt_investment(
         ]
     del evidence_base
     evidence = f"lm-investment://readback/{_digest(_digest_material(payload))}"
-    root_reorg = _bundle_reorg_detected(payload)
     try:
-        observed, window_start, history_complete, _ = _readback_meta(payload, end)
+        root_reorg = _bundle_reorg_detected(payload)
     except AttributionError:
+        root_reorg = True
         observed, window_start, history_complete = end, None, False
-        root_failure = "unverified_receipt" if root_reorg else "read_failed"
+        root_failure = "unverified_receipt"
     else:
-        root_failure = "unverified_receipt" if root_reorg else None
+        try:
+            observed, window_start, history_complete, _ = _readback_meta(payload, end)
+        except AttributionError:
+            observed, window_start, history_complete = end, None, False
+            root_failure = "read_failed"
+        else:
+            root_failure = None
+        if root_reorg:
+            root_failure = "unverified_receipt"
     provider = payload.get("provider", "alpaca")
     if provider != "alpaca":
         root_failure = "unverified_receipt"
