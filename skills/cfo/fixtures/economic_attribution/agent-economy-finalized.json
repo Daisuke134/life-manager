@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-01T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "finality": "finalized",
+  "owned_pay_tos": ["0x1111111111111111111111111111111111111111"],
+  "self_wallets": [
+    "0x1111111111111111111111111111111111111111",
+    "0x4444444444444444444444444444444444444444"
+  ],
+  "x402": [
+    {
+      "source": "x402-image",
+      "source_sale_id": "sale-x402-001",
+      "offer_id": "offer-x402-001",
+      "tx": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chain_id": 8453,
+      "log_index": 4,
+      "block_number": 49163158,
+      "finalized_block": 49163200,
+      "from": "0x2222222222222222222222222222222222222222",
+      "to": "0x1111111111111111111111111111111111111111",
+      "payTo": "0x1111111111111111111111111111111111111111",
+      "currency": "USDC",
+      "usdc_atomic": "1250000",
+      "fee_atomic": "50000",
+      "refund_atomic": "250000",
+      "status": "success",
+      "receipt_status": "0x1",
+      "finalized": true,
+      "external": true,
+      "occurred_at": "2026-09-28T12:00:00Z",
+      "settled_at": "2026-09-28T12:00:01Z",
+      "evidence_refs": ["lm-agent-economy://evidence/x402/sale-x402-001"]
+    }
+  ],
+  "taskmarket": [
+    {
+      "task": {
+        "id": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "status": "completed",
+        "selfAward": false,
+        "requester": "0x3333333333333333333333333333333333333333",
+        "awardCount": 1,
+        "awards": [
+          {
+            "workerAddress": "0x1111111111111111111111111111111111111111",
+            "settlementTxHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "workerPayment": "925000",
+            "platformFee": "75000"
+          }
+        ]
+      },
+      "award": {
+        "workerAddress": "0x1111111111111111111111111111111111111111",
+        "settlementTxHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "grossAmount": "1000000",
+        "workerPayment": "925000",
+        "platformFee": "75000",
+        "rank": 1,
+        "settledAt": "2026-09-29T12:00:01Z"
+      },
+      "receipt": {
+        "chain_id": 8453,
+        "tx_hash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "log_index": 9,
+        "block_number": 49163170,
+        "finalized_block": 49163200,
+        "status": "0x1",
+        "finalized": true,
+        "transfer_count": 1,
+        "transfer": {
+          "from": "0x3333333333333333333333333333333333333333",
+          "to": "0x1111111111111111111111111111111111111111",
+          "amount_atomic": "925000"
+        }
+      },
+      "occurred_at": "2026-09-29T12:00:00Z",
+      "settled_at": "2026-09-29T12:00:01Z",
+      "evidence_refs": ["lm-agent-economy://evidence/taskmarket/award-001"]
+    }
+  ],
+  "blockrun": [
+    {
+      "receipt_id": "blockrun:compute-001",
+      "cost_usd": "0.07",
+      "status": "paid"
+    }
+  ]
+}
