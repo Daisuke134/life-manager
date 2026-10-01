@@ -123,11 +123,7 @@ def payout_to_financial_record(value: Mapping[str, object], *, subject_id: str) 
 def project_receipts(values: list[Mapping[str, object]], *, subject_id: str) -> list[dict[str, object]]:
     record_types = [value.get("record_type") for value in values]
     if any(record_type in _CHAIN_PREFIX_RECORD_TYPES for record_type in record_types):
-        if tuple(record_types) != _CHAIN_RECORD_ORDER:
-            raise _CONTRACTS.ContractValidationError(
-                ("$: incomplete_or_out_of_order_receipt_chain",)
-            )
-        return project_receipt_chain(values, subject_id=subject_id)
+        return project_receipt_chains(values, subject_id=subject_id)
     records: list[dict[str, object]] = []
     for value in values:
         if value.get("record_type") == "payment_receipt":
@@ -136,6 +132,32 @@ def project_receipts(values: list[Mapping[str, object]], *, subject_id: str) -> 
             records.append(payout_to_financial_record(value, subject_id=subject_id))
         else:
             raise ValueError("unsupported marketplace financial receipt")
+    return records
+
+
+def project_receipt_chains(
+    values: list[Mapping[str, object]], *, subject_id: str
+) -> list[dict[str, object]]:
+    """Project one or more contiguous, complete provider receipt chains.
+
+    A provider journal may contain several jobs in one readback. Every seven-row
+    slice is validated before any projected records are returned; a partial or
+    interleaved slice therefore fails closed instead of leaking a partial P&L.
+    """
+
+    width = len(_CHAIN_RECORD_ORDER)
+    if not values or len(values) % width:
+        raise _CONTRACTS.ContractValidationError(
+            ("$: incomplete_or_out_of_order_receipt_chain",)
+        )
+    records: list[dict[str, object]] = []
+    for start in range(0, len(values), width):
+        chain = values[start:start + width]
+        if tuple(value.get("record_type") for value in chain) != _CHAIN_RECORD_ORDER:
+            raise _CONTRACTS.ContractValidationError(
+                ("$: incomplete_or_out_of_order_receipt_chain",)
+            )
+        records.extend(project_receipt_chain(chain, subject_id=subject_id))
     return records
 
 
@@ -194,5 +216,5 @@ if __name__ == "__main__":
 
 __all__ = [
     "payment_to_financial_records", "payout_to_financial_record", "project_receipts",
-    "project_receipt_chain",
+    "project_receipt_chain", "project_receipt_chains",
 ]

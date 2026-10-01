@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+from copy import deepcopy
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
@@ -103,6 +104,30 @@ def test_partial_canonical_chain_cannot_bypass_chain_validation():
 
     with pytest.raises(ValueError, match="incomplete_or_out_of_order_receipt_chain"):
         financial.project_receipts(value, subject_id="tenant-1")
+
+
+def test_multiple_complete_chains_project_without_cross_chain_double_counting():
+    first = _chain()
+    second = deepcopy(first)
+    for row in second:
+        for key, value in list(row.items()):
+            if isinstance(value, str) and value.endswith("-1"):
+                row[key] = f"{value[:-2]}-2"
+
+    records = financial.project_receipts(first + second, subject_id="tenant-1")
+
+    assert len(records) == 8
+    assert len({
+        ref
+        for record in records
+        for ref in record["verification"]["evidence_refs"]
+        if "/chain/" in ref
+    }) == 2
+
+
+def test_mixed_complete_and_partial_chains_fail_closed():
+    with pytest.raises(ValueError, match="incomplete_or_out_of_order_receipt_chain"):
+        financial.project_receipts(_chain() + _chain()[:-1], subject_id="tenant-1")
 
 
 def test_payment_and_payout_only_journal_keeps_legacy_projection_path():
