@@ -227,6 +227,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
   let discoveryFailureReason = "provider_discovery_failed";
   let lastSafeReason = "provider_discovery_failed";
   let reusedBundleObserved = false;
+  let registrationAttempted = false;
   let lastFailureDiagnostic = null;
   const knownNoEffectProviders = new Set();
 
@@ -313,7 +314,12 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           ? { journey: extra.journey } : {}),
       });
     }
-    return Object.freeze({ status, safe_reason: safeReason, telegram_provider_id: telegramProviderId });
+    return Object.freeze({
+      status,
+      safe_reason: safeReason,
+      telegram_provider_id: telegramProviderId,
+      ...(status === "completed_no_effect" ? { registration_attempted: registrationAttempted } : {}),
+    });
   }
 
   try {
@@ -453,6 +459,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         if (hasTalk) {
           let talkResult;
           try {
+            registrationAttempted = true;
             talkResult = await action("submit", "talk_application", () => deps.runTalkApplication({
               provider, candidate: selected, page: owned.page,
             }));
@@ -519,6 +526,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         if (!registered(providerState)) providerState = null;
         if (!providerState) {
         try {
+          registrationAttempted = true;
           operation = await action(
             "submit", "provider_cache",
             () => deps.runCachedAction({ provider, candidate: selected, page: owned.page }),
@@ -543,6 +551,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
 
         if (!providerState) {
         try {
+          registrationAttempted = true;
           operation = await action(
             "submit", "provider_direct",
             () => deps.runDirectAction({ provider, candidate: selected, page: owned.page }),
@@ -576,6 +585,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
             || (provider === "connpass" && directFailureReason === "connpass_confirm_unavailable")
             || (provider === "luma" && directFailureReason === "luma_required_profile_field_unavailable");
           if (!terminalDirectNoEffect) try {
+            registrationAttempted = true;
             operation = await action(
               "submit", "browser_harness",
               () => deps.runAgentFallback({
@@ -693,6 +703,9 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
             return finish("circuit_open", "evidence_disposition_invalid");
           }
           if (bundle.completion_disposition === "reused") {
+            // A reused bundle is an observed external registration/evidence
+            // state, not proof that this wake never encountered an effect.
+            registrationAttempted = true;
             reusedBundleObserved = true;
             consecutiveFailures = 0;
             continue;

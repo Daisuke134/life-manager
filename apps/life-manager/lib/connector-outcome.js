@@ -31,6 +31,8 @@ function classifyConnectorOutcome(input = {}) {
   if (releaseSha !== "unknown" && !/^[0-9a-f]{40}$/.test(releaseSha)) invalid("release invalid");
   const status = String(result.status || "");
   const processStatus = ["applied_bundle", "completed_no_effect", "complete"].includes(status) ? "pass" : "fail";
+  const safeReason = String(result.safe_reason || (status === "applied_bundle" ? "applied_bundle" : "unknown")).trim();
+  if (!SAFE_REASON.test(safeReason)) invalid("safe reason invalid");
   const journey = result.journey && typeof result.journey === "object" && !Array.isArray(result.journey)
     ? result.journey : {};
   const registration = journey.registration || {};
@@ -43,16 +45,19 @@ function classifyConnectorOutcome(input = {}) {
   const providerReceiptRef = optionalReceipt(registration.provider_receipt_ref);
   const confirmationMailRef = optionalReceipt(confirmation.external_receipt_ref);
   const calendarEventRef = optionalReceipt(calendar.calendar_event_ref);
+  const registrationAttempted = result.registration_attempted;
+  if (registrationAttempted != null && typeof registrationAttempted !== "boolean") {
+    invalid("registration attempt marker invalid");
+  }
+  const journeyHasReceipt = Boolean(providerReceiptRef || confirmationMailRef || calendarEventRef);
   const externalRegistrationStatus = status === "completed_no_effect"
-    ? "not_attempted"
+    ? registrationAttempted === false && !journeyHasReceipt ? "not_attempted" : "unknown"
     : processStatus === "pass"
       && occurrenceBound(registration)
       && occurrenceBound(confirmation)
       && occurrenceBound(calendar)
       && providerReceiptRef && confirmationMailRef && calendarEventRef
       ? "verified" : "unknown";
-  const safeReason = String(result.safe_reason || (status === "applied_bundle" ? "applied_bundle" : "unknown")).trim();
-  if (!SAFE_REASON.test(safeReason)) invalid("safe reason invalid");
   return Object.freeze({
     schema_version: 1,
     occurrence_id: occurrenceId,
