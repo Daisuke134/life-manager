@@ -2125,7 +2125,6 @@ PR checksの`OSS self-contained boundary`は今回の差分外にある`skills/c
 11. **Self-funding/cloud:** DigitalOcean durable control plane、BlockRun x402、Nosana shelter、Akash fallback、Franklin successor handover 2回、surplus renewal、Akash restore、30日self-fundingの順に実測する。Mac Mini廃止/cloud-onlyはその後に判断する。
 
 以上により、P4 source gateはJob Hunter/Self-Buildのみ完了、Investmentは未達、Capafy/PromptBase/Writer/foundation live fleet/全体のself-healing・self-improving・financial independenceは引き続き未完了である。
-
 ### 15. P1 reconciler natural tick の失敗境界追補（2026-10-01 19:42 JST）
 
 P4追補後に手動restart/applyをせず、`life-manager-release-reconciler`の自然tickをread-onlyで観測した。`lm-loop health --json`の二回目（`2026-10-01T19:31:17+09:00`）は`total=177`、`healthy=32 / running=24 / failed=38 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4`で、P1のfleet合格条件を満たさなかった。
