@@ -2839,6 +2839,7 @@
     },
     "taskmarket-paid-executor": {
       "adapter": "exec",
+      "command": [],
       "cadence": {
         "start_interval_seconds": 300
       },

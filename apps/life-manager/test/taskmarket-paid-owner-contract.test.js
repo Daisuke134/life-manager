@@ -15,6 +15,7 @@ test('TaskMarket paid owner has a repository entrypoint and production contract 
   const row = registry.loops['taskmarket-paid-executor'];
   assert.ok(row, 'taskmarket-paid-executor registry row is required');
   assert.equal(row.adapter, 'exec');
+  assert.deepEqual(row.command, []);
   assert.equal(row.domain, 'earn');
   assert.equal(row.effect_class, 'money');
   assert.equal(row.admission_class, 'revenue');
