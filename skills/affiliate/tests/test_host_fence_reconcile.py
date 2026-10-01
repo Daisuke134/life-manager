@@ -109,6 +109,24 @@ def test_exact_fifo_window_builds_pre_effect_proof(tmp_path):
     assert result["evidence"]["tool_attempts_in_window"] == 0
 
 
+def test_cancelled_coalesced_occurrence_is_not_the_predecessor(tmp_path):
+    module = load_module()
+    database, loop_state, affiliate_state, target = fixture(tmp_path)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO occurrences VALUES(?,?,?,?,?,?,?,?,?)",
+            ("affiliate-loop:cancelled", "affiliate-loop", "deterministic", "revenue",
+             "revenue", 200.0, "cancelled", 3, 0),
+        )
+
+    result = module.reconcile_host_fence(
+        database, loop_state, affiliate_state, occurrence_id=target,
+    )
+
+    assert result["state"] == "PROOF_READY"
+    assert result["evidence"]["predecessor_occurrence_id"] == "affiliate-loop:previous"
+
+
 def test_external_job_event_in_window_keeps_fence(tmp_path):
     module = load_module()
     database, loop_state, affiliate_state, target = fixture(tmp_path)

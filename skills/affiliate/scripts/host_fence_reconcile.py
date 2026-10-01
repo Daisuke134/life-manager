@@ -125,8 +125,8 @@ def _occurrence_chain(database: Path, occurrence_id: str | None) -> tuple[dict, 
             raise EvidenceError("older_occurrence_open")
         predecessor_row = connection.execute(
             """SELECT occurrence_id,owner_id,queued_at,state,sequence,effect_unknown
-                 FROM occurrences
-                WHERE owner_id=?
+                FROM occurrences
+                WHERE owner_id=? AND state='released' AND effect_unknown=0
                   AND (queued_at < ? OR (queued_at=? AND occurrence_id < ?))
                 ORDER BY queued_at DESC,occurrence_id DESC LIMIT 1""",
             (OWNER_ID, target["queued_at"], target["queued_at"], target["occurrence_id"]),
