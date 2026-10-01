@@ -363,7 +363,7 @@ def _intent(row: Mapping[str, Any], decision: Mapping[str, Any]) -> dict[str, An
 def _receipt(intent: Mapping[str, Any], readback: Mapping[str, Any]) -> dict[str, Any]:
     if readback.get("verified") is not True:
         raise ValueError("official_readback_unverified")
-    return {
+    receipt = {
         "version": 1,
         "effect_key": intent["effect_key"],
         "provider_receipt_id": _text(
@@ -371,6 +371,11 @@ def _receipt(intent: Mapping[str, Any], readback: Mapping[str, Any]) -> dict[str
         ),
         "observed_at": _text(readback.get("observed_at"), "observed_at"),
     }
+    for field in ("termination_state", "readback_kind"):
+        value = readback.get(field)
+        if isinstance(value, str) and value.strip():
+            receipt[field] = value.strip()
+    return receipt
 
 
 def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
