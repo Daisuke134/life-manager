@@ -2432,3 +2432,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 進行中25db natural fleet runの終端stateとowner logをread-onlyで取得する。外部effect ownerをmanual retryしない。
 2. 次のnatural tickでmain `7b3ec48dbf`由来immutable release、self-handoff、pre-reconcile時間、fleet state、mobile timeout解消をreadbackする。
 3. admission queueとdisk free二回安定を揃えてからP1-2bを閉じ、L9-13.1以降へ進む。14 loop revenue、cost-complete P&L、self-fundingは未達のまま維持する。
+
+### 39. 25db fleet terminalとautomatic snapshot軽量化（2026-10-02 02:49 JST）
+
+- 25db natural fleet runは`2026-10-01T17:34:01Z`に終端し、`status=partial / changed=74 / skipped=16 / errors=2 / message="timed out owners: none; budget exceeded"`となった。92 owner rowを処理し、nonzeroは`hf-gig-apply-direct rc=1`と`alpaca-investment-live rc=1`だけ。旧mobile timeout 6件は0件になったが、全177 planの収束ではない。
+- 次のnatural tickはmain `7b3ec48dbf735f8cfb0a6d3e944cb98d92367568`をimmutable release `/Users/anicca/loops/releases/20261002T023507-7b3ec48d`へcutした。current symlink、reconciler plist、mode-0600 self-handoff receiptは7bへ一致し、receiptは`status=ok / verified=true`である。
+- 7b natural reconcilerでも`reconcile shared-agent-runner`は300秒上限までCPUを使い、次のdeterministic phaseへ移った。source traceで`AUTO_PRE_EFFECT_RECONCILE_ENABLED=False`を確認し、時間を使っていたのはproof自動解消ではなく、automatic reconcilerが人間向け`effect_unknown`詳細・diagnosis込みの`snapshot(registry, "all")`を作る経路だと特定した。fleet eligibilityはこの詳細を読まない。
+- 既存`include_effect_details=False` pathをautomatic release reconcilerの一箇所だけで再利用する最小修正をTDDした。REDはsnapshot actualにflagなし、GREENは`include_effect_details=False`を要求してfocused `2/2`。full apply/fleet `173/173`、compile、diff check、`lm-loop-contract=14 loops / 178 jobs / errors=[]`をPASSした。status、`--explain`、human health出力は変更していない。
+- PR #6410はadmin squash mergeされ、`origin/main=3fdfa314978dab2f620a058843c14c9e5b5c68d8`となった。productionへmanual apply/restart/retryはしていない。2つのmerge済みsource worktreeだけをclean/merged/open-handleなし確認後にremoveし、branch/commitを保持したまま約200MBを回収した。disk freeは約1.3〜1.4GBで、10GB安定二回は未達。
+
+#### 39時点のcursor
+
+1. 進行中7b natural reconcilerの終端stateを取得する。
+2. 次のnatural tickでmain `3fdfa31497`由来release/self-handoffを確認し、shared-agent-runnerとdeterministicのphase時間が300秒未満になったことを実測する。
+3. fleet全target loaded SHA/argv、mobile timeout 0、admission queue、disk cleanup後10GB二回を揃えてP1-2bを閉じる。未達なら次のexact boundaryを同じ方法で診断する。
