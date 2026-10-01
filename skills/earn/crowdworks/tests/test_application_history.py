@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -94,6 +95,87 @@ class _Page:
             _job_id, _buyer_id, created_at = self.details[proposal_id]
             return _Locator(text=created_at)
         return _Locator(items=[])
+
+
+class _ContractLocator:
+    def __init__(self, *, items=None, attrs=None, children=None):
+        self.items = list(items or [])
+        self.attrs = dict(attrs or {})
+        self.children = dict(children or {})
+
+    def count(self):
+        return len(self.items)
+
+    def nth(self, index):
+        return self.items[index]
+
+    def get_attribute(self, name):
+        return self.attrs.get(name)
+
+    def locator(self, selector):
+        return self.children.get(selector, _ContractLocator())
+
+
+class _ContractPage(_Page):
+    def goto(self, url):
+        super().goto(url)
+        if url.endswith("/proposals/104"):
+            self.url = "https://crowdworks.jp/contracts/9004"
+
+    def locator(self, selector):
+        if selector == self.module._HISTORY_CONTRACT_TABLE_SELECTOR:
+            return _ContractLocator(
+                items=[object()],
+                children={
+                    self.module._HISTORY_JOB_SELECTOR: _ContractLocator(
+                        items=[_ContractLocator(attrs={"href": "/public/jobs/904"})]
+                    ),
+                    self.module._HISTORY_EMPLOYER_SELECTOR: _ContractLocator(
+                        items=[_ContractLocator(attrs={"href": "/public/employers/704"})]
+                    ),
+                },
+            )
+        if selector == self.module._HISTORY_THREAD_SELECTOR:
+            def message(timestamp):
+                return _ContractLocator(
+                    children={
+                        self.module._HISTORY_THREAD_SENT_SELECTOR: _ContractLocator(items=[object()]),
+                        self.module._HISTORY_THREAD_TIME_SELECTOR: _ContractLocator(
+                            items=[_ContractLocator(attrs={"datetime": timestamp})]
+                        ),
+                    }
+                )
+
+            return _ContractLocator(
+                items=[object()],
+                attrs={
+                    "data": json.dumps(
+                        {"messageableType": "Contract", "proposalId": 104},
+                        separators=(",", ":"),
+                    )
+                },
+                children={
+                    self.module._HISTORY_THREAD_MESSAGE_SELECTOR: _ContractLocator(
+                        items=[
+                            message("2026年09月27日 15:55"),
+                            message("2026年09月28日 16:56"),
+                        ]
+                    )
+                },
+            )
+        return super().locator(selector)
+
+
+def test_history_detail_reads_redirected_contract_thread_without_sidebar_ids():
+    module = load()
+    page = _ContractPage(module)
+
+    assert module._read_history_detail(page, "104") == {
+        "application_external_id": "104",
+        "external_id": "904",
+        "buyer_external_id": "704",
+        "submitted_at": "2026-09-27T15:55:00+09:00",
+    }
 
 
 def test_history_walk_reads_every_official_page_and_normalizes_japanese_timestamp():

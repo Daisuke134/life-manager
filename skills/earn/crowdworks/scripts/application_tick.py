@@ -89,6 +89,11 @@ _TABLE_SELECTOR = "body.employee-proposals.employee-proposals-index .application
 _HISTORY_JOB_SELECTOR = 'a[href^="/public/jobs/"]'
 _HISTORY_EMPLOYER_SELECTOR = 'a[href^="/public/employers/"]'
 _HISTORY_CREATED_AT_SELECTOR = "table.conditions > tbody > tr.last > td.created_at"
+_HISTORY_CONTRACT_TABLE_SELECTOR = "table.contract.cw-table"
+_HISTORY_THREAD_SELECTOR = "#pack-message-thread"
+_HISTORY_THREAD_MESSAGE_SELECTOR = '[class*="_messageItem_"]'
+_HISTORY_THREAD_SENT_SELECTOR = '[class*="_messageSent_"]'
+_HISTORY_THREAD_TIME_SELECTOR = "time[datetime]"
 _PROPOSAL_LINK_SELECTOR = 'a[href^="/proposals/"]'
 _HISTORY_PAGINATION_SELECTOR = 'a[href*="/e/proposals?page="]'
 _JAPANESE_TIMESTAMP = re.compile(
@@ -221,10 +226,103 @@ def _numeric_relative_ids(page: object, selector: str, prefix: str) -> list[str]
     return sorted(identities)
 
 
+def _numeric_ids_from_locator(locator: object, prefix: str) -> list[str]:
+    """Return unique numeric ids from an already-scoped official DOM locator."""
+    count = locator.count()  # type: ignore[attr-defined]
+    if type(count) is not int:
+        raise ValueError("history_identity_unobserved")
+    identities: set[str] = set()
+    for index in range(count):
+        href = locator.nth(index).get_attribute("href")  # type: ignore[attr-defined]
+        parsed = urlsplit(href or "")
+        match = re.fullmatch(rf"{re.escape(prefix)}/([0-9]+)", parsed.path)
+        if match is not None and not (parsed.scheme or parsed.netloc or parsed.query or parsed.fragment):
+            identities.add(match.group(1))
+    return sorted(identities)
+
+
+def _exact_contract_url(raw_url: object) -> bool:
+    try:
+        parsed = urlsplit(raw_url) if isinstance(raw_url, str) else None
+        return (
+            parsed is not None
+            and parsed.scheme == "https"
+            and parsed.hostname == "crowdworks.jp"
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.port in (None, 443)
+            and re.fullmatch(r"/contracts/[0-9]+", parsed.path) is not None
+            and not parsed.query
+            and not parsed.fragment
+        )
+    except (TypeError, ValueError):
+        return False
+
+
+def _read_contract_history_detail(page: object, proposal_id: str) -> Mapping[str, object]:
+    """Read a proposal whose official detail route has become its contract thread.
+
+    CrowdWorks redirects accepted proposals from ``/proposals/<id>`` to
+    ``/contracts/<id>``. The contract table is scoped to avoid sidebar links, while the
+    message-thread metadata ties the rendered contract back to the requested proposal. The
+    earliest message marked as sent by the logged-in worker is the provider's original proposal
+    message and supplies the exact submitted timestamp.
+    """
+    contract_table = _one(page, _HISTORY_CONTRACT_TABLE_SELECTOR)
+    job_ids = _numeric_ids_from_locator(contract_table.locator(_HISTORY_JOB_SELECTOR), "/public/jobs")
+    buyer_ids = _numeric_ids_from_locator(
+        contract_table.locator(_HISTORY_EMPLOYER_SELECTOR), "/public/employers"
+    )
+    if len(job_ids) != 1 or len(buyer_ids) != 1:
+        raise ValueError("history_contract_identity_unobserved")
+
+    thread = _one(page, _HISTORY_THREAD_SELECTOR)
+    raw_metadata = thread.get_attribute("data")
+    try:
+        metadata = json.loads(raw_metadata or "")
+    except (TypeError, ValueError):
+        raise ValueError("history_contract_metadata_unobserved") from None
+    if (
+        not isinstance(metadata, Mapping)
+        or metadata.get("messageableType") != "Contract"
+        or str(metadata.get("proposalId")) != proposal_id
+    ):
+        raise ValueError("history_contract_metadata_unobserved")
+
+    messages = thread.locator(_HISTORY_THREAD_MESSAGE_SELECTOR)
+    count = messages.count()
+    if type(count) is not int or count < 1:
+        raise ValueError("history_submitted_at_unobserved")
+    submitted_candidates: list[tuple[datetime, str]] = []
+    for index in range(count):
+        message = messages.nth(index)
+        sent = message.locator(_HISTORY_THREAD_SENT_SELECTOR)
+        if sent.count() != 1:
+            continue
+        times = message.locator(_HISTORY_THREAD_TIME_SELECTOR)
+        time_count = times.count()
+        if type(time_count) is not int or time_count < 1:
+            continue
+        raw_time = times.nth(0).get_attribute("datetime")
+        submitted_at = _history_timestamp(raw_time)
+        submitted_candidates.append((datetime.fromisoformat(submitted_at), submitted_at))
+    if not submitted_candidates:
+        raise ValueError("history_submitted_at_unobserved")
+    _submitted_dt, submitted_at = min(submitted_candidates)
+    return {
+        "application_external_id": proposal_id,
+        "external_id": job_ids[0],
+        "buyer_external_id": buyer_ids[0],
+        "submitted_at": submitted_at,
+    }
+
+
 def _read_history_detail(page: object, proposal_id: str) -> Mapping[str, object]:
     if _ASCII_DIGITS.fullmatch(proposal_id) is None:
         raise ValueError("history_proposal_id_invalid")
     _goto_readonly(page, f"https://crowdworks.jp/proposals/{proposal_id}")
+    if _exact_contract_url(getattr(page, "url", None)):
+        return _read_contract_history_detail(page, proposal_id)
     if not _exact_url(getattr(page, "url", None), f"/proposals/{proposal_id}"):
         raise ValueError("history_route_unobserved")
     job_ids = _numeric_relative_ids(page, _HISTORY_JOB_SELECTOR, "/public/jobs")
