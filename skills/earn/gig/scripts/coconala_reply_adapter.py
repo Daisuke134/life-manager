@@ -319,6 +319,13 @@ class CoconalaReplyAdapter:
                     "Retry the authenticated Coconala inbox read and preserve the provider receipt",
                 ],
             }
+        if message.startswith("collector_unhealthy:"):
+            return {
+                "reason": "provider_inbox_observation_unavailable",
+                "remaining_work": [
+                    "Retry the authenticated Coconala inbox observation before any reply effect",
+                ],
+            }
         return None
 
     def readback(self, intent: dict[str, Any]) -> dict[str, Any]:
