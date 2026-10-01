@@ -3,6 +3,9 @@
 const {
   marketplaceApplicationContract,
 } = require("./marketplace-application-job.js");
+const {
+  qualifyHumanRequirement,
+} = require("./human-required-qualification.js");
 
 class MarketplaceApplicationEffectError extends Error {
   constructor(message, code, unknownEffect) {
@@ -36,11 +39,19 @@ async function runMarketplaceApplicationEffect(job, deps = {}) {
   }
   const before = proof(await deps.inspectApplication(contract));
   if (before.state === "human_required") {
-    throw new MarketplaceApplicationEffectError(
-      "Application requires a human ceremony",
+    const decision = qualifyHumanRequirement(before);
+    const failure = new MarketplaceApplicationEffectError(
+      "Application requires human work and was held before effect",
       "APPLICATION_HUMAN_REQUIRED",
       false,
     );
+    failure.disposition = decision.disposition;
+    failure.reasonCodes = decision.reason_codes;
+    failure.qualificationId = decision.qualification_id;
+    failure.delegateToHuman = decision.delegate_to_human;
+    failure.bypassAllowed = decision.bypass_allowed;
+    failure.bootstrapBoundary = decision.bootstrap_boundary;
+    throw failure;
   }
   if (before.state === "unknown") {
     throw new MarketplaceApplicationEffectError(
