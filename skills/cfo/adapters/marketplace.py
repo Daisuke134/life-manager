@@ -74,7 +74,8 @@ MOVEMENT_KEYS = (
     "schema_version", "record_type", "platform", "movement_external_id", "category",
     "amount_minor", "currency", "occurred_at", "settled_at", "observed_at",
 )
-AGGREGATE_KEYS = ("observed_at", "source", "sales_count", "net_usd", "by_item")
+ENVELOPE_AGGREGATE_KEYS = ("sales_count", "net_amount_minor")
+PROMPTBASE_AGGREGATE_KEYS = ("observed_at", "source", "sales_count", "net_usd", "by_item")
 
 
 class MarketplaceAttributionError(ValueError):
@@ -309,6 +310,7 @@ def _payment(
         "kind": "payment",
         "payment_external_id": payment_external_id,
         "receipt_external_id": receipt_external_id,
+        "source_identity": ("payment", payment_external_id, receipt_external_id),
         "currency": currency,
         "occurred_at": occurred_at,
         "gross": gross,
@@ -355,9 +357,13 @@ def _fee(
     return {
         "kind": "fee",
         "payment_external_id": payment_external_id,
+        "receipt_external_id": receipt_external_id,
+        "source_identity": ("fee", payment_external_id, receipt_external_id),
         "currency": currency,
         "amount": amount,
         "fee_type": row["fee_type"],
+        "occurred_at": occurred_at,
+        "settled_at": settled_at,
         "receipt": _receipt(
             receipt_id=f"marketplace:{platform}:fee:{receipt_external_id}",
             product_loop_id=product_loop_id,
@@ -396,8 +402,12 @@ def _refund(
     return {
         "kind": "refund",
         "payment_external_id": payment_external_id,
+        "receipt_external_id": receipt_external_id,
+        "source_identity": ("refund", payment_external_id, receipt_external_id),
         "currency": currency,
         "amount": amount,
+        "occurred_at": occurred_at,
+        "settled_at": occurred_at,
         "receipt": _receipt(
             receipt_id=f"marketplace:{platform}:refund:{receipt_external_id}",
             product_loop_id=product_loop_id,
@@ -436,22 +446,10 @@ def _payout(
     return {
         "kind": "payout",
         "payment_external_id": payment_external_id,
+        "payout_external_id": payout_external_id,
+        "source_identity": ("payout", payment_external_id, payout_external_id),
         "currency": currency,
         "amount": amount,
-        "receipt": _receipt(
-            receipt_id=f"marketplace:{platform}:payout:{payout_external_id}",
-            product_loop_id=product_loop_id,
-            provider=f"marketplace-{platform}",
-            currency=currency,
-            # The producer does not expose a payout occurrence timestamp. The
-            # linked settled payment timestamp is the only safe B0 timestamp.
-            occurred_at=observed_at,
-            settled_at=observed_at,
-            verification_state="verified",
-            revenue_class=None,
-            components=[{"category": "payout", "amount": _amount(amount, currency)}],
-            evidence=evidence,
-        ),
     }
 
 
@@ -475,6 +473,9 @@ def _pending(
     amount = _minor(row["amount_minor"], positive=True)
     return {
         "kind": "pending",
+        "payment_external_id": row["payment_external_id"],
+        "receipt_external_id": receipt_external_id,
+        "source_identity": ("pending", row["payment_external_id"], receipt_external_id),
         "receipt": _receipt(
             receipt_id=f"marketplace:{platform}:pending:{receipt_external_id}",
             product_loop_id=product_loop_id,
@@ -515,6 +516,8 @@ def _movement(
         _fail("unverified_receipt")
     return {
         "kind": "movement",
+        "movement_external_id": movement_external_id,
+        "source_identity": ("movement", movement_external_id),
         "receipt": _receipt(
             receipt_id=f"marketplace:{platform}:movement:{movement_external_id}",
             product_loop_id=product_loop_id,
@@ -530,6 +533,92 @@ def _movement(
     }
 
 
+def _append_receipt(
+    receipts: list[dict],
+    output_identities: dict[tuple[str, str], tuple[str, ...]],
+    converted: dict,
+) -> None:
+    receipt = converted.get("receipt")
+    source_identity = converted.get("source_identity")
+    if not isinstance(receipt, dict) or not isinstance(source_identity, tuple):
+        _fail("unverified_receipt")
+    provider = receipt.get("provider")
+    receipt_id = receipt.get("receipt_id")
+    if (not isinstance(provider, str) or not isinstance(receipt_id, str)
+            or not provider.startswith("marketplace-")
+            or not receipt_id.startswith(
+                f"marketplace:{provider.removeprefix('marketplace-')}:"
+            )):
+        _fail("unverified_receipt")
+    output_identity = (provider, receipt_id)
+    if output_identity in output_identities:
+        _fail("unverified_receipt")
+    output_identities[output_identity] = source_identity
+    receipts.append(receipt)
+
+
+def _validate_linked_window(
+    payment: dict,
+    *,
+    occurred_at: str,
+    settled_at: str,
+    observed_at: str,
+) -> None:
+    payment_occurred_at = payment["occurred_at"]
+    if not (
+        payment_occurred_at <= occurred_at <= settled_at <= observed_at
+    ):
+        _fail("unverified_receipt")
+
+
+def _payout_receipt(
+    payout: dict,
+    payment: dict,
+    *,
+    platform: str,
+    product_loop_id: str,
+    evidence: str,
+) -> dict:
+    occurred_at = payment["occurred_at"]
+    return _receipt(
+        receipt_id=f"marketplace:{platform}:payout:{payout['payout_external_id']}",
+        product_loop_id=product_loop_id,
+        provider=f"marketplace-{platform}",
+        currency=payout["currency"],
+        # payout_match_receipt has no settlement timestamp.  The linked
+        # settled payment occurrence is stable across later readbacks.
+        occurred_at=occurred_at,
+        settled_at=occurred_at,
+        verification_state="verified",
+        revenue_class=None,
+        components=[{
+            "category": "payout",
+            "amount": _amount(payout["amount"], payout["currency"]),
+        }],
+        evidence=evidence,
+    )
+
+
+def _validate_envelope_aggregate(aggregate: object, metrics: dict) -> None:
+    _exact_keys(aggregate, ENVELOPE_AGGREGATE_KEYS)
+    if type(aggregate["sales_count"]) is not int or aggregate["sales_count"] < 0:
+        _fail("unverified_receipt")
+    declared_net = _minor(aggregate["net_amount_minor"])
+    expected_net = (
+        metrics["gross_amount_minor"]
+        - metrics["embedded_provider_fee_minor"]
+        - metrics["itemized_fee_minor"]
+        - metrics["refund_minor"]
+    )
+    if (
+        aggregate["sales_count"] != metrics["settled_payment_count"]
+        or expected_net < 0
+        or expected_net > MAX_MINOR
+        or declared_net != expected_net
+    ):
+        _fail("unverified_receipt")
+
+
 def _convert_receipt_map(
     rows: list[object],
     *,
@@ -537,12 +626,13 @@ def _convert_receipt_map(
     product_loop_id: str,
     observed_at: str,
     evidence: str,
-) -> list[dict]:
+) -> dict:
     payments: dict[str, dict] = {}
     fees: list[dict] = []
     refunds: list[dict] = []
     payouts: list[dict] = []
     receipts: list[dict] = []
+    output_identities: dict[tuple[str, str], tuple[str, ...]] = {}
     for row in _deduplicate_source_rows(rows):
         kind = _record_type(row)
         converted = {
@@ -568,29 +658,45 @@ def _convert_receipt_map(
         elif converted["kind"] == "payout":
             payouts.append(converted)
         else:
-            receipts.append(converted["receipt"])
+            _append_receipt(receipts, output_identities, converted)
 
+    itemized_fee_minor = 0
     for fee in fees:
         payment = payments.get(fee["payment_external_id"])
         if payment is None or payment["currency"] != fee["currency"]:
             _fail("unverified_receipt")
+        _validate_linked_window(
+            payment,
+            occurred_at=fee["occurred_at"],
+            settled_at=fee["settled_at"],
+            observed_at=observed_at,
+        )
         if fee["fee_type"] == "provider_fee":
             if payment["fee"]:
                 # Embedded and itemized provider fees are ambiguous: recording
                 # both would make the same fee count twice.
                 _fail("unverified_receipt")
-        receipts.append(fee["receipt"])
+        itemized_fee_minor += fee["amount"]
+        _append_receipt(receipts, output_identities, fee)
 
     refunds_by_payment: dict[str, int] = {}
+    refund_minor = 0
     for refund in refunds:
         payment = payments.get(refund["payment_external_id"])
         if payment is None or payment["currency"] != refund["currency"]:
             _fail("unverified_receipt")
+        _validate_linked_window(
+            payment,
+            occurred_at=refund["occurred_at"],
+            settled_at=refund["settled_at"],
+            observed_at=observed_at,
+        )
         total = refunds_by_payment.get(refund["payment_external_id"], 0) + refund["amount"]
         if total > payment["gross"]:
             _fail("unverified_receipt")
         refunds_by_payment[refund["payment_external_id"]] = total
-        receipts.append(refund["receipt"])
+        refund_minor += refund["amount"]
+        _append_receipt(receipts, output_identities, refund)
 
     payouts_by_payment: dict[str, int] = {}
     for payout in payouts:
@@ -601,10 +707,27 @@ def _convert_receipt_map(
         if total > payment["net"] or payout["amount"] != payment["net"]:
             _fail("unverified_receipt")
         payouts_by_payment[payout["payment_external_id"]] = total
-        receipts.append(payout["receipt"])
+        payout["receipt"] = _payout_receipt(
+            payout,
+            payment,
+            platform=platform,
+            product_loop_id=product_loop_id,
+            evidence=evidence,
+        )
+        _append_receipt(receipts, output_identities, payout)
 
-    receipts.extend(payment["receipt"] for payment in payments.values())
-    return sorted(receipts, key=lambda row: row["receipt_id"])
+    for payment in payments.values():
+        _append_receipt(receipts, output_identities, payment)
+    return {
+        "receipts": sorted(receipts, key=lambda row: row["receipt_id"]),
+        "metrics": {
+            "settled_payment_count": len(payments),
+            "gross_amount_minor": sum(payment["gross"] for payment in payments.values()),
+            "embedded_provider_fee_minor": sum(payment["fee"] for payment in payments.values()),
+            "itemized_fee_minor": itemized_fee_minor,
+            "refund_minor": refund_minor,
+        },
+    }
 
 
 def _context(
@@ -748,7 +871,7 @@ def _aggregate_only(
     product_loop_id: str | None,
     platform: str | None,
 ) -> list[dict]:
-    _exact_keys(payload, AGGREGATE_KEYS)
+    _exact_keys(payload, PROMPTBASE_AGGREGATE_KEYS)
     context = _context(
         {"platform": platform or DEFAULT_AGGREGATE_PLATFORM,
          "product_loop_id": product_loop_id or DEFAULT_AGGREGATE_PRODUCT_LOOP},
@@ -836,13 +959,15 @@ def _envelope(
         _fail("missing_coverage")
     if pagination["records_fetched"] != len(receipt_map["records"]):
         _fail("missing_coverage")
-    receipts = _convert_receipt_map(
+    converted = _convert_receipt_map(
         receipt_map["records"],
         platform=context["platform"],
         product_loop_id=context["product_loop_id"],
         observed_at=observed_at,
         evidence=evidence,
     )
+    _validate_envelope_aggregate(payload["aggregate"], converted["metrics"])
+    receipts = converted["receipts"]
     historical_reason = None if coverage_windows["historical"] else "missing_coverage"
     trailing_reason = None if coverage_windows["trailing"] else "missing_coverage"
     return [
@@ -887,7 +1012,7 @@ def adapt(
         if trailing >= snapshot:
             _fail("read_failed")
         if (isinstance(payload, dict)
-                and set(payload) == set(AGGREGATE_KEYS)):
+                and set(payload) == set(PROMPTBASE_AGGREGATE_KEYS)):
             return _aggregate_only(
                 payload,
                 snapshot_at=snapshot,
@@ -921,7 +1046,7 @@ def adapt(
             and error.code in contract.GAP_REASONS
             else "unverified_receipt"
         )
-        if isinstance(payload, dict) and set(payload) == set(AGGREGATE_KEYS):
+        if isinstance(payload, dict) and set(payload) == set(PROMPTBASE_AGGREGATE_KEYS):
             reason = "missing_coverage"
             if isinstance(payload.get("observed_at"), str):
                 try:

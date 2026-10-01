@@ -47,6 +47,14 @@ class MarketplaceAttributionTest(unittest.TestCase):
         )
         return payload
 
+    def reobserve(self, payload: dict, observed_at: str) -> dict:
+        payload["observed_at"] = observed_at
+        for window in payload["coverage"].values():
+            window["window_end"] = observed_at
+        for row in payload["receipt_map"]["records"]:
+            row["observed_at"] = observed_at
+        return self.bind(payload)
+
     def adapt(self, name: str):
         module = self.require_adapter()
         return module.adapt(
@@ -134,7 +142,7 @@ class MarketplaceAttributionTest(unittest.TestCase):
         excluded = projected["historical"]["loops"]["gig-lancers"]["excluded"]
         self.assertEqual(
             {row["category"] for row in excluded},
-            {"internal_transfer", "owner_deposit", "pending_revenue", "self_payment"},
+            {"internal_transfer", "owner_deposit", "pending_revenue", "payout", "self_payment"},
         )
 
     def test_promptbase_aggregate_without_immutable_receipt_map_is_a_gap_not_zero(self):
@@ -309,6 +317,145 @@ class MarketplaceAttributionTest(unittest.TestCase):
              if row["record_type"] == "coverage" and row["projection"] != "as_of"},
             {"unverified_receipt"},
         )
+
+    def test_envelope_aggregate_is_exact_and_reconciles_receipt_map(self):
+        cases = []
+
+        malformed = self.fixture("marketplace-settled.json")
+        del malformed["aggregate"]["net_amount_minor"]
+        cases.append(("missing aggregate field", malformed))
+
+        unknown = self.fixture("marketplace-settled.json")
+        unknown["aggregate"]["unexpected"] = 1
+        cases.append(("unknown aggregate field", unknown))
+
+        count_conflict = self.fixture("marketplace-settled.json")
+        count_conflict["aggregate"]["sales_count"] = 3
+        cases.append(("settled payment count conflict", count_conflict))
+
+        net_conflict = self.fixture("marketplace-settled.json")
+        net_conflict["aggregate"]["net_amount_minor"] = 45301
+        cases.append(("net amount conflict", net_conflict))
+
+        for name, payload in cases:
+            with self.subTest(name=name):
+                self.bind(payload)
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"unverified_receipt"},
+                )
+
+    def test_fee_and_refund_times_stay_between_payment_and_readback(self):
+        cases = []
+
+        before_payment = self.fixture("marketplace-settled.json")
+        fee = next(row for row in before_payment["receipt_map"]["records"]
+                   if row.get("record_type") == "fee_receipt")
+        fee["occurred_at"] = "2026-09-26T02:59:59Z"
+        fee["settled_at"] = "2026-09-26T02:59:59Z"
+        cases.append(("fee before linked payment", before_payment))
+
+        after_readback = self.fixture("marketplace-settled.json")
+        fee = next(row for row in after_readback["receipt_map"]["records"]
+                   if row.get("record_type") == "fee_receipt")
+        fee["settled_at"] = "2026-10-01T00:00:01Z"
+        cases.append(("fee after readback", after_readback))
+
+        refund_after_readback = self.fixture("marketplace-settled.json")
+        refund = next(row for row in refund_after_readback["receipt_map"]["records"]
+                      if row.get("record_type") == "refund_receipt")
+        refund["occurred_at"] = "2026-10-02T00:00:00Z"
+        cases.append(("refund after readback", refund_after_readback))
+
+        for name, payload in cases:
+            with self.subTest(name=name):
+                self.bind(payload)
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"unverified_receipt"},
+                )
+
+    def test_distinct_source_links_cannot_share_a_provider_scoped_receipt_id(self):
+        payment_collision = self.fixture("marketplace-settled.json")
+        extra_payment = copy.deepcopy(payment_collision["receipt_map"]["records"][0])
+        extra_payment.update({
+            "work_external_id": "work-collision",
+            "payment_external_id": "payment-collision",
+            "gross_amount_minor": 1000,
+            "net_amount_minor": 1000,
+            "occurred_at": "2026-09-28T03:00:00Z",
+        })
+        payment_collision["receipt_map"]["records"].append(extra_payment)
+        payment_collision["pagination"]["records_fetched"] += 1
+        payment_collision["aggregate"]["sales_count"] = 3
+        payment_collision["aggregate"]["net_amount_minor"] = 46300
+
+        pending_collision = self.fixture("marketplace-settled.json")
+        extra_pending = copy.deepcopy(next(
+            row for row in pending_collision["receipt_map"]["records"]
+            if row.get("record_type") == "pending_payment_receipt"
+        ))
+        extra_pending["payment_external_id"] = "payment-pending-collision"
+        pending_collision["receipt_map"]["records"].append(extra_pending)
+        pending_collision["pagination"]["records_fetched"] += 1
+
+        for name, payload in (
+            ("payment receipt identity collision", payment_collision),
+            ("pending source identity collision", pending_collision),
+        ):
+            with self.subTest(name=name):
+                self.bind(payload)
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"unverified_receipt"},
+                )
+
+    def test_payout_timestamp_is_linked_payment_time_across_reobservations(self):
+        first = self.adapt("marketplace-settled.json")
+        first_payout = next(
+            row for row in first
+            if row.get("receipt_id") == "marketplace:lancers:payout:payout-1"
+        )
+        self.assertEqual(first_payout["occurred_at"], "2026-09-26T03:00:00.000000Z")
+        self.assertEqual(first_payout["settled_at"], "2026-09-26T03:00:00.000000Z")
+
+        reread = self.reobserve(
+            self.fixture("marketplace-settled.json"),
+            "2026-10-02T00:00:00Z",
+        )
+        second = self.require_adapter().adapt(
+            reread,
+            snapshot_at="2026-10-02T00:00:00Z",
+            trailing_start=TRAILING_START,
+        )
+        second_payout = next(
+            row for row in second
+            if row.get("receipt_id") == "marketplace:lancers:payout:payout-1"
+        )
+        self.assertEqual(second_payout["receipt_id"], first_payout["receipt_id"])
+        self.assertEqual(second_payout["occurred_at"], first_payout["occurred_at"])
+        self.assertEqual(second_payout["settled_at"], first_payout["settled_at"])
 
 
 if __name__ == "__main__":

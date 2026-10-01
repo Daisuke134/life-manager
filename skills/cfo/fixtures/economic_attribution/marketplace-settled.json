@@ -145,8 +145,8 @@
   },
   "aggregate": {
     "sales_count": 2,
-    "net_amount_minor": 49800
+    "net_amount_minor": 45300
   },
-  "content_sha256": "3ab4f52a55a2a8e8e24c618ded979ab0adec571fbc679fcb3d4b4f46f8082114",
-  "evidence_ref": "marketplace://lancers/financial-readback/sha256/3ab4f52a55a2a8e8e24c618ded979ab0adec571fbc679fcb3d4b4f46f8082114"
+  "content_sha256": "f8179f7c975b752b88f0f43e83b2750fcb4b7dfb318b4abd5b76e08f1df00027",
+  "evidence_ref": "marketplace://lancers/financial-readback/sha256/f8179f7c975b752b88f0f43e83b2750fcb4b7dfb318b4abd5b76e08f1df00027"
 }
