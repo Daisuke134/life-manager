@@ -90,6 +90,55 @@ def _port_answers(port: int, timeout: float = 3.0) -> bool:
         return False
 
 
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _command_line(pid: int) -> str:
+    try:
+        result = subprocess.run(
+            ["/bin/ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout
+
+
+def _live_profile_owner(profile: Path, port: int) -> int | None:
+    """Return an orphan Chromium pid only when profile and CDP port both match."""
+    try:
+        target = os.readlink(profile / "SingletonLock")
+    except OSError:
+        return None
+    pid_text = target.rpartition("-")[2]
+    if not pid_text.isdigit():
+        return None
+    pid = int(pid_text)
+    if pid <= 1 or not _pid_alive(pid):
+        return None
+    command = _command_line(pid)
+    profile_marker = f"--user-data-dir={profile.resolve()}"
+    port_marker = f"--remote-debugging-port={port}"
+    return pid if profile_marker in command and port_marker in command else None
+
+
+def _wait_for_adopted_browser(pid: int, port: int, poll_interval: float = 10.0) -> int:
+    """Keep the owner lease while an exact orphaned browser remains alive."""
+    while _pid_alive(pid):
+        if not _port_answers(port):
+            return 75
+        time.sleep(poll_interval)
+    return 75
+
+
 def _wait_for_browser(
     child: subprocess.Popen,
     *,
@@ -284,9 +333,34 @@ def run(args: argparse.Namespace) -> int:
 
             # A previous supervisor can die after its lock is released while
             # its Chromium child keeps serving the port.  Do not spawn a
-            # second browser against that live CDP/profile; fail closed and
-            # let the owner-scoped recovery path reconcile the orphan.
+            # second browser against that live CDP/profile. If Chromium's
+            # SingletonLock and command line prove that it is this exact
+            # profile/port, adopt it until it exits; otherwise fail closed.
             if _port_answers(args.port):
+                adopted_pid = _live_profile_owner(Path(args.profile), args.port)
+                if adopted_pid is not None:
+                    payload = {
+                        "owner": args.owner,
+                        "pid": os.getpid(),
+                        "supervisor_pid": os.getpid(),
+                        "browser_root_pid": adopted_pid,
+                        "port": args.port,
+                        "profile_name": Path(args.profile).name,
+                        "adopted": True,
+                    }
+                    _write_receipt(receipt_path, payload)
+                    _write_receipt(profile_receipt_path, payload)
+                    try:
+                        return _wait_for_adopted_browser(adopted_pid, args.port)
+                    finally:
+                        for owned_receipt in (receipt_path, profile_receipt_path):
+                            try:
+                                current = json.loads(owned_receipt.read_text(encoding="utf-8"))
+                            except (OSError, ValueError, TypeError):
+                                current = {}
+                            if (current.get("supervisor_pid") == os.getpid()
+                                    and current.get("owner") == args.owner):
+                                owned_receipt.unlink(missing_ok=True)
                 print(json.dumps({
                     "ok": False,
                     "reason": "browser_port_already_served",
