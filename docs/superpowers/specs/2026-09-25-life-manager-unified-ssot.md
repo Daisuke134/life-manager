@@ -2140,10 +2140,10 @@ flowchart LR
 通知の「本日が契約途中終了リクエストの返答期限です」はAdobeの解約ではなく、CrowdWorksの契約ID`63570481`に対するprovider側の契約途中終了申請である。通知には当日が返答期限と表示されているが、現時点で次の三点は別々に扱う。
 
 - **確認済み:** 9月のフォーム送信（発注者・フォームrevision hash・milestone`13798056`のprovider receipt）と、Paid stateの`delivered`はローカルreceiptで確認できる。
-- **公式readback確認済み:** `https://crowdworks.jp/contracts/63570481`の契約画面は、契約相手を「ネオ・ゲート採用」、契約金額税込12円、期間「2026年09月10日〜現在」と表示し、「この契約は契約途中終了リクエストが送信されています」「契約途中終了に同意しますか？ 同意する／同意しない」「送信から1週間で未回答なら利用規約に沿って自動終了」と表示する。画面上は現在も両ボタンが存在し、今回のcursorではどちらも押していない。
+- **公式readback確認済み:** `https://crowdworks.jp/contracts/63570481`の契約画面は、契約相手を「ネオ・ゲート採用」、契約金額税込12円、期間「2026年09月10日〜現在」と表示し、「この契約は契約途中終了リクエストが送信されています」「契約途中終了に同意しますか？ 同意する／同意しない」「送信から1週間で未回答なら利用規約に沿って自動終了」と表示していた。1回だけ`POST /contract_termination_requests/1427391/agree`（HTTP`302`）を実行し、遷移後の同画面で「契約を途中終了しました」「この契約は途中終了されました」、期間終了日`2026年10月1日`を確認した。重複クリック・再送はない。
 - **終了理由の公式readback:** 2026年9月24日11:28の相手メッセージは、以前にも同社求人へ応募し課題テストを受けていたため、前回応募から6か月未満の再応募は公平性のため受け付けない、と明記している。したがって、今回の契約途中終了の直接理由は品質不良ではなく、重複／短期再応募ポリシーである。
 - **別の品質指摘:** 2026年9月16日11:43には、staff宛メールは回答済みだがcustomer宛メールが未回答、と指摘されている。これはこちらの作業品質・完了判定の失敗だが、9月24日の終了理由とは別である。
-- **操作状態:** このcursorでは承諾・拒否・再納品・再送を実行していない。公式画面のread-only確認のみ完了した。
+- **操作状態:** 契約途中終了への同意を一度だけ実行し、公式readbackを保存した。拒否・再納品・再送は実行していない。
 
 **Underperformanceの判定:** 今回の終了申請の直接理由は公式readbackで重複／短期再応募ポリシーと確定したため、品質不良が終了原因だったとは扱わない。ただし、こちら側の実行不備は根拠付きで確認できる。最新buyer event`427573234`と`funded-contract-plan.json`には「staff emailは回答済みだがcustomer emailの回答が不足」とあり、同じ契約の次アクションも「不足したcustomer-address answerを作成してからformal deliver」と残っている。過去のフォーム／納品receiptが存在することだけを完了証拠にし、最新要求を結果へ結び付けられていなかった。
 
@@ -2157,13 +2157,13 @@ flowchart LR
 
 内部の根因は、契約threadの観測中に`TargetClosedError`（`Page.goto: Target page, context or browser has been closed`）が発生し、thread stateが`reconcile_unknown`のまま残ったこと、reply laneの最新runが`entrypoint_exit_1`／`official_readback_required`で終わり、終了申請を独立したdurable deadline itemとして再キューできていなかったことである。加えて、hostのData volumeが100%（約1--2GiB free）となり、`ENOSPC`・SQLite `disk I/O error`・receipt書込み失敗を起こしうる。loaded releaseとevent releaseの不一致も、実行したコードとreadbackを取り違えるtelemetry gapを生む。
 
-今すぐの安全な境界は、(1)公式契約画面を読み取り専用で再観測して終了申請の現状態・理由・期限・条件・provider receiptを保存、(2)申請がまだ開いていて承諾／拒否方針が確定している場合だけ、外部操作を一度だけ実行し公式readbackを保存、(3)条件または方針が不明ならeffect fenceを解放せず保留、である。フォームや納品物を再送してこの申請を消そうとしてはいけない。
+今回の安全な境界は、公式readbackで理由・条件を確認してから外部操作を一度だけ実行し、遷移後の終了状態を保存することだった。これは完了済みである。フォームや納品物を再送してこの申請を消そうとしてはいけない。
 
 この失敗を全platformで再発させない共通修正は、`contract_termination_request`・`due_at`・`deadline_status`・`provider_receipt_id`をshared schemaへ追加し、最新buyer eventを必ずdurable queue・期限通知・owner healthへ投影すること、browser target closeをtyped `observation_wait`としてbounded reattach→reconcileへ接続すること、`official_readback`が無い`pass`を成功扱いしないこと、disk headroom／receipt reserve／release provenanceをmutation前のadmission gateにすること、同一intentのdedupe keyとeffect fenceを全adapterで共有することである。
 
 #### Contract Work Factoryの残TODO（この節を拡張順の正本とする）
 
-1. **[~] CrowdWorks期限案件を閉じる:** owner付きbrowser recoveryと公式契約画面の読み取り経路を確認し、契約ID`63570481`の現状態・終了条件・直接理由（重複／6か月未満の再応募）を公式readbackへ保存済み。残りは最新buyer event`427573234`の不足customer email回答をrequest-to-result表で照合し、同意／拒否方針が確定している場合だけ外部操作を一度だけ実行して公式readbackを保存する。不明なら保留し、再納品・再送はしない。
+1. **[~] CrowdWorks期限案件を閉じる:** owner付きbrowser recoveryと公式契約画面の読み取り、契約ID`63570481`の直接理由（重複／6か月未満の再応募）、同意`POST`一回、終了readback保存まで完了。残りは最新buyer event`427573234`の不足customer email回答をrequest-to-result表へ「契約終了後の品質記録」として照合し、同様の部分完了を再発させない。終了済み案件へ再納品・再送はしない。
 2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類、CrowdWorks検出、応募前のshared fail-closed fence、CrowdWorks公式履歴adapterとdurable cache接続、10ページsource-complete同期（200件）、契約URLリダイレクトの公式readback、保存済み期限情報を期限超過→緊急→近日→不明→通常の順で直列化するshared reply queue、返信カーネルのbounded deadline telemetry（`deadline_status`・正規化済み`due_at`・案件ID、期限超過時の`deadline_missed`、run marker永続化）、reply loopだけを対象にした読み取り専用`lm-loop status/health`投影、既知no-effect理由の`safely_fenced` health投影、履歴cacheの`lm-loop status`投影、本文hashを捏造しない`ApplicationHistoryReceipt`の共通schema永続化は完了。履歴同期全体とCFO通知は残る。
 3. **[~] CrowdWorks laneを修正:** browser attach/inbox/threadの観測前`entrypoint_exit_1`はstructured waitへ分類済み。release SHA不一致はhealthで`telemetry_gap`として検知し`reconcile_current_release`へ誘導、receiptなし`pass`は`official_readback_required`へ戻す実装と回帰テストを完了。残りは孤児CDP portをowner付きで安全にreconcileするbrowser supervisor、終了申請のtarget-close回復、durable deadline再キュー、全revenue laneの同一immutable releaseへの反映、同一releaseで自然run→公式readback→replay-zeroを閉じる。
 4. **[~] Adapter conformance gate:** 既存Coconala/Lancers/CrowdWorks/Mercorのreply adapterが5 surface（observe_threads/observe_one/context/mutate/readback）と観測前structured waitを実装する共通contract testを持ち、Coconalaの`CollectorUnhealthy`（`missing_container`・coverage不足・login redirectを含む）とLancersのbrowser/account/thread/calendar観測失敗も送信失敗ではなく共有kernelの観測待機へ分類する。Coconala/Lancers/CrowdWorks/Mercorのpaid adapterが5 surface（observe_active/observe_one/context/mutate/readback）を共有Paid kernelへ渡す共通contract testを追加した。Paid kernelにもadapterが明示したmutation前のbrowser/session/lock観測障害を`waiting_external`・`pending`としてdurableに保存する分類境界を追加し、4つの既存paid adapterすべての再試行可能な観測待ちを同じcontractへ接続した。Mercorのsnapshot/Gmail source failure分類と外部効果0の回帰テストも完了。残りは新platformのadapter生成・検証、Coconalaの旧paid-direct delivery bridgeをshared kernelの自然runへ移すこと、application/storefront laneの同一effect fence確認、shared kernelのduplicate・ledger・P&L再実装が無いことの全adapter監査。
