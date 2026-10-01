@@ -2386,3 +2386,15 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 5b partialのbackoff後natural retryをread-onlyで観測し、未適用Connector/Self-Build等のloaded SHA/argvを一件ずつ確認する。
 2. admission queueとdisk free二回安定を取得する。capacity/ENOSPCが再現する場合はsource境界を診断するが、timeout値を自己流に変更しない。
 3. fleetが安定してからPromptBase/Writer→Capafy→各named loop→CFOへ進む。現時点で14 loopのsettled revenueは`unknown`、cost-complete P&Lは`0/14`のまま。
+
+### 35. 5b natural retry 2回目のpartial（2026-10-02 01:28 JST）
+
+- 次の5b natural retryは`2026-10-01T16:28:25Z`に終端し、`fleet-apply-state.json`は`status=partial / changed=11 / skipped=94 / errors=6 / message="timed out owners: none; budget exceeded" / sha=5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`となった。前回partialからtarget ownerのloaded SHAは増えたが、fleet収束ではない。
+- 今回のtyped timeout rowsは`life-manager-anicca-buddha-tiktok`、`life-manager-anicca-en-affirmation-instagram`、`life-manager-anicca-en-affirmation-tiktok`、`life-manager-anicca-en-slideshow-tiktok`、`life-manager-anicca-en-widget-instagram`、`life-manager-anicca-jp1-tiktok`。外部provider receiptなしで再送せず、次のbackoff/natural retryへ残す。
+- current release/target SHAは5b。disk freeは`2,386,436 KB`で、10GB安定条件を満たさない。Capafy/PromptBaseの公式listing・sale・settlement・payout、CFO `14/14`、self-fundingは未達のまま。
+
+#### 35時点のcursor
+
+1. 5b backoff後natural retryをread-onlyで観測し、timeout ownerを一件ずつ確認する。
+2. disk/ENOSPC境界が続く場合は、既存capacity-selfheal source branchの証拠をレビューしてから最小PRを選ぶ。未検証の大差分はmergeしない。
+3. fleet convergence後にのみ、Agent Economy L9-13.1 TaskMarket no-effect discovery、PromptBase/Writer、Capafyへ進む。
