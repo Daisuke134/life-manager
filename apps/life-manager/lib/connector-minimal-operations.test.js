@@ -87,6 +87,39 @@ test("operations persist safe history and a positive every-wake Telegram receipt
   }
 });
 
+test("operations persist one occurrence-bound native outcome without claiming external success", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-outcome-operations-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir,
+      wakeId: "wake-20261001-outcome",
+      telegramTarget: "private-target",
+      now: () => new Date("2026-10-01T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    const outcome = {
+      schema_version: 1,
+      occurrence_id: "life-manager-connector-native:occurrence-1",
+      run_id: "run-1",
+      release_sha: "a".repeat(40),
+      process_status: "pass",
+      external_registration_status: "not_attempted",
+      provider_receipt_ref: null,
+      confirmation_mail_ref: null,
+      calendar_event_ref: null,
+      safe_reason: "providers_exhausted",
+    };
+    await operations.recordNativeOutcome(outcome);
+    await operations.recordNativeOutcome(outcome);
+    const file = path.join(stateDir, "native-outcomes.jsonl");
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8").trim()), outcome);
+    assert.equal(fs.readFileSync(file, "utf8").trim().split("\n").length, 1);
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test("reportWake persists an occurrence-bound diagnostic and includes only bounded fields in Telegram", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-diagnostic-"));
   const sent = [];

@@ -204,7 +204,7 @@ test("official production factory exposes the complete minimal wake dependency c
       : { status: "applied_bundle", bundle_id: "bundle-1", completion_disposition: "created" }; } });
     let removed = null;
     const reconciliationStore = Object.freeze({ list() { return []; }, save() {}, remove(provider, eventRef) { removed = [provider, eventRef]; } });
-    const operations = Object.freeze({ reportWake() {}, recordAction() {} });
+    const operations = Object.freeze({ reportWake() {}, recordAction() {}, recordNativeOutcome() {} });
     const dependencies = createMinimalProductionDependencies({
       repoRoot: "/private/repo",
       stateDir,
@@ -228,7 +228,7 @@ test("official production factory exposes the complete minimal wake dependency c
     assert.equal(dependencies.browserRail, browserRail);
     assert.deepEqual(Object.keys(dependencies).sort(), [
       "browserRail", "completeEvidence", "completeTalkEvidence", "discoverCandidates", "now", "readCalendarGaps",
-      "readProviderState", "recordAction", "recordCandidateAttempt", "recordCandidateDispatchAudit", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
+      "readProviderState", "recordAction", "recordCandidateAttempt", "recordCandidateDispatchAudit", "recordNativeOutcome", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
       "runDirectAction", "runTalkApplication", "saveRepairedActions",
     ]);
     assert.deepEqual(await dependencies.readCalendarGaps(), await calendarReader.readCalendarGaps());

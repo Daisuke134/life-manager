@@ -463,6 +463,9 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
             try {
               talkBundle = await action("submit", "talk_evidence", () => deps.completeTalkEvidence({
                 provider, candidate: selected, page: owned.page, providerState: talkResult,
+                occurrence_id: settings.trace.occurrenceId,
+                run_id: settings.trace.runId,
+                release_sha: settings.trace.releaseSha,
               }));
             } catch { return finish("circuit_open", "evidence_completion_failed"); }
             if (!talkBundle || talkBundle.status !== "applied_bundle" || !String(talkBundle.bundle_id || "")
@@ -667,6 +670,9 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
                 page: owned.page,
                 providerState,
                 repairedActions,
+                occurrence_id: settings.trace.occurrenceId,
+                run_id: settings.trace.runId,
+                release_sha: settings.trace.releaseSha,
               }),
               (error) => ({ provider, safe_reason: safeEvidenceReason(error) }),
             );

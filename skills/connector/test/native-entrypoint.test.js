@@ -93,6 +93,40 @@ test("official native pass forwards only the bounded minimal wake contract", asy
   }
 });
 
+test("native pass reports process and external status separately for one occurrence", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-outcome-"));
+  let observed;
+  try {
+    const result = await runNativePass({
+      repoRoot: REPO_ROOT,
+      stateDir: path.join(directory, "state"),
+      ownerToken: "native-pass-outcome-owner-123456",
+      occurrenceId: "life-manager-connector-native:occurrence-1",
+      runId: "run-1",
+      releaseSha: "a".repeat(40),
+      dependencies: {
+        recordNativeOutcome(value) { observed = value; },
+      },
+      async runWake() { return { status: "completed_no_effect", safe_reason: "providers_exhausted" }; },
+    });
+    assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted" });
+    assert.deepEqual(observed, {
+      schema_version: 1,
+      occurrence_id: "life-manager-connector-native:occurrence-1",
+      run_id: "run-1",
+      release_sha: "a".repeat(40),
+      process_status: "pass",
+      external_registration_status: "not_attempted",
+      provider_receipt_ref: null,
+      confirmation_mail_ref: null,
+      calendar_event_ref: null,
+      safe_reason: "providers_exhausted",
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("official native pass alternates Luma and Connpass priority every 30-minute slot", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-rotation-"));
   const observed = [];
