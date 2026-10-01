@@ -1,6 +1,7 @@
 import json
 import os
 import plistlib
+import re
 import stat
 import subprocess
 import tempfile
@@ -10,9 +11,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 HANDOFF = ROOT / "bin/reconcile-agent-self-handoff.sh"
+RUNNER = ROOT / "bin/reconcile-agent-runner-release.sh"
+WATCHER_LABEL = "ai.anicca.life-manager-release-reconciler-handoff"
 
 
 class ReconcilerSelfHandoffTest(unittest.TestCase):
+    def test_runner_uses_a_distinct_helper_service_label(self):
+        source = RUNNER.read_text(encoding="utf-8")
+        match = re.search(r'local helper_label="([^"]+)"', source)
+        self.assertIsNotNone(match, "runner must declare the helper service label")
+        self.assertNotEqual(match.group(1), WATCHER_LABEL)
+
     def _fake_launchctl(self, root: Path) -> Path:
         script = root / "launchctl-safe"
         script.write_text(
@@ -54,7 +63,7 @@ case "${1:-}" in
       gui/*/ai.anicca.life-manager-release-reconciler)
         printf 'absent' > "$state_file"
         ;;
-      gui/*/ai.anicca.life-manager-release-reconciler-handoff)
+      gui/*/ai.anicca.life-manager-release-reconciler-self-handoff)
         printf 'helper-absent' > "$state_file.helper"
         ;;
     esac
@@ -82,7 +91,7 @@ exit 64
             handoff_plist = root / "self-handoff.plist"
             handoff_plist.write_bytes(
                 plistlib.dumps({
-                    "Label": "ai.anicca.life-manager-release-reconciler-handoff",
+                    "Label": "ai.anicca.life-manager-release-reconciler-self-handoff",
                     "ProgramArguments": [str(HANDOFF)],
                 })
             )
@@ -117,7 +126,7 @@ exit 64
                     str(HANDOFF),
                     "--parent-pid", parent_pid,
                     "--old-service", "ai.anicca.life-manager-release-reconciler",
-                    "--helper-service", "ai.anicca.life-manager-release-reconciler-handoff",
+                    "--helper-service", "ai.anicca.life-manager-release-reconciler-self-handoff",
                     "--target-plist", str(target_plist),
                     "--handoff-plist", str(handoff_plist),
                     "--receipt", str(receipt),
@@ -177,7 +186,7 @@ exit 64
                         "/bin/bash", str(HANDOFF),
                         "--parent-pid", str(parent.pid),
                         "--old-service", "ai.anicca.life-manager-release-reconciler",
-                        "--helper-service", "ai.anicca.life-manager-release-reconciler-handoff",
+                        "--helper-service", "ai.anicca.life-manager-release-reconciler-self-handoff",
                         "--target-plist", str(target_plist),
                         "--handoff-plist", str(handoff_plist),
                         "--receipt", str(receipt),

@@ -541,7 +541,7 @@ schedule_self_handoff() {
   local release_root="$1" release_sha="$2"
   local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
   local handoff_dir="$state_dir/self-handoff"
-  local helper_label="ai.anicca.life-manager-release-reconciler-handoff"
+  local helper_label="ai.anicca.life-manager-release-reconciler-self-handoff"
   local helper_plist="$handoff_dir/helper.plist"
   local target_plist_tmp="$handoff_dir/reconciler-target.plist.tmp"
   local installed_plist="${LIFE_MANAGER_LAUNCH_AGENTS_DIR:-$HOME/Library/LaunchAgents}/ai.anicca.life-manager-release-reconciler.plist"
