@@ -41,26 +41,26 @@ class LmLoopReadonlyTest(unittest.TestCase):
             status.write_text(json.dumps({
                 "eligibility_history": {
                     "status": "complete", "pages_read": 10,
-                    "page_count": 10, "next_page": 11,
+                    "page_count": 10, "next_page": 11, "receipt_count": 200,
                 }
             }), encoding="utf-8")
             status.chmod(0o600)
 
             self.assertEqual(_eligibility_history_status(str(root)), {
                 "status": "complete", "pages_read": 10,
-                "page_count": 10, "next_page": 11,
+                "page_count": 10, "next_page": 11, "receipt_count": 200,
             })
 
             status.write_text(json.dumps({
                 "eligibility_history": {
                     "status": "complete", "pages_read": -1,
-                    "page_count": 10, "next_page": 11,
+                    "page_count": 10, "next_page": 11, "receipt_count": 200,
                 }
             }), encoding="utf-8")
             self.assertIsNone(_eligibility_history_status(str(root)))
 
     def test_status_rows_include_bounded_owner_history_projection(self):
-        value = {"status": "syncing", "pages_read": 3, "page_count": 10, "next_page": 4}
+        value = {"status": "syncing", "pages_read": 3, "page_count": 10, "next_page": 4, "receipt_count": 60}
         with patch("runtime.loop.lm_loop._eligibility_history_status", return_value=value):
             row = status_rows(
                 REGISTRY, loaded={}, disabled={}, events={}, installed_releases={},

@@ -316,6 +316,7 @@ def test_history_cache_status_is_bounded_and_distinguishes_missing_syncing_compl
         "pages_read": 0,
         "page_count": None,
         "next_page": 1,
+        "receipt_count": 0,
     }
 
     page = _Page(module)
@@ -326,4 +327,7 @@ def test_history_cache_status_is_bounded_and_distinguishes_missing_syncing_compl
     assert syncing["status"] == "syncing"
     assert syncing["complete"] is False
     assert syncing["pages_read"] == 1
-    assert set(syncing) == {"status", "complete", "pages_read", "page_count", "next_page"}
+    assert syncing["receipt_count"] == 2
+    assert set(syncing) == {
+        "status", "complete", "pages_read", "page_count", "next_page", "receipt_count"
+    }

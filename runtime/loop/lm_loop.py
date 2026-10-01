@@ -250,15 +250,18 @@ def _eligibility_history_status(state_root: str) -> dict | None:
     pages_read = raw.get("pages_read")
     page_count = raw.get("page_count")
     next_page = raw.get("next_page")
+    receipt_count = raw.get("receipt_count")
     if (type(pages_read) is not int or pages_read < 0
             or (page_count is not None and (type(page_count) is not int or page_count < 1))
-            or type(next_page) is not int or next_page < 1):
+            or type(next_page) is not int or next_page < 1
+            or type(receipt_count) is not int or receipt_count < 0):
         return None
     return {
         "status": raw["status"],
         "pages_read": pages_read,
         "page_count": page_count,
         "next_page": next_page,
+        "receipt_count": receipt_count,
     }
 
 

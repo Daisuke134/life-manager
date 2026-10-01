@@ -469,6 +469,7 @@ def history_cache_status(cache_path: Path) -> Mapping[str, object]:
             "pages_read": 0,
             "page_count": None,
             "next_page": 1,
+            "receipt_count": 0,
         }
     complete = cached.get("complete") is True
     return {
@@ -477,6 +478,7 @@ def history_cache_status(cache_path: Path) -> Mapping[str, object]:
         "pages_read": cached.get("pages_read", 0),
         "page_count": cached.get("page_count"),
         "next_page": cached.get("next_page"),
+        "receipt_count": len(cached.get("receipts", [])),
     }
 
 
