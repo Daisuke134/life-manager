@@ -2489,3 +2489,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. Coconalaの後続claim pre-effect proofは高リスクfence変更として、重要なread-only review後にsource TDD可否を決める。AlpacaとInstagram metricsは公式readback付きHELDとして維持する。
 2. 旧SHA25 ownerを自然wakeと次fleet retryで減らし、loaded release rootとdisk freeを再測定する。provider effectをmanual retryしない。
 3. 10GB二回とtarget provenanceが揃えば、3 HELDをtyped exceptionとしてP1-2bのofficial-readback partial判定を行う。
+
+### 43. Coconala後続claim reviewとdisk owner境界（2026-10-02 04:13 JST）
+
+- Coconala occurrence `18d88651ee0bf088-46308`をclaimした後続runの`resource_heartbeat_unavailable`をpre-effect proofへ昇格できるかcall orderをreviewした。`lm_loop_run._run_admitted`はclaim取得後、`_run_entrypoint_with_stderr_capture(... on_started=transfer_claim)`でchildをspawnし、`transfer_claim`がclaimをchild PIDへ移してheartbeat threadを開始する。`heartbeat_failed`による`resource_heartbeat_unavailable`はその後にだけ生成される。従ってchildがprovider作用した可能性を排除できず、現行`claimed_by_other_run`拒否が正しい。fenceはHELD、source変更なし。
+- AGMSGでread-only reviewer `lm-coconala-claim-review-1002`をfresh spawnし、team registration/placement/identity consistencyはPASSしたが、Claude Codeが`Login expired /login`で着手前停止した。自己申告や登録を稼働とみなさずdespawnした。外部reviewなしでも上記call orderが反証可能なため、安全側HOLDを維持する。
+- disk cleanupはunprotected releaseを削除し、release総数とprotected rootを16まで縮小した。plistは153/178が3f、旧25件は全てhealth上`safely_fenced`または`effect_unknown`。主要target ownerは3fへ収束済みだが、旧effectful ownerを強制applyしてroot保護を外さない。
+- full inventoryの大容量rootは`.openclaw`約4.8GB、`anicca-project`約4.86GB、`anicca`約3.48GB。credential/session/memoryや別repository所有物と混在するため削除しない。既存cleanup allowlist内の再生成cacheは合計約200MBだけで、10GB不足の主因ではない。disk freeは約5〜6.5GBで変動し、10GB条件は未達。
+
+#### 43時点のcursor
+
+1. 04:26:49 JST以降のnatural fleet retryで旧25 ownerとprotected rootが減るか確認する。
+2. 3 HELDは公式readback付きtyped exceptionとして維持し、重複応募・注文・通知をしない。
+3. disk 10GB二回が自然cleanupだけで届かない場合、他agent/repository/stateを削除せず、ownerが証明できる再生成可能対象だけを次のsource TODOにする。
