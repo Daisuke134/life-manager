@@ -545,3 +545,20 @@ def test_acceptance_readback_counts_escrow_pending_as_accepted(capsys):
     assert all(url.endswith("/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC") for url in visited)
     err = capsys.readouterr().err
     assert "2:status='選定中'" in err and "3:not_listed:rows=3" in err
+
+
+@pytest.mark.parametrize(
+    ("code", "reason"),
+    [
+        ("lancers_paid_inventory_browser_attach_busy", "provider_browser_attach_busy"),
+        ("lancers_paid_inventory_account_unavailable", "provider_account_unavailable"),
+        ("lancers_paid_account_unavailable", "provider_account_unavailable"),
+    ],
+)
+def test_paid_observation_outages_are_explicit_retry_waits(code, reason):
+    error = RuntimeError(code)
+    error.paid_error_code = code
+    classified = paid_adapter.LancersPaidAdapter.classify_observation_error(error)
+
+    assert classified["reason"] == reason
+    assert classified["remaining_work"]

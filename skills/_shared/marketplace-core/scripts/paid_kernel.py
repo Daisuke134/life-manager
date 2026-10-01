@@ -47,6 +47,9 @@ class PaidAdapter(Protocol):
     # shared kernel validates their canonical contract shape.
     def paid_handoff(self, work_id: str, context: Mapping[str, Any]) -> Mapping[str, Any]: ...
 
+    # Optional: return {reason, remaining_work} for a known pre-effect provider
+    # observation outage. Unknown or post-effect errors remain fenced failures.
+
 
 @lru_cache(maxsize=1)
 def _contracts_module():
@@ -286,9 +289,43 @@ def _receipt_history(state: Mapping[str, Any], receipt: Mapping[str, Any] | None
     return unique
 
 
-def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
-    return {"work_id": row["work_id"], "status": "pending", "reason": reason,
-            "effect": 0, "readback": 0, "failed": 0}
+def _pending(row: Mapping[str, Any], reason: str,
+             remaining_work: list[str] | None = None) -> dict[str, Any]:
+    result = {"work_id": row["work_id"], "status": "pending", "reason": reason,
+              "effect": 0, "readback": 0, "failed": 0}
+    if remaining_work:
+        result["remaining_work"] = list(remaining_work)
+    return result
+
+
+def _classify_observation_error(adapter: PaidAdapter,
+                                error: Exception) -> tuple[str, list[str]] | None:
+    """Return an adapter-declared pre-effect wait, never infer one from text.
+
+    Paid effects are guarded by the shared kernel.  An adapter may identify a
+    provider observation boundary that is temporarily unavailable, but only an
+    explicit, schema-valid classification can turn that exception into a
+    durable wait.  Unknown errors remain failures and mutation-started errors
+    are never sent through this helper.
+    """
+    classify = getattr(adapter, "classify_observation_error", None)
+    if not callable(classify):
+        return None
+    try:
+        classified = classify(error)
+    except Exception:
+        return None
+    if not isinstance(classified, Mapping):
+        return None
+    try:
+        reason = _text(classified.get("reason"), "observation_wait_reason")
+    except (TypeError, ValueError):
+        return None
+    remaining = classified.get("remaining_work")
+    if (not isinstance(remaining, list) or not remaining
+            or not all(isinstance(value, str) and value.strip() for value in remaining)):
+        return None
+    return reason, [value.strip() for value in remaining]
 
 
 def _observe_one(adapter: PaidAdapter, work_id: str, *, refresh: bool = False) -> dict[str, Any]:
@@ -493,6 +530,25 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
                         _write_state(_state_path(state_root, row), saved, occurrence_id)
                 except (OSError, ValueError):
                     pass
+            else:
+                classified = _classify_observation_error(adapter, error)
+                if classified is not None:
+                    reason, remaining = classified
+                    try:
+                        current_state = _load(_state_path(state_root, row))
+                        saved = dict(current_state)
+                        saved.update({
+                            "version": 1,
+                            "observation": current_state.get("observation", row),
+                            "status": "waiting_external",
+                            "blocker": reason,
+                            "remaining_work": remaining,
+                            "last_error": type(error).__name__,
+                        })
+                        _write_state(_state_path(state_root, row), saved, occurrence_id)
+                    except (OSError, ValueError, json.JSONDecodeError):
+                        pass
+                    return _pending(row, reason, remaining)
             error_detail = str(error).strip() or type(error).__name__
             return {"work_id": row["work_id"], "status": "failed",
                     "reason": type(error).__name__, "error_detail": error_detail,
@@ -620,6 +676,9 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as error:
         wait_reason = getattr(error, "paid_wait_reason", None)
         remaining = getattr(error, "paid_remaining_work", None)
+        classified = _classify_observation_error(adapter, error)
+        if classified is not None:
+            wait_reason, remaining = classified
         if (isinstance(wait_reason, str) and wait_reason.strip()
                 and isinstance(remaining, list) and remaining
                 and all(isinstance(value, str) and value.strip() for value in remaining)):

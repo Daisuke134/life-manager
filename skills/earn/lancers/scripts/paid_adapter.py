@@ -382,6 +382,58 @@ class LancersPaidAdapter:
             return None
         return value.strip() if isinstance(value, str) else None
 
+    @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, Any] | None:
+        """Fence only known pre-effect Lancers observation outages.
+
+        The paid kernel calls this hook before any provider mutation.  Detail,
+        handoff, decision, and post-effect errors intentionally stay failures
+        or reconcile-unknown; only browser/session/lock boundaries that can be
+        retried without sending are converted to a durable wait.
+        """
+        code = getattr(error, "paid_error_code", None)
+        if not isinstance(code, str) or not code.strip():
+            code = str(error).strip()
+        waits = {
+            "lancers_paid_inventory_browser_attach_busy": (
+                "provider_browser_attach_busy",
+                "retry official Lancers inventory after the shared browser attach lock is free",
+            ),
+            "lancers_paid_inventory_browser_connect_failed": (
+                "provider_browser_unavailable",
+                "restore the authenticated Lancers browser session and retry official inventory",
+            ),
+            "lancers_paid_inventory_browser_unavailable": (
+                "provider_browser_unavailable",
+                "restore the authenticated Lancers browser session and retry official inventory",
+            ),
+            "lancers_paid_inventory_external_browser_unavailable": (
+                "provider_external_browser_unavailable",
+                "restore the external Lancers browser session and retry official inventory",
+            ),
+            "lancers_paid_inventory_account_unavailable": (
+                "provider_account_unavailable",
+                "restore the authenticated Lancers account session and retry official inventory",
+            ),
+            "lancers_paid_inventory_account_lock_busy": (
+                "provider_account_lock_busy",
+                "retry official Lancers inventory after the account lock is free",
+            ),
+            "lancers_paid_account_unavailable": (
+                "provider_account_unavailable",
+                "restore the authenticated Lancers account session and retry the official contract observation",
+            ),
+            "lancers_paid_browser_unavailable": (
+                "provider_browser_unavailable",
+                "restore the authenticated Lancers browser session and retry the official contract observation",
+            ),
+        }
+        value = waits.get(code)
+        if value is None:
+            return None
+        reason, remaining = value
+        return {"reason": reason, "remaining_work": [remaining]}
+
     def _inventory(self) -> list[dict[str, Any]]:
         snapshot = self.inventory_reader()
         if (not isinstance(snapshot, Mapping) or snapshot.get("ok") is not True

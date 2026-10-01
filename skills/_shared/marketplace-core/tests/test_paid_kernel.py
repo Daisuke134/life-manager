@@ -525,6 +525,98 @@ def test_pre_effect_item_failure_is_marked_without_mutation(tmp_path: Path) -> N
     assert adapter.effects == []
 
 
+def test_declared_observation_outage_is_durable_pending_before_mutation(tmp_path: Path) -> None:
+    class ObservationWaitAdapter(Adapter):
+        def context(self, work_id: str) -> dict:
+            raise RuntimeError("browser attach temporarily unavailable")
+
+        @staticmethod
+        def classify_observation_error(error: Exception) -> dict:
+            if str(error) == "browser attach temporarily unavailable":
+                return {
+                    "reason": "provider_browser_attach_busy",
+                    "remaining_work": ["retry official inventory after browser attach is free"],
+                }
+            return {}
+
+    adapter = ObservationWaitAdapter([observation("blocked")])
+    result = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+
+    assert result["effect"] == 0
+    assert result["failed"] == 0
+    assert result["pending"] == 1
+    assert result["items"][0]["remaining_work"] == [
+        "retry official inventory after browser attach is free"
+    ]
+    state = json.loads(next(tmp_path.glob("items/*/state.json")).read_text())
+    assert state["status"] == "waiting_external"
+    assert state["blocker"] == "provider_browser_attach_busy"
+    assert adapter.effects == []
+
+
+def test_declared_observation_classifier_never_masks_post_effect_failure(tmp_path: Path) -> None:
+    class PostEffectFailureAdapter(Adapter):
+        def mutate(self, intent: dict) -> None:
+            raise RuntimeError("provider effect boundary uncertain")
+
+        @staticmethod
+        def classify_observation_error(_error: Exception) -> dict:
+            return {
+                "reason": "provider_browser_attach_busy",
+                "remaining_work": ["retry official inventory"],
+            }
+
+    result = paid.run_wake(
+        adapter=PostEffectFailureAdapter([observation("blocked")]),
+        decide=submit,
+        state_root=tmp_path,
+    )
+
+    assert result["failed"] == 1
+    assert result["pending"] == 0
+    assert result["items"][0]["pre_effect"] is False
+
+
+def test_cli_declared_inventory_outage_is_pending_not_failed(tmp_path: Path) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class InventoryWait(RuntimeError):
+    pass
+class Adapter:
+    def observe_active(self): raise InventoryWait("browser attach temporarily unavailable")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+    @staticmethod
+    def classify_observation_error(error):
+        if str(error) == "browser attach temporarily unavailable":
+            return {"reason": "provider_browser_attach_busy",
+                    "remaining_work": ["retry official inventory"]}
+        return None
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 0
+
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result == {
+        "status": "pending", "observed": 0, "actionable": 0, "effect": 0,
+        "readback": 0, "failed": 0, "pending": 1,
+        "items": [{
+            "work_id": "__provider_inventory__", "status": "pending",
+            "reason": "provider_browser_attach_busy",
+            "remaining_work": ["retry official inventory"],
+            "effect": 0, "readback": 0, "failed": 0,
+        }],
+    }
+
+
 def test_cli_marks_all_pre_effect_item_failures_for_runtime_hint(tmp_path: Path, monkeypatch) -> None:
     provider = tmp_path / "provider.py"
     provider.write_text(f'''
