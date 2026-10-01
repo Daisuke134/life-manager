@@ -15,6 +15,29 @@
     "ai.anicca.tsbridge"
   ],
   "loops": {
+    "aa-release-reconciler-handoff": {
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "bin/reconcile-agent-handoff-watch.sh",
+      "label": "ai.anicca.life-manager-release-reconciler-handoff",
+      "log_root": "~/.local/state/life-manager/release-reconciler/handoff-watch/logs",
+      "admission_class": "borrow",
+      "priority": "support",
+      "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/release-reconciler/handoff-watch",
+      "system_role": "control"
+    },
     "alpaca-investment-live": {
       "reconcile_queued_release": true,
       "cadence": {
