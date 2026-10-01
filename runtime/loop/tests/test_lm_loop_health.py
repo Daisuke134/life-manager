@@ -418,7 +418,10 @@ class LmLoopHealthTest(unittest.TestCase):
         self.assertEqual(result, 1)
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["schema_version"], "lm-loop.health.v1")
-        self.assertEqual(payload["summary"]["telemetry_gap"], 176)
+        expected_jobs = len(json.loads(
+            (ROOT / "config/loop-registry.json").read_text()
+        )["loops"])
+        self.assertEqual(payload["summary"]["telemetry_gap"], expected_jobs)
         self.assertTrue(all(
             job["diagnostic"]["error_class"] == "health_snapshot_error"
             for job in payload["jobs"]
@@ -573,8 +576,11 @@ class LmLoopHealthTest(unittest.TestCase):
         self.assertLess(elapsed, 0.3)
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["schema_version"], "lm-loop.health.v1")
-        self.assertEqual(payload["summary"]["total"], 176)
-        self.assertEqual(payload["summary"]["telemetry_gap"], 176)
+        expected_jobs = len(json.loads(
+            (ROOT / "config/loop-registry.json").read_text()
+        )["loops"])
+        self.assertEqual(payload["summary"]["total"], expected_jobs)
+        self.assertEqual(payload["summary"]["telemetry_gap"], expected_jobs)
         self.assertTrue(all(
             job["diagnostic"]["error_class"] == "health_snapshot_timeout"
             for job in payload["jobs"]
