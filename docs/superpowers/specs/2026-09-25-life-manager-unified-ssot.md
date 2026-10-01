@@ -2090,7 +2090,6 @@ P3 source merge後も、3 platformの外部効果は0件である。人手必須
 6. L9-10 Job Hunter、L9-11 Self-Build、L9-12 InvestmentをP4として非重複3席でsource-only修正し、Investmentは自然sell・30 round trips・realized P&L前にlive fundingをしない。
 7. L9-13 Agent EconomyのTaskMarket no-effect discovery→BlockRun paid inference→external paid job→treasury/surplus renewal、L9-14 CFOの14/14 cost-complete P&Lを閉じる。
 8. DigitalOcean/Nosana/Akash provider-neutral shelter、Franklin successor handover 2回、外部surplus renewal、Akash restore、30日self-fundingを実測してからMac Mini廃止/cloud-onlyを判断する。
-
 ### 14. P4 source merge追補と最新live readback（2026-10-01 19:29 JST）
 
 P4は、Job HunterとSelf-Buildを非重複のsource-only席で実装し、Investmentは既存ownerを妨げないread-only観測で閉じた。source mergeは実装完了を意味するが、immutable release、natural wake、provider receipt、payout、cost-complete P&Lはまだ未達である。

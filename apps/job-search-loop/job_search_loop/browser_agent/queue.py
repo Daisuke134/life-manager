@@ -86,8 +86,6 @@ class RowQueueSupervisor:
         limit = _application_limit()
         if limit == 0:
             return ()
-        if limit is not None:
-            rows = rows[:limit]
         return tuple(rows)
 
     @staticmethod
