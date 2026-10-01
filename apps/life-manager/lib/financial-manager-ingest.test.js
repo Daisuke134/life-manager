@@ -97,6 +97,49 @@ test("a configured missing journal is unavailable instead of empty revenue", asy
   });
 });
 
+test("Financial Manager routes a complete marketplace chain through the shared positive-net gate", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-chain-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const fixturePath = path.join(
+    __dirname, "../../../skills/_shared/marketplace-core/tests/fixtures/mercor-full-chain.json",
+  );
+  const chain = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-09-07T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readMarketplaceReceipts: async () => chain,
+  });
+
+  assert.equal(result.sources.marketplace, "observed_verified");
+  const records = await store.read({ subjectId: "tenant-1" });
+  assert.deepEqual(records.map((row) => row.kind).sort(), [
+    "business_cost", "business_revenue", "fee", "payout",
+  ]);
+  const chainEvidence = records.map((row) => (
+    row.verification.evidence_refs.find((ref) => ref.includes("/chain/"))
+  ));
+  assert.equal(new Set(chainEvidence).size, 1);
+});
+
+test("Financial Manager marks a partial marketplace chain unavailable", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-partial-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const fixturePath = path.join(
+    __dirname, "../../../skills/_shared/marketplace-core/tests/fixtures/mercor-full-chain.json",
+  );
+  const chain = JSON.parse(fs.readFileSync(fixturePath, "utf8")).slice(0, -1);
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-09-07T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readMarketplaceReceipts: async () => chain,
+  });
+
+  assert.equal(result.sources.marketplace, "unavailable");
+  assert.deepEqual(await store.read({ subjectId: "tenant-1" }), []);
+});
+
 test("capafy revenue trend and mobile-apps RevenueCat revenue land as verified business_revenue", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

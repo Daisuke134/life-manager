@@ -74,6 +74,7 @@ def _chain():
 
 def test_complete_positive_chain_projects_one_shared_chain_evidence():
     records = financial.project_receipt_chain(_chain(), subject_id="tenant-1")
+    assert records == financial.project_receipts(_chain(), subject_id="tenant-1")
 
     assert [record["kind"] for record in records] == [
         "business_revenue", "fee", "business_cost", "payout",
@@ -95,3 +96,19 @@ def test_non_positive_chain_is_not_projected():
 
     with pytest.raises(ValueError, match="net amount must be positive"):
         financial.project_receipt_chain(value, subject_id="tenant-1")
+
+
+def test_partial_canonical_chain_cannot_bypass_chain_validation():
+    value = _chain()[:-1]
+
+    with pytest.raises(ValueError, match="incomplete_or_out_of_order_receipt_chain"):
+        financial.project_receipts(value, subject_id="tenant-1")
+
+
+def test_payment_and_payout_only_journal_keeps_legacy_projection_path():
+    value = _chain()
+    records = financial.project_receipts(value[5:7], subject_id="tenant-1")
+
+    assert [record["kind"] for record in records] == [
+        "business_revenue", "fee", "business_cost", "payout",
+    ]

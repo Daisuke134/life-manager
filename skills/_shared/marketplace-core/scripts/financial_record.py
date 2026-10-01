@@ -20,6 +20,17 @@ sys.modules[_SPEC.name] = _CONTRACTS
 _SPEC.loader.exec_module(_CONTRACTS)
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_CHAIN_RECORD_TYPES = frozenset({
+    "application_receipt", "contract_receipt", "authorization_receipt",
+    "qa_receipt", "delivery_receipt", "payment_receipt", "payout_match_receipt",
+})
+_CHAIN_PREFIX_RECORD_TYPES = frozenset(_CHAIN_RECORD_TYPES - {
+    "payment_receipt", "payout_match_receipt",
+})
+_CHAIN_RECORD_ORDER = (
+    "application_receipt", "contract_receipt", "authorization_receipt",
+    "qa_receipt", "delivery_receipt", "payment_receipt", "payout_match_receipt",
+)
 
 
 def _hash(value: str) -> str:
@@ -110,6 +121,13 @@ def payout_to_financial_record(value: Mapping[str, object], *, subject_id: str) 
 
 
 def project_receipts(values: list[Mapping[str, object]], *, subject_id: str) -> list[dict[str, object]]:
+    record_types = [value.get("record_type") for value in values]
+    if any(record_type in _CHAIN_PREFIX_RECORD_TYPES for record_type in record_types):
+        if tuple(record_types) != _CHAIN_RECORD_ORDER:
+            raise _CONTRACTS.ContractValidationError(
+                ("$: incomplete_or_out_of_order_receipt_chain",)
+            )
+        return project_receipt_chain(values, subject_id=subject_id)
     records: list[dict[str, object]] = []
     for value in values:
         if value.get("record_type") == "payment_receipt":
@@ -139,7 +157,8 @@ def project_receipt_chain(
     if payment.net_amount_minor <= 0:
         raise ValueError("receipt chain net amount must be positive")
 
-    records = project_receipts([values[5], values[6]], subject_id=subject_id)
+    records = payment_to_financial_records(values[5], subject_id=subject_id)
+    records.append(payout_to_financial_record(values[6], subject_id=subject_id))
     chain_identity = "\n".join(
         (
             payment.platform,
