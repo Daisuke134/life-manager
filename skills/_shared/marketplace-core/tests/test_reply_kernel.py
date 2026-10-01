@@ -113,6 +113,19 @@ def test_deadline_queue_processes_persisted_termination_before_ordinary_work(
 
     assert result["failed"] == 0
     assert seen == ["overdue", "urgent", "ordinary"]
+    assert result["deadline"] == {
+        "deadline_missed": True,
+        "overdue": 1,
+        "urgent": 1,
+        "upcoming": 0,
+        "unknown": 0,
+        "items": [
+            {"thread_id": "overdue", "deadline_status": "overdue",
+             "due_at": "2026-09-30T12:00:00Z"},
+            {"thread_id": "urgent", "deadline_status": "urgent",
+             "due_at": "2026-10-01T12:00:00Z"},
+        ],
+    }
 
 
 def test_malformed_deadline_is_fail_closed_and_still_precedes_ordinary_work(
@@ -132,7 +145,7 @@ def test_malformed_deadline_is_fail_closed_and_still_precedes_ordinary_work(
         },
     })
 
-    reply_kernel.run_wake(
+    result = reply_kernel.run_wake(
         adapter=adapter,
         decide=lambda context: (seen.append(context["thread_id"]) or {
             "action": "noop", "classification": "noop",
@@ -142,6 +155,11 @@ def test_malformed_deadline_is_fail_closed_and_still_precedes_ordinary_work(
     )
 
     assert seen == ["malformed", "ordinary"]
+    assert result["deadline"]["deadline_missed"] is False
+    assert result["deadline"]["unknown"] == 1
+    assert result["deadline"]["items"][0] == {
+        "thread_id": "malformed", "deadline_status": "unknown",
+    }
 
 
 def test_classified_inventory_boundary_returns_structured_blocked_result(tmp_path):
@@ -668,6 +686,17 @@ def test_human_contract_termination_facts_are_durable_without_provider_effect(tm
     assert adapter.effects == []
     assert state["status"] == "waiting_human"
     assert state["contract_termination"] == termination
+    assert result["deadline"] == {
+        "deadline_missed": False,
+        "overdue": 0,
+        "urgent": 0,
+        "upcoming": 0,
+        "unknown": 1,
+        "items": [{
+            "thread_id": "thread-1", "request_id": "1427391",
+            "contract_id": "63570481", "deadline_status": "unknown",
+        }],
+    }
 
 
 def test_one_thread_failure_is_isolated(tmp_path):

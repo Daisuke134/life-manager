@@ -31,6 +31,7 @@ _DEADLINE_PRIORITY = {
     "upcoming": 2,
     "unknown": 3,
 }
+_DEADLINE_STATUSES = frozenset(_DEADLINE_PRIORITY)
 
 
 class ReplyAdapter(Protocol):
@@ -88,7 +89,8 @@ def _write_run_marker(root: Path, occurrence_id: str | None,
     if not isinstance(occurrence_id, str) or not occurrence_id.strip():
         return
     marker_items = [{key: item.get(key) for key in
-                     ("thread_id", "status", "effect", "readback", "failed", "reason")}
+                     ("thread_id", "status", "effect", "readback", "failed", "reason",
+                      "deadline")}
                     for item in items]
     uncertain = any(
         item.get("failed") == 1
@@ -171,6 +173,104 @@ def _write(path: Path, value: Mapping[str, Any]) -> None:
                 pass
 
 
+def _normalize_deadline_timestamp(value: Any) -> str:
+    """Normalize a timezone-bearing RFC3339 deadline for durable telemetry."""
+
+    normalized = _text(value, "due_at")
+    if not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+        r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})",
+        normalized,
+    ):
+        raise ValueError("due_at_invalid")
+    if normalized.endswith(("Z", "z")):
+        normalized = normalized[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("due_at_timezone_required")
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _public_deadline_fact(value: Any, thread_id: str) -> dict[str, Any] | None:
+    """Return bounded, non-content deadline evidence for one reply item."""
+
+    if not isinstance(value, Mapping):
+        return None
+    if not any(value.get(field) is not None
+               for field in ("deadline_status", "due_at", "request_id", "contract_id")):
+        return None
+    raw_status = value.get("deadline_status")
+    status = raw_status if isinstance(raw_status, str) and raw_status in _DEADLINE_STATUSES else "unknown"
+    due_at = None
+    if value.get("due_at") is not None:
+        try:
+            due_at = _normalize_deadline_timestamp(value.get("due_at"))
+        except (TypeError, ValueError, OverflowError):
+            status = "unknown"
+    # A non-unknown status without a trusted date is not actionable evidence.
+    if status != "unknown" and due_at is None:
+        status = "unknown"
+    fact: dict[str, Any] = {"thread_id": thread_id, "deadline_status": status}
+    if due_at is not None:
+        fact["due_at"] = due_at
+    for field in ("request_id", "contract_id"):
+        candidate = value.get(field)
+        if isinstance(candidate, str) and candidate.strip():
+            fact[field] = candidate.strip()
+    return fact
+
+
+def _deadline_fact_for_row(state_root: Path, row: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Read the durable termination fact after an item has been processed."""
+
+    candidate: Mapping[str, Any] | None = None
+    try:
+        state = _load(_state_path(state_root, row))
+    except (OSError, ValueError, json.JSONDecodeError):
+        state = {}
+    persisted = state.get("contract_termination")
+    if isinstance(persisted, Mapping):
+        candidate = persisted
+    elif any(row.get(field) is not None for field in ("deadline_status", "due_at")):
+        candidate = row
+    return _public_deadline_fact(candidate, str(row["thread_id"]))
+
+
+def _decorate_deadline(result: Mapping[str, Any], state_root: Path,
+                       row: Mapping[str, Any],
+                       fallback: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    decorated = dict(result)
+    fact = _deadline_fact_for_row(state_root, row) or (
+        dict(fallback) if isinstance(fallback, Mapping) else None
+    )
+    if fact is not None:
+        decorated["deadline"] = fact
+    return decorated
+
+
+def _deadline_summary(items: list[Mapping[str, Any]]) -> dict[str, Any] | None:
+    facts = [item.get("deadline") for item in items
+             if isinstance(item.get("deadline"), Mapping)]
+    if not facts:
+        return None
+    counts = {status: 0 for status in _DEADLINE_STATUSES}
+    bounded_items: list[dict[str, Any]] = []
+    for fact in facts:
+        status = fact.get("deadline_status")
+        if status not in _DEADLINE_STATUSES:
+            status = "unknown"
+        counts[status] += 1
+        bounded_items.append({key: fact[key] for key in
+                              ("thread_id", "request_id", "contract_id",
+                               "deadline_status", "due_at")
+                              if key in fact})
+    return {
+        "deadline_missed": counts["overdue"] > 0,
+        **counts,
+        "items": bounded_items,
+    }
+
+
 def _deadline_queue_key(state_root: Path, row: Mapping[str, Any]) -> tuple[int, str, str]:
     """Return a deterministic deadline-first key without provider I/O.
 
@@ -203,21 +303,7 @@ def _deadline_queue_key(state_root: Path, row: Mapping[str, Any]) -> tuple[int, 
                 "", row["thread_id"])
     try:
         # RFC3339 strings normalized to UTC sort chronologically as text.
-        normalized_due = _text(due_at, "due_at")
-        if not re.fullmatch(
-            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
-            r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})",
-            normalized_due,
-        ):
-            raise ValueError("due_at_invalid")
-        if normalized_due.endswith(("Z", "z")):
-            normalized_due = normalized_due[:-1] + "+00:00"
-        parsed = datetime.fromisoformat(normalized_due)
-        if parsed.tzinfo is None or parsed.utcoffset() is None:
-            raise ValueError("due_at_timezone_required")
-        normalized_due = parsed.astimezone(timezone.utc).isoformat().replace(
-            "+00:00", "Z"
-        )
+        normalized_due = _normalize_deadline_timestamp(due_at)
     except (TypeError, ValueError, OverflowError):
         return (3, "", row["thread_id"])
     return (_DEADLINE_PRIORITY[status], normalized_due, row["thread_id"])
@@ -595,9 +681,11 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
     row = _observation(source)
     path = _state_path(state_root, row)
     with _lock(path):
+        prior_deadline = _deadline_fact_for_row(state_root, row)
         try:
-            return _run_locked(adapter, decide, state_root, row, notify, human_notify,
-                               pre_effect_hint, occurrence_id)
+            result = _run_locked(adapter, decide, state_root, row, notify, human_notify,
+                                 pre_effect_hint, occurrence_id)
+            return _decorate_deadline(result, state_root, row, prior_deadline)
         except Exception as error:
             state = _load(path)
             error_detail = str(error).strip()[:500] or type(error).__name__
@@ -614,10 +702,14 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
                     "last_error_detail": error_detail,
                 })
                 if transient_reason is not None:
-                    return _pending(row, transient_reason)
-                return {"thread_id": row["thread_id"], "status": "failed",
-                        "reason": type(error).__name__, "error_detail": error_detail,
-                        "effect": 0, "readback": 0, "failed": 1}
+                    return _decorate_deadline(
+                        _pending(row, transient_reason), state_root, row, prior_deadline
+                    )
+                return _decorate_deadline({
+                    "thread_id": row["thread_id"], "status": "failed",
+                    "reason": type(error).__name__, "error_detail": error_detail,
+                    "effect": 0, "readback": 0, "failed": 1,
+                }, state_root, row, prior_deadline)
             retry_count = min(int(state.get("retry_count", 0)) + 1, 10)
             delay = min(3600, 30 * (2 ** (retry_count - 1)))
             next_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
@@ -632,10 +724,14 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
                 "last_error_detail": error_detail,
             })
             if transient_reason is not None:
-                return _pending(row, transient_reason)
-            return {"thread_id": row["thread_id"], "status": "failed",
-                    "reason": type(error).__name__, "error_detail": error_detail, "effect": 0,
-                    "readback": 0, "failed": 1}
+                return _decorate_deadline(
+                    _pending(row, transient_reason), state_root, row, prior_deadline
+                )
+            return _decorate_deadline({
+                "thread_id": row["thread_id"], "status": "failed",
+                "reason": type(error).__name__, "error_detail": error_detail,
+                "effect": 0, "readback": 0, "failed": 1,
+            }, state_root, row, prior_deadline)
 
 
 def run_wake(*, adapter: ReplyAdapter,
@@ -707,6 +803,9 @@ def run_wake(*, adapter: ReplyAdapter,
         "pending": sum(item["status"] == "pending" for item in items),
         "items": items,
     }
+    deadline = _deadline_summary(items)
+    if deadline is not None:
+        result["deadline"] = deadline
     _write_run_marker(Path(state_root), occurrence_id, items)
     return result
 
