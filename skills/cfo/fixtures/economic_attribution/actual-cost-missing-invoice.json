@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "readback": {
+    "kind": "official_billing_readback",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "historical": {"complete": true, "window_start": null, "window_end": "2026-10-01T00:00:00Z"},
+    "trailing": {"complete": true, "window_start": "2026-09-24T00:00:00Z", "window_end": "2026-10-01T00:00:00Z"}
+  },
+  "sources": [
+    {"provider": "digitalocean", "status": "missing", "reason": "credential_missing", "product_loop_ids": ["self-build"]},
+    {"provider": "aws", "status": "missing", "reason": "read_failed", "product_loop_ids": ["self-build"]},
+    {"provider": "openai", "status": "missing", "reason": "read_failed", "product_loop_ids": ["self-build"]},
+    {"provider": "anthropic", "status": "missing", "reason": "credential_missing", "product_loop_ids": ["writer"]},
+    {"provider": "openrouter", "status": "missing", "reason": "read_failed", "product_loop_ids": ["affiliate"]}
+  ],
+  "documents": [],
+  "job_joins": []
+}

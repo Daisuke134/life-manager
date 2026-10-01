@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "readback": {
+    "kind": "official_billing_readback",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "historical": {
+      "complete": true,
+      "window_start": null,
+      "window_end": "2026-10-01T00:00:00Z"
+    },
+    "trailing": {
+      "complete": true,
+      "window_start": "2026-09-24T00:00:00Z",
+      "window_end": "2026-10-01T00:00:00Z"
+    }
+  },
+  "sources": [
+    {"provider": "openai", "status": "available", "product_loop_ids": ["self-build", "writer", "affiliate"]},
+    {"provider": "anthropic", "status": "available", "product_loop_ids": ["writer"]},
+    {"provider": "openrouter", "status": "available", "product_loop_ids": ["affiliate"]},
+    {"provider": "blockrun", "status": "available", "product_loop_ids": ["agent-economy"]},
+    {"provider": "apify", "status": "available", "product_loop_ids": ["job-hunter"]},
+    {"provider": "browserbase", "status": "available", "product_loop_ids": ["job-hunter"]},
+    {"provider": "digitalocean", "status": "available", "product_loop_ids": ["self-build"]},
+    {"provider": "aws", "status": "available", "product_loop_ids": ["cfo", "capafy"]}
+  ],
+  "documents": [
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "openai",
+      "invoice_id": "inv-openai-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "openai-model-1",
+          "category": "model_cost",
+          "basis": "official_invoice",
+          "amount": "12.34",
+          "occurred_at": "2026-09-30T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "self-build", "amount": "12.34", "job_id": "openai-job-1"}
+          ]
+        },
+        {
+          "line_item_id": "openai-model-split",
+          "category": "model_cost",
+          "basis": "official_invoice",
+          "amount": "2.00",
+          "occurred_at": "2026-09-29T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-affiliate", "product_loop_id": "affiliate", "amount": "1.00", "job_id": "openai-job-2"},
+            {"allocation_id": "allocation-writer", "product_loop_id": "writer", "amount": "1.00", "job_id": "openai-job-3"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "anthropic",
+      "invoice_id": "inv-anthropic-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "anthropic-model-1",
+          "category": "model_cost",
+          "basis": "official_invoice",
+          "amount": "2.50",
+          "occurred_at": "2026-09-28T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "writer", "amount": "2.50", "job_id": "anthropic-job-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "openrouter",
+      "invoice_id": "inv-openrouter-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "openrouter-model-1",
+          "category": "model_cost",
+          "basis": "official_invoice",
+          "amount": "1.25",
+          "occurred_at": "2026-09-27T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "affiliate", "amount": "1.25", "job_id": "openrouter-job-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "paid_receipt",
+      "official": true,
+      "provider": "blockrun",
+      "receipt_id": "br-receipt-1",
+      "source_type": "official_paid_receipt",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-30T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T12:01:00Z",
+      "line_items": [
+        {
+          "line_item_id": "blockrun-model-1",
+          "category": "model_cost",
+          "basis": "official_paid_receipt",
+          "amount": "0.80",
+          "occurred_at": "2026-09-30T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "agent-economy", "amount": "0.80", "job_id": "br-job-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "apify",
+      "invoice_id": "inv-apify-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "apify-tool-1",
+          "category": "tool_cost",
+          "basis": "official_invoice",
+          "amount": "0.40",
+          "occurred_at": "2026-09-26T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "job-hunter", "amount": "0.40", "job_id": "apify-job-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "paid_receipt",
+      "official": true,
+      "provider": "browserbase",
+      "receipt_id": "browser-receipt-1",
+      "source_type": "official_paid_receipt",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-29T12:02:00Z",
+      "line_items": [
+        {
+          "line_item_id": "browser-session-1",
+          "category": "browser_cost",
+          "basis": "official_paid_receipt",
+          "amount": "0.75",
+          "occurred_at": "2026-09-29T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "job-hunter", "amount": "0.75", "job_id": "browser-job-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "digitalocean",
+      "invoice_id": "inv-digitalocean-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "droplet-1",
+          "category": "infra_cost",
+          "basis": "official_invoice",
+          "amount": "5.00",
+          "occurred_at": "2026-09-25T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "self-build", "amount": "5.00", "job_id": "droplet-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "aws",
+      "invoice_id": "inv-aws-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "aws-runtime-1",
+          "category": "infra_cost",
+          "basis": "official_invoice",
+          "amount": "3.25",
+          "occurred_at": "2026-09-26T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "cfo", "amount": "3.25", "job_id": "aws-runtime-1"}
+          ]
+        }
+      ]
+    },
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "aws",
+      "invoice_id": "inv-aws-jpy-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "JPY",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "aws-storage-1",
+          "category": "infra_cost",
+          "basis": "official_invoice",
+          "amount": "1000",
+          "occurred_at": "2026-09-26T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "capafy", "amount": "1000", "job_id": "aws-storage-1"}
+          ]
+        }
+      ]
+    }
+  ],
+  "job_joins": [
+    {"provider": "blockrun", "job_id": "br-job-1", "product_loop_id": "agent-economy", "status": "completed"}
+  ],
+  "estimates": [
+    {"provider": "openai", "currency": "USD_API_EQUIV", "amount": "999", "basis": "api_equivalent_estimate"}
+  ],
+  "quotes": [
+    {"provider": "nosana", "currency": "USD", "amount": "888", "basis": "provider_quote"}
+  ],
+  "personal_subscriptions": [
+    {"provider": "anthropic", "currency": "USD", "amount": "49", "allocation_status": "unallocated"}
+  ]
+}

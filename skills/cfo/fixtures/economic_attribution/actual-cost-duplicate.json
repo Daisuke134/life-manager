@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "readback": {
+    "kind": "official_billing_readback",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "historical": {"complete": true, "window_start": null, "window_end": "2026-10-01T00:00:00Z"},
+    "trailing": {"complete": true, "window_start": "2026-09-24T00:00:00Z", "window_end": "2026-10-01T00:00:00Z"}
+  },
+  "sources": [
+    {"provider": "openai", "status": "available", "product_loop_ids": ["self-build"]}
+  ],
+  "documents": [
+    {
+      "document_type": "invoice",
+      "official": true,
+      "provider": "openai",
+      "invoice_id": "inv-openai-duplicate-202609",
+      "source_type": "official_invoice",
+      "status": "paid",
+      "currency": "USD",
+      "billing_period_start": "2026-09-01T00:00:00Z",
+      "billing_period_end": "2026-10-01T00:00:00Z",
+      "paid_at": "2026-09-30T23:00:00Z",
+      "line_items": [
+        {
+          "line_item_id": "openai-model-duplicate",
+          "category": "model_cost",
+          "basis": "official_invoice",
+          "amount": "4.00",
+          "occurred_at": "2026-09-30T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "self-build", "amount": "4.00", "job_id": "openai-job-duplicate"}
+          ]
+        },
+        {
+          "line_item_id": "openai-model-duplicate",
+          "category": "model_cost",
+          "basis": "official_invoice",
+          "amount": "4.00",
+          "occurred_at": "2026-09-30T12:00:00Z",
+          "allocations": [
+            {"allocation_id": "allocation-1", "product_loop_id": "self-build", "amount": "4.00", "job_id": "openai-job-duplicate"}
+          ]
+        }
+      ]
+    }
+  ],
+  "job_joins": []
+}
