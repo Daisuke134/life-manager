@@ -2595,3 +2595,11 @@ AGMSGで3席を同時にread-only起動した。TaskMarket、PromptBase/Capafy�
 - **Mobile/Connector:** Mobileは22 jobsのplist/loaded argv整合を確認したが、process healthに留まり、ASC/RevenueCatのacquisition→purchase→Apple proceeds、app別actual cost、二重計上ゼロは未確認。Connectorは候補0件のnatural `exit=0`／no-effect process healthのみで、provider registration、confirmation mail、Google Calendar公式receipt/readback、replay-zeroは未達。次の自然occurrenceで同一IDへ結合する。
 
 したがって、この監査で完了したのは証拠の境界診断だけであり、TaskMarket no-effect、PromptBase P5c、Capafy販売、Mobile収益、Connector登録を完了項目へ昇格しない。次は手動wake・再送・追加applyをせず、TaskMarketの次の自然eligible runをread-onlyで待ち、そのoccurrenceに公式API discoveryとno-wallet/no-transaction結果を結合する。
+
+### 50. BlockRun preflightとMobile/Connector readback（2026-10-02 08:35 JST）
+
+- **L9-13.2 BlockRun:** read-only preflightで`provider_pre_effect_hold`を確定した。sourceのpaid経路は`skills/earn/taskmarket/x402-image-client.mjs`で、Base USDC、quote上限`0.07 USDC`、日次上限`0.14 USDC`、支払後float floor`0.25 USDC`、receiptは`blockrun:<sha256>`、TaskMarket official submission readback必須である。しかしproduction `life-manager-taskmarket-ledger`は`apps/life-manager/scripts/taskmarket-work-ledger-boot.sh`からaward reconciliationだけを起動し、paid image executorとのproduction wiring/loaded argv/readbackが未証明。BlockRun receipt、output、cost、ledger joinは0件である。自然eligible occurrence、wallet binding、残高/cap、unique task、paid executorのrelease provenanceが揃うまで、BlockRun直呼び・wallet spend・manual wake/applyは行わない。
+- **L9-02 Mobile:** sourceはPR #6344、main `227a40048f`。22 jobsの最新棚卸しは`P7/F8/B3/R1/N3`で、10 failedと投稿browser laneが未解決。release適用は最初の5 ownerまでで、6番目`anicca-en-card-instagram`が`rc124` timeoutとなり後続を止めた。ASC inventory、RevenueCat project/product/entitlement、自然content→post→acquisition→purchase/refund→Apple proceeds、app cost/MRR、replay-zeroは未達。effect_unknown/readback待ちを再送しない。
+- **L9-03 Connector:** sourceはPR #6343、main `c213c375`。natural occurrence `18da543dd3c761d8-7894`はhost admission exit 75、後続resume `18da544c010dc9d0-10624`はexit 0だったが、これはprocess healthだけで`provider_receipt_id`と`official_readback_ref`は空。provider registration、confirmation mail、Google Calendar公式readback、deadline evidence、replay-zero、actual costは未達。次のnatural occurrenceで同一IDへ公式receiptを結合する。
+
+この節の結論は、source merge・process exit・fixture PASSをpaid effectや収益と混同しないことである。TaskMarketの自然provider discoveryが未完の間は、BlockRun paid inferenceへ進まず、公式readbackとrelease/argv境界だけを並行観測する。
