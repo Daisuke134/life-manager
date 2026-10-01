@@ -2249,3 +2249,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. **P1-2a self-handoff（最優先）:** release-reconciler自身を、main由来immutable releaseへ安全にhandoffするsource-only設計をTDDし、自然tickでloaded SHA/argv/exit/readbackを確認する。実行中のreconcilerを手動restart/bootoutしない。
 2. self-handoff後に、`284bedab`の未適用ownerをnatural retryで再処理し、PR #6391のbudget reservationをreconciler実効経路で証明する。
 3. その後にPromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-fundingを既存順序で進める。外部receiptなしのeffect unknownは再送しない。
+
+### 26. self-handoff source merge と次のnatural検証（2026-10-01 22:04–22:16 JST）
+
+- PR #6397はadmin squash mergeされ、`origin/main=7335941341850445219bca7f305849c19b2a996d`になった。`bin/reconcile-agent-self-handoff.sh`とreconcilerのschedule glueをmainへ統合した。
+- source検証は、self-handoff helper `2/2 PASS`、fleet apply回帰 `21/21 PASS`、両shell `bash -n`、`git diff --check`である。helperは、(a)親PIDが終了するまで待つ、(b)親が残る場合はlaunchd mutationをせずfailed receiptだけを書く、(c)旧service absence→target plist bootstrap→loaded argv/SHA readback→mode-0600 receipt、(d)temporary helper cleanupを行う。production/provider/browser/launchctlへのeffectは0件である。
+- GitHubの`OSS self-contained boundary`と`Startup context drift`は今回も差分外の既知失敗であり、PR本文へ記録した。focused evidenceとこの差分外gateを混同せず、admin mergeした。
+- 22:16 JST時点のnatural reconcilerはPR #6397 merge前に起動した旧`4d10a7c9`で、`current=284bedab`のold retryを処理中である。したがってself-handoff helperが実際にschedule/bootstrapした証拠はまだない。手動restart/bootout/apply/retryはしない。
+
+#### 26時点の原子cursor
+
+1. 旧tickの自然終端を待つ。
+2. 次のnatural tickがmain `7335941341`を含むimmutable releaseをcutし、`bin/reconcile-agent-self-handoff.sh`を含むことをreadbackする。
+3. helper receipt、old service absence、reconciler target plist loaded SHA/argv、health、replay-zeroを公式readbackし、初めてP1-2aを完了扱いする。
+4. self-handoff後にbudget reservationの実効経路を確認し、未適用owner→PromptBase/Writer→Capafy→各named loop→CFO→cloud/self-fundingへ進む。
