@@ -1873,6 +1873,21 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 
 順序変更: 旧順序はshared safety gateの直後に一つのoffer販売へ進み、14 loop個別修理を明示していなかった。新順序はB7、status/observer/human gateの後に14 loop修理をitem 9として置き、その後に外部paid E2Eへ進む。理由は、壊れた自然scheduler、effect fence、receipt pathを残したまま販売量を増やすと、売上機会よりsilent failureと二重送信を先に増やすためである。S2のproduction自然runまで閉じたため、現在cursorはP1の`L9-01 Capafy`、`L9-02 Mobile Apps`、`L9-03 Connector`である。
 
+#### P1 live cursor readback（2026-10-01 17:56 JST）
+
+これは上の名前付きAtomic TODOの実測カーソルであり、完了宣言ではない。
+
+- production `current` は immutable release `813fd7661122b738353df71e329863f68a3e3763`（`release_paths=ALL`、`ancestor-of-origin-main`）を指す。`life-manager-release-reconciler` の自然 `lm-loop apply` が稼働中なので、手動 apply・restart・wake はしない。
+- 最新の完了済みfleet summary（08:33 UTC）は `status=partial`、`changed=69`、`errors=3`、`skipped=12`、timeout ownerは `life-manager-anicca-ai-youtube`。次のresume runはこのreadback時点で実行中で、最終summaryは未取得である。
+- plist readbackでは `capafy-loop-daily` が `813fd766`、`promptbase-loop-daily`、`life-manager-browser-capacity-probe`、`marketing-dashboard`、`marketing-metrics` は旧 `c213c375`。従ってcoalesce変更のfleet反映は未完で、PromptBaseはまだ新releaseを実行していない。
+- admission DBの一時read-only値は occurrences `212,490`、queued `26,076`、claimed+`effect_unknown` `15,471`、queue owner `79`。apply中のためこの一回を安定化証拠にせず、自然applyがidleになった後に間隔を置いた二回のreadbackでqueued増加停止を確認する。free diskはこの測定時に約`10.08GB`だったが、直前に約`8.86GB`へ戻った実績があるため、10GB維持は未完である。
+- **L9-01 Capafy:** source fix、admission coalesce source、immutable release、ENOSPC occurrenceの公式publish-list照合による`no_effect` fence解消、`capafy-loop-daily`の新SHA読込までは完了。inventoryは`PUBLISHABLE`（total 52、listed 44、occupied 5、free 0、retry 2、ready_publish 3）。free slot 0のため新規submitはしていない。listing/marketing/sale/refund/fee/model-cost/settlement/payout/replay-zeroが未取得なので、継続出品・再提出・改善・marketingを含むCapafy loopは**未完了**。
+- **L9-05 Writer / PromptBase:** `verified-demonstration.md` packaging fixはPR #6354、main `ff11e3cbfbfaf202d061833af07c1b305bf787fc`へ統合し、focused 4/4とbuild smokeをPASSした。`reels-hook-lab`のlocal ledgerはreject後の`submitted_pending_review`、sales readbackは0件/$0。`promptbase-loop-daily`が旧SHAのため、対象限定apply→自然04:20→管理画面/Gmail status→sale/refund/fee/model-cost/settlement/payout→replay-zeroが未実施で、PromptBase loopは**未完了**。
+- foundationのcode gate（status分離、5分observer、atomic latest/history、alert dedupe、human_required）は[x]だが、14 loopのlive health/effect/economics gateは0/14 cost-complete。従って「foundation observability finished」は「コード実装済み」、「全loopが自律収益・自己回復済み」ではない。
+- このcursorで起動中のAGMSG席は `lm-l9-fundraiser-1002c`、`lm-l9-writer-1002`、`lm-l9-affiliate-1002` の3席（`tmux` placement、`gpt-5.6-luna max`、read-only、production/provider/browser/credential/effect/edit禁止）。報告受領前に完了扱いしない。`1002`/`1002b` のplacementなし登録は稼働席に数えない。
+
+**次に閉じる原子操作（順序固定）:** (1) 自然fleet applyの終了とP1対象plist/readback、admission二回、disk二回を採取、(2) Capafy free-slot待機中の公式review readback、slot解放後の自然submit→API listing/status、(3) Connectorのprovider receipt・confirmation mail・Google Calendar公式readback、(4) Mobile 22 jobの残りownerを公式readback付きで一件ずつ再開、(5) L9-04/05/06のread-only診断を回収してsource修正が必要なものだけ別worktreeで実装、(6) L9-07〜L9-12、(7) L9-13 Agent Economy、(8) L9-14 CFO再集計、(9) external paid E2E→BlockRun→DigitalOcean→Nosana/Akash→cloud移行→30日self-funding。各loopは上記L9-G0〜G7を全て満たすまで`[ ]`のままとする。
+
 Items 1–11は収益critical pathである。cloud providerやwebsiteが魅力的でも先に進めない。並列化は同じ順序を短縮するためだけに使い、未達gateを飛び越えない。
 
 ### 8. AGMSG実行状態とsessionのGoal契約
