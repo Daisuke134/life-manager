@@ -2154,3 +2154,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 - LaunchAgentのloaded SHAは `capafy-loop-daily` と `job-search-daily` が `b413b5f4`へ更新された。一方、`promptbase-loop-daily`、`life-manager-connector-native`、`life-manager-selfbuild`は `813fd766`のままで、P4修正込みreleaseのtarget provenanceは未完である。`current` symlinkがb413を指すことだけでは、各ownerの適用証拠にならない。
 - 同時刻のfresh `lm-loop health --json` は `total=177`、`effect_unknown=10 / failed=40 / healthy=30 / running=24 / safely_fenced=69 / telemetry_gap=4`（CLI exit 1）。`capafy-loop-daily`は旧occurrenceの`effect_unknown`、`promptbase-loop-daily`は`telemetry_gap`、Connectorはprocess-only healthy、reconcilerは`entrypoint_exit_1`で、外部成功の証拠ではない。
 - したがってP1 cursorは、(1)次の自然tickで残りtarget ownerへ同SHAを読み込ませる、(2)同一releaseの`partial`を解消するか各失敗をreadback付きで閉じる、(3)admission queue/diskの安定readback、の順を維持する。`effect_unknown`中の手動apply・restart・retryはしない。
+
+### 19. 19:59 JST時点の自然reconcile継続とAGMSG read-only報告（2026-10-01）
+
+- 自然`life-manager-release-reconciler`は手動restart/apply/retryなしで継続中である。`/Users/anicca/loops/current`は`20261001T195004-0ebdc38b`（`RELEASE.json.sha=0ebdc38b78c6d75c6ba91c7ecbcae33ba5786578`、`release_paths=ALL`、`provenance=ancestor-of-origin-main`）。19:59:01 JSTのreadbackでは、parent PID `36908`→reconciler PID `36999`→`deterministic` childが稼働していた。
+- `fleet-apply-state.json`はまだ前回`b413b5f42`の`status=partial / changed=68 / skipped=13 / errors=2 / budget exceeded`であり、`0ebdc38b`の新しいfleet apply receiptはまだ存在しない。旧receiptを新releaseの成功とは数えず、自然tickの終端までP1-1を継続する。
+- 19:59:24 JSTの`lm-loop health --json`（exit 1）は`total=177`、`healthy=27 / running=24 / failed=43 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4 / human_required=0`。`capafy-loop-daily`は`effect_unknown`（publish/unknown、provider receipt/readbackなし、event SHA=`b413b5f42`）、`promptbase-loop-daily`は`telemetry_gap`（installed SHA=`813fd766`、occurrence/readbackなし）、Connectorはprocess-only healthy（installed SHA=`813fd766`、provider/Gmail/Calendar receiptなし）、reconcilerは旧`4d10a7c9`で`entrypoint_exit_1`、Job Hunterは`resource_capacity_busy`、Self-Buildはprocess-only healthyである。
+- AGMSGの`lm-p1-fleet-boundary-ro-1001`はread-onlyで、b413の83 owner行（`rc=0:81 / rc!=0:2 / timeout=0 / 合計1253秒`）、失敗2件（`alpaca-investment-live`のI/O error、`hf-gig-apply-direct`の`effect_unknown` admission拒否）、ENOSPCログ、及び未反映の収益優先並べ替え候補を報告した。production/provider/browserへのmutation、再送、commitは0件である。
+- AGMSGの`lm-l9-census-ro-1001`は14 loopのsource mergeとlive boundaryを再確認した。P1〜P4 source mergeは`origin/main`の`0ebdc38b`から到達可能だが、全target ownerのloaded SHAは未収束で、CFOの会社全体revenue・runwayは`unknown`、重複receiptは0件、cost-complete net P&Lは`0/14`である。従ってCapafy、PromptBase/Writer、foundation live fleet、全体のself-healing・self-improving・financial independenceは未完了のまま保持する。
+
+#### 現在の原子cursor（変更なし）
+
+1. 自然reconcilerの`0ebdc38b` tickを終端までread-only観測し、新しいfleet receipt、target owner loaded SHA/argv、admission queue、disk freeの安定readbackを採取する。
+2. `effect_unknown`の公式readbackなしに手動apply・restart・retry・provider再送をしない。自然tickが終了してからのみ、P1-2以降を同じ順序で進める。
+3. AGMSG read-only席は報告済みのためdespawnし、登録済み`no_placement_record`を稼働中と数えない。
