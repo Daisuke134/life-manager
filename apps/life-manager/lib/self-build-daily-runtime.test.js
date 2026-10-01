@@ -256,8 +256,9 @@ test("the launchd entrypoint sources the portable state env, logs, and reports t
   const source = fs.readFileSync(ENTRYPOINT, "utf8");
   assert.match(source, /skills\/_shared\/send-telegram\.sh/);
   assert.doesNotMatch(source, /openclaw message send/);
-  assert.match(source, /LM_SELFBUILD_TELEGRAM_TARGET:-\$\{TELEGRAM_ALERT_CHAT_ID:\?/);
+  assert.match(source, /LM_SELFBUILD_TELEGRAM_TARGET:-\$\{TELEGRAM_ALERT_CHAT_ID:-\}/);
   assert.doesNotMatch(source, /LM_SELFBUILD_TELEGRAM_TARGET:-\d{6,}/);
+  assert.match(source, /Telegram report skipped/);
   assert.match(source, /HOME\/\.local\/state\/life-manager/);
   assert.match(source, /ENV_FILE=.*LIFE_MANAGER_STATE_HOME\/\.env/);
   assert.match(source, /self-build-daily\.js/);
@@ -298,7 +299,7 @@ test("the new suites are reachable from npm test", () => {
 // Review findings, 2026-07-27. Each test names the finding it pins down.
 // =============================================================================================
 
-const { execFileSync } = require("node:child_process");
+const { execFileSync, spawnSync } = require("node:child_process");
 const os = require("node:os");
 const {
   LOOP_BRANCH,
@@ -316,6 +317,60 @@ const RUN_AGENT_SCRIPT = path.join(REPO_DIR, "skills/earn/marketing-engine/run_a
 function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "lm-10f-review-"));
 }
+
+
+test("a missing Telegram target does not stop the deterministic self-build pass", () => {
+  const root = tmp();
+  const repo = path.join(root, "repo");
+  const app = path.join(repo, "apps/life-manager");
+  fs.mkdirSync(path.join(repo, "runtime/host"), { recursive: true });
+  fs.mkdirSync(path.join(app, "scripts"), { recursive: true });
+  fs.mkdirSync(path.join(app, "node_modules/pg"), { recursive: true });
+  fs.writeFileSync(
+    path.join(repo, "runtime/host/disk_admission.py"),
+    "raise SystemExit(0)\n",
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(
+    path.join(app, "scripts/self-build-daily.js"),
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'const ledger = process.env.LM_SELFBUILD_LEDGER;',
+      'if (process.argv.includes("--status")) {',
+      '  process.stdout.write(JSON.stringify({ streak: { distinctDays: 1, required: 7, ready: false, remaining: 6 } }) + "\\n");',
+      '} else {',
+      '  fs.mkdirSync(path.dirname(ledger), { recursive: true });',
+      '  fs.appendFileSync(ledger, JSON.stringify({ day: "2026-10-01", verdict: "no_op", no_op_reason: "fixture" }) + "\\n");',
+      '  process.stdout.write("{}\\n");',
+      '}',
+    ].join("\n"),
+    { mode: 0o700 },
+  );
+
+  const state = path.join(root, "state");
+  const result = spawnSync("/bin/bash", [ENTRYPOINT], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      HOME: root,
+      PATH: process.env.PATH,
+      NODE_BIN: process.execPath,
+      LM_SELFBUILD_REPO: repo,
+      LIFE_MANAGER_STATE_HOME: state,
+      LM_SELFBUILD_LEDGER: path.join(state, "days.jsonl"),
+      LM_SELFBUILD_LOG: path.join(state, "selfbuild.log"),
+      LM_SELFBUILD_DRY_RUN: "1",
+      LM_SELFBUILD_TELEGRAM_TARGET: "",
+      TELEGRAM_ALERT_CHAT_ID: "",
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const log = fs.readFileSync(path.join(state, "selfbuild.log"), "utf8");
+  assert.match(log, /Telegram report skipped/);
+  assert.match(log, /self-build done rc=0/);
+});
 
 
 // ---------------------------------------------------------------------------------------------
