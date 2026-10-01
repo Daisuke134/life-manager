@@ -70,6 +70,18 @@ AUTO_PRE_EFFECT_RECONCILE_ENABLED = False
 MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
 ADMISSION_READ_RETRY_ATTEMPTS = 8
 ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
+_PRE_EFFECT_REASON_RE = re.compile(
+    r"(?:^|\s)lm_pre_effect_reason:(browser_unavailable|account_unavailable|"
+    r"profile_incomplete|eligibility_unknown|proposal_form_changed|"
+    r"financial_terms_required|profile_complete_no_eligible_open_job)(?:\s|$)"
+)
+
+
+def _known_pre_effect_reason(error_detail: object) -> str | None:
+    if not isinstance(error_detail, str):
+        return None
+    match = _PRE_EFFECT_REASON_RE.search(error_detail)
+    return match.group(1) if match else None
 
 
 def _sqlite_database_busy(error: sqlite3.Error) -> bool:
@@ -1039,6 +1051,14 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         error_class = event.get("error_class")
         retryable = event.get("retryable")
         next_action = event.get("next_action")
+        error_detail = event.get("error_detail")
+        pre_effect_reason = _known_pre_effect_reason(error_detail)
+        if pre_effect_reason is not None and event.get("effect_status") == "unknown":
+            # Preserve the raw entrypoint error class, but add a typed blocker
+            # and recovery action so health does not mistake a proven no-effect
+            # gate for an external-effect uncertainty.
+            blocker = f"pre_effect_{pre_effect_reason}"
+            next_action = f"retry_after_{pre_effect_reason}"
         if legacy_runtime_event:
             last_terminal_result = "fail"
             failure_layer = "runtime"
@@ -1083,6 +1103,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "exit_code": event.get("exit_code"),
             "failure_layer": failure_layer,
             "error_class": error_class,
+            "error_detail": error_detail,
             "retryable": retryable,
             "next_action": next_action,
             "provider_receipt_id": event.get("provider_receipt_id"),

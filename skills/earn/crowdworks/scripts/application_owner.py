@@ -459,7 +459,14 @@ def main():
         STATE / "application-history.json"
     )
     if result.get("effect_delta") == 0:
-        _mark_pre_effect_failure(result.get("status"))
+        status = result.get("status")
+        _mark_pre_effect_failure(status)
+        if status in _KNOWN_NO_EFFECT_STATUSES:
+            # stdout is the owner payload; stderr is the bounded runtime
+            # diagnostic captured by lm-loop-run.  Keep the exact reason out
+            # of the trusted pre-effect marker while making it observable in
+            # the health projection.
+            print(f"lm_pre_effect_reason:{status}", file=sys.stderr)
     result["next_group_index"] = (group_cursor + GROUPS_READ_PER_WAKE) % len(JOB_GROUPS) if result.get("ok") else group_cursor
     result = _bind_runtime_occurrence(result, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     result["observed_at"]=now.isoformat();_write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 0 if result.get("ok") else 1

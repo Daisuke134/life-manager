@@ -229,10 +229,12 @@ def _health_state(row: dict) -> str:
     if adapter_status in {"timeout", "error"}:
         return "telemetry_gap"
     diagnostic_text = " ".join(str(row.get(key) or "") for key in (
-        "blocker", "error_class", "next_action",
+        "blocker", "error_class", "next_action", "error_detail",
     )).lower()
     if "human_required" in diagnostic_text:
         return "human_required"
+    if "pre_effect_" in diagnostic_text or "lm_pre_effect_reason:" in diagnostic_text:
+        return "safely_fenced"
     if row.get("admission_effect_unknown") is True or "resource_effect_unknown" in diagnostic_text:
         return "safely_fenced"
     if row.get("diagnostic_complete") is not True or not isinstance(row.get("last_pass"), str):

@@ -505,6 +505,24 @@ class LmLoopHealthTest(unittest.TestCase):
         )
         self.assertEqual(health.health_exit_code(value), 1)
 
+    def test_known_pre_effect_reason_is_safely_fenced_not_effect_unknown(self):
+        row = self.status_row(
+            "eligibility-gate",
+            effect_class="application",
+            effect_status="unknown",
+            last_terminal_result="fail",
+            error_class="entrypoint_exit_1",
+            error_detail="lm_pre_effect_reason:eligibility_unknown",
+            blocker="pre_effect_eligibility_unknown",
+            next_action="retry_after_eligibility_unknown",
+        )
+
+        value = health.project_health([row])
+
+        self.assertEqual(value["jobs"][0]["state"], "safely_fenced")
+        self.assertEqual(value["summary"]["safely_fenced"], 1)
+        self.assertEqual(value["summary"]["effect_unknown"], 0)
+
     def test_health_state_preserves_adapter_gap_then_human_then_fence_priority(self):
         cases = {
             "adapter-timeout-human": ({

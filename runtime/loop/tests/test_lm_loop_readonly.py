@@ -493,6 +493,27 @@ class LmLoopReadonlyTest(unittest.TestCase):
                          ("blocked", "unknown", "provider_capacity"))
         self.assertNotEqual(row["installed_release_sha"], row["event_release_sha"])
 
+    def test_status_projects_known_pre_effect_reason_for_health(self):
+        event = {
+            "timestamp": "2026-10-01T00:00:00Z",
+            "status": "fail",
+            "effect_status": "unknown",
+            "blocker": "entrypoint_exit_1",
+            "error_class": "entrypoint_exit_1",
+            "error_detail": "lm_pre_effect_reason:eligibility_unknown",
+            "next_action": "official_readback_required",
+            "release_sha": "a" * 40,
+        }
+
+        row = status_rows(
+            REGISTRY, loaded={}, disabled={}, events={"example": event},
+            installed_releases={},
+        )[0]
+
+        self.assertEqual(row["blocker"], "pre_effect_eligibility_unknown")
+        self.assertEqual(row["next_action"], "retry_after_eligibility_unknown")
+        self.assertEqual(row["error_detail"], event["error_detail"])
+
     def test_status_marks_resolved_effect_unknown_event_as_stale(self):
         events = {"example": {
             "timestamp": "2026-08-28T00:00:00Z",
