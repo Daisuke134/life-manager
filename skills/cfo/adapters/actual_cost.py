@@ -29,24 +29,68 @@ REASON_PRIORITY = (
     "stale_readback", "unsupported_currency", "unverified_receipt", "read_failed",
     "credential_missing", "missing_coverage", "missing_category",
 )
+_UNORDERED_COLLECTIONS = frozenset({
+    "sources", "documents", "invoices", "paid_receipts", "job_joins",
+    "line_items", "allocations", "pages", "document_ids", "product_loop_ids",
+    "estimates", "quotes", "personal_subscriptions",
+})
+_UNORDERED_ID_FIELDS = {
+    "sources": ("provider",),
+    "documents": ("provider", "document_type", "invoice_id", "receipt_id"),
+    "invoices": ("provider", "document_type", "invoice_id", "receipt_id"),
+    "paid_receipts": ("provider", "document_type", "invoice_id", "receipt_id"),
+    "job_joins": ("provider", "job_id"),
+    "line_items": ("line_item_id",),
+    "allocations": ("allocation_id",),
+    "pages": ("provider", "page"),
+    "document_ids": (),
+    "product_loop_ids": (),
+    "estimates": ("provider", "product_loop_id", "product_loop_ids"),
+    "quotes": ("provider", "product_loop_id", "product_loop_ids"),
+    "personal_subscriptions": ("provider", "product_loop_id", "product_loop_ids"),
+}
+
+
+def _json_key(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _stable_identity(path: tuple[str, ...], value: Any) -> tuple[str, str]:
+    collection = path[-1] if path else ""
+    identity = {}
+    if isinstance(value, dict):
+        identity = {
+            field: value[field]
+            for field in _UNORDERED_ID_FIELDS.get(collection, ())
+            if field in value
+        }
+    return _json_key(path), _json_key(identity if identity else value)
 
 
 def _canonical(value: Any) -> str:
-    """Canonicalize billing facts independently of provider collection order."""
-    def normalize(item: Any) -> Any:
+    """Canonicalize known set-like collections while preserving unknown list order."""
+    def normalize(item: Any, path: tuple[str, ...] = ()) -> Any:
         if isinstance(item, dict):
-            return {key: normalize(child) for key, child in item.items()}
+            return {
+                key: normalize(child, (*path, key))
+                for key, child in item.items()
+            }
         if isinstance(item, list):
-            normalized = [normalize(child) for child in item]
-            return sorted(
-                normalized,
-                key=lambda child: json.dumps(
-                    child, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-                ),
-            )
+            normalized = [normalize(child, (*path, "[]")) for child in item]
+            if not path or path[-1] not in _UNORDERED_COLLECTIONS:
+                return normalized
+            unique = {}
+            for child in normalized:
+                unique.setdefault(_json_key(child), child)
+            return [
+                child for _digest, child in sorted(
+                    unique.items(),
+                    key=lambda pair: (_stable_identity(path, pair[1]), pair[0]),
+                )
+            ]
         return item
 
-    return json.dumps(normalize(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return _json_key(normalize(value))
 
 
 def _digest(value: Any) -> str:

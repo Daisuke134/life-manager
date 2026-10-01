@@ -286,6 +286,42 @@ class ActualCostAttributionTest(unittest.TestCase):
             for row in coverage(conflicted)
         ))
 
+    def test_exact_duplicate_line_items_share_payload_evidence_and_b0_replay_is_zero(self):
+        single = fixture("actual-cost-duplicate.json")
+        single["documents"][0]["line_items"] = single["documents"][0]["line_items"][:1]
+        duplicated = fixture("actual-cost-duplicate.json")
+
+        first = adapt(single)
+        second = adapt(duplicated)
+        self.assertEqual(first, second)
+
+        once = contract.project(
+            first, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        replayed = contract.project(
+            [*first, *second], snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(once["historical"], replayed["historical"])
+        self.assertEqual(once["trailing"], replayed["trailing"])
+
+    def test_order_sensitive_cursor_chain_is_not_canonicalized_as_unordered(self):
+        payload = fixture("actual-cost-duplicate.json")
+        payload["provider_pagination"] = {
+            "cursor_chain": [
+                {"cursor": "root", "next_cursor": "page-1"},
+                {"cursor": "page-1", "next_cursor": "page-2"},
+            ]
+        }
+        reordered = copy.deepcopy(payload)
+        reordered["provider_pagination"]["cursor_chain"].reverse()
+
+        first = adapt(payload)
+        second = adapt(reordered)
+        self.assertNotEqual(
+            {ref for row in first for ref in row["evidence_refs"]},
+            {ref for row in second for ref in row["evidence_refs"]},
+        )
+
     def test_stale_readback_drops_receipts_and_marks_both_windows_stale(self):
         payload = fixture("actual-cost-official.json")
         payload["readback"]["observed_at"] = "2026-09-30T23:59:59Z"
