@@ -418,6 +418,9 @@ def main():
                 page.close()
     # Reporting is a separate owner (crowdworks-revenue-report). Apply owns submissions only, so a
     # failed or slow report can never hold up an application, and vice versa.
+    result["eligibility_history"] = application.history_cache_status(
+        STATE / "application-history.json"
+    )
     result["next_group_index"] = (group_cursor + GROUPS_READ_PER_WAKE) % len(JOB_GROUPS) if result.get("ok") else group_cursor
     result = _bind_runtime_occurrence(result, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     result["observed_at"]=now.isoformat();_write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 0 if result.get("ok") else 1

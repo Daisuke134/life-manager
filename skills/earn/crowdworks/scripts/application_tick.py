@@ -312,6 +312,27 @@ def _write_history_cache(cache_path: Path, payload: Mapping[str, object]) -> Non
             pass
 
 
+def history_cache_status(cache_path: Path) -> Mapping[str, object]:
+    """Return a bounded, sanitized projection for owner status/health consumers."""
+    cached = _load_history_cache(Path(cache_path))
+    if cached is None:
+        return {
+            "status": "missing",
+            "complete": False,
+            "pages_read": 0,
+            "page_count": None,
+            "next_page": 1,
+        }
+    complete = cached.get("complete") is True
+    return {
+        "status": "complete" if complete else "syncing",
+        "complete": complete,
+        "pages_read": cached.get("pages_read", 0),
+        "page_count": cached.get("page_count"),
+        "next_page": cached.get("next_page"),
+    }
+
+
 def _read_application_history_incremental(
     page: object,
     *,
@@ -705,6 +726,7 @@ def run_tick(**kwargs):
 __all__ = [
     "TickResult",
     "find_proposal_id",
+    "history_cache_status",
     "read_application_history",
     "account_lock",
     "load_marketplace_contracts",

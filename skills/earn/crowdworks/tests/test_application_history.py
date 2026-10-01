@@ -175,3 +175,26 @@ def test_incremental_history_cache_advances_one_page_then_reads_without_detail_n
     assert cached["complete"] is True
     assert cached["cache_hit"] is True
     assert cached_page.goto_log == ["https://crowdworks.jp/e/proposals"]
+
+
+def test_history_cache_status_is_bounded_and_distinguishes_missing_syncing_complete(tmp_path):
+    module = load()
+    cache_path = tmp_path / "application-history.json"
+
+    assert module.history_cache_status(cache_path) == {
+        "status": "missing",
+        "complete": False,
+        "pages_read": 0,
+        "page_count": None,
+        "next_page": 1,
+    }
+
+    page = _Page(module)
+    module.read_application_history(
+        page, max_pages=10, cache_path=cache_path, page_budget=1
+    )
+    syncing = module.history_cache_status(cache_path)
+    assert syncing["status"] == "syncing"
+    assert syncing["complete"] is False
+    assert syncing["pages_read"] == 1
+    assert set(syncing) == {"status", "complete", "pages_read", "page_count", "next_page"}
