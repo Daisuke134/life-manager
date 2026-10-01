@@ -68,6 +68,8 @@ PRE_EFFECT_RECONCILE_MAX_ROWS = 20
 # by a later run B, so run-A-only proofs cleared effectful fences.
 AUTO_PRE_EFFECT_RECONCILE_ENABLED = False
 MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
+MAX_OWNER_STATUS_BYTES = 256 * 1024
+HISTORY_CACHE_STATUSES = frozenset({"missing", "syncing", "complete"})
 ADMISSION_READ_RETRY_ATTEMPTS = 8
 ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
 _PRE_EFFECT_REASON_RE = re.compile(
@@ -212,6 +214,52 @@ def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _private_json_object(path: Path, *, max_bytes: int = MAX_OWNER_STATUS_BYTES) -> dict | None:
+    """Read one owner status object only when its file is a private regular file."""
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return None
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > max_bytes):
+            return None
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            descriptor = -1
+            value = json.load(stream)
+        return value if isinstance(value, dict) else None
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _eligibility_history_status(state_root: str) -> dict | None:
+    """Project bounded owner history-cache telemetry for the read-only status CLI."""
+    value = _private_json_object(
+        Path(os.path.expanduser(state_root)) / "application-owner.json"
+    )
+    raw = value.get("eligibility_history") if isinstance(value, dict) else None
+    if not isinstance(raw, dict) or raw.get("status") not in HISTORY_CACHE_STATUSES:
+        return None
+    pages_read = raw.get("pages_read")
+    page_count = raw.get("page_count")
+    next_page = raw.get("next_page")
+    if (type(pages_read) is not int or pages_read < 0
+            or (page_count is not None and (type(page_count) is not int or page_count < 1))
+            or type(next_page) is not int or next_page < 1):
+        return None
+    return {
+        "status": raw["status"],
+        "pages_read": pages_read,
+        "page_count": page_count,
+        "next_page": next_page,
+    }
 
 
 def _harness_failure_paths(state_root: str) -> list[Path]:
@@ -1075,6 +1123,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             retryable = active_harness_failure["retryable"]
             next_action = active_harness_failure["next_action"]
             blocker = active_harness_failure["blocker"]
+        eligibility_history = _eligibility_history_status(entry["state_root"])
         status_row = {
             "classification": "managed",
             "owner": "life-manager",
@@ -1128,6 +1177,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "admission_effect_unknown_details_truncated": fenced_details_truncated,
             "stale_event": stale_event,
             "latest_harness_failure": latest_harness_failure,
+            "eligibility_history": eligibility_history,
         }
         status_row.update(_status_windows(status_row, event))
         rows.append(status_row)

@@ -15,7 +15,7 @@ from unittest.mock import patch
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import (
     _admission_effect_unknown_owners, _last_event, _launchctl,
-    _pending_admission_owners, _release_from_plist, _safe_launchctl,
+    _eligibility_history_status, _pending_admission_owners, _release_from_plist, _safe_launchctl,
     _state_root_from_plist,
     doctor_report, explain_status_row, main as lm_loop_main, snapshot, status_rows,
 )
@@ -34,6 +34,39 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_owner_history_status_is_projected_only_from_private_bounded_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            status = root / "application-owner.json"
+            status.write_text(json.dumps({
+                "eligibility_history": {
+                    "status": "complete", "pages_read": 10,
+                    "page_count": 10, "next_page": 11,
+                }
+            }), encoding="utf-8")
+            status.chmod(0o600)
+
+            self.assertEqual(_eligibility_history_status(str(root)), {
+                "status": "complete", "pages_read": 10,
+                "page_count": 10, "next_page": 11,
+            })
+
+            status.write_text(json.dumps({
+                "eligibility_history": {
+                    "status": "complete", "pages_read": -1,
+                    "page_count": 10, "next_page": 11,
+                }
+            }), encoding="utf-8")
+            self.assertIsNone(_eligibility_history_status(str(root)))
+
+    def test_status_rows_include_bounded_owner_history_projection(self):
+        value = {"status": "syncing", "pages_read": 3, "page_count": 10, "next_page": 4}
+        with patch("runtime.loop.lm_loop._eligibility_history_status", return_value=value):
+            row = status_rows(
+                REGISTRY, loaded={}, disabled={}, events={}, installed_releases={},
+            )[0]
+        self.assertEqual(row["eligibility_history"], value)
+
     def test_browser_resolution_joins_loop_registry_to_resolver_readback(self):
         registry = {"schema_version": 2, "loops": {"connector": {
             "label": "ai.anicca.connector", "domain": "system", "entrypoint": "bin/connector.sh",
