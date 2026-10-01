@@ -1055,7 +1055,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             retryable = active_harness_failure["retryable"]
             next_action = active_harness_failure["next_action"]
             blocker = active_harness_failure["blocker"]
-        rows.append({
+        status_row = {
             "classification": "managed",
             "owner": "life-manager",
             "desired_mode": "continuous" if "keep_alive" in entry["cadence"] else "scheduled",
@@ -1107,8 +1107,59 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "admission_effect_unknown_details_truncated": fenced_details_truncated,
             "stale_event": stale_event,
             "latest_harness_failure": latest_harness_failure,
-        })
+        }
+        status_row.update(_status_windows(status_row, event))
+        rows.append(status_row)
     return rows
+
+
+def _status_windows(row: dict, event: dict | None = None) -> dict[str, dict]:
+    """Keep present runtime, last journal record, and trailing clocks distinct.
+
+    The flat status keys are retained for existing consumers.  New consumers
+    should use these three bounded projections so a live process is not
+    mistaken for a historical terminal result or a trailing health clock.
+    """
+    historical = event if isinstance(event, dict) else row
+    return {
+        "current_snapshot": {
+            "launchd_state": row.get("launchd_state"),
+            "pid": row.get("pid"),
+            "last_exit": row.get("last_exit"),
+            "installed_release_sha": row.get("installed_release_sha"),
+        },
+        "historical_record": {
+            "timestamp": historical.get("timestamp", row.get("last_pass")),
+            "event_id": historical.get("event_id", row.get("event_id")),
+            "event_release_sha": historical.get(
+                "release_sha", row.get("event_release_sha")),
+            "provider": historical.get("provider", row.get("provider")),
+            "profile_alias": historical.get("profile_alias", row.get("profile_alias")),
+            "owner_id": historical.get("owner_id", row.get("owner_id")),
+            "run_id": historical.get("run_id", row.get("run_id")),
+            "wake_id": historical.get("wake_id", row.get("wake_id")),
+            "occurrence_id": historical.get("occurrence_id", row.get("occurrence_id")),
+            "phase": historical.get("phase", row.get("phase")),
+            "status": historical.get("status", row.get("last_terminal_result")),
+            "exit_code": historical.get("exit_code", row.get("exit_code")),
+            "failure_layer": historical.get("failure_layer", row.get("failure_layer")),
+            "error_class": historical.get("error_class", row.get("error_class")),
+            "retryable": historical.get("retryable", row.get("retryable")),
+            "next_action": historical.get("next_action", row.get("next_action")),
+            "provider_receipt_id": historical.get(
+                "provider_receipt_id", row.get("provider_receipt_id")),
+            "official_readback_ref": historical.get(
+                "official_readback_ref", row.get("official_readback_ref")),
+            "evidence_refs": historical.get("evidence_refs", row.get("evidence_refs")),
+            "effect_class": historical.get("effect_class", row.get("effect_class")),
+            "effect_status": historical.get("effect_status", row.get("effect_status")),
+            "blocker": historical.get("blocker", row.get("blocker")),
+        },
+        "trailing_window": {
+            name: (row.get("health_clocks") or {}).get(name)
+            for name in ("last_attempt", "last_success", "last_effect", "last_receipt")
+        },
+    }
 
 
 def explain_status_row(row: dict) -> dict:
@@ -1148,6 +1199,15 @@ def explain_status_row(row: dict) -> dict:
     action_history_refs = row.get("action_history_refs")
     if not isinstance(action_history_refs, list):
         action_history_refs = []
+    windows = row.get("current_snapshot")
+    if not isinstance(windows, dict):
+        windows = _status_windows(row)["current_snapshot"]
+    historical = row.get("historical_record")
+    if not isinstance(historical, dict):
+        historical = _status_windows(row)["historical_record"]
+    trailing = row.get("trailing_window")
+    if not isinstance(trailing, dict):
+        trailing = _status_windows(row)["trailing_window"]
     return {
         "schema_version": "lm-loop.status-explain.v1",
         "loop_id": row.get("loop_id"),
@@ -1194,6 +1254,9 @@ def explain_status_row(row: dict) -> dict:
             "reported" if action_history_refs else "not_reported"
         ),
         "counter_status": row.get("counter_status", "not_reported"),
+        "current_snapshot": windows,
+        "historical_record": historical,
+        "trailing_window": trailing,
     }
 
 
@@ -1218,6 +1281,20 @@ def _parse_status_args(values: list[str]) -> tuple[str, bool]:
         target = positionals[0]
     aliases = {"connector": "life-manager-connector-native"}
     return aliases.get(target, target), explain
+
+
+def _status_diagnostic(error: str, *, error_class: str, retryable: bool,
+                       next_action: str, detail: str | None = None) -> dict:
+    value = {
+        "ok": False,
+        "error": error,
+        "error_class": error_class,
+        "retryable": retryable,
+        "next_action": next_action,
+    }
+    if detail:
+        value["detail"] = detail[:200]
+    return value
 
 
 def _parse_health_args(values: list[str]) -> tuple[str, str | None, bool]:
@@ -1319,7 +1396,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         else:
             launchd_state = "unloaded"
         present = bool(runtime or label in installed_labels)
-        rows.append({
+        status_row = {
             "classification": classification,
             "owner": "external" if classification == "external" else (
                 "retired" if classification == "retired" else "unknown"),
@@ -1365,7 +1442,9 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "blocker": (
                 "retired_still_present" if classification == "retired" and present else
                 "unmanaged_label" if classification == "unmanaged" else None),
-        })
+        }
+        status_row.update(_status_windows(status_row))
+        rows.append(status_row)
     return sorted(rows, key=lambda row: row["label"])
 
 
@@ -2832,7 +2911,16 @@ def main(argv: list[str] | None = None) -> int:
         try:
             target, status_explain = _parse_status_args(args[1:])
         except ValueError as exc:
-            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            print(json.dumps(_status_diagnostic(
+                str(exc), error_class="invalid_input", retryable=False,
+                next_action="fix_arguments",
+            ), sort_keys=True))
+            return 2
+        if target != "all" and target not in registry["loops"]:
+            print(json.dumps(_status_diagnostic(
+                f"unknown loop id: {target}", error_class="invalid_input",
+                retryable=False, next_action="fix_arguments",
+            ), sort_keys=True))
             return 2
     else:
         target = args[1] if len(args) > 1 else "all"
@@ -2849,10 +2937,34 @@ def main(argv: list[str] | None = None) -> int:
             observed = snapshot(
                 registry, target,
                 include_effect_details=(command != "status" or target != "all" or status_explain),
+                include_health_clocks=command == "status",
             )
         except ValueError as exc:
-            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), flush=True)
-            return 2
+            if command != "status":
+                print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True),
+                      flush=True)
+                return 2
+            print(json.dumps(_status_diagnostic(
+                "status snapshot is invalid", error_class="status_snapshot_error",
+                retryable=False, next_action="inspect_status_snapshot", detail=str(exc),
+            ), sort_keys=True), flush=True)
+            return 1
+        except subprocess.TimeoutExpired as exc:
+            if command != "status":
+                raise
+            print(json.dumps(_status_diagnostic(
+                "status snapshot timed out", error_class="status_snapshot_timeout",
+                retryable=True, next_action="retry_status_snapshot", detail=str(exc),
+            ), sort_keys=True), flush=True)
+            return 1
+        except (OSError, RuntimeError) as exc:
+            if command != "status":
+                raise
+            print(json.dumps(_status_diagnostic(
+                "status snapshot failed", error_class="status_snapshot_error",
+                retryable=True, next_action="inspect_status_snapshot", detail=str(exc),
+            ), sort_keys=True), flush=True)
+            return 1
         except sqlite3.Error as exc:
             print(json.dumps(
                 _admission_read_error("admission_fence_read_failed", exc),
