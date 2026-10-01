@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 import sys
 from typing import Any, Mapping
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
@@ -45,6 +45,14 @@ def _text(value: Any) -> str:
     if isinstance(value, bool) or not isinstance(value, (str, int)) or not str(value).strip():
         raise RuntimeError("provider_response_invalid")
     return str(value).strip()
+
+
+_HUMAN_REQUIRED_BODY = (
+    ("面接", re.compile(r"面接")),
+    ("試験", re.compile(r"(?:試験|テスト)")),
+    ("本人確認", re.compile(r"(?:本人確認|身分証|KYC)", re.IGNORECASE)),
+    ("Google Form", re.compile(r"Google\s*(?:フォーム|Form)", re.IGNORECASE)),
+)
 
 
 class CrowdWorksReplyAdapter:
@@ -289,6 +297,28 @@ class CrowdWorksReplyAdapter:
         conversation = self.conversations.get(thread_id) or self._detail(thread_id)
         if not conversation:
             return None
+        for row in conversation:
+            if row.get("role") != "buyer":
+                continue
+            links = row.get("links", [])
+            if isinstance(links, list) and any(
+                    isinstance(link, str) and self._google_form_url(link) for link in links):
+                label = "Google Form"
+            else:
+                body = str(row.get("body") or "")
+                label = next((name for name, pattern in _HUMAN_REQUIRED_BODY
+                              if pattern.search(body)), None)
+            if label is not None:
+                return {
+                    "action": "human",
+                    "reason": "human_required",
+                    "remaining_work": [f"{label}が必要なため、自動実行せず人手で確認する"],
+                    "handoff": {
+                        "title": f"CrowdWorks {label}",
+                        "url": f"https://crowdworks.jp/messages/{quote(str(thread_id), safe='')}",
+                        "deadline": "次回の人手確認時",
+                    },
+                }
         links = sorted({link for row in conversation if row.get("role") == "buyer"
                         for link in row.get("links", []) if self._google_form_url(link)})
         if len(links) != 1:
@@ -708,6 +738,12 @@ class CrowdWorksReplyAdapter:
                 "reply_composer_failed", "reply_contract_invalid"}:
             return {"reason": "google_form_answer_unavailable",
                     "remaining_work": [f"Ground an answer for the required form item ({message})"]}
+        if message.startswith("google_form_route_invalid:") or message in {
+                "google_form_action_invalid", "google_form_context_unavailable"}:
+            return {
+                "reason": "human_required",
+                "remaining_work": ["Google Form は自動送信せず、人手で確認する"],
+            }
         if message == "crowdworks_contract_ownership_unknown":
             return {"reason": "contract_ownership_ambiguous",
                     "remaining_work": ["Wait until the thread shows a readable contract state"]}
