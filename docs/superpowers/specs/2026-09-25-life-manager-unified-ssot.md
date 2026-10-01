@@ -1925,3 +1925,45 @@ flowchart LR
 - Chrome Headless: https://developer.chrome.com/docs/automation-and-testing/headless
 
 今回の文書更新はsource truthと実行順だけを変更する。production owner、browser、provider、wallet、cloud resource、subscriptionは変更しない。
+
+### 最新CloudWorks（CrowdWorks）期限案件のread-only検証（2026-10-01 09:23 JST、旧Gig cursorを上書き）
+
+この節は、ユーザーが提示したメールと、既存の`crowdworks:dais`専用browserを使った公式画面のread-only確認を一つの事実記録へ結合する。外部の同意・拒否、メッセージ送信、納品、契約変更は実行していない。
+
+**外部で確認できた事実**
+
+- メール件名は`【クラウドワークス】本日が契約途中終了リクエストの返答期限です`。契約途中終了リクエストの返答期限は`2026-10-01`で、1週間返答しない場合は自動終了、同意または拒否をしない場合は悪い評価の対象になる旨が表示されている。
+- 公式契約URL `https://crowdworks.jp/contracts/63570481` はHTTP 200で、ログイン済みの`Kaito｜AI自動化`として契約詳細を表示した。契約相手は`ネオ・ゲート採用`、契約名は`【完全在宅×Webデザイン】初級者歓迎★子育て世代活躍中！シフト自由♪細切れ作業OK｜時給制｜昇給あり・長期契約`、契約金額は税込12円（メンバー報酬10円）、期間は`2026-09-10〜現在`である。
+- 公式画面には「契約途中終了リクエスト送信済み」「同意する」「同意しない」が表示され、契約は発注者の検収待ちである。`同意する`のリンクは`/contract_termination_requests/1427391/agree`、拒否は確認ダイアログ経由であり、どちらも外部状態を変更するため未実行である。
+- 同じ公式メッセージ欄には、発注者から`2026-09-24 11:28`に「以前にも同社求人へ応募しており、前回応募から6か月未満の再応募は受け付けない」と明記された不採用／契約終了理由がある。これは返信遅延ではなく、再応募適格性と契約終了処理の問題である。
+
+**現在の実稼働readback**
+
+| owner | loaded release | terminal | effect / receipt | 判定 |
+|---|---|---|---|---|
+| `crowdworks-revenue-application` | `8e72fc7e…` | `pass`（loaded-running） | `effect_status=unknown`、provider receiptなし、official readbackなし | 応募処理が走った事実だけで、受理・成約・収益は未確認 |
+| `crowdworks-revenue-paid` | `ad194515…` | `pass`（loaded-idle。履歴にpre-effect failure／capacity busyあり） | `effect_status=unknown`、receipt/readbackなし | 支払・契約効果は未確認 |
+| `crowdworks-revenue-reply` | `ad194515…` | `entrypoint_exit_1`（loaded-idle） | `effect_status=unknown`、`official_readback_required`、receiptなし | 期限通知・返信完了を証明できない |
+| `crowdworks-revenue-report` | `ad194515…` | `host_admission_deferred:resource_effect_unknown` | receipt/readbackなし | report経路もfence保持中 |
+
+専用browserはCDP `9228`で到達でき、profile receiptは`status=complete`である。したがって今回の主因を「ログインできない」「browserが無い」とは扱わない。一方、applicationだけ旧release、他laneは`ad194515…`というrelease driftがあり、同じ契約kernelが一貫したrevisionで動いていない。`pass`、PID、loaded-idle、画面表示はprovider成功を意味せず、receiptと公式readbackがない限り収益・受理・返信完了へ昇格しない。
+
+**信頼低下の事実と推論**
+
+- 事実: 発注者は6か月未満の再応募を理由に契約途中終了を申請しており、返答期限は本日である。
+- 事実: 現行CrowdWorks reply adapter／shared kernelの検索可能な契約処理は通常の契約提案・クライアント同意待ちを扱うが、`契約途中終了`・`contract_termination_requests`・同意期限の専用処理を持たない。
+- 事実: 現行application側に、発注者／企業単位の過去応募と6か月ポリシーを公式画面で照合してから応募を止める境界は確認できない。
+- 推論: 信頼を失う最大の原因候補は、案件を応募可能と判定する前に「同一発注者の過去応募・provider固有の再応募制限」を確認せず、契約後の期限付き終了requestも収益replyの優先キューへ入れていないことである。これはメール一通への場当たり修正ではなく、全platform共通の`eligibility → deadline → official receipt`契約で直す。
+
+**このincidentのatomic TODO（実行順）**
+
+1. **[ ] 期限判断を安全に閉じる:** 契約ID`63570481`について、契約成果物・発注者の明示理由・プラットフォーム規約を照合し、`同意`または`拒否`の方針を決める。外部ボタンは不可逆な契約状態変更なので、方針確定と明示承認後に一度だけ実行し、公式readback（状態、時刻、receipt、評価影響）を同一occurrenceへ保存する。今回の検証では未実行である。
+2. **[ ] 期限付きcontract-termination detectorを共通kernelへ追加:** inbox／契約詳細から`request_id`、`contract_id`、`requested_at`、`due_at`、`current_state`、`agree_url`、`reject_flow`、`client_reason`を構造化し、期限順にreply queueへ入れる。期限が近い案件を通常の応募・Paidより先に検知し、effect unknown時は再送せずfenceする。
+3. **[ ] 再応募適格性を応募前gateにする:** providerごとの発注者／企業ID、案件ID、過去応募receipt、拒否・終了履歴、providerの再応募期間（CrowdWorksの6か月など）をdurable indexへ結合する。公式履歴が読めない時は応募せず`eligibility_unknown`にし、同じ発注者への重複応募を一件も外部送信しない。
+4. **[ ] CrowdWorks reply laneの失敗境界を直す:** `entrypoint_exit_1`のexact input／stack／provider page stateを一occurrenceずつ記録し、期限通知・通常返信・契約提案を別actionとしてfocused test→natural run→公式thread readbackで閉じる。`provider_receipt_id`なしの`pass`を許さない。
+5. **[ ] release driftを解消する:** `crowdworks-revenue-application`の自然terminal後、全CrowdWorks revenue laneを同一main由来immutable releaseへtarget applyし、loaded SHA、argv/env、identity lease、自然terminal、rollback receiptを確認する。loaded-running中の強制restart、旧occurrenceの再送はしない。
+6. **[ ] 収益証拠を閉じる:** CrowdWorksのapplication→reply/negotiation→funded contract→delivery→payoutを同一occurrence・provider receipt・official readbackへ結合し、gross/net revenue、platform fee、model/tool/browser/infra costをCFOへ送る。応募数やprocess passを売上と数えない。
+7. **[ ] 他platformへ一般化する:** Coconala、Lancers、Mercor、Freelancer、Upworkでも同じ`eligibility／deadline／reply／effect fence／receipt／settlement`契約を使い、platform固有adapterはselectorと規約差だけを持つ。新platformはMeta Loopの候補から、policy・auth・funded work・公式canary・positive unit economics・rollback・settlement feedbackを通過したものだけを有効化する。
+8. **[ ] self-healing／observabilityを完了する:** 全wakeに`run_id`、`owner_id`、`occurrence_id`、`release_sha`、phase、failure_layer、error_class、next_action、evidence_refs、`provider_receipt_id`、`official_readback_ref`を保存し、`deadline_missed`、`eligibility_unknown`、`duplicate_prevented`、`effect_unknown`をCLIのhealth projectionとCFO通知へ結合する。bounded retryはpre-effectだけ、外部効果不明はfence保持、反復失敗はdead-letterへ送る。
+
+このincidentを閉じるまで、CrowdWorksを「完全稼働」「信頼回復」「収益化済み」と報告しない。現在はprofile／browser到達はPASS、契約終了の公式readbackは取得済み、外部返答・provider receipt・payoutは未完了である。
