@@ -2135,3 +2135,9 @@ P4追補後に手動restart/applyをせず、`life-manager-release-reconciler`�
 - `df -k /`の同時readbackは`7,472,180 KB`（約7.13GiB）で、10GB安定・ENOSPC解消の二回readbackは未達。容量値だけでcleanupを発明せず、実際の失敗境界と既存owner-aware cleanupのreadbackを先に結合する。
 
 したがってP1 cursorは、(a)現在の自然tickの完了receipt、(b)同一releaseのfleet applyが`partial`でなくなった公式readback、(c)P4込みreleaseへのtarget owner loaded SHA/argv一致、(d)disk free二回安定、の順である。これは「停止」ではなく、`effect_unknown`の再送を避けた安全な観測継続であり、Capafy/PromptBase/Writerの外部効果を先に作る理由にはならない。
+
+### 16. 最新snapshot（2026-10-01 19:38 JST）
+
+追加のread-only snapshot（`2026-10-01T10:38:15Z`）では、`total=177`、state別に`running=23 / healthy=28 / failed=43 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4`。`current`は引き続き`b413b5f42bbdf158cb54972533c40d3edf4736d2`で、`capafy-loop-daily=effect_unknown`、`promptbase-loop-daily=telemetry_gap`、`life-manager-connector-native=healthy(process-only)`、`life-manager-release-reconciler=failed`、`job-search-daily=failed`、`life-manager-selfbuild=healthy(process-only)`である。これはP4込みrelease、公式provider readback、収益完了を意味しない。
+
+P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの最終receiptはまだない。`df -k /`は`7,394,972 KB`（約7.05GiB）で、diskの安定条件も未達のまま保持する。
