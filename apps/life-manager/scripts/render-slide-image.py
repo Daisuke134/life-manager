@@ -16,10 +16,10 @@ so the Node-side gate can verify text legibility without re-decoding the
 JPEG itself.
 """
 import json
+import math
 import os
 import sys
 
-import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 BOLD_FONT = "/System/Library/Fonts/ヒラギノ角ゴシック W8.ttc"
@@ -104,13 +104,25 @@ def luminance(rgb):
 
 
 def measure_contrast(image, box):
-    region = np.asarray(image.crop(box).convert("RGB"), dtype=np.float64)
-    if region.size == 0:
+    region = image.crop(box).convert("RGB")
+    count = 0
+    mean = 0.0
+    m2 = 0.0
+    bright_count = 0
+    dark_count = 0
+    for pixel in region.get_flattened_data():
+        value = luminance(pixel)
+        count += 1
+        delta = value - mean
+        mean += delta / count
+        m2 += delta * (value - mean)
+        bright_count += value > 200
+        dark_count += value < 90
+    if count == 0:
         return 0.0, False
-    luminances = 0.2126 * region[..., 0] + 0.7152 * region[..., 1] + 0.0722 * region[..., 2]
-    std = float(luminances.std())
-    bright = float((luminances > 200).mean())
-    dark = float((luminances < 90).mean())
+    std = math.sqrt(m2 / count)
+    bright = bright_count / count
+    dark = dark_count / count
     # A legible white-fill/dark-outline title on any photo produces both a
     # meaningful bright cluster (the glyph fill) and a dark cluster (the
     # outline/scrim) with real separation -- a flat/blank slide never does.
