@@ -164,6 +164,8 @@ work_fit = _module("marketplace_work_fit",
                    Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "work_fit.py")
 listing_catalog = _module("marketplace_listing_catalog",
                           Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "listing_catalog.py")
+eligibility = _module("marketplace_eligibility",
+                      Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "eligibility.py")
 
 def _applied():
     """Projects already applied to or durably awaiting official reconciliation.
@@ -301,7 +303,15 @@ def _candidate(page, listings, groups):
                 rejected["judge_unavailable" if reason == "judge_unavailable" else "not_workable"]+=1
                 _decline(declined,job_id,title,f"募集文の「{evidence_quote}」が対応できない条件（{reason}）に当たります" if evidence_quote else f"対応できない条件（{reason}）に当たります")
                 continue
-            return {"external_id":job_id,"title":re.sub(r"\s+"," ",title).strip()},matched,tier,{"inspected":len(seen)-already,**rejected,"declined":declined}
+            try:
+                buyer_ids = application._numeric_relative_ids(page, application._HISTORY_EMPLOYER_SELECTOR, "/public/employers")
+            except Exception:
+                buyer_ids = []
+            if len(buyer_ids) != 1:
+                rejected["unreadable"] += 1
+                _decline(declined,job_id,title,"発注者IDを公式ページから一意に読み取れませんでした")
+                continue
+            return {"external_id":job_id,"buyer_external_id":buyer_ids[0],"title":re.sub(r"\s+"," ",title).strip()},matched,tier,{"inspected":len(seen)-already,**rejected,"declined":declined}
     return None,None,None,{"inspected":len(seen)-already,**rejected,"declined":declined}
 
 def _proposal(listing, tier):
@@ -341,6 +351,34 @@ def _append(receipt, *, bind_occurrence=True):
 def _append_historical(receipt):
     _append(receipt, bind_occurrence=False)
 
+
+def _eligibility_check(page, now):
+    """Build a lazy, per-wake read-only reapplication check over official full history."""
+    snapshot = None
+
+    def check(opportunity):
+        nonlocal snapshot
+        if snapshot is None:
+            snapshot = application.read_application_history(
+                page,
+                max_pages=10,
+                cache_path=STATE / "application-history.json",
+                page_budget=1,
+            )
+        history = snapshot.get("history")
+        complete = snapshot.get("complete")
+        if not isinstance(history, list) or not isinstance(complete, bool):
+            raise ValueError("history_snapshot_invalid")
+        decision = eligibility.evaluate_reapplication(
+            opportunity,
+            history,
+            history_complete=complete,
+            now=now,
+        )
+        return decision.to_dict()
+
+    return check
+
 def _write_status(payload):
     path=STATE/"application-owner.json";path.parent.mkdir(parents=True,exist_ok=True)
     fd,tmp=tempfile.mkstemp(dir=path.parent,prefix=".application-owner.")
@@ -369,11 +407,12 @@ def main():
                     result={"ok":True,"status":"profile_complete_no_eligible_open_job","imported_applications":imported,"inspected_jobs":candidate_result[3],"effect_delta":0}
                 else:
                     candidate,listing,tier,_inspected=candidate_result
+                    eligibility_check = _eligibility_check(page, now)
                     if tier.get("pricing_mode") == "hourly":
-                        tick=application.execute_hourly_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),hourly_rate_minor=tier["hourly_rate_minor"],weekly_limit_hours=tier["weekly_limit_hours"],expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True)
+                        tick=application.execute_hourly_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),hourly_rate_minor=tier["hourly_rate_minor"],weekly_limit_hours=tier["weekly_limit_hours"],expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True,eligibility_check=eligibility_check)
                     else:
                         due=(date.today()+timedelta(days=int(tier.get("delivery_days",7)))).isoformat()
-                        tick=application.execute_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),proposed_amount_minor=tier["price_jpy"],delivery_due_on=due,expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True)
+                        tick=application.execute_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),proposed_amount_minor=tier["price_jpy"],delivery_due_on=due,expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True,eligibility_check=eligibility_check)
                     result={**tick.to_dict(),"status":"verified" if tick.application_verified else tick.error or tick.reason,"effect_delta":1 if tick.submitted else 0}
             finally:
                 page.close()

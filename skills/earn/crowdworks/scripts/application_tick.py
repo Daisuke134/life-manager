@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 import importlib.util
-from datetime import date
+from datetime import date, datetime
+import json
 import os
 from pathlib import Path
 import re
@@ -13,6 +14,7 @@ import sys
 import tempfile
 from typing import Callable, Mapping
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 
 _SHARED_PATH = (
@@ -84,6 +86,16 @@ _PROPOSAL_LIST_URL = "https://crowdworks.jp/e/proposals"
 _EXPIRE_SELECTOR = "#expire_period"
 _FORM_SELECTOR = 'form#new_proposal[action="/proposals"][method="post"]'
 _TABLE_SELECTOR = "body.employee-proposals.employee-proposals-index .applications.section > table.proposals"
+_HISTORY_JOB_SELECTOR = 'a[href^="/public/jobs/"]'
+_HISTORY_EMPLOYER_SELECTOR = 'a[href^="/public/employers/"]'
+_HISTORY_CREATED_AT_SELECTOR = "table.conditions > tbody > tr.last > td.created_at"
+_PROPOSAL_LINK_SELECTOR = 'a[href^="/proposals/"]'
+_HISTORY_PAGINATION_SELECTOR = 'a[href*="/e/proposals?page="]'
+_JAPANESE_TIMESTAMP = re.compile(
+    r"(?P<year>[0-9]{4})年(?P<month>0[1-9]|1[0-2])月(?P<day>0[1-9]|[12][0-9]|3[01])日"
+    r"\s+(?P<hour>[01][0-9]|2[0-3]):(?P<minute>[0-5][0-9])"
+)
+_HISTORY_CACHE_VERSION = 1
 def _one(page: object, selector: str, *, identity_page: object | None = None):
     locator = page.locator(selector)  # type: ignore[attr-defined]
     try:
@@ -115,6 +127,19 @@ def _exact_url(raw_url: object, path: str, query: str = "") -> bool:
         return parsed is not None and parsed.scheme == "https" and parsed.hostname == "crowdworks.jp" and parsed.username is None and parsed.password is None and parsed.port in (None, 443) and parsed.path == path and parsed.query == query and not parsed.fragment and not (query == "" and "?" in raw_url) and not ("#" in raw_url and parsed.fragment == "")
     except (TypeError, ValueError):
         return False
+
+
+def _goto_readonly(page: object, url: str) -> None:
+    """Reach an official read-only page without waiting for unrelated asset load."""
+    try:
+        page.goto(url, wait_until="commit", timeout=10_000)  # type: ignore[attr-defined]
+    except TypeError:
+        # Minimal test pages expose only goto(url); the production Playwright page takes the
+        # bounded navigation options above.
+        page.goto(url)  # type: ignore[attr-defined]
+    wait_for_timeout = getattr(page, "wait_for_timeout", None)
+    if callable(wait_for_timeout):
+        wait_for_timeout(150)
 def _exclusive(amount: int) -> int:
     """Proposals are submitted tax-exclusive but 固定報酬 reads back tax-inclusive (300,000 → 330,000),
     so verification compared 330,000 against the recorded 300,000 and called every real application
@@ -124,7 +149,7 @@ def _exclusive(amount: int) -> int:
 def _read_proposal_detail(page: object, proposal_id: str, project_id: str, *, include_body: bool = False) -> Mapping[str, object]:
     if _ASCII_DIGITS.fullmatch(proposal_id) is None or _ASCII_DIGITS.fullmatch(project_id) is None:
         raise ValueError("identity_unobserved")
-    page.goto(f"https://crowdworks.jp/proposals/{proposal_id}")  # type: ignore[attr-defined]
+    _goto_readonly(page, f"https://crowdworks.jp/proposals/{proposal_id}")
     if not _exact_url(getattr(page, "url", None), f"/proposals/{proposal_id}"): raise ValueError("route_unobserved")
     _one(page, _PROJECT_SELECTOR.format(project_id=project_id))
     condition = re.sub(r"\s+", " ", _one_text(page, _LATEST_CONDITION_SELECTOR)).strip()
@@ -154,6 +179,320 @@ def _one_text(page: object, selector: str) -> str:
     return value
 
 
+def _history_timestamp(value: object) -> str:
+    """Convert CrowdWorks' official JST display time to strict RFC3339.
+
+    The provider exposes ``2026年09月29日 15:14`` in the conditions table rather than a machine
+    timestamp.  This is an explicit provider-format conversion (Asia/Tokyo), not a guessed local
+    timezone; values that do not match the complete known shape remain unreadable.
+    """
+    if not isinstance(value, str):
+        raise ValueError("history_timestamp_unobserved")
+    match = _JAPANESE_TIMESTAMP.search(value)
+    if match is None:
+        raise ValueError("history_timestamp_unobserved")
+    try:
+        stamp = datetime(
+            int(match.group("year")),
+            int(match.group("month")),
+            int(match.group("day")),
+            int(match.group("hour")),
+            int(match.group("minute")),
+            tzinfo=ZoneInfo("Asia/Tokyo"),
+        )
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("history_timestamp_unobserved") from None
+    return stamp.isoformat(timespec="seconds")
+
+
+def _numeric_relative_ids(page: object, selector: str, prefix: str) -> list[str]:
+    """Return unique numeric provider ids from a bounded, exact-relative link selector."""
+    locator = page.locator(selector)  # type: ignore[attr-defined]
+    count = locator.count()
+    if type(count) is not int:
+        raise ValueError("history_identity_unobserved")
+    identities: set[str] = set()
+    for index in range(count):
+        href = locator.nth(index).get_attribute("href")
+        parsed = urlsplit(href or "")
+        match = re.fullmatch(rf"{re.escape(prefix)}/([0-9]+)", parsed.path)
+        if match is not None and not (parsed.scheme or parsed.netloc or parsed.query or parsed.fragment):
+            identities.add(match.group(1))
+    return sorted(identities)
+
+
+def _read_history_detail(page: object, proposal_id: str) -> Mapping[str, object]:
+    if _ASCII_DIGITS.fullmatch(proposal_id) is None:
+        raise ValueError("history_proposal_id_invalid")
+    _goto_readonly(page, f"https://crowdworks.jp/proposals/{proposal_id}")
+    if not _exact_url(getattr(page, "url", None), f"/proposals/{proposal_id}"):
+        raise ValueError("history_route_unobserved")
+    job_ids = _numeric_relative_ids(page, _HISTORY_JOB_SELECTOR, "/public/jobs")
+    buyer_ids = _numeric_relative_ids(page, _HISTORY_EMPLOYER_SELECTOR, "/public/employers")
+    if len(job_ids) != 1 or len(buyer_ids) != 1:
+        raise ValueError("history_identity_unobserved")
+    created_at = _one_text(page, _HISTORY_CREATED_AT_SELECTOR)
+    return {
+        "application_external_id": proposal_id,
+        "external_id": job_ids[0],
+        "buyer_external_id": buyer_ids[0],
+        "submitted_at": _history_timestamp(created_at),
+    }
+
+
+def _history_page_proposals(page: object) -> list[str]:
+    table = _one(page, _TABLE_SELECTOR)
+    links = table.locator(_PROPOSAL_LINK_SELECTOR)
+    count = links.count()
+    if type(count) is not int:
+        raise ValueError("proposal_list_unreadable")
+    identities: set[str] = set()
+    for index in range(count):
+        href = links.nth(index).get_attribute("href")
+        parsed = urlsplit(href or "")
+        match = re.fullmatch(r"/proposals/([0-9]+)", parsed.path)
+        if match is not None and not (parsed.scheme or parsed.netloc or parsed.query or parsed.fragment):
+            identities.add(match.group(1))
+    return sorted(identities)
+
+
+def _history_page_count(page: object) -> int:
+    locator = page.locator(_HISTORY_PAGINATION_SELECTOR)  # type: ignore[attr-defined]
+    count = locator.count()
+    if type(count) is not int:
+        raise ValueError("proposal_list_unreadable")
+    pages = {1}
+    for index in range(count):
+        href = locator.nth(index).get_attribute("href")
+        parsed = urlsplit(href or "")
+        if parsed.path != "/e/proposals" or parsed.scheme or parsed.netloc or parsed.fragment:
+            continue
+        raw_page = dict(item.split("=", 1) for item in parsed.query.split("&") if "=" in item).get("page")
+        if raw_page is not None and _ASCII_DIGITS.fullmatch(raw_page):
+            pages.add(int(raw_page))
+    return max(pages)
+
+
+def _load_history_cache(cache_path: Path) -> Mapping[str, object] | None:
+    try:
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, TypeError, ValueError):
+        return None
+    if not isinstance(payload, Mapping) or payload.get("version") != _HISTORY_CACHE_VERSION:
+        return None
+    history = payload.get("history")
+    if not isinstance(history, list) or not all(isinstance(row, Mapping) for row in history):
+        return None
+    if not isinstance(payload.get("complete"), bool):
+        return None
+    if not isinstance(payload.get("page_count"), int) or payload["page_count"] < 1:
+        return None
+    next_page = payload.get("next_page")
+    if not isinstance(next_page, int) or next_page < 1:
+        return None
+    return payload
+
+
+def _write_history_cache(cache_path: Path, payload: Mapping[str, object]) -> None:
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(dir=str(cache_path.parent), prefix=f".{cache_path.name}.")
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, cache_path)
+        os.chmod(cache_path, 0o600)
+    finally:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+
+
+def _read_application_history_incremental(
+    page: object,
+    *,
+    max_pages: int,
+    cache_path: Path,
+    page_budget: int,
+) -> Mapping[str, object]:
+    """Advance a durable official-history snapshot by a bounded number of pages."""
+    cached = _load_history_cache(cache_path)
+    _goto_readonly(page, _PROPOSAL_LIST_URL)
+    if not _exact_url(getattr(page, "url", None), "/e/proposals"):
+        raise ValueError("proposal_list_unreadable")
+    page_count = _history_page_count(page)
+    if page_count > max_pages:
+        # The configured bound is itself evidence that the source was not fully walked.
+        page_count_for_walk = max_pages
+    else:
+        page_count_for_walk = page_count
+    first_page_ids = set(_history_page_proposals(page))
+    cached_history = list(cached.get("history", [])) if cached is not None else []
+    cached_ids = {
+        row.get("application_external_id")
+        for row in cached_history
+        if isinstance(row, Mapping) and isinstance(row.get("application_external_id"), str)
+    }
+    cache_usable = (
+        cached is not None
+        and cached.get("complete") is True
+        and cached.get("page_count") == page_count
+        and first_page_ids.issubset(cached_ids)
+    )
+    if cache_usable:
+        return {
+            "history": cached_history,
+            "complete": True,
+            "pages_read": cached.get("pages_read", page_count),
+            "page_count": page_count,
+            "cache_hit": True,
+        }
+
+    if (
+        cached is None
+        or cached.get("page_count") != page_count
+        or not first_page_ids.issubset(cached_ids)
+    ):
+        history: list[Mapping[str, object]] = []
+        next_page = 1
+        pages_read = 0
+    else:
+        history = cached_history
+        next_page = cached.get("next_page", 1)
+        pages_read = cached.get("pages_read", max(0, next_page - 1))
+        if not isinstance(next_page, int) or not 1 <= next_page <= page_count_for_walk:
+            next_page, pages_read, history = 1, 0, []
+
+    by_proposal = {
+        row.get("application_external_id"): row
+        for row in history
+        if isinstance(row, Mapping) and isinstance(row.get("application_external_id"), str)
+    }
+    complete = False
+    processed = 0
+    while next_page <= page_count_for_walk and processed < page_budget:
+        current_page = next_page
+        if current_page == 1:
+            proposal_ids = sorted(first_page_ids)
+        else:
+            _goto_readonly(page, f"{_PROPOSAL_LIST_URL}?page={current_page}")
+            if not _exact_url(getattr(page, "url", None), "/e/proposals", f"page={current_page}"):
+                break
+            try:
+                proposal_ids = _history_page_proposals(page)
+            except Exception:
+                break
+        page_complete = True
+        for proposal_id in proposal_ids:
+            if proposal_id in by_proposal:
+                continue
+            try:
+                row = _read_history_detail(page, proposal_id)
+            except (KeyboardInterrupt, SystemExit, MemoryError):
+                raise
+            except Exception:
+                page_complete = False
+                continue
+            by_proposal[proposal_id] = row
+        if not page_complete:
+            break
+        next_page = current_page + 1
+        pages_read = max(pages_read, current_page)
+        processed += 1
+
+    if next_page > page_count_for_walk and page_count <= max_pages:
+        complete = True
+    payload = {
+        "version": _HISTORY_CACHE_VERSION,
+        "history": [by_proposal[key] for key in sorted(by_proposal)],
+        "complete": complete,
+        "pages_read": pages_read,
+        "page_count": page_count,
+        "next_page": next_page if not complete else page_count + 1,
+    }
+    _write_history_cache(cache_path, payload)
+    return {
+        "history": payload["history"],
+        "complete": complete,
+        "pages_read": pages_read,
+        "page_count": page_count,
+        "cache_hit": False,
+    }
+
+
+def read_application_history(
+    page: object,
+    *,
+    max_pages: int = 10,
+    cache_path: Path | None = None,
+    page_budget: int | None = None,
+) -> Mapping[str, object]:
+    """Read the worker's complete official CrowdWorks application history, read-only.
+
+    ``complete`` is false if any page or proposal detail cannot be read, or if pagination exceeds
+    the bounded walk.  Callers must pass that bit to the shared eligibility gate; partial history
+    is never treated as proof that an application is safe.
+    """
+    if isinstance(max_pages, bool) or not isinstance(max_pages, int) or max_pages < 1:
+        raise ValueError("history_max_pages_invalid")
+    if page_budget is not None and (
+        isinstance(page_budget, bool) or not isinstance(page_budget, int) or page_budget < 1
+    ):
+        raise ValueError("history_page_budget_invalid")
+    if cache_path is not None:
+        return _read_application_history_incremental(
+            page,
+            max_pages=max_pages,
+            cache_path=Path(cache_path),
+            page_budget=page_budget or max_pages,
+        )
+    _goto_readonly(page, _PROPOSAL_LIST_URL)
+    if not _exact_url(getattr(page, "url", None), "/e/proposals"):
+        raise ValueError("proposal_list_unreadable")
+    page_count = _history_page_count(page)
+    pages_to_read = min(page_count, max_pages)
+    complete = page_count <= max_pages
+    history: list[Mapping[str, object]] = []
+    seen_proposals: set[str] = set()
+    pages_read = 0
+    for page_number in range(1, pages_to_read + 1):
+        if page_number > 1:
+            _goto_readonly(page, f"{_PROPOSAL_LIST_URL}?page={page_number}")
+        if not _exact_url(
+            getattr(page, "url", None),
+            "/e/proposals",
+            "" if page_number == 1 else f"page={page_number}",
+        ):
+            complete = False
+            break
+        try:
+            proposal_ids = _history_page_proposals(page)
+        except Exception:
+            complete = False
+            break
+        pages_read += 1
+        for proposal_id in proposal_ids:
+            if proposal_id in seen_proposals:
+                continue
+            seen_proposals.add(proposal_id)
+            try:
+                history.append(_read_history_detail(page, proposal_id))
+            except (KeyboardInterrupt, SystemExit, MemoryError):
+                raise
+            except Exception:
+                complete = False
+    return {
+        "history": history,
+        "complete": complete,
+        "pages_read": pages_read,
+        "page_count": page_count,
+    }
+
+
 def _confirmed_from_list(page: object, project_id: str) -> str | None:
     """The proposal list walk shared by every reader of the worker's own CrowdWorks list: navigate
     to it, collect the proposal links inside the applications table, and return the id of the one
@@ -169,7 +508,7 @@ def _confirmed_from_list(page: object, project_id: str) -> str | None:
     # applications on page one, so rejecting the entire list merely because a page-two link exists
     # strands every newly submitted application as uncertain. Read the authoritative visible rows;
     # older pending entries can remain fenced until a later bounded page-walk is needed.
-    links = _one(page, _TABLE_SELECTOR).locator('a[href^="/proposals/"]')
+    links = _one(page, _TABLE_SELECTOR).locator(_PROPOSAL_LINK_SELECTOR)
     count = links.count()
     if type(count) is not int: raise RuntimeError("proposal_list_unreadable")
     identities = set()
@@ -332,7 +671,7 @@ def _readback_application(page: object, proposal_id: str | None, project_id: str
     except (KeyboardInterrupt, SystemExit, MemoryError): raise
     except Exception:
         return {}
-def execute_application(*, page: object, opportunity: Mapping[str, object], proposal_text: str, proposed_amount_minor: int, delivery_due_on: str, expire_period_days: int | None, state_path: Path, ledger_writer: Callable[[Mapping[str, object]], object], now: Callable[[], object], account_ready: Callable[[], bool]) -> TickResult:
+def execute_application(*, page: object, opportunity: Mapping[str, object], proposal_text: str, proposed_amount_minor: int, delivery_due_on: str, expire_period_days: int | None, state_path: Path, ledger_writer: Callable[[Mapping[str, object]], object], now: Callable[[], object], account_ready: Callable[[], bool], eligibility_check: Callable[[Mapping[str, object]], Mapping[str, object]] | None = None) -> TickResult:
     """Submit one fixed-price intent once and verify it from CrowdWorks."""
     project_id = opportunity.get("external_id") if isinstance(opportunity, Mapping) else None
     try:
@@ -352,12 +691,13 @@ def execute_application(*, page: object, opportunity: Mapping[str, object], prop
         readback=lambda proposal, project: _readback_application(page, proposal, project),
         ledger_writer=ledger_writer,
         now=now,
+        eligibility_check=eligibility_check,
     )
-def execute_hourly_application(*, page: object, opportunity: Mapping[str, object], proposal_text: str, hourly_rate_minor: int, weekly_limit_hours: int, expire_period_days: int | None, state_path: Path, ledger_writer: Callable[[Mapping[str, object]], object], now: Callable[[], object], account_ready: Callable[[], bool]) -> TickResult:
+def execute_hourly_application(*, page: object, opportunity: Mapping[str, object], proposal_text: str, hourly_rate_minor: int, weekly_limit_hours: int, expire_period_days: int | None, state_path: Path, ledger_writer: Callable[[Mapping[str, object]], object], now: Callable[[], object], account_ready: Callable[[], bool], eligibility_check: Callable[[Mapping[str, object]], Mapping[str, object]] | None = None) -> TickResult:
     project_id = opportunity.get("external_id") if isinstance(opportunity, Mapping) else None
     valid = isinstance(project_id, str) and _ASCII_DIGITS.fullmatch(project_id) is not None and isinstance(hourly_rate_minor, int) and not isinstance(hourly_rate_minor, bool) and hourly_rate_minor > 0 and isinstance(weekly_limit_hours, int) and not isinstance(weekly_limit_hours, bool) and weekly_limit_hours > 0
     if not valid: return TickResult(ok=False, error="proposal_form_changed", project_id=project_id if isinstance(project_id, str) else None)
-    return run_tick(opportunity=opportunity, proposal_text=proposal_text, proposed_amount_minor=hourly_rate_minor, delivery_due_on=None, pricing_mode="hourly", weekly_limit_hours=weekly_limit_hours, state_path=state_path, account_ready=account_ready, submitter=lambda source, text, rate, _due: _submit_application(page, source, text, rate, None, expire_period_days, pricing_mode="hourly", weekly_limit_hours=weekly_limit_hours), readback=lambda proposal, project: _readback_application(page, proposal, project), ledger_writer=ledger_writer, now=now)
+    return run_tick(opportunity=opportunity, proposal_text=proposal_text, proposed_amount_minor=hourly_rate_minor, delivery_due_on=None, pricing_mode="hourly", weekly_limit_hours=weekly_limit_hours, state_path=state_path, account_ready=account_ready, submitter=lambda source, text, rate, _due: _submit_application(page, source, text, rate, None, expire_period_days, pricing_mode="hourly", weekly_limit_hours=weekly_limit_hours), readback=lambda proposal, project: _readback_application(page, proposal, project), ledger_writer=ledger_writer, now=now, eligibility_check=eligibility_check)
 def run_tick(**kwargs):
     return shared.run_transaction(platform="crowdworks", **kwargs)
 
@@ -365,6 +705,7 @@ def run_tick(**kwargs):
 __all__ = [
     "TickResult",
     "find_proposal_id",
+    "read_application_history",
     "account_lock",
     "load_marketplace_contracts",
     "reconcile_existing_application",

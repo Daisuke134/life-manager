@@ -371,7 +371,7 @@ def test_list_walk_selectors_are_not_duplicated():
     source = PATH.read_text(encoding="utf-8")
     assert source.count("_one(page, _TABLE_SELECTOR).locator(") == 1
     assert source.count('a[href^="/proposals/"]') == 1
-    assert 'a[href*="/e/proposals?page="]' not in source
+    assert source.count("_HISTORY_PAGINATION_SELECTOR") >= 2
     assert 'a[rel="next"]' not in source
 
 
