@@ -9,6 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[4]
 ADAPTERS = (
+    ("coconala", ROOT / "skills/earn/gig/scripts/coconala_paid_adapter.py", "CoconalaPaidAdapter"),
     ("lancers", ROOT / "skills/earn/lancers/scripts/paid_adapter.py", "LancersPaidAdapter"),
     ("crowdworks", ROOT / "skills/earn/crowdworks/scripts/paid_adapter.py", "CrowdWorksPaidAdapter"),
     ("mercor", ROOT / "skills/earn/mercor/scripts/paid_adapter.py", "MercorPaidAdapter"),
