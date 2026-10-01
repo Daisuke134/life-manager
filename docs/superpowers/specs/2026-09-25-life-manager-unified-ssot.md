@@ -2173,3 +2173,16 @@ flowchart LR
 8. **[ ] Cloud/self-healing:** localとcloudの同一business logic、全laneのhealth projection、bounded recovery、通知dedupe、release provenance、backup/restore、disk headroom／receipt reserve／ENOSPC回復を実測する。自己回復は原因を隠さず、`run_id`・`occurrence_id`・`release_sha`・`phase`・`effect`・`readback`・`provider_receipt_id`・`error_class`・`next_action`を構造化して残す。
 
 現時点で「共有kernelは存在するが、全platformの外部receipt・payout・cost-complete net P&L・Meta Loop昇格は未完了」である。したがって、Life Managerが契約仕事で大規模に稼ぐ設計はこの構造で可能だが、現在すでに数百万を稼いでいるとは報告しない。
+
+**最新CrowdWorks自然run readback（2026-10-01）**: `current` は immutable release `c213c375d5639a3ed4494d6880c0ecb70794e357` を指し、browser/application/replyのloaded SHAはこのreleaseで揃っている。CrowdWorks applicationの最新自然runは `pass` で終了し、応募処理を再送していない。replyの最新自然run artifact `reply/runs/f8ad42deb04970498eb862a2c5d261afb31ac82929d6ce8639f90e8ed568750a.json` は142 threadを観測し、公式readback 129、`verified` 15、`awaiting_buyer` 74、`no_reply` 40、`pending` 12、`failed` 1、`effect=0` を記録した。このrunでは新しい外部メッセージeffectを作っていないため、送信済みとは扱わない。`verified` は既存状態の公式readbackであり、新規送信の証拠ではない。
+
+同じ自然runの実測で、CrowdWorksのapplication・reply・paidが同一 `provider-browser.lock` を共有し、先行ownerが使用中の間は後続ownerが待機することを確認した。これは重複送信を防ぐ直列化として正しいが、無期限待機は許さない。現在のreply healthには過去の `effect_unknown` fence 450件、`official_readback_required`、`provider_browser_busy` が残る。公式receiptまたは公式readbackなしにclose・再送してはいけない。
+
+同時にData volumeの空きは約951MiB（100%表示）まで低下し、`No space left on device` がrecovery-intent書込み、SQLite/database open、gc-trash renameで再現している。disk cleanup ownerは稼働しているが、host cleanupは`errors=1`・`updater_recovery.errors=1`を返し、release-reconcilerはfleet applyをbudget超過でpartialにしている。したがって現在のCrowdWorks状態は「reply観測は進んだが、fleet全体のeffect fence・容量・release provenanceが未収束」であり、全platform完了とは扱わない。
+
+**この観測後のcursor**:
+
+1. [進行中] provider lockを奪わず、現在の各owner自然runが終了した後にreply/application/paidの最新artifactと公式readbackを再取得する。
+2. [未完] disk cleanup/release reconcilerが`errors=0`・十分なheadroom・全対象ownerの同一release applyを返す境界を直す。ENOSPC中はeffect fenceを解放しない。
+3. [未完] CrowdWorks replyの450 fenceをowner adapterで一件ずつ公式会話readbackし、`replay_zero`またはprovider receiptが取れたものだけcloseする。pending/failedは再送せず、次のbounded retryへ残す。
+4. [未完] その後にLancers・Mercor・Freelancer・Upworkを同じreceipt/fence/settlement契約で順に検証し、最後にMeta Loopへ進む。
