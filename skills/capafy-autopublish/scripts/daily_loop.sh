@@ -179,6 +179,20 @@ d=json.load(sys.stdin); i=d.get("item") or {}
 if d.get("action") == "create_fresh" and i.get("skill") and i.get("listing") and i.get("icon"):
     print(os.path.dirname(i["skill"]), i["listing"], i["icon"], sep="\t")' 2>>"$LOG")"
 fi
+# An already-approved manual version has no local listing inputs, so it must not
+# fall through as an underspecified generic publishing task.  Give the browser
+# agent one bounded, observable transition: Test Run the exact selected version,
+# require its completed response, then publish that same version and read back
+# `online`.  (A successful action may leave another item PUBLISHABLE; the
+# selected-ID post check below handles that queue state.)
+TEST_AND_PUBLISH_ID="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
+d=json.load(sys.stdin); i=d.get("item") or {}
+if d.get("action") == "test_and_publish" and i.get("agent_id"):
+    print(i["agent_id"])' 2>>"$LOG")"
+if [ -n "$TEST_AND_PUBLISH_ID" ]; then
+  PROMPT="$PROMPT
+AUTHORITATIVE TEST-AND-PUBLISH: agent_id=$TEST_AND_PUBLISH_ID. Do not create a version or edit any listing. In the owned Capafy browser, select the approved version for exactly this ID, run Test Run with a factual sales prompt, and wait for a completed non-error response (for example, the UI's run-ended success signal). Only then click the manual publish control once. Require official publish-remote-status/publish-list readback for THIS agent_id to become online. If the test errors, do not publish; report the sanitized error. Stop immediately after the authoritative online readback."
+fi
 # Paid existing-Agent updates must use the same deterministic prepare/CP1/finish
 # path as a fresh listing, while fencing the exact remote source version. Without
 # this branch they fall through to the generic agent prompt, which has no bound
@@ -252,6 +266,28 @@ fi
 POST_JSON="$(python3 "$AUTO/scripts/inventory_status.py" 2>>"$LOG")"
 POST="$(printf '%s\n' "$POST_JSON" | sed -n 's/^VERDICT=//p' | head -1)"
 POST_ONLINE="$(printf '%s' "$POST_JSON" | tail -1 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("online_count", -1))' 2>>"$LOG")"
+
+# A successful test_and_publish normally exposes the next ready approved
+# version, so the aggregate post-verdict remains PUBLISHABLE.  That is a queue
+# condition, not a failure of the selected action.  Check the exact selected
+# Agent against the authoritative post-readback before declaring the pass
+# blocked; otherwise every successful manual publication starves the health
+# marker and re-escalates this self-fix.
+if [ -n "$TEST_AND_PUBLISH_ID" ]; then
+  TEST_AND_PUBLISH_ONLINE="$(printf '%s' "$POST_JSON" | tail -1 | python3 -c 'import json,sys
+d=json.load(sys.stdin); target=sys.argv[1]
+for agent in d.get("agents", []):
+    if str(agent.get("agent_id") or "") == target:
+        print("1" if agent.get("remote_status") == "online" or agent.get("lifecycle") == "listed" else "0")
+        break
+else:
+    print("0")' "$TEST_AND_PUBLISH_ID" 2>>"$LOG")"
+  if [ "$TEST_AND_PUBLISH_ONLINE" = "1" ]; then
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (TEST_AND_PUBLISHED — $TEST_AND_PUBLISH_ID is online; post-verdict=$POST, marker touched) ===" >> "$LOG"
+    exit 0
+  fi
+fi
 
 # A3 (2026-07-18): a per-pass max-turns exhaustion is a BUDGET limit, not a broken pipeline. Track a
 # streak so a single/short exhaustion continues next pass (marker kept fresh) but a PERSISTENT one
