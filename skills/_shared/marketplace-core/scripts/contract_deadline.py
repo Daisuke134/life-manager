@@ -10,11 +10,19 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+import re
 from typing import Any, Mapping
 
 
 class ContractDeadlineValidationError(ValueError):
     """Raised when a provider observation cannot be trusted as a deadline."""
+
+
+_RFC3339_RE = re.compile(
+    r"^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])[Tt]"
+    r"(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]+)?"
+    r"(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"
+)
 
 
 @dataclass(frozen=True)
@@ -48,9 +56,17 @@ def _optional_text(value: Any, field: str) -> str | None:
 
 
 def _timestamp(value: Any, field: str) -> str | None:
+    return normalize_timestamp(value, field=field)
+
+
+def normalize_timestamp(value: Any, *, field: str = "timestamp") -> str | None:
+    """Normalize only timezone-bearing RFC3339 values; reject loose ISO forms."""
+
     raw = _optional_text(value, field)
     if raw is None:
         return None
+    if _RFC3339_RE.fullmatch(raw) is None:
+        raise ContractDeadlineValidationError(f"{field}_invalid")
     normalized = raw[:-1] + "+00:00" if raw.endswith(("Z", "z")) else raw
     try:
         parsed = datetime.fromisoformat(normalized)
@@ -119,5 +135,6 @@ __all__ = [
     "ContractDeadlineValidationError",
     "ContractTermination",
     "classify_deadline",
+    "normalize_timestamp",
     "normalize_contract_termination",
 ]

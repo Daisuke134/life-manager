@@ -49,17 +49,10 @@ def _text(value: Any) -> str:
 
 
 def _rfc3339_or_none(value: Any) -> str | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    raw = value.strip()
-    normalized = raw[:-1] + "+00:00" if raw.endswith(("Z", "z")) else raw
     try:
-        parsed = datetime.fromisoformat(normalized)
-    except (TypeError, ValueError, OverflowError):
+        return contract_deadline.normalize_timestamp(value)
+    except contract_deadline.ContractDeadlineValidationError:
         return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class CrowdWorksReplyAdapter:

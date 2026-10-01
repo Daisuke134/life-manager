@@ -67,3 +67,7 @@ def test_invalid_timestamp_and_blank_identity_are_rejected():
         deadline.normalize_contract_termination(_request(due_at="tomorrow"))
     with pytest.raises(deadline.ContractDeadlineValidationError, match="request_id_invalid"):
         deadline.normalize_contract_termination(_request(request_id="  "))
+    with pytest.raises(deadline.ContractDeadlineValidationError, match="timestamp_invalid"):
+        deadline.normalize_timestamp("2026-10-01 12:00:00+09:00")
+    with pytest.raises(deadline.ContractDeadlineValidationError, match="timestamp_invalid"):
+        deadline.normalize_timestamp("2026-10-01T12:00:00+0900")
