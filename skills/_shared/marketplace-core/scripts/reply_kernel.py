@@ -25,6 +25,12 @@ from typing import Any, Callable, Mapping, Protocol
 MUTATIONS = frozenset({"reply", "estimate", "accept_contract", "external_action"})
 RESUMABLE_MUTATIONS = frozenset({"accept_contract", "external_action"})
 NO_EFFECT = frozenset({"awaiting_buyer", "closed", "no_reply", "noop"})
+_DEADLINE_PRIORITY = {
+    "overdue": 0,
+    "urgent": 1,
+    "upcoming": 2,
+    "unknown": 3,
+}
 
 
 class ReplyAdapter(Protocol):
@@ -48,7 +54,7 @@ def _digest(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _observation(value: Mapping[str, Any]) -> dict[str, str]:
+def _observation(value: Mapping[str, Any]) -> dict[str, Any]:
     fields = ("provider", "account_id", "thread_id", "latest_event_id", "observed_at")
     result = {field: _text(value.get(field), field) for field in fields}
     if value.get("pending_reason") is not None:
@@ -57,6 +63,13 @@ def _observation(value: Mapping[str, Any]) -> dict[str, str]:
         result["decision_version"] = _text(
             value.get("decision_version"), "decision_version"
         )
+    # Providers may expose a read-only deadline hint in their inventory.  Keep
+    # only the two bounded fields needed by the shared queue; the full
+    # termination facts remain durable in the per-thread state after context
+    # evaluation.
+    for field in ("deadline_status", "due_at"):
+        if value.get(field) is not None:
+            result[field] = _text(value.get(field), field)
     return result
 
 
@@ -156,6 +169,67 @@ def _write(path: Path, value: Mapping[str, Any]) -> None:
                 os.unlink(temporary)
             except FileNotFoundError:
                 pass
+
+
+def _deadline_queue_key(state_root: Path, row: Mapping[str, Any]) -> tuple[int, str, str]:
+    """Return a deterministic deadline-first key without provider I/O.
+
+    A previously observed termination request is the only trusted source for a
+    deadline on the next wake.  Malformed or partial state is treated as
+    ``unknown`` (still ahead of ordinary work), never as permission to skip a
+    potentially expiring request.  Inventory hints are accepted only for the
+    same bounded status/date fields and never trigger a provider mutation.
+    """
+
+    termination: Mapping[str, Any] | None = None
+    try:
+        state = _load(_state_path(state_root, row))
+    except (OSError, ValueError, json.JSONDecodeError):
+        state = {}
+    candidate = state.get("contract_termination")
+    if isinstance(candidate, Mapping):
+        termination = candidate
+    elif any(row.get(field) is not None for field in ("deadline_status", "due_at")):
+        termination = row
+    if termination is None:
+        return (4, "", row["thread_id"])
+
+    status = termination.get("deadline_status")
+    due_at = termination.get("due_at")
+    if not isinstance(status, str) or status not in _DEADLINE_PRIORITY:
+        return (3, "", row["thread_id"])
+    if due_at is None:
+        return (_DEADLINE_PRIORITY[status] if status == "unknown" else 3,
+                "", row["thread_id"])
+    try:
+        # RFC3339 strings normalized to UTC sort chronologically as text.
+        normalized_due = _text(due_at, "due_at")
+        if not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+            r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})",
+            normalized_due,
+        ):
+            raise ValueError("due_at_invalid")
+        if normalized_due.endswith(("Z", "z")):
+            normalized_due = normalized_due[:-1] + "+00:00"
+        parsed = datetime.fromisoformat(normalized_due)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("due_at_timezone_required")
+        normalized_due = parsed.astimezone(timezone.utc).isoformat().replace(
+            "+00:00", "Z"
+        )
+    except (TypeError, ValueError, OverflowError):
+        return (3, "", row["thread_id"])
+    return (_DEADLINE_PRIORITY[status], normalized_due, row["thread_id"])
+
+
+def _prioritize_rows(state_root: Path, rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+    keyed = [(row, _deadline_queue_key(state_root, row)) for row in rows]
+    keyed.sort(key=lambda item: item[1])
+    # A deadline-bearing queue is deliberately serial even when a provider
+    # normally permits parallel replies.  This prevents an ordinary mutation
+    # from racing a human handoff for an expiring contract request.
+    return [row for row, _key in keyed], any(key[0] < 4 for _row, key in keyed)
 
 
 def _prepare_pre_effect_hint(max_workers: int) -> Path | None:
@@ -581,7 +655,9 @@ def run_wake(*, adapter: ReplyAdapter,
                       for row in normalized]
         if len(identities) != len(set(identities)):
             raise ValueError("reply_inventory_duplicate")
-        workers = max(1, min(max_workers, len(normalized) or 1))
+        normalized, deadline_queue = _prioritize_rows(Path(state_root), normalized)
+        workers = (1 if deadline_queue else
+                   max(1, min(max_workers, len(normalized) or 1)))
         if workers == 1:
             # Sync browser adapters are thread-affine: even a one-worker pool moves
             # their Playwright page to another thread and invalidates every call.

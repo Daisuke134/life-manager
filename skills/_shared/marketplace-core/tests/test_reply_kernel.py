@@ -80,6 +80,70 @@ def test_single_worker_hint_survives_observe_failure_and_clears_before_mutation(
     assert not hint.exists()
 
 
+def test_deadline_queue_processes_persisted_termination_before_ordinary_work(
+        tmp_path):
+    rows = [event("ordinary"), event("urgent"), event("overdue")]
+    adapter = Adapter(rows)
+    seen = []
+
+    for thread_id, status, due_at in (
+        ("urgent", "urgent", "2026-10-01T12:00:00Z"),
+        ("overdue", "overdue", "2026-09-30T12:00:00Z"),
+    ):
+        row = next(item for item in rows if item["thread_id"] == thread_id)
+        reply_kernel._write(reply_kernel._state_path(tmp_path, row), {
+            "version": 1,
+            "inventory_event_id": row["latest_event_id"],
+            "observation": row,
+            "status": "waiting_human",
+            "contract_termination": {
+                "deadline_status": status,
+                "due_at": due_at,
+            },
+        })
+
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda context: (seen.append(context["thread_id"]) or {
+            "action": "noop", "classification": "noop",
+        }),
+        state_root=tmp_path,
+        max_workers=4,
+    )
+
+    assert result["failed"] == 0
+    assert seen == ["overdue", "urgent", "ordinary"]
+
+
+def test_malformed_deadline_is_fail_closed_and_still_precedes_ordinary_work(
+        tmp_path):
+    rows = [event("ordinary"), event("malformed")]
+    adapter = Adapter(rows)
+    seen = []
+    row = rows[1]
+    reply_kernel._write(reply_kernel._state_path(tmp_path, row), {
+        "version": 1,
+        "inventory_event_id": row["latest_event_id"],
+        "observation": row,
+        "status": "waiting_human",
+        "contract_termination": {
+            "deadline_status": "urgent",
+            "due_at": "not-a-timestamp",
+        },
+    })
+
+    reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda context: (seen.append(context["thread_id"]) or {
+            "action": "noop", "classification": "noop",
+        }),
+        state_root=tmp_path,
+        max_workers=2,
+    )
+
+    assert seen == ["malformed", "ordinary"]
+
+
 def test_classified_inventory_boundary_returns_structured_blocked_result(tmp_path):
     class ProviderInboxUnavailable(Adapter):
         def observe_threads(self):

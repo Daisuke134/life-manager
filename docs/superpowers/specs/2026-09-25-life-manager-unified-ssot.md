@@ -2038,6 +2038,7 @@ flowchart LR
 - `skills/earn/crowdworks/scripts/application_tick.py` は公式`/e/proposals`のページ数を読み、各`/proposals/<id>`から数値の案件ID・発注者ID・`table.conditions`の日本語公式時刻を取得してRFC3339へ変換する。ページ／案件のどれかが読めない場合は`complete=false`を返す。
 - `skills/earn/crowdworks/scripts/application_owner.py` は候補へ発注者IDを付け、shared `eligibility.evaluate_reapplication`をsubmit前callbackへ接続した。履歴cacheは`~/.local/state/anicca/crowdworks/application-history.json`へ原子的に保存し、初回は1ページずつ進め、完了後は先頭ページのID差分だけを確認する。同期未完・ID欠落・履歴不整合は外部送信なしで`eligibility_unknown`となる。
 - owner status JSONにも`eligibility_history.status`（`missing／syncing／complete`）、`pages_read`、`page_count`、`next_page`だけを投影し、本文やcredentialを出さずに同期進捗を観測できるようにした。これはCLI healthの共通schema projectionではなく、次の接続点へ渡すbounded telemetryである。
+- shared `reply_kernel` は保存済みの契約終了情報を期限超過→24時間以内→近日→期限不明→通常案件の順に並べ、期限案件があるwakeは直列化する。期限情報が壊れている場合も不明として通常案件より先に扱い、再送や判断を自動化しない。
 - `application-owner`は既知の外部効果ゼロ状態（履歴`eligibility_unknown`、案件なし、account/profile未準備）だけ、`entrypoint-result.json`へ`pre_effect_failure/effect=0`をatomicに残す。`submission_uncertain`やprovider readback失敗には絶対に書かないため、runnerのeffect fenceを安全に解放する境界と不確実な外部効果を分離できる。
 - 共通`event.schema.json`／`ApplicationReceipt`／transaction pending stateへ任意の`buyer_external_id`を追加し、応募receiptと再応募履歴を同じ発注者キーで結合できるようにした。旧receipt／旧pending stateはbuyer IDなしのまま後方互換で読める。
 - 実環境read-only probe（CrowdWorks CDP `9228`）で公式1ページ20件を取得し、案件ID・発注者ID・JST時刻の3点を全件readbackした。公式一覧は10ページを表示したため、10ページ全件のsource-complete同期とその後の自然run／公式receiptはまだ未完了である。
@@ -2133,7 +2134,7 @@ flowchart LR
 #### Contract Work Factoryの残TODO（この節を拡張順の正本とする）
 
 1. **[ ] CrowdWorks期限案件を閉じる:** 契約ID`63570481`の同意／拒否方針を確定し、外部操作は一度だけ実行して公式readbackを保存する。
-2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類、CrowdWorks検出、応募前のshared fail-closed fence、CrowdWorks公式履歴adapterとdurable cache接続は完了。10ページsource-complete同期の自然run、共通receipt schema永続化、期限優先queue、CLI health projectionは残る。
+2. **[~] Shared eligibility/deadline kernel:** 発注者履歴、再応募制限、契約終了request、返答期限、`eligibility_unknown`を共通schema・CLI healthへ追加する。契約終了requestの共通正規化・期限分類、CrowdWorks検出、応募前のshared fail-closed fence、CrowdWorks公式履歴adapterとdurable cache接続、保存済み期限情報を期限超過→緊急→近日→不明→通常の順で直列化するshared reply queueは完了。10ページsource-complete同期の自然run、共通receipt schemaへの履歴永続化、CLI health projectionは残る。
 3. **[ ] CrowdWorks laneを修正:** `entrypoint_exit_1`、release drift、receiptなし`pass`を直し、同一immutable releaseで自然run→公式readback→replay-zeroを閉じる。
 4. **[ ] Adapter conformance gate:** 既存Coconala/Lancers/Mercorと新platformが4 surfaceだけを実装し、shared kernelのduplicate・reply・ledger・P&Lを再実装していないことをcontract testで検証する。
 5. **[ ] Provider receipt chain:** 各platformでfunded contract、納品、payout、fee、costを同一occurrenceへ結合し、positive net P&Lが出る案件だけを拡大する。
