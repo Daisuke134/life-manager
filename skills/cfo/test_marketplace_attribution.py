@@ -357,6 +357,30 @@ class MarketplaceAttributionTest(unittest.TestCase):
                     {"unverified_receipt"},
                 )
 
+    def test_zero_net_settled_payment_is_not_projected(self):
+        payload = self.fixture("marketplace-settled.json")
+        payment = next(
+            row for row in payload["receipt_map"]["records"]
+            if row.get("record_type") == "payment_receipt"
+            and row.get("payment_external_id") == "payment-2"
+        )
+        payment["fee_amount_minor"] = payment["gross_amount_minor"]
+        payment["net_amount_minor"] = 0
+        self.bind(payload)
+
+        rows = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        self.assertEqual(
+            {row["reason"] for row in rows
+             if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+            {"unverified_receipt"},
+        )
+
     def test_mixed_receipt_currencies_are_a_gap_for_single_currency_aggregate(self):
         payload = self.fixture("marketplace-settled.json")
         payload["aggregate"]["currency"] = "JPY"

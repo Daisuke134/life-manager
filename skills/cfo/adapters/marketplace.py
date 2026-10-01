@@ -471,7 +471,10 @@ def _payment(
     gross = _minor(row["gross_amount_minor"], positive=True)
     fee = _minor(row["fee_amount_minor"])
     cost = _minor(row["cost_amount_minor"])
-    net = _minor(row["net_amount_minor"])
+    # A settled receipt with no positive net is not an expansion candidate. Keep
+    # the source visible as an unverified gap instead of allowing zero-margin
+    # work into the revenue projection.
+    net = _minor(row["net_amount_minor"], positive=True)
     if gross - fee - cost != net:
         _fail("unverified_receipt")
     # B6 owns generic actual-cost attribution. Do not silently turn a producer
