@@ -847,11 +847,15 @@ class LmLoopApplyTest(unittest.TestCase):
         self._write_events(state_root, events)
         entry = {"effect_class": "money", "state_root": str(state_root)}
 
-        resolved, unprovable = lm_loop._resolve_pre_effect_admission_rows(
-            owner, entry, max_rows=3)
+        proof = lm_loop._pre_effect_occurrence_proof
+        with patch.object(
+                lm_loop, "_pre_effect_occurrence_proof", wraps=proof) as evaluate:
+            resolved, unprovable = lm_loop._resolve_pre_effect_admission_rows(
+                owner, entry, max_rows=3)
 
         self.assertEqual(len(resolved) + len(unprovable), 3)
         self.assertEqual(resolved, occurrences[:3])
+        self.assertEqual(evaluate.call_count, 3)
         with sqlite3.connect(database) as connection:
             rows = dict(connection.execute(
                 "SELECT occurrence_id,effect_unknown FROM occurrences WHERE owner_id=?",
