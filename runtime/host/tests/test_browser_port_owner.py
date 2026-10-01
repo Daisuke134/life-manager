@@ -147,6 +147,67 @@ class BrowserPortOwnerTests(unittest.TestCase):
         self.assertEqual(conflict["port"], 9224)
         self.assertNotIn("profile", conflict)
 
+    def test_live_matching_profile_process_is_adoptable(self):
+        from runtime.host import browser_port_owner as owner
+
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / "crowdworks-browser"
+            profile.mkdir()
+            os.symlink("host-4242", profile / "SingletonLock")
+            command = (
+                f"Chromium --user-data-dir={profile.resolve()} "
+                "--remote-debugging-port=9228 --no-first-run"
+            )
+            with (
+                patch.object(owner, "_pid_alive", return_value=True),
+                patch.object(owner, "_command_line", return_value=command),
+            ):
+                self.assertEqual(
+                    owner._live_profile_owner(profile, 9228),
+                    4242,
+                )
+
+    def test_live_profile_process_on_wrong_port_is_not_adoptable(self):
+        from runtime.host import browser_port_owner as owner
+
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / "crowdworks-browser"
+            profile.mkdir()
+            os.symlink("host-4242", profile / "SingletonLock")
+            with (
+                patch.object(owner, "_pid_alive", return_value=True),
+                patch.object(
+                    owner,
+                    "_command_line",
+                    return_value=(
+                        f"Chromium --user-data-dir={profile.resolve()} "
+                        "--remote-debugging-port=9227"
+                    ),
+                ),
+            ):
+                self.assertIsNone(owner._live_profile_owner(profile, 9228))
+
+    def test_existing_cdp_port_adopts_matching_orphan_before_duplicate_failure(self):
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-test-state"),
+            "profile": "/profiles/owned",
+            "port": 9224,
+            "owner": "owned",
+            "command": ["--", "/usr/bin/true"],
+        })()
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=True),
+            patch("runtime.host.browser_port_owner._live_profile_owner", return_value=4242),
+            patch("runtime.host.browser_port_owner._wait_for_adopted_browser", return_value=75) as wait,
+            patch("runtime.host.browser_port_owner.subprocess.Popen") as popen,
+        ):
+            from runtime.host.browser_port_owner import run
+            self.assertEqual(run(args), 75)
+        popen.assert_not_called()
+        wait.assert_called_once_with(4242, 9224)
+
     def test_descendant_cannot_survive_after_browser_root_exits(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -184,27 +245,28 @@ class BrowserPortOwnerTests(unittest.TestCase):
     def test_second_owner_for_same_port_fails_closed_while_first_is_alive(self):
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "state"
+            port = _free_port()
             first = subprocess.Popen(
                 [sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
-                 "--port", "9222", "--profile", "/profiles/daily", "--owner", "daily",
+                 "--port", str(port), "--profile", "/profiles/daily", "--owner", "daily",
                  "--", sys.executable, "-c", "import time; time.sleep(10)"],
             )
             try:
                 deadline = time.monotonic() + 3
-                receipt = state / "9222.json"
+                receipt = state / f"{port}.json"
                 while not receipt.exists() and time.monotonic() < deadline:
                     time.sleep(0.02)
                 self.assertTrue(receipt.exists())
                 second = subprocess.run(
                     [sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
-                     "--port", "9222", "--profile", "/profiles/job-search", "--owner", "job-search",
+                     "--port", str(port), "--profile", "/profiles/job-search", "--owner", "job-search",
                      "--", sys.executable, "-c", "raise SystemExit(0)"],
                     capture_output=True, text=True, check=False,
                 )
                 self.assertEqual(second.returncode, 75)
                 conflict = json.loads(second.stderr)
                 self.assertEqual(conflict["reason"], "browser_port_owned")
-                self.assertEqual(conflict["port"], 9222)
+                self.assertEqual(conflict["port"], port)
                 self.assertEqual(conflict["current_owner"], "daily")
                 self.assertNotIn("profile", conflict)
             finally:
@@ -238,20 +300,23 @@ class BrowserPortOwnerTests(unittest.TestCase):
     def test_same_profile_on_different_port_fails_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "state"
+            first_port, second_port = _free_port(), _free_port()
+            while second_port == first_port:
+                second_port = _free_port()
             first = subprocess.Popen(
                 [sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
-                 "--port", "9222", "--profile", "/profiles/shared", "--owner", "first",
+                 "--port", str(first_port), "--profile", "/profiles/shared", "--owner", "first",
                  "--", sys.executable, "-c", "import time; time.sleep(10)"],
             )
             try:
                 deadline = time.monotonic() + 3
-                receipt = state / "9222.json"
+                receipt = state / f"{first_port}.json"
                 while not receipt.exists() and time.monotonic() < deadline:
                     time.sleep(0.02)
                 self.assertTrue(receipt.exists())
                 second = subprocess.run(
                     [sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
-                     "--port", "9223", "--profile", "/profiles/shared", "--owner", "second",
+                     "--port", str(second_port), "--profile", "/profiles/shared", "--owner", "second",
                      "--", sys.executable, "-c", "raise SystemExit(0)"],
                     capture_output=True, text=True, check=False,
                 )
