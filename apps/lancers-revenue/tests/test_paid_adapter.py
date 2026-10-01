@@ -35,7 +35,7 @@ class LancersPaidAdapterTests(unittest.TestCase):
 
     def test_build_uses_paid_scoped_official_inventory(self):
         source = PATH.read_text(encoding="utf-8")
-        self.assertIn("work_sync.read_paid_inventory", source)
+        self.assertIn("provider.read_inventory", source)
         self.assertNotIn("work_sync.read_only_inventory", source)
 
     def test_build_wires_provider_for_funded_effects(self):

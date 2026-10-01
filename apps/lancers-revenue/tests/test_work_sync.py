@@ -195,7 +195,6 @@ class WorkSyncTests(unittest.TestCase):
         for reader in ("_snapshot", "_contract_sources", "_finance_source"):
             self.assertIn(reader, reached)
         self.assertNotIn("_proposal_pipeline", reached)
-        self.assertNotIn("_verified_proposals", reached)
         self.assertNotIn("_post_reply", reached)
         self.assertNotIn("_sales_action", reached)
 
@@ -223,7 +222,7 @@ class WorkSyncTests(unittest.TestCase):
             }),
         ):
             with self.assertRaisesRegex(sync.SourceFailure, "finance_detail_readback_required"):
-                sync._read_paid_surfaces(object())
+                sync._read_paid_surfaces(object(), [])
 
     def test_paid_inventory_preserves_browser_connect_failure(self):
         sync = _load()
@@ -232,7 +231,7 @@ class WorkSyncTests(unittest.TestCase):
                 sync.application_tick,
                 "_open_owned_page",
                 side_effect=RuntimeError("browser_connect_failed"),
-            ):
+            ), patch.object(sync, "_verified_proposals", return_value=set()):
                 result = sync.read_paid_inventory(
                     state_path=Path(directory) / "application.json",
                 )

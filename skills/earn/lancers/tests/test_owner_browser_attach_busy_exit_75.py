@@ -54,6 +54,23 @@ def test_paid_owner_reports_browser_attach_busy_as_exit_75(tmp_path: Path) -> No
     assert result.returncode == 75
 
 
+def test_paid_owner_reports_human_verification_as_exit_75(tmp_path: Path) -> None:
+    fake_python = _fake_python_writing(
+        tmp_path, "paid_kernel.py",
+        '{"status":"failed","effect":0,"failed":1,"failed_step":"provider_inventory",'
+        '"error_detail":"lancers_paid_inventory_human_verification_required"}',
+    )
+    state_root = tmp_path / "state"
+    state_root.mkdir()
+    env = {**os.environ, "LIFE_MANAGER_PYTHON": str(fake_python),
+           "LIFE_MANAGER_STATE_ROOT": str(state_root)}
+
+    result = subprocess.run([str(PAID_OWNER)], env=env, text=True,
+                            capture_output=True, check=False)
+
+    assert result.returncode == 75
+
+
 def test_paid_owner_keeps_exit_1_for_an_unrelated_failure(tmp_path: Path) -> None:
     fake_python = _fake_python_writing(
         tmp_path, "paid_kernel.py",
