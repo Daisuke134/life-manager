@@ -2196,3 +2196,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. 旧releaseの自然tickを終端までread-only観測し、次の自然tickで`f58edcba`のrelease/owner orderを公式readbackする。
 2. `effect_unknown`中の手動apply・restart・retry・provider再送はしない。budget overrun/ENOSPCが再現した場合のみsource-only TDD修正を行う。
 3. P1 target provenanceを閉じた後、PromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-fundingのnamed TODOを既存順序で一件ずつ進める。
+
+### 22. fleet budget reservation source fix のmerge後境界（2026-10-01 20:45–20:51 JST）
+
+- 20:45 JST以降のread-only観測で、PR merge前に起動した旧reconciler tickは20分のfleet apply budgetを越えてなお処理中だった。原因は、残りbudgetがper-owner timeoutより短くなった後も次ownerのbounded applyを開始できることであり、`fleet-apply-state`は引き続き`0ebdc38b / partial / changed=69 / skipped=13 / errors=3`の旧receiptのままだった。現在symlinkは`/Users/anicca/loops/releases/20261001T195004-0ebdc38b`で、`f58edcba`/`071e270d`を読み込んだ証拠ではない。
+- この境界をsource-onlyで修正した。owner開始前に`remaining_budget_seconds`を計算し、残りがper-owner timeout未満なら新しいownerを開始せず`budget_exceeded`/`partial`として次の自然retryへ残す。既定timeout値は変更していない。専用回帰テストは修正前に2番目のownerが開始されるRED、修正後にfleet apply suite `19/19 PASS`、`bash -n`、`git diff --check`でGREENになった。
+- PR #6391はadmin squash mergeされ、`origin/main=071e270d8bfa3ed85da89a83e3d12c1c35334c46`にsourceとtestが存在する。GitHubの差分外gate（Capafy manifestの`OSS self-contained boundary`、`Startup context drift`）は既知失敗として本文に記録し、production/provider/browserへの手動effectは0件である。
+- 20:50:59 JST時点で旧tick parent/reconciler processはまだ存在するが、child applyは一時的に存在せず、自然終端receiptはまだ取得していない。したがってP1は「旧tickの自然終端」から動かさず、新sourceのrelease cut/applyを成功と推測しない。手動stop/restart/apply/retryはしない。
+
+#### 22時点の原子cursor
+
+1. 旧`0ebdc38b` tickの自然終端receiptをread-onlyで取得する。
+2. 次の自然tickが`071e270d`由来immutable releaseをcutし、収益owner優先順とbudget reservationがowner logに現れることを確認する。`status=ok`または公式readback付きpartial以外は収束と数えない。
+3. target plist loaded SHA/argv、health 4時計、admission queue、disk freeの安定readbackを揃えてから、PromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-fundingへ進む。
