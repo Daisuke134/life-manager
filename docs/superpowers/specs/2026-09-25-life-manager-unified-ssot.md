@@ -2303,7 +2303,6 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 2. main `835d45d7c3`を含む次immutable releaseをcutし、watcherをcapacity exemptでnatural runさせる。
 3. watcherのno-effect PASS、helper receipt、旧service absence、新reconciler loaded SHA/argvを順にreadbackする。
 4. その後、budget reservation、fleet/disk収束、named loop公式receipt、CFO、cloud/self-fundingへ進む。
-
 ### 30. 2d watcher PASSとself-handoff label衝突の確定（2026-10-01 23:57 JST）
 
 - natural releaseは`/Users/anicca/loops/releases/20261001T234207-2d288934`へ進み、`RELEASE.json.sha=2d2889349850b881ffdea18b780c6c55a28efad9`、`provenance=ancestor-of-origin-main`、`release_paths=ALL`だった。current symlinkだけで全fleet適用とは数えない。
@@ -2334,3 +2333,17 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 - **完了（source）:** observability/health contract、収益優先fleet order、budget reservation、stable handoff watcher、watcher capacity exemption、P3/P4の各source merge。
 - **未完了（live/effect）:** foundation live fleet収束、reconciler self-handoff、Capafy、PromptBase/Writer、Connector/Mobile、Fundraiser/Affiliate、Coconala/Lancers/CrowdWorks、Job Hunter、Self-Build、Investment、Agent Economy、CFO 14/14、cloud/self-funding。
 - **現時点の結論:** CapafyもPromptBaseも「出品を継続して売上・費用・利益まで閉じるループ」としては未完了。Life Manager全体をself-healing・self-improving・financially independentと宣言できる証拠はまだない。
+
+### 31. self-handoff helper label分離のmerge後自然検証待ち（2026-10-02 00:12 JST）
+
+- PR #6405はadmin squash mergeされ、`origin/main=5b913ad2185152de4ed74ad9131f6cd49d3d4c6f`となった。`bin/reconcile-agent-runner-release.sh`のhelper labelを`ai.anicca.life-manager-release-reconciler-self-handoff`へ分離し、watcherの`ai.anicca.life-manager-release-reconciler-handoff`との衝突をsourceで解消した。
+- REDでは旧同一label実装に対するdistinct-labelテストが失敗し、GREENではself-handoff/watcher `4/4`、reconcile関連 `51/51`、`lm-loop-contract` `14 catalog loops / 178 registry jobs / errors 0`、`bash -n`、`git diff --check`がPASSした。CIはPython、shell、Loop control、PII、gitleaks、Agent contractがPASS。差分外の`OSS self-contained boundary`と`Startup context drift`は既知失敗、TruffleHogはCI上で長時間pendingのままadmin mergeされた。
+- productionはまだ`current=/Users/anicca/loops/releases/20261001T234207-2d288934`、loaded reconcilerは旧`4d10a7c9`のまま。2d watcherは`2026-10-01T15:04:44Z`以降`status=pass / exit_code=0`を自然に返しているが、旧reconciler parent PID `24107`が稼働中で、label修正を含む新releaseのcut、helper receipt、old-service absence、新reconciler loaded SHA/argvは未取得である。`self-handoff/receipt.json`も未生成である。
+- sourceレビュー用AGMSG席のspawnを試みたが、実行環境は`plain`でaddressable paneがなく、tmuxも`TMUX_PANE`未設定だった。登録席を稼働中とは数えず、`lm-lead`へsource候補と検証結果だけをAGMSG送信した。production/provider/browser/launchctl mutationは0件である。
+
+#### 31時点のcursor
+
+1. 旧reconciler自然tickの終端をread-onlyで待つ。
+2. 次のimmutable releaseが`5b913ad218`を含み、watcherが新helper labelでscheduleすることを確認する。
+3. `receipt.json`（status ok、mode 0600）、old-service absence、reconciler plist loaded SHA/argv、helper cleanup、watcher replay-zeroを公式readbackする。
+4. その後にfleet budget reservation実効、admission/disk収束、Capafy/PromptBaseその他named loop、CFO、cloud/self-fundingへ戻る。
