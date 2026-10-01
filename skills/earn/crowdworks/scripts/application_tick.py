@@ -240,6 +240,19 @@ def _read_history_detail(page: object, proposal_id: str) -> Mapping[str, object]
     }
 
 
+def _read_history_detail_bounded(page: object, proposal_id: str) -> Mapping[str, object]:
+    """Retry one transient official-detail read once, never a provider effect."""
+    try:
+        return _read_history_detail(page, proposal_id)
+    except (KeyboardInterrupt, SystemExit, MemoryError):
+        raise
+    except Exception:
+        wait_for_timeout = getattr(page, "wait_for_timeout", None)
+        if callable(wait_for_timeout):
+            wait_for_timeout(500)
+        return _read_history_detail(page, proposal_id)
+
+
 def _history_page_proposals(page: object) -> list[str]:
     table = _one(page, _TABLE_SELECTOR)
     links = table.locator(_PROPOSAL_LINK_SELECTOR)
@@ -412,7 +425,7 @@ def _read_application_history_incremental(
             if proposal_id in by_proposal:
                 continue
             try:
-                row = _read_history_detail(page, proposal_id)
+                row = _read_history_detail_bounded(page, proposal_id)
             except (KeyboardInterrupt, SystemExit, MemoryError):
                 raise
             except Exception:
@@ -501,7 +514,7 @@ def read_application_history(
                 continue
             seen_proposals.add(proposal_id)
             try:
-                history.append(_read_history_detail(page, proposal_id))
+                history.append(_read_history_detail_bounded(page, proposal_id))
             except (KeyboardInterrupt, SystemExit, MemoryError):
                 raise
             except Exception:

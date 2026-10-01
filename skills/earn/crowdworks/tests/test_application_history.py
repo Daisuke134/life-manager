@@ -136,6 +136,25 @@ def test_history_walk_reads_every_official_page_and_normalizes_japanese_timestam
     ]
 
 
+def test_history_detail_gets_one_bounded_retry_for_transient_read_failure():
+    module = load()
+    page = _Page(module)
+    original = module._read_history_detail
+    attempts = {"102": 0}
+
+    def flaky(current_page, proposal_id):
+        if proposal_id == "102" and attempts[proposal_id] == 0:
+            attempts[proposal_id] += 1
+            raise ValueError("transient_dom_read")
+        return original(current_page, proposal_id)
+
+    module._read_history_detail = flaky
+    snapshot = module.read_application_history(page, max_pages=10)
+
+    assert snapshot["complete"] is True
+    assert attempts["102"] == 1
+
+
 def test_history_walk_fails_closed_when_a_detail_cannot_be_read():
     module = load()
     page = _Page(module)

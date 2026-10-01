@@ -2041,6 +2041,7 @@ flowchart LR
 - shared `reply_kernel` は保存済みの契約終了情報を期限超過→24時間以内→近日→期限不明→通常案件の順に並べ、期限案件があるwakeは直列化する。期限情報が壊れている場合も不明として通常案件より先に扱い、再送や判断を自動化しない。
 - `application-owner`は既知の外部効果ゼロ状態（履歴`eligibility_unknown`、案件なし、account/profile未準備）だけ、`entrypoint-result.json`へ`pre_effect_failure/effect=0`をatomicに残す。`submission_uncertain`やprovider readback失敗には絶対に書かないため、runnerのeffect fenceを安全に解放する境界と不確実な外部効果を分離できる。
 - `application-owner`の既知no-effect理由はstderrへ`lm_pre_effect_reason:<status>`としてboundedに記録し、`lm-loop status`が`pre_effect_<status>`／`retry_after_<status>`へ投影する。`lm-loop health`はこの証拠を`safely_fenced`として表示し、`effect_unknown`へ誤分類しない。`deadline_missed`・履歴同期全体・CFO通知までの横断projectionは未完了。
+- 公式応募履歴の案件詳細読取は、DOMの一時的な失敗に限り同じproposalを一度だけ再読込するbounded retryを持つ。再試行後も読めない案件はページを未完のまま保持し、`eligibility_unknown`を解除しない。
 - 共通`event.schema.json`／`ApplicationReceipt`／transaction pending stateへ任意の`buyer_external_id`を追加し、応募receiptと再応募履歴を同じ発注者キーで結合できるようにした。旧receipt／旧pending stateはbuyer IDなしのまま後方互換で読める。
 - 実環境read-only probe（CrowdWorks CDP `9228`）で公式1ページ20件を取得し、案件ID・発注者ID・JST時刻の3点を全件readbackした。公式一覧は10ページを表示したため、10ページ全件のsource-complete同期とその後の自然run／公式receiptはまだ未完了である。
 - 検証: 履歴adapter・receipt buyer ID・eligibility／transaction focusedを含む`129 passed`、`compileall` PASS、`lm-loop-contract` `ok=true`。
