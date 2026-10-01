@@ -191,6 +191,52 @@ def test_contract_acceptance_uses_same_fence_readback_and_replay_zero(tmp_path):
     assert len(adapter.effects) == 1
 
 
+def test_terminated_readback_closes_uncertain_intent_without_model_or_context(tmp_path):
+    row = event(thread="terminated-thread", latest="buyer-terminated")
+    adapter = Adapter([row])
+    intent = reply_kernel._intent(row, {
+        "action": "accept_contract",
+        "payload": {"condition_id": "condition-1", "amount": "12円"},
+    })
+    path = reply_kernel._state_path(tmp_path, row)
+    reply_kernel._write(path, {
+        "version": 1,
+        "inventory_event_id": row["latest_event_id"],
+        "observation": row,
+        "intent": intent,
+        "status": "reconcile_unknown",
+    })
+
+    class Terminated(Adapter):
+        def context(self, _thread_id):
+            raise AssertionError("terminated readback must not call model context")
+
+        def readback(self, _intent):
+            return {
+                "verified": True,
+                "provider_receipt_id": "contract:63570481:terminated",
+                "termination_state": "terminated",
+                "observed_at": "2026-10-01T12:00:00Z",
+            }
+
+    result = reply_kernel.run_wake(
+        adapter=Terminated([row]),
+        decide=lambda _context: (_ for _ in ()).throw(
+            AssertionError("terminated readback must not call decide")
+        ),
+        state_root=tmp_path,
+    )
+
+    assert result["failed"] == 0
+    assert result["effect"] == 0
+    assert result["readback"] == 1
+    assert result["items"][0]["status"] == "verified"
+    saved = reply_kernel._load(path)
+    assert saved["status"] == "verified"
+    assert saved["receipt"]["provider_receipt_id"] == "contract:63570481:terminated"
+    assert saved["receipt"]["termination_state"] == "terminated"
+
+
 def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_path, monkeypatch):
     hint = tmp_path / "entrypoint-result.json"
     monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
