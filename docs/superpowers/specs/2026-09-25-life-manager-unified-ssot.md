@@ -2303,3 +2303,34 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 2. main `835d45d7c3`を含む次immutable releaseをcutし、watcherをcapacity exemptでnatural runさせる。
 3. watcherのno-effect PASS、helper receipt、旧service absence、新reconciler loaded SHA/argvを順にreadbackする。
 4. その後、budget reservation、fleet/disk収束、named loop公式receipt、CFO、cloud/self-fundingへ進む。
+
+### 30. 2d watcher PASSとself-handoff label衝突の確定（2026-10-01 23:57 JST）
+
+- natural releaseは`/Users/anicca/loops/releases/20261001T234207-2d288934`へ進み、`RELEASE.json.sha=2d2889349850b881ffdea18b780c6c55a28efad9`、`provenance=ancestor-of-origin-main`、`release_paths=ALL`だった。current symlinkだけで全fleet適用とは数えない。
+- `aa-release-reconciler-handoff`は2d由来で`install=pass`（`2026-10-01T14:55:06Z`）、natural runも`status=pass / phase=report / exit_code=0`（`2026-10-01T14:56:12Z`、evidence `lm-loop://aa-release-reconciler-handoff/18da6fa784fd64f0-59817/summary.json`）となった。これはeffect-class `none`のwatcherがcapacity exemptionを通過した証拠であり、旧reconcilerの切替成功ではない。
+- watcherが2dのself-handoffを起動した結果、`self-handoff/helper.plist`と`reconciler-target.plist.tmp`はmode `0600`で生成されたが、`receipt.json`は存在しない。helperのstderrは`agent-runner self-handoff: helper already loaded for release 2d288934...`。`launchctl print`のloaded reconcilerは依然`LIFE_MANAGER_RELEASE_SHA=4d10a7c9...`、argvも`20260930T115527-4d10a7c9`、last exit `1`である。old-service absence、新reconciler loaded SHA/argv、self-handoff receiptは未達である。
+- source readbackで、watcher loopのservice label `ai.anicca.life-manager-release-reconciler-handoff`と、`schedule_self_handoff()`がhelperへ渡す`--helper-service`/helper plistの`Label`が同一であることを確認した。watcher自身がそのlabelでloadedなため、helperが「already loaded」と判定され、receiptまで到達しない。これはproductionの外部効果ではなく、次に直すべきsource境界である。
+- 同時刻のfresh health（`2026-10-01T14:57:16Z`、exit `1`）は`total=178`、`running=24 / failed=43 / safely_fenced=68 / healthy=31 / effect_unknown=10 / telemetry_gap=2`。`capafy-loop-daily=effect_unknown`（receipt/readbackなし）、`promptbase-loop-daily=telemetry_gap`、Connector=process-only healthy、Self-Build=process-only healthy、`life-manager-release-reconciler=failed / entrypoint_exit_1`、`agent-economy-loop=running`、watcher=healthyだった。`df -k /`のfreeは`5,216,240 KB`で、10GB安定・ENOSPC解消の二回readbackは未達である。
+- したがって、foundation observabilityはsource/CLI/schemaの実装がmainへ入っているが、live fleetの収束・self-healing・self-improving・financial independenceの完了ではない。2026-10-01の14 Product Loop合計settled external revenueは公式receipt join未完のため`unknown`、cost-complete net P&Lは`0/14`。Capafy、PromptBase/Writer、14 loop全体を「修復済み」「収益化済み」と報告しない。
+
+#### 30時点の残り原子TODO（上から順に）
+
+1. **P1-2a source fix:** watcherとself-handoff helperへ異なるLaunchAgent labelを割り当て、同一labelの`already loaded`判定を回帰テストで再現→修正する。helper receipt、old-service absence、target reconciler loaded SHA/argv、mode-0600 receiptを自然runで閉じる。productionで手動bootout/restart/applyはしない。
+2. **P1-2b fleet収束:** self-handoff後のmain由来releaseで収益/financial優先順とbudget reservationを実効化し、`fleet-apply-state=status=ok`または公式readback付きpartial、全target ownerのloaded SHA/argv、admission queue、disk free二回安定を取る。`effect_unknown`の再送・再apply・restartは禁止。
+3. **Capafy:** free slot解放後の自然runで生成→無人submit→Capafy API listing/status→sale/refund/fee→skill別actual model cost→settlement/payout→同一listing replay-zeroを閉じる。現状は`effect_unknown`・公式receipt/readbackなしで未完了。
+4. **PromptBase / Writer:** 次の自然04:20でPending→管理画面/Gmail審査→公開listing→sale/refund/fee→model cost→settlement/payout→replay-zeroを閉じる。現状は`telemetry_gap`で未完了。
+5. **Connector / Mobile:** Connectorは候補発生時だけprovider receipt・confirmation mail・Google Calendar公式readbackを取る。Mobile残りeffect-unknown ownerを一件ずつ公式readback付きで再開する。
+6. **Fundraiser / Affiliate:** release適用後、Fundraiserのapplication/status/inflow、Affiliateのpage/post/commission/payout/actual costを公式receiptで閉じる。
+7. **Coconala / Lancers / CrowdWorks:** source merge済みだが、target apply→自然thread/proposal/delivery/payment/payout/actual cost→replay-zeroを閉じる。面接・試験・Google Form・本人確認・Paid Verificationは`human_required` holdのまま突破しない。
+8. **Job Hunter:** P4 source mergeをreleaseへ入れ、自然30分wakeでATS/Gmail confirmed application、Ledger submitted、Telegram ACK、fee/model/browser/server cost、replay-zeroを閉じる。現状はcapacity deferで未完了。
+9. **Self-Build:** P4 source mergeをreleaseへ入れ、自然04:10 wakeでledger streak、PR/merge、通知readback、cost attributionを閉じる。process-only healthyは収益完了ではない。
+10. **Investment:** AT-13からAT-29を自然schedulerで順に進め、30 round tripsの買い→売り、実現損益、手数料/価格ずれ/仕組み費用、再実行時の二重注文ゼロを公式記録で閉じる。live funding・送金・上限増額はAT-24/29前にしない。
+11. **Agent Economy:** TaskMarket immutable packaging source完了後、no-effect provider discovery→BlockRun paid inference→real external paid job→treasury policy→externally earned surplusによるrenewalをreceiptで順に証明する。
+12. **CFO:** 上記14 loop（Capafy、PromptBase/Writer、Connector、Mobile、Fundraiser、Affiliate、Coconala、Lancers、CrowdWorks、Job Hunter、Self-Build、Investment、Agent Economy、各loop共通費）をsettled external revenue、refund、fee、model/tool/browser/server cost、net margin、runwayへjoinする。`unknown`を0円へ丸めず、cost-complete P&L `14/14`を閉じる。
+13. **Cloud / self-funding:** DigitalOcean durable control plane、BlockRun x402、Nosana shelter、Akash fallback、Franklin successor handover 2回、外部surplus renewal、Akash restore、30日self-fundingを実測する。Mac Mini廃止・cloud-only移行はこの証拠後に判断する。
+
+#### 完了状態の明示
+
+- **完了（source）:** observability/health contract、収益優先fleet order、budget reservation、stable handoff watcher、watcher capacity exemption、P3/P4の各source merge。
+- **未完了（live/effect）:** foundation live fleet収束、reconciler self-handoff、Capafy、PromptBase/Writer、Connector/Mobile、Fundraiser/Affiliate、Coconala/Lancers/CrowdWorks、Job Hunter、Self-Build、Investment、Agent Economy、CFO 14/14、cloud/self-funding。
+- **現時点の結論:** CapafyもPromptBaseも「出品を継続して売上・費用・利益まで閉じるループ」としては未完了。Life Manager全体をself-healing・self-improving・financially independentと宣言できる証拠はまだない。
