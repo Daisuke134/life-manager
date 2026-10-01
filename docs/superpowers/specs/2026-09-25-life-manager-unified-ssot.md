@@ -2225,7 +2225,7 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 
 ### 24. `284bedab` natural fleet apply の終端readback（2026-10-01 21:29–21:30 JST）
 
-- `284bedab241f0057c60d681c8c583467917cbeea`のnatural fleet applyは、`2026-10-01T12:29:40Z`に公式stateを書いた。`status=partial / changed=68 / skipped=10 / errors=2 / message="timed out owners: none; budget exceeded" / next_retry_epoch=1790858339`で、owner logは80件・合計1199秒・`rc=0:78 / rc=1:2`だった。残り予算がper-owner timeout未満になった後に新ownerを開始せず、1200秒を超えなかったことはPR #6391の自然readbackである。ただし`partial`でありfleet収束とは数えない。
+- `284bedab241f0057c60d681c8c583467917cbeea`のnatural fleet applyは、`2026-10-01T12:29:40Z`に公式stateを書いた。`status=partial / changed=68 / skipped=10 / errors=2 / message="timed out owners: none; budget exceeded" / next_retry_epoch=1790858339`で、owner logは80件・合計1199秒・`rc=0:78 / rc=1:2`だった。ただし、その実行主体のreconciler plistは旧`4d10a7c9`であり、PR #6391の`remaining_budget_seconds`が実効化された証拠ではない。1199秒は観測値であり、予約修正のnatural PASSとは数えない。`partial`でありfleet収束でもない。
 - rc=1は`alpaca-investment-live`（36秒、I/O errorで旧job restore）と`hf-gig-apply-direct`（14秒、`effect_unknown` admission境界）で、公式注文・応募receipt/readbackなしの再送・restart・manual sellは行っていない。
 - target provenanceは部分適用に留まった。`capafy-loop-daily`、`job-search-daily`、`fundraiser`、`affiliate-loop`、`agent-economy-loop`のLaunchAgent plistはloaded SHA=`284bedab`へ進んだ。一方、`promptbase-loop-daily=813fd766`、`life-manager-connector-native=0ebdc38b`、`life-manager-selfbuild=0ebdc38b`、`life-manager-cfo-hourly=0ebdc38b`、`life-manager-release-reconciler=4d10a7c9`は旧SHAのままである。symlink/currentの更新だけで全fleet適用とは数えない。
 - 21:30:37 JSTのfresh `lm-loop health --json`（exit 1）は`total=177`、`healthy=27 / running=24 / failed=43 / safely_fenced=69 / effect_unknown=10 / telemetry_gap=4 / human_required=0`。`capafy-loop-daily`は旧occurrenceの`effect_unknown`でprovider receipt/readbackなし、PromptBaseは`telemetry_gap`、Connector/SelfBuildはprocess-only healthy、Job Hunterは旧capacity failure、CFOはeffect-unknown fence、reconcilerは旧`entrypoint_exit_1`である。外部listing、sale、application、Gmail/Calendar、settlement、payoutは今回0件である。
@@ -2236,3 +2236,16 @@ P1自然tickはなお`PID 84294`下で継続中であり、手動介入なしの
 1. `284bedab`のbackoff後natural retryで、未適用10 owner（PromptBase/Connector/SelfBuild/CFO/reconcilerを含む）が新SHAへ進むかを公式fleet state・plist・argvでreadbackする。`effect_unknown`中の手動apply/restart/retry/provider再送は禁止。
 2. disk free二回安定またはENOSPCのsource境界を閉じ、reconciler自体のloaded SHAをmain由来へそろえる。
 3. その後、PromptBase/Writerの自然04:20→管理画面/Gmail→listing/sale/economics、Capafy free-slot→API listing/status/sale/economics、Connector/Mobile公式receipt、Fundraiser/Affiliate、Coconala/Lancers/CrowdWorks、Job Hunter、Self-Build、Investment AT-13〜AT-29、Agent Economy、CFO 14/14、cloud/self-fundingをこの順で進める。
+
+### 25. 旧reconcilerによるnatural retryとself-handoff境界（2026-10-01 21:51–22:02 JST）
+
+- backoff後のnatural retryは同じ`284bedab`を処理し、`2026-10-01T13:01:29Z`に公式stateを更新した。`status=partial / changed=22 / skipped=82 / errors=8 / message="timed out owners: life-manager-anicca-buddha-tiktok,life-manager-anicca-en-affirmation-tiktok,life-manager-anicca-en-widget-instagram,life-manager-anicca-jp1-tiktok,life-manager-anicca-main-tiktok,life-manager-honne-en; budget exceeded"`で、今回の追加owner logは112件・合計1200秒・`rc=0:104 / rc=124:6 / rc=1:2`だった。
+- retry中に`life-manager-connector-native`、`life-manager-selfbuild`、`life-manager-cfo-hourly`、`life-manager-taskmarket-ledger`などのplistは`284bedab`へ進んだ。しかし`ai.anicca.life-manager-release-reconciler.plist`は依然`4d10a7c9`で、実行中のscriptも旧releaseだった。したがって、新しいfleet順序・budget reservationはsourceには存在するが、reconciler自身の実行経路にはまだ入っていない。
+- retryは残りbudgetがper-owner timeout未満でもownerを開始した（例:残り約62秒で`life-manager-taskmarket-ledger`を開始）。今回の1200秒終端は予約修正のPASSではなく、旧reconcilerのdeadline挙動である。reconciler self-handoffを完了するまで、PR #6391を本番実効済みと報告しない。
+- 22:02 JSTのread-only healthは`total=177`、`healthy=27 / running=24 / failed=42 / safely_fenced=70 / effect_unknown=10 / telemetry_gap=4 / human_required=0`。`current`は284bed、free diskは`4,272,816 KB`で、10GB安定・ENOSPC解消は未達。Capafyのprovider receipt/listing/sale、PromptBaseの管理画面/Gmail/listing、14/14 cost-complete P&Lは未確認である。
+
+#### 25時点の原子cursor
+
+1. **P1-2a self-handoff（最優先）:** release-reconciler自身を、main由来immutable releaseへ安全にhandoffするsource-only設計をTDDし、自然tickでloaded SHA/argv/exit/readbackを確認する。実行中のreconcilerを手動restart/bootoutしない。
+2. self-handoff後に、`284bedab`の未適用ownerをnatural retryで再処理し、PR #6391のbudget reservationをreconciler実効経路で証明する。
+3. その後にPromptBase/Writer、Capafy、Connector/Mobile、Marketplace、Job Hunter、Self-Build、Investment、Agent Economy、CFO、cloud/self-fundingを既存順序で進める。外部receiptなしのeffect unknownは再送しない。
