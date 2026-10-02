@@ -1,5 +1,7 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+> **2026-10-02の新規方針:** Daisは、個人用Life Managerから、受益者にアプリ・アカウント・個人認証を要求せず環境を改善する **Manager** への構想変更、一次資料調査、仕様とgame plan、Aniccaai.comの全面更新を依頼した。新規作業の順序・状態はこの文書末尾の [Manager更新](#manager-20261002) に置く。旧loopのruntime履歴・運用境界は削除しない。新構想の実証や本番サイト更新は未完了。
+
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
@@ -2742,3 +2744,67 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. loaded readback後、PromptBase ownerを一度だけ起動し、DraftカードがDeclinedカードと混同されず正しいDraft URLへ到達することを同一occurrenceで確認する。Pending中のfootball-match-analystは再送しない。
 3. 新しいrunで実際に提出した場合のみPromptBase dashboard/GmailのPending→Approved/Declinedをreadbackし、Approved後に公開listing/sale/settlement/payoutへ進む。失敗時は新しい正確なUI境界を記録する。
 4. Capafy 4243672453のunder_review readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+
+<a id="manager-20261002"></a>
+## Manager — 2026-10-02 方針変更・調査・game plan（実行順の正本）
+
+### 意図・成果物・現在状態
+
+Daisの現在の目的: **Manager — One entity, blessing for all**。受益者のアプリ、signup/login、名前、メール、Telegram、個人credentialsを必要とせず、世界の部分モデルから環境変更を選び、実行し、結果を測って学ぶ。Aniccaai.comは説明・研究・benchmarkを公開する場所へ変更する。
+
+- [本体設計仕様](2026-10-02-manager-design.md)
+- [サイト更新仕様・英日掲載原稿](2026-10-02-manager-website-design.md)
+- [企業・現在のサイト・関連repo調査](../../research/manager/2026-10-02-companies-and-current-state.md)
+- [研究者の一次資料と問い合わせ案](../../research/manager/2026-10-02-people.md)
+- [原repo・論文・ライセンス・固定SHA調査](../../research/manager/2026-10-02-repositories.md)
+
+現在cursor: **M1 — 書面仕様のユーザーレビュー**。調査・仕様案・戦略game planは作成。正式なwriting-plans実装計画、製品コード変更、現実の環境介入、サイト公開は未実施。
+
+初期環境は未回答のため **BOPTEST bestest_airの建物制御simulation** を推奨仮定として仕様化。実機へのアクセスや協力者の存在は未確認。現実の環境が既に変更可能なら、その観測・操作・比較条件を確認して初期環境を置き換える。
+
+### 順序・完了条件
+
+|順序|工程|対象と成果|完了の証拠|状態|
+|---|---|---|---|---|
+|M0|一次資料と既存ソースを調査|Aaru、Simile、Praxis、Woven City、研究者5名、8 OSS候補、関連自社repo、公開英日サイト|3つの調査文書、原論文/公式URL、7 OSS HEAD/ライセンス、未取得資料の明記|調査文書作成済み。追試ではない|
+|M1|設計をレビュー|名称、無consumer UI、部分world model、初期環境、benchmark、サイト原稿、source境界|Daisによる書面仕様への承認または修正|レビュー待ち|
+|M2|実装計画を確定|Superpowers writing-plansで本体とサイトを独立した計画に分解。実在path、契約、検証commandを確定|書面planレビュー、inlineまたはagent実行方法の選択|M1後|
+|W0|サイトのsource・hostingを確定|現在Netlifyが公開したSHA、domain/site対応、build設定、legacy route依存をread-only取得|公式hosting readback、固定source baseline、overlay allowlist|未実施。現環境にNetlify接続なし|
+|W1|Manager公開説明を実装|正本apps/landingに英日top、metadata、research、benchmark未実行表示。旧source固定入力からの限定overlay|build、route/metadata/コピー検証、legacy callback/paid route smoke、画面QA|W0とM2後|
+|W2|サイトを公開・readback|既存Aniccaai.comへ既存Netlify経路で公開、旧deployへ戻せる状態を保存|本番6ルートの実内容、名前、status、metadata、リンク、公開SHA|W1後。別ドメイン公開で代替しない|
+|M3|startup contextを移行|.agents/startup-context.json、scripts/startup-context/、関連tests、生成README、THESIS、fundraising原稿|Telegram必須/3 organs制約のschema移行、旧データ移行テスト、公開claim audit|M2後。サイトコピーと整合|
+|M4|環境adapterと証拠契約|既存runtime/loopを再利用し、environment_id・観測・作用・readback・outcome windowを追加|freshness、bounds、dedupe、replay、unknown effect、欠損のcontract tests|M2後|
+|M5|比較可能なsimulation loop|BOPTEST固定版、bestest_air、公式baseline、rule baseline、数値モデル、bounded planner|同一case/期間/forecast/価格のmanifest、raw trace、計算費用|M4後|
+|M6|holdout benchmarkを実行|開発1条件・未使用5条件・事前固定stress条件。評価器を候補生成と分離|全条件のscorecard、失敗、cost、trace hash、reproduction、sim-only表記|M5後。5%費用削減目標は未達も報告|
+|M7|実環境を確保・shadow評価|施設管理者の権限、匿名設備測定、操作範囲、停止/fallback。passive→shadow|実測と提案の照合、計画とbaseline、実行権限の記録|施設が未確定。shadowは介入成果に数えない|
+|M8|bounded live trial|熱慣性・干渉・天候を扱う事前登録の比較実験、可逆な設備変更|applied receipt、比較推定、全費用、快適性・副作用、停止/復旧readback|M7後。simulationの勝利だけで開始しない|
+|M9|研究者へ具体的に問い合わせる|Levin / Park / Aaru Kessler / Krakauerへ、仕様とprotocolを添えた質問文を作る|原稿。送信する場合はユーザーの具体的な送信依頼と実receipt|今回は問い合わせ案のみ。メール未送信|
+|M10|YC W27 / Speedrun向け証拠を整理|一文説明、prototype demo、benchmark結果、施設trial、payer仮説と支払意思|実績と計画を分けたapplication draft。公式応募条件と日程確認|目標。採択・締切・実績を創作しない|
+
+### 戦略game planと期間の目安
+
+順序は **説明を一致させる → simulationで中心ループを示す → 現実で比較検証 → 広げる**。サイト更新とbenchmark設計は、仕様レビュー後に独立して進められる。
+
+- **最初の1〜3作業日:** hosting/source確認ができれば、Managerのサイト説明・公開研究・未実行protocolを整える。公開アクセスが不足する場合は、完成したsourceと検証結果を残し、公開済みと主張しない。
+- **次の1〜2週間:** adapter、有限candidate planner、receipt、baseline比較を実装し、sim-only結果を公開できる形にする。計算時間・依存導入の実測で見積りを更新する。
+- **その後の2〜6週間:** 協力施設が得られた場合に、実データ収集、shadow、検出力・washoutを含む試験設計、bounded trialへ進む。パートナーが未確定なら現場の日付は約束しない。
+- **以降:** 建物・施設を増やす前に、別条件での再現性と実装移植費用を測る。混雑、物流、食環境、動物・生態系への適用は別specで設計する。
+
+日数は目安であり、承認・施設・hosting access・benchmark結果を仮定した締切ではない。全世界のworld modelや万人の繁栄をこの期間に達成する計画ではない。
+
+### 既存運用と移行境界
+
+- 新構想の受益者に個人credentialsを要求しない。設備の操作権限、Manager自身のservice credentials、developerの公開権限は別に必要になり得る。
+- 旧有料サービス、既存顧客、契約、provider loopsを、この戦略変更だけで一括停止・削除しない。運用の退役が必要なら現在owner・契約・依存・戻し方を先に確認する。
+- 既存registry/finite wake/effect fence/receiptを再利用し、もう一つの自律runtimeや第二SSOTを作らない。
+- 本sessionはcloud Linux。Macのlive processやloaded immutable releaseを調査・変更していない。過去のSSOT記載を今日のlive確認として引用しない。
+- Astra Advisor専用機能は本harnessにない。Superpowersで調査と文書化を続行。Ponytailとして、既存runtimeと数値simulatorを再利用し、v0に大規模persona生成・新しいDBサービス・有料LLMを必須化しない。
+
+### 証拠とhandoff
+
+調査base `2f6012ecee2707c2249631e5ac6e3f1be972e97c`。canonical rootとoriginを確認し、`scripts/verify-source-boundary.sh`をPASS。作業branch `docs/manager-pivot-20261002`、専用worktree `.worktrees/manager-pivot-20261002`。
+
+使用したskill: Superpowers using-superpowers / brainstorming / dispatching-parallel-agents / using-git-worktrees。cloud networking手順を確認。Sites skillも読んだが、現行サイトは既存Next.js/NetlifyでありSites移行は適用しない。執筆はユーザーが示したmottoと直接的な表現を用い、研究者の主張と本設計の推論を分けた。
+
+この文書・仕様・調査報告だけを変更する段階。製品tests、外部モデルの有料実行、メール、既存顧客データ、Netlify deployment、Mac runtime操作は行っていない。
