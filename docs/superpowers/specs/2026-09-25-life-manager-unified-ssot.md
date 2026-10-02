@@ -4063,3 +4063,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CFO current receiptは閉じた。次はWriter sales measure/money syncのfresh natural runと、Affiliate source refresh成功後のcommission/cost/payout receiptを結合する。process successだけで売上扱いしない。
 2. PromptBaseはFootball scheduled / Portfolio pending / sales 0を公式readbackし続け、同一listingを再送しない。Capafyは3 under-reviewのterminal変化またはsupport回答までfull-cap contractを維持する。
 3. 残るMobile financial/cost/payout、Connector effect receipt、Fundraiser official application/funding、paid contract payoutを順に閉じる。TaskMarket/Agent Economyはこの即時収益per-pathの後に保持する。
+
+### 173. Writer / Affiliate fresh natural runとmoney receipt境界（2026-10-03 04:28 JST）
+
+- `writer-sales-measure` natural run `18daccfbb41950a8-77795`はrelease `88c7882f`、exit0、health=`healthy`。ただしlatest money sync outputはartifacts inserted 0、metrics inserted 0、offer receipts inserted 0、Stripe receipts 0、subscriptions 0、product funnel rows 0、verified revenue event count 0。process successを売上に数えない。
+- `money.sqlite3`は引き続money artifacts 156 / metric observations 8,366。`money_events / subscription_contracts / money_fees / payouts / commercial_payment_bindings / product_funnel_events`はすべて0。fresh run後も最新金銭metricは`net_received JPY 0 / purchases 0 / qualified_cta_clicks 0 / refunds JPY 0`の2026-09-30観測で、Substack MRR/revenue/paid subscribersはunknown/nullのまま。古いverified zeroを今日のprovider zeroへ延長しない。
+- `writer-money-sync` latest successは`2026-10-02T18:42:40Z`だが、後続attemptはcapacity busy。記録された金銭receiptは増えず、Writerのfresh external revenue / settled payoutは未証明。
+- `affiliate-source-refresh` natural run `18dacb243a1cab20-8823`はrelease `88c7882f`、exit0、health=`healthy`。SOURCE_REFRESHは候補sourceを更新し、latest receipt stateは`IN_PROGRESS / pending_count=46`。これはcommission、settlement、payoutの財務receiptではない。
+- Affiliate compositionは過去の`READY_FOR_POLICY`作業物を持つが、fresh PartnerStack commission/payout rowは引き続き0。composition model costを外部収益に数えず、tax/KYC/payment provider selectionのlegal bootstrap境界も維持する。
+
+#### 更新後の原子cursor
+
+1. Writerはnext provider-backed measurementでnote/Substack/Stripeのobserved_atを更新し、external transaction receiptが発生した時だけmoney eventへ昇格する。
+2. Affiliateはsource/composition artifactではなく、commission row→fee→settlement→payoutをofficial captureで結ぶ。row 0の間はNO_TRANSACTIONSと未取得を分離する。
+3. 独立する次の実行cursorはMobileのASC agreement境界後のfinancial/cost/payout、その後Connector→Fundraiser→paid contract payout。
