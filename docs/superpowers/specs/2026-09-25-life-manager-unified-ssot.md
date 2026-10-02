@@ -2603,3 +2603,12 @@ AGMSGで3席を同時にread-only起動した。TaskMarket、PromptBase/Capafy�
 - **L9-03 Connector:** sourceはPR #6343、main `c213c375`。natural occurrence `18da543dd3c761d8-7894`はhost admission exit 75、後続resume `18da544c010dc9d0-10624`はexit 0だったが、これはprocess healthだけで`provider_receipt_id`と`official_readback_ref`は空。provider registration、confirmation mail、Google Calendar公式readback、deadline evidence、replay-zero、actual costは未達。次のnatural occurrenceで同一IDへ公式receiptを結合する。
 
 この節の結論は、source merge・process exit・fixture PASSをpaid effectや収益と混同しないことである。TaskMarketの自然provider discoveryが未完の間は、BlockRun paid inferenceへ進まず、公式readbackとrelease/argv境界だけを並行観測する。
+
+### 51. TaskMarket二重owner案の撤回と既存brain経路の確認（2026-10-02 09:03 JST）
+
+- production `agent-economy-loop`のCodex brain evidenceをread-only確認した。`~/.local/state/life-manager/agent-economy/instance/state/codex-brain/*/attempt-01.result.json`には、複数wakeで`run_skill` slot `earn/taskmarket`を`action=execute`または`action=poll`として選択した記録がある。つまりTaskMarket paid executorは、既存のagent-economy brain→skills registry→`skills/earn/taskmarket/run.sh`経路から既に呼ばれる設計である。
+- source wiringのread-only監査中に、別のlaunchd registry ownerを追加すると同じTaskMarket資源・wallet・submission cursorを二重所有することが判明した。新ownerを追加したPR #6413（main `f8deb9bd08`）は、既存brain経路との競合を避けるためPR #6416でrevertし、mainは`356d9233cf6c3360f4efdc001e3720c5305ef806`へ戻した。revert前後にproduction apply、launchd変更、provider call、browser操作、wallet spendはない。
+- したがって、今後変更してよいTaskMarket source境界は既存`skills/registry.json` slot、`skills/earn/taskmarket/*`、agent-economy brainのread-only/paid decisionとreceipt pathだけである。新しい`taskmarket-paid-executor` registry rowは作らない。`life-manager-taskmarket-ledger`はaward reconciliation observerとして一つだけ残す。
+- current production symlinkは旧release `3fdfa314`のまま。検証用に切った`f8deb9bd` candidateはactivateしておらず、追加ownerもloadedではない。既存brain経路の自然wakeで`earn/taskmarket`が`poll`または`execute`を選んだ同一occurrenceを読み戻すまで、L9-13.1/L9-13.2を完了扱いしない。
+
+この撤回は進捗後退ではなく、同じprovider/wallet/cursorを複数schedulerが所有しないというNo-human-loopの安全境界を守るための修正である。
