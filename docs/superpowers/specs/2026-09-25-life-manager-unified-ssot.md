@@ -3403,3 +3403,13 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 次の自然CrowdWorks Paid occurrenceが`4121f44751`をloadedし、pre-effect failureならexit75/effect0、provider境界まで進んだら公式readbackを同一occurrenceへ結合する。
 2. 旧releaseのeffect_unknown occurrenceは公式readbackなしに再送・closeしない。
 3. CrowdWorks Paidの自然境界後、Job Hunterへ進む。
+
+### 119. CrowdWorks natural Paidのsibling browser-lock待ち（2026-10-02 19:29 JST）
+
+- 新release occurrence `crowdworks-revenue-paid:18daaf70657f6840-51506` は `4121f44751` をloadedしてexecuteへ進んだが、同じCrowdWorks domainの`provider-browser.lock`をApplication owner PID `54088` が保持している。Paid kernel child PID `51958` はそのlock境界で待機しており、provider mutation/receipt/readbackはまだない。
+- これはsource failureや外部効果ではなく、Application→Paidの共有browser直列化が機能している状態である。lockを奪う、プロセスをkillする、同じPaid wakeを再送する操作は行わない。
+
+#### 更新後の原子cursor
+
+1. Application ownerが自然にlockを解放し、Paid occurrenceがterminal eventを書いた後、`pre_effect=true/effect=0/exit75`またはprovider official readbackを判定する。
+2. 4121 releaseでの自然Paid境界を確認するまで、Job Hunterへ順序を進めずCrowdWorks内のreadbackを閉じる。
