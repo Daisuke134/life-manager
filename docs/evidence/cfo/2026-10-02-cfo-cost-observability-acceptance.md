@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `1d845ca279`
+Code release observed: `e26fa24b86`
 
 ## Natural-run evidence
 
@@ -74,11 +74,11 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Trailing window: `2026-09-02T15:00:00.000000Z..2026-10-02T15:00:00.000000Z`
 - Historical company: `unknown`, no settled company total (`134` coverage gaps)
 - Trailing company: `unknown`, no settled company total (`129` coverage gaps)
-- Historical gap classes: `missing_category=125`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`, `unverified_receipt=1`
-- Trailing gap classes: `missing_category=121`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`
-- Readback artifact SHA-256: `9f48064add9b42b3aa3c357deff9cba77b3159588aaa836131355a0e1f65a109`
+- Historical gap classes: `missing_category=125`, `source_unconnected=4`, `missing_coverage=3`, `stale_readback=1`, `unverified_receipt=1`
+- Trailing gap classes: `missing_category=121`, `source_unconnected=4`, `missing_coverage=3`, `stale_readback=1`
+- Readback artifact SHA-256: `68541ac7be7f1b162a29b4a6e21a69efe41cf22b483dc6876a0a0704989578ba`
 - Canonical artifact-path rerun receipt: `loop-pnl://sha256/979f5e3ee3903cd0add3a5138c793f87b6dd9344408edd33117c9fe0bccfdd1b`
-- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); Writer `stale_readback=1`; PartnerStack and Alpaca order P&L `missing_coverage=2`; Capafy and mobile `source_unconnected=2`; plus explicit unreported-loop coverage rows. The Google official invoice is now connected to `cfo` infra cost; Stripe is no longer `read_failed` and its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
+- The new CFO `coverageSummary` groups the actionable roots: Coconala/Lancers plus Capafy/mobile `source_unconnected=4`; Writer `stale_readback=1`; CrowdWorks partial receipt, PartnerStack empty commission, and Alpaca order P&L `missing_coverage=3`; plus explicit unreported-loop coverage rows. The Google official invoice is now connected to `cfo` infra cost; Stripe is no longer `read_failed` and its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
 - Fresh private-state audit now has official PartnerStack and Alpaca account readbacks. PartnerStack has an empty commission/payout report and therefore remains `missing_coverage`; Alpaca cash balance is verified but filled-order realized P&L is not derived, so order coverage remains `missing_coverage`. The Lancers marketplace SQLite still has `260` `application_verified` events and `0` `payment_received` events; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
 
 Interpretation: the collector is running and preserving the gaps. Stripe now has an official readback path and source-backed trailing receipts, but portfolio-wide settled MRR/net/revenue remains unknown until the other configured rails provide current receipt-backed coverage.
@@ -99,6 +99,12 @@ Interpretation: the collector is running and preserving the gaps. Stripe now has
 - Account readback artifact SHA-256 from the diagnostic capture: `4d52a7922d7f2ec3b0e879bf5a7b906e85abb3ca934ce71af5485a3a3f6149ee`.
 - No realized P&L is invented from order rows. The account coverage is verified; order/realized-P&L coverage remains explicitly `missing_coverage` until a broker-settled P&L bundle exists.
 - The B0 projection uses a 24-hour freshness window for recent official provider readbacks; future or 24-hour-and-older observations remain stale.
+
+### CrowdWorks partial official readback
+
+- Read-only contract page showed a completed contract, gross `JPY 12`, processor deduction `JPY 2`, and member net `JPY 10`.
+- Content-addressed artifact: `e24ff82fc772431201981b934a2f49bc77df92d118a25b490ca8ea78da1e6468`.
+- The platform-specific path is enabled, so this receipt is visible while Lancers/Coconala remain explicitly unconnected. Historical/trailing coverage is intentionally partial; one contract is never promoted to platform-wide complete revenue.
 
 ### Stripe official API readback and settlement reconciliation
 
