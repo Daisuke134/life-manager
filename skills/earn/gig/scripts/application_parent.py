@@ -704,7 +704,7 @@ def _page_index(url: str) -> int:
     return int(pages[0])
 
 
-_COCONALA_USER_PATH = re.compile(r"^/users/(\d+)$")
+_COCONALA_USER_PATH = re.compile(r"^/(?:smartphone/)?users/(\d+)/?$")
 
 
 def _validated_authenticated_identity(
@@ -734,13 +734,14 @@ def _validated_authenticated_identity(
         "https://www.coconala.com/"
     ):
         raise ParentContractError("authenticated_identity_provider_route_invalid")
+    canonical_path = f"/users/{match.group(1)}"
     return {
         "source": "code_owned_cdp_authenticated_identity",
         "provider": "coconala",
         "request_id": str(request_id),
         "account_id": match.group(1),
-        "profile_url": f"https://coconala.com{path}",
-        "profile_path": path,
+        "profile_url": f"https://coconala.com{canonical_path}",
+        "profile_path": canonical_path,
         "page_url": page_url[:300],
         "page_title": str(raw.get("title") or "")[:150],
         "selection": str(raw.get("selection") or "")[:80],
@@ -1611,8 +1612,8 @@ class CdpParentEffects:
         expression = r'''JSON.stringify((()=>{
           const path=a=>{try{
             const u=new URL(a.href,location.origin);
-            return u.origin==='https://coconala.com'&&/^\/users\/\d+$/.test(u.pathname)
-              ?u.pathname:null;
+            const m=u.pathname.match(/^\/(?:users|smartphone\/users)\/(\d+)\/?$/);
+            return u.origin==='https://coconala.com'&&m?`/users/${m[1]}`:null;
           }catch(_){return null}};
           const links=[...document.querySelectorAll('a[href]')]
             .map(a=>({node:a,path:path(a)})).filter(x=>x.path);
