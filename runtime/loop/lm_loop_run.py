@@ -88,6 +88,7 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "alpaca-investment-live",
     "alpaca-investment-paper",
+    "hf-gig-apply-direct",
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",
 })

@@ -1235,12 +1235,12 @@ def test_affiliate_loop_pre_effect_hint_is_allowlisted():
 
 def test_storefront_direct_pre_effect_hint_is_scoped_by_loop_id_not_entrypoint():
     # entry_dispatch.py is a shared registry entrypoint for hf-gig-storefront-direct,
-    # hf-gig-apply-direct and hf-gig-apply-reconcile. Only the storefront owner
-    # implements no-mutation-attempted tracking, so trust must key on loop_id, not
+    # hf-gig-apply-direct and hf-gig-apply-reconcile. The two effect owners
+    # implement no-mutation-attempted tracking, so trust must key on loop_id, not
     # on this shared entrypoint string.
     assert "hf-gig-storefront-direct" in PRE_EFFECT_HINT_LOOP_IDS
     assert "runtime/loop/entry_dispatch.py" not in PRE_EFFECT_HINT_ENTRYPOINTS
-    assert "hf-gig-apply-direct" not in PRE_EFFECT_HINT_LOOP_IDS
+    assert "hf-gig-apply-direct" in PRE_EFFECT_HINT_LOOP_IDS
     assert "hf-gig-apply-reconcile" not in PRE_EFFECT_HINT_LOOP_IDS
 
 
@@ -1308,16 +1308,16 @@ def test_investment_loop_id_hint_is_honored_for_pre_effect_failures(tmp_path):
         release.assert_called_once_with(claim, requeue=False, reserve=True)
 
 
-def test_apply_direct_loop_id_does_not_receive_storefront_hint_via_entry_dispatch(tmp_path):
-    # hf-gig-apply-direct shares the same registry entrypoint (entry_dispatch.py)
-    # but does not implement no-mutation-attempted tracking; a failed child must
-    # still be fenced as an unknown effect, and it must get no result-hint path.
+def test_apply_direct_loop_id_releases_failure_before_submit_boundary(tmp_path):
     claim = tmp_path / "claim-apply-direct"
     claim.write_text("owned")
 
     def run_child(*_args, **kwargs):
         kwargs["on_started"](4242)
-        assert "LIFE_MANAGER_RESULT_HINT_PATH" not in kwargs["env"]
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        assert json.loads(hint.read_text()) == {
+            "status": "pre_effect_failure", "effect": 0,
+        }
         return 1
 
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
@@ -1336,7 +1336,36 @@ def test_apply_direct_loop_id_does_not_receive_storefront_hint_via_entry_dispatc
             "admission_class": "revenue", "effect_class": "application",
             "entrypoint": "runtime/loop/entry_dispatch.py",
         }, "hf-gig-apply-direct", {}, tmp_path / "receipt") == 1
-    release.assert_called_once_with(claim, requeue=False, reserve=True, effect_unknown=True)
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_apply_direct_loop_id_fences_failure_after_submit_boundary(tmp_path):
+    claim = tmp_path / "claim-apply-direct"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"]).unlink()
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "revenue", "effect_class": "application",
+            "entrypoint": "runtime/loop/entry_dispatch.py",
+        }, "hf-gig-apply-direct", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
 
 
 def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
