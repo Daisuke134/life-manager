@@ -108,6 +108,17 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 - B7 coverage diagnostics returned `20` grouped source/reason rows; the report no longer crashes when immutable readback coverage is extended by later adapters.
 - Launchd readback showed `LM_CFO_TELEGRAM_CHAT_ID` is configured. The CFO skill requires explicit channel selection; `LM_CFO_REPORT_CHANNEL=telegram` is now set in the mode-0600 state env and the runner test proves the explicit Telegram binding is honored. Explicit email remains fail-closed without an email.
 
+### Cloud email canary and replay-zero
+
+- Canonical tenant: the launchd-bound owner UID; tenant email binding read back before the canary.
+- Initial worker failure root cause: `money-printer-worker` lacked `RESEND_API_KEY`; the same secret was present on the existing `life-call` service.
+- Repair: copied the secret without printing it, copied the existing `LM_MAIL_FROM`, and redeployed only `money-printer-worker`.
+- Official email receipt: provider message ID `01a0fbf9-1382-7132-b4cc-ef198204375f`.
+- Supabase `lm_cfo_result_receipts`: `status=sent`, period `2026-10-02:09`, recipient hash and snapshot hash read back.
+- Runtime DB: both canary job attempts are `completed` with `outcome=reconciled_present`; no unresolved effect remains.
+- Immediate same-period replay returned `duplicate` with the same provider message ID; no second email was sent.
+- This proves the current production worker's cloud delivery boundary. The feature branch still requires its normal release promotion before claiming branch-to-production parity.
+
 ### Canonical source-specific artifact readback
 
 - Capafy analytics artifact observed at `2026-10-02T06:07:57Z` was fresh.
@@ -127,12 +138,12 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
 | Positive delivery receipt / replay-zero | proved in fixture | `natural-1`, same digest replay quiet; no live send performed |
-| Cloud canary | partial | Canonical launchd tenant email binding is now read back (`emailBound=true`, Telegram and wallet also bound); official cloud send/replay receipt is still pending |
+| Cloud canary | proved for current production worker; branch promotion pending | Official email provider ID, Supabase sent receipt, runtime `reconciled_present`, and same-period duplicate readback |
 | Seven consecutive periods | blocked | requires elapsed observation time and scheduler-owned production readbacks |
 
 ## Remaining owner-visible blockers
 
 1. Moneytree authorization/source refresh must be restored so account source update time and transaction completeness can be proven.
 2. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
-3. Cloud canary still needs the existing production worker to execute one official send and immediate replay-zero readback; no production send claim is made yet.
-4. Seven-period observation requires the existing production loop owner and official provider receipts; this evidence run intentionally did not trigger production delivery.
+3. The feature branch still needs normal immutable release promotion and branch-to-production parity readback.
+4. Seven-period observation requires the existing production loop owner and official provider receipts; one canary does not prove seven natural periods.
