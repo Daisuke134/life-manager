@@ -3294,3 +3294,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PromptBaseはPortfolio Tracker/Footballの公式審査結果を自然readbackする。同一listingを再送しない。
 2. Capafyは `CAP_FULL` のままread-only監視し、枠が空いた後だけ既存ownerの自然CP2/CP3→listing/status→sale/fee/cost/settlement/payout/replay-zeroへ進む。
 3. 次の実装変更は、上記health snapshotのうち収益critical pathの最初の未closed occurrenceだけを選び、失敗境界を観測してから最小修正する。health件数だけで全体完了と判定しない。
+
+### 110. PromptBase/Capafyのloaded releaseとeffect fenceの分離（2026-10-02 18:56 JST）
+
+- `lm-loop status promptbase-loop-daily --explain` は `loaded-idle`、installed release `d3050812aa`、last occurrence `promptbase-loop-daily:18da9f30f2d271b0-58279`（旧release `79f7c24e`、exit 0、effect_status=unknown、official receiptなし）、`release.drift=true` を返した。これは「新releaseが自然runでまだ使われていない」ことを示すだけで、旧occurrenceの再送許可ではない。
+- そのoccurrenceについて、公式PromptBase dashboardはPortfolio Tracker/FootballをPending、ReelsをScheduled、Sales `0/$0`、GmailにPortfolio/FootballのApproved/Declinedなしと確認済みである。したがって送信済みPortfolio Trackerを再送せず、次の自然owner occurrenceが現在releaseをloadedした時だけ同一occurrenceへ公式readbackを結合する。
+- `lm-loop status capafy-loop-daily --explain` は `loaded-idle`、installed/event release `844d8261`、last occurrence `capafy-loop-daily:18daad201836cdc8-75852`（exit 0、publish effect unknown、official receipt/readbackなし）を返した。Capafy公式inventoryは別readbackで`CAP_FULL`を確認しているため、このeffect fenceを閉じたり、枠満杯のまま再送したりしない。
+
+#### 更新後の原子cursor
+
+1. PromptBaseは自然runで現在release `d3050812aa`をloadedした occurrenceだけを観測し、審査結果→公開→sale/settlement/payoutを結合する。
+2. Capafyは空きslotの公式readbackが出るまでread-only監視し、旧effect_unknown occurrenceは保持する。
+3. いずれも手動wake、同一listingの再送、effect_unknownの推測closeは行わない。
