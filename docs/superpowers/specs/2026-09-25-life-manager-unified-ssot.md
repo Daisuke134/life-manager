@@ -3542,3 +3542,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CrowdWorksの残りapplication 4 / reply 166 / paid 17は、各ownerの公式readback証拠が得られたものだけをoccurrence単位でreconcileする。
 2. 残fenceが再発しないこととENOSPC再発なしを自然runで観測する。
 3. 公式buyer-visible settlement・fee・actual cost・replay-zeroが揃う最初のcontract-work案件を1件閉じてから、Job Hunterへ進む。
+
+### 134. CrowdWorks settled-revenue判定とJob Hunter遷移（2026-10-02 22:36 JST）
+
+- CrowdWorksの現行Paid公式readbackは`effect=0`で、`crowdworks_paid_handoff_unavailable` 1件と`reconcile_unknown` 4件のみ。provider payment receipt、buyer-visible納品、settlement、feeのreadbackは0件である。applicationの357件（`application-receipts.jsonl`）はproposal送信のverified receiptであり、契約・売上ではない。
+- Application/reply/paid全laneはimmutable release `7a4852e1df` loaded、現在`loaded-idle`。新release適用後の自然runはbrowser busy/capacityを外部効果なしでdeferし、cleanup後の直近tailには新しいENOSPCがない（過去ENOSPCは§132で記録済み）。
+- よってCrowdWorksは「runtime/readback boundaryは改善済み、settled revenueは未成立」と確定する。所有者入金・内部transfer・proposal送信を収益へ加算せず、CrowdWorks固有の残fence（application 4 / reply 166 / paid 17）はreadback不足として保持する。
+
+#### 更新後の原子cursor
+
+1. Job Hunter registryの7 jobs（failed/safely_fenced）をread-onlyで再確認し、Mercor/面接/CAPTCHA/human-requiredを自動突破しない。
+2. 外部応募・案件の公式receipt/readbackが得られる低リスク laneだけを、CrowdWorksと同じpre-effect/effect fence/replay-zeroで一件閉じる。
+3. その後Self-Buildのverified writeback gateへ進む。TaskMarket/BlockRun、Investment live、CFO利益計上は後段のまま保持する。
