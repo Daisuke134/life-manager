@@ -467,6 +467,56 @@ def test_provider_section_accepts_llm_config_form_layout() -> None:
     assert module._ensure_raw_provider_section(_Page()) == "llm_config_form"
 
 
+def test_provider_section_accepts_workspace_llm_form_layout() -> None:
+    module = load_module()
+
+    class _Page:
+        def __init__(self):
+            self.calls = []
+
+        def evaluate(self, expression):
+            if "workspace-llm-field-count" in expression:
+                return {"ok": True}
+            if "Agent ワークスペース" in expression:
+                return {"ok": True, "x": 10, "y": 20}
+            return {"count": 0}
+
+        def call(self, method, params=None):
+            self.calls.append((method, params))
+
+    page = _Page()
+    assert module._ensure_raw_provider_section(page) == "workspace_llm_form"
+    assert [method for method, _ in page.calls] == [
+        "Input.dispatchMouseEvent", "Input.dispatchMouseEvent"
+    ]
+
+
+def test_raw_configure_workspace_llm_writes_fields_and_saves() -> None:
+    module = load_module()
+    calls = []
+
+    class _Page:
+        def evaluate(self, expression):
+            if "workspace-llm-field-count" in expression:
+                return {"ok": True}
+            if "workspace-save-count" in expression:
+                return {"ok": True, "disabled": False, "x": 10, "y": 20}
+            return {"ok": True}
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+
+    assert module._raw_configure_workspace_llm(_Page(), "test-secret") is True
+    assert calls[:3] == [
+        ("Input.insertText", {"text": module.BASE_URL}),
+        ("Input.insertText", {"text": module.MODEL}),
+        ("Input.insertText", {"text": "test-secret"}),
+    ]
+    assert [method for method, _ in calls[3:]] == [
+        "Input.dispatchMouseEvent", "Input.dispatchMouseEvent"
+    ]
+
+
 def test_raw_configure_llm_form_writes_base_url_model_key_when_vendor_already_openrouter() -> None:
     module = load_module()
     focused = []
