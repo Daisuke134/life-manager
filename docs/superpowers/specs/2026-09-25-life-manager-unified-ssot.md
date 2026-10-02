@@ -3491,3 +3491,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - Agent Economy registryは `effect_unknown=4 / failed=9 / running=5 / safely_fenced=1`。`the402-provider`、`the402-worker`、`x402-seller-8404`はmoney effect started/unknownで、公式 payment receipt・settlement・cost joinがない。
 - TaskMarket/X402 acquisition/ledger系はcapacity/FIFO waitが多く、TaskMarket no-effect provider-discoveryとBlockRun paid inferenceの完了証拠はない。wallet funding、treasury spend、paid inference再送は行わない。
 - Agent Economyは、収益critical path（PromptBase/Capafy/Writer/Mobile/contract-work/CFO）のsettled evidence後に、TaskMarket no-effect→BlockRun 1件の順で閉じる。内部transfer・owner deposit・self-payを外部収益に数えない。
+
+### 130. CrowdWorks browser lockのnon-blocking release applyとPaid natural readback（2026-10-02 21:18 JST）
+
+- PR #6494（`7a4852e1df`）を全CI PASS・`mergeState=CLEAN`でmainへsquash mergeした。`run_with_file_lock.py`にopt-in `--non-blocking`（busy時はexit75 / `provider_browser_busy`）を追加し、CrowdWorks application/reply/paid ownerだけがこのモードを使う。既定のblocking挙動と他providerは変更していない。
+- immutable release `/Users/anicca/loops/releases/20261002T210139-7a4852e1`を作成した。replyをinstall event `3891d15b8eee52d2871ee6ef`で、paidをinstall event `61e959340c9b00bbd7437fb6`で同releaseへapplyし、plist/loaded SHAをreadbackした。applicationは旧owner PID `19444`が実処理中のため、applyは`skipped=loaded-running`であり、loaded releaseは旧`4121f44751`のままである。
+- 新release Paid occurrence `crowdworks-revenue-paid:18dab493aef01010-17920`は`last_exit=0 / effect=0`、`paid-latest.json`は`crowdworks_paid_handoff_unavailable`（`pre_effect=true`）1件と`reconcile_unknown` pending 4件を返した。外部provider receipt/readback・buyer-visible納品・settlementはなく、Paidの新release境界は「外部効果なしで終了」までである。
+- 旧application ownerは共有browserを自然処理中で、kill・lock奪取・再送は行っていない。applicationが自然終了しloaded-idleになった後、同じreleaseへ再applyし、applicationのnon-blocking busy時exit75/effect0または公式readbackを確認するまで、CrowdWorks全体を収益完了扱いしない。
+
+#### 更新後の原子cursor
+
+1. CrowdWorks application ownerが自然終了したら、`crowdworks-revenue-application`を`20261002T210139-7a4852e1`へapplyし、plist/loaded SHAをreadbackする。
+2. application/reply/paid各laneでbusy lockがハングせず、pre-effectならexit75/effect0、provider境界まで進んだ場合だけ公式receipt/readbackを同一occurrenceへ結合する。
+3. buyer-visible納品・settlement・fee・model/browser actual cost・replay-zeroが揃うまで、CrowdWorks売上をCFOへ加算せず、次のJob Hunterへ進めない。
