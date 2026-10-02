@@ -11,5 +11,6 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 exec "$LOCK_PYTHON" "$ROOT/skills/browser/scripts/run_with_file_lock.py" \
+  --non-blocking \
   "$STATE_ROOT/provider-browser.lock" -- \
   "$PYTHON" "$ROOT/skills/earn/crowdworks/scripts/application_owner.py" "$@"

@@ -13,6 +13,7 @@ fi
 
 set +e
 "$LOCK_PYTHON" "$ROOT/skills/browser/scripts/run_with_file_lock.py" \
+  --non-blocking \
   "$STATE_ROOT/provider-browser.lock" -- \
   "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/paid_kernel.py" \
   --require-paid-handoff \
