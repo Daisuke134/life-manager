@@ -11,7 +11,9 @@ Usage: loop_pnl.py [--date YYYY-MM-DD] [--json]   (date is the Asia/Tokyo report
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
+import io
 import json
 import os
 import sqlite3
@@ -124,6 +126,146 @@ def _read_b7_payload(path: str | Path):
     if source.suffix == ".jsonl":
         return [json.loads(line) for line in text.splitlines() if line.strip()]
     return json.loads(text)
+
+
+def _billing_decimal(value: object) -> Decimal:
+    text = str(value or "").strip().replace(",", "").replace("¥", "")
+    negative = text.startswith("(") and text.endswith(")") or text.startswith("-")
+    text = text.strip("()")
+    if text.startswith("-"):
+        text = text[1:]
+    if not text or any(character not in "0123456789." for character in text):
+        raise ValueError("google_billing_amount_invalid")
+    amount = Decimal(text)
+    return -amount if negative else amount
+
+
+def _billing_text(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
+def google_billing_actual_cost_readback(
+    path: str | Path, *, invoice_month: str, snapshot_at: str, trailing_start: str,
+) -> dict:
+    """Build the B7 official-cost envelope from the already downloaded Cost Table bytes."""
+    source = Path(path)
+    raw = source.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    rows = list(csv.reader(io.StringIO(raw.decode("utf-8-sig"))))
+    header_index = next(
+        (index for index, row in enumerate(rows)
+         if "サービスの説明" in row or "Service description" in row),
+        None,
+    )
+    if header_index is None:
+        raise ValueError("google_billing_csv_header_invalid")
+    headers = [str(value).strip() for value in rows[header_index]]
+    japanese = "サービスの説明" in headers
+    if japanese:
+        required = {
+            "service": "サービスの説明", "sku": "SKU の説明", "kind": "費用のタイプ",
+            "date": "使用開始日", "raw": "四捨五入前の費用（¥）",
+        }
+        if any(value not in headers for value in required.values()):
+            raise ValueError("google_billing_csv_header_invalid")
+        index = {key: headers.index(value) for key, value in required.items()}
+        invoice_total = None
+        currency = "JPY"
+        for row in rows[:header_index]:
+            if row and row[0] == "合計お支払い額" and len(row) > 1:
+                invoice_total = _billing_decimal(row[1])
+            if row and row[0] == "通貨" and len(row) > 1:
+                currency = row[1].strip().upper()
+        if currency != "JPY":
+            raise ValueError("google_billing_currency_invalid")
+        lines: list[tuple[str, str, Decimal, str]] = []
+        tax_total = Decimal(0)
+        positive_cost_total = Decimal(0)
+        for row in rows[header_index + 1:]:
+            cells = row + [""] * max(0, len(headers) - len(row))
+            kind = cells[index["kind"]].strip()
+            amount = _billing_decimal(cells[index["raw"]])
+            if kind in {"税金", "丸めエラー"}:
+                tax_total += amount
+                continue
+            if kind == "合計":
+                if invoice_total is None:
+                    invoice_total = amount
+                continue
+            if cells[index["date"]].strip()[:7] != invoice_month:
+                continue
+            service = cells[index["service"]].strip()
+            sku = cells[index["sku"]].strip()
+            if not service or not sku or amount == 0:
+                continue
+            occurred = f"{cells[index['date']].strip()}T00:00:00Z"
+            if amount > 0:
+                positive_cost_total += amount
+                lines.append((service, sku, amount, occurred))
+    else:
+        required = ["Service description", "SKU description", "Cost", "Currency", "Invoice month"]
+        if any(value not in headers for value in required):
+            raise ValueError("google_billing_csv_header_invalid")
+        index = {value: headers.index(value) for value in required}
+        tax_header = "Taxes" if "Taxes" in headers else "Tax" if "Tax" in headers else None
+        lines = []
+        tax_total = Decimal(0)
+        positive_cost_total = Decimal(0)
+        invoice_total = None
+        for row in rows[header_index + 1:]:
+            cells = row + [""] * max(0, len(headers) - len(row))
+            if cells[index["Invoice month"]].strip() != invoice_month:
+                continue
+            if cells[index["Currency"]].strip().upper() != "JPY":
+                raise ValueError("google_billing_currency_invalid")
+            amount = _billing_decimal(cells[index["Cost"]])
+            if tax_header:
+                tax_total += _billing_decimal(cells[headers.index(tax_header)])
+            if amount <= 0:
+                continue
+            positive_cost_total += amount
+            lines.append((cells[index["Service description"]].strip(),
+                          cells[index["SKU description"]].strip(), amount,
+                          f"{invoice_month}-01T00:00:00Z"))
+    if not lines:
+        raise ValueError("google_billing_csv_empty")
+    effective_tax = (invoice_total - positive_cost_total) if invoice_total is not None else tax_total
+    if effective_tax < 0:
+        raise ValueError("google_billing_total_mismatch")
+    if effective_tax > 0:
+        lines.append(("Google Cloud", "tax-and-rounding", effective_tax, f"{invoice_month}-01T00:00:00Z"))
+    period_year, period_month = (int(value) for value in invoice_month.split("-"))
+    if period_month == 12:
+        next_month = f"{period_year + 1:04d}-01"
+    else:
+        next_month = f"{period_year:04d}-{period_month + 1:02d}"
+    period_start = f"{invoice_month}-01T00:00:00Z"
+    period_end = f"{next_month}-01T00:00:00Z"
+    document_id = f"google-cloud-{invoice_month}-{digest[:16]}"
+    line_items = []
+    for number, (service, sku, amount, occurred_at) in enumerate(lines, 1):
+        line_id = f"gcp-{digest[:12]}-{number}"
+        line_items.append({
+            "line_item_id": line_id, "category": "infra_cost", "basis": "official_invoice",
+            "amount": _billing_text(amount), "occurred_at": occurred_at,
+            "allocations": [{"allocation_id": f"{line_id}-cfo", "product_loop_id": "cfo",
+                              "amount": _billing_text(amount)}],
+        })
+    return {
+        "readback": {
+            "kind": "official_billing_readback", "observed_at": snapshot_at,
+            "historical": {"complete": True, "window_start": None, "window_end": snapshot_at},
+            "trailing": {"complete": True, "window_start": trailing_start, "window_end": snapshot_at},
+        },
+        "sources": [{"provider": "google-cloud", "status": "available", "product_loop_ids": ["cfo"]}],
+        "documents": [{
+            "document_type": "invoice", "official": True, "provider": "google-cloud",
+            "invoice_id": document_id, "source_type": "official_invoice", "status": "paid",
+            "currency": "JPY", "billing_period_start": period_start,
+            "billing_period_end": period_end, "paid_at": period_end, "line_items": line_items,
+        }],
+        "source_receipt_ref": f"google-billing://sha256/{digest}",
+    }
 
 
 def _paths(value: str | None) -> list[Path]:
@@ -257,7 +399,13 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         lambda: actual_cost.adapt(
             _read_b7_payload(actual_cost_path), snapshot_at=snapshot_at,
             trailing_start=trailing_start,
-        ) if actual_cost_path else [],
+        ) if actual_cost_path else actual_cost.adapt(
+            google_billing_actual_cost_readback(
+                env["LM_CFO_GOOGLE_BILLING_CSV"],
+                invoice_month=env.get("LM_CFO_GOOGLE_BILLING_INVOICE_MONTH", snapshot_at[:7]),
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ), snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ) if env.get("LM_CFO_GOOGLE_BILLING_CSV") else [],
         source_id="actual-cost-readback", loop_ids=("cfo",),
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )

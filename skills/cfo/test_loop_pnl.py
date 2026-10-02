@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import copy
+import csv
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -181,6 +182,39 @@ class StripeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stripe_unhandled_txn_type:adjustment"):
             list(m.stripe_entries([{"id": "txn_d", "type": "adjustment", "amount": -1999,
                                     "fee": 1500, "currency": "usd"}]))
+
+    def test_google_billing_csv_becomes_official_actual_cost_readback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cost-table.csv"
+            rows = [
+                ["合計お支払い額", "¥10.50", ""],
+                ["通貨", "JPY", ""],
+                [
+                    "サービスの説明", "SKU の説明", "費用のタイプ", "使用開始日",
+                    "四捨五入前の費用（¥）", "プロジェクト ID",
+                ],
+                ["Places API", "Places Text Search", "使用量", "2026-09-30", "10", "project"],
+                ["Google Cloud", "税", "税金", "2026-09-30", "1", "project"],
+                ["Google Cloud", "丸め", "丸めエラー", "2026-09-30", "-0.5", "project"],
+            ]
+            with path.open("w", encoding="utf-8", newline="") as stream:
+                csv.writer(stream).writerows(rows)
+            payload = m.google_billing_actual_cost_readback(
+                path, invoice_month="2026-09", snapshot_at=SNAPSHOT,
+                trailing_start=TRAILING_START,
+            )
+
+        self.assertEqual(payload["readback"]["kind"], "official_billing_readback")
+        self.assertEqual(payload["sources"][0]["product_loop_ids"], ["cfo"])
+        self.assertEqual(payload["documents"][0]["provider"], "google-cloud")
+        self.assertEqual(
+            [line["amount"] for line in payload["documents"][0]["line_items"]],
+            ["10", "0.5"],
+        )
+        self.assertEqual(
+            payload["documents"][0]["line_items"][0]["allocations"][0]["product_loop_id"],
+            "cfo",
+        )
 
     def test_test_mode_key_is_not_a_live_source(self):
         with tempfile.TemporaryDirectory() as tmp:
