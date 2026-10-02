@@ -3842,3 +3842,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Fundraiserは新しい適格候補でmanaged browserがofficial formを観測できた時だけ、pre-effect identity→single submit→provider application ID/status→replay-zeroを閉じる。
 2. human-required条件はholdし、Daisへ継続操作を委譲しない。
 3. application後の外部inflow、fee、actual cost、payoutが公式receiptで確認できるまでFundraiserを収益完了扱いしない。
+
+### 158. Release `3003e1f289` fleet applyの3 exact failure（2026-10-03 00:16 JST）
+
+- fleet applyはterminal `status=error / changed=131 / skipped=42 / errors=3`。成功した131 ownerは新releaseへ移り、current symlinkも`20261002T235935-3003e1f2`へ一致した。全体errorを理由に成功ownerをrollbackしない。
+- `hf-gig-apply-direct`はinstalled/event SHA `287d913c1c`、latest occurrence `18dabf33bc3f6cc0-93744`、application effect unknown、official readback/provider receiptなし、exit75。公式application readbackなしにreapply・応募再送しない。
+- `alpaca-investment-live`はapply時にlaunchd `Bootstrap failed: 5 Input/output error`となり、旧jobへ自動復元された。installed SHA `4121f44751`、event SHA `592c98cbc6`、disabled、money effect unknown、official readbackなし。live注文、enable、funding、送金は行わない。
+- `life-manager-instagram-metrics`は`admission rebind refused: effect_unknown`。installed/event SHA `9a76dcc87d`、occurrence `18dabf422f820f68-97239`、publish effect unknown、official readbackなし。metrics refreshをpublish成功へ昇格させず再applyしない。
+- `x402-sale-observer`は一度`production apply is already owned`でrc1を返したが、別attemptがinstall eventを記録し、installed/event SHA `3003e1f289`へ一致した。latest effectはnone/not_applicableであり、外部sale/settlementの証拠ではない。
+
+#### 更新後の原子cursor
+
+1. `hf-gig-apply-direct`とInstagram metricsはexact official provider readbackが得られたoccurrenceだけowner-scoped reconcileする。
+2. Alpaca liveはAT-29の技術gate完了までdisabledを保持し、bootstrap I/O errorをlive-enable理由にしない。
+3. fleet applyの次回自然retryは既存backoffへ任せ、同じ3 ownerを手動kick/reapplyしない。
