@@ -39,6 +39,12 @@ export LM_SELFBUILD_ACTIVE=1
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${LM_SELFBUILD_REPO:-$(cd "$HERE/../.." && pwd)}"
+# The immutable release is the code being executed, not a git checkout.  The
+# merge guard needs a real source checkout for fetch/worktree/diff operations;
+# keep it explicit and fail closed if the checkout is absent.
+if [ -z "${LM_SELFBUILD_SOURCE_REPO:-}" ] && [ -d "$HOME/Projects/life-manager-main/.git" ]; then
+  export LM_SELFBUILD_SOURCE_REPO="$HOME/Projects/life-manager-main"
+fi
 APP_DIR="$REPO_ROOT/apps/life-manager"
 DISK_GUARD="$REPO_ROOT/runtime/host/disk_admission.py"
 NODE_BIN="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
