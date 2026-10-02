@@ -2882,6 +2882,20 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 91. PromptBase Reels承認の価格・売上境界とMobile CTA readback修正（2026-10-02 15:30 JST）
+
+- PromptBase公式Gmailの「Reels Hook Lab — Win The Cover Frame has been approved and scheduled」は、2026-10-02公開予定の承認通知である。掲載価格は公式seller stateで`$4.99`だが、販売完了通知ではない。
+- PromptBase公式Sales readback（`https://promptbase.com/account?view=sales`、観測`2026-10-02T05:29:13Z`）は`0件 / $0.00 net`、`by_item={}`。従って本listingの実売上は現時点で`$0`であり、`$4.99`を売上・利益・MRRへ数えない。
+- Mobile Postiz CTA照合の追加修正PR #6472（main merge `62f6ac6ab1cd09dc0b5a7da295b820142850ecc8`）は、receipt hashだけで任意suffixを受け入れず、carousel adapterが出す既知の英日App Store CTAだけを許可する。immutable release `20261002T153403-62f6ac6a`を`current`へ反映し、`life-manager-anicca-jp4`はtarget apply成功・loaded SHA一致をreadbackした。
+- 同時点のMobile 17 target readbackは、`62f6ac6a`が1（JP4、idle）、旧`38810aab`が16（running 3 / idle 13）。旧ownerは自然idle時のrelease reconciler apply待ちであり、再起動・手動投稿・Postiz再送は行わない。新release後の自然Postiz公式readbackは未実施で、Mobile完了とは数えない。
+
+#### 更新後の原子cursor
+
+1. PromptBase ReelsのScheduled→公開URL/liveを公式seller pageでreadbackする。
+2. 公開後だけSalesのitem/order、fee、settlement、payout、replay-zeroを公式記録で閉じる。Sales `0/$0`のままなら販売なしと報告する。
+3. Mobileは17 targetの`62f6ac6a` loaded readbackを自然idle apply後に再確認し、新release後のPostiz published/reconciled receiptを一件ずつ閉じる。
+4. ASC agreement、RevenueCat purchase/refund/proceeds、app別actual cost、CFO 14-loop P&Lが揃うまで、利益・MRR・financial independence・全loop完了を宣言しない。TaskMarket/BlockRunは後段順位を維持する。
+
 ### 89. Mobile Pillow packaging release/loadと公式readback cursor（2026-10-02 15:00 JST）
 
 - AGMSG Mobile/Connector read-only監査は、Mobile 22 jobs中8件で`render-slide-image.py:23 ModuleNotFoundError: No module named 'PIL'`を再現した。原因はimmutable releaseのbare Pythonがuser siteへ依存し、`python3.14 -s`でPillow importが失敗すること。ASC `asc apps list`はagreement missing/expiredでAPI拒否（本人必須）、RevenueCatはapps 8 / products 21 / entitlements 3 / metrics overview active subscriptions 5・MRR $20・28日revenue $32をreadbackしたが、app別proceeds/cost/replay-zeroは未結合。Connectorは候補0、既存Calendar event readbackのみで10月新規登録はない。
