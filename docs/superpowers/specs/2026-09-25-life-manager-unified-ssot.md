@@ -3904,3 +3904,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 3. `life-manager-financial-report`はeffect-free registry契約のtarget applyでそのownerだけの旧unknownをclearし、hourly/reportのloaded SHAを099へ揃える。
 4. hourlyを一度bounded wakeし、`last-result-report.json`、outbox provider receipt、normal effect reconciler、healthのexact occurrenceを結合する。その後replayでprovider attempt 0を確認する。
 5. natural CFO tableでmarketplace source gapを再読し、verified settlement/payoutの無いplatformを0/profitへ昇格させない。
+
+### 162. CFO legacy fence解消・099 target load・capacity境界（2026-10-03 02:28 JST）
+
+- 099 fleet applyはterminal `partial / changed=41 / skipped=17 / errors=2 / budget exceeded`。failureは`hf-gig-apply-direct`のeffect unknownと`alpaca-investment-live`の既知bootstrap I/O errorだけで、新しいfailure classは無い。budget不足でCFO ownerへは到達しなかった。
+- immutable 099 releaseのlegacy migrationを再dry-runし、同じproof digest、old release SHA、provider message ID `94946`、delivery-before-runtimeを確認後、hourly exact occurrence `18d8de9f2e7b25a8-17283`だけを一度`--resolve`した。resultは`RESOLVED`、rowは`released / effect_unknown=0`。他owner・他occurrenceは変更していない。
+- `life-manager-financial-report`をeffect-free契約でtarget applyし、そのownerの旧unknown `18d8854c4cf474f0-24141`だけをclearした。続いてhourlyをtarget applyし、両ownerのinstalled SHA/loaded argvを`09960df06f`へ一致させた。
+- 099初回bounded wake `18dac63792ba8a28-6245`は`resource_capacity_busy`、次の自然wake `18dac645dba97b50-7759`は`resource_fifo_wait`、再probe後のwake `18dac65400360fe8-9090`も`resource_capacity_busy`でentrypoint前に停止した。全て`effect_identity_status=not_written`、`last-result-report.json`なし、Telegram/provider effectなし、admission DBの新unknown rowなしである。terminal eventのeffect unknown表示をdurable fenceと混同しない。
+- capacity probeでは`marketing-owner-events`と`lancers-revenue-work-sync`のrevenue ownerがdeterministic slotsを占有し、その後も`marketing-owner-events`が継続した。上限・priorityを変更せず、deterministic owner 0件のgapを3分観測したが発生しなかったためmanual wakeを打ち切った。CFO source/load/fence修復は完了したが、099のbusiness run、current marketplace table、Telegram receipt、replay-zeroは未証明である。
+- PromptBase Footballの公式承認メール本文は公開予定日を`Fri Oct 02 2026`とするが、同日経過後もlive通知・公開URL readbackが無い。予定日だけでliveへ昇格せず`scheduled`を維持する。
+
+#### 更新後の原子cursor
+
+1. CFOは既存admission priorityと自然cadenceへ戻す。deterministic capacityを変更せず、次の099 natural occurrenceがentrypointへ到達した時だけ`last-result-report.json`、outbox、normal reconciler、healthを結合する。
+2. CFO待ちと独立してPromptBaseのFootball live/declined、Portfolio approved/declined、Sales/fee/settlementを公式Gmail・dashboard・public pageでreadbackする。同じlistingを再送しない。
+3. PromptBaseに変化が無ければ、Writer→Affiliate→Mobile残件→Connector→Fundraiserの順でexternal demand・settlement・payoutを進める。TaskMarket/Agent Economyはこの即時収益pathの後に保持する。
