@@ -2742,3 +2742,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. loaded readback後、PromptBase ownerを一度だけ起動し、DraftカードがDeclinedカードと混同されず正しいDraft URLへ到達することを同一occurrenceで確認する。Pending中のfootball-match-analystは再送しない。
 3. 新しいrunで実際に提出した場合のみPromptBase dashboard/GmailのPending→Approved/Declinedをreadbackし、Approved後に公開listing/sale/settlement/payoutへ進む。失敗時は新しい正確なUI境界を記録する。
 4. Capafy 4243672453のunder_review readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 75. PromptBase Draft修正releaseのproduction E2Eと公式pending readback（2026-10-02 12:44 JST）
+
+- natural fleet applyがPromptBase plist/argvをimmutable release 3863e1571417e966f9e66bb548fac34d61d68811へ更新した。launchctl readbackはstate=not running、last exit=0、LIFE_MANAGER_REPO=/Users/anicca/loops/releases/20261002T122706-3863e157、LIFE_MANAGER_RELEASE_SHA=3863e15714を返した。
+- 修正版releaseの正式ownerを一度だけkickstartした。新occurrence promptbase-loop-daily:18da99833e797450-44299はadmissionを通過し、slug reels-hook-labを選択、既存Draftの正しいURL 0Yvb19CwQ2C1jru7KieSへresumeし、draft_not_at_step2は再発せず、submitted_pending_review（submitted_at=2026-10-02T03:43:49Z）まで到達した。football-match-analystの既存Pendingは再送していない。
+- 同じinteractive:dais leaseで公式seller dashboardをread-only readbackし、Reels Hook Labはsubmitted_pending_reviewからpending_reviewへ更新、Football Match Analystもpending_reviewのまま、Salesは0件 / $0 netだった。Gmailの直近2日検索にもPromptBase審査通知は無く、GitHub通知のみである。
+- owner occurrenceはreleased/effect_unknown=0、launchd last exit=0となった。これはDraft再開と公式Pendingまでの実証であり、Approved/Declined、公開listing、sale、settlement、payoutはまだ未完である。PromptBase P5cを完了扱いせず、Pendingを再送しない。
+
+#### 更新後の原子cursor
+
+1. Reels Hook LabとFootball Match AnalystのPendingを自然dashboard/Gmail readbackでApprovedまたはDeclinedへ閉じる。
+2. Approved後だけ公開listing、sale、fee、model-cost、settlement、payout、replay-zeroを公式記録で確認する。
+3. Declinedの場合は理由を保存し、同じDraftカード誤選択修正済みreleaseで次の内容修正cursorを作る。
+4. Capafy 4243672453のunder_review→online/rejected readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
