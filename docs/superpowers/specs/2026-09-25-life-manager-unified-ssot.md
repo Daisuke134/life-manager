@@ -2624,3 +2624,57 @@ AGMSGで3席を同時にread-only起動した。TaskMarket、PromptBase/Capafy�
 
 - 既存`agent-economy-loop`のlatest natural runはrelease `3fdfa314978dab2f620a058843c14c9e5b5c68d8`上で継続中だが、最新Codex brain attempt `00MUQ66H1JE770C6A2516D446E`（`2026-10-01T23:33:06Z`）は`codex automation auth unavailable`で、TaskMarket tool callを発行する前に`validation_or_task_failure`となった。これはTaskMarket provider effect、wallet spend、BlockRun receiptの失敗ではない。
 - したがって現在の診断カーソルは`agent-economy-loop / brain_transport / auth_unavailable`であり、TaskMarket L9-13.1のprovider discoveryは未到達、L9-13.2は`provider_pre_effect_hold`。Codex automationを外部から再起動・認証更新せず、次の自然brain wakeでauthが回復した時だけ既存`earn/taskmarket`の同一occurrenceをreadbackする。
+
+### 54. 全体像を一枚に固定する（2026-10-02 09:10 JST）
+
+#### TaskMarketで起きること
+
+```text
+agent-economy-loop（常駐owner）
+  → Codex brainが skills registry の earn/taskmarket を選ぶ
+  → skills/earn/taskmarket/run.sh
+  → taskmarket-work.mjs
+      ├─ poll: TaskMarket公式APIを読み、候補だけ返す（支出なし）
+      └─ execute: 候補選択 → BlockRun画像quote/cap → USDC支払 → 画像検証
+                 → TaskMarket submit → 公式submission readback → cost ledger
+
+life-manager-taskmarket-ledger（別owner）
+  → submissions/awardsを公式APIとBase receiptでreadback
+  → finalized外部awardだけをincome ledgerへ記録
+  → work実行やBlockRun支払はしない
+```
+
+私が一時的に作った`taskmarket-paid-executor`はこの既存経路と重複していた。PR #6413で一度mainへ入ったが、二重wallet/provider/cursorを作るためPR #6416でrevertした。現在の正しいmainは`356d9233cf`で、新ownerは存在しない。
+
+#### 何が完了していて、何が未完か
+
+| 領域 | 現在の判定 | 意味 |
+|---|---|---|
+| Health foundation | source完了、live fleet未収束 | CLI/schemaはあるが、178 jobs全体はまだhealthyではない |
+| CFO B0–B7 | source完了、live公式source未接続 | `unknown`を0へ丸めない |
+| TaskMarket packaging | source完了 | 旧releaseのENOENT原因は修正済み。current 3fにCLI symlinkあり |
+| TaskMarket no-effect | 未完 | 現在はbrain auth/自然occurrenceがprovider boundaryへ届いていない |
+| BlockRun paid | 未完 | receipt、output、USDC cost、ledger joinが0 |
+| PromptBase P5a/b/d | 完了 | 実装milestoneだけ |
+| PromptBase P5c | 未完 | 自然Pending→Approved/Declined、sales `$0` |
+| Capafy | 未完 | 30日analyticsはあるが、current listing/sale/payout/cost chain未完 |
+| Mobile/Connector | 未完 | process healthのみ、公式収益/登録receipt未達 |
+| 残りloop/CFO/cloud | 未完 | 14 loopのcost-complete P&L、self-funding、cloud移行未達 |
+
+#### 残りTODO（迷わない順序）
+
+1. **既存agent-economy brainのauth回復を自然wakeで観測する。** 外部からCodexを再起動・再認証しない。
+2. **TaskMarket poll/no-effect**を同一natural occurrenceで公式API、候補数、`transactions=[]`、wallet no-spendへ結合する。
+3. **TaskMarket execute/BlockRun**を一件だけ、quote `$0.07`、daily `$0.14`、float floor `$0.25`、official submission readback、cost ledger付きで閉じる。
+4. **TaskMarket award observer**で、awardが発生した場合だけBase finalized receipt→settled external revenueへ結合する。
+5. **PromptBase P5c**: 自然04:20、管理画面/Gmail、公開listing、sale/fee/cost/settlement/payout、replay-zero。
+6. **Capafy**: free slot後の自然submit、API listing/status、sale/refund/fee/model cost/settlement/payout、replay-zero。
+7. **Mobile Apps**: ASC/RevenueCat公式inventory、purchase/proceeds/cost/replay-zero。
+8. **Connector**: provider registration、confirmation mail、Google Calendar公式event/readback/replay-zero。
+9. **Fundraiser → Affiliate → Coconala → Lancers → CrowdWorks → Job Hunter**を各公式receipt/readback/actual cost/replay-zeroで順に閉じる。
+10. **Self-Build**: feedback→patch→tests→PR→main→release→natural outcome。
+11. **Investment AT-13〜AT-29**: paper 30 round trips、fee/slippage/system cost、replay-zero。
+12. **CFO 14/14**: settled revenue、refund、fee、model/tool/browser/server cost、net、MRR、runway。
+13. **外部paid E2E → DigitalOcean費用 → Nosana continuity → Akash fallback → cloud移行 → 30日self-funding**。
+
+10GBはこの順序のどこにも完了条件として存在しない。今の最初の実作業は、既存brainの自然TaskMarket occurrenceを公式readbackすることだけである。
