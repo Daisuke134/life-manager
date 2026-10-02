@@ -2686,3 +2686,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. PromptBaseも同じく自然eligible wakeで`848aee9b` object schema→4見本→公式readbackへ進める。
 3. admission容量が空くまでprovider/browserを手動起動しない。公式proofのあるfenceだけを自然reconcilerで閉じる。
 4. Capafy/PromptBaseの外部E2Eが閉じるまで、売上・利益・全loop自律性を完了扱いしない。
+
+### 71. PromptBase P5cの自然提出と公式pending readback（2026-10-02 11:48 JST）
+
+- object-contract release `848aee9b`の自然owner occurrence `promptbase-loop-daily:18da9661d6fee2c0-7487`は、`agent-runner` pass `96f0943a20d8815c6c60aef0`（Codex `gpt-5.6-terra`、schema-valid）を経て、`4 examples`を生成した。
+- PromptBase owner logは`status=submitted_pending_review`、`submitted_at=2026-10-02T02:48:04Z`、slug `football-match-analyst`、price `$4.99`を記録している。これは自然ownerによる実際の提出到達であり、単なるテスト成功ではない。
+- 同じ`interactive:dais` leased browserで公式seller dashboardをread-only readbackし、対象listingは`pending_review`、Salesは`0 sales / $0 net`だった。Gmail read-only検索（`keiodaisuke@gmail.com`, `(PromptBase OR football-match-analyst) newer_than:2d`）にはPromptBase審査通知がまだ無く、確認できたのはGitHub/CodeRabbit通知だけである。
+- よってP5cは「自然4見本→提出→公式pending」まで完了し、`Approved/Declined`、公開済み、売上、settlement、payoutは未完である。pendingをApprovedや売上へ昇格させず、再提出もしない。
+
+#### 更新後の原子cursor
+
+1. 次の自然dashboard/Gmail readbackで同一PromptBase listingの`Approved`または`Declined`を確認する。
+2. `Approved`後だけ公開listing/sale/settlement/payoutを確認し、`Declined`なら公式理由を根拠に同一Agentの修正cursorへ進む。
+3. CapafyはCP2 source修正release `c3b56c1a` loaded済みだが、owner occurrenceはcapacity前停止のため、同一Agent/versionの自然eligible CP2/CP3を待つ。
+4. TaskMarket/BlockRunは§55の後段順位を維持する。
