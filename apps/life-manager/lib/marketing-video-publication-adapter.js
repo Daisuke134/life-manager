@@ -604,6 +604,7 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
   assertFreshCaptionAndSlideText({
     ledgerPath: freshnessPath,
     integrationRef: contract.postizIntegrationRef,
+    platform: contract.platform,
     captionSha256: captionHash,
     textSha256: captionHash,
     windowDays: FRESH_TEXT_WINDOW_DAYS,
@@ -685,6 +686,7 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
   appendFreshnessRow(freshnessPath, {
     receipt: {
       integration_ref: contract.postizIntegrationRef,
+      platform: contract.platform,
       caption_sha256: captionHash,
       published_at: receipt.published_at,
     },

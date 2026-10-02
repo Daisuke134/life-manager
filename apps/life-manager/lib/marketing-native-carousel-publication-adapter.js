@@ -567,7 +567,7 @@ function appendRow(file, job, receipt) { fs.mkdirSync(path.dirname(file), { recu
 // caller fails this one publish attempt closed without ever reaching the
 // provider -- the rotation pool simply tries a different candidate next run.
 const FRESH_TEXT_WINDOW_DAYS = 7;
-function recentAccountReceipts(ledgerPath, integrationRef, windowDays, nowIso) {
+function recentAccountReceipts(ledgerPath, integrationRef, windowDays, nowIso, platform = null) {
   let lines;
   try { lines = fs.readFileSync(ledgerPath, "utf8").split(/\r?\n/).filter(Boolean); } catch (error) { if (error.code === "ENOENT") return []; fail("marketing native carousel distribution ledger is invalid"); }
   const cutoffMs = Date.parse(nowIso) - Number(windowDays) * 86400000;
@@ -577,14 +577,15 @@ function recentAccountReceipts(ledgerPath, integrationRef, windowDays, nowIso) {
     try { row = JSON.parse(line); } catch { fail("marketing native carousel distribution ledger is invalid"); }
     const receipt = row && row.receipt;
     if (!receipt || receipt.integration_ref !== integrationRef) continue;
+    if (platform && receipt.platform && receipt.platform !== platform) continue;
     const publishedMs = Date.parse(String(receipt.published_at || ""));
     if (!Number.isFinite(publishedMs) || publishedMs < cutoffMs) continue;
     receipts.push(receipt);
   }
   return receipts;
 }
-function assertFreshCaptionAndSlideText({ ledgerPath, integrationRef, captionSha256, textSha256, windowDays = FRESH_TEXT_WINDOW_DAYS, now }) {
-  const recent = recentAccountReceipts(ledgerPath, integrationRef, windowDays, now);
+function assertFreshCaptionAndSlideText({ ledgerPath, integrationRef, platform = null, captionSha256, textSha256, windowDays = FRESH_TEXT_WINDOW_DAYS, now }) {
+  const recent = recentAccountReceipts(ledgerPath, integrationRef, windowDays, now, platform);
   const dupe = recent.find((receipt) => receipt.caption_sha256 === captionSha256 || receipt.text_sha256 === textSha256);
   if (dupe) fail(`marketing caption or slide text was already posted to this account within the last ${windowDays} days`);
 }
@@ -611,6 +612,7 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   assertFreshCaptionAndSlideText({
     ledgerPath: ledgerFor(s, job.tenant_id, lane.productId),
     integrationRef: contract.integrationRef,
+    platform: lane.platform,
     captionSha256: contract.captionHash,
     textSha256,
     now: s.now(),
