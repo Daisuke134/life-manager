@@ -55,6 +55,25 @@ def test_authenticated_identity_normalizes_modern_smartphone_profile_path():
     )
 
 
+def test_authenticated_identity_uses_only_form_scoped_seller_portfolio_link():
+    identity = application_parent._validated_authenticated_identity(
+        "5280157",
+        {
+            "url": "https://coconala.com/offers/add/5280157",
+            "title": "応募する",
+            "own_user_path": "/users/2564121/portfolios/",
+            "selection": "application-form-portfolio",
+            "candidate_user_paths": ["/users/2564121/portfolios/"],
+        },
+    )
+
+    assert identity["account_id"] == "2564121"
+    assert identity["profile_path"] == "/users/2564121"
+    source = inspect.getsource(application_parent.CdpParentEffects._authenticated_identity_async)
+    assert 'textarea[name="data[Offer][content]"]' in source
+    assert "portfolios" in source
+
+
 @pytest.mark.parametrize(
     "raw,error",
     [
