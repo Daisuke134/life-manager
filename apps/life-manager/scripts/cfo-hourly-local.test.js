@@ -281,11 +281,12 @@ test("local main selects canonical Financial Manager daily path by default", asy
   assert.equal(code, 0);
 });
 
-test("local main uses the configured Telegram binding when report channel is omitted", async () => {
+test("local main honors an explicit Telegram report channel and binding", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-main-telegram-"));
   const code = await main({
     CFO_STATE_DIR: stateDir,
     LM_CFO_SUBJECT_ID: "dais-local",
+    LM_CFO_REPORT_CHANNEL: "telegram",
     LM_CFO_TELEGRAM_CHAT_ID: "chat-1",
   }, { runHourlyCfo: async (options) => {
     assert.equal(options.reportChannel, "telegram");
