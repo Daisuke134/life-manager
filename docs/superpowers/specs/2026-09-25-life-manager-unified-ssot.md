@@ -2787,6 +2787,20 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. app別model/browser/infra costとsettled proceedsが揃うまでMobile P&L/MRRはunknownのまま保持する。
 4. Writer/Affiliate/CFOのsource gapを§93の順で閉じ、Connector/Fundraiser/contract-work、Self-Build、Investment、CFO、TaskMarket/BlockRun、cloud/self-fundingへ進む。
 
+### 95. CFO/provider-cost observability設計の保存とEbook/Stripe credential境界（2026-10-02 16:05 JST）
+
+- CFO席の設計spec `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`（PR #6478、main `2674c61491ef2a92541f358490968df172a0af3e`）を参照specとして保存した。personal CFO（Moneytree等）とLife Manager business CFO（Stripe/Capafy/Writer等）をowner分離し、`settled`/`estimated`/`unknown`、freshness、provider receipt、effect_unknownを別状態で保持するA0〜A10設計である。production code、provider、ledger、個人資金は変更していない。
+- Ebook/Stripeの公式read-only境界を確認した。`stripe-revenue-poller`は直近passだが`last-result.json`は`cfo_boundary_failed`・recordCount=0で、Stripe API adapterはcanonical `~/.local/share/anicca/credentials.json`に`sk_live_`/`rk_live_`を発見できず`credential_missing`。ファイルに無いenv secretを正本へ複製・表示・推測せず、Stripe settled revenue/fee/payoutはunknownのままにした。
+- Stripe listenerの自然runはexit 0でもprovider receiptなし（effect_class=none）であり、webhook process healthをEbook販売・決済証拠へ昇格させない。Ebook/KDPの公開・購入・refund・settlement・payout・actual cost joinは未完了である。
+- Moneytreeの個人残高やGoogle請求はLife Manager売上に加算しない。owner、settlement、source receiptが一致しない数値はCFO 14-loop P&Lから除外しunknownとして報告する。
+
+#### 更新後の原子cursor
+
+1. Writer/Ebook/Affiliate groupは、公式receiptが得られるowner経路を順にread-only確認する。まずEbook/Stripeはcanonical credential/provider boundaryを閉じ、KDPは認証なしのまま突破しない。
+2. Writerはcapacity eligibility後の自然sales/metrics readback、AffiliateはPartnerStack fresh settlement、CFOはeffect_unknownの公式readback/adapter境界を閉じる。推定金額をreceiptにしない。
+3. ASC/RevenueCatのMobile proceeds/cost join、Connector、Fundraiser、contract-workを続ける。TaskMarket/BlockRunは後段順位を維持する。
+4. CFO A0の重複確認とsource-backed実装計画を終えるまで、利益・MRR・self-funding・financial independenceを宣言しない。
+
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
 - PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
