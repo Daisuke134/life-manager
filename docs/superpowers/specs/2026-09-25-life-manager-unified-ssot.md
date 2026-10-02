@@ -2895,3 +2895,18 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. PromptBaseがreservationを取得した正式owner occurrenceだけを観測し、release `79f7c24e`のsemantic wait→4例→公式dashboard/Gmailを同一occurrenceへ結合する。
 3. `resource_capacity_busy` occurrenceは外部作用なしとして重複再送せず、公式PromptBase submissionが確認できた場合だけ次の公開/sale/settlement/payoutへ進む。
 4. Capafy/CFO/Writer/Ebook/Affiliate/Mobileの独立laneを継続し、TaskMarket/BlockRunは後段順位を維持する。
+
+### 86. PromptBase semantic-wait後のPortfolio Tracker提出と公式pending readback（2026-10-02 14:28 JST）
+
+- FIFO capacityが解放された後、release `79f7c24e2602c34a4a99ffc2089baa25ea7188de`の正式owner occurrence `promptbase-loop-daily:18da9f30f2d271b0-58279`が05:27:14 UTCに開始し、05:28:02 UTCに`exit=0`で終了した。`gen_examples.py`のcache済み英語4例はdistinct、step1はsemantic waitで`2/3`へ進み、PromptBase `publish.py --confirm`の送信境界へ到達した。
+- private ledgerはslug `portfolio-tracker`、title `Portfolio Tracker — Daily Position…`、price `$4.99`、`status=submitted_pending_review`、`submitted_at=2026-10-02T05:28:00Z`を記録した。これはPromptBase送信のローカルreceiptであり、販売・決済・利益の証拠ではない。
+- 同じ`interactive:dais` leaseの公式seller dashboard readbackは`ok=true / checked=3`で、Portfolio Trackerを`submitted_pending_review`から`pending_review`へ更新した。Sales公式readbackは`0件 / $0 net`、新しい公開URL、settlement、payoutは未確認である。
+- Gmail公式read-only検索（`from:(promptbase.com OR noreply@ses.promptbase.com) newer_than:2d`）はReels Hook Labの既存Approved/Scheduled通知と旧Declined通知だけを返し、Portfolio TrackerのApproved/Declined通知はまだ無い。
+- したがってP5cは「house model-runner 4例→semantic wait→Portfolio Tracker提出→公式Pending」まで進んだが、Approved/Declined、公開listing、sale、fee、model cost、settlement、payout、replay-zeroは未完了である。Pendingを販売額へ数えず、同一Portfolio Trackerを再送しない。
+
+#### 更新後の原子cursor
+
+1. Portfolio Trackerの公式dashboard/Gmailを自然readbackし、ApprovedまたはDeclinedを同一listingで確認する。
+2. Approved後だけ公開URL/live、Sales、fee、model cost、settlement、payout、replay-zeroへ進む。Declinedなら公式理由を保存し、別内容の修正cursorを作る。
+3. Reels Hook Lab Scheduled、Football Match Analyst Pending、Portfolio Tracker Pendingを相互に混同せず、Sales `0/$0`を維持する。
+4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
