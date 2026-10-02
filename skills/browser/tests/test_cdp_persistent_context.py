@@ -219,7 +219,7 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             self.assertRegex(records[0], r"^guard:acquire:buyma:test:\d+$")
             holder = records[0].rsplit(":", 1)[1]
             self.assertEqual(records[1], f"ensure:buyma:test:{holder}")
-            self.assertEqual(records[2], "guard:release:buyma:test:")
+            self.assertEqual(records[2], f"guard:release:buyma:test:{holder}")
 
     def test_with_browser_falls_back_to_shared_owner_for_protected_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

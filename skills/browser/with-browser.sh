@@ -72,7 +72,7 @@ release_once() {
   [ "$released" -eq 1 ] && return
   released=1
   [ "$child" -ne 0 ] && kill -TERM "$child" 2>/dev/null || true
-  "$GUARD" release "$IDENTITY" >/dev/null 2>&1 || true
+  AI_BROWSER_HOLDER_PID="$$" "$GUARD" release "$IDENTITY" >/dev/null 2>&1 || true
 }
 trap release_once EXIT INT TERM HUP
 
@@ -96,6 +96,9 @@ export CDP
 export CDP_DAILY_DRIVER_PORT="$CDP_PORT"
 export SESSION_VAULT_PORT="$CDP_PORT"
 export GIG_CDP_HEALTH_URL="${CDP%/}/json/version"
+export LIFE_MANAGER_BROWSER_LEASE_HOLDER_PID="$$"
+export LIFE_MANAGER_BROWSER_LEASE_IDENTITY="$IDENTITY"
+export LIFE_MANAGER_BROWSER_GUARD="$GUARD"
 "$@" &
 child=$!
 wait "$child"

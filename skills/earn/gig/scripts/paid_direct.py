@@ -54,6 +54,64 @@ DEFAULT_TELEGRAM_RECEIPTS = Path.home() / "gig" / "telegram-delivery-receipts"
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 
 
+@contextmanager
+def _yield_registered_browser_lease() -> Iterator[None]:
+    """Release Coconala only while the paid model performs provider-independent work."""
+    holder = os.environ.get("LIFE_MANAGER_BROWSER_LEASE_HOLDER_PID", "").strip()
+    identity = os.environ.get("LIFE_MANAGER_BROWSER_LEASE_IDENTITY", "").strip()
+    guard_value = os.environ.get("LIFE_MANAGER_BROWSER_GUARD", "").strip()
+    if not holder or not holder.isdigit() or not identity or not guard_value:
+        yield
+        return
+    guard = Path(guard_value)
+    if not guard.is_file() or guard.is_symlink():
+        raise Failure("browser_lease_yield", "browser_guard_invalid")
+    release_environment = dict(os.environ)
+    release_environment["AI_BROWSER_HOLDER_PID"] = holder
+    released = subprocess.run(
+        [str(guard), "release", identity], capture_output=True, text=True, check=False,
+        env=release_environment,
+    )
+    if released.returncode != 0:
+        raise Failure("browser_lease_yield", "browser_release_failed")
+    try:
+        yield
+    finally:
+        try:
+            wait_seconds = int(os.environ.get("BROWSER_WAIT_SECONDS", "300"))
+        except ValueError:
+            wait_seconds = 300
+        deadline = time.monotonic() + max(1, min(wait_seconds, 3600))
+        environment = dict(os.environ)
+        environment["AI_BROWSER_HOLDER_PID"] = holder
+        acquired = None
+        while time.monotonic() <= deadline:
+            acquired = subprocess.run(
+                [str(guard), "acquire", identity], capture_output=True, text=True,
+                check=False, env=environment,
+            )
+            if acquired.returncode == 0:
+                endpoint = acquired.stdout.strip()
+                match = re.fullmatch(r"http://127\.0\.0\.1:([0-9]{1,5})/?", endpoint)
+                if match is None:
+                    raise Failure("browser_lease_reacquire", "browser_endpoint_invalid")
+                port = match.group(1)
+                os.environ.update({
+                    "CLOAK_CDP_BASE_URL": endpoint,
+                    "CDP": endpoint,
+                    "CDP_DAILY_DRIVER_PORT": port,
+                    "SESSION_VAULT_PORT": port,
+                    "GIG_CDP_HEALTH_URL": f"{endpoint.rstrip('/')}/json/version",
+                })
+                break
+            time.sleep(1)
+        else:
+            raise Failure(
+                "browser_lease_reacquire",
+                f"browser_reacquire_failed:{getattr(acquired, 'returncode', 'missing')}",
+            )
+
+
 def _operator_denied_paths() -> list[str]:
     """Extra directories the sandboxed builder must not read on this machine.
 
@@ -5783,10 +5841,11 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
             progress_size = progress.stat().st_size if _regular_file(progress) else 0
             try:
                 _require_owner_policy_clear(args, _load(item_path))
-                _run_private_model_serialized(
-                    root, owner_command, "paid-remote-owner", "remote_builder", effect_owner=True,
-                    timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
-                )
+                with _yield_registered_browser_lease():
+                    _run_private_model_serialized(
+                        root, owner_command, "paid-remote-owner", "remote_builder",
+                        effect_owner=True, timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
+                    )
             except Failure as error:
                 _raise_remote_builder_or_progress(
                     progress, progress_size, progress_contract, error,
@@ -5869,9 +5928,10 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
               "--evidence-dir", str(verifier_evidence), "--task-label", "paid-remote-verifier",
               "--escalation-reason", "Fresh model independently verifies the paid live target",
               "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
-        _run_private_model_serialized(
-            root, verifier_command, "paid-remote-verifier", "remote_verifier",
-        )
+        with _yield_registered_browser_lease():
+            _run_private_model_serialized(
+                root, verifier_command, "paid-remote-verifier", "remote_verifier",
+            )
         if (_requirements_snapshot(root) != requirements_snapshot
                 or _delivery_snapshot(root) != delivery_snapshot
                 or _project_identity_snapshot(root, verifier_evidence) != project_snapshot):
