@@ -1027,7 +1027,7 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertNotIn("999999", text)
 
     def test_equivalent_replay_records_and_sends_once(self):
-        event = self.event("product_daily", "anicca-ios")
+        event = self.event("action", "anicca-ios")
         report_path, delivery_path = self.root / "owner-reports.jsonl", self.root / "owner-report-deliveries.jsonl"
         store = owner_report.OwnerReportStore(report_path, delivery_path)
         receipts = []
@@ -1084,6 +1084,40 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertTrue(report_path.exists())
         self.assertFalse(delivery_path.exists())
         client.from_env.assert_not_called()
+
+    def test_cli_skips_already_delivered_event_before_rendering(self):
+        import owner_report_cli
+
+        event = self.event("action", "anicca-ios")
+        store = owner_report.OwnerReportStore(
+            self.root / "owner-reports.jsonl",
+            self.root / "owner-report-deliveries.jsonl",
+        )
+        store.record(event)
+        store.claim_delivery(event["message_key"])
+        store.record_delivery(
+            event["message_key"], {"status": "delivered", "message_ids": [701]}
+        )
+        with (
+            mock.patch.object(owner_report, "render_japanese") as render,
+            mock.patch.object(owner_report_cli, "_send_text") as sender,
+        ):
+            rc = owner_report_cli.main(
+                [
+                    "sweep",
+                    "--kind",
+                    "action",
+                    "--product-id",
+                    "anicca-ios",
+                    "--state-root",
+                    str(self.root),
+                    "--as-of",
+                    "2026-08-05T12:00:00Z",
+                ]
+            )
+        self.assertEqual(rc, 0)
+        render.assert_not_called()
+        sender.assert_not_called()
 
     def test_replay_different_as_of_keeps_semantic_key_and_sends_once(self):
         first_event = self.event("product_daily", "anicca-ios")
