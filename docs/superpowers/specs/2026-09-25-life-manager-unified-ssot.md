@@ -2782,3 +2782,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. Capafy/App Store Connect/Stripeのofficial readback failure境界をcredential/provider/source別に閉じる。missing sourceを0円にしない。
 3. Marketplace/Investment/Agent Economyのreadback journalをownerの公式receiptへ結合し、duplicate/replay-zeroを確認する。
 4. CFO 14-loop P&Lがcompleteになるまで、10k MRR・利益・self-funding・全loop完了を宣言しない。TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 78. Affiliate PartnerStackのstale readbackとeffect fence境界（2026-10-02 15:05 JST）
+
+- CFO adapterへ既存PartnerStack artifact /Users/anicca/.local/state/life-manager/affiliate/provider-reports/partnerstack/latest.jsonをread-onlyで渡すと、観測時刻は2026-09-23T07:30:42Zで、2026-10-02のP&Lに対してstale_readbackとなった。Affiliate revenue/cost/netを0円へ置換していない。
+- affiliate-loopの最新healthはloaded release 3863e15714、state=safely_fenced、error_class=host_admission_deferred:resource_effect_unknown、retryable=true、occurrence=affiliate-loop:18da9997c8794e50-47117、last_success=2026-09-24T11:15:48Z、official receipt/readback=nullを返す。
+- したがって次の安全操作は、affiliate ownerの公式fence reconcileでeffectを確定し、再送可能と確認できた後にPartnerStack公式readbackを更新することである。手動browser/API再送、fence削除、stale artifactを売上として採用することは行わない。
+
+#### 更新後の原子cursor
+
+1. affiliate-loop occurrence 18da9997c8794e50-47117をowner-specific official readbackでreconcileする。
+2. PartnerStackのfresh commission/settlement/payout artifactをowner経路で取得し、CFO adapterへ接続する。
+3. fresh receiptと実測model/browser/infra costが揃うまでAffiliate P&L/MRRはunknownのまま保持する。
+4. Writer、Capafy、Mobile、Fundraiser等の未接続financial sourceも同じfail-closed契約で順に閉じる。TaskMarketは後段のまま。
