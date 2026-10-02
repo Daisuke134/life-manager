@@ -3306,3 +3306,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PromptBaseは自然runで現在release `d3050812aa`をloadedした occurrenceだけを観測し、審査結果→公開→sale/settlement/payoutを結合する。
 2. Capafyは空きslotの公式readbackが出るまでread-only監視し、旧effect_unknown occurrenceは保持する。
 3. いずれも手動wake、同一listingの再送、effect_unknownの推測closeは行わない。
+
+### 111. Writerの最初の未closed occurrenceはhost admission境界（2026-10-02 18:57 JST）
+
+- `writer-money-sync` の最新occurrence `18daadb58717ef20-95226` は、source/provider実行前に `host_admission_deferred:resource_capacity_busy`、exit 75、effect `none/not_applicable` で停止した。installed releaseは`d3050812aa`、最後の成功は`2026-10-02T08:34:49Z`、再試行は `retry_after_eligibility` である。
+- `writer-report` の最新occurrence `18daadc69b34eba0-96980` も同じ admission境界（exit 75）で、message effectはunknownのまま保持されている。公式provider送信・receiptが無いので、同じ報告を再送しない。
+- したがってWriterの現時点の問題はコードの失敗と断定できず、有限host capacityの自然release待ちである。次のWriter自然occurrenceがsource/provider境界まで進んだ時だけ、初めて実コードの失敗を診断する。
+
+#### 更新後の原子cursor
+
+1. PromptBase/Capafyの自然readbackを優先し、Writerはadmission waitをread-only監視する。
+2. Writerのcapacity上限や優先度を自己流で変更せず、`resource_capacity_busy` occurrenceを重複実行しない。
+3. Writerの実コード修正は、provider invocationまたは明確なsource errorが公式eventに現れた場合だけ専用worktreeで行う。
