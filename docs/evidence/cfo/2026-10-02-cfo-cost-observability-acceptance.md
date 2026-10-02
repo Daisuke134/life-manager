@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `8e0a0b50e6`
+Code release observed: `8f0e4bf599`
 
 ## Natural-run evidence
 
@@ -43,7 +43,7 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Last-known personal asset shown as stale: `JPY 504,302`
 - Moneytree source: `partial` (`source_freshness_unknown` + `transaction_completeness_unknown`)
 - B7 business source: `partial`, gap `self-build / stripe-financial-record / source_unconnected`
-- Google billing settlement: `unknown` (no Cost Table CSV receipt)
+- Google billing settlement: `settled` (official Cost Table CSV receipt; details below)
 - Provider budget: `degraded`, `unknownCount=1`, reason `unknown_cost`
 
 ### Canonical local daily close with live Moneytree (delivery injected)
@@ -71,13 +71,31 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 
 Interpretation: the collector is running and preserving the gaps, but it cannot honestly produce settled MRR/net/revenue until the configured rails provide current receipt-backed coverage.
 
-### Google Cloud billing access boundary
+### Google Cloud Cost Table official readback
 
 - Billing account `017949-09509F-6A3FB6`: open
 - Project `anicca-461216`: billing enabled
 - Current gcloud identity: billing-admin permission confirmed read-only
-- Cost Table browser route reached normal Google sign-in and then the approved Google Prompt path; current screen asks for `[はい]` in the Gmail app on the registered iPhone.
-- No Cost Table CSV was downloaded or mutated; invoice screenshot remains the only invoice-total evidence.
+- Cost Table route: Google Cloud Console billing account `017949-09509F-6A3FB6`, tabular report, invoice month `2026-09`.
+- Google Prompt was approved in the registered Gmail app; the CSV was exported read-only and copied to the local CFO state path `/Users/anicca/.local/state/life-manager/cfo/google-billing/latest-cost-table.csv` with mode `0600`.
+- Invoice number: `5712284328`; invoice date: `2026-09-30`.
+- Official invoice total: `JPY 27,889`; tax: `JPY 2,535`.
+- Japanese Cost Table parser read `41` service/SKU rows from the exact CSV bytes and returned:
+  - pre-tax raw cost: `JPY 25,354.450951`
+  - tax: `JPY 2,535`
+  - invoice total: `JPY 27,889`
+  - rounding adjustment: `JPY -0.451251`
+- CSV receipt: `google-billing://sha256/c5157075fe3e8331fa2a72d3b33fc98bbacb8b84a0ee2cfc945051ee87f66c64`.
+- Service totals (pre-tax raw): Gemini API `JPY 5,160.873099`; Places API `JPY 9,419.856821`; Geocoding API `JPY 7,493.014626`; Directions API `JPY 3,271.171127`; Cloud Key Management Service `JPY 9.530434`; Cloud Storage `JPY 0.004844`; Cloud Run `JPY 0`.
+- The daily ingestion path accepts `LM_CFO_GOOGLE_BILLING_CSV` and `LM_CFO_GOOGLE_BILLING_INVOICE_MONTH`, preserves the receipt, and never folds usage estimates into the settled amount.
+
+### Canonical local close with settled Google billing
+
+- Run: `cfo-google-settlement-20261002T150000+0900`
+- Result: `sent` with injected provider receipt `google-settlement-live-1` (no external message sent).
+- Digest: `d8a77e173eeec388e61d72814b5b5b10ac407e7fb65966de356d8026ad133e08`.
+- Report state: `googleBilling=fresh`; settlement `2026-09 / JPY 27,889`; source receipt is the CSV SHA above.
+- The same close remained `partial` for Moneytree and B7, so it did not claim a complete CFO close.
 
 ### Canonical source-specific artifact readback
 
@@ -94,7 +112,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 | Moneytree stale/empty is not zero | proved | live read + CLI exit 1 + fixture replay |
 | Canonical local Financial Manager path | proved | `runHourlyCfo` daily default, 1-day idempotent receipt |
 | Settled business coverage and gaps | partial | B7 table receipt contract exists; live source artifacts remain unconnected |
-| Google estimate vs settled invoice | partial | CSV parser/ledger/migration shipped; official Cost Table CSV not supplied/read back |
+| Google estimate vs settled invoice | proved for September settlement; partial for event-level attribution | Official Cost Table CSV parsed with receipt, tax, rounding, and service/SKU totals; joining every usage event to a billing SKU remains incomplete |
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
 | Positive delivery receipt / replay-zero | proved in fixture | `natural-1`, same digest replay quiet; no live send performed |
@@ -104,6 +122,6 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 ## Remaining owner-visible blockers
 
 1. Moneytree authorization/source refresh must be restored so account source update time and transaction completeness can be proven.
-2. Google Cloud Cost Table CSV must be exported/read-only imported for the invoice month; the user-provided ¥27,889 screenshot is not a machine receipt.
-3. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
-4. Cloud canary and seven-period observation require the existing production loop owner and official provider receipts; this evidence run intentionally did not mutate or send production state.
+2. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
+3. Cloud canary still lacks an email/wallet binding for the selected tenant, so no production send claim is made.
+4. Seven-period observation requires the existing production loop owner and official provider receipts; this evidence run intentionally did not mutate or send production state.
