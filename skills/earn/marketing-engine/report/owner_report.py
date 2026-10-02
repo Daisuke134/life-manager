@@ -379,7 +379,12 @@ def _social_checkpoint_incident_key(
     return key
 
 
-def _action_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> list[dict]:
+def _action_events(
+    root: pathlib.Path,
+    product_id: str,
+    as_of: dt.datetime,
+    skip_message_keys: set[str] | None = None,
+) -> list[dict]:
     identities = _indexed_rows(root, "publication-identity.jsonl")
     attributions = _indexed_rows(root, "experiment-attribution.jsonl")
     candidates: list[tuple[str, int, dict, str, str]] = []
@@ -457,6 +462,8 @@ def _action_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> l
             "platform": row.get("platform") or "unknown",
         }
         message_key = f"action:{product_id}:{native_id}"
+        if message_key in (skip_message_keys or set()):
+            continue
         evidence_refs = [ref]
         existing = _existing_owner_report(
             root,
@@ -486,7 +493,12 @@ def _action_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> l
     return events
 
 
-def _checkpoint_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> list[dict]:
+def _checkpoint_events(
+    root: pathlib.Path,
+    product_id: str,
+    as_of: dt.datetime,
+    skip_message_keys: set[str] | None = None,
+) -> list[dict]:
     rows = _latest_metric_snapshots(
         _scoped(_indexed_rows(root, "post-metrics.jsonl"), product_id), as_of
     )
@@ -520,11 +532,14 @@ def _checkpoint_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) 
         if row.get("corrects_snapshot_id"):
             correction_id = str(row.get("snapshot_id") or "unknown")[:12]
             suffix += f":correction:{correction_id}"
+        message_key = f"checkpoint:{product_id}:{suffix}"
+        if message_key in (skip_message_keys or set()):
+            continue
         events.append(_event(
             kind="checkpoint",
             product_id=product_id,
             as_of=as_of,
-            message_key=f"checkpoint:{product_id}:{suffix}",
+            message_key=message_key,
             facts=facts,
             evidence_refs=[_ref("post-metrics.jsonl", index)]
             + [_ref("publication-identity.jsonl", identity_index) for identity_index, _ in matched_identity],
@@ -1154,6 +1169,7 @@ def build_events(
     *,
     product_id: str | None,
     as_of: dt.datetime,
+    skip_message_keys: set[str] | None = None,
 ) -> list[dict]:
     """Build canonical report events for one sweep.
 
@@ -1173,9 +1189,13 @@ def build_events(
     events: list[dict] = []
     for selected_product in selected:
         if kind == "action":
-            events.extend(_action_events(root, selected_product, as_of))
+            events.extend(
+                _action_events(root, selected_product, as_of, skip_message_keys)
+            )
         elif kind == "checkpoint":
-            events.extend(_checkpoint_events(root, selected_product, as_of))
+            events.extend(
+                _checkpoint_events(root, selected_product, as_of, skip_message_keys)
+            )
         elif kind == "product_daily":
             events.extend(_daily_events(root, selected_product, as_of))
         elif kind == "incident":

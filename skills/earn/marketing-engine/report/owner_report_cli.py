@@ -78,14 +78,26 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         as_of = _parse_as_of(args.as_of)
+        report_path = pathlib.Path(args.state_root) / "owner-reports.jsonl"
+        delivery_path = pathlib.Path(args.state_root) / "owner-report-deliveries.jsonl"
+        latest_deliveries = {}
+        if not args.no_send:
+            for row in owner_report.load_jsonl(delivery_path):
+                message_key = row.get("message_key")
+                if isinstance(message_key, str):
+                    latest_deliveries[message_key] = row
+        delivered_keys = {
+            message_key
+            for message_key, row in latest_deliveries.items()
+            if row.get("status") == "delivered"
+        }
         events = owner_report.build_events(
             args.state_root,
             args.kind,
             product_id=args.product_id,
             as_of=as_of,
+            skip_message_keys=delivered_keys,
         )
-        report_path = pathlib.Path(args.state_root) / "owner-reports.jsonl"
-        delivery_path = pathlib.Path(args.state_root) / "owner-report-deliveries.jsonl"
         store = owner_report.OwnerReportStore(report_path, delivery_path)
         failed = False
         for event in events:
