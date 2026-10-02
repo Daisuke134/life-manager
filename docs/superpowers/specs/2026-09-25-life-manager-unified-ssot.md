@@ -2603,3 +2603,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. no-effectが公式に証明された場合だけfenceを正式closeし、次の正式owner runを一度kickstartする。
 3. 次のrunでstep1 diagnostic（URL/body/screenshot）またはPromptBase公式submission readbackを取得する。外部効果が不明なまま再送しない。
 4. PromptBaseと同じbrowser resourceを使わないCapafy/CFO/Writer/Mobile/Connectorのread-only根拠収集を並列で継続する。
+
+### 65. PromptBase pre-effect close後の2回目kickstart境界（2026-10-02 10:57 JST）
+
+- `18da92c1ffa4eec0-93729`は公式dashboard title不在のpre-effect proofで`closed=true/effected=false`として解放した。provider/browser submissionは0件である。
+- 直後に同じ正式owner wrapperを一度だけ再実行したが、新occurrence `promptbase-loop-daily:18da93b667193e40-35609`は`exit=75 / host_admission_deferred:resource_capacity_busy`でprovider前に停止し、DB状態は`queued/effect_unknown=0`、receipt/effect=0である。
+- 容量を空ける候補として`pre-effect-reconcile --dry-run`を`life-manager-anicca-main-instagram`等へ実行したが、`resolved=[]`、`history_incomplete`/`no_pre_effect_terminal`のみ。したがって他ownerのfenceを手動解放する安全な証拠はない。
+- 結論: PromptBaseを実行しない理由は時刻ではなく、他ownerの外部効果不明fenceがagent/revenue容量を占有しているため。PromptBaseの再送・容量上限変更・fence削除は行わず、独立laneを並列継続する。
+
+#### 更新後の原子cursor
+
+1. `18da93b667193e40-35609`が自然admissionでclaimされ、provider/browser境界へ進むまでread-only観測する。
+2. claim後にstep1 diagnosticまたは公式PromptBase submission readbackを取得する。未確認なら再送しない。
+3. 他ownerで公式proofが取れたfenceだけを自然reconcilerで閉じ、capacity summaryの減少をreadbackする。
+4. Capafy利益/slot、Writer/Ebook/Affiliate、Mobile/Connector、CFOの独立read-only/source作業を並列し、TaskMarketは後段へ維持する。
