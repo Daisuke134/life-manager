@@ -2795,3 +2795,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. PartnerStackのfresh commission/settlement/payout artifactをowner経路で取得し、CFO adapterへ接続する。
 3. fresh receiptと実測model/browser/infra costが揃うまでAffiliate P&L/MRRはunknownのまま保持する。
 4. Writer、Capafy、Mobile、Fundraiser等の未接続financial sourceも同じfail-closed契約で順に閉じる。TaskMarketは後段のまま。
+
+### 79. Affiliate fence修正のproduction loadとFIFO安全gate（2026-10-02 15:12 JST）
+
+- PR #6452（main 1218037eb354a19df547f72226c54c45b2424355）のimmutable candidate release 20261002T130200-1218037eを作成し、preflight PASS後、affiliate-loopだけをtarget applyした。launchctl readbackはLIFE_MANAGER_RELEASE_SHA=1218037eb3、ProgramArgumentsも同release、apply rc=0だった。
+- 修正版host_fence_reconcile.pyを実production occurrence affiliate-loop:18d83ba82b14fb40-24990へread-only probeした。predecessor reportの古いclaim URI不一致はrun_id identity fallbackで越えたが、FIFO証拠の次gateはtarget_not_queued_before_windowであり、PROOF_READYにはならずHELDだった。
+- このHELDは「修正失敗」ではなく、predecessor report（2026-09-22T20:13:25Z）よりtarget queued_at（2026-09-22T20:23:25Z）が後で、同じpre-effect窓に属すると証明できないという安全判定である。active effect_unknownを公式receiptなしにcloseせず、provider/browser再送も行わない。
+
+#### 更新後の原子cursor
+
+1. Affiliateの別のowner-specific official receipt/readbackを取得し、target occurrenceのeffectがpre-effectか実効果かを証明できる経路を探す。推測closeは禁止。
+2. fresh PartnerStack reportが取得できた後、CFO adapterでstale_readbackが消え、settled commission/fee/payoutが検証できることを確認する。
+3. FIFO証拠が揃わないoccurrenceはHELDのまま保ち、capacity上限変更・manual retry・fence削除をしない。
+4. Writer/Capafy/Mobile等のsource gapsを並列に閉じるが、P&L unknownを0円へ変換しない。TaskMarket/BlockRunは後段のまま。
