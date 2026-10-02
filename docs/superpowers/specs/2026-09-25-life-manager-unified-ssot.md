@@ -3802,3 +3802,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Buddhaは次の自然owner wakeがrelease `0be83c2507`で新しいoccurrenceを実行し、render→Postiz receipt→provider readbackを同一identityへ書くまで待つ。
 2. 既存unknown occurrenceは、exact receiptまたは公式Postiz readbackが得られた場合だけowner-scoped reconcilerで解放する。
 3. Buddhaでnatural PASSとreplay-zeroを確認後、同じMobile packaging classの残jobを一件ずつ確認し、ASC/RevenueCat proceeds・fee・actual costへ接続する。
+
+### 155. CFO Stripe official-readback source統合とproduction HOLD（2026-10-02 23:58 JST）
+
+- PR #6497をmain `3003e1f289`へsquash mergeした。Stripeのbalance transactions、charges、refunds、subscriptionsを全page read-only取得し、cross-currency settlement、historical/trailing coverage、explicit account classificationをfail-closedでB0へ変換するsource修正である。
+- targeted financial reviewで、(1) `created`だけでtrailing gapを落とす、(2)不正`has_more`を完了扱いする、(3)charge/refundのmislinked balance transactionを信用する、(4)multi-page cursor cycleを受理する問題を検出した。TDDでsettlement `available_on`、pending/unknown保持、object/type/source linkage、refund-total mismatch、strict boolean pagination、global seen IDsを追加し、final exact-head reviewはSHIPだった。
+- fresh verificationはCFO Python `249/249 PASS`、`py_compile`、`git diff --check`、`lm-loop-contract`（14 Product Loops / 178 registry jobs）PASS。GitHub Agent/Loop/Startup/OSS/PII/Python/Shell/gitleaks/TruffleHogも全PASSした。
+- primary環境のread-only live probeは`credential_missing:stripe_live_secret_key`でfail-closedし、provider count/amountを再取得できなかった。別担当のlive件数や金額をprimary未検証のまま収益へ採用しない。
+- productionは未反映である。current releaseは`0be83c2507`、mainは`3003e1f289`。既存release reconciler PID `19254`が稼働中で、`life-manager-cfo-hourly` occurrence `18dabe49b150d460-20288`と`life-manager-financial-report` occurrence `18dabe2fc68c7e70-17398`はいずれもmessage effect unknown・official delivery receiptなし。release race、target reapply、message再送を行わない。
+
+#### 更新後の原子cursor
+
+1. 既存release reconcilerが自然終了して最新main releaseを生成したかreadbackする。手動で二重releaseを作らない。
+2. CFO message effect unknownは公式delivery readbackまたはexact pre-effect proofが得られたoccurrenceだけowner-scopedでreconcileする。
+3. 新releaseを安全にloadedできた後、approved secret ownerの環境でStripe GET-only readbackを実行し、collection counts、coverage、fee/refund/settlementをsanitized artifactへ保存する。live amountをprimary未確認のまま利益へ数えない。
