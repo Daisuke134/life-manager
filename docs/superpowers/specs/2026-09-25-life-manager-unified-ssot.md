@@ -4015,3 +4015,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. InvestmentはAT-13のみ。次のcompleted daily sessionがexit reasonを出すまでnatural schedulerを読む。same-session HOLD、wake数、unrealized P&Lを完了証拠にしない。
 2. AT-13成立後だけAT-14のofficial exit order GETへ進む。manual sell/wake/replayは行わない。
 3. 30/30とAT-24/AT-29完了までlive資金操作を行わない。Investmentの自然待ちと独立して、残るCFO/全loop observability・cloud/self-fundingを進める。
+
+### 170. Marketing owner observabilityのreplay衝突と容量占有の修復（2026-10-03 03:38 JST）
+
+- `marketing-owner-events`の連続failureは、同じ`portfolio_weekly:<date>` keyで可変の`business-outcomes.jsonl`を毎回再計算し、既存の不変reportと`conflicting replay`になることが第一原因だった。同日の正本reportを再利用し、翌日だけfresh keyを作る修正をPR #6501でmergeした（main `c58a0ceb448ffbd6a40eb0407253747433fb4871`）。
+- 過去のTelegram timeoutが2件だけ`delivery_unknown`のまま全stageをfailさせていた。MTProto公式履歴でcheckpointはexact message key→message ID `87881`、actionはimmutable native post identity→message ID `70187`と照合し、新設のfail-closed `reconcile_delivery`でこの2 keyだけ`delivery_unknown -> delivered`にappendした。再送は0。readback source、match方法、observed_at、receiptと同じmessage IDが無いreconcileは拒否する。
+- action 287件とcheckpoint 935件の済みeventを毎回再生成し、owner ledgerをO(n²)で読み返すため、1 runが6〜9分deterministic revenue slotを占有していた。latest delivery snapshotで`delivered`のaction/checkpointだけをevent生成前にskipする修正をPR #6502でmergeした（main `88c7882f5204a8a11f1440b183ac3481b769b0e3`）。`delivery_unknown / failed / missing`と`--no-send`はskipしない。本番stateのread-only実測でactionは0件/`0.039s`、checkpointは0件/`0.32s`になった。
+- related unittestは51件PASS、両PRのGitHub CI全件PASS、fresh Sol reviewはどちらも`SHIP`。immutable releaseは`/Users/anicca/loops/releases/20261003T032735-88c7882f`、installed plist SHAとloaded argvは`88c7882f`に一致する。
+- 本番run `18daca0a2d49a008-59493`は8 stagesすべてPASS・exit0（18:32:26Z→18:34:38Z）。直後のreplay run `18daca2ad1a59768-66904`も8 stagesすべてPASS・exit0（18:34:47Z→18:37:29Z）。replay前後でowner reports/deliveries=`1933/3867`、metrics reports/deliveries=`53/90`は変化せず、追加Telegram送信は0。
+- `lm-loop health --loop marketing-owner-events --explain`はlatest success=`2026-10-02T18:37:29Z`、failed=0、productivity/recovery/runtime=`ok`、effect_unknown=0。effect classが`none`のcontrol jobなのでstate表示は`safely_fenced`であり、これを売上成功や全14-15 loop修復済みと読み替えない。
+- release `c58a0ceb` fleet applyは127 changed/42 skipped/3 errors（`hf-gig-apply-direct` / `alpaca-investment-live` / `life-manager-instagram-metrics`）の部分成功だった。今回のmarketing target applyとnatural readbackは個別にPASSしたが、この3 ownerの未完は別cursorとして残す。
+
+#### 更新後の原子cursor
+
+1. 解放されたrevenue slotでCFOの次の自然runを読み、`last-result-report.json`、outbox、Telegram receipt、healthが同じoccurrence/releaseで結合するかを検証する。
+2. CFO待ちと独立してWriter sales measureとAffiliate source/compositionのnatural admissionを読み、entrypoint前capacity busyから先へ進んだかを確認する。
+3. 即時収益per-pathはPromptBase→Writer→Affiliate→Mobile→Connector→Fundraiser→paid contractの順を維持する。TaskMarket/Agent Economyはこの後に保持し、marketing control jobの修復だけで自己資金化完了としない。
