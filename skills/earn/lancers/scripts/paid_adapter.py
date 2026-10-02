@@ -79,6 +79,7 @@ class _LiveLancersProvider:
         self.page = None
         self._lock = None
         self._posted: dict[str, str] = {}
+        self._acceptance_cache: dict[str, Any] = {}
 
     def _open(self) -> None:
         if self.page is not None:
@@ -190,7 +191,7 @@ class _LiveLancersProvider:
                 "accept_form_action": order["action"],
                 "accept_fields": dict(order["fields"]),
             }
-        if work_sync._read_acceptance_confirmed(self.page, project_id):
+        if work_sync._read_acceptance_confirmed(self.page, project_id, cache=self._acceptance_cache):
             return {"provider_state": "accepted_confirmed",
                     "project_id": project_id, "proposal_id": proposal_id}
         return {"provider_state": "acceptance_state_unknown",
@@ -214,6 +215,10 @@ class _LiveLancersProvider:
         )
         if not isinstance(value, Mapping) or value.get("status") not in {200, 201, 302}:
             raise RuntimeError("lancers_paid_acceptance_submission_uncertain")
+        # The shared acceptance-list cache may hold a pre-mutation snapshot from an earlier
+        # candidate's check in this same wake; drop it so the readback right after this accept
+        # always re-fetches the list instead of reading stale pre-accept state.
+        self._acceptance_cache.clear()
 
     def send_message(self, intent: Mapping[str, Any], detail: Mapping[str, Any]) -> None:
         board_id = detail.get("board_id")
@@ -250,7 +255,7 @@ class _LiveLancersProvider:
         order = work_sync._read_order_terms(self.page, project_id)
         if order is not None:
             return {"verified": False, "authoritative_absent": False}
-        if work_sync._read_acceptance_confirmed(self.page, project_id):
+        if work_sync._read_acceptance_confirmed(self.page, project_id, cache=self._acceptance_cache):
             return {"verified": True, "provider_receipt_id": f"lancers-project-approval-{project_id}",
                     "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
         return {"verified": False, "authoritative_absent": False}
