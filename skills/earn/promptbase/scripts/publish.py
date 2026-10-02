@@ -65,6 +65,17 @@ def _current_step(page) -> str:
     return "unknown"
 
 
+def _wait_for_step(page, expected: str) -> None:
+    """Wait for the wizard's visible step marker instead of sleeping a guess."""
+    wait_for_function = getattr(page, "wait_for_function", None)
+    if not callable(wait_for_function):
+        raise RuntimeError("step_transition_wait_unsupported")
+    wait_for_function(
+        "expected => document.body.innerText.slice(0, 200).includes(expected)",
+        expected,
+    )
+
+
 def _record_step1_failure(page, evidence_dir: Path) -> None:
     """Persist the browser boundary when the wizard refuses to advance."""
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -178,7 +189,12 @@ def _fill_step1(page, listing, evidence_dir: Path) -> None:
         raise RuntimeError(f"step1_state_mismatch:{json.dumps(state, ensure_ascii=False)}")
 
     _click_text(page, "Next: Prompt File")
-    page.wait_for_timeout(1200)
+    try:
+        _wait_for_step(page, "2/3")
+    except Exception:
+        # Preserve the existing diagnostic boundary when the provider never
+        # exposes the next step or the wait itself fails.
+        pass
     if _current_step(page) != "2/3":
         # Name the reason PromptBase shows (the 2026-09-30 04:20 and 08:30 runs failed here with none).
         _record_step1_failure(page, evidence_dir)
