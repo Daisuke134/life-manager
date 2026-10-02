@@ -3946,3 +3946,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Affiliateは旧publish effectのexact provider readbackなしに再送・fence closeしない。commission rowが発生した時だけcapture→reconcile→payoutを結ぶ。
 2. payout tax/KYC/payment selectionは自動突破しない。legal/provider必須bootstrapとして明示し、通常loopから分離する。
 3. 次はMobileのPostiz publication、ASC/RevenueCat proceeds、fee、payout、actual costをofficial readbackし、その後Connector→Fundraiserへ進む。
+
+### 165. Mobile Postiz・RevenueCat・ASC official boundary（2026-10-03 02:43 JST）
+
+- Product Loop `mobile-apps`は22 jobs。financial source `app-store-financial-record`とcost source `mobile-product-cost-financial-record`はcatalog上`missing`のままで、funnelだけ`revenuecat-funnel-receipt`がimplementedである。
+- 2026-10-02のRevenueCat official snapshotsでは`anicca-ios`がActives `5`、MRR `$20.34`、観測window revenue `$32.56`。ただしlatest complete dayはRevenue `$0`、Transactions `0`、New customers `0`。`honne-ai / breath-reset / desk-stretch-timer / micro-mood / sleep-ritual`はcurrent MRR/revenue `0`。RevenueCat gross/windowをASC settled proceeds、Apple fee、payout、net profitへ昇格させない。
+- App Store Connectはprimaryのread-only `asc apps list`がexit13で`A required agreement is missing or has expired`を返した。current ASC acquisition/salesは各productで`unavailable / provider_query_failed`。downloads/proceeds/fee/payoutのcurrent official tableを取得できず、過去logの`Apple収益0`反復を現在のfinancial receiptへ使わない。
+- Postiz durable distribution ledgersはcarousel `284/284`、Anicca video `483/483`、Honne video `102/102`が`published + provider_reconciled`。ただしAnicca videoは2 creative/2 slotsが同じprovider post IDへ結合した1件があり、unique provider postsは`482`。receipt row数を外部post数や収益へ直結させない。
+- 17 publication ownersをexisting provider reconcilerでread-only突合した。16 ownersは`exact_pending_receipt_unavailable / no_match`、JP1はexisting `LM_POSTIZ_API_KEY`をprocess-local aliasしてofficial GETしたが`provider_readback_not_exact`。resolve/repostは0。exact identity、account、caption/media hashが一致しないfenceを閉じない。
+- 22 jobsのinstalled SHA分布は`e1a5a2ccee=16 / 09960df06f=3 / 3003e1f289=1 / 36881e439c=1 / 9a76dcc87d=1`。publication jobsはcurrent healthですべて`safely_fenced`またはofficial readback required、daily-driverのみrunning。全Mobileを099 loaded/修復済みとは扱わない。
+
+#### 更新後の原子cursor
+
+1. Mobile publicationはexact Postiz readbackなしに再投稿・fence close・bulk applyしない。current official postとidentityが一致したownerだけを一件ずつresolveする。
+2. ASC agreement missing/expiredはprovider legal bootstrapのhuman-required境界として保持する。agreement成立後にASC sales/proceeds/fee/payoutを取得し、RevenueCat funnelとproduct単位でjoinする。
+3. actual cost sourceを接続するまでMRR/grossからnet profitをclaimしない。次はConnectorのofficial Calendar/provider receiptをreadbackし、その後Fundraiserへ進む。
