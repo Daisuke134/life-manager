@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `0062077e46`
+Code release observed: `b69ecbdfcf`
 
 ## Natural-run evidence
 
@@ -72,16 +72,32 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Collector: `skills/cfo/loop_pnl.py --date 2026-10-02 --json`
 - Snapshot: `2026-10-02T15:00:00.000000Z`
 - Trailing window: `2026-09-02T15:00:00.000000Z..2026-10-02T15:00:00.000000Z`
-- Historical company: `unknown`, no settled company total (`137` coverage gaps)
-- Trailing company: `unknown`, no settled company total (`132` coverage gaps)
-- Historical gap classes: `missing_category=126`, `source_unconnected=5`, `unverified_receipt=3`, `read_failed=2`, `stale_readback=1`
-- Trailing gap classes: `missing_category=122`, `source_unconnected=5`, `unverified_receipt=2`, `read_failed=2`, `stale_readback=1`
-- Readback artifact SHA-256: `0a9291be9ad5fa837d45550c64dbc0316b35a8c5c8d91ddbbd91d8f869539c2a`
+- Historical company: `unknown`, no settled company total (`136` coverage gaps)
+- Trailing company: `unknown`, no settled company total (`131` coverage gaps)
+- Historical gap classes: `missing_category=126`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`, `unverified_receipt=1`, `read_failed=1`
+- Trailing gap classes: `missing_category=122`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`, `read_failed=1`
+- Readback artifact SHA-256: `291767265beacd05eb8d040302b328372c911e5b99e6a3a02ccef81aeb8dfe82`
 - Canonical artifact-path rerun receipt: `loop-pnl://sha256/979f5e3ee3903cd0add3a5138c793f87b6dd9344408edd33117c9fe0bccfdd1b`
-- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); actual-cost `read_failed=1`; Writer and PartnerStack `stale_readback=1` each; Alpaca account/order `unverified_receipt=2`; Capafy and mobile `missing_coverage=2`; plus explicit unreported-loop coverage rows. Stripe is no longer `read_failed`: its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
-- Fresh private-state audit found no safe replacement receipt for the other unresolved rails: the Lancers marketplace SQLite has `260` `application_verified` events and `0` `payment_received` events; Alpaca has decision/effect receipts but no current settled bundle; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
+- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); actual-cost `read_failed=1`; Writer `stale_readback=1`; PartnerStack and Alpaca order P&L `missing_coverage=2`; Capafy and mobile `source_unconnected=2`; plus explicit unreported-loop coverage rows. Stripe is no longer `read_failed`: its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
+- Fresh private-state audit now has official PartnerStack and Alpaca account readbacks. PartnerStack has an empty commission/payout report and therefore remains `missing_coverage`; Alpaca cash balance is verified but filled-order realized P&L is not derived, so order coverage remains `missing_coverage`. The Lancers marketplace SQLite still has `260` `application_verified` events and `0` `payment_received` events; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
 
 Interpretation: the collector is running and preserving the gaps. Stripe now has an official readback path and source-backed trailing receipts, but portfolio-wide settled MRR/net/revenue remains unknown until the other configured rails provide current receipt-backed coverage.
+
+### PartnerStack official commission/payout readback
+
+- Capture command: existing `skills/affiliate/scripts/revenue_cli.py capture --cdp-port 9324` against the authenticated PartnerStack dashboard.
+- Provider observed at `2026-10-02T14:31:29.921688Z`; official commission rows: `0`; payout rows: `0`.
+- Provider state: `PAYOUT_BLOCKED_BY_TAX_SETUP`; tax information is required and payment-provider selection is still shown. These are provider facts, not guessed zeros.
+- Content-addressed artifact SHA-256: `95a4803a2f48c69814760f47ec31eec584ea8bc9c08f1e5c7f4b6f384ddc37f3`.
+- The CFO adapter now accepts the configured `latest.json` capture receipt only when its sibling artifact hash and bytes match; a recent readback within 24 hours is not incorrectly marked stale.
+
+### Alpaca official account readback
+
+- Read-only live API account readback observed at `2026-10-02T14:35:36.377777Z`; official orders collection returned `10` filled orders.
+- Verified liquid cash: `USD 0`; account equity was observed separately but is not substituted for liquid cash.
+- Account artifact SHA-256: `4d52a7922d7f2ec3b0e879bf5a7b906e85abb3ca934ce71af5485a3a3f6149ee`.
+- No realized P&L is invented from order rows. The account coverage is verified; order/realized-P&L coverage remains explicitly `missing_coverage` until a broker-settled P&L bundle exists.
+- The B0 projection uses a 24-hour freshness window for recent official provider readbacks; future or 24-hour-and-older observations remain stale.
 
 ### Stripe official API readback and settlement reconciliation
 
@@ -151,7 +167,7 @@ Interpretation: the collector is running and preserving the gaps. Stripe now has
 |---|---|---|
 | Moneytree stale/empty is not zero | proved | installed plugin read + CLI exit 1 + fixture replay; last-known balance ¥504,302, income ¥806,201, spending ¥205,500 |
 | Canonical local Financial Manager path | proved | `runHourlyCfo` daily default, 1-day idempotent receipt |
-| Settled business coverage and gaps | partial | B7 table receipt contract exists; Stripe official trailing readback is now connected, while other rails and one historical Stripe adjustment remain explicit gaps |
+| Settled business coverage and gaps | partial | B7 table receipt contract exists; Stripe trailing and Alpaca account readbacks are connected, PartnerStack is official-empty, and order/marketplace/actual-cost gaps remain explicit |
 | Google estimate vs settled invoice | proved for September settlement; partial for event-level attribution | Official Cost Table CSV parsed with receipt, tax, rounding, and service/SKU totals; joining every usage event to a billing SKU remains incomplete |
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
