@@ -432,6 +432,30 @@ class AffiliateAttributionTest(unittest.TestCase):
             for row in coverage for ref in row["evidence_refs"]
         ))
 
+    def test_recent_readback_before_snapshot_is_fresh_within_daily_window(self):
+        artifact = fixture("affiliate-partnerstack-stale-empty.json")
+        artifact["observed_at"] = "2026-09-30T12:00:00Z"
+        digest = hashlib.sha256(json.dumps(artifact, sort_keys=True).encode()).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / f"{digest}.json").write_text(json.dumps(artifact), encoding="utf-8")
+            (root / "latest.json").write_text(json.dumps({
+                "schema_version": 1,
+                "receipt_type": "PARTNERSTACK_REPORT_CAPTURE",
+                "provider": "elevenlabs",
+                "currency_display": "USD",
+                "commission_row_count": 0,
+                "commission_row_state": "EMPTY",
+                "normalizer_state": "NO_LIVE_ROWS",
+                "rendered_artifact_sha256": digest,
+                "observed_at": artifact["observed_at"],
+            }), encoding="utf-8")
+            records = affiliate.adapt_path(
+                root / "latest.json", snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+        coverage = [row for row in records if row["record_type"] == "coverage"]
+        self.assertEqual({row["reason"] for row in coverage[:2]}, {"missing_coverage"})
+
     def test_capture_artifact_hash_mismatch_cannot_create_verified_receipts(self):
         payload = fixture("affiliate-partnerstack-complete.json")
         payload["artifact"]["normalized_commissions"][0]["gross_commission_minor"] = 9900

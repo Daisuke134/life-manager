@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 
@@ -36,6 +36,7 @@ GAP_REASONS = (
     "source_unconnected", "credential_missing", "read_failed", "stale_readback",
     "unsupported_currency", "unverified_receipt", "missing_coverage", "missing_category",
 )
+FRESHNESS_MAX_AGE = timedelta(hours=24)
 
 IDENTITY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$")
 NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
@@ -310,6 +311,18 @@ def _exact_add(*numbers: Decimal) -> Decimal:
         return sum(numbers, Decimal("0"))
 
 
+def _stale_at(observed_at: str, end: str) -> bool:
+    try:
+        observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+        boundary = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if observed.tzinfo is None or boundary.tzinfo is None:
+            return True
+        age = boundary.astimezone(timezone.utc) - observed.astimezone(timezone.utc)
+        return age < timedelta(0) or age >= FRESHNESS_MAX_AGE
+    except (TypeError, ValueError, OverflowError):
+        return True
+
+
 def _coverage(rows: list[dict], loop_id: str, projection: str, start: str | None, end: str,
               required_categories: tuple[str, ...]) -> list[dict]:
     candidates = [row for row in rows if row["product_loop_id"] == loop_id
@@ -326,7 +339,7 @@ def _coverage(rows: list[dict], loop_id: str, projection: str, start: str | None
                          "reason": "stale_readback"})
             continue
         latest = max(eligible, key=lambda row: row["observed_at"])
-        if latest["observed_at"] != end:
+        if _stale_at(latest["observed_at"], end):
             gaps.append({"product_loop_id": loop_id, "source_id": source_id,
                          "reason": "stale_readback"})
             continue
@@ -434,7 +447,7 @@ def _latest_subscriptions(snapshots: list[dict], end: str) -> tuple[list[dict], 
             continue
         selected = max(eligible, key=lambda row: row["observed_at"])
         latest.append(selected)
-        if selected["observed_at"] != end:
+        if _stale_at(selected["observed_at"], end):
             stale_loops.add(selected["product_loop_id"])
     return latest, stale_loops
 
@@ -525,7 +538,7 @@ def _runway(trailing: dict, balances: list[dict], start: str, end: str,
             continue
         selected = max(eligible, key=lambda row: row["observed_at"])
         latest[account] = selected
-        stale = stale or selected["observed_at"] != end
+        stale = stale or _stale_at(selected["observed_at"], end)
     if stale:
         return {"status": "unknown", "currencies": {}, "reasons": ["liquid_balance_stale"]}
     if any(row["verification_state"] != "verified" for row in latest.values()):

@@ -468,6 +468,22 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
         )
         self.assertEqual((account["coverage_state"], account["reason"]), ("gap", "unverified_receipt"))
 
+    def test_recent_investment_readback_before_snapshot_is_fresh_within_daily_window(self):
+        payload = fixture("investment-realized.json")
+        observed = "2026-09-30T12:00:00Z"
+        payload["observed_at"] = observed
+        payload["window_end"] = observed
+        payload["balance"]["observed_at"] = observed
+        payload["balance"]["snapshot_id"] = "alpaca-account-readback:2026-09-30T12:00:00Z"
+
+        rows = self.adapt_investment(payload)
+        self.assertTrue(receipts(rows, "investment"))
+        for source_id, projection in (
+            ("alpaca-orders", "trailing"), ("alpaca-account", "as_of"),
+        ):
+            row = source_coverage(rows, "investment", source_id, projection)
+            self.assertEqual((row["coverage_state"], row["reason"]), ("complete", None))
+
     def test_agent_strict_boolean_integer_types_and_alias_conflicts_fail_closed(self):
         cases = (
             (

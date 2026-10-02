@@ -559,6 +559,20 @@ class EconomicAttributionContractTest(unittest.TestCase):
             for gap in result["historical"]["company"]["coverage_gaps"]
         ))
 
+    def test_recent_source_readbacks_before_projection_end_remain_fresh(self):
+        observed_at = "2026-09-30T23:30:00Z"
+        rows = [
+            subscription_snapshot(observed_at=observed_at),
+            liquid_balance(observed_at=observed_at),
+        ]
+        coverage_rows = [
+            dict(row, observed_at=observed_at)
+            for row in complete_coverage()
+        ]
+        result = self.project(rows, coverage_rows)
+        self.assertEqual(result["mrr"]["loops"]["self-build"]["status"], "verified")
+        self.assertEqual(result["runway"]["status"], "positive_cashflow")
+
     def test_provider_scoped_identities_do_not_dedupe_other_providers(self):
         same_receipt_id = [
             receipt("same", provider="stripe"),

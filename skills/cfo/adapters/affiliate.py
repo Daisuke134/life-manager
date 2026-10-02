@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, DecimalException
 from pathlib import Path
 
@@ -43,6 +44,19 @@ PRODUCER_COMMISSION_STATUS = {
     "declined": "reversed", "reversed": "reversed", "paid": "paid",
 }
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+FRESHNESS_MAX_AGE = timedelta(hours=24)
+
+
+def _stale_observation(observed: str, end: str) -> bool:
+    try:
+        observed_at = datetime.fromisoformat(observed.replace("Z", "+00:00"))
+        end_at = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if observed_at.tzinfo is None or end_at.tzinfo is None:
+            return True
+        age = end_at.astimezone(timezone.utc) - observed_at.astimezone(timezone.utc)
+        return age < timedelta(0) or age >= FRESHNESS_MAX_AGE
+    except (TypeError, ValueError, OverflowError):
+        return True
 
 
 def _canonical_hash(value: dict) -> str:
@@ -458,7 +472,7 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str,
 
     if failures:
         receipts = []
-    if observed_at != end:
+    if _stale_observation(observed_at, end):
         failures.append("stale_readback")
     failures.append("missing_coverage")
     reason = next(candidate for candidate in (

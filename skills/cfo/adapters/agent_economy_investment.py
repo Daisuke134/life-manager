@@ -15,12 +15,27 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any, Iterable
 
 from skills.cfo import economic_attribution as contract
+
+
+FRESHNESS_MAX_AGE = timedelta(hours=24)
+
+
+def _stale_observation(observed: str, end: str) -> bool:
+    try:
+        observed_at = datetime.fromisoformat(observed.replace("Z", "+00:00"))
+        end_at = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if observed_at.tzinfo is None or end_at.tzinfo is None:
+            return True
+        age = end_at.astimezone(timezone.utc) - observed_at.astimezone(timezone.utc)
+        return age < timedelta(0) or age >= FRESHNESS_MAX_AGE
+    except (TypeError, ValueError, OverflowError):
+        return True
 
 
 AGENT_LOOP = "agent-economy"
@@ -375,7 +390,7 @@ def _readback_meta(payload: dict[str, Any], end: str) -> tuple[str, str | None, 
         or readback.get("history_complete") is True
         or readback.get("historical_complete") is True
     )
-    return observed, window_start, history_complete and window_end == end, _digest(payload)
+    return observed, window_start, history_complete and window_end == observed, _digest(payload)
 
 
 def _bundle_reorg_detected(payload: dict[str, Any]) -> bool:
@@ -533,9 +548,10 @@ def _coverage_set(
     evidence: str,
     reason: str | None = None,
     as_of: bool = False,
+    allow_recent: bool = False,
 ) -> list[dict[str, Any]]:
-    stale = observed_at != end
-    window_ok = window_start is not None and window_start <= start and observed_at == end
+    stale = _stale_observation(observed_at, end) if allow_recent else observed_at != end
+    window_ok = window_start is not None and window_start <= start and not stale
     effective_reason = "stale_readback" if stale else reason
     historical_complete = history_complete and not stale and reason is None
     trailing_complete = history_complete and window_ok and reason is None
@@ -552,7 +568,7 @@ def _coverage_set(
         ),
     ]
     if as_of:
-        as_of_complete = observed_at == end and reason is None
+        as_of_complete = not stale and reason is None
         rows.append(_coverage(
             loop_id=loop_id, source_id=source_id, projection="as_of", end=end,
             start=None, observed_at=observed_at, complete=as_of_complete,
@@ -931,7 +947,7 @@ def adapt_agent_economy(
             fatal_failure = True
             deduped = []
         records.extend(deduped)
-    if observed != end:
+    if _stale_observation(observed, end):
         records = []
         for source_id in failures:
             if failures[source_id] is None:
@@ -1194,7 +1210,7 @@ def _investment_balance(payload: dict[str, Any], end: str, evidence: str) -> dic
     if _strict_bool(balance, keys=("reorg_detected",)) is True:
         raise AttributionError("unverified_receipt")
     observed = _instant(balance.get("observed_at"))
-    if observed != end:
+    if _stale_observation(observed, end):
         raise AttributionError("stale_readback")
     snapshot_id = _identity(_first(balance, "snapshot_id", "readback_id", "receipt_id"), "snapshot_id")
     account_id = _identity(
@@ -1285,7 +1301,7 @@ def adapt_investment(
             balance = _investment_balance(payload, end, evidence)
         except (AttributionError, contract.ContractError, KeyError, TypeError, ValueError) as error:
             balance_failure = "stale_readback" if str(error) == "stale_readback" else "unverified_receipt"
-    if observed != end:
+    if _stale_observation(observed, end):
         records = []
         order_failure = order_failure or "stale_readback"
         balance = None
@@ -1295,18 +1311,18 @@ def adapt_investment(
     if balance is not None and balance_failure is None:
         records.append(balance)
     rows: list[dict[str, Any]] = records
-    order_complete = order_failure is None and observed == end
+    order_complete = order_failure is None and not _stale_observation(observed, end)
     rows.extend(_coverage_set(
         loop_id=INVESTMENT_LOOP, source_id="alpaca-orders", end=end, start=start,
         observed_at=observed, history_complete=history_complete,
         window_start=window_start, categories=INVESTMENT_CATEGORIES, evidence=evidence,
-        reason=order_failure,
+        reason=order_failure, allow_recent=True,
     ))
     rows.extend(_coverage_set(
         loop_id=INVESTMENT_LOOP, source_id="alpaca-account", end=end, start=start,
         observed_at=observed, history_complete=True, window_start=window_start,
         categories=("liquid_balance",), evidence=evidence, reason=balance_failure,
-        as_of=True,
+        as_of=True, allow_recent=True,
     ))
     del order_complete
     return _sort_records(rows)
