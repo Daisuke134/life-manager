@@ -2590,3 +2590,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. capacity eligibleになった次の正式owner runでstep1 diagnosticとPromptBase公式dashboard/Gmail readbackを同一occurrenceへ結合する。
 3. その間、PromptBaseと同じbrowser resourceを触らない独立lane（Capafy公式利益/slot、Writer/Ebook/Affiliate、Mobile/Connectorのread-only根拠）を並列監査し、source実装が必要なownerだけ専用worktreeへ分ける。
 4. PromptBaseの公式審査・公開・売上が閉じた後、§55の収益優先順を継続する。TaskMarketは後段のまま。
+
+### 64. PromptBase kickstart後のbrowser boundary（2026-10-02 10:42 JST）
+
+- queueが一時的にeligibleになった後のowner occurrence `promptbase-loop-daily:18da92c1ffa4eec0-93729`は、release `13a97504bdb8bedeb421d332847b87625a531e1d`で`entrypoint_exit_1`となった。launchd outputの正確な原因は`BrowserType.connect_over_cdp: connect ECONNREFUSED ::1:9222`で、PromptBase provider/browser操作・submission・receiptは0件。step1 diagnosticはbrowser接続前なので生成されていない。
+- その後のread-only browser-guard statusはidentity `interactive:dais`、endpoint `http://[::1]:9222`、HTTP 200、websocket validを返した。これは一時的なCDP境界が回復した証拠だが、失敗occurrenceの外部効果を証明するものではない。
+- PromptBase fence adapterは同occurrenceを`too_recent:463s<=1200s`で`PROMPTBASE_FENCE_RECONCILE=HELD`とした。安全bufferが経過するまでresolve/retryせず、dashboard read-onlyではタイトル未検出だったが、早期no-effect確定には使わない。
+
+#### 更新後の原子cursor
+
+1. `18da92c1ffa4eec0-93729`の1200秒安全buffer後に、PromptBase fence adapterをread-only/公式dashboard付きで再評価する。
+2. no-effectが公式に証明された場合だけfenceを正式closeし、次の正式owner runを一度kickstartする。
+3. 次のrunでstep1 diagnostic（URL/body/screenshot）またはPromptBase公式submission readbackを取得する。外部効果が不明なまま再送しない。
+4. PromptBaseと同じbrowser resourceを使わないCapafy/CFO/Writer/Mobile/Connectorのread-only根拠収集を並列で継続する。
