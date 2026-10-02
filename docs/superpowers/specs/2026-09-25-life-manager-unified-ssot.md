@@ -4092,3 +4092,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. bb release上でcause-layer proofを再dry-runし、同じold-pass/claim-run/zero-effect digestとadmission identityを確認後、cause occurrence `...47365`だけを一度`--resolve`する。
 3. ownerがidleであることを確認して`hf-gig-apply-direct`をbb releaseへtarget applyする。次の自然runでsource discovery、effect/readback、provider receipt、replay-zeroを読み、応募0の失敗を成功へ昇格させない。
 4. その後は即時収益順へ戻り、Mobile financial/cost/payout→Connector→Fundraiser→paid contract settlement/payoutを閉じる。TaskMarket/Agent Economyは後段のまま保持する。
+
+### 175. Coconala pre-submit fence連鎖の恒久修復と最後のlegacy row（2026-10-03 06:18 JST）
+
+- 旧`hf-gig-apply-direct`は前wakeのoccurrenceをclaimし、provider mutation前のheartbeat/entrypoint failureでも自wake occurrenceを`effect_unknown`としてreserveしていた。このためone-time migrationで1 rowを解放しても、次の旧release wakeへunknownが1世代移る連鎖が根因だった。
+- PR #6506をmain `74617c54097ef0284a57d0e1566beeada1070220`へmergeした。共有entrypoint全体ではなく`hf-gig-apply-direct` loop IDだけをhost pre-effect hint allowlistへ追加し、`application_parent.py`がauthenticated identity capture後かつdurable `irreversible_attempt_marker`直前にprivate markerを検証してunlinkする。marker残存中のfailureはpre-submitとしてunknownを作らず、unlink後のfailureは従来どおりunknownを保持する。batch後続はmissing markerを境界通過済みとして扱う。
+- runtime bounds 108件とapplication関連32件はPASS、GitHub CI全件PASS、fresh read-only reviewは`SHIP`。current immutable release `/Users/anicca/loops/releases/20261003T060519-3c7dd0f2`はmain `3c7dd0f288d01b4e5d3ec19a3975d6bfe3698d03 / ALL`で、PR #6506の恒久修正を含む。
+- PR #6507をmain `3c7dd0f288`へmergeした。exact target `18dacf917a646990-66636`、claim run `18dad118c3aa4a38-19467`、pass/event IDsを定数固定し、discovery tree hash、submit/result/decision artifact不在、durable application intent不在をlock内で再検証するone-time proofを追加した。27 related tests、CI、fresh reviewはPASS/SHIP。immutable 3c release上でdigest `e570593a4dbab41dc5429e597d230e04e65b938df8bda60d8ec7c1cbcb95d6f5`を再確認し、このrowだけ`released / effect_unknown=0`へ解放した。
+- 解放と5分cadenceが重なり、最後の旧release wake `18dad29a777a6138-68078`が先行occurrence `18dad118c3aa4a38-19467`をclaimした。pass `gig-apply-direct-1790975363879245000-68108`はresult=`failed / observed 0 / actionable 0 / effect 0 / readback 0 / pending 0 / parent_failed_rc_1`、bound application intent 0。外部応募receiptは無いが、この最後のrowはまだ`claimed / effect_unknown=1`であり、未証明解放しない。effect_unknownにより後続旧wakeはprovider entrypoint前で止まり、連鎖は現在増えていない。
+- 3c owner target applyはこの最後のfenceにより`admission rebind refused: effect_unknown`。Coconala Applyはまだ修復完了ではなく、応募成功、paid contract、settlement、payout、profitも未証明。
+
+#### 更新後の原子cursor
+
+1. occurrence `hf-gig-apply-direct:18dad118c3aa4a38-19467`だけを対象に、claim run `18dad29a777a6138-68078`、exact pass `gig-apply-direct-1790975363879245000-68108`、result effect/readback 0、bound intent 0を固定したone-time result proofをTDD・fresh review・CIでmergeする。
+2. 新immutable release上で同じdigestをdry-run後、この1 rowだけを一度resolveする。後続旧wakeはeffect_unknownで停止中なので、resolve直後に3c以降の`hf-gig-apply-direct` target applyを実行する。
+3. installed/loaded SHAとargvを新releaseへ一致させ、次の自然runでpre-submit failureが新しいunknownを生成しないこと、submit境界後failureはunknownを保持すること、provider application receipt/replay-zeroをreadbackする。
+4. Coconalaのsource discovery/access denialとpaid financial receiptは別TODOとして残す。runtime fence修復だけを収益成功へ昇格させず、Mobile→Connector→Fundraiser→paid settlement/payoutの即時収益順へ戻る。
