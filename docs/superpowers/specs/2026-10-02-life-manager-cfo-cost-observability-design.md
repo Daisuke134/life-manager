@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: approved design
+Status: implementation slice shipped; acceptance partial
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -26,6 +26,7 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - Token and current public pricing produced a pre-tax estimate close to ¥25,354. This is a diagnostic estimate, not the settled SKU receipt; the Google Cloud Cost table CSV remains the settlement authority.
 - Moneytree Web readback showed one MUFG ordinary JPY account with last-known balance ¥504,302. Its last successful aggregation was 2026-08-26 and its connection state is `auth.creds.invalid` since 2026-08-28. The balance is stale and must not be reported as today's fresh balance.
 - `origin/main` already contains a Moneytree MCP adapter and immutable observation store. A read-only MCP run returned one account and zero transactions on 2026-10-02; the zero-transaction result has no independent completeness/freshness proof and must not be rendered as zero spending.
+- Acceptance readback on 2026-10-02 returned one MUFG-linked account at JPY 504,302 and zero transactions, both explicitly `partial`; details and payload receipts are in `docs/evidence/cfo/2026-10-02-cfo-cost-observability-acceptance.md`.
 
 ### Code gaps
 
@@ -252,4 +253,4 @@ Telephony, paid model calls, and user-requested external actions remain separate
 
 ## 10. Current gate
 
-This design is now written as a dedicated spec draft. It is not yet the implementation plan and no production code has been changed. After review, the next Superpowers step is `writing-plans`, followed by implementation in owned slices.
+Implementation is shipped on the dedicated branch through Tasks 1–7: truthful Moneytree freshness, canonical local daily path, B7 readback coverage, provider settlement ledger/Google CSV reconciliation, persistent geocode/OpenPOI lane, budget governor, and receipt-backed delivery. Task 8 acceptance is partial: the local fixture closes and replays zero, while Moneytree refresh, Google Cost Table CSV, cloud canary, and seven elapsed periods remain owner-visible blockers. Evidence: `docs/evidence/cfo/2026-10-02-cfo-cost-observability-acceptance.md`.
