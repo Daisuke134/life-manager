@@ -162,13 +162,13 @@ def _instant(value: object) -> str:
         _fail("read_failed")
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            _fail("read_failed")
+        return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
+            "+00:00", "Z"
+        )
+    except (ValueError, OverflowError, OSError):
         _fail("read_failed")
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        _fail("read_failed")
-    return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
-        "+00:00", "Z"
-    )
 
 
 def _minor(value: object, *, positive: bool = False) -> int:
@@ -1024,10 +1024,10 @@ def _fallback_context(
     if not isinstance(payload, dict):
         return None
     try:
-        raw_platform = payload.get("platform", platform)
+        raw_platform = platform if platform is not None else payload.get("platform")
         if raw_platform is None and payload.get("source", "").startswith("https://promptbase.com/"):
             raw_platform = DEFAULT_AGGREGATE_PLATFORM
-        raw_product = payload.get("product_loop_id", product_loop_id)
+        raw_product = product_loop_id if product_loop_id is not None else payload.get("product_loop_id")
         if raw_product is None and raw_platform == DEFAULT_AGGREGATE_PLATFORM:
             raw_product = DEFAULT_AGGREGATE_PRODUCT_LOOP
         actual_platform = _platform(raw_platform)
@@ -1217,7 +1217,7 @@ def _envelope(
             if (window_start is None or window_start > trailing_start
                     or window_start >= window_end):
                 _fail("stale_readback")
-        coverage_windows[projection] = window["complete"]
+        coverage_windows[projection] = window["complete"] and window_end >= snapshot_at
 
     pagination = payload["pagination"]
     _exact_keys(pagination, PAGINATION_KEYS)
@@ -1276,10 +1276,10 @@ def adapt(
 ) -> list[dict]:
     """Convert one passed official readback payload into validated B0 records.
 
-    The optional ``product_loop_id``/``platform`` parameters are only for the
-    provider's aggregate-only shape (currently PromptBase); an envelope must
-    carry and bind both fields itself.  Invalid or incomplete payloads return
-    coverage gaps and never return inferred revenue.
+    The optional ``product_loop_id``/``platform`` parameters bind a source path
+    to its expected lane. An envelope must carry matching fields. Invalid or
+    incomplete payloads return coverage gaps on the expected lane and never
+    return inferred revenue.
     """
     if snapshot_at is None:
         snapshot_at = observed_at

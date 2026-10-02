@@ -472,6 +472,44 @@ class B7IntegrationTest(unittest.TestCase):
         self.assertIn(("gig-coconala", "source_unconnected"), gaps)
         self.assertIn(("gig-crowdworks", "source_unconnected"), gaps)
 
+    def test_platform_specific_path_rejects_mismatched_envelope_on_expected_lane(self):
+        import hashlib
+        payload = {
+            "schema_version": 1,
+            "record_type": "marketplace_financial_readback",
+            "platform": "coconala",
+            "product_loop_id": "gig-coconala",
+            "observed_at": SNAPSHOT,
+            "coverage": {
+                "historical": {"complete": True, "window_start": None, "window_end": SNAPSHOT},
+                "trailing": {"complete": True, "window_start": TRAILING_START, "window_end": SNAPSHOT},
+            },
+            "pagination": {"complete": True, "pages_fetched": 1, "records_fetched": 0, "next_cursor": None},
+            "receipt_map": {"complete": True, "records": []},
+            "aggregate": {"currency": "JPY", "sales_count": 0, "net_amount_minor": 0},
+        }
+        unsigned = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        digest = hashlib.sha256(unsigned).hexdigest()
+        payload["content_sha256"] = digest
+        payload["evidence_ref"] = f"marketplace://coconala/financial-readback/sha256/{digest}"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "wrong-lane.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={"LM_CFO_MARKETPLACE_LANCERS_READBACK": str(path)},
+            )
+        self.assertFalse(any(
+            row.get("record_type") == "receipt" for row in records
+        ))
+        lancers = [
+            row for row in records
+            if row.get("record_type") == "coverage"
+            and row.get("product_loop_id") == "gig-lancers"
+            and row.get("projection") != "as_of"
+        ]
+        self.assertEqual({row["reason"] for row in lancers}, {"unverified_receipt"})
+
     def test_injected_b1_to_b6_records_project_once_with_fourteen_lanes_and_gaps(self):
         adapter_records = {
             "b1-capafy-mobile": [b7_receipt(
