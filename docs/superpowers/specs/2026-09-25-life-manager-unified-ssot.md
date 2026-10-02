@@ -2524,3 +2524,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. PromptBase plistが`73731c68cf`を指す自然reconciler readbackを確認する。
 3. 新release上の次回自然04:20で、model-runner evidence、4件distinct英語見本、PromptBase管理画面/GmailのPending→Approved/Declined、公開listing、sale/settlement/payout、replay-zeroを同一occurrenceへ結合する。
 4. その後、CapafyのCAP_FULLが解消した時だけ自然submitを再開し、Writer/Ebook/Affiliate、Mobile、Connector、Fundraiser、Coconala→Lancers→CrowdWorks→Job Hunter、Self-Build、Investment、CFO、外部paid E2E/DigitalOceanを順に閉じる。TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 59. PromptBase旧occurrenceのfence closeとhealth投影の分離（2026-10-02 09:55 JST）
+
+- 旧occurrence `promptbase-loop-daily:18da7e12693ec168-86329`は、fence reconcilerのreadbackで`closed=true`、`exit_code=0`、`proof_type=pre_effect`、`PROMPTBASE_FENCE_RECONCILE=PASS`となっている。公式PromptBase dashboardの証拠ファイル（checked_at `2026-10-01T19:45:51Z`）は対象タイトルを`verdict=no_effect`と記録し、admission-v2 SQLiteの同occurrenceは`state=released / effect_unknown=0`である。従って旧外部効果は再送不要のno-effectとして安全に閉じている。
+- ただし`lm-loop health --json --loop promptbase-loop-daily --explain`は最後のruntime event（`release=3fdfa314`、`effect_status=unknown`、`official_readback_ref=null`）を履歴として表示し、job stateを`effect_unknown`にする。これはactive admission fenceではなく、resolved no-effect evidenceがruntime eventのeffect-statusへ結合されていないobservability projection差分である。安全のため「売上/公開成功」へ昇格させず、次のfoundation cursorで`active admission fence`と`historical unresolved effect_status`を別時計として表示する修正を検討する。
+- 現在のPromptBase plistは旧release `356d9233cf`を指しており、新runner入り`73731c68cf`のproduction自然実行は未確認である。P5cの完了条件は、(a)新release loaded argv/readback、(b)次回自然04:20のmodel-runner証跡、(c)管理画面/GmailのPending→Approved/Declined、(d)公開listing/sale/settlement/payout/replay-zeroであり、旧occurrenceのfence closeだけでは完了扱いしない。
+
+#### 更新後の原子cursor
+
+1. `promptbase-loop-daily`の自然reconcilerがplist/loaded argvを`73731c68cf`へ更新したことをread-only確認する（manual restart/applyはしない）。
+2. 新releaseの次回自然04:20でP5cを一回実行し、model-runner・英語4件distinct・PromptBase/Gmail公式readbackを同一occurrenceへ結合する。
+3. foundation observabilityでactive fenceとhistorical unresolved effectを分離表示するfocused test/health readbackを行う。
+4. その後§55の収益優先順（Capafy→PromptBase/Writer→Writer/Ebook/Affiliate→Mobile→Connector→Fundraiser→各contract-work→Self-Build→Investment→CFO→external paid E2E→Agent Economy/TaskMarket→cloud/self-funding）を維持する。
