@@ -2700,3 +2700,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. `Approved`後だけ公開listing/sale/settlement/payoutを確認し、`Declined`なら公式理由を根拠に同一Agentの修正cursorへ進む。
 3. CapafyはCP2 source修正release `c3b56c1a` loaded済みだが、owner occurrenceはcapacity前停止のため、同一Agent/versionの自然eligible CP2/CP3を待つ。
 4. TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 72. Capafy CP2/CP3の公式under-review readback（2026-10-02 12:07 JST）
+
+- Capafy公式remote-status（same Agent `4243672453`, same version `2105842148210266112`）は、`platform_status=1`、`is_confirmed_skills=true`、`is_confirmed_config_keys=true`、`package_uploaded=true`、`status_reason=under_review`を返した。inventoryも同Agentを`under_review / occupied`としてreadbackした。
+- これはCP2 key-host hydration修正後の実provider/browser E2Eが公式審査境界まで到達した証拠である。新Agent作成、重複upload、別versionは発生していない。
+- `can_report_published=false`、online_countは48、sales/payoutはこのAgentについて未確認であるため、Capafy loop全体の完了・利益・MRRとは数えない。次のinventory cursorは同じqueueのAgent `4763185052` draftである。
+
+#### 更新後の原子cursor
+
+1. Agent `4243672453`の自然公式readbackで`under_review`から`online`または`review_rejected`を確認する。
+2. onlineになった場合だけruntime test/readback、sale、fee、settlement、payoutへ進む。
+3. rejectedの場合は公式理由を保存し、同一Agent/version policyに従ってretryする。
+4. PromptBaseは同様に`pending_review`から審査結果を待ち、両loopのpending状態を売上と混同しない。
