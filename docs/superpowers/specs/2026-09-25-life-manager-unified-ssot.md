@@ -3203,3 +3203,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Startup contextのfresh public links/digestを専用source-only修正で閉じる。
 2. PII/OSSのfresh CIが通る独立branchを確認し、Lancers PR #6486のbaseline failureと分離したまま統合順序を決める。
 3. Lancers PR #6486はbaseline gateが解消した後に再検証し、main/release/apply/natural readbackへ進める。
+
+### 104. Startup context fresh化のdigest境界（2026-10-02 18:00 JST）
+
+- 公式product/repository/Telegram readbackはHTTP 200、identity一致、現行context一致を返した。しかしcanonical `.agents/startup-context.json`の`updated_at`とrequired link `verified_at`は30日超過である。
+- 日付だけを現在時刻へ変えるprobeを行ったところ、context digestが変わり、`aniccaai.com/lm`の公開ページ、README、fundraising kitが旧digestのままになってstartup audit/testが失敗した。probeは巻き戻し、公開artifactを部分的に壊していない。
+- 巻き戻し後はstartup-context tests 23/23、OSS self-contained verifier、PII scanがPASS。したがってfresh化の正しい単位は、context変更→公開product page/README/fundraising kitのdigest再生成→公式readback→CIであり、日付だけのpatchではない。
+
+#### 更新後の原子cursor
+
+1. Startup context ownerが現行factsを確定し、同一digestでpublic page、README、fundraising kitを再生成するsource-only変更を行う。
+2. 3公式linkと全artifact readback、startup tests、startup auditを同一commitで確認する。
+3. それまでStartup context gateはbaseline blockerのまま保持し、Lancers source PRへ混ぜない。
