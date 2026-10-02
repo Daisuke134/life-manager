@@ -2691,7 +2691,7 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 
 - object-contract release `848aee9b`の自然owner occurrence `promptbase-loop-daily:18da9661d6fee2c0-7487`は、`agent-runner` pass `96f0943a20d8815c6c60aef0`（Codex `gpt-5.6-terra`、schema-valid）を経て、`4 examples`を生成した。
 - PromptBase owner logは`status=submitted_pending_review`、`submitted_at=2026-10-02T02:48:04Z`、slug `football-match-analyst`、price `$4.99`を記録している。これは自然ownerによる実際の提出到達であり、単なるテスト成功ではない。
-- 同じ`interactive:dais` leased browserで公式seller dashboardをread-only readbackし、対象listingは`pending_review`、Salesは`0 sales / $0 net`だった。Gmail read-only検索（`keiodaisuke@gmail.com`, `(PromptBase OR football-match-analyst) newer_than:2d`）にはPromptBase審査通知がまだ無く、確認できたのはGitHub/CodeRabbit通知だけである。
+- 同じ`interactive:dais` leased browserで公式seller dashboardをread-only readbackし、対象listingは`pending_review`、Salesは`0 sales / $0 net`だった。seller Gmail accountのread-only検索（`(PromptBase OR football-match-analyst) newer_than:2d`）にはPromptBase審査通知がまだ無く、確認できたのはGitHub/CodeRabbit通知だけである。
 - よってP5cは「自然4見本→提出→公式pending」まで完了し、`Approved/Declined`、公開済み、売上、settlement、payoutは未完である。pendingをApprovedや売上へ昇格させず、再提出もしない。
 
 #### 更新後の原子cursor
