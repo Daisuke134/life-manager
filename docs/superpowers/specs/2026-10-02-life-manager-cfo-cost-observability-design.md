@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: design draft for review
+Status: approved design
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -25,12 +25,14 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - Read-only Cloud Monitoring counts for the linked projects were 25,526 Geocoding calls, 15,092 Directions calls, 6,510 Places Text Search calls, and 21,796 Gemini GenerateContent calls.
 - Token and current public pricing produced a pre-tax estimate close to ¥25,354. This is a diagnostic estimate, not the settled SKU receipt; the Google Cloud Cost table CSV remains the settlement authority.
 - Moneytree Web readback showed one MUFG ordinary JPY account with last-known balance ¥504,302. Its last successful aggregation was 2026-08-26 and its connection state is `auth.creds.invalid` since 2026-08-28. The balance is stale and must not be reported as today's fresh balance.
+- `origin/main` already contains a Moneytree MCP adapter and immutable observation store. A read-only MCP run returned one account and zero transactions on 2026-10-02; the zero-transaction result has no independent completeness/freshness proof and must not be rendered as zero spending.
 
 ### Code gaps
 
-- The current financial report reads `lm_users.agent_wallet_address`, the agent earnings ledger, and `lm_api_cost.est_usd`; it does not read Dais's bank or card accounts.
-- The current report treats provider cost rows as estimated API costs; it does not join a settled Google invoice or a Moneytree transaction source.
-- The existing geocode memo is checked but successful results are not persisted, allowing repeated paid requests.
+- `origin/main` contains a Financial Manager and Moneytree ingestion path, but the default local result report still has a separate `skills/cfo/loop_pnl.py` path and does not combine personal Moneytree records with every business source in one canonical daily snapshot.
+- Moneytree observations currently prove that a tool returned, but do not prove that a zero transaction array is complete or fresh; the report can therefore display a false zero unless the source status is strengthened.
+- The current provider-cost ledger stores estimated usage but does not join a settled Google invoice or store actual-vs-estimated billing status on each cost event.
+- The existing geocode memo is process-local; successful results are not persisted across restarts, allowing repeated paid requests.
 - The existing provider-cost-guard plan defines persistent caches, cost events, budgets, and a seven-day observation gate, but its implementation tasks are not complete on `main`.
 
 ## 3. Accounting ownership
