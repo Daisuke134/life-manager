@@ -177,9 +177,16 @@ def _read_runtime_pair(
     terminals = [
         row for row in matching
         if row.get("phase") == "report"
-        and row.get("status") == "pass"
         and row.get("effect_class") == "message"
-        and row.get("exit_code") == 0
+        and (
+            (row.get("status") == "pass" and row.get("exit_code") == 0)
+            or (
+                row.get("status") == "fail"
+                and isinstance(row.get("exit_code"), int)
+                and row.get("exit_code") != 0
+                and row.get("effect_status") == "unknown"
+            )
+        )
     ]
     if len(starts) != 1 or len(terminals) != 1:
         raise _fail("runtime_event_pair_missing")
@@ -198,6 +205,9 @@ def _read_runtime_pair(
         "run_id": run_id,
         "start_timestamp": start["timestamp"],
         "terminal_timestamp": terminal["timestamp"],
+        "terminal_status": terminal.get("status"),
+        "terminal_exit_code": terminal.get("exit_code"),
+        "terminal_effect_status": terminal.get("effect_status"),
         "terminal_event_id": terminal.get("event_id"),
         "release_sha": terminal.get("release_sha"),
     }
@@ -205,14 +215,16 @@ def _read_runtime_pair(
 
 def _current_report(state_dir: Path, occurrence_id: str) -> dict[str, Any]:
     report = _read_json(state_dir / "last-result-report.json", label="result_report")
-    if report.get("status") != "sent":
+    if report.get("status") not in {"pending", "sent"}:
         raise _fail("result_report_not_sent")
     if report.get("occurrenceId") != occurrence_id:
         raise _fail("occurrence_mismatch")
     if report.get("channel") != "telegram":
         raise _fail("channel_not_telegram")
     resolution_kind = report.get("resolutionKind")
-    if resolution_kind not in {"sent", "duplicate"}:
+    if report.get("status") == "sent" and resolution_kind not in {"sent", "duplicate"}:
+        raise _fail("resolution_kind_invalid")
+    if report.get("status") == "pending" and resolution_kind is not None:
         raise _fail("resolution_kind_invalid")
     reporting_date = _reporting_date(report.get("reportingDate"))
     event_key = report.get("eventKey")
@@ -224,10 +236,13 @@ def _current_report(state_dir: Path, occurrence_id: str) -> dict[str, Any]:
     if not isinstance(message_sha256, str) or not SHA256.fullmatch(message_sha256):
         raise _fail("message_sha256_invalid")
     provider_message_id = report.get("providerMessageId")
-    if not isinstance(provider_message_id, str) or not PROVIDER_ID.fullmatch(provider_message_id):
+    if provider_message_id is not None and (
+        not isinstance(provider_message_id, str) or not PROVIDER_ID.fullmatch(provider_message_id)
+    ):
         raise _fail("provider_message_id_invalid")
     return {
         "resolution_kind": resolution_kind,
+        "status": report["status"],
         "reporting_date": reporting_date,
         "event_key": event_key,
         "message_sha256": message_sha256,
@@ -261,7 +276,8 @@ def _outbox_proof(state_dir: Path, report: dict[str, Any]) -> dict[str, Any]:
         raise _fail("message_sha256_missing")
     if item.message_sha256 != report["message_sha256"]:
         raise _fail("message_sha256_mismatch")
-    if item.provider_message_id != report["provider_message_id"]:
+    expected_provider_id = report.get("provider_message_id")
+    if expected_provider_id is not None and item.provider_message_id != expected_provider_id:
         raise _fail("provider_message_id_mismatch")
     for timestamp in (item.created_at, item.delivered_at):
         if timestamp is not None and _event_date(timestamp) != report["reporting_date"]:
@@ -304,6 +320,23 @@ def build_proof(*, state_dir: Path, admission_db: Path, occurrence_id: str) -> d
     report["occurrence_id"] = occurrence_id
     runtime = _read_runtime_pair(state_dir, occurrence_id, report["reporting_date"])
     outbox = _outbox_proof(state_dir, report)
+    if report["status"] == "pending":
+        if not (
+            runtime["terminal_status"] == "fail"
+            and runtime["terminal_exit_code"] != 0
+            and runtime["terminal_effect_status"] == "unknown"
+        ):
+            raise _fail("pending_runtime_terminal_invalid")
+        report["resolution_kind"] = "receipt_recovered"
+    elif not (
+        (runtime["terminal_status"] == "pass" and runtime["terminal_exit_code"] == 0)
+        or (
+            runtime["terminal_status"] == "fail"
+            and runtime["terminal_exit_code"] != 0
+            and runtime["terminal_effect_status"] == "unknown"
+        )
+    ):
+        raise _fail("current_runtime_terminal_invalid")
     if report["resolution_kind"] == "duplicate":
         if _event_epoch(outbox["delivered_at"]) >= _event_epoch(runtime["start_timestamp"]):
             raise _fail("duplicate_delivery_after_runtime_start")

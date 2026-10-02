@@ -68,6 +68,9 @@ def _fixture(
     resolution_kind="sent",
     outbox_status="delivered",
     delivered_at="2026-09-26T12:27:20Z",
+    report_status="sent",
+    terminal_status="pass",
+    terminal_exit_code=0,
 ):
     state_dir = tmp_path / "cfo"
     state_dir.mkdir(mode=0o700)
@@ -109,9 +112,8 @@ def _fixture(
 
         mark_delivery_uncertain(outbox, EVENT_KEY, "fixture_uncertain", claimed_at=claimed.claimed_at)
 
-    (state_dir / "last-result-report.json").write_text(
-        json.dumps({
-            "status": "sent",
+    report = {
+            "status": report_status,
             "subjectId": "subject",
             "periodKey": f"{DATE}:12",
             "reportingDate": DATE,
@@ -120,11 +122,16 @@ def _fixture(
             "message": MESSAGE,
             "messageSha256": MESSAGE_SHA256,
             "occurrenceId": OCCURRENCE,
+            "createdAt": "2026-09-26T12:26:00Z",
+    }
+    if report_status == "sent":
+        report.update({
             "resolutionKind": resolution_kind,
             "providerMessageId": "94946",
-            "createdAt": "2026-09-26T12:26:00Z",
             "sentAt": "2026-09-26T12:27:00Z",
-        }),
+        })
+    (state_dir / "last-result-report.json").write_text(
+        json.dumps(report),
         encoding="utf-8",
     )
     (state_dir / "last-result-report.json").chmod(0o600)
@@ -140,9 +147,9 @@ def _fixture(
                 ),
                 _event(
                     phase="report",
-                    status="pass",
+                    status=terminal_status,
                     effect_status="unknown",
-                    exit_code=0,
+                    exit_code=terminal_exit_code,
                     timestamp="2026-09-26T12:27:38.256Z",
                 ),
             )
@@ -164,6 +171,95 @@ def test_sent_current_result_proves_exact_receipt_without_subject_or_body(tmp_pa
     assert proof["message_sha256"] == MESSAGE_SHA256
     assert "subject" not in json.dumps(proof)
     assert "CFO current result fixture" not in json.dumps(proof)
+
+
+def test_pending_current_result_recovers_provider_receipt_after_crash(tmp_path, monkeypatch):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        report_status="pending",
+        terminal_status="fail",
+        terminal_exit_code=1,
+        delivered_at="2026-09-26T12:27:20Z",
+    )
+    calls = []
+
+    def resolver(owner_id, occurrence_id, **kwargs):
+        calls.append((owner_id, occurrence_id, kwargs["official_readback"]()))
+        return True
+
+    monkeypatch.setattr(effect_reconcile_module, "resolve_unknown_occurrence", resolver)
+    monkeypatch.setattr(
+        effect_reconcile_module,
+        "resolve_pre_effect_occurrence",
+        lambda *args, **kwargs: pytest.fail("receipt recovery must not use pre-effect resolver"),
+    )
+
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+    assert proof["verified"] is True
+    assert proof["resolution_kind"] == "receipt_recovered"
+    assert proof["provider_receipt_id"] == "telegram:94946"
+
+    result = reconcile(
+        state_dir=state_dir,
+        admission_db=admission_db,
+        occurrence_id=occurrence,
+        resolve=True,
+    )
+    assert result["resolution_state"] == "RESOLVED"
+    assert calls[0][2]["provider_receipt_id"] == "telegram:94946"
+
+
+def test_pending_current_result_with_terminal_pass_is_inconsistent(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        report_status="pending",
+        terminal_status="pass",
+        terminal_exit_code=0,
+    )
+
+    with pytest.raises(ValueError, match="pending_runtime_terminal_invalid"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+
+def test_pending_current_result_with_uncertain_outbox_stays_fenced(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        report_status="pending",
+        terminal_status="fail",
+        terminal_exit_code=1,
+        outbox_status="delivery_uncertain",
+    )
+
+    with pytest.raises(ValueError, match="provider_receipt_not_delivered"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+
+def test_sent_current_result_accepts_terminal_fail_after_receipt_window(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        report_status="sent",
+        terminal_status="fail",
+        terminal_exit_code=1,
+        delivered_at="2026-09-26T12:27:20Z",
+    )
+
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+    assert proof["resolution_kind"] == "sent"
+    assert proof["provider_receipt_id"] == "telegram:94946"
+
+
+def test_duplicate_current_result_accepts_terminal_fail_before_current_start(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        resolution_kind="duplicate",
+        terminal_status="fail",
+        terminal_exit_code=1,
+        delivered_at="2026-09-26T12:27:00Z",
+    )
+
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+    assert proof["resolution_kind"] == "duplicate"
+    assert proof["proof_type"] == "pre_effect"
 
 
 def test_normal_path_rejects_legacy_snapshot_without_current_result_report(tmp_path):
