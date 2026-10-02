@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { readBusinessReadback } = require("./financial-business-readback.js");
+const { readBusinessReadback, summarizeCoverageGaps } = require("./financial-business-readback.js");
 
 function fixtureScript(t, value) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-business-readback-"));
@@ -61,6 +61,33 @@ test("business readback preserves source gaps instead of inventing zero revenue"
     product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "source_unconnected",
   }]);
   assert.equal(result.businessSourceCoverage[0].gapReason, "source_unconnected");
+  assert.deepEqual(result.coverageSummary, [{
+    sourceId: "stripe-financial-record", reason: "source_unconnected", count: 1,
+    productLoopIds: ["self-build"], categories: [],
+  }]);
+});
+
+test("coverage summary groups repeated category gaps into actionable source rows", () => {
+  assert.deepEqual(summarizeCoverageGaps([
+    { product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "missing_category", category: "model_cost" },
+    { product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "missing_category", category: "infra_cost" },
+    { product_loop_id: "mobile-apps", source_id: "revenuecat-mrr", reason: "missing_category", category: "mrr" },
+    { product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "missing_category", category: "model_cost" },
+    { product_loop_id: "affiliate", source_id: "partnerstack", reason: "stale_readback" },
+  ]), [
+    {
+      sourceId: "partnerstack", reason: "stale_readback", count: 1,
+      productLoopIds: ["affiliate"], categories: [],
+    },
+    {
+      sourceId: "revenuecat-mrr", reason: "missing_category", count: 1,
+      productLoopIds: ["mobile-apps"], categories: ["mrr"],
+    },
+    {
+      sourceId: "stripe-financial-record", reason: "missing_category", count: 3,
+      productLoopIds: ["self-build"], categories: ["infra_cost", "model_cost"],
+    },
+  ]);
 });
 
 test("missing or malformed business artifact is unavailable, never an empty verified source", async (t) => {

@@ -137,6 +137,7 @@ test("business source coverage is visible without turning a gap into zero", () =
     businessReadback: {
       status: "partial", sourceReceiptRefs: ["loop-pnl://sha256/receipt"],
       coverageGaps: [{ product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "source_unconnected" }],
+      coverageSummary: [{ sourceId: "stripe-financial-record", reason: "source_unconnected", count: 1, productLoopIds: ["self-build"], categories: [] }],
     },
   });
   assert.deepEqual(report.businessSourceCoverage[0], {
@@ -147,6 +148,7 @@ test("business source coverage is visible without turning a gap into zero", () =
   const text = renderFinancialManagerTelegram(report);
   assert.match(text, /事業ソース照合\nloop-pnl:partial/);
   assert.match(text, /self-build\/source_unconnected/);
+  assert.match(text, /事業gap要約\nstripe-financial-record\/source_unconnected=1/);
   assert.doesNotMatch(text, /収益: ¥0/);
 });
 

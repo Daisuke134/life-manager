@@ -49,11 +49,35 @@ function uniqueGaps(projection) {
   return [...seen.values()].sort((left, right) => canonical(left).localeCompare(canonical(right)));
 }
 
+function summarizeCoverageGaps(gaps) {
+  const grouped = new Map();
+  for (const gap of Array.isArray(gaps) ? gaps : []) {
+    if (!gap || typeof gap !== "object" || !gap.reason) continue;
+    const sourceId = String(gap.source_id || "unreported");
+    const reason = String(gap.reason);
+    const key = `${sourceId}\n${reason}`;
+    const current = grouped.get(key) || {
+      sourceId, reason, count: 0, productLoopIds: new Set(), categories: new Set(),
+    };
+    current.count += 1;
+    if (gap.product_loop_id) current.productLoopIds.add(String(gap.product_loop_id));
+    if (gap.category) current.categories.add(String(gap.category));
+    grouped.set(key, current);
+  }
+  return [...grouped.values()].map((row) => ({
+    sourceId: row.sourceId, reason: row.reason, count: row.count,
+    productLoopIds: [...row.productLoopIds].sort(), categories: [...row.categories].sort(),
+  })).sort((left, right) => left.sourceId.localeCompare(right.sourceId)
+    || left.reason.localeCompare(right.reason));
+}
+
 function unavailable(reason) {
   const gapReason = String(reason || "read_failed").replace(/[^a-z0-9_:-]/gi, "_").slice(0, 80) || "read_failed";
   return Object.freeze({
     status: "unavailable", table: null, observedAt: null, sourceReceiptRefs: [],
-    coverageGaps: [{ source_id: "loop-pnl", reason: gapReason }],
+    coverageGaps: [{ source_id: "loop-pnl", reason: gapReason }], coverageSummary: [{
+      sourceId: "loop-pnl", reason: gapReason, count: 1, productLoopIds: [], categories: [],
+    }],
     businessSourceCoverage: [{
       source: "loop-pnl", state: "unavailable", observedAt: null, receiptCount: 0,
       gapReason,
@@ -89,12 +113,14 @@ function readBusinessReadback({
     return unavailable("projection_missing");
   }
   const coverageGaps = uniqueGaps(projection);
+  const coverageSummary = summarizeCoverageGaps(coverageGaps);
   const receiptRef = `loop-pnl://sha256/${sha256(canonical(table))}`;
   const status = coverageGaps.length ? "partial" : "fresh";
   const observedAt = String(projection.snapshot_at);
   return Object.freeze({
     status, table: Object.freeze(table), observedAt,
     sourceReceiptRefs: Object.freeze([receiptRef]), coverageGaps: Object.freeze(coverageGaps),
+    coverageSummary: Object.freeze(coverageSummary),
     businessSourceCoverage: Object.freeze([{
       source: "loop-pnl", state: status, observedAt, receiptCount: 1,
       gapReason: coverageGaps[0]?.reason || null,
@@ -102,4 +128,4 @@ function readBusinessReadback({
   });
 }
 
-module.exports = { canonical, readBusinessReadback, sha256, uniqueGaps };
+module.exports = { canonical, readBusinessReadback, sha256, summarizeCoverageGaps, uniqueGaps };

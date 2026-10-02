@@ -195,6 +195,13 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
         ? businessReadback.sourceReceiptRefs : [],
       coverageGaps: Array.isArray(businessReadback.coverageGaps)
       ? businessReadback.coverageGaps : [],
+      coverageSummary: Array.isArray(businessReadback.coverageSummary)
+        ? businessReadback.coverageSummary.map((row) => ({
+          sourceId: String(row.sourceId || "unreported"), reason: String(row.reason || "unknown"),
+          count: Number(row.count) || 0,
+          productLoopIds: Array.isArray(row.productLoopIds) ? row.productLoopIds.map(String) : [],
+          categories: Array.isArray(row.categories) ? row.categories.map(String) : [],
+        })) : [],
     } : null,
     providerCostSettlement: providerCostSettlement ? {
       status: providerCostSettlement.status || "unknown",
@@ -314,6 +321,13 @@ function renderFinancialManagerDetailed(report) {
       `${gap.product_loop_id || "source"}/${gap.reason || "gap"}`
     )).join("、")}`);
   }
+  if (report.businessReadback?.coverageSummary?.length) {
+    lines.push("事業gap要約", report.businessReadback.coverageSummary.map((gap) => (
+      `${gap.sourceId}/${gap.reason}=${gap.count}`
+      + `${gap.categories.length ? ` [${gap.categories.join(",")}]` : ""}`
+      + `${gap.productLoopIds.length ? ` (${gap.productLoopIds.join(",")})` : ""}`
+    )).join("\n"));
+  }
   if (report.providerCostSettlement) {
     const settlement = report.providerCostSettlement;
     lines.push(`Google請求: ${settlement.status === "settled"
@@ -370,6 +384,11 @@ function renderFinancialManagerTelegram(report) {
     lines.push(`事業未確認: ${report.businessReadback.coverageGaps.map((gap) => (
       `${gap.product_loop_id || "source"}/${gap.reason || "gap"}`
     )).join("、")}`);
+  }
+  if (report.businessReadback?.coverageSummary?.length) {
+    lines.push(`事業gap要約: ${report.businessReadback.coverageSummary.map((gap) => (
+      `${gap.sourceId}/${gap.reason}=${gap.count}`
+    )).join(" | ")}`);
   }
   if (report.providerCostSettlement) {
     const settlement = report.providerCostSettlement;
