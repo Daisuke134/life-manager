@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
+import runtime.loop.health as health
 from runtime.loop.lm_loop import (
     _admission_effect_unknown_owners, _last_event, _launchctl,
     _pending_admission_owners, _release_from_plist, _safe_launchctl,
@@ -34,6 +35,35 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_resolved_effect_unknown_occurrences_require_closed_proof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "reconcile-calls.jsonl"
+            log.write_text(
+                "\n".join([
+                    json.dumps({
+                        "occurrence_id": "example:pre",
+                        "closed": True,
+                        "stdout_tail": '{"proof_type":"pre_effect","verified":true}',
+                    }),
+                    json.dumps({
+                        "occurrence_id": "example:open",
+                        "closed": False,
+                        "stdout_tail": '{"proof_type":"pre_effect","verified":true}',
+                    }),
+                    json.dumps({
+                        "occurrence_id": "example:receipt",
+                        "closed": True,
+                        "stdout_tail": '{"provider_receipt_id":"receipt-1"}',
+                    }),
+                ]) + "\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                lm_loop._resolved_effect_unknown_occurrences(log),
+                {"example:pre", "example:receipt"},
+            )
+
     def test_browser_resolution_joins_loop_registry_to_resolver_readback(self):
         registry = {"schema_version": 2, "loops": {"connector": {
             "label": "ai.anicca.connector", "domain": "system", "entrypoint": "bin/connector.sh",
@@ -512,6 +542,47 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertIsNone(row["blocker"])
         self.assertFalse(row["admission_effect_unknown"])
         self.assertEqual(row["stale_event"], "resource_effect_unknown_resolved")
+
+    def test_closed_effect_reconcile_removes_historical_unknown_from_health_state(self):
+        events = {"example": {
+            "timestamp": "2026-08-28T00:00:00Z",
+            "status": "fail",
+            "effect_status": "unknown",
+            "blocker": "host_admission_deferred:resource_effect_unknown",
+            "next_action": "official_readback_required",
+            "occurrence_id": "example:run-1",
+            "release_sha": "a" * 40,
+            "run_id": "run-1",
+            "owner_id": "example",
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "error_class": "entrypoint_exit_1",
+            "retryable": False,
+            "product_loop_id": "example-product",
+            "job_id": "example",
+            "wake_id": "wake-1",
+            "loaded_argv_sha256": "b" * 64,
+            "loaded_env_sha256": "c" * 64,
+            "exit_code": 1,
+            "failure_layer": "entrypoint",
+        }}
+        row = status_rows(
+            REGISTRY,
+            loaded={},
+            disabled={},
+            events=events,
+            installed_releases={},
+            admission_effect_unknown=set(),
+            resolved_effect_unknown_occurrences={"example:run-1"},
+            product_by_job={"example": "example-product"},
+        )[0]
+
+        self.assertEqual(row["effect_status"], "reconciled")
+        self.assertEqual(row["next_action"], "none")
+        projected = health.project_health([row])["jobs"][0]
+        self.assertEqual(projected["state"], "failed")
+        self.assertEqual(projected["facets"]["effect_safety"]["status"], "ok")
+        self.assertEqual(projected["facets"]["recovery"]["status"], "ok")
 
     def test_status_preserves_live_effect_unknown_fence(self):
         events = {"example": {

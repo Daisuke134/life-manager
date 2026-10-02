@@ -966,10 +966,12 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                 installed_releases: dict,
                 admission_effect_unknown: set[str] | None = None,
                 admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None,
+                resolved_effect_unknown_occurrences: set[str] | None = None,
                 product_by_job: dict[str, str] | None = None,
                 include_effect_details: bool = True) -> list[dict]:
     validate_registry(registry)
     product_by_job = _product_loop_job_map() if product_by_job is None else product_by_job
+    resolved_effect_unknown_occurrences = resolved_effect_unknown_occurrences or set()
     rows = []
     for loop_id in sorted(registry["loops"]):
         entry = registry["loops"][loop_id]
@@ -1002,6 +1004,15 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         ):
             stale_event = "resource_effect_unknown_resolved"
             blocker = None
+        occurrence_id = event.get("occurrence_id")
+        effect_status = event.get("effect_status", "unknown")
+        effect_reconciled = (
+            current_effect_unknown is False
+            and isinstance(occurrence_id, str)
+            and occurrence_id in resolved_effect_unknown_occurrences
+        )
+        if effect_reconciled and effect_status == "unknown":
+            effect_status = "reconciled"
         missing_diagnostic_fields = sorted(DIAGNOSTIC_FIELDS - set(event))
         catalog_product_loop_id = product_by_job.get(loop_id)
         event_product_loop_id = event.get("product_loop_id")
@@ -1040,6 +1051,8 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         error_class = event.get("error_class")
         retryable = event.get("retryable")
         next_action = event.get("next_action")
+        if effect_reconciled:
+            next_action = "none"
         if legacy_runtime_event:
             last_terminal_result = "fail"
             failure_layer = "runtime"
@@ -1096,7 +1109,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "last_pass": event.get("timestamp"),
             "last_terminal_result": last_terminal_result,
             "effect_class": entry["effect_class"],
-            "effect_status": event.get("effect_status", "unknown"),
+            "effect_status": effect_status,
             "event_release_sha": event.get("release_sha"),
             "next_eligible_run": _next_eligible(entry["cadence"]),
             "blocker": blocker,
@@ -1366,6 +1379,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
                     admission_effect_unknown: set[str] | None = None,
                     admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None,
+                    resolved_effect_unknown_occurrences: set[str] | None = None,
                     include_effect_details: bool = True) -> list[dict]:
     rows = status_rows(
         registry,
@@ -1375,6 +1389,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         installed_releases=installed_releases,
         admission_effect_unknown=admission_effect_unknown,
         admission_effect_unknown_occurrences=admission_effect_unknown_occurrences,
+        resolved_effect_unknown_occurrences=resolved_effect_unknown_occurrences,
         include_effect_details=include_effect_details,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
@@ -1817,7 +1832,7 @@ def _adapter_verdict(call: dict) -> dict:
                 detail = value
         elif "=" in line and " " not in line:
             marker = line
-    keep = ("reason", "verified", "proof_type", "resolved", "official_readback_ref",
+    keep = ("reason", "verified", "proof_type", "proof_kind", "resolved", "official_readback_ref",
             "provider_receipt_id", "platform_status", "admission_state", "evidence")
     if not detail:
         # The reconciler keeps only a tail, so the JSON head is often cut off.
@@ -1831,6 +1846,25 @@ def _adapter_verdict(call: dict) -> dict:
         **{key: detail[key] for key in keep if key in detail},
         **({} if detail.get("reason") else {"stdout_tail": tail[-DIAGNOSIS_DETAIL_CHARS:]}),
     }
+
+
+def _resolved_effect_unknown_occurrences(
+    log_path: Path = FENCE_RECONCILE_LOG,
+) -> set[str]:
+    """Return occurrences closed by a verified fence-adapter proof."""
+    resolved: set[str] = set()
+    for occurrence_id, call in _last_adapter_calls(log_path).items():
+        if call.get("closed") is not True:
+            continue
+        verdict = _adapter_verdict(call)
+        if (
+            verdict.get("proof_type") in {"pre_effect", "official_readback"}
+            or verdict.get("proof_kind")
+            or verdict.get("official_readback_ref")
+            or verdict.get("provider_receipt_id")
+        ):
+            resolved.add(occurrence_id)
+    return resolved
 
 
 def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, ...],
@@ -1923,6 +1957,7 @@ def snapshot(registry: dict, target: str, *, include_effect_details: bool = True
              include_health_clocks: bool = False) -> list[dict]:
     admission_unknown_occurrences = _admission_effect_unknown_occurrences()
     admission_unknown_owners = set(admission_unknown_occurrences)
+    resolved_effect_unknown_occurrences = _resolved_effect_unknown_occurrences()
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
         collect_options = {"full_inventory": False}
@@ -1935,6 +1970,7 @@ def snapshot(registry: dict, target: str, *, include_effect_details: bool = True
             installed_releases=releases,
             admission_effect_unknown=admission_unknown_owners,
             admission_effect_unknown_occurrences=admission_unknown_occurrences,
+            resolved_effect_unknown_occurrences=resolved_effect_unknown_occurrences,
             include_effect_details=include_effect_details)
         if not include_effect_details:
             for row in rows:
@@ -1948,6 +1984,7 @@ def snapshot(registry: dict, target: str, *, include_effect_details: bool = True
         installed_releases=releases, installed_labels=installed,
         admission_effect_unknown=admission_unknown_owners,
         admission_effect_unknown_occurrences=admission_unknown_occurrences,
+        resolved_effect_unknown_occurrences=resolved_effect_unknown_occurrences,
         include_effect_details=include_effect_details)
     selected = _select(rows, target)
     if not include_effect_details:
@@ -2028,6 +2065,7 @@ def targeted_snapshot(registry: dict, targets: set[str],
     plist_dir = Path.home() / "Library/LaunchAgents"
     admission_unknown_occurrences = _admission_effect_unknown_occurrences()
     admission_unknown_owners = set(admission_unknown_occurrences)
+    resolved_effect_unknown_occurrences = _resolved_effect_unknown_occurrences()
     rows = []
     for loop_id in sorted(targets):
         entry = registry["loops"][loop_id]
@@ -2061,6 +2099,7 @@ def targeted_snapshot(registry: dict, targets: set[str],
             installed_releases={label: _release_from_plist(plist_path)},
             admission_effect_unknown=admission_unknown_owners,
             admission_effect_unknown_occurrences=admission_unknown_occurrences,
+            resolved_effect_unknown_occurrences=resolved_effect_unknown_occurrences,
         ))
     return rows
 
