@@ -3473,3 +3473,9 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - Self-Build registry 4 jobsはhealth上すべてhealthyだが、`effect=none/not_applicable`であり、これはprocess healthのみである。
 - `self-improve-evolve`の直近run reportsは`status=skipped`、`external_actions=0`、`null_reason=verified_writeback_not_ready_until_gate_14`。Telegram deliveryは届いているが、patch→review→main→release→natural outcomeの自己改善証拠ではない。
 - よってSelf-Build/self-improveを完了扱いせず、CrowdWorks/Job Hunterの収益証拠後に、実際のfailure→patch→verified writebackをimprovement IDで閉じる。
+
+### 127. Investment paper/live境界（2026-10-02 20:45 JST）
+
+- Investment registryは`alpaca-investment-live`/`alpaca-investment-paper`/cross-venue reportが`safely_fenced`、`investment-strategy-validation`が`telemetry_gap`。Paperの最新occurrenceも`resource_effect_unknown`（money effect、公式broker receiptなし）である。
+- AT-13〜AT-29の30 round trips、buy/sell/fee/slippage/system cost/replay-zeroは未完。live注文、funding、送金、上限増額は行わない。
+- Paper/liveは含み損益やprocess healthを利益証拠に昇格させず、自然sell→公式broker readback→費用差引→重複0が揃ってから再計算する。
