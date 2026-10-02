@@ -2829,6 +2829,18 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. human-required interview/KYC/CAPTCHA/本人確認はholdし、fundraiserと同じく自動突破しない。
 4. paid contractのsourceが揃った後にSelf-Build→Investment AT-13〜AT-29→CFO 14/14→TaskMarket/BlockRun→cloud/self-fundingへ進む。
 
+### 98. PromptBase/Capafy fresh readback（2026-10-02 16:12 JST）
+
+- PromptBase `readback.py`を`interactive:dais` leaseで再実行したが、tracked 3 listingの状態更新はなく、Reels Hook LabはScheduled、Portfolio Tracker/Football Match AnalystはPendingのまま。Salesは`0件 / $0.00 net / by_item={}`で、同一listingへの投稿・編集・再送は0件。
+- Capafy `publish-list`公式readback（`2026-10-02T07:12:47Z`）は52件中`online=47 / under_review=3 / review_rejected=2`、under_review Agentは`4813383030`、`4243672453`、`4763185052`で変化なし。
+- 同時刻のCapafy official `sales/trend`直近7日は注文21件・revenue/netRevenue合計`$21.93`、`payout-info`は`balancePayout=$59.00`、`balancePending=$15.64`、`balanceConfirmed=$1.54`、`totalPayout=$0.00`。server残高をsettled bank income・利益・MRRへ昇格させない。
+
+#### 更新後の原子cursor
+
+1. PromptBaseはScheduled→公開URL/liveが公式dashboardで変化した時だけ、Sales item/order→fee→settlement→payout→replay-zeroへ進む。
+2. Capafyはunder_review枠が空くまでread-only監視し、空いた時だけ既存ownerの自然CP2/CP3を一件閉じる。
+3. 変化なしのreadbackを根拠にmanual retry・容量上限変更・ledger訂正をしない。Writer/Ebook/Affiliate/CFO/contract-workの独立source gapを並列に続ける。
+
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
 - PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
