@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `314d6c25cf`
+Code release observed: `0062077e46`
 
 ## Natural-run evidence
 
@@ -72,16 +72,24 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Collector: `skills/cfo/loop_pnl.py --date 2026-10-02 --json`
 - Snapshot: `2026-10-02T15:00:00.000000Z`
 - Trailing window: `2026-09-02T15:00:00.000000Z..2026-10-02T15:00:00.000000Z`
-- Historical company: `unknown`, no settled currency total
-- Trailing company: `unknown`, no settled currency total
-- Historical/trailing coverage gaps: `137` each
-- Main gap classes: `missing_category=126`, `source_unconnected=5`, `read_failed=5`, `stale_readback=1`
-- Readback artifact SHA-256: `84717b38c32e7ef81c14c43a02a6b2afa86e89f8a43a542f552a6e0ea2edf9c6`
+- Historical company: `unknown`, no settled company total (`137` coverage gaps)
+- Trailing company: `unknown`, no settled company total (`132` coverage gaps)
+- Historical gap classes: `missing_category=126`, `source_unconnected=5`, `unverified_receipt=3`, `read_failed=2`, `stale_readback=1`
+- Trailing gap classes: `missing_category=122`, `source_unconnected=5`, `unverified_receipt=2`, `read_failed=2`, `stale_readback=1`
+- Readback artifact SHA-256: `0a9291be9ad5fa837d45550c64dbc0316b35a8c5c8d91ddbbd91d8f869539c2a`
 - Canonical artifact-path rerun receipt: `loop-pnl://sha256/979f5e3ee3903cd0add3a5138c793f87b6dd9344408edd33117c9fe0bccfdd1b`
-- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); Stripe `read_failed=1`; actual-cost `read_failed=1`; Writer and PartnerStack `stale_readback=1` each; Alpaca account/order `unverified_receipt=2`; Capafy and mobile `missing_coverage=2`; plus explicit unreported-loop coverage rows. The remaining `missing_category` rows are derived category gaps, not independent incidents.
-- Fresh private-state audit found no safe replacement receipt: the Lancers marketplace SQLite has `260` `application_verified` events and `0` `payment_received` events; Alpaca has decision/effect receipts but no current settled bundle; Stripe has listener operational events but no financial readback artifact; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
+- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); actual-cost `read_failed=1`; Writer and PartnerStack `stale_readback=1` each; Alpaca account/order `unverified_receipt=2`; Capafy and mobile `missing_coverage=2`; plus explicit unreported-loop coverage rows. Stripe is no longer `read_failed`: its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
+- Fresh private-state audit found no safe replacement receipt for the other unresolved rails: the Lancers marketplace SQLite has `260` `application_verified` events and `0` `payment_received` events; Alpaca has decision/effect receipts but no current settled bundle; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
 
-Interpretation: the collector is running and preserving the gaps, but it cannot honestly produce settled MRR/net/revenue until the configured rails provide current receipt-backed coverage.
+Interpretation: the collector is running and preserving the gaps. Stripe now has an official readback path and source-backed trailing receipts, but portfolio-wide settled MRR/net/revenue remains unknown until the other configured rails provide current receipt-backed coverage.
+
+### Stripe official API readback and settlement reconciliation
+
+- Runtime flag: `LM_CFO_STRIPE_LIVE_READBACK=1`; account classification policy: explicit `settled_external_revenue` default for empty metadata only.
+- Official collections fetched read-only with complete pagination: balance transactions `20`, charges `19`, refunds `3`, subscriptions `7`; every collection reported `has_more=false`.
+- Stripe Charge/Refund objects are retained in their source currency, while settled amounts use the linked Balance Transaction currency and amount. The adapter now verifies both currencies independently, so the live USD-to-JPY settlements are not rejected as false inconsistencies.
+- Trailing Stripe coverage is complete for the requested financial categories; historical coverage remains a gap only for one old JCT fee adjustment whose accounting sign is not representable by the current unsigned cost-component contract. It is not allowed to poison the trailing window.
+- The readback is read-only; no Stripe mutation or raw provider payload was persisted.
 
 ### Google Cloud Cost Table official readback
 
@@ -143,7 +151,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 |---|---|---|
 | Moneytree stale/empty is not zero | proved | installed plugin read + CLI exit 1 + fixture replay; last-known balance ¥504,302, income ¥806,201, spending ¥205,500 |
 | Canonical local Financial Manager path | proved | `runHourlyCfo` daily default, 1-day idempotent receipt |
-| Settled business coverage and gaps | partial | B7 table receipt contract exists; live source artifacts remain unconnected |
+| Settled business coverage and gaps | partial | B7 table receipt contract exists; Stripe official trailing readback is now connected, while other rails and one historical Stripe adjustment remain explicit gaps |
 | Google estimate vs settled invoice | proved for September settlement; partial for event-level attribution | Official Cost Table CSV parsed with receipt, tax, rounding, and service/SKU totals; joining every usage event to a billing SKU remains incomplete |
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
