@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Reconcile one CFO Telegram effect from occurrence-bound local receipts.
+"""Reconcile one occurrence-bound current CFO Telegram result.
 
-The adapter never sends Telegram and never retries an outbox item.  A normal
-invocation only reads the admission row, runtime event pair, private CFO
-snapshot, and the shared Telegram outbox.  ``--resolve`` is the sole path that
-passes an already verified provider receipt to the admission resolver.
+The normal adapter reads only ``last-result-report.json`` written by the current
+producer.  Historical ``last-delivered-snapshot.json`` evidence belongs to the
+separate one-time migration adapter and is deliberately not accepted here.
 """
 
 from __future__ import annotations
@@ -26,9 +25,10 @@ OWNER_ID = "life-manager-cfo-hourly"
 OCCURRENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
-EVENT_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,1023}$")
+EVENT_KEY = re.compile(r"^cfo-result:[A-Za-z0-9][A-Za-z0-9._:-]{0,1023}$")
+PROVIDER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
 MAX_EVENT_BYTES = 16 * 1024 * 1024
-MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024
+MAX_REPORT_BYTES = 4 * 1024 * 1024
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -36,7 +36,10 @@ OUTBOX_ROOT = ROOT / "apps/life-manager/investment-core"
 if str(OUTBOX_ROOT) not in sys.path:
     sys.path.insert(0, str(OUTBOX_ROOT))
 
-from runtime.host.resource_admission import resolve_unknown_occurrence  # noqa: E402
+from runtime.host.resource_admission import (  # noqa: E402
+    resolve_pre_effect_occurrence,
+    resolve_unknown_occurrence,
+)
 from telegram_outbox import list_items  # noqa: E402
 
 
@@ -45,7 +48,6 @@ def _fail(reason: str) -> ValueError:
 
 
 def _private_file(path: Path, *, max_bytes: int, label: str) -> bytes:
-    """Read one owner-private regular file without following links."""
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
     except OSError as error:
@@ -68,9 +70,9 @@ def _private_file(path: Path, *, max_bytes: int, label: str) -> bytes:
             os.close(descriptor)
 
 
-def _read_json(path: Path, *, max_bytes: int, label: str) -> dict[str, Any]:
+def _read_json(path: Path, *, label: str) -> dict[str, Any]:
     try:
-        value = json.loads(_private_file(path, max_bytes=max_bytes, label=label))
+        value = json.loads(_private_file(path, max_bytes=MAX_REPORT_BYTES, label=label))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise _fail(f"{label}_invalid") from error
     if not isinstance(value, dict):
@@ -119,16 +121,15 @@ def _event_epoch(value: object) -> float:
 
 def _reporting_date(value: object) -> str:
     if not isinstance(value, str) or not DATE.fullmatch(value):
-        raise _fail("snapshot_reporting_date_invalid")
+        raise _fail("reporting_date_invalid")
     try:
         datetime.strptime(value, "%Y-%m-%d")
     except ValueError as error:
-        raise _fail("snapshot_reporting_date_invalid") from error
+        raise _fail("reporting_date_invalid") from error
     return value
 
 
 def _event_date(value: object) -> str:
-    """Return the Asia/Tokyo reporting date for a runtime timestamp."""
     from zoneinfo import ZoneInfo
 
     return datetime.fromtimestamp(_event_epoch(value), timezone.utc).astimezone(
@@ -136,28 +137,28 @@ def _event_date(value: object) -> str:
     ).strftime("%Y-%m-%d")
 
 
-def _read_runtime_pair(state_dir: Path, occurrence_id: str, reporting_date: str) -> dict[str, Any]:
-    path = state_dir / "events.jsonl"
+def _read_runtime_pair(
+    state_dir: Path,
+    occurrence_id: str,
+    reporting_date: str,
+) -> dict[str, Any]:
     try:
-        raw = _private_file(path, max_bytes=MAX_EVENT_BYTES, label="runtime_events")
+        raw = _private_file(
+            state_dir / "events.jsonl", max_bytes=MAX_EVENT_BYTES, label="runtime_events"
+        )
     except ValueError as error:
         if str(error) in {"runtime_events_missing", "runtime_events_not_private"}:
             raise _fail("runtime_event_pair_missing") from error
         raise
-    rows: list[dict[str, Any]] = []
     try:
-        for line in raw.splitlines():
-            value = json.loads(line)
-            if not isinstance(value, dict):
-                raise _fail("runtime_event_invalid")
-            rows.append(value)
+        rows = [json.loads(line) for line in raw.splitlines()]
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise _fail("runtime_event_invalid") from error
-
+    if any(not isinstance(row, dict) for row in rows):
+        raise _fail("runtime_event_invalid")
     run_id = occurrence_id[len(OWNER_ID) + 1 :]
     matching = [
-        row
-        for row in rows
+        row for row in rows
         if row.get("occurrence_id") == occurrence_id
         and row.get("loop_id") == OWNER_ID
         and row.get("owner_id") == OWNER_ID
@@ -167,16 +168,14 @@ def _read_runtime_pair(state_dir: Path, occurrence_id: str, reporting_date: str)
     if len(matching) != 2:
         raise _fail("runtime_event_pair_missing")
     starts = [
-        row
-        for row in matching
+        row for row in matching
         if row.get("phase") == "execute"
         and row.get("status") == "running"
         and row.get("effect_status") == "started"
         and row.get("effect_class") == "message"
     ]
     terminals = [
-        row
-        for row in matching
+        row for row in matching
         if row.get("phase") == "report"
         and row.get("status") == "pass"
         and row.get("effect_class") == "message"
@@ -192,227 +191,183 @@ def _read_runtime_pair(state_dir: Path, occurrence_id: str, reporting_date: str)
     if _event_date(start.get("timestamp")) != reporting_date or _event_date(
         terminal.get("timestamp")
     ) != reporting_date:
-        raise _fail("runtime_event_period_mismatch")
+        raise _fail("reporting_date_mismatch")
     if start.get("release_sha") != terminal.get("release_sha"):
         raise _fail("runtime_event_release_mismatch")
     return {
-        "start_event_id": start.get("event_id"),
+        "run_id": run_id,
+        "start_timestamp": start["timestamp"],
         "terminal_event_id": terminal.get("event_id"),
-        "terminal_timestamp": terminal.get("timestamp"),
         "release_sha": terminal.get("release_sha"),
     }
 
 
-def _snapshot_values(
-    snapshot: dict[str, Any],
-) -> tuple[str, str | None, str | None, str, str]:
-    if snapshot.get("schemaVersion") != 1 or snapshot.get("status") != "delivered":
-        raise _fail("snapshot_not_delivered")
-    reporting_date = _reporting_date(
-        snapshot.get("reportingDate", snapshot.get("reporting_date"))
-    )
-    delivery = snapshot.get("delivery")
-    if not isinstance(delivery, dict) or delivery.get("delivery") != "delivered":
-        raise _fail("snapshot_delivery_not_delivered")
-    provider_id = delivery.get("provider_message_id")
-    if provider_id is None or isinstance(provider_id, bool) or not str(provider_id).strip():
-        raise _fail("snapshot_provider_receipt_missing")
-    digest = snapshot.get("digest")
-    if not isinstance(digest, str) or not digest.strip():
-        raise _fail("snapshot_digest_missing")
-    message_sha256 = snapshot.get("message_sha256", snapshot.get("messageSha256"))
-    if message_sha256 is not None and (
-        not isinstance(message_sha256, str) or not SHA256.fullmatch(message_sha256)
-    ):
-        raise _fail("snapshot_message_hash_invalid")
-    event_key = snapshot.get("event_key", snapshot.get("eventKey"))
-    if event_key is not None and (
-        not isinstance(event_key, str) or not EVENT_KEY.fullmatch(event_key)
-    ):
-        raise _fail("snapshot_event_key_invalid")
-    return reporting_date, event_key, message_sha256, str(provider_id), digest
+def _current_report(state_dir: Path, occurrence_id: str) -> dict[str, Any]:
+    report = _read_json(state_dir / "last-result-report.json", label="result_report")
+    if report.get("status") != "sent":
+        raise _fail("result_report_not_sent")
+    if report.get("occurrenceId") != occurrence_id:
+        raise _fail("occurrence_mismatch")
+    if report.get("channel") != "telegram":
+        raise _fail("channel_not_telegram")
+    resolution_kind = report.get("resolutionKind")
+    if resolution_kind not in {"sent", "duplicate"}:
+        raise _fail("resolution_kind_invalid")
+    reporting_date = _reporting_date(report.get("reportingDate"))
+    event_key = report.get("eventKey")
+    if not isinstance(event_key, str) or not EVENT_KEY.fullmatch(event_key):
+        raise _fail("event_key_invalid")
+    if not _event_key_date(event_key, reporting_date):
+        raise _fail("reporting_date_mismatch")
+    message_sha256 = report.get("messageSha256")
+    if not isinstance(message_sha256, str) or not SHA256.fullmatch(message_sha256):
+        raise _fail("message_sha256_invalid")
+    provider_message_id = report.get("providerMessageId")
+    if not isinstance(provider_message_id, str) or not PROVIDER_ID.fullmatch(provider_message_id):
+        raise _fail("provider_message_id_invalid")
+    return {
+        "resolution_kind": resolution_kind,
+        "reporting_date": reporting_date,
+        "event_key": event_key,
+        "message_sha256": message_sha256,
+        "provider_message_id": provider_message_id,
+    }
 
 
 def _event_key_date(event_key: str, reporting_date: str) -> bool:
-    return event_key.startswith(("cfo:", "cfo-result:")) and (
+    return event_key.startswith("cfo-result:") and (
         event_key.endswith(f":{reporting_date}")
         or f":{reporting_date}:" in event_key
     )
 
 
-def _outbox_proof(
-    state_dir: Path,
-    *,
-    reporting_date: str,
-    snapshot_event_key: str | None,
-    snapshot_message_sha256: str | None,
-    provider_message_id: str,
-) -> dict[str, Any]:
+def _outbox_proof(state_dir: Path, report: dict[str, Any]) -> dict[str, Any]:
     database = state_dir / "telegram-outbox.sqlite3"
     if not database.is_file() or database.is_symlink():
         raise _fail("telegram_outbox_missing")
     try:
-        items = list_items(database)
+        items = [item for item in list_items(database) if item.event_key == report["event_key"]]
     except (OSError, sqlite3.Error, ValueError) as error:
         raise _fail("telegram_outbox_read_failed") from error
-    if snapshot_event_key is not None:
-        candidates = [item for item in items if item.event_key == snapshot_event_key]
-    else:
-        candidates = [
-            item for item in items if item.provider_message_id == provider_message_id
-        ]
-    if len(candidates) != 1:
+    if len(items) != 1:
         raise _fail("telegram_outbox_event_not_unique")
-    item = candidates[0]
-    if not _event_key_date(item.event_key, reporting_date):
-        raise _fail("telegram_outbox_period_mismatch")
+    item = items[0]
+    if not _event_key_date(item.event_key, report["reporting_date"]):
+        raise _fail("reporting_date_mismatch")
     if item.status != "delivered" or not item.provider_message_id or not item.delivered_at:
         raise _fail("provider_receipt_not_delivered")
     if not isinstance(item.message_sha256, str) or not SHA256.fullmatch(item.message_sha256):
         raise _fail("message_sha256_missing")
-    if snapshot_message_sha256 is not None and item.message_sha256 != snapshot_message_sha256:
+    if item.message_sha256 != report["message_sha256"]:
         raise _fail("message_sha256_mismatch")
-    if item.provider_message_id != provider_message_id:
+    if item.provider_message_id != report["provider_message_id"]:
         raise _fail("provider_message_id_mismatch")
     for timestamp in (item.created_at, item.delivered_at):
-        if timestamp is not None and _event_date(timestamp) != reporting_date:
-            raise _fail("telegram_outbox_period_mismatch")
+        if timestamp is not None and _event_date(timestamp) != report["reporting_date"]:
+            raise _fail("reporting_date_mismatch")
     return {
-        "event_key": item.event_key,
         "message_sha256": item.message_sha256,
         "provider_message_id": item.provider_message_id,
         "delivered_at": item.delivered_at,
     }
 
 
-def build_proof(*, state_dir: Path, admission_db: Path, occurrence_id: str) -> dict[str, Any]:
-    occurrence = _read_admission(admission_db, occurrence_id)
-    snapshot = _read_json(
-        state_dir / "last-delivered-snapshot.json",
-        max_bytes=MAX_SNAPSHOT_BYTES,
-        label="snapshot",
-    )
-    (
-        reporting_date,
-        snapshot_event_key,
-        snapshot_message_sha256,
-        provider_message_id,
-        snapshot_digest,
-    ) = _snapshot_values(snapshot)
-    runtime = _read_runtime_pair(state_dir, occurrence_id, reporting_date)
-    outbox = _outbox_proof(
-        state_dir,
-        reporting_date=reporting_date,
-        snapshot_event_key=snapshot_event_key,
-        snapshot_message_sha256=snapshot_message_sha256,
-        provider_message_id=provider_message_id,
-    )
-    evidence = {
-        "event_key": outbox["event_key"],
-        "reporting_date": reporting_date,
+def _base_proof(report: dict[str, Any], runtime: dict[str, Any], outbox: dict[str, Any]) -> dict[str, Any]:
+    event_key_digest = hashlib.sha256(report["event_key"].encode("utf-8")).hexdigest()
+    evidence_digest = hashlib.sha256(json.dumps({
+        "event_key_sha256": event_key_digest,
+        "reporting_date": report["reporting_date"],
         "message_sha256": outbox["message_sha256"],
         "provider_message_id": outbox["provider_message_id"],
         "delivered_at": outbox["delivered_at"],
-        "snapshot_digest": snapshot_digest,
         "terminal_event_id": runtime["terminal_event_id"],
-    }
-    digest = hashlib.sha256(
-        json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-    event_key_digest = hashlib.sha256(outbox["event_key"].encode("utf-8")).hexdigest()
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     return {
         "owner_id": OWNER_ID,
-        "occurrence_id": occurrence_id,
-        "occurrence_state": occurrence["state"],
-        "verified": True,
-        "proof_type": "cfo_telegram_provider_receipt",
-        "provider": "telegram",
-        "provider_receipt_id": f"telegram:{outbox['provider_message_id']}",
-        "official_readback_ref": f"telegram-outbox://event/{event_key_digest}/{digest}",
+        "occurrence_id": report.get("occurrence_id"),
+        "reporting_date": report["reporting_date"],
+        "resolution_kind": report["resolution_kind"],
         "event_key_sha256": event_key_digest,
-        "reporting_date": reporting_date,
         "message_sha256": outbox["message_sha256"],
         "provider_message_id": outbox["provider_message_id"],
         "terminal_event_id": runtime["terminal_event_id"],
+        "official_readback_ref": f"telegram-outbox://event/{event_key_digest}/{evidence_digest}",
     }
+
+
+def build_proof(*, state_dir: Path, admission_db: Path, occurrence_id: str) -> dict[str, Any]:
+    occurrence = _read_admission(admission_db, occurrence_id)
+    report = _current_report(state_dir, occurrence_id)
+    report["occurrence_id"] = occurrence_id
+    runtime = _read_runtime_pair(state_dir, occurrence_id, report["reporting_date"])
+    outbox = _outbox_proof(state_dir, report)
+    if report["resolution_kind"] == "duplicate":
+        if _event_epoch(outbox["delivered_at"]) >= _event_epoch(runtime["start_timestamp"]):
+            raise _fail("duplicate_delivery_after_runtime_start")
+        proof = _base_proof(report, runtime, outbox)
+        proof.update({
+            "occurrence_state": occurrence["state"],
+            "verified": True,
+            "proof_type": "pre_effect",
+            "evidence_ref": f"lm-event://{OWNER_ID}/{runtime['run_id']}/{runtime['terminal_event_id']}",
+        })
+        return proof
+    proof = _base_proof(report, runtime, outbox)
+    proof.update({
+        "occurrence_state": occurrence["state"],
+        "verified": True,
+        "proof_type": "cfo_result_telegram_provider_receipt",
+        "provider": "telegram",
+        "provider_receipt_id": f"telegram:{outbox['provider_message_id']}",
+    })
+    return proof
 
 
 def reconcile(
-    *,
-    state_dir: Path,
-    admission_db: Path,
-    occurrence_id: str,
-    resolve: bool = False,
+    *, state_dir: Path, admission_db: Path, occurrence_id: str, resolve: bool = False
 ) -> dict[str, Any]:
-    proof = build_proof(
-        state_dir=state_dir,
-        admission_db=admission_db,
-        occurrence_id=occurrence_id,
-    )
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence_id)
     resolved = False
     if resolve:
-        resolved = resolve_unknown_occurrence(
-            OWNER_ID,
-            occurrence_id,
-            official_readback=lambda: proof,
-            expected_state=proof["occurrence_state"],
-        )
-    return {
-        **proof,
-        "resolution_state": "RESOLVED" if resolved else "PROOF_READY",
-    }
+        if proof["resolution_kind"] == "duplicate":
+            resolved = resolve_pre_effect_occurrence(
+                OWNER_ID,
+                occurrence_id,
+                pre_effect_readback=lambda: proof,
+                expected_state=proof["occurrence_state"],
+            )
+        else:
+            resolved = resolve_unknown_occurrence(
+                OWNER_ID,
+                occurrence_id,
+                official_readback=lambda: proof,
+                expected_state=proof["occurrence_state"],
+            )
+    proof["resolution_state"] = "RESOLVED" if resolved else "PROOF_READY"
+    return proof
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--state-dir",
-        type=Path,
-        default=Path("~/.local/state/life-manager/life-manager-cfo-hourly"),
-    )
-    parser.add_argument(
-        "--admission-db",
-        type=Path,
-        default=Path("~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3"),
-    )
+    parser.add_argument("--state-dir", type=Path, default=Path("~/.local/state/life-manager/life-manager-cfo-hourly"))
+    parser.add_argument("--admission-db", type=Path, default=Path("~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3"))
     parser.add_argument("--occurrence-id", required=True)
     parser.add_argument("--resolve", action="store_true")
     args = parser.parse_args(argv)
-    occurrence_id = str(args.occurrence_id)
     try:
         result = reconcile(
             state_dir=args.state_dir.expanduser().resolve(),
             admission_db=args.admission_db.expanduser().resolve(),
-            occurrence_id=occurrence_id,
+            occurrence_id=str(args.occurrence_id),
             resolve=args.resolve,
         )
-    except ValueError as error:
-        print(
-            json.dumps(
-                {
-                    "status": "inconclusive",
-                    "owner_id": OWNER_ID,
-                    "occurrence_id": occurrence_id,
-                    "reason": str(error),
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
-        return 1
-    except (OSError, RuntimeError, sqlite3.Error):
-        print(
-            json.dumps(
-                {
-                    "status": "inconclusive",
-                    "owner_id": OWNER_ID,
-                    "occurrence_id": occurrence_id,
-                    "reason": "reconcile_read_failed",
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
+    except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
+        print(json.dumps({
+            "status": "inconclusive",
+            "owner_id": OWNER_ID,
+            "occurrence_id": str(args.occurrence_id),
+            "reason": str(error) if isinstance(error, ValueError) else "reconcile_read_failed",
+        }, ensure_ascii=False, sort_keys=True))
         return 1
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

@@ -1,6 +1,8 @@
 import hashlib
 import json
+import os
 import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,9 +20,12 @@ from effect_reconcile import build_proof, reconcile  # noqa: E402
 
 OWNER = "life-manager-cfo-hourly"
 DATE = "2026-09-26"
-RUN_ID = "18d8de9f2e7b25a8-17283"
+RUN_ID = "current-run-1"
 OCCURRENCE = f"{OWNER}:{RUN_ID}"
-RELEASE_SHA = "a" * 40
+RELEASE_SHA = "b" * 40
+EVENT_KEY = f"cfo-result:subject:telegram:{DATE}:12"
+MESSAGE = "CFO current result fixture"
+MESSAGE_SHA256 = hashlib.sha256(MESSAGE.encode()).hexdigest()
 
 
 def _event(*, phase: str, status: str, timestamp: str, exit_code=None, effect_status: str):
@@ -57,14 +62,7 @@ def _event(*, phase: str, status: str, timestamp: str, exit_code=None, effect_st
     }
 
 
-def _fixture(
-    tmp_path: Path,
-    *,
-    snapshot=True,
-    event_pair=True,
-    outbox_status="delivered",
-    event_key: str | None = None,
-):
+def _fixture(tmp_path: Path, *, resolution_kind="sent", outbox_status="delivered"):
     state_dir = tmp_path / "cfo"
     state_dir.mkdir(mode=0o700)
     admission_db = tmp_path / "admission.sqlite3"
@@ -82,15 +80,12 @@ def _fixture(
             (OCCURRENCE, OWNER, "claimed", 1),
         )
 
-    event_key = event_key or f"cfo:subject:telegram:{DATE}"
-    message = "CFO fixture message"
-    message_sha256 = hashlib.sha256(message.encode()).hexdigest()
     outbox = state_dir / "telegram-outbox.sqlite3"
     enqueue(
         database=outbox,
-        event_key=event_key,
-        message=message,
-        created_at="2026-09-26T12:27:08Z",
+        event_key=EVENT_KEY,
+        message=MESSAGE,
+        created_at="2026-09-26T12:26:00Z",
         repeat_after_seconds=None,
     )
     claimed = claim_next(outbox)
@@ -98,220 +93,250 @@ def _fixture(
     if outbox_status == "delivered":
         mark_delivered(
             outbox,
-            event_key,
+            EVENT_KEY,
             "94946",
-            "2026-09-26T12:27:09Z",
+            "2026-09-26T12:27:00Z",
             claimed_at=claimed.claimed_at,
         )
     elif outbox_status == "delivery_uncertain":
         from telegram_outbox import mark_delivery_uncertain
 
-        mark_delivery_uncertain(outbox, event_key, "fixture_uncertain", claimed_at=claimed.claimed_at)
+        mark_delivery_uncertain(outbox, EVENT_KEY, "fixture_uncertain", claimed_at=claimed.claimed_at)
 
-    if snapshot:
-        (state_dir / "last-delivered-snapshot.json").write_text(
-            json.dumps({
-                "schemaVersion": 1,
-                "status": "delivered",
-                "reportingDate": DATE,
-                "digest": "d" * 64,
-                "eventKey": event_key,
-                "message_sha256": message_sha256,
-                "delivery": {"delivery": "delivered", "provider_message_id": "94946"},
-                "occurrence_id": OCCURRENCE,
-            }),
-            encoding="utf-8",
-        )
-        (state_dir / "last-delivered-snapshot.json").chmod(0o600)
-
-    if event_pair:
-        (state_dir / "events.jsonl").write_text(
-            "".join(
-                json.dumps(row, separators=(",", ":")) + "\n"
-                for row in (
-                    _event(
-                        phase="execute",
-                        status="running",
-                        effect_status="started",
-                        timestamp="2026-09-26T12:27:07.145Z",
-                    ),
-                    _event(
-                        phase="report",
-                        status="pass",
-                        effect_status="unknown",
-                        exit_code=0,
-                        timestamp="2026-09-26T12:27:38.256Z",
-                    ),
-                )
-            ),
-            encoding="utf-8",
-        )
-        (state_dir / "events.jsonl").chmod(0o600)
-
+    (state_dir / "last-result-report.json").write_text(
+        json.dumps({
+            "status": "sent",
+            "subjectId": "subject",
+            "periodKey": f"{DATE}:12",
+            "reportingDate": DATE,
+            "channel": "telegram",
+            "eventKey": EVENT_KEY,
+            "message": MESSAGE,
+            "messageSha256": MESSAGE_SHA256,
+            "occurrenceId": OCCURRENCE,
+            "resolutionKind": resolution_kind,
+            "providerMessageId": "94946",
+            "createdAt": "2026-09-26T12:26:00Z",
+            "sentAt": "2026-09-26T12:27:00Z",
+        }),
+        encoding="utf-8",
+    )
+    (state_dir / "last-result-report.json").chmod(0o600)
+    (state_dir / "events.jsonl").write_text(
+        "".join(
+            json.dumps(row, separators=(",", ":")) + "\n"
+            for row in (
+                _event(
+                    phase="execute",
+                    status="running",
+                    effect_status="started",
+                    timestamp="2026-09-26T12:27:07.145Z",
+                ),
+                _event(
+                    phase="report",
+                    status="pass",
+                    effect_status="unknown",
+                    exit_code=0,
+                    timestamp="2026-09-26T12:27:38.256Z",
+                ),
+            )
+        ),
+        encoding="utf-8",
+    )
+    (state_dir / "events.jsonl").chmod(0o600)
     return state_dir, admission_db, OCCURRENCE
 
 
-def test_build_proof_requires_exact_runtime_pair_and_delivered_outbox_receipt(tmp_path):
+def test_sent_current_result_proves_exact_receipt_without_subject_or_body(tmp_path):
     state_dir, admission_db, occurrence = _fixture(tmp_path)
 
-    proof = build_proof(
-        state_dir=state_dir,
-        admission_db=admission_db,
-        occurrence_id=occurrence,
-    )
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
     assert proof["verified"] is True
-    assert proof["owner_id"] == OWNER
-    assert proof["occurrence_id"] == occurrence
-    assert proof["reporting_date"] == DATE
-    assert proof["event_key_sha256"] == hashlib.sha256(
-        b"cfo:subject:telegram:2026-09-26"
-    ).hexdigest()
-    assert proof["message_sha256"] == hashlib.sha256(b"CFO fixture message").hexdigest()
+    assert proof["resolution_kind"] == "sent"
     assert proof["provider_receipt_id"] == "telegram:94946"
+    assert proof["message_sha256"] == MESSAGE_SHA256
+    assert "subject" not in json.dumps(proof)
+    assert "CFO current result fixture" not in json.dumps(proof)
 
 
-def test_read_only_default_does_not_call_resolver(tmp_path, monkeypatch):
+def test_normal_path_rejects_legacy_snapshot_without_current_result_report(tmp_path):
     state_dir, admission_db, occurrence = _fixture(tmp_path)
-    called = []
-    monkeypatch.setattr("effect_reconcile.resolve_unknown_occurrence", lambda *args, **kwargs: called.append(args))
-
-    result = reconcile(
-        state_dir=state_dir,
-        admission_db=admission_db,
-        occurrence_id=occurrence,
+    current = state_dir / "last-result-report.json"
+    current.unlink()
+    (state_dir / "last-delivered-snapshot.json").write_text(
+        json.dumps({
+            "schemaVersion": 1,
+            "status": "delivered",
+            "reportingDate": DATE,
+            "digest": "d" * 64,
+            "delivery": {"delivery": "delivered", "provider_message_id": "94946"},
+        }),
+        encoding="utf-8",
     )
+    (state_dir / "last-delivered-snapshot.json").chmod(0o600)
 
-    assert result["resolution_state"] == "PROOF_READY"
-    assert called == []
+    with pytest.raises(ValueError, match="result_report_missing"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
-def test_resolve_uses_only_verified_proof(tmp_path, monkeypatch):
-    state_dir, admission_db, occurrence = _fixture(tmp_path)
+def test_duplicate_result_uses_pre_effect_resolver_only(tmp_path, monkeypatch):
+    state_dir, admission_db, occurrence = _fixture(tmp_path, resolution_kind="duplicate")
     calls = []
 
-    def resolve(owner_id, occurrence_id, **kwargs):
-        calls.append((owner_id, occurrence_id, kwargs["official_readback"]()))
+    def resolver(owner_id, occurrence_id, **kwargs):
+        proof = kwargs["pre_effect_readback"]()
+        calls.append((owner_id, occurrence_id, proof, kwargs["expected_state"]))
         return True
 
-    monkeypatch.setattr("effect_reconcile.resolve_unknown_occurrence", resolve)
+    monkeypatch.setattr(effect_reconcile_module, "resolve_pre_effect_occurrence", resolver)
+    monkeypatch.setattr(
+        effect_reconcile_module,
+        "resolve_unknown_occurrence",
+        lambda *args, **kwargs: pytest.fail("duplicate must not use unknown resolver"),
+    )
     result = reconcile(
         state_dir=state_dir,
         admission_db=admission_db,
-        occurrence_id=occurrence,
+        occurrence_id=OCCURRENCE,
         resolve=True,
     )
 
+    assert result["resolution_kind"] == "duplicate"
     assert result["resolution_state"] == "RESOLVED"
-    assert calls[0][0:2] == (OWNER, occurrence)
-    assert calls[0][2]["verified"] is True
+    assert calls[0][2]["proof_type"] == "pre_effect"
+    assert calls[0][2]["evidence_ref"].startswith("lm-event://")
+
+
+def test_sent_result_uses_unknown_effect_resolver(tmp_path, monkeypatch):
+    state_dir, admission_db, occurrence = _fixture(tmp_path)
+    calls = []
+
+    def resolver(owner_id, occurrence_id, **kwargs):
+        calls.append((owner_id, occurrence_id, kwargs["official_readback"]()))
+        return True
+
+    monkeypatch.setattr(effect_reconcile_module, "resolve_unknown_occurrence", resolver)
+    monkeypatch.setattr(
+        effect_reconcile_module,
+        "resolve_pre_effect_occurrence",
+        lambda *args, **kwargs: pytest.fail("sent must not use pre-effect resolver"),
+    )
+    result = reconcile(
+        state_dir=state_dir,
+        admission_db=admission_db,
+        occurrence_id=OCCURRENCE,
+        resolve=True,
+    )
+
+    assert result["resolution_kind"] == "sent"
+    assert result["resolution_state"] == "RESOLVED"
+    assert calls[0][2]["proof_type"] == "cfo_result_telegram_provider_receipt"
+
+
+def test_duplicate_result_stays_fenced_if_delivery_is_after_current_start(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(tmp_path, resolution_kind="duplicate")
+    outbox = state_dir / "telegram-outbox.sqlite3"
+    with sqlite3.connect(outbox) as connection:
+        connection.execute("UPDATE telegram_outbox SET delivered_at=?", ("2026-09-26T12:28:00Z",))
+
+    with pytest.raises(ValueError, match="duplicate_delivery_after_runtime_start"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
 @pytest.mark.parametrize(
-    ("kind", "reason"),
+    ("mutation", "reason"),
     [
-        ("owner", "occurrence_owner_mismatch"),
-        ("events", "runtime_event_pair_missing"),
-        ("period", "runtime_event_period_mismatch"),
-        ("uncertain", "provider_receipt_not_delivered"),
-        ("snapshot", "snapshot_missing"),
+        (lambda value: value.update({"occurrenceId": "life-manager-cfo-hourly:other"}), "occurrence_mismatch"),
+        (lambda value: value.update({"channel": "email"}), "channel_not_telegram"),
+        (lambda value: value.update({"resolutionKind": "unknown"}), "resolution_kind_invalid"),
+        (lambda value: value.update({"messageSha256": "0" * 64}), "message_sha256_mismatch"),
+        (lambda value: value.update({"providerMessageId": "other"}), "provider_message_id_mismatch"),
+        (lambda value: value.update({"reportingDate": "2026-09-25"}), "reporting_date_mismatch"),
     ],
 )
-def test_build_proof_fails_closed_on_boundary_mismatch(tmp_path, kind, reason):
-    state_dir, admission_db, occurrence = _fixture(
-        tmp_path,
-        snapshot=kind != "snapshot",
-        event_pair=kind != "events",
-        outbox_status="delivery_uncertain" if kind == "uncertain" else "delivered",
-    )
-    if kind == "owner":
-        occurrence = "other-owner:run-1"
-    elif kind == "period":
-        snapshot = json.loads((state_dir / "last-delivered-snapshot.json").read_text())
-        snapshot["reportingDate"] = "2026-09-25"
-        (state_dir / "last-delivered-snapshot.json").write_text(json.dumps(snapshot))
-        (state_dir / "last-delivered-snapshot.json").chmod(0o600)
+def test_normal_result_identity_mismatches_fail_closed(tmp_path, mutation, reason):
+    state_dir, admission_db, occurrence = _fixture(tmp_path)
+    path = state_dir / "last-result-report.json"
+    value = json.loads(path.read_text())
+    mutation(value)
+    path.write_text(json.dumps(value), encoding="utf-8")
+    path.chmod(0o600)
 
     with pytest.raises(ValueError, match=reason):
         build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
-def test_build_proof_rejects_duplicate_event_key_candidates(tmp_path, monkeypatch):
-    state_dir, admission_db, occurrence = _fixture(tmp_path)
-    snapshot = json.loads((state_dir / "last-delivered-snapshot.json").read_text())
-    (state_dir / "last-delivered-snapshot.json").write_text(json.dumps(snapshot))
-    (state_dir / "last-delivered-snapshot.json").chmod(0o600)
-    rows = effect_reconcile_module.list_items(state_dir / "telegram-outbox.sqlite3")
-    monkeypatch.setattr(effect_reconcile_module, "list_items", lambda _database: [rows[0], rows[0]])
+def test_missing_or_uncertain_current_receipt_stays_fenced(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(tmp_path, outbox_status="delivery_uncertain")
 
-    with pytest.raises(ValueError, match="telegram_outbox_event_not_unique"):
+    with pytest.raises(ValueError, match="provider_receipt_not_delivered"):
         build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
-def test_build_proof_accepts_legacy_snapshot_bound_by_provider_id(tmp_path):
-    state_dir, admission_db, occurrence = _fixture(tmp_path)
-    snapshot = json.loads((state_dir / "last-delivered-snapshot.json").read_text())
-    snapshot.pop("eventKey")
-    snapshot.pop("message_sha256")
-    (state_dir / "last-delivered-snapshot.json").write_text(json.dumps(snapshot))
-    (state_dir / "last-delivered-snapshot.json").chmod(0o600)
-
-    proof = build_proof(
-        state_dir=state_dir,
-        admission_db=admission_db,
-        occurrence_id=occurrence,
-    )
-
-    assert proof["verified"] is True
-    assert proof["provider_message_id"] == "94946"
-    assert "subject" not in json.dumps(proof)
-
-
-def test_build_proof_accepts_current_cfo_result_event_key(tmp_path):
-    state_dir, admission_db, occurrence = _fixture(
-        tmp_path,
-        event_key=f"cfo-result:subject:telegram:{DATE}:12",
-    )
-
-    proof = build_proof(
-        state_dir=state_dir,
-        admission_db=admission_db,
-        occurrence_id=occurrence,
-    )
-
-    assert proof["verified"] is True
-    assert proof["provider_receipt_id"] == "telegram:94946"
-
-
-def test_build_proof_rejects_admission_owner_mismatch(tmp_path):
-    state_dir, admission_db, occurrence = _fixture(tmp_path)
+def test_current_result_report_is_generated_by_real_producer_and_reconciled(tmp_path):
+    state_dir = tmp_path / "producer-cfo"
+    state_dir.mkdir(mode=0o700)
+    admission_db = tmp_path / "admission.sqlite3"
     with sqlite3.connect(admission_db) as connection:
-        connection.execute("UPDATE occurrences SET owner_id=?", ("other-owner",))
+        connection.execute(
+            "CREATE TABLE occurrences(occurrence_id TEXT PRIMARY KEY, owner_id TEXT, state TEXT, effect_unknown INTEGER)"
+        )
+        connection.execute("INSERT INTO occurrences VALUES(?,?,?,?)", (OCCURRENCE, OWNER, "claimed", 1))
 
-    with pytest.raises(ValueError, match="occurrence_owner_mismatch"):
-        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+    script = """
+const { runResultCfo } = require(process.env.CFO_RESULT_MODULE);
+runResultCfo({
+  stateDir: process.env.CFO_STATE_DIR,
+  subjectId: "subject",
+  occurrenceId: "life-manager-cfo-hourly:current-run-1",
+  reportChannel: "telegram",
+  chatId: "123456",
+  reportCadence: "hourly",
+  now: "2026-09-26T03:00:00Z",
+  collect: async date => ({ reporting_date: date, rows: [{ loop_id: "capafy", revenue: { status: "verified", amounts: { USD: "1" }, receipts: ["receipt:1"] } }] }),
+  notify: async () => ({ delivery: "delivered", provider_message_id: "94946" }),
+}).then(result => process.stdout.write(JSON.stringify(result))).catch(error => { console.error(error); process.exit(1); });
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "CFO_RESULT_MODULE": str(ROOT / "apps/life-manager/scripts/cfo-result-local.js"), "CFO_STATE_DIR": str(state_dir)},
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads((state_dir / "last-result-report.json").read_text())
+    assert report["occurrenceId"] == OCCURRENCE
+    assert report["channel"] == "telegram"
+    assert report["resolutionKind"] == "sent"
+    assert report["messageSha256"] == hashlib.sha256(report["message"].encode()).hexdigest()
 
-
-def test_build_proof_rejects_nonterminal_runtime_pair(tmp_path):
-    state_dir, admission_db, occurrence = _fixture(tmp_path)
-    rows = [json.loads(line) for line in (state_dir / "events.jsonl").read_text().splitlines()]
-    rows[-1]["exit_code"] = 1
+    enqueue(
+        database=state_dir / "telegram-outbox.sqlite3",
+        event_key=report["eventKey"],
+        message=report["message"],
+        created_at="2026-09-26T02:59:00Z",
+        repeat_after_seconds=None,
+    )
+    claimed = claim_next(state_dir / "telegram-outbox.sqlite3")
+    assert claimed is not None
+    mark_delivered(
+        state_dir / "telegram-outbox.sqlite3",
+        report["eventKey"],
+        "94946",
+        "2026-09-26T03:00:00Z",
+        claimed_at=claimed.claimed_at,
+    )
     (state_dir / "events.jsonl").write_text(
-        "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+        "".join(json.dumps(row) + "\n" for row in (
+            _event(phase="execute", status="running", effect_status="started", timestamp="2026-09-26T03:00:07Z"),
+            _event(phase="report", status="pass", effect_status="unknown", exit_code=0, timestamp="2026-09-26T03:00:38Z"),
+        )),
+        encoding="utf-8",
     )
     (state_dir / "events.jsonl").chmod(0o600)
 
-    with pytest.raises(ValueError, match="runtime_event_pair_missing"):
-        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
-
-
-def test_build_proof_rejects_uncertain_snapshot_delivery(tmp_path):
-    state_dir, admission_db, occurrence = _fixture(tmp_path)
-    snapshot = json.loads((state_dir / "last-delivered-snapshot.json").read_text())
-    snapshot["status"] = "delivery_uncertain"
-    snapshot["delivery"]["delivery"] = "delivery_uncertain"
-    (state_dir / "last-delivered-snapshot.json").write_text(json.dumps(snapshot))
-    (state_dir / "last-delivered-snapshot.json").chmod(0o600)
-
-    with pytest.raises(ValueError, match="snapshot_not_delivered"):
-        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=OCCURRENCE)
+    assert proof["verified"] is True
+    assert proof["resolution_kind"] == "sent"

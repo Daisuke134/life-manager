@@ -11,6 +11,7 @@ function setup(t) {
   let value = "1";
   const messages = [];
   const options = { stateDir, subjectId: "owner", reportEmail: "owner@example.test",
+    occurrenceId: "life-manager-cfo-hourly:run-1",
     collect: async date => ({ reporting_date: date, rows: [{ loop_id: "capafy",
       revenue: { status: "verified", amounts: { USD: value }, receipts: ["receipt:1"] } }] }),
     notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "id" }; } };
@@ -18,7 +19,13 @@ function setup(t) {
 }
 test("hourly report has one receipt per hour, reflects new income next hour", async t => {
   const { options, messages, change } = setup(t);
-  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "sent");
+  const first = await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  assert.equal(first.status, "sent");
+  assert.equal(first.resolutionKind, "sent");
+  const firstState = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json")));
+  assert.equal(firstState.occurrenceId, options.occurrenceId);
+  assert.match(firstState.messageSha256, /^[a-f0-9]{64}$/);
+  assert.equal(firstState.resolutionKind, "sent");
   change("2");
   assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:57:00Z" })).status, "quiet");
   assert.equal((await runResultCfo({ ...options, now: "2026-09-30T13:00:00Z" })).status, "sent");
@@ -48,15 +55,39 @@ test("wrong-day and broken source collection never send", async t => {
   assert.equal(messages.length, 0);
 });
 
-test("same-period replay is quiet and never invokes the provider twice", async t => {
+test("same-period replay is quiet, keeps provider receipt, and rebinds current occurrence", async t => {
   const { options, messages } = setup(t);
   assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "sent");
-  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "quiet");
+  const replay = await runResultCfo({
+    ...options,
+    occurrenceId: "life-manager-cfo-hourly:run-2",
+    now: "2026-09-30T12:00:00Z",
+  });
+  assert.equal(replay.status, "quiet");
+  assert.equal(replay.resolutionKind, "duplicate");
+  const state = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json")));
+  assert.equal(state.occurrenceId, "life-manager-cfo-hourly:run-2");
+  assert.equal(state.providerMessageId, "id");
+  assert.equal(state.resolutionKind, "duplicate");
+  assert.match(state.messageSha256, /^[a-f0-9]{64}$/);
   await assert.rejects(
     runResultCfo({ ...options, subjectId: "other-owner", now: "2026-09-30T12:00:00Z" }),
     /subject_changed/,
   );
   assert.equal(messages.length, 1);
+});
+
+test("missing or malformed occurrence is rejected before report state is written", async t => {
+  const { options } = setup(t);
+  await assert.rejects(
+    runResultCfo({ ...options, occurrenceId: undefined, now: "2026-09-30T12:00:00Z" }),
+    /cfo_occurrence_invalid/,
+  );
+  await assert.rejects(
+    runResultCfo({ ...options, occurrenceId: "wrong-owner:run-1", now: "2026-09-30T12:00:00Z" }),
+    /cfo_occurrence_invalid/,
+  );
+  assert.equal(fs.existsSync(path.join(options.stateDir, "last-result-report.json")), false);
 });
 
 test("sent state rejects a different tenant in the next period", async t => {
@@ -83,4 +114,9 @@ test("pending delivery is bound to subjectId and rejects a different tenant", as
     /subject_changed/,
   );
   assert.equal(messages.length, 1);
+});
+
+test("hourly entrypoint forwards the host occurrence into the current result producer", () => {
+  const source = fs.readFileSync(path.join(__dirname, "cfo-hourly-local.js"), "utf8");
+  assert.match(source, /occurrenceId:\s*env\.LIFE_MANAGER_OCCURRENCE_ID/);
 });

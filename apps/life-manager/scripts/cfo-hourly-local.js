@@ -186,6 +186,7 @@ async function main(env = process.env) {
     const result = await runResultCfo({
       stateDir,
       subjectId: env.LM_CFO_SUBJECT_ID || env.LM_CFO_UID || env.LM_UID,
+      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
       pythonBin: env.CFO_PYTHON_BIN || "python3",
       reportChannel: env.LM_CFO_REPORT_CHANNEL || "email",
       reportCadence: env.LM_CFO_REPORT_CADENCE || "hourly",
