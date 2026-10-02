@@ -4001,3 +4001,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Self-Build完了にはself-owned candidate→tests/CI→PR→merge→immutable release→owner natural readback→replay-zero/rollback readbackを1本、promotion ledgerで結ぶ。現在は未証明。
 2. recovery supervisorはeffect_unknownをofficial readbackなしに解放・再送しない現契約を維持する。
 3. 次はInvestment AT-13以降のpaper sell/natural scheduler、30 round trips、fee/slippage/infrastructure cost、duplicate order zeroをinvestment spec順でreadbackする。
+
+### 169. Investment AT-13 natural scheduler復旧と継続HOLD（2026-10-03 02:55 JST）
+
+- investment owner-readback worktreeはretire済みだが、remote SSOT branch `origin/docs/investment-owner-readback-20260929-v4`は`d28883913f`で残り、Atomic cursorは引き続き`AT-13`。paper implementation branch/remoteは`d0dcb53a72`で一致し、worktreeの未追跡`risk-day.json`は既存user stateとして未変更。
+- paper receiptsは557件まで増えていたが、latest completed decisionは`decision_session=2026-10-01 / HOLD / hold_period_not_elapsed / held_sessions=3`。owned positionはQQQ `0.013493253`、status=`open`。unrealized P&Lをrealized revenueへ数えない。
+- natural schedulerは旧occurrence `18da8f5306dd89a8-40574`のmoney effect unknownで停止していた。existing effect reconcilerを`--readback-only`で実行し、Alpaca公式GETが`official_alpaca_no_order / verified=true / provider receipt=orders-none-after queued_at`を返した。manual order/replayではないexact official no-order proofとして、この1 occurrenceだけを解放し、rowは`released / effect_unknown=0`になった。
+- manual wake/sellを行わず5分cadenceを待った結果、558件目のnatural decision receiptを`2026-10-02T17:54:42Z`に生成した。結果は再び`decision_session=2026-10-01 / HOLD / hold_period_not_elapsed / held_sessions=3`。scheduler recoveryは証明したがAT-13の完了条件`ranked_symbol_changed`または`hold_sessions_elapsed`を満たさない。
+- AT-14以降、30 round trips、fee/slippage/model/infrastructure cost、replay-zeroは未着手。live order、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は0のまま。検証済み実現投資収益は`$0/月`。
+
+#### 更新後の原子cursor
+
+1. InvestmentはAT-13のみ。次のcompleted daily sessionがexit reasonを出すまでnatural schedulerを読む。same-session HOLD、wake数、unrealized P&Lを完了証拠にしない。
+2. AT-13成立後だけAT-14のofficial exit order GETへ進む。manual sell/wake/replayは行わない。
+3. 30/30とAT-24/AT-29完了までlive資金操作を行わない。Investmentの自然待ちと独立して、残るCFO/全loop observability・cloud/self-fundingを進める。
