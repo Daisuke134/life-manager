@@ -3591,3 +3591,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CFO business source coverageを再確認し、settled external revenue・provider fee・model/browser/server costが同一期間でjoinできるかを確認する。
 2. Agent Economyのx402/TaskMarketはpayment receipt・settlement・cost joinが揃うno-effect→paid inferenceの順で進める。
 3. Investmentのlive enable、上限増額、送金、wallet fundingはAT-29完了まで禁止する。
+
+### 138. CFO business source coverageとcost-only evidence（2026-10-02 23:34 JST）
+
+- `life-manager-cfo-hourly` は直近`host_admission_deferred:resource_effect_unknown`、exit78/75系のretry境界で、`life-manager-financial-report`もresource effect unknown、`earning-health-allslots`はcapacity busy。CFOのprocess healthはbusiness P&Lの証明ではない。
+- CFO business inventoryはLife Manager/Anicca iOS/Writer/Affiliate/Gig/x402/Job Income等のfinancial unitを列挙するが、ledger observationは`capafy_sales_receipts`, `gig_payment_receipts`, `lm_agent_earnings`, `revenuecat_subscription_events`, `writer_receipts`, `x402_settlement_receipts`がunavailable、affiliate/proprietary/payrollはplanned。14-loop settled external revenue、MRR、runwayを再計算できるcoverageではない。
+- cost側には公式provider evidenceがある。Google Cloudの最新請求表は発行日2026-09-30、合計`¥27,889`、Anthropic subscription receiptは2026-07-20〜08-20、合計`$220`。ただし期間・用途・loop attributionが揃わないため、単独でLife Managerの当月actual costや利益へ加算しない。
+- unknownを0円へ丸めず、owner deposit/self-pay/internal transferをexternal revenueへ数えない。CFOはsettlement receipt、provider fee、model/browser/server cost、payoutを同一periodへjoinできるまで未完とする。
+
+#### 更新後の原子cursor
+
+1. CFO source adapterごとに公式readbackの有無を確認し、まずsettled external revenueが実在するlaneだけをcost join対象にする。
+2. Agent EconomyのTaskMarket no-effect/provider discoveryとBlockRun paid inferenceをreceipt単位で閉じる。
+3. 完全な14-loop net P&Lが再計算できるまで、MRR/利益/runwayを数値で断定しない。
