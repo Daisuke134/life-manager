@@ -3777,3 +3777,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Writerは次の自然provider sales readbackで、外部payment receiptが存在する場合だけ`money_events`→fee→payout→commercial bindingへ取り込む。
 2. `writer-report`の既存message effect unknownは公式delivery readbackなしに再送・closeしない。
 3. 次の実装対象は、公式provider receiptが存在するのにadapterが取り込めない証拠が出た場合だけ専用worktreeで修正する。現時点では外部receipt不在が正確な境界である。
+
+### 153. Affiliate natural source-refreshとPartnerStack freshness境界（2026-10-02 23:38 JST）
+
+- `affiliate-source-refresh`のlive statusはrelease `0be83c2507`、occurrence `affiliate-source-refresh:18dabca0c5d13588-14996`、exit `75`、`effect=none/not_applicable`、`next_action=retry_after_eligibility`だった。private `source-refresh.json`は`state=IN_PROGRESS / pending_count=49`で、fresh provider settlementを生成していない。
+- `affiliate-loop`は同じrelease、occurrence `affiliate-loop:18dabce34773f020-36569`、exit `75`、publish effect `unknown`、official readback/provider receiptなしである。外部公開を再送したりeffect fenceを推測で閉じたりしない。
+- PartnerStackの保存済み公式境界は、login receipt `state=AUTHENTICATED`（2026-09-22）とprovider report `latest.json`（observed `2026-09-23T07:29:50Z`）である。reportは`appended_transitions=0`で、保存済みplacementsのclick/unique-click deltaも0。これは認証・流入観測であり、fresh commission、approved/paid reward、fee、payout receiptではない。
+- `LOCAL_READY` ownership、tracking link、click、provider login、古いreportをsettled external revenueへ昇格させない。Affiliateのcurrent financial/cost sourceはfreshness不足のままCFO gapとして保持する。
+
+#### 更新後の原子cursor
+
+1. Affiliateは次の自然source-refreshがprovider境界まで到達した時に、PartnerStackのcommission status（pending/approved/reversed/paid）、amount/currency、provider transaction ID、fee、payoutを同一official artifactへ結合する。
+2. 現在のpublish effect unknownは公式公開readbackなしに再送・closeしない。
+3. fresh artifactが存在するのにadapterが取り込めない場合だけ、Affiliate ownerの専用worktreeで最小source修正を行う。
