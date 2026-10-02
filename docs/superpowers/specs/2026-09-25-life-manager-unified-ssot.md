@@ -3567,3 +3567,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Job Hunterの次の自然 `job-search-daily` scanを読み戻し、effect none / replay-zeroを確認する。Mercor human-requiredはholdする。
 2. Self-Buildの `verified_writeback_not_ready_until_gate_14` 境界を読み戻し、実際のpatch→review→main→release→natural outcomeがあるか確認する。
 3. その後Investment/CFO/Agent Economyの順で、公式settlementとactual costが揃うものだけを進める。
+
+### 136. Self-Buildのverified writeback未達（2026-10-02 23:03 JST）
+
+- `life-manager-selfbuild`の直近daily passは連続日数26/7を満たしたが、候補PR #6368は毎回 `precheck_failed ... fatal: not a git repository` でskipされ、`verdict=no_op`、`pr=null`、`guard_verdict=null`。これは自己改善の成功ではない。
+- 同じlogには一度`disk_headroom_low`（available 167,923,712 bytes < required 536,870,912）も記録されている。現在の空き容量回復後も、patch/review/main/release/natural outcomeのverified writebackは0件。
+- `self-improve-evolve`はinstalled release `4f605a30`でeffect noneのpassだが、`skills/earn/marketing-engine/report/runners.json`のquarantine reasonは`verified_writeback_not_ready_until_gate_14`。Telegram通知や連続日数だけを自己改善完了へ昇格させない。
+
+#### 更新後の原子cursor
+
+1. Investment paper/liveのAT-13〜AT-29をread-onlyで再確認し、30 round trips・broker receipt・cost・replay-zeroが無い限りlive操作しない。
+2. CFOのbusiness source coverageをsettlement/actual costまでjoinし、unknownを0円へ丸めない。
+3. その後Agent Economy/TaskMarket/BlockRunをprovider receipt付きで閉じる。
