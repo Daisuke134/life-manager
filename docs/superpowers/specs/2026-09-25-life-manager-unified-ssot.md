@@ -2772,6 +2772,21 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. EbookはStripe/KDPの公式収益・fee・payout sourceを別read-only監査で確定し、Writer/Affiliateのunknownと混同しない。
 4. 上記sourceが揃うまでCFO 14-loop P&L、利益、MRR、self-fundingを宣言せず、Mobile/Connectorは§92の順序を維持する。TaskMarket/BlockRunは後段のまま。
 
+### 94. Mobile CTA修正releaseの17/17 loadと自然Postiz公式readback（2026-10-02 16:00 JST）
+
+- immutable release `20261002T153403-62f6ac6a`をMobile target 17件へ一件ずつapplyし、launchctl `ProgramArguments`/release SHAを17/17一致でreadbackした。適用中の`pending-admission`は再送せず、idle化後だけtarget applyした。running中の再起動は行っていない。
+- 新release後の自然occurrence `life-manager-anicca-he:18daa437902c8210-20957`（`2026-10-02T06:59:51Z`）はPillow/CTAエラーなしで`exit=0 / effect_status=reconciled / next_action=none`、Postiz provider receipt `cmuqhffp00n6hpe0ybsvx4qow`、TikTok公開URLをreadbackした。
+- 新release後の自然occurrence `life-manager-honne-en:18daa42c95a75040-18525`（`06:59:43Z`）も`exit=0 / reconciled / next_action=none`、Postiz receipt `cmtoxf89100rpqk0yi5x5c64h`を公式イベントでreadbackした。
+- `life-manager-anicca-ai-youtube:18daa42e667647c0-19164`（`06:59:39Z`）は`62f6ac6a`で既存Postiz receipt `cmuqgbsxr0mtspe0yjoe8nzww`へreconcileし、同一provider postを重複作成しなかった。新規投稿数としては数えず、replay-zero/readback成功として扱う。
+- これはPillow importとCTA hash/readback境界の一自然検証であり、App Store acquisition、purchase/refund、Apple proceeds、app別actual cost、RevenueCatとの同一app join、Mobile売上/MRR/利益の完了証拠ではない。歴史的effect_unknown fenceが残るため`admission_effect_unknown=true`を成功に丸めない。
+
+#### 更新後の原子cursor
+
+1. Mobile残り自然occurrenceを一件ずつPostiz公式receipt/replay-zero付きでreadbackする。
+2. ASC agreement readbackが可能になった場合だけinventory/proceedsを取得し、RevenueCat purchase/refundとapp IDでjoinする。本人必須agreementを自動突破しない。
+3. app別model/browser/infra costとsettled proceedsが揃うまでMobile P&L/MRRはunknownのまま保持する。
+4. Writer/Affiliate/CFOのsource gapを§93の順で閉じ、Connector/Fundraiser/contract-work、Self-Build、Investment、CFO、TaskMarket/BlockRun、cloud/self-fundingへ進む。
+
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
 - PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
