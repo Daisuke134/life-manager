@@ -3790,3 +3790,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Affiliateは次の自然source-refreshがprovider境界まで到達した時に、PartnerStackのcommission status（pending/approved/reversed/paid）、amount/currency、provider transaction ID、fee、payoutを同一official artifactへ結合する。
 2. 現在のpublish effect unknownは公式公開readbackなしに再送・closeしない。
 3. fresh artifactが存在するのにadapterが取り込めない場合だけ、Affiliate ownerの専用worktreeで最小source修正を行う。
+
+### 154. Mobile Buddha Postiz exact-receipt境界（2026-10-02 23:38 JST）
+
+- `life-manager-anicca-buddha-tiktok`のlive statusはinstalled release `0be83c2507`、latest event release `79d9d2e710`で`release.drift=true`、latest claimed occurrence `life-manager-anicca-buddha-tiktok:18daa6e8f586e7a0-30538`、publish effect `unknown`、official readback/provider receiptなし、`next_action=official_readback_required`だった。installed plistは新releaseだが、旧claimを公式証拠なしに上書きしない。
+- immutable release `0be83c2507`のrepo-owned provider reconcilerを`--auto-owner life-manager-anicca-buddha-tiktok`、`--resolve`なしでread-only実行した。結果は`status=no_match / reason=exact_pending_receipt_unavailable / inspected=2`で、exact local publish receiptからPostiz provider readbackへ結べるoccurrenceが無い。
+- 旧Pillow packaging問題は既修正であり、今回の証拠はrender失敗の再発ではない。exact receiptが無い状態でmanual post、target reapply、fence close、Postiz再送を行わない。
+
+#### 更新後の原子cursor
+
+1. Buddhaは次の自然owner wakeがrelease `0be83c2507`で新しいoccurrenceを実行し、render→Postiz receipt→provider readbackを同一identityへ書くまで待つ。
+2. 既存unknown occurrenceは、exact receiptまたは公式Postiz readbackが得られた場合だけowner-scoped reconcilerで解放する。
+3. Buddhaでnatural PASSとreplay-zeroを確認後、同じMobile packaging classの残jobを一件ずつ確認し、ASC/RevenueCat proceeds・fee・actual costへ接続する。
