@@ -545,3 +545,53 @@ def test_acceptance_readback_counts_escrow_pending_as_accepted(capsys):
     assert all(url.endswith("/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC") for url in visited)
     err = capsys.readouterr().err
     assert "2:status='選定中'" in err and "3:not_listed:rows=3" in err
+
+
+def test_acceptance_readback_shares_one_list_fetch_across_a_wakes_candidates():
+    """A wake with several pending Paid candidates re-ran this goto + 15s wait once per
+    candidate and exceeded the 300s Paid runtime timeout (exit 124) once more than a couple
+    were pending. A shared cache dict (what ``_LiveLancersProvider`` passes across every
+    candidate in one wake) must make this exactly one goto for the whole wake."""
+    visited = []
+
+    class Page:
+        url = ""
+
+        def goto(self, url, **_k):
+            visited.append(url)
+            self.url = url
+
+        def wait_for_function(self, *_a, **_k):
+            return None
+
+        def evaluate(self, _script):
+            return [{"href": "/work/detail/5605912", "status": "仮払い待ち"},
+                    {"href": "/work/detail/1", "status": "進行中"},
+                    {"href": "/work/detail/2", "status": "選定中"}]
+
+    page = Page()
+    cache: dict = {}
+    assert work_sync._read_acceptance_confirmed(page, "5605912", cache=cache) is True
+    assert work_sync._read_acceptance_confirmed(page, "1", cache=cache) is True
+    assert work_sync._read_acceptance_confirmed(page, "2", cache=cache) is False
+    assert work_sync._read_acceptance_confirmed(page, "3", cache=cache) is False
+    assert len(visited) == 1
+
+
+def test_accept_order_clears_the_acceptance_cache_so_readback_is_never_stale(monkeypatch):
+    """A readback right after this wake's own accept-order mutation must never reuse a list
+    snapshot fetched before that mutation happened."""
+    provider = paid_adapter._LiveLancersProvider(state_path=Path("/tmp/does-not-matter.json"))
+    provider._acceptance_cache["rows"] = [{"href": "/work/detail/999", "status": "選定中"}]
+
+    class Page:
+        def evaluate(self, *_a, **_k):
+            return {"status": 200}
+
+    provider.page = Page()
+    monkeypatch.setattr(provider, "_open", lambda: None)
+    provider.accept_order(
+        {}, {"project_id": "999", "accept_form_action": "/project/approval/finish_yes/999",
+             "accept_fields": {"a": "b"}},
+    )
+    assert provider._acceptance_cache == {}

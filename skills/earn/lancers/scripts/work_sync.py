@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
+from typing import Any, Callable, Iterable, Mapping, MutableMapping, Optional, Sequence
 from urllib.parse import quote, urlencode, urlsplit
 
 HERE = Path(__file__).resolve().parent
@@ -265,20 +265,33 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
             "milestone_count": len(rows), "fields": dict(fields)}
 
 
-def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
+def _read_acceptance_confirmed(
+    page: Any, project_id: str, *, cache: Optional[MutableMapping[str, Any]] = None
+) -> bool:
     """True when the official proposal list shows this project as accepted.
 
     Right after the seller accepts, Lancers shows the project as 仮払い待ち (awaiting the
     client's escrow) and does not list it on the working tab: on 2026-09-27 the working tab
     was empty while 5605912 was accepted (official 「プロジェクトの承諾を受け付けました」 email).
     The newest-first all-proposals list (same source as _proposal_pipeline) does list it.
+
+    A wake checks this once per Paid candidate; re-fetching the list per candidate re-ran the
+    same goto + 15s wait_for_function for every one of them and exceeded the 300s Paid runtime
+    timeout (exit 124) once more than a couple of candidates were pending. ``cache`` lets a
+    caller share one fetch of this list across every candidate in the same wake; the caller is
+    responsible for invalidating it right after any accept-order mutation so a readback right
+    after that mutation never reads a pre-mutation snapshot.
     """
-    path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
-    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
-    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
-    page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
-    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
-    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
+    if cache is not None and "rows" in cache:
+        projects = cache["rows"]
+    else:
+        path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
+        page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
+        if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
+        page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
+        projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
+        if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
+        if cache is not None: cache["rows"] = projects
     for row in projects:
         if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":
             if row.get("status") in {"進行中", "仮払い待ち"}:
