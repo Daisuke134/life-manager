@@ -2576,3 +2576,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. R1の`hf-gig-apply-direct`、`alpaca-investment-live`、`life-manager-instagram-metrics`はreceipt/readback境界をowner別に閉じる（再送なし）。
 3. official proofがあるeffect fenceだけを自然reconcilerで解放し、admission capacity/health summaryの前後を比較する。
 4. その後、Capafy→PromptBase/Writer→Writer/Ebook/Affiliate→Mobile→Connector→Fundraiser→contract-work→Self-Build→Investment→CFO→external paid E2E→TaskMarket→cloud/self-fundingの順を継続する。
+
+### 63. PromptBase kickstartの実測境界（2026-10-02 10:37 JST）
+
+- ユーザー指示により、正式owner経路で`lm-loop restart promptbase-loop-daily`を一度だけ実行した。bootout/bootstrap/printは全てreturn code 0で、loaded releaseは`13a97504bdb8bedeb421d332847b87625a531e1d`へ更新された。
+- 即時実行のため同じreleaseの`bin/lm-loop-run promptbase-loop-daily /Users/anicca/loops/current`も一度だけ実行したが、occurrence `promptbase-loop-daily:18da9297b659aa00-86557`は`exit=75`、`host_admission_deferred:resource_capacity_busy`でprovider/browser discovery前に停止した。provider receipt、PromptBase submission、wallet/browser effectは0件。再送はしていない。
+- `lm-loop pre-effect-reconcile life-manager-anicca-main-tiktok --dry-run`は`resolved=[]`、`history_incomplete`/`no_pre_effect_terminal`を返した。容量を空けるための手動fence cleanupは証拠不足であり、行わない。
+- step1 failure diagnostic source（PR #6429）はmainへmerge済みだが、今回kickstartはadmission前で止まったため新しい`step1_failure.json/png`はまだ生成されていない。次に容量が正式に空いたowner occurrenceでstep1のUI本文・URL・screenshotを取得する。
+
+#### 更新後の原子cursor
+
+1. PromptBase queue occurrence `18da9297b659aa00-86557`を再送せず、自然admission/fence readbackを観測する。
+2. capacity eligibleになった次の正式owner runでstep1 diagnosticとPromptBase公式dashboard/Gmail readbackを同一occurrenceへ結合する。
+3. その間、PromptBaseと同じbrowser resourceを触らない独立lane（Capafy公式利益/slot、Writer/Ebook/Affiliate、Mobile/Connectorのread-only根拠）を並列監査し、source実装が必要なownerだけ専用worktreeへ分ける。
+4. PromptBaseの公式審査・公開・売上が閉じた後、§55の収益優先順を継続する。TaskMarketは後段のまま。
