@@ -3829,3 +3829,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. approved secret ownerのruntime環境だけに既存Stripe live credentialを接続し、secretをchat/spec/logへ表示・複製せずGET-only readbackを生成する。
 2. sanitized artifactでbalance transactions/charges/refunds/subscriptions、pagination complete、classification policy、historical/trailing coverageをreadbackする。
 3. CFO hourly/reportのmessage effect unknownは公式delivery readbackなしに再送・closeしない。Stripe sourceがcompleteでも、残る13 loopのsource/cost gapと7自然期間が揃うまでCFO完了にしない。
+
+### 157. Fundraiser loaded releaseとapplication receipt quality境界（2026-10-03 00:14 JST）
+
+- `fundraiser`のlive statusはrelease `3003e1f289`、occurrence `fundraiser:18dabec2d99169c0-62655`、exit `75`、application effect `unknown`、official readback/provider receiptなし、`next_action=retry_after_eligibility`だった。
+- `application-receipts.jsonl`は660行で、status内訳は`human_checkpoint=179 / ineligible=42 / failure=273 / submitted=21 / submit_unknown=7 / duplicate=59 / evidence_incomplete=23 / submitted_verified=56`。ただし多数のlegacy `submitted_verified` rowはprovider、application ID、receipt ID、observed timestampを持たず、現在の公式provider submissionや外部inflowを再計算できない。
+- recent failure rowsは、official candidate discovery後にmanaged CDP target WebSocketがHTTP 403で拒否され、form observation前に停止したことを記録する。form mutation、upload、submit request、provider application effectは無い。CAPTCHA/KYC/面接/本人確認を自動突破しない。
+- historical `submitted_verified`件数、応募画面到達、候補数をfunding、売上、settlement、payoutへ昇格させない。provider identityとofficial readbackが無いrowはCFO financial sourceに接続しない。
+
+#### 更新後の原子cursor
+
+1. Fundraiserは新しい適格候補でmanaged browserがofficial formを観測できた時だけ、pre-effect identity→single submit→provider application ID/status→replay-zeroを閉じる。
+2. human-required条件はholdし、Daisへ継続操作を委譲しない。
+3. application後の外部inflow、fee、actual cost、payoutが公式receiptで確認できるまでFundraiserを収益完了扱いしない。
