@@ -3554,3 +3554,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Job Hunter registryの7 jobs（failed/safely_fenced）をread-onlyで再確認し、Mercor/面接/CAPTCHA/human-requiredを自動突破しない。
 2. 外部応募・案件の公式receipt/readbackが得られる低リスク laneだけを、CrowdWorksと同じpre-effect/effect fence/replay-zeroで一件閉じる。
 3. その後Self-Buildのverified writeback gateへ進む。TaskMarket/BlockRun、Investment live、CFO利益計上は後段のまま保持する。
+
+### 135. Job Hunterのhuman-required / effect-unknown境界（2026-10-02 22:48 JST）
+
+- `job-search-daily` の直近runは`host_admission_deferred:resource_capacity_busy`、exit75、effect none。求人検索前に停止しており、応募・応募receipt・外部売上はない。
+- Mercor application/reply/paidは直近runが`host_admission_deferred:resource_effect_unknown`、exit75。公式応募receipt/readbackなしで、面接、本人確認、CAPTCHA、録音・camera・screen share等のhuman-required条件を自動突破しない。現時点でprovider mutationを再送しない。
+- Lancers applicationは新release loaded後の直近runが`entrypoint_exit_1 / effect unknown`で、公式proposal readback/receiptなし。readbackなしの応募fenceをcloseせず、Lancers Paid natural PASS（effect0）とは別cursorとして保持する。
+- Job Hunter全体は「healthが動く」ことと「外部応募・契約・settlement」を混同しない。人間必須でない公式readback可能な候補が見つかるまで、read-only監視とcapacity retryだけを行う。
+
+#### 更新後の原子cursor
+
+1. Job Hunterの次の自然 `job-search-daily` scanを読み戻し、effect none / replay-zeroを確認する。Mercor human-requiredはholdする。
+2. Self-Buildの `verified_writeback_not_ready_until_gate_14` 境界を読み戻し、実際のpatch→review→main→release→natural outcomeがあるか確認する。
+3. その後Investment/CFO/Agent Economyの順で、公式settlementとactual costが揃うものだけを進める。
