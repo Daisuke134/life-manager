@@ -3461,3 +3461,9 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - immutable release `/Users/anicca/loops/releases/20261002T202925-79d9d2e7`を作成し、CrowdWorks Paidへtarget apply、loaded SHA/ProgramArgumentsをreadbackした。
 - kickstart後の最初のoccurrence `18dab3143b5cf4b8-78685`はcapacity busyでprovider前に停止。次のnew-release processは現在Application ownerのbrowser lock待ちで、official receipt/readbackなし。
 - 旧occurrenceのexact markerはDB上`released/effect_unknown=0`まで閉じられている。新releaseの自然Paid terminalが確認できるまで、Job Hunterへ進めない。
+
+### 125. Job Hunter read-only境界（2026-10-02 20:38 JST）
+
+- Job Hunter registryは7 jobs中 `failed=2 / safely_fenced=5`。`job-search-daily`の最新occurrenceは`host_admission_deferred:resource_capacity_busy`（effect none、exit75）で、provider/browser前に停止している。
+- `mercor-revenue-application`の最新occurrenceは`host_admission_deferred:resource_effect_unknown`（application effect unknown、official readbackなし）。過去のhuman-required/公式readback不足fenceも保持されている。
+- これはJob Hunterの売上・案件・応募成功ではない。面接、本人確認、CAPTCHA、human-required条件は自動突破せず、CrowdWorks Paidの新release terminalが閉じるまでprovider操作を開始しない。
