@@ -603,3 +603,92 @@ def test_owner_reconcile_continues_after_inconclusive_exact_candidate(
     assert result["status"] == "resolved"
     assert result["occurrence_id"] == "life-manager-honne-ja:run-b"
     assert result["inspected"] == 2
+
+
+# --- caption with App Store CTA -------------------------------------------
+# The carousel adapter appends a deterministic CTA to the caption it sends to
+# Postiz and records that final hash as receipt.caption_with_cta_sha256, while
+# identity.caption_sha256 stays the approved base caption. The official
+# readback must be compared against the final on-wire hash, exactly.
+
+BASE_CAPTION = "caption"
+CTA_CAPTION = BASE_CAPTION + "\n\nLink in bio for the app\n"
+
+
+def carousel_provider_rows(content: str) -> dict:
+    return {
+        "post": {"posts": [{
+            "id": "post-1",
+            "state": "PUBLISHED",
+            "releaseURL": "https://www.instagram.com/p/abc123/",
+            "integration": {"id": "integration-1"},
+            "content": content,
+        }]},
+        "integrations": {"integrations": [{
+            "id": "integration-1", "identifier": "instagram", "profile": "@honnevideo",
+        }]},
+    }
+
+
+def write_cta_carousel_ledger(path: Path, value: dict, cta_sha256: str | None) -> None:
+    write_carousel_ledger(path, value)
+    row = json.loads(path.read_text(encoding="utf-8"))
+    row["receipt"]["slot"] = value["slot"]
+    if cta_sha256 is not None:
+        row["receipt"]["caption_with_cta_sha256"] = cta_sha256
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+
+
+def cta_proof(module, tmp_path: Path, monkeypatch, *, provider_caption: str, receipt_cta_sha256: str | None):
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    value = carousel_identity()
+    write_identity(sidecar, value)
+    write_cta_carousel_ledger(ledger, value, receipt_cta_sha256)
+    responses = carousel_provider_rows(provider_caption)
+    monkeypatch.setattr(
+        module, "_request_json",
+        lambda url, _api_key: responses["integrations" if url.endswith("/integrations") else "post"],
+    )
+    identity_value = module.read_identity(sidecar, value["loop_id"], value["occurrence_id"])
+    return module.build_official_proof(identity_value, ledger, "token")
+
+
+def test_official_caption_with_cta_matches_the_receipt_final_hash(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    proof = cta_proof(
+        module, tmp_path, monkeypatch,
+        provider_caption=CTA_CAPTION,
+        receipt_cta_sha256=hashlib.sha256(CTA_CAPTION.encode()).hexdigest(),
+    )
+    assert proof["verified"] is True
+    # The identity/effect contract still carries the approved base caption hash.
+    assert proof["provider_readback"]["content"]["caption_sha256"] == hashlib.sha256(BASE_CAPTION.encode()).hexdigest()
+
+
+def test_a_different_cta_is_not_accepted_as_the_final_caption(tmp_path: Path, monkeypatch) -> None:
+    import pytest
+    module = load_module()
+    with pytest.raises(ValueError, match="caption hash mismatch"):
+        cta_proof(
+            module, tmp_path, monkeypatch,
+            provider_caption=BASE_CAPTION + "\n\nGet the app → https://example.com\n",
+            receipt_cta_sha256=hashlib.sha256(CTA_CAPTION.encode()).hexdigest(),
+        )
+
+
+def test_base_caption_alone_is_not_accepted_when_the_receipt_recorded_a_cta(tmp_path: Path, monkeypatch) -> None:
+    import pytest
+    module = load_module()
+    with pytest.raises(ValueError, match="caption hash mismatch"):
+        cta_proof(
+            module, tmp_path, monkeypatch,
+            provider_caption=BASE_CAPTION,
+            receipt_cta_sha256=hashlib.sha256(CTA_CAPTION.encode()).hexdigest(),
+        )
+
+
+def test_receipt_without_cta_hash_keeps_the_base_caption_comparison(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    proof = cta_proof(module, tmp_path, monkeypatch, provider_caption=BASE_CAPTION, receipt_cta_sha256=None)
+    assert proof["verified"] is True
