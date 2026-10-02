@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `a286136605`
+Code release observed: `86f2eb4e64`
 
 ## Natural-run evidence
 
@@ -39,6 +39,7 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - The MUFG connection explicitly showed `接続の更新が必要です`; the consent/update flow reached the official MUFG Direct login page.
 - MUFG requires branch code, account number (or contract number), and bank login password. Those bank credentials are not present in the approved credential SSOT.
 - No guessed credential, alternate credential store, bank submission, or false refresh receipt was used. The tab was closed before input/submission.
+- The branch now propagates structured Moneytree `next_action` values (`moneytree_reconnect_mufg` or `moneytree_refresh_and_readback`) through the immutable observation and daily report warning.
 
 ### Canonical local daily close (deterministic fixture, delivery injected)
 
