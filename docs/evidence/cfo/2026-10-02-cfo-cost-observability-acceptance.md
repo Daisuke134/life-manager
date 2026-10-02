@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `57668d980f`
+Code release observed: `c055ad5642`
 
 ## Natural-run evidence
 
@@ -93,9 +93,10 @@ Interpretation: the collector is running and preserving the gaps. Stripe now has
 
 ### Alpaca official account readback
 
-- Read-only live API account readback observed at `2026-10-02T14:35:36.377777Z`; official orders collection returned `10` filled orders.
+- Runtime flag: `LM_CFO_ALPACA_LIVE_READBACK=1`; each B7 run reads the official live API account and orders collection without writing to Alpaca.
+- Read-only account readback observed at `2026-10-02T14:52:25.940435Z`; official orders collection returned `10` filled orders.
 - Verified liquid cash: `USD 0`; account equity was observed separately but is not substituted for liquid cash.
-- Account artifact SHA-256: `4d52a7922d7f2ec3b0e879bf5a7b906e85abb3ca934ce71af5485a3a3f6149ee`.
+- Account readback artifact SHA-256 from the diagnostic capture: `4d52a7922d7f2ec3b0e879bf5a7b906e85abb3ca934ce71af5485a3a3f6149ee`.
 - No realized P&L is invented from order rows. The account coverage is verified; order/realized-P&L coverage remains explicitly `missing_coverage` until a broker-settled P&L bundle exists.
 - The B0 projection uses a 24-hour freshness window for recent official provider readbacks; future or 24-hour-and-older observations remain stale.
 
