@@ -58,6 +58,14 @@ def _fixture(tmp_path: Path):
     (pass_dir / "b2-context.json").write_text(
         json.dumps({"version": 7, "target_applications": 19}), encoding="utf-8"
     )
+    for name in (
+        "b2-coverage-cursor.json",
+        "b2-refresh-cursor.json",
+    ):
+        (pass_dir / name).write_text("{}\n", encoding="utf-8")
+    for name in ("b2-gate.stderr", "b2-gate.stdout", "passprep.stderr", "passprep.stdout"):
+        (pass_dir / name).write_text("", encoding="utf-8")
+    (pass_dir / "refresh-evidence").mkdir()
     intent_root = tmp_path / "application-intents"
     intent_root.mkdir()
     return admission_db, events, pass_dir, intent_root
@@ -77,6 +85,7 @@ def test_legacy_pre_effect_migration_is_read_only_by_default(tmp_path, monkeypat
         events_path=events,
         occurrence_id=OCCURRENCE,
         cause_run_id=CAUSE_RUN,
+        pass_root=pass_dir.parent,
         pass_dir=pass_dir,
         intent_root=intent_root,
     )
@@ -101,6 +110,7 @@ def test_legacy_pre_effect_migration_resolves_exact_occurrence(tmp_path, monkeyp
         events_path=events,
         occurrence_id=OCCURRENCE,
         cause_run_id=CAUSE_RUN,
+        pass_root=pass_dir.parent,
         pass_dir=pass_dir,
         intent_root=intent_root,
         resolve=True,
@@ -112,29 +122,20 @@ def test_legacy_pre_effect_migration_resolves_exact_occurrence(tmp_path, monkeyp
     assert calls[0][2]["proof_type"] == "pre_effect"
 
 
-@pytest.mark.parametrize(
-    "forbidden",
-    [
-        "result.json",
-        "parent.invocation-refresh.json",
-        "submit-attempt-budget.json",
-        "refresh-evidence/application-decisions.json",
-        "refresh-evidence/application-snapshot.json",
-        "refresh-evidence/application-decision-telegram.json",
-    ],
-)
-def test_legacy_pre_effect_migration_rejects_any_effect_boundary_file(tmp_path, forbidden):
+@pytest.mark.parametrize("forbidden", ["result.json", "parent.invocation-refresh.json"])
+def test_legacy_pre_effect_migration_rejects_unknown_top_level_file(tmp_path, forbidden):
     admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
     path = pass_dir / forbidden
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("{}\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="legacy_effect_boundary_present"):
+    with pytest.raises(ValueError, match="legacy_pass_shape_invalid"):
         migration.build_proof(
             admission_db=admission_db,
             events_path=events,
             occurrence_id=OCCURRENCE,
             cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
             pass_dir=pass_dir,
             intent_root=intent_root,
         )
@@ -160,6 +161,7 @@ def test_legacy_pre_effect_migration_rejects_intent_bound_to_pass(tmp_path):
             events_path=events,
             occurrence_id=OCCURRENCE,
             cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
             pass_dir=pass_dir,
             intent_root=intent_root,
         )
@@ -177,6 +179,88 @@ def test_legacy_pre_effect_migration_rejects_unbound_cause_event(tmp_path):
             events_path=events,
             occurrence_id=OCCURRENCE,
             cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
             pass_dir=pass_dir,
             intent_root=intent_root,
         )
+
+
+def test_legacy_pre_effect_migration_rejects_competing_pass_in_window(tmp_path):
+    admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    competing = pass_dir.parent / "gig-apply-direct-1790328622458333000-47405"
+    competing.mkdir()
+
+    with pytest.raises(ValueError, match="legacy_pass_window_not_unique"):
+        migration.build_proof(
+            admission_db=admission_db,
+            events_path=events,
+            occurrence_id=OCCURRENCE,
+            cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
+            pass_dir=pass_dir,
+            intent_root=intent_root,
+        )
+
+
+def test_legacy_pre_effect_migration_rejects_malformed_intent(tmp_path):
+    admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    (intent_root / "broken.json").write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="legacy_intent_store_invalid"):
+        migration.build_proof(
+            admission_db=admission_db,
+            events_path=events,
+            occurrence_id=OCCURRENCE,
+            cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
+            pass_dir=pass_dir,
+            intent_root=intent_root,
+        )
+
+
+def test_legacy_pre_effect_migration_rejects_symlinked_pass(tmp_path):
+    admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    linked = tmp_path / "linked-pass"
+    linked.symlink_to(pass_dir, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="legacy_pass_symlink_present"):
+        migration.build_proof(
+            admission_db=admission_db,
+            events_path=events,
+            occurrence_id=OCCURRENCE,
+            cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
+            pass_dir=linked,
+            intent_root=intent_root,
+        )
+
+
+def test_resolve_rebuilds_proof_inside_admission_lock(tmp_path, monkeypatch):
+    admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    original = migration.build_proof
+    proofs = []
+
+    def counted(**kwargs):
+        proof = original(**kwargs)
+        proofs.append(proof)
+        return proof
+
+    def resolver(_owner_id, _occurrence_id, **kwargs):
+        assert kwargs["pre_effect_readback"]()["verified"] is True
+        return True
+
+    monkeypatch.setattr(migration, "build_proof", counted)
+    monkeypatch.setattr(migration, "resolve_pre_effect_occurrence", resolver)
+    result = migration.reconcile(
+        admission_db=admission_db,
+        events_path=events,
+        occurrence_id=OCCURRENCE,
+        cause_run_id=CAUSE_RUN,
+        pass_root=pass_dir.parent,
+        pass_dir=pass_dir,
+        intent_root=intent_root,
+        resolve=True,
+    )
+
+    assert result["resolution_state"] == "RESOLVED"
+    assert len(proofs) == 2

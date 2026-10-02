@@ -30,16 +30,21 @@ OWNER_ID = "hf-gig-apply-direct"
 LEGACY_RELEASE_SHA = "287d913c1c76ceeaee04255f9ac63fb8c086d5f8"
 OCCURRENCE = re.compile(r"^hf-gig-apply-direct:[A-Za-z0-9._:-]+$")
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+TIMED_RUN_ID = re.compile(r"^([0-9a-f]+)-([0-9]+)$")
 PASS_ID = re.compile(r"^gig-apply-direct-([0-9]{19})-([0-9]+)$")
-FORBIDDEN_EFFECT_PATHS = (
-    "result.json",
-    "parent.invocation-refresh.json",
-    "submit-attempt-budget.json",
-    "refresh-legacy-b2.json",
-    "refresh-evidence/application-decisions.json",
-    "refresh-evidence/application-snapshot.json",
-    "refresh-evidence/application-decision-telegram.json",
+ALLOWED_PRE_EFFECT_FILES = frozenset(
+    {
+        "b2-context.json",
+        "b2-coverage-cursor.json",
+        "b2-gate.stderr",
+        "b2-gate.stdout",
+        "b2-refresh-cursor.json",
+        "passprep.json",
+        "passprep.stderr",
+        "passprep.stdout",
+    }
 )
+ALLOWED_PRE_EFFECT_DIRECTORIES = frozenset({"refresh-evidence"})
 
 
 def _read_json(path: Path, label: str) -> dict[str, Any]:
@@ -122,15 +127,48 @@ def _cause_event(events_path: Path, occurrence_id: str, cause_run_id: str) -> di
     return event
 
 
-def _pass_boundary(pass_dir: Path, cause_event: dict[str, Any]) -> dict[str, object]:
-    pass_dir = pass_dir.resolve()
+def _pass_boundary(
+    pass_root: Path, pass_dir: Path, cause_event: dict[str, Any], cause_run_id: str
+) -> dict[str, object]:
+    raw_root = Path(pass_root).absolute()
+    raw_dir = Path(pass_dir).absolute()
+    if raw_root.is_symlink() or raw_dir.is_symlink():
+        raise ValueError("legacy_pass_symlink_present")
+    pass_root = raw_root.resolve(strict=True)
+    pass_dir = raw_dir.resolve(strict=True)
+    if raw_root != pass_root or raw_dir != pass_dir:
+        raise ValueError("legacy_pass_symlink_present")
+    if pass_dir.parent != pass_root:
+        raise ValueError("legacy_pass_root_mismatch")
     matched = PASS_ID.fullmatch(pass_dir.name)
-    if not pass_dir.is_dir() or matched is None:
+    run_match = TIMED_RUN_ID.fullmatch(cause_run_id)
+    if not pass_dir.is_dir() or matched is None or run_match is None:
         raise ValueError("legacy_pass_identity_invalid")
-    pass_epoch = int(matched.group(1)) / 1_000_000_000
-    cause_epoch = _timestamp(cause_event.get("timestamp"))
-    if pass_epoch > cause_epoch or cause_epoch - pass_epoch > 120:
+    pass_ns = int(matched.group(1))
+    child_pid = int(matched.group(2))
+    run_ns = int(run_match.group(1), 16)
+    parent_pid = int(run_match.group(2))
+    if not (0 <= pass_ns - run_ns <= 10_000_000_000):
         raise ValueError("legacy_pass_time_mismatch")
+    if not (parent_pid < child_pid <= parent_pid + 512):
+        raise ValueError("legacy_pass_pid_mismatch")
+    candidates = []
+    for path in pass_root.glob("gig-apply-direct-*"):
+        candidate = PASS_ID.fullmatch(path.name)
+        if candidate is not None and abs(int(candidate.group(1)) - run_ns) <= 10_000_000_000:
+            candidates.append(path.resolve(strict=True))
+    if sorted(candidates) != [pass_dir]:
+        raise ValueError("legacy_pass_window_not_unique")
+    entries = list(pass_dir.iterdir())
+    if any(path.is_symlink() for path in entries):
+        raise ValueError("legacy_pass_symlink_present")
+    files = {path.name for path in entries if path.is_file()}
+    directories = {path.name for path in entries if path.is_dir()}
+    if files != ALLOWED_PRE_EFFECT_FILES or directories != ALLOWED_PRE_EFFECT_DIRECTORIES:
+        raise ValueError("legacy_pass_shape_invalid")
+    evidence_dir = pass_dir / "refresh-evidence"
+    if any(evidence_dir.iterdir()):
+        raise ValueError("legacy_effect_boundary_present")
     passprep = pass_dir / "passprep.json"
     context = pass_dir / "b2-context.json"
     passprep_value = _read_json(passprep, "legacy_passprep")
@@ -139,24 +177,31 @@ def _pass_boundary(pass_dir: Path, cause_event: dict[str, Any]) -> dict[str, obj
         raise ValueError("legacy_passprep_invalid")
     if context_value.get("version") != 7:
         raise ValueError("legacy_b2_context_invalid")
-    for relative in FORBIDDEN_EFFECT_PATHS:
-        if (pass_dir / relative).exists():
-            raise ValueError("legacy_effect_boundary_present")
     return {
         "pass_id": pass_dir.name,
-        "pass_epoch": pass_epoch,
+        "pass_ns": pass_ns,
+        "run_ns": run_ns,
+        "parent_pid": parent_pid,
+        "child_pid": child_pid,
         "passprep_sha256": _sha256(passprep),
         "context_sha256": _sha256(context),
     }
 
 
 def _assert_no_bound_intent(intent_root: Path, pass_id: str) -> None:
-    for path in sorted(intent_root.glob("*.json")):
+    raw_root = Path(intent_root).absolute()
+    if raw_root.is_symlink() or raw_root.resolve(strict=True) != raw_root or not raw_root.is_dir():
+        raise ValueError("legacy_intent_store_invalid")
+    for path in sorted(raw_root.glob("*.json")):
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("legacy_intent_store_invalid")
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        lease = value.get("lease_fence") if isinstance(value, dict) else None
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError("legacy_intent_store_invalid") from error
+        if not isinstance(value, dict):
+            raise ValueError("legacy_intent_store_invalid")
+        lease = value.get("lease_fence")
         if isinstance(lease, dict) and lease.get("task") == pass_id:
             raise ValueError("legacy_intent_bound_to_pass")
 
@@ -167,12 +212,13 @@ def build_proof(
     events_path: Path,
     occurrence_id: str,
     cause_run_id: str,
+    pass_root: Path,
     pass_dir: Path,
     intent_root: Path,
 ) -> dict[str, Any]:
     occurrence = _occurrence(admission_db, occurrence_id)
     cause = _cause_event(events_path, occurrence_id, cause_run_id)
-    boundary = _pass_boundary(pass_dir, cause)
+    boundary = _pass_boundary(pass_root, pass_dir, cause, cause_run_id)
     _assert_no_bound_intent(intent_root, str(boundary["pass_id"]))
     evidence_digest = hashlib.sha256(
         json.dumps(
@@ -210,6 +256,7 @@ def reconcile(
     events_path: Path,
     occurrence_id: str,
     cause_run_id: str,
+    pass_root: Path,
     pass_dir: Path,
     intent_root: Path,
     resolve: bool = False,
@@ -219,6 +266,7 @@ def reconcile(
         events_path=events_path,
         occurrence_id=occurrence_id,
         cause_run_id=cause_run_id,
+        pass_root=pass_root,
         pass_dir=pass_dir,
         intent_root=intent_root,
     )
@@ -227,7 +275,15 @@ def reconcile(
         resolved = resolve_pre_effect_occurrence(
             OWNER_ID,
             occurrence_id,
-            pre_effect_readback=lambda: proof,
+            pre_effect_readback=lambda: build_proof(
+                admission_db=admission_db,
+                events_path=events_path,
+                occurrence_id=occurrence_id,
+                cause_run_id=cause_run_id,
+                pass_root=pass_root,
+                pass_dir=pass_dir,
+                intent_root=intent_root,
+            ),
             expected_state=str(proof["occurrence_state"]),
         )
     return {**proof, "resolution_state": "RESOLVED" if resolved else "PROOF_READY"}
@@ -239,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--events", type=Path, default=Path("~/.local/state/life-manager/coconala/apply/events.jsonl"))
     parser.add_argument("--occurrence-id", required=True)
     parser.add_argument("--cause-run-id", required=True)
+    parser.add_argument("--pass-root", type=Path, default=Path("~/gig/apply-direct"))
     parser.add_argument("--pass-dir", type=Path, required=True)
     parser.add_argument("--intent-root", type=Path, default=Path("~/gig/application-intents"))
     parser.add_argument("--resolve", action="store_true")
@@ -249,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
             events_path=args.events.expanduser().resolve(),
             occurrence_id=str(args.occurrence_id),
             cause_run_id=str(args.cause_run_id),
+            pass_root=args.pass_root.expanduser().resolve(),
             pass_dir=args.pass_dir.expanduser().resolve(),
             intent_root=args.intent_root.expanduser().resolve(),
             resolve=args.resolve,
