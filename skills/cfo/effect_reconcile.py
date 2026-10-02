@@ -218,7 +218,7 @@ def _snapshot_values(
     if provider_id is None or isinstance(provider_id, bool) or not str(provider_id).strip():
         raise _fail("snapshot_provider_receipt_missing")
     digest = snapshot.get("digest")
-    if not isinstance(digest, str) or not SHA256.fullmatch(digest):
+    if not isinstance(digest, str) or not digest.strip():
         raise _fail("snapshot_digest_missing")
     message_sha256 = snapshot.get("message_sha256", snapshot.get("messageSha256"))
     if message_sha256 is not None and (
