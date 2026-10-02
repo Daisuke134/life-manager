@@ -64,13 +64,13 @@ The long-term aim is healthier lives, greater material security, and more room t
 
 A model is a partial picture of the world. Predictions and simulated outcomes are kept separate from real observations.
 
-### 最初の実証
+### 変える環境と評価
 
-**Start with one environment.**
+**Change the conditions of everyday life.**
 
-The proposed first benchmark studies building temperature control and energy use. It asks whether Manager can reduce energy costs while maintaining thermal comfort, compared with an existing controller under the same conditions.
+Manager explores changes to supply, prices, access, shared resources, and the systems that shape income, health, time, and opportunity. People benefit through the environment around them, without signing up or operating an app.
 
-The first tests will use a building simulator. Real-world validation will require an authorized site and a separate measured trial.
+We will compare structural changes in simulations and then in real systems where changes can be authorized and outcomes measured. The first real-world domain has not been selected. No measured improvement in income or health is claimed today.
 
 ### 何を信頼すればよいか
 
@@ -131,13 +131,13 @@ Managerは世界のモデルを構築し、環境に対する最も効果の大�
 
 モデルは世界の一部を表すものです。予測やシミュレーションの結果を、現実の観測と区別して扱います。
 
-### 最初の実証
+### 変える環境と評価
 
-**まず、ひとつの環境から。**
+**日々の暮らしを決める条件を変える。**
 
-最初の評価案は、建物の温度制御とエネルギー使用です。同じ条件の既存の制御方法と比べ、熱快適性を維持しながらエネルギー費用を減らせるかを調べます。
+供給、価格、利用のしやすさ、共有資源、所得・健康・時間・機会を左右する仕組みを改善します。人々は登録したりアプリを操作したりすることなく、周囲の環境を通じて恩恵を受けます。
 
-初期の試験には建物シミュレータを使います。現実での効果を確かめるには、許可された施設で、別の比較実験を行う必要があります。
+構造的な変更をシミュレーションで比較し、変更する権限と結果を測る方法がある実環境で検証します。最初の実環境は未確定です。現時点で所得や健康の改善を実証したという主張はしていません。
 
 ### 何を信頼すればよいか
 
@@ -229,4 +229,4 @@ descriptionは冒頭の仕組みと研究段階に整合する。Organizationの
 - 本番公開後、`/`, `/en`, `/ja`, `/lm`, `/manager/benchmarks`, `/manager/research`の実際の内容・status・metadata・リンクをreadbackする。deploy成功だけで完了にしない。
 - 直前のdeployへのrollbackを可能にする。変更したsource SHAと公開されたartifactの対応を記録する。
 
-仕様レビュー後、Superpowersのwriting-plansで実在するsource path・検証command・migration順を確定した実装計画を作る。サイト説明の更新は、Managerの環境改善実装の完了とは別に評価する。
+詳細なmigration順は統合SSOTのW0–W2へ記載した。公開元sourceの固定後に、実在するsite pathとbuild commandを確定する。サイト説明の更新は、Managerの環境改善実装の完了とは別に評価する。

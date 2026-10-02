@@ -2747,64 +2747,129 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 
 
 <a id="manager-20261002"></a>
-## Manager — 2026-10-02 方針変更・調査・game plan（実行順の正本）
+## Manager — 2026-10-02 改訂仕様と詳細実装game plan（順序・進捗の正本）
 
-### 意図・成果物・現在状態
+### Goal / architecture / tech stack / review focus
 
-Daisの現在の目的: **Manager — One entity, blessing for all**。受益者のアプリ、signup/login、名前、メール、Telegram、個人credentialsを必要とせず、世界の部分モデルから環境変更を選び、実行し、結果を測って学ぶ。Aniccaai.comは説明・研究・benchmarkを公開する場所へ変更する。
+**Goal:** 一つのManagerが価格・供給・アクセス・時間・制度・共有資源の構造を変え、多くの人と生命の暮らしを改善する。受益者の名前・login・個人credentials・signup・Telegram・操作画面を必要としない。建物省エネ中心の旧提案はユーザーの修正により撤回。
 
-- [本体設計仕様](2026-10-02-manager-design.md)
-- [サイト更新仕様・英日掲載原稿](2026-10-02-manager-website-design.md)
-- [企業・現在のサイト・関連repo調査](../../research/manager/2026-10-02-companies-and-current-state.md)
-- [研究者の一次資料と問い合わせ案](../../research/manager/2026-10-02-people.md)
-- [原repo・論文・ライセンス・固定SHA調査](../../research/manager/2026-10-02-repositories.md)
+**Architecture:** 既存registry/admission/agent-runner/immutable release上の有限wake。内部domain kernelは `loops/manager/`。観測・行動モデル・構造変更・作用readback・生活outcomeを別recordで結ぶ。既存runtime_event v1に未知キーを追加しない。
 
-現在cursor: **M1 — 書面仕様のユーザーレビュー**。調査・仕様案・戦略game planは作成。正式なwriting-plans実装計画、製品コード変更、現実の環境介入、サイト公開は未実施。
+**Stack:** 既存Python runtime、JSON schema/JSONL evidence、既存Node startup-context/eval。外部repoは固定SHAの研究入力であり、scratch checkoutをproduction依存にしない。websiteは既存Next.js/Netlify経路。独立scheduler、第二SSOT、受益者ごとのSaaS runtimeを新設しない。
 
-初期環境は未回答のため **BOPTEST bestest_airの建物制御simulation** を推奨仮定として仕様化。実機へのアクセスや協力者の存在は未確認。現実の環境が既に変更可能なら、その観測・操作・比較条件を確認して初期環境を置き換える。
+**Review focus:** 個人アシスタントへの退行、simulationと現実の混同、平均値だけの成功、実行成功と生活成果の混同、未知effectの再送、既存顧客の不意な停止を防ぐ。最初の実環境は未確定であり、HVACに固定しない。
 
-### 順序・完了条件
+成果物:
 
-|順序|工程|対象と成果|完了の証拠|状態|
-|---|---|---|---|---|
-|M0|一次資料と既存ソースを調査|Aaru、Simile、Praxis、Woven City、研究者5名、8 OSS候補、関連自社repo、公開英日サイト|3つの調査文書、原論文/公式URL、7 OSS HEAD/ライセンス、未取得資料の明記|調査文書作成済み。追試ではない|
-|M1|設計をレビュー|名称、無consumer UI、部分world model、初期環境、benchmark、サイト原稿、source境界|Daisによる書面仕様への承認または修正|レビュー待ち|
-|M2|実装計画を確定|Superpowers writing-plansで本体とサイトを独立した計画に分解。実在path、契約、検証commandを確定|書面planレビュー、inlineまたはagent実行方法の選択|M1後|
-|W0|サイトのsource・hostingを確定|現在Netlifyが公開したSHA、domain/site対応、build設定、legacy route依存をread-only取得|公式hosting readback、固定source baseline、overlay allowlist|未実施。現環境にNetlify接続なし|
-|W1|Manager公開説明を実装|正本apps/landingに英日top、metadata、research、benchmark未実行表示。旧source固定入力からの限定overlay|build、route/metadata/コピー検証、legacy callback/paid route smoke、画面QA|W0とM2後|
-|W2|サイトを公開・readback|既存Aniccaai.comへ既存Netlify経路で公開、旧deployへ戻せる状態を保存|本番6ルートの実内容、名前、status、metadata、リンク、公開SHA|W1後。別ドメイン公開で代替しない|
-|M3|startup contextを移行|.agents/startup-context.json、scripts/startup-context/、関連tests、生成README、THESIS、fundraising原稿|Telegram必須/3 organs制約のschema移行、旧データ移行テスト、公開claim audit|M2後。サイトコピーと整合|
-|M4|環境adapterと証拠契約|既存runtime/loopを再利用し、environment_id・観測・作用・readback・outcome windowを追加|freshness、bounds、dedupe、replay、unknown effect、欠損のcontract tests|M2後|
-|M5|比較可能なsimulation loop|BOPTEST固定版、bestest_air、公式baseline、rule baseline、数値モデル、bounded planner|同一case/期間/forecast/価格のmanifest、raw trace、計算費用|M4後|
-|M6|holdout benchmarkを実行|開発1条件・未使用5条件・事前固定stress条件。評価器を候補生成と分離|全条件のscorecard、失敗、cost、trace hash、reproduction、sim-only表記|M5後。5%費用削減目標は未達も報告|
-|M7|実環境を確保・shadow評価|施設管理者の権限、匿名設備測定、操作範囲、停止/fallback。passive→shadow|実測と提案の照合、計画とbaseline、実行権限の記録|施設が未確定。shadowは介入成果に数えない|
-|M8|bounded live trial|熱慣性・干渉・天候を扱う事前登録の比較実験、可逆な設備変更|applied receipt、比較推定、全費用、快適性・副作用、停止/復旧readback|M7後。simulationの勝利だけで開始しない|
-|M9|研究者へ具体的に問い合わせる|Levin / Park / Aaru Kessler / Krakauerへ、仕様とprotocolを添えた質問文を作る|原稿。送信する場合はユーザーの具体的な送信依頼と実receipt|今回は問い合わせ案のみ。メール未送信|
-|M10|YC W27 / Speedrun向け証拠を整理|一文説明、prototype demo、benchmark結果、施設trial、payer仮説と支払意思|実績と計画を分けたapplication draft。公式応募条件と日程確認|目標。採択・締切・実績を創作しない|
+- [本体仕様](2026-10-02-manager-design.md)
+- [英日サイト仕様と掲載原稿](2026-10-02-manager-website-design.md)
+- [企業・現在のサイト](../../research/manager/2026-10-02-companies-and-current-state.md)
+- [研究者](../../research/manager/2026-10-02-people.md)
+- [repo・原論文](../../research/manager/2026-10-02-repositories.md)
+- [6 cloneの実コードからの学び](../../research/manager/2026-10-02-code-lessons.md)
+- [現行関数・schemaと移行地図](../../research/manager/2026-10-02-current-to-manager-map.md)
 
-### 戦略game planと期間の目安
+現在cursor: **調査・改訂仕様・詳細実装計画を作成。製品コードの実装前。** 外部6 repoの選定コードを読んだが、依存導入、モデル実行、追試、本番介入、site deploymentは未実施。
 
-順序は **説明を一致させる → simulationで中心ループを示す → 現実で比較検証 → 広げる**。サイト更新とbenchmark設計は、仕様レビュー後に独立して進められる。
+### 共通の実装手順と検証
 
-- **最初の1〜3作業日:** hosting/source確認ができれば、Managerのサイト説明・公開研究・未実行protocolを整える。公開アクセスが不足する場合は、完成したsourceと検証結果を残し、公開済みと主張しない。
-- **次の1〜2週間:** adapter、有限candidate planner、receipt、baseline比較を実装し、sim-only結果を公開できる形にする。計算時間・依存導入の実測で見積りを更新する。
-- **その後の2〜6週間:** 協力施設が得られた場合に、実データ収集、shadow、検出力・washoutを含む試験設計、bounded trialへ進む。パートナーが未確定なら現場の日付は約束しない。
-- **以降:** 建物・施設を増やす前に、別条件での再現性と実装移植費用を測る。混雑、物流、食環境、動物・生態系への適用は別specで設計する。
+各taskは既存の専用worktreeで対象を確認→重要な失敗ケースをテストで固定→最小実装→focused checks→diff確認→小さなcommit。以下の新pathは予定であり未作成。fixtureのpassは生活改善の実証ではない。source boundaryは編集前に実行。
 
-日数は目安であり、承認・施設・hosting access・benchmark結果を仮定した締切ではない。全世界のworld modelや万人の繁栄をこの期間に達成する計画ではない。
+```bash
+bash scripts/verify-source-boundary.sh
+python3 -m unittest discover -s loops/manager/tests
+./bin/lm-loop-contract
+git diff --check
+```
 
-### 既存運用と移行境界
+新Manager testsは作成後に実行する。全共有testsの無差別反復はせず、変更境界ごとに選ぶ。
 
-- 新構想の受益者に個人credentialsを要求しない。設備の操作権限、Manager自身のservice credentials、developerの公開権限は別に必要になり得る。
-- 旧有料サービス、既存顧客、契約、provider loopsを、この戦略変更だけで一括停止・削除しない。運用の退役が必要なら現在owner・契約・依存・戻し方を先に確認する。
-- 既存registry/finite wake/effect fence/receiptを再利用し、もう一つの自律runtimeや第二SSOTを作らない。
-- 本sessionはcloud Linux。Macのlive processやloaded immutable releaseを調査・変更していない。過去のSSOT記載を今日のlive確認として引用しない。
-- Astra Advisor専用機能は本harnessにない。Superpowersで調査と文書化を続行。Ponytailとして、既存runtimeと数値simulatorを再利用し、v0に大規模persona生成・新しいDBサービス・有料LLMを必須化しない。
+### T1 — 新しいrecordと成果の意味（全実装の前提）
 
-### 証拠とhandoff
+対象: 新 `loops/manager/contracts.py`, `schemas/world-state.json`, `structure.json`, `intervention.json`, `outcome.json`, `tests/test_contracts.py`, `eval/fixtures/`。
 
-調査base `2f6012ecee2707c2249631e5ac6e3f1be972e97c`。canonical rootとoriginを確認し、`scripts/verify-source-boundary.sh`をPASS。作業branch `docs/manager-pivot-20261002`、専用worktree `.worktrees/manager-pivot-20261002`。
+契約: 本体仕様のWorldState/StructuralIntervention/OutcomeEvidenceをstrict validation。単位、集計scope、出所、時刻、有効期限、観測/推定/simulation、権限、金額、ルール版、比較方法を必須化。介入recordにはmanager_idとeffect_keyを追加し、plan→applied→outcomeのjoinを固定する。
 
-使用したskill: Superpowers using-superpowers / brainstorming / dispatching-parallel-agents / using-git-worktrees。cloud networking手順を確認。Sites skillも読んだが、現行サイトは既存Next.js/NetlifyでありSites移行は適用しない。執筆はユーザーが示したmottoと直接的な表現を用い、研究者の主張と本設計の推論を分けた。
+失敗例: 個人名・login要求、stale観測、違う環境へのpatch、単位不一致、LLM文章のみのapplied、simulationをrealとするrecord、平均改善と最弱集団悪化の隠蔽。未知recordはactionへ流さない。
 
-この文書・仕様・調査報告だけを変更する段階。製品tests、外部モデルの有料実行、メール、既存顧客データ、Netlify deployment、Mac runtime操作は行っていない。
+完了: strict positive/negative fixturesが通り、受益者account無しで環境・集団・介入を記述できる。依存なし。
+
+### T2 — 継続する一主体と有限wake
+
+対象: 新 `loops/manager/manager.py`, `state_store.py`, `tests/test_state_store.py`, `test_cycle.py`、既存 `config/loop-registry.json`, `apps/life-manager/config/product-loop-catalog.json`。
+
+`run_wake(context)` は外部state rootのcursorを読み、一回のeligible transitionを実行、atomic保存、terminal receiptで終了。同じmanager_idと介入記憶を継承。release内にstateを保存しない。初期registryはsystem/none、borrow/support、有限timeout。収益目的を偽ってrevenue priorityへ載せない。
+
+失敗例: 同一wake再生、lock競合、保存中断、壊れたcursor、unknown effect、timeout。二重作用ゼロを確認する。既存Python unknown fenceとJS absent resolutionは同一意味に統合しない。
+
+検証: Manager tests、lm-loop-contract、`python3 -m unittest discover -s runtime/loop/tests -p test_macos_loop_registry.py`、event変更時は `test_runtime_event.py`。依存T1。
+
+### T3 — 環境観測とreference simulation
+
+対象: 新 `observe.py`, `adapters/base.py`, `adapters/commons.py`, `adapters/economy.py`, `tests/test_adapters.py`, scenario manifest。
+
+EnvironmentAdapterのobserve/simulate/validate/apply/readback/measure/restoreをmode付きで実装。reference候補は共有資源配分と仮想経済の制度変更。AgentSocietyは要求→一括配分、AI Economistは制度policy→行動→所得配分を学ぶ。採用前に依存費用・ライセンス・再現性を確認する。全面導入より必要な固定版adapterを優先。
+
+資源保存、予算上限、配分ルール、容量・不足、集団別結果を数値コードが決める。合成agentの発言から確定値を作らない。小規模referenceでも、複数集団・外生変化・供給制約・格差を含め、現状維持と固定ルールを用意する。
+
+完了: 同一seed/初期値でreplay一致、資源保存、異なる構造patchが結果へ到達、sim modeがlive作用を呼ばない。live事業の選定とは別。依存T1。
+
+### T4 — 候補発見と比較
+
+対象: 新 `plan.py`, `tests/test_plan.py`、必要時のみ `runtime/agent-runner/config.json` とrunner isolation tests。
+
+`propose(state, objective, constraints) -> list[StructuralIntervention]`。共通runnerへread-only・tool-less判断を委任し、provider/model/authをloopから直指定しない。actionはdeterministic adapterのみ。候補は現状維持を必ず含め、費用、confidence、集団別悪化、制約を比較。目的の重みをLLMが変更しない。
+
+検証: invalid schema拒否、予算超過、悪化上限、plannerによる副作用なし、未来情報漏洩なし。runner変更時 `python3 -m unittest discover -s runtime/agent-runner/tests -p test_application_intent_isolation.py` と `test_runtime_event_boundary.py`。依存T1,T3。
+
+### T5 — 介入gate、readbackとunknown処理
+
+対象: 新 `action_gate.py`, `provider_adapter.py`, `evidence.py`, `tests/test_action_gate.py`。live provider実装は既存 `providers/<provider>/` の限定変更。
+
+`validate(intervention,state)` はauthority、state版、範囲、費用、停止、受益者接点ゼロを確認。`apply` の返答だけでappliedにせず独立readbackで変更内容を確かめる。unknownはholdして再送しない。environment effectをpublish等に偽装しない。既存effect enumで正確に表せないlive actionはversion migrationとconsumer試験を先に設計する。
+
+完了: simulation receipt/reconcile、stale patch拒否、partial apply、readback差分、unknown hold、同effect replay-zero、復旧のreadback。liveは権限ある領域を選定するまで接続しない。依存T2,T4。
+
+### T6 — 多人数outcomeとbenchmark
+
+対象: 新 `evaluate.py`, `eval/cases.jsonl`, `eval/run.py`, `tests/test_evaluate.py`。既存economic-autonomyは運営収益scoreとして別bridge。
+
+結果を①提案、②環境変更、③生活成果に分ける。income/affordability/health/time/access/agency/ecological effectsのvector、集団別分布、費用、不確実性、比較仮定を保存。健康proxyを健康改善と名付けない。採点器へ候補の自己評価を使わない。
+
+reference suiteはtuning/held-outを分け、同条件baseline、資源不足・drift・干渉・欠測stress、全run trace・manifest・失敗を公開可能にする。未使用scenarioへgeneralizeしない結果も掲載する。
+
+検証: duplicate receipt、欠測、comparison無し、simulation claim、弱者悪化、全費用抜けのnegative cases。economic scoreを変更する場合 `npm --prefix apps/life-manager run test:economic-autonomy`。完了は再現可能なsim-only scorecard。生活改善実績ではない。依存T3,T5。
+
+### T7 — 製品context・生成物の移行
+
+対象: `.agents/startup-context.json`, `scripts/startup-context/lib.mjs`, `build-kit.mjs`, `test/startup-context.test.mjs`, `test/startup-context-export.test.mjs`、生成README/THESIS/応募kit。
+
+schema v2でTelegram必須・exactly three organs・個人管理の固定文を移行。v1はlegacyとして検証可能にし、新旧claimを混ぜない。product/research/benchmark linkは現時点の検証statusを記録。revenueは運営主体、coverageは対象環境・集団の根拠付き推定で、登録usersと混同しない。
+
+検証: `node --test test/startup-context.test.mjs test/startup-context-export.test.mjs`。全言語生成物・digest・過去提出historyを確認。live link auditはofflineテストと区別する。依存T1。実績claimはT6または後のlive評価後。
+
+### W0–W2 — Aniccaai.com全体の説明を更新
+
+**W0 source確定:** 現在の全siteは旧 `anicca-products/apps/landing`、canonicalには限定 `/lm` sourceのみ。Netlifyのsite/domain/公開SHA/build rootを公式readbackし、他routeを保存する固定baselineとoverlay allowlistを確定。接続未提供のためまだ公開元readbackは未実施。
+
+**W1実装:** canonical `apps/landing` に `/`, `/en`, `/ja`, Manager research/benchmark、metadataと英日copyを配置。full siteの他製品route、legacy paid onboarding/callback依存を確認して互換性を保つ。新Managerにはsignup/login/Telegram CTAを設けない。benchmarkは未実行statusから始める。snapshot copy確認、build、route/metadata、legacy smoke、mobile/desktop視覚確認。build commandは固定baselineのpackage確認後に確定し、存在しないcanonical packageへnpm buildを仮定しない。
+
+**W2公開:** 現行Netlify経路で公開して本番英日・research・benchmark・legacy routeと公開SHAをreadback。rollback先を記録。別domainのpreviewはAniccaai.com更新完了に数えない。依存W0→W1→W2、本体runtime完成を待たず説明を更新できる。
+
+### R1–R3 — 現実の環境への接続と拡張
+
+**R1領域選定:** 共同調達・供給網・所得機会・健康サービスへのアクセス・共有資源等から、生活への構造的効果、変更権限、測れる結果、比較可能性、継続費用、集団影響で候補を比較。変更可能な資源提供者/運営者と、受益者を別に扱う。未確認の協力者・資金・権限を計画に埋め込まない。
+
+**R2実証:** passive→shadow→事前登録した比較設計→bounded live。介入規模と期間は検出力、spillover、季節性、遅延で決める。正式readbackと集団別outcomeから、純改善・害・費用を評価。結果が不足なら拡大せずモデル・mechanismを更新する。
+
+**R3拡張:** 未使用環境で再現、adapter移植費用、外部運営の継続性を確認し、複数環境へ。entityの目的・介入ledger・学習を一つに保ち、実行jobは必要な権限ごとに分離できる。登録者を増やす戦略へ戻さない。
+
+研究者への連絡は、具体的な仕様・検証結果と質問の原稿を準備。今回は未送信。YC W27 / Speedrunは構造変更のdemo、simと実測の分離、運営者の支払仮説を示す。締切・採択・実績は未確認。
+
+### 依存関係・期間の目安・今回の確認
+
+`T1 → T2`、`T1 → T3 → T4`、`T2+T4 → T5`、`T3+T5 → T6`。`T1 → T7`。`W0 → W1 → W2` は独立。`R1`の調査は並行でき、live `R2`はT5/T6と権限・測定計画が揃ってから。
+
+最初の1–3作業日はidentity/site sourceとcontract、次の1–2週はfinite cycle/reference/scorecardを目安とする。外部依存の実測で更新。liveの日付は領域と協力環境が確定するまで約束しない。
+
+調査base `2f6012ecee2707c2249631e5ac6e3f1be972e97c`、worktree `.worktrees/manager-pivot-20261002`、branch `docs/manager-pivot-20261002`。source-boundaryをPASS。Superpowers using-superpowers / brainstorming / dispatching-parallel-agents / using-git-worktrees / writing-plans / verification-before-completionを使用。今回の変更はdocsのみ。製品tests、model API、メール、Netlify、Mac runtimeは実行・変更していない。
