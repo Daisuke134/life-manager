@@ -2866,3 +2866,18 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. Capafy/Mobile/Stripe/Marketplace/Investment/Agent Economyのsource接続を、既存adapter patternで一つずつ実装・検証する。
 3. Fundraiserのfinancial receipt contractを定義してadapterを追加する。
 4. CFO 14-loop P&Lがcompleteになるまで、利益・MRR・self-fundingを宣言しない。TaskMarket/BlockRunは後段。
+
+### 84. PromptBase portfolio evidence packagingとstep1 semantic-wait境界（2026-10-02 14:06–14:17 JST）
+
+- 04:44 UTCの即時kickstartは最初に`host_admission_deferred:resource_capacity_busy`で外部作用前に停止した。容量probeを既存FIFOのまま1回起動するとPromptBaseがreservationを取得し、occurrence `promptbase-loop-daily:18da9e12735d2e80-93376`（05:06:43 UTC、14:06:43 JST）が実行された。
+- 旧main release `994a5f98`での正確な根因は`gen_examples.py`が要求する`skills/capafy/catalog/portfolio-tracker/evidence/verified-demonstration.md`のrelease梱包漏れだった。PR #6460（main `55db2c3f6f155529d870fc9f591ecc830fe5a804`）でオフライン検証済みの入力/出力証拠を追加し、PromptBase focused tests 37件、`build_listing.py`、4例distinct境界、`bin/lm-loop-contract`（14 loops / 178 jobs / errors=[]）をPASSした。release `20261002T135131-55db2c3f`で同ファイルのSHA一致を確認した。
+- 同occurrenceはhouse model-runnerで`4 examples`まで成功した後、`publish.py`のstep1で`step1_did_not_advance:1/3`となった。公式証拠`/Users/anicca/.local/state/life-manager/state/promptbase-evidence/20261002T050838Z-portfolio-tracker/step1_failure.json`と`.png`はURL `/sell`、step `1/3`、validation errorなし、spinner表示を保存している。PromptBase seller dashboard readbackは`ok=true / checked=2 / updates=[]`、Salesは`0件 / $0 net`で、新規ledger行・submission receipt・公開・売上は無い。occurrenceのfenceは`too_recent:412s<=1200s`でHELDのままにした。
+- 固定`wait_for_timeout(1200)`がSPAのstep遷移完了を待たずに判定していたため、PR #6461（main `79f7c24e2602c34a4a99ffc2089baa25ea7188de`）で`2/3`のsemantic waitへ置換した。PromptBase tests 38件、`py_compile`、`git diff --check`がPASSし、immutable release `/Users/anicca/loops/releases/20261002T141453-79f7c24e`を作成、PromptBase plist/argvは同SHAへtarget apply済み（state=not running、preflight PASS）。これはsource/runtime boundaryの修正であり、PromptBase提出成功の証拠ではない。
+- 現在の新occurrenceは公式fenceの1200秒安全窓内であり、PromptBaseの外部作用が不明なまま再送しない。Approved/Scheduledの既存Reels listing、PendingのFootball listing、Sales `0/$0`を再送や収益へ昇格させない。
+
+#### 更新後の原子cursor
+
+1. occurrence `18da9e12735d2e80-93376`の1200秒安全窓満了後、同じPromptBase公式dashboard readback付き`promptbase_fence_reconcile.py --resolve`を一度だけ行い、no-effectなら`closed=true`を確認する。
+2. fence close後、release `79f7c24e`のPromptBase ownerを一度だけ起動し、step1 semantic wait→4例→PromptBase dashboard/GmailのPending/Approved/Declinedを同一occurrenceでreadbackする。
+3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
+4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
