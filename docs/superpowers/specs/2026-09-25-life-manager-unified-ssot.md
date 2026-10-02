@@ -3391,3 +3391,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Lancers Applicationはbrowser attach/readbackの失敗境界を、owner自然wakeで再現可能な証拠として追加観測する。
 2. provider official proposal statusが取得できたoccurrenceだけ、pending descriptor→application verified/blocked→replay-zeroへ進める。
 3. marker消失機構が証明されるまでsource patch・manual submit・effect fence closeはしない。次にCrowdWorks source candidateをread-onlyで確認する。
+
+### 118. CrowdWorks Paid pre-effect修正の統合・loaded境界（2026-10-02 19:22 JST）
+
+- CrowdWorks source candidate `4fb7a2f244`（pre-effect observation errorだけをexit 75へ分類、mutation後のtimeoutはunknown保持、regression 3件）がPR #6489としてmainへmergeされ、main SHAは`4121f44751c9f99d52cd6df0df78571c9d56da11`になった。CIはAgent/Loop/OSS/PII/Startup/Python/Shell/secret scanをPASSした。
+- immutable release `/Users/anicca/loops/releases/20261002T191620-4121f447`を作成し、`crowdworks-revenue-paid`へtarget applyした。install event `007ad779ce742c6dcdad47a6`、plist/loaded `LIFE_MANAGER_RELEASE_SHA=4121f44751`、ProgramArgumentsのrelease pathをreadbackした。
+- apply直後は旧occurrence `18daaeb38848cd48-24898`のeffect unknownを保持したままloaded-idle。新releaseの自然CrowdWorks Paid terminal/readbackはまだ0件である。したがって修正は「source統合・release loaded」までで、paid contract/settlement/fee/cost/official receipt完了ではない。
+
+#### 更新後の原子cursor
+
+1. 次の自然CrowdWorks Paid occurrenceが`4121f44751`をloadedし、pre-effect failureならexit75/effect0、provider境界まで進んだら公式readbackを同一occurrenceへ結合する。
+2. 旧releaseのeffect_unknown occurrenceは公式readbackなしに再送・closeしない。
+3. CrowdWorks Paidの自然境界後、Job Hunterへ進む。
