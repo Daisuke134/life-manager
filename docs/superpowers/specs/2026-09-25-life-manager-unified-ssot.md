@@ -3690,6 +3690,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. residual fenceは同一occurrenceの証拠が増えた場合だけreconcileし、再送しない。
 3. その後CFO source joinとTaskMarket/BlockRun receiptへ進む。
 
+### 147. CFO natural source-readback boundary（2026-10-02 JST）
+
+- `life-manager-cfo-hourly`はinstalled release `0be83c2507`でnatural kickstartしたが、CFO source readback前に`host_admission_deferred:resource_effect_unknown`、exit75で停止した。新しいrevenue/cost snapshot、MRR、runwayは生成されていない。
+- これは外部CFO mutationではなく、source不足を再試行せず保持する境界である。既存のGoogle Cloud/Anthropic cost evidenceとbusiness source coverage不足は§138のまま有効。
+
+#### 更新後の原子cursor
+
+1. CFOがcapacity/effect fenceを越えてread-only source snapshotを生成できる自然runを待つ。
+2. snapshotが生成された場合だけ、settled external revenueとperiod-matched costをjoinする。
+3. unknownを0円へ丸めず、TaskMarket/BlockRun receiptが無い限りself-fundingを宣言しない。
+
 ### 146. CrowdWorks proposalのpaid/contract readback（2026-10-02 JST）
 
 - `crowdworks-revenue-paid`の新release natural run `18daba9254a75b18-16784`はexit75で終了し、`paid-latest.json`は`effect=0`、`crowdworks_paid_handoff_unavailable` 1件と`reconcile_unknown` 4件を返した。
