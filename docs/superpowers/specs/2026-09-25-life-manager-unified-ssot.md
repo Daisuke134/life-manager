@@ -2503,3 +2503,10 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 | `life-manager-instagram-metrics` | `history_incomplete/no_journal_row`、boot側API key不足 | Telegram/provider receipt/readbackなし | 既存公式履歴だけをread-onlyで照合。通知再送・resolveしない |
 
 この3件は即時収益優先のCapafy/PromptBase作業を完了扱いにする理由にも、TaskMarketを前倒しする理由にもならない。R1/F2はeffect safetyの横断基盤として、公式証拠が得られたownerから個別に閉じる。
+
+### 57. Capafy即時収益レーンの最新readback（2026-10-02 09:25 JST）
+
+- Capafyの公式profit report（`2026-10-02T00:08:34Z`）は累計取り分 `$76.18`（gross `$102.75`）、当月API実費 `$0.01`、差引表示 `$76.17`、未払い `$15.64`、振込可能 `$59.00`。これはCapafy専用の公式readbackであり、14 loop全社利益やMRRではない。
+- 同時点のofficial inventoryは`CAP_FULL`、total 52、online 47、occupied 5、free 0、retry 2、ready_publish 0。under_review 3本とreview_rejected 2本がslotを占有している。slotが空くまで新規submit・再submitは行わず、自然ownerのread-only観測だけを続ける。
+- Capafy `capafy-loop-daily`の最新 occurrence `18da8eaab5cdcb48-957`（release `356d9233cf`、exit 0）はinventory/no-opの成功だが、publish receipt/readbackを持たない。CAP_FULLを「販売成功」と数えない。
+- 即時収益cursorは、(1) Capafy slot/review状態の自然readback、(2) PromptBase P5cの自然04:20審査readback、(3) Writer/Ebook/Affiliateの既存売上readback、の順である。TaskMarket/BlockRunはこの売上readback群の後段に置く。
