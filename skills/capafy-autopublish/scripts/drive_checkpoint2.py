@@ -618,6 +618,76 @@ def _llm_config_vendor_state_expression():
     )
 
 
+def _workspace_llm_form_expression():
+    """Recognize the newer Agent Workspace hosted-key form.
+
+    Same-Agent model-switch drafts can render the provider fields directly in
+    the workspace tab instead of the older ``api.anthropic.com`` card.  The
+    fields are identified by their live form contract, not coordinates.
+    """
+    return (
+        "(() => {"
+        "const v=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const xs=[...document.querySelectorAll('input')].filter(v);"
+        "const base=xs.filter(x=>x.type==='text'&&(/^https?:\\/\\//.test(x.value||'')||(x.placeholder||'').includes('api.')));"
+        "const model=xs.filter(x=>x.type==='text'&&(x.placeholder||'').trim()==='モデル');"
+        "const key=xs.filter(x=>x.type==='password');"
+        "if(base.length!==1||model.length!==1||key.length!==1)"
+        "return {ok:false,reason:'workspace-llm-field-count',counts:[base.length,model.length,key.length]};"
+        "return {ok:true};"
+        "})()"
+    )
+
+
+def _workspace_focus_expression(role):
+    predicates = {
+        "base": "x.type==='text'&&(/^https?:\\/\\//.test(x.value||'')||(x.placeholder||'').includes('api.'))",
+        "model": "x.type==='text'&&(x.placeholder||'').trim()==='モデル'",
+        "key": "x.type==='password'",
+    }
+    if role not in predicates:
+        raise ValueError(role)
+    return (
+        "(() => {const v=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        f"const xs=[...document.querySelectorAll('input')].filter(x=>v(x)&&({predicates[role]}));"
+        "if(xs.length!==1)return {ok:false,count:xs.length};"
+        "const x=xs[0];x.scrollIntoView({block:'center'});x.focus();x.select();return {ok:true};})()"
+    )
+
+
+def _workspace_save_expression():
+    return (
+        "(() => {const v=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const bs=[...document.querySelectorAll('button')].filter(b=>v(b)&&(b.textContent||'').trim()==='保存');"
+        "if(bs.length!==1)return {ok:false,reason:'workspace-save-count',count:bs.length};"
+        "const b=bs[0];b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();"
+        "return {ok:true,disabled:!!b.disabled,x:r.x+r.width/2,y:r.y+r.height/2};})()"
+    )
+
+
+def _raw_configure_workspace_llm(page, key):
+    state = page.evaluate(_workspace_llm_form_expression())
+    if not isinstance(state, dict) or not state.get("ok"):
+        raise RuntimeError(f"ambiguous workspace LLM form ({state})")
+    for role, value in (("base", BASE_URL), ("model", MODEL), ("key", key)):
+        focused = page.evaluate(_workspace_focus_expression(role))
+        if not isinstance(focused, dict) or not focused.get("ok"):
+            raise RuntimeError(f"workspace LLM {role} focus failed ({focused})")
+        page.call("Input.insertText", {"text": value})
+    save = page.evaluate(_workspace_save_expression())
+    if not isinstance(save, dict) or not save.get("ok"):
+        raise RuntimeError(f"ambiguous workspace LLM save button ({save})")
+    if save.get("disabled"):
+        raise RuntimeError("workspace LLM save button is disabled")
+    for kind in ("mousePressed", "mouseReleased"):
+        page.call("Input.dispatchMouseEvent", {
+            "type": kind, "x": float(save["x"]), "y": float(save["y"]),
+            "button": "left", "clickCount": 1,
+        })
+    print("workspace LLM fields: True")
+    return True
+
+
 def _raw_configure_llm_form(page, key):
     """Fill the llm_config_form Hosted Key card. Vendor is only set when the
     picker is empty/unset -- Capafy already shows "OpenRouter" by default in
@@ -744,6 +814,10 @@ def _ensure_raw_provider_section(page):
                     _bounded_page_call(page, "Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1}, deadline)
                 time.sleep(1)
                 continue
+        if workspace_tab_clicked:
+            workspace_llm_form = _bounded_page_evaluate(page, _workspace_llm_form_expression(), deadline)
+            if isinstance(workspace_llm_form, dict) and workspace_llm_form.get("ok"):
+                return "workspace_llm_form"
         button = _bounded_page_evaluate(page, _detected_keys_button_expression(), deadline)
         if isinstance(button, dict) and button.get("ok"):
             x, y = button.get("x"), button.get("y")
@@ -1209,6 +1283,8 @@ def _raw_configure_hosted_key(page, key, section_mode):
     Extracted from _raw_cp2 so the caller can run the independent
     display-model fix afterward regardless of whether this ran at all (it is
     skipped entirely when the card is already saved/collapsed)."""
+    if section_mode == "workspace_llm_form":
+        return _raw_configure_workspace_llm(page, key)
     if section_mode == "configured_proxy":
         # The form itself supplies the provider metadata after the field
         # paths are saved; it intentionally has no separate model input.
