@@ -22,7 +22,29 @@ class _Page:
         Path(path).write_bytes(b"png")
 
 
+class _StepTransitionPage:
+    def __init__(self):
+        self.step = "1/3"
+        self.wait_calls = []
+
+    def wait_for_function(self, expression, expected):
+        self.wait_calls.append((expression, expected))
+        self.step = expected
+
+    def inner_text(self, selector):
+        assert selector == "body"
+        return self.step
+
+
 class PublishDiagnosticsTest(unittest.TestCase):
+    def test_step_transition_waits_for_semantic_state(self):
+        page = _StepTransitionPage()
+
+        publish._wait_for_step(page, "2/3")
+
+        self.assertEqual(page.step, "2/3")
+        self.assertEqual(page.wait_calls[0][1], "2/3")
+
     def test_step1_failure_records_page_boundary_and_screenshot(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = Path(directory)
