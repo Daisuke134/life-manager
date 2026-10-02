@@ -2673,3 +2673,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. その後CP3/final `platform_status=1`・`agent_type=run_online`を公式remote-statusで確認する。
 3. PromptBaseは`848aee9b` loaded後もcapacity busyのため、同一occurrenceを再送せず自然eligible wakeを待つ。
 4. CP2/CP3またはPromptBase公式E2Eが閉じるまで、売上・利益・自律性を昇格させない。
+
+### 70. Capafy CP2修正release loaded後のadmission境界（2026-10-02 12:03 JST）
+
+- CP2 workspace-form source fix PR #6440（main `c3b56c1ad0fcc77c12ae531b1d7612fcc89e43dc`）をmergeし、immutable release `20261002T120044-c3b56c1a`を作成した。Capafy plistはこのreleaseへloaded済み。focused Capafy suite `224 passed, 6 subtests passed`、`py_compile`、`bash -n`、`git diff --check`、`bin/lm-loop-contract`を確認した。
+- 正式owner wrapperを同一Agent/versionのCP2/CP3再開目的で一度だけ実行したが、occurrence `capafy-loop-daily:18da975822e500d8-52610`はrelease `c3b56c1a`で`exit=75 / host_admission_deferred:resource_capacity_busy`、provider/browser前に停止した。新たなCapafy外部効果、重複Agent、追加uploadは無い。
+- PromptBaseとCapafyの両方が同じfleet admission容量で止まっている。これはCP2実装不良ではなくhost admission境界である。容量上限を増やす、他ownerのeffect fenceを削除する、同一occurrenceを再送する、は行わない。
+
+#### 更新後の原子cursor
+
+1. 自然eligible wakeでCapafy同一Agent/versionのCP2 workspace form→`is_confirmed_config_keys=true`→CP3/final `platform_status=1`を確認する。
+2. PromptBaseも同じく自然eligible wakeで`848aee9b` object schema→4見本→公式readbackへ進める。
+3. admission容量が空くまでprovider/browserを手動起動しない。公式proofのあるfenceだけを自然reconcilerで閉じる。
+4. Capafy/PromptBaseの外部E2Eが閉じるまで、売上・利益・全loop自律性を完了扱いしない。
