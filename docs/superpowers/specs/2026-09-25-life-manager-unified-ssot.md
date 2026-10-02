@@ -3617,3 +3617,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. TaskMarketのcapacityが空いた自然runで、mutation前provider discoveryとreplay-zeroを1件公式readbackする。
 2. そのreceiptがある場合だけBlockRun paid inferenceを1件、treasury cap内で実行し、provider payment receiptとoutputをjoinする。
 3. CFOへsettled external revenue/costを反映し、30日self-funding benchmark前に収益・自律性を断定しない。
+
+### 140. TaskMarket no-effect natural boundary（2026-10-02 23:58 JST）
+
+- `life-manager-taskmarket-ledger` を1回kickstartした自然run `18dab797bde8b250-20186` は、host admissionの`resource_capacity_busy`でprovider前にexit75/effect noneとなった。
+- TaskMarketの直近公式ログは`tasks_seen=15 / pending=15 / rejected=0 / recorded=0 / duplicates=0 / transactions=[]`、`status=noop / reason=no_verified_award / verified_awards=0`。provider discovery・award・外部支払・wallet mutationはない。
+- このno-effect証拠があるため、同一runを再送せずBlockRun paid inferenceへは進まない。BlockRunはverified awardとtreasury policy receiptが揃った後の次cursorである。
+
+#### 更新後の原子cursor
+
+1. TaskMarketはcapacity retryを自然schedulerへ任せ、同一no-effect runを重複起動しない。
+2. verified awardが出た場合のみBlockRun paid inferenceを1件、payment receipt/output/cost join付きで実行する。
+3. awardが無い状態ではx402/treasuryの残高を自己資金・売上へ丸めず、CFO unknownのまま保持する。
