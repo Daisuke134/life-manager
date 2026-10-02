@@ -2882,6 +2882,20 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 88. Capafy payout偽0のsource修正・release loadと公式監査（2026-10-02 14:40–14:45 JST）
+
+- AGMSG read-only監査は、Capafy公式`publish-list`と`publish-remote-status`、`capafy_http`を突合し、inventory `total=52 / online=47 / under_review=3 / review_rejected=2`を確認した。Agent `4813383030`、`4243672453`、`4763185052`は同一versionで`platform_status=1 / audit_status=2 / is_confirmed_skills=true / is_confirmed_config_keys=true / package_uploaded=true / status_reason=under_review`。X3 Japanese Humanizer `3332784488`は`platform_status=4 / audit_status=4 / listed`、one-time `$9.99`である。Capafy全体のCP2/CP3・宣伝・販売closedとは数えない。
+- 同監査で、`skills/self/capafy-loop/capafy_earn_reconcile.py`のpayout-info例外/非0応答/非objectを`{}`へ変換し、balance全項目0の`capafy-payout` ledger行を書いていた根因を特定した。2026-10-01の偽0行は公式analyticsのpayout-able `$59.00`と矛盾する。PR #6466（main `7cc63dda9626e5d02a41c9e289c31dd2e130cbc9`）で、取得失敗時はpayout rowを書かず`payout_fetch_status=failed`だけを返し、成功時のsnapshotは維持するようfail-closed化した。回帰3件、Capafy loop suite 62件、py_compile、diff-check、`bin/lm-loop-contract`（14/178/errors0）がPASSした。
+- immutable release `/Users/anicca/loops/releases/20261002T144256-7cc63dda`を作成し、`capafy-loop-daily`だけへtarget applyした。launchctl readbackは`state=not running`、`LIFE_MANAGER_RELEASE_SHA=7cc63dda96`、ProgramArguments/REPO一致、apply rc=0。旧偽0 ledger行の削除・改変は行わず、次の公式payout receiptで訂正可能な監査証跡として保持する。
+- 公式Capafy money analytics（観測`2026-10-02T03:07:20Z`）はall-time gross `$102.75`/101 units、last7d gross `$19.94`/6 orders、net30 proxy `$66.22`、actual model cost30 `$39.71`、profit30 proxy `$26.51`、payout-able `$59.00`、pending `$15.64`、paid_out `$0.00`。これはCapafy account期間値で、今日のsettled利益・14 loop P&L complete・MRR証拠ではない。
+
+#### 更新後の原子cursor
+
+1. `capafy-loop-daily`の次の自然runで、同じAgent/versionのCP2/CP3とpayout fetch statusを公式remote-status/ledgerへ結合する。失敗時に新しい0行が出ないことを確認する。
+2. 旧偽0行は削除せず、公式payout receiptとの訂正/注記を別immutable rowで残し、CFOがunknown/failedを0へ丸めないことをreadbackする。
+3. free slotが公式inventoryで空いた場合だけ、Capafy factoryの自然submit→listing/status→sale/refund/fee/model cost/settlement/payout/replay-zeroへ進む。under_review/review_rejected中は再送しない。
+4. PromptBase pending、Mobile/Connector監査、Writer/Ebook/Affiliate/CFOを独立laneで継続し、TaskMarket/BlockRunは§84-Aの後段順位を維持する。
+
 ### 84-A. 収益critical pathへのTODO順序変更とAGMSG実行分担（2026-10-02 14:38 JST、後続cursorへの追補）
 
 - 旧TODOはTaskMarket/BlockRunを先に置いていたが、TaskMarketは現在もprovider discovery/外部報酬が未証明、BlockRunはtreasury spend前のholdである。一方、PromptBaseはPortfolio Trackerの公式pendingまで到達し、Capafyは累計販売・実コストの公式analyticsが存在する。ユーザーの明示方針（Agent Economy/TaskMarketは後段）に従い、順序を次へ変更する。
