@@ -3191,3 +3191,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PR #6486はbaseline gateの原因を分離したまま、Lancers sourceのreview evidenceを保持する。CI baseline修正は別owner・別branchで行い、同じPRへ無関係な変更を混ぜない。
 2. Startup context、Capafy manifest、PII allowlistの各gateは、既存foundation ownerにread-only原因確認→専用修正→focused CIで順に閉じる。
 3. PR #6486が統合された後だけ、immutable release→Lancers target apply→自然Paid wake→公式status/readbackへ進む。旧releaseの`exit 124/effect_unknown`は再送せず保持する。
+
+### 103. 既存baseline gateの安全な分離修正（2026-10-02 17:55 JST）
+
+- SSOT内の過去readbackに残っていた個人Gmailを一般表現へ置換し、`scripts/security/pii_shape_scan.py --allowlist .pii-shape-allowlist .`が`PII shape scan clean`になった（docs branch commit `702c27d541`）。credentialはSSOTやチャットへ再掲しない。
+- `docs/manifests/oss-merge-1-sources.json`のCapafy inventoryは、実tracked 235 filesの現SHA `356d2d1f097008dee84c306527c55b7a2d2e2b2941df34eabe935d98527f4f74`へ更新し、`node scripts/verify-oss-self-contained.mjs`がPASSになった（docs branch commit `28be5c0cb9`）。Capafyのsource/production/provider操作は0。
+- Startup contextの30日超過は未修正のまま別cursorで保持する。これらのbaseline修正はLancers PR #6486へ混ぜず、main統合前の独立foundation候補である。
+
+#### 更新後の原子cursor
+
+1. Startup contextのfresh public links/digestを専用source-only修正で閉じる。
+2. PII/OSSのfresh CIが通る独立branchを確認し、Lancers PR #6486のbaseline failureと分離したまま統合順序を決める。
+3. Lancers PR #6486はbaseline gateが解消した後に再検証し、main/release/apply/natural readbackへ進める。
