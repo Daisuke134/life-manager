@@ -2510,3 +2510,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 - 同時点のofficial inventoryは`CAP_FULL`、total 52、online 47、occupied 5、free 0、retry 2、ready_publish 0。under_review 3本とreview_rejected 2本がslotを占有している。slotが空くまで新規submit・再submitは行わず、自然ownerのread-only観測だけを続ける。
 - Capafy `capafy-loop-daily`の最新 occurrence `18da8eaab5cdcb48-957`（release `356d9233cf`、exit 0）はinventory/no-opの成功だが、publish receipt/readbackを持たない。CAP_FULLを「販売成功」と数えない。
 - 即時収益cursorは、(1) Capafy slot/review状態の自然readback、(2) PromptBase P5cの自然04:20審査readback、(3) Writer/Ebook/Affiliateの既存売上readback、の順である。TaskMarket/BlockRunはこの売上readback群の後段に置く。
+
+### 58. PromptBase P5cのhouse model-runner修正とrelease境界（2026-10-02 09:48 JST）
+
+- P5cのlaunchd失敗原因をsourceで修正した。旧`skills/earn/promptbase/scripts/gen_examples.py`は個人設定を読む直接`claude -p`を呼び、04:20のlaunchd実行でexit 1になっていた。PR #6422で`skills/writer-agent/runtime/model-runner.sh agent --prompt-file`へ移行し、`ARTICLE_PROVIDER=auto`、run id、model log、`cwd=/tmp`を渡す。既存の`SKILL.md`指示は`## SYSTEM INSTRUCTIONS`としてprompt fileへ保持し、buyer入力とは`## BUYER PROMPT`で分離した。英語検査と4件distinct検査は維持した。
+- source evidence: commits `be40158aed`（runner移行）と`6317f0a2b0`（system指示保持）、PR #6422のadmin squash merge commit `73731c68cfbc7b3a8f11799b335e5efba70f3a9d`。PromptBase focused suiteは27/27 PASS、`py_compile`、`bash -n`（daily/model-runner）、`git diff --check`もPASS。production publish、PromptBase送信、Gmail/browser操作はsource作業中0件。
+- immutable release readback: `current=/Users/anicca/loops/releases/20261002T094302-73731c68`、`RELEASE.json.sha=73731c68cfbc7b3a8f11799b335e5efba70f3a9d`、`provenance=ancestor-of-origin-main`、`release_paths=ALL`。reconcilerのshared-agent-runner/deterministic対象は新releaseで`ok=true`・失敗0だった。fleet stateは同一releaseで`status=skip / errors=0 / reason=production apply is already owned`（自然reconcilerとの二重applyを避けた）。
+- PromptBase ownerのloaded plistはread-onlyで旧`release=356d9233cf6c3360f4efdc001e3720c5305ef806`のまま。`lm-loop health --json --loop promptbase-loop-daily --explain`（2026-10-02T00:48:25Z）は旧occurrence `18da7e12693ec168-86329`を`effect_unknown`、`entrypoint_exit_1`、`provider_receipt_id=null`、`official_readback_ref=null`、`next_action=official_readback_required`と返す。従って新runnerがproductionで実行された、P5cがPending→Approved/Declinedになった、公開・売上・payoutが発生した、とはまだ言えない。effect_unknownを閉じる公式readbackなしにmanual restart/apply/retryはしない。
+
+#### 現在の原子cursor
+
+1. 旧PromptBase occurrence `18da7e12693ec168-86329`の公式dashboard/Gmail/readback境界をowner経路で閉じる（再送・再submitはしない）。
+2. PromptBase plistが`73731c68cf`を指す自然reconciler readbackを確認する。
+3. 新release上の次回自然04:20で、model-runner evidence、4件distinct英語見本、PromptBase管理画面/GmailのPending→Approved/Declined、公開listing、sale/settlement/payout、replay-zeroを同一occurrenceへ結合する。
+4. その後、CapafyのCAP_FULLが解消した時だけ自然submitを再開し、Writer/Ebook/Affiliate、Mobile、Connector、Fundraiser、Coconala→Lancers→CrowdWorks→Job Hunter、Self-Build、Investment、CFO、外部paid E2E/DigitalOceanを順に閉じる。TaskMarket/BlockRunは§55の後段順位を維持する。
