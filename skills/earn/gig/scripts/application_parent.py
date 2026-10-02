@@ -74,6 +74,33 @@ class CrashInjected(RuntimeError):
     """Test-only interruption after a durable boundary checkpoint."""
 
 
+def _enter_effect_boundary() -> None:
+    """Invalidate the host pre-effect proof before an irreversible submit marker."""
+    value = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if not value:
+        return
+    path = Path(value)
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        # A prior application in this same wake already crossed the boundary.
+        return
+    try:
+        if (
+            not path.is_file()
+            or path.is_symlink()
+            or info.st_uid != os.getuid()
+            or info.st_nlink != 1
+            or info.st_mode & 0o777 != 0o600
+            or json.loads(path.read_text(encoding="utf-8"))
+            != {"status": "pre_effect_failure", "effect": 0}
+        ):
+            raise ValueError
+        path.unlink()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise ParentContractError("pre_effect_hint_invalid") from error
+
+
 def _publish_instant_work_events(ledger_path: Path, pass_id: str) -> None:
     """Project and publish verified application facts without owning the outcome.
 
@@ -3792,6 +3819,7 @@ def commit_decisions(
                     # display name, or whichever account happens to be logged in later.
                     capture_identity(request_id)
                     phase = "irreversible_attempt_marker"
+                    _enter_effect_boundary()
                     intent = store.mark_irreversible_attempt_started_locked(
                         request_id, expected_cas=intent["cas"]
                     )
