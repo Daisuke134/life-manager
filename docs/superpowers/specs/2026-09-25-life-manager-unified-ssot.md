@@ -3108,7 +3108,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - AGMSG `team lm --json`の現在出力は5登録席で、`codex-money-printer`を含む全席が`placement=unknown:no_placement_record`、`consistency=unverified`である。登録名を稼働証拠には数えない。Fable席も登録だけで、Life Managerの担当にはしない。
 - **Claude Opus計画:** `lm-claude-lancers-plan-1002`のAGMSG報告は、Lancers applicationのpre-effect marker欠落を未証明と訂正し、markerが子プロセスに消された機構を観測するT1を先に置いた。したがって「application-ownerへhint wrapperを足せば解決」という旧handoffは正本根因ではない。
 - **Claude Sonnet実装:** PR #6485、commit `0a2ac45768`が存在し、Lancersの`application-owner`、`paid_adapter.py`、`work_sync.py`と回帰テストを変更した。GitHubのPython syntax + unittestは成功したが、Startup context drift、OSS self-contained boundary、PII shapesの重要ゲートが失敗し、`mergeStateStatus=UNSTABLE`である。Opusの訂正済み根因とも一致しないため、merge/release/applyしない。ローカルfocused pytestは`.deepeval`を作成できないRead-only filesystemで起動前に失敗し、追加の成功証拠には数えない。
-- **Codex Luna実装:** `gpt-5.6-luna`、effort=max、専用worktree `fix/crowdworks-luna-impl-20261002`でCrowdWorks Paidのsource-only修正中。現在は`skills/earn/crowdworks/scripts/paid-owner`と`apps/crowdworks-revenue/tests/test_paid_owner_observation_boundary.py`に未commit差分があり、PR・production apply・provider/browser効果は0。commit、focused test、Solレビュー前なので未完了。
+- **Codex Luna実装:** `gpt-5.6-luna`、effort=max、専用branch `fix/crowdworks-luna-impl-20261002`でCrowdWorks Paidのsource-only修正をcommit/pushした（`4fb7a2f244`）。focused test 3件、`source-boundary`、`bash -n`、`git diff --check`はPASS。PR・merge・release・production apply・provider/browser効果は0で、Solの独立レビューは未取得のため未完了。
 - **Codex Solレビュー:** まだship verdictを出していない。したがってSonnet PRを統合できるレビュー証拠はない。
 
 #### ループ別の完了境界
@@ -3125,7 +3125,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 | Fundraiser | human-required/no-entrypoint境界でhold | 適格application receipt・provider status・外部inflow・costを取得。人間必須操作は自動突破しない |
 | Coconala | paid buyer-visible納品・settlement・costの一連が未closed | occurrence単位の公式thread/delivery/payment readback、effect_unknownは再送しない |
 | Lancers | PR #6485は未統合、根因観測とCIゲートが未解決 | Opus訂正版のT1観測→最小修正→Sonnet実装再レビュー→release後自然readback |
-| CrowdWorks | Luna source修正が未commit | focused test→commit/push/PR→Solレビュー→merge/release後の自然readback |
+| CrowdWorks | source修正`4fb7a2f244`はpush済み、未merge/release | Solレビュー→PR→merge/release後の自然readback |
 | Job Hunter/Mercor | human-required候補とeffect_unknownが残る | interview/KYC/CAPTCHAはholdし、適格案件だけapply→reply→paid公式readback |
 | Self-Build | patch/testの局所成功はあるが自然outcomeまで未closed | failure→patch→tests→review→main→release→natural outcomeをID結合 |
 | Investment | AT-13〜AT-29のpaper 30 round trips未完 | natural sellを待ち、buy/sell/fee/slippage/system cost/replay-zeroを再計算 |
@@ -3141,7 +3141,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 #### 正本TODO（この先の順序）
 
-1. Sonnet PR #6485をmergeせず、Opus訂正版のLancers根因観測とSol read-onlyレビューを先に完了する。同時にLunaのCrowdWorks差分をテスト・PRまで閉じる。
+1. Sonnet PR #6485をmergeせず、Opus訂正版のLancers根因観測とSol read-onlyレビューを先に完了する。CrowdWorks `4fb7a2f244`もSolレビュー→PR→merge/releaseの順で進める。
 2. PromptBase P5cを自然dashboard/Gmail→公開→販売→settlement/payout→replay-zeroで閉じる。
 3. Capafyの審査枠解放後に自然CP2/CP3と収益閉路を一件閉じる。
 4. Writer→Ebook→Affiliateのfresh revenue/cost sourceを接続する。
