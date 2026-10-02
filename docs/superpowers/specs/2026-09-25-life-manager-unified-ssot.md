@@ -3870,3 +3870,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PID `16095`の既存reconcileが自然終了するまで同じapply資源を触らず、終了結果とexact failuresをreadbackする。
 2. 終了後にmain `e1a5a2ccee`由来のimmutable releaseを一度だけ生成し、CFO ownerのinstalled/event SHAを照合する。
 3. marketplace readbackをnatural CFO runで再取得し、source freshness、coverage gap、receipt identity、replay-zeroを確認する。official settlement/payoutが無いplatformを収益0またはprofitへ昇格させない。
+
+### 160. CFO marketplace release load・message fence根因・PromptBase fresh readback（2026-10-03 01:02 JST）
+
+- main `e1a5a2ccee`からimmutable release `/Users/anicca/loops/releases/20261003T004452-e1a5a2cc`を生成し、`RELEASE.json.sha`、current symlink、main blobとrelease内`skills/cfo/loop_pnl.py`のSHA-256一致を確認した。
+- fleet applyはterminal `status=error / changed=128 / skipped=44 / errors=3`。失敗は`hf-gig-apply-direct=admission rebind refused: effect_unknown`、`alpaca-investment-live=Bootstrap failed: 5 Input/output error`で旧job復元、`life-manager-instagram-metrics=admission rebind refused: effect_unknown`の既知3 ownerだけである。installed SHAは順に`287d913c1c / 4121f44751 / 9a76dcc87d`のまま保持し、再applyしない。
+- `life-manager-cfo-hourly`、`life-manager-financial-report`、`stripe-revenue-poller`のinstalled SHAは`e1a5a2ccee`へ一致した。ただし新release直後の自然wake `18dac15ccdb314b8-17621`と`18dac15e3b75e088-17857`は、古いmessage unknownにより`host_admission_deferred:resource_effect_unknown`で安全停止した。source loadをnatural CFO成功へ昇格させない。
+- admission DBのexact unknownはhourly `18d8de9f2e7b25a8-17283`、financial-report `18d8854c4cf474f0-24141`の各1件だけである。`pre-effect-reconcile --dry-run`はいずれも`no_pre_effect_terminal`を返したため解放していない。
+- hourly対象runは2026-09-26の日次報告でexit0。durable Telegram outboxと`last-delivered-snapshot.json`は同日をprovider message ID `94946`のdeliveredとして保持するが、CFO ownerにはInvestment siblingのようなexact occurrence effect reconcilerが無い。financial-reportの旧release entrypointはprovider送信ではなく`report-job-adapter.js enqueue`だけなのにregistryが`effect_class=message`で、local enqueue失敗がmessage fenceになっている。専用worktreeで(1)hourlyのexact outbox reconciler、(2)financial-reportの`effect_class=none`訂正をTDD実装中であり、live stateはまだ変更していない。
+- PromptBase公式Gmailのfresh readbackでは、Reels Hook Labが10月2日19:55 JSTに`live`、Football Match Analystが22:25 JSTに`approved and scheduled`。Portfolio Trackerは新しい公式通知が無くlocal official-dashboard stateは`pending_review`。Sales stateは10月2日14:33 UTC観測で`0件 / net $0`。掲載価格`$4.99`を販売額へ数えず、同じlistingを再送しない。
+
+#### 更新後の原子cursor
+
+1. CFO message-fence source fixをfresh tests・contract・reviewで閉じ、PR/merge後に一度だけimmutable releaseへ昇格する。
+2. hourlyはprovider message IDとevent key/hash/dateをexact occurrenceへ束縛できる場合だけofficial readbackで解放する。financial-reportはno-effect契約のowner-scoped applyで旧fenceをclearし、他ownerのunknownを触らない。
+3. 新releaseの自然CFO runでmarketplace coverage gap、delivery receipt、replay-zeroを確認する。未証明settlementを利益へ数えない。
+4. PromptBaseはFootball `scheduled→live/declined`、Portfolio `pending_review→approved/declined`、Reelsを含むSales `order→fee→settlement/payout`を公式readbackする。自然待ちを理由に他の独立収益TODOを止めず、再送もしない。
