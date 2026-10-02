@@ -163,6 +163,12 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         value["EnvironmentVariables"]["LIFE_MANAGER_ENV_FILE"] = str(
             Path.home() / ".local/state/life-manager/.env"
         )
+    if entry["entrypoint"] == "apps/life-manager/scripts/mobile-app":
+        # Slide rendering imports Pillow, which the bare release python does not
+        # ship; the managed venv installs it from requirements-runtime.txt.
+        value["EnvironmentVariables"]["LIFE_MANAGER_PYTHON"] = str(
+            Path.home() / ".local/share/life-manager/venv/bin/python"
+        )
     if loop_id == "realtime-guide":
         value["EnvironmentVariables"].update({
             "LIFE_MANAGER_ENV_FILE": str(Path.home() / ".local/state/life-manager/.env"),

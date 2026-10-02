@@ -166,3 +166,19 @@ test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a no
   // exact role the adapter's assertPack expects for this lane at publish time.
   assert.equal(pack.slides.at(-1).role, "cta");
 });
+
+test("resolveLarryJaSlot renders slides with the managed LIFE_MANAGER_PYTHON, not PATH python3", { timeout: 60_000 }, async () => {
+  makeFixtureBackgroundOnce();
+  const dataDir = tempDataDir();
+  const calls = path.join(dataDir, "python-calls.txt");
+  const shim = path.join(dataDir, "managed-python");
+  // Records every argv then defers to the real interpreter so rendering still succeeds.
+  fs.writeFileSync(shim, `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nexec python3 "$@"\n`, { mode: 0o700 });
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT, LIFE_MANAGER_PYTHON: shim };
+  const { selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  assert.ok(selected);
+  // Slide text carries a newline, so one argv record spans two lines; the shim
+  // being the interpreter that rendered is what matters.
+  const invoked = fs.readFileSync(calls, "utf8");
+  assert.match(invoked, /render-slide-image\.py/);
+});

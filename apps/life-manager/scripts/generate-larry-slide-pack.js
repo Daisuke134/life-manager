@@ -109,6 +109,8 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
       geminiApiKey: generateText ? env.GEMINI_API_KEY : required(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
       ...(resolveBackground ? { resolveBackground } : {}),
       ...(generateText ? { generateText } : {}),
+      // launchd hands Mobile jobs the managed venv python (Pillow lives there, not in the release python).
+      ...(env.LIFE_MANAGER_PYTHON ? { python: env.LIFE_MANAGER_PYTHON } : {}),
       now,
       onRejected: (info) => rejected.push(info),
     });
