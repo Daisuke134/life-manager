@@ -1742,6 +1742,26 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(runtime.returncode, 0, runtime.stderr)
         self.assertEqual(runtime.stdout, environment["LIFE_MANAGER_PYTHON"])
 
+    def test_mobile_app_loops_use_the_managed_runtime_python(self):
+        # The release python is a bare interpreter; Pillow and the other locked
+        # runtime dependencies live only in the managed venv that
+        # scripts/bootstrap.sh installs from requirements-runtime.txt.
+        entrypoint = self.root / "apps/life-manager/scripts/mobile-app"
+        entrypoint.parent.mkdir(parents=True, exist_ok=True)
+        entrypoint.write_text("#!/bin/sh\nexit 0\n")
+        entrypoint.chmod(0o755)
+        loop_id = "life-manager-anicca-larry-ja-instagram"
+        value = registry("apps/life-manager/scripts/mobile-app")
+        value["loops"][loop_id] = value["loops"].pop("example")
+        value["loops"][loop_id]["label"] = f"ai.anicca.{loop_id}"
+        environment = plistlib.loads(
+            build_apply_plan(value, self.root, SHA)[0]["plist_bytes"]
+        )["EnvironmentVariables"]
+        self.assertEqual(
+            environment["LIFE_MANAGER_PYTHON"],
+            str(Path.home() / ".local/share/life-manager/venv/bin/python"),
+        )
+
     def test_writer_runtime_env_does_not_let_dotenv_override_provider_contract(self):
         entrypoint = self.root / "skills/writer-agent/article-daily.sh"
         entrypoint.parent.mkdir(parents=True, exist_ok=True)

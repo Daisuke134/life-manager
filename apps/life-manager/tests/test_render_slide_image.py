@@ -95,3 +95,24 @@ def test_renderer_runs_when_numpy_is_unavailable(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert output.is_file()
+
+
+def runtime_python() -> str:
+    """The interpreter the immutable release hands to Mobile jobs."""
+    configured = os.environ.get("LIFE_MANAGER_PYTHON")
+    if configured:
+        return configured
+    managed = Path.home() / ".local/share/life-manager/venv/bin/python"
+    return str(managed) if managed.exists() else sys.executable
+
+
+def test_renderer_imports_without_user_site_packages() -> None:
+    # launchd runs the release python in isolation; a Pillow that only exists
+    # in ~/Library/Python user site must not be what makes the import pass.
+    probe = (
+        "import importlib.util;"
+        f"spec = importlib.util.spec_from_file_location('render_slide_image', {str(SCRIPT)!r});"
+        "module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)"
+    )
+    result = subprocess.run([runtime_python(), "-s", "-c", probe], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
