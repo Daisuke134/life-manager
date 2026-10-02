@@ -127,6 +127,70 @@ def _cause_event(events_path: Path, occurrence_id: str, cause_run_id: str) -> di
     return event
 
 
+def _cause_layer_events(
+    events_path: Path, occurrence_id: str, cause_run_id: str
+) -> tuple[dict[str, Any], dict[str, Any], str]:
+    if occurrence_id != f"{OWNER_ID}:{cause_run_id}":
+        raise ValueError("legacy_cause_occurrence_mismatch")
+    try:
+        rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("legacy_events_unreadable") from error
+    started = [
+        row
+        for row in rows
+        if isinstance(row, dict)
+        and row.get("run_id") == cause_run_id
+        and row.get("occurrence_id") == occurrence_id
+        and row.get("phase") == "execute"
+        and row.get("status") == "running"
+        and row.get("effect_status") == "started"
+    ]
+    reports = [
+        row
+        for row in rows
+        if isinstance(row, dict)
+        and row.get("run_id") == cause_run_id
+        and row.get("phase") == "report"
+        and row.get("status") == "blocked"
+        and row.get("blocker") == "host_admission_deferred:resource_heartbeat_unavailable"
+    ]
+    if len(started) != 1 or len(reports) != 1:
+        raise ValueError("legacy_cause_layer_events_not_unique")
+    started_event, report_event = started[0], reports[0]
+    predecessor = report_event.get("occurrence_id")
+    if (
+        started_event.get("release_sha") != LEGACY_RELEASE_SHA
+        or report_event.get("release_sha") != LEGACY_RELEASE_SHA
+        or started_event.get("effect_class") != "application"
+        or report_event.get("effect_class") != "application"
+        or report_event.get("effect_status") != "unknown"
+        or report_event.get("exit_code") != 75
+        or not isinstance(predecessor, str)
+        or predecessor == occurrence_id
+        or not OCCURRENCE.fullmatch(predecessor)
+        or f"lm-occurrence://{predecessor.replace(':', '/', 1)}/claim"
+        not in report_event.get("evidence_refs", [])
+    ):
+        raise ValueError("legacy_cause_layer_events_invalid")
+    _timestamp(started_event.get("timestamp"))
+    _timestamp(report_event.get("timestamp"))
+    return started_event, report_event, predecessor
+
+
+def _assert_released_predecessor(admission_db: Path, occurrence_id: str) -> None:
+    try:
+        with sqlite3.connect(f"file:{admission_db}?mode=ro", uri=True, timeout=5) as connection:
+            row = connection.execute(
+                "SELECT owner_id,state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence_id,),
+            ).fetchone()
+    except sqlite3.Error as error:
+        raise ValueError("legacy_admission_unreadable") from error
+    if row is None or row[0] != OWNER_ID or row[1] != "released" or int(row[2]) != 0:
+        raise ValueError("legacy_predecessor_not_released")
+
+
 def _pass_boundary(
     pass_root: Path, pass_dir: Path, cause_event: dict[str, Any], cause_run_id: str
 ) -> dict[str, object]:
@@ -254,6 +318,57 @@ def build_proof(
     }
 
 
+def build_cause_proof(
+    *,
+    admission_db: Path,
+    events_path: Path,
+    occurrence_id: str,
+    cause_run_id: str,
+    pass_root: Path,
+    pass_dir: Path,
+    intent_root: Path,
+) -> dict[str, Any]:
+    occurrence = _occurrence(admission_db, occurrence_id)
+    started, report, predecessor = _cause_layer_events(
+        events_path, occurrence_id, cause_run_id
+    )
+    _assert_released_predecessor(admission_db, predecessor)
+    boundary = _pass_boundary(pass_root, pass_dir, report, cause_run_id)
+    _assert_no_bound_intent(intent_root, str(boundary["pass_id"]))
+    evidence_digest = hashlib.sha256(
+        json.dumps(
+            {
+                "occurrence_id": occurrence_id,
+                "predecessor_occurrence_id": predecessor,
+                "started_event_id": started.get("event_id"),
+                "report_event_id": report.get("event_id"),
+                "pass_id": boundary["pass_id"],
+                "passprep_sha256": boundary["passprep_sha256"],
+                "context_sha256": boundary["context_sha256"],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return {
+        "owner_id": OWNER_ID,
+        "occurrence_id": occurrence_id,
+        "occurrence_state": occurrence["state"],
+        "predecessor_occurrence_id": predecessor,
+        "verified": True,
+        "proof_type": "pre_effect",
+        "evidence_ref": f"coconala-pass://{boundary['pass_id']}/cause-pre-effect/{evidence_digest}",
+        "cause_run_id": cause_run_id,
+        "started_event_id": started.get("event_id"),
+        "report_event_id": report.get("event_id"),
+        "pass_id": boundary["pass_id"],
+        "passprep_sha256": boundary["passprep_sha256"],
+        "context_sha256": boundary["context_sha256"],
+        "effect": 0,
+        "readback": 0,
+    }
+
+
 def reconcile(
     *,
     admission_db: Path,
@@ -293,6 +408,38 @@ def reconcile(
     return {**proof, "resolution_state": "RESOLVED" if resolved else "PROOF_READY"}
 
 
+def reconcile_cause(
+    *,
+    admission_db: Path,
+    events_path: Path,
+    occurrence_id: str,
+    cause_run_id: str,
+    pass_root: Path,
+    pass_dir: Path,
+    intent_root: Path,
+    resolve: bool = False,
+) -> dict[str, Any]:
+    proof_args = {
+        "admission_db": admission_db,
+        "events_path": events_path,
+        "occurrence_id": occurrence_id,
+        "cause_run_id": cause_run_id,
+        "pass_root": pass_root,
+        "pass_dir": pass_dir,
+        "intent_root": intent_root,
+    }
+    proof = build_cause_proof(**proof_args)
+    resolved = False
+    if resolve:
+        resolved = resolve_pre_effect_occurrence(
+            OWNER_ID,
+            occurrence_id,
+            pre_effect_readback=lambda: build_cause_proof(**proof_args),
+            expected_state=str(proof["occurrence_state"]),
+        )
+    return {**proof, "resolution_state": "RESOLVED" if resolved else "PROOF_READY"}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--admission-db", type=Path, default=Path("~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3"))
@@ -303,9 +450,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pass-dir", type=Path, required=True)
     parser.add_argument("--intent-root", type=Path, default=Path("~/gig/application-intents"))
     parser.add_argument("--resolve", action="store_true")
+    parser.add_argument("--cause-layer", action="store_true")
     args = parser.parse_args(argv)
     try:
-        result = reconcile(
+        reconcile_fn = reconcile_cause if args.cause_layer else reconcile
+        result = reconcile_fn(
             admission_db=args.admission_db.expanduser().resolve(),
             events_path=args.events.expanduser().resolve(),
             occurrence_id=str(args.occurrence_id),
