@@ -119,6 +119,8 @@ def build_proof(*, state_dir: Path, admission_db: Path, occurrence_id: str) -> d
     if runtime["release_sha"] != LEGACY_RELEASE_SHA:
         raise ValueError("legacy_release_not_allowed")
     outbox = _legacy_outbox(state_dir, snapshot)
+    if _event_epoch(snapshot["delivered_at"]) != _event_epoch(outbox["delivered_at"]):
+        raise ValueError("legacy_delivery_timestamp_mismatch")
     if _event_epoch(snapshot["delivered_at"]) >= _event_epoch(runtime["start_timestamp"]):
         raise ValueError("legacy_delivery_after_runtime_start")
     event_key_digest = hashlib.sha256(outbox["event_key"].encode("utf-8")).hexdigest()

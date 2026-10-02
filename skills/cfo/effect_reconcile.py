@@ -197,6 +197,7 @@ def _read_runtime_pair(
     return {
         "run_id": run_id,
         "start_timestamp": start["timestamp"],
+        "terminal_timestamp": terminal["timestamp"],
         "terminal_event_id": terminal.get("event_id"),
         "release_sha": terminal.get("release_sha"),
     }
@@ -290,6 +291,8 @@ def _base_proof(report: dict[str, Any], runtime: dict[str, Any], outbox: dict[st
         "event_key_sha256": event_key_digest,
         "message_sha256": outbox["message_sha256"],
         "provider_message_id": outbox["provider_message_id"],
+        "runtime_start_timestamp": runtime["start_timestamp"],
+        "runtime_terminal_timestamp": runtime["terminal_timestamp"],
         "terminal_event_id": runtime["terminal_event_id"],
         "official_readback_ref": f"telegram-outbox://event/{event_key_digest}/{evidence_digest}",
     }
@@ -312,6 +315,11 @@ def build_proof(*, state_dir: Path, admission_db: Path, occurrence_id: str) -> d
             "evidence_ref": f"lm-event://{OWNER_ID}/{runtime['run_id']}/{runtime['terminal_event_id']}",
         })
         return proof
+    delivered_epoch = _event_epoch(outbox["delivered_at"])
+    if delivered_epoch < _event_epoch(runtime["start_timestamp"]):
+        raise _fail("sent_delivery_before_runtime_start")
+    if delivered_epoch > _event_epoch(runtime["terminal_timestamp"]):
+        raise _fail("sent_delivery_after_runtime_terminal")
     proof = _base_proof(report, runtime, outbox)
     proof.update({
         "occurrence_state": occurrence["state"],

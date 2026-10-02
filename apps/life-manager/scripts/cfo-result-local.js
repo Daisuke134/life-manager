@@ -115,12 +115,15 @@ async function runResultCfo(options) {
   if (delivery?.delivery !== "delivered" || !delivery.provider_message_id) {
     throw new Error("cfo_provider_receipt_missing");
   }
+  const duplicate = delivery.attempted === 0;
+  const resolutionKind = duplicate ? "duplicate" : "sent";
   persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
     messageSha256: pending.messageSha256 || messageSha256(pending.message),
-    resolutionKind: "sent", providerMessageId: String(delivery.provider_message_id), sentAt: now.toISOString() });
+    resolutionKind, providerMessageId: String(delivery.provider_message_id), sentAt: now.toISOString() });
   return {
-    status: "sent", reportingDate: pending.reportingDate, delivered: true,
-    providerMessageId: String(delivery.provider_message_id), resolutionKind: "sent",
+    status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
+    reportingDate: pending.reportingDate, delivered: !duplicate,
+    providerMessageId: String(delivery.provider_message_id), resolutionKind,
   };
 }
 

@@ -77,6 +77,35 @@ test("same-period replay is quiet, keeps provider receipt, and rebinds current o
   assert.equal(messages.length, 1);
 });
 
+test("pending retry with an already-delivered outbox receipt is duplicate, not sent", async t => {
+  const { options, messages } = setup(t);
+  let attempt = 0;
+  const notify = async input => {
+    messages.push(input);
+    attempt += 1;
+    return attempt === 1
+      ? { delivery: "pending", provider_message_id: null }
+      : { delivery: "delivered", provider_message_id: "id", attempted: 0 };
+  };
+  await assert.rejects(
+    runResultCfo({ ...options, notify, reportCadence: "daily", now: "2026-09-30T12:00:00Z" }),
+    /receipt_missing/,
+  );
+  const result = await runResultCfo({
+    ...options,
+    notify,
+    occurrenceId: "life-manager-cfo-hourly:retry-run",
+    reportCadence: "daily",
+    now: "2026-09-30T13:00:00Z",
+  });
+  assert.equal(result.status, "quiet");
+  assert.equal(result.resolutionKind, "duplicate");
+  const state = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json")));
+  assert.equal(state.occurrenceId, "life-manager-cfo-hourly:retry-run");
+  assert.equal(state.resolutionKind, "duplicate");
+  assert.equal(state.providerMessageId, "id");
+});
+
 test("missing or malformed occurrence is rejected before report state is written", async t => {
   const { options } = setup(t);
   await assert.rejects(

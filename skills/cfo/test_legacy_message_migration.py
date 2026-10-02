@@ -52,7 +52,14 @@ def _event(*, phase, status, timestamp, exit_code=None):
     }
 
 
-def _fixture(tmp_path: Path, *, release=RELEASE, delivered_at="2026-09-26T12:26:00Z"):
+def _fixture(
+    tmp_path: Path,
+    *,
+    release=RELEASE,
+    delivered_at="2026-09-26T12:26:00Z",
+    outbox_delivered_at=None,
+):
+    outbox_delivered_at = outbox_delivered_at or delivered_at
     state_dir = tmp_path / "cfo"
     state_dir.mkdir(mode=0o700)
     admission_db = tmp_path / "admission.sqlite3"
@@ -73,10 +80,10 @@ def _fixture(tmp_path: Path, *, release=RELEASE, delivered_at="2026-09-26T12:26:
     )
     (state_dir / "last-delivered-snapshot.json").chmod(0o600)
     outbox = state_dir / "telegram-outbox.sqlite3"
-    enqueue(database=outbox, event_key=EVENT_KEY, message=MESSAGE, created_at=delivered_at, repeat_after_seconds=None)
+    enqueue(database=outbox, event_key=EVENT_KEY, message=MESSAGE, created_at=outbox_delivered_at, repeat_after_seconds=None)
     claimed = claim_next(outbox)
     assert claimed is not None
-    mark_delivered(outbox, EVENT_KEY, "94946", delivered_at, claimed_at=claimed.claimed_at)
+    mark_delivered(outbox, EVENT_KEY, "94946", outbox_delivered_at, claimed_at=claimed.claimed_at)
     (state_dir / "events.jsonl").write_text(
         "".join(json.dumps(row) + "\n" for row in (
             {**_event(phase="execute", status="running", timestamp="2026-09-26T12:27:07Z"), "release_sha": release},
@@ -141,4 +148,26 @@ def test_legacy_migration_rejects_multiple_receipt_candidates(tmp_path, monkeypa
     monkeypatch.setattr(migration, "list_items", lambda _database: [rows[0], rows[0]])
 
     with pytest.raises(ValueError, match="legacy_outbox_not_unique"):
+        migration.build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+
+def test_legacy_migration_rejects_snapshot_outbox_delivery_timestamp_mismatch(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        delivered_at="2026-09-26T12:26:00Z",
+        outbox_delivered_at="2026-09-26T12:26:01Z",
+    )
+
+    with pytest.raises(ValueError, match="legacy_delivery_timestamp_mismatch"):
+        migration.build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+
+def test_legacy_migration_rejects_late_outbox_even_when_snapshot_is_before_start(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        delivered_at="2026-09-26T12:26:00Z",
+        outbox_delivered_at="2026-09-26T12:28:00Z",
+    )
+
+    with pytest.raises(ValueError, match="legacy_delivery_timestamp_mismatch"):
         migration.build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)

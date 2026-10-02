@@ -62,7 +62,13 @@ def _event(*, phase: str, status: str, timestamp: str, exit_code=None, effect_st
     }
 
 
-def _fixture(tmp_path: Path, *, resolution_kind="sent", outbox_status="delivered"):
+def _fixture(
+    tmp_path: Path,
+    *,
+    resolution_kind="sent",
+    outbox_status="delivered",
+    delivered_at="2026-09-26T12:27:20Z",
+):
     state_dir = tmp_path / "cfo"
     state_dir.mkdir(mode=0o700)
     admission_db = tmp_path / "admission.sqlite3"
@@ -95,7 +101,7 @@ def _fixture(tmp_path: Path, *, resolution_kind="sent", outbox_status="delivered
             outbox,
             EVENT_KEY,
             "94946",
-            "2026-09-26T12:27:00Z",
+            delivered_at,
             claimed_at=claimed.claimed_at,
         )
     elif outbox_status == "delivery_uncertain":
@@ -181,7 +187,9 @@ def test_normal_path_rejects_legacy_snapshot_without_current_result_report(tmp_p
 
 
 def test_duplicate_result_uses_pre_effect_resolver_only(tmp_path, monkeypatch):
-    state_dir, admission_db, occurrence = _fixture(tmp_path, resolution_kind="duplicate")
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path, resolution_kind="duplicate", delivered_at="2026-09-26T12:27:00Z"
+    )
     calls = []
 
     def resolver(owner_id, occurrence_id, **kwargs):
@@ -234,13 +242,30 @@ def test_sent_result_uses_unknown_effect_resolver(tmp_path, monkeypatch):
     assert calls[0][2]["proof_type"] == "cfo_result_telegram_provider_receipt"
 
 
-def test_duplicate_result_stays_fenced_if_delivery_is_after_current_start(tmp_path):
-    state_dir, admission_db, occurrence = _fixture(tmp_path, resolution_kind="duplicate")
+@pytest.mark.parametrize("delivered_at", ["2026-09-26T12:27:07.200Z", "2026-09-26T12:28:00Z"])
+def test_duplicate_result_stays_fenced_if_delivery_is_at_or_after_current_start(tmp_path, delivered_at):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path, resolution_kind="duplicate", delivered_at="2026-09-26T12:27:00Z"
+    )
     outbox = state_dir / "telegram-outbox.sqlite3"
     with sqlite3.connect(outbox) as connection:
-        connection.execute("UPDATE telegram_outbox SET delivered_at=?", ("2026-09-26T12:28:00Z",))
+        connection.execute("UPDATE telegram_outbox SET delivered_at=?", (delivered_at,))
 
     with pytest.raises(ValueError, match="duplicate_delivery_after_runtime_start"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+
+@pytest.mark.parametrize(
+    ("delivered_at", "reason"),
+    [
+        ("2026-09-26T12:27:00Z", "sent_delivery_before_runtime_start"),
+        ("2026-09-26T12:28:00Z", "sent_delivery_after_runtime_terminal"),
+    ],
+)
+def test_sent_result_delivery_must_be_inside_current_runtime_pair(tmp_path, delivered_at, reason):
+    state_dir, admission_db, occurrence = _fixture(tmp_path, delivered_at=delivered_at)
+
+    with pytest.raises(ValueError, match=reason):
         build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
@@ -325,7 +350,7 @@ runResultCfo({
         state_dir / "telegram-outbox.sqlite3",
         report["eventKey"],
         "94946",
-        "2026-09-26T03:00:00Z",
+        "2026-09-26T03:00:20Z",
         claimed_at=claimed.claimed_at,
     )
     (state_dir / "events.jsonl").write_text(
