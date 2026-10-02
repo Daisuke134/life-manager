@@ -198,6 +198,24 @@ class StripeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stripe_readback_cursor_invalid"):
             m._stripe_list_all("/v1/charges", "rk_live_test", lambda url, headers: pages.pop(0))
 
+    def test_stripe_list_rejects_cursor_cycle_across_pages(self):
+        pages = [
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_a"}], "has_more": True},
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_b"}], "has_more": True},
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_a"}], "has_more": False},
+        ]
+
+        with self.assertRaisesRegex(ValueError, "stripe_readback_cursor_invalid"):
+            m._stripe_list_all("/v1/charges", "rk_live_test", lambda url, headers: pages.pop(0))
+
+    def test_stripe_list_rejects_duplicate_ids_inside_page(self):
+        page = {
+            "object": "list", "url": "/v1/charges",
+            "data": [{"id": "ch_a"}, {"id": "ch_a"}], "has_more": False,
+        }
+        with self.assertRaisesRegex(ValueError, "stripe_readback_cursor_invalid"):
+            m._stripe_list_all("/v1/charges", "rk_live_test", lambda url, headers: page)
+
     def test_stripe_list_rejects_empty_page_with_more(self):
         page = {"object": "list", "url": "/v1/refunds", "data": [], "has_more": True}
         with self.assertRaisesRegex(ValueError, "stripe_readback_cursor_invalid"):

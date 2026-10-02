@@ -520,6 +520,7 @@ def stripe_transactions(day: date, get=http_json, cred_path: Path = CREDENTIALS)
 
 def _stripe_list_all(path: str, key: str, get=http_json, params: dict | None = None) -> dict:
     rows: list[dict] = []
+    seen_ids: set[str] = set()
     query = {"limit": 100, **(params or {})}
     after = None
     while True:
@@ -533,8 +534,10 @@ def _stripe_list_all(path: str, key: str, get=http_json, params: dict | None = N
         page_ids = [row.get("id") for row in page["data"] if isinstance(row, dict)]
         if (len(page_ids) != len(page["data"])
                 or any(not isinstance(row_id, str) or not row_id for row_id in page_ids)
-                or (after is not None and after in page_ids)):
+                or len(set(page_ids)) != len(page_ids)
+                or bool(seen_ids.intersection(page_ids))):
             raise ValueError(f"stripe_readback_cursor_invalid:{path}")
+        seen_ids.update(page_ids)
         rows.extend(page["data"])
         if page["has_more"] is False:
             return {"object": "list", "url": path, "data": rows, "has_more": False}

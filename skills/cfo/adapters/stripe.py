@@ -637,8 +637,15 @@ def _settlement_instants_for_ref(
     charges: dict[str, dict], refunds: dict[str, dict],
 ) -> tuple[list[str], bool]:
     """Return official settlement instants and whether any required link is unknown."""
-    def settled_at(transaction: object) -> tuple[str | None, bool]:
-        if not isinstance(transaction, dict) or transaction.get("status") != "available":
+    def settled_at(
+        transaction: object, *, expected_types: set[str] | None = None,
+        expected_source: str | None = None,
+    ) -> tuple[str | None, bool]:
+        if (not isinstance(transaction, dict)
+                or transaction.get("object") != "balance_transaction"
+                or transaction.get("status") != "available"
+                or (expected_types is not None and transaction.get("type") not in expected_types)
+                or (expected_source is not None and transaction.get("source") != expected_source)):
             return None, True
         instant = _instant(transaction.get("available_on"))
         return instant, instant is None
@@ -650,27 +657,56 @@ def _settlement_instants_for_ref(
 
     if collection == "refunds":
         refund = refunds.get(object_id)
+        charge_id = _identifier(refund.get("charge")) if isinstance(refund, dict) else None
+        charge = charges.get(charge_id or "")
+        if (not isinstance(refund, dict) or refund.get("object") != "refund"
+                or refund.get("id") != object_id or not isinstance(charge, dict)
+                or charge.get("object") != "charge" or charge.get("id") != charge_id):
+            return [], True
         transaction_id = _identifier(refund.get("balance_transaction")) if isinstance(refund, dict) else None
         transaction = transactions.get(transaction_id or "")
-        instant, unknown = settled_at(transaction)
+        instant, unknown = settled_at(
+            transaction, expected_types=REFUND_TYPES, expected_source=object_id,
+        )
         return ([instant] if instant else [], unknown)
 
     charge = charges.get(object_id)
-    if not isinstance(charge, dict):
+    if (not isinstance(charge, dict) or charge.get("object") != "charge"
+            or charge.get("id") != object_id):
         return [], True
     transaction_id = _identifier(charge.get("balance_transaction"))
     transaction = transactions.get(transaction_id or "")
-    instant, unknown = settled_at(transaction)
+    instant, unknown = settled_at(
+        transaction, expected_types=CHARGE_TYPES, expected_source=object_id,
+    )
     instants = [instant] if instant else []
-    for refund in refunds.values():
+    claimed_refund_total = charge.get("amount_refunded")
+    refund_total = 0
+    refund_totals_known = (
+        not isinstance(claimed_refund_total, bool)
+        and isinstance(claimed_refund_total, int)
+        and claimed_refund_total >= 0
+    )
+    for refund_id, refund in refunds.items():
         if not isinstance(refund, dict) or refund.get("charge") != object_id:
             continue
+        refund_amount = refund.get("amount")
+        if (refund.get("object") != "refund" or refund.get("id") != refund_id
+                or isinstance(refund_amount, bool) or not isinstance(refund_amount, int)
+                or refund_amount < 0):
+            unknown = True
+            continue
+        refund_total += refund_amount
         refund_transaction_id = _identifier(refund.get("balance_transaction"))
         refund_transaction = transactions.get(refund_transaction_id or "")
-        refund_instant, refund_unknown = settled_at(refund_transaction)
+        refund_instant, refund_unknown = settled_at(
+            refund_transaction, expected_types=REFUND_TYPES, expected_source=refund_id,
+        )
         unknown = unknown or refund_unknown
         if refund_instant is not None:
             instants.append(refund_instant)
+    if not refund_totals_known or refund_total != claimed_refund_total:
+        unknown = True
     return instants, unknown
 
 
