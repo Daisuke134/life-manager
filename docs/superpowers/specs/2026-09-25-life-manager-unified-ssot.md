@@ -3816,3 +3816,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 既存release reconcilerが自然終了して最新main releaseを生成したかreadbackする。手動で二重releaseを作らない。
 2. CFO message effect unknownは公式delivery readbackまたはexact pre-effect proofが得られたoccurrenceだけowner-scopedでreconcileする。
 3. 新releaseを安全にloadedできた後、approved secret ownerの環境でStripe GET-only readbackを実行し、collection counts、coverage、fee/refund/settlementをsanitized artifactへ保存する。live amountをprimary未確認のまま利益へ数えない。
+
+### 156. CFO Stripe release loadとcredential boundary（2026-10-03 00:09 JST）
+
+- main `3003e1f289`からimmutable release `/Users/anicca/loops/releases/20261002T235935-3003e1f2`を作成し、`current` symlinkのreadbackも同pathへ一致した。fleet reconcileはloaded-idle ownerだけを移し、pending/unknown ownerを推測でcloseしていない。
+- `life-manager-cfo-hourly`、`life-manager-financial-report`、`stripe-revenue-poller`のinstalled/event SHAはすべて`3003e1f289`へ一致した。最新occurrenceは順に`18dabede9a574830-70042`、`18dabedfbb20dcd8-70216`、`18dabeebab3ce058-73613`で、いずれもexit `75`、loaded-idle、`next_action=retry_after_eligibility`である。CFO/reportのmessage effectはunknown、Stripe pollerはeffect noneである。
+- Stripe pollerの公式`last-result.json`は`status=failed / reason=cfo_boundary_failed / recordCount=0 / delivered=false`。owner logは`setup_required STRIPE_SECRET_KEY`を返しており、new source codeがloadedされたこととlive provider readbackが成功したことを分離する。
+- 旧poller logにはhistorical charge observationがあるが、current official financial envelope、fee/refund/settlement/payout、period attributionが無い。過去のlog行を現在のEbook/Self-Build revenueまたはprofitへ昇格させない。
+
+#### 更新後の原子cursor
+
+1. approved secret ownerのruntime環境だけに既存Stripe live credentialを接続し、secretをchat/spec/logへ表示・複製せずGET-only readbackを生成する。
+2. sanitized artifactでbalance transactions/charges/refunds/subscriptions、pagination complete、classification policy、historical/trailing coverageをreadbackする。
+3. CFO hourly/reportのmessage effect unknownは公式delivery readbackなしに再送・closeしない。Stripe sourceがcompleteでも、残る13 loopのsource/cost gapと7自然期間が揃うまでCFO完了にしない。
