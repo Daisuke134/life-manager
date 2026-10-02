@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">LinkedIn Post Hook Lab icon</title>
+  <desc id="desc">A framed post with two highlighted opening lines and a conversation marker.</desc>
+  <rect width="256" height="256" rx="48" fill="#101827"/>
+  <rect x="48" y="42" width="160" height="172" rx="18" fill="#f6f0e8"/>
+  <rect x="70" y="70" width="116" height="18" rx="9" fill="#2f8cff"/>
+  <rect x="70" y="100" width="94" height="14" rx="7" fill="#ff6b5f"/>
+  <path d="M70 140h116M70 162h92M70 184h70" fill="none" stroke="#101827" stroke-width="10" stroke-linecap="round"/>
+  <path d="M178 138c18 0 30 11 30 25s-12 25-30 25h-11l-13 12v-18c-4-5-6-12-6-19 0-14 12-25 30-25Z" fill="#44d8b3"/>
+  <path d="M169 163h18M178 154v18" stroke="#101827" stroke-width="7" stroke-linecap="round"/>
+</svg>
