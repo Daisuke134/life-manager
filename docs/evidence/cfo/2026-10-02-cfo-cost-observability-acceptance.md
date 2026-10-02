@@ -33,6 +33,13 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - transaction coverage: `unknown`
 - three-month transaction payload receipt: `7ea3475725ac9b66d9529376bfdf19ea1afe94712f0262d3d7bbb48fe9a9735b`
 
+### Moneytree refresh boundary
+
+- Moneytree login with the existing credential SSOT succeeded.
+- The MUFG connection explicitly showed `接続の更新が必要です`; the consent/update flow reached the official MUFG Direct login page.
+- MUFG requires branch code, account number (or contract number), and bank login password. Those bank credentials are not present in the approved credential SSOT.
+- No guessed credential, alternate credential store, bank submission, or false refresh receipt was used. The tab was closed before input/submission.
+
 ### Canonical local daily close (deterministic fixture, delivery injected)
 
 - Run: `cfo-natural-fixture-20261002T070000Z`
@@ -143,7 +150,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 
 ## Remaining owner-visible blockers
 
-1. Moneytree authorization/source refresh must be restored so account source update time and transaction completeness can be proven.
+1. Moneytree authorization/source refresh must be restored so account source update time and transaction completeness can be proven; the remaining external input is the MUFG authentication data, absent from the approved credential SSOT.
 2. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
 3. The feature branch still needs normal immutable release promotion and branch-to-production parity readback.
 4. Seven-period observation requires the existing production loop owner and official provider receipts; one canary does not prove seven natural periods.
