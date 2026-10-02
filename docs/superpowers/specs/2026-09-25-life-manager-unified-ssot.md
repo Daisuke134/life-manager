@@ -3530,7 +3530,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 既存のCrowdWorks effect_unknown 20件について、owner laneの公式proposal/thread/payment readbackを取得し、readbackが明示するoccurrenceだけをreconcileする。readbackなしのfenceは保持する。
 3. buyer-visible settlement・fee・actual cost・replay-zeroが揃ったcontract-work案件を1件閉じ、その後Job Hunterへ進む。
 
-### 133. CrowdWorks旧effect fenceの公式readback reconciliation（2026-10-02 22:18 JST）
+### 133. CrowdWorks旧effect fenceの公式readback reconciliation（2026-10-02 JST）
 
 - Applicationのowner readback `reconcile_application_no_submit.py --resolve` は、公式CrowdWorks proposal一覧・proposalページを取得し、122件のoccurrence-bound `CROWDWORKS_APPLICATION_NO_SUBMIT_READBACK` receiptを生成した。残る4件（`18d654aa...`、`18d83e75...`、`18d975d3...`、`18d9944a...`）はproposal期間境界を証明できず、fenceを保持している。
 - Replyのowner readback `reconcile_reply_no_send.py --all-fenced --resolve` は、公式thread/message readbackを行い、360件の`CROWDWORKS_REPLY_NO_SEND_READBACK` receiptを生成した。残る166件は`run_marker_unavailable`、`accept_contract_intent`、または`effect_marked`など、no-send証明にならない理由で保持している。返信・契約受諾・buyer-visible settlementの成功とは解釈しない。
@@ -3543,7 +3543,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 残fenceが再発しないこととENOSPC再発なしを自然runで観測する。
 3. 公式buyer-visible settlement・fee・actual cost・replay-zeroが揃う最初のcontract-work案件を1件閉じてから、Job Hunterへ進む。
 
-### 134. CrowdWorks settled-revenue判定とJob Hunter遷移（2026-10-02 22:36 JST）
+### 134. CrowdWorks settled-revenue判定とJob Hunter遷移（2026-10-02 JST）
 
 - CrowdWorksの現行Paid公式readbackは`effect=0`で、`crowdworks_paid_handoff_unavailable` 1件と`reconcile_unknown` 4件のみ。provider payment receipt、buyer-visible納品、settlement、feeのreadbackは0件である。applicationの357件（`application-receipts.jsonl`）はproposal送信のverified receiptであり、契約・売上ではない。
 - Application/reply/paid全laneはimmutable release `7a4852e1df` loaded、現在`loaded-idle`。新release適用後の自然runはbrowser busy/capacityを外部効果なしでdeferし、cleanup後の直近tailには新しいENOSPCがない（過去ENOSPCは§132で記録済み）。
@@ -3555,7 +3555,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 外部応募・案件の公式receipt/readbackが得られる低リスク laneだけを、CrowdWorksと同じpre-effect/effect fence/replay-zeroで一件閉じる。
 3. その後Self-Buildのverified writeback gateへ進む。TaskMarket/BlockRun、Investment live、CFO利益計上は後段のまま保持する。
 
-### 135. Job Hunterのhuman-required / effect-unknown境界（2026-10-02 22:48 JST）
+### 135. Job Hunterのhuman-required / effect-unknown境界（2026-10-02 JST）
 
 - `job-search-daily` の直近runは`host_admission_deferred:resource_capacity_busy`、exit75、effect none。求人検索前に停止しており、応募・応募receipt・外部売上はない。
 - Mercor application/reply/paidは直近runが`host_admission_deferred:resource_effect_unknown`、exit75。公式応募receipt/readbackなしで、面接、本人確認、CAPTCHA、録音・camera・screen share等のhuman-required条件を自動突破しない。現時点でprovider mutationを再送しない。
@@ -3568,7 +3568,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Self-Buildの `verified_writeback_not_ready_until_gate_14` 境界を読み戻し、実際のpatch→review→main→release→natural outcomeがあるか確認する。
 3. その後Investment/CFO/Agent Economyの順で、公式settlementとactual costが揃うものだけを進める。
 
-### 136. Self-Buildのverified writeback未達（2026-10-02 23:03 JST）
+### 136. Self-Buildのverified writeback未達（2026-10-02 JST）
 
 - `life-manager-selfbuild`の直近daily passは連続日数26/7を満たしたが、候補PR #6368は毎回 `precheck_failed ... fatal: not a git repository` でskipされ、`verdict=no_op`、`pr=null`、`guard_verdict=null`。これは自己改善の成功ではない。
 - 同じlogには一度`disk_headroom_low`（available 167,923,712 bytes < required 536,870,912）も記録されている。現在の空き容量回復後も、patch/review/main/release/natural outcomeのverified writebackは0件。
@@ -3580,7 +3580,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. CFOのbusiness source coverageをsettlement/actual costまでjoinし、unknownを0円へ丸めない。
 3. その後Agent Economy/TaskMarket/BlockRunをprovider receipt付きで閉じる。
 
-### 137. Investment paper/liveの未完境界（2026-10-02 23:18 JST）
+### 137. Investment paper/liveの未完境界（2026-10-02 JST）
 
 - `alpaca-investment-paper` は直近も`host_admission_deferred:resource_effect_unknown`、exit75。公式paper observationにはQQQ保有（買い1件、HOLD継続）があるが、売り0件・settled round trip 0件。`receipts.jsonl`はHOLD/NO_TRADEが大半で、含み損益を利益へ昇格させない。
 - `alpaca-investment-live` はlaunchd disabledで、直近のdecisionは`NO_TRADE/state_incomplete`。`live-owned-position`はBTCUSD closedだが、これはAT-13〜AT-29の30 round trips証明ではなく、別の残高観測にすぎない。live order/funding/送金は行わない。
@@ -3592,7 +3592,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Agent Economyのx402/TaskMarketはpayment receipt・settlement・cost joinが揃うno-effect→paid inferenceの順で進める。
 3. Investmentのlive enable、上限増額、送金、wallet fundingはAT-29完了まで禁止する。
 
-### 138. CFO business source coverageとcost-only evidence（2026-10-02 23:34 JST）
+### 138. CFO business source coverageとcost-only evidence（2026-10-02 JST）
 
 - `life-manager-cfo-hourly` は直近`host_admission_deferred:resource_effect_unknown`、exit78/75系のretry境界で、`life-manager-financial-report`もresource effect unknown、`earning-health-allslots`はcapacity busy。CFOのprocess healthはbusiness P&Lの証明ではない。
 - CFO business inventoryはLife Manager/Anicca iOS/Writer/Affiliate/Gig/x402/Job Income等のfinancial unitを列挙するが、ledger observationは`capafy_sales_receipts`, `gig_payment_receipts`, `lm_agent_earnings`, `revenuecat_subscription_events`, `writer_receipts`, `x402_settlement_receipts`がunavailable、affiliate/proprietary/payrollはplanned。14-loop settled external revenue、MRR、runwayを再計算できるcoverageではない。
@@ -3605,7 +3605,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Agent EconomyのTaskMarket no-effect/provider discoveryとBlockRun paid inferenceをreceipt単位で閉じる。
 3. 完全な14-loop net P&Lが再計算できるまで、MRR/利益/runwayを数値で断定しない。
 
-### 139. Agent Economy / TaskMarket / BlockRunの現行receipt境界（2026-10-02 23:52 JST）
+### 139. Agent Economy / TaskMarket / BlockRunの現行receipt境界（2026-10-02 JST）
 
 - `life-manager-taskmarket-ledger` と`life-manager-x402-ledger`は直近が`resource_capacity_busy`、effect none、公式provider discovery receiptなし。`x402-acquisition-controller`はeffect noneのpassだが、外部buyer job/settlementを意味しない。
 - `the402-provider`、`the402-worker`、`x402-seller-8404`は常駐`effect=started`で、健康なprocessを示すだけ。直近runにprovider payment receipt/settlement/cost joinはなく、wallet/treasury spendやBlockRun paid inferenceを再送していない。
@@ -3618,7 +3618,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. そのreceiptがある場合だけBlockRun paid inferenceを1件、treasury cap内で実行し、provider payment receiptとoutputをjoinする。
 3. CFOへsettled external revenue/costを反映し、30日self-funding benchmark前に収益・自律性を断定しない。
 
-### 140. TaskMarket no-effect natural boundary（2026-10-02 23:58 JST）
+### 140. TaskMarket no-effect natural boundary（2026-10-02 JST）
 
 - `life-manager-taskmarket-ledger` を1回kickstartした自然run `18dab797bde8b250-20186` は、host admissionの`resource_capacity_busy`でprovider前にexit75/effect noneとなった。
 - TaskMarketの直近公式ログは`tasks_seen=15 / pending=15 / rejected=0 / recorded=0 / duplicates=0 / transactions=[]`、`status=noop / reason=no_verified_award / verified_awards=0`。provider discovery・award・外部支払・wallet mutationはない。
@@ -3630,7 +3630,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. verified awardが出た場合のみBlockRun paid inferenceを1件、payment receipt/output/cost join付きで実行する。
 3. awardが無い状態ではx402/treasuryの残高を自己資金・売上へ丸めず、CFO unknownのまま保持する。
 
-### 141. Job Hunter no-effect natural scan（2026-10-02 23:59 JST）
+### 141. Job Hunter no-effect natural scan（2026-10-02 JST）
 
 - `job-search-daily` を1回kickstartしたnatural run `18dab7a3212ecd08-21647` は`host_admission_deferred:resource_capacity_busy`、exit75、effect noneでprovider/browser前に停止した。
 - 公式応募receipt、応募mutation、外部案件、売上は0件。検索前に閉じたため、同一runを再送せず自然schedulerのcapacity retryへ戻した。Mercor/Lancersのeffect_unknown/human-required境界は§135のまま保持する。
