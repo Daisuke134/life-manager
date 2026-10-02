@@ -2821,3 +2821,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. Affiliate ownerがfresh PartnerStack reportを作成した後、settled commission/fee/payoutをCFOで検証する。
 3. Capafy/Mobile/Stripeのread_failedもofficial artifact/credential境界ごとに閉じる。unknownを0円へ変換しない。
 4. CFO 14-loop P&L complete後にのみ、MRR・利益・self-fundingの判定を進める。TaskMarket/BlockRunは後段のまま。
+
+### 81. CFO Writer money ledger adapterのproduction load（2026-10-02 15:20 JST）
+
+- PR #6456（main 994a5f9896e232263f8888e944237222b39c20b3）で、Writerのmoney.sqlite3（money_events/money_fees）をread-onlyでB0 receiptへ変換するadapterを追加した。verified sale/subscription/refund/feeだけを採用し、pending/unknownは収益にしない。cost category不足はcoverage gapのまま残す。
+- CFO/loop_pnl tests 232件、loop_pnl 28件、py_compile、git diff --check、bin/lm-loop-contractがPASSした。実DBは空・古いため、現時点のWriter P&Lはunknown/staleであり、0円とは数えない。
+- immutable release /Users/anicca/loops/releases/20261002T131839-994a5f98を作成し、life-manager-cfo-hourlyへtarget applyした。launchctl readbackはLIFE_MANAGER_RELEASE_SHA=994a5f9896、ProgramArguments/REPO一致、apply rc=0。自然CFO passは手動起動していない。
+
+#### 更新後の原子cursor
+
+1. 次の自然CFO passでWriter source statusとredacted resultをread-only確認する。
+2. Writer money.sqlite3に新しいverified receiptが入った場合だけ、settled revenue/refund/feeを再計算する。
+3. Writer model/browser/infra costと他loop source gapsを接続し、14-loop net P&Lをcompleteへ近づける。
+4. CFO complete前に利益・MRR・self-fundingを宣言しない。TaskMarket/BlockRunは後段のまま。
