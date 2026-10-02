@@ -356,7 +356,8 @@ function renderFinancialManagerDetailed(report) {
   );
   const freshness = Object.entries(report.sourceFreshness || {})
     .filter(([, value]) => value && value.status !== "fresh")
-    .map(([source, value]) => `${source}:${value.status || "unknown"}(${value.reason || "未確認"})`);
+    .map(([source, value]) => `${source}:${value.status || "unknown"}(${value.reason || "未確認"}`
+      + `${value.next_action ? `→${value.next_action}` : ""})`);
   if (freshness.length) lines.push(`⚠️ 未確認/古いソース：${freshness.join("、")}`);
   return lines.join("\n");
 }
@@ -412,7 +413,8 @@ function renderFinancialManagerTelegram(report) {
   lines.push(missing.length ? `未確認: ${missing.join(", ")}` : "全ソースの照合は未確認。売上は利益ではありません。");
   const freshness = Object.entries(report.sourceFreshness || {})
     .filter(([, value]) => value && value.status !== "fresh")
-    .map(([source, value]) => `${source}:${value.status || "unknown"}(${value.reason || "未確認"})`);
+    .map(([source, value]) => `${source}:${value.status || "unknown"}(${value.reason || "未確認"}`
+      + `${value.next_action ? `→${value.next_action}` : ""})`);
   if (freshness.length) lines.push(`未確認/古いソース: ${freshness.join("、")}`);
   return lines.filter(Boolean).join("\n");
 }

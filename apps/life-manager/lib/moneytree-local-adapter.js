@@ -31,6 +31,15 @@ function rawData(toolResult) {
   return toolResult?.structuredContent?.data || toolResult?.data || toolResult || {};
 }
 
+function nextActionFor(reason) {
+  if (!reason) return null;
+  if (reason === "provider_auth_invalid") return "moneytree_reconnect_mufg";
+  if (reason === "transaction_completeness_unknown") return "moneytree_refresh_and_readback";
+  if (reason === "source_freshness_unknown") return "moneytree_refresh_and_readback";
+  if (reason === "source_updated_at_in_future") return "moneytree_check_provider_clock";
+  return "moneytree_inspect_provider_readback";
+}
+
 function classifyMoneytreeObservation(input, {
   observedAt, now = observedAt, startDate = null, endDate = null,
 } = {}) {
@@ -66,19 +75,21 @@ function classifyMoneytreeObservation(input, {
   if (/invalid|reauth|credential|auth\./i.test(credentialStatus)) {
     return {
       status: "stale", reason: "provider_auth_invalid", sourceUpdatedAt,
-      transactionCoverage, requestedStart, requestedEnd,
+      transactionCoverage, requestedStart, requestedEnd, nextAction: nextActionFor("provider_auth_invalid"),
     };
   }
   if (type === "transactions" && !explicitComplete) {
     return {
       status: "partial", reason: "transaction_completeness_unknown", sourceUpdatedAt,
       transactionCoverage, requestedStart, requestedEnd,
+      nextAction: nextActionFor("transaction_completeness_unknown"),
     };
   }
   if (!sourceUpdatedAt) {
     return {
       status: "partial", reason: "source_freshness_unknown", sourceUpdatedAt,
       transactionCoverage, requestedStart, requestedEnd,
+      nextAction: nextActionFor("source_freshness_unknown"),
     };
   }
   const nowInstant = optionalInstant(now);
@@ -86,11 +97,12 @@ function classifyMoneytreeObservation(input, {
     return {
       status: "partial", reason: "source_updated_at_in_future", sourceUpdatedAt,
       transactionCoverage, requestedStart, requestedEnd,
+      nextAction: nextActionFor("source_updated_at_in_future"),
     };
   }
   return {
     status: "fresh", reason: null, sourceUpdatedAt,
-    transactionCoverage, requestedStart, requestedEnd,
+    transactionCoverage, requestedStart, requestedEnd, nextAction: null,
   };
 }
 
@@ -105,6 +117,7 @@ function observationFor(toolResult, tool, options = {}) {
     payload_sha256: sha256(canonicalJson(rawData(toolResult))),
     source_status: freshness.status,
     source_reason: freshness.reason,
+    next_action: freshness.nextAction,
     source_updated_at: freshness.sourceUpdatedAt,
     transaction_coverage: freshness.transactionCoverage,
     requested_start: freshness.requestedStart,

@@ -39,6 +39,7 @@ test("Moneytree marks an explicitly complete transaction window fresh", () => {
     transactionCoverage: "complete",
     requestedStart: "2026-10-01",
     requestedEnd: "2026-10-02",
+    nextAction: null,
   });
 });
 
@@ -58,6 +59,7 @@ test("Moneytree does not treat an empty transaction array as zero without comple
   assert.equal(result.status, "partial");
   assert.equal(result.reason, "transaction_completeness_unknown");
   assert.equal(result.transactionCoverage, "unknown");
+  assert.equal(result.nextAction, "moneytree_refresh_and_readback");
 });
 
 test("Moneytree reads provider metadata outside structuredContent.data", () => {
@@ -74,6 +76,7 @@ test("Moneytree reads provider metadata outside structuredContent.data", () => {
   assert.equal(result.status, "partial");
   assert.equal(result.reason, "transaction_completeness_unknown");
   assert.equal(result.transactionCoverage, "unknown");
+  assert.equal(result.nextAction, "moneytree_refresh_and_readback");
 });
 
 test("Moneytree invalid credentials are stale even when a balance payload is returned", () => {
@@ -88,6 +91,7 @@ test("Moneytree invalid credentials are stale even when a balance payload is ret
   assert.equal(result.status, "stale");
   assert.equal(result.reason, "provider_auth_invalid");
   assert.equal(result.sourceUpdatedAt, "2026-08-26T03:09:37.000Z");
+  assert.equal(result.nextAction, "moneytree_reconnect_mufg");
 });
 
 test("Moneytree balances and transactions project to distinct personal FinancialRecords", () => {

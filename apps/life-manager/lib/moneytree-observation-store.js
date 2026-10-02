@@ -66,6 +66,7 @@ function projectRead(value, expectedTool) {
     source_status: ["fresh", "partial", "stale", "unknown"].includes(value.source_status)
       ? value.source_status : "unknown",
     source_reason: value.source_reason == null ? null : String(value.source_reason),
+    next_action: value.next_action == null ? null : String(value.next_action),
     source_updated_at: value.source_updated_at == null ? null
       : exactInstant(value.source_updated_at, "Moneytree source update time"),
     transaction_coverage: value.transaction_coverage == null ? "not_applicable"
@@ -88,6 +89,10 @@ function buildMoneytreeObservation({ accounts, transactions, accountRead, transa
     source_status: {
       accounts: projectRead(accountRead, "moneytree.show-accounts").source_status,
       transactions: projectRead(transactionRead, "moneytree.show-transactions").source_status,
+    },
+    next_action: {
+      accounts: projectRead(accountRead, "moneytree.show-accounts").next_action,
+      transactions: projectRead(transactionRead, "moneytree.show-transactions").next_action,
     },
     account_count: accounts.length,
     transaction_count: transactions.length,
