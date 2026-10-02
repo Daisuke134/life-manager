@@ -13,6 +13,41 @@ function ledger() {
   return require(ledgerPath);
 }
 
+test("recordProviderCost preserves actual nullable billing state and provider dimensions", async () => {
+  const calls = [];
+  const ok = await ledger().recordProviderCost({
+    uid: "u1", provider: "google_cloud", product: "Maps", sku: "Geocoding",
+    operation: "geocode", quantity: 10, unit: "request", estimatedUsd: 0.05,
+    actualUsd: null, billingStatus: "estimated", pricingVersion: "2026-09",
+    sourceReceiptRef: "usage://sha256/abc", meta: { project: "life-manager" },
+  }, { supaUrl: "https://db.example", supaKey: "service", fetchImpl: async (...args) => {
+    calls.push(args); return { ok: true, status: 201 };
+  } });
+  assert.equal(ok, true);
+  const body = JSON.parse(calls[0][1].body);
+  assert.equal(body.provider, "google_cloud");
+  assert.equal(body.sku, "Geocoding");
+  assert.equal(body.actual_usd, null);
+  assert.equal(body.billing_status, "estimated");
+  assert.equal(body.source_receipt_ref, "usage://sha256/abc");
+});
+
+test("recordProviderCost rejects invalid billing state, secret metadata, and missing actual settlement", async () => {
+  await assert.rejects(ledger().recordProviderCost({
+    uid: "u1", provider: "google_cloud", product: "Maps", sku: "Geocoding", operation: "geocode",
+    quantity: 1, unit: "request", billingStatus: "maybe", sourceReceiptRef: "usage://x",
+  }), /billingStatus/);
+  await assert.rejects(ledger().recordProviderCost({
+    uid: "u1", provider: "google_cloud", product: "Maps", sku: "Geocoding", operation: "geocode",
+    quantity: 1, unit: "request", billingStatus: "settled", sourceReceiptRef: "usage://x",
+  }), /actualUsd/);
+  await assert.rejects(ledger().recordProviderCost({
+    uid: "u1", provider: "google_cloud", product: "Maps", sku: "Geocoding", operation: "geocode",
+    quantity: 1, unit: "request", billingStatus: "estimated", sourceReceiptRef: "usage://x",
+    meta: { api_key: "secret" },
+  }), /secret-shaped/);
+});
+
 test("LM-7 migration creates only the additive lm_api_cost ledger", () => {
   const sqlPath = path.join(__dirname, "../migrations/2026-07-18-lm-api-cost.sql");
   assert.ok(fs.existsSync(sqlPath), "LM-7 migration must exist");

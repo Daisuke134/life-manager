@@ -22,8 +22,10 @@ async function recordCost({ uid, kind, quantity, unit, estUsd, meta } = {}, opts
         kind: String(kind),
         quantity: Number(quantity) || 0,
         unit: unit == null ? null : String(unit),
-        est_usd: Number(estUsd) || 0,
+        est_usd: opts.extendedFields && Object.hasOwn(opts.extendedFields, "est_usd")
+          ? opts.extendedFields.est_usd : Number(estUsd) || 0,
         meta: meta == null ? {} : meta,
+        ...(opts.extendedFields || {}),
       }),
     });
     if (!response.ok) throw new Error(`Supabase insert failed (${response.status})`);
@@ -32,6 +34,54 @@ async function recordCost({ uid, kind, quantity, unit, estUsd, meta } = {}, opts
     log("[ledger] recordCost failed", error && error.message ? error.message : error);
     return false;
   }
+}
+
+const BILLING_STATUSES = new Set(["estimated", "settled", "unknown", "not_applicable"]);
+const SECRET_META_KEY = /(api[_-]?key|authorization|credential|password|secret|token)/i;
+
+function providerDimension(value, name) {
+  const text = String(value == null ? "" : value).trim();
+  if (!text || text.length > 256 || /[\r\n]/.test(text)) throw new Error(`${name} is required`);
+  return text;
+}
+
+function nullableAmount(value, name) {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) throw new Error(`${name} invalid`);
+  return number;
+}
+
+function providerMeta(value) {
+  const meta = value == null ? {} : value;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) throw new Error("meta must be an object");
+  if (Object.keys(meta).some((key) => SECRET_META_KEY.test(key))) throw new Error("secret-shaped metadata key");
+  return { ...meta };
+}
+
+async function recordProviderCost({
+  uid, provider, product, sku, operation, quantity, unit,
+  estimatedUsd = null, actualUsd = null, billingStatus = "unknown", pricingVersion = null,
+  sourceReceiptRef, meta = {},
+} = {}, opts = {}) {
+  if (!BILLING_STATUSES.has(billingStatus)) throw new Error("billingStatus invalid");
+  const amount = nullableAmount(actualUsd, "actualUsd");
+  if (billingStatus === "settled" && amount === null) throw new Error("actualUsd required for settled billing");
+  if (billingStatus !== "settled" && amount !== null) throw new Error("actualUsd only allowed for settled billing");
+  const units = nullableAmount(quantity, "quantity");
+  if (units === null) throw new Error("quantity required");
+  const estimated = nullableAmount(estimatedUsd, "estimatedUsd");
+  const fields = {
+    provider: providerDimension(provider, "provider"), product: providerDimension(product, "product"),
+    sku: providerDimension(sku, "sku"), operation: providerDimension(operation, "operation"),
+    pricing_version: pricingVersion == null ? null : providerDimension(pricingVersion, "pricingVersion"),
+    source_receipt_ref: providerDimension(sourceReceiptRef, "sourceReceiptRef"),
+    actual_usd: amount, billing_status: billingStatus,
+    est_usd: estimated,
+  };
+  return recordCost({ uid, kind: "provider_cost", quantity: units, unit, estUsd: estimated, meta: providerMeta(meta) }, {
+    ...opts, extendedFields: fields,
+  });
 }
 
 // DB-backed daily aggregation: every process/tick asks Supabase whether today's per-user row exists.
@@ -137,4 +187,7 @@ function businessSummary(daysBack, rows, nowMs) {
   return summary;
 }
 
-module.exports = { recordCost, recordDailyComposioPoll, monthlyComposioCallCount, businessSummary };
+module.exports = {
+  BILLING_STATUSES, recordCost, recordProviderCost, recordDailyComposioPoll,
+  monthlyComposioCallCount, businessSummary,
+};

@@ -66,3 +66,14 @@ test("recordUsageEvent delegates the normalized row to the existing cost ledger"
   assert.equal(rows[0].kind, "provider_usage");
   assert.equal(rows[0].meta.customer_usage, false);
 });
+
+test("usage event can carry an actual settlement without converting missing actual to zero", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_cloud", feature: "maps",
+    outcome: "success", providerUnits: 2, estimatedCostUsd: 0.01,
+    billingStatus: "settled", actualCostUsd: 0.02, sourceReceiptRef: "google-billing://receipt",
+  });
+  assert.equal(event.billingStatus, "settled");
+  assert.equal(event.actualUsd, 0.02);
+  assert.equal(event.sourceReceiptRef, "google-billing://receipt");
+});

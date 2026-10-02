@@ -1,6 +1,6 @@
 "use strict";
 
-const { recordCost } = require("./ledger.js");
+const { BILLING_STATUSES, recordCost, recordProviderCost } = require("./ledger.js");
 
 const OUTCOMES = new Set(["success", "failure", "cache_hit"]);
 const SECRET_KEY = /(api[_-]?key|authorization|credential|password|secret|token)/i;
@@ -39,7 +39,7 @@ function normalizeUsageEvent(event = {}) {
   const estUsd = cacheHit ? 0 : finiteNonNegative(event.estimatedCostUsd);
   const meta = safeMeta(event.meta);
 
-  return {
+  const normalized = {
     uid: tenantId,
     kind: "provider_usage",
     quantity,
@@ -56,11 +56,36 @@ function normalizeUsageEvent(event = {}) {
       customer_usage: false,
     },
   };
+  if (event.billingStatus != null || event.actualCostUsd != null || event.sourceReceiptRef != null) {
+    const billingStatus = String(event.billingStatus || "estimated");
+    if (!BILLING_STATUSES.has(billingStatus)) throw new Error(`invalid billing status: ${billingStatus}`);
+    const actualUsd = event.actualCostUsd == null ? null : Number(event.actualCostUsd);
+    if (actualUsd !== null && (!Number.isFinite(actualUsd) || actualUsd < 0)) {
+      throw new Error("actualCostUsd invalid");
+    }
+    normalized.billingStatus = billingStatus;
+    normalized.actualUsd = actualUsd;
+    normalized.pricingVersion = event.pricingVersion == null ? null : String(event.pricingVersion);
+    normalized.sourceReceiptRef = requiredText(event.sourceReceiptRef, "sourceReceiptRef");
+  }
+  return normalized;
 }
 
 async function recordUsageEvent(event, opts = {}) {
+  const normalized = normalizeUsageEvent(event);
+  if (normalized.billingStatus) {
+    const write = opts.recordProviderCost || recordProviderCost;
+    return write({
+      uid: normalized.uid, provider: normalized.meta.provider, product: normalized.meta.feature,
+      sku: event.sku || normalized.meta.feature, operation: event.operation || normalized.meta.feature,
+      quantity: normalized.quantity, unit: normalized.unit, estimatedUsd: normalized.estUsd,
+      actualUsd: normalized.actualUsd, billingStatus: normalized.billingStatus,
+      pricingVersion: normalized.pricingVersion, sourceReceiptRef: normalized.sourceReceiptRef,
+      meta: normalized.meta,
+    }, opts);
+  }
   const write = opts.recordCost || recordCost;
-  return write(normalizeUsageEvent(event), opts);
+  return write(normalized, opts);
 }
 
 module.exports = { normalizeUsageEvent, recordUsageEvent, OUTCOMES };

@@ -152,6 +152,7 @@ async function runHourlyCfo(options = {}) {
       personal: pending.report.personal, business: pending.report.business,
       sourceFreshness: pending.report.sourceFreshness || {},
       economicSourceCoverage: pending.report.economicSourceCoverage || null,
+      providerCostSettlement: pending.report.providerCostSettlement || null,
     };
   }
   const result = await runFinancialManager({
@@ -164,6 +165,7 @@ async function runHourlyCfo(options = {}) {
       agentReceiptPaths: options.agentReceiptPaths || [],
       marketplaceReceiptPaths: options.marketplaceReceiptPaths || [],
       affiliateReadbackPath: options.affiliateReadbackPath,
+      googleBillingCsvPath: options.googleBillingCsvPath,
       pythonBin: options.pythonBin || "python3",
       capafyAnalyticsPath: options.capafyAnalyticsPath,
       mobileAppsBusinessOutcomesPath: options.mobileAppsBusinessOutcomesPath,
@@ -205,6 +207,7 @@ async function runHourlyCfo(options = {}) {
     publicResult.business = publicResult.report.business;
     publicResult.sourceFreshness = publicResult.report.sourceFreshness || {};
     publicResult.economicSourceCoverage = publicResult.report.economicSourceCoverage || null;
+    publicResult.providerCostSettlement = publicResult.report.providerCostSettlement || null;
   }
   return publicResult;
 }
@@ -237,6 +240,7 @@ async function main(env = process.env, deps = {}) {
       capafyAnalyticsPath: capafyAnalyticsPathFromEnv(env),
       mobileAppsBusinessOutcomesPath: mobileAppsBusinessOutcomesPathFromEnv(env),
       affiliateReadbackPath: affiliateReadbackPathFromEnv(env),
+      googleBillingCsvPath: env.LM_CFO_GOOGLE_BILLING_CSV,
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return ["sent", "quiet"].includes(result.status) ? 0 : 1;

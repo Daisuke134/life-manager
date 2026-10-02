@@ -149,3 +149,19 @@ test("business source coverage is visible without turning a gap into zero", () =
   assert.match(text, /self-build\/source_unconnected/);
   assert.doesNotMatch(text, /収益: ¥0/);
 });
+
+test("provider cost report keeps Google settlement receipt and unknown state separate", () => {
+  const settled = buildFinancialManagerReport([], "2026-10-02", {
+    providerCostSettlement: {
+      status: "settled", observedAt: "2026-10-02T02:00:00.000Z",
+      receiptRef: "google-billing://receipt",
+      totals: { costJpy: "25354", taxJpy: "2535", totalJpy: "27889" },
+    },
+  }).report;
+  assert.equal(settled.providerCostSettlement.totals.totalJpy, "27889");
+  assert.match(renderFinancialManagerTelegram(settled), /Google請求: settled ¥27,889/);
+  const unknown = buildFinancialManagerReport([], "2026-10-02", {
+    providerCostSettlement: { status: "unknown", totals: null, receiptRef: null },
+  }).report;
+  assert.match(renderFinancialManagerTelegram(unknown), /Google請求: 未確認/);
+});

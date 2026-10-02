@@ -179,6 +179,23 @@ test("business readback preserves source coverage gaps without adding zero reven
   assert.equal(result.economicSourceCoverage.loops.length, 14);
 });
 
+test("Google billing settlement stays separate from API usage estimates", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-10-02T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readGoogleBilling: async () => ({ status: "settled", receiptRef: "google-billing://receipt",
+      observedAt: "2026-10-02T02:00:00.000Z", rows: [],
+      totals: { costJpy: "25354", taxJpy: "2535", totalJpy: "27889" } }),
+  });
+  assert.equal(result.sources.googleBilling, "observed_verified");
+  assert.equal(result.providerCostSettlement.totals.totalJpy, "27889");
+  assert.equal(result.providerCostSettlement.receiptRef, "google-billing://receipt");
+  assert.equal(result.sourceFreshness.googleBilling.status, "fresh");
+});
+
 test("Moneytree read retries one transient connector startup failure", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -49,3 +49,18 @@ test("REPORT-1 aggregates high-volume API cost inside Postgres with tenant and h
   assert.match(SQL, /REVOKE ALL ON FUNCTION public\.lm_financial_cost_totals\(text, timestamptz, timestamptz\)/i);
   assert.match(SQL, /GRANT EXECUTE ON FUNCTION public\.lm_financial_cost_totals\(text, timestamptz, timestamptz\)\s+TO service_role/i);
 });
+
+test("CFO provider cost settlement migration adds nullable actual and receipt dimensions", () => {
+  const sql = fs.readFileSync(path.join(__dirname,
+    "../migrations/2026-10-02-lm-provider-cost-settlement.sql"), "utf8");
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS provider text/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS sku text/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS actual_usd numeric/i);
+  assert.match(sql, /billing_status.*estimated.*settled.*unknown.*not_applicable/is);
+  assert.match(sql, /source_receipt_ref text/i);
+  assert.doesNotMatch(sql, /DROP TABLE|TRUNCATE/i);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.lm_provider_cost_summary/i);
+  assert.match(sql, /settled_cost_usd/i);
+  assert.match(sql, /unknown_count/i);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.lm_provider_cost_summary[\s\S]*service_role/i);
+});

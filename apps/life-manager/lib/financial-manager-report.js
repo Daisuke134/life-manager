@@ -89,7 +89,7 @@ function zonedMidnight(key, timezone) {
 
 function buildFinancialManagerReport(rawRecords, reportingDate, {
   timezone = "Asia/Tokyo", economicSourceCoverage = null, sourceFreshness = null,
-  businessSourceCoverage = [], businessReadback = null,
+  businessSourceCoverage = [], businessReadback = null, providerCostSettlement = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const staleProviders = new Set(Object.entries(sourceFreshness || {})
@@ -173,7 +173,13 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       sourceReceiptRefs: Array.isArray(businessReadback.sourceReceiptRefs)
         ? businessReadback.sourceReceiptRefs : [],
       coverageGaps: Array.isArray(businessReadback.coverageGaps)
-        ? businessReadback.coverageGaps : [],
+      ? businessReadback.coverageGaps : [],
+    } : null,
+    providerCostSettlement: providerCostSettlement ? {
+      status: providerCostSettlement.status || "unknown",
+      observedAt: providerCostSettlement.observedAt || null,
+      receiptRef: providerCostSettlement.receiptRef || null,
+      totals: providerCostSettlement.totals || null,
     } : null,
   };
   const digestReport = { ...report };
@@ -199,6 +205,11 @@ function money({ currency, amountMinor }) {
   const fraction = digits === 0 ? "" : `.${rawFraction.replace(/0+$/, "").padEnd(2, "0")}`;
   const formatted = `${negative ? "-" : ""}${whole}${fraction}`;
   return currency === "JPY" ? `¥${formatted}` : `${currency} ${formatted}`;
+}
+
+function moneyJpyText(value) {
+  if (typeof value !== "string" || !/^-?\d+$/.test(value)) return "未確認";
+  return `¥${BigInt(value).toLocaleString("ja-JP")}`;
 }
 
 function rows(label, values) {
@@ -252,6 +263,11 @@ function renderFinancialManagerDetailed(report) {
       `${gap.product_loop_id || "source"}/${gap.reason || "gap"}`
     )).join("、")}`);
   }
+  if (report.providerCostSettlement) {
+    const settlement = report.providerCostSettlement;
+    lines.push(`Google請求: ${settlement.status === "settled"
+      ? `${settlement.status} ${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
+  }
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
     lines.push("\n収益内訳（今月・プロバイダー別）");
@@ -292,6 +308,11 @@ function renderFinancialManagerTelegram(report) {
     lines.push(`事業未確認: ${report.businessReadback.coverageGaps.map((gap) => (
       `${gap.product_loop_id || "source"}/${gap.reason || "gap"}`
     )).join("、")}`);
+  }
+  if (report.providerCostSettlement) {
+    const settlement = report.providerCostSettlement;
+    lines.push(`Google請求: ${settlement.status === "settled"
+      ? `${settlement.status} ${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
   }
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.

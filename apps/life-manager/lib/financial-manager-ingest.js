@@ -8,6 +8,7 @@ const {
   buildAgentEconomyEconomicSourceBundle,
 } = require("./agent-economy-economic-source.js");
 const { buildMoneytreeObservation } = require("./moneytree-observation-store.js");
+const { readGoogleBillingCsv } = require("./google-billing-readback.js");
 const { buildEconomicSourceCoverage } = require("./economic-source-contract.js");
 const { readProductLoopCatalog } = require("./product-onboarding.js");
 const { capafyRowsToFinancialRecords } = require("./financial-record-capafy.js");
@@ -86,6 +87,7 @@ async function ingestFinancialRecords(options) {
   const sourceFreshness = {};
   let businessReadback = null;
   let businessSourceCoverage = [];
+  let providerCostSettlement = null;
   let agentReceipts = [];
   let agentRevenueRecords = [];
   let agentRevenueReadState = "not_configured";
@@ -159,6 +161,31 @@ async function ingestFinancialRecords(options) {
       businessSourceCoverage = [];
       sources.businessReadback = "unavailable";
       sourceFreshness.businessReadback = { status: "unavailable", reason: "read_failed", reads: [] };
+    }
+  }
+
+  if (typeof options.readGoogleBilling === "function" || options.googleBillingCsvPath) {
+    const reportingDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(now);
+    try {
+      const read = options.readGoogleBilling || (() => readGoogleBillingCsv(options.googleBillingCsvPath, {
+        invoiceMonth: reportingDate.slice(0, 7), observedAt: recordedAt,
+      }));
+      providerCostSettlement = await read({
+        invoiceMonth: reportingDate.slice(0, 7), observedAt: recordedAt,
+      });
+      const settled = providerCostSettlement?.status === "settled";
+      sources.googleBilling = settled ? "observed_verified" : "unknown";
+      sourceFreshness.googleBilling = {
+        status: settled ? "fresh" : "unknown",
+        reason: settled ? null : "billing_receipt_missing",
+        reads: providerCostSettlement?.receiptRef ? [providerCostSettlement.receiptRef] : [],
+      };
+    } catch {
+      providerCostSettlement = null;
+      sources.googleBilling = "unavailable";
+      sourceFreshness.googleBilling = { status: "unavailable", reason: "billing_read_failed", reads: [] };
     }
   }
 
@@ -289,7 +316,7 @@ async function ingestFinancialRecords(options) {
   });
   return {
     observed: records.length, created, sources, sourceFreshness,
-    businessReadback, businessSourceCoverage, economicSourceCoverage,
+    businessReadback, businessSourceCoverage, providerCostSettlement, economicSourceCoverage,
     economicFunnelObservations: agentEconomySources.funnelObservations,
   };
 }
