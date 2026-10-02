@@ -155,11 +155,14 @@ test("provider cost report keeps Google settlement receipt and unknown state sep
     providerCostSettlement: {
       status: "settled", observedAt: "2026-10-02T02:00:00.000Z",
       receiptRef: "google-billing://receipt",
+      invoiceMonth: "2026-09",
       totals: { costJpy: "25354", taxJpy: "2535", totalJpy: "27889" },
+      serviceTotals: [{ service: "Gemini API", costJpy: "14434.236886", currency: "JPY" }],
     },
   }).report;
   assert.equal(settled.providerCostSettlement.totals.totalJpy, "27889");
-  assert.match(renderFinancialManagerTelegram(settled), /Google請求: settled ¥27,889/);
+  assert.match(renderFinancialManagerTelegram(settled), /Google請求: settled 2026-09 ¥27,889/);
+  assert.match(renderFinancialManagerTelegram(settled), /Google請求内訳\nGemini API: ¥14,434\.236886/);
   const unknown = buildFinancialManagerReport([], "2026-10-02", {
     providerCostSettlement: { status: "unknown", totals: null, receiptRef: null },
   }).report;

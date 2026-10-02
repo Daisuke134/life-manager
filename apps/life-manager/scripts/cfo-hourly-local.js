@@ -167,6 +167,7 @@ async function runHourlyCfo(options = {}) {
       marketplaceReceiptPaths: options.marketplaceReceiptPaths || [],
       affiliateReadbackPath: options.affiliateReadbackPath,
       googleBillingCsvPath: options.googleBillingCsvPath,
+      googleBillingInvoiceMonth: options.googleBillingInvoiceMonth,
       providerBudget: options.providerBudget,
       readMoneytreeAccounts: options.readMoneytreeAccounts,
       readMoneytreeTransactions: options.readMoneytreeTransactions,
@@ -247,6 +248,7 @@ async function main(env = process.env, deps = {}) {
       mobileAppsBusinessOutcomesPath: mobileAppsBusinessOutcomesPathFromEnv(env),
       affiliateReadbackPath: affiliateReadbackPathFromEnv(env),
       googleBillingCsvPath: env.LM_CFO_GOOGLE_BILLING_CSV,
+      googleBillingInvoiceMonth: env.LM_CFO_GOOGLE_BILLING_INVOICE_MONTH,
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return ["sent", "quiet"].includes(result.status) ? 0 : 1;

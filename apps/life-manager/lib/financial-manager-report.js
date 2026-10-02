@@ -200,7 +200,14 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       status: providerCostSettlement.status || "unknown",
       observedAt: providerCostSettlement.observedAt || null,
       receiptRef: providerCostSettlement.receiptRef || null,
+      invoiceMonth: providerCostSettlement.invoiceMonth || null,
+      invoiceTotalJpy: providerCostSettlement.invoiceTotalJpy || null,
+      roundingJpy: providerCostSettlement.roundingJpy || null,
       totals: providerCostSettlement.totals || null,
+      serviceTotals: Array.isArray(providerCostSettlement.serviceTotals)
+        ? providerCostSettlement.serviceTotals.map((row) => ({
+          service: String(row.service || ""), costJpy: String(row.costJpy || ""), currency: "JPY",
+        })) : [],
     } : null,
     providerBudget: providerBudget ? {
       state: providerBudget.state || "unknown",
@@ -237,6 +244,14 @@ function money({ currency, amountMinor }) {
 function moneyJpyText(value) {
   if (typeof value !== "string" || !/^-?\d+$/.test(value)) return "未確認";
   return `¥${BigInt(value).toLocaleString("ja-JP")}`;
+}
+
+function moneyJpyDecimalText(value) {
+  if (typeof value !== "string" || !/^-?\d+(?:\.\d+)?$/.test(value)) return "未確認";
+  const negative = value.startsWith("-");
+  const unsigned = negative ? value.slice(1) : value;
+  const [whole, fraction = ""] = unsigned.split(".");
+  return `¥${negative ? "-" : ""}${BigInt(whole).toLocaleString("ja-JP")}${fraction ? `.${fraction}` : ""}`;
 }
 
 function rows(label, values) {
@@ -302,7 +317,12 @@ function renderFinancialManagerDetailed(report) {
   if (report.providerCostSettlement) {
     const settlement = report.providerCostSettlement;
     lines.push(`Google請求: ${settlement.status === "settled"
-      ? `${settlement.status} ${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
+      ? `${settlement.status} ${settlement.invoiceMonth ? `${settlement.invoiceMonth} ` : ""}${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
+    if (settlement.status === "settled" && settlement.serviceTotals?.length) {
+      lines.push("Google請求内訳", settlement.serviceTotals.map((row) => (
+        `${row.service}: ${moneyJpyDecimalText(row.costJpy)}`
+      )).join("\n"));
+    }
   }
   if (report.providerBudget) {
     lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? `（unknown ${report.providerBudget.unknownCount}）` : ""}`);
@@ -354,7 +374,12 @@ function renderFinancialManagerTelegram(report) {
   if (report.providerCostSettlement) {
     const settlement = report.providerCostSettlement;
     lines.push(`Google請求: ${settlement.status === "settled"
-      ? `${settlement.status} ${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
+      ? `${settlement.status} ${settlement.invoiceMonth ? `${settlement.invoiceMonth} ` : ""}${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
+    if (settlement.status === "settled" && settlement.serviceTotals?.length) {
+      lines.push(`Google請求内訳: ${settlement.serviceTotals.map((row) => (
+        `${row.service} ${moneyJpyDecimalText(row.costJpy)}`
+      )).join(" / ")}`);
+    }
   }
   if (report.providerBudget) {
     lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? ` (unknown ${report.providerBudget.unknownCount})` : ""}`);

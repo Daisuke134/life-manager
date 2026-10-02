@@ -177,12 +177,13 @@ async function ingestFinancialRecords(options) {
     const reportingDate = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(now);
+    const invoiceMonth = options.googleBillingInvoiceMonth || reportingDate.slice(0, 7);
     try {
       const read = options.readGoogleBilling || (() => readGoogleBillingCsv(options.googleBillingCsvPath, {
-        invoiceMonth: reportingDate.slice(0, 7), observedAt: recordedAt,
+        invoiceMonth, observedAt: recordedAt,
       }));
       providerCostSettlement = await read({
-        invoiceMonth: reportingDate.slice(0, 7), observedAt: recordedAt,
+        invoiceMonth, observedAt: recordedAt,
       });
       const settled = providerCostSettlement?.status === "settled";
       sources.googleBilling = settled ? "observed_verified" : "unknown";

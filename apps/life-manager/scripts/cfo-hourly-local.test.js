@@ -275,6 +275,7 @@ test("local main selects canonical Financial Manager daily path by default", asy
   }, { runHourlyCfo: async (options) => {
     assert.equal(options.reportCadence, "daily");
     assert.equal(options.subjectId, "dais-local");
+    assert.equal(options.googleBillingInvoiceMonth, undefined);
     return canonical();
   }, runResultCfo: legacy });
   assert.equal(code, 0);
