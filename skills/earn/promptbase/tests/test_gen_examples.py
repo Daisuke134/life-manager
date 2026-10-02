@@ -20,7 +20,7 @@ class GenExamplesRunnerTest(unittest.TestCase):
             runner.write_text(
                 "#!/bin/sh\n"
                 "cat \"$ARTICLE_CODEX_OUTPUT_SCHEMA\" > \"$SCHEMA_RECORD\"\n"
-                "printf '\"plain output\"'\n",
+                "printf '{\"text\":\"plain output\"}'\n",
                 encoding="utf-8",
             )
             runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
@@ -41,7 +41,12 @@ class GenExamplesRunnerTest(unittest.TestCase):
             self.assertEqual(result, "plain output")
             self.assertEqual(
                 json.loads(schema_record.read_text(encoding="utf-8")),
-                {"type": "string"},
+                {
+                    "type": "object",
+                    "properties": {"text": {"type": "string"}},
+                    "required": ["text"],
+                    "additionalProperties": False,
+                },
             )
 
     def test_uses_house_runner_contract(self):
