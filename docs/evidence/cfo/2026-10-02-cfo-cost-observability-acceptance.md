@@ -192,6 +192,7 @@ Interpretation: the collector is running and preserving the gaps. Stripe now has
 ## Remaining owner-visible blockers
 
 1. The installed Moneytree plugin is readable now, but its latest transaction is 2026-08-25; provider refresh is needed only to upgrade stale/partial values to fresh.
-2. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
-3. The feature branch still needs normal immutable release promotion and branch-to-production parity readback.
-4. Seven-period observation requires the existing production loop owner and official provider receipts; one canary does not prove seven natural periods.
+2. Coconala's official orders observation remains unavailable: the owner reports `orders_observation` failure from `disk_headroom_low`/browser-owner contention, while current talkrooms remain `取引中`/`awaiting_buyer`; no payment receipt exists.
+3. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
+4. The feature branch still needs normal immutable release promotion and branch-to-production parity readback.
+5. Seven-period observation requires the existing production loop owner and official provider receipts; one canary does not prove seven natural periods.
