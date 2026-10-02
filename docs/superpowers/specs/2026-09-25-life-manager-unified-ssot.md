@@ -3270,3 +3270,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Lancers Application T1のmarker消失機構をdurable event/child cleanupのread-only観測で閉じる。
 2. Lancers Paidはbuyer-visible acceptance/settlement/fee/actual cost/official receiptが揃う案件だけをpaid完了へ進める。現在は候補pendingのまま保持する。
 3. 次の収益cursorはPromptBase P5cの公式dashboard/Gmail→公開→sale/settlement/payout→replay-zeroである。
+
+### 108. PromptBase P5c fresh official readback（2026-10-02 18:55 JST）
+
+- 既存owner用`readback.py`を`interactive:dais` browser-guard leaseでread-only実行した。公式dashboard tracked 3 listingのupdatesは0、Reels Hook LabはScheduled、Portfolio Tracker/Football Match AnalystはPendingのまま。
+- 同じreadbackの公式Salesは`0件 / $0.00 net / by_item={}`。新規submission、編集、再送は0である。
+- Gmail公式read-only検索（直近3日、PromptBase送信元）はReelsのApproved/Scheduled通知と過去Declined通知だけで、Portfolio/FootballのApproved/Declinedは未着。掲載価格やPendingを売上へ数えない。
+
+#### 更新後の原子cursor
+
+1. 同一listingを再送せず、次の自然dashboard/Gmail readbackでPortfolio Tracker/FootballのApprovedまたはDeclinedを確認する。
+2. Approved後だけ公開URL/live→Sales item/order→fee/settlement/payout→replay-zeroへ進む。
+3. PromptBaseが自然審査待ちの間、Capafy under_review、Writer/Ebook/Affiliate/CFO source gapを独立・read-onlyで継続する。
