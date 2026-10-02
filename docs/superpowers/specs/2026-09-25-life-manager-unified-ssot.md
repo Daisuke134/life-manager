@@ -3629,3 +3629,14 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. TaskMarketはcapacity retryを自然schedulerへ任せ、同一no-effect runを重複起動しない。
 2. verified awardが出た場合のみBlockRun paid inferenceを1件、payment receipt/output/cost join付きで実行する。
 3. awardが無い状態ではx402/treasuryの残高を自己資金・売上へ丸めず、CFO unknownのまま保持する。
+
+### 141. Job Hunter no-effect natural scan（2026-10-02 23:59 JST）
+
+- `job-search-daily` を1回kickstartしたnatural run `18dab7a3212ecd08-21647` は`host_admission_deferred:resource_capacity_busy`、exit75、effect noneでprovider/browser前に停止した。
+- 公式応募receipt、応募mutation、外部案件、売上は0件。検索前に閉じたため、同一runを再送せず自然schedulerのcapacity retryへ戻した。Mercor/Lancersのeffect_unknown/human-required境界は§135のまま保持する。
+
+#### 更新後の原子cursor
+
+1. Self-Build verified writeback（patch→review→main→release→natural outcome）が実際に出るまで、連続日数を完了証拠にしない。
+2. CFO source coverageとsettled revenue/cost joinを埋める。
+3. TaskMarket awardが出た場合のみBlockRun paid inferenceへ進める。
