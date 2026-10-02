@@ -1635,6 +1635,29 @@ def test_unknown_occurrence_can_close_with_explicit_pre_effect_proof(
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_pre_effect_reconcile_is_idempotent_after_prior_release(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "crowdworks-revenue-paid"
+    occurrence = f"{owner}:already-released"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=False, reserve=False, now=102)
+
+    assert admission.resolve_pre_effect_occurrence(
+        owner, occurrence,
+        pre_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "proof_type": "pre_effect",
+            "evidence_ref": "lm-paid-run://already-released",
+        },
+    ) is True
+
+
 def test_unknown_occurrence_can_close_with_historical_account_bound_no_dispatch(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
