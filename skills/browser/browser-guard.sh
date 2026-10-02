@@ -203,7 +203,26 @@ PYEOF
   release)
     [ -n "$IDENTITY" ] || usage
     lease="$LEASE_DIR/$(printf '%s' "$IDENTITY" | tr '/:' '__').lease"
-    rm -f "$lease" 2>/dev/null || true
+    if [ -n "${AI_BROWSER_HOLDER_PID:-}" ]; then
+      "$PY" - "$lease" "$AI_BROWSER_HOLDER_PID" <<'PYEOF' || exit "$EXIT_BUSY"
+import json, os, sys
+lease, expected_pid = sys.argv[1:3]
+try:
+    row = json.loads(open(lease, encoding="utf-8").read().strip().splitlines()[-1])
+except FileNotFoundError:
+    raise SystemExit(0)
+except Exception:
+    raise SystemExit(1)
+if str(row.get("pid")) != expected_pid:
+    raise SystemExit(1)
+try:
+    os.unlink(lease)
+except FileNotFoundError:
+    pass
+PYEOF
+    else
+      rm -f "$lease" 2>/dev/null || true
+    fi
     echo "RELEASED $IDENTITY"
     exit 0 ;;
 
