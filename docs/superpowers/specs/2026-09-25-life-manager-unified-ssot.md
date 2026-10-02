@@ -3413,3 +3413,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 1. Application ownerが自然にlockを解放し、Paid occurrenceがterminal eventを書いた後、`pre_effect=true/effect=0/exit75`またはprovider official readbackを判定する。
 2. 4121 releaseでの自然Paid境界を確認するまで、Job Hunterへ順序を進めずCrowdWorks内のreadbackを閉じる。
+
+### 120. CrowdWorks handoff修正releaseのapply待ち（2026-10-02 19:31 JST）
+
+- PR #6490のmerge `119854c3c6`からimmutable release `/Users/anicca/loops/releases/20261002T193700-119854c3`を作成した。
+- `crowdworks-revenue-paid`への2回目target applyは、旧release `4121f44751` のnatural occurrence `18daaff2fc48b010-66915` がloaded-running（PID `67101`）だったため `skipped=loaded-running`。新release `119854c3c6`はまだproduction loadedではない。
+- 旧Paidプロセスは共有`provider-browser.lock`で待機中で、別のCrowdWorks reply owner PID `80623`が同じlockを保持している。これは重複防止の直列境界であり、lock奪取・kill・再送・apply再試行は行わない。
+
+#### 更新後の原子cursor
+
+1. Reply ownerが自然にlockを解放し、旧Paid occurrenceがterminalになった後、新release `119854c3c6`をCrowdWorks Paidだけへapplyする。
+2. 新release natural runで`crowdworks_paid_handoff_unavailable`がpre-effect/effect0としてexit75になることをreadbackし、旧effect_unknownは保持する。
+3. その証拠後にJob Hunterへ進む。
