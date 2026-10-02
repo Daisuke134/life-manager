@@ -139,3 +139,24 @@ def test_sigkill_releases_lock_for_next_process(tmp_path):
     first.wait(timeout=3)
     assert second.wait(timeout=3) == 0
     assert second_ready.exists()
+
+
+def test_nonblocking_lock_returns_retryable_busy_without_running_child(tmp_path):
+    lock = tmp_path / "provider.lock"
+    first_ready = tmp_path / "first-ready"
+    second_ready = tmp_path / "second-ready"
+    first = subprocess.Popen([
+        sys.executable, str(LOCKER), str(lock), "--", sys.executable, "-c",
+        "import pathlib,sys,time; pathlib.Path(sys.argv[1]).touch(); time.sleep(30)",
+        str(first_ready),
+    ])
+    _wait_for(first_ready)
+    second = subprocess.run([
+        sys.executable, str(LOCKER), "--non-blocking", str(lock), "--", sys.executable, "-c",
+        "import pathlib,sys; pathlib.Path(sys.argv[1]).touch()", str(second_ready),
+    ], capture_output=True, text=True, check=False)
+    assert second.returncode == 75
+    assert not second_ready.exists()
+    assert "provider_browser_busy" in second.stderr
+    first.kill()
+    assert first.wait(timeout=3) == -9
