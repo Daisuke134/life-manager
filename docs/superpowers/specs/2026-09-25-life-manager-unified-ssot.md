@@ -3677,3 +3677,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. `307941823`の公式proposal/contract/thread/payment状態をoccurrence単位でreadbackする。
 2. buyer-visible contract/settlementが無ければ、CrowdWorksを応募成功止まりとして保持し、Job Hunter/CFOの次cursorへ進む。
 3. 同じ案件の再応募、手動納品、送金は行わない。
+
+### 145. CrowdWorks application fenceの追加公式reconcile（2026-10-02 JST）
+
+- application ownerの追加natural runは、公式求人readback後に`project_id=13500625`のverified proposalを1件生成し、他候補は`profile_complete_no_eligible_open_job`で終了した。
+- その後の`reconcile_application_no_submit.py --resolve`（checked=5）は1件をoccurrence-bound readbackで解放した。残4件は`application_receipt_bound`、`proposal_in_window:307208848`、`claim_run_unavailable`×2であり、外部効果を推測してcloseしない。
+- CrowdWorks残fenceはapplication=4、reply=166、paid=17。新規verified応募は売上・契約・settlementではないため、CFOへ加算しない。
+
+#### 更新後の原子cursor
+
+1. `307941823`のcontract/payment状態を次の公式provider readbackで確認する。
+2. residual fenceは同一occurrenceの証拠が増えた場合だけreconcileし、再送しない。
+3. その後CFO source joinとTaskMarket/BlockRun receiptへ進む。
