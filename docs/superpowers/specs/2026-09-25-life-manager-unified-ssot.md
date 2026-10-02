@@ -3653,3 +3653,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. capacityが空いたSelf-Build natural runを1回読み戻し、source checkout fallback→`recovery_promotion_hooks_incomplete`までproductionで確認する。
 2. promotion hooksが完全なdeterministic/effect-none recovery PRだけを自動merge候補にする。
 3. その後、CFO/Agent Economyのsettlement境界へ戻る。
+
+### 143. Self-Build source checkoutのproduction natural proof（2026-10-02 JST）
+
+- release `20261002T220838-0be83c25`をloadedした`life-manager-selfbuild`のnatural run `18dab8ad790bfbf8-60449`は、capacity slot取得後にentrypointまで到達して完了した。
+- daily ledger row `run_id=20261002131626-selfbuild-ea93370c` は`verdict=no_op`、`candidates_considered=1`、PR #6368のskip理由は`recovery_promotion_hooks_incomplete`。旧`not a git repository`はproduction natural runで再発しなかった。Telegram reportも`MSGID=101545`でdelivery済み。
+- これはsource checkout fallbackの実装・release/apply・自然実行の三点を閉じる証拠であり、PR #6368をmergeできる証拠ではない。`external_effect_owner`のpromotion pathが未接続なのでskipが正しい。
+
+#### 更新後の原子cursor
+
+1. Self-Buildの次の候補はdeterministic/effect-noneかつ全promotion hookが存在するrecovery PRだけに限定する。
+2. CrowdWorks残fence、CFO join、TaskMarket award/BlockRun receiptを順に進める。
+3. 自己改善は実PRのmerge/release/natural outcomeが出るまで未完とする。
