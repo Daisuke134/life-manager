@@ -2801,6 +2801,20 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. ASC/RevenueCatのMobile proceeds/cost join、Connector、Fundraiser、contract-workを続ける。TaskMarket/BlockRunは後段順位を維持する。
 4. CFO A0の重複確認とsource-backed実装計画を終えるまで、利益・MRR・self-funding・financial independenceを宣言しない。
 
+### 96. Connector/Fundraiserのno-effect・effect_unknown境界（2026-10-02 16:10 JST）
+
+- Connector `life-manager-connector-native`の自然occurrence `18daa3808f1b2a28-9469`（`2026-10-02T06:48:37Z`）は`exit=0 / effect_class=none / effect_status=not_applicable`、official provider receiptなし。private state `last-result.json`は`status=incomplete`、`open=18 / covered_new=3 / covered_existing=0`、inventory event 31、calendar eligible 0、write attempt 0を返した。
+- 同じwakeの候補監査はConnpass 4件（全て`priority_class=other / preference_fit=weak / auto_apply_eligible=false`）、Luma 0件。最新wake reportは`completed_no_effect / safe_reason=providers_exhausted`で、候補0を登録成功・収益・Connector完了へ昇格させない。
+- Fundraiserの最新status（occurrence `fundraiser:18daa46be71addb8-45435`、`2026-10-02T07:03:06Z`）は`host_admission_deferred:resource_effect_unknown`、`effect_class=application`、`official_readback_ref=null`、`provider_receipt_id=null`。歴史的occurrence `18d9b0b6311a2018-87933`のfence adapterは`HELD / no_entrypoint_preflight_signature`で、外部applicationの結果は証明されていない。
+- Fundraiserは人間必須のapplication/identity境界を自動突破せず、外部資金調達を商品売上へ加算しない。既存application receiptやスクリーンショットは提出成功・採択・入金の公式receiptではない。
+
+#### 更新後の原子cursor
+
+1. Connectorはcandidate priority-fitが発生するまで自然no-effect readbackだけを監視し、provider登録・confirmation mail・Calendar eventが揃う候補だけを一件閉じる。
+2. Fundraiserは`no_entrypoint_preflight_signature`のsource/fence契約を専用ownerで診断し、公式readbackなしの再申請・fence closeをしない。human-required境界はholdする。
+3. Contract-work（Coconala→Lancers→CrowdWorks→Job Hunter）のpaid contract/readbackを順に閉じ、Self-Build、Investment、CFO、TaskMarket/BlockRun、cloud/self-fundingへ進む。
+4. 収益・利益・MRR・financial independenceは、settled external revenueとactual costが同一期間でjoinできるまでunknownのままにする。
+
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
 - PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
