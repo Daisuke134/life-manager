@@ -2881,3 +2881,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. fence close後、release `79f7c24e`のPromptBase ownerを一度だけ起動し、step1 semantic wait→4例→PromptBase dashboard/GmailのPending/Approved/Declinedを同一occurrenceでreadbackする。
 3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 85. PromptBase semantic-wait release loaded後のcapacity境界（2026-10-02 14:25 JST）
+
+- fence close（occurrence `18da9e12735d2e80-93376`、`closed=true / effected=false / proof_type=pre_effect`）後、PromptBase ownerをrelease `79f7c24e`で一度だけkickstartした。preflightは`status=pass / mutation_allowed=true`、loaded `ProgramArguments`/`LIFE_MANAGER_RELEASE_SHA=79f7c24e`をreadbackした。
+- 新occurrence `promptbase-loop-daily:18da9f159857fbd0-48557`は`exit=75 / host_admission_deferred:resource_capacity_busy`でbrowser/provider前に停止した。PromptBase snapshot、submission、provider receipt、browser effectは無い。これはsemantic-wait実装の実行失敗ではなく、host finite capacity（active owner 8/8）によるFIFO待ちである。
+- 既存FIFO queueは`life-manager-browser-capacity-probe`（sequence 380141）が先頭、PromptBase（sequence 381607）が後続。capacity probeを一度だけkickstartしたが、同時点ではactive ownerが8件のためreservation取得前に停止し、PromptBaseへは自動dispatchされていない。容量上限変更、他owner停止、同じPromptBase occurrence再送は行わない。
+- PromptBase公式dashboard/Salesの直近readbackは既存Scheduled/Pendingのみ、Sales `0件 / $0 net`であり、今回のcapacity waitで新規カード・売上は無い。P5cは依然としてsemantic-wait後の実PromptBase提出、審査、公開、売上の全証拠が未完了である。
+
+#### 更新後の原子cursor
+
+1. active finite ownerの自然releaseでFIFO reservationがPromptBaseへ移るまでread-only監視する。capacity上限を自己流で増やさない。
+2. PromptBaseがreservationを取得した正式owner occurrenceだけを観測し、release `79f7c24e`のsemantic wait→4例→公式dashboard/Gmailを同一occurrenceへ結合する。
+3. `resource_capacity_busy` occurrenceは外部作用なしとして重複再送せず、公式PromptBase submissionが確認できた場合だけ次の公開/sale/settlement/payoutへ進む。
+4. Capafy/CFO/Writer/Ebook/Affiliate/Mobileの独立laneを継続し、TaskMarket/BlockRunは後段順位を維持する。
