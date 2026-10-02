@@ -2769,3 +2769,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. Capafy Agent 4243672453のunder_review→online/review_rejectedを公式remote-statusでreadbackする。
 3. online/Approved後だけsale、fee、model cost、settlement、payout、replay-zeroを閉じる。
 4. 両方の審査中状態を売上・利益・Capafy/PromptBase完了へ昇格させず、§55の次段（Writer/Ebook/Affiliate以降）を独立laneで進める。TaskMarket/BlockRunは後段のまま。
+
+### 77. CFO 14-loop read-only P&Lの実測境界（2026-10-02 15:00 JST）
+
+- immutable release 3863e15714のskills/cfo/loop_pnl.pyを、対象日2026-10-02・Asia/Tokyoでread-only実行した。economic_attributionは14 Product Loopすべてstatus=unknown、duplicate_receipts=[]、company MRR=unknown、runway=unknownを返した。これは売上0円ではなく、receipt source未接続・read failure・未報告をfail-closedした結果である。
+- exact gapは、Affiliate（affiliate-financial-record/read_failed）、Capafy（capafy-orders/read_failed）、Mobile（app-store-connect-financial/read_failed）、Self-build（stripe-financial-record/read_failed）、Writer/Job Hunter/Fundraiser/Connector（unreported）、Marketplace/Investment/Agent Economy（source_unconnected）だった。今日のsettled revenue、model cost、fee、net P&Lを14 loop横断で再計算できる公式sourceはまだ揃っていない。
+- この実測はCFOがunknownを0に潰していないことを確認するfoundation evidenceであり、利益・MRR・financial independenceの証拠ではない。capafy/PromptBaseのpending状態とも混同しない。
+
+#### 更新後の原子cursor
+
+1. Writer/Ebook/Affiliateの各公式収益receiptとmodel/browser/infra cost sourceをowner別に接続し、loop_pnlがsettled revenue・cost・netを返す状態にする。
+2. Capafy/App Store Connect/Stripeのofficial readback failure境界をcredential/provider/source別に閉じる。missing sourceを0円にしない。
+3. Marketplace/Investment/Agent Economyのreadback journalをownerの公式receiptへ結合し、duplicate/replay-zeroを確認する。
+4. CFO 14-loop P&Lがcompleteになるまで、10k MRR・利益・self-funding・全loop完了を宣言しない。TaskMarket/BlockRunは§55の後段順位を維持する。
