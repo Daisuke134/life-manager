@@ -4031,3 +4031,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 解放されたrevenue slotでCFOの次の自然runを読み、`last-result-report.json`、outbox、Telegram receipt、healthが同じoccurrence/releaseで結合するかを検証する。
 2. CFO待ちと独立してWriter sales measureとAffiliate source/compositionのnatural admissionを読み、entrypoint前capacity busyから先へ進んだかを確認する。
 3. 即時収益per-pathはPromptBase→Writer→Affiliate→Mobile→Connector→Fundraiser→paid contractの順を維持する。TaskMarket/Agent Economyはこの後に保持し、marketing control jobの修復だけで自己資金化完了としない。
+
+### 171. Capafy fresh inventory / revenue / rejection境界（2026-10-03 03:49 JST）
+
+- Capafy公式`publish-list` + per-Agent `publish-remote-status`のfresh readbackは52 Agents、47 online、5 unlisted cap occupied、free 0。内訳は3 under reviewと2 review rejected。Capafyは未完であり、工場が新規Agentを出せる状態ではない。
+- rejectedは`Customer Renewal Evidence Brief` Agent `4973250899` v1.0.0と`Marketing Strategist — The One Move to Make` Agent `9563867391` v1.0.2。公式detailはどちらも`platform_status=2 / audit_status=3 / skills_confirmed=true / config_confirmed=true / package_uploaded=true / status_reason=review_rejected`。Gmail公式通知の共通理由は`2.2 Information accuracy`で、通知日は2026-09-30。今回新たにrejectされたのではなく、inventory上の現在値を読み直した。
+- 最新money readback `observed_at=2026-10-02T18:07:50Z`はall-time gross/net `$102.75`・101 orders、last-30d gross `$82.77`、Capafy cut後net30 `$66.22`、actual OpenRouter cost30 `$39.71`、actual contribution profit30 `$26.51`。latest provider day `2026-10-02`はorders 0 / revenue `$0.00`。payout-able balance `$59.00`、pending `$14.10`、paid out `$0.00`で、balanceをbank payout済みに数えない。
+- 30日profitはHook Lab `$19.61`、Slide Maker `$15.98`、TikTok Script Pro `$12.77`がプラス。Marketing Strategistはrevenue `$11.18`に対しactual allocated model cost `$31.72`でprofit `-$20.54`。売上があることと、利益を産んでいることを分離する。
+- `review_rejected`をfull cap中にsame-Agent retryさせる案を検討したが、git history `be6c31f7734` / `9ee7d7d28b`、focused tests、実ログ、既存specはすべて「status 0〜3は5枠を消費し、full cap中の例外は既存draft resumeだけ」を示す。full cap中の`review_rejected` retry成功のprovider証拠は無い。Luna担当はコード変更・commit・pushを0で終了し、既存契約を変更していない。
+- `capafy-loop-daily`は18:31Zのfresh inventory snapshotに成功したが、現在のverdictは`CAP_FULL`でhealthy-idle。後続attemptのcapacity busyはrelease fleet apply中の一時的admission競合で、provider effectは0。
+
+#### 更新後の原子cursor
+
+1. 3 under-reviewのうち1件がonline/rejected等のterminalへ動いてfree slotが生まれた時だけ、既存`retry_existing`で`2.2 Information accuracy`の2件を1件ずつ修復・再審査する。full cap中にprovider契約を迂回しない。
+2. Marketing Strategistは次versionでinformation-accuracy文言だけでなく、pre-acceptance margin gateとactual cost較正を適用する。現行の`-$20.54/30d`を利益商品として拡大しない。
+3. 工場と並行し、プラス利益3 skillの販売/宣伝ループを優先する。Capafy全体の今日の公式revenueは現時点`$0.00`、paid-outは`$0.00`であり、検証済み30日profitと今日の入金を混同しない。
