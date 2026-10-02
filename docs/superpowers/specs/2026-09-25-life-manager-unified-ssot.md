@@ -3752,3 +3752,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Footballは同じlistingを再送せず、自然Gmail/dashboardでLiveまたはDeclinedを確認する。Liveになった時だけ公開URLのHTTP 200 readbackを再取得する。
 2. Portfolio Trackerは自然Gmail/dashboardでApprovedまたはDeclinedを確認する。Pendingを売上へ数えない。
 3. ReelsとFootballの公開listingについて、PromptBase Sales item/order→fee→settlement/payout→replay-zeroをlisting単位で閉じる。Salesが0の間はP5cを完了扱いしない。
+
+### 151. Capafy CAP_FULLの現行公式inventory readback（2026-10-02 23:09 JST）
+
+- `skills/capafy-autopublish/scripts/inventory_status.py`を`capafy:kosuke`のbrowser lease経由でread-only実行した。Capafy server truthは`VERDICT=CAP_FULL`、`total=52`、`listed/online=47`、`occupied=5`、`free=0`、`unlisted=5`、`rejected=2`、`ready_inventory=41`、`publishable_count=19`、`unknown=0`だった。
+- 現在のoccupiedはunder-review 3件とreview-rejected 2件で、publish capを塞いでいる。これは工場の認証・inventory readbackが動いている証拠だが、CP2/CP3、販売、settlement、payout、利益の完了証拠ではない。
+- 空き枠が無いので、新規submit、同一Agentの再submit、draft作成、枠を増やすための手動操作は行わない。`CAP_FULL`はhealthy idleであり、Capafy loop完了ではない。
+
+#### 更新後の原子cursor
+
+1. Capafyは自然審査で空きslotが出るまでread-only監視する。
+2. 空きslot後に既存ownerのCP2→CP3→`publish-remote-status`を一件だけ進め、同じoccurrenceのlisting/status/sale/fee/actual cost/settlement/payout/replay-zeroを結合する。
+3. PromptBaseは§150のとおり、FootballのLive化・PortfolioのApproved/Declined・Sales/settlementを自然readbackする。どちらも未確認のまま再送しない。
