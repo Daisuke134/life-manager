@@ -3467,3 +3467,9 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - Job Hunter registryは7 jobs中 `failed=2 / safely_fenced=5`。`job-search-daily`の最新occurrenceは`host_admission_deferred:resource_capacity_busy`（effect none、exit75）で、provider/browser前に停止している。
 - `mercor-revenue-application`の最新occurrenceは`host_admission_deferred:resource_effect_unknown`（application effect unknown、official readbackなし）。過去のhuman-required/公式readback不足fenceも保持されている。
 - これはJob Hunterの売上・案件・応募成功ではない。面接、本人確認、CAPTCHA、human-required条件は自動突破せず、CrowdWorks Paidの新release terminalが閉じるまでprovider操作を開始しない。
+
+### 126. Self-Build healthと実改善境界（2026-10-02 20:42 JST）
+
+- Self-Build registry 4 jobsはhealth上すべてhealthyだが、`effect=none/not_applicable`であり、これはprocess healthのみである。
+- `self-improve-evolve`の直近run reportsは`status=skipped`、`external_actions=0`、`null_reason=verified_writeback_not_ready_until_gate_14`。Telegram deliveryは届いているが、patch→review→main→release→natural outcomeの自己改善証拠ではない。
+- よってSelf-Build/self-improveを完了扱いせず、CrowdWorks/Job Hunterの収益証拠後に、実際のfailure→patch→verified writebackをimprovement IDで閉じる。
