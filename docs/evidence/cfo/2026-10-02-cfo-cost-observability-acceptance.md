@@ -76,6 +76,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 - Capafy analytics artifact observed at `2026-10-02T06:07:57Z` was fresh.
 - Canonical Financial Manager last-7-day verified Capafy revenue: `USD 19.94`.
 - Mobile app artifact was present but did not yield a verified supported-currency revenue amount.
+- Source coverage in the same close: `capafy=fresh` (18 verified records), `mobile-apps=empty` (no supported-currency receipt).
 - This source-specific figure is intentionally separate from the strict B7 company total, which remains `unknown` until its receipt-backed coverage envelope is complete.
 
 ## Acceptance matrix

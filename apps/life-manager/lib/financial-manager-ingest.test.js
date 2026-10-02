@@ -129,6 +129,9 @@ test("capafy revenue trend and mobile-apps RevenueCat revenue land as verified b
 
   assert.equal(result.sources.capafy, "observed_verified");
   assert.equal(result.sources.mobileApps, "observed_verified");
+  assert.deepEqual(result.businessSourceCoverage.map((source) => [source.source, source.state]), [
+    ["capafy", "fresh"], ["mobile-apps", "fresh"],
+  ]);
   const records = await store.read({ subjectId: "tenant-1" });
   const capafyRevenue = records.find((r) => r.source.provider === "capafy" && r.kind === "business_revenue");
   assert.equal(capafyRevenue.amount_minor, 398);

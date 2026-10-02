@@ -216,12 +216,21 @@ async function ingestFinancialRecords(options) {
       records.push(...agentRevenueRecords);
       agentRevenueReadState = "observed";
       sources.agentEconomy = receipts.length ? "observed_verified" : "empty";
+      businessSourceCoverage.push({
+        source: "agent-economy", state: receipts.length ? "fresh" : "empty",
+        observedAt: recordedAt, receiptCount: agentRevenueRecords.length,
+        gapReason: receipts.length ? null : "source_empty",
+      });
     }
   } catch {
     agentReceipts = [];
     agentRevenueRecords = [];
     agentRevenueReadState = "unavailable";
     sources.agentEconomy = "unavailable";
+    businessSourceCoverage.push({
+      source: "agent-economy", state: "unavailable", observedAt: recordedAt,
+      receiptCount: 0, gapReason: "read_failed",
+    });
   }
 
   try {
@@ -239,9 +248,18 @@ async function ingestFinancialRecords(options) {
       }));
       records.push(...await projector(receipts));
       sources.marketplace = receipts.length ? "observed_verified" : "empty";
+      businessSourceCoverage.push({
+        source: "marketplace", state: receipts.length ? "fresh" : "empty",
+        observedAt: recordedAt, receiptCount: receipts.length,
+        gapReason: receipts.length ? null : "source_empty",
+      });
     }
   } catch {
     sources.marketplace = "unavailable";
+    businessSourceCoverage.push({
+      source: "marketplace", state: "unavailable", observedAt: recordedAt,
+      receiptCount: 0, gapReason: "read_failed",
+    });
   }
 
   try {
@@ -257,9 +275,18 @@ async function ingestFinancialRecords(options) {
       const capafyRecords = capafyRowsToFinancialRecords(rows, { subjectId, observedAt: recordedAt });
       records.push(...capafyRecords);
       sources.capafy = capafyRecords.length ? "observed_verified" : "empty";
+      businessSourceCoverage.push({
+        source: "capafy", state: capafyRecords.length ? "fresh" : "empty",
+        observedAt: recordedAt, receiptCount: capafyRecords.length,
+        gapReason: capafyRecords.length ? null : "source_empty",
+      });
     }
   } catch {
     sources.capafy = "unavailable";
+    businessSourceCoverage.push({
+      source: "capafy", state: "unavailable", observedAt: recordedAt,
+      receiptCount: 0, gapReason: "read_failed",
+    });
   }
 
   try {
@@ -274,9 +301,18 @@ async function ingestFinancialRecords(options) {
       const mobileAppsRecords = mobileAppsRowsToFinancialRecords(rows, { subjectId, observedAt: recordedAt });
       records.push(...mobileAppsRecords);
       sources.mobileApps = mobileAppsRecords.length ? "observed_verified" : "empty";
+      businessSourceCoverage.push({
+        source: "mobile-apps", state: mobileAppsRecords.length ? "fresh" : "empty",
+        observedAt: recordedAt, receiptCount: mobileAppsRecords.length,
+        gapReason: mobileAppsRecords.length ? null : "source_empty",
+      });
     }
   } catch {
     sources.mobileApps = "unavailable";
+    businessSourceCoverage.push({
+      source: "mobile-apps", state: "unavailable", observedAt: recordedAt,
+      receiptCount: 0, gapReason: "read_failed",
+    });
   }
 
   let created = 0;
