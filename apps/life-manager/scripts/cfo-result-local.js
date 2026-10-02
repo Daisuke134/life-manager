@@ -56,6 +56,7 @@ async function runResultCfo(options) {
       const sourceEnv = { ...(options.env || process.env) };
       if (options.capafyAnalyticsPath) sourceEnv.LM_CFO_CAPAFY_ANALYTICS = String(options.capafyAnalyticsPath);
       if (options.mobileAppsBusinessOutcomesPath) sourceEnv.LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES = String(options.mobileAppsBusinessOutcomesPath);
+      if (options.affiliateReadbackPath) sourceEnv.LM_CFO_AFFILIATE_READBACK = String(options.affiliateReadbackPath);
       if (Array.isArray(options.agentReceiptPaths) && options.agentReceiptPaths.length) {
         sourceEnv.LM_CFO_AGENT_ECONOMY_RECEIPTS = options.agentReceiptPaths.join(path.delimiter);
       }

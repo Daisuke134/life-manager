@@ -8,7 +8,7 @@ const test = require("node:test");
 
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
-const { agentReceiptPathsFromEnv, runHourlyCfo } = require("./cfo-hourly-local.js");
+const { agentReceiptPathsFromEnv, affiliateReadbackPathFromEnv, runHourlyCfo } = require("./cfo-hourly-local.js");
 
 function revenue(overrides = {}) {
   const subjectId = overrides.subject_id || "dais-local";
@@ -239,4 +239,19 @@ test("CFO defaults Agent Economy to its portable Life Manager state and accepts 
   assert.deepEqual(agentReceiptPathsFromEnv({
     REVENUE_RECEIPT_JOURNAL: "/state/revenue.jsonl",
   }), ["/state/revenue.jsonl"]);
+});
+
+test("CFO defaults Affiliate to the PartnerStack report artifact and accepts overrides", () => {
+  assert.equal(
+    affiliateReadbackPathFromEnv({}),
+    path.join(os.homedir(), ".local/state/life-manager/affiliate/provider-reports/partnerstack/latest.json"),
+  );
+  assert.equal(
+    affiliateReadbackPathFromEnv({ LM_CFO_AFFILIATE_READBACK: "/state/partnerstack.json" }),
+    "/state/partnerstack.json",
+  );
+  assert.equal(
+    affiliateReadbackPathFromEnv({ LM_CFO_AFFILIATE_LEDGER: "/state/legacy-ledger.json" }),
+    "/state/legacy-ledger.json",
+  );
 });
