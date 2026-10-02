@@ -3974,3 +3974,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Connectorはcandidate発生時だけpre-effect identity→single registration→provider receipt/mail→Google Calendar event→replay-zeroを閉じる。providers exhaustedを失敗や登録成功へ変換しない。
 2. Fundraiserはexact official provider readbackなしに旧unknownを再送・closeしない。human-required intakeはholdし、external funding/payout receiptまで収益扱いしない。
 3. 次はCoconala/Lancers/CrowdWorks/Job Hunterのpaid contract、settlement、fee、payoutをprovider別にreadbackする。その後Self-Build→Investmentへ進む。
+
+### 167. Coconala / Lancers / CrowdWorks paid financial readback（2026-10-03 02:50 JST）
+
+- `hf-gig-paid-direct`は099 releaseのlatest attemptがcapacity busyでentrypoint前停止、effect none。Coconala official financial source/settlement/payout artifactは無く、thread/application/storefront状態を売上へ数えない。
+- Lancers official financial readbackは`observed_at=2026-10-02T15:13:00Z`、JPY、records `0`、sales `0`、net `0`、pagination complete。source自身はその観測時点までhistorical/trailing completeとするが、17:50 snapshotへ延長するとB0 adapterはhistorical/trailing=`missing_coverage`、as-of=`missing_category`を返す。15:13時点のemptyを現在期間の利益0へ延長しない。
+- CrowdWorks official financial readbackは`observed_at=2026-10-02T15:04:13Z`、records `1`、pagination complete。1 receiptは`verification_state=verified / status=settled / occurred_at=2026-09-30`で、componentsは`settled_external_revenue JPY12`と`provider_fee JPY2`、net JPY10。これは外部platform receiptとして採用するが、今日の売上ではなく、bank payout receiptでもない。
+- CrowdWorks envelopeはhistorical/trailing coverageがincompleteで、17:50 snapshotのadapter出力も1 receiptに加えて`missing_coverage` 2件と`missing_category` 1件を返す。JPY10を全期間・月次・今日のprofitへ外挿せず、payout/actual costなしに完全なnet profitをclaimしない。
+- current healthはLancers Paidがe1 releaseでterminal passだがmoney effect unknown/receiptなし、CrowdWorks Paidが099 releaseでcapacity busy/safely fenced。process successやartifact作成をbank settlementへ置き換えない。
+
+#### 更新後の原子cursor
+
+1. CrowdWorks JPY12 gross/JPY2 fee/JPY10 platform-netをone settled external receiptとしてCFOへ保持し、complete coverageとpayoutを別gateにする。
+2. Lancers/Coconalaはfresh complete official readbackが得られるまでcurrent revenue/profitをunknownのまま保持する。application/replyをpaymentへ数えない。
+3. exact payout receiptとactual costを追加し、paid E2Eを再計算可能にした後だけlane profitを閉じる。次はSelf-Buildのpromotion/rollback/readback、その後Investmentへ進む。
