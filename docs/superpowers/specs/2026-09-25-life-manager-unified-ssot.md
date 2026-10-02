@@ -3479,3 +3479,9 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - Investment registryは`alpaca-investment-live`/`alpaca-investment-paper`/cross-venue reportが`safely_fenced`、`investment-strategy-validation`が`telemetry_gap`。Paperの最新occurrenceも`resource_effect_unknown`（money effect、公式broker receiptなし）である。
 - AT-13〜AT-29の30 round trips、buy/sell/fee/slippage/system cost/replay-zeroは未完。live注文、funding、送金、上限増額は行わない。
 - Paper/liveは含み損益やprocess healthを利益証拠に昇格させず、自然sell→公式broker readback→費用差引→重複0が揃ってから再計算する。
+
+### 128. CFO business source coverage（2026-10-02 20:47 JST）
+
+- CFO registry 3 jobsは`safely_fenced=2 / effect_unknown=1`。直近 delivered snapshotはMoneytree personal asset balanceのみで、business revenue/cost/profit/payoutは空である。
+- economic source coverageはAgent Economy funnel/financial receiptがverifiedだがcostはunavailable。Capafy/Mobile/Writer/Affiliate/Marketplace/Investment/Job Hunter/Self-Buildのfinancial/cost sourcesはnot_configuredまたはmissing。したがって14-loop settled net P&L、MRR、runwayはunknownであり、0円や利益へ丸めない。
+- CFO completionは、各ownerの公式settlement/fee/refund/model/browser/server actual costを同一periodへjoinし、unknownを残さず再計算できること。現時点では未完。
