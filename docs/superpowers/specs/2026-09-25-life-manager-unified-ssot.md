@@ -3454,3 +3454,10 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - 先行Application owner PID `89309`は終了し、別のApplication owner PID `363`（旧release `4121f44751`）が同じ`provider-browser.lock`を取得した。Paid kernel PID `95971`（新release `119854c3c6`）とReply PID `94377`は待機中である。
 - `crowdworks-revenue-paid`の新release natural occurrenceはまだ公式terminal/readbackを返していない。lock保持者の交代はprocess healthであり、外部応募・支払・納品の成功ではない。
 - lockを奪わず、Application/Reply/Paidのowner自然終了を待つ。effect_unknownを再送・closeしない。
+
+### 124. CrowdWorks shared helper release apply（2026-10-02 20:08 JST）
+
+- PR #6493（merge `79d9d2e710`）で、exact pre-effect proof後にAdmissionが先に`released/effect_unknown=0`になった場合もreconcileを冪等成功にするruntime修正をmainへ統合した。OSS manifest digestも同一PRで更新し、CI全checksがPASSした。
+- immutable release `/Users/anicca/loops/releases/20261002T202925-79d9d2e7`を作成し、CrowdWorks Paidへtarget apply、loaded SHA/ProgramArgumentsをreadbackした。
+- kickstart後の最初のoccurrence `18dab3143b5cf4b8-78685`はcapacity busyでprovider前に停止。次のnew-release processは現在Application ownerのbrowser lock待ちで、official receipt/readbackなし。
+- 旧occurrenceのexact markerはDB上`released/effect_unknown=0`まで閉じられている。新releaseの自然Paid terminalが確認できるまで、Job Hunterへ進めない。
