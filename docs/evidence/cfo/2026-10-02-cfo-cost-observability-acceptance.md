@@ -71,6 +71,14 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 
 Interpretation: the collector is running and preserving the gaps, but it cannot honestly produce settled MRR/net/revenue until the configured rails provide current receipt-backed coverage.
 
+### Google Cloud billing access boundary
+
+- Billing account `017949-09509F-6A3FB6`: open
+- Project `anicca-461216`: billing enabled
+- Current gcloud identity: billing-admin permission confirmed read-only
+- Cost Table browser route reached normal Google sign-in and then the approved Google Prompt path; current screen asks for `[はい]` in the Gmail app on the registered iPhone.
+- No Cost Table CSV was downloaded or mutated; invoice screenshot remains the only invoice-total evidence.
+
 ### Canonical source-specific artifact readback
 
 - Capafy analytics artifact observed at `2026-10-02T06:07:57Z` was fresh.
