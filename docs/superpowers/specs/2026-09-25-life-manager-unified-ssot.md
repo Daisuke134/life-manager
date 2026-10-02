@@ -2757,6 +2757,21 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. Declinedの場合は理由を保存し、同じDraftカード誤選択修正済みreleaseで次の内容修正cursorを作る。
 4. Capafy 4243672453のunder_review→online/rejected readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
+
+- PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
+- Reels Hook Labの掲載価格は`$4.99`だが、Scheduledは公開・販売ではない。P5cは公開URL/live、sale、fee、settlement、payout、replay-zero未達のまま維持する。
+- Capafy `publish-list`公式readback（観測`2026-10-02T06:47Z`）は52件中`online=47 / under_review=3 / review_rejected=2`で、審査枠は満杯。under_reviewはAgent `4813383030`、`4243672453`、`4763185052`である。
+- Capafy `GET /agent/sales/trend`直近7日公式readbackは注文21件、表示revenue/netRevenue合計`$21.93`（2026-09-25〜10-01、9/30・10/1は注文があるがrevenue `$0.00`）。`GET /agent/developer/payout-info`は`balancePayout=$59.00`、`balancePending=$15.64`、`balanceConfirmed=$1.54`、`totalPayout=$0.00`、currency=USDを返した。これは公式server残高であり、外部銀行着金・利益・self-fundingの証拠ではない。
+- 上記Capafy readbackはledgerへ書き込まず、2026-10-01の既存偽0行も削除・上書きしていない。payout fail-closed修正後の専用自然reconcile receiptは別途必要である。
+
+#### 更新後の原子cursor
+
+1. PromptBaseはScheduled→公開URL/liveを自然dashboardで確認し、公開後だけSales item/order、fee、settlement、payout、replay-zeroを閉じる。
+2. Capafyはunder_review枠が空くまでread-only公式statusを監視し、空いた時だけ既存ownerの自然CP2/CP3 submit→remote-statusを一件閉じる。同一Agentの再送・manual ledger修正はしない。
+3. Writer/Ebook/AffiliateのAGMSG read-only監査結果を統合し、最初のsource-gap修正を専用worktreeで実装する。CFO 14-loop P&Lはunknownを0へ変換しない。
+4. Mobile 17 targetの`62f6ac6a` loaded readbackと新release後の自然Postiz receiptを順に閉じる。TaskMarket/BlockRunは後段順位を維持する。
+
 ### 76. Capafy/PromptBaseの審査中readback継続（2026-10-02 12:46 JST）
 
 - Capafy official remote-statusを同一Agent/versionで再取得した。Agent 4243672453 / version 2105842148210266112は platform_status=1、audit_status=2、is_confirmed_skills=true、is_confirmed_config_keys=true、package_uploaded=true、status_reason=under_review、can_report_published=falseで変化なし。inventoryは52件（online=47、under_review=2、review_rejected=2、draft=1）で、販売・payout完了とは数えない。
