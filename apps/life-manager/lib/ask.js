@@ -25,6 +25,7 @@ const { mailAvailable } = require("./mail-availability.js");
 const { interpretCalendarEvent, PLACE_QUESTION } = require("./calendar-interpreter.js");
 const { recordUsageEvent } = require("./usage-event.js");
 const { geminiUsageEvents } = require("./gemini-usage.js");
+const { searchOpenPoi } = require("./place-search-openpoi.js");
 
 async function recordGeminiUsage(response, context = {}) {
   const injected = context.recordUsageEvent;
@@ -165,16 +166,33 @@ function closedOnlineAskMessage(event, interpretation, replyToken) {
 // NOTE: this legacy endpoint requires the key as a query param (no header alternative; the v1 API that
 // supports header-auth is not enabled on this GCP project). The key is a Maps-restricted browser key,
 // not a secret credential, and we never log this URL — see SECURITY note at the call site.
-async function placesSearch(query, mapsKey) {
-  if (!mapsKey || !query) return [];
+async function placesSearch(query, mapsKey, options = {}) {
+  if (!query) return { results: [], attributions: [], provider: "none" };
+  const poiSearch = options.openPoiSearch || searchOpenPoi;
+  if (poiSearch && options.openPoiSearch !== null) {
+    try {
+      const poi = await poiSearch(query, { fetchImpl: options.openPoiFetch });
+      const results = (poi.candidates || []).filter((candidate) => String(candidate.address || "").trim())
+        .slice(0, 5).map((candidate) => ({ name: candidate.name, address: candidate.address }));
+      if (results.length) {
+        return { results, attributions: poi.attributions || [], provider: "openpoi" };
+      }
+    } catch { /* OpenPOI is the free primary; Google remains an explicit fallback. */ }
+  }
+  if (!mapsKey || !query || options.allowGoogleFallback === false) {
+    return { results: [], attributions: [], provider: "openpoi" };
+  }
   try {
     // No hardcoded language/region — this must work for ANY user worldwide. Places returns each
     // venue's address in its own locale; the agent adds geographic context (the user's home city) to
     // its query itself when it needs to disambiguate.
     const r = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
     const j = await r.json();
-    return (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" }));
-  } catch { return []; }
+    return {
+      results: (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" })),
+      attributions: [], provider: "google",
+    };
+  } catch { return { results: [], attributions: [], provider: "google" }; }
 }
 
 // The agent's two tools: it searches Places (as many queries as it wants), then submits its verdict.
@@ -209,7 +227,12 @@ const RESOLVE_TOOLS = [{
 // (real venue found) | { kind: "ask" } (a human must tell us). The agent classifies online itself —
 // "they are LLM agents, they should know" (Dais 2026-06-23): an event like "藤井さんと電話オンライン"
 // is online and must never trigger a where-is-it question.
-async function agentResolveLocation(event, { home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter }) {
+async function agentResolveLocation(event, {
+  home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter,
+  openPoiSearch: poiSearch, openPoiFetch, geminiRaw: rawGemini,
+}) {
+  let openPoiAttributions = [];
+  const raw = rawGemini || geminiRaw;
   const contents = [{
     role: "user",
     parts: [{ text:
@@ -251,7 +274,7 @@ Start: ${JSON.stringify((event.start || {}).dateTime || "")}
 User's home address: ${JSON.stringify(home || "")}` }],
   }];
   for (let turn = 0; turn < 5; turn++) {
-    const j = await geminiRaw({ contents, tools: RESOLVE_TOOLS, generationConfig: { temperature: 0 } }, geminiKey,
+    const j = await raw({ contents, tools: RESOLVE_TOOLS, generationConfig: { temperature: 0 } }, geminiKey,
       { tenantId: uid, feature: "ask_resolve_location", recordUsageEvent: usageWriter });
     const parts = j?.candidates?.[0]?.content?.parts || [];
     const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);
@@ -264,13 +287,18 @@ User's home address: ${JSON.stringify(home || "")}` }],
         if (a.online) return { kind: "online" };
         if (a.confident && a.location && String(a.location).trim()) {
           const resolvedFrom = ["location_field", "description", "web_search"].includes(a.source) ? a.source : "web_search";
-          return { kind: "filled", location: String(a.location).trim(), resolvedFrom };
+          return { kind: "filled", location: String(a.location).trim(), resolvedFrom, attributions: openPoiAttributions };
         }
         return { kind: "ask" };
       }
       if (c.name === "places_search") {
-        const res = await placesSearch((c.args || {}).query || "", mapsKey);
-        responses.push({ functionResponse: { name: "places_search", response: { results: res } } });
+        const res = await placesSearch((c.args || {}).query || "", mapsKey, {
+          openPoiSearch: poiSearch, openPoiFetch,
+        });
+        if (res.provider === "openpoi") openPoiAttributions = res.attributions || [];
+        responses.push({ functionResponse: {
+          name: "places_search", response: { results: res.results, attributions: res.attributions },
+        } });
       }
     }
     contents.push({ role: "user", parts: responses });
@@ -385,7 +413,8 @@ async function recallOrResolve(event, opts) {
   if (!mem && event.recurringEventId) mem = await recall(opts.uid, placeKey(event.summary), opts.supaUrl, opts.supaKey);
   if (mem) return { kind: "filled", location: mem, fromMemory: true };
   return await resolve(event, { home: opts.home, mapsKey: opts.mapsKey, geminiKey: opts.geminiKey,
-    uid: opts.uid, recordUsageEvent: opts.recordUsageEvent });
+    uid: opts.uid, recordUsageEvent: opts.recordUsageEvent,
+    openPoiSearch: opts.openPoiSearch, openPoiFetch: opts.openPoiFetch, geminiRaw: opts.geminiRaw });
 }
 
 // Returns { autofilled, asked, resolved }.
@@ -415,6 +444,7 @@ async function askTick(uid, opts) {
     const res = await recallOrResolve(event, {
       uid, supaUrl, supaKey, home: opts.home, mapsKey, geminiKey,
       recall: opts.recall, recordUsageEvent: opts.recordUsageEvent,
+      openPoiSearch: opts.openPoiSearch, openPoiFetch: opts.openPoiFetch,
       resolve: interpretation.decision === "ask_closed" ? async () => ({ kind: "ask" }) : opts.resolve,
     });
     if (res.kind === "online") {
@@ -646,6 +676,7 @@ async function handleInboundReply(token, replyText, opts = {}) {
 
 module.exports = {
   geminiJson,
+  placesSearch,
   askTick, recallOrResolve, agentResolveLocation, agentSearchCandidate, closedAskMessage,
   closedOnlineAskMessage, semanticQuestionKey,
   agentMatchReply, claimAsk, unclaimAsk, recordResolution, handleAskCallback, lookupAskCandidate,

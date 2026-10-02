@@ -17,6 +17,19 @@ test("directionsRoute keeps the measured 25-second default Transit budget", () =
   assert.equal(travel.DEFAULT_TRANSIT_TIMEOUT_MS, 25_000);
 });
 
+test("geocodeAddress reads persistent cache before any paid Google request", async () => {
+  const originalFetch = global.fetch;
+  let calls = 0;
+  global.fetch = async () => { calls += 1; throw new Error("Google geocode must not run"); };
+  try {
+    const value = await travel.geocodeAddress("東京都 渋谷区", "mapsKey", {
+      options: { _geocodeStore: { get: async () => ({ lat: 35.6, lon: 139.7, provider: "openpoi" }) } },
+    });
+    assert.deepEqual(value, { lat: 35.6, lon: 139.7, provider: "openpoi" });
+    assert.equal(calls, 0);
+  } finally { global.fetch = originalFetch; }
+});
+
 test("parseGeoLiteral accepts only finite in-range coordinate literals", () => {
   assert.deepEqual(travel.parseGeoLiteral("geo:35.681,139.767"), { lat: 35.681, lon: 139.767 });
   for (const value of [

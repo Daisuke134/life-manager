@@ -14,6 +14,7 @@ const {
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
 const { recordUsageEvent } = require("./usage-event.js");
+const { createSupabaseGeocodeStore } = require("./geocode-cache.js");
 
 const GOOGLE_DIRECTIONS_EST_USD = 0.005; // list price per request after free cap, checked 2026-09-06
 const GOOGLE_GEOCODING_EST_USD = 0.005;
@@ -280,6 +281,7 @@ const _geoMemo = new Map();
 // Returns {lat,lon} or null. Injected in tests via opts._geocode.
 async function geocodeAddress(addr, mapsKey, usage = {}) {
   if (!addr || !mapsKey) return null;
+  const persistentStore = usage.options && (usage.options._geocodeStore || usage.options.geocodeStore);
   const memo = _geoMemo.get(addr);
   if (memo && typeof memo === "object" && Object.hasOwn(memo, "value")) {
     const transient = ["network", "provider_5xx", "timeout"].includes(memo.failureClass);
@@ -287,6 +289,15 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
       : transient ? GEOCODE_TRANSIENT_TTL_MS : GEOCODE_NEGATIVE_TTL_MS;
     if (Date.now() - memo.computedAt < ttl) return memo.value;
     _geoMemo.delete(addr);
+  }
+  if (persistentStore && typeof persistentStore.get === "function") {
+    try {
+      const cached = await persistentStore.get(addr);
+      if (cached) {
+        _geoMemo.set(addr, { value: cached, computedAt: Date.now(), failureClass: null });
+        return cached;
+      }
+    } catch { /* persistent cache is an optimization; provider read remains authoritative */ }
   }
   try {
     const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
@@ -304,6 +315,9 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
       computedAt: Date.now(),
       failureClass: value ? null : providerFailureClass(response, j && j.status),
     });
+    if (persistentStore && typeof persistentStore.put === "function") {
+      try { await persistentStore.put(addr, value || { status: "negative", provider: "google" }); } catch { /* best effort */ }
+    }
     return value;
   } catch {
     await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
@@ -311,6 +325,9 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
       providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
       meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
     _geoMemo.set(addr, { value: null, computedAt: Date.now(), failureClass: "network" });
+    if (persistentStore && typeof persistentStore.put === "function") {
+      try { await persistentStore.put(addr, { status: "negative", provider: "google", ttlMs: GEOCODE_TRANSIENT_TTL_MS }); } catch { /* best effort */ }
+    }
     return null;
   }
 }
@@ -629,9 +646,11 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _geocodeStore, _cacheFetch, gmailAccountId } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
+  const geocodeStore = _geocodeStore || (supaUrl && supaKey
+    ? createSupabaseGeocodeStore({ supaUrl, supaKey, fetchImpl: _cacheFetch || global.fetch }) : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId });
   const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId);
   let inserted = 0, checked = 0, skipped = 0;
@@ -679,7 +698,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
         const allowanceState = {};
         const routeOpts = { uid, timezone: routeTimezone, supaUrl, supaKey, eventId: evKey, purpose: "go",
           _allowanceState: allowanceState, _reserveManagedAction, _releaseManagedAction,
-          _deferAllowanceRelease: true, _routeCache };
+          _deferAllowanceRelease: true, _routeCache, _geocodeStore: geocodeStore };
         if ((_directionsRoute || _directionsMinutes) && typeof _reserveManagedAction === "function") {
           const receipt = await _reserveManagedAction(uid, evKey, supaUrl, supaKey);
           allowanceState.receipt = receipt && receipt.reservationToken ? receipt : null;
@@ -810,7 +829,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       : await directionsFn(venue, home, mapsKey, ev.endMs, nowMs, /* departureMode= */ true, {
       uid, timezone: routeTimezone, supaUrl, supaKey, eventId: evKey, purpose: "return",
       _allowanceState: returnAllowanceState, _reserveManagedAction, _releaseManagedAction,
-      _routeCache,
+      _routeCache, _geocodeStore: geocodeStore,
     });
     if (retMins == null) {
       skipped++;
