@@ -86,6 +86,31 @@ def test_inventory_observation_failure_is_retryable_without_provider_effect(tmp_
     assert "--owner crowdworks-revenue-paid" in args_file.read_text(encoding="utf-8")
 
 
+def test_pre_effect_handoff_observation_failure_is_retryable(tmp_path: Path):
+    fake_owner, _ = _fake_tree(
+        tmp_path,
+        {
+            "status": "ok",
+            "effect": 0,
+            "failed": 1,
+            "pending": 0,
+            "items": [{
+                "work_id": "63942104",
+                "status": "failed",
+                "effect": 0,
+                "failed": 1,
+                "pre_effect": True,
+                "error_detail": "crowdworks_paid_handoff_unavailable",
+            }],
+        },
+    )
+    args_file = tmp_path / "reconcile.args"
+    result = _run(fake_owner, tmp_path / "state", args_file)
+
+    assert result.returncode == 75
+    assert "--owner crowdworks-revenue-paid" in args_file.read_text(encoding="utf-8")
+
+
 def test_item_failure_after_mutation_is_not_downgraded_to_retryable(tmp_path: Path):
     fake_owner, _ = _fake_tree(
         tmp_path,
