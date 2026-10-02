@@ -2815,6 +2815,20 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. Contract-work（Coconala→Lancers→CrowdWorks→Job Hunter）のpaid contract/readbackを順に閉じ、Self-Build、Investment、CFO、TaskMarket/BlockRun、cloud/self-fundingへ進む。
 4. 収益・利益・MRR・financial independenceは、settled external revenueとactual costが同一期間でjoinできるまでunknownのままにする。
 
+### 97. Contract-workのpaid/readback境界（2026-10-02 16:20 JST）
+
+- `lancers-revenue-application`はoccurrence `18da280dd0d58308-45202`で`entrypoint_exit_1 / effect_status=unknown / official_readback_ref=null`。`lancers-revenue-paid`も`18daa462e5bbb9c8-42935`で同じ境界。provider receipt・buyer-visible contract・settlementは未確認で、blind retryしない。
+- `lancers-revenue-work-sync`はexit 0でも`effect_class=none`のprocess healthであり、paid contract/readbackの完了証拠ではない。
+- `crowdworks-revenue-application`はexit 0だが`effect_status=unknown / admission_effect_unknown=true`、`crowdworks-revenue-paid`はoccurrence `18daa425e6836730-15803`で`entrypoint_exit_1 / official_readback_ref=null`。`crowdworks-revenue-reply`のpassもbuyer payment・納品・settlementを証明しない。
+- `job-search-inbox`はoccurrence `18daa37396ba9fc8-93732`でexit 78/`entrypoint_exit_1`、next_action=`reconcile_owner`。Mercor application/paidは`host_admission_deferred:resource_effect_unknown`でreceiptなし。候補・process healthをpaid incomeへ数えない。
+
+#### 更新後の原子cursor
+
+1. 各effect_unknown/entrypoint failureの同一occurrenceを公式provider/readbackで照合し、receiptが無いまま再送・再応募しない。
+2. Lancers/CrowdWorks/Job Hunter/Mercorは、buyer-visible acceptance、settlement、fee、actual cost、duplicate-zeroが同じowner receiptに揃った案件だけをpaid完了へ進める。
+3. human-required interview/KYC/CAPTCHA/本人確認はholdし、fundraiserと同じく自動突破しない。
+4. paid contractのsourceが揃った後にSelf-Build→Investment AT-13〜AT-29→CFO 14/14→TaskMarket/BlockRun→cloud/self-fundingへ進む。
+
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
 - PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
