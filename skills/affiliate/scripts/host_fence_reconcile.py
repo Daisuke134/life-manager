@@ -149,9 +149,15 @@ def _claim_ref(occurrence_id: str) -> str:
 def _effect_window(runtime_rows: list[dict], target: dict,
                    predecessor: dict) -> tuple[dict, dict, float, float]:
     claim_ref = _claim_ref(predecessor["occurrence_id"])
+    predecessor_run_id = predecessor["occurrence_id"].split(":", 1)[1]
     predecessor_reports = [
         row for row in runtime_rows
-        if row.get("phase") == "report" and claim_ref in row.get("evidence_refs", [])
+        if row.get("phase") == "report"
+        and (
+            claim_ref in row.get("evidence_refs", [])
+            or row.get("occurrence_id") == predecessor["occurrence_id"]
+            or row.get("run_id") == predecessor_run_id
+        )
     ]
     if len(predecessor_reports) != 1:
         raise EvidenceError("predecessor_report_not_unique")

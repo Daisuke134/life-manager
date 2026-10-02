@@ -109,6 +109,22 @@ def test_exact_fifo_window_builds_pre_effect_proof(tmp_path):
     assert result["evidence"]["tool_attempts_in_window"] == 0
 
 
+def test_predecessor_report_run_identity_is_accepted_without_stale_claim_ref(tmp_path):
+    module = load_module()
+    database, loop_state, affiliate_state, target = fixture(tmp_path)
+    events_path = loop_state / "events.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text().splitlines()]
+    rows[0]["run_id"] = "previous"
+    rows[0]["evidence_refs"] = ["lm-loop://affiliate-loop/previous/summary.json"]
+    write_jsonl(events_path, rows)
+
+    result = module.reconcile_host_fence(
+        database, loop_state, affiliate_state, occurrence_id=target,
+    )
+
+    assert result["state"] == "PROOF_READY"
+
+
 def test_cancelled_coalesced_occurrence_is_not_the_predecessor(tmp_path):
     module = load_module()
     database, loop_state, affiliate_state, target = fixture(tmp_path)
