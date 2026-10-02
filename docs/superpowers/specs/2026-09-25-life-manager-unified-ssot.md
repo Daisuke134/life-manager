@@ -2834,3 +2834,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. Writer money.sqlite3に新しいverified receiptが入った場合だけ、settled revenue/refund/feeを再計算する。
 3. Writer model/browser/infra costと他loop source gapsを接続し、14-loop net P&Lをcompleteへ近づける。
 4. CFO complete前に利益・MRR・self-fundingを宣言しない。TaskMarket/BlockRunは後段のまま。
+
+### 82. PromptBase Reels Hook LabのApproved/Scheduled公式readback（2026-10-02 12:55 JST）
+
+- Gmail公式通知（PromptBase noreply）でReels Hook Lab Win The Cover Frameの「approved and scheduled」をreadbackした。seller dashboardのカードもPendingからScheduledへ更新され、Prompt edit公式画面は「Your prompt has been approved and will go live on PromptBase soon.」を表示した。
+- Football Match AnalystはPendingのまま。Sales readbackは0件 / $0 net。Reelsの公開URLはまだ生成されておらず、launch schedule、公開listing、sale、settlement、payoutは未確認である。
+- したがってReelsの審査はApprovedまで進んだが、PromptBase収益閉路とP5c全体は未完了。Scheduledを売上・MRR・利益へ昇格させず、同一listingを再送しない。
+
+#### 更新後の原子cursor
+
+1. Reels Hook LabのScheduled→公開URL/liveを公式PromptBase pageでreadbackする。
+2. 公開後のsale、fee、model cost、settlement、payout、replay-zeroを公式Sales/payout記録で閉じる。
+3. Football Match AnalystのPending→Approved/Declinedを自然dashboard/Gmailで確認する。
+4. Capafy under_reviewとCFO source gapsを並列で継続し、TaskMarket/BlockRunは後段のまま。
