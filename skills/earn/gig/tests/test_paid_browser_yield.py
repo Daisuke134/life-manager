@@ -98,3 +98,28 @@ def test_browser_guard_release_cannot_remove_another_live_holder(tmp_path):
     )
     assert released.returncode == 0
     assert not lease.exists()
+
+
+def test_browser_guard_beat_atomically_preserves_process_identity(tmp_path):
+    guard = Path(__file__).parents[3] / "browser" / "browser-guard.sh"
+    lease_dir = tmp_path / "leases"
+    lease_dir.mkdir()
+    lease = lease_dir / "coconala_kosuke.lease"
+    original = {
+        "identity": "coconala:kosuke", "pid": os.getpid(), "host": "host",
+        "port": 9223, "uuid": "browser", "holder_start": "fixed-start",
+        "acquired_at": 1,
+    }
+    lease.write_text(json.dumps(original) + "\n")
+
+    completed = subprocess.run(
+        ["bash", str(guard), "beat", "coconala:kosuke"],
+        env={**os.environ, "AI_BROWSER_LEASE_DIR": str(lease_dir)},
+        capture_output=True, text=True, check=False,
+    )
+
+    assert completed.returncode == 0
+    updated = json.loads(lease.read_text())
+    assert updated["holder_start"] == "fixed-start"
+    assert updated["pid"] == os.getpid()
+    assert updated["acquired_at"] > 1

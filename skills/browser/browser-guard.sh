@@ -164,7 +164,8 @@ except FileExistsError:
 try:
     held = json.loads(open(lease, encoding="utf-8").read().strip().splitlines()[-1])
 except Exception:
-    held = None
+    print("invalid live lease", file=sys.stderr)
+    raise SystemExit(1)
 
 if held:
     age = time.time() - float(held.get("acquired_at") or 0)
@@ -195,15 +196,36 @@ PYEOF
     # Refresh the timestamp so a long-running holder is not presumed crashed.
     [ -n "$IDENTITY" ] || usage
     lease="$LEASE_DIR/$(printf '%s' "$IDENTITY" | tr '/:' '__').lease"
-    "$PY" - "$lease" <<'PYEOF' || true
-import json, sys, time
-lease = sys.argv[1]
+    control="${lease}.control"
+    "$PY" - "$lease" "$control" <<'PYEOF' || true
+import fcntl, json, os, sys, tempfile, time
+lease, control = sys.argv[1:3]
+control_fd = os.open(control, os.O_CREAT | os.O_RDWR, 0o600)
+fcntl.flock(control_fd, fcntl.LOCK_EX)
 try:
     row = json.loads(open(lease, encoding="utf-8").read().strip().splitlines()[-1])
 except Exception:
     raise SystemExit(0)
 row["acquired_at"] = int(time.time())
-open(lease, "w", encoding="utf-8").write(json.dumps(row, ensure_ascii=False) + "\n")
+directory = os.path.dirname(lease)
+fd, temporary = tempfile.mkstemp(prefix=".browser-lease-beat.", dir=directory)
+try:
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, lease)
+    directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+finally:
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
 PYEOF
     echo "BEAT $IDENTITY"
     exit 0 ;;
