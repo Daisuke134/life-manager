@@ -2617,3 +2617,18 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. claim後にstep1 diagnosticまたは公式PromptBase submission readbackを取得する。未確認なら再送しない。
 3. 他ownerで公式proofが取れたfenceだけを自然reconcilerで閉じ、capacity summaryの減少をreadbackする。
 4. Capafy利益/slot、Writer/Ebook/Affiliate、Mobile/Connector、CFOの独立read-only/source作業を並列し、TaskMarketは後段へ維持する。
+
+### 66. PromptBase P5cのJSON契約修正と即時kickstart境界（2026-10-02 11:21 JST）
+
+- P5cの自然実行 `promptbase-loop-daily:18da93c23b392dd8-36761` を正確に診断した。`gen_examples.py` はハウスの `model-runner.sh` を呼んでいたが、providerは自然文の見本を返し、共通 `agent_runner` のJSON契約が `result parse failed: no JSON object in provider result` として拒否していた。Codex provider自体は `gpt-5.6-terra`、usage `input=10818/output=872` まで到達したが、PromptBase browser/provider境界には未到達である。
+- 最小修正PR #6433（main `6bdb24697e8b794943fa61cece6e17b8d24e2681`）で、見本生成だけに一時 `{"type":"string"}` schemaを渡し、JSON文字列を自然文へunwrapするようにした。共通runnerの契約を弱めず、PromptBase focused suite `36 passed`、`py_compile`、`bash -n`、`git diff --check`、`bin/lm-loop-contract`を確認した。
+- immutable releaseは `/Users/anicca/loops/releases/20261002T110838-6bdb2469`、`RELEASE.json.sha=6bdb24697e8b794943fa61cece6e17b8d24e2681`。PromptBase plistの`ProgramArguments`と`LIFE_MANAGER_RELEASE_SHA`はこのSHAへloaded済みである。
+- 旧occurrence `18da93c23b392dd8-36761`は、1200秒安全buffer後の公式PromptBase dashboard readbackで対象title不在、`effected=false`、`proof_type=pre_effect`、`verified=true`となり、`--resolve`で`closed=true`になった。Sales readbackは` sales_count=0 / net_usd=0.0`、submission/receipt/payoutは0件である。
+- 修正版releaseの正式owner wrapperを一度だけ即時kickstartした。新occurrence `promptbase-loop-daily:18da95052e580910-34854`はrelease `6bdb24697e`で`exit=75 / host_admission_deferred:resource_capacity_busy`、provider/browser前に停止した。PromptBase snapshotなし、provider receipt/submission/browser effectなし。adapter再確認は`occurrence is not an effect_unknown row`であり、これは再送可能な外部効果不明ではなく、admission capacity待ちである。
+- 観測上の注意: 直接呼んだPromptBase adapterの`--resolve`はadmissionを正しく閉じるが、`lm-fence-reconciler/reconcile-calls.jsonl`へowner callを追記しない。そのためhealth projectionは旧runtime failureの`effect_status=unknown`を履歴として表示し続ける。active admission rowが無いこと、公式no-effect証拠があることを優先し、これを売上成功・P5c完了とは数えない。foundation TODOとして「owner reconciler経由のproofをhealth projectionへ結合する」を残す。
+
+#### 更新後の原子cursor
+
+1. `18da95052e580910-34854`を連打せず、次の自然eligible admissionで正式ownerがprovider/browser境界へ進むことをread-only観測する。
+2. providerへ到達したoccurrenceでは、model-runner evidence（JSON文字列unwrap後の英語4件distinct）、PromptBase管理画面/GmailのPending→Approved/Declined、公開listing、sale/settlement/payout、replay-zeroを同一occurrenceへ結合する。
+3. 次の自然runでもcapacity busyが続く場合は、容量上限変更・他owner fence削除・manual retryをせず、exact admission boundaryを更新する。TaskMarket/BlockRunは§55の後段順位を維持する。
