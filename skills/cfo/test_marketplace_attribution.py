@@ -93,6 +93,41 @@ class MarketplaceAttributionTest(unittest.TestCase):
         for row in rows:
             self.assertEqual(row, contract.validate_record(row))
 
+    def test_recent_official_readback_before_snapshot_is_fresh_within_daily_window(self):
+        payload = self.reobserve(self.fixture("marketplace-settled.json"), "2026-09-30T12:00:00Z")
+        rows = self.require_adapter().adapt(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertTrue(any(row["record_type"] == "receipt" for row in rows))
+        self.assertFalse(any(
+            row["record_type"] == "coverage" and row["reason"] == "stale_readback"
+            for row in rows
+        ))
+        coverage = {
+            row["projection"]: row for row in rows if row["record_type"] == "coverage"
+        }
+        self.assertEqual(
+            (coverage["historical"]["coverage_state"], coverage["historical"]["reason"]),
+            ("gap", "missing_coverage"),
+        )
+        self.assertEqual(
+            (coverage["trailing"]["coverage_state"], coverage["trailing"]["reason"]),
+            ("gap", "missing_coverage"),
+        )
+
+    def test_readback_window_may_start_before_requested_window(self):
+        payload = self.reobserve(self.fixture("marketplace-settled.json"), "2026-09-30T12:00:00Z")
+        payload["coverage"]["trailing"]["window_start"] = "2026-09-20T00:00:00Z"
+        payload = self.bind(payload)
+        rows = self.require_adapter().adapt(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertTrue(any(row["record_type"] == "receipt" for row in rows))
+        self.assertFalse(any(
+            row["record_type"] == "coverage" and row["reason"] == "stale_readback"
+            for row in rows
+        ))
+
     def test_payout_pending_self_payment_and_owner_deposit_never_become_revenue(self):
         rows = self.adapt("marketplace-settled.json")
         receipts = {
@@ -276,7 +311,7 @@ class MarketplaceAttributionTest(unittest.TestCase):
 
     def test_stale_readback_emits_no_receipts(self):
         payload = self.fixture("marketplace-settled.json")
-        payload["observed_at"] = "2026-09-30T23:59:59Z"
+        payload["observed_at"] = "2026-09-30T00:00:00Z"
         self.bind(payload)
         rows = self.require_adapter().adapt(
             payload,
@@ -289,6 +324,45 @@ class MarketplaceAttributionTest(unittest.TestCase):
              if row["record_type"] == "coverage" and row["projection"] != "as_of"},
             {"stale_readback"},
         )
+
+    def test_future_readback_emits_no_receipts(self):
+        payload = self.fixture("marketplace-settled.json")
+        payload["observed_at"] = "2026-10-01T00:00:01Z"
+        self.bind(payload)
+        rows = self.require_adapter().adapt(
+            payload,
+            snapshot_at=SNAPSHOT,
+            trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        self.assertEqual(
+            {row["reason"] for row in rows
+             if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+            {"stale_readback"},
+        )
+
+    def test_extreme_offset_timestamp_falls_back_to_read_failed_gap(self):
+        for observed_at in (
+            "0001-01-01T00:00:00+14:00",
+            "9999-12-31T23:59:59-12:00",
+        ):
+            with self.subTest(observed_at=observed_at):
+                payload = self.fixture("marketplace-settled.json")
+                payload["observed_at"] = observed_at
+                for window in payload["coverage"].values():
+                    window["window_end"] = observed_at
+                self.bind(payload)
+                rows = self.require_adapter().adapt(
+                    payload,
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+                self.assertEqual(
+                    {row["reason"] for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] != "as_of"},
+                    {"read_failed"},
+                )
 
     def test_embedded_and_itemized_provider_fee_cannot_be_counted_twice(self):
         payload = self.fixture("marketplace-settled.json")
