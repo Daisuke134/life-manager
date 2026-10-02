@@ -3961,3 +3961,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Mobile publicationはexact Postiz readbackなしに再投稿・fence close・bulk applyしない。current official postとidentityが一致したownerだけを一件ずつresolveする。
 2. ASC agreement missing/expiredはprovider legal bootstrapのhuman-required境界として保持する。agreement成立後にASC sales/proceeds/fee/payoutを取得し、RevenueCat funnelとproduct単位でjoinする。
 3. actual cost sourceを接続するまでMRR/grossからnet profitをclaimしない。次はConnectorのofficial Calendar/provider receiptをreadbackし、その後Fundraiserへ進む。
+
+### 166. Connector / Fundraiser fresh no-effect境界（2026-10-03 02:47 JST）
+
+- Connector latest occurrence `18dac6cb061840f8-22877`はrelease `e1a5a2ccee`、health=`healthy`、process=`pass`。ただしnative outcomeは`external_registration_status=not_attempted / provider_receipt_ref=null / confirmation_mail_ref=null / calendar_event_ref=null / safe_reason=providers_exhausted`、wake reportは`completed_no_effect`である。
+- Connectorのlatest discovery/rankingと現在wakeを混同しない。Peatixの`calendar_free_count=2`は2026-09-17の古い別wakeで、current wakeのregistration candidate/receiptではない。Google Calendar eventなしを登録成功へ昇格させず、candidateが発生するまでexternal effect 0を維持する。
+- Fundraiser latest occurrence `18dac52a0179c7d0-74119`はrelease `e1a5a2ccee`、application effect unknown、official readback/provider receiptなしで`safely_fenced`。`application-receipts.jsonl`は660行、内訳`human_checkpoint179 / ineligible42 / failure273 / submitted21 / submit_unknown7 / duplicate59 / evidence_incomplete23 / submitted_verified56`で前回から不変。
+- Fundraiser recent rowsはmanaged CDP WebSocket HTTP403でprovider form観測前に停止し、form mutation/upload/submit request/application effectは0。legacy `submitted_verified`はidentity/receipt不足のままで、funding、revenue、settlement、payoutへ数えない。CAPTCHA/KYC/面接を突破しない。
+
+#### 更新後の原子cursor
+
+1. Connectorはcandidate発生時だけpre-effect identity→single registration→provider receipt/mail→Google Calendar event→replay-zeroを閉じる。providers exhaustedを失敗や登録成功へ変換しない。
+2. Fundraiserはexact official provider readbackなしに旧unknownを再送・closeしない。human-required intakeはholdし、external funding/payout receiptまで収益扱いしない。
+3. 次はCoconala/Lancers/CrowdWorks/Job Hunterのpaid contract、settlement、fee、payoutをprovider別にreadbackする。その後Self-Build→Investmentへ進む。
