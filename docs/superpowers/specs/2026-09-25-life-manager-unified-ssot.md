@@ -4123,3 +4123,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. `coconala:kosuke`を同時に要求するApply/Paid/Reply/Reconcileのcadence・lease待ち・owner優先順位を既存browser contractから診断し、同一identityの長時間飢餓を最小修正する。running siblingをkillせず、provider/browser profileを直接共有しない。
 3. browser取得後の自然Applyでsource discovery→判断→single submit→公式applied roster→replay-zeroを閉じる。応募0/失敗を収益成功へ数えない。
 4. paid loopはcontract receipt→fee→settlement→payout→actual costまで閉じる。その後、SSOTの即時収益順どおりMobile→Connector→Fundraiser→他paid lanesへ進む。
+
+### 177. Coconala Apply自然runのprovider discovery復旧とidentity境界（2026-10-03 07:00 JST）
+
+- 最後の旧release row `18dad118c3aa4a38-19467`はPR #6508/main `b6f7b93142abbdb91e21c248f0e12df283c30418`のexact result proofで解放した。immutable b6 release上のdigest `f5b4d3c091d0bd531cf441891788ae7bf040d8d879762fc49de9fb824b592ccb`一致後に一度だけresolveし、直後のtarget applyは`admission_resumed=true / changed=true / ok=true`、loaded argv/plist/installed SHAがb6へ一致した。
+- b6初回自然run `18dad3e507fc01a8-8730`はbrowser identity busy 300秒でexit75。pre-effect markerが残ったためadmission `effect_unknown=1`は0件で、fence連鎖は再発しなかった。次run `18dad433798148d0-17728`はPaid/Reply sibling終了後にbrowser leaseを取得し、exit0、observed 21、judged 19、actionable 7、effect 0、readback 0、failed 7、pending 0、Telegram message ID `101798`。admission unknownは引き続き0。
+- 7 actionableの失敗内訳は5件が`pre_submit_aborted:authenticated_identity_capture:ParentContractError`、2件が`stale_snapshot`。parent commitのexact errorは5件すべて`authenticated_identity_readback_missing`、durable intentsは`retired_absent / pre_effect`で、外部submitは0。runtime成功・provider discovery成功と応募成功を分離する。
+- 成功しているReply/DM siblingはmodern Coconala path `/smartphone/users/<id>`を`/users/<id>`へ正規化するが、Apply identity captureは旧`/users/<numeric>`だけを認識していた。PR #6509をmain `2b7a2e835ff9c3f09a2b762a38aa7be006013e81`へmergeし、同じprovider-owned numeric path正規化を移植した。wrong origin、missing/non-numeric pathは引き続きfail-closed。関連59 tests、CI全件PASS、fresh reviewは`SHIP`。
+- 現在はb6 fleet apply PID `45872`がproduction apply資源を所有中。2b releaseは未生成で、Coconala ownerへidentity修正は未load。外部応募receipt、契約、settlement、payout、profitは未証明。
+
+#### 更新後の原子cursor
+
+1. PID `45872`のnatural terminal後、main `2b7a2e835f`由来immutable releaseのSHA/ALLを確認し、他applyと競合せず`hf-gig-apply-direct`をtarget applyする。
+2. 次の自然runでmodern authenticated identity evidence file、durable intent、single submit、Coconala applied roster exact request ID、effect/readback、replay-zeroを結合する。identity missingが続く場合はcandidate pathsをcredential非表示で構造化保存してDOM境界を再診断する。
+3. browser contentionはPaid=`critical_paid`を優先し、running paid/replyをkillしない。Apply/Reconcileの外側lease重複と300秒待ちを別の最小修正として診断する。
+4. Apply receipt後もcontract/fee/settlement/payout/actual costが無ければ収益完了としない。その後、Mobile→Connector→Fundraiser→他paid lanesの順へ戻る。
