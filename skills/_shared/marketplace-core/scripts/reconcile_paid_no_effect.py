@@ -86,6 +86,15 @@ def reconcile(*, state_root: Path, owner: str, occurrence: str,
             owner, occurrence, pre_effect_readback=lambda: proof,
             expected_state="claimed",
         )
+        # The paid kernel may release its admission claim before the owner
+        # persists the terminal report.  The exact marker still proves that
+        # no provider mutation was armed, so retry the same occurrence in the
+        # released state instead of leaving a false effect_unknown fence.
+        if not resolved:
+            resolved = resolve_pre_effect_occurrence(
+                owner, occurrence, pre_effect_readback=lambda: proof,
+                expected_state="released",
+            )
     return {**proof, "resolved": resolved}
 
 
