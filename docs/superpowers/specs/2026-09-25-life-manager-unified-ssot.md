@@ -3739,3 +3739,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 4. その後Writer→Ebook→Affiliate→Mobile→Connector→Fundraiser→Coconala→Lancers→CrowdWorks→Job Hunterの順に、外部効果・公式readback・settlement・fee・actual cost・duplicate-zeroを各owner単位で閉じる。human-required（面接、KYC、CAPTCHA、本人確認）は自動突破しない。
 5. Self-Buildの実patch→review→main→immutable release→natural outcome、Investment AT-13〜AT-29の30 round trips、CFO 14/14のsettled revenue/cost/net/MRR/runwayを順に閉じる。
 6. 最後にTaskMarket no-effect provider discovery→BlockRun x402 paid inference一件→DigitalOcean/Nosana/Akashの実費・復旧・surplus renewal→30日self-funding benchmarkを、wallet/treasury/receipt/ledger/replay-zero付きで証明する。
+
+### 150. PromptBase P5cの承認・公開・販売readback（2026-10-02 23:06 JST）
+
+- 既存ownerの`readback.py`を`interactive:dais` browser-guard leaseでread-only実行した。観測時刻は`2026-10-02T14:05:28Z`、tracked 3 listingの更新は`reels-hook-lab: scheduled→live`、`football-match-analyst: pending_review→scheduled`、`portfolio-tracker: pending_review`のままだった。PromptBase公式Salesは`0件 / $0.00 net / by_item={}`である。
+- Gmail公式read-only検索（`from:(promptbase.com OR noreply@ses.promptbase.com) newer_than:3d`）で、FootballのApproved/Scheduled通知（message `1a0fcca76887f3d5`）とReelsのLive通知（message `1a0fc40d6af58ca5`）を確認した。Reelsの旧Approved/Scheduled通知と旧Declined通知も存在するが、新規販売の証拠ではない。
+- 公開ページを同じleased browserでread-only確認した。Reels `https://promptbase.com/prompt/reels-hook-lab-win-the-cover-frame-4` はHTTP `200`でPromptBaseの公開タイトル・本文を返した。Footballの承認メール記載URL `https://promptbase.com/prompt/football-match-analyst-weekly-2` はHTTP `404 Item Not Found`で、Scheduledのためまだ公開されていない。したがって承認・Scheduled・公開・販売を混同しない。
+- P5cは「Reels公開済み／Football承認Scheduled／Portfolio審査中／販売0」で部分進捗に留まり、公開後のsale、fee、settlement、payout、replay-zeroは未closedである。同一listingの再送・編集は行っていない。
+
+#### 更新後の原子cursor
+
+1. Footballは同じlistingを再送せず、自然Gmail/dashboardでLiveまたはDeclinedを確認する。Liveになった時だけ公開URLのHTTP 200 readbackを再取得する。
+2. Portfolio Trackerは自然Gmail/dashboardでApprovedまたはDeclinedを確認する。Pendingを売上へ数えない。
+3. ReelsとFootballの公開listingについて、PromptBase Sales item/order→fee→settlement/payout→replay-zeroをlisting単位で閉じる。Salesが0の間はP5cを完了扱いしない。
