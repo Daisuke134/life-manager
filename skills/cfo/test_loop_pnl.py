@@ -109,6 +109,22 @@ class AlpacaTest(unittest.TestCase):
         self.assertEqual(payload["readback"]["orders_count"], 0)
         self.assertNotIn("outcomes", payload)
 
+    def test_alpaca_order_page_at_limit_fails_closed_without_cursor_proof(self):
+        pages = {
+            "/v2/account": {"id": "acct-1", "cash": "0", "currency": "USD"},
+            "/v2/orders": [{} for _ in range(500)],
+        }
+
+        def get(url, headers):
+            from urllib.parse import urlparse
+            return pages[urlparse(url).path]
+
+        with self.assertRaisesRegex(ValueError, "alpaca_orders_pagination_unknown"):
+            m.build_alpaca_readback(
+                trailing_start=TRAILING_START, get=get,
+                api_key="key", api_secret="secret", observed_at=SNAPSHOT,
+            )
+
     def test_fifo_realized_and_fees_for_the_jst_day(self):
         entries = list(m.alpaca_entries(fixture("alpaca_activities.json"), DAY))
         self.assertEqual(sums(entries), {

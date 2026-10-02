@@ -772,6 +772,8 @@ def _alpaca_orders(base: str, key: str, secret: str, get=http_json) -> list[dict
         if not isinstance(page, list):
             raise ValueError("alpaca_orders_payload_invalid")
         rows.extend(page)
+        if len(page) >= 500:
+            raise ValueError("alpaca_orders_pagination_unknown")
         next_token = None
         # Alpaca returns a page token through response headers in some versions;
         # a list without a token is the complete readback used by this adapter.
