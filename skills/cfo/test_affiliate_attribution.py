@@ -400,6 +400,38 @@ class AffiliateAttributionTest(unittest.TestCase):
         coverage = [row for row in records if row["record_type"] == "coverage"]
         self.assertEqual(coverage[0]["reason"], "stale_readback")
 
+    def test_path_accepts_latest_capture_receipt_and_binds_sibling_artifact(self):
+        artifact = fixture("affiliate-partnerstack-stale-empty.json")
+        digest = hashlib.sha256(json.dumps(artifact, sort_keys=True).encode()).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact_path = root / f"{digest}.json"
+            artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
+            latest = {
+                "schema_version": 1,
+                "receipt_type": "PARTNERSTACK_REPORT_CAPTURE",
+                "provider": "elevenlabs",
+                "currency_display": "USD",
+                "commission_row_count": 0,
+                "commission_row_state": "EMPTY",
+                "normalizer_state": "NO_LIVE_ROWS",
+                "rendered_artifact_sha256": digest,
+                "observed_at": artifact["observed_at"],
+            }
+            latest_path = root / "latest.json"
+            latest_path.write_text(json.dumps(latest), encoding="utf-8")
+
+            records = affiliate.adapt_path(
+                latest_path, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+
+        coverage = [row for row in records if row["record_type"] == "coverage"]
+        self.assertEqual(coverage[0]["reason"], "stale_readback")
+        self.assertTrue(all(
+            ref == f"lm-affiliate://partnerstack/artifacts/{digest}"
+            for row in coverage for ref in row["evidence_refs"]
+        ))
+
     def test_capture_artifact_hash_mismatch_cannot_create_verified_receipts(self):
         payload = fixture("affiliate-partnerstack-complete.json")
         payload["artifact"]["normalized_commissions"][0]["gross_commission_minor"] = 9900

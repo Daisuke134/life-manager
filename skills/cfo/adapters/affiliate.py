@@ -624,6 +624,17 @@ def adapt_path(path: str | Path, *, snapshot_at: str, trailing_start: str) -> li
         return _read_failed_records(
             snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
+    if payload.get("receipt_type") == "PARTNERSTACK_REPORT_CAPTURE":
+        digest = payload.get("rendered_artifact_sha256")
+        if isinstance(digest, str) and SHA256.fullmatch(digest):
+            try:
+                artifact = json.loads(
+                    (source_path.parent / f"{digest}.json").read_text(encoding="utf-8")
+                )
+            except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+                artifact = None
+            if isinstance(artifact, dict):
+                payload = {"capture": payload, "artifact": artifact}
     if (
         payload.get("receipt_type") == "PARTNERSTACK_RENDERED_REPORT_ARTIFACT"
     ):
