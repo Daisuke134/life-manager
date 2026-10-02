@@ -2847,3 +2847,22 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. 公開後のsale、fee、model cost、settlement、payout、replay-zeroを公式Sales/payout記録で閉じる。
 3. Football Match AnalystのPending→Approved/Declinedを自然dashboard/Gmailで確認する。
 4. Capafy under_reviewとCFO source gapsを並列で継続し、TaskMarket/BlockRunは後段のまま。
+
+### 83. AGMSG CFO source-gap read-only監査（2026-10-02 13:31 JST）
+
+- AGMSG席 lm-cfo-source-audit-1002（Claude Sonnet 4.5、read-only）は、skills/cfoとcatalogを監査し、9 gapのfile:line・次操作・focused testを報告した。source編集、commit、provider/browser、SSOT、production applyは0件。
+- Affiliate: skills/cfo/adapters/affiliate.py:451、PartnerStack stale。次はfresh artifact取得、B7IntegrationTest。
+- Writer: skills/cfo/adapters/writer.py:104、money DBが空/古い。次はverified row、WriterMoneyTest。
+- Capafy/Mobile: skills/cfo/adapters/capafy_mobile.py:500+ / :600+、artifact/env read_failed。次はofficial artifact接続、capafy/mobile focused tests。
+- Stripe: skills/cfo/adapters/stripe.py、balance_transactions source未接続。次はlive readback artifact、StripeTest。
+- Marketplace: skills/cfo/adapters/marketplace.py、receipt source未接続。次はconfigured receipts、marketplace tests。
+- Investment/Agent Economy: skills/cfo/adapters/agent_economy_investment.py、Alpaca/x402 source未接続。次はofficial artifact、AlpacaTest/X402Test。
+- Fundraiser: adapter未実装、unreported。次はrevenue種別を確定してFundraiserTest付きadapterを作る。
+- 監査のDONEはsource-gap表までであり、9 loopの収益・P&L completeではない。unknownを0円へ変換しない。
+
+#### 更新後の原子cursor
+
+1. Affiliate/Writerのfresh official artifactを先に閉じる。
+2. Capafy/Mobile/Stripe/Marketplace/Investment/Agent Economyのsource接続を、既存adapter patternで一つずつ実装・検証する。
+3. Fundraiserのfinancial receipt contractを定義してadapterを追加する。
+4. CFO 14-loop P&Lがcompleteになるまで、利益・MRR・self-fundingを宣言しない。TaskMarket/BlockRunは後段。
