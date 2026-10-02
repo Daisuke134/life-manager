@@ -2550,3 +2550,15 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 1. PromptBase plist/loaded argvが自然reconcilerで`c5d9eb7e96`へ更新されたことをread-only確認する。
 2. 次回自然04:20でP5cのmodel-runner実行、英語4件distinct、管理画面/Gmail Pending→Approved/Declined、公開listing/sale/settlement/payout/replay-zeroを同一occurrenceへ結合する。
 3. その公式readbackが取れた後、§55のCapafy→Writer/Ebook/Affiliate→Mobile→Connector→Fundraiser→contract-work→Self-Build→Investment→CFO→external paid E2E→Agent Economy/TaskMarket→cloud/self-funding順を進める。TaskMarketは後段のまま。
+
+### 61. PromptBase health修正の自然loaded readback（2026-10-02 10:16 JST）
+
+- 自然reconcilerが`promptbase-loop-daily`のplistと`ProgramArguments`を`/Users/anicca/loops/releases/20261002T100305-c5d9eb7e`、SHA `c5d9eb7e9635a2ac215ae73516619f1ced9c8af3`へ更新した。従ってP5cのhouse model-runner修正とhealth projection修正の両方がloadedである。手動apply/restartは0件。
+- 最新read-only healthは旧PromptBase occurrenceを`effect_unknown=0 / failed=1`、`effect_status=reconciled`、`effect_safety=ok`、`recovery=ok`として返した。これは旧失敗がno-effectで閉じた証拠であり、販売・公開・利益の証拠ではない。
+- この時点で新しいP5c自然occurrence、PromptBase管理画面/GmailのPending→Approved/Declined、公開listing、sale/settlement/payoutはまだ公式readbackされていない。次回自然04:20を待ち、同一occurrenceのmodel-runner evidenceと公式readbackを結合する。
+
+#### 更新後の原子cursor
+
+1. 次回自然04:20のPromptBase occurrenceをread-only観測する。
+2. `model-runner`の実行ログ、英語4件distinct、PromptBase/Gmail審査、公開listing、sale/settlement/payout、replay-zeroを公式証拠で閉じる。
+3. P5cが閉じた後、CapafyのCAP_FULL解消→自然submit/利益、Writer/Ebook/Affiliate、Mobile、Connector、Fundraiser、contract-work、Self-Build、Investment、CFO、external paid E2E、TaskMarket、cloud/self-fundingへ進む。
