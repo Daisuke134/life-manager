@@ -2981,62 +2981,6 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
-### 99. AGMSG実装席の実在状態と14ループの残りTODO（2026-10-02 17:03 JST）
-
-この節を現在の説明用カーソルとする。`origin/main`は`4f605a304a`で、`AGENTS.md`の運用契約はCodex primary、Sol=計画・read-onlyレビュー、Luna=実装、Claude Opus=計画・read-onlyレビュー、Claude Sonnet=実装、Fable=不使用と明記している。モデル名は起動引数と実行時readbackで確認できたものだけを報告する。
-
-#### いま「動いている」と確認できる席
-
-- AGMSG `team lm --json`の現在出力は5登録席で、`codex-money-printer`を含む全席が`placement=unknown:no_placement_record`、`consistency=unverified`である。登録名を稼働証拠には数えない。Fable席も登録だけで、Life Managerの担当にはしない。
-- **Claude Opus計画:** `lm-claude-lancers-plan-1002`のAGMSG報告は、Lancers applicationのpre-effect marker欠落を未証明と訂正し、markerが子プロセスに消された機構を観測するT1を先に置いた。したがって「application-ownerへhint wrapperを足せば解決」という旧handoffは正本根因ではない。
-- **Claude Sonnet実装:** PR #6485、commit `0a2ac45768`が存在し、Lancersの`application-owner`、`paid_adapter.py`、`work_sync.py`と回帰テストを変更した。GitHubのPython syntax + unittestは成功したが、Startup context drift、OSS self-contained boundary、PII shapesの重要ゲートが失敗し、`mergeStateStatus=UNSTABLE`である。Opusの訂正済み根因とも一致しないため、merge/release/applyしない。ローカルfocused pytestは`.deepeval`を作成できないRead-only filesystemで起動前に失敗し、追加の成功証拠には数えない。
-- **Codex Luna実装:** `gpt-5.6-luna`、effort=max、専用worktree `fix/crowdworks-luna-impl-20261002`でCrowdWorks Paidのsource-only修正中。現在は`skills/earn/crowdworks/scripts/paid-owner`と`apps/crowdworks-revenue/tests/test_paid_owner_observation_boundary.py`に未commit差分があり、PR・production apply・provider/browser効果は0。commit、focused test、Solレビュー前なので未完了。
-- **Codex Solレビュー:** まだship verdictを出していない。したがってSonnet PRを統合できるレビュー証拠はない。
-
-#### ループ別の完了境界
-
-| ループ | 現在の判定 | 次の原子操作 |
-|---|---|---|
-| PromptBase | P5a/b/dとpackagingは完了。ReelsはScheduled、Portfolio/FootballはPending、Salesは`0/$0` | 同一listingを再送せず、自然dashboard/GmailでApproved/Declined→公開URL→sale/fee/settlement/payout/replay-zeroをreadback |
-| Capafy | payout fail-closed修正とrelease loadは完了。公式inventory `47 online / 3 under_review / 2 rejected`、枠満杯 | free slotまでread-only。空いた後、既存ownerの自然CP2/CP3→listing/status→sale/fee/cost/settlement/payout/replay-zero |
-| Writer | B0 money adapterはmain/release済みだがDBが空・古い | verified receiptとmodel/browser/infra costのfresh sourceを接続 |
-| Ebook | Stripe/KDPの公式settlement sourceが未接続 | provider receipt、fee、cost、payoutのsource境界を閉じる |
-| Affiliate | PartnerStack artifactがstale、effect_unknown fenceあり | owner公式readbackでeffectを確定してからfresh commission/fee/payoutを取得 |
-| Mobile Apps | Pillow/CTA修正はloaded、自然Postizは一部成功。ASC agreementとapp別proceeds/costが未結合 | 17 targetの自然Postiz receipt/replay-zero、本人必須ASC後のRevenueCat/ASC join |
-| Connector | 候補0でno-effectのみ。登録成功ではない | 候補発生時だけprovider/mail/Google Calendar公式receiptを閉じる |
-| Fundraiser | human-required/no-entrypoint境界でhold | 適格application receipt・provider status・外部inflow・costを取得。人間必須操作は自動突破しない |
-| Coconala | paid buyer-visible納品・settlement・costの一連が未closed | occurrence単位の公式thread/delivery/payment readback、effect_unknownは再送しない |
-| Lancers | PR #6485は未統合、根因観測とCIゲートが未解決 | Opus訂正版のT1観測→最小修正→Sonnet実装再レビュー→release後自然readback |
-| CrowdWorks | Luna source修正が未commit | focused test→commit/push/PR→Solレビュー→merge/release後の自然readback |
-| Job Hunter/Mercor | human-required候補とeffect_unknownが残る | interview/KYC/CAPTCHAはholdし、適格案件だけapply→reply→paid公式readback |
-| Self-Build | patch/testの局所成功はあるが自然outcomeまで未closed | failure→patch→tests→review→main→release→natural outcomeをID結合 |
-| Investment | AT-13〜AT-29のpaper 30 round trips未完 | natural sellを待ち、buy/sell/fee/slippage/system cost/replay-zeroを再計算 |
-| CFO | 14-loop settled revenue/cost/net/MRR/runwayはunknown。source gapを0にしない | 各ownerの公式receiptとactual costを同一periodへjoin |
-| TaskMarket / Agent Economy | ENOENT packaging fixは済み。provider discoveryの同一natural occurrence未証明 | 既存brainの自然wakeでno-effect discovery、候補数・resolved path・wallet/transactionなしをreadback。新ownerを追加しない |
-| BlockRun / x402 | paid receipt・output・cost・ledger joinは0、treasury pre-effect hold | TaskMarket no-effect境界後にcap内1件だけをreceipt付きで実行 |
-| Cloud/self-funding | DigitalOcean費用、Nosana continuity二回、Akash fallback、Mac dependency 0未証明 | CFO/runway→Nosana shelter→successor handover二回→surplus renewal→Akash→cloud restore |
-
-#### 並列と直列
-
-- **並列可:** PromptBaseのread-only審査、Capafyのslot/readback、CFO source-only、Mobile/Connector read-only監査、Lancers/CrowdWorksの互いに異なるsourceファイルの実装。
-- **直列必須:** 同一browser lease、同一listing/provider、ledger、`effect_unknown`のreconcile、SSOT編集、immutable release、target apply、自然runと公式readback。登録席への`send`だけでは着手とみなさず、`READY/WORKING/DONE`・diff・test・SHAをprimaryが確認する。
-
-#### 正本TODO（この先の順序）
-
-1. Sonnet PR #6485をmergeせず、Opus訂正版のLancers根因観測とSol read-onlyレビューを先に完了する。同時にLunaのCrowdWorks差分をテスト・PRまで閉じる。
-2. PromptBase P5cを自然dashboard/Gmail→公開→販売→settlement/payout→replay-zeroで閉じる。
-3. Capafyの審査枠解放後に自然CP2/CP3と収益閉路を一件閉じる。
-4. Writer→Ebook→Affiliateのfresh revenue/cost sourceを接続する。
-5. Mobile Appsの残り自然Postiz、ASC agreement後のRevenueCat/ASC proceeds、app別cost/replay-zeroを閉じる。
-6. Connector→Fundraiserを、候補/適格案件が出た時だけ公式receiptで閉じる。
-7. Coconala→Lancers→CrowdWorks→Job Hunter/Mercorのpaid contract、納品、settlement、fee、actual cost、duplicate-zeroを各ownerで閉じる。
-8. Self-Buildの自然改善、Investment AT-13〜AT-29、CFO 14/14の順に閉じる。
-9. TaskMarket no-effect discovery→BlockRun x402 paid inference一件を、wallet/treasury/receipt/ledger/replay-zero付きで閉じる。
-10. DigitalOcean実費/runway→Nosana shelter/continuity→surplus renewal→Akash fallback→cloud restore→Mac dependency 0を証明する。
-11. 最後に30日間、settled external revenue−全actual costが正、復旧・重複0・readback完全を維持してから、financial independence/self-healing/self-improvingを宣言する。
-
-現時点の結論は「14ループ全部修復済み」ではない。source修正・health kernel・一部release loadは進んでいるが、各loopの外部効果、settlement、actual cost、公式readbackが未closedであり、CFOはunknownのままである。10k MRR、利益、self-funding、Mac売却を宣言できる証拠はまだない。
-
 ### 91. PromptBase Reels承認の価格・売上境界とMobile CTA readback修正（2026-10-02 15:30 JST）
 
 - PromptBase公式Gmailの「Reels Hook Lab — Win The Cover Frame has been approved and scheduled」は、2026-10-02公開予定の承認通知である。掲載価格は公式seller stateで`$4.99`だが、販売完了通知ではない。
@@ -3154,3 +3098,59 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Approved後だけ公開URL/live、Sales、fee、model cost、settlement、payout、replay-zeroへ進む。Declinedなら公式理由を保存し、別内容の修正cursorを作る。
 3. Reels Hook Lab Scheduled、Football Match Analyst Pending、Portfolio Tracker Pendingを相互に混同せず、Sales `0/$0`を維持する。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 99. AGMSG実装席の実在状態と14ループの残りTODO（2026-10-02 17:03 JST）
+
+この節を現在の説明用カーソルとする。`origin/main`は`4f605a304a`で、`AGENTS.md`の運用契約はCodex primary、Sol=計画・read-onlyレビュー、Luna=実装、Claude Opus=計画・read-onlyレビュー、Claude Sonnet=実装、Fable=不使用と明記している。モデル名は起動引数と実行時readbackで確認できたものだけを報告する。
+
+#### いま「動いている」と確認できる席
+
+- AGMSG `team lm --json`の現在出力は5登録席で、`codex-money-printer`を含む全席が`placement=unknown:no_placement_record`、`consistency=unverified`である。登録名を稼働証拠には数えない。Fable席も登録だけで、Life Managerの担当にはしない。
+- **Claude Opus計画:** `lm-claude-lancers-plan-1002`のAGMSG報告は、Lancers applicationのpre-effect marker欠落を未証明と訂正し、markerが子プロセスに消された機構を観測するT1を先に置いた。したがって「application-ownerへhint wrapperを足せば解決」という旧handoffは正本根因ではない。
+- **Claude Sonnet実装:** PR #6485、commit `0a2ac45768`が存在し、Lancersの`application-owner`、`paid_adapter.py`、`work_sync.py`と回帰テストを変更した。GitHubのPython syntax + unittestは成功したが、Startup context drift、OSS self-contained boundary、PII shapesの重要ゲートが失敗し、`mergeStateStatus=UNSTABLE`である。Opusの訂正済み根因とも一致しないため、merge/release/applyしない。ローカルfocused pytestは`.deepeval`を作成できないRead-only filesystemで起動前に失敗し、追加の成功証拠には数えない。
+- **Codex Luna実装:** `gpt-5.6-luna`、effort=max、専用worktree `fix/crowdworks-luna-impl-20261002`でCrowdWorks Paidのsource-only修正中。現在は`skills/earn/crowdworks/scripts/paid-owner`と`apps/crowdworks-revenue/tests/test_paid_owner_observation_boundary.py`に未commit差分があり、PR・production apply・provider/browser効果は0。commit、focused test、Solレビュー前なので未完了。
+- **Codex Solレビュー:** まだship verdictを出していない。したがってSonnet PRを統合できるレビュー証拠はない。
+
+#### ループ別の完了境界
+
+| ループ | 現在の判定 | 次の原子操作 |
+|---|---|---|
+| PromptBase | P5a/b/dとpackagingは完了。ReelsはScheduled、Portfolio/FootballはPending、Salesは`0/$0` | 同一listingを再送せず、自然dashboard/GmailでApproved/Declined→公開URL→sale/fee/settlement/payout/replay-zeroをreadback |
+| Capafy | payout fail-closed修正とrelease loadは完了。公式inventory `47 online / 3 under_review / 2 rejected`、枠満杯 | free slotまでread-only。空いた後、既存ownerの自然CP2/CP3→listing/status→sale/fee/cost/settlement/payout/replay-zero |
+| Writer | B0 money adapterはmain/release済みだがDBが空・古い | verified receiptとmodel/browser/infra costのfresh sourceを接続 |
+| Ebook | Stripe/KDPの公式settlement sourceが未接続 | provider receipt、fee、cost、payoutのsource境界を閉じる |
+| Affiliate | PartnerStack artifactがstale、effect_unknown fenceあり | owner公式readbackでeffectを確定してからfresh commission/fee/payoutを取得 |
+| Mobile Apps | Pillow/CTA修正はloaded、自然Postizは一部成功。ASC agreementとapp別proceeds/costが未結合 | 17 targetの自然Postiz receipt/replay-zero、本人必須ASC後のRevenueCat/ASC join |
+| Connector | 候補0でno-effectのみ。登録成功ではない | 候補発生時だけprovider/mail/Google Calendar公式receiptを閉じる |
+| Fundraiser | human-required/no-entrypoint境界でhold | 適格application receipt・provider status・外部inflow・costを取得。人間必須操作は自動突破しない |
+| Coconala | paid buyer-visible納品・settlement・costの一連が未closed | occurrence単位の公式thread/delivery/payment readback、effect_unknownは再送しない |
+| Lancers | PR #6485は未統合、根因観測とCIゲートが未解決 | Opus訂正版のT1観測→最小修正→Sonnet実装再レビュー→release後自然readback |
+| CrowdWorks | Luna source修正が未commit | focused test→commit/push/PR→Solレビュー→merge/release後の自然readback |
+| Job Hunter/Mercor | human-required候補とeffect_unknownが残る | interview/KYC/CAPTCHAはholdし、適格案件だけapply→reply→paid公式readback |
+| Self-Build | patch/testの局所成功はあるが自然outcomeまで未closed | failure→patch→tests→review→main→release→natural outcomeをID結合 |
+| Investment | AT-13〜AT-29のpaper 30 round trips未完 | natural sellを待ち、buy/sell/fee/slippage/system cost/replay-zeroを再計算 |
+| CFO | 14-loop settled revenue/cost/net/MRR/runwayはunknown。source gapを0にしない | 各ownerの公式receiptとactual costを同一periodへjoin |
+| TaskMarket / Agent Economy | ENOENT packaging fixは済み。provider discoveryの同一natural occurrence未証明 | 既存brainの自然wakeでno-effect discovery、候補数・resolved path・wallet/transactionなしをreadback。新ownerを追加しない |
+| BlockRun / x402 | paid receipt・output・cost・ledger joinは0、treasury pre-effect hold | TaskMarket no-effect境界後にcap内1件だけをreceipt付きで実行 |
+| Cloud/self-funding | DigitalOcean費用、Nosana continuity二回、Akash fallback、Mac dependency 0未証明 | CFO/runway→Nosana shelter→successor handover二回→surplus renewal→Akash→cloud restore |
+
+#### 並列と直列
+
+- **並列可:** PromptBaseのread-only審査、Capafyのslot/readback、CFO source-only、Mobile/Connector read-only監査、Lancers/CrowdWorksの互いに異なるsourceファイルの実装。
+- **直列必須:** 同一browser lease、同一listing/provider、ledger、`effect_unknown`のreconcile、SSOT編集、immutable release、target apply、自然runと公式readback。登録席への`send`だけでは着手とみなさず、`READY/WORKING/DONE`・diff・test・SHAをprimaryが確認する。
+
+#### 正本TODO（この先の順序）
+
+1. Sonnet PR #6485をmergeせず、Opus訂正版のLancers根因観測とSol read-onlyレビューを先に完了する。同時にLunaのCrowdWorks差分をテスト・PRまで閉じる。
+2. PromptBase P5cを自然dashboard/Gmail→公開→販売→settlement/payout→replay-zeroで閉じる。
+3. Capafyの審査枠解放後に自然CP2/CP3と収益閉路を一件閉じる。
+4. Writer→Ebook→Affiliateのfresh revenue/cost sourceを接続する。
+5. Mobile Appsの残り自然Postiz、ASC agreement後のRevenueCat/ASC proceeds、app別cost/replay-zeroを閉じる。
+6. Connector→Fundraiserを、候補/適格案件が出た時だけ公式receiptで閉じる。
+7. Coconala→Lancers→CrowdWorks→Job Hunter/Mercorのpaid contract、納品、settlement、fee、actual cost、duplicate-zeroを各ownerで閉じる。
+8. Self-Buildの自然改善、Investment AT-13〜AT-29、CFO 14/14の順に閉じる。
+9. TaskMarket no-effect discovery→BlockRun x402 paid inference一件を、wallet/treasury/receipt/ledger/replay-zero付きで閉じる。
+10. DigitalOcean実費/runway→Nosana shelter/continuity→surplus renewal→Akash fallback→cloud restore→Mac dependency 0を証明する。
+11. 最後に30日間、settled external revenue−全actual costが正、復旧・重複0・readback完全を維持してから、financial independence/self-healing/self-improvingを宣言する。
+
+現時点の結論は「14ループ全部修復済み」ではない。source修正・health kernel・一部release loadは進んでいるが、各loopの外部効果、settlement、actual cost、公式readbackが未closedであり、CFOはunknownのままである。10k MRR、利益、self-funding、Mac売却を宣言できる証拠はまだない。
