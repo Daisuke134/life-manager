@@ -265,6 +265,16 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
             "milestone_count": len(rows), "fields": dict(fields)}
 
 
+def _fetch_acceptance_statuses(page: Any) -> dict[str, Optional[str]]:
+    path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
+    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
+    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
+    page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
+    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
+    return {row.get("href"): row.get("status") for row in projects if isinstance(row, Mapping)}
+
+
 def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     """True when the official proposal list shows this project as accepted.
 
@@ -272,20 +282,23 @@ def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     client's escrow) and does not list it on the working tab: on 2026-09-27 the working tab
     was empty while 5605912 was accepted (official 「プロジェクトの承諾を受け付けました」 email).
     The newest-first all-proposals list (same source as _proposal_pipeline) does list it.
+
+    exit=124 on 2026-10-01: each acceptance candidate re-fetched this same list within one
+    wake. Cache it on ``page`` itself so a wake that reuses one page across several
+    candidates fetches the list once; a fresh page (a new wake) starts with no cache.
     """
-    path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
-    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
-    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
-    page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
-    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
-    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
-    for row in projects:
-        if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":
-            if row.get("status") in {"進行中", "仮払い待ち"}:
-                return True
-            print(f"lancers_acceptance_readback_probe:{project_id}:status={row.get('status')!r}", file=sys.stderr)
-            return False
-    print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(projects)}", file=sys.stderr)
+    statuses = getattr(page, "_lancers_acceptance_statuses", None)
+    if statuses is None:
+        statuses = _fetch_acceptance_statuses(page)
+        try: page._lancers_acceptance_statuses = statuses
+        except AttributeError: pass
+    status = statuses.get(f"/work/detail/{project_id}")
+    if status in {"進行中", "仮払い待ち"}:
+        return True
+    if status is None:
+        print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(statuses)}", file=sys.stderr)
+    else:
+        print(f"lancers_acceptance_readback_probe:{project_id}:status={status!r}", file=sys.stderr)
     return False
 
 

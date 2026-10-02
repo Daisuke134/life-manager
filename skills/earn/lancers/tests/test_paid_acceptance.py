@@ -545,3 +545,60 @@ def test_acceptance_readback_counts_escrow_pending_as_accepted(capsys):
     assert all(url.endswith("/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC") for url in visited)
     err = capsys.readouterr().err
     assert "2:status='選定中'" in err and "3:not_listed:rows=3" in err
+
+
+def test_acceptance_readback_fetches_the_list_once_per_wake_for_the_same_page():
+    """Exit 124 on 2026-10-01: one list goto per candidate timed out the Paid tick.
+
+    The all-proposals list is identical for every candidate checked in the same wake
+    (same ``page``), so a second, third, ... candidate must reuse the first fetch
+    instead of re-visiting and re-rendering the list.
+    """
+    visited = []
+
+    class Page:
+        url = ""
+
+        def goto(self, url, **_k):
+            visited.append(url)
+            self.url = url
+
+        def wait_for_function(self, *_a, **_k):
+            return None
+
+        def evaluate(self, _script):
+            return [{"href": "/work/detail/5605912", "status": "仮払い待ち"},
+                    {"href": "/work/detail/1", "status": "進行中"},
+                    {"href": "/work/detail/2", "status": "選定中"}]
+
+    page = Page()
+    assert work_sync._read_acceptance_confirmed(page, "5605912") is True
+    assert work_sync._read_acceptance_confirmed(page, "1") is True
+    assert work_sync._read_acceptance_confirmed(page, "2") is False
+    assert work_sync._read_acceptance_confirmed(page, "3") is False
+    assert len(visited) == 1, f"expected a single cached list fetch, goto'd {len(visited)} times"
+
+
+def test_acceptance_readback_cache_does_not_leak_across_different_page_instances():
+    """A new wake opens a new page; the cache must not survive onto it stale."""
+    calls = {"count": 0}
+
+    def make_page():
+        class Page:
+            url = ""
+
+            def goto(self, url, **_k):
+                calls["count"] += 1
+                self.url = url
+
+            def wait_for_function(self, *_a, **_k):
+                return None
+
+            def evaluate(self, _script):
+                return [{"href": "/work/detail/1", "status": "進行中"}]
+
+        return Page()
+
+    assert work_sync._read_acceptance_confirmed(make_page(), "1") is True
+    assert work_sync._read_acceptance_confirmed(make_page(), "1") is True
+    assert calls["count"] == 2, "a fresh page instance must trigger its own fetch, not reuse a stale cache"
