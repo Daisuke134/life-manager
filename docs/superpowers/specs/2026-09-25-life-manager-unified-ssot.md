@@ -3245,3 +3245,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - source-onlyのStartup/PII/OSS修正、PromptBase/Capafyのread-only公式監視、CFO source監査は並列可。
 - 同じbrowser lease、同じledger、effect_unknown reconciliation、SSOT編集、release/apply、provider mutationは直列。
 - 各席は目的・所有ファイル・禁止範囲・検証・DONE条件をboot promptへ含め、primaryがdiff/test/SHA/readbackを確認してから次へ進む。
+
+### 106. Startup context完了とLancers proposal-cacheのproduction境界（2026-10-02 18:50 JST）
+
+- Startup context `2026-10-02.1` / digest `113ddbade3174274888d408be0874286dd6c4d9fa8cff41d447bca744e74ceed`をLife Manager repoへcommit `1930cc40cf`し、公開README/README.ja/fundraising kitを同じdigestへ更新した。公開page sourceはanicca-products PR #417、merge `081eeb2e6fc9`、Netlify deploy run `36988053347`がPASSし、公式auditは`ok=true`（product/repository/Telegram HTTP 200、identity/context一致）になった。
+- Baseline PR #6487（PII redaction、Capafy OSS inventory digest）はmerge `980b0cb213`。これによりLancers PR #6486のStartup/OSS/PII gateを解消した。
+- Lancers proposal-cache PR #6488はmerge `d3050812aa`。immutable release `20261002T183857-d3050812`を作成し、`lancers-revenue-paid`へtarget apply、loaded SHA/argvをreadbackした。
+- 新releaseのnatural occurrence `18daacd6a70555c8-60423`は、proposal terms cacheを含む新コードで開始した。しかしterminal event書込み時に`Errno 28 No space left on device`が発生し、entrypoint resultは`effect=0 / pre_effect_failure`、durable terminal eventは欠落した。provider effect・成功・失敗を推測せず、occurrenceは再送せず保持する。再生成可能なTrash cacheだけを回収し、空き容量は約4.2GiBへ戻した。
+
+#### 更新後の原子cursor
+
+1. 次のnatural `lancers-revenue-paid` wakeが`release_sha=d3050812aa`でterminal eventを書き、exit 124なし・official status/readbackを同一occurrenceへ結合するまで待つ。manual wake、provider retry、effect_unknown closeはしない。
+2. Lancers Application T1（marker消失機構）は別cursorとしてread-only観測する。
+3. Lancers自然Paidが閉じた後、PromptBase P5c→Capafy→Writer/Ebook/Affiliate→Mobile/Connector/Fundraiser→contract-work→CFO→TaskMarket/BlockRun→cloud/self-fundingへ進む。
