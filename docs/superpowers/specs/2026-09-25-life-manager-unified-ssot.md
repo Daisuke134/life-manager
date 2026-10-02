@@ -3886,3 +3886,21 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. hourlyはprovider message IDとevent key/hash/dateをexact occurrenceへ束縛できる場合だけofficial readbackで解放する。financial-reportはno-effect契約のowner-scoped applyで旧fenceをclearし、他ownerのunknownを触らない。
 3. 新releaseの自然CFO runでmarketplace coverage gap、delivery receipt、replay-zeroを確認する。未証明settlementを利益へ数えない。
 4. PromptBaseはFootball `scheduled→live/declined`、Portfolio `pending_review→approved/declined`、Reelsを含むSales `order→fee→settlement/payout`を公式readbackする。自然待ちを理由に他の独立収益TODOを止めず、再送もしない。
+
+### 161. CFO message fence source修復と099 release cut（2026-10-03 01:57 JST）
+
+- PR #6500をmain `09960df06f`へsquash mergeした。`life-manager-financial-report`をprovider送信ではなくlocal enqueueだけを行うeffect-free ownerへ訂正し、CFO catalog recovery classへ`deterministic`を追加した。
+- `life-manager-cfo-hourly`にはexact occurrence専用のTelegram reconcilerを登録した。current producerは`LIFE_MANAGER_OCCURRENCE_ID`、event key、message SHA-256、provider message ID、`sent/duplicate`をdurable stateへ保存する。`sent`はprovider deliveryがruntime startからterminalの間、`duplicate`はdeliveryがruntime start前、crash-after-provider-deliveryの`pending`はexact outbox receiptがruntime内、の時だけそれぞれofficial receiptまたはpre-effect proofとして解放候補になる。
+- occurrence IDを持たないlegacy snapshotはnormal reconcilerで必ず拒否する。旧release `86e447303b9c4f03edaa90244b80c9d4d214ac65`だけは別のone-time migrationで、exact runtime pair/exit0/JST date、unique outbox receipt、snapshot/outbox delivery timestamp一致、deliveryがruntime start前を満たす場合だけpre-effect proofにする。
+- fresh verificationはCFO Python `284 passed / 300 subtests`、CFO Node `51 passed`、registry/fence `149 passed / 186 subtests`、`py_compile`、`diff-check`、`lm-loop-contract`（14 Product Loops / 178 jobs）PASS。3回のfresh Sol reviewで、wrong-wake receipt、current producer未接続、crash-after-delivery未回復を順に検出・修正し、final exact-head reviewはSHIP。PRのGitHub Agent/Loop/Startup/OSS/PII/Python/Shell/gitleaks/TruffleHogも全PASSした。
+- main `09960df06f`からimmutable release `/Users/anicca/loops/releases/20261003T015149-09960df0`を生成し、`RELEASE.json.sha`、current symlink、main blobとrelease内2 reconcilerのSHA-256一致を確認した。self-handoff receiptもmain release-reconciler loaded SHA/argvを099へ一致させた。
+- 099 release実物のread-only dry-runはlegacy migration=`PROOF_READY`、normal reconciler=`result_report_missing`でlegacyを拒否、admission rowsはhourly/reportとも`claimed / effect_unknown=1`のまま。production `--resolve`、provider/Telegram送信、private state mutationはまだ0である。
+- 099 release reconciler PID `64044`がroute/fleet applyを所有中。既存ownerと同じadmission stateを競合操作せず、終了後にexact migrationとtarget applyを直列実行する。
+
+#### 更新後の原子cursor
+
+1. PID `64044`のnatural terminalと099 fleet apply結果をreadbackする。同時にlegacy resolveやtarget applyを発行しない。
+2. terminal後、immutable 099 releaseのlegacy migrationをもう一度dry-runし、同じproof digestとadmission identityを確認してから`--resolve`を一度だけ実行する。
+3. `life-manager-financial-report`はeffect-free registry契約のtarget applyでそのownerだけの旧unknownをclearし、hourly/reportのloaded SHAを099へ揃える。
+4. hourlyを一度bounded wakeし、`last-result-report.json`、outbox provider receipt、normal effect reconciler、healthのexact occurrenceを結合する。その後replayでprovider attempt 0を確認する。
+5. natural CFO tableでmarketplace source gapを再読し、verified settlement/payoutの無いplatformを0/profitへ昇格させない。
