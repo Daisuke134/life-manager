@@ -2537,3 +2537,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. 新releaseの次回自然04:20でP5cを一回実行し、model-runner・英語4件distinct・PromptBase/Gmail公式readbackを同一occurrenceへ結合する。
 3. foundation observabilityでactive fenceとhistorical unresolved effectを分離表示するfocused test/health readbackを行う。
 4. その後§55の収益優先順（Capafy→PromptBase/Writer→Writer/Ebook/Affiliate→Mobile→Connector→Fundraiser→各contract-work→Self-Build→Investment→CFO→external paid E2E→Agent Economy/TaskMarket→cloud/self-funding）を維持する。
+
+### 60. health projection修正のmerge/releaseとPromptBaseのloaded境界（2026-10-02 10:09 JST）
+
+- health projectionのsource fix PR #6425をmergeした。main commitは`c5d9eb7e9635a2ac215ae73516619f1ced9c8af3`。fence adapterの`closed=true`かつpre-effect/official proof/receiptだけを`effect_status=reconciled`へ結合し、active admission fence（`effect_unknown`）とhistorical runtime failure（`failed`）を分離する。focused read-only 49件、health 28件、runtime/loop全743件、`py_compile`、`git diff --check`がPASSした。
+- production read-only health（current codeでの投影）はPromptBase旧occurrenceを`summary.effect_unknown=0 / failed=1`、`effect.status=reconciled`、`effect_safety=ok`、`recovery=ok`として返す。公式dashboard no-effectとadmission `released/effect_unknown=0`を「売上成功」へ昇格させず、runtimeの`entrypoint_exit_1`は失敗のまま残す。
+- immutable release readback: `current=/Users/anicca/loops/releases/20261002T100305-c5d9eb7e`、`RELEASE.json.sha=c5d9eb7e9635a2ac215ae73516619f1ced9c8af3`、`provenance=ancestor-of-origin-main`、`release_paths=ALL`。reconcilerはshared-agent-runner 4件/deterministic 4件を新releaseで`ok=true`・失敗0、fleet stateは`sha=c5d9eb7e96 / changed=6 / errors=0 / status=skip / reason=production apply is already owned`。
+- PromptBase plistはまだ`release=73731c68cfbc7b3a8f11799b335e5efba70f3a9d`（`/Users/anicca/loops/releases/20261002T094302-73731c68`）を指す。これはhouse model-runner修正を含むが、今回のhealth projection修正は未loadedである。手動apply/restartはせず、自然reconcilerが`c5d9eb7e96`を指すまでread-only観測する。P5c自然04:20、PromptBase/Gmail公式審査、公開listing、sale/settlement/payoutはまだ未確認である。
+
+#### 現在の原子cursor
+
+1. PromptBase plist/loaded argvが自然reconcilerで`c5d9eb7e96`へ更新されたことをread-only確認する。
+2. 次回自然04:20でP5cのmodel-runner実行、英語4件distinct、管理画面/Gmail Pending→Approved/Declined、公開listing/sale/settlement/payout/replay-zeroを同一occurrenceへ結合する。
+3. その公式readbackが取れた後、§55のCapafy→Writer/Ebook/Affiliate→Mobile→Connector→Fundraiser→contract-work→Self-Build→Investment→CFO→external paid E2E→Agent Economy/TaskMarket→cloud/self-funding順を進める。TaskMarketは後段のまま。
