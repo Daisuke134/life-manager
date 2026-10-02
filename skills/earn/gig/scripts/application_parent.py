@@ -704,7 +704,9 @@ def _page_index(url: str) -> int:
     return int(pages[0])
 
 
-_COCONALA_USER_PATH = re.compile(r"^/(?:smartphone/)?users/(\d+)/?$")
+_COCONALA_USER_PATH = re.compile(
+    r"^/(?:smartphone/)?users/(\d+)(?:/portfolios)?/?$"
+)
 
 
 def _validated_authenticated_identity(
@@ -1619,12 +1621,21 @@ class CdpParentEffects:
             .map(a=>({node:a,path:path(a)})).filter(x=>x.path);
           const sidebar=links.find(x=>x.node.closest('.sidebar-profile'));
           const header=links.find(x=>x.node.closest('header,nav,[class*="header"],[class*="Header"]'));
-          const selected=sidebar||header;
+          const proposal=document.querySelector('textarea[name="data[Offer][content]"]');
+          const form=proposal?.closest('form');
+          const portfolioPaths=[...new Set([...(form?.querySelectorAll('a[href]')||[])]
+            .map(a=>{try{
+              const u=new URL(a.href,location.origin);
+              const m=u.pathname.match(/^\/(?:users|smartphone\/users)\/(\d+)\/portfolios\/?$/);
+              return u.origin==='https://coconala.com'&&m?`/users/${m[1]}/portfolios/`:null;
+            }catch(_){return null}}).filter(Boolean))];
+          const portfolio=portfolioPaths.length===1?{path:portfolioPaths[0]}:null;
+          const selected=sidebar||header||portfolio;
           return {
             url:location.href,title:document.title,
             own_user_path:selected?.path||null,
-            selection:sidebar?'sidebar-profile':(header?'header':'none'),
-            candidate_user_paths:[...new Set(links.map(x=>x.path))].slice(0,32)
+            selection:sidebar?'sidebar-profile':(header?'header':(portfolio?'application-form-portfolio':'none')),
+            candidate_user_paths:[...new Set([...links.map(x=>x.path),...portfolioPaths])].slice(0,32)
           };
         })())'''
         async with await _cdp_connect(self.ws_url) as ws:
