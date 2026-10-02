@@ -3764,3 +3764,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Capafyは自然審査で空きslotが出るまでread-only監視する。
 2. 空きslot後に既存ownerのCP2→CP3→`publish-remote-status`を一件だけ進め、同じoccurrenceのlisting/status/sale/fee/actual cost/settlement/payout/replay-zeroを結合する。
 3. PromptBaseは§150のとおり、FootballのLive化・PortfolioのApproved/Declined・Sales/settlementを自然readbackする。どちらも未確認のまま再送しない。
+
+### 152. Writer natural sales-measureとmoney ledger境界（2026-10-02 23:34 JST）
+
+- `bin/lm-loop status writer-sales-measure --explain --json` のlive readbackはrelease `0be83c2507`、occurrence `writer-sales-measure:18dabb14123c7ec0-33318`、exit `0`、`effect=none/not_applicable`、`launchd_state=loaded-idle`を返した。Writerのsales-measure runtimeはnatural wakeでterminalまで到達している。
+- 公式money DB `~/.local/state/life-manager/writer/money.sqlite3` をread-only集計した結果、`money_events=0`、`payouts=0`、`money_fees=0`、`commercial_payment_bindings=0`だった。旧`writer/sales-ledger.jsonl`の末尾はNote/Substackの`unknown`または`scorable`観測で、payment receipt、amount、currency、provider receiptは無い。
+- `writer-report`の最新occurrence `writer-report:18dabcfa7f7841f8-41969`はrelease `0be83c2507`、exit `75`、message effect `unknown`、official readback/provider receiptなし、`next_action=retry_after_eligibility`である。同じ報告を手動再送しない。
+- したがってWriterは「sales-measure runtimeは稼働、settled external revenueは0件確認、receipt source未成立」であり、コード障害や利益を推測しない。DBの空集合を外部売上`0円確定`へ一般化せず、Note/Substack等の公式payment/payout receiptが入るまでCFO source gapを保持する。
+
+#### 更新後の原子cursor
+
+1. Writerは次の自然provider sales readbackで、外部payment receiptが存在する場合だけ`money_events`→fee→payout→commercial bindingへ取り込む。
+2. `writer-report`の既存message effect unknownは公式delivery readbackなしに再送・closeしない。
+3. 次の実装対象は、公式provider receiptが存在するのにadapterが取り込めない証拠が出た場合だけ専用worktreeで修正する。現時点では外部receipt不在が正確な境界である。
