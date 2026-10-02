@@ -74,11 +74,11 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Trailing window: `2026-09-02T15:00:00.000000Z..2026-10-02T15:00:00.000000Z`
 - Historical company: `unknown`, no settled company total (`134` coverage gaps)
 - Trailing company: `unknown`, no settled company total (`129` coverage gaps)
-- Historical gap classes: `missing_category=125`, `source_unconnected=4`, `missing_coverage=3`, `stale_readback=1`, `unverified_receipt=1`
-- Trailing gap classes: `missing_category=121`, `source_unconnected=4`, `missing_coverage=3`, `stale_readback=1`
-- Readback artifact SHA-256: `68541ac7be7f1b162a29b4a6e21a69efe41cf22b483dc6876a0a0704989578ba`
+- Historical gap classes: `missing_category=125`, `source_unconnected=2`, `missing_coverage=5`, `stale_readback=1`, `unverified_receipt=1`
+- Trailing gap classes: `missing_category=121`, `source_unconnected=2`, `missing_coverage=5`, `stale_readback=1`
+- Readback artifact SHA-256: `38e1dfce3fd2bd193a88c88cfb73e34ae2dbe4a3a55c477a5d200b1eae03655b`
 - Canonical artifact-path rerun receipt: `loop-pnl://sha256/979f5e3ee3903cd0add3a5138c793f87b6dd9344408edd33117c9fe0bccfdd1b`
-- The new CFO `coverageSummary` groups the actionable roots: Coconala/Lancers plus Capafy/mobile `source_unconnected=4`; Writer `stale_readback=1`; CrowdWorks partial receipt, PartnerStack empty commission, and Alpaca order P&L `missing_coverage=3`; plus explicit unreported-loop coverage rows. The Google official invoice is now connected to `cfo` infra cost; Stripe is no longer `read_failed` and its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
+- The new CFO `coverageSummary` groups the actionable roots: Coconala/Lancers `source_unconnected=2`; Writer `stale_readback=1`; CrowdWorks partial receipt, PartnerStack empty commission, Alpaca order P&L, and Capafy/Mobile partial artifacts `missing_coverage=5`; plus explicit unreported-loop coverage rows. The Google official invoice is now connected to `cfo` infra cost; Stripe is no longer `read_failed` and its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
 - Fresh private-state audit now has official PartnerStack and Alpaca account readbacks. PartnerStack has an empty commission/payout report and therefore remains `missing_coverage`; Alpaca cash balance is verified but filled-order realized P&L is not derived, so order coverage remains `missing_coverage`. The Lancers marketplace SQLite still has `260` `application_verified` events and `0` `payment_received` events; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
 
 Interpretation: the collector is running and preserving the gaps. Stripe now has an official readback path and source-backed trailing receipts, but portfolio-wide settled MRR/net/revenue remains unknown until the other configured rails provide current receipt-backed coverage.
