@@ -3330,3 +3330,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Affiliateのcapacity/effect fenceをread-only監視し、既存provider effect unknownを公式readbackなしに閉じない。
 2. fresh PartnerStack artifactが得られたら、paid/approved/pending/declined、fee、payout、actual cost、replay-zeroを同一receiptへ結合する。
 3. その後Mobile→Connector→Fundraiser→contract-workへ進み、TaskMarket/BlockRunは後段順位を維持する。
+
+### 113. Mobile Buddha TikTokのPillow packaging境界（2026-10-02 19:04 JST）
+
+- Mobile Appsの最初の未closed job `life-manager-anicca-buddha-tiktok` を `lm-loop status --explain` で診断した。旧occurrence `18da9ee60416c408-42009` は外部Postiz dispatch前のslide renderで `ModuleNotFoundError: No module named 'PIL'`、exit 1、`provider_readback_not_exact`、receiptなしとなり、effect fenceを閉じず保持している。
+- 根因はMobile entrypointがimmutable releaseのbare PythonでPillowをimportしていたことだった。これはmainの既存修正 `85dcb4522f`（`mobile-app`へ `LIFE_MANAGER_PYTHON` のmanaged venvを渡す）で解消済み。現行Buddha plistは `LIFE_MANAGER_PYTHON=/Users/anicca/.local/share/life-manager/venv/bin/python`、installed release `4f605a30` をloadedしており、managed venvのPillow `12.2.0` import smokeがPASSした。
+- focused verificationは `apps/life-manager/tests/test_render_slide_image.py` 6/6 PASS、`apps/life-manager/scripts/generate-larry-slide-pack.test.js` 7/7 PASS。これはsource/runtime dependency境界の修正証拠であり、投稿成功・売上・公式Postiz readbackの証拠ではない。
+
+#### 更新後の原子cursor
+
+1. Mobileの次の自然occurrenceが現行release `4f605a30` とmanaged venvでrenderを通過し、Postiz公式receipt/readbackとreplay-zeroを同一occurrenceへ結合するまで待つ。
+2. 旧Pillow effect_unknown occurrenceは公式readbackなしに再送・closeしない。
+3. Buddhaで自然PASSを確認後、同じpackaging classの残りMobile jobを一件ずつ確認し、ASC/RevenueCat proceeds・fee・actual costへ接続する。
