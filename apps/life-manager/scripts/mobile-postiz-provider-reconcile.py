@@ -258,7 +258,24 @@ def _caption(row: dict[str, Any]) -> str:
     return value
 
 
-def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str) -> dict[str, Any]:
+def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> str:
+    """Hash of the caption actually sent to Postiz.
+
+    The carousel adapter appends the App Store CTA only to the on-wire copy and
+    records that hash as receipt.caption_with_cta_sha256; identity.caption_sha256
+    stays the approved base caption. Compare the official readback against the
+    exact final hash -- no suffix stripping, no alternative CTA accepted.
+    """
+    final = receipt.get("caption_with_cta_sha256")
+    if final is None:
+        return str(identity["caption_sha256"])
+    if not isinstance(final, str) or not re.fullmatch(r"[0-9a-f]{64}", final):
+        raise ValueError("receipt caption_with_cta_sha256 is invalid")
+    return final
+
+
+def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
+                       expected_caption_sha256: str | None = None) -> dict[str, Any]:
     row = _postiz_post(provider_id, api_key)
     postiz_path = ROOT / "skills/video/lm-distribution/postiz_video.py"
     spec = importlib.util.spec_from_file_location("life_manager_postiz_video", postiz_path)
@@ -276,7 +293,7 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str)
         raise ValueError("Postiz post integration mismatch")
     account_id = _integration(str(integration_id), identity["platform"], api_key)
     caption_sha = hashlib.sha256(_caption(row).encode("utf-8")).hexdigest()
-    if caption_sha != identity["caption_sha256"]:
+    if caption_sha != (expected_caption_sha256 or identity["caption_sha256"]):
         raise ValueError("Postiz caption hash mismatch")
     provider_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
     if provider_video_sha is not None and provider_video_sha != identity.get("video_sha256"):
@@ -308,8 +325,10 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
     local = _local_receipt(identity, ledger)
     if local is None:
         raise ValueError("receipt_missing_or_ambiguous")
-    _, provider_id = local
-    readback = _provider_readback(identity, provider_id, api_key)
+    receipt, provider_id = local
+    readback = _provider_readback(
+        identity, provider_id, api_key, _final_caption_sha256(identity, receipt),
+    )
     if readback.get("account_id") != identity.get("account_id"):
         raise ValueError("provider_readback_not_exact")
     proof = {
