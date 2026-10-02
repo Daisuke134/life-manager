@@ -17,5 +17,9 @@ test("COST-01 migration exposes bounded daily tenant/provider/feature aggregates
   assert.match(sql, /meta->>'cache_hit'/i);
   assert.match(sql, /kind = 'provider_usage'/i);
   assert.match(sql, /GRANT EXECUTE[\s\S]*service_role/i);
-  assert.doesNotMatch(sql, /GRANT EXECUTE[\s\S]*(anon|authenticated)/i);
+  assert.ok(sql.split("\n").filter((line) => /^GRANT EXECUTE/i.test(line))
+    .every((line) => !/(anon|authenticated)/i.test(line)));
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.lm_provider_budget_summary/i);
+  assert.match(sql, /cache_hits/i);
+  assert.match(sql, /unknown_count/i);
 });

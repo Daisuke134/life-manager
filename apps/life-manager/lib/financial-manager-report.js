@@ -89,7 +89,7 @@ function zonedMidnight(key, timezone) {
 
 function buildFinancialManagerReport(rawRecords, reportingDate, {
   timezone = "Asia/Tokyo", economicSourceCoverage = null, sourceFreshness = null,
-  businessSourceCoverage = [], businessReadback = null, providerCostSettlement = null,
+  businessSourceCoverage = [], businessReadback = null, providerCostSettlement = null, providerBudget = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const staleProviders = new Set(Object.entries(sourceFreshness || {})
@@ -165,7 +165,8 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     providers,
     economicSourceCoverage,
     sourceFreshness: sourceFreshness || {},
-    partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh"),
+    partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh")
+      || Boolean(providerBudget && providerBudget.state && providerBudget.state !== "normal"),
     businessSourceCoverage: Array.isArray(businessSourceCoverage) ? businessSourceCoverage : [],
     businessReadback: businessReadback ? {
       status: businessReadback.status || "unknown",
@@ -180,6 +181,12 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       observedAt: providerCostSettlement.observedAt || null,
       receiptRef: providerCostSettlement.receiptRef || null,
       totals: providerCostSettlement.totals || null,
+    } : null,
+    providerBudget: providerBudget ? {
+      state: providerBudget.state || "unknown",
+      totalUsd: providerBudget.totalUsd == null ? null : providerBudget.totalUsd,
+      unknownCount: providerBudget.unknownCount == null ? null : providerBudget.unknownCount,
+      reasons: Array.isArray(providerBudget.reasons) ? providerBudget.reasons : [],
     } : null,
   };
   const digestReport = { ...report };
@@ -268,6 +275,9 @@ function renderFinancialManagerDetailed(report) {
     lines.push(`Google請求: ${settlement.status === "settled"
       ? `${settlement.status} ${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
   }
+  if (report.providerBudget) {
+    lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? `（unknown ${report.providerBudget.unknownCount}）` : ""}`);
+  }
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
     lines.push("\n収益内訳（今月・プロバイダー別）");
@@ -313,6 +323,9 @@ function renderFinancialManagerTelegram(report) {
     const settlement = report.providerCostSettlement;
     lines.push(`Google請求: ${settlement.status === "settled"
       ? `${settlement.status} ${moneyJpyText(settlement.totals?.totalJpy)}` : "未確認"}`);
+  }
+  if (report.providerBudget) {
+    lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? ` (unknown ${report.providerBudget.unknownCount})` : ""}`);
   }
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.

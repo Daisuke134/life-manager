@@ -34,3 +34,14 @@ test("agent receives OpenPOI candidates without a Google fallback", async () => 
   assert.deepEqual(result.attributions, ["OpenPOI API"]);
   assert.equal(calls.length, 2);
 });
+
+test("Google Places fallback is denied when the provider budget is stopped", async () => {
+  let googleCalled = false;
+  const result = await placesSearch("店", "maps-key", {
+    openPoiSearch: async () => ({ candidates: [], attributions: [] }),
+    authorizeProviderOperation: async () => ({ allowed: false, state: "stopped", reason: "budget_stopped" }),
+    fetchImpl: async () => { googleCalled = true; return { ok: true, json: async () => ({ results: [] }) }; },
+  });
+  assert.equal(result.provider, "budget");
+  assert.equal(googleCalled, false);
+});

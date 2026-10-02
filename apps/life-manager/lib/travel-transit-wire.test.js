@@ -30,6 +30,18 @@ test("geocodeAddress reads persistent cache before any paid Google request", asy
   } finally { global.fetch = originalFetch; }
 });
 
+test("Google route fallback is denied by provider budget after cache miss", async () => {
+  let googleCalls = 0;
+  const route = await travel.directionsRoute("geo:35.681,139.767", "geo:35.659,139.700", "mapsKey", EVENT_START, NOW, false, {
+    _transitFetch: async () => ({ date: "20260827", timezone: "Asia/Tokyo", journeys: [] }),
+    _directionsMinutesGoogle: async () => { googleCalls += 1; return 30; },
+    _authorizeProviderOperation: async () => ({ allowed: false, state: "stopped", reason: "budget_stopped" }),
+    _routeCache: freshCache(),
+  });
+  assert.equal(route, null);
+  assert.equal(googleCalls, 0);
+});
+
 test("parseGeoLiteral accepts only finite in-range coordinate literals", () => {
   assert.deepEqual(travel.parseGeoLiteral("geo:35.681,139.767"), { lat: 35.681, lon: 139.767 });
   for (const value of [

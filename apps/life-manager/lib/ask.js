@@ -80,6 +80,13 @@ async function agentSearchCandidate(event, deps = {}) {
   const raw = deps.geminiRaw || geminiRaw;
   const empty = { found: false, candidate: "", source: "" };
   if (!deps.geminiKey && !deps.geminiRaw) return empty;
+  if (typeof deps.authorizeProviderOperation === "function") {
+    const decision = await deps.authorizeProviderOperation({
+      tenantId: deps.uid || "anonymous", provider: "gemini", operation: "ask_candidate_search",
+      essential: false, cacheHit: false,
+    });
+    if (!decision || decision.allowed !== true) return empty;
+  }
   let snippets = [];
   const mail = deps.mail || getMail({
     accountId: deps.gmailAccountId, token: deps.unipileToken, dsn: deps.unipileDsn,
@@ -182,11 +189,19 @@ async function placesSearch(query, mapsKey, options = {}) {
   if (!mapsKey || !query || options.allowGoogleFallback === false) {
     return { results: [], attributions: [], provider: "openpoi" };
   }
+  if (typeof options.authorizeProviderOperation === "function") {
+    const decision = await options.authorizeProviderOperation({
+      tenantId: options.tenantId || "anonymous", provider: "google_maps", operation: "places_search",
+      essential: false, cacheHit: false,
+    });
+    if (!decision || decision.allowed !== true) return { results: [], attributions: [], provider: "budget" };
+  }
   try {
     // No hardcoded language/region — this must work for ANY user worldwide. Places returns each
     // venue's address in its own locale; the agent adds geographic context (the user's home city) to
     // its query itself when it needs to disambiguate.
-    const r = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
+    const fetchImpl = options.fetchImpl || globalThis.fetch;
+    const r = await fetchImpl(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
     const j = await r.json();
     return {
       results: (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" })),
@@ -230,9 +245,17 @@ const RESOLVE_TOOLS = [{
 async function agentResolveLocation(event, {
   home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter,
   openPoiSearch: poiSearch, openPoiFetch, geminiRaw: rawGemini,
+  authorizeProviderOperation,
 }) {
   let openPoiAttributions = [];
   const raw = rawGemini || geminiRaw;
+  if (typeof authorizeProviderOperation === "function") {
+    const decision = await authorizeProviderOperation({
+      tenantId: uid || "anonymous", provider: "gemini", operation: "ask_resolve_location",
+      essential: false, cacheHit: false,
+    });
+    if (!decision || decision.allowed !== true) return { kind: "ask" };
+  }
   const contents = [{
     role: "user",
     parts: [{ text:
@@ -294,6 +317,7 @@ User's home address: ${JSON.stringify(home || "")}` }],
       if (c.name === "places_search") {
         const res = await placesSearch((c.args || {}).query || "", mapsKey, {
           openPoiSearch: poiSearch, openPoiFetch,
+          authorizeProviderOperation, tenantId: uid,
         });
         if (res.provider === "openpoi") openPoiAttributions = res.attributions || [];
         responses.push({ functionResponse: {
@@ -414,7 +438,8 @@ async function recallOrResolve(event, opts) {
   if (mem) return { kind: "filled", location: mem, fromMemory: true };
   return await resolve(event, { home: opts.home, mapsKey: opts.mapsKey, geminiKey: opts.geminiKey,
     uid: opts.uid, recordUsageEvent: opts.recordUsageEvent,
-    openPoiSearch: opts.openPoiSearch, openPoiFetch: opts.openPoiFetch, geminiRaw: opts.geminiRaw });
+    openPoiSearch: opts.openPoiSearch, openPoiFetch: opts.openPoiFetch, geminiRaw: opts.geminiRaw,
+    authorizeProviderOperation: opts.authorizeProviderOperation });
 }
 
 // Returns { autofilled, asked, resolved }.
@@ -445,6 +470,7 @@ async function askTick(uid, opts) {
       uid, supaUrl, supaKey, home: opts.home, mapsKey, geminiKey,
       recall: opts.recall, recordUsageEvent: opts.recordUsageEvent,
       openPoiSearch: opts.openPoiSearch, openPoiFetch: opts.openPoiFetch,
+      authorizeProviderOperation: opts.authorizeProviderOperation,
       resolve: interpretation.decision === "ask_closed" ? async () => ({ kind: "ask" }) : opts.resolve,
     });
     if (res.kind === "online") {
@@ -468,6 +494,7 @@ async function askTick(uid, opts) {
     const candidate = await agentSearchCandidate(event, {
       uid, geminiKey, geminiRaw: opts.geminiRaw, recordUsageEvent: opts.recordUsageEvent, mail: opts.mail,
       gmailAccountId: opts.gmailAccountId, unipileToken: opts.unipileToken, unipileDsn: opts.unipileDsn,
+      authorizeProviderOperation: opts.authorizeProviderOperation,
     });
     if (candidate.found) {
       await patch(uid, event.id, { location: candidate.candidate }, composioKey, opts.gmailAccountId);

@@ -165,3 +165,11 @@ test("provider cost report keeps Google settlement receipt and unknown state sep
   }).report;
   assert.match(renderFinancialManagerTelegram(unknown), /Google請求: 未確認/);
 });
+
+test("provider budget state is visible in the CFO report", () => {
+  const report = buildFinancialManagerReport([], "2026-10-02", {
+    providerBudget: { state: "degraded", totalUsd: 10, unknownCount: 1, reasons: ["unknown_cost"] },
+  }).report;
+  assert.equal(report.providerBudget.state, "degraded");
+  assert.match(renderFinancialManagerTelegram(report), /Provider予算: degraded/);
+});

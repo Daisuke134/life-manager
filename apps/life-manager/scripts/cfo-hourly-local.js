@@ -153,6 +153,7 @@ async function runHourlyCfo(options = {}) {
       sourceFreshness: pending.report.sourceFreshness || {},
       economicSourceCoverage: pending.report.economicSourceCoverage || null,
       providerCostSettlement: pending.report.providerCostSettlement || null,
+      providerBudget: pending.report.providerBudget || null,
     };
   }
   const result = await runFinancialManager({
@@ -166,6 +167,7 @@ async function runHourlyCfo(options = {}) {
       marketplaceReceiptPaths: options.marketplaceReceiptPaths || [],
       affiliateReadbackPath: options.affiliateReadbackPath,
       googleBillingCsvPath: options.googleBillingCsvPath,
+      providerBudget: options.providerBudget,
       pythonBin: options.pythonBin || "python3",
       capafyAnalyticsPath: options.capafyAnalyticsPath,
       mobileAppsBusinessOutcomesPath: options.mobileAppsBusinessOutcomesPath,
@@ -208,6 +210,7 @@ async function runHourlyCfo(options = {}) {
     publicResult.sourceFreshness = publicResult.report.sourceFreshness || {};
     publicResult.economicSourceCoverage = publicResult.report.economicSourceCoverage || null;
     publicResult.providerCostSettlement = publicResult.report.providerCostSettlement || null;
+    publicResult.providerBudget = publicResult.report.providerBudget || null;
   }
   return publicResult;
 }

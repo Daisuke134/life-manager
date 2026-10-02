@@ -316,7 +316,8 @@ async function ingestFinancialRecords(options) {
   });
   return {
     observed: records.length, created, sources, sourceFreshness,
-    businessReadback, businessSourceCoverage, providerCostSettlement, economicSourceCoverage,
+    businessReadback, businessSourceCoverage, providerCostSettlement,
+    providerBudget: options.providerBudget || null, economicSourceCoverage,
     economicFunnelObservations: agentEconomySources.funnelObservations,
   };
 }

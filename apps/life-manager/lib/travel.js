@@ -299,6 +299,11 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
       }
     } catch { /* persistent cache is an optimization; provider read remains authoritative */ }
   }
+  const authorize = usage.options && usage.options._authorizeProviderOperation;
+  if (typeof authorize === "function") {
+    const decision = await authorize({ tenantId: usage.tenantId || "anonymous", provider: "google_maps", operation: "geocode", essential: false, cacheHit: false });
+    if (!decision || decision.allowed !== true) return null;
+  }
   try {
     const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
     const response = await fetch(u);
@@ -494,6 +499,15 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const query = wallAnchor(call.anchorAtMs, call.timezone, call.nowMs, call.departureMode);
   const google = async () => {
+    if (typeof options._authorizeProviderOperation === "function") {
+      const decision = await options._authorizeProviderOperation({
+        tenantId: uid, provider: "google_maps", operation: "route", essential: false, cacheHit: false,
+      });
+      if (!decision || decision.allowed !== true) {
+        noteProviderFailure(routeUsage, decision?.reason || "budget_stopped");
+        return null;
+      }
+    }
     try {
       const value = googleRouteFn
         ? await googleRouteFn(googleSrc, googleDst, mapsKey, query.anchorAtMs, call.nowMs, call.departureMode)
@@ -646,7 +660,7 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _geocodeStore, _cacheFetch, gmailAccountId } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _geocodeStore, _cacheFetch, _authorizeProviderOperation, gmailAccountId } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const geocodeStore = _geocodeStore || (supaUrl && supaKey
@@ -698,7 +712,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
         const allowanceState = {};
         const routeOpts = { uid, timezone: routeTimezone, supaUrl, supaKey, eventId: evKey, purpose: "go",
           _allowanceState: allowanceState, _reserveManagedAction, _releaseManagedAction,
-          _deferAllowanceRelease: true, _routeCache, _geocodeStore: geocodeStore };
+          _deferAllowanceRelease: true, _routeCache, _geocodeStore: geocodeStore,
+          _authorizeProviderOperation };
         if ((_directionsRoute || _directionsMinutes) && typeof _reserveManagedAction === "function") {
           const receipt = await _reserveManagedAction(uid, evKey, supaUrl, supaKey);
           allowanceState.receipt = receipt && receipt.reservationToken ? receipt : null;
@@ -829,7 +844,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       : await directionsFn(venue, home, mapsKey, ev.endMs, nowMs, /* departureMode= */ true, {
       uid, timezone: routeTimezone, supaUrl, supaKey, eventId: evKey, purpose: "return",
       _allowanceState: returnAllowanceState, _reserveManagedAction, _releaseManagedAction,
-      _routeCache, _geocodeStore: geocodeStore,
+      _routeCache, _geocodeStore: geocodeStore, _authorizeProviderOperation,
     });
     if (retMins == null) {
       skipped++;
