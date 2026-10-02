@@ -3640,3 +3640,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Self-Build verified writeback（patch→review→main→release→natural outcome）が実際に出るまで、連続日数を完了証拠にしない。
 2. CFO source coverageとsettled revenue/cost joinを埋める。
 3. TaskMarket awardが出た場合のみBlockRun paid inferenceへ進める。
+
+### 142. Self-Build immutable releaseからsource checkoutへの修正（2026-10-02 JST）
+
+- PR #6496（merge `0be83c2507`）で、immutable releaseを実行中のSelf-Buildがgit操作をrelease rootへ誤送していた問題を修正した。`LM_SELFBUILD_SOURCE_REPO`をguard childへ伝播し、`git fetch/diff/worktree`とpruneを実git checkoutへ向ける。source checkoutが無い場合はrelease rootへ黙ってfallbackせずfail-closedする。
+- focused test `apps/life-manager/lib/self-build-daily.test.js` + `self-build-daily-runtime.test.js` は86/86 PASS。PR #6368 head `3805e385...`でsource checkoutからchanged-files readbackを実行し、2ファイルを取得できた。旧`not a git repository`は再現せず、次の正確な境界は`recovery_promotion_hooks_incomplete`になった。
+- immutable release `/Users/anicca/loops/releases/20261002T220838-0be83c25`を作成し、`life-manager-selfbuild`へapplyした（install event `ff1829cb050f9e63aa72ea74`、loaded SHA一致）。直後のkickstartは`host_admission_deferred:resource_capacity_busy`でentrypoint前に停止したため、本番natural runがsource fallbackを実行した証拠はまだ無い。
+- PR #6368は`external_effect_owner`（publish lane）でpromotion hooksが未接続のため、自動mergeしないのが正しい。source修正とPR候補のmerge可否を混同しない。
+
+#### 更新後の原子cursor
+
+1. capacityが空いたSelf-Build natural runを1回読み戻し、source checkout fallback→`recovery_promotion_hooks_incomplete`までproductionで確認する。
+2. promotion hooksが完全なdeterministic/effect-none recovery PRだけを自動merge候補にする。
+3. その後、CFO/Agent Economyのsettlement境界へ戻る。
