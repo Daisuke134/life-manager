@@ -56,6 +56,7 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - stale spending: `JPY 205,500`
 - stale flow period: `2026-07-16T15:00:00Z..2026-08-24T15:00:00Z`
 - live run used injected delivery and did not send to Telegram/email
+- Personal CLI read-only output: `今月: stale 収入 ¥806,201 / stale 支出 ¥205,500 / stale 差引 ¥600,701`, process exit `1` because freshness/completeness remain partial
 
 ### Live B7 business readback
 
