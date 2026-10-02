@@ -2743,6 +2743,19 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. 新しいrunで実際に提出した場合のみPromptBase dashboard/GmailのPending→Approved/Declinedをreadbackし、Approved後に公開listing/sale/settlement/payoutへ進む。失敗時は新しい正確なUI境界を記録する。
 4. Capafy 4243672453のunder_review readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 76. Capafy/PromptBaseの審査中readback継続（2026-10-02 12:46 JST）
+
+- Capafy official remote-statusを同一Agent/versionで再取得した。Agent 4243672453 / version 2105842148210266112は platform_status=1、audit_status=2、is_confirmed_skills=true、is_confirmed_config_keys=true、package_uploaded=true、status_reason=under_review、can_report_published=falseで変化なし。inventoryは52件（online=47、under_review=2、review_rejected=2、draft=1）で、販売・payout完了とは数えない。
+- PromptBaseはFootball Match AnalystとReels Hook Labが公式dashboardでpending_review、Sales=0件/$0、Gmailに審査通知なし。どちらもApproved/Declined未確認のため、P5c・PromptBase収益閉路は未完了のまま維持する。
+- 3863e15714のDraftカード修正はproduction E2Eで正しいDraft resumeとPending readbackまで確認済みであり、同一listingの再送はしない。
+
+#### 更新後の原子cursor
+
+1. PromptBase 2 listingの自然dashboard/Gmail審査結果を公式readbackする。
+2. Capafy Agent 4243672453のunder_review→online/review_rejectedを公式remote-statusでreadbackする。
+3. online/Approved後だけsale、fee、model cost、settlement、payout、replay-zeroを閉じる。
+4. 両方の審査中状態を売上・利益・Capafy/PromptBase完了へ昇格させず、§55の次段（Writer/Ebook/Affiliate以降）を独立laneで進める。TaskMarket/BlockRunは後段のまま。
+
 ### 75. PromptBase Draft修正releaseのproduction E2Eと公式pending readback（2026-10-02 12:44 JST）
 
 - natural fleet applyがPromptBase plist/argvをimmutable release 3863e1571417e966f9e66bb548fac34d61d68811へ更新した。launchctl readbackはstate=not running、last exit=0、LIFE_MANAGER_REPO=/Users/anicca/loops/releases/20261002T122706-3863e157、LIFE_MANAGER_RELEASE_SHA=3863e15714を返した。
