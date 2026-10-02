@@ -3258,3 +3258,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 次のnatural `lancers-revenue-paid` wakeが`release_sha=d3050812aa`でterminal eventを書き、exit 124なし・official status/readbackを同一occurrenceへ結合するまで待つ。manual wake、provider retry、effect_unknown closeはしない。
 2. Lancers Application T1（marker消失機構）は別cursorとしてread-only観測する。
 3. Lancers自然Paidが閉じた後、PromptBase P5c→Capafy→Writer/Ebook/Affiliate→Mobile/Connector/Fundraiser→contract-work→CFO→TaskMarket/BlockRun→cloud/self-fundingへ進む。
+
+### 107. Lancers proposal-cache修正後のnatural Paid readback（2026-10-02 18:50 JST）
+
+- release `20261002T183857-d3050812`をloadedした後、natural occurrence `18daad41273723b0-80967`が`exit=0`で完了した。`runtime_timeout=300`内で、proposal terms cacheとacceptance list cacheを使い、旧`entrypoint_exit_124`は再現しなかった。
+- occurrence resultは`effect=0 / readback=0 / failed=0 / pending=10`。10候補は`acceptance_state_unknown`または`reconcile_unknown`で、provider receipt・official readbackはなく、acceptや外部送信は行われていない。これはT3の性能・安全境界のnatural PASSであり、paid contract・settlement・収益の完了ではない。
+- healthは`state=safely_fenced`、`last_success=2026-10-02T09:48:54Z`、`last_receipt=null`を返す。effect_unknownを0へ変換せず、過去occurrenceを再送しない。
+
+#### 更新後の原子cursor
+
+1. Lancers Application T1のmarker消失機構をdurable event/child cleanupのread-only観測で閉じる。
+2. Lancers Paidはbuyer-visible acceptance/settlement/fee/actual cost/official receiptが揃う案件だけをpaid完了へ進める。現在は候補pendingのまま保持する。
+3. 次の収益cursorはPromptBase P5cの公式dashboard/Gmail→公開→sale/settlement/payout→replay-zeroである。
