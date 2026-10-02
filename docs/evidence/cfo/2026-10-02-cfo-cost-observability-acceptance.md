@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `b69ecbdfcf`
+Code release observed: `57668d980f`
 
 ## Natural-run evidence
 
@@ -72,13 +72,13 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Collector: `skills/cfo/loop_pnl.py --date 2026-10-02 --json`
 - Snapshot: `2026-10-02T15:00:00.000000Z`
 - Trailing window: `2026-09-02T15:00:00.000000Z..2026-10-02T15:00:00.000000Z`
-- Historical company: `unknown`, no settled company total (`136` coverage gaps)
-- Trailing company: `unknown`, no settled company total (`131` coverage gaps)
-- Historical gap classes: `missing_category=126`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`, `unverified_receipt=1`, `read_failed=1`
-- Trailing gap classes: `missing_category=122`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`, `read_failed=1`
-- Readback artifact SHA-256: `291767265beacd05eb8d040302b328372c911e5b99e6a3a02ccef81aeb8dfe82`
+- Historical company: `unknown`, no settled company total (`134` coverage gaps)
+- Trailing company: `unknown`, no settled company total (`129` coverage gaps)
+- Historical gap classes: `missing_category=125`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`, `unverified_receipt=1`
+- Trailing gap classes: `missing_category=121`, `source_unconnected=5`, `missing_coverage=2`, `stale_readback=1`
+- Readback artifact SHA-256: `9f48064add9b42b3aa3c357deff9cba77b3159588aaa836131355a0e1f65a109`
 - Canonical artifact-path rerun receipt: `loop-pnl://sha256/979f5e3ee3903cd0add3a5138c793f87b6dd9344408edd33117c9fe0bccfdd1b`
-- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); actual-cost `read_failed=1`; Writer `stale_readback=1`; PartnerStack and Alpaca order P&L `missing_coverage=2`; Capafy and mobile `source_unconnected=2`; plus explicit unreported-loop coverage rows. Stripe is no longer `read_failed`: its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
+- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); Writer `stale_readback=1`; PartnerStack and Alpaca order P&L `missing_coverage=2`; Capafy and mobile `source_unconnected=2`; plus explicit unreported-loop coverage rows. The Google official invoice is now connected to `cfo` infra cost; Stripe is no longer `read_failed` and its trailing financial readback is complete, while one historical JCT fee adjustment remains `unverified_receipt`. The remaining `missing_category` rows are derived category gaps, not independent incidents.
 - Fresh private-state audit now has official PartnerStack and Alpaca account readbacks. PartnerStack has an empty commission/payout report and therefore remains `missing_coverage`; Alpaca cash balance is verified but filled-order realized P&L is not derived, so order coverage remains `missing_coverage`. The Lancers marketplace SQLite still has `260` `application_verified` events and `0` `payment_received` events; Capafy/Mobile files are analytics snapshots rather than strict order/financial readbacks.
 
 Interpretation: the collector is running and preserving the gaps. Stripe now has an official readback path and source-backed trailing receipts, but portfolio-wide settled MRR/net/revenue remains unknown until the other configured rails provide current receipt-backed coverage.
@@ -124,6 +124,7 @@ Interpretation: the collector is running and preserving the gaps. Stripe now has
 - CSV receipt: `google-billing://sha256/c5157075fe3e8331fa2a72d3b33fc98bbacb8b84a0ee2cfc945051ee87f66c64`.
 - Service totals (pre-tax raw): Gemini API `JPY 5,160.873099`; Places API `JPY 9,419.856821`; Geocoding API `JPY 7,493.014626`; Directions API `JPY 3,271.171127`; Cloud Key Management Service `JPY 9.530434`; Cloud Storage `JPY 0.004844`; Cloud Run `JPY 0`.
 - The daily ingestion path accepts `LM_CFO_GOOGLE_BILLING_CSV` and `LM_CFO_GOOGLE_BILLING_INVOICE_MONTH`, preserves the receipt, and never folds usage estimates into the settled amount.
+- B7 now builds an official actual-cost envelope from the same CSV bytes: `35` infra-cost receipt lines sum to `JPY 27,889` including the invoice tax/rounding reconciliation; the CSV SHA above is the evidence root. Credits that cannot be represented as negative unsigned components are folded into the explicit tax-and-rounding reconciliation line, never silently dropped from the invoice total.
 
 ### Canonical local close with settled Google billing
 
@@ -167,7 +168,7 @@ Interpretation: the collector is running and preserving the gaps. Stripe now has
 |---|---|---|
 | Moneytree stale/empty is not zero | proved | installed plugin read + CLI exit 1 + fixture replay; last-known balance ¥504,302, income ¥806,201, spending ¥205,500 |
 | Canonical local Financial Manager path | proved | `runHourlyCfo` daily default, 1-day idempotent receipt |
-| Settled business coverage and gaps | partial | B7 table receipt contract exists; Stripe trailing and Alpaca account readbacks are connected, PartnerStack is official-empty, and order/marketplace/actual-cost gaps remain explicit |
+| Settled business coverage and gaps | partial | B7 table receipt contract exists; Stripe trailing, Google infra cost, and Alpaca account readbacks are connected, PartnerStack is official-empty, and order/marketplace gaps remain explicit |
 | Google estimate vs settled invoice | proved for September settlement; partial for event-level attribution | Official Cost Table CSV parsed with receipt, tax, rounding, and service/SKU totals; joining every usage event to a billing SKU remains incomplete |
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
