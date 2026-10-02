@@ -21,6 +21,97 @@ function instant(value, label) {
   return parsed.toISOString();
 }
 
+function optionalInstant(value) {
+  if (value == null || value === "") return null;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+}
+
+function rawData(toolResult) {
+  return toolResult?.structuredContent?.data || toolResult?.data || toolResult || {};
+}
+
+function classifyMoneytreeObservation(input, {
+  observedAt, now = observedAt, startDate = null, endDate = null,
+} = {}) {
+  const data = rawData(input);
+  const envelopes = [data, input?.structuredContent, input].filter(
+    (value) => value && typeof value === "object",
+  );
+  const pick = (...keys) => envelopes.reduce((found, envelope) => {
+    if (found !== undefined && found !== null && found !== "") return found;
+    return keys.reduce((value, key) => (
+      value !== undefined && value !== null && value !== "" ? value : envelope[key]
+    ), found);
+  }, undefined);
+  const type = String(pick("type") || (Array.isArray(data.transactions) ? "transactions" : ""))
+    .toLowerCase();
+  const sourceUpdatedAt = optionalInstant(pick(
+    "sourceUpdatedAt", "source_updated_at", "lastAggregatedAt", "last_aggregated_at",
+    "lastSuccess", "last_success",
+  ));
+  const credentialStatus = String(pick("credentialStatus", "credential_status", "status") || "")
+    .toLowerCase();
+  const requestedStart = startDate == null ? null : String(startDate);
+  const requestedEnd = endDate == null ? null : String(endDate);
+  const coverage = pick("transactionCoverage", "transaction_coverage");
+  const explicitComplete = coverage === true
+    || coverage === "complete"
+    || (coverage && typeof coverage === "object" && coverage.complete === true)
+    || pick("transactionsComplete", "transactions_complete") === true;
+  const transactionCoverage = explicitComplete
+    ? "complete"
+    : type === "transactions" ? "unknown" : "not_applicable";
+
+  if (/invalid|reauth|credential|auth\./i.test(credentialStatus)) {
+    return {
+      status: "stale", reason: "provider_auth_invalid", sourceUpdatedAt,
+      transactionCoverage, requestedStart, requestedEnd,
+    };
+  }
+  if (type === "transactions" && !explicitComplete) {
+    return {
+      status: "partial", reason: "transaction_completeness_unknown", sourceUpdatedAt,
+      transactionCoverage, requestedStart, requestedEnd,
+    };
+  }
+  if (!sourceUpdatedAt) {
+    return {
+      status: "partial", reason: "source_freshness_unknown", sourceUpdatedAt,
+      transactionCoverage, requestedStart, requestedEnd,
+    };
+  }
+  const nowInstant = optionalInstant(now);
+  if (nowInstant && Date.parse(sourceUpdatedAt) > Date.parse(nowInstant)) {
+    return {
+      status: "partial", reason: "source_updated_at_in_future", sourceUpdatedAt,
+      transactionCoverage, requestedStart, requestedEnd,
+    };
+  }
+  return {
+    status: "fresh", reason: null, sourceUpdatedAt,
+    transactionCoverage, requestedStart, requestedEnd,
+  };
+}
+
+function observationFor(toolResult, tool, options = {}) {
+  const retrievedAt = new Date().toISOString();
+  const freshness = classifyMoneytreeObservation(toolResult, {
+    observedAt: retrievedAt, now: retrievedAt, ...options,
+  });
+  return Object.freeze({
+    provider: "moneytree", mcp_server: "codex_apps", tool,
+    retrieved_at: retrievedAt,
+    payload_sha256: sha256(canonicalJson(rawData(toolResult))),
+    source_status: freshness.status,
+    source_reason: freshness.reason,
+    source_updated_at: freshness.sourceUpdatedAt,
+    transaction_coverage: freshness.transactionCoverage,
+    requested_start: freshness.requestedStart,
+    requested_end: freshness.requestedEnd,
+  });
+}
+
 function hash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -34,6 +125,7 @@ function sourceIdentity(value) {
 
 function commonBase(record, {
   subjectId, recordedAt, evidenceRef = null, evidenceObservedAt = null,
+  verificationStatus = "unverified",
 }) {
   const observedAt = instant(record.observed_at || recordedAt, "Moneytree observed time");
   const subject = commonId(subjectId, "Moneytree subject id");
@@ -55,7 +147,7 @@ function commonBase(record, {
         observed_at: instant(evidenceObservedAt, "Moneytree evidence observation time"),
         evidence_refs: [evidenceRef],
       }
-      : { status: "unverified", observed_at: observedAt, evidence_refs: [] },
+      : { status: verificationStatus, observed_at: observedAt, evidence_refs: [] },
   };
 }
 
@@ -211,9 +303,7 @@ function readAccounts(options = {}) {
       const records = normalizeAccounts(result, retrievedAt);
       Object.defineProperty(records, MONEYTREE_OBSERVATION, {
         enumerable: false, value: Object.freeze({
-          provider: "moneytree", mcp_server: "codex_apps", tool: "moneytree.show-accounts",
-          retrieved_at: retrievedAt,
-          payload_sha256: sha256(canonicalJson(result.structuredContent?.data)),
+          ...observationFor(result, "moneytree.show-accounts", { observedAt: retrievedAt }),
         }),
       });
       return records;
@@ -227,9 +317,7 @@ function readTransactions({ startDate, endDate, limit = 1000, ...options }) {
     const records = normalizeTransactions(result);
     Object.defineProperty(records, MONEYTREE_OBSERVATION, {
       enumerable: false, value: Object.freeze({
-        provider: "moneytree", mcp_server: "codex_apps", tool: "moneytree.show-transactions",
-        retrieved_at: new Date().toISOString(),
-        payload_sha256: sha256(canonicalJson(result.structuredContent?.data)),
+        ...observationFor(result, "moneytree.show-transactions", { startDate, endDate }),
       }),
     });
     return records;
@@ -250,6 +338,7 @@ module.exports = {
   accountToFinancialRecord,
   normalizeAccounts,
   normalizeTransactions,
+  classifyMoneytreeObservation,
   readAccounts,
   readTransactions,
   transactionToFinancialRecord,

@@ -21,6 +21,30 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function stableNormalizedValue(value) {
+  if (Array.isArray(value)) return value.map(stableNormalizedValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => key !== "observed_at" && key !== "retrieved_at")
+      .map(([key, item]) => [key, stableNormalizedValue(item)]));
+  }
+  return value;
+}
+
+function stableObservationCore(document) {
+  const core = { ...document };
+  delete core.evidence_id;
+  delete core.observed_at;
+  if (Array.isArray(core.reads)) {
+    core.reads = core.reads.map((read) => {
+      const stable = { ...read };
+      delete stable.retrieved_at;
+      return stable;
+    });
+  }
+  return core;
+}
+
 function exactInstant(value, label) {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
     throw new Error(`${label} invalid`);
@@ -39,6 +63,15 @@ function projectRead(value, expectedTool) {
     tool: value.tool,
     retrieved_at: exactInstant(value.retrieved_at, "Moneytree retrieval time"),
     payload_sha256: value.payload_sha256,
+    source_status: ["fresh", "partial", "stale", "unknown"].includes(value.source_status)
+      ? value.source_status : "unknown",
+    source_reason: value.source_reason == null ? null : String(value.source_reason),
+    source_updated_at: value.source_updated_at == null ? null
+      : exactInstant(value.source_updated_at, "Moneytree source update time"),
+    transaction_coverage: value.transaction_coverage == null ? "not_applicable"
+      : String(value.transaction_coverage),
+    requested_start: value.requested_start == null ? null : String(value.requested_start),
+    requested_end: value.requested_end == null ? null : String(value.requested_end),
   };
 }
 
@@ -52,11 +85,15 @@ function buildMoneytreeObservation({ accounts, transactions, accountRead, transa
       projectRead(accountRead, "moneytree.show-accounts"),
       projectRead(transactionRead, "moneytree.show-transactions"),
     ],
+    source_status: {
+      accounts: projectRead(accountRead, "moneytree.show-accounts").source_status,
+      transactions: projectRead(transactionRead, "moneytree.show-transactions").source_status,
+    },
     account_count: accounts.length,
     transaction_count: transactions.length,
-    normalized_payload_sha256: sha256(canonicalJson({ accounts, transactions })),
+    normalized_payload_sha256: sha256(canonicalJson(stableNormalizedValue({ accounts, transactions }))),
   };
-  const digest = sha256(canonicalJson(core));
+  const digest = sha256(canonicalJson(stableObservationCore(core)));
   return Object.freeze({
     evidence_ref: `moneytree-observation://sha256/${digest}`,
     document: Object.freeze({ evidence_id: `moneytree-observation:${digest}`, ...core }),
@@ -74,7 +111,7 @@ function createMoneytreeObservationStore({ directoryPath } = {}) {
         throw new Error("Moneytree observation invalid");
       }
       const { evidence_id: evidenceId, ...core } = observation.document;
-      if (sha256(canonicalJson(core)) !== match[1]) throw new Error("Moneytree observation digest invalid");
+      if (sha256(canonicalJson(stableObservationCore(core))) !== match[1]) throw new Error("Moneytree observation digest invalid");
       fs.mkdirSync(directoryPath, { recursive: true, mode: 0o700 });
       fs.chmodSync(directoryPath, 0o700);
       const target = path.join(directoryPath, `${match[1]}.json`);
@@ -89,7 +126,9 @@ function createMoneytreeObservationStore({ directoryPath } = {}) {
         try { fs.linkSync(temporary, target); }
         catch (error) {
           if (!error || error.code !== "EEXIST") throw error;
-          if (fs.readFileSync(target, "utf8") !== fs.readFileSync(temporary, "utf8")) {
+          const existing = JSON.parse(fs.readFileSync(target, "utf8"));
+          const incoming = JSON.parse(fs.readFileSync(temporary, "utf8"));
+          if (canonicalJson(stableObservationCore(existing)) !== canonicalJson(stableObservationCore(incoming))) {
             throw new Error("Moneytree observation collision");
           }
         }
@@ -102,7 +141,18 @@ function createMoneytreeObservationStore({ directoryPath } = {}) {
         }
       }
     },
+    read(evidenceRef) {
+      const match = /^moneytree-observation:\/\/sha256\/([a-f0-9]{64})$/.exec(String(evidenceRef || ""));
+      if (!match) throw new Error("Moneytree observation ref invalid");
+      const file = path.join(directoryPath, `${match[1]}.json`);
+      const document = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (document.evidence_id !== `moneytree-observation:${match[1]}`
+        || sha256(canonicalJson(stableObservationCore(document))) !== match[1]) {
+        throw new Error("Moneytree observation digest invalid");
+      }
+      return Object.freeze({ evidence_ref: evidenceRef, document: Object.freeze(document) });
+    },
   });
 }
 
-module.exports = { buildMoneytreeObservation, canonicalJson, createMoneytreeObservationStore, sha256 };
+module.exports = { buildMoneytreeObservation, canonicalJson, createMoneytreeObservationStore, sha256, stableObservationCore };

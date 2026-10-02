@@ -185,6 +185,11 @@ test("authenticated Moneytree reads are verified only after immutable evidence i
   const provenance = (tool, digest) => ({
     provider: "moneytree", mcp_server: "codex_apps", tool,
     retrieved_at: "2026-09-07T02:00:00.000Z", payload_sha256: digest.repeat(64),
+    source_status: "fresh", source_reason: null,
+    source_updated_at: "2026-09-07T02:00:00.000Z",
+    transaction_coverage: tool.endsWith("transactions") ? "complete" : "not_applicable",
+    requested_start: tool.endsWith("transactions") ? "2026-09-01" : null,
+    requested_end: tool.endsWith("transactions") ? "2026-09-07" : null,
   });
   const observed = (records, observation) => {
     Object.defineProperty(records, MONEYTREE_OBSERVATION, { value: observation });
@@ -213,8 +218,8 @@ test("authenticated Moneytree reads are verified only after immutable evidence i
   const transaction = first.find((record) => record.kind === "personal_expense");
   assert.equal(balance.verification.status, "verified");
   assert.match(balance.verification.evidence_refs[0], /^moneytree-observation:\/\/sha256\/[a-f0-9]{64}$/);
-  assert.equal(transaction.verification.status, "unverified");
-  assert.deepEqual(transaction.verification.evidence_refs, []);
+  assert.equal(transaction.verification.status, "verified");
+  assert.match(transaction.verification.evidence_refs[0], /^moneytree-observation:\/\/sha256\/[a-f0-9]{64}$/);
   assert.equal(fs.readdirSync(path.join(root, "evidence")).length, 1);
 
   observedAt = "2026-09-07T03:00:00.000Z";

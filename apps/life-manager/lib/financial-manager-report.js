@@ -88,10 +88,16 @@ function zonedMidnight(key, timezone) {
 }
 
 function buildFinancialManagerReport(rawRecords, reportingDate, {
-  timezone = "Asia/Tokyo", economicSourceCoverage = null,
+  timezone = "Asia/Tokyo", economicSourceCoverage = null, sourceFreshness = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
-  const verified = records.filter((record) => record.verification.status === "verified");
+  const staleProviders = new Set(Object.entries(sourceFreshness || {})
+    .filter(([, value]) => value && value.status !== "fresh")
+    .map(([provider]) => provider));
+  const verified = records.filter((record) => record.verification.status === "verified"
+    && !staleProviders.has(record.source.provider));
+  const stale = records.filter((record) => record.verification.status === "stale"
+    || (record.verification.status === "verified" && staleProviders.has(record.source.provider)));
   const month = reportingDate.slice(0, 7);
   const [year, monthNumber] = month.split("-").map(Number);
   const monthStart = zonedMidnight(`${month}-01`, timezone);
@@ -107,10 +113,16 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
   const sevenDayStartLabel = addDays(reportingDate, -6);
   const sevenDayStart = zonedMidnight(sevenDayStartLabel, timezone);
   const balances = newestBalances(verified);
+  const staleBalances = newestBalances(stale);
   const assets = new Map();
   const liabilities = new Map();
+  const staleAssets = new Map();
+  const staleLiabilities = new Map();
   for (const record of balances) {
     add(record.kind === "asset_balance" ? assets : liabilities, record.currency, record.amount_minor);
+  }
+  for (const record of staleBalances) {
+    add(record.kind === "asset_balance" ? staleAssets : staleLiabilities, record.currency, record.amount_minor);
   }
   const included = [...balances, ...currentBusiness];
   const providers = [...new Set(included.map((record) => record.source.provider))].sort();
@@ -131,6 +143,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     personal: {
       assets: sortedAmounts(assets), liabilities: sortedAmounts(liabilities),
       netWorth: sortedAmounts(netWorth),
+      staleAssets: sortedAmounts(staleAssets), staleLiabilities: sortedAmounts(staleLiabilities),
     },
     business: {
       period: month,
@@ -150,6 +163,8 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     },
     providers,
     economicSourceCoverage,
+    sourceFreshness: sourceFreshness || {},
+    partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh"),
   };
   const digestReport = { ...report };
   delete digestReport.verifiedRecordCount;
@@ -205,6 +220,14 @@ function renderFinancialManagerDetailed(report) {
       ...(report.personal.netWorth.length ? [rows("純資産", report.personal.netWorth)] : []),
     );
   }
+  if (report.personal.staleAssets.length || report.personal.staleLiabilities.length) {
+    lines.push(
+      "", "前回観測残高（stale）",
+      ...(report.personal.staleAssets.length ? [rows("資産", report.personal.staleAssets)] : []),
+      ...(report.personal.staleLiabilities.length ? [rows("負債", report.personal.staleLiabilities)] : []),
+      "最新確認: 未確認",
+    );
+  }
   lines.push(...businessLines("\n事業（今日）", report.business.today));
   lines.push(...businessLines("\n事業（直近7日）", report.business.last7Days));
   lines.push(...businessLines(`\n事業（${report.business.period}）`, report.business));
@@ -221,6 +244,10 @@ function renderFinancialManagerDetailed(report) {
     `未確認のため合計から除外：${report.excludedRecordCount}件`,
     `根拠プロバイダー：${report.providers.join("、") || "なし"}`,
   );
+  const freshness = Object.entries(report.sourceFreshness || {})
+    .filter(([, value]) => value && value.status !== "fresh")
+    .map(([source, value]) => `${source}:${value.status || "unknown"}(${value.reason || "未確認"})`);
+  if (freshness.length) lines.push(`⚠️ 未確認/古いソース：${freshness.join("、")}`);
   return lines.join("\n");
 }
 
@@ -228,6 +255,9 @@ function renderFinancialManagerTelegram(report) {
   const today = report.business.today;
   const amounts = values => values.length ? values.map(money).join(" / ") : "未確認";
   const lines = [`Life Manager ${report.reportingDate}`, `今日の確認済み売上: ${amounts(today.revenue)}`];
+  if (report.personal.staleAssets.length || report.personal.staleLiabilities.length) {
+    lines.push(`前回観測残高（stale）: ${amounts(report.personal.staleAssets)} / 最新確認: 未確認`);
+  }
   const providers = today.byProvider || [];
   if (providers.length) lines.push(providers.filter(p => p.revenue.length)
     .map(p => `${p.provider}: ${amounts(p.revenue)}`).join(" | "));
@@ -239,6 +269,10 @@ function renderFinancialManagerTelegram(report) {
       && !["empty", "observed_verified", "not_applicable"].includes(loop.sources?.financial?.state))
     .map(loop => loop.product_loop_id);
   lines.push(missing.length ? `未確認: ${missing.join(", ")}` : "全ソースの照合は未確認。売上は利益ではありません。");
+  const freshness = Object.entries(report.sourceFreshness || {})
+    .filter(([, value]) => value && value.status !== "fresh")
+    .map(([source, value]) => `${source}:${value.status || "unknown"}(${value.reason || "未確認"})`);
+  if (freshness.length) lines.push(`未確認/古いソース: ${freshness.join("、")}`);
   return lines.filter(Boolean).join("\n");
 }
 

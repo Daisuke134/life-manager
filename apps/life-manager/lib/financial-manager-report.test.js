@@ -94,3 +94,36 @@ test("economic source coverage stays private and does not change the notificatio
   assert.equal(withCoverage.digest, withoutCoverage.digest);
   assert.doesNotMatch(renderFinancialManagerTelegram(withCoverage.report), /economic|coverage|tenant-1/i);
 });
+
+test("stale personal balance is shown as last-known and source warning, never current cash", () => {
+  const stale = record("stale-balance", {
+    kind: "asset_balance", amount: 504302, occurredAt: "2026-08-26T03:09:37.000Z",
+    provider: "moneytree", scope: "personal",
+  });
+  stale.verification = {
+    status: "stale", observed_at: "2026-10-02T06:00:00.000Z", evidence_refs: [],
+  };
+  const { report } = buildFinancialManagerReport([stale], "2026-10-02", {
+    sourceFreshness: { moneytree: { status: "stale", reason: "provider_auth_invalid" } },
+  });
+  const text = renderFinancialManagerTelegram(report);
+  assert.deepEqual(report.personal.assets, []);
+  assert.deepEqual(report.personal.staleAssets, [{ currency: "JPY", amountMinor: 504302 }]);
+  assert.match(text, /前回観測残高（stale）/);
+  assert.match(text, /最新確認: 未確認/);
+  assert.match(text, /moneytree:stale/);
+});
+
+test("provider freshness warning demotes an old verified balance to last-known", () => {
+  const verified = record("old-balance", {
+    kind: "asset_balance", amount: 504302, occurredAt: "2026-08-26T03:09:37.000Z",
+    provider: "moneytree", scope: "personal",
+  });
+  const { report } = buildFinancialManagerReport([verified], "2026-10-02", {
+    sourceFreshness: { moneytree: { status: "partial", reason: "source_freshness_unknown" } },
+  });
+  assert.deepEqual(report.personal.assets, []);
+  assert.deepEqual(report.personal.staleAssets, [{ currency: "JPY", amountMinor: 504302 }]);
+  assert.equal(report.verifiedRecordCount, 0);
+  assert.equal(report.excludedRecordCount, 1);
+});

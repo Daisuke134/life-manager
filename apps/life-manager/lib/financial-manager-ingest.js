@@ -37,6 +37,21 @@ function projectMarketplace(receipts, { subjectId, pythonBin, script }) {
   return projected;
 }
 
+function moneytreeSourceFreshness(snapshot) {
+  const reads = [snapshot && snapshot.accountRead, snapshot && snapshot.transactionRead].filter(Boolean);
+  if (reads.length !== 2) {
+    return { status: "partial", reason: "observation_provenance_missing", reads: [] };
+  }
+  const statuses = reads.map((read) => String(read.source_status || "unknown"));
+  if (statuses.includes("stale")) {
+    return { status: "stale", reason: reads.find((read) => read.source_status === "stale")?.source_reason || "source_stale", reads };
+  }
+  if (!statuses.every((status) => status === "fresh")) {
+    return { status: "partial", reason: reads.find((read) => read.source_reason)?.source_reason || "source_completeness_unknown", reads };
+  }
+  return { status: "fresh", reason: null, reads };
+}
+
 async function readMoneytreeSnapshot(readAccounts, readTransactions, range) {
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -68,6 +83,7 @@ async function ingestFinancialRecords(options) {
   const recordedAt = now.toISOString();
   const records = [];
   const sources = {};
+  const sourceFreshness = {};
   let agentReceipts = [];
   let agentRevenueRecords = [];
   let agentRevenueReadState = "not_configured";
@@ -85,8 +101,9 @@ async function ingestFinancialRecords(options) {
       readAccounts, readTransactions, { startDate, endDate },
     );
     const [accounts, transactions] = snapshot;
+    const moneytreeFreshness = moneytreeSourceFreshness(snapshot);
     let evidenceRef = null;
-    if (snapshot.accountRead && snapshot.transactionRead && options.moneytreeEvidenceStore) {
+    if (moneytreeFreshness.status === "fresh" && options.moneytreeEvidenceStore) {
       const observation = buildMoneytreeObservation({
         accounts, transactions, accountRead: snapshot.accountRead,
         transactionRead: snapshot.transactionRead,
@@ -94,19 +111,27 @@ async function ingestFinancialRecords(options) {
           .sort().at(-1),
       });
       evidenceRef = options.moneytreeEvidenceStore.record(observation);
-      snapshot.evidenceObservedAt = observation.document.observed_at;
+      const storedObservation = typeof options.moneytreeEvidenceStore.read === "function"
+        ? options.moneytreeEvidenceStore.read(evidenceRef) : null;
+      snapshot.evidenceObservedAt = storedObservation?.document?.observed_at
+        || observation.document.observed_at;
     }
     records.push(
       ...accounts.map((row) => moneytree.accountToFinancialRecord(
-        row, { subjectId, recordedAt, evidenceRef, evidenceObservedAt: snapshot.evidenceObservedAt },
+        row, { subjectId, recordedAt, evidenceRef, evidenceObservedAt: snapshot.evidenceObservedAt,
+          verificationStatus: moneytreeFreshness.status === "stale" ? "stale" : "unverified" },
       )),
       ...transactions.map((row) => moneytree.transactionToFinancialRecord(
-        row, { subjectId, recordedAt },
+        row, { subjectId, recordedAt, evidenceRef, evidenceObservedAt: snapshot.evidenceObservedAt,
+          verificationStatus: moneytreeFreshness.status === "stale" ? "stale" : "unverified" },
       )),
     );
-    sources.moneytree = evidenceRef ? "observed_verified" : "observed_unverified";
+    sources.moneytree = evidenceRef ? "observed_verified"
+      : moneytreeFreshness.status === "stale" ? "stale" : "observed_unverified";
+    sourceFreshness.moneytree = moneytreeFreshness;
   } catch {
     sources.moneytree = "unavailable";
+    sourceFreshness.moneytree = { status: "unavailable", reason: "connector_read_failed", reads: [] };
   }
 
   try {
@@ -235,9 +260,11 @@ async function ingestFinancialRecords(options) {
     catalogLoops, subjectId, observations,
   });
   return {
-    observed: records.length, created, sources, economicSourceCoverage,
+    observed: records.length, created, sources, sourceFreshness, economicSourceCoverage,
     economicFunnelObservations: agentEconomySources.funnelObservations,
   };
 }
 
-module.exports = { ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths };
+module.exports = {
+  ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths, moneytreeSourceFreshness,
+};

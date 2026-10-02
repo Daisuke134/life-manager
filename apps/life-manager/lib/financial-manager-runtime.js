@@ -56,8 +56,11 @@ async function runFinancialManager(options = {}) {
   const { report, digest } = buildFinancialManagerReport(records, reportingDate, {
     timezone: options.timezone || "Asia/Tokyo",
     economicSourceCoverage: ingestion.economicSourceCoverage || null,
+    sourceFreshness: ingestion.sourceFreshness || null,
   });
-  if (report.verifiedRecordCount === 0) {
+  const hasSourceWarning = Object.values(report.sourceFreshness || {})
+    .some((value) => value && value.status !== "fresh");
+  if (report.verifiedRecordCount === 0 && !hasSourceWarning) {
     return {
       status: "quiet", reason: "no_verified_financial_records", reportingDate,
       recordCount: records.length, delivered: false, ingestion, report, digest,

@@ -9,11 +9,86 @@ const {
   accountToFinancialRecord,
   normalizeAccounts,
   normalizeTransactions,
+  classifyMoneytreeObservation,
   readAccounts,
   transactionToFinancialRecord,
 } = require("./moneytree-local-adapter.js");
 
 const observedAt = "2026-09-07T06:00:00.000Z";
+
+test("Moneytree marks an explicitly complete transaction window fresh", () => {
+  const result = classifyMoneytreeObservation({
+    type: "transactions",
+    startDate: "2026-10-01",
+    endDate: "2026-10-02",
+    totalCount: 0,
+    transactions: [],
+    transactionCoverage: { complete: true },
+    sourceUpdatedAt: "2026-10-02T06:00:00.000Z",
+    credentialStatus: "ok",
+  }, {
+    observedAt: "2026-10-02T06:00:01.000Z",
+    now: "2026-10-02T06:00:01.000Z",
+    startDate: "2026-10-01",
+    endDate: "2026-10-02",
+  });
+  assert.deepEqual(result, {
+    status: "fresh",
+    reason: null,
+    sourceUpdatedAt: "2026-10-02T06:00:00.000Z",
+    transactionCoverage: "complete",
+    requestedStart: "2026-10-01",
+    requestedEnd: "2026-10-02",
+  });
+});
+
+test("Moneytree does not treat an empty transaction array as zero without completeness proof", () => {
+  const result = classifyMoneytreeObservation({
+    type: "transactions",
+    startDate: "2026-10-01",
+    endDate: "2026-10-02",
+    totalCount: 0,
+    transactions: [],
+  }, {
+    observedAt: "2026-10-02T06:00:01.000Z",
+    now: "2026-10-02T06:00:01.000Z",
+    startDate: "2026-10-01",
+    endDate: "2026-10-02",
+  });
+  assert.equal(result.status, "partial");
+  assert.equal(result.reason, "transaction_completeness_unknown");
+  assert.equal(result.transactionCoverage, "unknown");
+});
+
+test("Moneytree reads provider metadata outside structuredContent.data", () => {
+  const result = classifyMoneytreeObservation({
+    type: "transactions",
+    status: "ok",
+    structuredContent: { data: { transactions: [], totalCount: 0 } },
+  }, {
+    observedAt: "2026-10-02T06:00:01.000Z",
+    now: "2026-10-02T06:00:01.000Z",
+    startDate: "2026-10-01",
+    endDate: "2026-10-02",
+  });
+  assert.equal(result.status, "partial");
+  assert.equal(result.reason, "transaction_completeness_unknown");
+  assert.equal(result.transactionCoverage, "unknown");
+});
+
+test("Moneytree invalid credentials are stale even when a balance payload is returned", () => {
+  const result = classifyMoneytreeObservation({
+    type: "accounts",
+    credentialStatus: "auth.creds.invalid",
+    sourceUpdatedAt: "2026-08-26T03:09:37.000Z",
+  }, {
+    observedAt: "2026-10-02T06:00:01.000Z",
+    now: "2026-10-02T06:00:01.000Z",
+  });
+  assert.equal(result.status, "stale");
+  assert.equal(result.reason, "provider_auth_invalid");
+  assert.equal(result.sourceUpdatedAt, "2026-08-26T03:09:37.000Z");
+});
 
 test("Moneytree balances and transactions project to distinct personal FinancialRecords", () => {
   const [account] = normalizeAccounts({ structuredContent: { data: {
