@@ -130,7 +130,12 @@ async function runHourlyCfo(options = {}) {
     const duplicate = Number(delivery.attempted) === 0;
     return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
       reportingDate: date, recordCount: pending.report.verifiedRecordCount || 0,
-      delivered: !duplicate, providerMessageId: String(delivery.provider_message_id) };
+      delivered: !duplicate, providerMessageId: String(delivery.provider_message_id),
+      report: pending.report, digest: pending.digest,
+      personal: pending.report.personal, business: pending.report.business,
+      sourceFreshness: pending.report.sourceFreshness || {},
+      economicSourceCoverage: pending.report.economicSourceCoverage || null,
+    };
   }
   const result = await runFinancialManager({
     subjectId, reportingDate: date, timezone: "Asia/Tokyo", now, store,
@@ -141,6 +146,7 @@ async function runHourlyCfo(options = {}) {
       }),
       agentReceiptPaths: options.agentReceiptPaths || [],
       marketplaceReceiptPaths: options.marketplaceReceiptPaths || [],
+      affiliateReadbackPath: options.affiliateReadbackPath,
       pythonBin: options.pythonBin || "python3",
       capafyAnalyticsPath: options.capafyAnalyticsPath,
       mobileAppsBusinessOutcomesPath: options.mobileAppsBusinessOutcomesPath,
@@ -173,22 +179,34 @@ async function runHourlyCfo(options = {}) {
       };
     },
   });
-  // Local callers consume the compact, stable boundary rather than report internals.
-  const { report, digest, duplicate, ...publicResult } = result;
+  const { duplicate, ...publicResult } = result;
+  if (publicResult.report) {
+    publicResult.personal = publicResult.report.personal;
+    publicResult.business = publicResult.report.business;
+    publicResult.sourceFreshness = publicResult.report.sourceFreshness || {};
+    publicResult.economicSourceCoverage = publicResult.report.economicSourceCoverage || null;
+  }
   return publicResult;
 }
 
-async function main(env = process.env) {
+function selectCfoRunner(env = process.env, deps = {}) {
+  if (env.LM_CFO_LEGACY_RESULT_COMPAT === "1") {
+    return deps.runResultCfo || require("./cfo-result-local.js").runResultCfo;
+  }
+  return deps.runHourlyCfo || runHourlyCfo;
+}
+
+async function main(env = process.env, deps = {}) {
   const stateDir = env.CFO_STATE_DIR || env.LIFE_MANAGER_STATE_ROOT
     || path.join(os.homedir(), ".local/state/life-manager/life-manager-cfo-hourly");
   try {
-    const { runResultCfo } = require("./cfo-result-local.js");
-    const result = await runResultCfo({
+    const runner = selectCfoRunner(env, deps);
+    const result = await runner({
       stateDir,
       subjectId: env.LM_CFO_SUBJECT_ID || env.LM_CFO_UID || env.LM_UID,
       pythonBin: env.CFO_PYTHON_BIN || "python3",
       reportChannel: env.LM_CFO_REPORT_CHANNEL || "email",
-      reportCadence: env.LM_CFO_REPORT_CADENCE || "hourly",
+      reportCadence: env.LM_CFO_REPORT_CADENCE || "daily",
       reportEmail: env.LM_CFO_REPORT_EMAIL,
       resendKey: env.RESEND_API_KEY,
       database: env.CFO_TELEGRAM_OUTBOX || path.join(stateDir, "telegram-outbox.sqlite3"),
@@ -215,6 +233,6 @@ if (require.main === module) main().then((code) => { process.exitCode = code; })
 
 module.exports = {
   agentReceiptPathsFromEnv, capafyAnalyticsPathFromEnv, mobileAppsBusinessOutcomesPathFromEnv,
-  affiliateReadbackPathFromEnv,
+  affiliateReadbackPathFromEnv, selectCfoRunner,
   main, runHourlyCfo,
 };

@@ -8,7 +8,9 @@ const test = require("node:test");
 
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
-const { agentReceiptPathsFromEnv, affiliateReadbackPathFromEnv, runHourlyCfo } = require("./cfo-hourly-local.js");
+const {
+  agentReceiptPathsFromEnv, affiliateReadbackPathFromEnv, main, runHourlyCfo, selectCfoRunner,
+} = require("./cfo-hourly-local.js");
 
 function revenue(overrides = {}) {
   const subjectId = overrides.subject_id || "dais-local";
@@ -161,11 +163,14 @@ test("CFO suppresses no-data and unverified-only Telegram noise", async (t) => {
     notify: async () => { called = true; },
   });
 
-  assert.deepEqual(result, {
-    status: "quiet", reason: "no_verified_financial_records",
-    reportingDate: "2026-09-07", recordCount: 1, delivered: false,
-    ingestion: { observed: 0, created: 0, sources: {} },
-  });
+  assert.equal(result.status, "quiet");
+  assert.equal(result.reason, "no_verified_financial_records");
+  assert.equal(result.reportingDate, "2026-09-07");
+  assert.equal(result.recordCount, 1);
+  assert.equal(result.delivered, false);
+  assert.equal(result.ingestion.sources && Object.keys(result.ingestion.sources).length, 0);
+  assert.equal(result.report.verifiedRecordCount, 0);
+  assert.match(result.digest, /^[a-f0-9]{64}$/);
   assert.equal(called, false);
 });
 
@@ -254,4 +259,56 @@ test("CFO defaults Affiliate to the PartnerStack report artifact and accepts ove
     affiliateReadbackPathFromEnv({ LM_CFO_AFFILIATE_LEDGER: "/state/legacy-ledger.json" }),
     "/state/legacy-ledger.json",
   );
+});
+
+test("local main selects canonical Financial Manager daily path by default", async () => {
+  const canonical = async () => ({ status: "quiet", reportingDate: "2026-09-07", delivered: false });
+  const legacy = async () => ({ status: "sent" });
+  assert.equal(selectCfoRunner({}, { runHourlyCfo: canonical, runResultCfo: legacy }), canonical);
+  assert.equal(
+    selectCfoRunner({ LM_CFO_LEGACY_RESULT_COMPAT: "1" }, { runHourlyCfo: canonical, runResultCfo: legacy }),
+    legacy,
+  );
+  const code = await main({
+    CFO_STATE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-main-")),
+    LM_CFO_SUBJECT_ID: "dais-local", LM_CFO_REPORT_EMAIL: "owner@example.test",
+  }, { runHourlyCfo: async (options) => {
+    assert.equal(options.reportCadence, "daily");
+    assert.equal(options.subjectId, "dais-local");
+    return canonical();
+  }, runResultCfo: legacy });
+  assert.equal(code, 0);
+});
+
+test("canonical local result exposes personal, business, freshness, and digest", async (t) => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-canonical-"));
+  t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(stateDir, "records") });
+  await store.append(revenue({
+    idempotency_key: "stripe:canonical:1", record_id: financialRecordId("dais-local", "stripe:canonical:1"),
+    occurred_at: "2026-10-02T00:00:00.000Z", recorded_at: "2026-10-02T00:01:00.000Z",
+  }));
+  await store.append(revenue({
+    idempotency_key: "moneytree:canonical:balance", record_id: financialRecordId("dais-local", "moneytree:canonical:balance"),
+    scope: "personal", kind: "asset_balance", direction: "snapshot", amount_minor: 504302,
+    occurred_at: "2026-10-02T00:00:00.000Z", recorded_at: "2026-10-02T00:00:00.000Z",
+    source: { provider: "moneytree", source_type: "moneytree", external_ref: "moneytree:canonical:balance" },
+  }));
+  const result = await runHourlyCfo({
+    stateDir, subjectId: "dais-local", store,
+    now: "2026-10-02T06:00:00.000Z", reportCadence: "daily",
+    ingest: async () => ({ observed: 2, created: 0,
+      sources: { moneytree: "observed_verified", stripe: "observed_verified" },
+      sourceFreshness: { moneytree: { status: "fresh", reason: null } },
+      economicSourceCoverage: { schema_version: 1, subject_id: "dais-local", complete: true, loops: [] },
+    }),
+    notify: async () => ({ delivery: "delivered", provider_message_id: "canonical-1" }),
+  });
+  assert.equal(result.status, "sent");
+  assert.deepEqual(result.personal.assets, [{ currency: "JPY", amountMinor: 504302 }]);
+  assert.deepEqual(result.business.revenue, [{ currency: "JPY", amountMinor: 12500 }]);
+  assert.equal(result.sourceFreshness.moneytree.status, "fresh");
+  assert.equal(result.economicSourceCoverage.complete, true);
+  assert.match(result.digest, /^[a-f0-9]{64}$/);
+  assert.equal(result.providerMessageId, "canonical-1");
 });
