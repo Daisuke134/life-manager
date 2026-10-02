@@ -58,3 +58,14 @@ This repository is the source authority for Life Manager. The canonical remote i
 - Never expose credentials or private data in source, logs, commits or chat.
 - In a remote session, do not issue launchd commands that reach `gui/$UID`; identify the exact call path first. For an allowed macOS launchd mutation by the normal owner, use the repository's `bin/launchctl-safe`; if its preflight fails, stop and follow the documented recovery runbook. Do not use Terminal or AppleScript as a bypass.
 - Do not restart, replace or create a competing production owner while another owner is active. Inspect the loaded immutable release and state before changing an operational path.
+
+## AGMSG orchestration contract
+
+- Codex `codex-money-printer` is the primary orchestrator and integration owner for Life Manager. It may also implement bounded work, but it owns the TODO cursor, file ownership, release promotion, official readback, and final DONE decision.
+- AGMSG is a communication bus, not an automatic hierarchy. Registration is not liveness; `send` does not start a stopped seat. Use `spawn --boot-prompt` for a new independent seat, then verify `READY`/`WORKING`/`DONE` through `team`, `peek`, `inbox`, process evidence, and the actual diff.
+- Use the smallest non-overlapping team: Opus (or another explicitly selected planner) may produce a read-only plan; Sonnet may implement that plan in its owned worktree; Luna may perform an independent read-only review or bounded implementation. Do not run Fable for Life Manager work unless Dais explicitly requests it.
+- Every delegated task states purpose, owned files, forbidden files/effects, evidence to read, focused verification, report format, and a DONE condition. A reviewer is read-only. A worker never reverts another worker's edits.
+- Parallelize only independent lanes (for example PromptBase readback, Capafy readback, CFO source audit, Mobile/Connector audit, or one contract-work provider). Serialize shared browser leases, ledgers, SSOT edits, immutable release/apply, effect-unknown reconciliation, and provider mutations.
+- A plan, test pass, process exit 0, or local mock is not business completion. Completion requires the requested external effect plus authoritative provider receipt/readback and replay-zero where applicable. `unknown` is never converted to zero.
+- Implementation handoff is: dedicated worktree from current `origin/main` → focused tests/diff check → commit/push → PR → primary review/merge → immutable release → targeted loaded-idle apply → natural terminal → official readback → SSOT/Telegram evidence. Do not merge, release, or apply from an unverified worker claim.
+- Model choice is explicit and truthful: record the actual CLI `--model`/model readback. Do not describe a default Claude session as Opus or Sonnet without evidence. Report model and effort in the AGMSG handoff.
