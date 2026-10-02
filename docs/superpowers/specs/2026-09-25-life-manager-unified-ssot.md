@@ -3485,3 +3485,9 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - CFO registry 3 jobsは`safely_fenced=2 / effect_unknown=1`。直近 delivered snapshotはMoneytree personal asset balanceのみで、business revenue/cost/profit/payoutは空である。
 - economic source coverageはAgent Economy funnel/financial receiptがverifiedだがcostはunavailable。Capafy/Mobile/Writer/Affiliate/Marketplace/Investment/Job Hunter/Self-Buildのfinancial/cost sourcesはnot_configuredまたはmissing。したがって14-loop settled net P&L、MRR、runwayはunknownであり、0円や利益へ丸めない。
 - CFO completionは、各ownerの公式settlement/fee/refund/model/browser/server actual costを同一periodへjoinし、unknownを残さず再計算できること。現時点では未完。
+
+### 129. Agent Economy/TaskMarket/BlockRun後段境界（2026-10-02 20:50 JST）
+
+- Agent Economy registryは `effect_unknown=4 / failed=9 / running=5 / safely_fenced=1`。`the402-provider`、`the402-worker`、`x402-seller-8404`はmoney effect started/unknownで、公式 payment receipt・settlement・cost joinがない。
+- TaskMarket/X402 acquisition/ledger系はcapacity/FIFO waitが多く、TaskMarket no-effect provider-discoveryとBlockRun paid inferenceの完了証拠はない。wallet funding、treasury spend、paid inference再送は行わない。
+- Agent Economyは、収益critical path（PromptBase/Capafy/Writer/Mobile/contract-work/CFO）のsettled evidence後に、TaskMarket no-effect→BlockRun 1件の順で閉じる。内部transfer・owner deposit・self-payを外部収益に数えない。
