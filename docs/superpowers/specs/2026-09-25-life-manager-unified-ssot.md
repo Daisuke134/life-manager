@@ -2882,6 +2882,19 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 89. Mobile Pillow packaging release/loadと公式readback cursor（2026-10-02 15:00 JST）
+
+- AGMSG Mobile/Connector read-only監査は、Mobile 22 jobs中8件で`render-slide-image.py:23 ModuleNotFoundError: No module named 'PIL'`を再現した。原因はimmutable releaseのbare Pythonがuser siteへ依存し、`python3.14 -s`でPillow importが失敗すること。ASC `asc apps list`はagreement missing/expiredでAPI拒否（本人必須）、RevenueCatはapps 8 / products 21 / entitlements 3 / metrics overview active subscriptions 5・MRR $20・28日revenue $32をreadbackしたが、app別proceeds/cost/replay-zeroは未結合。Connectorは候補0、既存Calendar event readbackのみで10月新規登録はない。
+- PR #6468（main `85dcb4522f0612d0fe73ea6c85111ac9a5fed4ff`）で、sibling precedentに従い`apps/life-manager/scripts/mobile-app`のplistへ`LIFE_MANAGER_PYTHON=~/.local/share/life-manager/venv/bin/python`を設定し、`generate-larry-slide-pack.js`へ同Pythonを透過した。`requirements-runtime.txt`のPillow 12.2.0を使用し、user-site依存は増やさない。renderer 6件、Larry JS 7件、apply test 1件、full `test_lm_loop_apply` 155件、JS 18件、`bin/lm-loop-contract`、py_compile、bash -n、diff-checkがPASSした。
+- immutable release `/Users/anicca/loops/releases/20261002T145720-85dcb452`をcurrentへ反映し、Mobile 17 owners全てのloaded `ProgramArguments/LIFE_MANAGER_RELEASE_SHA=85dcb4522f`とmanaged venv Pythonをread-only readbackした。running中に安全skipされた2 ownerもidle後にtarget applyし、最終loadedは17/17。これはpackaging/load PASSであり、自然投稿、Postiz公式receipt、ASC proceeds、RevenueCat purchase/refund、app別cost/replay-zeroの完了証拠ではない。
+
+#### 更新後の原子cursor
+
+1. Mobile 22 jobsの次の自然runでPillow import errorが消え、Postiz公式published/readbackとeffect fence/replay-zeroが成立するか確認する。manual投稿・ASC変更はしない。
+2. Dais本人必須のASC agreement承認後だけ`asc apps list`を再readbackし、RevenueCat product/entitlementと同一appのpurchase/refund/proceedsを結合する。
+3. Connectorは候補発生までread-only監視し、候補0を登録成功と数えない。
+4. Mobile/Connectorの公式receiptが揃うまで、MRR・利益・全loop完了を宣言しない。TaskMarket/BlockRunは§84-Aの後段順位を維持する。
+
 ### 88. Capafy payout偽0のsource修正・release loadと公式監査（2026-10-02 14:40–14:45 JST）
 
 - AGMSG read-only監査は、Capafy公式`publish-list`と`publish-remote-status`、`capafy_http`を突合し、inventory `total=52 / online=47 / under_review=3 / review_rejected=2`を確認した。Agent `4813383030`、`4243672453`、`4763185052`は同一versionで`platform_status=1 / audit_status=2 / is_confirmed_skills=true / is_confirmed_config_keys=true / package_uploaded=true / status_reason=under_review`。X3 Japanese Humanizer `3332784488`は`platform_status=4 / audit_status=4 / listed`、one-time `$9.99`である。Capafy全体のCP2/CP3・宣伝・販売closedとは数えない。
