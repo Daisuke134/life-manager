@@ -3438,6 +3438,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 新release Paid occurrenceのterminal `exit75/effect0/pre_effect`または公式readbackを確認する。
 3. その後、CrowdWorksのbuyer-visible納品/settlementを閉じ、Job Hunterへ進む。
 
+### 123. CrowdWorks exact pre-effect fence reconciliation（2026-10-02 20:02 JST）
+
+- 新shared helper release `7e8ebd8095`を使ったexact marker照合で、旧occurrence `crowdworks-revenue-paid:18dab0c26ccc93e0-95884`のAdmission DBは`state=released / effect_unknown=0`になった。markerは`status=completed / effect=0`、provider receipt/readbackは不要なpre-effect証拠である。
+- 同じnew-release Paid occurrence `crowdworks-revenue-paid:18dab23b720204d8-45091`は`entrypoint-result={effect:0,status:pre_effect_failure}`、marker `status=pre_effect`、Admission DB `state=claimed / effect_unknown=0`。これはprovider mutation前の停止であり、effect fenceを閉じる対象ではない。
+- Paid processは共有browser lock待ちでまだ終了していないが、外部効果が始まった証拠はない。プロセスkill・lock奪取・再送は行わず、terminal eventだけを待つ。
+
+#### 更新後の原子cursor
+
+1. CrowdWorks new-release occurrenceのterminal eventを確認し、pre-effect failureがunknownへ戻らないことを確認する。
+2. その後、buyer-visible納品/settlement/actual cost/replay-zeroを閉じ、Job Hunterへ進む。
+
 ### 122. CrowdWorks provider lockのowner交代（2026-10-02 19:53 JST）
 
 - 先行Application owner PID `89309`は終了し、別のApplication owner PID `363`（旧release `4121f44751`）が同じ`provider-browser.lock`を取得した。Paid kernel PID `95971`（新release `119854c3c6`）とReply PID `94377`は待機中である。
