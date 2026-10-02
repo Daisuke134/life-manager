@@ -3665,3 +3665,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Self-Buildの次の候補はdeterministic/effect-noneかつ全promotion hookが存在するrecovery PRだけに限定する。
 2. CrowdWorks残fence、CFO join、TaskMarket award/BlockRun receiptを順に進める。
 3. 自己改善は実PRのmerge/release/natural outcomeが出るまで未完とする。
+
+### 144. CrowdWorksの新規verified応募（2026-10-02 JST）
+
+- 新release `0be83c2507`のapplication natural run `18dab95da9d178c0-82148`は、CrowdWorks公式proposalを送信し、`project_id=13500625`、`provider_proposal_id=307941823`、`application_verified=true`、`status=verified`、`effect_delta=1`を返した。
+- `application-receipts.jsonl`のoccurrence-bound receiptは提案額`¥250,000`、案件名「サービスサイト新規制作（6〜10ページ）」、idempotency key `crowdworks:application_receipt:307941823:v1`を記録している。work-fit judgementも`workable=true`を返した。
+- これは外部応募の公式成功であって、契約受諾・buyer-visible納品・settlement・入金ではない。CFO revenueへ加算せず、paid laneと公式contract/payment readbackを待つ。同じproposalを再送しない。
+
+#### 更新後の原子cursor
+
+1. `307941823`の公式proposal/contract/thread/payment状態をoccurrence単位でreadbackする。
+2. buyer-visible contract/settlementが無ければ、CrowdWorksを応募成功止まりとして保持し、Job Hunter/CFOの次cursorへ進む。
+3. 同じ案件の再応募、手動納品、送金は行わない。
