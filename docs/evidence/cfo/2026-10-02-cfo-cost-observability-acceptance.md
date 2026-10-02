@@ -127,12 +127,12 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
 | Positive delivery receipt / replay-zero | proved in fixture | `natural-1`, same digest replay quiet; no live send performed |
-| Cloud canary | partial/blocked | Supabase read-only tenant probe reached the cloud adapter, but the selected tenant had no email recipient/wallet binding (`email_unbound`); no production claim/send was performed |
+| Cloud canary | partial | Canonical launchd tenant email binding is now read back (`emailBound=true`, Telegram and wallet also bound); official cloud send/replay receipt is still pending |
 | Seven consecutive periods | blocked | requires elapsed observation time and scheduler-owned production readbacks |
 
 ## Remaining owner-visible blockers
 
 1. Moneytree authorization/source refresh must be restored so account source update time and transaction completeness can be proven.
 2. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
-3. Cloud canary still lacks an email/wallet binding for the selected tenant, so no production send claim is made.
-4. Seven-period observation requires the existing production loop owner and official provider receipts; this evidence run intentionally did not mutate or send production state.
+3. Cloud canary still needs the existing production worker to execute one official send and immediate replay-zero readback; no production send claim is made yet.
+4. Seven-period observation requires the existing production loop owner and official provider receipts; this evidence run intentionally did not trigger production delivery.
