@@ -3856,3 +3856,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. `hf-gig-apply-direct`とInstagram metricsはexact official provider readbackが得られたoccurrenceだけowner-scoped reconcileする。
 2. Alpaca liveはAT-29の技術gate完了までdisabledを保持し、bootstrap I/O errorをlive-enable理由にしない。
 3. fleet applyの次回自然retryは既存backoffへ任せ、同じ3 ownerを手動kick/reapplyしない。
+
+### 159. CFO marketplace readback統合とrelease直列化（2026-10-03 00:33 JST）
+
+- PR #6499をmain `e1a5a2ccee`へsquash mergeした。Coconala、Lancers、CrowdWorksをplatform固有のofficial readbackへ束縛し、24時間のartifact freshness、runtime時点B7 snapshot、expected platform/product-loop binding、sibling gap保持をCFO adapterへ追加した。
+- targeted reviewで、(1)古いartifactのcoverageを現在時刻まで延長する、(2)別platformのartifactを誤って採用する、(3)極端なtimezone offsetで例外が境界外へ漏れる、の3 fail-openを検出した。修正後はstale coverageを`missing_coverage`、platform mismatchをexpected-lane gap、極端timestampを`read_failed`として保持し、final exact-head reviewはSHIPだった。
+- fresh verificationはCFO Python `256/256 PASS`、`py_compile`、`git diff --check`、`lm-loop-contract`（14 Product Loops / 178 registry jobs）PASS。GitHub Agent/Loop/Startup/OSS/PII/Python/Shell/gitleaks/TruffleHogも全PASSした。
+- Lancers公式artifactはbalance/aggregate `JPY 0`、sales/records `0`、pagination completeを返すが、source coverageが現在snapshotまで届かないため、現在期間の利益0とはせずhistorical/trailingを`gap/missing_coverage`のまま保持する。Coconalaはsource unconnected、CrowdWorksはpartialであり、fixtureの`gross=12 / fee=2 / net=10`を実収益へ数えない。
+- production currentは`20261003T001518-dec7be41`であり、main `e1a5a2ccee`をまだ含まない。既存reconcile PID `16095`が同releaseのfleet applyを所有しているため、二重release/reapplyを行わない。
+
+#### 更新後の原子cursor
+
+1. PID `16095`の既存reconcileが自然終了するまで同じapply資源を触らず、終了結果とexact failuresをreadbackする。
+2. 終了後にmain `e1a5a2ccee`由来のimmutable releaseを一度だけ生成し、CFO ownerのinstalled/event SHAを照合する。
+3. marketplace readbackをnatural CFO runで再取得し、source freshness、coverage gap、receipt identity、replay-zeroを確認する。official settlement/payoutが無いplatformを収益0またはprofitへ昇格させない。
