@@ -87,6 +87,28 @@ def complete_b7_coverage(*, omit=()):
 
 
 class AlpacaTest(unittest.TestCase):
+    def test_builds_official_alpaca_account_readback_without_inventing_pnl(self):
+        pages = {
+            "/v2/account": {
+                "id": "acct-1", "cash": "0", "currency": "USD",
+                "status": "ACTIVE",
+            },
+            "/v2/orders": [],
+        }
+
+        def get(url, headers):
+            from urllib.parse import urlparse
+            return pages[urlparse(url).path]
+
+        payload = m.build_alpaca_readback(
+            trailing_start=TRAILING_START, get=get,
+            api_key="key", api_secret="secret", observed_at=SNAPSHOT,
+        )
+        self.assertEqual(payload["provider"], "alpaca")
+        self.assertEqual(payload["balance"]["amount"], "0")
+        self.assertEqual(payload["readback"]["orders_count"], 0)
+        self.assertNotIn("outcomes", payload)
+
     def test_fifo_realized_and_fees_for_the_jst_day(self):
         entries = list(m.alpaca_entries(fixture("alpaca_activities.json"), DAY))
         self.assertEqual(sums(entries), {

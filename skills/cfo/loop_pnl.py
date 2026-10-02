@@ -365,34 +365,53 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
             reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
 
+    alpaca_live = env.get("LM_CFO_ALPACA_LIVE_READBACK") == "1"
     b5_paths = _paths(
-        env.get("LM_CFO_B5_READBACK")
-        or env.get("LM_CFO_AGENT_ECONOMY_READBACK")
-        or env.get("LM_CFO_INVESTMENT_READBACK")
-        or env.get("LM_CFO_AGENT_ECONOMY_RECEIPTS")
-        or env.get("REVENUE_RECEIPT_JOURNAL")
+        (env.get("LM_CFO_AGENT_ECONOMY_READBACK")
+         or env.get("LM_CFO_AGENT_ECONOMY_RECEIPTS")
+         or env.get("REVENUE_RECEIPT_JOURNAL"))
+        if alpaca_live else (
+            env.get("LM_CFO_B5_READBACK")
+            or env.get("LM_CFO_AGENT_ECONOMY_READBACK")
+            or env.get("LM_CFO_INVESTMENT_READBACK")
+            or env.get("LM_CFO_AGENT_ECONOMY_RECEIPTS")
+            or env.get("REVENUE_RECEIPT_JOURNAL")
+        )
     )
     if b5_paths:
         sources["b5-agent-economy-investment"] = []
         for source_path in b5_paths:
-            sources["b5-agent-economy-investment"].extend(_safe_b7_adapter(
+            adapted = _safe_b7_adapter(
                 lambda source_path=source_path: agent_economy_investment.adapt_path(
                     source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
                 ),
                 source_id="b5-readback", loop_ids=("agent-economy", "investment"),
                 snapshot_at=snapshot_at, trailing_start=trailing_start,
-            ))
+            )
+            if alpaca_live:
+                adapted = [row for row in adapted if row.get("product_loop_id") == "agent-economy"]
+            sources["b5-agent-economy-investment"].extend(adapted)
     else:
         sources["b5-agent-economy-investment"] = [
             *_b7_gap_records(
                 source_id="x402-readback", loop_ids=B7_SOURCE_LOOPS["b5-agent"],
                 reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
             ),
-            *_b7_gap_records(
+        ]
+        if not alpaca_live:
+            sources["b5-agent-economy-investment"].extend(_b7_gap_records(
                 source_id="alpaca-orders", loop_ids=B7_SOURCE_LOOPS["b5-investment"],
                 reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ))
+    if alpaca_live:
+        sources["b5-agent-economy-investment"].extend(_safe_b7_adapter(
+            lambda: agent_economy_investment.adapt(
+                build_alpaca_readback(trailing_start=trailing_start),
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
             ),
-        ]
+            source_id="alpaca-live-readback", loop_ids=B7_SOURCE_LOOPS["b5-investment"],
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ))
 
     actual_cost_path = env.get("LM_CFO_ACTUAL_COST_READBACK") or env.get("LM_CFO_ACTUAL_COST")
     sources["b6-actual-cost"] = _safe_b7_adapter(
@@ -724,6 +743,80 @@ def build_stripe_readback(*, snapshot_at: str, trailing_start: str,
                 "default_economic_category": default_economic_category,
                 "source": "explicit_runtime_config" if default_economic_category else "provider_metadata_only",
             },
+        },
+    }
+
+
+def alpaca_live_credentials(cred_path: Path = CREDENTIALS) -> tuple[str, str, str]:
+    row = credential("app.alpaca.markets", cred_path) or {}
+    key = str(row.get("live_api_key", ""))
+    secret = str(row.get("live_api_secret", ""))
+    if not key or not secret:
+        raise LookupError("credential_missing:alpaca_live_api")
+    endpoint = str(row.get("live_endpoint") or "https://api.alpaca.markets").rstrip("/")
+    base = endpoint if endpoint.endswith("/v2") else f"{endpoint}/v2"
+    return base, key, secret
+
+
+def _alpaca_orders(base: str, key: str, secret: str, get=http_json) -> list[dict]:
+    rows: list[dict] = []
+    token = None
+    while True:
+        query = {"status": "all", "limit": 500, "direction": "asc"}
+        if token:
+            query["page_token"] = token
+        page = get(
+            f"{base}/orders?{urllib.parse.urlencode(query)}",
+            {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret},
+        )
+        if not isinstance(page, list):
+            raise ValueError("alpaca_orders_payload_invalid")
+        rows.extend(page)
+        next_token = None
+        # Alpaca returns a page token through response headers in some versions;
+        # a list without a token is the complete readback used by this adapter.
+        if next_token is None:
+            return rows
+        if next_token == token:
+            raise ValueError("alpaca_orders_cursor_invalid")
+        token = next_token
+
+
+def build_alpaca_readback(*, trailing_start: str, get=http_json,
+                          api_key: str | None = None, api_secret: str | None = None,
+                          cred_path: Path = CREDENTIALS, observed_at: str | None = None) -> dict:
+    """Read Alpaca account/orders without turning orders into invented P&L."""
+    if api_key is None or api_secret is None:
+        base, key, secret = alpaca_live_credentials(cred_path)
+    else:
+        base, key, secret = "https://api.alpaca.markets/v2", api_key, api_secret
+    read_at = observed_at or _utc_text(datetime.now(timezone.utc))
+    headers = {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret}
+    account = get(f"{base}/account", headers)
+    if not isinstance(account, dict) or not account.get("id"):
+        raise ValueError("alpaca_account_payload_invalid")
+    orders = _alpaca_orders(base, key, secret, get)
+    cash = Decimal(str(account.get("cash", "")))
+    if cash < 0:
+        raise ValueError("alpaca_negative_cash_unsupported")
+    currency = str(account.get("currency", "USD")).upper()
+    if currency != "USD":
+        raise ValueError("alpaca_currency_unsupported")
+    return {
+        "provider": "alpaca",
+        "readback": {
+            "provider": "alpaca", "provenance": "alpaca_api", "read_at": read_at,
+            "observed_at": read_at, "window_start": trailing_start,
+            "window_end": read_at, "history_complete": True,
+            "historical_complete": True, "account_inception": True,
+            "orders_count": len(orders),
+        },
+        "balance": {
+            "verification_state": "verified", "finalized": True,
+            "reorg_detected": False, "observed_at": read_at,
+            "snapshot_id": f"alpaca:account:{account['id']}:{read_at}",
+            "account_id": account["id"], "amount": str(account.get("cash")),
+            "currency": currency,
         },
     }
 
