@@ -167,6 +167,32 @@ def test_legacy_pre_effect_migration_rejects_intent_bound_to_pass(tmp_path):
         )
 
 
+def test_legacy_pre_effect_migration_rejects_runtime_intent_task_for_pass(tmp_path):
+    admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    (intent_root / "123.json").write_text(
+        json.dumps(
+            {
+                "request_id": "123",
+                "state": "prepared",
+                "effect_phase": "irreversible_attempt_started",
+                "lease_fence": {"task": f"gig-apply-direct-{PASS_ID}-commit-123"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="legacy_intent_bound_to_pass"):
+        migration.build_proof(
+            admission_db=admission_db,
+            events_path=events,
+            occurrence_id=OCCURRENCE,
+            cause_run_id=CAUSE_RUN,
+            pass_root=pass_dir.parent,
+            pass_dir=pass_dir,
+            intent_root=intent_root,
+        )
+
+
 def test_legacy_pre_effect_migration_rejects_unbound_cause_event(tmp_path):
     admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
     rows = [json.loads(line) for line in events.read_text(encoding="utf-8").splitlines()]

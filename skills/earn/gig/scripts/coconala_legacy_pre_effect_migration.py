@@ -202,8 +202,12 @@ def _assert_no_bound_intent(intent_root: Path, pass_id: str) -> None:
         if not isinstance(value, dict):
             raise ValueError("legacy_intent_store_invalid")
         lease = value.get("lease_fence")
-        if isinstance(lease, dict) and lease.get("task") == pass_id:
-            raise ValueError("legacy_intent_bound_to_pass")
+        if isinstance(lease, dict):
+            task = lease.get("task")
+            if task == pass_id or (
+                isinstance(task, str) and task.startswith(f"gig-apply-direct-{pass_id}")
+            ):
+                raise ValueError("legacy_intent_bound_to_pass")
 
 
 def build_proof(
