@@ -2562,3 +2562,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 1. 次回自然04:20のPromptBase occurrenceをread-only観測する。
 2. `model-runner`の実行ログ、英語4件distinct、PromptBase/Gmail審査、公開listing、sale/settlement/payout、replay-zeroを公式証拠で閉じる。
 3. P5cが閉じた後、CapafyのCAP_FULL解消→自然submit/利益、Writer/Ebook/Affiliate、Mobile、Connector、Fundraiser、contract-work、Self-Build、Investment、CFO、external paid E2E、TaskMarket、cloud/self-fundingへ進む。
+
+### 62. fleet capacity busyとeffect fenceの正確な境界（2026-10-02 10:20 JST）
+
+- fleet health readback（`2026-10-02T01:17:22Z`）は178 jobs中`healthy=28 / running=22 / failed=49 / safely_fenced=69 / effect_unknown=9 / telemetry_gap=1`。failedの多数は`host_admission_deferred:resource_capacity_busy`で、provider effectの成功・失敗とは別のadmission境界である。
+- admission-v2 read-only棚卸しでは`reservations=0`、owner claim files=0だが、`state=claimed,effect_unknown=1`の過去occurrenceがagent/revenue resourceを占有している。上位は`life-manager-anicca-main-tiktok` 2149件、`life-manager-anicca-buddha-tiktok` 2064件、`life-manager-anicca-en-card-instagram` 2011件、`life-manager-anicca-en-affirmation-tiktok` 1710件などである。これは容量数値を増やす理由ではなく、公式readbackなしに消去できない安全fenceの滞留である。
+- `capafy-loop-daily:18da90b989f2f500-46494`の既存fence adapterを`--resolve`なしでread-only probeした結果は`occurrence is not an effect_unknown row`。admission DBは`released/effect_unknown=0`であり、healthに残るunknownはactive fenceではなく未結合のhistorical effect statusである。provider再送・fence削除は行っていない。
+- source/productionを変更せずに閉じられる証拠がないownerは、手動cleanup・再送・restartをしない。次のfoundation cursorは、自然`lm-fence-reconciler`でowner-specific official readbackを取得できたoccurrenceだけを順に閉じ、`resource_capacity_busy`の件数が実際に減ることをreadbackすることである。TaskMarket/x402 money ownersは§55どおり後段に残す。
+
+#### 更新後の原子cursor
+
+1. Capafy/PromptBaseの次回自然occurrenceを公式readbackする。
+2. R1の`hf-gig-apply-direct`、`alpaca-investment-live`、`life-manager-instagram-metrics`はreceipt/readback境界をowner別に閉じる（再送なし）。
+3. official proofがあるeffect fenceだけを自然reconcilerで解放し、admission capacity/health summaryの前後を比較する。
+4. その後、Capafy→PromptBase/Writer→Writer/Ebook/Affiliate→Mobile→Connector→Fundraiser→contract-work→Self-Build→Investment→CFO→external paid E2E→TaskMarket→cloud/self-fundingの順を継続する。
