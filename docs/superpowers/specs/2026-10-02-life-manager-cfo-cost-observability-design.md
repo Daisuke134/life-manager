@@ -29,6 +29,7 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - Acceptance readback on 2026-10-02 returned one MUFG-linked account at JPY 504,302 and zero transactions, both explicitly `partial`; details and payload receipts are in `docs/evidence/cfo/2026-10-02-cfo-cost-observability-acceptance.md`.
 - A wider official Moneytree readback returned 187 transactions through 2026-08-25; after transfer/card-repayment exclusion, last-known income was JPY 806,201 and spending JPY 205,500. These remain stale because source freshness and transaction completeness are unproven.
 - Live B7 `loop_pnl.py` readback ran for 2026-10-02 but kept historical/trailing company totals unknown because 137 coverage gaps remain in each window; no settled revenue/net was invented.
+- The canonical source-specific artifact path did verify Capafy last-7-day revenue of USD 19.94; this is not promoted to portfolio-wide settled MRR while strict B7 coverage remains unknown.
 
 ### Code gaps
 

@@ -161,7 +161,8 @@ async function ingestFinancialRecords(options) {
         : state === "partial" ? "partial" : "unavailable";
       sourceFreshness.businessReadback = {
         status: state === "fresh" ? "fresh" : state === "partial" ? "partial" : "unavailable",
-        reason: businessReadback?.coverageGaps?.[0]?.reason || (state === "fresh" ? null : "read_failed"),
+        reason: businessReadback?.coverageGaps?.[0]?.reason
+          || (state === "fresh" ? null : state === "partial" ? "source_completeness_unknown" : "read_failed"),
         reads: businessSourceCoverage,
       };
     } catch {

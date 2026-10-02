@@ -71,6 +71,13 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 
 Interpretation: the collector is running and preserving the gaps, but it cannot honestly produce settled MRR/net/revenue until the configured rails provide current receipt-backed coverage.
 
+### Canonical source-specific artifact readback
+
+- Capafy analytics artifact observed at `2026-10-02T06:07:57Z` was fresh.
+- Canonical Financial Manager last-7-day verified Capafy revenue: `USD 19.94`.
+- Mobile app artifact was present but did not yield a verified supported-currency revenue amount.
+- This source-specific figure is intentionally separate from the strict B7 company total, which remains `unknown` until its receipt-backed coverage envelope is complete.
+
 ## Acceptance matrix
 
 | Requirement | Result | Evidence / blocker |

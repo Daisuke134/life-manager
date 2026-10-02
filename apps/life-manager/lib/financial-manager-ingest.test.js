@@ -185,6 +185,18 @@ test("Moneytree transaction window stays within the provider three-month limit",
   });
 });
 
+test("partial business readback without a specific gap is not mislabeled read_failed", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-10-02T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readBusinessReadback: async () => ({ status: "partial", coverageGaps: [], businessSourceCoverage: [] }),
+  });
+  assert.equal(result.sourceFreshness.businessReadback.reason, "source_completeness_unknown");
+});
+
 test("Google billing settlement stays separate from API usage estimates", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
