@@ -632,6 +632,48 @@ def _bounded_evidence(refs: list[str]) -> list[str]:
     return sorted([*manifests, *individual[:slots], TRUNCATED_EVIDENCE])
 
 
+def _settlement_instants_for_ref(
+    collection: str, object_id: str, transactions: dict[str, dict],
+    charges: dict[str, dict], refunds: dict[str, dict],
+) -> tuple[list[str], bool]:
+    """Return official settlement instants and whether any required link is unknown."""
+    def settled_at(transaction: object) -> tuple[str | None, bool]:
+        if not isinstance(transaction, dict) or transaction.get("status") != "available":
+            return None, True
+        instant = _instant(transaction.get("available_on"))
+        return instant, instant is None
+
+    if collection == "balance_transactions":
+        transaction = transactions.get(object_id)
+        instant, unknown = settled_at(transaction)
+        return ([instant] if instant else [], unknown)
+
+    if collection == "refunds":
+        refund = refunds.get(object_id)
+        transaction_id = _identifier(refund.get("balance_transaction")) if isinstance(refund, dict) else None
+        transaction = transactions.get(transaction_id or "")
+        instant, unknown = settled_at(transaction)
+        return ([instant] if instant else [], unknown)
+
+    charge = charges.get(object_id)
+    if not isinstance(charge, dict):
+        return [], True
+    transaction_id = _identifier(charge.get("balance_transaction"))
+    transaction = transactions.get(transaction_id or "")
+    instant, unknown = settled_at(transaction)
+    instants = [instant] if instant else []
+    for refund in refunds.values():
+        if not isinstance(refund, dict) or refund.get("charge") != object_id:
+            continue
+        refund_transaction_id = _identifier(refund.get("balance_transaction"))
+        refund_transaction = transactions.get(refund_transaction_id or "")
+        refund_instant, refund_unknown = settled_at(refund_transaction)
+        unknown = unknown or refund_unknown
+        if refund_instant is not None:
+            instants.append(refund_instant)
+    return instants, unknown
+
+
 def _trailing_refs(refs: list[str], transactions: dict[str, dict],
                    charges: dict[str, dict], refunds: dict[str, dict],
                    trailing_start: str, observed_at: str) -> list[str]:
@@ -658,11 +700,11 @@ def _trailing_refs(refs: list[str], transactions: dict[str, dict],
         if scheme != "stripe" or collection not in collections:
             result.append(ref)
             continue
-        row = collections[collection].get(object_id)
-        occurred_at = _instant(row.get("created")) if isinstance(row, dict) else None
-        if occurred_at is None or not (trailing_start <= occurred_at < observed_at):
-            continue
-        result.append(ref)
+        instants, unknown = _settlement_instants_for_ref(
+            collection, object_id, transactions, charges, refunds,
+        )
+        if unknown or any(trailing_start <= instant < observed_at for instant in instants):
+            result.append(ref)
     return result
 
 

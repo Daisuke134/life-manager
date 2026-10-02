@@ -527,14 +527,20 @@ def _stripe_list_all(path: str, key: str, get=http_json, params: dict | None = N
         page = get(f"{STRIPE_API}{path}?{urllib.parse.urlencode(page_query)}",
                    {"Authorization": f"Bearer {key}"})
         if (not isinstance(page, dict) or page.get("object") != "list"
-                or page.get("url") != path or not isinstance(page.get("data"), list)):
+                or page.get("url") != path or not isinstance(page.get("data"), list)
+                or type(page.get("has_more")) is not bool):
             raise ValueError(f"stripe_readback_payload_invalid:{path}")
-        rows.extend(page["data"])
-        if page.get("has_more") is not True:
-            return {"object": "list", "url": path, "data": rows, "has_more": False}
-        if not page["data"] or not page["data"][-1].get("id"):
+        page_ids = [row.get("id") for row in page["data"] if isinstance(row, dict)]
+        if (len(page_ids) != len(page["data"])
+                or any(not isinstance(row_id, str) or not row_id for row_id in page_ids)
+                or (after is not None and after in page_ids)):
             raise ValueError(f"stripe_readback_cursor_invalid:{path}")
-        after = page["data"][-1]["id"]
+        rows.extend(page["data"])
+        if page["has_more"] is False:
+            return {"object": "list", "url": path, "data": rows, "has_more": False}
+        if not page_ids or page_ids[-1] == after:
+            raise ValueError(f"stripe_readback_cursor_invalid:{path}")
+        after = page_ids[-1]
 
 
 def build_stripe_readback(*, snapshot_at: str, trailing_start: str,

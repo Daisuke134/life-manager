@@ -167,6 +167,42 @@ class StripeTest(unittest.TestCase):
         self.assertTrue(payload["readback"]["queries"]["historical"]["account_inception"])
         self.assertEqual(set(calls), set(pages))
 
+    def test_stripe_list_requires_explicit_boolean_has_more(self):
+        def get(url, headers):
+            return {"object": "list", "url": "/v1/charges", "data": []}
+
+        with self.assertRaisesRegex(ValueError, "stripe_readback_payload_invalid"):
+            m._stripe_list_all("/v1/charges", "rk_live_test", get)
+
+    def test_stripe_list_paginates_with_strict_cursor_progress(self):
+        pages = [
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_1"}], "has_more": True},
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_2"}], "has_more": False},
+        ]
+        urls = []
+
+        def get(url, headers):
+            urls.append(url)
+            return pages.pop(0)
+
+        result = m._stripe_list_all("/v1/charges", "rk_live_test", get)
+        self.assertEqual([row["id"] for row in result["data"]], ["ch_1", "ch_2"])
+        self.assertIn("starting_after=ch_1", urls[1])
+
+    def test_stripe_list_rejects_non_progressing_cursor(self):
+        pages = [
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_1"}], "has_more": True},
+            {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_1"}], "has_more": False},
+        ]
+
+        with self.assertRaisesRegex(ValueError, "stripe_readback_cursor_invalid"):
+            m._stripe_list_all("/v1/charges", "rk_live_test", lambda url, headers: pages.pop(0))
+
+    def test_stripe_list_rejects_empty_page_with_more(self):
+        page = {"object": "list", "url": "/v1/refunds", "data": [], "has_more": True}
+        with self.assertRaisesRegex(ValueError, "stripe_readback_cursor_invalid"):
+            m._stripe_list_all("/v1/refunds", "rk_live_test", lambda url, headers: page)
+
     def test_balance_transactions_to_entries(self):
         entries = list(m.stripe_entries(fixture("stripe_balance_transactions.json")))
         self.assertEqual(sums(entries), {
