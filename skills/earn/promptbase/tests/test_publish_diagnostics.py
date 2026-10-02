@@ -36,6 +36,27 @@ class PublishDiagnosticsTest(unittest.TestCase):
             self.assertIn("Next: Prompt File", payload["body_text"])
             self.assertEqual((evidence / "step1_failure.png").read_bytes(), b"png")
 
+    def test_draft_link_selection_ignores_sibling_card_statuses(self):
+        title = "Reels Hook Lab — Win the Cover Frame"
+        rows = [
+            [
+                "https://promptbase.com/prompt-edit/declined",
+                "Reels Hook Lab Win The Cover Frame",
+                "🌀 Claude\nDeclined\nReels Hook Lab Win The Cover Frame\n"
+                "🌀 Claude\nDraft\nReels Hook Lab Win The Cover Frame",
+            ],
+            [
+                "https://promptbase.com/prompt-edit/draft",
+                "Reels Hook Lab Win The Cover Frame",
+                "🌀 Claude\nDraft\nReels Hook Lab Win The Cover Frame",
+            ],
+        ]
+
+        self.assertEqual(
+            publish._draft_link_from_rows(rows, title),
+            "https://promptbase.com/prompt-edit/draft",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

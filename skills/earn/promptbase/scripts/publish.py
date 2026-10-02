@@ -335,16 +335,29 @@ def _matching_draft_url(page, title: str) -> str | None:
     Like Capafy's resume_draft, finish that draft instead of opening /sell.
     The dashboard is already loaded by _already_visible_in_dashboard.
     """
-    from readback import title_key
     links = page.eval_on_selector_all(
         "a[href*='prompt-edit/']",
         """els => els.map(a => {
-            let card = a; for (let i = 0; i < 6 && card.parentElement; i++) card = card.parentElement;
-            return [a.href, (a.textContent || '').trim(), (card.innerText || '')];
+            const card = a.closest('item-tile, .item-tile');
+            return [a.href, (a.textContent || '').trim(), card ? (card.innerText || '') : ''];
         })""",
     )
-    for href, text, card_text in links:
-        if text and title_key(text) == title_key(title) and "\nDraft\n" in f"\n{card_text}\n":
+    return _draft_link_from_rows(links, title)
+
+
+def _draft_link_from_rows(rows, title: str) -> str | None:
+    """Return a same-title Draft link from rows scoped to one item tile."""
+    from readback import title_key
+
+    for href, text, card_text in rows:
+        if not text or title_key(text) != title_key(title):
+            continue
+        status = next(
+            (line.strip() for line in card_text.splitlines()
+             if line.strip() in {"Draft", "Pending", "Scheduled", "Approved", "Declined"}),
+            None,
+        )
+        if status == "Draft":
             return href
     return None
 
