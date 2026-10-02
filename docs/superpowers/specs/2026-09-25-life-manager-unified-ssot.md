@@ -4138,3 +4138,27 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 次の自然runでmodern authenticated identity evidence file、durable intent、single submit、Coconala applied roster exact request ID、effect/readback、replay-zeroを結合する。identity missingが続く場合はcandidate pathsをcredential非表示で構造化保存してDOM境界を再診断する。
 3. browser contentionはPaid=`critical_paid`を優先し、running paid/replyをkillしない。Apply/Reconcileの外側lease重複と300秒待ちを別の最小修正として診断する。
 4. Apply receipt後もcontract/fee/settlement/payout/actual costが無ければ収益完了としない。その後、Mobile→Connector→Fundraiser→他paid lanesの順へ戻る。
+
+### 178. 現在のorchestrator状態と全残TODO順（2026-10-03 07:28 JST）
+
+- mainは`2b7a2e835ff9c3f09a2b762a38aa7be006013e81`、current immutable releaseは`/Users/anicca/loops/releases/20261003T072111-2b7a2e83 / ALL`。release reconciler PID `85297`はterminal済みで、二重releaseは不要。
+- `hf-gig-apply-direct`はまだb6自然run PID `78292`が稼働中（9分台）のため、2b target applyを発行しない。installed SHAはb6、admission `effect_unknown=1`は0件。run terminal後のidle窓で2bへtarget applyする。
+- agmsg team `lm`は登録5席を確認したが、全席`terminal=unknown / no_placement_record / reach=cannot`で現在稼働中の証拠は0。登録を稼働と数えず、primary Codexが実装・統合を所有し、独立した重大レビューだけnative read-only subagentへ委譲する。停止席への`send`だけで着手扱いにしない。
+- Foundation observabilityは`lm-loop.health.v1`、4 clocks、effect classification、CFO current Telegram receipt、Marketing owner replay-zeroまで実装済み。ただしMobile Instagram metricsの旧fence、各loopのbusiness/settlement/payout receipt、全14 Product Loopsの完全なjoined net P&Lは未完であり、「全loop修復済み」としない。
+
+#### 全残TODO（収益最短・依存順）
+
+1. **Coconala Apply**: PID `78292` terminal→2b target apply→modern authenticated identity evidence→single submit→公式applied roster exact ID→replay-zero。次にPaidのcontract→fee→settlement→payout→actual cost。
+2. **PromptBase**: Football `scheduled`、Portfolio `pending_review`、Reels `live`のfresh dashboard/Gmail/public readback。最初のorder→fee→settlement/payoutを閉じ、同じlistingを再送しない。
+3. **Capafy**: 3 under-reviewのterminal変化/support回答→free slot後にrejected 2本を1件ずつ修復。positive-profit 3 skillの販売/宣伝を優先し、Marketing Strategistはmargin gate/actual-cost較正後だけ再拡大。今日のrevenue/payoutを公式readbackする。
+4. **Writer**: note/Substack/Stripeのfresh provider measurement→transaction→fee→settlement→payout。古いzeroや公開artifact数を売上にしない。
+5. **Affiliate**: PartnerStack commission row→fee→settlement→payout。tax/KYC/payment selectionはlegal bootstrapとして分離する。
+6. **Mobile Apps**: ASC agreement境界解消後、app別downloads/RevenueCat funnel/ASC proceeds/Apple fee/payout/actual costをjoin。Postiz exact publication fenceと`life-manager-instagram-metrics`旧unknownを公式readbackで閉じる。
+7. **Connector**: candidate発生時だけsingle registration→provider receipt/mail→Google Calendar event→replay-zero。`providers_exhausted`を成功扱いしない。
+8. **Fundraiser**: managed CDP HTTP403と旧application unknownをprovider official readbackで閉じ、human-required案件はhold。verified funding/payoutまで収益扱いしない。
+9. **他paid contract lanes**: CrowdWorks settled JPY12/fee2/net10は1 historical receiptとして保持し、payout/actual cost/complete coverageを追加。Lancers/Coconala/Mercorはapplication/replyとpaymentを分離し、paid E2Eを閉じる。
+10. **Self-Build / self-healing**: self-owned candidate→tests/CI→PR→merge→immutable release→natural owner readback→replay-zero/rollbackをpromotion ledgerで1本証明する。
+11. **Investment**: AT-13 natural sell条件からAT-29まで順守。30 round trips、fee/slippage/infrastructure cost、duplicate order zero、比較、live可否を公式receiptで閉じる。条件成立前のlive資金操作はしない。
+12. **Cloud / financially independent architecture**: DigitalOcean durable control plane→provider-neutral shelter→Nosana continuity→BlockRun paid inference→complete cost/runway→外部 earned surplusによるrenewal→Akash fallback。30日self-funding benchmark前に完全自律をclaimしない。
+13. **TaskMarket / Agent Economy**: 即時収益items 1–9の後。TaskMarket immutable packaging、per-lane funnel/margin、real external paid job、x402 food railを順に閉じる。
+14. **最終統合**: 全Product LoopをCFO joined ledgerへ接続し、official revenue/cost/fee/settlement/payout、health/recovery/replay-zeroを再計算可能にする。全loop PASS、paid E2E、net MRRが揃った時だけLocal/Cloudの一つのLife Managerとして完了判定する。
