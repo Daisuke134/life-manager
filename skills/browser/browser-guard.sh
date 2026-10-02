@@ -115,6 +115,10 @@ case "$CMD" in
     fi
 
     lease="$LEASE_DIR/$(printf '%s' "$IDENTITY" | tr '/:' '__').lease"
+    control="${lease}.control"
+    holder_pid="${AI_BROWSER_HOLDER_PID:-$PPID}"
+    holder_start="${AI_BROWSER_HOLDER_START:-$(ps -o lstart= -p "$holder_pid" 2>/dev/null | xargs)}"
+    [ -n "$holder_start" ] || { echo "guard: holder process identity unavailable" >&2; exit "$EXIT_IDENTITY"; }
     # Lockfile + holder identity + pid liveness, NOT flock(1). Two reasons, both learned
     # the hard way: macOS ships no flock(1) (the first version silently fell through to
     # BUSY), and an fd lock is process-scoped so it cannot span a caller's separate shell
@@ -123,13 +127,17 @@ case "$CMD" in
     # a dead holder's lease is stolen while a live holder's is respected. Holder identity
     # includes the hostname, mirroring Chromium's ProcessSingleton, so a lease written on
     # another machine is never assumed dead.
-    if ! "$PY" - "$lease" "$IDENTITY" "$port" "$uuid" "${AI_BROWSER_HOLDER_PID:-$PPID}" "$(hostname -s)" "$STALE_SECONDS" <<'PYEOF'
-import json, os, sys, time
-lease, identity, port, uuid, pid, host, stale = sys.argv[1:8]
+    if ! "$PY" - "$lease" "$control" "$IDENTITY" "$port" "$uuid" "$holder_pid" "$holder_start" "$(hostname -s)" "$STALE_SECONDS" <<'PYEOF'
+import fcntl, json, os, sys, time
+lease, control, identity, port, uuid, pid, holder_start, host, stale = sys.argv[1:10]
 stale = int(stale)
 payload = json.dumps({"identity": identity, "pid": int(pid), "host": host,
                       "port": int(port), "uuid": uuid,
+                      "holder_start": holder_start,
                       "acquired_at": int(time.time())}, ensure_ascii=False)
+
+control_fd = os.open(control, os.O_CREAT | os.O_RDWR, 0o600)
+fcntl.flock(control_fd, fcntl.LOCK_EX)
 
 def pid_alive(p, h):
     if h != host:
@@ -204,16 +212,21 @@ PYEOF
     [ -n "$IDENTITY" ] || usage
     lease="$LEASE_DIR/$(printf '%s' "$IDENTITY" | tr '/:' '__').lease"
     if [ -n "${AI_BROWSER_HOLDER_PID:-}" ]; then
-      "$PY" - "$lease" "$AI_BROWSER_HOLDER_PID" <<'PYEOF' || exit "$EXIT_BUSY"
-import json, os, sys
-lease, expected_pid = sys.argv[1:3]
+      control="${lease}.control"
+      expected_start="${AI_BROWSER_HOLDER_START:-$(ps -o lstart= -p "$AI_BROWSER_HOLDER_PID" 2>/dev/null | xargs)}"
+      [ -n "$expected_start" ] || exit "$EXIT_BUSY"
+      "$PY" - "$lease" "$control" "$AI_BROWSER_HOLDER_PID" "$expected_start" <<'PYEOF' || exit "$EXIT_BUSY"
+import fcntl, json, os, sys
+lease, control, expected_pid, expected_start = sys.argv[1:5]
+control_fd = os.open(control, os.O_CREAT | os.O_RDWR, 0o600)
+fcntl.flock(control_fd, fcntl.LOCK_EX)
 try:
     row = json.loads(open(lease, encoding="utf-8").read().strip().splitlines()[-1])
 except FileNotFoundError:
     raise SystemExit(0)
 except Exception:
     raise SystemExit(1)
-if str(row.get("pid")) != expected_pid:
+if str(row.get("pid")) != expected_pid or row.get("holder_start") != expected_start:
     raise SystemExit(1)
 try:
     os.unlink(lease)

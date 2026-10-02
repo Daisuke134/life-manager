@@ -70,12 +70,19 @@ def test_browser_guard_release_cannot_remove_another_live_holder(tmp_path):
     lease_dir = tmp_path / "leases"
     lease_dir.mkdir()
     lease = lease_dir / "coconala_kosuke.lease"
+    holder_pid = os.getpid()
+    holder_start = subprocess.run(
+        ["ps", "-o", "lstart=", "-p", str(holder_pid)], capture_output=True,
+        text=True, check=True,
+    ).stdout.strip()
     lease.write_text(json.dumps({
-        "identity": "coconala:kosuke", "pid": 222, "host": "host",
+        "identity": "coconala:kosuke", "pid": holder_pid, "host": "host",
         "port": 9223, "uuid": "browser", "acquired_at": 1,
+        "holder_start": holder_start,
     }) + "\n")
     environment = {**os.environ, "AI_BROWSER_LEASE_DIR": str(lease_dir),
-                   "AI_BROWSER_HOLDER_PID": "111"}
+                   "AI_BROWSER_HOLDER_PID": str(holder_pid),
+                   "AI_BROWSER_HOLDER_START": "wrong-start"}
 
     refused = subprocess.run(
         ["bash", str(guard), "release", "coconala:kosuke"], env=environment,
@@ -84,7 +91,7 @@ def test_browser_guard_release_cannot_remove_another_live_holder(tmp_path):
     assert refused.returncode != 0
     assert lease.is_file()
 
-    environment["AI_BROWSER_HOLDER_PID"] = "222"
+    environment["AI_BROWSER_HOLDER_START"] = holder_start
     released = subprocess.run(
         ["bash", str(guard), "release", "coconala:kosuke"], env=environment,
         capture_output=True, text=True, check=False,
