@@ -3354,3 +3354,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Connectorはno-candidateをread-only監視し、候補0を成功・売上へ昇格させない。
 2. Fundraiserのhuman-required境界を次に診断し、CAPTCHA/KYC/本人操作は自動突破しない。
 3. その後contract-work→Self-Build→Investment→CFO→TaskMarket/BlockRun→cloud/self-fundingへ進む。
+
+### 115. Fundraiserのhuman/browser境界（2026-10-02 19:08 JST）
+
+- `fundraiser` の最新occurrence `18daae3e680a2858-11354` は `host_admission_deferred:resource_effect_unknown`、exit 75、application effect unknown、provider receipt/readbackなし。現在のinstalled release `d3050812aa`と一致するが、外部申請を再送してよい証拠ではない。
+- 永続cursorの最後の実質的な診断は、公式DeepScale.Ventures intakeを確認した後、fundraiser所有CDP targetのWebSocketがHTTP 403でフォーム観測前に拒否されたというもの。`application-receipts.jsonl`にはStartuped AIの過去`submitted_verified` 1件があるが、これは現在の外部inflow・settlement・payoutを意味しない。
+- CAPTCHA/KYC/面接/本人必須操作はhuman-requiredとしてholdし、browser 403やeffect_unknownを突破・close・再送しない。Fundraiserは申請receiptと外部資金流入が別々に公式readbackされるまで収益へ加算しない。
+
+#### 更新後の原子cursor
+
+1. Fundraiserは容量・CDP境界をread-only監視し、同一候補を再送しない。
+2. managed browserが正式にフォームを観測できた適格候補だけ、application receipt→provider status→外部inflow→actual cost→replay-zeroへ進む。
+3. 人間必須の操作は自動突破せずholdし、次のcontract-work laneへ進む。
