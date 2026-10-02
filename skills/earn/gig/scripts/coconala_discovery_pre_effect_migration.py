@@ -35,6 +35,11 @@ FORBIDDEN_EFFECT_ARTIFACTS = frozenset({
     "application-decisions.json", "parent-commit.json", "result.json",
     "submit-attempt-budget.json",
 })
+TARGET_OCCURRENCE_ID = "hf-gig-apply-direct:18dacf917a646990-66636"
+CLAIM_RUN_ID = "18dad118c3aa4a38-19467"
+CLAIM_PASS_ID = "gig-apply-direct-1790973707170340000-19494"
+STARTED_EVENT_ID = "24679eaa8feb3b49d8aec1e4"
+REPORT_EVENT_ID = "a4123e51ba1535ce72824ff2"
 
 
 def _sha256(path: Path) -> str:
@@ -76,6 +81,8 @@ def _claim_events(events_path: Path, occurrence_id: str, claim_run_id: str):
     started_event, report_event = started[0], reports[0]
     if (started_event.get("release_sha") != legacy.LEGACY_RELEASE_SHA
             or report_event.get("release_sha") != legacy.LEGACY_RELEASE_SHA
+            or started_event.get("event_id") != STARTED_EVENT_ID
+            or report_event.get("event_id") != REPORT_EVENT_ID
             or f"lm-occurrence://{occurrence_id.replace(':', '/', 1)}/claim"
             not in report_event.get("evidence_refs", [])):
         raise ValueError("legacy_discovery_events_invalid")
@@ -93,7 +100,7 @@ def _discovery_boundary(pass_root: Path, pass_dir: Path, claim_run_id: str) -> d
         raise ValueError("legacy_discovery_pass_root_mismatch")
     matched = legacy.PASS_ID.fullmatch(directory.name)
     run_match = legacy.TIMED_RUN_ID.fullmatch(claim_run_id)
-    if matched is None or run_match is None:
+    if directory.name != CLAIM_PASS_ID or matched is None or run_match is None:
         raise ValueError("legacy_discovery_pass_identity_invalid")
     pass_ns, child_pid = int(matched.group(1)), int(matched.group(2))
     run_ns, parent_pid = int(run_match.group(1), 16), int(run_match.group(2))
@@ -149,6 +156,8 @@ def _discovery_boundary(pass_root: Path, pass_dir: Path, claim_run_id: str) -> d
 def build_proof(*, admission_db: Path, events_path: Path, occurrence_id: str,
                 claim_run_id: str, pass_root: Path, pass_dir: Path,
                 intent_root: Path) -> dict[str, Any]:
+    if occurrence_id != TARGET_OCCURRENCE_ID or claim_run_id != CLAIM_RUN_ID:
+        raise ValueError("legacy_discovery_target_not_allowed")
     occurrence = legacy._occurrence(admission_db, occurrence_id)
     started, report = _claim_events(events_path, occurrence_id, claim_run_id)
     boundary = _discovery_boundary(pass_root, pass_dir, claim_run_id)
@@ -172,6 +181,9 @@ def build_proof(*, admission_db: Path, events_path: Path, occurrence_id: str,
 
 def reconcile(**kwargs) -> dict[str, Any]:
     resolve = bool(kwargs.pop("resolve", False))
+    if (kwargs.get("occurrence_id") != TARGET_OCCURRENCE_ID
+            or kwargs.get("claim_run_id") != CLAIM_RUN_ID):
+        raise ValueError("legacy_discovery_target_not_allowed")
     proof = build_proof(**kwargs)
     resolved = False
     if resolve:

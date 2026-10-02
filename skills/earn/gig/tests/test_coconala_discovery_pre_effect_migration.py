@@ -29,7 +29,7 @@ def _fixture(tmp_path: Path):
             "INSERT INTO occurrences VALUES(?,?,?,?)", (OCCURRENCE, OWNER, "claimed", 1)
         )
     started = {
-        "event_id": "started",
+        "event_id": "24679eaa8feb3b49d8aec1e4",
         "run_id": CLAIM_RUN,
         "occurrence_id": f"{OWNER}:{CLAIM_RUN}",
         "release_sha": RELEASE,
@@ -40,7 +40,7 @@ def _fixture(tmp_path: Path):
         "timestamp": "2026-10-02T20:41:46+00:00",
     }
     report = {
-        "event_id": "report",
+        "event_id": "a4123e51ba1535ce72824ff2",
         "run_id": CLAIM_RUN,
         "occurrence_id": OCCURRENCE,
         "release_sha": RELEASE,
@@ -134,6 +134,21 @@ def test_discovery_only_claim_rejects_submit_artifact(tmp_path):
             admission_db=database,
             events_path=events,
             occurrence_id=OCCURRENCE,
+            claim_run_id=CLAIM_RUN,
+            pass_root=pass_root,
+            pass_dir=pass_dir,
+            intent_root=intents,
+        )
+
+
+def test_discovery_only_claim_rejects_any_other_occurrence(tmp_path):
+    database, events, pass_root, pass_dir, intents = _fixture(tmp_path)
+
+    with pytest.raises(ValueError, match="legacy_discovery_target_not_allowed"):
+        migration.build_proof(
+            admission_db=database,
+            events_path=events,
+            occurrence_id=f"{OWNER}:other",
             claim_run_id=CLAIM_RUN,
             pass_root=pass_root,
             pass_dir=pass_dir,
