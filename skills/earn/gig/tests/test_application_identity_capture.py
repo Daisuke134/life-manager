@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 import sys
 from pathlib import Path
 
@@ -32,6 +33,26 @@ def test_authenticated_identity_requires_provider_owned_numeric_profile_path():
     assert identity["account_id"] == "2564121"
     assert identity["profile_url"] == "https://coconala.com/users/2564121"
     assert identity["source"] == "code_owned_cdp_authenticated_identity"
+
+
+def test_authenticated_identity_normalizes_modern_smartphone_profile_path():
+    identity = application_parent._validated_authenticated_identity(
+        "5280157",
+        {
+            "url": "https://coconala.com/offers/add/5280157",
+            "title": "応募する",
+            "own_user_path": "/smartphone/users/2564121/",
+            "selection": "header",
+            "candidate_user_paths": ["/smartphone/users/2564121/"],
+        },
+    )
+
+    assert identity["account_id"] == "2564121"
+    assert identity["profile_path"] == "/users/2564121"
+    assert identity["profile_url"] == "https://coconala.com/users/2564121"
+    assert "smartphone" in inspect.getsource(
+        application_parent.CdpParentEffects._authenticated_identity_async
+    )
 
 
 @pytest.mark.parametrize(
