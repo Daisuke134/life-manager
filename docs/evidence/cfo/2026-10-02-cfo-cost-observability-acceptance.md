@@ -81,7 +81,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 | Persistent geocode and free Japan POI lane | proved | Supabase hash-key store, OpenPOI official probe: 1 candidate + attribution |
 | Provider budget governor | proved | pure states, tenant isolation, cache-only stopped path, route/Places gates |
 | Positive delivery receipt / replay-zero | proved in fixture | `natural-1`, same digest replay quiet; no live send performed |
-| Cloud canary | blocked | no production Supabase/Telegram mutation or official cloud receipt performed in this acceptance run |
+| Cloud canary | partial/blocked | Supabase read-only tenant probe reached the cloud adapter, but the selected tenant had no email recipient/wallet binding (`email_unbound`); no production claim/send was performed |
 | Seven consecutive periods | blocked | requires elapsed observation time and scheduler-owned production readbacks |
 
 ## Remaining owner-visible blockers
