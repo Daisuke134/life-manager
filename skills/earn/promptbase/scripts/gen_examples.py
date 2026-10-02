@@ -29,10 +29,16 @@ MODEL_RUNNER = REPO_ROOT / "skills" / "writer-agent" / "runtime" / "model-runner
 
 
 def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in natural, complete English.") -> str:
-    del system  # The house runner owns provider/system configuration.
     runner = Path(os.environ.get("ARTICLE_MODEL_RUNNER", str(MODEL_RUNNER)))
+    combined_prompt = (
+        "## SYSTEM INSTRUCTIONS\n"
+        + system.strip()
+        + "\n\n## BUYER PROMPT\n"
+        + prompt.strip()
+        + "\n"
+    )
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="promptbase-", suffix=".txt") as handle:
-        handle.write(prompt)
+        handle.write(combined_prompt)
         handle.flush()
         env = os.environ.copy()
         env.update({

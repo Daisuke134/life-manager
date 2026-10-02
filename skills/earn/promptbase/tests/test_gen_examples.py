@@ -26,8 +26,8 @@ class GenExamplesRunnerTest(unittest.TestCase):
             record = root / "record.json"
             runner.write_text(
                 "#!/bin/sh\n"
-                "printf '%s' \"$PWD\" > \"$RUNNER_RECORD\"\n"
-                "printf '\\n%s' \"$1 $2 $3 $4\" >> \"$RUNNER_RECORD\"\n"
+                "printf '%s\\n' \"$PWD\" >> \"$RUNNER_RECORD\"\n"
+                "printf '%s\\n' \"$1 $2 $3 $4\" >> \"$RUNNER_RECORD\"\n"
                 "cat \"$3\" >> \"$RUNNER_RECORD\"\n"
                 "if grep -q 'Write 3 NEW' \"$3\"; then printf '[\"input two\",\"input three\",\"input four\"]'; else printf 'output-%s' \"$(basename \"$3\")\"; fi\n",
                 encoding="utf-8",
@@ -47,7 +47,10 @@ class GenExamplesRunnerTest(unittest.TestCase):
                         os.environ[key] = value
             self.assertEqual(len(result), 4)
             self.assertEqual(Path(record.read_text(encoding="utf-8").splitlines()[0]).resolve(), Path("/tmp").resolve())
-            self.assertIn("agent --prompt-file", record.read_text(encoding="utf-8"))
+            recorded = record.read_text(encoding="utf-8")
+            self.assertIn("agent --prompt-file", recorded)
+            self.assertIn("## SYSTEM INSTRUCTIONS\nWrite natural English output.", recorded)
+            self.assertIn("## BUYER PROMPT\nHere is a skill a buyer uses:", recorded)
             self.assertEqual(result[1]["output"].startswith("output-"), True)
 
 
