@@ -45,6 +45,12 @@ function mobileAppsBusinessOutcomesPathFromEnv(env) {
     || path.join(lifeManagerStateRoot(env), "marketing-metrics-daily/state/business-outcomes.jsonl");
 }
 
+function affiliateReadbackPathFromEnv(env) {
+  return env.LM_CFO_AFFILIATE_READBACK
+    || env.LM_CFO_AFFILIATE_LEDGER
+    || path.join(lifeManagerStateRoot(env), "affiliate/provider-reports/partnerstack/latest.json");
+}
+
 function readSnapshot(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -192,6 +198,7 @@ async function main(env = process.env) {
       marketplaceReceiptPaths: splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS),
       capafyAnalyticsPath: capafyAnalyticsPathFromEnv(env),
       mobileAppsBusinessOutcomesPath: mobileAppsBusinessOutcomesPathFromEnv(env),
+      affiliateReadbackPath: affiliateReadbackPathFromEnv(env),
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return ["sent", "quiet"].includes(result.status) ? 0 : 1;
@@ -208,5 +215,6 @@ if (require.main === module) main().then((code) => { process.exitCode = code; })
 
 module.exports = {
   agentReceiptPathsFromEnv, capafyAnalyticsPathFromEnv, mobileAppsBusinessOutcomesPathFromEnv,
+  affiliateReadbackPathFromEnv,
   main, runHourlyCfo,
 };
