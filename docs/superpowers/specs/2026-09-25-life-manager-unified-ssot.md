@@ -4077,3 +4077,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Writerはnext provider-backed measurementでnote/Substack/Stripeのobserved_atを更新し、external transaction receiptが発生した時だけmoney eventへ昇格する。
 2. Affiliateはsource/composition artifactではなく、commission row→fee→settlement→payoutをofficial captureで結ぶ。row 0の間はNO_TRANSACTIONSと未取得を分離する。
 3. 独立する次の実行cursorはMobileのASC agreement境界後のfinancial/cost/payout、その後Connector→Fundraiser→paid contract payout。
+
+### 174. Coconala Apply旧fenceの二層診断と自然run（2026-10-03 05:29 JST）
+
+- `hf-gig-apply-direct`の旧heartbeat failureは、先行occurrence `18d88651ee0bf088-46308`とcause run自身のoccurrence `18d886647deb66b8-47365`が別rowである二層構造だった。最初のmigrationは前者だけを対象にし、exact pass directoryがbrowser/application境界前、effect=0/readback=0、bound intentなしであることをimmutable release `7b17907b83`上で再確認して一度だけ解放した。rowは`released / effect_unknown=0`、外部応募の再送は0。
+- 解放後の自然run `18dacf917a646990-66636`は旧release `287d913c1c`で起動し、pass `gig-apply-direct-1790972026759022000-66666`を生成した。resultは`observed=0 / actionable=0 / effect=0 / readback=0 / pending=0`、application decisionsとparent commit resultsは空、bound intentは0。失敗境界は`source_access_denied`で、応募送信は無い。Telegramの実行報告だけがmessage ID `101709`として送信された。
+- この自然runはcause occurrence `...47365`をclaimしたため、9月25日の古いpre-effect passだけでcause rowを解放してはならない。fresh Sol reviewがこの誤解放条件を`RETHINK`し、target execute/report、released predecessor、旧pre-effect passに加え、claim runのexact timestamp/PID、zero-effect result、空decisions/commit、bound intentなしを全て要求するcause-layer proofへ修正した。
+- PR #6504はmain `7b17907b8382d94abf4b0620efd12289dcbf627e`、PR #6505はmain `bb18a90f58950d78c1935599587995c1c3096631`へmerge済み。関連pytestは23件PASS、PR #6505 exact-head CI全件PASS、final fresh Sol reviewは`SHIP`。live read-only proofはdigest `2149fcbcde35bfc43ec08aec57d0874517fb05d85ab1af6fe8c3b3c7700db996`で`PROOF_READY`。
+- 現在は7b releaseの既存fleet applyがproduction apply資源を所有中で、bb releaseはまだ未生成。cause occurrence `...47365`は`claimed / effect_unknown=1`のまま保持し、追加wake・応募・restart・target applyは行っていない。全Coconala loop修復済み、paid E2E、settlement、payout、profitとは扱わない。
+
+#### 更新後の原子cursor
+
+1. 7b fleet applyの自然terminal後、main `bb18a90f58`由来immutable releaseが生成されたことを確認する。同じapply資源へ手動reconcileを重ねない。
+2. bb release上でcause-layer proofを再dry-runし、同じold-pass/claim-run/zero-effect digestとadmission identityを確認後、cause occurrence `...47365`だけを一度`--resolve`する。
+3. ownerがidleであることを確認して`hf-gig-apply-direct`をbb releaseへtarget applyする。次の自然runでsource discovery、effect/readback、provider receipt、replay-zeroを読み、応募0の失敗を成功へ昇格させない。
+4. その後は即時収益順へ戻り、Mobile financial/cost/payout→Connector→Fundraiser→paid contract settlement/payoutを閉じる。TaskMarket/Agent Economyは後段のまま保持する。
