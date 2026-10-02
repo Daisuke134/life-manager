@@ -2727,3 +2727,18 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. `football-match-analyst`のPendingを再送せず、次の公式dashboard/Gmail readbackで`Approved`または`Declined`を確認する。Approved後だけ公開listing/sale/settlement/payoutへ進む。
 3. `Reels Hook Lab` Draftの`draft_not_at_step2`は別の修正cursorとして扱い、同一Draftを推測で再送しない。必要なら次の自然owner runで同じUI境界のdiagnosticを取得する。
 4. Capafy `4243672453`は`under_review`のまま、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 74. PromptBase Draftカード誤選択の根因修正とfence close（2026-10-02 12:35 JST）
+
+- 即時kickstart occurrence promptbase-loop-daily:18da97f89289c720-74559の公式dashboard付きreconcileを安全窓1216秒後に一度だけ実行した。PROMPTBASE_FENCE_RECONCILE=PASS、closed=true、effected=false、proof_type=pre_effect、evidence /Users/anicca/.local/state/life-manager/reconciliation/evidence/promptbase-loop-daily-promptbase-loop-daily_18da97f89289c720-74559.json、admission DBはreleased/effect_unknown=0となった。再送・新規提出は行っていない。
+- draft_not_at_step2:unknown:https://promptbase.com/prompt-edit/SCuTpR12KNOz7xnCdom7をread-onlyで再現した。対象URLの公式画面はDeclined理由ページで、1/3・2/3・3/3表示なし、select=1、textarea=0だった。Dashboard DOMでは同一題名のDeclined×2とDraftが別々のitem-tileに存在するが、旧_matching_draft_urlは6階層上のcollection全体をカードとして読み、兄弟Draftの文字列をDeclined URLにも付与していた。これが誤resumeの根因である。
+- PR #6445（main 3863e1571417e966f9e66bb548fac34d61d68811）で、Draft検出をa.closest('item-tile, .item-tile')の直近カードへ限定し、statusをそのカード内の行から判定する最小修正をmergeした。回帰テストを含むPromptBase全37件、py_compile、bash -n、git diff --check、bin/lm-loop-contract（catalog_loops=14 / registry_jobs=178 / errors=[]）がPASSした。browser/provider/wallet効果は発生していない。
+- natural release reconcilerがimmutable release /Users/anicca/loops/releases/20261002T122706-3863e157（SHA 3863e15714、release_paths=ALL、provenance=ancestor-of-origin-main）を作成しcurrent symlinkを更新した。今回の記録時点ではPromptBase plistは旧c3b56c1aのままで、3863e15714へのtarget applyは自然fleet reconcile中である。apply完了をplist/argvでreadbackするまで「修正版がproduction loaded」とは数えない。
+- healthはresolved pre-effectを履歴projectionへまだ結合せずeffect_unknownを表示するが、これはactive admission fence（DBのreleased/effect_unknown=0）とは別のobservability projection差分である。旧failureを売上成功・P5c完了へ昇格させない。
+
+#### 更新後の原子cursor
+
+1. natural fleet reconcileがpromptbase-loop-dailyのplist/argvを3863e15714へtarget applyしたことをread-only確認する。production apply lock競合中は手動applyを重ねない。
+2. loaded readback後、PromptBase ownerを一度だけ起動し、DraftカードがDeclinedカードと混同されず正しいDraft URLへ到達することを同一occurrenceで確認する。Pending中のfootball-match-analystは再送しない。
+3. 新しいrunで実際に提出した場合のみPromptBase dashboard/GmailのPending→Approved/Declinedをreadbackし、Approved後に公開listing/sale/settlement/payoutへ進む。失敗時は新しい正確なUI境界を記録する。
+4. Capafy 4243672453のunder_review readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
