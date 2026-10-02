@@ -3701,6 +3701,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. snapshotが生成された場合だけ、settled external revenueとperiod-matched costをjoinする。
 3. unknownを0円へ丸めず、TaskMarket/BlockRun receiptが無い限りself-fundingを宣言しない。
 
+### 148. CFO temporary read-only source aggregation（2026-10-02 JST）
+
+- 外部送信なしのtemporary stateで`runHourlyCfo`を実行し、20件のfinancial recordを観測・作成した。Moneytree personal observation、Capafy verified revenue records、Agent Economy x402 financial receiptが入力された。
+- `economicSourceCoverage.complete=false`で、Capafy/Agent Economy funnelはobserved_verifiedだがAgent Economy costはunavailable、marketplace source（Coconala/Lancers/CrowdWorks等）はunavailable。結果は`status=failed / reason=financial_source_unavailable / recordCount=0 / delivered=false`で、CFOは不足sourceをfail-closedした。
+- temporary stateとnotify stubだけを使用し、canonical CFO state・Telegram・外部providerへ書き込んでいない。観測済みCapafy/x402 recordsを当月MRR・純利益へ丸めず、period-matched costとsettlementが揃うまでunknownを保持する。
+
+#### 更新後の原子cursor
+
+1. marketplace financial sourceを公式settlement/fee readbackで埋める。
+2. x402 cost sourceをprovider compute receiptsとjoinし、Capafy costをperiod-matchする。
+3. CFO reportが`financial_source_unavailable`ではなくcomplete joinを返すまで、利益/runway/self-fundingを断定しない。
+
 ### 146. CrowdWorks proposalのpaid/contract readback（2026-10-02 JST）
 
 - `crowdworks-revenue-paid`の新release natural run `18daba9254a75b18-16784`はexit75で終了し、`paid-latest.json`は`effect=0`、`crowdworks_paid_handoff_unavailable` 1件と`reconcile_unknown` 4件を返した。
