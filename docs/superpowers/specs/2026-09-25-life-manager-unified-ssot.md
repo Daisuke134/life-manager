@@ -4047,3 +4047,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 3 under-reviewのうち1件がonline/rejected等のterminalへ動いてfree slotが生まれた時だけ、既存`retry_existing`で`2.2 Information accuracy`の2件を1件ずつ修復・再審査する。full cap中にprovider契約を迂回しない。
 2. Marketing Strategistは次versionでinformation-accuracy文言だけでなく、pre-acceptance margin gateとactual cost較正を適用する。現行の`-$20.54/30d`を利益商品として拡大しない。
 3. 工場と並行し、プラス利益3 skillの販売/宣伝ループを優先する。Capafy全体の今日の公式revenueは現時点`$0.00`、paid-outは`$0.00`であり、検証済み30日profitと今日の入金を混同しない。
+
+### 172. Pre-entrypoint effect分類とCFO current receiptの結合（2026-10-03 04:24 JST）
+
+- `life-manager-cfo-hourly`などeffect classが`message/application/publish`のloopは、entrypoint前の`resource_capacity_busy`でもterminal runtime eventがeffect=`unknown`を出し、healthが実送信unknownと予約待ちを混同していた。PR #6503で、child開始前と確定できる`resource_capacity_busy / resource_fifo_wait / resource_admission_unavailable / resource_claim_identity_invalid / memory_headroom_*`だけをeffect=`not_applicable`に分離した。
+- 初回Sol reviewは、`deferred=True`がchild開始後のheartbeat failureにも使われるため、deferred全体をnot-applicableにすると本物のeffect unknownを隠すと`RETHINK`した。実コードを確認し、`resource_heartbeat_unavailable / resource_effect_unknown / ambiguous resource_admission_interrupted`はunknownを維持するallowlist実装へ修正。fresh Sol再reviewは`SHIP`。
+- focused 4 tests、health/runtime/read-only 106 tests、heartbeat/admission pytest 7 testsはPASS。GitHub CIは初回の無関係なbase release exportが1回failしたが、exact local testはPASS、failed job再実行でLoop control 748 testsを含む全checks PASS。main merge commitは`e7b966599e079654d66ec31a946530170140fa20`、immutable releaseは`/Users/anicca/loops/releases/20261003T041812-e7b96659`。
+- production CFO occurrence `18dacccb450cce40-72770`はrelease e7、entrypoint前`resource_capacity_busy`、exit75、effect=`not_applicable`、admission effect_unknown=false。`lm-loop health --loop life-manager-cfo-hourly --explain`はeffect_unknown=0、effect-safety=`not_applicable`、state=`failed`となり、本物の送信unknownと分離された。
+- その直前のnatural CFO run `18dacc85fae52780-55864`はrelease `88c7882f`でexit0。current producerの`last-result-report.json`はreportingDate `2026-10-03`、event key `cfo-result:<subject>:telegram:2026-10-03:19`、status/resolution=`sent`、provider message ID `101681`、occurrence IDは同runと一致。outboxはこのevent key 1行、attempt 1、duplicate 0、last_error=null。
+- Telegram MTProto公式履歴でcurrent report bodyとexact matchするmessage ID `104241`、date `2026-10-02T19:18:03Z`を読み戻した。旧`last-delivered-snapshot.json`は2026-09-26の歴史evidenceのままで、current producerの`last-result-report.json`と混同しない。
+- CFOの送信成功は観測/報告pathの回復証拠であり、全economic source coverageの完全性や全14-15 loopのprofit確定ではない。Capafy以外の多くのfinancial/cost/payout sourceは未完のままである。
+
+#### 更新後の原子cursor
+
+1. CFO current receiptは閉じた。次はWriter sales measure/money syncのfresh natural runと、Affiliate source refresh成功後のcommission/cost/payout receiptを結合する。process successだけで売上扱いしない。
+2. PromptBaseはFootball scheduled / Portfolio pending / sales 0を公式readbackし続け、同一listingを再送しない。Capafyは3 under-reviewのterminal変化またはsupport回答までfull-cap contractを維持する。
+3. 残るMobile financial/cost/payout、Connector effect receipt、Fundraiser official application/funding、paid contract payoutを順に閉じる。TaskMarket/Agent Economyはこの即時収益per-pathの後に保持する。
