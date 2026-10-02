@@ -2646,3 +2646,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. `LIFE_MANAGER_APPLY_TARGET=promptbase-loop-daily`で`848aee9b`をloadedにし、plist/argvをreadbackする。
 3. 正式ownerの次回実行で、object schemaによる4件distinct英語見本、PromptBase管理画面/Gmail、公開listing、sale/settlement/payout、replay-zeroを同一occurrenceへ結合する。
 4. 失敗時はprovider schema/runner/browserの境界を一つずつ記録し、同一effect fenceを公式readbackなしに再送しない。TaskMarketは§55の後段順位を維持する。
+
+### 68. PromptBase object-contract release loaded後のadmission境界（2026-10-02 11:42 JST）
+
+- target apply後のPromptBase plist/argvは`/Users/anicca/loops/releases/20261002T112646-848aee9b`、SHA `848aee9b037238785d489e8632dfdf0791d29737`を指すことをread-onlyで確認した。
+- その正式ownerを一度だけ実行した最新occurrence `promptbase-loop-daily:18da962fe7a355c0-1683`は、release `848aee9b`で`exit=75 / host_admission_deferred:resource_capacity_busy`となり、provider/browser/model-runner前に停止した。新しいPromptBase snapshot・provider receipt・submission・browser effectは無い。object schemaの自然4見本生成はこのoccurrenceでは未到達である。
+- したがって`848aee9b`のobject schema修正は外部効果なしprobeではPASSだが、PromptBase自然E2EのPASSではない。容量上限変更・他owner fence削除・同occurrence再送は行わず、次の自然eligible owner runを待つ。
+
+#### 更新後の原子cursor
+
+1. `18da962fe7a355c0-1683`をread-only admission stateで追跡し、provider前停止として保持する。
+2. 次の自然eligible PromptBase runでmodel-runner object schema、英語4件distinct、PromptBase dashboard/Gmailの公式readbackへ進む。
+3. CapafyはCP1確認済みだが`platform_status=0 / is_confirmed_config_keys=false / package_uploaded=false`であり、出品完了扱いしない。Capafy finish/readbackとPromptBaseは別ownerとして並列観測する。
+4. AGMSGの監査席はreadiness/placement確認後の成果だけを採用し、未確認席を稼働扱いしない。
