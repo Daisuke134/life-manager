@@ -125,6 +125,48 @@ class AlpacaTest(unittest.TestCase):
 
 
 class StripeTest(unittest.TestCase):
+    def test_builds_complete_official_stripe_readback_envelope(self):
+        pages = {
+            "/v1/balance_transactions": [
+                {"object": "list", "url": "/v1/balance_transactions", "data": [{"id": "txn_1", "created": 1759000000}], "has_more": False},
+            ],
+            "/v1/charges": [
+                {"object": "list", "url": "/v1/charges", "data": [{"id": "ch_1", "created": 1759000000}], "has_more": False},
+            ],
+            "/v1/refunds": [
+                {"object": "list", "url": "/v1/refunds", "data": [], "has_more": False},
+            ],
+            "/v1/subscriptions": [
+                {"object": "list", "url": "/v1/subscriptions", "data": [], "has_more": False},
+            ],
+        }
+        calls = []
+
+        def get(url, headers):
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            calls.append(parsed.path)
+            return pages[parsed.path].pop(0)
+
+        payload = m.build_stripe_readback(
+            snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            get=get, api_key="rk_live_test",
+            default_economic_category=contract.REVENUE,
+        )
+        self.assertEqual(payload["readback"]["provider"], "stripe")
+        self.assertEqual(payload["readback"]["provenance"], "stripe_api")
+        self.assertEqual(payload["readback"]["read_at"], SNAPSHOT)
+        self.assertEqual(
+            payload["readback"]["classification_policy"],
+            {
+                "default_economic_category": contract.REVENUE,
+                "source": "explicit_runtime_config",
+            },
+        )
+        self.assertEqual(payload["readback"]["queries"]["trailing"]["start"], TRAILING_START)
+        self.assertTrue(payload["readback"]["queries"]["historical"]["account_inception"])
+        self.assertEqual(set(calls), set(pages))
+
     def test_balance_transactions_to_entries(self):
         entries = list(m.stripe_entries(fixture("stripe_balance_transactions.json")))
         self.assertEqual(sums(entries), {
