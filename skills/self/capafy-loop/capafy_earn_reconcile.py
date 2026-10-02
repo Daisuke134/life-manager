@@ -152,6 +152,7 @@ def main() -> int:
     lookback = 90 if args.backfill else args.lookback_days
 
     # --- gather server truth (live or injected) ---
+    token = ""
     if args.sales_json:
         raw = json.load(open(args.sales_json))
         days = raw.get("data", {}).get("data") if isinstance(raw, dict) else raw
@@ -164,18 +165,24 @@ def main() -> int:
             return 1
         sales = fetch_sales(token, lookback)
 
-    if args.payout_json:
-        praw = json.load(open(args.payout_json))
-        payout = praw.get("data", praw) if isinstance(praw, dict) else {}
+    # Fail closed: a payout-info read failure (exception, code!=0, non-object data) must NOT be
+    # written as a $0 snapshot — 2026-10-01 produced an all-zero row while the official seller
+    # balance was $59.00. On failure no capafy-payout row is written and the summary says so.
+    payout: dict | None
+    try:
+        if args.payout_json:
+            praw = json.load(open(args.payout_json))
+        else:
+            praw = _get("/agent/developer/payout-info", token)
+    except Exception:
+        praw = None
+    if isinstance(praw, dict) and praw.get("code", 0) == 0:
+        payout = praw.get("data", praw)
+        if not isinstance(payout, dict):
+            payout = None
     else:
-        try:
-            payout = _get("/agent/developer/payout-info", token).get("data", {})
-        except Exception:
-            payout = {}
-    # payout-info returns an OBJECT; a payout-RECORD fixture (list) or any non-object is treated
-    # as "no snapshot data" rather than crashing (keeps the reconcile safe under the loop test seam).
-    if not isinstance(payout, dict):
-        payout = {}
+        payout = None
+    payout_fetch_status = "fresh" if payout is not None else "failed"
 
     # --- merge into ledger (idempotent by (source,date)) ---
     existing = load_rows(args.ledger)
@@ -210,24 +217,27 @@ def main() -> int:
         have.add(key)
         added.append(d["date"])
 
-    # payout snapshot: one per day (upsert today's — replace if already present today)
-    payout_row = {
-        "ts": int(dt.datetime.now(dt.timezone.utc).timestamp()),
-        "source": "capafy-payout",
-        "date": today,
-        "balance_payout_usd": round(float(payout.get("balancePayout", 0) or 0), 2),
-        "total_payout_usd": round(float(payout.get("totalPayout", 0) or 0), 2),
-        "balance_pending_usd": round(float(payout.get("balancePending", 0) or 0), 2),
-        "balance_confirmed_usd": round(float(payout.get("balanceConfirmed", 0) or 0), 2),
-        "currency": (payout.get("currency") or "usd"),
-        "channel": "capafy_bank_wire",
-        "account": payout.get("accountNumber", ""),
-        "note": "capafy seller balance snapshot; balance_payout=pending unpaid, total_payout=realized to bank",
-        "wake": "capafy_earn_reconcile",
-    }
-    # drop any prior capafy-payout snapshot for today, then append the fresh one
-    new_rows = [r for r in new_rows if not (isinstance(r, dict) and r.get("source") == "capafy-payout" and r.get("date") == today)]
-    new_rows.append(payout_row)
+    # payout snapshot: one per day (upsert today's — replace if already present today).
+    # Skipped entirely when the fetch failed, so an earlier good snapshot for today survives.
+    payout_row = None
+    if payout is not None:
+        payout_row = {
+            "ts": int(dt.datetime.now(dt.timezone.utc).timestamp()),
+            "source": "capafy-payout",
+            "date": today,
+            "balance_payout_usd": round(float(payout.get("balancePayout", 0) or 0), 2),
+            "total_payout_usd": round(float(payout.get("totalPayout", 0) or 0), 2),
+            "balance_pending_usd": round(float(payout.get("balancePending", 0) or 0), 2),
+            "balance_confirmed_usd": round(float(payout.get("balanceConfirmed", 0) or 0), 2),
+            "currency": (payout.get("currency") or "usd"),
+            "channel": "capafy_bank_wire",
+            "account": payout.get("accountNumber", ""),
+            "note": "capafy seller balance snapshot; balance_payout=pending unpaid, total_payout=realized to bank",
+            "wake": "capafy_earn_reconcile",
+        }
+        # drop any prior capafy-payout snapshot for today, then append the fresh one
+        new_rows = [r for r in new_rows if not (isinstance(r, dict) and r.get("source") == "capafy-payout" and r.get("date") == today)]
+        new_rows.append(payout_row)
 
     atomic_write(args.ledger, new_rows)
 
@@ -241,10 +251,12 @@ def main() -> int:
         "sale_rows_added": added,
         "lifetime_gross_usd": lifetime_gross,
         "lifetime_orders": lifetime_orders,
-        "balance_payout_usd": payout_row["balance_payout_usd"],
-        "total_payout_usd": payout_row["total_payout_usd"],
+        "payout_fetch_status": payout_fetch_status,
         "newest_sale_date": sale_rows[-1]["date"] if sale_rows else None,
     }
+    if payout_row is not None:
+        summary["balance_payout_usd"] = payout_row["balance_payout_usd"]
+        summary["total_payout_usd"] = payout_row["total_payout_usd"]
     print(json.dumps(summary, ensure_ascii=False))
     return 0
 
