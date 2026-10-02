@@ -3529,3 +3529,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 直近のCrowdWorks application/reply/paidでENOSPCが再発しないことをread-only監視する。
 2. 既存のCrowdWorks effect_unknown 20件について、owner laneの公式proposal/thread/payment readbackを取得し、readbackが明示するoccurrenceだけをreconcileする。readbackなしのfenceは保持する。
 3. buyer-visible settlement・fee・actual cost・replay-zeroが揃ったcontract-work案件を1件閉じ、その後Job Hunterへ進む。
+
+### 133. CrowdWorks旧effect fenceの公式readback reconciliation（2026-10-02 22:18 JST）
+
+- Applicationのowner readback `reconcile_application_no_submit.py --resolve` は、公式CrowdWorks proposal一覧・proposalページを取得し、122件のoccurrence-bound `CROWDWORKS_APPLICATION_NO_SUBMIT_READBACK` receiptを生成した。残る4件（`18d654aa...`、`18d83e75...`、`18d975d3...`、`18d9944a...`）はproposal期間境界を証明できず、fenceを保持している。
+- Replyのowner readback `reconcile_reply_no_send.py --all-fenced --resolve` は、公式thread/message readbackを行い、360件の`CROWDWORKS_REPLY_NO_SEND_READBACK` receiptを生成した。残る166件は`run_marker_unavailable`、`accept_contract_intent`、または`effect_marked`など、no-send証明にならない理由で保持している。返信・契約受諾・buyer-visible settlementの成功とは解釈しない。
+- Paidのoccurrence-bound marker readbackは20件中3件（`18d9d90f...`、`18da2723...`、`18da85f7...`）を`released/effect_unknown=0`へ解放した。残る17件はexact marker不足、heartbeat/entrypoint failure、過去ENOSPCなどで、公式payment/contract readbackなしに閉じていない。
+- 現在のadmission fence残数はapplication=4、reply=166、paid=17。新releaseのbusy lock occurrenceは別cursorで、replay/再送を行わない。CrowdWorksはbuyer-visible納品、settlement、fee、model/browser costが未確認のため収益完了ではない。
+
+#### 更新後の原子cursor
+
+1. CrowdWorksの残りapplication 4 / reply 166 / paid 17は、各ownerの公式readback証拠が得られたものだけをoccurrence単位でreconcileする。
+2. 残fenceが再発しないこととENOSPC再発なしを自然runで観測する。
+3. 公式buyer-visible settlement・fee・actual cost・replay-zeroが揃う最初のcontract-work案件を1件閉じてから、Job Hunterへ進む。
