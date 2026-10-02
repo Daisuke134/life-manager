@@ -40,11 +40,18 @@ def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in n
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="promptbase-", suffix=".txt") as handle:
         handle.write(combined_prompt)
         handle.flush()
-        # The shared runner validates the provider result as JSON.  Example
-        # outputs themselves are natural text, so ask the provider for a JSON
-        # string and unwrap it here instead of weakening the runner contract.
+        # The shared runner validates the provider result as JSON.  Codex's
+        # Responses API requires the top-level schema to be an object, while
+        # example outputs themselves are natural text.  Put the text in one
+        # object field and unwrap it here instead of weakening the runner
+        # contract.
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="promptbase-", suffix=".json") as schema:
-            json.dump({"type": "string"}, schema)
+            json.dump({
+                "type": "object",
+                "properties": {"text": {"type": "string"}},
+                "required": ["text"],
+                "additionalProperties": False,
+            }, schema)
             schema.flush()
             env = os.environ.copy()
             env.update({
@@ -63,7 +70,9 @@ def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in n
         decoded = json.loads(out)
     except json.JSONDecodeError:
         decoded = out
-    if isinstance(decoded, str):
+    if isinstance(decoded, dict) and isinstance(decoded.get("text"), str):
+        out = decoded["text"]
+    elif isinstance(decoded, str):
         out = decoded
     if any("\u3040" <= ch <= "\u30ff" or "\u4e00" <= ch <= "\u9fff" for ch in out):
         raise RuntimeError("example output contains Japanese; operator config leaked")
