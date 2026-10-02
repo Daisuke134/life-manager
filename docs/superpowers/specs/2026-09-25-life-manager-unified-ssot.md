@@ -2462,3 +2462,32 @@ life-manager-taskmarket-ledger（別owner）
 13. **外部paid E2E → DigitalOcean費用 → Nosana continuity → Akash fallback → cloud移行 → 30日self-funding**。
 
 10GBはこの順序のどこにも完了条件として存在しない。今の最初の実作業は、既存brainの自然TaskMarket occurrenceを公式readbackすることだけである。
+
+### 55. 収益優先への順序変更：TaskMarketを後段へ移動（2026-10-02 09:11 JST）
+
+Daisの指示により、TaskMarket/BlockRun/award observerは「残すが、即時収益の優先経路ではない」ため、実行順を後段へ変更する。§54のTaskMarket先行順は履歴として残し、現在はこの節が優先する。
+
+**変更理由（証拠）**:
+
+- Capafyは直近30日公式analyticsで gross/net `$82.77`、actual model cost `$39.86`、actual profit `$26.36`がある。販売・payout・cost chainは未完だが、既存需要と収益実績がある。
+- PromptBaseはsales `$0`だが、既存listingと自然04:20供給経路があり、追加BlockRun支出なしで公開状態・審査・需要を確かめられる。
+- TaskMarketは過去releaseでCLI ENOENT、現在はbrain auth/capacity境界でprovider discovery未到達、外部収益・BlockRun receiptとも`0`。追加支出前のreadbackを先に一度閉じる価値はあるが、短期収益の最優先ではない。
+
+**新しい実行順**:
+
+1. **Foundationの安全境界** — R1 reconciler、F2 `effect_unknown` fence、live fleetのtyped terminalを公式readbackで整える。固定10GBは使わない。
+2. **Capafy** — free slot/fence解消後、自然submit→API listing/status→sale/refund/fee→actual model cost→settlement/payout→replay-zero。既存の売上実績を最優先でcost-completeへ閉じる。
+3. **PromptBase / Writer** — P5cの自然04:20、管理画面/Gmail審査、公開listing、sale/fee/cost/settlement/payout、replay-zero。P5a/b/dはやり直さない。
+4. **Writer/Ebook/Affiliate** — 既存供給・販売・conversionを公式receiptとactual costへ結合する。新しい有料インフラを先に増やさない。
+5. **Mobile Apps** — ASC/RevenueCat inventory、purchase/proceeds/refund、app cost、MRR、replay-zero。
+6. **Connector** — 候補発生時だけprovider registration、confirmation mail、Google Calendar公式event/readback。
+7. **Fundraiser** — human-requiredをholdし、application receipt・provider status・外部inflow・costを閉じる。商品売上と混同しない。
+8. **Coconala → Lancers → CrowdWorks → Job Hunter** — human-required案件をskipし、proposal/message/delivery/payment/payout/cost/replay-zeroを順に閉じる。
+9. **Self-Build** — verified feedback→patch→tests→PR→main→immutable release→natural outcome。
+10. **Investment AT-13〜AT-29** — paper 30 round trips、fee/slippage/system cost、replay-zero。live fundingは後段。
+11. **CFO 14/14** — settled revenue、refund、fee、model/tool/browser/server cost、net margin、MRR、runwayを再計算する。
+12. **外部paid E2Eとmargin gate** — 外部顧客一件を契約→納品→settlement→payout→cost-complete net marginまで閉じ、DigitalOcean費用を入れる。
+13. **Agent Economy / TaskMarket（後段）** — 既存brain経路の自然`poll` no-effect、BlockRun一件、award observer、receipt/cost/ledgerを閉じる。新registry ownerは追加しない。
+14. **Nosana/Akash/cloud/self-funding** — shelter interface、continuity、provider fallback、Mac dependency 0、30日positive net cashflowを最後に証明する。
+
+「即時収益優先」は利益を保証する表現ではない。既存需要・公式売上・低コストreadbackの証拠が強い順に、収益へ近い作業を先に行うという意味である。TaskMarketは削除せず、CFOとpaid E2Eの後段へ移した。
