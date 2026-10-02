@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `87f58e8241`
+Code release observed: `d672792cc7`
 
 ## Natural-run evidence
 
@@ -106,6 +106,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 - Digest: `4a9547ef08fbd62c38cea7ac5dafe416144369804b546b83f75832bb32b644bd`.
 - Google settlement remained `settled` from the official CSV receipt.
 - B7 coverage diagnostics returned `20` grouped source/reason rows; the report no longer crashes when immutable readback coverage is extended by later adapters.
+- Launchd readback showed `LM_CFO_TELEGRAM_CHAT_ID` is configured while `LM_CFO_REPORT_CHANNEL` is absent; the local runner now defaults to Telegram when that chat binding exists, while an explicit email channel remains fail-closed without an email.
 
 ### Canonical source-specific artifact readback
 
