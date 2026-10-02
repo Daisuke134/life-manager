@@ -3437,3 +3437,9 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Application ownerが自然にterminalしlockを解放するまでCrowdWorks全ownerを監視する。
 2. 新release Paid occurrenceのterminal `exit75/effect0/pre_effect`または公式readbackを確認する。
 3. その後、CrowdWorksのbuyer-visible納品/settlementを閉じ、Job Hunterへ進む。
+
+### 122. CrowdWorks provider lockのowner交代（2026-10-02 19:53 JST）
+
+- 先行Application owner PID `89309`は終了し、別のApplication owner PID `363`（旧release `4121f44751`）が同じ`provider-browser.lock`を取得した。Paid kernel PID `95971`（新release `119854c3c6`）とReply PID `94377`は待機中である。
+- `crowdworks-revenue-paid`の新release natural occurrenceはまだ公式terminal/readbackを返していない。lock保持者の交代はprocess healthであり、外部応募・支払・納品の成功ではない。
+- lockを奪わず、Application/Reply/Paidのowner自然終了を待つ。effect_unknownを再送・closeしない。
