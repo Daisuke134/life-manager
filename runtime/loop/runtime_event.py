@@ -254,7 +254,13 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "provider": provider,
         "profile_alias": profile_alias,
         "effect_class": effect_class,
-        "effect_status": "not_applicable" if effect_class == "none" else "unknown",
+        "effect_status": (
+            "not_applicable"
+            if effect_class == "none" or (
+                deferred and blocker != "host_admission_deferred:resource_effect_unknown"
+            )
+            else "unknown"
+        ),
         "blocker": blocker,
         "evidence_refs": [f"{evidence_scheme}://{loop_id}/{run_id}/summary.json"],
         "product_loop_id": product_loop_id,

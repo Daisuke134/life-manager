@@ -505,6 +505,21 @@ class LmLoopHealthTest(unittest.TestCase):
         )
         self.assertEqual(health.health_exit_code(value), 1)
 
+    def test_pre_entrypoint_capacity_block_is_not_effect_unknown(self):
+        row = self.status_row(
+            "capacity-blocked-message",
+            effect_class="message",
+            effect_status="not_applicable",
+            last_terminal_result="blocked",
+            blocker="host_admission_deferred:resource_capacity_busy",
+            error_class="host_admission_deferred:resource_capacity_busy",
+            retryable=True,
+            next_action="retry_after_eligibility",
+        )
+        job = health.project_health([row])["jobs"][0]
+        self.assertEqual(job["state"], "failed")
+        self.assertEqual(job["facets"]["effect_safety"]["status"], "not_applicable")
+
     def test_health_state_preserves_adapter_gap_then_human_then_fence_priority(self):
         cases = {
             "adapter-timeout-human": ({
