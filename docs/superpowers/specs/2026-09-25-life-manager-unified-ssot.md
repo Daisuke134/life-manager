@@ -2895,6 +2895,19 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. Connectorは候補発生までread-only監視し、候補0を登録成功と数えない。
 4. Mobile/Connectorの公式receiptが揃うまで、MRR・利益・全loop完了を宣言しない。TaskMarket/BlockRunは§84-Aの後段順位を維持する。
 
+### 90. Mobile Pillow修正後の最初の自然Postiz readback（2026-10-02 15:03 JST）
+
+- 新release `85dcb4522f0612d0fe73ea6c85111ac9a5fed4ff`を17 Mobile ownerへloadedした後、最初の自然occurrence `life-manager-anicca-affirmation-youtube:18daa119aa2f91a0-91083`がPillow import errorなしでreconciled PASSになった。Postiz公式receipt `cmuqigt290nrbqw0y8c63gbfj`をreadbackし、`PUBLISHED`を確認した。これはpackaging修正の一自然投稿成功である。
+- 同じ自然windowで他Mobile laneはhost admission capacity/FIFOにより停止・待機した。ASC agreementは`A required agreement is missing or has expired`で本人操作が必要、RevenueCat overviewはreadback済みだが、投稿→acquisition→purchase/refund→Apple proceeds→app cost→replay-zeroの一連のjoinは未達である。
+- Connectorは候補0のままで、Google Calendar既存eventの公式一致は確認済みだが、10月の新規provider登録・confirmation mail・Calendar eventはない。候補0を成功扱いしない。
+
+#### 更新後の原子cursor
+
+1. Mobile残りlaneの自然runでPillow修正後のPostiz receipt/replay-zeroを一件ずつreadbackする。
+2. ASC agreementを本人操作後に公式inventory/proceedsを再取得し、RevenueCat product/entitlementと同一appのpurchase/refundを結合する。
+3. Connector候補発生までread-only監視し、候補発生時だけprovider/mail/calendar公式receiptを閉じる。
+4. Mobile/Connectorのcost-complete収益が閉じるまで、MRR・利益・全loop完了を宣言しない。TaskMarket/BlockRunは後段のまま。
+
 ### 88. Capafy payout偽0のsource修正・release loadと公式監査（2026-10-02 14:40–14:45 JST）
 
 - AGMSG read-only監査は、Capafy公式`publish-list`と`publish-remote-status`、`capafy_http`を突合し、inventory `total=52 / online=47 / under_review=3 / review_rejected=2`を確認した。Agent `4813383030`、`4243672453`、`4763185052`は同一versionで`platform_status=1 / audit_status=2 / is_confirmed_skills=true / is_confirmed_config_keys=true / package_uploaded=true / status_reason=under_review`。X3 Japanese Humanizer `3332784488`は`platform_status=4 / audit_status=4 / listed`、one-time `$9.99`である。Capafy全体のCP2/CP3・宣伝・販売closedとは数えない。
