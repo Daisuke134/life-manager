@@ -3604,3 +3604,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CFO source adapterごとに公式readbackの有無を確認し、まずsettled external revenueが実在するlaneだけをcost join対象にする。
 2. Agent EconomyのTaskMarket no-effect/provider discoveryとBlockRun paid inferenceをreceipt単位で閉じる。
 3. 完全な14-loop net P&Lが再計算できるまで、MRR/利益/runwayを数値で断定しない。
+
+### 139. Agent Economy / TaskMarket / BlockRunの現行receipt境界（2026-10-02 23:52 JST）
+
+- `life-manager-taskmarket-ledger` と`life-manager-x402-ledger`は直近が`resource_capacity_busy`、effect none、公式provider discovery receiptなし。`x402-acquisition-controller`はeffect noneのpassだが、外部buyer job/settlementを意味しない。
+- `the402-provider`、`the402-worker`、`x402-seller-8404`は常駐`effect=started`で、健康なprocessを示すだけ。直近runにprovider payment receipt/settlement/cost joinはなく、wallet/treasury spendやBlockRun paid inferenceを再送していない。
+- stateには過去のx402 finalized USDC receipt（例: `external-inflows`の最終観測2026-09-30、各`$0.01`）と過去seller salesがあるが、これは歴史的実験の公式記録であり現在の保証価格・今月MRR・self-funded surplusではない。内部transfer、self-pay、token appreciationは外部収益に数えない。
+- したがってAgent Economyは、TaskMarket no-effect provider discovery→BlockRun paid inference 1件→treasury policy→official settlement/cost joinの順で未完。現行wallet funding、paid inference、lease renewalは行わない。
+
+#### 更新後の原子cursor
+
+1. TaskMarketのcapacityが空いた自然runで、mutation前provider discoveryとreplay-zeroを1件公式readbackする。
+2. そのreceiptがある場合だけBlockRun paid inferenceを1件、treasury cap内で実行し、provider payment receiptとoutputをjoinする。
+3. CFOへsettled external revenue/costを反映し、30日self-funding benchmark前に収益・自律性を断定しない。
