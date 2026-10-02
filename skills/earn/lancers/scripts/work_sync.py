@@ -187,13 +187,33 @@ def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional
             "delivery_due_on": due, "proposal_text": text.strip()}
 
 
+_PROPOSAL_TERMS_CACHE_ATTR = "_lancers_proposal_terms"
+
+
+def _read_proposal_terms_cached(
+    page: Any, proposal_id: str, expected_project: Optional[str] = None,
+) -> Mapping[str, Any]:
+    """Read one proposal's official terms once per browser page/wake."""
+    cache = getattr(page, _PROPOSAL_TERMS_CACHE_ATTR, None)
+    if not isinstance(cache, dict):
+        cache = {}
+        try:
+            setattr(page, _PROPOSAL_TERMS_CACHE_ATTR, cache)
+        except AttributeError:
+            return _read_proposal_terms(page, proposal_id, expected_project)
+    key = (proposal_id, expected_project)
+    if key not in cache:
+        cache[key] = _read_proposal_terms(page, proposal_id, expected_project)
+    return cache[key]
+
+
 def _proposal_context(page: Any, detail: Mapping[str, Any], verified_proposals: set[str]) -> Optional[Mapping[str, Any]]:
     with_value = detail.get("with")
     if not isinstance(with_value, Mapping) or not isinstance(with_value.get("proposal"), Mapping): return None
     proposal_id = _id(with_value["proposal"].get("id"))
     if proposal_id not in verified_proposals: raise SourceFailure("proposal_receipt_unverified")
     job = with_value.get("job"); expected_project = _id(job.get("id")) if isinstance(job, Mapping) and job.get("id") is not None else None
-    return _read_proposal_terms(page, proposal_id, expected_project)
+    return _read_proposal_terms_cached(page, proposal_id, expected_project)
 
 
 def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
@@ -359,7 +379,7 @@ def _acceptance_candidates(page: Any, verified_proposals: Iterable[str]) -> list
     candidates = []
     for proposal_id in (sorted(verified_proposals) if isinstance(verified_proposals, set) else verified_proposals):
         try:
-            terms = _read_proposal_terms(page, proposal_id)
+            terms = _read_proposal_terms_cached(page, proposal_id)
         except SourceFailure as error:
             # A withdrawn/expired proposal page is gone; it must not hide the live ones.
             if str(error) != "proposal_page_not_found": raise

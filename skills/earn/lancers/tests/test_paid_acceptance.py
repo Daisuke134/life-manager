@@ -458,6 +458,33 @@ def test_proposal_terms_wait_for_client_rendered_contract_amount():
     assert terms["price"] == {"kind": "fixed", "amount_jpy": 2000}
 
 
+def test_proposal_terms_cache_fetches_once_per_page_and_proposal():
+    calls = []
+
+    class Response:
+        status = 200
+
+    class Page:
+        def goto(self, url, **_):
+            calls.append(("goto", url))
+            return Response()
+
+        def wait_for_function(self, *_args, **_kwargs):
+            calls.append(("wait",))
+
+        def evaluate(self, _script):
+            calls.append(("evaluate",))
+            return {"path": "/work/proposal/27969614", "amount": "2,000円",
+                    "due": "2026/10/10", "project_id": "5605912",
+                    "proposal_text": "提案本文"}
+
+    page = Page()
+    first = work_sync._read_proposal_terms_cached(page, "27969614", "5605912")
+    second = work_sync._read_proposal_terms_cached(page, "27969614", "5605912")
+    assert first == second
+    assert [kind for kind, *_ in calls].count("goto") == 1
+
+
 def test_acceptance_candidates_skip_a_proposal_page_that_is_404():
     class Response:
         def __init__(self, status):
