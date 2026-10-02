@@ -4108,3 +4108,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 新immutable release上で同じdigestをdry-run後、この1 rowだけを一度resolveする。後続旧wakeはeffect_unknownで停止中なので、resolve直後に3c以降の`hf-gig-apply-direct` target applyを実行する。
 3. installed/loaded SHAとargvを新releaseへ一致させ、次の自然runでpre-submit failureが新しいunknownを生成しないこと、submit境界後failureはunknownを保持すること、provider application receipt/replay-zeroをreadbackする。
 4. Coconalaのsource discovery/access denialとpaid financial receiptは別TODOとして残す。runtime fence修復だけを収益成功へ昇格させず、Mobile→Connector→Fundraiser→paid settlement/payoutの即時収益順へ戻る。
+
+### 176. Coconala fence連鎖のproduction終端とb6自然run（2026-10-03 06:41 JST）
+
+- PR #6508をmain `b6f7b93142abbdb91e21c248f0e12df283c30418`へmergeした。最後の旧release occurrence `18dad118c3aa4a38-19467`、claim run `18dad29a777a6138-68078`、pass `gig-apply-direct-1790975363879245000-68108`、started/report event IDsを定数固定し、result=`observed/judged/actionable/effect/readback/pending 0`、`parent_failed_rc_1`、history/evidence tree hashes、submit artifact不在、durable application intent不在をlock内で再検証するone-time proofである。
+- related pytest 20件、GitHub CI全件PASS、fresh read-only reviewは`SHIP`。immutable release `/Users/anicca/loops/releases/20261003T062924-b6f7b931`上でもdigest `f5b4d3c091d0bd531cf441891788ae7bf040d8d879762fc49de9fb824b592ccb`が一致し、対象1 rowだけを`RESOLVED`にした。
+- resolve直後、`hf-gig-apply-direct`をtarget applyし、installed SHA、plist `LIFE_MANAGER_RELEASE_SHA`、loaded argvを`b6f7b93142`へ一致させた。apply resultは`admission_resumed=true / changed=true / ok=true`、install event ID `5ea3153860bf8788a7f06513`。
+- b6初回自然run `18dad3e507fc01a8-8730`はregistered browser identity `coconala:kosuke`がpaid/reply siblingによりbusyで、300秒後`entrypoint_exit_75 / with-browser busy`。submit/application effectは0、effect identityは`not_written`。host pre-effect markerが残ったためadmission DBの`effect_unknown=1` rowは0件で、旧挙動のように自wake occurrenceを新しいunknownへ連鎖させなかった。
+- 直後の次自然run `18dad433798148d0-17728`もb6 releaseで起動できた。これは旧fence chainのproduction終端を示すが、browser contention、provider discovery、application receipt、契約、settlement、payoutは未完。healthのhistorical eventはeffect unknown表示を保持しても、authoritative admission unknown 0と分離する。
+
+#### 更新後の原子cursor
+
+1. 稼働中b6 run `18dad433798148d0-17728`のnatural terminalを読み、pre-submit busy/failureならadmission unknown 0が維持されることを再確認する。外部effectがあればexact intent→provider receipt→readbackを結ぶ。
+2. `coconala:kosuke`を同時に要求するApply/Paid/Reply/Reconcileのcadence・lease待ち・owner優先順位を既存browser contractから診断し、同一identityの長時間飢餓を最小修正する。running siblingをkillせず、provider/browser profileを直接共有しない。
+3. browser取得後の自然Applyでsource discovery→判断→single submit→公式applied roster→replay-zeroを閉じる。応募0/失敗を収益成功へ数えない。
+4. paid loopはcontract receipt→fee→settlement→payout→actual costまで閉じる。その後、SSOTの即時収益順どおりMobile→Connector→Fundraiser→他paid lanesへ進む。
