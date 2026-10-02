@@ -3689,3 +3689,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. `307941823`のcontract/payment状態を次の公式provider readbackで確認する。
 2. residual fenceは同一occurrenceの証拠が増えた場合だけreconcileし、再送しない。
 3. その後CFO source joinとTaskMarket/BlockRun receiptへ進む。
+
+### 146. CrowdWorks proposalのpaid/contract readback（2026-10-02 JST）
+
+- `crowdworks-revenue-paid`の新release natural run `18daba9254a75b18-16784`はexit75で終了し、`paid-latest.json`は`effect=0`、`crowdworks_paid_handoff_unavailable` 1件と`reconcile_unknown` 4件を返した。
+- proposal `307941823`（project `13500625`、提案額¥250,000）に紐づくprovider payment receipt、buyer contract acceptance、納品、settlementは確認できない。応募verified receiptを売上へ昇格させず、同じproposalを再送しない。
+- CrowdWorksは「外部応募はverified、paid contract/settlement未成立」と確定し、CFOへ0円を加算するのではなく、settlement unknownとして保持する。
+
+#### 更新後の原子cursor
+
+1. CrowdWorksは自然schedulerと残fenceのreadbackを継続し、contractが公式に成立した時だけ次のcost/settlement joinへ進む。
+2. CFO business source coverageで、proposal revenueとsettled revenueを分離する。
+3. TaskMarket award→BlockRun receiptの順で、外部支払とcostをjoinする。
