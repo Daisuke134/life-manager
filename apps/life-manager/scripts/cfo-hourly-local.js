@@ -229,18 +229,19 @@ function selectCfoRunner(env = process.env, deps = {}) {
 async function main(env = process.env, deps = {}) {
   const stateDir = env.CFO_STATE_DIR || env.LIFE_MANAGER_STATE_ROOT
     || path.join(os.homedir(), ".local/state/life-manager/life-manager-cfo-hourly");
+  const chatId = env.TELEGRAM_ALERT_CHAT_ID || env.LM_CFO_TELEGRAM_CHAT_ID || env.LM_ADMIN_TELEGRAM_CHAT_ID;
   try {
     const runner = selectCfoRunner(env, deps);
     const result = await runner({
       stateDir,
       subjectId: env.LM_CFO_SUBJECT_ID || env.LM_CFO_UID || env.LM_UID,
       pythonBin: env.CFO_PYTHON_BIN || "python3",
-      reportChannel: env.LM_CFO_REPORT_CHANNEL || "email",
+      reportChannel: env.LM_CFO_REPORT_CHANNEL || (chatId ? "telegram" : "email"),
       reportCadence: env.LM_CFO_REPORT_CADENCE || "daily",
       reportEmail: env.LM_CFO_REPORT_EMAIL,
       resendKey: env.RESEND_API_KEY,
       database: env.CFO_TELEGRAM_OUTBOX || path.join(stateDir, "telegram-outbox.sqlite3"),
-      chatId: env.TELEGRAM_ALERT_CHAT_ID || env.LM_CFO_TELEGRAM_CHAT_ID || env.LM_ADMIN_TELEGRAM_CHAT_ID,
+      chatId,
       envFile: env.LIFE_MANAGER_ENV_FILE || path.join(os.homedir(), ".local/state/life-manager/.env"),
       agentReceiptPaths: agentReceiptPathsFromEnv(env),
       marketplaceReceiptPaths: splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS),
