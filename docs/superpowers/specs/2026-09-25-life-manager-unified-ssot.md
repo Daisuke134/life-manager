@@ -3504,3 +3504,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CrowdWorks application ownerが自然終了したら、`crowdworks-revenue-application`を`20261002T210139-7a4852e1`へapplyし、plist/loaded SHAをreadbackする。
 2. application/reply/paid各laneでbusy lockがハングせず、pre-effectならexit75/effect0、provider境界まで進んだ場合だけ公式receipt/readbackを同一occurrenceへ結合する。
 3. buyer-visible納品・settlement・fee・model/browser actual cost・replay-zeroが揃うまで、CrowdWorks売上をCFOへ加算せず、次のJob Hunterへ進めない。
+
+### 131. CrowdWorks applicationのnon-blocking natural proof（2026-10-02 21:22 JST）
+
+- applicationの旧release自然run終了後、`crowdworks-revenue-application`をinstall event `58967da461dd0534ae34695a`で`20261002T210139-7a4852e1`へapplyした。plist、loaded SHA、ProgramArgumentsは同releaseで一致し、その後`loaded-idle`へ戻った。
+- kickstartしたnatural run `18dab59ab82624a0-59579`は、reply ownerがbrowser lockを保持中に`provider_browser_busy`を検出し、外部provider操作なしで`exit75`、entrypoint pre-effect marker `effect=0`、stderrのlock理由を記録した。新しいadmission `effect_unknown` rowは増えておらず、busy時のハング/再送は解消した。
+- `lm-loop status --explain`のruntime event自体はgenericな`entrypoint_exit_75 / effect_status=unknown`を表示するが、`effect_identity_status=not_written`かつ新occurrenceはadmission unknown一覧に存在しない。これは外部効果不明を再送しない安全側の結果であり、provider receipt/settlementを意味しない。既存の過去fenceは公式readbackなしにcloseしない。
+- 同時刻の`launchd.err.log`には過去wakeで`Errno 28: No space left on device`（recovery/terminal write失敗）が記録されていた。現在のData volume空きは2.6GiBで、credential・ledger・receiptを削除せず、再生成可能stateの整理もまだ行っていない。任意の容量目標ではなく、同じENOSPCが再発しないかを次の基盤cursorにする。
+
+#### 更新後の原子cursor
+
+1. CrowdWorksの既存20件のeffect_unknownは公式proposal/thread/payment readbackをoccurrence単位で取得してからreconcileする。新しいbusy occurrenceは再送しない。
+2. ENOSPCの再発境界をread-onlyで切り分け、削除対象をcredential/ledger/receiptから分離した上で、必要最小限の再生成可能temporary stateだけをcleanupする。
+3. その後、buyer-visible settlementが確認できるcontract-work laneを1件閉じ、Job Hunterへ進む。
