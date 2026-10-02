@@ -164,6 +164,14 @@ class AlpacaTest(unittest.TestCase):
 
 
 class StripeTest(unittest.TestCase):
+    def test_b7_window_defaults_to_runtime_now_not_future_day_end(self):
+        now = datetime(2026, 10, 3, 0, 5, tzinfo=timezone.utc)
+        end, start = m._b7_window(
+            DAY, snapshot_at=None, trailing_start=None, now=now,
+        )
+        self.assertEqual(end, "2026-10-03T00:05:00.000000Z")
+        self.assertEqual(start, "2026-09-03T00:05:00.000000Z")
+
     def test_builds_complete_official_stripe_readback_envelope(self):
         pages = {
             "/v1/balance_transactions": [
@@ -444,6 +452,50 @@ class UsageTest(unittest.TestCase):
 
 
 class B7IntegrationTest(unittest.TestCase):
+    def test_platform_specific_marketplace_readback_preserves_unconnected_siblings(self):
+        import hashlib
+        payload = {
+            "schema_version": 1,
+            "record_type": "marketplace_financial_readback",
+            "platform": "crowdworks",
+            "product_loop_id": "gig-crowdworks",
+            "observed_at": SNAPSHOT,
+            "coverage": {
+                "historical": {"complete": False, "window_start": None, "window_end": SNAPSHOT},
+                "trailing": {"complete": False, "window_start": TRAILING_START, "window_end": SNAPSHOT},
+            },
+            "pagination": {"complete": True, "pages_fetched": 1, "records_fetched": 1, "next_cursor": None},
+            "receipt_map": {"complete": True, "records": [{
+                "schema_version": 1, "record_type": "payment_receipt", "platform": "crowdworks",
+                "work_external_id": "contract-1", "payment_external_id": "payment-1",
+                "receipt_id": "payment-1", "gross_amount_minor": 12, "fee_amount_minor": 2,
+                "cost_amount_minor": 0, "net_amount_minor": 10, "currency": "JPY",
+                "status": "settled", "occurred_at": "2026-09-30T00:00:00Z", "observed_at": SNAPSHOT,
+            }]},
+            "aggregate": {"currency": "JPY", "sales_count": 1, "net_amount_minor": 10},
+        }
+        unsigned = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        digest = hashlib.sha256(unsigned).hexdigest()
+        payload["content_sha256"] = digest
+        payload["evidence_ref"] = f"marketplace://crowdworks/financial-readback/sha256/{digest}"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "crowdworks.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={"LM_CFO_MARKETPLACE_CROWDWORKS_READBACK": str(path)},
+            )
+        self.assertTrue(any(
+            row.get("receipt_id") == "marketplace:crowdworks:payment:payment-1"
+            for row in records
+        ))
+        gaps = {
+            (row.get("product_loop_id"), row.get("reason"))
+            for row in records if row.get("record_type") == "coverage"
+        }
+        self.assertIn(("gig-coconala", "source_unconnected"), gaps)
+        self.assertIn(("gig-lancers", "source_unconnected"), gaps)
+
     def test_injected_b1_to_b6_records_project_once_with_fourteen_lanes_and_gaps(self):
         adapter_records = {
             "b1-capafy-mobile": [b7_receipt(

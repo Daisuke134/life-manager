@@ -93,6 +93,30 @@ class MarketplaceAttributionTest(unittest.TestCase):
         for row in rows:
             self.assertEqual(row, contract.validate_record(row))
 
+    def test_recent_official_readback_before_snapshot_is_fresh_within_daily_window(self):
+        payload = self.reobserve(self.fixture("marketplace-settled.json"), "2026-09-30T12:00:00Z")
+        rows = self.require_adapter().adapt(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertTrue(any(row["record_type"] == "receipt" for row in rows))
+        self.assertFalse(any(
+            row["record_type"] == "coverage" and row["reason"] == "stale_readback"
+            for row in rows
+        ))
+
+    def test_readback_window_may_start_before_requested_window(self):
+        payload = self.reobserve(self.fixture("marketplace-settled.json"), "2026-09-30T12:00:00Z")
+        payload["coverage"]["trailing"]["window_start"] = "2026-09-20T00:00:00Z"
+        payload = self.bind(payload)
+        rows = self.require_adapter().adapt(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertTrue(any(row["record_type"] == "receipt" for row in rows))
+        self.assertFalse(any(
+            row["record_type"] == "coverage" and row["reason"] == "stale_readback"
+            for row in rows
+        ))
+
     def test_payout_pending_self_payment_and_owner_deposit_never_become_revenue(self):
         rows = self.adapt("marketplace-settled.json")
         receipts = {

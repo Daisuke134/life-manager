@@ -345,10 +345,35 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
 
+    explicit_marketplace_paths: list[tuple[Path, str]] = []
+    for env_name, loop_id in (
+        ("LM_CFO_MARKETPLACE_COCONALA_READBACK", "gig-coconala"),
+        ("LM_CFO_MARKETPLACE_LANCERS_READBACK", "gig-lancers"),
+        ("LM_CFO_MARKETPLACE_CROWDWORKS_READBACK", "gig-crowdworks"),
+    ):
+        explicit_marketplace_paths.extend((path, loop_id) for path in _paths(env.get(env_name)))
     marketplace_paths = _paths(
         env.get("LM_CFO_MARKETPLACE_READBACK") or env.get("LM_CFO_MARKETPLACE_RECEIPTS")
     )
-    if marketplace_paths:
+    if explicit_marketplace_paths:
+        sources["b4-marketplace"] = []
+        configured_loops = set()
+        for source_path, loop_id in explicit_marketplace_paths:
+            configured_loops.add(loop_id)
+            sources["b4-marketplace"].extend(_safe_b7_adapter(
+                lambda source_path=source_path: marketplace.adapt_path(
+                    source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+                ),
+                source_id="marketplace-financial-record", loop_ids=(loop_id,),
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ))
+        for loop_id in B7_SOURCE_LOOPS["b4-marketplace"]:
+            if loop_id not in configured_loops:
+                sources["b4-marketplace"].extend(_b7_gap_records(
+                    source_id="marketplace-financial-record", loop_ids=(loop_id,),
+                    reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+                ))
+    elif marketplace_paths:
         sources["b4-marketplace"] = []
         for source_path in marketplace_paths:
             sources["b4-marketplace"].extend(_safe_b7_adapter(
@@ -406,7 +431,9 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     if alpaca_live:
         sources["b5-agent-economy-investment"].extend(_safe_b7_adapter(
             lambda: agent_economy_investment.adapt(
-                build_alpaca_readback(trailing_start=trailing_start),
+                build_alpaca_readback(
+                    trailing_start=trailing_start, observed_at=snapshot_at,
+                ),
                 snapshot_at=snapshot_at, trailing_start=trailing_start,
             ),
             source_id="alpaca-live-readback", loop_ids=B7_SOURCE_LOOPS["b5-investment"],
@@ -1167,8 +1194,9 @@ def _utc_text(value: datetime) -> str:
     )
 
 
-def _b7_window(day: date, snapshot_at: str | None, trailing_start: str | None) -> tuple[str, str]:
-    end = snapshot_at or _utc_text(day_window(day)[1])
+def _b7_window(day: date, snapshot_at: str | None, trailing_start: str | None,
+               now: datetime | None = None) -> tuple[str, str]:
+    end = snapshot_at or _utc_text(now or datetime.now(timezone.utc))
     start = trailing_start or _utc_text(
         datetime.fromisoformat(end.replace("Z", "+00:00")) - timedelta(days=30)
     )

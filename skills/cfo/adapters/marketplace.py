@@ -12,7 +12,7 @@ import hashlib
 import json
 import math
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -37,6 +37,7 @@ OWNED_CATEGORIES = (
     "provider_fee",
     "payment_fee",
 )
+FRESHNESS_MAX_AGE = timedelta(hours=24)
 
 READBACK_KEYS = (
     "schema_version", "record_type", "platform", "product_loop_id", "observed_at",
@@ -104,6 +105,18 @@ class MarketplaceAttributionError(ValueError):
     def __init__(self, code: str):
         super().__init__(code)
         self.code = code
+
+
+def _stale_observation(observed: str, end: str) -> bool:
+    try:
+        observed_at = datetime.fromisoformat(observed.replace("Z", "+00:00"))
+        end_at = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if observed_at.tzinfo is None or end_at.tzinfo is None:
+            return True
+        age = end_at.astimezone(timezone.utc) - observed_at.astimezone(timezone.utc)
+        return age < timedelta(0) or age >= FRESHNESS_MAX_AGE
+    except (TypeError, ValueError, OverflowError):
+        return True
 
 
 def _fail(code: str) -> None:
@@ -1185,7 +1198,7 @@ def _envelope(
         _fail("missing_coverage")
     _validate_payload_integrity(payload, context["platform"])
     observed_at = _instant(payload["observed_at"])
-    if observed_at != snapshot_at:
+    if _stale_observation(observed_at, snapshot_at):
         _fail("stale_readback")
     _exact_keys(payload["coverage"], COVERAGE_KEYS)
     coverage_windows = {}
@@ -1195,13 +1208,14 @@ def _envelope(
         if type(window["complete"]) is not bool:
             _fail("read_failed")
         window_end = _instant(window["window_end"])
-        if window_end != snapshot_at:
+        if window_end != observed_at:
             _fail("stale_readback")
         window_start = None if window["window_start"] is None else _instant(window["window_start"])
         if projection == "historical" and window_start is not None:
             _fail("read_failed")
         if projection == "trailing":
-            if window_start != trailing_start or window_start >= window_end:
+            if (window_start is None or window_start > trailing_start
+                    or window_start >= window_end):
                 _fail("stale_readback")
         coverage_windows[projection] = window["complete"]
 
@@ -1319,7 +1333,7 @@ def adapt(
             reason = "missing_coverage"
             if isinstance(payload.get("observed_at"), str):
                 try:
-                    if _instant(payload["observed_at"]) != snapshot:
+                    if _stale_observation(_instant(payload["observed_at"]), snapshot):
                         reason = "stale_readback"
                 except MarketplaceAttributionError:
                     reason = "read_failed"
@@ -1328,7 +1342,7 @@ def adapt(
             # payload details. Valid contexts still get a B0 gap row.
             try:
                 raw_observed = _instant(payload.get("observed_at")) if isinstance(payload, dict) else None
-                if raw_observed is not None and raw_observed != snapshot:
+                if raw_observed is not None and _stale_observation(raw_observed, snapshot):
                     reason = "stale_readback"
             except MarketplaceAttributionError:
                 pass
