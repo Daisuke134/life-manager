@@ -65,6 +65,27 @@ def _current_step(page) -> str:
     return "unknown"
 
 
+def _record_step1_failure(page, evidence_dir: Path) -> None:
+    """Persist the browser boundary when the wizard refuses to advance."""
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        body_text = page.inner_text("body")[:5000]
+    except Exception as exc:
+        body_text = f"<body_read_failed:{type(exc).__name__}:{exc}>"
+    payload = {
+        "url": str(getattr(page, "url", "")),
+        "step": _current_step(page),
+        "body_text": body_text,
+    }
+    (evidence_dir / "step1_failure.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    try:
+        page.screenshot(path=str(evidence_dir / "step1_failure.png"), full_page=True)
+    except Exception:
+        pass
+
+
 def _kick_render(page) -> None:
     """The /sell wizard's right-hand panel sometimes stays blank after a fresh
     navigation that resumes an in-progress draft (verified against the live
@@ -134,7 +155,7 @@ def _wait_for_select_count(page, minimum: int, timeout_ms: int = 10000) -> None:
     raise RuntimeError(f"select_count_never_reached:{minimum}")
 
 
-def _fill_step1(page, listing) -> None:
+def _fill_step1(page, listing, evidence_dir: Path) -> None:
     _wait_for_select_count(page, 1)
     page.locator("select").nth(0).select_option(label=listing.item_type)
     _wait_for_select_count(page, 2)
@@ -160,6 +181,7 @@ def _fill_step1(page, listing) -> None:
     page.wait_for_timeout(1200)
     if _current_step(page) != "2/3":
         # Name the reason PromptBase shows (the 2026-09-30 04:20 and 08:30 runs failed here with none).
+        _record_step1_failure(page, evidence_dir)
         notes = [ln.strip() for ln in page.inner_text("body").splitlines()
                  if re.search(r"please|must|already|required|invalid|error|too (long|short)|maximum|reached", ln, re.I)]
         raise RuntimeError(f"step1_did_not_advance:{_current_step(page)}:{' | '.join(notes)[:300]}")
@@ -375,7 +397,7 @@ def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> 
                     raise RuntimeError(f"draft_not_at_step2:{_current_step(page)}:{draft_url}")
             else:
                 _ensure_step1(page)
-                _fill_step1(page, listing)
+                _fill_step1(page, listing, evidence_dir)
             _fill_step2(page, listing)
             _resolve_recaptcha_or_stop(page, evidence_dir)
 
