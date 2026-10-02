@@ -3425,3 +3425,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Reply ownerが自然にlockを解放し、旧Paid occurrenceがterminalになった後、新release `119854c3c6`をCrowdWorks Paidだけへapplyする。
 2. 新release natural runで`crowdworks_paid_handoff_unavailable`がpre-effect/effect0としてexit75になることをreadbackし、旧effect_unknownは保持する。
 3. その証拠後にJob Hunterへ進む。
+
+### 121. CrowdWorks handoff修正release loaded後のApplication lock待ち（2026-10-02 19:49 JST）
+
+- 新release `119854c3c6` はCrowdWorks Paidへapply済みで、plist/installed SHAは一致している。`lm-loop start crowdworks-revenue-paid`のkickstartもexit 0で、Paid ownerは新release occurrenceを開始した。
+- しかしCrowdWorks Application owner PID `89309`（release `4121f44751`）が共有`provider-browser.lock`を保持して実行中で、Paid kernel PID `95971`（release `119854c3c6`）とReply PID `94377`が同じlockで待機している。公式provider receipt/readbackはまだない。
+- したがって、`crowdworks_paid_handoff_unavailable`のexit75/effect0分類を新releaseで最終確認するnatural terminalは未取得である。lock奪取・プロセスkill・同じPaid occurrence再送は行わない。
+
+#### 更新後の原子cursor
+
+1. Application ownerが自然にterminalしlockを解放するまでCrowdWorks全ownerを監視する。
+2. 新release Paid occurrenceのterminal `exit75/effect0/pre_effect`または公式readbackを確認する。
+3. その後、CrowdWorksのbuyer-visible納品/settlementを閉じ、Job Hunterへ進む。
