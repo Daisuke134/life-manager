@@ -3579,3 +3579,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Investment paper/liveのAT-13〜AT-29をread-onlyで再確認し、30 round trips・broker receipt・cost・replay-zeroが無い限りlive操作しない。
 2. CFOのbusiness source coverageをsettlement/actual costまでjoinし、unknownを0円へ丸めない。
 3. その後Agent Economy/TaskMarket/BlockRunをprovider receipt付きで閉じる。
+
+### 137. Investment paper/liveの未完境界（2026-10-02 23:18 JST）
+
+- `alpaca-investment-paper` は直近も`host_admission_deferred:resource_effect_unknown`、exit75。公式paper observationにはQQQ保有（買い1件、HOLD継続）があるが、売り0件・settled round trip 0件。`receipts.jsonl`はHOLD/NO_TRADEが大半で、含み損益を利益へ昇格させない。
+- `alpaca-investment-live` はlaunchd disabledで、直近のdecisionは`NO_TRADE/state_incomplete`。`live-owned-position`はBTCUSD closedだが、これはAT-13〜AT-29の30 round trips証明ではなく、別の残高観測にすぎない。live order/funding/送金は行わない。
+- broker official receipt、buy/sell fee、slippage、system cost、replay-zeroを30件分再計算できる証拠はない。InvestmentはAT-13〜AT-29未完、paper/liveともCFO利益へ加算しない。
+
+#### 更新後の原子cursor
+
+1. CFO business source coverageを再確認し、settled external revenue・provider fee・model/browser/server costが同一期間でjoinできるかを確認する。
+2. Agent Economyのx402/TaskMarketはpayment receipt・settlement・cost joinが揃うno-effect→paid inferenceの順で進める。
+3. Investmentのlive enable、上限増額、送金、wallet fundingはAT-29完了まで禁止する。
