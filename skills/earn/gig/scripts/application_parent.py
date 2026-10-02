@@ -1629,13 +1629,17 @@ class CdpParentEffects:
               const m=u.pathname.match(/^\/(?:users|smartphone\/users)\/(\d+)\/portfolios\/?$/);
               return u.origin==='https://coconala.com'&&m?`/users/${m[1]}/portfolios/`:null;
             }catch(_){return null}}).filter(Boolean))];
-          const portfolio=portfolioPaths.length===1?{path:portfolioPaths[0]}:null;
+          const textPortfolioPaths=[...new Set([...(form?.innerText||'').matchAll(
+            /https:\/\/coconala\.com\/users\/(\d+)\/portfolios\/?/g
+          )].map(m=>`/users/${m[1]}/portfolios/`))];
+          const allPortfolioPaths=[...new Set([...portfolioPaths,...textPortfolioPaths])];
+          const portfolio=allPortfolioPaths.length===1?{path:allPortfolioPaths[0]}:null;
           const selected=sidebar||header||portfolio;
           return {
             url:location.href,title:document.title,
             own_user_path:selected?.path||null,
             selection:sidebar?'sidebar-profile':(header?'header':(portfolio?'application-form-portfolio':'none')),
-            candidate_user_paths:[...new Set([...links.map(x=>x.path),...portfolioPaths])].slice(0,32)
+            candidate_user_paths:[...new Set([...links.map(x=>x.path),...allPortfolioPaths])].slice(0,32)
           };
         })())'''
         async with await _cdp_connect(self.ws_url) as ws:

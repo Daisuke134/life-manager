@@ -74,6 +74,16 @@ def test_authenticated_identity_uses_only_form_scoped_seller_portfolio_link():
     assert "portfolios" in source
 
 
+def test_authenticated_identity_reads_unique_provider_portfolio_text_inside_form():
+    source = inspect.getsource(
+        application_parent.CdpParentEffects._authenticated_identity_async
+    )
+    assert "form?.innerText" in source
+    assert "matchAll" in source
+    assert "textPortfolioPaths" in source
+    assert "allPortfolioPaths.length===1" in source
+
+
 @pytest.mark.parametrize(
     "raw,error",
     [
