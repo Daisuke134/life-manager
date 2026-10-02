@@ -18,6 +18,8 @@
     <string>__HOME__</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>LM_CFO_REPORT_CADENCE</key>
+    <string>daily</string>
   </dict>
   <key>WorkingDirectory</key>
   <string>__APP_DIR__</string>

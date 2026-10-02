@@ -312,3 +312,25 @@ test("canonical local result exposes personal, business, freshness, and digest",
   assert.match(result.digest, /^[a-f0-9]{64}$/);
   assert.equal(result.providerMessageId, "canonical-1");
 });
+
+test("partial source report is delivered with an explicit warning and no zero total", async (t) => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-partial-"));
+  t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(stateDir, "records") });
+  await store.append(revenue({
+    idempotency_key: "stripe:partial:1", record_id: financialRecordId("dais-local", "stripe:partial:1"),
+    occurred_at: "2026-10-02T00:00:00.000Z", recorded_at: "2026-10-02T00:01:00.000Z",
+  }));
+  let message = "";
+  const result = await runHourlyCfo({
+    stateDir, subjectId: "dais-local", store, now: "2026-10-02T06:00:00.000Z",
+    ingest: async () => ({ observed: 1, created: 0, sources: { moneytree: "observed_unverified" },
+      sourceFreshness: { moneytree: { status: "partial", reason: "transaction_completeness_unknown" } },
+    }),
+    notify: async (input) => { message = input.message; return { delivery: "delivered", provider_message_id: "partial-1" }; },
+  });
+  assert.equal(result.status, "sent");
+  assert.match(message, /moneytree:partial/);
+  assert.match(message, /未確認/);
+  assert.doesNotMatch(message, /今日の確認済み支出: ¥0/);
+});

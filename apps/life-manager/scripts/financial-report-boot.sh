@@ -7,5 +7,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd -P)"
 source "$SCRIPT_DIR/lib/portable-runtime.sh"
 lm_prepare_portable_runtime "$REPO_ROOT"
 
+# The enqueue owner is polled by launchd, but the report contract is daily.
+# Keep this explicit so a future local canonical runner cannot inherit an hourly default.
+export LM_CFO_REPORT_CADENCE="${LM_CFO_REPORT_CADENCE:-daily}"
+
 exec "$LM_PYTHON" "$LM_TIMEOUT_RUNNER" 240 "$LM_NODE" \
   "$SCRIPT_DIR/../lib/report-job-adapter.js" enqueue "$@"
