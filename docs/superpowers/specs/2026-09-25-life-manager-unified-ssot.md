@@ -3154,3 +3154,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 11. 最後に30日間、settled external revenue−全actual costが正、復旧・重複0・readback完全を維持してから、financial independence/self-healing/self-improvingを宣言する。
 
 現時点の結論は「14ループ全部修復済み」ではない。source修正・health kernel・一部release loadは進んでいるが、各loopの外部効果、settlement、actual cost、公式readbackが未closedであり、CFOはunknownのままである。10k MRR、利益、self-funding、Mac売却を宣言できる証拠はまだない。
+
+### 100. Lancers T3のSol HOLDからCodex Luna修正へ（2026-10-02 17:35 JST）
+
+- Sonnet初回T3 commit `6ee3b77762`は、同一wakeのlist再取得を1回へ減らしたが、Solのread-only再現で「cache=選定中→accept POST→live=仮払い待ち→cached readback=選定中(False)」が確認され、SHIP不可となった。テスト30件が通るだけではmutation後のreadbackを証明しない。
+- そのためClaude席を継続せず、Codex Luna（実行時readback `gpt-5.6-luna`、reasoning effort=max）へ実装を移管した。Lunaは`work_sync.py`のinvalidate APIに加え、accept成功直後の`paid_adapter.py` caller wiringとSol順序の回帰テストを追加した。
+- primaryが差分をreadbackし、`fix/lancers-luna-t3-fix-20261002`のcommit `88a6599bd2`をpushした。変更は`skills/earn/lancers/scripts/paid_adapter.py`、`skills/earn/lancers/scripts/work_sync.py`、既存`skills/earn/lancers/tests/test_paid_acceptance.py`の3ファイルだけ。focused testは32件、`py_compile`、`git diff --check`、`scripts/verify-source-boundary.sh`がPASSし、provider/browser/production/release/SSOT/walletへの外部効果は0である。
+- これはsource candidateの完了であり、PR、main merge、immutable release、target apply、自然Lancers readbackは未実施。Applicationのpre-effect marker消失機構（T1）と既存90件のeffect_unknown/fenceは未変更・未解決のまま保持する。
+
+#### 更新後の原子cursor
+
+1. `88a6599bd2`をSol read-onlyで一度だけ再確認し、stale readbackの回帰とcaller wiringを確認する。
+2. 通常のintegration gate（PR→primary review→main→immutable release→target apply）を通過させる。Claudeモデルはこの修正には使わず、次の実装もLuna maxで行う。
+3. Lancers自然Paid wakeがexit 124なしで終わるか、accept後の公式status/readbackが同一occurrenceへ結合するかを確認する。provider/browser再送はしない。
+4. Application T1は別cursorとして、durable eventとchild cleanupの観測が揃うまでpatchしない。
