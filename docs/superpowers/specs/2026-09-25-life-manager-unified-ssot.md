@@ -2713,3 +2713,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. onlineになった場合だけruntime test/readback、sale、fee、settlement、payoutへ進む。
 3. rejectedの場合は公式理由を保存し、同一Agent/version policyに従ってretryする。
 4. PromptBaseは同様に`pending_review`から審査結果を待ち、両loopのpending状態を売上と混同しない。
+
+### 73. PromptBase P5cの即時kickstartと公式readback境界（2026-10-02 12:16 JST）
+
+- 04:20を待たず、正式ownerの`ai.anicca.promptbase-loop-daily`を`bin/launchctl-safe kickstart gui/501/ai.anicca.promptbase-loop-daily`で一度だけ起動した。preflightは`status=pass / mutation_allowed=true`、kickstartのreturn codeは`0`だった。最初はhost admissionの`resource_capacity_busy`でqueueされたが、後にoccurrence `promptbase-loop-daily:18da97f89289c720-74559`がclaimされ、release `c3b56c1ad0fcc77c12ae531b1d7612fcc89e43dc`でowner entrypointまで到達した。
+- 同じ`interactive:dais` leaseで直前と直後にPromptBase seller dashboardを公式readbackした。現在のカードは`Football Match Analyst Weekly=Pending`、`Reels Hook Lab Win The Cover Frame=Declined`×2＋`Draft`、既存の`Hook Lab Win The First 3 Seconds=Approved`で、P5c対象のPendingは変わらない。Sales readbackは`0件 / $0 net`、Gmailの`(PromptBase OR Football Match Analyst OR Reels Hook Lab) newer_than:2d`にも審査通知は無く、GitHub/Capafy通知のみだった。
+- 今回のowner runはPromptBaseの既存`Reels Hook Lab` Draftを選び、`gen_examples.py`は`4 examples`まで到達した。しかし`publish.py`は`draft_not_at_step2:unknown`で送信前にfail-closedし、`submitted_pending_review`の新規ledger行、PromptBaseの新規Pending/Approved、receipt、売上は発生していない。既存football listingの二重送信も公式dashboardとledgerで確認されていない。
+- admission rowは`effect_unknown=1`として安全に保持され、直後の`promptbase_fence_reconcile.py --occurrence ...`は`too_recent:195s<=1200s`、`PROMPTBASE_FENCE_RECONCILE=HELD`を返した。従ってこのoccurrenceを今no-effect完了とは扱わず、安全buffer経過後に同じ公式dashboardでreconcileしてからcloseする。これはP5cのPending→Approved/Declined完了ではない。
+
+#### 更新後の原子cursor
+
+1. `18da97f89289c720-74559`の1200秒安全buffer後、PromptBase公式dashboard付きfence reconcileを一度だけ行い、no-effectなら`closed=true`をreadbackする。
+2. `football-match-analyst`のPendingを再送せず、次の公式dashboard/Gmail readbackで`Approved`または`Declined`を確認する。Approved後だけ公開listing/sale/settlement/payoutへ進む。
+3. `Reels Hook Lab` Draftの`draft_not_at_step2`は別の修正cursorとして扱い、同一Draftを推測で再送しない。必要なら次の自然owner runで同じUI境界のdiagnosticを取得する。
+4. Capafy `4243672453`は`under_review`のまま、TaskMarket/BlockRunは§55の後段順位を維持する。
