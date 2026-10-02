@@ -3988,3 +3988,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CrowdWorks JPY12 gross/JPY2 fee/JPY10 platform-netをone settled external receiptとしてCFOへ保持し、complete coverageとpayoutを別gateにする。
 2. Lancers/Coconalaはfresh complete official readbackが得られるまでcurrent revenue/profitをunknownのまま保持する。application/replyをpaymentへ数えない。
 3. exact payout receiptとactual costを追加し、paid E2Eを再計算可能にした後だけlane profitを閉じる。次はSelf-Buildのpromotion/rollback/readback、その後Investmentへ進む。
+
+### 168. Self-Build runtime / promotion evidence境界（2026-10-03 02:53 JST）
+
+- `life-manager-selfbuild`、`life-manager-dev`、`life-manager-recovery-supervisor`はhealth=`healthy`。latest selfbuild run `18dac646bcbc35d8-7817`はrelease `e1a5a2ccee`でexit0だが、provider receipt/readbackなし、promotion ledgerも存在しない。exit0をコード変更・PR・merge・production promotion成功へ昇格させない。
+- current immutable release `09960df06f`は今回primaryがPR #6500の全CI/SHIP後にmergeし、release reconciler/self-handoffで生成・loadしたもの。selfbuild自身がcandidateを作り、canary、merge、release、natural readback、rollback-zeroを閉じた証拠ではない。
+- recovery supervisorは1分cadenceでhealthyだが、current intentsには`hold_effect_unknown / official_readback_required_before_retry`が残る。owner-specific official proofなしにMobile/Lancers/CrowdWorks等のeffectを自動再送していない点は安全側に動作している。
+- `life-manager-release-reconciler`は099で`entrypoint_exit_1 / reconcile_owner`。直近原因は099 fleet applyのpartial/errorであり、current symlink/provenanceは099へ一致する。reconciler failureをrelease corruptionやself-build成功へ読み替えない。
+
+#### 更新後の原子cursor
+
+1. Self-Build完了にはself-owned candidate→tests/CI→PR→merge→immutable release→owner natural readback→replay-zero/rollback readbackを1本、promotion ledgerで結ぶ。現在は未証明。
+2. recovery supervisorはeffect_unknownをofficial readbackなしに解放・再送しない現契約を維持する。
+3. 次はInvestment AT-13以降のpaper sell/natural scheduler、30 round trips、fee/slippage/infrastructure cost、duplicate order zeroをinvestment spec順でreadbackする。
