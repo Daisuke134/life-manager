@@ -28,6 +28,7 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - `origin/main` already contains a Moneytree MCP adapter and immutable observation store. A read-only MCP run returned one account and zero transactions on 2026-10-02; the zero-transaction result has no independent completeness/freshness proof and must not be rendered as zero spending.
 - Acceptance readback on 2026-10-02 returned one MUFG-linked account at JPY 504,302 and zero transactions, both explicitly `partial`; details and payload receipts are in `docs/evidence/cfo/2026-10-02-cfo-cost-observability-acceptance.md`.
 - A wider official Moneytree readback returned 187 transactions through 2026-08-25; after transfer/card-repayment exclusion, last-known income was JPY 806,201 and spending JPY 205,500. These remain stale because source freshness and transaction completeness are unproven.
+- Live B7 `loop_pnl.py` readback ran for 2026-10-02 but kept historical/trailing company totals unknown because 137 coverage gaps remain in each window; no settled revenue/net was invented.
 
 ### Code gaps
 

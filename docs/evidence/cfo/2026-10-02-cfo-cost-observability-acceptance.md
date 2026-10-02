@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `553c38a134`
+Code release observed: `8e0a0b50e6`
 
 ## Natural-run evidence
 
@@ -56,6 +56,19 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - stale spending: `JPY 205,500`
 - stale flow period: `2026-07-16T15:00:00Z..2026-08-24T15:00:00Z`
 - live run used injected delivery and did not send to Telegram/email
+
+### Live B7 business readback
+
+- Collector: `skills/cfo/loop_pnl.py --date 2026-10-02 --json`
+- Snapshot: `2026-10-02T15:00:00.000000Z`
+- Trailing window: `2026-09-02T15:00:00.000000Z..2026-10-02T15:00:00.000000Z`
+- Historical company: `unknown`, no settled currency total
+- Trailing company: `unknown`, no settled currency total
+- Historical/trailing coverage gaps: `137` each
+- Main gap classes: `missing_category=126`, `source_unconnected=5`, `read_failed=5`, `stale_readback=1`
+- Readback artifact SHA-256: `84717b38c32e7ef81c14c43a02a6b2afa86e89f8a43a542f552a6e0ea2edf9c6`
+
+Interpretation: the collector is running and preserving the gaps, but it cannot honestly produce settled MRR/net/revenue until the configured rails provide current receipt-backed coverage.
 
 ## Acceptance matrix
 
