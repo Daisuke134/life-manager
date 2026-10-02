@@ -2757,6 +2757,21 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. Declinedの場合は理由を保存し、同じDraftカード誤選択修正済みreleaseで次の内容修正cursorを作る。
 4. Capafy 4243672453のunder_review→online/rejected readbackを継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 93. lm-loop status/healthの正しい呼び出しとWriter/CFO/Affiliate境界（2026-10-02 15:53 JST）
+
+- `lm-loop status --loop writer-sales-measure`は`unknown status option: --loop`（`invalid_input`）で終了する。正しい形は`lm-loop status writer-sales-measure`で、4時計・説明付きJSONは`lm-loop health --json --loop writer-sales-measure --explain`である。これによりstatusコマンドの無結果を「監視不能」と誤認しない。
+- Writer `writer-sales-measure`の最新status（occurrence `18daa0ded96f3000-62569`、`2026-10-02T05:58:02Z`）は`host_admission_deferred:resource_capacity_busy`、`effect_class=none`、`effect_status=not_applicable`、`retry_after_eligibility`、release `79f7c24e`。外部効果・provider receiptは無く、手動再送は不要である。`writer-report`（occurrence `18daa3ceed78b9c0-68656`、`06:51:52Z`）も同じcapacity境界である。
+- Writer公式状態のread-only照合では`~/.local/state/life-manager/writer/money.sqlite3`の`money_events=0`、`money_fees=0`。`metric_observations`の`compute_cost`は`wall_seconds`単位であり、USD金額ではないため、モデル費へ換算してCFO receiptを捏造しない。現金収益・fee・actual costのWriter P&Lはunknownのまま保持する。
+- Affiliate `lm-loop status affiliate-loop`は旧occurrence `18d83ba82b14fb40-24990`のeffect_unknownを公式receiptなしに閉じられず、adapterは`predecessor_report_not_unique`でHELD。最新attempt `18daa3af56785b30-48441`も`host_admission_deferred:resource_effect_unknown`。PartnerStack artifactは観測`2026-09-23T07:30:42Z`・commission row 0・tax setup requiredで、fresh settlementではない。
+- CFO `lm-loop health --json --loop life-manager-cfo-hourly --explain`は旧effect_unknown `18d8de9f2e7b25a8-17283`に`no_readback_adapter`を返し、最新attempt `18daa0d1d8cc8e98-47150`は`resource_effect_unknown`でsafely_fenced。外部receiptなしに再送・fence closeしない。
+
+#### 更新後の原子cursor
+
+1. Writer/Writer-reportは自然eligibilityを待ち、capacity前の`effect_class=none` occurrenceを再送せず、次の自然official sales/metrics readbackを取得する。
+2. AffiliateとCFOは各effect_unknownの公式readback/adapter境界を一件ずつ閉じる。predecessor不一意・no adapterのまま再送しない。
+3. EbookはStripe/KDPの公式収益・fee・payout sourceを別read-only監査で確定し、Writer/Affiliateのunknownと混同しない。
+4. 上記sourceが揃うまでCFO 14-loop P&L、利益、MRR、self-fundingを宣言せず、Mobile/Connectorは§92の順序を維持する。TaskMarket/BlockRunは後段のまま。
+
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
 - PromptBaseの既存owner用`readback.py`をbrowser-guardの`interactive:dais` leaseでread-only実行した。公式seller dashboardのtracked 3 listingは状態更新なし（Reels Hook LabはScheduled、Portfolio TrackerはPending、Football Match AnalystはPending）で、PromptBase公式Salesは`0件 / $0.00 net / by_item={}`だった。投稿・編集・再送は0件。
