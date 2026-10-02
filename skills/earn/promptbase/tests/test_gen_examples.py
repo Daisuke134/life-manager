@@ -12,6 +12,38 @@ import gen_examples  # noqa: E402
 
 
 class GenExamplesRunnerTest(unittest.TestCase):
+    def test_requests_json_string_contract_and_unwraps_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runner = root / "runner"
+            schema_record = root / "schema.json"
+            runner.write_text(
+                "#!/bin/sh\n"
+                "cat \"$ARTICLE_CODEX_OUTPUT_SCHEMA\" > \"$SCHEMA_RECORD\"\n"
+                "printf '\"plain output\"'\n",
+                encoding="utf-8",
+            )
+            runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
+            old = {
+                key: os.environ.get(key)
+                for key in ("ARTICLE_MODEL_RUNNER", "SCHEMA_RECORD")
+            }
+            try:
+                os.environ["ARTICLE_MODEL_RUNNER"] = str(runner)
+                os.environ["SCHEMA_RECORD"] = str(schema_record)
+                result = gen_examples._claude("return a plain example")
+            finally:
+                for key, value in old.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(result, "plain output")
+            self.assertEqual(
+                json.loads(schema_record.read_text(encoding="utf-8")),
+                {"type": "string"},
+            )
+
     def test_uses_house_runner_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

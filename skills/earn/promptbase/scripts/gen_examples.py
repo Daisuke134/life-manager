@@ -40,18 +40,31 @@ def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in n
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="promptbase-", suffix=".txt") as handle:
         handle.write(combined_prompt)
         handle.flush()
-        env = os.environ.copy()
-        env.update({
-            "ARTICLE_PROVIDER": "auto",
-            "ARTICLE_RUN_ID": env.get("ARTICLE_RUN_ID", "promptbase-gen-examples"),
-            "ARTICLE_MODEL_LOG": env.get("ARTICLE_MODEL_LOG", "/tmp/promptbase-model-runner.log"),
-        })
-        out = subprocess.run(
-            [str(runner), "agent", "--prompt-file", handle.name],
-            capture_output=True, text=True, timeout=600, check=True, cwd="/tmp", env=env,
-        ).stdout.strip()
+        # The shared runner validates the provider result as JSON.  Example
+        # outputs themselves are natural text, so ask the provider for a JSON
+        # string and unwrap it here instead of weakening the runner contract.
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="promptbase-", suffix=".json") as schema:
+            json.dump({"type": "string"}, schema)
+            schema.flush()
+            env = os.environ.copy()
+            env.update({
+                "ARTICLE_PROVIDER": "auto",
+                "ARTICLE_CODEX_OUTPUT_SCHEMA": schema.name,
+                "ARTICLE_RUN_ID": env.get("ARTICLE_RUN_ID", "promptbase-gen-examples"),
+                "ARTICLE_MODEL_LOG": env.get("ARTICLE_MODEL_LOG", "/tmp/promptbase-model-runner.log"),
+            })
+            out = subprocess.run(
+                [str(runner), "agent", "--prompt-file", handle.name],
+                capture_output=True, text=True, timeout=600, check=True, cwd="/tmp", env=env,
+            ).stdout.strip()
     if not out:
         raise RuntimeError("claude returned empty output")
+    try:
+        decoded = json.loads(out)
+    except json.JSONDecodeError:
+        decoded = out
+    if isinstance(decoded, str):
+        out = decoded
     if any("\u3040" <= ch <= "\u30ff" or "\u4e00" <= ch <= "\u9fff" for ch in out):
         raise RuntimeError("example output contains Japanese; operator config leaked")
     return out
