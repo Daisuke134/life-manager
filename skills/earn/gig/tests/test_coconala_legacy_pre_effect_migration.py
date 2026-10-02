@@ -18,6 +18,37 @@ CAUSE_RUN = "18d886647deb66b8-47365"
 RELEASE = "287d913c1c76ceeaee04255f9ac63fb8c086d5f8"
 PASS_ID = "gig-apply-direct-1790328621458333000-47404"
 CAUSE_OCCURRENCE = f"{OWNER}:{CAUSE_RUN}"
+CLAIM_RUN = "18dacf917a646990-66636"
+CLAIM_PASS_ID = "gig-apply-direct-1790972026759022000-66666"
+
+
+def _claim_pass(pass_root: Path) -> Path:
+    claim_dir = pass_root / CLAIM_PASS_ID
+    (claim_dir / "combined-evidence").mkdir(parents=True)
+    (claim_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "status": "failed",
+                "pass_id": CLAIM_PASS_ID,
+                "observed": 0,
+                "judged": 0,
+                "actionable": 0,
+                "effect": 0,
+                "readback": 0,
+                "pending": 0,
+                "error": "parent_failed_rc_2",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (claim_dir / "combined-evidence" / "application-decisions.json").write_text(
+        json.dumps({"decisions": []}), encoding="utf-8"
+    )
+    (claim_dir / "combined-evidence" / "parent-commit.json").write_text(
+        json.dumps({"planner_missing_request_ids": [], "results": []}),
+        encoding="utf-8",
+    )
+    return claim_dir
 
 
 def _fixture(tmp_path: Path):
@@ -196,6 +227,7 @@ def test_legacy_pre_effect_migration_rejects_runtime_intent_task_for_pass(tmp_pa
 
 def test_legacy_cause_occurrence_proof_binds_started_run_to_released_predecessor(tmp_path):
     admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    claim_dir = _claim_pass(pass_dir.parent)
     with sqlite3.connect(admission_db) as connection:
         connection.execute(
             "UPDATE occurrences SET state='released',effect_unknown=0 WHERE occurrence_id=?",
@@ -220,8 +252,28 @@ def test_legacy_cause_occurrence_proof_binds_started_run_to_released_predecessor
     report["evidence_refs"] = [
         f"lm-occurrence://{OCCURRENCE.replace(':', '/', 1)}/claim"
     ]
+    claim_started = {
+        **started,
+        "event_id": "claim-started-event",
+        "run_id": CLAIM_RUN,
+        "occurrence_id": f"{OWNER}:{CLAIM_RUN}",
+    }
+    claim_report = {
+        **report,
+        "event_id": "claim-report-event",
+        "run_id": CLAIM_RUN,
+        "occurrence_id": CAUSE_OCCURRENCE,
+        "blocker": "entrypoint_exit_1",
+        "error_class": "entrypoint_exit_1",
+        "exit_code": 1,
+        "status": "fail",
+        "evidence_refs": [
+            f"lm-occurrence://{CAUSE_OCCURRENCE.replace(':', '/', 1)}/claim"
+        ],
+    }
     events.write_text(
-        json.dumps(started) + "\n" + json.dumps(report) + "\n", encoding="utf-8"
+        "\n".join(map(json.dumps, [started, report, claim_started, claim_report])) + "\n",
+        encoding="utf-8",
     )
 
     proof = migration.build_cause_proof(
@@ -232,6 +284,8 @@ def test_legacy_cause_occurrence_proof_binds_started_run_to_released_predecessor
         pass_root=pass_dir.parent,
         pass_dir=pass_dir,
         intent_root=intent_root,
+        claim_run_id=CLAIM_RUN,
+        claim_pass_dir=claim_dir,
     )
 
     assert proof["occurrence_id"] == CAUSE_OCCURRENCE
@@ -242,6 +296,7 @@ def test_legacy_cause_occurrence_proof_binds_started_run_to_released_predecessor
 
 def test_legacy_cause_occurrence_rejects_unreleased_predecessor(tmp_path):
     admission_db, events, pass_dir, intent_root = _fixture(tmp_path)
+    claim_dir = _claim_pass(pass_dir.parent)
     with sqlite3.connect(admission_db) as connection:
         connection.execute(
             "INSERT INTO occurrences VALUES(?,?,?,?)",
@@ -262,8 +317,28 @@ def test_legacy_cause_occurrence_rejects_unreleased_predecessor(tmp_path):
     report["evidence_refs"] = [
         f"lm-occurrence://{OCCURRENCE.replace(':', '/', 1)}/claim"
     ]
+    claim_started = {
+        **started,
+        "event_id": "claim-started-event",
+        "run_id": CLAIM_RUN,
+        "occurrence_id": f"{OWNER}:{CLAIM_RUN}",
+    }
+    claim_report = {
+        **report,
+        "event_id": "claim-report-event",
+        "run_id": CLAIM_RUN,
+        "occurrence_id": CAUSE_OCCURRENCE,
+        "blocker": "entrypoint_exit_1",
+        "error_class": "entrypoint_exit_1",
+        "exit_code": 1,
+        "status": "fail",
+        "evidence_refs": [
+            f"lm-occurrence://{CAUSE_OCCURRENCE.replace(':', '/', 1)}/claim"
+        ],
+    }
     events.write_text(
-        json.dumps(started) + "\n" + json.dumps(report) + "\n", encoding="utf-8"
+        "\n".join(map(json.dumps, [started, report, claim_started, claim_report])) + "\n",
+        encoding="utf-8",
     )
 
     with pytest.raises(ValueError, match="legacy_predecessor_not_released"):
@@ -275,6 +350,8 @@ def test_legacy_cause_occurrence_rejects_unreleased_predecessor(tmp_path):
             pass_root=pass_dir.parent,
             pass_dir=pass_dir,
             intent_root=intent_root,
+            claim_run_id=CLAIM_RUN,
+            claim_pass_dir=claim_dir,
         )
 
 

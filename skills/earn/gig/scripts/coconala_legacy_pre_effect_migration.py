@@ -191,6 +191,106 @@ def _assert_released_predecessor(admission_db: Path, occurrence_id: str) -> None
         raise ValueError("legacy_predecessor_not_released")
 
 
+def _claim_run_no_application(
+    events_path: Path,
+    occurrence_id: str,
+    claim_run_id: str,
+    pass_root: Path,
+    claim_pass_dir: Path,
+    intent_root: Path,
+) -> dict[str, Any]:
+    if not RUN_ID.fullmatch(claim_run_id):
+        raise ValueError("legacy_claim_run_invalid")
+    claim_occurrence = f"{OWNER_ID}:{claim_run_id}"
+    try:
+        rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("legacy_events_unreadable") from error
+    started = [
+        row for row in rows
+        if isinstance(row, dict)
+        and row.get("run_id") == claim_run_id
+        and row.get("occurrence_id") == claim_occurrence
+        and row.get("phase") == "execute"
+        and row.get("status") == "running"
+        and row.get("effect_status") == "started"
+    ]
+    reports = [
+        row for row in rows
+        if isinstance(row, dict)
+        and row.get("run_id") == claim_run_id
+        and row.get("occurrence_id") == occurrence_id
+        and row.get("phase") == "report"
+        and row.get("status") == "fail"
+        and row.get("error_class") == "entrypoint_exit_1"
+        and row.get("exit_code") == 1
+        and row.get("effect_status") == "unknown"
+    ]
+    if len(started) != 1 or len(reports) != 1:
+        raise ValueError("legacy_claim_events_not_unique")
+    started_event, report_event = started[0], reports[0]
+    if (
+        started_event.get("release_sha") != LEGACY_RELEASE_SHA
+        or report_event.get("release_sha") != LEGACY_RELEASE_SHA
+        or f"lm-occurrence://{occurrence_id.replace(':', '/', 1)}/claim"
+        not in report_event.get("evidence_refs", [])
+    ):
+        raise ValueError("legacy_claim_events_invalid")
+    _timestamp(started_event.get("timestamp"))
+    _timestamp(report_event.get("timestamp"))
+
+    raw_root = Path(pass_root).absolute()
+    raw_dir = Path(claim_pass_dir).absolute()
+    if raw_root.is_symlink() or raw_dir.is_symlink():
+        raise ValueError("legacy_claim_pass_symlink_present")
+    resolved_root = raw_root.resolve(strict=True)
+    resolved_dir = raw_dir.resolve(strict=True)
+    if raw_root != resolved_root or raw_dir != resolved_dir or resolved_dir.parent != resolved_root:
+        raise ValueError("legacy_claim_pass_root_mismatch")
+    matched = PASS_ID.fullmatch(resolved_dir.name)
+    run_match = TIMED_RUN_ID.fullmatch(claim_run_id)
+    if matched is None or run_match is None:
+        raise ValueError("legacy_claim_pass_identity_invalid")
+    pass_ns = int(matched.group(1))
+    child_pid = int(matched.group(2))
+    run_ns = int(run_match.group(1), 16)
+    parent_pid = int(run_match.group(2))
+    if not (0 <= pass_ns - run_ns <= 10_000_000_000):
+        raise ValueError("legacy_claim_pass_time_mismatch")
+    if not (parent_pid < child_pid <= parent_pid + 512):
+        raise ValueError("legacy_claim_pass_pid_mismatch")
+    if any(path.is_symlink() for path in resolved_dir.rglob("*")):
+        raise ValueError("legacy_claim_pass_symlink_present")
+
+    result_path = resolved_dir / "result.json"
+    decisions_path = resolved_dir / "combined-evidence" / "application-decisions.json"
+    commit_path = resolved_dir / "combined-evidence" / "parent-commit.json"
+    result = _read_json(result_path, "legacy_claim_result")
+    decisions = _read_json(decisions_path, "legacy_claim_decisions")
+    commit = _read_json(commit_path, "legacy_claim_commit")
+    zero_fields = ("observed", "judged", "actionable", "effect", "readback", "pending")
+    if (
+        result.get("status") != "failed"
+        or result.get("pass_id") != resolved_dir.name
+        or result.get("error") != "parent_failed_rc_2"
+        or any(result.get(field) != 0 for field in zero_fields)
+        or decisions.get("decisions") != []
+        or commit.get("planner_missing_request_ids") != []
+        or commit.get("results") != []
+    ):
+        raise ValueError("legacy_claim_no_effect_invalid")
+    _assert_no_bound_intent(intent_root, resolved_dir.name)
+    return {
+        "claim_run_id": claim_run_id,
+        "claim_pass_id": resolved_dir.name,
+        "claim_started_event_id": started_event.get("event_id"),
+        "claim_report_event_id": report_event.get("event_id"),
+        "claim_result_sha256": _sha256(result_path),
+        "claim_decisions_sha256": _sha256(decisions_path),
+        "claim_commit_sha256": _sha256(commit_path),
+    }
+
+
 def _pass_boundary(
     pass_root: Path, pass_dir: Path, cause_event: dict[str, Any], cause_run_id: str
 ) -> dict[str, object]:
@@ -327,6 +427,8 @@ def build_cause_proof(
     pass_root: Path,
     pass_dir: Path,
     intent_root: Path,
+    claim_run_id: str,
+    claim_pass_dir: Path,
 ) -> dict[str, Any]:
     occurrence = _occurrence(admission_db, occurrence_id)
     started, report, predecessor = _cause_layer_events(
@@ -335,6 +437,14 @@ def build_cause_proof(
     _assert_released_predecessor(admission_db, predecessor)
     boundary = _pass_boundary(pass_root, pass_dir, report, cause_run_id)
     _assert_no_bound_intent(intent_root, str(boundary["pass_id"]))
+    claim = _claim_run_no_application(
+        events_path,
+        occurrence_id,
+        claim_run_id,
+        pass_root,
+        claim_pass_dir,
+        intent_root,
+    )
     evidence_digest = hashlib.sha256(
         json.dumps(
             {
@@ -345,6 +455,7 @@ def build_cause_proof(
                 "pass_id": boundary["pass_id"],
                 "passprep_sha256": boundary["passprep_sha256"],
                 "context_sha256": boundary["context_sha256"],
+                **claim,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -364,6 +475,7 @@ def build_cause_proof(
         "pass_id": boundary["pass_id"],
         "passprep_sha256": boundary["passprep_sha256"],
         "context_sha256": boundary["context_sha256"],
+        **claim,
         "effect": 0,
         "readback": 0,
     }
@@ -417,6 +529,8 @@ def reconcile_cause(
     pass_root: Path,
     pass_dir: Path,
     intent_root: Path,
+    claim_run_id: str,
+    claim_pass_dir: Path,
     resolve: bool = False,
 ) -> dict[str, Any]:
     proof_args = {
@@ -427,6 +541,8 @@ def reconcile_cause(
         "pass_root": pass_root,
         "pass_dir": pass_dir,
         "intent_root": intent_root,
+        "claim_run_id": claim_run_id,
+        "claim_pass_dir": claim_pass_dir,
     }
     proof = build_cause_proof(**proof_args)
     resolved = False
@@ -451,10 +567,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--intent-root", type=Path, default=Path("~/gig/application-intents"))
     parser.add_argument("--resolve", action="store_true")
     parser.add_argument("--cause-layer", action="store_true")
+    parser.add_argument("--claim-run-id")
+    parser.add_argument("--claim-pass-dir", type=Path)
     args = parser.parse_args(argv)
     try:
-        reconcile_fn = reconcile_cause if args.cause_layer else reconcile
-        result = reconcile_fn(
+        common_args = dict(
             admission_db=args.admission_db.expanduser().resolve(),
             events_path=args.events.expanduser().resolve(),
             occurrence_id=str(args.occurrence_id),
@@ -462,8 +579,18 @@ def main(argv: list[str] | None = None) -> int:
             pass_root=args.pass_root.expanduser().resolve(),
             pass_dir=args.pass_dir.expanduser().resolve(),
             intent_root=args.intent_root.expanduser().resolve(),
-            resolve=args.resolve,
         )
+        if args.cause_layer:
+            if not args.claim_run_id or args.claim_pass_dir is None:
+                raise ValueError("legacy_claim_proof_required")
+            result = reconcile_cause(
+                **common_args,
+                claim_run_id=str(args.claim_run_id),
+                claim_pass_dir=args.claim_pass_dir.expanduser().resolve(),
+                resolve=args.resolve,
+            )
+        else:
+            result = reconcile(**common_args, resolve=args.resolve)
     except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
         print(
             json.dumps(
