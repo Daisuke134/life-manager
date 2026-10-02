@@ -3318,3 +3318,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PromptBase/Capafyの自然readbackを優先し、Writerはadmission waitをread-only監視する。
 2. Writerのcapacity上限や優先度を自己流で変更せず、`resource_capacity_busy` occurrenceを重複実行しない。
 3. Writerの実コード修正は、provider invocationまたは明確なsource errorが公式eventに現れた場合だけ専用worktreeで行う。
+
+### 112. Affiliateの未closed fenceとsource-refresh状態（2026-10-02 18:59 JST）
+
+- `affiliate-loop` の最新occurrence `18daadc4188009a8-96695` は `host_admission_deferred:resource_effect_unknown`、exit 75、publish effect unknown、provider receipt/readbackなしで停止した。installed release `d3050812aa`、`lm-loop status --explain` は過去のeffect_unknown fence（`18d83ba82b14fb40-24990`）も `official_readback_required` のまま保持している。再送・推測closeはしない。
+- `affiliate-source-refresh` の最新occurrence `18daadfa28dd6260-3579` は source/provider実行前の `host_admission_deferred:resource_capacity_busy`、exit 75。ローカルstateは `COOLDOWN / pending_count=52 / state=IN_PROGRESS`、Opportunity discoveryは `BUDGET_BLOCKED`、source refresh内に`TimeoutExpired`計画がある。これは販売・承認済みcommission・payoutの公式証拠ではない。
+- Affiliateはfresh PartnerStack commission/fee/payout receiptとactual costのjoinがまだ無く、pending/source-captureをsettled revenueへ昇格させない。容量・token budgetを自己流で増やさず、次の自然source refreshでprovider境界まで進んだ時だけコード原因を診断する。
+
+#### 更新後の原子cursor
+
+1. Affiliateのcapacity/effect fenceをread-only監視し、既存provider effect unknownを公式readbackなしに閉じない。
+2. fresh PartnerStack artifactが得られたら、paid/approved/pending/declined、fee、payout、actual cost、replay-zeroを同一receiptへ結合する。
+3. その後Mobile→Connector→Fundraiser→contract-workへ進み、TaskMarket/BlockRunは後段順位を維持する。
