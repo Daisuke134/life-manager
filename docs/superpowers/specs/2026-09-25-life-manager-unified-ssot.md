@@ -2632,3 +2632,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 1. `18da95052e580910-34854`を連打せず、次の自然eligible admissionで正式ownerがprovider/browser境界へ進むことをread-only観測する。
 2. providerへ到達したoccurrenceでは、model-runner evidence（JSON文字列unwrap後の英語4件distinct）、PromptBase管理画面/GmailのPending→Approved/Declined、公開listing、sale/settlement/payout、replay-zeroを同一occurrenceへ結合する。
 3. 次の自然runでもcapacity busyが続く場合は、容量上限変更・他owner fence削除・manual retryをせず、exact admission boundaryを更新する。TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 67. PromptBase object schemaの再修正と実provider probe（2026-10-02 11:31 JST）
+
+- 修正版release `6bdb24697e`でのP5c occurrence `18da950e9ce664b8-36487`は、`gen_examples.py`の最初のmodel callで再び`entrypoint_exit_1`となった。正確なCodex stderrは`invalid_json_schema: schema must be a JSON Schema of type: \"object\", got type: \"string\"`である。これはPromptBase効果ではなく、Responses APIのschema制約であり、occurrenceはfence中、provider receipt/submissionは未確認である。
+- PR #6436（main `848aee9b037238785d489e8632dfdf0791d29737`）でschemaをトップレベルobject（`text` string、required、additionalProperties=false）へ変更し、`text`をunwrapする。PromptBase focused suiteは`36 passed`、`py_compile`、`bash -n`、`git diff --check`、`bin/lm-loop-contract`がPASSした。
+- immutable release `/Users/anicca/loops/releases/20261002T112646-848aee9b`で外部効果なしの実provider probeを行った。`gpt-5.6-terra`、object schema、`rc=0`、`schema_valid=true`、出力`{"text":"probe-output"}`、provider cost estimate `$0.026085`を確認した。従ってsource/runtime contractはこの境界で修正済みだが、PromptBase自然ownerでの4見本生成・公開・審査はまだ未確認である。
+- PromptBase plistは旧release `6bdb24697e`のまま（active fence保護のためtarget applyを保留）。最新occurrenceのfence adapterは`too_recent`で保持中。1200秒経過後、公式PromptBase dashboardでno-effectをreadbackし、`closed=true`を確認してからtarget applyし、`848aee9b` loadedの正式ownerを一度だけ再実行する。
+
+#### 更新後の原子cursor
+
+1. `18da950e9ce664b8-36487`の公式dashboard/Gmail readbackを安全窓後に取得し、effect fenceを閉じる。
+2. `LIFE_MANAGER_APPLY_TARGET=promptbase-loop-daily`で`848aee9b`をloadedにし、plist/argvをreadbackする。
+3. 正式ownerの次回実行で、object schemaによる4件distinct英語見本、PromptBase管理画面/Gmail、公開listing、sale/settlement/payout、replay-zeroを同一occurrenceへ結合する。
+4. 失敗時はprovider schema/runner/browserの境界を一つずつ記録し、同一effect fenceを公式readbackなしに再送しない。TaskMarketは§55の後段順位を維持する。
