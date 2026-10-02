@@ -972,6 +972,42 @@ class OwnerReportRendererTest(unittest.TestCase):
         rendered = owner_report.render_japanese(event)
         self.assertIn("ポートフォリオ合計: 28日売上合計 50.0 USD・28日DL合計 120件", rendered)
 
+    def test_portfolio_weekly_reuses_same_day_report_after_outcomes_change(self):
+        first = self.event("portfolio_weekly")
+        store = owner_report.OwnerReportStore(
+            self.root / "owner-reports.jsonl",
+            self.root / "owner-report-deliveries.jsonl",
+        )
+        calls = []
+
+        def sender(_text: str) -> dict:
+            calls.append(1)
+            return {"status": "delivered", "message_ids": [601]}
+
+        owner_report.deliver(first, store, sender)
+        rows = owner_report.load_jsonl(self.root / "business-outcomes.jsonl")
+        changed = json.loads(json.dumps(rows[0]))
+        changed["observed_at"] = "2026-08-05T11:30:00Z"
+        changed["snapshot_id"] = "anicca-ios:2026-08-05T11:30:00Z"
+        changed["sources"]["revenuecat"]["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["value"] = 99.0
+        with (self.root / "business-outcomes.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(changed) + "\n")
+
+        replay = self.event("portfolio_weekly")
+        self.assertEqual(replay, first)
+        receipt = owner_report.deliver(replay, store, sender)
+        self.assertEqual(receipt["message_ids"], [601])
+        self.assertEqual(calls, [1])
+
+        next_day = owner_report.build_events(
+            self.root,
+            "portfolio_weekly",
+            product_id=None,
+            as_of=AS_OF + dt.timedelta(days=1),
+        )[0]
+        self.assertNotEqual(next_day["message_key"], first["message_key"])
+        self.assertEqual(next_day["facts"]["products"][0]["mrr"], 99.0)
+
     def test_rendered_numbers_equal_literal_fixture_facts(self):
         anicca = owner_report.render_japanese(self.event("product_daily", "anicca-ios"))
         honne = owner_report.render_japanese(self.event("product_daily", "honne-ai"))

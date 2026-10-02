@@ -259,15 +259,16 @@ def _existing_owner_report(
     root: pathlib.Path,
     *,
     kind: str,
-    product_id: str,
+    product_id: str | None,
     message_key: str,
 ) -> dict | None:
     """Return a valid canonical report already recorded for one immutable key."""
 
     equivalent_keys = {message_key}
-    for legacy_id, canonical_id in PRODUCT_ID_ALIASES.items():
-        if product_id == canonical_id:
-            equivalent_keys.add(message_key.replace(f":{canonical_id}:", f":{legacy_id}:"))
+    if product_id is not None:
+        for legacy_id, canonical_id in PRODUCT_ID_ALIASES.items():
+            if product_id == canonical_id:
+                equivalent_keys.add(message_key.replace(f":{canonical_id}:", f":{legacy_id}:"))
     for row in load_jsonl(pathlib.Path(root) / "owner-reports.jsonl"):
         if (
             row.get("kind") == kind
@@ -1070,6 +1071,15 @@ def _experiment_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) 
 
 
 def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
+    message_key = f"portfolio_weekly:{as_of.date().isoformat()}"
+    existing = _existing_owner_report(
+        root,
+        kind="portfolio_weekly",
+        product_id=None,
+        message_key=message_key,
+    )
+    if existing is not None:
+        return [existing]
     products = []
     refs = []
     for product_id in PRODUCTS:
@@ -1132,7 +1142,7 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
         kind="portfolio_weekly",
         product_id=None,
         as_of=as_of,
-        message_key=f"portfolio_weekly:{as_of.date().isoformat()}",
+        message_key=message_key,
         facts={"products": products},
         evidence_refs=refs or ["state/business-outcomes.jsonl"],
     )]
