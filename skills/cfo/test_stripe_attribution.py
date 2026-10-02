@@ -51,6 +51,209 @@ def adapt(value: dict | None = None, *, observed_at: str = OBSERVED_AT) -> list[
 
 
 class StripeAttributionTest(unittest.TestCase):
+    def test_cross_currency_settlement_uses_balance_transaction_currency(self):
+        value = payloads()
+        charge = next(row for row in value["charges"]["data"]
+                      if row["id"] == "ch_external_usd")
+        charge_transaction = next(row for row in value["balance_transactions"]["data"]
+                                  if row["id"] == "txn_charge_usd")
+        refund_transaction = next(row for row in value["balance_transactions"]["data"]
+                                 if row["id"] == "txn_refund_usd")
+        charge_transaction.update(currency="jpy", amount=723, fee=26, net=697)
+        refund_transaction.update(currency="jpy", amount=-737, fee=0, net=-737)
+
+        rows = adapt(value)
+        receipts = {
+            row["receipt_id"]: row for row in rows if row["record_type"] == "receipt"
+        }
+        self.assertEqual(receipts["stripe:balance_transaction:txn_charge_usd"]["currency"], "JPY")
+        self.assertEqual(
+            receipts["stripe:balance_transaction:txn_charge_usd"]["components"],
+            [
+                {"category": "payment_fee", "amount": "26"},
+                {"category": "settled_external_revenue", "amount": "723"},
+            ],
+        )
+        self.assertEqual(receipts["stripe:balance_transaction:txn_refund_usd"]["currency"], "JPY")
+        self.assertEqual(
+            receipts["stripe:balance_transaction:txn_refund_usd"]["components"],
+            [{"category": "refund", "amount": "737"}],
+        )
+        trailing = next(row for row in rows
+                        if row["record_type"] == "coverage" and row["projection"] == "trailing")
+        self.assertEqual((trailing["coverage_state"], trailing["reason"]), ("complete", None))
+
+    def test_explicit_account_default_classifies_only_unannotated_live_charge(self):
+        value = payloads()
+        charge = next(row for row in value["charges"]["data"]
+                      if row["id"] == "ch_external_usd")
+        charge["metadata"] = {}
+
+        rows = stripe.adapt(
+            value,
+            product_loop_id="self-build",
+            observed_at=OBSERVED_AT,
+            trailing_start=TRAILING_START,
+            default_economic_category=contract.REVENUE,
+        )
+        receipts = {
+            row["receipt_id"]: row for row in rows if row["record_type"] == "receipt"
+        }
+        self.assertIn("stripe:balance_transaction:txn_charge_usd", receipts)
+        self.assertEqual(
+            next(row for row in rows
+                 if row["record_type"] == "coverage" and row["projection"] == "trailing")["coverage_state"],
+            "complete",
+        )
+        self.assertEqual(
+            next(row for row in rows
+                 if row["record_type"] == "coverage" and row["projection"] == "as_of")["coverage_state"],
+            "complete",
+        )
+
+    def test_explicit_unknown_charge_classification_overrides_account_default_fail_closed(self):
+        value = payloads()
+        charge = next(row for row in value["charges"]["data"]
+                      if row["id"] == "ch_external_usd")
+        charge["metadata"] = {"lm_economic_category": "unknown_classification"}
+
+        rows = stripe.adapt(
+            value,
+            product_loop_id="self-build",
+            observed_at=OBSERVED_AT,
+            trailing_start=TRAILING_START,
+            default_economic_category=contract.REVENUE,
+        )
+        trailing = next(row for row in rows
+                        if row["record_type"] == "coverage" and row["projection"] == "trailing")
+        self.assertEqual((trailing["coverage_state"], trailing["reason"]), ("gap", "unverified_receipt"))
+
+    def test_historical_unhandled_balance_transaction_does_not_poison_trailing_window(self):
+        value = payloads()
+        value["balance_transactions"]["data"].append({
+            "id": "txn_old_adjustment",
+            "object": "balance_transaction",
+            "amount": 1,
+            "available_on": 1785542400,
+            "created": 1785542400,
+            "currency": "usd",
+            "fee": 0,
+            "net": 1,
+            "source": None,
+            "status": "available",
+            "type": "adjustment",
+        })
+
+        rows = adapt(value)
+        trailing = next(row for row in rows
+                        if row["record_type"] == "coverage" and row["projection"] == "trailing")
+        self.assertEqual((trailing["coverage_state"], trailing["reason"]), ("complete", None))
+
+    def test_unhandled_transaction_settled_in_window_keeps_trailing_gap(self):
+        value = payloads()
+        value["balance_transactions"]["data"].append({
+            "id": "txn_old_created_window_settled",
+            "object": "balance_transaction",
+            "amount": 1,
+            "available_on": 1789430400,
+            "created": 1788134400,
+            "currency": "usd",
+            "fee": 0,
+            "net": 1,
+            "source": None,
+            "status": "available",
+            "type": "adjustment",
+        })
+
+        rows = adapt(value)
+        trailing = next(row for row in rows
+                        if row["record_type"] == "coverage" and row["projection"] == "trailing")
+        self.assertEqual((trailing["coverage_state"], trailing["reason"]),
+                         ("gap", "unverified_receipt"))
+
+    def test_failure_with_unknown_settlement_time_keeps_trailing_gap(self):
+        value = payloads()
+        value["balance_transactions"]["data"].append({
+            "id": "txn_unknown_time",
+            "object": "balance_transaction",
+            "amount": 1,
+            "currency": "usd",
+            "fee": 0,
+            "net": 1,
+            "source": None,
+            "status": "available",
+            "type": "adjustment",
+        })
+
+        rows = adapt(value)
+        trailing = next(row for row in rows
+                        if row["record_type"] == "coverage" and row["projection"] == "trailing")
+        self.assertEqual((trailing["coverage_state"], trailing["reason"]),
+                         ("gap", "unverified_receipt"))
+
+    def test_old_charge_failure_is_relevant_when_linked_refund_settles_in_window(self):
+        value = payloads()
+        transactions = {row["id"]: row for row in value["balance_transactions"]["data"]}
+        charges = {row["id"]: row for row in value["charges"]["data"]}
+        refunds = {row["id"]: row for row in value["refunds"]["data"]}
+        charges["ch_external_usd"]["created"] = 1788134400
+        transactions["txn_charge_usd"]["created"] = 1788134400
+        transactions["txn_charge_usd"]["available_on"] = 1788134400
+        refunds["re_external_usd"]["created"] = 1788134400
+        transactions["txn_refund_usd"]["created"] = 1788134400
+        transactions["txn_refund_usd"]["available_on"] = 1789430400
+
+        refs = stripe._trailing_refs(
+            ["stripe://charges/ch_external_usd"], transactions, charges, refunds,
+            TRAILING_START, OBSERVED_AT,
+        )
+        self.assertEqual(refs, ["stripe://charges/ch_external_usd"])
+
+    def test_charge_failure_with_mislinked_transaction_keeps_trailing_gap(self):
+        value = payloads()
+        transactions = {row["id"]: row for row in value["balance_transactions"]["data"]}
+        charges = {row["id"]: row for row in value["charges"]["data"]}
+        refunds = {row["id"]: row for row in value["refunds"]["data"]}
+        charges["ch_external_usd"]["balance_transaction"] = "txn_charge_jpy"
+        transactions["txn_charge_jpy"]["available_on"] = 1788134400
+        refunds["re_external_usd"]["balance_transaction"] = "txn_refund_usd"
+        transactions["txn_refund_usd"]["available_on"] = 1788134400
+
+        refs = stripe._trailing_refs(
+            ["stripe://charges/ch_external_usd"], transactions, charges, refunds,
+            TRAILING_START, OBSERVED_AT,
+        )
+        self.assertEqual(refs, ["stripe://charges/ch_external_usd"])
+
+    def test_refund_failure_with_mislinked_transaction_keeps_trailing_gap(self):
+        value = payloads()
+        transactions = {row["id"]: row for row in value["balance_transactions"]["data"]}
+        charges = {row["id"]: row for row in value["charges"]["data"]}
+        refunds = {row["id"]: row for row in value["refunds"]["data"]}
+        refunds["re_external_usd"]["balance_transaction"] = "txn_charge_jpy"
+        transactions["txn_charge_jpy"]["available_on"] = 1788134400
+
+        refs = stripe._trailing_refs(
+            ["stripe://refunds/re_external_usd"], transactions, charges, refunds,
+            TRAILING_START, OBSERVED_AT,
+        )
+        self.assertEqual(refs, ["stripe://refunds/re_external_usd"])
+
+    def test_charge_refund_total_mismatch_has_unknown_settlement_time(self):
+        value = payloads()
+        transactions = {row["id"]: row for row in value["balance_transactions"]["data"]}
+        charges = {row["id"]: row for row in value["charges"]["data"]}
+        refunds = {row["id"]: row for row in value["refunds"]["data"]}
+        charges["ch_external_usd"]["amount_refunded"] = 600
+        transactions["txn_charge_usd"]["available_on"] = 1788134400
+        transactions["txn_refund_usd"]["available_on"] = 1788134400
+
+        refs = stripe._trailing_refs(
+            ["stripe://charges/ch_external_usd"], transactions, charges, refunds,
+            TRAILING_START, OBSERVED_AT,
+        )
+        self.assertEqual(refs, ["stripe://charges/ch_external_usd"])
+
     def test_available_external_gross_refund_and_fees_are_each_recorded_once(self):
         rows = adapt()
         receipts = {row["receipt_id"]: row for row in rows if row["record_type"] == "receipt"}

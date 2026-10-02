@@ -173,12 +173,24 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     )
 
     stripe_path = env.get("LM_CFO_STRIPE_READBACK")
-    sources["b2-stripe"] = _safe_b7_adapter(
-        lambda: stripe.adapt(
+    stripe_default_category = env.get("LM_CFO_STRIPE_DEFAULT_ECONOMIC_CATEGORY") or None
+    if env.get("LM_CFO_STRIPE_LIVE_READBACK") == "1":
+        stripe_reader = lambda: stripe.adapt(
+            build_stripe_readback(
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+                default_economic_category=stripe_default_category,
+            ),
+            product_loop_id="self-build", observed_at=snapshot_at, trailing_start=trailing_start,
+            default_economic_category=stripe_default_category,
+        )
+    else:
+        stripe_reader = lambda: stripe.adapt(
             _read_b7_payload(stripe_path), product_loop_id="self-build",
             observed_at=snapshot_at, trailing_start=trailing_start,
-        ) if stripe_path else [],
-        source_id="stripe-financial-record", loop_ids=B7_SOURCE_LOOPS["b2-stripe"],
+            default_economic_category=stripe_default_category,
+        ) if stripe_path else []
+    sources["b2-stripe"] = _safe_b7_adapter(
+        stripe_reader, source_id="stripe-financial-record", loop_ids=B7_SOURCE_LOOPS["b2-stripe"],
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
 
@@ -484,6 +496,9 @@ def stripe_live_key(cred_path: Path = CREDENTIALS) -> str:
             key = str(row.get("api_key", ""))
             if key.startswith(("sk_live_", "rk_live_")):
                 return key
+    env_key = str(os.environ.get("STRIPE_SECRET_KEY", "")).strip()
+    if env_key.startswith(("sk_live_", "rk_live_")):
+        return env_key
     raise LookupError("credential_missing:stripe_live_secret_key(sk_live_/rk_live_)")
 
 
@@ -501,6 +516,77 @@ def stripe_transactions(day: date, get=http_json, cred_path: Path = CREDENTIALS)
         if not page.get("has_more"):
             return rows
         after = page["data"][-1]["id"]
+
+
+def _stripe_list_all(path: str, key: str, get=http_json, params: dict | None = None) -> dict:
+    rows: list[dict] = []
+    seen_ids: set[str] = set()
+    query = {"limit": 100, **(params or {})}
+    after = None
+    while True:
+        page_query = {**query, **({"starting_after": after} if after else {})}
+        page = get(f"{STRIPE_API}{path}?{urllib.parse.urlencode(page_query)}",
+                   {"Authorization": f"Bearer {key}"})
+        if (not isinstance(page, dict) or page.get("object") != "list"
+                or page.get("url") != path or not isinstance(page.get("data"), list)
+                or type(page.get("has_more")) is not bool):
+            raise ValueError(f"stripe_readback_payload_invalid:{path}")
+        page_ids = [row.get("id") for row in page["data"] if isinstance(row, dict)]
+        if (len(page_ids) != len(page["data"])
+                or any(not isinstance(row_id, str) or not row_id for row_id in page_ids)
+                or len(set(page_ids)) != len(page_ids)
+                or bool(seen_ids.intersection(page_ids))):
+            raise ValueError(f"stripe_readback_cursor_invalid:{path}")
+        seen_ids.update(page_ids)
+        rows.extend(page["data"])
+        if page["has_more"] is False:
+            return {"object": "list", "url": path, "data": rows, "has_more": False}
+        if not page_ids or page_ids[-1] == after:
+            raise ValueError(f"stripe_readback_cursor_invalid:{path}")
+        after = page_ids[-1]
+
+
+def build_stripe_readback(*, snapshot_at: str, trailing_start: str,
+                          get=http_json, api_key: str | None = None,
+                          cred_path: Path = CREDENTIALS,
+                          default_economic_category: str | None = None) -> dict:
+    """Read the complete official Stripe collections without mutating Stripe."""
+    key = api_key or stripe_live_key(cred_path)
+    if not key.startswith(("sk_live_", "rk_live_")):
+        raise LookupError("credential_missing:stripe_live_secret_key(sk_live_/rk_live_)")
+    collections = {
+        "balance_transactions": _stripe_list_all("/v1/balance_transactions", key, get),
+        "charges": _stripe_list_all("/v1/charges", key, get),
+        "refunds": _stripe_list_all("/v1/refunds", key, get),
+        "subscriptions": _stripe_list_all("/v1/subscriptions", key, get, {"status": "all"}),
+    }
+    created = [
+        int(row["created"])
+        for payload in collections.values()
+        for row in payload["data"]
+        if isinstance(row, dict) and isinstance(row.get("created"), int)
+    ]
+    history_start = (
+        datetime.fromtimestamp(min(created), timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        if created else trailing_start
+    )
+    return {
+        **collections,
+        "readback": {
+            "provider": "stripe", "provenance": "stripe_api", "read_at": snapshot_at,
+            "queries": {
+                "trailing": {"start": trailing_start, "end": snapshot_at, "has_more": False},
+                "historical": {
+                    "history_start": history_start, "end": snapshot_at,
+                    "has_more": False, "account_inception": True,
+                },
+            },
+            "classification_policy": {
+                "default_economic_category": default_economic_category,
+                "source": "explicit_runtime_config" if default_economic_category else "provider_metadata_only",
+            },
+        },
+    }
 
 
 STRIPE_MOVEMENTS = {"payout", "payout_cancel", "payout_failure", "transfer", "transfer_cancel",
