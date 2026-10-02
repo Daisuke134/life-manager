@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "context_version": "2026-09-01.1",
-  "updated_at": "2026-09-01T19:59:06+09:00",
+  "context_version": "2026-10-02.1",
+  "updated_at": "2026-10-02T18:04:55+09:00",
   "product": {
     "name": "Life Manager",
     "usage": "Use as the product name in every public product and fundraising field.",
@@ -60,22 +60,22 @@
       "url": "https://aniccaai.com/lm",
       "status": "verified",
       "expected_text": "Life Manager",
-      "verified_at": "2026-09-01T19:59:06+09:00",
-      "evidence": "HTTP 200, final URL, and Life Manager identity/context matched on 2026-09-01 JST."
+      "verified_at": "2026-10-02T17:51:38+09:00",
+      "evidence": "HTTP 200, final URL, and Life Manager identity/context matched on 2026-10-02 JST."
     },
     "repository": {
       "url": "https://github.com/Daisuke134/life-manager",
       "status": "verified",
       "expected_text": "Life Manager",
-      "verified_at": "2026-09-01T19:59:06+09:00",
-      "evidence": "Public repository returned HTTP 200 with Life Manager identity/context on 2026-09-01 JST."
+      "verified_at": "2026-10-02T17:51:38+09:00",
+      "evidence": "Public repository returned HTTP 200 with Life Manager identity/context on 2026-10-02 JST."
     },
     "telegram": {
       "url": "https://t.me/LifeManagerBotbot?start=lp",
       "status": "verified",
       "expected_text": "Life Manager",
-      "verified_at": "2026-09-01T19:59:06+09:00",
-      "evidence": "Telegram start page returned HTTP 200 with Life Manager identity/context on 2026-09-01 JST."
+      "verified_at": "2026-10-02T17:51:38+09:00",
+      "evidence": "Telegram start page returned HTTP 200 with Life Manager identity/context on 2026-10-02 JST."
     },
     "dashboard": {
       "url": "https://aniccaai.com/dashboard",

@@ -1,5 +1,5 @@
-<!-- startup-context-version: 2026-09-01.1 -->
-<!-- startup-context-digest: f61cbb3cd2878abfb67756de2b23e816070aa3d991c71f748b2dfe1dbd3180d6 -->
+<!-- startup-context-version: 2026-10-02.1 -->
+<!-- startup-context-digest: 113ddbade3174274888d408be0874286dd6c4d9fa8cff41d447bca744e74ceed -->
 # Life Manager
 
 **Life Manager is an AI that manages your life better than you ever can.** It is a proactive general agent that
