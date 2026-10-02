@@ -3724,3 +3724,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CrowdWorksは自然schedulerと残fenceのreadbackを継続し、contractが公式に成立した時だけ次のcost/settlement joinへ進む。
 2. CFO business source coverageで、proposal revenueとsettled revenueを分離する。
 3. TaskMarket award→BlockRun receiptの順で、外部支払とcostをjoinする。
+
+### 149. CrowdWorks Paidの現行公式readback境界と残りTODO（2026-10-02 23:03 JST）
+
+- `bin/lm-loop status crowdworks-revenue-paid --explain --json` のlive readbackは、現行release `0be83c2507`をinstalled/event SHAとして一致させ、`launchd_state=loaded-idle`、最新occurrence `crowdworks-revenue-paid:18dabb24cd5d9ad0-34760`、`effect.class=money`、`effect.status=unknown`、`official_readback_ref=null`、`provider_receipt_id=null`、`next_action=official_readback_required`を返した。
+- このreadbackには契約受諾、buyer-visible納品、provider payment receipt、settlement、fee、payoutの公式証拠がない。したがってCrowdWorksの応募receiptや提案額をCFO revenueへ加算せず、effect fenceを推測で閉じず、同じproposal/paid wakeを再送しない。
+- §148のtemporary CFO aggregationが`financial_source_unavailable`でfail-closedした判定は有効である。今回のreadbackで新しいsettled marketplace sourceは得られず、コード変更やダミーreceipt追加の根拠もない。
+
+#### 更新後の原子cursor
+
+1. CrowdWorksの現行unknown occurrenceと既存残fenceは、同一occurrenceに紐づく公式contract/payment/readbackが現れるまで保持する。手動再送、effect_unknownの一括close、応募receiptの売上昇格はしない。
+2. 次の収益cursorはPromptBase P5c（Reels Scheduled、Portfolio/Football Pending、Sales `0/$0`）の自然dashboard/Gmail→公開→sale→settlement/payout→replay-zeroである。同一listingは再送しない。
+3. Capafyは公式inventory `CAP_FULL`の空きslot待ちを続け、空き後に既存ownerのCP2/CP3→listing/status→sale/fee/cost/settlement/payout/replay-zeroを一件閉じる。
+4. その後Writer→Ebook→Affiliate→Mobile→Connector→Fundraiser→Coconala→Lancers→CrowdWorks→Job Hunterの順に、外部効果・公式readback・settlement・fee・actual cost・duplicate-zeroを各owner単位で閉じる。human-required（面接、KYC、CAPTCHA、本人確認）は自動突破しない。
+5. Self-Buildの実patch→review→main→immutable release→natural outcome、Investment AT-13〜AT-29の30 round trips、CFO 14/14のsettled revenue/cost/net/MRR/runwayを順に閉じる。
+6. 最後にTaskMarket no-effect provider discovery→BlockRun x402 paid inference一件→DigitalOcean/Nosana/Akashの実費・復旧・surplus renewal→30日self-funding benchmarkを、wallet/treasury/receipt/ledger/replay-zero付きで証明する。
