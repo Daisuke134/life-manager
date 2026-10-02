@@ -35,11 +35,11 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 
 ### Moneytree refresh boundary
 
-- Moneytree login with the existing credential SSOT succeeded.
+- Moneytree login/read access through the installed ChatGPT Moneytree plugin succeeded.
 - The MUFG connection explicitly showed `接続の更新が必要です`; the consent/update flow reached the official MUFG Direct login page.
-- MUFG requires branch code, account number (or contract number), and bank login password. Those bank credentials are not present in the approved credential SSOT.
+- The optional MUFG refresh UI requires branch code, account number (or contract number), and bank login password, but the plugin still provides the last-known read-only snapshot without those values.
 - No guessed credential, alternate credential store, bank submission, or false refresh receipt was used. The tab was closed before input/submission.
-- The branch now propagates structured Moneytree `next_action` values (`moneytree_reconnect_mufg` or `moneytree_refresh_and_readback`) through the immutable observation and daily report warning.
+- The branch propagates structured Moneytree `next_action` values (`moneytree_reconnect_mufg` or `moneytree_refresh_and_readback`) through the immutable observation and daily report warning; this is a freshness warning, not a plugin availability blocker.
 - A fail-closed seven-period observation gate is now implemented and tested: seven consecutive receipt-backed days can become `ready`, but `complete` additionally requires all required sources fresh and settled cost each day. No natural seven-day run is claimed yet.
 
 ### Canonical local daily close (deterministic fixture, delivery injected)
@@ -140,7 +140,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 
 | Requirement | Result | Evidence / blocker |
 |---|---|---|
-| Moneytree stale/empty is not zero | proved | live read + CLI exit 1 + fixture replay |
+| Moneytree stale/empty is not zero | proved | installed plugin read + CLI exit 1 + fixture replay; last-known balance ¥504,302, income ¥806,201, spending ¥205,500 |
 | Canonical local Financial Manager path | proved | `runHourlyCfo` daily default, 1-day idempotent receipt |
 | Settled business coverage and gaps | partial | B7 table receipt contract exists; live source artifacts remain unconnected |
 | Google estimate vs settled invoice | proved for September settlement; partial for event-level attribution | Official Cost Table CSV parsed with receipt, tax, rounding, and service/SKU totals; joining every usage event to a billing SKU remains incomplete |
@@ -152,7 +152,7 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 
 ## Remaining owner-visible blockers
 
-1. Moneytree authorization/source refresh must be restored so account source update time and transaction completeness can be proven; the remaining external input is the MUFG authentication data, absent from the approved credential SSOT.
+1. The installed Moneytree plugin is readable now, but its latest transaction is 2026-08-25; provider refresh is needed only to upgrade stale/partial values to fresh.
 2. Each configured revenue/expense rail must produce a current official receipt; B7 gaps remain explicit rather than zero.
 3. The feature branch still needs normal immutable release promotion and branch-to-production parity readback.
 4. Seven-period observation requires the existing production loop owner and official provider receipts; one canary does not prove seven natural periods.
