@@ -17,23 +17,39 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_listing import _split_example  # noqa: E402
 
 EXAMPLES_DIR = Path.home() / ".local/state/life-manager/state/promptbase-examples"
-CLAUDE_BIN = os.environ.get("ARTICLE_CLAUDE_BIN") or str(Path.home() / ".local/bin/claude")
+REPO_ROOT = Path(__file__).resolve().parents[4]
+MODEL_RUNNER = REPO_ROOT / "skills" / "writer-agent" / "runtime" / "model-runner.sh"
 
 
 def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in natural, complete English.") -> str:
-    # Run outside the repo with no user settings: the operator's ~/.claude config
-    # (reply-in-Japanese, terse style, hooks) leaked into the 2026-09-29 examples and
-    # PromptBase declined Reels Hook Lab ("outputs repeat the system prompt").
-    out = subprocess.run(
-        [CLAUDE_BIN, "-p", "--model", "sonnet", "--setting-sources", "", "--system-prompt", system],
-        input=prompt, capture_output=True, text=True, timeout=600, check=True, cwd="/tmp",
-    ).stdout.strip()
+    runner = Path(os.environ.get("ARTICLE_MODEL_RUNNER", str(MODEL_RUNNER)))
+    combined_prompt = (
+        "## SYSTEM INSTRUCTIONS\n"
+        + system.strip()
+        + "\n\n## BUYER PROMPT\n"
+        + prompt.strip()
+        + "\n"
+    )
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="promptbase-", suffix=".txt") as handle:
+        handle.write(combined_prompt)
+        handle.flush()
+        env = os.environ.copy()
+        env.update({
+            "ARTICLE_PROVIDER": "auto",
+            "ARTICLE_RUN_ID": env.get("ARTICLE_RUN_ID", "promptbase-gen-examples"),
+            "ARTICLE_MODEL_LOG": env.get("ARTICLE_MODEL_LOG", "/tmp/promptbase-model-runner.log"),
+        })
+        out = subprocess.run(
+            [str(runner), "agent", "--prompt-file", handle.name],
+            capture_output=True, text=True, timeout=600, check=True, cwd="/tmp", env=env,
+        ).stdout.strip()
     if not out:
         raise RuntimeError("claude returned empty output")
     if any("\u3040" <= ch <= "\u30ff" or "\u4e00" <= ch <= "\u9fff" for ch in out):
