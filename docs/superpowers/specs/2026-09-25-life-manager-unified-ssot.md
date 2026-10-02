@@ -3215,3 +3215,33 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Startup context ownerが現行factsを確定し、同一digestでpublic page、README、fundraising kitを再生成するsource-only変更を行う。
 2. 3公式linkと全artifact readback、startup tests、startup auditを同一commitで確認する。
 3. それまでStartup context gateはbaseline blockerのまま保持し、Lancers source PRへ混ぜない。
+
+### 105. 現在地と残りTODOの固定（2026-10-02 18:05 JST）
+
+#### 現在の確定状態
+
+- Lancers source候補は`88a6599bd2`、PR #6486、Sol=SHIP。focused 32件、caller wiring、py_compile、diff check、source-boundaryはPASS。main merge/release/apply/natural readbackは未実施。
+- PR #6486のCI失敗はLancers sourceではなく、Startup context stale、Capafy OSS manifest、SSOTの個人Gmail検出だった。PII redaction（`702c27d541`）とCapafy inventory digest（`28be5c0cb9`）は別docs branchで検証PASS。Startup contextはdigestを変える場合に公開page/README/kitを同時再生成する必要があり、未着手のまま保持する。
+- 旧releaseのLancers Paid自然runは`entrypoint_exit_124 / effect_unknown / official_readback_required`。同じoccurrenceの再送・fence closeはしていない。
+- Startup contextのLuna席はsource-boundaryが`/private/tmp`を拒否したため編集前に停止し、canonical worktreeへ切り替える前にユーザー指示で停止した。変更は0。
+- AGMSGは通信・起動路であり階層ではない。現在、実装・レビューの稼働席は0。登録名だけを稼働扱いしない。
+
+#### 残りTODO（実行順）
+
+1. Startup contextを、current facts→context digest→README/README.ja→fundraising kit→公開product page→repository/Telegram official readback→startup CIの一単位でfresh化する。
+2. PII/OSS baseline修正を独立branchでmainへ統合し、PR #6486のCIを再実行する。無関係な修正をLancers PRへ混ぜない。
+3. PR #6486をprimary review→main→immutable release→Lancers target applyまで進める。
+4. 新releaseの自然Lancers Paid wakeでexit 124が消え、accept後の公式status/readbackとreplay-zeroが成立することを確認する。
+5. Lancers Application T1は、durable eventとchild cleanupのmarker消失機構が証明されるまで変更しない。
+6. PromptBase P5c、Capafy CP2/CP3・販売・payoutを公式readbackで閉じる。
+7. Writer→Ebook→Affiliate→Mobile→Connector→Fundraiserの売上・費用・settlementを同一receiptへ結合する。
+8. Coconala→CrowdWorks→Job Hunterのpaid contract、納品、決済、費用、duplicate-zeroを閉じる。
+9. Self-Build→Investment AT-13〜AT-29→CFO 14/14（MRR/net/runway）を閉じる。
+10. TaskMarket no-effect discovery→BlockRun x402 paid inference一件をreceipt/cost/ledger/replay-zero付きで閉じる。
+11. DigitalOcean実費→Nosana continuity二回→surplus renewal→Akash fallback→cloud restore→30日self-fundingを証明する。
+
+#### 並列方針
+
+- source-onlyのStartup/PII/OSS修正、PromptBase/Capafyのread-only公式監視、CFO source監査は並列可。
+- 同じbrowser lease、同じledger、effect_unknown reconciliation、SSOT編集、release/apply、provider mutationは直列。
+- 各席は目的・所有ファイル・禁止範囲・検証・DONE条件をboot promptへ含め、primaryがdiff/test/SHA/readbackを確認してから次へ進む。
