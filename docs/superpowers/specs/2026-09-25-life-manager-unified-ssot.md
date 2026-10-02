@@ -3919,3 +3919,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CFOは既存admission priorityと自然cadenceへ戻す。deterministic capacityを変更せず、次の099 natural occurrenceがentrypointへ到達した時だけ`last-result-report.json`、outbox、normal reconciler、healthを結合する。
 2. CFO待ちと独立してPromptBaseのFootball live/declined、Portfolio approved/declined、Sales/fee/settlementを公式Gmail・dashboard・public pageでreadbackする。同じlistingを再送しない。
 3. PromptBaseに変化が無ければ、Writer→Affiliate→Mobile残件→Connector→Fundraiserの順でexternal demand・settlement・payoutを進める。TaskMarket/Agent Economyはこの即時収益pathの後に保持する。
+
+### 163. PromptBase fresh dashboardとWriter経済台帳の現在境界（2026-10-03 02:38 JST）
+
+- `interactive:dais`のbrowser leaseを取得し、既存`readback.py`でPromptBase公式Prompts/Sales dashboardをread-only観測した。3 listingを確認しupdateは0。Reels=`live`、Football=`scheduled`、Portfolio=`pending_review`、Sales=`0件 / net $0`、sales artifactの`observed_at=2026-10-02T17:36:14Z`。leaseは解放済みで、既存タブ・submit・listing stateを変更していない。
+- Footballの公式承認メール本文は予定日を`Fri Oct 02 2026`とするが、dashboardは同日経過後も`scheduled`、live通知なし。予定日だけで公開完了にせず、同じlistingを再送しない。
+- Writer `money.sqlite3`は156 published artifactsと8,366 metric observationsを持つが、`money_events=0 / subscriptions=0 / money_fees=0 / payouts=0 / commercial_payment_bindings=0 / product_funnel_events=0`。verified `net_received JPY`、`purchases`、`qualified_cta_clicks`、`refunds`は各471観測すべて0、money receiptへ昇格した外部inflowは無い。unknown revenue/MRR/paid subscribersのnullを0へ変換しない。
+- Writerの最終verified money metricは2026-09-30で古い。`writer-sales-measure`は099 release loadedを確認してbounded startしたが、occurrence `18dac70f18312fb8-32719`は`resource_capacity_busy`でentrypoint前停止、effect none。`writer-money-sync`も099でcapacity busy、`writer-report`はmessage receiptなし、`article-daily`は旧publish unknownで安全fenceを保持する。
+- Writerのpublic artifact数・paywall active・priceを売上に数えない。古いverified zeroを今日の収益zeroへ延長せず、fresh provider measurementまたはsettled receiptが揃うまでWriter external revenueはunknown/未発生を分離する。
+
+#### 更新後の原子cursor
+
+1. PromptBaseは同一listing再送なしでFootball/Portfolio/Salesの公式変化を継続readbackする。
+2. Writerは既存admission queueへ戻し、次の099 `writer-sales-measure`自然実行でnote/Substack/Stripe source別の観測時刻・statusを更新する。receiptなしのdashboard zeroをsettled revenueへ昇格させない。
+3. Writer待ちと独立してAffiliateのfresh commission/payout/provider receiptをreadbackし、次にMobile残件→Connector→Fundraiserへ進む。
