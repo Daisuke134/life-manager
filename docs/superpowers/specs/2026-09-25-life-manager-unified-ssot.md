@@ -2808,3 +2808,16 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. fresh PartnerStack reportが取得できた後、CFO adapterでstale_readbackが消え、settled commission/fee/payoutが検証できることを確認する。
 3. FIFO証拠が揃わないoccurrenceはHELDのまま保ち、capacity上限変更・manual retry・fence削除をしない。
 4. Writer/Capafy/Mobile等のsource gapsを並列に閉じるが、P&L unknownを0円へ変換しない。TaskMarket/BlockRunは後段のまま。
+
+### 80. CFO Affiliate readback pathのproduction load（2026-10-02 15:08 JST）
+
+- PR #6454（main d3bc4ffc14bde8418477718c761f77e0a534f758）のCFO修正release /Users/anicca/loops/releases/20261002T130800-d3bc4ffcを作成した。Affiliate PartnerStack default artifact path（affiliate/provider-reports/partnerstack/latest.json）と明示overrideをCFO wrapperからloop_pnlへ渡す。
+- preflightはPASS、life-manager-cfo-hourlyのtarget applyはrc=0。launchctl readbackはLIFE_MANAGER_RELEASE_SHA=d3bc4ffc14、ProgramArgumentsとREPOが同releaseで一致した。CFOの自然送信やprovider readbackを手動起動していない。
+- これにより次回CFO passはAffiliateを「未接続」ではなく、fresh/stale/read_failedの正確な状態へ投影できる。現artifactは2026-09-23観測でstaleのため、現時点のAffiliate P&Lはunknownのまま保持する。
+
+#### 更新後の原子cursor
+
+1. 次の自然CFO passのredacted resultとAffiliate source statusをread-only確認する。
+2. Affiliate ownerがfresh PartnerStack reportを作成した後、settled commission/fee/payoutをCFOで検証する。
+3. Capafy/Mobile/Stripeのread_failedもofficial artifact/credential境界ごとに閉じる。unknownを0円へ変換しない。
+4. CFO 14-loop P&L complete後にのみ、MRR・利益・self-fundingの判定を進める。TaskMarket/BlockRunは後段のまま。
