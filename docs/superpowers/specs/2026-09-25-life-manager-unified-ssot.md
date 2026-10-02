@@ -4162,3 +4162,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 12. **Cloud / financially independent architecture**: DigitalOcean durable control plane→provider-neutral shelter→Nosana continuity→BlockRun paid inference→complete cost/runway→外部 earned surplusによるrenewal→Akash fallback。30日self-funding benchmark前に完全自律をclaimしない。
 13. **TaskMarket / Agent Economy**: 即時収益items 1–9の後。TaskMarket immutable packaging、per-lane funnel/margin、real external paid job、x402 food railを順に閉じる。
 14. **最終統合**: 全Product LoopをCFO joined ledgerへ接続し、official revenue/cost/fee/settlement/payout、health/recovery/replay-zeroを再計算可能にする。全loop PASS、paid E2E、net MRRが揃った時だけLocal/Cloudの一つのLife Managerとして完了判定する。
+
+### 179. Coconala seller identityのform-scoped修復と128 release load（2026-10-03 08:30 JST）
+
+- PR #6509/main `2b7a2e835ff9c3f09a2b762a38aa7be006013e81`のmodern `/smartphone/users/<id>`正規化をproductionへloadしたが、自然runは引き続き`authenticated_identity_readback_missing`。provider formはheader/sidebar profile anchorを出さず、proposal form内にseller固有の「ココナラのポートフォリオリンク `https://coconala.com/users/2564121/portfolios/`」を表示していた。
+- PR #6510/main `cfb0b81477e8ef79a9f515ab3e9f9b30a11cb7a7`でproposal textarea `data[Offer][content]`を含む同一form内だけを探索し、一意のprovider-origin numeric portfolio anchorをcanonical `/users/<id>`へ変換した。production cfb自然runでもURLはanchorでなくform textだったためidentity missingは継続した。
+- PR #6511/main `128cea17d8715e3994b0d54091290f632a178931`で、同じproposal form `innerText`内のexact `https://coconala.com/users/<numeric>/portfolios/`を一意候補の場合だけ採用するfallbackを追加した。ページ全体/client本文は探索せず、sidebar/headerを優先し、複数候補・wrong origin・non-numericはfail-closed。関連61 tests、GitHub CI全件PASS、fresh reviewは`SHIP`。
+- current immutable releaseは`/Users/anicca/loops/releases/20261003T082227-128cea17 / ALL`。`hf-gig-apply-direct` target applyは`changed=true / admission_resumed=true / ok=true`、install event `5d679b0a464173b80e2c07b4`で128へ一致した。admission effect_unknownは0。
+- 実装worktree追加時にData volumeが空き265MiBとなり実`ENOSPC`が発生した。今回primaryが作成しPR #6504〜#6509でmerge済み、clean、lsof 0の6 worktreeだけを`git worktree remove`し、空きを893MiBへ回復した。credential/state/production/他agent worktreeは未変更。固定10GB目標ではなく、発生した書込み失敗に必要な最小回収である。
+- 現在`hf-gig-paid-direct`が`critical_paid`として`coconala:kosuke` browser identityを保持中。128 Applyの次自然runはまだprovider formへ到達しておらず、identity evidence、durable intent、submit、applied roster、replay-zeroは未証明。
+
+#### 更新後の原子cursor
+
+1. Paid ownerをkillせずnatural terminalまで待ち、128 Apply自然runでform-scoped portfolio text identity evidenceを確認する。
+2. identity成功時はsingle submit→durable intent→Coconala official applied roster exact ID→effect/readback→次wake duplicate attempt 0を閉じる。identity missing時はform-scoped sanitized candidate evidenceを追加し、推測でsubmitしない。
+3. Coconala Apply receipt後、Paid contract/fee/settlement/payout/actual costを同じprovider ledgerへjoinする。
+4. 完了後に全残TODO #2 PromptBaseへ進む。Capafy、Writer、Affiliate、Mobile、Connector、Fundraiser、他paid、Self-Build、Investment、Cloud、TaskMarketの順は§178を維持する。
