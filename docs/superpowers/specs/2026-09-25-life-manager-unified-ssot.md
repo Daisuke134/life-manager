@@ -3379,3 +3379,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Coconalaはlease ownerが空くまでread-only監視し、effect_unknown応募/storefrontを再送しない。
 2. 公式thread/payment/delivery readbackが揃った案件だけをpaid contract→settlement→cost→duplicate-zeroへ進める。
 3. その後Lancers Application T1/paid、CrowdWorks、Job Hunterへ進む。
+
+### 117. Lancers Application T1の現行fenceとreadback試行境界（2026-10-02 19:18 JST）
+
+- `lancers-revenue-application` の現在loaded releaseは `844d8261`、`lm-loop status --explain` は `effect=application/unknown`、`fence_count=91`、公式readback/receiptなしを返す。stateには`pending=96` descriptorsがあり、Application T1（pre-effect marker消失とchild cleanup）は未closedである。
+- Lancers専用browser `lancers:dais` はreachable/lease-freeだったため、同一ownerの `application-owner --reconcile-only`（submitter override disabled）を一度だけ起動した。しかしprovider readback前のbrowser attach待ちでハングし、私が起動したPID 17111/17176だけを停止した。外部submit・provider mutationは確認されず、leaseは解放済みである。
+- この試行はApplication T1の根因修正ではない。現状の安全な判定は「公式readback不足のeffect fence」であり、91件を一括closeしたり、同じproposalを再送したりしない。Paid T3の`d3050812aa`自然PASS（section 107）とは別cursorとして保持する。
+
+#### 更新後の原子cursor
+
+1. Lancers Applicationはbrowser attach/readbackの失敗境界を、owner自然wakeで再現可能な証拠として追加観測する。
+2. provider official proposal statusが取得できたoccurrenceだけ、pending descriptor→application verified/blocked→replay-zeroへ進める。
+3. marker消失機構が証明されるまでsource patch・manual submit・effect fence closeはしない。次にCrowdWorks source candidateをread-onlyで確認する。
