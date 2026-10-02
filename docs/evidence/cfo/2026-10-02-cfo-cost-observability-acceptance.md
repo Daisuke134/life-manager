@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `c055ad5642`
+Code release observed: `1d845ca279`
 
 ## Natural-run evidence
 
