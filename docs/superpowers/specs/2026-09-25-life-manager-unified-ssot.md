@@ -3282,3 +3282,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 同一listingを再送せず、次の自然dashboard/Gmail readbackでPortfolio Tracker/FootballのApprovedまたはDeclinedを確認する。
 2. Approved後だけ公開URL/live→Sales item/order→fee/settlement/payout→replay-zeroへ進む。
 3. PromptBaseが自然審査待ちの間、Capafy under_review、Writer/Ebook/Affiliate/CFO source gapを独立・read-onlyで継続する。
+
+### 109. Capafy CAP_FULLと全job health snapshot（2026-10-02 18:53 JST）
+
+- Capafyの公式 `publish-list` / per-Agent `publish-remote-status` を既存のread-only `inventory_status.py`から読み戻した。`VERDICT=CAP_FULL`、`online=47`、`occupied=5`、`free=0`、`under_review=3`相当、`review_rejected=2`、`ready_inventory=41`、`publishable_count=19`、`unknown=0`。空き枠ができるまで新規submit・re-submit・draft作成は行わない。
+- これはCapafyの掲載枠状態であり、販売・settlement・payoutの証拠ではない。`review_rejected` 2件は削除せず、公式readbackを保持したままretry可能状態として扱う。
+- 同時刻の `lm-loop health --json` はregistry 178 jobを返したが、状態は `healthy=39 / running=24 / safely_fenced=70 / failed=34 / effect_unknown=10 / telemetry_gap=1`。したがってhealth kernelは観測可能だが、14ループ全部が修復済み・収益closedという意味ではない。`failed`、`effect_unknown`、`telemetry_gap`は各occurrenceの公式readback・根因・安全な次操作が揃うまで再送せず保持する。
+
+#### 更新後の原子cursor
+
+1. PromptBaseはPortfolio Tracker/Footballの公式審査結果を自然readbackする。同一listingを再送しない。
+2. Capafyは `CAP_FULL` のままread-only監視し、枠が空いた後だけ既存ownerの自然CP2/CP3→listing/status→sale/fee/cost/settlement/payout/replay-zeroへ進む。
+3. 次の実装変更は、上記health snapshotのうち収益critical pathの最初の未closed occurrenceだけを選び、失敗境界を観測してから最小修正する。health件数だけで全体完了と判定しない。
