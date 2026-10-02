@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `9353fd11b1`
+Code release observed: `87f58e8241`
 
 ## Natural-run evidence
 
@@ -98,6 +98,14 @@ Interpretation: the collector is running and preserving the gaps, but it cannot 
 - Digest: `d8a77e173eeec388e61d72814b5b5b10ac407e7fb65966de356d8026ad133e08`.
 - Report state: `googleBilling=fresh`; settlement `2026-09 / JPY 27,889`; source receipt is the CSV SHA above.
 - The same close remained `partial` for Moneytree and B7, so it did not claim a complete CFO close.
+
+### Canonical local close with artifact-backed B7 diagnostics
+
+- Run: `cfo-coverage-close-20261002T150000+0900`
+- Result: `sent` with injected provider receipt `coverage-close-2` (no external message sent).
+- Digest: `4a9547ef08fbd62c38cea7ac5dafe416144369804b546b83f75832bb32b644bd`.
+- Google settlement remained `settled` from the official CSV receipt.
+- B7 coverage diagnostics returned `20` grouped source/reason rows; the report no longer crashes when immutable readback coverage is extended by later adapters.
 
 ### Canonical source-specific artifact readback
 
