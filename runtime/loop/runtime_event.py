@@ -256,9 +256,14 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "effect_class": effect_class,
         "effect_status": (
             "not_applicable"
-            if effect_class == "none" or (
-                deferred and blocker != "host_admission_deferred:resource_effect_unknown"
-            )
+            if effect_class == "none" or blocker in {
+                "host_admission_deferred:resource_capacity_busy",
+                "host_admission_deferred:resource_fifo_wait",
+                "host_admission_deferred:resource_admission_unavailable",
+                "host_admission_deferred:resource_claim_identity_invalid",
+                "host_admission_deferred:memory_headroom_unavailable",
+                "host_admission_deferred:memory_headroom_low",
+            }
             else "unknown"
         ),
         "blocker": blocker,

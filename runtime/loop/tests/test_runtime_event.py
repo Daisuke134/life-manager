@@ -180,6 +180,16 @@ class RuntimeEventTest(unittest.TestCase):
         )
         self.assertEqual(event["effect_status"], "unknown")
 
+    def test_post_start_heartbeat_defer_stays_unknown(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="message",
+            succeeded=False, deferred=True,
+            blocker="host_admission_deferred:resource_heartbeat_unavailable",
+            claimed_occurrence_id="example:claimed",
+        )
+        self.assertEqual(event["effect_status"], "unknown")
+
     def test_terminal_event_carries_complete_secret_free_diagnostic_identity(self):
         event = build_runtime_event(
             loop_id="connector", domain="earn", run_id="run-1", release_sha="b" * 40,
