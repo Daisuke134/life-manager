@@ -258,6 +258,22 @@ def _caption(row: dict[str, Any]) -> str:
     return value
 
 
+# Mirrors CTA_COPY / APP_STORE_URLS in apps/life-manager/lib/marketing-app-store-cta.js:
+# the only suffixes the carousel adapter ever appends to an approved caption.
+_KNOWN_CTA_LINES = (
+    "Link in bio for the app",
+    "アプリはプロフィールのリンクから",
+    "Get the app → https://apps.apple.com/app/id6755129214",
+    "Get the app → https://apps.apple.com/app/id6759667221",
+    "アプリはこちら → https://apps.apple.com/app/id6755129214",
+    "アプリはこちら → https://apps.apple.com/app/id6759667221",
+)
+
+
+def _ends_with_known_cta(caption: str) -> bool:
+    return any(caption.endswith(f"\n\n{line}\n") for line in _KNOWN_CTA_LINES)
+
+
 def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> str:
     """Hash of the caption actually sent to Postiz.
 
@@ -292,9 +308,12 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
     if integration_id != expected_integration_id:
         raise ValueError("Postiz post integration mismatch")
     account_id = _integration(str(integration_id), identity["platform"], api_key)
-    caption_sha = hashlib.sha256(_caption(row).encode("utf-8")).hexdigest()
+    caption = _caption(row)
+    caption_sha = hashlib.sha256(caption.encode("utf-8")).hexdigest()
     if caption_sha != (expected_caption_sha256 or identity["caption_sha256"]):
         raise ValueError("Postiz caption hash mismatch")
+    if caption_sha != identity["caption_sha256"] and not _ends_with_known_cta(caption):
+        raise ValueError("Postiz caption CTA suffix is not a known App Store CTA")
     provider_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
     if provider_video_sha is not None and provider_video_sha != identity.get("video_sha256"):
         raise ValueError("Postiz video hash mismatch")

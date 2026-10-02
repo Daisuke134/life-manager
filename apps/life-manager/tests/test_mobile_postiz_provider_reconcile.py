@@ -692,3 +692,26 @@ def test_receipt_without_cta_hash_keeps_the_base_caption_comparison(tmp_path: Pa
     module = load_module()
     proof = cta_proof(module, tmp_path, monkeypatch, provider_caption=BASE_CAPTION, receipt_cta_sha256=None)
     assert proof["verified"] is True
+
+
+def test_an_unknown_suffix_is_rejected_even_when_the_receipt_hash_matches_it(tmp_path: Path, monkeypatch) -> None:
+    import pytest
+    module = load_module()
+    tampered = BASE_CAPTION + "\n\nFollow @someone else\n"
+    with pytest.raises(ValueError, match="caption CTA suffix"):
+        cta_proof(
+            module, tmp_path, monkeypatch,
+            provider_caption=tampered,
+            receipt_cta_sha256=hashlib.sha256(tampered.encode()).hexdigest(),
+        )
+
+
+def test_the_japanese_bio_cta_is_a_known_suffix(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    ja = BASE_CAPTION + "\n\nアプリはプロフィールのリンクから\n"
+    proof = cta_proof(
+        module, tmp_path, monkeypatch,
+        provider_caption=ja,
+        receipt_cta_sha256=hashlib.sha256(ja.encode()).hexdigest(),
+    )
+    assert proof["verified"] is True
