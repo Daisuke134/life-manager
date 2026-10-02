@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import json
 import os
+import sqlite3
 import sys
 import urllib.parse
 import urllib.request
@@ -28,7 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from skills.cfo import economic_attribution as contract  # noqa: E402
 from skills.cfo.adapters import actual_cost, affiliate, agent_economy_investment
-from skills.cfo.adapters import capafy_mobile, marketplace, stripe  # noqa: E402
+from skills.cfo.adapters import capafy_mobile, marketplace, stripe, writer  # noqa: E402
 
 CATALOG = ROOT / "apps/life-manager/config/product-loop-catalog.json"
 CREDENTIALS = Path("~/.local/share/anicca/credentials.json").expanduser()
@@ -60,13 +61,14 @@ class SourceResult:
 
 B7_ADAPTER_ORDER = (
     "b1-capafy-mobile", "b2-stripe", "b3-affiliate", "b4-marketplace",
-    "b5-agent-economy-investment", "b6-actual-cost",
+    "b5-agent-economy-investment", "b6-actual-cost", "b7-writer",
 )
 B7_SOURCE_LOOPS = {
     "b1-capafy": ("capafy",), "b1-mobile": ("mobile-apps",),
     "b2-stripe": ("self-build",), "b3-affiliate": ("affiliate",),
     "b4-marketplace": ("gig-coconala", "gig-lancers", "gig-crowdworks"),
     "b5-agent": ("agent-economy",), "b5-investment": ("investment",),
+    "b7-writer": ("writer",),
 }
 
 
@@ -245,6 +247,14 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
             trailing_start=trailing_start,
         ) if actual_cost_path else [],
         source_id="actual-cost-readback", loop_ids=("cfo",),
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+    writer_path = env.get("LM_CFO_WRITER_MONEY") or str(STATE / "writer" / "money.sqlite3")
+    sources["b7-writer"] = _safe_b7_adapter(
+        lambda: writer.adapt_path(
+            writer_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ),
+        source_id="writer-money-ledger", loop_ids=B7_SOURCE_LOOPS["b7-writer"],
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
     return join_adapter_records(sources)
@@ -733,7 +743,7 @@ def mobile_apps_entries(day: date, path: Path = BUSINESS_OUTCOMES, loop_id: str 
         mrr_metric = (charts.get("mrr") or {}).get("latest_complete", {}).get("MRR")
         if isinstance(mrr_metric, dict) and "value" in mrr_metric:
             mrr[product_id] = str(mrr_metric["value"])
-    notes["mrr"] = mrr
+            notes["mrr"] = mrr
 
 
 # ---------------------------------------------------------------- agent-runner usage (model cost)

@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import loop_pnl as m  # noqa: E402
 from skills.cfo import economic_attribution as contract  # noqa: E402
+from skills.cfo.adapters import writer as writer_adapter  # noqa: E402
 
 FIX = Path(__file__).parent / "fixtures" / "loop_pnl"
 DAY = date(2026, 9, 26)  # Asia/Tokyo: 2026-09-25T15:00Z .. 2026-09-26T15:00Z
@@ -276,6 +277,42 @@ class MobileAppsTest(unittest.TestCase):
     def test_missing_file_fails_closed(self):
         with self.assertRaises(FileNotFoundError):
             list(m.mobile_apps_entries(DAY, FIX / "does-not-exist.jsonl"))
+
+
+class WriterMoneyTest(unittest.TestCase):
+    def test_verified_money_events_and_fees_become_receipt_backed_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "money.sqlite3"
+            db = sqlite3.connect(database)
+            db.execute("CREATE TABLE money_events (event_id TEXT, kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, occurred_at TEXT)")
+            db.execute("CREATE TABLE money_fees (fee_id TEXT, fee_kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, observed_at TEXT)")
+            db.executemany("INSERT INTO money_events VALUES (?,?,?,?,?,?,?)", [
+                ("sale-1", "sale", 12.5, "USD", "verified_received", "pub-1", "2026-09-26T03:00:00Z"),
+                ("refund-1", "refund", 2.5, "USD", "refunded", "refund-1", "2026-09-26T04:00:00Z"),
+                ("pending-1", "sale", 99, "USD", "pending", "pending-1", "2026-09-26T05:00:00Z"),
+            ])
+            db.execute("INSERT INTO money_fees VALUES (?,?,?,?,?,?,?)",
+                       ("fee-1", "platform", 1.0, "USD", "verified", "fee-1", "2026-09-26T06:00:00Z"))
+            db.commit()
+            db.close()
+
+            records = writer_adapter.adapt_path(
+                database, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+
+        receipts = [record for record in records if record["record_type"] == "receipt"]
+        self.assertEqual(
+            {record["receipt_id"] for record in receipts},
+            {"writer:money_event:pub-1", "writer:money_event:refund-1", "writer:money_fee:fee-1"},
+        )
+        self.assertEqual(
+            {record["receipt_id"]: record["components"] for record in receipts},
+            {
+                "writer:money_event:pub-1": [{"category": "settled_external_revenue", "amount": "12.5"}],
+                "writer:money_event:refund-1": [{"category": "refund", "amount": "2.5"}],
+                "writer:money_fee:fee-1": [{"category": "other_measured_cost", "amount": "1"}],
+            },
+        )
 
 
 class UsageTest(unittest.TestCase):
