@@ -3517,3 +3517,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. CrowdWorksの既存20件のeffect_unknownは公式proposal/thread/payment readbackをoccurrence単位で取得してからreconcileする。新しいbusy occurrenceは再送しない。
 2. ENOSPCの再発境界をread-onlyで切り分け、削除対象をcredential/ledger/receiptから分離した上で、必要最小限の再生成可能temporary stateだけをcleanupする。
 3. その後、buyer-visible settlementが確認できるcontract-work laneを1件閉じ、Job Hunterへ進む。
+
+### 132. ENOSPCの原因特定と再生成可能temporary cleanup（2026-10-02 21:36 JST）
+
+- `/System/Volumes/Data`のread-only容量調査で、`~/.local/state/life-manager/verify-loops-audit/loop-tmp/verify-loops-audit`に停止済みrunのCamoufox展開が4個残り、約2.9GiBを占有していた。各runはevents.jsonl上でterminal `pass`または`blocked`、該当プロセス/FDは0件で、credential・session・wallet・payment・ledger・receiptではなかった。
+- 既存runtimeのinode-safe `remove_owned_tree`を使い、次の4つの再生成可能temporaryだけを削除した: `18d9f4a673b14648-6901/camoufox-CGh1AZ`、`18da57c1368c4708-43557/camoufox-km6bQa`、`18da78f7b372b1d8-84934/camoufox-oMPIOI`、`18da7fb206b17990-28703/camoufox-GamAlv`。削除後のpath不存在をreadbackした。
+- 空き容量は2.6GiB/99%から5.4GiB/98%へ回復し、`verify-loops-audit/loop-tmp`は379Mになった。これは任意の容量目標ではなく、実際に発生した`Errno 28: No space left on device`を解消するための限定cleanupである。既存のprotected state（`**/state/*.jsonl`を含む）は削除していない。
+
+#### 更新後の原子cursor
+
+1. 直近のCrowdWorks application/reply/paidでENOSPCが再発しないことをread-only監視する。
+2. 既存のCrowdWorks effect_unknown 20件について、owner laneの公式proposal/thread/payment readbackを取得し、readbackが明示するoccurrenceだけをreconcileする。readbackなしのfenceは保持する。
+3. buyer-visible settlement・fee・actual cost・replay-zeroが揃ったcontract-work案件を1件閉じ、その後Job Hunterへ進む。
