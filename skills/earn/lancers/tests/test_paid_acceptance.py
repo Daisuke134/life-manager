@@ -602,3 +602,71 @@ def test_acceptance_readback_cache_does_not_leak_across_different_page_instances
     assert work_sync._read_acceptance_confirmed(make_page(), "1") is True
     assert work_sync._read_acceptance_confirmed(make_page(), "1") is True
     assert calls["count"] == 2, "a fresh page instance must trigger its own fetch, not reuse a stale cache"
+
+
+def test_acceptance_readback_invalidation_refreshes_after_accept_mutation():
+    """An accept mutation must not leave a cached pre-mutation status authoritative."""
+    visited = []
+
+    class Page:
+        url = ""
+        live_status = "選定中"
+
+        def goto(self, url, **_k):
+            visited.append(url)
+            self.url = url
+
+        def wait_for_function(self, *_a, **_k):
+            return None
+
+        def evaluate(self, _script):
+            return [{"href": "/work/detail/5605912", "status": self.live_status}]
+
+    page = Page()
+    assert work_sync._read_acceptance_confirmed(page, "5605912") is False
+
+    # Sol reproduction: the provider changes only after the accept mutation.
+    page.live_status = "仮払い待ち"
+    work_sync.invalidate_acceptance_status_cache(page)
+
+    assert work_sync._read_acceptance_confirmed(page, "5605912") is True
+    assert len(visited) == 2, "post-mutation readback must fetch an authoritative status list"
+
+
+def test_accept_order_invalidates_cached_status_before_post_mutation_readback(tmp_path):
+    """The real provider boundary must invalidate the memo after a successful accept POST."""
+    visited = []
+
+    class Page:
+        url = ""
+        live_status = "選定中"
+
+        def goto(self, url, **_k):
+            visited.append(url)
+            self.url = url
+
+        def wait_for_function(self, *_a, **_k):
+            return None
+
+        def evaluate(self, script, *_args):
+            if "fetch(path, {method:'POST'" in script:
+                self.live_status = "仮払い待ち"
+                return {"status": 200}
+            return [{"href": "/work/detail/5605912", "status": self.live_status}]
+
+    page = Page()
+    provider = paid_adapter._LiveLancersProvider(state_path=tmp_path / "application.json")
+    provider.page = page
+
+    assert work_sync._read_acceptance_confirmed(page, "5605912") is False
+    provider.accept_order(
+        {},
+        {
+            "project_id": "5605912",
+            "accept_form_action": "/project/approval/finish_yes/5605912",
+            "accept_fields": {"_method": "POST"},
+        },
+    )
+
+    assert work_sync._read_acceptance_confirmed(page, "5605912") is True
+    assert len(visited) == 2, "the post-accept readback must fetch fresh provider state"

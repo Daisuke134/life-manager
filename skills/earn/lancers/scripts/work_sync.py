@@ -265,6 +265,27 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
             "milestone_count": len(rows), "fields": dict(fields)}
 
 
+_ACCEPTANCE_STATUS_CACHE_ATTR = "_lancers_acceptance_statuses"
+
+
+def invalidate_acceptance_status_cache(page: Any) -> None:
+    """Make the next acceptance readback fetch the provider's current status list.
+
+    The Paid acceptance lane reuses one page for several candidates.  A successful
+    accept mutation changes the provider state after an earlier candidate may have
+    populated that page's per-wake memo, so the mutation owner must call this
+    boundary before its authoritative post-mutation readback.  Objects that do not
+    permit arbitrary attributes simply have no memo to invalidate.
+    """
+    try:
+        delattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR)
+    except AttributeError:
+        try:
+            setattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, None)
+        except AttributeError:
+            pass
+
+
 def _fetch_acceptance_statuses(page: Any) -> dict[str, Optional[str]]:
     path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
     page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
@@ -287,10 +308,10 @@ def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     wake. Cache it on ``page`` itself so a wake that reuses one page across several
     candidates fetches the list once; a fresh page (a new wake) starts with no cache.
     """
-    statuses = getattr(page, "_lancers_acceptance_statuses", None)
+    statuses = getattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, None)
     if statuses is None:
         statuses = _fetch_acceptance_statuses(page)
-        try: page._lancers_acceptance_statuses = statuses
+        try: setattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, statuses)
         except AttributeError: pass
     status = statuses.get(f"/work/detail/{project_id}")
     if status in {"進行中", "仮払い待ち"}:
