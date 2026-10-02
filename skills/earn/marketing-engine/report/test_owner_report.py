@@ -1251,6 +1251,48 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(store.delivery_for(event["message_key"])["status"], "delivery_unknown")
 
+    def test_official_readback_reconciles_unknown_without_resending(self):
+        event = self.event("product_daily", "anicca-ios")
+        store = owner_report.OwnerReportStore(self.root / "reports.jsonl", self.root / "deliveries.jsonl")
+        first = owner_report.deliver(
+            event,
+            store,
+            lambda _text: (_ for _ in ()).throw(TimeoutError("transport timeout")),
+        )
+        self.assertEqual(first["status"], "delivery_unknown")
+
+        reconciled = store.reconcile_delivery(
+            event["message_key"],
+            {
+                "status": "delivered",
+                "message_ids": [701],
+                "provider_readback": {
+                    "source": "telegram_mtproto_history",
+                    "matched_by": "exact_message_key",
+                    "message_id": 701,
+                    "observed_at": "2026-08-05T12:05:00Z",
+                },
+            },
+        )
+        calls = []
+        replay = owner_report.deliver(event, store, lambda _text: calls.append(1))
+        self.assertEqual(reconciled["status"], "delivered")
+        self.assertEqual(replay["message_ids"], [701])
+        self.assertEqual(calls, [])
+
+    def test_reconcile_delivery_requires_official_readback(self):
+        event = self.event("product_daily", "anicca-ios")
+        store = owner_report.OwnerReportStore(self.root / "reports.jsonl", self.root / "deliveries.jsonl")
+        owner_report.deliver(
+            event,
+            store,
+            lambda _text: (_ for _ in ()).throw(TimeoutError("transport timeout")),
+        )
+        with self.assertRaises(owner_report.DeliveryError):
+            store.reconcile_delivery(
+                event["message_key"], {"status": "delivered", "message_ids": [701]}
+            )
+
     def test_concurrent_delivery_claim_sends_at_most_once(self):
         event = self.event("product_daily", "anicca-ios")
         store = owner_report.OwnerReportStore(self.root / "reports.jsonl", self.root / "deliveries.jsonl")

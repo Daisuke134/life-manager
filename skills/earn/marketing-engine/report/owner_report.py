@@ -1533,6 +1533,39 @@ class OwnerReportStore:
                 return existing
             return self._append_delivery_row(row)
 
+    def reconcile_delivery(self, message_key: str, receipt: dict) -> dict:
+        """Close ``delivery_unknown`` only from an exact Telegram history readback."""
+
+        if not isinstance(message_key, str) or not message_key:
+            raise DeliveryError("message_key must be non-empty")
+        normalized_receipt = self._normalize_receipt(receipt)
+        if normalized_receipt["status"] != "delivered":
+            raise DeliveryError("reconciliation must prove delivery")
+        readback = normalized_receipt.get("provider_readback")
+        if not isinstance(readback, dict):
+            raise DeliveryError("reconciliation requires provider_readback")
+        if readback.get("source") != "telegram_mtproto_history":
+            raise DeliveryError("reconciliation requires Telegram MTProto history")
+        if readback.get("matched_by") not in {"exact_message_key", "immutable_event_identity"}:
+            raise DeliveryError("reconciliation has unsupported match evidence")
+        if not isinstance(readback.get("observed_at"), str) or not readback["observed_at"]:
+            raise DeliveryError("reconciliation requires observed_at")
+        if readback.get("message_id") not in normalized_receipt["message_ids"]:
+            raise DeliveryError("readback message_id does not match receipt")
+        normalized_receipt["reconciled_from"] = "delivery_unknown"
+        row = {
+            "schema_version": DELIVERY_SCHEMA_VERSION,
+            "message_key": message_key,
+            "status": "delivered",
+            "message_ids": normalized_receipt["message_ids"],
+            "receipt": normalized_receipt,
+        }
+        with self._locked() as lock:
+            existing = self._latest_delivery_unlocked(message_key)
+            if existing is None or existing.get("status") != "delivery_unknown":
+                raise ConflictError(f"delivery is not unknown for {message_key}")
+            return self._append_delivery_row(row)
+
 
 def _receipt_from_row(row: dict) -> dict:
     receipt = row.get("receipt")
