@@ -2,7 +2,7 @@
 
 Status: partial (fail-closed; not a production-complete CFO close)
 Owner: `lm-cfo-observability-1002`
-Code release observed: `8f0e4bf599`
+Code release observed: `9353fd11b1`
 
 ## Natural-run evidence
 
@@ -68,6 +68,8 @@ The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) re
 - Historical/trailing coverage gaps: `137` each
 - Main gap classes: `missing_category=126`, `source_unconnected=5`, `read_failed=5`, `stale_readback=1`
 - Readback artifact SHA-256: `84717b38c32e7ef81c14c43a02a6b2afa86e89f8a43a542f552a6e0ea2edf9c6`
+- Canonical artifact-path rerun receipt: `loop-pnl://sha256/979f5e3ee3903cd0add3a5138c793f87b6dd9344408edd33117c9fe0bccfdd1b`
+- The new CFO `coverageSummary` groups the actionable roots: marketplace `source_unconnected=3` (Coconala/Lancers/CrowdWorks); Stripe `read_failed=1`; actual-cost `read_failed=1`; Writer and PartnerStack `stale_readback=1` each; Alpaca account/order `unverified_receipt=2`; Capafy and mobile `missing_coverage=2`; plus explicit unreported-loop coverage rows. The remaining `missing_category` rows are derived category gaps, not independent incidents.
 
 Interpretation: the collector is running and preserving the gaps, but it cannot honestly produce settled MRR/net/revenue until the configured rails provide current receipt-backed coverage.
 

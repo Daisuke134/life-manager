@@ -155,7 +155,7 @@ async function ingestFinancialRecords(options) {
         reportingDate, pythonBin,
       });
       businessSourceCoverage = Array.isArray(businessReadback?.businessSourceCoverage)
-        ? businessReadback.businessSourceCoverage : [];
+        ? [...businessReadback.businessSourceCoverage] : [];
       const state = String(businessReadback?.status || "unavailable");
       sources.businessReadback = state === "fresh" ? "observed_verified"
         : state === "partial" ? "partial" : "unavailable";

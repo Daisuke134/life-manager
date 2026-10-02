@@ -182,6 +182,27 @@ test("business readback preserves source coverage gaps without adding zero reven
   assert.equal(result.economicSourceCoverage.loops.length, 14);
 });
 
+test("immutable business readback coverage can be extended by later source adapters", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-10-02T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readBusinessReadback: async () => ({
+      status: "partial", coverageGaps: [],
+      businessSourceCoverage: Object.freeze([{
+        source: "loop-pnl", state: "partial", observedAt: "2026-10-02T02:00:00.000Z",
+        receiptCount: 1, gapReason: "source_unconnected",
+      }]),
+    }),
+    readAgentReceipts: async () => [],
+  });
+  assert.deepEqual(result.businessSourceCoverage.map((source) => source.source), [
+    "loop-pnl", "agent-economy",
+  ]);
+});
+
 test("Moneytree transaction window stays within the provider three-month limit", () => {
   assert.deepEqual(moneytreeDateWindow(new Date("2026-10-02T02:00:00Z")), {
     startDate: "2026-07-03", endDate: "2026-10-02",
