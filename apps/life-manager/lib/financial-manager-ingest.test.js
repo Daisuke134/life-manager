@@ -7,7 +7,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { createJsonlFinancialRecordStore } = require("./financial-record-store.js");
-const { ingestFinancialRecords } = require("./financial-manager-ingest.js");
+const { ingestFinancialRecords, moneytreeDateWindow } = require("./financial-manager-ingest.js");
 const { createMoneytreeObservationStore } = require("./moneytree-observation-store.js");
 const { MONEYTREE_OBSERVATION } = require("./moneytree-local-adapter.js");
 const { createX402CostObserver } = require("./x402-cost-observer.js");
@@ -177,6 +177,12 @@ test("business readback preserves source coverage gaps without adding zero reven
   }]);
   assert.deepEqual(result.businessReadback.sourceReceiptRefs, ["loop-pnl://sha256/receipt"]);
   assert.equal(result.economicSourceCoverage.loops.length, 14);
+});
+
+test("Moneytree transaction window stays within the provider three-month limit", () => {
+  assert.deepEqual(moneytreeDateWindow(new Date("2026-10-02T02:00:00Z")), {
+    startDate: "2026-07-03", endDate: "2026-10-02",
+  });
 });
 
 test("Google billing settlement stays separate from API usage estimates", async (t) => {

@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -11,12 +12,14 @@ const { MONEYTREE_OBSERVATION } = require("../lib/moneytree-local-adapter.js");
 const { runHourlyCfo } = require("./cfo-hourly-local.js");
 
 function verifiedBalance() {
+  const sourceRef = `moneytree:${"c".repeat(64)}`;
+  const externalRef = `moneytree:${createHash("sha256").update(`dais-local\n${sourceRef}`).digest("hex")}`;
   return {
     schema_version: 1, record_type: "financial_record", record_id: financialRecordId("dais-local", "moneytree:legacy"),
     subject_id: "dais-local", scope: "personal", kind: "asset_balance", direction: "snapshot",
     amount_minor: 504302, currency: "JPY", occurred_at: "2026-08-26T03:09:37.000Z",
     recorded_at: "2026-08-26T03:09:37.000Z", idempotency_key: "moneytree:legacy",
-    source: { provider: "moneytree", source_type: "moneytree", external_ref: "moneytree:legacy" },
+    source: { provider: "moneytree", source_type: "moneytree", external_ref: externalRef },
     verification: { status: "verified", observed_at: "2026-08-26T03:09:37.000Z", evidence_refs: ["moneytree://legacy"] },
   };
 }

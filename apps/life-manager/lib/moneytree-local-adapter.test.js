@@ -141,6 +141,15 @@ test("Moneytree balances and transactions project to distinct personal Financial
   );
 });
 
+test("Moneytree card repayments remain transfers, not personal spending", () => {
+  const [repayment] = normalizeTransactions({ structuredContent: { data: { transactions: [{
+    id: "card-repayment", account_id: "account-1", amount: -34164, date: "2026-08-01T00:00:00+09:00",
+    description: "カード返済", category_name: "カード返済", category_parent_name: "返済",
+  }] } } });
+  const record = transactionToFinancialRecord(repayment, { subjectId: "tenant-1", recordedAt: repayment.occurred_at });
+  assert.equal(record.kind, "transfer");
+});
+
 test("Moneytree FinancialRecord projection fails closed without portable identity and observation", () => {
   assert.throws(() => accountToFinancialRecord({
     id: "bad id", source: "moneytree", source_ref: `moneytree:${"a".repeat(64)}`,

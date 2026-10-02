@@ -223,7 +223,9 @@ function normalizeTransactions(toolResult) {
       merchant: row.description,
       category: row.category_name || "未分類",
     };
-    if (row.category_name === "振替") transaction.transfer_id = `moneytree:${row.id}`;
+    if (row.category_name === "振替" || ["振替", "返済"].includes(row.category_parent_name)) {
+      transaction.transfer_id = `moneytree:${row.id}`;
+    }
     return validateFinancialRecord("transaction", transaction);
   });
 }

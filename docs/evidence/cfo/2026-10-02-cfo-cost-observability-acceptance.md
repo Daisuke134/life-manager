@@ -21,6 +21,18 @@ Code release observed: `553c38a134`
 
 Interpretation: the balance is last-known/partial, not a fresh cash position. The empty transaction array is not evidence of zero spending. The personal CLI exited `1` and rendered income, spending, and net as `未確認`.
 
+### Moneytree wider official readback
+
+The connector's allowed maximum three-month window (`2026-07-03..2026-10-02`) returned 187 transactions. The latest transaction was `2026-08-25`, so this is still stale, but it is a usable last-known flow snapshot:
+
+- income: `JPY 806,201`
+- personal spending after excluding transfers/card repayments: `JPY 205,500`
+- internal transfers/card repayments excluded from spending: `JPY 481,810` gross movement bucket
+- spending summary by month: July `JPY 102,000`, August `JPY 103,500`
+- source freshness: `partial / source_freshness_unknown`
+- transaction coverage: `unknown`
+- three-month transaction payload receipt: `7ea3475725ac9b66d9529376bfdf19ea1afe94712f0262d3d7bbb48fe9a9735b`
+
 ### Canonical local daily close (deterministic fixture, delivery injected)
 
 - Run: `cfo-natural-fixture-20261002T070000Z`
@@ -33,6 +45,17 @@ Interpretation: the balance is last-known/partial, not a fresh cash position. Th
 - B7 business source: `partial`, gap `self-build / stripe-financial-record / source_unconnected`
 - Google billing settlement: `unknown` (no Cost Table CSV receipt)
 - Provider budget: `degraded`, `unknownCount=1`, reason `unknown_cost`
+
+### Canonical local daily close with live Moneytree (delivery injected)
+
+- Run: `cfo-live-moneytree-20261002T0822Z`
+- Result: `sent`, injected provider receipt `live-readonly-3`
+- Digest: `309a9d0e799dde3948518a2f3f7b8119c4f750fa25cd4c326f2018a81fc5af65`
+- stale MUFG asset: `JPY 504,302`
+- stale income: `JPY 806,201`
+- stale spending: `JPY 205,500`
+- stale flow period: `2026-07-16T15:00:00Z..2026-08-24T15:00:00Z`
+- live run used injected delivery and did not send to Telegram/email
 
 ## Acceptance matrix
 

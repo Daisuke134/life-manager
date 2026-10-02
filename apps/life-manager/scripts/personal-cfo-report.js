@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { readAccounts, readTransactions, MONEYTREE_OBSERVATION } = require("../lib/moneytree-local-adapter.js");
+const { moneytreeDateWindow } = require("../lib/financial-manager-ingest.js");
 const { summarizeTransactions } = require("../lib/financial-ledger.js");
 const { sendMessage } = require("../lib/telegram.js");
 
@@ -12,11 +13,12 @@ function ymd(date) {
 }
 
 function renderSection(label, rows, sourceStatus = { status: "fresh" }) {
-  if (sourceStatus.status !== "fresh") {
+  if (sourceStatus.status !== "fresh" && rows.length === 0) {
     return `${label}: 収入: 未確認 / 支出: 未確認 / 差引: 未確認`;
   }
   const total = summarizeTransactions(rows);
-  return `${label}: 収入 ¥${total.income_jpy.toLocaleString("ja-JP")} / 支出 ¥${total.spending_jpy.toLocaleString("ja-JP")} / 差引 ¥${total.net_jpy.toLocaleString("ja-JP")}`;
+  const prefix = sourceStatus.status === "fresh" ? "" : "stale ";
+  return `${label}: ${prefix}収入 ¥${total.income_jpy.toLocaleString("ja-JP")} / ${prefix}支出 ¥${total.spending_jpy.toLocaleString("ja-JP")} / ${prefix}差引 ¥${total.net_jpy.toLocaleString("ja-JP")}`;
 }
 
 function combineSourceStatus(accounts, transactions, explicit = null) {
@@ -61,13 +63,13 @@ async function main() {
     if (!fixturePath) throw new Error("personal_cfo_fixture_missing");
     fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
   }
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const today = ymd(now);
+  const { startDate, endDate } = moneytreeDateWindow(now);
   const [accounts, transactions] = fixture
     ? [fixture.accounts || [], fixture.transactions || []]
     : await Promise.all([
       readAccounts(),
-      readTransactions({ startDate: ymd(monthStart), endDate: today }),
+      readTransactions({ startDate, endDate }),
     ]);
   const sourceStatus = combineSourceStatus(accounts, transactions, fixture && fixture.source);
   const message = renderPersonalCfoReport({ accounts, transactions, sourceStatus, observedAt: now.toISOString() });

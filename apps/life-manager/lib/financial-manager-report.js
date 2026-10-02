@@ -37,6 +37,23 @@ function sortedAmounts(map) {
     .map(([currency, amountMinor]) => ({ currency, amountMinor }));
 }
 
+function summarizeStalePersonalTransactions(records) {
+  const income = new Map();
+  const expenses = new Map();
+  const dates = [];
+  for (const record of records) {
+    if (record.scope !== "personal") continue;
+    if (record.kind === "personal_income") add(income, record.currency, record.amount_minor);
+    if (record.kind === "personal_expense") add(expenses, record.currency, record.amount_minor);
+    if (["personal_income", "personal_expense"].includes(record.kind)) dates.push(record.occurred_at);
+  }
+  dates.sort();
+  return {
+    income: sortedAmounts(income), expenses: sortedAmounts(expenses),
+    period: dates.length ? { start: dates[0], end: dates.at(-1) } : null,
+  };
+}
+
 function summarizeBusiness(records) {
   const revenue = new Map();
   const costs = new Map();
@@ -115,6 +132,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
   const sevenDayStart = zonedMidnight(sevenDayStartLabel, timezone);
   const balances = newestBalances(verified);
   const staleBalances = newestBalances(stale);
+  const staleTransactions = summarizeStalePersonalTransactions(stale);
   const assets = new Map();
   const liabilities = new Map();
   const staleAssets = new Map();
@@ -145,6 +163,8 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       assets: sortedAmounts(assets), liabilities: sortedAmounts(liabilities),
       netWorth: sortedAmounts(netWorth),
       staleAssets: sortedAmounts(staleAssets), staleLiabilities: sortedAmounts(staleLiabilities),
+      staleIncome: staleTransactions.income, staleExpenses: staleTransactions.expenses,
+      staleTransactionPeriod: staleTransactions.period,
     },
     business: {
       period: month,
@@ -256,6 +276,15 @@ function renderFinancialManagerDetailed(report) {
       "最新確認: 未確認",
     );
   }
+  if (report.personal.staleIncome.length || report.personal.staleExpenses.length) {
+    lines.push(
+      "", "前回観測取引（stale）",
+      ...(report.personal.staleIncome.length ? [rows("収入", report.personal.staleIncome)] : []),
+      ...(report.personal.staleExpenses.length ? [rows("支出", report.personal.staleExpenses)] : []),
+      `観測範囲: ${report.personal.staleTransactionPeriod?.start || "未確認"} ～ ${report.personal.staleTransactionPeriod?.end || "未確認"}`,
+      "最新確認: 未確認",
+    );
+  }
   lines.push(...businessLines("\n事業（今日）", report.business.today));
   lines.push(...businessLines("\n事業（直近7日）", report.business.last7Days));
   lines.push(...businessLines(`\n事業（${report.business.period}）`, report.business));
@@ -304,6 +333,9 @@ function renderFinancialManagerTelegram(report) {
   const lines = [`Life Manager ${report.reportingDate}`, `今日の確認済み売上: ${amounts(today.revenue)}`];
   if (report.personal.staleAssets.length || report.personal.staleLiabilities.length) {
     lines.push(`前回観測残高（stale）: ${amounts(report.personal.staleAssets)} / 最新確認: 未確認`);
+  }
+  if (report.personal.staleIncome.length || report.personal.staleExpenses.length) {
+    lines.push(`前回観測取引（stale）: 収入 ${amounts(report.personal.staleIncome)} / 支出 ${amounts(report.personal.staleExpenses)} / 最新確認: 未確認`);
   }
   const providers = today.byProvider || [];
   if (providers.length) lines.push(providers.filter(p => p.revenue.length)

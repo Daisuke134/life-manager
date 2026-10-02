@@ -7,14 +7,14 @@ const {
   buildFinancialManagerReport, renderFinancialManagerDetailed: renderFinancialManagerTelegram,
 } = require("./financial-manager-report.js");
 
-function record(key, { kind, amount, occurredAt, provider = "stripe", scope = "business" }) {
+function record(key, { kind, amount, occurredAt, provider = "stripe", scope = "business", direction = null }) {
   return {
     schema_version: 1, record_type: "financial_record",
     record_id: financialRecordId("tenant-1", key), subject_id: "tenant-1",
     scope, kind,
-    direction: kind === "asset_balance" ? "snapshot" : (
+    direction: direction || (kind === "asset_balance" ? "snapshot" : (
       ["business_revenue", "payout"].includes(kind) ? "credit" : "debit"
-    ),
+    )),
     amount_minor: amount, currency: "JPY", occurred_at: occurredAt,
     recorded_at: occurredAt, idempotency_key: key,
     source: {
@@ -172,4 +172,27 @@ test("provider budget state is visible in the CFO report", () => {
   }).report;
   assert.equal(report.providerBudget.state, "degraded");
   assert.match(renderFinancialManagerTelegram(report), /Provider予算: degraded/);
+});
+
+test("stale personal transactions are shown as last-known, never current spending", () => {
+  const income = record("stale-income", {
+    kind: "personal_income", amount: 806201, occurredAt: "2026-08-25T00:00:00.000Z",
+    provider: "moneytree", scope: "personal", direction: "credit",
+  });
+  const expense = record("stale-expense", {
+    kind: "personal_expense", amount: 205500, occurredAt: "2026-08-25T00:00:00.000Z",
+    provider: "moneytree", scope: "personal", direction: "debit",
+  });
+  for (const row of [income, expense]) row.verification = {
+    status: "stale", observed_at: "2026-10-02T07:00:00.000Z", evidence_refs: [],
+  };
+  const { report } = buildFinancialManagerReport([income, expense], "2026-10-02", {
+    sourceFreshness: { moneytree: { status: "partial", reason: "transaction_completeness_unknown" } },
+  });
+  assert.deepEqual(report.business.today.costs, []);
+  assert.deepEqual(report.personal.staleIncome, [{ currency: "JPY", amountMinor: 806201 }]);
+  assert.deepEqual(report.personal.staleExpenses, [{ currency: "JPY", amountMinor: 205500 }]);
+  assert.match(renderFinancialManagerTelegram(report), /前回観測取引（stale）/);
+  assert.match(renderFinancialManagerTelegram(report), /¥205,500/);
+  assert.doesNotMatch(renderFinancialManagerTelegram(report), /今日の確認済み支出: ¥205,500/);
 });

@@ -53,6 +53,17 @@ function moneytreeSourceFreshness(snapshot) {
   return { status: "fresh", reason: null, reads };
 }
 
+function moneytreeDateWindow(now) {
+  const endDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(now);
+  const [year, month, day] = endDate.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day));
+  start.setUTCDate(start.getUTCDate() - 91);
+  const startDate = start.toISOString().slice(0, 10);
+  return { startDate, endDate };
+}
+
 async function readMoneytreeSnapshot(readAccounts, readTransactions, range) {
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -95,12 +106,7 @@ async function ingestFinancialRecords(options) {
   try {
     const readAccounts = options.readMoneytreeAccounts || moneytree.readAccounts;
     const readTransactions = options.readMoneytreeTransactions || moneytree.readTransactions;
-    const startDate = `${new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit",
-    }).format(now)}-01`;
-    const endDate = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(now);
+    const { startDate, endDate } = moneytreeDateWindow(now);
     const snapshot = await readMoneytreeSnapshot(
       readAccounts, readTransactions, { startDate, endDate },
     );
@@ -123,15 +129,17 @@ async function ingestFinancialRecords(options) {
     records.push(
       ...accounts.map((row) => moneytree.accountToFinancialRecord(
         row, { subjectId, recordedAt, evidenceRef, evidenceObservedAt: snapshot.evidenceObservedAt,
-          verificationStatus: moneytreeFreshness.status === "stale" ? "stale" : "unverified" },
+          verificationStatus: moneytreeFreshness.status === "fresh" ? "unverified" : "stale" },
       )),
       ...transactions.map((row) => moneytree.transactionToFinancialRecord(
         row, { subjectId, recordedAt, evidenceRef, evidenceObservedAt: snapshot.evidenceObservedAt,
-          verificationStatus: moneytreeFreshness.status === "stale" ? "stale" : "unverified" },
+          verificationStatus: moneytreeFreshness.status === "fresh" ? "unverified" : "stale" },
       )),
     );
     sources.moneytree = evidenceRef ? "observed_verified"
-      : moneytreeFreshness.status === "stale" ? "stale" : "observed_unverified";
+      : moneytreeFreshness.status === "stale" ? "stale"
+        : moneytreeFreshness.status === "partial" && (snapshot.accountRead || snapshot.transactionRead)
+          ? "partial" : "observed_unverified";
     sourceFreshness.moneytree = moneytreeFreshness;
   } catch {
     sources.moneytree = "unavailable";
@@ -323,5 +331,5 @@ async function ingestFinancialRecords(options) {
 }
 
 module.exports = {
-  ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths, moneytreeSourceFreshness,
+  ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths, moneytreeDateWindow, moneytreeSourceFreshness,
 };
