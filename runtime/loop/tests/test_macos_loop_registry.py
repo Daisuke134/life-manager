@@ -259,10 +259,17 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
+        self.assertEqual(
+            row["effect_reconcile"]["argv"][0],
+            "skills/cfo/effect_reconcile.py",
+        )
+        self.assertEqual(row["effect_reconcile"]["occurrence_flag"], "--occurrence-id")
+        self.assertEqual(row["effect_reconcile"]["resolve_flag"], "--resolve")
 
     def test_life_manager_financial_report_declares_effect_rebind_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["life-manager-financial-report"]
+        self.assertEqual(row.get("effect_class"), "none")
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "borrow")
         self.assertEqual(row.get("priority"), "support")
