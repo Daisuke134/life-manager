@@ -3342,3 +3342,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Mobileの次の自然occurrenceが現行release `4f605a30` とmanaged venvでrenderを通過し、Postiz公式receipt/readbackとreplay-zeroを同一occurrenceへ結合するまで待つ。
 2. 旧Pillow effect_unknown occurrenceは公式readbackなしに再送・closeしない。
 3. Buddhaで自然PASSを確認後、同じpackaging classの残りMobile jobを一件ずつ確認し、ASC/RevenueCat proceeds・fee・actual costへ接続する。
+
+### 114. Connector no-candidate boundary（2026-10-02 19:06 JST）
+
+- `life-manager-connector-native` の最新occurrence `18daac9554787ee8-52030` は installed release `4f605a30` でexit 0、effect `none/not_applicable`。公式provider registration、confirmation mail、Google Calendar eventは0件である。
+- Connectorのread-only stateは `last-result.status=incomplete`、`open=18`、`covered_existing=0`、`covered_new=3`、`calendar_eligible=0`、`write_attempt=0`。直近のConnpass/Luma candidate-dispatch auditも`candidate_count=0 / selected_count=0`、native outcomeは`safe_reason=providers_exhausted`である。
+- これは安全なno-effect（候補なし）であり、Connector完了・収益・登録成功ではない。候補が出るまでprovider登録やCalendar送信を行わず、候補発生時だけ公式receipt→confirmation mail→Calendar event→replay-zeroへ進む。
+
+#### 更新後の原子cursor
+
+1. Connectorはno-candidateをread-only監視し、候補0を成功・売上へ昇格させない。
+2. Fundraiserのhuman-required境界を次に診断し、CAPTCHA/KYC/本人操作は自動突破しない。
+3. その後contract-work→Self-Build→Investment→CFO→TaskMarket/BlockRun→cloud/self-fundingへ進む。
