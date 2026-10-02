@@ -3168,3 +3168,14 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 通常のintegration gate（PR→primary review→main→immutable release→target apply）を通過させる。Claudeモデルはこの修正には使わず、次の実装もLuna maxで行う。
 3. Lancers自然Paid wakeがexit 124なしで終わるか、accept後の公式status/readbackが同一occurrenceへ結合するかを確認する。provider/browser再送はしない。
 4. Application T1は別cursorとして、durable eventとchild cleanupの観測が揃うまでpatchしない。
+
+### 101. Lancers T3の最終Solレビューと統合待ち（2026-10-02 17:41 JST）
+
+- Codex Sol（`gpt-5.6-sol`、reasoning effort=high）のread-onlyレビューは`88a6599bd2`を**SHIP**と判定した。`paid_kernel mutate → accept_order → invalidate → readback`の実呼び出し経路、`work_sync.py:271`のcache invalidation、`paid_adapter.py:217`のaccept成功直後callerを確認し、重大問題はなかった。
+- Solの検証はregression 3件、caller wiring manual check、3ファイルの`py_compile`、`git diff --check`、`verify-source-boundary`、clean worktreeでPASS。provider/browser/production/SSOT/release/walletの外部効果は0。read-only sandboxの一時ファイル/AGMSG partition制約によりSol自身のAGMSG送信は失敗したが、レビュー内容はprimaryが取得している。
+
+#### 更新後の原子cursor
+
+1. `fix/lancers-luna-t3-fix-20261002`の`88a6599bd2`を通常integration gate（PR→primary review→main→immutable release→target apply）へ進める。PR merge/release/apply/自然runはまだ未実施。
+2. 本番Lancers Paidを再送せず、release後の自然wakeでexit 124が消え、accept後の公式status/readbackが同一occurrenceへ結合するか確認する。
+3. Application T1は別のread-only観測として継続し、marker消失機構が証明されるまでapplication-ownerを変更しない。
