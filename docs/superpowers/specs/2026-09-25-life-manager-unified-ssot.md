@@ -2882,6 +2882,41 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 3. 公式submission/receiptが確認できた場合だけ、公開URL、sale、fee、model cost、settlement、payout、replay-zeroを閉じる。失敗時はstep/evidence/fenceを先に記録し、同じoccurrenceを再送しない。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
 
+### 84-A. 収益critical pathへのTODO順序変更とAGMSG実行分担（2026-10-02 14:38 JST、後続cursorへの追補）
+
+- 旧TODOはTaskMarket/BlockRunを先に置いていたが、TaskMarketは現在もprovider discovery/外部報酬が未証明、BlockRunはtreasury spend前のholdである。一方、PromptBaseはPortfolio Trackerの公式pendingまで到達し、Capafyは累計販売・実コストの公式analyticsが存在する。ユーザーの明示方針（Agent Economy/TaskMarketは後段）に従い、順序を次へ変更する。
+
+#### 新しい原子順序
+
+1. **PromptBase P5c**: Portfolio Tracker/Football/既存Reelsの自然dashboard・Gmail審査をreadbackし、Approved/Declined→公開URL→sale/refund/fee/model cost→settlement/payout→replay-zeroをlisting単位で閉じる。同一Pending/Scheduledは再送しない。
+2. **Capafy L9-01**: 同一Agent/versionのCP2/CP3とfree-slot自然runを閉じ、Capafy APIのlisting/status→sale/refund/fee→actual model cost→settlement/payout→replay-zeroをskill単位で閉じる。under_review中はread-only。
+3. **Writer/Ebook/Affiliate**: Writerのverified money receipt、EbookのStripe/KDP境界、Affiliateのfresh PartnerStack conversion/fee/payoutとactual costをowner receiptへ接続する。
+4. **Mobile Apps L9-02**: 22 jobを一件ずつ自然readbackし、ASC/RevenueCat inventory→投稿→acquisition→purchase/refund→Apple proceeds→app cost→重複0を閉じる。
+5. **Connector L9-03**: 候補発生時だけprovider登録→confirmation mail→Google Calendar event→replay-zeroを閉じる。候補0は成功扱いしない。
+6. **Fundraiser L9-04**: human-requiredをholdし、適格application receipt/provider status/外部inflow/actual cost/replay-zeroを閉じる。fundraisingは商品売上に加算しない。
+7. **Coconala/Lancers/CrowdWorks/Job Hunter**: paid contractのbuyer-visible納品、settlement、actual cost、duplicate-zeroを各ownerで閉じる。
+8. **Self-Build/Product Improvement**: verified failure→patch→tests→review→PR→main→release→natural outcomeをimprovement IDで閉じる。
+9. **Investment L9-12 (AT-13〜AT-29)**: paper natural sellを待ち、30 round tripsのbuy/sell/fee/slippage/system cost/replay-zeroを再計算する。live funding/orderはfresh反対意見review前に行わない。
+10. **CFO 14/14**: settled revenue/refund/fee/model/tool/browser/server actual cost/net margin/MRR/liquid balance/runwayを同一periodでjoinし、unknownを0へ丸めない。
+11. **TaskMarket L9-13.1**: ここで初めて既存agent-economy brainの自然wakeでno-effect discoveryを閉じる。新registry owner、manual run、wallet spendはしない。
+12. **BlockRun L9-13.2**: TaskMarket no-effect/effect boundary後、treasury cap内の1件だけpaid inferenceをreceipt/cost/ledger/replay-zero付きで実行する。
+13. **Cloud/self-funding**: DigitalOcean費用/runway→BlockRun treasury→provider-neutral Nosana shelter→FRANKLIN-CONTINUITY-1二回→外部surplus renewal→Akash fallback→cloud reboot/restore→Mac dependency 0。
+
+#### AGMSGの並列実行契約
+
+| lane | 所有 | 共有しない資源 | DONE証拠 |
+|---|---|---|---|
+| A Capafy | Capafy専用worktree/loop files | `coconala:kosuke` browser、Capafy state、PromptBase | 公式remote-status+publish-list、focused test、commit/PR |
+| B CFO/source | `skills/cfo/**`専用worktree | provider/browser/production apply | fixture/focused test、redacted live readback、commit/PR |
+| C PromptBase | `interactive:dais` browser、PromptBase state | Capafy browser、同一listing再送 | dashboard/Gmail/Sales、occurrence/fence/replay-zero |
+| D Mobile/Connector audit | read-only専用worktree | Postiz/ASC/RevenueCat mutation | official inventory/receipt、未確認はunknown |
+
+AGMSG登録は稼働証拠ではない。primary（Codex）は`team/peek/inbox`でready→working→DONEを確認し、各席の目的・所有ファイル・禁止事項・根拠・検証・報告形式をboot promptへ渡す。レビュー席はread-only、実装席は重複しないファイルだけを変更する。各meaningful commitはpushし、PR merge・immutable release・target apply・official readbackをprimaryが照合してから次の原子cursorを進める。
+
+#### 現在cursor
+
+Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審査通知なし）。Capafyは公式inventory `online=47 / under_review=3 / review_rejected=2`で完了未達。AGMSG Capafy席はpayout偽0問題（取得失敗を0へ書く）を専用loopファイル＋回帰テストで実装中。TaskMarket/BlockRunは後段で、現在着手しない。
+
 ### 85. PromptBase semantic-wait release loaded後のcapacity境界（2026-10-02 14:25 JST）
 
 - fence close（occurrence `18da9e12735d2e80-93376`、`closed=true / effected=false / proof_type=pre_effect`）後、PromptBase ownerをrelease `79f7c24e`で一度だけkickstartした。preflightは`status=pass / mutation_allowed=true`、loaded `ProgramArguments`/`LIFE_MANAGER_RELEASE_SHA=79f7c24e`をreadbackした。
