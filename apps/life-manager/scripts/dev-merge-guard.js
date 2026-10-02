@@ -75,6 +75,9 @@ async function main() {
   const deps = createGuardDeps({
     exec,
     fetch: globalThis.fetch,
+    config: process.env.LM_SELFBUILD_SOURCE_REPO
+      ? { repoDir: process.env.LM_SELFBUILD_SOURCE_REPO }
+      : undefined,
     ledgerPath: options.ledger || guardLedgerPath(),
   });
   deps.review = createReviewCommandHook(options.reviewCmd, { exec });

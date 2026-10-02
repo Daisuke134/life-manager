@@ -490,6 +490,7 @@ test("spawnGuard puts every protected path, the expected head and the progress f
   fs.writeFileSync(stub, `
     process.stdout.write(JSON.stringify({
       run_id: "stub", verdict: "stopped", argv: process.argv.slice(2),
+      sourceRepo: process.env.LM_SELFBUILD_SOURCE_REPO,
     }) + "\\n");
   `);
   const progressFile = path.join(dir, "progress.json");
@@ -500,6 +501,7 @@ test("spawnGuard puts every protected path, the expected head and the progress f
     expectHead: "b".repeat(40),
     progressFile,
     guardCli: stub,
+    sourceRepo: "/tmp/lm-self-build-source-test",
   });
   const argv = result.raw.argv;
   assert.deepEqual(argv.filter((a, i) => argv[i - 1] === "--protect"), [
@@ -508,6 +510,16 @@ test("spawnGuard puts every protected path, the expected head and the progress f
   ]);
   assert.equal(argv[argv.indexOf("--expect-head") + 1], "b".repeat(40));
   assert.equal(argv[argv.indexOf("--progress-file") + 1], progressFile);
+  assert.equal(result.raw.sourceRepo, "/tmp/lm-self-build-source-test");
+});
+
+test("self-build uses a real source checkout when the entrypoint runs from an immutable release", () => {
+  const entrypoint = fs.readFileSync(ENTRYPOINT, "utf8");
+  const daily = fs.readFileSync(DAILY_CLI, "utf8");
+  const guard = fs.readFileSync(path.join(APP_DIR, "scripts/dev-merge-guard.js"), "utf8");
+  assert.match(entrypoint, /LM_SELFBUILD_SOURCE_REPO/);
+  assert.match(daily, /LM_SELFBUILD_SOURCE_REPO/);
+  assert.match(guard, /LM_SELFBUILD_SOURCE_REPO/);
 });
 
 

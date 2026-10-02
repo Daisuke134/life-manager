@@ -21,6 +21,7 @@
 
 const os = require("node:os");
 const path = require("node:path");
+const fs = require("node:fs");
 const { execFileSync, spawn } = require("node:child_process");
 
 const {
@@ -44,6 +45,15 @@ const REPO_DIR = path.resolve(APP_DIR, "../..");
 const REPO = "Daisuke134/life-manager";
 const GUARD_CLI = path.join(APP_DIR, "scripts/dev-merge-guard.js");
 const REVIEW_CLI = path.join(APP_DIR, "scripts/dev-adversary-review.js");
+
+function sourceRepoDir(environment = process.env) {
+  const configured = String(environment.LM_SELFBUILD_SOURCE_REPO || "").trim();
+  const fallback = configured || path.join(os.homedir(), "Projects", "life-manager-main");
+  try {
+    if (fs.statSync(path.join(fallback, ".git"))) return path.resolve(fallback);
+  } catch {}
+  return REPO_DIR;
+}
 
 // Only branches the loop itself produces. A hand-written branch is a human's PR and a human merges
 // it; the unattended path never touches work it did not create.
@@ -104,6 +114,7 @@ function spawnGuard({
   expectHead = null,
   progressFile = null,
   guardCli = GUARD_CLI,
+  sourceRepo = sourceRepoDir(),
 }) {
   return new Promise((resolve, reject) => {
     const args = [guardCli, "--pr", String(prNumber), "--review-cmd", reviewCommand];
@@ -114,7 +125,7 @@ function spawnGuard({
     const child = spawn(process.execPath, args, {
       cwd: APP_DIR,
       detached: process.platform !== "win32",
-      env: process.env,
+      env: { ...process.env, LM_SELFBUILD_SOURCE_REPO: sourceRepo },
       stdio: ["ignore", "pipe", "inherit"],
     });
 
@@ -150,7 +161,13 @@ function spawnGuard({
 
 
 function createSelfBuildDeps(io = {}) {
-  const guardIo = createGuardDeps({ exec: io.exec || exec, fetch: globalThis.fetch });
+  const sourceRepo = sourceRepoDir(io.env || process.env);
+  const guardIo = createGuardDeps({
+    exec: io.exec || exec,
+    fetch: globalThis.fetch,
+    config: { repoDir: sourceRepo },
+    env: { ...(io.env || process.env), LM_SELFBUILD_SOURCE_REPO: sourceRepo },
+  });
   const reviewCommand = io.reviewCommand || `${process.execPath} ${REVIEW_CLI}`;
   const gh = io.gh || ((args) => exec("gh", args));
 
@@ -187,7 +204,7 @@ function createSelfBuildDeps(io = {}) {
     // directories the group kill left behind; it never removes a live one, so it is safe to run
     // unconditionally on that path.
     pruneWorktrees: io.pruneWorktrees || (async () => {
-      exec("git", ["-C", REPO_DIR, "worktree", "prune"]);
+      exec("git", ["-C", sourceRepo, "worktree", "prune"]);
       return { ok: true };
     }),
     runGuard: io.runGuard
@@ -198,6 +215,7 @@ function createSelfBuildDeps(io = {}) {
         protectedPaths: options?.protectedPaths ?? [],
         expectHead: options?.expectHead ?? null,
         progressFile: options?.progressFile ?? null,
+        sourceRepo,
       })),
   };
 }
