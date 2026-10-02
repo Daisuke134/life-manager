@@ -7,6 +7,7 @@ const path = require("node:path");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
 const { createMoneytreeObservationStore } = require("../lib/moneytree-observation-store.js");
 const { ingestFinancialRecords, splitPaths } = require("../lib/financial-manager-ingest.js");
+const { readBusinessReadback } = require("../lib/financial-business-readback.js");
 const {
   runFinancialManager,
 } = require("../lib/financial-manager-runtime.js");
@@ -49,6 +50,22 @@ function affiliateReadbackPathFromEnv(env) {
   return env.LM_CFO_AFFILIATE_READBACK
     || env.LM_CFO_AFFILIATE_LEDGER
     || path.join(lifeManagerStateRoot(env), "affiliate/provider-reports/partnerstack/latest.json");
+}
+
+function businessReadbackEnv(options) {
+  const sourceEnv = { ...(options.env || process.env) };
+  if (options.affiliateReadbackPath) sourceEnv.LM_CFO_AFFILIATE_READBACK = String(options.affiliateReadbackPath);
+  if (options.capafyAnalyticsPath) sourceEnv.LM_CFO_CAPAFY_ANALYTICS = String(options.capafyAnalyticsPath);
+  if (options.mobileAppsBusinessOutcomesPath) {
+    sourceEnv.LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES = String(options.mobileAppsBusinessOutcomesPath);
+  }
+  if (Array.isArray(options.agentReceiptPaths) && options.agentReceiptPaths.length) {
+    sourceEnv.LM_CFO_AGENT_ECONOMY_RECEIPTS = options.agentReceiptPaths.join(path.delimiter);
+  }
+  if (Array.isArray(options.marketplaceReceiptPaths) && options.marketplaceReceiptPaths.length) {
+    sourceEnv.LM_CFO_MARKETPLACE_RECEIPTS = options.marketplaceReceiptPaths.join(path.delimiter);
+  }
+  return sourceEnv;
 }
 
 function readSnapshot(file) {
@@ -150,6 +167,9 @@ async function runHourlyCfo(options = {}) {
       pythonBin: options.pythonBin || "python3",
       capafyAnalyticsPath: options.capafyAnalyticsPath,
       mobileAppsBusinessOutcomesPath: options.mobileAppsBusinessOutcomesPath,
+      readBusinessReadback: options.readBusinessReadback || ((input) => readBusinessReadback({
+        ...input, pythonBin: options.pythonBin || "python3", env: businessReadbackEnv(options),
+      })),
     }),
     deliveryStore: {
       lookup: () => {
@@ -233,6 +253,6 @@ if (require.main === module) main().then((code) => { process.exitCode = code; })
 
 module.exports = {
   agentReceiptPathsFromEnv, capafyAnalyticsPathFromEnv, mobileAppsBusinessOutcomesPathFromEnv,
-  affiliateReadbackPathFromEnv, selectCfoRunner,
+  affiliateReadbackPathFromEnv, businessReadbackEnv, selectCfoRunner,
   main, runHourlyCfo,
 };

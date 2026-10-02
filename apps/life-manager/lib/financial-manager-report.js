@@ -89,6 +89,7 @@ function zonedMidnight(key, timezone) {
 
 function buildFinancialManagerReport(rawRecords, reportingDate, {
   timezone = "Asia/Tokyo", economicSourceCoverage = null, sourceFreshness = null,
+  businessSourceCoverage = [], businessReadback = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const staleProviders = new Set(Object.entries(sourceFreshness || {})
@@ -165,6 +166,15 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     economicSourceCoverage,
     sourceFreshness: sourceFreshness || {},
     partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh"),
+    businessSourceCoverage: Array.isArray(businessSourceCoverage) ? businessSourceCoverage : [],
+    businessReadback: businessReadback ? {
+      status: businessReadback.status || "unknown",
+      observedAt: businessReadback.observedAt || null,
+      sourceReceiptRefs: Array.isArray(businessReadback.sourceReceiptRefs)
+        ? businessReadback.sourceReceiptRefs : [],
+      coverageGaps: Array.isArray(businessReadback.coverageGaps)
+        ? businessReadback.coverageGaps : [],
+    } : null,
   };
   const digestReport = { ...report };
   delete digestReport.verifiedRecordCount;
@@ -231,6 +241,17 @@ function renderFinancialManagerDetailed(report) {
   lines.push(...businessLines("\n事業（今日）", report.business.today));
   lines.push(...businessLines("\n事業（直近7日）", report.business.last7Days));
   lines.push(...businessLines(`\n事業（${report.business.period}）`, report.business));
+  if (report.businessSourceCoverage?.length) {
+    lines.push("\n事業ソース照合", report.businessSourceCoverage.map((source) => (
+      `${source.source}:${source.state}（観測 ${source.observedAt || "未確認"}、receipt ${source.receiptCount || 0}`
+      + `${source.gapReason ? `、理由 ${source.gapReason}` : ""}）`
+    )).join("\n"));
+  }
+  if (report.businessReadback?.coverageGaps?.length) {
+    lines.push(`事業未確認: ${report.businessReadback.coverageGaps.map((gap) => (
+      `${gap.product_loop_id || "source"}/${gap.reason || "gap"}`
+    )).join("、")}`);
+  }
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
     lines.push("\n収益内訳（今月・プロバイダー別）");
@@ -262,6 +283,16 @@ function renderFinancialManagerTelegram(report) {
   if (providers.length) lines.push(providers.filter(p => p.revenue.length)
     .map(p => `${p.provider}: ${amounts(p.revenue)}`).join(" | "));
   lines.push(`銀行への入金: 未確認 | 今日の確認済み支出: ${amounts(today.costs)} | 差引: 未確認`);
+  if (report.businessSourceCoverage?.length) {
+    lines.push(`事業ソース照合: ${report.businessSourceCoverage.map((source) => (
+      `${source.source}:${source.state}${source.gapReason ? `(${source.gapReason})` : ""}`
+    )).join(" | ")}`);
+  }
+  if (report.businessReadback?.coverageGaps?.length) {
+    lines.push(`事業未確認: ${report.businessReadback.coverageGaps.map((gap) => (
+      `${gap.product_loop_id || "source"}/${gap.reason || "gap"}`
+    )).join("、")}`);
+  }
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.
   const missing = (report.economicSourceCoverage?.loops || [])

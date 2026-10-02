@@ -157,6 +157,28 @@ test("capafy and mobile-apps sources fail closed on read errors", async (t) => {
   assert.equal(result.sources.mobileApps, "unavailable");
 });
 
+test("business readback preserves source coverage gaps without adding zero revenue", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-10-02T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readBusinessReadback: async () => ({
+      status: "partial", observedAt: "2026-10-03T00:00:00.000Z", sourceReceiptRefs: ["loop-pnl://sha256/receipt"],
+      coverageGaps: [{ product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "source_unconnected" }],
+      businessSourceCoverage: [{ source: "loop-pnl", state: "partial", observedAt: "2026-10-03T00:00:00.000Z", receiptCount: 1, gapReason: "source_unconnected" }],
+      table: { reporting_date: "2026-10-02" },
+    }),
+  });
+  assert.equal(result.sources.businessReadback, "partial");
+  assert.deepEqual(result.businessSourceCoverage, [{
+    source: "loop-pnl", state: "partial", observedAt: "2026-10-03T00:00:00.000Z", receiptCount: 1, gapReason: "source_unconnected",
+  }]);
+  assert.deepEqual(result.businessReadback.sourceReceiptRefs, ["loop-pnl://sha256/receipt"]);
+  assert.equal(result.economicSourceCoverage.loops.length, 14);
+});
+
 test("Moneytree read retries one transient connector startup failure", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

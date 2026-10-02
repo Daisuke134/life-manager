@@ -57,6 +57,8 @@ async function runFinancialManager(options = {}) {
     timezone: options.timezone || "Asia/Tokyo",
     economicSourceCoverage: ingestion.economicSourceCoverage || null,
     sourceFreshness: ingestion.sourceFreshness || null,
+    businessSourceCoverage: ingestion.businessSourceCoverage || [],
+    businessReadback: ingestion.businessReadback || null,
   });
   const hasSourceWarning = Object.values(report.sourceFreshness || {})
     .some((value) => value && value.status !== "fresh");

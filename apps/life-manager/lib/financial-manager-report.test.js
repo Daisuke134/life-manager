@@ -127,3 +127,25 @@ test("provider freshness warning demotes an old verified balance to last-known",
   assert.equal(report.verifiedRecordCount, 0);
   assert.equal(report.excludedRecordCount, 1);
 });
+
+test("business source coverage is visible without turning a gap into zero", () => {
+  const { report } = buildFinancialManagerReport([], "2026-10-02", {
+    businessSourceCoverage: [{
+      source: "loop-pnl", state: "partial", observedAt: "2026-10-03T00:00:00.000Z",
+      receiptCount: 1, gapReason: "source_unconnected",
+    }],
+    businessReadback: {
+      status: "partial", sourceReceiptRefs: ["loop-pnl://sha256/receipt"],
+      coverageGaps: [{ product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "source_unconnected" }],
+    },
+  });
+  assert.deepEqual(report.businessSourceCoverage[0], {
+    source: "loop-pnl", state: "partial", observedAt: "2026-10-03T00:00:00.000Z",
+    receiptCount: 1, gapReason: "source_unconnected",
+  });
+  assert.equal(report.business.revenue.length, 0);
+  const text = renderFinancialManagerTelegram(report);
+  assert.match(text, /事業ソース照合\nloop-pnl:partial/);
+  assert.match(text, /self-build\/source_unconnected/);
+  assert.doesNotMatch(text, /収益: ¥0/);
+});

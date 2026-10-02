@@ -84,6 +84,8 @@ async function ingestFinancialRecords(options) {
   const records = [];
   const sources = {};
   const sourceFreshness = {};
+  let businessReadback = null;
+  let businessSourceCoverage = [];
   let agentReceipts = [];
   let agentRevenueRecords = [];
   let agentRevenueReadState = "not_configured";
@@ -132,6 +134,32 @@ async function ingestFinancialRecords(options) {
   } catch {
     sources.moneytree = "unavailable";
     sourceFreshness.moneytree = { status: "unavailable", reason: "connector_read_failed", reads: [] };
+  }
+
+  if (typeof options.readBusinessReadback === "function") {
+    const reportingDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(now);
+    try {
+      businessReadback = await options.readBusinessReadback({
+        reportingDate, pythonBin,
+      });
+      businessSourceCoverage = Array.isArray(businessReadback?.businessSourceCoverage)
+        ? businessReadback.businessSourceCoverage : [];
+      const state = String(businessReadback?.status || "unavailable");
+      sources.businessReadback = state === "fresh" ? "observed_verified"
+        : state === "partial" ? "partial" : "unavailable";
+      sourceFreshness.businessReadback = {
+        status: state === "fresh" ? "fresh" : state === "partial" ? "partial" : "unavailable",
+        reason: businessReadback?.coverageGaps?.[0]?.reason || (state === "fresh" ? null : "read_failed"),
+        reads: businessSourceCoverage,
+      };
+    } catch {
+      businessReadback = null;
+      businessSourceCoverage = [];
+      sources.businessReadback = "unavailable";
+      sourceFreshness.businessReadback = { status: "unavailable", reason: "read_failed", reads: [] };
+    }
   }
 
   try {
@@ -260,7 +288,8 @@ async function ingestFinancialRecords(options) {
     catalogLoops, subjectId, observations,
   });
   return {
-    observed: records.length, created, sources, sourceFreshness, economicSourceCoverage,
+    observed: records.length, created, sources, sourceFreshness,
+    businessReadback, businessSourceCoverage, economicSourceCoverage,
     economicFunnelObservations: agentEconomySources.funnelObservations,
   };
 }
