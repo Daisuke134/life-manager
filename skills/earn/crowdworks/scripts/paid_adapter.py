@@ -1302,6 +1302,53 @@ class CrowdWorksPaidAdapter:
         except Exception:
             return None
 
+    def _work_fit_verdict(self, item: Mapping[str, Any]) -> str:
+        """`workable`, `refused:<class>` or `unverified:<why>` from the shared work_fit judge."""
+        text = item.get("buyer_context")
+        if not isinstance(text, str) or not text.strip():
+            return "unverified:no_buyer_context"
+        try:
+            fit = _load("crowdworks_paid_work_fit",
+                        Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core"
+                        / "scripts" / "work_fit.py")
+            root = (self.state_path or Path("/tmp")) / "work-fit-evidence"
+            work_id = _text(item.get("work_id"))
+            verdicts = fit.judge([{"posting_id": work_id, "title": str(item.get("title") or ""),
+                                   "body": text}],
+                                 evidence_dir=root / f"paid-{work_id}", loop="crowdworks-paid")
+        except Exception as error:
+            return "unverified:" + type(error).__name__
+        if work_id not in verdicts:
+            return "unverified:unjudged"
+        verdict = verdicts[work_id]
+        return "workable" if verdict is None else "refused:" + verdict[0]
+
+    def _record_work_fit_blocker(self, item: Mapping[str, Any], verdict: str) -> None:
+        """Durable, idempotent blocker record that the report owner turns into one notice.
+
+        Written once per contract and verdict. It carries ids and the verdict only, never buyer text.
+        """
+        if self.state_path is None or verdict == "workable":
+            return
+        work_id = _text(item.get("work_id"))
+        root = Path(self.state_path) / "work-fit-blockers"
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            path = root / f"{work_id}.json"
+            record = {"work_id": work_id, "title": str(item.get("title") or ""),
+                      "verdict": verdict, "observed_at": _now()}
+            if path.exists():
+                try:
+                    if json.loads(path.read_text(encoding="utf-8")).get("verdict") == verdict:
+                        return
+                except (OSError, ValueError):
+                    pass
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(record, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+            tmp.replace(path)
+        except OSError:
+            return
+
     def context(self, work_id: str) -> dict[str, Any]:
         try:
             item = self._cached_item(work_id) or self._targeted_detail(work_id)
@@ -1319,8 +1366,12 @@ class CrowdWorksPaidAdapter:
                     candidates = []
                 if candidates:
                     item = self._cache_update({**item, "form_candidates": candidates})
+            if item.get("provider_state") == "funded" and "work_fit" not in item:
+                item = {**item, "work_fit": self._work_fit_verdict(item)}
+                self._record_work_fit_blocker(item, item["work_fit"])
+            fit_ok = item.get("work_fit") == "workable" or item.get("provider_state") != "funded"
             return {"contract": dict(item), "observed_at": item.get("observed_at") or _now(), "delivery": {
-                "formal_delivery_authorized": item["provider_state"] == "funded",
+                "formal_delivery_authorized": item["provider_state"] == "funded" and fit_ok,
                 "form_required": bool(item.get("form_urls") or item.get("form_url")),
             }}
         finally:
@@ -1867,6 +1918,14 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
         return {"action": "wait", "reason": "awaiting_client_escrow", "remaining_work": ["wait for official CrowdWorks escrow completion before beginning work"]}
     if contract.get("provider_state") == "delivered":
         return {"action": "noop", "classification": "completed"}
+    fit = contract.get("work_fit")
+    if fit != "workable":
+        # A funded contract is only worked after the shared work_fit judge has cleared the
+        # buyer's own text.  Missing, refused and unavailable verdicts all stop before any answer,
+        # form or delivery effect: absent is not approved.
+        reason = "work_fit_refused" if isinstance(fit, str) and fit.startswith("refused:") else "work_fit_unverified"
+        return {"action": "wait", "reason": reason,
+                "remaining_work": ["manual owner review: the contract text was not cleared as workable by work_fit"]}
     form_url, milestone_id = contract.get("form_url"), contract.get("milestone_id")
     form_urls = contract.get("form_urls")
     completed = set(contract.get("completed_form_urls") or [])

@@ -35,6 +35,9 @@ STATE = Path("~/.local/state/anicca/crowdworks").expanduser()
 LEDGER = STATE / "application-receipts.jsonl"
 STATUS = STATE / "application-owner.json"
 DATABASE = STATE / "telegram-outbox.sqlite3"
+# Same root the loop registry gives paid-owner and report-owner (LIFE_MANAGER_STATE_ROOT); paid-owner
+# passes "$STATE_ROOT/paid" as the adapter state path, which writes work-fit-blockers beneath it.
+PAID_BLOCKERS = Path(os.environ.get("LIFE_MANAGER_STATE_ROOT") or STATE).expanduser() / "paid" / "work-fit-blockers"
 def _report_chat() -> str:
     """Where the owner report goes; never a repository literal."""
     for key in ("CROWDWORKS_REPORT_CHAT", "GIG_REPORT_CHAT"):
@@ -187,10 +190,36 @@ def enqueue_wake_summary(database: Path, *, status_path: Path = STATUS, ledger_p
         return 0
 
 
+def enqueue_work_fit_blockers(database: Path, *, blockers_dir: Path = PAID_BLOCKERS, now: str) -> int:
+    """One notice per contract and verdict when the Paid owner stops before any buyer-facing effect."""
+    try: files = sorted(Path(blockers_dir).glob("*.json"))
+    except OSError: return 0
+    enqueued = 0
+    for path in files:
+        try: record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError): continue
+        if not isinstance(record, Mapping): continue
+        work_id, verdict = str(record.get("work_id") or ""), str(record.get("verdict") or "")
+        if not work_id or not verdict: continue
+        if verdict.startswith("refused:"):
+            why = "採用・選考などの対象外の依頼に当たる可能性があるため、自動対応を止めました。"
+        else:
+            why = "依頼内容を判定できなかったため、自動対応を止めました。"
+        message = (f"[CrowdWorks][契約停止] 契約 {work_id}"
+                   f"{(' ' + str(record.get('title'))) if record.get('title') else ''}\n"
+                   f"{why}(判定: {verdict})\n返信・納品・フォーム送信はまだ行っていません。ご確認をお願いします。")
+        try:
+            if outbox.enqueue(Path(database), f"crowdworks:paid-blocker:{work_id}:{verdict}", message, now): enqueued += 1
+        except Exception:
+            continue
+    return enqueued
+
+
 def run(*, database: Path = DATABASE, notifier: Optional[Callable[[str], SendResult]] = None, now: Optional[str] = None) -> dict[str, object]:
     stamp = now or datetime.now(timezone.utc).isoformat()
     enqueued = enqueue_decisions(database, now=stamp)
     enqueued += enqueue_declines(database, now=stamp)
+    enqueued += enqueue_work_fit_blockers(database, now=stamp)
     enqueued += enqueue_wake_summary(database, now=stamp)
     send = notifier or (lambda message: delivery.send_via_shared_client(message, chat_id=TARGET))
     sent = delivery.deliver_pending(outbox, database, send, stamp)
