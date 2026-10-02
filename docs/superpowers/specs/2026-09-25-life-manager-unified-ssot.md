@@ -3179,3 +3179,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. `fix/lancers-luna-t3-fix-20261002`の`88a6599bd2`を通常integration gate（PR→primary review→main→immutable release→target apply）へ進める。PR merge/release/apply/自然runはまだ未実施。
 2. 本番Lancers Paidを再送せず、release後の自然wakeでexit 124が消え、accept後の公式status/readbackが同一occurrenceへ結合するか確認する。
 3. Application T1は別のread-only観測として継続し、marker消失機構が証明されるまでapplication-ownerを変更しない。
+
+### 102. Lancers T3 PRと既存CI baseline gateの分離（2026-10-02 17:48 JST）
+
+- PR #6486（`fix/lancers-luna-t3-fix-20261002`）を作成した。Lancers source差分のprimary証拠は`88a6599bd2`、Sol=SHIP、focused 32件、caller wiring/py_compile/diff/source-boundary PASSである。
+- GitHub Security ScanではLancers差分と無関係な既存gateが失敗した。Startup contextは`updated_at/links.* verified_at exceeds 30 days`、OSS self-containedは`manifest_inventory_mismatch skills/capafy-autopublish`、PII shapeはSSOTの`personal_gmail`（line 2694）を検出した。Python syntax + unittest、Shell syntax、Agent instruction、TruffleHogはPASSまたは実行中であり、Lancersのsource failureとは分離する。
+- 同時刻のproduction `lancers-revenue-paid`自然runは旧release `4f605a30`で`entrypoint_exit_124 / effect_unknown / official_readback_required`（run `18daa9d239d911f8-87167`）となった。これは新branchのコードをまだloadedしていないため、手動retry・provider再送・effect fence closeは行わない。
+
+#### 更新後の原子cursor
+
+1. PR #6486はbaseline gateの原因を分離したまま、Lancers sourceのreview evidenceを保持する。CI baseline修正は別owner・別branchで行い、同じPRへ無関係な変更を混ぜない。
+2. Startup context、Capafy manifest、PII allowlistの各gateは、既存foundation ownerにread-only原因確認→専用修正→focused CIで順に閉じる。
+3. PR #6486が統合された後だけ、immutable release→Lancers target apply→自然Paid wake→公式status/readbackへ進む。旧releaseの`exit 124/effect_unknown`は再送せず保持する。
