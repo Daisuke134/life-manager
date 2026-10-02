@@ -2612,3 +2612,10 @@ AGMSGで3席を同時にread-only起動した。TaskMarket、PromptBase/Capafy�
 - current production symlinkは旧release `3fdfa314`のまま。検証用に切った`f8deb9bd` candidateはactivateしておらず、追加ownerもloadedではない。既存brain経路の自然wakeで`earn/taskmarket`が`poll`または`execute`を選んだ同一occurrenceを読み戻すまで、L9-13.1/L9-13.2を完了扱いしない。
 
 この撤回は進捗後退ではなく、同じprovider/wallet/cursorを複数schedulerが所有しないというNo-human-loopの安全境界を守るための修正である。
+
+### 52. TaskMarket ENOENTの既存brain経路と次のreadback（2026-10-02 09:10 JST）
+
+- `agent-economy-loop`の既存brainが`earn/taskmarket`を実際に選択しているため、TaskMarketのprimary ownerは既存の`agent-economy-loop`一つである。`~/.local/state/life-manager/agent-economy/instance/state/codex-brain/*/attempt-01.result.json`に`action=execute`/`action=poll`のtool callが複数あり、別registry ownerの追加は不要。
+- 過去の失敗境界は、release `9a76dcc8`、`a2735517`、`cd44996f`、`985821a3`、`c522f4ab`、`de3c9064`、`4d10a7c9`、`c9c32193`、`6ea15fb2`、`0f0e6eed`、`592c98cb`、`2fb4a3a3`、`51926f66`、`098f6d4d`等で、`skills/earn/taskmarket/node_modules/.bin/taskmarket ENOENT`。これはTaskMarket本体の判断・wallet・provider拒否ではなく、immutable-release dependency packaging欠落だった。PR #6301のsource fix（main `d04f97702631fa9e18be85a95a76a20c3ec4952e`）後のcurrent 3f releaseでは、`skills/earn/taskmarket/node_modules/.bin/taskmarket`が実在することをreadback済み。
+- current 3f上の最新agent-economy障害はTaskMarket provider effectではなく、別slotの`resource-resolver`/brain transport failureである。TaskMarketの3f natural `poll/execute`結果、provider discovery、BlockRun receipt、submission readbackはまだ取得していない。過去ENOENTを修正済みだからといってTaskMarket成功・売上・利益を推測しない。
+- 次の安全な操作は、既存`agent-economy-loop`の自然wakeで`earn/taskmarket`が選ばれた同一wake/occurrenceをread-onlyで読み、(a) no-effect pollなら公式TaskMarket API・candidate数・wallet/transactionなし、(b) executeならquote/cap、BlockRun receipt、output、TaskMarket submission readback、cost ledgerを同一occurrenceへ結合すること。manual wake、直接`run.sh`、新registry owner、wallet spend、provider再送は行わない。
