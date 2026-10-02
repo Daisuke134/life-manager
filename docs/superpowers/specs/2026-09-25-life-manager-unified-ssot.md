@@ -3366,3 +3366,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Fundraiserは容量・CDP境界をread-only監視し、同一候補を再送しない。
 2. managed browserが正式にフォームを観測できた適格候補だけ、application receipt→provider status→外部inflow→actual cost→replay-zeroへ進む。
 3. 人間必須の操作は自動突破せずholdし、次のcontract-work laneへ進む。
+
+### 116. Coconalaのeffect fenceとbrowser lease境界（2026-10-02 19:11 JST）
+
+- Coconala Product Loopは `hf-gig-apply-direct` が直近も `effect_class=application` のexecute開始後、`host_admission_deferred:resource_effect_unknown`（exit 75）へ遷移し、provider receipt/公式thread readbackなし。旧effect fenceも `official_readback_required` のままなので、応募を再送しない。
+- `hf-gig-storefront-direct` も publish effect unknown（同じく公式readbackなし）、`hf-gig-reply-detector` は effect none の `entrypoint_exit_75 / reconcile_owner`。paid-directの自然wakeは現時点で effect none のpass/blockedが混在し、buyer-visible納品・settlement・fee・actual costの証拠はない。
+- Coconala replyのローカルreadbackは `observed=192 / readback=181 / pending=11 / effect=0 / failed=0`。これはreplay-zeroと未観測pendingの状態であって、売上・支払済み契約の公式証拠ではない。
+- browser guard `coconala:kosuke` はreachableだが、reply owner PID `97225` がlease保持中。別ownerの公式readbackのためにprofileを奪わず、同一lease内のowner自然処理を待つ。
+
+#### 更新後の原子cursor
+
+1. Coconalaはlease ownerが空くまでread-only監視し、effect_unknown応募/storefrontを再送しない。
+2. 公式thread/payment/delivery readbackが揃った案件だけをpaid contract→settlement→cost→duplicate-zeroへ進める。
+3. その後Lancers Application T1/paid、CrowdWorks、Job Hunterへ進む。
