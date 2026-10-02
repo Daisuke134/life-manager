@@ -3933,3 +3933,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PromptBaseは同一listing再送なしでFootball/Portfolio/Salesの公式変化を継続readbackする。
 2. Writerは既存admission queueへ戻し、次の099 `writer-sales-measure`自然実行でnote/Substack/Stripe source別の観測時刻・statusを更新する。receiptなしのdashboard zeroをsettled revenueへ昇格させない。
 3. Writer待ちと独立してAffiliateのfresh commission/payout/provider receiptをreadbackし、次にMobile残件→Connector→Fundraiserへ進む。
+
+### 164. Affiliate official commission/payout readback（2026-10-03 02:40 JST）
+
+- PartnerStack official capture `observed_at=2026-10-02T15:03:48Z`は`commission_row_count=0 / commission_row_state=EMPTY / payout_row_state=EMPTY / currency=USD / normalizer=NO_LIVE_ROWS`。reconciliationは`source_rows=0 / appended=0 / replayed=0 / money_state=NO_TRANSACTIONS`で、source artifact SHAもcaptureと一致する。
+- payout readinessは`PAYOUT_BLOCKED_BY_TAX_SETUP`、tax information=`REQUIRED`、payment provider=`SELECTION_REQUIRED`。外部commission/payout receiptは無く、税務/KYC/payment bootstrapを収益0や完了へ置き換えない。本人確認を自動突破せず、一度限りのlegal/provider bootstrap boundaryとして保持する。
+- `affiliate-loop`は099 releaseで旧publish unknownにより`safely_fenced`。`affiliate-source-refresh`と`affiliate-composition`のlatest attemptはcapacity busyでentrypoint前停止し、provider effectなし。公開artifact、page views、tracking clickをcommissionへ数えない。
+- 現在のAffiliate external revenue、settled commission、payoutはいずれもofficial rows 0。payout設定未完を「入金待ち」と推測せず、provider rowが発生するまで`NO_TRANSACTIONS`を保持する。
+
+#### 更新後の原子cursor
+
+1. Affiliateは旧publish effectのexact provider readbackなしに再送・fence closeしない。commission rowが発生した時だけcapture→reconcile→payoutを結ぶ。
+2. payout tax/KYC/payment selectionは自動突破しない。legal/provider必須bootstrapとして明示し、通常loopから分離する。
+3. 次はMobileのPostiz publication、ASC/RevenueCat proceeds、fee、payout、actual costをofficial readbackし、その後Connector→Fundraiserへ進む。
