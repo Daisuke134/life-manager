@@ -2491,3 +2491,15 @@ Daisの指示により、TaskMarket/BlockRun/award observerは「残すが、即
 14. **Nosana/Akash/cloud/self-funding** — shelter interface、continuity、provider fallback、Mac dependency 0、30日positive net cashflowを最後に証明する。
 
 「即時収益優先」は利益を保証する表現ではない。既存需要・公式売上・低コストreadbackの証拠が強い順に、収益へ近い作業を先に行うという意味である。TaskMarketは削除せず、CFOとpaid E2Eの後段へ移した。
+
+### 56. R1/F2 read-only診断の最新境界（2026-10-02 09:20 JST）
+
+AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解決・再送・restart・apply・provider/browser/wallet操作は0件。
+
+| owner | 現在の境界 | receipt/readback | 次の安全な操作 |
+|---|---|---|---|
+| `hf-gig-apply-direct` | `resource_effect_unknown`。access denial / capacity / control busyのログが混在し、pre-effect完了を証明できない | provider receipt/readbackなし | Coconala公式application readbackを同一occurrenceで取得。再応募・再送しない |
+| `alpaca-investment-live` | `exit=75`後のeffect fence。readback adapterは`LIVE_CREDENTIALS_FILE`未設定で実行不能 | order/account receipt/readbackなし | live credential境界を埋めず、既存orderを再送しない。paper側の自然観測と分離 |
+| `life-manager-instagram-metrics` | `history_incomplete/no_journal_row`、boot側API key不足 | Telegram/provider receipt/readbackなし | 既存公式履歴だけをread-onlyで照合。通知再送・resolveしない |
+
+この3件は即時収益優先のCapafy/PromptBase作業を完了扱いにする理由にも、TaskMarketを前倒しする理由にもならない。R1/F2はeffect safetyの横断基盤として、公式証拠が得られたownerから個別に閉じる。
