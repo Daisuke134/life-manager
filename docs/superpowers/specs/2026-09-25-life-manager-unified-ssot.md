@@ -2659,3 +2659,17 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. 次の自然eligible PromptBase runでmodel-runner object schema、英語4件distinct、PromptBase dashboard/Gmailの公式readbackへ進む。
 3. CapafyはCP1確認済みだが`platform_status=0 / is_confirmed_config_keys=false / package_uploaded=false`であり、出品完了扱いしない。Capafy finish/readbackとPromptBaseは別ownerとして並列観測する。
 4. AGMSGの監査席はreadiness/placement確認後の成果だけを採用し、未確認席を稼働扱いしない。
+
+### 69. Capafy Agent 4243672453のCP2 key-host boundary（2026-10-02 11:29 JST）
+
+- Capafy公式inventoryは`PUBLISHABLE / resume_draft`、同一Agent `4243672453`、free slot 1を返した。CP1はAgent workspaceのcard-done toastと公式`is_confirmed_skills=true`まで到達した。
+- 同一Agent version `2105842148210266112`の`publish_finish.sh`は、package uploadとfinal review URL取得までは進んだ。しかしCP2で`hosted key section: none fillable`、provider path/detected-keysがhydrateせず、workspace draft saveと`official model verified=True`の後、`is_confirmed_config_keys=0`を12回×5秒で確認して安全停止した。`platform_status=1`、final publish、payoutは確認されていない。
+- この結果は「Capafy完成」でも「新規Agent作成成功」でもない。同一Agent・同一versionのCP2 key-host境界を次のowner wakeで再開する。新しいAgent、別version、重複uploadは作らない。
+- source/productionの担当境界はCapafy ownerに残す。今回のprimaryは公式readbackと正確な失敗境界をAGMSGで`lm-l9-capafy-manifest-1001`へ送信した。PromptBaseの`interactive:dais` browser laneとは別資源である。
+
+#### 更新後の原子cursor
+
+1. Capafy ownerが同一Agent/versionのCP2 key-host hydrationを公式画面で再確認し、`is_confirmed_config_keys=true`を取得する。
+2. その後CP3/final `platform_status=1`・`agent_type=run_online`を公式remote-statusで確認する。
+3. PromptBaseは`848aee9b` loaded後もcapacity busyのため、同一occurrenceを再送せず自然eligible wakeを待つ。
+4. CP2/CP3またはPromptBase公式E2Eが閉じるまで、売上・利益・自律性を昇格させない。
