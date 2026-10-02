@@ -57,7 +57,14 @@ def _event(*, phase: str, status: str, timestamp: str, exit_code=None, effect_st
     }
 
 
-def _fixture(tmp_path: Path, *, snapshot=True, event_pair=True, outbox_status="delivered"):
+def _fixture(
+    tmp_path: Path,
+    *,
+    snapshot=True,
+    event_pair=True,
+    outbox_status="delivered",
+    event_key: str | None = None,
+):
     state_dir = tmp_path / "cfo"
     state_dir.mkdir(mode=0o700)
     admission_db = tmp_path / "admission.sqlite3"
@@ -75,7 +82,7 @@ def _fixture(tmp_path: Path, *, snapshot=True, event_pair=True, outbox_status="d
             (OCCURRENCE, OWNER, "claimed", 1),
         )
 
-    event_key = f"cfo:subject:telegram:{DATE}"
+    event_key = event_key or f"cfo:subject:telegram:{DATE}"
     message = "CFO fixture message"
     message_sha256 = hashlib.sha256(message.encode()).hexdigest()
     outbox = state_dir / "telegram-outbox.sqlite3"
@@ -258,6 +265,22 @@ def test_build_proof_accepts_legacy_snapshot_bound_by_provider_id(tmp_path):
     assert proof["verified"] is True
     assert proof["provider_message_id"] == "94946"
     assert "subject" not in json.dumps(proof)
+
+
+def test_build_proof_accepts_current_cfo_result_event_key(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        event_key=f"cfo-result:subject:telegram:{DATE}:12",
+    )
+
+    proof = build_proof(
+        state_dir=state_dir,
+        admission_db=admission_db,
+        occurrence_id=occurrence,
+    )
+
+    assert proof["verified"] is True
+    assert proof["provider_receipt_id"] == "telegram:94946"
 
 
 def test_build_proof_rejects_admission_owner_mismatch(tmp_path):

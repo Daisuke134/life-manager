@@ -184,7 +184,7 @@
       "job_ids": ["life-manager-cfo-hourly", "life-manager-financial-report", "life-manager-payout"],
       "name": "CFO",
       "description": "Reconcile verified revenue, balances, cash flow, payouts, and financial reports across earning loops.",
-      "recovery_classes": ["external_effect_owner"],
+      "recovery_classes": ["deterministic", "external_effect_owner"],
       "economic": {"role":"aggregator","revenue_classes":[],"sources":{"funnel":{"adapter":null,"implementation":"not_applicable"},"financial":{"adapter":null,"implementation":"not_applicable"},"cost":{"adapter":null,"implementation":"not_applicable"}}},
       "requirements": [],
       "hosts": {

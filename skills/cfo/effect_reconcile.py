@@ -234,7 +234,7 @@ def _snapshot_values(
 
 
 def _event_key_date(event_key: str, reporting_date: str) -> bool:
-    return event_key.startswith("cfo:") and (
+    return event_key.startswith(("cfo:", "cfo-result:")) and (
         event_key.endswith(f":{reporting_date}")
         or f":{reporting_date}:" in event_key
     )
