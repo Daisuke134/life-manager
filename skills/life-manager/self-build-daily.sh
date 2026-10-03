@@ -125,6 +125,12 @@ if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true >>"$LOG" 2>&1; then
   exit 1
 fi
 
+LEDGER_BYTES_BEFORE="$("$NODE_BIN" -e '
+const fs = require("node:fs");
+try { process.stdout.write(String(fs.statSync(process.argv[1]).size)); }
+catch (error) { if (error.code === "ENOENT") process.stdout.write("0"); else throw error; }
+' "$LEDGER")" || exit 2
+
 RESULT="$("$NODE_BIN" "$DAILY_CLI" "${DAILY_ARGS[@]+"${DAILY_ARGS[@]}"}" 2>>"$LOG")"
 RC=$?
 printf '%s\n' "$RESULT" >>"$LOG"
@@ -134,21 +140,23 @@ printf '%s\n' "$RESULT" >>"$LOG"
 # run, that IS the report — loudly — because a pass that cannot point at its own appended row has
 # not proven a day happened, whatever it printed.
 # shellcheck disable=SC2016  # the ${...} below are JS template literals, deliberately unexpanded
-REPORT="$(LEDGER="$LEDGER" LOG_PATH="$LOG" RC="$RC" "$NODE_BIN" -e '
+REPORT="$(LEDGER="$LEDGER" LEDGER_BYTES_BEFORE="$LEDGER_BYTES_BEFORE" LOG_PATH="$LOG" RC="$RC" "$NODE_BIN" -e '
 const fs = require("node:fs");
 const ledger = String(process.env.LEDGER || "");
 let line = "";
+let appended = false;
 try {
+  appended = fs.statSync(ledger).size > Number(process.env.LEDGER_BYTES_BEFORE);
   line = fs.readFileSync(ledger, "utf8").split("\n").filter((value) => value.trim()).pop() || "";
 } catch {
   line = "";
 }
 let row = null;
 try { row = JSON.parse(line); } catch {}
-if (!row || typeof row !== "object" || !row.day) {
+if (!appended || !row || typeof row !== "object" || !row.day) {
   process.stdout.write(
     `⚠️ Life Manager self-build: NO LEDGER ROW. The daily pass exited ${process.env.RC} but the last`
-    + ` line of ${ledger} is not a readable day row, so no day was proven and nothing can be`
+    + ` line of ${ledger} is not a newly appended readable day row, so no day was proven and nothing can be`
     + ` reported about what the guard did. Check ${process.env.LOG_PATH || "the configured log"} and`
     + ` the dev-guard ledger by hand.`,
   );

@@ -751,7 +751,8 @@ test("the PR listing asks GitHub for the body, or the marker could never be chec
 });
 
 
-test("default self-build pass and report share the existing library ledger path", () => {
+for (const outcome of ["append", "fail_before_append", "fail_after_append"]) {
+test(`default self-build ledger report handles ${outcome}`, () => {
   const root = tmp();
   const repo = path.join(root, "repo");
   const app = path.join(repo, "apps/life-manager");
@@ -765,8 +766,11 @@ test("default self-build pass and report share the existing library ledger path"
     const fs = require("node:fs"), path = require("node:path");
     const ledger = require("../lib/self-build-daily.js").selfBuildLedgerPath();
     if (process.argv.includes("--status")) console.log(JSON.stringify({streak:{distinctDays:1,required:7,ready:false,remaining:6}}));
-    else {fs.mkdirSync(path.dirname(ledger), {recursive:true});fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",verdict:"no_op",no_op_reason:"fixture_default_ledger"})+"\\n");console.log("{}");}
+    else {if (${JSON.stringify(outcome)} === "fail_before_append") process.exit(1);fs.mkdirSync(path.dirname(ledger), {recursive:true});fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",verdict:"no_op",no_op_reason:"fixture_default_ledger"})+"\\n");if (${JSON.stringify(outcome)} === "fail_after_append") process.exit(1);console.log("{}");}
   `);
+  const ledger = path.join(root, ".life-manager/state/self-build-days.jsonl");
+  fs.mkdirSync(path.dirname(ledger), {recursive:true});
+  fs.writeFileSync(ledger, JSON.stringify({day:"2026-10-02",verdict:"merged_deployed",pr:999})+"\n");
   const state = path.join(root, "state");
   const log = path.join(state, "selfbuild.log");
   const result = spawnSync("/bin/bash", [ENTRYPOINT], {encoding:"utf8", env:{...process.env,
@@ -774,9 +778,16 @@ test("default self-build pass and report share the existing library ledger path"
     LM_SELFBUILD_LEDGER:"", LM_SELFBUILD_LOG:log, LM_SELFBUILD_DRY_RUN:"1",
     LM_SELFBUILD_TELEGRAM_TARGET:"", TELEGRAM_ALERT_CHAT_ID:"", LIFE_MANAGER_ENV_FILE:path.join(root,"absent.env"),
   }});
-  assert.equal(result.status, 0, result.stderr);
-  assert.ok(fs.existsSync(path.join(root, ".life-manager/state/self-build-days.jsonl")));
+  assert.equal(result.status, outcome === "append" ? 0 : 1, result.stderr);
+  assert.ok(fs.existsSync(ledger));
   const report = fs.readFileSync(log,"utf8");
-  assert.match(report, /no PR -> no_op \(fixture_default_ledger\)/);
-  assert.doesNotMatch(report, /NO LEDGER ROW/);
+  assert.doesNotMatch(report, /PR #999 -> merged_deployed/);
+  if (outcome === "fail_before_append") {
+    assert.match(report, /NO LEDGER ROW/);
+    assert.match(report, /daily pass exited 1/);
+  } else {
+    assert.match(report, /no PR -> no_op \(fixture_default_ledger\)/);
+    assert.doesNotMatch(report, /NO LEDGER ROW/);
+  }
 });
+}
