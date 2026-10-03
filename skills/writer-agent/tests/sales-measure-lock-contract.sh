@@ -40,6 +40,19 @@ touch -t 200001010000 "$stale/state/.sales-measure.lock"
 test -f "$stale/measured"
 test -f "$stale/synced"
 
+legacy_live="$TMP/legacy-live"
+make_fixture "$legacy_live"
+mkdir "$legacy_live/state/.sales-measure.lock"
+printf '%s\n' "$$" >"$legacy_live/state/.sales-measure.lock/pid"
+touch -t 200001010000 "$legacy_live/state/.sales-measure.lock"
+set +e
+/bin/bash "$legacy_live/scripts/writer-sales-measure-worker.sh"
+rc=$?
+set -e
+test "$rc" -eq 75
+test ! -e "$legacy_live/measured"
+test ! -e "$legacy_live/synced"
+
 busy="$TMP/busy"
 make_fixture "$busy"
 token="test-owner-token"

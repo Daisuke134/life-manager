@@ -9,6 +9,17 @@ LOCK_DIR="$STATE_DIR/.sales-measure.lock"
 LOCK_HELPER="$LIFE_MANAGER_REPO/runtime/host/owned_directory_lock.py"
 CLOAK_PYTHON="${WRITER_BROWSER_PYTHON:-$(command -v python3)}"
 
+# The previous release records only a PID in a directory lock. During the
+# rollout overlap, never reclaim that legacy lock while its process is live;
+# the shared helper owns every new PID/start-identity lock after this gate.
+if [ -d "$LOCK_DIR" ] && [ -f "$LOCK_DIR/pid" ]; then
+  legacy_pid="$(sed -n '1p' "$LOCK_DIR/pid" 2>/dev/null || true)"
+  if [[ "$legacy_pid" =~ ^[0-9]+$ ]] && kill -0 "$legacy_pid" 2>/dev/null; then
+    printf 'sales measurement legacy owner is live: pid=%s\n' "$legacy_pid" >&2
+    exit 75
+  fi
+fi
+
 LOCK_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
 if python3 "$LOCK_HELPER" acquire "$LOCK_DIR" "$$" "$LOCK_TOKEN"; then
   :
