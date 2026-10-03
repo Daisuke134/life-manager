@@ -1,0 +1,4 @@
+{"caseId":"online-call","inputClass":"online","expected":{"kind":"online"}}
+{"caseId":"physical-venue","inputClass":"physical","expected":{"kind":"filled","location":"東京都千代田区丸の内"}}
+{"caseId":"vague-meetup","inputClass":"unknown","expected":{"kind":"ask"}}
+{"caseId":"solo-routine","inputClass":"no_travel","expected":{"kind":"online"}}
