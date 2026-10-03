@@ -1,12 +1,88 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const childProcess = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
+const { promisify } = require("node:util");
 const { importContentObject } = require("../lib/content-object-store.js");
-const { PRODUCTS, cohortR3ProcessingDate, derivedFunnelRates, installToPaidD7, latestMatureCohortDate, pending, persistAscAcquisition, rows, sourceFailureReason, summarize } = require("./marketing-asc-acquisition.js");
+const { PRODUCTS, cohortR3ProcessingDate, collectProduct, derivedFunnelRates, installToPaidD7, latestMatureCohortDate, pending, persistAscAcquisition, rows, sourceFailureReason, summarize } = require("./marketing-asc-acquisition.js");
+
+function addUtcDays(date, days) {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+async function withFakeAscCli(product, cohortDate, scenario, run) {
+  const modulePath = require.resolve("./marketing-asc-acquisition.js");
+  const cachedModule = require.cache[modulePath];
+  const originalExecFile = childProcess.execFile;
+  const currentDataDate = addUtcDays(cohortDate, 3);
+  const currentProcessingDate = addUtcDays(cohortDate, 4);
+  const denominatorProcessingDate = addUtcDays(cohortDate, 1);
+  const r3Id = `r3-${product.request_id}`;
+  const r15Id = `r15-${product.request_id}`;
+  const tsv = (headers, values) => `${headers.join("\t")}\n${values.map((value) => value.join("\t")).join("\n")}\n`;
+  const fakeExecFile = () => { throw new Error("fake ASC execFile callback path was not expected"); };
+  fakeExecFile[promisify.custom] = async (_command, args) => {
+    if (args.includes("download")) {
+      const segmentId = args[args.indexOf("--segment-id") + 1];
+      const outputPath = args[args.indexOf("--output") + 1];
+      let reportText;
+      if (segmentId.includes("denominator")) {
+        const denominatorRows = scenario.denominatorRows || [[cohortDate, product.app_name, product.app_id, "First-time download", "3"]];
+        reportText = tsv(["Date", "App Name", "App Apple Identifier", "Download Type", "Counts"], denominatorRows);
+      } else if (segmentId.includes(r3Id)) {
+        reportText = tsv(["Date", "App Name", "App Apple Identifier", "Download Type", "Counts"], [
+          [currentDataDate, product.app_name, product.app_id, "First-time download", "3"],
+        ]);
+      } else if (segmentId.includes(r15Id)) {
+        reportText = tsv(["Date", "App Name", "App Apple Identifier", "Event", "Page Type", "Counts", "Unique Counts"], [
+          [currentDataDate, product.app_name, product.app_id, "Impression", "No page", "10", "8"],
+          [currentDataDate, product.app_name, product.app_id, "Page View", "Product page", "5", "4"],
+        ]);
+      } else {
+        throw new Error("unexpected fake ASC segment");
+      }
+      fs.writeFileSync(outputPath, reportText, { encoding: "utf8", mode: 0o600 });
+      return { stdout: "", stderr: "" };
+    }
+    if (args[1] === "web" && args[2] === "analytics" && args[3] === "cohorts") {
+      if (scenario.mode === "web-error") throw new Error("Session expired. no usable Apple web session for account");
+      throw new Error("unexpected D7 web query");
+    }
+    if (args[1] === "analytics" && args[2] === "reports" && args[3] === "links") {
+      const reportId = args[args.indexOf("--report-id") + 1];
+      return { stdout: JSON.stringify({ data: reportId.startsWith("r4-") ? [] : [{ id: `instance:${reportId}:current` }] }), stderr: "" };
+    }
+    if (args[1] === "analytics" && args[2] === "instances" && args[3] === "view") {
+      return { stdout: JSON.stringify({ data: { attributes: { granularity: "DAILY", processingDate: currentProcessingDate } } }), stderr: "" };
+    }
+    if (args[1] === "analytics" && args[2] === "instances" && args[3] === "links") {
+      const instanceId = args[args.indexOf("--instance-id") + 1];
+      return { stdout: JSON.stringify({ data: [{ id: `segment:${instanceId}` }] }), stderr: "" };
+    }
+    if (args[1] === "analytics" && args[2] === "view" && args.includes("--request-id")) {
+      const processingDate = args[args.indexOf("--processing-date") + 1];
+      const instances = scenario.mode === "missing-r3" ? [] : [{
+        granularity: "DAILY", processingDate, id: `instance:${r3Id}:denominator`,
+      }];
+      return { stdout: JSON.stringify({ data: [{ id: r3Id, instances }] }), stderr: "" };
+    }
+    throw new Error("unexpected fake ASC command");
+  };
+
+  childProcess.execFile = fakeExecFile;
+  delete require.cache[modulePath];
+  try {
+    return await run(require(modulePath));
+  } finally {
+    childProcess.execFile = originalExecFile;
+    delete require.cache[modulePath];
+    if (cachedModule) require.cache[modulePath] = cachedModule;
+  }
+}
 
 test("ASC acquisition portfolio matches the six currently published App Store apps", () => {
   assert.deepEqual(PRODUCTS.map(({ product_id, app_id, request_id }) => [product_id, app_id, request_id]), [
@@ -249,4 +325,40 @@ test("Install-to-Paid D7 requires one integer payer count at provider percentage
   ], D7_COHORT_DATE, D7_OBSERVED_AT, D7_REPORT);
   assert.equal(ambiguous.status, "unavailable");
   assert.equal(ambiguous.reason, "cohort_rate_ambiguous");
+});
+
+test("D7 collector failures preserve measured store metrics and cohort-specific unavailability", async () => {
+  const matureDate = latestMatureCohortDate(new Date().toISOString());
+  const cohortDate = addUtcDays(matureDate, -1);
+  const denominatorRows = [
+    [cohortDate, PRODUCTS[0].app_name, PRODUCTS[0].app_id, "First-time download", "3"],
+  ];
+  const scenarios = [
+    { mode: "missing-r3", reason: "cohort_report_instance_unavailable" },
+    { mode: "zero-denominator", reason: "denominator_zero", sampleSize: 0, redownloads: 0, denominatorRows: [
+      [cohortDate, PRODUCTS[0].app_name, PRODUCTS[0].app_id, "First-time download", "0"],
+    ] },
+    { mode: "redownload", reason: "redownloads_present", sampleSize: 3, redownloads: 1, denominatorRows: [
+      ...denominatorRows,
+      [cohortDate, PRODUCTS[0].app_name, PRODUCTS[0].app_id, "Redownload", "1"],
+    ] },
+    { mode: "web-error", reason: "cohort_asc_web_session_expired", sampleSize: 3, redownloads: 0, denominatorRows },
+  ];
+
+  for (const scenario of scenarios) {
+    const result = await withFakeAscCli(PRODUCTS[0], cohortDate, scenario, (isolated) => isolated.collectProduct(PRODUCTS[0], cohortDate));
+    assert.equal(result.source_status, "measured", scenario.mode);
+    assert.equal(result.metrics.first_time_downloads.value, 3, scenario.mode);
+    assert.equal(result.metrics.unique_impressions.value, 8, scenario.mode);
+    assert.equal(result.metrics.install_to_paid.status, "unavailable", scenario.mode);
+    assert.equal(result.metrics.install_to_paid.reason, scenario.reason, scenario.mode);
+    assert.equal(result.metrics.install_to_paid.experimental, true, scenario.mode);
+    assert.equal(result.metrics.install_to_paid.cohort_date, cohortDate, scenario.mode);
+    assert.equal(result.metrics.install_to_paid.cohort_window_days, 7, scenario.mode);
+    assert.ok(result.metrics.install_to_paid.observed_at, scenario.mode);
+    assert.ok(result.metrics.install_to_paid.source_refs.includes(`asc-web-cohort:${PRODUCTS[0].app_id}:${cohortDate}:d7`), scenario.mode);
+    if (scenario.sampleSize !== undefined) assert.equal(result.metrics.install_to_paid.sample_size, scenario.sampleSize, scenario.mode);
+    if (scenario.redownloads !== undefined) assert.equal(result.metrics.install_to_paid.redownloads, scenario.redownloads, scenario.mode);
+    if (scenario.mode !== "missing-r3") assert.ok(result.metrics.install_to_paid.source_refs.some((ref) => ref.startsWith("asc-report:")), scenario.mode);
+  }
 });

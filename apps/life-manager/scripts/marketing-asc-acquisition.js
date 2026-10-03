@@ -54,6 +54,23 @@ function reportSourceRef(report) {
   return `asc-report:${report.report_id}:${report.instance_id}:${report.processing_date}`;
 }
 
+function d7SourceRefs(product, cohortDate, report) {
+  const cohortRef = validReportDate(cohortDate) ? `asc-web-cohort:${product.app_id}:${cohortDate}:d7` : null;
+  const reportRef = report && report.report_id && report.instance_id ? reportSourceRef(report) : null;
+  return [reportRef, cohortRef].filter(Boolean);
+}
+
+function d7Unavailable(reason, product, cohortDate, observedAt, report = null, extras = {}) {
+  return {
+    ...rateUnavailable(reason, d7SourceRefs(product, cohortDate, report)),
+    cohort_date: cohortDate,
+    cohort_window_days: 7,
+    experimental: true,
+    observed_at: observedAt,
+    ...extras,
+  };
+}
+
 function derivedRate(numerator, denominator, numeratorName, denominatorName, sourceRefs = []) {
   if (!numerator || numerator.status !== "measured") {
     return rateUnavailable(`source_metric_unavailable:${numeratorName}`, sourceRefs);
@@ -139,16 +156,8 @@ function uniquePayerCount(providerRate, denominator) {
 }
 
 function installToPaidD7(product, cohortResponse, downloadRows, cohortDate, observedAt, report) {
-  const cohortRef = `asc-web-cohort:${product.app_id}:${cohortDate}:d7`;
-  const sourceRefs = [report && report.report_id && report.instance_id ? reportSourceRef(report) : null, cohortRef].filter(Boolean);
-  const failed = (reason, extras = {}) => ({
-    ...rateUnavailable(reason, sourceRefs),
-    cohort_date: cohortDate,
-    cohort_window_days: 7,
-    experimental: true,
-    observed_at: observedAt,
-    ...extras,
-  });
+  const sourceRefs = d7SourceRefs(product, cohortDate, report);
+  const failed = (reason, extras = {}) => d7Unavailable(reason, product, cohortDate, observedAt, report, extras);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(cohortDate || "")) || !Number.isFinite(Date.parse(`${cohortDate}T00:00:00Z`))) return failed("cohort_date_invalid");
   const counts = exactDownloadCounts(product, downloadRows, cohortDate);
   if (counts.error) return failed(counts.error, { sample_size: counts.denominator ?? null, redownloads: counts.redownloads ?? null });
@@ -367,26 +376,28 @@ async function downloadR3AtProcessingDate(product, processingDate, directory) {
 async function collectInstallToPaidD7(product, latestDownloads, observedAt, reportDay, directory) {
   const latestMatureDate = latestMatureCohortDate(observedAt);
   const cohortDate = validReportDate(reportDay) && reportDay < latestMatureDate ? reportDay : latestMatureDate;
-  if (!cohortDate) return { metric: d7Unavailable("cohort_observation_time_invalid", null, observedAt), report: null };
+  if (!cohortDate) return { metric: d7Unavailable("cohort_observation_time_invalid", product, null, observedAt), report: null };
   const processingDate = cohortR3ProcessingDate(latestDownloads, cohortDate);
   if (!processingDate) {
-    return { metric: d7Unavailable("cohort_report_lag_unavailable", cohortDate, observedAt), report: null };
+    return { metric: d7Unavailable("cohort_report_lag_unavailable", product, cohortDate, observedAt), report: null };
   }
   let denominatorReport;
   try {
     denominatorReport = await downloadR3AtProcessingDate(product, processingDate, directory);
   } catch (error) {
-    return { metric: d7Unavailable(`cohort_report_${sourceFailureReason(error)}`, cohortDate, observedAt), report: null };
+    return { metric: d7Unavailable(`cohort_report_${sourceFailureReason(error)}`, product, cohortDate, observedAt), report: null };
   }
-  if (!denominatorReport) return { metric: d7Unavailable("cohort_report_instance_unavailable", cohortDate, observedAt), report: null };
+  if (!denominatorReport) return { metric: d7Unavailable("cohort_report_instance_unavailable", product, cohortDate, observedAt), report: null };
   const countCheck = exactDownloadCounts(product, denominatorReport.rows, cohortDate);
   if (countCheck.error) {
     return {
-      metric: d7Unavailable(countCheck.error, cohortDate, observedAt, [reportSourceRef(denominatorReport.metadata)]),
+      metric: d7Unavailable(countCheck.error, product, cohortDate, observedAt, denominatorReport.metadata, {
+        sample_size: countCheck.denominator ?? null,
+        redownloads: countCheck.redownloads ?? null,
+      }),
       report: denominatorReport.metadata,
     };
   }
-  const cohortRef = `asc-web-cohort:${product.app_id}:${cohortDate}:d7`;
   try {
     const response = await ascJson([
       "web", "analytics", "cohorts", "--app", product.app_id,
@@ -399,7 +410,10 @@ async function collectInstallToPaidD7(product, latestDownloads, observedAt, repo
     };
   } catch (error) {
     return {
-      metric: d7Unavailable(`cohort_${sourceFailureReason(error)}`, cohortDate, observedAt, [reportSourceRef(denominatorReport.metadata), cohortRef]),
+      metric: d7Unavailable(`cohort_${sourceFailureReason(error)}`, product, cohortDate, observedAt, denominatorReport.metadata, {
+        sample_size: countCheck.denominator,
+        redownloads: countCheck.redownloads,
+      }),
       report: denominatorReport.metadata,
     };
   }
