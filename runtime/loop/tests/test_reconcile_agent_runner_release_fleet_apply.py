@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 import os
 import plistlib
 import stat
@@ -845,6 +846,35 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 state = self._state(root)
                 self.assertEqual(state['changed'], 2 if was_loaded else 1)
                 self.assertEqual(state['skipped'], 0 if was_loaded else 1)
+
+
+    def test_owner_rows_preserve_native_run_and_claimed_occurrence_context(self):
+        for native in (True, False):
+            with self.subTest(native=native), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                release = self._make_release(root, sha, loop_ids=('loop-a','loop-b'),
+                                             labels={'loop-a':'ai.anicca.loop-a','loop-b':'ai.anicca.loop-b'})
+                self._activate(root, release)
+                agents = root/'agents'
+                self._write_plist(agents, 'ai.anicca.loop-a', sha)
+                env = self._base_env(root, repo, calls_log=root/'calls.log')
+                env['LIFE_MANAGER_LAUNCH_AGENTS_DIR'] = str(agents)
+                env.pop('LIFE_MANAGER_RUN_ID', None)
+                env.pop('LIFE_MANAGER_OCCURRENCE_ID', None)
+                if native:
+                    env.update({'LIFE_MANAGER_RUN_ID':'native-wake-1', 'LIFE_MANAGER_OCCURRENCE_ID':'life-manager-release-reconciler:queued-older-claim'})
+                result = self._run(env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                rows = self._owners_log(root)
+                self.assertEqual(len(rows), 2)
+                for row in rows:
+                    self.assertIn('run_id', row)
+                    self.assertEqual(row['run_id'], 'native-wake-1' if native else None)
+                    self.assertEqual(row['occurrence_id'], 'life-manager-release-reconciler:queued-older-claim' if native else None)
+                    self.assertEqual(row['owner_id'], 'life-manager-release-reconciler')
+                    self.assertIsNotNone(datetime.fromisoformat(row['timestamp']).utcoffset())
+                self.assertEqual({row['loop_id'] for row in rows}, {'loop-a','loop-b'})
 
 
 if __name__ == "__main__":
