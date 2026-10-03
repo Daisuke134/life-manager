@@ -1,6 +1,6 @@
 # Life Manager Writer収益検証の継続
 
-- 最初にSSOT最新§195→§194–192→§191–186→§185#3–12を読む。元の全体goalはactive/未完。
+- 最初にSSOT最新§196→§195→§194–192→§191–186→§185#3–12を読む。元の全体goalはactive/未完。
 - spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`、branch/upstream: `docs/ssot-orchestration-status-20261002` / `origin/docs/ssot-orchestration-status-20261002`。このhandoverと§195は同じdocs commitでpushする。
 - 実装worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/writer-sales-lock-20261003`、branch `fix/writer-sales-browser-lease-20261003`、upstream `origin/fix/writer-sales-browser-lease-20261003`、clean/pushed HEAD `9c31c56033a13dceac2885c3a4d17a024da5a190`。旧auth/provenance branchはmerge済みで保持する。
 - PR6518 auth / PR6519 provenance / PR6520 browser leaseは全CI・fresh SHIP後にadmin squash merge済み。latest mainは `33b5dce0a6ade08cffdf3121ebd01bd73b0bb519`、remote object一致。
@@ -16,3 +16,5 @@
 - AGMSG identity codex-money-printer/team lm。roster no_placement/reachcannotはlive席と数えず、CFO worker268ecea2b0のfreshmessageもprimary未照合のmigration/7日gateを統合済みにしない。
 - Telegram milestone102080確認済み。メッセージ/状態をdedupeする。
 - Writer自然proof後の順序: Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build/Eval→InvestmentAT13–29→Cloud/self-funding→TaskMarket→最終CFO。全14–15loop修復/profit/financial independenceを未証明のまま宣言しない。
+
+- §196に14canonical loopのsource-only CFO receipt mapを保存した。live財務proofではない。Writerはeligible順位7–8へ進行、約4300s待機、host7live+1reservation。既存fairness tests6PASS、優先/scheduleの手動変更は不要と判断。最新run/ledgerを再観測してから次へ進む。

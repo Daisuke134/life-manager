@@ -4441,3 +4441,36 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Writer自然dispatchをread-only観測し、entrypointへ到達したexactrunのNote/Substack公式rowsを確認する。measurement_run_id/owner_id/occurrence_id/release_shaをruntimeeventと突合し、row全体hashをmoneyDBreceipt_sha256へexactjoinする。providerunknownはunknownを保持する。
 2. 同一observationの再importでinserted0、providerattempt0のreplay-zeroを確認する。naturalproofが成立するまではmanualentrypointを代替にしない。
 3. Writerproof後に§185#3以降の順序を進める。vaultIPv4/IPv6cursorとbaselineadoption/repairdebtを残す。goalはactive/未完、このturnはsource/CI/merge/release/targetloadでprogress。
+
+### 196. Writer自然待機の再検証とcanonical CFO source map
+
+- 前turnはsource/CI/merge/release/targetloadのprogress。freshfetchでspec HEAD/upstreamef25、implementationHEAD/upstream9c31、main33、両treecleanを確認。reconcilerPID80789/PPID80758は33immutableからliveであり、別build/apply/killは0。Writerは33loaded-idle、latestnaturalrun18daef7475277f28-81178/05:58:06Zのpre-entrypointcapacitybusyを保持。
+- read-onlyadmission診断ではlive7claims+1reservationのhost上限8、Writereligible順位7–8、waitage約4,300s、borrow/support、effectknownqueued occurrence1件を確認した。ownerterminal時にreserve_available→validatedloaded-idlejobdispatchするsource実装であり、manualkickstartは不要。cross-resourcefairness/agedsupport/borrowallowanceに対応する既存tests6PASS（130deselected）。aging2hは期日による成功予告ではない。
+- Writerの実行cursorを維持したまま、独立read-onlypreparationをnative cfo_canonical_receipt_mapへ委譲した。指定33immutableのcatalog/CFOfinancialsourceだけを読み、provider/private-state/credentials/module実行/編集は禁止。requestgpt-5.6-sol/high、actual/effort/usageはunobservable。以下はsource capability mapでありlive revenue/profit/completion判定ではない。
+- catalogID集合はprimaryもreadbackし14件を確認した。worker補助行・数え直しの曖昧な文章は採用せず、canonical14IDだけを下表に記録する。
+
+| canonical loop | financial source / adapter | source上の残る確認点（live未検証） |
+|---|---|---|
+| gig-coconala | LM_CFO_MARKETPLACE_COCONALA_READBACK / marketplace + shared actual_cost | officialpayment/fee/settlement/payout bindingと全costcoverage |
+| gig-lancers | LM_CFO_MARKETPLACE_LANCERS_READBACK / marketplace + shared actual_cost | 同上、source_unconnectedとpayout任意matchを区別 |
+| gig-crowdworks | LM_CFO_MARKETPLACE_CROWDWORKS_READBACK / marketplace + shared actual_cost | 同上、source_unconnectedを0にしない |
+| writer | LM_CFO_WRITER_MONEY または STATE/writer/money.sqlite3 / writer | payouts/allocations未読込、occurred_atをsettled_atにする意味、常時missing_category、fee分類/actualcost |
+| affiliate | LM_CFO_AFFILIATE_READBACK または LM_CFO_AFFILIATE_LEDGER / affiliate | commission以外fee/payout/cashconverter未実行、常時missing_coverage、actualcost |
+| investment | B5 env / agent_economy_investment | finalizedlive realizedP&Lとpaper/unrealized除外、残cost/refundcoverage、revenueclass意味 |
+| agent-economy | B5 env / agent_economy_investment | x402/TaskMarket別sourcejoinとownedwallet除外、actualcompute/paymentcostcoverage |
+| job-hunter | B7financialmappingなし、明示配賦のshared actual_costのみ | 収益/settlement/payout source未接続 |
+| fundraiser | B7financialmappingなし、fundraisingはB0集計除外 | eligiblefundingreceiptとfinancingrole/costcoverageを区別 |
+| connector | B7financialmappingなし、catalognon_economic | non_economicroleとB0全category要求の整合 |
+| self-build | LM_CFO_STRIPE_READBACK / stripe + shared actual_cost | available_on/chargeclassification/payoutbinding/残costcoverage |
+| mobile-apps | LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES / capafy_mobile.adapt_mobile | 同finalperiodの6products、ASCpartnerShare/return、RCMRRとsettledsalesの区別、fee/actualcost/bankpayout |
+| capafy | LM_CFO_CAPAFY_ANALYTICS / capafy_mobile.adapt_capafy | settledorder/ownerbuyer除外、payout/paymentfee/actualcostcoverage |
+| cfo | 収益mappingなし、shared actual_cost明示配賦のみ | aggregatorroleと全categorycoverage要求の整合 |
+
+- primaryが重要source境界を再確認した。writer._read_rowsはmoney_events/money_feesだけでpayoutを読まず、writer._receiptはsettled_at=occurred_at。affiliate.adaptはgroups=[rows,_commission]だけを呼びmissing_coverageを常時追加。loop_pnlのB5path選択はB5_READBACK or AGENT_ECONOMY_READBACK or INVESTMENT_READBACKの先勝ち。これらを現在のlive不具合/実売上へ断定せず、§185の該当laneと最終CFOでexactreceipt/periodを使って診断する。
+- B0のcountedにはsettledexternalrevenue/refundと7costcategory、excludedにはpayout/ownerdeposit/selfpayment/internaltransfer/fundraising/tokenappreciation/unrealizedPnLがある。sharedactualcostは公式paidinvoice/receiptの明示配賦を要する。implementedやprocessPASSは財務proofではない。
+
+#### 更新後の原子cursor
+
+1. Writer自然dispatchのexactrun/officialrows/runtimeidentity/DBhashjoin/replay-zeroを閉じる。currentpriority/scheduleを変更せず、livejob/ownerの自然進行を観測する。
+2. Writerproof後の§185#3→#12の順序を維持し、このsource-mapのgapを該当laneのofficialreceipt/periodへjoinする。preparedmapを各lane完了とは数えない。
+3. 手動auth/provider再送/credentials変更/他profile変更は0。goalはactive/未完。現turnはverifiedlivewaitとsource-only準備auditであり、profit/financialindependenceは未証明。
