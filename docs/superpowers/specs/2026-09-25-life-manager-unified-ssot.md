@@ -5150,3 +5150,17 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - SUCCESS候補は08-27T17:39:10Z/commit64ad154776babbfd8d88939285f532909103418b/main/rootDirectoryservices/x402-endpoint。該当Git sourceのrailway.tomlはnpx prisma generate && node src/server.js、healthcheck/health。providerSUCCESSとsource候補を稼働business receipt・外部売上・銀行精算へ拡張しない。invoiceのloop配賦は未接続。private証拠cfo-railway-x402-source-history-20261004.json、同expanded、同nonskipped-history、同runtime-candidates、mode600。
 - 既存reconciler10185/parent10172と120秒child applyのliveを継続確認。lsofで同PIDが開く.fleet-apply-plan.khz6sEの生成17:14:37Zを確認し、process起動時刻から単純にbudget超過/終了を推定しない。root.env/installedplistのfleetbudget overridesはunsetだが全loadedenv一致は未観測。current9c/ALL、新mainc0 immutable/load未達、重複build/apply/kill0。
 - 次は同release ownerのterminal→c0immutable/対象load/自然HTTPreceiptと、Coconala公式financial readback/請求期間の実runtime帰属を進める。§217全残TODO/別担当Mobile境界/goalactiveを維持。
+
+
+### 249. mainc0 immutable完成・loaded vault差の訂正・注文一覧のHTTP403
+
+- 旧release owner10185は17:32:50Zにmissing/terminal確認、fresh全reconciler/builder不在後にmainc0のcutを1回実行。exit0/current20261004T023308-c0db5d48/RELEASE.json sha c0db5d489d96738bcbd69229ad04c97eb05b2193/release_pathsALL、変更2filesはmain blobとSHA256一致。新75205/75159、後続78508/78471がliveのためtargetapplyは重ねない。旧fleet terminal17:32:41Z/9c/partial33changed/errors2/skipped124/budgetexceededを確認。
+- GUIpreflight UID501/DS/Aqua/managerUID501/PID1/GUI PASS。actual hf-gig-paid-direct argvはまだ9c/loadednotrunning。実loaded vaultは.cloak/vault/gig-daily-driver/auth-state.json（mtime15:58/cookie68）、context ledgerはgig-leases.json。前の診断はdefault daily-driver vaultを使っており、同じcollector関数でも本番認証入力と一致する証明ではない。この限定を訂正し、旧403/200観測そのものと自然回復の未証明を分ける。
+- 正しいloaded vault/ledger＋新immutablec0のowned DefaultTab/公式fullhistory expressionで18180857はHTTP200/historycomplete/63messages/取引中を観測。手動login/明示cookie注入/業務send0、project history persist0。manual診断でありnativePaidのsource/load/run/result結合の代用ではない。state/coconala-loaded-context-readback-20261004.json/mode600。
+- 通常Paid latest17:36はorders_observation/failed1/effect0/readback0。公式snapshot-failureはorders_missing_containerでHTTP/finalrouteがnull。正しいloaded入力で/mypage/received_orders/openを観測するとHTTP403/title403Forbidden/body13/カード要素0。source labelはprobeコピー時selected_talkroomだったため、caller_label_correctionを明示しordersへ修正、URL/status観測は不変。state/coconala-orders-loaded-context-readback-20261004.json/mode600。空注文/売上0とは扱わない。
+
+### 250. 注文一覧のHTTP失敗receiptを最小修復
+
+- freshmainc0/同owner leaseからbranch fix/coconala-orders-http-readback-20261004。HTTP403/503とtitle403fallbackがorders_missing_containerへ進む3REDを再現。ORDERS_ONLY_EXPRESSIONでdocument.responseStatusを保持し、validate_orders_domはHTTP400–599を要素検証前にsource receipt付きで拒否。403はorders_access_forbidden、404はorders_not_found、その他orders_provider_http_error。既存login判定を保持し、観測失敗を成功へ丸めない。
+- HEAD72d811c0a902f13b2b60ebaab1f9251bec5adbaa/2files/production+13-1lines/clean/pushed。related268/adapter15/contract14loops178jobs/OSS/diffPASS、sharedruntime session59108とfresh read-only coconala_orders_http_review進行中。source proof state/coconala-orders-http-source-proof-20261004.json/mode600。PR/merge/production未達、provider403/正式納品/金融receipt/CFO接続は別未完。
+- 次はrequired runtime/freshreviewを閉じ、一度のPR/CI/merge→既存release owner terminal→最新main immutable/対象load/自然公式receiptを照合する。§217全残TODO/別担当Mobile境界/goalactiveを維持、provider再送/fence解放0。
