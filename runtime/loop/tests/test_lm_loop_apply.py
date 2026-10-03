@@ -5026,3 +5026,37 @@ class RetirementValidationBoundaryTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     apply_live(root, root/'agents', root/'safe', target='ai.anicca.orphan',
                                current=root, lock_path=root/'lock', protocol_reader=lambda: 1)
+
+    def test_guarded_target_uses_retirement_and_preserves_other_retired_plist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'config').mkdir()
+            agents = root/'agents'
+            agents.mkdir()
+            other = agents/'ai.anicca.other.plist'
+            other.write_text('preserve')
+            label = 'ai.anicca.orphan'
+            argv = ['/python', str(root/'missing.py')]
+            guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': argv[1]}
+            (root/'config/loop-registry.json').write_text(json.dumps({
+                'schema_version': 2, 'loops': {}, 'retired_labels': ['ai.anicca.other'],
+                'guarded_retired_labels': {label: guard},
+            }))
+            (root/'RELEASE.json').write_text(json.dumps({'sha': SHA}))
+            calls = []
+            loaded = [True]
+            def safe(_exe, args):
+                calls.append(args)
+                if args == ['preflight']:
+                    return 0, 'ok'
+                if args[0] == 'bootout':
+                    self.assertEqual(args[1], f'gui/{os.getuid()}/{label}')
+                    loaded[0] = False
+                    return 0, ''
+                return (0, 'state = spawn scheduled\nprogram = /python\narguments = {\n'+'\n'.join(argv)+'\n}\n') if loaded[0] else (1, 'Could not find service')
+            with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
+                result = apply_live(root, agents, root/'safe', target=label, current=root,
+                                    lock_path=root/'lock', protocol_reader=lambda: 1)
+            self.assertTrue(result[0]['retired'])
+            self.assertEqual([x for x in calls if x[0]=='bootout'], [['bootout', f'gui/{os.getuid()}/{label}']])
+            self.assertEqual(other.read_text(), 'preserve')
