@@ -1587,6 +1587,10 @@ def test_release_retention_keeps_owner_baseline_named_only_by_promotion_hold(tmp
         "sha": "f" * 40,
         "owner_id": "example",
         "owner_label": "ai.anicca.example",
+        "pr": 1094,
+        "pid": 1234,
+        "created_at": "2026-10-04T00:00:00.000Z",
+        "expires_at": "2026-10-04T01:30:00.000Z",
         "baseline": {
             "ok": True,
             "owner_id": "example",
@@ -1627,6 +1631,36 @@ def test_release_retention_has_no_candidates_when_promotion_hold_is_malformed(tm
 
     assert candidates == []
     assert all((releases / name).exists() for name in names)
+
+
+@pytest.mark.parametrize("hold_value", [{}, {"owner_id": "example"}])
+def test_release_reference_collector_rejects_incomplete_hold_shapes(
+    tmp_path: Path, hold_value: dict,
+) -> None:
+    releases = tmp_path / "loops/releases"
+    releases.mkdir(parents=True)
+    (tmp_path / "loops/.promotion-hold").write_text(json.dumps(hold_value))
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+
+    assert governor._referenced_releases() is None
+
+
+def test_release_reference_collector_accepts_explicit_premerge_writer_shape(tmp_path: Path) -> None:
+    releases = tmp_path / "loops/releases"
+    releases.mkdir(parents=True)
+    (tmp_path / "loops/.promotion-hold").write_text(json.dumps({
+        "sha": None,
+        "owner_id": "example",
+        "owner_label": "ai.anicca.example",
+        "pr": 1094,
+        "pid": 1234,
+        "baseline": None,
+        "created_at": "2026-10-04T00:00:00.000Z",
+        "expires_at": "2026-10-04T01:30:00.000Z",
+    }))
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+
+    assert governor._referenced_releases() == frozenset()
 
 
 def test_read_only_release_export_is_still_reclaimable(tmp_path: Path) -> None:

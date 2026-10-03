@@ -14,7 +14,9 @@ from runtime.loop.loop_cleanup import cleanup_run_root, gc_releases
 from runtime.loop.lm_loop_run import build_loop_command
 from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
-from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
+from runtime.loop.central_cleanup import (
+    no_effect_loop_ids, open_release_roots, promotion_hold_release_roots, release_gc, scratch_gc,
+)
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
 
 
@@ -27,6 +29,31 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_promotion_hold_reference_collector_rejects_incomplete_shapes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); releases = root / "loops/releases"; releases.mkdir(parents=True)
+            hold = root / "loops/.promotion-hold"
+            for value in ({}, {"owner_id": "example"}):
+                with self.subTest(value=value):
+                    hold.write_text(json.dumps(value))
+                    self.assertIsNone(promotion_hold_release_roots(hold, releases))
+
+    def test_promotion_hold_reference_collector_accepts_explicit_premerge_writer_shape(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); releases = root / "loops/releases"; releases.mkdir(parents=True)
+            hold = root / "loops/.promotion-hold"
+            hold.write_text(json.dumps({
+                "sha": None,
+                "owner_id": "example",
+                "owner_label": "ai.anicca.example",
+                "pr": 1094,
+                "pid": 1234,
+                "baseline": None,
+                "created_at": "2026-10-04T00:00:00.000Z",
+                "expires_at": "2026-10-04T01:30:00.000Z",
+            }))
+            self.assertEqual(promotion_hold_release_roots(hold, releases), set())
+
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
             registry = Path(directory) / "loop-registry.json"
@@ -972,6 +999,10 @@ class LoopCleanupTest(unittest.TestCase):
                 "sha": "f" * 40,
                 "owner_id": "example",
                 "owner_label": "ai.anicca.example",
+                "pr": 1094,
+                "pid": 1234,
+                "created_at": "2026-10-04T00:00:00.000Z",
+                "expires_at": "2026-10-04T01:30:00.000Z",
                 "baseline": {
                     "ok": True,
                     "owner_id": "example",

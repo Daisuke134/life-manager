@@ -823,6 +823,19 @@ class HostDiskGovernor:
                 value = json.loads(hold.read_text(encoding="utf-8"))
                 if not isinstance(value, dict):
                     return None
+                if ("sha" not in value
+                        or ("baseline" not in value and "previous_release_path" not in value)
+                        or not isinstance(value.get("owner_id"), str) or not value["owner_id"]
+                        or not isinstance(value.get("pr"), int) or isinstance(value.get("pr"), bool)
+                        or value["pr"] <= 0
+                        or not isinstance(value.get("pid"), int) or isinstance(value.get("pid"), bool)
+                        or value["pid"] <= 0
+                        or not isinstance(value.get("created_at"), str) or not value["created_at"]
+                        or not isinstance(value.get("expires_at"), str) or not value["expires_at"]
+                        or ("baseline" in value and (
+                            not isinstance(value.get("owner_label"), str)
+                            or not value["owner_label"].startswith("ai.anicca.")))):
+                    return None
                 hold_sha = value.get("sha")
                 if hold_sha is not None and (
                     not isinstance(hold_sha, str)

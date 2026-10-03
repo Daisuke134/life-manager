@@ -306,6 +306,19 @@ def promotion_hold_release_roots(hold_path: Path, releases_root: Path) -> set[Pa
         return None
     if not isinstance(hold, dict):
         return None
+    if ("sha" not in hold
+            or ("baseline" not in hold and "previous_release_path" not in hold)
+            or not isinstance(hold.get("owner_id"), str) or not hold["owner_id"]
+            or not isinstance(hold.get("pr"), int) or isinstance(hold.get("pr"), bool)
+            or hold["pr"] <= 0
+            or not isinstance(hold.get("pid"), int) or isinstance(hold.get("pid"), bool)
+            or hold["pid"] <= 0
+            or not isinstance(hold.get("created_at"), str) or not hold["created_at"]
+            or not isinstance(hold.get("expires_at"), str) or not hold["expires_at"]
+            or ("baseline" in hold and (
+                not isinstance(hold.get("owner_label"), str)
+                or not hold["owner_label"].startswith("ai.anicca.")))):
+        return None
     hold_sha = hold.get("sha")
     if hold_sha is not None and (not isinstance(hold_sha, str)
                                  or re.fullmatch(r"[a-f0-9]{40}", hold_sha) is None):
