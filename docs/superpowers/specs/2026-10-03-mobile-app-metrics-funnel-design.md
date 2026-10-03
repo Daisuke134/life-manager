@@ -27,8 +27,8 @@ Each rate is `{status: measured|unavailable, value, reason, numerator, denominat
 
 ## Current gaps
 
-- Local `asc` is 2.5.0; upstream Rork release is 5.9.2.
-- Latest ASC snapshots are unavailable with HTTP 403.
+- Local `asc` is Rork 5.9.2 (checksum verified).
+- Latest ASC inventory/acquisition is unavailable because `asc apps list` returns the account-wide required-agreement-missing/expired error; this is not treated as zero or as a generic 403.
 - RevenueCat is available for latest local snapshots; the current CFO loop counts only `anicca-ios` and `honne-ai` RevenueCat chart revenue and records currency as UNKNOWN.
 - Campaign attribution is not configured, so install-to-impression attribution rates remain unavailable even when store totals exist.
 
