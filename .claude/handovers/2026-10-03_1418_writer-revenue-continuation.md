@@ -1,10 +1,10 @@
 # Life Manager継続の最新cursor
 
-- 最初にSSOT§208→§207–201→§200–198→§185残TODOを読む。全体goalはactive/未完。
-- specworktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`、branch/upstream `docs/ssot-orchestration-status-20261002` / `origin/docs/ssot-orchestration-status-20261002`。このhandoverは§208と同じdocscommitでpush。
-- 実装worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/writer-sales-lock-20261003`を再利用。branch/upstream `fix/paid-marker-history-20261003` / `origin/fix/paid-marker-history-20261003`。clean/pushed HEAD `075bad1e7e（exactSHAはgit rev-parseで確認）`。旧Writer branchを切替/削除しない。
-- PR6521は全CI/freshSHIP/93+native6tests後merge済み。latestmainはPR6522 mergeの `ee7a7f657fc805fdd8c69732ca857de166cd9583`、FundraiserleasedCDP/実helperprompt/pass中recovery停止のsource修復統合済み、Fundraiser targetload済み/旧fence保持、officialproof未完。currentcomplete release `/Users/anicca/loops/releases/20261003T174129-ee7a7f65`、ALL/ancestorofmain、Fundraiser/Connector4files bytes一致。Connectorloadedはecddのまま。
-- 最初の安全操作: nativefreshreview paid_marker_history_final_review の結果→PR/CI/adminmerge。sourcebranchfix/paid-marker-history-20261003は075bad/pushed、2files/shared307/runtime748/adapter15/contractPASS。review前にmain/production成功とせず、重大指摘はsource確認して修復。actualmodel/effort/usage未観測。
+- 最初にSSOT§209→§208–201→§200–198→§185残TODOを読む。全体goalはactive/未完。
+- specworktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`、branch/upstream `docs/ssot-orchestration-status-20261002` / `origin/docs/ssot-orchestration-status-20261002`。このhandoverは§209と同じdocscommitでpush。
+- 実装worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/writer-sales-lock-20261003`を再利用。branch/upstream `fix/paid-marker-history-20261003` / `origin/fix/paid-marker-history-20261003`。clean/pushed HEAD `18edb15b5940bb0de67f574e85735efc3bb31efd`。旧Writer branchを切替/削除しない。
+- PR6521 Connectorauth修復/PR6522 FundraiserleasedCDP修復は統合・対象load済み。latestmainはPR6524のc5e6、currentcompleteimmutableはee7a（17:41生成/ALL/ancestorofmain）。Fundraiseree7aload/旧fence保持、Connectorはecdd自然terminal。次のc5e6source反映を待つ。
+- 最初の安全操作: ee7areconcilerPID61117/parent61094のterminal/新owner有無をfreshreadback。Paidmarkerhistory修復PR6524はfreshSHIP/307+748+15/contract/OSS/全CIPASS後adminmerge済み。latestmainc5e6b691bb18128fca39e1d57913abaa2a41ed94、production反映未完。既存ownerがc5e6completeimmutableを作れば再cut不要。currentee7aから別build/apply/killを重ねない。
 - Connector実入口native-pass→connector-minimal-production→lumaworkflowの認証済み判定後discoveryに自然到達。参加可能候補0のためprovider/mail/Calendar/replayは登録発生時の未完条件。再apply/manualwake不要、currentcompleteee7aだがConnectorloadedecdd。
 - Connectorenv正本は `~/.local/state/life-manager/.env`。gogfilebackendのauthlistでaccount一致1/Gmail+Calendar scopeをread-only確認。AppleKeychain禁止、credentials/別profile更新禁止、code/token/credentialをchat/logへ出さない。CAPTCHA/KYC/本人確認/個人資金/同mutable resourceの境界を保持する。
 - Writer最初の自然gateは§198PASS: run18daf272ac672988-74338/SHA33、Notefresh0/0、Substackofficialunknown3、runtime/JSONL/DBhash5件exactjoin、実DBbackup上reimport0/providernetwork0。watcher44814は終了済みで再起動しない。売上event/fee/payout記録0、settledprofit未証明。
