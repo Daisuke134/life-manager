@@ -26,11 +26,12 @@ ENDPOINTS = {
 }
 
 
-def _direct_capture_expression(names: list[str]) -> str:
+def _direct_capture_expression(names: list[str], *, expected_email: str | None = None) -> str:
     """Build a bounded same-page fallback when CDP lost a response body."""
     urls = {name: ENDPOINTS[name] for name in names if name in ENDPOINTS}
     return """(async()=>{
       const urls=%s;
+      const expectedEmail=%s;
       const out={};
       let token='';
       try {
@@ -49,7 +50,12 @@ def _direct_capture_expression(names: list[str]) -> str:
           const tokenFrom=value=>value?.stsTokenManager?.accessToken||
             value?.value?.stsTokenManager?.accessToken||value?.accessToken||
             value?.value?.accessToken||'';
-          token=(Array.isArray(values)?values:[]).map(tokenFrom).find(Boolean)||'';
+          const selected=(Array.isArray(values)?values:[]).find(value=>tokenFrom(value));
+          const selectedEmail=selected?.email||selected?.value?.email||'';
+          if(expectedEmail && selectedEmail.trim().toLowerCase()!==expectedEmail.trim().toLowerCase()){
+            db.close(); return JSON.stringify(out);
+          }
+          token=tokenFrom(selected);
         }
         db.close();
       } catch(error) { return JSON.stringify(out); }
@@ -86,7 +92,7 @@ def _direct_capture_expression(names: list[str]) -> str:
       }));
       for(const [name,value] of fetched) if(value!==null) out[name]=value;
       return JSON.stringify(out);
-    })()""" % json.dumps(urls, ensure_ascii=False, sort_keys=True)
+    })()""" % (json.dumps(urls, ensure_ascii=False, sort_keys=True), json.dumps(expected_email))
 
 
 async def _capture_direct(call, names: list[str]) -> dict[str, object]:
