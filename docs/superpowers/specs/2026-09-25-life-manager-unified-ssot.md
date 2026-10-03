@@ -5513,3 +5513,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - blocking findingはorphan hold schema。readPromotionHoldがENOENTとinvalidJSONを同じnullへ、recoverOrphanedPromotionHoldがhold.sha||nullによりemptydict/owner-only/array/wrongshatypeをpremergeと推定しrelease/oktrueにする。独立fixture{}でreleasedtrueを再現。reconciler/GCがfreezeする未知postmerge状態を別経路で解放するためsource SHIPは不可。
 - primaryはPR作成を保留し実装workerへ最小修正を返した。readerは不存在と不正既存holdを区別、GCと整合するvalid new/legacy writerだけをorphan回復へ許可、不正holdはattemptedtrue/okfalse・保持・diagnostic cursor、明示valid sha:nullだけpremerge解放。acquire/updateで未知既存holdを上書きしないことも検証する。production wallet/auth/rollback/cleanup0。
 - nested root許容とretention directchildの不整合は現状cleanup停止となる保守的残境界でデータ消失を起こすfindingではない。旧sha:null実merge-crash windowは別未解決。修正後新HEADの必要検証と別fresh reviewを行う。state/selfbuild-owner-baseline-source-20261004.json/mode600へfix-first保存。全goalactive、全残TODO → §217。
+
+
+### 293. orphan malformed hold findingを修正しfresh再review
+
+- worker follow-upは33682495efc134c6648676cac5ee03ddf5f903ed/clean/pushed。readPromotionHoldをmissing(ENOENT)/valid object/invalid(JSON/array/nonregular/stat failure)へ分離し、acquire/update/orphanの全callerを更新。writer shapeはsha明示null|40hex、owner/pr/pid/date、new baseline+label|legacy previouspathを検証し、bool SHAのnull coercionも拒否。
+- emptydict/owner-only/array/wrongshatype/invalidJSON/directoryはattemptedtrue/okfalse/errored/inspect_promotion_hold、hold保持・revert/reapply/release0。invalid既存holdの上書き0。明示valid new/legacy sha:nullだけ従来premerge解放の互換を保つ。旧valid sha:null実merge後書込前crash windowは未解決であり、missing dataから成功を推定する修復とは別境界。
+- source関連RED→GREEN後、primary Node153/fullruntime765145.360s/disk97/contract/OSS/diff PASS。前Node148/765の結果とはHEADを区別する。source proof state/selfbuild-owner-baseline-source-20261004.json/mode600へcorrected evidenceを保存。
+- 別fresh selfbuild_owner_baseline_corrected_reviewをgpt-5.6-sol/high/forknoneで依頼中。初回fix-firstを既存通過と解釈せず、PR/merge/production source acceptanceは再review後。actual model/effort/usageは観測不能、wallet/profile/production rollback/cleanup0。全goalactive、全残TODO → §217。
