@@ -262,6 +262,27 @@ class StripeTest(unittest.TestCase):
             "cfo",
         )
 
+    def test_google_billing_readback_exposes_invoice_variance_without_estimate_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cost-table.csv"
+            rows = [
+                ["合計お支払い額", "¥20", ""],
+                ["通貨", "JPY", ""],
+                ["サービスの説明", "SKU の説明", "費用のタイプ", "使用開始日", "四捨五入前の費用（¥）", "プロジェクト ID"],
+                ["Geocoding API", "Geocoding", "使用量", "2026-09-30", "12", "project"],
+                ["Google Cloud", "税", "税金", "2026-09-30", "2", "project"],
+            ]
+            with path.open("w", encoding="utf-8", newline="") as stream:
+                csv.writer(stream).writerows(rows)
+            payload = m.google_billing_actual_cost_readback(
+                path, invoice_month="2026-09", snapshot_at=SNAPSHOT,
+                trailing_start=TRAILING_START,
+            )
+        self.assertEqual(payload["readback"]["variance"], {
+            "invoice_total": "20", "positive_cost_total": "12", "tax_and_rounding": "8",
+        })
+        self.assertTrue(all(line["basis"] == "official_invoice" for line in payload["documents"][0]["line_items"]))
+
     def test_test_mode_key_is_not_a_live_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             creds = Path(tmp) / "c.json"

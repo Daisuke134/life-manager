@@ -31,10 +31,32 @@ function sourceFailures(row, requiredSources) {
   return failures;
 }
 
+function providerLaneFailures(row, requiredProviderLanes) {
+  if (!requiredProviderLanes.length) return [];
+  const lanes = row?.providerLanes;
+  if (!lanes || typeof lanes !== "object" || Array.isArray(lanes)) return ["provider_lanes_missing"];
+  const failures = [];
+  for (const lane of requiredProviderLanes) {
+    const value = lanes[lane];
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      failures.push(`provider_lane_missing:${lane}`);
+      continue;
+    }
+    if (value.status !== "fresh") failures.push(`provider_lane_not_fresh:${lane}`);
+    const calls = Number(value.fallbackCalls);
+    const cap = Number(value.fallbackCap);
+    if (Number.isFinite(calls) && Number.isFinite(cap) && calls > cap) {
+      failures.push(`provider_lane_cap_exceeded:${lane}`);
+    }
+  }
+  return failures;
+}
+
 function evaluateCfoObservationPeriods(periods, {
   requiredDays = 7,
   latestDate = null,
   requiredSources = DEFAULT_REQUIRED_SOURCES,
+  requiredProviderLanes = [],
 } = {}) {
   if (!Number.isInteger(requiredDays) || requiredDays < 1 || requiredDays > 31) {
     throw new Error("cfo observation required days invalid");
@@ -42,6 +64,10 @@ function evaluateCfoObservationPeriods(periods, {
   if (!Array.isArray(requiredSources) || requiredSources.length === 0
     || requiredSources.some((source) => typeof source !== "string" || !source.trim())) {
     throw new Error("cfo observation required sources invalid");
+  }
+  if (!Array.isArray(requiredProviderLanes)
+    || requiredProviderLanes.some((lane) => typeof lane !== "string" || !lane.trim())) {
+    throw new Error("cfo observation required provider lanes invalid");
   }
   const byDate = new Map();
   const failures = [];
@@ -69,6 +95,7 @@ function evaluateCfoObservationPeriods(periods, {
   let deliveryDays = 0;
   let freshDays = 0;
   let settledCostDays = 0;
+  let providerFreshDays = 0;
   for (const date of expected) {
     const row = byDate.get(date);
     if (!row) continue;
@@ -77,15 +104,19 @@ function evaluateCfoObservationPeriods(periods, {
     const sourceErrors = sourceFailures(row, requiredSources);
     if (sourceErrors.length === 0) freshDays += 1;
     failures.push(...sourceErrors.map((error) => `${error}:${date}`));
+    const laneErrors = providerLaneFailures(row, requiredProviderLanes);
+    if (laneErrors.length === 0) providerFreshDays += 1;
+    failures.push(...laneErrors.map((error) => `${error}:${date}`));
     if (row.providerCostSettlement?.status === "settled") settledCostDays += 1;
   }
   const contiguous = missing.length === 0;
   const ready = contiguous && deliveryDays === requiredDays;
-  const complete = ready && freshDays === requiredDays && settledCostDays === requiredDays;
+  const providerReady = requiredProviderLanes.length === 0 || providerFreshDays === requiredDays;
+  const complete = ready && freshDays === requiredDays && settledCostDays === requiredDays && providerReady;
   return Object.freeze({
     schemaVersion: 1, requiredDays, latestDate: end, expectedDays: expected,
     observedDays: expected.filter((date) => byDate.has(date)),
-    deliveryDays, freshDays, settledCostDays, ready, complete,
+    deliveryDays, freshDays, settledCostDays, providerFreshDays, ready, complete,
     failures: [...new Set(failures)].sort(),
   });
 }

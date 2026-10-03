@@ -256,6 +256,11 @@ def google_billing_actual_cost_readback(
             "kind": "official_billing_readback", "observed_at": snapshot_at,
             "historical": {"complete": True, "window_start": None, "window_end": snapshot_at},
             "trailing": {"complete": True, "window_start": trailing_start, "window_end": snapshot_at},
+            "variance": {
+                "invoice_total": _billing_text(invoice_total) if invoice_total is not None else None,
+                "positive_cost_total": _billing_text(positive_cost_total),
+                "tax_and_rounding": _billing_text(effective_tax),
+            },
         },
         "sources": [{"provider": "google-cloud", "status": "available", "product_loop_ids": ["cfo"]}],
         "documents": [{

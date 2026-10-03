@@ -10,6 +10,7 @@ const { financialRecordId } = require("../../../runtime/contracts/common-record.
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
 const { MONEYTREE_OBSERVATION } = require("../lib/moneytree-local-adapter.js");
 const { runHourlyCfo } = require("./cfo-hourly-local.js");
+const { evaluateCfoObservationPeriods } = require("../lib/cfo-observation-gate.js");
 
 function verifiedBalance() {
   const sourceRef = `moneytree:${"c".repeat(64)}`;
@@ -75,4 +76,29 @@ test("natural-run fixture proves stale cash, source gaps, cost unknown, delivery
   assert.match(messages[0], /Google請求: 未確認/);
   assert.match(messages[0], /Provider予算: degraded/);
   assert.match(first.digest, /^[a-f0-9]{64}$/);
+});
+
+test("provider-cost acceptance fixture keeps stale benchmark partial and free-primary fallback bounded", () => {
+  const row = (date, geocoderStatus = "fresh") => ({
+    reportingDate: date,
+    delivery: { status: "sent", providerMessageId: `provider-${date}` },
+    sourceFreshness: {
+      moneytree: { status: "fresh" }, businessReadback: { status: "fresh" }, googleBilling: { status: "fresh" },
+    },
+    providerCostSettlement: { status: "settled" },
+    providerLanes: {
+      poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+      transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100 },
+      geocoder: { status: geocoderStatus, primary: "cache", fallbackCalls: 2, fallbackCap: 200 },
+    },
+  });
+  const periods = Array.from({ length: 7 }, (_, index) => row(
+    `2026-10-${String(index + 1).padStart(2, "0")}`, index === 6 ? "partial" : "fresh",
+  ));
+  const result = evaluateCfoObservationPeriods(periods, {
+    latestDate: "2026-10-07", requiredProviderLanes: ["poi", "transit", "geocoder"],
+  });
+  assert.equal(result.ready, true);
+  assert.equal(result.complete, false);
+  assert.ok(result.failures.includes("provider_lane_not_fresh:geocoder:2026-10-07"));
 });

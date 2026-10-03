@@ -63,3 +63,30 @@ test("missing delivery receipt keeps the seven-day gate closed", () => {
   assert.equal(result.deliveryDays, 6);
   assert.ok(result.failures.includes("delivery_receipt_missing:2026-10-03"));
 });
+
+test("provider lanes require fresh primaries and bounded fallback before complete", () => {
+  const periods = Array.from({ length: 7 }, (_, index) => row(
+    `2026-10-${String(index + 1).padStart(2, "0")}`,
+    {
+      providerLanes: {
+        poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+        transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100 },
+        geocoder: { status: index === 6 ? "partial" : "fresh", primary: "cache", fallbackCalls: 1, fallbackCap: 200 },
+      },
+    },
+  ));
+  const partial = evaluateCfoObservationPeriods(periods, {
+    latestDate: "2026-10-07", requiredProviderLanes: ["poi", "transit", "geocoder"],
+  });
+  assert.equal(partial.ready, true);
+  assert.equal(partial.complete, false);
+  assert.ok(partial.failures.includes("provider_lane_not_fresh:geocoder:2026-10-07"));
+
+  periods[6].providerLanes.geocoder.status = "fresh";
+  periods[6].providerLanes.transit.fallbackCalls = 101;
+  const overCap = evaluateCfoObservationPeriods(periods, {
+    latestDate: "2026-10-07", requiredProviderLanes: ["poi", "transit", "geocoder"],
+  });
+  assert.equal(overCap.complete, false);
+  assert.ok(overCap.failures.includes("provider_lane_cap_exceeded:transit:2026-10-07"));
+});

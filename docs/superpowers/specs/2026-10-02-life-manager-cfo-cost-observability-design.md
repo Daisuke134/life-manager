@@ -348,3 +348,17 @@ Best case is a cache hit and successful free primary on nearly every Japan reque
 7. **CFO acceptance:** rerun the B7 report with fresh provider receipts, observe seven consecutive daily closes, reconcile the October Cost Table, and only then update the target from estimate to measured actual.
 
 This provider-cost sequence is additive to Section 11's personal-MUFG and external-settlement TODOs. Those financial source gaps remain required for a complete CFO report even if provider API cost reaches the target.
+
+## 13. Provider-cost implementation cursor
+
+The first six provider-cost tasks are now implemented on the dedicated branch: coordinate-ready Japan Transit no longer requires a Google key; OpenPOI attribution/licenses/provider metadata are carried through location resolution; geocoder and routing benchmark runners produce deterministic fail-closed evidence; provider caps and fallback telemetry are enforced; and the local-LLM scorecard refuses an unconfigured or lower-quality candidate. Focused tests and the existing Life Manager suite remain green (the current suite is 188/188 PASS; the CFO Python suite is 248/248 PASS before the latest variance test and must be rerun at the final gate).
+
+The current acceptance cursor is:
+
+1. rerun all provider benchmark and CFO suites after the variance/gate changes;
+2. retain the geocoder `no_winner` and LLM `keep_current` evidence until an approved read-only endpoint or existing model-routing shadow produces receipts;
+3. observe seven real daily closes with fresh source rows, settled Google billing, provider-lane cap receipts, and replay-zero;
+4. only then promote a benchmark winner or claim the ¥5,500–¥7,500 pre-tax planning target as measured actual; and
+5. separately close Section 11's MUFG and external settlement gaps before marking the CFO report complete.
+
+The latest evidence bundle is `docs/evidence/cfo/2026-10-03-provider-cost-selection.md`. Synthetic seven-day rows prove gate behavior only; they are not elapsed production observation.
