@@ -26,12 +26,14 @@ test("OpenPOI maps facility candidates and preserves licenses/attributions", asy
     category: "restaurant", source: "jff", licenses: ["CC BY 4.0"], attributions: ["東京都データ"],
   }]);
   assert.deepEqual(result.attributions, ["東京都データ"]);
+  assert.equal(result.attributionUrl, "https://openpoiapi.com/attribution.html");
 });
 
 test("OpenPOI empty results are a safe no-candidate response", async () => {
   const result = await searchOpenPoi("存在しない店", { fetchImpl: async () => ({ ok: true, json: async () => ({ count: 0, results: [] }) }) });
   assert.deepEqual(result.candidates, []);
   assert.deepEqual(result.attributions, []);
+  assert.equal(result.attributionUrl, "https://openpoiapi.com/attribution.html");
 });
 
 test("OpenPOI provider failure is explicit and does not become Google success", async () => {

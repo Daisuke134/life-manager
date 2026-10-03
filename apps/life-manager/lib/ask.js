@@ -179,10 +179,21 @@ async function placesSearch(query, mapsKey, options = {}) {
   if (poiSearch && options.openPoiSearch !== null) {
     try {
       const poi = await poiSearch(query, { fetchImpl: options.openPoiFetch });
-      const results = (poi.candidates || []).filter((candidate) => String(candidate.address || "").trim())
-        .slice(0, 5).map((candidate) => ({ name: candidate.name, address: candidate.address }));
+      const candidates = (poi.candidates || []).filter((candidate) => String(candidate.address || "").trim()).slice(0, 5);
+      const results = candidates.map((candidate) => ({
+        name: candidate.name,
+        address: candidate.address,
+        licenses: Array.isArray(candidate.licenses) ? [...new Set(candidate.licenses.map(String))].sort() : [],
+      }));
       if (results.length) {
-        return { results, attributions: poi.attributions || [], provider: "openpoi" };
+        return {
+          results,
+          attributions: poi.attributions || [],
+          licenses: [...new Set(candidates.flatMap((candidate) => Array.isArray(candidate.licenses)
+            ? candidate.licenses.map(String) : []))].sort(),
+          attributionUrl: poi.attributionUrl || "https://openpoiapi.com/attribution.html",
+          provider: "openpoi",
+        };
       }
     } catch { /* OpenPOI is the free primary; Google remains an explicit fallback. */ }
   }
@@ -205,9 +216,9 @@ async function placesSearch(query, mapsKey, options = {}) {
     const j = await r.json();
     return {
       results: (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" })),
-      attributions: [], provider: "google",
+      attributions: [], attributionUrl: null, provider: "google",
     };
-  } catch { return { results: [], attributions: [], provider: "google" }; }
+  } catch { return { results: [], attributions: [], attributionUrl: null, provider: "google" }; }
 }
 
 // The agent's two tools: it searches Places (as many queries as it wants), then submits its verdict.
@@ -248,6 +259,9 @@ async function agentResolveLocation(event, {
   authorizeProviderOperation,
 }) {
   let openPoiAttributions = [];
+  let openPoiLicenses = [];
+  let locationProvider = null;
+  let locationAttributionUrl = null;
   const raw = rawGemini || geminiRaw;
   if (typeof authorizeProviderOperation === "function") {
     const decision = await authorizeProviderOperation({
@@ -310,7 +324,11 @@ User's home address: ${JSON.stringify(home || "")}` }],
         if (a.online) return { kind: "online" };
         if (a.confident && a.location && String(a.location).trim()) {
           const resolvedFrom = ["location_field", "description", "web_search"].includes(a.source) ? a.source : "web_search";
-          return { kind: "filled", location: String(a.location).trim(), resolvedFrom, attributions: openPoiAttributions };
+          return {
+            kind: "filled", location: String(a.location).trim(), resolvedFrom,
+            ...(locationProvider ? { provider: locationProvider } : {}),
+            licenses: openPoiLicenses, attributions: openPoiAttributions, attributionUrl: locationAttributionUrl,
+          };
         }
         return { kind: "ask" };
       }
@@ -319,9 +337,18 @@ User's home address: ${JSON.stringify(home || "")}` }],
           openPoiSearch: poiSearch, openPoiFetch,
           authorizeProviderOperation, tenantId: uid,
         });
-        if (res.provider === "openpoi") openPoiAttributions = res.attributions || [];
+        locationProvider = res.provider === "openpoi" || res.provider === "google" ? res.provider : locationProvider;
+        if (res.provider === "openpoi") {
+          openPoiLicenses = res.licenses || [];
+          openPoiAttributions = res.attributions || [];
+          locationAttributionUrl = res.attributionUrl || "https://openpoiapi.com/attribution.html";
+        }
         responses.push({ functionResponse: {
-          name: "places_search", response: { results: res.results, attributions: res.attributions },
+          name: "places_search", response: {
+            results: res.results, attributions: res.attributions,
+            licenses: res.licenses || [],
+            attributionUrl: res.attributionUrl || null,
+          },
         } });
       }
     }

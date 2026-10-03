@@ -1,6 +1,7 @@
 "use strict";
 
 const OPENPOI_BASE_URL = "https://api.openpoiapi.com";
+const OPENPOI_ATTRIBUTION_URL = "https://openpoiapi.com/attribution.html";
 
 function mapCandidate(row) {
   const lat = Number(row && row.lat); const lon = Number(row && row.lng);
@@ -26,18 +27,22 @@ async function searchOpenPoi(query, {
   }
   params.set("limit", String(Math.min(200, Math.max(1, Math.round(Number(limit) || 10)))));
   const observedAt = new Date().toISOString();
-  if (typeof fetchImpl !== "function") return { status: "unavailable", candidates: [], attributions: [], observedAt };
+  if (typeof fetchImpl !== "function") {
+    return { status: "unavailable", candidates: [], attributions: [], attributionUrl: OPENPOI_ATTRIBUTION_URL, observedAt };
+  }
   try {
     const response = await fetchImpl(`${String(baseUrl).replace(/\/+$/, "")}/v1/search?${params}`);
-    if (!response || response.ok === false) return { status: "unavailable", candidates: [], attributions: [], observedAt };
+    if (!response || response.ok === false) {
+      return { status: "unavailable", candidates: [], attributions: [], attributionUrl: OPENPOI_ATTRIBUTION_URL, observedAt };
+    }
     const payload = await response.json();
     const candidates = (Array.isArray(payload && payload.results) ? payload.results : [])
       .map(mapCandidate).filter(Boolean);
     const attributions = [...new Set(candidates.flatMap((candidate) => candidate.attributions))].sort();
-    return { status: "fresh", candidates, attributions, observedAt };
+    return { status: "fresh", candidates, attributions, attributionUrl: OPENPOI_ATTRIBUTION_URL, observedAt };
   } catch {
-    return { status: "unavailable", candidates: [], attributions: [], observedAt };
+    return { status: "unavailable", candidates: [], attributions: [], attributionUrl: OPENPOI_ATTRIBUTION_URL, observedAt };
   }
 }
 
-module.exports = { OPENPOI_BASE_URL, mapCandidate, searchOpenPoi };
+module.exports = { OPENPOI_ATTRIBUTION_URL, OPENPOI_BASE_URL, mapCandidate, searchOpenPoi };
