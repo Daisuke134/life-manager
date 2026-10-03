@@ -266,7 +266,7 @@ This spec is the CFO workstream's single ownership boundary. `lm-cfo-observabili
 ### Repository approval and integration gate (2026-10-04)
 
 - Issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) tracks this CFO/cost workstream; it is open with no maintainer response, and no PR exists. Per `CONTRIBUTING.md`, follow-up source edits wait for maintainer 👍.
-- Before this documentation refresh, branch `docs/lm-cfo-cost-observability-spec-20261002` was pushed at `1178c99091`; latest `origin/main` is `b7fb1dfa5a`, merge base is `bc0d1fa7`, and the branch is 63 main-only / 81 branch-only commits. The earlier sync attempt targeted the then-current `5fc226d9` and found conflicts in the CFO design spec, Stripe adapter, B7 collector, and three CFO test files; it was aborted without retaining source changes. This refresh is documentation-only; no PR exists. The branch is not ready for promotion. After approval, sync to current main, resolve any conflicts, rerun acceptance, and obtain a fresh whole-branch review.
+- At pre-refresh HEAD `1178c99091`, branch `docs/lm-cfo-cost-observability-spec-20261002` was pushed against latest `origin/main` `b7fb1dfa5a`, with merge base `bc0d1fa7` and 63 main-only / 82 branch-only commits. The earlier sync attempt targeted the then-current `5fc226d9` and found conflicts in the CFO design spec, Stripe adapter, B7 collector, and three CFO test files; it was aborted without retaining source changes. This refresh is documentation-only; no PR exists. The branch is not ready for promotion. After approval, sync to current main, resolve any conflicts, rerun acceptance, and obtain a fresh whole-branch review.
 
 ### Verified state
 
