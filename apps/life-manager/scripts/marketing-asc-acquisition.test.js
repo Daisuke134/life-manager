@@ -6,7 +6,35 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { importContentObject } = require("../lib/content-object-store.js");
-const { PRODUCTS, pending, persistAscAcquisition, rows, summarize } = require("./marketing-asc-acquisition.js");
+const { PRODUCTS, derivedFunnelRates, pending, persistAscAcquisition, rows, summarize } = require("./marketing-asc-acquisition.js");
+
+test("ASC funnel rates are measured with explicit numerators and denominators", () => {
+  const rates = derivedFunnelRates({
+    first_time_downloads: { status: "measured", value: 2 },
+    unique_impressions: { status: "measured", value: 10 },
+    unique_product_page_views: { status: "measured", value: 4 },
+  });
+  assert.deepEqual(rates.impression_to_page_view, {
+    status: "measured", value: 0.4, numerator: 4, denominator: 10,
+  });
+  assert.deepEqual(rates.page_view_to_install, {
+    status: "measured", value: 0.5, numerator: 2, denominator: 4,
+  });
+  assert.deepEqual(rates.impression_to_install, {
+    status: "measured", value: 0.2, numerator: 2, denominator: 10,
+  });
+});
+
+test("ASC funnel rates fail closed on unavailable metrics and zero denominators", () => {
+  const rates = derivedFunnelRates({
+    first_time_downloads: { status: "measured", value: 2 },
+    unique_impressions: { status: "measured", value: 0 },
+    unique_product_page_views: { status: "unavailable", value: null, reason: "provider_403" },
+  });
+  assert.equal(rates.impression_to_install.status, "unavailable");
+  assert.equal(rates.impression_to_install.reason, "denominator_zero");
+  assert.equal(rates.page_view_to_install.reason, "source_metric_unavailable:unique_product_page_views");
+});
 
 test("ASC product totals remain unattributed and unavailable stays null on replay", async () => {
   const parsed = rows("Date\tApp Name\tApp Apple Identifier\tDownload Type\tCounts\n2026-08-20\tDaily Affirmations - Anicca\t6755129214\tFirst-time download\t1\n");

@@ -40,6 +40,45 @@ function sum(input, predicate, field = "Counts") {
 function measured(value, source) { return { status: "measured", value, source }; }
 function unavailable(reason) { return { status: "unavailable", value: null, reason }; }
 
+function derivedRate(numerator, denominator, numeratorName, denominatorName) {
+  if (!numerator || numerator.status !== "measured") {
+    return unavailable(`source_metric_unavailable:${numeratorName}`);
+  }
+  if (!denominator || denominator.status !== "measured") {
+    return unavailable(`source_metric_unavailable:${denominatorName}`);
+  }
+  const numeratorValue = Number(numerator.value);
+  const denominatorValue = Number(denominator.value);
+  if (!Number.isFinite(numeratorValue) || !Number.isFinite(denominatorValue)
+    || numeratorValue < 0 || denominatorValue < 0) {
+    return unavailable("source_metric_invalid");
+  }
+  if (denominatorValue === 0) return unavailable("denominator_zero");
+  return {
+    status: "measured",
+    value: Number((numeratorValue / denominatorValue).toFixed(6)),
+    numerator: numeratorValue,
+    denominator: denominatorValue,
+  };
+}
+
+function derivedFunnelRates(metrics = {}) {
+  return {
+    impression_to_page_view: derivedRate(
+      metrics.unique_product_page_views, metrics.unique_impressions,
+      "unique_product_page_views", "unique_impressions",
+    ),
+    page_view_to_install: derivedRate(
+      metrics.first_time_downloads, metrics.unique_product_page_views,
+      "first_time_downloads", "unique_product_page_views",
+    ),
+    impression_to_install: derivedRate(
+      metrics.first_time_downloads, metrics.unique_impressions,
+      "first_time_downloads", "unique_impressions",
+    ),
+  };
+}
+
 function summarize(product, downloads, engagement, metadata, detailedDownloads = []) {
   if (!downloads.length || !engagement.length) return pending(product, "empty_report");
   const dates = [...downloads, ...engagement].map((row) => row.Date).filter(Boolean).sort();
@@ -53,8 +92,8 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
   const campaignDownloads = product.campaign_token ? detailedDownloads.filter((row) => row.Campaign === product.campaign_token && row["Download Type"] === "First-time download") : [];
   const campaignEngagement = product.campaign_token ? engagement.filter((row) => row.Campaign === product.campaign_token) : [];
   const campaignUnavailable = () => unavailable(product.campaign_token ? "campaign_not_observed_or_privacy_threshold" : "campaign_not_configured");
-  return {
-    product_id: product.product_id,
+  const baseMetrics = {
+      product_id: product.product_id,
     app_id: product.app_id,
     app_name: product.app_name,
     identity_source: "analytics_report_request_app_id",
@@ -80,6 +119,8 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
       campaign_impressions: campaignEngagement.length ? measured(sum(campaignEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : campaignUnavailable(),
     },
   };
+  baseMetrics.metrics = { ...baseMetrics.metrics, ...derivedFunnelRates(baseMetrics.metrics) };
+  return baseMetrics;
 }
 
 function pending(product, reason = "report_pending") {
@@ -96,7 +137,7 @@ function pending(product, reason = "report_pending") {
     reports: [],
     campaign_id: product.campaign_token || null,
     campaign_status: "unavailable",
-    metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions"].map((name) => [name, unavailable(reason)])),
+    metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions", "impression_to_page_view", "page_view_to_install", "impression_to_install"].map((name) => [name, unavailable(reason)])),
   };
 }
 
@@ -176,4 +217,4 @@ async function persistAscAcquisition(dataDir = resolveDataRoot(process.env), rep
 }
 
 if (require.main === module) persistAscAcquisition().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { PRODUCTS, collectProduct, pending, persistAscAcquisition, rows, summarize };
+module.exports = { PRODUCTS, collectProduct, derivedFunnelRates, pending, persistAscAcquisition, rows, summarize };
