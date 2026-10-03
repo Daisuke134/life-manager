@@ -14,6 +14,8 @@
 
 ### Task 1: Denominator-safe ASC funnel rates
 
+**Status:** complete (`6fe1b3f650`); focused tests pass.
+
 **Files:** `apps/life-manager/scripts/marketing-asc-acquisition.js`, `apps/life-manager/scripts/marketing-asc-acquisition.test.js`
 
 - [ ] Add failing tests for measured rates, zero denominators, missing metrics, and unavailable source.
@@ -22,6 +24,8 @@
 - [ ] Run focused tests and commit.
 
 ### Task 2: Separate ASC proceeds from RevenueCat observations
+
+**Status:** complete in local adapters (`123b0e4ec0`); live ASC source remains blocked by the App Store Connect agreement.
 
 **Files:** `skills/cfo/loop_pnl.py`, `skills/cfo/test_loop_pnl.py`, `apps/life-manager/lib/financial-record-mobile-apps.js`, `apps/life-manager/lib/financial-record-mobile-apps.test.js`
 
@@ -32,6 +36,8 @@
 
 ### Task 3: Surface mobile funnel status in the owner/CFO summary
 
+**Status:** complete for daily summary output (`123b0e4ec0`); current rates remain unavailable when ASC is unavailable.
+
 **Files:** `apps/life-manager/scripts/marketing-product-summary.js`, related tests, `docs/evidence/cfo/`
 
 - [ ] Add failing tests for source status, rates, attribution unavailable, and per-product separation.
@@ -40,6 +46,8 @@
 - [ ] Run full mobile/CFO suites and commit.
 
 ### Task 4: ASC CLI and distribution handoff
+
+**Status:** CLI update complete; provider permission/Agreement gate remains external.
 
 - [ ] Use Rork `asc` 5.9.2 after checksum verification.
 - [ ] Run read-only auth/analytics preflight; do not submit builds or alter pricing.
