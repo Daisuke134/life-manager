@@ -263,6 +263,11 @@ Implementation is shipped on the dedicated branch through Tasks 1–7: truthful 
 
 This spec is the CFO workstream's single ownership boundary. `lm-cfo-observability-1002` owns source-backed financial reads, settlement normalization, provider-cost attribution, fail-closed coverage, and the daily report contract. Marketplace publishing, Capafy/Coconala execution, affiliate production, and release/apply work remain with their registered loop owners; this workstream consumes their official receipts and does not mutate their live state.
 
+### Repository approval and integration gate (2026-10-04)
+
+- Issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) tracks this CFO/cost workstream; it is open with no maintainer response, and no PR exists. Per `CONTRIBUTING.md`, follow-up source edits wait for maintainer 👍.
+- Existing branch `docs/lm-cfo-cost-observability-spec-20261002` is pushed at `afd448a554`; latest `origin/main` is `5fc226d9`, and the merge base is `bc0d1fa7`. A local latest-main merge attempt found conflicts in the CFO design spec, Stripe adapter, B7 collector, and three CFO test files; the merge was aborted without retaining source changes, and the worktree is clean. The branch is not ready for promotion; after approval, sync main, resolve conflicts, rerun acceptance, and obtain a fresh whole-branch review.
+
 ### Verified state
 
 - The September Google Cost Table CSV is the settled authority: ¥27,889 including tax, ¥25,354.450951 pre-tax, 41 service/SKU rows, receipt `google-billing://sha256/c5157075fe3e8331fa2a72d3b33fc98bbacb8b84a0ee2cfc945051ee87f66c64`.

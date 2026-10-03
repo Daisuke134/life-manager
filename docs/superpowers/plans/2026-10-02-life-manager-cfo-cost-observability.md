@@ -214,6 +214,8 @@
 
 **Latest Moneytree readback (2026-10-04):** one MUFG account reports displayed JPY 504,302, but the transaction range ends on 2026-08-25, no source update timestamp/completeness cursor is exposed, and the September/October summary buckets are missing. These values remain `stale/partial` and do not satisfy the fresh-personal-cash or seven-period gates; see `docs/evidence/cfo/2026-10-04-moneytree-mcp-readback.md`.
 
+**Repository cursor (2026-10-04):** issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) is open and maintainer approval is pending before further source changes. The existing cost branch is pushed but not based on the latest main; the attempted sync hit conflicts in six paths and was aborted, leaving a clean worktree. Before a PR, obtain 👍, merge current main on this existing branch, resolve the reported conflicts, rerun acceptance, and fresh-review the resulting diff.
+
 **Files:**
 - Create: `apps/life-manager/scripts/cfo-natural-run.test.js`
 - Create: `docs/evidence/cfo/2026-10-02-cfo-cost-observability-acceptance.md`
