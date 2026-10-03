@@ -4474,3 +4474,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Writer自然dispatchのexactrun/officialrows/runtimeidentity/DBhashjoin/replay-zeroを閉じる。currentpriority/scheduleを変更せず、livejob/ownerの自然進行を観測する。
 2. Writerproof後の§185#3→#12の順序を維持し、このsource-mapのgapを該当laneのofficialreceipt/periodへjoinする。preparedmapを各lane完了とは数えない。
 3. 手動auth/provider再送/credentials変更/他profile変更は0。goalはactive/未完。現turnはverifiedlivewaitとsource-only準備auditであり、profit/financialindependenceは未証明。
+
+### 197. Writer自然観測watcherとreconciler terminal
+
+- 前turnはverified live waitとsource-only準備audit。freshfetchでspec HEAD/upstream2724、implementation9c31、main33、両treecleanを確認。Writerは33loaded-idleでlatesteventは18daef7475277f28-81178/pre-entrypointcapacitybusy、ledgerは05:13:56Zのまま。queue順位6、waitage約4612sを初回readbackした。provider操作/再送/priority変更/scheduler変更は0。
+- read-onlyfinitewatcherを起動し、既存lm-loop status、ledgerのmeasurement_run_id、read-onlyadmissionSQLiteのqueued_at/reservationを約30秒ごとに観測している。live unifiedexec session_id=`44814`。新ledgerrowまたはentrypoint側結果を検出すれば停止しprimaryへ照合を戻す。観測窓は2700秒、期限終了はownerterminalを意味しない。次turnはこの同じhandleをwrite_stdinでre-pollし、別watcherを重ねない。
+- 最新watcheroutputはqueueage約5445s、reservationfalse、ledger_runnull。自然row→runtime→DBhashjoin/replay-zeroは未完。source-mapやfairnesstestPASSを代替proofにしない。
+- reconcilerPID80789はterminal。fleetstate=`2026-10-03T06:20:43Z / partial / changed28 skipped15 errors1 / lancers-revenue-paid timeout + budget exceeded`。全fleet成功ではない。新しい自然reconcilerPID22736/PPID22702が33immutableからliveであり、restart/build/applyを重ねていない。
+
+#### 更新後の原子cursor
+
+1. livewatchersession44814をre-pollする。終了/失効時もschedulerownerを停止・再起動せず、Writer公式job/status/ledger/queueを確認してから観測を継続する。
+2. 新しいmeasurementrunまたはentrypointresultが出たらexactproviderrows、URL/status/unknownreason、runtimeIDs/SHA、DBreceipthashを確認する。既存readback無しの再送やmanualauthは行わない。
+3. Writerproof後に§185#3以降へ進む。goalactive/未完、現在は確認済みlivehandleのverifiedwait。
