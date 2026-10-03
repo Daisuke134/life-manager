@@ -5481,3 +5481,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - currentは5fc completeimmutable、new自然reconciler31062/parent31055が継続live、重複cut/apply/handoff/wake/kill0。前自然83746はterminal、fleet5fc/22:51:45Z/partial/changed41/skipped20/errors1/budget exceeded。b7fbのimmutable/actualSelfBuildload/自然promotion gateは未達。source修復をlive canary・rollback成功としない。
 - 次の境界はowner-local rollback基準。runtime/loop/recovery-promotion.mjsはglobal currentをpreviousReleasePathとして使い、dev-merge-guard.jsのmerge後holdも同global currentを保存する。ownerが別releaseを実loadしているmixed-fleetでは、そのownerの元releaseとの一致が未検証。通常rollbackとorphan recoveryの両経路を対象に、まず隔離fixtureで異なるowner baselineを再現する。live破壊的rollback0、別producerのPR6368はOPEN/旧HEAD3805/OSSFAILのままでprimary変更0。
 - source proof state/selfbuild-canary-receipt-source-20261004.json/mode600へreview/全CI/mergeと次のcode境界を保存。external effect owner実hooks/owner-bound exacthealth/自然promotion-recovery/eval-cost本成果、Paid納品/精算/着金、CFO期間・費用配賦、ASC別担当gateは未完。class/boolean/fenceのwaiver0。全残TODO → §217、全goalactive。actual model/effort/usageは観測不能、API相当費用は算定不能。
+
+
+### 289. owner rollback基準とglobal currentの不一致を実functionで隔離再現
+
+- merged mainb7fbと同bytesのpromoteLoopRuntimeRepairを隔離dependencyで実行。global current C、実ownerの元release B、candidate Aを別manifestとして与え、canary exit1→rollbackを実行。result rolled_backtrueだがfake ownerはCへ切り替わりBには戻らず、owner_original_restoredfalseを確認。source欠陥をfixtureで再現した観測であり、本番での誤rollback発生を主張しない。
+- Node実function/manifest resolution/canary receipt/rollback receiptの判定を使い、外部CLI境界だけfake。production state/ledger/launchd/provider mutation0。mode600 state/selfbuild-owner-rollback-baseline-probe-20261004.jsonへ期待B/実C/結果/callsを保存。
+- 通常promotionとdev-merge-guardのmerge後/crash holdがともにglobal currentを使うため、同じownerの実previous loaded releaseをmerge/canary前に検証し両経路で保持する必要がある。次のsource所有範囲はこのowner baselineとそのtests。verified baselineなしにcurrent/event/plistから推定しない。今回class/外部hook guard/old effect fenceは不変。全SelfBuild成果と全goalは未完。
