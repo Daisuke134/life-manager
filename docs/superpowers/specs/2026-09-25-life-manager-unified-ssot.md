@@ -4265,3 +4265,26 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 3. 今日のverified Capafy revenue/paid-outは`$0/$0`。30日profit `$30.32`と今日の入金を混同しない。
 4. Capafyの自所有blockerはprovider review/cap/IG verification待ちのため、primary cursorを§178 #4 **Writer**へ移す。Writer→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarket→最終CFO統合。
 5. CFO provider-cost branchはCFO owner scopeのまま独立継続し、primaryは成果物/commit/testsをmain統合前に照合する。同じSSOT/releaseを同時編集しない。
+
+### 185. Writer sales measurementの偽陽性root causeと現在のチーム境界（2026-10-03 13:29 JST）
+
+- `writer-sales-measure`のlatest attempt `18daea0794e0b6f8-58967`はrelease `791eb26e83`、entrypoint前`resource_capacity_busy`、exit 75、effect none。last success `18daccfbb41950a8-77795`はrelease `88c7882f52`、約5秒でexit 0だった。
+- しかしofficial Writer stateの`sales-ledger.jsonl`は6,271 rows、mtimeと最終provider rowはいずれも2026-09-19のまま。`money.sqlite3`もmtime 2026-09-30で、10月3日のsuccess runは新しいprovider observationを残していない。
+- exact root causeは`skills/writer-agent/scripts/writer-sales-measure-worker.sh`のlocal lock。`~/.local/state/life-manager/writer/.sales-measure.lock/pid`は2026-08-22から残り、記録PID `29117`は現在存在しない。reclaim pathは`pid` fileを削除せず非空directoryへ`rmdir`するため必ず失敗し、呼出側の`acquire_lock || exit 0`がその失敗をclean successへ変換する。したがってruntime passをprovider measurement成功と扱わない。
+- 修復は最新main由来のWriter専用worktreeで、stale ownerをPIDだけでなくprocess start identityで判定し、exact ownerだけがlockを解放できる既存Fundraiser/Writer owner-fence patternを最小再利用する。stale reclaim、PID reuse、live overlap、lock競合がsuccessに見えない回帰testを先に追加する。production stateを手で削除して完了にはしない。
+- agmsg team `lm`でこのsessionは`codex-money-printer`としてinboxを取得できる。現在のterminalは`plain / placement=none`、team roster 5席は全て`no_placement_record / reach=cannot`で、追加の実働席は未証明。登録名だけを並列実行に数えない。新しいCodex担当を加える場合は、primaryのWriter/SSOT/release/providerと重ならないAffiliate専用worktreeなどへ`spawn --boot-prompt`で所有範囲を固定する。
+
+#### 更新後の原子cursor
+
+1. **Writer runtime**: stale sales-measure lockの偽陽性をtest-firstで修正し、PR/main/immutable release/target apply後の自然wakeでNote/Substack provider rowのfresh `observed_at`を証明する。
+2. **Writer money path**: transaction→fee→settlement→payout→commercial bindingを公式receiptが存在する時だけjoinする。公開artifact、dashboardの古い0、unknown/null、process exit0を売上へ数えない。
+3. **Affiliate**: fresh commission row→fee→settlement→payout。source/composition artifactだけで完了にしない。
+4. **Mobile**: App Store Connect/RevenueCatのapp別sales、fee、payout、actual costとInstagram metrics旧fenceを閉じる。
+5. **Connector**: discovery/application effect→contract→settlement→payoutの公式readbackとreplay-zero。
+6. **Fundraiser**: eligible application/funding official receipt。KYC/CAPTCHA/本人確認を突破しない。
+7. **他paid lanes**: CrowdWorks/Lancers等をapplicationからcontract/delivery/fee/settlement/payout/actual costまでjoinする。
+8. **Self-Build / Eval**: production prompt/runtimeに対するvalidated eval、cost-first hillclimb、自然run前後比較、safe promotion/recoveryを閉じる。
+9. **Investment**: AT-13から順にnatural exit、30 round trips、fee/slippage/model/infrastructure cost、duplicate order 0、AT-29判定。live資金はgate成立まで動かさない。
+10. **Cloud / self-funding**: provider-neutral shelter、DigitalOcean control plane、Nosana continuity、Akash fallback、BlockRun paid inference、externally earned surplusによるrenewal、30日benchmark。
+11. **TaskMarket / Agent Economy**: 即時収益pathの後にimmutable packaging、funnel/margin、external paid job、x402 treasury proofを進める。
+12. **最終CFO統合**: 全Product Loopのsettled external revenue、fee、actual cost、payout、unknown/stale gapを同じ期間でjoinし、全14-15 loopのruntime・business・recovery・net P&L・replay-zeroを再計算する。ここまでLife Manager全体の自己資金化・全loop修復済みとは言わない。
