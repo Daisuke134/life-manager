@@ -679,6 +679,22 @@ def main(argv: list[str] | None = None) -> int:
         measure_substack_pages, parse_substack_metrics, args.cdp_port, today,
     )
 
+    # Preserve the host's exact identity in the row whose hash money_sync stores.
+    # Article run_id identifies the published product; keep it distinct from
+    # the measurement run so per-artifact attribution remains unchanged.
+    runtime_identity = {
+        field: value
+        for field, key in (
+            ("measurement_run_id", "LIFE_MANAGER_RUN_ID"),
+            ("owner_id", "LIFE_MANAGER_LOOP_ID"),
+            ("occurrence_id", "LIFE_MANAGER_OCCURRENCE_ID"),
+            ("release_sha", "LIFE_MANAGER_RELEASE_SHA"),
+        )
+        if (value := os.environ.get(key))
+    }
+    for row in rows:
+        row.update(runtime_identity)
+
     with open(out_path, "a", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
