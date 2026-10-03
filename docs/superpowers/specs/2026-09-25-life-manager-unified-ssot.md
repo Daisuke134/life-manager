@@ -5197,3 +5197,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - immutable642のlancers skill/_finance_source実経路は/mypage/paymentのHTTP200、balance container、明示empty履歴文言を要求する。既存registered identity lancers:daisのwith-browser lease内でowned pageだけを開き、同公式routeを観測。HTTP405/route一致/HumanVerificationtrue/loginpathfalse/body235、financecontainerfalse/emptymarkersfalse/table0。金額・payment/settlement/payout receipt未取得。取引承諾/返信/応募/financialwriter0、challenge操作/迂回0。
 - evidence state/lancers-finance-readonly-probe-20261004.json/mode600、error_classhuman_verification_required/retryablefalse/financialsourceunavailable。空tableを履歴無し/残高0へ変換しない。provider側の正規Human Verification後に既存finance ownerがreceipt/windowを再取得する。既存CFO入力のstale状態へfresh成功を上書きせず、Lancers2/CW18等のoldfenceも解放しない。
 - 次は同active Paid/reconciler handleのterminal→latest642actualargv/自然HTTPreceiptと、他ownerの非重複official readbackを進める。Lancersの人間検証を技術的再試行で閉じたことにせず、§217全残TODO/別担当Mobile境界/goalactiveを保持。
+
+
+### 255. Paid実entrypointの訂正と自然revision入力の公式観測結合
+
+- 前のstage診断はCLI全体に含まれるcollector引数名を実entrypointと誤認した。psの先頭実引数を限定読取し、18461はpaid_direct.py --effect-itemのPaid作業worker、16802はpaid_direct coordinator、11443はwith-browserと確認。collector内agent_runnerという§253–254の説明を現状へ適用しない。privateprompt/CLI全文/credentialの出力0、プロセス停止/再起動0。
+- worker --effect-itemのreadonly入力は17:56:13生成、contractoffer6331346/talkroom18180857/statuspaid/price_source structured_order_label/revision/formal_delivery_confirmedfalse。talkroom_observed_at17:55:44Z/snapshot_captured_at17:55:52Zを保持しており、旧latest17:46orders失敗とは別の新しい作業入力。workerの--outputは未生成で、completed/納品/精算と数えない。
+- statuspaidは内部作業分類、priceJPY9000は構造化order labelでありofficial payment external ID、fee、settlement、payout receiptではない。CFOへsettled収入として接続0。readonly proof state/coconala-active-paid-worker-20261004.json/mode600に実entrypoint/親子/入力・出力存在/financial scopeを保存。
+- root11417/c0とrelease30823/30807は継続live、new642 actualPaidload/自然新ordersreceiptは未達。次は同naturalworkerのterminal/出力/official delivery receipt、newloadとprovider readbackを照合。誤分類訂正をsource故障やreplay許可へ置換せず、§217全残TODO/goalactiveを維持。
