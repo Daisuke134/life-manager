@@ -4178,3 +4178,21 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. identity成功時はsingle submit→durable intent→Coconala official applied roster exact ID→effect/readback→次wake duplicate attempt 0を閉じる。identity missing時はform-scoped sanitized candidate evidenceを追加し、推測でsubmitしない。
 3. Coconala Apply receipt後、Paid contract/fee/settlement/payout/actual costを同じprovider ledgerへjoinする。
 4. 完了後に全残TODO #2 PromptBaseへ進む。Capafy、Writer、Affiliate、Mobile、Connector、Fundraiser、他paid、Self-Build、Investment、Cloud、TaskMarketの順は§178を維持する。
+
+### 180. Coconala Apply公式readback復旧とPaid lease starvation修正（2026-10-03 09:05 JST）
+
+- 128 releaseの自然pass `gig-apply-direct-1790984745792770000-59126`はstatus=`ok`、公式募集33件を観測し、新規判断19件、actionable 7件、effect 6件、Coconala公式readback 6件、pending 0、重複応募0に到達した。Telegram実行報告はmessage ID `101911`。form-scoped portfolio textによるauthenticated seller identity修正がproduction submit/readbackまで到達したため、§179のApply identity/submit blockerは解消した。
+- 残る1件はrequest ID `5304220`で、provider公式状態が`officially_unavailable`となったもの。再送せず、失敗数1として保持する。resultの`business_success=false`は、このprovider-unavailable 1件を含むためで、6件の公式readbackを消さない一方、contract/payment成功へも昇格させない。
+- Coconala Applyのadmission `effect_unknown=1`は0件を維持し、旧fence連鎖は再発していない。応募6件はapplication receiptであり、受注、納品、fee、settlement、payout、profitではない。
+- `hf-gig-paid-direct`がprovider-independentなowner/verifier model call中も`coconala:kosuke` browser leaseを外側wrapperで保持し、Apply/Replyを長時間飢餓させる根因を特定した。PR #6512をmain `2c69cf596e738c892c13499f9e84c435c3926fd6`へmergeし、model-only区間ではholder-aware release、provider処理へ戻る前に同一holderでreacquireする最小修正を追加した。
+- browser leaseはacquire/release/beatを同一identity control flockへ直列化し、beatをtemp file + fsync + atomic replaceへ変更した。leaseにはPIDとprocess start timeを保存し、outer trapは両方一致する自分のleaseだけを削除する。invalid live leaseはstale扱いで盗用せずfail-closed。関連pytestは`6 + 2 + 263`件PASS、shell/Python構文とdiff check PASS、GitHub CI全件PASS、fresh read-only reviewは`SHIP`。
+- immutable release `/Users/anicca/loops/releases/20261003T085129-2c69cf59 / ALL`はexact mainから生成済み。ただしApply/Paidのinstalled plistは、128 releaseの自然runが稼働中のため安全にapply見送りとなり、まだ`128cea17d8`を指す。現在のPaid model runをkillせず、2c lease-yieldのproduction自然readbackは未証明のまま保持する。
+- Data volumeの現在空きは約2.7GiBで、Paidの実disk gate 512MiBを超える。固定10GB目標は追わず、追加cleanupも行わない。
+
+#### 更新後の原子cursor
+
+1. 現在の128 Paid/Apply runをnatural terminalまで観測し、idle窓で`hf-gig-paid-direct`と`hf-gig-apply-direct`を2c releaseへtarget applyする。running processをkillせず、同じapply/reconcileを重ねない。
+2. 2c Paid自然runのmodel-only区間でCoconala leaseが解放され、その間にApply/Replyが取得できることをlease holder/readbackで確認する。Paidがprovider境界へ戻る前にreacquireし、同時provider effectが0であること、outer trapが別holder leaseを消さないことを確認する。
+3. Applyは次wakeで既応募6件へのduplicate attempt 0と公式roster維持を確認する。これでApplyのreplay-zeroを閉じる。
+4. Coconala Paidはcontract→delivery→fee→settlement→payout→actual costをofficial receiptで結ぶ。そこまでCoconala収益完了・profit・全loop修復済みとはしない。
+5. Coconala cursor完了後、§178の#2 PromptBaseへ進む。後続順序は変更しない。
