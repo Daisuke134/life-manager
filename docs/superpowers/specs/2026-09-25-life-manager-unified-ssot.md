@@ -4245,3 +4245,23 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. 最初のofficial Sales rowが発生した時だけitem/order→gross→PromptBase fee→net→settlement/payout→replay-zeroを閉じる。Sales 0の間はrevenue/profit 0を維持する。
 3. PromptBase publishing runtimeに自所有blockerは無いため、primary cursorを§178 #3 **Capafy**へ移す。3 under-review terminal/support回答、free slot、rejected retry、positive-profit skill marketing、today revenue/payoutを公式readbackする。
 4. 後続はWriter→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarket→最終CFO統合。
+
+### 184. Capafy fresh inventory/economicsとmarketing fencesの解放（2026-10-03 13:20 JST）
+
+- official `publish-list` / remote inventoryのfresh readbackは52 Agents、47 online、5 occupied、free 0。occupiedは3 under_review（Board Update Deck Builder、AI Evaluation Failure Triage Brief、Academic Limitations Editor）と2 review_rejected（Customer Renewal Evidence Brief、Marketing Strategist）。support返信はまだ無く、9/30の`2.2 Information accuracy` rejection通知2件だけ。full cap中にretry/createを行わない。
+- fresh Capafy money readback（2026-10-03T03:58:09Z）は10/3/10月gross sales `$0.00`、creator earnings `$0.00`、paid out `$0.00`。balancesはconfirmed `$3.08`、payout-able `$59.00`、pending `$14.10`。10月usageは152 requests / estimated `$4.75`だがOpenRouter actual sourceはunknownのためactual profitへ使わない。
+- official 30日snapshot（2026-10-03T02:08:09Z）はall-time gross `$102.75` / 101 orders、last-30d gross `$82.77`、Capafy cut後net `$66.22`、actual OpenRouter cost `$35.90`、actual contribution profit `$30.32`。positive actual-profitはHook Lab `$19.58`、Slide Maker `$15.98`、TikTok Script Pro `$12.76`、YouTube Script Writer `$6.36`。Marketing Strategistはactual `-$17.85`で拡大しない。
+- `capafy-loop-daily`のauthoritative statusはadmission effect_unknown current=false。latest current runはentrypoint前capacity busy / effect not_applicable、main factoryはCAP_FULL healthy-idle。古いhealth effect_unknown表示をlive admission fenceと混同しない。
+- `capafy-distribute-daily`の旧occurrence `18dab8cf9cbd4ff8-65297`は、official GitHub landing commitなし・Postiz X postなしを同一windowでreadbackし、`closed=true / effected=false`、再投稿0。単体reconcilerがruntime envをloadせず`postiz_key_missing`になる再発原因をPR #6516/main `791eb26e83b54193b049ccfb5e57d86e727558c9`で修正し、env優先→private credential SSOTのexact `service=postiz`一件だけをfallback採用する。ambiguous/malformed/missingはfail-closed。tests 8 + 41、CI全件PASS、fresh review`SHIP`。immutable release `/Users/anicca/loops/releases/20261003T131153-791eb26e`を生成し、distribution ownerは791へload済み。
+- `capafy-ig-marketing-daily`の旧occurrence `18d99c9c5d912b88-84848`はpublic logged-out Instagram profile gridを公式readbackした。gridはreverse chronologicalで最新postが2026-08-24、対象window 2026-09-28T22:27:59Z–23:57:59Zを35日上回って古く、window内post/Reel 0。durable evidence `reconciliation/capafy-ig-marketing-daily-18d99c9c5d912b88-84848-public-absence.json`で1 rowだけ`closed=true / effected=false`、再投稿0。
+- `capafy-ig-account-manager`の旧occurrence `18d9a2b028594670-18539`は、existing account retirementの1秒後にqueuedされ、terminal=`replacement_waiting / active Instagram browser tab is missing`。次3時間のnew/updated account row 0、logsはbrowser owner/script/ENOSPC境界でprovider signup前停止。pre-effect evidence `reconciliation/evidence/capafy-ig-account-manager-18d9a2b028594670-18539-pre-effect.json`で1 rowだけ`closed=true / effected=false`。
+- Capafy Instagram account poolはusable 0。既存accountはInstagram automation warning後session_failed、replacement作成はGoogle QR/device/phone verification必須でprovision_failed。CAPTCHA/KYC/本人確認を突破せず、IG laneはhuman/provider bootstrap境界としてholdする。自所有site+X distributionは継続可能。
+- agmsg team `lm`は5 current roster席があるがplacement/reachは全席unverified/cannot。このsessionは`codex-money-printer`としてinboxを取得できる。`lm-cfo-observability-1002`は04:17 UTCまでobservable progressを送信し、CFO provider-cost実装HEAD `930abbb6b4`、focused 80/80、CFO 249/249、Node 188/188を報告。現在のlive reachはplacement未記録のため未証明だが、CFO専用scopeの並行成果として保持する。
+
+#### 更新後の原子cursor
+
+1. Capafy factoryは3 under-reviewのterminal変化/support返信でfree slotが生じた時だけ、rejected 2本を1件ずつinformation-accuracy修復・再審査する。full capを迂回しない。
+2. positive-profit 4 skillをself-owned site/X distributionで継続し、traffic source→order→net revenue→actual model costをhourly official snapshotで比較する。IGはprovider bootstrap解消までholdし、人間作業を委譲しない。
+3. 今日のverified Capafy revenue/paid-outは`$0/$0`。30日profit `$30.32`と今日の入金を混同しない。
+4. Capafyの自所有blockerはprovider review/cap/IG verification待ちのため、primary cursorを§178 #4 **Writer**へ移す。Writer→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarket→最終CFO統合。
+5. CFO provider-cost branchはCFO owner scopeのまま独立継続し、primaryは成果物/commit/testsをmain統合前に照合する。同じSSOT/releaseを同時編集しない。
