@@ -65,21 +65,28 @@ test("the shared mobile wrapper is host portable and uses the repository timeout
   assert.doesNotMatch(wrapper, /\/opt\/homebrew|\/Users\/|openclaw|hermes|profitable-claude/iu);
 });
 
-test("the shared mobile wrapper reconciles one exact prior occurrence before the runner", (t) => {
+for (const binding of [
+  {name: "bound", value: "a".repeat(40), expected: "a".repeat(40)},
+  {name: "absent", value: undefined, expected: "unset"},
+  {name: "empty", value: "", expected: ""},
+]) {
+test(`the shared mobile wrapper preserves ${binding.name} release binding through reconciliation and runner`, (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-wrapper-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const calls = path.join(directory, "python-calls.txt");
   const python = path.join(directory, "python");
   const envFile = path.join(directory, "marketing.env");
   const resultHint = path.join(directory, "effect-result.json");
+  const releaseSha = binding.expected;
+  const staleReleaseSha = "b".repeat(40);
   fs.writeFileSync(
     python,
-    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
+    `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
     { mode: 0o700 },
   );
   fs.writeFileSync(
     envFile,
-    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\n`,
+    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\nLIFE_MANAGER_RELEASE_SHA=${staleReleaseSha}\n`,
     { mode: 0o600 },
   );
 
@@ -89,12 +96,13 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
     {
       cwd: root,
       env: {
-        ...process.env,
+        ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== "LIFE_MANAGER_RELEASE_SHA")),
         LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
         LIFE_MANAGER_PYTHON: python,
         LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
         LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-1",
         LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+        ...(binding.value === undefined ? {} : {LIFE_MANAGER_RELEASE_SHA: binding.value}),
       },
       encoding: "utf8",
     },
@@ -106,6 +114,7 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
   assert.match(invoked[0], /mobile-postiz-provider-reconcile\.py --auto-owner life-manager-honne-ja/);
   assert.match(invoked[0], /--resolve/);
   assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
+  assert.ok(invoked.every((call) => call.endsWith(`|release=${releaseSha}`)), "the release binding must survive loading mutable marketing env");
   assert.equal(result.stdout.trim(), '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}');
   assert.deepEqual(JSON.parse(fs.readFileSync(resultHint, "utf8")), {
     schema_version: 1,
@@ -120,6 +129,7 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
   });
   assert.equal(fs.statSync(resultHint).mode & 0o777, 0o600);
 });
+}
 
 test("the mobile result helper accepts exact reconciled receipt shapes only", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-result-"));
