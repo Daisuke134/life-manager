@@ -4360,3 +4360,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. provenance final reviewを照合しSHIPならPR/全CI/main統合する。
 2. 自然Writer容量claim・provider observationを待ち、merged provenance releaseをtarget反映してruntime→JSONL→DB receipt hashのexact joinとreplay-zeroを閉じる。
 3. §185 #3以降を維持し、adoption/repair debtはSelf-Build/Evalへ含める。全体goalは未完。
+
+### 190. Writer provenance SHIP・PR #6519と自然dispatch境界
+
+- fresh final reviewer `/root/writer_provenance_final_review`はimmutable base070→HEADce6の3file diffを確認しSHIP。dotenv P1とartifact P2は解消済み。native request gpt-5.6-sol/high、actual model/effortはunobservable。usageも取得できないためAPI-equivalent costはunknownであり0/savingsとしない。
+- PR #6519 `https://github.com/Daisuke134/life-manager/pull/6519`を作成し、HEAD=`ce6fd62d037e9f9b7f23a4b8fefee7e7dca7e3a9`のGitHub CIは開始済み。mergeは全件SUCCESSのreadback後だけ。
+- 同じNote snapshotでも別measurement runはprovenanceが異なるため別metric observationとなる。これはobservationsであってexternal money eventには昇格しない。再import同rowのinserted0はfocused testで証明済み。
+- 070 natural release reconcilerは新PID `18006` / PPID `17980`でlive。別release/applyを重ねない。Writerの自然attemptは引き続き070/pre-entrypoint capacity busy。read-only queue orderingではeligible31件、Writer21番目、support aging=2h、queued_at1791003146.7369301。既存公平性ポリシーと実稼働容量を無視して優先変更/kill/手動wakeをしない。
+- Telegram updateはMSGID102074で確認。provider publish/payment/manual authは今回0。
+
+#### 更新後の原子cursor
+
+1. PR6519の全CI terminal SUCCESSならadmin squash mergeする。
+2. exact live reconciler18006のterminalを確認してからmerged main complete immutable releaseとWriterのみtarget applyを行う。
+3. 自然Writer claim/official observationとprovenance hash→DB join/replay-zeroを閉じて§185 #3以降へ進む。全体goalはactive/未完。
