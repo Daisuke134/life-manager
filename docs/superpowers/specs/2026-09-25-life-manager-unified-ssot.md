@@ -4707,3 +4707,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Lancerproject5605912のofficialfundingmailを現在のfundedcontracttermsへ結合するread-only調査と、remainingLancers2/Cw18のexactproviderreadbackを続ける。humanchallenge/receipt不足を0へ変換しない。Cwsubmit4worksのbindingはform_revision_sha256（form_sha256との誤lookupを使わない）。
 2. c5e6sourcepromotionはcompleteimmutable/両Paidload/両naturalterminalまで到達。もうbuild/apply/manualwakeを繰り返さずofficialbusinessreceipt cursorへ移る。liveglobalowner48081は他ownerの操作を所有、kill/restart無し。
 3. Paidfundedterms→delivery→settlement/fee/payout/actualcost、Fundraiser旧unknownと他残条件を維持し、SelfBuild/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFOを進める。goalactive/全体未完。
+
+
+### 212. SelfBuild台帳の正本一致と失敗時の誤報防止、Paid資金通知の境界
+
+- SelfBuild shell reportはcanonical state配下を読む一方、daily CLIの既定getterは既存 `~/.life-manager/state/self-build-days.jsonl` を読む。実台帳183行、最新run20261003085432-selfbuild-76c6c6b5/no_op/no_eligible_pr、候補PR6368はrecovery_promotion_hooks_incompleteで正当にskip。履歴移動・コピー・guard緩和0。
+- 専用branch fix/selfbuild-ledger-ssot-20261003でgetterをdotenv後に共有、明示override保持。fresh reviewerは追記前CLI失敗時の前回行誤報をHOLD。実shell fixtureでREDを再現し、実行前後の台帳size増加を報告条件へ追加。追記前失敗はNO LEDGER ROW、追記後exit1は新規行を報告。2 files/HEAD70d9cfca1bまでcommit/push済み。関連96 tests、adapter15、shellsyntax、contract14 loops/178 jobs、OSS/diff PASS。fresh review・shared runtime suite進行中、PR/merge/release/natural proofは未達。
+- doctorはmissing0/registry178、unmanaged ai.anicca.provision-browser.capafy.kosukeのためFAIL。SelfBuild差分とは独立した既存運用境界として保持し、無断stop/deleteしない。
+- Lancer project5605912公式funding mail gmail:1a0ebcba75eef0cb はtrustedGoogle DKIM/DMARC、recipient、project一致、historical JPY2000 escrow通知。state/lancers-5605912-funding-mail-20261003.jsonにmode600保存。現在のfundedterms、delivery、fee、settlement、payoutは未証明。収益記帳0。
+- Lancer current officialproposalcard readbackは10:33:04.626305Z TimeoutError、providerbusinessmutation0。financeはhumanverification/HTTP405境界のまま。Cw63942104のhandoff read-onlyはliveprofilelock busy/exit75、browser読取前に終了。holderをkill/奪取せず、unknownを0へ変換しない。
+
+#### 更新後の原子cursor
+
+1. SelfBuild台帳/report最小修正のfresh review→required checks→一度だけPR/merge→complete immutable→target owner safe load→自然row/report一致を進める。self-owned promotion成果は別未完のまま。
+2. Paid fundedterms/official receipt/delivery/fee/settlement/payoutを並行可能なread-only境界で追う。Lancers2/Cw18 unknown、Fundraiser1のeffect fenceを保持し再送0。
+3. SelfBuild/Eval本成果→Investment→Cloud/self-funding→TaskMarket→全14 CFOの残条件を保持。単なるsource/test/歴史mailを収益や全goal完了に置換しない。
