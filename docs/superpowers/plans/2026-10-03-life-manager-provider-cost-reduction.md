@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` (Section 12)
 
-**Execution status (2026-10-03):** Tasks 1–6 are complete on the dedicated branch. Task 7 is partial: the synthetic acceptance gate, official September Cost Table reconciliation, durable observation state, Moneytree readback, and Supabase provider-lane readback plumbing are recorded; seven elapsed production periods, fresh Moneytree data, October settlement, source settlement coverage, and production parity remain external TODOs. Review fixes are in `930abbb6b4`; the post-review observation/readback update is `a82e94ce33`; the branch is pushed.
+**Execution status (2026-10-04):** Tasks 1–6 are complete on the dedicated branch. Task 7 is partial: the synthetic acceptance gate, official September Cost Table reconciliation, durable observation state, Moneytree readback, and Supabase provider-lane readback plumbing are recorded; seven elapsed production periods, fresh Moneytree data, October settlement, source settlement coverage, and production parity remain external TODOs. The 2026-10-04 Moneytree MCP read returns the displayed JPY 504,302 balance but transactions only through 2026-08-25 and no provider freshness/completeness receipt; see `docs/evidence/cfo/2026-10-04-moneytree-mcp-readback.md`. Review fixes are in `930abbb6b4`; the post-review observation/readback update is `a82e94ce33`; the branch is pushed.
 
 ## Global Constraints
 
@@ -167,7 +167,7 @@
 
 ### Task 7: Close provider-cost acceptance with CFO readback
 
-**Status:** partial (`a82e94ce33` plus current provider-lane plumbing). Synthetic acceptance, variance, durable observation state, official Moneytree readback, and usage-summary lane propagation are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open.
+**Status:** partial (`a82e94ce33` plus current provider-lane plumbing). Synthetic acceptance, variance, durable observation state, official Moneytree readback, and usage-summary lane propagation are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open. The 2026-10-04 Moneytree retry refines last-known inflow/spending but still does not prove a fresh transaction cursor or current account balance.
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`

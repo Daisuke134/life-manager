@@ -212,6 +212,8 @@
 
 ### Task 8: End-to-end acceptance and owner readback
 
+**Latest Moneytree readback (2026-10-04):** one MUFG account reports displayed JPY 504,302, but the transaction range ends on 2026-08-25, no source update timestamp/completeness cursor is exposed, and the September/October summary buckets are missing. These values remain `stale/partial` and do not satisfy the fresh-personal-cash or seven-period gates; see `docs/evidence/cfo/2026-10-04-moneytree-mcp-readback.md`.
+
 **Files:**
 - Create: `apps/life-manager/scripts/cfo-natural-run.test.js`
 - Create: `docs/evidence/cfo/2026-10-02-cfo-cost-observability-acceptance.md`
