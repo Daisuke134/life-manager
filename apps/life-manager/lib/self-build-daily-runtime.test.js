@@ -749,3 +749,34 @@ test("the PR listing asks GitHub for the body, or the marker could never be chec
   const source = fs.readFileSync(DAILY_CLI, "utf8");
   assert.match(source, /"number,createdAt,headRefName,author,body"/);
 });
+
+
+test("default self-build pass and report share the existing library ledger path", () => {
+  const root = tmp();
+  const repo = path.join(root, "repo");
+  const app = path.join(repo, "apps/life-manager");
+  for (const dir of ["runtime/host", "apps/life-manager/scripts", "apps/life-manager/lib", "apps/life-manager/node_modules/pg"]) {
+    fs.mkdirSync(path.join(repo, dir), { recursive: true });
+  }
+  fs.writeFileSync(path.join(repo, "runtime/host/disk_admission.py"), "raise SystemExit(0)\n");
+  fs.writeFileSync(path.join(app, "lib/self-build-daily.js"),
+    `module.exports = require(${JSON.stringify(path.join(APP_DIR, "lib/self-build-daily.js"))});\n`);
+  fs.writeFileSync(path.join(app, "scripts/self-build-daily.js"), `
+    const fs = require("node:fs"), path = require("node:path");
+    const ledger = require("../lib/self-build-daily.js").selfBuildLedgerPath();
+    if (process.argv.includes("--status")) console.log(JSON.stringify({streak:{distinctDays:1,required:7,ready:false,remaining:6}}));
+    else {fs.mkdirSync(path.dirname(ledger), {recursive:true});fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",verdict:"no_op",no_op_reason:"fixture_default_ledger"})+"\\n");console.log("{}");}
+  `);
+  const state = path.join(root, "state");
+  const log = path.join(state, "selfbuild.log");
+  const result = spawnSync("/bin/bash", [ENTRYPOINT], {encoding:"utf8", env:{...process.env,
+    HOME:root, NODE_BIN:process.execPath, LM_SELFBUILD_REPO:repo, LIFE_MANAGER_STATE_HOME:state,
+    LM_SELFBUILD_LEDGER:"", LM_SELFBUILD_LOG:log, LM_SELFBUILD_DRY_RUN:"1",
+    LM_SELFBUILD_TELEGRAM_TARGET:"", TELEGRAM_ALERT_CHAT_ID:"", LIFE_MANAGER_ENV_FILE:path.join(root,"absent.env"),
+  }});
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(fs.existsSync(path.join(root, ".life-manager/state/self-build-days.jsonl")));
+  const report = fs.readFileSync(log,"utf8");
+  assert.match(report, /no PR -> no_op \(fixture_default_ledger\)/);
+  assert.doesNotMatch(report, /NO LEDGER ROW/);
+});

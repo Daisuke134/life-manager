@@ -53,7 +53,6 @@ DAILY_CLI="$APP_DIR/scripts/self-build-daily.js"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 ENV_FILE="${LIFE_MANAGER_ENV_FILE:-$LIFE_MANAGER_STATE_HOME/.env}"
 LOG="${LM_SELFBUILD_LOG:-$LIFE_MANAGER_STATE_HOME/logs/life-manager-self-build.log}"
-LEDGER="${LM_SELFBUILD_LEDGER:-$LIFE_MANAGER_STATE_HOME/state/self-build-days.jsonl}"
 readonly LM_SELFBUILD_CANONICAL_DISK_GUARD="$DISK_GUARD"
 readonly LM_SELFBUILD_CANONICAL_HOST_STATE="$LIFE_MANAGER_STATE_HOME/state"
 readonly LM_SELFBUILD_CANONICAL_STATE_HOME="$LIFE_MANAGER_STATE_HOME"
@@ -70,6 +69,16 @@ if [ -f "$ENV_FILE" ]; then
   set +a
   set -u
 fi
+
+# Resolve the same ledger as the daily CLI after explicit dotenv overrides.
+# Preserve the existing default history rather than creating a second ledger.
+if [ -n "${LM_SELFBUILD_LEDGER:-}" ]; then
+  LEDGER="$LM_SELFBUILD_LEDGER"
+else
+  LEDGER="$("$NODE_BIN" -e 'process.stdout.write(require(process.argv[1]).selfBuildLedgerPath())' \
+    "$APP_DIR/lib/self-build-daily.js")" || exit 2
+fi
+export LM_SELFBUILD_LEDGER="$LEDGER"
 
 # Restore only the guard's canonical paths from before dotenv loading. Other
 # runtime overrides (including explicit LM_SELFBUILD_LOG/LEDGER) retain their
