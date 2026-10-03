@@ -5313,3 +5313,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 独立read-onlyレビューでCapafy旧labelはmanaged/external/retiredのどれにも無く、旧release/script/plist不存在・launchd DBだけに残る孤児登録と確認。正規ownerは別label/有効entrypoint/同じ正規profileを所有する。retired_labels登録はsource方針SHIP、live解除はfresh guard成立までHOLD。
 - 既存target retirementはlabelだけでprint→bootout→absence readbackを行う。source/PR待ち中のlabel再利用・PID発生・program変更を防ぐfingerprint確認が無いため、古い観測だけでretired登録やlive解除を先行しない。次はmissing program/PIDなし/正規owner維持の検証を実行境界に結び、exact1labelだけを処理する。profile/auth/browser本体の削除・停止、--allによる無差別解除は行わない。
 - 直近release owner53185はPID/actual executable/current6ad/稼働時間5:25をfresh確認。primary重複build/apply/kill0。state/marketing-exhausted-candidate-pool-20261004.jsonとcapafy-unmanaged-browser-diagnostic-20261004.jsonへsource統合/検証/残リスク/次操作を保存。現在状態・担当・全残TODO → §217、全goalactive/未完。
+
+
+### 270. Capafy孤児retirementの実行時identity guardをRED再現して修復
+
+- latestmain655b/primary cleanをfreshfetch確認し、同owner leaseを更新。branch fix/guard-orphan-browser-retirement-20261004を最新mainから作成し、他worktree/credential/profileを変更しない。旧labelのactual argv6fields hash846e489e92ab67404486025fd7551c9744f88de59b575de8dd43bc74e38d8ce9をsecret値非表示で記録。
+- 既存_retire_labelsに対しargv再利用/PID発生/program変更/state不明/旧script復活/absentだが別plistの6subcasesをRED再現。label-specific retirement_guardsを追加し、loaded argv hash・programとargv0・非稼働state・PIDなし・exact interpreter script不存在を確認してからbootout/absent plist除去。変更時は失敗を保ち、解除・plist削除0。
+- configに旧ai.anicca.provision-browser.capafy.kosukeだけをguard付きretiredへ追加。通常managed/external ownerを変更せず、既存target apply/label lock/absence readbackを再利用。既にabsent/plistなしはno-op。隔離テストで一致する旧登録の解除1回→replay変更0、別正規owner plist不変を確認。
+- source39650bcf120a983f0392856c2681895125cc3883/3files/clean/pushed。focused2tests（6failure subcases）/contract14loops178jobs/adapter15/OSS/diff PASS。共有runtime検証は進行中。official print snapshotへの純粋guard評価PASS、実解除/bootout0、auth/profile/browser変更0。caller側読取と実解除間の競合を完全atomicと主張せず、実反映直前にcurrentと正規owner/登録再利用を再確認する。
+- 次は全source検証・独立read-only review・PR/main・completeimmutable、live release ownerのterminal/GUIpreflight/対象identity/正規capafy owner維持を確認してexact retired labelだけをapply。旧観測を後日の許可へ流用しない。§217全残TODO/全goalactive、canonical Product Loopのbusiness/financeは未達のまま。
