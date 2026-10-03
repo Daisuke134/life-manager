@@ -167,7 +167,7 @@
 
 ### Task 7: Close provider-cost acceptance with CFO readback
 
-**Status:** partial (`a82e94ce33` plus current provider-lane plumbing). Synthetic acceptance, variance, durable observation state, official Moneytree readback, and usage-summary lane propagation are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open. The 2026-10-04 Moneytree retry refines last-known inflow/spending but still does not prove a fresh transaction cursor or current account balance.
+**Status:** partial (`a82e94ce33` plus current provider-lane plumbing). Synthetic acceptance, variance, durable observation state, official Moneytree readback, and usage-summary lane propagation are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open. The 2026-10-04 Moneytree retry refines last-known inflow/spending but still does not prove a fresh transaction cursor or current account balance. The Google MTD estimate remains based on the prior Monitoring snapshot; this pass did not obtain a newer 2026-10-04 count readback.
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`
