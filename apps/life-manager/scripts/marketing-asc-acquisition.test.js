@@ -22,6 +22,7 @@ test("ASC acquisition portfolio matches the six currently published App Store ap
 test("ASC source failures preserve actionable agreement and permission reasons", () => {
   assert.equal(sourceFailureReason(new Error("A required agreement is missing or has expired")), "asc_agreement_required");
   assert.equal(sourceFailureReason(new Error("HTTP 403 Forbidden")), "asc_permission_denied");
+  assert.equal(sourceFailureReason(new Error("Session expired. no usable Apple web session for account")), "asc_web_session_expired");
   assert.equal(sourceFailureReason(new Error("deadline exceeded")), "source_timeout");
 });
 

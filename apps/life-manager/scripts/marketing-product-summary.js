@@ -52,6 +52,25 @@ function installToPaidText(metric) {
   const percent = Number((metric.value * 100).toFixed(1)).toString();
   return `Install→Paid D7 ${metric.numerator}/${metric.denominator}=${percent}%（コホート ${metric.cohort_date}、n=${metric.denominator}、実験的）`;
 }
+function campaignText(product) {
+  const installs = product.metrics.campaign_first_time_downloads;
+  const impressions = product.metrics.campaign_impressions;
+  if (installs?.status === "measured" || impressions?.status === "measured") {
+    return `Campaign ${product.campaign_id || "取得元"}: installs ${metricValue(installs)} / impressions ${metricValue(impressions)}`;
+  }
+  const reason = installs?.reason || impressions?.reason || "campaign_source_unavailable";
+  if (!product.campaign_id || reason === "campaign_not_configured") {
+    return `campaign identity unavailable（campaign_not_configured）`;
+  }
+  const visibleReason = reason === "campaign_not_observed_or_privacy_threshold" ? "no_matching_campaign_rows_or_privacy_threshold" : reason;
+  return `campaign token ${product.campaign_id}: 取得不可（${visibleReason}）`;
+}
+function productAnalyticsText(product) {
+  const names = ["activation", "retained_users", "d1_retention", "d7_retention"];
+  const reasons = [...new Set(names.map((name) => product.metrics[name]).filter((metric) => metric?.status === "unavailable").map((metric) => metric.reason).filter(Boolean))];
+  if (reasons.length) return `product analytics 取得不可（${reasons.join(", ")}）`;
+  return `product analytics ${product.source_status.product_analytics}`;
+}
 function funnelText(product) { if (!product) return "Install 取得不可、Impressions 取得不可、Impression→Install 取得不可、Install→Paid D7 取得不可、Activation 取得不可、Trial 取得不可、Paid active 取得不可、Retained 取得不可、D1 retention 取得不可、D7 retention 取得不可、Proceeds 取得不可"; const metric = product.metrics; return `Install ${metricValue(metric.installs)}、Impressions ${metricValue(metric.unique_impressions)}、Impression→Install ${metricValue(metric.impression_to_install)}、Page view→Install ${metricValue(metric.page_view_to_install)}、${installToPaidText(metric.install_to_paid)}、Activation ${metricValue(metric.activation)}、Trial ${metricValue(metric.trials)}、Paid active ${metricValue(metric.paid_active)}、Retained ${metricValue(metric.retained_users)}、D1 retention ${metricValue(metric.d1_retention)}、D7 retention ${metricValue(metric.d7_retention)}、Proceeds ${metricValue(metric.proceeds_usd)}`;}
 
 function persistAttributionCoverage(dataDir, reportDay, observedAt) {
@@ -68,7 +87,8 @@ function persistAttributionCoverage(dataDir, reportDay, observedAt) {
     const ascMetric = (name) => acquisition.metrics?.[name] || unavailable("asc_metric_unavailable");
     return {
       product_id: productId, label,
-      source_status: { asc: acquisition.source_status, revenuecat: revenuecat.source_status, product_analytics: analytics.source_status },
+      source_status: { asc: acquisition.source_status, revenuecat: revenuecat.source_status, product_analytics: analytics.source_status, campaign: acquisition.campaign_status || "unavailable" },
+      campaign_id: acquisition.campaign_id || null,
       source_refs: analytics.source_ref ? [analytics.source_ref] : [],
       attribution_status: "unattributed", attribution_reason: "campaign_not_configured",
       metrics: {
@@ -81,6 +101,8 @@ function persistAttributionCoverage(dataDir, reportDay, observedAt) {
         page_view_to_install: ascMetric("page_view_to_install"),
         impression_to_install: ascMetric("impression_to_install"),
         install_to_paid: ascMetric("install_to_paid"),
+        campaign_first_time_downloads: ascMetric("campaign_first_time_downloads"),
+        campaign_impressions: ascMetric("campaign_impressions"),
         activation: analytics.metrics.activation,
         trials: revenuecatMetric("trial_starts"),
         paid_active: revenuecatMetric("active_subscriptions"),
@@ -91,7 +113,7 @@ function persistAttributionCoverage(dataDir, reportDay, observedAt) {
       },
     };
   });
-  const message = `Life Manager::: ${reportDay} mobile app attribution coverageです。\n${products.map((product) => `${product.label}: ${funnelText(product)}。Source status: ASC ${product.source_status.asc} / RevenueCat ${product.source_status.revenuecat} / Product analytics ${product.source_status.product_analytics}。campaign attribution: 取得不可（campaign link未接続、時刻だけでは帰属しません）`).join("\n")}\nVerified/partial/unattributed: campaign単位の母数が無いため率は取得不可。HonneとAniccaを混ぜず、取得不可を0にしません。`;
+  const message = `Life Manager::: ${reportDay} mobile app attribution coverageです。\n${products.map((product) => `${product.label}: ${funnelText(product)}。Source status: ASC ${product.source_status.asc} / RevenueCat ${product.source_status.revenuecat} / Campaign ${product.source_status.campaign}。${productAnalyticsText(product)}。${campaignText(product)}。`).join("\n")}\nVerified/partial/unattributed: campaign単位の母数が無いため率は取得不可。HonneとAniccaを混ぜず、取得不可を0にしません。`;
   const snapshot = { schema_version: 1, kind: "marketing_product_metric_summary", period: "daily", report_key: `attribution-${reportDay}`, observed_at: observedAt, product_id: "mobile-marketing", source_refs: [asc.snapshot_ref, rc.snapshot_ref, ...products.flatMap((product) => product.source_refs)], products, coverage: { verified: null, partial: null, unattributed: null, rate_status: "unavailable", reason: "campaign_not_configured" }, message }; fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`; fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600); return { created: true, file, snapshot };
 }
 

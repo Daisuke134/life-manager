@@ -281,6 +281,7 @@ function pending(product, reason = "report_pending", installToPaid = rateUnavail
 
 function sourceFailureReason(error) {
   const message = String(error && error.message || error || "");
+  if (/session expired|no usable apple web session/i.test(message)) return "asc_web_session_expired";
   if (/required or expired agreement|missing or has expired|agreement/i.test(message)) return "asc_agreement_required";
   if (/403|forbidden|insufficient permissions/i.test(message)) return "asc_permission_denied";
   if (/deadline exceeded|timeout/i.test(message)) return "source_timeout";
