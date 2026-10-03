@@ -93,8 +93,30 @@ def page_status(slug: str) -> int:
         return 0
 
 
+def postiz_key(credentials_path: Path | None = None) -> str:
+    """Resolve Postiz from runtime env, then the private credential SSOT."""
+    value = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY")
+    if value:
+        return value
+    path = credentials_path or Path.home() / ".local/share/anicca/credentials.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        rows = payload.get("credentials")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ""
+    if not isinstance(rows, list):
+        return ""
+    matches = [
+        str(row.get("api_key") or "").strip()
+        for row in rows
+        if isinstance(row, dict) and row.get("service") == "postiz"
+        and str(row.get("api_key") or "").strip()
+    ]
+    return matches[0] if len(matches) == 1 else ""
+
+
 def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
-    key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY")
+    key = postiz_key()
     if not key:
         return {"ok": False, "reason": "postiz_key_missing"}
     try:
