@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 
@@ -47,6 +47,7 @@ POSITIVE_AMOUNT = re.compile(r"^(?=.*[1-9])(?:0|[1-9]\d*)(?:\.\d{1,18})?$")
 RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
+MAX_SUBSCRIPTION_SNAPSHOT_AGE = timedelta(days=1)
 
 RECEIPT_REQUIRED = (
     "schema_version", "record_type", "receipt_id", "product_loop_id", "provider", "currency",
@@ -417,6 +418,7 @@ def _as_of_gaps(coverage_rows: list[dict], end: str, category: str) -> list[dict
 
 
 def _latest_subscriptions(snapshots: list[dict], end: str) -> tuple[list[dict], set[str]]:
+    end_at = datetime.fromisoformat(end.replace("Z", "+00:00"))
     by_subscription: dict[tuple[str, str], list[dict]] = {}
     for snapshot in snapshots:
         subscription_id = (snapshot["provider"], snapshot["subscription_id"])
@@ -435,7 +437,15 @@ def _latest_subscriptions(snapshots: list[dict], end: str) -> tuple[list[dict], 
             continue
         selected = max(eligible, key=lambda row: row["observed_at"])
         latest.append(selected)
-        if selected["observed_at"] != end:
+        observed_at = datetime.fromisoformat(selected["observed_at"].replace("Z", "+00:00"))
+        age = end_at - observed_at
+        if selected["product_loop_id"] == "mobile-apps":
+            stale = age >= MAX_SUBSCRIPTION_SNAPSHOT_AGE
+        else:
+            # Non-mobile source contracts still require an observation at the
+            # projection instant; only mobile's staggered provider reads get tolerance.
+            stale = age != timedelta(0)
+        if stale:
             stale_loops.add(selected["product_loop_id"])
     return latest, stale_loops
 

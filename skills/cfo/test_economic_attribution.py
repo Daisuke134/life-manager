@@ -294,6 +294,74 @@ class EconomicAttributionContractTest(unittest.TestCase):
             "reasons": [], "coverage_gaps": [],
         })
 
+    def test_mrr_accepts_distinct_subscription_observations_within_one_day(self):
+        end = "2026-10-01T00:01:00Z"
+        coverage_rows = [
+            dict(row, window_end=end, observed_at=end)
+            for row in complete_coverage()
+        ]
+        snapshots = [
+            subscription_snapshot(
+                "mobile:anicca", subscription_id="revenuecat:anicca-ios:mrr",
+                loop_id="mobile-apps", provider="revenuecat", amount="20",
+                observed_at="2026-10-01T00:00:10Z",
+            ),
+            subscription_snapshot(
+                "mobile:honne", subscription_id="revenuecat:honne-ai:mrr",
+                loop_id="mobile-apps", provider="revenuecat", amount="30",
+                observed_at="2026-10-01T00:00:40Z",
+            ),
+        ]
+
+        result = m.project(
+            [*snapshots, *coverage_rows],
+            snapshot_at=end, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(result["mrr"]["loops"]["mobile-apps"], {
+            "status": "verified", "currencies": {"USD": "50"},
+            "reasons": [], "coverage_gaps": [],
+        })
+
+    def test_mrr_snapshot_older_than_one_day_remains_unavailable(self):
+        end = "2026-10-01T00:01:00Z"
+        coverage_rows = [
+            dict(row, window_end=end, observed_at=end)
+            for row in complete_coverage()
+        ]
+        stale = subscription_snapshot(
+            "mobile:anicca:stale", subscription_id="revenuecat:anicca-ios:mrr",
+            loop_id="mobile-apps", provider="revenuecat", amount="20",
+            observed_at="2026-09-30T00:00:59Z",
+        )
+
+        result = m.project(
+            [stale, *coverage_rows],
+            snapshot_at=end, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(result["mrr"]["loops"]["mobile-apps"]["status"], "unknown")
+        self.assertEqual(result["mrr"]["loops"]["mobile-apps"]["currencies"], {})
+        self.assertIn(
+            "subscription_snapshot_stale",
+            result["mrr"]["loops"]["mobile-apps"]["reasons"],
+        )
+
+    def test_one_day_stagger_tolerance_does_not_apply_to_self_build(self):
+        one_second_under_day = subscription_snapshot(
+            "self-build:sub_1:staggered",
+            observed_at="2026-09-30T00:00:01Z",
+        )
+
+        result = self.project([one_second_under_day])
+
+        self.assertEqual(result["mrr"]["loops"]["self-build"]["status"], "unknown")
+        self.assertEqual(result["mrr"]["loops"]["self-build"]["currencies"], {})
+        self.assertIn(
+            "subscription_snapshot_stale",
+            result["mrr"]["loops"]["self-build"]["reasons"],
+        )
+
     def test_mrr_is_unknown_without_verified_as_of_subscription_snapshot(self):
         missing_mrr_coverage = [row for row in complete_coverage()
                                 if row["projection"] != "as_of"]

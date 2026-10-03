@@ -4,7 +4,7 @@
 
 **Goal:** Make mobile app revenue and distribution metrics source-separated, daily, and conversion-ready without claiming unavailable data as zero.
 
-**Architecture:** Extend the existing ASC acquisition snapshot with denominator-safe funnel rates, preserve RevenueCat as an observed subscription/revenue source, and expose ASC proceeds separately as settled store revenue. Keep campaign attribution unavailable until a campaign identity is actually attached.
+**Architecture:** Extend the existing ASC acquisition snapshot with denominator-safe funnel rates, preserve RevenueCat as an observed subscription/revenue source, and expose ASC proceeds separately as settled store revenue. Treat Apple D7 Download-to-Paid as experimental because its current Rork read path is a private ASC web endpoint; keep attribution/activation/retention unavailable until their source identities and definitions are verified.
 
 **Tech Stack:** Node.js CommonJS, Python `skills/cfo/loop_pnl.py`, existing JSONL daily snapshots, `node:test`, Python unittest.
 
@@ -29,16 +29,22 @@
 - The current RevenueCat project may not cover every published app; missing app/entitlement links stay unavailable, never inferred.
 - Exercise the active `build_b7_projection` path; changes to the legacy `mobile_apps_entries()` helper alone do not change the CFO CLI output.
 - Test both the adapter's freshness rule and the B0 projection's timestamp rule using distinct recent per-product observations.
+- The ASC D7 web-cohort path is experimental/private, not a supported public API; label every value and fail closed on endpoint, identity, cohort, denominator, maturity, redownload, or precision mismatch.
 
 ## Execution Order Decision
 
-Reason: the official ASC published audit falsified the old six-product CFO map as the live app set: only Anicca and Honne overlap, four old mapped IDs are unpublished, and four other seller-owned apps are public. The active user goal is distribution of existing apps, so Task 6 now targets the six official published IDs; the old prelaunch IDs remain separately tracked.
+The official ASC published audit establishes six live apps; only Anicca and Honne overlap the old CFO map, while four old mapped app IDs are unpublished and four other seller-owned apps are public. Keep the six published IDs as the acquisition denominator and the four old unpublished apps as a separate historical/prelaunch set.
 
 - Previous remaining order: Task 6 acquisition coverage → Task 7 B7 freshness/currency → Task 8 Finance Detail import → Task 9 paid cohort → Task 10 attribution.
-- Updated remaining order: Task 6 six-published-app acquisition summary → Task 8 Finance Detail import with subscription/IAP identity crosswalk → Task 7 B7 live/prelaunch binding, currency, and freshness → Task 9 paid cohort → Task 10 attribution/activation/retention.
-- Reorder reason: the official Finance Detail row previously thought unmatched is an exact approved Anicca Annual subscription ID + SKU match. Importing this settled row can deliver actual CFO revenue before resolving the separate RevenueCat currency/project gap.
-- Scope ruling: the live acquisition denominator is the six official published ASC IDs; the four old CFO-bound unpublished apps remain separate. Risk if wrong: omit a live app or count a prelaunch app as active distribution; mitigated by official territory, bundle, seller, RevenueCat app, and subscription readbacks.
-- Current cursor: Task 8 production import — producer parsing, catalog mapping, replay protection, and active B7 projection are implemented and pass focused/full-app tests in the feature branch. Next, preflight the exact production JSONL and active writer, import the mapped row once, then verify the next natural CFO delivery by same-occurrence official receipt/readback. Task 7, Task 9, and Task 10 remain in the existing order afterward.
+- Previous updated order: Task 6 six-published-app acquisition summary → Task 8 Finance Detail import → Task 7 B7 live/prelaunch binding, currency, and freshness → Task 9 paid cohort → Task 10 attribution/activation/retention.
+- Previous remaining order: Task 7 B7 live/prelaunch binding, currency, and freshness → Task 9 paid cohort/source disposition → Task 10 attribution/activation/retention source disposition → Task 8 production Finance Detail import and same-occurrence CFO delivery readback.
+- Previous remaining order: Task 9 paid-cohort source disposition → Task 10 campaign/activation/retention source disposition → Task 8 production Finance Detail import and same-occurrence CFO delivery readback.
+- Previous remaining order: Task 7/8 source-correctness remediation (no production writes) → Task 9 paid-cohort source disposition → Task 10 campaign/activation/retention source disposition → Task 8 production Finance Detail import and same-occurrence CFO delivery readback.
+- New remaining order: Task 9 experimental ASC D7 read-only integration and acceptance → Task 10 campaign/activation/retention source disposition → Task 8 full-acceptance promotion, natural Finance Detail import, and same-occurrence CFO delivery readback.
+- Reorder reason: the Task 7/8 review findings now have RED→GREEN source fixes and the full CFO, producer, and Life Manager suites pass. Source corrections are no longer the cursor; finish cohort/source disposition before the final production import.
+- Reorder reason: the latest read-only status check shows production on `marketing-metrics-daily=9c03543e` and `life-manager-cfo-hourly=c0db5d48`, neither containing this branch's full Finance Detail integration; production still has no Finance Detail row. The latest CFO occurrence was capacity-deferred without a receipt. Running feature-worktree code against production state or manually injecting a payload would bypass the loaded release and active B7 identity contract. Finish source-only correctness and metric-source disposition first, then let the full-acceptance main/release process expose the confirmed JPY 4,250 row through the natural owner run.
+- Current RevenueCat readback: the configured account exposes one project (`anicca`) and eight app records. Its product endpoint returns 21 products across six app IDs (Anicca, Honne, SleepRitual, Desk Stretch Timer, Micro Mood, Test Store); BreathReset and Anicca Web Billing have app records but no listed products. The four additional published ASC apps have no RevenueCat app binding. Direct MRR chart reads for the six legacy CFO app IDs expose `yaxis_currency=USD` for period `2026-10-02`: Anicca is `20.34`; Honne, BreathReset, SleepRitual, Desk Stretch Timer, and Micro Mood are `0`. These are RevenueCat-observed MRR values, not settled proceeds. Test Store is excluded from the mobile portfolio.
+- Current cursor: Task 9 integration. Source research found Apple D7 `0%` for the exact `2026-09-26` Anicca/Honne cohorts, with official ASC `r3` denominators 4/1 and zero redownloads; this is tiny historical evidence, not a trend. The Rork command uses an experimental/private ASC web endpoint, and the four other published apps lack matching official daily denominators. Implement only a visibly experimental, read-only D7 observation with exact app/date/period/denominator checks; if the endpoint or precision cannot be verified, preserve `paid_customer_cohort_unavailable`. Then close Task 10's currently missing campaign/product-analytics sources. Keep Task 8 last: after full acceptance, promote once through the main/release gate; let the natural Marketing Metrics run import Finance Detail, read it through active B7 and Financial Manager, and correlate the next natural CFO occurrence to its same-occurrence provider receipt/readback.
 
 ## Tasks
 
@@ -112,25 +118,32 @@ Reason: the official ASC published audit falsified the old six-product CFO map a
 
 ### Task 7: Reconcile mobile freshness and RevenueCat currency in active B7
 
-**Status:** partial. The coverage assessment timestamp no longer produces false `stale_readback`. B7 still uses the old six CFO-bound app IDs, while ASC's live published set is different; only two live apps are in the configured RevenueCat project. MRR currency remains absent and no published-app financial rows are joined.
+**Status:** the four `fix-first` source findings are implemented and source suites pass; production owners are loaded-idle on `marketing-metrics-daily=9c03543e` and `life-manager-cfo-hourly=c0db5d48`, neither containing this branch's full Finance Detail integration. B0's one-day tolerance now applies only to mobile subscriptions, and B7 emits a separate coverage row for each product-level RevenueCat gap even if another app is stale. Direct API readback confirms USD for the current legacy charts, but persisted production RevenueCat rows still omit currency.
 
-**Files:** `skills/cfo/adapters/capafy_mobile.py`, `skills/cfo/economic_attribution.py` only if the existing contract requires it, `skills/cfo/test_capafy_mobile_attribution.py`, `skills/cfo/test_loop_pnl.py`, RevenueCat business-outcomes producer, evidence.
+**Files:** `skills/cfo/adapters/capafy_mobile.py`, `skills/cfo/economic_attribution.py`, `skills/cfo/test_capafy_mobile_attribution.py`, `skills/cfo/test_economic_attribution.py`, `skills/cfo/test_loop_pnl.py`, `skills/earn/marketing-engine/measure/business_outcomes.py` and its tests, `skills/earn/marketing-engine/report/runners.json`, `apps/life-manager/lib/financial-record-mobile-apps.js` and its tests, evidence.
 
 - [x] Stamp current coverage assessment at `snapshot_at` after the adapter applies its freshness rule; a fresh live B7 projection no longer labels coverage stale.
-- [ ] Reconcile B7/RevenueCat product bindings against the six published apps and four explicit prelaunch records without dropping historical receipts or costs.
-- [ ] Add an active-path regression with distinct recent per-product observations and explicit currency; verify subscription snapshots pass B0 freshness and a stale-over-one-day case remains unavailable.
-- [ ] Trace the RevenueCat source/project for the four newly published apps and explicit currency; emit only verified mappings, otherwise retain the precise unavailable reason.
-- [ ] Re-run active B7 and verify MRR appears only with explicit currency, missing settled proceeds remain unknown, and source status/window is visible.
+- [x] Reconcile B7/RevenueCat product bindings against the six published apps and four explicit prelaunch records without dropping historical receipts or costs.
+- [x] Add an active-path regression with distinct recent per-product observations and explicit currency; verify subscription snapshots pass B0 freshness and a stale-over-one-day case remains unavailable.
+- [x] Trace the RevenueCat source/project for the four newly published apps and explicit currency; persist only observed chart currency, and mark missing app bindings `app_not_in_project`/`source_unconnected`.
+- [x] Re-run active B7 and verify six mapped MRR snapshots remain USD observations, total MRR is unknown while four public-app bindings are missing, missing settled proceeds remain unknown, and source status/window is visible.
+- [x] Limit the one-day `observed_at` tolerance to mobile RevenueCat subscription rows; add a regression proving non-mobile B0 loops retain their prior freshness behavior.
+- [x] Emit distinct unavailable coverage entries for Dhamma Quotes (`6757726663`), Sleep Reset (`6762143790`), STUDIO CHERIE (`6766485903`), and Thankful (`6759514159`); verify aggregate/stale coverage cannot hide any app's missing binding.
 
 ### Task 8: Import ASC Financial Detail into CFO business outcomes
 
-**Status:** source implementation and tests pass in the feature branch; no `app_store_financial` row has been imported into production yet. Fresh verification is ASC producer 31/31, B7 adapter 50/50, active B7 integration 43/43, focused Financial Manager/acquisition Node tests 27/27, full `npm test --prefix apps/life-manager` exit 0, and clean `git diff --check`. The active B7 source path emits one verified JPY 4,250 receipt, but the 30-day B0 projection remains `unknown` because the final finance period ends 2026-09-26 while the current complete-data cutoff is 2026-09-30. This is a coverage gap, not a zero. The production `business-outcomes.jsonl` remains unchanged by this source-only verification.
+**Status:** source implementation is present; source-correctness fixes are covered by RED→GREEN tests (producer 36/36, Financial Manager mobile 17/17, full CFO unittest discovery 275/275, and `npm test --prefix apps/life-manager` exit 0). No `app_store_financial` row has been imported into production. The active B7 fixture path emits one mapped JPY 4,250 row without a duplicate RevenueCat receipt; the 30-day B0 projection remains `unknown` because the final finance period ends 2026-09-26 before the 2026-09-30 cutoff. The latest production `business-outcomes.jsonl` read at 2026-10-04 02:53 JST still ends at business date 2026-10-03, contains only six legacy mobile IDs, and has no Finance Detail row.
 
 **Implementation ruling:** extend `skills/earn/marketing-engine/measure/business_outcomes.py`, which is already the scheduled producer that writes the JSONL consumed by both Financial Manager and B7. A separate `marketing-asc-financial.js` would have no scheduled invocation and would require extra cross-runtime wiring. Keep the live report/catalog reads and normalization in the existing producer, then let both existing consumers project the same immutable source rows.
 
 **Integrity contract:** `report_sha256` is the raw downloaded Finance Detail artifact hash; `content_sha256` is the canonical normalized-row hash checked by B7. Do not reuse one for the other.
 
 **Completed in this task:** RED→GREEN tests prove exact child ID + SKU maps through Financial Manager and the active B7 reader, and RevenueCat chart revenue is not emitted as a second settled receipt.
+
+**Source-integrity corrections (complete before Task 9/10):**
+
+- [x] Financial Manager recomputes/validates the canonical hash and evidence identity for the complete normalized report before any row is marked `verified`; missing hash/evidence or a modified/arbitrary row must fail closed. RED→GREEN: 15/15 Financial Manager mobile tests; `npm test --prefix apps/life-manager` exit 0.
+- [x] A transient `provider_query_failed` refresh cannot overwrite a previous successful `app_store_financial` row with unavailable data. Preserve the last-good row and its actual `observed_at`, and report the latest failed attempt separately without making old evidence appear fresh. RED→GREEN: same-date and next-date producer upsert regressions; Financial Manager consumes the source observation timestamp.
 
 **Files:** `skills/earn/marketing-engine/measure/business_outcomes.py`, `skills/earn/marketing-engine/measure/test_business_outcomes.py`, `skills/cfo/adapters/capafy_mobile.py`, `skills/cfo/test_capafy_mobile_attribution.py`, `skills/cfo/loop_pnl.py`, `skills/cfo/test_loop_pnl.py`, `apps/life-manager/lib/financial-record-mobile-apps.js`, its tests, `docs/evidence/cfo/`
 
@@ -139,30 +152,32 @@ Reason: the official ASC published audit falsified the old six-product CFO map a
 - [x] Normalize the parent app ID separately from the raw child Apple Identifier and SKU in `app_store_financial`; retain the ASC catalog record type/ID, parent binding, and evidence reference.
 - [x] Add stable report/row identity and replay-zero handling to the business-outcomes producer.
 - [x] Preserve the mapped receipt in active B7 inputs while keeping the full trailing total unavailable until the settlement source covers the full reported window; do not add RevenueCat chart revenue as settled proceeds.
+- [ ] After Tasks 9/10 and all source acceptance checks pass, complete the single full-acceptance main/release promotion; do not load feature-worktree code directly into production.
 - [ ] Import the confirmed `6762049696` Anicca Annual row as JPY 4,250 once with stable report/row identity and no RevenueCat double count.
 - [ ] After import, correlate the next natural CFO report occurrence to an official provider receipt/readback and verify the delivered report contains the settled row; process pass and uncorrelated `last-result.json` are not delivery proof.
 
-**Current cursor:** before any production write, re-read the runtime JSONL hash and Marketing Metrics writer activity; then upsert only the confirmed Anicca Finance Detail row once into its existing business-date record. Read it back through active B7 and Financial Manager, preserving the 30-day `unknown` coverage gap. After that, correlate a natural `life-manager-cfo-hourly` occurrence to the provider receipt and delivered snapshot; do not manually trigger the CFO loop or treat an uncorrelated `last-result.json` as delivery proof.
+**Current cursor:** all Task 8 source-integrity corrections are complete; its production portion stays last, after Tasks 9/10 and the full-acceptance main/release gate. On the first natural Marketing Metrics run from the permitted immutable release, re-read the target JSONL hash/writer activity, upsert the final Anicca Finance Detail row once, and read it through active B7 and Financial Manager. Preserve the 30-day `unknown` coverage gap. Then correlate a natural `life-manager-cfo-hourly` occurrence to the provider receipt and delivered snapshot; do not manually trigger the CFO loop or treat an uncorrelated `last-result.json` as delivery proof.
 
 ### Task 9: Connect the paid-customer cohort for install-to-paid
 
-**Status:** not started; `install_to_paid` is explicitly unavailable because a same-app, same-window paid-customer cohort is not connected.
+**Status:** source discovery complete; collector integration is open. The stored Anicca RevenueCat `conversion_to_paying` chart reports `New Customers=1`, `Paying Customers (7 days)=0`, and `Conversion Rate (7 days)=0` for the complete cohort shown in the 2026-10-02 snapshot. RevenueCat defines that cohort by first-seen/first purchase, not ASC first-time download; product filters also do not scope the `New Customers` denominator, so this is not an install-to-paid numerator/denominator pair. Apple documents Download-to-Paid; the experimental/private Rork ASC web command returned D7 `0%` for the `2026-09-26` Anicca and Honne cohorts, whose official `r3` first-time-download denominators are 4 and 1 with zero redownloads. Treat these as 0/4 and 0/1 historical observations only. The other four public apps lack official matching denominators, so their endpoint zeros are unavailable, not measured zeros. The endpoint is not a supported public ASC API.
 
 **Files:** RevenueCat subscription producer, `apps/life-manager/scripts/marketing-asc-acquisition.js`, `apps/life-manager/scripts/marketing-product-summary.js`, related tests.
 
-- [ ] Find a provider report that identifies paid customers by product and purchase/cohort date.
-- [ ] Join it to ASC first-time downloads by product and intersecting cohort window; do not infer paid counts from MRR, active subscriptions, or chart revenue.
-- [ ] Calculate `install_to_paid` with numerator, denominator, and source refs; otherwise retain `paid_customer_cohort_unavailable`.
+- [ ] Add RED tests for exact app/date/`d7` matching, mature cohorts, nonzero official `r3` denominators, zero redownloads, privacy/null/error responses, and unambiguous integer payer reconstruction at provider precision; mismatches remain unavailable.
+- [ ] Add a read-only `asc --read-only web analytics cohorts --app APP_ID --start COHORT_DATE --end COHORT_DATE --frequency day --measures cohort-download-to-paid-rate --periods d1,d7,d35 --output json` collection path and join only the matching app/date to official `r3` first-time downloads. Preserve the provider's experimental/private source status; do not infer paid counts from RevenueCat, MRR, active subscriptions, or summed purchase rows.
+- [ ] Show `Install→Paid D7`, cohort date, numerator/denominator/sample size, and experimental/unavailable status in the daily summary; preserve `paid_customer_cohort_unavailable` when the guard fails.
+- [ ] Run focused tests and the relevant app/CFO suites; verify no production owner/data was changed by the source-only implementation.
 
 ### Task 10: Add campaign attribution and product activation/retention sources
 
-**Status:** not started; no campaign identity or product analytics cohort source is connected.
+**Status:** source audit complete; no campaign identity or verified activation/retention cohort source is currently connected. Honne's configured campaign token produced no matching row in the checked 2026-10-02 report (not zero impressions), Anicca has no configured token, Anicca's available Mixpanel export has no purchase event, Honne has no verified funnel source, and PostHog read access lacks a project credential. Any required app-instrumentation changes are a separate owner/task, not this CFO-only slice.
 
 **Files:** `apps/life-manager/scripts/marketing-asc-acquisition.js`, product analytics source/adapter, related tests.
 
-- [ ] Join campaign IDs/tokens only when the same report window and app identity match.
-- [ ] Connect activation/retention cohorts with their definitions, observation windows, and evidence refs.
-- [ ] Keep unsupported metrics unavailable with a specific reason and show source status in the daily summary.
+- [ ] Verify/attach a campaign ID/token that appears in a report for the exact app and date; otherwise show `campaign_identity_unavailable` or `no_matching_campaign_rows`, never zero attribution.
+- [ ] Verify a readable product-analytics source with named activation/retention events, cohort definition, observation window, and evidence refs; otherwise retain a source-specific unavailable reason.
+- [ ] Ensure the daily summary displays those per-source coverage gaps and run the focused summary tests; do not modify mobile app repositories or invent attribution in this plan.
 
 ## Verification
 

@@ -137,6 +137,34 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             trailing_start=TRAILING_START,
         )
 
+    def full_mobile_portfolio_rows(self):
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        unbound_public = {
+            "dhamma-quotes": "6757726663",
+            "sleep-reset": "6762143790",
+            "studio-cherie": "6766485903",
+            "thankful": "6759514159",
+        }
+        self.assertEqual({row["product_id"] for row in rows}, {
+            "anicca-ios", "honne-ai", "dhamma-quotes", "sleep-reset",
+            "studio-cherie", "thankful", "breath-reset", "sleep-ritual",
+            "desk-stretch-timer", "micro-mood",
+        })
+        for index, row in enumerate(rows):
+            row["observed_at"] = f"2026-10-01T00:00:{index:02d}Z"
+            if row["product_id"] in unbound_public:
+                financial = row["sources"]["app_store_financial"]["data"]
+                financial["app_id"] = unbound_public[row["product_id"]]
+                financial["rows"] = []
+                row["sources"]["revenuecat"] = {
+                    "status": "unavailable", "reason": "app_not_in_project", "data": None,
+                }
+            elif row["sources"]["revenuecat"]["status"] == "available":
+                row["sources"]["revenuecat"]["data"]["currency"] = "USD"
+                bind_revenuecat_hash(row)
+        bind_financial_report_hash(rows)
+        return rows
+
     def test_capafy_settled_order_separates_immutable_payment_and_fee(self):
         records = self.adapt_capafy("capafy-settled.json")
         self.assert_contract_records(records)
@@ -609,7 +637,8 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         projected = contract.project(
             records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
-        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["currencies"], {"JPY": "3000"})
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["status"], "unknown")
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["currencies"], {})
         self.assertEqual(projected["trailing"]["loops"]["mobile-apps"]["status"], "unknown")
         self.assertIn("model_cost", projected["trailing"]["loops"]["mobile-apps"]
                       ["currencies"]["JPY"]["unknown_categories"])
@@ -618,6 +647,8 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         bindings = [
             ("anicca-ios", "6755129214"), ("honne-ai", "6759667221"),
+            ("dhamma-quotes", "6757726663"), ("sleep-reset", "6762143790"),
+            ("studio-cherie", "6766485903"), ("thankful", "6759514159"),
             ("breath-reset", "6760253231"), ("sleep-ritual", "6759916261"),
             ("desk-stretch-timer", "6760048397"), ("micro-mood", "6759877003"),
         ]
@@ -660,7 +691,10 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             trailing_start="2026-08-30T00:00:00Z",
         )
         receipts = [row for row in records if row["record_type"] == "receipt"]
-        self.assertEqual(len(receipts), 1)
+        self.assertEqual(len(receipts), 1, [
+            (row.get("source_id"), row.get("reason"))
+            for row in records if row["record_type"] == "coverage"
+        ])
         self.assertEqual(receipts[0]["components"], [
             {"category": "settled_external_revenue", "amount": "4250"},
         ])
@@ -703,7 +737,10 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
         for row in rows:
-            row["sources"]["revenuecat"]["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["period"] = 1790726400
+            source = row["sources"]["revenuecat"]
+            if source["status"] != "available":
+                continue
+            source["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["period"] = 1790726400
             bind_revenuecat_hash(row)
         records = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -717,6 +754,8 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
         for row in rows:
             source = row["sources"]["revenuecat"]
+            if source["status"] != "available":
+                continue
             data = source["data"]
             data.pop("revenue_definition")
             data["charts"]["mrr"]["latest_complete"]["MRR"]["period"] = 1790726400
@@ -731,7 +770,10 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
         for row in rows:
-            row["sources"]["revenuecat"]["data"]["currency"] = "UNKNOWN"
+            source = row["sources"]["revenuecat"]
+            if source["status"] != "available":
+                continue
+            source["data"]["currency"] = "UNKNOWN"
             bind_revenuecat_hash(row)
         records = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -773,7 +815,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
         for row in rows:
-            del row["sources"]["app_store_sales"]
+            row["sources"].pop("app_store_sales", None)
         records = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
@@ -1240,9 +1282,12 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                 records = module.adapt_mobile(
                     rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
                 )
-                self.assertFalse(any(
-                    row["record_type"] == "subscription_snapshot" for row in records
-                ))
+                snapshots = {
+                    row["subscription_id"] for row in records
+                    if row["record_type"] == "subscription_snapshot"
+                }
+                self.assertNotIn("revenuecat:anicca-ios:mrr", snapshots)
+                self.assertEqual(len(snapshots), 5)
                 self.assertTrue(any(
                     row["record_type"] == "coverage"
                     and row["source_id"] == "revenuecat-mrr"
@@ -1260,9 +1305,12 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         records = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
-        self.assertFalse(any(
-            row["record_type"] == "subscription_snapshot" for row in records
-        ))
+        snapshots = {
+            row["subscription_id"] for row in records
+            if row["record_type"] == "subscription_snapshot"
+        }
+        self.assertNotIn("revenuecat:anicca-ios:mrr", snapshots)
+        self.assertEqual(len(snapshots), 5)
         self.assertTrue(any(
             row["record_type"] == "coverage"
             and row["source_id"] == "revenuecat-mrr"
@@ -1296,6 +1344,92 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             row["source_id"] for row in records if row["record_type"] == "coverage"
         }, {"app-store-connect-financial", "revenuecat-mrr"})
 
+    def test_mobile_retains_bound_mrr_when_four_published_apps_have_no_revenuecat_binding(self):
+        module = self.require_adapter()
+        products = (
+            "anicca-ios", "honne-ai", "dhamma-quotes", "sleep-reset",
+            "studio-cherie", "thankful", "breath-reset", "sleep-ritual",
+            "desk-stretch-timer", "micro-mood",
+        )
+        rows = self.full_mobile_portfolio_rows()
+        records = module.adapt_mobile(
+            rows, snapshot_at="2026-10-01T00:01:00Z",
+            trailing_start="2026-09-24T00:00:00Z", products=products,
+        )
+
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertEqual({row["subscription_id"].split(":")[1] for row in snapshots}, {
+            "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
+            "desk-stretch-timer", "micro-mood",
+        })
+        mrr_gap = next(
+            row for row in records
+            if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        )
+        self.assertEqual((mrr_gap["coverage_state"], mrr_gap["reason"]), (
+            "gap", "source_unconnected",
+        ))
+        per_app_gaps = [
+            row for row in records
+            if row["record_type"] == "coverage"
+            and row["source_id"].startswith("revenuecat-mrr-")
+        ]
+        self.assertEqual({row["source_id"] for row in per_app_gaps}, {
+            "revenuecat-mrr-dhamma-quotes", "revenuecat-mrr-sleep-reset",
+            "revenuecat-mrr-studio-cherie", "revenuecat-mrr-thankful",
+        })
+        self.assertTrue(all(row["reason"] == "source_unconnected" for row in per_app_gaps))
+
+    def test_mobile_stale_product_mrr_is_omitted_without_dropping_fresh_products(self):
+        module = self.require_adapter()
+        products = (
+            "anicca-ios", "honne-ai", "dhamma-quotes", "sleep-reset",
+            "studio-cherie", "thankful", "breath-reset", "sleep-ritual",
+            "desk-stretch-timer", "micro-mood",
+        )
+        rows = self.full_mobile_portfolio_rows()
+        stale = next(row for row in rows if row["product_id"] == "micro-mood")
+        stale["observed_at"] = "2026-09-29T00:00:00Z"
+        records = module.adapt_mobile(
+            rows, snapshot_at="2026-10-01T00:01:00Z",
+            trailing_start="2026-09-24T00:00:00Z", products=products,
+        )
+
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 5)
+        self.assertNotIn("revenuecat:micro-mood:mrr", {
+            row["subscription_id"] for row in snapshots
+        })
+        mrr_gap = next(
+            row for row in records
+            if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        )
+        self.assertEqual((mrr_gap["coverage_state"], mrr_gap["reason"]), (
+            "gap", "stale_readback",
+        ))
+        per_app_gaps = [
+            row for row in records
+            if row["record_type"] == "coverage"
+            and row["source_id"].startswith("revenuecat-mrr-")
+        ]
+        self.assertEqual({row["source_id"] for row in per_app_gaps}, {
+            "revenuecat-mrr-dhamma-quotes", "revenuecat-mrr-sleep-reset",
+            "revenuecat-mrr-studio-cherie", "revenuecat-mrr-thankful",
+            "revenuecat-mrr-micro-mood",
+        })
+        gap_reasons = {row["source_id"]: row["reason"] for row in per_app_gaps}
+        self.assertEqual(gap_reasons["revenuecat-mrr-micro-mood"], "stale_readback")
+        self.assertTrue(all(
+            gap_reasons[source_id] == "source_unconnected"
+            for source_id in {
+                "revenuecat-mrr-dhamma-quotes", "revenuecat-mrr-sleep-reset",
+                "revenuecat-mrr-studio-cherie", "revenuecat-mrr-thankful",
+            }
+        ))
+
     def test_mobile_partial_stale_unsupported_and_missing_sources_fail_closed(self):
         partial = self.adapt_mobile("mobile-partial.jsonl")
         self.assertIn("missing_coverage", {row["reason"] for row in partial
@@ -1316,8 +1450,13 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         )
         self.assertIn("unsupported_currency", {row["reason"] for row in unsupported
                                                 if row["record_type"] == "coverage"})
-        self.assertFalse(any(row["record_type"] in {"receipt", "subscription_snapshot"}
-                             for row in unsupported))
+        unsupported_snapshots = {
+            row["subscription_id"] for row in unsupported
+            if row["record_type"] == "subscription_snapshot"
+        }
+        self.assertNotIn("revenuecat:anicca-ios:mrr", unsupported_snapshots)
+        self.assertEqual(len(unsupported_snapshots), 5)
+        self.assertFalse(any(row["record_type"] == "receipt" for row in unsupported))
 
         module = self.require_adapter()
         missing = module.adapt_mobile(

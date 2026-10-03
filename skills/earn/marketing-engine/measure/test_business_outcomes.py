@@ -108,6 +108,40 @@ class RevenueCatContractTest(unittest.TestCase):
         body = {"measures": [{"display_name": "Revenue"}], "values": []}
         self.assertIsNone(outcomes.sum_complete_chart_points(body, "Revenue"))
 
+    def test_revenuecat_snapshot_preserves_mrr_chart_currency(self):
+        app_id = "app511ef26659"
+        chart_body = {
+            "yaxis_currency": "USD",
+            "measures": [{"id": "mrr", "display_name": "MRR"}],
+            "periods": [{"date": "2026-10-02"}],
+            "values": [{
+                "cohort": 0, "measure": 0, "value": 20.34, "incomplete": False,
+            }],
+            "resolution": "day",
+            "start_date": "2026-09-05",
+            "end_date": "2026-10-02",
+        }
+
+        def read_chart(url, _headers, *, timeout=20):
+            if url.endswith("/options"):
+                return {"filters": [{
+                    "id": "app_id", "options": [{"id": app_id}],
+                }]}
+            return chart_body
+
+        with mock.patch.object(outcomes, "http_json", side_effect=read_chart), \
+             mock.patch.object(outcomes, "revenuecat_products", return_value={}):
+            result = outcomes.collect_revenuecat(
+                {
+                    "REVENUECAT_PROJECT_ID": "proj",
+                    "REVENUECAT_V2_SECRET_KEY": "unit-test-secret",
+                }, app_id,
+                "2026-09-05", "2026-10-02",
+            )
+
+        self.assertEqual(result.get("currency"), "USD")
+        self.assertEqual(result["charts"]["revenue"].get("currency"), "USD")
+
 
 class AppStoreContractTest(unittest.TestCase):
     def test_apple_finance_month_selector_matches_verified_fiscal_periods(self):
@@ -459,6 +493,25 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
         self.assertIsNone(source["data"])
         self.assertEqual(source["reason"], "missing_read_credential")
 
+    def test_published_app_without_revenuecat_binding_keeps_asc_and_explicit_gap(self):
+        product_id = "dhamma-quotes"
+        asc = {"app_id": "6757726663", "reports": {}}
+        sales = {"units": 0, "proceeds": {}}
+        with mock.patch.object(outcomes, "collect_asc", return_value=asc), \
+             mock.patch.object(outcomes, "collect_asc_sales", return_value=(sales, {})):
+            try:
+                row = outcomes.collect_snapshot({}, product_id, "2026-10-02")
+            except KeyError:
+                self.fail("published ASC app is not registered in the business-outcomes producer")
+
+        self.assertEqual(
+            row["sources"].get("app_store_connect", {}).get("status"), "available",
+        )
+        self.assertEqual(
+            row["sources"].get("revenuecat", {}).get("reason"), "app_not_in_project",
+        )
+        self.assertNotIn("stripe", row["sources"])
+
     def test_snapshot_validation_rejects_product_mismatch_and_duplicate(self):
         row = {
             "schema_version": 1,
@@ -472,6 +525,11 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
             outcomes.validate_snapshots([{**row, "product_id": "other"}], {"anicca-ios"})
         with self.assertRaisesRegex(ValueError, "duplicate snapshot"):
             outcomes.validate_snapshots([row, dict(row)], {"anicca-ios"})
+
+    def test_scheduled_metrics_runner_declares_every_business_outcomes_product(self):
+        runner_path = Path(__file__).parents[1] / "report" / "runners.json"
+        runners = json.loads(runner_path.read_text())["runners"]
+        self.assertEqual(set(runners["metrics"]["product_ids"]), set(outcomes.PRODUCTS))
 
     def test_upsert_migrates_legacy_snapshot_identity_without_duplication(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -492,6 +550,81 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
             self.assertEqual(outcomes.upsert_snapshots(path, [current]), 0)
             rows = [json.loads(line) for line in path.read_text().splitlines()]
             self.assertEqual(rows, [current])
+
+    def test_upsert_preserves_last_good_finance_detail_on_same_date_failure(self):
+        def snapshot(business_date, observed_at, finance_source):
+            return {
+                "schema_version": 1,
+                "snapshot_id": f"anicca-ios:{business_date}",
+                "product_id": "anicca-ios",
+                "business_date": business_date,
+                "observed_at": observed_at,
+                "sources": {"app_store_financial": finance_source},
+            }
+
+        good_source = {
+            "status": "available", "reason": None, "evidence_sha256": "a" * 64,
+            "data": {"report_id": "finance-2026-12-Z1", "report_sha256": "b" * 64},
+            "observed_at": "2026-10-03T00:00:00+00:00",
+        }
+        failed_attempt = outcomes.unavailable_source("provider_query_failed")
+        failed_attempt["observed_at"] = "2026-10-03T02:00:00+00:00"
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "business-outcomes.jsonl"
+            old_row = snapshot("2026-10-02", "2026-10-03T00:00:00+00:00", good_source)
+            path.write_text(json.dumps(old_row) + "\n")
+            new_row = snapshot("2026-10-02", "2026-10-03T02:00:00+00:00", failed_attempt)
+
+            outcomes.upsert_snapshots(path, [new_row])
+            saved = json.loads(path.read_text().strip())
+
+        finance = saved["sources"]["app_store_financial"]
+        self.assertEqual(finance["status"], "available")
+        self.assertEqual(finance["data"], good_source["data"])
+        self.assertEqual(finance["observed_at"], "2026-10-03T00:00:00+00:00")
+        self.assertEqual(finance["last_attempt"], {
+            "status": "unavailable",
+            "reason": "provider_query_failed",
+            "observed_at": "2026-10-03T02:00:00+00:00",
+        })
+        self.assertEqual(saved["observed_at"], "2026-10-03T02:00:00+00:00")
+
+    def test_new_snapshot_carries_last_good_finance_detail_without_refreshing_its_time(self):
+        good_source = {
+            "status": "available", "reason": None, "evidence_sha256": "c" * 64,
+            "data": {"report_id": "finance-2026-12-Z1", "report_sha256": "d" * 64},
+            "observed_at": "2026-10-03T00:00:00+00:00",
+        }
+        failed_attempt = outcomes.unavailable_source("provider_query_failed")
+        failed_attempt["observed_at"] = "2026-10-04T00:00:00+00:00"
+        old_row = {
+            "schema_version": 1, "snapshot_id": "anicca-ios:2026-10-02",
+            "product_id": "anicca-ios", "business_date": "2026-10-02",
+            "observed_at": "2026-10-03T00:00:00+00:00",
+            "sources": {"app_store_financial": good_source},
+        }
+        new_row = {
+            **old_row,
+            "snapshot_id": "anicca-ios:2026-10-03",
+            "business_date": "2026-10-03",
+            "observed_at": "2026-10-04T00:00:00+00:00",
+            "sources": {"app_store_financial": failed_attempt},
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "business-outcomes.jsonl"
+            path.write_text(json.dumps(old_row) + "\n")
+            outcomes.upsert_snapshots(path, [new_row])
+            saved = [json.loads(line) for line in path.read_text().splitlines()]
+
+        latest = next(row for row in saved if row["business_date"] == "2026-10-03")
+        finance = latest["sources"]["app_store_financial"]
+        self.assertEqual(finance["status"], "available")
+        self.assertEqual(finance["data"], good_source["data"])
+        self.assertEqual(finance["observed_at"], "2026-10-03T00:00:00+00:00")
+        self.assertEqual(finance["last_attempt"]["reason"], "provider_query_failed")
+        self.assertEqual(finance["last_attempt"]["observed_at"], "2026-10-04T00:00:00+00:00")
 
     def test_metrics_main_attaches_finance_source_and_replays_without_duplicate_snapshot(self):
         env = {"ASC_FINANCE_REPORT_DATE": "2026-12"}
@@ -533,7 +666,11 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
         self.assertEqual(replay_code, 0)
         self.assertEqual(replay["added"], 0)
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["sources"].get("app_store_financial"), finance_source)
+        stored_finance = rows[0]["sources"]["app_store_financial"]
+        for key, value in finance_source.items():
+            self.assertEqual(stored_finance[key], value)
+        finance_observed_at = dt.datetime.fromisoformat(stored_finance["observed_at"])
+        self.assertIsNotNone(finance_observed_at.tzinfo)
 
     def test_metrics_main_uses_loaded_state_root_for_state_and_finance_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -580,12 +717,17 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
         rows = []
         for product in outcomes.PRODUCTS:
             sources = {}
-            if "revenuecat_app_id" in outcomes.PRODUCTS[product]:
-                config = outcomes.PRODUCTS[product]
-                sources = {
-                    "revenuecat": outcomes.available_source({
+            config = outcomes.PRODUCTS[product]
+            if "asc_app_id" in config:
+                revenuecat = (
+                    outcomes.available_source({
                         "app_id": config["revenuecat_app_id"], "charts": {}
-                    }),
+                    })
+                    if "revenuecat_app_id" in config
+                    else outcomes.unavailable_source("app_not_in_project")
+                )
+                sources = {
+                    "revenuecat": revenuecat,
                     "app_store_connect": outcomes.available_source({
                         "app_id": config["asc_app_id"],
                         "reports": {"downloads": outcomes.available_source({
@@ -599,7 +741,7 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
                 }
             else:
                 sources = {"stripe": outcomes.available_source({
-                    "queried_product_ids": outcomes.PRODUCTS[product]["stripe_product_ids"],
+                    "queried_product_ids": config["stripe_product_ids"],
                     "paid_orders": 0,
                     "gross_minor": {},
                     "refunded_minor": {},
@@ -613,9 +755,17 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
                 "business_date": "2026-07-30",
                 "sources": sources,
             })
-        report = outcomes.verify_gate5_snapshots(rows, "2026-07-30")
+        try:
+            report = outcomes.verify_gate5_snapshots(rows, "2026-07-30")
+        except (KeyError, TypeError, ValueError) as error:
+            self.fail(f"published ASC product was not handled as mobile: {type(error).__name__}")
         self.assertTrue(report["gate_pass"])
         self.assertEqual(report["products_verified"], len(outcomes.PRODUCTS))
+        self.assertEqual(
+            {item["product_id"] for item in report["unavailable_sources"]
+             if item["source"] == "revenuecat"},
+            {"dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"},
+        )
 
         rows[0]["sources"]["app_store_connect"]["data"]["reports"]["downloads"]["data"]["installs"] = 9
         with self.assertRaisesRegex(ValueError, "ambiguous installs"):

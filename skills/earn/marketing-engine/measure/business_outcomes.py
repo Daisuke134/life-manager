@@ -57,6 +57,10 @@ PRODUCTS = {
         "revenuecat_app_id": "app3bbd298d22",
         "analytics": None,
     },
+    "dhamma-quotes": {"asc_app_id": "6757726663", "analytics": None},
+    "sleep-reset": {"asc_app_id": "6762143790", "analytics": None},
+    "studio-cherie": {"asc_app_id": "6766485903", "analytics": None},
+    "thankful": {"asc_app_id": "6759514159", "analytics": None},
     "breath-reset": {
         "asc_app_id": "6760253231",
         "revenuecat_app_id": "app498e23effc",
@@ -855,13 +859,20 @@ def verify_gate5_snapshots(rows: list[dict[str, Any]], business_date: str) -> di
                     "source": source_name,
                     "reason": source.get("reason") or "unspecified",
                 })
-        if "revenuecat_app_id" in config:
+        if "asc_app_id" in config:
             revenuecat = sources.get("revenuecat")
             asc = sources.get("app_store_connect")
-            if not revenuecat or revenuecat["status"] != "available":
-                raise ValueError(f"{product_id} RevenueCat unavailable")
-            if revenuecat["data"].get("app_id") != config["revenuecat_app_id"]:
-                raise ValueError(f"{product_id} RevenueCat app mismatch")
+            if "revenuecat_app_id" in config:
+                if not revenuecat or revenuecat["status"] != "available":
+                    raise ValueError(f"{product_id} RevenueCat unavailable")
+                if revenuecat["data"].get("app_id") != config["revenuecat_app_id"]:
+                    raise ValueError(f"{product_id} RevenueCat app mismatch")
+            elif (
+                not revenuecat
+                or revenuecat.get("status") != "unavailable"
+                or revenuecat.get("reason") != "app_not_in_project"
+            ):
+                raise ValueError(f"{product_id} RevenueCat binding gap is not explicit")
             if not asc or asc["status"] != "available":
                 raise ValueError(f"{product_id} ASC unavailable")
             if asc["data"].get("app_id") != config["asc_app_id"]:
@@ -1159,6 +1170,10 @@ def collect_revenuecat(
             "end_date": body.get("end_date"),
             "evidence_sha256": _json_hash(body),
         }
+        if chart in {"mrr", "revenue"}:
+            result["charts"][chart]["currency"] = body.get("yaxis_currency")
+        if chart == "mrr":
+            result["currency"] = body.get("yaxis_currency")
         if chart == "revenue":
             # Revenue is a flow metric: the queried window is exactly the
             # report's 28-day window (see collect_snapshot), so summing every
@@ -1249,18 +1264,21 @@ def collect_snapshot(
 ) -> dict[str, Any]:
     config = PRODUCTS[product_id]
     sources: dict[str, Any] = {}
-    if "revenuecat_app_id" in config:
-        # 28-day inclusive window: matches the "revenue_28d" figure in the owner report.
-        start = (dt.date.fromisoformat(business_date) - dt.timedelta(days=27)).isoformat()
-        try:
-            data = collect_revenuecat(
-                env, config["revenuecat_app_id"], start, business_date
-            )
-            sources["revenuecat"] = available_source(data, evidence_sha256=_json_hash(data))
-        except Exception as error:
-            sources["revenuecat"] = unavailable_source(
-                "provider_query_failed", error=f"{type(error).__name__}: {error}"
-            )
+    if "asc_app_id" in config:
+        if "revenuecat_app_id" in config:
+            # 28-day inclusive window: matches the "revenue_28d" figure in the owner report.
+            start = (dt.date.fromisoformat(business_date) - dt.timedelta(days=27)).isoformat()
+            try:
+                data = collect_revenuecat(
+                    env, config["revenuecat_app_id"], start, business_date
+                )
+                sources["revenuecat"] = available_source(data, evidence_sha256=_json_hash(data))
+            except Exception as error:
+                sources["revenuecat"] = unavailable_source(
+                    "provider_query_failed", error=f"{type(error).__name__}: {error}"
+                )
+        else:
+            sources["revenuecat"] = unavailable_source("app_not_in_project")
         try:
             asc = collect_asc(
                 env,
@@ -1349,7 +1367,46 @@ def upsert_snapshots(path: Path, new_rows: list[dict[str, Any]]) -> int:
 
     by_id = {logical_id(row): row for row in old}
     before = len(by_id)
+
+    def finance_rank(row: dict[str, Any], source: dict[str, Any]) -> tuple[str, str]:
+        return (
+            str(source.get("observed_at") or row.get("observed_at") or ""),
+            str(row.get("business_date") or ""),
+        )
+
+    last_good_finance: dict[str, tuple[tuple[str, str], dict[str, Any], dict[str, Any]]] = {}
+    for old_row in old:
+        product = canonical_product_id(old_row.get("product_id"))
+        source = (old_row.get("sources") or {}).get("app_store_financial")
+        if product and isinstance(source, dict) and source.get("status") == "available":
+            candidate = (finance_rank(old_row, source), old_row, source)
+            previous = last_good_finance.get(product)
+            if previous is None or candidate[0] > previous[0]:
+                last_good_finance[product] = candidate
+
     for row in new_rows:
+        product = canonical_product_id(row.get("product_id"))
+        sources = row.setdefault("sources", {})
+        incoming_finance = sources.get("app_store_financial")
+        previous_good = last_good_finance.get(product)
+        if isinstance(incoming_finance, dict) and incoming_finance.get("status") == "available":
+            incoming_finance.setdefault("observed_at", row.get("observed_at"))
+            if product:
+                last_good_finance[product] = (
+                    finance_rank(row, incoming_finance), row, incoming_finance,
+                )
+        elif previous_good is not None:
+            _, good_row, good_source = previous_good
+            preserved_finance = dict(good_source)
+            if not preserved_finance.get("observed_at"):
+                preserved_finance["observed_at"] = good_row.get("observed_at")
+            if isinstance(incoming_finance, dict):
+                preserved_finance["last_attempt"] = {
+                    "status": incoming_finance.get("status"),
+                    "reason": incoming_finance.get("reason") or "unspecified",
+                    "observed_at": incoming_finance.get("observed_at") or row.get("observed_at"),
+                }
+            sources["app_store_financial"] = preserved_finance
         by_id[logical_id(row)] = row
     rows = sorted(by_id.values(), key=lambda row: row["snapshot_id"])
     validate_snapshots(rows, set(PRODUCTS))
@@ -1399,6 +1456,9 @@ def main() -> int:
                 )
                 for product in mobile_products
             }
+        finance_observed_at = dt.datetime.now(dt.timezone.utc).isoformat()
+        for finance_source in finance_sources.values():
+            finance_source["observed_at"] = finance_observed_at
     rows = [collect_snapshot(env, product, args.date) for product in selected]
     for row in rows:
         finance_source = finance_sources.get(row["product_id"])

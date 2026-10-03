@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, DecimalException, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -14,14 +14,21 @@ from skills.cfo import economic_attribution as contract
 
 CAPAFY_LOOP = "capafy"
 MOBILE_LOOP = "mobile-apps"
-MOBILE_PRODUCTS = (
+MOBILE_PUBLISHED_PRODUCTS = (
     "anicca-ios",
     "honne-ai",
+    "dhamma-quotes",
+    "sleep-reset",
+    "studio-cherie",
+    "thankful",
+)
+MOBILE_PRELAUNCH_PRODUCTS = (
     "breath-reset",
     "sleep-ritual",
     "desk-stretch-timer",
     "micro-mood",
 )
+MOBILE_PRODUCTS = (*MOBILE_PUBLISHED_PRODUCTS, *MOBILE_PRELAUNCH_PRODUCTS)
 MOBILE_PRODUCT_BINDINGS = {
     "anicca-ios": {
         "asc_app_id": "6755129214",
@@ -31,6 +38,10 @@ MOBILE_PRODUCT_BINDINGS = {
         "asc_app_id": "6759667221",
         "revenuecat_app_id": "app3bbd298d22",
     },
+    "dhamma-quotes": {"asc_app_id": "6757726663"},
+    "sleep-reset": {"asc_app_id": "6762143790"},
+    "studio-cherie": {"asc_app_id": "6766485903"},
+    "thankful": {"asc_app_id": "6759514159"},
     "breath-reset": {
         "asc_app_id": "6760253231",
         "revenuecat_app_id": "app498e23effc",
@@ -49,8 +60,20 @@ MOBILE_PRODUCT_BINDINGS = {
     },
 }
 COUNTED = ("provider_fee", "refund", "settled_external_revenue")
-MOBILE_COMPLETE_PERIOD_MAX_LAG = timedelta(days=1)
+MOBILE_COMPLETE_PERIOD_MAX_LAG = contract.MAX_SUBSCRIPTION_SNAPSHOT_AGE
 MAX_B0_AMOUNT_INTEGER_DIGITS = 26
+RC_GAP_PRIORITY = {
+    "source_unconnected": 0,
+    "missing_coverage": 1,
+    "unsupported_currency": 2,
+    "stale_readback": 3,
+}
+
+
+def _prefer_rc_issue(current: str | None, candidate: str) -> str:
+    if current is None or RC_GAP_PRIORITY[candidate] > RC_GAP_PRIORITY[current]:
+        return candidate
+    return current
 
 
 def _instant(value: Any) -> str:
@@ -720,7 +743,8 @@ def adapt_mobile(
 ) -> list[dict]:
     """Convert passed ASC/RevenueCat snapshots; never performs provider I/O."""
     snapshot_at, trailing_start = _instant(snapshot_at), _instant(trailing_start)
-    snapshot_date = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00")).date()
+    snapshot_instant = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+    snapshot_date = snapshot_instant.date()
     latest_complete_date = snapshot_date - MOBILE_COMPLETE_PERIOD_MAX_LAG
     if len(products) != len(MOBILE_PRODUCTS) or set(products) != set(MOBILE_PRODUCTS):
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
@@ -800,6 +824,7 @@ def adapt_mobile(
         "unassigned_financial_rows" if unassigned_row_count else None
     )
     rc_issue: str | None = None
+    rc_product_issues: dict[str, str] = {}
     observed_values: list[str] = []
     report_periods: list[tuple[date, date]] = []
     for product in products:
@@ -807,6 +832,11 @@ def adapt_mobile(
         try:
             observed_at = _instant(row["observed_at"])
             observed_values.append(observed_at)
+            observed_instant = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+            observation_fresh = (
+                observed_instant <= snapshot_instant
+                and snapshot_instant - observed_instant < MOBILE_COMPLETE_PERIOD_MAX_LAG
+            )
             business_date = row["business_date"]
             sources = row["sources"]
             if not isinstance(sources, dict):
@@ -902,15 +932,29 @@ def adapt_mobile(
 
         rc = sources.get("revenuecat", {})
         try:
+            revenuecat_app_id = MOBILE_PRODUCT_BINDINGS[product].get("revenuecat_app_id")
+            if not revenuecat_app_id:
+                rc_complete = False
+                rc_issue = _prefer_rc_issue(rc_issue, "source_unconnected")
+                rc_product_issues[product] = "source_unconnected"
+                continue
             if not isinstance(rc, dict) or rc.get("status") != "available" or not isinstance(
                 rc.get("data"), dict
             ):
-                raise ValueError("missing_coverage")
+                rc_complete = False
+                reason = (
+                    "source_unconnected"
+                    if isinstance(rc, dict) and rc.get("reason") == "app_not_in_project"
+                    else "missing_coverage"
+                )
+                rc_issue = _prefer_rc_issue(rc_issue, reason)
+                rc_product_issues[product] = reason
+                continue
             rc_data = rc["data"]
             evidence_sha = _sha256(rc.get("evidence_sha256"))
             if evidence_sha != _revenuecat_content_sha256(rc):
                 raise ValueError("content_hash_invalid")
-            if rc_data.get("app_id") != MOBILE_PRODUCT_BINDINGS[product]["revenuecat_app_id"]:
+            if rc_data.get("app_id") != revenuecat_app_id:
                 raise ValueError("product_identity_mismatch")
             currency = _currency(rc_data.get("currency"))
             revenue_definition = rc_data.get("revenue_definition")
@@ -934,6 +978,11 @@ def adapt_mobile(
                 or snapshot_date - point_date > MOBILE_COMPLETE_PERIOD_MAX_LAG
             ):
                 raise ValueError("missing_coverage")
+            if not observation_fresh:
+                rc_complete = False
+                rc_issue = _prefer_rc_issue(rc_issue, "stale_readback")
+                rc_product_issues[product] = "stale_readback"
+                continue
             amount = _money(point.get("value"))
             status = "active" if Decimal(amount) > 0 else "inactive"
             snapshots.append(contract.validate_record({
@@ -955,9 +1004,10 @@ def adapt_mobile(
             }))
         except (KeyError, TypeError, ValueError, contract.ContractError) as exc:
             rc_complete = False
-            rc_issue = "unsupported_currency" if str(exc) == "unsupported_currency" else "missing_coverage"
+            reason = "unsupported_currency" if str(exc) == "unsupported_currency" else "missing_coverage"
+            rc_issue = _prefer_rc_issue(rc_issue, reason)
+            rc_product_issues[product] = reason
 
-    snapshot_instant = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
     fresh = bool(observed_values) and all(
         datetime.fromisoformat(value.replace("Z", "+00:00")) <= snapshot_instant
         and snapshot_instant - datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -1009,8 +1059,26 @@ def adapt_mobile(
             categories=("mrr",),
         ),
     ]
+    coverage.extend(
+        _coverage(
+            loop_id=MOBILE_LOOP,
+            source_id=f"revenuecat-mrr-{product}",
+            projection="as_of",
+            snapshot_at=snapshot_at,
+            trailing_start=trailing_start,
+            observed_at=snapshot_at,
+            evidence_ref=(
+                f"adapter://revenuecat-mrr/{product}/"
+                f"{MOBILE_PRODUCT_BINDINGS[product]['asc_app_id']}/{reason}"
+            ),
+            complete=False,
+            reason=reason,
+            categories=(),
+        )
+        for product, reason in sorted(rc_product_issues.items())
+    )
     return (
         sorted(receipts, key=lambda row: (row["provider"], row["receipt_id"]))
-        + sorted(snapshots if rc_complete else [], key=lambda row: row["subscription_id"])
+        + sorted(snapshots, key=lambda row: row["subscription_id"])
         + coverage
     )

@@ -143,5 +143,73 @@
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759877003", "business_date": "2026-09-30", "proceeds": {}}},
       "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final", "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "app_id": "6759877003", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "dhamma-quotes:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "dhamma-quotes",
+    "sources": {
+      "revenuecat": {"status": "unavailable", "reason": "app_not_in_project", "data": null},
+      "app_store_financial": {"status": "available", "reason": null, "data": {
+        "report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
+        "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final",
+        "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "app_id": "6757726663", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []
+      }}
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "sleep-reset:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "sleep-reset",
+    "sources": {
+      "revenuecat": {"status": "unavailable", "reason": "app_not_in_project", "data": null},
+      "app_store_financial": {"status": "available", "reason": null, "data": {
+        "report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
+        "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final",
+        "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "app_id": "6762143790", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []
+      }}
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "studio-cherie:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "studio-cherie",
+    "sources": {
+      "revenuecat": {"status": "unavailable", "reason": "app_not_in_project", "data": null},
+      "app_store_financial": {"status": "available", "reason": null, "data": {
+        "report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
+        "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final",
+        "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "app_id": "6766485903", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []
+      }}
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "thankful:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "thankful",
+    "sources": {
+      "revenuecat": {"status": "unavailable", "reason": "app_not_in_project", "data": null},
+      "app_store_financial": {"status": "available", "reason": null, "data": {
+        "report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
+        "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final",
+        "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "app_id": "6759514159", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []
+      }}
+    }
   }
 ]

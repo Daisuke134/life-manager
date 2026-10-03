@@ -489,8 +489,78 @@ class B7IntegrationTest(unittest.TestCase):
         }, {
             ("app-store-connect-financial", "historical", "missing_coverage"),
             ("app-store-connect-financial", "trailing", None),
-            ("revenuecat-mrr", "as_of", None),
+            ("revenuecat-mrr", "as_of", "source_unconnected"),
+            ("revenuecat-mrr-dhamma-quotes", "as_of", "source_unconnected"),
+            ("revenuecat-mrr-sleep-reset", "as_of", "source_unconnected"),
+            ("revenuecat-mrr-studio-cherie", "as_of", "source_unconnected"),
+            ("revenuecat-mrr-thankful", "as_of", "source_unconnected"),
         })
+
+    def test_active_mobile_b7_keeps_staggered_fresh_mrr_and_rejects_stale_product(self):
+        def rows_with_observation_times(stale_product=None):
+            rows = fixture("../economic_attribution/mobile-verified.json")
+            for index, row in enumerate(rows):
+                row["observed_at"] = f"2026-10-01T00:00:{index:02d}Z"
+                revenuecat = row["sources"]["revenuecat"]
+                if revenuecat["status"] == "available":
+                    revenuecat["data"]["currency"] = "USD"
+                    revenuecat["evidence_sha256"] = hashlib.sha256(json.dumps(
+                        revenuecat["data"], sort_keys=True, separators=(",", ":"),
+                        ensure_ascii=False,
+                    ).encode()).hexdigest()
+                if row["product_id"] == stale_product:
+                    row["observed_at"] = "2026-09-29T00:00:00Z"
+            return rows
+
+        snapshot_at = "2026-10-01T00:01:00.000000Z"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "business-outcomes.jsonl"
+            writer_money = Path(tmp) / "writer-money.sqlite3"
+            env = {
+                "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(path),
+                "LM_CFO_WRITER_MONEY": str(writer_money),
+            }
+
+            rows = rows_with_observation_times()
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=snapshot_at, trailing_start=TRAILING_START, env=env,
+            )
+            snapshots = [row for row in records if row.get("record_type") == "subscription_snapshot"]
+            self.assertEqual(len(snapshots), 6)
+            self.assertEqual(len({row["observed_at"] for row in snapshots}), 6)
+            self.assertEqual({row["currency"] for row in snapshots}, {"USD"})
+            mrr_coverage = next(
+                row for row in records
+                if row.get("record_type") == "coverage"
+                and row.get("source_id") == "revenuecat-mrr"
+            )
+            self.assertEqual(mrr_coverage["window_end"], snapshot_at)
+            self.assertEqual(mrr_coverage["reason"], "source_unconnected")
+            fresh_mrr = contract.project(
+                records, snapshot_at=snapshot_at, trailing_start=TRAILING_START,
+            )["mrr"]["loops"]["mobile-apps"]
+            self.assertEqual(fresh_mrr["status"], "unknown")
+            self.assertEqual(fresh_mrr["currencies"], {})
+            self.assertNotIn("subscription_snapshot_stale", fresh_mrr["reasons"])
+
+            rows = rows_with_observation_times(stale_product="micro-mood")
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=snapshot_at, trailing_start=TRAILING_START, env=env,
+            )
+            snapshots = [row for row in records if row.get("record_type") == "subscription_snapshot"]
+            self.assertEqual(len(snapshots), 5)
+            self.assertNotIn("revenuecat:micro-mood:mrr", {
+                row["subscription_id"] for row in snapshots
+            })
+            stale_mrr = contract.project(
+                records, snapshot_at=snapshot_at, trailing_start=TRAILING_START,
+            )["mrr"]["loops"]["mobile-apps"]
+            self.assertEqual(stale_mrr["status"], "unknown")
+            self.assertIn("stale_readback", {
+                row["reason"] for row in stale_mrr["coverage_gaps"]
+            })
 
     def test_active_b7_projection_counts_mapped_finance_row_once_not_revenuecat_chart(self):
         source_rows = fixture("../economic_attribution/mobile-verified.json")
