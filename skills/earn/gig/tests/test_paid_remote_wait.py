@@ -639,6 +639,8 @@ def test_remote_owner_sandbox_removes_shared_marketplace_browser(tmp_path, monke
     monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases))
     monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(target_owners))
     monkeypatch.setenv("CDP_DAILY_DRIVER_PROFILE", str(profile_root))
+    browser_port_state = tmp_path / "browser-ports"
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_PORT_STATE_DIR", str(browser_port_state))
 
     wrapped = paid._private_model_runner(root, [sys.executable, "owner.py"], "paid-remote-owner")
 
@@ -649,6 +651,7 @@ def test_remote_owner_sandbox_removes_shared_marketplace_browser(tmp_path, monke
     assert str(leases) in profile
     assert str(target_owners) in profile
     assert str(profile_root) in profile
+    assert f'(deny file-write* (subpath "{browser_port_state}"))' in profile
 
 
 def test_remote_owner_prompt_forbids_shared_daily_driver_fallback(tmp_path) -> None:

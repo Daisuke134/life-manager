@@ -1,4 +1,6 @@
 import importlib.util
+import hashlib
+import json
 import socket
 from pathlib import Path
 
@@ -122,3 +124,63 @@ def test_listener_pids_finds_lsof_even_when_path_omits_usr_sbin(monkeypatch):
     finally:
         server.close()
     assert pids, "expected lsof (found via absolute fallback path) to report the bound listener"
+
+
+def test_resolver_uses_exact_profile_receipt_when_sandbox_blocks_process_command(
+    tmp_path, monkeypatch
+):
+    profile = tmp_path / "tiktok-profile"
+    profile.mkdir()
+    state = tmp_path / "browser-ports"
+    state.mkdir()
+    digest = hashlib.sha256(str(profile.resolve()).encode()).hexdigest()
+    receipt = state / f"profile-{digest}.json"
+    receipt.write_text(json.dumps({
+        "owner": "tiktok-browser",
+        "supervisor_pid": 41,
+        "browser_root_pid": 42,
+        "listener_pid": 42,
+        "port": 9230,
+        "profile_name": profile.name,
+    }))
+    receipt.chmod(0o600)
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_PORT_STATE_DIR", str(state))
+    registry = {"tiktok": {"profile": str(profile), "declared_port": 9230}}
+
+    result = MODULE.resolve_identity(
+        "tiktok", registry,
+        fetch=lambda _url: {"uuid": "tiktok-browser"},
+        listeners=lambda host, _port: [42] if host == "127.0.0.1" else [],
+        command=lambda _pid: "",
+    )
+
+    assert result["pid"] == 42
+    assert result["ownership_source"] == "browser_port_owner_receipt"
+
+
+def test_resolver_rejects_profile_receipt_for_a_different_listener(tmp_path, monkeypatch):
+    profile = tmp_path / "tiktok-profile"
+    profile.mkdir()
+    state = tmp_path / "browser-ports"
+    state.mkdir()
+    digest = hashlib.sha256(str(profile.resolve()).encode()).hexdigest()
+    receipt = state / f"profile-{digest}.json"
+    receipt.write_text(json.dumps({
+        "owner": "tiktok-browser",
+        "supervisor_pid": 41,
+        "browser_root_pid": 99,
+        "listener_pid": 99,
+        "port": 9230,
+        "profile_name": profile.name,
+    }))
+    receipt.chmod(0o600)
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_PORT_STATE_DIR", str(state))
+    registry = {"tiktok": {"profile": str(profile), "declared_port": 9230}}
+
+    with pytest.raises(ValueError, match="endpoint_not_profile_owned"):
+        MODULE.resolve_identity(
+            "tiktok", registry,
+            fetch=lambda _url: {"uuid": "tiktok-browser"},
+            listeners=lambda host, _port: [42] if host == "127.0.0.1" else [],
+            command=lambda _pid: "",
+        )

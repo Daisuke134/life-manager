@@ -10,6 +10,7 @@ command line contains the registered profile.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -142,6 +143,49 @@ def _profile_owned(
     return None
 
 
+def _profile_receipt_owned(
+    profile: str, pids: Iterable[int], port: int,
+) -> tuple[int, str] | None:
+    """Verify a live listener against the exact profile-hash owner receipt.
+
+    Nested Seatbelt permits lsof but can reject ps, so the command-line proof is
+    unavailable inside the paid owner. browser_port_owner writes this receipt
+    atomically at mode 0600; callers sandboxed for model work must deny writes
+    to its directory.
+    """
+    state_dir = Path(os.environ.get(
+        "LIFE_MANAGER_BROWSER_PORT_STATE_DIR",
+        "~/.local/state/life-manager/browser-ports",
+    )).expanduser()
+    digest = hashlib.sha256(os.path.realpath(profile).encode()).hexdigest()
+    receipt = state_dir / f"profile-{digest}.json"
+    try:
+        info = receipt.lstat()
+        if receipt.is_symlink() or not receipt.is_file():
+            return None
+        if info.st_uid != os.getuid() or info.st_mode & 0o077:
+            return None
+        value = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+    root_pid = value.get("listener_pid")
+    if root_pid is None and value.get("adopted") is True:
+        root_pid = value.get("browser_root_pid")
+    supervisor_pid = value.get("supervisor_pid")
+    owner = value.get("owner")
+    if (
+        not isinstance(root_pid, int) or isinstance(root_pid, bool)
+        or root_pid not in set(pids)
+        or not isinstance(supervisor_pid, int) or isinstance(supervisor_pid, bool)
+        or supervisor_pid <= 0
+        or value.get("port") != port
+        or value.get("profile_name") != Path(profile).name
+        or not isinstance(owner, str) or not IDENTITY_RE.fullmatch(owner)
+    ):
+        return None
+    return root_pid, f"browser_port_owner_receipt:{receipt.name}"
+
+
 def resolve_identity(
     identity: str,
     registry: dict[str, dict[str, object]],
@@ -168,6 +212,10 @@ def resolve_identity(
         saw_live_endpoint = True
         pids = listeners(host, port)
         owner = _profile_owned(profile, pids, command)
+        ownership_source = "process_command"
+        if owner is None:
+            owner = _profile_receipt_owned(profile, pids, port)
+            ownership_source = "browser_port_owner_receipt"
         if owner is None:
             continue
         pid, _ = owner
@@ -179,6 +227,7 @@ def resolve_identity(
             "endpoint": endpoint(host, port),
             "uuid": str(live["uuid"]),
             "pid": pid,
+            "ownership_source": ownership_source,
             "reachable": True,
             "http_status": 200,
             "websocket_url_valid": True,
