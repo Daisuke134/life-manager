@@ -4831,7 +4831,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
 |---|---|---|
 | Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
-| Self-Build / Eval | latestmain80のimmutable/loaded argv一致は確認済み。次の自然row/run-ID/report一致、実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
+| Self-Build / Eval | latestmain80のimmutable/loaded argv一致は確認済み。自然row/run-ID/report一致は§262で1occurrence確認済み。実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
 | Paid / 各marketplace | Mercor Paidは§241で新main自然観測/replay-zero確認済み。自然期限更新、旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
 | Affiliate | fresh commission/payoutはEMPTY。tax REQUIRED/payment provider SELECTION_REQUIRED、fee/actualcost/settlement/payoutと旧publish fence | primary/Affiliate owner。emptyをprofit/費用0へ変換しない |
@@ -4847,7 +4847,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 - 最後に検証したsourceはPR6534/本人限定token更新を含むmain9c03543e5dc51f7bc54f8e132a264964a0e40f6d。PR6531/6534は統合済み、再PR/merge不要。PR6534は独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSS/全10CI PASS。実装branch fix/mercor-paid-token-refresh-20261004/HEADce914はclean/pushedで保持。
 - 最後に確認したproduction currentはmain9c/completeALL、immutable 20261004T011929-9c03543e。Paid actualargv/loadは§240、新9c自然official snapshot/native/result/marker joinとisolated replay0は§241でPASS。自然expired→renewedは未証明。在庫0/effect0を売上・利益0へ拡張しない。旧release owner61609はterminalで、現在のowner稼働状態は操作前に再確認する。重複build/apply/kill/wakeしない。
-- SelfBuild exactloaded80/idle/effectunknownfalseは§226、JST04:10自然UUID/report照合は未達。現在のloadedを更新なしにlatestmainと断定しない。Mobile別担当のbranch/Apple/provider/profileを触らない。
+- SelfBuild exactloaded80/idle/effectunknownfalseは§226、自然UUID/report一致は§262のnative49851で確認。JST04:10の個別wakeや全promotion成立と混同しない。現在のloadedを更新なしにlatestmainと断定しない。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件は§226、Reply49631は§231でexact message業務scope proofにより解放/replay0。別旧Reply61324はnative66602/exit1/証拠不足でHELD、App33812もHELD。過去auth/UI一般作用unknownを0へ変換しない。保留4の受付・不足fields診断は§234。
 - 容量は他既存処理で約3.7GB回復後、closed npx cache1件の限定削除で約155MB増加、旧ENOSPCの全回復を自分の成果へ計上しない。doctorの既存unmanaged capafy.kosukeは未完。全14 CFO/fee/actualcost/settlement/payoutと全残TODOは上表のままgoalactive。
 
@@ -5247,3 +5247,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 通常cadence300秒で19:00:21Z run48699はhost_admission_deferred:resource_capacity_busy/blocked。再起動や手動wakeせず、19:00:32Zの次native run18db1a2735318a70-48841→19:00:47Z/pass/exit0/SHAbe2を確認。official snapshot19:00:44Z/contracts0、business occurrence mercor-revenue-paid:18db1a2735318a70-48841/statusok/effect0/readback0/pending0/failed0と時間・IDを結合。
 - authmetadataはidentity_matchedtrue/expired_beforefalse/refreshedfalse/expired_afterfalse。秘密なし4boolのsource→immutable→actualargv→自然snapshot保存を実証した。今回はtokenが既に有効であり、自然expired→renewedの実証はまだ未達。人工expiry/cookie注入/manualwake0、emptycontractsを収益/費用/payout0へ拡張しない。
 - state/mercor-auth-be2-natural-20261004.json/mode600にnativeevents/source/snapshot hash/auth/businessを保存。次は通常expiry時のbeforetrue/refreshedtrue/afterfalseと同official GET/resultを観測し、Coconala品質・納品・金融receipt、diskcapacity、§217全残TODO/別担当Mobile境界を保持。全goalactive。
+
+
+### 262. Self-Build自然runのexact UUID台帳/report/通知結合
+
+- 実loadedselfbuildは9c/loadedidle、StartCalendarInterval04:10/RunAtLoadfalse。台帳に早い時刻のnative runが存在したため、予定時刻だけでmanual実行と断定せず実eventを照合。native18db1a32423d0798-49851/SHA9cはexecute19:01:19Z→report19:01:54Z/pass/exit0。
+- 時間内のledger UUID2a573ac4-2480-47db-b4e3-9150975b2936/JSTday10-04/start19:01:23Z/end19:01:28Z、recordhash428050f63a3410f5bb54389f4ca1a69155d99418fe47ad2dfce0ab03f2850469。stdoutJSONの全ledger fields一致、同logのreportは同day/no_op/no_eligible_pr/#6368recovery_promotion_hooks_incompleteと一致、providerTelegram receiptMSGID102457まで確認。
+- immutable9cのshell/CLI/library3filesはcurrentbe2とbytes一致。shellはdotenv後UUIDを生成し、そのUUIDのledgerだけをreportへ選択する実codeを確認。旧lastrowを現在runへ流用せず、manualwake/merge/guard緩和/台帳移動0。state/selfbuild-natural-exact-row-report-20261004.json/mode600。
+- 台帳/report exactjoinの最初の自然gateはこのoccurrenceで成立。safe promotion/recoveryの実ownerhook、validated eval/cost-first/前後比較、policy43bound/135unboundの本成果は未達のまま。04:10予定wakeや過去seven-dayreadyを全promotion完了へ置換しない。
+- 次はowner-local promotionの実hook不足と残paid/financial readbackを進め、Mercor通常expiryでauthbeforetrue/refreshedtrue/afterfalseを観測。§217全残TODO/別担当Mobile境界/goalactiveを保持。
