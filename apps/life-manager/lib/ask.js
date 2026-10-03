@@ -391,7 +391,7 @@ User's home address: ${JSON.stringify(home || "")}` }],
         if (res.provider === "openpoi") {
           openPoiLicenses = res.licenses || [];
           openPoiAttributions = res.attributions || [];
-          locationAttributionUrl = res.attributionUrl || "https://openpoiapi.com/attribution.html";
+          locationAttributionUrl = res.attributionUrl || null;
         }
         responses.push({ functionResponse: {
           name: "places_search", response: {

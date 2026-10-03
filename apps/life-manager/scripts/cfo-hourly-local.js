@@ -13,6 +13,7 @@ const {
 } = require("../lib/financial-manager-runtime.js");
 const { renderFinancialManagerTelegram } = require("../lib/financial-manager-report.js");
 const { notifyCfoReport, reportDestination } = require("../lib/cfo-report-delivery.js");
+const { evaluateCfoObservationPeriods } = require("../lib/cfo-observation-gate.js");
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
@@ -101,6 +102,41 @@ function writeSnapshot(file, value) {
       if (!error || error.code !== "ENOENT") throw error;
     }
   }
+}
+
+function readObservationPeriods(file) {
+  try {
+    const value = JSON.parse(fs.readFileSync(file, "utf8"));
+    return value && value.schemaVersion === 1 && Array.isArray(value.periods) ? value.periods : [];
+  } catch (error) {
+    if (error && error.code === "ENOENT") return [];
+    return [];
+  }
+}
+
+function recordObservationGate(stateDir, result, options) {
+  if (!result || !result.report || !result.reportingDate) return null;
+  const file = path.join(stateDir, "cfo-observation-periods.json");
+  const previous = readObservationPeriods(file).filter((row) => row.reportingDate !== result.reportingDate);
+  const deliveryStatus = result.status === "sent" ? "sent" : result.status === "quiet" ? "duplicate" : "failed";
+  const providerMessageId = result.providerMessageId
+    || result.duplicate?.providerMessageId
+    || result.duplicate?.delivery?.provider_message_id
+    || null;
+  const row = {
+    reportingDate: result.reportingDate,
+    delivery: { status: deliveryStatus, providerMessageId },
+    sourceFreshness: result.report.sourceFreshness || {},
+    providerCostSettlement: result.report.providerCostSettlement || null,
+    providerLanes: result.ingestion?.providerLanes || result.report.providerLanes || null,
+  };
+  const periods = [...previous, row].sort((a, b) => String(a.reportingDate).localeCompare(String(b.reportingDate)));
+  writeSnapshot(file, { schemaVersion: 1, periods });
+  return evaluateCfoObservationPeriods(periods, {
+    requiredDays: Number(options.requiredObservationDays || 7),
+    latestDate: result.reportingDate,
+    requiredProviderLanes: options.requiredProviderLanes || ["poi", "transit", "geocoder"],
+  });
 }
 
 async function runHourlyCfo(options = {}) {
@@ -208,6 +244,7 @@ async function runHourlyCfo(options = {}) {
     },
   });
   const { duplicate, ...publicResult } = result;
+  publicResult.observationGate = recordObservationGate(stateDir, result, options);
   if (publicResult.report) {
     publicResult.personal = publicResult.report.personal;
     publicResult.business = publicResult.report.business;

@@ -102,3 +102,37 @@ test("provider-cost acceptance fixture keeps stale benchmark partial and free-pr
   assert.equal(result.complete, false);
   assert.ok(result.failures.includes("provider_lane_not_fresh:geocoder:2026-10-07"));
 });
+
+test("runHourlyCfo persists seven daily provider lanes and exposes the complete gate only when all are fresh", async (t) => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-provider-gate-"));
+  t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(stateDir, "records") });
+  await store.append(verifiedBalance());
+  const messages = [];
+  const dates = Array.from({ length: 7 }, (_, index) => `2026-10-${String(index + 1).padStart(2, "0")}`);
+  for (const [index, date] of dates.entries()) {
+    const result = await runHourlyCfo({
+      stateDir, subjectId: "dais-local", store, now: `${date}T07:00:00.000Z`, reportCadence: "daily",
+      ingest: async () => ({
+        observed: 1, created: 0,
+        sources: { moneytree: "observed_verified", businessReadback: "observed_verified", googleBilling: "observed_verified" },
+        sourceFreshness: { moneytree: { status: "fresh" }, businessReadback: { status: "fresh" }, googleBilling: { status: "fresh" } },
+        providerCostSettlement: { status: "settled", invoiceMonth: "2026-09", totals: { totalJpy: "27889" } },
+        providerBudget: { state: "normal", totalUsd: 0, unknownCount: 0, reasons: [] },
+        providerLanes: {
+          poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+          transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100 },
+          geocoder: { status: index === 6 ? "partial" : "fresh", primary: "cache", fallbackCalls: 2, fallbackCap: 200 },
+        },
+        businessSourceCoverage: [], economicSourceCoverage: null, businessReadback: null,
+      }),
+      notify: async ({ message }) => { messages.push(message); return { delivery: "delivered", provider_message_id: `provider-gate-${date}` }; },
+    });
+    if (index === dates.length - 1) {
+      assert.equal(result.observationGate.ready, true, JSON.stringify({ gate: result.observationGate, status: result.status, providerMessageId: result.providerMessageId, duplicate: result.duplicate }));
+      assert.equal(result.observationGate.complete, false);
+      assert.ok(result.observationGate.failures.includes("provider_lane_not_fresh:geocoder:2026-10-07"));
+    }
+  }
+  assert.equal(messages.length, 7);
+});
