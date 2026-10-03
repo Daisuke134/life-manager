@@ -1566,6 +1566,69 @@ def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Pat
     assert (releases / names[3]).exists()
 
 
+def test_release_retention_keeps_owner_baseline_named_only_by_promotion_hold(tmp_path: Path) -> None:
+    releases = tmp_path / "loops/releases"
+    releases.mkdir(parents=True)
+    names = [
+        "20260828T010101-aaaaaaaa",
+        "20260829T010101-bbbbbbbb",
+        "20260830T010101-cccccccc",
+        "20260831T010101-dddddddd",
+    ]
+    for index, name in enumerate(names):
+        release = releases / name
+        release.mkdir()
+        (release / "payload").write_bytes(b"x" * 16)
+        (release / "RELEASE.json").write_text(json.dumps({
+            "sha": f"{index:040x}", "release_paths": "ALL",
+        }))
+    (tmp_path / "loops/current").symlink_to(releases / names[3])
+    (tmp_path / "loops/.promotion-hold").write_text(json.dumps({
+        "sha": "f" * 40,
+        "owner_id": "example",
+        "owner_label": "ai.anicca.example",
+        "baseline": {
+            "ok": True,
+            "owner_id": "example",
+            "label": "ai.anicca.example",
+            "release_root": str((releases / names[0]).resolve()),
+            "release_sha": f"{0:040x}",
+        },
+    }))
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [item for item in governor.discover_candidates() if item["owner"] == "release-retention"]
+    governor.sweep(candidates)
+
+    assert (releases / names[0]).exists(), "promotion rollback baseline B must survive"
+    assert not (releases / names[1]).exists()
+
+
+def test_release_retention_has_no_candidates_when_promotion_hold_is_malformed(tmp_path: Path) -> None:
+    releases = tmp_path / "loops/releases"
+    releases.mkdir(parents=True)
+    names = ["20260828T010101-aaaaaaaa", "20260831T010101-dddddddd"]
+    for name in names:
+        (releases / name).mkdir()
+    (tmp_path / "loops/current").symlink_to(releases / names[1])
+    (tmp_path / "loops/.promotion-hold").write_text(json.dumps({
+        "sha": "f" * 40,
+        "owner_id": "example",
+        "baseline": {"ok": True, "release_root": 42},
+    }))
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+
+    candidates = [item for item in governor.discover_candidates() if item["owner"] == "release-retention"]
+
+    assert candidates == []
+    assert all((releases / name).exists() for name in names)
+
+
 def test_read_only_release_export_is_still_reclaimable(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)

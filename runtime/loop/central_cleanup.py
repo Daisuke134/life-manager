@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import os
 import plistlib
+import re
+import stat
 import subprocess
 import sys
 import time
@@ -287,9 +289,71 @@ def open_release_roots(releases_root: Path) -> set[Path]:
     }
 
 
+def promotion_hold_release_roots(hold_path: Path, releases_root: Path) -> set[Path] | None:
+    """Return verified rollback roots, or None when an existing hold is unprovable."""
+    try:
+        hold_info = hold_path.lstat()
+    except FileNotFoundError:
+        return set()
+    except OSError:
+        return None
+    if not stat.S_ISREG(hold_info.st_mode):
+        return None
+    try:
+        hold = json.loads(hold_path.read_text(encoding="utf-8"))
+        base = releases_root.resolve(strict=True)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(hold, dict):
+        return None
+    hold_sha = hold.get("sha")
+    if hold_sha is not None and (not isinstance(hold_sha, str)
+                                 or re.fullmatch(r"[a-f0-9]{40}", hold_sha) is None):
+        return None
+    baseline = hold.get("baseline")
+    references: list[tuple[object, str | None]] = []
+    if baseline is not None:
+        if (not isinstance(baseline, dict) or baseline.get("ok") is not True
+                or not isinstance(baseline.get("owner_id"), str)
+                or not isinstance(baseline.get("label"), str)
+                or not baseline["label"].startswith("ai.anicca.")
+                or baseline.get("owner_id") != hold.get("owner_id")
+                or baseline.get("label") != hold.get("owner_label")
+                or not isinstance(baseline.get("release_sha"), str)
+                or re.fullmatch(r"[a-f0-9]{40}", baseline["release_sha"]) is None):
+            return None
+        references.append((baseline.get("release_root"), baseline["release_sha"]))
+    legacy = hold.get("previous_release_path")
+    if legacy is not None:
+        references.append((legacy, None))
+    if hold_sha is not None and not references:
+        return None
+    roots: set[Path] = set()
+    for raw, expected_sha in references:
+        if not isinstance(raw, str) or not Path(raw).is_absolute():
+            return None
+        try:
+            root = Path(raw).resolve(strict=True)
+            manifest = json.loads((root / "RELEASE.json").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+        if (str(root) != raw or root.parent != base or not isinstance(manifest, dict)
+                or manifest.get("release_paths") != "ALL"
+                or not isinstance(manifest.get("sha"), str)
+                or re.fullmatch(r"[a-f0-9]{40}", manifest["sha"]) is None
+                or (expected_sha is not None and manifest.get("sha") != expected_sha)):
+            return None
+        roots.add(root)
+    return roots
+
+
 def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     """Collect releases while pinning every generation referenced by launchd."""
     protected = loaded_release_roots(agents, releases) | open_release_roots(releases)
+    hold_roots = promotion_hold_release_roots(releases.parent / ".promotion-hold", releases)
+    if hold_roots is None:
+        raise ValueError("promotion hold release references are unverified")
+    protected.update(hold_roots)
     protected_file = Path(os.environ.get(
         "LIFE_MANAGER_PROTECTED_RELEASES", "~/.local/state/life-manager/protected-releases.json")).expanduser()
     try:

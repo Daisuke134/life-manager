@@ -956,5 +956,57 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertTrue(paths[3].exists())
             self.assertEqual(result["protected_release_count"], 1)
 
+    def test_release_gc_preserves_owner_baseline_named_only_by_promotion_hold(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); loops = root / "loops"; releases = loops / "releases"
+            releases.mkdir(parents=True); paths = []
+            for index in range(4):
+                release = releases / f"2026010{index}T000000-{'a' * 7}{index}"
+                release.mkdir(); (release / "RELEASE.json").write_text(json.dumps({
+                    "sha": f"{index:040x}", "release_paths": "ALL",
+                }))
+                os.utime(release, (index, index)); paths.append(release)
+            current = loops / "current"; current.symlink_to(paths[3])
+            agents = root / "agents"; agents.mkdir()
+            (loops / ".promotion-hold").write_text(json.dumps({
+                "sha": "f" * 40,
+                "owner_id": "example",
+                "owner_label": "ai.anicca.example",
+                "baseline": {
+                    "ok": True,
+                    "owner_id": "example",
+                    "label": "ai.anicca.example",
+                    "release_root": str(paths[0].resolve()),
+                    "release_sha": f"{0:040x}",
+                },
+            }))
+            with mock.patch.dict(os.environ, {
+                "LIFE_MANAGER_PROTECTED_RELEASES": str(root / "no-protected-list.json"),
+            }), mock.patch("runtime.loop.central_cleanup.open_release_roots", return_value=set()):
+                release_gc(releases, current, agents, keep=1)
+            self.assertTrue(paths[0].exists(), "promotion rollback baseline B must survive")
+            self.assertFalse(paths[1].exists())
+
+    def test_release_gc_preserves_everything_when_promotion_hold_is_malformed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); loops = root / "loops"; releases = loops / "releases"
+            releases.mkdir(parents=True); paths = []
+            for index in range(3):
+                release = releases / f"2026010{index}T000000-{'b' * 7}{index}"
+                release.mkdir(); paths.append(release)
+            current = loops / "current"; current.symlink_to(paths[2])
+            agents = root / "agents"; agents.mkdir()
+            (loops / ".promotion-hold").write_text(json.dumps({
+                "sha": "f" * 40,
+                "owner_id": "example",
+                "baseline": {"ok": True, "release_root": 42},
+            }))
+            with mock.patch.dict(os.environ, {
+                "LIFE_MANAGER_PROTECTED_RELEASES": str(root / "no-protected-list.json"),
+            }), mock.patch("runtime.loop.central_cleanup.open_release_roots", return_value=set()):
+                with self.assertRaisesRegex(ValueError, "promotion hold"):
+                    release_gc(releases, current, agents, keep=0)
+            self.assertTrue(all(path.exists() for path in paths))
+
 
 if __name__ == "__main__": unittest.main()
