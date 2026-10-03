@@ -5036,3 +5036,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - PR6534のexactheadce914b0b3948feff55641d3388db3a08bd573acf/basecc0・全10checksSUCCESSをfresh確認し、--match-head-commit付きadmin squash mergeを一度実行。mergedAt16:02:54Z/main9c03543e5dc51f7bc54f8e132a264964a0e40f6d、fresh fetch/remote object一致。sourcebranchはclean/pushed保持、再PR/mergeしない。
 - 独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSSに加え実session通常更新sourceprobeも成功。これらを新mainのproduction自然実行と混同しない。現行cc0自然GET成功はmanual認証維持後のvalid token経路、新main9cのexpiry-aware自然観測は未達。次はexisting owner終了後のcompleteimmutable/source bytes/actual Paidargv/load/natural snapshotを照合する。
 - 既存release owner61609/parent61583はfreshlive/elapsed6:27、currentcc0completeのまま。primaryの重複build/apply/kill/manualwake0。Reply/App旧fence、ASC別担当gate、SelfBuild自然UUID/report、全14 CFO/payout/actualcost等の§217全残TODOを保持しgoalactive。
+
+
+### 238. enabled案件の公式入口確認・probe誘発auth欠落の自己修復
+
+- release owner61609は実live、primaryは反映を重ねずenabled VSCode案件をregistered Mercor lease/ownedpageでread-only観測。公式Explore/details GET200、Continue applicationが表示される。残入力欄は未取得、public eligibilityと全応募手順の自動完了を同一視しない。応募/入力/提出0、App/Reply旧fence保持。
+- 追加form観測で非GET/HEAD/OPTIONSを一律blockしたところauth確認POSTまで拒否しloginへredirect。その観測だけをprovider session失効/本人必須の証拠にしない。後の通常read probeではtoken欠落を確認し、primaryの制限probeがSDK auth stateを崩した可能性を認めて自己修復した。以後この一律block probeを繰り返さない。
+- normal Google sign-inでは復旧未確認。既存application auth-overlay内のrecordがprivate profileの同account/access+refreshありとメモリ内で確認、値を出力/複製せず既存cdp_context_lease._seed_web_storageで同registeredprofile/ownedpageへbanked sessionを復元。最初のhelper呼出しはPlaywright内asyncio.runの競合で未実行、別threadで既存helperを実行した後の追加gotoはhelperのnavigationと競合したが、次の独立read probeでtokenpresent/identitymatchtrue/expiredfalse/contractHTTP200を公式readback。credentials/reset/recovery/別profile/Apple操作0。
+- この復旧をnew main9cの自然renewal成功と数えない。proof state/mercor-readonly-probe-auth-repair-20261004.json/mode600、公式入口/formのprivate refsを保存。source統合はPR6534で済み、production source/load/naturalが次cursor。reconciler61609/parent61583はfreshlive/elapsed19:11、fleet処理進行を確認、kill/重複apply/build/wake0。全goalactive/残TODO§217維持。
