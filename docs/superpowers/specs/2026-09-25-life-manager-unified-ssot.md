@@ -4425,3 +4425,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 1. PID18006terminal/競合owner無しを確認したら、main33complete immutable releaseを生成しWriterだけidle/effect-safeapply。mainblob/manifest/loadedargv/SHAを照合する。
 2. 自然admissionclaim→Note/Substack公式append→runtimeidentity/DBhashjoin→replay-zeroを確認し、§185#3以降へ進む。全体goalはactive/未完。
+
+### 195. Writer 33 complete release反映と58分自然wake
+
+- PID18006はterminal。fleetstate=`2026-10-03T05:55:31Z / partial / changed23 skipped13 errors1 / lancers-revenue-telegram-report rc124/121s timeout + budget exceeded`。全fleet成功へ読み替えない。競合reconciler/build無しを確認後、main `33b5dce0a6ade08cffdf3121ebd01bd73b0bb519`からcomplete immutable release `/Users/anicca/loops/releases/20261003T145550-33b5dce0`を生成した。ALL/ancestor-of-origin-main、worker/collector/runtime-env/browser-guard/resolverの5filesがmainblobとbytes一致する。
+- immutable `lm-loop reconcile shared-agent-runner --loaded-idle-only --max-owners 1 --loop-id writer-sales-measure`はeligible1/applied1/changedtrue/failed[]/skipped_running[]/oktrue、install_event_id2dfd9345a637a7d7952a8b68。loadedargv/installedSHAは33releaseへ一致、effectunknownfalse。fresh launchctl-safe preflightはPASS。
+- installedscheduleは既存offsetを保持したStartCalendarInterval=[Minute58]、RunAtLoadtrue、StartInterval無し。14:58の自然wake `18daef7475277f28-81178`、eventid26fcba77fb04dc3962629462、timestamp2026-10-03T05:58:06.751825Z、releaseSHA33を確認した。launchdofficialprintはruns2/last_exit75/loaded-idle。entrypoint前resource_capacity_busy/effectnoneのためproviderappendgateは未完。手動kickstart/login/cookie注入は0。
+- Writerqueueはsequence409306、queued_at1791003146.7369301、borrow/support、next_eligible_at0、reservation無し、effect-known queued occurrence writer-sales-measure:18daebdf65f171f0-2933が1件。aging2hは既存policyであり、時刻だけでprovider実行成功を予告しない。
+- ledgerlatestは2026-10-03T05:13:56Zの旧観測のまま（Note0/0、Substackunknown/null）。DBmoney_events0/money_fees0/payouts0をread-only確認した。これは記録されているreceipt件数であり、freshprovider全取引0やsettledprofitの証明ではない。
+- exact structured evidenceは`~/.local/state/life-manager/state/writer-natural-proof-20261003.json`（run/owner/occurrence/release、loadedargv/非secretpathenv、phase/command/exit/effect/readback/receipt/evidence/error/retry/next_actionを保持）。officialproviderreadback/receiptはnullのまま。
+- 新しい自然reconcilerはPID80789/PPID80758、33immutableからlive。別apply/buildを重ねずrunningownerをkillしない。
+
+#### 更新後の原子cursor
+
+1. Writer自然dispatchをread-only観測し、entrypointへ到達したexactrunのNote/Substack公式rowsを確認する。measurement_run_id/owner_id/occurrence_id/release_shaをruntimeeventと突合し、row全体hashをmoneyDBreceipt_sha256へexactjoinする。providerunknownはunknownを保持する。
+2. 同一observationの再importでinserted0、providerattempt0のreplay-zeroを確認する。naturalproofが成立するまではmanualentrypointを代替にしない。
+3. Writerproof後に§185#3以降の順序を進める。vaultIPv4/IPv6cursorとbaselineadoption/repairdebtを残す。goalはactive/未完、このturnはsource/CI/merge/release/targetloadでprogress。
