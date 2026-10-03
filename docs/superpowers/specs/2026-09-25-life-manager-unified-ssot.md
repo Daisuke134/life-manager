@@ -5358,3 +5358,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 再reviewの反例は、正常retire rowに通常owner用changed/skippedが混じると二重集計すること。親もfalse flags+changedtrue、trueflag+skippedtrueの2cases RED→GREEN。valid retire rowは2bool ORだけでchanged/1-changed/0を返しexit、通常owner集計はbase同一へ戻した。未確認を効果0・成功へ丸めず、実退役と不在replayを区別する。
 - 最終source c0e6fc5f66f0578232d114ff63ae98db4cfa27f9/2files/clean/pushed/base3e1。runtime758/148.856s、focused3（8subcases）/adapter15/contract14loops178jobs/OSS/bash/diffPASS。fresh再review進行中、未PR/未main。copy of retirement resultを売上・精算・providerreceiptへ転用しない。
 - current3e1 completeimmutableは§273、旧孤児登録live退役は未達。native owner5053は継続liveのためprimary重複apply/kill0。今後のsource統合/newimmutable後は既存self-handoffがparentexit後にreconciler executableを更新し、guarded targetはfleet先頭で自然実行。新schedulerや強制restartを作らない。全finance/Eval/全§217残TODO未達、goalactive。
+
+
+### 275. 自然退役sourceの最終独立SHIP・PR6543と二度のlive競合停止
+
+- final c0e6fc5f66f0578232d114ff63ae98db4cfa27f9/runtime758/148.856s、focused3（8subcases）/contract14loops178jobs/adapter15/OSS/bash/diff PASS。fresh最終再reviewSHIP。独立matrixでremoved-only/absent＋genericchanged/loaded＋genericskipped/不正・numericbool/failed後retry/timeout/budgetを反証し、前2findings解消を確認。
+- PR6543をfinalheadで作成、checks進行中/未main。sourceはguarded targetだけをplan_action retireとして先頭へ渡し、exact1rowの実結果を要求。通常owner集計はbase同一、identity guard/controllerの緩和0。次は全check/exacthead→main→completeimmutable→既存self-handoff→自然guarded退役のsameowner log/officialabsent/doctor/正規owner維持/replay-zero。
+- 旧5053のterminal/全controller不在を21:00前に確認したが、二度目のlive直前guardでnew owner62269/3e1を検出。apply発行0、profilelease解放済み。手動解除が完了したと報告せず、競合を繰返す手動介入を自然source wiringへ置き換える。current3e1/completeALLのguardianは正しく反映済み、旧label実退役は未達。
+- 実作用0、auth/profile/browser/oldbusinessfence変更0。classify unknown/空readbackを0へ変換しない。根拠capafy-unmanaged-browser-diagnostic-20261004.json。現在の担当・全残TODO → §217、全goalactive。
