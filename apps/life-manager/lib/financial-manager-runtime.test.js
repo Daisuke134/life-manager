@@ -109,3 +109,18 @@ test("CFO report carries private economic coverage from ingestion", async () => 
   assert.equal(result.status, "quiet");
   assert.deepEqual(result.report.economicSourceCoverage, coverage);
 });
+
+test("CFO report carries provider-lane evidence from ingestion", async () => {
+  const providerLanes = {
+    poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+    transit: { status: "fresh", primary: "transit_api", fallbackCalls: 1, fallbackCap: 100 },
+    geocoder: { status: "partial", primary: "google_maps", fallbackCalls: 2, fallbackCap: 200 },
+  };
+  const result = await runFinancialManager({
+    subjectId: "tenant-a", reportingDate: "2026-09-07", now: "2026-09-07T06:00:00.000Z",
+    store: store([]),
+    ingest: async () => ({ observed: 0, created: 0, sources: {}, providerLanes }),
+  });
+  assert.equal(result.status, "quiet");
+  assert.deepEqual(result.report.providerLanes, providerLanes);
+});

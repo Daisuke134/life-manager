@@ -192,6 +192,21 @@ test("provider cap state and next action are visible in the CFO report", () => {
   assert.match(renderFinancialManagerTelegram(report), /use_cache_or_stop/);
 });
 
+test("provider lane freshness and fallback caps are visible in the CFO report", () => {
+  const report = buildFinancialManagerReport([], "2026-10-02", {
+    providerLanes: {
+      poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+      transit: { status: "fresh", primary: "transit_api", fallbackCalls: 1, fallbackCap: 100 },
+      geocoder: { status: "partial", primary: "google_maps", fallbackCalls: 2, fallbackCap: 200 },
+    },
+  }).report;
+  assert.equal(report.providerLanes.geocoder.status, "partial");
+  const text = renderFinancialManagerTelegram(report);
+  assert.match(text, /Provider lane/);
+  assert.match(text, /geocoder:partial/);
+  assert.match(text, /2\/200/);
+});
+
 test("stale personal transactions are shown as last-known, never current spending", () => {
   const income = record("stale-income", {
     kind: "personal_income", amount: 806201, occurredAt: "2026-08-25T00:00:00.000Z",

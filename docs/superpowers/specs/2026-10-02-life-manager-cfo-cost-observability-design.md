@@ -352,12 +352,12 @@ This provider-cost sequence is additive to Section 11's personal-MUFG and extern
 
 ## 13. Provider-cost implementation cursor
 
-The first six provider-cost tasks are now implemented on the dedicated branch: the production scheduler reaches coordinate-ready Japan Transit without a Google key; a Supabase-backed daily/monthly provider authorizer denies paid work when usage readback fails or caps are exceeded; Transit timeout/malformed states emit typed observations before one fallback; OpenPOI incomplete attribution is rejected and complete provenance is durably retained; geocoder and routing benchmark runners measure corpus-level accuracy/resource evidence; provider caps and fallback telemetry are enforced; and the local-LLM scorecard refuses an unconfigured, slower, privacy-unknown, lower-quality, or receipt-incomplete candidate. Focused tests and the existing Life Manager suite remain green (the current suite is 188/188 PASS; the CFO Python suite is 249/249 PASS).
+The first six provider-cost tasks are now implemented on the dedicated branch: the production scheduler reaches coordinate-ready Japan Transit without a Google key; a Supabase-backed daily/monthly provider authorizer denies paid work when usage readback fails or caps are exceeded; Transit timeout/malformed states emit typed observations before one fallback; OpenPOI incomplete attribution is rejected, complete provenance is durably retained, and free-primary usage is recorded; geocoder and routing benchmark runners measure corpus-level accuracy/resource evidence; provider caps and fallback telemetry are enforced; the Financial Manager reads `lm_usage_cost_summary` into bounded `poi`/`transit`/`geocoder` lane evidence; and the local-LLM scorecard refuses an unconfigured, slower, privacy-unknown, lower-quality, or receipt-incomplete candidate. Focused tests and the existing Life Manager suite remain green (the current suite is 188/188 PASS; the CFO Python suite is 249/249 PASS).
 
 The current acceptance cursor is:
 
 1. **[x]** rerun all provider benchmark and CFO suites after the variance/gate changes;
-2. retain the geocoder `no_winner` and LLM `keep_current` evidence until an approved read-only endpoint or existing model-routing shadow produces receipts;
+2. **[x]** wire provider-lane usage readback and OpenPOI free-primary usage into the report; retain the geocoder `no_winner` and LLM `keep_current` evidence until an approved read-only endpoint or existing model-routing shadow produces receipts;
 3. observe seven real daily closes with fresh source rows, settled Google billing, provider-lane cap receipts, and replay-zero;
 4. only then promote a benchmark winner or claim the ¥5,500–¥7,500 pre-tax planning target as measured actual; and
 5. separately close Section 11's MUFG and external settlement gaps before marking the CFO report complete.

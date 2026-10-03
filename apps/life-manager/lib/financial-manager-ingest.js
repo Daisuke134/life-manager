@@ -9,6 +9,7 @@ const {
 } = require("./agent-economy-economic-source.js");
 const { buildMoneytreeObservation } = require("./moneytree-observation-store.js");
 const { readGoogleBillingCsv } = require("./google-billing-readback.js");
+const { readProviderLanes: readProviderLanesFromSupabase } = require("./provider-lane-readback.js");
 const { buildEconomicSourceCoverage } = require("./economic-source-contract.js");
 const { readProductLoopCatalog } = require("./product-onboarding.js");
 const { capafyRowsToFinancialRecords } = require("./financial-record-capafy.js");
@@ -99,6 +100,8 @@ async function ingestFinancialRecords(options) {
   let businessReadback = null;
   let businessSourceCoverage = [];
   let providerCostSettlement = null;
+  let providerLanes = null;
+  let providerLaneReadback = null;
   let agentReceipts = [];
   let agentRevenueRecords = [];
   let agentRevenueReadState = "not_configured";
@@ -196,6 +199,33 @@ async function ingestFinancialRecords(options) {
       providerCostSettlement = null;
       sources.googleBilling = "unavailable";
       sourceFreshness.googleBilling = { status: "unavailable", reason: "billing_read_failed", reads: [] };
+    }
+  }
+
+  const laneReader = options.readProviderLanes
+    || ((options.supaUrl || process.env.SUPABASE_URL)
+      && (options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY)
+      ? ({ subjectId: laneSubjectId, reportingDate, nowMs }) => readProviderLanesFromSupabase({
+        supaUrl: options.supaUrl || process.env.SUPABASE_URL,
+        supaKey: options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY,
+        tenantId: laneSubjectId, reportingDate, nowMs,
+        fetchImpl: options.fetchImpl || globalThis.fetch,
+      }) : null);
+  if (laneReader) {
+    const reportingDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(now);
+    try {
+      providerLaneReadback = await laneReader({
+        subjectId, reportingDate, nowMs: now.getTime(), observedAt: recordedAt,
+      });
+      providerLanes = providerLaneReadback?.lanes || null;
+    } catch {
+      providerLaneReadback = {
+        schemaVersion: 1, status: "partial", reportingDate, observedAt: recordedAt,
+        lanes: null, failures: ["provider_lane_readback_failed"],
+      };
+      providerLanes = null;
     }
   }
 
@@ -362,7 +392,7 @@ async function ingestFinancialRecords(options) {
   });
   return {
     observed: records.length, created, sources, sourceFreshness,
-    businessReadback, businessSourceCoverage, providerCostSettlement,
+    businessReadback, businessSourceCoverage, providerCostSettlement, providerLanes, providerLaneReadback,
     providerBudget: options.providerBudget || null, economicSourceCoverage,
     economicFunnelObservations: agentEconomySources.funnelObservations,
   };

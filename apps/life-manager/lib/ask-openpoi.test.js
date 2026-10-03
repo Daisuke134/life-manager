@@ -6,11 +6,13 @@ const { agentResolveLocation, placesSearch, recallOrResolve, recordResolution } 
 
 test("Japan location resolution uses OpenPOI before Google Places and preserves attribution", async () => {
   let googleCalled = false;
+  const usage = [];
   const search = await placesSearch("東京駅", "maps-key", {
     openPoiSearch: async () => ({
       candidates: [{ name: "東京駅", address: "東京都千代田区丸の内", lat: 35.681, lon: 139.767, licenses: ["CC BY 4.0"], attributions: ["東京都データ"] }],
       attributions: ["東京都データ"], attributionUrl: "https://openpoiapi.com/attribution.html",
     }),
+    recordUsageEvent: async (event) => usage.push(event),
   });
   assert.equal(search.provider, "openpoi");
   assert.equal(search.results[0].address, "東京都千代田区丸の内");
@@ -19,6 +21,11 @@ test("Japan location resolution uses OpenPOI before Google Places and preserves 
   assert.deepEqual(search.attributions, ["東京都データ"]);
   assert.equal(search.attributionUrl, "https://openpoiapi.com/attribution.html");
   assert.equal(googleCalled, false);
+  assert.deepEqual(usage, [{
+    tenantId: "anonymous", provider: "openpoi", feature: "places_search", operation: "places_search",
+    outcome: "success", failureClass: null, providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0,
+    actualStatus: "unknown", meta: { provider_mode: "free_primary" },
+  }]);
 });
 
 test("agent receives OpenPOI candidates without a Google fallback", async () => {

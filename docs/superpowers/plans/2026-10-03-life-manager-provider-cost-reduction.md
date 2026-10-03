@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` (Section 12)
 
-**Execution status (2026-10-03):** Tasks 1–6 are complete on the dedicated branch. Task 7 is partial: the synthetic acceptance gate, official September Cost Table reconciliation, durable observation state, and Moneytree readback are recorded; seven elapsed production periods, fresh Moneytree data, October settlement, source settlement coverage, and production parity remain external TODOs. Review fixes are in `930abbb6b4`; the post-review observation/readback update is `a82e94ce33`; the branch is pushed.
+**Execution status (2026-10-03):** Tasks 1–6 are complete on the dedicated branch. Task 7 is partial: the synthetic acceptance gate, official September Cost Table reconciliation, durable observation state, Moneytree readback, and Supabase provider-lane readback plumbing are recorded; seven elapsed production periods, fresh Moneytree data, October settlement, source settlement coverage, and production parity remain external TODOs. Review fixes are in `930abbb6b4`; the post-review observation/readback update is `a82e94ce33`; the branch is pushed.
 
 ## Global Constraints
 
@@ -167,11 +167,23 @@
 
 ### Task 7: Close provider-cost acceptance with CFO readback
 
-**Status:** partial (`a82e94ce33`). Synthetic acceptance, variance, durable observation state, and official Moneytree readback are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open.
+**Status:** partial (`a82e94ce33` plus current provider-lane plumbing). Synthetic acceptance, variance, durable observation state, official Moneytree readback, and usage-summary lane propagation are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open.
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`
 - Create: `docs/evidence/cfo/2026-10-03-provider-cost-selection.md`
+- Create: `apps/life-manager/lib/provider-lane-readback.js`
+- Test: `apps/life-manager/lib/provider-lane-readback.test.js`
+- Modify: `apps/life-manager/lib/financial-manager-ingest.js`
+- Modify: `apps/life-manager/lib/financial-manager-runtime.js`
+- Modify: `apps/life-manager/lib/financial-manager-report.js`
+- Modify: `apps/life-manager/scripts/cfo-hourly-local.js`
+- Test: `apps/life-manager/lib/financial-manager-ingest.test.js`
+- Test: `apps/life-manager/lib/financial-manager-runtime.test.js`
+- Test: `apps/life-manager/lib/financial-manager-report.test.js`
+- Test: `apps/life-manager/scripts/cfo-hourly-local.test.js`
+- Modify: `apps/life-manager/lib/ask.js`
+- Test: `apps/life-manager/lib/ask-openpoi.test.js`
 - Modify: `apps/life-manager/scripts/cfo-natural-run.test.js`
 - Test: `skills/cfo/test_loop_pnl.py`
 

@@ -207,6 +207,9 @@ async function runHourlyCfo(options = {}) {
       providerBudget: options.providerBudget,
       readMoneytreeAccounts: options.readMoneytreeAccounts,
       readMoneytreeTransactions: options.readMoneytreeTransactions,
+      readProviderLanes: options.readProviderLanes,
+      supaUrl: options.supaUrl,
+      supaKey: options.supaKey,
       readGoogleBilling: options.readGoogleBilling,
       pythonBin: options.pythonBin || "python3",
       capafyAnalyticsPath: options.capafyAnalyticsPath,
@@ -251,6 +254,8 @@ async function runHourlyCfo(options = {}) {
     publicResult.sourceFreshness = publicResult.report.sourceFreshness || {};
     publicResult.economicSourceCoverage = publicResult.report.economicSourceCoverage || null;
     publicResult.providerCostSettlement = publicResult.report.providerCostSettlement || null;
+    publicResult.providerLanes = publicResult.report.providerLanes || null;
+    publicResult.providerLaneReadback = publicResult.ingestion?.providerLaneReadback || null;
     publicResult.providerBudget = publicResult.report.providerBudget || null;
   }
   return publicResult;

@@ -81,6 +81,28 @@ test("ingestion projects real provider receipts and appends through the common s
   })).created, 0);
 });
 
+test("ingestion carries provider-lane readback into the CFO observation gate", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-lanes-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const providerLanes = {
+    schemaVersion: 1, status: "fresh", reportingDate: "2026-10-03", observedAt: "2026-10-03T12:00:00.000Z",
+    lanes: {
+      poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+      transit: { status: "fresh", primary: "transit_api", fallbackCalls: 0, fallbackCap: 100 },
+      geocoder: { status: "fresh", primary: "cache", fallbackCalls: 0, fallbackCap: 200 },
+    },
+    failures: [],
+  };
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-10-03T12:00:00.000Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readProviderLanes: async () => providerLanes,
+  });
+  assert.deepEqual(result.providerLanes, providerLanes.lanes);
+  assert.deepEqual(result.providerLaneReadback, providerLanes);
+});
+
 test("a configured missing journal is unavailable instead of empty revenue", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

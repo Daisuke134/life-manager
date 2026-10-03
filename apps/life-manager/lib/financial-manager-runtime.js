@@ -60,6 +60,8 @@ async function runFinancialManager(options = {}) {
     businessSourceCoverage: ingestion.businessSourceCoverage || [],
     businessReadback: ingestion.businessReadback || null,
     providerCostSettlement: ingestion.providerCostSettlement || null,
+    providerLanes: ingestion.providerLanes || null,
+    providerLaneReadback: ingestion.providerLaneReadback || null,
     providerBudget: ingestion.providerBudget || null,
   });
   const hasSourceWarning = Object.values(report.sourceFreshness || {})

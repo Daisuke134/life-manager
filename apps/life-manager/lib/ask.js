@@ -177,6 +177,16 @@ function closedOnlineAskMessage(event, interpretation, replyToken) {
 async function placesSearch(query, mapsKey, options = {}) {
   if (!query) return { results: [], attributions: [], provider: "none" };
   const poiSearch = options.openPoiSearch || searchOpenPoi;
+  const recordOpenPoiUsage = async (outcome, failureClass = null) => {
+    if (typeof options.recordUsageEvent !== "function") return;
+    try {
+      await options.recordUsageEvent({
+        tenantId: options.tenantId || "anonymous", provider: "openpoi", feature: "places_search",
+        operation: "places_search", outcome, failureClass, providerUnits: 1, providerUnit: "request",
+        estimatedCostUsd: 0, actualStatus: "unknown", meta: { provider_mode: "free_primary" },
+      });
+    } catch { /* usage visibility must not make location resolution fail */ }
+  };
   if (poiSearch && options.openPoiSearch !== null) {
     try {
       const poi = await poiSearch(query, { fetchImpl: options.openPoiFetch });
@@ -193,6 +203,7 @@ async function placesSearch(query, mapsKey, options = {}) {
         licenses: Array.isArray(candidate.licenses) ? [...new Set(candidate.licenses.map(String))].sort() : [],
       }));
       if (results.length) {
+        await recordOpenPoiUsage("success");
         return {
           results,
           attributions: poi.attributions || [],
@@ -202,7 +213,11 @@ async function placesSearch(query, mapsKey, options = {}) {
           provider: "openpoi",
         };
       }
-    } catch { /* OpenPOI is the free primary; Google remains an explicit fallback. */ }
+      await recordOpenPoiUsage("failure", candidates.length ? "attribution_incomplete" : "no_result");
+    } catch {
+      await recordOpenPoiUsage("failure", "network");
+      /* OpenPOI is the free primary; Google remains an explicit fallback. */
+    }
   }
   if (!mapsKey || !query || options.allowGoogleFallback === false) {
     return { results: [], attributions: [], provider: "openpoi" };

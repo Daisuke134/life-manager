@@ -69,6 +69,34 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
   assert.equal(deliveries.length, 1);
 });
 
+test("hourly CFO forwards provider-lane readback and exposes it in the delivered report", async (t) => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-lanes-"));
+  t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(stateDir, "financial-records") });
+  await store.append(revenue());
+  const providerLanes = {
+    poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
+    transit: { status: "fresh", primary: "transit_api", fallbackCalls: 1, fallbackCap: 100 },
+    geocoder: { status: "partial", primary: "google_maps", fallbackCalls: 2, fallbackCap: 200 },
+  };
+  const readProviderLanes = async () => ({ schemaVersion: 1, status: "partial", lanes: providerLanes, failures: [] });
+  let forwarded = null;
+  const result = await runHourlyCfo({
+    stateDir, subjectId: "dais-local", store, readProviderLanes,
+    ingest: async (input) => {
+      forwarded = input.readProviderLanes;
+      return { observed: 0, created: 0, sources: {}, providerLanes };
+    },
+    now: () => new Date("2026-09-07T06:00:00.000Z"),
+    notify: async ({ message }) => {
+      assert.match(message, /Provider lane: poi:fresh 0\/100/);
+      return { delivery: "delivered", provider_message_id: "lane-report" };
+    },
+  });
+  assert.equal(forwarded, readProviderLanes);
+  assert.deepEqual(result.providerLanes, providerLanes);
+});
+
 test("CFO sends at most one consolidated snapshot per local reporting day", async (t) => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-daily-"));
   t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));

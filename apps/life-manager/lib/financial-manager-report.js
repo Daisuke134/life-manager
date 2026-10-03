@@ -73,6 +73,37 @@ function summarizeBusiness(records) {
   };
 }
 
+const PROVIDER_LANES = Object.freeze(["poi", "transit", "geocoder"]);
+
+function boundedLaneText(value) {
+  const text = String(value == null ? "" : value).trim();
+  return text && text.length <= 64 && /^[A-Za-z0-9_.:-]+$/.test(text) ? text : null;
+}
+
+function normalizeProviderLanes(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const lanes = {};
+  for (const name of PROVIDER_LANES) {
+    const row = value[name];
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const status = ["fresh", "partial", "stale", "unavailable", "unknown"].includes(row.status)
+      ? row.status : "unknown";
+    const calls = Number(row.fallbackCalls);
+    const cap = Number(row.fallbackCap);
+    lanes[name] = {
+      status,
+      primary: boundedLaneText(row.primary),
+      fallbackCalls: Number.isFinite(calls) && calls >= 0 ? calls : 0,
+      fallbackCap: Number.isFinite(cap) && cap >= 0 ? cap : 0,
+      ...(Number.isFinite(Number(row.eventCount)) ? { eventCount: Number(row.eventCount) } : {}),
+      ...(Number.isFinite(Number(row.providerUnits)) ? { providerUnits: Number(row.providerUnits) } : {}),
+      ...(Number.isFinite(Number(row.estimatedUsd)) ? { estimatedUsd: Number(row.estimatedUsd) } : {}),
+      ...(Number.isFinite(Number(row.unknownCount)) ? { unknownCount: Number(row.unknownCount) } : {}),
+    };
+  }
+  return Object.keys(lanes).length ? lanes : null;
+}
+
 function inRange(records, start, end) {
   return records.filter((record) => {
     const occurred = Date.parse(record.occurred_at);
@@ -107,6 +138,7 @@ function zonedMidnight(key, timezone) {
 function buildFinancialManagerReport(rawRecords, reportingDate, {
   timezone = "Asia/Tokyo", economicSourceCoverage = null, sourceFreshness = null,
   businessSourceCoverage = [], businessReadback = null, providerCostSettlement = null, providerBudget = null,
+  providerLanes = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const staleProviders = new Set(Object.entries(sourceFreshness || {})
@@ -188,6 +220,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh")
       || Boolean(providerBudget && providerBudget.state && providerBudget.state !== "normal"),
     businessSourceCoverage: Array.isArray(businessSourceCoverage) ? businessSourceCoverage : [],
+    providerLanes: normalizeProviderLanes(providerLanes),
     businessReadback: businessReadback ? {
       status: businessReadback.status || "unknown",
       observedAt: businessReadback.observedAt || null,
@@ -229,6 +262,9 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       ...(providerBudget.settledUsd != null ? { settledUsd: Number(providerBudget.settledUsd) || 0 } : {}),
     } : null,
   };
+  if (report.providerLanes && Object.values(report.providerLanes).some((lane) => lane.status !== "fresh")) {
+    report.partial = true;
+  }
   const digestReport = { ...report };
   delete digestReport.verifiedRecordCount;
   delete digestReport.excludedRecordCount;
@@ -349,6 +385,11 @@ function renderFinancialManagerDetailed(report) {
       + `${report.providerBudget.capKey ? ` [${report.providerBudget.capKey}]` : ""}`
       + `${report.providerBudget.nextAction ? ` →${report.providerBudget.nextAction}` : ""}`);
   }
+  if (report.providerLanes) {
+    lines.push("Provider lane", Object.entries(report.providerLanes).map(([lane, value]) => (
+      `${lane}:${value.status} primary=${value.primary || "未確認"} fallback=${value.fallbackCalls}/${value.fallbackCap}`
+    )).join(" | "));
+  }
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
     lines.push("\n収益内訳（今月・プロバイダー別）");
@@ -413,6 +454,11 @@ function renderFinancialManagerTelegram(report) {
     lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? ` (unknown ${report.providerBudget.unknownCount})` : ""}`
       + `${report.providerBudget.capKey ? ` [${report.providerBudget.capKey}]` : ""}`
       + `${report.providerBudget.nextAction ? ` ->${report.providerBudget.nextAction}` : ""}`);
+  }
+  if (report.providerLanes) {
+    lines.push(`Provider lane: ${Object.entries(report.providerLanes).map(([lane, value]) => (
+      `${lane}:${value.status} ${value.fallbackCalls}/${value.fallbackCap}`
+    )).join(" | ")}`);
   }
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.
