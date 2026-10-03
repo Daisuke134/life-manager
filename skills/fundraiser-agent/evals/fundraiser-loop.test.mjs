@@ -293,9 +293,8 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /Never include the credential or solution token in logs/);
   assert.match(dailyPrompt, /never print, dump, enumerate, pretty-print/);
   assert.match(dailyPrompt, /assign the selected secret directly to `GOG_KEYRING_PASSWORD` without echoing it/);
-  assert.match(dailyPrompt, /cdp\.py fillcss/);
-  assert.match(dailyPrompt, /cdp\.py filllabel/);
-  assert.match(dailyPrompt, /cdp\.py typelabel/);
+  assert.match(dailyPrompt, /cdp\.py insert/);
+  assert.match(dailyPrompt, /framework validation remains unresolved/);
   assert.match(dailyPrompt, /absolute path/);
   assert.match(runtimeScript, /--task-class application-lane-agent/);
   assert.doesNotMatch(runtimeScript, /--escalation-reason/);
