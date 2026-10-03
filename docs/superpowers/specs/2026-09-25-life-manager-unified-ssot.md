@@ -4854,6 +4854,8 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
+Coconala HTTP失敗receipt修復はPR6535/mainc0へ統合済み（§246）。live release owner10185のterminal後、新immutable/target load/自然readbackを照合する。診断HTTP200と正式納品・金融成果は区別する。
+
 Railwayの公式project/service使用額は取得済み（§243）。支払明細の差額とcanonical loop配賦を照合し、Coconala targeted_readbackのtalkroom_history_emptyと金融receipt未接続、stale readbackをowner別に閉じる。同時に通常Mercor運用の期限更新を観測する。Railway公式支払receiptとDO credit相殺invoiceは費用候補であり、配賦未確認のままactualcostへ接続しない。既存大順序は維持し、MobileのApple認証/branchへ重複介入しない。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
@@ -5122,3 +5124,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - memory内cookie比較はdefault66/vault53/samekey-value44。値は出力・artifact保存しない。vault mtime09-19/期限切れcookie2だけでsession失効と断定しない。root.envの選択vault/context overridesはunsetだがloaded daemon全env一致は未観測。
 - 17:05の403は実観測、17:13比較時は再現せず、恒常的vault認証切れ仮説は支持されない。403原因は未確定、自然owner回復・新source自然failure receiptのproofは未達。latestPaidは16:49failed3のままであり、診断HTTP200を正式納品/金融成果へ置換しない。証拠state/coconala-context-compare-20261004.json/mode600。
 - 次はPR6535のexact-head requiredchecksを閉じ、existingrelease owner terminal後のimmutable/load/自然receiptと通常Paidreadbackを照合。CFO source接続には別途officialpayment/fee/settlement/payoutを要する。§217全残TODOとgoalactiveを保持。
+
+
+### 246. Coconala HTTP失敗receipt修復のmain統合とrelease owner待機
+
+- PR6535のGitHub10checksは全PASS、freshSHIP/265related/749runtime/adapter15/contract/OSSもPASS。exact head a38b02ec74e09658a4022763fda991dfc8954727指定でadmin squash merge、mainc0db5d489d96738bcbd69229ad04c97eb05b2193/17:15:41Z MERGEDをgh＋freshfetchで確認。再PR/merge不要。sourceworktreeは同branch/a38/clean/pushed。
+- current immutableは20261004T011929-9c03543eのまま。existing release reconciler10185/parent10172はelapsed07:18でfreshlive、child31040の120秒対象applyも実在。newmain c0のimmutable/load/natural failure receiptは未達、重複build/apply/kill/manualwake0。次は同ownerのterminal→c0 completeimmutable→idle/effect-safe target hf-gig-paid-directのactualargv/SHA→通常wake/公式readbackを照合する。
+- targethealthはhealthyだがdiagnostic.readback/providerreceiptはnull、effect/business not_applicable。latestPaid16:49failed3とdiagnosticHTTP200を自然納品・financial receipt成功へ置換しない。旧unknown/fenceを解放せず、Coconala payment/fee/settlement/payoutとCFO source接続は未完。proof state/coconala-http-receipt-source-proof-20261004.json/mode600、§217全残TODO/goalactiveを保持。
