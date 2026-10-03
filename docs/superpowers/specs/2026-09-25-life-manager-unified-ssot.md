@@ -5265,3 +5265,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - ownerhealthはsafely_fenced、oldoccurrence18db16354040b788-3445/native18db1961f76c05f0-16436/entrypoint_exit_1、providerreceipt無し/readback必要/retryablefalse。publication/resolve/replay0。pricing/paywall/appsubmission/新しいmarketingeffect・別担当branch/auth変更0。
 - PR6368はOSSboundaryFAILも存在。officialGitHub workflow36843596718/job110308309639のfailurelogはmanifest_inventory_mismatch skills/capafy-autopublish（10-01）。現mainのOSS PASSを旧headへ流用せず、source受入とowner昇格を分ける。primaryはproducerbranchをrebase/編集せず、無関係なCapafy修復へ範囲を広げない。
 - proof state/selfbuild-owner-promotion-boundary-20261004.json/mode600。次はproducerowned latestbaseでsourceCIを再検証し、publishownerのeffect-safe canary/officialexacthealth/rollback bindingを実証する。SelfBuild自然exactrow-reportは§262成立、promotion/eval本成果と§217全残TODO/全goalactiveは未達のまま保持。
+
+
+### 264. immutable release帰属のsource修復を最新mainで独立再現
+
+- latestmainbe2/primaryworktreecleanをfreshfetch確認、producerPR6368/head3805/update10-01は不変、MobileMetrics branchとの対象2file重複diff無しを確認。同ownerleaseでprimarybranch fix/mobile-release-attribution-20261004を作成し、producerbranch/他worktree/marketingenvを変更しない。
+- latestbaseline wrapperでmutableenvのstaleSHAがreconcile/runnerへ渡るbound/absent/empty3variants REDを再現。dotenv前のset/unset/valueを保存し、読込後にexact restore。既存testへ3casesを適用し9PASS、failedreconcile後のrunnerにもSHA保持を独立fixtureで確認。投稿内容/価格/送信先/認証/既存effectfence/paidworkflowの変更0、実provider呼出し0。
+- HEADee33775f6f6fa83da7bd78d743206abaf3f82883/2files/production15lines/clean/pushed。focused9/runtime749/134.731s/adapter15/contract14loops178jobs/OSS/bash/diffPASS。fresh mobile_release_binding_review SHIP/9＋failedreconcilefixture/marketingadapter19PASS。PR6539を一度作成、GitHubchecks進行中でOSSはPASS。旧PR6368のheadを変更せずsource修復を置き換える、SelfBuildpublishownerのhookが成立したとはしない。
+- state/mobile-release-attribution-source-20261004.json/mode600、publication/新customer send/fence解放0。次はPR6539 exacthead全CI→main source統合→既存owner serialized immutable/load/natural帰属照合。Larry旧fence/officialreceipt不足、externalowner hooks、ASC別担当gate、§217全残TODO/goalactiveを維持。
