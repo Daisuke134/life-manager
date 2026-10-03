@@ -5044,3 +5044,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 追加form観測で非GET/HEAD/OPTIONSを一律blockしたところauth確認POSTまで拒否しloginへredirect。その観測だけをprovider session失効/本人必須の証拠にしない。後の通常read probeではtoken欠落を確認し、primaryの制限probeがSDK auth stateを崩した可能性を認めて自己修復した。以後この一律block probeを繰り返さない。
 - normal Google sign-inでは復旧未確認。既存application auth-overlay内のrecordがprivate profileの同account/access+refreshありとメモリ内で確認、値を出力/複製せず既存cdp_context_lease._seed_web_storageで同registeredprofile/ownedpageへbanked sessionを復元。最初のhelper呼出しはPlaywright内asyncio.runの競合で未実行、別threadで既存helperを実行した後の追加gotoはhelperのnavigationと競合したが、次の独立read probeでtokenpresent/identitymatchtrue/expiredfalse/contractHTTP200を公式readback。credentials/reset/recovery/別profile/Apple操作0。
 - この復旧をnew main9cの自然renewal成功と数えない。proof state/mercor-readonly-probe-auth-repair-20261004.json/mode600、公式入口/formのprivate refsを保存。source統合はPR6534で済み、production source/load/naturalが次cursor。reconciler61609/parent61583はfreshlive/elapsed19:11、fleet処理進行を確認、kill/重複apply/build/wake0。全goalactive/残TODO§217維持。
+
+
+### 239. 旧reconciler terminal確認と新main9c既存builderの所有
+
+- 前61609/61583はfreshmissing/terminal、officialreport16:18:23.425187Z/exit1/partialchanged33/skipped80/errors1、buddha-tiktok timedout+budgetexceeded。継続中と誤認せず、終端とcurrentcc0を確認した。
+- anchored psでglobal builder/reconciler無し→main9c completeimmutable作成を宣言しfreshfetch後に既存cuthelperを実行。その間に定期ownerが起動していたためcut lockで即exit1/another release build owns、primarybuild開始0、source/lock解除0。次のfresh psでnewreconciler4641/parent4598とbuilder4814/main9c03543e5dc51f7bc54f8e132a264964a0e40f6dが実liveであることを確認。競合をrc0とせず同既存ownerを追う。
+- 次はbuilder4814/reconciler4641のterminalとnewmanifestALL/source bytes/actualPaidargv/load→自然sameoccurrence official snapshot/resultを照合する。main9c expiry-aware自然実行・全14 CFO/利益/payoutは未達。auth自己修復HTTP200と各fence保持は§238、全残TODO§217、goalactive。
