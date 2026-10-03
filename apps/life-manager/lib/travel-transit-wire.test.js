@@ -42,6 +42,29 @@ test("Google route fallback is denied by provider budget after cache miss", asyn
   assert.equal(googleCalls, 0);
 });
 
+test("directionsRoute: coordinate-ready Japan Transit runs without a Google key", async () => {
+  let transitCalls = 0;
+  let googleCalls = 0;
+  const route = await travel.directionsRoute(
+    "geo:35.681,139.767",
+    "geo:35.659,139.700",
+    "",
+    EVENT_START,
+    NOW,
+    false,
+    {
+      timezone: "Asia/Tokyo",
+      _transitFetch: async (...args) => { transitCalls += 1; return fakeTransitFetch(...args); },
+      _directionsMinutesGoogle: async () => { googleCalls += 1; return 45; },
+      _routeCache: freshCache(),
+    },
+  );
+  assert.equal(transitCalls, 1);
+  assert.equal(googleCalls, 0);
+  assert.equal(route.provider, "transit");
+  assert.equal(route.durationSeconds, 1029);
+});
+
 test("parseGeoLiteral accepts only finite in-range coordinate literals", () => {
   assert.deepEqual(travel.parseGeoLiteral("geo:35.681,139.767"), { lat: 35.681, lon: 139.767 });
   for (const value of [

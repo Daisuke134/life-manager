@@ -449,6 +449,10 @@ function routeDurationSeconds(route) {
   return Number.isFinite(seconds) ? seconds : null;
 }
 
+function canAttemptFreeTransit(srcGeo, dstGeo) {
+  return Boolean(srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit");
+}
+
 // C2/C3 WIRE: return a provider-fact-preserving structured route. Transit is attempted first for
 // Japan endpoints; unusable/error output calls the Google fallback once, sequentially. The cache
 // stores the final route under a tenant + provider/anchor scoped key.
@@ -469,7 +473,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const timeoutOption = options._transitTimeoutMs ?? options.transitTimeoutMs;
   const transitTimeoutMs = Number.isFinite(Number(timeoutOption)) && Number(timeoutOption) >= 0
     ? Number(timeoutOption) : DEFAULT_TRANSIT_TIMEOUT_MS;
-  if (!mapsKey || !src || !dst) return null;
+  if (!src || !dst) return null;
   // The durable event index is intentionally checked before geocoding. A coordinate-key-only lookup
   // would itself require two paid geocodes and could not serve an exhausted tenant's cached result.
   if (cache && typeof cache.getByEvent === "function" && options.eventId) {
@@ -494,11 +498,16 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const googleSrc = srcLiteral ? `${srcLiteral.lat},${srcLiteral.lon}` : src;
   const googleDst = dstLiteral ? `${dstLiteral.lat},${dstLiteral.lon}` : dst;
   const [srcGeo, dstGeo] = await Promise.all([
-    srcLiteral || geocode(src, mapsKey, usage), dstLiteral || geocode(dst, mapsKey, usage),
+    srcLiteral || (mapsKey ? geocode(src, mapsKey, usage) : null),
+    dstLiteral || (mapsKey ? geocode(dst, mapsKey, usage) : null),
   ]);
-  const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
+  const routeMode = canAttemptFreeTransit(srcGeo, dstGeo) ? "transit" : "google";
   const query = wallAnchor(call.anchorAtMs, call.timezone, call.nowMs, call.departureMode);
   const google = async () => {
+    if (!mapsKey) {
+      noteProviderFailure(routeUsage, "provider_unconfigured");
+      return cacheFailure("provider_unconfigured");
+    }
     if (typeof options._authorizeProviderOperation === "function") {
       const decision = await options._authorizeProviderOperation({
         tenantId: uid, provider: "google_maps", operation: "route", essential: false, cacheHit: false,
