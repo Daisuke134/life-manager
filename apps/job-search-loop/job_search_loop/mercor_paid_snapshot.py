@@ -10,6 +10,7 @@ import tempfile
 from urllib.parse import urlsplit
 
 from .mercor_reply_snapshot import _direct_capture_expression
+from .mercor_auth_readback import auth_snapshot_expression
 
 
 def capture(page, *, expected_email: str, output: Path) -> None:
@@ -20,6 +21,13 @@ def capture(page, *, expected_email: str, output: Path) -> None:
         page.goto('https://work.mercor.com/home?tab=contracts',
                   wait_until='domcontentloaded', timeout=30000)
         if urlsplit(page.url).hostname != 'work.mercor.com':
+            raise RuntimeError('mercor_paid_contract_capture_unavailable')
+        auth = json.loads(page.evaluate(auth_snapshot_expression(expected_email=expected_email)))
+        if (not isinstance(auth, dict) or auth.get('firebase_identity_matched') is not True
+                or auth.get('firebase_user_present') is not True
+                or auth.get('firebase_token_expired') is True
+                or auth.get('firebase_token_refresh_failed') is True
+                or auth.get('firebase_token_refresh_invalid') is True):
             raise RuntimeError('mercor_paid_contract_capture_unavailable')
         raw = page.evaluate(_direct_capture_expression(['contracts'], expected_email=expected_email))
         value = json.loads(raw)
