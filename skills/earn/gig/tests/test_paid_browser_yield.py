@@ -19,6 +19,7 @@ SPEC.loader.exec_module(paid)
 def test_with_browser_exports_reacquirable_outer_lease_contract():
     source = (Path(__file__).parents[3] / "browser" / "with-browser.sh").read_text()
     assert "LIFE_MANAGER_BROWSER_LEASE_HOLDER_PID" in source
+    assert "AI_BROWSER_HOLDER_START" in source
     assert "LIFE_MANAGER_BROWSER_LEASE_IDENTITY" in source
     assert "LIFE_MANAGER_BROWSER_GUARD" in source
 

@@ -21,6 +21,12 @@ GUARD="${AI_BROWSER_GUARD:-$HERE/browser-guard.sh}"
 ENSURE="${AI_ENSURE_PROVISION_BROWSER:-$HERE/ensure_provision_browser.sh}"
 ENSURE_SHARED="${AI_ENSURE_BROWSER:-$HERE/ensure_browser.sh}"
 WAIT_SECONDS="${BROWSER_WAIT_SECONDS:-300}"
+if [ -z "${AI_BROWSER_HOLDER_START:-}" ]; then
+  TOKEN_PY="${LIFE_MANAGER_RUNTIME_PYTHON:-python3}"
+  AI_BROWSER_HOLDER_START="$("$TOKEN_PY" -c 'import secrets; print(secrets.token_hex(16))')" || exit 69
+  [ -n "$AI_BROWSER_HOLDER_START" ] || exit 69
+fi
+export AI_BROWSER_HOLDER_START
 CDP=""
 deadline=$(( $(date +%s) + WAIT_SECONDS ))
 ensure_attempted=0

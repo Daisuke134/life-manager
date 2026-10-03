@@ -178,7 +178,7 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             calls = root / "calls"
             guard.write_text(
                 "#!/bin/sh\n"
-                f"printf '%s\\n' \"guard:$1:$2:${{AI_BROWSER_HOLDER_PID:-}}\" >> {calls!s}\n"
+                f"printf '%s\\n' \"guard:$1:$2:${{AI_BROWSER_HOLDER_PID:-}}:${{AI_BROWSER_HOLDER_START:-}}\" >> {calls!s}\n"
                 "case \"$1\" in\n"
                 "  acquire) exit 10 ;;\n"
                 "  release) exit 0 ;;\n"
@@ -187,7 +187,7 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             )
             ensure.write_text(
                 "#!/bin/sh\n"
-                f"printf '%s\\n' \"ensure:$1:${{AI_BROWSER_HOLDER_PID:-}}\" >> {calls!s}\n"
+                f"printf '%s\\n' \"ensure:$1:${{AI_BROWSER_HOLDER_PID:-}}:${{AI_BROWSER_HOLDER_START:-}}\" >> {calls!s}\n"
                 "printf '%s\\n' http://127.0.0.1:54321\n",
                 encoding="utf-8",
             )
@@ -216,10 +216,10 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             records = calls.read_text(encoding="utf-8").splitlines()
-            self.assertRegex(records[0], r"^guard:acquire:buyma:test:\d+$")
-            holder = records[0].rsplit(":", 1)[1]
-            self.assertEqual(records[1], f"ensure:buyma:test:{holder}")
-            self.assertEqual(records[2], f"guard:release:buyma:test:{holder}")
+            self.assertRegex(records[0], r"^guard:acquire:buyma:test:\d+:[0-9a-f]{32}$")
+            holder_pid, holder_start = records[0].rsplit(":", 2)[1:]
+            self.assertEqual(records[1], f"ensure:buyma:test:{holder_pid}:{holder_start}")
+            self.assertEqual(records[2], f"guard:release:buyma:test:{holder_pid}:{holder_start}")
 
     def test_with_browser_falls_back_to_shared_owner_for_protected_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
