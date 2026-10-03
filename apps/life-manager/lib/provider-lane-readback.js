@@ -63,18 +63,18 @@ function normalizeRow(row) {
 
 function laneFromRows(name, rows, definition, bounds, caps) {
   const matching = rows.filter((row) => row.feature === definition.feature);
-  const fallbackRows = matching.filter((row) => row.provider === "google_maps" && !row.cacheHit);
-  const fallbackCalls = fallbackRows.reduce((sum, row) => sum + row.providerUnits, 0);
-  const eventCount = matching.reduce((sum, row) => sum + row.eventCount, 0);
-  const providerUnits = matching.reduce((sum, row) => sum + row.providerUnits, 0);
-  const estimatedUsd = matching.reduce((sum, row) => sum + row.estimatedUsd, 0);
-  const unknownCount = matching.reduce((sum, row) => sum + (row.unknownCount || 0), 0);
   const periodStart = Date.parse(bounds.start);
   const periodEnd = Date.parse(bounds.end);
   const inPeriod = matching.filter((row) => row.observedAt != null
-    // lm_usage_cost_summary groups at UTC midnight; accept a bucket when its 24h
+    // lm_provider_lane_summary groups at UTC midnight; accept a bucket when its 24h
     // interval overlaps the requested JST reporting day.
     && row.observedAt < periodEnd && row.observedAt + 24 * 60 * 60 * 1000 > periodStart);
+  const fallbackRows = inPeriod.filter((row) => row.provider === "google_maps" && !row.cacheHit);
+  const fallbackCalls = fallbackRows.reduce((sum, row) => sum + row.providerUnits, 0);
+  const eventCount = inPeriod.reduce((sum, row) => sum + row.eventCount, 0);
+  const providerUnits = inPeriod.reduce((sum, row) => sum + row.providerUnits, 0);
+  const estimatedUsd = inPeriod.reduce((sum, row) => sum + row.estimatedUsd, 0);
+  const unknownCount = inPeriod.reduce((sum, row) => sum + (row.unknownCount || 0), 0);
   const successful = inPeriod.filter((row) => row.outcome === "success" || row.cacheHit);
   const primaryRow = successful.find((row) => definition.primary.includes(row.provider));
   const cacheRow = successful.find((row) => row.cacheHit);
@@ -83,8 +83,8 @@ function laneFromRows(name, rows, definition, bounds, caps) {
   if (matching.length === 0) failures.push(`provider_lane_readback_missing:${name}`);
   else if (inPeriod.length === 0) failures.push(`provider_lane_readback_stale:${name}`);
   else if (successful.length === 0) failures.push(`provider_lane_no_success:${name}`);
-  if (matching.some((row) => row.numericInvalid)) failures.push(`provider_lane_numeric_invalid:${name}`);
-  if (matching.some((row) => row.unknownCount == null)) failures.push(`provider_lane_unknown_cost:${name}`);
+  if (inPeriod.some((row) => row.numericInvalid)) failures.push(`provider_lane_numeric_invalid:${name}`);
+  if (inPeriod.some((row) => row.unknownCount == null)) failures.push(`provider_lane_unknown_cost:${name}`);
   if (!primaryRow && !cacheRow) failures.push(`provider_lane_primary_missing:${name}`);
   const cap = caps[definition.capKey] || {};
   return {

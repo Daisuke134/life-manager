@@ -177,9 +177,10 @@ function createSupabaseProviderBudgetAuthorizer({ supaUrl, supaKey, fetchImpl = 
     }
     if (!tenantId) return { allowed: false, state: "stopped", reason: "budget_identity_missing", nextAction: "use_cache_or_stop" };
     try {
+      const currentNowMs = typeof nowMs === "function" ? nowMs() : nowMs;
       const [daily, monthly] = await Promise.all([
-        readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider: input.provider, period: "daily", nowMs }),
-        readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider: input.provider, period: "monthly", nowMs }),
+        readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider: input.provider, period: "daily", nowMs: currentNowMs }),
+        readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider: input.provider, period: "monthly", nowMs: currentNowMs }),
       ]);
       // A missing provider row is a legitimate zero usage snapshot, not an implicit billing receipt.
       const caps = defaultProviderCaps();

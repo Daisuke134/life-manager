@@ -138,3 +138,12 @@ test("Supabase provider authorizer reads durable daily/monthly usage and fails c
   assert.equal(dailyDenied.allowed, false);
   assert.equal(dailyDenied.reason, "cap_exceeded");
 });
+
+test("Supabase provider authorizer uses a valid clock when nowMs is omitted", async () => {
+  const authorize = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key",
+    fetchImpl: async () => ({ ok: true, json: async () => [] }),
+  });
+  const result = await authorize({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 1, estimatedUsd: 0.005 });
+  assert.equal(result.allowed, true);
+});

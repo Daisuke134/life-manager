@@ -98,6 +98,15 @@ test("accepts a UTC day bucket that overlaps the reporting day in JST", () => {
   assert.equal(result.status, "fresh");
 });
 
+test("does not count a provider row outside the requested reporting day", () => {
+  const result = normalizeProviderLanes([
+    { usage_day: "2026-10-03T00:00:00Z", provider: "openpoi", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0, unknown_count: 0 },
+    { usage_day: "2026-09-20T00:00:00Z", provider: "google_maps", feature: "places_search", outcome: "success", event_count: 99, provider_units: 99, estimated_cost_usd: 0.495, unknown_count: 0 },
+  ], { reportingDate: "2026-10-03", nowMs: Date.parse("2026-10-03T12:00:00Z") });
+  assert.equal(result.lanes.poi.fallbackCalls, 0);
+  assert.equal(result.lanes.poi.eventCount, 1);
+});
+
 test("Supabase readback uses the bounded RPC and returns normalized lane evidence", async () => {
   const calls = [];
   const result = await readProviderLanes({
