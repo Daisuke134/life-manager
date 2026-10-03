@@ -4846,7 +4846,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainは43f020026c74eed4f6289fba0c303a0d8caafef6。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。complete immutableと既存handoff/official actual loadは§282で成立。自然journalのrun/SHA/owner/UTCは§283で直接join、occurrenceはnull。exempt native occurrence伝播修復71536cb4b3のsource受入/自然反映が次cursor。source合格と本番直接joinを区別する。
+- 最後に確認したmainは5fc226d9eec06232ef33c5fd49d337bafe5736a3。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。complete immutableと既存handoff/official actual loadは§282で成立。自然journalのrun/SHA/owner/UTCは§283で直接join、occurrenceはnull。exempt native occurrence伝播修復71536cb4b3はPR6546全10CI/fresh SHIPでmain5fcへ統合済み（§284）。new immutable/load/自然occurrenceが次cursor。source合格と本番直接joinを区別する。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -4855,7 +4855,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-1. PR6544はmain/complete immutable/既存handoff/自然run_id・UTCのjoinまで§282–283で成立。occurrence nullの根因はnative runnerのexempt早期経路。修復71536cb4b3はfresh source review SHIP/PR6546 CI進行中。全CI→main→既存ownerの自然反映→occurrence直接joinを閉じる。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
+1. PR6544はmain/complete immutable/既存handoff/自然run_id・UTCのjoinまで§282–283で成立。occurrence nullの根因はnative runnerのexempt早期経路。修復71536cb4b3はfresh source review SHIP/PR6546全10CIでmain5fcへ統合済み。既存live ownerのterminal→new complete immutable/handoff→自然occurrence直接joinを閉じる。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
 2. SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。自然run-ID/台帳/report一致の成立済み条件を繰り返さない。
 3. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
 4. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
@@ -5443,3 +5443,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 最新main43f/clean/同ownerleaseを確認し専用branch fix/native-exempt-occurrence-context-20261004を作成。control-plane有限/無期限・continuous3経路×contextあり/なしを実child processで検証し、foreign stale occurrence漏出のRED→GREEN。exemptだけinherited occurrence/hintを除き、渡されたnative occurrence引数をchildへ保存する7lines。通常のolder durable claim、on_claimed、免除条件/timeout/stderr、親envは不変。ID無しなら無しのままで生成しない。
 - HEAD71536cb4b3a8ba44666df315478b8f5851c0de01/2files/40additions/clean/pushed。bounds pytest109、runtime unittest759/146.502s、adapter15、contract/OSS/diff PASS、doctor inventory178/unmanaged0/retiredpresent0/missing0。fresh native_exempt_occurrence_reviewはsource SHIP/重大finding0、独立10tests PASS。依頼gpt-5.6-sol/high/forknone、actual model/effort/usageは観測不能。PR6546を作成しfinal71536のGitHub CI進行中。main/new自然occurrence gateは未達。
 - state/fleet-owner-journal-correlation-natural-20261004.jsonとnative-exempt-occurrence-source-20261004.json/mode600へ実観測/欠落境界/RED/GREEN/検証・次操作を記録。primary manualapply/wake/oldfence解放/credential/profile変更0。次はPR6546 final HEAD全CI→source受入→既存live owner terminal/newimmutable/handoff→新自然occurrence join。全残TODO → §217、全goalactive。
+
+
+### 284. exempt native occurrence伝播修復のmain統合
+
+- PR6546 final HEAD71536cb4b3a8ba44666df315478b8f5851c0de01のGitHub全10checks SUCCESSをfresh確認。独立source review SHIP/10tests、primary bounds109/runtime759/adapter15/contract/OSS/doctor/diff PASSの後、match-head-commit付きadmin squash merge。mergedAt2026-10-03T22:24:15Z/main5fc226d9eec06232ef33c5fd49d337bafe5736a3、fresh fetch/remote object一致。branchはclean/pushed、再PR/merge不要。
+- currentは43f completeimmutable、自然native11443/script11449が継続live。source43f journalのrun/SHA/UTC joinは成立、occurrence nullを保持。新5fcのcompleteimmutable/official actual load/自然occurrence gateは未達。primary重複cut/apply/handoff/wake/kill0、旧journal補完/旧fence解放0。
+- state/native-exempt-occurrence-source-20261004.json/mode600へreview/全CI/mergeを保存。次は同live ownerのterminalを公式report/handleで確認し、通常条件のmain5fc complete immutable→既存handoff→新自然journalのoccurrenceとnative eventをjoinする。免除ownerにはdurable claimを捏造せず、通常ownerのolder actual claimは維持する。SelfBuild実hook/Paid正式納品・精算・着金/同期間CFO費用、Mobile別担当ASC Agreementは未完。全残TODO → §217、全goalactive。
+- 親/reviewerのactual model/effort/usageは観測不能、API相当費用は算定不能。推定費用/usageをactualcost0として記帳しない。
