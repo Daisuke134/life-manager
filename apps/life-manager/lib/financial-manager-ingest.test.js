@@ -143,6 +143,37 @@ test("Capafy revenue stays verified while RevenueCat chart revenue is marked as 
   assert.equal(records.filter((r) => r.source.provider === "mobile-apps").length, 1);
 });
 
+test("hourly re-ingestion of unchanged Capafy and RevenueCat rows is idempotent", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const options = {
+    store, subjectId: "tenant-1",
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readCapafyAnalytics: async () => ({
+      daily_revenue_trend_last_30d: [
+        { date: "2026-09-26", revenue: 3.98, refundAmount: 0 },
+        { date: "2026-09-25", revenue: 0, refundAmount: 1.5 },
+      ],
+    }),
+    readMobileAppsRows: async () => [
+      { product_id: "anicca-ios", business_date: "2026-09-26", sources: { revenuecat: {
+        status: "available", data: { charts: { revenue: {
+          latest_complete: { Revenue: { value: 12.5, incomplete: false } },
+        } } },
+      } } },
+    ],
+  };
+
+  const first = await ingestFinancialRecords({ ...options, now: new Date("2026-09-27T02:00:00Z") });
+  assert.equal(first.created, 3);
+  const persisted = await store.read({ subjectId: "tenant-1" });
+  const replay = await ingestFinancialRecords({ ...options, now: new Date("2026-09-27T03:00:00Z") });
+
+  assert.equal(replay.created, 0);
+  assert.deepEqual(await store.read({ subjectId: "tenant-1" }), persisted);
+});
+
 test("capafy and mobile-apps sources fail closed on read errors", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

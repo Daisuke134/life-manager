@@ -70,6 +70,25 @@ test("JSONL store appends immutable tenant records once and reads only that tena
   );
 });
 
+test("JSONL store preserves the first record when only replay observation timestamps advance", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-record-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const original = record();
+  const replay = record({
+    recorded_at: "2026-09-07T03:00:00.000Z",
+    verification: { ...original.verification, observed_at: "2026-09-07T03:00:00.000Z" },
+  });
+
+  assert.deepEqual(await store.append(original), { created: true, record: original });
+  assert.deepEqual(await store.append(replay), { created: false, record: original });
+  assert.deepEqual(await store.read({ subjectId: "tenant-a" }), [original]);
+  await assert.rejects(store.append(record({ amount_minor: 999 })), /idempotency collision/);
+  await assert.rejects(store.append(record({ verification: {
+    ...original.verification, evidence_refs: ["stripe://payment/changed-receipt"],
+  } })), /idempotency collision/);
+});
+
 test("Postgres store uses one tenant-scoped immutable append/read boundary", async () => {
   const calls = [];
   const query = async (sql, params) => {
@@ -88,6 +107,30 @@ test("Postgres store uses one tenant-scoped immutable append/read boundary", asy
   assert.match(calls[0].sql, /ON CONFLICT DO NOTHING/i);
   assert.deepEqual(calls[1].params, ["tenant-a", "business", "2026-09-01T00:00:00.000Z"]);
   assert.match(calls[1].sql, /subject_id = \$1/i);
+});
+
+test("Postgres replay preserves the original record when only observation timestamps advance", async () => {
+  let inserted = false;
+  let stored;
+  const query = async (sql, params) => {
+    if (/INSERT INTO public\.lm_financial_records/i.test(sql)) {
+      if (inserted) return { rows: [] };
+      inserted = true;
+      stored = JSON.parse(params[4]);
+      return { rows: [{ record: stored }] };
+    }
+    return { rows: [{ record: stored }] };
+  };
+  const store = createPostgresFinancialRecordStore({ query });
+  const original = record();
+  const replay = record({
+    recorded_at: "2026-09-07T03:00:00.000Z",
+    verification: { ...original.verification, observed_at: "2026-09-07T03:00:00.000Z" },
+  });
+
+  assert.deepEqual(await store.append(original), { created: true, record: original });
+  assert.deepEqual(await store.append(replay), { created: false, record: original });
+  await assert.rejects(store.append(record({ amount_minor: 999 })), /idempotency collision/);
 });
 
 test("Postgres store opens the worker database lazily when no query is injected", async () => {

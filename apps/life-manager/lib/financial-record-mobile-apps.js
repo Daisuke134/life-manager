@@ -42,6 +42,30 @@ function canonicalSha256(value) {
   return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
 }
 
+function ascRecordFingerprint(record) {
+  return canonicalSha256({
+    ...record,
+    recorded_at: null,
+    verification: { ...record.verification, observed_at: null },
+  });
+}
+
+// Re-observation timestamps may change; receipt economics and evidence may not.
+function addAscRecord(records, positions, record) {
+  const position = positions.get(record.record_id);
+  if (position === undefined) {
+    positions.set(record.record_id, records.length);
+    records.push(record);
+    return true;
+  }
+  const previous = records[position];
+  if (ascRecordFingerprint(previous) !== ascRecordFingerprint(record)) return false;
+  if (Date.parse(record.verification.observed_at) < Date.parse(previous.verification.observed_at)) {
+    records[position] = record;
+  }
+  return true;
+}
+
 function ascFinancialReportKey(data) {
   return JSON.stringify([
     data.report_id, data.report_sha256, data.content_sha256, data.report_status,
@@ -185,6 +209,7 @@ function ascFinancialRecords(row, { subjectId, observedAt } = {}, verifiedReport
     || !verifiedReportKeys.has(ascFinancialReportKey(data))
     || !Array.isArray(data.rows)) return { available: true, records: [] };
   const records = [];
+  const recordPositions = new Map();
   for (const item of data.rows) {
     if (!item || !Number.isInteger(item.source_row_index) || item.source_row_index < 0) return { available: true, records: [] };
     const catalogType = item.catalog_record_type;
@@ -211,11 +236,15 @@ function ascFinancialRecords(row, { subjectId, observedAt } = {}, verifiedReport
       || transactionDate > settlementDate || settlementDate < data.period_start || settlementDate > data.period_end) {
       return { available: true, records: [] };
     }
-    const verifiedAt = source.observed_at || row.observed_at || observedAt;
-    if (typeof verifiedAt !== "string" || !Number.isFinite(Date.parse(verifiedAt))
-      || !(/[zZ]|[+-]\d\d:\d\d$/.test(verifiedAt))) return { available: true, records: [] };
+    const sourceObservedAt = source.observed_at || row.observed_at;
+    if (typeof sourceObservedAt !== "string" || !Number.isFinite(Date.parse(sourceObservedAt))
+      || !(/[zZ]|[+-]\d\d:\d\d$/.test(sourceObservedAt))) {
+      throw new Error("ASC financial source observation time missing");
+    }
+    // The source observation, not the current ingest clock, makes this immutable row replay-stable.
+    const verifiedAt = sourceObservedAt;
     const idempotencyKey = `mobile-apps-asc:v1:${row.product_id}:${data.report_id}:${item.source_row_index}`;
-    records.push({
+    const record = {
       schema_version: 1, record_type: "financial_record",
       record_id: financialRecordId(subjectId, idempotencyKey), subject_id: subjectId,
       scope: "business", kind: sale === "S" ? "business_revenue" : "business_cost",
@@ -229,7 +258,10 @@ function ascFinancialRecords(row, { subjectId, observedAt } = {}, verifiedReport
           data.unassigned_evidence_ref,
           item.catalog_evidence_ref,
         ] },
-    });
+    };
+    if (!addAscRecord(records, recordPositions, record)) {
+      throw new Error("ASC financial record identity conflict");
+    }
   }
   return { available: true, records };
 }
@@ -240,6 +272,7 @@ function mobileAppsRowsToFinancialRecords(rows, {
   if (!Array.isArray(rows)) return [];
   const allowed = new Set(products);
   const records = [];
+  const ascRecordPositions = new Map();
   const verifiedReportKeys = verifiedAscFinancialReportKeys(rows);
   for (const row of rows) {
     const productId = row && row.product_id;
@@ -247,7 +280,11 @@ function mobileAppsRowsToFinancialRecords(rows, {
     if (!allowed.has(productId) || typeof businessDate !== "string" || !businessDate) continue;
     const asc = ascFinancialRecords(row, { subjectId, observedAt }, verifiedReportKeys);
     if (asc.available) {
-      records.push(...asc.records);
+      for (const record of asc.records) {
+        if (!addAscRecord(records, ascRecordPositions, record)) {
+          throw new Error("ASC financial record identity conflict");
+        }
+      }
       continue;
     }
     const revenuecat = row.sources && row.sources.revenuecat;

@@ -107,13 +107,32 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
   const dayEnd = zonedMidnight(addDays(reportingDate, 1), timezone);
   const sevenDayStartLabel = addDays(reportingDate, -6);
   const sevenDayStart = zonedMidnight(sevenDayStartLabel, timezone);
+  const newlyVerifiedPastPeriodRecords = verifiedBusiness.filter((record) => (
+    record.source.provider === "app-store-connect-financial"
+    && ["business_revenue", "business_cost"].includes(record.kind)
+    && Date.parse(record.recorded_at) >= dayStart
+    && Date.parse(record.recorded_at) < dayEnd
+    && Date.parse(record.occurred_at) < monthStart
+    && Date.parse(record.occurred_at) < sevenDayStart
+  ));
+  const newlyVerifiedPastPeriod = newlyVerifiedPastPeriodRecords.map((record) => ({
+    productId: record.idempotency_key.split(":")[2] || "unknown",
+    settlementDate: record.occurred_at.slice(0, 10),
+    recordedAt: record.recorded_at,
+    kind: record.kind,
+    amountMinor: record.amount_minor,
+    currency: record.currency,
+    provider: record.source.provider,
+    externalRef: record.source.external_ref,
+    evidenceRefs: [...record.verification.evidence_refs],
+  }));
   const balances = newestBalances(verified);
   const assets = new Map();
   const liabilities = new Map();
   for (const record of balances) {
     add(record.kind === "asset_balance" ? assets : liabilities, record.currency, record.amount_minor);
   }
-  const included = [...balances, ...currentBusiness];
+  const included = [...balances, ...currentBusiness, ...newlyVerifiedPastPeriodRecords];
   const providers = [...new Set(included.map((record) => record.source.provider))].sort();
   const netWorth = new Map(assets);
   for (const [currency, amount] of liabilities) add(netWorth, currency, -amount);
@@ -147,6 +166,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
         period: { start: sevenDayStartLabel, end: reportingDate },
         ...summarizeBusiness(inRange(verifiedBusiness, sevenDayStart, dayEnd)),
       },
+      newlyVerifiedPastPeriod,
       byProvider,
     },
     providers,
@@ -196,6 +216,19 @@ function businessLines(label, summary) {
   ];
 }
 
+function newlyVerifiedPastPeriodLines(records, detailed = false) {
+  if (!records.length) return [];
+  const lines = ["\n新たに確認した過去期間のApp Store精算（今月・直近7日には重複計上しない）"];
+  for (const record of records) {
+    const label = record.kind === "business_cost" ? "返金・費用" : "収益";
+    lines.push(`${record.productId} 精算日 ${record.settlementDate}: ${label} ${money(record)} (${record.provider}; ${record.externalRef})`);
+    if (record.evidenceRefs.length) {
+      lines.push(`根拠: ${detailed ? record.evidenceRefs.join("、") : record.evidenceRefs[0]}`);
+    }
+  }
+  return lines;
+}
+
 function renderFinancialManagerDetailed(report) {
   const lines = ["💰 Financial Manager"];
   if (report.personal.assets.length || report.personal.liabilities.length) {
@@ -216,6 +249,7 @@ function renderFinancialManagerDetailed(report) {
       lines.push(item.provider, rows("収益", item.revenue));
     }
   }
+  lines.push(...newlyVerifiedPastPeriodLines(report.business.newlyVerifiedPastPeriod || [], true));
   lines.push(
     "",
     `確認済み記録：${report.verifiedRecordCount}件`,
@@ -232,6 +266,7 @@ function renderFinancialManagerTelegram(report) {
   const providers = today.byProvider || [];
   if (providers.length) lines.push(providers.filter(p => p.revenue.length)
     .map(p => `${p.provider}: ${amounts(p.revenue)}`).join(" | "));
+  lines.push(...newlyVerifiedPastPeriodLines(report.business.newlyVerifiedPastPeriod || []));
   lines.push(`銀行への入金: 未確認 | 今日の確認済み支出: ${amounts(today.costs)} | 差引: 未確認`);
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.

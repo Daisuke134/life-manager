@@ -29,6 +29,16 @@ function instant(value, label) {
   return new Date(value).toISOString();
 }
 
+function sameFinancialRecordContent(left, right) {
+  // Re-observation clocks may advance; identity, economics, verification state, and evidence may not.
+  const stable = (record) => ({
+    ...record,
+    recorded_at: null,
+    verification: { ...record.verification, observed_at: null },
+  });
+  return isDeepStrictEqual(stable(left), stable(right));
+}
+
 function readInput(input = {}) {
   const subjectId = String(input.subjectId || "").trim();
   if (!subjectId) throw new Error("FinancialRecord subjectId invalid");
@@ -81,7 +91,7 @@ function createJsonlFinancialRecordStore({ directoryPath } = {}) {
           || item.record_id === record.record_id)
       ));
       if (existing) {
-        if (!isDeepStrictEqual(existing, record)) {
+        if (!sameFinancialRecordContent(existing, record)) {
           throw new Error("FinancialRecord idempotency collision");
         }
         return { created: false, record: existing };
@@ -104,7 +114,7 @@ function createJsonlFinancialRecordStore({ directoryPath } = {}) {
           const stored = projectFinancialRecord(
             JSON.parse(fs.readFileSync(target, "utf8").trimEnd()),
           );
-          if (!isDeepStrictEqual(stored, record)) {
+          if (!sameFinancialRecordContent(stored, record)) {
             throw new Error("FinancialRecord idempotency collision");
           }
           return { created: false, record: stored };
@@ -145,7 +155,7 @@ function createPostgresFinancialRecordStore(options = {}) {
       `, [record.subject_id, record.record_id, record.idempotency_key])).rows;
       if (rows.length !== 1) throw new Error("FinancialRecord append collision");
       const stored = projectFinancialRecord(rows[0].record);
-      if (!isDeepStrictEqual(stored, record)) throw new Error("FinancialRecord idempotency collision");
+      if (!sameFinancialRecordContent(stored, record)) throw new Error("FinancialRecord idempotency collision");
       return { created: inserted.length === 1, record: stored };
     },
     async read(raw) {

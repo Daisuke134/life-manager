@@ -2,11 +2,20 @@
 
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const test = require("node:test");
 
 const { mobileAppsRowsToFinancialRecords } = require("./financial-record-mobile-apps.js");
 const { projectFinancialRecord } = require("./financial-record-contract.js");
-const { buildFinancialManagerReport } = require("./financial-manager-report.js");
+const { createJsonlFinancialRecordStore } = require("./financial-record-store.js");
+const { ingestFinancialRecords } = require("./financial-manager-ingest.js");
+const {
+  buildFinancialManagerReport,
+  renderFinancialManagerDetailed,
+  renderFinancialManagerTelegram,
+} = require("./financial-manager-report.js");
 
 function row(productId, businessDate, revenueValue, { unavailable = false } = {}) {
   if (unavailable) {
@@ -284,6 +293,122 @@ test("ASC subscription ID plus exact SKU map settled proceeds to the parent app"
     "appstoreconnect://subscriptions/6762049696",
   ]);
   assert.equal(records[0].idempotency_key, "mobile-apps-asc:v1:anicca-ios:finance-2026-12-Z1:0");
+});
+
+test("ASC proceeds stay unavailable when both source and snapshot observation times are missing", () => {
+  const sale = { ...mappedAniccaSubscriptionRow(0), partner_share_currency: "JPY",
+    extended_partner_share: "4250", sale_or_return: "S", product_type_identifier: "IAY",
+    transaction_date: "2026-09-12", settlement_date: "2026-09-12" };
+  const rows = financeReportRows({ "anicca-ios": [sale] }, { sourceObservedAt: null });
+  assert.throws(() => mobileAppsRowsToFinancialRecords(rows, {
+    subjectId: "tenant-1", observedAt: "2026-10-04T01:00:00Z",
+  }), /ASC financial source observation time missing/);
+});
+
+test("ASC snapshots with a reused row identity but conflicting evidence fail closed", () => {
+  const sale = { ...mappedAniccaSubscriptionRow(0), partner_share_currency: "JPY",
+    extended_partner_share: "4250", sale_or_return: "S", product_type_identifier: "IAY",
+    transaction_date: "2026-09-12", settlement_date: "2026-09-12" };
+  const changedSale = { ...sale, extended_partner_share: "5000" };
+  const original = financeReportRows({ "anicca-ios": [sale] }, {
+    reportId: "finance-2026-12-Z1", reportSha256: "a".repeat(64),
+    periodStart: "2026-08-30", periodEnd: "2026-09-26",
+    businessDate: "2026-09-27", sourceObservedAt: "2026-09-27T01:00:00Z",
+  });
+  const changed = financeReportRows({ "anicca-ios": [changedSale] }, {
+    reportId: "finance-2026-12-Z1", reportSha256: "b".repeat(64),
+    periodStart: "2026-08-30", periodEnd: "2026-09-26",
+    businessDate: "2026-10-03", sourceObservedAt: "2026-10-04T00:00:00Z",
+  });
+
+  assert.throws(() => mobileAppsRowsToFinancialRecords([...original, ...changed], {
+    subjectId: "tenant-1", observedAt: "2026-10-04T01:00:00Z",
+  }), /ASC financial record identity conflict/);
+});
+
+test("ASC financial rows stay idempotent across repeated business-date snapshots and CFO runs", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-asc-idempotency-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const sale = { ...mappedAniccaSubscriptionRow(0), partner_share_currency: "JPY",
+    extended_partner_share: "4250", sale_or_return: "S", product_type_identifier: "IAY",
+    transaction_date: "2026-09-12", settlement_date: "2026-09-12" };
+  const earlierSnapshot = financeReportRows({ "anicca-ios": [sale] }, {
+    reportId: "finance-2026-12-Z1", reportSha256: "a".repeat(64),
+    periodStart: "2026-08-30", periodEnd: "2026-09-26",
+    businessDate: "2026-09-27", sourceObservedAt: "2026-09-27T01:00:00Z",
+  });
+  const repeatedSnapshot = financeReportRows({ "anicca-ios": [sale] }, {
+    reportId: "finance-2026-12-Z1", reportSha256: "a".repeat(64),
+    periodStart: "2026-08-30", periodEnd: "2026-09-26",
+    businessDate: "2026-10-03", sourceObservedAt: "2026-10-04T00:00:00Z",
+  });
+  const readMobileAppsRows = async () => [...earlierSnapshot, ...repeatedSnapshot];
+  const options = {
+    store, subjectId: "tenant-1",
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readMobileAppsRows,
+  };
+
+  const first = await ingestFinancialRecords({ ...options, now: new Date("2026-10-04T01:00:00Z") });
+  assert.equal(first.created, 1);
+  const persisted = await store.read({ subjectId: "tenant-1" });
+  const ascRows = persisted.filter((record) => record.source.provider === "app-store-connect-financial");
+  assert.equal(ascRows.length, 1);
+  assert.equal(ascRows[0].amount_minor, 4250);
+  assert.equal(ascRows[0].recorded_at, "2026-10-04T01:00:00.000Z");
+
+  const replay = await ingestFinancialRecords({ ...options, now: new Date("2026-10-04T02:00:00Z") });
+  assert.equal(replay.created, 0);
+  assert.deepEqual(await store.read({ subjectId: "tenant-1" }), persisted);
+});
+
+test("CFO delivery shows a newly verified prior-period ASC settlement without changing period totals", () => {
+  const sale = { ...mappedAniccaSubscriptionRow(0), partner_share_currency: "JPY",
+    extended_partner_share: "4250", sale_or_return: "S", product_type_identifier: "IAY",
+    transaction_date: "2026-09-12", settlement_date: "2026-09-12" };
+  const rows = financeReportRows({ "anicca-ios": [sale] }, {
+    reportId: "finance-2026-12-Z1", reportSha256: "c".repeat(64),
+    periodStart: "2026-08-30", periodEnd: "2026-09-26",
+    businessDate: "2026-10-03", sourceObservedAt: "2026-10-04T00:30:00Z",
+  });
+  const records = mobileAppsRowsToFinancialRecords(rows, {
+    subjectId: "tenant-1", observedAt: "2026-10-04T01:00:00Z",
+  });
+  const { report } = buildFinancialManagerReport(records, "2026-10-04");
+  const telegram = renderFinancialManagerTelegram(report);
+  const detailed = renderFinancialManagerDetailed(report);
+
+  assert.deepEqual(report.business.revenue, []);
+  assert.deepEqual(report.business.today.revenue, []);
+  assert.deepEqual(report.business.last7Days.revenue, []);
+  assert.equal(report.verifiedRecordCount, 1);
+  assert.equal(report.business.newlyVerifiedPastPeriod.length, 1);
+  assert.deepEqual(report.business.newlyVerifiedPastPeriod[0], {
+    productId: "anicca-ios",
+    settlementDate: "2026-09-12",
+    recordedAt: "2026-10-04T01:00:00.000Z",
+    kind: "business_revenue",
+    amountMinor: 4250,
+    currency: "JPY",
+    provider: "app-store-connect-financial",
+    externalRef: "finance-2026-12-Z1:0",
+    evidenceRefs: [
+      `appstoreconnect://financial-reports/finance-2026-12-Z1/${"c".repeat(64)}/rows/0`,
+      `appstoreconnect://financial-report-mappings/finance-2026-12-Z1/${"f".repeat(64)}`,
+      "appstoreconnect://subscriptions/6762049696",
+    ],
+  });
+  for (const output of [telegram, detailed]) {
+    assert.match(output, /新たに確認した過去期間のApp Store精算/);
+    assert.match(output, /anicca-ios/);
+    assert.match(output, /2026-09-12/);
+    assert.match(output, /¥4,250/);
+    assert.match(output, /app-store-connect-financial/);
+    assert.match(output, /finance-2026-12-Z1:0/);
+    assert.match(output, /appstoreconnect:\/\/financial-reports\/finance-2026-12-Z1/);
+    assert.match(output, /今月・直近7日には重複計上しない/);
+  }
 });
 
 test("published ASC apps retain their parent-app binding in Financial Manager", () => {
