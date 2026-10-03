@@ -437,7 +437,7 @@ async function runSelfBuildDay({ deps, options = {} }) {
   const now = deps.now || (() => new Date());
   const started = now();
   const startedAtMs = started.getTime();
-  const runId = `${started.toISOString().replace(/\D/g, "").slice(0, 14)}-selfbuild-${crypto.randomBytes(4).toString("hex")}`;
+  const runId = options.runId || `${started.toISOString().replace(/\D/g, "").slice(0, 14)}-selfbuild-${crypto.randomBytes(4).toString("hex")}`;
 
   const ledgerPath = options.ledgerPath || selfBuildLedgerPath();
   const guardLedger = options.guardLedgerPath || guardLedgerPath();
