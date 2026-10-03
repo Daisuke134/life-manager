@@ -4213,3 +4213,20 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. **Coconala Paidは継続**。current contractは`pending`のため、公式talkroom/transaction stateとbuyer requestを読み、repo-owned deliveryを完了またはbuyer待ちへ正しく遷移させる。effect 0のretryを納品成功へ数えない。
 3. contract terminal後、Coconala fee→settlement→payout→actual costをofficial receiptでCFO ledgerへjoinする。ここまで完了するまでCoconala収益完了とはしない。
 4. Paidがprovider/human待ちで安全にpendingを維持し、自所有の修正が無い区間は、§178 #2 PromptBaseのofficial sales/fee/settlement readbackを並行して進める。全体順序はPromptBase→Capafy→Writer→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarketを維持する。
+
+### 182. Paid TikTok identity self-healingとCoconala runtime cursor完了（2026-10-03 12:55 JST）
+
+- 1f Paid自然runでbrowser starvationは解消したが、contract `18180857`のrepo-owned fulfillmentはTikTok seller identityで停止した。registered `tiktok-anicca-jp` endpointは一時`endpoint_not_profile_owned`、その後fresh resolverではprofile-ownedでもUIがskeleton停止、sessionはlogged outだった。credential SSOTのexact `@anicca.jp` entryを値非表示で使用し、公式login pageを再認証した。CAPTCHA/本人確認は発生せず、公式adapterは`authenticated_expected_identity / observed_handle=@anicca.jp`を返した。
+- skeleton停止の根因browserは9時間前のorphan Chromiumをcurrent ownerがadoptしていた。TikTok専用CDPへ`Browser.close`を送り、KeepAlive ownerが同じprofile/portで再生成した。Coconalaや他profileは未変更。browser UUIDは旧generationから新generationへ変わり、profile ownershipとauthenticationを再readbackした。
+- Paid ownerのnested Seatbeltでは`lsof`でlistener PIDを読めるが`ps command/lstart`がEPERMとなり、resolverはprofile ownershipを証明できず、browser guardもholder identityを作れなかった。PR #6514/main `a6b655cb31df095f3b1dc22a92d713d93b6f3f90`で、browser ownerがCDP ready後にactual listener PIDとlive browser UUIDをexact profile-realpath hash・mode 600 receiptへatomic記録し、resolverはUID/mode/symlink/port/profile/listener PID/live UUIDを全照合するfallbackを追加した。Paid sandboxはreceipt directory write deny。stale receipt/PID reuseはUUID generation mismatchでfail-closed。
+- PR #6515/main `e30c83952928c183e925fb638bca15cdd7ae4716`で、with-browser wrapperが128-bit random holder nonceを一度生成し、PID+nonceをacquire/yield/releaseへ継承した。nested Seatbeltで`ps lstart`が無くても別holder/PID reuse/forkはleaseを解放できず、nonce生成失敗はexit69。production-like Paid sandbox内のofficial TikTok identity E2EはPASSした。
+- verificationはbrowser/resolver/owner 39件、Paid remote/browser 263件、with-browser 2件、Paid yield 6件、py_compile/bash-n/diff、両PR GitHub CI全件PASS。fresh read-only reviewはPR #6514/#6515とも最終`SHIP`。immutable releaseは`/Users/anicca/loops/releases/20261003T115105-e30c8395 / ALL`。
+- e30 Paid自然occurrence `hf-gig-paid-direct:18dae6de40afe558-11142`は、Coconala lease nonceをproductionで記録し、model-only区間中にReplyがCoconala leaseを取得、nested Paid ownerがTikTok leaseを取得・解放した。ownerは公式`@anicca.jp` identity、5 query search、候補profile screening、TikTok inbox（message surface loaded / login control 0 / conversation node 1）、Google Sheetsをreadbackした。別identityの同時provider effectは0。
+- final resultはexit0、health runtime/productivity/recovery=`ok`、effect_unknown=0、latest=`pending / effect 0 / readback 2 / failed 0 / pending 1`。owner summaryは新規候補2件を投稿コンテンツ未確認として安全に対象外、verified unique sends 20、remaining 280。DM送信を捏造せず、buyer contractはpendingのまま保持する。contract/fee/settlement/payout/actual costは未完であり、Coconala収益完了とはしない。
+
+#### 更新後の原子cursor
+
+1. Coconala ApplyとPaid runtime/self-healingは完了。Paid business contractは自然runでeligible candidateを探索し、exact send receipt + inbox/Sheets readbackがある時だけ20件から加算する。candidate不在のeffect 0を失敗や完了へ変換しない。
+2. Paid contract terminal後にCoconala fee→settlement→payout→actual costをCFOへjoinする。現在はprovider/business pendingなので自然継続し、同じrunを手動再送しない。
+3. primary cursorを§178 #2 **PromptBase**へ移す。Football/Portfolio/Reelsのfresh dashboard/Gmail/public status、order、fee、settlement/payoutを公式readbackし、同じlistingを再送しない。
+4. 後続はCapafy→Writer→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarket→最終CFO統合の順を維持する。
