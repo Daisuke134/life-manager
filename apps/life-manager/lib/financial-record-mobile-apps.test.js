@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const { mobileAppsRowsToFinancialRecords } = require("./financial-record-mobile-apps.js");
 const { projectFinancialRecord } = require("./financial-record-contract.js");
+const { buildFinancialManagerReport } = require("./financial-manager-report.js");
 
 function row(productId, businessDate, revenueValue, { unavailable = false } = {}) {
   if (unavailable) {
@@ -21,7 +22,7 @@ function row(productId, businessDate, revenueValue, { unavailable = false } = {}
   };
 }
 
-test("available RevenueCat revenue becomes a verified business_revenue record", () => {
+test("RevenueCat chart revenue remains an unverified estimate", () => {
   const records = mobileAppsRowsToFinancialRecords([row("anicca-ios", "2026-09-26", 12.5)], {
     subjectId: "tenant-1", observedAt: "2026-09-27T00:00:00Z",
   });
@@ -30,7 +31,17 @@ test("available RevenueCat revenue becomes a verified business_revenue record", 
   assert.equal(records[0].amount_minor, 1250);
   assert.equal(records[0].currency, "UNKNOWN");
   assert.equal(records[0].kind, "business_revenue");
+  assert.equal(records[0].verification.status, "unverified");
   assert.equal(records[0].source.provider, "mobile-apps");
+});
+
+test("all six CFO-bound RevenueCat products can be ingested as separate estimates", () => {
+  const products = ["anicca-ios", "honne-ai", "breath-reset", "sleep-ritual", "desk-stretch-timer", "micro-mood"];
+  const records = mobileAppsRowsToFinancialRecords(products.map((productId) => row(productId, "2026-09-26", 1)), {
+    subjectId: "tenant-1", observedAt: "2026-09-27T00:00:00Z",
+  });
+  assert.deepEqual(records.map((record) => record.idempotency_key.split(":")[2]).sort(), [...products].sort());
+  assert.ok(records.every((record) => record.verification.status === "unverified"));
 });
 
 test("final ASC proceeds supersede RevenueCat chart revenue without double counting", () => {
@@ -42,8 +53,8 @@ test("final ASC proceeds supersede RevenueCat chart revenue without double count
         status: "available",
         data: {
           report_id: "sales-2026-09", report_sha256: "a".repeat(64), report_status: "final",
-          apple_identifier: "6755129214", period_start: "2026-09-01", period_end: "2026-09-30",
-          rows: [{ source_row_index: 0, partner_share_currency: "USD", extended_partner_share: "9.99",
+          apple_identifier: "6755129214", period_start: "2026-09-01", period_end: "2026-10-01",
+          rows: [{ source_row_index: 0, apple_identifier: "6755129214", partner_share_currency: "USD", extended_partner_share: "9.99",
             sale_or_return: "S", product_type_identifier: "IA1", transaction_date: "2026-09-26", settlement_date: "2026-10-01" }],
         },
       },
@@ -54,6 +65,58 @@ test("final ASC proceeds supersede RevenueCat chart revenue without double count
   assert.equal(records[0].currency, "USD");
   assert.equal(records[0].source.provider, "app-store-connect-financial");
   assert.equal(records[0].verification.status, "verified");
+  assert.equal(records[0].occurred_at, "2026-10-01T00:00:00Z");
+});
+
+test("ASC detail rows must match the mapped app identifier", () => {
+  const records = mobileAppsRowsToFinancialRecords([{
+    ...row("anicca-ios", "2026-09-26", 12.5),
+    sources: {
+      app_store_financial: { status: "available", data: {
+        report_id: "sales-2026-09", report_sha256: "a".repeat(64), report_status: "final",
+        apple_identifier: "6755129214", period_start: "2026-09-01", period_end: "2026-09-30",
+        rows: [{ source_row_index: 0, apple_identifier: "6762049696", partner_share_currency: "JPY",
+          extended_partner_share: "4250", sale_or_return: "S", product_type_identifier: "IAY",
+          transaction_date: "2026-09-12", settlement_date: "2026-09-12" }],
+      } },
+    },
+  }], { subjectId: "tenant-1", observedAt: "2026-10-02T00:00:00Z" });
+  assert.deepEqual(records, []);
+});
+
+test("ASC negative return rows become positive debit refunds", () => {
+  const records = mobileAppsRowsToFinancialRecords([{
+    ...row("anicca-ios", "2026-09-26", 12.5),
+    sources: {
+      app_store_financial: { status: "available", data: {
+        report_id: "sales-2026-09", report_sha256: "b".repeat(64), report_status: "final",
+        apple_identifier: "6755129214", period_start: "2026-09-01", period_end: "2026-09-30",
+        rows: [{ source_row_index: 1, apple_identifier: "6755129214", partner_share_currency: "USD",
+          extended_partner_share: "-1.25", sale_or_return: "R", product_type_identifier: "IA1",
+          transaction_date: "2026-09-20", settlement_date: "2026-09-25" }],
+      } },
+    },
+  }], { subjectId: "tenant-1", observedAt: "2026-10-02T00:00:00Z" });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, "business_cost");
+  assert.equal(records[0].direction, "debit");
+  assert.equal(records[0].amount_minor, 125);
+});
+
+test("ASC detail rows settled outside their final report period fail closed", () => {
+  const records = mobileAppsRowsToFinancialRecords([{
+    ...row("anicca-ios", "2026-09-26", 12.5),
+    sources: {
+      app_store_financial: { status: "available", data: {
+        report_id: "sales-2026-09", report_sha256: "c".repeat(64), report_status: "final",
+        apple_identifier: "6755129214", period_start: "2026-09-01", period_end: "2026-09-30",
+        rows: [{ source_row_index: 2, apple_identifier: "6755129214", partner_share_currency: "USD",
+          extended_partner_share: "9.99", sale_or_return: "S", product_type_identifier: "IA1",
+          transaction_date: "2026-09-26", settlement_date: "2026-10-01" }],
+      } },
+    },
+  }], { subjectId: "tenant-1", observedAt: "2026-10-02T00:00:00Z" });
+  assert.deepEqual(records, []);
 });
 
 test("invalid available ASC proceeds fail closed instead of falling back to RevenueCat", () => {
@@ -79,4 +142,26 @@ test("zero revenue, unavailable status, and unknown products yield nothing fabri
     [],
   );
   assert.deepEqual(mobileAppsRowsToFinancialRecords(null, options), []);
+});
+
+test("Financial Manager totals exclude persisted RevenueCat estimates when settled ASC proceeds exist", () => {
+  const options = { subjectId: "tenant-1", observedAt: "2026-10-02T00:00:00Z" };
+  const estimate = mobileAppsRowsToFinancialRecords([row("anicca-ios", "2026-09-26", 12.5)], options)[0];
+  // Simulate an estimate written by the previous version before estimate-only records were marked unverified.
+  const legacyEstimate = { ...estimate, verification: { ...estimate.verification, status: "verified" } };
+  const settled = mobileAppsRowsToFinancialRecords([{
+    ...row("anicca-ios", "2026-09-26", 12.5),
+    sources: {
+      app_store_financial: { status: "available", data: {
+        report_id: "sales-2026-09", report_sha256: "d".repeat(64), report_status: "final",
+        apple_identifier: "6755129214", period_start: "2026-09-01", period_end: "2026-09-30",
+        rows: [{ source_row_index: 0, apple_identifier: "6755129214", partner_share_currency: "USD",
+          extended_partner_share: "9.99", sale_or_return: "S", product_type_identifier: "IA1",
+          transaction_date: "2026-09-26", settlement_date: "2026-09-30" }],
+      } },
+    },
+  }], options);
+  const { report } = buildFinancialManagerReport([legacyEstimate, ...settled], "2026-09-30");
+  assert.deepEqual(report.business.revenue, [{ currency: "USD", amountMinor: 999 }]);
+  assert.deepEqual(report.business.byProvider.map(({ provider }) => provider), ["app-store-connect-financial"]);
 });

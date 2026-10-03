@@ -62,11 +62,7 @@ def bind_capafy_account_inventory(payload, owner_buyer_ids):
 
 def bind_revenuecat_hash(row):
     source = row["sources"]["revenuecat"]
-    source["evidence_sha256"] = canonical_sha256({
-        "status": source.get("status"),
-        "reason": source.get("reason"),
-        "data": source.get("data"),
-    })
+    source["evidence_sha256"] = canonical_sha256(source.get("data"))
 
 
 def bind_financial_report_hash(rows):
@@ -614,6 +610,60 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertIn("model_cost", projected["trailing"]["loops"]["mobile-apps"]
                       ["currencies"]["JPY"]["unknown_categories"])
 
+    def test_mobile_accepts_revenuecat_epoch_period_from_business_outcomes(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for row in rows:
+            row["sources"]["revenuecat"]["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["period"] = 1790726400
+            bind_revenuecat_hash(row)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertTrue(all(row["verification_state"] == "verified" for row in snapshots))
+
+    def test_mobile_accepts_business_outcomes_revenuecat_evidence_shape(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for row in rows:
+            source = row["sources"]["revenuecat"]
+            data = source["data"]
+            data.pop("revenue_definition")
+            data["charts"]["mrr"]["latest_complete"]["MRR"]["period"] = 1790726400
+            source["evidence_sha256"] = canonical_sha256(data)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+
+    def test_unknown_revenuecat_currency_does_not_block_settled_asc_receipts(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for row in rows:
+            row["sources"]["revenuecat"]["data"]["currency"] = "UNKNOWN"
+            bind_revenuecat_hash(row)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(sum(row["record_type"] == "receipt" for row in records), 3)
+        self.assertEqual(sum(row["record_type"] == "subscription_snapshot" for row in records), 0)
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "complete"
+            for row in records
+        ))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+            and row["projection"] == "as_of"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
     def test_mobile_provider_identity_and_replay_are_stable(self):
         once = self.adapt_mobile("mobile-verified.json")
         replay = self.adapt_mobile("mobile-verified.json")
@@ -671,6 +721,23 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             and row["source_id"] == "revenuecat-mrr"
             and row["projection"] == "as_of"
             and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_product_reads_within_one_complete_window_can_have_distinct_observed_at(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for index, row in enumerate(rows):
+            row["observed_at"] = f"2026-09-30T23:59:{50 + index:02d}Z"
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(sum(row["record_type"] == "receipt" for row in records), 3)
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "complete"
             for row in records
         ))
 
@@ -920,6 +987,41 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     for row in records
                 ))
 
+    def test_mobile_rejects_settlement_outside_financial_report_period(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"][0]["settlement_date"] = "2026-10-01"
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_rejects_financial_period_after_latest_complete_date(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for row in rows:
+            row["sources"]["app_store_financial"]["data"]["period_end"] = "2026-10-01"
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
     def test_mobile_rejects_cross_product_financial_rows(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
@@ -1118,6 +1220,8 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             "partner_share_currency"
         ] = "UNKNOWN"
         unsupported_rows[0]["sources"]["revenuecat"]["data"]["currency"] = "UNKNOWN"
+        bind_financial_report_hash(unsupported_rows)
+        bind_revenuecat_hash(unsupported_rows[0])
         unsupported = module.adapt_mobile(
             unsupported_rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )

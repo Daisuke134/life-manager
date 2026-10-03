@@ -76,21 +76,35 @@ function derivedFunnelRates(metrics = {}) {
       metrics.first_time_downloads, metrics.unique_impressions,
       "first_time_downloads", "unique_impressions",
     ),
+    install_to_paid: unavailable("paid_customer_cohort_unavailable"),
   };
 }
 
 function summarize(product, downloads, engagement, metadata, detailedDownloads = []) {
   if (!downloads.length || !engagement.length) return pending(product, "empty_report");
-  const dates = [...downloads, ...engagement].map((row) => row.Date).filter(Boolean).sort();
   const expectedApp = (row) => !row["App Apple Identifier"] || row["App Apple Identifier"] === product.app_id;
   if (![...downloads, ...engagement].every(expectedApp)) {
     const observed = [...new Set([...downloads, ...engagement].map((row) => row["App Apple Identifier"] || "missing"))];
     throw new Error(`${product.product_id} ASC app identity mismatch: ${observed.join(",")}`);
   }
+  const dateOf = (row) => {
+    const value = String(row.Date || "");
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) ? value : null;
+  };
+  if ([...downloads, ...engagement].some((row) => dateOf(row) === null)) {
+    return pending(product, "report_date_invalid");
+  }
+  const engagementDates = new Set(engagement.map(dateOf));
+  const dates = [...new Set(downloads.map(dateOf))].filter((day) => engagementDates.has(day)).sort();
+  if (!dates.length) return pending(product, "report_window_mismatch");
+  const includedDates = new Set(dates);
+  const alignedDownloads = downloads.filter((row) => includedDates.has(dateOf(row)));
+  const alignedEngagement = engagement.filter((row) => includedDates.has(dateOf(row)));
+  const alignedDetailedDownloads = detailedDownloads.filter((row) => dateOf(row) !== null && includedDates.has(dateOf(row)));
   const downloadSource = "app_store_connect_app_downloads_standard";
   const engagementSource = "app_store_connect_discovery_engagement_detailed";
-  const campaignDownloads = product.campaign_token ? detailedDownloads.filter((row) => row.Campaign === product.campaign_token && row["Download Type"] === "First-time download") : [];
-  const campaignEngagement = product.campaign_token ? engagement.filter((row) => row.Campaign === product.campaign_token) : [];
+  const campaignDownloads = product.campaign_token ? alignedDetailedDownloads.filter((row) => row.Campaign === product.campaign_token && row["Download Type"] === "First-time download") : [];
+  const campaignEngagement = product.campaign_token ? alignedEngagement.filter((row) => row.Campaign === product.campaign_token) : [];
   const campaignUnavailable = () => unavailable(product.campaign_token ? "campaign_not_observed_or_privacy_threshold" : "campaign_not_configured");
   const baseMetrics = {
       product_id: product.product_id,
@@ -107,14 +121,14 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
     campaign_id: product.campaign_token || null,
     campaign_status: campaignDownloads.length || campaignEngagement.length ? "measured" : "unavailable",
     metrics: {
-      first_time_downloads: measured(sum(downloads, (row) => row["Download Type"] === "First-time download"), downloadSource),
-      redownloads: measured(sum(downloads, (row) => row["Download Type"] === "Redownload"), downloadSource),
-      updates: measured(sum(downloads, (row) => ["Auto-update", "Manual update"].includes(row["Download Type"])), downloadSource),
-      total_downloads: measured(sum(downloads, (row) => ["First-time download", "Redownload"].includes(row["Download Type"])), downloadSource),
-      impressions: measured(sum(engagement, (row) => row.Event === "Impression"), engagementSource),
-      unique_impressions: measured(sum(engagement, (row) => row.Event === "Impression", "Unique Counts"), engagementSource),
-      product_page_views: measured(sum(engagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page"), engagementSource),
-      unique_product_page_views: measured(sum(engagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page", "Unique Counts"), engagementSource),
+      first_time_downloads: measured(sum(alignedDownloads, (row) => row["Download Type"] === "First-time download"), downloadSource),
+      redownloads: measured(sum(alignedDownloads, (row) => row["Download Type"] === "Redownload"), downloadSource),
+      updates: measured(sum(alignedDownloads, (row) => ["Auto-update", "Manual update"].includes(row["Download Type"])), downloadSource),
+      total_downloads: measured(sum(alignedDownloads, (row) => ["First-time download", "Redownload"].includes(row["Download Type"])), downloadSource),
+      impressions: measured(sum(alignedEngagement, (row) => row.Event === "Impression"), engagementSource),
+      unique_impressions: measured(sum(alignedEngagement, (row) => row.Event === "Impression", "Unique Counts"), engagementSource),
+      product_page_views: measured(sum(alignedEngagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page"), engagementSource),
+      unique_product_page_views: measured(sum(alignedEngagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page", "Unique Counts"), engagementSource),
       campaign_first_time_downloads: campaignDownloads.length ? measured(sum(campaignDownloads, () => true), "app_store_connect_app_downloads_detailed") : campaignUnavailable(),
       campaign_impressions: campaignEngagement.length ? measured(sum(campaignEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : campaignUnavailable(),
     },
@@ -137,7 +151,9 @@ function pending(product, reason = "report_pending") {
     reports: [],
     campaign_id: product.campaign_token || null,
     campaign_status: "unavailable",
-    metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions", "impression_to_page_view", "page_view_to_install", "impression_to_install"].map((name) => [name, unavailable(reason)])),
+    metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions", "impression_to_page_view", "page_view_to_install", "impression_to_install"].map((name) => [name, unavailable(reason)]).concat([
+      ["install_to_paid", unavailable("paid_customer_cohort_unavailable")],
+    ])),
   };
 }
 

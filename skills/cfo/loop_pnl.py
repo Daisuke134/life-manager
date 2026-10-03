@@ -126,6 +126,14 @@ def _read_b7_payload(path: str | Path):
     return json.loads(text)
 
 
+def _read_mobile_b7_payload(path: str | Path) -> list[dict]:
+    payload = _read_b7_payload(path)
+    if not isinstance(payload, list) or any(not isinstance(row, dict) for row in payload):
+        raise ValueError("mobile_business_outcomes_invalid")
+    products = set(capafy_mobile.MOBILE_PRODUCTS)
+    return [row for row in payload if row.get("product_id") in products]
+
+
 def _paths(value: str | None) -> list[Path]:
     return [Path(item) for item in str(value or "").split(os.pathsep) if item.strip()]
 
@@ -165,7 +173,8 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     sources["b1-capafy-mobile"].extend(
         _safe_b7_adapter(
             lambda: capafy_mobile.adapt_mobile(
-                mobile_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+                _read_mobile_b7_payload(mobile_path),
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
             ) if mobile_path else [],
             source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
             snapshot_at=snapshot_at, trailing_start=trailing_start,
@@ -813,11 +822,8 @@ def capafy_entries(day: date, path: Path = CAPAFY_ANALYTICS, now: datetime | Non
 # ------------------------------------------------------------- mobile apps (RevenueCat, local state)
 
 BUSINESS_OUTCOMES = STATE / "marketing-metrics-daily" / "state" / "business-outcomes.jsonl"
-MOBILE_APPS_PRODUCTS = capafy_mobile.MOBILE_PRODUCTS
-MOBILE_ASC_APP_IDS = {
-    product_id: binding["asc_app_id"]
-    for product_id, binding in capafy_mobile.MOBILE_PRODUCT_BINDINGS.items()
-}
+MOBILE_APPS_PRODUCTS = ("anicca-ios", "honne-ai")
+MOBILE_ASC_APP_IDS = {"anicca-ios": "6755129214", "honne-ai": "6759667221"}
 MOBILE_UNKNOWN_CURRENCY = "UNKNOWN"
 
 
@@ -836,10 +842,19 @@ def _mobile_asc_entries(row: dict, loop_id: str) -> list[Entry] | None:
             or data.get("apple_identifier") != MOBILE_ASC_APP_IDS.get(row.get("product_id"))
             or not isinstance(data.get("rows"), list)):
         raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+    try:
+        period_start = date.fromisoformat(data["period_start"])
+        period_end = date.fromisoformat(data["period_end"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}") from None
+    if period_start > period_end:
+        raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
     entries: list[Entry] = []
     for item in data["rows"]:
         if not isinstance(item, dict) or not isinstance(item.get("source_row_index"), int):
             raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+        if item.get("apple_identifier") != data["apple_identifier"]:
+            raise ValueError("product_identity_mismatch")
         currency = str(item.get("partner_share_currency") or "").upper()
         if not currency.isalpha() or len(currency) < 3 or currency == "UNKNOWN":
             raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
@@ -848,7 +863,7 @@ def _mobile_asc_entries(row: dict, loop_id: str) -> list[Entry] | None:
         except Exception as exc:
             raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}") from exc
         sale_or_return = item.get("sale_or_return")
-        if amount < 0 or sale_or_return not in {"S", "R"}:
+        if sale_or_return not in {"S", "R"} or (sale_or_return == "S" and amount < 0) or (sale_or_return == "R" and amount > 0):
             raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
         if amount == 0:
             continue
@@ -856,8 +871,14 @@ def _mobile_asc_entries(row: dict, loop_id: str) -> list[Entry] | None:
         settlement_date = str(item.get("settlement_date") or "")
         if not transaction_date or not settlement_date or transaction_date > settlement_date:
             raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+        try:
+            settlement_day = date.fromisoformat(settlement_date)
+        except ValueError:
+            raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}") from None
+        if not period_start <= settlement_day <= period_end:
+            raise ValueError("settlement_outside_report_period")
         entries.append(Entry(
-            loop_id, "revenue" if sale_or_return == "S" else "refund", amount, currency,
+            loop_id, "revenue" if sale_or_return == "S" else "refund", abs(amount), currency,
             f"appstoreconnect:financial-reports/{report_id}/{report_sha}#{item['source_row_index']}",
         ))
     return entries

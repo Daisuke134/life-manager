@@ -29,6 +29,9 @@ test("ASC funnel rates are measured with explicit numerators and denominators", 
   assert.deepEqual(rates.impression_to_install, {
     status: "measured", value: 0.2, numerator: 2, denominator: 10,
   });
+  assert.deepEqual(rates.install_to_paid, {
+    status: "unavailable", value: null, reason: "paid_customer_cohort_unavailable",
+  });
 });
 
 test("ASC funnel rates fail closed on unavailable metrics and zero denominators", () => {
@@ -40,15 +43,42 @@ test("ASC funnel rates fail closed on unavailable metrics and zero denominators"
   assert.equal(rates.impression_to_install.status, "unavailable");
   assert.equal(rates.impression_to_install.reason, "denominator_zero");
   assert.equal(rates.page_view_to_install.reason, "source_metric_unavailable:unique_product_page_views");
+  assert.equal(rates.install_to_paid.reason, "paid_customer_cohort_unavailable");
+});
+
+test("ASC funnel totals and rates use only the dates present in both reports", () => {
+  const result = summarize(PRODUCTS[0], [
+    { Date: "2026-09-30", "App Apple Identifier": PRODUCTS[0].app_id, "Download Type": "First-time download", Counts: "2" },
+    { Date: "2026-10-01", "App Apple Identifier": PRODUCTS[0].app_id, "Download Type": "First-time download", Counts: "9" },
+  ], [
+    { Date: "2026-09-30", "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", Counts: "8", "Unique Counts": "6" },
+    { Date: "2026-10-02", "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", Counts: "20", "Unique Counts": "10" },
+  ], []);
+  assert.equal(result.data_from, "2026-09-30");
+  assert.equal(result.data_to, "2026-09-30");
+  assert.equal(result.metrics.first_time_downloads.value, 2);
+  assert.equal(result.metrics.unique_impressions.value, 6);
+  assert.equal(result.metrics.impression_to_install.value, 0.333333);
+});
+
+test("ASC funnel rates are unavailable when download and engagement reports do not overlap", () => {
+  const result = summarize(PRODUCTS[0], [
+    { Date: "2026-10-01", "App Apple Identifier": PRODUCTS[0].app_id, "Download Type": "First-time download", Counts: "2" },
+  ], [
+    { Date: "2026-09-30", "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", Counts: "8", "Unique Counts": "6" },
+  ], []);
+  assert.equal(result.source_status, "unavailable");
+  assert.equal(result.metrics.impression_to_install.reason, "report_window_mismatch");
 });
 
 test("ASC product totals remain unattributed and unavailable stays null on replay", async () => {
   const parsed = rows("Date\tApp Name\tApp Apple Identifier\tDownload Type\tCounts\n2026-08-20\tDaily Affirmations - Anicca\t6755129214\tFirst-time download\t1\n");
-  const anicca = summarize(PRODUCTS[0], parsed, [{ Date: "2026-08-19", "App Name": PRODUCTS[0].app_name, "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", "Page Type": "No page", Counts: "9", "Unique Counts": "5" }], []);
+  const anicca = summarize(PRODUCTS[0], parsed, [{ Date: "2026-08-20", "App Name": PRODUCTS[0].app_name, "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", "Page Type": "No page", Counts: "9", "Unique Counts": "5" }], []);
   assert.equal(anicca.metrics.first_time_downloads.value, 1);
   assert.equal(anicca.metrics.impressions.value, 9);
   assert.equal(anicca.attribution_status, "unattributed");
   assert.equal(summarize(PRODUCTS[0], [], [], []).metrics.first_time_downloads.value, null);
+  assert.equal(summarize(PRODUCTS[0], [], [], []).metrics.install_to_paid.reason, "paid_customer_cohort_unavailable");
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-join-"));
   const objectDir = path.join(dataDir, "objects");
   const attributionDir = path.join(dataDir, "tenants/dais-local/marketing/attribution");

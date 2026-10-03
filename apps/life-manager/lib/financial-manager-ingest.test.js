@@ -97,7 +97,7 @@ test("a configured missing journal is unavailable instead of empty revenue", asy
   });
 });
 
-test("capafy revenue trend and mobile-apps RevenueCat revenue land as verified business_revenue", async (t) => {
+test("Capafy revenue stays verified while RevenueCat chart revenue is marked as an estimate", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
@@ -128,7 +128,7 @@ test("capafy revenue trend and mobile-apps RevenueCat revenue land as verified b
   });
 
   assert.equal(result.sources.capafy, "observed_verified");
-  assert.equal(result.sources.mobileApps, "observed_verified");
+  assert.equal(result.sources.mobileApps, "observed_unverified");
   const records = await store.read({ subjectId: "tenant-1" });
   const capafyRevenue = records.find((r) => r.source.provider === "capafy" && r.kind === "business_revenue");
   assert.equal(capafyRevenue.amount_minor, 398);
@@ -138,6 +138,7 @@ test("capafy revenue trend and mobile-apps RevenueCat revenue land as verified b
   const mobileRevenue = records.find((r) => r.source.provider === "mobile-apps");
   assert.equal(mobileRevenue.amount_minor, 1250);
   assert.equal(mobileRevenue.currency, "UNKNOWN");
+  assert.equal(mobileRevenue.verification.status, "unverified");
   assert.equal(mobileRevenue.source.external_ref, "anicca-ios:2026-09-26");
   assert.equal(records.filter((r) => r.source.provider === "mobile-apps").length, 1);
 });

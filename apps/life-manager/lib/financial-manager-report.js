@@ -91,7 +91,8 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
   timezone = "Asia/Tokyo", economicSourceCoverage = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
-  const verified = records.filter((record) => record.verification.status === "verified");
+  const verified = records.filter((record) => record.verification.status === "verified"
+    && !(record.source.provider === "mobile-apps" && record.kind === "business_revenue"));
   const month = reportingDate.slice(0, 7);
   const [year, monthNumber] = month.split("-").map(Number);
   const monthStart = zonedMidnight(`${month}-01`, timezone);

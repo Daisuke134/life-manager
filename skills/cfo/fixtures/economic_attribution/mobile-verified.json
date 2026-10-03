@@ -9,7 +9,7 @@
       "revenuecat": {
         "status": "available",
         "reason": null,
-        "evidence_sha256": "7e89643741c10d4ef37f1bf53df15e407335c23a205a015c868d19a3d50cfbe7",
+        "evidence_sha256": "3e30573dbbf5673441c52dcd1d5db34e8b1d8906b12e11a190f7f1ef811e31a4",
         "data": {
           "app_id": "app511ef26659",
           "currency": "JPY",
@@ -54,7 +54,7 @@
       "revenuecat": {
         "status": "available",
         "reason": null,
-        "evidence_sha256": "38fc3be243716b27ff3189c8cdecfe55a5a24b07a891300b0e534b1dd5399489",
+        "evidence_sha256": "17c501e3b8d10ad33aaebc7061b950ad7e670890f51fac8cac102c392b398449",
         "data": {
           "app_id": "app3bbd298d22",
           "currency": "JPY",
@@ -95,7 +95,7 @@
     "observed_at": "2026-10-01T00:00:00Z",
     "product_id": "breath-reset",
     "sources": {
-      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "b2012017b3aa23be7e819ea107f6c4f33bed275b1baa95400efcf5a420109f16", "data": {"app_id": "app498e23effc", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "12f8ee254a3b984476f90af6abbcefe3d7de28a8af118aeb90d6fa0afd1b70fc", "data": {"app_id": "app498e23effc", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6760253231", "business_date": "2026-09-30", "proceeds": {}}},
       "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6760253231", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
@@ -107,7 +107,7 @@
     "observed_at": "2026-10-01T00:00:00Z",
     "product_id": "sleep-ritual",
     "sources": {
-      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "d074fd0717f591d83648033c08ddbaec32cd554615c5c3c6643c499062550623", "data": {"app_id": "app92143da86e", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "22b6adf74266d4b5ce0e7e18809965cb19aebf9320f3723e4fac0b05e5862ba4", "data": {"app_id": "app92143da86e", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759916261", "business_date": "2026-09-30", "proceeds": {}}},
       "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6759916261", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
@@ -119,7 +119,7 @@
     "observed_at": "2026-10-01T00:00:00Z",
     "product_id": "desk-stretch-timer",
     "sources": {
-      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "6af572cb630e2c59d01dee5ea3fc1aa83128b92a3d0a23d4b325e8417e87c4bd", "data": {"app_id": "appca8d955a75", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "8d090179541c772b7a293fbd1ca73740571a1170a3da4d5a21be70f0d1331db3", "data": {"app_id": "appca8d955a75", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6760048397", "business_date": "2026-09-30", "proceeds": {}}},
       "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6760048397", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
@@ -131,7 +131,7 @@
     "observed_at": "2026-10-01T00:00:00Z",
     "product_id": "micro-mood",
     "sources": {
-      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "d5e0f8ec5217291e3c2b3d80c02d4e091e39ff86a06be18af7bf943ce4a00d68", "data": {"app_id": "appdda58236fa", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "a6ce46fc06664d752ea689736a0952734766ed76acd0fe69154a3620e4175df9", "data": {"app_id": "appdda58236fa", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759877003", "business_date": "2026-09-30", "proceeds": {}}},
       "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6759877003", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }

@@ -363,19 +363,39 @@ class CapafyTest(unittest.TestCase):
 
 
 class MobileAppsTest(unittest.TestCase):
-    def test_fresh_rows_sum_all_six_mobile_products_and_expose_mrr_notes(self):
+    def test_fresh_legacy_helper_rows_sum_revenue_and_expose_mrr_notes(self):
         notes = {}
         entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_fresh.jsonl", notes=notes))
         self.assertEqual(sums(entries), {("mobile-apps", "revenue", "UNKNOWN"): Decimal("7.75")})
-        self.assertEqual(notes["mrr"], {
-            "anicca-ios": "20.34", "honne-ai": "0.0", "breath-reset": "0.0",
-            "sleep-ritual": "0.0", "desk-stretch-timer": "0.0", "micro-mood": "0.0",
-        })
+        self.assertEqual(notes["mrr"], {"anicca-ios": "20.34", "honne-ai": "0.0"})
 
     def test_final_asc_proceeds_supersede_revenuecat_chart_revenue(self):
         entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_asc_financial.jsonl", products=("anicca-ios", "honne-ai")))
-        self.assertEqual(sums(entries), {("mobile-apps", "revenue", "USD"): Decimal("9.99")})
+        self.assertEqual(sums(entries), {
+            ("mobile-apps", "revenue", "USD"): Decimal("9.99"),
+            ("mobile-apps", "refund", "USD"): Decimal("2.00"),
+        })
         self.assertEqual(entries[0].receipt_id, "appstoreconnect:financial-reports/sales-2026-09/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#0")
+
+    def test_asc_financial_detail_rows_must_match_the_bound_app_id(self):
+        rows = [json.loads(line) for line in (FIX / "business_outcomes_asc_financial.jsonl").read_text().splitlines()]
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"] = rows[0]["sources"]["app_store_financial"]["data"]["rows"][:1]
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"][0]["apple_identifier"] = "6762049696"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mismatched-financial.jsonl"
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "product_identity_mismatch"):
+                list(m.mobile_apps_entries(DAY, path, products=("anicca-ios", "honne-ai")))
+
+    def test_asc_financial_detail_settlement_must_be_within_report_period(self):
+        rows = [json.loads(line) for line in (FIX / "business_outcomes_asc_financial.jsonl").read_text().splitlines()]
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"] = rows[0]["sources"]["app_store_financial"]["data"]["rows"][:1]
+        rows[0]["sources"]["app_store_financial"]["data"]["period_end"] = "2026-09-30"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "out-of-period-financial.jsonl"
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "settlement_outside_report_period"):
+                list(m.mobile_apps_entries(DAY, path, products=("anicca-ios", "honne-ai")))
 
     def test_revenuecat_unavailable_for_one_product_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "mobile_apps_revenuecat_unavailable:anicca-ios"):
@@ -445,6 +465,32 @@ class UsageTest(unittest.TestCase):
 
 
 class B7IntegrationTest(unittest.TestCase):
+    def test_mobile_b7_reader_filters_other_business_outcome_products(self):
+        rows = fixture("../economic_attribution/mobile-verified.json")
+        rows.append({
+            "schema_version": 1, "snapshot_id": "ebook-en:2026-09-30",
+            "business_date": "2026-09-30", "observed_at": SNAPSHOT,
+            "product_id": "ebook-en", "sources": {},
+        })
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "business-outcomes.jsonl"
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={"LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(path)},
+            )
+        mobile = [row for row in records if row.get("product_loop_id") == "mobile-apps"]
+        self.assertEqual(sum(row.get("record_type") == "receipt" for row in mobile), 3)
+        self.assertEqual(sum(row.get("record_type") == "subscription_snapshot" for row in mobile), 6)
+        self.assertEqual({
+            (row.get("source_id"), row.get("projection"), row.get("reason"))
+            for row in mobile if row.get("record_type") == "coverage"
+        }, {
+            ("app-store-connect-financial", "historical", "missing_coverage"),
+            ("app-store-connect-financial", "trailing", None),
+            ("revenuecat-mrr", "as_of", None),
+        })
+
     def test_platform_specific_marketplace_readback_preserves_unconnected_siblings(self):
         import hashlib
         payload = {

@@ -184,7 +184,10 @@ async function ingestFinancialRecords(options) {
       const rows = await readMobileAppsRows();
       const mobileAppsRecords = mobileAppsRowsToFinancialRecords(rows, { subjectId, observedAt: recordedAt });
       records.push(...mobileAppsRecords);
-      sources.mobileApps = mobileAppsRecords.length ? "observed_verified" : "empty";
+      sources.mobileApps = mobileAppsRecords.length
+        ? mobileAppsRecords.every((record) => record.verification.status === "verified")
+          ? "observed_verified" : "observed_unverified"
+        : "empty";
     }
   } catch {
     sources.mobileApps = "unavailable";

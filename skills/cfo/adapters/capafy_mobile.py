@@ -588,12 +588,20 @@ def _business_date(value: Any) -> date:
     return date.fromisoformat(value)
 
 
+def _revenuecat_period_date(value: Any) -> date:
+    if isinstance(value, bool):
+        raise ValueError("date_invalid")
+    if isinstance(value, int):
+        epoch_seconds = value / 1000 if abs(value) >= 100_000_000_000 else value
+        try:
+            return datetime.fromtimestamp(epoch_seconds, timezone.utc).date()
+        except (OverflowError, OSError, ValueError):
+            raise ValueError("date_invalid") from None
+    return _business_date(value)
+
+
 def _revenuecat_content_sha256(source: dict) -> str:
-    return _canonical_sha256({
-        "status": source.get("status"),
-        "reason": source.get("reason"),
-        "data": source.get("data"),
-    })
+    return _canonical_sha256(source.get("data"))
 
 
 def _validated_financial_report(
@@ -735,37 +743,13 @@ def adapt_mobile(
     except (ValueError, TypeError):
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
 
-    unsupported = False
-    for row in latest.values():
-        sources = row.get("sources")
-        if not isinstance(sources, dict):
-            continue
-        financial = sources.get("app_store_financial", {})
-        rc = sources.get("revenuecat", {})
-        try:
-            if isinstance(financial, dict) and financial.get("status") == "available":
-                financial_data = financial.get("data")
-                financial_rows = (
-                    financial_data.get("rows") if isinstance(financial_data, dict) else None
-                )
-                if isinstance(financial_rows, list):
-                    for item in financial_rows:
-                        if isinstance(item, dict):
-                            _currency(item.get("partner_share_currency"))
-            if isinstance(rc, dict) and rc.get("status") == "available":
-                rc_data = rc.get("data")
-                if isinstance(rc_data, dict):
-                    _currency(rc_data.get("currency"))
-        except (KeyError, TypeError, ValueError) as exc:
-            if str(exc) == "unsupported_currency":
-                unsupported = True
-    if unsupported:
-        return _mobile_gaps("unsupported_currency", snapshot_at, trailing_start)
     if set(latest) != set(products):
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
 
     try:
         financial_period = _validated_financial_report(latest, products)
+        if financial_period[1] > latest_complete_date:
+            raise ValueError("report_after_latest_complete_date")
         financial_report_valid = True
     except (KeyError, TypeError, ValueError):
         financial_period = None
@@ -775,6 +759,8 @@ def adapt_mobile(
     snapshots: list[dict] = []
     financial_complete = financial_report_valid
     rc_complete = True
+    financial_issue: str | None = None
+    rc_issue: str | None = None
     observed_values: list[str] = []
     report_periods: list[tuple[date, date]] = []
     for product in products:
@@ -853,6 +839,8 @@ def adapt_mobile(
                 )
                 if transaction_date > settlement_date:
                     raise ValueError("settlement_before_occurrence")
+                if not period_start <= settlement_date <= period_end:
+                    raise ValueError("settlement_outside_report_period")
                 product_receipts.append(contract.validate_record({
                         "schema_version": contract.SCHEMA_VERSION,
                         "record_type": "receipt",
@@ -871,8 +859,9 @@ def adapt_mobile(
                     }))
             financial_receipts.extend(product_receipts)
             report_periods.append((period_start, period_end))
-        except (KeyError, TypeError, InvalidOperation, ValueError, contract.ContractError):
+        except (KeyError, TypeError, InvalidOperation, ValueError, contract.ContractError) as exc:
             financial_complete = False
+            financial_issue = "unsupported_currency" if str(exc) == "unsupported_currency" else "missing_coverage"
 
         rc = sources.get("revenuecat", {})
         try:
@@ -887,7 +876,8 @@ def adapt_mobile(
             if rc_data.get("app_id") != MOBILE_PRODUCT_BINDINGS[product]["revenuecat_app_id"]:
                 raise ValueError("product_identity_mismatch")
             currency = _currency(rc_data.get("currency"))
-            if rc_data.get("revenue_definition") != {
+            revenue_definition = rc_data.get("revenue_definition")
+            if revenue_definition is not None and revenue_definition != {
                 "metric": "mrr",
                 "scope": "active_paid_subscriptions",
                 "normalization": "monthly",
@@ -897,10 +887,11 @@ def adapt_mobile(
             if (
                 not isinstance(point, dict)
                 or point.get("incomplete") is not False
-                or point.get("period") != business_date
             ):
                 raise ValueError("missing_coverage")
-            point_date = _business_date(point["period"])
+            point_date = _revenuecat_period_date(point.get("period"))
+            if point_date != _business_date(business_date):
+                raise ValueError("missing_coverage")
             if (
                 point_date > snapshot_date
                 or snapshot_date - point_date > MOBILE_COMPLETE_PERIOD_MAX_LAG
@@ -925,12 +916,20 @@ def adapt_mobile(
                     f"revenuecat://charts/mrr/{product}/{business_date}/{evidence_sha}"
                 ],
             }))
-        except (KeyError, TypeError, ValueError, contract.ContractError):
+        except (KeyError, TypeError, ValueError, contract.ContractError) as exc:
             rc_complete = False
+            rc_issue = "unsupported_currency" if str(exc) == "unsupported_currency" else "missing_coverage"
 
-    fresh = bool(observed_values) and all(value == snapshot_at for value in observed_values)
+    snapshot_instant = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+    fresh = bool(observed_values) and all(
+        datetime.fromisoformat(value.replace("Z", "+00:00")) <= snapshot_instant
+        and snapshot_instant - datetime.fromisoformat(value.replace("Z", "+00:00"))
+        < MOBILE_COMPLETE_PERIOD_MAX_LAG
+        for value in observed_values
+    )
     receipts = financial_receipts if financial_complete else []
-    reason = "stale_readback" if not fresh else "missing_coverage"
+    financial_reason = "stale_readback" if not fresh else (financial_issue or "missing_coverage")
+    rc_reason = "stale_readback" if not fresh else (rc_issue or "missing_coverage")
     trailing_date = datetime.fromisoformat(trailing_start.replace("Z", "+00:00")).date()
     trailing_complete = (
         fresh and financial_complete and len(report_periods) == len(products)
@@ -941,30 +940,32 @@ def adapt_mobile(
             for start, end in report_periods
         )
     )
-    observed_at = max(observed_values) if observed_values else snapshot_at
+    # Coverage is the adapter's assessment at this projection snapshot. The
+    # source rows retain their actual observed_at values and evidence refs.
     coverage = [
         _coverage(
             loop_id=MOBILE_LOOP, source_id="app-store-connect-financial",
             projection="historical", snapshot_at=snapshot_at,
-            trailing_start=trailing_start, observed_at=observed_at,
+            trailing_start=trailing_start, observed_at=snapshot_at,
             evidence_ref=f"appstoreconnect://financial-reports/readback/{latest_date.isoformat()}",
-            complete=False, reason=reason, categories=(),
+            complete=False, reason=financial_reason, categories=(),
         ),
         _coverage(
             loop_id=MOBILE_LOOP, source_id="app-store-connect-financial",
             projection="trailing", snapshot_at=snapshot_at,
-            trailing_start=trailing_start, observed_at=observed_at,
+            trailing_start=trailing_start, observed_at=snapshot_at,
             evidence_ref=f"appstoreconnect://financial-reports/readback/{latest_date.isoformat()}",
-            complete=trailing_complete, reason=reason,
+            complete=trailing_complete, reason=None if trailing_complete else financial_reason,
             categories=("refund", "settled_external_revenue"),
         ),
         _coverage(
             loop_id=MOBILE_LOOP, source_id="revenuecat-mrr", projection="as_of",
             snapshot_at=snapshot_at, trailing_start=trailing_start,
-            observed_at=observed_at,
+            observed_at=snapshot_at,
             evidence_ref=f"revenuecat://charts/mrr/readback/{latest_date.isoformat()}",
             complete=fresh and rc_complete and len(snapshots) == len(products),
-            reason=reason, categories=("mrr",),
+            reason=None if fresh and rc_complete and len(snapshots) == len(products) else rc_reason,
+            categories=("mrr",),
         ),
     ]
     return (
