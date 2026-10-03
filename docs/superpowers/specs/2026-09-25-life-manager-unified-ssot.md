@@ -5505,3 +5505,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 必須付随条件: Bはcanary後current/loaded双方から外れるため、旧reference collectorsだけではGC対象になる。29fでcentral cleanupとhost governorがexisting hold.baseline/legacy previous pathを削除保護へ接続。unverified hold/root/manifestはcentral削除前stop、host candidate0。primaryが空dict/owner-onlyをpremergeと誤認する4REDを指摘し、be0で明示valid writer shapeのみ互換としてemptyrefsを認めた。legacy referenceは復元許可ではない。本番cleanup0。
 - final HEADbe0b810cd9fae0cf86e6b487d7ece3985aefd1ed/10files/843additions54deletions/clean/pushed。3production owner-baseline filesに復元先保護2production filesが必要となり100LOC目安を超えるが、実復元対象の消失とfalse-successを残さない最小scopeを維持。新daemon/framework/追加human gate0。parent Node148/fullruntime765154.578s/disk97/adapter15/contract/OSS/diff PASS。
 - fresh selfbuild_owner_baseline_final_reviewをgpt-5.6-sol/high/forknoneで依頼。requested model/effortと実値を区別しactual model/effort/usage観測不能、API費用算定不能。source proof state/selfbuild-owner-baseline-source-20261004.json/mode600。review/PR/main/newimmutable/自然復旧・external hooks/全SelfBuild・全金融成果は未達。全残TODO → §217、全goalactive。
+
+
+### 292. independent reviewがorphan invalid hold解放をfix-first判定
+
+- fresh reviewer selfbuild_owner_baseline_final_reviewはnormal/crash actual baseline、premerge保存、receipt拒否、GC保持の正常/負例を独立検証し、Node114/baseline CLI2+5subtests/central4+2subtests/disk2/diff PASS。
+- blocking findingはorphan hold schema。readPromotionHoldがENOENTとinvalidJSONを同じnullへ、recoverOrphanedPromotionHoldがhold.sha||nullによりemptydict/owner-only/array/wrongshatypeをpremergeと推定しrelease/oktrueにする。独立fixture{}でreleasedtrueを再現。reconciler/GCがfreezeする未知postmerge状態を別経路で解放するためsource SHIPは不可。
+- primaryはPR作成を保留し実装workerへ最小修正を返した。readerは不存在と不正既存holdを区別、GCと整合するvalid new/legacy writerだけをorphan回復へ許可、不正holdはattemptedtrue/okfalse・保持・diagnostic cursor、明示valid sha:nullだけpremerge解放。acquire/updateで未知既存holdを上書きしないことも検証する。production wallet/auth/rollback/cleanup0。
+- nested root許容とretention directchildの不整合は現状cleanup停止となる保守的残境界でデータ消失を起こすfindingではない。旧sha:null実merge-crash windowは別未解決。修正後新HEADの必要検証と別fresh reviewを行う。state/selfbuild-owner-baseline-source-20261004.json/mode600へfix-first保存。全goalactive、全残TODO → §217。
