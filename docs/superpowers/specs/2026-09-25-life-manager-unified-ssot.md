@@ -4517,3 +4517,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. §164指定どおりMobileへ進む。AppStoreConnect/RevenueCatのapp別sales/proceeds/MRRとfee/actualcost/payoutを同periodでofficialreadbackし、旧publication/metricsfenceはexactidentity/readback無しに解放しない。
 2. AffiliateはNO_TRANSACTIONSとtax/paymentproviderHOLD、旧publishunknownを残す。実commissionが現れた時にfinancialsource/fee/settlement/payoutをjoinする。
 3. 次はConnector→Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。全体goalactive/未完。
+
+### 200. Mobile freshRevenueCat・ASC agreement・Postiz exactboundary
+
+- ASC freshappslistはexit3でrequiredagreementmissing/expiredを再現した。provideraccountqueryの拒否であり、app別settledproceeds/fee/payoutの0証明ではない。agreement受諾、課金、credentials更新は0、既存legal/providerbootstrap境界を保持する。
+- RevenueCat既存officialGETcollectorを33immutableから6appsへ実行し、全6products available。共通window2026-09-05→2026-10-02、latestcompleteday10-02。AniccaMRR20.34/Actives5/windowRevenue32.56、latestdayRevenue0/Transactions0。他5app（honne-ai/breath-reset/desk-stretch-timer/micro-mood/sleep-ritual）のMRR/windowRevenueは0。これをASCsettledproceeds/Applefee/payout/netprofitへ昇格しない。
+- sourcecharts/evidencehash/observed_at/productIDを`~/.local/state/life-manager/state/mobile-financial-readback-20261003-1605.json`へ保存。ASCfinancialproofunavailable、fee/actualcost/payoutunknown、provider mutation0。credentialSSOTはservicemetadataだけ安全に検索し、既存privateenv/SSOT値を表示・複製していない。
+- currentcatalogmobile-appsのpublish分類は20owner（metrics/dailyを含む）、旧§165の17publicationownerとの差を明示した。最初のstandaloneprobeはdefaultenvでkey/tenant/data-dir欠落があり、provider不在proofには採用しない。実Marketingprivateenvと既存SSOTpostizkeyをprocess内だけで読み直してreadback-only再実行した。resolve/repost0。
+- 正しいenvで19ownerはno_match/exact_pending_receipt_unavailable、JP1はinconclusive/provider_readback_not_exact。実物2boundaryprobeはen-cardのunknownoccurrenceでledgerexists/0600/nlink1/safe496rowsを確認したが、closestpublished/provider_reconciledreceiptはproduct_id/creative_id/caption_sha256/slotが不一致。permissionやreadfailureを原因とせず、exactintentreceiptの欠落/不一致として保持する。異なるcreative/slotを同じeffectへ結合しない。
+- read-only結果は`~/.local/state/life-manager/state/mobile-postiz-readback-20261003-1610-correct-env.json`。pubaccount/media/caption/identity/occurrenceがexact一致しないunknownfenceは閉じず、provider未投稿とも断定しない。actualcostとfinancialsourcegapは残る。
+
+#### 更新後の原子cursor
+
+1. §165指定のConnector公式Calendar/providerreceipt/readback/replay-zeroへ進む。MobileはASCagreement/financialproof/actualcost/payoutと20ownerexactfencesを未完として残す。
+2. 次はFundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。NoTransactions/HOLDをloop全体修復済みやprofitへ言い換えない。
+3. このturnはWriter自然proof完了とAffiliate/Mobilefreshprovider観測のprogress。全体goalactive/未完。

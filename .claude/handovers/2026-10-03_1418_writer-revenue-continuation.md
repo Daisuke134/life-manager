@@ -1,3 +1,10 @@
+# 最新cursor: Connector公式readback
+
+- 最初にSSOT§200→§199→§198→§185を読む。Writer最初の自然gatePASS、AffiliatefreshNO_TRANSACTIONS/tax+paymentHOLD、MobileRC6apps同periodfresh/ASCagreement拒否/Postiz20exactboundaryを観測。全体goalactive/未完。
+- 次はConnector公式Calendar/providerreceipt/readback/replay-zero、その後Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。
+- Mobile実証: RCAniccaMRR20.34/28dayRevenue32.56/最新day0、他5apps0。ASCsettledproceeds/fee/actualcost/payoutはunknown。Postiz19no_match/JP1inconclusive、resolve/repost0。全Mobile完了ではない。
+- 現在source/実装worktree・branch9c31/currentrelease33は従来のまま。元指定のwriter handoverfilenameはcontinuation入口として保つ。
+
 # 最新cursor: Mobile公式財務readback
 
 - 最初にSSOT§199→§198→§196→§185を読む。Writer最初の自然gatePASS、AffiliatefreshNO_TRANSACTIONS/tax+paymentHOLDと同artifact再実行0を確認。全体goalはactive/未完。
