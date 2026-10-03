@@ -4574,3 +4574,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PID74150とConnectorloadedargv/SHAをfreshreadback。自然ownerがecddtargetload済みなら二重apply不要。未反映ならownerterminal/競合無し/Connectoridle/effectsafe後にecddreleaseから1ownerだけreconcileapply。
 2. ecdd自然wakeでLumaauth回復→officialcandidate/providerreadbackを確認し、登録が発生した時だけmail/Calendar/replay-zeroを閉じる。unknown/noeffectを登録成功にしない。
 3. Fundraiserexactunknown→他paid→SelfBuild/Eval→Investment→Cloud/selffunding→TaskMarket→最終CFOを続ける。全14loop修復/profit/financialindependenceは未証明、goalactive。
+
+
+### 204. Connector対象限定反映と自然proof待機、Fundraiser exact fence診断
+
+- ecdd release reconciler PID74150/parent74137のterminalと競合reconciler/build無しをfresh確認。fleet結果は08:15:45Z/partial/changed27/skipped13/errors2、crowdworks-revenue-paid/report timeout + budget exceeded。全fleet成功ではない。
+- Connectorは33loaded-idle/effectunknownfalse、freshlaunchctl-safeはUID501/DirectoryServices/Aqua/managerUID・PID/GUI全PASS。ecdd immutableから`reconcile deterministic --loaded-idle-only --max-owners 1 --loop-id life-manager-connector-native`を対象限定実行しexit0/applied1/failed0。install_event_id=3b8a0c967e9f42700a0ef799、loadedargumentsはecddのlm-loop-run/owner/release root、installedSHA=ecdd32c8d30e64827e6da12a295463a2379a3e2e。runningownerのkill、globalapply、手動wake0。
+- latestnativeoutcomeは依然旧33/run18daf598e26ad600-72899/providers_exhausted/not_attempted、provider/mail/Calendarrefnull。installedSHAとhistoricaleventSHAの差は新しい自然run未観測による。load成功をauth回復/登録成功へ数えない。
+- 既存gog filebackendのread-only Gmail search/get preflightはreturn0、matchingLuma message1/IDあり、header/internalDateあり、既存trustedLumaSender=true。mailbody/code/token/email値の出力・保存0、credential変更0。能力確認であり新規code取得/ログイン成功のproofではない。
+- 待機中の独立read-only診断: Fundraiserはecddloadedだがoldexactoccurrence fundraiser:18d9b0b6311a2018-87933がclaimed/effectunknownのまま。既存fundraiser_fence_reconcileをresolve無しで実行しunknown/no_entrypoint_preflight_signature/verifiedfalse/HELD。該当eventは09/29 running→exit0/pass/unknown、release751b、provider/readbacknull。対応child evidence dir20260929T043704Z-87970は存在しresultstatusfailure、exacteffectmarker無し。summary successやlegacy failure narrativeをzero-effect/providerproofへ変換せず、resolve/retry/submit0。
+
+#### 更新後の原子cursor
+
+1. ecdd Connectorの自然wakeを観測し、actual native auth→officialproviderreadbackを確認。登録が発生した時だけmail/Calendar/replay-zeroを閉じる。自然runが失敗したらexactrun/source/env境界を追加診断する。
+2. Fundraiser oldexactoccurrenceは証拠dir/resultのofficialtarget/request/readback境界を絞る。absence/失敗文言だけでfenceを閉じず、旧申請を再送しない。
+3. 他paid→SelfBuild/Eval→Investment→Cloud/selffunding→TaskMarket→最終CFOの全残条件を保持。全14loop修復/profit/financialindependenceは未証明、goalactive。
