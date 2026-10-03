@@ -217,6 +217,7 @@ class BrowserPortOwnerTests(unittest.TestCase):
             patch.object(args, "state_dir", Path(temporary) / "state"),
             patch("runtime.host.browser_port_owner._port_answers", return_value=True),
             patch("runtime.host.browser_port_owner._live_profile_owner", return_value=4242),
+            patch("runtime.host.browser_port_owner._browser_uuid", return_value="browser-generation"),
             patch("runtime.host.browser_port_owner._wait_for_adopted_browser", return_value=75) as wait,
             patch("runtime.host.browser_port_owner.subprocess.Popen") as popen,
         ):

@@ -91,6 +91,19 @@ def _port_answers(port: int, timeout: float = 3.0) -> bool:
         return False
 
 
+def _browser_uuid(port: int, timeout: float = 3.0) -> str | None:
+    try:
+        with urllib.request.urlopen(
+            f"http://localhost:{port}/json/version", timeout=timeout,
+        ) as response:
+            value = json.load(response)
+    except Exception:
+        return None
+    websocket = str(value.get("webSocketDebuggerUrl") or "")
+    match = re.fullmatch(r"ws://.+/devtools/browser/([A-Za-z0-9-]{8,128})", websocket)
+    return match.group(1) if match else None
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -344,12 +357,16 @@ def run(args: argparse.Namespace) -> int:
             if _port_answers(args.port):
                 adopted_pid = _live_profile_owner(Path(args.profile), args.port)
                 if adopted_pid is not None:
+                    browser_uuid = _browser_uuid(args.port)
+                    if browser_uuid is None:
+                        return 75
                     payload = {
                         "owner": args.owner,
                         "pid": os.getpid(),
                         "supervisor_pid": os.getpid(),
                         "browser_root_pid": adopted_pid,
                         "listener_pid": adopted_pid,
+                        "browser_uuid": browser_uuid,
                         "port": args.port,
                         "profile_name": Path(args.profile).name,
                         "adopted": True,
@@ -389,9 +406,14 @@ def run(args: argparse.Namespace) -> int:
 
             def record_listener() -> bool:
                 listener_pid = _live_profile_owner(Path(args.profile), args.port)
-                if listener_pid is None:
+                browser_uuid = _browser_uuid(args.port)
+                if listener_pid is None or browser_uuid is None:
                     return False
-                current = {**payload, "listener_pid": listener_pid}
+                current = {
+                    **payload,
+                    "listener_pid": listener_pid,
+                    "browser_uuid": browser_uuid,
+                }
                 _write_receipt(receipt_path, current)
                 _write_receipt(profile_receipt_path, current)
                 return True

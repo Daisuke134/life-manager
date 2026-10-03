@@ -144,7 +144,7 @@ def _profile_owned(
 
 
 def _profile_receipt_owned(
-    profile: str, pids: Iterable[int], port: int,
+    profile: str, pids: Iterable[int], port: int, browser_uuid: str,
 ) -> tuple[int, str] | None:
     """Verify a live listener against the exact profile-hash owner receipt.
 
@@ -180,6 +180,7 @@ def _profile_receipt_owned(
         or supervisor_pid <= 0
         or value.get("port") != port
         or value.get("profile_name") != Path(profile).name
+        or value.get("browser_uuid") != browser_uuid
         or not isinstance(owner, str) or not IDENTITY_RE.fullmatch(owner)
     ):
         return None
@@ -214,7 +215,7 @@ def resolve_identity(
         owner = _profile_owned(profile, pids, command)
         ownership_source = "process_command"
         if owner is None:
-            owner = _profile_receipt_owned(profile, pids, port)
+            owner = _profile_receipt_owned(profile, pids, port, str(live["uuid"]))
             ownership_source = "browser_port_owner_receipt"
         if owner is None:
             continue
