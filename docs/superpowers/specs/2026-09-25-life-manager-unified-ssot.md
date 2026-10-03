@@ -4607,3 +4607,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. Connector ecdd自然wake/nativeoutcome/officialreadbackを確認。mainが変わってもSHAだけで成果を推定せず同一runへjoinし、登録時だけmail/Calendar/replayを閉じる。
 2. livePID19982のterminalと競合reconciler/build無しを確認し、mergedmain ee7aのcompleteimmutableを既存ownerが作れば再buildしない。Fundraiserはoldexactunknownを公式readback無しで解放/再送しない。source反映と旧fence解決を別々に記録する。
 3. oldFundraiserofficialreadback診断、他paid→SelfBuild/Eval→Investment→Cloud/selffunding→TaskMarket→最終CFOの残条件を維持。goalactive/未完、全14loop修復/profit/financialindependenceは未証明。
+
+
+### 206. Fundraiser ee7a immutable・target load・旧fence保持
+
+- PID19982はterminal。fleetterminalは08:40:42Z/partial/changed47/skipped56/errors1/budgetexceeded、全fleet成功ではない。競合reconciler/build無し/currentecddを確認後、pushedmain ee7a7f657fc805fdd8c69732ca857de166cd9583からcompleteimmutable `/Users/anicca/loops/releases/20261003T174129-ee7a7f65` を生成、cut exit0/current activationはancestor-of-origin-main。
+- RELEASE.jsonはSHAee7a/release_pathsALL/provenanceancestoroforiginmain。Fundraiser run.sh/daily.mdとConnector production/lumaworkflowの4filesをmainblobとbytes一致確認。FundraiserrunSHA256c9c47b585616b42157b4255b7764909186ffe2c3517772aa771d4b84ec2b5519、prompt20aa0f6f0621bbefaecfafeb80d0ae509b4c5ea319e0df957e6bb1651c7c4ac6。Connector2filesはecdd時と同じhash。
+- 直後の自然reconcilerPID77875/77883はterminalをfresh確認し競合無し。freshlaunchctl-safepreflight全PASS。Fundraiserはecddloaded-idle/oldfenceclaimedを確認し、既存admission保持経路の`reconcile shared-agent-runner --loaded-idle-only --max-owners 1 --loop-id fundraiser`をee7aimmutableから対象限定実行。exit0/applied1/failed0、install_event_id3f84743e4ff61787bb6507a8、loadedargvはee7aのlm-loop-run/fundraiser/release root、installedSHAee7a。
+- admission_resumed=false、oldexactoccurrencefundraiser:18d9b0b6311a2018-87933はeffectunknowntrue/claimedのまま。latestexit75/loadedidleをapplication成功にせず、resolve/申請再送0。source反映の完了でありofficialapplication/funding/settlement/payoutproofは未完。
+- Connectorはecddloadedのまま、最新nativeoutcomeは旧33。再apply/manualwakeをせず180秒のread-onlynative-outcome watcherを開始（toolsession31860、08:44:27Z）。watcherの存在はbusinessrun成功の証拠ではなく、observationtimeoutをownerterminal/retry許可へ読み替えない。
+- Telegramsource統合報告はproviderMSGID102151を確認。全goalactive/未完、費用usageはunobservable。
+
+#### 更新後の原子cursor
+
+1. watcher31860とConnectorの実job/runtime/nativeoutcomeをfreshreadback。新しいrunのloadedSHA/event/outcome/officialrefをjoin、必要時exactauth/provider境界を診断。watchertimeoutだけでmanualwakeしない。
+2. Fundraiser sourceはee7aload済み、oldexactunknownのofficialreadback診断を続ける。旧fenceを無根拠にclear/retryしない。
+3. 他paid→SelfBuild/Eval→Investment→Cloud/selffunding→TaskMarket→CFOの全残条件を保持。
