@@ -4841,12 +4841,12 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | Investment | AT-13からAT-29、自然exit/30roundtrips、fee/slippage/model/infra cost、duplicate order0、判定 | primary/Investment owner。paper/HOLDを保持、live資金はgate成立まで動かさない |
 | Cloud / self-funding | provider-neutral shelter、DO/Nosana/Akash/BlockRun continuity、外部earned surplusでrenewal、30日benchmark | primary/各owner。owner deposit/internal transferを外部収益としない |
 | TaskMarket / Agent Economy | external paid job、immutable packaging、funnel/margin、x402 treasury receipt、settlement/actualcost | primary/各owner。GET/package/process成功を売上に数えない |
-| Runtime / fleet | 3owner apply failure、unmanaged capafy.kosuke、immutable SHA/loadedargv/health/admission/diskの収束。各fenceを保持 | primary。owner別の具体的失敗境界を診断、稼働ownerをkillしない |
+| Runtime / fleet | Capafy孤児登録の自然退役・公式不在・doctor inventoryは§278で確認済み。直近完了fleetはpartial/changed69/skipped23/errors2/budget exceeded、失敗はwriter-opportunity-response rc120とalpaca-investment-live rc1。owner journalとnative occurrenceの直接join、新release反映、health/admission/diskの収束が未完 | primary。PR6544の最終CI→統合→既存ownerの自然反映→run/occurrence join。稼働ownerをkillしない |
 | 最終CFO統合 | §242の同期間監査では14loops/companyともunknown、duplicate_receipts0。Coconala source接続、Lancers/CW/Writer/Affiliate fresh coverage、ASC/Capafy coverage、Investment receipt、公式費用のloop配賦と期間を閉じ、settled revenue/fee/refund/actualcost/settlement/payoutからnet P&L再計算 | primaryが全成果監査、CFO担当とofficial evidenceをjoin |
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。自然guarded退役計画PR6543は全10CI/独立最終SHIPで統合済み。ede6 completeimmutable/self-handoff/対象自然退役・officialabsent・doctor・隔離replayは§278で限定SHIP。wholefleet/finance/Evalは未達。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。guardian修復3e1のcompleteimmutableは確認済み。自然退役計画ede6のnewimmutable/live退役とcandidate修復のtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
+- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP、GitHub CI進行中。source合格と本番直接joinを区別する。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -4855,9 +4855,12 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-candidate補充修復PR6540/main655bはsource統合済み。実live release owner62269/current3e1を確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。ede6 current/loadedreconciler一致と旧guarded target自然退役は§278で限定確認済み。live fleet全体は進行中で重複applyをせず、owner journalのrun_id/timestamp不足とSelfBuild実hook/金融joinを次cursorにする、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
+1. PR6544の最終HEADの全CIを確認し、source統合→complete immutable→既存self-handoff→次の自然owner journalのrun_id/occurrence_id/timestampとnative eventの直接joinを閉じる。競合するrelease ownerの稼働をfresh確認し、重複build/apply/wakeをしない。
+2. SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。自然run-ID/台帳/report一致の成立済み条件を繰り返さない。
+3. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
+4. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
 
-Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
+Railway公式invoiceの取得・明細計算は§277で限定確認済み。メールreceiptとの直接binding、公式currency・時刻付きpaid_at、使用額差額、canonical loop配賦・対象期間を閉じてからCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
