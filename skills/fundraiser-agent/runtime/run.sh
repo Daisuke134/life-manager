@@ -158,6 +158,9 @@ export FUNDRAISER_CURSOR="$STATE_ROOT/cursor.json"
 export CLOAK_CDP_BASE_URL="$BROWSER_ENDPOINT"
 # Raw nav/eval and owned-tab helpers must share the leased browser endpoint.
 export CDP="$BROWSER_ENDPOINT"
+# Recovery belongs to the next owner preflight, never an effectful pass helper.
+export CLOAK_BROWSER_RECOVERY_SCRIPT=/dev/null
+export LIFE_MANAGER_DISK_CLEANUP_SCRIPT=/dev/null
 export FUNDRAISER_CDP_ENDPOINT="$BROWSER_ENDPOINT"
 export FUNDRAISER_X_CDP_ENDPOINT="$BROWSER_ENDPOINT"
 export FUNDRAISER_TELEGRAM_SENDER="$SENDER"
