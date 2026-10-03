@@ -156,6 +156,8 @@ export FUNDRAISER_APPLICATIONS_DIR="$STATE_ROOT/applications"
 export FUNDRAISER_RECORD_APPLICATION="$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py"
 export FUNDRAISER_CURSOR="$STATE_ROOT/cursor.json"
 export CLOAK_CDP_BASE_URL="$BROWSER_ENDPOINT"
+# Raw nav/eval and owned-tab helpers must share the leased browser endpoint.
+export CDP="$BROWSER_ENDPOINT"
 export FUNDRAISER_CDP_ENDPOINT="$BROWSER_ENDPOINT"
 export FUNDRAISER_X_CDP_ENDPOINT="$BROWSER_ENDPOINT"
 export FUNDRAISER_TELEGRAM_SENDER="$SENDER"
