@@ -65,3 +65,17 @@ test("Google Places fallback is denied when the provider budget is stopped", asy
   assert.equal(result.provider, "budget");
   assert.equal(googleCalled, false);
 });
+
+test("Google Places authorization receives provider cap dimensions", async () => {
+  let decision;
+  const result = await placesSearch("店", "maps-key", {
+    openPoiSearch: async () => ({ candidates: [], attributions: [] }),
+    authorizeProviderOperation: async (input) => { decision = input; return { allowed: false, state: "stopped", reason: "cap_exceeded", nextAction: "use_cache_or_stop", capKey: "google_maps:places_search" }; },
+    fetchImpl: async () => { throw new Error("must not fetch"); },
+  });
+  assert.equal(result.provider, "budget");
+  assert.equal(decision.provider, "google_maps");
+  assert.equal(decision.operation, "places_search");
+  assert.equal(decision.providerUnits, 1);
+  assert.equal(decision.estimatedUsd, 0.005);
+});

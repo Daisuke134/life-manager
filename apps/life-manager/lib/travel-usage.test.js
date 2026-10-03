@@ -37,6 +37,23 @@ test("Google Directions success and later cache hit emit separate usage facts", 
   ]);
 });
 
+test("Google route authorization receives provider cap dimensions", async () => {
+  let decision;
+  const route = await directionsRoute(
+    "geo:40.730,-73.930", "geo:40.740,-73.980", "key", 2_000_000, 1000, false,
+    {
+      _routeCache: makeRouteCache({ store: new Map(), now: () => 1000 }),
+      _authorizeProviderOperation: async (input) => { decision = input; return { allowed: false, state: "stopped", reason: "cap_exceeded", nextAction: "use_cache_or_stop", capKey: "google_maps:route" }; },
+      _directionsMinutesGoogle: async () => 12,
+    },
+  );
+  assert.equal(route, null);
+  assert.equal(decision.provider, "google_maps");
+  assert.equal(decision.operation, "route");
+  assert.equal(decision.providerUnits, 1);
+  assert.equal(decision.estimatedUsd, 0.005);
+});
+
 test("Google Directions 4xx response is recorded as paid failure work", async () => {
   const events = [];
   const oldFetch = globalThis.fetch;

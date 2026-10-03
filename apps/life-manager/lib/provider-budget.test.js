@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
-  authorizeProviderOperation, evaluateProviderBudget, summarizeProviderBudget,
+  authorizeProviderOperation, defaultProviderCaps, evaluateProviderBudget, summarizeProviderBudget,
 } = require("./provider-budget.js");
 
 test("provider budget states are deterministic and unknown cost is never normal", () => {
@@ -41,5 +41,41 @@ test("provider budget summary exposes units, cache hits, estimates, settled, unk
   assert.deepEqual(summary, {
     eventCount: 4, providerUnits: 3, cacheHits: 1, estimatedUsd: 0.01,
     settledUsd: 0.02, unknownCount: 1, lastObservedAt: "2026-10-02T02:30:00.000Z",
+  });
+});
+
+test("default provider caps are explicit and evaluate both currency and units", () => {
+  const caps = defaultProviderCaps();
+  assert.deepEqual(caps["google_maps:route"], { dailyUsd: 0.5, monthlyUsd: 5, monthlyUnits: 100 });
+  assert.equal(evaluateProviderBudget({
+    estimatedUsd: 5.01, units: 1, caps: caps["google_maps:route"], period: "monthly",
+  }).state, "stopped");
+  const byUnits = evaluateProviderBudget({
+    estimatedUsd: 0, units: 101, caps: caps["google_maps:route"], period: "monthly",
+  });
+  assert.equal(byUnits.state, "stopped");
+  assert.match(byUnits.reasons.join(","), /cap_exceeded/);
+});
+
+test("authorization denies a projected cap breach but keeps essential cache reads", () => {
+  const caps = defaultProviderCaps();
+  const deps = {
+    state: "normal", caps,
+    getUsage: () => ({ estimatedUsd: 4.99, units: 99 }),
+  };
+  const denied = authorizeProviderOperation({
+    tenantId: "tenant-a", provider: "google_maps", operation: "route",
+    estimatedUsd: 0.01, providerUnits: 2, period: "monthly",
+  }, deps);
+  assert.equal(denied.allowed, false);
+  assert.equal(denied.reason, "cap_exceeded");
+  assert.equal(denied.nextAction, "use_cache_or_stop");
+  const cache = authorizeProviderOperation({
+    tenantId: "tenant-a", provider: "google_maps", operation: "route",
+    estimatedUsd: 99, providerUnits: 99, essential: true, cacheHit: true, period: "monthly",
+  }, deps);
+  assert.deepEqual(cache, {
+    allowed: true, state: "normal", reason: "cache_hit",
+    capKey: "google_maps:route", capState: "stopped", nextAction: "read_cache",
   });
 });

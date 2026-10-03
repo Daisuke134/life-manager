@@ -11,12 +11,29 @@ function nullableFinite(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function evaluateProviderBudget({ measuredUsd = 0, estimatedUsd = 0, unknownCount = 0, thresholds = {} } = {}) {
+const DEFAULT_PROVIDER_CAPS = Object.freeze({
+  "google_maps:places_search": Object.freeze({ dailyUsd: 0.5, monthlyUsd: 5, monthlyUnits: 100 }),
+  "google_maps:route": Object.freeze({ dailyUsd: 0.5, monthlyUsd: 5, monthlyUnits: 100 }),
+  "google_maps:geocode": Object.freeze({ dailyUsd: 0.5, monthlyUsd: 5, monthlyUnits: 200 }),
+  "gemini:nonessential": Object.freeze({ monthlyUsd: 5 }),
+});
+
+function defaultProviderCaps() {
+  return Object.fromEntries(Object.entries(DEFAULT_PROVIDER_CAPS).map(([key, value]) => [key, { ...value }]));
+}
+
+function providerCapKey(provider, operation, essential) {
+  if (String(provider) === "gemini" && !essential) return "gemini:nonessential";
+  return `${String(provider || "")}:${String(operation || "")}`;
+}
+
+function evaluateProviderBudget({ measuredUsd = 0, estimatedUsd = 0, unknownCount = 0, units = 0, thresholds = {}, caps = null, period = "monthly" } = {}) {
   const totalUsd = Math.max(0, finite(measuredUsd)) + Math.max(0, finite(estimatedUsd));
   const warningUsd = Math.max(0, finite(thresholds.warningUsd ?? thresholds.warning ?? 1));
   const degradedUsd = Math.max(warningUsd, finite(thresholds.degradedUsd ?? thresholds.degraded ?? warningUsd * 1.25));
   const stoppedUsd = Math.max(degradedUsd, finite(thresholds.stoppedUsd ?? thresholds.stopped ?? degradedUsd * 1.25));
   const unknown = Math.max(0, Math.floor(finite(unknownCount)));
+  const totalUnits = Math.max(0, finite(units));
   const reasons = [];
   if (unknown > 0) reasons.push("unknown_cost");
   let state = "normal";
@@ -24,10 +41,21 @@ function evaluateProviderBudget({ measuredUsd = 0, estimatedUsd = 0, unknownCoun
   else if (totalUsd >= degradedUsd) { state = "degraded"; reasons.push("degraded_threshold"); }
   else if (totalUsd >= warningUsd) { state = "warning"; reasons.push("warning_threshold"); }
   else if (unknown > 0) state = "degraded";
-  return { state, totalUsd, measuredUsd: Math.max(0, finite(measuredUsd)), estimatedUsd: Math.max(0, finite(estimatedUsd)), unknownCount: unknown, reasons };
+  const cap = caps && typeof caps === "object" ? caps : null;
+  const capUsd = cap && cap[`${period}Usd`] != null ? Math.max(0, finite(cap[`${period}Usd`])) : null;
+  const capUnits = cap && cap[`${period}Units`] != null ? Math.max(0, finite(cap[`${period}Units`])) : null;
+  const capExceeded = (capUsd != null && totalUsd >= capUsd) || (capUnits != null && totalUnits >= capUnits);
+  if (capExceeded) { state = "stopped"; reasons.push("cap_exceeded"); }
+  const result = {
+    state, totalUsd, measuredUsd: Math.max(0, finite(measuredUsd)), estimatedUsd: Math.max(0, finite(estimatedUsd)),
+    unknownCount: unknown, reasons,
+  };
+  if (cap) result.cap = { period, usd: capUsd, units: capUnits, totalUnits };
+  return result;
 }
 
-function authorizeProviderOperation({ tenantId, provider, operation, essential = false, cacheHit = false } = {}, deps = {}) {
+function authorizeProviderOperation({ tenantId, provider, operation, essential = false, cacheHit = false,
+  estimatedUsd = 0, providerUnits = 0, period = "monthly" } = {}, deps = {}) {
   const tenant = String(tenantId || "").trim();
   const name = String(provider || "").trim();
   if (!tenant || !name) return { allowed: false, state: "stopped", reason: "budget_identity_missing" };
@@ -38,15 +66,40 @@ function authorizeProviderOperation({ tenantId, provider, operation, essential =
         : deps.state || "normal";
   } catch { state = "stopped"; }
   state = ["normal", "warning", "degraded", "stopped"].includes(state) ? state : "degraded";
+  const capInput = Object.hasOwn(arguments[0] || {}, "estimatedUsd") || Object.hasOwn(arguments[0] || {}, "providerUnits")
+    || deps.caps != null || typeof deps.getUsage === "function";
+  const capKey = providerCapKey(name, operation, essential);
+  const capDefinitions = deps.caps || defaultProviderCaps();
+  const capDefinition = capDefinitions[capKey] || null;
+  const usage = typeof deps.getUsage === "function"
+    ? (deps.getUsage(tenant, name, operation, period) || {}) : {};
+  const capBudget = capInput && capDefinition
+    ? evaluateProviderBudget({
+      measuredUsd: usage.measuredUsd ?? usage.actualUsd ?? 0,
+      estimatedUsd: finite(usage.estimatedUsd ?? usage.estUsd) + Math.max(0, finite(estimatedUsd)),
+      unknownCount: usage.unknownCount || 0,
+      units: finite(usage.units ?? usage.quantity) + Math.max(0, finite(providerUnits)),
+      caps: capDefinition, period,
+    }) : null;
   const reason = cacheHit ? "cache_hit"
+    : capBudget && capBudget.state === "stopped" ? "cap_exceeded"
     : state === "stopped" ? "budget_stopped"
       : state === "degraded" && !essential ? "budget_degraded"
-        : "allowed";
+      : "allowed";
   const allowed = reason === "cache_hit" || reason === "allowed";
+  const nextAction = reason === "cache_hit" ? "read_cache"
+    : reason === "cap_exceeded" || reason === "budget_stopped" ? "use_cache_or_stop"
+      : reason === "budget_degraded" ? "reduce_or_cache" : "continue";
   if (typeof deps.record === "function") {
-    try { deps.record({ tenantId: tenant, provider: name, operation: String(operation || "unknown"), state, allowed, reason, cacheHit }); } catch { /* observability is best effort */ }
+    try {
+      deps.record({ tenantId: tenant, provider: name, operation: String(operation || "unknown"), state,
+        allowed, reason, cacheHit, capKey, capState: capBudget?.state || state,
+        nextAction, providerUnits: Math.max(0, finite(providerUnits)), estimatedUsd: Math.max(0, finite(estimatedUsd)),
+        actualStatus: "unknown" });
+    } catch { /* observability is best effort */ }
   }
-  return { allowed, state, reason };
+  if (!capInput) return { allowed, state, reason };
+  return { allowed, state, reason, capKey, capState: capBudget?.state || state, nextAction };
 }
 
 function summarizeProviderBudget(rows, { since = null, now = new Date() } = {}) {
@@ -75,4 +128,4 @@ function summarizeProviderBudget(rows, { since = null, now = new Date() } = {}) 
   };
 }
 
-module.exports = { authorizeProviderOperation, evaluateProviderBudget, summarizeProviderBudget };
+module.exports = { authorizeProviderOperation, defaultProviderCaps, evaluateProviderBudget, summarizeProviderBudget };

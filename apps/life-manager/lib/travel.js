@@ -38,6 +38,16 @@ async function emitUsage(options, event) {
   try { await write(event); } catch { /* observability must not break routing */ }
 }
 
+function providerDecisionMeta(decision) {
+  if (!decision) return {};
+  return {
+    budget_state: decision.capState || decision.state || "unknown",
+    cap_key: decision.capKey || null,
+    next_action: decision.nextAction || (decision.allowed === false ? "use_cache_or_stop" : "continue"),
+    actual_status: "unknown",
+  };
+}
+
 function noteProviderFailure(usage, failureClass) {
   if (!usage || typeof usage !== "object") return;
   if (!Array.isArray(usage.failureClasses)) usage.failureClasses = [];
@@ -190,7 +200,7 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
       await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
         feature: "routes_pro", outcome: "failure", failureClass: providerFailureClass(r),
         providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-        meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+        meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) } });
       return null;
     }
     const j = await r.json();
@@ -200,14 +210,14 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
       feature: "routes_pro", outcome: sec == null ? "failure" : "success",
       failureClass: sec == null ? "no_route" : null, providerUnits: 1, providerUnit: "request",
       estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) } });
     return sec == null ? null : minutesFromSeconds(sec);
   } catch {
     noteProviderFailure(usage, "network");
     await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
       feature: "routes_pro", outcome: "failure", failureClass: "network", providerUnits: 1,
       providerUnit: "request", estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) } });
     return null;
   }
 }
@@ -237,7 +247,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       outcome: accepted ? "success" : "failure",
       failureClass: accepted ? null : providerFailureClass(r, j.status),
       providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_DIRECTIONS_EST_USD,
-      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap" },
+      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) },
     });
     if (!accepted) return null;
     return minutesFromSeconds(j.routes[0].legs[0].duration.value);
@@ -247,7 +257,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       tenantId: usage.tenantId || "anonymous", provider: "google_maps", feature: "directions",
       outcome: "failure", failureClass: "network", providerUnits: 1, providerUnit: "request",
       estimatedCostUsd: GOOGLE_DIRECTIONS_EST_USD,
-      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap" },
+      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) },
     });
     return null;
   }
@@ -301,8 +311,15 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
   }
   const authorize = usage.options && usage.options._authorizeProviderOperation;
   if (typeof authorize === "function") {
-    const decision = await authorize({ tenantId: usage.tenantId || "anonymous", provider: "google_maps", operation: "geocode", essential: false, cacheHit: false });
-    if (!decision || decision.allowed !== true) return null;
+    const decision = await authorize({ tenantId: usage.tenantId || "anonymous", provider: "google_maps", operation: "geocode", essential: false, cacheHit: false, providerUnits: 1, estimatedUsd: GOOGLE_GEOCODING_EST_USD, period: "monthly" });
+    usage.budgetDecision = decision;
+    if (!decision || decision.allowed !== true) {
+      await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
+        feature: "geocoding", outcome: "failure", failureClass: decision?.reason || "budget_stopped",
+        providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+        meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(decision) } });
+      return null;
+    }
   }
   try {
     const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
@@ -313,7 +330,7 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
       feature: "geocoding", outcome: loc ? "success" : "failure",
       failureClass: loc ? null : providerFailureClass(response, j && j.status), providerUnits: 1,
       providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
-      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
+      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) } });
     const value = loc ? { lat: loc.lat, lon: loc.lng } : null;
     _geoMemo.set(addr, {
       value,
@@ -328,7 +345,7 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
     await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
       feature: "geocoding", outcome: "failure", failureClass: "network", providerUnits: 1,
       providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
-      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
+      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(usage.budgetDecision) } });
     _geoMemo.set(addr, { value: null, computedAt: Date.now(), failureClass: "network" });
     if (persistentStore && typeof persistentStore.put === "function") {
       try { await persistentStore.put(addr, { status: "negative", provider: "google", ttlMs: GEOCODE_TRANSIENT_TTL_MS }); } catch { /* best effort */ }
@@ -509,11 +526,17 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       return cacheFailure("provider_unconfigured");
     }
     if (typeof options._authorizeProviderOperation === "function") {
+      const estimatedUsd = googleRouteFn ? GOOGLE_ROUTES_PRO_EST_USD : GOOGLE_DIRECTIONS_EST_USD;
       const decision = await options._authorizeProviderOperation({
         tenantId: uid, provider: "google_maps", operation: "route", essential: false, cacheHit: false,
+        providerUnits: 1, estimatedUsd, period: "monthly",
       });
+      routeUsage.budgetDecision = decision;
       if (!decision || decision.allowed !== true) {
         noteProviderFailure(routeUsage, decision?.reason || "budget_stopped");
+        await emitUsage(options, { tenantId: uid, provider: "google_maps", feature: "travel_route", outcome: "failure",
+          failureClass: decision?.reason || "budget_stopped", providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+          meta: { sku: googleRouteFn ? "Routes: Compute Routes Pro" : "Directions", pricing_basis: "list_price_after_free_cap", ...providerDecisionMeta(decision) } });
         return null;
       }
     }

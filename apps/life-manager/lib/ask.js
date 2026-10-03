@@ -15,6 +15,7 @@
 
 const crypto = require("node:crypto");
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GOOGLE_PLACES_EST_USD = 0.005;
 const { sendMessage: tgSend } = require("./telegram.js");
 const { reflectAnswer } = require("./telegram-callback-visibility.js");
 const { getCalendar, getMail } = require("./transport/index.js");
@@ -83,7 +84,7 @@ async function agentSearchCandidate(event, deps = {}) {
   if (typeof deps.authorizeProviderOperation === "function") {
     const decision = await deps.authorizeProviderOperation({
       tenantId: deps.uid || "anonymous", provider: "gemini", operation: "ask_candidate_search",
-      essential: false, cacheHit: false,
+      essential: false, cacheHit: false, providerUnits: 1, estimatedUsd: 0, period: "monthly",
     });
     if (!decision || decision.allowed !== true) return empty;
   }
@@ -203,9 +204,23 @@ async function placesSearch(query, mapsKey, options = {}) {
   if (typeof options.authorizeProviderOperation === "function") {
     const decision = await options.authorizeProviderOperation({
       tenantId: options.tenantId || "anonymous", provider: "google_maps", operation: "places_search",
-      essential: false, cacheHit: false,
+      essential: false, cacheHit: false, providerUnits: 1, estimatedUsd: GOOGLE_PLACES_EST_USD, period: "monthly",
     });
-    if (!decision || decision.allowed !== true) return { results: [], attributions: [], provider: "budget" };
+    if (!decision || decision.allowed !== true) {
+      if (typeof options.recordUsageEvent === "function") {
+        try {
+          await options.recordUsageEvent({
+            tenantId: options.tenantId || "anonymous", provider: "google_maps", feature: "places_search",
+            operation: "places_search", outcome: "failure", failureClass: decision?.reason || "budget_stopped",
+            providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+            budgetState: decision?.capState || decision?.state, capKey: decision?.capKey,
+            nextAction: decision?.nextAction || "use_cache_or_stop", actualStatus: "unknown",
+          });
+        } catch { /* usage visibility must not make the safe deny path fail */ }
+      }
+      return { results: [], attributions: [], provider: "budget" };
+    }
+    options._placesBudgetDecision = decision;
   }
   try {
     // No hardcoded language/region — this must work for ANY user worldwide. Places returns each
@@ -214,11 +229,40 @@ async function placesSearch(query, mapsKey, options = {}) {
     const fetchImpl = options.fetchImpl || globalThis.fetch;
     const r = await fetchImpl(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
     const j = await r.json();
+    if (typeof options.recordUsageEvent === "function") {
+      try {
+        await options.recordUsageEvent({
+          tenantId: options.tenantId || "anonymous", provider: "google_maps", feature: "places_search",
+          operation: "places_search", outcome: r && r.ok === false ? "failure" : "success",
+          failureClass: r && r.ok === false ? `http_${r.status}` : null,
+          providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_PLACES_EST_USD,
+          budgetState: options._placesBudgetDecision?.capState || options._placesBudgetDecision?.state,
+          capKey: options._placesBudgetDecision?.capKey,
+          nextAction: options._placesBudgetDecision?.nextAction || "continue", actualStatus: "unknown",
+          meta: { sku: "Places Text Search", pricing_basis: "list_price_after_free_cap" },
+        });
+      } catch { /* usage visibility must not make provider result fail */ }
+    }
     return {
       results: (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" })),
       attributions: [], attributionUrl: null, provider: "google",
     };
-  } catch { return { results: [], attributions: [], attributionUrl: null, provider: "google" }; }
+  } catch {
+    if (typeof options.recordUsageEvent === "function") {
+      try {
+        await options.recordUsageEvent({
+          tenantId: options.tenantId || "anonymous", provider: "google_maps", feature: "places_search",
+          operation: "places_search", outcome: "failure", failureClass: "network",
+          providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_PLACES_EST_USD,
+          budgetState: options._placesBudgetDecision?.capState || options._placesBudgetDecision?.state,
+          capKey: options._placesBudgetDecision?.capKey,
+          nextAction: options._placesBudgetDecision?.nextAction || "continue", actualStatus: "unknown",
+          meta: { sku: "Places Text Search", pricing_basis: "list_price_after_free_cap" },
+        });
+      } catch { /* usage visibility must not make provider result fail */ }
+    }
+    return { results: [], attributions: [], attributionUrl: null, provider: "google" };
+  }
 }
 
 // The agent's two tools: it searches Places (as many queries as it wants), then submits its verdict.
@@ -266,7 +310,7 @@ async function agentResolveLocation(event, {
   if (typeof authorizeProviderOperation === "function") {
     const decision = await authorizeProviderOperation({
       tenantId: uid || "anonymous", provider: "gemini", operation: "ask_resolve_location",
-      essential: false, cacheHit: false,
+      essential: false, cacheHit: false, providerUnits: 1, estimatedUsd: 0, period: "monthly",
     });
     if (!decision || decision.allowed !== true) return { kind: "ask" };
   }
@@ -335,7 +379,7 @@ User's home address: ${JSON.stringify(home || "")}` }],
       if (c.name === "places_search") {
         const res = await placesSearch((c.args || {}).query || "", mapsKey, {
           openPoiSearch: poiSearch, openPoiFetch,
-          authorizeProviderOperation, tenantId: uid,
+          authorizeProviderOperation, recordUsageEvent: usageWriter, tenantId: uid,
         });
         locationProvider = res.provider === "openpoi" || res.provider === "google" ? res.provider : locationProvider;
         if (res.provider === "openpoi") {

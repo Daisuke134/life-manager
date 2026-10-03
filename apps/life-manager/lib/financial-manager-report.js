@@ -221,6 +221,12 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       totalUsd: providerBudget.totalUsd == null ? null : providerBudget.totalUsd,
       unknownCount: providerBudget.unknownCount == null ? null : providerBudget.unknownCount,
       reasons: Array.isArray(providerBudget.reasons) ? providerBudget.reasons : [],
+      ...(providerBudget.capKey != null ? { capKey: String(providerBudget.capKey) } : {}),
+      ...(providerBudget.capState != null ? { capState: String(providerBudget.capState) } : {}),
+      ...(providerBudget.nextAction != null ? { nextAction: String(providerBudget.nextAction) } : {}),
+      ...(providerBudget.providerUnits != null ? { providerUnits: Number(providerBudget.providerUnits) || 0 } : {}),
+      ...(providerBudget.estimatedUsd != null ? { estimatedUsd: Number(providerBudget.estimatedUsd) || 0 } : {}),
+      ...(providerBudget.settledUsd != null ? { settledUsd: Number(providerBudget.settledUsd) || 0 } : {}),
     } : null,
   };
   const digestReport = { ...report };
@@ -339,7 +345,9 @@ function renderFinancialManagerDetailed(report) {
     }
   }
   if (report.providerBudget) {
-    lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? `（unknown ${report.providerBudget.unknownCount}）` : ""}`);
+    lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? `（unknown ${report.providerBudget.unknownCount}）` : ""}`
+      + `${report.providerBudget.capKey ? ` [${report.providerBudget.capKey}]` : ""}`
+      + `${report.providerBudget.nextAction ? ` →${report.providerBudget.nextAction}` : ""}`);
   }
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
@@ -402,7 +410,9 @@ function renderFinancialManagerTelegram(report) {
     }
   }
   if (report.providerBudget) {
-    lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? ` (unknown ${report.providerBudget.unknownCount})` : ""}`);
+    lines.push(`Provider予算: ${report.providerBudget.state}${report.providerBudget.unknownCount ? ` (unknown ${report.providerBudget.unknownCount})` : ""}`
+      + `${report.providerBudget.capKey ? ` [${report.providerBudget.capKey}]` : ""}`
+      + `${report.providerBudget.nextAction ? ` ->${report.providerBudget.nextAction}` : ""}`);
   }
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.

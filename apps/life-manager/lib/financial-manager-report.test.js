@@ -179,6 +179,19 @@ test("provider budget state is visible in the CFO report", () => {
   assert.match(renderFinancialManagerTelegram(report), /Provider予算: degraded/);
 });
 
+test("provider cap state and next action are visible in the CFO report", () => {
+  const report = buildFinancialManagerReport([], "2026-10-02", {
+    providerBudget: {
+      state: "stopped", totalUsd: 5, unknownCount: 0, reasons: ["cap_exceeded"],
+      capKey: "google_maps:route", capState: "stopped", nextAction: "use_cache_or_stop",
+      providerUnits: 101, estimatedUsd: 5, settledUsd: 0,
+    },
+  }).report;
+  assert.equal(report.providerBudget.capKey, "google_maps:route");
+  assert.equal(report.providerBudget.nextAction, "use_cache_or_stop");
+  assert.match(renderFinancialManagerTelegram(report), /use_cache_or_stop/);
+});
+
 test("stale personal transactions are shown as last-known, never current spending", () => {
   const income = record("stale-income", {
     kind: "personal_income", amount: 806201, occurredAt: "2026-08-25T00:00:00.000Z",

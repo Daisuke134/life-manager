@@ -38,6 +38,10 @@ function normalizeUsageEvent(event = {}) {
   const quantity = cacheHit ? 0 : finiteNonNegative(event.providerUnits);
   const estUsd = cacheHit ? 0 : finiteNonNegative(event.estimatedCostUsd);
   const meta = safeMeta(event.meta);
+  if (event.budgetState != null) meta.budget_state = String(event.budgetState);
+  if (event.capKey != null) meta.cap_key = String(event.capKey);
+  if (event.nextAction != null) meta.next_action = String(event.nextAction);
+  if (event.actualStatus != null) meta.actual_status = String(event.actualStatus);
 
   const normalized = {
     uid: tenantId,

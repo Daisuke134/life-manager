@@ -77,3 +77,16 @@ test("usage event can carry an actual settlement without converting missing actu
   assert.equal(event.actualUsd, 0.02);
   assert.equal(event.sourceReceiptRef, "google-billing://receipt");
 });
+
+test("usage event preserves provider budget decision metadata without secrets", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_maps", feature: "route", outcome: "failure",
+    providerUnits: 0, estimatedCostUsd: 0, budgetState: "stopped", capKey: "google_maps:route",
+    nextAction: "use_cache_or_stop", actualStatus: "unknown",
+  });
+  assert.deepEqual(event.meta, {
+    provider: "google_maps", feature: "route", outcome: "failure", failure_class: null,
+    cache_hit: false, customer_usage: false, budget_state: "stopped",
+    cap_key: "google_maps:route", next_action: "use_cache_or_stop", actual_status: "unknown",
+  });
+});
