@@ -4387,3 +4387,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PID18006のterminalと競合reconciler/buildが無いことをfresh readbackする。main885からcomplete immutable releaseを作り、writer-sales-measureだけをidle/effect-safeにtarget applyしloaded argv/SHAを一致させる。
 2. 既存自然dispatchがNote fresh0/0・Substack公式unknownをappendし、measurement_run_id/owner_id/occurrence_id/release_shaとDB receipt_sha256がexact一致することを確認する。manual login/cookie injection/manual kickstartを自然proofとしない。
 3. Writer receipts0/unknownを保持しreplay-zeroを確認後、§185 #3→#12へ進む。vaultIPv4/IPv6404とSelf-Build/Eval既存adoption/repair failure debtを消さない。全体goalはactive/未完。
+
+### 192. Writer shared browser lease欠落の実測修復
+
+- fresh fetchでspec HEAD/upstream4522とimplementationHEAD/upstreamce6、main885、両tree cleanを確認。PID18006は070 releaseのreconcilerとしてliveであり、別release/applyを重ねない。前goal turnはPR統合/release/provenance変更のprogress、現在はlive owner待機と安全境界の修復を進める。
+- writer-sales-measure-workerはlocal state lockを持つが、measure-sales.pyのNote driverはpersistent shared contextへloginし、browser-guard leaseを取得せずdirectCDPしていた。手動14:13 readbackはleaseを持っていたが自然entrypointにはその排他が無い。既存browser ownership規則の未実装境界であり、natural safety gateの追加発明ではない。
+- 登録identity interactive:dais/daily-driverを確認し、既存Connector/PromptBaseのrepository browser-guardを再利用した。worker callerPIDでexactleaseを保持し、guardがprofile/UUID検証して返すendpointをWRITER_CDP_ENDPOINTとして両driverへ渡す。BUSY/identity failureはexit75、collector/syncは未実行。normal/failureでleaseとlocal lockを自ownerだけ解放する。vault helperのIPv4 portability cursorは別に保持する。
+- 最新main885から専用branch fix/writer-sales-browser-lease-20261003へ切替して修復。旧workerはfixture3件でlease acquire/release無し・BUSYでもcollector実行をRED再現した。修正後focused9 PASS、sales-measure local lock contract PASS、shell syntax/diff/loop contract PASS。既存Writer adoption/repair10FAILは§189のbaseline debtとして保持し、全suitegreenとは言わない。
+- fresh native reviewer writer_browser_lease_reviewへ差分4fileだけread-only reviewを依頼。requestmodel=gpt-5.6-sol/high、actual/usageは未観測。
+
+#### cursor変更理由・旧順序・新順序
+
+- 理由: 885 auth/provenanceだけを先に反映すると自然loginがshared profile排他無しで動くため、現在live reconcilerの待機時間でsource境界を閉じ、complete release/target apply回数を減らす。running effectは中断しない。
+- 旧: PID18006 terminal→main885 release→Writerapply→naturalproof。
+- 新: lease修復review/CI/main統合とPID18006 terminalの両方を確認→最新mergedmainのcomplete release→Writerのみidle/effect-safeapply→naturalproof。§185のlane順序は維持する。
+- 現在cursor: lease修復push/freshreviewとPID18006のverifiedlivewait。全体goalはactive/未完。
