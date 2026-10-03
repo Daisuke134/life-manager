@@ -8,6 +8,17 @@ const test = require("node:test");
 const { importContentObject } = require("../lib/content-object-store.js");
 const { PRODUCTS, derivedFunnelRates, pending, persistAscAcquisition, rows, sourceFailureReason, summarize } = require("./marketing-asc-acquisition.js");
 
+test("ASC acquisition portfolio matches the six currently published App Store apps", () => {
+  assert.deepEqual(PRODUCTS.map(({ product_id, app_id, request_id }) => [product_id, app_id, request_id]), [
+    ["anicca-ios", "6755129214", "04c74879-547f-4e35-b231-1fafd485801d"],
+    ["honne-ai", "6759667221", "c7c05836-181e-49cc-ae71-b57b7a0b466e"],
+    ["dhamma-quotes", "6757726663", "25b5906d-025b-4b9d-8226-dc1ea25bd13f"],
+    ["sleep-reset", "6762143790", "f4f4e486-d5cd-4b16-9d06-a1850fc9a477"],
+    ["studio-cherie", "6766485903", "b1c18c4e-77f3-4b63-bee4-259353531c3d"],
+    ["thankful", "6759514159", "a1149f87-b22a-42cb-85a8-324eb54d2f1a"],
+  ]);
+});
+
 test("ASC source failures preserve actionable agreement and permission reasons", () => {
   assert.equal(sourceFailureReason(new Error("A required agreement is missing or has expired")), "asc_agreement_required");
   assert.equal(sourceFailureReason(new Error("HTTP 403 Forbidden")), "asc_permission_denied");

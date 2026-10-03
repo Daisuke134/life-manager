@@ -6,8 +6,9 @@ const path = require("node:path");
 
 const { importContentObject, resolveContentObject } = require("../lib/content-object-store.js");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
+const { PRODUCTS: ASC_PRODUCTS } = require("./marketing-asc-acquisition.js");
 
-const PRODUCTS = Object.freeze(["anicca-ios", "honne-ai"]);
+const PRODUCTS = Object.freeze(ASC_PRODUCTS.map(({ product_id }) => product_id));
 const METRICS = Object.freeze(["trial_starts", "active_subscriptions", "renewals", "cancellations", "proceeds_usd"]);
 
 function unavailable(reason) {

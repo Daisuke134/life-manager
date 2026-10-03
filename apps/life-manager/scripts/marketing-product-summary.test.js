@@ -5,13 +5,37 @@ test("attribution coverage joins product totals while keeping activation and ret
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-attribution-summary-")); const day = "2026-08-23"; const objectDir = path.join(dataDir, "objects");
   const source = path.join(dataDir, "source.json"); fs.writeFileSync(source, "{}\n"); const ref = importContentObject(source, { objectDir }).ref;
   const ascDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", day); fs.mkdirSync(ascDir, { recursive: true });
-  fs.writeFileSync(path.join(ascDir, "acquisition.json"), JSON.stringify({ snapshot_ref: ref, products: [{ product_id: "anicca-ios", source_status: "measured", metrics: { first_time_downloads: { status: "measured", value: 1 }, unique_impressions: { status: "measured", value: 10 }, impression_to_install: { status: "measured", value: 0.1 }, page_view_to_install: { status: "unavailable", value: null, reason: "denominator_zero" }, install_to_paid: { status: "unavailable", value: null, reason: "paid_customer_cohort_unavailable" } } }, { product_id: "honne-ai", source_status: "unavailable", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" } } }] }));
+  const metricUnavailable = { status: "unavailable", value: null, reason: "report_pending" };
+  const metricsUnavailable = Object.fromEntries(["first_time_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "impression_to_page_view", "page_view_to_install", "impression_to_install", "install_to_paid"].map((name) => [name, metricUnavailable]));
+  const ascProducts = [
+    { product_id: "anicca-ios", source_status: "measured", metrics: { first_time_downloads: { status: "measured", value: 1 }, unique_impressions: { status: "measured", value: 10 }, impression_to_install: { status: "measured", value: 0.1 }, page_view_to_install: { status: "unavailable", value: null, reason: "denominator_zero" }, install_to_paid: { status: "unavailable", value: null, reason: "paid_customer_cohort_unavailable" } } },
+    { product_id: "honne-ai", source_status: "unavailable", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" } } },
+    ...["dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: { ...metricsUnavailable } })),
+  ];
+  fs.writeFileSync(path.join(ascDir, "acquisition.json"), JSON.stringify({ snapshot_ref: ref, products: ascProducts }));
   const rcDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/revenuecat", day); fs.mkdirSync(rcDir, { recursive: true });
   fs.writeFileSync(path.join(rcDir, "subscriptions.json"), JSON.stringify({ snapshot_ref: ref, products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: { trial_starts: { status: "unavailable", value: null, reason: "missing" }, active_subscriptions: { status: "unavailable", value: null, reason: "missing" }, renewals: { status: "unavailable", value: null, reason: "missing" }, cancellations: { status: "unavailable", value: null, reason: "missing" }, proceeds_usd: { status: "unavailable", value: null, reason: "missing" } } })) }));
   const first = persistAttributionCoverage(dataDir, day, "2026-08-23T13:00:00.000Z"); const replay = persistAttributionCoverage(dataDir, day, "2026-08-23T14:00:00.000Z");
   assert.equal(first.created, true); assert.equal(replay.created, false); assert.equal(first.snapshot.source_refs.length, 2);
   assert.match(first.snapshot.message, /Anicca iOS: Install 1/); assert.match(first.snapshot.message, /Impressions 10/); assert.match(first.snapshot.message, /Impression→Install 0.1/); assert.match(first.snapshot.message, /Install→Paid 取得不可/); assert.match(first.snapshot.message, /Activation 取得不可/); assert.match(first.snapshot.message, /D1 retention 取得不可/); assert.match(first.snapshot.message, /Honne AI: Install 取得不可/); assert.match(first.snapshot.message, /campaign attribution: 取得不可/);
   assert.equal(first.snapshot.products[0].metrics.activation.value, null); assert.equal(first.snapshot.products[0].metrics.d7_retention.value, null);
+});
+
+test("daily acquisition coverage lists every published app and leaves absent RevenueCat rows unavailable", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-published-app-summary-")); const day = "2026-10-03"; const objectDir = path.join(dataDir, "objects");
+  const source = path.join(dataDir, "source.json"); fs.writeFileSync(source, "{}\n"); const ref = importContentObject(source, { objectDir }).ref;
+  const productIds = ["anicca-ios", "honne-ai", "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"];
+  const unavailable = { status: "unavailable", value: null, reason: "report_pending" };
+  const metricNames = ["first_time_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "impression_to_page_view", "page_view_to_install", "impression_to_install", "install_to_paid"];
+  const ascDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", day); fs.mkdirSync(ascDir, { recursive: true });
+  fs.writeFileSync(path.join(ascDir, "acquisition.json"), JSON.stringify({ snapshot_ref: ref, products: productIds.map((product_id) => ({ product_id, source_status: "unavailable", metrics: Object.fromEntries(metricNames.map((name) => [name, unavailable])) })) }));
+  const rcDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/revenuecat", day); fs.mkdirSync(rcDir, { recursive: true });
+  fs.writeFileSync(path.join(rcDir, "subscriptions.json"), JSON.stringify({ snapshot_ref: ref, products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: { trial_starts: unavailable, active_subscriptions: unavailable, renewals: unavailable, cancellations: unavailable, proceeds_usd: unavailable } })) }));
+  const result = persistAttributionCoverage(dataDir, day, "2026-10-03T13:00:00.000Z");
+  assert.deepEqual(result.snapshot.products.map(({ product_id }) => product_id), productIds);
+  const dhamma = result.snapshot.products.find((product) => product.product_id === "dhamma-quotes");
+  assert.equal(dhamma.source_status.revenuecat, "unavailable");
+  assert.equal(dhamma.metrics.trials.status, "unavailable");
 });
 
 test("Honne daily summary binds EN and JA immutable daily sources and replays", () => {

@@ -7,7 +7,8 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
-const { persistRevenueCatSubscriptions } = require("./marketing-revenuecat-subscriptions.js");
+const { PRODUCTS, persistRevenueCatSubscriptions } = require("./marketing-revenuecat-subscriptions.js");
+const { PRODUCTS: ASC_PRODUCTS } = require("./marketing-asc-acquisition.js");
 
 function fixture() {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-rc-"));
@@ -21,10 +22,21 @@ function fixture() {
   return { dataDir, objectDir };
 }
 
-test("keeps both products unavailable when no product-owned observation exists", () => {
+test("RevenueCat daily coverage follows the six currently published app metrics", () => {
+  assert.deepEqual(PRODUCTS, [
+    "anicca-ios", "honne-ai", "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful",
+  ]);
+  assert.deepEqual(PRODUCTS, ASC_PRODUCTS.map(({ product_id }) => product_id));
   const { dataDir } = fixture();
   const result = persistRevenueCatSubscriptions(dataDir, "2026-08-23", "2026-08-23T13:00:00.000Z");
-  assert.equal(result.products.length, 2);
+  assert.equal(result.products.length, 6);
+  assert.ok(result.products.every((product) => product.source_status === "unavailable"));
+});
+
+test("keeps all published products unavailable when no product-owned observation exists", () => {
+  const { dataDir } = fixture();
+  const result = persistRevenueCatSubscriptions(dataDir, "2026-08-23", "2026-08-23T13:00:00.000Z");
+  assert.equal(result.products.length, 6);
   for (const product of result.products) {
     assert.equal(product.source_status, "unavailable");
     for (const metric of Object.values(product.metrics)) assert.deepEqual(metric, { status: "unavailable", value: null, reason: "product_pack_observation_missing" });

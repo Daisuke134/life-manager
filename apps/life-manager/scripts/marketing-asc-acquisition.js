@@ -11,11 +11,15 @@ const { importContentObject, resolveContentObject } = require("../lib/content-ob
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
 
 const PRODUCTS = Object.freeze([
-  Object.freeze({ product_id: "anicca-ios", app_id: "6755129214", app_name: "Daily Affirmations - Anicca", request_id: "04c74879-547f-4e35-b231-1fafd485801d", bootstrap_day: "2026-08-23", bootstrap_reports: Object.freeze([
+  Object.freeze({ product_id: "anicca-ios", app_id: "6755129214", app_name: "Daily Affirmations - Anicca", label: "Anicca iOS", request_id: "04c74879-547f-4e35-b231-1fafd485801d", bootstrap_day: "2026-08-23", bootstrap_reports: Object.freeze([
     Object.freeze({ report_id: "r3-04c74879-547f-4e35-b231-1fafd485801d", report_name: "App Downloads Standard", instance_id: "402ad6b2-ddd8-4f84-a1b6-17ea8cbd3a37", processing_date: "2026-08-22", segments: Object.freeze(["078c2b3b-fac3-4923-8141-8191bb769c85", "d24b3d7a-e22e-4c14-9e7f-1af24756fb97"]) }),
     Object.freeze({ report_id: "r15-04c74879-547f-4e35-b231-1fafd485801d", report_name: "App Store Discovery and Engagement Detailed", instance_id: "f6ea9447-20e5-4910-9378-eb18c9ba4ec3", processing_date: "2026-08-21", segments: Object.freeze(["da95c273-a951-46d4-ae13-3bd2b32efe06"]) }),
   ]) }),
-  Object.freeze({ product_id: "honne-ai", app_id: "6759667221", app_name: "Honne", request_id: "c7c05836-181e-49cc-ae71-b57b7a0b466e", bootstrap_day: "2026-08-23", campaign_token: "honne_en_base_20260823" }),
+  Object.freeze({ product_id: "honne-ai", app_id: "6759667221", app_name: "Honne", label: "Honne AI", request_id: "c7c05836-181e-49cc-ae71-b57b7a0b466e", bootstrap_day: "2026-08-23", campaign_token: "honne_en_base_20260823" }),
+  Object.freeze({ product_id: "dhamma-quotes", app_id: "6757726663", app_name: "Dhamma Quotes", label: "Dhamma Quotes", request_id: "25b5906d-025b-4b9d-8226-dc1ea25bd13f" }),
+  Object.freeze({ product_id: "sleep-reset", app_id: "6762143790", app_name: "For Better Sleep - Sleep Reset", label: "For Better Sleep", request_id: "f4f4e486-d5cd-4b16-9d06-a1850fc9a477" }),
+  Object.freeze({ product_id: "studio-cherie", app_id: "6766485903", app_name: "STUDIO CHERIE", label: "Studio Cherie", request_id: "b1c18c4e-77f3-4b63-bee4-259353531c3d" }),
+  Object.freeze({ product_id: "thankful", app_id: "6759514159", app_name: "Thankful - Gratitude Journal", label: "Thankful", request_id: "a1149f87-b22a-42cb-85a8-324eb54d2f1a" }),
 ]);
 const ASC_ENV = Object.freeze({ ...process.env, ASC_BYPASS_KEYCHAIN: "true", ASC_TIMEOUT: "90s" });
 

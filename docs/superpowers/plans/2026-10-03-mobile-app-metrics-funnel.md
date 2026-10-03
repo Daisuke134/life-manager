@@ -14,7 +14,7 @@
 
 - Missing metrics and zero-denominator rates remain unavailable, never zero.
 - RevenueCat charts are observations; only app-ID-matched ASC financial rows count as settled proceeds.
-- App and product IDs must match the canonical binding in `skills/cfo/adapters/capafy_mobile.py`.
+- Acquisition uses the official currently-published ASC app inventory. CFO/RevenueCat bindings are reconciled separately; never infer an app match from a similar name.
 - Never sum RevenueCat estimates and ASC settled proceeds for the same product/window.
 - Keep each source's actual observation time visible; a later report snapshot must not misclassify within-policy fresh mobile data as stale.
 - Do not change app submission, paywall, pricing, or marketing publication in this plan.
@@ -25,18 +25,20 @@
 - An ASC financial row with an unknown or mismatched app ID must remain unassigned.
 - Apple fiscal report months must not be labeled as calendar months without translating the period dates.
 - An available ASC financial report must supersede, not add to, RevenueCat chart revenue.
-- Apps outside the six CFO bindings, including ASC test records, must not enter mobile P&L implicitly.
+- ASC test/prelaunch records must not enter the live published-app acquisition denominator; preserve them separately for costs or future release tracking.
+- The current RevenueCat project may not cover every published app; missing app/entitlement links stay unavailable, never inferred.
 - Exercise the active `build_b7_projection` path; changes to the legacy `mobile_apps_entries()` helper alone do not change the CFO CLI output.
 - Test both the adapter's freshness rule and the B0 projection's timestamp rule using distinct recent per-product observations.
 
 ## Execution Order Decision
 
-Reason: distribution of existing apps is the user's first priority, but live acquisition covers only two of the six CFO-bound products. Separately, the settled Apple row is not mapped to a current app, and the active B7 projection cannot verify mobile MRR or proceeds. RevenueCat observations and the unmatched Apple row are not settled app revenue.
+Reason: the official ASC published audit falsified the old six-product CFO map as the live app set: only Anicca and Honne overlap, four old mapped IDs are unpublished, and four other seller-owned apps are public. The active user goal is distribution of existing apps, so Task 6 now targets the six official published IDs; the old prelaunch IDs remain separately tracked.
 
-- Previous remaining order: Task 6 acquisition coverage → Task 7 Finance Detail import → Task 8 paid conversion/campaign attribution.
-- Updated remaining order: Task 6 six-app acquisition coverage → Task 7 active B7 freshness and explicit RevenueCat currency → Task 8 Finance Detail import and app-identity reconciliation → Task 9 same-window paid-customer cohort → Task 10 campaign/activation/retention sources.
-- Reorder reason: distribution comes first; then fix the B7 projection mismatch and currency gap before claiming CFO revenue; import settled proceeds only with exact app identity; defer conversion/attribution until its data joins exist.
-- Current cursor: Task 6, Step 1 (crosswalk the six canonical app IDs to current ASC inventory, RevenueCat IDs, and bundle IDs, then find official Analytics requests for the four uncovered products).
+- Previous remaining order: Task 6 acquisition coverage → Task 7 B7 freshness/currency → Task 8 Finance Detail import → Task 9 paid cohort → Task 10 attribution.
+- Updated remaining order: Task 6 six-published-app acquisition summary → Task 8 Finance Detail import with subscription/IAP identity crosswalk → Task 7 B7 live/prelaunch binding, currency, and freshness → Task 9 paid cohort → Task 10 attribution/activation/retention.
+- Reorder reason: the official Finance Detail row previously thought unmatched is an exact approved Anicca Annual subscription ID + SKU match. Importing this settled row can deliver actual CFO revenue before resolving the separate RevenueCat currency/project gap.
+- Scope ruling: the live acquisition denominator is the six official published ASC IDs; the four old CFO-bound unpublished apps remain separate. Risk if wrong: omit a live app or count a prelaunch app as active distribution; mitigated by official territory, bundle, seller, RevenueCat app, and subscription readbacks.
+- Current cursor: Task 8, Step 1 — write the RED test for exact ASC subscription/IAP child-ID + SKU to parent-app mapping.
 
 ## Tasks
 
@@ -53,7 +55,7 @@ Reason: distribution of existing apps is the user's first priority, but live acq
 
 ### Task 2: Separate ASC proceeds from RevenueCat observations
 
-**Status:** adapter and fail-closed identity rules are implemented (`b61347e50a` plus this branch); the live Finance Detail producer is not connected. The only current report row is JPY 4,250 for Apple Identifier `6762049696`, which has no current/removed app record and is not attributable to a canonical product.
+**Status:** adapter and fail-closed identity rules are implemented (`b61347e50a` plus this branch); the live Finance Detail producer is not connected. The JPY 4,250 report row's `Apple Identifier` is not an app ID: ASC confirms ID `6762049696` is the approved `Anicca Annual` subscription under app `6755129214`, with exact SKU `ai.anicca.app.ios.yearly.b`.
 
 **Files:** `skills/cfo/loop_pnl.py`, `skills/cfo/test_loop_pnl.py`, `apps/life-manager/lib/financial-record-mobile-apps.js`, `apps/life-manager/lib/financial-record-mobile-apps.test.js`
 
@@ -61,7 +63,7 @@ Reason: distribution of existing apps is the user's first priority, but live acq
 - [x] Count ASC proceeds only as settled external revenue when the source is available and currency is explicit.
 - [x] Keep RevenueCat chart revenue labeled as observed/estimated and exclude it from settled totals when ASC proceeds are present.
 - [x] Run focused CFO/Node tests and commit.
-- Remaining live producer and report-identity work is Task 8; keep unmatched `6762049696` unassigned until an official identity mapping exists.
+- Remaining producer work is Task 8; map each raw `Apple Identifier` + SKU to an official subscription/IAP record and its parent app ID. Do not compare the raw child record ID directly to the app ID.
 
 ### Task 3: Surface mobile funnel status in the owner/CFO summary
 
@@ -95,39 +97,43 @@ Reason: distribution of existing apps is the user's first priority, but live acq
 - [x] Run focused CFO/mobile suites and `npm test --prefix apps/life-manager` after the fix pass (all commands exit 0).
 - [x] Read the active B7 path against the current six product rows: no settled receipts or verified MRR snapshots; gaps remain explicit (`missing_coverage`, `unsupported_currency`).
 
-### Task 6: Reconcile ASC inventory and acquisition coverage
+### Task 6: Reconcile the published app portfolio and acquire daily ASC metrics
 
-**Status:** not started. ASC lists 24 records, while the CFO binding lists six products and the live acquisition producer reads only Anicca iOS and Honne. A fresh read measured Anicca for 2026-10-01; Honne returned `report_window_mismatch`.
+**Status:** source/configuration and isolated summary validation are complete on this branch. ASC audited 24 records and reports six published apps in 175 territories; only Anicca and Honne overlap the previous CFO map. Four other published apps were omitted, four old CFO-bound IDs are unpublished, and the configured RevenueCat project has no app records for the four additional live apps. Their Ongoing requests are active, but their daily report instances are still pending.
 
-**Files:** `apps/life-manager/scripts/marketing-asc-acquisition.js`, `apps/life-manager/scripts/marketing-asc-acquisition.test.js`, `skills/cfo/adapters/capafy_mobile.py`, `docs/evidence/cfo/`
+**Files:** `apps/life-manager/scripts/marketing-asc-acquisition.js`, `apps/life-manager/scripts/marketing-asc-acquisition.test.js`, `apps/life-manager/scripts/marketing-revenuecat-subscriptions.js`, its tests, `apps/life-manager/scripts/marketing-product-summary.js`, its tests, `docs/evidence/cfo/`
 
-- [ ] Crosswalk each canonical product's ASC app ID, RevenueCat app ID, bundle ID, and active/test/removed state against the 24-record official ASC inventory.
-- [ ] Discover official Analytics request/report IDs and available windows for Breath Reset, Sleep Ritual, Desk Stretch Timer, and Micro Mood.
-- [ ] Extend the producer only to confirmed products; aggregate counts on intersecting dates and keep no-overlap reports unavailable with an exact reason.
-- [ ] Read the daily summary back for all six products and record source refs, aligned windows, metrics, and gaps.
+- [x] Crosswalk the six published ASC apps to exact app IDs and bundle IDs; separate the four unpublished CFO-map records from the live denominator.
+- [x] Create and read back active `ONGOING` Analytics requests for Dhamma Quotes (`25b5906d-025b-4b9d-8226-dc1ea25bd13f`), For Better Sleep (`f4f4e486-d5cd-4b16-9d06-a1850fc9a477`), STUDIO CHERIE (`b1c18c4e-77f3-4b63-bee4-259353531c3d`), and Thankful (`a1149f87-b22a-42cb-85a8-324eb54d2f1a`).
+- [x] Verify `r3`/`r15` report definitions exist and query official report-instance links; at this read they return no daily instances, so the four metrics are `report_pending`, not zero.
+- [x] Add regression coverage that acquisition and RevenueCat coverage lists exactly the six currently published product IDs.
+- [x] Update the daily funnel summary to retain six published-app rows and leave missing RevenueCat observations unavailable.
+- [x] Run all-six acquisition and daily attribution-summary code against fresh official ASC reads in an isolated data root; Anicca is measured, Honne is `report_window_mismatch`, the four new reports are `report_pending`, and no existing immutable pointer is rewritten.
 
 ### Task 7: Reconcile mobile freshness and RevenueCat currency in active B7
 
-**Status:** partial. This branch now timestamps the coverage assessment at the B7 projection time, and a fresh run no longer reports false `stale_readback`. No MRR snapshots are emitted because all six RevenueCat payloads omit currency; the end-to-end snapshot freshness case still needs a fixture with explicit currency.
+**Status:** partial. The coverage assessment timestamp no longer produces false `stale_readback`. B7 still uses the old six CFO-bound app IDs, while ASC's live published set is different; only two live apps are in the configured RevenueCat project. MRR currency remains absent and no published-app financial rows are joined.
 
 **Files:** `skills/cfo/adapters/capafy_mobile.py`, `skills/cfo/economic_attribution.py` only if the existing contract requires it, `skills/cfo/test_capafy_mobile_attribution.py`, `skills/cfo/test_loop_pnl.py`, RevenueCat business-outcomes producer, evidence.
 
 - [x] Stamp current coverage assessment at `snapshot_at` after the adapter applies its freshness rule; a fresh live B7 projection no longer labels coverage stale.
-- [ ] Add an active-path regression with distinct recent per-product observations and explicit currency; verify subscription snapshots also pass B0 freshness, and a stale-over-one-day negative case remains unavailable.
-- [ ] Trace the RevenueCat response/producer for explicit currency; emit and validate only the provider's actual currency, otherwise retain `unsupported_currency` (never default to USD).
-- [ ] Re-run active B7 and verify MRR appears only with explicit currency, missing settled proceeds remain unknown, and source status/window are visible.
+- [ ] Reconcile B7/RevenueCat product bindings against the six published apps and four explicit prelaunch records without dropping historical receipts or costs.
+- [ ] Add an active-path regression with distinct recent per-product observations and explicit currency; verify subscription snapshots pass B0 freshness and a stale-over-one-day case remains unavailable.
+- [ ] Trace the RevenueCat source/project for the four newly published apps and explicit currency; emit only verified mappings, otherwise retain the precise unavailable reason.
+- [ ] Re-run active B7 and verify MRR appears only with explicit currency, missing settled proceeds remain unknown, and source status/window is visible.
 
 ### Task 8: Import ASC Financial Detail into CFO business outcomes
 
-**Status:** not started. No `app_store_financial` source rows exist in the six latest product snapshots. The latest official report has one JPY 4,250 row for unmapped Apple Identifier `6762049696`.
+**Status:** not started. No `app_store_financial` source rows exist for the six published apps. The latest report has one JPY 4,250 settled row now mapped to Anicca Annual by official subscription ID + SKU; the live importer is absent and the old adapter identity field conflates subscription ID with app ID.
 
 **Files:** new `apps/life-manager/scripts/marketing-asc-financial.js`, its `node:test` file, `skills/cfo/loop_pnl.py`, `skills/cfo/test_loop_pnl.py`, `docs/evidence/cfo/`
 
 - [ ] Parse official `FINANCE_DETAIL` `Z1` fiscal period, row identity, Apple Identifier, SKU, currency, transaction/settlement dates, and report SHA-256.
-- [ ] Persist only rows whose Apple Identifier exactly matches a canonical app; preserve unmatched rows as unassigned coverage.
+- [ ] Resolve raw `Apple Identifier` + SKU to an official ASC subscription/IAP record, then its parent app ID; preserve rows without an exact catalog match as unassigned coverage.
+- [ ] Normalize the child subscription/IAP identity separately from the parent app identity in `app_store_financial`; retain the raw row and mapping evidence.
 - [ ] Add stable report/row identity and replay-zero handling to the business-outcomes producer.
 - [ ] Verify matched settled proceeds replace, rather than add to, RevenueCat revenue in the active B7 total.
-- [ ] Keep `6762049696` unassigned unless an authoritative historical app identity is found; owner recognition is optional evidence, not required for current implementation.
+- [ ] Import the confirmed `6762049696` Anicca Annual row as JPY 4,250 once with stable report/row identity and no RevenueCat double count.
 
 ### Task 9: Connect the paid-customer cohort for install-to-paid
 

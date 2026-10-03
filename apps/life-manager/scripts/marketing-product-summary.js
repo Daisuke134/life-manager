@@ -8,6 +8,7 @@ const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
 const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
 const { executeCapabilityJob } = require("./runtime-up.js");
+const { PRODUCTS: ASC_PRODUCTS } = require("./marketing-asc-acquisition.js");
 
 const HONNE = Object.freeze({ product_id: "honne-ai", label: "Honne AI", targets: [{ owner: "honne_reveal", account: "@honne_reveal", locale: "en", platform: "TikTok", required: true }, { owner: "honnevideo", account: "@honnevideo", locale: "ja", platform: "TikTok", required: true }] });
 const ANICCA = Object.freeze({ product_id: "anicca-ios", label: "Anicca iOS", targets: [{ owner: "anicca.jp", account: "@anicca.jp", locale: "ja", platform: "TikTok", required: true }, { owner: "anicca.ios.jp", account: "@anicca.jp1", locale: "ja", platform: "Instagram", required: true }, { owner: "anicca.jp4", account: "@anicca.jp4", locale: "ja", platform: "TikTok", required: false }, { owner: "anicca.he", account: "@anicca.he", locale: "ja", platform: "TikTok", required: false, public_url: "https://www.tiktok.com/@anicca.he/video/7676500512308481296" }] });
@@ -26,7 +27,7 @@ function metricText(snapshot) {
   return `${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}`;
 }
 
-const FUNNEL_PRODUCTS = Object.freeze([["anicca-ios", "Anicca iOS"], ["honne-ai", "Honne AI"]]);
+const FUNNEL_PRODUCTS = Object.freeze(ASC_PRODUCTS.map(({ product_id, label, app_name }) => [product_id, label || app_name]));
 const PRODUCT_METRICS = Object.freeze(["activation", "retained_users", "d1_retention", "d7_retention"]);
 function unavailable(reason) { return { status: "unavailable", value: null, reason }; }
 function validateObservationMetric(productId, name, metric) {
@@ -50,7 +51,40 @@ function funnelText(product) { if (!product) return "Install 取得不可、Impr
 function persistAttributionCoverage(dataDir, reportDay, observedAt) {
   const file = coverageFile(dataDir, reportDay); if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) };
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const root = path.join(dataDir, "tenants/dais-local/marketing/attribution"); const ascFile = path.join(root, "asc", reportDay, "acquisition.json"); const rcFile = path.join(root, "revenuecat", reportDay, "subscriptions.json"); if (!fs.existsSync(ascFile) || !fs.existsSync(rcFile)) throw new Error("attribution product inputs are missing"); const asc = JSON.parse(fs.readFileSync(ascFile, "utf8")); const rc = JSON.parse(fs.readFileSync(rcFile, "utf8")); objectStore.resolve(asc.snapshot_ref); objectStore.resolve(rc.snapshot_ref);
-  const products = FUNNEL_PRODUCTS.map(([productId, label]) => { const acquisition = asc.products.find((row) => row.product_id === productId); const subscription = rc.products.find((row) => row.product_id === productId); if (!acquisition || !subscription) throw new Error(`${productId} attribution product identity is missing`); const analytics = productAnalytics(dataDir, productId, objectStore); const ascMetric = (name) => acquisition.metrics?.[name] || unavailable("asc_metric_unavailable"); return { product_id: productId, label, source_status: { asc: acquisition.source_status, revenuecat: subscription.source_status, product_analytics: analytics.source_status }, source_refs: analytics.source_ref ? [analytics.source_ref] : [], attribution_status: "unattributed", attribution_reason: "campaign_not_configured", metrics: { installs: acquisition.metrics.first_time_downloads, impressions: acquisition.metrics.impressions, unique_impressions: acquisition.metrics.unique_impressions, product_page_views: acquisition.metrics.product_page_views, unique_product_page_views: acquisition.metrics.unique_product_page_views, impression_to_page_view: ascMetric("impression_to_page_view"), page_view_to_install: ascMetric("page_view_to_install"), impression_to_install: ascMetric("impression_to_install"), install_to_paid: ascMetric("install_to_paid"), activation: analytics.metrics.activation, trials: subscription.metrics.trial_starts, paid_active: subscription.metrics.active_subscriptions, retained_users: analytics.metrics.retained_users, d1_retention: analytics.metrics.d1_retention, d7_retention: analytics.metrics.d7_retention, proceeds_usd: subscription.metrics.proceeds_usd } }; });
+  const subscriptionRows = Array.isArray(rc.products) ? rc.products : [];
+  const products = FUNNEL_PRODUCTS.map(([productId, label]) => {
+    const acquisition = asc.products.find((row) => row.product_id === productId);
+    if (!acquisition) throw new Error(`${productId} ASC acquisition identity is missing`);
+    const subscription = subscriptionRows.find((row) => row.product_id === productId);
+    const revenuecat = subscription || { source_status: "unavailable", metrics: {} };
+    const revenuecatMetric = (name) => revenuecat.metrics?.[name] || unavailable("revenuecat_product_snapshot_missing");
+    const analytics = productAnalytics(dataDir, productId, objectStore);
+    const ascMetric = (name) => acquisition.metrics?.[name] || unavailable("asc_metric_unavailable");
+    return {
+      product_id: productId, label,
+      source_status: { asc: acquisition.source_status, revenuecat: revenuecat.source_status, product_analytics: analytics.source_status },
+      source_refs: analytics.source_ref ? [analytics.source_ref] : [],
+      attribution_status: "unattributed", attribution_reason: "campaign_not_configured",
+      metrics: {
+        installs: acquisition.metrics?.first_time_downloads || unavailable("asc_metric_unavailable"),
+        impressions: acquisition.metrics?.impressions || unavailable("asc_metric_unavailable"),
+        unique_impressions: acquisition.metrics?.unique_impressions || unavailable("asc_metric_unavailable"),
+        product_page_views: acquisition.metrics?.product_page_views || unavailable("asc_metric_unavailable"),
+        unique_product_page_views: acquisition.metrics?.unique_product_page_views || unavailable("asc_metric_unavailable"),
+        impression_to_page_view: ascMetric("impression_to_page_view"),
+        page_view_to_install: ascMetric("page_view_to_install"),
+        impression_to_install: ascMetric("impression_to_install"),
+        install_to_paid: ascMetric("install_to_paid"),
+        activation: analytics.metrics.activation,
+        trials: revenuecatMetric("trial_starts"),
+        paid_active: revenuecatMetric("active_subscriptions"),
+        retained_users: analytics.metrics.retained_users,
+        d1_retention: analytics.metrics.d1_retention,
+        d7_retention: analytics.metrics.d7_retention,
+        proceeds_usd: revenuecatMetric("proceeds_usd"),
+      },
+    };
+  });
   const message = `Life Manager::: ${reportDay} mobile app attribution coverageです。\n${products.map((product) => `${product.label}: ${funnelText(product)}。Source status: ASC ${product.source_status.asc} / RevenueCat ${product.source_status.revenuecat} / Product analytics ${product.source_status.product_analytics}。campaign attribution: 取得不可（campaign link未接続、時刻だけでは帰属しません）`).join("\n")}\nVerified/partial/unattributed: campaign単位の母数が無いため率は取得不可。HonneとAniccaを混ぜず、取得不可を0にしません。`;
   const snapshot = { schema_version: 1, kind: "marketing_product_metric_summary", period: "daily", report_key: `attribution-${reportDay}`, observed_at: observedAt, product_id: "mobile-marketing", source_refs: [asc.snapshot_ref, rc.snapshot_ref, ...products.flatMap((product) => product.source_refs)], products, coverage: { verified: null, partial: null, unattributed: null, rate_status: "unavailable", reason: "campaign_not_configured" }, message }; fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`; fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600); return { created: true, file, snapshot };
 }
