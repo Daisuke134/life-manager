@@ -281,3 +281,70 @@ This spec is the CFO workstream's single ownership boundary. `lm-cfo-observabili
 ### October Google cost estimate (not a settled invoice)
 
 No October invoice has been issued yet. Cloud Monitoring readback for 2026-10-01 through the latest available observation shows 2,136 successful Gemini requests, 187 Places requests (186 successful and one 4xx), 86 successful Geocoding requests, and 378 Directions 4xx requests. Applying September's settled effective rates (Gemini ¥0.259/request, Places ¥1.604/backend request, Geocoding ¥0.386/request, Directions ¥0.232/request, plus about ¥10 monthly KMS) gives an October month-to-date estimate of about **¥984 (round to ¥1,000)** and a same-pace 30–31 day projection of about **¥9,800–¥10,200**. This is an inference from monitoring counts and the September receipt, not an official October charge; token/SKU mix and monitoring delay can move it. A conservative no-change baseline remains the September invoice of ¥27,889. The report must show both figures separately and never label the estimate as settled.
+
+## 12. External provider research and selected cost-reduction design
+
+This section records the provider decision after a source review on 2026-10-03. It narrows the next implementation slice; it does not claim that every candidate below is production-ready or that an estimate is a settled charge.
+
+### Research matrix
+
+| capability | candidates reviewed | evidence-bound finding | decision |
+|---|---|---|---|
+| Japan POI search | OpenPOI, Overture direct, Mapbox Search, Geoapify | [OpenPOI](https://docs.openpoiapi.com/) is keyless, free, commercial-use allowed, Japan-wide, returns coordinates plus `licenses`/`attributions`, and has a documented API rate limit. Overture is a data distribution/query source, not a ready-to-use application API ([docs](https://docs.overturemaps.org/), [GitHub](https://github.com/OvertureMaps/data)). | Keep OpenPOI as primary for the current Japan venue UX; preserve attribution and keep Google Places only as a budgeted fallback. |
+| Japan address geocoding | Geoapify, Nominatim, Photon, Pelias, Google | Geoapify's free plan is commercial-use eligible but quota/attribution bound ([pricing](https://www.geoapify.com/pricing)). The public Nominatim service is capped at 1 request/second, forbids autocomplete, requires identification/caching, and recommends self-hosting for larger use ([policy](https://operations.osmfoundation.org/policies/nominatim/)). Photon public service is fair-use/no-SLA and its self-host documentation reports roughly 95 GB disk and 64 GB RAM for planet data ([GitHub](https://github.com/komoot/photon)). Pelias is open source but requires Elasticsearch and multiple import services ([GitHub](https://github.com/pelias/api)). | Benchmark Geoapify against a bounded self-host candidate; do not call public Nominatim/Photon from production. Keep cached Google Geocoding as fail-closed fallback until an accuracy/licence/freshness winner is proved. |
+| Japan public transit | Transit API, OpenTripPlanner, Google Directions | [Transit terms](https://transit.ls8h.com/terms) state that the API is free/read-only/no-auth but unofficial, mutable, and without SLA. [OpenTripPlanner](https://www.opentripplanner.org/) combines OSM and GTFS but requires maintained feeds and a hosted Java service. | Keep Transit API primary with timeout/cache/official-data warning; benchmark OTP only when seven-period route demand justifies operating a feed/service. |
+| Driving/non-Japan routing | OSRM, Valhalla, GraphHopper, Mapbox, Google Routes | [OSRM](https://github.com/Project-OSRM/osrm-backend) is a BSD-2-Clause C++ engine with Docker/OSM extracts for driving/bike/walk. [Valhalla](https://github.com/valhalla/valhalla) is MIT, tiled, and supports multimodal/time-based features but is heavier. GraphHopper's free plan is explicitly non-commercial and paid plans start at a recurring fee ([pricing](https://www.graphhopper.com/pricing/)). Mapbox is pay-as-you-go with commercial/licensing terms ([pricing](https://www.mapbox.com/pricing/)). | Keep Google as explicit fallback now. Benchmark OSRM first for driving only; benchmark Valhalla/OTP only if OSRM cannot meet route facts or coverage. |
+| LLM reasoning/voice | Gemini, Ollama, llama.cpp, vLLM | Gemini has a free tier but production paid usage is token/tool-metered ([pricing](https://ai.google.dev/gemini-api/docs/pricing)). [Ollama](https://github.com/ollama/ollama) and [llama.cpp](https://github.com/ggml-org/llama.cpp) enable local inference; [vLLM](https://github.com/vllm-project/vllm) targets hosted throughput. None is a drop-in proof that preserves current Life Manager quality, voice latency, cloud access, or receipt semantics. | Do not switch Gemini blindly. Evaluate the existing local-model lane on recorded CFO/calendar tasks; keep Gemini for voice/high-risk paths until quality, latency, and cost gates pass. |
+
+### Selected architecture
+
+```mermaid
+flowchart LR
+  REQUEST["Calendar / travel request"] --> CACHE["Tenant + event cache"]
+  CACHE --> POLICY["Provider policy + budget gate"]
+  POLICY --> POI["Japan POI: OpenPOI"]
+  POI --> POIFB["Google Places fallback"]
+  POLICY --> JPTRANSIT["Japan transit: Transit API"]
+  JPTRANSIT --> TRANSITFB["Google Directions fallback"]
+  POLICY --> GEO["Address geocode: cache / benchmark winner"]
+  GEO --> GEOFB["Google Geocoding fallback"]
+  POLICY --> LLM["Gemini now; local-LM evaluation lane"]
+  POIFB --> OBS["usage + attribution + receipt"]
+  TRANSITFB --> OBS
+  GEOFB --> OBS
+  LLM --> OBS
+  OBS --> CFO["CFO actual / estimate / unknown report"]
+```
+
+The user-facing contract stays unchanged: a known venue is filled automatically, a route is inserted when a trustworthy route is available, and an unresolved/unsafe result asks or remains visibly partial. A successful OpenPOI/Transit result must emit zero Google fallback calls. A provider outage must not trigger parallel Google calls or an unbounded retry storm.
+
+The current code still has a route-entry `mapsKey` requirement and the location resolver currently uses OpenPOI `/v1/search` rather than an autocomplete surface. The next slice must remove the key requirement only for coordinate-ready Japan Transit calls, while preserving Google as a controlled fallback for geocoding/non-Japan routes. If a future UI adds an address search box, use OpenPOI `/v1/suggest`; do not emulate autocomplete against public Nominatim.
+
+### Cost model and target
+
+The September settled Google service totals are the comparison baseline: Places ¥9,419.856821, Geocoding ¥7,493.014626, Directions ¥3,271.171127, Gemini ¥5,160.873099, and KMS/Storage/Run approximately ¥9.54 pre-tax. The following is a **planning budget**, not a settled invoice:
+
+| layer | current baseline | target budget after this design | gate |
+|---|---:|---:|---|
+| OpenPOI POI primary | Places cost is currently Google-backed | ¥0 provider fee | attribution and health receipt |
+| Japan Transit primary | Directions cost is currently Google-backed | ¥0 provider fee | timeout + cache + unofficial warning |
+| Google Places fallback | part of September Places total | ≤¥500/month per tenant | 100 fallback requests/month or lower, whichever trips first |
+| Google route fallback | part of September Directions total | ≤¥300/month per tenant | 100 fallback requests/month or lower, whichever trips first |
+| Google Geocoding fallback | September ¥7,493.01 | ¥100–¥800/month after cache | 200 uncached addresses/month until benchmark winner |
+| Gemini | September ¥5,160.87 account-level baseline | ¥5,000–¥6,000 while current path remains | nonessential calls budgeted; voice/high-risk separate |
+| fixed Google services | about ¥10 | about ¥10 | settled CSV |
+| total Google target | ¥27,889 tax-included September invoice | roughly ¥5,500–¥7,500 pre-tax / ¥6,000–¥8,300 tax-included | seven natural periods + official CSV |
+
+Best case is a cache hit and successful free primary on nearly every Japan request. Base case retains small fallback/geocode spend and the current Gemini cost. Worst case is provider outage or traffic growth returning the account to the September baseline; budget gates must stop nonessential Google calls before that happens. Google Maps pricing remains SKU/free-cap/volume-tier based, so these caps are safety budgets, not promises of free usage ([official pricing](https://developers.google.com/maps/billing-and-pricing/pricing)).
+
+### Ordered provider-cost TODO
+
+1. **Routing policy seam:** allow coordinate-ready Japan Transit to run without a Google key; return a typed `provider_unconfigured` state for non-Japan/address-only requests rather than silently failing.
+2. **UX and attribution:** preserve OpenPOI licenses/attributions in the location receipt; add a source link to any UI that displays raw provider data; add `/v1/suggest` only when an actual input-completion surface exists.
+3. **Geocoder benchmark:** run the fixed Japan address corpus against Geoapify and a bounded self-host candidate; compare exact/area accuracy, p95 latency, quota, license, freshness, disk/RAM, and monthly cost. Do not replace Google until the winner has a readback artifact.
+4. **Route benchmark:** compare current Transit API, OTP with maintained GTFS, and OSRM/Valhalla driving on representative Japan routes; record route duration/legs/fare/provider health and the operating cost of each candidate.
+5. **Explicit budget policy:** configure per-tenant daily/monthly caps for Places fallback, route fallback, Geocoding, and nonessential Gemini; emit warning/degraded/stopped transitions and Telegram/CFO receipts.
+6. **LLM cost gate:** evaluate the existing local-model lane against recorded location/online/route-interpretation tasks; switch only if accuracy, latency, privacy, and receipt coverage are non-inferior. No new direct provider adapter is introduced by this spec.
+7. **CFO acceptance:** rerun the B7 report with fresh provider receipts, observe seven consecutive daily closes, reconcile the October Cost Table, and only then update the target from estimate to measured actual.
+
+This provider-cost sequence is additive to Section 11's personal-MUFG and external-settlement TODOs. Those financial source gaps remain required for a complete CFO report even if provider API cost reaches the target.
