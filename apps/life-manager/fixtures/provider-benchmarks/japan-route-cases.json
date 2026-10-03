@@ -1,0 +1,6 @@
+[
+  {"caseId":"tokyo-transit","mode":"transit","from":{"lat":35.681236,"lon":139.767125},"to":{"lat":35.6895,"lon":139.6917},"serviceDate":"20261003","anchorType":"arrival","anchorTime":"12:00"},
+  {"caseId":"shibuya-drive","mode":"drive","from":{"lat":35.658034,"lon":139.701636},"to":{"lat":35.6895,"lon":139.6917},"serviceDate":"20261003","anchorType":"departure","anchorTime":"12:00"},
+  {"caseId":"kyoto-transit","mode":"transit","from":{"lat":34.985849,"lon":135.758766},"to":{"lat":35.0037,"lon":135.7788},"serviceDate":"20261003","anchorType":"arrival","anchorTime":"12:00"},
+  {"caseId":"outside-japan","mode":"transit","from":{"lat":40.73061,"lon":-73.935242},"to":{"lat":40.758,"lon":-73.9855},"serviceDate":"20261003","anchorType":"arrival","anchorTime":"12:00"}
+]
