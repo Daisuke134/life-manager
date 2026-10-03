@@ -4810,15 +4810,15 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
 2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
 3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
-4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。§225でsameidentity official GET/earningsを取得、local92対official100の90listing join/10applied/79rejected/1started、USD0.00 empty paymentを観測。§226でPaid旧exact1件をfresh反証検証＋positivehint/source proofで解放/replay0。App/Reply旧2fenceは保持、Paid自然wakeはcanonical Reply snapshot staleでpending。次は既存observerのfresh source-health/input刷新と残exact intent/receipt join→限定reconcile→返信／提出／精算を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
+4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。§225でsameidentity official GET/earningsを取得、local92対official100の90listing join/10applied/79rejected/1started、USD0.00 empty paymentを観測。§226でPaid旧exact1件をfresh反証検証＋positivehint/source proofで解放/replay0。App/Reply旧2fenceは保持。§227でcanonical Reply snapshotの公式API/Gmailを刷新し、後続Paid artifactはok/pending0/在庫0を観測。次は継続的なfresh input維持と残exact intent/receipt join→限定reconcile→返信／提出／精算を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
 
 #### 全体の残TODO
 
 | 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
 |---|---|---|
 | Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
-| Self-Build / Eval | latestmainのimmutable/load、自然row/run-ID/report一致、実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
-| Paid / 各marketplace | Lancers2/Cw18のeffect unknown、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
+| Self-Build / Eval | latestmain80のimmutable/loaded argv一致は確認済み。次の自然row/run-ID/report一致、実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
+| Paid / 各marketplace | Mercor旧Paid1件の安全な解放とcanonical input刷新は§226–227到達。App/Reply旧2fence、Lancers2/Cw18のeffect unknown、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
 | Affiliate | fresh commission/payoutはEMPTY。tax REQUIRED/payment provider SELECTION_REQUIRED、fee/actualcost/settlement/payoutと旧publish fence | primary/Affiliate owner。emptyをprofit/費用0へ変換しない |
 | Connector | 自然認証済み探索は§207到達、参加可能候補0。実候補時のprovider/mail/Calendar receipt、registration/effect/replay-zero、contract/settlement/payout | primary/Connector owner。実候補発生時に公式成果を閉じる |
@@ -4934,3 +4934,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - primaryはownerdeploylock/paidloaded-idle、deadoldPID、exacthint hash/mode/link/sourceをfresh再検証しresolve_pre_effect_occurrenceでPaid1件のみclaimed/unknown1→released/unknown0。再度同proof readbackはtrue/rowchange0/providerreplay0/externalaction0。autojournal terminalを捏造せず、App/Reply旧fenceは保持。state/mercor-paid-exact-pre-effect-resolution-20261003.json/mode600が正本proof。
 - 次の自然Paidrun18db09964a02f7c8-90060/80、13:57:01.017322Z/nativepass/exit0だがbusinesspending/effect0/observed0/reasonofficial_work_inventory_stale。canonical mercor/reply/official-snapshot.jsonは09/18 12:46:35Zのまま。transport復旧・pre-effect解放・nativepassをfresh contract/paid成功へ置換しない。次は既存canonical observer snapshotのfreshAPI+Gmail/source-health刷新を既存owner/lease境界で閉じる。
 - SelfBuildは既存reconcilerでinstalled80へ自然反映済み。launchctl-safe GUI preflight PASS、actual loadedargv [80release/bin/lm-loop-run,life-manager-selfbuild,80release]がexpectedと完全一致、idle/effectunknownfalse。manualapply/wake0、latest自然terminalSHAはc5e6のまま、次のJST04:10でledgerUUID/reportをjoinする。state/selfbuild-loaded-readback-20261003.json/mode600。全goalactive、Mobile担当branch/Appleauth・個人資金・captcha・他profile変更0。
+
+
+### 227. Mercor canonical observer刷新と残TODOの更新
+
+- 既存registered mercor:dais leaseで、現行80のjob_search_loop.mercor_reply_snapshot.snapshotを利用。公式APIと既存Gmail file backendを読み取り、observed_at2026-10-03T14:09:16.083122Z、contracts0、Gmail60threads/source_health.gmail freshを取得した。認証メール除外を既存実装のまま維持し、credential/token/email本文をrepo/chatへコピーしない。新observer/schedulerは作らない。
+- Reply/Paid双方のowner deploy lockとloaded-idleを確認し、既存canonical mercor/reply/official-snapshot.jsonを原子的に刷新。schema/required fields、900秒以内、実Paid consumerでcontracts[]を検証し、旧版backupと書込後SHA256一致を保存。新hash9ac027b1b1c1ff00e2cee72522ab6ad2fc49b1a3b13352b74e6fcdd0c0d9f87b。App/Reply fence解放0、provider send0、auth submit0、manual wake0。
+- 後続paid-latest artifactのoccurrence mercor-revenue-paid:18db0a72a959cbc0-19849はstatusok/effect0/readback0/observed0/pending0/items[]。旧official_work_inventory_stale保留から、fresh入力で在庫0の観測へ進んだ。artifactとnative terminalの完全joinは未確認であり、契約成立・納品・売上・入金・実利益の成功とは扱わない。
+- proofはstate/mercor-canonical-snapshot-refresh-20261003.json、staged snapshotと旧canonical backupは同state内mode600。§217の現在状態と残TODOを更新し、大きな実行順序は変更しない。次はMercor旧App/Reply exact intent/official receiptの照合と継続observerのfreshness維持。SelfBuildは自然UUID/report待ち、Mobileは既存担当のASC Account Holder Agreement gateを維持。全goalactive/未完。
