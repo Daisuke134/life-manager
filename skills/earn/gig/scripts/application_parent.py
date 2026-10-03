@@ -45,6 +45,10 @@ from coconala_applied_readback import (
 )
 from listing_inventory import _cdp_connect
 from market_snapshot import MARKET_FIELDS, parse_market
+from browser_lease_yield import (
+    BrowserLeaseYieldError,
+    yield_registered_browser_lease,
+)
 
 
 def _load_shared(name: str):
@@ -4795,6 +4799,15 @@ def invoke_isolated_planner(
     return decisions, sorted(missing_ids)
 
 
+def _invoke_isolated_planner_yielding(**kwargs: object) -> tuple[dict[str, object], list[str]]:
+    """Yield the outer identity only while the data-only planner uses no provider."""
+    try:
+        with yield_registered_browser_lease():
+            return invoke_isolated_planner(**kwargs)
+    except BrowserLeaseYieldError as error:
+        raise ParentContractError(f"{error.stage}:{error.reason}") from error
+
+
 def _run_parent_pipeline(
     *,
     lease: LeaseHandle,
@@ -5143,7 +5156,7 @@ def run_parent(
             elif not snapshot["request_details"]:
                 decisions = {"decisions": []}
             else:
-                decisions, planner_missing_request_ids = invoke_isolated_planner(
+                decisions, planner_missing_request_ids = _invoke_isolated_planner_yielding(
                     runner=planner_runner,
                     schema=planner_schema,
                     snapshot=snapshot,
