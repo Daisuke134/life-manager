@@ -1,3 +1,9 @@
+# 最新cursor: Connector main ecdd release反映待機
+
+- SSOT§202→§201→§200→§198→§185を読む。PR6521は全CI/freshSHIP後merge済み、latestmain ecdd32c8d30e64827e6da12a295463a2379a3e2e。実装branchfix/connector-luma-auth-self-heal-20261003/HEADupstreamec24cleanpushed。
+- 最初の安全操作: live33reconcilerparent46885/child46917のterminal/競合owner無しを確認。latestmaincomplete release→Connector1owneridle/effect-safeapply→loadedargv/SHA→naturalauth/provider/mail/Calendar/replayproof。runningownerをkill/重複applyしない。
+- source93+native6tests/loopcontractPASS、actualmodel/usageunobservable。liveauth/登録proofは未観測。全体goalactive/未完。
+
 # 最新cursor: Connector auth修復 PR6521
 
 - 最初にSSOT§201→§200→§198→§185を読む。全体goalactive/未完。

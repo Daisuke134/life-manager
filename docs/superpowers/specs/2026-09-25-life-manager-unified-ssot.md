@@ -4548,3 +4548,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PR6521全CI→admin squashmerge、live33reconcilerPID41424のterminal/競合owner無し確認→latestmaincomplete release→Connectorのみidle/effect-safeapply。
 2. naturalConnectorがLuma通常auth回復→freshcandidate/readbackへ進むことを確認し、registrationが発生した時だけprovider/mail/Calendar/replay-zeroを閉じる。未発生・unknownを登録成功にしない。
 3. Connectorproof後はFundraiserexactownerdiagnosis→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。ASC/legal・Affiliate/tax・Mobileexactfences・CFOsourcegapは全て未完として保持。goalactive/未完。
+
+### 202. Connector auth修復 main統合・release直列待機
+
+- PR6521は全CI SUCCESS（Loopcontrol4m25s、TruffleHog3m37s、Travel/online notificationcontractsもPASS）とfreshSHIP後、admin squashmergeでmain `ecdd32c8d30e64827e6da12a295463a2379a3e2e`へ統合。GitHubmergedAt2026-10-03T07:41:04Z、freshfetch/remoteobject一致。実装HEAD/upstreamec24、clean。
+- live33reconcilerはparentPID46885/childPID46917、latestprobechildelapsed02:11でlive。直前run18daf4b7304d4bb0-41402は07:37:55Z/exit1、fleetのhistoricalstateは07:25:31Z/error/changed39/errors2/skipped136。古いfleetstateを現在runのterminal結果にしない。restart/build/apply0、同じhandleを観測する。
+- Connector現在33loaded-idle/effectunknownfalseだが、latestnativeoutcomeはluma_session_expired。source/local検証を外部auth回復/登録/mail/Calendar/replay成功へ数えない。
+
+#### 更新後の原子cursor
+
+1. child46917/parent46885のterminalと競合reconciler/build無しを確認し、mainecddのcomplete immutable releaseを作る。Connectorのみidle/effect-safeapplyしloadedargv/SHAを照合する。
+2. 自然wakeのLuma通常auth回復とofficialreadbackを確認する。登録が発生する場合だけprovider/mail/Calendar/replay-zeroを閉じる。code/secret/credentialを出力/更新せず、CAPTCHA/本人確認の既存境界を守る。
+3. Fundraiser/paid/SelfBuild/Investment/Cloud/TaskMarket/CFOの全残条件を保持しgoalactive/未完。
