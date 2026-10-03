@@ -4831,7 +4831,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
 |---|---|---|
 | Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
-| Self-Build / Eval | latestmain80のimmutable/loaded argv一致は確認済み。自然row/run-ID/report一致は§262で1occurrence確認済み。実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
+| Self-Build / Eval | 最新official loaded argvでSelfBuildは9c、currentは5fc（§290）。旧80の一致証拠は履歴。自然row/run-ID/report一致は§262で1occurrence確認済み。実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
 | Paid / 各marketplace | Mercor Paidは§266でproduction期限更新/公式GET/隔離replay-zero確認済み。旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
 | Storefront / 自社商品 | Lancers/Coconalaは既存商品の公式公開・問い合わせ・注文のfresh readback、獲得経路と注文IDのjoin、納品・精算・payout・1注文あたり実cost/利益を確認。Upwork/Freelancerはaccount-bound inventoryと実owner接続、FiverrはMeta導入が未完 | primary/既存owner。応募と併せて販売funnelを閉じ、反復可能な商品へ学習を戻す。価格変更・新marketingは今回の範囲に追加しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
@@ -5488,3 +5488,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - merged mainb7fbと同bytesのpromoteLoopRuntimeRepairを隔離dependencyで実行。global current C、実ownerの元release B、candidate Aを別manifestとして与え、canary exit1→rollbackを実行。result rolled_backtrueだがfake ownerはCへ切り替わりBには戻らず、owner_original_restoredfalseを確認。source欠陥をfixtureで再現した観測であり、本番での誤rollback発生を主張しない。
 - Node実function/manifest resolution/canary receipt/rollback receiptの判定を使い、外部CLI境界だけfake。production state/ledger/launchd/provider mutation0。mode600 state/selfbuild-owner-rollback-baseline-probe-20261004.jsonへ期待B/実C/結果/callsを保存。
 - 通常promotionとdev-merge-guardのmerge後/crash holdがともにglobal currentを使うため、同じownerの実previous loaded releaseをmerge/canary前に検証し両経路で保持する必要がある。次のsource所有範囲はこのowner baselineとそのtests。verified baselineなしにcurrent/event/plistから推定しない。今回class/外部hook guard/old effect fenceは不変。全SelfBuild成果と全goalは未完。
+
+
+### 290. 実loaded owner baselineの混在をofficial read-onlyで確認
+
+- current5fcのlaunchctl-safe printと既存_loaded_arguments parserを使い4ownerだけ公式読取。SelfBuildは実native argv/manifest9c03543e、health observerは80cccc6f、Larryはede6efa4、fuel-watchだけ5fc。4中3ownerの実loaded rootがglobal currentと異なる。stage/source/effect/args/refをstate/selfbuild-actual-owner-baselines-readonly-20261004.json/mode600へ保存、raw env/source/production/provider mutation0。
+- §289の隔離誤rollbackは抽象的な同値問題ではなく、実fleetのsource混在へ適用する不足。loaded stateをevent/plist/currentから推定せず、実native argvとimmutable manifestを検証する必要がある。
+- primary専用worktreeを最新mainb7fb/clean/同ownerleaseでbranch fix/selfbuild-owner-baseline-20261004へ再利用。native selfbuild_owner_baseline_implementationへgpt-5.6-sol/high/forknoneで必要な3productionfilesと関連testsのみの実装を委譲。primaryはこのsource範囲を同時編集せず、docs/official evidence/検証/統合を所有。read-only baseline CLI→merge前hold→通常promotion/crash復旧で共通のowner baseline、未検証baseline/失敗receiptでは復元・hold解放を成功扱いしないTDDを進める。actual model/effort/usageは観測不能。
+- source実装・検証・review・新自然復旧は未達、production destructive test/class/fence waiver0。別担当branch/auth/credential/profile変更0。全残TODO → §217、全goalactive。
