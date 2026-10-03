@@ -32,6 +32,8 @@ class Page:
     def goto(self, *args, **kwargs):
         assert args[0] == self.url
     def evaluate(self, expression):
+        if 'securetoken.googleapis.com' in expression:
+            return json.dumps({'firebase_identity_matched':True,'firebase_user_present':True,'firebase_token_expired':False})
         assert 'https://aws.api.mercor.com/work/jobs' in expression
         assert 'owner@example.test' in expression
         return json.dumps(self.payload)
@@ -90,3 +92,45 @@ def test_capture_failure_never_enters_paid_kernel(tmp_path):
     assert result.returncode == 75
     assert not called.exists()
     assert json.loads(hint.read_text()) == {'status':'pre_effect_failure','effect':0}
+
+
+@pytest.mark.parametrize('identity_matches', [False, True])
+def test_auth_refresh_is_bound_to_first_token_identity(identity_matches):
+    from job_search_loop.mercor_auth_readback import auth_snapshot_expression
+    expression = auth_snapshot_expression(expected_email='owner@example.test')
+    first_email = 'owner@example.test' if identity_matches else 'other@example.test'
+    harness = '''let refreshes=0, writes=0;
+const records=[{value:{email:FIRST_EMAIL,apiKey:'fake-public-key',stsTokenManager:{accessToken:'fake-expired',refreshToken:'fake-refresh',expirationTime:Date.now()-1}}},
+ {value:{email:'owner@example.test',apiKey:'fake-public-key',stsTokenManager:{accessToken:'second-record',refreshToken:'second-refresh',expirationTime:Date.now()-1}}}];
+global.location={href:'https://work.mercor.com/home',pathname:'/home'};
+global.document={querySelectorAll:()=>[],querySelector:()=>null,body:{innerText:'Applications'}};
+global.indexedDB={open:()=>{const req={};queueMicrotask(()=>{req.result={objectStoreNames:{contains:()=>true},close:()=>{},transaction:(name,mode)=>{
+ const tx={objectStore:()=>({getAll:()=>{const get={result:records};queueMicrotask(()=>get.onsuccess());return get;},put:()=>{writes++;queueMicrotask(()=>tx.oncomplete());}})};return tx;}};req.onsuccess();});return req;}};
+global.fetch=async(url,options)=>{if(options.method==='POST'){refreshes++;return {ok:true,status:200,json:async()=>({id_token:'fresh-token',expires_in:'3600'})};}return {ok:true,status:200};};
+'''.replace('FIRST_EMAIL', json.dumps(first_email))
+    script = harness + '('+expression+').then(value=>console.log(JSON.stringify({value:JSON.parse(value),refreshes,writes})))'
+    result = subprocess.run(['node','-e',script],capture_output=True,text=True,check=True)
+    observed = json.loads(result.stdout)
+    assert observed['refreshes'] == int(identity_matches)
+    assert observed['writes'] == int(identity_matches)
+    assert observed['value']['firebase_identity_matched'] is identity_matches
+    if identity_matches:
+        assert observed['value']['firebase_token_refreshed'] is True
+        assert observed['value']['firebase_token_expired'] is False
+
+
+def test_paid_capture_rejects_expired_auth_before_contract_read(tmp_path):
+    class Expired(Page):
+        contract_reads = 0
+        def evaluate(self, expression):
+            if 'securetoken.googleapis.com' in expression:
+                return json.dumps({'firebase_identity_matched':True,'firebase_user_present':True,
+                                   'firebase_token_expired':True,'firebase_token_refresh_failed':True})
+            self.contract_reads += 1
+            return super().evaluate(expression)
+    output=tmp_path/'snapshot.json';output.write_text('old observation');page=Expired({'contracts':[]})
+    with pytest.raises(RuntimeError,match='mercor_paid_contract_capture_unavailable'):
+        paid.capture(page,expected_email='owner@example.test',output=output)
+    assert page.contract_reads == 0
+    assert output.read_text() == 'old observation'
+    assert page.closed
