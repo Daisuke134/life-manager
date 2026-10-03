@@ -4764,3 +4764,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. rollbackreceipt修正のrequiredchecks/freshreview→PR/CI/adminmergeを閉じる。PR6525のreportfixは既にmain、再merge不要。source proofとlive recovery proofは別未完。
 2. live global25760をfreshpollしてterminal後に最新main completeimmutableを一度だけ作成/通常owner生成をreadback、SelfBuildだけsafe load/自然run-ID reportjoin。待機中はowner-specific unbound promotionの実hook不足を調べ、boolean申告やguard緩和で通過させない。
 3. Paid currentfundedterms/delivery/fee/settlement/payout/actualcost、SelfBuild/Eval本成果、Investment、Cloud/self-funding、TaskMarket、全14 CFOの残条件を維持しgoalactive。
+
+
+### 216. rollback receipt修正のmain統合と自然release builderの追跡
+
+- PR6527はfresh read-only reviewer SHIP/findings0、focused13/13、primary関連109/109、sharedruntime748/137.622s、adapter15/contract/OSS/diff PASS、GitHub全10checksSUCCESS。admin squash mergeで2026-10-03T11:20:53Z mainc99dbb406fee5edf74a02678561b5a87bda59fc8へ統合、freshfetch/remote object一致。sourcebranchHEAD56fa19818bはclean/pushed、sourceproof state/selfbuild-rollback-source-proof-20261003.json/mode600へCI/mergeと未達livegateを保存。
+- 既存global25760/parent25706はmissing/terminalを再確認。runtime run18db0031ec0c1f18-25706のofficial report eventb1228e1e8ad4b6516eb495cbはexit1。fleet at11:18:13Z/c5e6/error/changed27/errors3/skipped147で成功扱いしない。ownerlog latest c5e6のrc1はalpaca-investment-live(35s)、life-manager-anicca-ja-widget-instagram(3s)、life-manager-instagram-metrics(79s)。まだ原因修正・全fleet収束未達。
+- 次の自然global54372/parent54329はc5e6から起動し、cut54512/child55359が先行main06095aをbuild中。11:21Z頃のfreshprobeでは別global61832/parent61747もlive。manualbuild/apply/kill0、existing release-cut ownerを奪わない。currentはcompleteALL/c5e6のまま、06095a/c99のcompleteactivation/load/naturalreportは未観測。
+- source-only復元誤報修正をactual rollback/deploy/business成果へ数えない。desk doctor既存unmanaged capafy.kosuke1/missing0はFAIL。模型usage/model/effortが非公開なのでAPI-equivalent costは算定不能、actualcostへ推定記帳0。
+
+#### 更新後の原子cursor
+
+1. PR6525+6527は統合済み、再PR/merge不要。sourcebranch fix/selfbuild-rollback-receipt-20261003/HEAD56faは保持。fresh exact PIDs54372/54512/55359/61832とreleasecut handleをreadbackし、terminalだけを次操作の根拠にする。current complete06095a/c99をmanifest ALL/ancestor/sourcebytesで確認、latestmain c99が通常reconcilerで反映されるまで重複cut/applyを足さない。
+2. SelfBuildだけloadedargv/SHA/idle/deploylock/preflightを閉じ、新fixの自然row.run_idとreportをexactjoinする。現在oldreport/natural/sourcepassを代用せず、手動wake/破壊的rollbackテスト0。
+3. failedfleet3ownersのcall/state/loadedargv/exit/readback境界をowner別に診断し、稼働ownerをkillしない。policybinding43/178とlive運用を区別し、unbound135は本物のowner別hookが必要。Paid/資金通知のunknown、全14 CFO/settledprofit/Cloudself-funding等の未完を維持しgoalactive。
