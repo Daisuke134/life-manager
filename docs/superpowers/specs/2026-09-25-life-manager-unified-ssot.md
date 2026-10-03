@@ -5378,7 +5378,7 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 
 ### 277. 公式Railway paid invoice明細を取得し費用の未接続境界を具体化
 
-- live sourceの待機中、公式Railway CLIのlive schema/GraphQLからworkspace.customer.invoicesのallowlist17件をread-only取得。address/email/paymentmethod/privateURLを取得・保存せず、対象invoice in_1UKGixCJoPsRzQsddYJdUbPZはstatuspaid/paymentIntentStatussucceeded/rawamountPaid2607/total2607、期間2026-08-27T11:58:21Z–2026-09-27T11:58:21Z、明細7IDs/priceDollars/quantityを確認。送信/支払/設定変更0。
+- live sourceの待機中、公式Railway CLIのlive schema/GraphQLからworkspace.customer.invoicesのallowlist17件をread-only取得。address/email/paymentmethodのAPI fieldsを取得せず、privateURLは別のlink比較でメモリ内だけ使用して未保存。対象invoice in_1UKGixCJoPsRzQsddYJdUbPZはstatuspaid/paymentIntentStatussucceeded/rawamountPaid2607/total2607、期間2026-08-27T11:58:21Z–2026-09-27T11:58:21Z、明細7IDs/priceDollars/quantityを確認。送信/支払/設定変更0。
 - Decimal行別セント丸めの明細合計31.07、既存authenticated mailのplancredit5.00を差引くと26.07に一致。独立算術再計算はSHIP_limited。CLIprevious26.056726357836112との差0.013273642163888、丸め前でも差0.010027266708478037772696があり、丸めだけとも数量差が原因とも断定しない。請求明細とCLI集計は構成・金額が丸め前から異なる。
 - API raw2607から26.07へのscale100は当資料の推論でschemaの直接仕様ではない。API schemaにはcurrency/paid_atが無く、service detail差0.00082410310140524/削除service/loop配賦も未検証。statuspaidを銀行照合へ拡張しない。actual_cost adapterが必須とするcurrency/RFC3339paid_at/category/occurred_at/amount/basis/明示配賦を満たさず、actual_cost接続はHOLD。
 - google-login canonical skillは読んだがKeychain指示はuserのApple store禁止が優先。既存Gog filebackend/processenvで公式mailをread-only再取得し、API hostedURL/pdfURLとメールURL22件をメモリ内比較。共通URL・invoiceIDは見つからず、直接binding未証明。私的本文/URL/credential保存0。異なる請求の証明とも扱わず、同額/同期間のcorrelationのみ保持。
