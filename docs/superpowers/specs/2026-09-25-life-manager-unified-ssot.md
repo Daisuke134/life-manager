@@ -5131,3 +5131,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - PR6535のGitHub10checksは全PASS、freshSHIP/265related/749runtime/adapter15/contract/OSSもPASS。exact head a38b02ec74e09658a4022763fda991dfc8954727指定でadmin squash merge、mainc0db5d489d96738bcbd69229ad04c97eb05b2193/17:15:41Z MERGEDをgh＋freshfetchで確認。再PR/merge不要。sourceworktreeは同branch/a38/clean/pushed。
 - current immutableは20261004T011929-9c03543eのまま。existing release reconciler10185/parent10172はelapsed07:18でfreshlive、child31040の120秒対象applyも実在。newmain c0のimmutable/load/natural failure receiptは未達、重複build/apply/kill/manualwake0。次は同ownerのterminal→c0 completeimmutable→idle/effect-safe target hf-gig-paid-directのactualargv/SHA→通常wake/公式readbackを照合する。
 - targethealthはhealthyだがdiagnostic.readback/providerreceiptはnull、effect/business not_applicable。latestPaid16:49failed3とdiagnosticHTTP200を自然納品・financial receipt成功へ置換しない。旧unknown/fenceを解放せず、Coconala payment/fee/settlement/payoutとCFO source接続は未完。proof state/coconala-http-receipt-source-proof-20261004.json/mode600、§217全残TODO/goalactiveを保持。
+
+
+### 247. release ownerのlive確認・Coconala403再発・Railway全service内訳
+
+- origin/mainc0、docsbranchcleanをfreshfetch確認。reconciler10185/parent10172は前turnから継続liveでelapsed10:47まで確認。current RELEASE.jsonは9c/ALL、新mainc0のimmutable/loadは未達。17:07 fleetpartial29changed/3errors/80skippedは前処理の保存結果であり、live10185のterminalと誤認しない。重複build/apply/kill/manualwake0。
+- 既存browser lease下のreadonly金融route探索で/mypageはHTTP403、確認済みtalkroom18180857も後続17:18にHTTP403/serverawselb/2.0/contenttypetext/html。17:13の両contextHTTP200も実観測であり、恒常的vault失効と断定しない。現在403原因未確定、finance links未取得。probeのexit0は観測終了のみ、financial source unavailableとしてproofを明記。正式支払/fee/settlement/payoutとCFO接続未達、空リンクを残高/売上0へ置換しない。
+- Railway既存CLI read-only previous periodで残る3projectのservice内訳を取得、全6project/18serviceの公式明細を保存。service合計と各project詳細は浮動小差のみ。Aniccaの詳細23.134846015372684は一覧23.135650110735373と差-0.000804095362689、openclaw差-0.00002000773871614も保持。workspace/invoice26.07との差は未照合。共有serviceとdeletedservice2件を含むためproject/service名だけのcanonical-loop配賦をしない。B6接続/財務writer/支払0。
+- private証拠state/coconala-finance-route-discovery-20261004.json、coconala-finance-talkroom-links-20261004.json、cfo-railway-allocation-readonly-20261004.json、cfo-railway-all-services-audit-20261004.json/mode600。既存独立reviewは§243の3/6明細scopeであり、新18明細へレビュー済みと拡張しない。
+- Mobile remote735d5fdd6bb56e1dba8dbaf54c082cb28964d1d1は不変、AGMSG新報告無し。登録/無報告を担当livenessと扱わず、別担当branch/Appleauth変更0。次はlive release owner terminal→c0immutable/target load/自然HTTPreceipt、provider403原因/公式金融readbackと請求明細・loop配賦を進める。§217全残TODOとgoalactiveを維持。
