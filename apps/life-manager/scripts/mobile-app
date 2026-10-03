@@ -5,9 +5,24 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 LOOP_ID="${1:-}"
 ENV_FILE="${LIFE_MANAGER_MARKETING_ENV_FILE:-${HOME}/.local/state/life-manager/private/marketing.env}"
+# The release SHA belongs to the immutable launchd/release binding, never to
+# the mutable operator-maintained marketing env file.  Keep both the value and
+# absence exact across loading that file so runtime status attribution cannot
+# be relabelled as a stale release.
+if [ "${LIFE_MANAGER_RELEASE_SHA+x}" = x ]; then
+  RELEASE_SHA_BOUND=1
+  RELEASE_SHA="${LIFE_MANAGER_RELEASE_SHA}"
+else
+  RELEASE_SHA_BOUND=0
+fi
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/load-env-file.sh"
 lm_load_env_file "$ENV_FILE"
+if [ "$RELEASE_SHA_BOUND" -eq 1 ]; then
+  export LIFE_MANAGER_RELEASE_SHA="$RELEASE_SHA"
+else
+  unset LIFE_MANAGER_RELEASE_SHA
+fi
 lm_require_env_keys LM_POSTIZ_API_KEY
 
 NODE_BIN="${LIFE_MANAGER_NODE:-$(command -v node || true)}"

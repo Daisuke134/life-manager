@@ -72,14 +72,16 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
   const python = path.join(directory, "python");
   const envFile = path.join(directory, "marketing.env");
   const resultHint = path.join(directory, "effect-result.json");
+  const releaseSha = "a".repeat(40);
+  const staleReleaseSha = "b".repeat(40);
   fs.writeFileSync(
     python,
-    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
+    `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "$LIFE_MANAGER_RELEASE_SHA" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
     { mode: 0o700 },
   );
   fs.writeFileSync(
     envFile,
-    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\n`,
+    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\nLIFE_MANAGER_RELEASE_SHA=${staleReleaseSha}\n`,
     { mode: 0o600 },
   );
 
@@ -95,6 +97,7 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
         LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
         LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-1",
         LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+        LIFE_MANAGER_RELEASE_SHA: releaseSha,
       },
       encoding: "utf8",
     },
@@ -106,6 +109,7 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
   assert.match(invoked[0], /mobile-postiz-provider-reconcile\.py --auto-owner life-manager-honne-ja/);
   assert.match(invoked[0], /--resolve/);
   assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
+  assert.ok(invoked.every((call) => call.endsWith(`|release=${releaseSha}`)), "the release binding must survive loading mutable marketing env");
   assert.equal(result.stdout.trim(), '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}');
   assert.deepEqual(JSON.parse(fs.readFileSync(resultHint, "utf8")), {
     schema_version: 1,
