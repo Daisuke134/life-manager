@@ -4812,7 +4812,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 #### 現在cursorとfresh runtime evidence
 
-- PR6525/6527はmain統合済み、latestmainc99dbb406fee5edf74a02678561b5a87bda59fc8。再PR/merge不要。
+- PR6525/6527はmain統合済み、latestmainc99dbb406fee5edf74a02678561b5a87bda59fc8。再PR/merge不要。 次のsource atomは§218のidle-only promotion修正、branch fix/selfbuild-idle-only-promotion-20261003/HEADfb9752742c push済み、required runtime/freshreview→PR/CI/merge→自然release/readbackを進める。Mobile担当には重複しない。
 - 前builder54512はterminal、complete immutable /Users/anicca/loops/releases/20261003T201923-06095a03 がcurrentへ自然activation。manifest ALL/ancestor-of-origin-main、report shell/CLI/library/promotion module bytesは06095a main blobと一致。SelfBuildはloaded-idle/installedc5e6/eventee7a/effectunknownfalseで、新report/load/natural gate未達。
 - fleet失敗の実理由: widget owner deploy busy、metrics admission rebind refused effect_unknown、alpaca bootstrap5後のprevious job restored。targeted readbackではInvestment disabled/effectunknowntrue、widget idle/effectunknowntrue、metrics idle/blocked/effectunknowntrue。disabled Investmentをenableせず、未知効果を0へ変換しない。proofはstate/selfbuild-release-readback-20261003.json/mode600。
 - cut70412/71063はmissing/terminal、currentはcomplete ALL /Users/anicca/loops/releases/20261003T202437-c99dbb40 / latestmainc99へ自然activation。report shell/CLI/library/rollback moduleの4source bytesはc99 main blob一致。SelfBuildはまだinstalledc5e6/eventee7a/loaded-idle/effectunknownfalse。global70369/70364はliveのため重複build/apply/kill0。primaryはそのterminal→SelfBuild exactloadedargv/SHA→自然reportjoinを先に進め、Mobile担当のApple/auth/branchには入らない。TODO順序変更ではなく、既存primary作業と既存CFO担当の独立並行を明示する。
+
+
+### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
+
+- 前goalturnは§217担当/残TODO正本更新とmainc99 completeimmutable確認でprogress。本turncurrentALL/c99をfreshread。旧global70369はmissing/terminal後、targetSelfBuildidle/effectunknownfalseとGUI preflight UID501/DS/Aqua/manager/GUI PASSを確認した。
+- 対象限定reconcile実行直前のfresh process guardでnewglobal87261/87251起動を検出し、rc75/live_release_owner/変更0でapplyを発行しなかった。新global87311/87292はc99からlive、SelfBuildinstalledc5e6/eventee7aのまま。重複apply/kill/manualwake0。
+- source callgraph診断: recovery-promotion.mjsのcanary/rollbackはdefault apply、lm_loop.pyのCLIはapply_liveへskip_busyを渡さず、既存idle guardを使っていなかった。latestmainc99由来の同goal専用branch fix/selfbuild-idle-only-promotion-20261003へworktreeを再利用。
+- REDは実CLIのrunning/unloaded fixtureでunknownoption/rc2、Nodeのcanary option不足とoldrollbackcontrollerを再現。新CLI apply --loaded-idle-onlyを既存apply_live skip_busy/preserve_pending_admissionへ接続し、canary/rollbackの両方で使う。rollbackは新controller executableを保持しoldrelease rootを明示、古いCLIが新optionを扱えない問題を避ける。default applyは不変。
+- controlled temporary HOME/state/registry・real CLI→real apply_live→fake launchctl外部境界のGREENはrunning/unloadedのstop/bootstrap/plist変更0、idleはchangedtrue/loadedargv/SHA一致。Node109PASS、adapter15/contract14loops178jobs/OSS/diffPASS。4files/HEADfb9752742cまでpush、sharedruntime session34240とfresh read-only reviewer selfbuild_idle_only_review進行。doctor既存unmanaged capafy.kosuke1はFAIL。破壊的本番試験0。
