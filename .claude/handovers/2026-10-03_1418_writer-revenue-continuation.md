@@ -1,3 +1,13 @@
+# Life Manager収益検証の継続
+
+- 最新cursorはSSOT§198→§196source-map→§185#3以降。Writer最初の自然provider gateはPASS、全体goalはactive/未完。
+- Writer自然run18daf272ac672988-74338/SHA33、Notefresh0/0、Substackofficialhome/earningsunknown3件、runtime/ledger/DBhash5件exactjoin、実DBbackup上のsame-rowreimport0/providerattempt0を確認した。watcher44814は正常終了し、再起動しない。
+- 次はAffiliatefreshofficialcommission/payoutcapture/reconcile/replay-zero。税務/KYC/paymentbootstrapと旧publishunknownの境界を維持する。§164の残条件を読み、commission無しをprofitや全financialproofへ数えない。
+- 実装worktreeはwriter-sales-lock-20261003/branchfix/writer-sales-browser-lease-20261003/HEAD9c31cleanpushed、sourceはmain33由来immutable20261003T145550-33b5dce0。specworktree/branchは従来どおり。この更新は§198と同じdocscommitでpushする。
+- proofartifact: ~/.local/state/life-manager/state/writer-natural-proof-20261003.json。moneyイベント/fee/payout記録数0、settledexternalprofit未証明。WriterCFOadaptergap・vaultportability・baselineadoption/repairdebtは残す。
+
+以下は旧引継ぎの根拠履歴。latestcursorと矛盾するlive/未完表現は§198を採る。
+
 # Life Manager Writer収益検証の継続
 
 - 最初にSSOT最新§197→§196→§195→§194–192→§191–186→§185#3–12を読む。元の全体goalはactive/未完。

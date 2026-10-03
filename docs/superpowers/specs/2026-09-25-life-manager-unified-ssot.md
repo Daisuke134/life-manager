@@ -4487,3 +4487,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. livewatchersession44814をre-pollする。終了/失効時もschedulerownerを停止・再起動せず、Writer公式job/status/ledger/queueを確認してから観測を継続する。
 2. 新しいmeasurementrunまたはentrypointresultが出たらexactproviderrows、URL/status/unknownreason、runtimeIDs/SHA、DBreceipthashを確認する。既存readback無しの再送やmanualauthは行わない。
 3. Writerproof後に§185#3以降へ進む。goalactive/未完、現在は確認済みlivehandleのverifiedwait。
+
+### 198. Writer自然provider proof・exact join・replay-zero完了
+
+- supportaging2h到達後、read-onlyqueueorderはWriter順位1/age7209sを確認。手動priority変更/kickstart無しで自然dispatchがPID74338へ進み、workerPID74384/processstart15:52:56、claimed occurrence writer-sales-measure:18daf272ac672988-74338を実測した。watchersession44814は新ledgerrow検出で正常終了。
+- 自然run `18daf272ac672988-74338`はrelease `33b5dce0a6ade08cffdf3121ebd01bd73b0bb519`、exit0、runtimeevent `b66ad7501d694f6549c91aff`、terminaltimestamp2026-10-03T06:54:02.864216Z。loaded-idleへ復帰、entrypoint/admissionerror無し。manuallogin/cookie注入/manualentrypointは0。
+- freshofficialNote rowは06:53:24Z、URL=/dashboard/salesmanageと/dashboard/sales、sales_revenue0JPY/sales_count0、statusscorable。Substackは06:53:40Zのofficialpublish/homeとpublish/stats/earningsへ到達、paid_subscribers/revenueはdash、MRRlabelは不在のため3値ともunknown/nullを維持。
+- exact5rowsのmeasurement_run_id/owner_id/occurrence_id/release_shaがruntimeと一致。row全体SHA256をDBmetric_observations.receipt_sha256へ照合し全5件unique1、Note2件verified0、Substack3件unknown/nullを確認。processpassだけでなく実providerappendとDBjoinを証明した。
+- productionmoney.sqlite3のread-onlybackupを隔離tempDBへ作り、同じ実5rowsを既存_sync_salesで2回再import。両方rows5/inserted0/rejected0/unmatched0、socketnetwork禁止fixtureのproviderattempt0、各hashunique1、moneyevents0を検証した。productionDBはreplayで変更していない。
+- money_events0/money_fees0/payouts0は現在の記録数。Note観測0をsettledreceiptへ昇格せず、Substackunknownを0へ変換しない。settledexternalrevenue/profit/financialindependenceは未証明。proofartifact=`~/.local/state/life-manager/state/writer-natural-proof-20261003.json`に実runtimeevent/5row/hash/replayを保存した。
+- Writer runtime/auth/観測provenanceの最初のgateはPASS。Writer将来のtransaction→fee→settlement→payout、§196source-mapのCFOwriteradaptergap、vaultIPv4/IPv6cursor、Self-Build/Evalのbaselineadoption/repairdebtは未完として残す。
+
+#### 更新後の原子cursor
+
+1. §185#3 Affiliate: freshPartnerStackofficialcommission/payoutcapture→reconcile→sameartifactreplay-zeroを確認。旧publishunknownをofficialreadback無しに解放・再送しない。
+2. tax/KYC/paymentproviderbootstrapが必須なら既存legal/provider境界を維持し、unknown/未設定を0/完了へ変換しない。現在commission無しでも実測状態を保存し、§164のcursorどおりMobile以降へ進める。
+3. 残順序はMobile→Connector→Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。全体goalactive/未完。
