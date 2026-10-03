@@ -22,11 +22,13 @@ const PRODUCTS = Object.freeze([
   Object.freeze({ product_id: "thankful", app_id: "6759514159", app_name: "Thankful - Gratitude Journal", label: "Thankful", request_id: "a1149f87-b22a-42cb-85a8-324eb54d2f1a" }),
 ]);
 const ASC_ENV = Object.freeze({ ...process.env, ASC_BYPASS_KEYCHAIN: "true", ASC_TIMEOUT: "90s" });
+const DAY_MS = 24 * 60 * 60 * 1000;
+const D7_MEASURE = "cohort-download-to-paid-rate";
 
 const exec = promisify(execFile);
 
 async function ascJson(args) {
-  const { stdout } = await exec("asc", args, { encoding: "utf8", env: ASC_ENV, maxBuffer: 32 * 1024 * 1024 });
+  const { stdout } = await exec("asc", ["--read-only", ...args], { encoding: "utf8", env: ASC_ENV, maxBuffer: 32 * 1024 * 1024 });
   return JSON.parse(stdout);
 }
 
@@ -44,48 +46,155 @@ function sum(input, predicate, field = "Counts") {
 function measured(value, source) { return { status: "measured", value, source }; }
 function unavailable(reason) { return { status: "unavailable", value: null, reason }; }
 
-function derivedRate(numerator, denominator, numeratorName, denominatorName) {
+function rateUnavailable(reason, sourceRefs = []) {
+  return { status: "unavailable", value: null, reason, numerator: null, denominator: null, source_refs: sourceRefs };
+}
+
+function reportSourceRef(report) {
+  return `asc-report:${report.report_id}:${report.instance_id}:${report.processing_date}`;
+}
+
+function derivedRate(numerator, denominator, numeratorName, denominatorName, sourceRefs = []) {
   if (!numerator || numerator.status !== "measured") {
-    return unavailable(`source_metric_unavailable:${numeratorName}`);
+    return rateUnavailable(`source_metric_unavailable:${numeratorName}`, sourceRefs);
   }
   if (!denominator || denominator.status !== "measured") {
-    return unavailable(`source_metric_unavailable:${denominatorName}`);
+    return rateUnavailable(`source_metric_unavailable:${denominatorName}`, sourceRefs);
   }
   const numeratorValue = Number(numerator.value);
   const denominatorValue = Number(denominator.value);
   if (!Number.isFinite(numeratorValue) || !Number.isFinite(denominatorValue)
     || numeratorValue < 0 || denominatorValue < 0) {
-    return unavailable("source_metric_invalid");
+    return rateUnavailable("source_metric_invalid", sourceRefs);
   }
-  if (denominatorValue === 0) return unavailable("denominator_zero");
+  if (denominatorValue === 0) return { ...rateUnavailable("denominator_zero", sourceRefs), numerator: numeratorValue, denominator: 0 };
   return {
     status: "measured",
     value: Number((numeratorValue / denominatorValue).toFixed(6)),
     numerator: numeratorValue,
     denominator: denominatorValue,
+    source_refs: sourceRefs,
   };
 }
 
-function derivedFunnelRates(metrics = {}) {
+function derivedFunnelRates(metrics = {}, sourceRefs = {}) {
   return {
     impression_to_page_view: derivedRate(
       metrics.unique_product_page_views, metrics.unique_impressions,
       "unique_product_page_views", "unique_impressions",
+      sourceRefs.impression_to_page_view || [],
     ),
     page_view_to_install: derivedRate(
       metrics.first_time_downloads, metrics.unique_product_page_views,
       "first_time_downloads", "unique_product_page_views",
+      sourceRefs.page_view_to_install || [],
     ),
     impression_to_install: derivedRate(
       metrics.first_time_downloads, metrics.unique_impressions,
       "first_time_downloads", "unique_impressions",
+      sourceRefs.impression_to_install || [],
     ),
-    install_to_paid: unavailable("paid_customer_cohort_unavailable"),
+    install_to_paid: metrics.install_to_paid || rateUnavailable("paid_customer_cohort_unavailable", sourceRefs.install_to_paid || []),
   };
 }
 
-function summarize(product, downloads, engagement, metadata, detailedDownloads = []) {
-  if (!downloads.length || !engagement.length) return pending(product, "empty_report");
+function exactDownloadCounts(product, downloadRows, cohortDate) {
+  const cohortRows = downloadRows.filter((row) => row.Date === cohortDate);
+  if (!cohortRows.length) return { error: "cohort_denominator_unavailable" };
+  if (cohortRows.some((row) => row["App Apple Identifier"] !== product.app_id)) return { error: "cohort_app_mismatch" };
+  let firstTimeDownloads = 0;
+  let redownloads = 0;
+  for (const row of cohortRows) {
+    if (!["First-time download", "Redownload"].includes(row["Download Type"])) continue;
+    const raw = String(row.Counts ?? "").trim().replace(/,/g, "");
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return { error: "cohort_download_count_invalid" };
+    if (row["Download Type"] === "First-time download") firstTimeDownloads += Number(raw);
+    else redownloads += Number(raw);
+  }
+  if (!Number.isSafeInteger(firstTimeDownloads) || !Number.isSafeInteger(redownloads)) return { error: "cohort_download_count_invalid" };
+  if (redownloads > 0) return { error: "redownloads_present", denominator: firstTimeDownloads, redownloads };
+  if (firstTimeDownloads === 0) return { error: "denominator_zero", denominator: 0, redownloads };
+  return { denominator: firstTimeDownloads, redownloads };
+}
+
+function uniquePayerCount(providerRate, denominator) {
+  if (typeof providerRate !== "number" || !Number.isFinite(providerRate) || providerRate < 0 || providerRate > 100) {
+    return { error: "cohort_rate_invalid" };
+  }
+  const text = String(providerRate);
+  if (/[eE]/.test(text)) return { error: "cohort_rate_precision_invalid" };
+  const precision = Math.min(text.includes(".") ? text.split(".")[1].length : 0, 8);
+  const scale = 10 ** precision;
+  const roundedProviderRate = Math.round(providerRate * scale);
+  const estimate = providerRate * denominator / 100;
+  const start = Math.max(0, Math.floor(estimate) - 2);
+  const end = Math.min(denominator, Math.ceil(estimate) + 2);
+  const candidates = [];
+  for (let count = start; count <= end; count += 1) {
+    if (Math.round((100 * count / denominator) * scale) === roundedProviderRate) candidates.push(count);
+  }
+  if (!candidates.length) return { error: "cohort_rate_unreconcilable" };
+  if (candidates.length !== 1) return { error: "cohort_rate_ambiguous" };
+  return { value: candidates[0], precision };
+}
+
+function installToPaidD7(product, cohortResponse, downloadRows, cohortDate, observedAt, report) {
+  const cohortRef = `asc-web-cohort:${product.app_id}:${cohortDate}:d7`;
+  const sourceRefs = [report && report.report_id && report.instance_id ? reportSourceRef(report) : null, cohortRef].filter(Boolean);
+  const failed = (reason, extras = {}) => ({
+    ...rateUnavailable(reason, sourceRefs),
+    cohort_date: cohortDate,
+    cohort_window_days: 7,
+    experimental: true,
+    observed_at: observedAt,
+    ...extras,
+  });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(cohortDate || "")) || !Number.isFinite(Date.parse(`${cohortDate}T00:00:00Z`))) return failed("cohort_date_invalid");
+  const counts = exactDownloadCounts(product, downloadRows, cohortDate);
+  if (counts.error) return failed(counts.error, { sample_size: counts.denominator ?? null, redownloads: counts.redownloads ?? null });
+  const countContext = { sample_size: counts.denominator, redownloads: counts.redownloads };
+  const cohortStart = Date.parse(`${cohortDate}T00:00:00Z`);
+  const observedTimestamp = Date.parse(observedAt);
+  if (!Number.isFinite(observedTimestamp)) return failed("cohort_observation_time_invalid", countContext);
+  if (observedTimestamp < cohortStart + 8 * DAY_MS) return failed("cohort_immature", countContext);
+  if (!cohortResponse || cohortResponse.appId !== product.app_id) return failed("cohort_app_mismatch", countContext);
+  if (cohortResponse.startDate !== cohortDate || cohortResponse.endDate !== cohortDate || cohortResponse.frequency !== "day"
+    || !cohortResponse.measures?.includes(D7_MEASURE) || !cohortResponse.periods?.includes("d7")) return failed("cohort_query_mismatch", countContext);
+  const results = cohortResponse.result?.results;
+  const dates = results?.date;
+  const periods = results?.period;
+  const values = results?.[D7_MEASURE];
+  if (!Array.isArray(dates) || !Array.isArray(periods) || !Array.isArray(values) || dates.length !== periods.length || periods.length !== values.length) {
+    return failed("cohort_response_invalid", countContext);
+  }
+  const matches = dates.flatMap((date, index) => {
+    if (periods[index] !== "d7" || typeof date !== "string") return [];
+    const timestamp = Date.parse(date);
+    return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === cohortDate ? [{ value: values[index] }] : [];
+  });
+  if (matches.length !== 1 || matches[0].value == null) return failed(matches.length > 1 ? "cohort_d7_ambiguous" : "cohort_d7_unavailable", countContext);
+  const payerCount = uniquePayerCount(matches[0].value, counts.denominator);
+  if (payerCount.error) return failed(payerCount.error, { sample_size: counts.denominator, redownloads: counts.redownloads });
+  return {
+    status: "measured",
+    value: Number((payerCount.value / counts.denominator).toFixed(6)),
+    numerator: payerCount.value,
+    denominator: counts.denominator,
+    sample_size: counts.denominator,
+    rate_percent: matches[0].value,
+    rate_precision: payerCount.precision,
+    redownloads: counts.redownloads,
+    cohort_date: cohortDate,
+    cohort_window_days: 7,
+    source: "apple_download_to_paid_d7_experimental",
+    source_refs: sourceRefs,
+    experimental: true,
+    observed_at: observedAt,
+  };
+}
+
+function summarize(product, downloads, engagement, metadata, detailedDownloads = [], installToPaid = rateUnavailable("paid_customer_cohort_unavailable")) {
+  if (!downloads.length || !engagement.length) return pending(product, "empty_report", installToPaid, metadata);
   const expectedApp = (row) => !row["App Apple Identifier"] || row["App Apple Identifier"] === product.app_id;
   if (![...downloads, ...engagement].every(expectedApp)) {
     const observed = [...new Set([...downloads, ...engagement].map((row) => row["App Apple Identifier"] || "missing"))];
@@ -96,11 +205,11 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
     return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) ? value : null;
   };
   if ([...downloads, ...engagement].some((row) => dateOf(row) === null)) {
-    return pending(product, "report_date_invalid");
+    return pending(product, "report_date_invalid", installToPaid, metadata);
   }
   const engagementDates = new Set(engagement.map(dateOf));
   const dates = [...new Set(downloads.map(dateOf))].filter((day) => engagementDates.has(day)).sort();
-  if (!dates.length) return pending(product, "report_window_mismatch");
+  if (!dates.length) return pending(product, "report_window_mismatch", installToPaid, metadata);
   const includedDates = new Set(dates);
   const alignedDownloads = downloads.filter((row) => includedDates.has(dateOf(row)));
   const alignedEngagement = engagement.filter((row) => includedDates.has(dateOf(row)));
@@ -137,26 +246,35 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
       campaign_impressions: campaignEngagement.length ? measured(sum(campaignEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : campaignUnavailable(),
     },
   };
-  baseMetrics.metrics = { ...baseMetrics.metrics, ...derivedFunnelRates(baseMetrics.metrics) };
+  const downloadRefs = metadata.filter((report) => report.report_name === "App Downloads Standard").map(reportSourceRef);
+  const engagementRefs = metadata.filter((report) => report.report_name === "App Store Discovery and Engagement Detailed").map(reportSourceRef);
+  baseMetrics.metrics.install_to_paid = installToPaid;
+  baseMetrics.metrics = { ...baseMetrics.metrics, ...derivedFunnelRates(baseMetrics.metrics, {
+    impression_to_page_view: engagementRefs,
+    page_view_to_install: [...downloadRefs, ...engagementRefs],
+    impression_to_install: [...downloadRefs, ...engagementRefs],
+    install_to_paid: installToPaid.source_refs || [],
+  }) };
   return baseMetrics;
 }
 
-function pending(product, reason = "report_pending") {
+function pending(product, reason = "report_pending", installToPaid = rateUnavailable("paid_customer_cohort_unavailable"), reports = []) {
+  const rateMetrics = new Set(["impression_to_page_view", "page_view_to_install", "impression_to_install"]);
   return {
     product_id: product.product_id,
     app_id: product.app_id,
     app_name: product.app_name,
-    source_status: "unavailable",
+    source_status: installToPaid.status === "measured" ? "partial" : "unavailable",
     attribution_status: "unattributed",
     attribution_reason: "campaign_not_configured",
-    confidence: "none",
+    confidence: installToPaid.status === "measured" ? "experimental_paid_cohort_only" : "none",
     data_from: null,
     data_to: null,
-    reports: [],
+    reports,
     campaign_id: product.campaign_token || null,
     campaign_status: "unavailable",
-    metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions", "impression_to_page_view", "page_view_to_install", "impression_to_install"].map((name) => [name, unavailable(reason)]).concat([
-      ["install_to_paid", unavailable("paid_customer_cohort_unavailable")],
+    metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions", "impression_to_page_view", "page_view_to_install", "impression_to_install"].map((name) => [name, rateMetrics.has(name) ? rateUnavailable(reason) : unavailable(reason)]).concat([
+      ["install_to_paid", installToPaid],
     ])),
   };
 }
@@ -181,23 +299,109 @@ async function latestDaily(reportId) {
 async function downloadReport(requestId, reportId, reportName, directory) {
   const daily = await latestDaily(reportId);
   if (!daily) return null;
-  const segments = (await ascJson(["analytics", "instances", "links", "--instance-id", daily.id, "--output", "json"])).data;
+  return downloadInstance(requestId, { report_id: reportId, report_name: reportName }, daily, directory);
+}
+
+async function downloadInstance(requestId, report, instance, directory) {
+  const segments = (await ascJson(["analytics", "instances", "links", "--instance-id", instance.id, "--output", "json"])).data;
   if (!segments?.length) return null;
-  const output = await Promise.all(segments.map(async (segment, index) => {
-    const file = path.join(directory, `${reportId}-${index}.csv`);
-    await exec("asc", ["analytics", "download", "--request-id", requestId, "--instance-id", daily.id, "--segment-id", segment.id, "--decompress", "--output", file], { env: ASC_ENV });
-    return rows(fs.readFileSync(file, "utf8"));
-  }));
-  return { rows: output.flat(), metadata: { report_id: reportId, report_name: reportName, instance_id: daily.id, processing_date: daily.processingDate, granularity: daily.granularity } };
+  const fullReport = {
+    ...report,
+    instance_id: instance.id,
+    processing_date: instance.processingDate,
+    granularity: instance.granularity,
+    segments: segments.map(({ id }) => id),
+  };
+  return downloadKnown(requestId, fullReport, directory);
 }
 
 async function downloadKnown(requestId, report, directory) {
   const output = await Promise.all(report.segments.map(async (segmentId, index) => {
-    const file = path.join(directory, `${report.report_id}-${index}.csv`);
-    await exec("asc", ["analytics", "download", "--request-id", requestId, "--instance-id", report.instance_id, "--segment-id", segmentId, "--decompress", "--output", file], { env: ASC_ENV });
+    const file = path.join(directory, `${report.report_id}-${report.instance_id}-${index}.csv`);
+    await exec("asc", ["--read-only", "analytics", "download", "--request-id", requestId, "--instance-id", report.instance_id, "--segment-id", segmentId, "--decompress", "--output", file], { env: ASC_ENV });
     return rows(fs.readFileSync(file, "utf8"));
   }));
-  return { rows: output.flat(), metadata: { report_id: report.report_id, report_name: report.report_name, instance_id: report.instance_id, processing_date: report.processing_date, granularity: "DAILY" } };
+  return { rows: output.flat(), metadata: { report_id: report.report_id, report_name: report.report_name, instance_id: report.instance_id, processing_date: report.processing_date, granularity: report.granularity || "DAILY" } };
+}
+
+function latestMatureCohortDate(observedAt) {
+  const timestamp = Date.parse(observedAt);
+  // Wait until the end of the UTC download day plus seven full days.
+  return Number.isFinite(timestamp) ? new Date(timestamp - 8 * DAY_MS).toISOString().slice(0, 10) : null;
+}
+
+function validReportDate(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`));
+}
+
+function dateDifferenceDays(laterDate, earlierDate) {
+  if (!validReportDate(laterDate) || !validReportDate(earlierDate)) return null;
+  const difference = (Date.parse(`${laterDate}T00:00:00Z`) - Date.parse(`${earlierDate}T00:00:00Z`)) / DAY_MS;
+  return Number.isInteger(difference) ? difference : null;
+}
+
+function addUtcDays(date, days) {
+  return validReportDate(date) && Number.isInteger(days)
+    ? new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10)
+    : null;
+}
+
+function cohortR3ProcessingDate(latestDownloads, cohortDate) {
+  if (!validReportDate(cohortDate) || !Array.isArray(latestDownloads?.rows) || !validReportDate(latestDownloads?.metadata?.processing_date)) return null;
+  const latestDataDate = latestDownloads.rows.map((row) => row.Date).filter(validReportDate).sort().at(-1);
+  const processingLag = dateDifferenceDays(latestDownloads.metadata.processing_date, latestDataDate);
+  if (processingLag === null || processingLag < 0 || processingLag > 7) return null;
+  return addUtcDays(cohortDate, processingLag);
+}
+
+async function downloadR3AtProcessingDate(product, processingDate, directory) {
+  const reportId = `r3-${product.request_id}`;
+  const view = await ascJson(["analytics", "view", "--request-id", product.request_id, "--processing-date", processingDate, "--granularity", "DAILY", "--output", "json"]);
+  const report = view.data?.find((candidate) => candidate.id === reportId);
+  const instance = report?.instances?.find((candidate) => candidate.granularity === "DAILY" && candidate.processingDate === processingDate);
+  if (!instance) return null;
+  return downloadInstance(product.request_id, { report_id: reportId, report_name: "App Downloads Standard (D7 cohort denominator)" }, instance, directory);
+}
+
+async function collectInstallToPaidD7(product, latestDownloads, observedAt, reportDay, directory) {
+  const latestMatureDate = latestMatureCohortDate(observedAt);
+  const cohortDate = validReportDate(reportDay) && reportDay < latestMatureDate ? reportDay : latestMatureDate;
+  if (!cohortDate) return { metric: d7Unavailable("cohort_observation_time_invalid", null, observedAt), report: null };
+  const processingDate = cohortR3ProcessingDate(latestDownloads, cohortDate);
+  if (!processingDate) {
+    return { metric: d7Unavailable("cohort_report_lag_unavailable", cohortDate, observedAt), report: null };
+  }
+  let denominatorReport;
+  try {
+    denominatorReport = await downloadR3AtProcessingDate(product, processingDate, directory);
+  } catch (error) {
+    return { metric: d7Unavailable(`cohort_report_${sourceFailureReason(error)}`, cohortDate, observedAt), report: null };
+  }
+  if (!denominatorReport) return { metric: d7Unavailable("cohort_report_instance_unavailable", cohortDate, observedAt), report: null };
+  const countCheck = exactDownloadCounts(product, denominatorReport.rows, cohortDate);
+  if (countCheck.error) {
+    return {
+      metric: d7Unavailable(countCheck.error, cohortDate, observedAt, [reportSourceRef(denominatorReport.metadata)]),
+      report: denominatorReport.metadata,
+    };
+  }
+  const cohortRef = `asc-web-cohort:${product.app_id}:${cohortDate}:d7`;
+  try {
+    const response = await ascJson([
+      "web", "analytics", "cohorts", "--app", product.app_id,
+      "--start", cohortDate, "--end", cohortDate, "--frequency", "day",
+      "--measures", D7_MEASURE, "--periods", "d1,d7,d35", "--output", "json",
+    ]);
+    return {
+      metric: installToPaidD7(product, response, denominatorReport.rows, cohortDate, observedAt, denominatorReport.metadata),
+      report: denominatorReport.metadata,
+    };
+  } catch (error) {
+    return {
+      metric: d7Unavailable(`cohort_${sourceFailureReason(error)}`, cohortDate, observedAt, [reportSourceRef(denominatorReport.metadata), cohortRef]),
+      report: denominatorReport.metadata,
+    };
+  }
 }
 
 async function collectProduct(product, reportDay) {
@@ -210,8 +414,12 @@ async function collectProduct(product, reportDay) {
         downloadReport(product.request_id, `r4-${product.request_id}`, "App Downloads Detailed", directory),
         downloadReport(product.request_id, `r15-${product.request_id}`, "App Store Discovery and Engagement Detailed", directory),
       ]);
-    if (!downloaded || !engaged) return pending(product);
-    return summarize(product, downloaded.rows, engaged.rows, [downloaded.metadata, ...(detailed ? [detailed.metadata] : []), engaged.metadata], detailed?.rows || []);
+    if (!downloaded) return pending(product);
+    const observedAt = new Date().toISOString();
+    const cohort = await collectInstallToPaidD7(product, downloaded, observedAt, reportDay, directory);
+    const metadata = [downloaded.metadata, ...(detailed ? [detailed.metadata] : []), ...(engaged ? [engaged.metadata] : []), ...(cohort.report ? [cohort.report] : [])];
+    if (!engaged) return pending(product, "empty_report", cohort.metric, metadata);
+    return summarize(product, downloaded.rows, engaged.rows, metadata, detailed?.rows || [], cohort.metric);
   } catch (error) {
     if (/not found|404|no analytics report instances/i.test(String(error.message))) return pending(product);
     return pending(product, sourceFailureReason(error));
@@ -245,4 +453,4 @@ async function persistAscAcquisition(dataDir = resolveDataRoot(process.env), rep
 }
 
 if (require.main === module) persistAscAcquisition().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { PRODUCTS, collectProduct, derivedFunnelRates, pending, persistAscAcquisition, rows, sourceFailureReason, summarize };
+module.exports = { PRODUCTS, cohortR3ProcessingDate, collectProduct, derivedFunnelRates, installToPaidD7, latestMatureCohortDate, pending, persistAscAcquisition, rows, sourceFailureReason, summarize };
