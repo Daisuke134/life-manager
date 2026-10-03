@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { promoteLoopRuntimeRepair } from '../recovery-promotion.mjs';
+import { promoteLoopRuntimeRepair, readOwnerBaseline } from '../recovery-promotion.mjs';
 
 const MERGED_SHA = 'a'.repeat(40);
 const OWNER = 'test-deterministic-owner';
@@ -10,6 +10,10 @@ const REPO_ROOT = '/repo';
 const LOOPS_ROOT = '/loops';
 const NEW_RELEASE = '/loops/releases/20260926T000000-new-sha';
 const PREVIOUS_RELEASE = '/loops/releases/20260901T000000-previous-sha';
+const BASELINE = Object.freeze({
+  ok: true, owner_id: OWNER, label: LABEL,
+  release_root: PREVIOUS_RELEASE, release_sha: 'c'.repeat(40),
+});
 
 function deterministicRegistry() {
   return JSON.stringify({
@@ -55,9 +59,94 @@ function baseDeps({ registry = deterministicRegistry(), releaseDirs = [PREVIOUS_
       sleep: async () => {},
       now: () => 0,
       cutRetryDelayMs: 0,
+      readOwnerBaseline: async () => BASELINE,
     },
   };
 }
+
+test('baseline reader accepts only the exact owner label immutable root and sha', async () => {
+  const calls = [];
+  const result = await readOwnerBaseline({
+    ownerId: OWNER, expectedLabel: LABEL, repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT,
+    deps: { runCommand: async (request) => { calls.push(request); return {
+      code: 0, stdout: JSON.stringify(BASELINE), stderr: '',
+    }; } },
+  });
+  assert.deepEqual(result, BASELINE);
+  assert.deepEqual(calls[0].args, ['baseline', OWNER]);
+  assert.equal(calls[0].env.LOOPS_ROOT, LOOPS_ROOT);
+  assert.equal(calls[0].env.LIFE_MANAGER_RELEASE_ROOT, REPO_ROOT);
+});
+
+test('baseline reader treats malformed root types as unverified', async () => {
+  const result = await readOwnerBaseline({
+    ownerId: OWNER, expectedLabel: LABEL, repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT,
+    deps: { runCommand: async () => ({
+      code: 0, stdout: JSON.stringify({ ...BASELINE, release_root: 42 }), stderr: '',
+    }) },
+  });
+  assert.equal(result, null);
+});
+
+test('mixed owner baseline B and global current C rolls back the owner to B', async () => {
+  const GLOBAL_CURRENT = '/loops/releases/20260930-global-current';
+  const { deps, releaseDirs, calls } = baseDeps();
+  releaseDirs.push(NEW_RELEASE);
+  deps.readlink = async () => GLOBAL_CURRENT;
+  const originalRead = deps.readFile;
+  deps.readFile = async (file) => file === `${NEW_RELEASE}/RELEASE.json`
+    ? JSON.stringify({ sha: MERGED_SHA }) : originalRead(file);
+  deps.runCommand = async (request) => {
+    calls.push(request);
+    if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
+    if (request.env.LIFE_MANAGER_RELEASE_ROOT === NEW_RELEASE) {
+      return { code: 1, stdout: '[]', stderr: 'canary failed' };
+    }
+    if (request.env.LIFE_MANAGER_RELEASE_ROOT === PREVIOUS_RELEASE) {
+      return { code: 0, stdout: JSON.stringify([{
+        loop_id: OWNER, label: LABEL, ok: true, release_sha: BASELINE.release_sha,
+      }]), stderr: '' };
+    }
+    throw new Error(`unexpected rollback target ${request.env.LIFE_MANAGER_RELEASE_ROOT}`);
+  };
+
+  const result = await promoteLoopRuntimeRepair({
+    ownerId: OWNER, mergedSha: MERGED_SHA, repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT, deps,
+  });
+
+  assert.equal(result.rolled_back, true);
+  assert.equal(result.previous_release_path, PREVIOUS_RELEASE);
+  assert.equal(calls.some((call) => call.env?.LIFE_MANAGER_RELEASE_ROOT === GLOBAL_CURRENT), false);
+});
+
+test('unverified owner baseline stops before cutting or applying a release', async () => {
+  const { deps, calls } = baseDeps();
+  deps.readOwnerBaseline = async () => null;
+  deps.runCommand = async (request) => { calls.push(request); return { code: 0, stdout: '' }; };
+  const result = await promoteLoopRuntimeRepair({
+    ownerId: OWNER, mergedSha: MERGED_SHA, repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT, deps,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'owner_baseline_unverified');
+  assert.equal(calls.length, 0);
+});
+
+test('owner baseline drift before canary is promotion_never_started', async () => {
+  const { deps, calls } = baseDeps();
+  deps.readOwnerBaseline = async () => ({
+    ...BASELINE,
+    release_root: '/loops/releases/20260930-drifted',
+    release_sha: 'd'.repeat(40),
+  });
+  deps.runCommand = async (request) => { calls.push(request); return { code: 0, stdout: '' }; };
+  const result = await promoteLoopRuntimeRepair({
+    ownerId: OWNER, mergedSha: MERGED_SHA, baseline: BASELINE,
+    repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT, deps,
+  });
+  assert.equal(result.reason, 'promotion_never_started');
+  assert.equal(result.rolled_back, false);
+  assert.equal(calls.length, 0);
+});
 
 test('success path: candidate cut with LOOPS_ACTIVATE_CURRENT=0, canary apply, healthy readback, no rollback', async () => {
   const { deps, calls } = baseDeps();

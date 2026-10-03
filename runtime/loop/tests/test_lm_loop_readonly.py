@@ -35,6 +35,81 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_baseline_cli_returns_only_verified_loaded_immutable_owner_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            controller = root / "controller"
+            loops_root = root / "loops"
+            release = loops_root / "releases" / ("b" * 40)
+            for target in (controller, release):
+                (target / "config").mkdir(parents=True)
+                (target / "config/loop-registry.json").write_text(json.dumps(REGISTRY))
+            release = release.resolve()
+            (release / "bin").mkdir()
+            (release / "bin/lm-loop-run").write_text("#!/bin/sh\n")
+            (release / "RELEASE.json").write_text(json.dumps({
+                "sha": "b" * 40, "release_paths": "ALL",
+            }))
+            launchctl_safe = controller / "bin/launchctl-safe"
+            launchctl_safe.parent.mkdir()
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                "printf 'arguments = {\\n%s\\nexample\\n%s\\n}\\n' "
+                f"'{release / 'bin/lm-loop-run'}' '{release}'\n"
+            )
+            launchctl_safe.chmod(0o755)
+            environment = {
+                **os.environ,
+                "LOOPS_ROOT": str(loops_root),
+                "LIFE_MANAGER_RELEASE_ROOT": str(controller),
+                "LIFE_MANAGER_LAUNCHCTL_SAFE": str(launchctl_safe),
+            }
+            completed = subprocess.run(
+                [str(Path(__file__).resolve().parents[3] / "bin/lm-loop"), "baseline", "example"],
+                capture_output=True, text=True, env=environment, timeout=30,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(json.loads(completed.stdout), {
+                "ok": True,
+                "owner_id": "example",
+                "label": "ai.anicca.example",
+                "release_root": str(release),
+                "release_sha": "b" * 40,
+            })
+
+    def test_baseline_cli_rejects_unverified_loaded_or_manifest_identity(self):
+        cases = {
+            "wrong_owner": (lambda release: [str(release / "bin/lm-loop-run"), "other", str(release)], {"sha": "b" * 40, "release_paths": "ALL"}),
+            "outside_releases": (lambda release: [str(release / "bin/lm-loop-run"), "example", str(release.parent.parent / "current")], {"sha": "b" * 40, "release_paths": "ALL"}),
+            "missing_argv": (lambda release: [str(release / "bin/lm-loop-run"), "example"], {"sha": "b" * 40, "release_paths": "ALL"}),
+            "manifest_array": (lambda release: [str(release / "bin/lm-loop-run"), "example", str(release)], []),
+            "partial_manifest": (lambda release: [str(release / "bin/lm-loop-run"), "example", str(release)], {"sha": "b" * 40}),
+        }
+        for name, (arguments_for, manifest) in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                controller = root / "controller"
+                loops_root = root / "loops"
+                release = loops_root / "releases" / ("b" * 40)
+                (controller / "config").mkdir(parents=True)
+                (controller / "config/loop-registry.json").write_text(json.dumps(REGISTRY))
+                (release / "config").mkdir(parents=True)
+                (release / "config/loop-registry.json").write_text(json.dumps(REGISTRY))
+                (release / "bin").mkdir()
+                (release / "bin/lm-loop-run").write_text("#!/bin/sh\n")
+                (release / "RELEASE.json").write_text(json.dumps(manifest))
+                release = release.resolve()
+                arguments = arguments_for(release)
+                detail = "arguments = {\n" + "\n".join(arguments) + "\n}\n"
+                output = io.StringIO()
+                with patch.dict(os.environ, {
+                    "LOOPS_ROOT": str(loops_root),
+                    "LIFE_MANAGER_RELEASE_ROOT": str(controller),
+                }), patch.object(lm_loop, "_safe_launchctl", return_value=(0, detail)), \
+                        redirect_stdout(output):
+                    self.assertEqual(lm_loop_main(["baseline", "example"]), 1)
+                self.assertEqual(json.loads(output.getvalue())["ok"], False)
+
     def test_resolved_effect_unknown_occurrences_require_closed_proof(self):
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "reconcile-calls.jsonl"

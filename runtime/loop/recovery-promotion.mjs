@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readdir as readdirFs, readFile as readFileFs, readlink as readlinkFs } from 'node:fs/promises';
+import { mkdir, readdir as readdirFs, readFile as readFileFs } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -35,15 +35,6 @@ function tail(text, limit = 4000) {
   return value.length > limit ? value.slice(-limit) : value;
 }
 
-async function resolveCurrentTarget(loopsRoot, readlinkFn) {
-  try {
-    const target = await readlinkFn(path.join(loopsRoot, 'current'));
-    return path.isAbsolute(target) ? target : path.resolve(loopsRoot, target);
-  } catch {
-    return null;
-  }
-}
-
 async function readManifestSha(releasePath, readFileFn) {
   try {
     const manifest = JSON.parse(await readFileFn(path.join(releasePath, 'RELEASE.json')));
@@ -51,6 +42,46 @@ async function readManifestSha(releasePath, readFileFn) {
   } catch {
     return null;
   }
+}
+
+export function validateOwnerBaseline(value, { ownerId, expectedLabel, loopsRoot } = {}) {
+  if (!value || typeof value !== 'object' || value.ok !== true) return null;
+  if (value.owner_id !== ownerId || (expectedLabel && value.label !== expectedLabel)) return null;
+  if (typeof value.label !== 'string' || typeof value.release_root !== 'string'
+    || typeof loopsRoot !== 'string' || !SHA256.test(String(value.release_sha || ''))
+    || !path.isAbsolute(value.release_root)) {
+    return null;
+  }
+  const root = path.resolve(value.release_root);
+  const releases = path.resolve(loopsRoot, 'releases');
+  if (root !== value.release_root || root === releases || !root.startsWith(`${releases}${path.sep}`)) {
+    return null;
+  }
+  return {
+    ok: true,
+    owner_id: value.owner_id,
+    label: value.label,
+    release_root: root,
+    release_sha: value.release_sha,
+  };
+}
+
+export async function readOwnerBaseline({ ownerId, expectedLabel, repoRoot, loopsRoot, deps = {} }) {
+  const runCommand = deps.runCommand || runCommandDefault;
+  let result;
+  try {
+    result = await runCommand({
+      executable: path.join(repoRoot, 'bin/lm-loop'),
+      args: ['baseline', ownerId],
+      env: { ...process.env, LOOPS_ROOT: loopsRoot, LIFE_MANAGER_RELEASE_ROOT: repoRoot },
+    });
+  } catch {
+    return null;
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(String(result?.stdout || '')); } catch { parsed = null; }
+  if (result?.code !== 0) return null;
+  return validateOwnerBaseline(parsed, { ownerId, expectedLabel, loopsRoot });
 }
 
 // `LOOPS_ACTIVATE_CURRENT=0` cuts a release without repointing the fleet-wide `current` symlink
@@ -82,13 +113,13 @@ async function findReleaseBySha(loopsRoot, mergedSha, readdirFn, readFileFn) {
 export async function promoteLoopRuntimeRepair({
   ownerId,
   mergedSha,
+  baseline = null,
   repoRoot,
   loopsRoot = path.join(os.homedir(), 'loops'),
   deps = {},
 } = {}) {
   const runCommand = deps.runCommand || runCommandDefault;
   const readFileFn = deps.readFile || ((file) => readFileFs(file, 'utf8'));
-  const readlinkFn = deps.readlink || ((file) => readlinkFs(file));
   const readdirFn = deps.readdir || ((dir) => readdirFs(dir));
   const sleep = deps.sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const now = deps.now || (() => Date.now());
@@ -130,10 +161,27 @@ export async function promoteLoopRuntimeRepair({
       previous_release_path: null, hooks: [], rolled_back: false };
   }
 
+  const readBaseline = deps.readOwnerBaseline || readOwnerBaseline;
+  const actualBaseline = await readBaseline({
+    ownerId, expectedLabel: entry.label, repoRoot, loopsRoot, deps: { runCommand },
+  });
+  const verifiedBaseline = validateOwnerBaseline(actualBaseline, {
+    ownerId, expectedLabel: entry.label, loopsRoot,
+  });
+  const expectedBaseline = baseline && validateOwnerBaseline(baseline, {
+    ownerId, expectedLabel: entry.label, loopsRoot,
+  });
+  if (!verifiedBaseline || (baseline && JSON.stringify(verifiedBaseline) !== JSON.stringify(expectedBaseline))) {
+    return { ...base, ok: false,
+      reason: baseline ? 'promotion_never_started' : 'owner_baseline_unverified', release_path: null,
+      previous_release_path: expectedBaseline?.release_root ?? null, hooks: [], rolled_back: false };
+  }
+  const ownerBaseline = expectedBaseline || verifiedBaseline;
+  const previousReleasePath = ownerBaseline.release_root;
+
   // The candidate is cut WITHOUT moving `current` (LOOPS_ACTIVATE_CURRENT=0): only this one owner's
   // canary points at it below. The fleet-wide symlink stays exactly where the promotion hold froze
   // it until this function returns a verdict.
-  const previousReleasePath = await resolveCurrentTarget(loopsRoot, readlinkFn);
   const hooks = [];
 
   let releasePath = null;
@@ -250,8 +298,7 @@ export async function promoteLoopRuntimeRepair({
   let rolledBack = false;
   const needsRollback = !canaryOk || !healthOk;
   if (needsRollback) {
-    const previousReleaseSha = previousReleasePath
-      ? await readManifestSha(previousReleasePath, readFileFn) : null;
+    const previousReleaseSha = ownerBaseline.release_sha;
     const available = SHA256.test(String(previousReleaseSha || ""));
     let executed = false;
     let result = null;

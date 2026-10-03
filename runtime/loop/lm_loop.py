@@ -2059,6 +2059,56 @@ def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
     return result.returncode, f"{result.stdout}{result.stderr}"
 
 
+def owner_release_baseline(registry: dict, loop_id: str, *, loops_root: Path,
+                           launchctl_safe: Path) -> dict:
+    """Prove one owner's loaded immutable release from launchd's native argv."""
+    entry = registry["loops"].get(loop_id)
+    if not isinstance(entry, dict):
+        raise ValueError("unknown owner")
+    label = entry["label"]
+    rc, detail = _safe_launchctl(
+        launchctl_safe, ["print", f"gui/{os.getuid()}/{label}"])
+    if rc != 0:
+        raise RuntimeError("owner baseline launchd readback unavailable")
+    arguments = _loaded_arguments(detail)
+    if len(arguments) != 3:
+        raise ValueError("owner baseline loaded argv unsupported")
+    releases_root = (loops_root.expanduser() / "releases").resolve(strict=True)
+    release_root = Path(arguments[2])
+    if not release_root.is_absolute():
+        raise ValueError("owner baseline release root is not absolute")
+    resolved_root = release_root.resolve(strict=True)
+    if str(resolved_root) != arguments[2]:
+        raise ValueError("owner baseline release root is not canonical")
+    try:
+        resolved_root.relative_to(releases_root)
+    except ValueError as error:
+        raise ValueError("owner baseline is outside immutable releases") from error
+    expected_arguments = [str(resolved_root / "bin/lm-loop-run"), loop_id, str(resolved_root)]
+    if arguments != expected_arguments or not (resolved_root / "bin/lm-loop-run").is_file():
+        raise ValueError("owner baseline loaded argv identity mismatch")
+    manifest = json.loads((resolved_root / "RELEASE.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise ValueError("owner baseline immutable manifest invalid")
+    release_sha = manifest.get("sha")
+    if (not isinstance(release_sha, str)
+            or re.fullmatch(r"[a-f0-9]{40}", release_sha) is None
+            or manifest.get("release_paths") != "ALL"):
+        raise ValueError("owner baseline immutable manifest invalid")
+    release_registry = validate_registry(json.loads(
+        (resolved_root / "config/loop-registry.json").read_text(encoding="utf-8")))
+    release_entry = release_registry["loops"].get(loop_id)
+    if not isinstance(release_entry, dict) or release_entry.get("label") != label:
+        raise ValueError("owner baseline release registry identity mismatch")
+    return {
+        "ok": True,
+        "owner_id": loop_id,
+        "label": label,
+        "release_root": str(resolved_root),
+        "release_sha": release_sha,
+    }
+
+
 def targeted_snapshot(registry: dict, targets: set[str],
                       launchctl_safe: Path) -> list[dict]:
     """Read only explicitly requested services; never list the whole fleet."""
@@ -2563,11 +2613,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
-        "admission-v2-enable", "apply", "browser", "doctor", "pre-effect-reconcile",
+        "admission-v2-enable", "apply", "baseline", "browser", "doctor", "pre-effect-reconcile",
         "health", "reconcile", "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all] [--loaded-idle-only]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all] [--loaded-idle-only]|baseline <loop-id>|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -2624,6 +2674,26 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1
         print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+    if command == "baseline":
+        if len(args) != 2:
+            print(json.dumps({"ok": False, "error": "baseline requires <loop-id>"}, sort_keys=True))
+            return 2
+        controller_root = Path(os.environ.get(
+            "LIFE_MANAGER_RELEASE_ROOT", ROOT)).expanduser().resolve(strict=True)
+        launchctl_safe = Path(os.environ.get(
+            "LIFE_MANAGER_LAUNCHCTL_SAFE", str(controller_root / "bin/launchctl-safe")
+        )).expanduser()
+        loops_root = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser()
+        try:
+            registry = validate_registry(json.loads(
+                (controller_root / "config/loop-registry.json").read_text(encoding="utf-8")))
+            result = owner_release_baseline(
+                registry, args[1], loops_root=loops_root, launchctl_safe=launchctl_safe)
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 1
+        print(json.dumps(result, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
     if command == "health":

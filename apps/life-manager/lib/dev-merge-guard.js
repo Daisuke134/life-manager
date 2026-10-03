@@ -556,7 +556,7 @@ function writePromotionHoldContent(holdPath, content) {
 // merged commit to record. `pid` is the guard's own process — recorded so a later self-build pass
 // can tell a genuinely crashed guard (pid dead) from one that is still working past its own TTL.
 function acquirePromotionHold({
-  holdPath, ownerId, prNumber, sha = null, ttlMs = DEFAULT_PROMOTION_HOLD_TTL_MS,
+  holdPath, ownerId, ownerLabel = null, prNumber, sha = null, ttlMs = DEFAULT_PROMOTION_HOLD_TTL_MS,
   now = () => new Date(), pid = process.pid,
 }) {
   const nowDate = now();
@@ -568,9 +568,10 @@ function acquirePromotionHold({
     const content = {
       sha: sha || null,
       owner_id: ownerId,
+      owner_label: ownerLabel,
       pr: prNumber,
       pid,
-      previous_release_path: null,
+      baseline: null,
       created_at: nowDate.toISOString(),
       expires_at: new Date(nowDate.getTime() + ttlMs).toISOString(),
     };
@@ -584,11 +585,13 @@ function acquirePromotionHold({
 // Called once, right after merge succeeds and before the promotion itself runs: from this moment a
 // crash actually has a merged commit that needs reverting, so the hold has to say so. Patches onto
 // the EXISTING hold content rather than replacing it, so pid/owner/pr/expiry survive untouched.
-function updatePromotionHold({ holdPath, sha, previousReleasePath = null }) {
+function updatePromotionHold({ holdPath, sha, baseline }) {
   try {
     const existing = readPromotionHold(holdPath);
     if (!existing) return { ok: false, reason: "hold_missing" };
-    const content = { ...existing, sha, previous_release_path: previousReleasePath };
+    const content = { ...existing };
+    if (sha !== undefined) content.sha = sha;
+    if (baseline !== undefined) content.baseline = baseline;
     writePromotionHoldContent(holdPath, content);
     return { ok: true, content };
   } catch (error) {
@@ -665,13 +668,29 @@ function resolveCurrentReleasePath(loopsRoot) {
   }
 }
 
-function defaultApplyOwnerToRelease({ releaseRoot, ownerId }) {
+function defaultApplyOwnerToRelease({ controllerRoot, baseline, loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops") }) {
   try {
-    const stdout = execFileSync(path.join(releaseRoot, "bin/lm-loop"), ["apply"], {
-      encoding: "utf8",
-      env: { ...process.env, LIFE_MANAGER_APPLY_TARGET: ownerId, LIFE_MANAGER_RELEASE_ROOT: releaseRoot },
+    const verified = validateStoredOwnerBaseline(baseline, {
+      ownerId: baseline?.owner_id, expectedLabel: baseline?.label, loopsRoot,
     });
-    return { ok: true, stdout };
+    if (!verified || !controllerRoot) return { ok: false, error: "owner_baseline_unverified" };
+    const stdout = execFileSync(path.join(controllerRoot, "bin/lm-loop"), ["apply", "--loaded-idle-only"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        LIFE_MANAGER_APPLY_TARGET: verified.owner_id,
+        LIFE_MANAGER_RELEASE_ROOT: verified.release_root,
+      },
+    });
+    let receipt = null;
+    try { receipt = JSON.parse(String(stdout || "")); } catch {}
+    const item = Array.isArray(receipt) ? receipt.find((row) => row
+      && row.label === verified.label
+      && (row.loop_id == null || row.loop_id === verified.owner_id)) : null;
+    return {
+      ok: item?.ok === true && item.release_sha === verified.release_sha && item.skipped == null,
+      item,
+    };
   } catch (error) {
     return {
       ok: false,
@@ -681,17 +700,28 @@ function defaultApplyOwnerToRelease({ releaseRoot, ownerId }) {
   }
 }
 
+function validateStoredOwnerBaseline(value, { ownerId, expectedLabel, loopsRoot }) {
+  if (!value || value.ok !== true || value.owner_id !== ownerId || value.label !== expectedLabel) return null;
+  if (typeof value.label !== "string" || typeof value.release_root !== "string"
+      || typeof loopsRoot !== "string" || !/^[a-f0-9]{40}$/.test(String(value.release_sha || ""))
+      || !path.isAbsolute(value.release_root)) return null;
+  const root = path.resolve(value.release_root);
+  const releases = path.resolve(loopsRoot, "releases");
+  if (root !== value.release_root || root === releases || !root.startsWith(`${releases}${path.sep}`)) return null;
+  return { ...value, release_root: root };
+}
+
 // Crash recovery for an orphaned hold, run once per self-build pass BEFORE it picks a PR (see
 // self-build-daily.js). A hold only reaches here when it is either expired or its recording pid is
 // no longer alive — a live guard within its TTL is still legitimately working and must not be
 // touched. Three distinct outcomes, matching the three ways a guard can die:
-//   * a terminal row already exists for its sha -> the guard actually finished, it just crashed
-//     before deleting the hold file itself. Nothing to remedy; release it.
+//   * a successful terminal row already exists for its sha -> the guard actually finished, it just
+//     crashed before deleting the hold file itself. Nothing to remedy; release it.
 //   * no sha at all -> the guard died before the merge stage ever recorded one. Main was never
 //     touched. Release it.
 //   * a sha with no terminal row -> the guard died mid-promotion with a real merged commit in
-//     flight. Revert it on main, reapply the owner to its previous release if one was recorded,
-//     record a terminal row, and release the hold only if the revert actually landed.
+//     flight. Revert it on main, reapply the owner only from its verified baseline, record a terminal
+//     row, and release the hold only when both restorations are proven.
 async function recoverOrphanedPromotionHold({
   holdPath,
   promotionsLedgerPath,
@@ -703,6 +733,8 @@ async function recoverOrphanedPromotionHold({
   releaseHold = releasePromotionHold,
   appendTerminalRow = appendPromotionTerminalRow,
   alert = async () => {},
+  loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops"),
+  controllerRoot = REPO_DIR,
 } = {}) {
   const hold = readPromotionHold(holdPath);
   if (!hold) return { attempted: false, reason: "no_hold" };
@@ -714,7 +746,7 @@ async function recoverOrphanedPromotionHold({
   const sha = hold.sha || null;
   if (sha) {
     const terminal = readTerminalRow(promotionsLedgerPath, sha);
-    if (terminal) {
+    if (terminal?.ok === true || terminal?.rolled_back === true) {
       const released = releaseHold({ holdPath });
       return {
         attempted: true, ok: true, verdict: "recovered_orphan", reason: "terminal_row_found",
@@ -731,11 +763,14 @@ async function recoverOrphanedPromotionHold({
     throw new Error("recoverOrphanedPromotionHold requires revertMainMerge for a sha-bearing hold");
   }
   const revert = await revertMainMerge({ mergedSha: sha, prNumber: hold.pr });
+  const baseline = validateStoredOwnerBaseline(hold.baseline, {
+    ownerId: hold.owner_id, expectedLabel: hold.owner_label, loopsRoot,
+  });
   let ownerReapplyResult = null;
-  let ownerReapplied = true;
-  if (hold.previous_release_path) {
+  let ownerReapplied = false;
+  if (baseline) {
     ownerReapplyResult = await applyOwnerToRelease({
-      releaseRoot: hold.previous_release_path, ownerId: hold.owner_id,
+      controllerRoot, baseline, loopsRoot, ownerId: hold.owner_id,
     });
     ownerReapplied = ownerReapplyResult?.ok === true;
   }
@@ -744,7 +779,7 @@ async function recoverOrphanedPromotionHold({
     merged_sha: sha, pr: hold.pr, ok: false, rolled_back: fullyRemedied,
     recovered_orphan: true, ts: nowDate.toISOString(),
   });
-  if (revert?.ok === true) {
+  if (fullyRemedied) {
     const released = releaseHold({ holdPath });
     return {
       attempted: true, ok: fullyRemedied,
@@ -753,9 +788,9 @@ async function recoverOrphanedPromotionHold({
     };
   }
   await alert(
-    `orphaned promotion hold for PR #${hold.pr} (sha ${sha}): the guard that held it is gone`
-    + ` (pid ${hold.pid}) and the main revert failed (${revert?.error || "unknown error"}). The`
-    + ` hold stays in place; a human must land the revert of ${sha} on main.`,
+    `orphaned promotion hold for PR #${hold.pr} (sha ${sha}) is not fully restored`
+    + ` (main_reverted=${revert?.ok === true}, owner_reapplied=${ownerReapplied}). The hold stays`
+    + " in place for another bounded recovery pass.",
   );
   return {
     attempted: true, ok: false, verdict: "rollback_failed", sha, pr: hold.pr, revert,
@@ -1186,6 +1221,11 @@ function createReviewCommandHook(command, options = {}) {
 async function defaultPromoteLoopRuntimeRepair(args) {
   const { promoteLoopRuntimeRepair } = await import("../../../runtime/loop/recovery-promotion.mjs");
   return promoteLoopRuntimeRepair(args);
+}
+
+async function defaultReadOwnerBaseline(args) {
+  const { readOwnerBaseline } = await import("../../../runtime/loop/recovery-promotion.mjs");
+  return readOwnerBaseline(args);
 }
 
 async function pollUntil(probe, { now, sleep, timeoutMs, intervalMs }) {
@@ -1751,13 +1791,36 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       const holdPath = promotionHoldPath(options);
       const promotionsLedgerPath = defaultPromotionsLedgerPath(options);
       let promotionHold = null;
+      let ownerBaseline = null;
       if (isRecoveryPr) {
         promotionHold = await (deps.acquirePromotionHold || acquirePromotionHold)({
-          holdPath, ownerId: recoveryOwnerId, prNumber,
+          holdPath, ownerId: recoveryOwnerId,
+          ownerLabel: recoveryRegistry.loops[recoveryOwnerId].label, prNumber,
           ttlMs: options.promotionHoldTtlMs,
         });
         if (!promotionHold?.ok) {
           record("merge", false, "promotion_hold_unavailable", { hold: promotionHold, holdPath });
+          break run;
+        }
+        const loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops");
+        const readBaseline = deps.readOwnerBaseline || defaultReadOwnerBaseline;
+        ownerBaseline = await readBaseline({
+          ownerId: recoveryOwnerId,
+          expectedLabel: recoveryRegistry.loops[recoveryOwnerId].label,
+          repoRoot: REPO_DIR,
+          loopsRoot,
+        });
+        if (!ownerBaseline) {
+          record("merge", false, "owner_baseline_unverified", { owner_id: recoveryOwnerId });
+          await (deps.releasePromotionHold || releasePromotionHold)({ holdPath });
+          break run;
+        }
+        const baselineUpdate = await (deps.updatePromotionHold || updatePromotionHold)({
+          holdPath, baseline: ownerBaseline,
+        });
+        if (!baselineUpdate?.ok) {
+          record("merge", false, "promotion_hold_baseline_write_failed", { hold: baselineUpdate });
+          await (deps.releasePromotionHold || releasePromotionHold)({ holdPath });
           break run;
         }
       }
@@ -1781,14 +1844,11 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       // would need reverting. Write it into the hold BEFORE the promotion itself runs (which can
       // take up to 45 minutes polling health) so a later self-build pass can tell "crashed before
       // merge" (sha still null -> nothing to revert) from "crashed after merge" (sha present, no
-      // terminal ledger row -> revert it). `previous_release_path` is resolved here too, the same
-      // way promoteLoopRuntimeRepair resolves it, so the owner can be reapplied to it even if the
-      // guard never lives long enough to return that path itself.
+      // terminal ledger row -> revert it). The verified owner baseline was already persisted before
+      // merge, so this update only adds the merged sha and preserves that exact rollback payload.
       if (isRecoveryPr) {
-        const loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops");
-        const previousReleasePath = resolveCurrentReleasePath(loopsRoot);
         const holdUpdate = await (deps.updatePromotionHold || updatePromotionHold)({
-          holdPath, sha: state.mergeSha, previousReleasePath,
+          holdPath, sha: state.mergeSha,
         });
         if (!holdUpdate?.ok) {
           await deps.alert(
@@ -1814,6 +1874,7 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
           const promote = deps.promoteLoopRuntimeRepair || defaultPromoteLoopRuntimeRepair;
           const promotion = await promote({
             ownerId: recoveryOwnerId, mergedSha: state.mergeSha, repoRoot: REPO_DIR,
+            baseline: ownerBaseline,
           });
           state.promotion = promotion;
           if (!promotion?.ok) {
@@ -1842,13 +1903,13 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
                 ts: new Date().toISOString(),
               },
             );
-            if (revert?.ok === true) {
+            if (fullyRemedied) {
               // Only release the hold once the bad commit is actually off main — releasing it any
               // earlier would let the reconciler cut and fleet-activate the still-merged bad sha.
               await (deps.releasePromotionHold || releasePromotionHold)({ holdPath });
             }
             record("deploy_health", false, "recovery_promotion_failed", {
-              promotion, main_revert: revert, hold_released: revert?.ok === true,
+              promotion, main_revert: revert, hold_released: fullyRemedied,
             });
             verdict = promotion?.reason === "promotion_never_started"
               ? "promotion_never_started"
@@ -1857,8 +1918,8 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
               `recovery PR #${prNumber} merged as ${state.mergeSha} but loop-runtime promotion`
               + ` failed for owner ${recoveryOwnerId} (${promotion?.reason || "hook_failed"}).`
               + ` owner_rolled_back=${ownerRolledBack} main_reverted=${revert?.ok === true}.`
-              + (revert?.ok === true ? "" : " The promotion hold stays in place; a human must land"
-                + ` the revert of ${state.mergeSha} on main before the reconciler can resume.`),
+              + (fullyRemedied ? "" : " The promotion hold stays in place until both main and the"
+                + " owner baseline are restored."),
             );
             break run;
           }
