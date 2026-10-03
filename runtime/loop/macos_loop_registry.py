@@ -70,7 +70,7 @@ def admission_effect_scope(entry: dict) -> str:
 
 
 def validate_registry(registry: dict) -> dict:
-    allowed_top = {"schema_version", "loops", "external_labels", "retired_labels"}
+    allowed_top = {"schema_version", "loops", "external_labels", "retired_labels", "retirement_guards"}
     if (not isinstance(registry, dict)
             or not {"schema_version", "loops"}.issubset(registry)
             or set(registry) - allowed_top):
@@ -239,6 +239,17 @@ def validate_registry(registry: dict) -> dict:
         _fail("retired_labels must be unique valid launchd labels")
     if labels.intersection(retired) or set(external).intersection(retired):
         _fail("retired_labels overlap managed or external labels")
+    guards = registry.get("retirement_guards", {})
+    if not isinstance(guards, dict) or set(guards) - set(retired):
+        _fail("retirement_guards must name only retired labels")
+    for guard in guards.values():
+        if (not isinstance(guard, dict)
+                or set(guard) != {"expected_arguments_sha256", "missing_entrypoint"}
+                or not isinstance(guard.get("expected_arguments_sha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", guard["expected_arguments_sha256"])
+                or not isinstance(guard.get("missing_entrypoint"), str)
+                or not guard["missing_entrypoint"].startswith(("/", "~/"))):
+            _fail("retirement_guards require an argv hash and absolute missing entrypoint")
     return registry
 
 

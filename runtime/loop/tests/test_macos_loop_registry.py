@@ -1647,5 +1647,24 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertLess(status_seconds, 5)
 
 
+class RetirementGuardRegistryTests(unittest.TestCase):
+    def test_guarded_retirement_registry_is_valid(self):
+        value = {"schema_version": 2, "loops": {"example": entry()},
+                 "retired_labels": ["ai.anicca.orphan"], "retirement_guards": {
+                     "ai.anicca.orphan": {"expected_arguments_sha256": "a" * 64,
+                                          "missing_entrypoint": "~/loops/releases/old/entry.py"}}}
+        self.assertEqual(validate_registry(value), value)
+
+    def test_invalid_guard_metadata_is_rejected(self):
+        for bad in (None, [], {"not-retired": {}}, {"ai.anicca.orphan": {}},
+                    {"ai.anicca.orphan": {"expected_arguments_sha256": "bad", "missing_entrypoint": "/missing.py"}},
+                    {"ai.anicca.orphan": {"expected_arguments_sha256": "a" * 64, "missing_entrypoint": "relative.py"}},
+                    {"ai.anicca.orphan": {"expected_arguments_sha256": "a" * 64, "missing_entrypoint": "/missing.py", "skip": True}}):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, "retirement_guards"):
+                    validate_registry({"schema_version": 2, "loops": {"example": entry()},
+                                       "retired_labels": ["ai.anicca.orphan"], "retirement_guards": bad})
+
+
 if __name__ == "__main__":
     unittest.main()
