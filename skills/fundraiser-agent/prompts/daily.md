@@ -271,12 +271,13 @@ For every queued candidate until the execution window ends:
    or display spelling changed. A new named cohort/window remains a new identity.
 2. Observe the rendered form and read visible labels, options, requiredness,
    validation, and existing values. The repository `cdp.py` supports
-   `new|nav|eval|screenshot|clickxy|insert|key|setfile|fillname|fillcss|filllabel|typelabel|selectname|formstate|close`.
-   Use the rendered DOM plus `formstate` as the form observation evidence.
+   `new|nav|eval|screenshot|clickxy|insert|key|setfile|close`.
+   Use `cdp.py eval` to observe visible controls, labels, options, requiredness,
+   validity, and values in the rendered DOM.
    Never start an interactive shell (`zsh -i`, `bash -i`, or equivalent). If
-   `formstate` returns an empty array on a rendered React/Notion form, continue
-   through `cdp.py eval` against visible `input, textarea, select, button,
-   [role=button]` controls and any rendered iframe; an empty generic formstate is
+   a generic DOM observation returns no controls on a rendered React/Notion form,
+   continue through `cdp.py eval` against visible `input, textarea, select, button,
+   [role=button]` controls and any rendered iframe; an empty generic DOM observation is
    an observation fallback signal, not a reason to wait or leave the candidate.
    On dynamic forms, derive the current label-to-control mapping from each
    control's `aria-labelledby` and the referenced label text; never transcribe or
@@ -289,30 +290,19 @@ For every queued candidate until the execution window ends:
    terms do not turn an optional application field into a required one.
 3. Choose one next action from the fresh observation and full context, perform it
    through the existing worker, and observe again.
-   For ordinary HTML forms, prefer the existing generic commands
-   `python3 skills/browser/scripts/cdp.py formstate "$TARGET_ID"`,
-   `python3 skills/browser/scripts/cdp.py fillname "$TARGET_ID" "$NAME" "$VALUE"`,
-   and `python3 skills/browser/scripts/cdp.py selectname "$TARGET_ID" "$NAME" "$VALUE"`.
-   They select the visible element
-   when responsive pages contain hidden duplicates. Do not hand-build shell-to-JS
-   quoting or retry the same failing mutation more than once.
-   For nameless React/Typeform inputs with hidden duplicates, use
-   `python3 skills/browser/scripts/cdp.py fillcss "$TARGET_ID" "$CSS_SELECTOR" "$VALUE"`;
-   it selects the visible matching element and dispatches framework-compatible
-   input/change events. Do not focus a broad `querySelector` and call `insert`.
-   When a visible control has `aria-labelledby`, use
-   `python3 skills/browser/scripts/cdp.py filllabel "$TARGET_ID" "$EXACT_VISIBLE_LABEL" "$VALUE"`
-   on ordinary forms. On React/Notion forms, use
-   `python3 skills/browser/scripts/cdp.py typelabel "$TARGET_ID" "$EXACT_VISIBLE_LABEL" "$VALUE"`
-   from the first mutation so framework state receives trusted text before any
-   Submit attempt.
-   This resolves the current generated ID inside the page and refuses zero or
-   multiple matches; never copy a generated ID into a later mutation command.
-   If a rendered React/Notion validation message still says a populated field is
-   required, its DOM value was not accepted by framework state. Re-enter it with
-   `python3 skills/browser/scripts/cdp.py typelabel "$TARGET_ID" "$EXACT_VISIBLE_LABEL" "$VALUE"`;
-   this focuses, selects, and inserts trusted text. Use `typelabel` for every field
-   showing that contradiction before retrying Submit.
+   Use `cdp.py eval` to resolve the visible control from its current label,
+   `aria-labelledby`, or observed selector. Require exactly one visible match;
+   refuse zero or multiple matches and never reuse a generated ID after rerender.
+   Focus that control and select its current text inside the page, then use
+   `python3 skills/browser/scripts/cdp.py insert "$TARGET_ID" "$VALUE"` for trusted
+   input. For selects, resolve the visible control, choose only an observed option
+   value, and dispatch input/change events through `eval`; read back the selected
+   label and value. Do not hand-build shell-to-JS quoting or retry the same failing
+   mutation more than once. On React/Notion forms, observe framework validation
+   after trusted input; a populated DOM value alone does not prove acceptance.
+   If the field still reports required, resolve and focus it again from its current
+   label, select its text, and insert once before observing again. Never retry Submit
+   while a field's framework validation remains unresolved.
    Never place a dollar-prefixed amount such as `$1,000` directly in a shell
    argument; shell positional expansion corrupts it. Write `USD 1,000` in form
    answers, or pass text through a safely quoted variable. Before final Submit,

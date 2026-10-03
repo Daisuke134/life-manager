@@ -1,6 +1,8 @@
 import os
 import json
 import subprocess
+import sys
+import shlex
 from pathlib import Path
 
 
@@ -8,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = Path(__file__).resolve().parent / "run.sh"
 
 
-def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#!/bin/sh\nexit 1\n"):
+def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#!/bin/sh\nexit 1\n", extra_env=None):
     home = tmp_path / "home"
     home.mkdir()
     calls = tmp_path / "lm-loop.calls"
@@ -39,6 +41,7 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
             "LIFE_MANAGER_BROWSER_FOUNDATION": str(foundation),
             "BASH_FUNC_df%%": df_function,
             "BASH_FUNC_sleep%%": "() { :; }",
+            **(extra_env or {}),
         },
         capture_output=True,
         text=True,
@@ -121,3 +124,58 @@ def test_invalid_browser_endpoint_is_rejected(tmp_path):
         guard_script="#!/bin/sh\necho http://evil.example.test:9222\nexit 0\n",
     )
     assert result.returncode == 75
+
+
+def test_leased_ipv6_endpoint_reaches_both_browser_helpers(tmp_path):
+    # Missing/ambient CDP must not send nav/eval to a different browser than tab creation.
+    captured = tmp_path / "browser-endpoints.json"
+    helper_dir = ROOT / "skills/browser/scripts"
+    probe = (
+        "import cdp, cdp_default_tab, json; "
+        f"json.dump([cdp.BASE, cdp_default_tab._cdp_base()], open({str(captured)!r}, 'w'))"
+    )
+    node_probe = (
+        f"() {{ PYTHONPATH={shlex.quote(str(helper_dir))} "
+        f"{shlex.quote(sys.executable)} -c {shlex.quote(probe)}; return 2; }}"
+    )
+    result, _ = _run(
+        tmp_path, free_kib=4 * 1024 * 1024,
+        guard_script="#!/bin/sh\necho 'http://[::1]:9333'\nexit 0\n",
+        extra_env={"BASH_FUNC_node%%": node_probe, "CDP": "http://127.0.0.1:9999"},
+    )
+    assert result.returncode == 2
+    assert json.loads(captured.read_text()) == ["http://[::1]:9333", "http://[::1]:9333"]
+
+
+def test_tab_transport_failure_does_not_recover_or_retry_inside_pass(tmp_path):
+    captured = tmp_path / "transport-result.json"
+    recovery_calls = tmp_path / "recovery.calls"
+    recovery = tmp_path / "recovery.sh"
+    recovery.write_text(f"#!/bin/sh\ntouch {shlex.quote(str(recovery_calls))}\nexit 0\n")
+    helper_dir = ROOT / "skills/browser/scripts"
+    probe = "\n".join([
+        "import cdp_default_tab, json",
+        "calls = []",
+        "def operation():",
+        "    calls.append(True)",
+        "    raise ConnectionError('connection refused')",
+        "try:",
+        "    cdp_default_tab._run_with_recovery(operation)",
+        "except Exception as error:",
+        "    result = {'calls': len(calls), 'failure_returned': isinstance(error, ConnectionError)}",
+        "else:",
+        "    result = {'calls': len(calls), 'failure_returned': False}",
+        f"json.dump(result, open({str(captured)!r}, 'w'))",
+    ])
+    node_probe = (
+        f"() {{ PYTHONPATH={shlex.quote(str(helper_dir))} "
+        f"{shlex.quote(sys.executable)} -c {shlex.quote(probe)}; return 2; }}"
+    )
+    result, _ = _run(
+        tmp_path, free_kib=4 * 1024 * 1024,
+        guard_script="#!/bin/sh\necho 'http://[::1]:9333'\nexit 0\n",
+        extra_env={"BASH_FUNC_node%%": node_probe, "CLOAK_BROWSER_RECOVERY_SCRIPT": str(recovery)},
+    )
+    assert result.returncode == 2
+    assert json.loads(captured.read_text()) == {"calls": 1, "failure_returned": True}
+    assert not recovery_calls.exists()
