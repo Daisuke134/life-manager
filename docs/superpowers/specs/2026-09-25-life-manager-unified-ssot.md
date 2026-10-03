@@ -4787,7 +4787,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 #### CFO / Mobile Metricsの担当境界
 
 - 担当はAGMSG team lm / lm-cfo-observability-1002、連携primaryはcodex-money-printer。primaryはこのbranch、Apple認証、provider/team、profile、credentialsを重複操作しない。
-- branch feat/lm-mobile-metrics-20261003、remote HEADfd0245e90e4b04a51fa8fe4634adf18a51e48047をfresh ls-remoteで確認。初期handover4797618b0f/baseecddと区別し、担当はbase45へrebase/39tests再実行と報告。現在main80とも区別する。担当branchのrebase/mergeをprimaryが先行しない。
+- branch feat/lm-mobile-metrics-20261003、remote HEAD735d5fdd6bb56e1dba8dbaf54c082cb28964d1d1をls-remoteで確認。旧観測fd0245e90e、初期handover4797618b0f/baseecddと区別する。base45へのrebase/39testsは旧HEAD時点の担当報告であり、新HEADの検証結果・外部gate通過は未取得。担当branchのrebase/mergeをprimaryが先行しない。
 - 担当からの実装・検証報告: ASC acquisition funnel rates、denominator zero fail-closed、RC observed revenueとASC settled proceeds分離、ASC proceeds優先/RC二重計上防止、mobile-apps CFO P&L、unavailable/UNKNOWN表示、product funnel summary、spec/plan/evidence更新。npm188/188、CFO Python39/39 PASS。primaryはこれらのsuiteをこのbranchで再実行していない。
 - 主要外部gateはASC required agreement missing/expired。公式案内 https://appstoreconnect.apple.com/agreements はAccount Holderの承認を要求する。web session期限切れ、Apple loginは2FA待ち、credential validでもapp access warningあり、という担当報告を保持。Chat承認をApple法務Agreement受諾済みと扱わず、API bypass・codeのchat貼付・UNKNOWN→0をしない。
 - 担当の次順序: 正しいAccount Holder/account/provider/team確認→全pending/expired Agreement確認→Web再認証→asc web agreements status→ASC_BYPASS_KEYCHAIN=true asc apps list --output json→acquisition/financial report再取得→RC/settled proceeds join readback→CFO daily/evidence更新→tests再実行→全外部gate PASS後にrelease ownerへmerge依頼。pricing/paywall/submission/marketing変更なし。
@@ -4810,7 +4810,21 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
 2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
 3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
-4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。§225でsameidentity official GET/earningsを取得、local92対official100の90listing join/10applied/79rejected/1started、USD0.00 empty paymentを観測。§226でPaid旧exact1件をfresh反証検証＋positivehint/source proofで解放/replay0。旧App fenceは保持。旧Reply fence1件は§231のexact source/exit境界検証で解放し、自然observer再開を次に照合する。§227でcanonical Reply snapshotの公式API/Gmailを刷新し、後続Paid artifactはok/pending0/在庫0を観測。§228で自然Paid terminalまでjoin済み。継続更新は旧fenceで停止中のReply ownerに依存し、手動刷新だけでは未完。次は継続的なfresh input維持と残exact intent/receipt join→限定reconcile→返信／提出／精算を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
+4. Mercor Paidの独立公式観測・本人限定token更新はmain9cへ統合、immutable/actual load・自然run/公式snapshot/result/marker一致・隔離replay-zeroを§240–241で確認。自然expired→renewedは未証明。旧Reply49631は解放済みだが別旧Reply61324とApp33812は証拠不足でHELD。公式intent/receiptを取得し、同じ案件の返信・提出・精算を閉じる。Freelancer/Upworkはaccount-bound source/inventoryから稼働ownerへ接続、FiverrはMeta Loopで導入。CODE部品やcapability名を稼働実績と扱わない。
+
+確認済みのplatform別境界（根拠§223、Mercor更新§240–241。全laneの最新一斉監査ではない）:
+
+| Platform | 応募・返信・Paidの残チェック | Storefrontの残チェック |
+|---|---|---|
+| Lancers | 各laneの自然実行と公式receipt、旧unknown、納品・精算・着金を結合 | 既存catalogの新しい公式公開・需要・注文・利益を検証 |
+| Mercor | Paid自然観測PASS、期限更新の自然証明とApp/Reply旧fence・実契約/精算が未完 | 現行の応募型経路と区別し、商品販売を稼働済みと報告しない |
+| Coconala | 既存buyer案件の正式検収・支払・着金、financial source接続 | 定型サービス4409818の公開確認済み。契約不一致・fence、問い合わせ→販売→実利益が未完 |
+| CrowdWorks | 応募/返信/Paidの公式readback、旧unknownと納品・精算・着金 | 現行経路は応募型。商品販売経路は未確認、完了扱いしない |
+| Freelancer | 稼働owner未接続。account/inventory→owner→自然応募/返信/Paidを確認 | providerで利用可能な商品販売経路を確認し、適用可否を記録 |
+| Upwork | 稼働owner未接続。account/inventory→owner→自然応募/返信/Paidを確認 | 商品販売経路の公式inventoryと既存ownerへの接続を確認 |
+| Fiverr | Meta Loop導入予定。稼働・受注・Paidは未証明 | account/商品scope→storefront公開→需要/注文→納品/精算/利益を確認 |
+
+メールは§223の検索で選考通知・job alert・invitation等を確認するが、新規応募や入金の証明とは別。残チェックは、最新の自然応募occurrenceと公式応募confirmation・メール・既存通知経路の照合。メールが来ないだけで応募停止と断定しない。
 
 #### 全体の残TODO
 
@@ -4818,7 +4832,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 |---|---|---|
 | Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
 | Self-Build / Eval | latestmain80のimmutable/loaded argv一致は確認済み。次の自然row/run-ID/report一致、実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
-| Paid / 各marketplace | Mercor旧Paid1件の安全な解放とcanonical input刷新は§226–227到達。旧Reply1件は§231で解放/replay0、旧App1件とLancers2/Cw18のeffect unknown（後者は直近census値）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
+| Paid / 各marketplace | Mercor Paidは§241で新main自然観測/replay-zero確認済み。自然期限更新、旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
 | Affiliate | fresh commission/payoutはEMPTY。tax REQUIRED/payment provider SELECTION_REQUIRED、fee/actualcost/settlement/payoutと旧publish fence | primary/Affiliate owner。emptyをprofit/費用0へ変換しない |
 | Connector | 自然認証済み探索は§207到達、参加可能候補0。実候補時のprovider/mail/Calendar receipt、registration/effect/replay-zero、contract/settlement/payout | primary/Connector owner。実候補発生時に公式成果を閉じる |
@@ -4827,16 +4841,20 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | Cloud / self-funding | provider-neutral shelter、DO/Nosana/Akash/BlockRun continuity、外部earned surplusでrenewal、30日benchmark | primary/各owner。owner deposit/internal transferを外部収益としない |
 | TaskMarket / Agent Economy | external paid job、immutable packaging、funnel/margin、x402 treasury receipt、settlement/actualcost | primary/各owner。GET/package/process成功を売上に数えない |
 | Runtime / fleet | 3owner apply failure、unmanaged capafy.kosuke、immutable SHA/loadedargv/health/admission/diskの収束。各fenceを保持 | primary。owner別の具体的失敗境界を診断、稼働ownerをkillしない |
-| 最終CFO統合 | 全14 canonical loopの同期間settled external revenue/fee/actualcost/settlement/payout、unknown/stale gap、replay-zero、net P&L再計算 | primaryが全成果監査、CFO担当とofficial evidenceをjoin |
+| 最終CFO統合 | §242の同期間監査では14loops/companyともunknown、duplicate_receipts0。Coconala source接続、Lancers/CW/Writer/Affiliate fresh coverage、ASC/Capafy coverage、Investment receipt、公式費用のloop配賦と期間を閉じ、settled revenue/fee/refund/actualcost/settlement/payoutからnet P&L再計算 | primaryが全成果監査、CFO担当とofficial evidenceをjoin |
 
 #### 現在cursorとfresh runtime evidence
 
-- 最新sourceはPR6534/本人限定token更新を含むmain9c03543e5dc51f7bc54f8e132a264964a0e40f6d。PR6531/6534は統合済み、再PR/merge不要。PR6534は独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSS/全10CI PASS。実装branch fix/mercor-paid-token-refresh-20261004/HEADce914はclean/pushedで保持。
-- production currentはcc0e8140f891231746bc79e42c32f228ae539f6a/completeALL。Paid actualargv/load一致、manual認証維持後の自然independent snapshot/run/result joinは§236でPASS。在庫0/effect0/pending0は収益ではない。新main9cのcompleteimmutable/source3file一致/Paidactualargv/loadは§240でPASS、新9c自然official snapshot/native/result/marker joinとisolated replay0は§241でPASS。自然expired→renewedの実証は未達。既存release owner61609の実liveを追い、重複build/apply/kill/wakeしない。
+- 最後に検証したsourceはPR6534/本人限定token更新を含むmain9c03543e5dc51f7bc54f8e132a264964a0e40f6d。PR6531/6534は統合済み、再PR/merge不要。PR6534は独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSS/全10CI PASS。実装branch fix/mercor-paid-token-refresh-20261004/HEADce914はclean/pushedで保持。
+- 最後に確認したproduction currentはmain9c/completeALL、immutable 20261004T011929-9c03543e。Paid actualargv/loadは§240、新9c自然official snapshot/native/result/marker joinとisolated replay0は§241でPASS。自然expired→renewedは未証明。在庫0/effect0を売上・利益0へ拡張しない。旧release owner61609はterminalで、現在のowner稼働状態は操作前に再確認する。重複build/apply/kill/wakeしない。
 - SelfBuild exactloaded80/idle/effectunknownfalseは§226、JST04:10自然UUID/report照合は未達。現在のloadedを更新なしにlatestmainと断定しない。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件は§226、Reply49631は§231でexact message業務scope proofにより解放/replay0。別旧Reply61324はnative66602/exit1/証拠不足でHELD、App33812もHELD。過去auth/UI一般作用unknownを0へ変換しない。保留4の受付・不足fields診断は§234。
 - 容量は他既存処理で約3.7GB回復後、closed npx cache1件の限定削除で約155MB増加、旧ENOSPCの全回復を自分の成果へ計上しない。doctorの既存unmanaged capafy.kosukeは未完。全14 CFO/fee/actualcost/settlement/payoutと全残TODOは上表のままgoalactive。
 
+
+#### 現在の一手
+
+CFOのofficial billing/project usageからloop配賦・coverage期間を確認し、Coconala未接続sourceとstale readbackをowner別に閉じる（証拠§242）。同時に通常Mercor運用の期限更新を観測する。Railway公式支払receiptとDO credit相殺invoiceは費用候補であり、配賦未確認のままactualcostへ接続しない。既存大順序は維持し、MobileのApple認証/branchへ重複介入しない。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
