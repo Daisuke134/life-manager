@@ -5,6 +5,31 @@ const test = require("node:test");
 
 const { createLumaScriptFirstWorkflow } = require("./connector-luma-workflow.js");
 
+test("Luma discovery waits for session recovery before reading candidates", async () => {
+  const calls = [];
+  const page = {};
+  const workflow = createLumaScriptFirstWorkflow({
+    ensureAuthenticated: async ({ page: observed }) => {
+      assert.equal(observed, page);
+      calls.push("auth");
+      return { status: "authenticated" };
+    },
+    discoverOnPage: async () => { calls.push("discover"); return []; },
+  });
+  assert.deepEqual(await workflow.discoverCandidates({ page, calendar: {} }), []);
+  assert.deepEqual(calls, ["auth", "discover"]);
+});
+
+test("failed Luma recovery cannot proceed to candidate discovery", async () => {
+  let discoveries = 0;
+  const workflow = createLumaScriptFirstWorkflow({
+    ensureAuthenticated: async () => ({ status: "login_required" }),
+    discoverOnPage: async () => { discoveries += 1; return []; },
+  });
+  await assert.rejects(workflow.discoverCandidates({ page: {}, calendar: {} }));
+  assert.equal(discoveries, 0);
+});
+
 function event(slug, overrides = {}) {
   return Object.freeze({
     provider: "luma",
