@@ -2525,21 +2525,26 @@ def main(argv: list[str] | None = None) -> int:
         "health", "reconcile", "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all] [--loaded-idle-only]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
-        if args[1:] not in ([], ["--all"]):
-            print(json.dumps({"ok": False, "error": "apply accepts only --all"}))
+        apply_args = args[1:]
+        loaded_idle_only = "--loaded-idle-only" in apply_args
+        if loaded_idle_only:
+            apply_args = apply_args.copy()
+            apply_args.remove("--loaded-idle-only")
+        if apply_args not in ([], ["--all"]):
+            print(json.dumps({"ok": False, "error": "apply accepts --all and --loaded-idle-only"}))
             return 2
         target = os.environ.get("LIFE_MANAGER_APPLY_TARGET")
-        if not target and args[1:] != ["--all"]:
+        if not target and apply_args != ["--all"]:
             print(json.dumps({
                 "ok": False,
                 "error": "apply requires LIFE_MANAGER_APPLY_TARGET; use --all only for an intentional fleet-wide reload",
             }, sort_keys=True))
             return 2
-        if target and args[1:] == ["--all"]:
+        if target and apply_args == ["--all"]:
             print(json.dumps({"ok": False, "error": "--all conflicts with LIFE_MANAGER_APPLY_TARGET"}))
             return 2
         release_root = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", "~/loops/current")).expanduser()
@@ -2550,7 +2555,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             results = apply_live(
                 release_root, agents_dir, launchctl_safe,
-                target=target, protocol_reader=durable_protocol_version)
+                target=target, protocol_reader=durable_protocol_version,
+                skip_busy=loaded_idle_only, preserve_pending_admission=loaded_idle_only)
         except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1

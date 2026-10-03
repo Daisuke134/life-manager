@@ -3747,6 +3747,61 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(applied, ["example", "second"])
 
+    def test_cli_loaded_idle_apply_loads_idle_and_preserves_running_or_unloaded_owner(self):
+        for mode, expected in [("running", "loaded-running"), ("unloaded", "unloaded"), ("idle", None)]:
+            with self.subTest(mode=mode):
+                release = self._release("cli-" + mode).resolve()
+                current = self.root / ("current-" + mode)
+                current.symlink_to(release)
+                arguments = build_apply_plan(registry(), release, SHA)[0]["expected_arguments"]
+                values = self._apply_kwargs(current, self.root / (mode + ".lock"),
+                                            expected_arguments=arguments if mode == "idle" else None,
+                                            agents_dir_name="Agents-" + mode)
+                values["calls"].write_text("")
+                target = values["agents_dir"] / "ai.anicca.example.plist"
+                old_bytes = plistlib.dumps({"Label": "ai.anicca.example", "ProgramArguments": ["/old/run.sh"]})
+                target.write_bytes(old_bytes)
+                if mode == "idle":
+                    (self.root / "launchctl.state").write_text("loaded")
+                else:
+                    values["launchctl_safe"].write_text(
+                        "#!/bin/sh\n"
+                        f"printf '%s\\n' \"$*\" >> {shlex.quote(str(values['calls']))}\n"
+                        "if [ \"$1\" = print ]; then\n"
+                        + ("  printf '%s\\n' 'pid = 123'\n" if mode == "running" else "  exit 1\n")
+                        + "fi\nexit 0\n")
+                    values["launchctl_safe"].chmod(0o755)
+                events = []
+                def fixture_apply(root, agents, safe, target=None, **kwargs):
+                    kwargs["protocol_reader"] = lambda: 1
+                    kwargs["event_writer"] = lambda *args: events.append(args)
+                    kwargs["current"] = current
+                    kwargs["lock_path"] = values["lock_path"]
+                    return apply_live(root, agents, safe, target=target, **kwargs)
+                with patch.dict(os.environ, {
+                    "HOME": str(self.root), "LIFE_MANAGER_APPLY_TARGET": "example",
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(self.root / "admission"),
+                    "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(values["agents_dir"]),
+                    "LIFE_MANAGER_LAUNCHCTL_SAFE": str(values["launchctl_safe"]),
+                }, clear=True), patch.object(lm_loop, "apply_live", side_effect=fixture_apply), \
+                        redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(lm_loop.main(["apply", "--loaded-idle-only"]), 0)
+                result = json.loads(output.getvalue())[0]
+                calls = values["calls"].read_text().splitlines()
+                if mode == "idle":
+                    self.assertTrue(result["ok"])
+                    self.assertTrue(result["changed"])
+                    self.assertEqual(result["release_sha"], SHA)
+                    self.assertEqual(result["loaded_arguments"], arguments)
+                    self.assertNotEqual(target.read_bytes(), old_bytes)
+                    self.assertEqual(len(events), 1)
+                else:
+                    self.assertEqual(result["skipped"], expected)
+                    self.assertEqual(target.read_bytes(), old_bytes)
+                    self.assertEqual(events, [])
+                    self.assertTrue(all(c.startswith(("preflight", "print ")) for c in calls), calls)
+
     def test_loaded_idle_reconcile_skips_prelock_running_owner_without_mutation(self):
         release = self._release("release-a").resolve()
         current = self.root / "current"
