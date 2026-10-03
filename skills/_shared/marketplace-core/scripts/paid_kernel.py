@@ -178,6 +178,19 @@ def _prepare_run_marker(state_root: Path, occurrence_id: str | None) -> Path | N
     if not isinstance(occurrence_id, str) or not occurrence_id.strip():
         return None
     path = _run_marker_path(state_root, occurrence_id.strip())
+    if path.exists() or path.is_symlink():
+        if path.is_symlink():
+            raise ValueError("existing_run_marker_invalid")
+        previous = json.loads(path.read_text(encoding="utf-8"))
+        if (not isinstance(previous, Mapping) or previous.get("version") != 1
+                or previous.get("occurrence_id") != occurrence_id.strip()
+                or previous.get("status") not in {"pre_effect", "effect_started", "completed"}
+                or (previous.get("status") == "completed" and previous.get("effect") != 0)
+                or (previous.get("status") == "pre_effect" and "effect" in previous
+                    and previous.get("effect") != 0)):
+            raise ValueError("existing_run_marker_invalid")
+        # The occurrence's prior mutation boundary survives a later attempt.
+        return path
     _write(path, {"version": 1, "occurrence_id": occurrence_id.strip(),
                   "status": "pre_effect"})
     return path
@@ -604,13 +617,21 @@ def main(argv: list[str] | None = None) -> int:
     args, provider_argv = parser.parse_known_args(argv)
     if provider_argv[:1] == ["--"]:
         provider_argv = provider_argv[1:]
-    pre_effect_hint = _prepare_pre_effect_hint(args.max_workers)
+    pre_effect_hint = None
     adapter, decide = _load_provider(args.provider_adapter, provider_argv)
     state_root = args.state_root.expanduser().resolve()
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
     run_marker = None
     try:
         run_marker = _prepare_run_marker(state_root, occurrence_id)
+        prior_armed = (run_marker is not None and
+                       json.loads(run_marker.read_text(encoding="utf-8")).get("status") == "effect_started")
+        if not prior_armed:
+            pre_effect_hint = _prepare_pre_effect_hint(args.max_workers)
+        else:
+            prior_hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+            if prior_hint:
+                _clear_pre_effect_hint(Path(prior_hint).expanduser().resolve())
         result = run_wake(adapter=adapter, decide=decide,
                           state_root=state_root,
                           max_workers=args.max_workers,
@@ -660,7 +681,10 @@ def main(argv: list[str] | None = None) -> int:
         and result.get("effect") == 0
         and all(item.get("pre_effect") is True for item in failed_items)
     )
-    if (hint_path and result.get("effect") == 0
+    if hint_path and (pre_effect_hint is None or not pre_effect_hint.exists()):
+        _clear_pre_effect_hint(Path(hint_path).expanduser().resolve())
+    if (hint_path and pre_effect_hint is not None and pre_effect_hint.exists()
+            and result.get("effect") == 0
             and ((result.get("status") == "failed"
                   and result.get("failed_step") == "provider_inventory")
                  or all_item_failures_pre_effect)):
