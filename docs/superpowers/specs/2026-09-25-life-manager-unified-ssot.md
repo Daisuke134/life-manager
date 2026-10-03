@@ -4787,11 +4787,30 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 #### CFO / Mobile Metricsの担当境界
 
 - 担当はAGMSG team lm / lm-cfo-observability-1002、連携primaryはcodex-money-printer。primaryはこのbranch、Apple認証、provider/team、profile、credentialsを重複操作しない。
-- branch feat/lm-mobile-metrics-20261003、remote HEAD4797618b0f7c5dbbb9c36be3972029f1b50796ebをfresh ls-remoteで確認。報告された開発baseはecdd32c8d3であり、現在mainc99dbb406fとは区別する。担当branchのrebase/mergeをprimaryが先行しない。
+- branch feat/lm-mobile-metrics-20261003、remote HEADfd0245e90e4b04a51fa8fe4634adf18a51e48047をfresh ls-remoteで確認。初期handover4797618b0f/baseecddと区別し、担当はbase45へrebase/39tests再実行と報告。現在main80とも区別する。担当branchのrebase/mergeをprimaryが先行しない。
 - 担当からの実装・検証報告: ASC acquisition funnel rates、denominator zero fail-closed、RC observed revenueとASC settled proceeds分離、ASC proceeds優先/RC二重計上防止、mobile-apps CFO P&L、unavailable/UNKNOWN表示、product funnel summary、spec/plan/evidence更新。npm188/188、CFO Python39/39 PASS。primaryはこれらのsuiteをこのbranchで再実行していない。
 - 主要外部gateはASC required agreement missing/expired。公式案内 https://appstoreconnect.apple.com/agreements はAccount Holderの承認を要求する。web session期限切れ、Apple loginは2FA待ち、credential validでもapp access warningあり、という担当報告を保持。Chat承認をApple法務Agreement受諾済みと扱わず、API bypass・codeのchat貼付・UNKNOWN→0をしない。
 - 担当の次順序: 正しいAccount Holder/account/provider/team確認→全pending/expired Agreement確認→Web再認証→asc web agreements status→ASC_BYPASS_KEYCHAIN=true asc apps list --output json→acquisition/financial report再取得→RC/settled proceeds join readback→CFO daily/evidence更新→tests再実行→全外部gate PASS後にrelease ownerへmerge依頼。pricing/paywall/submission/marketing変更なし。
 - Mobile Doneはapps list成功、公式acquisition、financial report ID/currency/settlement情報、二重計上0、CFO unknown/unavailableの正しい保持、AGMSGで変更/検証/残gate/次作業の報告。RC MRR・chart revenueはASC settled proceedsの代用ではない。
+
+#### 契約収益と自社商品factoryの成果条件
+
+Daisの既定方針は、契約仕事から実収益と学習を得ながら、自分たちが提供内容を決める定型サービス・software・Apps・agentsを作って売り、反復可能な実利益を拡大すること。storefrontは主要な販売入口であり、出品数だけを成果にしない。この利益を安全な運用・改善・computeへ再投資し、利用者の実際のcash flow・純資産・financial healthの改善につなぐ。一つのentityがすべての人・生命へ利益を還元するAGI構想と巨額収益は長期目標で、現在達成済みの収益や能力として報告しない。既存TODOの大きな順序は変えない。
+
+- providerごとに応募型・商品販売型・両方を区別する。応募、返信／見積り、funded contract、制作、正式納品／検収、provider精算、payout／銀行着金を同じ案件へ結合する。storefrontが適用外のproviderはN/Aと明示し、実装不足を完了扱いしない。
+- 自社商品はproduct ID/version、顧客課題、対象顧客、固定scope・納品物・価格・納期・support境界と再利用できる実装を持つ。受託から得る一般化した手法・tests・benchmarksを、自分たちに再利用権のある範囲で商品化する。顧客の秘密・credential・権利のない成果物を転用しない。
+- buildとsellの両方を既存ownerへ接続する。catalog／storefront公開→適切な集客→view／inquiry→注文→funded terms→制作／納品→精算／着金→実利益のfunnelを観測する。新しい独立schedulerや重複Paid laneを増やさない。provider固有の四レーン詳細は各design SSOTを参照する。
+- 応募獲得とstorefront獲得をattributionで区別する。listing/product version、lead source、provider order/contract ID、delivery/payment/settlement/payout receiptをjoinし、同じ収益を重複計上しない。出品者累積販売件数・表示価格・MRR・応募件数・buyer escrowを今期の実利益へ置換しない。
+- 実利益は同期間のsettled external revenueからfee、refund、actual inference/infra/fulfillment cost等を差し引いて検証する。unknown currency/cost/settlementはunknownのまま残す。観測した1販売あたりの作業量・human介入・cost・quality・購入者の結果を改善し、反復して利益が残る商品を拡大する。架空の利益率・購入者成果・将来売上を作らない。
+- learning loopは現実の購入者feedback／失敗／receiptから、再現可能なeval・baseline・比較・改善・safe promotion/recoveryへつなぐ。Apps・Capafy等にも共通手法を移す。自動修復と自己改善は、実行成功だけでなく品質・費用・利益・購入者成果の悪化を検出できることを成果に含める。
+- Meta LoopによるFiverr等の導入は予定と稼働を区別する。account/profile ownership・providerの許可された操作・read-only catalog/inventoryを先に確認し、storefront／replyのownerを段階的に接続する。制作／Paidの実行はfunded termsと正式なauthorizationを取得してからにする。storefrontの導入を「既存funded orderがないから永遠に開始できない」という循環gateにはしない。
+
+#### Marketplace確認の具体的な残チェック
+
+1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
+2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
+3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
+4. Mercorは既存登録browserのavailability/ownership、exact fenceの公式readback、返信／提出／earnings境界を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
 
 #### 全体の残TODO
 
@@ -4857,3 +4876,29 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - state/lancers-http-readiness-source-proof-20261003.json/mode600へmain/CI/未達productionpatchloadを更新。main/source条件をログイン復旧・本人identity・currentcontract・financialreceiptへ置換しない。実3route HTTP405/samehashとhistoricalJPY2000 funding通知は別stage。auth変更/再申請/返信/納品/fence解除/個人資金spend0。
 - currentcompleteALL45 /Users/anicca/loops/releases/20261003T205247-45c06a19、liveglobal45341/45273が所有。SelfBuild旧c5e6/eventee7aのnewloadedargv/自然reportjoinも未達。latestmain80の自然immutable/loadとLancerhelperFalse/naturalreadbackを既存ownerのterminal後に追い、重複build/apply/killしない。
 - native新規reviewthreadはlimitで作れず既存read-onlyreviewerを再利用、新規context非claim。モデル実usage不明/費用未算定。Mobile担当branch/Apple auth/profile変更0、全体残TODO正本§217を保持。
+
+
+### 223. 7 platform実行・storefront・メールのread-only監査
+
+Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／storefrontをsource・registry・現行runtime・既存official artifacts・公開page・既存Gmailから読み取った。client送信・公開・再申請・auth/profile変更0。監査proofはstate/marketplace-full-funnel-audit-20261003.json/mode600。peerはMercor/Freelancer/Upwork/Fiverrを別責任でread-only検証（既存reviewer再利用、新context非claim）、primaryはLancers/Cw/Coconala/public/mailを所有。
+
+| Platform | 応募 | 返信 | 制作／納品／精算／payout | Storefront |
+|---|---|---|---|---|
+| Lancers | ownerあり、直近capacity deferred | ownerあり、provider human verificationでblocked | Paid inventory失敗、current financial receipt UNKNOWN | ownerあり。published1338228の保存readbackは09/18、現在effect fence、公的URLはHuman check。現在販売・profitを未証明 |
+| CrowdWorks | ownerあり、直近exit75 | polling/一部effect試行。最新effect1はpending/reconcile_unknown/readback0、成功返信と数えない | paid5件はhandoff pre_effect失敗1＋unknown4、financial UNKNOWN | 現行architectureではN/A。集客入口と応募型収益を保持 |
+| Coconala | ownerあり、effect_unknownでblocked | polling実行、192観測/181readback、pending11、当該batch effect0 | 3件追跡。2件はbuyer-visible artifactあり／buyer待ち、formal delivery=false。精算／bank payout UNKNOWN | 公開service4409818を公式pageで確認、購入入口あり。owner latestは09/26 official_service_contract_invalid。公開出品とfactory完走を分離 |
+| Mercor | ownerあり、current effect_unknown。09/20 historical applied48、local92とsame-occurrence joinなし | Gmail reply ownerあり／blocked、on-platform未対応 | Paid ownerあり／blocked、提出human_submission_required実装境界。current settlement/payout UNKNOWN | 現行role/application型、商品listing ownerなし |
+| Freelancer | adapter/source部品のみ、active ownerなし／旧3label disabled | active ownerなし | paid_owner_not_registered、current receipt/financial UNKNOWN | production実装／ownerなし |
+| Upwork | modulesあり、active ownerなし／旧2label disabled | active ownerなし | paid_owner_not_registered、current receipt/financial UNKNOWN | 公式Project Catalogは存在するがproduction owner未接続 |
+| Fiverr | seller型、応募lane N/A | Meta能力の予定のみ | deliver/revise/earnings/payoutは予定、production owner未導入 | publish_gig/update_gigは予定、Meta Loop未provision |
+
+- current runtimeは45/c99/c5の各SHAで観測、peer4providerのsource snapshotは45。後段のcurrent80はLancers account-ready guardを含むが、新規platformのowner/provisioningは増えていない。Root現在sourceと旧docs worktreeの差異も確認し、Cw replyのnon-blocking wrapper・Lancer新readbackを現行sourceで再確認した。
+- Mercorブラウザのpeer補足をprimaryで訂正: logical owner mercor-revenue-browserはbrowsers registryに存在し、launched_by ai.anicca.job-search-mercor-browserはexternal_labels登録済み。active LM loopに無いだけで誤った参照と断定しない。fresh service printは未loaded、resolverはendpoint_unavailableであり、次は既存登録ownerの復旧／ownership確認。参照書換え・重複owner作成・fence解除／再送0。
+- 最新Mercor3exact occurrencesはapplication18db046d3996a728-89512、paid18db0467c52672b0-87430、reply18db0472e23ce6a8-91647、いずれも45/exit75/resource_effect_unknown/receipt null。古いapplied48、contracts0や08/31 earnings emptyを現在の売上0へ変換しない。generic Job HunterのcallgraphにもFreelancer/Upwork/Fiverr実行経路は無い。
+- Coconala公式公開page https://coconala.com/services/4409818 はZoom→Slack通知フローの固定scope商品と購入入口を示した。表示6万円は価格、出品者総販売実績26件は累積seller countであり、この商品／今期／Life Managerのsettled profitではない。定型software/service商品化の現物があることだけを確認。
+- 公式Upwork https://www.upwork.com/services/ はProject Catalogのpredefined scope/upfront price商品販売を提供、公式Fiverr https://www.fiverr.com/start_selling はseller/Gig入口を提供。機能の存在と当entityの導入済みを分離し、実account/policy/owner/sale receiptが必要。
+- 既存Gmailの30day検索は各provider上限20、Upwork4。Lancers/Cw/Coconala/Upworkはprivate credential emailとmailbox一致、Mercor/Freelancerはこの検索でidentity一致未検証。最新Lancers/Cw/Coconalaは10/03の既存応募の選考終了／取消等、Freelancerは10/03 job alerts、Upworkは10/02 interview invitation、Mercorは09/30 role update。通知自体は届くが、新規応募confirmation／contract／payment receiptではない。検索の不在や20件limitを応募なしの根拠にしない。sourceproof state/marketplace-mail-metadata-audit-20261003.json/mode600。
+- operator通知の既存実装はTelegram outbox、provider側の応募emailとは別経路。Coconala Paid latest通知のprovider messageId102257も確認。Mail/operator通知不足を直すために新bot／別schedulerを作らない。
+- Mobile/CFO担当からのAGMSG更新とremoteを確認: branch feat/lm-mobile-metrics-20261003はfd0245e90e4b04a51fa8fe4634adf18a51e48047へ更新、base45へのrebase/6商品scope/39tests再実行は担当報告。最後のreview依頼は撤回され専任fresh reviewerへrouting済み、primaryへのedit依頼なし。branch/auth/profile変更0。
+
+大TODO順序は§217のまま。追加はlaneごとの未達条件・通知とreceiptの区別・自社商品のbuild/sell/実利益/購入者成果/learningの具体的チェックであり、scopeを小さく言い換えたり、全platform稼働やprofitを宣言しない。
