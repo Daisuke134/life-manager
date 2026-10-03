@@ -5105,3 +5105,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - latest Paid artifactはstatusfailed/failed3/effect0/readback0、native run/occurrence/timestamp無し。各itemはtargeted_readbackでcollector_unhealthy:talkroom_history_empty。履歴全体の納品ゼロ・provider残高ゼロの根拠ではない。selected talkroomは3回のfresh tab retry後も空ならfail-closedする実経路を確認。次は既存browser lease下のexact talkroom HTTP/login/container/paginationと公式支払/fee/settlement/payout IDsを取得し、金融source未接続を閉じる。effect fence解放/再送0。
 - fresh read-only railway_cost_allocation_reviewは公式usage coverageの限定SHIP、paid receipt照合/loop配賦HOLD、actualcost接続不可。service明細は3/6projectのscopeで、bankmatchも未確認。
 - 証拠: state/cfo-railway-allocation-readonly-20261004.json、cfo-railway-allocation-audit-20261004.json、cfo-coconala-source-boundary-20261004.json、mode600。全goalactive、§217の大順序・別担当Mobile境界を保持。
+
+
+### 244. Coconala selected talkroomの公式HTTP403観測と失敗receipt修復
+
+- 既存coconala:kosuke with-browser lease＋immutable9c DefaultTab/inspect_pageの同じ経路で、旧Paid failed itemのtalkroom18180857をowned contextからread-only診断。HTTP403/readycomplete/message0/composefalse/stepfalse/bodylength13、10秒後も同じ。loginredirectfalse/notfoundfalse/captchapresentfalseで、認証切れ・bot判定等の原因は未確定。provider業務send0、auth/vault注入0、他ownerのpage close0。
+- 旧targeted snapshot-failure3件はtalkroom_history_emptyだがHTTP/finalroute/title等が欠けている。実403を確認したscopeは18180857だけで、他2件も403と断定しない。追加title metadata probeはbrowser lease busy/exit75/読取前終了。live Paid/Reply borrowerをkill/restartせず、同じ読み取りを無観測で繰り返さない。
+- 専用worktreeの既存codex-money-printer leaseをheartbeatで確認・延長、freshmain9c由来branch fix/coconala-talkroom-http-readback-20261004を作成。HTTP403/503が履歴保存へ到達する2REDを再現。TALKROOM_FULL_EXPRESSIONでPerformanceNavigationTiming.responseStatusを保持、source_receiptで有効なHTTPstatusを優先しtitle fallback維持、selected収集でHTTP400–599を履歴保存/空DOMretry前にfail-closedしexact source receiptを保持。HTTP403のアクセス復旧やfinance成功の代用ではない。
+- HEADa38b02ec74e09658a4022763fda991dfc8954727/2files/production+15-2lines、remote一致/clean/pushed。focused5/related265/adapter15/contract14loops178jobs/OSS/diffPASS。shared runtime suite session60840とfresh read-only coconala_http_receipt_reviewが進行中。doctorは既存unmanaged ai.anicca.provision-browser.capafy.kosukeのためFAIL/missing0。他profile/別担当Mobileへの変更0、fence解放0。
+- 証拠 state/coconala-history-readonly-probe-20261004.json、coconala-http-receipt-source-proof-20261004.json/mode600。次はrequired runtime/freshreviewを閉じ、source統合→既存release ownerのterminal→immutable/対象idle load→次の自然failure receiptを照合する。HTTP403のprovider原因と正式納品/金融receipt/settlement/payoutは未完、§217全残TODOとgoalactiveを維持。
