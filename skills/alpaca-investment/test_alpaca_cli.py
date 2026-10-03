@@ -237,6 +237,7 @@ class EtfDailyHistoryTests(unittest.TestCase):
 
         self.assertEqual(run.call_count, 1)
 
+
     def test_history_rejects_missing_symbol(self):
         response = self._trim(_response(), COMPLETED_SESSIONS[60])
         response.pop()
@@ -248,6 +249,44 @@ class EtfDailyHistoryTests(unittest.TestCase):
                     credentials_path=Path("credentials"), cli_path=Path("alpaca"),
                     start=START, end=COMPLETED_SESSIONS[60],
                 )
+
+
+class PaperCostReadbackTests(unittest.TestCase):
+    def test_read_paper_stock_costs_returns_official_fee_by_client_order(self):
+        orders = [
+            {"id": "order-entry", "client_order_id": "lm-ai-" + "a" * 24,
+             "status": "filled", "symbol": "QQQ", "side": "buy",
+             "filled_qty": "0.025", "filled_avg_price": "400"},
+            {"id": "order-exit", "client_order_id": "lm-ai-" + "b" * 24,
+             "status": "filled", "symbol": "QQQ", "side": "sell",
+             "filled_qty": "0.025", "filled_avg_price": "410"},
+        ]
+        fills = [
+            {"id": "fill-entry", "order_id": "order-entry", "activity_type": "FILL",
+             "symbol": "QQQ", "side": "buy", "qty": "0.025", "price": "400"},
+            {"id": "fill-exit", "order_id": "order-exit", "activity_type": "FILL",
+             "symbol": "QQQ", "side": "sell", "qty": "0.025", "price": "410"},
+        ]
+        fees = [{"id": "fee-entry", "order_id": "order-entry", "activity_type": "CFEE",
+                 "qty": "-0.01", "price": "1"}]
+        with patch.dict(alpaca_cli.os.environ, {"LIFE_MANAGER_INVESTMENT_MODE": "paper"}), \
+                patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+                    alpaca_cli, "_run", side_effect=[orders, fills, fees]
+                ):
+            result = alpaca_cli.read_paper_stock_costs(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                client_order_ids=["lm-ai-" + "a" * 24, "lm-ai-" + "b" * 24],
+            )
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(result["fees_by_client_order_id"], {
+            "lm-ai-" + "a" * 24: "0.01",
+            "lm-ai-" + "b" * 24: "0.00",
+        })
+        self.assertEqual(result["source_receipt_ids"], [
+            "alpaca-order:order-entry", "alpaca-order:order-exit",
+            "alpaca-fill:fill-entry", "alpaca-fill:fill-exit", "alpaca-fee:fee-entry",
+        ])
 
 
 if __name__ == "__main__":
