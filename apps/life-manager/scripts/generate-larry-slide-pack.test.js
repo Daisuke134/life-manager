@@ -230,3 +230,21 @@ test("an exhausted pool stays failed when generation yields no fresh approved ca
   assert.equal(generated, 1, "exhausted inventory must attempt the existing factory once");
   assert.equal(fs.readFileSync(pool, "utf8"), before);
 });
+
+test("selection rereads publication history after the factory finishes", async (t) => {
+  const dataDir = tempDataDir();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const old = { packRef: `object://sha256/${"a".repeat(64)}`, familyId: "fixture", createdAt: "2026-09-27T00:00:00.000Z" };
+  const fresh = { ...old, packRef: `object://sha256/${"f".repeat(64)}`, createdAt: NOW };
+  const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+  fs.mkdirSync(path.dirname(pool), { recursive: true });
+  fs.writeFileSync(pool, JSON.stringify(old) + "\n");
+  const result = await resolveLarryJaSlot({
+    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
+    generateText: async () => {}, generateCandidates: async () => {
+      writeDistributionLedger(dataDir, [{ receipt: { pack_sha256: "a".repeat(64), published_at: NOW } }]);
+      return [fresh];
+    },
+  });
+  assert.equal(result.selected.packRef, fresh.packRef);
+});
