@@ -5465,3 +5465,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - fresh railway_pdf_binding_reviewは同API対象1件/公式PDF、Gmail message1a0e2f3d4a3efb69を独立再取得。Google Authentication-Results1件/Stripe DKIM・DMARCとAmazon SES DKIM pass、同ラベル付きinvoice number/amount/date/receipt numberを確認。APIinvoiceId→公式PDF→invoice number→認証済みmailの限定binding SHIP。旧hosted/pdf URL exactmatch falseは変更せず、URL不一致だけでbinding不能とはしない。
 - 同URLのPDFは同じ表示・37,226bytesでも取得ごとにhashが変化。保存hashは取得時点の観測のみで恒久identityではない。Mail本文の明示USDは独立再確認できず、currency USDの根拠を公式PDFだけへ限定。Amount dueをbank payment/paid_atへ変換しない。
 - source/state変更0・provider mutation/send/payment0のreview結果を、primaryがstate/cfo-railway-invoice-pdf-readonly-20261004.json、cfo-railway-invoice-mail-binding-20261004.json/mode600へ記録。時刻付きpaid_at/bankmatch/loop配賦/actual-cost adapter接続/profitはHOLD。CFO writer/production financial table変更0。次は公式時刻・期間/実配賦の不足を閉じる。actual model/effort/usageは観測不能、全goalactive。
+
+
+### 287. SelfBuild canary receiptのowner/release誤受入れをRED修復
+
+- 実promotion経路を読み、rollbackのstrict label/optional loop_id/release検証に対してcanaryがloop_id OR label/oktrueだけで成功を判定する差を確認。実CLI applyはlabel/release_shaを返す。release欠落・異なるrelease・矛盾loop_id・矛盾labelの4ケースで、exit0/healthy snapshotが誤ってpromotion成功になるREDを再現。
+- 同ownerlease/cleanと最新main5fcを確認し専用branch fix/selfbuild-canary-receipt-20261004を作成。canaryのlabel一致とoptional loop_id整合、release_sha===mergedShaを必須にしGREEN。canonical label-only応答のpositiveを追加し、4既存canary fixturesへ実CLI contractのrelease_shaを補った。class/免除/timeout/rollback/old effect fenceは不変、healthy snapshotでinvalid canaryを覆い隠さずhealth pollへ進めない。
+- HEAD2bbe4a76994c3bf114396d6215d366a1a49131cb/2files/57additions6deletions/clean/pushed、関連Node137/runtime759154.681s/adapter15/contract/OSS/doctor/diff PASS。fresh selfbuild_canary_receipt_reviewをgpt-5.6-sol/high/forknoneで依頼中、actual model/effort/usageは観測不能。source/state proof state/selfbuild-canary-receipt-source-20261004.json/mode600。
+- scopeは誤ったcanary receiptを成功にするsource欠陥の修復。external effect owner実hookはunboundのまま、rollback baselineがglobal current由来というowner-locality不足、exact healthのより広い不足、自然promotion/recovery・eval/cost-first本成果も未完。live canary/rollback/publish・wallet/auth/profile操作0、別担当branch変更0。次は独立source review→source受入、その後実owner hooksの残境界を閉じる。全残TODO → §217、全goalactive。
