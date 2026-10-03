@@ -174,6 +174,8 @@
 - Create: `docs/evidence/cfo/2026-10-03-provider-cost-selection.md`
 - Create: `apps/life-manager/lib/provider-lane-readback.js`
 - Test: `apps/life-manager/lib/provider-lane-readback.test.js`
+- Create: `apps/life-manager/migrations/2026-10-03-lm-provider-lane-summary.sql`
+- Test: `apps/life-manager/lib/usage-summary-migration.test.js`
 - Modify: `apps/life-manager/lib/financial-manager-ingest.js`
 - Modify: `apps/life-manager/lib/financial-manager-runtime.js`
 - Modify: `apps/life-manager/lib/financial-manager-report.js`
@@ -184,6 +186,12 @@
 - Test: `apps/life-manager/scripts/cfo-hourly-local.test.js`
 - Modify: `apps/life-manager/lib/ask.js`
 - Test: `apps/life-manager/lib/ask-openpoi.test.js`
+- Modify: `apps/life-manager/lib/provider-budget.js`
+- Test: `apps/life-manager/lib/provider-budget.test.js`
+- Modify: `apps/life-manager/scheduler.js`
+- Test: `apps/life-manager/test/scheduler.test.js`
+- Modify: `apps/life-manager/scripts/provider-benchmark-llm.js`
+- Test: `apps/life-manager/scripts/provider-benchmark-llm.test.js`
 - Modify: `apps/life-manager/scripts/cfo-natural-run.test.js`
 - Test: `skills/cfo/test_loop_pnl.py`
 

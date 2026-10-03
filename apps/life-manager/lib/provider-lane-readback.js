@@ -3,6 +3,7 @@
 const { defaultProviderCaps } = require("./provider-budget.js");
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TENANT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const LANE_DEFINITIONS = Object.freeze({
   poi: Object.freeze({ feature: "places_search", primary: ["openpoi"], capKey: "google_maps:places_search" }),
   transit: Object.freeze({ feature: "travel_route", primary: ["transit_api"], capKey: "google_maps:route" }),
@@ -41,6 +42,11 @@ function normalizeRow(row) {
   const feature = String(row.feature || "").trim();
   const outcome = String(row.outcome || "").trim();
   if (!provider || !feature || !outcome) return null;
+  const numericFields = ["event_count", "provider_units", "estimated_cost_usd"];
+  const numericInvalid = numericFields.some((key) => row[key] == null
+    || !Number.isFinite(Number(row[key])) || Number(row[key]) < 0)
+    || row.unknown_count == null
+    || !Number.isFinite(Number(row.unknown_count)) || Number(row.unknown_count) < 0;
   return {
     provider,
     feature,
@@ -48,7 +54,8 @@ function normalizeRow(row) {
     eventCount: Math.max(0, Math.floor(finite(row.event_count, 0))),
     providerUnits: finite(row.provider_units, 0),
     estimatedUsd: finite(row.estimated_cost_usd, 0),
-    unknownCount: Math.max(0, Math.floor(finite(row.unknown_count, 0))),
+    unknownCount: numericInvalid ? null : Math.max(0, Math.floor(Number(row.unknown_count))),
+    numericInvalid,
     cacheHit: row.cache_hit === true || outcome === "cache_hit",
     observedAt: rowTimestamp(row),
   };
@@ -57,11 +64,11 @@ function normalizeRow(row) {
 function laneFromRows(name, rows, definition, bounds, caps) {
   const matching = rows.filter((row) => row.feature === definition.feature);
   const fallbackRows = matching.filter((row) => row.provider === "google_maps" && !row.cacheHit);
-  const fallbackCalls = fallbackRows.reduce((sum, row) => sum + (row.providerUnits || row.eventCount), 0);
+  const fallbackCalls = fallbackRows.reduce((sum, row) => sum + row.providerUnits, 0);
   const eventCount = matching.reduce((sum, row) => sum + row.eventCount, 0);
   const providerUnits = matching.reduce((sum, row) => sum + row.providerUnits, 0);
   const estimatedUsd = matching.reduce((sum, row) => sum + row.estimatedUsd, 0);
-  const unknownCount = matching.reduce((sum, row) => sum + row.unknownCount, 0);
+  const unknownCount = matching.reduce((sum, row) => sum + (row.unknownCount || 0), 0);
   const periodStart = Date.parse(bounds.start);
   const periodEnd = Date.parse(bounds.end);
   const inPeriod = matching.filter((row) => row.observedAt != null
@@ -71,12 +78,14 @@ function laneFromRows(name, rows, definition, bounds, caps) {
   const successful = inPeriod.filter((row) => row.outcome === "success" || row.cacheHit);
   const primaryRow = successful.find((row) => definition.primary.includes(row.provider));
   const cacheRow = successful.find((row) => row.cacheHit);
-  const fallbackSuccess = successful.find((row) => row.provider === "google_maps");
-  const primary = primaryRow?.provider || (cacheRow ? "cache" : fallbackSuccess?.provider || null);
+  const primary = primaryRow?.provider || (cacheRow ? "cache" : null);
   const failures = [];
   if (matching.length === 0) failures.push(`provider_lane_readback_missing:${name}`);
   else if (inPeriod.length === 0) failures.push(`provider_lane_readback_stale:${name}`);
   else if (successful.length === 0) failures.push(`provider_lane_no_success:${name}`);
+  if (matching.some((row) => row.numericInvalid)) failures.push(`provider_lane_numeric_invalid:${name}`);
+  if (matching.some((row) => row.unknownCount == null)) failures.push(`provider_lane_unknown_cost:${name}`);
+  if (!primaryRow && !cacheRow) failures.push(`provider_lane_primary_missing:${name}`);
   const cap = caps[definition.capKey] || {};
   return {
     lane: {
@@ -122,9 +131,10 @@ async function readProviderLanes({
   const base = requiredText(supaUrl, "provider lane Supabase URL").replace(/\/+$/, "");
   const key = requiredText(supaKey, "provider lane Supabase key");
   const tenant = requiredText(tenantId, "provider lane tenant");
+  if (!TENANT_ID.test(tenant)) throw new Error("provider lane tenant invalid");
   if (typeof fetchImpl !== "function") throw new Error("provider lane fetch unavailable");
   const bounds = reportingPeriodBounds(reportingDate);
-  const response = await fetchImpl(`${base}/rest/v1/rpc/lm_usage_cost_summary`, {
+  const response = await fetchImpl(`${base}/rest/v1/rpc/lm_provider_lane_summary`, {
     method: "POST",
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ p_period_start: bounds.start, p_period_end: bounds.end, p_tenant_id: tenant }),
@@ -132,6 +142,9 @@ async function readProviderLanes({
   if (!response || response.ok !== true) throw new Error("provider lane readback failed");
   const rows = await response.json();
   if (!Array.isArray(rows)) throw new Error("provider lane readback failed");
+  if (rows.some((row) => String(row?.tenant_id || "") !== tenant)) {
+    throw new Error("provider lane tenant mismatch");
+  }
   return normalizeProviderLanes(rows, { reportingDate, nowMs });
 }
 

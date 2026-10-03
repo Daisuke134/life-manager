@@ -38,7 +38,7 @@ The synthetic gate now requires, in addition to fresh Moneytree/business/Google 
 - `transit` lane fresh with bounded fallback calls;
 - `geocoder` lane fresh with bounded fallback calls.
 
-Production plumbing now reads the existing `lm_usage_cost_summary` Supabase RPC for the tenant's JST reporting day, normalizes UTC day buckets, carries `poi`/`transit`/`geocoder` lane state into the Financial Manager report, and records OpenPOI free-primary usage. A missing or failed RPC readback remains partial; it cannot satisfy the gate or become zero usage.
+Production plumbing reads the tenant-bound `lm_provider_lane_summary` Supabase RPC for the JST reporting day, normalizes UTC day buckets, requires explicit unknown-count/numeric fields and a free-primary success, carries `poi`/`transit`/`geocoder` lane state into the Financial Manager report, and records OpenPOI free-primary usage. The migration must be applied before production readback; a missing, malformed, cross-tenant, or failed RPC readback remains partial and cannot satisfy the gate or become zero usage.
 
 The acceptance test proves that a stale geocoder benchmark or an over-cap transit fallback keeps `complete=false`. No seven consecutive real production days are yet available; the existing owner-run natural observation remains the final external gate.
 

@@ -24,7 +24,13 @@ function scoreCandidate(candidate, rows) {
   const asksCorrect = askRows.filter((row) => row.expectedKind === "ask").length;
   const correct = rows.filter((row) => row.correct).length;
   const receiptCount = rows.filter((row) => row.receiptComplete === true && String(row.receiptRef || "").trim()).length;
-  const estimatedCostUsd = rows.reduce((sum, row) => sum + (Number(row.estimatedCostUsd) || 0), 0);
+  const costsComplete = rows.length > 0 && rows.every((row) => (
+    row.estimatedCostUsd != null
+    && Number.isFinite(Number(row.estimatedCostUsd)) && Number(row.estimatedCostUsd) >= 0
+  ));
+  const estimatedCostUsd = costsComplete
+    ? rows.reduce((sum, row) => sum + Number(row.estimatedCostUsd), 0)
+    : null;
   const latencyMs = rows.reduce((sum, row) => sum + (Number(row.latencyMs) || 0), 0);
   const privacy = [...new Set(rows.map((row) => String(row.privacyStatus || "unknown")))].sort();
   return {
@@ -35,7 +41,8 @@ function scoreCandidate(candidate, rows) {
     askRecall: ratio(asksCorrect, expectedAskRows.length),
     locationAccuracy: ratio(correctLocations, locationRows.length),
     latencyMs: total ? Math.round(latencyMs / total) : null,
-    estimatedCostUsd: Number(estimatedCostUsd.toFixed(12)),
+    estimatedCostUsd: estimatedCostUsd == null ? null : Number(estimatedCostUsd.toFixed(12)),
+    costCompleteness: costsComplete ? 1 : 0,
     privacyStatus: privacy,
     receiptCompleteness: ratio(receiptCount, total),
     totalCases: total,
@@ -68,7 +75,8 @@ async function runLlmProviderBenchmark({
         candidate: String(candidate.name), caseId: String(item.caseId), expectedKind: String(item.expected?.kind || "unknown"),
         resultKind: String(value.kind || "error"), correct: resultCorrect(item, value),
         location: value.location == null ? null : String(value.location), latencyMs: Number.isFinite(Number(value.latencyMs)) ? Number(value.latencyMs) : Date.now() - started,
-        estimatedCostUsd: Number.isFinite(Number(value.estimatedCostUsd)) ? Number(value.estimatedCostUsd) : 0,
+        estimatedCostUsd: Number.isFinite(Number(value.estimatedCostUsd)) && Number(value.estimatedCostUsd) >= 0
+          ? Number(value.estimatedCostUsd) : null,
         privacyStatus: String(value.privacyStatus || "unknown"), receiptComplete: value.receiptComplete === true,
         receiptRef: value.receiptRef == null ? null : String(value.receiptRef),
       });
@@ -82,13 +90,17 @@ async function runLlmProviderBenchmark({
     if (!baseline || score.candidate === baseline.candidate) continue;
     score.eligible = score.receiptCompleteness === 1
       && baseline.receiptCompleteness === 1
+      && score.costCompleteness === 1
+      && baseline.costCompleteness === 1
       && (score.accuracy ?? 0) >= (baseline.accuracy ?? 0)
       && (score.onlineAccuracy ?? 0) >= (baseline.onlineAccuracy ?? 0)
       && (score.locationAccuracy ?? 0) >= (baseline.locationAccuracy ?? 0)
       && (score.askPrecision ?? 0) >= (baseline.askPrecision ?? 0)
       && (score.askRecall ?? 0) >= (baseline.askRecall ?? 0)
       && (score.latencyMs ?? Infinity) <= (baseline.latencyMs ?? Infinity)
-      && (score.estimatedCostUsd ?? Infinity) <= (baseline.estimatedCostUsd ?? Infinity)
+      && score.estimatedCostUsd != null
+      && baseline.estimatedCostUsd != null
+      && score.estimatedCostUsd <= baseline.estimatedCostUsd
       && score.privacyStatus.every((value) => ["local", "approved_cloud"].includes(value));
   }
   const recommendation = !baseline ? "no_baseline" : scores.some((score) => score.eligible)

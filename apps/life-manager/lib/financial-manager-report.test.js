@@ -215,6 +215,7 @@ test("provider lane readback failure stays visible and does not become zero", ()
     },
   }).report;
   assert.equal(report.providerLaneReadback.status, "partial");
+  assert.equal(report.partial, true);
   assert.match(renderFinancialManagerTelegram(report), /Provider lane readback: partial/);
   assert.match(renderFinancialManagerTelegram(report), /provider_lane_readback_failed/);
 });

@@ -11,20 +11,29 @@ const {
 
 const ROWS = [
   {
+    tenant_id: "tenant-a",
     usage_day: "2026-10-03T00:00:00Z", provider: "openpoi", feature: "places_search",
-    outcome: "success", event_count: 2, provider_units: 2, estimated_cost_usd: 0,
+    outcome: "success", event_count: 2, provider_units: 2, estimated_cost_usd: 0, unknown_count: 0,
   },
   {
+    tenant_id: "tenant-a",
     usage_day: "2026-10-03T00:00:00Z", provider: "google_maps", feature: "places_search",
-    outcome: "failure", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005,
+    outcome: "failure", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005, unknown_count: 0,
   },
   {
+    tenant_id: "tenant-a",
     usage_day: "2026-10-03T00:00:00Z", provider: "transit_api", feature: "travel_route",
-    outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0,
+    outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0, unknown_count: 0,
   },
   {
+    tenant_id: "tenant-a",
     usage_day: "2026-10-03T00:00:00Z", provider: "google_maps", feature: "geocoding",
-    outcome: "success", event_count: 3, provider_units: 3, estimated_cost_usd: 0.015,
+    outcome: "success", event_count: 3, provider_units: 3, estimated_cost_usd: 0.015, unknown_count: 0,
+  },
+  {
+    tenant_id: "tenant-a",
+    usage_day: "2026-10-03T00:00:00Z", provider: "geocoder_cache", feature: "geocoding",
+    outcome: "cache_hit", event_count: 1, provider_units: 0, estimated_cost_usd: 0, unknown_count: 0,
   },
 ];
 
@@ -40,7 +49,7 @@ test("normalizes provider usage rows into fresh lanes and bounded fallback count
   });
   assert.equal(result.lanes.transit.primary, "transit_api");
   assert.equal(result.lanes.transit.fallbackCalls, 0);
-  assert.equal(result.lanes.geocoder.primary, "google_maps");
+  assert.equal(result.lanes.geocoder.primary, "geocoder_cache");
   assert.equal(result.lanes.geocoder.fallbackCalls, 3);
 });
 
@@ -56,11 +65,35 @@ test("missing or failed lane readback stays partial instead of becoming zero", (
   assert.ok(result.failures.includes("provider_lane_no_success:transit"));
 });
 
+test("Google-only success is not a fresh free-primary lane", () => {
+  const result = normalizeProviderLanes([
+    { usage_day: "2026-10-03T00:00:00Z", provider: "google_maps", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005, unknown_count: 0 },
+    { usage_day: "2026-10-03T00:00:00Z", provider: "google_maps", feature: "travel_route", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005, unknown_count: 0 },
+    { usage_day: "2026-10-03T00:00:00Z", provider: "google_maps", feature: "geocoding", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005, unknown_count: 0 },
+  ], { reportingDate: "2026-10-03", nowMs: Date.parse("2026-10-03T12:00:00Z") });
+  assert.equal(result.status, "partial");
+  assert.equal(result.lanes.poi.status, "partial");
+  assert.ok(result.failures.includes("provider_lane_primary_missing:poi"));
+});
+
+test("provider lane numeric and unknown-cost fields fail closed, and zero units are not fallback calls", () => {
+  const result = normalizeProviderLanes([
+    { usage_day: "2026-10-03T00:00:00Z", provider: "openpoi", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0 },
+    { usage_day: "2026-10-03T00:00:00Z", provider: "google_maps", feature: "places_search", outcome: "failure", event_count: 1, provider_units: 0, estimated_cost_usd: 0, unknown_count: 0 },
+    { usage_day: "2026-10-03T00:00:00Z", provider: "transit_api", feature: "travel_route", outcome: "success", event_count: 1, provider_units: "bad", estimated_cost_usd: 0, unknown_count: 0 },
+  ], { reportingDate: "2026-10-03", nowMs: Date.parse("2026-10-03T12:00:00Z") });
+  assert.equal(result.lanes.poi.fallbackCalls, 0);
+  assert.equal(result.lanes.transit.status, "partial");
+  assert.ok(result.failures.includes("provider_lane_numeric_invalid:transit"));
+  assert.ok(result.failures.includes("provider_lane_unknown_cost:poi"));
+});
+
 test("accepts a UTC day bucket that overlaps the reporting day in JST", () => {
   const result = normalizeProviderLanes([
-    { usage_day: "2026-10-02T00:00:00Z", provider: "openpoi", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0 },
-    { usage_day: "2026-10-02T00:00:00Z", provider: "transit_api", feature: "travel_route", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0 },
-    { usage_day: "2026-10-02T00:00:00Z", provider: "google_maps", feature: "geocoding", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005 },
+    { usage_day: "2026-10-02T00:00:00Z", provider: "openpoi", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0, unknown_count: 0 },
+    { usage_day: "2026-10-02T00:00:00Z", provider: "transit_api", feature: "travel_route", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0, unknown_count: 0 },
+    { usage_day: "2026-10-02T00:00:00Z", provider: "google_maps", feature: "geocoding", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0.005, unknown_count: 0 },
+    { usage_day: "2026-10-02T00:00:00Z", provider: "geocoder_cache", feature: "geocoding", outcome: "cache_hit", event_count: 1, provider_units: 0, estimated_cost_usd: 0, unknown_count: 0 },
   ], { reportingDate: "2026-10-03", nowMs: Date.parse("2026-10-03T02:00:00Z") });
   assert.equal(result.status, "fresh");
 });
@@ -80,7 +113,7 @@ test("Supabase readback uses the bounded RPC and returns normalized lane evidenc
   });
   assert.equal(result.status, "fresh");
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /\/rest\/v1\/rpc\/lm_usage_cost_summary$/);
+  assert.match(calls[0].url, /\/rest\/v1\/rpc\/lm_provider_lane_summary$/);
   assert.deepEqual(JSON.parse(calls[0].init.body), {
     p_period_start: reportingPeriodBounds("2026-10-03").start,
     p_period_end: reportingPeriodBounds("2026-10-03").end,
@@ -93,4 +126,11 @@ test("Supabase readback fails closed on an unusable response", async () => {
     supaUrl: "https://db.example", supaKey: "service-key", tenantId: "tenant-a",
     reportingDate: "2026-10-03", fetchImpl: async () => ({ ok: false, status: 503 }),
   }), /provider lane readback failed/);
+});
+
+test("Supabase readback rejects an invalid tenant identity", async () => {
+  await assert.rejects(() => readProviderLanes({
+    supaUrl: "https://db.example", supaKey: "service-key", tenantId: "tenant-a,tenant-b",
+    reportingDate: "2026-10-03", fetchImpl: async () => ({ ok: true, json: async () => ROWS }),
+  }), /tenant invalid/);
 });

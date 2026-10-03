@@ -53,3 +53,27 @@ test("travel scheduler reaches the free-provider path without a Google Maps key"
   assert.equal(Boolean(received.mapsKey), false);
   assert.equal(typeof received._authorizeProviderOperation, "function");
 });
+
+test("ask scheduler passes one usage writer into the provider-backed ask path", async () => {
+  const { askUserOnce } = require("../scheduler.js");
+  const previous = Object.fromEntries(["COMPOSIO_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "GEMINI_API_KEY"]
+    .map((key) => [key, process.env[key]]));
+  process.env.COMPOSIO_API_KEY = "composio-key";
+  process.env.SUPABASE_URL = "https://db.example";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
+  process.env.GEMINI_API_KEY = "gemini-key";
+  const usageWriter = async () => true;
+  let received;
+  try {
+    await askUserOnce({ uid: "tenant-ask", notifications_enabled: true, daily_automation_enabled: true,
+      telegram_chat_id: "chat", email: "owner@example.com" }, {
+      askTick: async (_uid, options) => { received = options; return {}; },
+      recordUsageEvent: usageWriter,
+    });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+  assert.equal(received.recordUsageEvent, usageWriter);
+});

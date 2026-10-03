@@ -23,3 +23,15 @@ test("COST-01 migration exposes bounded daily tenant/provider/feature aggregates
   assert.match(sql, /cache_hits/i);
   assert.match(sql, /unknown_count/i);
 });
+
+test("provider lane migration exposes tenant-bound unknown-cost readback", () => {
+  const sql = fs.readFileSync(path.join(__dirname,
+    "../migrations/2026-10-03-lm-provider-lane-summary.sql"), "utf8");
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.lm_provider_lane_summary/i);
+  assert.match(sql, /p_tenant_id\s+text/i);
+  assert.match(sql, /unknown_count/i);
+  assert.match(sql, /meta->>'actual_status'/i);
+  assert.match(sql, /GRANT EXECUTE[\s\S]*service_role/i);
+  assert.ok(sql.split("\n").filter((line) => /^GRANT EXECUTE/i.test(line))
+    .every((line) => !/(anon|authenticated)/i.test(line)));
+});

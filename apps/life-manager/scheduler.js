@@ -42,6 +42,7 @@ const { onboardNudgeAll } = require("./lib/telegram-onboard.js");
 const { sendMessage } = require("./lib/telegram.js");
 const { langForPhone } = require("./lib/call-language.js");
 const { recordDailyComposioPoll } = require("./lib/ledger.js");
+const { recordUsageEvent } = require("./lib/usage-event.js");
 const { schedulerPollInterval } = require("./lib/composio-budget.js");
 const { createSupabaseProviderBudgetAuthorizer } = require("./lib/provider-budget.js");
 const {
@@ -1238,10 +1239,14 @@ async function askUserOnce(u, deps = {}) {
   const telegramToken = process.env.LM_TELEGRAM_BOT_TOKEN;                 // Telegram ask channel
   const { url: supaUrl, key: supaKey } = SUPA();
   if (!composioKey || !supaUrl || !geminiKey) return;
+  const usageWriter = deps.recordUsageEvent || ((event) => recordUsageEvent(event, {
+    supaUrl, supaKey, fetchImpl: deps.fetchImpl,
+  }));
+  const runAskTick = deps.askTick || askTick;
   // A user is reachable for asks via Telegram OR their email (captured at sign-in) — need at least one.
   if (!u.telegram_chat_id && !u.email) return;
   try {
-    const r = await askTick(u.uid, {
+    const r = await runAskTick(u.uid, {
       composioKey, userEmail: u.email, resendKey,
       supaUrl, supaKey, mapsKey, geminiKey, home: u.home_address,
       telegramChatId: u.telegram_chat_id, telegramToken,
@@ -1249,6 +1254,7 @@ async function askUserOnce(u, deps = {}) {
       unipileToken: process.env.UNIPILE_TOKEN,
       unipileDsn: process.env.UNIPILE_DSN,
       authorizeProviderOperation,
+      recordUsageEvent: usageWriter,
     });
     if (r.autofilled || r.asked || r.resolved)
       console.log(`[ask] uid=${u.uid.slice(0, 12)} autofilled=${r.autofilled} asked=${r.asked} resolved=${r.resolved} via=${u.telegram_chat_id ? "tg" : "email"}`);

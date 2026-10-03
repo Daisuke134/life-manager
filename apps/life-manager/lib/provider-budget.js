@@ -151,7 +151,17 @@ async function readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId
   });
   if (!response || response.ok !== true) throw new Error("budget_store_read_failed");
   const rows = await response.json();
-  const matching = (Array.isArray(rows) ? rows : []).filter((row) => String(row?.provider || "") === String(provider || ""));
+  if (!Array.isArray(rows)) throw new Error("budget_store_malformed");
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || String(row.tenant_id || "") !== String(tenantId)) {
+      throw new Error("budget_store_tenant_mismatch");
+    }
+    for (const field of ["provider_units", "estimated_cost_usd", "unknown_count"]) {
+      const value = Number(row[field]);
+      if (!Number.isFinite(value) || value < 0) throw new Error("budget_store_malformed");
+    }
+  }
+  const matching = rows.filter((row) => String(row.provider || "") === String(provider || ""));
   return matching.reduce((sum, row) => ({
     estimatedUsd: sum.estimatedUsd + Math.max(0, finite(row.estimated_cost_usd)),
     units: sum.units + Math.max(0, finite(row.provider_units)),

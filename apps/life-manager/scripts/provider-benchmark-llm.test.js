@@ -72,3 +72,21 @@ test("slower, privacy-unknown candidate is not eligible despite equal task accur
   assert.equal(result.recommendation, "keep_current");
   assert.equal(result.scores.find((score) => score.candidate === "local-risky").eligible, false);
 });
+
+test("missing or invalid cost evidence is unknown and cannot earn shadow eligibility", async () => {
+  const result = await runLlmProviderBenchmark({
+    cases,
+    candidates: [{ name: "gemini-current" }, { name: "local-no-cost" }],
+    now: () => "2026-10-03T00:00:00.000Z",
+    runner: async (candidate, item) => {
+      const value = goodResult(item, { estimatedCostUsd: candidate.name === "gemini-current" ? 0.1 : undefined });
+      if (candidate.name === "local-no-cost") delete value.estimatedCostUsd;
+      return value;
+    },
+  });
+  const local = result.scores.find((score) => score.candidate === "local-no-cost");
+  assert.equal(local.estimatedCostUsd, null);
+  assert.equal(local.costCompleteness, 0);
+  assert.equal(local.eligible, false);
+  assert.equal(result.recommendation, "keep_current");
+});

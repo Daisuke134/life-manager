@@ -101,6 +101,25 @@ test("Supabase provider authorizer reads durable daily/monthly usage and fails c
   const failed = await failClosed({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 1, estimatedUsd: 0.005 });
   assert.equal(failed.allowed, false);
   assert.equal(failed.reason, "budget_read_failed");
+  const malformed = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key", nowMs: Date.parse("2026-10-03T12:00:00Z"),
+    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
+  });
+  const malformedResult = await malformed({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 1, estimatedUsd: 0.005 });
+  assert.equal(malformedResult.allowed, false);
+  assert.equal(malformedResult.reason, "budget_read_failed");
+  const crossTenant = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key", nowMs: Date.parse("2026-10-03T12:00:00Z"),
+    fetchImpl: async () => ({ ok: true, json: async () => [{ tenant_id: "other", provider: "google_maps", provider_units: 0, estimated_cost_usd: 0, unknown_count: 0 }] }),
+  });
+  const crossTenantResult = await crossTenant({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 1, estimatedUsd: 0.005 });
+  assert.equal(crossTenantResult.reason, "budget_read_failed");
+  const invalidNumeric = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key", nowMs: Date.parse("2026-10-03T12:00:00Z"),
+    fetchImpl: async () => ({ ok: true, json: async () => [{ tenant_id: "tenant-a", provider: "google_maps", provider_units: "NaN", estimated_cost_usd: 0, unknown_count: 0 }] }),
+  });
+  const invalidNumericResult = await invalidNumeric({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 1, estimatedUsd: 0.005 });
+  assert.equal(invalidNumericResult.reason, "budget_read_failed");
   const cache = await failClosed({ tenantId: "tenant-a", provider: "google_maps", operation: "route", cacheHit: true, providerUnits: 0, estimatedUsd: 0 });
   assert.equal(cache.allowed, true);
   assert.equal(cache.reason, "cache_hit");

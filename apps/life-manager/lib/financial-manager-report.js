@@ -232,7 +232,8 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     economicSourceCoverage,
     sourceFreshness: sourceFreshness || {},
     partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh")
-      || Boolean(providerBudget && providerBudget.state && providerBudget.state !== "normal"),
+      || Boolean(providerBudget && providerBudget.state && providerBudget.state !== "normal")
+      || Boolean(providerLaneReadback && providerLaneReadback.status && providerLaneReadback.status !== "fresh"),
     businessSourceCoverage: Array.isArray(businessSourceCoverage) ? businessSourceCoverage : [],
     providerLanes: normalizeProviderLanes(providerLanes),
     providerLaneReadback: normalizeProviderLaneReadback(providerLaneReadback),
