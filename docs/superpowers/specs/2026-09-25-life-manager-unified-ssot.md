@@ -4832,7 +4832,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 #### 現在cursorとfresh runtime evidence
 
 - PR6525/6527/6528/6529はmain統合済み。直近確認のmain/current complete ALLは80cccc6f92069b7a8d259af619b87e47bef9861c / /Users/anicca/loops/releases/20261003T212112-80cccc6f。SelfBuild exactloadedargv80/idle/effectunknownfalseは§226、次のJST04:10自然UUID/report照合は未達。
-- 現在のsource統合cursorはPR6531 / fix/mercor-paid-observer-20261003 / HEAD90535b1845d13d79123ab38bc84743acf0f96150。独立reviewSHIP/focused62/adapter15/contract/OSSPASS。hosted macOSの既存workflow run37131174406は749runtime testsと全9job SUCCESS。PR全10checksSUCCESS後にadmin squashでmain6ae9db504778a84e536db8b22fa67099332fb8e3へ統合済み（§232）。immutable/load/natural Paid own-snapshot照合は未達。
+- 現在のsource統合cursorはPR6531 / fix/mercor-paid-observer-20261003 / HEAD90535b1845d13d79123ab38bc84743acf0f96150。独立reviewSHIP/focused62/adapter15/contract/OSSPASS。hosted macOSの既存workflow run37131174406は749runtime testsと全9job SUCCESS。PR全10checksSUCCESS後にadmin squashでmain6ae9db504778a84e536db8b22fa67099332fb8e3へ統合済み（§232）。cc0 completeimmutable/source4file一致とPaid actualloadedargv一致は§233–234で確認。natural Paid own-snapshot照合は未達。
 - Mercor旧Paid1件は§226で解放済み、旧Reply49631は§231でexact native92552/sourceb13/exit75のmessage業務scopeに限定したpositive proofで解放、replay rowchange0。App旧33812はHELD。過去auth token更新/通知UIの外部作用はunknownのまま。主たる全残TODO順序とMobile担当の排他的branch/Apple境界を維持する。
 - 運用hostのData空き約380MiB/100%、local cold build ENOSPCは未解決。削除可能性が不明なtemp/source/credential/profileや全件参照済みdependency bundlesは削除しない。doctorの既存unmanaged capafy.kosukeも未完。fleet3owner failureの前回記録（widget deploy busy/metrics effect fence/alpaca bootstrap5復旧）は§226以前の履歴を参照し、新しい成功を未観測でclaimしない。稼働release ownerの重複build/apply/kill0。
 
@@ -5002,3 +5002,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - current /Users/anicca/loops/releases/20261004T002652-cc0e8140 はmanifestcc0/release_pathsALL/python314、Paid owner/capture module/共通capture/adapterの4file bytesはmaincc0 blob一致。新reconciler8173/parent8133はfreshlive。Paidはloaded-idle/installed80/effectunknownfalse、own paid-official-snapshot.json未作成。primaryは全体owner稼働中にtargetapplyを重ねない。次は同process terminal後、必要ならidle/effect-safeなPaidだけを既存operatorで反映する。
 - 旧Reply解放後のnatural native11842は15:11:42Z/pass/exit0、実child claimは旧queued50827（native run IDと異なる）。exact shared-reply run-marker50827とsource80をjoin、158items/effectsum0/readbacksum154/pending4/failed0。markerはeffect_unknownという表現を維持し、pending4は本人voice assessmentや残応募stepsの確認・入力待ち。generic partial-applicationをすべて本人必須と断定する根拠は未確認で、read-onlyで不足fieldを調べる余地を残す。latest.jsonはoccurrence null/後続runで更新されるためbindingに使わない。proof state/mercor-reply-natural-business-20261004.json/mode600。
 - 現在Replyには別旧claim61324がunknownとして観測される（native旧61324/reportpassは別claim26713を参照）。49631の証拠を他claimへ流用しない。App旧33812もHELD。売上/入金/全体利益の成功は未証明。§217全残TODO、Mobile担当境界、SelfBuild自然UUID/report gateを保持しgoalactive。
+
+
+### 234. Mercor Paidのactual load一致・保留4件の受付状態診断
+
+- 既存reconciler8173のfleet owner receiptがPaidchanged1/rc0/11s/maincc0を記録。targeted readbackはPaidinstalledcc0/idle/effectunknownfalse、launchctl-safe actual argv [cc0/bin/lm-loop-run,mercor-revenue-paid,cc0]はexpectedと完全一致。install event15:42:05.501379Z。primary apply/manualwake0、own paid-official-snapshotはまだ未観測。latestの旧80自然runを新codeの成功へ代用しない。
+- 8173はfreshlive、後続ownerを既存fleet budget内で処理中。sourceヘルパーは反映済みなので次の通常自然wakeでown snapshot/native/businessを同runへ結合する。snapshot無しや旧pendingを新source成功に丸めない。
+- 別旧Reply61324のactual failureはnative66602/source80/15:19:19Z/exit1、child hint/scratch/marker無し。一般exit1はmessage pre-effect75証明と同一ではなく、このfenceは保持。App33812もHELD。
+- 保留4件の公式snapshotをread-only確認。Consultantはarchived+applicationsDisabledtrue、Sonic AuditとVoice Actorもdisabledtrue。VSCode on macOS案件のみactivе/enabled/3of4、formId/requiredInterviewConfigIdはnull、残設問未取得。partial進行だけでhuman_requiredを断定しない。本人voice演技は代行しない。次はenabled案件の公式残stepをread-onlyで確認し、App fenceを超えて提出しない。proof state/mercor-pending-step-diagnosis-20261004.json/mode600。
+- CFO担当からの新AGMSG messageはinbox確認時無し、稼働席の証明ではない。Mobile branch/Apple/provider/profile操作0。全残TODO§217を維持しgoalactive。
