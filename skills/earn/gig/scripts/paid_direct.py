@@ -109,6 +109,10 @@ def _shared_browser_denies() -> str:
     target_owners = Path(os.environ.get(
         "CLOAK_TARGET_OWNERS_FILE", "~/.cloak/vault/target-owners.json",
     )).expanduser().resolve()
+    browser_port_state = Path(os.environ.get(
+        "LIFE_MANAGER_BROWSER_PORT_STATE_DIR",
+        "~/.local/state/life-manager/browser-ports",
+    )).expanduser().resolve()
     profile_candidates = {
         Path(os.environ.get(
             "CDP_DAILY_DRIVER_PROFILE", "~/.cloak/profiles/gig-daily-driver",
@@ -122,6 +126,7 @@ def _shared_browser_denies() -> str:
             str(vault.parent), str(leases), str(target_owners),
             *(str(path) for path in profile_candidates),
         ])
+        + f'(deny file-write* (subpath {json.dumps(str(browser_port_state))}))\n'
     )
 
 

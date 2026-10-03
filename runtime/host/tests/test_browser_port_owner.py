@@ -81,6 +81,23 @@ class BrowserPortOwnerTests(unittest.TestCase):
                 0,
             )
 
+    def test_ready_callback_records_listener_once(self):
+        child = MagicMock(pid=43210)
+        child.wait.side_effect = [
+            subprocess.TimeoutExpired("browser", 0),
+            subprocess.TimeoutExpired("browser", 0),
+            0,
+        ]
+        ready = MagicMock(return_value=True)
+        with patch("runtime.host.browser_port_owner._port_answers", return_value=True):
+            self.assertEqual(
+                _wait_for_browser(
+                    child, port=9227, probe_interval_seconds=0, on_ready=ready,
+                ),
+                0,
+            )
+        ready.assert_called_once_with()
+
     def test_permission_denied_probe_means_group_still_exists(self):
         with patch("runtime.host.browser_port_owner.os.killpg", side_effect=PermissionError):
             self.assertTrue(_process_group_exists(43210))
@@ -200,6 +217,7 @@ class BrowserPortOwnerTests(unittest.TestCase):
             patch.object(args, "state_dir", Path(temporary) / "state"),
             patch("runtime.host.browser_port_owner._port_answers", return_value=True),
             patch("runtime.host.browser_port_owner._live_profile_owner", return_value=4242),
+            patch("runtime.host.browser_port_owner._browser_uuid", return_value="browser-generation"),
             patch("runtime.host.browser_port_owner._wait_for_adopted_browser", return_value=75) as wait,
             patch("runtime.host.browser_port_owner.subprocess.Popen") as popen,
         ):
