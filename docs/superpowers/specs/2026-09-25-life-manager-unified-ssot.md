@@ -4846,7 +4846,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainは3e1e30a61d32762ec004f7511e1c4838f6050cdc。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。guardian修復の最新immutable/live解除とcandidate修復のtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
+- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。自然guarded退役計画PR6543は全10CI/独立最終SHIPで統合済み（§276）、newimmutable/natural退役は未達。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。guardian修復3e1のcompleteimmutableは確認済み。自然退役計画ede6のnewimmutable/live退役とcandidate修復のtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -4855,7 +4855,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-candidate補充修復PR6540/main655bはsource統合済み。実live release owner35660/current655bを確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。current655b/liveowner35660のterminal後、新immutable/newcontrollerと対象fresh排他/identityを確認しexact retirement/readback/replayを閉じ、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
+candidate補充修復PR6540/main655bはsource統合済み。実live release owner62269/current3e1を確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。current3e1/liveowner62269のterminal後、newmainede6 immutable/既存self-handoffで自然guarded退役を実行し、officialabsent/doctor/正規owner維持/replayを閉じ、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
 
 Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
@@ -5366,3 +5366,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - PR6543をfinalheadで作成、checks進行中/未main。sourceはguarded targetだけをplan_action retireとして先頭へ渡し、exact1rowの実結果を要求。通常owner集計はbase同一、identity guard/controllerの緩和0。次は全check/exacthead→main→completeimmutable→既存self-handoff→自然guarded退役のsameowner log/officialabsent/doctor/正規owner維持/replay-zero。
 - 旧5053のterminal/全controller不在を21:00前に確認したが、二度目のlive直前guardでnew owner62269/3e1を検出。apply発行0、profilelease解放済み。手動解除が完了したと報告せず、競合を繰返す手動介入を自然source wiringへ置き換える。current3e1/completeALLのguardianは正しく反映済み、旧label実退役は未達。
 - 実作用0、auth/profile/browser/oldbusinessfence変更0。classify unknown/空readbackを0へ変換しない。根拠capafy-unmanaged-browser-diagnostic-20261004.json。現在の担当・全残TODO → §217、全goalactive。
+
+
+### 276. 自然guarded退役PR6543を全CI統合・次の自然readbackへ接続
+
+- PR6543/finalheadc0e6fc5f66f0578232d114ff63ae98db4cfa27f9/全10checkSUCCESSをfresh照合しmatch-head-commit付きadmin squashでmainede6efa47d29349f97344481b3867e14220b9d91へ統合。merged21:04:25Z、remote main object一致。runtime758/148.856s/focused3・8subcases/adapter15/contract14loops178jobs/OSS/bash/diffPASS、独立最終SHIP。retirement exact結果・実flagsだけのcounter・timeout/budget/retryを独立matrixで確認。
+- newmainede6のimmutable/実reconciler load/自然guarded退役は未達。currentは3e1 completeALL。実live owner62269/同3e1を21:05:12Z/elapsed5:17で確認。primarycutは§273の3e1だけ、重複apply/kill/forcedrestart0。実live旧label退役とoldbusinessfence解除0。
+- main3e1 controllerはvalidated identity guard付き。mainede6 plannerはguarded targetを通常ownerより先に同immutableCLIへ渡し、exact singleton/matchinglabel/ok/retired/明示boolを要求する。実観測2bool ORをchanged、明示false/falseをskipとし、通常owner flagsを無視する。空/不正はerrorを保持して次sameSHAの成功skipへ進めない。
+- 次は既存native release ownerのterminal→newmainede6 completeimmutable→既存self-handoffでreconciler argv/source一致→次自然fleetのguarded target exact owners-log→oldlabel officialabsent/doctor unmanaged・retiredpresent0→正規capafy-browser PID/SHA/argv/endpoint維持→自然/隔離replay変更0。live前提の排他とidentity、非協調writerへのnonatomic境界を保持。全finance/Eval/全§217残TODOは未達、全goalactive。
