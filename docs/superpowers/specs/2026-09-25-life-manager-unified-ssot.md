@@ -4846,7 +4846,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainは3e1e30a61d32762ec004f7511e1c4838f6050cdc。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。candidate修復の最新immutable/loadとtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
+- 最後に確認したmainは3e1e30a61d32762ec004f7511e1c4838f6050cdc。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。guardian修復の最新immutable/live解除とcandidate修復のtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -4855,7 +4855,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-candidate補充修復PR6540/main655bはsource統合済み。実live release owner53185/current6adを確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。current655b/liveowner35660のterminal後、新immutable/newcontrollerと対象fresh排他/identityを確認しexact retirement/readback/replayを閉じ、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
+candidate補充修復PR6540/main655bはsource統合済み。実live release owner35660/current655bを確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。current655b/liveowner35660のterminal後、新immutable/newcontrollerと対象fresh排他/identityを確認しexact retirement/readback/replayを閉じ、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
 
 Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
