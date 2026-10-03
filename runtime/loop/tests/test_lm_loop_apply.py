@@ -4950,7 +4950,7 @@ class PreEffectForeignClaimTests(unittest.TestCase):
 
 class GuardedOrphanRetirementTests(unittest.TestCase):
     def test_guard_rejects_reused_running_or_executable_registration(self):
-        for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist', 'absent_program_changed'):
+        for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist', 'absent_program_changed', 'loaded_reused_plist'):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 agents = root / 'agents'
@@ -4971,7 +4971,7 @@ class GuardedOrphanRetirementTests(unittest.TestCase):
                     detail = detail.replace('state = spawn scheduled\n', '')
                 if case == 'script_exists':
                     script.write_text('print("active")')
-                if case.startswith('absent_'):
+                if case.startswith('absent_') or case == 'loaded_reused_plist':
                     changed = {'ProgramArguments': ['/new-owner']} if case == 'absent_reused_plist' else {'ProgramArguments': argv, 'Program': '/different'}
                     target.write_bytes(plistlib.dumps(changed))
                     before = target.read_bytes()

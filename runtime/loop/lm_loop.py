@@ -2221,6 +2221,8 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
                 _guard_orphan_retirement(
                     guard, present_detail if present_rc == 0 else None,
                     agents_dir / f"{label}.plist")
+                if present_rc == 0:
+                    _guard_orphan_retirement(guard, None, agents_dir / f"{label}.plist")
             if present_rc == 0:
                 bootout_rc, detail = _safe_launchctl(launchctl_safe, ["bootout", service])
                 if bootout_rc != 0:
@@ -2240,6 +2242,8 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
                         raise RuntimeError(f"{label}: retirement readback still loaded")
                     time.sleep(0.1)
             plist = agents_dir / f"{label}.plist"
+            if guard is not None:
+                _guard_orphan_retirement(guard, None, plist)
             removed = plist.is_file()
             if removed:
                 plist.unlink()
