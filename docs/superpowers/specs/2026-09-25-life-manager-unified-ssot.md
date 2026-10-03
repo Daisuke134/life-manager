@@ -5011,3 +5011,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 別旧Reply61324のactual failureはnative66602/source80/15:19:19Z/exit1、child hint/scratch/marker無し。一般exit1はmessage pre-effect75証明と同一ではなく、このfenceは保持。App33812もHELD。
 - 保留4件の公式snapshotをread-only確認。Consultantはarchived+applicationsDisabledtrue、Sonic AuditとVoice Actorもdisabledtrue。VSCode on macOS案件のみactivе/enabled/3of4、formId/requiredInterviewConfigIdはnull、残設問未取得。partial進行だけでhuman_requiredを断定しない。本人voice演技は代行しない。次はenabled案件の公式残stepをread-onlyで確認し、App fenceを超えて提出しない。proof state/mercor-pending-step-diagnosis-20261004.json/mode600。
 - CFO担当からの新AGMSG messageはinbox確認時無し、稼働席の証明ではない。Mobile branch/Apple/provider/profile操作0。全残TODO§217を維持しgoalactive。
+
+
+### 235. Paid新SHA自然実行のexpired token403を再現・本人限定refresh source修復
+
+- 新SHAの最初のwake38491はcapacitybusy、予約dispatch38825は15:47:15→15:47:24/sourcecc0/exit75。own snapshot未作成、observer generic unavailable。stage例外だけをsecret-free tracingしてcapture line27のpayloadmissingに限定し、同registered browserで本人一致true/tokenpresenttrue/expiryavailabletrue/tokenexpiredtrue/契約GET403を実測。receipt不在やunknownを0へ変換せず、source導入後の未達を確認した。
+- 既存auth_snapshot_expressionは期限切れFirebase tokenを通常POSTで更新するが、Paid独立observerへの接続が欠けていた。fresh maincc0由来のsame-goal branch fix/mercor-paid-token-refresh-20261004へworktree再利用/lease更新。RED3を確認後、既存auth expressionへoptional expected_emailを追加し、最初のusable tokenの本人一致前にはrefreshしない・一致後はそのrecordだけ更新する。defaultNoneの既存Reply動作を維持。Paid captureは本人/期限/更新成功を確認してから公式契約GET、失敗時は旧snapshot保持。
+- HEADce914b0b39/3filesをcommit/push。focused68、adapter15、contract14/178、OSS/diffPASS。shared runtime34650進行中、doctor既存unmanaged capafy.kosukeFAIL。fresh native reviewer mercor_token_refresh_reviewは今回spawn成功、requested modelgpt-6.1-sol/high、実usage非公開。source/Auth/profile/provider/production操作禁止のread-only反証を依頼、結果未確定。
+- google-login canonical skillを読んだがKeychain参照はuserのlocal credential SSOT/Apple Keychain禁止が優先。secret取得/reset/loginをせず、owned registered Mercor lease内の既存token通常更新を直前宣言してsource probe実施。probe15:55:17.165610Z/contracts0/mode600/例外無し。Auth POST/IndexedDB更新は認証維持scope、business send0、Apple/別profile変更0。これはmanual source probeであり、新修正のproduction自然runを証明しない。
+- proof state/mercor-paid-token-refresh-source-proof-20261004.json、同token-refresh-probe、mode600。次は同runtime handle/独立reviewを閉じ、必要修正後にmain→immutable→既存ownerload→次の自然expiry-safe観測を照合。全goalactive、既存全残TODO§217と別担当Mobile境界を保持。
