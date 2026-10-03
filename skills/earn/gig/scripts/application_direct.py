@@ -30,6 +30,7 @@ from apply_telegram_report import ApplyTelegramTransport
 from gig_paths import BROWSER_DIR, RUNNER_DIR
 from gig_release import pin_release_for_process
 from operator_brake import status as shared_operator_brake_status
+from browser_lease_yield import yield_registered_browser_lease
 
 
 HERE = Path(__file__).resolve().parent
@@ -347,6 +348,12 @@ def _validate_parent_result(
         run_dir / f"b2-continuation-result-{phase}.stderr",
     )
     return 0 if continuation.returncode == 0 else 1
+
+
+def _validate_parent_result_yielding(**kwargs: Any) -> int:
+    """Pure evidence validation must not monopolize the provider browser identity."""
+    with yield_registered_browser_lease():
+        return _validate_parent_result(**kwargs)
 
 
 def _harvest_postings(
@@ -1355,7 +1362,7 @@ def main(argv: list[str] | None = None) -> int:
         _atomic_json(run_dir / invocation, {"argv": command})
         parent_rc = completed.returncode
         if parent_rc == 0:
-            parent_rc = _validate_parent_result(
+            parent_rc = _validate_parent_result_yielding(
                 args=args, run_dir=run_dir, phase=phase, evidence_dir=phase_evidence,
                 context=context, pass_id=pass_id, cursor_path=cursor,
                 deferred_cursor_path=coverage_cursor_path,
@@ -1404,7 +1411,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             reconcile_rc = reconcile.returncode
             if reconcile_rc == 0:
-                reconcile_rc = _validate_parent_result(
+                reconcile_rc = _validate_parent_result_yielding(
                     args=args, run_dir=run_dir, phase=f"{phase}-reconcile",
                     evidence_dir=reconcile_evidence, context=context,
                     pass_id=pass_id, cursor_path=cursor,
@@ -1687,7 +1694,7 @@ def main(argv: list[str] | None = None) -> int:
         _atomic_json(run_dir / f"parent.invocation-{phase}.json", {"argv": command})
         parent_rc = completed.returncode
         if parent_rc == 0:
-            parent_rc = _validate_parent_result(
+            parent_rc = _validate_parent_result_yielding(
                 args=args, run_dir=run_dir, phase=phase, evidence_dir=phase_evidence,
                 context=context, pass_id=pass_id, cursor_path=next_cursor_path,
                 deferred_cursor_path=coverage_cursor_path,
