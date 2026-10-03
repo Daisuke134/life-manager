@@ -4787,7 +4787,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 #### CFO / Mobile Metricsの担当境界
 
 - 担当はAGMSG team lm / lm-cfo-observability-1002、連携primaryはcodex-money-printer。primaryはこのbranch、Apple認証、provider/team、profile、credentialsを重複操作しない。
-- branch feat/lm-mobile-metrics-20261003、remote HEAD735d5fdd6bb56e1dba8dbaf54c082cb28964d1d1をls-remoteで確認。旧観測fd0245e90e、初期handover4797618b0f/baseecddと区別する。base45へのrebase/39testsは旧HEAD時点の担当報告であり、新HEADの検証結果・外部gate通過は未取得。担当branchのrebase/mergeをprimaryが先行しない。
+- branch feat/lm-mobile-metrics-20261003、remote HEADa47b4db561041af60dfcb20c292a82c8b99d5b78をls-remoteで確認。旧観測735d5fdd6bb56e1dba8dbaf54c082cb28964d1d1/fd0245e90e、初期handover4797618b0f/baseecddと区別する。base45へのrebase/39testsは旧HEAD時点の担当報告であり、新HEADの検証結果・外部gate通過は未取得。担当branchのrebase/mergeをprimaryが先行しない。
 - 担当からの実装・検証報告: ASC acquisition funnel rates、denominator zero fail-closed、RC observed revenueとASC settled proceeds分離、ASC proceeds優先/RC二重計上防止、mobile-apps CFO P&L、unavailable/UNKNOWN表示、product funnel summary、spec/plan/evidence更新。npm188/188、CFO Python39/39 PASS。primaryはこれらのsuiteをこのbranchで再実行していない。
 - 主要外部gateはASC required agreement missing/expired。公式案内 https://appstoreconnect.apple.com/agreements はAccount Holderの承認を要求する。web session期限切れ、Apple loginは2FA待ち、credential validでもapp access warningあり、という担当報告を保持。Chat承認をApple法務Agreement受諾済みと扱わず、API bypass・codeのchat貼付・UNKNOWN→0をしない。
 - 担当の次順序: 正しいAccount Holder/account/provider/team確認→全pending/expired Agreement確認→Web再認証→asc web agreements status→ASC_BYPASS_KEYCHAIN=true asc apps list --output json→acquisition/financial report再取得→RC/settled proceeds join readback→CFO daily/evidence更新→tests再実行→全外部gate PASS後にrelease ownerへmerge依頼。pricing/paywall/submission/marketing変更なし。
@@ -4855,7 +4855,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-release帰属修復のsource統合は完了。既存release ownerのterminalと対象idleを確認してから最新main由来immutable/実load/帰属を照合し、SelfBuildのowner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
+release帰属修復のsource統合は完了。既存release ownerがmain6adを生成中のため重複反映を行わず、terminal後にimmutable/実load/帰属を照合する。同時に§267の既存candidate補充不具合のsource検証・独立reviewを閉じ、その後SelfBuildのowner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
 
 Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
@@ -5287,3 +5287,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - fresh独立mercor_natural_expiry_reviewはnativeイベント一致、frozen snapshot byte/hash、release3source blob一致、refresh/IndexedDB transaction完了後の公式contracts GET成功を限定SHIP。scheduler起点の独立証跡・SPA Profile navigationは未証明。contracts[]/business effect0を売上・精算・着金・実利益0へ転用しない。native金融provider receiptは未取得。
 - exact completed markerとfrozen contracts[]を隔離し実deployed adapter/kernelでreadback。marker変更0/business mutation0/provider network0/production marker変更0/production state write0。empty inventoryの隔離replay-zeroであり、本番ownerの再実行ではない。
 - 根拠はstate/mercor-natural-expired-renewed-20261004.json、mercor-expired-renewed-snapshot-20261004.json、mercor-expiry-exact-replay-zero-20261004.json/mode600。証拠collectorはcodex-money-printer、native ownerはmercor-revenue-paid。旧App33812/Reply61324はHELD、正式提出・契約・精算・payout/actualcostを継続する。現在の担当・順序・storefront/mailを含む残TODO → §217。
+
+
+### 267. Larryの選択可能候補枯渇をsourceで再現・修復
+
+- release reconciler96420はfresh PID/子processの進行後terminal。fleet latestはbe2/partial、19changed/103skipped/errors1/budget exceeded。続く実live owner35424はcut child36913でmain6adを生成中。currentはまだbe2。primaryは重複cut/apply/killを行わない。
+- Larry actual loaded be2/idle、旧公開effect unknown/official receipt不足を保持。既存marketing envのdata dir/tenantが観測poolと一致することを値非表示で確認。pool5/min4/history284/選択可能0/旧補充false、pool SHA2562824814a97360e5c7c2a353c1db632938b49e41cd6bdddea49569b1486674dfc。純粋な選択probeのみで生成/公開0。
+- 原因はgenerate-larry-slide-pack.jsが総候補数4未満だけを補充条件にすること。7日間の再投稿禁止により全件使えなくなっても総数5なのでfactoryを呼ばない。source-onlyで総数不足または選択可能0の時に既存品質検査factoryを一度呼ぶ。7日間禁止、重複排除、品質検査、候補選択/公開adapterを維持。生成結果が既存候補だけなら失敗を保つ。旧occurrenceのeffectを0へバックフィルしない。
+- latestmain6ad由来primary branch fix/marketing-exhausted-candidate-pool-20261004/HEAD88d9c1d4c3586b3fcde5543d062a4e689cb51ea3/2files/clean/pushed。枯渇・新候補不在2tests RED→GREEN、関連44/adapter15/contract14loops178jobs/OSS/diff PASS。共有runtime749/162.015s PASS。独立reviewは新thread上限拒否のため完了済みmercor_natural_expiry_reviewを再利用して進行中（fresh zero-contextとは扱わない）。doctor既存unmanaged capafy.kosuke1、missing/retired0。
+- 根拠state/marketing-exhausted-candidate-pool-20261004.json/mode600。本番生成/公開/旧fence解放0、他Mobile Metrics差分との対象2file重複なし。Mobile remoteはa47b4dbへ更新、現HEAD検証・ASC外部gateは担当へ共有依頼し未取得。次はsource検証と独立reviewを完了してsource統合、本番promotion/hook/旧receiptの未完を§217で保持。全goalactive。
