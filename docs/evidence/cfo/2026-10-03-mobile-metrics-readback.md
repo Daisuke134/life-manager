@@ -99,3 +99,11 @@ Observed at approximately 2026-10-04 04:51–04:58 JST using read-only `bin/lm-l
 - `life-manager-cfo-hourly` is loaded-idle on release `be2b181bfaa40ca13f1e893777437055224f4f2f`. Latest occurrence `life-manager-cfo-hourly:18db1a3dbbbd6d28-51694` has terminal status `pass`, but `last_exit=78`, `effect_status=unknown`, no `provider_receipt_id`, and no `official_readback_ref`.
 - The durable delivered snapshot still says reporting date `2026-09-26`, provider message `94946`, delivered `2026-09-25T15:38:21.745Z`. `last-result.json` claims reporting date `2026-10-04`, status `sent`, provider message `102459`. They do not correlate to the same occurrence; current delivery is unverified, not confirmed failed or confirmed delivered.
 - The feature branch HEAD is `fe6e5888` while fetched `origin/main` is `655b2cf2`; merge-base is `80cccc6f`, with nine main-only and sixteen branch-only commits. The feature has not been promoted. Before promotion, merge current main into the existing branch without rewriting it, rerun full acceptance, and obtain the plan's fresh whole-branch review.
+
+### Latest runtime reread (2026-10-04 05:39 JST)
+
+- `marketing-metrics-daily` remains loaded-idle on release `9c03543e5dc51f7bc54f8e132a264964a0e40f6d`; natural run `18db1eed6eb4f2f8-66574` passed at `2026-10-03T20:29:56Z`. It is not the feature branch.
+- The production JSONL's latest mobile rows are business date `2026-10-03`, observed at `20:28–20:29Z`. All six legacy mobile App Store Sales sources report `provider_query_failed`; RevenueCat currency is absent; a full-file query found zero `app_store_financial` source rows.
+- `life-manager-cfo-hourly` is loaded-idle on release `655b2cf2001ad54ce70cb975910f363091052651`; occurrence `18db1d3cfc8351e0-82300` is terminal `blocked`, exit 78, `host_admission_deferred:resource_capacity_busy`, with no provider receipt or official readback. Last success remains `2026-10-03T19:02:14Z`.
+- The durable snapshot remains `2026-09-26` / provider message `94946`, while `last-result.json` claims `2026-10-04` / provider message `102459`; no occurrence correlation was found, so delivery remains unverified.
+- Current feature branch is pushed at `e46284c351`, includes latest main commit `3e1e30a6`, and has no open PR. It is still not loaded or applied to production.
