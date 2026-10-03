@@ -746,6 +746,7 @@ function recoveryDeps(overrides = {}) {
     deps: {
       getLoopRegistry: async () => RECOVERY_REGISTRY,
       readOwnerBaseline: async () => OWNER_BASELINE,
+      loopsRoot: "/loops",
       ...overrides,
     },
   });
@@ -806,7 +807,7 @@ test("the verified owner baseline is persisted before merge and passed unchanged
   let promotionArgs;
   const deps = recoveryDeps({
     merge: async () => {
-      holdBeforeMerge = readPromotionHold(holdPath);
+      holdBeforeMerge = readPromotionHold(holdPath).content;
       return { ok: true, mergeSha: "b".repeat(40) };
     },
     promoteLoopRuntimeRepair: async (args) => {
@@ -859,6 +860,56 @@ test("a hold that cannot be written refuses to merge at all (fail closed)", asyn
   assert.equal(result.stoppedAtStage, "merge");
   assert.equal(result.stopReason, "promotion_hold_unavailable");
   assert.equal(deps.calls.merge, 0, "the PR must never be merged without a held promotion hold");
+});
+
+test("promotion hold reads distinguish missing, valid, invalid JSON, array, and non-regular paths", () => {
+  const holdPath = tempHoldPath();
+  assert.equal(readPromotionHold(holdPath).status, "missing");
+  fs.writeFileSync(holdPath, "not-json");
+  assert.equal(readPromotionHold(holdPath).status, "invalid");
+  fs.writeFileSync(holdPath, "[]");
+  assert.equal(readPromotionHold(holdPath).status, "invalid");
+  fs.writeFileSync(holdPath, JSON.stringify({ sha: null }));
+  assert.equal(readPromotionHold(holdPath).status, "valid");
+  fs.unlinkSync(holdPath);
+  fs.mkdirSync(holdPath);
+  assert.equal(readPromotionHold(holdPath).status, "invalid");
+});
+
+test("acquire and update never overwrite an invalid existing hold", () => {
+  const holdPath = tempHoldPath();
+  const original = "{broken";
+  fs.writeFileSync(holdPath, original);
+  const acquired = acquirePromotionHold({
+    holdPath, ownerId: "deterministic-owner", ownerLabel: "ai.anicca.deterministic-owner",
+    prNumber: 1094,
+  });
+  assert.equal(acquired.ok, false);
+  assert.equal(acquired.reason, "hold_invalid");
+  assert.equal(fs.readFileSync(holdPath, "utf8"), original);
+  const updated = updatePromotionHold({ holdPath, sha: "b".repeat(40) });
+  assert.equal(updated.ok, false);
+  assert.equal(updated.reason, "hold_invalid");
+  assert.equal(fs.readFileSync(holdPath, "utf8"), original);
+});
+
+test("acquire and update reject boolean sha without coercing it to null", () => {
+  const holdPath = tempHoldPath();
+  const rejected = acquirePromotionHold({
+    holdPath, ownerId: "deterministic-owner", ownerLabel: "ai.anicca.deterministic-owner",
+    prNumber: 1094, sha: false,
+  });
+  assert.equal(rejected.ok, false);
+  assert.equal(fs.existsSync(holdPath), false);
+  const acquired = acquirePromotionHold({
+    holdPath, ownerId: "deterministic-owner", ownerLabel: "ai.anicca.deterministic-owner",
+    prNumber: 1094,
+  });
+  assert.equal(acquired.ok, true);
+  const before = fs.readFileSync(holdPath, "utf8");
+  const updated = updatePromotionHold({ holdPath, sha: false });
+  assert.equal(updated.ok, false);
+  assert.equal(fs.readFileSync(holdPath, "utf8"), before);
 });
 
 test("a merge that fails after the hold was acquired releases the hold immediately", async () => {
@@ -938,7 +989,7 @@ test("the hold records the guard's own pid at acquisition, then the merged sha a
   let sawShaBeforePromotion = null;
   const deps = recoveryDeps({
     promoteLoopRuntimeRepair: async (args) => {
-      sawShaBeforePromotion = readPromotionHold(holdPath);
+      sawShaBeforePromotion = readPromotionHold(holdPath).content;
       return {
         ok: true, owner_id: args.ownerId, merged_sha: args.mergedSha,
         release_path: "/loops/releases/new", previous_release_path: "/loops/releases/old",
@@ -1019,8 +1070,47 @@ function orphanHoldFixture(overrides = {}) {
   return { holdPath, promotionsLedgerPath };
 }
 
+test("orphan recovery preserves invalid or incomplete holds without any mutation", async () => {
+  const complete = {
+    sha: null, owner_id: "deterministic-owner", owner_label: "ai.anicca.deterministic-owner",
+    pr: 1094, pid: 999999999, baseline: null,
+    created_at: "2026-09-26T00:00:00.000Z", expires_at: "2026-09-26T01:30:00.000Z",
+  };
+  for (const [name, writer] of [
+    ["empty", (file) => fs.writeFileSync(file, "{}")],
+    ["owner only", (file) => fs.writeFileSync(file, JSON.stringify({ owner_id: "deterministic-owner" }))],
+    ["array", (file) => fs.writeFileSync(file, "[]")],
+    ["wrong sha type", (file) => fs.writeFileSync(file, JSON.stringify({ ...complete, sha: false }))],
+    ["invalid JSON", (file) => fs.writeFileSync(file, "{broken")],
+    ["directory", (file) => fs.mkdirSync(file)],
+  ]) {
+    const holdPath = tempHoldPath();
+    writer(holdPath);
+    let reverts = 0; let reapplies = 0; let releases = 0;
+    const result = await recoverOrphanedPromotionHold({
+      holdPath,
+      promotionsLedgerPath: tempPromotionsLedgerPath(),
+      now: () => new Date("2026-09-26T02:00:00.000Z"),
+      revertMainMerge: async () => { reverts += 1; return { ok: true }; },
+      applyOwnerToRelease: async () => { reapplies += 1; return { ok: true }; },
+      releaseHold: () => { releases += 1; return { ok: true }; },
+    });
+    assert.equal(result.attempted, true, name);
+    assert.equal(result.ok, false, name);
+    assert.equal(result.verdict, "errored", name);
+    assert.equal(result.reason, "promotion_hold_unverified", name);
+    assert.equal(result.next_action, "inspect_promotion_hold", name);
+    assert.equal(reverts, 0, name);
+    assert.equal(reapplies, 0, name);
+    assert.equal(releases, 0, name);
+    assert.equal(fs.existsSync(holdPath), true, name);
+  }
+});
+
 test("orphan recovery with a terminal row already on the ledger just releases the hold", async () => {
-  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({ sha: "e".repeat(40) });
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({
+    sha: "e".repeat(40), baseline: OWNER_BASELINE,
+  });
   appendPromotionTerminalRow(promotionsLedgerPath, {
     merged_sha: "e".repeat(40), pr: 1094, ok: true, rolled_back: false, ts: "2026-09-26T01:00:00.000Z",
   });
@@ -1049,6 +1139,28 @@ test("orphan recovery with no sha recorded (crash before merge) just releases th
   assert.equal(result.ok, true);
   assert.equal(result.verdict, "orphan_pre_merge");
   assert.equal(revertCalls.length, 0, "nothing was ever merged, so nothing to revert");
+  assert.equal(fs.existsSync(holdPath), false);
+});
+
+test("orphan recovery releases an explicit valid legacy pre-merge hold", async () => {
+  const holdPath = tempHoldPath();
+  fs.writeFileSync(holdPath, JSON.stringify({
+    sha: null,
+    owner_id: "deterministic-owner",
+    pr: 1094,
+    pid: 999999999,
+    previous_release_path: null,
+    created_at: "2026-09-26T00:00:00.000Z",
+    expires_at: "2026-09-26T01:30:00.000Z",
+  }));
+  const result = await recoverOrphanedPromotionHold({
+    holdPath,
+    promotionsLedgerPath: tempPromotionsLedgerPath(),
+    now: () => new Date("2026-09-26T02:00:00.000Z"),
+    revertMainMerge: async () => { throw new Error("must not revert"); },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "orphan_pre_merge");
   assert.equal(fs.existsSync(holdPath), false);
 });
 
@@ -1090,6 +1202,7 @@ test("orphan recovery with only a legacy previous path reverts main but keeps ho
   let applyCalls = 0;
   const result = await recoverOrphanedPromotionHold({
     holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    loopsRoot: "/loops",
     revertMainMerge: async () => ({ ok: true }),
     applyOwnerToRelease: async () => { applyCalls += 1; return { ok: true }; },
   });
@@ -1107,6 +1220,7 @@ test("a failed terminal row is not success evidence and does not release the hol
   });
   const result = await recoverOrphanedPromotionHold({
     holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    loopsRoot: "/loops",
     revertMainMerge: async () => ({ ok: false, error: "still on main" }),
   });
   assert.equal(result.ok, false);
@@ -1147,10 +1261,11 @@ test("default owner reapply requires exact non-skipped receipt from the new cont
 
 test("orphan recovery whose main revert fails keeps the hold, alerts, and never claims rolled_back", async () => {
   const sha = "1".repeat(40);
-  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({ sha });
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({ sha, baseline: OWNER_BASELINE });
   const alerts = [];
   const result = await recoverOrphanedPromotionHold({
     holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    loopsRoot: "/loops",
     revertMainMerge: async () => ({ ok: false, error: "gh_pr_merge_failed" }),
     alert: async (message) => { alerts.push(message); },
   });

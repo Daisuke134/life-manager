@@ -528,10 +528,24 @@ function promotionHoldPath(options = {}, env = process.env) {
 }
 
 function readPromotionHold(holdPath) {
+  let info;
   try {
-    return JSON.parse(fs.readFileSync(holdPath, "utf8"));
+    info = fs.lstatSync(holdPath);
+  } catch (error) {
+    if (error?.code === "ENOENT") return { status: "missing", content: null };
+    return { status: "invalid", content: null, error_class: "hold_stat_failed" };
+  }
+  if (!info.isFile()) {
+    return { status: "invalid", content: null, error_class: "hold_not_regular_file" };
+  }
+  try {
+    const content = JSON.parse(fs.readFileSync(holdPath, "utf8"));
+    if (!content || typeof content !== "object" || Array.isArray(content)) {
+      return { status: "invalid", content: null, error_class: "hold_not_object" };
+    }
+    return { status: "valid", content };
   } catch {
-    return null;
+    return { status: "invalid", content: null, error_class: "hold_json_invalid" };
   }
 }
 
@@ -557,16 +571,21 @@ function writePromotionHoldContent(holdPath, content) {
 // can tell a genuinely crashed guard (pid dead) from one that is still working past its own TTL.
 function acquirePromotionHold({
   holdPath, ownerId, ownerLabel = null, prNumber, sha = null, ttlMs = DEFAULT_PROMOTION_HOLD_TTL_MS,
-  now = () => new Date(), pid = process.pid,
+  now = () => new Date(), pid = process.pid, loopsRoot = path.dirname(holdPath),
 }) {
   const nowDate = now();
   try {
-    const existing = readPromotionHold(holdPath);
+    const read = readPromotionHold(holdPath);
+    if (read.status === "invalid") return { ok: false, reason: "hold_invalid" };
+    const existing = read.content;
+    if (existing && !validatePromotionHoldWriterShape(existing, loopsRoot)) {
+      return { ok: false, reason: "hold_invalid" };
+    }
     if (isPromotionHoldActive(existing, nowDate) && existing.pr !== prNumber) {
       return { ok: false, reason: "hold_busy", existing };
     }
     const content = {
-      sha: sha || null,
+      sha,
       owner_id: ownerId,
       owner_label: ownerLabel,
       pr: prNumber,
@@ -575,6 +594,9 @@ function acquirePromotionHold({
       created_at: nowDate.toISOString(),
       expires_at: new Date(nowDate.getTime() + ttlMs).toISOString(),
     };
+    if (!validatePromotionHoldWriterShape(content, loopsRoot)) {
+      return { ok: false, reason: "hold_input_invalid" };
+    }
     writePromotionHoldContent(holdPath, content);
     return { ok: true, content };
   } catch (error) {
@@ -585,13 +607,21 @@ function acquirePromotionHold({
 // Called once, right after merge succeeds and before the promotion itself runs: from this moment a
 // crash actually has a merged commit that needs reverting, so the hold has to say so. Patches onto
 // the EXISTING hold content rather than replacing it, so pid/owner/pr/expiry survive untouched.
-function updatePromotionHold({ holdPath, sha, baseline }) {
+function updatePromotionHold({ holdPath, sha, baseline, loopsRoot = path.dirname(holdPath) }) {
   try {
-    const existing = readPromotionHold(holdPath);
-    if (!existing) return { ok: false, reason: "hold_missing" };
+    const read = readPromotionHold(holdPath);
+    if (read.status === "missing") return { ok: false, reason: "hold_missing" };
+    if (read.status === "invalid"
+        || !validatePromotionHoldWriterShape(read.content, loopsRoot)) {
+      return { ok: false, reason: "hold_invalid" };
+    }
+    const existing = read.content;
     const content = { ...existing };
     if (sha !== undefined) content.sha = sha;
     if (baseline !== undefined) content.baseline = baseline;
+    if (!validatePromotionHoldWriterShape(content, loopsRoot)) {
+      return { ok: false, reason: "hold_update_invalid" };
+    }
     writePromotionHoldContent(holdPath, content);
     return { ok: true, content };
   } catch (error) {
@@ -711,6 +741,55 @@ function validateStoredOwnerBaseline(value, { ownerId, expectedLabel, loopsRoot 
   return { ...value, release_root: root };
 }
 
+function validatePromotionHoldWriterShape(hold, loopsRoot) {
+  const hasBaseline = Object.prototype.hasOwnProperty.call(hold, "baseline");
+  const hasLegacy = Object.prototype.hasOwnProperty.call(hold, "previous_release_path");
+  if (!Object.prototype.hasOwnProperty.call(hold, "sha") || (!hasBaseline && !hasLegacy)
+      || typeof hold.owner_id !== "string" || !hold.owner_id
+      || !Number.isInteger(hold.pr) || hold.pr <= 0
+      || !Number.isInteger(hold.pid) || hold.pid <= 0
+      || typeof hold.created_at !== "string" || !hold.created_at
+      || typeof hold.expires_at !== "string" || !hold.expires_at
+      || (hold.sha !== null && (typeof hold.sha !== "string"
+        || !/^[a-f0-9]{40}$/.test(hold.sha)))) return null;
+  let baseline = null;
+  if (hasBaseline) {
+    if (typeof hold.owner_label !== "string" || !hold.owner_label.startsWith("ai.anicca.")) {
+      return null;
+    }
+    if (hold.baseline !== null) {
+      baseline = validateStoredOwnerBaseline(hold.baseline, {
+        ownerId: hold.owner_id, expectedLabel: hold.owner_label, loopsRoot,
+      });
+      if (!baseline) return null;
+    }
+  }
+  let legacyRoot = null;
+  if (hasLegacy && hold.previous_release_path !== null) {
+    if (typeof hold.previous_release_path !== "string"
+        || !path.isAbsolute(hold.previous_release_path)) return null;
+    legacyRoot = path.resolve(hold.previous_release_path);
+    const releases = path.resolve(loopsRoot, "releases");
+    if (legacyRoot !== hold.previous_release_path || legacyRoot === releases
+        || !legacyRoot.startsWith(`${releases}${path.sep}`)) return null;
+  }
+  if (hold.sha !== null && !baseline && !legacyRoot) return null;
+  return { hold, baseline, legacy_root: legacyRoot };
+}
+
+function unverifiedPromotionHoldResult(read) {
+  return {
+    attempted: true,
+    ok: false,
+    verdict: "errored",
+    reason: "promotion_hold_unverified",
+    error_class: read?.error_class || "hold_shape_invalid",
+    retryable: false,
+    next_action: "inspect_promotion_hold",
+    released: false,
+  };
+}
+
 // Crash recovery for an orphaned hold, run once per self-build pass BEFORE it picks a PR (see
 // self-build-daily.js). A hold only reaches here when it is either expired or its recording pid is
 // no longer alive — a live guard within its TTL is still legitimately working and must not be
@@ -736,14 +815,18 @@ async function recoverOrphanedPromotionHold({
   loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops"),
   controllerRoot = REPO_DIR,
 } = {}) {
-  const hold = readPromotionHold(holdPath);
-  if (!hold) return { attempted: false, reason: "no_hold" };
+  const read = readPromotionHold(holdPath);
+  if (read.status === "missing") return { attempted: false, reason: "no_hold" };
+  if (read.status === "invalid") return unverifiedPromotionHoldResult(read);
+  const verifiedHold = validatePromotionHoldWriterShape(read.content, loopsRoot);
+  if (!verifiedHold) return unverifiedPromotionHoldResult(read);
+  const hold = verifiedHold.hold;
   const nowDate = now();
   const expired = !isPromotionHoldActive(hold, nowDate);
   const pidAlive = isPidAlive(hold.pid);
   if (!expired && pidAlive) return { attempted: false, reason: "hold_active_and_owned" };
 
-  const sha = hold.sha || null;
+  const sha = hold.sha;
   if (sha) {
     const terminal = readTerminalRow(promotionsLedgerPath, sha);
     if (terminal?.ok === true || terminal?.rolled_back === true) {
@@ -755,6 +838,9 @@ async function recoverOrphanedPromotionHold({
     }
   }
   if (!sha) {
+    // A valid legacy writer can still have crashed after merge but before persisting its sha. This
+    // branch preserves the existing pre-merge meaning; closing that historical write window is a
+    // separate migration and is not inferred from missing data here.
     const released = releaseHold({ holdPath });
     return { attempted: true, ok: true, verdict: "orphan_pre_merge", pr: hold.pr, released };
   }
@@ -763,9 +849,7 @@ async function recoverOrphanedPromotionHold({
     throw new Error("recoverOrphanedPromotionHold requires revertMainMerge for a sha-bearing hold");
   }
   const revert = await revertMainMerge({ mergedSha: sha, prNumber: hold.pr });
-  const baseline = validateStoredOwnerBaseline(hold.baseline, {
-    ownerId: hold.owner_id, expectedLabel: hold.owner_label, loopsRoot,
-  });
+  const baseline = verifiedHold.baseline;
   let ownerReapplyResult = null;
   let ownerReapplied = false;
   if (baseline) {
@@ -1793,16 +1877,16 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       let promotionHold = null;
       let ownerBaseline = null;
       if (isRecoveryPr) {
+        const loopsRoot = deps.loopsRoot || process.env.LOOPS_ROOT || path.join(os.homedir(), "loops");
         promotionHold = await (deps.acquirePromotionHold || acquirePromotionHold)({
           holdPath, ownerId: recoveryOwnerId,
           ownerLabel: recoveryRegistry.loops[recoveryOwnerId].label, prNumber,
-          ttlMs: options.promotionHoldTtlMs,
+          ttlMs: options.promotionHoldTtlMs, loopsRoot,
         });
         if (!promotionHold?.ok) {
           record("merge", false, "promotion_hold_unavailable", { hold: promotionHold, holdPath });
           break run;
         }
-        const loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops");
         const readBaseline = deps.readOwnerBaseline || defaultReadOwnerBaseline;
         ownerBaseline = await readBaseline({
           ownerId: recoveryOwnerId,
@@ -1816,7 +1900,7 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
           break run;
         }
         const baselineUpdate = await (deps.updatePromotionHold || updatePromotionHold)({
-          holdPath, baseline: ownerBaseline,
+          holdPath, baseline: ownerBaseline, loopsRoot,
         });
         if (!baselineUpdate?.ok) {
           record("merge", false, "promotion_hold_baseline_write_failed", { hold: baselineUpdate });
@@ -1849,6 +1933,7 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       if (isRecoveryPr) {
         const holdUpdate = await (deps.updatePromotionHold || updatePromotionHold)({
           holdPath, sha: state.mergeSha,
+          loopsRoot: deps.loopsRoot || process.env.LOOPS_ROOT || path.join(os.homedir(), "loops"),
         });
         if (!holdUpdate?.ok) {
           await deps.alert(
