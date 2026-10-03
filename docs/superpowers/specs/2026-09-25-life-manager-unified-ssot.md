@@ -4336,3 +4336,27 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. 既存suite失敗のexact名と変更との因果、fresh review verdictを照合する。修復provenanceの必要な検証がPASSした後だけPRを作り、全CI後main統合する。
 2. 現在の自然reconcilerがterminalになったら、新しいmerged mainのcomplete immutable release→Writer targeted idle/effect-safe apply→natural observation/receipt hash join→replay-zeroを直列で閉じる。
 3. Writer proof後は§185 #3以降へ進む。全体goalは未完のまま保持する。
+
+### 189. Writer 070 target loadとprovenance review修正
+
+- 自然reconciler PID79193はterminal。fleet stateは`2026-10-03T05:30:58Z / error / one or more owner applies failed / changed1 skipped174 errors2`であり成功扱いしない。新しい競合reconciler/buildが無いことを確認し、main `070d24ce6318ed210e53a6b35107719fb40d6cd6`からcomplete immutable release `/Users/anicca/loops/releases/20261003T143134-070d24ce`を作成した。manifestはALL/ancestor-of-origin-main、collector bytesはmain blobと一致（SHA256 `bcb73722f0b59145732c58676f77f33843cd3be97ff1ce3da17b05c9e31af3fb`）。
+- immutable releaseの`lm-loop reconcile shared-agent-runner --loaded-idle-only --max-owners 1 --loop-id writer-sales-measure`で1 ownerのみ反映し、ok=true / changed=true / skipped_running=[] / loaded argvとSHA=070を確認した。entrypoint providerを手動起動せず、release自然wake `18daee0cc5631240-14717`はentrypoint前capacity busy、exit75、effect none。自然provider observation gateは未完。
+- admission read-only診断ではWriterのqueue sequence409306、borrow/support、effect_unknown0、未claimed queued occurrence `writer-sales-measure:18daebdf65f171f0-2933`が1件。公開/決済の未知fenceではなくhost容量待ち。実稼働revenue ownersと予約が存在するため、他ownerをkillしたり強制wakeをsuccess証拠にしない。
+- fresh provenance reviewはfix-first（dotenvがruntime identityを上書きできる境界、artifact維持test不足）。conflicting dotenvで4 caller値の上書きをRED再現し、既存clear_writer_override形でcaller値を保存/復元、不在をunsetする。Note artifact view fixtureを追加しarticle-1__note__ja維持、receipt hash→DB、unknown3/null、money events0、reimport0を確認した。修正HEAD `ce6fd62d037e9f9b7f23a4b8fefee7e7dca7e3a9`はpush済み。auth/provenance/manifest6 PASS、sales-measure lock contract PASS、shell syntax/diff/loop contract PASS。fresh final reviewを別native instanceへ依頼し結果待ち。
+- Writer既存suiteは566 PASS / 122 subtests PASS / 10 FAIL。base collector070へ戻して関連3test filesを実行すると9 FAIL / 39 PASS / 28 subtests PASSを再現した。追加1件のrepair_candidate_wiringはnested Writer suiteのtest_gate failureである。今回の観測provenance修復とは別の既存adoption/repair debtとしてSelf-Build/Eval cursorに残す。
+
+既存失敗exact names:
+- test_article_resume_prepublication_adoption.py::test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily
+- test_prepublication_adoption.py::PrepublicationAdoptionTest::test_orphaned_owner_prompt_recovery_resumes_same_attempt
+- test_prepublication_adoption.py::PrepublicationAdoptionTest::test_owner_prompt_recovery_crash_boundaries_resume_without_rewrite（after-prompt-create / after-receipt-create / after-state-bind）
+- test_prepublication_adoption.py::PrepublicationAdoptionTest::test_terminal_incomplete_owner_prompt_recovery_rearms_once
+- test_writer_repair_candidate_wiring.py::test_the_launchd_driver_runs_the_repair_end_to_end
+- test_writer_repair_routing.py::test_resume_loop_dispatches_repair_routing_after_the_incident_bridge
+- test_writer_repair_routing.py::test_resume_loop_older_backlog_does_not_suppress_new_daily_schedule
+- test_writer_repair_routing.py::test_resume_loop_future_or_unknown_backlog_still_suppresses_new_daily
+
+#### 更新後の原子cursor
+
+1. provenance final reviewを照合しSHIPならPR/全CI/main統合する。
+2. 自然Writer容量claim・provider observationを待ち、merged provenance releaseをtarget反映してruntime→JSONL→DB receipt hashのexact joinとreplay-zeroを閉じる。
+3. §185 #3以降を維持し、adoption/repair debtはSelf-Build/Evalへ含める。全体goalは未完。
