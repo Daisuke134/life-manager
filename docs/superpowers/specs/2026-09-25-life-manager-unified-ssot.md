@@ -5341,3 +5341,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - fresh正規capafy-browserはloaded-running/PID56413/SHA9c03543e5dc51f7bc54f8e132a264964a0e40f6d、loadedargv hashab3251de5139deabdf531f7663bbd9ca7fa781c4c06dd5593b1b0e823868f4a8。不活性旧provision labelのbootout/credential/profile/browser変更0。
 - 実live release owner35660/655b reconcilerを20:29:30Z/elapsed16:02で確認。current20261004T050842-655b2cf2/completeALL、guardian3e1は未immutable/未反映。primary重複cut/apply/kill0。Data空きは約1.9GiB、pressurefloor未達。既存pressure/donor条件を維持する。
 - 次は同live ownerのterminal確認→newmain3e1 completeimmutable/newcontroller blob→fresh GUI/旧labelのexpected argv・program・PIDなし・missing script・plist一致と排他/正規owner維持→exact targetだけapply→旧label absent/doctor/正規owner不変→隔離または公式absent後のreplay-zero。nonatomicの非協調writerリスクを隠さず、条件変更時は作用を出さない。全business/finance/Evalと§217残TODOは未達、全goalactive。
+
+
+### 273. main3e1 immutable成立・直前競合を無作用で停止・自然退役の計画不足を修復
+
+- 旧release owner35660のterminal/PID不在、全cut/reconciler不在をfresh確認し、既存pressure/donor条件のままmain3e1のcompleteimmutableを作成。exit0/current20261004T053610-3e1e30a6/manifest3e1/ALL、controller/schema/registry3Gitblob一致、GUIpreflightPASS。capacityfloorやactivation条件の変更0。
+- 正規capafy browser endpointHTTP200/profileownership/lease空き、PID56413/SHA9c維持を確認。profileleaseを取得しlive退役scriptの実行直前guardでnew release owner5053を検出、applyを発行せずabort/実変更0、leaseを解放。5053はnew3e1 immutableからlive、旧labelはstillspawn scheduled/PIDなし/exit2。旧program/source不存在を未知公開effectのno-effect証明に転用しない。
+- callgraphを追うとnative fleet計画はregistry loopsだけを列挙し、guarded_retired_labelsを選択しない。通常per-loop applyではretirementを行わないため、人間の手動cleanup待ちとなるroot causeを確認。安全な旧登録退役を自然schedulerへ結ぶsourceを追加。
+- latestmain3e1由来branch fix/reconciler-guarded-retirement-20261004/HEAD e7ca0fd2a40c061548cbbd0a6f380d9857e8faa8/2files/clean/pushed。guarded labelを通常ownerより前に既存target applyへ渡す。retired/was_loaded trueまたはremoved_plist trueをchanged、両falseのreplayをskipへ集計。validated new controller/label lock/fresh identityは既存経路で保持。
+- integration fixtureのwas_loaded true/false両subcaseでguarded targetが呼ばれないREDを再現→GREEN、次sameSHA tickのapply追加0を確認。focused1（2subcases）/contract14loops178jobs/adapter15/OSS/bash/diffPASS、runtime検証中/未review/未PR/未main。実旧登録解除0、正規profile/auth/browser操作0。根拠capafy-unmanaged-browser-diagnostic-20261004.json。次はsource受入→main/newimmutable→自然guarded退役/officialabsent/doctor/正規owner維持/replay-zero。全goalactive、全残TODO → §217。
