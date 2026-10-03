@@ -4308,3 +4308,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 3. browserのpersistent login/cookieを手で注入せず、PR #6518 releaseの自然wakeがNote `¥0/0`とSubstack official unknownをfresh appendすることを証明する。manual kickstartだけでnatural completionとしない。
 4. Writer transaction→fee→settlement→payout receiptが0件である現在値を保持し、外部transactionが現れた時だけmoney eventへ昇格する。
 5. Writer natural proof後は§185 #3 Affiliateへ移り、以降Mobile→Connector→Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO統合の順を維持する。
+
+### 187. Writer auth self-heal統合と自然reconcilerの直列待機
+
+- fresh fetchでimplementation HEAD/upstream `6321af567a0ce7a3ef40dd0ed0e3062d6f6dc25e`、spec HEAD/upstream `648e8b3594989cdf69b8a64e08218a3fcf1922a7`、両worktree cleanを確認した。PR #6518はLoop control/TruffleHogを含む全CI SUCCESS、required checks設定は無し。既存fresh Sol SHIPを保持し、admin squash mergeでmain `070d24ce6318ed210e53a6b35107719fb40d6cd6`へ統合した。GitHub mergedAt=`2026-10-03T05:25:11Z`。
+- 現在treeで`python3 -m pytest -q skills/writer-agent/tests/test_measure_sales_auth.py`は2 PASS、`bin/lm-loop-contract`は14 catalog / 178 registry / errors 0、diff check PASS。unittest discoveryはこのpytest形式を収集せず0件なので検証成功の根拠にしない。
+- 引継ぎPID `49577`は存在しないが、次の自然release reconciler PID `79193` / PPID `79137` / immutable `309ca89c`が稼働している。別release/applyを重ねず、このexact live handleのterminalを待つ。直近fleet stateはpartial（Instagram metrics timeout / budget exceeded）であり、reconciler終了やWriter proofに読み替えない。
+- launchctl-safe preflightはUID 501 / Directory Services / Aqua / manager UID/PID / GUI domainすべてPASS。Writer installed SHAは309、loaded-idle、admission effect unknown=false、最後のattemptはpre-entrypoint capacity busyのまま。
+- AGMSG identityは明示指定どおりcodex-money-printer。whoami/inbox/team/where/peekを実測し、rosterはreach cannot/no placement、CFO freshメッセージはlivenessに数えない。CFO worker reported HEAD `268ecea2b0` SHIPとmigration/RPC・Moneytree・7 real daily closesの残gateを受信したが、primary未照合のため統合済みとしない。
+- Telegram milestoneは`MSGID=102070`で確認。credential/browser profile/manual login/cookie injection、provider publish/send/paymentの操作は0。
+
+#### 更新後の原子cursor
+
+1. PID 79193のterminalと新しいreconcilerの有無を再確認し、main 070のcomplete immutable releaseを作る。Writerだけのidle/effect-safe target applyを行い、loaded argv/SHAを確認する。
+2. 手動kickstartではなく自然wakeのNote/Substack fresh observationを確認する。ledgerの既存rowはrun/release identityを明示しないため、timestamp/receiptによるexact joinが成立するか実物で確認し、成立しない場合は最小のprovenance修復を行う。
+3. Writer money receiptsとreplay-zeroを確認後、§185 #3以降の順序を維持する。全体goalは未完、profit/financial independenceは未証明。
