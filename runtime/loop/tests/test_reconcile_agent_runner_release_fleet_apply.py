@@ -824,5 +824,28 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 self.assertIn('apply target=loop-a', calls.read_text())
 
 
+    def test_retirement_ignores_generic_changed_and_skipped_fields(self):
+        for was_loaded in (False, True):
+            with self.subTest(was_loaded=was_loaded), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                release = self._make_release(root, sha)
+                p = release/'config/loop-registry.json'
+                registry = json.loads(p.read_text())
+                label = 'ai.anicca.orphan'
+                registry['guarded_retired_labels'] = {label: {}}
+                p.write_text(json.dumps(registry))
+                self._activate(root, release)
+                env = self._base_env(root, repo, calls_log=root/'calls.log')
+                payload = [{'ok':True, 'label':label, 'retired':True, 'was_loaded':was_loaded,
+                            'removed_plist':False, 'changed':not was_loaded, 'skipped':was_loaded}]
+                env.update({'FAKE_APPLY_MODE':'retire_bad','FAKE_RETIRE_TARGET':label,'FAKE_RETIRE_RESPONSE':json.dumps(payload)})
+                result = self._run(env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                state = self._state(root)
+                self.assertEqual(state['changed'], 2 if was_loaded else 1)
+                self.assertEqual(state['skipped'], 0 if was_loaded else 1)
+
+
 if __name__ == "__main__":
     unittest.main()

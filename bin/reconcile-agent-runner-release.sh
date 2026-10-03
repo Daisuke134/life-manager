@@ -450,12 +450,11 @@ if sys.argv[1] == "retire":
             and isinstance(row.get("removed_plist"), bool)):
         print("0 0 1")
         sys.exit(0)
-changed = sum(1 for r in rows if isinstance(r, dict) and (
-    r.get("changed") or (r.get("retired") is True and (
-        r.get("was_loaded") is True or r.get("removed_plist") is True))))
-skipped = sum(1 for r in rows if isinstance(r, dict) and (
-    r.get("skipped") or (r.get("retired") is True
-        and r.get("was_loaded") is False and r.get("removed_plist") is False)))
+    retired_changed = int(row["was_loaded"] or row["removed_plist"])
+    print(retired_changed, 1 - retired_changed, 0)
+    sys.exit(0)
+changed = sum(1 for r in rows if isinstance(r, dict) and r.get("changed"))
+skipped = sum(1 for r in rows if isinstance(r, dict) and r.get("skipped"))
 errors = sum(1 for r in rows if isinstance(r, dict) and r.get("ok") is False)
 print(changed, skipped, errors)
 ' "$plan_action" "$loop_id" 2>/dev/null || printf '0 0 1')
