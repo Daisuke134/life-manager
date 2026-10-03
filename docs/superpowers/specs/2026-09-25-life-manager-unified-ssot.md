@@ -5350,3 +5350,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - callgraphを追うとnative fleet計画はregistry loopsだけを列挙し、guarded_retired_labelsを選択しない。通常per-loop applyではretirementを行わないため、人間の手動cleanup待ちとなるroot causeを確認。安全な旧登録退役を自然schedulerへ結ぶsourceを追加。
 - latestmain3e1由来branch fix/reconciler-guarded-retirement-20261004/HEAD e7ca0fd2a40c061548cbbd0a6f380d9857e8faa8/2files/clean/pushed。guarded labelを通常ownerより前に既存target applyへ渡す。retired/was_loaded trueまたはremoved_plist trueをchanged、両falseのreplayをskipへ集計。validated new controller/label lock/fresh identityは既存経路で保持。
 - integration fixtureのwas_loaded true/false両subcaseでguarded targetが呼ばれないREDを再現→GREEN、次sameSHA tickのapply追加0を確認。focused1（2subcases）/contract14loops178jobs/adapter15/OSS/bash/diffPASS、runtime検証中/未review/未PR/未main。実旧登録解除0、正規profile/auth/browser操作0。根拠capafy-unmanaged-browser-diagnostic-20261004.json。次はsource受入→main/newimmutable→自然guarded退役/officialabsent/doctor/正規owner維持/replay-zero。全goalactive、全残TODO → §217。
+
+
+### 274. 自然退役の未確認結果・二重集計を独立反証してfail-closedへ修復
+
+- 初回source reviewはfix-first。guarded targetがexit0/空配列/壊れたJSONを返すとfleet successとなり同SHAで以後skipされる反例を独立再現。親も空/不正/label不一致/int bool flags4cases RED→GREEN。plan_action retireを通常applyと区別し、exact1row/matchinglabel/ok true/retired true/was_loaded・removed_plist明示boolを必須化、不一致はowner_errors1/fleeterror・後続正常ownerは保持。
+- 再reviewの反例は、正常retire rowに通常owner用changed/skippedが混じると二重集計すること。親もfalse flags+changedtrue、trueflag+skippedtrueの2cases RED→GREEN。valid retire rowは2bool ORだけでchanged/1-changed/0を返しexit、通常owner集計はbase同一へ戻した。未確認を効果0・成功へ丸めず、実退役と不在replayを区別する。
+- 最終source c0e6fc5f66f0578232d114ff63ae98db4cfa27f9/2files/clean/pushed/base3e1。runtime758/148.856s、focused3（8subcases）/adapter15/contract14loops178jobs/OSS/bash/diffPASS。fresh再review進行中、未PR/未main。copy of retirement resultを売上・精算・providerreceiptへ転用しない。
+- current3e1 completeimmutableは§273、旧孤児登録live退役は未達。native owner5053は継続liveのためprimary重複apply/kill0。今後のsource統合/newimmutable後は既存self-handoffがparentexit後にreconciler executableを更新し、guarded targetはfleet先頭で自然実行。新schedulerや強制restartを作らない。全finance/Eval/全§217残TODO未達、goalactive。
