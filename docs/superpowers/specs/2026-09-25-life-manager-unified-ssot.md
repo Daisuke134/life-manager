@@ -4831,10 +4831,11 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- PR6525/6527/6528/6529はmain統合済み。直近確認のmain/current complete ALLは80cccc6f92069b7a8d259af619b87e47bef9861c / /Users/anicca/loops/releases/20261003T212112-80cccc6f。SelfBuild exactloadedargv80/idle/effectunknownfalseは§226、次のJST04:10自然UUID/report照合は未達。
-- 現在のsource統合cursorはPR6531 / fix/mercor-paid-observer-20261003 / HEAD90535b1845d13d79123ab38bc84743acf0f96150。独立reviewSHIP/focused62/adapter15/contract/OSSPASS。hosted macOSの既存workflow run37131174406は749runtime testsと全9job SUCCESS。PR全10checksSUCCESS後にadmin squashでmain6ae9db504778a84e536db8b22fa67099332fb8e3へ統合済み（§232）。cc0 completeimmutable/source4file一致とPaid actualloadedargv一致は§233–234で確認。natural Paid own-snapshot照合は未達。
-- Mercor旧Paid1件は§226で解放済み、旧Reply49631は§231でexact native92552/sourceb13/exit75のmessage業務scopeに限定したpositive proofで解放、replay rowchange0。App旧33812はHELD。過去auth token更新/通知UIの外部作用はunknownのまま。主たる全残TODO順序とMobile担当の排他的branch/Apple境界を維持する。
-- 運用hostのData空き約380MiB/100%、local cold build ENOSPCは未解決。削除可能性が不明なtemp/source/credential/profileや全件参照済みdependency bundlesは削除しない。doctorの既存unmanaged capafy.kosukeも未完。fleet3owner failureの前回記録（widget deploy busy/metrics effect fence/alpaca bootstrap5復旧）は§226以前の履歴を参照し、新しい成功を未観測でclaimしない。稼働release ownerの重複build/apply/kill0。
+- 最新sourceはPR6534/本人限定token更新を含むmain9c03543e5dc51f7bc54f8e132a264964a0e40f6d。PR6531/6534は統合済み、再PR/merge不要。PR6534は独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSS/全10CI PASS。実装branch fix/mercor-paid-token-refresh-20261004/HEADce914はclean/pushedで保持。
+- production currentはcc0e8140f891231746bc79e42c32f228ae539f6a/completeALL。Paid actualargv/load一致、manual認証維持後の自然independent snapshot/run/result joinは§236でPASS。在庫0/effect0/pending0は収益ではない。新main9cのimmutable/load/expiry-aware自然観測は未達。既存release owner61609の実liveを追い、重複build/apply/kill/wakeしない。
+- SelfBuild exactloaded80/idle/effectunknownfalseは§226、JST04:10自然UUID/report照合は未達。現在のloadedを更新なしにlatestmainと断定しない。Mobile別担当のbranch/Apple/provider/profileを触らない。
+- Mercor旧Paid1件は§226、Reply49631は§231でexact message業務scope proofにより解放/replay0。別旧Reply61324はnative66602/exit1/証拠不足でHELD、App33812もHELD。過去auth/UI一般作用unknownを0へ変換しない。保留4の受付・不足fields診断は§234。
+- 容量は他既存処理で約3.7GB回復後、closed npx cache1件の限定削除で約155MB増加、旧ENOSPCの全回復を自分の成果へ計上しない。doctorの既存unmanaged capafy.kosukeは未完。全14 CFO/fee/actualcost/settlement/payoutと全残TODOは上表のままgoalactive。
 
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
