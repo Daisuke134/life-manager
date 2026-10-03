@@ -84,7 +84,7 @@ def _direct_capture_expression(names: list[str], *, expected_email: str | None =
         const timer=setTimeout(()=>controller.abort(),8000);
         try {
           const response=await fetch(url,{headers:{Authorization:'Bearer '+token},
-            credentials:'omit',signal:controller.signal});
+            credentials:'omit',cache:'no-store',signal:controller.signal});
           if(!response.ok) return [name,null];
           return [name,await response.json()];
         } catch(error) { return [name,null]; }

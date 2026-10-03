@@ -16,7 +16,7 @@ const records=[{value:{email:'other@example.test',stsTokenManager:{accessToken:'
 global.indexedDB={open:()=>{const req={};queueMicrotask(()=>{req.result={
  objectStoreNames:{contains:()=>true},close:()=>{},transaction:()=>({objectStore:()=>({getAll:()=>{
  const get={result:records};queueMicrotask(()=>get.onsuccess());return get;}})})};req.onsuccess();});return req;}};
-global.document={querySelectorAll:()=>[]};global.fetch=async()=>{fetched++;return {ok:true,json:async()=>[]};};
+global.document={querySelectorAll:()=>[]};global.fetch=async(url,options)=>{if(options.cache!=='no-store')throw Error('cache_may_be_stale');fetched++;return {ok:true,json:async()=>[]};};
 '''
     harness = harness.replace('other@example.test', first_email)
     script = harness + '(' + expression + ').then(value=>console.log(JSON.stringify({value:JSON.parse(value),fetched})))'
