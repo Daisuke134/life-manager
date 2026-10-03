@@ -161,6 +161,7 @@ function createLumaScriptFirstWorkflow(options = {}) {
   const readLumaFormProfile = options.readLumaFormProfile;
   const agenticRegister = options.agenticRegister;
   const onDiscoveryAudit = options.onDiscoveryAudit || (() => {});
+  const ensureAuthenticated = options.ensureAuthenticated;
   // Fail closed: until production wiring proves an event has no bundle,
   // treat it as bundled so a mis-wired caller can never re-surface it.
   const hasAppliedBundle = options.hasAppliedBundle || (() => true);
@@ -169,12 +170,17 @@ function createLumaScriptFirstWorkflow(options = {}) {
     || typeof isCalendarFree !== "function"
     || typeof submitOnPage !== "function" || typeof readProviderStateOnPage !== "function"
     || typeof onDiscoveryAudit !== "function" || typeof hasAppliedBundle !== "function"
+    || (ensureAuthenticated != null && typeof ensureAuthenticated !== "function")
     || (readLumaFormProfile != null && typeof readLumaFormProfile !== "function")
     || (agenticRegister != null && typeof agenticRegister !== "function")
   ) invalid();
 
   return Object.freeze({
     async discoverCandidates({ page, calendar }) {
+      if (ensureAuthenticated) {
+        const auth = await ensureAuthenticated({ page });
+        if (!auth || auth.status !== "authenticated") invalid();
+      }
       const discovery = await discoverOnPage({ page });
       const observed = Array.isArray(discovery) ? discovery : discovery && discovery.candidates;
       if (!Array.isArray(observed) || observed.length > 500) invalid();
