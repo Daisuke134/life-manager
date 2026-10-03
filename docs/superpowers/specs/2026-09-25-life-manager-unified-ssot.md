@@ -4810,7 +4810,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
 2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
 3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
-4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。次はsameidentityのapplications/contract/earnings official readback→exact fence reconcile→返信／提出／精算境界を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
+4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。§225でsameidentity official GET/earningsを取得、local92対official100の90listing join/10applied/79rejected/1started、USD0.00 empty paymentを観測。次は旧exact3fenceのintent/time/receipt join→限定reconcile→返信／提出／精算を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
 
 #### 全体の残TODO
 
@@ -4912,3 +4912,15 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - registered with-browser lease内でownedpageのGETだけを実施、unreachable auto-provision fallbackはfalseへ制限。最初はHTTP200/bodyemptyでauth unproven、次は/home/bodyhydrated、広告analytics等のrequestfailとwork hostfetchfailを観測。既存auth observerのtoken-refresh部分をdisabledにしたread-only probeで公式notifications GET200、authenticated navigationtrue、Firebasepresent/expiredfalse/refreshedfalse。private profile内の唯一のemail値と既存Firebaseuser emailをメモリ内比較してmatchtrue、値を出力／ファイルコピーせず本人identityまで確認。
 - browser復旧を応募/返信/paid完走へ置換しない。login submit/token refresh/credential reset/応募/返信/納品/fence解放0、CAPTCHA/KYC回避0。exact oldfenceとcurrentcontract/settlement/payoutは未完。state/mercor-browser-recovery-20261003.json と mercor-session-observation-20261003.json、mode600にsecret-free evidenceを保存。
 - LancersPaid latest targeted readbackはinstalled/eventSHA80一致、idle/effectunknowntrue。自然eventSHAだけでnewhelperが実行されたと断定せず、latest native/error/resultのsameoccurrence joinは次に閉じる。SelfBuildはinstalled/eventc5e6、idle/effectunknownfalseでnewfixのload/naturalreport未達。稼働release ownerをkill/重複applyせず、main80はstableに維持。
+
+
+### 225. Mercor fresh official applications/contract/earningsと旧exact fence診断
+
+- 前turnはbrowser/session本人一致復旧でprogress。本turnはmain/current80と登録済みMercor leaseをfresh確認し、同じownedpageから既存capture moduleの公式GET（applications/contracts/assessments/interviews）をread-only実行。全HTTP200、本人emailの一致はcanonical tokenFromと同じ最初のusable token recordへ束縛、expiryfalse/refreshfalseを維持。secret/email/token/raw JDを出力／repoへコピーせず、client送信/応募/返信/提出/認証変更0。
+- applications返却100はrejected82/applying-started8/applied10。candidateId/listingId/status/appliedAt/updatedAtだけをsecret-free snapshotへ保存。返却100のpagination完全性は未確認、欠落を応募無しとしない。初回見たmercor直下のapplications.jsonl19件は古い別rootと判明し、current application-ownerが指定するmercor/application/applications.jsonl92件へcallgraphで訂正した。
+- current local92はlisting IDで90一致、公式currentstatusはrejected79/applied10/applying-started1、unmatched2。最新localrun mercor-20260919-152731-98719は公式candidate_AAABoLhivQgY1icEmD9F-5-3/list_AAABoKv9KkjxybpmLTRGRaCZ、appliedAt09/19 06:37:56Z/localobserved06:38:18Z、currentrejected/updated09/26 06:43:30Z。local submitted_pending_reviewを現在の採用/契約/売上と数えない。原本ledgerの書換え0、same native occurrence/time/effect intentの完全joinは未達。
+- contracts公式GETは返却array0。current officialearnings routeはHTTP200/認証一致/valid total labelとNo payment history marker、13:24:26.529047Z displaytotalUSD0.00/paymenthistoryempty/rows[]。providerのこの観測であり、all-income0/fee0/actualcost0/netprofit0へ拡張しない。既存earningsconsumerのemptyは意図的statusnot_observed（settled payment未観測）、同期＋同snapshot再同期はsynced0/events[]/sendercalls0/workstoreunchanged。正のrevenue credit0、費用UNKNOWN。
+- proofはstate/mercor-official-inventory-probe-20261003.json、mercor-application-current-join-20261003.json、mercor-earnings-official-20261003.json、mercor-earnings-empty-replay-20261003.json、すべてmode600。session/inventory probeの当初outputbasename重複を訂正し、captured inventoryを専用refへ分離した。
+- pre-effect reconcile dry-runはApp mercor-revenue-application:18d6f9cb5bdaef98-33812、Reply mercor-revenue-reply:18d6683223830368-49631、Paid mercor-revenue-paid:18da1ad9fb72e1c8-70898の各1旧exactfenceをno_pre_effect_terminalでunprovable。resolve0。Appは09/20 08:22:33Z execute→08:30:33Z fail/releasef3e518、Replyは09/18 11:54:26Z execute→11:54:59Z pass/releasee0d583だが別occurrence claim18d66729...20311を参照、Paidは09/30 13:02:05Z execute/release0f0e6e/report無し。Paid exactnativeoccurrence hashのshared-paid completedmarkerは存在せず、他677completed0markersを代用しない。
+
+次はold exact intent・loaded argv/sourceSHA・native summary/child evidence/time windowを各1件へ結合し、公式candidate/payment/mail receiptまたはpositive pre-effect proofが揃うものだけreconcile/replay-zeroを閉じる。current listing一致／emptyincome／transport復旧を理由に旧fence解放や再送をしない。残TODOとMobile担当境界は§217のまま、全goalactive。
