@@ -29,6 +29,14 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    retire_guarded)
+      if [ "$target" = "${FAKE_RETIRE_TARGET:-}" ]; then
+        echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"retired\\":true,\\"was_loaded\\":${FAKE_RETIRE_LOADED:-true},\\"removed_plist\\":false}]"
+      else
+        echo "[{\\"ok\\":true,\\"changed\\":true}]"
+      fi
+      exit 0
+      ;;
     orphan_holds_stdout)
       sleep 60 &
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
@@ -757,5 +765,32 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertIn("budget exceeded", state["message"])
 
 
+    def test_guarded_retirement_runs_before_loops_and_counts_change_or_replay(self):
+        for was_loaded in (True, False):
+            with self.subTest(was_loaded=was_loaded), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                release = self._make_release(root, sha)
+                registry_path = release / "config/loop-registry.json"
+                registry = json.loads(registry_path.read_text())
+                label = "ai.anicca.orphan"
+                registry["guarded_retired_labels"] = {label: {"expected_arguments_sha256": "a" * 64, "missing_entrypoint": "/missing.py"}}
+                registry_path.write_text(json.dumps(registry))
+                self._activate(root, release)
+                calls = root / "calls.log"
+                env = self._base_env(root, repo, calls_log=calls)
+                env.update({"FAKE_APPLY_MODE": "retire_guarded", "FAKE_RETIRE_TARGET": label, "FAKE_RETIRE_LOADED": str(was_loaded).lower()})
+                first = self._run(env)
+                self.assertEqual(first.returncode, 0, first.stderr)
+                applies = [line for line in calls.read_text().splitlines() if line.startswith("apply ")]
+                self.assertEqual(applies, [f"apply target={label}", "apply target=loop-a"])
+                self.assertEqual(self._state(root)["changed"], 2 if was_loaded else 1)
+                self.assertEqual(self._state(root)["skipped"], 0 if was_loaded else 1)
+                second = self._run(env)
+                self.assertEqual(second.returncode, 0, second.stderr)
+                self.assertEqual(self._apply_call_count(calls), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
+
