@@ -369,6 +369,11 @@ class MobileAppsTest(unittest.TestCase):
         self.assertEqual(sums(entries), {("mobile-apps", "revenue", "UNKNOWN"): Decimal("7.75")})
         self.assertEqual(notes["mrr"], {"anicca-ios": "20.34", "honne-ai": "0.0"})
 
+    def test_final_asc_proceeds_supersede_revenuecat_chart_revenue(self):
+        entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_asc_financial.jsonl"))
+        self.assertEqual(sums(entries), {("mobile-apps", "revenue", "USD"): Decimal("9.99")})
+        self.assertEqual(entries[0].receipt_id, "appstoreconnect:financial-reports/sales-2026-09/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#0")
+
     def test_revenuecat_unavailable_for_one_product_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "mobile_apps_revenuecat_unavailable:anicca-ios"):
             list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_stale.jsonl"))

@@ -141,6 +141,14 @@ function pending(product, reason = "report_pending") {
   };
 }
 
+function sourceFailureReason(error) {
+  const message = String(error && error.message || error || "");
+  if (/required or expired agreement|missing or has expired|agreement/i.test(message)) return "asc_agreement_required";
+  if (/403|forbidden|insufficient permissions/i.test(message)) return "asc_permission_denied";
+  if (/deadline exceeded|timeout/i.test(message)) return "source_timeout";
+  return "source_unavailable";
+}
+
 async function latestDaily(reportId) {
   const links = (await ascJson(["analytics", "reports", "links", "--report-id", reportId, "--output", "json"])).data;
   const candidates = await Promise.all(links.slice(-16).map(async ({ id }) => {
@@ -186,7 +194,7 @@ async function collectProduct(product, reportDay) {
     return summarize(product, downloaded.rows, engaged.rows, [downloaded.metadata, ...(detailed ? [detailed.metadata] : []), engaged.metadata], detailed?.rows || []);
   } catch (error) {
     if (/not found|404|no analytics report instances/i.test(String(error.message))) return pending(product);
-    return pending(product, /deadline exceeded|timeout/i.test(String(error.message)) ? "source_timeout" : "source_unavailable");
+    return pending(product, sourceFailureReason(error));
   } finally { fs.rmSync(directory, { recursive: true }); }
 }
 
@@ -217,4 +225,4 @@ async function persistAscAcquisition(dataDir = resolveDataRoot(process.env), rep
 }
 
 if (require.main === module) persistAscAcquisition().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { PRODUCTS, collectProduct, derivedFunnelRates, pending, persistAscAcquisition, rows, summarize };
+module.exports = { PRODUCTS, collectProduct, derivedFunnelRates, pending, persistAscAcquisition, rows, sourceFailureReason, summarize };

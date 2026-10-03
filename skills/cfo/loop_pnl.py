@@ -814,7 +814,50 @@ def capafy_entries(day: date, path: Path = CAPAFY_ANALYTICS, now: datetime | Non
 
 BUSINESS_OUTCOMES = STATE / "marketing-metrics-daily" / "state" / "business-outcomes.jsonl"
 MOBILE_APPS_PRODUCTS = ("anicca-ios", "honne-ai")
+MOBILE_ASC_APP_IDS = {"anicca-ios": "6755129214", "honne-ai": "6759667221"}
 MOBILE_UNKNOWN_CURRENCY = "UNKNOWN"
+
+
+def _mobile_asc_entries(row: dict, loop_id: str) -> list[Entry] | None:
+    source = (row.get("sources") or {}).get("app_store_financial")
+    if not isinstance(source, dict) or source.get("status") != "available":
+        return None
+    data = source.get("data")
+    if not isinstance(data, dict) or data.get("report_status") != "final":
+        raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+    report_id = data.get("report_id")
+    report_sha = data.get("report_sha256")
+    if (not isinstance(report_id, str) or not report_id
+            or not isinstance(report_sha, str) or len(report_sha) != 64
+            or any(char not in "0123456789abcdef" for char in report_sha)
+            or data.get("apple_identifier") != MOBILE_ASC_APP_IDS.get(row.get("product_id"))
+            or not isinstance(data.get("rows"), list)):
+        raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+    entries: list[Entry] = []
+    for item in data["rows"]:
+        if not isinstance(item, dict) or not isinstance(item.get("source_row_index"), int):
+            raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+        currency = str(item.get("partner_share_currency") or "").upper()
+        if not currency.isalpha() or len(currency) < 3 or currency == "UNKNOWN":
+            raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+        try:
+            amount = Decimal(str(item.get("extended_partner_share")))
+        except Exception as exc:
+            raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}") from exc
+        sale_or_return = item.get("sale_or_return")
+        if amount < 0 or sale_or_return not in {"S", "R"}:
+            raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+        if amount == 0:
+            continue
+        transaction_date = str(item.get("transaction_date") or item.get("settlement_date") or "")
+        settlement_date = str(item.get("settlement_date") or "")
+        if not transaction_date or not settlement_date or transaction_date > settlement_date:
+            raise ValueError(f"mobile_apps_asc_financial_invalid:{row.get('product_id')}")
+        entries.append(Entry(
+            loop_id, "revenue" if sale_or_return == "S" else "refund", amount, currency,
+            f"appstoreconnect:financial-reports/{report_id}/{report_sha}#{item['source_row_index']}",
+        ))
+    return entries
 
 
 def mobile_apps_entries(day: date, path: Path = BUSINESS_OUTCOMES, loop_id: str = "mobile-apps",
@@ -841,7 +884,18 @@ def mobile_apps_entries(day: date, path: Path = BUSINESS_OUTCOMES, loop_id: str 
     mrr: dict[str, str] = {}
     for product_id in products:
         row = rows[product_id]
+        asc_entries = _mobile_asc_entries(row, loop_id)
         rc = row.get("sources", {}).get("revenuecat", {})
+        if asc_entries is not None:
+            yield from asc_entries
+            if rc.get("status") != "available":
+                continue
+            rc_data = rc.get("data") or {}
+            mrr_metric = (rc_data.get("charts") or {}).get("mrr", {}).get("latest_complete", {}).get("MRR")
+            if isinstance(mrr_metric, dict) and "value" in mrr_metric:
+                mrr.setdefault(product_id, str(mrr_metric["value"]))
+                notes["mrr"] = mrr
+            continue
         if rc.get("status") != "available":
             raise ValueError(f"mobile_apps_revenuecat_unavailable:{product_id}:{rc.get('reason')}")
         rc_data = rc.get("data") or {}
