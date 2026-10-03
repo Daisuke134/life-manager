@@ -4201,6 +4201,12 @@
       "priority": "support"
     }
   },
+  "guarded_retired_labels": {
+    "ai.anicca.provision-browser.capafy.kosuke": {
+      "expected_arguments_sha256": "846e489e92ab67404486025fd7551c9744f88de59b575de8dd43bc74e38d8ce9",
+      "missing_entrypoint": "~/loops/releases/20261001T084634-ad194515/skills/browser/cdp_persistent_context.py"
+    }
+  },
   "retired_labels": [
     "ai.anicca.agents-skills-sync",
     "ai.anicca.alpaca-investment",
