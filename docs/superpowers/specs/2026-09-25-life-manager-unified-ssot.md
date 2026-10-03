@@ -5028,3 +5028,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - source条件を閉じ、重複PR無しを確認してPR6534を一度作成。最終実装は既存Mercor通常refreshを本人最初recordに限定しPaidへ接続、失敗時旧snapshot保持。checksのLoop control/Python/gitleaks/TruffleHogは進行中、現行mainへ未統合。review/sourceprobeだけで自然renewal成功をclaimしない。
 - manual auth maintenance後、現行cc0の自然Paidはcapacitybusyを経てnative18db1030ad163af0-65837/15:57:58execute→15:58:12.432979Z/pass/exit0。own snapshot15:58:09.010369Z/contracts0、business artifact occurrenceはnativeと完全一致、ok/effect0/observed0/pending0/failed0/readback0。Reply旧fenceが残る状況でも独立観測が自然に動いたことを確認。current valid-token経路の証拠であり、新expiry対応sourcece914の自然実行は未達。売上/入金/fee/actualcostの証明には使わない。
 - proof state/mercor-paid-natural-independent-20261004.json/mode600、token-refresh-source proof更新。前global8173はfreshmissing/terminal、新release owner61609/parent61583はfreshlive、重複build/apply/kill/manualwake0。次はPR6534全checks exactheadPASS後のmerge→既存immutable/load→renewal-aware自然runを照合し、全goalactive/全14残TODO・Mobile担当境界を維持する。
+
+
+### 237. Paid本人限定token更新PR6534のmain統合・production gate保持
+
+- PR6534のexactheadce914b0b3948feff55641d3388db3a08bd573acf/basecc0・全10checksSUCCESSをfresh確認し、--match-head-commit付きadmin squash mergeを一度実行。mergedAt16:02:54Z/main9c03543e5dc51f7bc54f8e132a264964a0e40f6d、fresh fetch/remote object一致。sourcebranchはclean/pushed保持、再PR/mergeしない。
+- 独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSSに加え実session通常更新sourceprobeも成功。これらを新mainのproduction自然実行と混同しない。現行cc0自然GET成功はmanual認証維持後のvalid token経路、新main9cのexpiry-aware自然観測は未達。次はexisting owner終了後のcompleteimmutable/source bytes/actual Paidargv/load/natural snapshotを照合する。
+- 既存release owner61609/parent61583はfreshlive/elapsed6:27、currentcc0completeのまま。primaryの重複build/apply/kill/manualwake0。Reply/App旧fence、ASC別担当gate、SelfBuild自然UUID/report、全14 CFO/payout/actualcost等の§217全残TODOを保持しgoalactive。
