@@ -1,7 +1,7 @@
 # Life Manager Writer revenue continuation
 
 - Remaining-TODO SSOT: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` §186, then §185 items 3-12.
-- Spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`; branch `docs/ssot-orchestration-status-20261002`; upstream `origin/docs/ssot-orchestration-status-20261002`; verified pre-handover HEAD `38ff653573`.
+- Spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`; branch `docs/ssot-orchestration-status-20261002`; upstream `origin/docs/ssot-orchestration-status-20261002`; verified handover-content commit `0ed41a0af6`（このmetadata更新はその次のdocs-only commit）。
 - Implementation worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/writer-sales-lock-20261003`; branch `fix/writer-sales-auth-self-heal-20261003`; upstream `origin/fix/writer-sales-auth-self-heal-20261003`; clean HEAD `6321af567a`.
 - PR #6518 is open. Fresh Sol review is `SHIP`; focused tests and most GitHub checks pass, but Loop control/TruffleHog were still running at 14:18 JST. First action: fresh fetch and PR/check readback, then merge only if every required check passes.
 - PR #6517 is merged at main `309ca89c85`; current complete release is `/Users/anicca/loops/releases/20261003T134526-309ca89c`. `writer-sales-measure` is installed on 309. Its natural wake reached admission capacity busy before entrypoint.
