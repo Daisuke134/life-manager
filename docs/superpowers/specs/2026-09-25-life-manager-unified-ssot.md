@@ -4810,7 +4810,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
 2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
 3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
-4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。§225でsameidentity official GET/earningsを取得、local92対official100の90listing join/10applied/79rejected/1started、USD0.00 empty paymentを観測。§226でPaid旧exact1件をfresh反証検証＋positivehint/source proofで解放/replay0。App/Reply旧2fenceは保持。§227でcanonical Reply snapshotの公式API/Gmailを刷新し、後続Paid artifactはok/pending0/在庫0を観測。次は継続的なfresh input維持と残exact intent/receipt join→限定reconcile→返信／提出／精算を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
+4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。§225でsameidentity official GET/earningsを取得、local92対official100の90listing join/10applied/79rejected/1started、USD0.00 empty paymentを観測。§226でPaid旧exact1件をfresh反証検証＋positivehint/source proofで解放/replay0。App/Reply旧2fenceは保持。§227でcanonical Reply snapshotの公式API/Gmailを刷新し、後続Paid artifactはok/pending0/在庫0を観測。§228で自然Paid terminalまでjoin済み。継続更新は旧fenceで停止中のReply ownerに依存し、手動刷新だけでは未完。次は継続的なfresh input維持と残exact intent/receipt join→限定reconcile→返信／提出／精算を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
 
 #### 全体の残TODO
 
@@ -4940,5 +4940,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 
 - 既存registered mercor:dais leaseで、現行80のjob_search_loop.mercor_reply_snapshot.snapshotを利用。公式APIと既存Gmail file backendを読み取り、observed_at2026-10-03T14:09:16.083122Z、contracts0、Gmail60threads/source_health.gmail freshを取得した。認証メール除外を既存実装のまま維持し、credential/token/email本文をrepo/chatへコピーしない。新observer/schedulerは作らない。
 - Reply/Paid双方のowner deploy lockとloaded-idleを確認し、既存canonical mercor/reply/official-snapshot.jsonを原子的に刷新。schema/required fields、900秒以内、実Paid consumerでcontracts[]を検証し、旧版backupと書込後SHA256一致を保存。新hash9ac027b1b1c1ff00e2cee72522ab6ad2fc49b1a3b13352b74e6fcdd0c0d9f87b。App/Reply fence解放0、provider send0、auth submit0、manual wake0。
-- 後続paid-latest artifactのoccurrence mercor-revenue-paid:18db0a72a959cbc0-19849はstatusok/effect0/readback0/observed0/pending0/items[]。旧official_work_inventory_stale保留から、fresh入力で在庫0の観測へ進んだ。artifactとnative terminalの完全joinは未確認であり、契約成立・納品・売上・入金・実利益の成功とは扱わない。
+- 後続paid-latest artifactのoccurrence mercor-revenue-paid:18db0a72a959cbc0-19849はstatusok/effect0/readback0/observed0/pending0/items[]。旧official_work_inventory_stale保留から、fresh入力で在庫0の観測へ進んだ。§228でartifactとnative terminalのsame run照合は完了したが、契約成立・納品・売上・入金・実利益の成功とは扱わない。
 - proofはstate/mercor-canonical-snapshot-refresh-20261003.json、staged snapshotと旧canonical backupは同state内mode600。§217の現在状態と残TODOを更新し、大きな実行順序は変更しない。次はMercor旧App/Reply exact intent/official receiptの照合と継続observerのfreshness維持。SelfBuildは自然UUID/report待ち、Mobileは既存担当のASC Account Holder Agreement gateを維持。全goalactive/未完。
+
+
+### 228. Mercor自然Paidのsame run照合・継続更新依存と旧claim境界
+
+- mercor/events.jsonlのrun18db0a72a959cbc0-19849をpaid artifactのoccurrenceと照合。execute14:12:44.401011Z→report14:12:48.109934Z、release80cccc6f92069b7a8d259af619b87e47bef9861c、nativepass/exit0。business artifactはok/effect0/readback0/observed0/pending0/items[]。native envelopeのeffect_statusはunknown、provider receipt/official readback refはnull。空在庫観測とruntime終了をsettled revenue/financial successへ置換しない。
+- 現行source/registryの実経路はReply ownerがofficial snapshotを生成、Paid ownerが同snapshotを900秒以内という条件で消費。独立Mercor snapshot observerは見つからず、Reply旧fenceが続くと一度の手動刷新では再びstaleになる。expiry延長やtimestampだけの書換え、新しい重複schedulerで隠さない。producerの安全な復旧、またはowner-localで既存観測と送信の依存を分離することが残成果。
+- 旧Reply native18d6683223830368-49631はsourcee0d5834fで11:54:26→11:54:59、reportは旧claimed18d66729aff71af0-20311を参照。実oldrunnerはdurable claim IDをchild LIFE_MANAGER_OCCURRENCE_IDへ渡すためnative run IDとchild occurrenceが同一とは限らない。20311のprivate markerはmtime11:54:57.293025Z/SHA2563a3c366f44392a23903d8affa4621c2ac5fe80252efe939121045e2ce1437ae0、97items/effectsum0/failedsum0、pending1はperson-bound assessment、marker statuseffect_unknown。49631のexact markerは無し。前claimのmarkerを現在fenceのpositive no-effect proofとして代用しない。
+- proofはstate/mercor-natural-and-refresh-dependency-20261003.json/mode600。source/provider/auth mutation0、fence release0、送信/再送0。次は現在fenceのdurable claim→実child evidence→official receiptまたはpositive no-effect proofをexactに束縛し、Reply観測経路を復旧する。本人assessmentは代行しない。全goalactive、SelfBuild自然UUID/report、Mobile担当ASC gateと全体残TODO§217は維持。
