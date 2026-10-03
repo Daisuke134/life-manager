@@ -4832,7 +4832,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 #### 現在cursorとfresh runtime evidence
 
 - 最新sourceはPR6534/本人限定token更新を含むmain9c03543e5dc51f7bc54f8e132a264964a0e40f6d。PR6531/6534は統合済み、再PR/merge不要。PR6534は独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSS/全10CI PASS。実装branch fix/mercor-paid-token-refresh-20261004/HEADce914はclean/pushedで保持。
-- production currentはcc0e8140f891231746bc79e42c32f228ae539f6a/completeALL。Paid actualargv/load一致、manual認証維持後の自然independent snapshot/run/result joinは§236でPASS。在庫0/effect0/pending0は収益ではない。新main9cのimmutable/load/expiry-aware自然観測は未達。既存release owner61609の実liveを追い、重複build/apply/kill/wakeしない。
+- production currentはcc0e8140f891231746bc79e42c32f228ae539f6a/completeALL。Paid actualargv/load一致、manual認証維持後の自然independent snapshot/run/result joinは§236でPASS。在庫0/effect0/pending0は収益ではない。新main9cのcompleteimmutable/source3file一致/Paidactualargv/loadは§240でPASS、expiry-aware自然観測は未達。既存release owner61609の実liveを追い、重複build/apply/kill/wakeしない。
 - SelfBuild exactloaded80/idle/effectunknownfalseは§226、JST04:10自然UUID/report照合は未達。現在のloadedを更新なしにlatestmainと断定しない。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件は§226、Reply49631は§231でexact message業務scope proofにより解放/replay0。別旧Reply61324はnative66602/exit1/証拠不足でHELD、App33812もHELD。過去auth/UI一般作用unknownを0へ変換しない。保留4の受付・不足fields診断は§234。
 - 容量は他既存処理で約3.7GB回復後、closed npx cache1件の限定削除で約155MB増加、旧ENOSPCの全回復を自分の成果へ計上しない。doctorの既存unmanaged capafy.kosukeは未完。全14 CFO/fee/actualcost/settlement/payoutと全残TODOは上表のままgoalactive。
@@ -5051,3 +5051,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 前61609/61583はfreshmissing/terminal、officialreport16:18:23.425187Z/exit1/partialchanged33/skipped80/errors1、buddha-tiktok timedout+budgetexceeded。継続中と誤認せず、終端とcurrentcc0を確認した。
 - anchored psでglobal builder/reconciler無し→main9c completeimmutable作成を宣言しfreshfetch後に既存cuthelperを実行。その間に定期ownerが起動していたためcut lockで即exit1/another release build owns、primarybuild開始0、source/lock解除0。次のfresh psでnewreconciler4641/parent4598とbuilder4814/main9c03543e5dc51f7bc54f8e132a264964a0e40f6dが実liveであることを確認。競合をrc0とせず同既存ownerを追う。
 - 次はbuilder4814/reconciler4641のterminalとnewmanifestALL/source bytes/actualPaidargv/load→自然sameoccurrence official snapshot/resultを照合する。main9c expiry-aware自然実行・全14 CFO/利益/payoutは未達。auth自己修復HTTP200と各fence保持は§238、全残TODO§217、goalactive。
+
+
+### 240. main9c completeimmutable・Paid限定idle apply・actualargv一致
+
+- 既存builder4814/child8372とreconciler4641はfreshmissing/terminal、currentは/Users/anicca/loops/releases/20261004T011929-9c03543e、manifest9c03543e5dc51f7bc54f8e132a264964a0e40f6d/release_pathsALL。auth module/Paidcapture/Paidownerの3source bytesはmain9c blob完全一致。重複build無し。
+- targetPaidはloaded-idle/installedcc0/effectunknownfalse、anchored globalprocess無しを確認。GUI preflight PASS後、LIFE_MANAGER_RELEASE_ROOTを9c、APPLY_TARGETをmercor-revenue-paidに限定し既存CLI apply --loaded-idle-onlyを実行。changedtrue/oktrue/install_event3bd58f14f46aa0bce691e582/admission_resumedfalse、実loadedargv [9crelease/bin/lm-loop-run,mercor-revenue-paid,9crelease]はexpectedと完全一致。before観測から状態変化があれば既存idle/pending guardに委ね、running reload・他ownerapply・manualwake0。
+- install event16:23:25.801296Z。現行9cの自然run/ownsnapshot/result joinは未観測。旧cc0 valid-token自然成功とmanual auth修復を新9cのexpiry-safe自然成功へ置換しない。proof state/mercor-paid-token-refresh-source-proof-20261004.jsonへapply/preflight/argv記録を追記、次は通常wakeのsame native/claim/snapshot/business/officialGET/replay-zeroを観測する。全goalactive、全残TODO§217・Mobile担当境界と旧App/Replyfenceを保持。
