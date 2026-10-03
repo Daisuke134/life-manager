@@ -741,6 +741,12 @@ function validateStoredOwnerBaseline(value, { ownerId, expectedLabel, loopsRoot 
   return { ...value, release_root: root };
 }
 
+function holdUtcTimestamp(value) {
+  if (typeof value !== "string") return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : null;
+}
+
 function validatePromotionHoldWriterShape(hold, loopsRoot) {
   const hasBaseline = Object.prototype.hasOwnProperty.call(hold, "baseline");
   const hasLegacy = Object.prototype.hasOwnProperty.call(hold, "previous_release_path");
@@ -752,6 +758,9 @@ function validatePromotionHoldWriterShape(hold, loopsRoot) {
       || typeof hold.expires_at !== "string" || !hold.expires_at
       || (hold.sha !== null && (typeof hold.sha !== "string"
         || !/^[a-f0-9]{40}$/.test(hold.sha)))) return null;
+  const created = holdUtcTimestamp(hold.created_at);
+  const expires = holdUtcTimestamp(hold.expires_at);
+  if (created === null || expires === null || expires <= created) return null;
   let baseline = null;
   if (hasBaseline) {
     if (typeof hold.owner_label !== "string" || !hold.owner_label.startsWith("ai.anicca.")) {

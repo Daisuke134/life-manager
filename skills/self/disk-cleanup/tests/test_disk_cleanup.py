@@ -1645,6 +1645,22 @@ def test_release_reference_collector_rejects_incomplete_hold_shapes(
     assert governor._referenced_releases() is None
 
 
+def test_release_reference_collector_rejects_invalid_dates(tmp_path: Path) -> None:
+    releases = tmp_path / "loops/releases"; releases.mkdir(parents=True)
+    hold = tmp_path / "loops/.promotion-hold"
+    base = {"sha": None, "owner_id": "example", "owner_label": "ai.anicca.example",
+            "pr": 1094, "pid": 1234, "baseline": None,
+            "created_at": "2026-10-04T00:00:00.000Z", "expires_at": "2026-10-04T01:30:00.000Z"}
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+    for dates in ({"expires_at": "not-a-date"}, {"created_at": "not-a-date"},
+                  {"expires_at": "2026-02-30T00:00:00.000Z"},
+                  {"expires_at": "2026-10-04T01:30:00.000"},
+                  {"expires_at": "2026-10-03T00:00:00.000Z"},
+                  {"expires_at": "2026-10-04T00:00:00.000Z"}):
+        hold.write_text(json.dumps({**base, **dates}))
+        assert governor._referenced_releases() is None
+
+
 def test_release_reference_collector_accepts_explicit_premerge_writer_shape(tmp_path: Path) -> None:
     releases = tmp_path / "loops/releases"
     releases.mkdir(parents=True)

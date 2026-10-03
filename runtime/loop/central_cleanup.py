@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import os
 import plistlib
@@ -289,6 +290,14 @@ def open_release_roots(releases_root: Path) -> set[Path]:
     }
 
 
+def _hold_utc_timestamp(value):
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return parsed if parsed.isoformat(timespec="milliseconds") + "Z" == value else None
+    except (TypeError, ValueError):
+        return None
+
+
 def promotion_hold_release_roots(hold_path: Path, releases_root: Path) -> set[Path] | None:
     """Return verified rollback roots, or None when an existing hold is unprovable."""
     try:
@@ -318,6 +327,10 @@ def promotion_hold_release_roots(hold_path: Path, releases_root: Path) -> set[Pa
             or ("baseline" in hold and (
                 not isinstance(hold.get("owner_label"), str)
                 or not hold["owner_label"].startswith("ai.anicca.")))):
+        return None
+    created = _hold_utc_timestamp(hold["created_at"])
+    expires = _hold_utc_timestamp(hold["expires_at"])
+    if created is None or expires is None or expires <= created:
         return None
     hold_sha = hold.get("sha")
     if hold_sha is not None and (not isinstance(hold_sha, str)

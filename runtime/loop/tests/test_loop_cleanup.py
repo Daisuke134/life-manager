@@ -38,6 +38,22 @@ class LoopCleanupTest(unittest.TestCase):
                     hold.write_text(json.dumps(value))
                     self.assertIsNone(promotion_hold_release_roots(hold, releases))
 
+    def test_promotion_hold_reference_collector_rejects_invalid_dates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); releases = root / "loops/releases"; releases.mkdir(parents=True)
+            hold = root / "loops/.promotion-hold"
+            base = {"sha": None, "owner_id": "example", "owner_label": "ai.anicca.example",
+                    "pr": 1094, "pid": 1234, "baseline": None,
+                    "created_at": "2026-10-04T00:00:00.000Z", "expires_at": "2026-10-04T01:30:00.000Z"}
+            for dates in ({"expires_at": "not-a-date"}, {"created_at": "not-a-date"},
+                          {"expires_at": "2026-02-30T00:00:00.000Z"},
+                          {"expires_at": "2026-10-04T01:30:00.000"},
+                          {"expires_at": "2026-10-03T00:00:00.000Z"},
+                          {"expires_at": "2026-10-04T00:00:00.000Z"}):
+                with self.subTest(dates=dates):
+                    hold.write_text(json.dumps({**base, **dates}))
+                    self.assertIsNone(promotion_hold_release_roots(hold, releases))
+
     def test_promotion_hold_reference_collector_accepts_explicit_premerge_writer_shape(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); releases = root / "loops/releases"; releases.mkdir(parents=True)

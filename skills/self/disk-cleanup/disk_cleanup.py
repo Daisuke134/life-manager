@@ -8,6 +8,7 @@ Unknown paths, sessions, state, credentials, source, and probe failures remain.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from contextlib import contextmanager, suppress
 import errno
 import fcntl
@@ -28,6 +29,14 @@ from pathlib import Path
 from typing import Callable
 
 from host_inventory import FULL_INVENTORY_BUDGET_SECONDS, collect_host_inventory
+
+def _hold_utc_timestamp(value):
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return parsed if parsed.isoformat(timespec="milliseconds") + "Z" == value else None
+    except (TypeError, ValueError):
+        return None
+
 
 GiB = 1024**3
 FULL_INVENTORY_INTERVAL_SECONDS = 3600
@@ -835,6 +844,10 @@ class HostDiskGovernor:
                         or ("baseline" in value and (
                             not isinstance(value.get("owner_label"), str)
                             or not value["owner_label"].startswith("ai.anicca.")))):
+                    return None
+                created = _hold_utc_timestamp(value["created_at"])
+                expires = _hold_utc_timestamp(value["expires_at"])
+                if created is None or expires is None or expires <= created:
                     return None
                 hold_sha = value.get("sha")
                 if hold_sha is not None and (

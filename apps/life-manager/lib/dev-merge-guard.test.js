@@ -1070,6 +1070,29 @@ function orphanHoldFixture(overrides = {}) {
   return { holdPath, promotionsLedgerPath };
 }
 
+test("orphan recovery retains invalid UTC dates and non-forward intervals without mutation", async () => {
+  for (const dates of [
+    {expires_at:"not-a-date"}, {created_at:"not-a-date"},
+    {expires_at:"2026-02-30T00:00:00.000Z"},
+    {expires_at:"2026-09-26T01:30:00.000"},
+    {expires_at:"2026-09-25T00:00:00.000Z"},
+    {expires_at:"2026-09-26T00:00:00.000Z"},
+  ]) {
+    const {holdPath,promotionsLedgerPath}=orphanHoldFixture(dates);
+    let mutations=0;
+    const result=await recoverOrphanedPromotionHold({
+      holdPath,promotionsLedgerPath,now:()=>new Date("2026-09-26T02:00:00.000Z"),
+      revertMainMerge:async()=>{mutations++;return {ok:true};},
+      applyOwnerToRelease:async()=>{mutations++;return {ok:true};},
+      releaseHold:()=>{mutations++;return {ok:true};},
+    });
+    assert.equal(result.ok,false,JSON.stringify(dates));
+    assert.equal(result.reason,"promotion_hold_unverified");
+    assert.equal(mutations,0);
+    assert.equal(fs.existsSync(holdPath),true);
+  }
+});
+
 test("orphan recovery preserves invalid or incomplete holds without any mutation", async () => {
   const complete = {
     sha: null, owner_id: "deterministic-owner", owner_label: "ai.anicca.deterministic-owner",
