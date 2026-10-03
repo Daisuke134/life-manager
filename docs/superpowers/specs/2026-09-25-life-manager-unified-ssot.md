@@ -5496,3 +5496,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - §289の隔離誤rollbackは抽象的な同値問題ではなく、実fleetのsource混在へ適用する不足。loaded stateをevent/plist/currentから推定せず、実native argvとimmutable manifestを検証する必要がある。
 - primary専用worktreeを最新mainb7fb/clean/同ownerleaseでbranch fix/selfbuild-owner-baseline-20261004へ再利用。native selfbuild_owner_baseline_implementationへgpt-5.6-sol/high/forknoneで必要な3productionfilesと関連testsのみの実装を委譲。primaryはこのsource範囲を同時編集せず、docs/official evidence/検証/統合を所有。read-only baseline CLI→merge前hold→通常promotion/crash復旧で共通のowner baseline、未検証baseline/失敗receiptでは復元・hold解放を成功扱いしないTDDを進める。actual model/effort/usageは観測不能。
 - source実装・検証・review・新自然復旧は未達、production destructive test/class/fence waiver0。別担当branch/auth/credential/profile変更0。全残TODO → §217、全goalactive。
+
+
+### 291. owner baseline通常/crash共通修復と復元先GC保持のsource検証
+
+- worker実装はcb835でnormal/crashを共通actual baselineへ結合。read-only baseline CLIは既存launchctl-safe/native argv parserとimmutable manifest/registryを検証し、raw envを出さない。hold取得→baseline読取→merge前保存→merge、保存未完ではmerge0。normal promotionは直前baseline driftをpre-effectで拒否、新controller/old payloadで元owner Bへrestore receiptを検証。crashでもmissing/legacy不明baseline、skip/malformed/wrong owner/SHA、failed terminal/reapplyを復元成功/hold解放にしない。旧sha:null merge-crash windowは未解消。
+- primary sourceCLI official read-only probeはhealth observer実80とcurrent5fcを区別し成功。state/selfbuild-owner-baseline-cli-readonly-20261004.json/mode600、source deployed=false/actualcanary=false。actual4owner baseline混在の証拠 → §290。
+- 必須付随条件: Bはcanary後current/loaded双方から外れるため、旧reference collectorsだけではGC対象になる。29fでcentral cleanupとhost governorがexisting hold.baseline/legacy previous pathを削除保護へ接続。unverified hold/root/manifestはcentral削除前stop、host candidate0。primaryが空dict/owner-onlyをpremergeと誤認する4REDを指摘し、be0で明示valid writer shapeのみ互換としてemptyrefsを認めた。legacy referenceは復元許可ではない。本番cleanup0。
+- final HEADbe0b810cd9fae0cf86e6b487d7ece3985aefd1ed/10files/843additions54deletions/clean/pushed。3production owner-baseline filesに復元先保護2production filesが必要となり100LOC目安を超えるが、実復元対象の消失とfalse-successを残さない最小scopeを維持。新daemon/framework/追加human gate0。parent Node148/fullruntime765154.578s/disk97/adapter15/contract/OSS/diff PASS。
+- fresh selfbuild_owner_baseline_final_reviewをgpt-5.6-sol/high/forknoneで依頼。requested model/effortと実値を区別しactual model/effort/usage観測不能、API費用算定不能。source proof state/selfbuild-owner-baseline-source-20261004.json/mode600。review/PR/main/newimmutable/自然復旧・external hooks/全SelfBuild・全金融成果は未達。全残TODO → §217、全goalactive。
