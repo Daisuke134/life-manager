@@ -4832,7 +4832,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 #### 現在cursorとfresh runtime evidence
 
 - PR6525/6527/6528/6529はmain統合済み。直近確認のmain/current complete ALLは80cccc6f92069b7a8d259af619b87e47bef9861c / /Users/anicca/loops/releases/20261003T212112-80cccc6f。SelfBuild exactloadedargv80/idle/effectunknownfalseは§226、次のJST04:10自然UUID/report照合は未達。
-- 現在のsource統合cursorはPR6531 / fix/mercor-paid-observer-20261003 / HEAD90535b1845d13d79123ab38bc84743acf0f96150。独立reviewSHIP/focused62/adapter15/contract/OSSPASS。hosted macOSの既存workflow run37131174406は749runtime testsと全9job SUCCESS。PR自身のchecksは進行中、merge/load/natural Paid own-snapshot照合は未達。
+- 現在のsource統合cursorはPR6531 / fix/mercor-paid-observer-20261003 / HEAD90535b1845d13d79123ab38bc84743acf0f96150。独立reviewSHIP/focused62/adapter15/contract/OSSPASS。hosted macOSの既存workflow run37131174406は749runtime testsと全9job SUCCESS。PR全10checksSUCCESS後にadmin squashでmain6ae9db504778a84e536db8b22fa67099332fb8e3へ統合済み（§232）。immutable/load/natural Paid own-snapshot照合は未達。
 - Mercor旧Paid1件は§226で解放済み、旧Reply49631は§231でexact native92552/sourceb13/exit75のmessage業務scopeに限定したpositive proofで解放、replay rowchange0。App旧33812はHELD。過去auth token更新/通知UIの外部作用はunknownのまま。主たる全残TODO順序とMobile担当の排他的branch/Apple境界を維持する。
 - 運用hostのData空き約380MiB/100%、local cold build ENOSPCは未解決。削除可能性が不明なtemp/source/credential/profileや全件参照済みdependency bundlesは削除しない。doctorの既存unmanaged capafy.kosukeも未完。fleet3owner failureの前回記録（widget deploy busy/metrics effect fence/alpaca bootstrap5復旧）は§226以前の履歴を参照し、新しい成功を未観測でclaimしない。稼働release ownerの重複build/apply/kill0。
 
@@ -4985,3 +4985,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 正本proof state/mercor-reply-exit-boundary-resolution-20261003.json/mode600、解放14:57:53.042928Z。latest14:57:12のresource_effect_unknown eventは解放前であり、解放後の再失敗とは誤認しない。canonical DB readbackでReply未知occurrence無し/priority未知無しを確認。次は自然runの新snapshot/native/business/official readbackを照合、手動wake/再送しない。
 - ローカル容量不足の検証を既存public repoのsec-scan.yml workflow_dispatchでsourcebranch90535に実行。新workflow/QA framework無し、同branchの先行live run無しを確認して1回起動。run37131174406はofficial head一致、全9jobsSUCCESS、macOS Loop control749tests/155.591s/OK。ローカルENOSPCとhost容量未回復は別の運用gapとして保持する。
 - sourcebranch/head/base/remote object/cleanと重複PR無しを確認後、PR6531を一度作成。descriptionは最終修正とsource/実browser読み取り/独立review/hostedCIを記し、production proof・売上成功へ置換しない。PR checksのLoop control/gitleaks/TruffleHog等は進行中、現在cursor§217を更新。既存release ownerはfresh確認5612がlive、primaryの重複build/apply/kill0。全goalactive/未完。
+
+
+### 232. PR6531 main統合・Reply自然snapshot再開・実live owner継続
+
+- PR6531の全10checks（9workflow jobs+CodeRabbit）SUCCESSとhead90535/base80をfresh確認し、--match-head-commit付きadmin squash mergeを一度実行。mergedAt2026-10-03T15:06:11Z、main6ae9db504778a84e536db8b22fa67099332fb8e3、fresh fetch/remote object一致。sourcebranchはclean/pushedで保持、再PR/mergeしない。
+- 旧fence解放後の自然Replyは15:02:14のcapacity busyを経て、native18db0d2b421be7c0-11842/release80が15:02:36.255583Zにexecute。実PID11842をfresh live確認。公式canonical snapshotは15:02:52.210723Zへ自然刷新/Gmailfresh/contracts0。手動snapshot更新ではなく既存ownerの自然観測が再開した証拠だが、kernel全体terminal・latest businessとのsame occurrence joinは未達。legacy latestの97/96/pending1/occurrence nullを現在runの成功へ代用しない。
+- mergedmain6aeのproduction反映は未達。旧80由来release reconciler15443/parent15414はfreshlive（elapsed3:38）、current80completeALLのまま。primaryは重複build/apply/kill/manualwake0。次はこの同processのterminalを確認し、自然生成されるmain6ae completeimmutableのmanifest/source bytes→idle/effect-safeなPaid exactload→自然ownsnapshot/run/release/replay-zeroを照合する。容量不足/doctor/他全残TODOは保持、全goalactive。
