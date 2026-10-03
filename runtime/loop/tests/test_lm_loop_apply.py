@@ -4947,3 +4947,66 @@ class PreEffectForeignClaimTests(unittest.TestCase):
 
     def test_auto_reconcile_is_disabled_by_default(self):
         self.assertFalse(lm_loop.AUTO_PRE_EFFECT_RECONCILE_ENABLED)
+
+class GuardedOrphanRetirementTests(unittest.TestCase):
+    def test_guard_rejects_reused_running_or_executable_registration(self):
+        for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist'):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                agents = root / 'agents'
+                agents.mkdir()
+                script = root / 'missing.py'
+                argv = ['/python', str(script), '--profile', '/owned-profile']
+                label = 'ai.anicca.orphan'
+                target = agents / f'{label}.plist'
+                target.write_bytes(plistlib.dumps({'ProgramArguments': argv}))
+                before = target.read_bytes()
+                guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': str(script)}
+                registry_value = {'retired_labels': [label], 'retirement_guards': {label: guard}}
+                observed = argv if case != 'argv_changed' else ['/different', str(script)]
+                detail = 'state = spawn scheduled\nprogram = ' + ('/other' if case == 'program_changed' else '/python') + '\narguments = {\n' + '\n'.join(observed) + '\n}\n'
+                if case == 'pid_present':
+                    detail += 'pid = 999\n'
+                if case == 'state_missing':
+                    detail = detail.replace('state = spawn scheduled\n', '')
+                if case == 'script_exists':
+                    script.write_text('print("active")')
+                if case == 'absent_reused_plist':
+                    target.write_bytes(plistlib.dumps({'ProgramArguments': ['/new-owner']}))
+                    before = target.read_bytes()
+                calls = []
+                def safe(_exe, args):
+                    calls.append(args)
+                    return (1, 'Could not find service') if case == 'absent_reused_plist' or len(calls) > 1 else (0, detail)
+                with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
+                    with self.assertRaisesRegex(RuntimeError, 'retirement identity guard'):
+                        lm_loop._retire_labels(registry_value, agents, root/'safe', root, root/'lock')
+                self.assertEqual(target.read_bytes(), before)
+                self.assertEqual([c for c in calls if c[0] == 'bootout'], [])
+
+    def test_guarded_missing_program_retirement_is_targeted_and_replay_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            agents = root/'agents'
+            agents.mkdir()
+            label = 'ai.anicca.orphan'
+            argv = ['/python', str(root/'missing.py')]
+            guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': argv[1]}
+            value = {'retired_labels': [label], 'retirement_guards': {label: guard}}
+            other = agents/'ai.anicca.current.plist'
+            other.write_text('current owner')
+            loaded = [True]
+            mutations = []
+            def safe(_exe, args):
+                if args[0] == 'bootout':
+                    mutations.append(args)
+                    loaded[0] = False
+                    return 0, ''
+                return (0, 'state = spawn scheduled\nprogram = /python\narguments = {\n'+'\n'.join(argv)+'\n}\n') if loaded[0] else (1, 'Could not find service')
+            with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
+                first = lm_loop._retire_labels(value, agents, root/'safe', root, root/'lock', labels=[label])
+                second = lm_loop._retire_labels(value, agents, root/'safe', root, root/'lock', labels=[label])
+            self.assertTrue(first[0]['was_loaded'])
+            self.assertFalse(second[0]['was_loaded'])
+            self.assertEqual(len(mutations), 1)
+            self.assertEqual(other.read_text(), 'current owner')

@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import fcntl
 import gzip
+import hashlib
 import json
 import os
 import plistlib
@@ -2168,6 +2169,35 @@ def _skip_if_not_loaded_idle(item: dict, release_sha: str,
             "skipped": "loaded-running"}
 
 
+def _guard_orphan_retirement(guard: dict, detail: str | None, plist: Path) -> None:
+    try:
+        if detail is not None:
+            arguments = _loaded_arguments(detail)
+            state = re.search(r"(?m)^\s*state = (.+)$", detail)
+            program = re.search(r"(?m)^\s*program = (.+)$", detail)
+            if (not state or state.group(1).strip() not in {"spawn scheduled", "not running"}
+                    or re.search(r"(?m)^\s*pid\s*=\s*[1-9][0-9]*\s*$", detail)
+                    or not arguments or not program
+                    or program.group(1).strip() != arguments[0]):
+                raise ValueError("loaded identity changed")
+        elif plist.is_file():
+            arguments = plistlib.loads(plist.read_bytes()).get("ProgramArguments", [])
+        else:
+            return  # Already absent: no registration or plist is mutated.
+        fingerprint = hashlib.sha256(json.dumps(arguments, separators=(",", ":")).encode()).hexdigest()
+        missing = Path(guard["missing_entrypoint"]).expanduser()
+        if (fingerprint != guard["expected_arguments_sha256"] or len(arguments) < 2
+                or str(missing) != arguments[1]):
+            raise ValueError("argv identity changed")
+        try:
+            missing.stat()
+        except FileNotFoundError:
+            return
+        raise ValueError("entrypoint exists")
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        raise RuntimeError("retirement identity guard failed") from error
+
+
 def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
                    current: Path, lock_path: Path | None,
                    labels: list[str] | None = None) -> list[dict]:
@@ -2183,6 +2213,11 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
             if present_rc != 0 and not absent:
                 raise RuntimeError(
                     f"{label}: retirement presence readback failed: {present_detail.strip()}")
+            guard = registry.get("retirement_guards", {}).get(label)
+            if guard is not None:
+                _guard_orphan_retirement(
+                    guard, present_detail if present_rc == 0 else None,
+                    agents_dir / f"{label}.plist")
             if present_rc == 0:
                 bootout_rc, detail = _safe_launchctl(launchctl_safe, ["bootout", service])
                 if bootout_rc != 0:
