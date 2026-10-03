@@ -5020,3 +5020,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - HEADce914b0b39/3filesをcommit/push。focused68、adapter15、contract14/178、OSS/diffPASS。shared runtime34650進行中、doctor既存unmanaged capafy.kosukeFAIL。fresh native reviewer mercor_token_refresh_reviewは今回spawn成功、requested modelgpt-6.1-sol/high、実usage非公開。source/Auth/profile/provider/production操作禁止のread-only反証を依頼、結果未確定。
 - google-login canonical skillを読んだがKeychain参照はuserのlocal credential SSOT/Apple Keychain禁止が優先。secret取得/reset/loginをせず、owned registered Mercor lease内の既存token通常更新を直前宣言してsource probe実施。probe15:55:17.165610Z/contracts0/mode600/例外無し。Auth POST/IndexedDB更新は認証維持scope、business send0、Apple/別profile変更0。これはmanual source probeであり、新修正のproduction自然runを証明しない。
 - proof state/mercor-paid-token-refresh-source-proof-20261004.json、同token-refresh-probe、mode600。次は同runtime handle/独立reviewを閉じ、必要修正後にmain→immutable→既存ownerload→次の自然expiry-safe観測を照合。全goalactive、既存全残TODO§217と別担当Mobile境界を保持。
+
+
+### 236. token更新source全PASS・PR6534・現行Paid独立観測の自然readback
+
+- branch fix/mercor-paid-token-refresh-20261004/HEADce914b0b3948feff55641d3388db3a08bd573acf/cleanpushed/basecc0、shared runtime34650はterminal/749tests143.091s/OK。fresh native mercor_token_refresh_reviewはSHIP/重大finding無し、focused68と外部接続無し4probe（第2record非更新/HTTP失敗/不正response/defaultNone従来動作）を独立PASS。実reviewusageは非公開で算定しない。primaryの実session更新probeとは別の証拠。
+- source条件を閉じ、重複PR無しを確認してPR6534を一度作成。最終実装は既存Mercor通常refreshを本人最初recordに限定しPaidへ接続、失敗時旧snapshot保持。checksのLoop control/Python/gitleaks/TruffleHogは進行中、現行mainへ未統合。review/sourceprobeだけで自然renewal成功をclaimしない。
+- manual auth maintenance後、現行cc0の自然Paidはcapacitybusyを経てnative18db1030ad163af0-65837/15:57:58execute→15:58:12.432979Z/pass/exit0。own snapshot15:58:09.010369Z/contracts0、business artifact occurrenceはnativeと完全一致、ok/effect0/observed0/pending0/failed0/readback0。Reply旧fenceが残る状況でも独立観測が自然に動いたことを確認。current valid-token経路の証拠であり、新expiry対応sourcece914の自然実行は未達。売上/入金/fee/actualcostの証明には使わない。
+- proof state/mercor-paid-natural-independent-20261004.json/mode600、token-refresh-source proof更新。前global8173はfreshmissing/terminal、新release owner61609/parent61583はfreshlive、重複build/apply/kill/manualwake0。次はPR6534全checks exactheadPASS後のmerge→既存immutable/load→renewal-aware自然runを照合し、全goalactive/全14残TODO・Mobile担当境界を維持する。
