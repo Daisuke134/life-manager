@@ -5234,3 +5234,16 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - MercorPaidのGUIpreflight/idle/globalなしを再確認しapply --loaded-idle-onlyを1targetのみ実行。exit0/changedtrue/admissionresumedfalse/install_event8d6515c2b7b12893a9c46f86/sha be2一致。実launchctl-safe readのactualargv3要素もbe2/bin/lm-loop-run、mercor-revenue-paid、be2releaseRootに一致。manualwake/別ownerstop/oldApp・Replyfence解放0。
 - Data available4526800KiB（約4.32GiB）、governorpressure解除は未達のまま。既存donor経路で反映成立したこととhost capacity完全回復は分ける。state/mercor-auth-be2-target-apply-20261004.json、mercor-paid-auth-evidence-source-20261004.json/mode600。次は通常Paid wakeのauth4metadata/native/snapshot/business同occurrence結合、自然expired→renewedを観測し、人工期限変更0を維持する。
 - Coconala正式納品/50件成果/payment/fee/settlement/payout、hostcapacity、§217全残TODOと別担当Mobile境界を保持し全goalactive。
+
+
+### 260. Coconala新orders失敗receiptの自然run結合とpending品質条件
+
+- 新main642の自然run18db198c8a97d410-21571はexecute18:49:28Z→report18:49:46Z/fail/exit1。時間内18:49:41Zのsnapshot-failureはorders_access_forbidden/HTTP403、sourceorders/requested・finalroute/mypage/received_orders/open/loginredirectfalse/coveragefalseを保持。旧orders_missing_container/HTTPnullから診断receiptが本番で改善したことを確認。providerアクセス復旧・finance成功とは数えない。state/coconala-orders-natural-receipt-20261004.json/mode600。
+- revisionのremote result18:26:15Zはcurrentbuyerfeedback/result一致、intent/resultrequirements一致。内部statusokでもrequired_effect_satisfiedfalse/required_output_satisfiedfalse、verified_unique_sends19/remainingeligiblepersonalizedsends281。3officialreceipt参照はTikTokidentity、Sheets326rows、TikTokinboxのreadbackで、currentcontract completion/payment/settlement/payout証拠ではない。確認済みsendを再送せず、品質・50件条件を満たす実成果とremainingworkを既存ownerで閉じる。
+- readbacksourceが配列の際fieldsとして行を出した観測誤りを訂正、追加proofから重複行を除きdictのfieldnames/配列rowcountだけ保存。state/coconala-pending-work-binding-20261004.json/mode600。primary新send/プロジェクトstate更新0。
+
+### 261. 新be2自然Paidのauth4metadata・official snapshot/result同occurrence結合
+
+- 通常cadence300秒で19:00:21Z run48699はhost_admission_deferred:resource_capacity_busy/blocked。再起動や手動wakeせず、19:00:32Zの次native run18db1a2735318a70-48841→19:00:47Z/pass/exit0/SHAbe2を確認。official snapshot19:00:44Z/contracts0、business occurrence mercor-revenue-paid:18db1a2735318a70-48841/statusok/effect0/readback0/pending0/failed0と時間・IDを結合。
+- authmetadataはidentity_matchedtrue/expired_beforefalse/refreshedfalse/expired_afterfalse。秘密なし4boolのsource→immutable→actualargv→自然snapshot保存を実証した。今回はtokenが既に有効であり、自然expired→renewedの実証はまだ未達。人工expiry/cookie注入/manualwake0、emptycontractsを収益/費用/payout0へ拡張しない。
+- state/mercor-auth-be2-natural-20261004.json/mode600にnativeevents/source/snapshot hash/auth/businessを保存。次は通常expiry時のbeforetrue/refreshedtrue/afterfalseと同official GET/resultを観測し、Coconala品質・納品・金融receipt、diskcapacity、§217全残TODO/別担当Mobile境界を保持。全goalactive。
