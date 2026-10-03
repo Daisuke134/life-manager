@@ -69,8 +69,12 @@ def admission_effect_scope(entry: dict) -> str:
     return "owner"
 
 
+def retired_label_names(registry: dict) -> set[str]:
+    return set(registry.get("retired_labels", [])) | set(registry.get("guarded_retired_labels", {}))
+
+
 def validate_registry(registry: dict) -> dict:
-    allowed_top = {"schema_version", "loops", "external_labels", "retired_labels", "retirement_guards"}
+    allowed_top = {"schema_version", "loops", "external_labels", "retired_labels", "guarded_retired_labels"}
     if (not isinstance(registry, dict)
             or not {"schema_version", "loops"}.issubset(registry)
             or set(registry) - allowed_top):
@@ -239,9 +243,11 @@ def validate_registry(registry: dict) -> dict:
         _fail("retired_labels must be unique valid launchd labels")
     if labels.intersection(retired) or set(external).intersection(retired):
         _fail("retired_labels overlap managed or external labels")
-    guards = registry.get("retirement_guards", {})
-    if not isinstance(guards, dict) or set(guards) - set(retired):
-        _fail("retirement_guards must name only retired labels")
+    guards = registry.get("guarded_retired_labels", {})
+    if (not isinstance(guards, dict)
+            or any(not isinstance(label, str) or not LAUNCHD_LABEL.fullmatch(label) for label in guards)
+            or set(guards).intersection(labels | set(external) | set(retired))):
+        _fail("guarded_retired_labels must be valid disjoint labels")
     for guard in guards.values():
         if (not isinstance(guard, dict)
                 or set(guard) != {"expected_arguments_sha256", "missing_entrypoint"}
@@ -249,7 +255,7 @@ def validate_registry(registry: dict) -> dict:
                 or not re.fullmatch(r"[0-9a-f]{64}", guard["expected_arguments_sha256"])
                 or not isinstance(guard.get("missing_entrypoint"), str)
                 or not guard["missing_entrypoint"].startswith(("/", "~/"))):
-            _fail("retirement_guards require an argv hash and absolute missing entrypoint")
+            _fail("guarded_retired_labels require an argv hash and absolute missing entrypoint")
     return registry
 
 

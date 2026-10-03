@@ -22,7 +22,7 @@ from pathlib import Path
 
 from runtime.loop.macos_launchd_inventory import extract_release, parse_disabled, parse_loaded
 from runtime.loop.macos_loop_registry import (
-    CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
+    CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry, retired_label_names,
 )
 from runtime.loop.lm_loop_apply import (
     _plist,
@@ -1395,7 +1395,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
-    retired = set(registry.get("retired_labels", []))
+    retired = retired_label_names(registry)
     labels = external | retired | installed_labels | {
         label for label in loaded if label.startswith("ai.anicca.")
     }
@@ -1468,7 +1468,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
 def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: set[str],
                   existing_entrypoints: set[str]) -> dict:
     validate_registry(registry)
-    retired = set(registry.get("retired_labels", []))
+    retired = retired_label_names(registry)
     managed = ({entry["label"] for entry in registry["loops"].values()}
                | set(registry.get("external_labels", [])) | retired)
     unmanaged = sorted((installed_labels | loaded_labels) - managed)
@@ -2206,7 +2206,7 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
                    labels: list[str] | None = None) -> list[dict]:
     results = []
     domain = f"gui/{os.getuid()}"
-    selected = labels if labels is not None else registry.get("retired_labels", [])
+    selected = labels if labels is not None else retired_label_names(registry)
     for label in sorted(selected):
         with _apply_lock(current, _label_apply_lock_path(current, label, lock_path)):
             service = f"{domain}/{label}"
@@ -2216,7 +2216,7 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
             if present_rc != 0 and not absent:
                 raise RuntimeError(
                     f"{label}: retirement presence readback failed: {present_detail.strip()}")
-            guard = registry.get("retirement_guards", {}).get(label)
+            guard = registry.get("guarded_retired_labels", {}).get(label)
             if guard is not None:
                 _guard_orphan_retirement(
                     guard, present_detail if present_rc == 0 else None,
@@ -2382,10 +2382,10 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
     if (protocol_reader() == 2
             and not _supports_durable_admission_v2(release_root)):
         raise RuntimeError("target release does not support durable admission v2")
-    registry = json.loads((release_root / "config/loop-registry.json").read_text())
+    registry = validate_registry(json.loads((release_root / "config/loop-registry.json").read_text()))
     manifest = json.loads((release_root / "RELEASE.json").read_text())
     release_sha = manifest.get("sha")
-    retired_target = target if target in set(registry.get("retired_labels", [])) else None
+    retired_target = target if target in retired_label_names(registry) else None
     plan = ([] if retired_target else
             apply_registry(registry, release_root, release_sha, lambda item: item, target=target))
     preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])

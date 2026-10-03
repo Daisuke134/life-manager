@@ -4962,7 +4962,7 @@ class GuardedOrphanRetirementTests(unittest.TestCase):
                 target.write_bytes(plistlib.dumps({'ProgramArguments': argv}))
                 before = target.read_bytes()
                 guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': str(script)}
-                registry_value = {'retired_labels': [label], 'retirement_guards': {label: guard}}
+                registry_value = {'retired_labels': [], 'guarded_retired_labels': {label: guard}}
                 observed = argv if case != 'argv_changed' else ['/different', str(script)]
                 detail = 'state = spawn scheduled\nprogram = ' + ('/other' if case == 'program_changed' else '/python') + '\narguments = {\n' + '\n'.join(observed) + '\n}\n'
                 if case == 'pid_present':
@@ -4993,7 +4993,7 @@ class GuardedOrphanRetirementTests(unittest.TestCase):
             label = 'ai.anicca.orphan'
             argv = ['/python', str(root/'missing.py')]
             guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': argv[1]}
-            value = {'retired_labels': [label], 'retirement_guards': {label: guard}}
+            value = {'retired_labels': [], 'guarded_retired_labels': {label: guard}}
             other = agents/'ai.anicca.current.plist'
             other.write_text('current owner')
             loaded = [True]
@@ -5011,3 +5011,18 @@ class GuardedOrphanRetirementTests(unittest.TestCase):
             self.assertFalse(second[0]['was_loaded'])
             self.assertEqual(len(mutations), 1)
             self.assertEqual(other.read_text(), 'current owner')
+
+class RetirementValidationBoundaryTests(unittest.TestCase):
+    def test_targeted_retirement_validates_before_preflight(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'config').mkdir()
+            (root/'config/loop-registry.json').write_text(json.dumps({
+                'schema_version': 2, 'loops': {}, 'retired_labels': ['ai.anicca.orphan'],
+                'unknown_retirement_field': True,
+            }))
+            (root/'RELEASE.json').write_text(json.dumps({'sha': SHA}))
+            with patch.object(lm_loop, '_safe_launchctl', side_effect=AssertionError('lifecycle attempted')):
+                with self.assertRaises(ValueError):
+                    apply_live(root, root/'agents', root/'safe', target='ai.anicca.orphan',
+                               current=root, lock_path=root/'lock', protocol_reader=lambda: 1)
