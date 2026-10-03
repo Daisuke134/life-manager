@@ -10,7 +10,7 @@
 # honest Telegram report at the end. Differences are deliberate:
 #   * the report is sent whatever the outcome, INCLUDING a no-op day, because 10f's done condition
 #     is seven distinct days each carrying an honest outcome — a silent day looks like a dead loop;
-#   * the report is built from the LAST LINE OF THE LEDGER, never from the CLI's stdout and never
+#   * the report is built from THIS RUN'S ROW IN THE LEDGER, never from the CLI's stdout and never
 #     from a claim. Those differ in exactly the cases that matter: a pass that appended its row and
 #     then died before printing would otherwise report nothing, and a pass that printed a row it
 #     never managed to append would report a day that does not exist. The ledger is the evidence
@@ -125,38 +125,34 @@ if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true >>"$LOG" 2>&1; then
   exit 1
 fi
 
-LEDGER_BYTES_BEFORE="$("$NODE_BIN" -e '
-const fs = require("node:fs");
-try { process.stdout.write(String(fs.statSync(process.argv[1]).size)); }
-catch (error) { if (error.code === "ENOENT") process.stdout.write("0"); else throw error; }
-' "$LEDGER")" || exit 2
+# Generate after dotenv loading so each independent entrypoint owns one unique row.
+LM_SELFBUILD_RUN_ID="$("$NODE_BIN" -e 'process.stdout.write(require("node:crypto").randomUUID())')" || exit 2
+export LM_SELFBUILD_RUN_ID
 
 RESULT="$("$NODE_BIN" "$DAILY_CLI" "${DAILY_ARGS[@]+"${DAILY_ARGS[@]}"}" 2>>"$LOG")"
 RC=$?
 printf '%s\n' "$RESULT" >>"$LOG"
 
 # THE REPORT READS THE LEDGER, NOT THE STDOUT ABOVE. $RESULT is kept only to tell the reader which
-# exit code went with the day. If the last ledger line is missing, unparseable, or older than this
-# run, that IS the report — loudly — because a pass that cannot point at its own appended row has
+# exit code went with the day. If this run's ledger row is missing or unparseable, that IS the report — loudly — because a pass that cannot point at its own appended row has
 # not proven a day happened, whatever it printed.
 # shellcheck disable=SC2016  # the ${...} below are JS template literals, deliberately unexpanded
-REPORT="$(LEDGER="$LEDGER" LEDGER_BYTES_BEFORE="$LEDGER_BYTES_BEFORE" LOG_PATH="$LOG" RC="$RC" "$NODE_BIN" -e '
+REPORT="$(LEDGER="$LEDGER" LM_SELFBUILD_RUN_ID="$LM_SELFBUILD_RUN_ID" LOG_PATH="$LOG" RC="$RC" "$NODE_BIN" -e '
 const fs = require("node:fs");
 const ledger = String(process.env.LEDGER || "");
-let line = "";
-let appended = false;
-try {
-  appended = fs.statSync(ledger).size > Number(process.env.LEDGER_BYTES_BEFORE);
-  line = fs.readFileSync(ledger, "utf8").split("\n").filter((value) => value.trim()).pop() || "";
-} catch {
-  line = "";
-}
 let row = null;
-try { row = JSON.parse(line); } catch {}
-if (!appended || !row || typeof row !== "object" || !row.day) {
+try {
+  for (const line of fs.readFileSync(ledger, "utf8").split("\n")) {
+    try {
+      const candidate = JSON.parse(line);
+      if (candidate && candidate.run_id === process.env.LM_SELFBUILD_RUN_ID) row = candidate;
+    } catch {}
+  }
+} catch {}
+if (!row || typeof row !== "object" || !row.day) {
   process.stdout.write(
-    `⚠️ Life Manager self-build: NO LEDGER ROW. The daily pass exited ${process.env.RC} but the last`
-    + ` line of ${ledger} is not a newly appended readable day row, so no day was proven and nothing can be`
+    `⚠️ Life Manager self-build: NO LEDGER ROW. The daily pass exited ${process.env.RC} but this run`
+    + ` has no readable day row in ${ledger}, so no day was proven and nothing can be`
     + ` reported about what the guard did. Check ${process.env.LOG_PATH || "the configured log"} and`
     + ` the dev-guard ledger by hand.`,
   );

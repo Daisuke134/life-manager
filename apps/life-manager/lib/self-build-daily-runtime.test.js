@@ -341,7 +341,7 @@ test("a missing Telegram target does not stop the deterministic self-build pass"
       '  process.stdout.write(JSON.stringify({ streak: { distinctDays: 1, required: 7, ready: false, remaining: 6 } }) + "\\n");',
       '} else {',
       '  fs.mkdirSync(path.dirname(ledger), { recursive: true });',
-      '  fs.appendFileSync(ledger, JSON.stringify({ day: "2026-10-01", verdict: "no_op", no_op_reason: "fixture" }) + "\\n");',
+      '  fs.appendFileSync(ledger, JSON.stringify({ day: "2026-10-01", run_id: process.env.LM_SELFBUILD_RUN_ID, verdict: "no_op", no_op_reason: "fixture" }) + "\\n");',
       '  process.stdout.write("{}\\n");',
       '}',
     ].join("\n"),
@@ -464,10 +464,10 @@ test("TZ is pinned in the plist AND re-asserted at run time by the entrypoint", 
 // managed to append would have reported a day that does not exist. The ledger is the evidence, so
 // the report reads the LAST LEDGER LINE.
 // ---------------------------------------------------------------------------------------------
-test("the Telegram report is rendered from the last ledger line, and says so loudly when absent", () => {
+test("the Telegram report reads its invocation ledger row and says so loudly when absent", () => {
   const source = fs.readFileSync(ENTRYPOINT, "utf8");
   assert.match(source, /LM_SELFBUILD_LEDGER|selfBuildLedgerPath|--status/);
-  assert.match(source, /last ledger line|LEDGER_LINE|readSelfBuildDays/i);
+  assert.match(source, /fs\.readFileSync\(ledger/);
   assert.match(source, /row missing|no ledger row/i);
 });
 
@@ -751,7 +751,7 @@ test("the PR listing asks GitHub for the body, or the marker could never be chec
 });
 
 
-for (const outcome of ["append", "fail_before_append", "fail_after_append"]) {
+for (const outcome of ["append", "fail_before_append", "fail_after_append", "foreign_append_before_failure", "foreign_append_after_own"]) {
 test(`default self-build ledger report handles ${outcome}`, () => {
   const root = tmp();
   const repo = path.join(root, "repo");
@@ -766,7 +766,7 @@ test(`default self-build ledger report handles ${outcome}`, () => {
     const fs = require("node:fs"), path = require("node:path");
     const ledger = require("../lib/self-build-daily.js").selfBuildLedgerPath();
     if (process.argv.includes("--status")) console.log(JSON.stringify({streak:{distinctDays:1,required:7,ready:false,remaining:6}}));
-    else {if (${JSON.stringify(outcome)} === "fail_before_append") process.exit(1);fs.mkdirSync(path.dirname(ledger), {recursive:true});fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",verdict:"no_op",no_op_reason:"fixture_default_ledger"})+"\\n");if (${JSON.stringify(outcome)} === "fail_after_append") process.exit(1);console.log("{}");}
+    else {if (${JSON.stringify(outcome)} === "foreign_append_before_failure") {fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",run_id:"foreign-run",verdict:"merged_deployed",pr:888})+"\\n");process.exit(1);}if (${JSON.stringify(outcome)} === "fail_before_append") process.exit(1);fs.mkdirSync(path.dirname(ledger), {recursive:true});fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",run_id:process.env.LM_SELFBUILD_RUN_ID,verdict:"no_op",no_op_reason:"fixture_default_ledger"})+"\\n");if (${JSON.stringify(outcome)} === "foreign_append_after_own") fs.appendFileSync(ledger, JSON.stringify({day:"2026-10-03",run_id:"foreign-run",verdict:"merged_deployed",pr:888})+"\\n");if (${JSON.stringify(outcome)} === "fail_after_append") process.exit(1);console.log("{}");}
   `);
   const ledger = path.join(root, ".life-manager/state/self-build-days.jsonl");
   fs.mkdirSync(path.dirname(ledger), {recursive:true});
@@ -778,11 +778,12 @@ test(`default self-build ledger report handles ${outcome}`, () => {
     LM_SELFBUILD_LEDGER:"", LM_SELFBUILD_LOG:log, LM_SELFBUILD_DRY_RUN:"1",
     LM_SELFBUILD_TELEGRAM_TARGET:"", TELEGRAM_ALERT_CHAT_ID:"", LIFE_MANAGER_ENV_FILE:path.join(root,"absent.env"),
   }});
-  assert.equal(result.status, outcome === "append" ? 0 : 1, result.stderr);
+  assert.equal(result.status, ["append", "foreign_append_after_own"].includes(outcome) ? 0 : 1, result.stderr);
   assert.ok(fs.existsSync(ledger));
   const report = fs.readFileSync(log,"utf8");
   assert.doesNotMatch(report, /PR #999 -> merged_deployed/);
-  if (outcome === "fail_before_append") {
+  assert.doesNotMatch(report, /PR #888 -> merged_deployed/);
+  if (["fail_before_append", "foreign_append_before_failure"].includes(outcome)) {
     assert.match(report, /NO LEDGER ROW/);
     assert.match(report, /daily pass exited 1/);
   } else {
@@ -791,3 +792,13 @@ test(`default self-build ledger report handles ${outcome}`, () => {
   }
 });
 }
+
+
+test("self-build records the entrypoint invocation ID in its actual ledger", async () => {
+  const {runSelfBuildDay, readSelfBuildDays} = require("./self-build-daily.js");
+  const root = tmp(), ledgerPath = path.join(root, "days.jsonl");
+  const row = await runSelfBuildDay({deps:{listErrorFixPrs:async()=>[],runGuard:async()=>{throw new Error("unexpected guard");}},
+    options:{ledgerPath,guardLockPath:path.join(root,"guard.lock"),runId:"fixture-invocation-id"}});
+  assert.equal(row.run_id, "fixture-invocation-id");
+  assert.equal(readSelfBuildDays(ledgerPath).at(-1).run_id, "fixture-invocation-id");
+});

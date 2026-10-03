@@ -244,6 +244,7 @@ async function main() {
   const row = await runSelfBuildDay({
     deps,
     options: {
+      runId: process.env.LM_SELFBUILD_RUN_ID || undefined,
       ledgerPath,
       guardLedgerPath: guardLedgerPath(),
       guardLockPath: guardLockPath(guardLedgerPath()),
