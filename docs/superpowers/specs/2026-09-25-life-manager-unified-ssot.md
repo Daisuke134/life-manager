@@ -4854,7 +4854,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-CFOのofficial billing/project usageからloop配賦・coverage期間を確認し、Coconala未接続sourceとstale readbackをowner別に閉じる（証拠§242）。同時に通常Mercor運用の期限更新を観測する。Railway公式支払receiptとDO credit相殺invoiceは費用候補であり、配賦未確認のままactualcostへ接続しない。既存大順序は維持し、MobileのApple認証/branchへ重複介入しない。
+Railwayの公式project/service使用額は取得済み（§243）。支払明細の差額とcanonical loop配賦を照合し、Coconala targeted_readbackのtalkroom_history_emptyと金融receipt未接続、stale readbackをowner別に閉じる。同時に通常Mercor運用の期限更新を観測する。Railway公式支払receiptとDO credit相殺invoiceは費用候補であり、配賦未確認のままactualcostへ接続しない。既存大順序は維持し、MobileのApple認証/branchへ重複介入しない。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -5094,3 +5094,14 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 公式cost候補を既存Gmail/filekeyring/選択privateaccountで60days/max20のmetadataのみ探索、OpenAI/Stripe候補7、Anthropic0、infra5。候補件数は費用額や支払済みinvoice数ではない。2件だけ本文をreadし、Railway provider-paid receiptとDO credit相殺invoiceを区別。RailwayはStripe、DOはdigitalocean.comのDKIM/DMARCPASSをGmail authentication-resultsで確認。credential/code/token/receipt URL/paymentcardをartifactへ保存せず、send/payment0。
 - private cost-receipt-candidates artifactにはRailwayreceipt2582-9218/invoiceC5JOKVVH-0017/paid09-27/usage08-27–09-27+plan09-27–10-27、DO09月usage/credit/invoice-total等の必要なsanitized fieldsとbodyhashを保存。provider発行claimと銀行match・product-loop allocationは分け、後者はunverified。DO usageをcash paymentと数えず、providercreditを外部earned revenueとしない。B6が明示的なofficialpaid+loopallocationを要求するため、これだけでactualcost adapterへ接続しない。
 - proofはstate/cfo-readonly-projection-audit-20261004.json、cfo-cost-mail-metadata-20261004.json、cfo-cost-receipt-candidates-20261004.json、mode600。resolver対応表は後で同immutablefunctionsから再構成した非secret対応であり、当時daemon/envprovenanceの偽装をしない。次はofficial billing/project usageとloop配賦・coverage期間、Coconala source、stale provider readbackを閉じる。全goalactive/利益・financial independence未証明、Mobile別担当排他と全残TODO§217を維持。
+
+
+### 243. Railway公式project/service費用内訳とCoconala金融sourceの境界診断
+
+- origin/main9c03543eをfetch確認。既存Railway CLI認証によるread-only project list、usage previous、usage projects全件、life-manager/anicca-x402-discovery/openclaw-lm-pilotのservice詳細を取得。login/logout/link/deploy/usage limit変更0、課金/送信0。workspace billing periodは08-27T11:58:21Z〜09-27T11:58:21Z、6project/returned6/truncatedfalse。mode600のprivate証拠に保存しaccount/customer詳細・credentialを文書へ複製しない。
+- 公式workspace使用額26.056726357836112 USD、6project合計との差は1.98E-15。life-manager 0.459903050240679、anicca-x402-discovery 1.003660727546605はservice詳細と一致。openclaw-lm-pilotのproject一覧0.36692854907975314に対し詳細0.366908541341037、差-0.00002000773871614。小差を無断補正しない。
+- provider paid receipt26.07とusageとの差0.013273642163888は未照合。公式CLIカテゴリを各2桁へ丸めても合計26.05で、receiptのdisk/network/memory明細とは不一致。単純端数処理で解決済みとは扱わない。project/serviceの公式実使用まで観測できたが、canonical product-loop別の帰属と共有plan/credit配賦、支払receiptの照合は未完。B6 actualcostへ接続0、profit更新0。
+- Coconala既存readonly coconala_outcomes.pyをimmutable9cから実行。local evidenceはapplication1209/negotiation364/listing39をverified countとして返すが、過去累積・mutation履歴であり同期間売上ではない。delivery待機はlatest artifactのみ、bank_arrivalは実装で固定待機。financial readback envelopeを生成しないためこのsummaryをCFO入力へ接続しない。
+- latest Paid artifactはstatusfailed/failed3/effect0/readback0、native run/occurrence/timestamp無し。各itemはtargeted_readbackでcollector_unhealthy:talkroom_history_empty。履歴全体の納品ゼロ・provider残高ゼロの根拠ではない。selected talkroomは3回のfresh tab retry後も空ならfail-closedする実経路を確認。次は既存browser lease下のexact talkroom HTTP/login/container/paginationと公式支払/fee/settlement/payout IDsを取得し、金融source未接続を閉じる。effect fence解放/再送0。
+- fresh read-only railway_cost_allocation_reviewは公式usage coverageの限定SHIP、paid receipt照合/loop配賦HOLD、actualcost接続不可。service明細は3/6projectのscopeで、bankmatchも未確認。
+- 証拠: state/cfo-railway-allocation-readonly-20261004.json、cfo-railway-allocation-audit-20261004.json、cfo-coconala-source-boundary-20261004.json、mode600。全goalactive、§217の大順序・別担当Mobile境界を保持。
