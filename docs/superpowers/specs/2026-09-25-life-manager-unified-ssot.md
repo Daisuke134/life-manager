@@ -4778,3 +4778,41 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PR6525+6527は統合済み、再PR/merge不要。sourcebranch fix/selfbuild-rollback-receipt-20261003/HEAD56faは保持。fresh exact PIDs54372/54512/55359/61832とreleasecut handleをreadbackし、terminalだけを次操作の根拠にする。current complete06095a/c99をmanifest ALL/ancestor/sourcebytesで確認、latestmain c99が通常reconcilerで反映されるまで重複cut/applyを足さない。
 2. SelfBuildだけloadedargv/SHA/idle/deploylock/preflightを閉じ、新fixの自然row.run_idとreportをexactjoinする。現在oldreport/natural/sourcepassを代用せず、手動wake/破壊的rollbackテスト0。
 3. failedfleet3ownersのcall/state/loadedargv/exit/readback境界をowner別に診断し、稼働ownerをkillしない。policybinding43/178とlive運用を区別し、unbound135は本物のowner別hookが必要。Paid/資金通知のunknown、全14 CFO/settledprofit/Cloudself-funding等の未完を維持しgoalactive。
+
+
+### 217. 現在の担当・残TODOの正本
+
+過去の§185–216は証拠履歴。現在の担当、未完条件、実行cursorはこの節を参照する。全体goalはactive、settled profit・全loop修復・financial independenceは未証明。
+
+#### CFO / Mobile Metricsの担当境界
+
+- 担当はAGMSG team lm / lm-cfo-observability-1002、連携primaryはcodex-money-printer。primaryはこのbranch、Apple認証、provider/team、profile、credentialsを重複操作しない。
+- branch feat/lm-mobile-metrics-20261003、remote HEAD4797618b0f7c5dbbb9c36be3972029f1b50796ebをfresh ls-remoteで確認。報告された開発baseはecdd32c8d3であり、現在mainc99dbb406fとは区別する。担当branchのrebase/mergeをprimaryが先行しない。
+- 担当からの実装・検証報告: ASC acquisition funnel rates、denominator zero fail-closed、RC observed revenueとASC settled proceeds分離、ASC proceeds優先/RC二重計上防止、mobile-apps CFO P&L、unavailable/UNKNOWN表示、product funnel summary、spec/plan/evidence更新。npm188/188、CFO Python39/39 PASS。primaryはこれらのsuiteをこのbranchで再実行していない。
+- 主要外部gateはASC required agreement missing/expired。公式案内 https://appstoreconnect.apple.com/agreements はAccount Holderの承認を要求する。web session期限切れ、Apple loginは2FA待ち、credential validでもapp access warningあり、という担当報告を保持。Chat承認をApple法務Agreement受諾済みと扱わず、API bypass・codeのchat貼付・UNKNOWN→0をしない。
+- 担当の次順序: 正しいAccount Holder/account/provider/team確認→全pending/expired Agreement確認→Web再認証→asc web agreements status→ASC_BYPASS_KEYCHAIN=true asc apps list --output json→acquisition/financial report再取得→RC/settled proceeds join readback→CFO daily/evidence更新→tests再実行→全外部gate PASS後にrelease ownerへmerge依頼。pricing/paywall/submission/marketing変更なし。
+- Mobile Doneはapps list成功、公式acquisition、financial report ID/currency/settlement情報、二重計上0、CFO unknown/unavailableの正しい保持、AGMSGで変更/検証/残gate/次作業の報告。RC MRR・chart revenueはASC settled proceedsの代用ではない。
+
+#### 全体の残TODO
+
+| 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
+|---|---|---|
+| Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
+| Self-Build / Eval | latestmainのimmutable/load、自然row/run-ID/report一致、実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
+| Paid / 各marketplace | Lancers2/Cw18のeffect unknown、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
+| Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
+| Affiliate | fresh commission/payoutはEMPTY。tax REQUIRED/payment provider SELECTION_REQUIRED、fee/actualcost/settlement/payoutと旧publish fence | primary/Affiliate owner。emptyをprofit/費用0へ変換しない |
+| Connector | 自然認証済み探索は§207到達、参加可能候補0。実候補時のprovider/mail/Calendar receipt、registration/effect/replay-zero、contract/settlement/payout | primary/Connector owner。実候補発生時に公式成果を閉じる |
+| Fundraiser | 旧exact occurrenceのofficial application/request receipt、funding readback。old unknown1はHELD | primary/Fundraiser owner。receipt無しで再申請・解放しない、資金調達を営業収益と数えない |
+| Investment | AT-13からAT-29、自然exit/30roundtrips、fee/slippage/model/infra cost、duplicate order0、判定 | primary/Investment owner。paper/HOLDを保持、live資金はgate成立まで動かさない |
+| Cloud / self-funding | provider-neutral shelter、DO/Nosana/Akash/BlockRun continuity、外部earned surplusでrenewal、30日benchmark | primary/各owner。owner deposit/internal transferを外部収益としない |
+| TaskMarket / Agent Economy | external paid job、immutable packaging、funnel/margin、x402 treasury receipt、settlement/actualcost | primary/各owner。GET/package/process成功を売上に数えない |
+| Runtime / fleet | 3owner apply failure、unmanaged capafy.kosuke、immutable SHA/loadedargv/health/admission/diskの収束。各fenceを保持 | primary。owner別の具体的失敗境界を診断、稼働ownerをkillしない |
+| 最終CFO統合 | 全14 canonical loopの同期間settled external revenue/fee/actualcost/settlement/payout、unknown/stale gap、replay-zero、net P&L再計算 | primaryが全成果監査、CFO担当とofficial evidenceをjoin |
+
+#### 現在cursorとfresh runtime evidence
+
+- PR6525/6527はmain統合済み、latestmainc99dbb406fee5edf74a02678561b5a87bda59fc8。再PR/merge不要。
+- 前builder54512はterminal、complete immutable /Users/anicca/loops/releases/20261003T201923-06095a03 がcurrentへ自然activation。manifest ALL/ancestor-of-origin-main、report shell/CLI/library/promotion module bytesは06095a main blobと一致。SelfBuildはloaded-idle/installedc5e6/eventee7a/effectunknownfalseで、新report/load/natural gate未達。
+- fleet失敗の実理由: widget owner deploy busy、metrics admission rebind refused effect_unknown、alpaca bootstrap5後のprevious job restored。targeted readbackではInvestment disabled/effectunknowntrue、widget idle/effectunknowntrue、metrics idle/blocked/effectunknowntrue。disabled Investmentをenableせず、未知効果を0へ変換しない。proofはstate/selfbuild-release-readback-20261003.json/mode600。
+- 次の自然global70369/70364、cut70412/child71063はlatestmainc99のreleaseをbuild中とfresh process確認。重複build/apply/kill0。primaryはそのterminal/complete release→SelfBuild exactloadedargv/SHA→自然reportjoinを先に進め、Mobile担当のApple/auth/branchには入らない。TODO順序変更ではなく、既存primary作業と既存CFO担当の独立並行を明示する。
