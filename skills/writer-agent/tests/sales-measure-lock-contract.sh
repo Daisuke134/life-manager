@@ -9,11 +9,16 @@ trap 'rm -rf "$TMP"' EXIT
 
 make_fixture() {
   local root="$1"
-  mkdir -p "$root/scripts" "$root/state"
+  mkdir -p "$root/scripts" "$root/state" "$root/runtime/host" "$root/skills/browser"
+  ln -s "$LOCK_HELPER" "$root/runtime/host/owned_directory_lock.py"
+  cat >"$root/skills/browser/browser-guard.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = acquire ]; then printf 'http://[::1]:9222\n'; fi
+EOF
   cp "$WORKER" "$root/scripts/writer-sales-measure-worker.sh"
   cat >"$root/scripts/writer-runtime-env.sh" <<EOF
 STATE_DIR="$root/state"
-LIFE_MANAGER_REPO="$REPO_ROOT"
+LIFE_MANAGER_REPO="$root"
 WRITER_BROWSER_PYTHON="$root/fake-browser-python"
 export STATE_DIR LIFE_MANAGER_REPO WRITER_BROWSER_PYTHON
 EOF
