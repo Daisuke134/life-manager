@@ -4810,7 +4810,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
 2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
 3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
-4. Mercorは既存登録browserのavailability/ownership、exact fenceの公式readback、返信／提出／earnings境界を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
+4. Mercorは§224で既存登録browserと本人一致sessionを復旧済み。次はsameidentityのapplications/contract/earnings official readback→exact fence reconcile→返信／提出／精算境界を閉じる。Freelancer/Upworkは未接続のaccount-bound source/inventoryからowner化を進め、FiverrはMeta Loopのstorefront導入条件を閉じる。CODE部品やcapability名だけで「既に自動実行中」と扱わない。
 
 #### 全体の残TODO
 
@@ -4902,3 +4902,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - Mobile/CFO担当からのAGMSG更新とremoteを確認: branch feat/lm-mobile-metrics-20261003はfd0245e90e4b04a51fa8fe4634adf18a51e48047へ更新、base45へのrebase/6商品scope/39tests再実行は担当報告。最後のreview依頼は撤回され専任fresh reviewerへrouting済み、primaryへのedit依頼なし。branch/auth/profile変更0。
 
 大TODO順序は§217のまま。追加はlaneごとの未達条件・通知とreceiptの区別・自社商品のbuild/sell/実利益/購入者成果/learningの具体的チェックであり、scopeを小さく言い換えたり、全platform稼働やprofitを宣言しない。
+
+
+### 224. Mercor登録browserの復旧・既存session本人一致のofficial GET観測
+
+- 前turnは7providerのsource/runtime/public/mail監査と自社商品factory条件追加でprogress。本turnはregistered mercor:daisをowner-localで診断。logical owner mercor-revenue-browser、launched_by ai.anicca.job-search-mercor-browser、profile ~/.browser-harness-profile/mercor-google-20260822bは登録済み。外部labelはmain external_labelsに登録済みだがplist・loadedservice・liveprofilePID・SingletonLock無し、resolver endpoint_unavailable。
+- GUI preflight UID501/DS/Aqua/managerUID501/PID1/GUI PASS、既存keeperのdisk preflight rc0、profile process無しをfresh確認。既存immutable80のcdp_persistent_context.pyをmanaged Pythonで、exact registered external labelへlaunchctl-safe submit。remove/kill/restart/他profile操作無し、port0/rendererlimit8、既存profileを再利用。
+- keeperPID68648 running、Cloakprofile所有PID68653、resolver reachabletrue/port51887をreadback。同一labelの~/Library/LaunchAgents/ai.anicca.job-search-mercor-browser.plistをmode600/RunAtLoad+KeepAliveで保存。現在のsubmitted jobはrebootstrapせず維持し、このpersistent設定は通常の次回loadで有効。現在jobのKeepAliveを変更済みとはclaimしない。
+- registered with-browser lease内でownedpageのGETだけを実施、unreachable auto-provision fallbackはfalseへ制限。最初はHTTP200/bodyemptyでauth unproven、次は/home/bodyhydrated、広告analytics等のrequestfailとwork hostfetchfailを観測。既存auth observerのtoken-refresh部分をdisabledにしたread-only probeで公式notifications GET200、authenticated navigationtrue、Firebasepresent/expiredfalse/refreshedfalse。private profile内の唯一のemail値と既存Firebaseuser emailをメモリ内比較してmatchtrue、値を出力／ファイルコピーせず本人identityまで確認。
+- browser復旧を応募/返信/paid完走へ置換しない。login submit/token refresh/credential reset/応募/返信/納品/fence解放0、CAPTCHA/KYC回避0。exact oldfenceとcurrentcontract/settlement/payoutは未完。state/mercor-browser-recovery-20261003.json と mercor-session-observation-20261003.json、mode600にsecret-free evidenceを保存。
+- LancersPaid latest targeted readbackはinstalled/eventSHA80一致、idle/effectunknowntrue。自然eventSHAだけでnewhelperが実行されたと断定せず、latest native/error/resultのsameoccurrence joinは次に閉じる。SelfBuildはinstalled/eventc5e6、idle/effectunknownfalseでnewfixのload/naturalreport未達。稼働release ownerをkill/重複applyせず、main80はstableに維持。
