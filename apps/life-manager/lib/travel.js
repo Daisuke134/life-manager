@@ -576,7 +576,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       if (parsed && Number.isFinite(routeDurationSeconds(parsed))) {
         await emitUsage(options, { tenantId: uid, provider: "transit_api", feature: "travel_route", outcome: "success",
           failureClass: null, providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0,
-          actualStatus: "unknown", meta: { provider_mode: "free_primary" } });
+          actualStatus: "not_applicable", meta: { provider_mode: "free_primary" } });
         return parsed;
       }
       const failureClass = transitFailureClass
@@ -584,7 +584,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       noteProviderFailure(routeUsage, failureClass);
       await emitUsage(options, { tenantId: uid, provider: "transit_api", feature: "travel_route", outcome: "failure",
         failureClass, providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
-        actualStatus: "unknown", meta: { provider_mode: "free_primary" } });
+        actualStatus: "not_applicable", meta: { provider_mode: "free_primary" } });
     }
     return google(); // non-JP/unresolvable or Transit failure → exactly one Google fallback
   };

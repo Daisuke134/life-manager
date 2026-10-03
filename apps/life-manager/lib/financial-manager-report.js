@@ -404,6 +404,7 @@ function renderFinancialManagerDetailed(report) {
   if (report.providerLanes) {
     lines.push("Provider lane", Object.entries(report.providerLanes).map(([lane, value]) => (
       `${lane}:${value.status} primary=${value.primary || "未確認"} fallback=${value.fallbackCalls}/${value.fallbackCap}`
+      + `${value.unknownCount ? ` unknown=${value.unknownCount}` : ""}`
     )).join(" | "));
   }
   if (report.providerLaneReadback && report.providerLaneReadback.status !== "fresh") {
@@ -478,6 +479,7 @@ function renderFinancialManagerTelegram(report) {
   if (report.providerLanes) {
     lines.push(`Provider lane: ${Object.entries(report.providerLanes).map(([lane, value]) => (
       `${lane}:${value.status} ${value.fallbackCalls}/${value.fallbackCap}`
+      + `${value.unknownCount ? ` unknown=${value.unknownCount}` : ""}`
     )).join(" | ")}`);
   }
   if (report.providerLaneReadback && report.providerLaneReadback.status !== "fresh") {

@@ -65,7 +65,7 @@ async function runFinancialManager(options = {}) {
     providerBudget: ingestion.providerBudget || null,
   });
   const hasSourceWarning = Object.values(report.sourceFreshness || {})
-    .some((value) => value && value.status !== "fresh");
+    .some((value) => value && value.status !== "fresh") || report.partial === true;
   if (report.verifiedRecordCount === 0 && !hasSourceWarning) {
     return {
       status: "quiet", reason: "no_verified_financial_records", reportingDate,

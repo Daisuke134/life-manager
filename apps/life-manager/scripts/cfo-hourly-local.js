@@ -181,7 +181,7 @@ async function runHourlyCfo(options = {}) {
       delivery: { delivery: "delivered", provider_message_id: String(delivery.provider_message_id) },
       deliveredAt: now.toISOString() });
     const duplicate = Number(delivery.attempted) === 0;
-    return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
+    const retryResult = { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
       reportingDate: date, recordCount: pending.report.verifiedRecordCount || 0,
       delivered: !duplicate, providerMessageId: String(delivery.provider_message_id),
       report: pending.report, digest: pending.digest,
@@ -191,6 +191,13 @@ async function runHourlyCfo(options = {}) {
       providerCostSettlement: pending.report.providerCostSettlement || null,
       providerBudget: pending.report.providerBudget || null,
     };
+    retryResult.providerLanes = pending.report.providerLanes || null;
+    retryResult.providerLaneReadback = pending.report.providerLaneReadback || null;
+    retryResult.observationGate = recordObservationGate(stateDir, {
+      ...retryResult,
+      ingestion: { providerLanes: retryResult.providerLanes, providerLaneReadback: retryResult.providerLaneReadback },
+    }, options);
+    return retryResult;
   }
   const result = await runFinancialManager({
     subjectId, reportingDate: date, timezone: "Asia/Tokyo", now, store,

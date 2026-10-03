@@ -84,7 +84,8 @@ function laneFromRows(name, rows, definition, bounds, caps) {
   else if (inPeriod.length === 0) failures.push(`provider_lane_readback_stale:${name}`);
   else if (successful.length === 0) failures.push(`provider_lane_no_success:${name}`);
   if (inPeriod.some((row) => row.numericInvalid)) failures.push(`provider_lane_numeric_invalid:${name}`);
-  if (inPeriod.some((row) => row.unknownCount == null)) failures.push(`provider_lane_unknown_cost:${name}`);
+  if (inPeriod.some((row) => row.unknownCount == null)
+    || unknownCount > 0) failures.push(`provider_lane_unknown_cost:${name}`);
   if (!primaryRow && !cacheRow) failures.push(`provider_lane_primary_missing:${name}`);
   const cap = caps[definition.capKey] || {};
   return {

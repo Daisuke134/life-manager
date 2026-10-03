@@ -88,6 +88,14 @@ test("provider lane numeric and unknown-cost fields fail closed, and zero units 
   assert.ok(result.failures.includes("provider_lane_unknown_cost:poi"));
 });
 
+test("positive unknown-cost evidence keeps an otherwise successful lane partial", () => {
+  const result = normalizeProviderLanes([
+    { usage_day: "2026-10-03T00:00:00Z", provider: "openpoi", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0, unknown_count: 1 },
+  ], { reportingDate: "2026-10-03", nowMs: Date.parse("2026-10-03T12:00:00Z") });
+  assert.equal(result.lanes.poi.status, "partial");
+  assert.ok(result.failures.includes("provider_lane_unknown_cost:poi"));
+});
+
 test("accepts a UTC day bucket that overlaps the reporting day in JST", () => {
   const result = normalizeProviderLanes([
     { usage_day: "2026-10-02T00:00:00Z", provider: "openpoi", feature: "places_search", outcome: "success", event_count: 1, provider_units: 1, estimated_cost_usd: 0, unknown_count: 0 },

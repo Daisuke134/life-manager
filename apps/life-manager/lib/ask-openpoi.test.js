@@ -24,7 +24,7 @@ test("Japan location resolution uses OpenPOI before Google Places and preserves 
   assert.deepEqual(usage, [{
     tenantId: "anonymous", provider: "openpoi", feature: "places_search", operation: "places_search",
     outcome: "success", failureClass: null, providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0,
-    actualStatus: "unknown", meta: { provider_mode: "free_primary" },
+    actualStatus: "not_applicable", meta: { provider_mode: "free_primary" },
   }]);
 });
 

@@ -183,7 +183,7 @@ async function placesSearch(query, mapsKey, options = {}) {
       await options.recordUsageEvent({
         tenantId: options.tenantId || "anonymous", provider: "openpoi", feature: "places_search",
         operation: "places_search", outcome, failureClass, providerUnits: 1, providerUnit: "request",
-        estimatedCostUsd: 0, actualStatus: "unknown", meta: { provider_mode: "free_primary" },
+        estimatedCostUsd: 0, actualStatus: "not_applicable", meta: { provider_mode: "free_primary" },
       });
     } catch { /* usage visibility must not make location resolution fail */ }
   };

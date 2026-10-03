@@ -166,7 +166,9 @@ test("CFO freezes and retries the first same-day snapshot after a pre-send failu
     amount_minor: 99999,
     source: { provider: "stripe", source_type: "payment_processor", external_ref: "after-failure" },
   }));
-  assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T10:00:00Z") })).status, "sent");
+  const retry = await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T10:00:00Z") });
+  assert.equal(retry.status, "sent");
+  assert.ok(retry.observationGate);
   assert.equal(messages.length, 2);
   assert.equal(messages[1], messages[0]);
 });

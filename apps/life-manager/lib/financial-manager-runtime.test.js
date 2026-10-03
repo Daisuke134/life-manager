@@ -120,7 +120,24 @@ test("CFO report carries provider-lane evidence from ingestion", async () => {
     subjectId: "tenant-a", reportingDate: "2026-09-07", now: "2026-09-07T06:00:00.000Z",
     store: store([]),
     ingest: async () => ({ observed: 0, created: 0, sources: {}, providerLanes }),
+    notify: async () => ({ delivered: true, providerMessageId: "lane-evidence" }),
   });
-  assert.equal(result.status, "quiet");
+  assert.equal(result.status, "sent");
   assert.deepEqual(result.report.providerLanes, providerLanes);
+});
+
+test("provider lane partial readback is owner-visible even with zero financial records", async () => {
+  const messages = [];
+  const result = await runFinancialManager({
+    subjectId: "tenant-a", reportingDate: "2026-09-07", now: "2026-09-07T06:00:00.000Z",
+    store: store([]),
+    ingest: async () => ({
+      observed: 0, created: 0, sources: {},
+      providerLaneReadback: { status: "partial", failures: ["provider_lane_readback_failed"], lanes: null },
+    }),
+    notify: async ({ message }) => { messages.push(message); return { delivered: true, providerMessageId: "lane-warning" }; },
+  });
+  assert.equal(result.status, "sent");
+  assert.equal(messages.length, 1);
+  assert.match(messages[0], /Provider lane readback: partial/);
 });
