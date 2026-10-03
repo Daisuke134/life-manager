@@ -276,7 +276,7 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(runtimeScript, /"\$BROWSER_GUARD" acquire "\$BROWSER_IDENTITY"/);
   assert.match(runtimeScript, /BROWSER_FOUNDATION=.*ensure_browser\.sh/);
   assert.match(runtimeScript, /next natural wake owns browser foundation recovery/);
-  assert.match(runtimeScript, /retry the same candidate observation once/);
+  assert.match(runtimeScript, /record submit_unknown and retain its exact identity fence/);
   assert.match(dailyPrompt, /every visible question paired with the final rendered answer/);
   assert.match(dailyPrompt, /Never append `submitted_verified` yourself/);
   assert.match(dailyPrompt, /never close it until every fill/);
