@@ -4196,3 +4196,20 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 3. Applyは次wakeで既応募6件へのduplicate attempt 0と公式roster維持を確認する。これでApplyのreplay-zeroを閉じる。
 4. Coconala Paidはcontract→delivery→fee→settlement→payout→actual costをofficial receiptで結ぶ。そこまでCoconala収益完了・profit・全loop修復済みとはしない。
 5. Coconala cursor完了後、§178の#2 PromptBaseへ進む。後続順序は変更しない。
+
+### 181. Coconala Apply replay-zero完了とbrowser starvationのproduction終端（2026-10-03 10:35 JST）
+
+- 128 releaseの次自然pass `gig-apply-direct-1790986809398470000-42816`は、前passで公式確認済みの6件を`already_applied_filtered=6`として除外し、duplicate送信0を維持した。そのうえで別の新規7件だけをsubmitし、effect 7 / Coconala公式readback 7 / failed 0 / pending 0 / business_success=true、Telegram message ID `101938`となった。Coconala Applyのidentity→durable submit→official roster→replay-zeroは完了した。
+- 2c releaseのnatural観測ではPaidだけがmodel-only区間をyieldしても、Apply自身がplanner/result validation中にouter browser identityを10分超保持し、Paidがentrypoint前busyになる第二原因を実測した。PR #6513をmain `1f23747b03e694f76dcba07eec5dc7a1ae98691f`へmergeし、共通holder-aware helperへ集約したうえで、Applyのdata-only plannerとpure result validationだけをyieldするよう修正した。provider discovery/submit中は従来どおりleaseを保持する。
+- Application関連97件、Paid remote/browser 263件、Paid yield 6件、persistent wrapper 2件、新Apply yield 3件、py_compile、diff check、GitHub CI全件がPASS。fresh read-only reviewは、inner CDP leaseを保持したままprovider非依存区間だけouter identityをyieldし、reacquire後にhealthを確認するため重大なeffect raceなしとして`SHIP`。
+- immutable releaseは`/Users/anicca/loops/releases/20261003T094358-1f23747b / ALL`。Apply/Paid/Replyのinstalled SHAとloaded argvはすべて1fへ一致した。fleet applyの2 errorsは既知の`alpaca-investment-live`と`life-manager-instagram-metrics`で、Coconalaとは分離して保持する。
+- 1f Paid自然occurrence `hf-gig-paid-direct:18dadf4eea3d9120-34114`で、owner model実行中にCoconala leaseが消え、その間に1f siblingが複数回leaseを取得・解放した。owner model終了後、同じouter holder PID `34126`がleaseをreacquireした。別holder leaseの削除、同時provider effect、手動kill/restartは0。starvation修正のnatural production readbackはPASSした。
+- 同Paid runはexit0、latest result=`pending / effect 0 / readback 2 / failed 0 / pending 1`。`lm-loop health --loop hf-gig-paid-direct --explain --json`はrelease 1f、runtime/productivity/recovery=`ok`、effect_unknown=0、state=`healthy`。これはbrowser/runtime修復の証拠であり、Paid契約完了・settlement・payoutではない。
+- 実装中にData volumeが再びatomic patch書込みを拒否したため、credential/state/receipt/worktreeには触れず、再生成可能なexact cache `/Users/anicca/Library/Caches/com.openai.codex`だけを削除し、空きを約5.0GiBへ回復した。固定10GB目標は追わない。
+
+#### 更新後の原子cursor
+
+1. **Coconala Applyは完了**。応募済み13件のofficial roster/replyをPaidへ引き継ぎ、同一requestへのduplicate submit 0を維持する。
+2. **Coconala Paidは継続**。current contractは`pending`のため、公式talkroom/transaction stateとbuyer requestを読み、repo-owned deliveryを完了またはbuyer待ちへ正しく遷移させる。effect 0のretryを納品成功へ数えない。
+3. contract terminal後、Coconala fee→settlement→payout→actual costをofficial receiptでCFO ledgerへjoinする。ここまで完了するまでCoconala収益完了とはしない。
+4. Paidがprovider/human待ちで安全にpendingを維持し、自所有の修正が無い区間は、§178 #2 PromptBaseのofficial sales/fee/settlement readbackを並行して進める。全体順序はPromptBase→Capafy→Writer→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarketを維持する。
