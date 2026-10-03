@@ -5322,3 +5322,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - configに旧ai.anicca.provision-browser.capafy.kosukeだけをguard付きretiredへ追加。通常managed/external ownerを変更せず、既存target apply/label lock/absence readbackを再利用。既にabsent/plistなしはno-op。隔離テストで一致する旧登録の解除1回→replay変更0、別正規owner plist不変を確認。
 - source39650bcf120a983f0392856c2681895125cc3883/3files/clean/pushed。focused2tests（6failure subcases）/contract14loops178jobs/adapter15/OSS/diff PASS。共有runtime検証は進行中。official print snapshotへの純粋guard評価PASS、実解除/bootout0、auth/profile/browser変更0。caller側読取と実解除間の競合を完全atomicと主張せず、実反映直前にcurrentと正規owner/登録再利用を再確認する。
 - 次は全source検証・独立read-only review・PR/main・completeimmutable、live release ownerのterminal/GUIpreflight/対象identity/正規capafy owner維持を確認してexact retired labelだけをapply。旧観測を後日の許可へ流用しない。§217全残TODO/全goalactive、canonical Product Loopのbusiness/financeは未達のまま。
+
+
+### 271. targeted validation迂回を独立反証し、guarded退役をlegacyから分離
+
+- 初回独立guarded_retirement_final_reviewはfix-first。実apply_liveのtargeted retirementはraw registryでretired targetを選びplanを空にするため、apply_registryのschema検証を迂回する。旧base655bへ初回registryを渡す隔離反例ではbootout/plist除去まで進む。§270のschema単体probeを旧controller互換性の証拠とした前提は誤りとして撤回する。
+- sourceを修復し、apply_liveはregistry読込直後にvalidate_registryを必須化。guard付きlabelはguarded_retired_labels mapへ分離し、legacy retired_labelsから除外。guardedはmanaged/external/legacyとdisjointをschema検証し、新controllerのstatus/doctor/apply/retireはretired_label_namesのunionで扱う。旧controllerはguarded targetを退役認識せずunknown apply targetでmutation前拒否。
+- 現controllerのinvalid targeted registryがpreflightに進む反例をRED→GREEN。旧baseのactual CLI、新registry/guarded target/isolated HOME/fake launchctl-safeでは拒否/lifecyclecalls0を確認。再reviewは旧base実apply_liveでもlifecycle0/plist変更0を独立確認。新real apply_liveはguarded targetのみ処理し他retired plistを保持。source5b571/runtime754/140.299s PASS、最終2d16718cbbd6a1c5e192c89f0a911eb280df6347はこのcontroller経路test追加のみで6PASS。registry131/adapter15/contract14loops178jobs/OSS/diff PASS、fresh再reviewSHIP。
+- PR6542を最終head2d167で作成、GitHubchecks待ち/未main/未live。source専用branchはclean/pushed/base655b。profile/auth/browser停止、実bootout、旧fence解除0。非協調writerに対するprint-guard-bootoutと最終guard-unlinkの完全atomic保証は無く、実反映には対象排他/idle/newcontrollerと直前のidentity一致が必要。
+- 既存native ownerがcandidate補充修復main655bのcompleteimmutable /Users/anicca/loops/releases/20261004T050842-655b2cf2 をcurrentへ反映。manifest655b/ALL/ancestor-of-origin-main、generator Gitblob一致を確認。primary duplicatecut/apply0。sourceguardianは本releaseに入っていない。
+- df/Data available1982704KiB/約1.9GiBへ低下。Trash旧test dirsは各98MB、以前のdependencycacheは不在。protected source/memory/profile/stateを削除せず、調査削除0。release buildは既存pressure/donor条件に従い、floor未達を成功扱いしない。根拠capafy-unmanaged-browser-diagnostic-20261004.json、全残TODO → §217、全goalactive。
