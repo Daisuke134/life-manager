@@ -101,6 +101,7 @@ def auth_snapshot_expression(*, expected_email: str | None = None) -> str:
       let firebase_identity_matched=null;
       let authenticated_api_status=null;
       let firebase_token_expired=false;
+      let firebase_token_expired_before_refresh=null;
       let firebase_token_refreshed=false;
       let firebase_token_refresh_failed=false;
       let firebase_token_refresh_invalid=false;
@@ -134,7 +135,11 @@ def auth_snapshot_expression(*, expected_email: str | None = None) -> str:
             const candidate=entry?.value && typeof entry.value==='object' ? entry.value : entry;
             const manager=candidate?.stsTokenManager;
             const expiration=Number(manager?.expirationTime)||0;
-            if(expiration>0 && expiration<=Date.now()) firebase_token_expired=true;
+            if(expiration>0){
+              const expired=expiration<=Date.now();
+              firebase_token_expired_before_refresh=expired || firebase_token_expired_before_refresh===true;
+              if(expired) firebase_token_expired=true;
+            }
             const refreshDue=expiration>0 && expiration<=Date.now()+60000;
             if(refreshDue && manager?.refreshToken && candidate?.apiKey){
               try {
@@ -211,6 +216,7 @@ def auth_snapshot_expression(*, expected_email: str | None = None) -> str:
         firebase_identity_matched,
         authenticated_api_status,
         firebase_token_expired,
+        firebase_token_expired_before_refresh,
         firebase_token_refreshed,
         firebase_token_refresh_failed,
         firebase_token_refresh_invalid
