@@ -4950,7 +4950,7 @@ class PreEffectForeignClaimTests(unittest.TestCase):
 
 class GuardedOrphanRetirementTests(unittest.TestCase):
     def test_guard_rejects_reused_running_or_executable_registration(self):
-        for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist'):
+        for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist', 'absent_program_changed'):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 agents = root / 'agents'
@@ -4971,13 +4971,14 @@ class GuardedOrphanRetirementTests(unittest.TestCase):
                     detail = detail.replace('state = spawn scheduled\n', '')
                 if case == 'script_exists':
                     script.write_text('print("active")')
-                if case == 'absent_reused_plist':
-                    target.write_bytes(plistlib.dumps({'ProgramArguments': ['/new-owner']}))
+                if case.startswith('absent_'):
+                    changed = {'ProgramArguments': ['/new-owner']} if case == 'absent_reused_plist' else {'ProgramArguments': argv, 'Program': '/different'}
+                    target.write_bytes(plistlib.dumps(changed))
                     before = target.read_bytes()
                 calls = []
                 def safe(_exe, args):
                     calls.append(args)
-                    return (1, 'Could not find service') if case == 'absent_reused_plist' or len(calls) > 1 else (0, detail)
+                    return (1, 'Could not find service') if case.startswith('absent_') or len(calls) > 1 else (0, detail)
                 with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
                     with self.assertRaisesRegex(RuntimeError, 'retirement identity guard'):
                         lm_loop._retire_labels(registry_value, agents, root/'safe', root, root/'lock')

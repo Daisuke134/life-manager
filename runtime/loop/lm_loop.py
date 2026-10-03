@@ -2181,7 +2181,10 @@ def _guard_orphan_retirement(guard: dict, detail: str | None, plist: Path) -> No
                     or program.group(1).strip() != arguments[0]):
                 raise ValueError("loaded identity changed")
         elif plist.is_file():
-            arguments = plistlib.loads(plist.read_bytes()).get("ProgramArguments", [])
+            definition = plistlib.loads(plist.read_bytes())
+            arguments = definition.get("ProgramArguments", [])
+            if "Program" in definition and (not arguments or definition["Program"] != arguments[0]):
+                raise ValueError("plist program changed")
         else:
             return  # Already absent: no registration or plist is mutated.
         fingerprint = hashlib.sha256(json.dumps(arguments, separators=(",", ":")).encode()).hexdigest()
