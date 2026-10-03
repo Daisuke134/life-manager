@@ -77,7 +77,7 @@ test('success path: candidate cut with LOOPS_ACTIVATE_CURRENT=0, canary apply, h
     calls.push(request);
     if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply') {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: MERGED_SHA }]), stderr: '' };
     }
     if (request.args[0] === 'status') {
       return {
@@ -164,7 +164,7 @@ test('health failure (terminal fail) triggers rollback', async () => {
   deps.runCommand = async (request) => {
     if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === NEW_RELEASE) {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: MERGED_SHA }]), stderr: '' };
     }
     if (request.args[0] === 'status') {
       return {
@@ -213,7 +213,7 @@ test('health timeout with no terminal result triggers rollback', async () => {
   deps.runCommand = async (request) => {
     if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === NEW_RELEASE) {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: MERGED_SHA }]), stderr: '' };
     }
     if (request.args[0] === 'status') {
       statusCalls += 1;
@@ -347,7 +347,7 @@ test('cut succeeds on a later retry after the lock frees up', async () => {
       return { code: 0, stdout: '', stderr: '' };
     }
     if (request.args[0] === 'apply') {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: MERGED_SHA }]), stderr: '' };
     }
     if (request.args[0] === 'status') {
       return {
@@ -366,6 +366,55 @@ test('cut succeeds on a later retry after the lock frees up', async () => {
   assert.equal(result.ok, true);
   assert.equal(cutAttempts, 2);
 });
+
+test('canary accepts the canonical label-only apply receipt for the merged release', async () => {
+  const {deps,releaseDirs} = baseDeps();
+  releaseDirs.push(NEW_RELEASE);
+  const readFile=deps.readFile;
+  deps.readFile=async file => file===`${NEW_RELEASE}/RELEASE.json`
+    ? JSON.stringify({sha:MERGED_SHA}) : readFile(file);
+  deps.runCommand=async request => {
+    if(request.executable==='bash') return {code:0,stdout:''};
+    if(request.args[0]==='apply') return {code:0,stdout:JSON.stringify([
+      {label:LABEL,ok:true,release_sha:MERGED_SHA}])};
+    return {code:0,stdout:JSON.stringify([
+      {event_release_sha:MERGED_SHA,last_terminal_result:'pass'}])};
+  };
+  const result=await promoteLoopRuntimeRepair({ownerId:OWNER,mergedSha:MERGED_SHA,
+    repoRoot:REPO_ROOT,loopsRoot:LOOPS_ROOT,deps});
+  assert.equal(result.ok,true);
+  assert.equal(result.hooks.find(h=>h.hook==='isolated_canary').ok,true);
+});
+
+for (const [name, receipt] of [
+  ['missing release', {loop_id:OWNER,label:LABEL,ok:true}],
+  ['wrong release', {loop_id:OWNER,label:LABEL,ok:true,release_sha:'b'.repeat(40)}],
+  ['conflicting loop id', {loop_id:'other-owner',label:LABEL,ok:true,release_sha:MERGED_SHA}],
+  ['conflicting label', {loop_id:OWNER,label:'ai.anicca.other',ok:true,release_sha:MERGED_SHA}],
+]) {
+  test(`canary rejects ${name} despite exit zero and a healthy snapshot`, async () => {
+    const {deps,releaseDirs,calls} = baseDeps();
+    releaseDirs.push(NEW_RELEASE);
+    const readFile=deps.readFile;
+    deps.readFile=async file => file===`${NEW_RELEASE}/RELEASE.json`
+      ? JSON.stringify({sha:MERGED_SHA}) : readFile(file);
+    deps.runCommand=async request => {
+      calls.push(request);
+      if(request.executable==='bash') return {code:0,stdout:''};
+      if(request.args[0]==='status') return {code:0,stdout:JSON.stringify([
+        {event_release_sha:MERGED_SHA,last_terminal_result:'pass'}])};
+      return {code:0,stdout:JSON.stringify([request.env.LIFE_MANAGER_RELEASE_ROOT===NEW_RELEASE
+        ? receipt : {label:LABEL,ok:true,release_sha:'c'.repeat(40)}])};
+    };
+    const result=await promoteLoopRuntimeRepair({ownerId:OWNER,mergedSha:MERGED_SHA,
+      repoRoot:REPO_ROOT,loopsRoot:LOOPS_ROOT,deps});
+    assert.equal(result.ok,false);
+    assert.equal(result.reason,'isolated_canary_failed');
+    assert.equal(result.hooks.find(h=>h.hook==='isolated_canary').ok,false);
+    assert.equal(calls.filter(c=>c.args[0]==='status').length,0);
+    assert.equal(result.rolled_back,true);
+  });
+}
 
 for (const [name, response] of [
   ['effect fence', {code:0, stdout:JSON.stringify([{loop_id:OWNER,label:LABEL,ok:true,release_sha:'c'.repeat(40),skipped:'effect-unknown-fence'}])}],

@@ -203,9 +203,11 @@ export async function promoteLoopRuntimeRepair({
     let parsed = null;
     try { parsed = JSON.parse(String(applied?.stdout || '')); } catch { parsed = null; }
     const item = Array.isArray(parsed)
-      ? parsed.find((row) => row && (row.loop_id === ownerId || row.label === entry.label))
+      ? parsed.find((row) => row && row.label === entry.label
+        && (row.loop_id == null || row.loop_id === ownerId))
       : null;
-    canaryOk = applied?.code === 0 && Boolean(item) && item.ok === true && item.skipped == null;
+    canaryOk = applied?.code === 0 && Boolean(item) && item.ok === true
+      && item.release_sha === mergedSha && item.skipped == null;
     hooks.push(hook('isolated_canary', canaryOk, { exit_code: applied?.code ?? null, item }));
   } catch (error) {
     hooks.push(hook('isolated_canary', false, { error: String(error?.message || error) }));
