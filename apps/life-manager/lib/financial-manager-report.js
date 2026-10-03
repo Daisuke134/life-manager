@@ -104,6 +104,20 @@ function normalizeProviderLanes(value) {
   return Object.keys(lanes).length ? lanes : null;
 }
 
+function normalizeProviderLaneReadback(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const status = ["fresh", "partial", "stale", "unavailable", "unknown"].includes(value.status)
+    ? value.status : "unknown";
+  const failures = Array.isArray(value.failures)
+    ? value.failures.map((item) => String(item)).filter((item) => /^[a-z0-9_:-]{1,128}$/.test(item)).slice(0, 32)
+    : [];
+  return {
+    status,
+    observedAt: value.observedAt == null ? null : String(value.observedAt),
+    failures,
+  };
+}
+
 function inRange(records, start, end) {
   return records.filter((record) => {
     const occurred = Date.parse(record.occurred_at);
@@ -138,7 +152,7 @@ function zonedMidnight(key, timezone) {
 function buildFinancialManagerReport(rawRecords, reportingDate, {
   timezone = "Asia/Tokyo", economicSourceCoverage = null, sourceFreshness = null,
   businessSourceCoverage = [], businessReadback = null, providerCostSettlement = null, providerBudget = null,
-  providerLanes = null,
+  providerLanes = null, providerLaneReadback = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const staleProviders = new Set(Object.entries(sourceFreshness || {})
@@ -221,6 +235,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       || Boolean(providerBudget && providerBudget.state && providerBudget.state !== "normal"),
     businessSourceCoverage: Array.isArray(businessSourceCoverage) ? businessSourceCoverage : [],
     providerLanes: normalizeProviderLanes(providerLanes),
+    providerLaneReadback: normalizeProviderLaneReadback(providerLaneReadback),
     businessReadback: businessReadback ? {
       status: businessReadback.status || "unknown",
       observedAt: businessReadback.observedAt || null,
@@ -390,6 +405,10 @@ function renderFinancialManagerDetailed(report) {
       `${lane}:${value.status} primary=${value.primary || "未確認"} fallback=${value.fallbackCalls}/${value.fallbackCap}`
     )).join(" | "));
   }
+  if (report.providerLaneReadback && report.providerLaneReadback.status !== "fresh") {
+    lines.push(`Provider lane readback: ${report.providerLaneReadback.status}`
+      + `${report.providerLaneReadback.failures.length ? ` (${report.providerLaneReadback.failures.join(",")})` : ""}`);
+  }
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
     lines.push("\n収益内訳（今月・プロバイダー別）");
@@ -459,6 +478,10 @@ function renderFinancialManagerTelegram(report) {
     lines.push(`Provider lane: ${Object.entries(report.providerLanes).map(([lane, value]) => (
       `${lane}:${value.status} ${value.fallbackCalls}/${value.fallbackCap}`
     )).join(" | ")}`);
+  }
+  if (report.providerLaneReadback && report.providerLaneReadback.status !== "fresh") {
+    lines.push(`Provider lane readback: ${report.providerLaneReadback.status}`
+      + `${report.providerLaneReadback.failures.length ? ` (${report.providerLaneReadback.failures.join(",")})` : ""}`);
   }
   lines.push("トークン数・定額契約の日割り: 未確認");
   // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.

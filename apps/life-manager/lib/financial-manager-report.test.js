@@ -207,6 +207,18 @@ test("provider lane freshness and fallback caps are visible in the CFO report", 
   assert.match(text, /2\/200/);
 });
 
+test("provider lane readback failure stays visible and does not become zero", () => {
+  const report = buildFinancialManagerReport([], "2026-10-02", {
+    providerLaneReadback: {
+      status: "partial", observedAt: "2026-10-02T02:00:00.000Z",
+      failures: ["provider_lane_readback_failed"], lanes: null,
+    },
+  }).report;
+  assert.equal(report.providerLaneReadback.status, "partial");
+  assert.match(renderFinancialManagerTelegram(report), /Provider lane readback: partial/);
+  assert.match(renderFinancialManagerTelegram(report), /provider_lane_readback_failed/);
+});
+
 test("stale personal transactions are shown as last-known, never current spending", () => {
   const income = record("stale-income", {
     kind: "personal_income", amount: 806201, occurredAt: "2026-08-25T00:00:00.000Z",
