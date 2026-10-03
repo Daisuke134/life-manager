@@ -5256,3 +5256,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - immutable9cのshell/CLI/library3filesはcurrentbe2とbytes一致。shellはdotenv後UUIDを生成し、そのUUIDのledgerだけをreportへ選択する実codeを確認。旧lastrowを現在runへ流用せず、manualwake/merge/guard緩和/台帳移動0。state/selfbuild-natural-exact-row-report-20261004.json/mode600。
 - 台帳/report exactjoinの最初の自然gateはこのoccurrenceで成立。safe promotion/recoveryの実ownerhook、validated eval/cost-first/前後比較、policy43bound/135unboundの本成果は未達のまま。04:10予定wakeや過去seven-dayreadyを全promotion完了へ置換しない。
 - 次はowner-local promotionの実hook不足と残paid/financial readbackを進め、Mercor通常expiryでauthbeforetrue/refreshedtrue/afterfalseを観測。§217全残TODO/別担当Mobile境界/goalactiveを保持。
+
+
+### 263. Self-Build候補6368の実ownerと独立したsourceCI不足
+
+- freshgh readでPR6368/feature-lm-dev6349/HEAD3805e38545255f60002c6ccc22ff76414f481bb3/OPENを確認。差分はmobile-app wrapperのimmutableLIFE_MANAGER_RELEASE_SHAをmutablemarketingenv読込後にも保持する修正と既存test。metadata帰属のsource修復とpublish ownerのruntime promotion成立は別の成果。
+- PRbodyownerはlife-manager-anicca-larry-ja-instagram/class external_effect_owner。registryにもeffect_classpublish、現在policy runtime_pathunbound。recovery-promotion.mjsはregistry検証のdeterministic/effectnoneだけを実経路へ接続。booleanhook申告/クラス変更/既存deterministicRailway path借用で通過させない。
+- ownerhealthはsafely_fenced、oldoccurrence18db16354040b788-3445/native18db1961f76c05f0-16436/entrypoint_exit_1、providerreceipt無し/readback必要/retryablefalse。publication/resolve/replay0。pricing/paywall/appsubmission/新しいmarketingeffect・別担当branch/auth変更0。
+- PR6368はOSSboundaryFAILも存在。officialGitHub workflow36843596718/job110308309639のfailurelogはmanifest_inventory_mismatch skills/capafy-autopublish（10-01）。現mainのOSS PASSを旧headへ流用せず、source受入とowner昇格を分ける。primaryはproducerbranchをrebase/編集せず、無関係なCapafy修復へ範囲を広げない。
+- proof state/selfbuild-owner-promotion-boundary-20261004.json/mode600。次はproducerowned latestbaseでsourceCIを再検証し、publishownerのeffect-safe canary/officialexacthealth/rollback bindingを実証する。SelfBuild自然exactrow-reportは§262成立、promotion/eval本成果と§217全残TODO/全goalactiveは未達のまま保持。
