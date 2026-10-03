@@ -60,7 +60,7 @@ def _rows(path: Path) -> list[dict[str, Any]]:
 
 def _official_contracts(path: Path, *, max_age_seconds: int = 900) -> list[dict[str, Any]]:
     if not path.is_file():
-        raise MercorPaidWait("official_work_inventory_unavailable", ["resume the shared Mercor Reply observer and obtain its official contract snapshot"])
+        raise MercorPaidWait("official_work_inventory_unavailable", ["resume the Mercor Paid contract observer and obtain its official snapshot"])
     try: value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError): raise RuntimeError("mercor_paid_inventory_unavailable") from None
     contracts = value.get("contracts") if isinstance(value, Mapping) else None
@@ -70,7 +70,7 @@ def _official_contracts(path: Path, *, max_age_seconds: int = 900) -> list[dict[
     observed = _timestamp(observed_at)
     age = (datetime.now(timezone.utc) - observed).total_seconds()
     if age < -300 or age > max_age_seconds:
-        raise MercorPaidWait("official_work_inventory_stale", ["wait for the shared Mercor Reply observer to refresh its official contract snapshot"])
+        raise MercorPaidWait("official_work_inventory_stale", ["wait for the Mercor Paid contract observer to refresh its official snapshot"])
     rows = []
     states = {"active":"contracted", "contracted":"contracted", "selected":"selected"}
     for contract in contracts:

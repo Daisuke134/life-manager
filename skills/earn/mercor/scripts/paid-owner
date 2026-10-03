@@ -4,10 +4,23 @@ ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:?LIFE_MANAGER_STATE_ROOT is required}"
 [[ -x "$PYTHON" ]] || { echo "paid-owner: managed Python is unavailable: $PYTHON" >&2; exit 69; }
+# Observe only within the existing Paid wake and its registered browser lease.
+# Reply/Application fences stay intact; observation writes only Paid-owned state.
+if ! AI_ENSURE_PROVISION_BROWSER=/usr/bin/false AI_ENSURE_BROWSER=/usr/bin/false \
+  PYTHONPATH="$ROOT/apps/job-search-loop" \
+  bash "$ROOT/skills/browser/with-browser.sh" mercor:dais -- \
+  "$PYTHON" -m job_search_loop.mercor_paid_snapshot \
+  --output "$STATE_ROOT/paid-official-snapshot.json"; then
+  if [[ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]]; then
+    printf '%s\n' '{"status":"pre_effect_failure","effect":0}' >"$LIFE_MANAGER_RESULT_HINT_PATH"
+    chmod 600 "$LIFE_MANAGER_RESULT_HINT_PATH"
+  fi
+  exit 75
+fi
 exec "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/paid_kernel.py" \
   --require-paid-handoff \
   --provider-adapter "$ROOT/skills/earn/mercor/scripts/paid_adapter.py" \
   --state-root "$STATE_ROOT/shared-paid" --output "$STATE_ROOT/paid-latest.json" -- \
   --account-id "${MERCOR_OPERATOR_ID:-default}" \
-  --official-snapshot "$STATE_ROOT/reply/official-snapshot.json" \
+  --official-snapshot "$STATE_ROOT/paid-official-snapshot.json" \
   --work-events "$STATE_ROOT/work-events.jsonl"
