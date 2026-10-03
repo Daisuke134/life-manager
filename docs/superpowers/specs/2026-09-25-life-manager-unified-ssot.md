@@ -4854,7 +4854,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-Coconala HTTP失敗receipt修復はPR6535/mainc0へ統合済み（§246）。live release owner10185のterminal後、新immutable/target load/自然readbackを照合する。診断HTTP200と正式納品・金融成果は区別する。
+Coconala talkroom修復PR6535/mainc0はcompleteimmutable/actualPaidloadまで確認済み。orders修復PR6536/main642も統合済み（§251）。live release owner78508のterminal後、新immutable/target load/自然HTTPreceiptを照合する。loaded vaultを既定vaultと混同せず、診断HTTP200と正式納品・金融成果は区別する。
 
 Railwayの公式project/service使用額は取得済み（§243）。支払明細の差額とcanonical loop配賦を照合し、Coconala targeted_readbackのtalkroom_history_emptyと金融receipt未接続、stale readbackをowner別に閉じる。同時に通常Mercor運用の期限更新を観測する。Railway公式支払receiptとDO credit相殺invoiceは費用候補であり、配賦未確認のままactualcostへ接続しない。既存大順序は維持し、MobileのApple認証/branchへ重複介入しない。
 
@@ -5164,3 +5164,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - freshmainc0/同owner leaseからbranch fix/coconala-orders-http-readback-20261004。HTTP403/503とtitle403fallbackがorders_missing_containerへ進む3REDを再現。ORDERS_ONLY_EXPRESSIONでdocument.responseStatusを保持し、validate_orders_domはHTTP400–599を要素検証前にsource receipt付きで拒否。403はorders_access_forbidden、404はorders_not_found、その他orders_provider_http_error。既存login判定を保持し、観測失敗を成功へ丸めない。
 - HEAD72d811c0a902f13b2b60ebaab1f9251bec5adbaa/2files/production+13-1lines/clean/pushed。related268/adapter15/contract14loops178jobs/OSS/diffPASS、sharedruntime session59108とfresh read-only coconala_orders_http_review進行中。source proof state/coconala-orders-http-source-proof-20261004.json/mode600。PR/merge/production未達、provider403/正式納品/金融receipt/CFO接続は別未完。
 - 次はrequired runtime/freshreviewを閉じ、一度のPR/CI/merge→既存release owner terminal→最新main immutable/対象load/自然公式receiptを照合する。§217全残TODO/別担当Mobile境界/goalactiveを維持、provider再送/fence解放0。
+
+
+### 251. 注文一覧receipt修復main統合と前段c0のactual load確認
+
+- PR6536のGitHub10checks全PASS、独立reviewSHIP/9境界fixtures/JSsyntax/関連268、primary runtime749/146.954s、adapter15/contract/OSS/diffPASS。exactHEAD72d811c0a902f13b2b60ebaab1f9251bec5adbaa指定のadmin squash mergeでmain642a92e3a18152d07391fa1450cf399580472f50/17:51:36Z MERGED、freshfetchとremote object一致。再PR/merge不要、sourceworktree同branch/HEAD72d/clean/pushed。
+- 17:52:32Zのlaunchctl-safe限定readでhf-gig-paid-directのactualargv3要素は20261004T023308-c0db5d48/bin/lm-loop-run、hf-gig-paid-direct、同releaseRootに一致。前段talkroom修復のcompleteimmutable/sourcebytes/actual loadは確認済み。orders新main642のimmutable/load/自然failure receiptは未達。既存reconciler78508/parent78471がc0からlive/elapsed16:39、primary重複build/apply/kill/manualwake0。
+- 正しいvaultの専用contextではtalkroomHTTP200/63historyとordersHTTP403を観測済み。existing default contextの再探索は403、専用contextのfinance nav探索はHTTP200でもlink0で完全性未確認。context/vault scopeを混同せず、リンク0を金融在庫0と扱わない。公式payment/fee/settlement/payoutとCFO source接続は未完。
+- private source proof c0: state/coconala-http-receipt-source-proof-20261004.json、orders: state/coconala-orders-http-source-proof-20261004.json、finance nav: state/coconala-finance-nav-leased-context-20261004.json、mode600。次は既存owner terminal→main642 completeimmutable/targetactualload→自然official receipt。provider403原因、正式納品/実費配賦/銀行着金、§217全残TODOと別担当Mobile境界を保持しgoalactive。
