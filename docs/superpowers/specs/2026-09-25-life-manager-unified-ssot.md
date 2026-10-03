@@ -5374,3 +5374,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - newmainede6のimmutable/実reconciler load/自然guarded退役は未達。currentは3e1 completeALL。実live owner62269/同3e1を21:05:12Z/elapsed5:17で確認。primarycutは§273の3e1だけ、重複apply/kill/forcedrestart0。実live旧label退役とoldbusinessfence解除0。
 - main3e1 controllerはvalidated identity guard付き。mainede6 plannerはguarded targetを通常ownerより先に同immutableCLIへ渡し、exact singleton/matchinglabel/ok/retired/明示boolを要求する。実観測2bool ORをchanged、明示false/falseをskipとし、通常owner flagsを無視する。空/不正はerrorを保持して次sameSHAの成功skipへ進めない。
 - 次は既存native release ownerのterminal→newmainede6 completeimmutable→既存self-handoffでreconciler argv/source一致→次自然fleetのguarded target exact owners-log→oldlabel officialabsent/doctor unmanaged・retiredpresent0→正規capafy-browser PID/SHA/argv/endpoint維持→自然/隔離replay変更0。live前提の排他とidentity、非協調writerへのnonatomic境界を保持。全finance/Eval/全§217残TODOは未達、全goalactive。
+
+
+### 277. 公式Railway paid invoice明細を取得し費用の未接続境界を具体化
+
+- live sourceの待機中、公式Railway CLIのlive schema/GraphQLからworkspace.customer.invoicesのallowlist17件をread-only取得。address/email/paymentmethod/privateURLを取得・保存せず、対象invoice in_1UKGixCJoPsRzQsddYJdUbPZはstatuspaid/paymentIntentStatussucceeded/rawamountPaid2607/total2607、期間2026-08-27T11:58:21Z–2026-09-27T11:58:21Z、明細7IDs/priceDollars/quantityを確認。送信/支払/設定変更0。
+- Decimal行別セント丸めの明細合計31.07、既存authenticated mailのplancredit5.00を差引くと26.07に一致。独立算術再計算はSHIP_limited。CLIprevious26.056726357836112との差0.013273642163888、丸め前でも差0.010027266708478037772696があり、丸めだけとも数量差が原因とも断定しない。請求明細とCLI集計は構成・金額が丸め前から異なる。
+- API raw2607から26.07へのscale100は当資料の推論でschemaの直接仕様ではない。API schemaにはcurrency/paid_atが無く、service detail差0.00082410310140524/削除service/loop配賦も未検証。statuspaidを銀行照合へ拡張しない。actual_cost adapterが必須とするcurrency/RFC3339paid_at/category/occurred_at/amount/basis/明示配賦を満たさず、actual_cost接続はHOLD。
+- google-login canonical skillは読んだがKeychain指示はuserのApple store禁止が優先。既存Gog filebackend/processenvで公式mailをread-only再取得し、API hostedURL/pdfURLとメールURL22件をメモリ内比較。共通URL・invoiceIDは見つからず、直接binding未証明。私的本文/URL/credential保存0。異なる請求の証明とも扱わず、同額/同期間のcorrelationのみ保持。
+- 根拠mode600 state/cfo-railway-official-invoices-20261004.json、cfo-railway-invoice-line-reconciliation-20261004.json、cfo-railway-invoice-mail-binding-20261004.json。独立read-only review railway_invoice_line_readonly_reviewは算術SHIP_limited/actualcost・直接binding・配賦・銀行照合HOLD。旧all-services-auditのprovider_receipt_idは候補参照だけと補足し、APIとの確定joinと解釈しない。
+- 次は公式receipt/invoiceのdirect binding・currency・時刻付きpaid_atとperiod/service/loopallocationを取得してから純粋adapterへ投入。CFOwriter/同snapshot/deliverytable変更0、UNKNOWNを費用0へ変更しない。reconciler62269は継続live/ede6未反映、§276自然退役cursorと§217全残TODO/goalactiveを保持。
