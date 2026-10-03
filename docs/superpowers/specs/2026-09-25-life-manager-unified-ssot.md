@@ -5189,3 +5189,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - run/applyの実コードは同label apply lockを共有（lm_loop_run.py1286、lm_loop.py2362）。既存lockによるactive run保護を確認し、global default applyが必ずrunningownerを止めるという推測で追加修復を始めない。CLI--loaded-idle-onlyのprimaryguardも保持。
 - local project18180857/state.jsonをreadonlyで観測、offer6331346/取引中/priceJPY9000/WORK_REQUIRED/formal_delivery_confirmedfalse/buyer_agreement_observedfalse/buyer_visiblefalse。これらはlocal currentcycle stateであり履歴全体の納品無し/仮払い無しの証拠ではない。official payment/fee/settlement/payout receipt IDはこのstateに無く、CFO financial sourceへ接続0。価格をsettled revenueやnetprofitへ置換しない。
 - private証拠state/coconala-financial-source-local-candidate-20261004.json/mode600。次は同active handlesのterminal/natural artifact、new642actualargv、公式取引情報のreadbackを照合し、作業・検収・支払・精算の不足を実owner経路で閉じる。§217全残TODO/別担当Mobile境界/goalactiveを維持。
+
+
+### 254. Lancers金融sourceのfresh Human Verification境界
+
+- Coconalaのactive Paid11417/c0とreconciler30823/30807を継続確認、Paidelapsed19:03/reconciler13:28、latestPaid17:46の旧ordersfailed保存結果は不変。active runの成果へ旧artifactを結合せず、kill/重複apply/manualwake0。browserを共有しないLancers金融sourceをreadonlyで追加観測。
+- immutable642のlancers skill/_finance_source実経路は/mypage/paymentのHTTP200、balance container、明示empty履歴文言を要求する。既存registered identity lancers:daisのwith-browser lease内でowned pageだけを開き、同公式routeを観測。HTTP405/route一致/HumanVerificationtrue/loginpathfalse/body235、financecontainerfalse/emptymarkersfalse/table0。金額・payment/settlement/payout receipt未取得。取引承諾/返信/応募/financialwriter0、challenge操作/迂回0。
+- evidence state/lancers-finance-readonly-probe-20261004.json/mode600、error_classhuman_verification_required/retryablefalse/financialsourceunavailable。空tableを履歴無し/残高0へ変換しない。provider側の正規Human Verification後に既存finance ownerがreceipt/windowを再取得する。既存CFO入力のstale状態へfresh成功を上書きせず、Lancers2/CW18等のoldfenceも解放しない。
+- 次は同active Paid/reconciler handleのterminal→latest642actualargv/自然HTTPreceiptと、他ownerの非重複official readbackを進める。Lancersの人間検証を技術的再試行で閉じたことにせず、§217全残TODO/別担当Mobile境界/goalactiveを保持。
