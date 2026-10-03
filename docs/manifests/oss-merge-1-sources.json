@@ -99,12 +99,12 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-      "sha256": "97277006a4dd30e894b07a0b026bd86c9950eac2591c2488d76e04ff08b8e26c"
+          "sha256": "97277006a4dd30e894b07a0b026bd86c9950eac2591c2488d76e04ff08b8e26c"
         },
         {
           "source": "skills/agent-runner/config.json",
           "target": "runtime/agent-runner/config.json",
-      "sha256": "b006215b3d3585b69dfc3cf887a93535336a338ea9e3015a29de11218ed51232"
+          "sha256": "b006215b3d3585b69dfc3cf887a93535336a338ea9e3015a29de11218ed51232"
         },
         {
           "source": "skills/agent-runner/context_packet.py",
@@ -145,14 +145,14 @@
         {
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
-        "files": 235,
-        "inventory_sha256": "356d2d1f097008dee84c306527c55b7a2d2e2b2941df34eabe935d98527f4f74"
+          "files": 235,
+          "inventory_sha256": "356d2d1f097008dee84c306527c55b7a2d2e2b2941df34eabe935d98527f4f74"
         },
         {
           "source": "skills/_shared",
           "target": "skills/_shared",
-        "files": 189,
-        "inventory_sha256": "1858af4ee1cfd698b0ede3b6197fcac8e639f4eaa26572e3fcfd962e6bb6df5d"
+          "files": 189,
+          "inventory_sha256": "4425d17270532f4590aba8f37fd4683b6cbd2ab83232818bd58968f265ebb241"
         },
         {
           "source": "skills/anicca-life-manager",

@@ -803,3 +803,62 @@ def test_single_worker_runs_items_on_the_calling_thread(tmp_path: Path) -> None:
     paid.run_wake(adapter=adapter, decide=lambda _row: {"action": "noop"},
                   state_root=tmp_path / "inline", max_workers=1)
     assert seen and set(seen) == {threading.get_ident()}
+
+
+def test_cli_replayed_armed_occurrence_keeps_marker_and_emits_no_pre_effect_hint(tmp_path: Path, monkeypatch) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self): raise RuntimeError("inventory unavailable")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    occurrence = "fixture-paid:prior-armed"
+    state = tmp_path / "state"
+    marker = paid._prepare_run_marker(state, occurrence)
+    paid._mark_run_effect_started(marker, occurrence)
+    original = marker.read_bytes()
+    hint = tmp_path / "pre-effect-hint.json"
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", occurrence)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(state),
+        "--output", str(tmp_path / "result.json"),
+    ]) == 1
+    assert marker.read_bytes() == original
+    assert not hint.exists()
+
+
+def test_prepare_rejects_conflicting_pre_effect_marker_without_overwrite(tmp_path: Path) -> None:
+    occurrence = "fixture-paid:conflicting-history"
+    marker = paid._run_marker_path(tmp_path, occurrence)
+    paid._write(marker, {"version": 1, "occurrence_id": occurrence, "status": "pre_effect", "effect": 1})
+    original = marker.read_bytes()
+    with pytest.raises(ValueError, match="existing_run_marker_invalid"):
+        paid._prepare_run_marker(tmp_path, occurrence)
+    assert marker.read_bytes() == original
+
+
+def test_cli_provider_load_failure_cannot_reuse_host_hint_for_prior_armed_occurrence(tmp_path: Path, monkeypatch) -> None:
+    occurrence = "fixture-paid:prior-armed-load-failure"
+    state = tmp_path / "state"
+    marker = paid._prepare_run_marker(state, occurrence)
+    paid._mark_run_effect_started(marker, occurrence)
+    original = marker.read_bytes()
+    hint = tmp_path / "host-pre-effect-hint.json"
+    paid._write(hint, {"status": "pre_effect_failure", "effect": 0})
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", occurrence)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    try:
+        paid.main([
+            "--provider-adapter", str(tmp_path / "missing-provider.py"),
+            "--state-root", str(state), "--output", str(tmp_path / "result.json"),
+        ])
+    except ValueError:
+        pass
+    assert marker.read_bytes() == original
+    assert not hint.exists()
