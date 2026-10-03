@@ -5205,3 +5205,18 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - worker --effect-itemのreadonly入力は17:56:13生成、contractoffer6331346/talkroom18180857/statuspaid/price_source structured_order_label/revision/formal_delivery_confirmedfalse。talkroom_observed_at17:55:44Z/snapshot_captured_at17:55:52Zを保持しており、旧latest17:46orders失敗とは別の新しい作業入力。workerの--outputは未生成で、completed/納品/精算と数えない。
 - statuspaidは内部作業分類、priceJPY9000は構造化order labelでありofficial payment external ID、fee、settlement、payout receiptではない。CFOへsettled収入として接続0。readonly proof state/coconala-active-paid-worker-20261004.json/mode600に実entrypoint/親子/入力・出力存在/financial scopeを保存。
 - root11417/c0とrelease30823/30807は継続live、new642 actualPaidload/自然新ordersreceiptは未達。次は同naturalworkerのterminal/出力/official delivery receipt、newloadとprovider readbackを照合。誤分類訂正をsource故障やreplay許可へ置換せず、§217全残TODO/goalactiveを維持。
+
+
+### 256. Mercor自然642観測と秘密を含まないauth遷移証拠のsource統合
+
+- Mercor paid snapshot18:18:31Z/contracts0、business同occurrence mercor-revenue-paid:18db17d995ce6650-69047/effect0/observed0/pending0/failed0/readback0をreadonly確認。native execute18:18:20Z→report18:18:35Z/pass/exit0/SHA642と時間内snapshotを結合。manualwake0。auth遷移metadataはsnapshotに無いためexpired→renewedをこのrunから断定しない。state/mercor-paid-natural-642-20261004.json/mode600。
+- 同owner lease/最新main642からbranch fix/mercor-paid-auth-evidence-20261004。失われるauth証拠の3REDを再現し、既存auth関数にrefresh前expiry nullablebool、snapshotに本人一致/更新前expiry/refresh実施/更新後expiryの4bool/nullだけをallowlist保存。欠落はnull、email/token/body非保存、refresh条件/identity binding/Paid動作不変。
+- HEADdf424f893b5fdc6d0c9c90be0e33b74e09b2ae1e/3files/pushed、related55/runtime749/140.135s/adapter15/contract14/178/OSS/diffPASS。fresh mercor_auth_evidence_reviewはSHIP/拡張31＋独立expiry/secret/旧adapter互換PASS。PR6537全10CI PASS→exacthead admin squash→mainbe2b181bfaa40ca13f1e893777437055224f4f2f/18:41:20Z MERGED、freshfetch一致。新be2 immutable/load/natural expiry proofは未達、人工的期限変更0。proof state/mercor-paid-auth-evidence-source-20261004.json/mode600。
+
+### 257. 自然Paid terminal・remote progress pending・disk書込み回復
+
+- Paid11417/c0のnative run18db1677ebdd8a20-11417はexecute17:53:01Z→report18:26:44Z/pass/exit0を確認。worker18461終了、prepared出力pending/effect0/readback1、parentlatest18:26:43Zはpending/effect0/readback2/failed0/pending1。旧17:46orders失敗を現run結果として流用しない。new642actualPaidargvへ更新されたことも限定launchctl-safe readで確認。
+- pendingの実境界はremote_progress。progress ledgerはTikTok authenticated identity readbackとGoogleSheets reconciliation/readback326rows、exactreadbacktrue/qualityqualifiedだがcounts_toward_50false。identity一致・既存sheet行数を50件成果・正式納品・payment/settlement/payout receiptへ置換しない。state/coconala-active-paid-worker-20261004.jsonへnative/worker/ledger scopeを追記、primarysend/replay0。
+- 読取commandのhere-document生成がENOSPC、Data volume df available214692KiBを実測。activeMCPのnpx cache、memoryを含むreviewarchives、currentrelease/dependency/source/history/profileは保持。破棄済みTrashの2Investment test dependency-bundlesだけをmemory/stateJSONL無し、activeprocess/FD/currentrelease参照無しと確認し削除。初回guardは自身のcommandをactive参照と拾いassertで変更前停止、自己PID/親を除外して再検証後に2cache削除。
+- finalData available5610300KiB（約5.35GiB）、temp write/fsync/deletePASS。途中の約170MB自然回復はprimary成果へ加算しない。diskcleanup skillのpressure解除floor11GiBは未達、手動flag解除/新releasebuild0。state/disk-cache-recovery-20261004.json/mode600、protected store変更0/実稼働loopstop0。
+- currentは642 completeimmutable、source mainはbe2。既存reconciler95379/95311が642からliveを確認。次はsafe disk capacity/recovery条件を閉じ、existingowner terminal後のbe2immutable/load/自然authmetadataとCoconala pendingの実成果を検証する。§217全残TODO/別担当Mobile境界/全goalactiveを保持。
