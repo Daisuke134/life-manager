@@ -5394,3 +5394,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - deployedede6 _retire_labelsへ公式absent入力を隔離fixtureで与え、fakeprint1回/was_loadedfalse/removedfalse/mutatingcalls0/productionstatewritefalse、別profile操作0。これは不在後の隔離replayでありlive fleetの再送ではない。
 - fresh natural_retirement_evidence_final_reviewはproduction3blob/Git/tree/loadedargv/handoff/nativeevent/対象row一意性/officialabsent/doctor/normalprocess継続を独立照合しSHIP_limited。ownersjournalにrun_id/timestampが無くdirectoccurrence joinではない点をMEDIUMとして保持。一意な対象row/SHA/process/orderが帰属を支持する。whole fleet runは実行中でterminal未記録/前statepartial、全fleetPASS/収益/settlement/payout/全goal完了には拡張しない。
 - 根拠mode600 state/capafy-orphan-retirement-natural-20261004.json、capafy-orphan-retirement-replay-20261004.json。次は既存ownerjournalへrun_id/occurrence_id/timestampを実経路で補い、SelfBuild/Eval実hook・paid/financial receiptと同期間費用の未完を進める。現在の正本・全残TODO → §217、全goalactive。
+
+
+### 279. owner journalのnative run/claim直接結合をsourceで補う
+
+- §278の限定証明でownerjournalにrun_id/timestampが無いことを確認。runtime lm_loop_run.pyはLIFE_MANAGER_RUN_IDをchildへ渡し、LIFE_MANAGER_OCCURRENCE_IDは実claimed occurrenceであるためconcatして再作成しない。新しい行だけに実contextを保存し、過去rowのbackfill/書換え0。
+- latestmainede6/primarycleanと同ownerleaseを確認しbranch fix/fleet-owner-journal-correlation-20261004を作成。current-skipとactual-applyの両writerへrun_id/occurrence_id/owner_id/timestampUTCを追加、既存sha/looptarget/rc/counters/guardedretire/selection/budgetは不変。nativecontext未設定・空ならID nullでunknownを保持。
+- bound nativecontextとmanual absentの2subcasesで両種類rowのID欠落RED→GREEN。queued-older claimと新wake IDが異なるケースをそのまま保持。source9f8f76620b69b3a37aa9063597f595b12051cd3e/2files/production10lines/clean/pushed、focused1/2subcases/runtime759/150.874s/adapter15/contract14loops178jobs/OSS/bash/diffPASS。fresh fleet_owner_correlation_review進行中/未PR/未main。
+- 実rootfleet前runのstateはede6/partial/changed69/skipped23/errors2/budget exceeded、失敗lastrowsはwriter-opportunity-response rc120とalpaca-investment-live rc1。全fleetPASSに変換せず各actualfailureを保持。newnative owner49188/ede6はlive、primary重複apply/kill0。次はcorrelation source受入→main/newimmutable/self-handoff/自然新rowとnativeeventsの直接join、SelfBuild/Eval/paid/CFO残gapを継続。全goalactive・全残TODO → §217。
