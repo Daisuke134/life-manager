@@ -5757,3 +5757,20 @@ def test_selected_talkroom_http_error_preserves_receipt_without_history_retry(tm
     assert raised.value.details['provider_http_status'] == status
     assert raised.value.details['final_route'] == url
     assert raised.value.details['coverage_complete'] is False
+
+@pytest.mark.parametrize('status,title,reason', [
+    (403, 'Coconala', 'orders_access_forbidden'),
+    (None, '403 Forbidden', 'orders_access_forbidden'),
+    (503, 'Coconala', 'orders_provider_http_error'),
+])
+def test_orders_http_error_keeps_source_receipt_before_container_check(status, title, reason):
+    queue = load('coconala_queue_snapshot')
+    dom = {'url': queue.OPEN_ORDERS_URL, 'title': title,
+           'provider_http_status': status, 'container_present': False, 'cards': []}
+    with pytest.raises(queue.CollectorUnhealthy, match=reason) as raised:
+        queue.validate_orders_dom(dom)
+    assert raised.value.details['source'] == 'orders'
+    assert raised.value.details['provider_http_status'] == (status or 403)
+    assert raised.value.details['requested_route'] == queue.OPEN_ORDERS_URL
+    assert raised.value.details['final_route'] == queue.OPEN_ORDERS_URL
+    assert raised.value.details['coverage_complete'] is False
