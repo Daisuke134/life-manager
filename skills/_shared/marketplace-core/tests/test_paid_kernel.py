@@ -841,3 +841,24 @@ def test_prepare_rejects_conflicting_pre_effect_marker_without_overwrite(tmp_pat
     with pytest.raises(ValueError, match="existing_run_marker_invalid"):
         paid._prepare_run_marker(tmp_path, occurrence)
     assert marker.read_bytes() == original
+
+
+def test_cli_provider_load_failure_cannot_reuse_host_hint_for_prior_armed_occurrence(tmp_path: Path, monkeypatch) -> None:
+    occurrence = "fixture-paid:prior-armed-load-failure"
+    state = tmp_path / "state"
+    marker = paid._prepare_run_marker(state, occurrence)
+    paid._mark_run_effect_started(marker, occurrence)
+    original = marker.read_bytes()
+    hint = tmp_path / "host-pre-effect-hint.json"
+    paid._write(hint, {"status": "pre_effect_failure", "effect": 0})
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", occurrence)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    try:
+        paid.main([
+            "--provider-adapter", str(tmp_path / "missing-provider.py"),
+            "--state-root", str(state), "--output", str(tmp_path / "result.json"),
+        ])
+    except ValueError:
+        pass
+    assert marker.read_bytes() == original
+    assert not hint.exists()

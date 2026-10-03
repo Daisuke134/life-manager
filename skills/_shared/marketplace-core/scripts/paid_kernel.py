@@ -618,7 +618,10 @@ def main(argv: list[str] | None = None) -> int:
     if provider_argv[:1] == ["--"]:
         provider_argv = provider_argv[1:]
     pre_effect_hint = None
-    adapter, decide = _load_provider(args.provider_adapter, provider_argv)
+    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    # The host startup hint is not proof until this occurrence's history is checked.
+    if hint_path:
+        _clear_pre_effect_hint(Path(hint_path).expanduser().resolve())
     state_root = args.state_root.expanduser().resolve()
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
     run_marker = None
@@ -628,10 +631,7 @@ def main(argv: list[str] | None = None) -> int:
                        json.loads(run_marker.read_text(encoding="utf-8")).get("status") == "effect_started")
         if not prior_armed:
             pre_effect_hint = _prepare_pre_effect_hint(args.max_workers)
-        else:
-            prior_hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
-            if prior_hint:
-                _clear_pre_effect_hint(Path(prior_hint).expanduser().resolve())
+        adapter, decide = _load_provider(args.provider_adapter, provider_argv)
         result = run_wake(adapter=adapter, decide=decide,
                           state_root=state_root,
                           max_workers=args.max_workers,
@@ -672,7 +672,6 @@ def main(argv: list[str] | None = None) -> int:
     if occurrence_id is not None:
         result["occurrence_id"] = occurrence_id
     _write(args.output.expanduser().resolve(), result)
-    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
     failed_items = [item for item in result.get("items", [])
                     if isinstance(item, Mapping) and item.get("failed") == 1]
     all_item_failures_pre_effect = (
