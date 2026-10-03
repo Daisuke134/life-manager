@@ -72,6 +72,10 @@ def bind_financial_report_hash(rows):
         "report_status": financial[0]["report_status"],
         "period_start": financial[0]["period_start"],
         "period_end": financial[0]["period_end"],
+        "unassigned_row_count": financial[0].get("unassigned_row_count", 0),
+        "unassigned_rows_sha256": financial[0].get(
+            "unassigned_rows_sha256", canonical_sha256([]),
+        ),
         "rows": sorted(
             [item for data in financial for item in data["rows"]],
             key=lambda item: item["source_row_index"],
@@ -634,7 +638,10 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                 "report_id": "finance-2026-12-Z1", "report_status": "final",
                 "report_sha256": "cbe1dc9242aca2cf049b7ced284a08601bddcef7eafa0a0c4553ea5e53957070",
                 "period_start": "2026-08-30", "period_end": "2026-09-26",
-                "app_id": app_id, "rows": [child_row] if product_id == "anicca-ios" else [],
+                "app_id": app_id, "unassigned_row_count": 0,
+                "unassigned_rows_sha256": canonical_sha256([]),
+                "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/finance-2026-12-Z1/" + "f" * 64,
+                "rows": [child_row] if product_id == "anicca-ios" else [],
             }
             rows.append({
                 "schema_version": 1, "snapshot_id": f"{product_id}:2026-10-02",
@@ -658,6 +665,39 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             {"category": "settled_external_revenue", "amount": "4250"},
         ])
         self.assertEqual(receipts[0]["currency"], "JPY")
+
+    def test_mobile_unassigned_finance_rows_keep_known_receipts_but_gap_the_total(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        unassigned_rows = [{
+            "source_row_index": 99, "reason": "catalog_no_exact_match",
+            "raw_row": {"Apple Identifier": "unmapped", "SKU": "unknown.sku"},
+        }]
+        unassigned_sha = canonical_sha256(unassigned_rows)
+        for row in rows:
+            data = row["sources"]["app_store_financial"]["data"]
+            data["unassigned_row_count"] = 1
+            data["unassigned_rows_sha256"] = unassigned_sha
+            data["unassigned_evidence_ref"] = (
+                f"appstoreconnect://financial-report-mappings/{data['report_id']}/{unassigned_sha}"
+            )
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        receipts = [row for row in records if row["record_type"] == "receipt"]
+        gaps = [row for row in records if row["record_type"] == "coverage"
+                and row["source_id"] == "app-store-connect-financial"
+                and row["projection"] == "trailing"]
+        self.assertEqual(len(receipts), 3)
+        self.assertEqual(gaps[0]["coverage_state"], "gap")
+        self.assertEqual(gaps[0]["reason"], "unassigned_financial_rows")
+        projected = contract.project(
+            records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        mobile = projected["trailing"]["loops"]["mobile-apps"]["currencies"]["JPY"]
+        self.assertEqual(mobile["status"], "unknown")
+        self.assertIsNone(mobile["settled_external_revenue"])
 
     def test_mobile_accepts_revenuecat_epoch_period_from_business_outcomes(self):
         module = self.require_adapter()

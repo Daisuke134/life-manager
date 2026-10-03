@@ -38,7 +38,7 @@ Reason: the official ASC published audit falsified the old six-product CFO map a
 - Updated remaining order: Task 6 six-published-app acquisition summary → Task 8 Finance Detail import with subscription/IAP identity crosswalk → Task 7 B7 live/prelaunch binding, currency, and freshness → Task 9 paid cohort → Task 10 attribution/activation/retention.
 - Reorder reason: the official Finance Detail row previously thought unmatched is an exact approved Anicca Annual subscription ID + SKU match. Importing this settled row can deliver actual CFO revenue before resolving the separate RevenueCat currency/project gap.
 - Scope ruling: the live acquisition denominator is the six official published ASC IDs; the four old CFO-bound unpublished apps remain separate. Risk if wrong: omit a live app or count a prelaunch app as active distribution; mitigated by official territory, bundle, seller, RevenueCat app, and subscription readbacks.
-- Current cursor: Task 8, Step 1 — write the RED test for exact ASC subscription/IAP child-ID + SKU to parent-app mapping.
+- Current cursor: Task 8 production import — producer parsing, catalog mapping, replay protection, and active B7 projection are implemented and pass focused/full-app tests in the feature branch. Next, preflight the exact production JSONL and active writer, import the mapped row once, then verify the next natural CFO delivery by same-occurrence official receipt/readback. Task 7, Task 9, and Task 10 remain in the existing order afterward.
 
 ## Tasks
 
@@ -124,7 +124,7 @@ Reason: the official ASC published audit falsified the old six-product CFO map a
 
 ### Task 8: Import ASC Financial Detail into CFO business outcomes
 
-**Status:** in progress. No `app_store_financial` source rows have been imported yet. The Financial Manager adapter accepts the normalized parent app ID plus exact child subscription ID/SKU/catalog evidence (10/10 focused Node tests); the B7 adapter and active B7 integration pass (49/49 and 43/43 Python tests). The active B7 source path emits one verified JPY 4,250 receipt, but the 30-day B0 projection remains `unknown` because the final finance period ends 2026-09-26 while the current complete-data cutoff is 2026-09-30. This is a coverage gap, not a zero. The production business-outcomes producer is still unmodified.
+**Status:** source implementation and tests pass in the feature branch; no `app_store_financial` row has been imported into production yet. Fresh verification is ASC producer 31/31, B7 adapter 50/50, active B7 integration 43/43, focused Financial Manager/acquisition Node tests 27/27, full `npm test --prefix apps/life-manager` exit 0, and clean `git diff --check`. The active B7 source path emits one verified JPY 4,250 receipt, but the 30-day B0 projection remains `unknown` because the final finance period ends 2026-09-26 while the current complete-data cutoff is 2026-09-30. This is a coverage gap, not a zero. The production `business-outcomes.jsonl` remains unchanged by this source-only verification.
 
 **Implementation ruling:** extend `skills/earn/marketing-engine/measure/business_outcomes.py`, which is already the scheduled producer that writes the JSONL consumed by both Financial Manager and B7. A separate `marketing-asc-financial.js` would have no scheduled invocation and would require extra cross-runtime wiring. Keep the live report/catalog reads and normalization in the existing producer, then let both existing consumers project the same immutable source rows.
 
@@ -134,15 +134,15 @@ Reason: the official ASC published audit falsified the old six-product CFO map a
 
 **Files:** `skills/earn/marketing-engine/measure/business_outcomes.py`, `skills/earn/marketing-engine/measure/test_business_outcomes.py`, `skills/cfo/adapters/capafy_mobile.py`, `skills/cfo/test_capafy_mobile_attribution.py`, `skills/cfo/loop_pnl.py`, `skills/cfo/test_loop_pnl.py`, `apps/life-manager/lib/financial-record-mobile-apps.js`, its tests, `docs/evidence/cfo/`
 
-- [ ] Parse official `FINANCE_DETAIL` `Z1` fiscal period, row identity, Apple Identifier, SKU, currency, transaction/settlement dates, and raw downloaded-report SHA-256; keep a separate normalized-content SHA-256 for adapter integrity checks.
-- [ ] Resolve raw `Apple Identifier` + SKU to an official ASC subscription/IAP record, then its parent app ID; preserve rows without an exact catalog match as unassigned coverage.
-- [ ] Normalize the parent app ID separately from the raw child Apple Identifier and SKU in `app_store_financial`; retain the ASC catalog record type/ID, parent binding, and evidence reference.
-- [ ] Add stable report/row identity and replay-zero handling to the business-outcomes producer.
-- [ ] Preserve the mapped receipt in active B7 inputs while keeping the full trailing total unavailable until the settlement source covers the full reported window; do not add RevenueCat chart revenue as settled proceeds.
+- [x] Parse official `FINANCE_DETAIL` `Z1` fiscal period, row identity, Apple Identifier, SKU, currency, transaction/settlement dates, and raw downloaded-report SHA-256; keep a separate normalized-content SHA-256 for adapter integrity checks.
+- [x] Resolve raw `Apple Identifier` + SKU to an official ASC subscription/IAP record, then its parent app ID; preserve rows without an exact catalog match as unassigned coverage.
+- [x] Normalize the parent app ID separately from the raw child Apple Identifier and SKU in `app_store_financial`; retain the ASC catalog record type/ID, parent binding, and evidence reference.
+- [x] Add stable report/row identity and replay-zero handling to the business-outcomes producer.
+- [x] Preserve the mapped receipt in active B7 inputs while keeping the full trailing total unavailable until the settlement source covers the full reported window; do not add RevenueCat chart revenue as settled proceeds.
 - [ ] Import the confirmed `6762049696` Anicca Annual row as JPY 4,250 once with stable report/row identity and no RevenueCat double count.
 - [ ] After import, correlate the next natural CFO report occurrence to an official provider receipt/readback and verify the delivered report contains the settled row; process pass and uncorrelated `last-result.json` are not delivery proof.
 
-**Current cursor:** write RED tests for Finance Detail TSV parsing, exact ASC subscription/IAP catalog mapping, source upsert/replay-zero, and attaching the final report to the existing business-outcomes rows; then implement the producer.
+**Current cursor:** before any production write, re-read the runtime JSONL hash and Marketing Metrics writer activity; then upsert only the confirmed Anicca Finance Detail row once into its existing business-date record. Read it back through active B7 and Financial Manager, preserving the 30-day `unknown` coverage gap. After that, correlate a natural `life-manager-cfo-hourly` occurrence to the provider receipt and delivered snapshot; do not manually trigger the CFO loop or treat an uncorrelated `last-result.json` as delivery proof.
 
 ### Task 9: Connect the paid-customer cohort for install-to-paid
 

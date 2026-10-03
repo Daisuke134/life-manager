@@ -32,8 +32,11 @@
         "data": {
           "report_id": "JP-2026-09-final",
           "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
-          "content_sha256": "c99d8123e0dbccb6a8eac9eac895042f7e0465b8941cc479ceae581a177f6e49",
+          "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8",
           "report_status": "final",
+          "unassigned_row_count": 0,
+          "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "app_id": "6755129214",
           "period_start": "2026-09-01",
           "period_end": "2026-09-30",
@@ -78,8 +81,11 @@
         "data": {
           "report_id": "JP-2026-09-final",
           "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
-          "content_sha256": "c99d8123e0dbccb6a8eac9eac895042f7e0465b8941cc479ceae581a177f6e49",
+          "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8",
           "report_status": "final",
+          "unassigned_row_count": 0,
+          "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "app_id": "6759667221",
           "period_start": "2026-09-01",
           "period_end": "2026-09-30",
@@ -99,7 +105,7 @@
     "sources": {
       "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "12f8ee254a3b984476f90af6abbcefe3d7de28a8af118aeb90d6fa0afd1b70fc", "data": {"app_id": "app498e23effc", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6760253231", "business_date": "2026-09-30", "proceeds": {}}},
-      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "c99d8123e0dbccb6a8eac9eac895042f7e0465b8941cc479ceae581a177f6e49", "report_status": "final", "app_id": "6760253231", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final", "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "app_id": "6760253231", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
   },
   {
@@ -111,7 +117,7 @@
     "sources": {
       "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "22b6adf74266d4b5ce0e7e18809965cb19aebf9320f3723e4fac0b05e5862ba4", "data": {"app_id": "app92143da86e", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759916261", "business_date": "2026-09-30", "proceeds": {}}},
-      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "c99d8123e0dbccb6a8eac9eac895042f7e0465b8941cc479ceae581a177f6e49", "report_status": "final", "app_id": "6759916261", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final", "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "app_id": "6759916261", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
   },
   {
@@ -123,7 +129,7 @@
     "sources": {
       "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "8d090179541c772b7a293fbd1ca73740571a1170a3da4d5a21be70f0d1331db3", "data": {"app_id": "appca8d955a75", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6760048397", "business_date": "2026-09-30", "proceeds": {}}},
-      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "c99d8123e0dbccb6a8eac9eac895042f7e0465b8941cc479ceae581a177f6e49", "report_status": "final", "app_id": "6760048397", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final", "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "app_id": "6760048397", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
   },
   {
@@ -135,7 +141,7 @@
     "sources": {
       "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "a6ce46fc06664d752ea689736a0952734766ed76acd0fe69154a3620e4175df9", "data": {"app_id": "appdda58236fa", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
       "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759877003", "business_date": "2026-09-30", "proceeds": {}}},
-      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "c99d8123e0dbccb6a8eac9eac895042f7e0465b8941cc479ceae581a177f6e49", "report_status": "final", "app_id": "6759877003", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "content_sha256": "fdb5160bffc6fcf18c89a7cee0b9a0d861b4cfb341c780f9d441bf3c06da41e8", "report_status": "final", "unassigned_row_count": 0, "unassigned_rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "unassigned_evidence_ref": "appstoreconnect://financial-report-mappings/JP-2026-09-final/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "app_id": "6759877003", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
     }
   }
 ]

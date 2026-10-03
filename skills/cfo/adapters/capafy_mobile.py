@@ -606,8 +606,8 @@ def _revenuecat_content_sha256(source: dict) -> str:
 
 def _validated_financial_report(
     latest: dict[str, dict], products: tuple[str, ...],
-) -> tuple[date, date]:
-    report_identity: tuple[str, str, str, str, str, str] | None = None
+) -> tuple[date, date, int]:
+    report_identity: tuple[str, str, str, str, int, str, str, str, str] | None = None
     report_rows: list[dict] = []
     row_identities: set[tuple[str, int]] = set()
     for product in products:
@@ -625,6 +625,9 @@ def _validated_financial_report(
         report_id = data.get("report_id")
         report_sha = _sha256(data.get("report_sha256"))
         content_sha = _sha256(data.get("content_sha256"))
+        unassigned_count = data.get("unassigned_row_count")
+        unassigned_sha = _sha256(data.get("unassigned_rows_sha256"))
+        unassigned_ref = data.get("unassigned_evidence_ref")
         app_id = MOBILE_PRODUCT_BINDINGS[product]["asc_app_id"]
         if (
             data.get("report_status") != "final"
@@ -632,8 +635,16 @@ def _validated_financial_report(
             or not contract.IDENTITY.fullmatch(report_id)
             or data.get("app_id") != app_id
             or not isinstance(data.get("rows"), list)
+            or isinstance(unassigned_count, bool)
+            or not isinstance(unassigned_count, int)
+            or unassigned_count < 0
+            or not isinstance(unassigned_ref, str)
+            or not unassigned_ref.startswith(
+                f"appstoreconnect://financial-report-mappings/{report_id}/"
+            )
         ):
             raise ValueError("missing_coverage")
+        _sha256(unassigned_ref.rsplit("/", 1)[-1])
         period_start = data.get("period_start")
         period_end = data.get("period_end")
         start = _business_date(period_start)
@@ -641,7 +652,8 @@ def _validated_financial_report(
         if start > end:
             raise ValueError("missing_coverage")
         identity = (
-            report_id, report_sha, content_sha, data["report_status"], period_start, period_end,
+            report_id, report_sha, content_sha, unassigned_sha, unassigned_count,
+            unassigned_ref, data["report_status"], period_start, period_end,
         )
         if report_identity is None:
             report_identity = identity
@@ -683,17 +695,20 @@ def _validated_financial_report(
 
     if report_identity is None:
         raise ValueError("missing_coverage")
-    report_id, _report_sha, content_sha, report_status, period_start, period_end = report_identity
+    (report_id, _report_sha, content_sha, unassigned_sha, unassigned_count,
+     unassigned_ref, report_status, period_start, period_end) = report_identity
     report_content = {
         "report_id": report_id,
         "report_status": report_status,
         "period_start": period_start,
         "period_end": period_end,
+        "unassigned_row_count": unassigned_count,
+        "unassigned_rows_sha256": unassigned_sha,
         "rows": sorted(report_rows, key=lambda item: item["source_row_index"]),
     }
     if content_sha != _canonical_sha256(report_content):
         raise ValueError("content_hash_invalid")
-    return _business_date(period_start), _business_date(period_end)
+    return _business_date(period_start), _business_date(period_end), unassigned_count
 
 
 def adapt_mobile(
@@ -778,9 +793,12 @@ def adapt_mobile(
 
     financial_receipts: list[dict] = []
     snapshots: list[dict] = []
-    financial_complete = financial_report_valid
+    unassigned_row_count = financial_period[2] if financial_period is not None else 0
+    financial_complete = financial_report_valid and unassigned_row_count == 0
     rc_complete = True
-    financial_issue: str | None = None
+    financial_issue: str | None = (
+        "unassigned_financial_rows" if unassigned_row_count else None
+    )
     rc_issue: str | None = None
     observed_values: list[str] = []
     report_periods: list[tuple[date, date]] = []
@@ -946,7 +964,11 @@ def adapt_mobile(
         < MOBILE_COMPLETE_PERIOD_MAX_LAG
         for value in observed_values
     )
-    receipts = financial_receipts if financial_complete else []
+    receipts = (
+        financial_receipts
+        if financial_report_valid and financial_issue in (None, "unassigned_financial_rows")
+        else []
+    )
     financial_reason = "stale_readback" if not fresh else (financial_issue or "missing_coverage")
     rc_reason = "stale_readback" if not fresh else (rc_issue or "missing_coverage")
     trailing_date = datetime.fromisoformat(trailing_start.replace("Z", "+00:00")).date()

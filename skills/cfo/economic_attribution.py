@@ -35,6 +35,7 @@ COVERAGE_STATES = ("complete", "gap")
 GAP_REASONS = (
     "source_unconnected", "credential_missing", "read_failed", "stale_readback",
     "unsupported_currency", "unverified_receipt", "missing_coverage", "missing_category",
+    "unassigned_financial_rows",
 )
 
 IDENTITY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$")

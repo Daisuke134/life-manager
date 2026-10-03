@@ -17,7 +17,10 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 from decimal import Decimal, InvalidOperation
 import urllib.error
@@ -211,6 +214,450 @@ def sum_complete_chart_points(body: dict[str, Any], measure_name: str) -> float 
 def parse_asc_tsv_gz(payload: bytes) -> list[dict[str, str]]:
     text = gzip.decompress(payload).decode("utf-8-sig")
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
+
+
+def _last_saturday_of_september(year: int) -> dt.date:
+    last_day = dt.date(year, 9, 30)
+    return last_day - dt.timedelta(days=(last_day.weekday() - 5) % 7)
+
+
+def apple_finance_period_dates(report_month: str) -> tuple[str, str]:
+    """Return the ASC fiscal-period bounds for a YYYY-PP finance report date.
+
+    The 5-4-4 period sequence is inferred from official ASC FINANCE_DETAIL
+    reads (2026-10 and 2026-12). Apple SEC filings establish the FY end and
+    52/53-week rule. A downloaded report is still checked against these bounds.
+    """
+    try:
+        year_text, period_text = report_month.split("-", 1)
+        year, period = int(year_text), int(period_text)
+    except (AttributeError, TypeError, ValueError):
+        raise ValueError("finance_report_month_invalid") from None
+    if len(year_text) != 4 or len(period_text) != 2 or not 1 <= period <= 12:
+        raise ValueError("finance_report_month_invalid")
+
+    fiscal_end = _last_saturday_of_september(year)
+    prior_end = _last_saturday_of_september(year - 1)
+    fiscal_start = prior_end + dt.timedelta(days=1)
+    fiscal_days = (fiscal_end - fiscal_start).days + 1
+    if fiscal_days not in {364, 371}:
+        raise ValueError("apple_fiscal_year_length_invalid")
+
+    period_weeks = [5, 4, 4] * 4
+    if fiscal_days == 371:
+        # SEC says the 53rd week is in Q1; assigning it to period 1 is an
+        # inference, guarded by the report preamble bounds check on collection.
+        period_weeks[0] += 1
+    start = fiscal_start
+    for index, weeks in enumerate(period_weeks, start=1):
+        end = start + dt.timedelta(days=weeks * 7 - 1)
+        if index == period:
+            if end > fiscal_end:
+                raise ValueError("apple_fiscal_period_out_of_year")
+            return start.isoformat(), end.isoformat()
+        start = end + dt.timedelta(days=1)
+    raise ValueError("finance_report_month_invalid")
+
+
+def latest_completed_apple_finance_month(as_of: dt.date) -> str:
+    """Select the latest fiscal report period that has ended by ``as_of``."""
+    if not isinstance(as_of, dt.date):
+        raise ValueError("finance_as_of_date_invalid")
+    candidates: list[tuple[dt.date, str]] = []
+    for year in range(as_of.year - 1, as_of.year + 2):
+        for period in range(1, 13):
+            report_month = f"{year:04d}-{period:02d}"
+            _, end_text = apple_finance_period_dates(report_month)
+            end = dt.date.fromisoformat(end_text)
+            if end <= as_of:
+                candidates.append((end, report_month))
+    if not candidates:
+        raise ValueError("finance_completed_period_missing")
+    return max(candidates)[1]
+
+
+def _finance_report_date(value: str) -> str:
+    value = str(value or "").strip()
+    try:
+        return dt.datetime.strptime(value, "%m/%d/%Y").date().isoformat()
+    except ValueError:
+        try:
+            return dt.date.fromisoformat(value).isoformat()
+        except ValueError:
+            raise ValueError("finance_report_date_invalid") from None
+
+
+def parse_asc_finance_detail_tsv(payload: bytes | str) -> dict[str, Any]:
+    """Parse one official ASC FINANCE_DETAIL TSV without retaining its preamble."""
+    try:
+        text = payload.decode("utf-8-sig") if isinstance(payload, bytes) else str(payload)
+    except UnicodeDecodeError:
+        raise ValueError("finance_detail_encoding_invalid") from None
+    lines = text.splitlines()
+    required = {
+        "Transaction Date", "Settlement Date", "Apple Identifier", "SKU",
+        "Product Type Identifier", "Extended Partner Share",
+        "Partner Share Currency", "Sale or Return",
+    }
+    period: dict[str, str] = {}
+    header_index: int | None = None
+    for index, line in enumerate(lines):
+        fields = next(csv.reader([line], delimiter="\t"))
+        if len(fields) == 2 and fields[0].strip() in {"Start Date", "End Date"}:
+            key = "period_start" if fields[0].strip() == "Start Date" else "period_end"
+            period[key] = _finance_report_date(fields[1])
+        if required.issubset({field.strip() for field in fields}):
+            header_index = index
+            break
+    if header_index is None:
+        raise ValueError("finance_detail_header_missing")
+    if set(period) != {"period_start", "period_end"}:
+        raise ValueError("finance_detail_period_missing")
+    if period["period_start"] > period["period_end"]:
+        raise ValueError("finance_detail_period_invalid")
+
+    rows = []
+    detail_end = len(lines)
+    summary_columns = {
+        "country of sale", "partner share currency", "quantity", "extended partner share",
+    }
+    for index in range(header_index + 1, len(lines)):
+        fields = {field.strip().casefold() for field in next(
+            csv.reader([lines[index]], delimiter="\t")
+        )}
+        if summary_columns.issubset(fields) and "apple identifier" not in fields:
+            detail_end = index
+            break
+    reader = csv.DictReader(
+        io.StringIO("\n".join(lines[header_index:detail_end]), newline=""),
+        delimiter="\t",
+    )
+    for raw in reader:
+        if not raw or not any(value not in (None, "") for value in raw.values()):
+            continue
+        rows.append({
+            "source_row_index": len(rows),
+            "raw": {key: (value or "").strip() for key, value in raw.items() if key is not None},
+        })
+    return {**period, "rows": rows}
+
+
+def normalize_asc_finance_rows(
+    rows: list[dict[str, Any]],
+    catalog_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Resolve finance child IDs only by exact ASC record ID + product SKU."""
+    app_products = {
+        config["asc_app_id"]: product_id
+        for product_id, config in PRODUCTS.items()
+        if "asc_app_id" in config
+    }
+    by_product: dict[str, list[dict[str, Any]]] = {
+        product_id: [] for product_id in PRODUCTS if "asc_app_id" in PRODUCTS[product_id]
+    }
+    indexed: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for record in catalog_records:
+        if not isinstance(record, dict):
+            continue
+        if record.get("record_type") not in {"subscription", "in_app_purchase"}:
+            continue
+        app_id = str(record.get("app_id") or "")
+        record_id = str(record.get("record_id") or "")
+        sku = str(record.get("sku") or "")
+        product_id = app_products.get(app_id)
+        if not product_id or not record_id or not sku:
+            continue
+        evidence = {
+            "app_id": app_id, "record_type": record["record_type"],
+            "record_id": record_id, "sku": sku,
+            "name": str(record.get("name") or ""),
+            "state": str(record.get("state") or ""),
+        }
+        collection = "subscriptions" if record["record_type"] == "subscription" else "in-app-purchases"
+        indexed.setdefault((record_id, sku), []).append({
+            **evidence,
+            "product_id": product_id,
+            "evidence_ref": f"appstoreconnect://{collection}/{record_id}",
+            "evidence_sha256": _json_hash(evidence),
+        })
+
+    unassigned = []
+    for entry in rows:
+        raw = entry.get("raw") if isinstance(entry, dict) else None
+        if not isinstance(raw, dict):
+            unassigned.append({"source_row_index": None, "reason": "finance_row_invalid", "raw_row": raw})
+            continue
+        row_index = entry.get("source_row_index")
+        apple_identifier = str(raw.get("Apple Identifier") or "").strip()
+        sku = str(raw.get("SKU") or "").strip()
+        matches = indexed.get((apple_identifier, sku), [])
+        if len(matches) != 1:
+            unassigned.append({
+                "source_row_index": row_index,
+                "reason": "catalog_ambiguous_match" if len(matches) > 1 else "catalog_no_exact_match",
+                "raw_row": raw,
+            })
+            continue
+        match = matches[0]
+        by_product[match["product_id"]].append({
+            "source_row_index": row_index,
+            "apple_identifier": apple_identifier,
+            "sku": sku,
+            "parent_app_id": match["app_id"],
+            "catalog_record_type": match["record_type"],
+            "catalog_record_id": match["record_id"],
+            "catalog_product_id": match["sku"],
+            "catalog_evidence_ref": match["evidence_ref"],
+            "catalog_evidence_sha256": match["evidence_sha256"],
+            "partner_share_currency": str(raw.get("Partner Share Currency") or "").upper(),
+            "extended_partner_share": str(raw.get("Extended Partner Share") or ""),
+            "sale_or_return": str(raw.get("Sale or Return") or ""),
+            "product_type_identifier": str(raw.get("Product Type Identifier") or ""),
+            "transaction_date": _finance_report_date(raw.get("Transaction Date") or ""),
+            "settlement_date": _finance_report_date(raw.get("Settlement Date") or ""),
+            "raw_row": raw,
+        })
+    return {"by_product": by_product, "unassigned_rows": unassigned}
+
+
+def _run_asc_json(env: dict[str, str], args: list[str], *, timeout: int = 120) -> dict[str, Any]:
+    asc_bin = env.get("ASC_BIN") or shutil.which(
+        "asc", path=env.get("PATH") or os.environ.get("PATH")
+    )
+    if not asc_bin:
+        raise RuntimeError("asc_cli_missing")
+    command_env = {**os.environ, **env, "ASC_BYPASS_KEYCHAIN": "true", "ASC_TIMEOUT": "90s"}
+    try:
+        completed = subprocess.run(
+            [asc_bin, *args], capture_output=True, text=True, timeout=timeout,
+            env=command_env, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("asc_cli_timeout") from None
+    if completed.returncode != 0:
+        error_text = (completed.stderr or "").lower()
+        if "there were no sales for the date specified" in error_text:
+            raise RuntimeError("finance_report_no_sales")
+        raise RuntimeError(f"asc_cli_failed:{args[0] if args else 'command'}")
+    try:
+        result = json.loads(completed.stdout)
+    except (TypeError, json.JSONDecodeError):
+        raise RuntimeError("asc_cli_json_invalid") from None
+    if not isinstance(result, dict):
+        raise RuntimeError("asc_cli_json_invalid")
+    return result
+
+
+def _catalog_rows(body: dict[str, Any], app_id: str, record_type: str) -> list[dict[str, str]]:
+    rows = body.get("data")
+    if not isinstance(rows, list):
+        raise ValueError("asc_catalog_data_invalid")
+    catalog = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("attributes"), dict):
+            raise ValueError("asc_catalog_row_invalid")
+        attributes = row["attributes"]
+        record_id = str(row.get("id") or "")
+        sku = str(attributes.get("productId") or "")
+        if not record_id or not sku:
+            continue
+        catalog.append({
+            "app_id": app_id,
+            "record_type": record_type,
+            "record_id": record_id,
+            "sku": sku,
+            "name": str(attributes.get("name") or ""),
+            "state": str(attributes.get("state") or ""),
+        })
+    return catalog
+
+
+def _write_private_evidence(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.parent.chmod(0o700)
+    if path.exists():
+        if hashlib.sha256(path.read_bytes()).hexdigest() != hashlib.sha256(payload).hexdigest():
+            raise ValueError("asc_finance_evidence_conflict")
+        return
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    try:
+        temporary.write_bytes(payload)
+        temporary.chmod(0o600)
+        os.replace(temporary, path)
+        path.chmod(0o600)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def collect_asc_financial_sources(
+    env: dict[str, str],
+    report_month: str,
+    products: list[str] | tuple[str, ...],
+    evidence_root: Path,
+    *,
+    run_command=None,
+) -> dict[str, dict[str, Any]]:
+    """Download one final ASC Finance Detail report and map rows to exact product catalogs."""
+    runner = run_command or _run_asc_json
+    products = [product for product in products if product in PRODUCTS and "asc_app_id" in PRODUCTS[product]]
+    if not products:
+        return {}
+    try:
+        expected_period = apple_finance_period_dates(report_month)
+        vendor = str(env.get("ASC_VENDOR_NUMBER") or "").strip()
+        if not vendor or not vendor.isdigit():
+            raise ValueError("asc_vendor_missing")
+        with tempfile.TemporaryDirectory(
+            prefix="lm-asc-finance-", dir=str(Path(tempfile.gettempdir()).resolve()),
+        ) as temporary_directory:
+            report_path = Path(temporary_directory) / "finance-detail.tsv"
+            metadata = runner(env, [
+                "finance", "reports", "--vendor", vendor,
+                "--report-type", "FINANCE_DETAIL", "--region", "Z1",
+                "--date", report_month, "--decompress", "--output", str(report_path),
+                "--output-format", "json",
+            ], timeout=120)
+            if (
+                metadata.get("reportType") != "FINANCE_DETAIL"
+                or metadata.get("regionCode") != "Z1"
+                or metadata.get("reportDate") != report_month
+                or not report_path.is_file()
+            ):
+                raise ValueError("finance_report_identity_invalid")
+            raw_report = report_path.read_bytes()
+    except RuntimeError as error:
+        reason = (
+            "finance_report_no_sales" if str(error) == "finance_report_no_sales"
+            else "provider_query_failed"
+        )
+        return {product: unavailable_source(reason, error=str(error)) for product in products}
+    except (OSError, TypeError, ValueError) as error:
+        return {
+            product: unavailable_source("provider_query_failed", error=f"{type(error).__name__}: {error}")
+            for product in products
+        }
+
+    report_sha256 = hashlib.sha256(raw_report).hexdigest()
+    try:
+        parsed = parse_asc_finance_detail_tsv(raw_report)
+        if (parsed["period_start"], parsed["period_end"]) != expected_period:
+            raise ValueError("finance_period_mismatch")
+    except (KeyError, TypeError, ValueError) as error:
+        return {
+            product: unavailable_source("provider_query_failed", error=f"{type(error).__name__}: {error}")
+            for product in products
+        }
+
+    catalog_cache: dict[tuple[str, str], list[dict[str, str]] | None] = {}
+    catalog_records: list[dict[str, str]] = []
+    catalog_errors: list[dict[str, str]] = []
+    products_by_app_id = {
+        PRODUCTS[product]["asc_app_id"]: product
+        for product in PRODUCTS if "asc_app_id" in PRODUCTS[product]
+    }
+    for entry in parsed["rows"]:
+        raw = entry["raw"]
+        apple_identifier = str(raw.get("Apple Identifier") or "").strip()
+        sku = str(raw.get("SKU") or "").strip()
+        if not apple_identifier or not sku:
+            continue
+        found = False
+        for product in products_by_app_id.values():
+            app_id = PRODUCTS[product]["asc_app_id"]
+            for record_type, command in (
+                ("subscription", "subscriptions"),
+                ("in_app_purchase", "iap"),
+            ):
+                cache_key = (app_id, record_type)
+                if cache_key not in catalog_cache:
+                    try:
+                        body = runner(env, [
+                            command, "list", "--app", app_id, "--paginate", "--output", "json",
+                        ], timeout=120)
+                        catalog_cache[cache_key] = _catalog_rows(body, app_id, record_type)
+                        catalog_records.extend(catalog_cache[cache_key] or [])
+                    except (OSError, RuntimeError, TypeError, ValueError) as error:
+                        catalog_cache[cache_key] = None
+                        catalog_errors.append({
+                            "app_id": app_id, "record_type": record_type,
+                            "error_class": type(error).__name__,
+                        })
+                records = catalog_cache[cache_key]
+                if records and any(
+                    record["record_id"] == apple_identifier and record["sku"] == sku
+                    for record in records
+                ):
+                    found = True
+                    break
+            if found:
+                break
+    mapped = normalize_asc_finance_rows(parsed["rows"], catalog_records)
+    if catalog_errors:
+        for row in mapped["unassigned_rows"]:
+            if row["reason"] == "catalog_no_exact_match":
+                row["reason"] = "catalog_incomplete"
+
+    unassigned_sha256 = _json_hash(mapped["unassigned_rows"])
+    report_id = f"finance-{report_month}-Z1"
+    report_content = {
+        "report_id": report_id,
+        "report_status": "final",
+        "period_start": parsed["period_start"],
+        "period_end": parsed["period_end"],
+        "unassigned_row_count": len(mapped["unassigned_rows"]),
+        "unassigned_rows_sha256": unassigned_sha256,
+        "rows": sorted(
+            [row for rows in mapped["by_product"].values() for row in rows],
+            key=lambda row: row["source_row_index"],
+        ),
+    }
+    content_sha256 = _json_hash(report_content)
+    mapping_evidence = {
+        "report_id": report_id,
+        "report_sha256": report_sha256,
+        "content_sha256": content_sha256,
+        "catalog_records": sorted(catalog_records, key=lambda row: (
+            row["app_id"], row["record_type"], row["record_id"], row["sku"],
+        )),
+        "catalog_errors": catalog_errors,
+        "unassigned_rows": mapped["unassigned_rows"],
+    }
+    mapping_sha256 = _json_hash(mapping_evidence)
+    evidence_dir = Path(evidence_root) / "asc-finance" / report_id
+    report_evidence = evidence_dir / f"report-{report_sha256}.tsv"
+    mapping_evidence_path = evidence_dir / f"mapping-{mapping_sha256}.json"
+    try:
+        _write_private_evidence(report_evidence, raw_report)
+        _write_private_evidence(
+            mapping_evidence_path,
+            json.dumps(mapping_evidence, ensure_ascii=False, sort_keys=True).encode(),
+        )
+    except OSError as error:
+        return {
+            product: unavailable_source("evidence_write_failed", error=type(error).__name__)
+            for product in products
+        }
+
+    unassigned_evidence_ref = f"appstoreconnect://financial-report-mappings/{report_id}/{mapping_sha256}"
+    sources = {}
+    for product in products:
+        data = {
+            "report_id": report_id,
+            "report_sha256": report_sha256,
+            "content_sha256": content_sha256,
+            "report_status": "final",
+            "app_id": PRODUCTS[product]["asc_app_id"],
+            "period_start": parsed["period_start"],
+            "period_end": parsed["period_end"],
+            "rows": mapped["by_product"].get(product, []),
+            "unassigned_row_count": len(mapped["unassigned_rows"]),
+            "unassigned_rows_sha256": unassigned_sha256,
+            "report_evidence_ref": f"appstoreconnect://financial-reports/{report_id}/{report_sha256}",
+            "unassigned_evidence_ref": unassigned_evidence_ref,
+        }
+        sources[product] = available_source(data, evidence_sha256=_json_hash(data))
+    return sources
 
 
 def _required_columns(rows: list[dict[str, str]], required: set[str]) -> None:
@@ -918,7 +1365,8 @@ def upsert_snapshots(path: Path, new_rows: list[dict[str, Any]]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=(dt.date.today() - dt.timedelta(days=1)).isoformat())
-    parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
+    parser.add_argument("--state", type=Path)
+    parser.add_argument("--evidence", type=Path)
     parser.add_argument("--products", default=",".join(PRODUCTS))
     args = parser.parse_args()
     selected = [item for item in args.products.split(",") if item]
@@ -926,15 +1374,53 @@ def main() -> int:
     if unknown:
         parser.error("unknown products: " + ", ".join(unknown))
     env = load_env()
+    default_state, default_evidence = default_storage_paths(env)
+    state_path = args.state or default_state
+    evidence_root = args.evidence or default_evidence
+    mobile_products = [
+        product for product, config in PRODUCTS.items() if "asc_app_id" in config
+    ]
+    finance_sources: dict[str, dict[str, Any]] = {}
+    selected_mobile = [product for product in selected if product in mobile_products]
+    finance_report_month = env.get("ASC_FINANCE_REPORT_DATE")
+    if selected_mobile:
+        try:
+            finance_report_month = finance_report_month or latest_completed_apple_finance_month(
+                dt.date.fromisoformat(args.date)
+            )
+            finance_sources = collect_asc_financial_sources(
+                env, finance_report_month, mobile_products,
+                evidence_root,
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            finance_sources = {
+                product: unavailable_source(
+                    "provider_query_failed", error=f"{type(error).__name__}: {error}"
+                )
+                for product in mobile_products
+            }
     rows = [collect_snapshot(env, product, args.date) for product in selected]
-    added = upsert_snapshots(args.state, rows)
+    for row in rows:
+        finance_source = finance_sources.get(row["product_id"])
+        if finance_source is not None:
+            row["sources"]["app_store_financial"] = finance_source
+    added = upsert_snapshots(state_path, rows)
     status = {
         row["product_id"]: {
             source: value["status"] for source, value in row["sources"].items()
         }
         for row in rows
     }
-    print(json.dumps({"date": args.date, "added": added, "sources": status}, sort_keys=True))
+    finance_status = None
+    if selected_mobile:
+        finance_status = next(iter(finance_sources.values()), {}).get("data")
+    print(json.dumps({
+        "date": args.date, "added": added, "sources": status,
+        "asc_finance": ({
+            "report_id": finance_status.get("report_id"),
+            "unassigned_row_count": finance_status.get("unassigned_row_count"),
+        } if isinstance(finance_status, dict) else {"status": "unavailable"}),
+    }, sort_keys=True))
     required = [
         row for row in rows
         if all(value["status"] == "unavailable" for value in row["sources"].values())

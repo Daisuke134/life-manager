@@ -759,7 +759,8 @@
                 "unsupported_currency",
                 "unverified_receipt",
                 "missing_coverage",
-                "missing_category"
+                "missing_category",
+                "unassigned_financial_rows"
               ]
             },
             {
@@ -862,7 +863,8 @@
                   "unsupported_currency",
                   "unverified_receipt",
                   "missing_coverage",
-                  "missing_category"
+                  "missing_category",
+                  "unassigned_financial_rows"
                 ]
               }
             }

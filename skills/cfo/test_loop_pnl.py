@@ -519,12 +519,18 @@ class B7IntegrationTest(unittest.TestCase):
             data.update({
                 "report_id": report_id, "report_sha256": report_sha256,
                 "report_status": "final", "period_start": period_start,
-                "period_end": period_end,
+                "period_end": period_end, "unassigned_row_count": 0,
+                "unassigned_rows_sha256": hashlib.sha256(b"[]").hexdigest(),
+                "unassigned_evidence_ref": (
+                    f"appstoreconnect://financial-report-mappings/{report_id}/" + "f" * 64
+                ),
                 "rows": [mapped_row] if row["product_id"] == "anicca-ios" else [],
             })
         normalized_report = {
             "report_id": report_id, "report_status": "final",
             "period_start": period_start, "period_end": period_end,
+            "unassigned_row_count": 0,
+            "unassigned_rows_sha256": hashlib.sha256(b"[]").hexdigest(),
             "rows": [mapped_row],
         }
         content_sha256 = hashlib.sha256(json.dumps(
@@ -536,7 +542,7 @@ class B7IntegrationTest(unittest.TestCase):
             capafy_mobile._validated_financial_report(
                 {row["product_id"]: row for row in source_rows}, capafy_mobile.MOBILE_PRODUCTS,
             ),
-            (date(2026, 8, 30), date(2026, 9, 26)),
+            (date(2026, 8, 30), date(2026, 9, 26), 0),
         )
         direct = capafy_mobile.adapt_mobile(
             source_rows, snapshot_at=SNAPSHOT, trailing_start="2026-08-30T00:00:00Z",

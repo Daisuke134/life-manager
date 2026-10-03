@@ -3,10 +3,13 @@ from __future__ import annotations
 import gzip
 import hashlib
 import importlib.util
+import io
 import json
 import sys
 import tempfile
 import unittest
+import datetime as dt
+import contextlib
 from pathlib import Path
 from unittest import mock
 
@@ -107,6 +110,13 @@ class RevenueCatContractTest(unittest.TestCase):
 
 
 class AppStoreContractTest(unittest.TestCase):
+    def test_apple_finance_month_selector_matches_verified_fiscal_periods(self):
+        month_for_day = getattr(outcomes, "latest_completed_apple_finance_month", lambda _day: None)
+        period_dates = getattr(outcomes, "apple_finance_period_dates", lambda _month: None)
+        self.assertEqual(month_for_day(dt.date(2026, 10, 2)), "2026-12")
+        self.assertEqual(period_dates("2026-12"), ("2026-08-30", "2026-09-26"))
+        self.assertEqual(period_dates("2026-10"), ("2026-06-28", "2026-08-01"))
+
     def test_download_types_are_never_collapsed_into_installs(self):
         raw = (
             "Date\tDownload Type\tSource Type\tCounts\n"
@@ -148,6 +158,162 @@ class AppStoreContractTest(unittest.TestCase):
         self.assertEqual(got["date_min"], "2026-07-29")
         self.assertEqual(got["date_max"], "2026-07-30")
         self.assertEqual(got["numeric_totals"]["Counts"], 5)
+
+    def test_finance_detail_parser_skips_vendor_preamble_and_preserves_raw_row(self):
+        raw = (
+            "Vendor Name\tPrivate Seller\n"
+            "Start Date\t08/30/2026\n"
+            "End Date\t09/26/2026\n"
+            "Transaction Date\tSettlement Date\tApple Identifier\tSKU\tTitle\tDeveloper Name\t"
+            "Product Type Identifier\tCountry of Sale\tQuantity\tPartner Share\t"
+            "Extended Partner Share\tPartner Share Currency\tCustomer Price\tCustomer Currency\t"
+            "Sale or Return\tPromo Code\tOrder Type\tRegion\n"
+            "09/12/2026\t09/12/2026\t6762049696\tai.anicca.app.ios.yearly.b\t"
+            "Anicca Annual\tExample Seller\tIAY\tJPN\t1\t4250\t4250\tJPY\t5500\tJPY\tS\t\t\tZ1\n"
+            "Country Of Sale\tPartner Share Currency\tQuantity\tExtended Partner Share\n"
+            "JP\tJPY\t1\t4250.00\n"
+        ).encode()
+        parse = getattr(outcomes, "parse_asc_finance_detail_tsv", lambda _raw: {})
+        report = parse(raw)
+        self.assertEqual(
+            (report.get("period_start"), report.get("period_end")),
+            ("2026-08-30", "2026-09-26"),
+        )
+        rows = report.get("rows", [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source_row_index"], 0)
+        self.assertEqual(rows[0]["raw"]["Apple Identifier"], "6762049696")
+        self.assertEqual(rows[0]["raw"]["SKU"], "ai.anicca.app.ios.yearly.b")
+        self.assertEqual(rows[0]["raw"]["Extended Partner Share"], "4250")
+        self.assertEqual(rows[0]["raw"]["Partner Share Currency"], "JPY")
+        self.assertNotIn("Private Seller", json.dumps(report))
+
+    def test_finance_detail_maps_exact_subscription_and_iap_ids_and_keeps_unmatched_rows(self):
+        raw_rows = [
+            {"source_row_index": 0, "raw": {
+                "Apple Identifier": "6762049696", "SKU": "ai.anicca.app.ios.yearly.b",
+                "Transaction Date": "09/12/2026", "Settlement Date": "09/12/2026",
+                "Extended Partner Share": "4250", "Partner Share Currency": "JPY",
+                "Sale or Return": "S", "Product Type Identifier": "IAY",
+            }},
+            {"source_row_index": 1, "raw": {
+                "Apple Identifier": "1234567890", "SKU": "ai.anicca.app.ios.lifetime",
+                "Transaction Date": "09/13/2026", "Settlement Date": "09/13/2026",
+                "Extended Partner Share": "1000", "Partner Share Currency": "JPY",
+                "Sale or Return": "S", "Product Type Identifier": "1",
+            }},
+            {"source_row_index": 2, "raw": {
+                "Apple Identifier": "6762049696", "SKU": "ai.anicca.app.ios.wrong",
+                "Transaction Date": "09/14/2026", "Settlement Date": "09/14/2026",
+                "Extended Partner Share": "3000", "Partner Share Currency": "JPY",
+                "Sale or Return": "S", "Product Type Identifier": "IAY",
+            }},
+        ]
+        catalog = [
+            {"app_id": "6755129214", "record_type": "subscription",
+             "record_id": "6762049696", "sku": "ai.anicca.app.ios.yearly.b",
+             "name": "Anicca Annual", "state": "APPROVED"},
+            {"app_id": "6755129214", "record_type": "in_app_purchase",
+             "record_id": "1234567890", "sku": "ai.anicca.app.ios.lifetime",
+             "name": "Lifetime", "state": "APPROVED"},
+        ]
+        normalize = getattr(
+            outcomes, "normalize_asc_finance_rows",
+            lambda _rows, _catalog: {"by_product": {}, "unassigned_rows": []},
+        )
+        result = normalize(raw_rows, catalog)
+        mapped = result["by_product"].get("anicca-ios", [])
+        self.assertEqual(len(mapped), 2)
+        self.assertEqual(
+            [(row["apple_identifier"], row["sku"], row["parent_app_id"],
+              row["catalog_record_type"], row["extended_partner_share"])
+             for row in mapped],
+            [
+                ("6762049696", "ai.anicca.app.ios.yearly.b", "6755129214", "subscription", "4250"),
+                ("1234567890", "ai.anicca.app.ios.lifetime", "6755129214", "in_app_purchase", "1000"),
+            ],
+        )
+        self.assertEqual(result["unassigned_rows"][0]["source_row_index"], 2)
+        self.assertEqual(result["unassigned_rows"][0]["reason"], "catalog_no_exact_match")
+
+    def test_finance_source_collector_binds_raw_report_hash_and_exact_catalog_evidence(self):
+        raw = (
+            "Vendor Name\tPrivate Seller\n"
+            "Start Date\t08/30/2026\n"
+            "End Date\t09/26/2026\n"
+            "Transaction Date\tSettlement Date\tApple Identifier\tSKU\tTitle\tDeveloper Name\t"
+            "Product Type Identifier\tCountry of Sale\tQuantity\tPartner Share\t"
+            "Extended Partner Share\tPartner Share Currency\tCustomer Price\tCustomer Currency\t"
+            "Sale or Return\tPromo Code\tOrder Type\tRegion\n"
+            "09/12/2026\t09/12/2026\t6762049696\tai.anicca.app.ios.yearly.b\t"
+            "Anicca Annual\tExample Seller\tIAY\tJPN\t1\t4250\t4250\tJPY\t5500\tJPY\tS\t\t\tZ1\n"
+        ).encode()
+        calls = []
+
+        def fake_asc(env, args, *, timeout=120):
+            calls.append(args)
+            if args[:2] == ["finance", "reports"]:
+                output_path = Path(args[args.index("--output") + 1])
+                output_path.write_bytes(raw)
+                return {
+                    "vendorNumber": "93486075", "reportType": "FINANCE_DETAIL",
+                    "regionCode": "Z1", "reportDate": "2026-12",
+                    "filePath": str(output_path), "fileSize": len(raw),
+                    "decompressedSize": len(raw),
+                }
+            if args[:2] == ["subscriptions", "list"]:
+                return {"data": [{"id": "6762049696", "attributes": {
+                    "name": "Anicca Annual", "productId": "ai.anicca.app.ios.yearly.b",
+                    "state": "APPROVED",
+                }}]}
+            if args[:2] == ["iap", "list"]:
+                return {"data": []}
+            raise AssertionError(f"unexpected ASC command: {args[:2]}")
+
+        collector = getattr(outcomes, "collect_asc_financial_sources", None)
+        self.assertTrue(callable(collector), "scheduled business-outcomes source collector is missing")
+        with tempfile.TemporaryDirectory() as directory:
+            evidence_root = Path(directory) / "evidence"
+            sources = collector(
+                {"ASC_VENDOR_NUMBER": "93486075"}, "2026-12", ["anicca-ios"],
+                evidence_root, run_command=fake_asc,
+            )
+            source = sources["anicca-ios"]
+            data = source["data"]
+            evidence_files = list(evidence_root.rglob("*"))
+
+        self.assertEqual(source["status"], "available")
+        self.assertEqual(data["app_id"], "6755129214")
+        self.assertEqual(data["report_id"], "finance-2026-12-Z1")
+        self.assertEqual(data["period_start"], "2026-08-30")
+        self.assertEqual(data["period_end"], "2026-09-26")
+        self.assertEqual(data["report_sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertNotEqual(data["report_sha256"], data["content_sha256"])
+        self.assertEqual(len(data["rows"]), 1)
+        self.assertEqual(data["rows"][0]["apple_identifier"], "6762049696")
+        self.assertEqual(data["rows"][0]["parent_app_id"], "6755129214")
+        self.assertEqual(data["rows"][0]["extended_partner_share"], "4250")
+        self.assertEqual(data["unassigned_row_count"], 0)
+        self.assertTrue(data["report_evidence_ref"].startswith("appstoreconnect://financial-reports/"))
+        self.assertTrue(data["unassigned_evidence_ref"].startswith("appstoreconnect://financial-report-mappings/"))
+        self.assertTrue(any(path.suffix in {".tsv", ".json"} for path in evidence_files))
+        self.assertTrue(any(args[:2] == ["subscriptions", "list"] for args in calls))
+
+    def test_finance_report_no_sales_is_unavailable_not_a_fabricated_zero(self):
+        collector = getattr(outcomes, "collect_asc_financial_sources", None)
+        self.assertTrue(callable(collector), "scheduled business-outcomes source collector is missing")
+
+        def no_sales(_env, args, *, timeout=120):
+            raise RuntimeError("finance_report_no_sales")
+
+        with tempfile.TemporaryDirectory() as directory:
+            sources = collector(
+                {"ASC_VENDOR_NUMBER": "93486075"}, "2026-11", ["anicca-ios"],
+                Path(directory) / "evidence", run_command=no_sales,
+            )
+        self.assertEqual(sources["anicca-ios"]["status"], "unavailable")
+        self.assertEqual(sources["anicca-ios"]["reason"], "finance_report_no_sales")
+        self.assertIsNone(sources["anicca-ios"]["data"])
 
     def test_sales_report_multiplies_units_by_per_unit_proceeds(self):
         rows = [
@@ -326,6 +492,89 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
             self.assertEqual(outcomes.upsert_snapshots(path, [current]), 0)
             rows = [json.loads(line) for line in path.read_text().splitlines()]
             self.assertEqual(rows, [current])
+
+    def test_metrics_main_attaches_finance_source_and_replays_without_duplicate_snapshot(self):
+        env = {"ASC_FINANCE_REPORT_DATE": "2026-12"}
+        finance_source = {
+            "status": "available", "reason": None, "evidence_sha256": "a" * 64,
+            "data": {"report_id": "finance-2026-12-Z1", "report_status": "final"},
+        }
+        snapshot = {
+            "schema_version": 1, "snapshot_id": "anicca-ios:2026-10-02",
+            "product_id": "anicca-ios", "business_date": "2026-10-02",
+            "observed_at": "2026-10-03T00:00:00Z",
+            "sources": {"revenuecat": {"status": "available", "data": {"fixture": True}}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "business-outcomes.jsonl"
+
+            def run_main():
+                stdout = io.StringIO()
+                with mock.patch.object(outcomes, "load_env", return_value=env), \
+                     mock.patch.object(outcomes, "collect_snapshot", return_value=snapshot), \
+                     mock.patch.object(
+                         outcomes, "collect_asc_financial_sources",
+                         return_value={"anicca-ios": finance_source}, create=True,
+                     ), \
+                     mock.patch.object(sys, "argv", [
+                         "business_outcomes.py", "--date", "2026-10-02", "--state", str(state),
+                         "--products", "anicca-ios",
+                     ]), \
+                     contextlib.redirect_stdout(stdout):
+                    exit_code = outcomes.main()
+                return exit_code, json.loads(stdout.getvalue())
+
+            first_code, first = run_main()
+            replay_code, replay = run_main()
+            rows = [json.loads(line) for line in state.read_text().splitlines()]
+
+        self.assertEqual(first_code, 0)
+        self.assertEqual(first["added"], 1)
+        self.assertEqual(replay_code, 0)
+        self.assertEqual(replay["added"], 0)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["sources"].get("app_store_financial"), finance_source)
+
+    def test_metrics_main_uses_loaded_state_root_for_state_and_finance_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            captured = {}
+            env = {
+                "LIFE_MANAGER_STATE_ROOT": str(root),
+                "ASC_FINANCE_REPORT_DATE": "2026-12",
+            }
+            snapshot = {
+                "schema_version": 1, "snapshot_id": "anicca-ios:2026-10-02",
+                "product_id": "anicca-ios", "business_date": "2026-10-02",
+                "observed_at": "2026-10-03T00:00:00Z",
+                "sources": {"revenuecat": {"status": "available", "data": {"fixture": True}}},
+            }
+            finance_source = {
+                "status": "available", "reason": None,
+                "data": {"report_id": "finance-2026-12-Z1"},
+            }
+
+            def fake_finance(_env, _month, _products, evidence_root):
+                captured["evidence_root"] = Path(evidence_root)
+                return {"anicca-ios": finance_source}
+
+            def fake_upsert(state_path, _rows):
+                captured["state_path"] = Path(state_path)
+                return 0
+
+            stdout = io.StringIO()
+            with mock.patch.object(outcomes, "load_env", return_value=env), \
+                 mock.patch.object(outcomes, "collect_snapshot", return_value=snapshot), \
+                 mock.patch.object(outcomes, "collect_asc_financial_sources", side_effect=fake_finance), \
+                 mock.patch.object(outcomes, "upsert_snapshots", side_effect=fake_upsert), \
+                 mock.patch.object(sys, "argv", [
+                     "business_outcomes.py", "--date", "2026-10-02", "--products", "anicca-ios",
+                 ]), \
+                 contextlib.redirect_stdout(stdout):
+                self.assertEqual(outcomes.main(), 0)
+
+        self.assertEqual(captured["state_path"], root / "state/business-outcomes.jsonl")
+        self.assertEqual(captured["evidence_root"], root / "evidence/business")
 
     def test_gate5_verifier_requires_every_scoped_product_and_no_fake_installs(self):
         rows = []
