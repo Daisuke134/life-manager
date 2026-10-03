@@ -4230,3 +4230,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Paid contract terminal後にCoconala fee→settlement→payout→actual costをCFOへjoinする。現在はprovider/business pendingなので自然継続し、同じrunを手動再送しない。
 3. primary cursorを§178 #2 **PromptBase**へ移す。Football/Portfolio/Reelsのfresh dashboard/Gmail/public status、order、fee、settlement/payoutを公式readbackし、同じlistingを再送しない。
 4. 後続はCapafy→Writer→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarket→最終CFO統合の順を維持する。
+
+### 183. PromptBase 2 listing live・Portfolio scheduledの公式readback（2026-10-03 12:58 JST）
+
+- registered `interactive:dais` leaseで既存`readback.py`をfresh実行した。tracked 3 listingの公式dashboard更新はFootball Match Analyst `scheduled→live`、Portfolio Tracker `pending_review→scheduled`、Reels Hook Labは既存`live`維持。Sales tabは`0 sales / $0.00 net / by_item={}`、同一listingへのsubmit/edit/retryは0。
+- dashboard cardの公式表示はFootball=`Approved`、Reels=`Approved`、Portfolio=`Scheduled`。`readback.py`はApprovedをledger `live`へ正規化する。公開pageをauthenticated browserでreadbackし、Football `https://promptbase.com/prompt/football-match-analyst-weekly-2`とReels `https://promptbase.com/prompt/reels-hook-lab-win-the-cover-frame-4`はHTTP 200かつexact title一致。周辺の推測slugは404で、採用していない。
+- Gmail公式read-only検索はPromptBase noreplyから、ReelsのApproved/Scheduled通知とLive通知、FootballのApproved/Scheduled通知とLive通知、PortfolioのApproved/Scheduled通知を返した。dashboard、public page、Gmailの3経路がReels/Football liveとPortfolio scheduledで一致した。
+- ledger priceは各`$4.99`だが、これはlisting価格であって売上ではない。fresh official Salesは0件/$0のため、order、provider fee、settlement、payout、profitはいずれも0件/未発生。価格をMRRやrevenueへ数えない。
+- PromptBase loopのDraft resume、4 examples、submit、approval、public liveまでのruntime/publishing pathはReels/Footballでproduction E2E完了。Portfolioはprovider scheduled→live待ち。PromptBase収益closed loopは最初のexternal order/fee/settlement/payoutまで未完。
+
+#### 更新後の原子cursor
+
+1. PromptBaseはPortfolioのScheduled→Live通知/public HTTP 200を自然readbackし、同一listingを再送しない。
+2. 最初のofficial Sales rowが発生した時だけitem/order→gross→PromptBase fee→net→settlement/payout→replay-zeroを閉じる。Sales 0の間はrevenue/profit 0を維持する。
+3. PromptBase publishing runtimeに自所有blockerは無いため、primary cursorを§178 #3 **Capafy**へ移す。3 under-review terminal/support回答、free slot、rejected retry、positive-profit skill marketing、today revenue/payoutを公式readbackする。
+4. 後続はWriter→Affiliate→Mobile→Connector→Fundraiser→他paid→Self-Build→Investment→Cloud→TaskMarket→最終CFO統合。
