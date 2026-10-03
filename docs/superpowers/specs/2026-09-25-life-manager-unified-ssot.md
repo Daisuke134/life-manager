@@ -4812,10 +4812,10 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 #### 現在cursorとfresh runtime evidence
 
-- PR6525/6527はmain統合済み、latestmainc99dbb406fee5edf74a02678561b5a87bda59fc8。再PR/merge不要。 次のsource atomは§218のidle-only promotion修正、branch fix/selfbuild-idle-only-promotion-20261003/HEADfb9752742c push済み、749runtime/freshreviewSHIP完了、PR6528のCI→adminmerge→自然release/readbackを進める。Mobile担当には重複しない。
+- PR6525/6527はmain統合済み、latestmain45c06a193274c5504b27f3ab285288fcfdd31546。再PR/merge不要。 §218のidle-only promotion修正もPR6528でmain45へ統合済み。branch fix/selfbuild-idle-only-promotion-20261003/HEADfb9752742cは保持、749runtime/freshreviewSHIP/CI10PASS完了、main45の自然release/readbackを進める。Mobile担当には重複しない。
 - 前builder54512はterminal、complete immutable /Users/anicca/loops/releases/20261003T201923-06095a03 がcurrentへ自然activation。manifest ALL/ancestor-of-origin-main、report shell/CLI/library/promotion module bytesは06095a main blobと一致。SelfBuildはloaded-idle/installedc5e6/eventee7a/effectunknownfalseで、新report/load/natural gate未達。
 - fleet失敗の実理由: widget owner deploy busy、metrics admission rebind refused effect_unknown、alpaca bootstrap5後のprevious job restored。targeted readbackではInvestment disabled/effectunknowntrue、widget idle/effectunknowntrue、metrics idle/blocked/effectunknowntrue。disabled Investmentをenableせず、未知効果を0へ変換しない。proofはstate/selfbuild-release-readback-20261003.json/mode600。
-- cut70412/71063はmissing/terminal、currentはcomplete ALL /Users/anicca/loops/releases/20261003T202437-c99dbb40 / latestmainc99へ自然activation。report shell/CLI/library/rollback moduleの4source bytesはc99 main blob一致。SelfBuildはまだinstalledc5e6/eventee7a/loaded-idle/effectunknownfalse。global70369/70364はliveのため重複build/apply/kill0。primaryはそのterminal→SelfBuild exactloadedargv/SHA→自然reportjoinを先に進め、Mobile担当のApple/auth/branchには入らない。TODO順序変更ではなく、既存primary作業と既存CFO担当の独立並行を明示する。
+- cut70412/71063はmissing/terminal、currentはcomplete ALL /Users/anicca/loops/releases/20261003T202437-c99dbb40 / latestmainc99へ自然activation。report shell/CLI/library/rollback moduleの4source bytesはc99 main blob一致。SelfBuildはまだinstalledc5e6/eventee7a/loaded-idle/effectunknownfalse。global70369はterminal、その後currentc99のglobal87311/87292をlive確認したため重複build/apply/kill0。primaryはそのterminal→SelfBuild exactloadedargv/SHA→自然reportjoinを先に進め、Mobile担当のApple/auth/branchには入らない。TODO順序変更ではなく、既存primary作業と既存CFO担当の独立並行を明示する。
 
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
@@ -4832,3 +4832,10 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - branch fix/selfbuild-idle-only-promotion-20261003/HEADfb9752742ca9d349ca2b19d9603491d6d84ade2dはmainc99由来/4files/clean/pushed。sharedruntime749/138.418s、relatedNode109、adapter15、contract14/178、OSS/diffPASS。freshreviewはSHIP/findings0、Python3状態1test+default/busy/pending/fence6、Nodepromotion13を独立PASS。
 - reviewerはrunner/applyが同label lockを通る起動競合、ownerdeploy/admissionguard→idlecheck→install、skip receiptの非成功扱いを実コードから確認。rollbackは新candidatecontroller+旧payloadでoldCLI option問題を回避。実model/effort/usageは非公開、費用算定不能。review補足のloop-development skill不存在はprimary現物rg/gitls-treeでsource/currentimmutable両方tracked存在を確認して訂正連絡、コードfindingではない。
 - PR6528を一度だけ作成、GitHubCI進行。sourceproofはstate/selfbuild-idle-source-proof-20261003.json/mode600。Main/production load/natural recoveryは未達。currentc99のglobal87311/87292がlive、primarytargetapplyは直前guardのrc75で発行0。Mobile/CFOのbranch/Apple auth/profileには触れていない。
+
+
+### 220. idle-only promotion修正のmain統合と本番境界
+
+- PR6528はGitHub全10checksSUCCESS、freshSHIP/findings0、shared749/Node109/adapter15/contract/OSS/diffPASSの後にadmin squash merge。2026-10-03T11:42:07Z/main45c06a193274c5504b27f3ab285288fcfdd31546、freshfetch/remote一致。sourcebranchfb9752742ca9d349ca2b19d9603491d6d84ade2dはclean/pushed、再PR/merge不要。
+- state/selfbuild-idle-source-proof-20261003.json/mode600へCI/mergeとcurrentownerreadbackを保存。currentはcompleteALL/c99、global87311/87292はlive。SelfBuildloaded-idle/installedc5e6/eventee7a/effectunknownfalse、新report/rollback/idle-onlyfixのloadedargv・natural結果は未達。原子targetapplyはnewowner検出により発行0、manualwake/kill/production破壊試験/Investment enable0。
+- Mobile/CFO担当のbranch/Apple auth/profileは変更0。全体の所有/残TODO正本§217を保持。source3PRが統合されたことをsafe self-owned promotion/business収益/全14完了へ置換しない。モデル実使用量は非公開、費用は未算定。
