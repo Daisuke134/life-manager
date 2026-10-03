@@ -5416,3 +5416,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 同immutableの既存readerと同じSELECTをSQLite mode=roで実行するとwatch対象は1件（AppSignal）。local SUBMITTED2と同一ではなく、commercial application statusがDECLINEDのTECHiはreaderが除外する。DB全application statusはDECLINED1/SUBMITTED1。既存Gmail readerの実検索・読取はAppSignal取得0/本人・案件相関0、モデル分類・business state変更0。初回submission-ID検索のTECHi20候補を新規応募・返信・Paid件数にしない。この限定読取を自然監視復旧・全メール0・old occurrenceのno-effect proofへ置換しない。
 - alpaca-investment-liveはinstalled4121/disabled、旧occurrence18d9e6f979d18818-14709のmoney unknown1/adapter_held。公式receipt不足のままenable/replayしない。直近fleetのwriter rc120とinvestment rc1をstatusのadmission診断と同一根因だと断定しない。
 - 次はexisting release owner terminal→main43 complete immutable→既存self-handoff→新自然journalの実run/claimed occurrence/timestampとnative eventを直接join。並行してWriter exact mail/source帰属、SelfBuild実hook、Paid正式納品/精算/着金・同期間費用を進める。現在の担当・全残TODO → §217。
+
+
+### 281. Writer旧runの圧縮journal・歴史source帰属を取得
+
+- current journalに無い旧run18d86d5c4bd54110-82139をwriter/events-20260926T174412448029Z.jsonl.gzで発見。execute2026-09-25T01:51:35.060925Z→report01:51:38.480200Z/pass/exit0/effectunknown、同occurrence/source SHAd4fe0819931c50caaf41f25e86f1052cd8a0359cを2eventで確認。旧runのsource不明という境界は解消、公式effect receipt不足は未解消。
+- 当時のGit blobをcurrent immutableと比較。opportunity-response-owner、opportunity_response.py、appsignal_response_adapter.pyはbytes一致。techi_response_adapter.pyの差分はCDP既定127.0.0.1→localhostであり、歴史sourceを現在の値へ置換しない。当時Gmail search/getはgmail-no-send/no-input、NO_RESPONSE branchはclassifierへ進まない。これはsource経路の観測であり、旧receiptと実runの直接bindingを証明しない。
+- last receiptのAppSignal/NO_RESPONSE/watched1はexecute/report時刻の間だがrun/occurrence IDを持たず、old scratchも不在。時刻の近さだけでofficial receipt・no-effect proof・fence解放を作らない。state/writer-response-mail-gap-20261004.json/mode600へarchive hash・2event・4blob hash・receipt binding不足を保存。business state/旧fence/provider send/auth変更0。
+- PR6544 main43fの自然反映は既存reconciler49188/parent49182/ede6が継続liveのため未達。最新owner blockは通常applyのrc0を追加中、fleet terminalをstateだけから推測しない。同owner terminal→main43 complete immutable/self-handoff→自然新journal直接joinを進める。全残TODO → §217、全goalactive。
