@@ -1,3 +1,11 @@
+# 最新cursor: Connector auth修復 PR6521
+
+- 最初にSSOT§201→§200→§198→§185を読む。全体goalactive/未完。
+- 実装worktreeはwriter-sales-lock-20261003を再利用、branchfix/connector-luma-auth-self-heal-20261003/upstream同名origin、HEADec24b8a140f11cd9b1996a05681bad852bd3e610 cleanpushed。PR6521はfreshSHIP/93+6tests/loopcontractPASS、CI開始済み。sourcebase/currentreleaseは33。
+- 最初の安全操作: PR6521CIをfreshreadbackし全SUCCESSならadminsquashmerge。その後live33reconcilerPID41424のterminalを確認しlatestmaincomplete release→Connector1owneridle/effect-safeapply。runningownerをkillしない。
+- native自然run18daf3d89e9ad068-15500のluma_session_expiredが実原因。既存Lumaemail-login/Gogcode-readerをownedpageでdiscovery前に接続。AppleKeychain/credentials/別profile更新無し、code秘匿。liveauth/registration/mail/Calendar/replayproofは未観測。
+- Writer最初の自然gatePASS、Affiliateemptyfinancial/taxHOLD、MobileRC6fresh/ASCagreement拒否/Postiz19no-match+JP1inconclusiveは§198–200。profit/allcanonical修復を宣言しない。
+
 # 最新cursor: Connector公式readback
 
 - 最初にSSOT§200→§199→§198→§185を読む。Writer最初の自然gatePASS、AffiliatefreshNO_TRANSACTIONS/tax+paymentHOLD、MobileRC6apps同periodfresh/ASCagreement拒否/Postiz20exactboundaryを観測。全体goalactive/未完。

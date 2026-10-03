@@ -4532,3 +4532,19 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. §165指定のConnector公式Calendar/providerreceipt/readback/replay-zeroへ進む。MobileはASCagreement/financialproof/actualcost/payoutと20ownerexactfencesを未完として残す。
 2. 次はFundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。NoTransactions/HOLDをloop全体修復済みやprofitへ言い換えない。
 3. このturnはWriter自然proof完了とAffiliate/Mobilefreshprovider観測のprogress。全体goalactive/未完。
+
+### 201. Connector Luma session失効のnative auth未接続修復
+
+- Connector33の新しい自然run18daf3d89e9ad068-15500はexit0だがnativeoutcome=external_registration_statusunknown/safe_reasonluma_session_expired、provider/mail/Calendarrefnull。processpassを登録成功へ昇格しない。native入口はskills/connector/native-pass.js→connector-minimal-production→lumaWorkflowであり、hostedcoveragefactoryとは別。
+- 実sourceではLuma候補auth_statuslogin_requiredを失効として止め、既存createLumaDailyDriverAuth/createGogLumaCodeReaderをnative discoveryへ接続していなかった。通常email-login回復toolとtrustedrecipient/sender/fresh6digitreaderは既存であり、新model/provider判断を加えず再利用する。
+- 既存isolated実装worktreewriter-sales-lock-20261003をfreshmain33からbranchfix/connector-luma-auth-self-heal-20261003へ切替し、ownerlease更新。commit/upstream `ec24b8a140f11cd9b1996a05681bad852bd3e610`はclean/pushed。3files/production27lines/test25linesで、ownedpage再利用・profileemail=calendaraccount・gogbackendfile・authreadback後だけdiscoveryを接続。credentials/AppleKeychain/別profileを更新していない。
+- RED2件（auth未呼出し、failedauthでもdiscovery）を確認し、修正後関連93Node tests+nativeownership/contract6tests PASS。loopcontract/sourceboundary/diff PASS。freshreviewconnector_luma_auth_review=SHIP/findingsnone、focused37testsもreviewerPASS。requestgpt-5.6-sol/high、actual/effort/usageunobservable。
+- PR #6521 `https://github.com/Daisuke134/life-manager/pull/6521` open、HEADec24、CI開始済み。liveauth回復/公式登録/Calendar/replayはまだ未観測。sourceSHIPlocalPASSを外部成功へ数えない。
+- google-login canonicalskillはKeychain参照を求めるが、上位userSSOT規則がApplecredentialstoreを禁止するため後者を採る。既存gogfilebackend/通常signinだけを利用しcode/token/credentialをchat/log/Gitへ出さない。goalのcredential変更禁止を維持する。
+- Fundraiserは33loaded-idle、旧occurrencefundraiser:18d9b0b6311a2018-87933のeffectunknownを維持。applicationledger660rowsのlegacylabel countsは§166から不変。latestchildrun20260929T043704Z-87970はfailure/readbackreferenceはmanagedCDP系で、標準providerreceipt/release fields無し。submitted_verified56をfunding/revenue/payoutへ数えず、旧unknown再送/close0。
+
+#### 更新後の原子cursor
+
+1. PR6521全CI→admin squashmerge、live33reconcilerPID41424のterminal/競合owner無し確認→latestmaincomplete release→Connectorのみidle/effect-safeapply。
+2. naturalConnectorがLuma通常auth回復→freshcandidate/readbackへ進むことを確認し、registrationが発生した時だけprovider/mail/Calendar/replay-zeroを閉じる。未発生・unknownを登録成功にしない。
+3. Connectorproof後はFundraiserexactownerdiagnosis→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。ASC/legal・Affiliate/tax・Mobileexactfences・CFOsourcegapは全て未完として保持。goalactive/未完。
