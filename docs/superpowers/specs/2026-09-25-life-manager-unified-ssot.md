@@ -4323,3 +4323,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PID 79193のterminalと新しいreconcilerの有無を再確認し、main 070のcomplete immutable releaseを作る。Writerだけのidle/effect-safe target applyを行い、loaded argv/SHAを確認する。
 2. 手動kickstartではなく自然wakeのNote/Substack fresh observationを確認する。ledgerの既存rowはrun/release identityを明示しないため、timestamp/receiptによるexact joinが成立するか実物で確認し、成立しない場合は最小のprovenance修復を行う。
 3. Writer money receiptsとreplay-zeroを確認後、§185 #3以降の順序を維持する。全体goalは未完、profit/financial independenceは未証明。
+
+### 188. Writer measurement provenance欠落の最小修復
+
+- production ledger最新5 rowsとmoney DBをread-only確認した。Noteは0/0、Substackはunknown/null。ledgerにruntime run/release identityが無く、時刻の近接だけでは同じrunの証明が弱い。runtime callerはLIFE_MANAGER_RUN_ID/LOOP_ID/OCCURRENCE_ID/RELEASE_SHAを渡すがcollectorがrowへ保存していないことが原因。
+- 既存専用worktreeをfresh main 070からbranch `fix/writer-sales-run-provenance-20261003`へ切替し、commit `a73d56e7b93ef94b22ace2220907e75f6e032c66`をpushした。collector 16行でmeasurement_run_id/owner_id/occurrence_id/release_shaを既存JSONL rowへ保存する。article run_idと混同せず、money_syncの既存row全体SHA-256→DB receipt_sha256を再利用しDB schemaを増やさない。
+- fixtureのbrowser transportのみmockし、実parser/append/import/DB再importで4 focused tests PASS。旧sourceではmeasurement_run_id KeyErrorでREDを再確認、unknown3件/null・external money events0・再import inserted0を検証した。manual executionはruntime identityを捏造しない。loop contractとdiff check PASS。Writer既存suiteは実行中で、少なくとも1 failureがあるため全suite PASSとは言わない。
+- native fresh reviewer `writer_provenance_review`へ差分2ファイルのみread-only reviewを委譲した。request model=`gpt-5.6-sol`、effort=`high`、actual runtime metadataは未観測。現在のreconciler PID79193は引き続きliveで、重複release/apply、manual browser auth、provider effectは0。
+
+#### 更新後の原子cursor
+
+1. 既存suite失敗のexact名と変更との因果、fresh review verdictを照合する。修復provenanceの必要な検証がPASSした後だけPRを作り、全CI後main統合する。
+2. 現在の自然reconcilerがterminalになったら、新しいmerged mainのcomplete immutable release→Writer targeted idle/effect-safe apply→natural observation/receipt hash join→replay-zeroを直列で閉じる。
+3. Writer proof後は§185 #3以降へ進む。全体goalは未完のまま保持する。
