@@ -121,7 +121,7 @@ from playwright.sync_api import sync_playwright
 
 p = sync_playwright().start()
 try:
-    b = p.chromium.connect_over_cdp("http://localhost:{cdp_port}")
+    b = p.chromium.connect_over_cdp(os.environ.get("WRITER_CDP_ENDPOINT", "http://localhost:{cdp_port}"))
 except Exception as e:
     print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
 ctx = b.contexts[0]
@@ -231,7 +231,7 @@ from playwright.sync_api import sync_playwright
 
 p = sync_playwright().start()
 try:
-    b = p.chromium.connect_over_cdp("http://localhost:{cdp_port}")
+    b = p.chromium.connect_over_cdp(os.environ.get("WRITER_CDP_ENDPOINT", "http://localhost:{cdp_port}"))
 except Exception as e:
     print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
 ctx = b.new_context()
