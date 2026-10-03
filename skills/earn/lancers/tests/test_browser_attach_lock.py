@@ -155,3 +155,33 @@ def test_lock_is_released_when_factory_raises(tmp_path):
         lock_timeout_seconds=2,
     )
     assert page == "after-failure"
+
+
+def test_failed_dashboard_response_is_never_account_ready():
+    from types import SimpleNamespace
+    module = _module()
+    for status in (405, 403, 500, None):
+        class Page:
+            url = module.DASHBOARD_URL
+            def goto(self, _url):
+                return None if status is None else SimpleNamespace(status=status)
+            def locator(self, _selector):
+                return SimpleNamespace(count=lambda: 0)
+        assert module._production_account_ready(Page()) is False, status
+
+
+def test_successful_dashboard_still_requires_correct_url_and_no_login_form():
+    from types import SimpleNamespace
+    module = _module()
+    for url, login_count, expected in [
+        (module.DASHBOARD_URL, 0, True),
+        (module.DASHBOARD_URL, 1, False),
+        ('https://www.lancers.jp/user/login', 0, False),
+    ]:
+        class Page:
+            def goto(self, _url):
+                self.url = url
+                return SimpleNamespace(status=200)
+            def locator(self, _selector):
+                return SimpleNamespace(count=lambda: login_count)
+        assert module._production_account_ready(Page()) is expected
