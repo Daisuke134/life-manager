@@ -69,9 +69,9 @@ test("provider lanes require fresh primaries and bounded fallback before complet
     `2026-10-${String(index + 1).padStart(2, "0")}`,
     {
       providerLanes: {
-        poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
-        transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100 },
-        geocoder: { status: index === 6 ? "partial" : "fresh", primary: "cache", fallbackCalls: 1, fallbackCap: 200 },
+        poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100, unknownCount: 0 },
+        transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100, unknownCount: 0 },
+        geocoder: { status: index === 6 ? "partial" : "fresh", primary: "cache", fallbackCalls: 1, fallbackCap: 200, unknownCount: 0 },
       },
     },
   ));
@@ -121,4 +121,21 @@ test("positive provider unknown-cost evidence keeps the seven-day gate incomplet
   });
   assert.equal(result.complete, false);
   assert.ok(result.failures.includes("provider_lane_unknown_cost:poi:2026-10-01"));
+});
+
+test("missing unknown evidence and a paid primary cannot close the gate", () => {
+  const periods = Array.from({ length: 7 }, (_, index) => row(
+    `2026-10-${String(index + 1).padStart(2, "0")}`,
+    { providerLanes: {
+      poi: { status: "fresh", primary: "google_maps", fallbackCalls: 0, fallbackCap: 100 },
+      transit: { status: "fresh", primary: "transit-api", fallbackCalls: 0, fallbackCap: 100, unknownCount: 0 },
+      geocoder: { status: "fresh", primary: "cache", fallbackCalls: 0, fallbackCap: 200, unknownCount: 0 },
+    } },
+  ));
+  const result = evaluateCfoObservationPeriods(periods, {
+    latestDate: "2026-10-07", requiredProviderLanes: ["poi", "transit", "geocoder"],
+  });
+  assert.equal(result.complete, false);
+  assert.ok(result.failures.includes("provider_lane_primary_invalid:poi:2026-10-01"));
+  assert.ok(result.failures.includes("provider_lane_unknown_evidence_missing:poi:2026-10-01"));
 });

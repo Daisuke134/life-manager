@@ -87,9 +87,9 @@ test("provider-cost acceptance fixture keeps stale benchmark partial and free-pr
     },
     providerCostSettlement: { status: "settled" },
     providerLanes: {
-      poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
-      transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100 },
-      geocoder: { status: geocoderStatus, primary: "cache", fallbackCalls: 2, fallbackCap: 200 },
+      poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100, unknownCount: 0 },
+      transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100, unknownCount: 0 },
+      geocoder: { status: geocoderStatus, primary: "cache", fallbackCalls: 2, fallbackCap: 200, unknownCount: 0 },
     },
   });
   const periods = Array.from({ length: 7 }, (_, index) => row(
@@ -120,9 +120,9 @@ test("runHourlyCfo persists seven daily provider lanes and exposes the complete 
         providerCostSettlement: { status: "settled", invoiceMonth: "2026-09", totals: { totalJpy: "27889" } },
         providerBudget: { state: "normal", totalUsd: 0, unknownCount: 0, reasons: [] },
         providerLanes: {
-          poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100 },
-          transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100 },
-          geocoder: { status: index === 6 ? "partial" : "fresh", primary: "cache", fallbackCalls: 2, fallbackCap: 200 },
+          poi: { status: "fresh", primary: "openpoi", fallbackCalls: 0, fallbackCap: 100, unknownCount: 0 },
+          transit: { status: "fresh", primary: "transit-api", fallbackCalls: 1, fallbackCap: 100, unknownCount: 0 },
+          geocoder: { status: index === 6 ? "partial" : "fresh", primary: "cache", fallbackCalls: 2, fallbackCap: 200, unknownCount: 0 },
         },
         businessSourceCoverage: [], economicSourceCoverage: null, businessReadback: null,
       }),

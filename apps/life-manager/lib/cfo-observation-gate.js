@@ -2,6 +2,11 @@
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_REQUIRED_SOURCES = Object.freeze(["moneytree", "businessReadback", "googleBilling"]);
+const PRIMARY_PROVIDERS = Object.freeze({
+  poi: new Set(["openpoi", "cache"]),
+  transit: new Set(["transit_api", "transit-api", "cache"]),
+  geocoder: new Set(["geocoder_cache", "openpoi", "cache"]),
+});
 
 function addDays(value, days) {
   const [year, month, day] = value.split("-").map(Number);
@@ -43,15 +48,21 @@ function providerLaneFailures(row, requiredProviderLanes) {
       continue;
     }
     if (value.status !== "fresh") failures.push(`provider_lane_not_fresh:${lane}`);
+    if (!PRIMARY_PROVIDERS[lane]?.has(String(value.primary || ""))) {
+      failures.push(`provider_lane_primary_invalid:${lane}`);
+    }
     const calls = Number(value.fallbackCalls);
     const cap = Number(value.fallbackCap);
+    const unknownPresent = Object.hasOwn(value, "unknownCount");
     const unknownCount = Number(value.unknownCount);
     if (!Number.isFinite(calls) || !Number.isFinite(cap) || cap < 0 || calls < 0) {
       failures.push(`provider_lane_cap_evidence_missing:${lane}`);
     } else if (calls > cap) {
       failures.push(`provider_lane_cap_exceeded:${lane}`);
     }
-    if (Number.isFinite(unknownCount) && unknownCount > 0) {
+    if (!unknownPresent || !Number.isFinite(unknownCount) || unknownCount < 0) {
+      failures.push(`provider_lane_unknown_evidence_missing:${lane}`);
+    } else if (unknownCount > 0) {
       failures.push(`provider_lane_unknown_cost:${lane}`);
     }
   }
