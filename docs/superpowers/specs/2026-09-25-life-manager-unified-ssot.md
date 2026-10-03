@@ -4846,16 +4846,16 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainは6ad232c6a20333af31f54cd1dbccc8da832cc238。release帰属修復PR6539はexacthead ee337/全10CI PASSで統合済み（§265）。本番immutable/load/帰属照合とSelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
+- 最後に確認したmainは655b2cf2001ad54ce70cb975910f363091052651。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。candidate修復の最新immutable/loadとtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
 - Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。既存buyer workは19 verified unique sends/残281、品質・納品条件未達でpending。loaded vaultと既定vaultを混同しない。
-- diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosuke、全14loops CFO unknownは未完。
+- diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは旧missing-releaseの孤児登録と独立確認（§269）、安全なexact retirementの実行境界修復が未完。全14loops CFO unknownは未完。
 
 #### 現在の一手
 
-release帰属修復のsource統合は完了。既存release ownerがmain6adを生成中のため重複反映を行わず、terminal後にimmutable/実load/帰属を照合する。同時に§267の既存candidate補充不具合のsource検証・独立reviewを閉じ、その後SelfBuildのowner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
+candidate補充修復PR6540/main655bはsource統合済み。実live release owner53185/current6adを確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。並行してCapafy孤児登録のexact missing-program/PID確認をretirement実行境界へ結び、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
 
 Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
@@ -5304,3 +5304,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - native release ownerがmain6adのcompleteimmutable /Users/anicca/loops/releases/20261004T044022-6ad232c6 を生成しcurrentへ反映した。RELEASE.json SHA6ad/release_pathsALL/ancestor-of-origin-main、修復済みmobile-app wrapperのGit blob一致/mode0555を確認。primary cut/apply0。Larry actual loadedはbe2/idle/effectunknowntrue/receiptrequiredのまま。本sourceのimmutable成立を全ownerのload/自然帰属・公式公開結果と混同しない。
 - doctor unmanaged capafy.kosukeは、公式launchctl-safe printでsubmitted legacy label ai.anicca.provision-browser.capafy.kosuke/spawn scheduled/PIDなし/last exit2、entrypoint old immutablead194のcdp_persistent_context.py不存在。profileは正規capafy:kosuke/owner capafy-browserと一致する。正規ownerはloaded-running/PID56413/SHA9c。旧不活性provision登録と稼働正規ownerを区別し、auth/profile/browser本体の変更0。根拠state/capafy-unmanaged-browser-diagnostic-20261004.json、read-only検証継続。
 - 次はPR6540 exacthead全CI→source統合。Capafy旧登録は独立read-only確認後、既存retired_labels/target apply経路へ対象1件を結び、正規ownerを保持して解消する。provider売上/精算/着金と§217全残TODOは未達。model/effort/費用usageは観測不能、actualcost0としない。
+
+
+### 269. 候補補充修復PR6540統合と孤児登録retirementの実行境界
+
+- official GitHub workflow37148944159はcompleted/success。PR6540/headb9115086294c37b1e187c132fd67482c89302316/全10check SUCCESSをfresh照合し、match-head-commit付きadmin squashでmain655b2cf2001ad54ce70cb975910f363091052651へ統合。merged19:48:44Z、fresh remote main object一致。最終source関連45/adapter15/contract14loops178jobs/OSS/diff/独立SHIP。runtime749/162.015sの実測head88d9と、最終GitHubchecks対象b911を区別する。
+- implementation local branch fix/marketing-exhausted-candidate-pool-20261004/HEADb911はclean。統合後ls-remoteでは同名head refは不存在、PR head/merged objectでsourceを確認する。勝手なbranch復元/force pushは行わない。最新source655bのimmutable/load/自然補充は未達。本番生成/投稿/旧fence解放0。Larryの既存unknown/receipt_requiredを保ち、no candidateを成功・旧no-effect証明へ変換しない。
+- 独立read-onlyレビューでCapafy旧labelはmanaged/external/retiredのどれにも無く、旧release/script/plist不存在・launchd DBだけに残る孤児登録と確認。正規ownerは別label/有効entrypoint/同じ正規profileを所有する。retired_labels登録はsource方針SHIP、live解除はfresh guard成立までHOLD。
+- 既存target retirementはlabelだけでprint→bootout→absence readbackを行う。source/PR待ち中のlabel再利用・PID発生・program変更を防ぐfingerprint確認が無いため、古い観測だけでretired登録やlive解除を先行しない。次はmissing program/PIDなし/正規owner維持の検証を実行境界に結び、exact1labelだけを処理する。profile/auth/browser本体の削除・停止、--allによる無差別解除は行わない。
+- 直近release owner53185はPID/actual executable/current6ad/稼働時間5:25をfresh確認。primary重複build/apply/kill0。state/marketing-exhausted-candidate-pool-20261004.jsonとcapafy-unmanaged-browser-diagnostic-20261004.jsonへsource統合/検証/残リスク/次操作を保存。現在状態・担当・全残TODO → §217、全goalactive/未完。
