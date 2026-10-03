@@ -387,7 +387,12 @@ PY
         FLEET_APPLY_OWNER_LOOP_ID="$loop_id" \
         "$runtime_python" - <<'PY'
 import json, os
+from datetime import datetime, timezone
 record = {
+    "run_id": os.environ.get("LIFE_MANAGER_RUN_ID") or None,
+    "occurrence_id": os.environ.get("LIFE_MANAGER_OCCURRENCE_ID") or None,
+    "owner_id": "life-manager-release-reconciler",
+    "timestamp": datetime.now(timezone.utc).isoformat(),
     "sha": os.environ["FLEET_APPLY_SHA"],
     "loop_id": os.environ["FLEET_APPLY_OWNER_LOOP_ID"],
     "rc": 0,
@@ -480,7 +485,12 @@ print(changed, skipped, errors)
       FLEET_APPLY_OWNER_SKIPPED="$owner_skipped" \
       "$runtime_python" - <<'PY'
 import json, os
+from datetime import datetime, timezone
 record = {
+    "run_id": os.environ.get("LIFE_MANAGER_RUN_ID") or None,
+    "occurrence_id": os.environ.get("LIFE_MANAGER_OCCURRENCE_ID") or None,
+    "owner_id": "life-manager-release-reconciler",
+    "timestamp": datetime.now(timezone.utc).isoformat(),
     "sha": os.environ["FLEET_APPLY_SHA"],
     "loop_id": os.environ["FLEET_APPLY_OWNER_LOOP_ID"],
     "rc": int(os.environ["FLEET_APPLY_OWNER_RC"]),
