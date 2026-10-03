@@ -44,4 +44,4 @@ The acceptance test proves that a stale geocoder benchmark or an over-cap transi
 
 ## Remaining external blockers
 
-Moneytree freshness, current Coconala/PartnerStack/CrowdWorks/Alpaca/Stripe settlement coverage, branch-to-production parity, and seven elapsed daily closes remain as Section 11 financial TODOs. Provider benchmark artifacts with `provider_not_configured`, timeout, or no-winner states are not treated as zero-cost or production approval.
+The latest B7 read-only run is separately recorded in `2026-10-03-b7-readback.md`: historical/trailing are both `unknown` with 137 coverage gaps and no currency totals. Moneytree freshness, current Coconala/PartnerStack/CrowdWorks/Alpaca/Stripe settlement coverage, branch-to-production parity, and seven elapsed daily closes remain as Section 11 financial TODOs. Provider benchmark artifacts with `provider_not_configured`, timeout, or no-winner states are not treated as zero-cost or production approval.
