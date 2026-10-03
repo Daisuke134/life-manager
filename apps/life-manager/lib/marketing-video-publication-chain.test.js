@@ -43,6 +43,7 @@ function options(overrides = {}) {
     productId: "honne-ai",
     approvalRef: `object://sha256/${APPROVAL_HASH}`,
     instagramProfileRef: "profile://instagram/honne-ai-ja",
+    instagramIntegrationRef: "integration://postiz/instagram/honne-ai-ja",
     postizTokenRef: "secret://postiz/api-key",
     tiktokIntegrationRef: "integration://postiz/tiktok/honne-ai-ja",
     ...overrides,

@@ -32,6 +32,7 @@ function buildVideoPublicationJobsFromGeneration(receipt, options = {}) {
     approvalRef: options.approvalRef,
     instagramProfileRef: options.instagramProfileRef,
     postizTokenRef: options.postizTokenRef,
+    instagramIntegrationRef: options.instagramIntegrationRef,
     tiktokIntegrationRef: options.tiktokIntegrationRef,
   };
   return ["instagram", "tiktok"].map((platform) => (
