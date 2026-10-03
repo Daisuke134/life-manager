@@ -1,10 +1,10 @@
 # Life Manager継続の最新cursor
 
-- 最初にSSOT§212→§211→§210–201→§200–198→§185残TODOを読む。全体goalはactive/未完。
-- specworktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`、branch/upstream `docs/ssot-orchestration-status-20261002` / `origin/docs/ssot-orchestration-status-20261002`。このhandoverは§212と同じdocscommitでpush。
-- 実装worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/writer-sales-lock-20261003`を再利用。branch/upstream `fix/selfbuild-ledger-ssot-20261003` / `origin/fix/selfbuild-ledger-ssot-20261003`。clean/pushed HEAD `70d9cfca1b（full SHAはfresh git readback）`。旧Writer branchを切替/削除しない。
+- 最初にSSOT§213→§212→§211→§210–201→§200–198→§185残TODOを読む。全体goalはactive/未完。
+- specworktree: `/Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002`、branch/upstream `docs/ssot-orchestration-status-20261002` / `origin/docs/ssot-orchestration-status-20261002`。このhandoverは§213と同じdocscommitでpush。
+- 実装worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/writer-sales-lock-20261003`を再利用。branch/upstream `fix/selfbuild-ledger-ssot-20261003` / `origin/fix/selfbuild-ledger-ssot-20261003`。clean/pushed HEAD `96229cb2e58cbd8d3db53c8a007203167fcca1f0`。旧Writer branchを切替/削除しない。
 - PR6524は全CI/freshSHIP/adminmerge済み、main/currentcompleteimmutable c5e6b691bb18128fca39e1d57913abaa2a41ed94、release /Users/anicca/loops/releases/20261003T184919-c5e6b691/ALL/ancestorofmain/kernel+manifestbytes一致。Cw/LancersPaid自然loadc5e6、Fundraiser/Connectorの以前のsourceproofは§207/206へ参照。
-- 最初の安全操作: SelfBuild台帳/report修正のfresh review結果とshared runtime suite14080を回収→PR/CI/adminmerge→immutable/target load/自然proof。96+15 tests/contract/OSS PASS。doctorはunmanaged ai.anicca.provision-browser.capafy.kosukeでFAIL、無断削除しない。global reconciler84805はc5e6/liveをfresh確認し、重複build/apply/killしない。
+- 最初の安全操作: SelfBuild台帳/report修正のfresh review結果とshared runtime suite748 PASSを確認→PR/CI/adminmerge→immutable/target load/自然proof。99+748+15 tests/contract/OSS PASS。doctorはunmanaged ai.anicca.provision-browser.capafy.kosukeでFAIL、無断削除しない。size比較HOLDをrun-ID exactjoinへ修正し最終review中。global reconciler84805はc5e6/liveをfresh確認し、重複build/apply/killしない。
 - Connector実入口native-pass→connector-minimal-production→lumaworkflowの認証済み判定後discoveryに自然到達。参加可能候補0のためprovider/mail/Calendar/replayは登録発生時の未完条件。再apply/manualwake不要、currentcompleteee7aだがConnectorloadedecdd。
 - Connectorenv正本は `~/.local/state/life-manager/.env`。gogfilebackendのauthlistでaccount一致1/Gmail+Calendar scopeをread-only確認。AppleKeychain禁止、credentials/別profile更新禁止、code/token/credentialをchat/logへ出さない。CAPTCHA/KYC/本人確認/個人資金/同mutable resourceの境界を保持する。
 - Writer最初の自然gateは§198PASS: run18daf272ac672988-74338/SHA33、Notefresh0/0、Substackofficialunknown3、runtime/JSONL/DBhash5件exactjoin、実DBbackup上reimport0/providernetwork0。watcher44814は終了済みで再起動しない。売上event/fee/payout記録0、settledprofit未証明。

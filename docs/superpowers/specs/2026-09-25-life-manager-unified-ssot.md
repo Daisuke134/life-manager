@@ -4722,3 +4722,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. SelfBuild台帳/report最小修正のfresh review→required checks→一度だけPR/merge→complete immutable→target owner safe load→自然row/report一致を進める。self-owned promotion成果は別未完のまま。
 2. Paid fundedterms/official receipt/delivery/fee/settlement/payoutを並行可能なread-only境界で追う。Lancers2/Cw18 unknown、Fundraiser1のeffect fenceを保持し再送0。
 3. SelfBuild/Eval本成果→Investment→Cloud/self-funding→TaskMarket→全14 CFOの残条件を保持。単なるsource/test/歴史mailを収益や全goal完了に置換しない。
+
+
+### 213. SelfBuild同時実行の報告帰属をexact runへ固定
+
+- §212のsize比較案はfresh reviewでHOLD。同時runが追記すると現在の追記前失敗を別runの結果として報告しうる。foreign append前/後の実shell fixtureで2件REDを再現し、size比較を撤去した。
+- entrypointはdotenv後にrandomUUIDを生成しLM_SELFBUILD_RUN_IDをexport。CLIはoptions.runIdへ渡しlibraryはそのIDをrow.run_idへ記録、shellは同IDのledger行だけを選ぶ。stdout出力前に死んでも追記済みの自runを報告、他run行は報告0。CLI直接呼出しは従来生成IDを保持。既存台帳・merge guard・promotion gateは不変。
+- branchHEAD96229cb2e58cbd8d3db53c8a007203167fcca1f0/4 filesまでpush。関連99 tests、shared runtime748 tests、adapter15、contract14/178、OSS/bash/diff PASS。doctorは§212既存unmanaged1のまま。fresh final review/PR/CI/merge/immutable/自然報告は進行cursor。
+- Telegram milestoneはCodex:::本文のみを送信しprovider MSGID102220確認。モデル実ID/effort/token usage非公開、推定費用をactualcostへ記帳しない。
+
+#### 更新後の原子cursor
+
+1. SelfBuild run-ID最小修正のfresh review→PR/CI/adminmerge→既存reconciler terminal→complete immutable→safe target load→次の自然row/report exactjoin。
+2. Paid current fundedterms/official financial receiptsを追い、§212歴史JPY2000通知を現在売上と数えない。全effect fenceと残TODOを保持しgoalactive。
