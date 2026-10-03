@@ -5220,3 +5220,17 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 読取commandのhere-document生成がENOSPC、Data volume df available214692KiBを実測。activeMCPのnpx cache、memoryを含むreviewarchives、currentrelease/dependency/source/history/profileは保持。破棄済みTrashの2Investment test dependency-bundlesだけをmemory/stateJSONL無し、activeprocess/FD/currentrelease参照無しと確認し削除。初回guardは自身のcommandをactive参照と拾いassertで変更前停止、自己PID/親を除外して再検証後に2cache削除。
 - finalData available5610300KiB（約5.35GiB）、temp write/fsync/deletePASS。途中の約170MB自然回復はprimary成果へ加算しない。diskcleanup skillのpressure解除floor11GiBは未達、手動flag解除/新releasebuild0。state/disk-cache-recovery-20261004.json/mode600、protected store変更0/実稼働loopstop0。
 - currentは642 completeimmutable、source mainはbe2。既存reconciler95379/95311が642からliveを確認。次はsafe disk capacity/recovery条件を閉じ、existingowner terminal後のbe2immutable/load/自然authmetadataとCoconala pendingの実成果を検証する。§217全残TODO/別担当Mobile境界/全goalactiveを保持。
+
+
+### 258. 公式Coconala購入表示と現在のhost governor経路
+
+- 正しい専用vault/ownedcontextの公式/talkrooms/18180857/information readbackはHTTP200、購入日2026/8/23、合計JPY9000。responsive DOMの同金額2表示は1件へdedupeし、二重計上しない。paymentexternalID/fee/settledat/payout/bankmatchは未取得、取引中/revision pendingのまま。この購入日だけで現在windowのsettled incomeとしない。state/coconala-contract-information-readonly-20261004.json/mode600。
+- 現在life-manager-disk-cleanupの実entrypointはcentral_cleanup.pyで、host_cleanup_commandが.local/state/life-manager/stateへdelegateすることを確認。openclaw/旧ownerstateの古いreceiptを現在truthへ流用しない。正本receipt18:48:38ZはCRITICAL/freeafter4716179456bytes/reclaimed0/errors0/protecteddeletions0。current11GiB pressure解除floor未達、手動解除0。
+- release scriptの既存pressurepolicyはcompleteALL/current祖先donorがあればhardlink fullcloneを許可する。11GiBはpressure解除floorであり全release作成の一律gateではない。donor642/ALL/ancestorofbe2/packageLock変更無しを実Gitで確認し、Goalに新しい待機gateを発明しない。
+
+### 259. be2 completeimmutableとMercorPaidの限定idle反映
+
+- 同reconciler95379を15秒boundedwatchで継続追跡し18:54:26Z missing/terminal確認。fresh全reconciler/builder不在、origin/mainbe2一致後に既存cut-scriptを通常設定で1回実行、exit0/current20261004T035437-be2b181b/ALL/sha be2b181bfaa40ca13f1e893777437055224f4f2f。pressure flag/limit変更0、新dependencybuild不要。auth変更3filesはmainblobとbytes一致。
+- MercorPaidのGUIpreflight/idle/globalなしを再確認しapply --loaded-idle-onlyを1targetのみ実行。exit0/changedtrue/admissionresumedfalse/install_event8d6515c2b7b12893a9c46f86/sha be2一致。実launchctl-safe readのactualargv3要素もbe2/bin/lm-loop-run、mercor-revenue-paid、be2releaseRootに一致。manualwake/別ownerstop/oldApp・Replyfence解放0。
+- Data available4526800KiB（約4.32GiB）、governorpressure解除は未達のまま。既存donor経路で反映成立したこととhost capacity完全回復は分ける。state/mercor-auth-be2-target-apply-20261004.json、mercor-paid-auth-evidence-source-20261004.json/mode600。次は通常Paid wakeのauth4metadata/native/snapshot/business同occurrence結合、自然expired→renewedを観測し、人工期限変更0を維持する。
+- Coconala正式納品/50件成果/payment/fee/settlement/payout、hostcapacity、§217全残TODOと別担当Mobile境界を保持し全goalactive。
