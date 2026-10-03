@@ -4288,3 +4288,23 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 10. **Cloud / self-funding**: provider-neutral shelter、DigitalOcean control plane、Nosana continuity、Akash fallback、BlockRun paid inference、externally earned surplusによるrenewal、30日benchmark。
 11. **TaskMarket / Agent Economy**: 即時収益pathの後にimmutable packaging、funnel/margin、external paid job、x402 treasury proofを進める。
 12. **最終CFO統合**: 全Product Loopのsettled external revenue、fee、actual cost、payout、unknown/stale gapを同じ期間でjoinし、全14-15 loopのruntime・business・recovery・net P&L・replay-zeroを再計算する。ここまでLife Manager全体の自己資金化・全loop修復済みとは言わない。
+
+### 186. Writer stale-lock修復のproduction反映とprovider auth self-heal cursor（2026-10-03 14:18 JST）
+
+- stale sales-measure lock修復はPR #6517でmain `309ca89c85dd15be613cb8c9bab3106688f0f4ad`へmergeした。dead legacy lockを共有PID/start-identity lockへreclaimし、live legacy ownerと新形式live ownerはexit 75、別ownerの誤解放0。GitHub CI全件PASS、fresh Sol review `SHIP`。
+- complete immutable releaseは`/Users/anicca/loops/releases/20261003T134526-309ca89c / ALL`で、`writer-sales-measure`のinstalled/event SHAは309へ一致した。最初のnatural wake `18daec2e388d7980-19893`はentrypoint前`resource_capacity_busy`、effect none。release反映済みだがnatural provider measurement成功はまだ未証明。
+- registered `interactive:dais` CloakBrowser leaseを保持したproduction entrypointのno-effect kickstartで、旧`.sales-measure.lock/pid`を`reclaimed`し、`sales-ledger.jsonl`と`money.sqlite3`を2026-10-03へ更新した。公開・投稿・送信・決済effectは0。
+- Noteはsession失効で公式loginへredirectしていた。credential SSOTのexact `service=note.com`一件を値非表示で通常loginし、CAPTCHA/MFAなしで`/dashboard/salesmanage`へ復旧。fresh公式readbackは10月sales revenue `¥0`、purchase count `0`、status=`scorable`。
+- Substackはprivate envの既存`SUBSTACK_SESSION_COOKIE`が一時contextの公式`aniccabuddha /publish/home`で有効と確認できた。同cookieをpersistent contextへ値非表示で注入後、official home/earningsへ到達。paid subscribers、MRR、cumulative revenueはdashboardが明示数値でなく`-`のためunknown/nullを維持し、0へ変換しない。
+- latest money syncはmetrics rows `6,463`、verified external revenue events `0`、Stripe receipts `0`、subscriptions `0`、fees/payout/currency totalsは空。Noteのdashboard 0はobservationであってsettled receiptではない。
+- authの手動復旧を不要にするPR #6518、branch `fix/writer-sales-auth-self-heal-20261003`、HEAD `6321af567a0ce7a3ef40dd0ed0e3062d6f6dc25e`はopen。Note通常login formでのみ`NOTE_EMAIL/NOTE_PASSWORD`をchild envから読み、Substackはisolated browser contextへ既存cookieを注入する。credentialをsource/argv/stdoutへ埋め込まず、missing/failed authはunknownへfail-closed。focused tests 27件+27 subtests、loop contract、py_compile、diff check PASS、fresh Sol review `SHIP`。GitHub CIはLoop control/TruffleHogがin progressで、merge前に全件PASSをreadbackする。
+- session vault dumpはhelperがIPv4 `127.0.0.1:9222`へ固定され、live browserがIPv6 `::1:9222`のためHTTP 404。既存vaultは上書きされていない。PR #6518のper-run auth self-healが先で、vault portabilityは別の未完cursor。
+- current release reconciler PID `49577`は14:18 JST時点でlive。別reconciler/applyを重ねずterminalをreadbackする。AGMSG `lm`のroster席は引き続きplacement/reach unverified/cannot。CFO/Dots coordinatorからfresh messageはあるが、登録やmessageだけをlive implementation seatへ数えず、Dotsをfake Codex席として登録しない。
+
+#### 更新後の原子cursor
+
+1. PR #6518の全GitHub CIをreadbackし、PASSならadmin squash mergeする。reviewは既に`SHIP`で、追加nitpick reviewは不要。
+2. live release reconciler PID `49577`のterminalを確認後、merged mainのcomplete immutable releaseを作り、`writer-sales-measure`だけをidle/effect-safeにapplyする。running ownerをkillしない。
+3. browserのpersistent login/cookieを手で注入せず、PR #6518 releaseの自然wakeがNote `¥0/0`とSubstack official unknownをfresh appendすることを証明する。manual kickstartだけでnatural completionとしない。
+4. Writer transaction→fee→settlement→payout receiptが0件である現在値を保持し、外部transactionが現れた時だけmoney eventへ昇格する。
+5. Writer natural proof後は§185 #3 Affiliateへ移り、以降Mobile→Connector→Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO統合の順を維持する。
