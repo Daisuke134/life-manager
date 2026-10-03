@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` (Section 12)
 
+**Execution status (2026-10-03):** Tasks 1–6 are complete on the dedicated branch. Task 7 is partial: the synthetic acceptance gate, official September Cost Table reconciliation, durable observation state, and Moneytree readback are recorded; seven elapsed production periods, fresh Moneytree data, October settlement, source settlement coverage, and production parity remain external TODOs. Review fixes are in `930abbb6b4`; the post-review observation/readback update is `a82e94ce33`; the branch is pushed.
+
 ## Global Constraints
 
 - Unknown, stale, failed, and `effect_unknown` remain explicit; none may be rendered as zero.
@@ -33,6 +35,8 @@
 
 ### Task 1: Remove the free-transit Google-key gate and preserve sequential fallback
 
+**Status:** complete (`6951527ef1`, with scheduler/authorizer hardening in `930abbb6b4`); focused 28/28 and full npm 188/188 pass.
+
 **Files:**
 - Modify: `apps/life-manager/lib/travel.js:472-545`
 - Modify: `apps/life-manager/lib/transit.js`
@@ -44,13 +48,15 @@
 - Add a pure internal gate `canAttemptFreeTransit(srcGeo, dstGeo) -> boolean` that depends only on coordinate validity and Japan bounds.
 - A missing `mapsKey` may block address geocoding and Google fallback, but must not block Transit when both endpoints are already coordinates inside Japan.
 
-- [ ] **Step 1: Write failing tests.** Inject coordinate endpoints, no Google key, a successful Transit response, and a Google fallback spy. Assert Transit succeeds and Google calls equal zero. Add a malformed/timeout Transit fixture that asserts exactly one budget-authorized Google attempt when a key is present.
-- [ ] **Step 2: Run focused tests to verify RED.** Run `node --test lib/travel-transit-wire.test.js lib/travel.test.js`; expected failure is the current early `!mapsKey` return.
-- [ ] **Step 3: Implement the gate.** Move the key check after coordinate parsing; preserve the existing cache lookup, event anchor, tenant scope, and `provider_unconfigured` failure observation for requests that cannot geocode or fallback.
-- [ ] **Step 4: Run focused tests to verify GREEN.** Re-run the commands from Step 2 and assert no duplicate provider calls on cache replay.
-- [ ] **Step 5: Commit.** `git add apps/life-manager/lib/travel.js apps/life-manager/lib/transit.js apps/life-manager/lib/travel-transit-wire.test.js apps/life-manager/lib/travel.test.js && git commit -m "fix(life-manager): allow free transit without maps key"`.
+- [x] **Step 1: Write failing tests.** Inject coordinate endpoints, no Google key, a successful Transit response, and a Google fallback spy. Assert Transit succeeds and Google calls equal zero. Add a malformed/timeout Transit fixture that asserts exactly one budget-authorized Google attempt when a key is present.
+- [x] **Step 2: Run focused tests to verify RED.** Run `node --test lib/travel-transit-wire.test.js lib/travel.test.js`; expected failure is the current early `!mapsKey` return.
+- [x] **Step 3: Implement the gate.** Move the key check after coordinate parsing; preserve the existing cache lookup, event anchor, tenant scope, and `provider_unconfigured` failure observation for requests that cannot geocode or fallback.
+- [x] **Step 4: Run focused tests to verify GREEN.** Re-run the commands from Step 2 and assert no duplicate provider calls on cache replay.
+- [x] **Step 5: Commit.** `git add apps/life-manager/lib/travel.js apps/life-manager/lib/transit.js apps/life-manager/lib/travel-transit-wire.test.js apps/life-manager/lib/travel.test.js && git commit -m "fix(life-manager): allow free transit without maps key"`.
 
 ### Task 2: Make OpenPOI attribution and location UX source-backed
+
+**Status:** complete (`be5de8004e`, hardened in `930abbb6b4`); focused 7/7 and full npm 188/188 pass.
 
 **Files:**
 - Modify: `apps/life-manager/lib/place-search-openpoi.js`
@@ -64,13 +70,15 @@
 - Extend successful `agentResolveLocation()` results with `provider: "openpoi"|"google"|"memory"` and `attributionUrl` when the provider is OpenPOI.
 - Preserve current user behavior: a known candidate fills the calendar; an unresolved candidate reaches the existing user question path.
 
-- [ ] **Step 1: Write failing tests.** Assert live-shaped OpenPOI success carries licenses/attributions/URL into the resolver result, an empty result is not a Google success, and a remembered place returns without any provider call.
-- [ ] **Step 2: Run focused tests to verify RED.** Run `node --test lib/place-search-openpoi.test.js lib/ask-openpoi.test.js`; expected failure is the missing attribution URL/provider fields.
-- [ ] **Step 3: Implement normalized source metadata.** Keep only allowlisted attribution metadata, preserve current candidate mapping, and do not add a new search provider or second memory store.
-- [ ] **Step 4: Run focused tests and the existing location resolver suite.** Verify OpenPOI success calls Google zero times and Google fallback remains budget-gated.
-- [ ] **Step 5: Commit.** `git add apps/life-manager/lib/place-search-openpoi.js apps/life-manager/lib/ask.js apps/life-manager/lib/places-memory.js apps/life-manager/lib/place-search-openpoi.test.js apps/life-manager/lib/ask-openpoi.test.js && git commit -m "feat(life-manager): carry OpenPOI attribution"`.
+- [x] **Step 1: Write failing tests.** Assert live-shaped OpenPOI success carries licenses/attributions/URL into the resolver result, an empty result is not a Google success, and a remembered place returns without any provider call.
+- [x] **Step 2: Run focused tests to verify RED.** Run `node --test lib/place-search-openpoi.test.js lib/ask-openpoi.test.js`; expected failure is the missing attribution URL/provider fields.
+- [x] **Step 3: Implement normalized source metadata.** Keep only allowlisted attribution metadata, preserve current candidate mapping, and do not add a new search provider or second memory store.
+- [x] **Step 4: Run focused tests and the existing location resolver suite.** Verify OpenPOI success calls Google zero times and Google fallback remains budget-gated.
+- [x] **Step 5: Commit.** `git add apps/life-manager/lib/place-search-openpoi.js apps/life-manager/lib/ask.js apps/life-manager/lib/places-memory.js apps/life-manager/lib/place-search-openpoi.test.js apps/life-manager/lib/ask-openpoi.test.js && git commit -m "feat(life-manager): carry OpenPOI attribution"`.
 
 ### Task 3: Build a bounded geocoder comparison artifact
+
+**Status:** complete (`0cff346fea`, hardened in `930abbb6b4`); runner 3/3 and full npm 188/188 pass. No provider winner was promoted.
 
 **Files:**
 - Create: `apps/life-manager/scripts/provider-benchmark-geocoder.js`
@@ -83,13 +91,15 @@
 - Each row contains only `caseId`, provider, status, coordinate precision, latencyMs, attribution/licence refs, errorClass, observedAt, and releaseSha; no private address or credential.
 - Providers under comparison: current Google Geocoding, Geoapify free plan, and one self-host candidate selected from Photon/Pelias after resource preflight. Public Nominatim/Photon demos are excluded by policy.
 
-- [ ] **Step 1: Write pure fixture tests.** Cover exact coordinate, city-level coordinate, no-result, timeout, quota response, missing attribution, and unsupported license cases; assert deterministic digest and fail-closed winner selection.
-- [ ] **Step 2: Run tests to verify RED.** Run `node --test scripts/provider-benchmark-geocoder.test.js`; expected failure is missing runner/schema.
-- [ ] **Step 3: Implement bounded benchmark runner.** Use a fixed non-private Japanese corpus, one request per provider/case, bounded timeout, no retries, and explicit provider terms/attribution metadata. Read credentials only from approved environment/SSOT; never write them to evidence.
-- [ ] **Step 4: Run read-only provider probes.** Save the evidence digest and source links; do not switch production routing from the result alone.
-- [ ] **Step 5: Commit the runner and fixture, not secrets or transient responses.** `git add apps/life-manager/scripts apps/life-manager/fixtures/provider-benchmarks docs/evidence/cfo/2026-10-03-geocoder-provider-benchmark.md && git commit -m "feat(cfo): benchmark geocoder providers"`.
+- [x] **Step 1: Write pure fixture tests.** Cover exact coordinate, city-level coordinate, no-result, timeout, quota response, missing attribution, and unsupported license cases; assert deterministic digest and fail-closed winner selection.
+- [x] **Step 2: Run tests to verify RED.** Run `node --test scripts/provider-benchmark-geocoder.test.js`; expected failure is missing runner/schema.
+- [x] **Step 3: Implement bounded benchmark runner.** Use a fixed non-private Japanese corpus, one request per provider/case, bounded timeout, no retries, and explicit provider terms/attribution metadata. Read credentials only from approved environment/SSOT; never write them to evidence.
+- [x] **Step 4: Run read-only provider probes.** Save the evidence digest and source links; do not switch production routing from the result alone.
+- [x] **Step 5: Commit the runner and fixture, not secrets or transient responses.** `git add apps/life-manager/scripts apps/life-manager/fixtures/provider-benchmarks docs/evidence/cfo/2026-10-03-geocoder-provider-benchmark.md && git commit -m "feat(cfo): benchmark geocoder providers"`.
 
 ### Task 4: Benchmark self-hosted driving and transit candidates
+
+**Status:** complete (`ba24a8d7a7`); runner 4/4 and full npm 188/188 pass. Transit/OSRM evidence remains benchmark evidence, not a production cutover.
 
 **Files:**
 - Create: `apps/life-manager/scripts/provider-benchmark-routing.js`
@@ -102,13 +112,15 @@
 - Provider rows record `provider`, `mode`, `routeStatus`, `durationSeconds`, `legCount`, `farePresent`, `latencyMs`, `dataUpdatedAt`, `resourceCost`, `licenseRefs`, and `errorClass`.
 - Candidate order: current Transit API, OTP with explicit GTFS/OSM feed versions, OSRM for driving, then Valhalla only if OSRM lacks required route facts.
 
-- [ ] **Step 1: Write pure parser/contract tests.** Cover accepted route, no route, stale feed, timeout, unsupported mode, and fare/leg preservation.
-- [ ] **Step 2: Run tests to verify RED.** Run `node --test scripts/provider-benchmark-routing.test.js`.
-- [ ] **Step 3: Implement a read-only bounded runner.** Require an explicit endpoint/feed version for each candidate, cap calls and concurrency at one, and calculate operating cost from measured CPU/RAM/storage rather than treating self-hosting as zero.
-- [ ] **Step 4: Run the benchmark only against owned/local or documented public read-only endpoints.** No production scheduler or browser state is changed; save only normalized rows and source links.
-- [ ] **Step 5: Commit evidence and runner.** `git add apps/life-manager/scripts apps/life-manager/fixtures/provider-benchmarks docs/evidence/cfo/2026-10-03-routing-provider-benchmark.md && git commit -m "feat(cfo): benchmark routing providers"`.
+- [x] **Step 1: Write pure parser/contract tests.** Cover accepted route, no route, stale feed, timeout, unsupported mode, and fare/leg preservation.
+- [x] **Step 2: Run tests to verify RED.** Run `node --test scripts/provider-benchmark-routing.test.js`.
+- [x] **Step 3: Implement a read-only bounded runner.** Require an explicit endpoint/feed version for each candidate, cap calls and concurrency at one, and calculate operating cost from measured CPU/RAM/storage rather than treating self-hosting as zero.
+- [x] **Step 4: Run the benchmark only against owned/local or documented public read-only endpoints.** No production scheduler or browser state is changed; save only normalized rows and source links.
+- [x] **Step 5: Commit evidence and runner.** `git add apps/life-manager/scripts apps/life-manager/fixtures/provider-benchmarks docs/evidence/cfo/2026-10-03-routing-provider-benchmark.md && git commit -m "feat(cfo): benchmark routing providers"`.
 
 ### Task 5: Enforce explicit per-provider caps and fallback telemetry
+
+**Status:** complete (`fbdc67a099`, hardened in `930abbb6b4`); focused 35/35 and full npm 188/188 pass.
 
 **Files:**
 - Modify: `apps/life-manager/lib/provider-budget.js`
@@ -125,14 +137,16 @@
 - Extend `evaluateProviderBudget({ measuredUsd, estimatedUsd, unknownCount, units, caps })` without breaking the existing `thresholds` argument; return `cap_exceeded` in `reasons` and `stopped` when a hard cap is exceeded.
 - Every fallback deny/hit/success emits provider, operation, cap state, units, estimate, actual status, and `next_action` without secrets.
 
-- [ ] **Step 1: Write failing cap tests.** Pin daily/monthly currency caps, unit caps, unknown-cost degradation, essential cache reads, per-tenant isolation, and exact reason strings.
-- [ ] **Step 2: Run focused tests to verify RED.** Run `node --test lib/provider-budget.test.js lib/usage-event.test.js lib/travel-usage.test.js`.
-- [ ] **Step 3: Implement caps as additive policy.** Keep existing generic budget behavior, make the listed caps the default for nonessential Google work, and preserve cache reads at `stopped`.
-- [ ] **Step 4: Wire fallback calls and render cap state.** Google calls must be denied before network when the cap is exceeded; the CFO report must show fallback units, cache hits, estimated cost, settled cost, unknowns, and next action.
-- [ ] **Step 5: Run focused tests plus the current CFO/Node suites.** Confirm a fallback cap cannot be bypassed by a second scheduler tick.
-- [ ] **Step 6: Commit.** `git add apps/life-manager/lib && git commit -m "feat(cfo): cap paid provider fallbacks"`.
+- [x] **Step 1: Write failing cap tests.** Pin daily/monthly currency caps, unit caps, unknown-cost degradation, essential cache reads, per-tenant isolation, and exact reason strings.
+- [x] **Step 2: Run focused tests to verify RED.** Run `node --test lib/provider-budget.test.js lib/usage-event.test.js lib/travel-usage.test.js`.
+- [x] **Step 3: Implement caps as additive policy.** Keep existing generic budget behavior, make the listed caps the default for nonessential Google work, and preserve cache reads at `stopped`.
+- [x] **Step 4: Wire fallback calls and render cap state.** Google calls must be denied before network when the cap is exceeded; the CFO report must show fallback units, cache hits, estimated cost, settled cost, unknowns, and next action.
+- [x] **Step 5: Run focused tests plus the current CFO/Node suites.** Confirm a fallback cap cannot be bypassed by a second scheduler tick.
+- [x] **Step 6: Commit.** `git add apps/life-manager/lib && git commit -m "feat(cfo): cap paid provider fallbacks"`.
 
 ### Task 6: Evaluate local LLM routing without a blind production switch
+
+**Status:** complete (`f91cafffaf`, hardened in `930abbb6b4`); runner 3/3 and full npm 188/188 pass. Recommendation remains `keep_current`.
 
 **Files:**
 - Create: `apps/life-manager/scripts/provider-benchmark-llm.js`
@@ -145,13 +159,15 @@
 - Each candidate must use an existing Life Manager model-routing boundary; the benchmark may compare Gemini with the existing local/Codex lane but must not add a direct Ollama/vLLM API adapter.
 - Score exact location grounding, online/no-travel classification, ask-user precision, latency, estimated cost, privacy status, and receipt completeness.
 
-- [ ] **Step 1: Write evaluator tests.** Assert a cheaper but lower-quality candidate returns `keep_current`, missing receipts fail closed, and a non-inferior candidate returns `eligible_for_shadow` only.
-- [ ] **Step 2: Run tests to verify RED.** Run `node --test scripts/provider-benchmark-llm.test.js`.
-- [ ] **Step 3: Implement fixture runner and scorecard.** Keep prompts/cases scrubbed, use bounded calls, and record only normalized verdicts and cost/latency metadata.
-- [ ] **Step 4: Run shadow evaluation.** No user-facing routing change; save the scorecard and recommendation for review.
-- [ ] **Step 5: Commit evidence and runner.** `git add apps/life-manager/scripts apps/life-manager/fixtures/provider-benchmarks docs/evidence/cfo/2026-10-03-llm-provider-benchmark.md && git commit -m "feat(cfo): evaluate local LLM cost lane"`.
+- [x] **Step 1: Write evaluator tests.** Assert a cheaper but lower-quality candidate returns `keep_current`, missing receipts fail closed, and a non-inferior candidate returns `eligible_for_shadow` only.
+- [x] **Step 2: Run tests to verify RED.** Run `node --test scripts/provider-benchmark-llm.test.js`.
+- [x] **Step 3: Implement fixture runner and scorecard.** Keep prompts/cases scrubbed, use bounded calls, and record only normalized verdicts and cost/latency metadata.
+- [x] **Step 4: Run shadow evaluation.** No user-facing routing change; save the scorecard and recommendation for review.
+- [x] **Step 5: Commit evidence and runner.** `git add apps/life-manager/scripts apps/life-manager/fixtures/provider-benchmarks docs/evidence/cfo/2026-10-03-llm-provider-benchmark.md && git commit -m "feat(cfo): evaluate local LLM cost lane"`.
 
 ### Task 7: Close provider-cost acceptance with CFO readback
+
+**Status:** partial (`a82e94ce33`). Synthetic acceptance, variance, durable observation state, and official Moneytree readback are complete; live seven-period observation, October settlement, fresh Moneytree data, full B7 settlements, and production parity remain open.
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`
@@ -163,12 +179,12 @@
 - The selection evidence contains candidate digests, provider terms/licence refs, benchmark release SHA, measured request counts, cache hit rate, fallback counts, budget transitions, settled Google CSV receipt, and a decision of `keep`, `shadow`, or `promote` for each capability.
 - The natural-run harness adds provider lane states without changing B7 arithmetic or turning benchmark estimates into settled costs.
 
-- [ ] **Step 1: Write acceptance tests.** Cover a seven-period run with free-primary success, bounded fallback, stale benchmark evidence, and an official Cost Table variance; assert only fresh/settled rows close the gate.
-- [ ] **Step 2: Run the CFO and Life Manager focused suites.** Run `python3 -m unittest discover -s skills/cfo -p 'test_*.py'`, the provider benchmark tests, and `npm test` from `apps/life-manager`.
+- [x] **Step 1: Write acceptance tests.** Cover a seven-period run with free-primary success, bounded fallback, stale benchmark evidence, and an official Cost Table variance; assert only fresh/settled rows close the gate.
+- [x] **Step 2: Run the CFO and Life Manager focused suites.** Run `python3 -m unittest discover -s skills/cfo -p 'test_*.py'`, the provider benchmark tests, and `npm test` from `apps/life-manager`.
 - [ ] **Step 3: Execute seven natural daily closes.** Record provider health, cache hits, paid fallback units, budget state, source freshness, official receipts, and replay-zero; do not change external marketplace or bank state.
 - [ ] **Step 4: Read back the October Google Cost Table.** Reconcile estimates versus settled rows and keep any discrepancy as an explicit CFO gap.
-- [ ] **Step 5: Update the spec cursor and evidence.** Mark each candidate `proved`, `partial`, or `rejected` and retain the ordered financial TODOs from Section 11.
-- [ ] **Step 6: Commit and push.** `git add docs/superpowers/specs docs/evidence/cfo apps/life-manager/scripts && git commit -m "docs(cfo): close provider cost selection"`.
+- [x] **Step 5: Update the spec cursor and evidence.** Mark each candidate `proved`, `partial`, or `rejected` and retain the ordered financial TODOs from Section 11. The cursor remains partial until the external gates close.
+- [x] **Step 6: Commit and push.** `git add docs/superpowers/specs docs/evidence/cfo apps/life-manager/scripts && git commit -m "docs(cfo): close provider cost selection"`.
 
 ## Verification Commands
 

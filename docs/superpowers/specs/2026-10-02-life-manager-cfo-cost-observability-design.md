@@ -267,8 +267,9 @@ This spec is the CFO workstream's single ownership boundary. `lm-cfo-observabili
 - The September Google Cost Table CSV is the settled authority: ¥27,889 including tax, ¥25,354.450951 pre-tax, 41 service/SKU rows, receipt `google-billing://sha256/c5157075fe3e8331fa2a72d3b33fc98bbacb8b84a0ee2cfc945051ee87f66c64`.
 - Google cost attribution is now joined into B7 as 35 official-cost lines. OpenPOI's live read-only probe succeeds, persistent cache and Google fallback budget gates are present, but a seven-period reduction measurement is not yet proved.
 - Moneytree is installed and readable, but MUFG's last-known balance is ¥504,302 and the 187-row flow snapshot is stale (latest source transaction 2026-08-25); the plugin's zero-transaction result has no completeness proof and is never rendered as zero.
+- The 2026-10-03 official Moneytree MCP readback returned one MUFG account, balance ¥504,302, 187 rows, income ¥824,656, gross negative movement ¥668,855, transfer/card-repayment exclusions ¥466,355, and normalized spending ¥202,500. The latest transaction is 2026-08-25 and no independent completeness/freshness receipt was returned, so these are last-known/stale values, not today's CFO truth.
 - Stripe trailing settlement, PartnerStack's official empty report, Lancers' coverage-stale empty-settlement artifact, the partial CrowdWorks contract receipt, and the Alpaca account cash readback are connected. Unknown, stale, pending, and missing settlement are excluded from settled revenue and shown as gaps.
-- The latest canonical B7 run has 129 historical gaps and 124 trailing gaps. The current whole-repository Node suite is 188/188 PASS and the CFO Python suite is 248/248 PASS; these tests do not close external-provider gaps.
+- The latest canonical B7 run has 129 historical gaps and 124 trailing gaps. The current whole-repository Node suite is 188/188 PASS and the CFO Python suite is 249/249 PASS; these tests do not close external-provider gaps.
 
 ### Ordered remaining atomic TODO
 
@@ -318,7 +319,7 @@ flowchart LR
 
 The user-facing contract stays unchanged: a known venue is filled automatically, a route is inserted when a trustworthy route is available, and an unresolved/unsafe result asks or remains visibly partial. A successful OpenPOI/Transit result must emit zero Google fallback calls. A provider outage must not trigger parallel Google calls or an unbounded retry storm.
 
-The current code still has a route-entry `mapsKey` requirement and the location resolver currently uses OpenPOI `/v1/search` rather than an autocomplete surface. The next slice must remove the key requirement only for coordinate-ready Japan Transit calls, while preserving Google as a controlled fallback for geocoding/non-Japan routes. If a future UI adds an address search box, use OpenPOI `/v1/suggest`; do not emulate autocomplete against public Nominatim.
+The implementation now allows coordinate-ready Japan Transit to run without a `mapsKey`; address geocoding and Google fallback remain explicitly configured and budget-authorized. The location resolver currently uses OpenPOI `/v1/search` rather than an autocomplete surface. If a future UI adds an address search box, use OpenPOI `/v1/suggest`; do not emulate autocomplete against public Nominatim.
 
 ### Cost model and target
 
