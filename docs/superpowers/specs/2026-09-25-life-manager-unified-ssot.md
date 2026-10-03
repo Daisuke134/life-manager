@@ -5181,3 +5181,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - PID11417のnatural processは継続live、子11443/16802/18461は既存Paid/collector経路。rootelapsed08:27/collector子05:09まで確認、elapsedだけでdead/timeoutと扱わない。new642のactualtargetload/自然HTTPreceipt、正式納品/financialreceiptは未達。state/coconala-orders-http-source-proof-20261004.json/mode600へimmutableと延期境界を保存。
 - 正しいvaultの専用contextで3秒hydration後、公式talkroomDOMはHTTP200、取引情報/talkrooms/18180857/information、offer、DM等のfirstparty routesを観測。finance menuなしを残高/金融在庫0と扱わない。公式取引情報ページの追加probeはbrowserleasebusy/exit75/読取前終了で、runningborrowerを奪取しない。state/coconala-official-routes-hydrated-20261004.json/mode600。
 - 次はnatural11417とreconciler30823のterminal→actualtargetargv/SHA→新sourceの自然official receiptを照合し、取引情報/payment/fee/settlement/payoutの公式readbackとCFO接続を進める。§217全残TODO/別担当Mobile境界とgoalactiveを維持。
+
+
+### 253. active Paidの処理段階とlocal契約候補の金融境界
+
+- freshfetch origin/main642、docsbranchclean/current642を確認。Paid11417/c0とreconciler30823/30807は継続live、Paidroot13:27/reconciler07:52まで同PID確認。collector18461内でagent_runner35909がactiveであり、時間だけでreaddead/timeoutと扱わない。privateprompt/credential/CLI全文を出力せず、PID/parent/elapsedと既知script名だけ観測。重複apply/kill/manualwake0。
+- run/applyの実コードは同label apply lockを共有（lm_loop_run.py1286、lm_loop.py2362）。既存lockによるactive run保護を確認し、global default applyが必ずrunningownerを止めるという推測で追加修復を始めない。CLI--loaded-idle-onlyのprimaryguardも保持。
+- local project18180857/state.jsonをreadonlyで観測、offer6331346/取引中/priceJPY9000/WORK_REQUIRED/formal_delivery_confirmedfalse/buyer_agreement_observedfalse/buyer_visiblefalse。これらはlocal currentcycle stateであり履歴全体の納品無し/仮払い無しの証拠ではない。official payment/fee/settlement/payout receipt IDはこのstateに無く、CFO financial sourceへ接続0。価格をsettled revenueやnetprofitへ置換しない。
+- private証拠state/coconala-financial-source-local-candidate-20261004.json/mode600。次は同active handlesのterminal/natural artifact、new642actualargv、公式取引情報のreadbackを照合し、作業・検収・支払・精算の不足を実owner経路で閉じる。§217全残TODO/別担当Mobile境界/goalactiveを維持。
