@@ -4846,7 +4846,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP、GitHub CI進行中。source合格と本番直接joinを区別する。
+- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。new immutable/load/自然直接joinは未達。source合格と本番直接joinを区別する。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -4855,7 +4855,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-1. PR6544の最終HEADの全CIを確認し、source統合→complete immutable→既存self-handoff→次の自然owner journalのrun_id/occurrence_id/timestampとnative eventの直接joinを閉じる。競合するrelease ownerの稼働をfresh確認し、重複build/apply/wakeをしない。
+1. PR6544のsource統合は§280で完了。complete immutable→既存self-handoff→次の自然owner journalのrun_id/occurrence_id/timestampとnative eventの直接joinを閉じる。競合するrelease ownerの稼働をfresh確認し、重複build/apply/wakeをしない。
 2. SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。自然run-ID/台帳/report一致の成立済み条件を繰り返さない。
 3. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
 4. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
@@ -5405,3 +5405,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - latestmainede6/primarycleanと同ownerleaseを確認しbranch fix/fleet-owner-journal-correlation-20261004を作成。current-skipとactual-applyの両writerへrun_id/occurrence_id/owner_id/timestampUTCを追加、既存sha/looptarget/rc/counters/guardedretire/selection/budgetは不変。nativecontext未設定・空ならID nullでunknownを保持。
 - bound nativecontextとmanual absentの2subcasesで両種類rowのID欠落RED→GREEN。queued-older claimと新wake IDが異なるケースをそのまま保持。source9f8f76620b69b3a37aa9063597f595b12051cd3e/2files/production10lines/clean/pushed、focused1/2subcases/runtime759/150.874s/adapter15/contract14loops178jobs/OSS/bash/diffPASS。fresh fleet_owner_correlation_review進行中/未PR/未main。
 - 実rootfleet前runのstateはede6/partial/changed69/skipped23/errors2/budget exceeded、失敗lastrowsはwriter-opportunity-response rc120とalpaca-investment-live rc1。全fleetPASSに変換せず各actualfailureを保持。newnative owner49188/ede6はlive、primary重複apply/kill0。次はcorrelation source受入→main/newimmutable/self-handoff/自然新rowとnativeeventsの直接join、SelfBuild/Eval/paid/CFO残gapを継続。全goalactive・全残TODO → §217。
+
+
+### 280. owner journal相関修復のmain統合と旧fence・メール監視境界
+
+- PR6544 final HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eは独立source review SHIP、runtime759/adapter15/contract/OSS/bash/diff PASS。GitHub全10checksのSUCCESSをfresh確認し、match-head-commit付きadmin squash mergeでmain43f020026c74eed4f6289fba0c303a0d8caafef6へ統合。mergedAt2026-10-03T21:57:02Z、fresh fetch/remote object一致。source proof state/fleet-owner-journal-correlation-source-20261004.json/mode600。全goalactive。
+- existing native reconciler49188/parent49182はede6 immutableからlive、currentもede6。newmain complete immutable/actual executable/self-handoff/new natural row directjoinは未達。primary重複build/apply/kill/wake0、旧journal backfill0。
+- fresh target statusでwriter-opportunity-responseは3e1/loaded-idle、旧occurrence18d86d5c4bd54110-82139のunknown1/no_readback_adapter。current journalに当該runイベント無し。last receiptは2026-09-25T01:51:35.969089Z/NO_RESPONSE/watched1、現在local DBはSUBMITTED2。他platformを含む全メール停止や、現在新メール0の証拠にしない。旧receipt単独でfence解放しない。
+- 既存Gogファイル認証の公式Gmail読取検索は2候補とも成功。submission ID/90日/最大20件の限定検索でAppSignal0、TECHi20候補を取得。候補件数は応募確認・返信・支払件数ではなく、上限到達のためTECHi全件数も未確認。メール本文・credentialはchat/logへ出さず、business DB/認証変更0。state/writer-response-mail-gap-20261004.json/mode600へ検索scope/metadataと未bindingを保存。次は正しい応募confirmationとの本人・thread・署名・時刻・意味の照合。
+- alpaca-investment-liveはinstalled4121/disabled、旧occurrence18d9e6f979d18818-14709のmoney unknown1/adapter_held。公式receipt不足のままenable/replayしない。直近fleetのwriter rc120とinvestment rc1をstatusのadmission診断と同一根因だと断定しない。
+- 次はexisting release owner terminal→main43 complete immutable→既存self-handoff→新自然journalの実run/claimed occurrence/timestampとnative eventを直接join。並行してWriter exact mail/source帰属、SelfBuild実hook、Paid正式納品/精算/着金・同期間費用を進める。現在の担当・全残TODO → §217。
