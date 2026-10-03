@@ -5521,3 +5521,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - emptydict/owner-only/array/wrongshatype/invalidJSON/directoryはattemptedtrue/okfalse/errored/inspect_promotion_hold、hold保持・revert/reapply/release0。invalid既存holdの上書き0。明示valid new/legacy sha:nullだけ従来premerge解放の互換を保つ。旧valid sha:null実merge後書込前crash windowは未解決であり、missing dataから成功を推定する修復とは別境界。
 - source関連RED→GREEN後、primary Node153/fullruntime765145.360s/disk97/contract/OSS/diff PASS。前Node148/765の結果とはHEADを区別する。source proof state/selfbuild-owner-baseline-source-20261004.json/mode600へcorrected evidenceを保存。
 - 別fresh selfbuild_owner_baseline_corrected_reviewをgpt-5.6-sol/high/forknoneで依頼中。初回fix-firstを既存通過と解釈せず、PR/merge/production source acceptanceは再review後。actual model/effort/usageは観測不能、wallet/profile/production rollback/cleanup0。全goalactive、全残TODO → §217。
+
+
+### 294. 3consumerのUTC日時findingをprimaryでRED修復
+
+- corrected fresh reviewerは336824で他のfinding解消を確認するが、created_at/expires_at非空stringだけではnot-a-dateをexpiredとしてhold解放し得る点をfix-first。JS/central/hostの同契約不足を指摘。実装worker followupはthread limitで2回起動失敗、worker完了/sourcecleanを確認しprimaryがsourceを引き継いだ。同時source編集0。
+- invalid created/expires、Feb30、timezone無し、逆順/同一intervalの6casesを各consumerでRED再現。JS Date.parse→UTCISO roundtrip、Python strptime→milliseconds UTCISO roundtripとexpires>createdを最小追加しGREEN。producer標準UTCISO writer shapeを維持し、不正日時はorphan操作0/GC停止、old valid sha:null crashwindowは別未解決。7eaa7af42c325fa17d621802c27be7c520018943/6files/90additions/clean/pushed。
+- Node154/disk98/contract/OSS/diff PASS。fullruntime初回は766/160.712s/errors1、既存test_wrapper_runs_outside_repository_working_directoryのstatus fundraiserが10s timeout。関連単独再実行は1PASS/2.09s、code/timeout変更0。fullsuite再確認running、初回失敗を消さずstate/selfbuild-owner-baseline-source-20261004.json/mode600へ保存。
+- 全suite再確認→別fresh source review→PR/CI/mainが次cursor。production wallet/auth/provider mutation/rollback/cleanup0。全SelfBuild実成果と全金融gateは未達、全残TODO → §217、全goalactive。
