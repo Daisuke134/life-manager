@@ -99,6 +99,12 @@ def extract_payload(proc: subprocess.CompletedProcess) -> dict:
         return {"error": f"browser DOM read failed: {reason}"}
     if "NOTE_PASSWORD_MISSING" in proc.stdout:
         return {"error": "NOTE_PASSWORD missing (configure LIFE_MANAGER_ENV_FILE first)"}
+    if "NOTE_CREDENTIALS_MISSING" in proc.stdout:
+        return {"error": "NOTE_EMAIL/NOTE_PASSWORD missing (configure LIFE_MANAGER_ENV_FILE first)"}
+    if "NOTE_LOGIN_FAILED" in proc.stdout:
+        return {"error": "note ordinary login did not reach the requested dashboard"}
+    if "SUBSTACK_COOKIE_MISSING" in proc.stdout:
+        return {"error": "SUBSTACK_SESSION_COOKIE missing (configure LIFE_MANAGER_ENV_FILE first)"}
     reason = proc.stdout.strip() or proc.stderr.strip()[-300:] or "no PAYLOAD_B64 line and no recognizable error prefix"
     return {"error": f"browser DOM read failed: {reason}"}
 
@@ -121,6 +127,27 @@ except Exception as e:
 ctx = b.contexts[0]
 pg = ctx.new_page()
 
+def login_if_shown():
+    if pg.locator('input[name="login"]').count() == 0:
+        return True
+    email = os.environ.get("NOTE_EMAIL", "")
+    pw = os.environ.get("NOTE_PASSWORD", "")
+    if not email or not pw:
+        print("NOTE_CREDENTIALS_MISSING")
+        return False
+    pg.fill('input[name="login"]', email)
+    pg.fill('input[name="password"]', pw)
+    pg.evaluate('''() => {{
+        const btn = [...document.querySelectorAll('button')].find(
+            b => (b.innerText || '').trim() === 'ログイン');
+        if (btn) btn.click();
+    }}''')
+    time.sleep(4)
+    if pg.locator('input[name="login"]').count() > 0:
+        print("NOTE_LOGIN_FAILED")
+        return False
+    return True
+
 def confirm_password_if_shown():
     if pg.locator('input[type="password"]').count() == 0:
         return True
@@ -140,6 +167,8 @@ def confirm_password_if_shown():
 try:
     pg.goto({NOTE_SALES_URL!r}, wait_until="domcontentloaded", timeout=40000)
     time.sleep(3)
+    if not login_if_shown():
+        sys.exit(1)
     if not confirm_password_if_shown():
         sys.exit(1)
     sales_url = pg.url
@@ -197,7 +226,7 @@ def measure_substack_pages(cdp_port: int) -> dict:
     home_url = f"https://{pub}/publish/home"
     earnings_url = f"https://{pub}/publish/stats/earnings"
     script = f"""
-import base64, json, sys, time
+import base64, json, os, sys, time
 from playwright.sync_api import sync_playwright
 
 p = sync_playwright().start()
@@ -205,7 +234,19 @@ try:
     b = p.chromium.connect_over_cdp("http://localhost:{cdp_port}")
 except Exception as e:
     print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
-ctx = b.contexts[0]
+ctx = b.new_context()
+raw_cookie = (os.environ.get("SUBSTACK_SESSION_COOKIE_JA") or
+              os.environ.get("SUBSTACK_SESSION_COOKIE", "")).strip()
+cookies = []
+for item in raw_cookie.split(";"):
+    name, separator, value = item.strip().partition("=")
+    if separator and name:
+        cookies.append({{"name": name, "value": value, "domain": ".substack.com", "path": "/"}})
+if not cookies:
+    print("SUBSTACK_COOKIE_MISSING")
+    ctx.close()
+    sys.exit(1)
+ctx.add_cookies(cookies)
 pg = ctx.new_page()
 try:
     pg.goto({home_url!r}, wait_until="domcontentloaded", timeout=40000)
@@ -225,6 +266,7 @@ try:
     print("PAYLOAD_B64:" + base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii"))
 finally:
     pg.close()
+    ctx.close()
 """
     try:
         proc = run_browser_script(script)
