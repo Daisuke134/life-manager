@@ -4374,3 +4374,16 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. PR6519の全CI terminal SUCCESSならadmin squash mergeする。
 2. exact live reconciler18006のterminalを確認してからmerged main complete immutable releaseとWriterのみtarget applyを行う。
 3. 自然Writer claim/official observationとprovenance hash→DB join/replay-zeroを閉じて§185 #3以降へ進む。全体goalはactive/未完。
+
+### 191. Writer provenance main統合とverified live wait
+
+- PR #6519は全GitHub CI SUCCESS（Loop control4m10s、TruffleHog3m22s、gitleaks2m53sを含む）とfresh SHIP後、admin squash mergeでmain `885cda7ee8c881af3dbbe7b5bc68b2b324d7251d`へ統合した。GitHub mergedAt=`2026-10-03T05:40:07Z`、fresh fetch/remote main objectが885へ一致する。implementation branch HEAD/upstreamはce6、clean。
+- このgoal turnはprogress（PR6518/6519統合、070 complete release/Writer target load、runtime provenance修復、SSOT保存）。次はverified waitであり、lock/state fileをliveness根拠にしない。exact process PID18006/PPID17980は070 immutable releaseのreconcilerとしてlive、latest owner resultはarticle-daily changed1/rc0/105s。このhandleがterminalになる前に885 release/applyを重ねず、running ownerをkillしない。
+- Writer installed/event SHA=070、natural last attempt18daee0cc5631240-14717はentrypoint前capacity busy。provider rowの最新時刻は05:13:56Zのまま。Note0/0とSubstackunknown/nullは観測値であり、verified external revenue/Stripe receipt/fee/payoutの新規proofなし。自然run→official dashboard→ledger→money DB join/replay-zero gateは未完。
+- API-equivalent cost receiptはusage/call IDs/actual modelが観測不可のためunavailable。費用や節約を推定せず、unknownを0へ変換しない。
+
+#### 更新後の原子cursor
+
+1. PID18006のterminalと競合reconciler/buildが無いことをfresh readbackする。main885からcomplete immutable releaseを作り、writer-sales-measureだけをidle/effect-safeにtarget applyしloaded argv/SHAを一致させる。
+2. 既存自然dispatchがNote fresh0/0・Substack公式unknownをappendし、measurement_run_id/owner_id/occurrence_id/release_shaとDB receipt_sha256がexact一致することを確認する。manual login/cookie injection/manual kickstartを自然proofとしない。
+3. Writer receipts0/unknownを保持しreplay-zeroを確認後、§185 #3→#12へ進む。vaultIPv4/IPv6404とSelf-Build/Eval既存adoption/repair failure debtを消さない。全体goalはactive/未完。
