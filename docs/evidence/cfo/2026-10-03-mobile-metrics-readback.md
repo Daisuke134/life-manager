@@ -79,7 +79,9 @@ Anicca's measured rates are impression→page view 0/5 = 0%, page view→install
 - `asc apps view --id 6762049696` returning “no resource” and public app lookup returning not found are expected because `6762049696` is a subscription record ID, not an app ID. The earlier interpretation that the row was unassigned was incorrect.
 - The JPY 4,250 is a real settled Anicca proceeds row, but it is not yet counted in B7/Financial Manager because no live Finance Detail producer is connected. Future identity validation must join the report Apple Identifier/SKU to an ASC subscription or IAP record and then to its parent app; it must not compare the raw subscription ID directly to the app ID.
 
-## Remaining gaps
+## Remaining gaps in the original 2026-10-03 snapshot
+
+This section records the original readback-time gaps. Tasks 6, 9, and 10 have since reached source-disposition completion on the feature branch; the current production/promotion cursor is in the 2026-10-04 addendum below and the implementation plan.
 
 - Distribution comes first: reconcile all six canonical app IDs against the 24 ASC records, then find official Analytics request/report IDs for the four uncovered products and read aligned daily windows back.
 - Resolve the active B7 subscription projection with an end-to-end test for staggered but fresh source timestamps, and obtain explicit RevenueCat currency from the producer/API. Until then, B7 MRR remains unknown.
@@ -87,3 +89,13 @@ Anicca's measured rates are impression→page view 0/5 = 0%, page view→install
 - The `6762049696` row is mapped to Anicca Annual but is not yet imported into B7/Financial Manager. Dais has no required Apple approval/auth action.
 - Connect a same-app, same-window paid-customer cohort for `install_to_paid`; the field is already shown unavailable with `paid_customer_cohort_unavailable`.
 - Campaign install attribution and product activation/retention remain unavailable until their source joins exist.
+
+## 2026-10-04 production readback delta
+
+Observed at approximately 2026-10-04 04:51–04:58 JST using read-only `bin/lm-loop status` and the production source files. This addendum supersedes older runtime-status statements above; historical ASC, RevenueCat, and Finance Detail observations remain unchanged.
+
+- `marketing-metrics-daily` is loaded-idle on release `9c03543e5dc51f7bc54f8e132a264964a0e40f6d`. Its latest natural run `18db1cd8910049c8-68721` passed at `2026-10-03T19:51:21Z`; the run used the existing production release, not the feature branch.
+- The production `business-outcomes.jsonl` has mobile rows for business date `2026-10-03`, observed around `19:50–19:51Z`. Anicca and Honne ASC source reads are available; legacy mobile App Store Sales reads report `provider_query_failed`. RevenueCat sources are present but persisted currency is still absent. PostHog has `missing_project_read_credential`; Anicca product analytics has raw event counts without a purchase event or user-level cohort denominator. A full-file query found zero `app_store_financial` rows.
+- `life-manager-cfo-hourly` is loaded-idle on release `be2b181bfaa40ca13f1e893777437055224f4f2f`. Latest occurrence `life-manager-cfo-hourly:18db1a3dbbbd6d28-51694` has terminal status `pass`, but `last_exit=78`, `effect_status=unknown`, no `provider_receipt_id`, and no `official_readback_ref`.
+- The durable delivered snapshot still says reporting date `2026-09-26`, provider message `94946`, delivered `2026-09-25T15:38:21.745Z`. `last-result.json` claims reporting date `2026-10-04`, status `sent`, provider message `102459`. They do not correlate to the same occurrence; current delivery is unverified, not confirmed failed or confirmed delivered.
+- The feature branch HEAD is `fe6e5888` while fetched `origin/main` is `655b2cf2`; merge-base is `80cccc6f`, with nine main-only and sixteen branch-only commits. The feature has not been promoted. Before promotion, merge current main into the existing branch without rewriting it, rerun full acceptance, and obtain the plan's fresh whole-branch review.
