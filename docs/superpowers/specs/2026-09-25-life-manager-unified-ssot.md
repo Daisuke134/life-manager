@@ -4414,3 +4414,14 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 1. PR6520全CI→admin squash mergeとPID18006terminalの両方を確認し、最新mergedmain complete immutable release→Writerだけidle/effect-safeapplyを行う。
 2. 自然wakeのNote/Substack公式観測row→runtimeidentity→DBreceipthash、replay-zeroを閉じる。未知売上を0へ変換しない。§185lane順序は維持する。
+
+### 194. Writer browser lease main統合
+
+- PR #6520は全CI SUCCESSとfresh SHIP後、admin squash mergeでmain `33b5dce0a6ade08cffdf3121ebd01bd73b0bb519`へ統合。GitHub mergedAt=`2026-10-03T05:49:42Z`、freshfetchとremote objectが33へ一致する。branchfix/writer-sales-browser-lease-20261003はHEAD/upstream9c31、clean。
+- Telegram milestoneはMSGID102080を確認。runtime/admission/providerの手動起動や認証変更は0。現在reconcilerPID18006/PPID17980は070releaseでlive、latestownerresultはmercor-revenue-application changed1/rc0/17s。
+- Writerは070 loaded-idleで、naturalattempt18daee0cc5631240-14717はpre-entrypointcapacitybusyのまま。公式provider rowはまだfresh自然runではない。自然proof、financialreceipts、CFOjoin、replay-zeroは未完。
+
+#### 更新後の原子cursor
+
+1. PID18006terminal/競合owner無しを確認したら、main33complete immutable releaseを生成しWriterだけidle/effect-safeapply。mainblob/manifest/loadedargv/SHAを照合する。
+2. 自然admissionclaim→Note/Substack公式append→runtimeidentity/DBhashjoin→replay-zeroを確認し、§185#3以降へ進む。全体goalはactive/未完。
