@@ -813,8 +813,11 @@ def capafy_entries(day: date, path: Path = CAPAFY_ANALYTICS, now: datetime | Non
 # ------------------------------------------------------------- mobile apps (RevenueCat, local state)
 
 BUSINESS_OUTCOMES = STATE / "marketing-metrics-daily" / "state" / "business-outcomes.jsonl"
-MOBILE_APPS_PRODUCTS = ("anicca-ios", "honne-ai")
-MOBILE_ASC_APP_IDS = {"anicca-ios": "6755129214", "honne-ai": "6759667221"}
+MOBILE_APPS_PRODUCTS = capafy_mobile.MOBILE_PRODUCTS
+MOBILE_ASC_APP_IDS = {
+    product_id: binding["asc_app_id"]
+    for product_id, binding in capafy_mobile.MOBILE_PRODUCT_BINDINGS.items()
+}
 MOBILE_UNKNOWN_CURRENCY = "UNKNOWN"
 
 

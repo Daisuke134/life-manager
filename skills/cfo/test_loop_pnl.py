@@ -363,14 +363,17 @@ class CapafyTest(unittest.TestCase):
 
 
 class MobileAppsTest(unittest.TestCase):
-    def test_fresh_rows_sum_revenue_and_expose_mrr_notes(self):
+    def test_fresh_rows_sum_all_six_mobile_products_and_expose_mrr_notes(self):
         notes = {}
         entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_fresh.jsonl", notes=notes))
         self.assertEqual(sums(entries), {("mobile-apps", "revenue", "UNKNOWN"): Decimal("7.75")})
-        self.assertEqual(notes["mrr"], {"anicca-ios": "20.34", "honne-ai": "0.0"})
+        self.assertEqual(notes["mrr"], {
+            "anicca-ios": "20.34", "honne-ai": "0.0", "breath-reset": "0.0",
+            "sleep-ritual": "0.0", "desk-stretch-timer": "0.0", "micro-mood": "0.0",
+        })
 
     def test_final_asc_proceeds_supersede_revenuecat_chart_revenue(self):
-        entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_asc_financial.jsonl"))
+        entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_asc_financial.jsonl", products=("anicca-ios", "honne-ai")))
         self.assertEqual(sums(entries), {("mobile-apps", "revenue", "USD"): Decimal("9.99")})
         self.assertEqual(entries[0].receipt_id, "appstoreconnect:financial-reports/sales-2026-09/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#0")
 
