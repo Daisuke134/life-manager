@@ -90,3 +90,19 @@ test("provider lanes require fresh primaries and bounded fallback before complet
   assert.equal(overCap.complete, false);
   assert.ok(overCap.failures.includes("provider_lane_cap_exceeded:transit:2026-10-07"));
 });
+
+test("missing provider fallback cap evidence keeps the seven-day gate incomplete", () => {
+  const periods = Array.from({ length: 7 }, (_, index) => row(
+    `2026-10-${String(index + 1).padStart(2, "0")}`,
+    { providerLanes: {
+      poi: { status: "fresh", primary: "openpoi" },
+      transit: { status: "fresh", primary: "transit-api", fallbackCalls: 0 },
+      geocoder: { status: "fresh", primary: "cache", fallbackCalls: 0, fallbackCap: 200 },
+    } },
+  ));
+  const result = evaluateCfoObservationPeriods(periods, {
+    latestDate: "2026-10-07", requiredProviderLanes: ["poi", "transit", "geocoder"],
+  });
+  assert.equal(result.complete, false);
+  assert.ok(result.failures.includes("provider_lane_cap_evidence_missing:poi:2026-10-07"));
+});

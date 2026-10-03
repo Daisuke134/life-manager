@@ -297,6 +297,23 @@ test("directionsRoute: a never-settling Transit injection times out and falls ba
   assert.equal(googleCalls, 1);
 });
 
+test("Transit timeout emits a typed failure observation before the single Google fallback", async () => {
+  const events = [];
+  const route = await travel.directionsRoute("新宿区A", "渋谷区B", "key", EVENT_START, NOW, false, {
+    timezone: "Asia/Tokyo",
+    _geocode: fakeGeocode,
+    _transitFetch: () => new Promise(() => {}),
+    _transitTimeoutMs: 5,
+    _directionsMinutesGoogle: async () => 30,
+    _recordUsageEvent: async (event) => { events.push(event); return true; },
+    _routeCache: freshCache(),
+  });
+  assert.equal(route.provider, "google");
+  const transitFailure = events.find((event) => event.provider === "transit_api" && event.outcome === "failure");
+  assert.equal(transitFailure.failureClass, "timeout");
+  assert.equal(transitFailure.providerUnits, 0);
+});
+
 test("transitFetchPlan: timeout aborts the real fetch and structured fallback makes one Google HTTP request", async () => {
   const originalFetch = global.fetch;
   const requests = [];

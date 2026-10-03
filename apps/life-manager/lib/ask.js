@@ -180,7 +180,13 @@ async function placesSearch(query, mapsKey, options = {}) {
   if (poiSearch && options.openPoiSearch !== null) {
     try {
       const poi = await poiSearch(query, { fetchImpl: options.openPoiFetch });
-      const candidates = (poi.candidates || []).filter((candidate) => String(candidate.address || "").trim()).slice(0, 5);
+      const attributionUrl = String(poi.attributionUrl || "").trim();
+      const candidates = (poi.candidates || []).filter((candidate) => (
+        String(candidate.address || "").trim()
+        && Array.isArray(candidate.licenses) && candidate.licenses.length > 0
+        && Array.isArray(candidate.attributions) && candidate.attributions.length > 0
+        && attributionUrl
+      )).slice(0, 5);
       const results = candidates.map((candidate) => ({
         name: candidate.name,
         address: candidate.address,
@@ -192,7 +198,7 @@ async function placesSearch(query, mapsKey, options = {}) {
           attributions: poi.attributions || [],
           licenses: [...new Set(candidates.flatMap((candidate) => Array.isArray(candidate.licenses)
             ? candidate.licenses.map(String) : []))].sort(),
-          attributionUrl: poi.attributionUrl || "https://openpoiapi.com/attribution.html",
+          attributionUrl,
           provider: "openpoi",
         };
       }
@@ -485,15 +491,22 @@ async function unclaimAsk(uid, eventId, supaUrl, supaKey) {
   }).catch(() => {});
 }
 
-async function recordResolution(uid, eventId, source, supaUrl, supaKey) {
+async function recordResolution(uid, eventId, source, supaUrl, supaKey, provenance = null) {
   if (!uid || !eventId || !source || !supaUrl || !supaKey) return;
+  const safeProvenance = provenance && typeof provenance === "object" ? {
+    provider: String(provenance.provider || "").trim(),
+    licenses: Array.isArray(provenance.licenses) ? provenance.licenses.map(String).filter(Boolean).sort() : [],
+    attributions: Array.isArray(provenance.attributions) ? provenance.attributions.map(String).filter(Boolean).sort() : [],
+    attributionUrl: String(provenance.attributionUrl || "").trim(),
+  } : null;
   await fetch(`${supaUrl}/rest/v1/lm_ask_log?on_conflict=uid,event_id`, {
     method: "POST",
     headers: {
       apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json",
       Prefer: "resolution=merge-duplicates,return=minimal",
     },
-    body: JSON.stringify({ uid, event_id: eventId, resolved_from: source }),
+    body: JSON.stringify({ uid, event_id: eventId, resolved_from: source,
+      ...(safeProvenance && safeProvenance.provider ? { resolution_provenance: safeProvenance } : {}) }),
   }).catch(() => {});
 }
 
@@ -549,7 +562,12 @@ async function askTick(uid, opts) {
     }
     if (res.kind === "filled") {
       await patch(uid, event.id, { location: res.location }, composioKey, opts.gmailAccountId);
-      await record(uid, event.id, res.fromMemory ? "location_field" : (res.resolvedFrom || "web_search"), supaUrl, supaKey);
+      const source = res.fromMemory ? "location_field" : (res.resolvedFrom || "web_search");
+      const provenance = res.provider === "openpoi" ? {
+        provider: res.provider, licenses: res.licenses, attributions: res.attributions, attributionUrl: res.attributionUrl,
+      } : null;
+      if (provenance) await record(uid, event.id, source, supaUrl, supaKey, provenance);
+      else await record(uid, event.id, source, supaUrl, supaKey);
       autofilled++; // location now set → needsLocation=false next tick → drops out of this loop
       continue;
     }

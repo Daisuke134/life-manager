@@ -9,7 +9,7 @@ Status: `partial` / fail-closed. The provider contracts, benchmark runners, fall
 | Japan POI | `2026-10-02` OpenPOI live probe; `0cff346fea` geocoder benchmark contract | Keep OpenPOI primary; Google Places remains budgeted fallback. |
 | Japan transit | `ba24a8d7a7`; live Kyoto probe fresh `2709s/1 leg`; Tokyo probe timeout | Keep Transit primary with timeout/cache; Google fallback remains sequential. |
 | Driving | `ba24a8d7a7`; one documented OSRM demo read-only probe fresh `468s/1 leg` | OSRM is shadow candidate only; no production endpoint selected. |
-| Geocoding | `0cff346fea`; digest `552a4bc950ae9a57b92f7ad8209a57fcd1d11a29a5a3e6343b1bda2879efc2bb` | No winner: Google/Geoapify/selfhost slots were unconfigured, so no candidate is promoted. |
+| Geocoding | `0cff346fea`; digest `8156a9373f58db2ff05f3ebd6c1d49a2f726389b878c49a579e26ea18802e9bc` | No winner: Google/Geoapify/selfhost slots were unconfigured, so no candidate is promoted. |
 | LLM | `f91cafffaf`; digest `3b1e4bf9064eff18b730bec13c2c7b3b6bbe0bf1adaa89742c0e52067b058350` | `keep_current`; local lane is not eligible until a real existing routing-boundary shadow run has receipts. |
 
 ## Cost controls

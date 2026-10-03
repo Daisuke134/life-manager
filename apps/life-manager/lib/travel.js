@@ -555,23 +555,36 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const compute = async () => {
     if (routeMode === "transit") {
       let plan = null;
+      let transitFailureClass = null;
       const controller = typeof AbortController === "function" ? new AbortController() : null;
       let timer;
       const transitPromise = Promise.resolve()
         .then(() => transitFetch(srcGeo, dstGeo, {
           ...query, timezone: call.timezone, signal: controller && controller.signal,
         }))
-        .catch(() => null);
+        .catch(() => { transitFailureClass = "network"; return null; });
       const timeoutPromise = new Promise((resolve) => {
         timer = setTimeout(() => {
           if (controller) controller.abort();
+          transitFailureClass = "timeout";
           resolve(null);
         }, transitTimeoutMs);
       });
       try { plan = await Promise.race([transitPromise, timeoutPromise]); }
       finally { clearTimeout(timer); }
       const parsed = plan && parseTransitPlan(plan, { anchorType: query.type, anchorSecs: query.anchorSecs });
-      if (parsed && Number.isFinite(routeDurationSeconds(parsed))) return parsed;
+      if (parsed && Number.isFinite(routeDurationSeconds(parsed))) {
+        await emitUsage(options, { tenantId: uid, provider: "transit_api", feature: "travel_route", outcome: "success",
+          failureClass: null, providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0,
+          actualStatus: "unknown", meta: { provider_mode: "free_primary" } });
+        return parsed;
+      }
+      const failureClass = transitFailureClass
+        || (plan && Array.isArray(plan.journeys) && plan.journeys.length ? "malformed" : "no_route");
+      noteProviderFailure(routeUsage, failureClass);
+      await emitUsage(options, { tenantId: uid, provider: "transit_api", feature: "travel_route", outcome: "failure",
+        failureClass, providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+        actualStatus: "unknown", meta: { provider_mode: "free_primary" } });
     }
     return google(); // non-JP/unresolvable or Transit failure → exactly one Google fallback
   };

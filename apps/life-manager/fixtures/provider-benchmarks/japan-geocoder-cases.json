@@ -1,12 +1,12 @@
 [
-  {"caseId":"tokyo-station","query":"東京駅","expectedPrecision":"exact"},
-  {"caseId":"kyoto-station","query":"京都駅","expectedPrecision":"exact"},
-  {"caseId":"sapporo-station","query":"札幌駅","expectedPrecision":"exact"},
-  {"caseId":"naha-airport","query":"那覇空港","expectedPrecision":"exact"},
-  {"caseId":"public-city","query":"東京都","expectedPrecision":"city"},
+  {"caseId":"tokyo-station","query":"東京駅","expectedPrecision":"exact","groundTruth":{"lat":35.681236,"lon":139.767125,"toleranceMeters":100}},
+  {"caseId":"kyoto-station","query":"京都駅","expectedPrecision":"exact","groundTruth":{"lat":35.011665,"lon":135.768326,"toleranceMeters":100}},
+  {"caseId":"sapporo-station","query":"札幌駅","expectedPrecision":"exact","groundTruth":{"lat":43.068661,"lon":141.350755,"toleranceMeters":100}},
+  {"caseId":"naha-airport","query":"那覇空港","expectedPrecision":"exact","groundTruth":{"lat":26.195814,"lon":127.645818,"toleranceMeters":250}},
+  {"caseId":"public-city","query":"東京都","expectedPrecision":"city","groundTruth":{"lat":35.6895,"lon":139.6917,"toleranceMeters":5000}},
   {"caseId":"no-result","query":"存在しない公開ランドマーク","expectedPrecision":"none"},
   {"caseId":"timeout","query":"timeout-case","expectedPrecision":"none"},
   {"caseId":"quota","query":"quota-case","expectedPrecision":"none"},
-  {"caseId":"missing-attribution","query":"missing-attribution-case","expectedPrecision":"exact"},
-  {"caseId":"unsupported-license","query":"unsupported-license-case","expectedPrecision":"exact"}
+  {"caseId":"missing-attribution","query":"missing-attribution-case","expectedPrecision":"exact","groundTruth":{"lat":35.681236,"lon":139.767125,"toleranceMeters":100}},
+  {"caseId":"unsupported-license","query":"unsupported-license-case","expectedPrecision":"exact","groundTruth":{"lat":35.681236,"lon":139.767125,"toleranceMeters":100}}
 ]

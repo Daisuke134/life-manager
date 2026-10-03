@@ -9,11 +9,11 @@ Status: `partial` — deterministic contract and fail-closed runner proved; live
 - Release SHA: `unreleased` (read-only benchmark from the source worktree)
 - Observation clock: `2026-10-03T00:00:00.000Z`
 - Case/provider rows: `30`
-- Digest: `552a4bc950ae9a57b92f7ad8209a57fcd1d11a29a5a3e6343b1bda2879efc2bb`
+- Digest: `8156a9373f58db2ff05f3ebd6c1d49a2f726389b878c49a579e26ea18802e9bc`
 
 ## Read-only result
 
-All 30 rows are `unavailable/provider_not_configured` for the three configured candidates (`google-geocoding`, `geoapify-free`, `selfhost-photon`). No network call was made, no credential was read into output, and the winner is correctly `no_winner/no_source_backed_candidate`. This is not evidence that any candidate is inaccurate; it is evidence that the runner refuses to promote an unconfigured candidate.
+All 30 rows are `unavailable/provider_not_configured` for the three configured candidates (`google-geocoding`, `geoapify-free`, `selfhost-photon`). No network call was made, no credential was read into output, and the winner is correctly `no_winner/provider_accuracy_or_coverage_below_threshold`. This is not evidence that any candidate is inaccurate; it is evidence that the runner refuses to promote an unconfigured candidate or a corpus without ground-truth coverage.
 
 ## Selection rules
 

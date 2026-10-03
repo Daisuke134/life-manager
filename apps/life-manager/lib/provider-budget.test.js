@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
-  authorizeProviderOperation, defaultProviderCaps, evaluateProviderBudget, summarizeProviderBudget,
+  authorizeProviderOperation, createSupabaseProviderBudgetAuthorizer, defaultProviderCaps, evaluateProviderBudget, summarizeProviderBudget,
 } = require("./provider-budget.js");
 
 test("provider budget states are deterministic and unknown cost is never normal", () => {
@@ -78,4 +78,44 @@ test("authorization denies a projected cap breach but keeps essential cache read
     allowed: true, state: "normal", reason: "cache_hit",
     capKey: "google_maps:route", capState: "stopped", nextAction: "read_cache",
   });
+});
+
+test("Supabase provider authorizer reads durable daily/monthly usage and fails closed on read errors", async () => {
+  const calls = [];
+  const authorize = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key", nowMs: Date.parse("2026-10-03T12:00:00Z"),
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return { ok: true, json: async () => [{ tenant_id: "tenant-a", provider: "google_maps", provider_units: 99, estimated_cost_usd: 4.99, unknown_count: 0 }] };
+    },
+  });
+  const denied = await authorize({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 2, estimatedUsd: 0.01 });
+  assert.equal(denied.allowed, false);
+  assert.equal(denied.reason, "cap_exceeded");
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].url, /rpc\/lm_provider_budget_summary/);
+
+  const failClosed = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key", fetchImpl: async () => ({ ok: false, status: 503 }),
+  });
+  const failed = await failClosed({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 1, estimatedUsd: 0.005 });
+  assert.equal(failed.allowed, false);
+  assert.equal(failed.reason, "budget_read_failed");
+  const cache = await failClosed({ tenantId: "tenant-a", provider: "google_maps", operation: "route", cacheHit: true, providerUnits: 0, estimatedUsd: 0 });
+  assert.equal(cache.allowed, true);
+  assert.equal(cache.reason, "cache_hit");
+
+  const dailyAuthorizer = createSupabaseProviderBudgetAuthorizer({
+    supaUrl: "https://db.example", supaKey: "service-key", nowMs: Date.parse("2026-10-03T12:00:00Z"),
+    fetchImpl: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      return { ok: true, json: async () => body.p_period_start.endsWith("T00:00:00.000Z")
+        && body.p_period_start.slice(8, 10) === "03"
+        ? [{ tenant_id: "tenant-a", provider: "google_maps", provider_units: 99, estimated_cost_usd: 0.49, unknown_count: 0 }]
+        : [] };
+    },
+  });
+  const dailyDenied = await dailyAuthorizer({ tenantId: "tenant-a", provider: "google_maps", operation: "route", providerUnits: 2, estimatedUsd: 0.01 });
+  assert.equal(dailyDenied.allowed, false);
+  assert.equal(dailyDenied.reason, "cap_exceeded");
 });

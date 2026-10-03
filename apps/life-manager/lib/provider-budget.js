@@ -128,4 +128,68 @@ function summarizeProviderBudget(rows, { since = null, now = new Date() } = {}) 
   };
 }
 
-module.exports = { authorizeProviderOperation, defaultProviderCaps, evaluateProviderBudget, summarizeProviderBudget };
+function periodBounds(nowMs, period) {
+  const now = new Date(nowMs == null ? Date.now() : nowMs);
+  if (!Number.isFinite(now.getTime())) throw new Error("budget clock invalid");
+  const start = period === "daily"
+    ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = period === "daily"
+    ? new Date(start.getTime() + 86400000)
+    : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+async function readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider, period, nowMs }) {
+  const base = String(supaUrl || "").replace(/\/+$/, "");
+  if (!base || !supaKey || typeof fetchImpl !== "function") throw new Error("budget_store_unconfigured");
+  const bounds = periodBounds(nowMs, period);
+  const response = await fetchImpl(`${base}/rest/v1/rpc/lm_provider_budget_summary`, {
+    method: "POST",
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_period_start: bounds.start, p_period_end: bounds.end, p_tenant_id: String(tenantId) }),
+  });
+  if (!response || response.ok !== true) throw new Error("budget_store_read_failed");
+  const rows = await response.json();
+  const matching = (Array.isArray(rows) ? rows : []).filter((row) => String(row?.provider || "") === String(provider || ""));
+  return matching.reduce((sum, row) => ({
+    estimatedUsd: sum.estimatedUsd + Math.max(0, finite(row.estimated_cost_usd)),
+    units: sum.units + Math.max(0, finite(row.provider_units)),
+    unknownCount: sum.unknownCount + Math.max(0, finite(row.unknown_count)),
+  }), { estimatedUsd: 0, units: 0, unknownCount: 0 });
+}
+
+function createSupabaseProviderBudgetAuthorizer({ supaUrl, supaKey, fetchImpl = globalThis.fetch, nowMs = Date.now } = {}) {
+  return async (input = {}) => {
+    const tenantId = String(input.tenantId || "").trim();
+    if (input.cacheHit === true) {
+      return authorizeProviderOperation(input, { state: "degraded", caps: defaultProviderCaps() });
+    }
+    if (!tenantId) return { allowed: false, state: "stopped", reason: "budget_identity_missing", nextAction: "use_cache_or_stop" };
+    try {
+      const [daily, monthly] = await Promise.all([
+        readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider: input.provider, period: "daily", nowMs }),
+        readProviderBudgetSummary({ supaUrl, supaKey, fetchImpl, tenantId, provider: input.provider, period: "monthly", nowMs }),
+      ]);
+      // A missing provider row is a legitimate zero usage snapshot, not an implicit billing receipt.
+      const caps = defaultProviderCaps();
+      const monthlyDecision = authorizeProviderOperation({ ...input, period: "monthly" }, {
+        state: "normal", caps, getUsage: () => monthly,
+      });
+      if (monthlyDecision.allowed !== true) return monthlyDecision;
+      const dailyDecision = authorizeProviderOperation({ ...input, period: "daily" }, {
+        state: "normal", caps, getUsage: () => daily,
+      });
+      if (dailyDecision.allowed !== true) return dailyDecision;
+      return { ...monthlyDecision, dailyCapState: dailyDecision.capState || dailyDecision.state };
+    } catch {
+      const capKey = providerCapKey(input.provider, input.operation, input.essential === true);
+      return { allowed: false, state: "degraded", reason: "budget_read_failed", capKey, capState: "degraded", nextAction: "use_cache_or_stop" };
+    }
+  };
+}
+
+module.exports = {
+  authorizeProviderOperation, createSupabaseProviderBudgetAuthorizer, defaultProviderCaps,
+  evaluateProviderBudget, summarizeProviderBudget,
+};

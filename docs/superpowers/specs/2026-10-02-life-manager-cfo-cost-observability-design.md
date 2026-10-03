@@ -351,7 +351,7 @@ This provider-cost sequence is additive to Section 11's personal-MUFG and extern
 
 ## 13. Provider-cost implementation cursor
 
-The first six provider-cost tasks are now implemented on the dedicated branch: coordinate-ready Japan Transit no longer requires a Google key; OpenPOI attribution/licenses/provider metadata are carried through location resolution; geocoder and routing benchmark runners produce deterministic fail-closed evidence; provider caps and fallback telemetry are enforced; and the local-LLM scorecard refuses an unconfigured or lower-quality candidate. Focused tests and the existing Life Manager suite remain green (the current suite is 188/188 PASS; the CFO Python suite is 248/248 PASS before the latest variance test and must be rerun at the final gate).
+The first six provider-cost tasks are now implemented on the dedicated branch: the production scheduler reaches coordinate-ready Japan Transit without a Google key; a Supabase-backed daily/monthly provider authorizer denies paid work when usage readback fails or caps are exceeded; Transit timeout/malformed states emit typed observations before one fallback; OpenPOI incomplete attribution is rejected and complete provenance is durably retained; geocoder and routing benchmark runners measure corpus-level accuracy/resource evidence; provider caps and fallback telemetry are enforced; and the local-LLM scorecard refuses an unconfigured, slower, privacy-unknown, lower-quality, or receipt-incomplete candidate. Focused tests and the existing Life Manager suite remain green (the current suite is 188/188 PASS; the CFO Python suite is 249/249 PASS).
 
 The current acceptance cursor is:
 

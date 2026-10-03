@@ -23,7 +23,7 @@ function scoreCandidate(candidate, rows) {
   const onlineCorrect = onlineRows.filter((row) => row.resultKind === "online").length;
   const asksCorrect = askRows.filter((row) => row.expectedKind === "ask").length;
   const correct = rows.filter((row) => row.correct).length;
-  const receiptCount = rows.filter((row) => row.receiptComplete === true).length;
+  const receiptCount = rows.filter((row) => row.receiptComplete === true && String(row.receiptRef || "").trim()).length;
   const estimatedCostUsd = rows.reduce((sum, row) => sum + (Number(row.estimatedCostUsd) || 0), 0);
   const latencyMs = rows.reduce((sum, row) => sum + (Number(row.latencyMs) || 0), 0);
   const privacy = [...new Set(rows.map((row) => String(row.privacyStatus || "unknown")))].sort();
@@ -70,6 +70,7 @@ async function runLlmProviderBenchmark({
         location: value.location == null ? null : String(value.location), latencyMs: Number.isFinite(Number(value.latencyMs)) ? Number(value.latencyMs) : Date.now() - started,
         estimatedCostUsd: Number.isFinite(Number(value.estimatedCostUsd)) ? Number(value.estimatedCostUsd) : 0,
         privacyStatus: String(value.privacyStatus || "unknown"), receiptComplete: value.receiptComplete === true,
+        receiptRef: value.receiptRef == null ? null : String(value.receiptRef),
       });
     }
   }
@@ -80,10 +81,15 @@ async function runLlmProviderBenchmark({
   for (const score of scores) {
     if (!baseline || score.candidate === baseline.candidate) continue;
     score.eligible = score.receiptCompleteness === 1
+      && baseline.receiptCompleteness === 1
       && (score.accuracy ?? 0) >= (baseline.accuracy ?? 0)
       && (score.onlineAccuracy ?? 0) >= (baseline.onlineAccuracy ?? 0)
       && (score.locationAccuracy ?? 0) >= (baseline.locationAccuracy ?? 0)
-      && (score.askPrecision ?? 0) >= (baseline.askPrecision ?? 0);
+      && (score.askPrecision ?? 0) >= (baseline.askPrecision ?? 0)
+      && (score.askRecall ?? 0) >= (baseline.askRecall ?? 0)
+      && (score.latencyMs ?? Infinity) <= (baseline.latencyMs ?? Infinity)
+      && (score.estimatedCostUsd ?? Infinity) <= (baseline.estimatedCostUsd ?? Infinity)
+      && score.privacyStatus.every((value) => ["local", "approved_cloud"].includes(value));
   }
   const recommendation = !baseline ? "no_baseline" : scores.some((score) => score.eligible)
     ? "eligible_for_shadow" : "keep_current";

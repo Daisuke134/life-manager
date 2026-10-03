@@ -41,3 +41,15 @@ test("late tick scheduler surface has no mail sender dependency", () => {
   const lateTickSource = source.slice(start, end);
   assert.doesNotMatch(lateTickSource, /sendLateNotice|noticeOpts|RESEND_API_KEY/);
 });
+
+test("travel scheduler reaches the free-provider path without a Google Maps key", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let received;
+  const result = await travelUserOnce({ uid: "tenant-free-transit", daily_automation_enabled: true }, {
+    apiKey: "composio-key", mapsKey: "", geminiKey: "",
+    fillTravel: async (_uid, options) => { received = options; return { inserted: 0, checked: 1, outboundReports: [] }; },
+  });
+  assert.equal(result.checked, 1);
+  assert.equal(Boolean(received.mapsKey), false);
+  assert.equal(typeof received._authorizeProviderOperation, "function");
+});

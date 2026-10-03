@@ -43,6 +43,7 @@ const { sendMessage } = require("./lib/telegram.js");
 const { langForPhone } = require("./lib/call-language.js");
 const { recordDailyComposioPoll } = require("./lib/ledger.js");
 const { schedulerPollInterval } = require("./lib/composio-budget.js");
+const { createSupabaseProviderBudgetAuthorizer } = require("./lib/provider-budget.js");
 const {
   processLocationLateNotice, getLiveLocation,
 } = require("./lib/late-notice.js");
@@ -98,6 +99,17 @@ function wakeEventKey(ev, levelMin) {
 const LATE_CUTOFF_MIN = 0;
 
 const SUPA = () => ({ url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY });
+
+function providerBudgetAuthorizer(deps = {}) {
+  if (typeof deps.authorizeProviderOperation === "function") return deps.authorizeProviderOperation;
+  const { url, key } = SUPA();
+  if (!url || !key) {
+    return async (input = {}) => input.cacheHit === true
+      ? { allowed: true, state: "degraded", reason: "cache_hit", nextAction: "read_cache" }
+      : { allowed: false, state: "degraded", reason: "budget_read_failed", nextAction: "use_cache_or_stop" };
+  }
+  return createSupabaseProviderBudgetAuthorizer({ supaUrl: url, supaKey: key, fetchImpl: deps.fetchImpl });
+}
 
 // isHelperBlock now lives in lib/wake-filter.js (shared with the importance filter + leave anchor).
 
@@ -1160,10 +1172,11 @@ async function travelUserOnce(u, deps = {}) {
   const apiKey = deps.apiKey || process.env.COMPOSIO_API_KEY;
   const mapsKey = deps.mapsKey || process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY;
   const geminiKey = deps.geminiKey || process.env.GEMINI_API_KEY; // agentic resolve of room-name / unroutable locations
-  if (!apiKey || !mapsKey) return;
+  if (!apiKey) return;
   const configuredSupa = SUPA();
   const supaUrl = deps.supaUrl !== undefined ? deps.supaUrl : configuredSupa.url;
   const supaKey = deps.supaKey !== undefined ? deps.supaKey : configuredSupa.key;
+  const authorizeProviderOperation = providerBudgetAuthorizer(deps);
   try {
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
@@ -1174,6 +1187,7 @@ async function travelUserOnce(u, deps = {}) {
       _reserveManagedAction: deps.reserveManagedAction || (deps.fillTravel ? undefined : reserveManagedAction),
       _completeManagedAction: deps.completeManagedAction || (deps.fillTravel ? undefined : completeManagedAction),
       _releaseManagedAction: deps.releaseManagedAction || (deps.fillTravel ? undefined : releaseManagedAction),
+      _authorizeProviderOperation: authorizeProviderOperation,
       gmailAccountId: u.gmail_account_id,
     });
     if (r.inserted) console.log(`[travel] uid=${u.uid.slice(0, 12)} inserted=${r.inserted} checked=${r.checked}`);
@@ -1197,7 +1211,7 @@ async function travelUserOnce(u, deps = {}) {
 async function travelTick(deps = {}) {
   const apiKey = process.env.COMPOSIO_API_KEY;
   const mapsKey = process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey || !mapsKey) return;
+  if (!apiKey) return;
   const listUsers = deps.listUsers || supaUsers;
   const travel = deps.travel || travelUserOnce;
   const users = await listUsers();
@@ -1214,12 +1228,13 @@ function startTravelLoop() {
 // email via Resend); replies arrive on webhooks (/telegram, /inbound-email), not polled here ──
 const ASK_TICK_MS = 20 * 60 * 1000;
 
-async function askUserOnce(u) {
+async function askUserOnce(u, deps = {}) {
   if (u && (u.daily_automation_enabled === false || u.notifications_enabled === false)) return;
   const composioKey = process.env.COMPOSIO_API_KEY;
   const resendKey = process.env.RESEND_API_KEY;                            // our-domain email send
   const mapsKey = process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY; // Places grounding
   const geminiKey = process.env.GEMINI_API_KEY;                            // agentic resolve/read
+  const authorizeProviderOperation = providerBudgetAuthorizer(deps);
   const telegramToken = process.env.LM_TELEGRAM_BOT_TOKEN;                 // Telegram ask channel
   const { url: supaUrl, key: supaKey } = SUPA();
   if (!composioKey || !supaUrl || !geminiKey) return;
@@ -1233,6 +1248,7 @@ async function askUserOnce(u) {
       gmailAccountId: u.gmail_account_id,
       unipileToken: process.env.UNIPILE_TOKEN,
       unipileDsn: process.env.UNIPILE_DSN,
+      authorizeProviderOperation,
     });
     if (r.autofilled || r.asked || r.resolved)
       console.log(`[ask] uid=${u.uid.slice(0, 12)} autofilled=${r.autofilled} asked=${r.asked} resolved=${r.resolved} via=${u.telegram_chat_id ? "tg" : "email"}`);

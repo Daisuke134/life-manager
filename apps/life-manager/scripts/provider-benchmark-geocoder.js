@@ -18,6 +18,14 @@ function precisionRank(value) {
   return ranks[String(value || "none").toLowerCase()] || 0;
 }
 
+function distanceMeters(aLat, aLon, bLat, bLon) {
+  const rad = Math.PI / 180;
+  const dLat = (bLat - aLat) * rad; const dLon = (bLon - aLon) * rad;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLon / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
+
 function normalizeParsedResult(parsed, response, provider) {
   const value = parsed && typeof parsed === "object" ? parsed : {};
   const httpStatus = Number(response && response.status);
@@ -34,6 +42,8 @@ function normalizeParsedResult(parsed, response, provider) {
     const terms = provider && provider.terms && typeof provider.terms === "object" ? provider.terms : {};
     return {
       status: "fresh",
+      lat,
+      lon,
       precision: String(value.precision || "coarse"),
       attributionRefs: uniqueStrings(value.attributionRefs),
       licenseRefs: uniqueStrings(value.licenseRefs),
@@ -46,12 +56,20 @@ function normalizeParsedResult(parsed, response, provider) {
 }
 
 function rowFor({ item, provider, observedAt, releaseSha, latencyMs, result }) {
+  const groundTruth = item && item.groundTruth;
+  const distance = groundTruth && result.lat != null && result.lon != null
+    ? distanceMeters(Number(groundTruth.lat), Number(groundTruth.lon), Number(result.lat), Number(result.lon)) : null;
+  const accuracyStatus = groundTruth
+    ? result.status === "fresh" && distance != null && distance <= Number(groundTruth.toleranceMeters || 0) ? "pass" : "fail"
+    : null;
   return {
     caseId: String(item.caseId),
     provider: String(provider.name),
     status: result.status,
     precision: result.precision || "none",
     latencyMs: Math.max(0, Math.round(Number(latencyMs) || 0)),
+    distanceMeters: distance == null ? null : Number(distance.toFixed(3)),
+    accuracyStatus,
     attributionRefs: uniqueStrings(result.attributionRefs),
     licenseRefs: uniqueStrings(result.licenseRefs),
     termsAttributionRefs: uniqueStrings(result.termsAttributionRefs || provider.terms?.attributionRefs),
@@ -83,16 +101,27 @@ function summaryFor(rows) {
 }
 
 function selectBenchmarkWinner(rows) {
-  const eligible = (Array.isArray(rows) ? rows : [])
-    .filter((row) => row && row.status === "fresh")
-    .filter((row) => Array.isArray(row.attributionRefs) && row.attributionRefs.length > 0)
-    .filter((row) => Array.isArray(row.licenseRefs) && row.licenseRefs.length > 0)
-    .filter((row) => row.licenseRefs.every(supportedLicense));
-  if (!eligible.length) return { decision: "no_winner", reason: "no_source_backed_candidate" };
-  eligible.sort((a, b) => precisionRank(b.precision) - precisionRank(a.precision)
-    || Number(a.latencyMs || 0) - Number(b.latencyMs || 0)
-    || String(a.provider).localeCompare(String(b.provider)));
-  return { provider: eligible[0].provider, decision: "eligible_for_shadow" };
+  const grouped = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    if (row && row.provider) (grouped.get(row.provider) || (grouped.set(row.provider, []), grouped.get(row.provider))).push(row);
+  }
+  const eligible = [];
+  for (const [provider, providerRows] of grouped.entries()) {
+    const measurable = providerRows.filter((row) => row.accuracyStatus != null);
+    if (!measurable.length) continue;
+    const fresh = measurable.filter((row) => row.status === "fresh");
+    const sourceBacked = fresh.every((row) => Array.isArray(row.attributionRefs) && row.attributionRefs.length > 0
+      && Array.isArray(row.licenseRefs) && row.licenseRefs.length > 0
+      && row.licenseRefs.every(supportedLicense));
+    const coverage = measurable.length ? fresh.length / measurable.length : 0;
+    const accuracy = measurable.length ? measurable.filter((row) => row.accuracyStatus === "pass").length / measurable.length : 0;
+    if (sourceBacked && coverage === 1 && accuracy === 1) eligible.push({ provider, coverage, accuracy });
+  }
+  if (!eligible.length) {
+    return { decision: "no_winner", reason: grouped.size ? "provider_accuracy_or_coverage_below_threshold" : "no_source_backed_candidate" };
+  }
+  eligible.sort((a, b) => b.accuracy - a.accuracy || b.coverage - a.coverage || a.provider.localeCompare(b.provider));
+  return { provider: eligible[0].provider, decision: "eligible_for_shadow", accuracy: eligible[0].accuracy, coverage: eligible[0].coverage };
 }
 
 async function withTimeout(task, timeoutMs) {

@@ -8,7 +8,7 @@ Status: `partial` — bounded parser/contract and low-volume read-only probes co
 - Runner: `apps/life-manager/scripts/provider-benchmark-routing.js`
 - Release SHA: `unreleased` (read-only benchmark from the source worktree)
 - Public read-only probes: Transit API and one OSRM demo driving request
-- Digest: `e6666a4fcddf8794b80867b30547cffb187383a120c5c41d2e7abc9bf5b00723`
+- Digest: `3546c343f14a34fbf3fed4c37b20d6727b0e13f8a9eadaba99efbc1102a4f8`
 - Rows: `16`; fresh `2`; timeout `1`; unsupported `8`; unavailable/provider-not-configured `4`; other network/error `1`
 
 ## Observed rows

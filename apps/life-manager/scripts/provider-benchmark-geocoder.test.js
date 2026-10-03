@@ -79,9 +79,18 @@ test("runGeocoderBenchmark digest is deterministic for the same clock and result
 
 test("selectBenchmarkWinner rejects missing attribution or unsupported license", () => {
   const rows = [
-    { provider: "missing-attribution", status: "fresh", precision: "exact", attributionRefs: [], licenseRefs: ["MIT"] },
-    { provider: "unsupported-license", status: "fresh", precision: "exact", attributionRefs: ["source"], licenseRefs: ["UNKNOWN-LICENSE"] },
-    { provider: "valid", status: "fresh", precision: "city", attributionRefs: ["source"], licenseRefs: ["CC BY 4.0"] },
+    { caseId: "a", provider: "missing-attribution", status: "fresh", precision: "exact", accuracyStatus: "pass", attributionRefs: [], licenseRefs: ["MIT"] },
+    { caseId: "a", provider: "unsupported-license", status: "fresh", precision: "exact", accuracyStatus: "pass", attributionRefs: ["source"], licenseRefs: ["UNKNOWN-LICENSE"] },
+    { caseId: "a", provider: "valid", status: "fresh", precision: "city", accuracyStatus: "pass", attributionRefs: ["source"], licenseRefs: ["CC BY 4.0"] },
+    { caseId: "b", provider: "valid", status: "fresh", precision: "city", accuracyStatus: "pass", attributionRefs: ["source"], licenseRefs: ["CC BY 4.0"] },
   ];
-  assert.deepEqual(selectBenchmarkWinner(rows), { provider: "valid", decision: "eligible_for_shadow" });
+  assert.deepEqual(selectBenchmarkWinner(rows), { provider: "valid", decision: "eligible_for_shadow", accuracy: 1, coverage: 1 });
+});
+
+test("selectBenchmarkWinner rejects a provider that passes only one case", () => {
+  const rows = [
+    { caseId: "a", provider: "partial", status: "fresh", precision: "exact", accuracyStatus: "pass", attributionRefs: ["source"], licenseRefs: ["CC BY 4.0"] },
+    { caseId: "b", provider: "partial", status: "fresh", precision: "exact", accuracyStatus: "fail", attributionRefs: ["source"], licenseRefs: ["CC BY 4.0"] },
+  ];
+  assert.deepEqual(selectBenchmarkWinner(rows), { decision: "no_winner", reason: "provider_accuracy_or_coverage_below_threshold" });
 });
