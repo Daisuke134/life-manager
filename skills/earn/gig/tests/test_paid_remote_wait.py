@@ -5736,3 +5736,41 @@ def test_normalize_acceptance_absolutizes_project_relative_asset_path(tmp_path):
     paid._normalize_acceptance_delta(root)
     asset = json.loads((root / "delivery" / "paid-work-result.json").read_text())["artifact_assets"][0]
     assert asset["path"] == str(archive.resolve())
+
+@pytest.mark.parametrize('status,reason', [(403, 'selected_talkroom_access_forbidden'), (503, 'selected_talkroom_provider_http_error')])
+def test_selected_talkroom_http_error_preserves_receipt_without_history_retry(tmp_path, monkeypatch, status, reason):
+    queue = load('coconala_queue_snapshot')
+    url = 'https://coconala.com/talkrooms/1'
+    inspections = []
+    def inspect(*args, **kwargs):
+        inspections.append(1)
+        return {'url': url, 'title': 'Coconala', 'provider_http_status': status,
+                'history_complete': True, 'messages': []}
+    monkeypatch.setattr(queue, 'inspect_page_with_retry', inspect)
+    def persist(*args, **kwargs):
+        pytest.fail('HTTP error must not enter history persistence')
+    monkeypatch.setattr(queue, 'persist_talkroom_history', persist)
+    with pytest.raises(queue.CollectorUnhealthy, match=reason) as raised:
+        queue.inspect_selected_talkroom_with_history_retry(
+            tmp_path/'helper.py', url, tmp_path/'room.png', '1', tmp_path, '1', 'now')
+    assert len(inspections) == 1
+    assert raised.value.details['provider_http_status'] == status
+    assert raised.value.details['final_route'] == url
+    assert raised.value.details['coverage_complete'] is False
+
+@pytest.mark.parametrize('status,title,reason', [
+    (403, 'Coconala', 'orders_access_forbidden'),
+    (None, '403 Forbidden', 'orders_access_forbidden'),
+    (503, 'Coconala', 'orders_provider_http_error'),
+])
+def test_orders_http_error_keeps_source_receipt_before_container_check(status, title, reason):
+    queue = load('coconala_queue_snapshot')
+    dom = {'url': queue.OPEN_ORDERS_URL, 'title': title,
+           'provider_http_status': status, 'container_present': False, 'cards': []}
+    with pytest.raises(queue.CollectorUnhealthy, match=reason) as raised:
+        queue.validate_orders_dom(dom)
+    assert raised.value.details['source'] == 'orders'
+    assert raised.value.details['provider_http_status'] == (status or 403)
+    assert raised.value.details['requested_route'] == queue.OPEN_ORDERS_URL
+    assert raised.value.details['final_route'] == queue.OPEN_ORDERS_URL
+    assert raised.value.details['coverage_complete'] is False

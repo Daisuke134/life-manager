@@ -75,8 +75,9 @@ def classify_auth_snapshot(
     return "indeterminate"
 
 
-def auth_snapshot_expression() -> str:
+def auth_snapshot_expression(*, expected_email: str | None = None) -> str:
     return """(async()=>{
+      const expectedEmail=%s;
       const visible=(element)=>{
         if(!element) return false;
         const style=getComputedStyle(element);
@@ -97,8 +98,10 @@ def auth_snapshot_expression() -> str:
         visible(document.querySelector('input[type="email"]')) &&
         document.querySelectorAll('[role="tab"]').length>=3;
       let firebase_user_present=false;
+      let firebase_identity_matched=null;
       let authenticated_api_status=null;
       let firebase_token_expired=false;
+      let firebase_token_expired_before_refresh=null;
       let firebase_token_refreshed=false;
       let firebase_token_refresh_failed=false;
       let firebase_token_refresh_invalid=false;
@@ -116,13 +119,27 @@ def auth_snapshot_expression() -> str:
             get.onsuccess=()=>resolve(get.result||[]);
           });
           const records=Array.isArray(values)?values:[];
+          const tokenFrom=value=>value?.stsTokenManager?.accessToken||
+            value?.value?.stsTokenManager?.accessToken||value?.accessToken||
+            value?.value?.accessToken||'';
+          const selected=records.find(value=>tokenFrom(value));
+          if(expectedEmail){
+            const selectedEmail=selected?.email||selected?.value?.email||'';
+            firebase_identity_matched=!!selected && selectedEmail.trim().toLowerCase()===expectedEmail.trim().toLowerCase();
+            if(!firebase_identity_matched){db.close();return JSON.stringify({firebase_identity_matched:false});}
+          }
           let token='';
           for(let index=0; index<records.length; index+=1){
             const entry=records[index];
+            if(expectedEmail && entry!==selected) continue;
             const candidate=entry?.value && typeof entry.value==='object' ? entry.value : entry;
             const manager=candidate?.stsTokenManager;
             const expiration=Number(manager?.expirationTime)||0;
-            if(expiration>0 && expiration<=Date.now()) firebase_token_expired=true;
+            if(expiration>0){
+              const expired=expiration<=Date.now();
+              firebase_token_expired_before_refresh=expired || firebase_token_expired_before_refresh===true;
+              if(expired) firebase_token_expired=true;
+            }
             const refreshDue=expiration>0 && expiration<=Date.now()+60000;
             if(refreshDue && manager?.refreshToken && candidate?.apiKey){
               try {
@@ -172,9 +189,6 @@ def auth_snapshot_expression() -> str:
             }
             if(firebase_token_refreshed) break;
           }
-          const tokenFrom=value=>value?.stsTokenManager?.accessToken||
-            value?.value?.stsTokenManager?.accessToken||value?.accessToken||
-            value?.value?.accessToken||'';
           token=records.map(tokenFrom).find(Boolean)||'';
           firebase_user_present=!!token;
           if(token && (!firebase_token_expired || firebase_token_refreshed)){
@@ -199,13 +213,15 @@ def auth_snapshot_expression() -> str:
         authenticated_navigation_visible:labels.size>=2,
         profile_surface_visible,
         firebase_user_present,
+        firebase_identity_matched,
         authenticated_api_status,
         firebase_token_expired,
+        firebase_token_expired_before_refresh,
         firebase_token_refreshed,
         firebase_token_refresh_failed,
         firebase_token_refresh_invalid
       });
-    })()"""
+    })()""" % json.dumps(expected_email)
 
 
 async def observe(ws_url: str) -> dict[str, object]:
