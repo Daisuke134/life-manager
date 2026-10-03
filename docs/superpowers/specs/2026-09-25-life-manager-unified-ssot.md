@@ -4846,16 +4846,16 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。自然guarded退役計画PR6543は全10CI/独立最終SHIPで統合済み（§276）、newimmutable/natural退役は未達。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。guardian修復3e1のcompleteimmutableは確認済み。自然退役計画ede6のnewimmutable/live退役とcandidate修復のtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
+- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。自然guarded退役計画PR6543は全10CI/独立最終SHIPで統合済み。ede6 completeimmutable/self-handoff/対象自然退役・officialabsent・doctor・隔離replayは§278で限定SHIP。wholefleet/finance/Evalは未達。guarded retirement修復PR6542は全10CI/fresh再reviewSHIPで統合済み（§272）、最新immutable/live解除は未達。候補補充修復PR6540はexacthead b911/全10CI PASSで統合済み（§269）。release帰属修復PR6539/main6adはcompleteimmutable成立（§268）。guardian修復3e1のcompleteimmutableは確認済み。自然退役計画ede6のnewimmutable/live退役とcandidate修復のtarget自然帰属、SelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
 - Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。既存buyer workは19 verified unique sends/残281、品質・納品条件未達でpending。loaded vaultと既定vaultを混同しない。
-- diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは旧missing-releaseの孤児登録と独立確認（§269）、実行境界修復はmain3e1へ統合済み。新immutable/newcontroller/対象fresh排他とexact retirement・replay/readbackが未完。全14loops CFO unknownは未完。
+- diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは§278で自然退役/officialabsent/doctor178unmanaged0・retiredpresent0・missing0/隔離replayを確認。全fleet健康・admission・disk、全14経済成果は別の未完条件。全14loops CFO unknownは未完。
 
 #### 現在の一手
 
-candidate補充修復PR6540/main655bはsource統合済み。実live release owner62269/current3e1を確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。current3e1/liveowner62269のterminal後、newmainede6 immutable/既存self-handoffで自然guarded退役を実行し、officialabsent/doctor/正規owner維持/replayを閉じ、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
+candidate補充修復PR6540/main655bはsource統合済み。実live release owner62269/current3e1を確認したため重複反映を行わず、terminal後に最新immutable/実load/自然結果を照合する。Capafy孤児登録の実行境界修復はPR6542/main3e1に統合済み。ede6 current/loadedreconciler一致と旧guarded target自然退役は§278で限定確認済み。live fleet全体は進行中で重複applyをせず、owner journalのrun_id/timestamp不足とSelfBuild実hook/金融joinを次cursorにする、その後SelfBuild owner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
 
 Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
@@ -5384,3 +5384,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - google-login canonical skillは読んだがKeychain指示はuserのApple store禁止が優先。既存Gog filebackend/processenvで公式mailをread-only再取得し、API hostedURL/pdfURLとメールURL22件をメモリ内比較。共通URL・invoiceIDは見つからず、直接binding未証明。私的本文/URL/credential保存0。異なる請求の証明とも扱わず、同額/同期間のcorrelationのみ保持。
 - 根拠mode600 state/cfo-railway-official-invoices-20261004.json、cfo-railway-invoice-line-reconciliation-20261004.json、cfo-railway-invoice-mail-binding-20261004.json。独立read-only review railway_invoice_line_readonly_reviewは算術SHIP_limited/actualcost・直接binding・配賦・銀行照合HOLD。旧all-services-auditのprovider_receipt_idは候補参照だけと補足し、APIとの確定joinと解釈しない。
 - 次は公式receipt/invoiceのdirect binding・currency・時刻付きpaid_atとperiod/service/loopallocationを取得してから純粋adapterへ投入。CFOwriter/同snapshot/deliverytable変更0、UNKNOWNを費用0へ変更しない。reconciler62269は継続live/ede6未反映、§276自然退役cursorと§217全残TODO/goalactiveを保持。
+
+
+### 278. Capafy旧登録の自然退役・公式不在・doctor・隔離replayの限定SHIP
+
+- mainede6を既存donor/pressure条件でcompleteimmutable20261004T061957-ede6efa4へ作成しcurrent反映/exit0。直後の短いold9c runはterminal、self-handoff receiptはparent12025/statusok/loadedargv・SHAede6一致へ更新。公式service readbackも新reconciler ede6を確認し、running owner stop/restart0。
+- 自然native run18db21e0c3e60de8-14244/occurrence life-manager-release-reconciler:18db21e0c3e60de8-14244/execute21:22:06.060167Z/SHAede6、script child14254を確認。ownersjournal対象labelは全履歴1件/rc0/changed1/skipped0/seconds3/SHAede6。lastoutput先頭blockはoktrue/retiredtrue/was_loadedtrue/removed_plistfalse。primarymanualapplyは2attemptとも競合abortで0、自然reconcilerが作用主体。
+- fresh officiallaunchctl-safe printは旧label rc113/Couldnotfindservice、plist不存在。doctorはoktrue/registry178/unmanaged0/retiredpresent0/missingentrypoints0。正規ai.anicca.capafy-browserはPID92688/sha3e1/argvhashf847...、browserPID93106/UUIDcddf.../HTTP200。両process出生21:18:12/21:18:15と公式normalowner plan21:18:03/execute21:18:13は退役前。過去9c/PID56413/UUID45eとの差は先行通常fleet更新として区別し、歴史全期間不変と主張しない。
+- deployedede6 _retire_labelsへ公式absent入力を隔離fixtureで与え、fakeprint1回/was_loadedfalse/removedfalse/mutatingcalls0/productionstatewritefalse、別profile操作0。これは不在後の隔離replayでありlive fleetの再送ではない。
+- fresh natural_retirement_evidence_final_reviewはproduction3blob/Git/tree/loadedargv/handoff/nativeevent/対象row一意性/officialabsent/doctor/normalprocess継続を独立照合しSHIP_limited。ownersjournalにrun_id/timestampが無くdirectoccurrence joinではない点をMEDIUMとして保持。一意な対象row/SHA/process/orderが帰属を支持する。whole fleet runは実行中でterminal未記録/前statepartial、全fleetPASS/収益/settlement/payout/全goal完了には拡張しない。
+- 根拠mode600 state/capafy-orphan-retirement-natural-20261004.json、capafy-orphan-retirement-replay-20261004.json。次は既存ownerjournalへrun_id/occurrence_id/timestampを実経路で補い、SelfBuild/Eval実hook・paid/financial receiptと同期間費用の未完を進める。現在の正本・全残TODO → §217、全goalactive。
