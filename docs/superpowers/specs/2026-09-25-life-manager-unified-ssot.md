@@ -4735,3 +4735,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 1. SelfBuild run-ID最小修正のfresh review→PR/CI/adminmerge→既存reconciler terminal→complete immutable→safe target load→次の自然row/report exactjoin。
 2. Paid current fundedterms/official financial receiptsを追い、§212歴史JPY2000通知を現在売上と数えない。全effect fenceと残TODOを保持しgoalactive。
+
+
+### 214. SelfBuild run-ID修正のmain統合と反映待ち境界
+
+- fresh reviewer SHIP/findings0、actual2 suites92/92 + focused6/6、primary関連3 suites99/99を区別。PR6525のGitHub11 checksは全SUCCESS。admin squash mergeを実行し2026-10-03T11:08:21Z MERGED、main06095a032cba4e547a6da633cd3d9557da9953d8をfreshfetch確認。source branchHEAD96229cb2e5はclean/pushed、worktreeは後続自然proofのため保持。
+- 既存global reconciler25760/parent25706はcurrentc5e6からlive。重複cut/apply/kill0。complete immutableはc5e6のまま、新main06095a release未観測。
+- targetedsnapshotのSelfBuildはmanaged/loaded-idle、installed/eventSHAee7a7f657fc805fdd8c69732ca857de166cd9583、admission_effect_unknownfalse。新sourceの本番loadや自然報告は未達。既存台帳fresh184行/last20261003105554-selfbuild-298355ce/no_op/no_eligible_pr、SHA25663dc4b2a49307be9a0eb81082fdfebf35449fbd93120770938acfa97ca934a26。新fixの自然rowとは数えない。
+- sourceproofはstate/selfbuild-ledger-source-proof-20261003.json/mode600、CI/merge/currentreadbackと未達条件を区別。providerbusinessmutation0、履歴移動/copy0、unknown fence解放0。
+- PR6368昇格不足の実コード診断: runtime/loop/recovery-class.cjsはdeterministicのみloop_runtimeにbound。external_effect_ownerはunboundで、4hook booleanを付けてもeligibleにできない。次の修復はowner別immutable/canary/exacthealth/rollbackの実経路、guard緩和ではない。
+
+#### 更新後の原子cursor
+
+1. PR6525/main06095aは統合済み、再PR/remerge不要。live global25760をfresh確認しterminal後にcompleteimmutableを1ownerだけ作成または通常reconcilerの生成をreadback。SelfBuildだけfreshpreflight/idle/deploylockでloadし、次の自然row.run_id/reportをexactjoinする。manualwake/replay/guard緩和0。
+2. SelfBuild/Eval本成果は未完。PR6368のexternal_effect_owner promotionがunboundなのを保持し、owner-local実hookとCI不足を修復する。Paid fundedterms/delivery/fee/settlement/payout、Investment、Cloud/self-funding、TaskMarket、全14同期間CFOの残条件を引き続き進める。全goalactive。
