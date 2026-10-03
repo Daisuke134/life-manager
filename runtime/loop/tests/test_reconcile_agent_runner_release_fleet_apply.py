@@ -29,6 +29,14 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    retire_bad)
+      if [ "$target" = "${FAKE_RETIRE_TARGET:-}" ]; then
+        echo "$FAKE_RETIRE_RESPONSE"
+      else
+        echo "[{\\"ok\\":true,\\"changed\\":true}]"
+      fi
+      exit 0
+      ;;
     retire_guarded)
       if [ "$target" = "${FAKE_RETIRE_TARGET:-}" ]; then
         echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"retired\\":true,\\"was_loaded\\":${FAKE_RETIRE_LOADED:-true},\\"removed_plist\\":false}]"
@@ -789,6 +797,31 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 second = self._run(env)
                 self.assertEqual(second.returncode, 0, second.stderr)
                 self.assertEqual(self._apply_call_count(calls), 2)
+
+
+    def test_guarded_exit_zero_requires_exact_retirement_readback(self):
+        invalid = ['[]', 'not-json', '[{"ok":true,"label":"other","retired":true,"was_loaded":false,"removed_plist":false}]', '[{"ok":true,"label":"ai.anicca.orphan","retired":true,"was_loaded":0,"removed_plist":false}]']
+        for payload in invalid:
+            with self.subTest(payload=payload), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                release = self._make_release(root, sha)
+                p = release / 'config/loop-registry.json'
+                registry = json.loads(p.read_text())
+                label = 'ai.anicca.orphan'
+                registry['guarded_retired_labels'] = {label: {}}
+                p.write_text(json.dumps(registry))
+                self._activate(root, release)
+                calls = root / 'calls.log'
+                env = self._base_env(root, repo, calls_log=calls)
+                env.update({'FAKE_APPLY_MODE':'retire_bad', 'FAKE_RETIRE_TARGET':label, 'FAKE_RETIRE_RESPONSE':payload})
+                result = self._run(env)
+                self.assertNotEqual(result.returncode, 0)
+                state = self._state(root)
+                self.assertEqual(state['status'], 'error')
+                self.assertEqual(state['errors'], 1)
+                self.assertEqual(state['changed'], 1)
+                self.assertIn('apply target=loop-a', calls.read_text())
 
 
 if __name__ == "__main__":

@@ -370,7 +370,7 @@ for loop_id in sorted(loops.keys(), key=apply_order):
 # Guarded retirement is a validated lm-loop target, not a registry loop id.
 # Reconcile it before normal owners so a bounded fleet pass cannot starve it.
 for label in sorted(registry.get("guarded_retired_labels", {})):
-    print(f"apply\t{label}")
+    print(f"retire\t{label}")
 
 for loop_id in skip_current:
     print(f"current\t{loop_id}")
@@ -442,6 +442,14 @@ try:
         rows = []
 except ValueError:
     rows = []
+if sys.argv[1] == "retire":
+    row = rows[0] if len(rows) == 1 and isinstance(rows[0], dict) else {}
+    if not (row.get("ok") is True and row.get("retired") is True
+            and row.get("label") == sys.argv[2]
+            and isinstance(row.get("was_loaded"), bool)
+            and isinstance(row.get("removed_plist"), bool)):
+        print("0 0 1")
+        sys.exit(0)
 changed = sum(1 for r in rows if isinstance(r, dict) and (
     r.get("changed") or (r.get("retired") is True and (
         r.get("was_loaded") is True or r.get("removed_plist") is True))))
@@ -450,7 +458,7 @@ skipped = sum(1 for r in rows if isinstance(r, dict) and (
         and r.get("was_loaded") is False and r.get("removed_plist") is False)))
 errors = sum(1 for r in rows if isinstance(r, dict) and r.get("ok") is False)
 print(changed, skipped, errors)
-' 2>/dev/null || printf '0 0 0')
+' "$plan_action" "$loop_id" 2>/dev/null || printf '0 0 1')
       changed=$((changed + owner_changed))
       skipped=$((skipped + owner_skipped))
       errors=$((errors + owner_errors))
