@@ -607,7 +607,7 @@ def _revenuecat_content_sha256(source: dict) -> str:
 def _validated_financial_report(
     latest: dict[str, dict], products: tuple[str, ...],
 ) -> tuple[date, date]:
-    report_identity: tuple[str, str, str, str, str] | None = None
+    report_identity: tuple[str, str, str, str, str, str] | None = None
     report_rows: list[dict] = []
     row_identities: set[tuple[str, int]] = set()
     for product in products:
@@ -624,12 +624,13 @@ def _validated_financial_report(
         data = financial["data"]
         report_id = data.get("report_id")
         report_sha = _sha256(data.get("report_sha256"))
+        content_sha = _sha256(data.get("content_sha256"))
+        app_id = MOBILE_PRODUCT_BINDINGS[product]["asc_app_id"]
         if (
             data.get("report_status") != "final"
             or not isinstance(report_id, str)
             or not contract.IDENTITY.fullmatch(report_id)
-            or data.get("apple_identifier")
-            != MOBILE_PRODUCT_BINDINGS[product]["asc_app_id"]
+            or data.get("app_id") != app_id
             or not isinstance(data.get("rows"), list)
         ):
             raise ValueError("missing_coverage")
@@ -640,7 +641,7 @@ def _validated_financial_report(
         if start > end:
             raise ValueError("missing_coverage")
         identity = (
-            report_id, report_sha, data["report_status"], period_start, period_end,
+            report_id, report_sha, content_sha, data["report_status"], period_start, period_end,
         )
         if report_identity is None:
             report_identity = identity
@@ -652,7 +653,27 @@ def _validated_financial_report(
             row_index = item.get("source_row_index")
             if isinstance(row_index, bool) or not isinstance(row_index, int) or row_index < 0:
                 raise ValueError("missing_coverage")
-            if item.get("apple_identifier") != data["apple_identifier"]:
+            record_type = item.get("catalog_record_type")
+            collection = (
+                "subscriptions" if record_type == "subscription" else
+                "in-app-purchases" if record_type == "in_app_purchase" else None
+            )
+            record_id = item.get("catalog_record_id")
+            sku = item.get("sku")
+            expected_evidence_ref = (
+                f"appstoreconnect://{collection}/{record_id}" if collection else None
+            )
+            _sha256(item.get("catalog_evidence_sha256"))
+            if (
+                not isinstance(item.get("apple_identifier"), str)
+                or not item["apple_identifier"]
+                or item["apple_identifier"] != record_id
+                or not isinstance(sku, str) or not sku
+                or sku != item.get("catalog_product_id")
+                or item.get("parent_app_id") != app_id
+                or expected_evidence_ref is None
+                or item.get("catalog_evidence_ref") != expected_evidence_ref
+            ):
                 raise ValueError("product_identity_mismatch")
             row_identity = (report_id, row_index)
             if row_identity in row_identities:
@@ -662,7 +683,7 @@ def _validated_financial_report(
 
     if report_identity is None:
         raise ValueError("missing_coverage")
-    report_id, report_sha, report_status, period_start, period_end = report_identity
+    report_id, _report_sha, content_sha, report_status, period_start, period_end = report_identity
     report_content = {
         "report_id": report_id,
         "report_status": report_status,
@@ -670,7 +691,7 @@ def _validated_financial_report(
         "period_end": period_end,
         "rows": sorted(report_rows, key=lambda item: item["source_row_index"]),
     }
-    if report_sha != _canonical_sha256(report_content):
+    if content_sha != _canonical_sha256(report_content):
         raise ValueError("content_hash_invalid")
     return _business_date(period_start), _business_date(period_end)
 
@@ -793,11 +814,10 @@ def adapt_mobile(
                 data.get("report_status") != "final"
                 or not isinstance(report_id, str)
                 or not contract.IDENTITY.fullmatch(report_id)
-                or data.get("apple_identifier") != binding["asc_app_id"]
+                or data.get("app_id") != binding["asc_app_id"]
                 or not isinstance(data.get("rows"), list)
             ):
                 raise ValueError("missing_coverage")
-            expected_apple_identifier = binding["asc_app_id"]
             period_start = _business_date(data.get("period_start"))
             period_end = _business_date(data.get("period_end"))
             if period_start > period_end:
@@ -809,8 +829,6 @@ def adapt_mobile(
                 if isinstance(row_index, bool) or not isinstance(row_index, int) or row_index < 0:
                     raise ValueError("missing_coverage")
                 currency = _currency(item.get("partner_share_currency"))
-                if item.get("apple_identifier") != expected_apple_identifier:
-                    raise ValueError("product_identity_mismatch")
                 raw_amount = _bounded_decimal(
                     item.get("extended_partner_share"), signed=True,
                 )
@@ -853,7 +871,8 @@ def adapt_mobile(
                         "verification_state": "verified",
                         "revenue_class": revenue_class,
                         "evidence_refs": [
-                            f"appstoreconnect://financial-reports/{report_id}/{report_sha}#{row_index}"
+                            f"appstoreconnect://financial-reports/{report_id}/{report_sha}#{row_index}",
+                            item["catalog_evidence_ref"],
                         ],
                         "components": [{"category": category, "amount": amount}],
                     }))

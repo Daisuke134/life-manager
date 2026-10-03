@@ -77,9 +77,9 @@ def bind_financial_report_hash(rows):
             key=lambda item: item["source_row_index"],
         ),
     }
-    report_sha = canonical_sha256(report)
+    content_sha = canonical_sha256(report)
     for data in financial:
-        data["report_sha256"] = report_sha
+        data["content_sha256"] = content_sha
 
 
 def capafy_order_row_sha(order, currency):
@@ -610,6 +610,55 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertIn("model_cost", projected["trailing"]["loops"]["mobile-apps"]
                       ["currencies"]["JPY"]["unknown_categories"])
 
+    def test_mobile_maps_finance_child_identifier_and_sku_to_parent_app(self):
+        module = self.require_adapter()
+        bindings = [
+            ("anicca-ios", "6755129214"), ("honne-ai", "6759667221"),
+            ("breath-reset", "6760253231"), ("sleep-ritual", "6759916261"),
+            ("desk-stretch-timer", "6760048397"), ("micro-mood", "6759877003"),
+        ]
+        child_row = {
+            "source_row_index": 0, "apple_identifier": "6762049696",
+            "sku": "ai.anicca.app.ios.yearly.b", "parent_app_id": "6755129214",
+            "catalog_record_type": "subscription", "catalog_record_id": "6762049696",
+            "catalog_product_id": "ai.anicca.app.ios.yearly.b",
+            "catalog_evidence_ref": "appstoreconnect://subscriptions/6762049696",
+            "catalog_evidence_sha256": "f" * 64, "partner_share_currency": "JPY",
+            "extended_partner_share": "4250", "sale_or_return": "S",
+            "product_type_identifier": "IAY", "transaction_date": "2026-09-12",
+            "settlement_date": "2026-09-12",
+        }
+        rows = []
+        for product_id, app_id in bindings:
+            financial = {
+                "report_id": "finance-2026-12-Z1", "report_status": "final",
+                "report_sha256": "cbe1dc9242aca2cf049b7ced284a08601bddcef7eafa0a0c4553ea5e53957070",
+                "period_start": "2026-08-30", "period_end": "2026-09-26",
+                "app_id": app_id, "rows": [child_row] if product_id == "anicca-ios" else [],
+            }
+            rows.append({
+                "schema_version": 1, "snapshot_id": f"{product_id}:2026-10-02",
+                "business_date": "2026-10-02", "observed_at": "2026-10-02T12:00:00Z",
+                "product_id": product_id,
+                "sources": {
+                    "revenuecat": {"status": "unavailable", "data": None,
+                                   "reason": "unsupported_currency"},
+                    "app_store_financial": {"status": "available", "data": financial,
+                                             "reason": None},
+                },
+            })
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at="2026-10-03T00:00:00Z",
+            trailing_start="2026-08-30T00:00:00Z",
+        )
+        receipts = [row for row in records if row["record_type"] == "receipt"]
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(receipts[0]["components"], [
+            {"category": "settled_external_revenue", "amount": "4250"},
+        ])
+        self.assertEqual(receipts[0]["currency"], "JPY")
+
     def test_mobile_accepts_revenuecat_epoch_period_from_business_outcomes(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
@@ -759,7 +808,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             for row in complete
         ))
 
-        del rows[0]["sources"]["app_store_financial"]["data"]["apple_identifier"]
+        del rows[0]["sources"]["app_store_financial"]["data"]["app_id"]
         missing_identity = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )

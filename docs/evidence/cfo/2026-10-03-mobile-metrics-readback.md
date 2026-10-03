@@ -49,6 +49,12 @@ These are provider observations, not settled App Store proceeds. They are not cu
 - Current projected status is `unknown`: historical/trailing settled proceeds have `missing_coverage`; MRR has `unsupported_currency`. The branch now timestamps the coverage assessment at the projection snapshot, so this run no longer reports a false `stale_readback`; source capture times remain in the business-outcomes records.
 - MRR cannot yet be confirmed in the B0 projection with realistic staggered source times until a valid explicit currency payload is available and the end-to-end snapshot freshness rule is exercised.
 
+## Scheduled Financial Manager delivery readback
+
+- The scheduled owner-facing path is `life-manager-cfo-hourly` → `skills/cfo/run.sh` → `apps/life-manager/scripts/cfo-hourly-local.js`; it reads the same `marketing-metrics-daily/state/business-outcomes.jsonl` source and has not imported Finance Detail yet.
+- `lm-loop status life-manager-cfo-hourly` reports the latest terminal event at `2026-10-03T13:58:17Z` as `pass`, exit 0, but `effect_status=unknown`, `provider_receipt_id=null`, and `official_readback_ref=null`. The loop is loaded-idle on release `80cccc6f92069b7a8d259af619b87e47bef9861c`.
+- `last-result.json` records `status=sent`, `delivered=true`, `providerMessageId=102289`; the durable `last-delivered-snapshot.json` still identifies reporting date `2026-09-26`, provider message `94946`, delivered `2026-09-25T15:38:21Z`. The latest send claim is not correlated to the current loop occurrence, so delivery remains unverified. It also does not show the JPY 4,250 row.
+
 ## ASC acquisition readback
 
 The persisted snapshot `object://sha256/2725deab49ff9f211c5487e4be2372d2938e8ab77e6dc1b810c110cb12f6e2a8` is retained as immutable historical evidence but superseded for current rate claims because it mixed report windows. A fresh read-only `collectProduct` call was run for the six published apps; it was not persisted because the report-day pointer is immutable.

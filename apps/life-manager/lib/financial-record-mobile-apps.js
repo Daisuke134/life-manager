@@ -49,7 +49,7 @@ function ascFinancialRecords(row, { subjectId, observedAt } = {}) {
   const data = source.data;
   if (!data || data.report_status !== "final" || typeof data.report_id !== "string"
     || !/^[a-zA-Z0-9._:-]+$/.test(data.report_id)
-    || data.apple_identifier !== ASC_APP_IDS[row.product_id]
+    || data.app_id !== ASC_APP_IDS[row.product_id]
     || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.period_start || ""))
     || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.period_end || ""))
     || data.period_start > data.period_end
@@ -58,11 +58,20 @@ function ascFinancialRecords(row, { subjectId, observedAt } = {}) {
   const records = [];
   for (const item of data.rows) {
     if (!item || !Number.isInteger(item.source_row_index) || item.source_row_index < 0) return { available: true, records: [] };
+    const catalogType = item.catalog_record_type;
+    const catalogCollection = catalogType === "subscription" ? "subscriptions"
+      : catalogType === "in_app_purchase" ? "in-app-purchases" : null;
+    const catalogEvidenceRef = catalogCollection
+      ? `appstoreconnect://${catalogCollection}/${item.catalog_record_id}` : null;
     const currency = String(item.partner_share_currency || "").toUpperCase();
     const amount = ascMinorAmount(item.extended_partner_share, currency);
     const sale = item.sale_or_return;
     if (amount == null || !["S", "R"].includes(sale)
-      || item.apple_identifier !== data.apple_identifier
+      || !item.apple_identifier || item.apple_identifier !== item.catalog_record_id
+      || !item.sku || item.sku !== item.catalog_product_id
+      || item.parent_app_id !== data.app_id
+      || !catalogEvidenceRef || item.catalog_evidence_ref !== catalogEvidenceRef
+      || !/^[a-f0-9]{64}$/.test(String(item.catalog_evidence_sha256 || ""))
       || (sale === "S" && amount < 0) || (sale === "R" && amount > 0)) {
       return { available: true, records: [] };
     }
@@ -83,7 +92,10 @@ function ascFinancialRecords(row, { subjectId, observedAt } = {}) {
       idempotency_key: idempotencyKey,
       source: { provider: "app-store-connect-financial", source_type: "app_store", external_ref: `${data.report_id}:${item.source_row_index}` },
       verification: { status: "verified", observed_at: observedAt,
-        evidence_refs: [`appstoreconnect://financial-reports/${data.report_id}/${data.report_sha256}/rows/${item.source_row_index}`] },
+        evidence_refs: [
+          `appstoreconnect://financial-reports/${data.report_id}/${data.report_sha256}/rows/${item.source_row_index}`,
+          item.catalog_evidence_ref,
+        ] },
     });
   }
   return { available: true, records };

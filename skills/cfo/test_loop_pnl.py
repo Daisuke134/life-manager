@@ -1,6 +1,7 @@
 """Fixture tests for loop_pnl: one per source adapter plus the table/unverified contract."""
 
 import json
+import hashlib
 import sqlite3
 import sys
 import tempfile
@@ -13,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import loop_pnl as m  # noqa: E402
 from skills.cfo import economic_attribution as contract  # noqa: E402
-from skills.cfo.adapters import writer as writer_adapter  # noqa: E402
+from skills.cfo.adapters import capafy_mobile, writer as writer_adapter  # noqa: E402
 
 FIX = Path(__file__).parent / "fixtures" / "loop_pnl"
 DAY = date(2026, 9, 26)  # Asia/Tokyo: 2026-09-25T15:00Z .. 2026-09-26T15:00Z
@@ -490,6 +491,96 @@ class B7IntegrationTest(unittest.TestCase):
             ("app-store-connect-financial", "trailing", None),
             ("revenuecat-mrr", "as_of", None),
         })
+
+    def test_active_b7_projection_counts_mapped_finance_row_once_not_revenuecat_chart(self):
+        source_rows = fixture("../economic_attribution/mobile-verified.json")
+        report_id = "finance-2026-12-Z1"
+        report_sha256 = "cbe1dc9242aca2cf049b7ced284a08601bddcef7eafa0a0c4553ea5e53957070"
+        period_start, period_end = "2026-08-30", "2026-09-26"
+        mapped_row = {
+            "source_row_index": 0,
+            "apple_identifier": "6762049696",
+            "sku": "ai.anicca.app.ios.yearly.b",
+            "parent_app_id": "6755129214",
+            "catalog_record_type": "subscription",
+            "catalog_record_id": "6762049696",
+            "catalog_product_id": "ai.anicca.app.ios.yearly.b",
+            "catalog_evidence_ref": "appstoreconnect://subscriptions/6762049696",
+            "catalog_evidence_sha256": "f" * 64,
+            "product_type_identifier": "IAY",
+            "extended_partner_share": "4250",
+            "partner_share_currency": "JPY",
+            "sale_or_return": "S",
+            "transaction_date": "2026-09-12",
+            "settlement_date": "2026-09-12",
+        }
+        for row in source_rows:
+            data = row["sources"]["app_store_financial"]["data"]
+            data.update({
+                "report_id": report_id, "report_sha256": report_sha256,
+                "report_status": "final", "period_start": period_start,
+                "period_end": period_end,
+                "rows": [mapped_row] if row["product_id"] == "anicca-ios" else [],
+            })
+        normalized_report = {
+            "report_id": report_id, "report_status": "final",
+            "period_start": period_start, "period_end": period_end,
+            "rows": [mapped_row],
+        }
+        content_sha256 = hashlib.sha256(json.dumps(
+            normalized_report, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode()).hexdigest()
+        for row in source_rows:
+            row["sources"]["app_store_financial"]["data"]["content_sha256"] = content_sha256
+        self.assertEqual(
+            capafy_mobile._validated_financial_report(
+                {row["product_id"]: row for row in source_rows}, capafy_mobile.MOBILE_PRODUCTS,
+            ),
+            (date(2026, 8, 30), date(2026, 9, 26)),
+        )
+        direct = capafy_mobile.adapt_mobile(
+            source_rows, snapshot_at=SNAPSHOT, trailing_start="2026-08-30T00:00:00Z",
+        )
+        direct_receipts = [row for row in direct if row.get("record_type") == "receipt"]
+        self.assertEqual(len(direct_receipts), 1, [
+            row.get("reason") for row in direct if row.get("record_type") == "coverage"
+        ])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "business-outcomes.jsonl"
+            path.write_text("".join(json.dumps(row) + "\n" for row in source_rows), encoding="utf-8")
+            env = {
+                "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(path),
+                "LM_CFO_WRITER_MONEY": str(Path(tmp) / "writer-money.sqlite3"),
+            }
+            active_records = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start="2026-08-30T00:00:00Z", env=env,
+            )
+            active_mobile_receipts = [
+                row for row in active_records
+                if row.get("product_loop_id") == "mobile-apps"
+                and row.get("record_type") == "receipt"
+            ]
+            self.assertEqual(len(active_mobile_receipts), 1)
+            projection = m.build_b7_projection(
+                snapshot_at=SNAPSHOT, trailing_start="2026-08-30T00:00:00Z",
+                env=env,
+            )
+        mobile = projection["trailing"]["loops"]["mobile-apps"]["currencies"]["JPY"]
+        mobile_gaps = [
+            (row["source_id"], row["reason"])
+            for row in projection["trailing"]["loops"]["mobile-apps"]["coverage_gaps"]
+        ]
+        self.assertEqual(active_mobile_receipts[0]["provider"], "app-store-connect-financial")
+        self.assertEqual(active_mobile_receipts[0]["components"], [
+            {"category": contract.REVENUE, "amount": "4250"},
+        ])
+        self.assertEqual(active_mobile_receipts[0]["currency"], "JPY")
+        self.assertEqual(mobile["status"], "unknown")
+        self.assertIsNone(mobile[contract.REVENUE])
+        self.assertIn(contract.REVENUE, mobile["unknown_categories"])
+        self.assertTrue(any(reason == "missing_coverage" for _, reason in mobile_gaps))
+        self.assertIsNone(mobile["refund"])
 
     def test_platform_specific_marketplace_readback_preserves_unconnected_siblings(self):
         import hashlib
