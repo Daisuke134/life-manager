@@ -4503,3 +4503,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. §185#3 Affiliate: freshPartnerStackofficialcommission/payoutcapture→reconcile→sameartifactreplay-zeroを確認。旧publishunknownをofficialreadback無しに解放・再送しない。
 2. tax/KYC/paymentproviderbootstrapが必須なら既存legal/provider境界を維持し、unknown/未設定を0/完了へ変換しない。現在commission無しでも実測状態を保存し、§164のcursorどおりMobile以降へ進める。
 3. 残順序はMobile→Connector→Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。全体goalactive/未完。
+
+### 199. Affiliate fresh公式commission/payout・同artifact再実行
+
+- Writer自然gate完了後、指定順のAffiliateへ進んだ。affiliate-loopは33loaded-idle、旧publishoccurrence affiliate-loop:18d83ba82b14fb40-24990がclaimed/effectunknown1を保持。officialpublishreadback無しにfenceclose/再送は0。
+- 専用browserはliveaffiliate-browser/profileaffiliate/en/port9324のownedlistenerを確認、activeCDPconsumer無し。affiliate-loop/source-refresh/compositionのownerdeploylockを保持し3controlleridleを確認して、33immutable revenue capture/reconcileだけを実行。source/profile/credentials/tax/paymentprovider設定変更、publicpublish/送信は0。
+- officialcapture observed_at=`2026-10-03T07:02:39.682312Z`、commission_row_count0/EMPTY、payout_row_stateEMPTY、normalizerNO_LIVE_ROWS。payoutreadiness=PAYOUT_BLOCKED_BY_TAX_SETUP、taxinformationREQUIRED、paymentproviderSELECTION_REQUIRED。本人確認・法的bootstrapを自動突破しない。
+- renderedartifactSHA256=`f6fce1532e79a1eb60a71ee8424dc476458dd80480f0bd8db680995f29026573`、保存artifact全体のhashとlatestcaptureが一致。reconcile/replayはsource_rows0/appended0/replayed0/NO_TRANSACTIONS、sourcehash一致。commissionreceiptが無い現在の同artifact再実行0を確認し、positive収益や全financialcoverageの証明にしない。
+- WriterPASSのTelegrammilestoneはMSGID102113。Affiliatefee/actualcost/settlement/payoutproofと§196consumeradaptergapは残る。空commissionを費用0や全loop完了へ変換しない。
+
+#### 更新後の原子cursor
+
+1. §164指定どおりMobileへ進む。AppStoreConnect/RevenueCatのapp別sales/proceeds/MRRとfee/actualcost/payoutを同periodでofficialreadbackし、旧publication/metricsfenceはexactidentity/readback無しに解放しない。
+2. AffiliateはNO_TRANSACTIONSとtax/paymentproviderHOLD、旧publishunknownを残す。実commissionが現れた時にfinancialsource/fee/settlement/payoutをjoinする。
+3. 次はConnector→Fundraiser→他paid→Self-Build/Eval→Investment→Cloud/self-funding→TaskMarket→最終CFO。全体goalactive/未完。

@@ -1,3 +1,9 @@
+# 最新cursor: Mobile公式財務readback
+
+- 最初にSSOT§199→§198→§196→§185を読む。Writer最初の自然gatePASS、AffiliatefreshNO_TRANSACTIONS/tax+paymentHOLDと同artifact再実行0を確認。全体goalはactive/未完。
+- 次はMobile AppStoreConnect/RevenueCatのapp別sales/proceeds/MRR、fee/actualcost/payout、旧publication/metricsfenceのexactofficialreadback。本人確認/資金/同mutable resourceの既存境界を守る。
+- Source/実装worktree・branch/HEAD/currentrelease33は以下の旧引継ぎから変わらない。watcher44814は終了済み。Affiliate旧publishunknownは維持し再送0、tax/provider設定は未操作。
+
 # Life Manager収益検証の継続
 
 - 最新cursorはSSOT§198→§196source-map→§185#3以降。Writer最初の自然provider gateはPASS、全体goalはactive/未完。
