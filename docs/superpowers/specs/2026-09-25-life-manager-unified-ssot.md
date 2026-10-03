@@ -4841,12 +4841,12 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | Investment | AT-13からAT-29、自然exit/30roundtrips、fee/slippage/model/infra cost、duplicate order0、判定 | primary/Investment owner。paper/HOLDを保持、live資金はgate成立まで動かさない |
 | Cloud / self-funding | provider-neutral shelter、DO/Nosana/Akash/BlockRun continuity、外部earned surplusでrenewal、30日benchmark | primary/各owner。owner deposit/internal transferを外部収益としない |
 | TaskMarket / Agent Economy | external paid job、immutable packaging、funnel/margin、x402 treasury receipt、settlement/actualcost | primary/各owner。GET/package/process成功を売上に数えない |
-| Runtime / fleet | Capafy孤児登録の自然退役・公式不在・doctor inventoryは§278で確認済み。直近完了fleetは§282のpartial/changed19/skipped100/errors1/budget exceeded、Instagram metrics applyのeffect_unknown/admission失敗。旧Writer/Investment境界も保持。native run/SHA/UTC joinは§283で成立、occurrence伝播、新source反映、health/admission/diskの収束が未完 | primary。exempt native occurrence伝播のsource受入→既存ownerの自然反映→occurrence join。稼働ownerをkillしない |
+| Runtime / fleet | Capafy孤児登録の自然退役・公式不在・doctor inventoryは§278で確認済み。直近完了fleetは§285のsource43f/partial/changed58/skipped22/errors1/budget exceeded、alpaca-investment-live apply rc1。旧Writer/Instagram等の境界も保持。native run/occurrence/SHA/UTC joinは§285で限定PASS、whole fleet/health/admission/diskの収束が未完 | primary。現在5fc自然ownerを追い、残るowner failureとSelfBuild実hookを診断する。稼働ownerをkillしない |
 | 最終CFO統合 | §242の同期間監査では14loops/companyともunknown、duplicate_receipts0。Coconala source接続、Lancers/CW/Writer/Affiliate fresh coverage、ASC/Capafy coverage、Investment receipt、公式費用のloop配賦と期間を閉じ、settled revenue/fee/refund/actualcost/settlement/payoutからnet P&L再計算 | primaryが全成果監査、CFO担当とofficial evidenceをjoin |
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainは5fc226d9eec06232ef33c5fd49d337bafe5736a3。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。complete immutableと既存handoff/official actual loadは§282で成立。自然journalのrun/SHA/owner/UTCは§283で直接join、occurrenceはnull。exempt native occurrence伝播修復71536cb4b3はPR6546全10CI/fresh SHIPでmain5fcへ統合済み（§284）。new immutable/load/自然occurrenceが次cursor。source合格と本番直接joinを区別する。
+- 最後に確認したmainは5fc226d9eec06232ef33c5fd49d337bafe5736a3。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。complete immutableと既存handoff/official actual loadは§282で成立。自然journalのrun/SHA/owner/UTCは§283で直接join、occurrenceはnull。exempt native occurrence伝播修復71536cb4b3はPR6546全10CI/fresh SHIPでmain5fcへ統合済み（§284）。5fc complete immutable/既存handoff/official load/自然runとoccurrenceの直接joinは§285で限定PASS。次はSelfBuild実hookとPaid/CFOの未完条件。全fleet/金融成功には拡張しない。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -4855,12 +4855,11 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-1. PR6544はmain/complete immutable/既存handoff/自然run_id・UTCのjoinまで§282–283で成立。occurrence nullの根因はnative runnerのexempt早期経路。修復71536cb4b3はfresh source review SHIP/PR6546全10CIでmain5fcへ統合済み。既存live ownerのterminal→new complete immutable/handoff→自然occurrence直接joinを閉じる。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
-2. SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。自然run-ID/台帳/report一致の成立済み条件を繰り返さない。
-3. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
-4. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
+1. owner journalのnative run/occurrence伝播は§285で自然直接joinまで成立。SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。実hook不足をbooleanやclass変更で回避しない。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
+2. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
+3. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
 
-Railway公式invoiceの取得・明細計算は§277で限定確認済み。メールreceiptとの直接binding、公式currency・時刻付きpaid_at、使用額差額、canonical loop配賦・対象期間を閉じてからCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
+Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -5451,3 +5450,18 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - currentは43f completeimmutable、自然native11443/script11449が継続live。source43f journalのrun/SHA/UTC joinは成立、occurrence nullを保持。新5fcのcompleteimmutable/official actual load/自然occurrence gateは未達。primary重複cut/apply/handoff/wake/kill0、旧journal補完/旧fence解放0。
 - state/native-exempt-occurrence-source-20261004.json/mode600へreview/全CI/mergeを保存。次は同live ownerのterminalを公式report/handleで確認し、通常条件のmain5fc complete immutable→既存handoff→新自然journalのoccurrenceとnative eventをjoinする。免除ownerにはdurable claimを捏造せず、通常ownerのolder actual claimは維持する。SelfBuild実hook/Paid正式納品・精算・着金/同期間CFO費用、Mobile別担当ASC Agreementは未完。全残TODO → §217、全goalactive。
 - 親/reviewerのactual model/effort/usageは観測不能、API相当費用は算定不能。推定費用/usageをactualcost0として記帳しない。
+
+
+### 285. native occurrence修復のcomplete immutable・自然直接join成立
+
+- source43f自然run18db245aca2f7320-11443は22:29:26.338087Z/report fail/exit1でterminal。fleet22:29:25Z/partial/changed58/skipped22/errors1/budget exceeded、failed rowはalpaca-investment-live rc1/34s。old handles missingとactive release owner不在をfresh確認し、通常条件のmain5fc cutを1回実行/exit0。
+- current /Users/anicca/loops/releases/20261004T072956-5fc226d9、manifest ALL/sha5fc/main ancestor、native runner/reconciler/self-handoff3blobがGitとbytes一致。既存handoff watcher receiptはstatusok/parent79706/target5fc/actual loaded arguments・SHA verifiedtrue。official service readbackは5fc/running/PID83746。primary manualapply/handoff/wake/kill0、pressure/floor回避0。
+- 新native run18db25a869881eb0-83746/occurrence life-manager-release-reconciler:18db25a869881eb0-83746/execute22:31:22.067031Z/source5fcを確認。host receipt pass/effect0/control_plane_exempt、durable claimを作らずnative wakeを実経路で伝える。17 journal rows観測時点で全行run/occurrence/owner/sha一致・UTC timestampがexecute以後。guarded退役actual-apply writerとcurrent-skip writerの両方で一致を確認。旧null行の補完0。
+- scopeはnative wake occurrence伝播の限定PASS。通常older queued claimの維持はsource testsで確認、本control-plane runの実durable claim試験ではない。whole fleet terminal/全owner健康/金融・Evalは未達、同natural ownerを継続観測する。state/native-exempt-occurrence-natural-20261004.json/mode600。次はSelfBuild実hookとPaid/CFOの未完条件、全残TODO → §217、全goalactive。
+
+### 286. Railway公式PDFと認証済みメールを請求書番号で直接結合
+
+- official Railway API invoiceId in_1UKGixCJoPsRzQsddYJdUbPZのhostedURLはHTTP200/745bytes/metadata無しでありcurrency/paid_at証拠としない。別の公式pdfURLをHTTPGET、37,226bytesのPDFをメモリ内だけでpdftotextへ渡し、ラベル付きInvoice number C5JOKVVH-0017、Subtotal31.07/Total26.07/Amount due26.07 USD、Dateissue/datedue Sep27 dateonlyを確認。PDF本文/private URL保存・公開0。
+- fresh railway_pdf_binding_reviewは同API対象1件/公式PDF、Gmail message1a0e2f3d4a3efb69を独立再取得。Google Authentication-Results1件/Stripe DKIM・DMARCとAmazon SES DKIM pass、同ラベル付きinvoice number/amount/date/receipt numberを確認。APIinvoiceId→公式PDF→invoice number→認証済みmailの限定binding SHIP。旧hosted/pdf URL exactmatch falseは変更せず、URL不一致だけでbinding不能とはしない。
+- 同URLのPDFは同じ表示・37,226bytesでも取得ごとにhashが変化。保存hashは取得時点の観測のみで恒久identityではない。Mail本文の明示USDは独立再確認できず、currency USDの根拠を公式PDFだけへ限定。Amount dueをbank payment/paid_atへ変換しない。
+- source/state変更0・provider mutation/send/payment0のreview結果を、primaryがstate/cfo-railway-invoice-pdf-readonly-20261004.json、cfo-railway-invoice-mail-binding-20261004.json/mode600へ記録。時刻付きpaid_at/bankmatch/loop配賦/actual-cost adapter接続/profitはHOLD。CFO writer/production financial table変更0。次は公式時刻・期間/実配賦の不足を閉じる。actual model/effort/usageは観測不能、全goalactive。
