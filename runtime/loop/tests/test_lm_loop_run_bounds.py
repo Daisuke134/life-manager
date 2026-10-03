@@ -999,6 +999,39 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
         }
 
 
+def test_exempt_entrypoints_receive_native_occurrence_without_inheriting_foreign_context(tmp_path):
+    cases = [
+        ("life-manager-release-reconciler", {"start_interval_seconds": 60}),
+        ("life-manager-release-reconciler", {"keep_alive": True}),
+        ("continuous-owner", {"keep_alive": True}),
+    ]
+    for index, (loop_id, cadence) in enumerate(cases):
+        for occurrence in (f"{loop_id}:native-wake", None):
+            output = tmp_path / f"child-{index}-{bool(occurrence)}.json"
+            env = {"LIFE_MANAGER_RUN_ID": "native-wake",
+                   "LIFE_MANAGER_OCCURRENCE_ID": "other-owner:stale",
+                   "LIFE_MANAGER_RESULT_HINT_PATH": str(tmp_path / "foreign-hint")}
+            command = [sys.executable, "-c",
+                       "import json,os,sys; from pathlib import Path; "
+                       "Path(sys.argv[1]).write_text(json.dumps({k:os.environ.get(k) for k in "
+                       "('LIFE_MANAGER_RUN_ID','LIFE_MANAGER_OCCURRENCE_ID',"
+                       "'LIFE_MANAGER_RESULT_HINT_PATH')}))", str(output)]
+            claimed = []
+            with (patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource"),
+                  patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=1),
+                  patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire):
+                assert _run_admitted(command, {"cadence": cadence, "effect_class": "none"},
+                                     loop_id, env, tmp_path / "receipt",
+                                     occurrence_id=occurrence, on_claimed=claimed.append) == 0
+            child = json.loads(output.read_text())
+            assert child["LIFE_MANAGER_OCCURRENCE_ID"] == occurrence
+            assert child["LIFE_MANAGER_RESULT_HINT_PATH"] is None
+            assert child["LIFE_MANAGER_RUN_ID"] == "native-wake"
+            assert env["LIFE_MANAGER_OCCURRENCE_ID"] == "other-owner:stale"
+            assert claimed == []
+            acquire.assert_not_called()
+
+
 def test_control_plane_no_effect_owner_clears_stale_fence(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 300},
              "provider_route": "deterministic", "effect_class": "none",
