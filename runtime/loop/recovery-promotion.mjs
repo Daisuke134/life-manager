@@ -248,7 +248,9 @@ export async function promoteLoopRuntimeRepair({
   let rolledBack = false;
   const needsRollback = !canaryOk || !healthOk;
   if (needsRollback) {
-    const available = previousReleasePath != null;
+    const previousReleaseSha = previousReleasePath
+      ? await readManifestSha(previousReleasePath, readFileFn) : null;
+    const available = SHA256.test(String(previousReleaseSha || ""));
     let executed = false;
     let result = null;
     if (available) {
@@ -263,13 +265,19 @@ export async function promoteLoopRuntimeRepair({
           },
         });
         executed = true;
-        rolledBack = result?.code === 0;
+        let receipt = null;
+        try { receipt = JSON.parse(String(result?.stdout || "")); } catch {}
+        const item = Array.isArray(receipt) ? receipt.find((row) => row
+          && row.label === entry.label
+          && (row.loop_id == null || row.loop_id === ownerId)) : null;
+        rolledBack = result?.code === 0 && item?.ok === true
+          && item.release_sha === previousReleaseSha && item.skipped == null;
       } catch (error) {
         result = { code: 1, error: String(error?.message || error) };
       }
     }
-    hooks.push(hook('rollback', available, {
-      executed, result, previous_release_path: previousReleasePath,
+    hooks.push(hook('rollback', rolledBack, {
+      executed, result, previous_release_path: previousReleasePath, previous_release_sha: previousReleaseSha,
     }));
   } else {
     hooks.push(hook('rollback', previousReleasePath != null, {

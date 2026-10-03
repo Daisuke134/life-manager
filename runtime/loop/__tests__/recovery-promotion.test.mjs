@@ -128,7 +128,7 @@ test('canary apply failure triggers rollback to the previous release', async () 
       return { code: 1, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: false }]), stderr: '' };
     }
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === PREVIOUS_RELEASE) {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: 'c'.repeat(40) }]), stderr: '' };
     }
     throw new Error(`unexpected command ${JSON.stringify(request.args)}`);
   };
@@ -171,7 +171,7 @@ test('health failure (terminal fail) triggers rollback', async () => {
       };
     }
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === PREVIOUS_RELEASE) {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: 'c'.repeat(40) }]), stderr: '' };
     }
     throw new Error(`unexpected command ${JSON.stringify(request.args)}`);
   };
@@ -221,7 +221,7 @@ test('health timeout with no terminal result triggers rollback', async () => {
       };
     }
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === PREVIOUS_RELEASE) {
-      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true, release_sha: 'c'.repeat(40) }]), stderr: '' };
     }
     throw new Error(`unexpected command ${JSON.stringify(request.args)}`);
   };
@@ -363,3 +363,32 @@ test('cut succeeds on a later retry after the lock frees up', async () => {
   assert.equal(result.ok, true);
   assert.equal(cutAttempts, 2);
 });
+
+for (const [name, response] of [
+  ['effect fence', {code:0, stdout:JSON.stringify([{loop_id:OWNER,label:LABEL,ok:true,release_sha:'c'.repeat(40),skipped:'effect-unknown-fence'}])}],
+  ['unreadable receipt', {code:0, stdout:'not-json'}],
+  ['another owner', {code:0, stdout:JSON.stringify([{loop_id:'other-owner',label:'ai.anicca.other',ok:true,release_sha:'c'.repeat(40)}])}],
+  ['wrong release', {code:0, stdout:JSON.stringify([{loop_id:OWNER,label:LABEL,ok:true,release_sha:MERGED_SHA}])}],
+  ['failed receipt', {code:0, stdout:JSON.stringify([{loop_id:OWNER,label:LABEL,ok:false,release_sha:'c'.repeat(40)}])}],
+]) {
+  test(`rollback does not claim restoration after ${name} with exit zero`, async () => {
+    const {deps,releaseDirs} = baseDeps();
+    releaseDirs.push(NEW_RELEASE);
+    const readFile=deps.readFile;
+    deps.readFile=async file => file===`${NEW_RELEASE}/RELEASE.json`
+      ? JSON.stringify({sha:MERGED_SHA}) : readFile(file);
+    const recorded=[];
+    deps.appendLedger=async (_file,line) => recorded.push(JSON.parse(line));
+    deps.runCommand=async request => {
+      if(request.executable==='bash') return {code:0,stdout:''};
+      if(request.env.LIFE_MANAGER_RELEASE_ROOT===NEW_RELEASE) return {code:1,stdout:'[]'};
+      if(request.env.LIFE_MANAGER_RELEASE_ROOT===PREVIOUS_RELEASE) return response;
+      throw new Error('unexpected command');
+    };
+    const result=await promoteLoopRuntimeRepair({ownerId:OWNER,mergedSha:MERGED_SHA,repoRoot:REPO_ROOT,loopsRoot:LOOPS_ROOT,deps});
+    assert.equal(result.ok,false);
+    assert.equal(result.rolled_back,false);
+    assert.equal(result.hooks.find(h=>h.hook==='rollback').ok,false);
+    assert.equal(recorded.at(-1).rolled_back,false);
+  });
+}
