@@ -78,7 +78,7 @@ function readCreativeMetricsForFamilies(dataDir, candidates) {
 // lane object, so the same rotation pipeline that stopped the JA Larry
 // Instagram lane from reposting also fixes any other lane wired to it,
 // without a second implementation.
-async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateText, lane = JA_LANE, productionSlots = JA_LARRY_PRODUCTION_SLOTS } = {}) {
+async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateText, generateCandidates = generateSlidePackCandidates, lane = JA_LANE, productionSlots = JA_LARRY_PRODUCTION_SLOTS } = {}) {
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
@@ -90,9 +90,13 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const pool = poolPath(dataDir, tenantId, lane.productId, lane.lane);
   let candidates = readPool(pool);
 
-  if (candidates.length < MIN_POOL_SIZE) {
+  const postedHistory = readPostedHistory(distributionLedgerPath(dataDir, tenantId, lane.productId));
+  const available = selectSlidePack({ candidates, postedHistory, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
+  // Total inventory can exceed the warm-up floor while every pack is still
+  // inside the no-repeat window. Refill once through the same gated factory.
+  if (candidates.length < MIN_POOL_SIZE || !available) {
     const rejected = [];
-    const generated = await generateSlidePackCandidates({
+    const generated = await generateCandidates({
       objectStore,
       workspaceDir,
       imageCacheDir,
@@ -123,7 +127,6 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     }
   }
 
-  const postedHistory = readPostedHistory(distributionLedgerPath(dataDir, tenantId, lane.productId));
   const metrics = readCreativeMetricsForFamilies(dataDir, candidates);
   const selected = selectSlidePack({ candidates, postedHistory, metrics, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
   if (!selected) {
