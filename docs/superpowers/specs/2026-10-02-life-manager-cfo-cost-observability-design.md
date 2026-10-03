@@ -340,13 +340,13 @@ Best case is a cache hit and successful free primary on nearly every Japan reque
 
 ### Ordered provider-cost TODO
 
-1. **Routing policy seam:** allow coordinate-ready Japan Transit to run without a Google key; return a typed `provider_unconfigured` state for non-Japan/address-only requests rather than silently failing.
-2. **UX and attribution:** preserve OpenPOI licenses/attributions in the location receipt; add a source link to any UI that displays raw provider data; add `/v1/suggest` only when an actual input-completion surface exists.
-3. **Geocoder benchmark:** run the fixed Japan address corpus against Geoapify and a bounded self-host candidate; compare exact/area accuracy, p95 latency, quota, license, freshness, disk/RAM, and monthly cost. Do not replace Google until the winner has a readback artifact.
-4. **Route benchmark:** compare current Transit API, OTP with maintained GTFS, and OSRM/Valhalla driving on representative Japan routes; record route duration/legs/fare/provider health and the operating cost of each candidate.
-5. **Explicit budget policy:** configure per-tenant daily/monthly caps for Places fallback, route fallback, Geocoding, and nonessential Gemini; emit warning/degraded/stopped transitions and Telegram/CFO receipts.
-6. **LLM cost gate:** evaluate the existing local-model lane against recorded location/online/route-interpretation tasks; switch only if accuracy, latency, privacy, and receipt coverage are non-inferior. No new direct provider adapter is introduced by this spec.
-7. **CFO acceptance:** rerun the B7 report with fresh provider receipts, observe seven consecutive daily closes, reconcile the October Cost Table, and only then update the target from estimate to measured actual.
+1. **[x] Routing policy seam:** coordinate-ready Japan Transit runs without a Google key; non-Japan/address-only requests return typed `provider_unconfigured` rather than silently failing.
+2. **[x] UX and attribution:** OpenPOI licenses/attributions and provenance are retained; incomplete attribution is rejected. Add `/v1/suggest` only when an actual input-completion surface exists.
+3. **[x] Geocoder benchmark artifact:** the fixed Japan corpus and provider-level accuracy/resource scoring run fail-closed; the current result is `no_winner`, so Google is not replaced.
+4. **[x] Route benchmark artifact:** Transit/OTP/OSRM/Valhalla rows and operating-cost fields are recorded; no production cutover is claimed from benchmark evidence alone.
+5. **[x] Explicit budget policy:** per-tenant daily/monthly caps and typed fallback telemetry are enforced; durable authorizer read failure denies non-cache paid work.
+6. **[x] LLM cost gate:** the existing local-model shadow scorecard is fail-closed; current recommendation is `keep_current` until a receipt-backed, non-inferior candidate exists.
+7. **[ ] CFO acceptance:** rerun the B7 report with fresh provider receipts, observe seven consecutive daily closes, reconcile the October Cost Table, and only then update the target from estimate to measured actual.
 
 This provider-cost sequence is additive to Section 11's personal-MUFG and external-settlement TODOs. Those financial source gaps remain required for a complete CFO report even if provider API cost reaches the target.
 
@@ -356,7 +356,7 @@ The first six provider-cost tasks are now implemented on the dedicated branch: t
 
 The current acceptance cursor is:
 
-1. rerun all provider benchmark and CFO suites after the variance/gate changes;
+1. **[x]** rerun all provider benchmark and CFO suites after the variance/gate changes;
 2. retain the geocoder `no_winner` and LLM `keep_current` evidence until an approved read-only endpoint or existing model-routing shadow produces receipts;
 3. observe seven real daily closes with fresh source rows, settled Google billing, provider-lane cap receipts, and replay-zero;
 4. only then promote a benchmark winner or claim the ¥5,500–¥7,500 pre-tax planning target as measured actual; and
