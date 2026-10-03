@@ -106,6 +106,7 @@ test('success path: candidate cut with LOOPS_ACTIVATE_CURRENT=0, canary apply, h
   assert.equal(byHook.rollback.ok, true);
   assert.equal(byHook.rollback.detail.executed, false);
   assert.equal(calls.filter((c) => c.args?.[0] === 'apply').length, 1);
+  assert.deepEqual(calls.find((c) => c.args?.[0] === 'apply').args, ['apply', '--loaded-idle-only']);
 
   const cutCall = calls.find((c) => c.executable === 'bash');
   assert.equal(cutCall.env.LOOPS_ACTIVATE_CURRENT, '0');
@@ -147,6 +148,8 @@ test('canary apply failure triggers rollback to the previous release', async () 
   assert.equal(byHook.rollback.detail.executed, true);
   const rollbackCalls = calls.filter((c) => c.env?.LIFE_MANAGER_RELEASE_ROOT === PREVIOUS_RELEASE);
   assert.equal(rollbackCalls.length, 1);
+  assert.equal(rollbackCalls[0].executable, `${NEW_RELEASE}/bin/lm-loop`);
+  assert.deepEqual(rollbackCalls[0].args, ["apply", "--loaded-idle-only"]);
 });
 
 test('health failure (terminal fail) triggers rollback', async () => {

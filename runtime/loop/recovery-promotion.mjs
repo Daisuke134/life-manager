@@ -197,7 +197,7 @@ export async function promoteLoopRuntimeRepair({
   try {
     const applied = await runCommand({
       executable: loopExecutable,
-      args: ['apply'],
+      args: ['apply', '--loaded-idle-only'],
       env: { ...process.env, LIFE_MANAGER_APPLY_TARGET: ownerId, LIFE_MANAGER_RELEASE_ROOT: releasePath },
     });
     let parsed = null;
@@ -256,8 +256,9 @@ export async function promoteLoopRuntimeRepair({
     if (available) {
       try {
         result = await runCommand({
-          executable: path.join(previousReleasePath, 'bin/lm-loop'),
-          args: ['apply'],
+          // Keep the new controller: an older CLI cannot enforce the idle-only option.
+          executable: loopExecutable,
+          args: ['apply', '--loaded-idle-only'],
           env: {
             ...process.env,
             LIFE_MANAGER_APPLY_TARGET: ownerId,
