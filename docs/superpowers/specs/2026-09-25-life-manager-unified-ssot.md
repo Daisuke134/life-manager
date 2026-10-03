@@ -4810,15 +4810,15 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 1. 各platformの各laneを、source実装→owner登録→loaded argv/SHA→自然run→公式effect/readback→finance/replay-zeroに分けて確認する。runtime passだけで応募・返信・入金が行われたと報告しない。
 2. メール通知をplatformの応募confirmation、過去応募の選考／取消、job alert、interview invitation、payment通知に分ける。operatorへの既存Telegram通知とは別の経路で、同一occurrenceと結合する。メールなしや通知設定を応募なし／成功の根拠にしない。
 3. Lancers/Coconalaの公開商品は新しい公式inventory/demand/readbackを確認し、stale receipt・effect fence・service contract mismatchをowner-localに修復する。実販売のattributionと全cost・payoutをCFOへjoinする。
-4. Mercor Paidの独立公式観測・本人限定token更新はmain9cへ統合、immutable/actual load・自然run/公式snapshot/result/marker一致・隔離replay-zeroを§240–241で確認。自然expired→renewedは未証明。旧Reply49631は解放済みだが別旧Reply61324とApp33812は証拠不足でHELD。公式intent/receiptを取得し、同じ案件の返信・提出・精算を閉じる。Freelancer/Upworkはaccount-bound source/inventoryから稼働ownerへ接続、FiverrはMeta Loopで導入。CODE部品やcapability名を稼働実績と扱わない。
+4. Mercor Paidの独立公式観測・本人限定token更新はmain9cへ統合、immutable/actual load・自然run/公式snapshot/result/marker一致・隔離replay-zeroを§240–241で確認。§266でproduction owner経路のexpired→refreshed→validと同run公式契約GETを確認。scheduler起点の独立証明・SPA Profile遷移・金融成果は含まない。旧Reply49631は解放済みだが別旧Reply61324とApp33812は証拠不足でHELD。公式intent/receiptを取得し、同じ案件の返信・提出・精算を閉じる。Freelancer/Upworkはaccount-bound source/inventoryから稼働ownerへ接続、FiverrはMeta Loopで導入。CODE部品やcapability名を稼働実績と扱わない。
 
-確認済みのplatform別境界（根拠§223、Mercor更新§240–241。全laneの最新一斉監査ではない）:
+確認済みのplatform別境界（根拠§223、Mercor更新§266、Coconala更新§260。全laneの最新一斉監査ではない）:
 
 | Platform | 応募・返信・Paidの残チェック | Storefrontの残チェック |
 |---|---|---|
 | Lancers | 各laneの自然実行と公式receipt、旧unknown、納品・精算・着金を結合 | 既存catalogの新しい公式公開・需要・注文・利益を検証 |
-| Mercor | Paid自然観測PASS、期限更新の自然証明とApp/Reply旧fence・実契約/精算が未完 | 現行の応募型経路と区別し、商品販売を稼働済みと報告しない |
-| Coconala | 既存buyer案件の正式検収・支払・着金、financial source接続 | 定型サービス4409818の公開確認済み。契約不一致・fence、問い合わせ→販売→実利益が未完 |
+| Mercor | Paid本番経路の期限更新・公式契約GET確認済み。App/Reply旧fence・正式提出・実契約/精算が未完 | 現行の応募型経路と区別し、商品販売を稼働済みと報告しない |
+| Coconala | 既存buyer案件は納品条件未達・pending。orders公式HTTP403、正式検収・支払・着金とfinancial source接続が未完 | 定型サービス4409818の公開確認済み。契約不一致・fence、問い合わせ→販売→実利益が未完 |
 | CrowdWorks | 応募/返信/Paidの公式readback、旧unknownと納品・精算・着金 | 現行経路は応募型。商品販売経路は未確認、完了扱いしない |
 | Freelancer | 稼働owner未接続。account/inventory→owner→自然応募/返信/Paidを確認 | providerで利用可能な商品販売経路を確認し、適用可否を記録 |
 | Upwork | 稼働owner未接続。account/inventory→owner→自然応募/返信/Paidを確認 | 商品販売経路の公式inventoryと既存ownerへの接続を確認 |
@@ -4832,7 +4832,8 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 |---|---|---|
 | Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
 | Self-Build / Eval | latestmain80のimmutable/loaded argv一致は確認済み。自然row/run-ID/report一致は§262で1occurrence確認済み。実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
-| Paid / 各marketplace | Mercor Paidは§241で新main自然観測/replay-zero確認済み。自然期限更新、旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
+| Paid / 各marketplace | Mercor Paidは§266でproduction期限更新/公式GET/隔離replay-zero確認済み。旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
+| Storefront / 自社商品 | Lancers/Coconalaは既存商品の公式公開・問い合わせ・注文のfresh readback、獲得経路と注文IDのjoin、納品・精算・payout・1注文あたり実cost/利益を確認。Upwork/Freelancerはaccount-bound inventoryと実owner接続、FiverrはMeta導入が未完 | primary/既存owner。応募と併せて販売funnelを閉じ、反復可能な商品へ学習を戻す。価格変更・新marketingは今回の範囲に追加しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
 | Affiliate | fresh commission/payoutはEMPTY。tax REQUIRED/payment provider SELECTION_REQUIRED、fee/actualcost/settlement/payoutと旧publish fence | primary/Affiliate owner。emptyをprofit/費用0へ変換しない |
 | Connector | 自然認証済み探索は§207到達、参加可能候補0。実候補時のprovider/mail/Calendar receipt、registration/effect/replay-zero、contract/settlement/payout | primary/Connector owner。実候補発生時に公式成果を閉じる |
@@ -4845,18 +4846,18 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に検証したsourceはPR6534/本人限定token更新を含むmain9c03543e5dc51f7bc54f8e132a264964a0e40f6d。PR6531/6534は統合済み、再PR/merge不要。PR6534は独立reviewSHIP/68+4probes/749runtime/adapter15/contract/OSS/全10CI PASS。実装branch fix/mercor-paid-token-refresh-20261004/HEADce914はclean/pushedで保持。
-- 最後に確認したproduction currentはmain9c/completeALL、immutable 20261004T011929-9c03543e。Paid actualargv/loadは§240、新9c自然official snapshot/native/result/marker joinとisolated replay0は§241でPASS。自然expired→renewedは未証明。在庫0/effect0を売上・利益0へ拡張しない。旧release owner61609はterminalで、現在のowner稼働状態は操作前に再確認する。重複build/apply/kill/wakeしない。
-- SelfBuild exactloaded80/idle/effectunknownfalseは§226、自然UUID/report一致は§262のnative49851で確認。JST04:10の個別wakeや全promotion成立と混同しない。現在のloadedを更新なしにlatestmainと断定しない。Mobile別担当のbranch/Apple/provider/profileを触らない。
-- Mercor旧Paid1件は§226、Reply49631は§231でexact message業務scope proofにより解放/replay0。別旧Reply61324はnative66602/exit1/証拠不足でHELD、App33812もHELD。過去auth/UI一般作用unknownを0へ変換しない。保留4の受付・不足fields診断は§234。
-- 容量は他既存処理で約3.7GB回復後、closed npx cache1件の限定削除で約155MB増加、旧ENOSPCの全回復を自分の成果へ計上しない。doctorの既存unmanaged capafy.kosukeは未完。全14 CFO/fee/actualcost/settlement/payoutと全残TODOは上表のままgoalactive。
-
+- 最後に確認したmainは6ad232c6a20333af31f54cd1dbccc8da832cc238。release帰属修復PR6539はexacthead ee337/全10CI PASSで統合済み（§265）。本番immutable/load/帰属照合とSelfBuild外部ownerの実promotion/recovery hookは別の未完条件。旧PR6368のbranch・Larry旧publish fenceを変更しない。
+- 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
+- SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
+- Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
+- Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。既存buyer workは19 verified unique sends/残281、品質・納品条件未達でpending。loaded vaultと既定vaultを混同しない。
+- diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosuke、全14loops CFO unknownは未完。
 
 #### 現在の一手
 
-Coconala talkroom修復PR6535/mainc0はcompleteimmutable/actualPaidloadまで確認済み。orders修復PR6536/main642も統合済み（§251）。live release owner78508のterminal後、新immutable/target load/自然HTTPreceiptを照合する。loaded vaultを既定vaultと混同せず、診断HTTP200と正式納品・金融成果は区別する。
+release帰属修復のsource統合は完了。既存release ownerのterminalと対象idleを確認してから最新main由来immutable/実load/帰属を照合し、SelfBuildのowner-local promotion hookを進める。並行して既存Paid ownerの正式納品・旧exact fenceの公式receipt・financial sourceを閉じる。Mercor token期限更新の同じ観測を繰り返すことは次の成果にしない。
 
-Railwayの公式project/service使用額は取得済み（§243）。支払明細の差額とcanonical loop配賦を照合し、Coconala targeted_readbackのtalkroom_history_emptyと金融receipt未接続、stale readbackをowner別に閉じる。同時に通常Mercor運用の期限更新を観測する。Railway公式支払receiptとDO credit相殺invoiceは費用候補であり、配賦未確認のままactualcostへ接続しない。既存大順序は維持し、MobileのApple認証/branchへ重複介入しない。
+Railwayの支払明細と公式project/service使用額の差額、canonical loop配賦・対象期間を照合しCFO actualcostへ接続する。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -5273,3 +5274,16 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - latestbaseline wrapperでmutableenvのstaleSHAがreconcile/runnerへ渡るbound/absent/empty3variants REDを再現。dotenv前のset/unset/valueを保存し、読込後にexact restore。既存testへ3casesを適用し9PASS、failedreconcile後のrunnerにもSHA保持を独立fixtureで確認。投稿内容/価格/送信先/認証/既存effectfence/paidworkflowの変更0、実provider呼出し0。
 - HEADee33775f6f6fa83da7bd78d743206abaf3f82883/2files/production15lines/clean/pushed。focused9/runtime749/134.731s/adapter15/contract14loops178jobs/OSS/bash/diffPASS。fresh mobile_release_binding_review SHIP/9＋failedreconcilefixture/marketingadapter19PASS。PR6539を一度作成、GitHubchecks進行中でOSSはPASS。旧PR6368のheadを変更せずsource修復を置き換える、SelfBuildpublishownerのhookが成立したとはしない。
 - state/mobile-release-attribution-source-20261004.json/mode600、publication/新customer send/fence解放0。次はPR6539 exacthead全CI→main source統合→既存owner serialized immutable/load/natural帰属照合。Larry旧fence/officialreceipt不足、externalowner hooks、ASC別担当gate、§217全残TODO/goalactiveを維持。
+
+
+### 265. release帰属修復のsource統合と残る運用成果
+
+- PR6539はhead ee33775f6f6fa83da7bd78d743206abaf3f82883の全10CI PASSでmain6ad232c6a20333af31f54cd1dbccc8da832cc238へ統合済み。公式gh readでもMERGED/head/merge SHAを確認。検証根拠は§264とstate/mobile-release-attribution-source-20261004.json。
+- 最新mainのimmutable/load/帰属は未照合。SelfBuild外部publish ownerのhook不足、Larry旧effect unknown/receipt不足、Mobile ASC外部gateは維持。source修復を公開・販売・入金の完了へ置換しない。producer PR6368/他担当branchの編集0。
+
+### 266. Mercor本番owner経路で期限切れ更新と公式GETを確認
+
+- native run18db1b5057086a18-3074/occurrence mercor-revenue-paid:18db1b5057086a18-3074/release be2。execute19:21:48.684672Z、公式snapshot19:21:57.826560Z、report19:22:01.840855Z/PASS/exit0が同runへ一致。auth identity_matched true、before_expired true、refreshed true、after_expired false。手動login/cookie注入/人工expiry/manualwake0。
+- fresh独立mercor_natural_expiry_reviewはnativeイベント一致、frozen snapshot byte/hash、release3source blob一致、refresh/IndexedDB transaction完了後の公式contracts GET成功を限定SHIP。scheduler起点の独立証跡・SPA Profile navigationは未証明。contracts[]/business effect0を売上・精算・着金・実利益0へ転用しない。native金融provider receiptは未取得。
+- exact completed markerとfrozen contracts[]を隔離し実deployed adapter/kernelでreadback。marker変更0/business mutation0/provider network0/production marker変更0/production state write0。empty inventoryの隔離replay-zeroであり、本番ownerの再実行ではない。
+- 根拠はstate/mercor-natural-expired-renewed-20261004.json、mercor-expired-renewed-snapshot-20261004.json、mercor-expiry-exact-replay-zero-20261004.json/mode600。証拠collectorはcodex-money-printer、native ownerはmercor-revenue-paid。旧App33812/Reply61324はHELD、正式提出・契約・精算・payout/actualcostを継続する。現在の担当・順序・storefront/mailを含む残TODO → §217。
