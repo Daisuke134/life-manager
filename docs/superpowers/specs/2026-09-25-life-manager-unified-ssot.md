@@ -5172,3 +5172,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 17:52:32Zのlaunchctl-safe限定readでhf-gig-paid-directのactualargv3要素は20261004T023308-c0db5d48/bin/lm-loop-run、hf-gig-paid-direct、同releaseRootに一致。前段talkroom修復のcompleteimmutable/sourcebytes/actual loadは確認済み。orders新main642のimmutable/load/自然failure receiptは未達。既存reconciler78508/parent78471がc0からlive/elapsed16:39、primary重複build/apply/kill/manualwake0。
 - 正しいvaultの専用contextではtalkroomHTTP200/63historyとordersHTTP403を観測済み。existing default contextの再探索は403、専用contextのfinance nav探索はHTTP200でもlink0で完全性未確認。context/vault scopeを混同せず、リンク0を金融在庫0と扱わない。公式payment/fee/settlement/payoutとCFO source接続は未完。
 - private source proof c0: state/coconala-http-receipt-source-proof-20261004.json、orders: state/coconala-orders-http-source-proof-20261004.json、finance nav: state/coconala-finance-nav-leased-context-20261004.json、mode600。次は既存owner terminal→main642 completeimmutable/targetactualload→自然official receipt。provider403原因、正式納品/実費配賦/銀行着金、§217全残TODOと別担当Mobile境界を保持しgoalactive。
+
+
+### 252. main642 completeimmutable作成・稼働Paidによるtargetapply延期
+
+- oldreconciler78508/78471はmissing/terminal、fleet結果17:55:56Z/c0/partial52changed/errors1/skipped14/budgetexceededを確認。fresh全reconciler/builder不在後に最新main642のcutを1回実行しexit0、current20261004T025625-642a92e3/RELEASE.jsonsha642a92e3a18152d07391fa1450cf399580472f50/release_pathsALL。変更2filesはmainblob bytesと一致。意味のない再build/再PR/merge0。
+- GUIpreflightPASS後のtargetidle確認でhf-gig-paid-directはrunning/PID11417、actualargvは旧c0。applyは発行前にexit75/TARGET_NOT_IDLE、stop/bootstrap/kill/manualwake0。17:58:52Zの限定readをstate/coconala-642-target-apply-deferred-20261004.json/mode600へ保存。次の新release側reconciler30823/parent30807もlive、重複targetapplyしない。
+- PID11417のnatural processは継続live、子11443/16802/18461は既存Paid/collector経路。rootelapsed08:27/collector子05:09まで確認、elapsedだけでdead/timeoutと扱わない。new642のactualtargetload/自然HTTPreceipt、正式納品/financialreceiptは未達。state/coconala-orders-http-source-proof-20261004.json/mode600へimmutableと延期境界を保存。
+- 正しいvaultの専用contextで3秒hydration後、公式talkroomDOMはHTTP200、取引情報/talkrooms/18180857/information、offer、DM等のfirstparty routesを観測。finance menuなしを残高/金融在庫0と扱わない。公式取引情報ページの追加probeはbrowserleasebusy/exit75/読取前終了で、runningborrowerを奪取しない。state/coconala-official-routes-hydrated-20261004.json/mode600。
+- 次はnatural11417とreconciler30823のterminal→actualtargetargv/SHA→新sourceの自然official receiptを照合し、取引情報/payment/fee/settlement/payoutの公式readbackとCFO接続を進める。§217全残TODO/別担当Mobile境界とgoalactiveを維持。
