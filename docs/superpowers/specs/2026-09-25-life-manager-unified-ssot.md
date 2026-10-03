@@ -4402,3 +4402,15 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 - 旧: PID18006 terminal→main885 release→Writerapply→naturalproof。
 - 新: lease修復review/CI/main統合とPID18006 terminalの両方を確認→最新mergedmainのcomplete release→Writerのみidle/effect-safeapply→naturalproof。§185のlane順序は維持する。
 - 現在cursor: lease修復push/freshreviewとPID18006のverifiedlivewait。全体goalはactive/未完。
+
+### 193. Writer browser lease SHIP・PR #6520
+
+- lease修復HEAD/upstreamは`9c31c56033a13dceac2885c3a4d17a024da5a190`、clean/pushed。fresh read-only reviewer writer_browser_lease_reviewはSHIP、findings none。PID+process-start一致で自ownerだけreleaseし、BUSYexit75/provider未実行、resolvedendpointが両Playwright子へ継承することを確認。requestmodel=gpt-5.6-sol/high、actualmodel/effort/usageはunobservable。
+- PR #6520 `https://github.com/Daisuke134/life-manager/pull/6520`はopen、CI開始済み。全CI SUCCESS後だけadmin squash mergeする。focused9件、local-lock contract、loop contract、syntax/compile/diff PASS、既存baseline10FAILは保持。
+- registered endpoint resolverのread-only実測はinteractive:dais=`http://[::1]:9222`、reachable=true / http_status200 / ownership_sourceprocess_command。profile/credentials/認証cookie/leaseそのものを手動変更していない。
+- fresh launchctl-safe preflightはPASS/mutation_allowedtrue/errors[]。現在reconcilerPID18006は070immutableからliveのまま。最新ownerresultはhf-gig-apply-reconcile changed1/rc0とhf-gig-reply-detector skipped1/rc0。別release/applyやrunningownerkillは0。
+
+#### 更新後の原子cursor
+
+1. PR6520全CI→admin squash mergeとPID18006terminalの両方を確認し、最新mergedmain complete immutable release→Writerだけidle/effect-safeapplyを行う。
+2. 自然wakeのNote/Substack公式観測row→runtimeidentity→DBreceipthash、replay-zeroを閉じる。未知売上を0へ変換しない。§185lane順序は維持する。
