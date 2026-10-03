@@ -4965,3 +4965,14 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 次cursorはfreshreview handle17959/PID42048（fresh確認live）を同handleで追い、cache追加差分をレビュー対象に結合。disk容量は既存host cleanupのownership/open-path protectionsを維持して回復し、失敗2件を再検証してからsource統合条件を閉じる。lease/source/review途中のstateを完了扱いせず、PR/merge/loadは未達のまま。
 
 - review handle17959はterminal/exit0だが最終返答にverdict/一次根拠が無いため不受理。fresh independent session629faeb6-3de8-43e5-83ff-fc93d114f718をresumeし、plan/file作成無し・Read+限定Bashだけで最終HEAD90535b1845の反証判定を直接要求。followup handle43381進行中、SHIPを捏造しない。次はこの同handleの結果を追う。
+
+
+### 230. Mercor Paid最終source review SHIP・容量境界・旧Reply exit75反証cursor
+
+- 実装HEAD90535b1845/full90535b1845d13d79123ab38bc84743acf0f96150はclean/pushed、base/current/main80不変。初回reviewはverdict無し、2回目は複合commandのcd permission拒否で未達。対象cwdへのcd/指定pytestだけをallowlistへ追加して同独立sessionをresumeしたhandle79067はterminal、最終reviewはSHIP/重大finding無し、focused62を独立実行PASS。
+- reviewerは最初のusable tokenの本人一致、失敗時旧snapshot維持/exit75/kernel未実行、registered leaseとowned page限定、funded/human submission gate維持、収益非計上をsource/testで確認。cache:no-storeは共通helperのためReplyのfallback GETにも効くという範囲を明示する。Reply state/fenceへ書き込まないという主張と、共有fetch optionが変わることを混同しない。provider/browser実機操作はreviewer側未実施、primaryのsource-only公式GET probeとは別の証拠。
+- source proofへCLIのactual modelUsage claude-sonnet-5を保存。最終JSONのAPI-equivalent list estimateUSD1.1452224はCLI観測値であり、subscription実請求/whole-goal actualcostではない。resume各回の集計scope/重複は未確認なので合算しない。
+- full runtime749件中2件ENOSPC後、tracked blobs総86059346bytesと現在容量を観測してclean-user-installを単独再実行、1test/6.587s/PASS。残るisolated immutable-bytecode/release testは再実行7.356sで同じENOSPC、PASSに丸めない。runtime/compute-proxyの既存locked dependenciesは215804KiB、Data空き約380MiB。本番release/apply0。
+- 容量のread-only census: Data snapshot0、大きなdeleted-open file0、既存cache約284MiB、T約1.87GiB、Xの署名clone約1.37GiB。source/認証/profile/未知用途のものを削除候補にしない。sealed dependency9件はcut scriptの全7relativeに対するrelease symlinkを走査すると全件参照あり。初回不完全relative走査の3候補は正式走査で棄却、削除0。既存release reconcilerはfresh確認PID62959、その後75039でlive、重複build/apply/kill0。
+- 別の安全な診断として現在Reply fence49631を実際にclaimしたnative92552/sourceb13の一次eventを確認。execute12:23:00.846429Z→report12:23:17.346689Z/blockerentrypoint_exit_75/claim49631。当時kernel main通常returnは0/1、shell75は観測/auth/cookie commit等のkernel前、runtimeの75分岐はGo byte前に見える。これをpositive pre-effect proof候補としたが、到達可能callback/import/wrapper/signal等のpost-effect75反例検証前に解放しない。
+- 候補proofはstate/mercor-reply-exit-boundary-candidate-20261003.json/mode600/verifiedfalse/fence_release0。fresh独立Claude Sonnet/effortlow/Read+限定Bash・source/state/provider操作禁止、handle42051で反証中。次は同handleのSHIP/HOLDと根拠を確認し、十分なexact proofが得られた場合だけowner lock/idle/currentclaim freshreadで限定reconcileする。容量と未達bytecode gateも維持。全goalactive、Mobile別担当、SelfBuild自然UUID/report、全残TODO§217を縮小しない。
