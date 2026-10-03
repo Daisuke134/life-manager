@@ -4749,3 +4749,18 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 1. PR6525/main06095aは統合済み、再PR/remerge不要。live global25760をfresh確認しterminal後にcompleteimmutableを1ownerだけ作成または通常reconcilerの生成をreadback。SelfBuildだけfreshpreflight/idle/deploylockでloadし、次の自然row.run_id/reportをexactjoinする。manualwake/replay/guard緩和0。
 2. SelfBuild/Eval本成果は未完。PR6368のexternal_effect_owner promotionがunboundなのを保持し、owner-local実hookとCI不足を修復する。Paid fundedterms/delivery/fee/settlement/payout、Investment、Cloud/self-funding、TaskMarket、全14同期間CFOの残条件を引き続き進める。全goalactive。
+
+
+### 215. SelfBuild昇格binding censusとrollback false-success再現・修復
+
+- 前goal turnはPR6525/main06095a統合でprogress。本turnfreshreadではglobal25760/25706がc5e6からlive/currentc5e6のまま。重複build/apply/kill/manualwake0、新main immutable/natural gate未達を保持。
+- 178 registry ownerを実export関数classifyRecoveryJob→recoveryPromotionHooksFor→evaluateRecoveryPromotionで再計算。deterministic43はpolicy bound、external_effect_owner69/continuous_service25/read_only_external_owner8/model31/browser2の135はunbound。運用成功/故障数ではない。state/recovery-promotion-binding-census-20261003.json/mode600にowner別根拠保存。fresh read-only reviewerは対象3sourceがmain06095aとbytes一致、178unique/classificationerror0/artifact mismatch0/counts一致でPASS。4hook trueを申告してもexternal classはrecovery_runtime_promotion_unbound。
+- binding実経路の読取で別rootcauseを発見。recovery-promotion.mjsはrollback applyのexit0だけでrolled_backtrueを記録する。lm-loopはeffect-unknown-fence等のskipでもexit0/oktrueを返すため、restoreされないfenceを復元済みと誤報しうる。
+- 同goal/単独ownerの既存isolatedworktreeをfreshmain06095a由来 branch fix/selfbuild-rollback-receipt-20261003へ再利用。effect fence/unreadable receipt/other owner/wrong release/failed receiptの5REDを実functionで再現。previous manifestのvalid SHA、apply receiptのlabel/optional owner ID/oktrue/release_sha一致/skipped無しを必須にし、hook.okも復元結果へ一致させた。既存positive fixtureを実CLI応答のrelease_shaへ更新。
+- source2files/production net+9 lines/HEAD56fa19818b108cfd21afd18aa4fd092e8da8100dをpush。関連109 tests/contract14loops178jobs/OSS/diff PASS。shared runtime session94490、adapter/doctor session5313進行、freshreview/PR未達。本番破壊的rollback試験・providerbusinessmutation0。
+
+#### 更新後の原子cursor
+
+1. rollbackreceipt修正のrequiredchecks/freshreview→PR/CI/adminmergeを閉じる。PR6525のreportfixは既にmain、再merge不要。source proofとlive recovery proofは別未完。
+2. live global25760をfreshpollしてterminal後に最新main completeimmutableを一度だけ作成/通常owner生成をreadback、SelfBuildだけsafe load/自然run-ID reportjoin。待機中はowner-specific unbound promotionの実hook不足を調べ、boolean申告やguard緩和で通過させない。
+3. Paid currentfundedterms/delivery/fee/settlement/payout/actualcost、SelfBuild/Eval本成果、Investment、Cloud/self-funding、TaskMarket、全14 CFOの残条件を維持しgoalactive。
