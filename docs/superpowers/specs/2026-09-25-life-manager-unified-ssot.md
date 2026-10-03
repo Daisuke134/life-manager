@@ -4846,7 +4846,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在cursorとfresh runtime evidence
 
-- 最後に確認したmainはede6efa47d29349f97344481b3867e14220b9d91。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。new immutable/load/自然直接joinは未達。source合格と本番直接joinを区別する。
+- 最後に確認したmainは43f020026c74eed4f6289fba0c303a0d8caafef6。PR6540・6542・6543はsource統合済み。ede6 complete immutable/self-handoffとCapafy対象の自然退役・公式不在・doctor inventory・隔離replayは§278で限定SHIP。Capafy退役を再実行するTODOは残さない。whole fleet、候補補充の自然成果、SelfBuild実promotion/recovery、金融成果は未完。owner journal相関修復PR6544/HEAD9f8f76620b69b3a37aa9063597f595b12051cd3eはruntime759 PASS・独立source review SHIP・全10CI PASS、main43f020026c74eed4f6289fba0c303a0d8caafef6へ統合済み（§280）。complete immutableと既存handoff/official actual loadは§282で成立。自然journal直接joinは未達。source合格と本番直接joinを区別する。
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
@@ -5424,3 +5424,13 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 当時のGit blobをcurrent immutableと比較。opportunity-response-owner、opportunity_response.py、appsignal_response_adapter.pyはbytes一致。techi_response_adapter.pyの差分はCDP既定127.0.0.1→localhostであり、歴史sourceを現在の値へ置換しない。当時Gmail search/getはgmail-no-send/no-input、NO_RESPONSE branchはclassifierへ進まない。これはsource経路の観測であり、旧receiptと実runの直接bindingを証明しない。
 - last receiptのAppSignal/NO_RESPONSE/watched1はexecute/report時刻の間だがrun/occurrence IDを持たず、old scratchも不在。時刻の近さだけでofficial receipt・no-effect proof・fence解放を作らない。state/writer-response-mail-gap-20261004.json/mode600へarchive hash・2event・4blob hash・receipt binding不足を保存。business state/旧fence/provider send/auth変更0。
 - PR6544 main43fの自然反映は既存reconciler49188/parent49182/ede6が継続liveのため未達。最新owner blockは通常applyのrc0を追加中、fleet terminalをstateだけから推測しない。同owner terminal→main43 complete immutable/self-handoff→自然新journal直接joinを進める。全残TODO → §217、全goalactive。
+
+
+### 282. main43 complete immutable・既存handoffと新自然runのload確認
+
+- 前native run18db2320482d6bb0-49182は22:05:31.001774Z/report fail/exit1でterminal、script49188/parent49182 missingを確認。fleet terminal22:05:30Z/ede6/partial/changed19/skipped100/errors1/budget exceeded。Instagram metrics applyはrc1/51s、structured okfalse/error文字列はeffect_unknown/admissionを含む。前runのwriter rc120/Investment rc1は過去境界として保持し、同一原因とは断定しない。
+- active release owner不在とfresh origin/main43fを確認後、primaryが通常cut-loop-release.sh origin/mainを1回実行しexit0。complete /Users/anicca/loops/releases/20261004T070553-43f02002、manifest ALL/sha43f/main ancestor、reconciler/self-handoff/native runnerの3blobがGitとbytes一致。既存pressure/donor条件を使い、floor/flag回避・sparse代替0。
+- 既存handoff watcherが自然に切替を完了。self-handoff receipt statusok/parent8302/target43f/loaded arguments・SHA verifiedtrue、official launchctl-safe printとinstalled plistのargv3要素・SHAが43fと一致。primary manualapply/manualhandoff/manualwake/kill0。watcherを新設していない。
+- 新native run18db245aca2f7320-11443は22:07:29.170640Z/execute/source43f。script11449/parent11443がnew immutableを実行中。journal追記前のreconcile deterministic --loaded-idle-only --max-owners4/既存timeout300sを確認。新43f owner rowsはまだ0、direct run/claimed occurrence joinと本run terminalは未達。観測timeoutを終了と見なさず同handleを追う。
+- 一時的にMobile worktreeのreconciler PID12146/parent11741を観測したが次probeではmissing。実行mode/作用は未確認なのでglobal競合mutationの断定なし。lm-cfo-observability-1002へlive native11449/current43fと排他をAGMSG共有。Mobile branch/auth/provider/teamをprimaryが変更せず、追加global操作0。
+- mode600 state/fleet-owner-journal-correlation-natural-20261004.jsonへrelease/hash/handoff/native events・旧fleet terminal・primary effect countを保存。次は同natural runの新journal contextとnative event/実claimed occurrenceを直接joinする。全残TODO → §217、全goalactive/全fleet・finance・Eval未達。
