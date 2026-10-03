@@ -117,6 +117,7 @@ global.fetch=async(url,options)=>{if(options.method==='POST'){refreshes++;return
     if identity_matches:
         assert observed['value']['firebase_token_refreshed'] is True
         assert observed['value']['firebase_token_expired'] is False
+        assert observed['value']['firebase_token_expired_before_refresh'] is True
 
 
 def test_paid_capture_rejects_expired_auth_before_contract_read(tmp_path):
@@ -134,3 +135,29 @@ def test_paid_capture_rejects_expired_auth_before_contract_read(tmp_path):
     assert page.contract_reads == 0
     assert output.read_text() == 'old observation'
     assert page.closed
+
+
+def test_capture_retains_only_boolean_auth_evidence(tmp_path):
+    class AuthPage(Page):
+        def evaluate(self, expression):
+            if 'securetoken.googleapis.com' in expression:
+                return json.dumps({'firebase_identity_matched': True, 'firebase_user_present': True,
+                    'firebase_token_expired': False, 'firebase_token_expired_before_refresh': True,
+                    'firebase_token_refreshed': True, 'email': 'private@example.test',
+                    'accessToken': 'synthetic-secret-not-for-snapshot'})
+            return super().evaluate(expression)
+    output = tmp_path/'snapshot.json'
+    paid.capture(AuthPage({'contracts': []}), expected_email='owner@example.test', output=output)
+    value = json.loads(output.read_text())
+    assert value['authentication'] == {'identity_matched': True,
+        'token_expired_before_refresh': True, 'token_refreshed': True, 'token_expired_after_refresh': False}
+    assert 'synthetic-secret' not in output.read_text()
+    assert 'private@example.test' not in output.read_text()
+
+
+def test_absent_auth_transition_evidence_remains_unknown(tmp_path):
+    output = tmp_path/'snapshot.json'
+    paid.capture(Page({'contracts': []}), expected_email='owner@example.test', output=output)
+    auth = json.loads(output.read_text())['authentication']
+    assert auth['token_expired_before_refresh'] is None
+    assert auth['token_refreshed'] is None

@@ -33,8 +33,17 @@ def capture(page, *, expected_email: str, output: Path) -> None:
         value = json.loads(raw)
         if not isinstance(value, dict) or not isinstance(value.get('contracts'), list):
             raise RuntimeError('mercor_paid_contract_capture_unavailable')
+        authentication = {
+            target: auth.get(source) if type(auth.get(source)) is bool else None
+            for target, source in (
+                ('identity_matched', 'firebase_identity_matched'),
+                ('token_expired_before_refresh', 'firebase_token_expired_before_refresh'),
+                ('token_refreshed', 'firebase_token_refreshed'),
+                ('token_expired_after_refresh', 'firebase_token_expired'),
+            )
+        }
         snapshot = {'version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(),
-                    'contracts': value['contracts']}
+                    'contracts': value['contracts'], 'authentication': authentication}
         output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         fd, temporary = tempfile.mkstemp(prefix='.paid-snapshot-', dir=output.parent)
         try:
