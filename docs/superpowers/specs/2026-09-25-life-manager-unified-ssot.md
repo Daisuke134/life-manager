@@ -4560,3 +4560,17 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 1. child46917/parent46885のterminalと競合reconciler/build無しを確認し、mainecddのcomplete immutable releaseを作る。Connectorのみidle/effect-safeapplyしloadedargv/SHAを照合する。
 2. 自然wakeのLuma通常auth回復とofficialreadbackを確認する。登録が発生する場合だけprovider/mail/Calendar/replay-zeroを閉じる。code/secret/credentialを出力/更新せず、CAPTCHA/本人確認の既存境界を守る。
 3. Fundraiser/paid/SelfBuild/Investment/Cloud/TaskMarket/CFOの全残条件を保持しgoalactive/未完。
+
+### 203. Connector ecdd immutable生成・gog authority確認・target反映待機
+
+- freshfetchでspecHEAD/upstream2898、implementationHEAD/upstreamec24、mainecdd、両treecleanを確認。旧reconcilerchild46917はterminal。次の自然reconcilerPID58043がecddcutを所有したためprimarybuildは0。
+- currentcomplete immutable releaseは `/Users/anicca/loops/releases/20261003T164648-ecdd32c8`、SHAecdd32c8d30e64827e6da12a295463a2379a3e2e/ALL/ancestorofmain。nativeproduction/lumaworkflow/auth/codereaderの4filesをmainblobとbytes一致確認。mainSHAだけでproductionloadedを推定しない。
+- loadedConnectorのenvsourceは `~/.local/state/life-manager/.env`。推測したprivate/connector.envは存在せず、loadedplist/run.shの正本へ訂正した。Google/GmailcredentialSSOTはmatchingservice1をmetadataのみ確認。既存gogauthlistをfilebackendでread-only実行しreturn0/account一致1/servicescalendar,drive,forms,gmailを確認。email/token/code出力・credential変更0。これはmailcode成功やLumaログインのproofではない。
+- 旧33Connectorの自然run18daf598e26ad600-72899は07:51:48Z/exit0/loadedidleへterminal。run中にapply/killしていない。現在のecddreconcilerPID74150/PPID74137が反映を所有しlive、ConnectorinstalledSHAはまだ33。別apply/buildを重ねず、同じownerのterminalまたは自然targetloadを確認する。
+- 引継ぎの重複した最新cursor見出しを1つへ整理し、履歴はSSOT参照に集約する。元goalは縮小せず全未完条件を保持する。
+
+#### 更新後の原子cursor
+
+1. PID74150とConnectorloadedargv/SHAをfreshreadback。自然ownerがecddtargetload済みなら二重apply不要。未反映ならownerterminal/競合無し/Connectoridle/effectsafe後にecddreleaseから1ownerだけreconcileapply。
+2. ecdd自然wakeでLumaauth回復→officialcandidate/providerreadbackを確認し、登録が発生した時だけmail/Calendar/replay-zeroを閉じる。unknown/noeffectを登録成功にしない。
+3. Fundraiserexactunknown→他paid→SelfBuild/Eval→Investment→Cloud/selffunding→TaskMarket→最終CFOを続ける。全14loop修復/profit/financialindependenceは未証明、goalactive。
