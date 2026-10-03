@@ -45,10 +45,14 @@ function providerLaneFailures(row, requiredProviderLanes) {
     if (value.status !== "fresh") failures.push(`provider_lane_not_fresh:${lane}`);
     const calls = Number(value.fallbackCalls);
     const cap = Number(value.fallbackCap);
+    const unknownCount = Number(value.unknownCount);
     if (!Number.isFinite(calls) || !Number.isFinite(cap) || cap < 0 || calls < 0) {
       failures.push(`provider_lane_cap_evidence_missing:${lane}`);
     } else if (calls > cap) {
       failures.push(`provider_lane_cap_exceeded:${lane}`);
+    }
+    if (Number.isFinite(unknownCount) && unknownCount > 0) {
+      failures.push(`provider_lane_unknown_cost:${lane}`);
     }
   }
   return failures;
