@@ -6720,3 +6720,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - private raw readback 18223833-current-20261005.json SHA256 8287908dd0486bf464ee02f648c754dac77f448576f46d7ddaf7737e90eeeb25、18250352-current-20261005.json SHA256 6019ec0cc057a30e780f4525e1cc905f1e4029f2f8ff0e7ceec8fb78f9f19821。summary execution3-npo-current-readback-20261005.json SHA256 c4d6df897fdabbd4fba065bf0955d3e978ea1a46a172df139173af1ad48055ea（§399同private dir/mode600）。不足物が案件へ結び付く公式添付/指定送付先の原資料として届くことが再開条件。
 - 各own targetをclose後、finallyで既close targetへ二度closeしたためTarget.closeTarget no target例外が起き、guardrelease前にprocessがexit1。読取成功と後処理失敗を分ける。current statusで自分のoriginal holder PID44348/host一致・process absent・target2を確認。正規acquireはfresh timestampを理由にexit9だったため再試行/forceclearせず、正規releaseへoriginal PID/startの完全一致条件を渡して自分の残leaseだけ解除、exit0/holder無しを確認。既存target ID+URLhashの完全一致はこの例外後に保存できておらず未確認。provider/browserrestartや他owner解除0。
 - 現在cursor3、次4、全goal未完。NPOの資料不足はlatest readback付き外部待ち、TikTokの送信者/日時/一意送信台帳照合は安全な次作業として続ける。
+
+
+### 419. 番号3の会話候補を保存済み案件試行へ結合できるか確認
+
+- 前turnは§418のNPO公式再readbackをpushしprogress。本turnは同TikTok読取担当がrunningであることを確認し、新規private sender-metadata-reader.pyの作成を確認した。コピーの存在を追加読取実装/実UI起動/成功とはしない。Rootは同file/browserを重複編集・操作せず、案件の保存済み試行へのlocal joinを別範囲で調べる。
+- 18180857/delivery直下のtiktok-attempt-receipt JSON13件を限定読取。candidate/recipient/username/uniqueId/handleに加えcandidate_profile_urls/official_profile_urls/profile_url/profileUrl/candidatesのTikTok profile pathを解析し、宛先117値を取得済みselected chat_uniqueid hashと比較、一致0。保存済みDM text3ファイル（227/227/226文字）と公式renderer候補3本文hash（70/5/6文字）はexact/trimとも一致0。raw本文やusernameをrepo/chatへ複製しない。
+- 私的execution3-tiktok-local-attempt-join-20261005.json SHA256 62b86b8b6c3206883eb2cc959239c31600949c7d5d35e70cad8088d316ce858a（§399同dir/mode600）。範囲は上記13receipt/3textのみ、全campaignの履歴や送信不存在の証明ではない。roster行18列0との候補一致を、案件が要求するDMの送信receiptへ昇格できないことを保持する。
+- 既存send_one sourceは送信後のbody.includes(message)/editorEmpty/candidateSelectedでsent_exact_readbackを返す。今回の現実読取にはsender/date/messageIDがなく、localラベル/親body部分一致だけを現在の一意送信・品質・納品完了の証明に使わない。source修正/送信/fenceclearは本turn行わない。
+- 現在3→次4を維持、未完51項目/全goalactive。安全な次作業はprivate読取担当の局所sender/date実観測の受入、その観測を案件receiptへ照合すること。NPO原資料待ちは§418のまま。
