@@ -65,10 +65,26 @@ function readShelterCostEntriesResolved(file) {
     correctedJobAddressByIndex.set(matches[0], row.correctedJobAddress);
   }
 
-  return normalRows.map(({ row, index }) => {
-    if (!correctedJobAddressByIndex.has(index)) return row;
-    return { ...row, jobAddress: correctedJobAddressByIndex.get(index) };
+  const spendIdentities = new Map();
+  const resolvedRows = normalRows.map(({ row, index }) => {
+    const resolved = correctedJobAddressByIndex.has(index)
+      ? { ...row, jobAddress: correctedJobAddressByIndex.get(index) }
+      : row;
+    const identity = resolved.jobAddress || `no-address-${resolved.ts}`;
+    const group = spendIdentities.get(identity) || { indices: [], corrected: false };
+    group.indices.push(index);
+    group.corrected ||= correctedJobAddressByIndex.has(index);
+    spendIdentities.set(identity, group);
+    return resolved;
   });
+
+  for (const { indices, corrected } of spendIdentities.values()) {
+    if (corrected && indices.length > 1) {
+      throw new Error(`readShelterCostEntriesResolved: corrected spend identity collision between normal rows ${indices.join(",")}`);
+    }
+  }
+
+  return resolvedRows;
 }
 
 function appendShelterCostEntry(file, row) {
