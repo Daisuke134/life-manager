@@ -6878,3 +6878,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - recordのMessages.business_suite_route unknownはowned child locationがparent pathと異なることから付いた値で、marker/list28取得と矛盾するprovider故障とは扱わない。Rootのfresh nav expected identity一致は§426、public target profile/row96 bindingは§423、fence119/payload6615のlocal bindingは§422を参照。これらを公式message receiptへ自動昇格しない。
 - 同じsubsetの単純再読やselector追加は止め、fresh native gpt-6.1-sol/medium read-only reviewer tiktok_loaded_scope_readonly_reviewへ、一覧coverage/別inbox区分/名前の変化/routeの競合仮説と最小の次観測を委譲。所有はread-only source/既存evidenceのみ、browser/provider/file編集/transport/fence/send/newchat操作禁止。privateprotobuf decoder/globalSDK全探索や大量newtoolsを作らず、案件1件の許可された公式read経路を具体化する。
 - current3→next4/残51項目/全goalactive、順序変更無し。hydrationによる偽のmatch0は修正したが、案件sender/header/body/ID/time/公式送信数/全300/納品/財務成果は未完。NPO待ちは§418を保持する。
+
+
+### 435. Fresh scope reviewのHOLDと次の単発UI範囲観測
+
+- fresh native gpt-6.1-sol/medium read-only reviewer tiktok_loaded_scope_readonly_reviewはHOLD。確認範囲は今回loaded28のnicknameにcurrent公開profile nickname一致がないことだけ。target-readyが全metadata取得後の未一致で終了する契約に、28を最終母集団とする証明はない。20→28の遅延、scroll親0/fullcoverage未証明を保持。
+- 競合仮説は(1)一覧/inbox区分/ページ範囲の限定、(2)会話側nicknameが現在公開名と異なる、(3)対象会話が現在履歴にない、(4)frame/accountの範囲差。home expected identity一致は4の別account説を弱めるが、Messages childとの同時点bindingは残る。parentとchildのpath差だけでaccount違いを断定しない。全inbox absence/公式送信0/local sent312否定は未証明。
+- 単一の次read actionは、正常dm-new-conversation-listのexact child/defaultをparent frame treeへ結び、選択inbox tab/filter aria-selected、通常UIのnext/loadmore/end/loading/enabled状態、list祖先/document.scrollingElementの寸法とoverflowを1回だけ読む範囲観測。現28CID hash集合は比較用のみ。名前再照合/tab-click/row-click/scroll/search input/Message起動/SDK探索は含めない。
+- reviewerの外部操作/編集0。不足fieldはselected_inbox_scope、paging_or_end_indicator、exact_parent_child_route_binding、公式peer handle/UID、当該本文sender/recipient/body receipt。追加ページ/別区分の証拠が出れば仮説1を具体化、終端が出てもその選択区分だけの証明とし、nickname peer確定/全履歴absenceへ昇格しない。
+- native Luna追加spawnはthread limit拒否。有限Luna/max handle88504へ新private inbox-scope source/result/proofのみ委譲。動作済みcontrollerとsingle result.value/required schema/exception/privacyを再利用し、oneguardedUI108秒内、capture後return。旧成果/認証/ledger/fence/本番sourceを変更しない。raw username/UID/URL/tokenを保存せず、routesは分類/hash/querykeys、汎用UI labelは分類/hash。current3→next4/残51項目/全goalactive、NPO待ちは§418を維持する。
