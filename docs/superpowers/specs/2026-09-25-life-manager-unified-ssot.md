@@ -4896,7 +4896,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、TikTok案件の公式履歴と送信台帳を照合できる読取修正を検証し、実送信数・納品不足を確定すること。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§422で案件台帳とpayloadのbindingが一致した1宛先を既存の公式会話へ照合し、送信receipt・適格件数・納品不足を確定すること。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6746,3 +6746,14 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - Rootも保存結果を読み、metadata3件がobservedへ変わったことを確認。bubble index0/1の前方time-separator textContent由来の値hash/DOM ancestryを取得、index2はunknown。bubble-local avatar href、sender ID、message ID、明示timestamp/datetime属性は今回の限定DOM範囲で取得できずunknown。日時区切りのhashを絶対送信日時/periodへ昇格しない。React/SDK decoded propsはnot_probedであり、その経路も不在とはしない。
 - case_binding=candidate_only、sender_direction=unknown、whole_campaign_count=unknown、current3_complete=falseを維持。self/peer方向をCSS配置だけで推測しない。公式本文候補3件と案件DM文面/117宛先は§419の限定不一致のままなので、実送信3/全300完了/納品へ昇格しない。send/auth/fence/source本番変更0、normalUI seen効果unknown。close成功/ownabsent/priorID+URLhash集合一致/guardrelease0/leaseabsent PASS。
 - 次は同じDOM selectorをそのまま再試行せず、案件に対応する宛先/本文receiptを含む会話を特定し、既存UIまたは既にdecode済みのSDK message fieldからsender/message ID/timeを読む。新protobuf decoder、global object探索、新frameworkは追加しない。NPO原資料待ちは§418の最新公式状態を保持。current3→next4、残51項目、全goalactive。
+
+
+### 422. 案件送信fenceの312 local sentと歴史19を分離、照合対象を1宛先へ変更
+
+- 前turnは§421の保存経路修正/実DOM限界を確認しprogress。本turnは案件のcanonical送信管理台帳 delivery/tiktok-message-effects.jsonlを直接確認（SHA256 f0135d8e5bd93cefca49546a6645be78fb277a190d581ea833d2de36361352d8）。418行/314 effect key、最新local state sent312/unknown1/not_sent1。sent312は311宛先、roster列0と309一致/2不一致。全keyでは同宛先複数key3組（sent/sent、sent/unknown、sent/not_sent）を保持する。
+- 直近に読んだroster行18の会話はこのsent宛先/本文hashへ一致0。保存済みsidebar28preview hashとlocal sent312本文hashも一致0だが、preview短縮/後続返信の可能性があるため送信不存在としない。初期13receiptだけの§419とは照合範囲を区別する。私的execution3-tiktok-fence-roster-reconciliation-20261005.json SHA256 4d5b217cb96d64493e2161fd4698a28679c183d5e846685b7017b39516a23bfa、sidebar-preview-local-message-join SHA256 bbfe8afabfae7a54a274a63a6e021bc518ba17a6e2ac18a6a6fe169bb7d2754b（§399同dir/600）。
+- fresh gpt-6.1-sol/medium read-only reviewは公式verified312への昇格HOLD。shared tiktok_message_transport.pyの_append171–188はfence項目のみでprovider receipt/message/run/occurrence IDと本文readback/evidenceを保存しない。既存exact本文検出282–285と新送信後exact354–362が同じsentへ落ちる。履歴はattempting→sent97、再照合後send1、sent単独214、unknown1、not_sent1。sentはそのoccurrenceの送信回数の証明ではない。
+- manual_chii scriptsは別project-local adapter/JSONLを呼ぶためshared fence直接writerではない。手動記録の宛先一致はsent312のうち288key、sent_exact_readbackの宛先一致8key、本文hash一致0。campaign文字列dedup/allow_unverified_ageもあり、適格・個別化・契約期間を未証明のままにする。historical count-auditは19/281、classification revisionはseller-authored300から19 paired-recipientへ訂正した履歴。本reviewの公式確認済追加0は未送信312件を意味しない。
+- 次の最小照合対象を台帳119行の1件へ絞った。attempting→sentでruntime payload SHA256 6615c26069ec530ef7ccf749d99fd3c24d8d1931dddff78a8e2246636883d6e0とeffect key/宛先/本文hash/sender込みbindingが完全一致。packet execution3-tiktok-one-receipt-target-packet-20261005.json SHA256 7153655e04207498b9b169f42e8946d227f021ba3a72e15f11af62f23b6ce318にprivate locator/必要fieldを保存。fresh sender identity、selectedpeer/header、outgoing sender、provider message ID/receipt、timestamp、本文hash、取得時刻/証拠を公式側で照合し、契約算入時だけ期間・適格根拠・Sheets行をjoinする。
+- native追加/旧Luna担当再開はthread上限で拒否。有限codex execをgpt-6-luna/maxで起動し実logのmodel/effortを確認、handle55242がlive。所有は新private one-bound-conversation-reader/result/proofだけ、既存source/state/ledger/auth/fence変更禁止。正規guardのnormal profile GETと既存Messages row照合に限定し、matched既存row以外のfallback/新chat/compose/sendをしない。既存transportは--send未指定でもfence更新経路があるためread-only probeとして呼ばない。全311の一斉readや新decoder/frameworkは追加しない。
+- 順序変更無し、current3→next4/残51項目/全goalactive。現在の番号3の次の一手だけを実証された案件1宛先へ具体化し、任意row18の再読を停止する。NPOの原資料待ちは§418を維持する。
