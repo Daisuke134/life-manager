@@ -5851,3 +5851,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 現行immutable resolverでcoconala:kosukeはregistered profile／127.0.0.1:9223／process ownership／HTTP200／valid websocketを確認。local GET /json/versionは127.0.0.1とlocalhost双方200、今回環境にproxy scheme無し。profile・auth・tab・provider変更0。
 - cdp_default_tab.py118とcdp_context_lease.py215のHTTPはlocal CDP /json/versionを読む。DefaultTab.__enter__がhelper失敗をfailed to open authenticated default tabへ変換し、reply adapter126–140／snapshot._classify_default_tab_http_errorはHTTP403をprovider inbox_access_forbiddenへ分類するため、helper境界の403もprovider拒否に誤帰属し得る。実provider DOM拒否もsnapshot.validate_inbox_coverageで同reasonを使う。最新resultはerror_detailのみでCollectorUnhealthy.detailsを保持せず、今回の実発生層は未確定。過去403をlocal／providerの一方に断定しない。
 - 次はissue6555のblocked exit修正の受入後、既存receipt／CollectorUnhealthy.detailsの保存とhelper／provider分類の最小不足を診断する。403 bypassや認証resetは行わない。全goalactive／SelfBuild最後。
+
+### 333. Reply blocked CLI RED→GREENと親の終了code行列
+
+- same Luna6 max taskの着手response後、temp fake adapterによるCLI回帰はblocked JSON保存／旧exit0でRED、mainへblocked時だけexit75を返す2行追加後GREEN1。差分は指定kernelと既存testの2file。worker関連tests／contract／commitpushは進行中、source HEADはまだbase1a7で未push差分。
+- 親は実差分を確認し、kernel suite34件／0.19s PASS。provider-free main matrixでblocked／failed0→75、ok／failed0→0、ok／failed1→1を実測し、各保存JSONは入力resultと完全一致。これは作業差分の検証でありpushed固定HEADの受入ではない。workerpush後にsameHEAD／remote／cleanを確認する。
+- §332のhelper／provider発生層誤帰属は別診断として保持し、今回code修正へ追加していない。次はworker commitpush→必要check→fresh Sol6.1 medium source判定。provider復旧／本番反映／全返信成功は未達、SelfBuild最後。
