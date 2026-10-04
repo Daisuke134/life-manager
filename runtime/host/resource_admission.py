@@ -696,18 +696,23 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
 
 def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, float, int, str]:
     priority = row.get("base_priority")
+    admission_class = row.get("admission_class")
     queued_at = row.get("queued_at")
     aged = (isinstance(priority, str) and priority in PRIORITY_AGE_SECONDS
             and isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
             and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
-    # The revenue floor leaves one borrow slot; let an aged support owner use it.
-    borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 8)) > 0
-    overdue_support = aged and priority == "support" and row.get("admission_class") == "borrow" and borrow_slot
     wait_started = (float(queued_at) if isinstance(queued_at, (int, float))
                     and not isinstance(queued_at, bool) else float("inf"))
-    return (-1 if overdue_support else _effective_priority(row, now), 0 if aged else 1,
-            0 if row.get("admission_class") == "revenue" else 1,
-            wait_started, int(row["sequence"]), str(row["owner_id"]))
+    sequence = int(row["sequence"])
+    owner_id = str(row["owner_id"])
+    if admission_class == "revenue":
+        # Preserve actual revenue's existing effective-priority and age order.
+        return (0, _effective_priority(row, now), 0 if aged else 1,
+                wait_started, sequence, owner_id)
+    if priority == "revenue":
+        return (1, 0, 0, 0.0, sequence, owner_id)
+    # Support age only breaks ties within the last fixed band.
+    return (2, 0, 0, wait_started, sequence, owner_id)
 
 
 def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,

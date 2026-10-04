@@ -2491,7 +2491,7 @@
       "log_root": "~/.local/state/life-manager/life-manager-cfo-hourly/logs",
       "resource_class": "deterministic",
       "admission_class": "borrow",
-      "priority": "support",
+      "priority": "revenue",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "reconcile_queued_release": true,

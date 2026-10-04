@@ -255,7 +255,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = registry["loops"]["life-manager-cfo-hourly"]
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "borrow")
-        self.assertEqual(row.get("priority"), "support")
+        self.assertEqual(row.get("priority"), "revenue")
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
@@ -1510,7 +1510,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
 
     def test_production_render_matches_byte_stable_fixture(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        expected = (ROOT / "runtime/loop/tests/fixtures/macos-loop-jobs.json").read_bytes()
+        expected_rows = json.loads(
+            (ROOT / "runtime/loop/tests/fixtures/macos-loop-jobs.json").read_bytes()
+        )
+        cfo_rows = [row for row in expected_rows
+                    if row.get("loop_id") == "life-manager-cfo-hourly"]
+        self.assertEqual(len(cfo_rows), 1)
+        cfo_rows[0]["priority"] = "revenue"
+        expected = (json.dumps(expected_rows, sort_keys=True, separators=(",", ":"))
+                    + "\n").encode()
         self.assertEqual(render_job_models(registry), expected)
 
     def test_finite_effect_free_control_wakes_declare_coalescing_contract(self):

@@ -125,6 +125,52 @@ def test_rebind_queued_owner_updates_admission_without_changing_sequence(tmp_pat
     assert occurrence[0]["base_priority"] == "revenue"
 
 
+def test_cfo_priority_rebind_preserves_coalesced_queue_and_occurrence_identity(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    owner = "life-manager-cfo-hourly"
+    first, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="borrow", priority="support",
+        occurrence_id="cfo:wake-1", now=100,
+    )
+    assert first is not None and reason == "ready"
+    second, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="borrow", priority="support",
+        occurrence_id="cfo:wake-2", coalesce_reserved=True, now=200,
+    )
+    assert second is not None and reason == "queued_coalesced"
+
+    before_queue = durable_rows(tmp_path, "queue")
+    before_priority = durable_rows(tmp_path, "priorities")
+    before_occurrences = durable_rows(tmp_path, "occurrences")
+    assert len(before_queue) == 1
+    assert len(before_occurrences) == 1
+    assert before_occurrences[0]["occurrence_id"] == "cfo:wake-1"
+    assert before_occurrences[0]["queued_at"] == 100
+
+    result = admission.rebind_queued_owner(
+        owner, resource_class="deterministic", admission_class="borrow",
+        priority="revenue",
+    )
+
+    assert result == "rebound"
+    after_queue = durable_rows(tmp_path, "queue")
+    after_priority = durable_rows(tmp_path, "priorities")
+    after_occurrences = durable_rows(tmp_path, "occurrences")
+    assert after_queue == before_queue
+    assert len(after_occurrences) == len(before_occurrences) == 1
+    for field in before_priority[0]:
+        if field != "base_priority":
+            assert after_priority[0][field] == before_priority[0][field]
+    assert after_priority[0]["admission_class"] == "borrow"
+    assert after_priority[0]["base_priority"] == "revenue"
+    assert after_priority[0]["queued_at"] == before_priority[0]["queued_at"]
+    for field in ("occurrence_id", "owner_id", "resource_class", "admission_class",
+                  "queued_at", "state", "sequence", "effect_unknown"):
+        assert after_occurrences[0][field] == before_occurrences[0][field]
+    assert after_occurrences[0]["base_priority"] == "revenue"
+
+
 def test_rebind_queued_owner_discards_expired_reservation(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="4")
     ticket, reason = admission.enqueue_durable(
@@ -1025,6 +1071,51 @@ def test_aged_revenue_waiter_advances_during_continuous_paid_arrivals(
     assert reserved == ["connector-aged"]
 
 
+def test_queue_order_keeps_borrowers_in_fixed_bands_after_actual_revenue(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "deterministic", "deterministic-slot", retain_ticket=False,
+    )
+    assert running is not None and reason == "acquired"
+
+    now = 10_000
+    waiters = (
+        ("fresh-critical-paid", "revenue", "critical_paid", now),
+        ("fresh-actual-revenue", "revenue", "revenue", now),
+        ("aged-cfo-report", "borrow", "revenue", now - 1801),
+        ("aged-support", "borrow", "support", now - 7201),
+        ("young-support", "borrow", "support", now - 60),
+    )
+    for owner, admission_class, priority, queued_at in waiters:
+        ticket, queued_reason = admission.enqueue_durable(
+            "deterministic", owner, admission_class=admission_class,
+            priority=priority, occurrence_id=f"{owner}:wake", now=queued_at,
+        )
+        assert ticket is not None and queued_reason == "capacity_busy"
+
+    expected = [
+        ("fresh-critical-paid", "revenue"),
+        ("fresh-actual-revenue", "revenue"),
+        ("aged-cfo-report", "borrow"),
+        ("aged-support", "borrow"),
+        ("young-support", "borrow"),
+    ]
+    claim = running
+    for index, (owner, admission_class) in enumerate(expected):
+        instant = now + index
+        assert admission.release_and_reserve(
+            claim, now=instant, lease_seconds=30,
+        ) == [owner]
+        claim, claim_reason = admission.claim_durable(
+            "deterministic", owner, admission_class=admission_class, now=instant,
+        )
+        assert claim is not None and claim_reason == "acquired"
+    assert admission.release_and_reserve(claim, now=now + len(expected)) == []
+
+
 def test_aged_support_gets_one_borrow_slot_beside_aged_revenue(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="5")
     monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
@@ -1041,8 +1132,8 @@ def test_aged_support_gets_one_borrow_slot_beside_aged_revenue(tmp_path, monkeyp
     admission.enqueue_durable("browser", "connector-aged", admission_class="revenue",
                               priority="revenue", now=100)
 
-    assert admission.release_and_reserve(running.pop(), now=7300) == ["metrics-aged"]
-    assert admission.release_and_reserve(running.pop(), now=7301) == ["connector-aged"]
+    assert admission.release_and_reserve(running.pop(), now=7300) == ["connector-aged"]
+    assert admission.release_and_reserve(running.pop(), now=7301) == ["metrics-aged"]
     for claim in running:
         admission.release_and_reserve(claim, reserve=False)
 
@@ -1231,9 +1322,9 @@ def test_running_owner_rejects_mixed_release_queue_class_before_priority_upgrade
     admission.release_and_reserve(running, reserve=False)
 
 
-def test_aged_support_gets_released_slot_before_new_paid(
+def test_aged_support_does_not_overtake_new_paid(
         tmp_path, monkeypatch):
-    """An old Metrics wake runs when a paid worker releases physical capacity."""
+    """An old Metrics wake waits behind new paid work, then uses borrow capacity."""
     isolated(tmp_path, monkeypatch, total="5")
     monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
     admission.activate_durable_v2()
@@ -1255,7 +1346,13 @@ def test_aged_support_gets_released_slot_before_new_paid(
         priority="critical_paid", now=7201)
 
     assert admission.release_and_reserve(
-        paid_claims.pop(), now=7201, lease_seconds=30) == ["metrics-aged"]
+        paid_claims.pop(), now=7201, lease_seconds=30) == ["paid-new"]
+    paid_new, reason = admission.claim_durable(
+        "agent", "paid-new", admission_class="revenue", now=7201)
+    assert paid_new is not None and reason == "acquired"
+    assert admission.release_and_reserve(
+        paid_claims.pop(), now=7202, lease_seconds=30) == ["metrics-aged"]
+    admission.release_and_reserve(paid_new, reserve=False)
     for claim in paid_claims:
         admission.release_and_reserve(claim, reserve=False)
 
@@ -1285,7 +1382,13 @@ def test_aged_agent_support_uses_one_borrow_slot_beside_paid_agents(
         priority="critical_paid", now=7201)
 
     assert admission.release_and_reserve(
-        paid_claims.pop(), now=7201, lease_seconds=30) == ["support-aged"]
+        paid_claims.pop(), now=7201, lease_seconds=30) == ["paid-new"]
+    paid_new, reason = admission.claim_durable(
+        "agent", "paid-new", admission_class="revenue", now=7201)
+    assert paid_new is not None and reason == "acquired"
+    assert admission.release_and_reserve(
+        paid_claims.pop(), now=7202, lease_seconds=30) == ["support-aged"]
+    admission.release_and_reserve(paid_new, reserve=False)
     for claim in paid_claims:
         admission.release_and_reserve(claim, reserve=False)
 
