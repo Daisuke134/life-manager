@@ -323,7 +323,7 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
    - [ ] F1 `lm-loop health`: 全 loop の状態・止まり理由・次の手・スキル別の今日の利益を 1 画面
    - [ ] F2 `resource_effect_unknown` の多い owner に読み戻し役を付ける（capafy_distribute_fence_reconcile の写し）
    - [ ] F3 `resource_capacity_busy`（処理枠の予約の偏り、7-6e）を直す
-   - [ ] F4 ディスク空き 10GB 以上（20 秒で 1GB 減る書き込み元を特定）
+   - [ ] F4 ディスク空き 10GB 以上（20 秒で 1GB 減る書き込み元を特定）。最新のcache再取得/終了tmp保持の原因と他owner修正は§395、floor達成未確認。
 4. モバイルアプリ
    - [ ] C1 投稿ごとの計測を再開（post-metrics が 9/27 から止まっている）
    - [ ] C2 再生 → プロフィール → ストア → インストールの表を毎日
@@ -6497,3 +6497,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - Rootは原初回commitblobhash・primary50PASS・133/139実装報告・freshHOLDをprivate writer-cfo-receipt-source-proof-20261004.json600に保存。sourcepushをSHIP/main/公式収益Doneへ置換しない。同じgenericLuna/max実装者へ4反例付き修正packetを渡し、同worktree/lease/4filechainを継続、freshreviewerはreadonly。別branchfbdd/dependencyを変更/cherrypickしない。
 - 次は親PI/charge/refund/balanceのmode/identity/source/typeを実照合、契約の実stream/currency/scope/artifact/commercialbindingとinterval_countを保持、unknown/crosslinkを推測せず4反例RED→最小GREEN→必要checks→newcommitpushremote→freshreviewの指摘解消。取引timestamp/正当個別値/旧rows/zero費の既証明を巻戻さない。新framework/provider/model一括変更/actualmoney送信0。
 - Stripe公式refund object資料をcrwlで確認（https://docs.stripe.com/api/refunds/object）、charge/payment_intent参照とnullablebalance/statusを確認。公式shapeとB2既存fixtureを比べ、refund自身fieldだけのmode仮定を避ける。A28.2のactualcost/officialsettlement/bank/期間coverageは別未完。§217/A28.2.1cursor/§328main条件/全goalactive/SelfBuild最後。
+
+### 395. 財務source統合dependencyの仮想照合とF4他owner原因報告
+
+- Rootはgit merge-tree --write-treeで既存fbddf5c30a6743fcc9317e6beaa7c426578a0268と初回CFO2728681ce7716a211b98cc76b8557db76e8597f7を照合、exit0/tree ddb6eeb16ac21c7624dc818454135fbcf802af52でtextconflict無しを確認。worktree/branch/main変更0。この仮想treeは統合後テスト/最新HOLD修正の受入/PRmain許可ではない。共通money_ledger/money_syncのsemantics・将来newHEADの再照合は残る。
+- A28.2.1同Luna/max実装者はfreshlistでrunning、4反例のRED test差分を追加中。旧272sourceの50primaryPASS/133reported＋139subtestsとHOLDを保持し、未検証newworkingtreeをSHIPとしない。現在cursor/公式receipts費用期間coverage不足/§328main条件/全goalactive/SelfBuild最後を維持。
+- AGMSG lm-claude-capafy-recipe-1004報告では、healthcheck低disk時のCamoufoxcache削除→verify-loops-auditが毎run約1.3GBをloop-tmpへ再取得・保持する循環を特定。終了済み8tmpを削除し489MiB→6.5GiB、Code PR6563/main1c21656でcachewipeを除去、Codex会話履歴は触っていないとのこと。Rootの独立確認はoriginmain同commit/healthcheck-lib.sh差分とdisk6.0→5.3GiBであり、他ownerのcleanup受領とRoot直接実測を分ける。
+- F4残はverify-loops-audit終了時のownloop-tmp cleanup/保持policy。F4 10GBfloorの達成証明はなく完了にしない。RootはactiveSQLite/session/journal/保護store削除0・VACUUM0・browser/release/loop停止0。既存tmp内のeffecthint/receipt/ledgerを単にterminalというだけで消さず、所有/retentionを確認して該当ownerへ接続する。Rootが別source修正を重複実装せず、他ownerへ範囲を通知する。
