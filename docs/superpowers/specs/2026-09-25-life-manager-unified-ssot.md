@@ -5977,7 +5977,7 @@ OSSはofficial repoをghでread-only取得、openai/symphony mainSHA be10a1b79df
 - 依存関係を先に図示し、先行成果を待たないjobを同時に出す。jobsの各ownerへatom ID／files／worktree／branch／入力refs／resource／受入証拠／禁止／次操作を渡す。所有filesだけでなくauth／profile／mutable state／provider effectも排他範囲に含める。
 - **実働数は固定1でも固定6でもない**。開始可能job数、実際のtool／session容量、host RAM／disk／test負荷、API quota／費用、provider排他、成果受入の処理量で決める。現在nativeは2枠なので短期補助は1人だが、長い独立jobはAGMSG独立sessionへ出せる。
 - 先にverified-liveかつ範囲が空いている既存席を使う。足りない時は新独立sessionをspawn --boot-promptで開始し、ready／working／exact owner／actual task／成果を確認する。sendをspawnと同一視しない。未応答のCFO席へ重複財務ownerを足さない。
-- AGMSG spawn.shは--modelを受け取るが、今回readした引数にはeffort指定が無い。新独立実装sessionのLuna6／maxを保証するには、そのCLI／専用session設定のeffort適用経路を起動前に確認する。boot promptにmaxと書くだけをruntime確認と扱わない。旧世代fallbackはしない。native toolではmodel／reasoning_effortを明示する。
+- AGMSG spawn.shの表面引数にはeffort専用flagが無いが、§342の追加調査でAGMSG_SPAWN_OPTIONS_FILE／spawn-options.shによる起動ごとのCLI追加引数経路を確認した。--modelとCodex -c model_reasoning_effortを組み合わせる。新独立実装sessionでは適用argv／runtimeを確認し、boot promptにmaxと書くだけを実適用と扱わない。旧世代fallbackはしない。native toolではmodel／reasoning_effortを明示する。
 - parentはjob開始後に一緒に同じ実装／調査をしない。必要な差分受入だけ行い、他の独立jobへ進む。長いtaskはownerがspec該当節とcommitを更新し、短いsummaryを返す。巨大な全履歴／全repo図／全ログを各workerへ複製しない。
 - reviewerは毎workerに常設せず、財務結論・外部作用・具体的高リスクへのfresh反証を必要時に割り当てる。成果を返したworkerを増やすより、受入待ちが増えたらreview／統合へ空きcomputeを振る。同HEAD全suiteを各役割が重複実行しない。
 - source変更が独立していれば並行実装できる。shared interface変更は一ownerが先に契約を確定し、他workerはその入力を待つ。provider作用・同profile・release cut/apply・main統合はresource owner単位で直列、単一primaryが全local調査を直列に抱え込む必要はない。既存main-only／PR条件は§328のまま、未解決の統合jobを開始可能と偽らない。
@@ -6005,3 +6005,46 @@ OSSはofficial repoをghでread-only取得、openai/symphony mainSHA be10a1b79df
 6. §340の次5業務atomで完了／待ち／重複／再作業／費用を測る。最善は独立jobと浪費削減で大幅改善、標準は共有資源が残り並列効果が限定、最悪は外部待ち・統合停滞で人数を増やしても完了数が増えない。主要な反証は、工期の大半がprovider／統合待ちであるという測定。
 
 fresh Sol6.1 mediumの同計画監査は条件付きPASS。指摘4件（6束≠6稼働、read-only auth排他、primary受入の詰まり、10倍未実測）を上記へ反映。新agent数をAGI進捗の証拠にせず、開発／有償成果の改善とAGI能力の改善を別に測る。SelfBuild A43–46は最後。
+
+### 342. OSS追加調査と最小の加速手段の比較
+
+**依頼**: frontier model／fast computeの上に、実際の仕事の同時実行と成果受入を速めるOSS／toolを深く比較する。調査はparentとfresh Sol6.1 medium read-only workerへ分割し、parentがSuperset／cmux／Codex、workerがOpenHands／SWE-agent／Agent Lightningを担当。探索の重複、install、clone、auth、設定、実装、provider変更は0。
+
+#### 取得した一次資料／repo snapshot
+
+| 候補 | 実コード／docsで確認した機能 | 今のLife Managerへの判断 |
+|---|---|---|
+| [Superset](https://github.com/superset-sh/superset)／[orchestration](https://docs.superset.sh/orchestration) | task別worktree、persistent terminal、diff／PR／port、CLI coordinatorがworkspaces create／agents create／terminals read/sendを使う。READMEはworktreeがprocess sandboxやmerge衝突防止そのものではないと明記。ELv2 source-available | worker fleetのUI／遠隔管理が受入時間を実測で減らすならpilot候補。既存AGMSG／Gitの全面置換をしない。OSSと同じlicense扱いにしない |
+| [cmux](https://github.com/manaflow-ai/cmux)／[CLI契約](https://github.com/manaflow-ai/cmux/blob/main/docs/cli-contract.md) | macOS terminal、branch／PR／portと通知、CLI／socket、remote workspace。端末primitiveでありtask scheduling／owner管理自体ではない | no placement／完了通知不足が主要な待ちなら有力。AGMSGにcmux driverがある証拠は今回無し、接続は別実装コスト。未導入、他profile操作用browserとして採用しない |
+| [Codex worktrees](https://learn.chatgpt.com/docs/environments/git-worktrees) | chat別worktree、handoff、永続worktree、branch／独立ファイル。local CLIは既存導入 | 既存source環境を再利用。credentialのworktree複製例は我々のSSOT規則へ採用しない。runtime stateは共有せずprovider排他を維持 |
+| [OpenHands](https://github.com/OpenHands/OpenHands/blob/a6bba78ffd5a8b31620770f52383b1a2c0477fcd/README.md) | 現mainはAgent Canvas。ACP経由agentとlocal／Docker／VM／cloud backend。旧All-Hands-AIから正式repoへredirect | local CPU／disk待ちが主要因なら遠隔隔離の候補。第二のscheduler／secret store／agent-server運用の負担があり今回は導入しない |
+| [SWE-agent](https://github.com/SWE-agent/SWE-agent/blob/3ea751c087f32b16e039a2233dd6eefecef325d5/README.md)／[mini-SWE-agent](https://github.com/SWE-agent/mini-swe-agent) | issue→patch、batch Docker workerとeval。旧SWE-agent READMEはmini版への移行推奨 | mini版の簡潔なloopを参考にし、別harnessへ移行しない。benchmark成功率をLife Managerの速度へ換算しない |
+| [Agent Lightning](https://github.com/microsoft/agent-lightning/blob/d381995396274039f2bb1cbe5ff42ac8067f4e47/README.md) | trainer／gateway／controllerによるRL。coding例にCUDA／verl／vLLM、4×B200／K8s／2machine構成 | 自分のmodelの学習・reward設計向け。今のSol／Luna fleetの高速dispatchとは別目的。SelfBuild／Eval後段、今導入しない |
+
+公式ghでparentがrepo HEADを取得: Superset c711aa02da3f5625a49c58ec4035eea57b87df0a、cmux fcaefa330ba14239c76808df9f263b435b4a49b1、Codex dde5f8c5ae9b644c6882b3a48581ac317255d597。worker取得: OpenHands a6bba78ffd5a8b31620770f52383b1a2c0477fcd、SWE-agent3ea751c087f32b16e039a2233dd6eefecef325d5、Lightning d381995396274039f2bb1cbe5ff42ac8067f4e47。Supersetのtree取得はtruncated false、useCreateWorkspace.tsのworkspace mutation／initialization／query invalidationを読取、cmux CLI contractとREADMEを取得。全機能を実行検証した証拠や速度benchmarkではない。
+
+#### 追加ツール無しで解ける起動・観測・effortの不足
+
+- ローカルcommand/application探査ではcmux／Superset未取得、Codex CLIは既存。AGMSGにはtmux／plain driverがある。tmux list-sessionsはexit0／6session、server reachable。6sessionを6稼働agentと扱わず、既存sessionを停止・書換えない。primary own placement plainは保持する。
+- spawn.sh65–73とlib/spawn-options.shを読み、AGMSG_SPAWN_OPTIONS_FILEの起動ごとのoverrideと、type別flag→argv tokenの既存機能を確認。spawn.shは値をword splitせずSPAWN_OPT_TOKENSへ保持する。既存方式でCodexへ-cとmodel_reasoning_effort="max"を一tokenで渡し、--model gpt-6-lunaを組み合わせられる。計画／reviewは同経路でmedium。global既定を書き換える必要はない。
+- このCLI経路はsourceレベルの確認。Codex -c model_reasoning_effort="max" --helpもread-only確認対象とし、実runのmodel／effort／usageが非公開なら未観測と明示する。実装席を起動してmaxで仕事が成功した証明は今回無し。既存spawn optionsのsandbox／承認等を落としてoverrideしない。
+
+#### 推奨する加速の順序
+
+1. **既存tmux＋AGMSG＋worktreeを先に使い切る**。独立したjobを一つの専用sessionへ渡し、ready／working／HEAD／成果を観測する。新IDEを待たずに並列dispatchを検証できる。実装席Luna6 maxと調査席Sol6.1 mediumを起動引数で分ける。
+2. **作業と受入をpipeline化**する。task AのCI／review待ちに別resourceのtask Bを進める。公開／provider／releaseはresource ownerが直列、local探索・fixture・資料整理・別module実装を並行。親は依存解消と受入を担当し、毎jobの再実装や全suiteを重複しない。
+3. **余剰tokenは独立した仕事に使う**。取得済み証拠を別角度で解釈、曖昧な設計だけ複数案を隔離比較、財務・作用の反証、具体的失敗ケースの検証へ割り当てる。同じ調査・同じbug・長い報告の複製に使わない。単純fixへ複数競争workerを常時付けない。
+4. **UI／通知の待ちが残ればcmuxをpilot**。現在AGMSG driverとの対応が無いので起動／status／message／model設定のreadbackを一つの隔離taskで実測してから広げる。Supersetはworkspace／diff／PR管理も必要になった段階の候補。両方同時導入しない。
+5. **host待ちが残れば遠隔実行**。provider authやproduction browserを複製せず、source tests／buildだけ隔離hostへ分離する。OpenHands等の既存backendを候補にし、現cloud本番loopへ新workerを無条件投入しない。今回freeは2.1→1.7GiBへ変化、compute余剰がlocal disk余剰を意味しない。
+6. **比較は受入済み成果で行う**。同model／effort／同種taskで開始→受入時間、重複、失敗／rework、受入待ち、token／costが取得できれば実費を記録する。worker数、GitHub stars、benchmark点数、宣伝100+agentsは速度効果の証明にしない。
+
+#### 原子残TODO（§217業務順は変更無し）
+
+- [ ] 実行可能local job1件でAGMSG独立sessionのmodel／effort argv、ready／working／戻り成果を確認する。既存live ownerとbranch／資源を重ねない。
+- [ ] 同時に別local jobをnative1枠へ配分し、primaryは公式readback／成果受入を進める。NPO／mail／growth／CFO束の所有は§341。
+- [ ] source/main循環を解消するまでは完成2sourceを再実装せず保持し、新未統合sourceを無制限に増やさない。
+- [ ] 次5業務atomで待ちの主因を分類し、tmux運用だけで解消したか測る。
+- [ ] 解消しないUI／通知待ちに限りcmux、workspace／PR管理待ちに限りSuperset、local実行待ちに限りremote backendを選び、一つだけ比較する。
+- [ ] 受入／販売／精算の改善を確認する。AGIの能力や到達時期の証拠に置換しない。SelfBuild A43–46最後。
+
+別担当のread-only調査は導入3候補の即時速度証拠無しを確認し、現在は既存構成のpilotを優先する判定。これは永久不採用ではなく、具体的な待ちが測定された場合に採用判断を変える。今回新tool導入／新session起動／製品変更／provider作用0。
