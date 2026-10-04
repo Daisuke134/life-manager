@@ -6216,3 +6216,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - source checkout3609abe16fとproduction loaded releaseを区別しreceiptのrelease_sha=null／loaded_release_unverified=true。既存reader hash3b185e0d1a0214f2e90aae5eca1769dd149e6c7afc94e017ab97ea7f5bc8bb1c、HTTPstatusラッパー以外endpoint／method／auth／timeout不変。
 - private state/mercor-a13-refresh-20261004/receipt.json SHA77e00212bbadde36dbbbf32c9ab050185e9b14bfc894f6dbe5530a5dde41e1c0、cleanup.json SHA769d65e6f7f8a17389d657557c2d680f3f9ec76dd8e8aa342155be88a59ce537を親が再照合。
 - API rowにはcandidateId／formId／listingIdがあるがexact occurrence fields無し。旧intentとの結合不足を保持しApp33812／Reply61324解除0。次は公式pagination契約と旧effect intentのID・時刻結合を取得済みsource／local証拠から限定調査。追加GETを盲目的に繰り返さず、A14／A15の成果条件も未完。cursorA13／全goalactive／SelfBuild最後。
+
+### 363. A13公式frontend契約／exact intent欠損とENOSPC境界
+
+- primaryは公開work.mercor.comをcrwl／scrapyで取得、公式build manifestのhome31JS chunksを限定照合。home module42362はGET /candidates単発、response.data.applicationsのみ、paging params無し。_app module24434のjT client baseURLはhttps://aws.api.mercor.com/work。UI読取契約は一致するがbackend全件性は未証明。推測page／offsetを追加しない。公開JSを実ブラウザへ注入・実行せず、manifestだけnetwork無しのNode VMで解決。
+- private official-frontend-application-contract.json SHAf1662cf4b4bb6399763da35c5ce884708e26335cec999f6efafd4a4bf373f028（state/mercor-a13-refresh-20261004）、認証付き追加GET0／provider mutation0。公開source URL https://work.mercor.com/_next/static/chunks/pages/home-295d75516f47a4ed.js 。
+- fresh Sol6.1 medium workerのexact3run local auditを受入。App33812／旧Reply61324／actualReply66602のphysical scratch・summary・hint不在。App ledger92／submitfences79にexact host run一致0、sharedReply26runにも一致0。summary URIは論理生成でphysical存在を意味しない。historical sourceのterminal cleanupはscratch削除。
+- actualReply66602は旧Reply61324へjoinしexit1／effect_identity_status not_written／officialreceipt null。reply/logs/launchd.err.log1522–1523にENOSPCによるrecovery intent append／scratch rename失敗。親が該当2行を再確認。保存失敗をpre-effect／送信0に置換しない。
+- private state/mercor-a13-intent-audit-20261004.json SHA1d6400761158db33208f1d54ac31842acb5e1685c01f2d93690b9565f503a7e5を親が再照合。fence解除／再送／provider／browser／auth／mail操作0。最小再開条件はretained archive等のexact hostrun→child intent→listing/candidate/time（App）、thread/message/effectkey/bodyhash（Reply）の回収と当該公式receipt／確実なno-effect proof。取得済み100行を再取得して代用しない。
+- A13はこの証拠不足を保持。次の実行可能cursorはA14の正式提出・本人必須要件を既存証拠から照合、独立するA16–18も取得済み証拠で進める。A36容量不足は現行gateとして保持し大量buildを避ける。SelfBuildは最後、全goalactive。
