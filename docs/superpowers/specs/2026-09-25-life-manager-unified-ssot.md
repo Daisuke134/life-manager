@@ -6193,3 +6193,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 後続free435MiBは別の自然変化で、自cleanupの回復成果ではない。11GiB recovery floor未達。重いbuild／install／fullsuiteを増やさず、他growth／CFO ownerへ容量境界をAGMSG共有。source／CFO／personal dataを清掃対象へ広げない。
 - Lancers限定readはregistered lancers:dais／127.0.0.1:9227／profileownership／guard下で自己pageを作りGET payment、targetownerをclaim/release。HTTP405／strictorigin一致／loginpath無し／Human Verificationあり。financecontainer／table0はchallenge観測であり金融0の証拠でない。selftabclose／ownerrelease、challenge／auth／提出／返信／決済／CFOwrite0。
 - evidence state/lancers-a08-refresh-20261004/official-payment-metadata.json（SHA44d26494d4a28c4cf760fd0a6150dee5ad49e3bf3faec480a92f3825c65ed3ee）、host-capacity-a08-boundary-20261004.json、crowdworks-a10-existing-receipt-scope-20261004.json。次はLancers正規確認後の再read、CrowdWorks対象native95587に結ぶ公式coverageをowner非競合時resolve無しで取得。外部待ちは保持して他独立未完へ進む。全goalactive／SelfBuild最後。
+
+### 360. A10 native95587の公式readback前条件とreleased actualの分離
+
+- 対象をnative95587一件へ限定し、existing immutable application-no-submit readerのCLI／関数を確認。CLIは全claimed対象でoccurrence filter無し、--resolveは指定しない。source `_window`はcurrent eventsとgz archivesのowner rowsも読む。18476 rowsの既存関数評価はnative95587 claim_run_unavailableでwindow無し、official proposals readerへdispatchしない。
+- exact native run95587のexecute02:38:50Z→report02:45:54Z／release848aee9b／exit1は存在するが、reportのoccurrence／claimrefはactual30327。これをnativeの実行窓へ流用しない。native自身のqueued_atを実行時刻に置換しない。
+- canonical admissionDBをmode=roでreadし、native95587はclaimed／unknown1、actual30327はreleased／unknown0。10/02保存のactual pre-effect receiptは既に終了したactualの証拠であり、nativeの解除条件を満たさない。新解除・DBwrite・providerquery0。
+- 初回script直実行はpermission denied、managed interpreterで--help確認へ修正。初回DBのtilde未expandはopen失敗、mode=roなので新DB未作成、source default pathをexpandしてcanonical DBへread。両失敗をcurrent boundary proofへ保持。
+- state/crowdworks-a10-native95587-current-boundary.jsonにrun／SHA／現row状態／前条件不足を保存。次はnative occurrenceのactual executor結合証拠が得られる時だけ該当windowのofficial coverageへ進む。全件proposal scan／既存actual再resolve／fence解除は行わない。独立するA13以降へ進める。全goalactive／SelfBuild最後。
