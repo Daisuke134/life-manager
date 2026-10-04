@@ -287,7 +287,9 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
         # already-live derivatives (matched via the catalog dir-name
         # lineage) are already selling worse than it -- then stop cloning
         # that family instead (regulatory 4.2 mass-upload ban).
-        if catalog and orders >= WINNER_CLONE_MIN_ORDERS:
+        # Paid traction only: free downloads (e.g. Japanese Humanizer before its
+        # 2026-09-29 price fix: 5 orders, $0) are not a winner to clone.
+        if catalog and orders >= WINNER_CLONE_MIN_ORDERS and (net or 0) > 0:
             children_titles = catalog_children_titles(catalog_by_title, catalog.get("dir_name"))
             underperforming = []
             for child_title in children_titles:

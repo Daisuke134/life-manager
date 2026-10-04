@@ -313,3 +313,14 @@ def test_rank_shelves_names_capafy_categories():
     ranked = m.rank_shelves([{"category": 11, "sold": 10}, {"category": 999, "sold": 1}], [])
     assert ranked[0]["category_name"] == "Finance"
     assert ranked[1]["category_name"] == "unknown"
+
+
+def test_winner_clone_ignores_free_order_parent():
+    m = load_module()
+    rows = [{"agent_id": "3332784488", "name": "Japanese Humanizer", "status": "online",
+             "stats_30d_orders": 5, "net_revenue_30d_usd": "0.00", "cost_30d_actual_usd": None,
+             "model": "Claude Sonnet 4.6"}]
+    catalog = {"Japanese Humanizer": {"dir_path": "/x/japanese-humanizer", "dir_name": "japanese-humanizer", "has_update": False}}
+    out = m.decide_actions(rows, {"3332784488": {"agentStatus": "online"}}, catalog, {}, {})
+    findings = [f for d in out for f in d["findings"] if f.get("rule") == "winner_clone"]
+    assert findings == []
