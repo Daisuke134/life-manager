@@ -5869,3 +5869,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 親full runtime session35475はexit120でterminal。logにはrelease／pressure関連3ERRORとOSError28 ENOSPC／lost stderrがあり、Ran／OK／suite件数は未出力。759件通過と主張せず初回failureを保持する。sourceはclean／fixed3a7、code変更無し。
 - error時disk free184MiB、自起動test61684をpsでlive確認した後TERMを試みたがno such process（既にterminal）、実kill無し。pytest／unittest active無しを再確認。後続dfはfree3.2GiBへ回復。pytest temp5.6MiB、immutable releases1.6GiB、Library Caches283MiBをread-only計測、手動削除0。容量不足の発生源／自動解放主体は未確定で、今回sourceの欠陥とは断定しない。
 - 同fixed3a7で失敗modules test_cut_loop_release／test_cut_loop_release_pressureを先に再実行、session27107／log lm-reply-blocked-release-recheck.log。terminal後にfull runtimeを再検証する。private source proofにはinitial exit120／3errors／free容量と同handleを保存。source review／PR／main／本番403復旧は未完、全goalactive／SelfBuild最後。
+
+### 336. Release23再PASSとruntime同HEAD再検証／fresh sourceレビュー
+
+- 初回ENOSPCで失敗したrelease modulesを同fixed3a7で再実行し、session27107はexit0／23件／31.209s／OK。初回failureは§335で保持。source／provider／profile／本番state変更0。
+- 親full runtimeを同pushed3a7で再実行、session18609／log lm-reply-blocked-parent-runtime-recheck.log、terminal未取得。初回logと分けて保存、同handleを追い重複再起動しない。
+- fresh read-only reply_blocked_exit_source_reviewへgpt-6.1-sol／medium／forknoneで2file sourceの反証を依頼。runtime再検証進行中をPASSと扱わずsource-only判定を要求、actual metadata未観測。次はsame runtime terminalとreview判定。main／本番復旧／全goal未完、SelfBuild最後。
