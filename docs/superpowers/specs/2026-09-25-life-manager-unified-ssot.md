@@ -4,7 +4,7 @@
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 
-**次に行う作業と残作業の順序は、§217「実行順序と現在cursor」「残作業の実行表（未完のみ）」を読む。現在は実行番号2、次は3。旧A番号と過去の節にあるcursorは履歴参照であり、現在の実行順ではない。**
+**次に行う作業と残作業の順序は、§217「実行順序と現在cursor」「残作業の実行表（未完のみ）」を読む。現在は実行番号3、次は4。旧A番号と過去の節にあるcursorは履歴参照であり、現在の実行順ではない。**
 詳細の正本は次の2つで、この文書は両者の統合・順序・現在cursorだけを持つ。
 
 - Foundation/全体: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`（Whole-ship handover / AGI addendum / Whole-ship remaining TODO）
@@ -4869,7 +4869,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 実行番号は下表の最小の未完番号から順に進める。番号は完了後も付け直さない。旧A番号は過去の証拠と照合するIDであり、実行順や完了件数ではない。完了済み項目と親milestoneの重複行を実行表から除外し、未完の原子だけを並べる。
 
-- 現在cursor：実行番号2、Coconalaの最新残納品条件確認。次は実行番号3、残制作。実行番号1はe3e667a0のsource-only SHIPで完了し、未完表から除外（§397）。
+- 現在cursor：実行番号3、Coconala残制作。次は実行番号4、正式納品。実行番号1はsource-only SHIP（§397）、番号2は最新残要件の意味照合PASS（§400）で完了し、未完表から除外。制作・納品・精算の完了とは分ける。
 - 順序変更理由：Daisの明示指示に従い、項目IDと実行順の混同、未完を残した説明なしの飛び先選択を解消する。進行中のsource修正1件を先に閉じて再調査/重複を防ぎ、以後はCoconala→marketplace→販売→残loop→CFO→SelfBuild/Evalを順に進める。
 - 旧運用：A01–46を掲げながら、外部待ちを残してA28.2.1を実行。新運用：Writer進行中原子を1、その後の残原子を2以降に連番化。最終4原子のSelfBuild/Evalは最後。
 - primaryは現在の番号を閉じてから次の番号へ移る。完了はその原子の受入条件の証拠で判定し、source PASSを本番/納品/精算/利益へ拡張しない。
@@ -4882,8 +4882,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 
 | 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
 |---|---|---|---|
-| 2 | 公式履歴取得済み・要件照合中 | Coconala既存案件の具体的残納品条件とartifact対応を確認する。§399でopen3件と過去1件の公式全履歴を取得。18211957は公式取引完了でopen制作対象へ追加しない。open3の数量・品質・承認scope・原資料と現artifactの完全対応は未確認。意味確認を終えるまで3へ進まない。 | A01 |
-| 3 | 順番待ち | Coconala案件の残制作を納品条件まで完了する。 | A03 |
+| 3 | 実行中・不足証拠確認 | Coconala残制作を納品条件まで完了する。§400のopen3件を対象とし、TikTok実送信台帳・予算①承認対象v2・NPO②/別案件の原資料受領を先に照合。既存v8/v16b/v15を無条件に再制作せず、await_buyerと制作可能範囲を分ける。18211957は対象外。 | A03 |
 | 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
 | 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
 | 6 | 順番待ち | Coconala支払・手数料・精算明細を取得する。§358で公式全件CSVの取得provenanceを限定SHIP、28行／27一意／duplicate1組。gross／fee／net定義・paymentID・bank・cost未確認、全finance完了ではない。 | A06 |
@@ -6537,3 +6536,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 18211957は公式「取引完了」、latestbuyer222345575。open制作対象へ追加しない。formal/acceptanceの個別event ID、精算/着金は別未確認であり、取引完了表示を銀行着金へ拡張しない。
 - 私的packet `/Users/anicca/.local/state/life-manager/state/execution-2-coconala-requirements-20261004/requirements-readback-summary.json`、SHA256 `151b40b0eca220bcdb892773c3d55deaac3b01f88a43be6b1c5c611f86241f25`。ページ読取5、historyload実request数は個別instrument無し。client送信/正式納品/upload/source/activeproject/authcookie変更0、own target残0、prior保持true、他target変更0、guard release exit0。
 - 固定keyword分類だけでは具体的残要件/承認/原資料充足を証明しない。fresh gpt-6.1-sol/medium read-only担当が取得済み履歴と既存artifactを意味照合する。現在cursor2未完、次3、順序変更無し。
+
+
+### 400. 番号2の具体的残要件を受入、現在cursor3へ移動
+
+- fresh gpt-6.1-sol/medium read-only検証は、公式4案件履歴とlocal artifact/reviewを照合し、番号2の受入条件「現在残要件の具体化」をPASS。私的 `semantic-requirements-review.json`（§399と同dir、mode600）、SHA256 `c0ede5ba1255dd3f0f38c319bc864a5d96e7556512882e87bee1e6f9493443f3`。外部作用/production/projectstate変更0。番号2を未完表から除外し、番号を付け直さず現在3→次4へ移動。順序変更無し。
+- 18180857は動画制作ではなくTikTok DMスカウト300件と対象選定/送信記録/返信分析・改善。非配信者限定と共有account/台帳対応が要件。v8は初期候補除外の企画修正版で300送信証跡とのbinding無し。最新buyer222551969は返信説明への了承で全作業正式納品の明示承認ではない。seller300/300申告とlocal19/281はいずれも現在TikTok実数の公式証拠ではなく、適格unique送信数/残数はunknown。既存provider receiptと台帳をread-onlyで結び、追加送信の要否を判定する。
+- 18223833の①予算書はbuyer222226516の限定了承あり。対象はseller220975752のv2で、local保存予算v1/現v16bとは同一性未証明。delivery内v2候補0、v16bには予算book無し。公式添付内容hashを照合する。②別法人NPOはv16b review提出後buyer発言0、R6/R7事業報告、監査情報、役員の正式表記/本人同一性、実決議日/出席者/変更確定情報等が未充足。①了承を②/v16b/全取引へ流用しない。
+- 18250352のv15はR6/R7事業報告、新任2名/退任2名の確定情報・本人同一性・実決議/議事録反映が未充足。7書類別整理と指定メール送付のscopeもあり、seller送付宣言のみで7書類receipt完了としない。後続buyer返信0、原資料の追加受領と送付receiptを既存記録から照合する。日時空欄許可を実役員変更の完了へ拡張しない。
+- 18211957は公式取引完了でopen制作対象外。全3openのlocal acceptance PASSは限定artifact reviewであり、現全要件充足/buyer承認/正式納品/精算の証明ではない。番号3では既存資料/receipt不足の安全なreadから進め、架空の事業実績/氏名/署名/決議を埋めない。
