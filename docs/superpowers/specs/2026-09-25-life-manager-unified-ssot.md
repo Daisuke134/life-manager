@@ -6868,3 +6868,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - metadata全空で照合した旧問題は解消したが、未準備8行を残してtarget未一致のまま早期終了するため、案件宛先がその未準備範囲かどうかは判定できない。取得済20rowの結果を全28/全履歴の不在へ昇格しない。全row完備をtarget選択の追加gateにするのではなく、target一意時は進み、target不明＋未準備行ありの時だけ予算内の既存pollを継続する。
 - 最小code-only修正を有限Luna/max handle79259へ新target-ready source/correction-proofのみ委譲。既存matcherを同readiness loopで使い、empty→partial target無し→後でtarget一意の実producer経路をRED/GREEN1fixtureへ。108/18、child/同envcleanup/no fallback/no newchatは保持、selector/UIDnamespace/SDK/framework追加無し。新runtime proofとcorrection proofを別名にして元成果物を保持する。
 - current3→next4/残51項目/全goalactive。現在のnext actionは未準備行のsource値を予算内で待つことに限定する。case sender/header/body/ID/time/公式送信数/全300/納品未完、NPO待ちは§418を維持する。
+
+
+### 434. Target-ready source受入、28/28名前準備でも対象未確認と実測
+
+- 有限exec79259はexit0/terminal。target-ready reader SHA256 f3494c989bf4aad5b440f84b95a4dd15c43addc3ef3f2f50c524ce5b315fc6ed、code-only correction proof SHA256 ba6e77e104ee5c8b6013927961f90517d13c4a61e6d5b8478b920e1e042130b6。実ROW_JS producerのempty→partial target無し→target一意を既存readiness/matcherへ渡すRED/GREEN action poll→poll→select、target一意時に他row未準備1、期限incomplete、18秒reserve境界を確認。source/元成果物不変、runtimeとcorrection proofは別名。
+- Rootが新source one実読取を実行、23.251s/incomplete/sidebar_target_unconfirmed_in_partial_loaded_range。loaded28/identity present28/absent0/nickname28/handle0/UID0、一意target0。値の未準備があるまま早期終了した§433の状態と区別する。取得した28名前のscopeでは対象未確認だが、名前だけでpeer確定/全履歴不在/未送信を断定しない。
+- target-ready.result SHA256 71c8ff461c5bdbb84f96ac48ad41e112c6c50f2307d12d5501fc2abe6f96e1ae、runtime proof SHA256 4b6644e60920c41b93723a678d2c2141e5ac2ecd864fd050fd4f7aedd140dc51（§399同private dir/600）。rowclick/compose/newchat/send/auth/fence0、ownabsent/prior ID+URLhash集合一致/guardrelease0/leaseabsent PASS、target2保持。
+- recordのMessages.business_suite_route unknownはowned child locationがparent pathと異なることから付いた値で、marker/list28取得と矛盾するprovider故障とは扱わない。Rootのfresh nav expected identity一致は§426、public target profile/row96 bindingは§423、fence119/payload6615のlocal bindingは§422を参照。これらを公式message receiptへ自動昇格しない。
+- 同じsubsetの単純再読やselector追加は止め、fresh native gpt-6.1-sol/medium read-only reviewer tiktok_loaded_scope_readonly_reviewへ、一覧coverage/別inbox区分/名前の変化/routeの競合仮説と最小の次観測を委譲。所有はread-only source/既存evidenceのみ、browser/provider/file編集/transport/fence/send/newchat操作禁止。privateprotobuf decoder/globalSDK全探索や大量newtoolsを作らず、案件1件の許可された公式read経路を具体化する。
+- current3→next4/残51項目/全goalactive、順序変更無し。hydrationによる偽のmatch0は修正したが、案件sender/header/body/ID/time/公式送信数/全300/納品/財務成果は未完。NPO待ちは§418を保持する。
