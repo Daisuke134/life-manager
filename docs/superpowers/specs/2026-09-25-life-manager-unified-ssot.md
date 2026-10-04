@@ -4884,7 +4884,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
-- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§366でcandidate詳細4件と未完form3件を取得、1candidateHTTP400／未取得3、form要件分類unknown3。残候補・HTTP400理由・本人必須条件を照合し、本人必須提出はhuman_requiredを保持する。
+- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§367でcandidate詳細7件／募集終了1件を確認、未取得候補0。未完unique form5件のschema取得、用途・本人要件分類unknown5。公式stepID／本人必須条件／契約を照合し、本人必須提出はhuman_requiredを保持する。
 - [ ] A15 Mercorの精算・着金・実費を確認する。
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
@@ -6250,3 +6250,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 既に成功したcandidateの確定未完form3unique configIdだけ別run2でGET3、HTTP200×3。candidate追加GET／400再試行0。質問21（必須16／任意5）、page2、questiontypeはtextarea12／textfield4／multiple-choice3／checkboxes1／file1。allowCopyPaste true3だがtimer／recordScreen／recordCamera全null、ordinaryform／本人assessmentの分類unknown3を保持。nullをfalse／制限無しとしない。質問本文／回答／resume／個人情報／token保存0。
 - state/mercor-a14-form-requirements-20261004/run2/receipt.json SHA7510394a6123df9fa1731ed209a5257f5c83b05e7fbd2941cd98d7d088214a42、cleanup.json SHAd1996f95bbb9a9aaecbebea85aa387518b4d678857fcb08f02ee7446d05cdc5b、親がSHA／schema集計再確認。guard解放／UUID不変／既存target保持。timerstart／save／submit／media／proctoring／refresh／gate解除／fence解除0。
 - A14次の観測はHTTP400候補のエラー分類を返却時sanitizeで残す最小probe（観測を増やしてから同失敗再試行）、未取得3candidateの残steps、formの本人限定条件／nullの意味を公式schema・consumerで照合すること。回答可能／自動提出許可を勝手に導かない。A15契約／精算／着金／実費は未完、cursorA14／全goalactive／SelfBuild最後。
+
+### 367. A14 HTTP400募集終了の確定／残候補取得とnullの型保存
+
+- primaryは同失敗を再取得する前にnon2xx error分類を追加し、exactHTTP400候補のみguard下でGET1。message文字列を保存せずSHAとgeneric markerを取得、既知汎用phrase Listing is closed. のSHAが完全一致。safe_exact_error_matchとして同phraseを記録し募集終了と特定。認証失敗／候補不存在／本人gateへ置換しない、提出再試行0。
+- state/mercor-a14-http400-probe-20261004/receipt.json SHAcf8c11192359fda3c90f097e8b8372c5e2ac5c97c9b8bbb01f62c54554249361、cleanup.json SHA841fa23142f81d243326e6741ac0eed848e546a5a5cb626d6eacb03fe87447f5。guard解放／UUID不変／existingtarget保持、GET1以外provider mutation0。
+- fresh offline null auditは保存nullの型変換の限界を確認。前3formのtimerキー存在だがrawnull／非scalar変換を区別不可、recordflagsはconfig／flag不在・null・非booleanを区別不可。frontend rawnull timer→0／timer status none、recordflagsはboolean coercionでfalse。ただしpage／bank timerとassessment目的は独立。state/mercor-a14-null-requirement-semantics-20261004.json SHA40efead346a4f1e8f29f8b9e381f14563f47df5efe1bd8922486521d5846d4ff。unknown3を非本人作業へ昇格しない。
+- 未取得3candidateだけ別probe。診断script初回quote SyntaxErrorはparse時点／providerGET0、AST parse確認後に同scope実行。candidateGET3／HTTP200×3／candidate-listingID対応PASS、確定新unique未完formGET2／HTTP200×2。既存5candidate／3form再取得0、募集終了候補の追加再試行0。新2formはtimeLimitSecondsとproctoringConfigキー存在／rawnull、screen/camera flags不在をfieldpresence/type/primitiveで保存。frontend全体timer／recordchannel無し扱いだが用途・本人要件はunknown2。
+- state/mercor-a14-remaining-candidates-20261004/receipt.json SHA81ae81d934bb0d58c903c23db0165bcb37f8faaea815324261a4b85c7bc19fab、cleanup.json SHA591b0429ccc7410906c5516bba17be9892db6ba232011b0af2ca62aca2760d8dを親がSHA／summary再確認。元8applyingstarted候補は詳細200×7＋募集終了1、未取得候補0。未完uniqueform5のschema取得済み、用途分類unknown5。
+- 回答／保存／timerstart／録画／提出／authrefresh／gate解除／fence解除0。A14残はformのassessment目的・person-bound requirement、semanticgate→officialstepID対応、正式提出／契約receipt。単純なschema再取得を進捗とせず目的を変える観測だけ追加する。A15精算・着金・実費も未完、cursorA14／全goalactive／SelfBuild最後。
