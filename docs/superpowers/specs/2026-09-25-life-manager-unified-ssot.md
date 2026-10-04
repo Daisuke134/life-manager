@@ -6569,3 +6569,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - v2の対象3年度/①法人/費用分類を確認し、内部費用照合45行の一致を限定確認。旧v1とは費用値が異なり代替不可。原資料の正当性/全財務品質を証明したものではない。①の追加制作要求は発見されず、既存officialv2を維持する。制作・正式納品操作0。
 - 私的packet `execution3-budget-artifact-scope-review.json`（§399同dir/mode600）、SHA256 `292557cccbca20334015f5bf92830c99b06e521716519ede6751c1794bb6519a`。現時点の番号3残条件は、TikTok実送信receipt/共有台帳の同一対象対応と、NPO②/18250352の追加原資料/確定情報の受領確認。取得済みlocal資料で見つからなかったことを全mail/account不在へ拡張せず、次は既存受領mail/添付receiptと登録済みTikTok読取ownerを必要範囲で照合する。再送・架空事実補完・client送信はしない。
 - 現在3未完→次4、未完表は3–53の51項目、SelfBuild/Eval最後。全goal未完、順序変更無し。
+
+
+### 404. 番号3のNPOメール受領/送付照合とTikTok純読取経路
+
+- Gogの既存file backend/account1を読み取り、Coconala credentialSSOTのmailbox一致を確認。Keychain/login/auth変更無し、gmail-no-send/no-inputを使用。after09/25案件ID/officialcontact検索では18223833通知2、18250352候補0。期間をafter09/10へ広げたexactcontact検索はSENT1/next無し。mail候補0を全account未受領や送付無しへ拡張しない。
+- Gmail message `1a0a747c0d2bb4fa` は09/15のSENTで18250352公式指定先と対応。添付11の分類は活動計算/貸借対照/財産目録/注記の2年度分＋役員名簿3で、事業報告/社員名簿添付は未確認。指定先への一部送付を確認したが、7種類全件の送付完了/contenthash対応/購入者検収は未証明。received-document候補1はofficialcontact/project対応無しで対象原資料としない。既存NPO原資料不足は未解消。
+- 私的 `execution3-npo-mail-document-binding.json` SHA256 `021918e5bae148524d51ad071007d7835f5de78ad3b6f7c27fbb2108a1baacf6`、`execution3-npo-mail-contact-window.json` SHA256 `517d9f281b0d0a691706812899cfcc7d0694bdfbdc099066750dd450db2e5dc5`（§399同dir/mode600）。本文/credential/URLは記録せずhash/分類/IDを保存。Gmail send/markread/auth/projectstate変更0。
+- read-only担当はTikTok既存entrypointを診断。`--audit-tiktok-counts`はledger reconcile、transportのno-sendも先行fence更新、identity mainはownership更新を伴うため純読取へ流用しない。既存registry resolver→fresh endpoint/owner/lease→既存targetのpureDOM evalを使う。Rootのfresh resolverallはexit0、私的inventoryへ保存。担当がexisting business-suite targetと本文readable/recipient対応をread-onlyで確認する。
+- TikTok経路packet `execution3-tiktok-registered-read-route-diagnostic.json` SHA256 `72389fea2a62dd195039427c75744fb44fbe045a860e25e843ab6b24053f3db7`。現在3未完→次4、順序変更無し、予算①v2を再制作しない。
