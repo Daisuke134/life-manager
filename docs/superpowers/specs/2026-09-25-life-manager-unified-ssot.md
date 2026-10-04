@@ -6661,3 +6661,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - private corrected code SHA256 `835630a79747145bcab32cf7bc336abfb8dec399db74bec2464ffd7273859258`、proof SHA256 `13b109524f8acf08b5bd93d36db13e3e68f08963be4686c3345b37b454e9c3ba`。AST/JS構文/projection positive-negative/native contained controlはPASS、元実行code/sampleは不変。正規guardacquireを伴う最終UIentryはexit9/setup停止で、navigation/target/selection/bodyは未取得。直後holder空、先行PID8065 alive→missing、一時holder帰属はunknownであり現在もliveowner待ちとは断定しない。観測SHA256 `5ca4370acce0ff2ec10b15e8cf73f806d887e06fe4fc1059721ed26acd8e0eb9`。
 - fresh gpt-6.1-sol/medium read-only reviewは現codeをHOLD。①listSelがmessagepane内`dm-new-chat-item`/`chat-item`もsidebar rowと数えscopeをreject、header/bubble selectorにactual `dm-new-conversation-header`/`dm-new-chat-item`が欠落、active属性実在未証明（code49、prior sample174/181）。②IDwrapper自身と本文leafを2候補として正常bubbleをreject。③active rowと旧表示paneの同conversationを確認せず、row存在/可視pane/header共通祖先だけで旧paneを受理する（code49/84）。
 - positive fixtureはactualpositiveの証明ではない。実観測markerでsidebar/bubbleを分離、wrapperと本文leafを分離、actualrow-pane根拠またはbefore/after切替の限定証拠でoldpane negativeを拒否する3点だけをLuna/max担当が修正。self除外/hash反復排除/方向unknown/全件数unknown/cleanup先行の改善は保持する。current3未完→next4/残51項目、全goal未完。
+
+
+### 415. 実観測markerに基づくsourcepatchを確認、受入は未完
+
+- Root readonly snapshotでcorrected private codeのSHA変更を確認（working SHA256 `933ef3d3e3f25796d8edd009966e0777237e43f39ed03d0fbf829a6e612dc1bd`、ASTparsePASS）。実観測 `dm-new-conversation-list/item` と `dm-new-chatbox` / `chat-uniqueid` / `dm-new-message-list` / `dm-new-chat-item` / `dm-new-message-text`を使うscopeへ変更。`dm-new-conversation-header`の名前だけでselectedchatHeaderと推定せず、sidebarとchatboxを分離する。未反映の修正予定を実装progressとして扱わない。
+- workerはwrapper/本文leafを分離し、active属性hardgateを廃止。row-pane bindingはdirect pane conversationID一致または同sessionのrowclick後の同一chatbox内truehandle変化に限定する。messageID/本文countのみのsignature変化はoldpaneへの新着/scrollでも生じるので、切替証明にしない。header不変/directID無しの本文観測をproviderconversationID確定へ昇格しない。
+- actual marker positive、IDwrapper+leaf positive、oldpane negativeを確認してからcontrolled readonlyUIへ進む。working codeは未受入であり、fixture/構文PASSをactual送信/本番loop修復へ昇格しない。元executed証拠はimmutable、本番source/auth/fence/send変更0。現在3未完→次4/残51項目/全goal未完。
