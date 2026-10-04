@@ -4882,7 +4882,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
-| 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。最新doctor PASS、health failed21/gap2のうち11はcapacity/FIFO defer、entrypoint exit1は8・exit75は2。これらを根因確認し、正常待機と修復対象を分ける。 |
+| 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
 | 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refill依存/費用台帳import契約は実装中、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
@@ -4903,7 +4903,7 @@ primaryはcurrent1の実runtime readbackとSSOTを所有し、独立Sol/medium r
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
-着手の実測：current immutable releaseは82d31995、doctorのmissing/unmanaged/retiredが0。healthはhealthy52/running24/safely_fenced69/failed21/telemetry_gap2、effect_unknown10（重複facetでありtotalへ加算しない）、human_required0、total178。failedの11はtyped capacity/FIFOであるため実故障件数と扱わない。error class未取得gap2も根因未確定。現共有checkoutは他owner branch・dirtyなのでreadonlyを維持する。GUI/DS preflight PASSだが、本turnのproduction mutationは0。
+着手の実測：current immutable releaseは82d31995、doctorのmissing/unmanaged/retiredが0。healthはhealthy52/running24/safely_fenced69/failed21/telemetry_gap2、effect_unknown10（他stateと別の集計区分。全state合計がtotal178）、human_required0、total178。failedの11はtyped capacity/FIFOであるため実故障件数と扱わない。error class未取得gap2も根因未確定。現共有checkoutは他owner branch・dirtyなのでreadonlyを維持する。GUI/DS preflight PASSだが、本turnのproduction mutationは0。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -7230,3 +7230,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 修正範囲を同refill担当に追加：skills/self/spawn/lib/shelter-cost-ledger.js と既存lib/__tests__/shelter-cost-ledger.test.js。新resolved readerはappend-only原本を変更せず、通常行のts/settledLeaseCostUsdと順序を保ち、既存明示schemaのjobAddress訂正だけを一意の先行行へ適用してprojectionを返す。訂正行を費用行へ加算しない。未解決参照/同ts複数対象/未対応field/不正訂正はfail-closedにし、欠損を0やraw成功へfallbackしない。原read/append APIは維持。
 - 必須focused反例：実refill importとpure planRefill、訂正前後で同じ件数/費用/原本bytes、訂正後のjobAddress、orphan/ambiguous/unsupported/malformed refusal、既存raw read/append tests。資金操作・spend cap/価格/provider・production stateは変更しない。gpt-6-luna/maxがRED→GREEN→commit/push、primary再検証とfresh Sol/medium read-only財務安全review後にsource受入。起動成功/本番資金処理の証明とは分ける。
 - Writer current_assignmentのread-only確認はCANDIDATE_CANARY/必要referenceあり。実candidate内容hash/適用/測定成功をこのpresence確認から認定しない。READY待機修正と残適用条件を分ける。§217cursor1/根因確定2並行、main promotion§328保留。
+
+
+### 472. 最新health・capacityのread-only再観測
+
+- 23:08:45Zの公式healthはtotal178、healthy32/running24/safely_fenced68/failed45/telemetry_gap2/effect_unknown7/human_required0。runtime/loop/health.py:394–397は各jobに一つのstateを数えるため、effect_unknownは排他的state区分。§217初回の「重複facetで合計に含めない」を訂正。各state合計178と個別178rowsのCounter一致を確認し、facetとstateを混ぜない。
+- failed45の内訳はresource_capacity_busy38/resource_fifo_wait2/entrypoint_exit1が5。5ownerはarticle-self-improve、lancers-revenue-work-sync、release-reconciler、promptbase-loop-daily、token-daily-report。refillは後続wakeがcapacity deferになったが、既存import根因が修復済みとはしない。sanitized evidence `~/.local/state/life-manager/state/internal-loop-priority-20261005-health-refresh.json` SHA256 a064e15ff2b5a826efd1f6c0cb201393dc3a17f028c9d5803303f9c91234cfb9。
+- read-only admission snapshotは7owner（agent revenue6/deterministic revenue1）が全process identity一致、heartbeat0〜25秒、reservation1。claimにrelease_shaがないことは欠損として保持し、他観測から詰めない。kill/claim削除/cap引上げ/再送なし。evidence `~/.local/state/life-manager/state/internal-loop-priority-20261005-capacity-readback.json` SHA256 7d62d51e7cd5ad5d51e270931079bdf3dbe31970b0a36815c48140a319169e81。
+- DB全occurrenceのqueued/claimed件数は過去行を含み、live並列数ではない。別観測のqueue79ownerと公式queue selectorのeligible agent27/browser1/deterministic32も取得時点が異なり一つの同時snapshotとして差分計算しない。eligible deterministicの先頭support wait約51〜55分は次の容量/公平性診断候補で、API費/売上や完了へ置換しない。owner scope effect_unknownはselectorが除外し、receiptなしに解除しない。
+- refillは実import+pure計画とcorrection projectionの初期GREEN後、primaryが通常row欠損costがspend-gateの `amountUsd || 0` に落ちる反例を指摘。追加REDを確認し、同ledger2filesでfinite numeric ts/nonnegative finite numeric costを検証する最小修正中。raw APIは保持。source受入・commit/push未完、fresh財務安全reviewはその後。
+- §217cursor1/根因確定2並行。3のmain例外確認は未回答であり、goal継続通知を承認と扱わない。独立source作業を継続し、Coconala保留/SelfBuild最後/本番mutation0を保持。
