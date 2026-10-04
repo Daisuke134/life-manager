@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§460の一覧frame読取timeout境界をfresh read-only reviewで絞り、局所metadataへ未到達の原因と最小追加観測を特定すること。§458の限定scopeを維持し、timeoutをsource不存在へ変換せず、同失敗の無修正retry/送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§461のONE readiness-only probeでRPC method/request ID/context寿命/所要時間と遅延応答を最小記録し、一覧frame timeout境界を特定すること。readiness到達か最初のtimeoutで閉じ、scroll/rowclick/sendへ進まない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7097,3 +7097,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - primaryの同試行guard限定probeは21:52:39Zにacquire0/release0/browser操作0/force0、private proof SHA `3814fe9564b2fc021bb03d81a1f3f48b6ecd9283e253ab7ad410034022568ce6`。競合解消後のONE検証run `b4c2e1f8-1981-4fa7-8e87-81a2a57ade5e` は47.806秒、phase one_ui_child_default_scope_read/error TimeoutError、child context probe2件もTimeout。guard取得後だが一覧metadataまで未到達。scroll/rowclick/send0。
 - cleanupはguard release0/own target absent/prior exact ID+URL保持/lease absent。canonical new result `28624e0237d301f77098ab6548d38756cc2e4fe8663ef25a5bd99cb891024873`、proof `c257610bbffdb9aa3ece2e84a36f10665d46cadfcbf9aa77e2be0030e9b2028d`、source/argv一致、600。timeoutをmetadata source非公開や対象不在と扱わない。§457の既存本文一致証拠は保持。
 - 次はfresh Sol/medium read-only reviewで新旧controller差分/応答処理/ready timeout境界を絞り、必要なら最後のRPC method/context/phaseの最小観測を追加する。source原因と証明できなければ推論と分け、同失敗の無修正retry/ブラウザrestart/広い探索は行わない。現在3→次4、局所metadata未完、SelfBuild/Eval最後。
+
+
+### 461. Readiness controllerは新旧同一、RPC境界の一回診断
+
+- fresh Sol/medium reviewerは§460の実hash/source/resultとcleanupを確認。新旧のreadiness/RPC/応答処理/timeout設定は同一で、局所metadata式は本文段階で初めて評価される。今回の早期timeoutをmetadata追加の負荷で説明する証拠はない。
+- RPCは直列だが、timeout後の遅延応答は後続RPCへ到着しうる。現rpcは現在request ID以外の応答を記録せず捨てる。child errorはframe hash/classのみ、最終method/context/request ID/elapsedやcontext destroyed/clearedが未記録。phaseの大分類だけでは最後のPage.getFrameTree失敗かも判別不能。上限延長や旧版復帰を原因修正として選ぶ根拠はない。
+- 次のONE readiness-only probeはrequest ID/method/context hash/式の固定分類/開始終了時刻/設定timeout/完了またはtimeout/遅延応答ID数/context destroyed-clearedだけを記録。URL/式本文/params値は保存しない。readiness到達か最初のtimeoutで閉じ、scroll/rowclick/sendへ進まない。context寿命、child評価遅延、frame-tree/通信全体遅延、遅延応答到着を区別する。
+- 新private診断fileのみを所有させ既存controllerへ最小instrumentation、追加framework/timeout延長/ブラウザrestartなし。reviewのbrowser/file変更0。現在3→次4、局所metadata未到達、SelfBuild/Eval最後。
