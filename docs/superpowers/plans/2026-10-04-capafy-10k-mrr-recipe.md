@@ -361,9 +361,9 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | source ✅（259 passed、本番データで 3 本の不一致を検出）、本番反映待ち |
 | 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | 工場の自然 run 待ち（審査枠 5/5、空き次第 売上順に Hook Lab → TikTok → YouTube） |
 | 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順番待ち |
-| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | 未着手 |
-| 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | 未着手 |
-| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に review ≥ 1、hot 掲載 | 未着手 |
+| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | source ✅ #6572 `57c179fc`（見本・FAQ・タグ5、題名は不変）。値上げ更新と同時に出る＝枠待ち |
+| 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | ✅ 公開ページで新 bio を目視確認（2026-10-04）。残り: リンク欄（タイトル必須）、主力をプロフィール上位に出す方法 |
+| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。値上げ更新と同時に出る |
 | 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | 未着手 |
 | 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | 未着手 |
 | 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 未着手 |
@@ -378,7 +378,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
 **順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
-**現在のカーソル:** #5（E1b、枠待ち）と並行して #7（D1 Hook Lab の題名・カード）。
+**現在のカーソル:** #5・#7・#9 は同じ更新で枠待ち。手を動かすのは #10（前後比較）→ #11 以降。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -407,3 +407,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 - **E1 の本当の穴（実測）**: 値上げ版として提出した Hook Lab v1.0.4（2104787480225804288）・TikTok Script Pro v1.0.2・YouTube Script Writer v1.0.3 はすべて承認済み（platform_status=4）なのに、その版の billing 行は日$1.99/週$4.99/月$9.99（Hook Lab の billing updatedAt 2026-09-29 17:41 JST = 提出時）。仮説: H1 提出時に価格カードが保存されなかった（採用）、H2 価格は版と別保存で引き継がれない（棄却: billing 行の agentVersionId が v1.0.4 自身）、H3 データが古い（弱い: 市場データは 10/03 の API 取得）。→ 工場は「値上げした」と記録しても実際の価格を確かめていない。修正: 提出前に draft の billing を LISTING の価格表と照合し、不一致なら提出しない（PR 作成中）。
 - カーソル: **E1 = 価格照合の追加 → UPDATE.json を現行版に合わせて枠が空き次第再提出** → D1 → D2 → C3 → C4 → D3 → A2 → F。
 - 2026-10-04 20:3x JST **E1a/E1b（#6569 merge `342ffefb`）**: 仮説 H4 を追加・採用 — TikTok Script Pro・YouTube Script Writer は LISTING の価格表自体が $1.99/$4.99/$9.99 のまま（コメントだけ「月$19.99 帯へ」）。Hook Lab は表は正しく、CP1 が緑の価格タブを素通りした（H1）。提出前の照合を「止める」にすると、CP1 確定後は編集 URL が出ないため直せない下書きが resume_draft 最優先で毎回選ばれ工場全体が止まる → 警告（`PRICE_MISMATCH_WARNING`）にし、根本は CP1_AGENTIC.md で「緑でも毎回全プランを目標値に設定・年プラン追加」。本番データ（token は `~/.local/state/life-manager/runtime/capafy-publisher/config.json`）で `verify_pricing.py` が 3 本とも PRICING_MISMATCH（月 目標$19.99/実$9.99、年なし）を返すことを確認。既知の失敗: `test_agent_work_state_isolation.sh` は main でも同じ `publish_input_contract: ValueError`（今回の変更と無関係）。
+- 2026-10-04 20:4x JST **本番反映**: `capafy-loop-daily` のみ release `e467e363`（#6566・#6569 を含む）へ `LIFE_MANAGER_APPLY_TARGET=capafy-loop-daily lm-loop apply`（ok/changed）。plist と launchctl の program が `e467e363` を指すことを確認。release は自動作成されたが label は自動では切り替わらない（既知）。
+- 2026-10-04 21:0x JST **D1 #6572 merge `57c179fc`**: Hook Lab に入出力の見本・FAQ（Capafy doc 4.1.1 推奨）、タグ 5 個（管理画面は 5 個可、`build_config.py` が理由不明の `[:3]` で切っていた → `[:5]`）。題名は変えない（`inventory_status.py` が UPDATE.json の対象を題名の完全一致で照合し、不一致だと SERVER_UNREADABLE で工場全体が止まる）。lint PASS・build_config readback でタグ 5・見本・FAQ・題名不変・DeepSeek・autopublish 259 passed。
+- **D2 完了**: 公開プロフィールの自己紹介を短尺動画ツールの主力 4 本＋「投稿・ログインしない」＋連絡先に変更（変更前 548 字は `/tmp/capafy-bio-before.txt`）。公開ページのスクリーンショットで目視確認。リンク欄はタイトル必須のため未設定。新しく見つかった点: (a) プロフィール先頭に販売数 0 の agent が並び Hook Lab が出ない、(b) Ad/Shorts/Reels Hook Lab の価格欄が「無料トライアル」表示（LISTING は No Free Trial 方針）＝価格が本番に入っていない症状、次の更新で `verify_pricing.py` が検出する。
+- **D4 調査**: hot/trending の算出式は公式 doc（1.x〜6.x）に無い。禁止は偽レビュー・評価操作のみ（https://capafy.ai/developer/doc/4.1 "Fake reviews or rating manipulation | Agent removed…"、doc 4.2 "manipulating ratings"）。正直な依頼を禁じる文言は無い。売れている競合（Ocup 3,084 sold・4.6、Serenity 1,805・4.8、HookAce 927・4.3）も書き込みレビュー 0 件。Trending 並びは販売数順ではない（勢い・鮮度の合成と推定、未確証）。市場 API の index/score 系は全件 null。→ 売れ筋 3 本の SKILL.md に「役に立ったら評価を」1 行（見返り・点数指定なし、#6573）。計測: `capafy-skill-analytics.json` の rating/review_count、`capafy-hourly-reconcile.json` の hot views/paid_orders。
