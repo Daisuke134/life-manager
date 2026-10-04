@@ -6889,3 +6889,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 単一の次read actionは、正常dm-new-conversation-listのexact child/defaultをparent frame treeへ結び、選択inbox tab/filter aria-selected、通常UIのnext/loadmore/end/loading/enabled状態、list祖先/document.scrollingElementの寸法とoverflowを1回だけ読む範囲観測。現28CID hash集合は比較用のみ。名前再照合/tab-click/row-click/scroll/search input/Message起動/SDK探索は含めない。
 - reviewerの外部操作/編集0。不足fieldはselected_inbox_scope、paging_or_end_indicator、exact_parent_child_route_binding、公式peer handle/UID、当該本文sender/recipient/body receipt。追加ページ/別区分の証拠が出れば仮説1を具体化、終端が出てもその選択区分だけの証明とし、nickname peer確定/全履歴absenceへ昇格しない。
 - native Luna追加spawnはthread limit拒否。有限Luna/max handle88504へ新private inbox-scope source/result/proofのみ委譲。動作済みcontrollerとsingle result.value/required schema/exception/privacyを再利用し、oneguardedUI108秒内、capture後return。旧成果/認証/ledger/fence/本番sourceを変更しない。raw username/UID/URL/tokenを保存せず、routesは分類/hash/querykeys、汎用UI labelは分類/hash。current3→next4/残51項目/全goalactive、NPO待ちは§418を維持する。
+
+
+### 436. 範囲診断の早期終了と一覧readiness不足
+
+- 番号3の単発read-only範囲診断はrun `4f285a1f-6a4e-4bca-9242-71b0331287d0`、elapsed 7.997秒で `incomplete`。Page loadと子default context 1件を観測したが、exact `dm-new-conversation-list` は0件で、選択inbox範囲・paging/end・実一覧の親子frame bindingは未取得。これは対象会話の不存在、全28件の終端、認証不良の証明ではない。
+- private reader `one-bound-conversation-reader.inbox-scope.py` の制御をprimaryが確認。load後、子contextが既にあれば追加待機をせず、scopeを一度evaluateして一覧0件なら終了する。子context存在を一覧readyと扱うため、既存§430–431の遅延準備の観測に対して不足する。通常の一覧readyをboundedに待つ条件が次の修正対象。列挙範囲やnickname照合を広げる問題とは分ける。
+- 今回のresult SHA256 `91017e5691fcf319bc07ac102c995642c0d793c3112b66bfe7bbb3640235bfb5` はprimary確認時点のsnapshot。workerがterminalになるまではfinal固定hashとして扱わない。proofのargvはreaderではなくresult JSONを指しており、実invocationを示す証拠として未受入。このprovenance不一致も修正対象とする。
+- 観測記録のtab/row click、scroll、search、newchat、compose/send、auth、fence変更は0。cleanupはown target absent、prior ID+URL hash exact、guard release 0、lease absentを記録。これは本観測の作用/cleanup範囲であり過去送信や精算の証明ではない。
+- session `88504` はprimary再pollでrunning、OSでも対応CLI/node PID `29284`/`29294`を確認。timeoutをterminal扱いせず、同プロセスの所有file・browser操作を重複しない。次はterminal結果を受入れ、一覧ready待機と実argv記録を最小修正して、同範囲のread-only観測を行う。現在3→次4、全goal未完、SelfBuild/Eval50–53最後を保持する。
