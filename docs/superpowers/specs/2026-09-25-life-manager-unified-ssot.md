@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§455のmetadata全準備/実CID一致/active遷移を使い、post field-key修正と同pane本文の限定readback方法をfresh read-only reviewで確認すること。未提供ARIAとreader不具合を分け、本文receipt未取得のまま送信/財務結論へ昇格しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§456の実CID/選択遷移/一意pane/header一致と包含による限定bindingを新occurrenceで確認し、同pane本文を一度だけreadbackすること。残るpost field-keyを最小修正し、欠けるmessage ID/sender/dateをunknownとして送信/財務結論へ昇格しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7055,3 +7055,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - ARIA controls/labelledby参照は両方向とも未取得、row_to_pane_relation=falseで本文未実施。candidate_cid_projection_same=falseは実CID不一致ではなく、post側にafter_relation.get(candidate_count)==1が残る同field-key不一致をprimaryがsource1702付近で特定（producer target_row_count）。pre側修正と実CID投影は成功、post側consumerは未修正。
 - 新canonical result SHA `378492cefc71f0fb8c6d0940b070399678f5456af971d6e0c2136e56ad4e8f46`、source65d66は不変、guard release0/own target absent/prior exact ID+URL保持/lease absent。元busy証拠は別名で保持。official sender/body/receipt、全送信数/納品は未確認、read-state unknown。
 - 次はfresh Sol/medium reviewでpost field修正と、実CID/原子click/active遷移/unique pane/headerhandle/包含関係で同pane本文を限定readbackできるか確認する。providerが出さないARIA属性を追加の永続完了gateにせず、本文を読む前に送信/財務結論へ昇格しない。現在3→次4、SelfBuild/Eval最後。
+
+
+### 456. 観測済み選択遷移で同paneの本文限定readbackへ進む
+
+- fresh Sol/medium reviewerは§455result hash一致と実CID/atomicclick/同row aria-selected false→true/一覧安定/unique visiblebox/pane/header空→期待handle+nicknameの遷移を確認。このUI内の選択会話→paneの限定的な操作上bindingを支える。UID確認/fresh profile/送信receiptとは分ける。未提供ARIA参照やchatbox CID属性を必須とする追加gateは採用しない。
+- 残るpost consumer candidate_count→target_row_count修正と、relation判定を実観測済みCID/選択遷移/一意pane/handle一致/包含へ合わせる。header before/after署名差は正常遷移であり拒否条件ではない。単なる同root/CSS名だけの認定はしない。
+- 次の一回は同occurrenceでこれらを確認した直後、同box内のunique message paneに包含されるbubble/bodyだけを読む。本文読取時もpane同一性とheader一致を保持。期待body hash、実message ID/sender/dateを取得し、欠ける項目はunknown。本文一致を送信成功/receipt完備/settlementへ昇格しない。過去の閉じたtabのbindingを流用しない。send/newchat/composer禁止、read-state unknown。
+- 追加observableは対象bubble/bodyの同pane包含で、本文読取と同時に取得する。reader/fixtureを新体系へ広げず、既存controller/atomics/helperを最小変更してONE live。reviewのbrowser/file変更0。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
