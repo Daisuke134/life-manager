@@ -675,12 +675,6 @@ class MoneyLedger:
                         "retainer MRR requires matching active editorial retainer contract"
                     )
 
-            event_id = _id(
-                "money", values["payment_receipt_id"], "editorial_fee", payment_occurred_at
-            )
-            fee_id = _id("fee", event_id, values["fee_receipt_id"])
-            payout_id = _id("payout", values["payout_receipt_id"])
-            payment_id = _id("commercial", payment_evidence_id)
             cross_receipts = (
                 (values["payment_receipt_id"], "money_fees", "payouts"),
                 (values["fee_receipt_id"], "money_events", "payouts"),
@@ -693,6 +687,36 @@ class MoneyLedger:
                     (receipt_id, receipt_id),
                 ).fetchone() is not None:
                     raise MoneyInvariant("external receipt was already used by another money type")
+            existing_event = connection.execute(
+                "SELECT * FROM money_events WHERE external_receipt_id=?",
+                (values["payment_receipt_id"],),
+            ).fetchone()
+            existing_fee = connection.execute(
+                "SELECT * FROM money_fees WHERE external_receipt_id=?",
+                (values["fee_receipt_id"],),
+            ).fetchone()
+            existing_payout = connection.execute(
+                "SELECT * FROM payouts WHERE external_receipt_id=?",
+                (values["payout_receipt_id"],),
+            ).fetchone()
+            existing_binding = connection.execute(
+                "SELECT * FROM commercial_payment_bindings WHERE payment_evidence_id=?",
+                (payment_evidence_id,),
+            ).fetchone()
+            if existing_event is not None:
+                payment_occurred_at = existing_event["occurred_at"]
+            event_id = existing_event["event_id"] if existing_event else _id(
+                "money", values["payment_receipt_id"], "editorial_fee", payment_occurred_at
+            )
+            fee_id = existing_fee["fee_id"] if existing_fee else _id(
+                "fee", event_id, values["fee_receipt_id"]
+            )
+            payout_id = existing_payout["payout_id"] if existing_payout else _id(
+                "payout", values["payout_receipt_id"]
+            )
+            payment_id = existing_binding["payment_id"] if existing_binding else _id(
+                "commercial", payment_evidence_id
+            )
             event_values = (
                 event_id, None, "account", "editorial_fee", "direct_writing",
                 "editorial_fee", gross, currency, "verified_received",
@@ -705,10 +729,6 @@ class MoneyLedger:
                 "source_url", "test", "occurred_at", "settled_at", "external_contract_id",
             )
             event_record = dict(zip(event_columns, event_values))
-            existing_event = connection.execute(
-                "SELECT * FROM money_events WHERE external_receipt_id=?",
-                (values["payment_receipt_id"],),
-            ).fetchone()
             if existing_event is None:
                 connection.execute(
                     "INSERT INTO money_events(" + ",".join(event_columns) + ") "
@@ -732,19 +752,23 @@ class MoneyLedger:
                     (payment_at, recurring_contract_id, event_id),
                 )
 
+            fee_occurred_at = (
+                existing_fee["occurred_at"] if existing_fee is not None else payment_at
+            )
+            fee_settled_at = payment_at
+            fee_observed_at = (
+                existing_fee["observed_at"] if existing_fee is not None else received_at
+            )
             fee_values = (
                 fee_id, event_id, "processor", fee, currency, "verified",
-                values["fee_receipt_id"], fee_url, received_at, payment_at, payment_at,
+                values["fee_receipt_id"], fee_url, fee_observed_at,
+                fee_occurred_at, fee_settled_at,
             )
             fee_columns = (
                 "fee_id", "event_id", "fee_kind", "amount", "currency", "status",
                 "external_receipt_id", "source_url", "observed_at", "occurred_at", "settled_at",
             )
             fee_record = dict(zip(fee_columns, fee_values))
-            existing_fee = connection.execute(
-                "SELECT * FROM money_fees WHERE external_receipt_id=?",
-                (values["fee_receipt_id"],),
-            ).fetchone()
             if existing_fee is None:
                 connection.execute(
                     "INSERT INTO money_fees(" + ",".join(fee_columns) + ") "
@@ -752,29 +776,26 @@ class MoneyLedger:
                     fee_values,
                 )
             else:
-                provenance = {"occurred_at", "settled_at"}
+                provenance = {"occurred_at", "settled_at", "observed_at"}
                 if any(existing_fee[key] != value for key, value in fee_record.items()
                        if key not in provenance):
                     raise MoneyInvariant("fee receipt already belongs to different money")
-                for key in provenance:
-                    value = fee_record[key]
-                    if value is not None and existing_fee[key] is not None and existing_fee[key] != value:
-                        if not _same_instant(existing_fee[key], value):
-                            raise MoneyInvariant("fee receipt provenance conflicts with existing data")
+                value = fee_record["settled_at"]
+                if (value is not None and existing_fee["settled_at"] is not None
+                        and not _same_instant(existing_fee["settled_at"], value)):
+                    raise MoneyInvariant("fee receipt provenance conflicts with existing data")
                 connection.execute(
-                    "UPDATE money_fees SET occurred_at=COALESCE(occurred_at,?),"
-                    "settled_at=COALESCE(settled_at,?) WHERE fee_id=?",
-                    (payment_at, payment_at, fee_id),
+                    "UPDATE money_fees SET settled_at=COALESCE(settled_at,?) WHERE fee_id=?",
+                    (fee_settled_at, fee_id),
                 )
 
+            payout_occurred_at = (
+                existing_payout["occurred_at"] if existing_payout is not None else received_at
+            )
             payout_values = (
                 payout_id, "editorial_fee", "paid", gross, fee, net, currency,
-                values["payout_receipt_id"], payout_url, 0, received_at,
+                values["payout_receipt_id"], payout_url, 0, payout_occurred_at,
             )
-            existing_payout = connection.execute(
-                "SELECT * FROM payouts WHERE external_receipt_id=?",
-                (values["payout_receipt_id"],),
-            ).fetchone()
             if existing_payout is None:
                 connection.execute("INSERT INTO payouts VALUES(?,?,?,?,?,?,?,?,?,?,?)", payout_values)
             elif tuple(existing_payout) != payout_values:
@@ -804,24 +825,23 @@ class MoneyLedger:
             elif tuple(allocation) != (gross, currency):
                 raise MoneyInvariant("commercial payout allocation conflicts")
 
+            binding_received_at = (
+                existing_binding["received_at"] if existing_binding is not None else received_at
+            )
             binding_values = (
                 payment_id, event_id, payout_id, evidence["opportunity_id"],
                 values["contract_id"], values["assignment_id"], values["delivery_id"],
                 publication_id, artifact_sha256, trigger, values["trigger_evidence_id"],
                 payment_evidence_id, revenue_type, recurring_contract_id,
-                gross, fee, net, currency, received_at,
+                gross, fee, net, currency, binding_received_at,
             )
-            existing_binding = connection.execute(
-                "SELECT * FROM commercial_payment_bindings WHERE payment_evidence_id=?",
-                (payment_evidence_id,),
-            ).fetchone()
             inserted = existing_binding is None
             if inserted:
                 connection.execute(
                     "INSERT INTO commercial_payment_bindings VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     binding_values,
                 )
-            elif tuple(existing_binding) != binding_values:
+            elif tuple(existing_binding)[:-1] != binding_values[:-1]:
                 raise MoneyInvariant("commercial payment evidence already has different binding")
         return {
             "payment_id": payment_id, "event_id": event_id, "payout_id": payout_id,

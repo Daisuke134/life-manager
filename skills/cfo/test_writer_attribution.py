@@ -99,6 +99,77 @@ def _stripe_subscription_objects():
             "balance_transactions": balances}
 
 
+def _commercial_fixture(tmp_path, *, settled_at=None):
+    opportunity_db = Path(tmp_path) / "opportunity.sqlite3"
+    payload = {
+        "contract_id": "contract-1", "assignment_id": "assignment-1",
+        "delivery_id": "delivery-1", "artifact_sha256": "c" * 64,
+        "payment_trigger": "DELIVERY", "trigger_evidence_id": "delivery-evidence",
+        "currency": "USD", "payment_receipt_id": "publisher-payment",
+        "fee_receipt_id": "publisher-fee", "payout_receipt_id": "publisher-payout",
+        "counterparty": "Publisher", "counterparty_kind": "EXTERNAL_PUBLISHER",
+        "payment_status": "SETTLED", "received_by": "Writer",
+        "revenue_type": "RECURRING_RETAINER", "recurring_contract_id": "retainer_month",
+        "payment_source_url": "https://example.com/payment",
+        "fee_source_url": "https://example.com/fee",
+        "payout_source_url": "https://example.com/payout",
+        "test": False, "estimated": False, "gross_amount": 40,
+        "fee_amount": 4, "net_amount": 36,
+    }
+    if settled_at is not None:
+        payload["settled_at"] = settled_at
+    with sqlite3.connect(opportunity_db) as connection:
+        connection.executescript("""
+            CREATE TABLE opportunity_evidence (
+                evidence_id TEXT, opportunity_id TEXT, kind TEXT, url TEXT,
+                observed_at TEXT, payload_json TEXT
+            );
+            CREATE TABLE opportunities (opportunity_id TEXT, publisher TEXT);
+            CREATE TABLE opportunity_contracts (
+                contract_id TEXT, opportunity_id TEXT, payment_trigger TEXT,
+                currency TEXT, rate_amount REAL, status TEXT
+            );
+            CREATE TABLE opportunity_assignments (
+                assignment_id TEXT, contract_id TEXT, opportunity_id TEXT, status TEXT
+            );
+            CREATE TABLE opportunity_deliveries (
+                delivery_id TEXT, assignment_id TEXT, opportunity_id TEXT,
+                status TEXT, artifact_sha256 TEXT, delivery_evidence_id TEXT
+            );
+            CREATE TABLE opportunity_publications (
+                delivery_id TEXT, opportunity_id TEXT, publication_id TEXT,
+                status TEXT, publication_evidence_id TEXT
+            );
+        """)
+        connection.execute(
+            "INSERT INTO opportunity_evidence VALUES(?,?,?,?,?,?)",
+            ("payment-evidence", "opp-1", "payment", "https://example.com/payment",
+             OBSERVED, json.dumps(payload)),
+        )
+        connection.execute("INSERT INTO opportunities VALUES(?,?)", ("opp-1", "Publisher"))
+        connection.execute(
+            "INSERT INTO opportunity_contracts VALUES(?,?,?,?,?,?)",
+            ("contract-1", "opp-1", "DELIVERY", "USD", 40, "TERMS_COMPLETE"),
+        )
+        connection.execute(
+            "INSERT INTO opportunity_assignments VALUES(?,?,?,?)",
+            ("assignment-1", "contract-1", "opp-1", "DELIVERED"),
+        )
+        connection.execute(
+            "INSERT INTO opportunity_deliveries VALUES(?,?,?,?,?,?)",
+            ("delivery-1", "assignment-1", "opp-1", "ACCEPTED", "c" * 64,
+             "delivery-evidence"),
+        )
+    ledger = MoneyLedger(Path(tmp_path) / "money.sqlite3")
+    ledger.record_subscription(
+        acquisition_artifact_id=None, stream="editorial_retainer", amount=40,
+        currency="USD", interval="month", interval_count=1, status="active",
+        external_contract_id="retainer_month", source_url="https://example.com/retainer_month",
+        test=False, started_at="2026-09-01T00:00:00Z", observed_at=OBSERVED,
+    )
+    return opportunity_db, ledger, payload
+
+
 class WriterStripeProvenanceTest(unittest.TestCase):
     def test_refund_without_livemode_inherits_only_exact_live_parent_mode(self):
         rows = writer_stripe_sync.normalize_objects(
@@ -705,110 +776,144 @@ class WriterStripeProvenanceTest(unittest.TestCase):
         self.assertNotIn("writer:money_event:editorial_year", receipts)
         self.assertNotIn("writer:money_event:editorial_unknown", receipts)
 
-    def test_formal_settled_publisher_receipt_reaches_cfo_as_editorial_fee(self):
+    def test_commercial_settlement_enrichment_preserves_existing_ids_and_references(self):
         with tempfile.TemporaryDirectory() as tmp:
-            opportunity_db = Path(tmp) / "opportunity.sqlite3"
-            payload = {
-                "contract_id": "contract-1", "assignment_id": "assignment-1",
-                "delivery_id": "delivery-1", "artifact_sha256": "c" * 64,
-                "payment_trigger": "DELIVERY", "trigger_evidence_id": "delivery-evidence",
-                "currency": "USD", "payment_receipt_id": "publisher-payment",
-                "fee_receipt_id": "publisher-fee", "payout_receipt_id": "publisher-payout",
-                "counterparty": "Publisher", "counterparty_kind": "EXTERNAL_PUBLISHER",
-                "payment_status": "SETTLED", "received_by": "Writer",
-                "settled_at": "2026-10-01T22:00:00Z",
-                "revenue_type": "RECURRING_RETAINER",
-                "recurring_contract_id": "retainer_month",
-                "payment_source_url": "https://example.com/payment",
-                "fee_source_url": "https://example.com/fee",
-                "payout_source_url": "https://example.com/payout",
-                "test": False, "estimated": False, "gross_amount": 40,
-                "fee_amount": 4, "net_amount": 36,
-            }
-            with sqlite3.connect(opportunity_db) as connection:
-                connection.executescript("""
-                    CREATE TABLE opportunity_evidence (
-                        evidence_id TEXT, opportunity_id TEXT, kind TEXT, url TEXT,
-                        observed_at TEXT, payload_json TEXT
-                    );
-                    CREATE TABLE opportunities (opportunity_id TEXT, publisher TEXT);
-                    CREATE TABLE opportunity_contracts (
-                        contract_id TEXT, opportunity_id TEXT, payment_trigger TEXT,
-                        currency TEXT, rate_amount REAL, status TEXT
-                    );
-                    CREATE TABLE opportunity_assignments (
-                        assignment_id TEXT, contract_id TEXT, opportunity_id TEXT, status TEXT
-                    );
-                    CREATE TABLE opportunity_deliveries (
-                        delivery_id TEXT, assignment_id TEXT, opportunity_id TEXT,
-                        status TEXT, artifact_sha256 TEXT, delivery_evidence_id TEXT
-                    );
-                    CREATE TABLE opportunity_publications (
-                        delivery_id TEXT, opportunity_id TEXT, publication_id TEXT,
-                        status TEXT, publication_evidence_id TEXT
-                    );
-                """)
-                connection.execute(
-                    "INSERT INTO opportunity_evidence VALUES(?,?,?,?,?,?)",
-                    ("payment-evidence", "opp-1", "payment", "https://example.com/payment",
-                     OBSERVED, json.dumps(payload)),
-                )
-                connection.execute("INSERT INTO opportunities VALUES(?,?)", ("opp-1", "Publisher"))
-                connection.execute(
-                    "INSERT INTO opportunity_contracts VALUES(?,?,?,?,?,?)",
-                    ("contract-1", "opp-1", "DELIVERY", "USD", 40, "TERMS_COMPLETE"),
-                )
-                connection.execute(
-                    "INSERT INTO opportunity_assignments VALUES(?,?,?,?)",
-                    ("assignment-1", "contract-1", "opp-1", "DELIVERED"),
-                )
-                connection.execute(
-                    "INSERT INTO opportunity_deliveries VALUES(?,?,?,?,?,?)",
-                    ("delivery-1", "assignment-1", "opp-1", "ACCEPTED", "c" * 64,
-                     "delivery-evidence"),
-                )
-
-            ledger = MoneyLedger(Path(tmp) / "money.sqlite3")
-            ledger.record_subscription(
-                acquisition_artifact_id=None, stream="editorial_retainer",
-                amount=40, currency="USD", interval="month", interval_count=1,
-                status="active", external_contract_id="retainer_month",
-                source_url="https://example.com/retainer_month", test=False,
-                started_at="2026-09-01T00:00:00Z", observed_at=OBSERVED,
+            opportunity_db, ledger, payload = _commercial_fixture(tmp)
+            result = ledger.record_commercial_payment(
+                opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
             )
-            try:
-                result = ledger.record_commercial_payment(
-                    opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
+            with ledger._connect() as connection:
+                baseline = {
+                    "event": tuple(connection.execute(
+                        "SELECT event_id,occurred_at,settled_at FROM money_events "
+                        "WHERE external_receipt_id='publisher-payment'"
+                    ).fetchone()),
+                    "fee": tuple(connection.execute(
+                        "SELECT fee_id,event_id,occurred_at,settled_at FROM money_fees "
+                        "WHERE external_receipt_id='publisher-fee'"
+                    ).fetchone()),
+                    "payout": tuple(connection.execute(
+                        "SELECT payout_id,occurred_at FROM payouts "
+                        "WHERE external_receipt_id='publisher-payout'"
+                    ).fetchone()),
+                    "allocation": tuple(connection.execute(
+                        "SELECT payout_id,event_id,amount,currency FROM payout_allocations"
+                    ).fetchone()),
+                    "binding": tuple(connection.execute(
+                        "SELECT payment_id,event_id,payout_id,received_at "
+                        "FROM commercial_payment_bindings"
+                    ).fetchone()),
+                }
+            payload["settled_at"] = "2026-10-01T23:30:00Z"
+            with sqlite3.connect(opportunity_db) as connection:
+                connection.execute(
+                    "UPDATE opportunity_evidence SET observed_at=?,payload_json=? "
+                    "WHERE evidence_id='payment-evidence'",
+                    ("2026-10-02T01:00:00Z", json.dumps(payload)),
                 )
+            try:
                 duplicate = ledger.record_commercial_payment(
                     opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
                 )
-            except sqlite3.Error as error:
-                result = {"error": str(error)}
-                duplicate = {}
+            except (MoneyInvariant, sqlite3.Error) as error:
+                duplicate = {"error": str(error)}
+            with ledger._connect() as connection:
+                after = {
+                    "event": tuple(connection.execute(
+                        "SELECT event_id,occurred_at,settled_at FROM money_events "
+                        "WHERE external_receipt_id='publisher-payment'"
+                    ).fetchone()),
+                    "fee": tuple(connection.execute(
+                        "SELECT fee_id,event_id,occurred_at,settled_at FROM money_fees "
+                        "WHERE external_receipt_id='publisher-fee'"
+                    ).fetchone()),
+                    "payout": tuple(connection.execute(
+                        "SELECT payout_id,occurred_at FROM payouts "
+                        "WHERE external_receipt_id='publisher-payout'"
+                    ).fetchone()),
+                    "allocation": tuple(connection.execute(
+                        "SELECT payout_id,event_id,amount,currency FROM payout_allocations"
+                    ).fetchone()),
+                    "binding": tuple(connection.execute(
+                        "SELECT payment_id,event_id,payout_id,received_at "
+                        "FROM commercial_payment_bindings"
+                    ).fetchone()),
+                }
             records = writer_adapter.adapt_path(
-                ledger.path, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
+                ledger.path, snapshot_at="2026-10-02T02:00:00Z",
+                trailing_start="2026-09-01T00:00:00Z",
             )
+            conflicting = dict(payload, settled_at="2026-10-01T22:30:00Z")
+            with sqlite3.connect(opportunity_db) as connection:
+                connection.execute(
+                    "UPDATE opportunity_evidence SET payload_json=? WHERE evidence_id=?",
+                    (json.dumps(conflicting), "payment-evidence"),
+                )
+            with self.assertRaisesRegex(MoneyInvariant, "provenance conflicts"):
+                ledger.record_commercial_payment(
+                    opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
+                )
+            conflicting = dict(payload, gross_amount=41, net_amount=37)
+            with sqlite3.connect(opportunity_db) as connection:
+                connection.execute(
+                    "UPDATE opportunity_evidence SET payload_json=? WHERE evidence_id=?",
+                    (json.dumps(conflicting), "payment-evidence"),
+                )
+            with self.assertRaisesRegex(MoneyInvariant, "contracted rate"):
+                ledger.record_commercial_payment(
+                    opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
+                )
 
         receipts = {row["receipt_id"]: row for row in records if row["record_type"] == "receipt"}
         self.assertTrue(result.get("payment_id"), result.get("error"))
         self.assertEqual(duplicate.get("payment_id"), result.get("payment_id"))
         self.assertFalse(duplicate.get("inserted"))
+        self.assertEqual(after["event"][0:2], baseline["event"][0:2])
+        self.assertEqual(after["event"][2], "2026-10-01T23:30:00Z")
+        self.assertEqual(after["fee"][0:3], baseline["fee"][0:3])
+        self.assertEqual(after["fee"][3], "2026-10-01T23:30:00Z")
+        self.assertEqual(after["payout"], baseline["payout"])
+        self.assertEqual(after["allocation"], baseline["allocation"])
+        self.assertEqual(after["binding"], baseline["binding"])
         self.assertEqual(
             receipts["writer:money_event:publisher-payment"]["settled_at"],
-            "2026-10-01T22:00:00.000000Z",
+            None,
+        )
+        self.assertEqual(
+            receipts["writer:money_event:publisher-payment"]["verification_state"],
+            "pending",
         )
         self.assertEqual(
             receipts["writer:money_event:publisher-payment"]["components"],
-            [{"category": "settled_external_revenue", "amount": "40"}],
+            [{"category": "pending_revenue", "amount": "40"}],
         )
         self.assertEqual(
             receipts["writer:money_event:publisher-payment"]["revenue_class"],
             "monthly_recurring",
         )
+        self.assertNotIn("writer:money_fee:publisher-fee", receipts)
+
+    def test_formal_settled_publisher_receipt_reaches_cfo_as_editorial_fee(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            opportunity_db, ledger, _ = _commercial_fixture(
+                tmp, settled_at="2026-10-01T22:00:00Z",
+            )
+            result = ledger.record_commercial_payment(
+                opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
+            )
+            records = writer_adapter.adapt_path(
+                ledger.path, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
+            )
+
+        receipts = {row["receipt_id"]: row for row in records if row["record_type"] == "receipt"}
+        self.assertTrue(result.get("payment_id"))
         self.assertEqual(
-            receipts["writer:money_fee:publisher-fee"]["settled_at"],
+            receipts["writer:money_event:publisher-payment"]["settled_at"],
             "2026-10-01T22:00:00.000000Z",
+        )
+        self.assertEqual(
+            receipts["writer:money_fee:publisher-fee"]["components"],
+            [{"category": "other_measured_cost", "amount": "4"}],
         )
 
 

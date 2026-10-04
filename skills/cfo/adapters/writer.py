@@ -174,8 +174,11 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
         if not external_id:
             continue
         occurred = _instant(occurred_at)
+        settlement_is_chronological = (
+            settled_at is not None and _instant(settled_at) >= occurred
+        )
         if kind == "refund" or status == "refunded":
-            if kind != "refund" or status != "refunded" or settled_at is None:
+            if kind != "refund" or status != "refunded" or not settlement_is_chronological:
                 continue
             category, revenue_class = "refund", None
             verification_state = "verified"
@@ -222,13 +225,16 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
                     revenue_class = "one_time"
             else:
                 revenue_class = "one_time"
-            category = "settled_external_revenue" if settled_at is not None else "pending_revenue"
-            verification_state = "verified" if settled_at is not None else "pending"
+            category = (
+                "settled_external_revenue" if settlement_is_chronological
+                else "pending_revenue"
+            )
+            verification_state = "verified" if settlement_is_chronological else "pending"
         else:
             continue
         receipts.append(_receipt(
-            receipt_id=f"writer:money_event:{external_id}",
-            occurred_at=occurred, settled_at=settled_at if category != "pending_revenue" else None,
+            receipt_id=f"writer:money_event:{external_id}", occurred_at=occurred,
+            settled_at=settled_at if settlement_is_chronological else None,
             category=category, amount=amount,
             evidence_suffix=f"{currency}:events/{external_id}",
             revenue_class=revenue_class,
@@ -237,7 +243,8 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
 
     for amount, currency, status, external_id, occurred_at, settled_at in fees:
         if (status != "verified" or not external_id or occurred_at is None
-                or settled_at is None or amount == 0):
+                or settled_at is None or amount == 0
+                or _instant(settled_at) < _instant(occurred_at)):
             continue
         receipts.append(_receipt(
             receipt_id=f"writer:money_fee:{external_id}",
