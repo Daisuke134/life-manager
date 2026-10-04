@@ -4884,9 +4884,9 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
-- [ ] A14 Mercorの正式提出・契約を確認する。本人必須提出はhuman_requiredを保持する。
+- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。candidate detail／残form要件を確認し、本人必須提出はhuman_requiredを保持する。
 - [ ] A15 Mercorの精算・着金・実費を確認する。
-- [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。
+- [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
@@ -6233,3 +6233,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - local ledger listingID一致90行、candidate欄無しでcandidate照合不可。exact pending14identity中8identity／4listingが返却集合に一致するが、step identity／completionを証明せず全8identityの残要件unknown。残6identityは返却集合不在で、全件性未証明ゆえ解除しない。過去form観測はlogin転送であり本人必須gateの証明ではない。今回は既存DB／token期限PASS、一般login障害は観測無し。
 - state/mercor-a14-refresh-20261004/receipt.json SHAe72fcfbf468c7257da8fae2021af26bedbcd73b1cb2a4cb7a39c1ac4f934c33f、rows.json SHA00c220a7474f5f3521d97a7d7cca893a72676f5b792fbbaf27482a4f6826828e、cleanup.json SHAb2eebc860ffcc51ff9a8b03553c400c6a43f9d9489fe8c97b025877e0530d41d。mode600、保存はID／status／step／時間のwhitelistのみ。rawtoken／個人情報／rate／title保存0。
 - providerGET1、navigation／submit／refresh／profile変更0。guard解放／UUID不変／既存target保持確認。A13fence／human gate保持。A14次は返却中applying-started候補の公式step identityとcompletionをread-only取得して本人作業と自動実行可能部分を分ける。Paid sourceはcontract stateだけからfunding／price／scope／AI work authorizationを推測せず、人の正式提出receiptを要求する。契約・精算・着金A14/A15未完。cursorA14／全goalactive／SelfBuild最後。
+
+### 365. A14公式step状態取得／exact gate ID補完とA16最新実行境界
+
+- 公開source module68567のGET /listings/{listingId}/steps（default params無し）とconsumer module64621のtitle／type／isCompleted／completedAtを確認。contract evidence state/mercor-a14-detail-get-contract-20261004.json SHA24cb20f0b17eaed9a3beef065c998bf7f52045de79e907729208691dfb6ab15d。candidate routeの不足public2chunksをprimaryが取得済み、browserへ注入／candidate提出／本人確認API操作無し。
+- Sol6.1 medium readonly担当がapplying-started8listingのみGET8回、HTTP200×8、32steps中完了21／未完11（interview5／form6）。formの本人必須／assessment分類は未確定。初回whitelistにconfigId／listingApplicationStepConfigIdが無く値未保存の欠損を保持し、rawは保存しない。run1receipt SHA551ea255aa0a772baa7b0a888093b5e90a72fddf49b4cdec2d93c22b7f59f004、cleanup SHA954a591ff2629281af75c9444e0cce754c006d59b7c80adae741d74359cbdeff。
+- 必須ID欠損解消のため別run2で既存gate8identityに対応する4listingだけGET4回。HTTP200×4、15stepのtitlehash／type／completion／timeはrun1と一致、公式configId／listingApplicationStepConfigId保存。gate ID一致1は未完、ID不一致0／意味名・slug7は対応未証明。名称一致だけでgate解放せず、全gateとA13fence保持。
+- state/mercor-a14-step-readback-20261004/run2/receipt.json SHAf5402b22345d4d2503c8408ec49fd26a5105d007deb25536d53043369709a7c7、cleanup.json SHA9a3a578495f6622eba974d90c862f55c8db9072c39553d5e7687a6754072a4bfを親が照合。全navigation／refresh／media／submit／gate変更0、guard解放／UUID不変／既存target保持。初回8と補完4の別scopeを区別、追加取得終了。
+- A16local latestはApp18db3b7d940e5088-16950の05:11:30Z、Reply18db3b7d3eda9f90-16946の05:11:27Z、双方report source1a7／exit75／admission resource_effect_unknown／officialreceipt null。state/mercor-a16-latest-local-reports-20261004.jsonに保存。local report SHAはofficial loaded argv readbackではない、新規応募／メール配信の成功に置換しない。
+- 次はA14取得済みcandidate routeからcandidate detail／未完formの安全な読取入口を特定し、本人作業と一般form入力を分ける。公式step IDとsemantic gateの対応が無いものを解除しない。A15契約精算・着金・実費未完、cursorA14、全goalactive／SelfBuild最後。
