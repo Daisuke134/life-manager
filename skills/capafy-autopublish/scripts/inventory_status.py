@@ -42,6 +42,7 @@ ICONS = os.environ.get("CAPAFY_ICONS_DIR") or str(STATE_HOME / "assets/capafy/ic
 FEATURES = os.environ.get("CAPAFY_FEATURES_DIR") or str(STATE_HOME / "features")
 SKILLS = os.environ.get("CAPAFY_SKILLS_ROOT") or str(REPO_ROOT / "skills")
 CATALOG = os.environ.get("CAPAFY_CATALOG_DIR") or str(REPO_ROOT / "skills/capafy/catalog")
+RETIRED = os.environ.get("CAPAFY_RETIRED_PATH") or str(REPO_ROOT / "skills/capafy/RETIRED.json")
 ANALYTICS_PATH = os.environ.get("CAPAFY_ANALYTICS_PATH") or str(STATE_HOME / "state/capafy-skill-analytics.json")
 
 ONLINE = {"online"}
@@ -430,6 +431,29 @@ def server_agents():
         return None
 
 
+def load_retired(path=None):
+    """Return (retired_ids, retired_titles) for agents we deliberately unpublished
+    (C4, 2026-10-04: near-duplicate zero-sale agents -- see skills/capafy/RETIRED.json).
+    A missing file means nothing is retired (empty sets). A PRESENT but malformed
+    file fails CLOSED (returns None) -- never silently treated as "nothing retired",
+    or the loop could auto-republish an agent we deliberately took down."""
+    p = path or RETIRED
+    if not os.path.isfile(p):
+        return set(), set()
+    try:
+        data = json.load(open(p, encoding="utf-8"))
+        agents = data["agents"]
+        if not isinstance(agents, list):
+            raise ValueError("RETIRED.json 'agents' is not a list")
+        ids, titles = set(), set()
+        for a in agents:
+            ids.add(str(a["agent_id"]))
+            titles.add(str(a["title"]))
+        return ids, titles
+    except Exception:
+        return None
+
+
 def listing_title(path):
     """Extract the '## Title' value from a LISTING.md (same rule publish_prepare.sh uses)."""
     try:
@@ -546,10 +570,19 @@ def main():
         print(json.dumps(verdict, ensure_ascii=False))
         return 0
 
+    retired = load_retired()
+    if retired is None:
+        verdict = {"verdict": "SERVER_UNREADABLE", "reason": "RETIRED.json is malformed"}
+        print("VERDICT=SERVER_UNREADABLE")
+        print(json.dumps(verdict, ensure_ascii=False))
+        return 0
+    retired_ids, retired_titles = retired
+
     online_titles = {(a.get("name") or "").strip() for a in agents if a.get("agentStatus") in ONLINE}
     unlisted = [a for a in agents if a.get("agentStatus") in UNLISTED]
     rejected = [a for a in agents if a.get("agentStatus") in REJECTED]
-    recoverable = [a for a in agents if a.get("agentStatus") in RECOVERABLE]
+    recoverable = [a for a in agents if a.get("agentStatus") in RECOVERABLE
+                   and str(a.get("agentId") or "").strip() not in retired_ids]
     detail_ready_ids = {row["agent_id"] for row in normalized["agents"] if row["lifecycle"] == "ready_publish"}
     ready_to_publish = [a for a in agents
                         if a.get("agentStatus") in READY_TO_PUBLISH
@@ -569,6 +602,8 @@ def main():
         request = item.get("update_request")
         if request is None:
             continue
+        if str(request["agent_id"]).strip() in retired_ids:
+            continue
         matches = [agent for agent in agents
                    if str(agent.get("agentId") or "") == str(request["agent_id"])]
         if len(matches) != 1 or (matches[0].get("name") or "").strip() != item["title"]:
@@ -585,6 +620,7 @@ def main():
                    and it["title"] not in online_titles
                    and it["title"] not in inflight_titles
                    and it["title"] not in rejected_titles
+                   and it["title"] not in retired_titles
                    and _not_near_duplicate(it)]
 
     # A rejected agent is only retryable if its title still matches a CURRENT
@@ -598,7 +634,8 @@ def main():
     # o9's LISTING.md now reads "...Keep Viewers Watching", already online as a
     # different agent_id 7686597754.)
     ready_titles = {it["title"] for it in items}
-    retryable_rejected = [a for a in rejected if (a.get("name") or "").strip() in ready_titles]
+    retryable_rejected = [a for a in rejected if (a.get("name") or "").strip() in ready_titles
+                          and str(a.get("agentId") or "").strip() not in retired_ids]
 
     ready_by_title = {item["title"]: item for item in items}
     resumable_drafts = []
