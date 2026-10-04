@@ -578,8 +578,8 @@ class CrowdWorksReplyAdapter:
                     self._send_reply_once(intent["thread_id"], self.FORM_CONFIRMATION_BODY)
                     return
                 if isinstance(receipt, Mapping) and receipt.get("status") == "confirmation_requested":
-                    if receipt.get("confirmation_thread_id") == intent["thread_id"]:
-                        self._send_reply_once(intent["thread_id"], self.FORM_CONFIRMATION_BODY)
+                    # This marker precedes the send. Missing DOM readback cannot
+                    # distinguish a failed send from an unobserved successful one.
                     return
             self._submit_google_form(payload)
             self._send_reply_once(intent["thread_id"], _text(payload.get("completion_body")))
@@ -683,7 +683,8 @@ class CrowdWorksReplyAdapter:
                     == self.FORM_CONFIRMATION_BODY.replace("\r\n", "\n")
                 ), None)
                 if request_index is None:
-                    return {"resume_required": True}
+                    return ({"resume_required": True}
+                            if form_receipt.get("status") == "prepared" else {})
                 for row in rows[request_index + 1:]:
                     body = row["body"].replace("\r\n", "\n")
                     if row["role"] != "buyer":
