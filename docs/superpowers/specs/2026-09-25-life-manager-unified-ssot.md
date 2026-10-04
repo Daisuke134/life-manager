@@ -6553,3 +6553,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - budget①v2は案件内delivery外とzip内部を含む調査範囲で保存候補0。official seller220975752の添付referenceは取得済みだがhref欠落。registered browser ownerが当該添付だけを限定read/downloadし、私的bytes/hashと了承対象の対応を取得する。送信/upload/formal/authcookie変更は行わない。
 - NPO②不足を解消する新原資料は未発見。監査docx候補は別法人①で②へ流用不可、事業報告候補2件は対象法人/年度/実績対応が未成立。18250352の調査sourceに事業報告/監査候補0。全accountに資料が存在しないとは断定せず、追加受領確認を次の診断に残す。
 - 私的packet `execution3-readonly-gap-diagnostic.json`（§399同dir、mode600）、SHA256 `66ef84ed24e63c07b67163350977432eb4bae4316a1afb4987f2383cad0dd6c1`。外部作用/制作/activeprojectstate変更0。既受領財務4表/名簿/議事録の対応整理は可能だが、最終提出版を原資料不足のまま完成扱いしない。現在3未完→次4、順序変更無し。
+
+
+### 402. 予算①の公式添付bytes取得、版と承認scope照合へ
+
+- 番号3のseller220975752添付1をregistered通常context/自己targetで読取。href無しのcontrolについて通常downloadクリックを実施し公式Excel応答HTTP200を観測したが、初回Network body unavailableでpayload無し。既存allowlistが署名queryを落としたURLでのresourceGETはHTTP403/textxmlで、認証失効とは断定しない。
+- Chromium一次資料 `content/browser/devtools/protocol/page_handler.cc` の `SetDownloadBehavior` はBrowserContextへ委譲するため、Page-levelでも自己target限定という案を棄却し設定変更0を保持（https://github.com/chromium/chromium/blob/main/content/browser/devtools/protocol/page_handler.cc）。署名queryを同processメモリだけで保持するprobeを追加してから、通常クリック追加1（累計2）→同URLresourceGETでHTTP200/application/octet-stream、Excel58,656bytesを取得。rawsignedURLはfile/log/chat/argv/env非保存・非表示で破棄。独立GETinputhashは未計測、コードで同raw変数を渡したことを独立hash測定と偽らない。
+- payload SHA256 `e0f3fa34bc2d0b185fb680aba63212663add2f450647015594fde956e72b8dda`、ZIPintegrity/Excelstructuretrue、12sheets/1400formulas。これはファイル構造であり、正しい予算/契約充足/承認/正式納品のPASSではない。buyer222226516の①②scopeは分離し、exact版の承認bindingは未確認。既存localv1や別NPOv16bへ代用せず、fresh read-only担当がファイルと既存版・公式前後messageの範囲を照合する。
+- 私的packet `execution3-budget-signed-resource-readback.json`（§399同dir/mode600）、SHA256 `95332796b2011c050ed791c016dc1d2adcd50b13ac08413ab978f09dd68fcc11`、payloadも同dir/mode600。client送信/正式納品/upload/共有downloadpolicy/auth/source/activeproject変更0、ownremaining0/priorpreservedtrue/guardrelease0。現在3未完→次4、全goal未完。
