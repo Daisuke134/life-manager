@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA21のUpwork正規browser owner接続（issue6553／Luna6 maxのsource実装）。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA21のUpwork正規browser owner接続（issue6553／HEAD3851b5e3、親runtime759 PASS、fresh Sol6.1 medium source review）。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5793,3 +5793,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - Luna6 max同taskは追加fixture1fileだけをcanonical rendererで更新、commit3851b5e3c8163ccaa296bb98d4f2fb4118f2cd8eをpush／remote一致／clean。fixtureの新179recordからUpwork1recordを除くと旧178recordの内容・順序が完全一致。親もrenderer bytes一致と同record比較を確認する。元testsは不変。
 - workerのRED1→GREEN1、affected macOS registry131＋193subtests／contract14loops179jobs／diff PASS。親の初回759／failure1は§323で保持し、修正後full runtimeを同3851固定HEAD／tool session59462で再実行する。HEADを検証中に変更しない。
 - source4file＋必須fixture1fileのscopeで、browser/profile／credential／provider／production作用0。full acceptance terminal→fresh gpt-6.1-sol mediumレビューが次。sourceを本番account transportや全Paid lane成功と扱わない。private proofとrepo正本へcursorを保存、全goal未完、SelfBuildは最後。
+
+### 325. Upwork固定HEADの親runtime再検証PASSと独立sourceレビュー
+
+- 親tool session59462はexit0でterminal。固定HEAD3851b5e3c8163ccaa296bb98d4f2fb4118f2cd8eのfull runtimeは759件／150.110s／OK。source branchはclean、HEAD不変。初回759／failure1のfixture欠落は§323に残し、再検証で上書きしない。
+- fresh read-only task upwork_browser_owner_source_reviewへgpt-6.1-sol／medium／forknoneを指定し、base1a7→HEAD3851の5file、既存所有権・profile保持・14loop契約の反証を依頼。判定未取得、actual model／effort／usageは未観測。
+- A21の残手順は、独立source判定→account／inventory読取の既存経路と実行可能境界確認→ユーザー成果受入条件の照合→許可された統合・immutable反映→登録済み9233のowner／account公式readback。応募・返信・Paid・storefrontはA22–27として別に未完。新AGENTSのPR／main条件（specユーザー成果の実測PASS）を、旧手順のsource testsだけでPR作成する条件より優先する。途中pushをPR準備完了と扱わない。
+- 本ターンのprofile／auth／provider／本番変更0。全体goalはactive／未完、SelfBuildはA43–46の最後。
