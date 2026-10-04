@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。最新doctor PASS、health failed21/gap2のうち11はcapacity/FIFO defer、entrypoint exit1は8・exit75は2。これらを根因確認し、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refill依存は実装中、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refill依存/費用台帳import契約は実装中、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 待機 | 修正の受入・commit/push・対象統合条件を満たし、immutable releaseとowner限定load/admissionの不整合を解消。loaded argv/SHA・rollback・他owner非干渉を確認。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7221,3 +7221,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最小修正はarg=expectedと、実APIのkeyword-only契約に一致するfake/regression。価格/model/category・submit・provider・fence・auth・cadence・timeoutは変更しない。元修正79f7c24e26/#6461はmainへ統合済み、旧task worktreeはclean/remote branchgone/leaseexpired。今回の契約修正はfresh main82d由来 `.worktrees/lm-promptbase-playwright-step-wait-20261005` / branch `fix/lm-promptbase-playwright-step-wait-20261005`、owner codex-money-printer-promptbase-step、lease24h。担当待ち/source未変更。
 - Writer READY衝突の独立修正用 `.worktrees/lm-writer-ready-canary-wait-20261005` / branch `fix/lm-writer-ready-canary-wait-20261005` はmain82d/clean、owner codex-money-printer-writer-canary/lease24h。変更範囲はclose_canaryのREADY待機判定と既存wrapperのfocused regressionのみ。現在READYの適用/測定不足は別未完として保持し、KEEPや改善成功へ丸めない。
 - source2内の担当順はrefill依存→PromptBase step待ち→Writer READY待機。refillは着手済みで中断しない。公開商品供給を塞ぐ契約修正を評価待ち修正より先にし、収益経路への影響を優先する。§217親順1→14/cursor1/根因確定2並行、main promotion§328保留。
+
+
+### 471. refill import graphの追加根因と修正契約
+
+- tweetnaclのdirect dependency/lock修正後、実refill.mjs import regressionが未checkoutのtracked skills/earn/libで失敗。sparse materializeでそのfixture不足を解消すると、deploy.mjsが要求するreadShelterCostEntriesResolvedの未exportで失敗した。testを単体tweetnacl smokeへ縮めず、実import+pure planRefillを受入条件に維持する。provider/財布/live/dry CLI/本番mutationなし。
+- main/旧local .openclawのshelter-cost-ledger.jsはいずれもraw read/appendの2exportのみ。deployはcorrection-aware historyを要求する。raw readerへのaliasで通すと費用訂正契約を失うため禁止。canonical ledger `~/.local/state/life-manager/agent-economy/instance/state/shelter-cost.jsonl` のschema-only読取は通常10行＋correction1行、通常ts重複0。訂正はcorrection=true/correctedField=jobAddress/correctsTs(float)/correctedJobAddress(nonempty string)で対象通常行は1件。金額/住所/secretをdocへ複製しない。
+- 修正範囲を同refill担当に追加：skills/self/spawn/lib/shelter-cost-ledger.js と既存lib/__tests__/shelter-cost-ledger.test.js。新resolved readerはappend-only原本を変更せず、通常行のts/settledLeaseCostUsdと順序を保ち、既存明示schemaのjobAddress訂正だけを一意の先行行へ適用してprojectionを返す。訂正行を費用行へ加算しない。未解決参照/同ts複数対象/未対応field/不正訂正はfail-closedにし、欠損を0やraw成功へfallbackしない。原read/append APIは維持。
+- 必須focused反例：実refill importとpure planRefill、訂正前後で同じ件数/費用/原本bytes、訂正後のjobAddress、orphan/ambiguous/unsupported/malformed refusal、既存raw read/append tests。資金操作・spend cap/価格/provider・production stateは変更しない。gpt-6-luna/maxがRED→GREEN→commit/push、primary再検証とfresh Sol/medium read-only財務安全review後にsource受入。起動成功/本番資金処理の証明とは分ける。
+- Writer current_assignmentのread-only確認はCANDIDATE_CANARY/必要referenceあり。実candidate内容hash/適用/測定成功をこのpresence確認から認定しない。READY待機修正と残適用条件を分ける。§217cursor1/根因確定2並行、main promotion§328保留。
