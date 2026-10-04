@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait引数を実装中、次にWriter READY衝突を直す（§470/476）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait引数を実装中、次にsnapshot proof誤認を独立確認/修正し、Writer READY衝突へ進む（§470/476/477）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7271,3 +7271,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh gpt-6.1-sol/medium財務安全検証者は固定a2efd6422601438dfe02ea38ac576a1ca21c3125をsource PASS、重要指摘なし。独立関連15/15＋追加fixture7/7 PASS、原本/件数/順序/ts/cost/未訂正legacydedupe保持、最終identity collision拒否を確認。primary65/65・構造gate14/178/103/errors0・remote/cleanの証拠と合わせ、refill sourceのみ受入。本番自然実行/公式receipt/資金移動は未確認。
 - PromptBase専用AGMSGの起動失敗/CLI0を確認後、native generic gpt-6-luna/max promptbase_keyword_wait_implementationへ同worktree・同2file所有範囲を割当。根因/実Playwright契約/RED→arg=expected最小GREEN/no-browser検証/構造gate/commit-push条件を渡した。AGMSGrole登録をnative稼働と混同せず、同session一時workerへteam操作を強制しない。source実装中、PR/main/release/apply/投稿0。
 - §217cursor1、根因確定source2はowner別並行。source受入済み3件（token/fleet/refill）の本番は3に残り、main例外確認は未回答。次のsource修正はPromptBase→Writer、Lancers auth/transport原因は未確認。Coconala個別保留/SelfBuild最後、全goal未完。
+
+
+### 477. PromptBase snapshot欠損のno-effect誤認をfixture再現
+
+- current82d daily.sh:94–101はrecord-snapshot失敗をbest-effort/||trueで無視し、publish --confirmへ進める。record_snapshotはwrite_errorを返しても欠損snapshotが起こり得る。reconcile:253–260はsnapshotなし又はslug/title不足をno_candidate_selectedとして_no_effect_resultへ渡す。このproducer/consumer契約ではsnapshot欠損から外部作用なしを証明できない。
+- actual reconcileをno-provider fixtureで実行：fenced state claimed、load_snapshot=None、dashboard callbackは呼出時fail、resolve_pre_effect callbackはfixture spy。結果verified=true/effected=false/closed=true、resolver call1を再現。evidenceはfixture一時dirのみ、実DB/実fence解除/投稿/外部作用0。現productionで欠損事故が起きたとはまだ認定しない。
+- 次の必須確認はfresh Sol/medium read-only source反証。producer write_errorのCLI status、snapshot binding/partial/malformed、同occurrence snapshot上書き/再利用も必要範囲で照合する。欠損を0/pre-effectへ丸めないDoneに直結するため、現PromptBase wait修正の次、Writer READY修正の前へ安全修正候補を追加する。旧source順refill→PromptBase wait→Writer、新source順refill→PromptBase wait→snapshot proof確認/必要修正→Writer。親§217順1→14/cursor1は維持、進行中effectの中断/重複0。
+- 修正対象候補はdaily.sh / scripts/promptbase_fence_reconcile.pyと既存focused tests。publish.py/test_publish_diagnostics.pyの現在native担当と編集範囲を重ねない。確認前にsnapshot欠損を新成功条件へ置換せず、fresh指摘を解消してからsource受入。PR/main/applyは引き続き未実施。
