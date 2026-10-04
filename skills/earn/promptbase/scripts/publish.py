@@ -72,7 +72,7 @@ def _wait_for_step(page, expected: str) -> None:
         raise RuntimeError("step_transition_wait_unsupported")
     wait_for_function(
         "expected => document.body.innerText.slice(0, 200).includes(expected)",
-        expected,
+        arg=expected,
     )
 
 

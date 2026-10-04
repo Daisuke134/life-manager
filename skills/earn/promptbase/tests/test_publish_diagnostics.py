@@ -27,9 +27,9 @@ class _StepTransitionPage:
         self.step = "1/3"
         self.wait_calls = []
 
-    def wait_for_function(self, expression, expected):
-        self.wait_calls.append((expression, expected))
-        self.step = expected
+    def wait_for_function(self, expression, *, arg=None, timeout=None, polling=None):
+        self.wait_calls.append((expression, arg))
+        self.step = arg
 
     def inner_text(self, selector):
         assert selector == "body"
