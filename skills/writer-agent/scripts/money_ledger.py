@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import sqlite3
 from datetime import datetime
@@ -57,12 +58,21 @@ def _currency(value: Any) -> str:
     return value
 
 
-def _amount(value: Any, field: str, *, nullable: bool = False) -> float | None:
+def _amount(
+    value: Any, field: str, *, nullable: bool = False, allow_negative: bool = False
+) -> float | None:
     if nullable and value is None:
         return None
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
-        raise MoneyInvariant(f"{field} must be a nonnegative number")
-    return float(value)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise MoneyInvariant(f"{field} must be a finite number")
+    try:
+        numeric = float(value)
+    except (OverflowError, ValueError) as error:
+        raise MoneyInvariant(f"{field} must be a finite number") from error
+    if not math.isfinite(numeric) or (numeric < 0 and not allow_negative):
+        constraint = "number" if allow_negative else "nonnegative number"
+        raise MoneyInvariant(f"{field} must be a finite {constraint}")
+    return numeric
 
 
 def _id(prefix: str, *parts: str) -> str:
@@ -359,7 +369,9 @@ class MoneyLedger:
             raise MoneyInvariant("unknown measurement value must be null")
         if status != "unknown" and value is None:
             raise MoneyInvariant("measured metric requires a value")
-        numeric = _amount(value, "value", nullable=True)
+        numeric = _amount(
+            value, "value", nullable=True, allow_negative=metric == "net_received"
+        )
         if status == "unknown":
             reason = _text(reason, "reason")
         observed_at = _timestamp(observed_at, "observed_at")

@@ -547,11 +547,10 @@ def _sync_learning_metrics(
     *,
     observed_at: str,
 ) -> dict[str, int]:
-    """Project canary inputs from canonical receipts without inventing outcomes.
+    """Project canary inputs while keeping receipt rows distinct from period totals.
 
-    The zero values below mean zero *verified receipts in this ledger*, not an
-    assertion that an external platform had no unobserved activity.  Views are
-    supplied separately by the authenticated first-party note stats collector.
+    No current producer persists complete first24h financial coverage, so financial
+    period metrics stay unknown. Views come from the authenticated note collector.
     """
 
     report = {"eligible": 0, "inserted": 0, "rejected": 0}
@@ -617,48 +616,29 @@ def _sync_learning_metrics(
                     (artifact["artifact_id"], observed_at),
                 )
             )
-            events = list(
-                connection.execute(
-                    "SELECT event_id,kind,amount,currency,status,external_receipt_id,occurred_at "
-                    "FROM money_events WHERE artifact_id=? AND test=0 "
-                    "AND datetime(occurred_at)<=datetime(?) ORDER BY event_id",
-                    (artifact["artifact_id"], observed_at),
-                )
+        financial_units = {
+            "purchases": "count",
+            "refunds": currency,
+            "net_received": currency,
+        }
+        financial_values = {
+            metric: (
+                None,
+                unit,
+                "unknown",
+                "artifact first24h financial receipt coverage is unavailable",
+                str(artifact["live_url"]),
             )
-            fees = list(
-                connection.execute(
-                    "SELECT f.fee_id,f.amount,f.currency,f.status,f.external_receipt_id,f.observed_at "
-                    "FROM money_fees f JOIN money_events e ON e.event_id=f.event_id "
-                    "WHERE e.artifact_id=? AND e.test=0 "
-                    "AND datetime(f.observed_at)<=datetime(?) ORDER BY f.fee_id",
-                    (artifact["artifact_id"], observed_at),
-                )
-            )
-        received = [
-            row for row in events
-            if row["status"] == "verified_received"
-            and row["kind"] != "refund"
-            and row["currency"] == currency
-        ]
-        refunded = [
-            row for row in events
-            if row["status"] == "refunded"
-            and row["kind"] == "refund"
-            and row["currency"] == currency
-        ]
-        verified_fees = [
-            row for row in fees
-            if row["status"] == "verified" and row["currency"] == currency
-        ]
-        gross = sum(float(row["amount"]) for row in received)
-        refunds = sum(float(row["amount"]) for row in refunded)
-        fee_total = sum(float(row["amount"]) for row in verified_fees)
+            for metric, unit in financial_units.items()
+        }
         values = {
-            "qualified_cta_clicks": (len(visits), "count"),
-            "purchases": (len(received), "count"),
-            "refunds": (refunds, currency),
-            "net_received": (max(0.0, gross - refunds - fee_total), currency),
-            "compute_cost": (wall_seconds, "wall_seconds"),
+            "qualified_cta_clicks": (
+                len(visits), "count", "verified", None, str(artifact["live_url"])
+            ),
+            "compute_cost": (
+                wall_seconds, "wall_seconds", "verified", None, str(artifact["live_url"])
+            ),
+            **financial_values,
         }
         evidence = {
             "schema_version": 1,
@@ -669,11 +649,9 @@ def _sync_learning_metrics(
             ),
             "generation_state_sha256": generation_sha256,
             "visit_receipts": [dict(row) for row in visits],
-            "money_receipts": [dict(row) for row in events],
-            "fee_receipts": [dict(row) for row in fees],
         }
         report["eligible"] += 1
-        for metric, (value, unit) in values.items():
+        for metric, (value, unit, status, reason, source_url) in values.items():
             metric_evidence = {**evidence, "metric": metric, "value": value, "unit": unit}
             try:
                 result = ledger.record_metric(
@@ -682,10 +660,10 @@ def _sync_learning_metrics(
                     metric=metric,
                     value=value,
                     unit=unit,
-                    status="verified",
-                    reason=None,
+                    status=status,
+                    reason=reason,
                     observed_at=observed_at,
-                    source_url=str(artifact["live_url"]),
+                    source_url=source_url,
                     receipt_sha256=_receipt(metric_evidence),
                 )
             except MoneyInvariant:

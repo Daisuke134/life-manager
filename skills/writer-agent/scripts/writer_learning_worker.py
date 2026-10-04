@@ -850,6 +850,11 @@ def _artifact_measurements(
             continue
         if not published_at <= observed <= cutoff:
             continue
+        # No current producer attests complete first24h financial coverage. Keep
+        # individual receipt amounts in the money ledger, but never treat them as
+        # artifact-period totals here, including legacy verified rows.
+        if row["metric"] in {"purchases", "refunds", "net_received"}:
+            continue
         observations.append((observed, row))
     view_times = [
         observed
