@@ -5529,3 +5529,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - invalid created/expires、Feb30、timezone無し、逆順/同一intervalの6casesを各consumerでRED再現。JS Date.parse→UTCISO roundtrip、Python strptime→milliseconds UTCISO roundtripとexpires>createdを最小追加しGREEN。producer標準UTCISO writer shapeを維持し、不正日時はorphan操作0/GC停止、old valid sha:null crashwindowは別未解決。7eaa7af42c325fa17d621802c27be7c520018943/6files/90additions/clean/pushed。
 - Node154/disk98/contract/OSS/diff PASS。fullruntime初回は766/160.712s/errors1、既存test_wrapper_runs_outside_repository_working_directoryのstatus fundraiserが10s timeout。関連単独再実行は1PASS/2.09s、code/timeout変更0。fullsuite再確認running、初回失敗を消さずstate/selfbuild-owner-baseline-source-20261004.json/mode600へ保存。
 - 全suite再確認→別fresh source review→PR/CI/mainが次cursor。production wallet/auth/provider mutation/rollback/cleanup0。全SelfBuild実成果と全金融gateは未達、全残TODO → §217、全goalactive。
+
+
+### 295. UTC修正最終HEADの全suite PASSとfresh reviewer capacity不足
+
+- 7eaa7af42c325fa17d621802c27be7c520018943はNode154/disk98/contract/OSS/diff PASS、initial full766の既存Fundraiser wrapper10s timeoutを保持。単独1PASS2.09s後、code/timeoutを変えずfullsuite766/152.899s/OKを再確認。source worktree clean/pushed、root/native/source/profitを混同しない。
+- fix-first後の別fresh read-only reviewerをgpt-5.6-sol/high/forknoneで2回spawnしたがagent thread limit reached。list_agentsはroot runningと前reviewer completedのみで、新reviewerを実行できない。既存reviewの通過扱いやsame-contextをfreshと偽装せず、Astra Advisorのnew fresh review条件によりPR/mergeを保留。source費用usageは観測不能、actualcost0ではない。
+- state/selfbuild-owner-baseline-source-20261004.json/mode600へdate修正・RED/GREEN・再suite・2failedspawn・次操作を保存。次の安全操作は新reviewer capacityの確認→7eaa fixedHEADの独立finalreview→PR/allCI/source受入→既存release ownerとserializeしたimmutable/自然source acceptance。旧validsha:null crashwindowと実external hooks/金融gateは未完。全goalはactive、全残TODO → §217。
