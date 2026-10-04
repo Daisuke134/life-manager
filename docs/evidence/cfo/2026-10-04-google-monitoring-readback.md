@@ -30,3 +30,9 @@ These counts are not joined to tenant, user, loop, or individual request events.
 - These are request-count scenarios, not an October invoice, per-SKU reconciliation, or current total Google spend. Free caps, credits, volume tiers, SKU differences, other projects, Gemini usage, and source attribution are not covered. The earlier JPY 984 MTD / JPY 9,800–10,200 pace estimate is not reused as a current total after this newer partial readback.
 
 No credential, bearer token, raw request, or bank information is stored in this evidence.
+
+## Supplemental service-level read — 2026-10-04 10:13 JST
+
+- Read-only `projects.timeSeries.list` query for `serviceruntime.googleapis.com/api/request_count`, project `anicca-461216`, window 2026-10-01 00:00 JST through 2026-10-04 10:13 JST. The response contained six series with resource labels `service` and metric label `response_code`; this response did not expose method labels.
+- Returned counts: Directions backend 404=810; Geocoding backend 200=152; Places backend 200=386 and 404=1; BigQuery 200=3; Billing Budgets 200=2.
+- This is service-level request telemetry, not billing. It does not identify tenant, product loop, individual SKU, free-cap/credit application, or settled amount. It does not reconcile to the tenant ledger's 762 Google Maps `provider_usage` rows; keep the two data sets separate until source attribution is added.

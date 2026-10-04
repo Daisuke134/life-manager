@@ -39,3 +39,12 @@ Do not treat failed Directions requests as settled billable usage; the ledger am
 - No Google October settlement receipt, actual-vs-estimate status, or seven-period natural observation is proven by this read.
 
 This was a read-only query. No usage ledger, tenant binding, deployment, report, or external provider state was changed.
+
+## Supplemental production-release read — 2026-10-04 10:22 JST
+
+- Source: the active CFO LaunchAgent's configured tenant UID and read-only `readCostLedger` / `lm_financial_cost_totals` paths in release `b7fb1dfa5a`. The direct tenant scan and stable RPC used the identical half-open window, 2026-10-01 00:00 through 2026-10-04 10:22 JST.
+- Direct scan returned 6,031 rows / USD 4.656581116667 estimated; the stable RPC returned 6,031 / USD 4.656581116666667. The row counts match and the decimal difference is below one cent.
+- Kind totals: `provider_usage` 4,846 / USD 4.59165475; `telnyx_call` 18 / USD 0.064926366667; `gemini_live` 18 / USD 0; `composio_call` 1,145 / USD 0; `composio_poll` 4 / USD 0.
+- Within `provider_usage`: Google Maps 762 / USD 3.81 estimated, consisting of Directions 671 / USD 3.355 with `outcome=failure` and `failure_class=no_route`, plus Geocoding 91 / USD 0.455 with `outcome=success`; Gemini 18 / USD 0.74665475; Google Search Grounding 1 / USD 0.035; route cache 4,065 / USD 0.
+- The ledger metadata still has no `loop_id` or `actual_status`. These estimates are not provider settlements, do not prove failed Directions attempts are billable, and do not establish total Google Cloud invoice cost.
+- This was read-only. No report was generated or sent, and no ledger, tenant, or provider state was changed.
