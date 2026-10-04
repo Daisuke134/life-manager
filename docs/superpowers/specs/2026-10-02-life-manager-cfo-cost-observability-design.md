@@ -4,6 +4,8 @@ Status: approved for implementation; current execution cursor is unified SSOT §
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
+Current operational evidence and source freshness → [unified SSOT §87](2026-09-25-life-manager-unified-ssot.md). This document's evidence section is a dated design baseline, not a live readback.
+
 ## 1. Outcome
 
 Life Manager gives Dais one daily CFO report containing:
@@ -17,7 +19,9 @@ Life Manager gives Dais one daily CFO report containing:
 
 The report is not complete when a local calculation succeeds. It is complete only after the source provider was read and the resulting receipt is durable.
 
-## 2. Current evidence and gaps
+## 2. Design-baseline evidence and gaps
+
+The observations below describe the design baseline. Use unified SSOT §87 for current Moneytree, revenue, cost, and production status.
 
 ### Evidence
 
@@ -27,6 +31,7 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - The already-connected ChatGPT Moneytree plugin returns one MUFG ordinary JPY account, but the newest available transaction is dated 2026-08-25 and no provider freshness timestamp or completeness cursor is exposed. The balance is last-known/stale; the exact personal balance is intentionally omitted from this tracked design.
 - The September Google invoice is JPY 27,889 tax-included. October 1–4 tenant usage through 20:01 JST shows a Google-labeled estimate of USD 5.02665475; a straight-line month projection is about USD 40.64, not an invoice or forecast. Provider-unattributed usage and missing loop/actual-status metadata remain (unified SSOT §87-Y).
 - Fresh B7 projection still reports 14/14 loops as `unknown` with historical/trailing coverage gaps; no company-wide settled net total or runway is established (unified SSOT §87-V).
+- Moneytree Web readback showed one MUFG ordinary JPY account with a last-known balance. Its last successful aggregation was 2026-08-26 and its connection state is `auth.creds.invalid` since 2026-08-28. The balance is stale and must not be reported as today's fresh balance.
 
 ### Code gaps
 
