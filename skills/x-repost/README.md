@@ -25,6 +25,20 @@ sources, excessive X length, wrong-account browser sessions, and ambiguous dupli
 6. Read back the exact `https://x.com/<handle>/status/<id>` permalink.
 7. Append `posted.jsonl` and retain the pass evidence directory.
 
+## Affiliate disable
+
+The English wrapper sets `X_REPOST_DISABLE_AFFILIATE=1`. While set, the pass does not claim or
+requeue affiliate distribution jobs or publish a fresh affiliate proposal. It still records an
+exact prior `POSTED` receipt for duplicate protection. Existing `UNVERIFIED` jobs receive a
+readback-only check when the browser is available. The pass preserves their `UNVERIFIED` result and
+Affiliate ledgers, regardless of the readback result, then continues ordinary X discovery.
+
+Each Postiz submission belongs to its X-loop occurrence and cannot prove an effect for a later
+occurrence. A readback-only pass or a receipt outside the exact occurrence window leaves that host
+effect fenced.
+Any host effect without a unique, in-window `PUBLISHED` receipt remains fenced. An Affiliate result
+also remains `UNVERIFIED` until its owned article URL is confirmed.
+
 The English original owner runs `skills/x-tweeter/scripts/chinese_source_collect.py`. Its default
 public sources are Xiaohongshu, Douyin, Kuaishou, Bilibili, Weibo, Tieba, and Zhihu. The collector
 only gathers source text and URLs; the model makes the editorial decision. MediaCrawler is not
