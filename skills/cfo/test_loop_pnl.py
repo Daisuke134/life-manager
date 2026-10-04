@@ -585,6 +585,118 @@ class B7IntegrationTest(unittest.TestCase):
                     {row["projection"]: row["reason"] for row in rows}, expected_reasons[loop_id],
                 )
 
+    def test_b2_untagged_charge_stays_unverified_when_runtime_default_is_revenue(self):
+        charge_created = 1790769600  # 2026-09-30T12:00:00Z
+
+        def stripe_list(name, data):
+            return {
+                "object": "list",
+                "url": f"/v1/{name}",
+                "data": data,
+                "has_more": False,
+            }
+
+        payload = {
+            "balance_transactions": stripe_list("balance_transactions", [{
+                "object": "balance_transaction",
+                "id": "txn_untagged",
+                "type": "charge",
+                "source": "ch_untagged",
+                "amount": 1000,
+                "fee": 0,
+                "net": 1000,
+                "currency": "usd",
+                "status": "available",
+                "created": charge_created,
+                "available_on": charge_created,
+            }]),
+            "charges": stripe_list("charges", [{
+                "object": "charge",
+                "id": "ch_untagged",
+                "created": charge_created,
+                "amount": 1000,
+                "amount_captured": 1000,
+                "amount_refunded": 0,
+                "currency": "usd",
+                "status": "succeeded",
+                "paid": True,
+                "captured": True,
+                "livemode": True,
+                "disputed": False,
+                "balance_transaction": "txn_untagged",
+                "metadata": {},
+            }]),
+            "refunds": stripe_list("refunds", []),
+            "subscriptions": stripe_list("subscriptions", []),
+            "readback": {
+                "provider": "stripe",
+                "provenance": "stripe_api",
+                "read_at": SNAPSHOT,
+                "queries": {
+                    "trailing": {
+                        "start": TRAILING_START,
+                        "end": SNAPSHOT,
+                        "has_more": False,
+                    },
+                    "historical": {
+                        "history_start": "2026-01-01T00:00:00Z",
+                        "end": SNAPSHOT,
+                        "has_more": False,
+                        "account_inception": True,
+                    },
+                },
+                "classification_policy": {
+                    "default_economic_category": contract.REVENUE,
+                    "source": "explicit_runtime_config",
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            readback_path = root / "stripe.json"
+            readback_path.write_text(json.dumps(payload), encoding="utf-8")
+            env = {
+                "LM_CFO_STRIPE_READBACK": str(readback_path),
+                "LM_CFO_STRIPE_DEFAULT_ECONOMIC_CATEGORY": contract.REVENUE,
+                "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(root / "mobile.jsonl"),
+                "LM_CFO_WRITER_MONEY": str(root / "writer.sqlite3"),
+            }
+            with patch.object(m, "marketplace_ledgers", return_value={}):
+                records = m.collect_b7_records(
+                    snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                    env=env,
+                )
+
+        stripe_rows = [
+            row for row in records
+            if row.get("product_loop_id") == "self-build"
+            and any(str(ref).startswith("stripe://") for ref in row.get("evidence_refs", []))
+        ]
+        verified_revenue = [
+            row for row in stripe_rows
+            if row.get("record_type") == "receipt"
+            and row.get("verification_state") == "verified"
+            and any(component.get("category") == contract.REVENUE
+                    for component in row.get("components", []))
+        ]
+        self.assertEqual(verified_revenue, [])
+
+        stripe_coverage = [
+            row for row in stripe_rows
+            if row.get("record_type") == "coverage"
+            and row.get("source_id") == "stripe-financial-record"
+            and row.get("projection") in {"historical", "trailing"}
+        ]
+        self.assertEqual(
+            {row["projection"]: row["reason"] for row in stripe_coverage},
+            {
+                "historical": "unverified_receipt",
+                "trailing": "unverified_receipt",
+            },
+        )
+
     def test_mobile_readback_uses_default_business_outcomes_path(self):
         expected_products = {
             "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",

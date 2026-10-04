@@ -324,7 +324,8 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     )
 
     stripe_path = env.get("LM_CFO_STRIPE_READBACK")
-    stripe_default_category = env.get("LM_CFO_STRIPE_DEFAULT_ECONOMIC_CATEGORY") or None
+    # B7 attribution requires charge-level provider metadata.
+    stripe_default_category = None
     stripe_live = env.get("LM_CFO_STRIPE_LIVE_READBACK") == "1"
     if stripe_live:
         stripe_reader = lambda: stripe.adapt(
