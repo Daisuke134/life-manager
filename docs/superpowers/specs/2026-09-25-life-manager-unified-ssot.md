@@ -6629,3 +6629,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - private `execution3-tiktok-peer-vs-self-namespace-audit.json`（§399同dir/mode600）、SHA256 `ca369d951b1ba61ddbbb8ff894be4fdd94c13ebcad4e3c7d81a326f2276b1e1d`。DM conversationと当該userの正式profile/UID対応が成立するまで、following一致を送信対象/会話peer/receiptとして昇格しない。
 - Messages表示/DOM conversation IDsの取得は確認済みだが、SDK lastmessageはprotobuf、default Reactpropsはstyled wrapperまでで、送信body/ID/directionのsampleは未成立。自己tabの初期RPC timeoutは観測失敗でありprovider/session終端とは扱わず、同保持sessionで局所待機/再queryする。
 - 正規の既存会話Search/profile表示でparty対応を確認し、その既存会話1件だけ通常readする方針へ移行。検索は既存会話絞込のみ、新chat作成/compose/send/明示markRead/auth/config/fence変更は禁止。通常閲覧に付随するprovider seen状態はunknownとして記録し、全providerstate変更0とは主張しない。username/UID対応が取れない会話を開かず、displayname/候補名一致で補わない。現在3未完→次4/全goal未完。
+
+
+### 411. Renderer本文候補3要素を取得、fresh反証でcase binding未証明を維持
+
+- normal既存row1選択後、`dm-new-message-text`のrenderer本文候補3要素（70/5/6文字、hash3種、矩形位置3）を取得。右1/左2は配置観測でsenderUIDやoutgoing送信の証明ではない。messageID/date/numericUIDはunknown、preview/fullbody/全履歴は未確定。sample3を送信3件や全300へ昇格しない。normalUIに付随するseen効果はunknown、明示send/auth/fence/source変更0、ownremaining0/guardempty/prior2保持PASS。
+- 私的 `execution3-tiktok-read-task-transfer-packet.json` SHA256 `d756210b28305936e225236b594ab726b1708f8672cf2f07c8496b609c581fda`、実行済静的code `execution3-tiktok-owned-renderer-read.executed.py` SHA256 `49a0700f248b767dc52f1017186647d2a9f8a53f57fdedd6f3a21e9b2bf0d4c9`（§399同dir/mode600）。元codeは実行証拠として保持し、改訂は別private versionへ行う。
+- fresh gpt-6.1-sol/medium read-only反証は、headerExprが全rootsの汎用headerhrefを集約しselected conversation ancestor/cardinality/beforeafter未保存と指摘（code30/61–67）。wantedhashは未使用で、判定はroster全候補一致。記録4一致は同handlehashの反復で4人ではない。roster行18col0一致/selfhashとは別という限定事実はあるが、selected peer/campaign exactbindingは未証明。
+- body候補の親子排除はあるがbubble ancestor/可視性/selectedpane対応を未保存。UIlabel/preview/別conversation scopeを完全排除できない。ID/date探索はcandidate/親までのためunknownをprovider不存在としない。確認済表現は『header候補hashがroster列0候補と一致した文脈のrenderer本文候補3要素、selected peer結合は未確認』とする。
+- Source/prodloopを触らず、gpt-6-luna/maxの実装担当が既存private readcodeのselectedpane/header/body対応・局所読取制御だけ修正する。新SDK/decoder/frameworkは追加しない。Rootは成果のfresh反証とSSOT受入を所有し、current3未完→next4/残51項目を維持。
