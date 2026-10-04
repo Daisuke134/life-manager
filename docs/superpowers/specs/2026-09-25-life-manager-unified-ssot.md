@@ -6595,3 +6595,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 私的final `execution3-tiktok-readonly-final-bounded-result.json` SHA256 `0030350a9b5f27af5b8a0d7640a15341375e0aa7b18a9a0bfb0f2705c1eeba76`（§399同dir/mode600）。自己tab閉鎖/lease解放/prior2保持PASS。送信/auth/cookie明示変更/fence/source/ownershipstore変更0。同じ未読取probeの単純反復を次作業にせず、具体SDK/表示阻害を狭める増観測だけを行う。
 - NPO追加原資料の別取得経路として内閣府公式入口 https://www.npo-homepage.go.jp/npoportal/ を読取。対象法人②の検索はcrwl/HTML両経路でJavaScriptを要求するAWS WAF表示となり、detail候補未取得。これを法人/年度資料不存在とはしない。normal registered browserの自己targetで同検索・一致detailを読み、公開事業報告等の年度/法人一致が確認できるかを別read-only担当が確認する。公開版をclient改訂版や未提出年度事実へ自動代用せず、人工CAPTCHA/本人確認要求が出たらその条件を記録する。
 - 公式検索私的packet `execution3-npo-public-target-html.json` SHA256 `27c35939cda099cebe7a7aa9fd9f111de43211c1591875773b1d1039bc847982`。current3未完→next4/残51項目/SelfBuild最後/全goal未完を維持。
+
+
+### 407. NPO公開年度を確認し、必要原資料の不足を維持
+
+- ready neutral registered browser `interactive:dais`でguard取得→公式検索1→unique matched detail1を正常JSで読取。visible WAF/人工CAPTCHA無し。法人名は検索anchor/row/detailheadingの一致、local両案件00_READ_ME法人名との一致、所轄庁は県一致を限定確認。所在地のlocal完全対応/公開版とclient改訂版の同一性は未確認。
+- detailはdocument links4、事業報告候補はlisting2023年度（R5）1件のみ。必要R6/R7候補0で、年度違いPDFは取得0。これは当該snapshot/公開一覧の結果であり、法人の実活動無しや全原資料不存在の証明ではない。公的入口/通常browserとも確認したが、番号3の必要年度事業報告/監査/役員変更確定情報の不足は未解消。
+- 初回URLparserのdetailroute仮定によるcandidate0は保存DOMの実routeで訂正し、誤抽出をprovider資料無しとしない。private `execution3-npo-public-browser-detail-readback.json`（§399同dir/mode600）、SHA256 `be50e7246ba4fed521f6e272d8ba607f1821c941c5fb3dbfe090caefe4b3d47d`。ownremaining0/priorpreserved/guardreleasePASS、auth/共有policy/他target/source/projectstate/client送信変更0。
+- 予算①officialv2の追加制作要求は無い。NPO側は追加資料/確定情報の受領が最小再開条件として残る。TikTok側はcachedScript404がSDK初期化を止める仮説を自己pageのcache無視reload1で比較し、shared cache削除/認証reset/再送は行わない。current3未完→next4を保持、全goal未完。
