@@ -7194,3 +7194,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - citizen-refillの同run18db73e6a20e4a70-28833 terminal error_detailはsub-wallet.mjsのstatic import `tweetnacl`でERR_MODULE_NOT_FOUND。current root node_modulesはsealed dependency bundleへのsymlink、bs58あり/tweetnaclなし。root package.json/lockにtweetnacl宣言なし、Node createRequire.resolveの読み取り専用probeもMODULE_NOT_FOUND。live資金処理を再実行して再現しない。
 - refill source修正範囲はroot package.json/package-lock.jsonとno-effect import regression。新main82d由来worktree `.worktrees/lm-citizen-refill-dependency-20261005`、branch `fix/lm-citizen-refill-dependency-20261005`、owner codex-money-printer-refill-dependency、lease24h、HEAD82d/clean。既存同task worktree/openPRなし。Luna/max実装枠が空いてから開始し、provider/財布/本番state/資金移動/業務model変更なし。
 - fleet担当報告はexact refusal RED→GREEN/関連25test PASS。primaryは追加error fieldを含むcompound JSONをskipしないか反例を指摘、修正/remote受入待ち。根因確定ownerの2は並行、親cursor1と§217の順序は維持。
+
+
+### 468. 未実行gapとmarketplace再観測の分離
+
+- launchctl-safeのfresh GUI preflight PASS後、対象2ownerのprintだけ実行。Capafy goal monitor / investment-strategy-validationはloaded argumentsのcurrent82d一致、runs0/never exited。前者は09:30 calendar/RunAtLoad=false、後者は604800秒周期。各eventsはplanのみ（1/125）、terminalなし。operator last_exit0を自然実行PASSと扱わず、producer defectと決めつけず予定自然runを待つ。手動start/restart/投稿/投資0。
+- 実worker関数close_canaryをfixture READY assignmentで読み取り専用再現し、NO_APPLIED_CANARYとfixture不変を確認。§467の衝突は実関数の結果とcallerのoffline条件を結んだsource defect。実stateを削除/上書きしない。
+- hf-gig-paid-directは新readbackでloaded-running/前terminal resource_capacity_busy。hf-gig-reply-detectorはloaded-running/後続terminal pass、effect not_applicable。初回exit75を現在失敗として固定せず、稼働中ownerを重複起動しない。
+- lancers-revenue-work-syncはrun18db757c4693b968-88603 / occurrence lancers-revenue-work-sync:18db4332acde03a8-68306でexit1、error_detailなし。既存stdoutの末尾5resultはaccount_unavailable/logged_in=false/source_complete=false。account checkはdashboard goto response/status/URL/login_formと例外を一つのfalseへ丸めるため、具体的なredirect/auth/transport原因は未確認。空のwork-sync.jsonはaccount lock fileで、欠損finance JSONとは認定しない。次はownerを守って既存account診断/connection readbackを限定取得する。
+- fleetは追加details compound refusalのRED→GREEN後26/26 PASSとの担当報告。source commit/pushとfresh read-only受入を待つ。親cursor1／根因確定source2並行、本番mutation0、§328のmain統合条件保留は維持。
