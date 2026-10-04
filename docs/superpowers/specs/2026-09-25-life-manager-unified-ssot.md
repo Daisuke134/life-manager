@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refill依存/費用台帳import契約は実装中、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refillは65test/構造PASS・fresh財務review待ち、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7256,3 +7256,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - refillのcollision追加修正と独立したPromptBase2fileのwait引数修正を、既存tmuxを用いるAGMSG専用sessionへ分ける。実binary /opt/homebrew/bin/tmuxとregistered spawnの--terminal-driver指定を確認。旧plainのOS Terminal -1712を再試行せず、新しい独立driver経路を観測する。Terminal/appserver restart/新tool導入なし。
 - 専用role lm-internal-promptbase-step-wait-1005 / team lm / gpt-6-luna-max / §470worktree・branch・lease。boot promptはdocs/superpowers/evidence/2026-10-05-internal-loop-recovery/promptbase-step-wait-boot-prompt.md。supported task-only spawn optionsは既存同dir agmsg-spawn-options.yamlを再利用。root provider/業務loop model変更なし。
 - 現在は起動前でlive0。readiness、placement、boot taskの着手/RED-GREEN/commitを観測してから状態を更新する。失敗なら稼働としない。primaryはSSOT受入を所有し、source限定・2file範囲・他worker非干渉・PR/main/apply禁止を渡す。
+
+
+### 475. refill collision修正の固定commitとAGMSG起動失敗
+
+- refill追加2file修正HEAD/remote `a2efd6422601438dfe02ea38ac576a1ca21c3125`、worktree clean。root依存追加から全差分5filesを維持。訂正を受けたnormal rowの最終deploy identity（jobAddress又はno-address-ts）が別normal rowと衝突するとthrow。後続row・別訂正・fallbackも検証し、未訂正duplicateの旧dedupeは維持。原本/費用/ts/件数不変。
+- REDはreader2rows/計7と実downstream checkSpendCaps誤許可を再現。primary固定HEADの関連5 test files65/65 PASS、./bin/lm-loop-contract PASS（14 products/178 jobs/103 mapped/errors0）、diffcheck・remote一致・clean。新fresh gpt-6.1-sol/medium read-only財務reviewを依頼し、受入はまだ保留。本番/private ledger/keys/provider/live/dry実行なし。
+- PromptBase専用AGMSG spawnは--terminal-driver tmux/ready-timeout30/gpt-6-luna-maxで失敗。exact errorは `unsupported: a tmux split needs $TMUX_PANE to target the caller pane (#990)` / tmux placement failed / child rc1。codexにはspawn readiness handshakeがないとのtool出力も保持。placement済みや着手としない。専用worktree HEAD82d/clean、role名を含むcodex process0。他paneを借りるための環境偽装/Terminal restart/新tool導入/旧model fallbackなし。
+- PromptBaseはnative実装枠が空いたら同2file修正へ渡す。独立CLIの登録残りとliveを区別し、AGMSG DB/teamsを直接編集しない。refillの修正者は終了済み、primaryはfreshreview受入とSSOTを所有。§217cursor1/根因確定2、3の例外確認未回答、全goal未完。
