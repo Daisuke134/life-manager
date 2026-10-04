@@ -6083,3 +6083,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 親は新blockとrecipeだけinstalled /Users/anicca/.agents/skills/agmsgへ反映。元SKILLのhashを直前比較し、新blockを除くと元内容に完全一致。render-root／codex overlay marker保持、sourceとinstalled recipeのbytes一致。skill-creator quick_validateはsource／installed双方PASS。team／DB／scripts／providers／session変更0。
 - 本文書機能の全受入（source／参照／配置／既存内容保持／validation）が揃った後だけ、専用repo anicca-agents-skillsにPR2を一度作成。required checks無しを確認、admin squash成功、main856907725e2e72fa78859c53332a5866547da881。fetch後origin/mainのrecipeとinstalled bytes一致／main参照存在を確認。このtaskはLifeManager未完成sourceの統合条件を変更しない。
 - 標準入口は /Users/anicca/.agents/skills/agmsg/SKILL.md のParallel development、詳細正本は /Users/anicca/.agents/skills/agmsg/references/parallel-development.md（GitHub mainにも保存）。private proof state/agmsg-parallel-recipe-install-proof.json/mode600。残業務順は§217／§344のまま、SelfBuild最後、全goal未完。
+
+### 346. 標準recipeの業務適用と並行A01／A03監査
+
+- primaryはA01のCoconala fresh公式readback、native Sol6.1 medium／forknone npo_requirements_artifact_readbackはA03／18250352の取得済みlocal資料だけを所有。workerはprovider／profile／state／source編集無し。新tool／独立session／重複owner無し。
+- orders-only初回はguard raceでexit75／snapshot無し。holder6715の記録を追加観測しps missing、guard holder無しへ変化後に既存collectorを再実行。exit0／captured03:57:24Z／HTTP200／coverage_complete true、orders18180857／18223833／18250352。初回failureをlogに保持、個別room refreshの最初もbusy75でchild未dispatch。既存ownerをstop／kill／lease解除しない。
+- 18250352 local read-only監査は財務12件／名簿5件の原資料とv15 ZIP bytes hash全一致、ZIP integrity PASS。親もv15 SHA54e2c538a1dde221a706d3208925824db6c4fae69d636d91cb9b4bca97e3f37fを確認。整理要求はこの範囲で充足、数字の法的正確性／承認／正式納品は未証明。
+- 2026役員名簿には追加希望者の氏名・住所・就任期間があるため、それらが全て未取得とする再要求をしない。一部生年月日欄は空欄。退任氏名3表記の同一性、今回の確定決議／退任日／署名とR6/R7事業実績原資料は不足。監査資料は未取得だが、今回buyerの7種整理要求に監査報告は含まれず追加必須条件と断定しない。旧v6の添付本文未取得は現原資料／v15には適用不可。
+- current list由来inputで18250352 selected-talkroom-onlyの公式history更新を再開、tool session22869。projects-rootは新private隔離root、既存project state／decision／review／artifact変更0。terminal後に最新要件差分だけworker結果へ結合する。
+- growth新AGMSG報告は境界監査からTask1部分調査／Task3既存receipt読取へ進むと明示。CFO/mobileの旧source所見を再実装せず、公開6／未公開4roster等の既存source修正と本番未importを区別。owner本人返信未取得／ASC・RC再取得0。詳細は担当の一次refs packetとして保持、財務確定ではない。
+- 証拠はstate/coconala-a01-refresh-20261004内orders snapshot／receipt／npo-local-artifact-readback.json、初回／再取得log。A01全案件要件／A03最終化は未完、全goalactive／SelfBuild最後。
