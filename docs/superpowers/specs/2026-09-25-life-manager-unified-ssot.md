@@ -6208,3 +6208,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - private evidence state/mercor-a13-current-occurrence-boundary-20261004.json、SHA c51c2740134d8ae5c9e3cc536d5979e24c41a11c943c618fec0ecee5166d48fc、mode600。provider effect／resolve0。
 - Sol6.1 medium read-only担当へ公式applications／contractsのみの観測を渡し、primaryは同profileを操作しない。既存readerは単発GETでpagination無し、全5endpointのkey存在判定は全件coverageの証明ではない。Firebase既存DB存在・有効期限を先行確認し、refresh／login／notificationclick／statewriteは禁止。registered mercor:dais51887／UUID5c6bfeab-a3d2-4ca7-8402-6b1848d8c8e8は実行直前再確認、guard下の既存target readonly評価。
 - cursorはA13。公式取得件数・pagination・exact occurrenceへのbindingを確認し、欠損は保持。A14正式提出／A15精算・着金・実費は未完、SelfBuildはA43以降。全goalactive。
+
+### 362. A13公式GET再取得の限定PASS／全件性・旧effect結合未証明
+
+- 05:08:58Zのregistered51887既存target読取でapplications／contractsともHTTP200。applications100行（rejected82／applying-started8／applied10）、top-level applicationsのみ、pagination／total metadata無し。contracts配列0行。全件性、契約の網羅的不存在、利益／settlement0は証明しない。
+- 既存FirebaseDB／storeと未失効tokenを先行確認。refresh／login／profilewrite／応募／返信／再送0、raw rows／token保存0。guard解放・holder空／既存target保持／UUID不変／collisions空をcleanup確認。helper finallyのws.close呼出を確認、peer側close readbackは未観測。
+- source checkout3609abe16fとproduction loaded releaseを区別しreceiptのrelease_sha=null／loaded_release_unverified=true。既存reader hash3b185e0d1a0214f2e90aae5eca1769dd149e6c7afc94e017ab97ea7f5bc8bb1c、HTTPstatusラッパー以外endpoint／method／auth／timeout不変。
+- private state/mercor-a13-refresh-20261004/receipt.json SHA77e00212bbadde36dbbbf32c9ab050185e9b14bfc894f6dbe5530a5dde41e1c0、cleanup.json SHA769d65e6f7f8a17389d657557c2d680f3f9ec76dd8e8aa342155be88a59ce537を親が再照合。
+- API rowにはcandidateId／formId／listingIdがあるがexact occurrence fields無し。旧intentとの結合不足を保持しApp33812／Reply61324解除0。次は公式pagination契約と旧effect intentのID・時刻結合を取得済みsource／local証拠から限定調査。追加GETを盲目的に繰り返さず、A14／A15の成果条件も未完。cursorA13／全goalactive／SelfBuild最後。
