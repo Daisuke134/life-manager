@@ -4885,7 +4885,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A14 Mercorの正式提出・契約を確認する。本人必須提出はhuman_requiredを保持する。
 - [ ] A15 Mercorの精算・着金・実費を確認する。
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。
-- [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。
+- [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
@@ -5655,3 +5655,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - §303のreply readbackはexit0／checked219／dry_run proof0でterminal。旧公式会話待ち6はaccept_contract_intentの4＋1＋1へ境界が狭まる。作用記録115とmarker不足98を含め、未送信proofとして解除できる記録は無い。既存stateにcontract receiptがあってもexact occurrenceの公式結合がないものを一括解放しない。
 - thread304360469のform receipt metadataはconfirmation_requested／確認thread一致／confirmation SHA無し。受領確認依頼とフォーム回答受領済みを分離する。同thread94markerを94送信と数えない。次に公式会話・送信者account IDとdisplay name分類を比較し、receipt不足の実境界を確認する。
 - application readbackはPID58229／parent55188／actual reconcile_application_no_submit.pyでlive、tool session4917。自分の読取がprovider lockを保持する。観測timeoutを終了と扱わず、同handleのterminalを確認してから別browser queryへ進む。state/crowdworks-a10-readback-progress.jsonにhandleと次操作を保存。provider送信／応募／fence解除0。A10／全goal未完、SelfBuildは最後。
+
+### 305. Marketplace6providerのGmail到着と通知・応募confirmationの分離
+
+- §304の応募readbackは同PID58229／parent55188／elapsed1:29→2:40でlive、重複browser操作0。その間に独立したA17のGmail metadataを既存Gog file backend／gmail-no-sendで取得する。credential値・メール本文・subjectをspec／logへ複製せず、新規auth／credential変更／client送信0。
+- newer_than30d／sender domain／max20で全6検索exit0。Lancers20・CrowdWorks20・Coconala20・Mercor20・Freelancer20はnextPageTokenあり、Upwork4は次pageなし。このquery範囲の件数であり総メール件数ではない。Gog local表示の最新取得日時はLancers10/04 06:02、CrowdWorks10/04 07:08、Coconala10/04 09:02、Mercor09/30 18:14、Freelancer10/03 15:21、Upwork10/02 05:29。全providerの配信停止という仮説はこの取得結果と整合しない。
+- subjectによる暫定分類は募集案内・通知・応募／選考・その他を含むが、メール本文とprovider案件ID／自然応募occurrence／返信watch runのjoinは未検証。過去応募の選考通知を新規応募confirmationと数えず、受信成功だけで業務loop完走や入金を証明しない。source domain外やforwardingは未監査。proof state/marketplace-a17-mail-metadata.json/mode600。
+- A17／A18の次操作は最新自然応募と確認mailをplatformごとに結合すること。A10は同live application readerのterminal待ち、次のbrowser queryは完了後にserializeする。全goal未完、SelfBuildは最後。
