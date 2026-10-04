@@ -56,3 +56,18 @@ These are SHA-256 digests of canonicalized API JSON page responses, not provider
 - The readback proves Stripe account activity and two historical Stripe-to-MUFG payout matches. It does not prove Life Manager ownership for the eight unclassified succeeded charges, does not complete the CFO B2 adapter/receipt join, and is not a company-wide settled-net P&L.
 - The latest local B7 projection and daily CFO report were not updated by this direct read; Stripe evidence remains outside the persisted production CFO ledger until the source gate is cleared.
 - TODO/status source of truth → [Unified SSOT](../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md).
+
+## InvoicePayment-to-charge and product follow-up — 2026-10-04 19:33 JST
+
+- Read-only Stripe GETs returned 9 `paid` invoices totaling USD 40.00. Eight invoices had one line item each, all tied to a single active Stripe product named `Anicca Pro`; one additional invoice was marked paid with USD 0 amount and no line item. The active product's default price is USD 10/month. Its Stripe metadata is empty.
+- The invoice-payments endpoint returned 8 paid InvoicePayment rows totaling USD 40.00. Each payment's PaymentIntent matched a distinct successful captured charge with the same amount and currency (8/8). Those eight charges total USD 40.00 gross; their charge records report USD 15.00 refunded. This product/invoice join explains the previously unmatched eight successful charges at the Stripe-account product level.
+- The configured Stripe product bindings in `business_outcomes.py` contain Ebook EN/JA only. `Anicca Pro` is also a display phrase in Anicca iOS store metadata, but its Stripe product ID is not configured, its metadata carries no app/loop binding, and the StoreKit product identifiers differ. Keep these charges outside `mobile-apps`/any Product Loop until an authoritative crosswalk exists; do not infer from the shared product name.
+- Source-linked Stripe Balance Transactions for Anicca Pro comprise 8 charge and 3 refund rows: JPY amount 3,592, fee 209, net 3,383. Ebook EN's one payment row is JPY amount 1,685, fee 67, net 1,618. These JPY ledger movements are separate from the USD invoice/charge figures; no FX conversion was applied. Remaining account-level fee, payout, and adjustment rows are not product-attributed; product-level bank-payout allocation remains unproven.
+- No Stripe/account/state/ledger/report write occurred. This is an in-memory official-source join, not a B7 receipt persistence or production CFO report.
+
+## Stripe invoice/user binding follow-up — 2026-10-04 19:40 JST
+
+- The eight invoice lines and seven subscription records expose metadata key `userId`; all observed rows share one unique value, and the related invoices/subscriptions share one unique Stripe customer ID. Values were kept in memory and not emitted or saved.
+- Read-only PostgREST GETs against the currently configured `SUPABASE_URL` queried `lm_users` by the invoice-line `userId` and by the Stripe customer ID; both returned zero rows. `apps/life-manager/lib/billing.js` uses `lm_users.stripe_customer_id` as its subscription-to-user lookup, but this result is only for the locally configured Supabase project and is not a deployed-environment binding readback.
+- Therefore the historical USD 40.00 Anicca Pro invoice payments are product-resolved within Stripe but remain unassigned to Life Manager, `self-build`, or `mobile-apps`. Do not infer ownership from the display name or expose identifiers.
+- No database/account/provider write occurred; identifiers, user metadata values, and customer fields were not persisted.
