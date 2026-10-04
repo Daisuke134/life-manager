@@ -6847,3 +6847,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 対象expected nicknameとの一致はこの先頭3rowでは0、partial candidate countsだけでdest/sent countは未主張。対象が残りのloaded row/全履歴に無いという証明ではない。クリック/scroll/newchat/compose/send/auth/ledger/fence本番変更0、route visit seenはunknown。ownabsent/prior ID+URLhash集合一致/guardrelease0/leaseabsent PASS、target2保持。
 - 次は動作済みidentity-fixed controllerのselector/一致基準を変えず、nonempty identity valueが出てからloaded rowを照合するreadiness修正。空metadataでmatch0と確定せず、metadata有り/未準備row数とloaded範囲を別記録する。108s/postscope18s/no fallback/no newchat/ledger非変更を保持し、実producer→consumerの『row有り/値空→後で値有り』を最小RED/GREENで検証。親54942の終端確認後に別fileへ修正を渡す。
 - current3→next4/残51項目/全goalactive。名前値の取得境界は前進したが案件sender/header/body/ID/date/公式送信数/全300/納品は未完、NPO原資料待ちは§418のまま。source-only/diagnostic成功を財務成果へ昇格しない。
+
+
+### 432. 名前診断の親終端と最終hashを記録、readiness修正をcode-onlyで並行
+
+- 元有限exec54942はexit0/terminalを確認。最終nickname result SHA256 6d3e587d7d735835ad9c0b1e06cab77e2a07f594baac713d43695330906341fb、proof SHA256 6d9af4e8915a1917721cf4735d1ac540a169aa3530323ece6b59fba6e6ab474f。§431の30a/8c3は終端前の途中保存の観測であり、最終fileのhashへ上書きせず履歴として区別する。reader ddfe8a438c14ed6ba0e3cfbf6613250cba11ce0086443aeab07618446bb4e032は不変、名前の空→値出現という実観測は変わらない。
+- 元structure-fixed source/result/proofの個別指定hash一致は確認済み。一方、所有外176fileの前後manifest hashは異なり、変更原因/変更ownerは未確認なので全file不変とは報告しない。並行作業の存在だけで原因を推定せず、他者fileを復元/巻き戻ししない。
+- 元担当が全体guard statusを出力し、無関係なendpoint URLをツール出力へ含めた制約逸脱を最終result/proofへ記録した。値を再掲せず、credential漏洩と断定もしない。今後statusは対象identityと必要なsanitized項目だけを使う。診断のclick/newchat/send/auth/ledger/fence0とown/prior/guardcleanup PASSは維持する。
+- 元親の終了待ち中に別metadata-ready source/proofだけのcode-only修正を有限Luna/max handle33648へ非重複委譲。実log model gpt-6-luna/effort maxを確認。元identity-fixed source56c4df9c926800fc99dcd5a23786e7644c039fcdb1a84e7f5ae8d70e61217335からcopyし、row数だけでreadinessを成立させず、nonempty hash化identity出現を待つ。loaded/metadata有り/未準備のrow数を別記録し、selector/matcher/namespace/一致条件を緩めない。108秒/18秒reserve/child/同envcleanupと元file保持、UI禁止を指示済み。
+- 実producer→readiness→matcherのmarker有り/text空→後でtext有りという同経路を最小RED/GREENで確認する。全row完全一致等の追加gateを発明せず、期限の未準備/loaded範囲不一致はunknown/incompleteとして記録。元親が終端したため、code-only修正の受入とその親終端後にRootのone readへ進める。
+- current3→next4/残51項目/全goalactive。新sourceの検証はまだ未完、案件receipts/全300/納品/財務成果を完了扱いしない。NPO原資料待ちは§418を維持する。
