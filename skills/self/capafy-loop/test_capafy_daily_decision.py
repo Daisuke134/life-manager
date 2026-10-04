@@ -78,6 +78,23 @@ def test_losing_money_skipped_when_server_status_under_review():
     assert decisions[0]["findings"][0] == {"rule": "losing_money", "action": "skip", "reason": "pending_review"}
 
 
+def test_losing_money_and_review_rejected_combines_model_switch_and_repair():
+    """Rule 1 silently no-op'd forever on a rejected+losing agent (status=review_rejected is
+    in PENDING_SERVER_STATUSES, so it skipped with reason=pending_review and never queued the
+    model switch -- Marketing Strategist 9563867391 stayed on Sonnet, rejected again, repeat).
+    review_rejected must still combine the model switch with the rejection repair in ONE update
+    so a retry never resubmits the rejected version unchanged (still Sonnet)."""
+    module = load_module()
+    rows = [row("hook", "Hook Lab", net=-16.74, cost=27.92)]
+
+    decisions = module.decide_actions(rows, server("hook", status="review_rejected"), CATALOG, BANDS, {})
+
+    finding = decisions[0]["findings"][0]
+    assert finding["action"] == "queue_update"
+    assert finding["update"]["target_model_id"] == "deepseek/deepseek-v4.1-flash"
+    assert finding["update"]["rejection_repair"] is True
+
+
 def test_underpriced_download_queues_reprice():
     module = load_module()
     rows = [row("jh", "Japanese Humanizer", net=0, cost=0)]  # not losing (cost=0)

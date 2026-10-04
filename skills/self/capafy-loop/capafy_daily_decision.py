@@ -165,6 +165,12 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
         server = server_by_id.get(agent_id)
         catalog = catalog_by_title.get(name)
         pending = bool(server) and server.get("agentStatus") in PENDING_SERVER_STATUSES
+        # review_rejected is a PENDING_SERVER_STATUS (keeps rule 2/3 from racing a retry), but
+        # rule 1 must not skip on it: review_rejected means the SAME version needs a repair
+        # before resubmission anyway, so a losing-money model switch belongs in that one repair
+        # update instead of waiting forever behind block_reason="pending_review" (Marketing
+        # Strategist 9563867391 stayed on Sonnet, got rejected again, repeat -- B1).
+        review_rejected = bool(server) and server.get("agentStatus") == "review_rejected"
         has_update_file = bool(catalog and catalog.get("has_update"))
         blocked = pending or has_update_file
         block_reason = "pending_review" if pending else ("update_already_queued" if has_update_file else None)
@@ -190,7 +196,7 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
             or (net is not None and net <= 0)
         )
         if losing:
-            if blocked:
+            if blocked and not review_rejected:
                 decision["findings"].append({"rule": "losing_money", "action": "skip", "reason": block_reason})
             elif not catalog:
                 decision["findings"].append({"rule": "losing_money", "action": "skip", "reason": "no_catalog_match"})
@@ -201,15 +207,27 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
                     "rule": "losing_money", "action": "manual_review",
                     "reason": "already_on_cheap_model_needs_price_or_scope_fix",
                 })
+            elif has_update_file:
+                # An update is already queued for a different reason; never queue a second
+                # UPDATE.json (would overwrite/race it). has_update_file alone (no review_rejected)
+                # already fell into the first branch above via block_reason.
+                decision["findings"].append({"rule": "losing_money", "action": "skip",
+                                              "reason": "update_already_queued"})
             else:
+                update = {
+                    "agent_id": agent_id,
+                    "from_version_id": str(server.get("latestAgentVersionId") or ""),
+                    "target_model_id": TARGET_CHEAP_MODEL_ID,
+                    "reason": "daily_decision_losing_money_switch_to_cheap_model",
+                }
+                if review_rejected:
+                    # Same update carries the repair signal so a retry resubmits the already-
+                    # rejected version WITH the model switch, never Sonnet-unchanged (B1).
+                    update["rejection_repair"] = True
+                    update["reason"] = "daily_decision_losing_money_and_review_rejected_combined_repair"
                 decision["findings"].append({
                     "rule": "losing_money", "action": "queue_update",
-                    "update": {
-                        "agent_id": agent_id,
-                        "from_version_id": str(server.get("latestAgentVersionId") or ""),
-                        "target_model_id": TARGET_CHEAP_MODEL_ID,
-                        "reason": "daily_decision_losing_money_switch_to_cheap_model",
-                    },
+                    "update": update,
                     "catalog_dir": catalog["dir_path"],
                 })
 
