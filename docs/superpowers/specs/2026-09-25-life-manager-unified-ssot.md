@@ -3,6 +3,8 @@
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
+
+**次に行う作業と残作業の順序は、§217「実行順序と現在cursor」「残作業の実行表（未完のみ）」を読む。現在は実行番号2、次は3。旧A番号と過去の節にあるcursorは履歴参照であり、現在の実行順ではない。**
 詳細の正本は次の2つで、この文書は両者の統合・順序・現在cursorだけを持つ。
 
 - Foundation/全体: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`（Whole-ship handover / AGI addendum / Whole-ship remaining TODO）
@@ -4880,7 +4882,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 
 | 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
 |---|---|---|---|
-| 2 | 実行中 | Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。 | A01 |
+| 2 | ブラウザ排他待ち・未完 | Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。§398の稼働owner正常解放後に公式一覧と案件履歴を読む。3へ進まない。 | A01 |
 | 3 | 順番待ち | Coconala案件の残制作を納品条件まで完了する。 | A03 |
 | 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
 | 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
@@ -4914,7 +4916,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 33 | 順番待ち | storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。 | A25 |
 | 34 | 順番待ち | 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。 | A26 |
 | 35 | 順番待ち | 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。 | A27 |
-| 36 | 順番待ち | source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§391でnoteのaccount一致/通常再認証/月次表示/振込履歴を観測済み。残は§394のsource HOLD4反例、§396の同期間actualcost、公式精算/fee/bank/記事期間coverage。Stripeはself-owned専用でnoteへの代用不可、個別receipt合計/月次値/test credentialをfirst24h実売上やsettledへ昇格しない。 | A28.2 |
+| 36 | 順番待ち | source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§391でnoteのaccount一致/通常再認証/月次表示/振込履歴を観測済み。source反例は§397で解消・source-only SHIP。残はsource統合条件、§396の同期間actualcost、公式精算/fee/bank/記事期間coverage。Stripeはself-owned専用でnoteへの代用不可、個別receipt合計/月次値/test credentialをfirst24h実売上やsettledへ昇格しない。 | A28.2 |
 | 37 | 順番待ち | Affiliateのtax／payment設定と旧公開の公式記録を確認する。§386/388の共有guardidentity不足とexact旧occurrence18d83ba82b14fb40-24990のofficialreadback不足を保持。 | A29 |
 | 38 | 順番待ち | Affiliateのcommission・payout・実費を確認する。 | A30 |
 | 39 | 順番待ち | Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。 | A31 |
@@ -6518,3 +6520,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - primary2caseGREEN/0.11s、fixedHEAD前後一致55tests＋2subtestsPASS/0.41s。実装全138tests＋141subtestsPASS/diffcheck。freshgpt-6.1-sol/medium writer_cfo_enrichment_final_reviewはsource-onlySHIP/mandatory0、55PASSとtmp-onlyreplayzero ledgerhash不変/同instantoffset許容/競合rollbackを反証確認。初回knownsettled正当fee・旧4修正・schema保持を確認。
 - source受入と本番/公式利益を分離。実DB/provider/browser/credentials/runtime/release/PRmain操作0。legacyoccurredより前の公式settlementはmetadata保持しB0pending/gap、全coveragegapを維持。fbddとの共有file/dependency、公式settlement/actualcost/bank/全14成果は後続の番号36/47–49等に残す。
 - private writer-cfo-receipt-source-proof-20261004.json600へfinalHEAD/primary/freshreview/限定scopeを保存。番号1を完了し未完実行表から除外、現在cursor2、次3。番号を付け直したり先の作業へ飛ばさない。番号2ではCoconala案件ごとの現在公式要件・残条件・localfeedback/artifactbindingを確認し、client送信/正式納品/制作の代わりにreadbackを取得する。全goalactive/SelfBuild50–53最後。
+
+
+### 398. 実行順の入口を明確化し、番号2の排他待ちを保持
+
+- 順序は§217のみを正本とし、旧A番号は証拠照合用とする。今回の順序変更はなく、現在2→次3、SelfBuild/Eval50–53を最後に保持する。冒頭から現在の実行表へ案内し、完了済み番号1を残TODOへ戻さない。
+- 番号2のread-only担当はregistered browserのHTTP200とUUID一致を確認したが、guard acquireはexit9。live holder PID16957のpaid_direct/adapterが所有中で、注文/案件履歴の取得0、client送信/正式納品/upload/source/active project state/認証cookie変更0。排他待ちは認証障害や要件取得完了へ言い換えない。
+- 私的証跡は `/Users/anicca/.local/state/life-manager/state/execution-2-coconala-requirements-20261004/admission-held-summary.json`。所有者の正常解放後、fresh guard確認→stable PIDで取得→通常contextの公式一覧/案件履歴を読取→自己所有targetだけclose/releaseする。live holder停止やlease強制解除は行わず、番号3の制作へ進まない。PIDは観測時点の値であり再開時に再照合する。
+- 番号36の古いsource HOLD記述を§397の限定SHIPへ訂正した。公式精算/費用/銀行着金/期間coverageは未完のまま保持する。
