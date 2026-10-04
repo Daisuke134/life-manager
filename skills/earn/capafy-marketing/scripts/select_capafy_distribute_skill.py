@@ -70,6 +70,17 @@ def rank_skills(products_cfg: dict, analytics: dict | None) -> list[dict]:
     return sorted(slugs, key=lambda slug: (-score(slug), slug))
 
 
+def _is_online_earner(products_cfg: dict, analytics: dict | None, slug: str) -> bool:
+    agent_id = str(products_cfg["products"]["capafy-skills"]["skills"][slug]["agent_id"])
+    for row in (analytics or {}).get("per_skill_rows") or []:
+        if str(row.get("agent_id")) == agent_id:
+            profit = _decimal_or_none(row.get("profit_30d_actual_usd"))
+            if profit is None:
+                profit = _decimal_or_none(row.get("profit_30d_usd"))
+            return row.get("status") == "online" and profit is not None and profit > 0
+    return False
+
+
 def select_for_date(
     products_cfg: dict,
     analytics: dict | None,
@@ -81,7 +92,11 @@ def select_for_date(
     # Other marketplaces' live listings (PromptBase, P4) join the rotation after
     # the Capafy ranking; they carry their own landing_url and no agent_id.
     extra = products_cfg["products"].get("promptbase", {}).get("listings", {})
-    ranked = ranked + sorted(extra)
+    # Promote only online skills that made money in 30 days (2026-10-04: equal
+    # rotation gave 0-order and losing agents as many articles as the sellers).
+    # With no earner at all, keep the full rotation so the loop still publishes.
+    earners = [slug for slug in ranked if _is_online_earner(products_cfg, analytics, slug)]
+    ranked = earners if earners else ranked + sorted(extra)
     if not ranked:
         raise ValueError("no capafy-skills or listings configured to rotate")
     # 8 three-hour slots per day; each slot promotes the next skill in the ranking.
