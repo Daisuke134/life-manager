@@ -6643,6 +6643,14 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 ### 412. Private観測codeのscope修正とsetup欠落を分離して継続
 
 - gpt-6-luna/max担当はimmutable実行snippetを別private corrected版へcopyし、selected pane/header/body scopeと候補重複/可視性を局所修正。現行matcherのroster-only headerをtrueにするREDを再現し、Python AST/embedded JS compileとpositive/negative projection10casesを確認。ただしstatic projectioncheckをlive entrypoint/controlの成功へ昇格しない。
-- 初回corrected実行はtimer start欠落でguard取得/normalGET後にNameError、selection前で停止。次はline4置換によるidentity/guard/env欠落でguard取得/navigation前に停止。scope式の不備とsetup保持の実装不備をprovider/認証障害へ転嫁しない。guardholderempty/endpointHTTP200/WSvalid/collision0・target数がprior2へ戻るfresh readbackを取得し、force解除0。exact priorID/URL集合/ownID消失は担当が追加照合する。
+- corrected実行の失敗はsetup欠落とfinallyの二次例外。初回にguard取得/normalGETが実行済みという旧記述を§413で撤回し、acquire/navigationは未証明とする。次attemptのguard_acquire_exit_code/navigation_countもnull。scope式の不備とsetup保持の実装不備をprovider/認証障害へ転嫁しない。guardholderempty/endpointHTTP200/WSvalid/collision0とsaved prior2のID/URLhash完全一致/extra0をfresh確認、force解除0。
 - Rootのreadonly AST差分ではidentity/guard/env等の消失を確認。live再実行前に元assignments復元とsetup→navigation→finallyのcontained stub checkを行う。timer/logger例外がownclose/guardreleaseを妨げない順序へ局所修正する。provider liveownerは正規guardstatus/PIDで確認し、leasefile存在だけをBUSY/停止の証明としない。別subagentの旧handle Unknownprocessはnamespace差であり、transfer terminalproofを否定しない。
 - 修正中private `execution3-tiktok-owned-renderer-read.corrected.py` は未受入。元実行証拠/rootSSOT以外のrepo/本番loop/profile/auth/fenceへの変更0、SDKdecoder/framework新設0。workerはcode/controlledread、Rootはfresh反証とSSOT受入を所有。現在3未完→次4/残51項目/全goal未完を維持。
+
+
+### 413. Setup復元・例外cleanup確認と失敗順序の訂正
+
+- Root fresh ASTはidentity/guard/env/start/lastの5setup定義を確認。Luna担当は元AST source segmentから必要assignmentsを復元し、Store差分は意図した旧matcher/旧exprのみ、Import欠落0。native stub dryrunはacquire→selftargetcreate→route navigation→ownclose→priorID/URL集合確認→releaseを実行し、JSONwriteにOSErrorを注入してもclose/releaseが先に完了することを確認。static projectionのみをentrypoint実行の成功としない。
+- 初回失敗tracebackはfinallyのstart二次例外が主で、当時identity/guard/envも未定義だったためfirstguard参照で停止した可能性が高い。acquire/navigation実行済みの前記主張を撤回。2回目outputのguard_acquire_exit_code/navigation_countもnull。実行したphaseを後付けせず、未証明のeffect範囲を当該private observerだけに限定して本番fenceへ転嫁しない。
+- fresh inventoryは保存済みprior ID+URLhash両snapshotと完全一致、extra0。guardholderempty/endpointHTTP200/WSvalid/collision0を確認。相反した一時holder表示は当該失敗attemptに帰属させず、holder記録が取れないことをPID終端の証明としない。
+- 正しいsetup/contained cleanupを持つcorrected版のcontrolledUI1回へ進む。source/prodloop/auth/send/fence変更無し、current3未完→next4/全goal未完。
