@@ -4880,7 +4880,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 
 | 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
 |---|---|---|---|
-| 1 | 実行中 | 進行中Writer→CFO source修正の受入を閉じる。48e7acで旧4反例は解消、primary/fresh54 tests PASS。残る出版社receiptのNULL→settled_at追記でidentityが変わるP2は実測RED確認済み。event/fee/payout/allocation/bindingの既存ID/参照を保持し欠落provenanceだけ補完する修正→GREEN→push/remote→freshreview。source受入のみで本番/公式利益は別。 | A28.2.1 |
+| 1 | 実行中 | 進行中Writer→CFO source修正の受入を閉じる。48e7acで旧4反例は解消、primary/fresh54 tests PASS。残る出版社receiptのNULL→settled_at追記でidentityが変わるP2は実測RED確認済み。primaryの独立2case再実行は追記1FAIL/初回正式精算1PASS（0.40s）、既存positive経路を保持。event/fee/payout/allocation/bindingの既存ID/参照を保持し欠落provenanceだけ補完する修正→GREEN→push/remote→freshreview。source受入のみで本番/公式利益は別。 | A28.2.1 |
 | 2 | 順番待ち | Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。 | A01 |
 | 3 | 順番待ち | Coconala案件の残制作を納品条件まで完了する。 | A03 |
 | 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
