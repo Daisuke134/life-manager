@@ -4863,14 +4863,14 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA02の公式orders HTTP403境界診断。A01はlocal案件分離と要件binding監査を実施し、最新公式要件との照合を残す。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA01の最新公式案件・要件の照合からA03の残制作へ進む。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
 #### Atomic残TODO（上から実行、外部待ちは保持して次の実行可能項目へ）
 
 - [ ] A01 Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。
-- [ ] A02 Coconala orders取得のHTTP403原因を切り分ける。
+- [x] A02 Coconala orders取得のHTTP403境界を切り分け、現行公式readbackでアクセスと一覧取得を確認する。§298でHTTP200・既存orders-only collector成功／3件を確認。過去403のprovider内部原因は未確定、再発時にreceiptで診断する。
 - [ ] A03 Coconala案件の残制作を納品条件まで完了する。
 - [ ] A04 Coconala正式納品の公式記録を確認する。
 - [ ] A05 Coconala検収の公式記録を確認する。
@@ -5610,3 +5610,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - local state／requirements／decision／reviewを案件別に読み、18180857のTikTok送信件数を18211957へ結合した記述を訂正する。19／281は過去の18180857観測で最新件数ではない。
 - 18211957はstateとrequirementsのfeedback SHA一致、decision／reviewのSHAは不一致。旧review APPROVEDとv41の限定archive PASSは現行要件の完了・正式納品承認を証明しない。18180857はdecision一致だが正式納品未確認。公式最新readbackは両案件とも本監査では未取得。
 - 証拠state/coconala-a01-project-requirements-binding.jsonはmode600、provider作用・client送信・正式納品・project state変更0。A01は部分実施として保持し、A02公式orders HTTP403境界を次に診断する。SelfBuild／Evalは§217のA43以降、全体goalは未完。
+
+### 298. Coconala orders HTTP200と公式一覧取得の再確認
+
+- current immutable b7fb1dfaの既存DefaultTab／owner別context／登録gig-daily-driver vaultを使用し、認証・profile変更や既存ownerのtab操作をせず公式GETを比較する。orders routeと18180857 talkroomは両方HTTP200、login redirectなし。過去403はこの観測で再現しない。原因を認証更新やコード修復の効果と推定しない。
+- 同immutableの既存orders-only collectorを専用ownerで読み取り実行しexit0／success／3orders。公式一覧のtalkroom IDは18180857・18223833・18250352。18211957はこのopen一覧に含まれないが、理由・終了・精算は未確認であり推定しない。order statusはunknown、正式納品・支払・着金の証明ではない。
+- 証拠state/coconala-a02-route-comparison.json、coconala-a02-orders-snapshot.json、coconala-a02-orders-evidence。本文・credentialをspecへ複製しない。provider送信・正式納品・project state変更0。A02のアクセス／一覧取得は確認済み。最新案件の正式条件を照合しA03へ進み、再発時は同source receiptを診断する。SelfBuildは最後、全体goalは未完。
