@@ -4863,7 +4863,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks未確定応募・返信の公式照合。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks confirmation_requested再送条件の修正検証・独立review。§309の専用source branchを進め、既存未確定記録の公式照合も保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5681,3 +5681,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - provider leaseを取得してthread304360469の公式会話を既存adapterで読む。conversation3rows、display roleとsender href account7145638の分類差0。FORM_CONFIRMATION_BODYは両分類で見えず、既存readbackはresume_required true。確認依頼が保存receiptのconfirmation_requestedと一致して公式表示される証拠は無い。会話全体の別pagination／送信server状態は未証明で、再送の許可と扱わない。
 - 追加の送信UI metadata probeはProviderBrowserBusyで作用前停止。別live ownerのleaseを奪わず、source defectや送信者名変更を断定しない。証拠state/crowdworks-a10-application-official-recheck.json、crowdworks-a10-exact-thread-readback.json、crowdworks-a10-exact-thread-controls-readback.json/mode600。全provider送信／応募／fence解除0。
 - A10の次操作は契約承諾のexact official receipt、残3claimの履歴、form確認依頼の公式coverageとserver状態の不足を診断する。過去作用を一括再実行しない。全金融成果／全goal未完、SelfBuildは最後。
+
+### 309. CrowdWorks未確定confirmation再送条件のRED再現とsource修正
+
+- §308の実観測ではconfirmation_requestedの保存receiptに対して公式会話に確認本文が見えず、readbackはresume_required true。現行sourceはこのstatusでも再度_send_reply_onceを呼ぶ。公式会話の表示不足を未送信の証明にしないという既存form submit_onceのprepared fenceと同じ原則で修正する。実94markerを94送信と断定した修正ではない。
+- latest main b7fb由来の専用worktree／branch fix/crowdworks-confirmation-replay-20261004、lease owner codex-money-printer。2filesのみ変更し6785a93a62をpush済み。確認依頼前preparedからの初回操作は維持し、confirmation_requestedは未確定の送信fenceとして再呼出しを拒否、DOMに本文が見えない場合のresume_requiredを返さない。購入者の正確な受領回答のofficial receipt経路は維持する。
+- 送信例外後の2回目dispatch、本文非表示からのresume、直接mutateの2回目送信を旧sourceで3FAIL再現→GREEN。関連90／CrowdWorks全259／adapter15／contract14loops178jobs／OSS／diff PASS。required runtime suiteはtool session26548で検証中、fresh独立review／PR／main／本番反映は未達。
+- private state/crowdworks-confirmation-replay-source-proof.json/mode600へcommit／RED／GREEN／残gateを保存。production sender／auth／profile／価格／旧fence変更0。修正後も古い未確定confirmationはofficial coverage／server／buyer receiptで照合し、永久に完了扱いしたり既存claimを解放したりしない。全goal未完、SelfBuildは最後。親model／effort／usageは観測不能、API相当費用は算定不能。
