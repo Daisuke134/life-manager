@@ -19,6 +19,36 @@ sys.modules[SPEC.name] = outcomes
 SPEC.loader.exec_module(outcomes)
 
 
+def revenuecat_http_response(url, headers=None, *, currency="USD"):
+    path = url.split("?", 1)[0]
+    if path.endswith("/options"):
+        return {
+            "filters": [{
+                "id": "app_id",
+                "options": [{"id": "app-id"}],
+            }]
+        }
+    chart = path.rsplit("/", 1)[-1]
+    body = {
+        "resolution": "day",
+        "start_date": "2026-09-06",
+        "end_date": "2026-10-03",
+        "measures": [{"id": "MRR"}],
+        "periods": [1790985600],
+        "values": [{
+            "cohort": 0,
+            "measure": 0,
+            "value": 12.5,
+            "incomplete": False,
+        }],
+    }
+    if chart == "mrr":
+        body["yaxis_label"] = "$"
+        if currency is not None:
+            body["yaxis_currency"] = currency
+    return body
+
+
 class RevenueCatContractTest(unittest.TestCase):
     def test_managed_loop_storage_is_outside_the_immutable_release(self):
         state, evidence = outcomes.default_storage_paths({
@@ -104,6 +134,97 @@ class RevenueCatContractTest(unittest.TestCase):
     def test_window_sum_is_none_when_the_measure_has_no_complete_point(self):
         body = {"measures": [{"display_name": "Revenue"}], "values": []}
         self.assertIsNone(outcomes.sum_complete_chart_points(body, "Revenue"))
+
+    def test_collect_revenuecat_emits_currency_definition_and_iso_mrr_period(self):
+        with (
+            mock.patch.object(
+                outcomes, "http_json", side_effect=revenuecat_http_response,
+            ),
+            mock.patch.object(outcomes, "revenuecat_products", return_value={}),
+        ):
+            data = outcomes.collect_revenuecat(
+                {"REVENUECAT_PROJECT_ID": "project",
+                 "REVENUECAT_V2_SECRET_KEY": "secret"},
+                "app-id",
+                "2026-09-06",
+                "2026-10-03",
+            )
+
+        self.assertEqual(data["currency"], "USD")
+        self.assertEqual(data["revenue_definition"], {
+            "metric": "mrr",
+            "scope": "active_paid_subscriptions",
+            "normalization": "monthly",
+        })
+        self.assertEqual(
+            data["charts"]["mrr"]["latest_complete"]["MRR"]["period"],
+            "2026-10-03",
+        )
+
+    def test_collect_revenuecat_without_yaxis_currency_fails_closed(self):
+        with (
+            mock.patch.object(
+                outcomes, "http_json",
+                side_effect=lambda url, headers=None: revenuecat_http_response(
+                    url, currency=None,
+                ),
+            ),
+            mock.patch.object(outcomes, "revenuecat_products", return_value={}),
+        ):
+            with self.assertRaisesRegex(ValueError, "yaxis_currency"):
+                outcomes.collect_revenuecat(
+                    {"REVENUECAT_PROJECT_ID": "project",
+                     "REVENUECAT_V2_SECRET_KEY": "secret"},
+                    "app-id",
+                    "2026-09-06",
+                    "2026-10-03",
+                )
+
+    def test_collect_snapshot_jsonl_roundtrip_keeps_revenuecat_contract(self):
+        data = {
+            "app_id": "app3bbd298d22",
+            "currency": "USD",
+            "revenue_definition": {
+                "metric": "mrr",
+                "scope": "active_paid_subscriptions",
+                "normalization": "monthly",
+            },
+            "charts": {
+                "mrr": {
+                    "latest_complete": {
+                        "MRR": {
+                            "value": 12.5,
+                            "period": "2026-10-03",
+                            "incomplete": False,
+                        },
+                    },
+                },
+            },
+        }
+        with (
+            mock.patch.object(outcomes, "collect_revenuecat", return_value=data),
+            mock.patch.object(outcomes, "collect_asc", return_value={}),
+            mock.patch.object(
+                outcomes, "collect_asc_sales", return_value=({}, {}),
+            ),
+        ):
+            snapshot = outcomes.collect_snapshot(
+                {}, "honne-ai", "2026-10-03",
+            )
+        source = snapshot["sources"]["revenuecat"]
+        self.assertEqual(source["evidence_sha256"], outcomes._json_hash(data))
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "business-outcomes.jsonl"
+            outcomes.upsert_snapshots(path, [snapshot])
+            restored = [json.loads(line) for line in path.read_text().splitlines()]
+
+        self.assertEqual(restored, [snapshot])
+        self.assertEqual(restored[0]["sources"]["revenuecat"]["data"], data)
+        self.assertEqual(
+            restored[0]["sources"]["revenuecat"]["evidence_sha256"],
+            outcomes._json_hash(restored[0]["sources"]["revenuecat"]["data"]),
+        )
 
 
 class AppStoreContractTest(unittest.TestCase):

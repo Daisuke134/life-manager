@@ -22,6 +22,11 @@ MOBILE_PRODUCTS = (
     "desk-stretch-timer",
     "micro-mood",
 )
+MOBILE_PRODUCT_ALIASES = {
+    "aniccaios": "anicca-ios",
+    "honne": "honne-ai",
+}
+NON_MOBILE_SHARED_PRODUCTS = frozenset({"ebook-en", "ebook-ja"})
 MOBILE_PRODUCT_BINDINGS = {
     "anicca-ios": {
         "asc_app_id": "6755129214",
@@ -589,11 +594,7 @@ def _business_date(value: Any) -> date:
 
 
 def _revenuecat_content_sha256(source: dict) -> str:
-    return _canonical_sha256({
-        "status": source.get("status"),
-        "reason": source.get("reason"),
-        "data": source.get("data"),
-    })
+    return _canonical_sha256(source.get("data"))
 
 
 def _validated_financial_report(
@@ -688,11 +689,21 @@ def adapt_mobile(
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
 
     try:
-        if any(
-            not isinstance(row, dict) or row.get("product_id") not in products
-            for row in payload
-        ):
-            raise ValueError("product_scope_invalid")
+        scoped_payload = []
+        for row in payload:
+            if not isinstance(row, dict) or not isinstance(row.get("product_id"), str):
+                raise ValueError("product_scope_invalid")
+            product = MOBILE_PRODUCT_ALIASES.get(row["product_id"], row["product_id"])
+            if product in NON_MOBILE_SHARED_PRODUCTS:
+                continue
+            if product not in products:
+                raise ValueError("product_scope_invalid")
+            if product != row["product_id"]:
+                row = {**row, "product_id": product}
+            scoped_payload.append(row)
+        payload = scoped_payload
+        if not payload:
+            raise ValueError("missing_coverage")
         rows_by_identity: dict[tuple[str, date], tuple[bytes, dict]] = {}
         for row in payload:
             if (
@@ -777,12 +788,14 @@ def adapt_mobile(
     rc_complete = True
     observed_values: list[str] = []
     report_periods: list[tuple[date, date]] = []
+    revenuecat_periods: list[date] = []
     for product in products:
         row = latest[product]
         try:
             observed_at = _instant(row["observed_at"])
             observed_values.append(observed_at)
             business_date = row["business_date"]
+            business_day = _business_date(business_date)
             sources = row["sources"]
             if not isinstance(sources, dict):
                 raise ValueError("missing_coverage")
@@ -897,12 +910,14 @@ def adapt_mobile(
             if (
                 not isinstance(point, dict)
                 or point.get("incomplete") is not False
-                or point.get("period") != business_date
             ):
                 raise ValueError("missing_coverage")
             point_date = _business_date(point["period"])
+            revenuecat_periods.append(point_date)
             if (
-                point_date > snapshot_date
+                point_date > business_day
+                or business_day - point_date > MOBILE_COMPLETE_PERIOD_MAX_LAG
+                or point_date > snapshot_date
                 or snapshot_date - point_date > MOBILE_COMPLETE_PERIOD_MAX_LAG
             ):
                 raise ValueError("missing_coverage")
@@ -922,15 +937,27 @@ def adapt_mobile(
                 "observed_at": observed_at,
                 "verification_state": "verified",
                 "evidence_refs": [
-                    f"revenuecat://charts/mrr/{product}/{business_date}/{evidence_sha}"
+                    f"revenuecat://charts/mrr/{product}/{point_date.isoformat()}/{evidence_sha}"
                 ],
             }))
         except (KeyError, TypeError, ValueError, contract.ContractError):
             rc_complete = False
 
     fresh = bool(observed_values) and all(value == snapshot_at for value in observed_values)
+    snapshot_instant = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+    rc_fresh = bool(observed_values) and all(
+        timedelta(0) <= snapshot_instant - datetime.fromisoformat(
+            value.replace("Z", "+00:00")
+        ) <= timedelta(hours=24)
+        for value in observed_values
+    )
     receipts = financial_receipts if financial_complete else []
     reason = "stale_readback" if not fresh else "missing_coverage"
+    rc_reason = "stale_readback" if not rc_fresh else "missing_coverage"
+    revenuecat_period = (
+        max(revenuecat_periods).isoformat()
+        if revenuecat_periods else latest_date.isoformat()
+    )
     trailing_date = datetime.fromisoformat(trailing_start.replace("Z", "+00:00")).date()
     trailing_complete = (
         fresh and financial_complete and len(report_periods) == len(products)
@@ -962,9 +989,9 @@ def adapt_mobile(
             loop_id=MOBILE_LOOP, source_id="revenuecat-mrr", projection="as_of",
             snapshot_at=snapshot_at, trailing_start=trailing_start,
             observed_at=observed_at,
-            evidence_ref=f"revenuecat://charts/mrr/readback/{latest_date.isoformat()}",
-            complete=fresh and rc_complete and len(snapshots) == len(products),
-            reason=reason, categories=("mrr",),
+            evidence_ref=f"revenuecat://charts/mrr/readback/{revenuecat_period}",
+            complete=rc_fresh and rc_complete and len(snapshots) == len(products),
+            reason=rc_reason, categories=("mrr",),
         ),
     ]
     return (

@@ -138,13 +138,20 @@ def _period_value(periods: list[Any], index: int) -> Any:
         return index
     value = periods[index]
     if isinstance(value, dict):
-        return (
+        value = (
             value.get("date")
             or value.get("start_date")
             or value.get("display_name")
             or value.get("timestamp")
             or index
         )
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 86400:
+        try:
+            return dt.datetime.fromtimestamp(
+                value, dt.timezone.utc,
+            ).date().isoformat()
+        except (OverflowError, OSError, ValueError):
+            return value
     return value
 
 
@@ -705,6 +712,16 @@ def collect_revenuecat(
             "filters": json.dumps(filters, separators=(",", ":")),
         })
         body = http_json(f"{base}/{chart}?{query}", headers)
+        if chart == "mrr":
+            currency = body.get("yaxis_currency")
+            if not isinstance(currency, str) or not currency.strip():
+                raise ValueError("RevenueCat MRR chart missing yaxis_currency")
+            result["currency"] = currency
+            result["revenue_definition"] = {
+                "metric": "mrr",
+                "scope": "active_paid_subscriptions",
+                "normalization": "monthly",
+            }
         result["charts"][chart] = {
             "latest_complete": latest_complete_chart_points(body),
             "resolution": body.get("resolution"),

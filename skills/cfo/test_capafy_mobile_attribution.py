@@ -62,11 +62,7 @@ def bind_capafy_account_inventory(payload, owner_buyer_ids):
 
 def bind_revenuecat_hash(row):
     source = row["sources"]["revenuecat"]
-    source["evidence_sha256"] = canonical_sha256({
-        "status": source.get("status"),
-        "reason": source.get("reason"),
-        "data": source.get("data"),
-    })
+    source["evidence_sha256"] = canonical_sha256(source.get("data"))
 
 
 def bind_financial_report_hash(rows):
@@ -84,6 +80,33 @@ def bind_financial_report_hash(rows):
     report_sha = canonical_sha256(report)
     for data in financial:
         data["report_sha256"] = report_sha
+
+
+def mobile_rows():
+    rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+    for row in rows:
+        bind_revenuecat_hash(row)
+    return rows
+
+
+def bind_revenuecat_hashes(rows):
+    for row in rows:
+        bind_revenuecat_hash(row)
+
+
+def mobile_rows_at(*, business_date, provider_period, observed_at):
+    rows = mobile_rows()
+    for row in rows:
+        row["business_date"] = business_date
+        row["snapshot_id"] = f"{row['product_id']}:{business_date}"
+        row["observed_at"] = observed_at
+        row["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+            "latest_complete"
+        ]["MRR"]["period"] = provider_period
+        row["sources"]["app_store_financial"]["data"]["period_end"] = "2026-10-03"
+    bind_revenuecat_hashes(rows)
+    bind_financial_report_hash(rows)
+    return rows
 
 
 def capafy_order_row_sha(order, currency):
@@ -131,8 +154,9 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def adapt_mobile(self, name, *, snapshot_at=SNAPSHOT):
         module = self.require_adapter()
+        source = mobile_rows() if name == "mobile-verified.json" else FIXTURES / name
         return module.adapt_mobile(
-            FIXTURES / name,
+            source,
             snapshot_at=snapshot_at,
             trailing_start=TRAILING_START,
         )
@@ -632,7 +656,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_financial_report_does_not_depend_on_sales_and_trends(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         for row in rows:
             del row["sources"]["app_store_sales"]
         records = module.adapt_mobile(
@@ -645,7 +669,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_retimestamp_does_not_extend_provider_projection_coverage(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         for row in rows:
             row["observed_at"] = "2026-10-02T00:00:00Z"
         records = module.adapt_mobile(
@@ -676,7 +700,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_empty_financial_report_requires_envelope_product_identity(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         for row in rows:
             row["sources"]["app_store_financial"]["data"]["rows"] = []
         bind_financial_report_hash(rows)
@@ -715,7 +739,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         )
         for mutate in mutations:
             with self.subTest(mutate=mutate):
-                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows = mobile_rows()
                 mutate(rows)
                 records = module.adapt_mobile(
                     rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -728,7 +752,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         for schema_version in (True, 1.0):
             with self.subTest(schema_version=schema_version):
-                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows = mobile_rows()
                 rows[0]["schema_version"] = schema_version
                 records = module.adapt_mobile(
                     rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -744,9 +768,11 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_wrong_mrr_definition_and_incomplete_period(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["revenuecat"]["data"]["revenue_definition"]["metric"] = "revenue"
         rows[1]["sources"]["revenuecat"]["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["incomplete"] = True
+        bind_revenuecat_hash(rows[0])
+        bind_revenuecat_hash(rows[1])
         records = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
@@ -763,7 +789,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_requires_mrr_evidence_sha256(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         del rows[0]["sources"]["revenuecat"]["evidence_sha256"]
         rows[1]["sources"]["revenuecat"]["evidence_sha256"] = "not-a-valid-sha256"
         records = module.adapt_mobile(
@@ -782,7 +808,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_mrr_changed_without_matching_content_hash(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
             "latest_complete"
         ]["MRR"]["value"] = 987654321
@@ -802,7 +828,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_financial_amount_changed_without_matching_report_hash(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
             "extended_partner_share"
         ] = 7654321
@@ -822,7 +848,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         for amount in OVERSIZED_MONEY:
             with self.subTest(amount=amount):
-                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows = mobile_rows()
                 rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
                     "extended_partner_share"
                 ] = amount
@@ -843,7 +869,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_financial_rejects_money_that_decimal_context_would_round(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
             "extended_partner_share"
         ] = SILENT_ROUND_MONEY
@@ -862,7 +888,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_financial_preserves_signed_return_and_trailing_zero(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["app_store_financial"]["data"]["rows"][1][
             "extended_partner_share"
         ] = "-200.5000"
@@ -880,7 +906,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_duplicate_financial_row_identity_with_valid_hash(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[1]["sources"]["app_store_financial"]["data"]["rows"][0][
             "source_row_index"
         ] = 17
@@ -906,7 +932,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         )
         for mutate in mutations:
             with self.subTest(mutate=mutate):
-                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows = mobile_rows()
                 mutate(rows[1]["sources"]["app_store_financial"]["data"])
                 records = module.adapt_mobile(
                     rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -922,7 +948,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_cross_product_financial_rows(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"], rows[1]["sources"] = rows[1]["sources"], rows[0]["sources"]
         records = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -935,7 +961,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_subset_or_extra_product_scope(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         subset = module.adapt_mobile(
             rows,
             snapshot_at=SNAPSHOT,
@@ -955,7 +981,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_dedupes_exact_snapshot_and_rejects_material_identity_conflict(self):
         module = self.require_adapter()
-        baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        baseline = mobile_rows()
         expected = module.adapt_mobile(
             baseline, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
@@ -986,7 +1012,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
     def test_mobile_numeric_type_difference_is_material_snapshot_conflict(self):
         module = self.require_adapter()
         for source in ("financial", "revenuecat"):
-            baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())
+            baseline = mobile_rows()
             conflicting = json.loads(json.dumps(baseline[0]))
             if source == "financial":
                 conflicting["sources"]["app_store_financial"]["data"]["rows"][0][
@@ -1015,7 +1041,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_rejects_non_dict_and_out_of_catalog_rows_at_any_date(self):
         module = self.require_adapter()
-        baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        baseline = mobile_rows()
         unexpected = json.loads(json.dumps(baseline[0]))
         unexpected.update({
             "product_id": "unexpected-product",
@@ -1041,7 +1067,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         for amount in OVERSIZED_MONEY:
             with self.subTest(amount=amount):
-                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows = mobile_rows()
                 rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
                     "latest_complete"
                 ]["MRR"]["value"] = amount
@@ -1061,7 +1087,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_mrr_rejects_money_that_decimal_context_would_round(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
             "latest_complete"
         ]["MRR"]["value"] = SILENT_ROUND_MONEY
@@ -1081,7 +1107,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
     def test_mobile_mrr_preserves_trailing_zero_without_rounding(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows = mobile_rows()
         rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
             "latest_complete"
         ]["MRR"]["value"] = "3000.5000"
@@ -1113,7 +1139,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertIn("stale_readback", {row["reason"] for row in stale
                                          if row["record_type"] == "coverage"})
         module = self.require_adapter()
-        unsupported_rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        unsupported_rows = mobile_rows()
         unsupported_rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
             "partner_share_currency"
         ] = "UNKNOWN"
@@ -1133,6 +1159,127 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             trailing_start=TRAILING_START,
         )
         self.assertEqual({row["reason"] for row in missing}, {"source_unconnected"})
+
+    def test_mobile_adapter_filters_shared_jsonl_to_mobile_products(self):
+        module = self.require_adapter()
+        rows = mobile_rows_at(
+            business_date="2026-10-04",
+            provider_period="2026-10-03",
+            observed_at="2026-10-04T22:17:00Z",
+        )
+        ebook = {
+            "schema_version": 1,
+            "snapshot_id": "ebook-en:2026-10-04",
+            "product_id": "ebook-en",
+            "business_date": "2026-10-04",
+            "observed_at": "2026-10-04T22:17:00Z",
+            "sources": {"stripe": {"status": "available"}},
+        }
+        legacy = json.loads(json.dumps(rows[0]))
+        legacy.update({
+            "snapshot_id": "aniccaios:2026-10-03",
+            "product_id": "aniccaios",
+            "business_date": "2026-10-03",
+        })
+        records = module.adapt_mobile(
+            [*rows, ebook, legacy],
+            snapshot_at="2026-10-04T22:17:00Z",
+            trailing_start=TRAILING_START,
+        )
+
+        snapshots = [row for row in records
+                     if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertEqual(
+            {row["subscription_id"] for row in snapshots},
+            {f"revenuecat:{product}:mrr" for product in module.MOBILE_PRODUCTS},
+        )
+
+    def test_mobile_adapter_accepts_one_day_period_lag_and_data_hash(self):
+        module = self.require_adapter()
+        rows = mobile_rows_at(
+            business_date="2026-10-04",
+            provider_period="2026-10-03",
+            observed_at="2026-10-04T22:00:00Z",
+        )
+        records = module.adapt_mobile(
+            rows,
+            snapshot_at="2026-10-04T22:17:00Z",
+            trailing_start=TRAILING_START,
+        )
+
+        snapshots = [row for row in records
+                     if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertFalse(any(
+            row["record_type"] == "receipt" and row.get("provider") == "revenuecat"
+            for row in records
+        ))
+        coverage = next(
+            row for row in records
+            if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        )
+        self.assertEqual(coverage["coverage_state"], "complete")
+        self.assertTrue(any(
+            ref.endswith("/2026-10-03") for ref in coverage["evidence_refs"]
+        ))
+        for row in rows:
+            self.assertEqual(
+                row["sources"]["revenuecat"]["evidence_sha256"],
+                canonical_sha256(row["sources"]["revenuecat"]["data"]),
+            )
+
+    def test_mobile_adapter_rejects_future_or_over_two_day_period(self):
+        module = self.require_adapter()
+        for provider_period in ("2026-10-05", "2026-10-02"):
+            with self.subTest(provider_period=provider_period):
+                rows = mobile_rows_at(
+                    business_date="2026-10-04",
+                    provider_period=provider_period,
+                    observed_at="2026-10-04T22:17:00Z",
+                )
+                records = module.adapt_mobile(
+                    rows,
+                    snapshot_at="2026-10-04T22:17:00Z",
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] == "subscription_snapshot"
+                    for row in records
+                ))
+                self.assertTrue(any(
+                    row["record_type"] == "coverage"
+                    and row["source_id"] == "revenuecat-mrr"
+                    and row["coverage_state"] == "gap"
+                    for row in records
+                ))
+
+    def test_mobile_adapter_observation_freshness_boundary(self):
+        module = self.require_adapter()
+        cases = (
+            ("2026-10-03T22:17:00Z", "complete"),
+            ("2026-10-03T22:16:59Z", "gap"),
+            ("2026-10-04T22:17:01Z", "gap"),
+        )
+        for observed_at, expected_state in cases:
+            with self.subTest(observed_at=observed_at):
+                rows = mobile_rows_at(
+                    business_date="2026-10-04",
+                    provider_period="2026-10-03",
+                    observed_at=observed_at,
+                )
+                records = module.adapt_mobile(
+                    rows,
+                    snapshot_at="2026-10-04T22:17:00Z",
+                    trailing_start=TRAILING_START,
+                )
+                coverage = next(
+                    row for row in records
+                    if row["record_type"] == "coverage"
+                    and row["source_id"] == "revenuecat-mrr"
+                )
+                self.assertEqual(coverage["coverage_state"], expected_state)
 
 
 if __name__ == "__main__":
