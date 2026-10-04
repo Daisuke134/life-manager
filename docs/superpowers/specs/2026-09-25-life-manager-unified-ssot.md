@@ -4884,7 +4884,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。最新doctor PASS、health failed21/gap2のうち11はcapacity/FIFO defer、entrypoint exit1は8・exit75は2。これらを根因確認し、正常待機と修復対象を分ける。 |
 | 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refill依存/費用台帳import契約は実装中、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
-| 3 | 待機 | 修正の受入・commit/push・対象統合条件を満たし、immutable releaseとowner限定load/admissionの不整合を解消。loaded argv/SHA・rollback・他owner非干渉を確認。 |
+| 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
 | 6 | 待機 | Paid loopの依頼取得→制作→品質確認→許可された納品経路→結果取得の内部接続を確認。Coconala保留案件の追加手動納品/資料追跡は実行しない。 |
