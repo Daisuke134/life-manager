@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§381のA27 feedback/handling/product改善へのbinding、依存待ちを保持して独立A28Writer取引/費用へ進める。A25currentreceipt/A26actualcost不足は保持。A24.1–4 account/verification/owner待ちは保持。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§382のA28.1 Writer financiallearning欠損ゼロsource修正。A27 feedbackbindingと実成果joinの待ちは保持。A25currentreceipt/A26actualcost不足は保持。A24.1–4 account/verification/owner待ちは保持。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4912,7 +4912,9 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。
 - [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。
-- [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。
+- [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。§382 localmoney event/fee/payout0はprovider売上0でなく、learningfinancialmetricの欠損→verified0を独立BUG/P2確認。source限定修正中、本番DB/設定未変更。
+  - [ ] A28.1 financiallearning metricのreceipt/coverage欠損をunknownへ保ち、legacy未証明0をconsumerへ渡さないsource修正。
+  - [ ] A28.2 source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。
 - [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。
 - [ ] A30 Affiliateのcommission・payout・実費を確認する。
 - [ ] A31 Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。
@@ -6387,3 +6389,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - private state/coconala-a27-feedback-source-binding-20261004.jsonにlocal/context hashesと一致条件・staleness・不足をmode600で記録。state/project/context/authorization/channel/送信/fence変更0。単なる修理回数や残artifact数をcustomerquality/生産性/marginに変換しない。
 - A27残はsameaccount/channelのcurrentofficialfeedback→処理artifact/version→対応/納品/検収receipt→実customeroutcome/作業量/actualcost/netmargin→再利用可能な自社productversion/evalへのjoin。顧客secret/権利のないcodeは転用せず、一般化した手順のみ実purchasefeedbackから改善する。少数サンプルの勝者／因果効果を作らない。
 - 既存source/privacy修正のmain条件§328を保持し、新コードを未統合のまま増やさない。next独立A28Writerの取引/費用receiptをreadonly照合、A25/A26/A27成果は未完。currentcursorA27binding／A28準備、全goalactive／SelfBuild最後。
+
+### 382. A28 Writer ledger readonly／financiallearning欠損ゼロBUG確認
+
+- canonicalwriter money.sqlite3をmode=roで取得。money_artifacts156／metricobservations8431、moneyevents/fees/payout/subscription/commercialbinding/productlineage/funnel各0。localtable範囲でありprovider全体の売上0を証明しない。最新Substack revenue/MRR/subscriberはunknown／dash等をzeroにせず、note salesmetric verifiedとtransactionreceiptを分離する。同期owner money_syncはDBwrite/観測を含むので今回実行0。
+- metric net_received/purchases/refundsは各471 verified0、compute_cost471のunitはwall_seconds（非通貨、actualbillではない）。source _sync_learning_metricsはprice/paywall/generationだけで空money/fee集合をsum0にしfinancialmetric verifiedを記録、max0clampで負差額も隠す。学習consumerはverified値をcanary/金融悪化判断入力として採用するsource経路があり、単なるledgercount診断として隔離されていない。
+- private writer-a28-money-ledger-readonly-20261004.jsonにcounts/status/unit/source refs保存。finite独立codexexec requested6.1Solmedium/read-only reviewはBUG/P2と反証確認、actual本番判断への使用はUNPROVEN。emptyhashをcoverageにせずreceipt/fee不足financialunknown、wallsecondsとactualinvoiceを分離、lossclampを除去する最小案。result/review-scopeはprivate writer-a28-cli-review-20261004、provider/DB/sync/編集/送信/delegation0。
+- 実測でunknown0禁止に触れる自己所有source不具合のため、未統合sourceを無制限に増やす改善ではなく必要bounded修正A28.1へ進む。最新main1a7専用worktree .worktrees/writer-financial-metrics-unknown-20261004／branch fix/writer-financial-metrics-unknown-20261004を作成、parentSSOT所有、finiteimplementation requested6-luna/maxがlive。production所有はmoney_sync/money_ledger/必要learning_workerの3file＋関連testsのみ。No oldmodel fallback、native threadlimit下でも既存CLIで有限run、no newtool/framework。
+- 検証はmissingreceipts/partialfee/正当裏付けpositiveとexplicitzero/nonfinancial計測/negativeclampに加えlegacy471ゼロのreader再利用を防ぐこと。first24h window/tieverified優先の旧記録をproductionDB修正せず扱い、正当に測れた全値までunknownへ落とす狭い代用品にしない。focusedRED→minimalGREEN/必要checks/commitpushremote→独立review、本番状態・provider・auth・ledger・PR/main0。
+- 新sourceのDoneを取引成果に置換せずA28.2は条件成立後mainimmutable/自然読取/公式receipt/費用/精算/着金/商業bindingを閉じる。A25–27の未完と§328main条件保持、currentcursorA28.1／全goalactive／SelfBuild最後。
