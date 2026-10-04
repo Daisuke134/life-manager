@@ -41,6 +41,13 @@
 | 手数料 | Capafy 20%（「you keep 80%」）＋初回 $0.99、サブスクは Sandbox Fee が先に引かれる。実測の差し引き率は 25.9% | https://capafy.ai/earn |
 | 市場の勝者 | CloneCut（動画クローン、$19.99/月）14,030 sold、Ocup Football Analysis（$8.33/月）3,083、Serenity Stock Tracker（$8.33/月）1,795、HookAce（$9.99/週）921 など。上位は「動画/ショート」と「金融シグナル」、無料の集客用 agent も多い | https://capafy.ai/ Trending（2026-10-04） |
 
+## 0.1 規約と精算の一次資料（2026-10-04 取得）
+
+- **量産の禁止**（https://capafy.ai/developer/doc/4.2）: "Do not mass-upload large numbers of Agents with near-identical functionality or minimal variations to dominate search results. This behavior is treated as cheating; the related Agents will be removed and the Publisher account may be warned or suspended." → 既存の Hook Lab 派生 9 本はこの危険域。複製（C3）は「入力・出力・使う場面が本当に違う物」だけにし、近い派生は統合・退役させる（C4）。
+- **却下理由 2.2 Information accuracy**（同 4.2）: 2.2.1 説明どおりの機能、2.2.2 カテゴリとタグの一致、2.2.3 "The Base Model field must accurately reflect the LLM the Agent currently uses." → Marketing Strategist（モデル変更版 v1.0.2）は 2.2.3 のずれが第一仮説。
+- **Agent Card**（同 4.2）: Details に sample input/output・Capabilities・Use Cases・FAQ を推奨。金融系は「専門的な投資助言ではない」免責と元本喪失のリスク表示が必須。
+- **手数料と精算**（https://capafy.ai/developer/doc/3.2）: Subscription Payout = 支払額 − Platform Sandbox Fee − Platform Fee。Sandbox Fee（On-Demand）は月 $2.00・週 $0.50・日 $0.07。Download は Sandbox Fee なし。売上は 7 日の dispute window の後に月次精算の対象、翌月 1 日に明細、条件を満たせば 15 日以降に振込。→ 9 月明細 $59.00 は 10/15 以降の振込が A2 の最初の着金確認点。日額プランは Sandbox Fee の比率が高い（$1.99/日なら 3.5%）ので、月額・週額を主にする。
+
 **$10k MRR の算数:** 手取り 80% として、平均 $9.99/月のサブスクなら有料会員 約 1,250 人。CloneCut 型の勝者 1 本（$19.99/月 × 600 人）＋中堅 10 本（$9.99 × 50 人）でも届く。今は月 $66 の手取り（目標の 0.66%）。
 
 ## 1. 足りないもの（To-Be との差）
@@ -251,8 +258,9 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 - [ ] 実装: `score = market_sold_total / (1 + our_listings)`。上位の棚を `capafy-candidate-opportunities.json` に書き、`capafy-loop-daily.sh:143` の手書き family 一覧を「opportunities ファイルだけを読む」に置き換える。
 - [ ] 公式 readback: 次の新規出品が上位棚のカテゴリで under_review に入る。
 
-### Task C3: 売れた物を複製する（winner cloning を測定で）
+### Task C3: 売れた物を複製する（winner cloning を測定で、ただし規約 4.2 の量産禁止を守る）
 
+- [ ] 派生候補は「入力・出力・利用場面」が親と別物であることをモデルに判定させ、近い派生は出さない。既存の Hook Lab 派生 9 本は、売上・閲覧で上位 2〜3 本を残し、残りを統合または非公開にする。
 - [ ] `decide_actions` に rule 5 を追加: 30日で `orders >= 3` の agent ごとに、まだ持っていない派生先（プラットフォーム・ニッチ）を 1 つ opportunities に足す。派生の成否（30日の注文数）を親子で記録し、親より売れない派生が 2 本続いたら、その親からの派生を止める。
 - [ ] テスト: Hook Lab（11 注文）→ 派生候補 1 件。派生 2 本が 0 注文 → その親の派生停止。
 
