@@ -6109,3 +6109,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 予算書はローカル7sheet／12formula／SHA cc2c9b7dcf1d36ddb884d2e94e82bd76b3fd85656746624e3e6e47a839757c49。公式添付bytesとの一致と①だけのformalが取引全体へ及ぼす範囲は未確定。現approval_readyfalseを維持。fresh18223833 normal collectorはsession77715 exit1／selected_talkroom_access_forbidden／HTTP403／coveragefalse、current history未取得。
 - growth担当のdocs branchをfetch/read-only確認しHEAD／upstream9719f232fdc96ad66e36d40575f7fb0d1e0e29ca／clean。Task1基準表部分取得・公開build/offerings/userfunnel不足、Task3既存配信資料の所在確認を受け入れる。財務／製品実装／投稿成果に置換しない。
 - private evidenceはstate/coconala-a01-refresh-20261004のhistory-comparison／budget-approval-scope-readback／normal snapshot／failure receipt。次は予算書fresh履歴の境界と正式納品scope、公式添付bindingを既存ownerで確認する。A01／A03／A04は全成果未達、全goalactive／SelfBuild最後。
+
+### 349. 予算書添付bytesの未結合とowner環境の追加観測
+
+- 同budget scope workerへ独立local jobとして公式attachment bindingを依頼、案件内receipt／download／outboxのみを調べる。公式seller220802599 attachment:0はfilename一致／55.0KB／hrefnull、local budget17665bytes／SHA cc2c9b7dcf1d36ddb884d2e94e82bd76b3fd85656746624e3e6e47a839757c49。表示サイズとの差があり、同一bytesを認定しない。local paid-result／acceptanceはlocal hashのみ、v16b receiptは別NPO ZIPでbudget bindingには使わない。
+- provider403スクリーンショットを実視認し、汎用403 Forbidden画面。login/challengeの説明は見えず原因は未確定。requested／final routeは同budget talkroom、公式DOM receipt403は保持。
+- current source lm_loop_apply.pyでnative Coconala ownerのvault／lease pathsが今回probeと一致、cookie scope coconala.comとpark_on_idle0を確認。probeにはcookie domain指定が無く全domain seed、終了時releaseのdefaultは既存ownerと一致。domain scopeをnativeに合わせた自己owner／通常tabのread-only probeを一度実行、session84738／log lm-coconala-a04-budget-owner-env.log。terminal未取得、同handleを追い環境差の因果と断定しない。
+- evidence budget-attachment-binding-readback.json/mode600。次は公式downloadを読める条件を確立し、公式bytesのsize／SHAを照合する。fresh approval／formal scope／納品／入金未確認、全goalactive／SelfBuild最後。
