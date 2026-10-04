@@ -4912,7 +4912,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。
 - [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。
-- [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。§382 localmoney event/fee/payout0はprovider売上0でなく、learningfinancialmetricの欠損→verified0を独立BUG/P2確認。source限定修正中、本番DB/設定未変更。
+- [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。localmoney event/fee/payout0はprovider売上0ではない。§390で欠損→verified0/legacy採用のsource修正受入済み、A28.2の公式金融readback/期間coverage/本番統合は未完。本番DB/設定未変更。
   - [x] A28.1 financiallearning metricのreceipt/coverage欠損をunknownへ保ち、legacy未証明0/positiveをconsumerへ渡さないsource修正。§390、fbddf5c30a/11PASS/contract14・178・103 errors0/freshsourceSHIP/remote一致。本番未反映。
   - [ ] A28.2 source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§388のartifact/期間/currency/全件終端coverage不足と§389の正しいliveaccount/readkey接続を解消し、個別receipt合計・account月次値・test credentialsをfirst24h実売上へ代用しない。
 - [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。§386/388の共有guardidentity不足とexact旧occurrence18d83ba82b14fb40-24990のofficialreadback不足を保持。
