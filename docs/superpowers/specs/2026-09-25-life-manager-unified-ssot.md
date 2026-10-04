@@ -3098,3 +3098,186 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Approved後だけ公開URL/live、Sales、fee、model cost、settlement、payout、replay-zeroへ進む。Declinedなら公式理由を保存し、別内容の修正cursorを作る。
 3. Reels Hook Lab Scheduled、Football Match Analyst Pending、Portfolio Tracker Pendingを相互に混同せず、Sales `0/$0`を維持する。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+### 87. Moneytree接続済みpluginの鮮度readback（2026-10-04 11:16 JST）
+
+- 接続済みMoneytree pluginのread-only `show-accounts`はMUFG普通預金を含むJPY口座1件を返した。source-updated timestampは無く、今日の銀行残高を検証した証拠ではない。個人残高の正確な値はtracked spec/evidenceに保存しない。
+- `show-transactions`の検索期間は2026-07-04..2026-10-04、`totalCount=183`。降順クエリが返したのは最新10件だけで、最新取引日は従前と同じ2026-08-25だった。183件全件を今回取得したとは扱わず、新しい取引行・sync cursor・source freshness timestampは確認できない。
+- 個人cashの鮮度項目は引き続き`partial/stale`。表示残高はlast-knownとして保持し、Life Managerの売上・利益へ加算しない。login・phone・pairing・account変更は行っていない。既存の全体CFO順序・cursorは変更しない。
+- 根拠 → [11:16 Moneytree plugin readback](../../evidence/cfo/2026-10-04-moneytree-plugin-readback-1116.md)。
+
+### 87-A. 現行releaseのCFO B7読み取り診断（2026-10-04 11:25 / 11:34 JST）
+
+- immutable release `/Users/anicca/loops/releases/20261004T102016-1a7a8e2f`の11:25直接実行はwrapper由来のsource path envが不足し、production-equivalentではなかった。そのsource分類を11:34のwrapper相当read-only診断で訂正した。helper由来pathsを含む診断はexit 0、snapshotは`2026-10-04T02:34:49.788673Z`、trailing開始は`2026-09-04T02:34:49.788673Z`。report保存・送信・state書き込みは無く、自然owner occurrenceや外部配信の証拠ではない。
+- 訂正診断でもB7 coverage gapはhistorical 137 / trailing 132。14/14 product loopsが`unknown`、検証済みloop totalsは0件であり、金額ゼロを意味しない。初回projectionのhistorical JPY category cellsは`null/unknown`、trailing currency totalsは欠落し、訂正診断でも検証済み金額は確定していない。MRR・runwayは引き続き`unknown`である（初回reasonは`mrr_coverage_unknown` / `trailing_burn_unknown`）。
+- 最新のwrapper-equivalent read-only projection（14:04 JST、同一release/source-path helpers）はexit 0、snapshot `2026-10-04T05:04:10.746536Z`。coverage gapはhistorical 137 / trailing 132で11:34から変化せず、14/14 loopsは`unknown`、verified loop totals 0、runway `unknown`。report保存・送信・state writeは無い。詳細 → [CFO B7 evidence](../../evidence/cfo/2026-10-04-cfo-b7-projection-1125.md)。
+- 訂正後のsource gapsはCFO B6 actual-cost-readbackが`read_failed`、CrowdWorks・Lancers・Writer・Affiliateが`stale_readback`、Coconalaが`source_unconnected`、Investment Alpaca account/orders・Self-Build Stripeが`unverified_receipt`、Mobile ASC Financial・Capafy ordersが`missing_coverage`。Agent Economyにcategory以外のsource gapは無い。全loopのmissing-category gapと個人cash鮮度の§87 partialは残る。
+- Mobile helperが指す既存business-outcomesファイルは124 rows / 10 products、過去のavailable source countsはRevenueCat 58 / ASC Sales 18 / ASC Financial 0。local adapterは`missing_coverage`を返し、`read_failed`ではない。追加のlocal-only検査では6アプリ全ての最新business_dateは2026-10-03、RevenueCatは`available`かつMRR point completeだが`currency`・`revenue_definition`が欠落し、金額提示・MRR joinは未確認。最新ASC Salesは`unavailable`、Apple financial source/receiptは不在である。RevenueCat・ASC Salesをsettlementへ数えず、ASC Salesをmarketing acquisition metricsとも混同しない。訂正後reason件数はhistorical/trailing順にsource_unconnected 1/1、missing_category 126/122、stale_readback 4/4、unverified_receipt 3/2、missing_coverage 2/2、read_failed 1/1。
+- Issue #6549の11:25:46–47 JST live readは`OPEN`、`updatedAt=2026-10-03T22:53:18Z`、comments 0 / reactions 0で、maintainer承認は確認できない。これはコード変更のgateであり、read-only診断を止める条件ではない。既存の全体TODO順・CFO cursorを変更しない。
+- 根拠 → [CFO B7 projectionと11:34の入力path訂正](../../evidence/cfo/2026-10-04-cfo-b7-projection-1125.md)。
+
+### 87-B. ASC Analytics acquisitionとRevenueCat/Apple精算境界（2026-10-04）
+
+- production releaseの`collectProduct()`をconfigured productsに限り2026-10-04 11:56:51–11:57:02 JSTにdirect read-only取得した。snapshot/stateは保存せず、collectorは一時CSVを削除する。Anicca iOS/Honneとも`source_status=measured`、`confidence=official_product_total_no_campaign`であり、ASC Analyticsのproduct合計である。
+- Anicca iOSはcombined範囲2026-09-30..2026-10-02、downloads/engagement両reportのprocessing_dateは2026-10-03。first-time downloads 1、total impressions 16、unique impressions 11、product page views 0、attributionは`unattributed`、campaign metricsは未設定でunavailable。方向性の比率は1/11=9.1% / 1/16=6.25%。snapshotはsource別data_from/data_toを保持しておらず、report-level date windowsとcohort alignmentは未確認のため、cohort・投稿帰属conversionではない。
+- Honneはcombined範囲2026-09-29..2026-10-02、downloads processing_dateは2026-10-03、engagementは2026-10-02。first-time downloads 1、total/unique impressions各6、product page views 0、campaign metricsは未観測またはprivacy threshold（`campaign_not_observed_or_privacy_threshold`）でunavailable。1/6=16.7%もprocessing_dateが異なるreportのaggregate方向性比率で、cohort・投稿帰属ではない。現producer設定はこの2productのみで、他4mobile productsのacquisition rowはこの経路に無い。10月3日のlocal snapshotはintegrity PASSだが異なる古いwindowで、同期間の増減として比較しない。
+- active `/opt/homebrew/bin/asc`は5.9.2（commit `08fae4d`）で、SHA256は公式macOS arm64 assetと一致する。公式`rorkai/App-Store-Connect-CLI` latest 5.9.2の公開日時は2026-10-03T05:11:18Z。Homebrew metadataのstable 5.8.0 / installed list 2.5.0は古く、standaloneのactive binaryをupgrade/replaceしない。
+- 保存済みRevenueCat `subscriptions.json`の最新local report dayは2026-09-26、integrity PASSだがAnicca/Honneとも`unavailable / product_pack_observation_missing`でMRR/proceeds値は無い。より新しいbusiness-outcomesのRevenueCat available rowsもcurrency/revenue_definitionが欠落し、Apple final financial receiptは無い。ASC Analytics acquisition、RevenueCat trend、Apple最終financial settlementを分け、settled app revenue/MRRは確定しない。既存§87/87-A・全体TODO順（§84-A）を維持する。
+- 根拠 → [ASC acquisition readback](../../evidence/mobile/2026-10-04-asc-acquisition-readback.md)。
+
+### 87-C. Google Cost Table請求readbackとproduction未接続（2026-10-04 12:42 JST）
+
+- private `LM_CFO_GOOGLE_BILLING_CSV`は2026-09請求CSVを指し、read-only parseで請求合計JPY 27,889を確認した。全projectのusage line item JPY 25,354.451251、税JPY 2,535、丸め-0.451251で合計と一致する。現gcloud project名`anicca`の税抜小計はJPY 20,184.042574（Places 9,419.856821 / Geocoding 7,493.014626 / Directions 3,271.171127）。3 project中ほか2つはJPY 5,170.408677で、Life Manager owner/loop allocationとcash paymentは未確認。税はproject配賦せず、請求CSVだけを支払済receiptと呼ばない。
+- candidate parserは`使用開始日`の月で9月行を選ぶため、9月請求へ含まれる2026-08-31開始Cloud Storage ¥0.000300を抜かし、内訳が請求額より¥0.000300不足する。header totalは一致してもusage/service subtotalとのreconcileが不一致なので、production settlement adapterとして完了扱いしない。回帰条件とSHAは[evidence](../../evidence/cfo/2026-10-04-google-cost-table-readback.md)参照。
+- production releaseは`1a7a8e2faf1eb34931f05287d846fc036bc9eec0`。private envにCSV path/monthはあるが、B6が読む`LM_CFO_ACTUAL_COST_READBACK` / `LM_CFO_ACTUAL_COST`は不在で、B7 `read_failed` と14/14 unknownは継続。11:57 hourly occurrenceのmessage effect unknown・receiptなしは未解決。13:08 live readでは12:57 hourlyと13:07 financial-reportの両occurrenceが`resource_capacity_busy`でpre-effect defer、no receipt/effect、`retry_after_eligibility`。過去のeffect-unknownを再送・手動再起動していない。
+- 10/1 00:00〜10/4 13:54 JSTのtenant-scoped usage ledger GETと`STABLE` RPCは6,171 rowsで一致し、全provider estimate USD 4.8165811167、Google-labeled estimate USD 4.75165475（Maps 3.97、Search 0.035、Gemini 0.74665475）。6,171 rows全てで`meta.loop_id`と`meta.actual_status`が欠落し、October invoice readbackも無いため、実請求・loop別実費ではない。詳細なprovider内訳と比較時刻は[evidence](../../evidence/cfo/2026-10-04-google-cost-table-readback.md)参照。
+- 12:42 live readでもIssue #6549はOPEN・comments/reactions 0。コード変更gateは未解除。既存§84-AのTODO順・CFO cursorは変更しない。
+- 根拠 → [Google Cost Table readback](../../evidence/cfo/2026-10-04-google-cost-table-readback.md)。
+
+### 87-D. Financial Report enqueueのproduction失敗境界（2026-10-04 13:21 JST）
+
+- `life-manager-financial-report` occurrence `life-manager-financial-report:18db38bf3ffccbe8-44180` はrelease `1a7a8e2faf1eb34931f05287d846fc036bc9eec0`でexit 1 / `entrypoint_exit_1`、effect `none`、provider receiptなし。同一occurrenceのstructured eventはadapterの`--uid <tenant> is required`に一致し、Postgres到達前の失敗を示す。stderr内の`runtime job store unavailable`集計はこのoccurrenceに結び付かず、根因として扱わない。
+- `runtime-job-store.js`は`LM_RUNTIME_DATABASE_URL`または`LM_FEEDBACK_DATABASE_URL`を必要とし、欠落時はenqueue insert前に失敗する。両keyはLaunchAgent environment/private `.env`になく、credential SSOTにも認識可能なPostgres URL/DSN recordは見つからない。これはUID引数を直した後に到達しうる別の境界。既存Supabase REST URL/service-role keyをこのPostgres writerが代用する実装ではない。
+- 同じprivate stderr logの直近64 KiBにはenqueue error 259行があり、全行が同じ`runtime job store unavailable`へ正規化されたが、occurrence ID/run IDとの相関は確認できない。これは個々の259回の別provider effectを意味せず、外部送信数は0。
+- runtime-job-store/report adapter focused testsは33/33 PASSだが、installed LaunchAgentのDB接続設定を証明しない。service-roleを使ったread-only GET `/rest/v1/lm_runtime_jobs?select=job_id&limit=0`はHTTP 404 / `PGRST205`で、テーブルはSupabase PostgREST schema cacheに公開されていない。14:16 JSTのlive OpenAPI GETも122 paths中runtime/job/enqueue routeは`/rpc/lm_enqueue_late_telegram_receipt`だけで、generic initial-enqueue RPCは無い。`complete_lm_runtime_job_and_enqueue`はexisting job完了後専用。これらはSupabase RESTだけを確認した結果で、別系統のRailway Postgres runtime queueを否定しない。§87-Dで候補としたSupabase RPC追加は§87-Eで撤回する。外部送信は発生していない。Issue #6549の明示gateを満たすまでsource/config変更・手動再実行はしない。
+- 13:57 JSTのCFO hourlyと14:06 JSTのFinancial Report最新statusは、どちらもrelease `1a7a8e2f`で`resource_capacity_busy`のpre-effect defer、receiptなし。13:21 JSTのenqueue失敗は修正・再実行されておらず、Financial Reportに成功delivery readbackはない。既存effect-unknownは公式readback前に再送しない。
+- Issue #6549の最新read（2026-10-04）は引き続き`OPEN`、comments 0 / reactions 0。既存実装枝`docs/lm-cfo-cost-observability-spec-20261002`は`origin/main`より64 commits behind / 96 ahead。read-only merge-treeで6 path conflict（設計specのadd/addとCFO source/test）が出るため、同期・解決は承認後に既存枝上で行う。枝上の計画はTask 1–7が完了扱い、Task 8 Step 5の7日自然観測が未完、Step 4 cloud canaryはemail/wallet binding不足でpartial。枝上完了はmain統合・本番反映を意味しない。
+- この追記でも§84-Aの全体TODO順とCFO cursorは変更しない。Moneytree freshness、B7 revenue coverage、Google actual-cost/loop attribution、Financial Report自然配信、7日観測が未完了のため、CFO完了・利益・MRRを宣言しない。
+- 根拠 → [Financial Report enqueue diagnostic](../../evidence/cfo/2026-10-04-financial-report-enqueue-diagnostic.md)。
+
+### 87-E. Financial Report queue topology correction and safe enqueue candidate（2026-10-04）
+
+- 独立read-only architecture reviewで、実行queueはSupabase RESTではなくRailway Postgresの`public.lm_runtime_jobs`であることを確認した。deployed `money-printer-worker`はcanonical `life-call` source SHA `655b2cf2001ad54ce70cb975910f363091052651`、private DB接続と`report.financial.telegram` capabilityを持つ。別サービス名`API`は異なるlegacy `anicca-products/apps/api`であり、既存のfinancial enqueue routeがある根拠にしない。
+- 同SHAの`runtime-job-store.js`は`LM_RUNTIME_DATABASE_URL` / `LM_FEEDBACK_DATABASE_URL`または注入queryを使い、`DATABASE_URL`は使わない。`runtime-up.js`のHTTP routeは`/health`のみで、jobのclaim/実行はworker内のDB接続経由。Supabase PostgRESTの404/OpenAPI結果は、このRailway queueの有無やアクセス可否を判定しない。従って§87-Dの「Supabase RPCを追加する」推定は撤回する。
+- 現行immutable releaseのloop registryは`financial-report-boot.sh`を引数なしで起動し、boot scriptは`report-job-adapter.js enqueue "$@"`を実行する。adapterの`parseEnqueueArgs`は`--uid <tenant>`を必須とする。同一occurrenceのloaded argv hashはこの引数なしregistry commandと一致し、error_detailもUID不足と照合できるため、今回のexitはPostgres接続前に起きた。adapterのjob identityに`Date.now()`が含まれ、別時刻の再実行は別jobになり得る。正しいtenant UIDとexact occurrence/idempotencyを確認せずretryしない。
+- 候補implementation branch HEAD `5befe4538e3f14e140cab375c0a2f79eb9ef9327`も同じentrypointをzero command argsで登録しており、このUID欠落をまだ修正していない。Task 1–7完了扱いは当該起動経路の修正・配信成功を証明しない。
+- 最小候補は、project/environment/serviceを固定した有限のRailway SSH remote commandで、既存worker内のadapterを実行しprivate DB credentialをMacへコピーしない経路。後続のread-only probeでSSH readiness、active workerのcwd/path、DB `SELECT 1`までは検証済み（詳細§87-F）。enqueue、worker completion、Dais向けTelegram receiptは未検証・未実行。これは実行経路の候補であってproduction fix完了ではない。
+- Issue #6549は2026-10-04の再読でも`OPEN`、reactionなし。source/config変更・enqueue・手動送信は行わず、§84-Aの全体TODO順とCFO cursorも変更しない。根拠 → [Financial Report enqueue diagnostic follow-up](../../evidence/cfo/2026-10-04-financial-report-enqueue-diagnostic.md)。
+
+### 87-F. Railway worker接続とMoneytree取引coverageのread-only確認（2026-10-04）
+
+- Railway CLI `5.45.7` の明示project/production/service/active-instance指定で`money-printer-worker`へSSHし、`/app`のcwd、source SHA `655b2cf2001ad54ce70cb975910f363091052651`、custom/service domain 0件を確認した。worker内の`LM_RUNTIME_DATABASE_URL`はset（値は非表示）、`LM_FEEDBACK_DATABASE_URL`はunset。`/app/apps/life-manager`からruntimeと同じ`pg`接続設定で`SELECT 1`が成功した。queueと接続できることは確認したが、enqueueはしていない。
+- queueのcapability別read-only集計は`report.financial.telegram`: 6 `completed` / 1 `dead_letter`。receipt outcome集計は4 `completed` / 3 `failed` / 2 `reconciled_present`。tenant/job/provider ID、receipt本文は取得しておらず、Dais向け報告の成功readbackとは扱わない。`report-job-adapter.js`の配備pathは`/app/apps/life-manager/lib/report-job-adapter.js`であり、`scripts/`直下ではない。
+- Moneytreeの再読でも銀行口座1件・投資口座0件、残高のsource timestampなし。`show-transactions`の2026-07-04..2026-10-04 queryは183/183行を返したが、実データの最新日は2026-08-25。spending summaryは7月・8月bucketのみで9月・10月は欠落し、`未定`・振替・返済があるため、全支出/収入sourceや当日残高を満たさない。金額や個別取引はpublic spec/evidenceに追加しない。詳細 → [Moneytree coverage follow-up](../../evidence/cfo/2026-10-04-moneytree-plugin-readback-1116.md)。
+- `origin/main`とdeployed SHAの`moneytree-local-adapter.js`は同一blob。該当sourceをlocalでCodex app-server経由read-only実行すると1 account/183 normalized rowsが得られたが、scheduler/ledger/report deliveryは動かしていない。deployed adapterはretrieved timeとpayload digestだけでsource freshness/completenessを付けず、category nameが`振替`の場合だけtransfer扱いする。unmerged candidate branchにはsource freshness/completeness fail-closed判定とparent category `返済`のtransfer判定があるが、本番反映済みではない。詳細 → [Moneytree adapter follow-up](../../evidence/cfo/2026-10-04-moneytree-plugin-readback-1116.md)。
+- Issue #6549は引き続き`OPEN`・reactionなし。source/config変更、job enqueue、message sendは行わず、全体TODO順とCFO cursorを維持する。残りはtarget tenantとdelivery receiptのread-only照合、approval gate後の安全な自然occurrence、Google actual-cost attribution、完全な個人/事業source coverage、cloud binding、7日観測。
+
+### 87-G. Google削減は部分実装・実費効果は未検証（2026-10-04）
+
+- Deployed source SHA `655b2cf2001ad54ce70cb975910f363091052651`には、`ask.js`/`care-candidate-search.js`のGoogle Places、`travel.js`のGoogle Geocoding/Directions、`daily-preflight.js`のGoogle Directions call pathが残る。一方で同SHAの`travel.js`にはSupabase-backed route cache（設定がある場合）と、Japan endpointではtransitを先に呼び、失敗時だけGoogleへ逐次fallbackする実装もある。source上の経路確認であり、live cache-hit/fallback回数や請求削減量を測ったものではない。
+- 候補implementation branchは、日本施設検索のOpenPOI primary、persistent geocode cache、provider budget gateなどを追加する。candidateは`origin/main`から64 commits behind / 96 aheadで、既存6-path conflictとIssue #6549 approval gateが残るため、候補コードをproduction反映済みとは扱わない。
+- 候補branchでのread-only OpenPOI adapter probe（東京駅付近の一般的な施設検索）は`fresh`・10件を返し、10/10候補にlicense/attributionがあった。Google API呼び出しは0件。`ask-openpoi`、`geocode-cache`、`provider-budget`、`travel-transit-wire`のfocused testsは36/36 PASS。ただしこれは候補branchのadapter probeとmocked/local contract testsであり、deployed user flow、production fallback count、利用者の結果品質、実費低下を証明しない。
+- Google費の制御は一部sourceに存在するが、請求額・loop/tenant別usage・fallback/cache効果の照合が未完了で、near-zero達成や「Google API費を修正済み」とは言えない。September invoiceとOctober usage estimateは§87-Cの境界のまま保持し、公式Cost Tableと自然run telemetryで効果を検証する。既存§84-Aの全体TODO順・CFO cursorは変更しない。
+
+### 87-H. Configured tenant bindingは存在するがFinancial Reportへ未配線（2026-10-04）
+
+- private local envの`LM_TENANT_UID`を値非表示のままSupabase RESTでread-only照合したところ、ちょうど1 rowが解決し、email形式・wallet・Telegram bindingは有効だった。UID/email/wallet/chat IDおよびrow内容はpublic specに保存しない。
+- 同じprivate UIDで`lm_financial_report_receipts`をread-only照会すると5 receipts全て`sent`で、最新daily periodは2026-09-09。recipient/message ID/hash/report本文は取得せず、これは10/04 failed occurrenceの送信証拠ではない。
+- Railway `lm_financial_records`の同UID read-only aggregateには未検証`api-cost` business_costとverified `base-usdc` personal asset snapshotだけがあり、business_revenueおよびMoneytree personal-bank recordは存在しなかった。これはledger内のsource coverageであり、事業売上0やsettled cost totalを意味しない。金額はpublic evidenceへ追加しない。
+- ただしactive immutable releaseのFinancial Report loop registryはcommand引数0件で、`LM_TENANT_UID`を`report-job-adapter.js`へ渡していない。同一occurrenceのargv hashはこのUIDなしのregistry commandと一致するため、private envに有効なtenant rowがあることはfailed occurrenceや既存queue jobをDaisへ帰属させる証拠ではない。
+- 以前のcandidate planにあるemail/wallet unbound canary状態は、その時点の記録として残す。現在のconfigured UID rowはboundで、private receipt tableに5件の過去`sent`があり最新daily periodは2026-09-09だが、10/04 occurrenceとは結び付かない。設定済みchannel/cadenceはdaily targetと不一致（値はpublic specに記載しない）。runnerへのUID配線・daily設定・same-occurrence receiptが揃うまで本番CFO完了とは扱わず、source/config変更・送信はIssue #6549のrequired approval前には行わない。
+
+### 87-I. 5分wakeとjob identityの同期間重複リスク（2026-10-04）
+
+- installed Financial Report LaunchAgentの`StartInterval`は300秒。deployed `buildFinancialReportJob`は`nowMs`の完全なISO時刻をreport reference/job identityに含める。pure in-memory checkでは同一inputの再計算は同jobだが、5分後の再計算は同じUTC hour内でも別job ID/effect keyになる。enqueueやDB accessは行っていない。
+- configured report periodがhourly/non-dailyの場合、receipt identityはhourly bucketとなるためreceipt storeが重複送信を抑えても、queue insert/worker実行は重複し得る。現在はUID未配線で同じoccurrenceのenqueueは未発生。このリスクは実測コストではなくコード経路からの推論。
+- UID配線後にownerを有効化する前に、period単位のstable idempotency keyまたはone-enqueue-per-period gateを設け、scheduler replay-zeroと期間ごとの公式receiptを検証する。Issue #6549のgateと既存TODO順は維持する。
+
+### 87-J. CFO最新cursorと残TODO（2026-10-04）
+
+- [Issue #6549](https://github.com/Daisuke134/life-manager/issues/6549)の最新readは`OPEN`、comments 0、reactions 0。Issue本文が求めるowner/maintainer `👍`はまだreadbackされていない。これはfollow-up source変更の明示gateであり、read-only照合と本spec更新は継続できる。source/config mutation、enqueue、message sendはこのgateを越えたと推定しない。
+- CFO全体のcloseは未達。Moneytreeの表示残高はsource timestampのないlast-known値（個人の正確な値はtracked docsから除外）、2026年9月のGoogle請求JPY 27,889はLife Managerへの全額帰属・支払済みを証明せず、10月1日〜4日17:50 JSTのGoogle-labeled usage estimateはUSD 4.94665475で請求確定額ではない。RevenueCat direct live readはMobile MRR JPY 3,196.91（10/3）を測定したが、会社全体MRR・settled net・runwayは未確定。Stripe live accountのpaid payout JPY 4,956は2/2件Moneytree明細と日付・金額・Stripe表記が一致したが、19 charge全体のowner/product分類は未完（§87-S）。Capafyの30日creator earningsはUSD 61.78、Capafy host keyの30日OpenRouter usageはUSD 25.08だが、payoutはUSD 0で、注文数のsource間差とunfiltered org-wide cost pathが残る（§87-T）。Moneytreeは再読しても9〜10月data gapが続く（§87-U）。B7はhistorical 137 / trailing 132 coverage gaps、14/14 loops `unknown`であり、0円・0売上を意味しない。詳細 → §87-Q、§87-R、§87-S、§87-T、§87-U。
+- CFO内の残りcursor（全体ロードマップ§84-Aの順序は変更しない）:
+  1. [x] private tenant UIDを値を露出せず正しいDais向けCFO tenant・delivery destinationへ相関する。UIDは一つのuser rowへ解決し、そのrowのTelegram bindingはDaisのMTProto dialogと一致した。設定とreceiptの現状は§87-Mへ記録した。
+  2. Issue #6549にowner/maintainerの明示`👍`が付いた後だけ、現在分離しているlocal hourly result reportとcloud wallet reportを一つのdaily CFO delivery pathへ収束させる。fresh Moneytree personal cash、B7 settled business sources、official provider actual costとcoverageを同一periodに表示し、二重reportを残さない。確認済みDais tenant/destinationを使い、5分wakeの重複enqueueを防ぐstable period identity / one-enqueue-per-period gateをfocused testする。Capafyのcost fieldを利用する前にOpenRouter `/activity`をCapafy host key hashへscopeし、注文数/creator-earningsの定義差も同一periodで解消する（§87-D–I、§87-M、§87-T）。
+  3. immutable releaseの対象限定apply後、次の自然schedulerでreportを一度だけ完了させ、同一occurrenceのofficial delivery receipt/readbackとperiod replay-zeroを確認する。未解決effectを手動再送しない。
+  4. source-complete ledgerを作る。Moneytreeのfresh sync/cursor・全transaction coverageと分類、全business revenue/refund/fee・subscription/tool/cloud actual cost、個人残高をそれぞれ公式sourceで照合する。MobileはRevenueCatのMRR currency/unit/revenue_definitionとapp/product IDを補い、ASC fiscal proceeds・RevenueCat trend・銀行着金を同一app/periodでjoinする。Stripeはlive account readbackと2件payout-to-bank matchを得たが、8 successful chargesのowner/product分類とlive readbackのCFO artifact接続が残る（§87-S）。Capafyはseller gross/refund、creator earnings、OpenRouter key-scoped cost、payout/bank receiptを同じ期間で照合し、API注文数差を解消する（§87-T）。settled revenue・settled cost・estimate・stale・unverified・unknownを混ぜず、B7 14/14とsource横断dedupeを再計算する。
+  5. Google費は公式Cost Table全行を請求月・projectごとにreconcileし、cross-month行を含め請求額とusage subtotalを一致させ、usageをtenant/loopへ配賦する。OpenPOIは日本の施設検索候補に限定し、候補実装branchの結果を本番成果としない。Google routing/geocodingの残存call、cache hit、fallback、UX品質、production actual costを同一期間で測る。
+  6. 1–5の自然運転を7日間観測し、各日report receipt、source freshness/coverage、provider cost、fallback、replay-zeroを同一period IDで照合する。証拠が揃うまで現在値、MRR、利益、runway、near-zero Google費を確定表示しない。
+- 追記時点でsource変更・production config変更・enqueue・sendは行っていない。OpenPOI候補probeと36/36 focused testsはlocal/candidate証拠に留まり、production UXや節約額の証明ではない（§87-G）。
+
+### 87-K. Moneytree 12か月read-only coverage再確認（2026-10-04）
+
+- fresh `show-accounts`でもMUFG銀行口座1件、source-updated timestampなし。表示残高は更新時刻がないためcurrent扱いしない。
+- `show-transactions`のrequested window 2025-10-04..2026-10-04を4つの非重複期間で照合し、全query成功・計988 rows。返却データの最古日は2025-10-04、最新日は2026-08-25で、要求終了日の10/04までの最新期間に約40日分のfresh transactionが無い。`show-spending-summary`も11個の月次bucket（2025-10..2026-08）のみで、2026-09/10は欠落する。
+- 12か月のread可能範囲を広げても、現時点のbank balance・全期間expense・同期完全性は確認できない。個人金額/取引内容/口座番号はpublic spec/evidenceへ保存せず、cashは`partial/stale`、未取得期間と分類不明支出は`unknown`のまま扱う。Life Manager business revenue/costへ転用しない。
+- 根拠 → [Moneytree 12-month coverage readback](../../evidence/cfo/2026-10-04-moneytree-plugin-readback-1116.md#2026-10-04-one-year-coverage-follow-up)。
+
+### 87-L. B7 latest wrapper-equivalent projection（2026-10-04 16:28 JST）
+
+- immutable release `1a7a8e2f`のsource-path helpersを通してread-only projectionを再確認。16:28:18 JST snapshotでもhistorical/trailing coverage gapsは137/132、14/14 loopsは`unknown`、verified loopは0件、会社全体の確定totalは報告不可、MRR/runwayは`unknown`。gap reason countsは14:04 JST projectionから変化していない。
+- projection内のduplicate receipt identityは0件だが、これは読み込んだartifact同士のdedupe結果であり、provider replay-zeroやsettlement receiptの証明ではない。自然owner occurrence、report保存、配信、ledger writeは実行していない。
+- CFO cursor・Issue #6549 gateは変更なし。根拠 → [B7 projection readback](../../evidence/cfo/2026-10-04-cfo-b7-projection-1125.md)。
+
+### 87-M. Dais宛てCFO reportの自然配信と二つのreport経路（2026-10-04）
+
+- `LM_TENANT_UID`のread-only `lm_users` rowは一件で、email・agent wallet・Telegram bindingが存在する。Telegram bindingはDaisの既存MTProto dialogと一致した。値やIDは保存しない。`life-manager-cfo-hourly` LaunchAgentには`LM_CFO_UID`とTelegram chat設定があり、自然report stateのsubject/chat hashもこのtenantと一致した。
+- `life-manager-cfo-hourly` occurrence `life-manager-cfo-hourly:18db3e094c4fa948-95818`は2026-10-04 14:58 JSTに`exit=0 / pass`。同一occurrenceのlocal report stateは`sent`、period `2026-10-04:05`、channel `telegram`で、outbox status・body hashと一致する。Daisのbot dialog read-only historyにも同じ1205文字のreport本文が1件あり、snapshot/sendから約23秒後に記録されていた。本文のhistorical/trailing revenue・cost・net、MRR、runway、銀行入金はいずれも`未確認`で、実数を届けたCFO reportではない。
+- Bot API outboxのstored provider IDとMTProto history message IDは一致しなかった（provider ID minus MTProto ID = -2588）が、recipient binding・本文全体・時刻・同一occurrenceは一致した。API間ID対応は未確認として残し、message ID単独の不一致を未配信とは扱わない。loop event自体の`provider_receipt_id`はnullで、outbox receiptとhistory readbackをloop eventへ結ぶ観測欠落がある。
+- 現在のlocal result reportはTelegram/hourly（`LM_CFO_REPORT_CADENCE`未設定時のdefault）で、Dais向けdaily reportではない。`lm_users`設定値はemail/hourly。別のcloud `life-manager-financial-report` pathはLaunchAgentに`--uid`もtenant envもなく、同テナントの`lm_financial_report_receipts`は5/5 sentながら最新daily period 2026-09-09、latest weekly period end 2026-07-27。10/04のcloud daily deliveryは確認できない。`lm_cfo_result_receipts`には別経路のsent email receiptが1件（period `2026-10-02:09`）ある。これらは一つの統合CFOレポート・現時点の総額・銀行全明細を証明しない。
+- 同じhourly ownerの次の自然attempt `life-manager-cfo-hourly:18db41414afe61e8-9360`（15:57 JST）は`exit 75 / resource_capacity_busy`、effectは`not_applicable`、provider receiptなし。手動wake・再送はしていない。
+- Issue #6549は引き続き`OPEN`、comments/reactions 0。source/config変更・enqueueは未実施。根拠 → [Financial Report enqueue diagnostic](../../evidence/cfo/2026-10-04-financial-report-enqueue-diagnostic.md)。
+
+### 87-N. Apple fiscal proceeds readbackは取得済みだがapp帰属未解決（2026-10-04）
+
+- Official `FINANCIAL` reports were read-only retrieved via ASC CLI 5.9.2. `reportDate` uses Apple fiscal months, not calendar months: fiscal `2026-12` covers 2026-08-30..2026-09-26 and contains one JPY `Extended Partner Share` row; the value is omitted from public spec/evidence. Fiscal `2026-11` returned Apple's no-sales response. Do not call the `2026-12` value a full calendar-September total or bank deposit.
+- The finance row's Apple Identifier matched none of the 24 app IDs in the current read-only ASC inventory. Its title `Anicca Annual` matches a local StoreKit display name, but that StoreKit product ID differs; this does not prove the report row belongs to current Anicca iOS. Keep it as unattributed Apple proceeds, outside verified app revenue/B7, until official app-ID/product mapping is resolved.
+- Apple documents that fiscal reports contain monthly proceeds and that `Extended Partner Share` is quantity times per-unit partner share after applicable taxes and Apple commission. Root reports/definition → [ASC financial report readback](../../evidence/mobile/2026-10-04-asc-acquisition-readback.md#2026-10-04-apple-fiscal-financial-report-follow-up), [Apple report guide](https://developer.apple.com/help/app-store-connect/getting-paid/download-financial-reports), [Apple report fields](https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields).
+- Raw reports/amounts were not persisted. Attribution gap does not change the current B7 `missing_coverage`; cloud source integration, full Apple settlement cash receipt, and report `unknown` behavior remain incomplete.
+
+### 87-O. Mobile RevenueCat monetary definitionとApple proceeds帰属の再確認（2026-10-04）
+
+- 2026-10-03までの最新`business-outcomes`では6 mobile appsにRevenueCat `available` rowがあるが、currency、unit、`revenue_definition`が欠落しており、金額として合算できない。保存済み`subscriptions.json`は最新日2026-09-26でintegrity PASSだが、Anicca/Honneは`unavailable / product_pack_observation_missing`。この2投影は異なるsourceであり、前者のavailabilityをMRR確定と読まない。
+- この時点の探索ではAPI keyを見落としていた。後続read-only確認でprivate runtime envにnonempty `REVENUECAT_PROJECT_ID`と`REVENUECAT_V2_SECRET_KEY`を検出し、mode 600を確認した（値は表示・保存しない）。credential SSOT自体にはRevenueCat entryが無い。APIを使った最新readbackは§87-Qへ追記し、この節の「live readback未取得」は訂正済みとする。legacy 2026-05-04 MCP snapshotは2026-05-11以降staleで、current値として再利用しない。
+- ASC CLIの公式fiscal `2026-12` FINANCIAL reportには、2026-08-30..2026-09-26を対象とする`IAY` (iOS auto-renewable subscription) のJPY `Extended Partner Share`行が1件ある。しかしreport Apple Identifierはread-onlyの現ASC app inventory 24件のいずれにも一致せず、Apple ID lookup/public lookupでも現在のportfolio appへ結び付かなかった。`Anicca Annual`という表示名の一致だけでは同一productの証明にならず、local StoreKit product IDも異なる。従ってこのproceedsはunattributedのままB7外に置き、current Anicca売上・calendar September total・銀行着金とは扱わない。
+- 公式Apple docsはreportDateがfiscal monthであること、`Extended Partner Share`が税/commission控除後のunit share×quantityであること、`IAY`がauto-renewable subscriptionであることを定義する。根拠 → [RevenueCat and ASC finance coverage readback](../../evidence/mobile/2026-10-04-revenuecat-finance-coverage.md)、[ASC report guide](https://developer.apple.com/help/app-store-connect/getting-paid/download-financial-reports)、[financial report fields](https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields)、[product type identifiers](https://developer.apple.com/help/app-store-connect/reference/reporting/product-type-identifiers)。
+- CFO cursorおよびIssue #6549 gateは変更しない。Direct RevenueCat MRR/proceedsはprovider metricであり、current mobile cash settlement、Apple-to-bank payout、全stream MRR/利益を確定しない。Local business-outcomesにcurrency/revenue_definitionが欠ける問題とB7 coverage gapsは継続する。
+
+### 87-P. Moneytree live plugin再読でも口座明細はstale（2026-10-04 17:30 JST）
+
+- 接続済みMoneytree pluginのread-only `show_accounts`を再実行し、銀行口座1件を確認した。残高項目は返るが、responseにsource-updated/last-sync timestampは無い。従ってAPI呼び出しが今成功しても残高の鮮度は証明されず、`current`ではなくlast-known/partialとして扱う。
+- `show_transactions`の2026-09-05..2026-10-04 queryは0 rows。診断用の2026-08-01..2026-08-31 queryは80 rowsだが最新transaction dateは2026-08-25で、9月・10月の支出が無いことを示すものではなくreadback coverage gapである。
+- `show_spending_summary`の2026-07-05..2026-10-04 responseは7月と8月bucketのみ。7月は要求開始日が月初ではなく、8月も最後のtransactionは8/25のため、どちらも完全な最近月の支出とは扱わない。negative transactionには`transfer`/repaymentも含まれるため、全negative amountをexpense合計にしない。
+- 現在利用可能なMoneytree tool listにprovider sync/refresh status操作はなく、account responseにもfreshness cursorが無い。明細・merchant・account number・個人金額は新規public evidenceへ保存しない。詳細 → [Moneytree live plugin readback](../../evidence/cfo/2026-10-04-moneytree-current-readback-1730.md)。
+- 後続の12か月再読では4つの非重複windowが178/311/316/183 rows（合計988、重複なし）を返し、日付範囲は2025-10-04..2026-08-25で変化なし。Moneytree分類は`expense` 45件、`income` 48件、残り895件はincome/expense category_typeなし。そのうち887件がnegative flowでtransfer/repaymentを含む。`category_type=expense`の正額11件はcredit/reversalとして支出へ加算せず、負額expense rowsの合計は別read-only `show_spending_summary`と一致した。9月以降の支出なしを意味せず、negative rows全件をexpenseへ合算しない。個人金額・取引行は証拠に保存しない。
+- CFO TODO順とIssue #6549 gateは変更しない。個人残高・9/5以降の個人cash expenseをcurrent/completeとして報告するには、fresh provider sync cursorまたは別の公式current readbackが必要である。
+
+### 87-Q. RevenueCat API v2 live metricは取得済み、settlement/単位表示は分離（2026-10-04）
+
+- 現行`business_outcomes.py`とprivate runtime envのV2 secret keyを使い、公式APIのread-only GETを実行した。private env modeは600、credential SSOTにはRevenueCat entryが無い。secret/project/app ID/raw responseは保存していない。
+- RevenueCat `mrr/options`の8 app filters中、既存6 Mobile `PRODUCTS`は6/6一致。追加2件はWeb BillingとTest Store。JPY指定の最新complete chart period 2026-10-03でMobile 6 app MRRはJPY 3,196.91（Anicca iOS 3,196.91、他5 app 0）。Web BillingとTest StoreもMRR 0で、project totalと6 Mobile app合計は一致した。USD指定では同じperiodのMRR USD 20.34。`metrics/overview`はMRR `$20`、28-day Revenue `$32`、active subscriptions 5、active trials 0を返したが、overviewにcurrency code/as-of timestampは無い。
+- 完了済みcalendar September `metrics/revenue`を`revenue_type=proceeds`, `currency=JPY`で取得し、project-wide JPY 3,363.77。RevenueCat chartのapp filterはAnicca iOSのProceedsが同額、ほかの7 app filtersは同一zero-response hashだった。ただしMRR/revenue chart responseの`yaxis_currency=JPY`に対して`yaxis`/measure `unit`は`$`を返す。API docsのcurrency parameterとproject metricsの明示currencyは一致する一方、chart labelは矛盾するため、app-level valueをB7 settled ledgerへ入れる前にconsumerがcurrency fieldを尊重し、表示unitの不一致を残さない契約が必要である。
+- RevenueCat MRRはrun-rate point、`proceeds`はRevenueCat project revenue metricであり、どちらもApple FINANCIAL settlement receiptや銀行着金ではない。Apple fiscal rowのapp帰属も§87-Nの通り未解決。`business-outcomes.jsonl`のcurrency/revenue_definition欠落は直っておらず、live readをCFO report/ledgerへpersistしたりsource mutationを行ったりしていない。
+- 根拠 → [RevenueCat live financial readback](../../evidence/mobile/2026-10-04-revenuecat-live-readback.md)、[RevenueCat API v2 charts and metrics](https://www.revenuecat.com/docs/api-v2/charts-and-metrics)。
+
+### 87-R. Google usage estimate再readback（2026-10-04 17:50 JST）
+
+- immutable installed release `1a7a8e2f`のtenant-scoped `readCostLedger` GETとproductionの`lm_financial_cost_totals` `STABLE` read RPCを同じhalf-open windowで照合。2026-10-01 00:00 JST..2026-10-04 17:50 JSTでdirect GETとRPCはいずれも6,265 rows、合計estimate USD 5.011581116667で一致した。
+- Provider estimatesは`google_maps` USD 4.13 / 826 rows、`google_search_grounding` USD 0.07 / 2、`gemini` USD 0.74665475 / 18、`route_cache` USD 0 / 4,137、provider-unattributed USD 0.064926366667 / 1,282。Google-labeled合計（Maps+Search+Gemini）はUSD 4.94665475。
+- 13:54 JSTから94 rows増え、Google-labeled estimateはUSD 0.195増加。6,265 rows全てで`meta.loop_id`と`meta.actual_status`が欠落し、これは`est_usd` telemetryであって実請求・per-loop costではない。10月Google invoiceは未取得。
+- Google API費がnear-zeroになった証拠ではない。2026-09 invoice parserのcross-month Cloud Storage差分、official Cost Table reconciliation、tenant/loop attribution、OpenPOIのproduction UX/actual savingは未解決。Issue #6549 gate・CFO TODO順に変更なし。
+- 根拠 → [Google Cost Table and usage readback](../../evidence/cfo/2026-10-04-google-cost-table-readback.md)。
+
+### 87-S. Stripe live balance・checkout・payoutとMUFG着金のread-only join（2026-10-04 18:13 JST）
+
+- private runtime envのnonempty `STRIPE_SECRET_KEY`（mode 600）を使い、Stripe official APIのGETだけをreadした。`/v1/balance`はlive mode、current available/pending JPYとも0。全履歴listはbalance_transactions 20、charges 19、refunds 3、payouts 2、subscriptions 7で、全list paginationが完了。subscription 7件はすべてcanceled。
+- Balance TransactionsのJPY netはcharge 5,587、payment 1,618、refund -2,204、stripe_fee -46、adjustment +1、payout -4,956で総和0。Paid payoutsは2件、JPY 1,618（arrival 2026-05-18）とJPY 3,338（arrival 2026-04-13）。Moneytree 2026-04-01..2026-05-31の190 transaction rows中、各payoutに同日・同額・Stripe表記のpositive income rowが1件ずつ一致（2/2）。payout受取は照合できたが、この合計をLife Manager利益とは扱わない。
+- Stripe Chargesはlive 19件中、succeeded 9件・USD 50.99 captured、refund USD 15.00、failed 10件・USD 50.00でcaptured 0。Checkout Sessions全231件を3 pagesで読んでproduct filterすると、設定済みEbook EN productはpaid 1件 USD 10.99、refund 0、手数料控除前。Ebook JAはpaid 0。残り8 succeeded chargeはgross USD 40.00で、その中にUSD 15.00のrefund activityがある。いずれもEbook EN/JAへjoinせず、全chargeで`lm_economic_category`もunclassified。USD charge totalsとJPY balance/payoutは為替換算・二重加算しない。
+- この実測はStripe accountのofficial live activityとbank receipt correlationを示すが、owner/product-unclassified chargesのLife Manager attribution、商品別fees/refunds complete join、CFO B2 artifact persistence、company-wide net P&Lは未達。Source/configは変更しておらずIssue #6549 gateは維持する。
+- Secret、account/transaction/payout IDs、raw payload、個人銀行取引明細は保存しない。Canonical response digestsとsource boundaries → [Stripe live readback evidence](../../evidence/cfo/2026-10-04-stripe-live-readback.md)、[Stripe balance transactions](https://docs.stripe.com/api/balance_transactions)、[Stripe payouts](https://docs.stripe.com/api/payouts/create)。
+
+### 87-T. Capafy 30日収益・OpenRouter key別実費のreadback（2026-10-04 18:50 JST）
+
+- Capafy公式APIをread-onlyで照合した。指定日窓2026-09-04..2026-10-03の`GET /agent/sales/trend`はgross USD 107.75、refund USD 24.98、114 ordersを返す。seller `POST /app/sales/clickhouse/trend`は30 daily rows、revenue USD 82.77、refund USD 0を返し、gross minus refund（107.75−24.98）とは金額一致する。一方、daily `orders`の単純合計は81、現行`_seller_money()` helperはrevenue正額の日だけ数えて68を返す。注文数は同一definitionでreconcileできていない。
+- 同じ2026-09-04..2026-10-03の`POST /app/realtime-revenue/clickhouse/trend`は30 daily rows、top-level/summed revenue USD 61.78を返す。これはCapafy provider metricであり、bank settlement、paid payout、active subscription MRRではない。`payout-info`はbalancePayout USD 59.00、balancePending USD 11.02、balanceConfirmed USD 6.16、totalPayout USD 0。read-only `payout-record`は2件とも`below_threshold`、amount USD 0で、現金着金receiptは無い。
+- OpenRouter `GET /key`（Capafy設定のhost key）は`usage_monthly=USD 0.143331745`を返した。公式APIはこの値を認証中のkeyに対するcurrent UTC month usageと定義するため、これは10月1日〜観測時刻（2026-10-04 09:50Z）のkey別usageであり、10月全月予測ではない。管理keyの`GET /keys`で同keyのlabelは一意に照合できた（4 keys中1 match）。hash/labelは保存・表示せず、`GET /activity?api_key_hash=<matched-hash>`はlast 30 completed UTC daysでUSD 25.08、27 activity-day buckets（2026-09-07..2026-10-03）を返した。これはCapafy設定host keyのprovider usageであり、請求書支払・全Capafyの全費目ではない。単純算術のUSD 61.78−25.08=36.70は部分的な収益差額にすぎず、settled profitとは扱わない。
+- 現行source pathには帰属問題がある。`_live_payloads()`はmanagement keyで`GET /activity`を`api_key_hash`/`workspace_id`無しで呼び、`build_skill_analytics()`はその合計を`cost30_actual_usd`に入れる。main上のdaily-close scoreboardは同フィールドを表示する。OpenRouter公式仕様では無指定の`/activity`はmanagement-key accountのworkspaceをまたいだ集計であるため、未filterのmanagement usage USD 34.50（Capafyの日付窓へ日付labelを絞るとUSD 34.13）をCapafy原価として表示・減算してはならない。host key hashをfilterしたUSD 25.08との差は費用漏れではなくsource-scope差であり、他workspace/keyへの配賦もまだ確定しない。source pathの確認はコード上の所見であり、本番daily-closeで同額が配信されたことのreadbackではない。
+- CFO/B7には、Capafy seller order-count定義、gross/refund/creator-earningsのperiod join、OpenRouter key/workspace attribution、official settlement-to-bank receipt、CFO artifactへの接続が残る。個別keyの月別usageはactual provider usageであってinvoice/paid receiptではない。read-only API照合のみで、ledger/state/config/API key/providerを変更していない。
+- 根拠 → [Capafy readback implementation](../../../skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py)、[OpenRouter current API key](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-api-key)、[OpenRouter API key list](https://openrouter.ai/docs/api/api-reference/api-keys/list-api-keys)、[OpenRouter activity API](https://openrouter.ai/docs/api/api-reference/analytics/get-user-activity-grouped-by-endpoint)、[OpenRouter management key scope](https://openrouter.ai/docs/guides/overview/auth/management-api-keys)。
+
+### 87-U. Moneytree再readbackでも個人cash/支出はstale（2026-10-04 19:00 JST）
+
+- 接続済みplugin `show_accounts`を再読し、銀行口座1件・投資口座0件を確認した。responseにsource-updated/last-sync timestampは無いため、表示残高はlast-knownのまま。個人残高の正確な値はtracked spec/evidenceへ書かない。
+- `show_spending_summary`の要求期間2025-10-04..2026-10-04は2025-10〜2026-08の11 monthly bucketsのみを返し、2026-09/10 bucketは無い。`show_transactions`の2026-07-04..2026-10-04は183/183 rowsで、最新transaction dateは2026-08-25。追加した2026-09-01..2026-10-04 queryは0 rows、同期間のsummaryも0 bucketsを返した。これはcoverage gapであり、9〜10月の支出が0という意味ではない。
+- currently exposed Moneytree tool setにはsource sync/refresh操作が無い。login、account、sync stateは変更していない。fresh current cashと最近月の支出は引き続き`partial/stale`/`unknown`とし、個人金額・明細・merchantはrepositoryへ保存しない。
+- read-only official plugin readbackはspec更新の根拠だが、fresh bank balance、full current-period expense、daily CFO delivery/ledger receiptを証明しない。CFO TODO順は変更しない。

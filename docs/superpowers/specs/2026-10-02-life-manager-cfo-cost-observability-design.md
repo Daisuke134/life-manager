@@ -4,6 +4,8 @@ Status: design draft for review
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
+Current operational evidence and source freshness → [unified SSOT §87](2026-09-25-life-manager-unified-ssot.md). This document's evidence section is a dated design baseline, not a live readback.
+
 ## 1. Outcome
 
 Life Manager gives Dais one daily CFO report containing:
@@ -17,7 +19,9 @@ Life Manager gives Dais one daily CFO report containing:
 
 The report is not complete when a local calculation succeeds. It is complete only after the source provider was read and the resulting receipt is durable.
 
-## 2. Current evidence and gaps
+## 2. Design-baseline evidence and gaps
+
+The observations below describe the design baseline. Use unified SSOT §87 for current Moneytree, revenue, cost, and production status.
 
 ### Evidence
 
