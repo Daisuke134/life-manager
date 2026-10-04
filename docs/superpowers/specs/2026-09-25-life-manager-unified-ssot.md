@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§448で取得した名前候補の会話同一性と公式peer bindingへ進む安全な方法をfresh read-only reviewで確認すること。候補出現2を2人や確定peerと扱わず、送信を行わない。§422のbound targetへの公式identity bindingへつなぎ、同じ構造/寸法/検索診断を反復しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§449に従いrange1の候補を同occurrenceで再取得し、同CID/候補/exact listをatomic再照合して既存会話を一度だけ開き、selected pane CIDと公式peer handle/UIDを確認すること。候補を本人確定や送信判断へ昇格せず、newchat/composer/sendを行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6997,3 +6997,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 候補は期待nickname hash一致だけ、handle/UID欠落、候補行identity conflictなし、official peer unverified、provider read-state unknown。過去公開hintのfreshness=false/current3_complete=falseを維持。全履歴/中間全件網羅/送信/納品は未証明。status multiple_candidatesは観測出現2を分類したもので、異なる2人との結論へ使わない。
 - primary再fixturePASS、実argvとsource/result/proof一致。reader `ad72d9aa466106320992f9e047f21042942f86e900cdeea7ae8e59313fbc3094`、result `d90ba041dc43f01c2dc69bafdc3335d22a062878f39dc9cbcb94b6d2e4ab0639`、proof `544f9f8047847420538b29539677c10b6ec4b9b928829f19b3868c6d867a5543`。循環自己hash欄なし、外側proofのresult hash一致を確認。新3files600、元source不変、exact nickname nodeのhashだけ採用。rowclick/search/profile/newchat/compose/send/auth/fence0、guard release0/own target absent/prior exact ID+URL保持/lease absent。
 - 次はfresh Sol/medium read-only reviewで、candidate CID跨range同一性の限定取得と、一方rangeのunique候補を通常の既存会話として読む方法を比較する。名前候補を確定peerや送信判断へ昇格せず、公式handle/UID・本文receiptのbindingへ進む最短手を選ぶ。構造/寸法/検索診断の反復はしない。現在3→次4、SelfBuild/Eval最後。
+
+
+### 449. Range1の既存候補会話を一度開き公式peer bindingを読む
+
+- fresh Sol/medium reviewerは§448source/result/proof一致、各48metadata安定・nickname候補1・handle/UID欠落・selection/send0・cleanupを確認。候補出現2は異なる2peerの証拠ではなく、validだが非freshのhintは本人確定に使えない。跨range CID比較ではbound targetの公式identity不足が解消しないため、range1の既存会話を一度開く方法を単一推奨とする。reviewの外部/file変更0。
+- 同occurrence/own targetでrange1へ通常移動、metadataを再取得し候補1件を確認。その場のcandidate CIDhashを取得し、既存atomic select helperでクリック直前の同CID/同候補/exact listを再照合して開く。過去index29/locator単独や任意の別候補へfallbackしない。selection後のselected pane CID一致とpeer headerの公式handle/UIDをbound targetへ照合する。名前だけならcandidate_onlyを保持。
+- 本文receiptは既存helperの実コードで同selected pane・read-onlyが確認できた場合だけ、同paneのsender/target body/receipt bindingとして読む。helper存在/sourcefixtureを実read成功へ昇格しない。row選択は最大1、通常scrollはrange1への1回、send/newchat/composer/auth/fence0、provider read-state unknown。未取得でも再クリック/追加探索をせず不足を保持する。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
