@@ -10,3 +10,9 @@ gate rated some of these "distinct" against YouTube Script Writer, so it did not
 
 To publish one again: `git mv` it back into `skills/capafy/catalog/` once the live
 Hook Lab derivatives show paid orders.
+
+2026-10-04: `academic-limitations-editor/` and `dissertation-discussion-humanizer/` moved
+here too — both are in `skills/capafy/RETIRED.json` (C4: 12 zero-sale near-duplicate
+academic/humanizer agents, Capafy doc 4.2). `inventory_status.py` now excludes any
+agent_id/title listed in RETIRED.json from recovery, retry and fresh-publish candidates,
+so these two can no longer be auto-republished by the drain loop.

@@ -740,3 +740,62 @@ def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, ca
     module.main()
     untouched = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert untouched["verdict"] == "CAP_FULL"
+
+
+def test_retired_offline_agent_is_not_recovered(monkeypatch, tmp_path, capsys) -> None:
+    # C4 (2026-10-04): an agent we deliberately unpublished (RETIRED.json) must
+    # never come back through recover_delisted just because it went offline.
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(tmp_path / "no-catalog"))
+    retired_path = tmp_path / "RETIRED.json"
+    retired_path.write_text(json.dumps({
+        "agents": [{"agent_id": "1037005959", "title": "Retired Skill",
+                    "reason": "C4", "retired_on": "2026-10-04"}]
+    }), encoding="utf-8")
+    monkeypatch.setattr(module, "RETIRED", str(retired_path))
+    monkeypatch.setattr(module, "server_agents",
+                         lambda: [agent("1037005959", "offline", name="Retired Skill")])
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+
+    assert decision["verdict"] == "DRAINED"
+    assert decision.get("action") != "recover_delisted"
+
+
+def test_non_retired_offline_agent_is_still_recovered(monkeypatch, tmp_path, capsys) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(tmp_path / "no-catalog"))
+    retired_path = tmp_path / "RETIRED.json"
+    retired_path.write_text(json.dumps({
+        "agents": [{"agent_id": "1037005959", "title": "Retired Skill",
+                    "reason": "C4", "retired_on": "2026-10-04"}]
+    }), encoding="utf-8")
+    monkeypatch.setattr(module, "RETIRED", str(retired_path))
+    monkeypatch.setattr(module, "server_agents",
+                         lambda: [agent("sold-1", "offline", name="Sold Skill")])
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+
+    assert decision["verdict"] == "PUBLISHABLE"
+    assert decision["action"] == "recover_delisted"
+    assert decision["item"]["agent_id"] == "sold-1"
+
+
+def test_malformed_retired_json_fails_closed(monkeypatch, tmp_path, capsys) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(tmp_path / "no-catalog"))
+    retired_path = tmp_path / "RETIRED.json"
+    retired_path.write_text("{not valid json", encoding="utf-8")
+    monkeypatch.setattr(module, "RETIRED", str(retired_path))
+    monkeypatch.setattr(module, "server_agents",
+                         lambda: [agent("sold-1", "offline", name="Sold Skill")])
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+
+    assert decision["verdict"] == "SERVER_UNREADABLE"
