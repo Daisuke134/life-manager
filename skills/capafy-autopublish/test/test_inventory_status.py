@@ -501,6 +501,38 @@ def test_fetch_agent_detail_reads_publish_remote_status(monkeypatch) -> None:
     assert module.fetch_agent_detail("9470213182") == (3, 4)
 
 
+def test_duplicate_gate_drops_near_duplicate_and_unknown_keeps_distinct(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    cache_path = tmp_path / "verdicts.json"
+
+    def listing(name: str) -> Path:
+        path = tmp_path / f"{name}.md"
+        path.write_text(f"## Title\n{name}\n")
+        return path
+
+    distinct = listing("distinct")
+    near_dup = listing("near_dup")
+    unjudged = listing("unjudged")
+
+    sha_distinct = module.duplicate_gate.listing_content_sha(distinct)
+    sha_near_dup = module.duplicate_gate.listing_content_sha(near_dup)
+    cache_path.write_text(json.dumps({
+        "distinct": {"content_sha256": sha_distinct, "verdict": {"verdict": "distinct", "closest": "", "why": "ok"}},
+        "near_dup": {"content_sha256": sha_near_dup, "verdict": {"verdict": "near_duplicate", "closest": "X", "why": "same"}},
+    }))
+
+    items = [
+        {"feature": "distinct", "title": "Distinct", "listing": str(distinct)},
+        {"feature": "near_dup", "title": "Near Dup", "listing": str(near_dup)},
+        {"feature": "unjudged", "title": "Unjudged", "listing": str(unjudged)},
+    ]
+    monkeypatch.setattr(module.duplicate_gate, "DEFAULT_VERDICTS_PATH", cache_path)
+
+    results = {it["feature"]: module._not_near_duplicate(it) for it in items}
+
+    assert results == {"distinct": True, "near_dup": False, "unjudged": False}
+
+
 def test_repo_catalog_is_ready_and_overrides_same_title_legacy_item(tmp_path: Path) -> None:
     module = load_module()
     features = tmp_path / "features"

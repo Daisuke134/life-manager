@@ -12,6 +12,8 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import duplicate_gate  # noqa: E402 — Capafy 4.2 near-duplicate gate (model-judged, cached)
 
 STATE_HOME = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", Path.home() / ".local/state/life-manager")).expanduser()
 DEFAULT_FEATURES = STATE_HOME / "features"
@@ -172,6 +174,51 @@ def refresh_backlog(existing: dict, inventory: dict, features: Path, icons: Path
     }
 
 
+def _live_listings(backlog: dict) -> list[dict]:
+    """Live listings = backlog items already online/approved ("listed"). Their
+    LISTING.md still lives in the repo catalog even after publish, so the model
+    comparison gets real title+description, not just a bare title."""
+    live = []
+    for item in backlog.get("items", []):
+        if item.get("state") != "listed":
+            continue
+        listing_path = item.get("paths", {}).get("listing")
+        if not listing_path:
+            continue
+        summary = duplicate_gate.read_listing_summary(listing_path)
+        if summary.get("title"):
+            live.append(summary)
+    return live
+
+
+def judge_ready_candidates(backlog: dict, runner=duplicate_gate.default_runner, cap: int = 2,
+                            cache_path: Path | None = None) -> int:
+    """Judge up to `cap` not-yet-judged ready/ready_retry candidates against the
+    account's live listings (Capafy 4.2 near-duplicate gate). Verdicts persist to
+    duplicate_gate's cache; this bounds model spend to `cap` calls per wake — the
+    judgment itself always comes from the model, never from this loop's string
+    matching. Returns how many candidates were actually judged this call."""
+    live = _live_listings(backlog)
+    judged = 0
+    for item in backlog.get("items", []):
+        if judged >= cap:
+            break
+        if item.get("state") not in ("ready", "ready_retry"):
+            continue
+        listing_path = item.get("paths", {}).get("listing")
+        if not listing_path:
+            continue
+        sha = duplicate_gate.listing_content_sha(listing_path)
+        resolved_cache_path = cache_path if cache_path is not None else duplicate_gate.DEFAULT_VERDICTS_PATH
+        cached = duplicate_gate._load_cache(resolved_cache_path).get(item["candidate_id"])
+        if cached and cached.get("content_sha256") == sha:
+            continue  # already judged for this exact LISTING content
+        candidate = duplicate_gate.read_listing_summary(listing_path)
+        duplicate_gate.get_cached_verdict(item["candidate_id"], sha, candidate, live, runner, cache_path=cache_path)
+        judged += 1
+    return judged
+
+
 def atomic_write(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -209,6 +256,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     observed_at = args.observed_at or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     backlog = refresh_backlog(existing, inventory, args.features, args.icons, observed_at, args.catalog)
+    # Capafy 4.2 near-duplicate gate: judge up to 2 not-yet-judged ready candidates per
+    # wake (bounded model spend). inventory_status.py's publishable filter reads this
+    # cache on its NEXT run, so a brand-new candidate is excluded the wake it appears
+    # and becomes eligible the wake after, once judged.
+    judge_ready_candidates(backlog)
     atomic_write(args.output, backlog)
     print(json.dumps({"ok": True, "path": str(args.output), **backlog["counts"]}, separators=(",", ":"), sort_keys=True))
     return 0
