@@ -639,6 +639,53 @@ def test_google_form_readback_proves_absence_only_before_prepared_marker(tmp_pat
     assert adapter.readback(intent) == {"resume_required": True}
 
 
+def test_confirmation_requested_without_visible_message_does_not_authorize_replay(tmp_path):
+    adapter = adapter_module.CrowdWorksReplyAdapter(
+        {}, state_path=tmp_path / "reply" / "state.json")
+    url_hash = "a" * 64
+    receipt = adapter._form_receipt_path(url_hash)
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(__import__("json").dumps({
+        "status": "confirmation_requested", "url_sha256": url_hash,
+        "confirmation_thread_id": "thread-1",
+    }), encoding="utf-8")
+    intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
+        "kind": "submit_google_form", "url_sha256": url_hash,
+    }}
+    adapter._detail = lambda _thread: []
+
+    assert adapter.readback(intent) == {}
+
+
+def test_confirmation_send_exception_preserves_fence_and_never_reposts(tmp_path):
+    adapter = adapter_module.CrowdWorksReplyAdapter(
+        {}, state_path=tmp_path / "reply" / "state.json")
+    url_hash = "a" * 64
+    receipt = adapter._form_receipt_path(url_hash)
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(__import__("json").dumps({
+        "status": "prepared", "url_sha256": url_hash,
+    }), encoding="utf-8")
+    intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
+        "kind": "submit_google_form", "url_sha256": url_hash,
+    }}
+    adapter._refresh_post_contract_ownership = lambda _thread: False
+    adapter._open = lambda: None
+    attempts = []
+    def uncertain_send(thread, body):
+        attempts.append((thread, body))
+        raise RuntimeError("send_readback_unknown")
+    adapter._send_reply_once = uncertain_send
+    import pytest
+    with pytest.raises(RuntimeError, match="send_readback_unknown"):
+        adapter.mutate(intent)
+    fenced = __import__("json").loads(receipt.read_text(encoding="utf-8"))
+    assert fenced["status"] == "confirmation_requested"
+    adapter.mutate(intent)
+    assert len(attempts) == 1
+    assert __import__("json").loads(receipt.read_text(encoding="utf-8")) == fenced
+
+
 def test_prepared_google_form_requests_confirmation_once_and_accepts_buyer_receipt(tmp_path):
     state = tmp_path / "reply" / "state.json"
     adapter = adapter_module.CrowdWorksReplyAdapter({}, state_path=state)
@@ -673,7 +720,7 @@ def test_prepared_google_form_requests_confirmation_once_and_accepts_buyer_recei
     assert persisted["confirmation_thread_id"] == "thread-1"
     sent.clear()
     adapter.mutate(intent)
-    assert sent == [("thread-1", adapter.FORM_CONFIRMATION_BODY)]
+    assert sent == []
     sent.clear()
     adapter.mutate({**intent, "thread_id": "thread-2"})
     assert sent == []
