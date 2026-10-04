@@ -4882,7 +4882,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 
 | 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
 |---|---|---|---|
-| 2 | ブラウザ排他待ち・未完 | Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。§398の稼働owner正常解放後に公式一覧と案件履歴を読む。3へ進まない。 | A01 |
+| 2 | 公式履歴取得済み・要件照合中 | Coconala既存案件の具体的残納品条件とartifact対応を確認する。§399でopen3件と過去1件の公式全履歴を取得。18211957は公式取引完了でopen制作対象へ追加しない。open3の数量・品質・承認scope・原資料と現artifactの完全対応は未確認。意味確認を終えるまで3へ進まない。 | A01 |
 | 3 | 順番待ち | Coconala案件の残制作を納品条件まで完了する。 | A03 |
 | 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
 | 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
@@ -6528,3 +6528,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 番号2のread-only担当はregistered browserのHTTP200とUUID一致を確認したが、guard acquireはexit9。live holder PID16957のpaid_direct/adapterが所有中で、注文/案件履歴の取得0、client送信/正式納品/upload/source/active project state/認証cookie変更0。排他待ちは認証障害や要件取得完了へ言い換えない。
 - 私的証跡は `/Users/anicca/.local/state/life-manager/state/execution-2-coconala-requirements-20261004/admission-held-summary.json`。所有者の正常解放後、fresh guard確認→stable PIDで取得→通常contextの公式一覧/案件履歴を読取→自己所有targetだけclose/releaseする。live holder停止やlease強制解除は行わず、番号3の制作へ進まない。PIDは観測時点の値であり再開時に再照合する。
 - 番号36の古いsource HOLD記述を§397の限定SHIPへ訂正した。公式精算/費用/銀行着金/期間coverageは未完のまま保持する。
+
+
+### 399. 番号2の公式全履歴取得、残要件の意味確認へ進行
+
+- §398の排他待ちは所有者の正常解放後に解消。stable ownerでguardを取得し、registered通常contextに自己所有targetのみ作成して公式ordersと4案件履歴を読取。公式取得UTC11:18:18–11:18:43、loaded release `/Users/anicca/loops/releases/20261004T190413-1c21656e`。open一覧は18180857/18223833/18250352。4案件ともHTTP200/login_redirectfalse/historycomplete、message件数63/28/35/441。手動readbackであり自然loop成果や財務receiptへ拡張しない。
+- 18180857は取引中、latestbuyer222551969、現feedbackhashはlocal一致。v8の件数・品質と現在feedback/reviewの対応は未確認。過去19/281を現在件数へ転記しない。18223833は取引中、budget①approval222226516と別NPO②222226563を区別し、v16bとの内容bindingを確認する。18250352は取引中、latestbuyer221897659、v15と役員変更/提出書類/決算原資料の充足を確認する。後2案件は最新seller添付後buyer返信0で、旧要求を直ちに新制作へ変換しない。
+- 18211957は公式「取引完了」、latestbuyer222345575。open制作対象へ追加しない。formal/acceptanceの個別event ID、精算/着金は別未確認であり、取引完了表示を銀行着金へ拡張しない。
+- 私的packet `/Users/anicca/.local/state/life-manager/state/execution-2-coconala-requirements-20261004/requirements-readback-summary.json`、SHA256 `151b40b0eca220bcdb892773c3d55deaac3b01f88a43be6b1c5c611f86241f25`。ページ読取5、historyload実request数は個別instrument無し。client送信/正式納品/upload/source/activeproject/authcookie変更0、own target残0、prior保持true、他target変更0、guard release exit0。
+- 固定keyword分類だけでは具体的残要件/承認/原資料充足を証明しない。fresh gpt-6.1-sol/medium read-only担当が取得済み履歴と既存artifactを意味照合する。現在cursor2未完、次3、順序変更無し。
