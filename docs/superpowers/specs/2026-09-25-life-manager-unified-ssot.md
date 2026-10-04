@@ -4878,7 +4878,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A07 Coconala payout／銀行着金を照合する。
 - [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§301のfresh公式金融pageはHTTP405／human_verification true、明細unavailable。正規人間検証が必要。
 - [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
-- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302の最新censusはreply219／application5。provider lock保持reply_kernel PID48806をlive確認、公式readback待ち。旧18と混同しない。
+- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302のcensusはreply219／application5。§303でreply_kernel PID48806の終了とlock不在を確認、既存readonly公式readbackを再開。旧18と混同しない。
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
@@ -5643,3 +5643,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - lock現物のlsofでholder48806を確認し、psのactual entrypoint reply_kernel.py／parent48764／elapsed1:00→2:11をfresh確認する。lock存在だけで稼働と判断せず、kill／重複browser操作／manualwake0。application latest runtime passとreceipt null／effect unknownは別の事実であり、応募成功を証明しない。
 - 既存evaluateを公式会話未取得のcallbackで読み取り実行、219件のproof成立0。内訳effect_marked115、run_marker_unavailable98、official_conversation_unavailable6。thread304360469へ94markersが集中、external_action／submit_google_form／reconcile_unknown／state occurrence binding無し。marker countは新規送信countではなく、94回の送信や重複と断定しない。次はsame live provider owner terminal後に公式thread／form receipt readbackをexact occurrenceへ結合する。
 - 新しいhost pre-effect hintは既存allowlistでseedされるため、旧marker不足だけで現行source欠陥とは断定しない。rc75文字列を作用0へ丸めず、旧fenceを解除しない。proof state/crowdworks-a10-reply-readback.json、crowdworks-a10-application-corrected-readback.json、crowdworks-a10-marker-boundary.json/mode600。provider query待ち／作用0／resolve無し。A10未完、全goal未完、SelfBuildは最後。
+
+### 303. Mercor公式現在inventoryとCrowdWorks保持者の終了確認
+
+- 前turnは§302のexact marker不足診断でprogress。本turnの初回CrowdWorks holder48806はelapsed3:15でlive。同じhandleを再確認してmissing、provider lockのlsofもholder無しを確認し、既存reconcileのresolve無し公式読取を再開する。reconcile_reply_no_send PID55190／parent55188はactual executableを確認してlive。restart／重複送信／fence解除0。
+- Mercorは初回registered lease busy75。追加browser-guard statusでholder無し・registered endpoint healthyを確認して再取得成功。本人emailはprivate profileからメモリ内で照合し、既存_direct_capture_expressionによるofficial applications／contracts GETのみ実行。pageHTTP200・両source取得成功、applications100行（applied10／applying-started8／rejected82）、contracts0行。全件paginationや同期間売上・費用0の証明ではない。新規応募／返信／token refresh／credential変更0。proof state/mercor-a13-official-readback.json/mode600。
+- A13の旧App／Reply exact occurrenceとの結合は未完。CrowdWorks公式readbackの終了／結果を次に確認する。SelfBuildは最後、全goal未完。
