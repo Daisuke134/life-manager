@@ -6837,3 +6837,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - rowclick/scroll/newchat/compose/send/auth/fence0、ownabsent/prior exact/guardrelease0/leaseabsent PASS、既存target2保持。15秒の間にrow数/row textが変化したため初期化途中は観測されたが、nickname marker自体は両時点で1。全history coverage、名前valueの取得可能性、案件96行との一致は未証明。
 - 次の最小観測は、同row内の実marker dm-new-conversation-nicknameについて、現wildcard/class selectorの一致数とexact markerの一致数、aria-label/innerText/textContentの有無・長さ・hashを比較し、識別項目をどの値から読むか確認すること。marker存在だけでnickname値存在を仮定せず、matcherの緩和/別会話fallback/SDK全探索/新decoderはしない。元frozen成果物を保持し、親91942の終端確認後に次の担当へ渡す。
 - current3→next4/残51項目/全goalactive。actual構造の診断が前進したが、案件sender/body/ID/time/公式送信数/全300/納品は未完、NPO待ちは§418を維持する。
+
+
+### 431. 名前markerのselectorは一致、空値から15秒後の値出現を実測
+
+- 前turnは名前診断reader作成と同handle54942継続のverified wait。本turnでguard付きoneUI/2snapshotの実resultを取得。reader SHA256 ddfe8a438c14ed6ba0e3cfbf6613250cba11ce0086443aeab07618446bb4e032、result SHA256 30a7554703f7d90ac4fc7df8ee156666890c7b92ee91436e300b97b2fe563b7c、proof SHA256 8c3b20828fb82e47a5a31cbb2b1b5fdfb5e61d0ea1eeedfbb66db12726c999b0（§399同private dir/600）。31.771s/status nickname_value_diagnostics_saved、Rootがsnapshot/比較値を実fileで確認。
+- 初回20rows/15.051s後28rows、最大3個のID-bearing rowを同held/default contextで観測。exact dm-new-conversation-nicknameと現wildcard/class nameSelは両時点とも各row1要素、合計3で同じP要素/data-e2e/classを取得。selectorの相違が値取得0の原因だという仮説はこの実測3rowでは支持されない。
+- 初回は3rowすべてaria-label無し、innerText/textContentは存在するが長さ0・空文字hash。15秒後は同3rowのinnerText/textContentが9/9/5文字になり、両値hash/normalize後nickname hashが一致。marker存在/row存在は名前value準備の証拠ではない。初期化が遅れて値を埋めることが実観測されたため、list row数だけで照合を始めた既存readiness条件が不十分だった。
+- 対象expected nicknameとの一致はこの先頭3rowでは0、partial candidate countsだけでdest/sent countは未主張。対象が残りのloaded row/全履歴に無いという証明ではない。クリック/scroll/newchat/compose/send/auth/ledger/fence本番変更0、route visit seenはunknown。ownabsent/prior ID+URLhash集合一致/guardrelease0/leaseabsent PASS、target2保持。
+- 次は動作済みidentity-fixed controllerのselector/一致基準を変えず、nonempty identity valueが出てからloaded rowを照合するreadiness修正。空metadataでmatch0と確定せず、metadata有り/未準備row数とloaded範囲を別記録する。108s/postscope18s/no fallback/no newchat/ledger非変更を保持し、実producer→consumerの『row有り/値空→後で値有り』を最小RED/GREENで検証。親54942の終端確認後に別fileへ修正を渡す。
+- current3→next4/残51項目/全goalactive。名前値の取得境界は前進したが案件sender/header/body/ID/date/公式送信数/全300/納品は未完、NPO原資料待ちは§418のまま。source-only/diagnostic成功を財務成果へ昇格しない。
