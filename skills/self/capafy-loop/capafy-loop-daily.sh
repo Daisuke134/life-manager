@@ -116,6 +116,10 @@ fi
 python3 "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/reconcile_ledger.py" \
   --json >>"$LOG" 2>&1 || true
 
+# Fill in the real Capafy rejection reason (from Gmail) for the rejection-repair queue
+# so the retry_existing step knows exactly what to fix instead of resubmitting blind.
+python3 "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/rejection_queue.py" >>"$LOG" 2>&1 || true
+
 # Enforce the five simultaneous-submission cap before spending an agent turn.
 # CAP_FULL permits one offline-only candidate build per local calendar day. It never writes to Capafy.
 INVENTORY="$(CAPAFY_CATALOG_DIR="$LIFE_MANAGER_RELEASE_ROOT/skills/capafy/catalog" \
