@@ -5536,3 +5536,12 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 7eaa7af42c325fa17d621802c27be7c520018943はNode154/disk98/contract/OSS/diff PASS、initial full766の既存Fundraiser wrapper10s timeoutを保持。単独1PASS2.09s後、code/timeoutを変えずfullsuite766/152.899s/OKを再確認。source worktree clean/pushed、root/native/source/profitを混同しない。
 - fix-first後の別fresh read-only reviewerをgpt-5.6-sol/high/forknoneで2回spawnしたがagent thread limit reached。list_agentsはroot runningと前reviewer completedのみで、新reviewerを実行できない。既存reviewの通過扱いやsame-contextをfreshと偽装せず、Astra Advisorのnew fresh review条件によりPR/mergeを保留。source費用usageは観測不能、actualcost0ではない。
 - state/selfbuild-owner-baseline-source-20261004.json/mode600へdate修正・RED/GREEN・再suite・2failedspawn・次操作を保存。次の安全操作は新reviewer capacityの確認→7eaa fixedHEADの独立finalreview→PR/allCI/source受入→既存release ownerとserializeしたimmutable/自然source acceptance。旧validsha:null crashwindowと実external hooks/金融gateは未完。全goalはactive、全残TODO → §217。
+
+
+### 296. native review capacity不足をAGMSG fresh独立CLI経路で継続
+
+- fresh fetch/source7eaa/clean/pushed/mainb7fbを確認しnative spawn再試行、agent thread limit reachedが継続。完了reviewerのみを確認したが新native contextを作れず、既存contextをfreshと偽装しない。
+- goal指定AGMSG経路でteam--json観測25s timeout、既存review席peekはrc1/別席20s timeoutで稼働未確認（登録/timeoutを停止と断定しない）。公式playbook/spawn経路を読み、独立fresh Codex sessionをmodelgpt-5.6-sol/high/task-scoped read-onlyで依頼。plain Terminal.app openは-1712で失敗、Mac/Terminal/service再起動0。稼働tmux serverを確認し登録済tmux driver/new windowへ切替。
+- 初回lm-selfbuild-baseline-review-1004はhooks確認で停止、safe pokeがinput box未特定を理由に拒否。raw typing回避0/hooks信頼付与0。CLIのstable hooks featureと--disableを確認し、review taskだけ--disable hooksを指定した別fresh lm-selfbuild-baseline-review-1004bを起動。globalconfig/他pane/sourcebranch変更0。
+- spawnのlaunched-unconfirmedを成功扱いせず、agmsg peekで指定HEAD task/read-onlyレビューの着手とWorkingを観測。UI banner GPT-5.6-Sol high fastを確認。nativeモデル不明とCLI UI観測を区別しusage/billingは観測不能。現在base..HEAD source/testsを読取中、AGMSG ACK/DONE未受信、verdict未確定。
+- state/selfbuild-owner-baseline-source-20261004.json/mode600へroute/errors/requestedflags/UI observationを保存。次はactual独立review DONE/exactHEAD/tests/verdictを確認してからPR/allCI/source受入。既存コード/実金融をreview結果なしにSHIPへ丸めない。全goalactive、全残TODO → §217。
