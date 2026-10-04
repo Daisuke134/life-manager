@@ -5730,3 +5730,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 新main1a7 owners-logにcrowdworks-revenue-reply changed1／skipped0／01:35:06Zが成立。current bin/launchctl-safe printのrc0で実arguments3要素がnew1a7/bin/lm-loop-run、crowdworks-revenue-reply、new1a7 rootと完全一致。immutable／plist installed／実loadedを分けて検証し、旧b7 loaded待ちを閉じる。
 - registryとinstalled plistはStartInterval300で一致。new SHAのイベントはinstall／plan／passのみで、provider receipt無し／effect unknown。installを自然runや再送0の証明にしない。primary manualwake／provider send／旧fence解除0。global reconciler33323は同handle elapsed10:44→12:23でlive、whole fleet terminalは未達。
 - state/crowdworks-confirmation-loaded-natural-readback.json/mode600にloaded argv／new eventsを保存する。A10残3actual queued IDのapplication receiptsは各0だが、local receipt無しを未応募と扱わない。次は新source自然execute→report／occurrence marker／thread pending resultとform receipt保存状態を結合し、未確定再送抑止とunknown保持を実観測する。全金融成果／全goal未完、SelfBuildは最後。
+
+### 316. 新source自然3runのprovider lock境界と旧resultの分離
+
+- main1a7から自然run53782／56199／58678がexecute→reportに到達するが全exit75／provider_browser_busy。actual claimed occurrenceは各旧queued ID25738／26370／29335で、native wake IDと分離する。effect unknownを今回の新規送信や作用0に置換しない。
+- reply/latest.jsonは旧01:32:53Zのobserved154／effect1／readback140／pending14で、new run開始01:37:04Zより前。thread304360469のeffect1も旧outputであり、新コード失敗や再送の証拠へ結合しない。
+- shared dispatcherに移ったためhintを失うという仮説は現物registryで否定する。直接reply-owner、既存pre-effect allowlistに含まれる。原因境界はlock取得前であり、未確認の追加source修正を始めない。現在holder59143／parent59098／application_owner.pyはelapsed1:11でlive。相手を止めず同handleのterminal後に通常reply wakeを確認する。
+- private state/crowdworks-confirmation-natural-busy-readback.json/mode600へnew events／oldmtime／仮説棄却／保持者を保存。primary送信／wake／fence解除0。次はnew sourceの業務outputとsame occurrence marker、未確定confirmationの再送0／unknown保持の実観測。全goal未完、SelfBuildは最後。
