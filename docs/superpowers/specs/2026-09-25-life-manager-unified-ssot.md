@@ -6898,3 +6898,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 今回のresult SHA256 `91017e5691fcf319bc07ac102c995642c0d793c3112b66bfe7bbb3640235bfb5` はprimary確認時点のsnapshot。workerがterminalになるまではfinal固定hashとして扱わない。proofのargvはreaderではなくresult JSONを指しており、実invocationを示す証拠として未受入。このprovenance不一致も修正対象とする。
 - 観測記録のtab/row click、scroll、search、newchat、compose/send、auth、fence変更は0。cleanupはown target absent、prior ID+URL hash exact、guard release 0、lease absentを記録。これは本観測の作用/cleanup範囲であり過去送信や精算の証明ではない。
 - session `88504` はprimary再pollでrunning、OSでも対応CLI/node PID `29284`/`29294`を確認。timeoutをterminal扱いせず、同プロセスの所有file・browser操作を重複しない。次はterminal結果を受入れ、一覧ready待機と実argv記録を最小修正して、同範囲のread-only観測を行う。現在3→次4、全goal未完、SelfBuild/Eval50–53最後を保持する。
+
+
+### 437. 同一Messages親子frame bindingの取得と表示準備の残不足
+
+- 同じ有限workerのrun `5dbabd35-7ddc-459e-ae12-aaf050dcb8e8` は30.673秒、`captured_and_returned_before_any_selection`。一覧selectorの準備probe 11回後に、business-suite Messages親routeと一覧を含む子default contextの同一frame tree、runtime locationとtree URL hash一致を確認した。別の子frameは一覧0件で、一覧1件のchildを一意に結べた。この範囲で§435の親子route binding不足を狭めた。
+- 同snapshotでは会話row 0、選択tab 1/5はgeneric class `other`、全tab invisible/disabled、paging/end/loadingとして分類できたmarker 0/候補30。これは一覧containerの存在を示すが、会話データ・タブの準備完了や適切なsource selectorを証明しない。row0を会話0件、marker0を終端や追加読込不存在、scroll差0を全履歴終端へ変換しない。過去28件との比較は母集団の証明ではない。
+- 一覧containerだけのreadinessでcaptureしており、row/表示準備の条件が残る。proof argvは依然result JSON名を指し未受入。次は同workerのterminal成果を確認し、既存target-ready制御と同じ実row準備待機および正しいargv記録を最小修正する。inbox/row click、scroll、検索、Message起動、送信は追加しない。
+- primary確認時点のresult SHA256 `ae491bfd352666a9567aff0aad125dd127e2cb9e3b60ee5a6ea78a413c9c3dd4`。worker稼働中のsnapshotなのでfinal不変hashとは扱わない。記録上click/scroll/send/auth/fence0、own target absent、prior exact ID+URL hash保持、release0/lease absent。番号3の納品成果・公式送信receiptは未完、現在3→次4、SelfBuild/Eval50–53最後。
