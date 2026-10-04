@@ -5649,3 +5649,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 前turnは§302のexact marker不足診断でprogress。本turnの初回CrowdWorks holder48806はelapsed3:15でlive。同じhandleを再確認してmissing、provider lockのlsofもholder無しを確認し、既存reconcileのresolve無し公式読取を再開する。reconcile_reply_no_send PID55190／parent55188はactual executableを確認してlive。restart／重複送信／fence解除0。
 - Mercorは初回registered lease busy75。追加browser-guard statusでholder無し・registered endpoint healthyを確認して再取得成功。本人emailはprivate profileからメモリ内で照合し、既存_direct_capture_expressionによるofficial applications／contracts GETのみ実行。pageHTTP200・両source取得成功、applications100行（applied10／applying-started8／rejected82）、contracts0行。全件paginationや同期間売上・費用0の証明ではない。新規応募／返信／token refresh／credential変更0。proof state/mercor-a13-official-readback.json/mode600。
 - A13の旧App／Reply exact occurrenceとの結合は未完。CrowdWorks公式readbackの終了／結果を次に確認する。SelfBuildは最後、全goal未完。
+
+### 304. CrowdWorks返信公式readback完了と応募読取のlive継続
+
+- §303のreply readbackはexit0／checked219／dry_run proof0でterminal。旧公式会話待ち6はaccept_contract_intentの4＋1＋1へ境界が狭まる。作用記録115とmarker不足98を含め、未送信proofとして解除できる記録は無い。既存stateにcontract receiptがあってもexact occurrenceの公式結合がないものを一括解放しない。
+- thread304360469のform receipt metadataはconfirmation_requested／確認thread一致／confirmation SHA無し。受領確認依頼とフォーム回答受領済みを分離する。同thread94markerを94送信と数えない。次に公式会話・送信者account IDとdisplay name分類を比較し、receipt不足の実境界を確認する。
+- application readbackはPID58229／parent55188／actual reconcile_application_no_submit.pyでlive、tool session4917。自分の読取がprovider lockを保持する。観測timeoutを終了と扱わず、同handleのterminalを確認してから別browser queryへ進む。state/crowdworks-a10-readback-progress.jsonにhandleと次操作を保存。provider送信／応募／fence解除0。A10／全goal未完、SelfBuildは最後。
