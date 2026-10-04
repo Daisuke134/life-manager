@@ -6076,3 +6076,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - native Luna6 max task agmsg_parallel_recipe_implementationはSKILL.mdの短いroutingとreferences/parallel-development.mdの2fileだけ所有。recipeはsubagent／AGMSGの選択、参加／identity再利用、sendとspawn／実働の区別、resource排他、短い成果packet、dynamic並列数、同HEAD検証再利用、singleTODOと成果受入を汎用的に記述する。private LifeManager案件・金額・credentialsを含めず、旧model既定をbakeしない。
 - workerはsource docs検証／commitpush／remote確認、親はinstalled skillの元hashを保存し、同じ参照・recipeだけを差分配置する。hash変化なら上書きしない。部署前後の既存render marker・commands／内容保持を検証する。実agent／provider操作無し、team/schema/scripts変更無し。source／配置完了は未達。
 - 残業務の順は§217 A01–46を維持。Coconala A01/A03–07→Lancers/CrowdWorks A08–12→Mercor A13–15→応募/mail A16–18→既存商品/Freelancer/Upwork A19–22→storefront/Fiverr A23–27→他loop A28–35→runtime A36→Mobile/CFO A38–42→最後SelfBuild/Eval A43–46。A02／A37は完了保持、外部待ちは保持し独立jobのみ先行。iOS growth別計画のTask1調査／Task3調査は既存owner範囲、製品実装を新たに開始しない。
+
+### 345. AGMSG標準recipeのmain保存・配置・検証完了
+
+- Luna6 maxが2fileをsource commit0cc1df8383cae11bbd067415508f502e8a5debbcへcommitpush、branch docs/agmsg-parallel-recipe-20261004／remote一致／clean。recipe57行＋SKILL参照8行。単純編集solo、immutable local資料の並列、未応答登録席を稼働扱いしない3scenarioを静的確認。
+- 親は新blockとrecipeだけinstalled /Users/anicca/.agents/skills/agmsgへ反映。元SKILLのhashを直前比較し、新blockを除くと元内容に完全一致。render-root／codex overlay marker保持、sourceとinstalled recipeのbytes一致。skill-creator quick_validateはsource／installed双方PASS。team／DB／scripts／providers／session変更0。
+- 本文書機能の全受入（source／参照／配置／既存内容保持／validation）が揃った後だけ、専用repo anicca-agents-skillsにPR2を一度作成。required checks無しを確認、admin squash成功、main856907725e2e72fa78859c53332a5866547da881。fetch後origin/mainのrecipeとinstalled bytes一致／main参照存在を確認。このtaskはLifeManager未完成sourceの統合条件を変更しない。
+- 標準入口は /Users/anicca/.agents/skills/agmsg/SKILL.md のParallel development、詳細正本は /Users/anicca/.agents/skills/agmsg/references/parallel-development.md（GitHub mainにも保存）。private proof state/agmsg-parallel-recipe-install-proof.json/mode600。残業務順は§217／§344のまま、SelfBuild最後、全goal未完。
