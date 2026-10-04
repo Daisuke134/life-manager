@@ -6578,3 +6578,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 私的 `execution3-npo-mail-document-binding.json` SHA256 `021918e5bae148524d51ad071007d7835f5de78ad3b6f7c27fbb2108a1baacf6`、`execution3-npo-mail-contact-window.json` SHA256 `517d9f281b0d0a691706812899cfcc7d0694bdfbdc099066750dd450db2e5dc5`（§399同dir/mode600）。本文/credential/URLは記録せずhash/分類/IDを保存。Gmail send/markread/auth/projectstate変更0。
 - read-only担当はTikTok既存entrypointを診断。`--audit-tiktok-counts`はledger reconcile、transportのno-sendも先行fence更新、identity mainはownership更新を伴うため純読取へ流用しない。既存registry resolver→fresh endpoint/owner/lease→既存targetのpureDOM evalを使う。Rootのfresh resolverallはexit0、私的inventoryへ保存。担当がexisting business-suite targetと本文readable/recipient対応をread-onlyで確認する。
 - TikTok経路packet `execution3-tiktok-registered-read-route-diagnostic.json` SHA256 `72389fea2a62dd195039427c75744fb44fbe045a860e25e843ab6b24053f3db7`。現在3未完→次4、順序変更無し、予算①v2を再制作しない。
+
+
+### 405. TikTok本文読取境界を会話初期化/実行contextへ限定
+
+- fresh registry/GET-json-listでexact identity reachable、browser PID生存/profile argv一致、既存targets2・BusinessSuite会話target0を確認。純DOMだけを想定したtarget無しをprovider不可とせず、guardを取得して自己target1/既存公式route1を通常GETで読み取り、close/release・prior2保持を確認した。初回iframe初期化時点のbody0をログアウト/持続読取不可へ拡張しない。
+- 待機条件を本文または明示loginへ改善したprobeはDOM4samples後Runtime.evaluate応答timeout。last3samplesのiframe本文は0/0/10文字、会話/本人sender未確認、明示login/challenge表示無し。私的 `execution3-tiktok-owned-route-waited-observation.json` SHA256 `3bc52148780a7be722f84f76e6f3b87117e72461c28965923b0ff59640e84b48`（§399同dir/mode600）。
+- 同routeのNetwork15秒観測はresponse283、200=262/204=20/404=1。404はcache由来Script、同requestと別FetchでERR_ABORTED。公式messaging document200が2、SDK/API XHR response23。URLpath分類のmessagingAPI一致0をAPI不在/認証失敗としない。自動pagePOST41は観測metadataのみで、この観測者のinitiatedPOST/send/authは0。query/token/cookie/body保存0。packet `execution3-tiktok-known-route-network-metadata.json` SHA256 `243fbd8f481bd883361d95d203b443596e8b3fdfdb112dc9fdd000ff3cde78e1`。
+- 公式page/多数SDK取得は成功しているため、次は自己rootframeのdescendant/OOPIFに会話描画があり親Runtimeだけでは読めていない仮説をread-onlyで反証する。別実行環境の所有根拠が取れた場合だけ子sessionのpureDOMを読む。別route巡回や全bundle解析、認証変更、既存sender台帳reconcile/再送はしない。実送信数/残数はunknown、現在3未完→次4。
