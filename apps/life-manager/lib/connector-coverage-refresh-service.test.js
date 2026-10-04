@@ -162,6 +162,7 @@ test("verified RSVP becomes a Calendar event and coverage while a real all-day b
   const inventory = await dateInventory(coverage);
   const registration = await completedRegistration();
   const created = [];
+  let found = [];
   let requiredCanonicalUrls;
   const refresh = makeService({
     receiptReader: { async listForCoverage() { return [registration]; } },
@@ -170,10 +171,11 @@ test("verified RSVP becomes a Calendar event and coverage while a real all-day b
       return inventory;
     },
     calendar: {
-      async findConnectorEvents() { return []; },
+      async findConnectorEvents() { return found; },
       async createConnectorEvent(input) {
         created.push(input);
-        return { id: "created-event", htmlLink: "https://calendar.google.com/calendar/event?eid=created" };
+        found = [{ id: "created-event", htmlLink: "https://calendar.google.com/calendar/event?eid=created" }];
+        return found[0];
       },
     },
   });
