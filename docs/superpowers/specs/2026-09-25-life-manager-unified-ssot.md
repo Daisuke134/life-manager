@@ -4882,7 +4882,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 
 | 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
 |---|---|---|---|
-| 3 | 実行中・不足証拠確認 | Coconala残制作を納品条件まで完了する。§400のopen3件を対象とし、TikTok実送信台帳・予算①承認対象v2・NPO②/別案件の原資料受領を先に照合。既存v8/v16b/v15を無条件に再制作せず、await_buyerと制作可能範囲を分ける。18211957は対象外。 | A03 |
+| 3 | 実行中・不足証拠確認 | Coconala残制作を納品条件まで完了する。§403で予算①公式v2取得とscope照合を受入、追加制作要求は未発見。残はTikTok実送信台帳/receiptとNPO②・別案件の原資料受領/確定情報。既存v8/v16b/v15を無条件に再制作せず、await_buyerと制作可能範囲を分ける。18211957は対象外。 | A03 |
 | 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
 | 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
 | 6 | 順番待ち | Coconala支払・手数料・精算明細を取得する。§358で公式全件CSVの取得provenanceを限定SHIP、28行／27一意／duplicate1組。gross／fee／net定義・paymentID・bank・cost未確認、全finance完了ではない。 | A06 |
@@ -6561,3 +6561,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - Chromium一次資料 `content/browser/devtools/protocol/page_handler.cc` の `SetDownloadBehavior` はBrowserContextへ委譲するため、Page-levelでも自己target限定という案を棄却し設定変更0を保持（https://github.com/chromium/chromium/blob/main/content/browser/devtools/protocol/page_handler.cc）。署名queryを同processメモリだけで保持するprobeを追加してから、通常クリック追加1（累計2）→同URLresourceGETでHTTP200/application/octet-stream、Excel58,656bytesを取得。rawsignedURLはfile/log/chat/argv/env非保存・非表示で破棄。独立GETinputhashは未計測、コードで同raw変数を渡したことを独立hash測定と偽らない。
 - payload SHA256 `e0f3fa34bc2d0b185fb680aba63212663add2f450647015594fde956e72b8dda`、ZIPintegrity/Excelstructuretrue、12sheets/1400formulas。これはファイル構造であり、正しい予算/契約充足/承認/正式納品のPASSではない。buyer222226516の①②scopeは分離し、exact版の承認bindingは未確認。既存localv1や別NPOv16bへ代用せず、fresh read-only担当がファイルと既存版・公式前後messageの範囲を照合する。
 - 私的packet `execution3-budget-signed-resource-readback.json`（§399同dir/mode600）、SHA256 `95332796b2011c050ed791c016dc1d2adcd50b13ac08413ab978f09dd68fcc11`、payloadも同dir/mode600。client送信/正式納品/upload/共有downloadpolicy/auth/source/activeproject変更0、ownremaining0/priorpreservedtrue/guardrelease0。現在3未完→次4、全goal未完。
+
+
+### 403. 予算①の現状版scopeを限定受入、番号3残条件を維持
+
+- fresh gpt-6.1-sol/medium read-onlyレビューは、①の最後の予算添付seller220975752とbuyer222226516の現状版納品了承、以後①差替え発言無しを照合。取得v2は①了承対象に会話上対応すると判断。全体の直前添付は②法人v4であり、単純nearest全体で①へbindingすると誤る。版名/hashの明示了承は未確認だが、その不在だけを追加の完了gateとして発明しない。①了承を②や全取引正式納品へ拡張しない。
+- v2の対象3年度/①法人/費用分類を確認し、内部費用照合45行の一致を限定確認。旧v1とは費用値が異なり代替不可。原資料の正当性/全財務品質を証明したものではない。①の追加制作要求は発見されず、既存officialv2を維持する。制作・正式納品操作0。
+- 私的packet `execution3-budget-artifact-scope-review.json`（§399同dir/mode600）、SHA256 `292557cccbca20334015f5bf92830c99b06e521716519ede6751c1794bb6519a`。現時点の番号3残条件は、TikTok実送信receipt/共有台帳の同一対象対応と、NPO②/18250352の追加原資料/確定情報の受領確認。取得済みlocal資料で見つからなかったことを全mail/account不在へ拡張せず、次は既存受領mail/添付receiptと登録済みTikTok読取ownerを必要範囲で照合する。再送・架空事実補完・client送信はしない。
+- 現在3未完→次4、未完表は3–53の51項目、SelfBuild/Eval最後。全goal未完、順序変更無し。
