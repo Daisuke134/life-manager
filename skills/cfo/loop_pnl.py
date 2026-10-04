@@ -324,7 +324,8 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     )
 
     stripe_path = env.get("LM_CFO_STRIPE_READBACK")
-    # B7 attribution requires charge-level provider metadata.
+    # The fixed lane constrains Stripe metadata; it is not proof of product ownership.
+    # stripe.adapt requires each revenue, payment-fee, refund, and MRR source to match it.
     stripe_default_category = None
     stripe_live = env.get("LM_CFO_STRIPE_LIVE_READBACK") == "1"
     if stripe_live:

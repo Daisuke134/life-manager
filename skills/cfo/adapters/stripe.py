@@ -194,6 +194,15 @@ def _economic_category(metadata: object, default: str | None) -> str | None:
     return default if explicit is None else explicit
 
 
+def _has_matching_product_loop(metadata: object, expected_product_loop_id: str) -> bool:
+    if not isinstance(metadata, dict):
+        return False
+    product_loop_id = metadata.get("lm_product_loop_id")
+    return (isinstance(product_loop_id, str)
+            and product_loop_id in contract.PRODUCT_LOOP_IDS
+            and product_loop_id == expected_product_loop_id)
+
+
 def _refund_consistency_refs(transactions: dict[str, dict], charges: dict[str, dict],
                              refunds: dict[str, dict]) -> list[str]:
     refund_totals: dict[str, int] = {}
@@ -239,6 +248,7 @@ def _refund_consistency_refs(transactions: dict[str, dict], charges: dict[str, d
 
 def _charge_consistency_refs(transactions: dict[str, dict],
                              charges: dict[str, dict],
+                             product_loop_id: str,
                              default_economic_category: str | None = None) -> list[str]:
     refs: list[str] = []
     for charge_id, charge in charges.items():
@@ -280,6 +290,15 @@ def _charge_consistency_refs(transactions: dict[str, dict],
                 or transaction.get("object") != "balance_transaction"
                 or transaction.get("type") not in CHARGE_TYPES
                 or transaction.get("source") != charge_id):
+            refs.append(_evidence("charges", charge_id))
+            continue
+        transaction_fee = transaction.get("fee")
+        requires_product_loop = (economic_category == contract.REVENUE
+                                 or (isinstance(transaction_fee, int)
+                                     and not isinstance(transaction_fee, bool)
+                                     and transaction_fee > 0))
+        if (requires_product_loop
+                and not _has_matching_product_loop(metadata, product_loop_id)):
             refs.append(_evidence("charges", charge_id))
     return refs
 
@@ -346,11 +365,6 @@ def _movement(transaction: dict, product_loop_id: str,
         components=[{"category": category, "amount": amount}],
         refs=refs,
     )]
-    if fee != "0":
-        receipts.append(_fee_receipt(
-            transaction=transaction, product_loop_id=product_loop_id,
-            occurred_at=occurred_at, settled_at=settled_at, fee=fee, refs=refs,
-        ))
     return receipts
 
 
@@ -399,6 +413,9 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str,
     economic_category = _economic_category(metadata, default_economic_category)
     if economic_category not in (contract.REVENUE, "owner_deposit", "self_payment"):
         return None
+    if (economic_category == contract.REVENUE
+            and not _has_matching_product_loop(metadata, product_loop_id)):
+        return None
     transaction = {**transaction, "currency": currency}
     refs = [_evidence("balance_transactions", transaction["id"]), _evidence("charges", source)]
     pending_charge = status == "pending" or (
@@ -428,7 +445,8 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str,
         settled_at=settled_at, state="verified", revenue_class=revenue_class,
         components=components, refs=refs,
     )]
-    if category != contract.REVENUE and fee != "0":
+    if (category != contract.REVENUE and fee != "0"
+            and _has_matching_product_loop(metadata, product_loop_id)):
         receipts.append(_fee_receipt(
             transaction=transaction, product_loop_id=product_loop_id,
             occurred_at=occurred_at, settled_at=settled_at, fee=fee, refs=refs,
@@ -509,6 +527,7 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
                     <= charge.get("amount_captured"))
             or amount in (None, "0") or fee is None
             or not isinstance(charge_metadata, dict)
+            or not _has_matching_product_loop(charge_metadata, product_loop_id)
             or _economic_category(charge_metadata, default_economic_category) != contract.REVENUE
             or not occurred_at or not settled_at or settled_at < occurred_at):
         return None
@@ -534,6 +553,7 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str,
     if (row.get("object") != "subscription" or not subscription_id or not currency
             or status not in SUBSCRIPTION_STATUSES or not isinstance(row.get("livemode"), bool)
             or not isinstance(metadata, dict)
+            or not _has_matching_product_loop(metadata, product_loop_id)
             or _economic_category(metadata, default_economic_category) != contract.REVENUE):
         return None
     active = status == "active"
@@ -785,7 +805,7 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
     if financial_complete:
         transactions = _index(balance_rows, "balance_transactions")
         financial_refs.extend(_charge_consistency_refs(
-            transactions, charges, default_economic_category,
+            transactions, charges, product_loop_id, default_economic_category,
         ))
         financial_refs.extend(_refund_consistency_refs(transactions, charges, refunds))
         for transaction_id, transaction in sorted(transactions.items()):
@@ -810,6 +830,12 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
                                    default_economic_category)
             if produced and all(produced):
                 records.extend(produced)
+                transaction_fee = transaction.get("fee")
+                if (kind not in CHARGE_TYPES | REFUND_TYPES
+                        and isinstance(transaction_fee, int)
+                        and not isinstance(transaction_fee, bool)
+                        and transaction_fee > 0):
+                    financial_refs.append(_evidence("balance_transactions", transaction_id))
             else:
                 financial_refs.append(_evidence("balance_transactions", transaction_id))
     else:

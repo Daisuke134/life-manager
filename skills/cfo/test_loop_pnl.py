@@ -585,7 +585,7 @@ class B7IntegrationTest(unittest.TestCase):
                     {row["projection"]: row["reason"] for row in rows}, expected_reasons[loop_id],
                 )
 
-    def test_b2_untagged_charge_stays_unverified_when_runtime_default_is_revenue(self):
+    def test_b2_category_tag_without_product_loop_stays_unverified(self):
         charge_created = 1790769600  # 2026-09-30T12:00:00Z
 
         def stripe_list(name, data):
@@ -624,7 +624,11 @@ class B7IntegrationTest(unittest.TestCase):
                 "livemode": True,
                 "disputed": False,
                 "balance_transaction": "txn_untagged",
-                "metadata": {},
+                "description": "Anicca Pro",
+                "metadata": {
+                    "lm_economic_category": contract.REVENUE,
+                    "owner": "self-build",
+                },
             }]),
             "refunds": stripe_list("refunds", []),
             "subscriptions": stripe_list("subscriptions", []),

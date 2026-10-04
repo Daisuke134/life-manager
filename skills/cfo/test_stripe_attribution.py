@@ -87,7 +87,7 @@ class StripeAttributionTest(unittest.TestCase):
         value = payloads()
         charge = next(row for row in value["charges"]["data"]
                       if row["id"] == "ch_external_usd")
-        charge["metadata"] = {}
+        charge["metadata"] = {"lm_product_loop_id": "self-build"}
 
         rows = stripe.adapt(
             value,
@@ -115,7 +115,10 @@ class StripeAttributionTest(unittest.TestCase):
         value = payloads()
         charge = next(row for row in value["charges"]["data"]
                       if row["id"] == "ch_external_usd")
-        charge["metadata"] = {"lm_economic_category": "unknown_classification"}
+        charge["metadata"] = {
+            "lm_economic_category": "unknown_classification",
+            "lm_product_loop_id": "self-build",
+        }
 
         rows = stripe.adapt(
             value,
@@ -127,6 +130,82 @@ class StripeAttributionTest(unittest.TestCase):
         trailing = next(row for row in rows
                         if row["record_type"] == "coverage" and row["projection"] == "trailing")
         self.assertEqual((trailing["coverage_state"], trailing["reason"]), ("gap", "unverified_receipt"))
+
+    def test_revenue_refund_and_payment_fee_require_matching_product_loop_id(self):
+        for loop_id in (None, "affiliate"):
+            with self.subTest(loop_id=loop_id):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_usd")
+                charge["metadata"] = {
+                    "lm_economic_category": contract.REVENUE,
+                    "owner": "self-build",
+                    "product_name": "Anicca Pro",
+                }
+                if loop_id is not None:
+                    charge["metadata"]["lm_product_loop_id"] = loop_id
+
+                rows = adapt(value)
+                target_receipts = [
+                    row for row in rows
+                    if row["record_type"] == "receipt"
+                    and ("stripe://charges/ch_external_usd" in row["evidence_refs"]
+                         or "stripe://balance_transactions/txn_refund_usd" in row["evidence_refs"])
+                ]
+                self.assertEqual(target_receipts, [])
+                trailing = next(row for row in rows
+                                if row["record_type"] == "coverage"
+                                and row["projection"] == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+                self.assertIn("stripe://charges/ch_external_usd", trailing["evidence_refs"])
+
+    def test_subscription_mrr_requires_matching_product_loop_id(self):
+        for loop_id in (None, "affiliate"):
+            with self.subTest(loop_id=loop_id):
+                value = payloads()
+                subscription = next(row for row in value["subscriptions"]["data"]
+                                    if row["id"] == "sub_monthly")
+                subscription["metadata"] = {
+                    "lm_economic_category": contract.REVENUE,
+                    "owner": "self-build",
+                    "product_name": "Anicca Pro",
+                }
+                if loop_id is not None:
+                    subscription["metadata"]["lm_product_loop_id"] = loop_id
+
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("subscription_id") == "stripe:subscription:sub_monthly"
+                    for row in rows
+                ))
+                as_of = next(row for row in rows
+                             if row["record_type"] == "coverage"
+                             and row["projection"] == "as_of")
+                self.assertEqual((as_of["coverage_state"], as_of["reason"]),
+                                 ("gap", "unverified_receipt"))
+                self.assertIn("stripe://subscriptions/sub_monthly", as_of["evidence_refs"])
+
+    def test_explicit_matching_product_loop_id_verifies_revenue_and_mrr(self):
+        value = payloads()
+        charge = next(row for row in value["charges"]["data"]
+                      if row["id"] == "ch_external_usd")
+        charge["metadata"]["lm_product_loop_id"] = "self-build"
+        subscription = next(row for row in value["subscriptions"]["data"]
+                            if row["id"] == "sub_monthly")
+        subscription["metadata"]["lm_product_loop_id"] = "self-build"
+
+        rows = adapt(value)
+        charge_receipt = next(row for row in rows
+                              if row.get("receipt_id") == "stripe:balance_transaction:txn_charge_usd")
+        mrr_snapshot = next(row for row in rows
+                            if row.get("subscription_id") == "stripe:subscription:sub_monthly")
+        self.assertEqual(charge_receipt["verification_state"], "verified")
+        self.assertEqual(charge_receipt["product_loop_id"], "self-build")
+        self.assertEqual(mrr_snapshot["verification_state"], "verified")
+        self.assertEqual(mrr_snapshot["product_loop_id"], "self-build")
 
     def test_historical_unhandled_balance_transaction_does_not_poison_trailing_window(self):
         value = payloads()
@@ -300,7 +379,7 @@ class StripeAttributionTest(unittest.TestCase):
             "stripe:balance_transaction:txn_charge_jpy",
         })
 
-    def test_excluded_movements_record_fee_once_in_a_separate_receipt(self):
+    def test_movement_fees_without_product_loop_metadata_remain_unknown(self):
         expected = {
             "txn_self_payment": ("self_payment", "9"),
             "txn_payout": ("payout", "100"),
@@ -313,34 +392,34 @@ class StripeAttributionTest(unittest.TestCase):
                 transaction = next(row for row in value["balance_transactions"]["data"]
                                    if row["id"] == transaction_id)
                 transaction.update(fee=50, net=transaction["amount"] - 50)
+                if transaction_id == "txn_self_payment":
+                    charge = next(row for row in value["charges"]["data"]
+                                  if row["id"] == "ch_self_payment")
+                    charge["metadata"].pop("lm_product_loop_id")
                 rows = adapt(value)
                 receipts = {
                     row["receipt_id"]: row for row in rows if row["record_type"] == "receipt"
                 }
                 receipt_id = f"stripe:balance_transaction:{transaction_id}"
-                fee_receipt_id = f"{receipt_id}:fee"
                 self.assertEqual(
                     receipts[receipt_id]["components"],
                     [{"category": category, "amount": amount}],
                 )
-                self.assertIn(fee_receipt_id, receipts)
-                self.assertEqual(
-                    receipts[fee_receipt_id]["components"],
-                    [{"category": "payment_fee", "amount": "0.5"}],
-                )
-                matching_fees = [
-                    row for row in receipts.values()
-                    if row["components"] == [{"category": "payment_fee", "amount": "0.5"}]
+                self.assertFalse(any(
+                    any(component["category"] == "payment_fee" for component in row["components"])
                     and f"stripe://balance_transactions/{transaction_id}" in row["evidence_refs"]
-                ]
-                self.assertEqual([row["receipt_id"] for row in matching_fees], [fee_receipt_id])
+                    for row in receipts.values()
+                ))
                 trailing = next(row for row in rows
                                 if row.get("record_type") == "coverage"
                                 and row.get("projection") == "trailing")
                 self.assertEqual(
                     (trailing["coverage_state"], trailing["reason"]),
-                    ("complete", None),
+                    ("gap", "unverified_receipt"),
                 )
+                evidence_ref = ("stripe://charges/ch_self_payment" if transaction_id == "txn_self_payment"
+                                else f"stripe://balance_transactions/{transaction_id}")
+                self.assertIn(evidence_ref, trailing["evidence_refs"])
 
     def test_pending_charge_with_fee_is_a_coverage_gap(self):
         value = payloads()
@@ -370,7 +449,10 @@ class StripeAttributionTest(unittest.TestCase):
             "balance_transaction": "txn_absent", "captured": True,
             "created": 1790808000, "currency": "usd", "customer": "cus_silent",
             "disputed": False, "livemode": True,
-            "metadata": {"lm_economic_category": "settled_external_revenue"},
+            "metadata": {
+                "lm_economic_category": "settled_external_revenue",
+                "lm_product_loop_id": "self-build",
+            },
             "paid": True, "refunded": False, "status": "succeeded",
         })
 
@@ -1405,7 +1487,10 @@ class StripeAttributionTest(unittest.TestCase):
             "balance_transaction": "txn_charge_ugx", "captured": True,
             "created": 1790807400, "currency": "ugx", "customer": "cus_ugx",
             "disputed": False, "livemode": True,
-            "metadata": {"lm_economic_category": "settled_external_revenue"}, "paid": True,
+            "metadata": {
+                "lm_economic_category": "settled_external_revenue",
+                "lm_product_loop_id": "self-build",
+            }, "paid": True,
             "refunded": False, "status": "succeeded",
         })
         receipt = next(row for row in adapt(value)
