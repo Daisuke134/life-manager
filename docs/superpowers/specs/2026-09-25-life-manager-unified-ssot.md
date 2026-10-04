@@ -6903,7 +6903,7 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 ### 437. 同一Messages親子frame bindingの取得と表示準備の残不足
 
 - 同じ有限workerのrun `5dbabd35-7ddc-459e-ae12-aaf050dcb8e8` は30.673秒、`captured_and_returned_before_any_selection`。一覧selectorの準備probe 11回後に、business-suite Messages親routeと一覧を含む子default contextの同一frame tree、runtime locationとtree URL hash一致を確認した。別の子frameは一覧0件で、一覧1件のchildを一意に結べた。この範囲で§435の親子route binding不足を狭めた。
-- 同snapshotでは会話row 0、選択tab 1/5はgeneric class `other`、全tab invisible/disabled、paging/end/loadingとして分類できたmarker 0/候補30。これは一覧containerの存在を示すが、会話データ・タブの準備完了や適切なsource selectorを証明しない。row0を会話0件、marker0を終端や追加読込不存在、scroll差0を全履歴終端へ変換しない。過去28件との比較は母集団の証明ではない。
+- 同snapshotでは会話row 0、選択tab 1/5はgeneric class `other`、全tab visible=false、enabled field=false（意味の訂正は§439）、paging/end/loadingとして分類できたmarker 0/候補30。これは一覧containerの存在を示すが、会話データ・タブの準備完了や適切なsource selectorを証明しない。row0を会話0件、marker0を終端や追加読込不存在、scroll差0を全履歴終端へ変換しない。過去28件との比較は母集団の証明ではない。
 - 一覧containerだけのreadinessでcaptureしており、row/表示準備の条件が残る。proof argvは依然result JSON名を指し未受入。次は同workerのterminal成果を確認し、既存target-ready制御と同じ実row準備待機および正しいargv記録を最小修正する。inbox/row click、scroll、検索、Message起動、送信は追加しない。
 - primary確認時点のresult SHA256 `ae491bfd352666a9567aff0aad125dd127e2cb9e3b60ee5a6ea78a413c9c3dd4`。session88504のterminal exit0後にprimaryがhashを再確認し、このresultを固定した。reader SHA256 `7192db91fd097b798f70783433504d287557d1ccaa37a3cc22ab8e79d92f7bfe`、proof `36c00d225c9f93d60f2f572cf8c9236113e9109250bf0de2ee211e390c8bd6d4`、3files mode600。限定frame bindingは確認済みだがrow-ready/argvは未受入。記録上click/scroll/send/auth/fence0、own target absent、prior exact ID+URL hash保持、release0/lease absent。番号3の納品成果・公式送信receiptは未完、現在3→次4、SelfBuild/Eval50–53最後。
 - 新しい有限implementation session `75576` は実startup model `gpt-6-luna` / effort `max` を確認。所有はprivate `one-bound-conversation-reader.inbox-row-ready.py` と新result/proof/fixtureのみ。旧filesは保持し、list1に加えて既存row selectorの件数>0を待ち、上限ではincomplete、capture/cleanup余裕を確保する。argvは実script名へ修正。fixture後のlive invocationは1回のみ、click/scroll/search/send/auth/fence0を維持。SSOT/production/他担当filesは非所有。
@@ -6913,6 +6913,15 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 
 - 有限session75576はterminal exit0。元inbox-scope reader/result/proofを保持した新private reader `one-bound-conversation-reader.inbox-row-ready.py` の修正をprimaryが確認。exact list1に加え既存row selector件数>0を同じguard/own targetで待ち、準備上限108秒とcapture/cleanup余裕を分ける。probeは件数のみで名前/body/UID値を読まない。proof argvは実script名へ修正。旧list-only早期終了のREDと暫定0→後続1のGREENをfixture証拠で確認し、primary再実行もPASS。source/result hash一致を確認。
 - ONE live run `9f94c4b6-6b64-48a1-aa23-efc42240bfc8` は45.295秒、captured-before-selection。会話28行/28unique hash、旧28件と集合一致28/28。公式Messages親と一覧child default contextを同treeへbinding、runtime/tree URL hash一致。これは表示済み集合の再現であり全履歴終端、対象送信、300件送信の証明ではない。
-- tab control5のうちselected1はclass other、全5visible=false/enabled=false。一覧の選択inbox範囲を示すcontrolか未確認。indicator marker0、source selector不足。ancestor3段とdocumentのscroll差0を全体終端へ使わない。次はglobal/非表示controlを現inbox範囲として扱わず、一覧に対応する可視container/control/内部scroll領域と終端表示の構造を限定読取で確認する。click/scroll/search/sendは追加しない。
+- tab control5のうちselected1はclass other、全5visible=false/enabled field=false。enabledは逆の意味で保存されており、実際の無効状態の解釈は§439で訂正。一覧の選択inbox範囲を示すcontrolか未確認。indicator marker0、source selector不足。ancestor3段とdocumentのscroll差0を全体終端へ使わない。次はglobal/非表示controlを現inbox範囲として扱わず、一覧に対応する可視container/control/内部scroll領域と終端表示の構造を限定読取で確認する。click/scroll/search/sendは追加しない。
 - 実read記録のclick/scroll/send/auth/fence0、own target absent、prior exact ID+URL hash保持、guard release0/lease absent。reader SHA256 `fe0827d468fa96004ca7cbc9e53da712c60ae176e5407d940bda138d30a953f1`、result `c7f08921bb975f7f3d6dd4d3e28aca4746f55afac9356a7895911451122f4e2b`、proof `3ca900cabb099110e59b2ae660f0e7eeb952d71ac90a2e171b0ed27d40ede104`、fixture `f5ad9c088d68af36d454bcf1f655cefabb6a7f76f5697d31c82f988128fad515`。private files600、raw private/exception description保存出力0のfixtureを確認。
 - 読取修正のみ受入、番号3の納品成果/公式送信receiptは未完。現在3→次4、SelfBuild/Eval50–53最後を保持する。
+
+
+### 439. Fresh read-only検証の正確性修正と一覧局所構造の観測
+
+- 既存fresh gpt-6.1-sol/medium reviewerを再利用し§438のsource/resultをread-only再検証。parent/child binding・同一28件・cleanupは確認、表示範囲/終端は未確定。外部作用/file変更0。
+- reader166行のcontrol `enabled` は `disabledState(n)` を反転せず保存する不具合。raw falseは「無効ではない」であり、無効tabとの解釈を訂正する。indicator側は反転済み。control検索はglobal documentではなくlist祖先3段配下で、兄弟UIを含む。primaryのglobalとの説明も訂正。list自身の可視性が未保存なので、別UIかhidden枝か未確定。
+- indicator scanned31はrow除外後、unclassified172は除外前scan.size由来で母数が異なる。172未知controlという解釈や探索拡大はしない。selectedはvisibleを要求せず、非表示otherでもmissing解除する現条件はinbox区分の証明として不十分。
+- 次の一回はexact list/祖先最大6段、branchの直近前後sibling各2段、listの先頭末尾非rowchildだけの構造・可視性・overflowと局所control/status参照を読む。属性は名前、参照関係はboolean、labelはgeneric分類/hashのみ。row名/body/UID/URL値を読まない。可視controlとlistの参照または局所容器対応が確認できた時だけ表示区分を認定し、可視endはその区分だけに適用する。cap/不在結果は不足を保持、click/scroll/search/send追加0。
+- generic native agent `inbox_local_structure_implementation` を実model gpt-6-luna/maxで起動し新private reader/result/proof/fixtureのみを所有させた。旧files/SSOT/production/authは非所有。enabled/同母数/visible条件の反例をfixtureで確認後ONE live captureだけ行う。現在3→次4、納品/公式送信receipt未完、SelfBuild/Eval最後。
