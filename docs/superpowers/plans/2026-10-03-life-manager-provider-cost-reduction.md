@@ -14,6 +14,8 @@
 
 **Latest cost readback (2026-10-04 10:22 JST):** The production-release tenant ledger totals USD 4.656581116667 estimated across 6,031 rows, including USD 3.81 estimated Google Maps usage. The 10:13 JST project-level Monitoring counts do not reconcile to tenant/SKU attribution. Neither source is a settled invoice; see the provider-cost and Google Monitoring evidence files.
 
+**Moneytree status correction (2026-10-04 10:30 JST):** The user confirms the ChatGPT Moneytree plugin is connected and requests no phone/login action. It returns one MUFG account at JPY 504,302, but transactions still stop at 2026-08-25 and expose no source freshness cursor. This plugin connection is distinct from Life Manager's historical server-side Moneytree Web `auth.creds.invalid` status. Treat the plugin as connected-but-stale, not an authorization blocker; see the Moneytree evidence file.
+
 ## Global Constraints
 
 - Unknown, stale, failed, and `effect_unknown` remain explicit; none may be rendered as zero.

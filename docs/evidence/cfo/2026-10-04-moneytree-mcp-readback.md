@@ -41,10 +41,20 @@ No account number, transaction description, credential, or raw provider payload 
 - The CUA driver had Accessibility and Screen Recording permission. macOS iPhone Mirroring advanced from its first-run guide to `iPhoneに接続できません`, asking to verify the iPhone is powered on, nearby, and has Bluetooth/Wi-Fi enabled. The Mac's Bluetooth and Wi-Fi (`en1`) are on. One `やり直す` action produced the same connection error.
 - No Moneytree macOS app is installed/listed, iPhone Mirroring did not connect to the phone, and no phone pairing, Moneytree re-authentication, bank link, OAuth scope, or account data was changed.
 - A value-redacted check of the credentials SSOT found a Moneytree-labeled credential record but no MUFG-labeled direct-login record. No credential values were printed or used for a bank-site login. The available Moneytree connector exposes read operations only; no refresh action is available through it.
-- The remaining action is on the iPhone side: make it discoverable to this Mac (power, proximity, Bluetooth/Wi-Fi), then refresh or re-authenticate MUFG in the Moneytree personal app without deleting/re-adding it. Require a provider timestamp/cursor and newer transactions before treating the balance as current.
+- The iPhone-side action was an exploratory next step from this 10:03/10:10 probe only. It is superseded by the 10:30 JST user clarification below: Moneytree is already connected and no phone/login work is requested. Do not repeat the iPhone Mirroring or login path.
 
 ## Follow-up connectivity check — 2026-10-04 10:10 JST
 
 - A fresh read after the connectivity probe still returned one MUFG JPY account at JPY 504,302 and 183 transactions; the newest remains 2026-08-25. There is still no provider update timestamp or transaction cursor.
 - The iPhone label shown by iPhone Mirroring has a paired Bluetooth record, but `connected=false`. A normal `blueutil --connect` attempt failed; a bounded five-second Bluetooth inquiry discovered one unrelated device and no device matching the iPhone label. Mac Bluetooth and Wi-Fi remain on.
 - No pairing, unpairing, radio-setting, Moneytree re-authentication, bank-link, or account-data change occurred. The device is not currently reachable from the Mac; the iPhone-side power/radio/proximity condition must change before another connection attempt.
+
+## Connected-plugin readback — 2026-10-04 10:30 JST
+
+- The user confirmed the Moneytree plugin is already connected and instructed no phone or login action. Read-only `show-accounts` confirms one linked MUFG ordinary JPY account and returns `current_balance=JPY 504,302`.
+- This ChatGPT plugin connection is distinct from Life Manager's server-side `Moneytree Web` adapter; the latter's historical readback recorded `auth.creds.invalid` since 2026-08-28. Do not interpret that backend status as a disconnected ChatGPT plugin, and do not attempt phone/login work without a new request.
+- Read-only transactions for 2026-07-01 through 2026-09-30 returned all 196 rows. The newest transaction remains 2026-08-25; neither the account nor transaction payload contains a bank/provider update timestamp or sync cursor.
+- Categorized personal income is JPY 817,597 (salary JPY 673,569, other income JPY 142,216, interest JPY 1,812). Raw positive rows total JPY 836,052, including JPY 18,455 of transfer inflows.
+- Categorized personal spending is JPY 305,500: `未定` JPY 300,000, ATM withdrawals JPY 3,000, and social expense JPY 2,500. Raw negative rows total JPY 817,857, including unclassified transfer outflows JPY 478,193 and card repayments JPY 34,164; those are not double-counted as spending.
+- The plugin spending summary reports July JPY 202,000 (all `未定`) and August JPY 103,500 (`未定` JPY 101,000 plus social JPY 2,500); it returns no September/October buckets. A focused 2026-07-01..2026-07-03 read confirms 13 rows containing JPY 100,000 of `未定` expenses, explaining why the earlier window beginning July 4 showed JPY 102,000 for July. These are personal cash flows, not Life Manager revenue.
+- The connection works; the unresolved issue is source-data freshness, not plugin authorization. The returned balance is Moneytree's displayed current value but remains freshness-unverified without a provider timestamp/cursor or newer transaction rows. No login, phone, pairing, OAuth, or account-setting operation was performed.
