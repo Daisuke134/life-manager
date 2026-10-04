@@ -6958,3 +6958,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 今回のliveは広いSCOPE_EXPRを呼ばず小SEARCH_CONTROL_EXPRのみ、value/子孫文字列/label hashを読まない。入力/focus/click/scroll/send/auth/fence0。guard release0、own target absent、prior exact ID+URL hash保持、lease absent。reader SHA256 `4d4705ee6440bf8d24f46986a99f37e0efd880a10b00d2a753fd02443f3cae4e`、result `9ca72722323242e1dd893ed146c1b7bd1920349433617f0d2279e4527d32b422` をprimaryがterminal後に確認。元source/新files600を保持。
 - 検索用途未確認なので入力へ進まず、§442reviewの次順位である既存一覧の通常scrollへ進む。§441で特定したexact内部scroll nodeの現在構造を再bindingし、一覧を一度だけ末尾へ移動、前後の表示済みconversation hash集合/追加ロードをboundedに観測する。row/newchat/compose/send/auth/fenceは操作しない。provider read-state不変は未確認、末尾到達/行数不変でも全履歴absenceを認定しない。検索欄・寸法の同一診断を繰り返さない。
 - 現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。これは番号3内の診断方法の更新であり実行順変更や番号3完了ではない。
+
+
+### 444. 容量不足によるreader作成失敗と限定cache回収
+
+- 番号3の新reader copyとprimaryのheredocが `No space left on device` で失敗。担当はfixture/live未実行、部分readerはprimary確認時点で不存在。既存送信のretryやscroll実施として数えない。dfはData volume空き169MiB、inode約20%のsystem側/78%Data側を観測し、本文取得やproviderではなくlocal保存境界を特定。
+- read-only占有調査で `/Users/anicca/Library/Caches/camoufox/Camoufox.app` の再取得可能なdownload binary cache約1.3GiBを確認。cache directoryのentryは同appのみ、symlink false、lsof open PID0、process commandの同cache経路一致0を確認後、このapp cacheだけを除去。profile/credential/証拠/JSONL/稼働browser/サービスは変更しない。削除processはterminal、df空き994→993MiBを再確認。sessionsや財務stateの圧縮/削除は行わない。
+- 同Luna担当はlive前のreader作成段階を所有したまま。小保存preflight後に同taskのcopy/fixtureを再開するよう通知。ONE live/ONE scrollの境界を維持し、保存失敗を成功へ変換しない。空き回復は当該保存境界の復旧でありfleet disk acceptanceや番号3/全goal完了ではない。現在3→次4、SelfBuild/Eval最後。
