@@ -162,9 +162,12 @@ test("B7 economic snapshot stays separate from FinancialRecord totals and preser
   ];
   const { report } = buildFinancialManagerReport(financialRecords, "2026-10-02", {
     businessReadback: {
-      status: "fresh",
+      status: "partial",
       observedAt: "2026-10-03T00:00:00.000000Z",
       sourceReceiptRefs: [receiptRef],
+      coverageGaps: [{
+        product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "missing_category",
+      }],
       table: {
         reporting_date: "2026-10-02",
         excluded_receipt_ids: ["private-receipt-id"],
@@ -175,13 +178,24 @@ test("B7 economic snapshot stays separate from FinancialRecord totals and preser
             window_start: "2026-09-03T00:00:00.000000Z",
             window_end: "2026-10-03T00:00:00.000000Z",
             company: {
-              status: "verified",
-              currencies: { USD: { settled_external_revenue: "987.65", net: null } },
+              status: "unknown",
+              currencies: { USD: {
+                status: "unknown", settled_external_revenue: null, total_cost: null, net: null,
+              } },
             },
             loops: {
               "self-build": {
-                status: "unknown", currencies: {},
-                coverage_gaps: [{ product_loop_id: "self-build", source_id: "stripe", reason: "source_unconnected" }],
+                status: "unknown",
+                currencies: { USD: {
+                  status: "unknown", settled_external_revenue: null, total_cost: null, net: null,
+                } },
+                coverage_gaps: [{
+                  product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "missing_category",
+                }],
+              },
+              affiliate: {
+                status: "verified",
+                currencies: { USD: { status: "verified", settled_external_revenue: "987.65" } },
               },
             },
           },
@@ -198,33 +212,48 @@ test("B7 economic snapshot stays separate from FinancialRecord totals and preser
   assert.deepEqual(report.business, financialRecordBusiness);
   assert.deepEqual(report.business.revenue, [{ currency: "JPY", amountMinor: 1200 }]);
   assert.deepEqual(report.b7EconomicSnapshot, {
-    status: "fresh",
+    status: "partial",
     observedAt: "2026-10-03T00:00:00.000000Z",
     sourceReceiptRefs: [receiptRef],
     trailing: {
       windowStart: "2026-09-03T00:00:00.000000Z",
       windowEnd: "2026-10-03T00:00:00.000000Z",
       company: {
-        status: "verified",
-        currencies: { USD: { settled_external_revenue: "987.65", net: null } },
+        status: "unknown",
+        currencies: { USD: {
+          status: "unknown", settled_external_revenue: null, total_cost: null, net: null,
+        } },
       },
-      loops: { "self-build": { status: "unknown", currencies: {} } },
+      loops: { "self-build": {
+        status: "unknown",
+        currencies: { USD: {
+          status: "unknown", settled_external_revenue: null, total_cost: null, net: null,
+        } },
+      }, affiliate: {
+        status: "verified",
+        currencies: { USD: { status: "verified", settled_external_revenue: "987.65" } },
+      } },
     },
     mrr: { status: "unknown", currencies: {}, reasons: ["mrr_coverage_unknown"] },
     runway: { status: "unknown", currencies: {}, reasons: ["liquid_balance_missing"] },
   });
   assert.doesNotMatch(JSON.stringify(report), /private-receipt-id|private account|raw_provider_payload/);
+  assert.deepEqual(report.businessReadback.coverageGaps, [{
+    product_loop_id: "self-build", source_id: "stripe-financial-record", reason: "missing_category",
+  }]);
 
   const text = renderFinancialManagerShort(report);
   assert.match(text, /B7事業スナップショット.*FinancialRecord.*別・合算なし/);
-  assert.match(text, /USD.*settled_external_revenue=987\.65/);
+  assert.match(text, /company:unknown USD unknown.*settled_external_revenue=未確認/);
+  assert.match(text, /self-build:unknown USD unknown.*settled_external_revenue=未確認/);
+  assert.match(text, /affiliate:verified USD verified settled_external_revenue=987\.65/);
   assert.match(text, /net=未確認/);
   assert.match(text, /self-build:unknown/);
   assert.match(text, /MRR: unknown.*mrr_coverage_unknown/);
   assert.match(text, /Runway: unknown.*liquid_balance_missing/);
   assert.match(text, /2026-10-03T00:00:00\.000000Z/);
   assert.match(text, new RegExp(receiptRef.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.doesNotMatch(text, /private-receipt-id|private account|収益.*¥1,200.*¥987/);
+  assert.doesNotMatch(text, /private-receipt-id|private account|settled_external_revenue=0|total_cost=0|net=0/);
   assert.match(renderFinancialManagerTelegram(report), /B7事業スナップショット/);
 });
 
