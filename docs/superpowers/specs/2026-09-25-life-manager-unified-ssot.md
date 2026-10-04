@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。最新doctor PASS、health failed21/gap2のうち11はcapacity/FIFO defer、entrypoint exit1は8・exit75は2。これらを根因確認し、正常待機と修復対象を分ける。 |
-| 2 | 次 | 実故障のsource根因を最小修正。成功した兄弟経路と実caller/state/receiptを確認し、必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。成功した兄弟経路と実caller/state/receiptを確認し、必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 待機 | 修正の受入・commit/push・対象統合条件を満たし、immutable releaseとowner限定load/admissionの不整合を解消。loaded argv/SHA・rollback・他owner非干渉を確認。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7167,3 +7167,12 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 A43の既存source HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASSだが独立reviewはFIX-FIRST。main revertだけ成功した後にowner復元が失敗すると次回同じrevert branch作成が失敗する。SHAに結び付いた確認済み復旧結果を既存holdへ保存し未完側だけ再試行する修正は未実施。PR／merge／本番復旧も未完。この作業はA42より後に置く。
 
 Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobileの現gateと担当境界は本節を参照。実行順序は上記の正本に従い、SelfBuild／Evalは最後に置く。全体goalはactive/未完。
+
+
+### 465. 内部復旧の初回実測と独立source修正2件
+
+- current immutable82d31995/managed178のdoctor PASS、missing/unmanaged/retired0。health snapshotはfailed21/gap2だが11はtyped capacity/FIFO defer。source reviewは健康と収益を分け、human_required/外部待ちやeffect_unknownを故障/成功0へ丸めない。rootの新owner説明でarticle-zenn-retryとfinancial-reportは後続occurrenceのresource_capacity_busyへ変わっており、最初の8 entrypoint_exit1を現在の実故障件数と固定しない。lancers-work-syncはloaded-running、停止/重複実行しない。
+- token-daily-reportはcaller側必須target展開がshared senderの.env loadより前にabortする根因を確認。専用worktree .worktrees/lm-token-report-target-fallback-20261005 / branch fix/lm-token-report-target-fallback-20261005 / base82d。Luna/maxが指定2filesだけ修正、未指定targetを空でsenderへ渡す既存fallback再利用、明示target優先/未設定failclosedを維持。primary再6/6test・bash-n・diffcheckPASS、sourcecommit/remote `b2cde91595e949376bf11304f8a3cdf67bbaa1a8`、clean。PR/main/release/apply/naturalrun未実施、source-only限定受入。
+- fleet reconcilerはper-owner target呼出が全fleet専用effect_unknown skip契約を失い、安全fenceをerror集計する根因。最新attempt18db728e05a1a7f8-97265はchanged0/skipped176/errors2、instagram-metricsのexact effect_unknown拒否とAlpaca bootstrap code5 I/Oを分ける。前者だけfleet内typed skipへ修正し、targeted拒否/fence/他errorは保持する。専用worktree .worktrees/lm-fleet-effect-unknown-skip-20261005 / 同名fix branch/base82d、Luna/max native担当が2filesを所有し実装中。primaryはAlpaca install/rollbackのread-only診断を並行する。
+- AGMSG既存team読取は20秒timeout、独立fleet CLI起動はOS Terminal -1712でfailed。モデルはgpt-6-luna/maxのtask-specific supported spawn argsを指定したが、起動済みとしない。placementなし/該当CLI process0/専用branchcleanを確認後nativeへ切替、Terminal/appserver restartや旧モデルfallbackなし。boot prompt/argsはdocs/superpowers/evidence/2026-10-05-internal-loop-recoveryへpush済み（8130e747）。登録と稼働を区別し、送信しただけで着手としない。
+- primaryは現在1の残owner/gap根因調査を継続、owner単位で根因確定した2のsource修正を独立並行。§217の実行順を飛ばして全項目Doneにしない。Coconala外部作業/未受入privatecopyは保留、SelfBuild11〜14最後、本番mutation0。
