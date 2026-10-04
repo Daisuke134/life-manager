@@ -5875,3 +5875,14 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 初回ENOSPCで失敗したrelease modulesを同fixed3a7で再実行し、session27107はexit0／23件／31.209s／OK。初回failureは§335で保持。source／provider／profile／本番state変更0。
 - 親full runtimeを同pushed3a7で再実行、session18609／log lm-reply-blocked-parent-runtime-recheck.log、terminal未取得。初回logと分けて保存、同handleを追い重複再起動しない。
 - fresh read-only reply_blocked_exit_source_reviewへgpt-6.1-sol／medium／forknoneで2file sourceの反証を依頼。runtime再検証進行中をPASSと扱わずsource-only判定を要求、actual metadata未観測。次はsame runtime terminalとreview判定。main／本番復旧／全goal未完、SelfBuild最後。
+
+### 337. Reply同HEAD runtime759再PASSとfresh source限定SHIP
+
+- 親session18609はexit0／759件／145.823s／OK。HEAD3a7e6e5b8580f75108b2bcd6314393bbcdd61211／cleanを確認。同sourceで初回ENOSPC／exit120→failed modules23PASS→full759PASS、初回失敗を§335へ保持する。
+- independent reply_blocked_exit_source_reviewはSHIP（source-only）、Critical／Important無し。kernel34PASS、blocked75／ok0／failed1に加えpending／effect_unknownの旧exitとJSON一致を確認。provider呼出し混入／JSON変更／retry差分を反証して不成立。actual model／effort／usage未観測。本番反映・403復旧・自然公式readbackは未証明。
+
+### 338. 既存403 targetの別owner帰属と正規inbox head receipt取得
+
+- 現行registered CDP9223 /json/listはHTTP200、Coconala direct_message/10078795のpage target BB5F00BCC2125F3D02E04CA829EF3793は403 title。with-browserはidentity hashごとのtarget ledgerを使うためglobal ledgerのowner未取得を訂正、正規ledgerではpaid-direct-18180857所有と確認。今回replyの同run binding無し。別owner targetへのevaluate／navigate／close0。
+- browser-guard statusはregistered identity healthy／holder無し。既存main immutable collectorのdirect-inbox-head-onlyを自己owner coconala-a17-inbox-boundary／既存vault／identity lease下で開始。source receiptだけを読むbounded mode、semantic model／client送信／応募／納品無し。tool session40318／log lm-coconala-a17-inbox-boundary.log、terminal未取得。head_onlyは全inbox coverage成功を証明しない。次は同handleのreceiptでhelper／provider境界を確認する。
+- 全goal未完、SelfBuild最後。
