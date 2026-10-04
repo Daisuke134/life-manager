@@ -4889,6 +4889,8 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§369で直近1日到着と7lane現状を再観測、confirmation／same-occurrence joinは未完。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
+  - [ ] A18.1 collector403のprovider画面／localCDP helper境界をsecret-freeに保存する最小source修正（§370）。
+  - [ ] A18.2 統合条件成立後、自然runで失敗origin・run／occurrence・snapshot／reportを結び、再送0を保持する。
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
@@ -6276,3 +6278,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fresh Sol6.1 medium local readonly workerが正本events／latest／ownerartifactのbounded末尾から05:42:17Z finite7lane censusを保存。CWreply05:38:41 fail75／application05:42:10 fail75、Mercorreply05:41:41／application05:42:03 admission resource_effect_unknown、Lancersnegotiate05:41:44／application05:41:37 fail1。全7laneの最新reportにはofficialreceipt/readbackref無し、snapshot同run binding無し。network／provider／Gmail／browser／launchctl／fence／send0。state/marketplace-a16-a18-current-20261004.json SHAb118b89d628a189a29c9c06ba34c064e14f8e1fb136531bc4d0557dbda65966dを親が再照合。
 - Coconala census時のprocesspass18db3d1a...67860とsnapshot05:42:16blocked(provider_inbox_access_forbidden)は別時間窓。newer execute69353をprimaryがexact再read、05:42:02execute→05:42:19pass／exit0／receipt null、claimrefは別47155。snapshot05:42:16はこの新run時間窓に入るが、snapshot内run/occurrenceIDが無く時刻一致だけで公式binding済みへ昇格しない。local artifact state/coconala-a18-newer-run-69353-boundary-20261004.json。現source1a7のblocked snapshot→process0は既存Reply修正3a7e6e5bの対象と整合、source受入と本番修復を分ける。再suite／再実装不要、main統合条件は§328保持。
 - 過去CrowdWorks208mail／全page取得と最新selection_declined通知は保存済み証拠として再確認。募集／選考通知は新規応募confirmationではない。到着と業務失敗を分け、A17/A18の必須joinを未完保持。次は各fenced occurrence公式receiptとcollectorアクセス／same-run result境界を絞る。実行可能な独立項目はA19以降のstorefront／未接続platform観測、外部待ちや統合条件を完了扱いしない。cursorA16–18／全goalactive／SelfBuild最後。
+
+### 370. Coconala拒否originの原始証拠欠損／source保存修正着手
+
+- fresh readonly source auditはhf-gig-reply-detector wrapper→adapter→queueをsource1a7で追跡。inbox /message、orders-only /mypage/received_orders/openは別route。provider DOMHTTP403とhelper HTTP Error403が同拒否labelへ縮約され、helperはlocal CDP /json/versionも読むため現labelだけでprovideroriginと断定できない。head-onlyにもcontext／cookie seed／recoveryがあり、auth/profile0保証無しのため手動実行しない。
+- state/coconala-a18-inbox-boundary-path-20261004.json SHAb7ba9fe96595c3d4cdf20fe247d9ce617664de2dfa0f0cb2742731cba3b7da65、error-origin-readback SHA f29dcbe30efe5faf74a84907929e42a160a0105920279c6693c72dbcaab0124dを親が照合。exact69353／claim47155のrawproofはbounded targetpathsに不在。snapshot時刻はrun内でもrun／occurrence無しのためtemporalcandidate。原始helperstderr／DOMreceiptのprovider_vs_localCDPはunknown。
+- 実保存境界はqueueのhelperstderr→reason縮約、kernel CollectorUnhealthy.details落ち／earlyreturn、native exit0でstderr詳細をreportへ残さず一時fileunlink、terminal scratch削除。source失敗originの診断不足を特定し、過去失敗を推測で埋めない。read-only監査のprovider／browser／auth／context／seen／source変更0。
+- primary登録coconala:kosuke9223／UUID2b83bc99-3ca6-4005-bf04-76a9eb4dd7d8はreachable、guardholder78436はps生存bash。別owner保持中profileへ追加操作0。A19公開service4409818はcrwl／scrapyとも403、公開取消／注文0の証明にしない。state/coconala-a19-public-service-20261004.json／htmlのmetadataを保持。
+- A18.1 source修正はrequested Luna6 max実装worker、最新origin/main由来専用worktree .worktrees/reply-collector-evidence-20261004／branch fix/reply-collector-evidence-20261004、parent codex-money-printerがSSOT所有。許可production filesはgig queue／gig reply_adapter／shared reply_kernelの3fileと関連既存testsのみ。他agent変更・profile・state・provider・launchctl・releaseへ触れない。既存blocked-exit source3a7のexit修正を再実装／cherrypickしない。
+- 受入はproviderDOM403／helper403／origin不明を区別するsecret-free origin/layer/httpstatus/route/evidence refs保存、URL query／fragment／userinfo除去、rawstderr／body／credentials無し、実inputに無いrun／occurrenceを捏造しないこと。focusedRED→最小GREEN／必要checks／commitpush／remote確認後freshreview。sourceOnly、PR／main／本番反映は既存統合条件を保持。2.7GiB空き／11GiBfloor未達につきinstall／heavybuildなし。cursorA18.1／全goalactive／SelfBuild最後。
