@@ -19,4 +19,14 @@ Status: `capacity_busy` reproduced in the latest CFO occurrence; current host oc
 
 ## Candidate repair after repository approval
 
-Issue #6549 is still open with no maintainer response. After approval, make the CFO report a reserved high-priority borrower without increasing the host-wide cap: cap concurrent revenue-class jobs at 7 (leaving one of the existing 8 finite slots for a borrower) and raise CFO from `support` to `critical_paid`. Verify admission behavior and revenue-loop throughput before release. Do not kill active revenue owners to make room.
+The original repair proposal below is superseded by the current-session queue analysis. Its `critical_paid`-as-borrower setting is invalid under `_normalize_priority`, and a revenue cap alone does not make the CFO waiter outrank aged support borrowers. See the corrected design below.
+
+## Corrected current-session readback and design — 2026-10-04 22:08 JST
+
+- Issue #6549 remains OPEN with zero comments; the authoritative GitHub reactions endpoint shows one `+1` by `Daisuke134` at 20:09 JST, satisfying its source-change gate.
+- New natural `lm-loop status` readbacks show `life-manager-cfo-hourly` at 21:57 JST (`18db54e679b119c8-16831`) and `life-manager-financial-report` at 21:55 JST (`18db54c907217910-9553`) both deferred before entrypoint with `resource_capacity_busy`, exit 75, `effect=not_applicable`, and no provider receipt.
+- A fresh PID/start-time check found 8/8 live slots (agent 5, browser 1, deterministic 2). Read-only SQLite shows the current CFO occurrence remains `queued`, `borrow/support`, `effect_unknown=0`; the deterministic eligible queue contains 29 `borrow/support` waiters and 2 `revenue` waiters.
+- The earlier proposed `critical_paid` borrower is rejected by `_normalize_priority` (`critical_paid requires revenue admission`). A revenue cap alone also does not prioritize CFO ahead of aged support borrowers. That recommendation is superseded.
+- Corrected source-only proposal: reuse `priority=revenue` for the existing `borrow` CFO owner; no new enum or schema change. Queue rank is based first on the existing effective priority for actual revenue admission, then a fixed borrow/revenue report band, then a fixed borrow/support band with age only breaking ties inside that band. This avoids promoting a 30-minute-old borrowed CFO to critical-paid ahead of fresh real revenue and keeps aged support from jumping above higher classes.
+- Preserve total cap 8, current owners, queue identity/sequence, and effect fences. Do not preempt/kill loops, raise capacity, or clear the queue. Implementation/test and independent review are still pending; this proposal is not production behavior.
+- No code/config/production mutation was made during this diagnosis. Source tests and independent review remain required before any promotion.

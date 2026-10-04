@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: approved for implementation; current execution cursor is unified SSOT §87-J item 3
+Status: approved for implementation; current execution cursor is unified SSOT §87-J item 3a
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -256,9 +256,17 @@ Telephony, paid model calls, and user-requested external actions remain separate
 - verify official Moneytree, Google billing, revenue, and expense readbacks;
 - close only when all required numbers are either fresh and sourced or explicitly partial with an owner-visible blocker.
 
+### A11 — CFO host-admission reliability
+
+- Keep the existing total host cap and `life-manager-cfo-hourly`'s `borrow` admission class; reuse its existing `revenue` priority rather than adding a new enum/schema value.
+- Queue order uses the existing effective/aging rank for actual revenue admission first, a fixed borrower/revenue report band second, and a fixed borrower/support band third. Borrower age only breaks ties within the same fixed band; it cannot promote the CFO above a fresh actual-revenue waiter or let aged support jump ahead of the report.
+- Rebinding the queued CFO owner changes only its priority while preserving queue sequence/occurrence identity. No cap increase, preemption/kill, queue purge, or effect-fence change is allowed.
+- Keep queued CFO wakes coalesced. Do not preempt/kill running owners, raise the host cap, rewrite queue age/sequence, clear waiters, or release effect fences.
+- A registry rebind may update only the effect-free queued CFO owner's priority while preserving occurrence identity and sequence. Validate through queue-order tests before any promotion.
+
 ## 10. Current gate
 
-The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. Task 8A's receipt-aware pre-ingest replay guard is implemented and independently reviewed on that branch; this is source/test evidence only. The current evidence, order, and execution cursor are in unified SSOT §87-J/§87-AA. The local Financial Manager is the only user-facing daily sender; the legacy cloud wallet-only sender is retired only after the local natural receipt and replay-zero are proved. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has one durable provider receipt, stable daily period, source coverage, and replay-zero.
+The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. Task 8A's receipt-aware pre-ingest replay guard is implemented and independently reviewed on that branch; this is source/test evidence only. Task 8B is the current candidate-only prerequisite to the natural report: give one coalesced CFO waiter a stable place ahead of support backlog without changing paid/revenue precedence or host capacity. The current evidence, order, and execution cursor are in unified SSOT §87-J/§87-AC. The local Financial Manager is the only user-facing daily sender; the legacy cloud wallet-only sender is retired only after the local natural receipt and replay-zero are proved. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has one durable provider receipt, stable daily period, source coverage, and replay-zero.
 
 ## 11. External provider research and selected cost-reduction design
 

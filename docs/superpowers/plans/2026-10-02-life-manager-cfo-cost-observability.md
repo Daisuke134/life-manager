@@ -214,9 +214,9 @@
 
 **Latest Moneytree readback (2026-10-04):** the connected plugin returns one MUFG account, but the newest transaction is dated 2026-08-25 and no source update timestamp/completeness cursor is exposed; September/October coverage is missing. Personal balances and flows remain `stale/partial`, not current or zero; the tracked plan intentionally omits exact personal amounts. See `docs/evidence/cfo/2026-10-04-moneytree-mcp-readback.md`.
 
-**Repository cursor (2026-10-04 21:40 JST):** issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) remains open, with the owner/maintainer `+1` verified and source-change gate cleared. The implementation branch is synced through `origin/main` `1e61f82c`; prior CFO conflict sync is resolved; candidate-only unrelated marketing commit `cab8cce811` still must be excluded from any final CFO PR. Latest local and cloud wakes both deferred before effect, and the candidate local Financial Manager path is not production-loaded. Full branch is not PR-ready. No production config, enqueue, stop, or send was performed by this documentation decision.
+**Repository cursor (2026-10-04 22:08 JST):** issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) is OPEN with zero comments and Dais's `+1` verified; the source-change gate is cleared. This branch contains fetched `origin/main` `1a20a53798b09e0f58c019b45aa704aa2ddf55b2`; candidate-only unrelated marketing commit `cab8cce811` still must be excluded from any final CFO PR. Latest local and cloud wakes defer before effect, current host occupancy is 8/8, and the candidate Financial Manager path is not production-loaded. Task 8A is done; the invalid `critical_paid`-borrower suggestion is superseded. No production config, enqueue, stop, or send was performed.
 
-**Current execution cursor:** unified SSOT §87-J item 2a. The approved direction is one local Financial Manager daily sender. Add a receipt-aware same-day early return before Moneytree/B7 ingestion, only for a valid delivered receipt with matching period and destination; leave pending/unknown delivery on the reconciliation path. After the local source change is promoted and a natural daily receipt/replay-zero with visible coverage gaps is verified, remove the separate `life-manager-financial-report` 5-minute sender from the registry/catalog. Do not use Railway credentials or create a new enqueue endpoint. The recent cloud wake was capacity-deferred before effect (exit 75); do not manually restart/enqueue.
+**Current execution cursor:** unified SSOT §87-J item 3a / §87-AC. First set only the CFO owner to existing `borrow/revenue` and test queue ordering: actual revenue admission keeps its current effective/age rank first, borrower/revenue CFO is next, borrower/support follows with age only as an intra-class tie-break. Keep active owners, total capacity, queue identity, and effect fences untouched. Then, through the valid main-derived release path, verify one natural local daily report with freshness/coverage and a durable provider receipt, followed by same-period replay-zero. Only after this gate remove `life-manager-financial-report` from registry/catalog. Do not use Railway credentials or create an enqueue endpoint; do not manually restart or resend a capacity-deferred occurrence.
 
 **Files:**
 - Create: `apps/life-manager/scripts/cfo-natural-run.test.js`
@@ -229,7 +229,7 @@
 - [x] **Step 1: Add deterministic natural-run harness.** Use real Moneytree MCP read-only calls only when the environment is authenticated; use fixture receipts for disconnected business sources and retain their gaps.
 - [x] **Step 2: Run all focused suites.** Run the Task 1–7 commands, then the Life Manager finance/report suites and `npm test` from a clean installed worktree. (CFO suites pass; the full suite has two unrelated marketing caption-guard failures.)
 - [x] **Step 3: Execute one local daily close with delivery injected.** Verify actual balance observation, nonzero/unknown transaction semantics, source coverage, cost state, and digest replay.
-- [ ] **Step 4: Verify one natural local daily report.** Use the Financial Manager path, confirm source freshness/coverage warnings and a durable Telegram provider receipt, then replay the same JST daily period and prove no second send. Only after this gate, retire the cloud wallet-only sender.
+- [ ] **Step 4: Verify one natural local daily report after Task 8A and 8B promotion.** Use the Financial Manager path, confirm source freshness/coverage warnings and a durable Telegram provider receipt, then replay the same JST daily period and prove no second send. Only after this gate, retire the cloud wallet-only sender.
 - [ ] **Step 5: Observe seven expected daily periods.** Record cache hit rate, paid calls, budget transitions, source freshness, settled/estimated variance, and report delivery.
 - [x] **Step 6: Read back official provider state and finalize evidence.** Mark each spec requirement `proved`, `partial`, or `blocked`; do not claim full CFO completion while any required source remains unknown/stale without an owner-visible reason.
 - [x] **Step 7: Commit and push evidence/spec cursor.** `git add apps/life-manager docs/evidence docs/superpowers/specs && git commit -m "docs(cfo): record natural-run acceptance"`.
@@ -253,6 +253,29 @@ This was the prerequisite for Task 8 Step 4. At task start, the local owner woke
 - [x] **Step 4: Verify GREEN and commit.** Focused suite 15/15, `cd apps/life-manager && npm test`, and `git diff --check` PASS. Commit `d6cb0d4070cd9c96d32c0cd25696c88c1d074fe7` pushed; fresh read-only task review Approved. Production state unchanged.
 
 The cloud-report enqueue/UID/DB path is no longer the chosen user-facing sender. Preserve its code/evidence for now; registry/catalog retirement is a later, ordered action after Task 8 Step 4 proves the local replacement in production.
+
+### Task 8B: Give the CFO borrower a revenue-ranked place in the existing queue
+
+The 2026-10-04 21:55/21:57 JST natural wakes were pre-effect `resource_capacity_busy`. At 22:02 JST all eight finite host slots were live. The read-only admission DB showed the CFO waiter retained as `borrow/support` with no unknown effect; 29 eligible deterministic `borrow/support` waiters were ahead of the report. `critical_paid` cannot be assigned to a borrower. Do not change the total cap or preempt owners.
+
+**Files:**
+- Modify: `runtime/host/resource_admission.py`
+- Test: `runtime/host/tests/test_resource_admission.py`
+- Modify: `config/loop-registry.json`
+- Test: `runtime/loop/tests/test_macos_loop_registry.py`
+
+**Contract:**
+- Set only `life-manager-cfo-hourly` to existing `priority=revenue`, retaining `admission_class=borrow`; do not add a priority enum or schema.
+- In queue ranking, preserve the existing effective/age behavior for `admission_class=revenue`; map `borrow/revenue` to a fixed report band after actual revenue and `borrow/support` to a fixed support band after the report.
+- Age is only a tie-break inside a borrower band. A borrower must not age into `critical_paid`, and aged support must not jump ahead of revenue or the CFO report.
+- Preserve one coalesced CFO queue entry, queue sequence/occurrence identity, total host cap, active claims, and effect-unknown fences. Do not delete or rewrite unrelated waiters.
+- The change is source/test only. It does not change the loaded CFO owner or claim that production has run.
+
+- [ ] **Step 1: Add failing queue-order and registry tests.** With one deterministic slot repeatedly released, assert actual revenue admission (including the existing age behavior) reserves before an aged `borrow/revenue` CFO, the CFO reserves before aged `borrow/support`, and old support remains ahead of young support within its band. Assert the CFO rebind changes only priority while preserving sequence/occurrence identity.
+- [ ] **Step 2: Run focused tests to verify RED.** `python3 -m pytest runtime/host/tests/test_resource_admission.py -k 'queue_order or rebind_queued_owner'` and `python3 -m pytest runtime/loop/tests/test_macos_loop_registry.py`.
+- [ ] **Step 3: Implement the minimal class-specific queue bands and set only life-manager-cfo-hourly to borrow/revenue.** Keep actual revenue aging, do not age borrowed priorities into critical-paid, remove the aged-support rank bypass, and preserve host caps, cadence, owner count, and queue identity.
+- [ ] **Step 4: Verify GREEN and contract.** Run the focused commands, `./bin/lm-loop-contract`, and `git diff --check`; review only the owned files and push the source commit.
+- [ ] **Step 5: Fresh read-only task review.** Confirm paid/revenue precedence, support FIFO, no preemption, cap increase, queue deletion, or effect-fence weakening.
 
 ## Verification Commands
 
