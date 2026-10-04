@@ -6131,3 +6131,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fresh budget snapshotはcontract direct-offer6361950／one_shot／取引中／formalfalse／checkbox有効。これを送信許可や①だけのpartial closure可能の証明としない。
 - 公式help218721047はwebopen取得失敗後crwlで本文取得。双方同意したサービス提供の完了後にformalを送る条件と、納品確認・検収を経たトークルーム終了で売上計上へ進むことを確認。help4403291547417はwebで取得し、承諾等によるroom単位close条件を確認。一般ルールで①承認を②未完成に拡張せず、当該契約で①だけを閉じる合意は未確認として保持。
 - 根拠URL https://help.coconala.com/hc/ja/articles/218721047 ／ https://help.coconala.com/hc/ja/articles/4403291547417 、取得本文／hash／contract metadataはprivate formal-scope-boundary.json。次は公式download bytesと取引scope合意の証拠。全goalactive／SelfBuild最後。
+
+### 352. 公式予算書download完了とローカルartifact同一性FAIL
+
+- worker A04-official-budget-downloadは新context／contextId限定download設定、公式seller220802599 attachment:0のdownload iconへtrusted click1回。HTTP200／downloadcompleted、終了04:17:44Z／rc0。context解放とowner行不在を確認し、終了後の別holder39495（取得04:17:50Z）へ操作しない。送信／再添付／formal0。
+- 公式取得56351bytes／SHA0c64483ca4bded5953db98bc4a80d414f62bd3400a5054539cfff4cbdf9eb56e、local17665bytes／SHA cc2c9b7dcf1d36ddb884d2e94e82bd76b3fd85656746624e3e6e47a839757c49。親もofficial stat／SHA／ZIP integrity／xl/workbook.xmlを確認。bytes同一性FAILであり、filename一致／旧local acceptanceを公式承認対象へ結合しない。表示55.0KBに対応する実bytesを回収できたが、localとの差が内容か体裁かは未分類。
+- raw公式ファイルはstate/coconala-a04-budget-download/official-bytes/528f0b56-49a4-4a2f-9af4-ad9e36a06b73、source_ref／events／hash／cleanupはofficial-download-receipt.json、directory700／files600。秘密URL／cookie／本文をchat／repoへ出さない。
+- provider所有を返却し、同workerへlocal-onlyの内容／formula／print/styles比較を割当てる。原本・既存project・source・state変更無し。download観測raw messagecount28と以前canonical27の差は未説明で、latestapproval変化とも不変とも断定しない。
+- 次は承認対象originalと現localの具体的差、必要な復元、取引scopeを確認する。正式納品・検収・精算・全goal未完、SelfBuild最後。
