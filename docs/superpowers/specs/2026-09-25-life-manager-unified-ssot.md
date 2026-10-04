@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait引数を実装中、次にsnapshot proof誤認を独立確認/修正し、Writer READY衝突へ進む（§470/476/477）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait修正はsource受入済み。次にsnapshot proof誤認を修正し、Writer READY衝突へ進む（§478）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7279,3 +7279,15 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - actual reconcileをno-provider fixtureで実行：fenced state claimed、load_snapshot=None、dashboard callbackは呼出時fail、resolve_pre_effect callbackはfixture spy。結果verified=true/effected=false/closed=true、resolver call1を再現。evidenceはfixture一時dirのみ、実DB/実fence解除/投稿/外部作用0。現productionで欠損事故が起きたとはまだ認定しない。
 - 次の必須確認はfresh Sol/medium read-only source反証。producer write_errorのCLI status、snapshot binding/partial/malformed、同occurrence snapshot上書き/再利用も必要範囲で照合する。欠損を0/pre-effectへ丸めないDoneに直結するため、現PromptBase wait修正の次、Writer READY修正の前へ安全修正候補を追加する。旧source順refill→PromptBase wait→Writer、新source順refill→PromptBase wait→snapshot proof確認/必要修正→Writer。親§217順1→14/cursor1は維持、進行中effectの中断/重複0。
 - 修正対象候補はdaily.sh / scripts/promptbase_fence_reconcile.pyと既存focused tests。publish.py/test_publish_diagnostics.pyの現在native担当と編集範囲を重ねない。確認前にsnapshot欠損を新成功条件へ置換せず、fresh指摘を解消してからsource受入。PR/main/applyは引き続き未実施。
+
+
+### 478. PromptBase wait source受入、snapshot修正の必須契約
+
+- wait修正branch fix/lm-promptbase-playwright-step-wait-20261005 / HEAD・remote36a786b59fdf8cc3ac737fc36c2824f4d0b772b5 / clean。primary publisher diagnostics3/3 PASS、実installed SDK signature.bindを通したhelper呼出はarg=2/3で成立、browser/HTTP0。構造gate14/178/103/errors0・diffcheck PASS。2file/4行差分のみsource受入、本番未反映。
+- fresh Sol/mediumはsnapshot処理HOLD、P1を独立再現。missing/partial/破損/非dict/wrong bindingでもno-effect解除。同occurrence selected→空/別candidate上書きでも元候補AがPendingなのにB不在から解除できる。CLIはwrite_error時rc1だがdailyが無視。admission resolverにhidden snapshot witnessはなく、dead runの誤認を防がない。実事故は未確認、fixture effects0。
+- 新main82d由来worktree `.worktrees/lm-promptbase-snapshot-proof-20261005` / branch `fix/lm-promptbase-snapshot-proof-20261005` / owner codex-money-printer-promptbase-snapshot / lease24h / clean。所有はdaily.sh、scripts/promptbase_fence_reconcile.py、既存tests/test_promptbase_fence_reconcile.py、新必要最小tests/test_daily_snapshot_dispatch.py。wait修正の2fileは所有外。
+- 契約1：有効occurrenceなし、snapshot保存失敗ならpublisher dispatch0でabort。既存LIFE_MANAGER_ENV_FILE overrideを必要なら再利用し、testはprivate .envを読まず実daily入口をfakeコマンド/一時fixtureで確認。価格/model/category/browser/profile/cadence/provider/publication設定は変えない。
+- 契約2：欠損/破損/非dict/部分候補/schema・owner・occurrence・時刻不正はinconclusive/HELD、resolver call0。明示的null slug/null titleを持つ正しくboundされたschema1 no-candidate記録だけをno-dispatch proofに使う。時刻精度はproducerの秒精度とqueue時刻のmicrosecondsの差を考慮し、不正/未来/別run記録を成功へ丸めない。
+- 契約3：同occurrence snapshotの既存bytesを上書きしない。異候補/selected→emptyは拒否。安全な同一入力の再読は既存正当な記録を返せるが、壊れた既存記録を置換して成功を作らない。atomic create/排他で同時別candidateを拒否する。既存欠損はproducer修正だけで安全扱いしない。
+- 必須RED→GREEN：保存失敗/occurrenceなしpublish0、各invalid snapshot resolver0、正当なno-candidate/selected既存readback経路保持、Aの効果をB不在で解除不可、同occurrence記録上書き不可/同時競合安全。fixture callbacksのみ、実DB/fence/credentials/HTTP/live送信0。Luna/max→focused/構造gate→commit/push→primary/fresh Sol受入、本番は3の承認待ちに残る。
+- source残順snapshot proof→Writer READY、Lancers account境界は未確認。§217cursor1/source2部分並行、Coconala保留/SelfBuild最後、全goal未完。
