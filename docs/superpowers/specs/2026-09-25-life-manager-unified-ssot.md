@@ -4914,8 +4914,8 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。
 - [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。§382 localmoney event/fee/payout0はprovider売上0でなく、learningfinancialmetricの欠損→verified0を独立BUG/P2確認。source限定修正中、本番DB/設定未変更。
   - [ ] A28.1 financiallearning metricのreceipt/coverage欠損をunknownへ保ち、legacy未証明0をconsumerへ渡さないsource修正。
-  - [ ] A28.2 source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。
-- [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。
+  - [ ] A28.2 source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§388のartifact/期間/currency/全件終端coverage不足を解消し、個別receipt合計・account月次値をfirst24h総額へ代用しない。
+- [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。§386/388の共有guardidentity不足とexact旧occurrence18d83ba82b14fb40-24990のofficialreadback不足を保持。
 - [ ] A30 Affiliateのcommission・payout・実費を確認する。
 - [ ] A31 Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。
 - [ ] A32 Fundraiser旧申請の公式記録と資金受領を照合する。
@@ -6436,3 +6436,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - reviewer確認のStripeproducerは最大3pages・終端periodcoverage未保存。noteaccount当月salescount0をartifactfirst24hfinancialzeroへ代用しない。個別transaction差額0と完全期間net0を区別し、正当な個別値を保持したまま学習totalsは証拠coverageで制御する。正当なsignednetは他非負contractを緩めず扱うことを修正packetへ追加。
 - freshP1を修正packetへ反映するため、primaryはownfiniteCLIのexactexecutable/worktree/resultpath/PPIDを確認してPID41414へSIGINT。run37950のauthoritative terminal implementation_resume_exit1/wrapperexit0を待ち、変更保存を確認。観測timeoutだけのrestartではなく、反例に基づくsource作業の方針修正。runtimeowner/productionprocess/loop/host/browser/authの停止0、PR/main/DB変更0。
 - 旧実装者終了後にgeneric native writer_financial_coverage_correctionへrequestedgpt-6-luna/maxで担当移行。所有はmoney_sync/money_ledger/learning_worker最大3prod＋関連tests、primarySSOT/freshreviewread-onlyと非重複。新framework禁止、2反例RED→最小GREEN→必要checks→専用branchcommitpushremote→freshreviewの指摘解消。旧差分を無条件受入せずtestを弱めてpassしない。A28.1未完/全goalactive/§217順序/SelfBuild最後。
+
+### 388. Writer期間coverageの実producer境界とAffiliate旧runの確定
+
+- requestedLuna/max correctionagentはfreshlistでrunning、primaryはworker所有sourceを変更せずproducer根拠を照合。measure-salesのsales_count/sales_revenueはaccount scope/current_calendar_month、artifactへの推計割当なし。writer_stripe_sync.read_objectsはmax_pages3、has_moreを内部break判断に使うが完全期間coverageをledgerへ保存しない。既存個別receiptのstatus確認は期間全件取得の証明ではない。
+- A28.1は欠損/legacyを金融学習へ渡さないsource修正、A28.2は公式取引→手数料→精算→着金/実費/商業bindingとartifactfirst24h coverageの取得。正当なaccount観測・個別取引/fee・非財務metricは保全し、periodtotalの証拠不足をunknownとして分離する。旧first24h範囲外で再syncされないlegacyにもconsumerguardを適用する条件を実装担当へ追加。signednet情報とcoverage不足を混同しない。
+- Affiliate公式status再取得でoldoccurrence affiliate-loop:18d83ba82b14fb40-24990/claimedを確定。causeeventは09/24 11:15:48UTC report/pass/exit0/effectunknown、official_readback_ref/provider_receipt_idはnull、nextactionofficial_readback_required。pre-effectterminal不足のためauto-close不可。exit0をno-effectや公開成功に変換しない。
+- private affiliate-a29-runtime-readback-20261004.jsonへexactoldoccurrence/causeevent/不足/nextactionを追記。revenue-cycleのNO_TRANSACTIONSや旧failurePROVIDER_SCHEMA_ERRORは公式公開receiptの代用にしない。共有guard登録とexclusiveownership確定後に旧publicationのofficialreadbackを取り、新規公開やfenceclear/replayはしない。現行A28.1cursor・全goalactive・SelfBuild最後、A29税務/paymentとA30finance未完。
