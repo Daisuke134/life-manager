@@ -27,6 +27,8 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).parents[1] / "browser_port_owner.py"
 LANCERS_LAUNCHER = Path(__file__).parents[3] / "skills/earn/lancers/scripts/browser-owner"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+UPWORK_LAUNCHER = REPO_ROOT / "skills/earn/upwork/scripts/browser-owner"
 
 
 def _free_port() -> int:
@@ -36,6 +38,123 @@ def _free_port() -> int:
 
 
 class BrowserPortOwnerTests(unittest.TestCase):
+    def test_upwork_browser_owner_uses_dedicated_profile_and_bounded_argv(self):
+        if not UPWORK_LAUNCHER.is_file():
+            self.fail("missing canonical Upwork browser owner entrypoint")
+
+        registry = json.loads((REPO_ROOT / "config/loop-registry.json").read_text())
+        loop = registry["loops"]["upwork-revenue-browser"]
+        self.assertEqual(loop["browser_owner"], {
+            "cdp_port": 9233,
+            "profile": "~/.cloak/profiles/gig-upwork",
+        })
+        self.assertEqual(loop["cadence"], {"keep_alive": True})
+        self.assertEqual(loop["effect_class"], "none")
+        self.assertEqual(loop["resource_class"], "browser")
+        self.assertEqual(loop["provider_route"], "deterministic")
+        self.assertEqual(
+            loop["entrypoint"], "skills/earn/upwork/scripts/browser-owner",
+        )
+        self.assertEqual(
+            loop["state_root"], "~/.local/state/life-manager/upwork-revenue-browser",
+        )
+        self.assertEqual(
+            loop["log_root"], "~/.local/state/life-manager/upwork-revenue-browser/logs",
+        )
+        catalog = json.loads(
+            (REPO_ROOT / "apps/life-manager/config/product-loop-catalog.json").read_text()
+        )
+        self.assertEqual(len(catalog["loops"]), 14)
+        job_hunter = next(row for row in catalog["loops"] if row["id"] == "job-hunter")
+        self.assertIn("upwork-revenue-browser", job_hunter["job_ids"])
+        self.assertIn("continuous_service", job_hunter["recovery_classes"])
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            home = base / "home"
+            release = base / "release"
+            launcher = release / "skills/earn/upwork/scripts/browser-owner"
+            launcher.parent.mkdir(parents=True)
+            launcher.write_bytes(UPWORK_LAUNCHER.read_bytes())
+            launcher.chmod(0o755)
+            port_owner = release / "runtime/host/browser_port_owner.py"
+            port_owner.parent.mkdir(parents=True)
+            port_owner.write_text(
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "Path(os.environ['UPWORK_OWNER_ARGS_FILE']).write_text(json.dumps(sys.argv[1:]))\n"
+            )
+
+            profile = home / ".cloak/profiles/gig-upwork"
+            sibling_profile = home / ".cloak/profiles/crowdworks-browser"
+            sibling_profile.mkdir(parents=True)
+            sibling_marker = sibling_profile / "keep"
+            sibling_marker.write_text("untouched")
+            owner_args_file = base / "owner-argv.json"
+            env = os.environ.copy()
+            for key in (
+                "UPWORK_BROWSER_PROFILE", "UPWORK_BROWSER_RENDERER_LIMIT",
+                "UPWORK_BROWSER_PORT_OWNED", "UPWORK_CHROMIUM",
+            ):
+                env.pop(key, None)
+            env.update({
+                "HOME": str(home),
+                "UPWORK_OWNER_ARGS_FILE": str(owner_args_file),
+            })
+            owner_result = subprocess.run(
+                ["bash", str(launcher)], capture_output=True, text=True,
+                env=env, timeout=10,
+            )
+            self.assertEqual(owner_result.returncode, 0, owner_result.stderr)
+            owner_args = json.loads(owner_args_file.read_text())
+            self.assertEqual(owner_args[:7], [
+                "run", "--port", "9233", "--profile", str(profile),
+                "--owner", "upwork-revenue-browser",
+            ])
+            self.assertEqual(owner_args[7:10], ["--", "/usr/bin/env", "UPWORK_BROWSER_PORT_OWNED=1"])
+            self.assertEqual(owner_args[10], str(launcher))
+
+            browser_args_file = base / "chromium-argv.txt"
+            fake_chromium = base / "chromium"
+            fake_chromium.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$@\" > \"$UPWORK_CHROMIUM_ARGS_FILE\"\n"
+            )
+            fake_chromium.chmod(0o755)
+            env.update({
+                "UPWORK_BROWSER_PORT_OWNED": "1",
+                "UPWORK_CHROMIUM": str(fake_chromium),
+                "UPWORK_CHROMIUM_ARGS_FILE": str(browser_args_file),
+            })
+            browser_result = subprocess.run(
+                ["bash", str(launcher)], capture_output=True, text=True,
+                env=env, timeout=10,
+            )
+            self.assertEqual(browser_result.returncode, 0, browser_result.stderr)
+            argv = browser_args_file.read_text().splitlines()
+            self.assertIn("--fingerprint=80138", argv)
+            self.assertIn("--fingerprint-platform=macos", argv)
+            self.assertIn("--renderer-process-limit=8", argv)
+            self.assertIn("--remote-debugging-port=9233", argv)
+            self.assertIn(f"--user-data-dir={profile}", argv)
+            self.assertEqual(
+                [arg for arg in argv if arg.startswith("--remote-debugging-port=")],
+                ["--remote-debugging-port=9233"],
+            )
+            self.assertEqual(
+                {path.name for path in profile.parent.iterdir()},
+                {"gig-upwork", "crowdworks-browser"},
+            )
+            self.assertEqual(sibling_marker.read_text(), "untouched")
+
+            browser_args_file.unlink()
+            bounded_result = subprocess.run(
+                ["bash", str(launcher)], capture_output=True, text=True,
+                env={**env, "UPWORK_BROWSER_RENDERER_LIMIT": "65"}, timeout=10,
+            )
+            self.assertEqual(bounded_result.returncode, 64)
+            self.assertFalse(browser_args_file.exists())
+
     def test_live_child_with_dead_cdp_exits_for_launchd_recovery(self):
         child = MagicMock(pid=43210)
         child.wait.side_effect = [

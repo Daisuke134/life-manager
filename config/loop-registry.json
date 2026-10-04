@@ -228,6 +228,29 @@
       "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/crowdworks-revenue-browser"
     },
+    "upwork-revenue-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9233,
+        "profile": "~/.cloak/profiles/gig-upwork"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/upwork/scripts/browser-owner",
+      "label": "ai.anicca.upwork-revenue-browser",
+      "log_root": "~/.local/state/life-manager/upwork-revenue-browser/logs",
+      "provider_route": "deterministic",
+      "resource_class": "browser",
+      "state_root": "~/.local/state/life-manager/upwork-revenue-browser"
+    },
     "crowdworks-revenue-report": {
       "adapter": "exec",
       "admission_class": "revenue",

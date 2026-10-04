@@ -103,10 +103,10 @@
     },
     {
       "id": "job-hunter",
-      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning", "mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
+      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning", "mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply", "upwork-revenue-browser"],
       "name": "Job Hunter",
       "description": "Discover and submit qualified job applications, then reconcile confirmations and replies.",
-      "recovery_classes": ["deterministic", "external_effect_owner", "read_only_external_owner"],
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"job-hunter-funnel-receipt","implementation":"partial"},"financial":{"adapter":"marketplace-financial-record","implementation":"partial"},"cost":{"adapter":"marketplace-financial-record","implementation":"partial"}}},
       "requirements": ["resume", "job_preferences", "gmail", "telegram", "provider_logins"],
       "hosts": {
