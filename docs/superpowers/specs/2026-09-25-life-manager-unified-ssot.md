@@ -3228,10 +3228,10 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 
 ### 87-N. Apple fiscal proceeds readbackは取得済みだがapp帰属未解決（2026-10-04）
 
-- Official `FINANCIAL` reports were read-only retrieved via ASC CLI 5.9.2. `reportDate` uses Apple fiscal months, not calendar months: fiscal `2026-12` covers 2026-08-30..2026-09-26 and contains one JPY `Extended Partner Share` row; the value is omitted from public spec/evidence. Fiscal `2026-11` returned Apple's no-sales response. Do not call the `2026-12` value a full calendar-September total or bank deposit.
+- Official `FINANCIAL` reports were read-only retrieved via ASC CLI 5.9.2. `reportDate` uses Apple fiscal months, not calendar months: fiscal `2026-12` covers 2026-08-30..2026-09-26 and contains one JPY `Extended Partner Share` row; its value was omitted in this 2026-10-04 readback and was subsequently recorded with attribution caveats in §87-AD. Fiscal `2026-11` returned Apple's no-sales response. Do not call the `2026-12` value a full calendar-September total or bank deposit.
 - The finance row's Apple Identifier matched none of the 24 app IDs in the current read-only ASC inventory. Its title `Anicca Annual` matches a local StoreKit display name, but that StoreKit product ID differs; this does not prove the report row belongs to current Anicca iOS. Keep it as unattributed Apple proceeds, outside verified app revenue/B7, until official app-ID/product mapping is resolved.
 - Apple documents that fiscal reports contain monthly proceeds and that `Extended Partner Share` is quantity times per-unit partner share after applicable taxes and Apple commission. Root reports/definition → [ASC financial report readback](../../evidence/mobile/2026-10-04-asc-acquisition-readback.md#2026-10-04-apple-fiscal-financial-report-follow-up), [Apple report guide](https://developer.apple.com/help/app-store-connect/getting-paid/download-financial-reports), [Apple report fields](https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields).
-- Raw reports/amounts were not persisted. Attribution gap does not change the current B7 `missing_coverage`; cloud source integration, full Apple settlement cash receipt, and report `unknown` behavior remain incomplete.
+- Raw report files and raw Apple identifiers were not persisted; the minimal JPY 4,250 figure and date provenance are now recorded in §87-AD. Attribution gap does not change the current B7 `missing_coverage`; cloud source integration, full Apple settlement cash receipt, and report `unknown` behavior remain incomplete.
 
 ### 87-O. Mobile RevenueCat monetary definitionとApple proceeds帰属の再確認（2026-10-04）
 
@@ -3320,6 +3320,8 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 - 全6,324 rowsに`meta.loop_id`と`meta.actual_status`がなく、1,313 rowsはprovider未分類。値は`est_usd` usage telemetryであり、October Google Cost Table invoice、settled expense、loop別actual costを示さない。詳細 → [Google Cost Table and usage readback](../../evidence/cfo/2026-10-04-google-cost-table-readback.md#october-estimate-only-usage-ledger-readback--2026-10-04-2001-jst)。TODO順とIssue #6549 gateは変更しない。
 
 ### 87-Z. CFO local delivery receiptとruntime event参照の差分（2026-10-04 20:49 JST）
+
+- この節の「cursor 2」は20:49 JST readback当時の記録。最新cursorは§87-J item 5（2026-10-05、§87-AD）へ更新済み。
 
 - local report stateは`sent`、period `2026-10-04:10`、Telegram provider receiptあり。共有outboxは同じreceipt/hashで`delivered`・attempt 1。read-only MTProto dialogでは、delivery時刻から約60秒以内のメッセージに本文先頭の一致を確認した。readerが本文を500文字で切るため、これは完全な全文照合ではないが、再送しない判断には十分なpositive delivery evidenceである。provider IDは保存しない。
 - `life-manager-cfo-hourly`のruntime eventはreceipt referenceが空で`effect_status=unknown`だが、admission rowは`released/effect_unknown=false`。reconcile preflightは`occurrence_not_effect_unknown`を返し、追加のstate mutationは不要だった。runtime eventのreceipt-link不足を観測gapとして残し、effect fenceを再解放・再送しない。
