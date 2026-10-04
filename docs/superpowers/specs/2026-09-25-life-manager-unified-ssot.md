@@ -4891,7 +4891,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
   - [x] A18.1 collector403のprovider画面／localCDP helper境界をsecret-freeに保存する最小source修正。§373、HEAD1cc2630／focused75／runtime759／contract／Node15／独立reviewSHIP。sourceのみ、本番未反映。
   - [ ] A18.2 統合条件成立後、自然runで失敗origin・run／occurrence・snapshot／reportを結び、再送0を保持する。
-- [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
+- [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§374でCoconala4409818をowned registered browser読取してHTTP403、現公開状態／order attribution未確認。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
   - [x] A21.1 正規browser owner sourceを実装・pushする（3851b5e3）。
@@ -6310,3 +6310,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - parentも同HEADでfocused75/75、contract14loops178jobs103mapped/errors0、Nodeadapter15/15、diffcheck、remoteexact／cleanを再確認。final unittest logSHA2cc1abce7b7b68f796cc98c72aa2f8307075dba5b950c5e36feef02875ddad47。private source proof state/collector-evidence-source-proof-20261004.json/mode600。
 - A18.1 source受入を完了、A18.2のPR/main統合条件§328・productiondoctor／immutable／loadedargvSHA／自然terminal・sameoccurrencecollectorerror／公式readback／replayzeroは未確認。旧blockedexit source3a7は別branchのまま、再実装無し。過去403originはunknownのまま補完しない、effectfence解放／再送／本番profile／launchctl0。
 - 次はA18.2の既存統合条件とsource受入を照合し、条件待ちを保持して独立A19storefront／A20以降の未接続platform観測へ進める。A17確認mail／返信watchの業務完走や金融成果をsourcePASSへ置換しない。全goalactive／SelfBuild最後。
+
+### 374. A18.2未統合境界の再照合／A19現公開readbackとlocal attribution
+
+- fetch後origin/mainは1a7a8e2faf1eb34931f05287d846fc036bc9eec0。完成source Upwork3851b5e3／Replyblockedexit3a7e6e5b／collectorevidence1cc2630はいずれもmain ancestorでない。§328の全成果PASS後PR条件とmain先行productionreadbackの順序制約を再確認、sourcePASSを全user成果PASSへ置換せずPR／merge／release／apply0。private a18-2-current-integration-boundary-20261004.json。新未統合sourceの再実装を増やさず独立A19へ進む。
+- A19localreadはstorefront-direct current.jsonのfailed official_service_contract_invalid、pass_id storefront-direct-1790412524275908000-28241／09/26 08:50:01Z。古いcursorを現行自然runや現在の契約不一致原因としない。target4409818はoffer-contracts1（09/20観測）、funnel-events／outcomes一致0。このlocal記録欠損を公式問い合わせ／注文／利益0へ変換しない。private local-attribution proofSHAd2aed1dbb8c8d57e898783add0c331033f9bc1faab2c9403ee6278cb10563fa8。
+- registeredcoconala:kosuke9223／UUID2b83bc99-3ca6-4005-bf04-76a9eb4dd7d8の旧holder83577はpsmissing後guard取得可能。parentはmain1a7 immutable CDPhelperだけを使い既存sameorigin target探索、該当なしのため初回providerGET0／newtarget0／navigation0で終了。worktree新sourceをproductionへ向けない。
+- 次probeはexclusiveguard保持wrapperPIDを内部照合し、parent所有aboutblanktarget1をledgerclaim。own pageでGET/HEAD以外requestをblockしてpublicservice4409818へnavigate、Network Document response HTTP403／expectedroute一致／title/h1 403 Forbiddenを取得。purchase control不在はsourceunavailableであり商品・注文不存在ではない。ownedtargetだけclose／guardholderempty／UUID不変／collision0／otherclose0を再確認。servercookie挙動・actor account/session validityは未確認、loginrefresh/reset／businessaction0。
+- private coconala-a19-browser-readback-20261004/owned-tab-receipt.json SHA452399b748e472dfa91c0af5b409c1b64d3249fd96985b79ada2d499501a96c3、cleanup SHAe01b3cb5ea01f58d617f0c6752356b337a93e9c4fd36489b0d4260beb726b40e。rawHTML／cookie／token／他target保存0。自分のsyntheticviewをbuyer demandとして数えない。guestcrwl／scrapy403と同様、listingremovedを証明せず現公開はunverified。
+- 次は正規ownerのsession／read-onlyprovider inventoryが取得できる時にpublication／offer version／問い合わせ／order IDsを結合する。現403をblind再試行せず、local contract／sameoccurrence storeownerの不足を絞る。A18.2／A19未完、独立A20以降も既存順で進められる。cursorA19／全goalactive／SelfBuild最後。
