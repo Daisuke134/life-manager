@@ -38,7 +38,7 @@
 - Test: `skills/cfo/test_capafy_mobile_attribution.py`
 
 **Interfaces:**
-- Producer emits `sources.revenuecat.data` with `app_id`, `currency`, `revenue_definition`, `charts.mrr.latest_complete.MRR`, and `evidence_sha256 = sha256(data)`.
+- Producer emits `sources.revenuecat.data` with `app_id`, `currency`, `revenue_definition`, `charts.mrr.latest_complete.MRR`, and `evidence_sha256 = business_outcomes._json_hash(data)` (the existing canonical sorted, compact JSON hash over `data` only).
 - Consumer returns one `subscription_snapshot` per mobile product and explicit `revenuecat-mrr` coverage; it does not create settled revenue receipts from MRR.
 
 - [ ] **Step 1: Write failing producer tests.** `test_collect_revenuecat_emits_currency_definition_and_iso_mrr_period` feeds `yaxis_currency=USD` and MRR timestamp `1790985600`; assert `currency == "USD"`, the exact definition object, and `period == "2026-10-03"`. `test_collect_revenuecat_without_yaxis_currency_fails_closed` confirms missing currency cannot default from the `$` label. `test_collect_snapshot_jsonl_roundtrip_keeps_revenuecat_contract` checks `collect_snapshot` → `upsert_snapshots` → JSONL readback.
