@@ -50,6 +50,14 @@ CATEGORY_NAMES = {
 LOSING_MONEY_COST_RATIO = 0.30
 UNDERPRICE_MARGIN_USD = 1.0
 ZERO_SALES_VIEWS_THRESHOLD = 20
+# Rule 5 (winner cloning, Task C3): a parent must have real traction before we
+# spend a review slot cloning it, and two live derivatives that already sell
+# worse than the parent is the signal to stop cloning that family (regulatory
+# 4.2 mass-upload ban -- see module docstring).
+WINNER_CLONE_MIN_ORDERS = 3
+WINNER_CLONE_STOP_CHILD_COUNT = 2
+WINNER_CLONE_REQUIREMENT = ("different input, output and use case from parent and existing children "
+                            "(Capafy doc 4.2: no near-identical mass uploads)")
 TARGET_CHEAP_MODEL_ID = "deepseek/deepseek-v4.1-flash"
 CHEAP_MODEL_NAME_TOKEN = "deepseek"
 # Same-Agent update leaves an Agent occupying a review slot; never queue a second one
@@ -152,12 +160,31 @@ def views_by_agent(hourly_reconcile):
 
 
 # ---------------------------------------------------------------------------
+# Lineage (rule 5 / Task C3): a catalog entry is a clone of another when its
+# directory name is the parent's directory name with a niche prefix, e.g.
+# "ad-hook-lab" / "reels-hook-lab" are clones of "hook-lab" -- the naming
+# convention already used for every Hook Lab derivative in skills/capafy/catalog.
+# ---------------------------------------------------------------------------
+
+def catalog_children_titles(catalog_by_title, parent_dir_name):
+    if not parent_dir_name:
+        return []
+    suffix = "-" + parent_dir_name
+    return [
+        title for title, info in (catalog_by_title or {}).items()
+        if (info or {}).get("dir_name") not in (None, parent_dir_name)
+        and str(info.get("dir_name")).endswith(suffix)
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Decision engine (pure, fixture-testable).
 # ---------------------------------------------------------------------------
 
 def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, views):
     """One decision dict per skill in analytics_rows. Never mutates input."""
     bands = (price_bands or {}).get("bands") or {}
+    rows_by_name = {r.get("name"): r for r in (analytics_rows or [])}
     decisions = []
     for row in analytics_rows or []:
         agent_id = str(row.get("agent_id") or "")
@@ -254,6 +281,35 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
                 "rule": "zero_sales_with_views", "action": "retire_or_rewrite_candidate",
                 "views_30d": agent_views,
             })
+
+        # 5. Winner cloning (Task C3): a parent with real traction (>=3 30d
+        # orders) gets at most one clone opportunity a day, unless 2+ of its
+        # already-live derivatives (matched via the catalog dir-name
+        # lineage) are already selling worse than it -- then stop cloning
+        # that family instead (regulatory 4.2 mass-upload ban).
+        if catalog and orders >= WINNER_CLONE_MIN_ORDERS:
+            children_titles = catalog_children_titles(catalog_by_title, catalog.get("dir_name"))
+            underperforming = []
+            for child_title in children_titles:
+                child_row = rows_by_name.get(child_title)
+                if child_row is None:
+                    continue  # not live yet -- no measured data to judge it by
+                child_orders = _num(child_row.get("stats_30d_orders")) or 0.0
+                if child_orders < orders:
+                    underperforming.append(child_title)
+            if len(underperforming) >= WINNER_CLONE_STOP_CHILD_COUNT:
+                decision["findings"].append({
+                    "rule": "winner_clone", "action": "stop", "parent": name,
+                    "reason": "children_underperform", "children": underperforming,
+                })
+            else:
+                decision["findings"].append({
+                    "rule": "winner_clone", "action": "queue_opportunity",
+                    "opportunity": {
+                        "kind": "winner_clone", "parent_agent_id": agent_id, "parent_title": name,
+                        "tag": f"winner_clone_{agent_id}", "requirement": WINNER_CLONE_REQUIREMENT,
+                    },
+                })
 
         decisions.append(decision)
     return decisions
@@ -399,6 +455,11 @@ def main():
             if finding.get("action") == "queue_update":
                 if queue_update_file(finding["catalog_dir"], finding["update"]):
                     queued += 1
+            elif finding.get("action") == "queue_opportunity":
+                # Rule 5 (C3): write the clone opportunity for the offline-build
+                # prompt to pick up. The model-judged duplicate_gate still
+                # decides before anything is submitted -- this never bypasses it.
+                append_opportunity(OPPORTUNITIES_PATH, finding["opportunity"], observed_at)
 
     if opportunity:
         append_opportunity(OPPORTUNITIES_PATH, opportunity, observed_at)
