@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: approved for implementation; current execution cursor is unified SSOT §87-J item 3a
+Status: approved design; Task 8B candidate source/tests are complete, and the current execution cursor is unified SSOT §87-J item 4
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -266,7 +266,7 @@ Telephony, paid model calls, and user-requested external actions remain separate
 
 ## 10. Current gate
 
-The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. Task 8A's receipt-aware pre-ingest replay guard is implemented and independently reviewed on that branch; this is source/test evidence only. Task 8B is the current candidate-only prerequisite to the natural report: give one coalesced CFO waiter a stable place ahead of support backlog without changing paid/revenue precedence or host capacity. The current evidence, order, and execution cursor are in unified SSOT §87-J/§87-AC. The local Financial Manager is the only user-facing daily sender; the legacy cloud wallet-only sender is retired only after the local natural receipt and replay-zero are proved. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has one durable provider receipt, stable daily period, source coverage, and replay-zero.
+Task 8A's receipt-aware pre-ingest replay guard and Task 8B's queue ordering change are implemented and reviewed on the dedicated candidate branch; this is source/test evidence only, not a production release. Task 8B reuses `borrow/revenue`, leaves actual revenue's existing effective/aging order first, and places borrower/support after the CFO report without changing schema, capacity, owners, queue identity, or effect fences. The current cursor is the still-unresolved official promotion sequence, then one natural local report with freshness/coverage, durable provider receipt, and same-period replay-zero. Only after that receipt may the legacy cloud wallet-only sender be retired. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has a durable provider receipt, stable daily period, source coverage, and replay-zero. Current evidence and TODO order are in unified SSOT §87-J/§87-AC.
 
 ## 11. External provider research and selected cost-reduction design
 
