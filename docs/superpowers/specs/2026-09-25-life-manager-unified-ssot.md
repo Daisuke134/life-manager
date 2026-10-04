@@ -4884,8 +4884,8 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
-- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§367でcandidate詳細7件／募集終了1件を確認、未取得候補0。未完unique form5件のschema取得、用途・本人要件分類unknown5。公式stepID／本人必須条件／契約を照合し、本人必須提出はhuman_requiredを保持する。
-- [ ] A15 Mercorの精算・着金・実費を確認する。
+- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§367でcandidate詳細7件／募集終了1件を確認、未取得候補0。§368で未完form5件の用途を本人経験1／voiceassessment1／admin候補2／expertintake未確認1へ分類。公式stepID／本人必須条件／契約を照合し、本人必須提出はhuman_requiredを保持する。
+- [ ] A15 Mercorの精算・着金・実費を確認する。§368で公式earnings空・hasMorefalse／transfers空／3累積表示値number0を限定review受入。currency／settlement／bank／cost／profitはunknown、財務完了HOLD。
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
@@ -6259,3 +6259,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 未取得3candidateだけ別probe。診断script初回quote SyntaxErrorはparse時点／providerGET0、AST parse確認後に同scope実行。candidateGET3／HTTP200×3／candidate-listingID対応PASS、確定新unique未完formGET2／HTTP200×2。既存5candidate／3form再取得0、募集終了候補の追加再試行0。新2formはtimeLimitSecondsとproctoringConfigキー存在／rawnull、screen/camera flags不在をfieldpresence/type/primitiveで保存。frontend全体timer／recordchannel無し扱いだが用途・本人要件はunknown2。
 - state/mercor-a14-remaining-candidates-20261004/receipt.json SHA81ae81d934bb0d58c903c23db0165bcb37f8faaea815324261a4b85c7bc19fab、cleanup.json SHA591b0429ccc7410906c5516bba17be9892db6ba232011b0af2ca62aca2760d8dを親がSHA／summary再確認。元8applyingstarted候補は詳細200×7＋募集終了1、未取得候補0。未完uniqueform5のschema取得済み、用途分類unknown5。
 - 回答／保存／timerstart／録画／提出／authrefresh／gate解除／fence解除0。A14残はformのassessment目的・person-bound requirement、semanticgate→officialstepID対応、正式提出／契約receipt。単純なschema再取得を進捗とせず目的を変える観測だけ追加する。A15精算・着金・実費も未完、cursorA14／全goalactive／SelfBuild最後。
+
+### 368. A14 form用途の具体化／A15公式金融読取のfresh限定review
+
+- Sol6.1 medium read-only担当のform目的GET5はHTTP200×5。本人の保険実務経験申告1、本人voiceassessmentと録音環境・file素材1、Mac機器適格性／稼働可能性admin候補2、専門家intake要件未確認1へ分類。経験／作品／端末／予定／参加意思の根拠無しに回答しない、adminを自動回答許可としない。本文／問題／回答／個人情報保存0。private purpose receipt SHA1496889187ed879caf1385c513352c15cf7cb1052b1e7b71e6f426e5851d1eaf／cleanup SHA92dc83175886b73fb54dbc220bba3cc024e8fe60c37d8f67a24a33957f91c1cbを親が照合。
+- primaryはprivate profileの該当field存在を限定検索、専用availability／insurance／voice／device項目一致0。本人事実そのものの不存在を意味せず、自由文等の全証明ではない。state/mercor-a14-private-profile-grounding-20261004.json。回答／保存／録画／提出／authrefresh／gate解除0。
+- A15公開source確認後rawGET3（earnings-page all/referrals/cancelled true、total-earnings、transfers）はHTTP200×3。earnings[]0／hasMorefalse、transfers[]0。初回total exactkeys未保存を保持、run2同totalだけGET1／HTTP200でtotalAmount／totalPaidAmount／totalUnpaidAmountは存在・number0、currency keys不在。amountをsettled／profit／cost0へ置換しない。
+- state/mercor-a15-finance-readback-20261004/receipt.json SHA27f8dbeaaa3eac12efe234a31154a8470389deda7eeb59a2b09363b1178d12f6、cleanup SHA10dd0308be5247b0ac04a1cd581524a46e575a73c0aa688748d0a85a6330e17e、run2receipt SHA146198423027a11a77b1a3a12c4940ba5f7c2c58f35bf763e515dd49073fb4db／cleanup SHAd22a379f0a80f2e77d3aa9810f545592e229668847b310e798b6623c3a993703。source GET契約de45becdccc977f55c507873b8a8e9c9efd88972cbebd9219257a29208660446。provider mutation／payout／paymentsetting／ledgerCFOwrite0。
+- 別freshcontext mercor_a15_finance_fresh_review（requested Sol6.1 medium、provider/browser/auth/write0）はsource／contract／prior／cleanup hashと数値整合を限定SHIP。重要数値誤り無し、settlement／bank／currency／cost／profit／全期間完了はHOLD。実行中exactguard acquire/release証拠は指定packetに無く、事後holderemptyのみでは直列実行を証明できない。transport peerclose未観測、checkoutSHAはloadedreleaseではない。証拠不足を後付けPASSへせず、fresh-review-scope.jsonに限界保存。追加GET不要。
+- A14残は本人事実・素材・参加意思、expertintakeの具体要件と正式提出／契約。A15残は公式精算／銀行／費用receiptの同期間join。次の実行可能cursorはA16–18の自然応募／メール確認・監視receipt結合、A14/A15を完了扱いせず不足を保持。CFOへこの限定packetだけ渡し台帳計上しない。全goalactive／SelfBuild最後。
