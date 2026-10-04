@@ -4818,7 +4818,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 |---|---|---|
 | Lancers | 各laneの自然実行と公式receipt、旧unknown、納品・精算・着金を結合 | 既存catalogの新しい公式公開・需要・注文・利益を検証 |
 | Mercor | Paid本番経路の期限更新・公式契約GET確認済み。App/Reply旧fence・正式提出・実契約/精算が未完 | 現行の応募型経路と区別し、商品販売を稼働済みと報告しない |
-| Coconala | 既存buyer案件は納品条件未達・pending。orders公式HTTP403、正式検収・支払・着金とfinancial source接続が未完 | 定型サービス4409818の公開確認済み。契約不一致・fence、問い合わせ→販売→実利益が未完 |
+| Coconala | 既存buyer案件は納品条件未達・pending。ordersは§298でHTTP200／3件取得。正式検収・支払・着金とfinancial source接続が未完 | 定型サービス4409818の公開確認済み。契約不一致・fence、問い合わせ→販売→実利益が未完 |
 | CrowdWorks | 応募/返信/Paidの公式readback、旧unknownと納品・精算・着金 | 現行経路は応募型。商品販売経路は未確認、完了扱いしない |
 | Freelancer | 稼働owner未接続。account/inventory→owner→自然応募/返信/Paidを確認 | providerで利用可能な商品販売経路を確認し、適用可否を記録 |
 | Upwork | 稼働owner未接続。account/inventory→owner→自然応募/返信/Paidを確認 | 商品販売経路の公式inventoryと既存ownerへの接続を確認 |
@@ -4887,7 +4887,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
-- [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。
+- [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
 - [ ] A22 Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。
@@ -5668,3 +5668,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - A17でapplication-receipts末尾3件（307992797／308014722／308020998）のapplication／opportunity IDを使い、既存Gmail sender-domain＋7日＋max10検索を実行、全exit0／取得0。local receiptはverifiedだが新規official application pageの再証明ではない。IDがmail本文に無い場合は検索できないため、確認メール不送信／通知設定不良／全配信停止を断定しない。proof state/crowdworks-a17-application-mail-join.json/mode600。
 - application-owner.jsonのoccurrence18daf6fa45742168-18600とnative claim refを照合し、唯一のrun18db2c774fccf290-43385／b7fb execute00:36:07Z→report00:40:37Z内にartifact observed00:36:09Zが入ることを確認する。owner resultはprofile_complete_no_eligible_open_job／effect_delta0／imported0。44件の内訳closed_or_unverified16・off_topic28、out_of_time5も保持し、全市場の候補不足と扱わない。このwakeの新規応募無しと、過去の確認mail未結合を分離する。proof state/crowdworks-a16-latest-application-run-binding.json/mode600。
 - A10の応募readerは同PID58229／parent55188／provider lease保持でliveを再確認、終了と誤認して再起動しない。公式履歴のcoverageが閉じるまで未確定5を解除しない。次はsame reader terminal→exact thread／contract receiptとmail本文側ID照合の不足を閉じる。client送信／応募／fence解除0、全goal未完、SelfBuildは最後。
+
+### 307. 自社定型サービスの公式公開・購入入口とLancers challenge
+
+- A19で公式URLをcrwl markdown-fitで読み取る。https://coconala.com/services/4409818 は「Zoomの通知をSlackへ自動連携」の1通知フロー固定scopeと購入画面入口を表示する。公開販売入口の現在存在を確認するが、view／問い合わせ／注文／精算／着金／実利益の証明ではない。公開・価格・marketing変更0。
+- https://www.lancers.jp/menu/detail/1338228 のcrwlはexit0だが本文は“confirm you are human”challenge。初期metadataのliteral Human Verification検出falseを実本文で訂正する。別経路urllib公式GETでもHTTP405／human marker trueを確認し、crawl成功を商品公開成功へ丸めない。正規人間検証が必要でchallengeを迂回しない。
+- 証拠state/storefront-a19-public-readback.jsonと2public text、mode600。profile／credential／provider設定変更0。CrowdWorks同application reader58229はelapsed8:25→9:05でlive、自己page routeが307188137→306808286へ進むことをCDP metadataのみで確認する。長時間を終了・hangと断定せず、同handleのterminalを追う。A10／A19と全金融成果は未完、SelfBuildは最後。
