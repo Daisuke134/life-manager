@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA17／A18のReply観測blocked→runtime誤PASS修正（issue6555、Luna6 max、2file）。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorは§340の並列化計画・担当境界照合。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5892,3 +5892,66 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 同session40318はexit0。current main1a7 immutable／registered coconala:kosuke／自己contextのhead-only snapshotはrequestedとfinalがhttps://coconala.com/messageで一致、login_redirect false、403 title無し、container true／cards30／inquiries30。provider_http_statusはnullでありHTTP200と捏造しない。head_only true／coverage_complete false／pagination terminal未証明。source receipt／route／captured_atをprivate evidence保存、guard statusのholder無しでreleaseを確認。認証reset／他owner target操作／client送信0。今回アクセス拒否は再現せず、過去403の原因や全inbox成功は未証明。
 - 手動wake無しで最新自然owner reportを読み、hf-gig-reply-detector run18db3344cc7c9ad8-75485／actual claim18daf2491f7e9020-69151／main1a7 execute02:40:47Z→report02:41:24Z／exit0。latest mtime02:41:19Zはrun内、business status ok／observed192／effect0／readback181／blocker無し。これで現行の一自然runが業務観測へ戻ったことを確認するが、新3a7修正のproduction検証ではない。旧失敗resultとの結合を避け、sourcepatch未mainを保持。
 - evidence state/coconala-a17-inbox-boundary/{snapshot.json,evidence/*}、coconala-a17-post-probe-natural-readback.jsonはprivate。次は最新source修正の統合条件と、残pending／旧fence／mail confirmation／精算の不足へ進む。全goal未完、SelfBuild最後。
+
+### 340. 並列化による加速計画・実測制約・担当境界（正本）
+
+**目的**: 全体成果を縮めず、独立作業を同時に進め、待ち・同じ調査・同HEAD再検証を減らす。Daisの今回依頼は計画・検証・spec更新。iOS growth／CFOの別Codex担当を引き受けたり、製品実装・課金設定・投稿・広告を開始したりしない。本節は§217の既存A01–46を配分する運用計画で、第二の業務TODOを作らない。
+
+#### 確認した現在状態と制約
+
+- primary文書branch docs/ssot-orchestration-status-20261002の§217 A01–46が全体TODO。SelfBuild A43–46は最後。CFO文書branchの同名SSOTは§84-A／§87-Bまでで旧全体順（SelfBuild前方）を含む。全体の順序には採用せず、CFO内の不足receipt調査順を尊重し、primaryへ証拠を受け渡す。各branchで全体順序を独自改定しない。
+- iOS growth docs/anicca-ios-growth-plan-20261004はfetch後もHEAD／remote583f1e86a87cd4300c5d7645fe47eeb5e5ec6d68／clean。repo anicca-products、文書worktree /Users/anicca/anicca-project/.worktrees/anicca-ios-growth-plan。計画Task1基準値調査がcursor、Task3配信実績調査はTask1と並列可能。実装は未着手、今回の担当範囲は調査計画まで。
+- CFO docs/lm-cfo-moneytree-refresh-20261004はfetch後HEAD／remote7c3a8e0cf1921403c234e24989e20956ba6c1188／clean。worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-moneytree-refresh-20261004。¥504,302はfreshness未検証のlast-known、B7 historical137／trailing132、14/14 totals・MRR・runway unknownはhandover証拠。今回providerを再取得して現在値と証明したわけではない。
+- native concurrencyはparent込み2枠、primaryから同時に使える補助は1枠。他2Codexは独立sessionなので別laneだが、名前・登録だけで実働数を確定しない。AGMSG team全件診断は長時間実行中で初期席はno_placement_record、primary whereはplain／no_addressable_pane。強制poke／新独立session spawnは行わない。
+- lm-ios-growth-1004から新規AGMSG応答を受信し、growth計画／CFO-mobile担当衝突のread-only監査中と確認。本人はCFO branch／mobile producer／production／providerを変更せず主担当交代無しと明示。lm-cfo-observability-1002へ担当・cursor・scope照会を送信済み、応答未取得。CFOの着手・新担当への引継ぎは未確認として保持。
+- 完成sourceはUpwork3851b5e3（5file、runtime759／sourceSHIP）とReply3a7e6e5b（2file、runtime759／sourceSHIP）。同HEAD再実装／再suiteは不要。PR／mainと本番readbackの循環条件は§328。agent数を増やしてもこの依存は解けない。
+- 反復をすべて浪費とは扱わない。Upwork fixture欠落、Reply ENOSPC exit120は実failureで必要な再検証だった。親／worker／reviewerの重複focused検証と、source受入後の待ちを減らす。重いrelease suiteは同hostで同時に走らせず、diskと既存handleを確認する。
+
+#### 所有範囲と同時実行の配分
+
+| lane | owner／対象 | 同時にできること | 直列にすること／禁止 | 完了証拠 |
+|---|---|---|---|---|
+| Marketplace・統合 | primary codex-money-printer、A01–27・A36、§217／本節のみ | 他laneの作業中にofficial readback、成果受入、必要な案件scope判断 | 同providerのbrowser/profile/state、fence解放、外部送信、release cut/applyは一owner。製品growth／CFO sourceを編集しない | exact occurrence／SHA／公式receipt／未取得項目を記録 |
+| 取得済み証拠の照合 | primaryの空きnative Sol6.1 medium read-only、1束ずつ | A17/A18メールreceipt照合、A10旧claim欠損整理、A03案件資料の要件表を、primary browser待ちと並行 | provider／Gmail送信、seen変更、auth、profile、production、project state編集無し。今回監査workerは実装しない | original evidence refs／hash／一致と欠損／次の1手。親がSSOTへ受入 |
+| iOS growth | 既存lm-ios-growth-1004、anicca-products docs branch | Task1公開build／offerings／MRR定義／ファネルの基準表とTask3既存配信実績の調査準備を分解 | 今回は計画だけ。製品コード、購読条件、配信・広告、CFO／mobile collectorを変更しない | 版・期間・母数・source・欠損付き基準表／競合仮説／反証観測／acceptance／同計画cursor |
+| CFO | 既存担当の応答待ち、CFO docs branch／A38–42の財務join | 取得済みreceiptのperiod/currency/definition検査、actual cost／payout不足の整理 | acquisition実装はmobile lane。growth文書／marketplace送信／同ASC auth操作を重ねない | 同期間settled revenue/refund/fee/cost／MRR・cash・runwayの未確認を明示 |
+| 実装 | 個別bounded taskのLuna6 max、最新main由来専用worktree | 実装が依頼済みの独立ファイルだけ。primaryが別read-only作業を進める | 他owner files／branch／auth／production変更無し。旧モデルfallback無し | 必要RED→GREEN／focused checks／commitpush／remote一致。高リスク時だけfresh検証 |
+
+```mermaid
+flowchart LR
+  P[primary: marketplace・外部作用・統合] --> S[§217: 全体TODO・成果受入]
+  R[空きsubagent: 取得済み証拠の照合] --> P
+  G[iOS growth: 基準表・配信仮説] --> S
+  C[CFO: 精算・実費・MRR定義] --> S
+  E[一度取得した公式receipt] --> G
+  E --> C
+```
+
+#### 共有receiptと待ちの削減
+
+1. ASC／RevenueCatの取得ownerをgrowth／CFO／mobile間で明示する。同じ期間・report IDの公式readbackは1担当がprivate evidenceへ保存し、source hash／期間／currency／定義／欠損を渡す。他担当はその証拠を別目的に解釈し、同じauthやprovider GETを漫然と再実行しない。鮮度・対象期間が違う場合のみ再取得する。growthの転換とCFO settlementを同じ指標にしない。
+2. AGMSGは目的・files・worktree・branch・HEAD・使用するidentity/state・DONE・次の1手の短いpacketで渡す。送信→応答／実成果の確認を分け、停止席へsendしただけでworkingと扱わない。primaryの全履歴や巨大specを毎workerへ渡さず、該当節と証拠refだけ渡す。
+3. source検証は一度受け入れた固定HEADの結果を再利用する。HEAD変更、新failure、未解決の具体的懸念のどれかがある場合のみ再検証。workerは必要focused suite、親はdiff／欠損を補う最小probe、fresh reviewerはリスクがある主張への反証を所有する。既存必須contract／CI／runtime checksは省略しない。
+4. primaryが長いbrowser／CI／testを待つ間、別のresourceを使わないlocal evidence atomへ進む。次wakeの同じhandleを追い、観測timeoutで重複restartしない。同profileへ複数readerを投入して速くしようとしない。
+5. 重大変更・source受入・失敗・外部blockerで正本を更新／commitpushする。状態が変わらないpollはprivate evidenceへまとめ、同じ状態の説明や第二の計画を増やさない。Telegramは新しいmilestoneだけdedupeして送る。
+
+#### 統合条件の未解決点
+
+現在の上位AGENTS「spec成果全体PASS後だけPR/main」と既存main-only本番readbackの循環は、planning／source-onlyとproduction成果の受入境界を明示しない限り残る。推奨は、完成したsource成果に必要なtests／contract／fresh判定でPR/mainへ進め、本番成果はimmutable→natural run→official receiptで別途受け入れる二段階。ただしこれは現行Push規則の適用範囲変更案であり、今回その規則を勝手に編集・例外化しない。未main sourceを本番profileへ向けて代替PASSを作らない。
+
+#### 速度の評価と次の実行batch
+
+3ownerの純粋な並列化は理想上限3倍。S(N)=1/(s+(1-s)/N)で、20ownerでも10倍には直列率s≦5.26%が必要。今回の実効Nとserial比率は未測定、10倍保証はしない。重複削減・待ち削減を加えて10倍以上の改善余地を測る。
+
+次の連続5業務atomで、開始／公式成果受入時刻、owner、resource、同HEAD check回数、lease待ち時間、provider／external待ち、rework理由を既存evidenceへ記録する。source-only完了数と納品／販売／精算の完了数を分け、受入済み業務atom／時間・待ち比率・再作業比率を比較する。過去baselineが不足する場合はunknownとし、速度改善率を捏造しない。新benchmark基盤やruntime telemetry開発は始めない。
+
+- primaryの次atom: A10の旧契約receipt／残claim3／formのうち一つのexact occurrenceを公式readbackで狭める。同identity ownerがliveなら別local作業へ進む。
+- 空きnative1枠の次atom: A03の18250352原資料→要求書類→既存成果物→不足入力の表をread-only作成する。予算書18223833や別法人と混ぜず、client送信やformal deliveryはしない。A17の取得済みmetadataだけでconfirmationを確定する再調査は行わず、必要な本文／通知種別の不足を具体的に返す。
+- growth: Task1のlive build／課金・計測基準とTask3配信履歴を独立した調査束にする。既存mobile担当とASC／RC取得ownerを調整。実装・投稿は未開始。
+- CFO: 応答確認後、§87-Aのread_failed／source_unconnected／stale／missing receiptを財務owner範囲で順に狭める。Google9月総額¥27,889はAPI別費用や10月実績の代用品にしない。
+- 並行して、primaryは2完成sourceの統合待ちを保持し、担当間の正本参照とreceipt受渡しを一本化する。新pending sourceを無制限に積み上げない。
+- 最後: A43–46 SelfBuild／Eval。前倒し無し。
+
+#### 独立計画監査
+
+fresh parallel_acceleration_auditへgpt-6.1-sol／medium／forknoneを指定、§217／§320–339をread-only監査。並列化可能なlocal evidence／案件制作準備と、直列必須のprofile／provider作用／releaseを分離する案、10倍を断言しない評価方法、source再検証の再利用、完成sourceの循環条件を確認した。コード／spec／provider変更0。actual model／effort／usageは観測不能。今回primaryは両handoverをfetch／git照合しAGMSG連絡、文書のみ更新する。
