@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§449に従いrange1の候補を同occurrenceで再取得し、同CID/候補/exact listをatomic再照合して既存会話を一度だけ開き、selected pane CIDと公式peer handle/UIDを確認すること。候補を本人確定や送信判断へ昇格せず、newchat/composer/sendを行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§450のatomic選択/header一致とpane CID未取得をfresh read-only reviewで確認し、実DOMの選択関係で会話対応を結ぶ限定観測を選ぶこと。CID欠損を値不一致や相手不在と扱わず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7004,3 +7004,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fresh Sol/medium reviewerは§448source/result/proof一致、各48metadata安定・nickname候補1・handle/UID欠落・selection/send0・cleanupを確認。候補出現2は異なる2peerの証拠ではなく、validだが非freshのhintは本人確定に使えない。跨range CID比較ではbound targetの公式identity不足が解消しないため、range1の既存会話を一度開く方法を単一推奨とする。reviewの外部/file変更0。
 - 同occurrence/own targetでrange1へ通常移動、metadataを再取得し候補1件を確認。その場のcandidate CIDhashを取得し、既存atomic select helperでクリック直前の同CID/同候補/exact listを再照合して開く。過去index29/locator単独や任意の別候補へfallbackしない。selection後のselected pane CID一致とpeer headerの公式handle/UIDをbound targetへ照合する。名前だけならcandidate_onlyを保持。
 - 本文receiptは既存helperの実コードで同selected pane・read-onlyが確認できた場合だけ、同paneのsender/target body/receipt bindingとして読む。helper存在/sourcefixtureを実read成功へ昇格しない。row選択は最大1、通常scrollはrange1への1回、send/newchat/composer/auth/fence0、provider read-state unknown。未取得でも再クリック/追加探索をせず不足を保持する。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 450. Atomic候補会話選択とheader一致、pane CIDは未取得
+
+- 同Luna/max担当のONE live run `254f344e-670d-4e4b-942c-269e55e005f6`、102.416秒、selected_peer_scope_unverified、terminal。range1へのscroll1、metadata ready/CID集合安定・nickname候補1、その場の候補CID/exact list/集合をクリック直前に再照合してrowclick1。任意別rowや新規chatへfallbackなし。
+- selected headerはexact_scope=true、matched_identity_kinds handle/nickname、source fields `peer_header.chat-uniqueid.textContent` と `peer_header.dm-new-chat-nickname.textContent`。profile href pathname match=false、UID match=false。過去公開hintへの表示一致で、fresh expected identityとはしない。selected/chatboxCID未取得、chatbox CID count0。falseのmatch fieldは異なるCIDを実観測した証拠ではなく、CID field/hash欠損として解釈する。status selected_pane_cid_unboundを保持。
+- 本文helperはCID未取得で実行せず、body hash/receipt ID/dateは未取得。公式peer bindingと送信receiptは未確認。provider read-stateは通常UI clickで既読化する可能性を含むunknown。newchat/compose/send/auth/fence0、guard release0/own target absent/prior exact ID+URL保持/lease absent。
+- primary再fixturePASS（actual JS result.value、CID変更click0/一致click1、nicknameonly peer未確定）、source/result/proofと実argv一致。reader `cf0732023400551e0fd4dc584e37de239ba5d9cfb2faeca65b61c47ae6d44ffb`、result `559eea5ef2f49d360793bc935c4f5b1c7b4e1b6cdb2a58bcc05332d36435003a`、proof `0cb41e03fa00e334a3b36d20ce2cd9fe87bed283619e85de4e64460d1284c231`、新3files600、旧source不変。
+- 次はfresh Sol/medium reviewerがheaderの実source scopeを確認し、CID未提供時に実DOMのactive row/参照関係/unique selected paneと原子click→header identityで会話対応を結べる限定観測を検討する。CID欠損を値不一致と扱わず、観測なしにpeer/送信証明を昇格しない。広い構造/SDK/API探索はしない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
