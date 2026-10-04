@@ -42,3 +42,9 @@ No account number, transaction description, credential, or raw provider payload 
 - No Moneytree macOS app is installed/listed, iPhone Mirroring did not connect to the phone, and no phone pairing, Moneytree re-authentication, bank link, OAuth scope, or account data was changed.
 - A value-redacted check of the credentials SSOT found a Moneytree-labeled credential record but no MUFG-labeled direct-login record. No credential values were printed or used for a bank-site login. The available Moneytree connector exposes read operations only; no refresh action is available through it.
 - The remaining action is on the iPhone side: make it discoverable to this Mac (power, proximity, Bluetooth/Wi-Fi), then refresh or re-authenticate MUFG in the Moneytree personal app without deleting/re-adding it. Require a provider timestamp/cursor and newer transactions before treating the balance as current.
+
+## Follow-up connectivity check — 2026-10-04 10:10 JST
+
+- A fresh read after the connectivity probe still returned one MUFG JPY account at JPY 504,302 and 183 transactions; the newest remains 2026-08-25. There is still no provider update timestamp or transaction cursor.
+- The iPhone label shown by iPhone Mirroring has a paired Bluetooth record, but `connected=false`. A normal `blueutil --connect` attempt failed; a bounded five-second Bluetooth inquiry discovered one unrelated device and no device matching the iPhone label. Mac Bluetooth and Wi-Fi remain on.
+- No pairing, unpairing, radio-setting, Moneytree re-authentication, bank-link, or account-data change occurred. The device is not currently reachable from the Mac; the iPhone-side power/radio/proximity condition must change before another connection attempt.
