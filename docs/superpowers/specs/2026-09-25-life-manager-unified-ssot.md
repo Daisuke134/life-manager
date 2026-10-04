@@ -5767,3 +5767,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 最新main1a7由来の専用worktree upwork-browser-owner-20261004、branch feat/upwork-browser-owner-20261004／lease primary codex-money-printer。issue6553に設計を記録しmaintainer+1 reaction543538809を確認。native implementation task upwork_browser_owner_implementationはユーザー指定gpt-6-luna／max／forknoneで依頼し、entrypoint／registry／catalog／対応test4fileを所有する。親は同code編集を重ねずSSOT／受入／source統合を所有。要求値とactual runtime metadataを区別する。
 - Freelancer公式Types of Integrationsをcrwlで取得し、一般automatic bidderは禁止、agency内部toolは例外があり得るが事前連絡を要求することを確認する。https://developers.freelancer.com/docs/api-overview/types-of-integrations 。account／inventory読取と自動入札承認を分離し、provider例外をuser一般承認で捏造しない。private state/upwork-owner-plan-and-freelancer-policy.jsonにsource hash／計画を保存。
 - Superpowers bounded設計は既存flow再利用として上記を固定し、userのNo-human-loop技術判断委任を優先して実行する。Codex model正本は → ~/.config/ai/harness-codex.md。旧skill／roleの5.6指定は現行routingに使わない。source実装／検証／PR／本番account readbackは未達、全goal未完、SelfBuildは最後。
+
+### 321. Upwork ownerのRED／source差分とcontinuous service契約
+
+- Luna6 max実装taskは調査完了／scope拡大無しを報告し、runtime/host/tests/test_browser_port_owner.pyへtemp-home統合契約を先に追加する。source差分は新browser-owner、registry、job-hunter catalog、同既存test4fileに限定する。parentはコードを編集しない。
+- keep_alive browser jobは既存contract gateでcontinuous_serviceに分類されるため、job-hunter recovery_classesへ同classを追加する。既存classを維持し、actorのfinancial／external-effect権限や旧fenceを緩めない。canonical14 Product Loopsと179jobsの契約を検証する。
+- 現時点はHEAD main1a7／未commit差分、workerがfocused check／commit／pushを所有する。親full runtimeは固定pushed HEAD後に行い、以前のHEAD競合を再発させない。private owner／source／issueは§320、source受入／本番profile・port・account inventoryは未完。
+- Freelancer専用registered identityは無く、job-search profileのfreelancer参照も本probeでは未取得。Gmail到着だけでaccount bindingを作らず、既存accountと本人identity確認が残る。全goal未完、SelfBuildは最後。
