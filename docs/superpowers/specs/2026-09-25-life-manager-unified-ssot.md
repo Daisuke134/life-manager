@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§442のfresh reviewに従い、入力せずに一覧の中間非row枝で既存会話検索欄を一度だけ確認すること。用途/一覧bindingが確認できた場合に限り、§422のbound targetの既存会話を通常UIで絞る次工程を検討する。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§443の検索欄未確定を保持し、§441のexact内部scroll nodeを再bindingして既存一覧を一度だけ末尾へ移動、追加ロードと表示済み集合の前後差を確認すること。§422のbound targetの会話特定へつなぎ、末尾到達や件数不変だけで全履歴absenceを認定しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6950,3 +6950,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 単一推奨はexact listの中間非row子と既知header枝の局所観測。入力/focus/click/scrollなし。候補のtag/type/role/contenteditable/visible、一覧との祖先/参照bindingと、候補自身の属性が示すgeneric検索用途のみ。value/row子孫文字列/ラベルhashは取得保存しない。会話詳細/composer/新規宛先選択と区別できなければ用途unknownで検索へ移行しない。
 - scrollは次順位。28件は現在DOM集合で、543/5544/top0・末尾到達・行数不変のいずれも全履歴absenceを証明しない。将来の検索/scrollは明示send0とprovider read-state不変を分け、read-stateは未確認として保持する。今回reviewはbrowser/file変更0。
 - 同Luna/max担当へ新private inbox-search-control reader/result/proofだけを所有させ、動作済controllerを再利用した小capture、必要な小fixture、ONE liveでの構造観測を渡した。広いラベルcapture/旧wrapper読取は再利用しない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 443. 検索欄の局所観測は未確定、次は既存一覧の通常scroll
+
+- 同Luna/max担当のONE live run `b194586d-f6e0-4f35-a7eb-91a02c0f71d5` は41.914秒、unconfirmed_search_control、captured-before-control-interaction、terminal。list1/row28/default child binding/rowreadyを確認。局所captureはdirect child3、nonrow child1、middle index0、header adjacentなし、sampled11、truncated=true、検索候補0。観測不足を検索欄不存在へ変換しない。小fixturePASSは実画面で検索欄が確認できた証拠ではない。
+- 今回のliveは広いSCOPE_EXPRを呼ばず小SEARCH_CONTROL_EXPRのみ、value/子孫文字列/label hashを読まない。入力/focus/click/scroll/send/auth/fence0。guard release0、own target absent、prior exact ID+URL hash保持、lease absent。reader SHA256 `4d4705ee6440bf8d24f46986a99f37e0efd880a10b00d2a753fd02443f3cae4e`、result `9ca72722323242e1dd893ed146c1b7bd1920349433617f0d2279e4527d32b422` をprimaryがterminal後に確認。元source/新files600を保持。
+- 検索用途未確認なので入力へ進まず、§442reviewの次順位である既存一覧の通常scrollへ進む。§441で特定したexact内部scroll nodeの現在構造を再bindingし、一覧を一度だけ末尾へ移動、前後の表示済みconversation hash集合/追加ロードをboundedに観測する。row/newchat/compose/send/auth/fenceは操作しない。provider read-state不変は未確認、末尾到達/行数不変でも全履歴absenceを認定しない。検索欄・寸法の同一診断を繰り返さない。
+- 現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。これは番号3内の診断方法の更新であり実行順変更や番号3完了ではない。
