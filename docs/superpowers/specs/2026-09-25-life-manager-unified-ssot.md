@@ -4826,6 +4826,14 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 メールは§223の検索で選考通知・job alert・invitation等を確認するが、新規応募や入金の証明とは別。残チェックは、最新の自然応募occurrenceと公式応募confirmation・メール・既存通知経路の照合。メールが来ないだけで応募停止と断定しない。
 
+#### チャット報告と完了判定に使う残チェック
+
+- [ ] 7 platformの応募・返信・制作／納品・精算／着金・storefrontを個別判定する。各行にowner、最終観測、案件／商品ID、公式receiptまたは不足証拠、次の一手を残す。全サービスが全工程を稼働済みとは報告しない。最新一斉監査がない項目は未確認のまま残す。
+- [ ] メールが来ない原因を調べる。各platformの最新自然応募と公式応募履歴を照合し、確認メールの有無、返信pollの最終成功、通知設定／配信経路を分けて記録する。既存Writer readerの限定取得0を他platformや全メールの0へ拡張しない。
+- [ ] Lancers／Coconalaの既存商品、Upwork／Freelancerの未接続経路、Meta導入予定のFiverrを上表どおり進める。現行CrowdWorks／Mercorの応募型経路にstorefront完了を付けない。商品販売が適用外ならN/Aの理由を記録する。
+- [ ] 販売ごとに商品version・獲得経路→注文→正式納品／検収→精算→着金を結合し、fee・refund・実制作／推論／infra費用を差し引いた利益を確認する。原価や精算が不明なら利益も未確定とする。
+- [ ] 実購入者のfeedbackと注文あたり作業量・品質・実利益を既存eval／改善経路へ戻し、再利用可能な定型サービス・Apps・Capafy・agentsへ展開する。公開済みだけで反復可能な収益factoryが完成したとは扱わない。
+
 #### 全体の残TODO
 
 | 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
@@ -4855,7 +4863,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 現在の一手
 
-1. owner journalのnative run/occurrence伝播は§285で自然直接joinまで成立。SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。実hook不足をbooleanやclass変更で回避しない。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
+1. SelfBuild owner baseline修復HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASS。ただし独立AGMSG fresh reviewはFIX-FIRST。main revert成功後にowner復元が失敗すると、次回同じrevert branchを再作成して復旧が収束しない。既存holdへSHAに結び付いた確認済み復旧結果を保存し、未完側だけ再試行する修正・回帰検証・新fresh reviewが現在cursor。PR／merge／本番復旧は未完。owner journalのnative run/occurrence伝播は§285で自然直接joinまで成立。SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。実hook不足をbooleanやclass変更で回避しない。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
 2. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
 3. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
 
