@@ -4892,7 +4892,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
   - [x] A18.1 collector403のprovider画面／localCDP helper境界をsecret-freeに保存する最小source修正。§373、HEAD1cc2630／focused75／runtime759／contract／Node15／独立reviewSHIP。sourceのみ、本番未反映。
   - [ ] A18.2 統合条件成立後、自然runで失敗origin・run／occurrence・snapshot／reportを結び、再送0を保持する。
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§374でCoconala4409818をowned registered browser読取してHTTP403、現公開状態／order attribution未確認。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
-- [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
+- [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。§375でcanonicalcredential／browser／activeowner match0、既存readonlytransportは存在。正規account-bound auth／inspect許可・ownerを取得しinventoryを読む。account不存在や注文0とはしない。
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
   - [x] A21.1 正規browser owner sourceを実装・pushする（3851b5e3）。
   - [x] A21.2 同HEAD検証とfresh source reviewを完了する（§327限定SHIP）。
@@ -6319,3 +6319,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 次probeはexclusiveguard保持wrapperPIDを内部照合し、parent所有aboutblanktarget1をledgerclaim。own pageでGET/HEAD以外requestをblockしてpublicservice4409818へnavigate、Network Document response HTTP403／expectedroute一致／title/h1 403 Forbiddenを取得。purchase control不在はsourceunavailableであり商品・注文不存在ではない。ownedtargetだけclose／guardholderempty／UUID不変／collision0／otherclose0を再確認。servercookie挙動・actor account/session validityは未確認、loginrefresh/reset／businessaction0。
 - private coconala-a19-browser-readback-20261004/owned-tab-receipt.json SHA452399b748e472dfa91c0af5b409c1b64d3249fd96985b79ada2d499501a96c3、cleanup SHAe01b3cb5ea01f58d617f0c6752356b337a93e9c4fd36489b0d4260beb726b40e。rawHTML／cookie／token／他target保存0。自分のsyntheticviewをbuyer demandとして数えない。guestcrwl／scrapy403と同様、listingremovedを証明せず現公開はunverified。
 - 次は正規ownerのsession／read-onlyprovider inventoryが取得できる時にpublication／offer version／問い合わせ／order IDsを結合する。現403をblind再試行せず、local contract／sameoccurrence storeownerの不足を絞る。A18.2／A19未完、独立A20以降も既存順で進められる。cursorA19／全goalactive／SelfBuild最後。
+
+### 375. A20 Freelancer認証／owner現状と公式API方針再取得
+
+- primaryはcredential SSOTのservice/provider/platform/url/domain/nameとprovider-labelled containerを値非表示で検索、Freelancer match0。transportが参照するlegacyOAuth／gig-freelancer profileは不存在、private .envのFreelancer key名一致0。browser registryの全provider-labelled mappingにも一致0、browserguard freelancer:dais identities空。mainactive registryFreelancer jobs0、旧bidwatch/application/worksync3labelはretiredのまま。全可能login経路／accountそのものの不存在ではない。
+- 既存main sourceにfreelancer_transport／paid_adapter／readinessがあり、readonlyGET allowlistはusers／selfprojects／hourlycontracts／project milestones/ipcontracts。fetch_official_jsonはGETのみでretry／refresh／mutation無し、account-bound authorization／validtoken／strictinventory parserが必要。actionmatrix defaultunknownを成功へ上書きせずauthenticatedproviderGET0／bid／message／accept／payout0、旧owner revival0。
+- crwlで公式types-of-integrationsを再取得。Automatic Biddersは一般禁止、agency自身のinternaltool例外は時に認められるがprovider確認を要する。Work Sourcer／Services等のintegration記載と、readonlyself account観測を分離する。公式 https://developers.freelancer.com/docs/api-overview/types-of-integrations 。自動bid例外receiptを取得済みとしない。
+- 公式PAT資料は自分のAPI利用、environment別、1environment1active、valid30daysを説明。既存token/owner未確認のまま新tokenを作らず、sandboxとproductionを混ぜない。公式 https://developers.freelancer.com/docs/authentication/personal-access-tokens 。token値をchat/repoへ求めずprivate credential SSOT／正規認証経路を使う。
+- mainimmutableのensure_provision_browser.shは既存generic operator pathだがregistryidentity必須、profile/bootstrap/cleanupとlaunchctl-safe remove/submitを含みreadonlyではない。ensure_browser.shにもrecovery／vaultrestore／GCがあるため今回実行0。generichelperの存在を新provider接続完了やmain条件解消へ置換しない。browser追加／login／signup／credential更新／launchctl0。
+- private freelancer-a20-current-boundary-20261004.json/mode600に最新不足を保存。最小再開条件は正しいaccount/environmentに結ぶ有効tokenかowned正規session参照、inspect用authorization、主担当／registered owner routeの確認。provider API/browsing無しでsourceだけにproviderreceiptやcurrencyを捏造しない。A19公開／attributionとA20未完、cursorA20の認証owner境界。次はexisting mainの安全なoperator/provision条件を具体化し、独立A21/A23の既存経路も順序内で観測。全goalactive／SelfBuild最後。
