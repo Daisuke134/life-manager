@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks新source自然run限定判定のfresh検証と、A20／A21のFreelancer／Upwork account・inventory・owner接続。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA21のUpwork正規browser owner接続（issue6553／Luna6 maxのsource実装）。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5759,3 +5759,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 旧219fence集合の参照不足という検証限界に対し、既存crowdworks-a10-marker-boundary.jsonのremaining exact IDsをfrozen historic-fence-ids.jsonへ記録し、SHA256 c3a9ac2804117c2c7d1d1f54b3eb5b492c242812d349a553635b42ea40d0026aと元source hashをprivate proofへ補う。これはsource／provider／admission state変更ではない。旧219件は親のmode-ro比較で全保持、後続の新unknown1件は旧集合と区別する。cadence起動の暗号署名は主張せず、native journal／loaded argv／親のmanualwake0で通常owner実行を観測する。
 - CrowdWorks confirmation source不具合の実装→CI／main→complete immutable→official loaded→一自然runの再送0／unknown保持はこの範囲で成立。A10の旧claim／contract／form receipt、全Paid納品・精算・着金は未完。次はA20／A21のaccount・source／正規browser／owner接続と他providerの残成果を進める。SelfBuildは最後、全goal未完。
 - actual model／effort／usageは非公開のため観測不能、要求値と区別する。API相当費用は算定不能。
+
+### 320. Upwork正規browser ownerのbounded設計と最新model実装
+
+- A21の既存専用profileは存在しsymlink無し、9233 listener無し。browser identityは登録済みだが旧launched_by labelはretired。ensure_browserの旧routeはraw launchctlを含むため復旧に使わず、provisioning用の別labelを足してmanaged registryを迂回しない。
+- 最小設計は新upwork-revenue-browser／label ai.anicca.upwork-revenue-browser。CrowdWorks browser-ownerと共有browser_port_owner.pyのport／profile排他を再利用し、既存profile／9233／fingerprint80138／renderer limit8を保持する。既存job-hunter catalogへbrowser job1を追加してProduct Loops14を維持する。browser-onlyでありproposal／Connects購入／Paid／storefront effect laneは追加しない。旧label／他profile／auth／本番stateを変更しない。
+- 最新main1a7由来の専用worktree upwork-browser-owner-20261004、branch feat/upwork-browser-owner-20261004／lease primary codex-money-printer。issue6553に設計を記録しmaintainer+1 reaction543538809を確認。native implementation task upwork_browser_owner_implementationはユーザー指定gpt-6-luna／max／forknoneで依頼し、entrypoint／registry／catalog／対応test4fileを所有する。親は同code編集を重ねずSSOT／受入／source統合を所有。要求値とactual runtime metadataを区別する。
+- Freelancer公式Types of Integrationsをcrwlで取得し、一般automatic bidderは禁止、agency内部toolは例外があり得るが事前連絡を要求することを確認する。https://developers.freelancer.com/docs/api-overview/types-of-integrations 。account／inventory読取と自動入札承認を分離し、provider例外をuser一般承認で捏造しない。private state/upwork-owner-plan-and-freelancer-policy.jsonにsource hash／計画を保存。
+- Superpowers bounded設計は既存flow再利用として上記を固定し、userのNo-human-loop技術判断委任を優先して実行する。Codex model正本は → ~/.config/ai/harness-codex.md。旧skill／roleの5.6指定は現行routingに使わない。source実装／検証／PR／本番account readbackは未達、全goal未完、SelfBuildは最後。
