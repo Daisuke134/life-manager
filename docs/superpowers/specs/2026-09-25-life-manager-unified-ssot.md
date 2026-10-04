@@ -6603,3 +6603,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - detailはdocument links4、事業報告候補はlisting2023年度（R5）1件のみ。必要R6/R7候補0で、年度違いPDFは取得0。これは当該snapshot/公開一覧の結果であり、法人の実活動無しや全原資料不存在の証明ではない。公的入口/通常browserとも確認したが、番号3の必要年度事業報告/監査/役員変更確定情報の不足は未解消。
 - 初回URLparserのdetailroute仮定によるcandidate0は保存DOMの実routeで訂正し、誤抽出をprovider資料無しとしない。private `execution3-npo-public-browser-detail-readback.json`（§399同dir/mode600）、SHA256 `be50e7246ba4fed521f6e272d8ba607f1821c941c5fb3dbfe090caefe4b3d47d`。ownremaining0/priorpreserved/guardreleasePASS、auth/共有policy/他target/source/projectstate/client送信変更0。
 - 予算①officialv2の追加制作要求は無い。NPO側は追加資料/確定情報の受領が最小再開条件として残る。TikTok側はcachedScript404がSDK初期化を止める仮説を自己pageのcache無視reload1で比較し、shared cache削除/認証reset/再送は行わない。current3未完→next4を保持、全goal未完。
+
+
+### 408. TikTok会話shellと共有Sheet実読取を確認、送信実数は未確定
+
+- 自己pageのcache無視reload1比較でchildはloading/interactiveからMessages表示/completeへ進行。ただし会話本文/recipientは未取得。Script404同hashはreload観測期間にも2件（diskcache由来）あり、request開始phaseを独立記録していないため初回遅延/childcacheを未区別。待機時間差もあり、reloadの因果効果/404原因を断定しない。Runtime例外/WebSocketerror/明示autherror表示は観測0、sharedcache設定/削除・auth変更・送信0、ownclose/lease解放/prior2保持PASS。私的 `execution3-tiktok-ignoreCache-reload-comparison.json` SHA256 `e7ff1f574bf288ef7ccb573c2dc49718889cd7687385566fce1b4547461ef00c`。
+- 公式履歴からbuyer220112807とseller221752543/222151323/222152477が参照する共有Sheet1を同定。Gog auth一覧のservicesにSheets表示無しでも、既存file認証による実metadata/getは成功した。表示だけで権限不足とせず、credential/サービス設定変更無しで公式実読取を確認。private `execution3-tiktok-shared-sheet-gog-read.json` SHA256 `c295500455a4bc94b622c150423787a337cdb216190b149690228b255c061065`。
+- 4tabsを範囲読取し、returned16行2列/14行7列/6行7列/326行2列を観測。seller参照gid0は326行2列。今回returned値の送信済marker/日時/会話URLの検出だけでは個別送信receiptを確定できず、台帳326行を適格unique実送信326や300/300へ昇格しない。native hyperlink metadata/列の詳細意味/実送信receipt bindingは未確認。gid0のFORMULA読取も326行、HYPERLINK式は検出0（native hyperlink不存在の証明ではない）。raw値/recipient名/URL/tokenは保存・表示せずrow/value hashと分類のみ保存。
+- 私的 `execution3-tiktok-shared-sheet-live-readback.json` SHA256 `7769018a75452b851f7de798b7dd1148d66e2837cebed016835807534b8267a5`、`execution3-tiktok-shared-sheet-additional-tabs-readback.json` SHA256 `a225ccdf9ed88fd0536630b6b3b57c460508da76ee6f49fa43c086b3d296f913`（§399同dir/mode600）。Gog read/write/send=readのみ・write0/send0。
+- 次はloaded会話shellのlist/empty表示・SDK結果/描画DOMの対応を確認し、個別recipient/送信証拠が読める範囲を特定する。必要NPO年度資料/役員確定情報は受領待ち、予算①v2追加制作要求は無し。現在3未完→次4/残51項目を保持し、共有表や会話表示の観測を制作/正式納品/精算PASSにしない。
