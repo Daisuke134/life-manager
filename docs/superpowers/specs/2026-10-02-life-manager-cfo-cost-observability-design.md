@@ -49,9 +49,11 @@ Every financial row has exactly one `owner`:
 | `dais_personal` | Dais's personal financial position | MUFG, personal card, securities, cash |
 | `life_manager` | Life Manager business economics | Stripe revenue, Google API, Telnyx, Railway, Supabase |
 | `transfer` | Movement between owned accounts | MUFG → card payment, wallet → bank |
-| `unknown` | Source or classification is unavailable | stale account, failed provider read, unmatched charge |
+| `unknown` | Source or classification is unavailable | stale account, failed provider read, unmatched charge, Stripe charge without a recognized product-loop mapping |
 
 Internal transfers, owner deposits, fundraising, and unrealized gains are never revenue. Unknown is never zero.
+
+Stripe revenue, refunds, payment fees, and subscription MRR are attributed to a Product Loop only when the charge/subscription metadata contains a recognized `lm_product_loop_id` matching the adapter lane. `lm_economic_category`, generic `owner` metadata, display names, and a fixed adapter argument alone do not prove loop ownership; missing or mismatched mapping remains unknown.
 
 ## 4. System architecture
 
@@ -128,6 +130,7 @@ The daily report is a deterministic snapshot with these sections:
 - today, month-to-date, and trailing 12-month settled revenue;
 - source-by-source rows;
 - refunds and processor fees separately;
+- the B7 receipt-backed economic attribution is shown as a separate snapshot and is never added to FinancialRecord totals without an explicit deduplication/reconciliation contract;
 - pending, estimated, or unattributed amounts excluded from settled revenue and shown as unknown/pending.
 
 ### Expenses
@@ -148,7 +151,7 @@ The daily report is a deterministic snapshot with these sections:
 
 ### Report stop rules
 
-The report is `partial` when any required source is stale, failed, or unknown. It is `complete` only when the configured source set has fresh readback or a documented source-unavailable receipt.
+The report is `partial` when any required source or B7 snapshot is stale, failed, or unknown, or when required MRR/runway evidence is unknown. It is `complete` only when the configured source set has fresh readback or a documented source-unavailable receipt.
 
 ## 7. Cost targets
 
