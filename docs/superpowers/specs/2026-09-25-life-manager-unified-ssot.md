@@ -4878,7 +4878,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A07 Coconala payout／銀行着金を照合する。
 - [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§301のfresh公式金融pageはHTTP405／human_verification true、明細unavailable。正規人間検証が必要。
 - [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
-- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302のcensusはreply219／application5。§303でreply_kernel PID48806の終了とlock不在を確認、既存readonly公式readbackを再開。旧18と混同しない。
+- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302のcensusはreply219／application5。§308でreply219／application5の既存readonly照合はterminal／解除proof0。契約receipt・claim不足・form確認依頼の公式bindingを継続する。旧18と混同しない。
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
@@ -5674,3 +5674,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - A19で公式URLをcrwl markdown-fitで読み取る。https://coconala.com/services/4409818 は「Zoomの通知をSlackへ自動連携」の1通知フロー固定scopeと購入画面入口を表示する。公開販売入口の現在存在を確認するが、view／問い合わせ／注文／精算／着金／実利益の証明ではない。公開・価格・marketing変更0。
 - https://www.lancers.jp/menu/detail/1338228 のcrwlはexit0だが本文は“confirm you are human”challenge。初期metadataのliteral Human Verification検出falseを実本文で訂正する。別経路urllib公式GETでもHTTP405／human marker trueを確認し、crawl成功を商品公開成功へ丸めない。正規人間検証が必要でchallengeを迂回しない。
 - 証拠state/storefront-a19-public-readback.jsonと2public text、mode600。profile／credential／provider設定変更0。CrowdWorks同application reader58229はelapsed8:25→9:05でlive、自己page routeが307188137→306808286へ進むことをCDP metadataのみで確認する。長時間を終了・hangと断定せず、同handleのterminalを追う。A10／A19と全金融成果は未完、SelfBuildは最後。
+
+### 308. CrowdWorks応募5記録のterminalとform thread公式readback
+
+- tool session4917のapplication reader58229はexit0でterminal、checked5／dry_run proof0。内訳18d654aa…56177はapplication_receipt_bound、18d83e75…72753はproposal_in_window307208848、残3はclaim_run_unavailable。旧未応募proofを捏造せず、exact positive receiptと不足claimを分けて保持する。progress stateのapplication_liveをfalseへ更新。
+- provider leaseを取得してthread304360469の公式会話を既存adapterで読む。conversation3rows、display roleとsender href account7145638の分類差0。FORM_CONFIRMATION_BODYは両分類で見えず、既存readbackはresume_required true。確認依頼が保存receiptのconfirmation_requestedと一致して公式表示される証拠は無い。会話全体の別pagination／送信server状態は未証明で、再送の許可と扱わない。
+- 追加の送信UI metadata probeはProviderBrowserBusyで作用前停止。別live ownerのleaseを奪わず、source defectや送信者名変更を断定しない。証拠state/crowdworks-a10-application-official-recheck.json、crowdworks-a10-exact-thread-readback.json、crowdworks-a10-exact-thread-controls-readback.json/mode600。全provider送信／応募／fence解除0。
+- A10の次操作は契約承諾のexact official receipt、残3claimの履歴、form確認依頼の公式coverageとserver状態の不足を診断する。過去作用を一括再実行しない。全金融成果／全goal未完、SelfBuildは最後。
