@@ -7249,3 +7249,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 必須最小修正：同ledger2filesで、訂正を受けた通常行の最終downstream identity（deployのjobAddress又はno-address-ts fallback）が別通常行と衝突する場合はthrow。後続通常行・別訂正の最終identityも含む。既存未訂正のraw履歴のdedupe意味を勝手に変えず、今回の訂正が作るcollisionを拒否する。費用行削除/金額合算/原本書換/適当なaliasへfallbackしない。
 - REDは実resolved→deploy同history mapping→checkSpendCapsの誤許可まで結ぶfixtureで再現し、GREENはreader拒否で通す。通常行・後続行・複数訂正・missing-address fallback衝突、衝突なし訂正とraw/bytes/cost維持をfocused検証する。既存5file範囲のうちledger2fileだけ追加編集。Luna/maxの同担当へ戻し、commit/push・primary検証・新fresh Sol/medium review後に受入を再判定。
 - §217cursor1/根因確定source2並行、main例外確認未回答。token/fleetはsource受入のまま、refillはHOLD/修正待ち。PromptBase/Writerのsource準備を保持し、全goal未完/本番mutation0。
+
+
+### 474. PromptBase独立AGMSG担当の起動準備
+
+- refillのcollision追加修正と独立したPromptBase2fileのwait引数修正を、既存tmuxを用いるAGMSG専用sessionへ分ける。実binary /opt/homebrew/bin/tmuxとregistered spawnの--terminal-driver指定を確認。旧plainのOS Terminal -1712を再試行せず、新しい独立driver経路を観測する。Terminal/appserver restart/新tool導入なし。
+- 専用role lm-internal-promptbase-step-wait-1005 / team lm / gpt-6-luna-max / §470worktree・branch・lease。boot promptはdocs/superpowers/evidence/2026-10-05-internal-loop-recovery/promptbase-step-wait-boot-prompt.md。supported task-only spawn optionsは既存同dir agmsg-spawn-options.yamlを再利用。root provider/業務loop model変更なし。
+- 現在は起動前でlive0。readiness、placement、boot taskの着手/RED-GREEN/commitを観測してから状態を更新する。失敗なら稼働としない。primaryはSSOT受入を所有し、source限定・2file範囲・他worker非干渉・PR/main/apply禁止を渡す。
