@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§458に従い同bound bubbleとpane内親祖先最大2段のreceipt metadataを一度だけ局所probeすること。対応sourceが無ければ範囲/不足/最小再開条件を残し、同probeを反復しない。source未取得を不一致/0/正式送信receiptへ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§460の一覧frame読取timeout境界をfresh read-only reviewで絞り、局所metadataへ未到達の原因と最小追加観測を特定すること。§458の限定scopeを維持し、timeoutをsource不存在へ変換せず、同失敗の無修正retry/送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7088,3 +7088,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 未変更の新task base（SHA `1aa0caef6949bfec942db6b7eb330db00ff3eeba3b2ca66bcf762f7138046050`）の4箇所のtask名差だけを戻すと、旧source SHA `81c0e1e4b22e2f3de2efb0e25a40805b456a539c81c8926151c500637d396dc7` と完全一致することをmemory上で確認。誤編集bytesはowner-mistake-preserved.pyへ600で保持し、旧sourceを同hashへ復元。result/proofは不変更。private restoration proof SHA `33eaaf7f83b5eba847fb4a383099f20e1808759bcfeeb28af1f78d124effdc07`。
 - 同担当の編集turnをnative interruptで停止し、停止後に旧source/新base/quarantineのhashを再確認。ブラウザ操作・サービスstop/restart・lease強制解放はしない。旧sourceと元実read証拠の対応を回復したが、局所metadata観測は未完。
 - 残taskはfresh generic gpt-6-luna/max `bound_message_metadata_probe` に渡し、exact編集pathは新bound-message-metadata.py/result/proofだけ、旧source read-only、開始前/終了後のhash照合を明示。新contextへ最小根拠だけ渡し、古い編集先を持ち越さない。同§458scope/ONE live/source欠損保持を維持し、余分なframeworkやgateは追加しない。現在3→次4、SelfBuild/Eval最後。
+
+
+### 460. 局所metadata fixturePASS、liveは一覧frame timeoutで未到達
+
+- fresh Luna/max担当は編集範囲を守り、旧bound-body-read source SHA81c0不変を確認。新bound-message-metadata source `9b382f1fed912634be98b2a081940409eb06494da509e52877e6ad89fdb07a0d`、600。primaryは既存UIbinding fixtureと新--metadata-fixtureを別々に再実行PASS（pane包含/祖先2段/近接time関係限定/data-index非officialID/privacy）。source fixtureをUI実取得へ昇格しない。
+- 担当ONE invocation run `d194de06-45a2-4ef3-8ba4-3b6657c20ee9` は1.779秒preflight、guard9/操作0。元result `d9ca8f1f3814017da5e38877d4319cb3238ae35a57fcf5c00ae73731c684e1d8`、proof `a59c4c9c09334aae10272b4e3c52077c3012fc27411b221755890c378680e5d7` をguard-busy別名へbyte-identical600保存。
+- primaryの同試行guard限定probeは21:52:39Zにacquire0/release0/browser操作0/force0、private proof SHA `3814fe9564b2fc021bb03d81a1f3f48b6ecd9283e253ab7ad410034022568ce6`。競合解消後のONE検証run `b4c2e1f8-1981-4fa7-8e87-81a2a57ade5e` は47.806秒、phase one_ui_child_default_scope_read/error TimeoutError、child context probe2件もTimeout。guard取得後だが一覧metadataまで未到達。scroll/rowclick/send0。
+- cleanupはguard release0/own target absent/prior exact ID+URL保持/lease absent。canonical new result `28624e0237d301f77098ab6548d38756cc2e4fe8663ef25a5bd99cb891024873`、proof `c257610bbffdb9aa3ece2e84a36f10665d46cadfcbf9aa77e2be0030e9b2028d`、source/argv一致、600。timeoutをmetadata source非公開や対象不在と扱わない。§457の既存本文一致証拠は保持。
+- 次はfresh Sol/medium read-only reviewで新旧controller差分/応答処理/ready timeout境界を絞り、必要なら最後のRPC method/context/phaseの最小観測を追加する。source原因と証明できなければ推論と分け、同失敗の無修正retry/ブラウザrestart/広い探索は行わない。現在3→次4、局所metadata未完、SelfBuild/Eval最後。
