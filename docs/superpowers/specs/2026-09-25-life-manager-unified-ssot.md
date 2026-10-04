@@ -6729,3 +6729,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 私的execution3-tiktok-local-attempt-join-20261005.json SHA256 62b86b8b6c3206883eb2cc959239c31600949c7d5d35e70cad8088d316ce858a（§399同dir/mode600）。範囲は上記13receipt/3textのみ、全campaignの履歴や送信不存在の証明ではない。roster行18列0との候補一致を、案件が要求するDMの送信receiptへ昇格できないことを保持する。
 - 既存send_one sourceは送信後のbody.includes(message)/editorEmpty/candidateSelectedでsent_exact_readbackを返す。今回の現実読取にはsender/date/messageIDがなく、localラベル/親body部分一致だけを現在の一意送信・品質・納品完了の証明に使わない。source修正/送信/fenceclearは本turn行わない。
 - 現在3→次4を維持、未完51項目/全goalactive。安全な次作業はprivate読取担当の局所sender/date実観測の受入、その観測を案件receiptへ照合すること。NPO原資料待ちは§418のまま。
+
+
+### 420. Sender追加読取の実UI成功と保存経路の欠落を切り分け
+
+- 前turnは§419のlocal campaign join不足を確認・push。本turnもcurrent3→next4/残51項目を維持。Luna/max sender-metadata担当が新private readerの局所DOM/avatar/separator投影を追加しsynthetic3件PASS後、同exec handle3786をpoll。観測timeoutを終端とみなさず、68.558sのterminalまで待ち、one held sessionのUIはchatbox/pane/header各1・transition・可視bubble3を取得。
+- 実result sender-metadata-result.json SHA256 2b2bc4c635a02ea6ac67e4b7b0fd90f75c1d342ba7a4a631166ead2a50611ebd、起動reader SHA256 54519f342b9e746a1efdc24047474a9797bf27d1329f5f9c5cd53e6b803d4dbd。元corrected.py SHA0241は不変、本文/username/UID raw値保存無し、明示send/auth/fence/source本番変更0、seen効果unknown。ownabsent/priorID+URLhash集合一致/guardrelease0/leaseabsent PASS。
+- Rootが追加code読取で保存の不具合を特定。JS messagesにindexが無いがPython by_indexはx.get(index)で全件Noneへmapし、数値sample indexからsourceを見つけられず、sender_metadata3件をunknownへ落とした。別のpeer比較もprofile link hashのみでchat_uniqueid text handleを使わない。syntheticはprojector単体を検証し実配列→sample結合を覆っておらず、このPASSを全保存経路の正しさへ拡張しない。providerに送信者/日時が存在しない証明ではない。
+- private sender-metadata-projection-diagnosis.json SHA256 a827fc170ba84d2872f96689b776fade36d5811e0d1c15cc3ee69012441f7cad。実行中のfileを書き換えず元reader/resultを保持。担当の次作業は別corrected versionでenumerateによる同配列結合とchat_uniqueid hash利用の2点だけ修正、index無し実messages→sampleへのRED/GREEN1fixture、その後guard付きoneUI read。新decoder/framework/SDK全探索は行わない。Rootは同browser/fileを重複操作せず、修正後actual metadataと公式送信台帳への不足を受け入れる。current3未完、全goalactive。
