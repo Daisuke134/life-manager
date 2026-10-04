@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§462のbrowser Target作成ACK未取得と現instance read-only WebSocket応答PASSを使い、instance/endpoint一致と観測固有markerによる安全なownershipをfresh reviewで確認し、既存metadata取得へ戻る方法を選ぶこと。旧unknown targetを操作・無根拠replayしない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§463に従いcurrent UUID/endpoint一致を確認し、一意marker付き観測タブをONE作成してofficialinventoryで帰属を確定後、既存metadataを読むこと。ACK不明/marker不一致なら再作成せず、旧unknown targetを操作しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7116,3 +7116,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - instance比較はhistorical UUID hash `53f62224a23b04df944a68b51edcd14b1c0de2e77ba1519c6e177e3b60a5f7bd`/PID41416→current `66e130f3f1a728ec80ddd6f10edac252cb5b920219b7b4b5ff6f6ed8f28fd9fa`/PID6582、port9230。これは歴史snapshotとの変化で、最後の失敗時UUID未記録のためtimeout原因と断定しない。lineage private proof SHA `c12e14f1c2009746eeb483bdf2de6ba308c0fe6e48aa50c1c0aa270fc0bc449e`。
 - 22:16:21Zにnormal guard下でBrowser.getVersionだけをONE read-only確認。connect0.29秒/send0/response0.126秒PASS、acquire0/release0、Target作成/target mutation/message送信0。private proof SHA `27de5dfa9768efbc3c2cc7d6ac58cf01ba568ec02c1fff3f254841a9d3a2eb4f`。現在の接続経路は応答するが旧unknown作成を解消した証明ではない。
 - 次はfresh read-only reviewでcurrent UUID/endpoint一致と観測固有target markerによるownership/reconcileを限定確認し、旧unknownと混ぜず既存metadata取得へ戻る。新framework/別browser/port変更/auth/lease強制解除なし。局所metadata未到達/本文receipt未完、現在3→次4、SelfBuild/Eval最後。
+
+
+### 463. Current instanceのmarker-owned観測タブへ限定してmetadata再開
+
+- fresh Sol/medium reviewerは§462read-only WebSocket復旧proofを確認し、current instanceで観測専用markerタブをONE作成し帰属を確定して既存metadataへ戻る方法を単一推奨とする。旧unknown作成を解消/失敗と認定せず、歴史UUID変化を最後attemptの原因へ結ばない。
+- normalguard取得後、登録current UUIDと正規化guard endpoint/cdp.BASE hash一致を記録。BASEはimport時決定なのでenv設定だけで一致を仮定しない。作成前inventoryにない一意about:blank#markerのhashを事前保存し、Target.createTargetは1回。ACKのtarget IDを同instance officialinventoryへ照合。
+- ACK喪失時も同UUIDのinventoryでexact marker URL hash一致1件だけを今回ownerへ帰属。0/複数/instance変更はcreation unknown、再作成/閉鎖/navigationなし。帰属確定後の当該targetだけで既存局所metadataを読み、同UUID/owncleanup/prior exact保存を確認。旧unknown/未帰属targetを触らず、raw marker/URL値を出力しない。
+- sender/ID/date実取得まで送信receipt未完、send/newchat/composer/auth/fence0。追加framework/別browser/port変更/強制lease解除なし。新private派生fileのみで最小ownership処理、既存controller/body/probeを再利用。reviewのbrowser/file変更0、現在3→次4、SelfBuild/Eval最後。
