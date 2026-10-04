@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§443の検索欄未確定を保持し、§441のexact内部scroll nodeを再bindingして既存一覧を一度だけ末尾へ移動、追加ロードと表示済み集合の前後差を確認すること。§422のbound targetの会話特定へつなぎ、末尾到達や件数不変だけで全履歴absenceを認定しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§445の同件数/different CID集合という結果を使い、表示範囲に結び付く既存target metadata照合の次手をfresh read-only reviewで確認すること。§422のbound targetの会話特定へつなぎ、構造/寸法/検索欄の同じ診断を反復しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6965,3 +6965,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 番号3の新reader copyとprimaryのheredocが `No space left on device` で失敗。担当はfixture/live未実行、部分readerはprimary確認時点で不存在。既存送信のretryやscroll実施として数えない。dfはData volume空き169MiB、inode約20%のsystem側/78%Data側を観測し、本文取得やproviderではなくlocal保存境界を特定。
 - read-only占有調査で `/Users/anicca/Library/Caches/camoufox/Camoufox.app` の再取得可能なdownload binary cache約1.3GiBを確認。cache directoryのentryは同appのみ、symlink false、lsof open PID0、process commandの同cache経路一致0を確認後、このapp cacheだけを除去。profile/credential/証拠/JSONL/稼働browser/サービスは変更しない。削除processはterminal、df空き994→993MiBを再確認。sessionsや財務stateの圧縮/削除は行わない。
 - 同Luna担当はlive前のreader作成段階を所有したまま。小保存preflight後に同taskのcopy/fixtureを再開するよう通知。ONE live/ONE scrollの境界を維持し、保存失敗を成功へ変換しない。空き回復は当該保存境界の復旧でありfleet disk acceptanceや番号3/全goal完了ではない。現在3→次4、SelfBuild/Eval最後。
+
+
+### 445. 一覧scroll1回で同件数のCID集合が変化
+
+- 同Luna/max担当はterminal。ONE live run `72a2483f-b5e5-4cc6-83c2-2097aca43da3`、52.127秒、single_scroll_and_bounded_post_poll_complete。既存prior SHA・list1/child3/row28・CID集合・node42→44構造・寸法をbindingしてnode44のscrollTop=scrollHeightを一度だけ実行。scroll call1、前top0→後5001、clientHeight543/scrollHeight5544。
+- 25.192秒/14samplesのpost pollでrow count28のまま、CID集合digestは `1f626ad5c2ca44280624575271262b5d14320c831a040db023cfec07ee1c9e94` → `9c8ab0972732fe4def4b8ba1f14c71b4de6d8a55691dc07e54fec7c5dbe9a63f` に変化。追加行数0は新しい会話0や全履歴終端を意味しない。同件数でも表示済み集合が変わることを確認した。digestだけで全件intersection/追加会話数は未確認、仮想化/追加取得の具体的機構も未認定。
+- primary再fixturePASS（actual JS→single result.value→schema、wrong outer node回避、scroll1）、source/result/proof hashと実argv一致を確認。reader `9540e1a6aa85f6c033bfa3459ce158f590446fb7bd670bb0327e56c4fb5e99d3`、result `b1f4ada2d45787a57cac14d0ed04d7f65cf57913638fabcc479235cc9173a8a2`、proof `d99c7e2c6f3296c2fa4764694cee158e09a737bc42ea26fa7a454deaa26fc062`。新files600、元source不変、row文字列/個別CID値保存0の検証範囲を確認。
+- focus/click/search/newchat/compose/send/auth/fence/ledger0、provider read-state unknown。guard release0、own target absent、prior exact ID+URL hash保持、lease absent。全履歴終端/対象会話absence/過去送信0は未証明。
+- fresh gpt-6.1-sol/medium reviewerへ結果の限界と次のtarget照合方法をread-only確認依頼。次は表示範囲に結び付く既存target metadata照合を検討し、構造/寸法/検索欄の同じ診断を反復しない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
