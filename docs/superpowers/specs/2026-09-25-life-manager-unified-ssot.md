@@ -4910,7 +4910,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
   - [ ] A24.3 read_catalogue/publish等のaction permissionとmain由来owned実行経路を接続する。
   - [ ] A24.4 権利あるproduct/version/scope/mediaで公式activeGig/publicURLを確認し、A25以降へorder IDを渡す。
 - [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。
-- [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。
+- [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。
 - [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。
 - [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。
@@ -6369,3 +6369,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - private state/coconala-a25-existing-order-finance-join-20261004.json SHA9f9e3afa0869919387ffc5fcbf3829fe4ed5a9bcf2aa5975fd8d3619f5849a38。4projectのlocalfilehash／必要statusをread-only保存、project/financialledger/CFO更新0、providerGET/送信0。
 - native threadlimit下でfinite独立codexexec ephemeral/read-only requested6.1Solmediumを実行、exit0。reviewはsameCSV SHA/28row／1identitymatch／3scope0／staleflagsを別contextで確認し限定SHIP、currentfinancial/operational成果はHOLD。private coconala-a25-cli-review-20261004/result.txt／review-scope.json、mode600。rawCSV/state全体／個人/金銭値をreportへ複製しない。更新／send／delegation／external0。
 - A25次は正規owner自然readbackのcurrentformal/delivery/acceptanceと、orderID/contractID→productversion/fee/refund/cost/bank refsを閉じる。oldlocalstateを書換えて完了にせず、今回一致だけのためのCSV再GET不要。A26のactualcost/attribution不足を独立特定、A24新account導入は未完のまま保持。cursorA25/A26／全goalactive／SelfBuild最後。
+
+### 380. A26注文実費のCFO正規source map／usage見積とactual billの分離
+
+- primaryはrun.sh→cfo-hourly-local.js→cfo-result-local.js→loop_pnl.pyをsourceで追跡。B4入力はLM_CFO_MARKETPLACE_READBACK/RECEIPTS、B6 actualcostはLM_CFO_ACTUAL_COST_READBACK/COST。parentcurrentenv＋canonical.envでは4key設定無しだが、loadedCFOownerEnv全体は未検証。sourceunconnectedの条件をroot現環境から全runtimeへ推定しない。
+- actual_cost adapterはofficialinvoice/paidreceipt、paid/settled、currency、billingperiod/paid_at、lineitem、actualcostbasis、explicitloopallocationを要求。personal/unallocated/quote/estimateはcoveragegap。agentusageのUSD_API_EQUIVはAPIprice相当の見積でありactual provider billと別に表示する。同loop総費用から注文別費用を勝手に割り振らない、order/contract/productversionの追加joinが必要。
+- legacybusiness-outcomes pathとLancers payment sqliteは実在を確認。source defaultmarketplace ledgerはLancersだけ、Coco/CWはoverride/normalizedreceipt必要。対象projectの既知economicfilename9個無しを全costsource不存在とせず、別CFO/inputledgerの読取所有とimport証拠を次に閉じる。今回reportingCLI/adapt/ingest/notify実行0。
+- CFO last-result-reportはlocal sent／period2026-10-04:05／TelegramproviderIDあり、messageにunknownmarkerあり／18211957marker無し。これはcurrentCFOreportのlocal送信記録だけでofficialremote配信やorder-levelcostを証明しない。対象CSVdate2026/09/27と報告日は異なり、別period費用を混ぜずdate-onlyをsettlementUTCへ変換しない。本文/金銭値/recipient/credentialをchatへ出さない。
+- state/coconala-a26-cost-source-reference-map-20261004.jsonに入口/envkeys/存在scope/actualacceptance/不足refsをmode600で保存。orderID/contractID→productversionとfee/refund/cost/bank同期間proof未達、profitunknown。source/ledger/project/CFO/delivery/provider/budget変更0、missingcostを0やAPIestimateで代用しない。
+- 次はfinancialownerへexactsource/loadedenv/paidcost/配賦refsをhandoffし、A27の既存buyerfeedback/作業量/商品改善への対応を独立readonlyで調べる。owner未応答を稼働/完了扱いせず重複writerを作らない。A25/A26未完、currentcursorA26source refs／独立A27、全goalactive／SelfBuild最後。
