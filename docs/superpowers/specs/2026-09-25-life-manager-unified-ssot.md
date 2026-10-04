@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§446に従い同じown target内で一覧移動と移動後exact listのtarget metadata照合を行い、候補数と一致field/欠落/競合を確認すること。nickname-onlyは候補に限り、会話選択や送信を行わない。§422のbound targetへの公式identity bindingへつなぎ、同じ構造/寸法/検索診断を反復しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§447に従い未観測の中間表示範囲を同own target内の小batchでmetadata照合し、rangeごとに集合の同時性/候補/欠落を確認すること。nickname-onlyは候補に限り、会話選択や送信を行わない。§422のbound targetへの公式identity bindingへつなぎ、同じ構造/寸法/検索診断を反復しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6981,3 +6981,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fresh gpt-6.1-sol/medium reviewerは§445のsource/result/proof一致、scroll1/25.192秒14poll/send0/cleanupを確認。同件数のCID集合変化は確認済み、仮想化は推論に限る。rows_added0は純増0、個別集合未保存のためintersection未知。末尾は当該時点の内部領域だけで全履歴や中間範囲網羅は未証明。閉じたタブの末尾位置が次回残ると仮定しない。
 - 単一の次手は同own target/occurrenceで一覧移動とmetadata照合を結ぶ。元target-ready readerは一致後rowclickするため全体liveを再利用せず、metadata抽出/正規化/候補照合だけ使う。nickname-onlyでもmatcherが一致を返すことを明示し、候補扱いに限る。fence119/roster96のbound targetへ公式handle/UIDが結び付くまで選択/送信判断に使わない。match0でも当該表示範囲のみ。
 - 受入条件は移動後CIDdigestとmetadata前後集合の同時性、同frame/exact list binding、metadata readiness、候補数/一致field、handle/UID欠落/競合。provider read-state unknownを維持。Luna/max同担当へ新private inbox-scroll-target filesのみを所有させ、既存controller/scroll1/postpoll/guard/cleanupを再利用、ONE liveで候補確認後終了する。rowclick/newchat/send/auth/fence0、旧files/SSOT/productionは非所有。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 447. 同じ移動後集合でtarget候補0、未観測の中間範囲を残す
+
+- 同Luna/max担当のONE live run `1d5fa148-b139-45b7-bd20-56127c90480b` は51.996秒、single_scroll_bounded_poll_and_candidate_reconciliation_complete、terminal。同frame/own targetでscroll1、25.262秒14samplesのpostpoll、移動後exact listのmetadata前後でlist1/row28/CIDdigest一致を確認。metadata ready28、nickname28、handle0/UID0、候補0。原recordのnickname conflict28は期待hashとの不一致件数で、row内部のidentity矛盾や送信失敗数とは解釈しない。
+- expected公開identityは過去GET由来hash、freshness=false/current3_complete=falseを保持。0候補は当該表示範囲での旧expected nickname不一致に限る。公式peer unverified、provider read-state unknown、全履歴不在/過去送信0/納品完了は未証明。top/末尾だけでは中間範囲のmetadata網羅も未確認。
+- primary再fixturePASS、実argv/source/result一致。reader `0c10a88c6be044277119baa4b48ba347e3ce4cbf4dfa695624c35aeaa53af3b8`、result `bcf4237630c4a185240e077cf5df1b2a783ffe78b9362e965d9333b459ea7c22`、proof `e648363b487d3273ad5decc10bca57186daae2c2752446604888dd0539059614`、3files600、元source不変。exact nickname nodeのみhash化、row/wrapper本文経路を呼ばない。rowclick/newchat/send/auth/fence0、guard release0/own target absent/prior exact ID+URL保持/lease absent。
+- 次は中間表示範囲を同own target内の小batchでmetadata照合し、rangeごとにCIDdigest前後一致/候補/欠落を記録する。構造/検索/寸法診断を新たに作らず動作済controller/matcherを再利用。名前一致は候補だけ、会話選択/送信は別の公式identity bindingが必要。現在3→次4、SelfBuild/Eval最後。
