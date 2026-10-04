@@ -7186,3 +7186,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Alpacaはdisabled、resource_effect_unknown、money effect unknown。同一調査中にoperator installed_release_shaが4121f447から82d31995へ変化したため、installed投影をloaded argvやrollback成功の証拠としない。latest fleet-outputには該当rollback文がなく、復元成否は未確認。公式receiptなしに解除/再bootstrap/再送しない。
 - fleet修正担当はexact拒否のREDを再現、rc1かつJSON完全一致だけのtyped skipを実装中。focused fixture検証中でGREEN/commit/push未成立。他error/compound拒否/targeted操作は維持する。token修正は§465のsource-only受入のまま、本番通知成功は未確認。
 - sanitized owner evidence: `~/.local/state/life-manager/state/internal-loop-priority-20261005-targeted-owners.json`、SHA256 7eff28e1d6b8abe85952f1b8a6242a5a22c102df32f98a40be652572f9240ed3。外部effect/本番mutation0。
+
+
+### 467. Writerとcitizen-refillの同run根因を特定
+
+- article-self-improveのterminal event run18db74a28f317ff0-55908のerror_detailはwriter_learning_worker.py:606 `another canary assignment is already active`。実state learning/canary-assignment.jsonはREADY、experiment learning-2026-08-02、manifestあり、close/decision/application receiptなし。close_canaryはREADYをNO_APPLIED_CANARYへ戻し、self-improve.shがofflineを再度始めて既存未完assignmentへ衝突する。READYを未完評価待ちとして扱い、新しいpaid model work/assignment上書きを防ぎ、既存canary適用側の不足を別診断に残す。待機成功を評価成果/改善完了へ昇格しない。既存notification wiring fixtureはNO_APPLIED→offlineのみでこの反例を覆っていない。
+- citizen-refillの同run18db73e6a20e4a70-28833 terminal error_detailはsub-wallet.mjsのstatic import `tweetnacl`でERR_MODULE_NOT_FOUND。current root node_modulesはsealed dependency bundleへのsymlink、bs58あり/tweetnaclなし。root package.json/lockにtweetnacl宣言なし、Node createRequire.resolveの読み取り専用probeもMODULE_NOT_FOUND。live資金処理を再実行して再現しない。
+- refill source修正範囲はroot package.json/package-lock.jsonとno-effect import regression。新main82d由来worktree `.worktrees/lm-citizen-refill-dependency-20261005`、branch `fix/lm-citizen-refill-dependency-20261005`、owner codex-money-printer-refill-dependency、lease24h、HEAD82d/clean。既存同task worktree/openPRなし。Luna/max実装枠が空いてから開始し、provider/財布/本番state/資金移動/業務model変更なし。
+- fleet担当報告はexact refusal RED→GREEN/関連25test PASS。primaryは追加error fieldを含むcompound JSONをskipしないか反例を指摘、修正/remote受入待ち。根因確定ownerの2は並行、親cursor1と§217の順序は維持。
