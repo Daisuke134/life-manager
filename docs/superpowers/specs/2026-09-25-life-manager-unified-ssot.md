@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§435のread-only検証で不足が指摘された会話一覧の選択範囲・ページ終端/追加読込表示・親子frameの対応を確認し、§422で案件台帳とpayloadのbindingが一致した1宛先の公式会話を特定すること。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§440で特定した会話一覧内部の可視scroll領域を、同じ既存read-only制御で寸法と非row末尾表示へ限定して確認し、ページ終端/追加読込/選択範囲の不足を狭めること。その証拠を使い、§422で案件台帳とpayloadのbindingが一致した1宛先の公式会話を特定する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6925,3 +6925,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - indicator scanned31はrow除外後、unclassified172は除外前scan.size由来で母数が異なる。172未知controlという解釈や探索拡大はしない。selectedはvisibleを要求せず、非表示otherでもmissing解除する現条件はinbox区分の証明として不十分。
 - 次の一回はexact list/祖先最大6段、branchの直近前後sibling各2段、listの先頭末尾非rowchildだけの構造・可視性・overflowと局所control/status参照を読む。属性は名前、参照関係はboolean、labelはgeneric分類/hashのみ。row名/body/UID/URL値を読まない。可視controlとlistの参照または局所容器対応が確認できた時だけ表示区分を認定し、可視endはその区分だけに適用する。cap/不在結果は不足を保持、click/scroll/search/send追加0。
 - generic native agent `inbox_local_structure_implementation` を実model gpt-6-luna/maxで起動し新private reader/result/proof/fixtureのみを所有させた。旧files/SSOT/production/authは非所有。enabled/同母数/visible条件の反例をfixtureで確認後ONE live captureだけ行う。現在3→次4、納品/公式送信receipt未完、SelfBuild/Eval最後。
+
+
+### 440. 局所UI観測の受入と一覧内部scroll領域の特定
+
+- generic Luna/max担当の新private `one-bound-conversation-reader.inbox-local-structure.py` はterminal。primary再fixture PASS、hidden/unbound selected除外、disabled値、候補集計同母数、参照binding、privacyを確認。元row-ready readerは不変、新4files600。ONE live run `3a2a4b0b-d079-422f-a0d1-121b6eaea615`、41.95秒、captured-before-selection、会話row28。
+- exact listは可視400×657、child3。last nonrow child（node42）は可視400×543、overflowY=auto、その内部node44も可視overflowY=auto。これは一覧の内部にscroll領域がある公式DOM構造の証拠。従来のlist祖先/documentだけのscroll差0は当該内部領域の寸法を測っておらず、終端根拠として使えない。スクロール操作はしない。
+- 局所構造46nodes、truncated=true。可視で一覧に結び付くselected scope0、marker0、scan45/unclassified45で同母数。selected inbox、paging/end source selector、全履歴終端は未確認。取得上限のため全構造不存在とはしない。非表示tab選択をinbox区分へ昇格しない。
+- cleanupはown target absent、prior exact ID+URL hash保持、guard release0/lease absent。prior/final target count5を確認し、過去count2からの変化のownerは未認定。raw ID/URL値は保存出力しない。readerの観測範囲click/scroll/search/send/auth/fence0。新reader SHA256 `9f59e279d61ce292a70e1bc2b4068d8f6031cbba082f8c3f2bc980d5186cedee`、result `5a756f172004c33d01ef36c4c51714514e7550492fbc4f183dd2cb3f0b708b54`、proof `f4ad97b5ebee7aa63072c30264af6c991f08e25ebc92c20b960a89f7aa3a02e3`、fixture `ccbf5337d52116d0f781f29aa14165348105bd64f930f258eb4fedffd61548c3`。実argvとsource/result hash一致を確認。
+- 次の一回は特定したlist内部last child/内部scroll nodeのclient/scroll寸法、scrollTop、非row末尾の構造・end/loading表示に限定。祖先/非表示兄弟UIの再探索、nickname28再照合、global SDK/protobuf探索、click/scroll/sendは行わない。終端が識別できなければ未知を保持して別の公式readback経路を検討する。現在3→次4、納品/送信receipt未完、SelfBuild/Eval最後。
