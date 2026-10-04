@@ -4876,7 +4876,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A03 Coconala案件の残制作を納品条件まで完了する。
 - [ ] A04 Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。
 - [ ] A05 Coconala検収の公式記録を確認する。
-- [ ] A06 Coconala支払・手数料・精算明細を取得する。
+- [ ] A06 Coconala支払・手数料・精算明細を取得する。§358で公式全件CSVの取得provenanceを限定SHIP、28行／27一意／duplicate1組。gross／fee／net定義・paymentID・bank・cost未確認、全finance完了ではない。
 - [ ] A07 Coconala payout／銀行着金を照合する。
 - [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§301のfresh公式金融pageはHTTP405／human_verification true、明細unavailable。正規人間検証が必要。
 - [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
@@ -6177,3 +6177,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 公式CSVhelpは売上金額＝計上売上、振込状況＝未/済の説明まで。gross／net／fee／bank/profit定義未確認。DOMpayout_requestedfalseは申請済み文字列不在だけで振込済27行とは別。source docstringから22%逆算やlocalidemのproviderID化をしない。
 - 旧CSV／receiptを保持し、private診断probeのmissing観測だけを補正してbounded再read/export1回を既存workerへ依頼。stricthttpshost/path、registeredendpoint、自己target/context/frame、context限定download／GUID／completedを新runへ記録。no ledger／CFOwrite／振込申請／銀行設定／client送信。新prod tool/framework無し。
 - 原本／receipt／privateparse／csv-review-scope.jsonはstate/coconala-a06-finance-readback、directory700／files600。次は新exactreceiptとduplicateの意味／fee・bank不足をCFOへ渡す。A06／A07／14loopCFO全成果未完、全goalactive／SelfBuild最後。
+
+### 358. 全件CSV取得provenanceの限定SHIPと財務HOLD維持
+
+- 追加probe初回はguardbusy75／child未起動、直後holder空という変化を観測。bounded次runはguard取得後、自probeがinitialaboutblankreadycompleteを早期採用してURL拒否、export0。providerHTTP拒否と誤分類しない。旧receiptと初回失敗を保持し、既存navigation関数へ修正、offlineaboutblankfalse／expectedtrue／wronghostはstrictrejectの3caseを確認。
+- 修正後run20261004T044225595090ZはstrictHTTPS／hostcoconala.com／pathmypage/revenue／HTTP200、registeredendpoint127.9223、自己target／context／sourceframeを保存。downloadcontext一致、BrowserWS downloadWillBegin frame一致→同GUIDcompleted3475bytes→ファイルbasenamejoin。S3配信originは公式sourceframeからのUIdownloadとして区別。CSV新旧bytes／SHA完全一致、duplicate1群／28rows／27unique／period07/25–09/27は保持。
+- 同fresh金融reviewerの追加証拠判定は取得provenance前HOLD解消／限定SHIP。target／context／frame、begin／completed／guidfile／sizeSHAの5点を一次ファイルで確認。原本データの独立全履歴網羅性、販売額／fee／net／銀行着金／profitはHOLD。取得証拠のための再exportは不要。
+- 台帳・CFOwrite・reconcile・振込申請・銀行設定・正式納品・client送信0、owncontextとguard解放確認。oldCSV／receipt変更無し。newrunreceipt／cleanup-readback／CSVとcsv-review-scope.jsonはprivate source refs。CFOへsource packetをsend済みだが応答未取得、送信をimport・着手・財務join成功と扱わない。
+- A06正本へpartial取得結果を追記。次はduplicateの正当性／grossfee定義／paymentとbank receipt不足を財務ownerに渡し、他platformの独立未完へ進む。全goalactive／SelfBuild最後。
