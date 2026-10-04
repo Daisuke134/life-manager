@@ -320,6 +320,17 @@ if [ "$REPORT_KIND" = "hourly" ]; then
   exit "$UNIFIED_RC"
 fi
 
+# daily-close also carries the money scoreboard (gross/cost/payout/bank), appended
+# to the existing body; same send path, no new sender.
+if [ "$REPORT_KIND" = "daily_close" ]; then
+  SCOREBOARD_TEXT="$("$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_scoreboard.py" 2>/dev/null || true)"
+  if [ -n "$SCOREBOARD_TEXT" ]; then
+    BODY="$BODY
+
+$SCOREBOARD_TEXT"
+  fi
+fi
+
 # telegram daily report (best-effort; never blocks the monitor)
 if [ -n "$BODY" ]; then
   "$LIFE_MANAGER_REPO/skills/_shared/send-telegram.sh" "$BODY" \
