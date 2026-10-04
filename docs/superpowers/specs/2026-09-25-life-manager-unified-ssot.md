@@ -7287,7 +7287,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh Sol/mediumはsnapshot処理HOLD、P1を独立再現。missing/partial/破損/非dict/wrong bindingでもno-effect解除。同occurrence selected→空/別candidate上書きでも元候補AがPendingなのにB不在から解除できる。CLIはwrite_error時rc1だがdailyが無視。admission resolverにhidden snapshot witnessはなく、dead runの誤認を防がない。実事故は未確認、fixture effects0。
 - 新main82d由来worktree `.worktrees/lm-promptbase-snapshot-proof-20261005` / branch `fix/lm-promptbase-snapshot-proof-20261005` / owner codex-money-printer-promptbase-snapshot / lease24h / clean。所有はdaily.sh、scripts/promptbase_fence_reconcile.py、既存tests/test_promptbase_fence_reconcile.py、新必要最小tests/test_daily_snapshot_dispatch.py。wait修正の2fileは所有外。
 - 契約1：有効occurrenceなし、snapshot保存失敗ならpublisher dispatch0でabort。既存LIFE_MANAGER_ENV_FILE overrideを必要なら再利用し、testはprivate .envを読まず実daily入口をfakeコマンド/一時fixtureで確認。価格/model/category/browser/profile/cadence/provider/publication設定は変えない。
-- 契約2：欠損/破損/非dict/部分候補/schema・owner・occurrence・時刻不正はinconclusive/HELD、resolver call0。明示的null slug/null titleを持つ正しくboundされたschema1 no-candidate記録だけをno-dispatch proofに使う。時刻精度はproducerの秒精度とqueue時刻のmicrosecondsの差を考慮し、不正/未来/別run記録を成功へ丸めない。
+- 契約2：欠損/破損/非dict/部分候補/schema・owner・occurrence・時刻不正はinconclusive/HELD、resolver call0。新producer由来かつactive admitted captureにboundされた新schemaの明示的null slug/null titleだけをno-dispatch proofに使う。旧schema1は§480のHOLD契約に従う。時刻精度はproducerの秒精度とqueue時刻のmicrosecondsの差を考慮し、不正/未来/別run記録を成功へ丸めない。
 - 契約3：同occurrence snapshotの既存bytesを上書きしない。異候補/selected→emptyは拒否。安全な同一入力の再読は既存正当な記録を返せるが、壊れた既存記録を置換して成功を作らない。atomic create/排他で同時別candidateを拒否する。既存欠損はproducer修正だけで安全扱いしない。
 - 必須RED→GREEN：保存失敗/occurrenceなしpublish0、各invalid snapshot resolver0、正当なno-candidate/selected既存readback経路保持、Aの効果をB不在で解除不可、同occurrence記録上書き不可/同時競合安全。fixture callbacksのみ、実DB/fence/credentials/HTTP/live送信0。Luna/max→focused/構造gate→commit/push→primary/fresh Sol受入、本番は3の承認待ちに残る。
 - source残順snapshot proof→Writer READY、Lancers account境界は未確認。§217cursor1/source2部分並行、Coconala保留/SelfBuild最後、全goal未完。
@@ -7300,3 +7300,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Writer修正契約は既存READYをAWAITING_MATCHED_CANARYとして返し、既存候補・experiment IDを保持して追加offline model処理/assignment上書き0にする。公開・計測・採用・利益成功を意味しない。既存の他5状態の挙動を保つ。実canary適用/測定条件の不足は別未完に残す。
 - 次のLuna/max所有は§470のwriter専用worktree/branch/leaseを再確認し、scripts/writer_learning_worker.py、必要最小tests/test_writer_canary_pending.py、既存tests/self-improve-notification-wiring.shの3files。実関数と実self-improve wrapperをfixtureで確認し、READY時offline呼出0/verify・report到達、無し/完了時offline継続、state bytes不変を検証する。source私的env/provider/browser/SQLite実DB/playbook変更/価格/モデル変更なし。
 - コード変更前にloop-developmentとbuilding-agents/適用TDDを読み、focused/既存構造gate→commit/push→primary受入。snapshot担当の4filesと重ねない。§217cursor1/source2部分並行、source順snapshot proof→Writerを維持。本番反映は例外確認未回答、全goal未完。
+
+
+### 480. snapshot固定sourceのlegacy/provenance反例はHOLD
+
+- branch fix/lm-promptbase-snapshot-proof-20261005 / fixedHEAD・remote5ee729b979f9334a2ff3e75b9ccb3b60a762136b / clean。primary関連pytest16/16、構造gate14/178/103/errors0、bash-n/diffcheck PASS。保存失敗時publisher0/create-only/invalid holdの新経路は確認したが、全source受入は未完。
+- fresh Sol/mediumはP1を3件実測しHOLD：旧A→null、旧A→B（provider fixtureにはA Pending/B不在）、旧missing→queued+1hでrecord_snapshot(null)。いずれもverified true/effected false/closed true/pre-effect callback1。終了済み不確実occurrenceを守るhidden provenance witnessはない。実事故や実再送は未確認、全fixture/実defaultresolver0。
+- §478のschema1信頼条件を訂正。新producerは旧証拠と識別できる新schemaで記録し、旧schema1からno-effect解除を拒否する。旧記録を上書き/移行/metadataだけで昇格しない。missing/legacyはHELDのまま、公式receiptへ照合する別の再開条件を残す。
+- 新snapshot作成は現在のactive admitted run（owner/occurrence・process identity・実行由来）の対応を確認し、終了済み/fenced/不一致/確認不能の場合は保存拒否/publisher0。default確認は既存admission境界のreadonly観測を再利用し、DBのcreate/migrate/cleanupやfence mutationは禁止。fixtureはcapture確認callbackを明示注入し、実private DB/claim/env/credentialsを絶対に読まない。serialized証拠にも新producer/captureの来歴を保ち、readerのvalidationと合わせる。
+- 指定4filesだけで必要最小RED→GREEN：3旧反例resolver0、inactive/fenced/misbound capture拒否、正当新capture/no-candidate及びselected readback成立、保存失敗publisher0、immutable/race維持。新harness/DBschema/キャッシュ層/互換migrationは作らない。時刻だけからpre-effectと推定しない。Luna/max追加修正→commit/push→primary/新freshSol受入。
+- 現source順snapshot修正→Writer READY、§217cursor1/根因確定2並行、main例外確認未回答。16testを本番/送信成功へ昇格しない。全goal未完。
