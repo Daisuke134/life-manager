@@ -4884,7 +4884,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
-- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。candidate detail／残form要件を確認し、本人必須提出はhuman_requiredを保持する。
+- [ ] A14 Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§366でcandidate詳細4件と未完form3件を取得、1candidateHTTP400／未取得3、form要件分類unknown3。残候補・HTTP400理由・本人必須条件を照合し、本人必須提出はhuman_requiredを保持する。
 - [ ] A15 Mercorの精算・着金・実費を確認する。
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
@@ -6242,3 +6242,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - state/mercor-a14-step-readback-20261004/run2/receipt.json SHAf5402b22345d4d2503c8408ec49fd26a5105d007deb25536d53043369709a7c7、cleanup.json SHA9a3a578495f6622eba974d90c862f55c8db9072c39553d5e7687a6754072a4bfを親が照合。全navigation／refresh／media／submit／gate変更0、guard解放／UUID不変／既存target保持。初回8と補完4の別scopeを区別、追加取得終了。
 - A16local latestはApp18db3b7d940e5088-16950の05:11:30Z、Reply18db3b7d3eda9f90-16946の05:11:27Z、双方report source1a7／exit75／admission resource_effect_unknown／officialreceipt null。state/mercor-a16-latest-local-reports-20261004.jsonに保存。local report SHAはofficial loaded argv readbackではない、新規応募／メール配信の成功に置換しない。
 - 次はA14取得済みcandidate routeからcandidate detail／未完formの安全な読取入口を特定し、本人作業と一般form入力を分ける。公式step IDとsemantic gateの対応が無いものを解除しない。A15契約精算・着金・実費未完、cursorA14、全goalactive／SelfBuild最後。
+
+### 366. A14 candidate／form GET実測とHTTP400／要件nullの境界
+
+- 公開candidate依存未取得17JS chunksをprimaryが取得、fresh Sol6.1 mediumがmodule86197.dR GET aws.api.mercor.com/work/candidates/{candidateId}、module52439.Sl GET coil.mercor.com/work/forms/{configId}を確定。candidateIdとlistingId／listingApplicationStepConfigIdとform configIdを交換しない。contract state/mercor-a14-form-get-contract-20261004.json SHA4af4cf551405ca918c250660651b262b3040c7f47e7c3b288903b33ba9da841b。ReactcomponentはautoSave／timer／proctoring／submitを含むため起動せずrawGETのみ。
+- 初回candidateGET5（HTTP200×4／400×1）で残中止。成功4件のcandidateId／listingId対応PASS、16applicationSteps保存。失敗wrapperは非2xxpayloadをnullへ落としたため400理由未観測。HTTP400を認証失敗／候補不存在／本人作業と断定しない。未取得3candidateも要件unknown。初回receipt SHAd6d28ad72e5d0f309265033c058b4e89270a76fd0f8f750cc315c2e3a5f82242、cleanup SHA8a730b131017a04f273b199300552e6868b77305e70a08d28180a77d68f9dddc。
+- 既に成功したcandidateの確定未完form3unique configIdだけ別run2でGET3、HTTP200×3。candidate追加GET／400再試行0。質問21（必須16／任意5）、page2、questiontypeはtextarea12／textfield4／multiple-choice3／checkboxes1／file1。allowCopyPaste true3だがtimer／recordScreen／recordCamera全null、ordinaryform／本人assessmentの分類unknown3を保持。nullをfalse／制限無しとしない。質問本文／回答／resume／個人情報／token保存0。
+- state/mercor-a14-form-requirements-20261004/run2/receipt.json SHA7510394a6123df9fa1731ed209a5257f5c83b05e7fbd2941cd98d7d088214a42、cleanup.json SHAd1996f95bbb9a9aaecbebea85aa387518b4d678857fcb08f02ee7446d05cdc5b、親がSHA／schema集計再確認。guard解放／UUID不変／既存target保持。timerstart／save／submit／media／proctoring／refresh／gate解除／fence解除0。
+- A14次の観測はHTTP400候補のエラー分類を返却時sanitizeで残す最小probe（観測を増やしてから同失敗再試行）、未取得3candidateの残steps、formの本人限定条件／nullの意味を公式schema・consumerで照合すること。回答可能／自動提出許可を勝手に導かない。A15契約／精算／着金／実費は未完、cursorA14／全goalactive／SelfBuild最後。
