@@ -6934,3 +6934,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 局所構造46nodes、truncated=true。可視で一覧に結び付くselected scope0、marker0、scan45/unclassified45で同母数。selected inbox、paging/end source selector、全履歴終端は未確認。取得上限のため全構造不存在とはしない。非表示tab選択をinbox区分へ昇格しない。
 - cleanupはown target absent、prior exact ID+URL hash保持、guard release0/lease absent。prior/final target count5を確認し、過去count2からの変化のownerは未認定。raw ID/URL値は保存出力しない。readerの観測範囲click/scroll/search/send/auth/fence0。新reader SHA256 `9f59e279d61ce292a70e1bc2b4068d8f6031cbba082f8c3f2bc980d5186cedee`、result `5a756f172004c33d01ef36c4c51714514e7550492fbc4f183dd2cb3f0b708b54`、proof `f4ad97b5ebee7aa63072c30264af6c991f08e25ebc92c20b960a89f7aa3a02e3`、fixture `ccbf5337d52116d0f781f29aa14165348105bd64f930f258eb4fedffd61548c3`。実argvとsource/result hash一致を確認。
 - 次の一回は特定したlist内部last child/内部scroll nodeのclient/scroll寸法、scrollTop、非row末尾の構造・end/loading表示に限定。祖先/非表示兄弟UIの再探索、nickname28再照合、global SDK/protobuf探索、click/scroll/sendは行わない。終端が識別できなければ未知を保持して別の公式readback経路を検討する。現在3→次4、納品/送信receipt未完、SelfBuild/Eval最後。
+
+
+### 441. 内部scroll実寸の取得とラベル読取契約の未受入
+
+- 同Luna/max担当のONE live run `f06d4c3e-8af9-4659-ade3-772c0455b9fd` は68.485秒、captured-before-selection、terminal。prior result hash/list child3/row28/既存node42と44の構造signature bindingはconfirmed。node42はclient/scroll height543/543、node44はclientHeight543・scrollHeight5544・scrollTop0、可視overflowYautoでscrollable_y=true。従来祖先寸法から終端を推測できない理由を具体化した。実スクロール/追加ページ/全履歴終端は未確認。
+- fixtureは小captureの実JS→single result.value、寸法とrow要素除外の範囲でPASS。しかし末尾の非row wrapperがrow descendants28件を含み、innerText/textContentをhash化していた。raw値保存はないが「row文字列を読まない」契約は未達の可能性があり、fixtureはこの反例を捕捉していない。ラベルhash/分類は証拠に採用しない。reader全体の受入はHOLD、構造/寸法の確認と分ける。原result保持、追加live0。
+- cleanupはguard release0、own target absent、prior exact ID+URL hash保持、lease absent。readerの観測範囲click/scroll/search/send/auth/fence0。reader SHA256 `6d63e0097f524bf57b8a930181f8ab3884e412784c434e8c48305c0e07da67db`、result `1deffd0bb1f7901d66ded06b5fd9f2ba517e109d519fe5f08c9a22cd72e14037`、proof `e5c6391e7978fe19650d9b3499dc1d690db7b6882a841429394fd47db07df1d9`、fixture `fb3af421b34e7ee37edf3f36ffa1563402c67135febf584ecc13b10ba919788c`。新files600、元sourceは不変。
+- 次はwrapperの子孫テキスト読取を使わず、特定した内部領域と通常の一覧検索/追加読込の公式UI経路を比較し、対象会話へ最短に到達する安全な手を選ぶ。寸法/末尾の診断を同じ範囲で反復しない。旧readerのラベル経路を再利用する前にrow-descendant反例を修正する。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
