@@ -5886,3 +5886,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 現行registered CDP9223 /json/listはHTTP200、Coconala direct_message/10078795のpage target BB5F00BCC2125F3D02E04CA829EF3793は403 title。with-browserはidentity hashごとのtarget ledgerを使うためglobal ledgerのowner未取得を訂正、正規ledgerではpaid-direct-18180857所有と確認。今回replyの同run binding無し。別owner targetへのevaluate／navigate／close0。
 - browser-guard statusはregistered identity healthy／holder無し。既存main immutable collectorのdirect-inbox-head-onlyを自己owner coconala-a17-inbox-boundary／既存vault／identity lease下で開始。source receiptだけを読むbounded mode、semantic model／client送信／応募／納品無し。tool session40318／log lm-coconala-a17-inbox-boundary.log、terminal未取得。head_onlyは全inbox coverage成功を証明しない。次は同handleのreceiptでhelper／provider境界を確認する。
 - 全goal未完、SelfBuild最後。
+
+### 339. Coconala正規inbox先頭の再読取と現行自然返信run
+
+- 同session40318はexit0。current main1a7 immutable／registered coconala:kosuke／自己contextのhead-only snapshotはrequestedとfinalがhttps://coconala.com/messageで一致、login_redirect false、403 title無し、container true／cards30／inquiries30。provider_http_statusはnullでありHTTP200と捏造しない。head_only true／coverage_complete false／pagination terminal未証明。source receipt／route／captured_atをprivate evidence保存、guard statusのholder無しでreleaseを確認。認証reset／他owner target操作／client送信0。今回アクセス拒否は再現せず、過去403の原因や全inbox成功は未証明。
+- 手動wake無しで最新自然owner reportを読み、hf-gig-reply-detector run18db3344cc7c9ad8-75485／actual claim18daf2491f7e9020-69151／main1a7 execute02:40:47Z→report02:41:24Z／exit0。latest mtime02:41:19Zはrun内、business status ok／observed192／effect0／readback181／blocker無し。これで現行の一自然runが業務観測へ戻ったことを確認するが、新3a7修正のproduction検証ではない。旧失敗resultとの結合を避け、sourcepatch未mainを保持。
+- evidence state/coconala-a17-inbox-boundary/{snapshot.json,evidence/*}、coconala-a17-post-probe-natural-readback.jsonはprivate。次は最新source修正の統合条件と、残pending／旧fence／mail confirmation／精算の不足へ進む。全goal未完、SelfBuild最後。
