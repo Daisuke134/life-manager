@@ -5787,3 +5787,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 親固定f4e34ceea4のfull runtimeは759／147.930s／failure1。test_production_render_matches_byte_stable_fixtureがrender_job_models(registry)と既存fixtures/macos-loop-jobs.jsonを比較し、新179th browser owner recordの欠落で不一致。他758件は同attemptで通過、初回failureをprivate source proofへ保持する。
 - 新source behaviorを広げず、必須dependent golden fixture1fileをLuna6 maxの追加所有scopeにする（計5file）。既存178record不変／new Upwork record1だけを既存rendererで更新する。testを削除・緩和せず、旧result／他platform configを修正しない。親はfixtureを編集しない。
 - Lunaの同taskへfollowupし、affected registry suite／contract／diff、commit／push／remote object／cleanを要求する。fresh Sol6.1 medium review／PR／main／本番browser起動は修正後gateまで未達。本番profile／auth／provider作用0、全goal未完、SelfBuildは最後。
+
+### 324. Upwork golden fixture補正pushと親の同新HEAD再suite
+
+- Luna6 max同taskは追加fixture1fileだけをcanonical rendererで更新、commit3851b5e3c8163ccaa296bb98d4f2fb4118f2cd8eをpush／remote一致／clean。fixtureの新179recordからUpwork1recordを除くと旧178recordの内容・順序が完全一致。親もrenderer bytes一致と同record比較を確認する。元testsは不変。
+- workerのRED1→GREEN1、affected macOS registry131＋193subtests／contract14loops179jobs／diff PASS。親の初回759／failure1は§323で保持し、修正後full runtimeを同3851固定HEAD／tool session59462で再実行する。HEADを検証中に変更しない。
+- source4file＋必須fixture1fileのscopeで、browser/profile／credential／provider／production作用0。full acceptance terminal→fresh gpt-6.1-sol mediumレビューが次。sourceを本番account transportや全Paid lane成功と扱わない。private proofとrepo正本へcursorを保存、全goal未完、SelfBuildは最後。
