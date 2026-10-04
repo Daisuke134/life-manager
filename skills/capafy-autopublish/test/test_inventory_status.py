@@ -155,6 +155,29 @@ def test_multiple_updates_pick_highest_30d_revenue_first() -> None:
     assert decision_no_data["item"]["agent_id"] == "1111111111"
 
 
+def test_multiple_retries_pick_highest_30d_revenue_first() -> None:
+    module = load_module()
+    # Real case 2026-10-04: agent_id-string order picked the zero-revenue
+    # retry ahead of the $11.18/30d Marketing Strategist.
+    low = {"agent_id": "4973250899", "title": "Customer Renewal Evidence Brief"}
+    high = {"agent_id": "9563867391", "title": "Marketing Strategist"}
+    free = module.normalize_agents([agent("1", "under_review")])
+    revenue_by_agent = {"4973250899": 0.0, "9563867391": 11.18}
+
+    decision = module.allocate_action(free, [low, high], [], revenue_by_agent=revenue_by_agent)
+
+    assert decision["action"] == "retry_existing"
+    assert decision["item"]["agent_id"] == "9563867391"
+
+    # No revenue data (or a tie) falls back to agent_id ascending, same as before.
+    decision_no_data = module.allocate_action(free, [low, high], [])
+    assert decision_no_data["item"]["agent_id"] == "4973250899"
+
+    decision_tied = module.allocate_action(
+        free, [low, high], [], revenue_by_agent={"4973250899": 5.0, "9563867391": 5.0})
+    assert decision_tied["item"]["agent_id"] == "4973250899"
+
+
 def test_load_revenue_by_agent_reads_analytics_snapshot(tmp_path) -> None:
     module = load_module()
     snapshot = tmp_path / "capafy-skill-analytics.json"
