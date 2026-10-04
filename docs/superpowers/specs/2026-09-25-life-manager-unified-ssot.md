@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§454のguard競合解消readbackに従い、修正済み既存readerを通常guard取得で一度だけ再開して、metadata準備とrow→pane関係を確認すること。preflight証拠を別名で保持、未準備行を残した0候補を不在へ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§455のmetadata全準備/実CID一致/active遷移を使い、post field-key修正と同pane本文の限定readback方法をfresh read-only reviewで確認すること。未提供ARIAとreader不具合を分け、本文receipt未取得のまま送信/財務結論へ昇格しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7045,3 +7045,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - ONE invocation run `0d637497-24a5-4c55-81a8-4820ae2b1b2a` は0.935秒preflight終了、guard acquire exit9（BUSY）、guard未取得、scroll/click/send0、cleanupなし。実metadata/pane/bodyの観測には到達していない。preflight result `149829d89e6efe0950a21ef7292ab71d4fd722f159384aa11ddbd016951290e9`、proof `b48cf1973356813095e0ccaea747130849a8d2c0b4503298cc3900c7ecc9f8d6` を保存。
 - primaryは通常browser-guard statusをread-only実行し、2026-10-04T21:07:59Zにidentity1/collision0/holder absentを確認。private execution3-browser-guard-status-current.json SHA `50dbffd1f9955079c69e759ab6418f095eadee8e69443e2c5c312a8df61a1c02`、600。過去busyのownerや稼働を断定せず、現在は競合解消として扱う。force release/kill/browser停止なし。
 - 次は元preflight証拠をbyte-identical別名へ保持して、source不変の同既存readerを通常guard取得で一度だけ再開。追加実装/fixture体系なし、guard再busyならeffect0で停止し再送しない。競合解消後の再開であり観測timeoutによるrestartではない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 455. Guard実取得PASS、metadata全準備・active row遷移とpost field不一致
+
+- guard-busy原result/proofは同名prefixのguard-busy.result/proofへbyte-identical保存（§454hash）、600。再開前のholder存在報告を現在の稼働とは断定せず、primaryは21:10:22Zにholder absentをreadback。private holder-live観測SHA `7a9c8a7813e008db6b840f1d62667cf5610e40c5be8bc8156d46ec76ab13626b`。次の検証はpreflight guard9/操作0で終了したため、statusの時間差とacquire失敗を同一owner証明にしない。
+- 21:12:55Zの同試行guard限定probeは通常acquire0→通常release0、browser操作0/force0。private same-attempt-probe SHA `81e68177e2977e097d21653a6bdb53d2a32d9beac23ddecd33920dbe865ca84a`。当該時点で経路動作を確認後、primaryが同source不変の既存readerをONE検証実行した。
+- run `47e84d43-09f7-4c9d-b80e-580b6b65b784`、43.834秒、scroll1/rowclick1/send0、terminal。修正metadataは全準備候補を取得。pre/post candidate CID hashはともに `88e692053cbeda3578f74274b1fe7e44f437058f2a2bbd071ae246fef430aac2`、same list集合一致、aria-selected false→true、post active=true。post unique visiblechatbox/pane/header、box_contains_pane=true、headerafterhandle/nickname一致。before header空→after期待相手という正常表示遷移を、header前後値同一の条件で拒否しない（現gateはその同一性を要求していない）。
+- ARIA controls/labelledby参照は両方向とも未取得、row_to_pane_relation=falseで本文未実施。candidate_cid_projection_same=falseは実CID不一致ではなく、post側にafter_relation.get(candidate_count)==1が残る同field-key不一致をprimaryがsource1702付近で特定（producer target_row_count）。pre側修正と実CID投影は成功、post側consumerは未修正。
+- 新canonical result SHA `378492cefc71f0fb8c6d0940b070399678f5456af971d6e0c2136e56ad4e8f46`、source65d66は不変、guard release0/own target absent/prior exact ID+URL保持/lease absent。元busy証拠は別名で保持。official sender/body/receipt、全送信数/納品は未確認、read-state unknown。
+- 次はfresh Sol/medium reviewでpost field修正と、実CID/原子click/active遷移/unique pane/headerhandle/包含関係で同pane本文を限定readbackできるか確認する。providerが出さないARIA属性を追加の永続完了gateにせず、本文を読む前に送信/財務結論へ昇格しない。現在3→次4、SelfBuild/Eval最後。
