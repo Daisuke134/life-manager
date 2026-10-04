@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA21のUpwork正規browser owner接続（issue6553／HEAD3851b5e3、親runtime759 PASS、fresh Sol6.1 medium source SHIP、統合条件照合）。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA17／A18の応募confirmationとprovider専用返信owner照合。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4894,7 +4894,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
   - [x] A21.1 正規browser owner sourceを実装・pushする（3851b5e3）。
   - [x] A21.2 同HEAD検証とfresh source reviewを完了する（§327限定SHIP）。
-  - [ ] A21.3 最新AGENTSの成果PASS後PR条件とmain-only本番反映の依存を照合する。全A21成果は未実測であり、PR作成未実施。
+  - [x] A21.3 最新AGENTSの成果PASS後PR条件とmain-only本番反映の依存を照合する。§328で循環依存を確認。統合許可成立や全A21完了ではなく、PR未実施として保持。
   - [ ] A21.4 条件成立後に一度だけPRを作成し、exact-head CI／main統合を確認する。
   - [ ] A21.5 main由来complete immutableを確認し、所有権・GUI preflightを満たして対象ownerへ反映する。
   - [ ] A21.6 official loaded argv／SHAと登録済み9233のprofile所有権を確認する。
@@ -5820,3 +5820,15 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - independent upwork_browser_owner_source_reviewはSHIP（source受入限定）、修正必須指摘無し。固定HEAD3851／5file／cleanを確認し、所有権32、fixture一致1、profile／port重複拒否2、shell／diff PASS。renderer1／64成功、0／65／-1／非数値exit64、既存profile marker保持をtemp fixtureで確認。親の759 PASSと区別して記録する。
 - 本番起動／identity接続／account inventory／応募／Paid／収益は未証明。reviewerはprovider CLI／本番profile／credentials／stateを操作しない。要求modelはgpt-6.1-sol／medium、actual metadataは観測不能。
 - A21を正本内でA21.1–8へ分け、source2項目だけ完了にする。新AGENTSの成果PASS後PR条件とmain-only本番反映は依存照合が残る。全A21成功をsource SHIPから推定してPR／mergeしない。次はこの統合条件を既存promotion契約と照合し、実行可能なaccount readback経路を狭める。全goalactive／未完、SelfBuild最後。
+
+### 328. Upwork統合順序の循環依存と独立mail照合へのcursor移動
+
+- 最新AGENTSのPushはspecユーザー成果全体の実測PASS後だけPR／main統合を許す。一方WORKTREE-PROMOTION-CONTRACT.mdのpromotion planeはmain統合→immutable→apply→official readback、development planeはworktreeからproduction profileの利用を禁じる。Upwork endpoint unavailable下でaccount inventoryを証明するにはmain反映が先に必要であり、現条件は循環する。source-only SHIPで全成果PASSとみなさず、未main sourceを本番profileへ向けない。上位AGENTSを優先してPR／merge／applyは保持する。
+- 旧cursor A21統合条件照合→新cursor A17／A18 mail本文とprovider返信owner照合。理由は上記の統合条件の待ちを保ったまま、メール不足の実測診断を独立して進められるため。全体A01–46順序とSelfBuild最後は維持し、外部effectを中断・重複しない。
+
+### 329. CrowdWorks Gmail全ページ取得と採用inboxとのscope分離
+
+- 既存Gog file backend／gmail-no-sendでsender crowdworks.jp／7dを本文付き取得。初回max100は次pageあり、追加--allはexit0／208messages／nextpage無し。本query範囲は閉じるがdomain外やforwardingは未監査。本文／subject／credentialをlogやspecへ出さず、ID・date・本文hash・案件link IDだけprivate proofへ保存。
+- 直近application307992797／308014722／308020998の本文ID一致0、対応opportunity13473764／13474499／13490707の/public/jobs/リンク一致0。本文には90messagesで別案件linkがある。ID欠落・文面形式・通知設定は未診断であり、確認mail不送信と断定しない。次は案件title／応募時刻との照合とsender別名を確認する。
+- 最新job-search inbox terminalはinbox-20261004-112540-42059、mtime02:26:46Z、no_work／no_new_messages_or_preparation／delivery suppressed、candidate new_count0。現物inbox.py416のqueryは14d／応募採用語／limit100、subjectとsender選別あり。これは採用inboxであり、全marketplace返信監視成功の証拠ではない。専用reply ownersはCrowdWorks、Coconala、Mercorに別存在するため、そのsame-occurrence readbackを別に照合する。
+- proof state/crowdworks-a17-mail-body-boundary.json、crowdworks-a17-mail-body-all-pages.jsonはmode600。provider送信／Gmail送信／既読変更／seen state変更0。A17／A18は未完、全goalactive／SelfBuild最後。
