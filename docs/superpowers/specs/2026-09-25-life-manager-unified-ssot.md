@@ -6776,3 +6776,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 未取得をprovider側の会話不存在へ置換しない。現在readerはparentがnot Noneのcontextをcontinueして親frameだけを読む。過去の成功はown child/default context。実source predicateを抽出して合成child/default contextがskipされることを確認（current frame treeの直接観測とは分ける）。sidebar待機38sも既観測54.0/83.6sより短い。Root source診断 snapshot SHA256 8c261668e40451712724b60edaf564adb976e368b150ddb9ef6026565b879eef、one-bound-conversation-frame-diagnosis.json SHA256 81c45ad8294bbb65e651099685c611742f65f57deaf535703c02180cfc1409dc。
 - 次の修正は元実行証拠を保持し、baselineのown-child Messages context選択と実観測に合うbounded initialization/残postscope時間を再利用すること。実frame-selection predicateとrow読取が同じ経路で結び付く最小RED/GREEN後に1runだけ再確認する。同条件の単純再試行/new decoder/framework拡張はしない。追加fresh native reviewはthread limitで拒否、Root診断をfresh reviewer結果と称しない。
 - current3→next4、残51項目/全goalactive。公開profile bindingは前進だが公式会話/outgoing/sender/ID/time/全300/納品は未完。NPO待ちは§418を維持する。有限親process55242は結果保存後もliveで、終端を確認してから同fileの追加修正を別担当へ渡す。
+
+
+### 425. 元担当終端と最終receiptへの訂正、別版のcode-only修正を並行
+
+- 有限exec55242はexit0/terminalを確認。元担当の最終readは54.612s/sidebar_rows_not_observedで、final result SHA256 7becc5709ce445130340df9021d671bfb8d09663346f5e9b391848d0f961f780、proof SHA256 caa466659332e1712c01524ba8efc25717d6d07718534ece72c76b9f10b94ba2。§424の43.24s/26be/6c4dは親担当終端前の途中観測で、同じresult/proof名が後続保存で上書きされた。現在fileから途中receiptを再取得できるとは称さず、当時のtool観測/§424を履歴として保持する。
+- 最終code SHA256 8c261668e40451712724b60edaf564adb976e368b150ddb9ef6026565b879eefのsidebar deadlineは50s。§424の38sは初版の観測であり、同SHAの最終codeの値として用いない。最終50sも過去のown-child初期化成功54.0/83.6sより短く、親frame限定predicateは不変。最終DOM readinessはcomplete/business-suite messages route=true/login route detected=false/list container0/row0であり、own-childの実現状は観測していない。
+- 公開profile HTTP200/target handle一致は最終receiptでも成立、rowclick/send/compose/newchat/auth/fence変更0。ownabsent/prior ID+URLhash集合一致/guardrelease0/leaseabsent PASS、既存target5保持。Messages peer/body/sender/date/ID/全300/納品は未確認。欠損をproviderの空queueや公式送信0へ丸めない。
+- 元担当の親待ち中に、別fileだけのcode-only修正を有限Luna/maxへ並行委譲した。native spawnはthread limit拒否。新handle44038/実log model gpt-6-luna/effort max、所有はone-bound-conversation-reader.corrected.pyとone-bound-context-correction-proof.jsonのみ。旧file/ブラウザ/ledger/auth/fence操作を禁止し、親終端前はUIを起動しない境界を保持。元親がterminalになったため、今後は修正受入後に一度のguard付き実読取へ進める。
+- 修正範囲はbaselineのown-child/default frame選択、実観測に合うbounded readiness＋postscope時間、別result/proof名だけ。元最終source/result/proofを不変に保持し、実source predicate/loopとfake root/childからrow読取までの最小RED/GREENを確認する。syntheticを実UI成功へ昇格しない。current3→next4/残51項目/全goalactive、順序変更無し。
