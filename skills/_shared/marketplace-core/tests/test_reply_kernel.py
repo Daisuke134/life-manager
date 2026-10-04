@@ -1,6 +1,8 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
+import sys
 import threading
 
 import pytest
@@ -97,6 +99,67 @@ def test_classified_inventory_boundary_returns_structured_blocked_result(tmp_pat
     )
 
     assert result == {
+        "status": "blocked",
+        "observed": 0,
+        "actionable": 0,
+        "effect": 0,
+        "readback": 0,
+        "failed": 0,
+        "pending": 0,
+        "blocker": "provider_inbox_access_forbidden",
+        "error_detail": "collector_unhealthy:inbox_access_forbidden",
+    }
+
+
+def test_cli_preserves_blocked_observation_json_and_exits_75(tmp_path):
+    adapter_path = tmp_path / "fake_provider.py"
+    adapter_path.write_text(
+        """class Adapter:
+    def observe_threads(self):
+        raise RuntimeError('collector_unhealthy:inbox_access_forbidden')
+
+    def observe_one(self, _thread_id):
+        raise AssertionError('inventory failure must not inspect a thread')
+
+    def context(self, _thread_id):
+        raise AssertionError('inventory failure must not request model context')
+
+    def mutate(self, _intent):
+        raise AssertionError('inventory failure must not mutate a provider')
+
+    def readback(self, _intent):
+        raise AssertionError('inventory failure must not request readback')
+
+    def classify_observation_error(self, _error):
+        return {'reason': 'provider_inbox_access_forbidden'}
+
+def build(_argv):
+    return Adapter(), lambda _context: {}
+""",
+        encoding="utf-8",
+    )
+    output = tmp_path / "reply-result.json"
+    process = subprocess.run(
+        [
+            sys.executable,
+            str(MODULE),
+            "--provider-adapter",
+            str(adapter_path),
+            "--state-root",
+            str(tmp_path / "state"),
+            "--output",
+            str(output),
+            "--telegram-chat-id",
+            "",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 75
+    assert json.loads(output.read_text(encoding="utf-8")) == {
         "status": "blocked",
         "observed": 0,
         "actionable": 0,

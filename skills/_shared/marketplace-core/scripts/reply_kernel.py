@@ -783,6 +783,8 @@ def main(argv: list[str] | None = None) -> int:
                       max_workers=args.max_workers, notify=notify,
                       human_notify=human_notify)
     _write(args.output.expanduser().resolve(), result)
+    if result.get("status") == "blocked":
+        return 75
     return int(result["failed"] > 0)
 
 
