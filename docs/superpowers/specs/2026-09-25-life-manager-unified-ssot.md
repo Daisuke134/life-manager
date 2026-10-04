@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§457の同pane本文hash/長さ一致1件をfresh read-only reviewで反証確認し、sender/message ID/dateの局所source境界を絞ること。source未取得を不一致/0/正式送信receiptへ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§458に従い同bound bubbleとpane内親祖先最大2段のreceipt metadataを一度だけ局所probeすること。対応sourceが無ければ範囲/不足/最小再開条件を残し、同probeを反復しない。source未取得を不一致/0/正式送信receiptへ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7072,3 +7072,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - officialprofile href/peerUID/ARIA参照は未確認として保持。send/newchat/compose/auth/fence0、read-state unknown、guard release0/own target absent/prior exact ID+URL保持/lease absent。primary再fixturePASS（実保存postのCID/active/unique/header、CID変更・複数pane拒否）、実argv/source/result一致、新3files600/旧source不変。
 - reader `81c0e1e4b22e2f3de2efb0e25a40805b456a539c81c8926151c500637d396dc7`、result `d15d7710eba15f06ba5054ed2aadb74cda59e709131c86bb0b5dae419cfedaa8`、proof `0fc3fec3b753d2b138baf3b3803d1a70d3a88ddf7107a43865410947ff16f1b4`。fresh Sol/medium reviewerへbody包含/helper/ID-date-sender source境界と次の局所probeを反証確認依頼。
 - 次はこの同bound bubbleの局所属性/semantic/time sourceで欠損境界を狭められるか確認する。data-index/CSS位置をofficial message IDやsenderへ置換しない。公式UIに取得経路がなければ不足source・最小再開条件を明示し、同じ診断の無限反復をしない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 458. 本文観測の限定認定と局所receipt metadataの最終probe
+
+- fresh Sol/medium reviewerは§457reader/result/proof一致、実CID/active遷移/読取前後pane/header安定・send0/cleanupを確認。同expected handle/nicknameのpane内で本文hash/長さ一致1件の限定認定は妥当。helperはpane配下dm-new-chat-item/bubble配下可視dm-new-message-textの一意leafを読み、入れ子bubbleを除く。設定は末尾20bubble、今回sampled1であり全履歴一意性の証明ではない。
+- 既存helperはIDをbody→bubble祖先の3属性、dateをbubble属性/内部time/separator、senderをbubble内UID属性/avatarリンクだけで探す。親message wrapperと隣接日時separatorは未観測。空sender配列によるfalseは未確認として保持する。
+- 唯一の次手は同bound bubble/bodyとpane内の親祖先最大2段、実対応のtime/日時separator/semantic direction/ID属性を一度だけ局所probe。属性名/sourcefield/hash/存在boolean/generic class/包含・隣接関係のみ保存。単なる近接日時、CSS左右、data-indexをdate/sender/official IDへ昇格しない。
+- この一回でも対応sourceがなければsender_source_not_exposed_in_bound_message_UI/message_id_source_not_exposed/date_source_not_exposedを探索範囲付きで記録。最小再開条件は対象messageへ結び付く公式UI metadataまたは既存公式receiptの実在確認。同欠損probeを反復せず、sent300/settlement/CFO売上を認定しない。read-state unknown、newchat/composer/send/auth/fence0。reviewの外部/file変更0、現在3→次4、SelfBuild/Eval最後。
