@@ -4863,7 +4863,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA01の最新公式案件・要件の照合からA03の残制作へ進む。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA03のNPO案件18223833／18250352の既存成果物と公式購入者指示の照合。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5616,3 +5616,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - current immutable b7fb1dfaの既存DefaultTab／owner別context／登録gig-daily-driver vaultを使用し、認証・profile変更や既存ownerのtab操作をせず公式GETを比較する。orders routeと18180857 talkroomは両方HTTP200、login redirectなし。過去403はこの観測で再現しない。原因を認証更新やコード修復の効果と推定しない。
 - 同immutableの既存orders-only collectorを専用ownerで読み取り実行しexit0／success／3orders。公式一覧のtalkroom IDは18180857・18223833・18250352。18211957はこのopen一覧に含まれないが、理由・終了・精算は未確認であり推定しない。order statusはunknown、正式納品・支払・着金の証明ではない。
 - 証拠state/coconala-a02-route-comparison.json、coconala-a02-orders-snapshot.json、coconala-a02-orders-evidence。本文・credentialをspecへ複製しない。provider送信・正式納品・project state変更0。A02のアクセス／一覧取得は確認済み。最新案件の正式条件を照合しA03へ進み、再発時は同source receiptを診断する。SelfBuildは最後、全体goalは未完。
+
+### 299. Coconala現在3案件の公式履歴・契約状態と納品境界
+
+- A02で取得したorderを入力とし、current b7fbのselected-talkroom-onlyを専用owner／隔離projects-rootで逐次実行する。3件ともexit0、HTTP200、history_complete true／coverage_complete true。既存案件state・decision・review・authは変更せず、client送信0／正式納品0。
+- 18180857はTikTok案件、取引中・revision・正式納品false。旧19件の進捗を最新件数へ昇格しない。18223833は予算書案件、購入者本文に現状納品OKと納品完了処理の依頼があるが公式正式納品false。本文は別NPO案件の決算書調整も含むため承認scopeを予算書案件に限定して照合する。18250352は県提出書類案件、取引中・正式納品false。既存資料の受領、書類別整理と最終調整・役員変更情報の反映が残る。未確定数値や役員情報を捏造しない。
+- 隔離collectorはNPO2案件でinitial_requestのfeedbackを返すが、履歴にはrevision指示がある。既存decisionのfeedback SHAとは不一致。過去のrevisionをinitial_requestへ上書きせず、元history／既存artifact／購入者指示を照合する。local await_buyer_feedbackだけで現在の作業不要を証明しない。
+- 証拠state/coconala-a01-current-project-readback.json、coconala-a01-current-projects内snapshot／source receipt／history、mode600。次cursorはA03のNPO既存成果物の要件照合、予算書の承認scope・正式納品前提の確認。A01 historical18211957状態と全金融成果は未完。SelfBuildは最後、全goal未完。
