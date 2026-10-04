@@ -299,15 +299,19 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     sources: dict[str, list[dict]] = {name: [] for name in B7_ADAPTER_ORDER}
 
     capafy_path = env.get("LM_CFO_CAPAFY_ANALYTICS")
-    sources["b1-capafy-mobile"].extend(
-        _safe_b7_adapter(
+    if capafy_path:
+        sources["b1-capafy-mobile"].extend(_safe_b7_adapter(
             lambda: capafy_mobile.adapt_capafy(
                 capafy_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
-            ) if capafy_path else [],
+            ),
             source_id="capafy-orders", loop_ids=B7_SOURCE_LOOPS["b1-capafy"],
             snapshot_at=snapshot_at, trailing_start=trailing_start,
-        )
-    )
+        ))
+    else:
+        sources["b1-capafy-mobile"].extend(_b7_gap_records(
+            source_id="capafy-orders", loop_ids=B7_SOURCE_LOOPS["b1-capafy"],
+            reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ))
     mobile_path = env.get("LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES") or BUSINESS_OUTCOMES
     sources["b1-capafy-mobile"].extend(
         _safe_b7_adapter(
@@ -321,7 +325,8 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
 
     stripe_path = env.get("LM_CFO_STRIPE_READBACK")
     stripe_default_category = env.get("LM_CFO_STRIPE_DEFAULT_ECONOMIC_CATEGORY") or None
-    if env.get("LM_CFO_STRIPE_LIVE_READBACK") == "1":
+    stripe_live = env.get("LM_CFO_STRIPE_LIVE_READBACK") == "1"
+    if stripe_live:
         stripe_reader = lambda: stripe.adapt(
             build_stripe_readback(
                 snapshot_at=snapshot_at, trailing_start=trailing_start,
@@ -336,19 +341,31 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
             observed_at=snapshot_at, trailing_start=trailing_start,
             default_economic_category=stripe_default_category,
         ) if stripe_path else []
-    sources["b2-stripe"] = _safe_b7_adapter(
-        stripe_reader, source_id="stripe-financial-record", loop_ids=B7_SOURCE_LOOPS["b2-stripe"],
-        snapshot_at=snapshot_at, trailing_start=trailing_start,
-    )
+    if stripe_live or stripe_path:
+        sources["b2-stripe"] = _safe_b7_adapter(
+            stripe_reader, source_id="stripe-financial-record", loop_ids=B7_SOURCE_LOOPS["b2-stripe"],
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    else:
+        sources["b2-stripe"] = _b7_gap_records(
+            source_id="stripe-financial-record", loop_ids=B7_SOURCE_LOOPS["b2-stripe"],
+            reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
 
     affiliate_path = env.get("LM_CFO_AFFILIATE_READBACK") or env.get("LM_CFO_AFFILIATE_LEDGER")
-    sources["b3-affiliate"] = _safe_b7_adapter(
-        lambda: affiliate.adapt_path(
-            affiliate_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
-        ) if affiliate_path else [],
-        source_id="affiliate-financial-record", loop_ids=B7_SOURCE_LOOPS["b3-affiliate"],
-        snapshot_at=snapshot_at, trailing_start=trailing_start,
-    )
+    if affiliate_path:
+        sources["b3-affiliate"] = _safe_b7_adapter(
+            lambda: affiliate.adapt_path(
+                affiliate_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ),
+            source_id="affiliate-financial-record", loop_ids=B7_SOURCE_LOOPS["b3-affiliate"],
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    else:
+        sources["b3-affiliate"] = _b7_gap_records(
+            source_id="affiliate-financial-record", loop_ids=B7_SOURCE_LOOPS["b3-affiliate"],
+            reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
 
     explicit_marketplace_paths: list[tuple[Path, str, str]] = []
     for env_name, platform, loop_id in (

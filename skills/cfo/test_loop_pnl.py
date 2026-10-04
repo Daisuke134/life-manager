@@ -531,6 +531,60 @@ class UsageTest(unittest.TestCase):
 
 
 class B7IntegrationTest(unittest.TestCase):
+    def test_absent_b1_b3_artifacts_are_unconnected_and_read_errors_keep_adapter_status(self):
+        source_loops = ("capafy", "self-build", "affiliate")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            isolated_env = {
+                "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(root / "mobile.jsonl"),
+                "LM_CFO_WRITER_MONEY": str(root / "writer.sqlite3"),
+            }
+            absent = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=isolated_env,
+            )
+            configured = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={
+                    **isolated_env,
+                    "LM_CFO_CAPAFY_ANALYTICS": str(root / "missing-capafy.json"),
+                    "LM_CFO_STRIPE_READBACK": str(root / "missing-stripe.json"),
+                    "LM_CFO_AFFILIATE_READBACK": str(root / "missing-affiliate.json"),
+                },
+            )
+
+        configured_reasons = {
+            "capafy": {
+                "historical": "source_unconnected", "trailing": "source_unconnected",
+                "as_of": "source_unconnected",
+            },
+            "self-build": {
+                "historical": "read_failed", "trailing": "read_failed", "as_of": "read_failed",
+            },
+            "affiliate": {
+                "historical": "read_failed", "trailing": "read_failed", "as_of": "missing_category",
+            },
+        }
+        for records, expected_reasons in (
+            (absent, {
+                loop_id: {
+                    "historical": "source_unconnected", "trailing": "source_unconnected",
+                    "as_of": "source_unconnected",
+                }
+                for loop_id in source_loops
+            }),
+            (configured, configured_reasons),
+        ):
+            for loop_id in source_loops:
+                rows = [
+                    row for row in records
+                    if row.get("record_type") == "coverage"
+                    and row.get("product_loop_id") == loop_id
+                ]
+                self.assertEqual(len(rows), 3, loop_id)
+                self.assertEqual(
+                    {row["projection"]: row["reason"] for row in rows}, expected_reasons[loop_id],
+                )
+
     def test_mobile_readback_uses_default_business_outcomes_path(self):
         expected_products = {
             "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
