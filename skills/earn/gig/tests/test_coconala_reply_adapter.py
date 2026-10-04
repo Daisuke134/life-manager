@@ -356,6 +356,33 @@ def test_inbox_403_is_classified_as_provider_access_denied():
     )["reason"] == "provider_inbox_access_forbidden"
 
 
+def test_b1_inbox_dom_failure_diagnostics_strip_query_and_keep_b1_source():
+    snapshot = adapter_module.snapshot
+    b1_route = "https://user:password@coconala.com/message?fromMyPage=true#fragment"
+    assert snapshot.safe_coconala_url(b1_route) == (
+        "https://coconala.com/message?fromMyPage=true"
+    )
+
+    with pytest.raises(
+        snapshot.CollectorUnhealthy,
+        match="inbox_access_forbidden",
+    ) as raised:
+        snapshot.validate_inbox_coverage({
+            "url": b1_route,
+            "title": "403 Forbidden",
+            "cards": [],
+            "cards_count": 0,
+            "coverage_complete": False,
+            "termination_reason": None,
+            "iterations": 3,
+        })
+
+    assert raised.value.details["source"] == "b1_inbox"
+    assert raised.value.details["requested_route"] == "https://coconala.com/message"
+    assert raised.value.details["final_route"] == "https://coconala.com/message"
+    assert raised.value.details["failed_endpoint"] == "https://coconala.com/message"
+
+
 def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, tmp_path):
     observations = []
 

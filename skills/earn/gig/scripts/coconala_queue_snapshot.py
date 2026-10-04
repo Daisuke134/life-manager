@@ -488,7 +488,7 @@ def _classify_default_tab_http_error(
             "error_layer": "default_tab_helper",
             "error_origin": "helper",
             "http_status": status,
-            "requested_route": safe_coconala_url(requested_route),
+            "requested_route": safe_diagnostic_coconala_route(requested_route),
             "failed_endpoint": None,
             "error_class": "helper_http_error" if status is not None else "helper_error",
             "source_receipt_refs": [],
@@ -751,6 +751,12 @@ def validate_inbox_coverage(
             observed_at=str(dom.get("observed_at") or datetime.now(timezone.utc).isoformat()),
             dom=dom,
             previous_count=previous_count,
+        )
+        receipt["requested_route"] = safe_diagnostic_coconala_route(
+            receipt.get("requested_route")
+        )
+        receipt["final_route"] = safe_diagnostic_coconala_route(
+            receipt.get("final_route")
         )
         status = receipt.get("provider_http_status")
         origin = "provider" if type(status) is int and 400 <= status <= 599 else "unknown"
@@ -1296,6 +1302,13 @@ def safe_coconala_url(value: Any) -> str | None:
     if parsed.path == "/message" and parse_qs(parsed.query, keep_blank_values=True).get("fromMyPage") == ["true"]:
         query = "?fromMyPage=true"
     return f"https://coconala.com{parsed.path}{query}"
+
+
+def safe_diagnostic_coconala_route(value: Any) -> str | None:
+    safe_url = safe_coconala_url(value)
+    if safe_url is None:
+        return None
+    return f"https://coconala.com{urlsplit(safe_url).path}"
 
 
 def source_receipt(

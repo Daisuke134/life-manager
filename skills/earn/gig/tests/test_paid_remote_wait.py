@@ -543,8 +543,14 @@ def test_talkroom_readback_retries_hidden_helper_transport_timeout(monkeypatch) 
     assert len(attempts) == 2
 
 
-def test_inbox_helper_http_error_becomes_provider_receipt(monkeypatch) -> None:
+def test_inbox_helper_http_error_keeps_safe_helper_metadata(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
+    requested_route = (
+        "https://user:password@coconala.com/message?fromMyPage=true#fragment"
+    )
+    assert snapshot.safe_coconala_url(requested_route) == (
+        "https://coconala.com/message?fromMyPage=true"
+    )
 
     class Tab:
         def __init__(self, *_args, **_kwargs):
@@ -563,19 +569,21 @@ def test_inbox_helper_http_error_becomes_provider_receipt(monkeypatch) -> None:
 
     with pytest.raises(
         snapshot.CollectorUnhealthy,
-        match="inbox_provider_http_error",
+        match="inbox_helper_http_error",
     ) as raised:
         snapshot.inspect_page_with_retry(
-            Path("helper"), snapshot.MESSAGES_URL, "1", None,
+            Path("helper"), requested_route, "1", None,
             hidden=False,
         )
 
     assert raised.value.details == {
-        "provider_http_status": 404,
-        "helper_error": (
-            "failed to open authenticated default tab: "
-            "HTTPError: HTTP Error 404: Not Found"
-        ),
+        "error_layer": "default_tab_helper",
+        "error_origin": "helper",
+        "http_status": 404,
+        "requested_route": "https://coconala.com/message",
+        "failed_endpoint": None,
+        "error_class": "helper_http_error",
+        "source_receipt_refs": [],
     }
 
 
