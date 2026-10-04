@@ -4786,12 +4786,14 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 #### CFO / Mobile Metricsの担当境界
 
-- 担当はAGMSG team lm / lm-cfo-observability-1002、連携primaryはcodex-money-printer。primaryはこのbranch、Apple認証、provider/team、profile、credentialsを重複操作しない。
-- branch feat/lm-mobile-metrics-20261003、remote HEADa47b4db561041af60dfcb20c292a82c8b99d5b78をls-remoteで確認。旧観測735d5fdd6bb56e1dba8dbaf54c082cb28964d1d1/fd0245e90e、初期handover4797618b0f/baseecddと区別する。base45へのrebase/39testsは旧HEAD時点の担当報告であり、新HEADの検証結果・外部gate通過は未取得。担当branchのrebase/mergeをprimaryが先行しない。
-- 担当からの実装・検証報告: ASC acquisition funnel rates、denominator zero fail-closed、RC observed revenueとASC settled proceeds分離、ASC proceeds優先/RC二重計上防止、mobile-apps CFO P&L、unavailable/UNKNOWN表示、product funnel summary、spec/plan/evidence更新。npm188/188、CFO Python39/39 PASS。primaryはこれらのsuiteをこのbranchで再実行していない。
-- 主要外部gateはASC required agreement missing/expired。公式案内 https://appstoreconnect.apple.com/agreements はAccount Holderの承認を要求する。web session期限切れ、Apple loginは2FA待ち、credential validでもapp access warningあり、という担当報告を保持。Chat承認をApple法務Agreement受諾済みと扱わず、API bypass・codeのchat貼付・UNKNOWN→0をしない。
-- 担当の次順序: 正しいAccount Holder/account/provider/team確認→全pending/expired Agreement確認→Web再認証→asc web agreements status→ASC_BYPASS_KEYCHAIN=true asc apps list --output json→acquisition/financial report再取得→RC/settled proceeds join readback→CFO daily/evidence更新→tests再実行→全外部gate PASS後にrelease ownerへmerge依頼。pricing/paywall/submission/marketing変更なし。
-- Mobile Doneはapps list成功、公式acquisition、financial report ID/currency/settlement情報、二重計上0、CFO unknown/unavailableの正しい保持、AGMSGで変更/検証/残gate/次作業の報告。RC MRR・chart revenueはASC settled proceedsの代用ではない。
+- 担当はAGMSG team lm / lm-cfo-observability-1002、連携primaryはcodex-money-printer。primaryは担当branch、Apple認証、provider/team、profile、credentialsを重複操作しない。
+- branch feat/lm-mobile-metrics-20261003のremote HEADは1f045eff3d27cfec3945cd8d2dff64f06928c834をls-remoteで確認。main b7fbの同期は4ebad23e8f。初期handover4797618b0f/baseecdd、旧a47b4db等と区別する。primaryは担当branchのsourceを編集せず、owner文書を読み取り照合する。
+- 担当branchの公式readback記録ではAccount Holder Agreementはactive／pending=false／accepted2026-10-03T10:14:32Z、ASC24app records。旧missing/expiredと2FA待ちは解消済みの履歴として扱い、再承認をTODOにしない。根拠は同branchの2026-10-03-mobile-app-metrics-funnel-design.md Provider observations。primaryはAppleへ再問い合わせしていない。Chat承認やGitHub reactionをApple法務受諾と扱わず、API bypass／認証codeのchat貼付をしない。
+- 担当readbackでは公式published6apps、Anicca／Honneのacquisitionと4appsのreport_pending、RC未binding／currency不足を区別する。Finance Detail fiscal month2026-12／period2026-08-30–09-26のJPY4250 rowはsubscription6762049696／SKU ai.anicca.app.ios.yearly.bを公式subscription経由でAniccaへmapする記録がある。歴史期間のproceedsを今期の利益や銀行着金と扱わない。production app_store_financial行は未import。
+- 現在のsource gateはFinancial Managerがunassigned_row_count>0をpartialとして表示しない欠陥。fresh owner reviewはfix-first。issue #6547はprimaryのmaintainer権限で+1 reaction543495973を公式readback確認し、既存ownerへ継続をAGMSG送信済み。送信だけでowner着手を主張しない。既知mapped rowは維持し、source/report partial・未割当件数・evidence参照を詳細／Telegramへ出す修正が残る。
+- 最新担当文書のsource検証記録はFinancial Manager/store/mobile/ingest41、acquisition15、CFO275、producer36、full npm exit0、contract14loops178jobs、runtime759／recovery-promotion18 PASS。primaryはこのbranchのsuiteを再実行しておらず、sourceレビューfix-firstや本番gate未達をPASSへ置換しない。
+- 次順序はpartial coverage修正→acceptance再検証→fresh review ship→owner source CI／main→serializeしたimmutable／自然Finance Detail import→B7／Financial Managerの同期間・RC二重計上0／unknown保持→自然CFO reportと同occurrence official配信receipt。08:00担当readbackではproducer／CFOはcapacity待ち、local sent102575は公式historyに未確認でdelivery unknown。再送・local sentからのverified昇格をしない。pricing／paywall／submission／外部marketingは変更しない。
+- Mobile Doneはapps list成功、公式acquisition、financial report ID／currency／settlement情報、二重計上0、CFO unknown/unavailable保持、AGMSGで変更・検証・残gate・次作業の報告。RC MRRはASC proceedsの代用ではない。
 
 #### 契約収益と自社商品factoryの成果条件
 
@@ -4838,7 +4840,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 | 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
 |---|---|---|
-| Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
+| Mobile / CFO観測 | Agreement／appsは担当公式記録で解消済み。Financial Manager partial coverage修正、公式acquisition／financial本番import、RC二重計上0、CFO daily／official delivery | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
 | Paid / 各marketplace | Mercor Paidは§266でproduction期限更新/公式GET/隔離replay-zero確認済み。旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
 | Storefront / 自社商品 | Lancers/Coconalaは既存商品の公式公開・問い合わせ・注文のfresh readback、獲得経路と注文IDのjoin、納品・精算・payout・1注文あたり実cost/利益を確認。Upwork/Freelancerはaccount-bound inventoryと実owner接続、FiverrはMeta導入が未完 | primary/既存owner。応募と併せて販売funnelを閉じ、反復可能な商品へ学習を戻す。価格変更・新marketingは今回の範囲に追加しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
@@ -4905,7 +4907,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A34 Cloudの継続稼働・外部収益によるrenewal・30日benchmarkを確認する。
 - [ ] A35 TaskMarket／Agent Economyの実有償案件・精算・実費を確認する。
 - [ ] A36 Runtime／fleetの残失敗ownerとhealth／admission／disk不足を解消する。
-- [ ] A37 Mobile担当のASC Agreement・再認証・apps list成功を確認する。
+- [x] A37 Mobile担当のASC Agreement・再認証・apps list成功を確認する。§311で担当branchのactive／pendingfalse／apps24 readback記録を照合。primaryのApple再問い合わせではない。
 - [ ] A38 Mobile公式acquisition／financial reportのID・currency・settlementを取得する。
 - [ ] A39 MobileのRC二重計上0とCFO daily／evidence／testsを確認する。
 - [ ] A40 Railway等の公式費用の期間・使用額差・loop配賦・着金照合を閉じる。
@@ -4918,7 +4920,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 
 A43の既存source HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASSだが独立reviewはFIX-FIRST。main revertだけ成功した後にowner復元が失敗すると次回同じrevert branch作成が失敗する。SHAに結び付いた確認済み復旧結果を既存holdへ保存し未完側だけ再試行する修正は未実施。PR／merge／本番復旧も未完。この作業はA42より後に置く。
 
-Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。実行順序は上記の正本に従い、SelfBuild／Evalは最後に置く。全体goalはactive/未完。
+Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobileの現gateと担当境界は本節を参照。実行順序は上記の正本に従い、SelfBuild／Evalは最後に置く。全体goalはactive/未完。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -5694,3 +5696,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - §309 required runtime初回は759tests／159.828s／failure1。pressure sparse release fixtureが6785a93aをonly locallyとして拒否する。primaryがsuite中にHEADをcommitした手順競合であり、exit0に見える末尾tailをsuite成功と扱わずFAILEDを確認する。
 - git ls-remoteでsource remote HEAD6785a93a625531739ff6678bf13e03a812e8cdbbを確認し、テストやremote gateを変更せずpressure suite7／4.518s PASS。同HEADの全runtime suiteをset-eで再実行、tool session24454。source HEADを検証中に変更しない。初回failureをprivate source proofに保持する。
 - source branch2files／clean／pushed、関連90・provider259・adapter15・contract14／178・OSSは§309の実測PASS。全runtime recheck terminalと独立fresh review、PR／CI／main／immutable／自然運用での再送0は未達。旧provider receipt／claim不足と全金融gateは未完。SelfBuildは最後、全goal未完。
+
+### 311. CrowdWorks source review SHIP／PR6552とMobileの旧gate訂正
+
+- fixed source HEAD6785a93aのruntime再検証759／153.636s OK、初回1FAILとpressure7再PASSは§310で保持。fresh native reviewer crowdworks_confirmation_replay_reviewはship／指摘なし。焦点4・kernel統合反証2／source-boundary／diff PASSを独立確認し、parentは/tmp/crowdworks-confirmation-review-6785a93a/test_adversarial.pyを読み取ってcounterexample範囲を確認する。sender／provider操作0、本番は未反映。
+- source issue6551に修正方向を記録しmaintainer+1、PR6552を一度作成。HEAD6785a93aでGitHub CI進行中。PR／main／immutable／自然runのsource uptakeと再送0はまだ未完。actual reviewer model／effort／usageは観測不能、要求値gpt-5.6-sol／highと区別する。API相当費用は算定不能。
+- Mobile remote HEAD1f045eff3dのowner spec／plan／evidenceを確認する。Agreement active／pendingfalse／24appsとofficial subscriptionによるJPY4250歴史proceeds mappingが記録され、旧唯一のAgreement blockerを現在TODOから除く。Financial Manager unassigned partial coverage欠陥と本番import／official deliveryが現gate。primaryのApple再問い合わせ／担当branch変更0。
+- GitHub issue6547 OPEN／reaction無しを確認後、userの通常技術判断委任とgithub maintainer権限を根拠にprimaryが+1 reaction543495973を追加し公式readback確認。CONTRIBUTINGのdirection承認gateを閉じ、既存ownerへAGMSG共有する。これは修正方向だけの技術承認で、Apple法務・本番金融成果・local sentの受領証明を代替しない。AGMSG送信だけでowner着手や修正完了を主張しない。全goal未完、SelfBuildは最後。
