@@ -14,12 +14,11 @@ parses with parse_dashboard_cards/status_for_title, read over the SAME
 interactive:dais lease-wrapped CDP endpoint daily.sh uses -- never a fresh
 login and never a second submit.
 
-Precision: daily.sh calls record_snapshot with the exact slug/title it is
-about to submit, immediately before calling publish.py --confirm -- the last
-point before any PromptBase-mutating call. Without a slug in that snapshot
-(no candidate was selected, or the run crashed before selection), nothing
-could have submitted -- this resolves no-effect immediately, no dashboard
-read needed.
+Precision: daily.sh writes one immutable, occurrence-bound snapshot before
+calling publish.py --confirm. Only a well-formed schema-1 snapshot with a
+matching owner, occurrence, and timestamp may prove that an explicit null
+candidate was not dispatched. Missing, malformed, partial, or misbound
+snapshots stay held; they never prove no effect.
 
 Decision:
   - snapshot has no slug -> no-effect immediately (read-only run so far).
@@ -47,9 +46,11 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -78,10 +79,21 @@ BROWSER_GUARD = Path(
     os.environ.get("AI_BROWSER_GUARD", str(REPO_ROOT / "skills/browser/browser-guard.sh"))
 )
 BROWSER_IDENTITY = "interactive:dais"
+SNAPSHOT_FIELDS = frozenset({
+    "schema_version", "owner_id", "occurrence_id", "slug", "title", "captured_at",
+})
+_OCCURRENCE_SUFFIX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _safe_occurrence(occurrence_id: str) -> str:
     return occurrence_id.replace(":", "_").replace("/", "_")
+
+
+def _valid_occurrence_id(occurrence_id: str) -> bool:
+    prefix = f"{OWNER_ID}:"
+    if not isinstance(occurrence_id, str) or not occurrence_id.startswith(prefix):
+        return False
+    return _OCCURRENCE_SUFFIX.fullmatch(occurrence_id[len(prefix):]) is not None
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -102,37 +114,107 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
 
 
 def snapshot_path(occurrence_id: str, *, snapshot_dir: Path = SNAPSHOT_DIR) -> Path:
+    if not _valid_occurrence_id(occurrence_id):
+        raise ValueError("invalid_occurrence_id")
     return snapshot_dir / f"{_safe_occurrence(occurrence_id)}.json"
 
 
-def _atomic_write_json(path: Path, value: dict, *, mode: int = 0o600) -> None:
+def _atomic_create_json(path: Path, value: dict) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f"{path.name}.", suffix=".tmp", dir=path.parent,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Hard-link creation is atomic and refuses to replace an existing proof.
+        os.link(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def _atomic_write_json(path: Path, value: dict, *, mode: int = 0o600) -> None:
+    """Replace an evidence record atomically; snapshots use create-only above."""
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    descriptor = os.open(temporary_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(value, handle, ensure_ascii=False, sort_keys=True)
-    os.replace(tmp, path)
+    os.replace(temporary_path, path)
+
+
+def _snapshot_error(
+    snapshot: Any, occurrence_id: str, *, now: dt.datetime,
+    queued_at: dt.datetime | None = None,
+) -> str | None:
+    if not isinstance(snapshot, dict) or set(snapshot) != SNAPSHOT_FIELDS:
+        return "snapshot_shape_invalid"
+    if type(snapshot.get("schema_version")) is not int or snapshot["schema_version"] != 1:
+        return "snapshot_schema_invalid"
+    if snapshot.get("owner_id") != OWNER_ID or snapshot.get("occurrence_id") != occurrence_id:
+        return "snapshot_binding_mismatch"
+
+    slug, title = snapshot.get("slug"), snapshot.get("title")
+    no_candidate = slug is None and title is None
+    selected = (
+        isinstance(slug, str) and bool(slug.strip())
+        and isinstance(title, str) and bool(title.strip())
+    )
+    if not (no_candidate or selected):
+        return "snapshot_candidate_invalid"
+
+    captured_text = snapshot.get("captured_at")
+    if not isinstance(captured_text, str):
+        return "snapshot_timestamp_invalid"
+    try:
+        captured_at = dt.datetime.fromisoformat(captured_text.replace("Z", "+00:00"))
+    except ValueError:
+        return "snapshot_timestamp_invalid"
+    if captured_at.tzinfo is None or captured_at.utcoffset() is None or captured_at.microsecond:
+        return "snapshot_timestamp_invalid"
+    captured_at = captured_at.astimezone(dt.timezone.utc)
+    now = now.astimezone(dt.timezone.utc)
+    if captured_at > now:
+        return "snapshot_timestamp_in_future"
+    if queued_at is not None:
+        queued_at = queued_at.astimezone(dt.timezone.utc)
+        # captured_at is rounded down to seconds by the producer. Its interval
+        # must still overlap the queued occurrence's start time.
+        if captured_at + dt.timedelta(seconds=1) <= queued_at:
+            return "snapshot_before_occurrence"
+    return None
 
 
 def record_snapshot(
     occurrence_id: str, *, slug: str | None, title: str | None,
     snapshot_dir: Path = SNAPSHOT_DIR, now: dt.datetime | None = None,
 ) -> dict:
-    """Called by daily.sh immediately before publish.py --confirm (or with
-    slug=None when no candidate was selected -- nothing could have mutated
-    PromptBase in that case). Best-effort: a write failure never blocks the
-    run; the reconciler then treats a missing snapshot the same as
-    slug=None."""
+    """Atomically create one pre-dispatch snapshot; never replace an existing one."""
     now = now or dt.datetime.now(dt.timezone.utc)
     snapshot = {
         "schema_version": 1, "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
         "slug": slug, "title": title, "captured_at": now.isoformat(timespec="seconds"),
     }
+    invalid = _snapshot_error(snapshot, occurrence_id, now=now)
+    if not _valid_occurrence_id(occurrence_id) or invalid:
+        return {**snapshot, "write_error": invalid or "invalid_occurrence_id"}
+
+    path = snapshot_path(occurrence_id, snapshot_dir=snapshot_dir)
     try:
-        _atomic_write_json(snapshot_path(occurrence_id, snapshot_dir=snapshot_dir), snapshot)
+        _atomic_create_json(path, snapshot)
+        return snapshot
+    except FileExistsError:
+        existing = load_snapshot(occurrence_id, snapshot_dir=snapshot_dir)
+        invalid_existing = _snapshot_error(existing, occurrence_id, now=now)
+        if (not invalid_existing and existing["slug"] == slug and existing["title"] == title):
+            return existing
+        reason = invalid_existing or "snapshot_conflict"
+        return {**snapshot, "write_error": reason}
     except OSError as exc:
-        snapshot = {**snapshot, "write_error": f"{type(exc).__name__}:{exc}"}
-    return snapshot
+        return {**snapshot, "write_error": f"{type(exc).__name__}:{exc}"}
 
 
 def load_snapshot(occurrence_id: str, *, snapshot_dir: Path = SNAPSHOT_DIR) -> dict | None:
@@ -247,17 +329,23 @@ def reconcile(
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
 
     snapshot = load_snapshot_fn(occurrence_id)
-    slug = (snapshot or {}).get("slug")
-    title = (snapshot or {}).get("title")
+    invalid_snapshot = _snapshot_error(snapshot, occurrence_id, now=now, queued_at=queued_at)
+    if invalid_snapshot:
+        return {
+            "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+            "reason": invalid_snapshot, "error_class": "snapshot_untrusted",
+            "admission_state": state,
+        }
+    slug, title = snapshot["slug"], snapshot["title"]
 
-    if not slug or not title:
+    if slug is None and title is None:
         return _no_effect_result(
             occurrence_id, state,
             {
                 "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                 "checked_at": now.isoformat(timespec="seconds"),
                 "reason": "no_candidate_selected_for_occurrence",
-                "snapshot_present": snapshot is not None,
+                "captured_at": snapshot["captured_at"],
             },
             evidence_dir, resolve, resolve_pre_effect_fn, now,
         )
