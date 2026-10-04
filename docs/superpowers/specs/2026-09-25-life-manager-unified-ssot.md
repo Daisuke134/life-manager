@@ -6815,3 +6815,14 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 過去deep-row metadataも28行/username候補0で、semantic fieldはdata-conv-id/data-conversation-id/data-e2e/data-index/drawerItemWidth/id。数値2値が保存されていてもprovider UID namespaceを証明した値とは扱わない。過去の任意row18選択へ戻らず、台帳119行/payload6615/roster96行の案件1宛先を維持する。
 - 次はbounded構造診断を有限Luna/max handle4772へ委譲。新row-structure reader/result/proofのみ、動作済みcontrollerを再利用。最大3行のself/descendant/open-shadowと最大3段parentのmarker/CID数、global marker数を保存し、初回と同held session15秒後の2snapshotで位置と初期化を区別する。他rowを含むancestorからidentity値を読まない、raw text/username/UID/credential保存0。合計108s内、rowclick/scroll/newchat/send/認証/本番変更は禁止。足りないsnapshotを未取得と記録し、selector修復や一致条件の緩和をこの診断中に行わない。
 - current3→next4/残51項目/全goalactive。統計やsender方向/日時/公式送信数/全300/納品へ昇格しない。NPOの原資料待ちは§418を維持し、安全な次作業は案件1宛先のrow identityを読む実scopeの確定である。
+
+
+### 429. 構造snapshotの空値成功を否認、実RPCのunwrap境界を修正対象にする
+
+- 前turnは同handle4772を継続観測したverified wait。本turnで構造fixtureとguarded oneUIまで進み、親4772はexit0/terminalを確認。実UIは47.056s、選択/scroll/newchat/compose/send/auth/fence0、ownabsent/prior exact/guardrelease0/leaseabsent PASS。fixtureのscope上限/return-before-selectionはUIデータ取得の保証ではない。
+- 初期保存はstatus row_structure_diagnostics_saved/2snapshot={}だったが、Rootは構造fields未取得として受入を否認。元担当も実結果をincomplete/2snapshot=null/comparison_valid=falseへ訂正、再UI無し。最終result SHA256 12224e7725438ff0fbf3702b01bbb652bb887528921d833afdbc0106db62b17a、proof SHA256 070846dbd6a93d3cbf1d16b779747c66aeae2c63457e870f74563e5d4b732b6d。初期f914は途中保存の観測で、最終fileから再取得できるとは称さない。
+- 実行reader SHA256 1000aa510aa07243b16ca6abd31ea4d2c3d39e386b77127b075c0f0d0493e4b3、元担当の訂正版reader SHA256 56045987082cc803f99264806382b3f822a187bb04cea09a9d783f9ee901d6a9。訂正版のvalidation追加を実行時に存在した扱いにせず、実行/訂正版を分離する。訂正版もfirst/second_remoteで二重result getterを残しているため、validationだけの修正を十分とは受け入れない。
+- Rootが実source rpc_resultを抽出し、Runtime.evaluateのCDP envelopeからmethod result→remote object→valueの経路を合成データで反証。rpc_resultはevent.resultを返すのでremoteはfirst_eval.get(result)のみ、二重getでは必要fieldsが{}へ落ちる。one-bound-row-structure-unwrapping-diagnosis.json SHA256 5366066d2bf4e9ccd66e72eb7ef380531fcdf304f44c17e0580124a6d8256103。これはgetter経路のsynthetic証拠で、実DOMのmarker位置/初期化を判定する証拠ではない。
+- 元UIのprotocol exception/remote typeは実行readerが保持しておらず未確認。marker数/row構造を0と報告せず、node scope/Shadow DOM/hydrationの競合仮説は未解決のままにする。元sidebar成果物は不変、今回の元構造file/resultは担当の終了時訂正を記録した上で保持する。
+- 最小修正を有限Luna/max handle91942へ依頼。新structure-fixed reader/result/proof/correction-proofだけ、二重unwrap2箇所を実rpc返却shapeへ揃え、空/required-key/JS exception validationを保持。実source rpc_result＋snapshot取出し＋validateへ同CDP envelopeを通すRED/GREEN1fixture後、guard付きoneUIのみ。selector/matcher/SDK/framework/scope追加はしない。raw exception description/本文/username/UID/credential保存0。
+- current3→next4/残51項目/全goalactive。今回の成功は後処理とscope制限までであり、構造/案件sender/body/ID/date/公式送信数/全300/納品は未完。NPO待ちは§418のまま、全目標を小さく置き換えず、own-source境界の修正を続ける。
