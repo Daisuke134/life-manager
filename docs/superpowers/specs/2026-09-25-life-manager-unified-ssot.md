@@ -6826,3 +6826,14 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 元UIのprotocol exception/remote typeは実行readerが保持しておらず未確認。marker数/row構造を0と報告せず、node scope/Shadow DOM/hydrationの競合仮説は未解決のままにする。元sidebar成果物は不変、今回の元構造file/resultは担当の終了時訂正を記録した上で保持する。
 - 最小修正を有限Luna/max handle91942へ依頼。新structure-fixed reader/result/proof/correction-proofだけ、二重unwrap2箇所を実rpc返却shapeへ揃え、空/required-key/JS exception validationを保持。実source rpc_result＋snapshot取出し＋validateへ同CDP envelopeを通すRED/GREEN1fixture後、guard付きoneUIのみ。selector/matcher/SDK/framework/scope追加はしない。raw exception description/本文/username/UID/credential保存0。
 - current3→next4/残51項目/全goalactive。今回の成功は後処理とscope制限までであり、構造/案件sender/body/ID/date/公式送信数/全300/納品は未完。NPO待ちは§418のまま、全目標を小さく置き換えず、own-source境界の修正を続ける。
+
+
+### 430. 実RPC unwrap修正後に2snapshot取得、名前markerは同じrow内と確認
+
+- 有限Luna/max exec91942の別structure-fixed版をRootで差分確認。remoteはRPC method-resultのresult1段だけを読む形に修正し、JS exception class/hash/codeとrequired-key不足を安全に記録。実source rpc_result＋実AST取出し＋validatorへ同CDP envelopeを渡すRED/GREEN、empty/missing/exception-with-valueの成功拒否を確認。selector/観測範囲/no-selection経路は不変。
+- reader SHA256 cffa5e4d33aeeacbb417eff407e83a56a16279c7d61287cd1f4aeed3e8f86101、correction proof SHA256 4f1cba91bd34a5e7c8938a7ecb3906678c41c05f15c4b8f8d3cadf16f3ddc275。actual oneUIは57.361s、result SHA256 522a3be11dfcc8d65ace9f77a4bed71058993e466c54437997319f6c34eeb4a6、runtime proof SHA256 734fbca267af098ac350d680e57dda4fe9a976322fbb6eeebbf1aa74da8133bd。Rootが両snapshotのrequired keys/remote type object/protocol exception無しを実fileで確認し、今回は空objectを成功扱いした§429と区別する。
+- 同held/default contextで初回20rows→15.127s後28rows。global roots3/cap=false、nickname/avatar/item markerはglobal/list内とも20→28。最大3行候補のうち最初のID-bearing row1行を実観測し、DIV/data-conv-id/data-e2e/child2、nickname selector1、row shadowRoot無し/open-shadow marker0。同rowの会話ID hashは不変、text長15→24。これは最初のrowの構造観測で、案件宛先とのidentity一致ではない。
+- そのrowの親1段はchild1/other row0/nickname1/avatar1/distinct conversation ID1。親2段はother rows19→27を含み、identity値読み取りを停止してcountsだけを記録。親3段も他rowを含むためidentity値を読まない。少なくとも実観測rowでは名前markerはrow内にあり、親へ無制限に広げる/Shadow DOMだけが原因と断定する根拠はない。
+- rowclick/scroll/newchat/compose/send/auth/fence0、ownabsent/prior exact/guardrelease0/leaseabsent PASS、既存target2保持。15秒の間にrow数/row textが変化したため初期化途中は観測されたが、nickname marker自体は両時点で1。全history coverage、名前valueの取得可能性、案件96行との一致は未証明。
+- 次の最小観測は、同row内の実marker dm-new-conversation-nicknameについて、現wildcard/class selectorの一致数とexact markerの一致数、aria-label/innerText/textContentの有無・長さ・hashを比較し、識別項目をどの値から読むか確認すること。marker存在だけでnickname値存在を仮定せず、matcherの緩和/別会話fallback/SDK全探索/新decoderはしない。元frozen成果物を保持し、親91942の終端確認後に次の担当へ渡す。
+- current3→next4/残51項目/全goalactive。actual構造の診断が前進したが、案件sender/body/ID/time/公式送信数/全300/納品は未完、NPO待ちは§418を維持する。
