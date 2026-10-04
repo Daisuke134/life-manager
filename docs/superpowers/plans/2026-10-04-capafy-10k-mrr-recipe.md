@@ -357,9 +357,9 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 |---|---|---|---|---|
 | 1 | 1 取りこぼしを止める | A1 日次成績表 | 23:50 の daily_close で成績表が Telegram に届く | source+本番 ✅、Telegram 着信は未確認 |
 | 2 | 1 | B2 却下理由 / 重複の関門 / C1・C2 勝ち棚 | 却下 2 本が under_review → online、次の新規が上位棚 | source ✅、自然 run 待ち |
-| 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | source ✅、本番反映 未確認 |
-| 4 | 1 | **E1a 提出前の価格照合** | 値上げ提出の前に draft billing＝LISTING をログで確認 | ▶ 実装中 |
-| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ** | 市場 API の billing が LISTING どおり | 審査枠待ち（5/5） |
+| 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | source ✅（35 passed）、本番は 20:27 時点 `1c21656e` のまま＝反映待ち |
+| 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | source ✅（259 passed、本番データで 3 本の不一致を検出）、本番反映待ち |
+| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | 工場の自然 run 待ち（審査枠 5/5、空き次第 売上順に Hook Lab → TikTok → YouTube） |
 | 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順番待ち |
 | 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | 未着手 |
 | 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | 未着手 |
@@ -378,7 +378,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
 **順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
-**現在のカーソル:** #4（E1a）。
+**現在のカーソル:** #5（E1b、枠待ち）と並行して #7（D1 Hook Lab の題名・カード）。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -406,3 +406,4 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 - **E1 canary は CAP_FULL で未実行（Capafy への送信 0、publish-remote-status で変化なしを確認）**: 価格変更も新しい版＝審査枠を使う。枠 5/5（却下 2: 4973250899・9563867391、審査中 3: 6273179459・7599205243・7631594519）。
 - **E1 の本当の穴（実測）**: 値上げ版として提出した Hook Lab v1.0.4（2104787480225804288）・TikTok Script Pro v1.0.2・YouTube Script Writer v1.0.3 はすべて承認済み（platform_status=4）なのに、その版の billing 行は日$1.99/週$4.99/月$9.99（Hook Lab の billing updatedAt 2026-09-29 17:41 JST = 提出時）。仮説: H1 提出時に価格カードが保存されなかった（採用）、H2 価格は版と別保存で引き継がれない（棄却: billing 行の agentVersionId が v1.0.4 自身）、H3 データが古い（弱い: 市場データは 10/03 の API 取得）。→ 工場は「値上げした」と記録しても実際の価格を確かめていない。修正: 提出前に draft の billing を LISTING の価格表と照合し、不一致なら提出しない（PR 作成中）。
 - カーソル: **E1 = 価格照合の追加 → UPDATE.json を現行版に合わせて枠が空き次第再提出** → D1 → D2 → C3 → C4 → D3 → A2 → F。
+- 2026-10-04 20:3x JST **E1a/E1b（#6569 merge `342ffefb`）**: 仮説 H4 を追加・採用 — TikTok Script Pro・YouTube Script Writer は LISTING の価格表自体が $1.99/$4.99/$9.99 のまま（コメントだけ「月$19.99 帯へ」）。Hook Lab は表は正しく、CP1 が緑の価格タブを素通りした（H1）。提出前の照合を「止める」にすると、CP1 確定後は編集 URL が出ないため直せない下書きが resume_draft 最優先で毎回選ばれ工場全体が止まる → 警告（`PRICE_MISMATCH_WARNING`）にし、根本は CP1_AGENTIC.md で「緑でも毎回全プランを目標値に設定・年プラン追加」。本番データ（token は `~/.local/state/life-manager/runtime/capafy-publisher/config.json`）で `verify_pricing.py` が 3 本とも PRICING_MISMATCH（月 目標$19.99/実$9.99、年なし）を返すことを確認。既知の失敗: `test_agent_work_state_isolation.sh` は main でも同じ `publish_input_contract: ValueError`（今回の変更と無関係）。
