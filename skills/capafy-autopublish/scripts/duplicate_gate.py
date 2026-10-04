@@ -227,6 +227,17 @@ def is_allowed(candidate_key: str, listing_path, cache_path: Path | None = None)
 # default runner — real claude CLI, print mode, cwd=/tmp, cheapest tier
 # --------------------------------------------------------------------------
 
+def runner_env(base=None) -> dict:
+    """launchd omits USER; the claude CLI then reports "Not logged in". Same fix as
+    runtime/agent-runner/agent_runner.py: fill USER/LOGNAME from the uid."""
+    import pwd
+    env = dict(os.environ if base is None else base)
+    name = pwd.getpwuid(os.getuid()).pw_name
+    env.setdefault("USER", name)
+    env.setdefault("LOGNAME", name)
+    return env
+
+
 def default_runner(prompt: str) -> str:
     claude_bin = os.environ.get("CAPAFY_DUPGATE_CLAUDE_BIN") or str(Path.home() / ".local/bin/claude")
     result = subprocess.run(
@@ -241,6 +252,7 @@ def default_runner(prompt: str) -> str:
         cwd="/tmp",
         capture_output=True,
         text=True,
+        env=runner_env(),
         timeout=120,
     )
     if result.returncode != 0:

@@ -230,3 +230,14 @@ def test_read_listing_summary_missing_file_returns_empty_strings(tmp_path: Path)
     summary = module.read_listing_summary(tmp_path / "missing.md")
 
     assert summary == {"title": "", "short_description": ""}
+
+
+def test_runner_env_fills_user_missing_under_launchd():
+    import importlib.util, pathlib
+    path = next(pathlib.Path(__file__).resolve().parents[1].rglob("duplicate_gate.py"))
+    spec = importlib.util.spec_from_file_location("duplicate_gate_env", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    env = mod.runner_env({"PATH": "/usr/bin"})
+    assert env["USER"] and env["LOGNAME"] == env["USER"]
+    assert mod.runner_env({"USER": "x"})["USER"] == "x"
