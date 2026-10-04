@@ -121,6 +121,82 @@ def test_zero_sales_low_views_is_not_flagged():
     assert "retire_or_rewrite_candidate" not in kinds
 
 
+HOOK_LAB_FAMILY_CATALOG = {
+    "Hook Lab": {"dir_name": "hook-lab", "dir_path": "/repo/skills/capafy/catalog/hook-lab",
+                 "pricing": {}, "has_update": False},
+    "Ad Hook Lab": {"dir_name": "ad-hook-lab", "dir_path": "/repo/skills/capafy/catalog/ad-hook-lab",
+                    "pricing": {}, "has_update": False},
+    "Reels Hook Lab": {"dir_name": "reels-hook-lab", "dir_path": "/repo/skills/capafy/catalog/reels-hook-lab",
+                       "pricing": {}, "has_update": False},
+}
+
+
+def test_winner_clone_stops_when_two_live_children_underperform():
+    module = load_module()
+    rows = [
+        row("hook", "Hook Lab", net=100, cost=10, orders=11),
+        row("ad", "Ad Hook Lab", net=0, cost=0, orders=0),
+        row("reels", "Reels Hook Lab", net=0, cost=0, orders=0),
+    ]
+    servers = {**server("hook"), **server("ad"), **server("reels")}
+
+    decisions = module.decide_actions(rows, servers, HOOK_LAB_FAMILY_CATALOG, BANDS, {})
+
+    hook_decision = next(d for d in decisions if d["name"] == "Hook Lab")
+    finding = next(f for f in hook_decision["findings"] if f["rule"] == "winner_clone")
+    assert finding == {
+        "rule": "winner_clone", "action": "stop", "parent": "Hook Lab",
+        "reason": "children_underperform", "children": ["Ad Hook Lab", "Reels Hook Lab"],
+    }
+    assert not any(f.get("action") == "queue_opportunity" for f in hook_decision["findings"])
+
+
+def test_winner_clone_queues_opportunity_when_fewer_than_two_children_underperform():
+    module = load_module()
+    catalog = {"TikTok Script Pro": {"dir_name": "tiktok-script-pro",
+                                      "dir_path": "/repo/skills/capafy/catalog/tiktok-script-pro",
+                                      "pricing": {}, "has_update": False}}
+    rows = [row("tsp", "TikTok Script Pro", net=50, cost=5, orders=4)]
+
+    decisions = module.decide_actions(rows, server("tsp"), catalog, BANDS, {})
+
+    finding = next(f for f in decisions[0]["findings"] if f["rule"] == "winner_clone")
+    assert finding == {
+        "rule": "winner_clone", "action": "queue_opportunity",
+        "opportunity": {
+            "kind": "winner_clone", "parent_agent_id": "tsp", "parent_title": "TikTok Script Pro",
+            "tag": "winner_clone_tsp",
+            "requirement": "different input, output and use case from parent and existing children "
+                           "(Capafy doc 4.2: no near-identical mass uploads)",
+        },
+    }
+
+
+def test_winner_clone_not_triggered_below_order_threshold():
+    module = load_module()
+    rows = [row("hook", "Hook Lab", net=0, cost=0, orders=2)]
+
+    decisions = module.decide_actions(rows, server("hook"), HOOK_LAB_FAMILY_CATALOG, BANDS, {})
+
+    assert not any(f["rule"] == "winner_clone" for f in decisions[0]["findings"])
+
+
+def test_winner_clone_child_matching_parent_does_not_count_as_underperforming():
+    module = load_module()
+    rows = [
+        row("hook", "Hook Lab", net=100, cost=10, orders=11),
+        row("ad", "Ad Hook Lab", net=100, cost=10, orders=11),  # matches parent -> not underperforming
+        row("reels", "Reels Hook Lab", net=0, cost=0, orders=0),  # underperforming
+    ]
+    servers = {**server("hook"), **server("ad"), **server("reels")}
+
+    decisions = module.decide_actions(rows, servers, HOOK_LAB_FAMILY_CATALOG, BANDS, {})
+
+    hook_decision = next(d for d in decisions if d["name"] == "Hook Lab")
+    finding = next(f for f in hook_decision["findings"] if f["rule"] == "winner_clone")
+    assert finding["action"] == "queue_opportunity"  # only 1 underperforming child, stop rule needs >= 2
+
+
 def test_queue_update_file_does_not_overwrite_existing(tmp_path):
     module = load_module()
     existing = tmp_path / "UPDATE.json"
@@ -237,3 +313,14 @@ def test_rank_shelves_names_capafy_categories():
     ranked = m.rank_shelves([{"category": 11, "sold": 10}, {"category": 999, "sold": 1}], [])
     assert ranked[0]["category_name"] == "Finance"
     assert ranked[1]["category_name"] == "unknown"
+
+
+def test_winner_clone_ignores_free_order_parent():
+    m = load_module()
+    rows = [{"agent_id": "3332784488", "name": "Japanese Humanizer", "status": "online",
+             "stats_30d_orders": 5, "net_revenue_30d_usd": "0.00", "cost_30d_actual_usd": None,
+             "model": "Claude Sonnet 4.6"}]
+    catalog = {"Japanese Humanizer": {"dir_path": "/x/japanese-humanizer", "dir_name": "japanese-humanizer", "has_update": False}}
+    out = m.decide_actions(rows, {"3332784488": {"agentStatus": "online"}}, catalog, {}, {})
+    findings = [f for d in out for f in d["findings"] if f.get("rule") == "winner_clone"]
+    assert findings == []
