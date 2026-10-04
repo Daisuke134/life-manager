@@ -6116,3 +6116,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - provider403スクリーンショットを実視認し、汎用403 Forbidden画面。login/challengeの説明は見えず原因は未確定。requested／final routeは同budget talkroom、公式DOM receipt403は保持。
 - current source lm_loop_apply.pyでnative Coconala ownerのvault／lease pathsが今回probeと一致、cookie scope coconala.comとpark_on_idle0を確認。probeにはcookie domain指定が無く全domain seed、終了時releaseのdefaultは既存ownerと一致。domain scopeをnativeに合わせた自己owner／通常tabのread-only probeを一度実行、session84738／log lm-coconala-a04-budget-owner-env.log。terminal未取得、同handleを追い環境差の因果と断定しない。
 - evidence budget-attachment-binding-readback.json/mode600。次は公式downloadを読める条件を確立し、公式bytesのsize／SHAを照合する。fresh approval／formal scope／納品／入金未確認、全goalactive／SelfBuild最後。
+
+### 350. 本番cookie scopeに合わせた予算書fresh履歴の成功
+
+- 同session84738はexit0、owner-env snapshot captured04:11:54Z／HTTP200／coverage_complete true／取引中／formal false。selfprobeのcookie scopeを本番ownerと一致させた結果だが、時刻・contextも異なるため過去403の原因をcookie domain差と確定しない。前failure receiptを保持。
+- oldとfresh owner-env-projects/18223833/source/talkroom/messages.jsonlは27件、message_id／side／contentSHAの順列が完全一致。latestbuyer222226563は不変。§348の①予算書承認／②NPO資料待ちというscope解釈はこのfresh履歴に結合できる。observed timestamp更新でhistoryファイルSHAは8bd7b022d80fd0916334a91fbda45497f700e628c6663e366a8eced74b97f84d、古いraw filehashとは区別する。
+- fresh公式attachment metadataでもseller220802599 attachment:0は55.0KB／hrefnull。現local17665bytesとの結合は未達。次は公式画面のdownload操作先／bytesと、①だけのformalが閉じる契約範囲を確認する。approval_readyを手動変更せず、client送信／正式納品／既存project state変更0。
+- state/coconala-a01-refresh-20261004/18223833-owner-env-history-comparison.jsonにcurrent receipt／hash／metadataを保存。A01／A04最終成果未達、全goalactive、SelfBuild最後。
