@@ -55,6 +55,26 @@ if [ "$1" = "apply" ]; then
       echo '{"ok": false, "error": "production apply is already owned"}'
       exit 1
       ;;
+    effect_unknown)
+      if [ "$target" = "${FAKE_EFFECT_UNKNOWN_TARGET:-}" ]; then
+        echo '{"ok": false, "error": "admission rebind refused: effect_unknown"}'
+        exit 1
+      fi
+      printf '[{"ok":true,"label":"%s","release_sha":"x","changed":true}]' "$target"
+      exit 0
+      ;;
+    effect_unknown_lookalike)
+      if [ "$target" = "${FAKE_EFFECT_UNKNOWN_TARGET:-}" ]; then
+        echo '{"ok": false, "error": "observer failed while checking effect_unknown hint"}'
+        exit 1
+      fi
+      printf '[{"ok":true,"label":"%s","release_sha":"x","changed":true}]' "$target"
+      exit 0
+      ;;
+    effect_unknown_compound)
+      echo '{"ok": false, "error": "admission rebind refused: effect_unknown", "details": "bootstrap code 5 Input/output error"}'
+      exit 1
+      ;;
     fail)
       echo '{"ok": false, "error": "boom"}'
       exit 1
@@ -469,6 +489,77 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             second = self._run(env)
             self.assertEqual(self._apply_call_count(calls_log), 1,
                              "a failed apply must not retry on the very next tick")
+
+    def test_effect_unknown_fence_refusal_skips_owner_and_continues_fleet_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, loop_ids=("loop-a", "loop-b"),
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log,
+                                 apply_mode="effect_unknown")
+            env["FAKE_EFFECT_UNKNOWN_TARGET"] = "loop-a"
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = self._state(root)
+            self.assertEqual(state["status"], "ok")
+            self.assertEqual(state["changed"], 1)
+            self.assertEqual(state["skipped"], 1)
+            self.assertEqual(state["errors"], 0)
+            self.assertEqual(
+                [line for line in calls_log.read_text().splitlines()
+                 if line.startswith("apply ")],
+                ["apply target=loop-a", "apply target=loop-b"],
+            )
+            owner_rows = self._owners_log(root)
+            fenced_owner = next(row for row in owner_rows if row["loop_id"] == "loop-a")
+            self.assertEqual(fenced_owner["rc"], 1)
+            self.assertEqual(fenced_owner["skipped"], 1)
+            self.assertEqual(fenced_owner["reason"], "effect-unknown-fence")
+
+    def test_effect_unknown_word_in_other_error_does_not_become_skip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, loop_ids=("loop-a", "loop-b"),
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log,
+                                 apply_mode="effect_unknown_lookalike")
+            env["FAKE_EFFECT_UNKNOWN_TARGET"] = "loop-a"
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            state = self._state(root)
+            self.assertEqual(state["status"], "error")
+            self.assertEqual(state["skipped"], 0)
+            self.assertEqual(state["errors"], 1)
+
+    def test_compound_effect_unknown_refusal_remains_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(root, sha)
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log,
+                                 apply_mode="effect_unknown_compound")
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            state = self._state(root)
+            self.assertEqual(state["status"], "error")
+            self.assertEqual(state["skipped"], 0)
+            self.assertEqual(state["errors"], 1)
 
     def test_already_owned_is_treated_as_skip_and_retried_next_tick(self):
         with tempfile.TemporaryDirectory() as directory:
