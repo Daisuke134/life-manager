@@ -36,6 +36,16 @@ HOURLY_RECONCILE_PATH = STATE_HOME / "state/capafy-hourly-reconcile.json"
 PRICE_BANDS_PATH = STATE_HOME / "state/capafy-market-price-bands-latest.json"
 DECISIONS_DIR = STATE_HOME / "state/capafy-daily-decisions"
 OPPORTUNITIES_PATH = STATE_HOME / "state/capafy-candidate-opportunities.json"
+# Same path capafy_market_sweep.WINNERS_PATH writes -- literal, not imported, matching
+# the existing PRICE_BANDS_PATH pattern (sibling state file, no cross-module coupling).
+MARKET_WINNERS_PATH = STATE_HOME / "state/capafy-market-winners-latest.json"
+# Capafy categoryId -> public name, read from https://capafy.ai/ category filter links (2026-10-04).
+CATEGORY_NAMES = {
+    1: "Writing", 2: "Analysis", 3: "Research", 4: "Image", 5: "Video", 6: "Design", 7: "Marketing",
+    8: "Sales", 9: "Commerce", 10: "Social Media", 11: "Finance", 13: "Product", 14: "HR",
+    15: "Education", 17: "Media", 18: "Engineering", 19: "Consulting", 20: "Science",
+    24: "Travel", 25: "Gaming", 26: "Legal", 27: "Productivity", 28: "Lifestyle",
+}
 
 LOSING_MONEY_COST_RATIO = 0.30
 UNDERPRICE_MARGIN_USD = 1.0
@@ -271,6 +281,42 @@ def build_telegram_summary(decisions, opportunity, observed_at):
     return "\n".join(lines)
 
 
+def rank_shelves(market_winners, own_rows):
+    """Rank categories ("shelves") by where the market is biggest and we're thinnest.
+    market_sold_total = sum(sold) of market winners in that category; our_listings =
+    count of our own rows in that category; our_sales_30d = sum(stats_30d_orders);
+    score = market_sold_total / (1 + our_listings), sorted desc. Pure, fixture-testable
+    like decide_actions -- own_rows must already carry a "category" key (see main() for
+    how it's joined in from server agent data)."""
+    market_sold_total: dict = {}
+    for winner in market_winners or []:
+        cat = winner.get("category")
+        market_sold_total[cat] = market_sold_total.get(cat, 0.0) + (_num(winner.get("sold")) or 0.0)
+
+    our_listings: dict = {}
+    our_sales_30d: dict = {}
+    for row in own_rows or []:
+        cat = row.get("category")
+        our_listings[cat] = our_listings.get(cat, 0) + 1
+        our_sales_30d[cat] = our_sales_30d.get(cat, 0.0) + (_num(row.get("stats_30d_orders")) or 0.0)
+
+    categories = set(market_sold_total) | set(our_listings)
+    shelves = []
+    for cat in categories:
+        sold_total = market_sold_total.get(cat, 0.0)
+        listings = our_listings.get(cat, 0)
+        shelves.append({
+            "category": cat,
+            "category_name": CATEGORY_NAMES.get(int(_num(cat) or 0), "unknown") if cat is not None else "unknown",
+            "market_sold_total": sold_total,
+            "our_listings": listings,
+            "our_sales_30d": our_sales_30d.get(cat, 0.0),
+            "score": sold_total / (1 + listings),
+        })
+    shelves.sort(key=lambda s: s["score"], reverse=True)
+    return shelves
+
+
 # ---------------------------------------------------------------------------
 # Side effects: queue files, write the dated decision record.
 # ---------------------------------------------------------------------------
@@ -357,8 +403,30 @@ def main():
     if opportunity:
         append_opportunity(OPPORTUNITIES_PATH, opportunity, observed_at)
 
+    # (C2) best under-served shelf: category where the market sells big and we're thin.
+    # Own rows need a category; analytics per_skill_rows has none, so join it in from the
+    # matching server agent's categoryId (the same server_by_id already built above for
+    # decide_actions) -- the one place own listings' category is actually available.
+    market_winners = (_load_json(MARKET_WINNERS_PATH, {}) or {}).get("items") or []
+    if market_winners:
+        own_rows = [
+            {**row, "category": (server_by_id.get(str(row.get("agent_id") or "")) or {}).get("categoryId")}
+            for row in analytics_rows
+        ]
+        shelves = rank_shelves(market_winners, own_rows)
+        if shelves:
+            top_shelf = shelves[0]
+            append_opportunity(
+                OPPORTUNITIES_PATH,
+                {"tag": f"shelf_category_{top_shelf['category']}", "kind": "market_shelf", **top_shelf},
+                observed_at,
+            )
+
     summary = build_telegram_summary(decisions, opportunity, observed_at)
-    record_path = write_decision_record(decisions, opportunity, observed_at, summary)
+    # pass path_dir explicitly: a bare DECISIONS_DIR default arg binds at def-time, so a
+    # test monkeypatching the module-level DECISIONS_DIR would silently miss it and write
+    # to the real state dir instead (caught while adding the C2 wiring test below).
+    record_path = write_decision_record(decisions, opportunity, observed_at, summary, path_dir=DECISIONS_DIR)
     print(json.dumps({"ok": True, "decisions": len(decisions), "queued_updates": queued,
                        "record_path": str(record_path), "telegram_summary": summary}, ensure_ascii=False))
     return 0
