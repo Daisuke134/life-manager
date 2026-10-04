@@ -4886,7 +4886,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A15 Mercorの精算・着金・実費を確認する。
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
-- [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。
+- [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
@@ -5662,3 +5662,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - newer_than30d／sender domain／max20で全6検索exit0。Lancers20・CrowdWorks20・Coconala20・Mercor20・Freelancer20はnextPageTokenあり、Upwork4は次pageなし。このquery範囲の件数であり総メール件数ではない。Gog local表示の最新取得日時はLancers10/04 06:02、CrowdWorks10/04 07:08、Coconala10/04 09:02、Mercor09/30 18:14、Freelancer10/03 15:21、Upwork10/02 05:29。全providerの配信停止という仮説はこの取得結果と整合しない。
 - subjectによる暫定分類は募集案内・通知・応募／選考・その他を含むが、メール本文とprovider案件ID／自然応募occurrence／返信watch runのjoinは未検証。過去応募の選考通知を新規応募confirmationと数えず、受信成功だけで業務loop完走や入金を証明しない。source domain外やforwardingは未監査。proof state/marketplace-a17-mail-metadata.json/mode600。
 - A17／A18の次操作は最新自然応募と確認mailをplatformごとに結合すること。A10は同live application readerのterminal待ち、次のbrowser queryは完了後にserializeする。全goal未完、SelfBuildは最後。
+
+### 306. CrowdWorks直近応募mail検索と最新自然wakeの作用0結合
+
+- A17でapplication-receipts末尾3件（307992797／308014722／308020998）のapplication／opportunity IDを使い、既存Gmail sender-domain＋7日＋max10検索を実行、全exit0／取得0。local receiptはverifiedだが新規official application pageの再証明ではない。IDがmail本文に無い場合は検索できないため、確認メール不送信／通知設定不良／全配信停止を断定しない。proof state/crowdworks-a17-application-mail-join.json/mode600。
+- application-owner.jsonのoccurrence18daf6fa45742168-18600とnative claim refを照合し、唯一のrun18db2c774fccf290-43385／b7fb execute00:36:07Z→report00:40:37Z内にartifact observed00:36:09Zが入ることを確認する。owner resultはprofile_complete_no_eligible_open_job／effect_delta0／imported0。44件の内訳closed_or_unverified16・off_topic28、out_of_time5も保持し、全市場の候補不足と扱わない。このwakeの新規応募無しと、過去の確認mail未結合を分離する。proof state/crowdworks-a16-latest-application-run-binding.json/mode600。
+- A10の応募readerは同PID58229／parent55188／provider lease保持でliveを再確認、終了と誤認して再起動しない。公式履歴のcoverageが閉じるまで未確定5を解除しない。次はsame reader terminal→exact thread／contract receiptとmail本文側ID照合の不足を閉じる。client送信／応募／fence解除0、全goal未完、SelfBuildは最後。
