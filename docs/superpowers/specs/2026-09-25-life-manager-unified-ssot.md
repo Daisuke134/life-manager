@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§379のA25取得済注文/金融receipt照合、A26actualcost/productversion不足の特定。A24.1–4 account/verification/owner待ちは保持。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§381のA27 feedback/handling/product改善へのbinding、依存待ちを保持して独立A28Writer取引/費用へ進める。A25currentreceipt/A26actualcost不足は保持。A24.1–4 account/verification/owner待ちは保持。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4911,7 +4911,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
   - [ ] A24.4 権利あるproduct/version/scope/mediaで公式activeGig/publicURLを確認し、A25以降へorder IDを渡す。
 - [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。
 - [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。
-- [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。
+- [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。
 - [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。
 - [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。
 - [ ] A30 Affiliateのcommission・payout・実費を確認する。
@@ -6378,3 +6378,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - CFO last-result-reportはlocal sent／period2026-10-04:05／TelegramproviderIDあり、messageにunknownmarkerあり／18211957marker無し。これはcurrentCFOreportのlocal送信記録だけでofficialremote配信やorder-levelcostを証明しない。対象CSVdate2026/09/27と報告日は異なり、別period費用を混ぜずdate-onlyをsettlementUTCへ変換しない。本文/金銭値/recipient/credentialをchatへ出さない。
 - state/coconala-a26-cost-source-reference-map-20261004.jsonに入口/envkeys/存在scope/actualacceptance/不足refsをmode600で保存。orderID/contractID→productversionとfee/refund/cost/bank同期間proof未達、profitunknown。source/ledger/project/CFO/delivery/provider/budget変更0、missingcostを0やAPIestimateで代用しない。
 - 次はfinancialownerへexactsource/loadedenv/paidcost/配賦refsをhandoffし、A27の既存buyerfeedback/作業量/商品改善への対応を独立readonlyで調べる。owner未応答を稼働/完了扱いせず重複writerを作らない。A25/A26未完、currentcursorA26source refs／独立A27、全goalactive／SelfBuild最後。
+
+### 381. A27feedback/handling/approval hashの分離と実成果不足
+
+- primaryは18211957 localstateのfeedbacke5959bdd／handled335688da／deliveryconfirmed335688daの不一致を再確認。localupdated09/26UTC／v41、savedtalkroom末尾observed09/26 18:12:49Zで古い。activecycle ACTIONABLE/resubmit、counter109はlocal累計であり109customers／actualworkrounds／failures／努力量や現在未対応の証明ではない。buyer本文／attachments／顧客codeをreadbackや再利用productへコピー0。
+- context paid-review-stateはAPPROVED／feedback81a13c07、paid-file-authorizationはv4／feedbacke01d3453、いずれもlocale595と別。承認ラベルだけで最新feedback/requirements/artifactを承認済みにしない。knownshadowcache/review/decision pathsは不在、限定source検索でshadowhelper直接caller未確認だが、学習経路全体不存在とはしない。
+- 実registryのpaid-direct-ownerはcoconala_paid_adapterを呼び、bridgeprepared/effectsをroom-feedbackで分離する。paid_directのreportedfileprogressはsourceauthorization／exactfeedback／requirementsdigest／artifact/version/hash／sellerattachment／stateを照合するため、昔の335の成功を新e595へ流用しない。observer/context/prepareはwrite/runner起動を含むので今回実行0。sourceguard存在は自然対応成功・replayzero成果の証明ではない。
+- private state/coconala-a27-feedback-source-binding-20261004.jsonにlocal/context hashesと一致条件・staleness・不足をmode600で記録。state/project/context/authorization/channel/送信/fence変更0。単なる修理回数や残artifact数をcustomerquality/生産性/marginに変換しない。
+- A27残はsameaccount/channelのcurrentofficialfeedback→処理artifact/version→対応/納品/検収receipt→実customeroutcome/作業量/actualcost/netmargin→再利用可能な自社productversion/evalへのjoin。顧客secret/権利のないcodeは転用せず、一般化した手順のみ実purchasefeedbackから改善する。少数サンプルの勝者／因果効果を作らない。
+- 既存source/privacy修正のmain条件§328を保持し、新コードを未統合のまま増やさない。next独立A28Writerの取引/費用receiptをreadonly照合、A25/A26/A27成果は未完。currentcursorA27binding／A28準備、全goalactive／SelfBuild最後。
