@@ -6168,3 +6168,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - parserはclose日時／talkroom ID／記載売上／申請済み／残高／累積／振込予定の範囲。source docstringの22%説明からgross／feeを逆算しない。local idem_keyはprovider payment receiptでない。CFO marketplace adapterはlocal consumerで公式collectorではなく、coconala_outcomesのbank_arrivalはwaiting固定、銀行receipt実装無し。
 - 公式help900000064326を現行help.coconala.comへredirect取得し、/mypage/revenueのPC『売上データを全件CSVダウンロード』が全期間確定日／roomNo／内訳／売上金額／振込状況を返すことを確認。自己contextのCSVdownloadだけをread-only範囲へ追加、振込申請buttonと分離。元CSVが取得できてもfee／payment ID／bank transaction／費用の未取得を0へ置換しない。
 - receipt contractはprivate state/coconala-a06-finance-path-contract.json/mode600、現在worker観測進行中。重要財務事実はfreshread-onlyで受入し、A06完全settlement／A07銀行着金とは分ける。根拠 https://help.coconala.com/hc/ja/articles/900000064326 。全goalactive／SelfBuild最後。
+
+### 357. 売上CSV取得とfresh金融検証の限定受入／追加観測
+
+- research workerはrevenue画面HTTP200／login転送無し、DOMparser1明細と表示balance／累積をprivate取得。全件CSVcontrol1clickでcp9323475bytes／28data rows／9列、売上確定日2026/07/25–09/27、SHA27f6821f2daab04cf516ec8d5ad8feebcebf88342001cc8aa18236b937e54dd0。親もbytes／SHA／decode／headers／rowcountを確認。
+- fresh Sol6.1 medium reviewerはCSV構造／counts／date／ID存在だけSHIP、finance／allhistory／completeddownloadはHOLD。完全一致duplicate1群（CSV22／23行）、27unique。historical18211957は1行／振込未、current18180857／18223833／18250352は0行。状態未1／済27だが、銀行着金や取引完了の証明へ拡張しない。重複を自動削除／金額集計しない。
+- 起動時target/context/frame/origin／downloadWillBegin未保存、progressは全量inProgressまででcompleted未保存。guid/filebasename一致と構造正常は確認できるが、file出現で観測を抜けるためdownload失敗とも成功completeとも確定しない。現在navigation検査pathのみというsource欠損を特定。
+- 公式CSVhelpは売上金額＝計上売上、振込状況＝未/済の説明まで。gross／net／fee／bank/profit定義未確認。DOMpayout_requestedfalseは申請済み文字列不在だけで振込済27行とは別。source docstringから22%逆算やlocalidemのproviderID化をしない。
+- 旧CSV／receiptを保持し、private診断probeのmissing観測だけを補正してbounded再read/export1回を既存workerへ依頼。stricthttpshost/path、registeredendpoint、自己target/context/frame、context限定download／GUID／completedを新runへ記録。no ledger／CFOwrite／振込申請／銀行設定／client送信。新prod tool/framework無し。
+- 原本／receipt／privateparse／csv-review-scope.jsonはstate/coconala-a06-finance-readback、directory700／files600。次は新exactreceiptとduplicateの意味／fee・bank不足をCFOへ渡す。A06／A07／14loopCFO全成果未完、全goalactive／SelfBuild最後。
