@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: approved design; Task 8B candidate source/tests are complete, and the current execution cursor is unified SSOT §87-J item 4
+Status: approved design; Task 8A/8B and the B7 mobile default-path correction are candidate source/test complete. Current execution cursor → unified SSOT §87-J item 5
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -266,7 +266,7 @@ Telephony, paid model calls, and user-requested external actions remain separate
 
 ## 10. Current gate
 
-Task 8A's receipt-aware pre-ingest replay guard and Task 8B's queue ordering change are implemented and reviewed on the dedicated candidate branch; this is source/test evidence only, not a production release. Task 8B reuses `borrow/revenue`, leaves actual revenue's existing effective/aging order first, and places borrower/support after the CFO report without changing schema, capacity, owners, queue identity, or effect fences. The current cursor is the still-unresolved official promotion sequence, then one natural local report with freshness/coverage, durable provider receipt, and same-period replay-zero. Only after that receipt may the legacy cloud wallet-only sender be retired. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has a durable provider receipt, stable daily period, source coverage, and replay-zero. Current evidence and TODO order are in unified SSOT §87-J/§87-AC.
+Task 8A's receipt-aware pre-ingest replay guard, Task 8B's queue ordering change, and the B7 mobile default-path correction are implemented and reviewed on the dedicated candidate branch; this is source/test evidence only, not a production release. Task 8B reuses `borrow/revenue`, preserves actual revenue's existing effective/aging order, and places borrower/support after the CFO report without changing schema, capacity, owners, queue identity, or effect fences. Fresh source reconciliation is now the cursor because the promotion sequence is unresolved and official data work can proceed without production mutation. The September ASC Finance Detail result is currently unattributed and must not be counted. After source and Google actual-cost acceptance, resolve the formal promotion order, verify one natural local report with freshness/coverage, durable provider receipt, and same-period replay-zero, then retire the legacy cloud wallet-only sender. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. Current evidence and TODO order are in unified SSOT §87-J/§87-AC.
 
 ## 11. External provider research and selected cost-reduction design
 
