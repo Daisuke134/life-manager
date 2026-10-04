@@ -20,6 +20,7 @@ from pathlib import Path
 import re
 import tempfile
 from typing import Any, Callable, Mapping, Protocol
+from urllib.parse import urlsplit
 
 
 MUTATIONS = frozenset({"reply", "estimate", "accept_contract", "external_action"})
@@ -39,6 +40,62 @@ def _text(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field}_invalid")
     return value.strip()
+
+
+def _safe_collector_route(value: Any) -> str | None:
+    try:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme == "https"
+            and parsed.hostname in {"coconala.com", "www.coconala.com"}
+            and parsed.port in {None, 443}
+            and parsed.path == "/message"
+        ):
+            return "https://coconala.com/message"
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def _collector_failure(error: Exception) -> dict[str, Any]:
+    details = getattr(error, "details", {})
+    if not isinstance(details, Mapping):
+        details = {}
+    refs = details.get("source_receipt_refs")
+    return {
+        "error_layer": (
+            details["error_layer"] if isinstance(details.get("error_layer"), str)
+            and re.fullmatch(r"[a-z0-9_]{1,64}", details["error_layer"]) else "unknown"
+        ),
+        "error_origin": (
+            details["error_origin"] if isinstance(details.get("error_origin"), str)
+            and details["error_origin"] in {"provider", "helper"}
+            else "unknown"
+        ),
+        "http_status": (
+            details["http_status"] if type(details.get("http_status")) is int
+            and 100 <= details["http_status"] <= 599 else None
+        ),
+        "requested_route": _safe_collector_route(details.get("requested_route")),
+        "failed_endpoint": _safe_collector_route(details.get("failed_endpoint")),
+        "error_class": (
+            details["error_class"] if isinstance(details.get("error_class"), str)
+            and re.fullmatch(r"[A-Za-z0-9_]{1,64}", details["error_class"])
+            else type(error).__name__
+        ),
+        "source_receipt_refs": [
+            ref for ref in refs[:16] if isinstance(ref, str) and len(ref) <= 256
+            and ".." not in ref and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]*", ref)
+        ] if isinstance(refs, list) else [],
+    }
+
+
+def _safe_collector_error_detail(error: Exception) -> str:
+    message = str(error).strip()
+    return (
+        message if re.fullmatch(r"collector_unhealthy:[a-z0-9_]{1,100}", message)
+        else type(error).__name__
+    )
 
 
 def _digest(value: Mapping[str, Any]) -> str:
@@ -607,7 +664,7 @@ def run_wake(*, adapter: ReplyAdapter,
         if not isinstance(classified, Mapping):
             raise
         reason = _text(classified.get("reason"), "observation_boundary")
-        return {
+        result = {
             "status": "blocked",
             "observed": 0,
             "actionable": 0,
@@ -616,8 +673,17 @@ def run_wake(*, adapter: ReplyAdapter,
             "failed": 0,
             "pending": 0,
             "blocker": reason,
-            "error_detail": str(error).strip()[:500] or type(error).__name__,
+            "error_detail": _safe_collector_error_detail(error),
+            "collector_failure": _collector_failure(error),
         }
+        for environment_name, field in (
+            ("LIFE_MANAGER_RUN_ID", "run_id"),
+            ("LIFE_MANAGER_OCCURRENCE_ID", "occurrence_id"),
+        ):
+            identity = os.environ.get(environment_name, "").strip()
+            if identity and len(identity) <= 128 and re.fullmatch(r"[A-Za-z0-9._:/-]+", identity):
+                result[field] = identity
+        return result
     finally:
         close = getattr(adapter, "close", None)
         if callable(close):

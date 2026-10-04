@@ -122,25 +122,12 @@ class CoconalaReplyAdapter:
                 if str(error) not in transient or attempt == 1:
                     raise
             except RuntimeError as error:
-                message = str(error)
-                if not message.startswith("failed to open authenticated default tab:"):
-                    raise
-                match = re.search(r"HTTP Error (\d{3})", message)
-                if match is None:
-                    raise
-                status = int(match.group(1))
-                reason = (
-                    "inbox_access_forbidden"
-                    if status == 403
-                    else "inbox_provider_http_error"
+                classified = snapshot._classify_default_tab_http_error(
+                    error, requested_route=snapshot.MESSAGES_URL,
                 )
-                raise snapshot.CollectorUnhealthy(
-                    reason,
-                    {
-                        "provider_http_status": status,
-                        "helper_error": message,
-                    },
-                ) from error
+                if classified is None:
+                    raise
+                raise classified from error
         raise AssertionError("unreachable")
 
     def _thread_url(self, thread_id: str) -> str:
@@ -303,27 +290,35 @@ class CoconalaReplyAdapter:
     @staticmethod
     def classify_observation_error(error: Exception) -> dict[str, str] | None:
         message = str(error)
+        details = getattr(error, "details", {})
+        if not isinstance(details, dict):
+            details = {}
+        origin = details.get("error_origin")
+        status = details.get("http_status")
         if message == "authenticated tab did not finish navigation":
             return {"reason": "provider_readback_temporarily_unavailable"}
-        if message == "collector_unhealthy:inbox_access_forbidden":
+        if origin == "provider" and status == 403:
             return {
                 "reason": "provider_inbox_access_forbidden",
                 "remaining_work": [
                     "Retry the authenticated Coconala inbox read and preserve the provider receipt",
                 ],
             }
-        if message == "collector_unhealthy:inbox_provider_http_error":
+        if origin == "provider" and type(status) is int and 400 <= status <= 599:
             return {
                 "reason": "provider_inbox_http_error",
                 "remaining_work": [
                     "Retry the authenticated Coconala inbox read and preserve the provider receipt",
                 ],
             }
+        if origin == "helper":
+            reason = "inbox_helper_http_error" if type(status) is int else "inbox_helper_error"
+            return {"reason": reason}
         if message.startswith("collector_unhealthy:"):
             return {
-                "reason": "provider_inbox_observation_unavailable",
+                "reason": "inbox_observation_unavailable",
                 "remaining_work": [
-                    "Retry the authenticated Coconala inbox observation before any reply effect",
+                    "Inspect the collector failure origin before the next inbox observation",
                 ],
             }
         return None

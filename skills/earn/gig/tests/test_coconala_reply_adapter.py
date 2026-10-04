@@ -121,22 +121,11 @@ def test_only_exact_navigation_timeout_is_classified_as_observation_wait(tmp_pat
     assert adapter.classify_observation_error(RuntimeError("network_timeout")) is None
 
 
-@pytest.mark.parametrize(
-    "error_text,expected_reason",
-    [
-        (
-            "collector_unhealthy:inbox_access_forbidden",
-            "provider_inbox_access_forbidden",
-        ),
-        (
-            "collector_unhealthy:inbox_provider_http_error",
-            "provider_inbox_http_error",
-        ),
-    ],
-)
-def test_provider_inbox_access_errors_are_explicit_observation_waits(
-    tmp_path, error_text, expected_reason,
-):
+@pytest.mark.parametrize("error_text", [
+    "collector_unhealthy:inbox_access_forbidden",
+    "collector_unhealthy:inbox_provider_http_error",
+])
+def test_missing_origin_does_not_guess_provider_for_inbox_errors(tmp_path, error_text):
     adapter = adapter_module.CoconalaReplyAdapter(
         state_root=tmp_path, inventory_reader=lambda: [],
     )
@@ -144,8 +133,8 @@ def test_provider_inbox_access_errors_are_explicit_observation_waits(
     classified = adapter.classify_observation_error(RuntimeError(error_text))
 
     assert classified == {
-        "reason": expected_reason,
-        "remaining_work": ["Retry the authenticated Coconala inbox read and preserve the provider receipt"],
+        "reason": "inbox_observation_unavailable",
+        "remaining_work": ["Inspect the collector failure origin before the next inbox observation"],
     }
 
 
@@ -157,17 +146,18 @@ def test_provider_inbox_access_errors_are_explicit_observation_waits(
         "collector_unhealthy:login_redirect",
     ],
 )
-def test_other_collector_boundaries_are_waits_not_failed_reply_wakes(
+def test_unclassified_collector_boundaries_remain_unknown_observation_waits(
     tmp_path, error_text,
 ):
     adapter = adapter_module.CoconalaReplyAdapter(
         state_root=tmp_path, inventory_reader=lambda: [],
     )
 
+    # These errors carry no origin metadata or provider receipt to justify attribution.
     assert adapter.classify_observation_error(RuntimeError(error_text)) == {
-        "reason": "provider_inbox_observation_unavailable",
+        "reason": "inbox_observation_unavailable",
         "remaining_work": [
-            "Retry the authenticated Coconala inbox observation before any reply effect",
+            "Inspect the collector failure origin before the next inbox observation",
         ],
     }
 
@@ -354,6 +344,16 @@ def test_inbox_403_is_classified_as_provider_access_denied():
         })
 
     assert raised.value.details["provider_http_status"] == 403
+    assert raised.value.details["error_layer"] == "provider_inbox_dom"
+    assert raised.value.details["error_origin"] == "provider"
+    assert raised.value.details["http_status"] == 403
+    assert raised.value.details["requested_route"] == "https://coconala.com/message"
+    assert raised.value.details["failed_endpoint"] == "https://coconala.com/message"
+    assert raised.value.details["error_class"] == "inbox_access_forbidden"
+    assert raised.value.details["source_receipt_refs"] == []
+    assert adapter_module.CoconalaReplyAdapter.classify_observation_error(
+        raised.value
+    )["reason"] == "provider_inbox_access_forbidden"
 
 
 def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, tmp_path):
@@ -374,11 +374,40 @@ def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, t
     assert len(observations) == 1
 
 
-def test_inventory_classifies_default_tab_http_error(monkeypatch, tmp_path):
+def test_default_tab_keeps_helper_http_status_without_retaining_stderr(monkeypatch):
+    stderr = '{"ok":false,"reason":"HTTPError: HTTP Error 403: Forbidden"}'
+
+    def fail(*args, **_kwargs):
+        raise subprocess.CalledProcessError(1, args[0], stderr=stderr)
+
+    monkeypatch.setattr(adapter_module.snapshot.subprocess, "run", fail)
+    tab = adapter_module.snapshot.DefaultTab(
+        Path("cdp_default_tab.py"), adapter_module.snapshot.MESSAGES_URL,
+        owner="test-coconala-reply",
+    )
+
+    with pytest.raises(
+        adapter_module.snapshot.CollectorUnhealthy,
+        match="inbox_helper_http_error",
+    ) as raised:
+        tab.__enter__()
+
+    assert raised.value.details == {
+        "error_layer": "default_tab_helper",
+        "error_origin": "helper",
+        "http_status": 403,
+        "requested_route": "https://coconala.com/message",
+        "failed_endpoint": None,
+        "error_class": "helper_http_error",
+        "source_receipt_refs": [],
+    }
+
+
+def test_inventory_keeps_default_tab_http_error_at_helper_boundary(monkeypatch, tmp_path):
     def inspect(*_args, **_kwargs):
         raise RuntimeError(
             "failed to open authenticated default tab: "
-            "HTTPError: HTTP Error 404: Not Found"
+            "HTTPError: HTTP Error 403: Forbidden"
         )
 
     monkeypatch.setattr(adapter_module.snapshot, "inspect_page_with_retry", inspect)
@@ -386,16 +415,18 @@ def test_inventory_classifies_default_tab_http_error(monkeypatch, tmp_path):
 
     with pytest.raises(
         adapter_module.snapshot.CollectorUnhealthy,
-        match="inbox_provider_http_error",
+        match="inbox_helper_http_error",
     ) as raised:
         adapter._read_inventory()
 
     assert raised.value.details == {
-        "provider_http_status": 404,
-        "helper_error": (
-            "failed to open authenticated default tab: "
-            "HTTPError: HTTP Error 404: Not Found"
-        ),
+        "error_layer": "default_tab_helper",
+        "error_origin": "helper",
+        "http_status": 403,
+        "requested_route": "https://coconala.com/message",
+        "failed_endpoint": None,
+        "error_class": "helper_http_error",
+        "source_receipt_refs": [],
     }
 
 

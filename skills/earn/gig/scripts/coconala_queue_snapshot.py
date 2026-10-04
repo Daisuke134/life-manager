@@ -471,20 +471,28 @@ class CollectorUnhealthy(RuntimeError):
         self.details = dict(details or {})
 
 
-def _classify_default_tab_http_error(error: RuntimeError) -> CollectorUnhealthy | None:
-    """Turn helper HTTP failures into a provider receipt at the browser boundary."""
+def _classify_default_tab_http_error(
+    error: RuntimeError, requested_route: Any = None,
+) -> CollectorUnhealthy | None:
+    """Keep helper HTTP failures distinct from provider DOM responses."""
     message = str(error)
     prefix = "failed to open authenticated default tab:"
     if not message.startswith(prefix):
         return None
     match = re.search(r"HTTP Error (\d{3})", message)
-    if match is None:
-        return None
-    status = int(match.group(1))
-    reason = "inbox_access_forbidden" if status == 403 else "inbox_provider_http_error"
+    status = int(match.group(1)) if match is not None else None
+    reason = "inbox_helper_http_error" if status is not None else "inbox_helper_error"
     return CollectorUnhealthy(
         reason,
-        {"provider_http_status": status, "helper_error": message},
+        {
+            "error_layer": "default_tab_helper",
+            "error_origin": "helper",
+            "http_status": status,
+            "requested_route": safe_coconala_url(requested_route),
+            "failed_endpoint": None,
+            "error_class": "helper_http_error" if status is not None else "helper_error",
+            "source_receipt_refs": [],
+        },
     )
 
 
@@ -726,7 +734,10 @@ def bounded_pagination_page_numbers(
     return (current if valid else None, highest if valid else None, supplied, valid)
 
 
-def validate_inbox_coverage(dom: dict[str, Any], previous_count: int | None = None) -> dict[str, Any]:
+def validate_inbox_coverage(
+    dom: dict[str, Any], previous_count: int | None = None,
+    requested_route: Any = None,
+) -> dict[str, Any]:
     """Reject an authenticated-but-unenumerated inbox as collector unhealthy."""
     def unhealthy(reason: str) -> None:
         observed_url = str(dom.get("url") or "")
@@ -734,16 +745,25 @@ def validate_inbox_coverage(dom: dict[str, Any], previous_count: int | None = No
             urlsplit(observed_url).path == "/message"
             and parse_qs(urlsplit(observed_url).query, keep_blank_values=True).get("fromMyPage") == ["true"]
         )
-        raise CollectorUnhealthy(
-            reason,
-            source_receipt(
-                source="b1_inbox" if is_b1 else "direct_inbox",
-                requested_url=observed_url or None,
-                observed_at=str(dom.get("observed_at") or datetime.now(timezone.utc).isoformat()),
-                dom=dom,
-                previous_count=previous_count,
-            ),
+        receipt = source_receipt(
+            source="b1_inbox" if is_b1 else "direct_inbox",
+            requested_url=requested_route or observed_url or None,
+            observed_at=str(dom.get("observed_at") or datetime.now(timezone.utc).isoformat()),
+            dom=dom,
+            previous_count=previous_count,
         )
+        status = receipt.get("provider_http_status")
+        origin = "provider" if type(status) is int and 400 <= status <= 599 else "unknown"
+        receipt.update({
+            "error_layer": "provider_inbox_dom",
+            "error_origin": origin,
+            "http_status": status,
+            "requested_route": receipt.get("requested_route"),
+            "failed_endpoint": receipt.get("final_route") if origin == "provider" else None,
+            "error_class": reason,
+            "source_receipt_refs": [],
+        })
+        raise CollectorUnhealthy(reason, receipt)
 
     cards = dom.get("cards") if isinstance(dom.get("cards"), list) else []
     cards = dedupe_inbox_cards([card for card in cards if isinstance(card, dict)])
@@ -2493,12 +2513,24 @@ class DefaultTab:
                     reason = json.loads(detail.splitlines()[-1]).get("reason")
                 except (IndexError, AttributeError, json.JSONDecodeError):
                     reason = None
-                raise RuntimeError(
-                    f"failed to open authenticated default tab: {reason or 'helper exit 1'}"
-                ) from error
+                message = (
+                    f"failed to open authenticated default tab: {reason}"
+                    if isinstance(reason, str) else
+                    "failed to open authenticated default tab: helper exit 1"
+                )
+                classified = _classify_default_tab_http_error(
+                    RuntimeError(message), requested_route=self.url,
+                )
+                if classified is None:
+                    raise RuntimeError(
+                        "failed to open authenticated default tab: helper exit 1"
+                    ) from error
+                raise classified from error
             row = json.loads(result.stdout.splitlines()[-1])
             if not row.get("ok") or not row.get("target_id") or not row.get("ws"):
-                raise RuntimeError(f"failed to open authenticated default tab: {row}")
+                raise RuntimeError(
+                    "failed to open authenticated default tab: invalid helper response"
+                )
             self.target_id = row["target_id"]
             self.ws = row["ws"]
             return self
@@ -3000,7 +3032,9 @@ async def inspect_page(
                 raise CollectorUnhealthy("inbox_coverage_missing")
             value.update(json.loads(coverage_raw))
             if validate_coverage:
-                value["coverage_receipt"] = validate_inbox_coverage(value, previous_count)
+                value["coverage_receipt"] = validate_inbox_coverage(
+                    value, previous_count, requested_route=expected_url,
+                )
         if capture_buyer_attachments:
             captured = await call(ws, request_id, "Runtime.evaluate", {
                 "expression": TALKROOM_ATTACHMENT_EXPRESSION,
@@ -3199,7 +3233,7 @@ def inspect_page_with_retry(
             if attempt == attempts - 1:
                 raise
         except RuntimeError as exc:
-            classified = _classify_default_tab_http_error(exc)
+            classified = _classify_default_tab_http_error(exc, requested_route=url)
             if classified is not None:
                 raise classified from exc
             if not _is_transient_tab_open_error(exc) or attempt == attempts - 1:

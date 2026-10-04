@@ -80,10 +80,25 @@ def test_single_worker_hint_survives_observe_failure_and_clears_before_mutation(
     assert not hint.exists()
 
 
-def test_classified_inventory_boundary_returns_structured_blocked_result(tmp_path):
+def test_classified_inventory_boundary_returns_structured_blocked_result(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-a18")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "occ-a18")
+
     class ProviderInboxUnavailable(Adapter):
         def observe_threads(self):
-            raise RuntimeError("collector_unhealthy:inbox_access_forbidden")
+            error = RuntimeError("collector_unhealthy:inbox_access_forbidden")
+            error.details = {
+                "error_layer": "provider_inbox_dom",
+                "error_origin": "provider",
+                "http_status": 403,
+                "requested_route": "https://user:password@coconala.com/message?token=hidden#fragment",
+                "failed_endpoint": "http://127.0.0.1:9222/json/version?token=hidden",
+                "error_class": "inbox_access_forbidden",
+                "source_receipt_refs": ["coconala://receipt/a18-403"],
+                "helper_error": "Authorization: Bearer DO_NOT_COPY_SENTINEL",
+            }
+            raise error
 
         def classify_observation_error(self, error):
             assert str(error) == "collector_unhealthy:inbox_access_forbidden"
@@ -106,7 +121,88 @@ def test_classified_inventory_boundary_returns_structured_blocked_result(tmp_pat
         "pending": 0,
         "blocker": "provider_inbox_access_forbidden",
         "error_detail": "collector_unhealthy:inbox_access_forbidden",
+        "run_id": "run-a18",
+        "occurrence_id": "occ-a18",
+        "collector_failure": {
+            "error_layer": "provider_inbox_dom",
+            "error_origin": "provider",
+            "http_status": 403,
+            "requested_route": "https://coconala.com/message",
+            "failed_endpoint": None,
+            "error_class": "inbox_access_forbidden",
+            "source_receipt_refs": ["coconala://receipt/a18-403"],
+        },
     }
+    assert "DO_NOT_COPY_SENTINEL" not in json.dumps(result)
+
+
+@pytest.mark.parametrize(
+    ("details", "blocker", "expected"),
+    [
+        (
+            {
+                "error_layer": "default_tab_helper",
+                "error_origin": "helper",
+                "http_status": 403,
+                "requested_route": "https://user:password@coconala.com/message?token=hidden#fragment",
+                "failed_endpoint": "http://127.0.0.1:9222/json/version?token=hidden",
+                "error_class": "helper_http_error",
+                "source_receipt_refs": ["coconala://receipt/helper-403"],
+                "helper_error": "Authorization: Bearer DO_NOT_COPY_SENTINEL",
+            },
+            "inbox_helper_http_error",
+            {
+                "error_layer": "default_tab_helper",
+                "error_origin": "helper",
+                "http_status": 403,
+                "requested_route": "https://coconala.com/message",
+                "failed_endpoint": None,
+                "error_class": "helper_http_error",
+                "source_receipt_refs": ["coconala://receipt/helper-403"],
+            },
+        ),
+        (
+            {
+                "helper_error": "DO_NOT_COPY_SENTINEL",
+                "requested_route": "https://attacker.invalid/path?token=hidden",
+                "source_receipt_refs": ["../../secret?token=hidden"],
+            },
+            "inbox_observation_unavailable",
+            {
+                "error_layer": "unknown",
+                "error_origin": "unknown",
+                "http_status": None,
+                "requested_route": None,
+                "failed_endpoint": None,
+                "error_class": "RuntimeError",
+                "source_receipt_refs": [],
+            },
+        ),
+    ],
+)
+def test_blocked_collector_failure_metadata_is_allowlisted_and_origin_is_not_guessed(
+        details, blocker, expected, tmp_path, monkeypatch):
+    monkeypatch.delenv("LIFE_MANAGER_RUN_ID", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID", raising=False)
+
+    class CollectorUnavailable(Adapter):
+        def observe_threads(self):
+            error = RuntimeError("collector_unhealthy:inbox_helper_http_error")
+            error.details = details
+            raise error
+
+        def classify_observation_error(self, _error):
+            return {"reason": blocker}
+
+    result = reply_kernel.run_wake(
+        adapter=CollectorUnavailable(), decide=lambda _context: {}, state_root=tmp_path,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["collector_failure"] == expected
+    assert "run_id" not in result
+    assert "occurrence_id" not in result
+    assert "DO_NOT_COPY_SENTINEL" not in json.dumps(result)
 
 
 def test_reply_effect_is_fenced_read_back_and_replay_zero(tmp_path):
