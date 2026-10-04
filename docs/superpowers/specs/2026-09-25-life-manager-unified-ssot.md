@@ -5623,3 +5623,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 18180857はTikTok案件、取引中・revision・正式納品false。旧19件の進捗を最新件数へ昇格しない。18223833は予算書案件、購入者本文に現状納品OKと納品完了処理の依頼があるが公式正式納品false。本文は別NPO案件の決算書調整も含むため承認scopeを予算書案件に限定して照合する。18250352は県提出書類案件、取引中・正式納品false。既存資料の受領、書類別整理と最終調整・役員変更情報の反映が残る。未確定数値や役員情報を捏造しない。
 - 隔離collectorはNPO2案件でinitial_requestのfeedbackを返すが、履歴にはrevision指示がある。既存decisionのfeedback SHAとは不一致。過去のrevisionをinitial_requestへ上書きせず、元history／既存artifact／購入者指示を照合する。local await_buyer_feedbackだけで現在の作業不要を証明しない。
 - 証拠state/coconala-a01-current-project-readback.json、coconala-a01-current-projects内snapshot／source receipt／history、mode600。次cursorはA03のNPO既存成果物の要件照合、予算書の承認scope・正式納品前提の確認。A01 historical18211957状態と全金融成果は未完。SelfBuildは最後、全goal未完。
+
+### 300. NPO案件のartifact・納品承認scopeと不足資料の照合
+
+- A03で18223833／18250352のcurrent ZIPを検証し、保存SHA一致／ZIP integrity PASSを確認。ただし両方は別法人の提出書類レビュー版であり、budget案件の正式納品物と同一scopeではない。18223833への別法人review送付自体は公式seller messageで確認でき、誤送信と断定しない。
+- 18223833の元予算書XLSXは現存、保存acceptance SHA一致。openpyxlで7sheet／12formulaを読み、構造検証PASS。公式seller送付message js-talkroomMessage-220802599に同名添付、buyer承認message js-talkroomMessage-222226516に予算書現状納品OK／納品完了処理依頼を確認する。公式添付bytes SHAの再照合と描画検証は未実施。approval本文には別法人の調整指示もあるため、budget承認を他法人書類へ拡張しない。正式納品・検収・精算未完。
+- 提出書類reviewは事業報告の実績原資料、監査情報、退任対象者の法的氏名・本人同一性、役員変更日付・決議の不足を明示する。review ZIPが壊れていないことは最終書類完了ではない。資料にない数字・会議・署名を作らない。購入者資料待ちは具体的な未取得入力として保持する。
+- 証拠state/coconala-a03-artifact-scope.json/mode600。既存project state／source／artifact変更0、client送信／正式納品0。次は予算書承認に結び付いた正式納品候補のowner・effect fence・公式readback前提を確認し、別法人の不足資料を既存受信履歴から照合する。A03全案件完了は未達、全goal未完、SelfBuildは最後。
