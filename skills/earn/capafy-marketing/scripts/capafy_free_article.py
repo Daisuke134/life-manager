@@ -135,6 +135,10 @@ def commit_and_push(landing_root: Path, relative_path: str, *, message: str, rem
     if cached != {str(path)}:
         raise ValueError("git index contains a non-publication target")
     soa._git(root, "commit", "-m", message)  # noqa: SLF001
+    # The landing repo has other writers (2026-10-02: a direct push to main made
+    # every later run fail non-fast-forward for three days). Replay our one
+    # commit on top of the remote before pushing; the worktree is clean here.
+    soa._git(root, "pull", "--rebase", remote, branch)  # noqa: SLF001
     commit = soa._git(root, "rev-parse", "HEAD")  # noqa: SLF001
     soa._git(root, "push", remote, f"HEAD:refs/heads/{branch}")  # noqa: SLF001
     return {"commit": commit, "pushed": True}
