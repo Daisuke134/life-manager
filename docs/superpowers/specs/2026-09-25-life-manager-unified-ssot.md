@@ -5,7 +5,9 @@
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 
 **次に行う作業と残作業の順序は、§217「実行順序と現在cursor」「残作業の実行表（未完のみ）」を読む。現在は実行番号3、次は4。旧A番号と過去の節にあるcursorは履歴参照であり、現在の実行順ではない。**
-詳細の正本は次の2つで、この文書は両者の統合・順序・現在cursorだけを持つ。
+**読み方：旧A番号の大小から完了状態を判断しない。残作業は実行番号3→4→5→…→53の51項目。本文の過去節にある「正本」「次の作業」「cursor」は、その観測時点の履歴であり、現在は§217の未完実行表だけを使う。**
+
+設計の詳細は次の資料を参照する。現在のTODO・実行順・状態の正本はこの文書の§217だけとする。
 
 - Foundation/全体: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`（Whole-ship handover / AGI addendum / Whole-ship remaining TODO）
 - Paid: `docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md` + `skills/earn/gig/TODO.md`（Canonical As-Is / To-Be snapshot）
@@ -4877,6 +4879,26 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 - 他担当の独立laneは並行可能だがprimaryのcursorとは分け、所有file/worktree/認証/state/外部effectを重ねない。現在番号より先の依存作業やmain/releaseを未受入のまま実行しない。
 
 SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、今回の優先順は最後に維持する。進行中の外部effectを中断/重複させない。
+
+#### 残作業の順番を短く読む
+
+下の範囲は実行表の要約であり、別のTODOではない。実行表を上から進め、完了済み行だけを除く。履歴IDは報告の主番号に使わない。
+
+| 実行番号 | この順に残っている作業 |
+|---|---|
+| 3→7 | Coconala：残制作→正式納品→検収→精算明細→銀行着金 |
+| 8→12 | Lancers／CrowdWorks：利用可能なaccount→未確定履歴→制作・納品・検収→精算・着金 |
+| 13→15 | Mercor：未確定履歴→正式提出・契約→精算・着金・実費 |
+| 16→19 | 応募の自然実行→確認メール・返信監視→メール不足の原因→失敗originの照合 |
+| 20→28 | 既存商品の公開・注文→Freelancer接続→未完の統合・反映・本人照合・inventory→自然実行→商品販売経路 |
+| 29→35 | Upwork追加境界→Fiverr導入・公開→注文の納品・精算・着金→実利益→商品改善 |
+| 36→43 | Writer→Affiliate設定・収益→Connector→Fundraiser→Investment→Cloud→TaskMarket |
+| 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
+| 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
+
+現在3の次の一手は、TikTok案件の公式履歴と送信台帳を照合できる読取修正を検証し、実送信数・納品不足を確定すること。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+
+今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
 #### 残作業の実行表（未完のみ）
 
