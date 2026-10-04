@@ -119,6 +119,24 @@ def test_receipt_separates_money_and_keeps_unobservable_mrr_unknown() -> None:
     assert receipt["sources"]["sales"]["freshness"] == "fresh"
 
 
+def test_receipt_counts_orders_from_zero_and_negative_revenue_rows() -> None:
+    module = load_module()
+    payloads = live_payloads()
+    payloads["seller_sales"]["data"] = {
+        "totalRevenue": 9.99,
+        "data": [
+            {"orders": 2, "revenue": 11.99, "refundAmount": 0},
+            {"orders": 3, "revenue": 0, "refundAmount": 0},
+            {"orders": -1, "revenue": -2.0, "refundAmount": 0},
+        ],
+    }
+
+    receipt = module.build_receipt(payloads, "2026-08-22T10:00:00Z")
+
+    assert receipt["orders"] == 4
+    assert receipt["money"]["gross_usd"] == "9.99"
+
+
 def test_failed_source_is_unknown_not_zero_and_receipt_is_degraded() -> None:
     module = load_module()
     payloads = live_payloads()

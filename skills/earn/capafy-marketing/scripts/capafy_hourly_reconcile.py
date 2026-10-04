@@ -160,7 +160,6 @@ def _seller_money(sales_payload: dict, ranking_payload: dict, statements_payload
         orders = sum(
             int(row.get("orders", 0) or 0)
             for row in rows
-            if Decimal(str(row.get("revenue", 0) or 0)) > 0
         )
         refunds = sum(Decimal(str(row.get("refundAmount", 0) or 0)) for row in rows)
         subscription_sales = sum(

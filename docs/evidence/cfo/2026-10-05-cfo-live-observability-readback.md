@@ -22,6 +22,18 @@ CFO全体のcloseは未達。source-complete ledgerのcursorはunified SSOT §87
 - 保存reportはhourly cadenceでありdaily CFO reportではない。daily自然run完了として数えない。
 - 01:08 JSTのcloud financial-report ownerは`resource_fifo_wait`・exit 75でprovider前にdeferし、receiptは無い。retry/restart/sendは行わない。
 
+## Capafy seller order-count readback — 2026-10-05 02:10 JST
+
+- Same-window read-only queries used 2026-09-04..2026-10-03 UTC. Seller `/app/sales/clickhouse/trend` returned 30 rows, gross USD 82.77, refunds USD 0, and source order sum 81. Its row-order subtotals by daily revenue sign were positive +68, zero +16, and negative -3; these sum to 81.
+- Unit-sales `/app/unit-sales/clickhouse/trend` returned 30 rows with total sales volume 81, free-trial count 53, and non-trial units 28. These units are not renamed as paid orders.
+- At read time `_seller_money()` filtered row orders to `revenue > 0`, yielding 68; `_window_totals()` sums all rows. `capafy_company_receipt` renders the root receipt's `orders` field, so the filter undercounts a user-visible count. Source correction contract: sum all seller `orders` rows while keeping revenue/refund/unit fields unchanged.
+- This was a read-only provider response; no raw row, credential, account identifier, state, ledger, Telegram delivery, retry, or release mutation occurred. `crwl` retrieved only the Capafy app shell, so the exact contract here is grounded in observed API fields and existing same-window unit-sales behavior, not a fetched prose definition.
+
+## Candidate source correction — 2026-10-05
+
+- Candidate code removes the revenue-sign filter from `_seller_money()` so the root `orders` field sums every seller row. Regression test `test_receipt_counts_orders_from_zero_and_negative_revenue_rows` covers positive, zero, and negative revenue rows while keeping gross unchanged. The initial RED case expected 9 and got 2; the normalized final fixture uses source counts `2 + 3 - 1 = 4` and gross `$9.99`.
+- `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest skills/earn/capafy-marketing/tests/test_capafy_hourly_reconcile.py -q` passes 42 tests. This source/test correction remains candidate-branch-only and is not production-loaded; no natural owner run, report delivery, or provider mutation was performed.
+
 ## Source cursorと次の順序
 
 - 別mobile candidate worktree/branch `feat/lm-mobile-metrics-20261003`のread-only source audit（observed worktree HEAD `1f045eff3d27cfec3945cd8d2dff64f06928c834`）では、candidate側の`business_outcomes.py`がRevenueCat currencyを保存し、exact `revenue_definition` objectが不足すると確認した。lease record HEAD `9be7a8a368f8edab9b1937d0c19cd9253d891b94`とは不一致であり、現CFO branch/productionへの反映は未確認。JSONL round-trip testも不足。mobile worktreeは編集しない。ASC report row SKUとexisting crosswalkの不一致が解決するまで、対象proceedsはunattributed・B7外に置く。
