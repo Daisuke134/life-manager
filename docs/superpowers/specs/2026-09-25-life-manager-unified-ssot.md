@@ -5688,3 +5688,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - latest main b7fb由来の専用worktree／branch fix/crowdworks-confirmation-replay-20261004、lease owner codex-money-printer。2filesのみ変更し6785a93a62をpush済み。確認依頼前preparedからの初回操作は維持し、confirmation_requestedは未確定の送信fenceとして再呼出しを拒否、DOMに本文が見えない場合のresume_requiredを返さない。購入者の正確な受領回答のofficial receipt経路は維持する。
 - 送信例外後の2回目dispatch、本文非表示からのresume、直接mutateの2回目送信を旧sourceで3FAIL再現→GREEN。関連90／CrowdWorks全259／adapter15／contract14loops178jobs／OSS／diff PASS。required runtime suiteはtool session26548で検証中、fresh独立review／PR／main／本番反映は未達。
 - private state/crowdworks-confirmation-replay-source-proof.json/mode600へcommit／RED／GREEN／残gateを保存。production sender／auth／profile／価格／旧fence変更0。修正後も古い未確定confirmationはofficial coverage／server／buyer receiptで照合し、永久に完了扱いしたり既存claimを解放したりしない。全goal未完、SelfBuildは最後。親model／effort／usageは観測不能、API相当費用は算定不能。
+
+### 310. CrowdWorks source検証のHEAD競合を訂正して再suite
+
+- §309 required runtime初回は759tests／159.828s／failure1。pressure sparse release fixtureが6785a93aをonly locallyとして拒否する。primaryがsuite中にHEADをcommitした手順競合であり、exit0に見える末尾tailをsuite成功と扱わずFAILEDを確認する。
+- git ls-remoteでsource remote HEAD6785a93a625531739ff6678bf13e03a812e8cdbbを確認し、テストやremote gateを変更せずpressure suite7／4.518s PASS。同HEADの全runtime suiteをset-eで再実行、tool session24454。source HEADを検証中に変更しない。初回failureをprivate source proofに保持する。
+- source branch2files／clean／pushed、関連90・provider259・adapter15・contract14／178・OSSは§309の実測PASS。全runtime recheck terminalと独立fresh review、PR／CI／main／immutable／自然運用での再送0は未達。旧provider receipt／claim不足と全金融gateは未完。SelfBuildは最後、全goal未完。
