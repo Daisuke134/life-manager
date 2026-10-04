@@ -4903,7 +4903,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
   - [ ] A21.7 直接CDPで本人accountを照合する。
   - [ ] A21.8 送信経路を呼ばずにproposals／contracts／catalog／payment inventoryを読み、公式証拠を保存する。
 - [ ] A22 Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。
-- [ ] A23 利用可能な商品販売経路を接続する。適用外は理由付きN/Aとする。
+- [ ] A23 利用可能な商品販売経路を接続する。§377で7platformの公式route／existing source／own operational proofを分離。UpworkCatalog/FiverrGig支持、Coco/Lancers現公開確認不足、FreelancerServices概念とsellercatalogを混ぜず、CW/Mercorstorefront未確認。適用外は証明付きN/Aのみ。
 - [ ] A24 FiverrをMeta Loop経由で導入し、公式出品を確認する。
 - [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。
 - [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。
@@ -6337,3 +6337,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - A21Upworkはregisteredupwork:dais／port9233／UUID空／reachablefalse／holder空、profile gig-upwork存在、defaultvault不在。mainの_live_profile_ownerをread-onlyで使いSingletonLock＋生存＋exactprofile command markerを確認した結果ownerPID無し。登録・directory存在はsessionvalidityやAPIinventoryの証明でない。activeUpworkregistryjob0、source3851b5e3のworktreeclean／ownupstreamを再確認、未mainのまま。
 - private upwork-a21-current-owner-route-20261004.jsonに最新endpoint/profile/processとsourceancestor不足を保存。credential値／cookie／useraccountdetail出力0。unfinishedsourceをprodprofileへ向けず、observerがproposal等へ入る実行経路を呼ばない。user成果の自然account／contract／catalog／payment readbackは未完。
 - 最小次手はA20の正規account-boundauth＋inspectauthorization＋registeredowner path、A21の既存source統合条件とmain由来owner/session接続。正常なreceipt無しに行動許可storeへ承認を書き足さない。独立A23の商品販売経路・catalog適用可否は公開一次資料／existing sourceで進められる。A20/A21未完、次実行可能cursorA23 readonlyroute比較／全goalactive／SelfBuild最後。
+
+### 377. A23商品販売routeの公式比較と接続受入の具体化
+
+- PublicreadonlyでUpwork Project Catalog公式creator文書、Fiverr Create Gig／Gigpackages文書を取得。Upworkは固定scope・納品物・tier・delivery/revision・client requirements・審査を定義、Fiverrもscope/package terms／client requirements／category minimumsを定義する。platform商品化経路の存在は確認できるが、我々のaccount公開／受注／精算／利益は未証明。公式sourceURLはprivatecomparison artifactに記録、出品／価格／paywall／投稿変更0。
+- Upwork existing parse_catalogはapproved/review/draftsとprojecttitle/views/ordersを取得、403は数値Noneを保持する。order数>0でもcatalog_order_identity_pendingへ留め、order/contractIDとfunded authorizationを捏造しない。A21endpoint未到達のためauthcatalog getterは実行0。
+- Lancers storefront_offerのinspect／apply／create-packageは分離、fallbackcatalog作成とTelegramreportはapply時だけ。今回CLI実行0。公開/menu/browseはhuman security checkでmetadata未取得。source存在と自然公開/注文の現証拠を分ける。
+- CrowdWorks公式home／guideはclient側仕事依頼の導線を確認するが、商品storefront不存在を網羅証明しない。Mercorも既存applications/contracts経路とstorefrontを区別し後者unverified。Freelancer公式Services integrationはintegration類型であり我々のsellercatalog公開証明ではない。CW/Mercorを未確認からN/Aへ変更しない。
+- 7row privatecomparison state/marketplace-a23-product-route-comparison-20261004.json SHA955d76a5d8018e9426818c02867bb6a12d72beea783e4e35c0fc1f81f2ee0358、mode600。Coco4409818現403と古いcontract、Lancershuman-required、Freelancerauth/inspect/owner不足、Upworkregistered-but-down、FiverrMeta導入予定を別stateで保持。publicsource取得6docs／sourcefile参照、provider account操作0。
+- A23接続の残受入はsameowner認証済catalogのproductID/version/publicURL/status→lead/order/contractID→fundedscope/clientrequirements→制作/納品/検収→fee/refund/settlement/payout/actualcostの同期間join。掲載やmarketing実例を我々の販売・利益へ変換しない。反復margin／作業量／buyerfeedbackをA26/A27へ戻し、少数標本の勝者や因果効果としない。固定scopeはplatform基準や実需要/実費の制約を受けるので持続利益の保証としない。
+- A23readonlyroute整理は進捗、商品販売接続／A24Fiverr正式導入は未完。次はA24のaccount/owner/permissionとMeta既存導入経路をread-onlyで確認し、未認証／未知sourceを稼働済みへしない。A18.2の統合条件やA20/21authownerを迂回しない。全goalactive／SelfBuild最後。
