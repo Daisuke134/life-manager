@@ -6201,3 +6201,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - canonical admissionDBをmode=roでreadし、native95587はclaimed／unknown1、actual30327はreleased／unknown0。10/02保存のactual pre-effect receiptは既に終了したactualの証拠であり、nativeの解除条件を満たさない。新解除・DBwrite・providerquery0。
 - 初回script直実行はpermission denied、managed interpreterで--help確認へ修正。初回DBのtilde未expandはopen失敗、mode=roなので新DB未作成、source default pathをexpandしてcanonical DBへread。両失敗をcurrent boundary proofへ保持。
 - state/crowdworks-a10-native95587-current-boundary.jsonにrun／SHA／現row状態／前条件不足を保存。次はnative occurrenceのactual executor結合証拠が得られる時だけ該当windowのofficial coverageへ進む。全件proposal scan／既存actual再resolve／fence解除は行わない。独立するA13以降へ進める。全goalactive／SelfBuild最後。
+
+### 361. A13現行occurrence境界と公式inventory読取の分担
+
+- primaryはcanonical admission-v2.sqlite3をmode=roで再確認。旧App18d6f9cb5bdaef98-33812とReply18d668a6643dc360-61324はともにclaimed／effect_unknown1。exact local events6件を限定照合。Reply61324の旧passは別claim26713を参照し、actual66602はexit1／official_readback_ref無し。成功reportや別claimからfence解除しない。
+- private evidence state/mercor-a13-current-occurrence-boundary-20261004.json、SHA c51c2740134d8ae5c9e3cc536d5979e24c41a11c943c618fec0ecee5166d48fc、mode600。provider effect／resolve0。
+- Sol6.1 medium read-only担当へ公式applications／contractsのみの観測を渡し、primaryは同profileを操作しない。既存readerは単発GETでpagination無し、全5endpointのkey存在判定は全件coverageの証明ではない。Firebase既存DB存在・有効期限を先行確認し、refresh／login／notificationclick／statewriteは禁止。registered mercor:dais51887／UUID5c6bfeab-a3d2-4ca7-8402-6b1848d8c8e8は実行直前再確認、guard下の既存target readonly評価。
+- cursorはA13。公式取得件数・pagination・exact occurrenceへのbindingを確認し、欠損は保持。A14正式提出／A15精算・着金・実費は未完、SelfBuildはA43以降。全goalactive。
