@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks confirmation_requested再送条件の修正検証・独立review。§309の専用source branchを進め、既存未確定記録の公式照合も保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks確認依頼再送修正のmain1a7 immutable／official target load／自然run確認。§312でsource review ship・PR6552全10CI／main統合。既存release owner17541／cut17715を追い、旧receipt／claim照合も保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5703,3 +5703,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - source issue6551に修正方向を記録しmaintainer+1、PR6552を一度作成。HEAD6785a93aでGitHub CI進行中。PR／main／immutable／自然runのsource uptakeと再送0はまだ未完。actual reviewer model／effort／usageは観測不能、要求値gpt-5.6-sol／highと区別する。API相当費用は算定不能。
 - Mobile remote HEAD1f045eff3dのowner spec／plan／evidenceを確認する。Agreement active／pendingfalse／24appsとofficial subscriptionによるJPY4250歴史proceeds mappingが記録され、旧唯一のAgreement blockerを現在TODOから除く。Financial Manager unassigned partial coverage欠陥と本番import／official deliveryが現gate。primaryのApple再問い合わせ／担当branch変更0。
 - GitHub issue6547 OPEN／reaction無しを確認後、userの通常技術判断委任とgithub maintainer権限を根拠にprimaryが+1 reaction543495973を追加し公式readback確認。CONTRIBUTINGのdirection承認gateを閉じ、既存ownerへAGMSG共有する。これは修正方向だけの技術承認で、Apple法務・本番金融成果・local sentの受領証明を代替しない。AGMSG送信だけでowner着手や修正完了を主張しない。全goal未完、SelfBuildは最後。
+
+### 312. CrowdWorks再送修正のmain統合と自然release ownerとの排他
+
+- PR6552 HEAD6785a93aはfresh review ship／指摘なし／parent必要検証PASS後、GitHub全10checks PASSをexact HEADで確認してadmin squash mergeする。merged2026-10-04T01:18:35Z／main1a7a8e2faf1eb34931f05287d846fc036bc9eec0。fresh fetch／origin main一致。source受入を本番再送0や旧receipt解決へ拡張しない。
+- 初回release boundaryではcurrent／target b7fb、reply loaded-idle、visible cut／apply handle無しを確認。primaryがcurrent immutable controllerからorigin/main1a7 complete cutを発行した時点では別cut lockが成立しexit1／作用0。directory lockをFD lockと同一視せず、既存cut codeとlock/pid、actual processを追加診断する。
+- lockはdirectory／pid17715。actual cut17715／parent17541とchild18581、既存reconciler17541／parent17485はlive。shell option付きargvもscript位置で読むscanへ訂正し、コマンド本文のsubstringをPIDと誤認しない。新自然ownerが同時に進むためprimaryは重複build／apply／killをしない。次はsame handlesのterminal→main1a7 complete immutable manifest／blob→reply actual loaded argv／SHA→次自然runで確認依頼再送0とunknown保持。
+- private source proofとstate/crowdworks-confirmation-cut-lock-readback.jsonへCI／merge／lock形式／PID／次操作を保存。Mobile現gateは§217／311、旧provider送信・fence解放0。全金融成果／全goal未完、SelfBuildは最後。API相当費用は使用量観測不能で算定不可。
