@@ -6545,3 +6545,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 18223833の①予算書はbuyer222226516の限定了承あり。対象はseller220975752のv2で、local保存予算v1/現v16bとは同一性未証明。delivery内v2候補0、v16bには予算book無し。公式添付内容hashを照合する。②別法人NPOはv16b review提出後buyer発言0、R6/R7事業報告、監査情報、役員の正式表記/本人同一性、実決議日/出席者/変更確定情報等が未充足。①了承を②/v16b/全取引へ流用しない。
 - 18250352のv15はR6/R7事業報告、新任2名/退任2名の確定情報・本人同一性・実決議/議事録反映が未充足。7書類別整理と指定メール送付のscopeもあり、seller送付宣言のみで7書類receipt完了としない。後続buyer返信0、原資料の追加受領と送付receiptを既存記録から照合する。日時空欄許可を実役員変更の完了へ拡張しない。
 - 18211957は公式取引完了でopen制作対象外。全3openのlocal acceptance PASSは限定artifact reviewであり、現全要件充足/buyer承認/正式納品/精算の証明ではない。番号3では既存資料/receipt不足の安全なreadから進め、架空の事業実績/氏名/署名/決議を埋めない。
+
+
+### 401. 番号3の既存資料診断、予算v2公式読取へ進行
+
+- read-only担当はopen3案件の既存source/delivery/zipと既存private receiptを必要範囲で照合。TikTok台帳は326行/2列の宛先一覧で、個別送信との一対一対応は未成立。既存countreadbackの19/281や20/280、本文不可の受信箱readbackを現在実送信数へ昇格しない。実数/残数はunknown。
+- budget①v2は案件内delivery外とzip内部を含む調査範囲で保存候補0。official seller220975752の添付referenceは取得済みだがhref欠落。registered browser ownerが当該添付だけを限定read/downloadし、私的bytes/hashと了承対象の対応を取得する。送信/upload/formal/authcookie変更は行わない。
+- NPO②不足を解消する新原資料は未発見。監査docx候補は別法人①で②へ流用不可、事業報告候補2件は対象法人/年度/実績対応が未成立。18250352の調査sourceに事業報告/監査候補0。全accountに資料が存在しないとは断定せず、追加受領確認を次の診断に残す。
+- 私的packet `execution3-readonly-gap-diagnostic.json`（§399同dir、mode600）、SHA256 `66ef84ed24e63c07b67163350977432eb4bae4316a1afb4987f2383cad0dd6c1`。外部作用/制作/activeprojectstate変更0。既受領財務4表/名簿/議事録の対応整理は可能だが、最終提出版を原資料不足のまま完成扱いしない。現在3未完→次4、順序変更無し。
