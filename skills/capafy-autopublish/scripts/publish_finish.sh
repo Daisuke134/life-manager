@@ -335,6 +335,15 @@ case "$POST_CP2_STATUS" in
       --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
       || die "official CP1 model/version changed before review submission"
   fi
+  # 2026-10-04: the 2026-09-29 Hook Lab reprice (agent 8123079349) was approved
+  # and went live still carrying the OLD subscription prices -- nothing here
+  # ever compared the saved billing rows to LISTING.md's pricing table. Same
+  # fail-closed pattern as verify_cp1_model.py above, one gate earlier than
+  # FINAL VERIFY (which also never checks price -- see its step [7] below).
+  PRICING_CHECK_RC=0
+  PRICING_CHECK_OUT="$(python3 "$AUTO/scripts/verify_pricing.py" --agent-id "$ID" --listing "$LISTING" 2>&1)" || PRICING_CHECK_RC=$?
+  echo "$PRICING_CHECK_OUT"
+  [ "$PRICING_CHECK_RC" -eq 0 ] || die "price_mismatch: saved billing rows do not match LISTING.md pricing table before review submission"
   [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
     || die "Capafy latest version changed before review submission"
   if [ -z "$PUBLISH_REVIEW_URL" ]; then
