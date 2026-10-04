@@ -5717,3 +5717,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 同17541／17715のps missingとcut lock不在を確認。その後newreconciler33323／parent33270が同main1a7のimmutable scriptからlive／elapsed00:32→02:33。既存self-handoffを実経路で観測し、primary重複apply／wake／kill0。
 - statusのinstalled SHAはplist由来であり実loaded argvと混同しない。current bin/launchctl-safe print gui501/ai.anicca.crowdworks-revenue-replyのrc0／arguments3要素は旧b7fb/bin/lm-loop-run、対象owner、旧b7fbroot。新main currentと不一致。次はnew33323のterminalとofficial targetload1a7、自然runとmarker／source readbackの再送0。
 - canonical release-reconciler stateの最後のterminalは旧b7fb／error／changed1・skipped175・errors2で、新run成功と結合しない。proof state/crowdworks-confirmation-loaded-argv.jsonとprivate source proofを更新。whole fleet／旧金融receipt／全goal未完、SelfBuildは最後。
+
+### 314. CrowdWorks残3claimのnative wake／actual queued occurrence対応
+
+- 前turnはmain1a7 complete immutableとofficial loaded旧b7を分離して記録。本turn同reconciler33323はelapsed7:52→9:05でlive、target main1a7 owners-log rowは未取得。重複apply／wake／kill0。
+- A10のclaim_run_unavailable3件をadmission-v2 SQLite mode=roと全retained owner eventsで診断する。DBはclaimed／effect_unknown1で、executor run／claimed_at列を持たずqueued_atのみ。queued時刻を実行時刻にしない。
+- native18d975d3…94029のreportはactual18d89730…79135をclaim、native18d9944a…16828はactual18d8a964…14083、native18da9600…95587はactual18d98659…30327をclaimする。nativeのexecuteとreportは存在するが、そのnative occurrence自身をclaimした証拠ではない。前2runはpass、後1runはfailだが、いずれもeffect unknownで未応募証明ではない。
+- 3native runのloop-tmp host-admission／entrypoint-result／summaryはmissing。保存されていないreceiptを作り直さず、実際のqueued IDに結び付いた応募receiptとclaim履歴を照合する。private state/crowdworks-a10-missing-claim-boundary.json/mode600へ対応と次操作を保存。fence解除／provider送信0、全goal未完、SelfBuildは最後。
