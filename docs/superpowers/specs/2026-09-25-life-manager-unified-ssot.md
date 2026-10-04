@@ -4878,7 +4878,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A05 Coconala検収の公式記録を確認する。
 - [ ] A06 Coconala支払・手数料・精算明細を取得する。§358で公式全件CSVの取得provenanceを限定SHIP、28行／27一意／duplicate1組。gross／fee／net定義・paymentID・bank・cost未確認、全finance完了ではない。
 - [ ] A07 Coconala payout／銀行着金を照合する。
-- [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§301のfresh公式金融pageはHTTP405／human_verification true、明細unavailable。正規人間検証が必要。
+- [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§359で現行registered9227／自己tabを再確認しHTTP405／Human Verification、明細unavailable。正規人間検証が必要。
 - [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
 - [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302のcensusはreply219／application5。§308でreply219／application5の既存readonly照合はterminal／解除proof0。契約receipt・claim不足・form確認依頼の公式bindingを継続する。旧18と混同しない。
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
@@ -6185,3 +6185,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 同fresh金融reviewerの追加証拠判定は取得provenance前HOLD解消／限定SHIP。target／context／frame、begin／completed／guidfile／sizeSHAの5点を一次ファイルで確認。原本データの独立全履歴網羅性、販売額／fee／net／銀行着金／profitはHOLD。取得証拠のための再exportは不要。
 - 台帳・CFOwrite・reconcile・振込申請・銀行設定・正式納品・client送信0、owncontextとguard解放確認。oldCSV／receipt変更無し。newrunreceipt／cleanup-readback／CSVとcsv-review-scope.jsonはprivate source refs。CFOへsource packetをsend済みだが応答未取得、送信をimport・着手・財務join成功と扱わない。
 - A06正本へpartial取得結果を追記。次はduplicateの正当性／grossfee定義／paymentとbank receipt不足を財務ownerに渡し、他platformの独立未完へ進む。全goalactive／SelfBuild最後。
+
+### 359. Lancers現行human-required／CrowdWorks既存receiptとhost容量
+
+- primaryはA08、Sol6.1 medium read-only workerはA10旧claimの限定local監査を並行。CrowdWorks native→actual3組のexact receiptに新coverage無し。actual30327の10/02保存pre-effect receiptは既存でnative95587 bindingが無く、ファイル存在をresolve成立へ昇格しない。native／actual6IDのapplication receipt一致0、解除0。別reply自然再送0proofを流用しない。
+- 調査途中heredoc ENOSPC、df free184MiB。自分の重いtest／cut／npm処理は観測無し。既存disk-cleanup skillを読み、currentimmutable HostDiskGovernorのdiscovered cache subset（daily-driver／npx）だけを同host lock下でsweep、open2で全保持／reclaimed0／errors0／protecteddeletions0。updater signal／release／Trash／auth／protectedstate削除0。初回dynamic importはhost_inventory searchpath不足で失敗（mutation0）、依存場所を確認して既存modulepathへ補正。governor ledgerのrotationを避けwrite_receiptfalse、private JSON別保存。
+- 後続free435MiBは別の自然変化で、自cleanupの回復成果ではない。11GiB recovery floor未達。重いbuild／install／fullsuiteを増やさず、他growth／CFO ownerへ容量境界をAGMSG共有。source／CFO／personal dataを清掃対象へ広げない。
+- Lancers限定readはregistered lancers:dais／127.0.0.1:9227／profileownership／guard下で自己pageを作りGET payment、targetownerをclaim/release。HTTP405／strictorigin一致／loginpath無し／Human Verificationあり。financecontainer／table0はchallenge観測であり金融0の証拠でない。selftabclose／ownerrelease、challenge／auth／提出／返信／決済／CFOwrite0。
+- evidence state/lancers-a08-refresh-20261004/official-payment-metadata.json（SHA44d26494d4a28c4cf760fd0a6150dee5ad49e3bf3faec480a92f3825c65ed3ee）、host-capacity-a08-boundary-20261004.json、crowdworks-a10-existing-receipt-scope-20261004.json。次はLancers正規確認後の再read、CrowdWorks対象native95587に結ぶ公式coverageをowner非競合時resolve無しで取得。外部待ちは保持して他独立未完へ進む。全goalactive／SelfBuild最後。
