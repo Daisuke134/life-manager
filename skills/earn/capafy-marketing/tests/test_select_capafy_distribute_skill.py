@@ -84,3 +84,26 @@ def test_select_for_date_is_deterministic_for_the_same_date() -> None:
     first = module.select_for_date(PRODUCTS, None, dt.date(2026, 9, 29))
     second = module.select_for_date(PRODUCTS, None, dt.date(2026, 9, 29))
     assert first == second
+
+
+def test_select_rotates_only_online_earners_when_any_exist() -> None:
+    """2026-10-04: the rotation promoted every configured skill in turn, so
+    0-order and losing agents (e.g. a review_rejected one at -$16.74) got as many
+    articles as the sellers. Promote only online skills with 30d profit > 0."""
+    module = load_module()
+    analytics = analytics_with({
+        "111": {"profit_30d_actual_usd": "19.57", "status": "online"},
+        "222": {"profit_30d_actual_usd": "-16.74", "status": "review_rejected"},
+        "333": {"profit_30d_actual_usd": "0.00", "status": "online"},
+    })
+    picks = {module.select_for_date(PRODUCTS, analytics, dt.date(2026, 10, 4), slot=s)["capafy_skill"]
+             for s in range(8)}
+    assert picks == {"hook-lab"}
+
+
+def test_select_falls_back_to_full_rotation_without_earners() -> None:
+    module = load_module()
+    analytics = analytics_with({"111": {"profit_30d_actual_usd": "0.00", "status": "online"}})
+    picks = {module.select_for_date(PRODUCTS, analytics, dt.date(2026, 10, 4), slot=s)["capafy_skill"]
+             for s in range(8)}
+    assert picks == {"hook-lab", "slide-maker", "tiktok-script-pro"}

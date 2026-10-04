@@ -256,3 +256,40 @@ def test_publish_raises_when_deploy_never_confirms(tmp_path: Path) -> None:
             retry_interval_seconds=0,
             fetch=never_fetch,
         )
+
+
+def test_publish_pushes_when_remote_moved_ahead(tmp_path: Path) -> None:
+    """2026-10-02: another writer pushed to the landing repo's main; every later
+    run died with `! [rejected] HEAD -> main (non-fast-forward)` and no article
+    went live for three days. The publish must sync with the remote first."""
+    module = load()
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    landing = tmp_path / "landing"
+    _init_repo(landing)
+    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=landing, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "main"], cwd=landing, check=True)
+
+    other = tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    subprocess.run(["git", "config", "user.email", "o@example.com"], cwd=other, check=True)
+    subprocess.run(["git", "config", "user.name", "Other"], cwd=other, check=True)
+    (other / "OTHER.md").write_text("moved ahead\n", encoding="utf-8")
+    subprocess.run(["git", "add", "OTHER.md"], cwd=other, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "other writer"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "main"], cwd=other, check=True)
+
+    draft = tmp_path / "article-en.md"
+    draft.write_text(_draft(), encoding="utf-8")
+    url = "https://aniccaai.com/blog/capafy-slide-maker-2026-10-04"
+    result = module.publish(
+        draft_path=draft, slug="capafy-slide-maker-2026-10-04", cta_url=CTA_URL,
+        landing_root=landing, remote="origin", branch="main", base_url="https://aniccaai.com",
+        date="2026-10-04", retries=1,
+        fetch=lambda u: f"<h1>Slide Maker turns any outline into a deck</h1> ... {CTA_URL}",
+    )
+    assert result["status"] == "published"
+    log = subprocess.run(["git", "log", "--oneline", "main"], cwd=remote, check=True,
+                         text=True, capture_output=True).stdout
+    assert "other writer" in log
+    assert "publish free article capafy-slide-maker-2026-10-04" in log
