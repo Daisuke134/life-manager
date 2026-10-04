@@ -6398,3 +6398,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 実測でunknown0禁止に触れる自己所有source不具合のため、未統合sourceを無制限に増やす改善ではなく必要bounded修正A28.1へ進む。最新main1a7専用worktree .worktrees/writer-financial-metrics-unknown-20261004／branch fix/writer-financial-metrics-unknown-20261004を作成、parentSSOT所有、finiteimplementation requested6-luna/maxがlive。production所有はmoney_sync/money_ledger/必要learning_workerの3file＋関連testsのみ。No oldmodel fallback、native threadlimit下でも既存CLIで有限run、no newtool/framework。
 - 検証はmissingreceipts/partialfee/正当裏付けpositiveとexplicitzero/nonfinancial計測/negativeclampに加えlegacy471ゼロのreader再利用を防ぐこと。first24h window/tieverified優先の旧記録をproductionDB修正せず扱い、正当に測れた全値までunknownへ落とす狭い代用品にしない。focusedRED→minimalGREEN/必要checks/commitpushremote→独立review、本番状態・provider・auth・ledger・PR/main0。
 - 新sourceのDoneを取引成果に置換せずA28.2は条件成立後mainimmutable/自然読取/公式receipt/費用/精算/着金/商業bindingを閉じる。A25–27の未完と§328main条件保持、currentcursorA28.1／全goalactive／SelfBuild最後。
+
+### 383. A28.1実装準備の未checkout／Git metadata権限を解消
+
+- parent作成のno-checkout worktreeはsparse設定だけではindex未展開、cached7920D／対象source files不在／untracked0だった。Luna実装はこれを破壊的削除としてcommitせず止めた。parentが変更未着手を確認しgit read-tree -mu HEADで必要sourceを展開、HEAD1a7／ownbranch／clean確認。共有checkout／別owner変更を復元・上書きしない。
+- 初回CLIworkspacewrite sandboxがlinkedworktree共通Git metadataのlock書込みを拒否。原run95848はauthoritative terminal exit0だがsemanticblocked、sourceedits/tests0を保存。self報告Telegramはtelethon不在で未送信、parent通常senderから通知するため重複auth/installをしない。source修正成功や本番失敗へ変換しない。
+- parentはcanonicalworktree-leaseでownscopeのmanagedleaseを取得（ownercodex-root／taskA28-P2-writer-financial-learning-metrics-unknown／base1a7／TTL24h）。既に終了した同implementationcontextを通常実装権限でresume、requested6-luna/max維持、newhandle37950のthread/turnstarted／liveを確認。観測timeoutだけで別runを作らず、同一終了証拠と具体準備失敗を根拠に再開。
+- private writer-financial-metrics-source-20261004/preparation-recovery.jsonとoriginal/resumeevents logsを保持。実装scopeはwriter3productionfiles＋関連tests、temporaryfixtures only、actualDB/ledger/provider/auth/source他owner／PRmain0。RED/GREEN/requiredsourcechecks/commitpush/freshreviewは未完、source/file presenceだけで修復完了としない。currentcursorA28.1／全goalactive／SelfBuild最後。
