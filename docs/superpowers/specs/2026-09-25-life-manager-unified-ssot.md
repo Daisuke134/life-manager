@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks確認依頼再送修正のmain1a7 immutable／official target load／自然run確認。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、target load／自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks確認依頼再送修正のmain1a7 immutable／official target load／自然run確認。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5724,3 +5724,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - A10のclaim_run_unavailable3件をadmission-v2 SQLite mode=roと全retained owner eventsで診断する。DBはclaimed／effect_unknown1で、executor run／claimed_at列を持たずqueued_atのみ。queued時刻を実行時刻にしない。
 - native18d975d3…94029のreportはactual18d89730…79135をclaim、native18d9944a…16828はactual18d8a964…14083、native18da9600…95587はactual18d98659…30327をclaimする。nativeのexecuteとreportは存在するが、そのnative occurrence自身をclaimした証拠ではない。前2runはpass、後1runはfailだが、いずれもeffect unknownで未応募証明ではない。
 - 3native runのloop-tmp host-admission／entrypoint-result／summaryはmissing。保存されていないreceiptを作り直さず、実際のqueued IDに結び付いた応募receiptとclaim履歴を照合する。private state/crowdworks-a10-missing-claim-boundary.json/mode600へ対応と次操作を保存。fence解除／provider送信0、全goal未完、SelfBuildは最後。
+
+### 315. CrowdWorks返信ownerのofficial new loaded argvと自然run待ち
+
+- 新main1a7 owners-logにcrowdworks-revenue-reply changed1／skipped0／01:35:06Zが成立。current bin/launchctl-safe printのrc0で実arguments3要素がnew1a7/bin/lm-loop-run、crowdworks-revenue-reply、new1a7 rootと完全一致。immutable／plist installed／実loadedを分けて検証し、旧b7 loaded待ちを閉じる。
+- registryとinstalled plistはStartInterval300で一致。new SHAのイベントはinstall／plan／passのみで、provider receipt無し／effect unknown。installを自然runや再送0の証明にしない。primary manualwake／provider send／旧fence解除0。global reconciler33323は同handle elapsed10:44→12:23でlive、whole fleet terminalは未達。
+- state/crowdworks-confirmation-loaded-natural-readback.json/mode600にloaded argv／new eventsを保存する。A10残3actual queued IDのapplication receiptsは各0だが、local receipt無しを未応募と扱わない。次は新source自然execute→report／occurrence marker／thread pending resultとform receipt保存状態を結合し、未確定再送抑止とunknown保持を実観測する。全金融成果／全goal未完、SelfBuildは最後。
