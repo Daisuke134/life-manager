@@ -4,8 +4,8 @@
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 
-**次に行う作業と残作業の順序は、§217「実行順序と現在cursor」「残作業の実行表（未完のみ）」を読む。現在は実行番号3、次は4。旧A番号と過去の節にあるcursorは履歴参照であり、現在の実行順ではない。**
-**読み方：旧A番号の大小から完了状態を判断しない。残作業は実行番号3→4→5→…→53の51項目。本文の過去節にある「正本」「次の作業」「cursor」は、その観測時点の履歴であり、現在は§217の未完実行表だけを使う。**
+**現在の優先順位は内部loop復旧。§217の実行順1→14を正本とし、現在1、次2。Coconalaの外部納品/資料追跡は保留で、完了扱いではない。**
+**読み方：旧A番号・旧3〜53は履歴照合用。優先順位変更前の未完業務成果は§464に保持する。過去節のcursorを現在位置として使わない。**
 
 設計の詳細は次の資料を参照する。現在のTODO・実行順・状態の正本はこの文書の§217だけとする。
 
@@ -4867,104 +4867,43 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 - Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。TikTok案件18180857の旧観測は19 verified unique sends/残281、品質・納品条件未達でpending。Webサイト案件18211957とは別であり、この件数を結合しない。loaded vaultと既定vaultを混同しない。
 - diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは§278で自然退役/officialabsent/doctor178unmanaged0・retiredpresent0・missing0/隔離replayを確認。全fleet健康・admission・disk、全14経済成果は別の未完条件。全14loops CFO unknownは未完。
 
-#### 実行順序と現在cursor（この節が順序の正本）
+#### 実行順序と現在cursor（内部loop優先の正本）
 
-実行番号は下表の最小の未完番号から順に進める。番号は完了後も付け直さない。旧A番号は過去の証拠と照合するIDであり、実行順や完了件数ではない。完了済み項目と親milestoneの重複行を実行表から除外し、未完の原子だけを並べる。
+Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証拠調査・NPO不足資料追跡を保留し、内部loopの稼働修復を先に進める。保留は完了ではない。既存の未完業務成果・受入条件は§464の引継ぎ履歴を参照し、売上・検収・着金・receipt未確認を消さない。
 
-**今の順番は3→4→5→6→7→…→53。A28に関する調査・修正履歴があっても、A01〜A27の完了を意味しない。** 残作業の報告と着手宣言は、この表の「実行番号・作業名・状態」で示す。旧A番号は必要な証拠照合にだけ使い、現在位置として説明しない。先の項目に部分的な調査結果があっても、その行の受入条件が未達なら未完のまま残す。
+- 変更理由：個別案件の外部待ちと長いprivate診断で全体の内部復旧を止めず、収益経路の実故障を先に直すというDaisの明示指示。
+- 旧順序：Coconalaの残納品条件3→正式納品4→検収5→精算6→着金7→他platform→fleet44→CFO→SelfBuild。
+- 新順序：下表1→2→…→14。現在cursor1、内部の実故障・観測不足をowner単位で確定する。次は2、根因のsource修正。SelfBuild/Evalは11〜14で最後。
+- 番号は今回の内部復旧の実行順。旧A番号・旧実行番号は履歴照合だけに使う。今回の保留・順序変更で完了にした業務成果は0。
+- 最小の安全な作業単位で、primaryが実測・状態・受入を所有する。source修正、release反映、自然実行、公式経済結果を区別する。容量待ち・human_required・effect_unknownを一律故障や成功0へ置換しない。
+- 外部待ちは不足物・最新観測・再開条件を残し、内部の独立修復を止めない。進行中の外部effectは中断/重複させない。user所有wallet資金移動、設計外broadcast、本人必須/KYCを自動化したと偽らない。
 
-- 現在cursor：実行番号3、Coconala残制作。次は実行番号4、正式納品。実行番号1はsource-only SHIP（§397）、番号2は最新残要件の意味照合PASS（§400）で完了し、未完表から除外。制作・納品・精算の完了とは分ける。
-- 順序変更理由：Daisの明示指示に従い、項目IDと実行順の混同、未完を残した説明なしの飛び先選択を解消する。進行中のsource修正1件を先に閉じて再調査/重複を防ぎ、以後はCoconala→marketplace→販売→残loop→CFO→SelfBuild/Evalを順に進める。
-- 旧運用：A01–46を掲げながら、外部待ちを残してA28.2.1を実行。新運用：Writer進行中原子を1、その後の残原子を2以降に連番化。最終4原子のSelfBuild/Evalは最後。
-- primaryは現在の番号を閉じてから次の番号へ移る。完了はその原子の受入条件の証拠で判定し、source PASSを本番/納品/精算/利益へ拡張しない。
-- 外部待ちでは現在cursorを維持し、原因・owner・不足物・最小再開条件を同じ行の記録へ追記する。説明なく後の番号を実行しない。順序を変える必要がある場合は、旧順序・新順序・理由・cursorをここへ先に更新し、会話でも変更を報告する。
-- 他担当の独立laneは並行可能だがprimaryのcursorとは分け、所有file/worktree/認証/state/外部effectを重ねない。現在番号より先の依存作業やmain/releaseを未受入のまま実行しない。
+#### 残作業の実行表（内部復旧・未完のみ）
 
-SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、今回の優先順は最後に維持する。進行中の外部effectを中断/重複させない。
+| 実行順 | 状態 | 残作業・受入条件 |
+|---|---|---|
+| 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。最新doctor PASS、health failed21/gap2のうち11はcapacity/FIFO defer、entrypoint exit1は8・exit75は2。これらを根因確認し、正常待機と修復対象を分ける。 |
+| 2 | 次 | 実故障のsource根因を最小修正。成功した兄弟経路と実caller/state/receiptを確認し、必要なRED→GREENを専用main由来worktreeで行う。 |
+| 3 | 待機 | 修正の受入・commit/push・対象統合条件を満たし、immutable releaseとowner限定load/admissionの不整合を解消。loaded argv/SHA・rollback・他owner非干渉を確認。 |
+| 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
+| 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
+| 6 | 待機 | Paid loopの依頼取得→制作→品質確認→許可された納品経路→結果取得の内部接続を確認。Coconala保留案件の追加手動納品/資料追跡は実行しない。 |
+| 7 | 待機 | storefrontの既存商品・公開状態・問い合わせ・注文・履行経路の内部接続を確認。platformにない販売機能を捏造せず、商品/注文/利益の対応を保つ。 |
+| 8 | 待機 | Writer/Affiliate/Connector/Fundraiserのbuild/sell/readback loopとdurable cursorを確認。外部setup待ちを保持し、同じ公開/申請/送信を重複しない。 |
+| 9 | 待機 | Investment/Cloud/TaskMarket/Agent Economyの内部実行・継続・精算/cost取得経路を確認。paper/live、資金投入、未確定効果を混ぜない。 |
+| 10 | 待機 | Mobile公式計測・RevenueCat/CFO接続と全loop財務集計を確認。担当laneと重複せず、同期間fee/refund/actualcost/settlement/payout、MRR/liquid/runwayの不足をUNKNOWNで残す。内部正常を実利益の証明にしない。 |
+| 11 | 最後 | SelfBuildの成功済み復旧を重複実行する不具合を修正。完了済み復旧結果をSHAへ結び、未完側だけ再試行。 |
+| 12 | 最後 | SelfBuildの必要な回帰検証・独立review・source統合を行う。 |
+| 13 | 最後 | SelfBuildの実owner別promotion/recoveryと再実行の重複なしを公式runtime記録へ結ぶ。 |
+| 14 | 最後 | Evalの品質・費用・利益を自然実行の前後で比較し、内部loop全体の完走条件と未解決external gateを最終readback。 |
 
-#### 残作業の順番を短く読む
+#### 並行実行と保留の扱い
 
-下の範囲は実行表の要約であり、別のTODOではない。実行表を上から進め、完了済み行だけを除く。履歴IDは報告の主番号に使わない。
+primaryはcurrent1の実runtime readbackとSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
-| 実行番号 | この順に残っている作業 |
-|---|---|
-| 3→7 | Coconala：残制作→正式納品→検収→精算明細→銀行着金 |
-| 8→12 | Lancers／CrowdWorks：利用可能なaccount→未確定履歴→制作・納品・検収→精算・着金 |
-| 13→15 | Mercor：未確定履歴→正式提出・契約→精算・着金・実費 |
-| 16→19 | 応募の自然実行→確認メール・返信監視→メール不足の原因→失敗originの照合 |
-| 20→28 | 既存商品の公開・注文→Freelancer接続→未完の統合・反映・本人照合・inventory→自然実行→商品販売経路 |
-| 29→35 | Upwork追加境界→Fiverr導入・公開→注文の納品・精算・着金→実利益→商品改善 |
-| 36→43 | Writer→Affiliate設定・収益→Connector→Fundraiser→Investment→Cloud→TaskMarket |
-| 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
-| 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
+Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
-現在3の次の一手は、§463に従いcurrent UUID/endpoint一致を確認し、一意marker付き観測タブをONE作成してofficialinventoryで帰属を確定後、既存metadataを読むこと。ACK不明/marker不一致なら再作成せず、旧unknown targetを操作しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
-
-今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
-
-#### 残作業の実行表（未完のみ）
-
-現在3の残りは、①TikTokの公式送信者・message ID・日時と適格件数の確認、②NPO案件の不足原資料・確定情報の受領、③それらを満たす納品物と制作記録の確定。①の直近作業はRPC記録付き準備観測、②は最新受領条件を維持する。読取コードやfixtureの完了を、この3つの成果完了と混ぜない。
-
-| 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
-|---|---|---|---|
-| 3 | 実行中・公式証拠不足／原資料待ち | Coconalaの残納品条件を閉じる。TikTokは§457で対象会話内の本文hash・長さ一致1件を限定確認したが、送信者・message ID・日時・適格300件の公式履行証拠は未確認。現在は§461のRPC記録付き準備観測で一覧frame timeoutを切り分け、未到達の局所metadataを取得する。NPO②・別NPO案件は原資料/確定情報の受領が残る（最後の公式観測は§418）。既存v8/v16b/v15を無条件に再制作せず、取得待ちと制作可能範囲を分ける。終了済み18211957は再制作しない。 | A03 |
-| 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
-| 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
-| 6 | 順番待ち | Coconala支払・手数料・精算明細を取得する。§358で公式全件CSVの取得provenanceを限定SHIP、28行／27一意／duplicate1組。gross／fee／net定義・paymentID・bank・cost未確認、全finance完了ではない。 | A06 |
-| 7 | 順番待ち | Coconala payout／銀行着金を照合する。 | A07 |
-| 8 | 順番待ち | Lancersの正規Human Verification／利用可能なaccount状態を確認する。§359で現行registered9227／自己tabを再確認しHTTP405／Human Verification、明細unavailable。正規人間検証が必要。 | A08 |
-| 9 | 順番待ち | Lancersの未確定応募・返信を公式案件履歴と照合する。 | A09 |
-| 10 | 順番待ち | CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302のcensusはreply219／application5。§308でreply219／application5の既存readonly照合はterminal／解除proof0。契約receipt・claim不足・form確認依頼の公式bindingを継続する。旧18と混同しない。 | A10 |
-| 11 | 順番待ち | Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。 | A11 |
-| 12 | 順番待ち | Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。 | A12 |
-| 13 | 順番待ち | Mercorの旧App／Reply未確定状態を公式記録と照合する。 | A13 |
-| 14 | 順番待ち | Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§367でcandidate詳細7件／募集終了1件を確認、未取得候補0。§368で未完form5件の用途を本人経験1／voiceassessment1／admin候補2／expertintake未確認1へ分類。公式stepID／本人必須条件／契約を照合し、本人必須提出はhuman_requiredを保持する。 | A14 |
-| 15 | 順番待ち | Mercorの精算・着金・実費を確認する。§368で公式earnings空・hasMorefalse／transfers空／3累積表示値number0を限定review受入。currency／settlement／bank／cost／profitはunknown、財務完了HOLD。 | A15 |
-| 16 | 順番待ち | 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。 | A16 |
-| 17 | 順番待ち | 応募確認メールと返信監視の最終成功をplatformごとに照合する。§369で直近1日到着と7lane現状を再観測、confirmation／same-occurrence joinは未完。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。 | A17 |
-| 18 | 順番待ち | メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。 | A18 |
-| 19 | 順番待ち | 統合条件成立後、自然runで失敗origin・run／occurrence・snapshot／reportを結び、再送0を保持する。 | A18.2 |
-| 20 | 順番待ち | Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§374でCoconala4409818をowned registered browser読取してHTTP403、現公開状態／order attribution未確認。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。 | A19 |
-| 21 | 順番待ち | Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。§375でcanonicalcredential／browser／activeowner match0、既存readonlytransportは存在。正規account-bound auth／inspect許可・ownerを取得しinventoryを読む。account不存在や注文0とはしない。 | A20 |
-| 22 | 順番待ち | 条件成立後に一度だけPRを作成し、exact-head CI／main統合を確認する。 | A21.4 |
-| 23 | 順番待ち | main由来complete immutableを確認し、所有権・GUI preflightを満たして対象ownerへ反映する。 | A21.5 |
-| 24 | 順番待ち | official loaded argv／SHAと登録済み9233のprofile所有権を確認する。 | A21.6 |
-| 25 | 順番待ち | 直接CDPで本人accountを照合する。 | A21.7 |
-| 26 | 順番待ち | 送信経路を呼ばずにproposals／contracts／catalog／payment inventoryを読み、公式証拠を保存する。 | A21.8 |
-| 27 | 順番待ち | Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。 | A22 |
-| 28 | 順番待ち | 利用可能な商品販売経路を接続する。§377で7platformの公式route／existing source／own operational proofを分離。UpworkCatalog/FiverrGig支持、Coco/Lancers現公開確認不足、FreelancerServices概念とsellercatalogを混ぜず、CW/Mercorstorefront未確認。適用外は証明付きN/Aのみ。 | A23 |
-| 29 | 順番待ち | 既存Upworkのowner/bounds/assets/authorizationを保持した追加方法を確認する。 | A24.1 |
-| 30 | 順番待ち | 正しいFiverr accountとseller onboarding・required verificationを公式readbackで確認する。 | A24.2 |
-| 31 | 順番待ち | read_catalogue/publish等のaction permissionとmain由来owned実行経路を接続する。 | A24.3 |
-| 32 | 順番待ち | 権利あるproduct/version/scope/mediaで公式activeGig/publicURLを確認し、A25以降へorder IDを渡す。 | A24.4 |
-| 33 | 順番待ち | storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。 | A25 |
-| 34 | 順番待ち | 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。 | A26 |
-| 35 | 順番待ち | 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。 | A27 |
-| 36 | 順番待ち | source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§391でnoteのaccount一致/通常再認証/月次表示/振込履歴を観測済み。source反例は§397で解消・source-only SHIP。残はsource統合条件、§396の同期間actualcost、公式精算/fee/bank/記事期間coverage。Stripeはself-owned専用でnoteへの代用不可、個別receipt合計/月次値/test credentialをfirst24h実売上やsettledへ昇格しない。 | A28.2 |
-| 37 | 順番待ち | Affiliateのtax／payment設定と旧公開の公式記録を確認する。§386/388の共有guardidentity不足とexact旧occurrence18d83ba82b14fb40-24990のofficialreadback不足を保持。 | A29 |
-| 38 | 順番待ち | Affiliateのcommission・payout・実費を確認する。 | A30 |
-| 39 | 順番待ち | Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。 | A31 |
-| 40 | 順番待ち | Fundraiser旧申請の公式記録と資金受領を照合する。 | A32 |
-| 41 | 順番待ち | Investmentの未完AT・paper取引検証・費用・重複注文判定を閉じる。 | A33 |
-| 42 | 順番待ち | Cloudの継続稼働・外部収益によるrenewal・30日benchmarkを確認する。 | A34 |
-| 43 | 順番待ち | TaskMarket／Agent Economyの実有償案件・精算・実費を確認する。 | A35 |
-| 44 | 順番待ち | Runtime／fleetの残失敗ownerとhealth／admission／disk不足を解消する。F4のcache再取得循環は他ownerの1c21656で修正、終了loop-tmp保持/cleanupとfloor実測は§395の未完を保持。 | A36 |
-| 45 | 順番待ち | Mobile公式acquisition／financial reportのID・currency・settlementを取得する。 | A38 |
-| 46 | 順番待ち | MobileのRC二重計上0とCFO daily／evidence／testsを確認する。 | A39 |
-| 47 | 順番待ち | Railway等の公式費用の期間・使用額差・loop配賦・着金照合を閉じる。 | A40 |
-| 48 | 順番待ち | 全loopの同期間売上・fee・refund・実費・精算・payoutをCFOへ結合する。 | A41 |
-| 49 | 順番待ち | UNKNOWNを保持してnet P&Lと重複計上0を検証する。 | A42 |
-| 50 | 順番待ち | SelfBuildの成功済み復旧処理の再実行不具合を修正する。 | A43 |
-| 51 | 順番待ち | SelfBuild修正の回帰検証・独立再review・source統合を行う。 | A44 |
-| 52 | 順番待ち | SelfBuildの実owner別promotion／recoveryを公式記録で確認する。 | A45 |
-| 53 | 順番待ち | Evalの品質・費用・利益の改善を自然実行の前後で比較する。 | A46 |
-
-完了済み項目の証拠は既存の各evidence節を参照する。sourceのみ受入済みの変更には本番統合/自然実行/公式readbackの未完があり、その原子を上表に残している。旧parent A21/A24/A28の成果は各subtaskを全て閉じるまで未完で、別の順序表として併記しない。
-
-A43の既存source HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASSだが独立reviewはFIX-FIRST。main revertだけ成功した後にowner復元が失敗すると次回同じrevert branch作成が失敗する。SHAに結び付いた確認済み復旧結果を既存holdへ保存し未完側だけ再試行する修正は未実施。PR／merge／本番復旧も未完。この作業はA42より後に置く。
-
-Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobileの現gateと担当境界は本節を参照。実行順序は上記の正本に従い、SelfBuild／Evalは最後に置く。全体goalはactive/未完。
+着手の実測：current immutable releaseは82d31995、doctorのmissing/unmanaged/retiredが0。healthはhealthy52/running24/safely_fenced69/failed21/telemetry_gap2、effect_unknown10（重複facetでありtotalへ加算しない）、human_required0、total178。failedの11はtyped capacity/FIFOであるため実故障件数と扱わない。error class未取得gap2も根因未確定。現共有checkoutは他owner branch・dirtyなのでreadonlyを維持する。GUI/DS preflight PASSだが、本turnのproduction mutationは0。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -7124,3 +7063,107 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - normalguard取得後、登録current UUIDと正規化guard endpoint/cdp.BASE hash一致を記録。BASEはimport時決定なのでenv設定だけで一致を仮定しない。作成前inventoryにない一意about:blank#markerのhashを事前保存し、Target.createTargetは1回。ACKのtarget IDを同instance officialinventoryへ照合。
 - ACK喪失時も同UUIDのinventoryでexact marker URL hash一致1件だけを今回ownerへ帰属。0/複数/instance変更はcreation unknown、再作成/閉鎖/navigationなし。帰属確定後の当該targetだけで既存局所metadataを読み、同UUID/owncleanup/prior exact保存を確認。旧unknown/未帰属targetを触らず、raw marker/URL値を出力しない。
 - sender/ID/date実取得まで送信receipt未完、send/newchat/composer/auth/fence0。追加framework/別browser/port変更/強制lease解除なし。新private派生fileのみで最小ownership処理、既存controller/body/probeを再利用。reviewのbrowser/file変更0、現在3→次4、SelfBuild/Eval最後。
+
+
+### 464. 優先順位変更前の未完業務成果・受入条件の引継ぎ履歴
+
+この節は変更前の証拠/受入条件を保持する参照であり、現在の実行順ではない。現在の優先TODOは§217の内部復旧1〜14のみ。以下の業務成果は完了扱いしない。再開時は現在の公式状態をreadbackし、primaryが§217へ必要な原子を戻す。
+
+#### 変更前の順序記録（履歴）
+
+実行番号は下表の最小の未完番号から順に進める。番号は完了後も付け直さない。旧A番号は過去の証拠と照合するIDであり、実行順や完了件数ではない。完了済み項目と親milestoneの重複行を実行表から除外し、未完の原子だけを並べる。
+
+**今の順番は3→4→5→6→7→…→53。A28に関する調査・修正履歴があっても、A01〜A27の完了を意味しない。** 残作業の報告と着手宣言は、この表の「実行番号・作業名・状態」で示す。旧A番号は必要な証拠照合にだけ使い、現在位置として説明しない。先の項目に部分的な調査結果があっても、その行の受入条件が未達なら未完のまま残す。
+
+- 現在cursor：実行番号3、Coconala残制作。次は実行番号4、正式納品。実行番号1はsource-only SHIP（§397）、番号2は最新残要件の意味照合PASS（§400）で完了し、未完表から除外。制作・納品・精算の完了とは分ける。
+- 順序変更理由：Daisの明示指示に従い、項目IDと実行順の混同、未完を残した説明なしの飛び先選択を解消する。進行中のsource修正1件を先に閉じて再調査/重複を防ぎ、以後はCoconala→marketplace→販売→残loop→CFO→SelfBuild/Evalを順に進める。
+- 旧運用：A01–46を掲げながら、外部待ちを残してA28.2.1を実行。新運用：Writer進行中原子を1、その後の残原子を2以降に連番化。最終4原子のSelfBuild/Evalは最後。
+- primaryは現在の番号を閉じてから次の番号へ移る。完了はその原子の受入条件の証拠で判定し、source PASSを本番/納品/精算/利益へ拡張しない。
+- 外部待ちでは現在cursorを維持し、原因・owner・不足物・最小再開条件を同じ行の記録へ追記する。説明なく後の番号を実行しない。順序を変える必要がある場合は、旧順序・新順序・理由・cursorをここへ先に更新し、会話でも変更を報告する。
+- 他担当の独立laneは並行可能だがprimaryのcursorとは分け、所有file/worktree/認証/state/外部effectを重ねない。現在番号より先の依存作業やmain/releaseを未受入のまま実行しない。
+
+SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、今回の優先順は最後に維持する。進行中の外部effectを中断/重複させない。
+
+#### 残作業の順番を短く読む
+
+下の範囲は実行表の要約であり、別のTODOではない。実行表を上から進め、完了済み行だけを除く。履歴IDは報告の主番号に使わない。
+
+| 実行番号 | この順に残っている作業 |
+|---|---|
+| 3→7 | Coconala：残制作→正式納品→検収→精算明細→銀行着金 |
+| 8→12 | Lancers／CrowdWorks：利用可能なaccount→未確定履歴→制作・納品・検収→精算・着金 |
+| 13→15 | Mercor：未確定履歴→正式提出・契約→精算・着金・実費 |
+| 16→19 | 応募の自然実行→確認メール・返信監視→メール不足の原因→失敗originの照合 |
+| 20→28 | 既存商品の公開・注文→Freelancer接続→未完の統合・反映・本人照合・inventory→自然実行→商品販売経路 |
+| 29→35 | Upwork追加境界→Fiverr導入・公開→注文の納品・精算・着金→実利益→商品改善 |
+| 36→43 | Writer→Affiliate設定・収益→Connector→Fundraiser→Investment→Cloud→TaskMarket |
+| 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
+| 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
+
+現在3の次の一手は、§463に従いcurrent UUID/endpoint一致を確認し、一意marker付き観測タブをONE作成してofficialinventoryで帰属を確定後、既存metadataを読むこと。ACK不明/marker不一致なら再作成せず、旧unknown targetを操作しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+
+今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
+
+#### 変更前の未完業務成果（履歴参照）
+
+現在3の残りは、①TikTokの公式送信者・message ID・日時と適格件数の確認、②NPO案件の不足原資料・確定情報の受領、③それらを満たす納品物と制作記録の確定。①の直近作業はRPC記録付き準備観測、②は最新受領条件を維持する。読取コードやfixtureの完了を、この3つの成果完了と混ぜない。
+
+| 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
+|---|---|---|---|
+| 3 | 実行中・公式証拠不足／原資料待ち | Coconalaの残納品条件を閉じる。TikTokは§457で対象会話内の本文hash・長さ一致1件を限定確認したが、送信者・message ID・日時・適格300件の公式履行証拠は未確認。現在は§461のRPC記録付き準備観測で一覧frame timeoutを切り分け、未到達の局所metadataを取得する。NPO②・別NPO案件は原資料/確定情報の受領が残る（最後の公式観測は§418）。既存v8/v16b/v15を無条件に再制作せず、取得待ちと制作可能範囲を分ける。終了済み18211957は再制作しない。 | A03 |
+| 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
+| 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
+| 6 | 順番待ち | Coconala支払・手数料・精算明細を取得する。§358で公式全件CSVの取得provenanceを限定SHIP、28行／27一意／duplicate1組。gross／fee／net定義・paymentID・bank・cost未確認、全finance完了ではない。 | A06 |
+| 7 | 順番待ち | Coconala payout／銀行着金を照合する。 | A07 |
+| 8 | 順番待ち | Lancersの正規Human Verification／利用可能なaccount状態を確認する。§359で現行registered9227／自己tabを再確認しHTTP405／Human Verification、明細unavailable。正規人間検証が必要。 | A08 |
+| 9 | 順番待ち | Lancersの未確定応募・返信を公式案件履歴と照合する。 | A09 |
+| 10 | 順番待ち | CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302のcensusはreply219／application5。§308でreply219／application5の既存readonly照合はterminal／解除proof0。契約receipt・claim不足・form確認依頼の公式bindingを継続する。旧18と混同しない。 | A10 |
+| 11 | 順番待ち | Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。 | A11 |
+| 12 | 順番待ち | Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。 | A12 |
+| 13 | 順番待ち | Mercorの旧App／Reply未確定状態を公式記録と照合する。 | A13 |
+| 14 | 順番待ち | Mercorの正式提出・契約を確認する。§365で公式8listingの32steps（完了21／interview未完5／form未完6）を取得。既存gateの公式ID一致1は未完、意味名7の対応未証明。§367でcandidate詳細7件／募集終了1件を確認、未取得候補0。§368で未完form5件の用途を本人経験1／voiceassessment1／admin候補2／expertintake未確認1へ分類。公式stepID／本人必須条件／契約を照合し、本人必須提出はhuman_requiredを保持する。 | A14 |
+| 15 | 順番待ち | Mercorの精算・着金・実費を確認する。§368で公式earnings空・hasMorefalse／transfers空／3累積表示値number0を限定review受入。currency／settlement／bank／cost／profitはunknown、財務完了HOLD。 | A15 |
+| 16 | 順番待ち | 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。 | A16 |
+| 17 | 順番待ち | 応募確認メールと返信監視の最終成功をplatformごとに照合する。§369で直近1日到着と7lane現状を再観測、confirmation／same-occurrence joinは未完。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。 | A17 |
+| 18 | 順番待ち | メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。 | A18 |
+| 19 | 順番待ち | 統合条件成立後、自然runで失敗origin・run／occurrence・snapshot／reportを結び、再送0を保持する。 | A18.2 |
+| 20 | 順番待ち | Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§374でCoconala4409818をowned registered browser読取してHTTP403、現公開状態／order attribution未確認。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。 | A19 |
+| 21 | 順番待ち | Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。§375でcanonicalcredential／browser／activeowner match0、既存readonlytransportは存在。正規account-bound auth／inspect許可・ownerを取得しinventoryを読む。account不存在や注文0とはしない。 | A20 |
+| 22 | 順番待ち | 条件成立後に一度だけPRを作成し、exact-head CI／main統合を確認する。 | A21.4 |
+| 23 | 順番待ち | main由来complete immutableを確認し、所有権・GUI preflightを満たして対象ownerへ反映する。 | A21.5 |
+| 24 | 順番待ち | official loaded argv／SHAと登録済み9233のprofile所有権を確認する。 | A21.6 |
+| 25 | 順番待ち | 直接CDPで本人accountを照合する。 | A21.7 |
+| 26 | 順番待ち | 送信経路を呼ばずにproposals／contracts／catalog／payment inventoryを読み、公式証拠を保存する。 | A21.8 |
+| 27 | 順番待ち | Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。 | A22 |
+| 28 | 順番待ち | 利用可能な商品販売経路を接続する。§377で7platformの公式route／existing source／own operational proofを分離。UpworkCatalog/FiverrGig支持、Coco/Lancers現公開確認不足、FreelancerServices概念とsellercatalogを混ぜず、CW/Mercorstorefront未確認。適用外は証明付きN/Aのみ。 | A23 |
+| 29 | 順番待ち | 既存Upworkのowner/bounds/assets/authorizationを保持した追加方法を確認する。 | A24.1 |
+| 30 | 順番待ち | 正しいFiverr accountとseller onboarding・required verificationを公式readbackで確認する。 | A24.2 |
+| 31 | 順番待ち | read_catalogue/publish等のaction permissionとmain由来owned実行経路を接続する。 | A24.3 |
+| 32 | 順番待ち | 権利あるproduct/version/scope/mediaで公式activeGig/publicURLを確認し、A25以降へorder IDを渡す。 | A24.4 |
+| 33 | 順番待ち | storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。 | A25 |
+| 34 | 順番待ち | 商品version・獲得経路・実費を注文へ結合し実利益を算出する。§380でCFO actual/usage系統を追跡、同期間officialpaidcost＋loop配賦＋order/productversionが不足。usage見積/送信成功をactualcostや利益へ変換しない。 | A26 |
+| 35 | 順番待ち | 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。 | A27 |
+| 36 | 順番待ち | source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§391でnoteのaccount一致/通常再認証/月次表示/振込履歴を観測済み。source反例は§397で解消・source-only SHIP。残はsource統合条件、§396の同期間actualcost、公式精算/fee/bank/記事期間coverage。Stripeはself-owned専用でnoteへの代用不可、個別receipt合計/月次値/test credentialをfirst24h実売上やsettledへ昇格しない。 | A28.2 |
+| 37 | 順番待ち | Affiliateのtax／payment設定と旧公開の公式記録を確認する。§386/388の共有guardidentity不足とexact旧occurrence18d83ba82b14fb40-24990のofficialreadback不足を保持。 | A29 |
+| 38 | 順番待ち | Affiliateのcommission・payout・実費を確認する。 | A30 |
+| 39 | 順番待ち | Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。 | A31 |
+| 40 | 順番待ち | Fundraiser旧申請の公式記録と資金受領を照合する。 | A32 |
+| 41 | 順番待ち | Investmentの未完AT・paper取引検証・費用・重複注文判定を閉じる。 | A33 |
+| 42 | 順番待ち | Cloudの継続稼働・外部収益によるrenewal・30日benchmarkを確認する。 | A34 |
+| 43 | 順番待ち | TaskMarket／Agent Economyの実有償案件・精算・実費を確認する。 | A35 |
+| 44 | 順番待ち | Runtime／fleetの残失敗ownerとhealth／admission／disk不足を解消する。F4のcache再取得循環は他ownerの1c21656で修正、終了loop-tmp保持/cleanupとfloor実測は§395の未完を保持。 | A36 |
+| 45 | 順番待ち | Mobile公式acquisition／financial reportのID・currency・settlementを取得する。 | A38 |
+| 46 | 順番待ち | MobileのRC二重計上0とCFO daily／evidence／testsを確認する。 | A39 |
+| 47 | 順番待ち | Railway等の公式費用の期間・使用額差・loop配賦・着金照合を閉じる。 | A40 |
+| 48 | 順番待ち | 全loopの同期間売上・fee・refund・実費・精算・payoutをCFOへ結合する。 | A41 |
+| 49 | 順番待ち | UNKNOWNを保持してnet P&Lと重複計上0を検証する。 | A42 |
+| 50 | 順番待ち | SelfBuildの成功済み復旧処理の再実行不具合を修正する。 | A43 |
+| 51 | 順番待ち | SelfBuild修正の回帰検証・独立再review・source統合を行う。 | A44 |
+| 52 | 順番待ち | SelfBuildの実owner別promotion／recoveryを公式記録で確認する。 | A45 |
+| 53 | 順番待ち | Evalの品質・費用・利益の改善を自然実行の前後で比較する。 | A46 |
+
+完了済み項目の証拠は既存の各evidence節を参照する。sourceのみ受入済みの変更には本番統合/自然実行/公式readbackの未完があり、その原子を上表に残している。旧parent A21/A24/A28の成果は各subtaskを全て閉じるまで未完で、別の順序表として併記しない。
+
+A43の既存source HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASSだが独立reviewはFIX-FIRST。main revertだけ成功した後にowner復元が失敗すると次回同じrevert branch作成が失敗する。SHAに結び付いた確認済み復旧結果を既存holdへ保存し未完側だけ再試行する修正は未実施。PR／merge／本番復旧も未完。この作業はA42より後に置く。
+
+Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobileの現gateと担当境界は本節を参照。実行順序は上記の正本に従い、SelfBuild／Evalは最後に置く。全体goalはactive/未完。
