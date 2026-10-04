@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§461のONE readiness-only probeでRPC method/request ID/context寿命/所要時間と遅延応答を最小記録し、一覧frame timeout境界を特定すること。readiness到達か最初のtimeoutで閉じ、scroll/rowclick/sendへ進まない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§462のbrowser Target作成ACK未取得と現instance read-only WebSocket応答PASSを使い、instance/endpoint一致と観測固有markerによる安全なownershipをfresh reviewで確認し、既存metadata取得へ戻る方法を選ぶこと。旧unknown targetを操作・無根拠replayしない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7107,3 +7107,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - RPCは直列だが、timeout後の遅延応答は後続RPCへ到着しうる。現rpcは現在request ID以外の応答を記録せず捨てる。child errorはframe hash/classのみ、最終method/context/request ID/elapsedやcontext destroyed/clearedが未記録。phaseの大分類だけでは最後のPage.getFrameTree失敗かも判別不能。上限延長や旧版復帰を原因修正として選ぶ根拠はない。
 - 次のONE readiness-only probeはrequest ID/method/context hash/式の固定分類/開始終了時刻/設定timeout/完了またはtimeout/遅延応答ID数/context destroyed-clearedだけを記録。URL/式本文/params値は保存しない。readiness到達か最初のtimeoutで閉じ、scroll/rowclick/sendへ進まない。context寿命、child評価遅延、frame-tree/通信全体遅延、遅延応答到着を区別する。
 - 新private診断fileのみを所有させ既存controllerへ最小instrumentation、追加framework/timeout延長/ブラウザrestartなし。reviewのbrowser/file変更0。現在3→次4、局所metadata未到達、SelfBuild/Eval最後。
+
+
+### 462. 最初の境界はbrowser Target作成、現instance WebSocketはread-only応答PASS
+
+- ONE readiness trace run `7fe21d28-32da-4c42-82e9-238a253a4b32` は23.909秒、existing_controller_one_ui_captureでWebSocketTimeoutException。nested RPC trace0、guard取得/開始target count5後、owned target ID未取得。呼出順の境界はcdp._browser_call(Target.createTarget)、接続か送信後response待ちか未区別。Target作成はeffect不確実として保持し、無根拠の再作成/未帰属target closeは行わない。scroll/rowclick/send0、guard release0/lease absent、own target absent/prior exact保持は未確認。
+- 新trace/旧sourcehashは実物とproofを確認。current official inventoryは22:13:32Zにtarget1 blank、mutation0、private proof SHA `a1b6c6da7279570a432dfead54fe246317418b0055f4ea8c19cbd661ef9864dd`。最初のresolver呼出は必須registry引数欠落exit2で、取得不能とは扱わず正しい引数で再readした。
+- instance比較はhistorical UUID hash `53f62224a23b04df944a68b51edcd14b1c0de2e77ba1519c6e177e3b60a5f7bd`/PID41416→current `66e130f3f1a728ec80ddd6f10edac252cb5b920219b7b4b5ff6f6ed8f28fd9fa`/PID6582、port9230。これは歴史snapshotとの変化で、最後の失敗時UUID未記録のためtimeout原因と断定しない。lineage private proof SHA `c12e14f1c2009746eeb483bdf2de6ba308c0fe6e48aa50c1c0aa270fc0bc449e`。
+- 22:16:21Zにnormal guard下でBrowser.getVersionだけをONE read-only確認。connect0.29秒/send0/response0.126秒PASS、acquire0/release0、Target作成/target mutation/message送信0。private proof SHA `27de5dfa9768efbc3c2cc7d6ac58cf01ba568ec02c1fff3f254841a9d3a2eb4f`。現在の接続経路は応答するが旧unknown作成を解消した証明ではない。
+- 次はfresh read-only reviewでcurrent UUID/endpoint一致と観測固有target markerによるownership/reconcileを限定確認し、旧unknownと混ぜず既存metadata取得へ戻る。新framework/別browser/port変更/auth/lease強制解除なし。局所metadata未到達/本文receipt未完、現在3→次4、SelfBuild/Eval最後。
