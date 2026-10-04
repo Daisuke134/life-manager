@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from decimal import Overflow
 from pathlib import Path
 
 import pytest
@@ -617,7 +618,7 @@ def test_per_skill_profit_from_net_revenue_minus_estimated_cost() -> None:
     assert rows["222"]["profit_30d_usd"] is None
 
     assert "Hook Lab" in analytics["telegram_summary"]
-    assert "profit $-0.09" in analytics["telegram_summary"]
+    assert "profit(est) $-0.09" in analytics["telegram_summary"]
     assert any("cost_30d_usd is an estimate" in gap for gap in analytics["data_gaps"])
 
 
@@ -635,7 +636,7 @@ def activity_fixture_rows() -> list[dict]:
 def test_openrouter_actual_summarizes_activity_rows_by_model_and_day() -> None:
     module = load_module()
 
-    actual = module._openrouter_actual({"data": activity_fixture_rows()})
+    actual = module._openrouter_actual({"data": activity_fixture_rows(), "_scope_verified": True})
 
     assert actual["status"] == "fresh"
     assert actual["total_usd"] == "43.36"
@@ -650,7 +651,54 @@ def test_openrouter_actual_reports_unavailable_reason_without_key_or_on_error() 
 
     assert module._openrouter_actual({"_error": "key_unavailable"})["status"] == "unavailable:key_unavailable"
     assert module._openrouter_actual({"_error": "HTTPError: 403"})["status"] == "unavailable:HTTPError: 403"
-    assert module._openrouter_actual({"code": 0, "data": "not-a-list"})["status"] == "unavailable:unrecognized_shape"
+    assert module._openrouter_actual({
+        "code": 0, "data": "not-a-list", "_scope_verified": True,
+    })["status"] == "unavailable:unrecognized_shape"
+
+
+def test_openrouter_actual_rejects_unscoped_activity() -> None:
+    module = load_module()
+
+    actual = module._openrouter_actual({"data": activity_fixture_rows()})
+
+    assert actual["status"] == "unavailable:unverified_scope"
+    assert actual["total_usd"] is None
+
+
+@pytest.mark.parametrize("invalid_row", [
+    pytest.param({"model": "anthropic/claude-sonnet-4.6", "usage": 1.0}, id="missing-date"),
+    pytest.param({"date": "2026-10-3", "model": "anthropic/claude-sonnet-4.6", "usage": 1.0}, id="malformed-date"),
+    pytest.param({"date": "2026-09-20", "model": "anthropic/claude-sonnet-4.6"}, id="missing-usage"),
+    pytest.param({"date": "2026-09-20", "model": "anthropic/claude-sonnet-4.6", "usage": "unknown"}, id="malformed-usage"),
+])
+def test_openrouter_actual_rejects_rows_without_valid_date_and_usage(invalid_row: dict) -> None:
+    module = load_module()
+    rows = [
+        {"date": "2026-09-04", "model": "anthropic/claude-sonnet-4.6", "usage": 10.0},
+        {"date": "2026-10-03", "model": "anthropic/claude-sonnet-4.6", "usage": 15.08},
+        invalid_row,
+    ]
+
+    actual = module._openrouter_actual({"_scope_verified": True, "data": rows})
+
+    assert actual["status"] == "unavailable:invalid_row_shape"
+    assert actual["total_usd"] is None
+
+
+def test_openrouter_actual_rejects_finite_usage_outside_decimal_range() -> None:
+    module = load_module()
+    rows = [
+        {"date": "2026-09-04", "model": "anthropic/claude-sonnet-4.6", "usage": "1E+1000000"},
+        {"date": "2026-10-03", "model": "anthropic/claude-sonnet-4.6", "usage": "1.00"},
+    ]
+
+    try:
+        actual = module._openrouter_actual({"_scope_verified": True, "data": rows})
+    except Overflow:
+        pytest.fail("finite extreme activity usage must fail closed instead of raising Decimal Overflow")
+
+    assert actual["status"] == "unavailable:invalid_row_shape"
+    assert actual["total_usd"] is None
 
 
 def test_allocate_actual_cost_splits_by_estimated_share_within_a_model() -> None:
@@ -687,8 +735,9 @@ def test_per_skill_and_account_actual_cost_profit_use_real_openrouter_spend() ->
     }]}
     payloads["agent_models"] = {"111": "anthropic/claude-sonnet-4.6"}
     payloads["model_prices"] = {"anthropic/claude-sonnet-4.6": {"prompt": "0.00002", "completion": "0.000015"}}
-    payloads["openrouter_activity"] = {"data": [
-        {"date": "2026-09-01", "model": "anthropic/claude-sonnet-4.6", "usage": 42.87, "requests": 817},
+    payloads["openrouter_activity"] = {"_scope_verified": True, "data": [
+        {"date": "2026-08-29", "model": "anthropic/claude-sonnet-4.6", "usage": 20.00, "requests": 400},
+        {"date": "2026-09-27", "model": "anthropic/claude-sonnet-4.6", "usage": 22.87, "requests": 417},
     ]}
 
     analytics = module.build_skill_analytics(
@@ -708,8 +757,58 @@ def test_per_skill_and_account_actual_cost_profit_use_real_openrouter_spend() ->
     assert analytics["account_totals"]["profit30_actual_usd"] == module._money(
         module.Decimal(analytics["account_totals"]["net30_usd"]) - module.Decimal("42.87"))
     assert "cost30(actual) $42.87" in analytics["telegram_summary"]
-    assert "profit $-22.96" in analytics["telegram_summary"]
+    assert "profit(actual) $-22.96" in analytics["telegram_summary"]
     assert any("api/v1/activity" in gap for gap in analytics["data_gaps"])
+
+
+def test_verified_activity_with_mismatched_dates_stays_visible_without_actual_profit() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["usage_requests"] = {"rows": [{
+        "requestId": "r1", "agentId": "111", "agentTitle": "Hook Lab",
+        "inputUncached": 1_000_000, "cacheRead": 0, "cacheWrite": 0, "output": 0,
+    }]}
+    payloads["agent_models"] = {"111": "anthropic/claude-sonnet-4.6"}
+    payloads["model_prices"] = {"anthropic/claude-sonnet-4.6": {"prompt": "0.00002", "completion": "0.000015"}}
+    payloads["openrouter_activity"] = {"_scope_verified": True, "data": [
+        {"date": "2026-09-07", "model": "anthropic/claude-sonnet-4.6", "usage": 10.00},
+        {"date": "2026-10-03", "model": "anthropic/claude-sonnet-4.6", "usage": 15.08},
+    ]}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-10-03T00:00:00Z",
+    )
+
+    rows = {row["agent_id"]: row for row in analytics["per_skill_rows"]}
+    assert analytics["openrouter_actual"]["status"] == "fresh"
+    assert analytics["openrouter_actual"]["total_usd"] == "25.08"
+    assert analytics["openrouter_actual"]["window_start"] == "2026-09-07"
+    assert analytics["openrouter_actual"]["window_end"] == "2026-10-03"
+    assert analytics["account_totals"]["cost30_actual_usd"] is None
+    assert analytics["account_totals"]["profit30_actual_usd"] is None
+    assert rows["111"]["cost_30d_actual_usd"] is None
+    assert rows["111"]["profit_30d_actual_usd"] is None
+    assert "cost30(est) $20.00" in analytics["telegram_summary"]
+    assert "profit30(unknown)" in analytics["telegram_summary"]
+
+
+def test_date_less_spend_row_cannot_qualify_actual_cost_or_profit() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["openrouter_activity"] = {"_scope_verified": True, "data": [
+        {"date": "2026-09-04", "model": "anthropic/claude-sonnet-4.6", "usage": 10.0},
+        {"date": "2026-10-03", "model": "anthropic/claude-sonnet-4.6", "usage": 15.08},
+        {"model": "anthropic/claude-sonnet-4.6", "usage": 3.0},
+    ]}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-10-03T00:00:00Z",
+    )
+
+    assert analytics["openrouter_actual"]["status"] == "unavailable:invalid_row_shape"
+    assert analytics["openrouter_actual"]["total_usd"] is None
+    assert analytics["account_totals"]["cost30_actual_usd"] is None
+    assert analytics["account_totals"]["profit30_actual_usd"] is None
 
 
 def test_account_actual_falls_back_to_estimate_label_when_activity_unavailable() -> None:
@@ -726,23 +825,156 @@ def test_account_actual_falls_back_to_estimate_label_when_activity_unavailable()
     assert "cost30(est)" in analytics["telegram_summary"]
 
 
-def test_live_payloads_fetches_activity_with_management_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def _live_payloads_with_openrouter_keys(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                        key_rows: list[dict], *,
+                                        key_pages: dict[int, list[dict]] | None = None,
+                                        host_workspace_id: object = "workspace-7",
+                                        max_pages: int | None = None) -> tuple[dict, list[tuple[str, str]]]:
     module = load_module()
     observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
-    calls = []
+    calls: list[tuple[str, str]] = []
     monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
     monkeypatch.setattr(module, "_web_token", lambda: "web-token")
     monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
     monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
     monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
-    monkeypatch.setattr(module, "_openrouter_data", lambda path, token="": calls.append((path, token)) or {"data": []})
+    monkeypatch.setenv("CAPAFY_SERVED_MODELS", str(tmp_path / "served-models.json"))
+    if max_pages is not None:
+        monkeypatch.setattr(module, "OPENROUTER_KEYS_MAX_PAGES", max_pages, raising=False)
+    host_label, workspace_id, api_key_hash = "capafy-current-key", "workspace-7", "matched-hash"
+
+    def fake_openrouter_data(path: str, token: str = "") -> dict:
+        calls.append((path, token))
+        if path == "/models":
+            return {"data": []}
+        if path == "/key":
+            return {"data": {"label": host_label, "workspace_id": host_workspace_id, "usage_monthly": 1.25}}
+        if path.startswith("/keys?"):
+            offset = int(path.rsplit("offset=", 1)[1])
+            page = key_pages.get(offset, []) if key_pages is not None else (key_rows if offset == 0 else [])
+            return {"data": page}
+        if path == f"/activity?api_key_hash={api_key_hash}&workspace_id={workspace_id}":
+            return {"data": [{"date": "2026-09-17", "model": "anthropic/claude-sonnet-4.6", "usage": 1.25}]}
+        return {"_error": "unexpected_path"}
+
+    monkeypatch.setattr(module, "_openrouter_data", fake_openrouter_data)
     monkeypatch.setenv("CAPAFY_OPENROUTER_MANAGEMENT_KEY", "mgmt-key")
-    monkeypatch.delenv("CAPAFY_HOST_OPENROUTER_KEY", raising=False)
+    monkeypatch.setenv("CAPAFY_HOST_OPENROUTER_KEY", "host-key")
 
     payloads = module._live_payloads(Path("/tmp"), observed)
+    return payloads, calls
 
-    assert ("/activity", "mgmt-key") in calls
-    assert payloads["openrouter_activity"] == {"data": []}
+
+def test_live_payloads_scopes_activity_to_unique_current_host_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    host_label, workspace_id, api_key_hash = "capafy-current-key", "workspace-7", "matched-hash"
+    payloads, calls = _live_payloads_with_openrouter_keys(monkeypatch, tmp_path, [
+        {"label": host_label, "workspace_id": workspace_id, "hash": api_key_hash},
+        {"label": "another-key", "workspace_id": workspace_id, "hash": "other-hash"},
+        {"label": host_label, "workspace_id": "other-workspace", "hash": "other-workspace-hash"},
+    ])
+
+    assert ("/key", "host-key") in calls
+    assert (f"/keys?workspace_id={workspace_id}&include_disabled=true&offset=0", "mgmt-key") in calls
+    assert (f"/keys?workspace_id={workspace_id}&include_disabled=true&offset=3", "mgmt-key") in calls
+    assert (f"/activity?api_key_hash={api_key_hash}&workspace_id={workspace_id}", "mgmt-key") in calls
+    assert payloads["openrouter_activity"]["_scope_verified"] is True
+    serialized_payload = json.dumps(payloads)
+    receipt = load_module().build_receipt(payloads, "2026-09-17T00:00:00Z")
+    serialized_receipt = json.dumps(receipt)
+    for identity_value in (host_label, workspace_id, api_key_hash):
+        assert identity_value not in serialized_payload
+        assert identity_value not in serialized_receipt
+
+
+@pytest.mark.parametrize("key_rows", [
+    pytest.param([], id="missing"),
+    pytest.param([
+        {"label": "capafy-current-key", "workspace_id": "workspace-7", "hash": "hash-one"},
+        {"label": "capafy-current-key", "workspace_id": "workspace-7", "hash": "hash-two"},
+    ], id="ambiguous"),
+])
+def test_live_payloads_skips_activity_without_unique_key_mapping(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, key_rows: list[dict],
+) -> None:
+    module = load_module()
+    payloads, calls = _live_payloads_with_openrouter_keys(monkeypatch, tmp_path, key_rows)
+
+    assert not any(path.startswith("/activity") for path, _token in calls)
+    assert payloads["openrouter_activity"] == {"_error": "key_scope_unavailable"}
+    actual = module._openrouter_actual(payloads["openrouter_activity"])
+    assert actual["status"] == "unavailable:key_scope_unavailable"
+    for identity_value in ("capafy-current-key", "workspace-7", "hash-one", "hash-two"):
+        assert identity_value not in json.dumps(payloads)
+
+
+@pytest.mark.parametrize("invalid_row", [
+    pytest.param({}, id="empty-row"),
+    pytest.param({"label": "other-key", "workspace_id": "workspace-7", "hash": 7}, id="non-string-hash"),
+    pytest.param({"label": 7, "workspace_id": "workspace-7", "hash": "other-hash"}, id="non-string-label"),
+    pytest.param({"label": "other-key", "workspace_id": 7, "hash": "other-hash"}, id="non-string-workspace"),
+    pytest.param({"label": " ", "workspace_id": "workspace-7", "hash": "other-hash"}, id="blank-label"),
+])
+def test_live_payloads_fails_closed_on_any_malformed_key_row(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, invalid_row: dict,
+) -> None:
+    payloads, calls = _live_payloads_with_openrouter_keys(monkeypatch, tmp_path, [
+        {"label": "capafy-current-key", "workspace_id": "workspace-7", "hash": "matched-hash"},
+        invalid_row,
+    ])
+
+    assert not any(path.startswith("/activity") for path, _token in calls)
+    assert payloads["openrouter_activity"] == {"_error": "key_scope_unavailable"}
+
+
+def test_live_payloads_rejects_later_duplicate_key_match(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    payloads, calls = _live_payloads_with_openrouter_keys(monkeypatch, tmp_path, [], key_pages={
+        0: [{"label": "capafy-current-key", "workspace_id": "workspace-7", "hash": "hash-one"}],
+        1: [{"label": "capafy-current-key", "workspace_id": "workspace-7", "hash": "hash-two"}],
+    })
+
+    assert any(path.endswith("offset=1") for path, _token in calls)
+    assert any(path.endswith("offset=2") for path, _token in calls)
+    assert not any(path.startswith("/activity") for path, _token in calls)
+    assert payloads["openrouter_activity"] == {"_error": "key_scope_unavailable"}
+
+
+def test_live_payloads_fails_closed_when_key_listing_does_not_reach_empty_page(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    payloads, calls = _live_payloads_with_openrouter_keys(
+        monkeypatch, tmp_path, [],
+        key_pages={
+            0: [{"label": "another-key", "workspace_id": "workspace-7", "hash": "other-zero"}],
+            1: [{"label": "another-key", "workspace_id": "workspace-7", "hash": "other-one"}],
+            2: [{"label": "capafy-current-key", "workspace_id": "workspace-7", "hash": "late-match"}],
+        },
+        max_pages=2,
+    )
+
+    assert any(path.endswith("offset=0") for path, _token in calls)
+    assert any(path.endswith("offset=1") for path, _token in calls)
+    assert not any(path.endswith("offset=2") for path, _token in calls)
+    assert not any(path.startswith("/activity") for path, _token in calls)
+    assert payloads["openrouter_activity"] == {"_error": "key_scope_unavailable"}
+
+
+@pytest.mark.parametrize(("host_workspace_id", "row_workspace_id"), [
+    pytest.param(7, "7", id="host-workspace-not-string"),
+    pytest.param("7", 7, id="row-workspace-not-exact-string"),
+    pytest.param(" ", " ", id="host-workspace-blank"),
+])
+def test_live_payloads_rejects_non_string_or_coerced_workspace_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    host_workspace_id: object, row_workspace_id: object,
+) -> None:
+    payloads, calls = _live_payloads_with_openrouter_keys(
+        monkeypatch, tmp_path,
+        [{"label": "capafy-current-key", "workspace_id": row_workspace_id, "hash": "matched-hash"}],
+        host_workspace_id=host_workspace_id,
+    )
+
+    assert not any(path.startswith("/activity") for path, _token in calls)
+    assert payloads["openrouter_activity"] == {"_error": "key_scope_unavailable"}
 
 
 def test_live_payloads_skips_activity_without_management_key(monkeypatch: pytest.MonkeyPatch) -> None:
