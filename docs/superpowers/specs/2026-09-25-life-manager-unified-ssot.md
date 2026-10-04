@@ -3098,3 +3098,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Approved後だけ公開URL/live、Sales、fee、model cost、settlement、payout、replay-zeroへ進む。Declinedなら公式理由を保存し、別内容の修正cursorを作る。
 3. Reels Hook Lab Scheduled、Football Match Analyst Pending、Portfolio Tracker Pendingを相互に混同せず、Sales `0/$0`を維持する。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+## Capafy の TODO 正本
+
+Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状態・現在のカーソル）は `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md` の「実行順」表を正本とする。Capafy の順序・状態はそちらだけで更新し、ここには書き写さない。
