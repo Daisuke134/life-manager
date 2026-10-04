@@ -6027,7 +6027,7 @@ fresh Sol6.1 mediumの同計画監査は条件付きPASS。指摘4件（6束≠6
 
 - ローカルcommand/application探査ではcmux／Superset未取得、Codex CLIは既存。AGMSGにはtmux／plain driverがある。tmux list-sessionsはexit0／6session、server reachable。6sessionを6稼働agentと扱わず、既存sessionを停止・書換えない。primary own placement plainは保持する。
 - spawn.sh65–73とlib/spawn-options.shを読み、AGMSG_SPAWN_OPTIONS_FILEの起動ごとのoverrideと、type別flag→argv tokenの既存機能を確認。spawn.shは値をword splitせずSPAWN_OPT_TOKENSへ保持する。既存方式でCodexへ-cとmodel_reasoning_effort="max"を一tokenで渡し、--model gpt-6-lunaを組み合わせられる。計画／reviewは同経路でmedium。global既定を書き換える必要はない。
-- このCLI経路はsourceレベルの確認。Codex -c model_reasoning_effort="max" --helpもread-only確認対象とし、実runのmodel／effort／usageが非公開なら未観測と明示する。実装席を起動してmaxで仕事が成功した証明は今回無し。既存spawn optionsのsandbox／承認等を落としてoverrideしない。
+- このCLI経路はsourceレベルの確認。Codex -c model_reasoning_effort="max" --helpはexit0で引数受理とconfig override helpを確認。実runのmodel／effort／usageが非公開なら未観測と明示する。実装席を起動してmaxで仕事が成功した証明は今回無し。既存spawn optionsのsandbox／承認等を落としてoverrideしない。
 
 #### 推奨する加速の順序
 
