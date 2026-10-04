@@ -3467,3 +3467,24 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 - The separately documented local 04:02 JST occurrence with `effect=unknown` remains unresolved; these later pre-effect capacity deferrals do not resolve or authorize replay of it. This readback caused no wake, restart, configuration change, provider action, or send.
 - This is runtime-status evidence only: it does not prove daily CFO delivery, financial totals, zero spend/revenue, or replay-zero. Candidate B7 source/test results in §87-AP remain unmerged and unloaded.
 - Current cursor and order are unchanged: §87-J item 5 source/settlement coverage, item 6 Google actual-cost reconciliation, item 7 formal promotion plus natural receipt/replay-zero, then item 8 seven consecutive same-period reports.
+
+### 87-AR. Stripe Checkout Session・subscriptionのProduct Loop帰属readback（2026-10-05 06:55 JST）
+
+- Official Stripeのread-only `GET /v1/checkout/sessions` を現行keyで全期間・3ページ取得し、231 Sessionsを確認した。`complete`+`paid`は8件、`expired`+`unpaid`は223件、modeはsubscription 61件・payment 170件。231件すべて`metadata.lm_product_loop_id`がなく、`client_reference_id`があるのは3/231件（有料8件とは限らない）。有料8件では`metadata.product`・`metadata.lm_product_loop_id`・`client_reference_id`がすべて0件、7件にinvoiceおよびsubscription参照、1件にPaymentIntent参照があった。
+- 直前のStripe snapshotと同じ30日窓（2026-09-04T19:46:03Z〜2026-10-04T19:46:03Z）は4件で、全件`expired`+`unpaid`、loop tagなし、PaymentIntent/subscription参照なし。このCheckout Session窓だけではStripe売上なしを示さない。継続課金invoiceは新しいCheckout Sessionを作らない場合がある。
+- read-only `GET /v1/subscriptions?status=all`は7件を返し、全件canceled。`metadata.product`および`metadata.lm_product_loop_id`はいずれにもなかった。
+- 金額・ID・顧客情報・metadataの生値・credentialは出力も保存もしていない。この記録からStripeまたは会社全体の売上ゼロを推論せず、検証済みkeyなしにSessionsと既存19 chargesをjoinせず、Product Loopの帰属を主張しない。
+- canonical Life Manager product-loop catalogでは`self-build`はsubscription revenue classだがStripe financial implementationはmissing。canonical `apps/life-manager/lib/billing.js`はcheckout時の`client_reference_id`を期待し、後続subscriptionはcustomerで対応付ける。確認できた`alarm-checkout.js`はdirty/divergedな隣接 `/Users/anicca/anicca-project` checkout内だけにあり、read-onlyで見た関数はphone/wakeTime/name metadataを設定するが`client_reference_id`と`lm_product_loop_id`を設定しない。これはローカルソースの補助証拠であり、deployed stateの証明ではない。同checkoutは編集していない。
+- 根拠 → [Stripe List Checkout Sessions API](https://docs.stripe.com/api/checkout/sessions/list)、[Stripe Checkout Session object](https://docs.stripe.com/api/checkout/sessions/object)。TODO順とcursorは§87-J item 5→6→7→8のまま。
+
+### 87-AS. Moneytree表示残高の鮮度確認（2026-10-05 06:55 JST）
+
+- read-only `show_accounts`はMUFGのJPY口座を1件返したが、source/provider/last-sync timestampは含まれなかった。表示値はlast-knownであり、現在の現金残高として確認できない。個人の正確な残高はこのspecに記録しない。
+- 接続済みpluginにはsync/refresh操作がない。9〜10月のtransaction/expense coverageは§87-ANのとおりunknownのまま。口座更新やprovider mutationは行っていない。
+
+### 87-AT. RevenueCat MRR readbackとcollector/adapter schema gap（2026-10-05 06:55 JST）
+
+- 既存`business_outcomes.py` helper（`http_json`、`revenuecat_app_filter`、`latest_complete_chart_points`）とmode 600のprivate runtime envを使い、configured app 6件それぞれにRevenueCat V2 MRR chart GETを行った。windowは2026-09-07〜2026-10-05、`currency=JPY`。6/6で`yaxis_currency=JPY`、全appのlatest complete periodは2026-10-03。Anicca iOSのMRRはJPY 3,196.91、他5 appは各0.0、6 app合計はJPY 3,196.91。
+- これはRevenueCatのMRR stock metricであり、Apple settlement、銀行着金、settled revenueではない。Raw app ID・credential・payloadは出力も保存もしていない。JSONL/ledgerへの書き込み、provider mutation、sendは行っていない。
+- Source contract gap: `skills/earn/marketing-engine/measure/business_outcomes.py::collect_revenuecat`はchart points/window sumを保存するが、top-level `currency`と`revenue_definition`を含めない。一方`skills/cfo/adapters/capafy_mobile.py`は両方を要求し、`revenue_definition={metric:mrr, scope:active_paid_subscriptions, normalization:monthly}`との完全一致をmobile MRR snapshotの前提にする。実provider readは確認できたが、現在のmaterialized rowはこのcontractをB7まで運べない。item 5の次作業はsettled revenueへの算入ではなく、このsource contract gapの修正とreadbackである。
+- item順とcursorは§87-J item 5→6→7→8のまま。
