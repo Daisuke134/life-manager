@@ -250,14 +250,15 @@ Telephony, paid model calls, and user-requested external actions remain separate
 ### A10 — Natural-run acceptance
 
 - run one local daily close;
-- run one cloud canary;
+- verify one natural local daily delivery and same-period replay-zero;
+- retire the separate cloud wallet-only sender only after the local receipt and visible source gaps are confirmed;
 - observe seven consecutive days;
 - verify official Moneytree, Google billing, revenue, and expense readbacks;
 - close only when all required numbers are either fresh and sourced or explicitly partial with an owner-visible blocker.
 
 ## 10. Current gate
 
-The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. The current source of truth for evidence, remaining TODO order, and execution cursor is unified SSOT §87-J item 2; this document owns the target accounting/report contract and provider-selection rationale. The daily report is not complete until a natural scheduled occurrence has one durable provider receipt, stable period identity, source coverage, and replay-zero.
+The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. The current evidence, order, and execution cursor are in unified SSOT §87-J/§87-AA. The local Financial Manager is the only user-facing daily sender; the legacy cloud wallet-only sender is retired only after the local natural receipt and replay-zero are proved. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has one durable provider receipt, stable daily period, source coverage, and replay-zero.
 
 ## 11. External provider research and selected cost-reduction design
 

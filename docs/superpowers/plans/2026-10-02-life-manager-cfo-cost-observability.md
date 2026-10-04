@@ -214,9 +214,9 @@
 
 **Latest Moneytree readback (2026-10-04):** the connected plugin returns one MUFG account, but the newest transaction is dated 2026-08-25 and no source update timestamp/completeness cursor is exposed; September/October coverage is missing. Personal balances and flows remain `stale/partial`, not current or zero; the tracked plan intentionally omits exact personal amounts. See `docs/evidence/cfo/2026-10-04-moneytree-mcp-readback.md`.
 
-**Repository cursor (2026-10-04 21:01 JST):** issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) remains open, but one owner/maintainer `+1` reaction was verified; the source-change gate is cleared. The implementation branch is synced through `origin/main` `f0f36123`; six earlier conflict paths are resolved and the three focused CFO unittest modules pass 120/120. The latest Moneytree/Stripe/Google/delivery evidence is merged into this branch. The branch is not ready for PR: its entire diff still needs scoped review, and candidate-only unrelated marketing commit `cab8cce811` must be excluded from the final CFO PR. No production config, enqueue, or source mutation was performed by this documentation/sync work.
+**Repository cursor (2026-10-04 21:28 JST):** issue [#6549](https://github.com/Daisuke134/life-manager/issues/6549) remains open, with the owner/maintainer `+1` verified and source-change gate cleared. The branch is synced through `origin/main` `1a723aab`; prior CFO conflict sync is resolved; candidate-only unrelated marketing commit `cab8cce811` still must be excluded from any final CFO PR. Latest local and cloud wakes both deferred before effect, and the candidate local Financial Manager path is not production-loaded. Full branch is not PR-ready. No production config, enqueue, stop, or send was performed by this documentation decision.
 
-**Current execution cursor:** unified SSOT §87-J item 2. Keep the local receipt-backed result and cloud report as distinct paths until one daily path is wired to the already-resolved Dais tenant; add a stable period identity/one-enqueue-per-period gate before enabling the five-minute wake. The local hourly result was delivered once for period `2026-10-04:10`; its runtime event lacks the receipt reference, so keep that telemetry gap visible and do not resend. The cloud `life-manager-financial-report` occurrence was capacity-deferred before effect (exit 75), so do not manually restart/enqueue.
+**Current execution cursor:** unified SSOT §87-J item 2a. The approved direction is one local Financial Manager daily sender. Add a receipt-aware same-day early return before Moneytree/B7 ingestion, only for a valid delivered receipt with matching period and destination; leave pending/unknown delivery on the reconciliation path. After the local source change is promoted and a natural daily receipt/replay-zero with visible coverage gaps is verified, remove the separate `life-manager-financial-report` 5-minute sender from the registry/catalog. Do not use Railway credentials or create a new enqueue endpoint. The recent cloud wake was capacity-deferred before effect (exit 75); do not manually restart/enqueue.
 
 **Files:**
 - Create: `apps/life-manager/scripts/cfo-natural-run.test.js`
@@ -229,10 +229,30 @@
 - [x] **Step 1: Add deterministic natural-run harness.** Use real Moneytree MCP read-only calls only when the environment is authenticated; use fixture receipts for disconnected business sources and retain their gaps.
 - [x] **Step 2: Run all focused suites.** Run the Task 1–7 commands, then the Life Manager finance/report suites and `npm test` from a clean installed worktree. (CFO suites pass; the full suite has two unrelated marketing caption-guard failures.)
 - [x] **Step 3: Execute one local daily close with delivery injected.** Verify actual balance observation, nonzero/unknown transaction semantics, source coverage, cost state, and digest replay.
-- [x] **Step 4: Execute one cloud report canary.** Verify the runtime job, database receipt, provider message ID, and no duplicate on replay. (Partial: a configured tenant row and Dais Telegram binding exist, but the job registry does not pass the tenant UID, configured cadence/channel does not match the daily target, the five-minute wake identity changes by wake time, and the latest occurrence deferred at capacity before effect.)
+- [ ] **Step 4: Verify one natural local daily report.** Use the Financial Manager path, confirm source freshness/coverage warnings and a durable Telegram provider receipt, then replay the same JST daily period and prove no second send. Only after this gate, retire the cloud wallet-only sender.
 - [ ] **Step 5: Observe seven expected daily periods.** Record cache hit rate, paid calls, budget transitions, source freshness, settled/estimated variance, and report delivery.
 - [x] **Step 6: Read back official provider state and finalize evidence.** Mark each spec requirement `proved`, `partial`, or `blocked`; do not claim full CFO completion while any required source remains unknown/stale without an owner-visible reason.
 - [x] **Step 7: Commit and push evidence/spec cursor.** `git add apps/life-manager docs/evidence docs/superpowers/specs && git commit -m "docs(cfo): record natural-run acceptance"`.
+
+### Task 8A: Skip repeated local source reads after a verified daily delivery
+
+This is the current prerequisite for Task 8 Step 4. The local owner wakes hourly for capacity recovery, but the daily period/destination is already stable in `runHourlyCfo`; it currently invokes ingestion before `deliveryStore.lookup`, so a same-day replay can reread Moneytree/B7 even when a verified report was already sent.
+
+**Files:**
+- Modify: `apps/life-manager/scripts/cfo-hourly-local.js`
+- Test: `apps/life-manager/scripts/cfo-hourly-local.test.js`
+
+**Contract:**
+- For `reportCadence=daily`, if the persisted snapshot is `delivered`, the JST `reportingDate`/period matches, destination channel/hash matches, and a provider receipt is present, return `quiet` before `ingest()` and `notify()`.
+- A pending snapshot, missing provider receipt, changed destination, or next JST date must not take the early-return path; pending delivery continues through the existing reconciliation behavior.
+- Do not change hourly mode semantics or claim that this source-only task changes production state.
+
+- [ ] **Step 1: Add the failing same-day replay test.** First run delivers a provider receipt; a second run in the same daily period must make zero additional ingestion/notify calls, while the next day ingests again.
+- [ ] **Step 2: Run the focused test and verify RED.** `node --test apps/life-manager/scripts/cfo-hourly-local.test.js` must fail because the current duplicate check occurs after ingestion.
+- [ ] **Step 3: Add the minimal receipt-aware pre-ingest guard.** Keep pending/uncertain and destination-change behavior on the existing path.
+- [ ] **Step 4: Verify GREEN and commit.** Run the focused test and `git diff --check`; commit only the two owned files.
+
+The cloud-report enqueue/UID/DB path is no longer the chosen user-facing sender. Preserve its code/evidence for now; registry/catalog retirement is a later, ordered action after Task 8 Step 4 proves the local replacement in production.
 
 ## Verification Commands
 
