@@ -5774,3 +5774,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - keep_alive browser jobは既存contract gateでcontinuous_serviceに分類されるため、job-hunter recovery_classesへ同classを追加する。既存classを維持し、actorのfinancial／external-effect権限や旧fenceを緩めない。canonical14 Product Loopsと179jobsの契約を検証する。
 - 現時点はHEAD main1a7／未commit差分、workerがfocused check／commit／pushを所有する。親full runtimeは固定pushed HEAD後に行い、以前のHEAD競合を再発させない。private owner／source／issueは§320、source受入／本番profile・port・account inventoryは未完。
 - Freelancer専用registered identityは無く、job-search profileのfreelancer参照も本probeでは未取得。Gmail到着だけでaccount bindingを作らず、既存accountと本人identity確認が残る。全goal未完、SelfBuildは最後。
+
+### 322. Luna6 Upwork owner source実装pushと親の固定HEAD検証
+
+- implementation task upwork_browser_owner_implementationは完了。4file、HEAD f4e34ceea43cfc9f7089ff9d273266b307982558を専用branchへcommit／push、remote一致／clean。新entrypoint33linesで共有port ownerをexecし、既存profile・9233・fingerprint80138・bounded rendererを維持する。旧retired label／他profile／auth／provider／production変更0。
+- worker REDはmissing canonical Upwork entrypointで1FAIL→GREEN1。browser32／entrydispatch43／adapter15／contract14loops179jobs104mapped／OSS／shellJSONdiff PASSを報告。要求model gpt-6-luna／max、actual model／effort／usageはAPIから観測不能。親は全4file diffを読み、same pushed HEADでfocused75／6.09s・contract・OSS・diffを再PASS。
+- 親full runtimeは固定f4e34ceea4／tool session40068で進行中。workerはHEADを変更せず、fresh Sol6.1 medium reviewは全required checks後に実行する。本番起動・browser identity／account inventory・源泉ownerの自然実行はsource受入後であり、source checksを完走と扱わない。
+- private state/upwork-browser-owner-source-proof.json/mode600へworker／親検証／commit／次操作を保存。PR本文は準備だけ、まだPR／main／新immutableは未達。A21全業務lane／A20本人accountとprovider例外／全金融成果は未完、SelfBuildは最後。
