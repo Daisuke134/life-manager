@@ -7176,3 +7176,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fleet reconcilerはper-owner target呼出が全fleet専用effect_unknown skip契約を失い、安全fenceをerror集計する根因。最新attempt18db728e05a1a7f8-97265はchanged0/skipped176/errors2、instagram-metricsのexact effect_unknown拒否とAlpaca bootstrap code5 I/Oを分ける。前者だけfleet内typed skipへ修正し、targeted拒否/fence/他errorは保持する。専用worktree .worktrees/lm-fleet-effect-unknown-skip-20261005 / 同名fix branch/base82d、Luna/max native担当が2filesを所有し実装中。primaryはAlpaca install/rollbackのread-only診断を並行する。
 - AGMSG既存team読取は20秒timeout、独立fleet CLI起動はOS Terminal -1712でfailed。モデルはgpt-6-luna/maxのtask-specific supported spawn argsを指定したが、起動済みとしない。placementなし/該当CLI process0/専用branchcleanを確認後nativeへ切替、Terminal/appserver restartや旧モデルfallbackなし。boot prompt/argsはdocs/superpowers/evidence/2026-10-05-internal-loop-recoveryへpush済み（8130e747）。登録と稼働を区別し、送信しただけで着手としない。
 - primaryは現在1の残owner/gap根因調査を継続、owner単位で根因確定した2のsource修正を独立並行。§217の実行順を飛ばして全項目Doneにしない。Coconala外部作業/未受入privatecopyは保留、SelfBuild11〜14最後、本番mutation0。
+
+
+### 466. 内部復旧のowner別再観測と次の診断
+
+- §217の実行順1〜14を維持。現在cursorは1（実故障/gapの根因特定）、根因確定ownerだけ2を並行する。Coconalaの個別TikTok送信証拠・NPO資料催促・残納品制作はユーザー指定で保留し、既存返信があることを納品完了や入金へ置換しない。
+- 6ownerを公式operator `status --explain --json`で読み取り専用再観測。article-self-improveはrun18db74a28f317ff0-55908 / occurrence article-self-improve:18db3628bb596998-72550、citizen-refillは18db73e6a20e4a70-28833、promptbase-loop-dailyは18db69cceb2ccdb8-23997がentrypoint_exit_1。前2者はeffect none/not_applicable、PromptBaseはpublish/reconciled・retryable=false。exitだけを根拠にpublish再送しない。次は同occurrenceのentrypoint stderr/入力境界を限定照合する。
+- capafy-goal-monitorとinvestment-strategy-validationはloaded-idle/last_exit0だがoccurrence/runなし・effect unknown。成功や売上0へ丸めず、event producer/保存先/読み取り接続を診断する。
+- Alpacaはdisabled、resource_effect_unknown、money effect unknown。同一調査中にoperator installed_release_shaが4121f447から82d31995へ変化したため、installed投影をloaded argvやrollback成功の証拠としない。latest fleet-outputには該当rollback文がなく、復元成否は未確認。公式receiptなしに解除/再bootstrap/再送しない。
+- fleet修正担当はexact拒否のREDを再現、rc1かつJSON完全一致だけのtyped skipを実装中。focused fixture検証中でGREEN/commit/push未成立。他error/compound拒否/targeted操作は維持する。token修正は§465のsource-only受入のまま、本番通知成功は未確認。
+- sanitized owner evidence: `~/.local/state/life-manager/state/internal-loop-priority-20261005-targeted-owners.json`、SHA256 7eff28e1d6b8abe85952f1b8a6242a5a22c102df32f98a40be652572f9240ed3。外部effect/本番mutation0。
