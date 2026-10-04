@@ -9,15 +9,24 @@ import sys
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) < 4 or argv[2] != "--":
-        print(f"usage: {argv[0]} LOCK -- COMMAND [ARGS...]", file=sys.stderr)
+    args = argv[1:]
+    non_blocking = bool(args and args[0] == "--non-blocking")
+    if non_blocking:
+        args = args[1:]
+    if len(args) < 3 or args[1] != "--":
+        print(f"usage: {argv[0]} [--non-blocking] LOCK -- COMMAND [ARGS...]", file=sys.stderr)
         return 64
-    path = Path(argv[1]).expanduser()
+    path = Path(args[0]).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
-    fcntl.flock(descriptor, fcntl.LOCK_EX)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | (fcntl.LOCK_NB if non_blocking else 0))
+    except BlockingIOError:
+        os.close(descriptor)
+        print(f"provider_browser_busy: {path}", file=sys.stderr)
+        return 75
     os.set_inheritable(descriptor, True)
-    os.execvp(argv[3], argv[3:])
+    os.execvp(args[2], args[2:])
     return 70
 
 

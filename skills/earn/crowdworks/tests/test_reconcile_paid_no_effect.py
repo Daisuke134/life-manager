@@ -123,6 +123,29 @@ def test_reconcile_is_read_only_without_resolve(tmp_path, monkeypatch):
     assert result["proof_type"] == "pre_effect"
 
 
+def test_resolve_retries_released_state_after_claimed_state(tmp_path, monkeypatch):
+    module = load()
+    occurrence = "crowdworks-revenue-paid:released-run"
+    state_root = seed(tmp_path, occurrence=occurrence)
+    states = []
+
+    def resolve(_owner, _occurrence, *, pre_effect_readback, expected_state):
+        states.append(expected_state)
+        return expected_state == "released"
+
+    monkeypatch.setattr(module, "resolve_pre_effect_occurrence", resolve)
+
+    result = module.reconcile(
+        state_root=state_root,
+        owner="crowdworks-revenue-paid",
+        occurrence=occurrence,
+        resolve=True,
+    )
+
+    assert result["resolved"] is True
+    assert states == ["claimed", "released"]
+
+
 def test_exact_paid_zero_effect_run_supports_shared_paid_state_layout(tmp_path):
     module = load()
     owner = "mercor-revenue-paid"

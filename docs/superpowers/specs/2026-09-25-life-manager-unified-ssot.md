@@ -2691,7 +2691,7 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 
 - object-contract release `848aee9b`の自然owner occurrence `promptbase-loop-daily:18da9661d6fee2c0-7487`は、`agent-runner` pass `96f0943a20d8815c6c60aef0`（Codex `gpt-5.6-terra`、schema-valid）を経て、`4 examples`を生成した。
 - PromptBase owner logは`status=submitted_pending_review`、`submitted_at=2026-10-02T02:48:04Z`、slug `football-match-analyst`、price `$4.99`を記録している。これは自然ownerによる実際の提出到達であり、単なるテスト成功ではない。
-- 同じ`interactive:dais` leased browserで公式seller dashboardをread-only readbackし、対象listingは`pending_review`、Salesは`0 sales / $0 net`だった。Gmail read-only検索（`keiodaisuke@gmail.com`, `(PromptBase OR football-match-analyst) newer_than:2d`）にはPromptBase審査通知がまだ無く、確認できたのはGitHub/CodeRabbit通知だけである。
+- 同じ`interactive:dais` leased browserで公式seller dashboardをread-only readbackし、対象listingは`pending_review`、Salesは`0 sales / $0 net`だった。seller Gmail accountのread-only検索（`(PromptBase OR football-match-analyst) newer_than:2d`）にはPromptBase審査通知がまだ無く、確認できたのはGitHub/CodeRabbit通知だけである。
 - よってP5cは「自然4見本→提出→公式pending」まで完了し、`Approved/Declined`、公開済み、売上、settlement、payoutは未完である。pendingをApprovedや売上へ昇格させず、再提出もしない。
 
 #### 更新後の原子cursor
@@ -2771,6 +2771,75 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 2. AffiliateとCFOは各effect_unknownの公式readback/adapter境界を一件ずつ閉じる。predecessor不一意・no adapterのまま再送しない。
 3. EbookはStripe/KDPの公式収益・fee・payout sourceを別read-only監査で確定し、Writer/Affiliateのunknownと混同しない。
 4. 上記sourceが揃うまでCFO 14-loop P&L、利益、MRR、self-fundingを宣言せず、Mobile/Connectorは§92の順序を維持する。TaskMarket/BlockRunは後段のまま。
+
+### 94. Mobile CTA修正releaseの17/17 loadと自然Postiz公式readback（2026-10-02 16:00 JST）
+
+- immutable release `20261002T153403-62f6ac6a`をMobile target 17件へ一件ずつapplyし、launchctl `ProgramArguments`/release SHAを17/17一致でreadbackした。適用中の`pending-admission`は再送せず、idle化後だけtarget applyした。running中の再起動は行っていない。
+- 新release後の自然occurrence `life-manager-anicca-he:18daa437902c8210-20957`（`2026-10-02T06:59:51Z`）はPillow/CTAエラーなしで`exit=0 / effect_status=reconciled / next_action=none`、Postiz provider receipt `cmuqhffp00n6hpe0ybsvx4qow`、TikTok公開URLをreadbackした。
+- 新release後の自然occurrence `life-manager-honne-en:18daa42c95a75040-18525`（`06:59:43Z`）も`exit=0 / reconciled / next_action=none`、Postiz receipt `cmtoxf89100rpqk0yi5x5c64h`を公式イベントでreadbackした。
+- `life-manager-anicca-ai-youtube:18daa42e667647c0-19164`（`06:59:39Z`）は`62f6ac6a`で既存Postiz receipt `cmuqgbsxr0mtspe0yjoe8nzww`へreconcileし、同一provider postを重複作成しなかった。新規投稿数としては数えず、replay-zero/readback成功として扱う。
+- これはPillow importとCTA hash/readback境界の一自然検証であり、App Store acquisition、purchase/refund、Apple proceeds、app別actual cost、RevenueCatとの同一app join、Mobile売上/MRR/利益の完了証拠ではない。歴史的effect_unknown fenceが残るため`admission_effect_unknown=true`を成功に丸めない。
+
+#### 更新後の原子cursor
+
+1. Mobile残り自然occurrenceを一件ずつPostiz公式receipt/replay-zero付きでreadbackする。
+2. ASC agreement readbackが可能になった場合だけinventory/proceedsを取得し、RevenueCat purchase/refundとapp IDでjoinする。本人必須agreementを自動突破しない。
+3. app別model/browser/infra costとsettled proceedsが揃うまでMobile P&L/MRRはunknownのまま保持する。
+4. Writer/Affiliate/CFOのsource gapを§93の順で閉じ、Connector/Fundraiser/contract-work、Self-Build、Investment、CFO、TaskMarket/BlockRun、cloud/self-fundingへ進む。
+
+### 95. CFO/provider-cost observability設計の保存とEbook/Stripe credential境界（2026-10-02 16:05 JST）
+
+- CFO席の設計spec `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`（PR #6478、main `2674c61491ef2a92541f358490968df172a0af3e`）を参照specとして保存した。personal CFO（Moneytree等）とLife Manager business CFO（Stripe/Capafy/Writer等）をowner分離し、`settled`/`estimated`/`unknown`、freshness、provider receipt、effect_unknownを別状態で保持するA0〜A10設計である。production code、provider、ledger、個人資金は変更していない。
+- Ebook/Stripeの公式read-only境界を確認した。`stripe-revenue-poller`は直近passだが`last-result.json`は`cfo_boundary_failed`・recordCount=0で、Stripe API adapterはcanonical `~/.local/share/anicca/credentials.json`に`sk_live_`/`rk_live_`を発見できず`credential_missing`。ファイルに無いenv secretを正本へ複製・表示・推測せず、Stripe settled revenue/fee/payoutはunknownのままにした。
+- Stripe listenerの自然runはexit 0でもprovider receiptなし（effect_class=none）であり、webhook process healthをEbook販売・決済証拠へ昇格させない。Ebook/KDPの公開・購入・refund・settlement・payout・actual cost joinは未完了である。
+- Moneytreeの個人残高やGoogle請求はLife Manager売上に加算しない。owner、settlement、source receiptが一致しない数値はCFO 14-loop P&Lから除外しunknownとして報告する。
+
+#### 更新後の原子cursor
+
+1. Writer/Ebook/Affiliate groupは、公式receiptが得られるowner経路を順にread-only確認する。まずEbook/Stripeはcanonical credential/provider boundaryを閉じ、KDPは認証なしのまま突破しない。
+2. Writerはcapacity eligibility後の自然sales/metrics readback、AffiliateはPartnerStack fresh settlement、CFOはeffect_unknownの公式readback/adapter境界を閉じる。推定金額をreceiptにしない。
+3. ASC/RevenueCatのMobile proceeds/cost join、Connector、Fundraiser、contract-workを続ける。TaskMarket/BlockRunは後段順位を維持する。
+4. CFO A0の重複確認とsource-backed実装計画を終えるまで、利益・MRR・self-funding・financial independenceを宣言しない。
+
+### 96. Connector/Fundraiserのno-effect・effect_unknown境界（2026-10-02 16:10 JST）
+
+- Connector `life-manager-connector-native`の自然occurrence `18daa3808f1b2a28-9469`（`2026-10-02T06:48:37Z`）は`exit=0 / effect_class=none / effect_status=not_applicable`、official provider receiptなし。private state `last-result.json`は`status=incomplete`、`open=18 / covered_new=3 / covered_existing=0`、inventory event 31、calendar eligible 0、write attempt 0を返した。
+- 同じwakeの候補監査はConnpass 4件（全て`priority_class=other / preference_fit=weak / auto_apply_eligible=false`）、Luma 0件。最新wake reportは`completed_no_effect / safe_reason=providers_exhausted`で、候補0を登録成功・収益・Connector完了へ昇格させない。
+- Fundraiserの最新status（occurrence `fundraiser:18daa46be71addb8-45435`、`2026-10-02T07:03:06Z`）は`host_admission_deferred:resource_effect_unknown`、`effect_class=application`、`official_readback_ref=null`、`provider_receipt_id=null`。歴史的occurrence `18d9b0b6311a2018-87933`のfence adapterは`HELD / no_entrypoint_preflight_signature`で、外部applicationの結果は証明されていない。
+- Fundraiserは人間必須のapplication/identity境界を自動突破せず、外部資金調達を商品売上へ加算しない。既存application receiptやスクリーンショットは提出成功・採択・入金の公式receiptではない。
+
+#### 更新後の原子cursor
+
+1. Connectorはcandidate priority-fitが発生するまで自然no-effect readbackだけを監視し、provider登録・confirmation mail・Calendar eventが揃う候補だけを一件閉じる。
+2. Fundraiserは`no_entrypoint_preflight_signature`のsource/fence契約を専用ownerで診断し、公式readbackなしの再申請・fence closeをしない。human-required境界はholdする。
+3. Contract-work（Coconala→Lancers→CrowdWorks→Job Hunter）のpaid contract/readbackを順に閉じ、Self-Build、Investment、CFO、TaskMarket/BlockRun、cloud/self-fundingへ進む。
+4. 収益・利益・MRR・financial independenceは、settled external revenueとactual costが同一期間でjoinできるまでunknownのままにする。
+
+### 97. Contract-workのpaid/readback境界（2026-10-02 16:20 JST）
+
+- `lancers-revenue-application`はoccurrence `18da280dd0d58308-45202`で`entrypoint_exit_1 / effect_status=unknown / official_readback_ref=null`。`lancers-revenue-paid`も`18daa462e5bbb9c8-42935`で同じ境界。provider receipt・buyer-visible contract・settlementは未確認で、blind retryしない。
+- `lancers-revenue-work-sync`はexit 0でも`effect_class=none`のprocess healthであり、paid contract/readbackの完了証拠ではない。
+- `crowdworks-revenue-application`はexit 0だが`effect_status=unknown / admission_effect_unknown=true`、`crowdworks-revenue-paid`はoccurrence `18daa425e6836730-15803`で`entrypoint_exit_1 / official_readback_ref=null`。`crowdworks-revenue-reply`のpassもbuyer payment・納品・settlementを証明しない。
+- `job-search-inbox`はoccurrence `18daa37396ba9fc8-93732`でexit 78/`entrypoint_exit_1`、next_action=`reconcile_owner`。Mercor application/paidは`host_admission_deferred:resource_effect_unknown`でreceiptなし。候補・process healthをpaid incomeへ数えない。
+
+#### 更新後の原子cursor
+
+1. 各effect_unknown/entrypoint failureの同一occurrenceを公式provider/readbackで照合し、receiptが無いまま再送・再応募しない。
+2. Lancers/CrowdWorks/Job Hunter/Mercorは、buyer-visible acceptance、settlement、fee、actual cost、duplicate-zeroが同じowner receiptに揃った案件だけをpaid完了へ進める。
+3. human-required interview/KYC/CAPTCHA/本人確認はholdし、fundraiserと同じく自動突破しない。
+4. paid contractのsourceが揃った後にSelf-Build→Investment AT-13〜AT-29→CFO 14/14→TaskMarket/BlockRun→cloud/self-fundingへ進む。
+
+### 98. PromptBase/Capafy fresh readback（2026-10-02 16:12 JST）
+
+- PromptBase `readback.py`を`interactive:dais` leaseで再実行したが、tracked 3 listingの状態更新はなく、Reels Hook LabはScheduled、Portfolio Tracker/Football Match AnalystはPendingのまま。Salesは`0件 / $0.00 net / by_item={}`で、同一listingへの投稿・編集・再送は0件。
+- Capafy `publish-list`公式readback（`2026-10-02T07:12:47Z`）は52件中`online=47 / under_review=3 / review_rejected=2`、under_review Agentは`4813383030`、`4243672453`、`4763185052`で変化なし。
+- 同時刻のCapafy official `sales/trend`直近7日は注文21件・revenue/netRevenue合計`$21.93`、`payout-info`は`balancePayout=$59.00`、`balancePending=$15.64`、`balanceConfirmed=$1.54`、`totalPayout=$0.00`。server残高をsettled bank income・利益・MRRへ昇格させない。
+
+#### 更新後の原子cursor
+
+1. PromptBaseはScheduled→公開URL/liveが公式dashboardで変化した時だけ、Sales item/order→fee→settlement→payout→replay-zeroへ進む。
+2. Capafyはunder_review枠が空くまでread-only監視し、空いた時だけ既存ownerの自然CP2/CP3を一件閉じる。
+3. 変化なしのreadbackを根拠にmanual retry・容量上限変更・ledger訂正をしない。Writer/Ebook/Affiliate/CFO/contract-workの独立source gapを並列に続ける。
 
 ### 92. PromptBase scheduled/Sales再確認とCapafy公式収益readback（2026-10-02 15:47 JST）
 
@@ -3029,3 +3098,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 2. Approved後だけ公開URL/live、Sales、fee、model cost、settlement、payout、replay-zeroへ進む。Declinedなら公式理由を保存し、別内容の修正cursorを作る。
 3. Reels Hook Lab Scheduled、Football Match Analyst Pending、Portfolio Tracker Pendingを相互に混同せず、Sales `0/$0`を維持する。
 4. Capafy under_review、CFO source gaps、Writer/Ebook/Affiliate/Mobileを独立laneで継続し、TaskMarket/BlockRunは§55の後段順位を維持する。
+
+## Capafy の TODO 正本
+
+Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状態・現在のカーソル）は `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md` の「実行順」表を正本とする。Capafy の順序・状態はそちらだけで更新し、ここには書き写さない。

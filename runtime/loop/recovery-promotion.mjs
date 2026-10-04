@@ -197,15 +197,17 @@ export async function promoteLoopRuntimeRepair({
   try {
     const applied = await runCommand({
       executable: loopExecutable,
-      args: ['apply'],
+      args: ['apply', '--loaded-idle-only'],
       env: { ...process.env, LIFE_MANAGER_APPLY_TARGET: ownerId, LIFE_MANAGER_RELEASE_ROOT: releasePath },
     });
     let parsed = null;
     try { parsed = JSON.parse(String(applied?.stdout || '')); } catch { parsed = null; }
     const item = Array.isArray(parsed)
-      ? parsed.find((row) => row && (row.loop_id === ownerId || row.label === entry.label))
+      ? parsed.find((row) => row && row.label === entry.label
+        && (row.loop_id == null || row.loop_id === ownerId))
       : null;
-    canaryOk = applied?.code === 0 && Boolean(item) && item.ok === true && item.skipped == null;
+    canaryOk = applied?.code === 0 && Boolean(item) && item.ok === true
+      && item.release_sha === mergedSha && item.skipped == null;
     hooks.push(hook('isolated_canary', canaryOk, { exit_code: applied?.code ?? null, item }));
   } catch (error) {
     hooks.push(hook('isolated_canary', false, { error: String(error?.message || error) }));
@@ -248,14 +250,17 @@ export async function promoteLoopRuntimeRepair({
   let rolledBack = false;
   const needsRollback = !canaryOk || !healthOk;
   if (needsRollback) {
-    const available = previousReleasePath != null;
+    const previousReleaseSha = previousReleasePath
+      ? await readManifestSha(previousReleasePath, readFileFn) : null;
+    const available = SHA256.test(String(previousReleaseSha || ""));
     let executed = false;
     let result = null;
     if (available) {
       try {
         result = await runCommand({
-          executable: path.join(previousReleasePath, 'bin/lm-loop'),
-          args: ['apply'],
+          // Keep the new controller: an older CLI cannot enforce the idle-only option.
+          executable: loopExecutable,
+          args: ['apply', '--loaded-idle-only'],
           env: {
             ...process.env,
             LIFE_MANAGER_APPLY_TARGET: ownerId,
@@ -263,13 +268,19 @@ export async function promoteLoopRuntimeRepair({
           },
         });
         executed = true;
-        rolledBack = result?.code === 0;
+        let receipt = null;
+        try { receipt = JSON.parse(String(result?.stdout || "")); } catch {}
+        const item = Array.isArray(receipt) ? receipt.find((row) => row
+          && row.label === entry.label
+          && (row.loop_id == null || row.loop_id === ownerId)) : null;
+        rolledBack = result?.code === 0 && item?.ok === true
+          && item.release_sha === previousReleaseSha && item.skipped == null;
       } catch (error) {
         result = { code: 1, error: String(error?.message || error) };
       }
     }
-    hooks.push(hook('rollback', available, {
-      executed, result, previous_release_path: previousReleasePath,
+    hooks.push(hook('rollback', rolledBack, {
+      executed, result, previous_release_path: previousReleasePath, previous_release_sha: previousReleaseSha,
     }));
   } else {
     hooks.push(hook('rollback', previousReleasePath != null, {

@@ -69,6 +69,9 @@ monitoring/deferred work.
       `publish-init --selections-file` create a new version under the same Agent ID.
       Then complete CP1 if `is_confirmed_skills` is not already true, and continue with
       `publish_finish.sh` with the prepare-emitted `AGENT_VERSION_ID`. Never point CP3 at the stale rejected package.
+      Before resubmitting, read `state/capafy-rejection-repair-queue.json` for this `agent_id`'s
+      `rejection_reason` and fix that specific issue first (e.g. a reason like `2.2.3` means the
+      card's Base Model must equal the CP2 hosted model) — do not resubmit the same content blind.
    d. For `update_existing`, use the exact catalog `UPDATE.json` Agent ID and
       `from_version_id`. Set `CAPAFY_EXPECTED_AGENT_ID` and
       `CAPAFY_EXPECTED_FROM_VERSION_ID` when calling `publish_prepare.sh`; it

@@ -2475,6 +2475,17 @@
       },
       "domain": "financial",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/cfo/effect_reconcile.py",
+          "--state-dir",
+          "~/.local/state/life-manager/life-manager-cfo-hourly",
+          "--admission-db",
+          "~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve"
+      },
       "entrypoint": "skills/cfo/run.sh",
       "label": "ai.anicca.life-manager-cfo-hourly",
       "log_root": "~/.local/state/life-manager/life-manager-cfo-hourly/logs",
@@ -2604,7 +2615,7 @@
         "max_runs": 100
       },
       "domain": "financial",
-      "effect_class": "message",
+      "effect_class": "none",
       "entrypoint": "apps/life-manager/scripts/financial-report-boot.sh",
       "label": "ai.anicca.life-manager-financial-report",
       "log_root": "~/.anicca/logs",
@@ -4188,6 +4199,12 @@
       "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell",
       "priority": "support"
+    }
+  },
+  "guarded_retired_labels": {
+    "ai.anicca.provision-browser.capafy.kosuke": {
+      "expected_arguments_sha256": "846e489e92ab67404486025fd7551c9744f88de59b575de8dd43bc74e38d8ce9",
+      "missing_entrypoint": "~/loops/releases/20261001T084634-ad194515/skills/browser/cdp_persistent_context.py"
     }
   },
   "retired_labels": [

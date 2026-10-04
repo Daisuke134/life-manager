@@ -88,6 +88,7 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "alpaca-investment-live",
     "alpaca-investment-paper",
+    "hf-gig-apply-direct",
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",
 })
@@ -1015,6 +1016,13 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                   on_claimed: Callable[[str], None] = lambda _value: None,
                   on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
     limit = _runtime_limit(entry)
+    if loop_id in CONTROL_PLANE_SAFETY_LOOPS or limit is None:
+        # Exempt owners have a native wake identity, but no durable claim.
+        # Discard inherited occurrence/hint context before passing that identity.
+        env = {key: value for key, value in env.items()
+               if key not in {"LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"}}
+        if occurrence_id is not None:
+            env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
     if loop_id in CONTROL_PLANE_SAFETY_LOOPS:
         if entry.get("effect_class") == "none":
             try:

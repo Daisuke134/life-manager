@@ -17,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Callable
 
 
 _OWNER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
@@ -90,6 +91,19 @@ def _port_answers(port: int, timeout: float = 3.0) -> bool:
         return False
 
 
+def _browser_uuid(port: int, timeout: float = 3.0) -> str | None:
+    try:
+        with urllib.request.urlopen(
+            f"http://localhost:{port}/json/version", timeout=timeout,
+        ) as response:
+            value = json.load(response)
+    except Exception:
+        return None
+    websocket = str(value.get("webSocketDebuggerUrl") or "")
+    match = re.fullmatch(r"ws://.+/devtools/browser/([A-Za-z0-9-]{8,128})", websocket)
+    return match.group(1) if match else None
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -146,10 +160,12 @@ def _wait_for_browser(
     startup_grace_seconds: float = 60.0,
     probe_interval_seconds: float = 10.0,
     max_consecutive_failures: int = 3,
+    on_ready: Callable[[], bool] | None = None,
 ) -> int:
     """Wait for the browser, but return EX_TEMPFAIL when its CDP stays wedged."""
     startup_deadline = time.monotonic() + startup_grace_seconds
     consecutive_failures = 0
+    ready_reported = False
     while True:
         try:
             return child.wait(timeout=probe_interval_seconds)
@@ -157,6 +173,8 @@ def _wait_for_browser(
             pass
         if _port_answers(port):
             consecutive_failures = 0
+            if on_ready is not None and not ready_reported:
+                ready_reported = bool(on_ready())
             continue
         if time.monotonic() < startup_deadline:
             continue
@@ -339,11 +357,16 @@ def run(args: argparse.Namespace) -> int:
             if _port_answers(args.port):
                 adopted_pid = _live_profile_owner(Path(args.profile), args.port)
                 if adopted_pid is not None:
+                    browser_uuid = _browser_uuid(args.port)
+                    if browser_uuid is None:
+                        return 75
                     payload = {
                         "owner": args.owner,
                         "pid": os.getpid(),
                         "supervisor_pid": os.getpid(),
                         "browser_root_pid": adopted_pid,
+                        "listener_pid": adopted_pid,
+                        "browser_uuid": browser_uuid,
                         "port": args.port,
                         "profile_name": Path(args.profile).name,
                         "adopted": True,
@@ -381,6 +404,20 @@ def run(args: argparse.Namespace) -> int:
             _write_receipt(receipt_path, payload)
             _write_receipt(profile_receipt_path, payload)
 
+            def record_listener() -> bool:
+                listener_pid = _live_profile_owner(Path(args.profile), args.port)
+                browser_uuid = _browser_uuid(args.port)
+                if listener_pid is None or browser_uuid is None:
+                    return False
+                current = {
+                    **payload,
+                    "listener_pid": listener_pid,
+                    "browser_uuid": browser_uuid,
+                }
+                _write_receipt(receipt_path, current)
+                _write_receipt(profile_receipt_path, current)
+                return True
+
             def forward(signum: int, _frame: object) -> None:
                 _forward_process_group_signal(child.pid, signum)
 
@@ -388,7 +425,9 @@ def run(args: argparse.Namespace) -> int:
             for signum in (signal.SIGTERM, signal.SIGINT):
                 previous[signum] = signal.signal(signum, forward)
             try:
-                return _wait_for_browser(child, port=args.port)
+                return _wait_for_browser(
+                    child, port=args.port, on_ready=record_listener,
+                )
             finally:
                 _terminate_process_group(child.pid)
                 for signum, handler in previous.items():

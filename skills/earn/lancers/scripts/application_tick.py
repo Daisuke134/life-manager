@@ -662,7 +662,9 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
 
 def _production_account_ready(page: Any) -> bool:
     try:
-        page.goto(DASHBOARD_URL)
+        response = page.goto(DASHBOARD_URL)
+        if response is None or response.status != 200:
+            return False
         if getattr(page, "url", None) != DASHBOARD_URL:
             return False
         return page.locator("#login_form").count() == 0

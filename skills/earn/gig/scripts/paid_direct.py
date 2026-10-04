@@ -27,6 +27,10 @@ from telegram_report import GigTelegramTransport  # noqa: E402
 from gig_paths import BROWSER_DIR, REPO_ROOT, RUNNER_DIR  # noqa: E402
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
 from operator_brake import status as shared_operator_brake_status  # noqa: E402
+from browser_lease_yield import (  # noqa: E402
+    BrowserLeaseYieldError,
+    yield_registered_browser_lease,
+)
 
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
 ORDERS_OBSERVATION_TIMEOUT_SECONDS = 120
@@ -52,6 +56,16 @@ DEFAULT_BRAKE = Path(
 DEFAULT_TELEGRAM_DATABASE = Path.home() / "gig" / "telegram-outbox.sqlite3"
 DEFAULT_TELEGRAM_RECEIPTS = Path.home() / "gig" / "telegram-delivery-receipts"
 RECEIPT_RESERVE_BYTES = 1024 * 1024
+
+
+@contextmanager
+def _yield_registered_browser_lease() -> Iterator[None]:
+    """Release Coconala only while the paid model performs provider-independent work."""
+    try:
+        with yield_registered_browser_lease():
+            yield
+    except BrowserLeaseYieldError as error:
+        raise Failure(error.stage, error.reason) from error
 
 
 def _operator_denied_paths() -> list[str]:
@@ -95,6 +109,10 @@ def _shared_browser_denies() -> str:
     target_owners = Path(os.environ.get(
         "CLOAK_TARGET_OWNERS_FILE", "~/.cloak/vault/target-owners.json",
     )).expanduser().resolve()
+    browser_port_state = Path(os.environ.get(
+        "LIFE_MANAGER_BROWSER_PORT_STATE_DIR",
+        "~/.local/state/life-manager/browser-ports",
+    )).expanduser().resolve()
     profile_candidates = {
         Path(os.environ.get(
             "CDP_DAILY_DRIVER_PROFILE", "~/.cloak/profiles/gig-daily-driver",
@@ -108,6 +126,7 @@ def _shared_browser_denies() -> str:
             str(vault.parent), str(leases), str(target_owners),
             *(str(path) for path in profile_candidates),
         ])
+        + f'(deny file-write* (subpath {json.dumps(str(browser_port_state))}))\n'
     )
 
 
@@ -5783,10 +5802,11 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
             progress_size = progress.stat().st_size if _regular_file(progress) else 0
             try:
                 _require_owner_policy_clear(args, _load(item_path))
-                _run_private_model_serialized(
-                    root, owner_command, "paid-remote-owner", "remote_builder", effect_owner=True,
-                    timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
-                )
+                with _yield_registered_browser_lease():
+                    _run_private_model_serialized(
+                        root, owner_command, "paid-remote-owner", "remote_builder",
+                        effect_owner=True, timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
+                    )
             except Failure as error:
                 _raise_remote_builder_or_progress(
                     progress, progress_size, progress_contract, error,
@@ -5869,9 +5889,10 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
               "--evidence-dir", str(verifier_evidence), "--task-label", "paid-remote-verifier",
               "--escalation-reason", "Fresh model independently verifies the paid live target",
               "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
-        _run_private_model_serialized(
-            root, verifier_command, "paid-remote-verifier", "remote_verifier",
-        )
+        with _yield_registered_browser_lease():
+            _run_private_model_serialized(
+                root, verifier_command, "paid-remote-verifier", "remote_verifier",
+            )
         if (_requirements_snapshot(root) != requirements_snapshot
                 or _delivery_snapshot(root) != delivery_snapshot
                 or _project_identity_snapshot(root, verifier_evidence) != project_snapshot):

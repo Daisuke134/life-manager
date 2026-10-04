@@ -187,13 +187,33 @@ def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional
             "delivery_due_on": due, "proposal_text": text.strip()}
 
 
+_PROPOSAL_TERMS_CACHE_ATTR = "_lancers_proposal_terms"
+
+
+def _read_proposal_terms_cached(
+    page: Any, proposal_id: str, expected_project: Optional[str] = None,
+) -> Mapping[str, Any]:
+    """Read one proposal's official terms once per browser page/wake."""
+    cache = getattr(page, _PROPOSAL_TERMS_CACHE_ATTR, None)
+    if not isinstance(cache, dict):
+        cache = {}
+        try:
+            setattr(page, _PROPOSAL_TERMS_CACHE_ATTR, cache)
+        except AttributeError:
+            return _read_proposal_terms(page, proposal_id, expected_project)
+    key = (proposal_id, expected_project)
+    if key not in cache:
+        cache[key] = _read_proposal_terms(page, proposal_id, expected_project)
+    return cache[key]
+
+
 def _proposal_context(page: Any, detail: Mapping[str, Any], verified_proposals: set[str]) -> Optional[Mapping[str, Any]]:
     with_value = detail.get("with")
     if not isinstance(with_value, Mapping) or not isinstance(with_value.get("proposal"), Mapping): return None
     proposal_id = _id(with_value["proposal"].get("id"))
     if proposal_id not in verified_proposals: raise SourceFailure("proposal_receipt_unverified")
     job = with_value.get("job"); expected_project = _id(job.get("id")) if isinstance(job, Mapping) and job.get("id") is not None else None
-    return _read_proposal_terms(page, proposal_id, expected_project)
+    return _read_proposal_terms_cached(page, proposal_id, expected_project)
 
 
 def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
@@ -265,6 +285,37 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
             "milestone_count": len(rows), "fields": dict(fields)}
 
 
+_ACCEPTANCE_STATUS_CACHE_ATTR = "_lancers_acceptance_statuses"
+
+
+def invalidate_acceptance_status_cache(page: Any) -> None:
+    """Make the next acceptance readback fetch the provider's current status list.
+
+    The Paid acceptance lane reuses one page for several candidates.  A successful
+    accept mutation changes the provider state after an earlier candidate may have
+    populated that page's per-wake memo, so the mutation owner must call this
+    boundary before its authoritative post-mutation readback.  Objects that do not
+    permit arbitrary attributes simply have no memo to invalidate.
+    """
+    try:
+        delattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR)
+    except AttributeError:
+        try:
+            setattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, None)
+        except AttributeError:
+            pass
+
+
+def _fetch_acceptance_statuses(page: Any) -> dict[str, Optional[str]]:
+    path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
+    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
+    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
+    page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
+    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
+    return {row.get("href"): row.get("status") for row in projects if isinstance(row, Mapping)}
+
+
 def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     """True when the official proposal list shows this project as accepted.
 
@@ -272,20 +323,23 @@ def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     client's escrow) and does not list it on the working tab: on 2026-09-27 the working tab
     was empty while 5605912 was accepted (official 「プロジェクトの承諾を受け付けました」 email).
     The newest-first all-proposals list (same source as _proposal_pipeline) does list it.
+
+    exit=124 on 2026-10-01: each acceptance candidate re-fetched this same list within one
+    wake. Cache it on ``page`` itself so a wake that reuses one page across several
+    candidates fetches the list once; a fresh page (a new wake) starts with no cache.
     """
-    path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
-    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
-    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
-    page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
-    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
-    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
-    for row in projects:
-        if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":
-            if row.get("status") in {"進行中", "仮払い待ち"}:
-                return True
-            print(f"lancers_acceptance_readback_probe:{project_id}:status={row.get('status')!r}", file=sys.stderr)
-            return False
-    print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(projects)}", file=sys.stderr)
+    statuses = getattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, None)
+    if statuses is None:
+        statuses = _fetch_acceptance_statuses(page)
+        try: setattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, statuses)
+        except AttributeError: pass
+    status = statuses.get(f"/work/detail/{project_id}")
+    if status in {"進行中", "仮払い待ち"}:
+        return True
+    if status is None:
+        print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(statuses)}", file=sys.stderr)
+    else:
+        print(f"lancers_acceptance_readback_probe:{project_id}:status={status!r}", file=sys.stderr)
     return False
 
 
@@ -325,7 +379,7 @@ def _acceptance_candidates(page: Any, verified_proposals: Iterable[str]) -> list
     candidates = []
     for proposal_id in (sorted(verified_proposals) if isinstance(verified_proposals, set) else verified_proposals):
         try:
-            terms = _read_proposal_terms(page, proposal_id)
+            terms = _read_proposal_terms_cached(page, proposal_id)
         except SourceFailure as error:
             # A withdrawn/expired proposal page is gone; it must not hide the live ones.
             if str(error) != "proposal_page_not_found": raise

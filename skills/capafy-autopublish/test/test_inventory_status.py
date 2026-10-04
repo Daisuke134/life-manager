@@ -155,6 +155,29 @@ def test_multiple_updates_pick_highest_30d_revenue_first() -> None:
     assert decision_no_data["item"]["agent_id"] == "1111111111"
 
 
+def test_multiple_retries_pick_highest_30d_revenue_first() -> None:
+    module = load_module()
+    # Real case 2026-10-04: agent_id-string order picked the zero-revenue
+    # retry ahead of the $11.18/30d Marketing Strategist.
+    low = {"agent_id": "4973250899", "title": "Customer Renewal Evidence Brief"}
+    high = {"agent_id": "9563867391", "title": "Marketing Strategist"}
+    free = module.normalize_agents([agent("1", "under_review")])
+    revenue_by_agent = {"4973250899": 0.0, "9563867391": 11.18}
+
+    decision = module.allocate_action(free, [low, high], [], revenue_by_agent=revenue_by_agent)
+
+    assert decision["action"] == "retry_existing"
+    assert decision["item"]["agent_id"] == "9563867391"
+
+    # No revenue data (or a tie) falls back to agent_id ascending, same as before.
+    decision_no_data = module.allocate_action(free, [low, high], [])
+    assert decision_no_data["item"]["agent_id"] == "4973250899"
+
+    decision_tied = module.allocate_action(
+        free, [low, high], [], revenue_by_agent={"4973250899": 5.0, "9563867391": 5.0})
+    assert decision_tied["item"]["agent_id"] == "4973250899"
+
+
 def test_load_revenue_by_agent_reads_analytics_snapshot(tmp_path) -> None:
     module = load_module()
     snapshot = tmp_path / "capafy-skill-analytics.json"
@@ -499,6 +522,38 @@ def test_fetch_agent_detail_reads_publish_remote_status(monkeypatch) -> None:
     monkeypatch.setattr(module.subprocess, "run", fake_run)
 
     assert module.fetch_agent_detail("9470213182") == (3, 4)
+
+
+def test_duplicate_gate_drops_near_duplicate_and_unknown_keeps_distinct(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    cache_path = tmp_path / "verdicts.json"
+
+    def listing(name: str) -> Path:
+        path = tmp_path / f"{name}.md"
+        path.write_text(f"## Title\n{name}\n")
+        return path
+
+    distinct = listing("distinct")
+    near_dup = listing("near_dup")
+    unjudged = listing("unjudged")
+
+    sha_distinct = module.duplicate_gate.listing_content_sha(distinct)
+    sha_near_dup = module.duplicate_gate.listing_content_sha(near_dup)
+    cache_path.write_text(json.dumps({
+        "distinct": {"content_sha256": sha_distinct, "verdict": {"verdict": "distinct", "closest": "", "why": "ok"}},
+        "near_dup": {"content_sha256": sha_near_dup, "verdict": {"verdict": "near_duplicate", "closest": "X", "why": "same"}},
+    }))
+
+    items = [
+        {"feature": "distinct", "title": "Distinct", "listing": str(distinct)},
+        {"feature": "near_dup", "title": "Near Dup", "listing": str(near_dup)},
+        {"feature": "unjudged", "title": "Unjudged", "listing": str(unjudged)},
+    ]
+    monkeypatch.setattr(module.duplicate_gate, "DEFAULT_VERDICTS_PATH", cache_path)
+
+    results = {it["feature"]: module._not_near_duplicate(it) for it in items}
+
+    assert results == {"distinct": True, "near_dup": False, "unjudged": False}
 
 
 def test_repo_catalog_is_ready_and_overrides_same_title_legacy_item(tmp_path: Path) -> None:

@@ -13,6 +13,7 @@ fi
 
 set +e
 "$LOCK_PYTHON" "$ROOT/skills/browser/scripts/run_with_file_lock.py" \
+  --non-blocking \
   "$STATE_ROOT/provider-browser.lock" -- \
   "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/paid_kernel.py" \
   --require-paid-handoff \
@@ -25,6 +26,70 @@ set +e
   --state-path "$STATE_ROOT/paid"
 RC=$?
 set -e
+
+# Observation can fail before the Paid kernel arms any provider mutation.  Keep
+# that boundary retryable (the Lancers Paid owner uses the same rule) instead
+# of reporting a hard entrypoint failure and needlessly retaining a fence.  Do
+# not classify an item without the kernel's explicit pre_effect proof: a
+# provider timeout after mutation remains effect-unknown and must stay fenced.
+if (( RC == 1 )); then
+  set +e
+  "$PYTHON" - "$STATE_ROOT/paid-latest.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+SAFE_OBSERVATION_ERRORS = frozenset({
+    "crowdworks_paid_handoff_unavailable",
+    "crowdworks_paid_browser_unavailable",
+    "crowdworks_paid_browser_context_unavailable",
+    "crowdworks_paid_active_contracts_timeout",
+    "crowdworks_paid_contract_timeout",
+    "crowdworks_paid_proposal_timeout",
+    "crowdworks_paid_milestone_timeout",
+    "crowdworks_paid_contract_source_unavailable",
+    "crowdworks_paid_contract_unavailable",
+    "crowdworks_paid_work_unavailable",
+    "crowdworks_paid_task_unavailable",
+    "crowdworks_paid_message_thread_unavailable",
+    "crowdworks_paid_message_thread_invalid",
+    "crowdworks_paid_context_unavailable",
+    "crowdworks_paid_state_unavailable",
+})
+
+try:
+    result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+except (OSError, TypeError, ValueError, json.JSONDecodeError):
+    raise SystemExit(1)
+
+if not isinstance(result, dict) or result.get("effect") != 0:
+    raise SystemExit(1)
+
+inventory_error = (
+    result.get("status") == "failed"
+    and result.get("failed_step") == "provider_inventory"
+    and result.get("error_detail") in SAFE_OBSERVATION_ERRORS
+)
+failed_items = [
+    item for item in result.get("items", [])
+    if isinstance(item, dict) and item.get("failed") == 1
+]
+item_observation_errors = (
+    bool(failed_items)
+    and result.get("failed") == len(failed_items)
+    and all(
+        item.get("pre_effect") is True
+        and item.get("error_detail") in SAFE_OBSERVATION_ERRORS
+        for item in failed_items
+    )
+)
+raise SystemExit(0 if inventory_error or item_observation_errors else 1)
+PY
+  if (( $? == 0 )); then
+    RC=75
+  fi
+  set -e
+fi
 
 # A successful Paid wake writes an occurrence-bound zero-effect marker.  Release
 # that exact host-admission claim when the marker proves no provider mutation

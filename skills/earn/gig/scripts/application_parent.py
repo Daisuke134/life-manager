@@ -45,6 +45,10 @@ from coconala_applied_readback import (
 )
 from listing_inventory import _cdp_connect
 from market_snapshot import MARKET_FIELDS, parse_market
+from browser_lease_yield import (
+    BrowserLeaseYieldError,
+    yield_registered_browser_lease,
+)
 
 
 def _load_shared(name: str):
@@ -72,6 +76,33 @@ class ParentContractError(ValueError):
 
 class CrashInjected(RuntimeError):
     """Test-only interruption after a durable boundary checkpoint."""
+
+
+def _enter_effect_boundary() -> None:
+    """Invalidate the host pre-effect proof before an irreversible submit marker."""
+    value = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if not value:
+        return
+    path = Path(value)
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        # A prior application in this same wake already crossed the boundary.
+        return
+    try:
+        if (
+            not path.is_file()
+            or path.is_symlink()
+            or info.st_uid != os.getuid()
+            or info.st_nlink != 1
+            or info.st_mode & 0o777 != 0o600
+            or json.loads(path.read_text(encoding="utf-8"))
+            != {"status": "pre_effect_failure", "effect": 0}
+        ):
+            raise ValueError
+        path.unlink()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise ParentContractError("pre_effect_hint_invalid") from error
 
 
 def _publish_instant_work_events(ledger_path: Path, pass_id: str) -> None:
@@ -677,7 +708,9 @@ def _page_index(url: str) -> int:
     return int(pages[0])
 
 
-_COCONALA_USER_PATH = re.compile(r"^/users/(\d+)$")
+_COCONALA_USER_PATH = re.compile(
+    r"^/(?:smartphone/)?users/(\d+)(?:/portfolios)?/?$"
+)
 
 
 def _validated_authenticated_identity(
@@ -707,13 +740,14 @@ def _validated_authenticated_identity(
         "https://www.coconala.com/"
     ):
         raise ParentContractError("authenticated_identity_provider_route_invalid")
+    canonical_path = f"/users/{match.group(1)}"
     return {
         "source": "code_owned_cdp_authenticated_identity",
         "provider": "coconala",
         "request_id": str(request_id),
         "account_id": match.group(1),
-        "profile_url": f"https://coconala.com{path}",
-        "profile_path": path,
+        "profile_url": f"https://coconala.com{canonical_path}",
+        "profile_path": canonical_path,
         "page_url": page_url[:300],
         "page_title": str(raw.get("title") or "")[:150],
         "selection": str(raw.get("selection") or "")[:80],
@@ -1584,19 +1618,32 @@ class CdpParentEffects:
         expression = r'''JSON.stringify((()=>{
           const path=a=>{try{
             const u=new URL(a.href,location.origin);
-            return u.origin==='https://coconala.com'&&/^\/users\/\d+$/.test(u.pathname)
-              ?u.pathname:null;
+            const m=u.pathname.match(/^\/(?:users|smartphone\/users)\/(\d+)\/?$/);
+            return u.origin==='https://coconala.com'&&m?`/users/${m[1]}`:null;
           }catch(_){return null}};
           const links=[...document.querySelectorAll('a[href]')]
             .map(a=>({node:a,path:path(a)})).filter(x=>x.path);
           const sidebar=links.find(x=>x.node.closest('.sidebar-profile'));
           const header=links.find(x=>x.node.closest('header,nav,[class*="header"],[class*="Header"]'));
-          const selected=sidebar||header;
+          const proposal=document.querySelector('textarea[name="data[Offer][content]"]');
+          const form=proposal?.closest('form');
+          const portfolioPaths=[...new Set([...(form?.querySelectorAll('a[href]')||[])]
+            .map(a=>{try{
+              const u=new URL(a.href,location.origin);
+              const m=u.pathname.match(/^\/(?:users|smartphone\/users)\/(\d+)\/portfolios\/?$/);
+              return u.origin==='https://coconala.com'&&m?`/users/${m[1]}/portfolios/`:null;
+            }catch(_){return null}}).filter(Boolean))];
+          const textPortfolioPaths=[...new Set([...(form?.innerText||'').matchAll(
+            /https:\/\/coconala\.com\/users\/(\d+)\/portfolios\/?/g
+          )].map(m=>`/users/${m[1]}/portfolios/`))];
+          const allPortfolioPaths=[...new Set([...portfolioPaths,...textPortfolioPaths])];
+          const portfolio=allPortfolioPaths.length===1?{path:allPortfolioPaths[0]}:null;
+          const selected=sidebar||header||portfolio;
           return {
             url:location.href,title:document.title,
             own_user_path:selected?.path||null,
-            selection:sidebar?'sidebar-profile':(header?'header':'none'),
-            candidate_user_paths:[...new Set(links.map(x=>x.path))].slice(0,32)
+            selection:sidebar?'sidebar-profile':(header?'header':(portfolio?'application-form-portfolio':'none')),
+            candidate_user_paths:[...new Set([...links.map(x=>x.path),...allPortfolioPaths])].slice(0,32)
           };
         })())'''
         async with await _cdp_connect(self.ws_url) as ws:
@@ -3792,6 +3839,7 @@ def commit_decisions(
                     # display name, or whichever account happens to be logged in later.
                     capture_identity(request_id)
                     phase = "irreversible_attempt_marker"
+                    _enter_effect_boundary()
                     intent = store.mark_irreversible_attempt_started_locked(
                         request_id, expected_cas=intent["cas"]
                     )
@@ -4751,6 +4799,15 @@ def invoke_isolated_planner(
     return decisions, sorted(missing_ids)
 
 
+def _invoke_isolated_planner_yielding(**kwargs: object) -> tuple[dict[str, object], list[str]]:
+    """Yield the outer identity only while the data-only planner uses no provider."""
+    try:
+        with yield_registered_browser_lease():
+            return invoke_isolated_planner(**kwargs)
+    except BrowserLeaseYieldError as error:
+        raise ParentContractError(f"{error.stage}:{error.reason}") from error
+
+
 def _run_parent_pipeline(
     *,
     lease: LeaseHandle,
@@ -5099,7 +5156,7 @@ def run_parent(
             elif not snapshot["request_details"]:
                 decisions = {"decisions": []}
             else:
-                decisions, planner_missing_request_ids = invoke_isolated_planner(
+                decisions, planner_missing_request_ids = _invoke_isolated_planner_yielding(
                     runner=planner_runner,
                     schema=planner_schema,
                     snapshot=snapshot,

@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import fcntl
 import gzip
+import hashlib
 import json
 import os
 import plistlib
@@ -21,7 +22,7 @@ from pathlib import Path
 
 from runtime.loop.macos_launchd_inventory import extract_release, parse_disabled, parse_loaded
 from runtime.loop.macos_loop_registry import (
-    CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
+    CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry, retired_label_names,
 )
 from runtime.loop.lm_loop_apply import (
     _plist,
@@ -1394,7 +1395,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
-    retired = set(registry.get("retired_labels", []))
+    retired = retired_label_names(registry)
     labels = external | retired | installed_labels | {
         label for label in loaded if label.startswith("ai.anicca.")
     }
@@ -1467,7 +1468,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
 def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: set[str],
                   existing_entrypoints: set[str]) -> dict:
     validate_registry(registry)
-    retired = set(registry.get("retired_labels", []))
+    retired = retired_label_names(registry)
     managed = ({entry["label"] for entry in registry["loops"].values()}
                | set(registry.get("external_labels", [])) | retired)
     unmanaged = sorted((installed_labels | loaded_labels) - managed)
@@ -2168,12 +2169,44 @@ def _skip_if_not_loaded_idle(item: dict, release_sha: str,
             "skipped": "loaded-running"}
 
 
+def _guard_orphan_retirement(guard: dict, detail: str | None, plist: Path) -> None:
+    try:
+        if detail is not None:
+            arguments = _loaded_arguments(detail)
+            state = re.search(r"(?m)^\s*state = (.+)$", detail)
+            program = re.search(r"(?m)^\s*program = (.+)$", detail)
+            if (not state or state.group(1).strip() not in {"spawn scheduled", "not running"}
+                    or re.search(r"(?m)^\s*pid\s*=\s*[1-9][0-9]*\s*$", detail)
+                    or not arguments or not program
+                    or program.group(1).strip() != arguments[0]):
+                raise ValueError("loaded identity changed")
+        elif plist.is_file():
+            definition = plistlib.loads(plist.read_bytes())
+            arguments = definition.get("ProgramArguments", [])
+            if "Program" in definition and (not arguments or definition["Program"] != arguments[0]):
+                raise ValueError("plist program changed")
+        else:
+            return  # Already absent: no registration or plist is mutated.
+        fingerprint = hashlib.sha256(json.dumps(arguments, separators=(",", ":")).encode()).hexdigest()
+        missing = Path(guard["missing_entrypoint"]).expanduser()
+        if (fingerprint != guard["expected_arguments_sha256"] or len(arguments) < 2
+                or str(missing) != arguments[1]):
+            raise ValueError("argv identity changed")
+        try:
+            missing.stat()
+        except FileNotFoundError:
+            return
+        raise ValueError("entrypoint exists")
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        raise RuntimeError("retirement identity guard failed") from error
+
+
 def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
                    current: Path, lock_path: Path | None,
                    labels: list[str] | None = None) -> list[dict]:
     results = []
     domain = f"gui/{os.getuid()}"
-    selected = labels if labels is not None else registry.get("retired_labels", [])
+    selected = labels if labels is not None else retired_label_names(registry)
     for label in sorted(selected):
         with _apply_lock(current, _label_apply_lock_path(current, label, lock_path)):
             service = f"{domain}/{label}"
@@ -2183,6 +2216,13 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
             if present_rc != 0 and not absent:
                 raise RuntimeError(
                     f"{label}: retirement presence readback failed: {present_detail.strip()}")
+            guard = registry.get("guarded_retired_labels", {}).get(label)
+            if guard is not None:
+                _guard_orphan_retirement(
+                    guard, present_detail if present_rc == 0 else None,
+                    agents_dir / f"{label}.plist")
+                if present_rc == 0:
+                    _guard_orphan_retirement(guard, None, agents_dir / f"{label}.plist")
             if present_rc == 0:
                 bootout_rc, detail = _safe_launchctl(launchctl_safe, ["bootout", service])
                 if bootout_rc != 0:
@@ -2202,6 +2242,8 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
                         raise RuntimeError(f"{label}: retirement readback still loaded")
                     time.sleep(0.1)
             plist = agents_dir / f"{label}.plist"
+            if guard is not None:
+                _guard_orphan_retirement(guard, None, plist)
             removed = plist.is_file()
             if removed:
                 plist.unlink()
@@ -2340,10 +2382,10 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
     if (protocol_reader() == 2
             and not _supports_durable_admission_v2(release_root)):
         raise RuntimeError("target release does not support durable admission v2")
-    registry = json.loads((release_root / "config/loop-registry.json").read_text())
+    registry = validate_registry(json.loads((release_root / "config/loop-registry.json").read_text()))
     manifest = json.loads((release_root / "RELEASE.json").read_text())
     release_sha = manifest.get("sha")
-    retired_target = target if target in set(registry.get("retired_labels", [])) else None
+    retired_target = target if target in retired_label_names(registry) else None
     plan = ([] if retired_target else
             apply_registry(registry, release_root, release_sha, lambda item: item, target=target))
     preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
@@ -2525,21 +2567,26 @@ def main(argv: list[str] | None = None) -> int:
         "health", "reconcile", "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all] [--loaded-idle-only]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
-        if args[1:] not in ([], ["--all"]):
-            print(json.dumps({"ok": False, "error": "apply accepts only --all"}))
+        apply_args = args[1:]
+        loaded_idle_only = "--loaded-idle-only" in apply_args
+        if loaded_idle_only:
+            apply_args = apply_args.copy()
+            apply_args.remove("--loaded-idle-only")
+        if apply_args not in ([], ["--all"]):
+            print(json.dumps({"ok": False, "error": "apply accepts --all and --loaded-idle-only"}))
             return 2
         target = os.environ.get("LIFE_MANAGER_APPLY_TARGET")
-        if not target and args[1:] != ["--all"]:
+        if not target and apply_args != ["--all"]:
             print(json.dumps({
                 "ok": False,
                 "error": "apply requires LIFE_MANAGER_APPLY_TARGET; use --all only for an intentional fleet-wide reload",
             }, sort_keys=True))
             return 2
-        if target and args[1:] == ["--all"]:
+        if target and apply_args == ["--all"]:
             print(json.dumps({"ok": False, "error": "--all conflicts with LIFE_MANAGER_APPLY_TARGET"}))
             return 2
         release_root = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", "~/loops/current")).expanduser()
@@ -2550,7 +2597,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             results = apply_live(
                 release_root, agents_dir, launchctl_safe,
-                target=target, protocol_reader=durable_protocol_version)
+                target=target, protocol_reader=durable_protocol_version,
+                skip_busy=loaded_idle_only, preserve_pending_admission=loaded_idle_only)
         except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1

@@ -132,7 +132,7 @@ test("context digest is stable and changes with the facts", async () => {
 test("audit detects stale facts and reports unverified optional media", async () => {
   const context = clone(await loadStartupContext(contextPath));
   const result = await auditStartupContext(context, {
-    now: new Date("2026-10-02T00:00:00+09:00"),
+    now: new Date("2026-12-01T00:00:00+09:00"),
     maxAgeDays: 30,
     checkLinks: false,
   });

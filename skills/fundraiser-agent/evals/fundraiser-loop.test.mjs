@@ -233,7 +233,7 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /USD 1,000/);
   assert.match(dailyPrompt, /malformed currency such as `,000`/);
   assert.match(dailyPrompt, /Never start an interactive shell/);
-  assert.match(dailyPrompt, /empty generic formstate is\s+an observation fallback signal/);
+  assert.match(dailyPrompt, /empty generic DOM observation is\s+an observation fallback signal/);
   assert.match(dailyPrompt, /label-to-control mapping/);
   assert.match(dailyPrompt, /wait up to 30 seconds/);
   assert.match(dailyPrompt, /Never abandon the candidate\s+after only that immediate post-upload timeout/);
@@ -275,8 +275,8 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(runtimeScript, /BROWSER_GUARD=.*browser-guard\.sh/);
   assert.match(runtimeScript, /"\$BROWSER_GUARD" acquire "\$BROWSER_IDENTITY"/);
   assert.match(runtimeScript, /BROWSER_FOUNDATION=.*ensure_browser\.sh/);
-  assert.match(runtimeScript, /json\/version/);
-  assert.match(runtimeScript, /retry the same candidate observation once/);
+  assert.match(runtimeScript, /next natural wake owns browser foundation recovery/);
+  assert.match(runtimeScript, /record submit_unknown and retain its exact identity fence/);
   assert.match(dailyPrompt, /every visible question paired with the final rendered answer/);
   assert.match(dailyPrompt, /Never append `submitted_verified` yourself/);
   assert.match(dailyPrompt, /never close it until every fill/);
@@ -293,9 +293,8 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /Never include the credential or solution token in logs/);
   assert.match(dailyPrompt, /never print, dump, enumerate, pretty-print/);
   assert.match(dailyPrompt, /assign the selected secret directly to `GOG_KEYRING_PASSWORD` without echoing it/);
-  assert.match(dailyPrompt, /cdp\.py fillcss/);
-  assert.match(dailyPrompt, /cdp\.py filllabel/);
-  assert.match(dailyPrompt, /cdp\.py typelabel/);
+  assert.match(dailyPrompt, /cdp\.py insert/);
+  assert.match(dailyPrompt, /framework validation remains unresolved/);
   assert.match(dailyPrompt, /absolute path/);
   assert.match(runtimeScript, /--task-class application-lane-agent/);
   assert.doesNotMatch(runtimeScript, /--escalation-reason/);

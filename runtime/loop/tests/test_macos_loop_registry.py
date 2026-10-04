@@ -259,10 +259,17 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
+        self.assertEqual(
+            row["effect_reconcile"]["argv"][0],
+            "skills/cfo/effect_reconcile.py",
+        )
+        self.assertEqual(row["effect_reconcile"]["occurrence_flag"], "--occurrence-id")
+        self.assertEqual(row["effect_reconcile"]["resolve_flag"], "--resolve")
 
     def test_life_manager_financial_report_declares_effect_rebind_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["life-manager-financial-report"]
+        self.assertEqual(row.get("effect_class"), "none")
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "borrow")
         self.assertEqual(row.get("priority"), "support")
@@ -1638,6 +1645,25 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual((len(rendered.splitlines()), len(rows)), (1, 500))
         self.assertLess(render_seconds, 5)
         self.assertLess(status_seconds, 5)
+
+
+class RetirementGuardRegistryTests(unittest.TestCase):
+    def test_guarded_retirement_registry_is_valid(self):
+        value = {"schema_version": 2, "loops": {"example": entry()},
+                 "retired_labels": ["ai.anicca.legacy"], "guarded_retired_labels": {
+                     "ai.anicca.orphan": {"expected_arguments_sha256": "a" * 64,
+                                          "missing_entrypoint": "~/loops/releases/old/entry.py"}}}
+        self.assertEqual(validate_registry(value), value)
+
+    def test_invalid_guard_metadata_is_rejected(self):
+        for bad in (None, [], {"not-retired": {}}, {"ai.anicca.orphan": {}},
+                    {"ai.anicca.orphan": {"expected_arguments_sha256": "bad", "missing_entrypoint": "/missing.py"}},
+                    {"ai.anicca.orphan": {"expected_arguments_sha256": "a" * 64, "missing_entrypoint": "relative.py"}},
+                    {"ai.anicca.orphan": {"expected_arguments_sha256": "a" * 64, "missing_entrypoint": "/missing.py", "skip": True}}):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, "guarded_retired_labels"):
+                    validate_registry({"schema_version": 2, "loops": {"example": entry()},
+                                       "retired_labels": ["ai.anicca.orphan"], "guarded_retired_labels": bad})
 
 
 if __name__ == "__main__":

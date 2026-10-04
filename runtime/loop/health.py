@@ -256,6 +256,8 @@ def _facets(row: dict, state: str) -> dict[str, dict[str, str | None]]:
     }.get(row.get("last_terminal_result"), "unknown")
     if row.get("effect_class") == "none":
         effect_safety = "not_applicable"
+    elif row.get("effect_status") == "not_applicable":
+        effect_safety = "not_applicable"
     elif state in {"safely_fenced", "effect_unknown", "human_required"}:
         effect_safety = "blocked"
     elif row.get("effect_status") in {"verified", "reconciled"}:

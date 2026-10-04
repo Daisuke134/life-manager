@@ -10,7 +10,7 @@
 # honest Telegram report at the end. Differences are deliberate:
 #   * the report is sent whatever the outcome, INCLUDING a no-op day, because 10f's done condition
 #     is seven distinct days each carrying an honest outcome — a silent day looks like a dead loop;
-#   * the report is built from the LAST LINE OF THE LEDGER, never from the CLI's stdout and never
+#   * the report is built from THIS RUN'S ROW IN THE LEDGER, never from the CLI's stdout and never
 #     from a claim. Those differ in exactly the cases that matter: a pass that appended its row and
 #     then died before printing would otherwise report nothing, and a pass that printed a row it
 #     never managed to append would report a day that does not exist. The ledger is the evidence
@@ -39,6 +39,12 @@ export LM_SELFBUILD_ACTIVE=1
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${LM_SELFBUILD_REPO:-$(cd "$HERE/../.." && pwd)}"
+# The immutable release is the code being executed, not a git checkout.  The
+# merge guard needs a real source checkout for fetch/worktree/diff operations;
+# keep it explicit and fail closed if the checkout is absent.
+if [ -z "${LM_SELFBUILD_SOURCE_REPO:-}" ] && [ -d "$HOME/Projects/life-manager-main/.git" ]; then
+  export LM_SELFBUILD_SOURCE_REPO="$HOME/Projects/life-manager-main"
+fi
 APP_DIR="$REPO_ROOT/apps/life-manager"
 DISK_GUARD="$REPO_ROOT/runtime/host/disk_admission.py"
 NODE_BIN="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
@@ -47,7 +53,6 @@ DAILY_CLI="$APP_DIR/scripts/self-build-daily.js"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 ENV_FILE="${LIFE_MANAGER_ENV_FILE:-$LIFE_MANAGER_STATE_HOME/.env}"
 LOG="${LM_SELFBUILD_LOG:-$LIFE_MANAGER_STATE_HOME/logs/life-manager-self-build.log}"
-LEDGER="${LM_SELFBUILD_LEDGER:-$LIFE_MANAGER_STATE_HOME/state/self-build-days.jsonl}"
 readonly LM_SELFBUILD_CANONICAL_DISK_GUARD="$DISK_GUARD"
 readonly LM_SELFBUILD_CANONICAL_HOST_STATE="$LIFE_MANAGER_STATE_HOME/state"
 readonly LM_SELFBUILD_CANONICAL_STATE_HOME="$LIFE_MANAGER_STATE_HOME"
@@ -64,6 +69,16 @@ if [ -f "$ENV_FILE" ]; then
   set +a
   set -u
 fi
+
+# Resolve the same ledger as the daily CLI after explicit dotenv overrides.
+# Preserve the existing default history rather than creating a second ledger.
+if [ -n "${LM_SELFBUILD_LEDGER:-}" ]; then
+  LEDGER="$LM_SELFBUILD_LEDGER"
+else
+  LEDGER="$("$NODE_BIN" -e 'process.stdout.write(require(process.argv[1]).selfBuildLedgerPath())' \
+    "$APP_DIR/lib/self-build-daily.js")" || exit 2
+fi
+export LM_SELFBUILD_LEDGER="$LEDGER"
 
 # Restore only the guard's canonical paths from before dotenv loading. Other
 # runtime overrides (including explicit LM_SELFBUILD_LOG/LEDGER) retain their
@@ -110,30 +125,34 @@ if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true >>"$LOG" 2>&1; then
   exit 1
 fi
 
+# Generate after dotenv loading so each independent entrypoint owns one unique row.
+LM_SELFBUILD_RUN_ID="$("$NODE_BIN" -e 'process.stdout.write(require("node:crypto").randomUUID())')" || exit 2
+export LM_SELFBUILD_RUN_ID
+
 RESULT="$("$NODE_BIN" "$DAILY_CLI" "${DAILY_ARGS[@]+"${DAILY_ARGS[@]}"}" 2>>"$LOG")"
 RC=$?
 printf '%s\n' "$RESULT" >>"$LOG"
 
 # THE REPORT READS THE LEDGER, NOT THE STDOUT ABOVE. $RESULT is kept only to tell the reader which
-# exit code went with the day. If the last ledger line is missing, unparseable, or older than this
-# run, that IS the report — loudly — because a pass that cannot point at its own appended row has
+# exit code went with the day. If this run's ledger row is missing or unparseable, that IS the report — loudly — because a pass that cannot point at its own appended row has
 # not proven a day happened, whatever it printed.
 # shellcheck disable=SC2016  # the ${...} below are JS template literals, deliberately unexpanded
-REPORT="$(LEDGER="$LEDGER" LOG_PATH="$LOG" RC="$RC" "$NODE_BIN" -e '
+REPORT="$(LEDGER="$LEDGER" LM_SELFBUILD_RUN_ID="$LM_SELFBUILD_RUN_ID" LOG_PATH="$LOG" RC="$RC" "$NODE_BIN" -e '
 const fs = require("node:fs");
 const ledger = String(process.env.LEDGER || "");
-let line = "";
-try {
-  line = fs.readFileSync(ledger, "utf8").split("\n").filter((value) => value.trim()).pop() || "";
-} catch {
-  line = "";
-}
 let row = null;
-try { row = JSON.parse(line); } catch {}
+try {
+  for (const line of fs.readFileSync(ledger, "utf8").split("\n")) {
+    try {
+      const candidate = JSON.parse(line);
+      if (candidate && candidate.run_id === process.env.LM_SELFBUILD_RUN_ID) row = candidate;
+    } catch {}
+  }
+} catch {}
 if (!row || typeof row !== "object" || !row.day) {
   process.stdout.write(
-    `⚠️ Life Manager self-build: NO LEDGER ROW. The daily pass exited ${process.env.RC} but the last`
-    + ` line of ${ledger} is not a readable day row, so no day was proven and nothing can be`
+    `⚠️ Life Manager self-build: NO LEDGER ROW. The daily pass exited ${process.env.RC} but this run`
+    + ` has no readable day row in ${ledger}, so no day was proven and nothing can be`
     + ` reported about what the guard did. Check ${process.env.LOG_PATH || "the configured log"} and`
     + ` the dev-guard ledger by hand.`,
   );

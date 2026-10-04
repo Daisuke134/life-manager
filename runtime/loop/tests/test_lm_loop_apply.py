@@ -3747,6 +3747,61 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(applied, ["example", "second"])
 
+    def test_cli_loaded_idle_apply_loads_idle_and_preserves_running_or_unloaded_owner(self):
+        for mode, expected in [("running", "loaded-running"), ("unloaded", "unloaded"), ("idle", None)]:
+            with self.subTest(mode=mode):
+                release = self._release("cli-" + mode).resolve()
+                current = self.root / ("current-" + mode)
+                current.symlink_to(release)
+                arguments = build_apply_plan(registry(), release, SHA)[0]["expected_arguments"]
+                values = self._apply_kwargs(current, self.root / (mode + ".lock"),
+                                            expected_arguments=arguments if mode == "idle" else None,
+                                            agents_dir_name="Agents-" + mode)
+                values["calls"].write_text("")
+                target = values["agents_dir"] / "ai.anicca.example.plist"
+                old_bytes = plistlib.dumps({"Label": "ai.anicca.example", "ProgramArguments": ["/old/run.sh"]})
+                target.write_bytes(old_bytes)
+                if mode == "idle":
+                    (self.root / "launchctl.state").write_text("loaded")
+                else:
+                    values["launchctl_safe"].write_text(
+                        "#!/bin/sh\n"
+                        f"printf '%s\\n' \"$*\" >> {shlex.quote(str(values['calls']))}\n"
+                        "if [ \"$1\" = print ]; then\n"
+                        + ("  printf '%s\\n' 'pid = 123'\n" if mode == "running" else "  exit 1\n")
+                        + "fi\nexit 0\n")
+                    values["launchctl_safe"].chmod(0o755)
+                events = []
+                def fixture_apply(root, agents, safe, target=None, **kwargs):
+                    kwargs["protocol_reader"] = lambda: 1
+                    kwargs["event_writer"] = lambda *args: events.append(args)
+                    kwargs["current"] = current
+                    kwargs["lock_path"] = values["lock_path"]
+                    return apply_live(root, agents, safe, target=target, **kwargs)
+                with patch.dict(os.environ, {
+                    "HOME": str(self.root), "LIFE_MANAGER_APPLY_TARGET": "example",
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(self.root / "admission"),
+                    "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(values["agents_dir"]),
+                    "LIFE_MANAGER_LAUNCHCTL_SAFE": str(values["launchctl_safe"]),
+                }, clear=True), patch.object(lm_loop, "apply_live", side_effect=fixture_apply), \
+                        redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(lm_loop.main(["apply", "--loaded-idle-only"]), 0)
+                result = json.loads(output.getvalue())[0]
+                calls = values["calls"].read_text().splitlines()
+                if mode == "idle":
+                    self.assertTrue(result["ok"])
+                    self.assertTrue(result["changed"])
+                    self.assertEqual(result["release_sha"], SHA)
+                    self.assertEqual(result["loaded_arguments"], arguments)
+                    self.assertNotEqual(target.read_bytes(), old_bytes)
+                    self.assertEqual(len(events), 1)
+                else:
+                    self.assertEqual(result["skipped"], expected)
+                    self.assertEqual(target.read_bytes(), old_bytes)
+                    self.assertEqual(events, [])
+                    self.assertTrue(all(c.startswith(("preflight", "print ")) for c in calls), calls)
+
     def test_loaded_idle_reconcile_skips_prelock_running_owner_without_mutation(self):
         release = self._release("release-a").resolve()
         current = self.root / "current"
@@ -4892,3 +4947,116 @@ class PreEffectForeignClaimTests(unittest.TestCase):
 
     def test_auto_reconcile_is_disabled_by_default(self):
         self.assertFalse(lm_loop.AUTO_PRE_EFFECT_RECONCILE_ENABLED)
+
+class GuardedOrphanRetirementTests(unittest.TestCase):
+    def test_guard_rejects_reused_running_or_executable_registration(self):
+        for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist', 'absent_program_changed', 'loaded_reused_plist'):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                agents = root / 'agents'
+                agents.mkdir()
+                script = root / 'missing.py'
+                argv = ['/python', str(script), '--profile', '/owned-profile']
+                label = 'ai.anicca.orphan'
+                target = agents / f'{label}.plist'
+                target.write_bytes(plistlib.dumps({'ProgramArguments': argv}))
+                before = target.read_bytes()
+                guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': str(script)}
+                registry_value = {'retired_labels': [], 'guarded_retired_labels': {label: guard}}
+                observed = argv if case != 'argv_changed' else ['/different', str(script)]
+                detail = 'state = spawn scheduled\nprogram = ' + ('/other' if case == 'program_changed' else '/python') + '\narguments = {\n' + '\n'.join(observed) + '\n}\n'
+                if case == 'pid_present':
+                    detail += 'pid = 999\n'
+                if case == 'state_missing':
+                    detail = detail.replace('state = spawn scheduled\n', '')
+                if case == 'script_exists':
+                    script.write_text('print("active")')
+                if case.startswith('absent_') or case == 'loaded_reused_plist':
+                    changed = {'ProgramArguments': ['/new-owner']} if case == 'absent_reused_plist' else {'ProgramArguments': argv, 'Program': '/different'}
+                    target.write_bytes(plistlib.dumps(changed))
+                    before = target.read_bytes()
+                calls = []
+                def safe(_exe, args):
+                    calls.append(args)
+                    return (1, 'Could not find service') if case.startswith('absent_') or len(calls) > 1 else (0, detail)
+                with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
+                    with self.assertRaisesRegex(RuntimeError, 'retirement identity guard'):
+                        lm_loop._retire_labels(registry_value, agents, root/'safe', root, root/'lock')
+                self.assertEqual(target.read_bytes(), before)
+                self.assertEqual([c for c in calls if c[0] == 'bootout'], [])
+
+    def test_guarded_missing_program_retirement_is_targeted_and_replay_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            agents = root/'agents'
+            agents.mkdir()
+            label = 'ai.anicca.orphan'
+            argv = ['/python', str(root/'missing.py')]
+            guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': argv[1]}
+            value = {'retired_labels': [], 'guarded_retired_labels': {label: guard}}
+            other = agents/'ai.anicca.current.plist'
+            other.write_text('current owner')
+            loaded = [True]
+            mutations = []
+            def safe(_exe, args):
+                if args[0] == 'bootout':
+                    mutations.append(args)
+                    loaded[0] = False
+                    return 0, ''
+                return (0, 'state = spawn scheduled\nprogram = /python\narguments = {\n'+'\n'.join(argv)+'\n}\n') if loaded[0] else (1, 'Could not find service')
+            with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
+                first = lm_loop._retire_labels(value, agents, root/'safe', root, root/'lock', labels=[label])
+                second = lm_loop._retire_labels(value, agents, root/'safe', root, root/'lock', labels=[label])
+            self.assertTrue(first[0]['was_loaded'])
+            self.assertFalse(second[0]['was_loaded'])
+            self.assertEqual(len(mutations), 1)
+            self.assertEqual(other.read_text(), 'current owner')
+
+class RetirementValidationBoundaryTests(unittest.TestCase):
+    def test_targeted_retirement_validates_before_preflight(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'config').mkdir()
+            (root/'config/loop-registry.json').write_text(json.dumps({
+                'schema_version': 2, 'loops': {}, 'retired_labels': ['ai.anicca.orphan'],
+                'unknown_retirement_field': True,
+            }))
+            (root/'RELEASE.json').write_text(json.dumps({'sha': SHA}))
+            with patch.object(lm_loop, '_safe_launchctl', side_effect=AssertionError('lifecycle attempted')):
+                with self.assertRaises(ValueError):
+                    apply_live(root, root/'agents', root/'safe', target='ai.anicca.orphan',
+                               current=root, lock_path=root/'lock', protocol_reader=lambda: 1)
+
+    def test_guarded_target_uses_retirement_and_preserves_other_retired_plist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'config').mkdir()
+            agents = root/'agents'
+            agents.mkdir()
+            other = agents/'ai.anicca.other.plist'
+            other.write_text('preserve')
+            label = 'ai.anicca.orphan'
+            argv = ['/python', str(root/'missing.py')]
+            guard = {'expected_arguments_sha256': hashlib.sha256(json.dumps(argv, separators=(',', ':')).encode()).hexdigest(), 'missing_entrypoint': argv[1]}
+            (root/'config/loop-registry.json').write_text(json.dumps({
+                'schema_version': 2, 'loops': {}, 'retired_labels': ['ai.anicca.other'],
+                'guarded_retired_labels': {label: guard},
+            }))
+            (root/'RELEASE.json').write_text(json.dumps({'sha': SHA}))
+            calls = []
+            loaded = [True]
+            def safe(_exe, args):
+                calls.append(args)
+                if args == ['preflight']:
+                    return 0, 'ok'
+                if args[0] == 'bootout':
+                    self.assertEqual(args[1], f'gui/{os.getuid()}/{label}')
+                    loaded[0] = False
+                    return 0, ''
+                return (0, 'state = spawn scheduled\nprogram = /python\narguments = {\n'+'\n'.join(argv)+'\n}\n') if loaded[0] else (1, 'Could not find service')
+            with patch.object(lm_loop, '_safe_launchctl', side_effect=safe):
+                result = apply_live(root, agents, root/'safe', target=label, current=root,
+                                    lock_path=root/'lock', protocol_reader=lambda: 1)
+            self.assertTrue(result[0]['retired'])
+            self.assertEqual([x for x in calls if x[0]=='bootout'], [['bootout', f'gui/{os.getuid()}/{label}']])
+            self.assertEqual(other.read_text(), 'preserve')

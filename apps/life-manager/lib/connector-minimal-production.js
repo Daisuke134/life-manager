@@ -22,6 +22,8 @@ const { createConnpassActionTelegram } = require("./connector-connpass-action-te
 const { createMinimalEvidenceChain } = require("./connector-minimal-evidence.js");
 const { createMinimalProductionOperations } = require("./connector-minimal-operations.js");
 const { createLumaScriptFirstWorkflow } = require("./connector-luma-workflow.js");
+const { createLumaDailyDriverAuth } = require("./luma-daily-driver-auth.js");
+const { createGogLumaCodeReader } = require("./gog-luma-code-reader.js");
 const { createConnpassScriptFirstWorkflow } = require("./connector-connpass-workflow.js");
 const { createConnpassApiClient } = require("./connpass-api-client.js");
 const { createPeatixDiscoveryWorkflow } = require("./connector-peatix-workflow.js");
@@ -718,6 +720,25 @@ function createMinimalProductionDependencies(options = {}) {
   });
   const lumaWorkflow = options.lumaWorkflow || createLumaScriptFirstWorkflow({
     now,
+    ensureAuthenticated: async ({ page }) => {
+      const profile = options.peatixAttendeeProfile;
+      if (!profile || String(profile.email).toLowerCase() !== calendarAccount.toLowerCase()) invalid();
+      const auth = createLumaDailyDriverAuth({
+        dailyDriver: {
+          async withLumaPage(url, task) {
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            return task(page);
+          },
+        },
+        email: profile.email,
+        name: profile.name,
+        readLoginCode: createGogLumaCodeReader({
+          gogPath: options.gogBin,
+          env: { ...process.env, GOG_KEYRING_BACKEND: "file", GOG_KEYRING_PASSWORD: gogKeyring },
+        }),
+      });
+      return auth.ensureAuthenticated();
+    },
     onDiscoveryAudit: operations.recordDiscoveryAudit || (() => {}),
     readLumaFormProfile: () => readLumaFormProfile({ path: lumaFormProfilePath }),
     agenticRegister: options.lumaAgenticRegister || ((input) => runConnectorAgenticRegistration({

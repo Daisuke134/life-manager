@@ -1672,7 +1672,18 @@ def _close_unknown_occurrence(owner_id: str, occurrence_id: str,
                         "UPDATE priorities SET effect_unknown=0 WHERE owner_id=?",
                         (owner_id,),
                     )
-            return changed.rowcount == 1
+                return changed.rowcount == 1
+            # A prior bounded recovery may already have released this exact
+            # occurrence after the proof was recorded.  Treat that state as
+            # an idempotent success; the proof_check above still binds this
+            # result to the same no-effect evidence.
+            already_released = connection.execute(
+                """SELECT 1 FROM occurrences
+                     WHERE owner_id=? AND occurrence_id=?
+                       AND state='released' AND effect_unknown=0""",
+                (owner_id, occurrence_id),
+            ).fetchone()
+            return already_released is not None
     finally:
         os.close(descriptor)
 

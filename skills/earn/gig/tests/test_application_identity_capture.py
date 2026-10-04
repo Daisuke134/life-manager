@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 import sys
 from pathlib import Path
 
@@ -32,6 +33,55 @@ def test_authenticated_identity_requires_provider_owned_numeric_profile_path():
     assert identity["account_id"] == "2564121"
     assert identity["profile_url"] == "https://coconala.com/users/2564121"
     assert identity["source"] == "code_owned_cdp_authenticated_identity"
+
+
+def test_authenticated_identity_normalizes_modern_smartphone_profile_path():
+    identity = application_parent._validated_authenticated_identity(
+        "5280157",
+        {
+            "url": "https://coconala.com/offers/add/5280157",
+            "title": "応募する",
+            "own_user_path": "/smartphone/users/2564121/",
+            "selection": "header",
+            "candidate_user_paths": ["/smartphone/users/2564121/"],
+        },
+    )
+
+    assert identity["account_id"] == "2564121"
+    assert identity["profile_path"] == "/users/2564121"
+    assert identity["profile_url"] == "https://coconala.com/users/2564121"
+    assert "smartphone" in inspect.getsource(
+        application_parent.CdpParentEffects._authenticated_identity_async
+    )
+
+
+def test_authenticated_identity_uses_only_form_scoped_seller_portfolio_link():
+    identity = application_parent._validated_authenticated_identity(
+        "5280157",
+        {
+            "url": "https://coconala.com/offers/add/5280157",
+            "title": "応募する",
+            "own_user_path": "/users/2564121/portfolios/",
+            "selection": "application-form-portfolio",
+            "candidate_user_paths": ["/users/2564121/portfolios/"],
+        },
+    )
+
+    assert identity["account_id"] == "2564121"
+    assert identity["profile_path"] == "/users/2564121"
+    source = inspect.getsource(application_parent.CdpParentEffects._authenticated_identity_async)
+    assert 'textarea[name="data[Offer][content]"]' in source
+    assert "portfolios" in source
+
+
+def test_authenticated_identity_reads_unique_provider_portfolio_text_inside_form():
+    source = inspect.getsource(
+        application_parent.CdpParentEffects._authenticated_identity_async
+    )
+    assert "form?.innerText" in source
+    assert "matchAll" in source
+    assert "textPortfolioPaths" in source
+    assert "allPortfolioPaths.length===1" in source
 
 
 @pytest.mark.parametrize(

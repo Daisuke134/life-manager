@@ -259,15 +259,16 @@ def _existing_owner_report(
     root: pathlib.Path,
     *,
     kind: str,
-    product_id: str,
+    product_id: str | None,
     message_key: str,
 ) -> dict | None:
     """Return a valid canonical report already recorded for one immutable key."""
 
     equivalent_keys = {message_key}
-    for legacy_id, canonical_id in PRODUCT_ID_ALIASES.items():
-        if product_id == canonical_id:
-            equivalent_keys.add(message_key.replace(f":{canonical_id}:", f":{legacy_id}:"))
+    if product_id is not None:
+        for legacy_id, canonical_id in PRODUCT_ID_ALIASES.items():
+            if product_id == canonical_id:
+                equivalent_keys.add(message_key.replace(f":{canonical_id}:", f":{legacy_id}:"))
     for row in load_jsonl(pathlib.Path(root) / "owner-reports.jsonl"):
         if (
             row.get("kind") == kind
@@ -378,7 +379,12 @@ def _social_checkpoint_incident_key(
     return key
 
 
-def _action_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> list[dict]:
+def _action_events(
+    root: pathlib.Path,
+    product_id: str,
+    as_of: dt.datetime,
+    skip_message_keys: set[str] | None = None,
+) -> list[dict]:
     identities = _indexed_rows(root, "publication-identity.jsonl")
     attributions = _indexed_rows(root, "experiment-attribution.jsonl")
     candidates: list[tuple[str, int, dict, str, str]] = []
@@ -456,6 +462,8 @@ def _action_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> l
             "platform": row.get("platform") or "unknown",
         }
         message_key = f"action:{product_id}:{native_id}"
+        if message_key in (skip_message_keys or set()):
+            continue
         evidence_refs = [ref]
         existing = _existing_owner_report(
             root,
@@ -485,7 +493,12 @@ def _action_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> l
     return events
 
 
-def _checkpoint_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> list[dict]:
+def _checkpoint_events(
+    root: pathlib.Path,
+    product_id: str,
+    as_of: dt.datetime,
+    skip_message_keys: set[str] | None = None,
+) -> list[dict]:
     rows = _latest_metric_snapshots(
         _scoped(_indexed_rows(root, "post-metrics.jsonl"), product_id), as_of
     )
@@ -519,11 +532,14 @@ def _checkpoint_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) 
         if row.get("corrects_snapshot_id"):
             correction_id = str(row.get("snapshot_id") or "unknown")[:12]
             suffix += f":correction:{correction_id}"
+        message_key = f"checkpoint:{product_id}:{suffix}"
+        if message_key in (skip_message_keys or set()):
+            continue
         events.append(_event(
             kind="checkpoint",
             product_id=product_id,
             as_of=as_of,
-            message_key=f"checkpoint:{product_id}:{suffix}",
+            message_key=message_key,
             facts=facts,
             evidence_refs=[_ref("post-metrics.jsonl", index)]
             + [_ref("publication-identity.jsonl", identity_index) for identity_index, _ in matched_identity],
@@ -1070,6 +1086,15 @@ def _experiment_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) 
 
 
 def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
+    message_key = f"portfolio_weekly:{as_of.date().isoformat()}"
+    existing = _existing_owner_report(
+        root,
+        kind="portfolio_weekly",
+        product_id=None,
+        message_key=message_key,
+    )
+    if existing is not None:
+        return [existing]
     products = []
     refs = []
     for product_id in PRODUCTS:
@@ -1132,7 +1157,7 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
         kind="portfolio_weekly",
         product_id=None,
         as_of=as_of,
-        message_key=f"portfolio_weekly:{as_of.date().isoformat()}",
+        message_key=message_key,
         facts={"products": products},
         evidence_refs=refs or ["state/business-outcomes.jsonl"],
     )]
@@ -1144,6 +1169,7 @@ def build_events(
     *,
     product_id: str | None,
     as_of: dt.datetime,
+    skip_message_keys: set[str] | None = None,
 ) -> list[dict]:
     """Build canonical report events for one sweep.
 
@@ -1163,9 +1189,13 @@ def build_events(
     events: list[dict] = []
     for selected_product in selected:
         if kind == "action":
-            events.extend(_action_events(root, selected_product, as_of))
+            events.extend(
+                _action_events(root, selected_product, as_of, skip_message_keys)
+            )
         elif kind == "checkpoint":
-            events.extend(_checkpoint_events(root, selected_product, as_of))
+            events.extend(
+                _checkpoint_events(root, selected_product, as_of, skip_message_keys)
+            )
         elif kind == "product_daily":
             events.extend(_daily_events(root, selected_product, as_of))
         elif kind == "incident":
@@ -1521,6 +1551,39 @@ class OwnerReportStore:
                 if _canonical(existing) != _canonical(row):
                     raise ConflictError(f"conflicting delivery for {message_key}")
                 return existing
+            return self._append_delivery_row(row)
+
+    def reconcile_delivery(self, message_key: str, receipt: dict) -> dict:
+        """Close ``delivery_unknown`` only from an exact Telegram history readback."""
+
+        if not isinstance(message_key, str) or not message_key:
+            raise DeliveryError("message_key must be non-empty")
+        normalized_receipt = self._normalize_receipt(receipt)
+        if normalized_receipt["status"] != "delivered":
+            raise DeliveryError("reconciliation must prove delivery")
+        readback = normalized_receipt.get("provider_readback")
+        if not isinstance(readback, dict):
+            raise DeliveryError("reconciliation requires provider_readback")
+        if readback.get("source") != "telegram_mtproto_history":
+            raise DeliveryError("reconciliation requires Telegram MTProto history")
+        if readback.get("matched_by") not in {"exact_message_key", "immutable_event_identity"}:
+            raise DeliveryError("reconciliation has unsupported match evidence")
+        if not isinstance(readback.get("observed_at"), str) or not readback["observed_at"]:
+            raise DeliveryError("reconciliation requires observed_at")
+        if readback.get("message_id") not in normalized_receipt["message_ids"]:
+            raise DeliveryError("readback message_id does not match receipt")
+        normalized_receipt["reconciled_from"] = "delivery_unknown"
+        row = {
+            "schema_version": DELIVERY_SCHEMA_VERSION,
+            "message_key": message_key,
+            "status": "delivered",
+            "message_ids": normalized_receipt["message_ids"],
+            "receipt": normalized_receipt,
+        }
+        with self._locked() as lock:
+            existing = self._latest_delivery_unlocked(message_key)
+            if existing is None or existing.get("status") != "delivery_unknown":
+                raise ConflictError(f"delivery is not unknown for {message_key}")
             return self._append_delivery_row(row)
 
 

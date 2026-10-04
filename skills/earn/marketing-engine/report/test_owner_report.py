@@ -972,6 +972,42 @@ class OwnerReportRendererTest(unittest.TestCase):
         rendered = owner_report.render_japanese(event)
         self.assertIn("ポートフォリオ合計: 28日売上合計 50.0 USD・28日DL合計 120件", rendered)
 
+    def test_portfolio_weekly_reuses_same_day_report_after_outcomes_change(self):
+        first = self.event("portfolio_weekly")
+        store = owner_report.OwnerReportStore(
+            self.root / "owner-reports.jsonl",
+            self.root / "owner-report-deliveries.jsonl",
+        )
+        calls = []
+
+        def sender(_text: str) -> dict:
+            calls.append(1)
+            return {"status": "delivered", "message_ids": [601]}
+
+        owner_report.deliver(first, store, sender)
+        rows = owner_report.load_jsonl(self.root / "business-outcomes.jsonl")
+        changed = json.loads(json.dumps(rows[0]))
+        changed["observed_at"] = "2026-08-05T11:30:00Z"
+        changed["snapshot_id"] = "anicca-ios:2026-08-05T11:30:00Z"
+        changed["sources"]["revenuecat"]["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["value"] = 99.0
+        with (self.root / "business-outcomes.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(changed) + "\n")
+
+        replay = self.event("portfolio_weekly")
+        self.assertEqual(replay, first)
+        receipt = owner_report.deliver(replay, store, sender)
+        self.assertEqual(receipt["message_ids"], [601])
+        self.assertEqual(calls, [1])
+
+        next_day = owner_report.build_events(
+            self.root,
+            "portfolio_weekly",
+            product_id=None,
+            as_of=AS_OF + dt.timedelta(days=1),
+        )[0]
+        self.assertNotEqual(next_day["message_key"], first["message_key"])
+        self.assertEqual(next_day["facts"]["products"][0]["mrr"], 99.0)
+
     def test_rendered_numbers_equal_literal_fixture_facts(self):
         anicca = owner_report.render_japanese(self.event("product_daily", "anicca-ios"))
         honne = owner_report.render_japanese(self.event("product_daily", "honne-ai"))
@@ -991,7 +1027,7 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertNotIn("999999", text)
 
     def test_equivalent_replay_records_and_sends_once(self):
-        event = self.event("product_daily", "anicca-ios")
+        event = self.event("action", "anicca-ios")
         report_path, delivery_path = self.root / "owner-reports.jsonl", self.root / "owner-report-deliveries.jsonl"
         store = owner_report.OwnerReportStore(report_path, delivery_path)
         receipts = []
@@ -1048,6 +1084,40 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertTrue(report_path.exists())
         self.assertFalse(delivery_path.exists())
         client.from_env.assert_not_called()
+
+    def test_cli_skips_already_delivered_event_before_rendering(self):
+        import owner_report_cli
+
+        event = self.event("action", "anicca-ios")
+        store = owner_report.OwnerReportStore(
+            self.root / "owner-reports.jsonl",
+            self.root / "owner-report-deliveries.jsonl",
+        )
+        store.record(event)
+        store.claim_delivery(event["message_key"])
+        store.record_delivery(
+            event["message_key"], {"status": "delivered", "message_ids": [701]}
+        )
+        with (
+            mock.patch.object(owner_report, "render_japanese") as render,
+            mock.patch.object(owner_report_cli, "_send_text") as sender,
+        ):
+            rc = owner_report_cli.main(
+                [
+                    "sweep",
+                    "--kind",
+                    "action",
+                    "--product-id",
+                    "anicca-ios",
+                    "--state-root",
+                    str(self.root),
+                    "--as-of",
+                    "2026-08-05T12:00:00Z",
+                ]
+            )
+        self.assertEqual(rc, 0)
+        render.assert_not_called()
+        sender.assert_not_called()
 
     def test_replay_different_as_of_keeps_semantic_key_and_sends_once(self):
         first_event = self.event("product_daily", "anicca-ios")
@@ -1214,6 +1284,48 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertEqual(second["status"], "delivery_unknown")
         self.assertEqual(len(calls), 1)
         self.assertEqual(store.delivery_for(event["message_key"])["status"], "delivery_unknown")
+
+    def test_official_readback_reconciles_unknown_without_resending(self):
+        event = self.event("product_daily", "anicca-ios")
+        store = owner_report.OwnerReportStore(self.root / "reports.jsonl", self.root / "deliveries.jsonl")
+        first = owner_report.deliver(
+            event,
+            store,
+            lambda _text: (_ for _ in ()).throw(TimeoutError("transport timeout")),
+        )
+        self.assertEqual(first["status"], "delivery_unknown")
+
+        reconciled = store.reconcile_delivery(
+            event["message_key"],
+            {
+                "status": "delivered",
+                "message_ids": [701],
+                "provider_readback": {
+                    "source": "telegram_mtproto_history",
+                    "matched_by": "exact_message_key",
+                    "message_id": 701,
+                    "observed_at": "2026-08-05T12:05:00Z",
+                },
+            },
+        )
+        calls = []
+        replay = owner_report.deliver(event, store, lambda _text: calls.append(1))
+        self.assertEqual(reconciled["status"], "delivered")
+        self.assertEqual(replay["message_ids"], [701])
+        self.assertEqual(calls, [])
+
+    def test_reconcile_delivery_requires_official_readback(self):
+        event = self.event("product_daily", "anicca-ios")
+        store = owner_report.OwnerReportStore(self.root / "reports.jsonl", self.root / "deliveries.jsonl")
+        owner_report.deliver(
+            event,
+            store,
+            lambda _text: (_ for _ in ()).throw(TimeoutError("transport timeout")),
+        )
+        with self.assertRaises(owner_report.DeliveryError):
+            store.reconcile_delivery(
+                event["message_key"], {"status": "delivered", "message_ids": [701]}
+            )
 
     def test_concurrent_delivery_claim_sends_at_most_once(self):
         event = self.event("product_daily", "anicca-ios")

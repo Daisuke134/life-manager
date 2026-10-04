@@ -14,7 +14,8 @@ def load_module():
     return module
 
 
-def agent(agent_id, sales, tags="hook,tiktok", subscription=None, download=None):
+def agent(agent_id, sales, tags="hook,tiktok", subscription=None, download=None,
+          developer="Anicca", category_id=5):
     billings = []
     if subscription:
         for cycle, price in subscription.items():
@@ -22,7 +23,8 @@ def agent(agent_id, sales, tags="hook,tiktok", subscription=None, download=None)
     if download is not None:
         billings.append({"billingMode": "download", "oneTimeFee": download})
     return {"agentId": agent_id, "title": f"Agent {agent_id}", "tags": tags,
-            "salesVolume": sales, "billings": billings}
+            "salesVolume": sales, "billings": billings,
+            "developerName": developer, "categoryId": category_id}
 
 
 def test_dedupe_agents_keeps_last_write_unique_by_id():
@@ -80,3 +82,36 @@ def test_top_uncovered_categories_skips_our_own_tags():
     assert len(ranked) == 1
     assert ranked[0]["tag"] == "finance"
     assert ranked[0]["total_sales"] == 800
+
+
+def test_compute_market_winners_shapes_fields_from_successful_sellers_only():
+    module = load_module()
+    agents = [
+        agent("low", 1, subscription={"week": 99.99}),  # below median -> excluded
+        agent("hi", 1000, subscription={"week": 12.99}, developer="TopDev", category_id=5),
+        agent("dl", 500, subscription=None, download=9.99, developer="DlDev", category_id=11),
+    ]
+
+    winners = module.compute_market_winners(agents, "2026-10-04T00:00:00Z")
+
+    by_id = {w["name"]: w for w in winners}
+    assert "Agent low" not in by_id  # excluded (below median sales)
+    assert by_id["Agent hi"] == {
+        "name": "Agent hi", "developer": "TopDev", "category": 5,
+        "price": 12.99, "cycle": "week", "sold": 1000, "observed_at": "2026-10-04T00:00:00Z",
+    }
+    assert by_id["Agent dl"]["cycle"] == "download"
+    assert by_id["Agent dl"]["price"] == 9.99
+    assert by_id["Agent dl"]["sold"] == 500
+
+
+def test_write_market_winners_roundtrips_to_tmp_path(tmp_path):
+    module = load_module()
+    winners = [{"name": "Agent hi", "developer": "TopDev", "category": 5,
+                "price": 12.99, "cycle": "week", "sold": 1000, "observed_at": "2026-10-04T00:00:00Z"}]
+    out_path = tmp_path / "capafy-market-winners-latest.json"
+
+    module.write_market_winners(winners, path=out_path)
+
+    import json
+    assert json.loads(out_path.read_text())["items"] == winners

@@ -28,6 +28,9 @@ as a VERDICT=<state> line for cheap bash grepping.
 import json, os, re, subprocess, sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import duplicate_gate  # noqa: E402 — Capafy 4.2 near-duplicate gate (model-judged, cached)
+
 REPO_ROOT = Path(os.environ.get("LIFE_MANAGER_REPO", Path(__file__).resolve().parents[3]))
 STATE_HOME = Path(os.environ.get(
     "LIFE_MANAGER_STATE_HOME",
@@ -362,7 +365,10 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     if occupied >= CAP:
         return {"verdict": "CAP_FULL", "occupied": occupied}
     if retries:
-        item = min(retries, key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")))
+        # Highest 30d revenue retries first, same rule as queued updates above
+        # (2026-10-04: agent_id-string order picked a $0-revenue retry ahead
+        # of a $11.18/30d one while a slot was free).
+        item = min(retries, key=update_priority_key(revenue_by_agent or {}))
         return {
             "verdict": "PUBLISHABLE",
             "reason": "review_rejected retry",
@@ -514,6 +520,17 @@ def ready_inventory():
     return [by_title[title] for title in sorted(by_title)]
 
 
+def _not_near_duplicate(item):
+    """Capafy 4.2 gate (self-fix-capafy-loop, 2026-10-04): the account already carries
+    ~16 near-identical academic Humanizer agents and 5-6 Hook Lab variants, all $0
+    sales — the exact pattern capafy.ai/developer/doc/4.2 calls cheating. Before an
+    item counts as publishable, duplicate_gate's model-judged cache must hold a fresh
+    'distinct' verdict for it. A missing entry, a stale sha (LISTING.md changed since
+    judged), or any other verdict (near_duplicate / unknown) fails CLOSED: the item is
+    excluded this wake and retried once candidate_backlog.py's refresh judges it."""
+    return duplicate_gate.is_allowed(item["feature"], item["listing"])
+
+
 def main():
     agents = server_agents()
     if agents is None:
@@ -567,7 +584,8 @@ def main():
     publishable = [it for it in items if not it.get("update_request")
                    and it["title"] not in online_titles
                    and it["title"] not in inflight_titles
-                   and it["title"] not in rejected_titles]
+                   and it["title"] not in rejected_titles
+                   and _not_near_duplicate(it)]
 
     # A rejected agent is only retryable if its title still matches a CURRENT
     # ready_inventory LISTING.md. If the LISTING.md title has since drifted (edited,

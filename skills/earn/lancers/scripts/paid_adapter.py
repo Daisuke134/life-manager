@@ -214,6 +214,7 @@ class _LiveLancersProvider:
         )
         if not isinstance(value, Mapping) or value.get("status") not in {200, 201, 302}:
             raise RuntimeError("lancers_paid_acceptance_submission_uncertain")
+        self._work_sync().invalidate_acceptance_status_cache(self.page)
 
     def send_message(self, intent: Mapping[str, Any], detail: Mapping[str, Any]) -> None:
         board_id = detail.get("board_id")

@@ -254,7 +254,18 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "provider": provider,
         "profile_alias": profile_alias,
         "effect_class": effect_class,
-        "effect_status": "not_applicable" if effect_class == "none" else "unknown",
+        "effect_status": (
+            "not_applicable"
+            if effect_class == "none" or blocker in {
+                "host_admission_deferred:resource_capacity_busy",
+                "host_admission_deferred:resource_fifo_wait",
+                "host_admission_deferred:resource_admission_unavailable",
+                "host_admission_deferred:resource_claim_identity_invalid",
+                "host_admission_deferred:memory_headroom_unavailable",
+                "host_admission_deferred:memory_headroom_low",
+            }
+            else "unknown"
+        ),
         "blocker": blocker,
         "evidence_refs": [f"{evidence_scheme}://{loop_id}/{run_id}/summary.json"],
         "product_loop_id": product_loop_id,

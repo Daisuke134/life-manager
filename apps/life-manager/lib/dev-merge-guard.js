@@ -1209,7 +1209,10 @@ function createGuardDeps(io = {}) {
     require("./telegram.js").sendMessage(token, chatId, text));
   const config = io.config || {};
   const repo = config.repo || REPO;
-  const repoDir = config.repoDir || REPO_DIR;
+  // Production self-build code runs from an immutable release, which is not a git checkout.
+  // The caller may provide a dedicated source checkout through the environment; ordinary guard
+  // invocations keep the historical repository-root default.
+  const repoDir = config.repoDir || env.LM_SELFBUILD_SOURCE_REPO || REPO_DIR;
   const appSubdir = config.appSubdir || "apps/life-manager";
   const healthUrl = config.healthUrl || HEALTH_URL;
   const railwayArgs = [

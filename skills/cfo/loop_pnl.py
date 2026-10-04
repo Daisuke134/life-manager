@@ -350,24 +350,27 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
 
-    explicit_marketplace_paths: list[tuple[Path, str]] = []
-    for env_name, loop_id in (
-        ("LM_CFO_MARKETPLACE_COCONALA_READBACK", "gig-coconala"),
-        ("LM_CFO_MARKETPLACE_LANCERS_READBACK", "gig-lancers"),
-        ("LM_CFO_MARKETPLACE_CROWDWORKS_READBACK", "gig-crowdworks"),
+    explicit_marketplace_paths: list[tuple[Path, str, str]] = []
+    for env_name, platform, loop_id in (
+        ("LM_CFO_MARKETPLACE_COCONALA_READBACK", "coconala", "gig-coconala"),
+        ("LM_CFO_MARKETPLACE_LANCERS_READBACK", "lancers", "gig-lancers"),
+        ("LM_CFO_MARKETPLACE_CROWDWORKS_READBACK", "crowdworks", "gig-crowdworks"),
     ):
-        explicit_marketplace_paths.extend((path, loop_id) for path in _paths(env.get(env_name)))
+        explicit_marketplace_paths.extend(
+            (path, platform, loop_id) for path in _paths(env.get(env_name))
+        )
     marketplace_paths = _paths(
         env.get("LM_CFO_MARKETPLACE_READBACK") or env.get("LM_CFO_MARKETPLACE_RECEIPTS")
     )
     if explicit_marketplace_paths:
         sources["b4-marketplace"] = []
         configured_loops = set()
-        for source_path, loop_id in explicit_marketplace_paths:
+        for source_path, platform, loop_id in explicit_marketplace_paths:
             configured_loops.add(loop_id)
             sources["b4-marketplace"].extend(_safe_b7_adapter(
-                lambda source_path=source_path: marketplace.adapt_path(
+                lambda source_path=source_path, platform=platform, loop_id=loop_id: marketplace.adapt_path(
                     source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+                    platform=platform, product_loop_id=loop_id,
                 ),
                 source_id="marketplace-financial-record", loop_ids=(loop_id,),
                 snapshot_at=snapshot_at, trailing_start=trailing_start,
@@ -719,6 +722,7 @@ def stripe_transactions(day: date, get=http_json, cred_path: Path = CREDENTIALS)
 
 def _stripe_list_all(path: str, key: str, get=http_json, params: dict | None = None) -> dict:
     rows: list[dict] = []
+    seen_ids: set[str] = set()
     query = {"limit": 100, **(params or {})}
     after = None
     while True:
@@ -726,14 +730,22 @@ def _stripe_list_all(path: str, key: str, get=http_json, params: dict | None = N
         page = get(f"{STRIPE_API}{path}?{urllib.parse.urlencode(page_query)}",
                    {"Authorization": f"Bearer {key}"})
         if (not isinstance(page, dict) or page.get("object") != "list"
-                or page.get("url") != path or not isinstance(page.get("data"), list)):
+                or page.get("url") != path or not isinstance(page.get("data"), list)
+                or type(page.get("has_more")) is not bool):
             raise ValueError(f"stripe_readback_payload_invalid:{path}")
-        rows.extend(page["data"])
-        if page.get("has_more") is not True:
-            return {"object": "list", "url": path, "data": rows, "has_more": False}
-        if not page["data"] or not page["data"][-1].get("id"):
+        page_ids = [row.get("id") for row in page["data"] if isinstance(row, dict)]
+        if (len(page_ids) != len(page["data"])
+                or any(not isinstance(row_id, str) or not row_id for row_id in page_ids)
+                or len(set(page_ids)) != len(page_ids)
+                or bool(seen_ids.intersection(page_ids))):
             raise ValueError(f"stripe_readback_cursor_invalid:{path}")
-        after = page["data"][-1]["id"]
+        seen_ids.update(page_ids)
+        rows.extend(page["data"])
+        if page["has_more"] is False:
+            return {"object": "list", "url": path, "data": rows, "has_more": False}
+        if not page_ids or page_ids[-1] == after:
+            raise ValueError(f"stripe_readback_cursor_invalid:{path}")
+        after = page_ids[-1]
 
 
 def build_stripe_readback(*, snapshot_at: str, trailing_start: str,

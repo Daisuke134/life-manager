@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import sys
 from pathlib import Path
 
@@ -41,3 +42,27 @@ def test_x_post_without_article_stays_fenced():
 
 def test_readback_failure_stays_fenced():
     assert not proof(200, {"ok": False, "reason": "x"}, {"ok": True, "posts": []})["verified"]
+
+
+def test_postiz_key_falls_back_to_unique_credential_ssot(tmp_path, monkeypatch):
+    monkeypatch.delenv("POSTIZ_API_KEY", raising=False)
+    monkeypatch.delenv("LM_POSTIZ_API_KEY", raising=False)
+    path = tmp_path / "credentials.json"
+    path.write_text(json.dumps({"credentials": [
+        {"service": "postiz", "api_key": "secret-from-ssot"},
+    ]}))
+
+    assert rec.postiz_key(path) == "secret-from-ssot"
+
+
+def test_postiz_key_rejects_ambiguous_or_malformed_ssot(tmp_path, monkeypatch):
+    monkeypatch.delenv("POSTIZ_API_KEY", raising=False)
+    monkeypatch.delenv("LM_POSTIZ_API_KEY", raising=False)
+    path = tmp_path / "credentials.json"
+    path.write_text(json.dumps({"credentials": [
+        {"service": "postiz", "api_key": "first"},
+        {"service": "postiz", "api_key": "second"},
+    ]}))
+    assert rec.postiz_key(path) == ""
+    path.write_text("not-json")
+    assert rec.postiz_key(path) == ""
