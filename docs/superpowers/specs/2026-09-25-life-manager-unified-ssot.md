@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks確認依頼再送修正のmain1a7 immutable／official target load／自然run確認。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks新source自然run限定判定のfresh検証と、A20／A21のFreelancer／Upwork account・inventory・owner接続。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5744,3 +5744,11 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - reply/latestの旧01:32:53Z resultをnew65279へ結合しない。次は同runのreport／actual queued occurrence／markerとthread304360469のpending effect／form receipt metadataを照合し、未確定再送0の本番範囲を確認する。private natural proofに同handleを保存。
 - Mobile担当へ承認共有済みだが、official agmsg peekはno placement recordでrc1。これは停止中や作業中の証明ではない。remote HEAD1f045eff3dは不変、着手response未取得。新seatを勝手に登録／spawnせず、担当branch／認証の編集を重複しない。state/mobile-cfo-owner-gate-refresh.jsonへ観測限界を保存し、partial coverage source修正／本番import gateは未完。
 - specのsource／loaded gateは§309–315、自然実成果は本節から追う。global33323は同handlelive、whole fleet／旧receipt／全金融成果は未完、SelfBuildは最後。
+
+### 318. 自然runのconfirmation再送0と旧fence保持／A20実登録境界
+
+- 同new1a7 native run18db30394f2b25a8-65279はexecute01:44:59Z→report01:48:34Z／pass／exit0。actual claimed occurrenceは18db147777f3f2e0-31915。latest outputmtime01:48:32Zはrun内、output154observed／effect0／readback140／pending14／failed0。thread304360469はpending reconcile_unknown／effect0／readback0。
+- actual occurrenceに対応するmarker occurrence一致／同target effect0／status effect_unknown、thread state reconcile_unknown／verified receipt無し。凍結output／markerのSHAは記録したoriginalと一致。以前の219fenceはSQLite mode=roで全219がclaimed／effect_unknown1のまま。今回claimのreleased／unknown0は旧219リストに含まれない。対象の一自然run再送0だけの限定証明で、form受領や全返信／金融成果は未完。fresh reviewer crowdworks_confirmation_natural_reviewをgpt-5.6-sol／medium／forknoneで依頼中。actual model／effort／usageは未観測。
+- A20／A21の現物registryにFreelancer／Upwork active ownerは0。旧Freelancer3label／Upwork2labelはretired。Upwork専用identityは登録済みだがendpoint_unavailable、正規credentials SSOTにはaccount fieldがある（値は非露出）。checked gig-upwork vault pathは不存在だが全vault所在を調べた証明ではない。制作skillは検索／提案／交渉／納品ownerの代わりではない。
+- Freelancer transport／paid adapter／readiness sourceはあるが、正規credential SSOT matching record、旧OAuth path、専用profileの本probeでは未取得。action matrix unknown、local recorded automatic bid policyはprovider承認を要求する。最新公式policyは未再照合で、accountやprovider承認を捏造しない。新owner／retired復活／認証／proposal／支払操作0。
+- 証拠state/crowdworks-confirmation-natural-success-readback.json／同frozen artifact、freelancer-upwork-a20-owner-account-boundary.json/mode600。次は限定自然proofの独立判定を確認し、account-bound source／正規browser ownerを接続する前提をproviderごとに閉じる。全goal未完、SelfBuildは最後。
