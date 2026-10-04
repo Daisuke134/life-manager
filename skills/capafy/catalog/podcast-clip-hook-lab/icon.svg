@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Podcast Clip Hook Lab icon</title>
+  <desc id="desc">A warm microphone surrounded by three opening beats on a dark background.</desc>
+  <rect width="256" height="256" rx="48" fill="#101827"/>
+  <rect x="92" y="48" width="72" height="108" rx="36" fill="#ff936a"/>
+  <path d="M72 122c0 31 25 56 56 56s56-25 56-56M128 178v30M96 208h64" fill="none" stroke="#fff4e8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M111 78h34M111 102h34M111 126h34" stroke="#101827" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="52" cy="82" r="10" fill="#44d8b3"/>
+  <circle cx="52" cy="128" r="10" fill="#44d8b3"/>
+  <circle cx="52" cy="174" r="10" fill="#44d8b3"/>
+</svg>
