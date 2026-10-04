@@ -6123,3 +6123,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - oldとfresh owner-env-projects/18223833/source/talkroom/messages.jsonlは27件、message_id／side／contentSHAの順列が完全一致。latestbuyer222226563は不変。§348の①予算書承認／②NPO資料待ちというscope解釈はこのfresh履歴に結合できる。observed timestamp更新でhistoryファイルSHAは8bd7b022d80fd0916334a91fbda45497f700e628c6663e366a8eced74b97f84d、古いraw filehashとは区別する。
 - fresh公式attachment metadataでもseller220802599 attachment:0は55.0KB／hrefnull。現local17665bytesとの結合は未達。次は公式画面のdownload操作先／bytesと、①だけのformalが閉じる契約範囲を確認する。approval_readyを手動変更せず、client送信／正式納品／既存project state変更0。
 - state/coconala-a01-refresh-20261004/18223833-owner-env-history-comparison.jsonにcurrent receipt／hash／metadataを保存。A01／A04最終成果未達、全goalactive、SelfBuild最後。
+
+### 351. 公式添付読取の担当分離と正式納品の全取引境界
+
+- 同Sol6.1 medium workerへA04-official-budget-downloadを渡し、登録coconala identityをguard取得中だけ所有させる。親は同profileを操作せずlocal contract／公開help調査を所有。既存immutableDefaultTab／CDP primitives、自context限定download設定、finally自己target/context／lease解放、送信／再添付／formal／authreset禁止。成果private rootはstate/coconala-a04-budget-download。
+- worker初回inline Pythonはwith-browser.shのbackground childにstdinが渡らず未実行／exit0。provider操作0、成功receiptとは扱わず保持。修正版は単一private診断scriptをargvで実行し、source refs／size／SHAを返す。新prod code／framework無し、download terminal未取得。
+- fresh budget snapshotはcontract direct-offer6361950／one_shot／取引中／formalfalse／checkbox有効。これを送信許可や①だけのpartial closure可能の証明としない。
+- 公式help218721047はwebopen取得失敗後crwlで本文取得。双方同意したサービス提供の完了後にformalを送る条件と、納品確認・検収を経たトークルーム終了で売上計上へ進むことを確認。help4403291547417はwebで取得し、承諾等によるroom単位close条件を確認。一般ルールで①承認を②未完成に拡張せず、当該契約で①だけを閉じる合意は未確認として保持。
+- 根拠URL https://help.coconala.com/hc/ja/articles/218721047 ／ https://help.coconala.com/hc/ja/articles/4403291547417 、取得本文／hash／contract metadataはprivate formal-scope-boundary.json。次は公式download bytesと取引scope合意の証拠。全goalactive／SelfBuild最後。
