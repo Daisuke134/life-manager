@@ -6100,3 +6100,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 追加観測として既存visible-with-screenshot経路のbounded probeを同registered identity／自己ownerで試すが、guardbusy75でprovider dispatch前に終了。正常tabでの成功／失敗は未測定。保持者のprofile／target／leaseを変更せず、authreset／challenge bypass／再送／納品0。
 - browser待ち中にGmail既存title一致mail1件をno-sendでfull GETし、応募完了phrase無し、辞退関連語／message語の検出あり。word detectionを正式辞退や新規messageの証明へ昇格しない。mail body／subjectは保存せずhash・date・flagsだけstate/crowdworks-a17-title-mail-classification.json/mode600。confirmation bindingは未確定。
 - A03 local対応表は§346で一部充足・不足を狭めた。current-boundary-summary.jsonにはordersとroom receipt／normalprobe失敗／作用0を保存。次は同provider leaseが利用可能な時に未実行の通常tab観測を取得し、必要な不足入力だけをlatestofficial要件へ結合する。A01／A03／A17は全完了未達、全goalactive、SelfBuild最後。
+
+### 348. NPO通常tabの公式履歴成功と予算書承認scopeの切り分け
+
+- guard holder16862を記録しps missing／guard holder無しへ変化後、自己ownerの通常tab selected-talkroom-onlyを再開。session97039はexit0、18250352 snapshot captured04:04:22Z／HTTP200／coverage_complete true／取引中／formal false。先のhidden経路403と今回normal200は別attemptとして保持し、経路変更の因果効果や全provider復旧を断定しない。
+- oldhistoryとfresh normal-projects/18250352/source/talkroom/messages.jsonlは34件、message_id／side／content SHAの順列が完全一致。latestbuyer221897659は不変。A03 local資料監査の要件bindingをこのfresh履歴へ結合できる。作品・state・正式納品変更0。
+- fresh Sol6.1 medium budget_approval_scope_readbackは過去09:35:18JST履歴を読み、承認222226516の①予算書と②別法人NPO調整を分離。後続buyer222226563は②資料待ち／納期変更であり、①予算書の承認撤回は観測されない。seller後続222233461／222253171も①完了と②追加資料／reviewを分ける。履歴SHA dc8470c71c0e045cfceb50d7f35b6f49b15b9b5e115ceb878adacd5511e45229。解釈をlatestapprovalへ付替えない。
+- 予算書はローカル7sheet／12formula／SHA cc2c9b7dcf1d36ddb884d2e94e82bd76b3fd85656746624e3e6e47a839757c49。公式添付bytesとの一致と①だけのformalが取引全体へ及ぼす範囲は未確定。現approval_readyfalseを維持。fresh18223833 normal collectorはsession77715 exit1／selected_talkroom_access_forbidden／HTTP403／coveragefalse、current history未取得。
+- growth担当のdocs branchをfetch/read-only確認しHEAD／upstream9719f232fdc96ad66e36d40575f7fb0d1e0e29ca／clean。Task1基準表部分取得・公開build/offerings/userfunnel不足、Task3既存配信資料の所在確認を受け入れる。財務／製品実装／投稿成果に置換しない。
+- private evidenceはstate/coconala-a01-refresh-20261004のhistory-comparison／budget-approval-scope-readback／normal snapshot／failure receipt。次は予算書fresh履歴の境界と正式納品scope、公式添付bindingを既存ownerで確認する。A01／A03／A04は全成果未達、全goalactive／SelfBuild最後。
