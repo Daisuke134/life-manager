@@ -6048,3 +6048,23 @@ fresh Sol6.1 mediumの同計画監査は条件付きPASS。指摘4件（6束≠6
 - [ ] 受入／販売／精算の改善を確認する。AGIの能力や到達時期の証拠に置換しない。SelfBuild A43–46最後。
 
 別担当のread-only調査は導入3候補の即時速度証拠無しを確認し、現在は既存構成のpilotを優先する判定。これは永久不採用ではなく、具体的な待ちが測定された場合に採用判断を変える。今回新tool導入／新session起動／製品変更／provider作用0。
+
+### 343. 新toolを増やさない実行方針と完走までの残作業
+
+- Daisの追補は既存subagent／AGMSGの活用、残TODOの提示、simpleに加速すること。§342のcmux／Superset等は候補調査として保持し、今は新tool導入を作業に足さない。既存tool／worktree／receiptだけで並列化する。
+- primaryは既知AGMSG identity codex-money-printer／team lmを継続。whoamiは同project複数登録を返すが、sessionで既に使っているFROMを維持し、別名への再join／actasや既存seatの書換えをしない。inboxでlm-ios-growth-1004のworking応答を取得。ただしworkingはCFO/mobile衝突のread-only監査であり、growth Task1着手ではない。growth docs583f1e86／Task1未着手を維持する。CFO担当の最新応答は未取得。
+- growth報告にはmobile→CFOの10product payload／6product scope、hash形式、observed_at完全一致、currency／revenue_definition／Apple final financial不足がある。担当の一次資料付き最終packetを受け入れるまでは修正／財務確定と扱わず、primaryが同branchのコードを重複編集しない。ASC／RCの公式取得ownerは一人、両laneは同receiptのread-only消費という分担に合意方向を確認する。
+
+#### 既存AGMSGの使い方
+
+- 通信: sendでscope／依存／短い結果を伝え、inbox／historyで受信と判断を確認する。新sessionへの仕事はspawn --boot-promptで渡す。sendしただけでstarted扱いしない。
+- 実働: team／対応driverのpeekと本人working／成果差分で確認し、登録席と稼働を分ける。placement不明をidleと決めて同名sessionを重複起動しない。
+- 分担: 長期jobはworktree／branch／files／profile／state／input refs／DONEを所有。短期subagentは1つの明確な出力を返す。primaryは重複実装・重複調査をしない。
+- 受入: atom ID・owner・HEADまたはevidencehash・検証結果・不足・次操作を返し、primaryが§217へ状態を更新する。未達external outcomeをsource PASSへ言い換えない。
+- モデル: planning/review Sol6.1 medium、implementation Luna6 max。既存spawn optionsのCLI override経路を使い、他設定や旧modelに置換しない。
+
+#### 完走範囲
+
+残TODOの正本は§217のA01–46。完了済みはA02／A37とA21.1–3の一部source確認、Reply source受入。残業務はCoconala A01/A03–07、Lancers/CrowdWorks A08–12、Mercor A13–15、応募/mail A16–18、商品公開A19、Freelancer/Upwork A20–22、storefront/Fiverr A23–27、他loop A28–35、runtime A36、Mobile/CFO A38–42、最後SelfBuild/Eval A43–46。2sourceのPR/main依存は§328。既存成果をやり直さず、外部待ちを保持して次の独立jobを進める。
+
+iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件・acceptanceの文書引継ぎであり、$10K MRR達成やTask2–6の製品実装ではない。製品実装・設定・投稿・広告を新規に開始しない。CFOのDoneは同期間settled revenue/refund/fee/actual cost／net／MRR／cash／runwayとdup0の証明で、欠損0埋めではない。全goal未完、SelfBuild最後。
