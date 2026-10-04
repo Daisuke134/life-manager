@@ -6139,3 +6139,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - raw公式ファイルはstate/coconala-a04-budget-download/official-bytes/528f0b56-49a4-4a2f-9af4-ad9e36a06b73、source_ref／events／hash／cleanupはofficial-download-receipt.json、directory700／files600。秘密URL／cookie／本文をchat／repoへ出さない。
 - provider所有を返却し、同workerへlocal-onlyの内容／formula／print/styles比較を割当てる。原本・既存project・source・state変更無し。download観測raw messagecount28と以前canonical27の差は未説明で、latestapproval変化とも不変とも断定しない。
 - 次は承認対象originalと現localの具体的差、必要な復元、取引scopeを確認する。正式納品・検収・精算・全goal未完、SelfBuild最後。
+
+### 353. 予算書のsemantic差分とfresh download binding限定SHIP
+
+- local比較はofficial12sheet／2099非空cells／1322formulas、local7sheet／532非空cells／12formulas。同名sheet0、展開ZIP member17差分、値／計算定義／styles／print semantic hashも不一致。単なるZIP再保存ではない。個別金額の変更・会計上の優劣は判定しない。local-content-comparison.jsonにcounts／hash／限界を保存。
+- fresh gpt-6.1-sol medium／forknone budget_download_binding_reviewは保存済みreceipt／probe source／fileをread-only反証しSHIP（対象bindingとbytes相違のみ）。exactmessage220802599／seller／attachment0 selector、metadata ref／filenameとdownload filename、開始1／完了1／GUID／saved basename、56351実bytes／receiptSHA／再計算SHAを照合。別file混入を示す矛盾無し。metadata「filename一致」だけの証明と区別する。
+- reviewer限界: probe実装はGUID指定選別ではなく新file1件採用だが今回GUID一致。frameId／取得時owner snapshot／browser-side context消失readbackは未保存、ledger不存在のcleanupまで。これをbinding再downloadや追加作業のgateへ広げない。正式納品scope／最新承認／会計正確性はreview対象外。
+- verified公式原本をprivate official-budget-candidate.xlsxへbyte-preserving copy、SHA0c64483ca4bded5953db98bc4a80d414f62bd3400a5054539cfff4cbdf9eb56e／56351bytes／mode400。原本編集無し、既存projectの7sheet artifact／decision／stateを上書きせず、formal／再添付／client送信0。official-candidate-provenance.json/mode600へ保存。
+- 次は①承認対象の公式original候補を現在の契約scopeへ結合し、②未完作業とformal room終了の扱いを確認してowned delivery pipelineへ渡す。取得済み原本を再生成して内容を変えない。A04／検収／精算／全goal未完、SelfBuild最後。
