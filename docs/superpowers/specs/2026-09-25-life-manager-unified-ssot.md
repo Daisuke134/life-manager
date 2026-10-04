@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA17／A18の応募confirmationとprovider専用返信owner照合。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA17／A18のReply観測blocked→runtime誤PASS修正（issue6555、Luna6 max、2file）。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5832,3 +5832,15 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 直近application307992797／308014722／308020998の本文ID一致0、対応opportunity13473764／13474499／13490707の/public/jobs/リンク一致0。本文には90messagesで別案件linkがある。ID欠落・文面形式・通知設定は未診断であり、確認mail不送信と断定しない。次は案件title／応募時刻との照合とsender別名を確認する。
 - 最新job-search inbox terminalはinbox-20261004-112540-42059、mtime02:26:46Z、no_work／no_new_messages_or_preparation／delivery suppressed、candidate new_count0。現物inbox.py416のqueryは14d／応募採用語／limit100、subjectとsender選別あり。これは採用inboxであり、全marketplace返信監視成功の証拠ではない。専用reply ownersはCrowdWorks、Coconala、Mercorに別存在するため、そのsame-occurrence readbackを別に照合する。
 - proof state/crowdworks-a17-mail-body-boundary.json、crowdworks-a17-mail-body-all-pages.jsonはmode600。provider送信／Gmail送信／既読変更／seen state変更0。A17／A18は未完、全goalactive／SelfBuild最後。
+
+### 330. 案件title一致mailと専用reply ownerのsame-run結果
+
+- 全送信元／7d／receiptの完全案件titleで直近3件を検索、3query exit0。307992797と308020998は0、308014722は1mail取得／次page無し。公式Gmail full GETはexit0、送信元domain crowdworks.jp、Date2026-10-04T01:28:41Z（応募receipt2026-10-03T15:50:33Zより後）、body1032文字／hash保存。application／opportunity ID無し、限定confirmation／reply／recommendation phraseは検出無し。title一致はnotification関連の証拠だが応募confirmationと未確定。state/crowdworks-a17-title-mail-join.json/mode600に本文を保存せずmetadata・hash・判定不足を記録。
+- loop_idでnative eventsを限定し、各terminal runとlatest mtimeを比較。Coconala18db325fda8281a0-40986／main1a7はnative report pass／exit0なのにsame-run latestはblocked／provider_inbox_access_forbidden。CrowdWorks18db329e220a9e98-49608はexit75でlatest窓外。Mercor18db32b394d555c0-53385はresource_effect_unknown／exit75、latestは10/03T15:17Zの旧result。旧latestのreadbackを今回のsuccessへ結合しない。state/marketplace-a17-reply-owner-current-binding.json/mode600へexact run・occurrence・SHA・argv/envhash・exit・refsを保存。
+
+### 331. Reply blocked誤PASSのsource再現とbounded修正計画
+
+- reply_kernel.run_wakeは分類済みinventory拒否をstatus blocked／failed0／effect0／readback0で返す。main末尾はint(result[failed]>0)のみでexitを決めるためblockedもexit0。fake adapter／TemporaryDirectoryで本番access無しにmain CLIを再現、blockedなのにexit0。既存testはrun_wakeの構造だけを検証しCLI exitを未検証。
+- issue6555へ問題・最小差分・受入を記録し、official viewerPermissionADMINとmaintainer+1 reaction543559706を確認。最新origin/main1a7由来worktree reply-blocked-exit-20261004、branch fix/reply-blocked-exit-20261004、lease owner codex-money-printer。編集所有はskills/_shared/marketplace-core/scripts/reply_kernel.pyとtests/test_reply_kernel.pyの2fileのみ。親はspec／受入を所有しcode編集しない。
+- Luna6 maxの実装はCLI regression RED→最小GREEN。blocked observation JSONを保持してexit75、ok空inventory exit0、既存failed exit1、pending／effect_unknown挙動を保持する。新外部retry・provider設定・認証・state／receipt／fence変更・403 bypass無し。focused reply／adapter testsと既存loop contract／diff、commit／push／remote object確認を要求する。統合・本番復旧・全reply成功は別の未達成果として保持する。
+- このsource修正はAPI403自体を解消する証明ではない。A17／A18の現cursorとして誤成功を修正後に正規inboxアクセスのreceiptを診断する。全goal未完、SelfBuild最後。
