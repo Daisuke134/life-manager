@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA21のUpwork正規browser owner接続（issue6553／HEAD3851b5e3、親runtime759 PASS、fresh Sol6.1 medium source review）。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA21のUpwork正規browser owner接続（issue6553／HEAD3851b5e3、親runtime759 PASS、fresh Sol6.1 medium source SHIP、統合条件照合）。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4892,6 +4892,14 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
 - [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
+  - [x] A21.1 正規browser owner sourceを実装・pushする（3851b5e3）。
+  - [x] A21.2 同HEAD検証とfresh source reviewを完了する（§327限定SHIP）。
+  - [ ] A21.3 最新AGENTSの成果PASS後PR条件とmain-only本番反映の依存を照合する。全A21成果は未実測であり、PR作成未実施。
+  - [ ] A21.4 条件成立後に一度だけPRを作成し、exact-head CI／main統合を確認する。
+  - [ ] A21.5 main由来complete immutableを確認し、所有権・GUI preflightを満たして対象ownerへ反映する。
+  - [ ] A21.6 official loaded argv／SHAと登録済み9233のprofile所有権を確認する。
+  - [ ] A21.7 直接CDPで本人accountを照合する。
+  - [ ] A21.8 送信経路を呼ばずにproposals／contracts／catalog／payment inventoryを読み、公式証拠を保存する。
 - [ ] A22 Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。
 - [ ] A23 利用可能な商品販売経路を接続する。適用外は理由付きN/Aとする。
 - [ ] A24 FiverrをMeta Loop経由で導入し、公式出品を確認する。
@@ -5806,3 +5814,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - current immutable20261004T102016-1a7a8e2fの登録済みresolverをupwork:daisで実行し、exit10／reachablefalse／endpoint_unavailableを再現。旧registryのlaunched_byはretired labelだが、resolverはlive endpointとprofile所有権を検証するため、その文字列だけを書き換えて接続成功と扱わない。
 - providers/upwork_browser_provider.pyのobserve()1268以降は最初にread_only snapshotを取得する一方、1355以降でcontract worker復帰／negotiation message／inbound offer／sealed proposal実行を含む。CLIに観測専用switchは無く、account／inventory確認のため同CLIを実行しない。次は接続確立後に登録済み直接CDPと既存snapshot／parserで公式account・inventoryだけを読み、送信経路を呼ばずに証拠を保存する。別実装や新observer frameworkは追加しない。
 - 本観測はprovider送信／profile／auth／main統合0。fresh source reviewは継続中、A21・全goal未完。
+
+### 327. Upwork fresh source SHIPと未完成果の分離
+
+- independent upwork_browser_owner_source_reviewはSHIP（source受入限定）、修正必須指摘無し。固定HEAD3851／5file／cleanを確認し、所有権32、fixture一致1、profile／port重複拒否2、shell／diff PASS。renderer1／64成功、0／65／-1／非数値exit64、既存profile marker保持をtemp fixtureで確認。親の759 PASSと区別して記録する。
+- 本番起動／identity接続／account inventory／応募／Paid／収益は未証明。reviewerはprovider CLI／本番profile／credentials／stateを操作しない。要求modelはgpt-6.1-sol／medium、actual metadataは観測不能。
+- A21を正本内でA21.1–8へ分け、source2項目だけ完了にする。新AGENTSの成果PASS後PR条件とmain-only本番反映は依存照合が残る。全A21成功をsource SHIPから推定してPR／mergeしない。次はこの統合条件を既存promotion契約と照合し、実行可能なaccount readback経路を狭める。全goalactive／未完、SelfBuild最後。
