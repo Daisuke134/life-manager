@@ -230,3 +230,10 @@ def test_write_decision_record_is_dated_and_readable(tmp_path):
 
     assert path.name == "2026-09-29.json"
     assert json.loads(path.read_text())["telegram_summary"] == "summary"
+
+
+def test_rank_shelves_names_capafy_categories():
+    m = load_module()
+    ranked = m.rank_shelves([{"category": 11, "sold": 10}, {"category": 999, "sold": 1}], [])
+    assert ranked[0]["category_name"] == "Finance"
+    assert ranked[1]["category_name"] == "unknown"

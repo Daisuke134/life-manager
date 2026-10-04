@@ -39,6 +39,13 @@ OPPORTUNITIES_PATH = STATE_HOME / "state/capafy-candidate-opportunities.json"
 # Same path capafy_market_sweep.WINNERS_PATH writes -- literal, not imported, matching
 # the existing PRICE_BANDS_PATH pattern (sibling state file, no cross-module coupling).
 MARKET_WINNERS_PATH = STATE_HOME / "state/capafy-market-winners-latest.json"
+# Capafy categoryId -> public name, read from https://capafy.ai/ category filter links (2026-10-04).
+CATEGORY_NAMES = {
+    1: "Writing", 2: "Analysis", 3: "Research", 4: "Image", 5: "Video", 6: "Design", 7: "Marketing",
+    8: "Sales", 9: "Commerce", 10: "Social Media", 11: "Finance", 13: "Product", 14: "HR",
+    15: "Education", 17: "Media", 18: "Engineering", 19: "Consulting", 20: "Science",
+    24: "Travel", 25: "Gaming", 26: "Legal", 27: "Productivity", 28: "Lifestyle",
+}
 
 LOSING_MONEY_COST_RATIO = 0.30
 UNDERPRICE_MARGIN_USD = 1.0
@@ -300,6 +307,7 @@ def rank_shelves(market_winners, own_rows):
         listings = our_listings.get(cat, 0)
         shelves.append({
             "category": cat,
+            "category_name": CATEGORY_NAMES.get(int(_num(cat) or 0), "unknown") if cat is not None else "unknown",
             "market_sold_total": sold_total,
             "our_listings": listings,
             "our_sales_30d": our_sales_30d.get(cat, 0.0),
