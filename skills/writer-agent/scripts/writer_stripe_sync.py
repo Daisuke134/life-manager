@@ -117,9 +117,12 @@ def _balance(
         fee = _major(value["fee"])
         net = _major(abs(value["net"]))
         occurred_at = _iso(value["created"])
+        settled_at = _iso(value["available_on"]) if value.get("available_on") is not None else None
     except (KeyError, StripeReceiptInvariant):
         return None
     if abs(amount - fee - net) > 1e-9:
+        return None
+    if require_available and settled_at is None:
         return None
     identifier = value.get("id")
     if not isinstance(identifier, str) or not identifier.startswith("txn_"):
@@ -127,6 +130,7 @@ def _balance(
     return {
         "id": identifier, "amount": amount, "fee": fee, "net": net,
         "currency": currency.upper(), "occurred_at": occurred_at,
+        "settled_at": settled_at,
     }
 
 
@@ -225,7 +229,8 @@ def normalize_objects(objects: dict[str, Any], *, observed_at: str) -> list[dict
             "amount": transaction["amount"], "status": money_status,
             "external_receipt_id": identifier, "counterparty": "external_reader",
             "source_url": _dashboard("payment", identifier, test),
-            "occurred_at": transaction["occurred_at"], "observed_at": observed_at,
+            "occurred_at": transaction["occurred_at"],
+            "settled_at": transaction["settled_at"], "observed_at": observed_at,
         })
         _add_receipt(rows, {
             "receipt_type": "fee", **common,
@@ -233,7 +238,8 @@ def normalize_objects(objects: dict[str, Any], *, observed_at: str) -> list[dict
             "amount": transaction["fee"], "status": "test" if test else "verified",
             "external_receipt_id": transaction["id"],
             "source_url": _dashboard("balance", transaction["id"], test),
-            "occurred_at": transaction["occurred_at"], "observed_at": observed_at,
+            "occurred_at": transaction["occurred_at"],
+            "settled_at": transaction["settled_at"], "observed_at": observed_at,
         })
 
     for item in objects.get("subscriptions", []):
@@ -320,7 +326,11 @@ def normalize_objects(objects: dict[str, Any], *, observed_at: str) -> list[dict
             "amount": amount, "status": "test" if test else "verified_received",
             "external_receipt_id": identifier, "counterparty": "external_reader",
             "source_url": _dashboard("invoice", identifier, test),
-            "occurred_at": _iso(paid_at), "observed_at": observed_at,
+            "external_contract_id": (
+                subscription_id if isinstance(subscription_id, str) and subscription_id else None
+            ),
+            "occurred_at": _iso(paid_at),
+            "settled_at": transaction["settled_at"], "observed_at": observed_at,
         })
         _add_receipt(rows, {
             "receipt_type": "fee", **common,
@@ -328,7 +338,8 @@ def normalize_objects(objects: dict[str, Any], *, observed_at: str) -> list[dict
             "amount": transaction["fee"], "status": "test" if test else "verified",
             "external_receipt_id": transaction["id"],
             "source_url": _dashboard("balance", transaction["id"], test),
-            "occurred_at": transaction["occurred_at"], "observed_at": observed_at,
+            "occurred_at": transaction["occurred_at"],
+            "settled_at": transaction["settled_at"], "observed_at": observed_at,
         })
 
     for item in objects.get("refunds", []):
@@ -347,6 +358,22 @@ def normalize_objects(objects: dict[str, Any], *, observed_at: str) -> list[dict
         if lineage is None or not isinstance(identifier, str):
             continue
         test = item.get("livemode") is not True
+        balance_receipt = _resolve_balance(item.get("balance_transaction"), balances)
+        if not isinstance(balance_receipt, dict):
+            balance_receipt = next((transaction for transaction in balances.values()
+                                    if transaction.get("source") == identifier
+                                    and transaction.get("type") in {"refund", "payment_refund"}), None)
+        transaction = _balance(
+            balance_receipt, currency=str(item.get("currency") or "")
+        )
+        try:
+            refund_amount = _major(item.get("amount"))
+        except StripeReceiptInvariant:
+            continue
+        if (transaction is None or balance_receipt.get("source") != identifier
+                or balance_receipt.get("type") not in {"refund", "payment_refund"}
+                or transaction["amount"] != refund_amount):
+            continue
         _add_receipt(rows, {
             "receipt_type": "refund", "artifact_id": lineage["artifact_id"],
             "run_id": lineage["run_id"], "lang": lineage["lang"],
@@ -357,7 +384,8 @@ def normalize_objects(objects: dict[str, Any], *, observed_at: str) -> list[dict
             "status": "test" if test else "refunded", "test": test,
             "external_receipt_id": identifier, "counterparty": "external_reader",
             "source_url": _dashboard("refund", identifier, test),
-            "occurred_at": _iso(item.get("created")), "observed_at": observed_at,
+            "occurred_at": _iso(item.get("created")),
+            "settled_at": transaction["settled_at"], "observed_at": observed_at,
         })
 
     for item in objects.get("payouts", []):

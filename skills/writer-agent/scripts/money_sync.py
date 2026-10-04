@@ -456,6 +456,8 @@ def _sync_stripe_receipts(
                     source_url=row.get("source_url"),
                     test=row.get("test"),
                     occurred_at=row.get("occurred_at"),
+                    settled_at=row.get("settled_at"),
+                    external_contract_id=row.get("external_contract_id"),
                 )
             elif receipt_type == "subscription":
                 result = ledger.record_subscription(
@@ -489,6 +491,8 @@ def _sync_stripe_receipts(
                     external_receipt_id=row.get("external_receipt_id"),
                     source_url=row.get("source_url"),
                     observed_at=row.get("observed_at"),
+                    occurred_at=row.get("occurred_at"),
+                    settled_at=row.get("settled_at"),
                 )
             elif receipt_type == "payout":
                 result = ledger.record_payout(

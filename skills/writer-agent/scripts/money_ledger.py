@@ -42,6 +42,12 @@ def _timestamp(value: Any, field: str) -> str:
     return parsed.isoformat().replace("+00:00", "Z")
 
 
+def _same_instant(left: str, right: str) -> bool:
+    return datetime.fromisoformat(left.replace("Z", "+00:00")) == datetime.fromisoformat(
+        right.replace("Z", "+00:00")
+    )
+
+
 def _url(value: Any, field: str) -> str:
     value = _text(value, field)
     parsed = urlsplit(value)
@@ -151,7 +157,9 @@ class MoneyLedger:
                     external_receipt_id TEXT UNIQUE,
                     source_url TEXT NOT NULL,
                     test INTEGER NOT NULL CHECK(test IN (0,1)),
-                    occurred_at TEXT NOT NULL
+                    occurred_at TEXT NOT NULL,
+                    settled_at TEXT,
+                    external_contract_id TEXT
                 );
                 CREATE TABLE IF NOT EXISTS subscription_contracts (
                     subscription_id TEXT PRIMARY KEY,
@@ -179,7 +187,9 @@ class MoneyLedger:
                     status TEXT NOT NULL CHECK(status IN ('verified','unknown','test')),
                     external_receipt_id TEXT NOT NULL UNIQUE,
                     source_url TEXT NOT NULL,
-                    observed_at TEXT NOT NULL
+                    observed_at TEXT NOT NULL,
+                    occurred_at TEXT,
+                    settled_at TEXT
                 );
                 CREATE TABLE IF NOT EXISTS payouts (
                     payout_id TEXT PRIMARY KEY,
@@ -272,6 +282,17 @@ class MoneyLedger:
                 );
                 """
             )
+            for table, column in (
+                ("money_events", "settled_at"),
+                ("money_events", "external_contract_id"),
+                ("money_fees", "occurred_at"),
+                ("money_fees", "settled_at"),
+            ):
+                columns = {
+                    row["name"] for row in connection.execute(f"PRAGMA table_info({table})")
+                }
+                if column not in columns:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
 
     def _require_artifact(self, connection: sqlite3.Connection, artifact_id: str) -> None:
         if connection.execute(
@@ -385,7 +406,8 @@ class MoneyLedger:
         revenue_class: str, kind: str, amount: float | int | None,
         currency: str | None, status: str, counterparty: str,
         external_receipt_id: str | None, source_url: str, test: bool,
-        occurred_at: str,
+        occurred_at: str, settled_at: str | None = None,
+        external_contract_id: str | None = None,
     ) -> dict[str, Any]:
         stream = _text(stream, "stream")
         revenue_class = _text(revenue_class, "revenue_class")
@@ -419,6 +441,16 @@ class MoneyLedger:
             raise MoneyInvariant("verified received money or refund requires external receipt")
         source_url = _url(source_url, "source_url")
         occurred_at = _timestamp(occurred_at, "occurred_at")
+        settled_at = _timestamp(settled_at, "settled_at") if settled_at else None
+        if settled_at is not None:
+            settlement_time = datetime.fromisoformat(settled_at.replace("Z", "+00:00"))
+            occurrence_time = datetime.fromisoformat(occurred_at.replace("Z", "+00:00"))
+            if settlement_time < occurrence_time:
+                raise MoneyInvariant("settled_at precedes occurred_at")
+        external_contract_id = (
+            _text(external_contract_id, "external_contract_id")
+            if external_contract_id else None
+        )
         event_id = _id("money", receipt or source_url, kind, occurred_at)
         immutable = {
             "artifact_id": artifact_id, "scope": scope, "stream": stream,
@@ -426,6 +458,7 @@ class MoneyLedger:
             "currency": normalized_currency, "status": status,
             "counterparty": counterparty, "source_url": source_url,
             "test": int(test), "occurred_at": occurred_at,
+            "settled_at": settled_at, "external_contract_id": external_contract_id,
         }
         with self._connect() as connection:
             self._scope(connection, scope, artifact_id)
@@ -439,15 +472,30 @@ class MoneyLedger:
                     "SELECT * FROM money_events WHERE external_receipt_id=?", (receipt,)
                 ).fetchone()
             if existing is not None:
-                if any(existing[key] != value for key, value in immutable.items()):
+                provenance = {"settled_at", "external_contract_id"}
+                if any(existing[key] != value for key, value in immutable.items()
+                       if key not in provenance):
                     raise MoneyInvariant("external receipt already belongs to a different revenue event")
+                for key in provenance:
+                    value = immutable[key]
+                    if value is not None and existing[key] is not None and existing[key] != value:
+                        same_instant = key == "settled_at" and _same_instant(existing[key], value)
+                        if not same_instant:
+                            raise MoneyInvariant("external receipt provenance conflicts with existing data")
+                connection.execute(
+                    "UPDATE money_events SET settled_at=COALESCE(settled_at,?),"
+                    "external_contract_id=COALESCE(external_contract_id,?) WHERE event_id=?",
+                    (settled_at, external_contract_id, existing["event_id"]),
+                )
                 return {"event_id": str(existing["event_id"]), "inserted": False}
             inserted = connection.execute(
-                "INSERT INTO money_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO money_events(event_id,artifact_id,scope,stream,revenue_class,kind,"
+                "amount,currency,status,counterparty,external_receipt_id,source_url,test,"
+                "occurred_at,settled_at,external_contract_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     event_id, artifact_id, scope, stream, revenue_class, kind, numeric,
                     normalized_currency, status, counterparty, receipt, source_url,
-                    int(test), occurred_at,
+                    int(test), occurred_at, settled_at, external_contract_id,
                 ),
             ).rowcount == 1
         return {"event_id": event_id, "inserted": inserted}
@@ -525,6 +573,16 @@ class MoneyLedger:
             if payment_url != evidence["url"]:
                 raise MoneyInvariant("payment source URL differs from evidence")
             received_at = _timestamp(evidence["observed_at"], "received_at")
+            payment_at = (
+                _timestamp(payload["settled_at"], "settled_at")
+                if payload.get("settled_at") is not None else None
+            )
+            if payment_at is not None:
+                if datetime.fromisoformat(payment_at.replace("Z", "+00:00")) > datetime.fromisoformat(
+                    received_at.replace("Z", "+00:00")
+                ):
+                    raise MoneyInvariant("settled_at is after the payment evidence readback")
+            payment_occurred_at = payment_at or received_at
 
             chain = connection.execute(
                 "SELECT o.publisher,c.payment_trigger,c.currency,c.rate_amount,c.status AS contract_status,"
@@ -614,7 +672,7 @@ class MoneyLedger:
                     )
 
             event_id = _id(
-                "money", values["payment_receipt_id"], "editorial_fee", received_at
+                "money", values["payment_receipt_id"], "editorial_fee", payment_occurred_at
             )
             fee_id = _id("fee", event_id, values["fee_receipt_id"])
             payout_id = _id("payout", values["payout_receipt_id"])
@@ -635,32 +693,75 @@ class MoneyLedger:
                 event_id, None, "account", "editorial_fee", "direct_writing",
                 "editorial_fee", gross, currency, "verified_received",
                 values["counterparty"], values["payment_receipt_id"], payment_url,
-                0, received_at,
+                0, payment_occurred_at, payment_at, recurring_contract_id,
             )
+            event_columns = (
+                "event_id", "artifact_id", "scope", "stream", "revenue_class", "kind",
+                "amount", "currency", "status", "counterparty", "external_receipt_id",
+                "source_url", "test", "occurred_at", "settled_at", "external_contract_id",
+            )
+            event_record = dict(zip(event_columns, event_values))
             existing_event = connection.execute(
                 "SELECT * FROM money_events WHERE external_receipt_id=?",
                 (values["payment_receipt_id"],),
             ).fetchone()
             if existing_event is None:
                 connection.execute(
-                    "INSERT INTO money_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO money_events(" + ",".join(event_columns) + ") "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     event_values,
                 )
-            elif tuple(existing_event) != event_values:
-                raise MoneyInvariant("payment receipt already belongs to different money")
+            else:
+                provenance = {"settled_at", "external_contract_id"}
+                if any(existing_event[key] != value for key, value in event_record.items()
+                       if key not in provenance):
+                    raise MoneyInvariant("payment receipt already belongs to different money")
+                for key in provenance:
+                    value = event_record[key]
+                    if value is not None and existing_event[key] is not None and existing_event[key] != value:
+                        same_instant = key == "settled_at" and _same_instant(existing_event[key], value)
+                        if not same_instant:
+                            raise MoneyInvariant("payment receipt provenance conflicts with existing data")
+                connection.execute(
+                    "UPDATE money_events SET settled_at=COALESCE(settled_at,?),"
+                    "external_contract_id=COALESCE(external_contract_id,?) WHERE event_id=?",
+                    (payment_at, recurring_contract_id, event_id),
+                )
 
             fee_values = (
                 fee_id, event_id, "processor", fee, currency, "verified",
-                values["fee_receipt_id"], fee_url, received_at,
+                values["fee_receipt_id"], fee_url, received_at, payment_at, payment_at,
             )
+            fee_columns = (
+                "fee_id", "event_id", "fee_kind", "amount", "currency", "status",
+                "external_receipt_id", "source_url", "observed_at", "occurred_at", "settled_at",
+            )
+            fee_record = dict(zip(fee_columns, fee_values))
             existing_fee = connection.execute(
                 "SELECT * FROM money_fees WHERE external_receipt_id=?",
                 (values["fee_receipt_id"],),
             ).fetchone()
             if existing_fee is None:
-                connection.execute("INSERT INTO money_fees VALUES(?,?,?,?,?,?,?,?,?)", fee_values)
-            elif tuple(existing_fee) != fee_values:
-                raise MoneyInvariant("fee receipt already belongs to different money")
+                connection.execute(
+                    "INSERT INTO money_fees(" + ",".join(fee_columns) + ") "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    fee_values,
+                )
+            else:
+                provenance = {"occurred_at", "settled_at"}
+                if any(existing_fee[key] != value for key, value in fee_record.items()
+                       if key not in provenance):
+                    raise MoneyInvariant("fee receipt already belongs to different money")
+                for key in provenance:
+                    value = fee_record[key]
+                    if value is not None and existing_fee[key] is not None and existing_fee[key] != value:
+                        if not _same_instant(existing_fee[key], value):
+                            raise MoneyInvariant("fee receipt provenance conflicts with existing data")
+                connection.execute(
+                    "UPDATE money_fees SET occurred_at=COALESCE(occurred_at,?),"
+                    "settled_at=COALESCE(settled_at,?) WHERE fee_id=?",
+                    (payment_at, payment_at, fee_id),
+                )
 
             payout_values = (
                 payout_id, "editorial_fee", "paid", gross, fee, net, currency,
@@ -726,7 +827,8 @@ class MoneyLedger:
     def record_fee(
         self, *, event_id: str, fee_kind: str, amount: float | int | None,
         currency: str | None, status: str, external_receipt_id: str,
-        source_url: str, observed_at: str,
+        source_url: str, observed_at: str, occurred_at: str | None = None,
+        settled_at: str | None = None,
     ) -> dict[str, Any]:
         event_id = _text(event_id, "event_id")
         fee_kind = _text(fee_kind, "fee_kind")
@@ -744,11 +846,19 @@ class MoneyLedger:
         receipt = _text(external_receipt_id, "external_receipt_id")
         source_url = _url(source_url, "source_url")
         observed_at = _timestamp(observed_at, "observed_at")
+        occurred_at = _timestamp(occurred_at, "occurred_at") if occurred_at else None
+        settled_at = _timestamp(settled_at, "settled_at") if settled_at else None
+        if occurred_at is not None and settled_at is not None:
+            settlement_time = datetime.fromisoformat(settled_at.replace("Z", "+00:00"))
+            occurrence_time = datetime.fromisoformat(occurred_at.replace("Z", "+00:00"))
+            if settlement_time < occurrence_time:
+                raise MoneyInvariant("fee settled_at precedes occurred_at")
         fee_id = _id("fee", event_id, receipt)
         immutable = {
             "event_id": event_id, "fee_kind": fee_kind, "amount": numeric,
             "currency": normalized_currency, "status": status,
             "source_url": source_url, "observed_at": observed_at,
+            "occurred_at": occurred_at, "settled_at": settled_at,
         }
         with self._connect() as connection:
             event = connection.execute(
@@ -762,14 +872,28 @@ class MoneyLedger:
                 "SELECT * FROM money_fees WHERE external_receipt_id=?", (receipt,)
             ).fetchone()
             if existing is not None:
-                if any(existing[key] != value for key, value in immutable.items()):
+                provenance = {"occurred_at", "settled_at"}
+                if any(existing[key] != value for key, value in immutable.items()
+                       if key not in provenance):
                     raise MoneyInvariant("fee receipt already belongs to different immutable values")
+                for key in provenance:
+                    value = immutable[key]
+                    if value is not None and existing[key] is not None and existing[key] != value:
+                        if not _same_instant(existing[key], value):
+                            raise MoneyInvariant("fee receipt provenance conflicts with existing data")
+                connection.execute(
+                    "UPDATE money_fees SET occurred_at=COALESCE(occurred_at,?),"
+                    "settled_at=COALESCE(settled_at,?) WHERE fee_id=?",
+                    (occurred_at, settled_at, existing["fee_id"]),
+                )
                 return {"fee_id": str(existing["fee_id"]), "inserted": False}
             inserted = connection.execute(
-                "INSERT INTO money_fees VALUES(?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO money_fees(fee_id,event_id,fee_kind,amount,currency,status,"
+                "external_receipt_id,source_url,observed_at,occurred_at,settled_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     fee_id, event_id, fee_kind, numeric, normalized_currency, status,
-                    receipt, source_url, observed_at,
+                    receipt, source_url, observed_at, occurred_at, settled_at,
                 ),
             ).rowcount == 1
         return {"fee_id": fee_id, "inserted": inserted}
@@ -1114,12 +1238,15 @@ class MoneyLedger:
                 if existing_money is not None:
                     raise MoneyInvariant("external receipt already belongs to a revenue event")
                 connection.execute(
-                    "INSERT INTO money_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO money_events(event_id,artifact_id,scope,stream,revenue_class,"
+                    "kind,amount,currency,status,counterparty,external_receipt_id,source_url,"
+                    "test,occurred_at,settled_at,external_contract_id) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         money_event_id, artifact_id, "artifact", product_id,
                         "product_derived", "sale", numeric, normalized_currency,
                         "verified_received", normalized_counterparty, receipt,
-                        source_url, 0, occurred_at,
+                        source_url, 0, occurred_at, None, None,
                     ),
                 )
             connection.execute(

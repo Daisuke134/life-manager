@@ -391,15 +391,17 @@ class WriterMoneyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp) / "money.sqlite3"
             db = sqlite3.connect(database)
-            db.execute("CREATE TABLE money_events (event_id TEXT, kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, occurred_at TEXT)")
-            db.execute("CREATE TABLE money_fees (fee_id TEXT, fee_kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, observed_at TEXT)")
-            db.executemany("INSERT INTO money_events VALUES (?,?,?,?,?,?,?)", [
-                ("sale-1", "sale", 12.5, "USD", "verified_received", "pub-1", "2026-09-26T03:00:00Z"),
-                ("refund-1", "refund", 2.5, "USD", "refunded", "refund-1", "2026-09-26T04:00:00Z"),
-                ("pending-1", "sale", 99, "USD", "pending", "pending-1", "2026-09-26T05:00:00Z"),
+            db.execute("CREATE TABLE money_events (event_id TEXT, kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, occurred_at TEXT, test INTEGER, settled_at TEXT, external_contract_id TEXT)")
+            db.execute("CREATE TABLE money_fees (fee_id TEXT, event_id TEXT, fee_kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, source_url TEXT, observed_at TEXT, occurred_at TEXT, settled_at TEXT)")
+            db.executemany("INSERT INTO money_events VALUES (?,?,?,?,?,?,?,?,?,?)", [
+                ("sale-1", "sale", 12.5, "USD", "verified_received", "pub-1", "2026-09-26T03:00:00Z", 0, "2026-09-26T03:05:00Z", None),
+                ("refund-1", "refund", 2.5, "USD", "refunded", "refund-1", "2026-09-26T04:00:00Z", 0, "2026-09-26T04:05:00Z", None),
+                ("pending-1", "sale", 99, "USD", "pending", "pending-1", "2026-09-26T05:00:00Z", 0, None, None),
             ])
-            db.execute("INSERT INTO money_fees VALUES (?,?,?,?,?,?,?)",
-                       ("fee-1", "platform", 1.0, "USD", "verified", "fee-1", "2026-09-26T06:00:00Z"))
+            db.execute("INSERT INTO money_fees VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                       ("fee-1", "sale-1", "platform", 1.0, "USD", "verified", "fee-1",
+                        "https://example.com/fee", "2026-09-26T06:00:00Z",
+                        "2026-09-26T03:00:00Z", "2026-09-26T03:05:00Z"))
             db.commit()
             db.close()
 
