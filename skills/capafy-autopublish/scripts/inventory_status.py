@@ -365,7 +365,10 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     if occupied >= CAP:
         return {"verdict": "CAP_FULL", "occupied": occupied}
     if retries:
-        item = min(retries, key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")))
+        # Highest 30d revenue retries first, same rule as queued updates above
+        # (2026-10-04: agent_id-string order picked a $0-revenue retry ahead
+        # of a $11.18/30d one while a slot was free).
+        item = min(retries, key=update_priority_key(revenue_by_agent or {}))
         return {
             "verdict": "PUBLISHABLE",
             "reason": "review_rejected retry",
