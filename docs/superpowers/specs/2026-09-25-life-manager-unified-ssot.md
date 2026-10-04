@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§451のselected CID投影バグを新観測fileで最小修正し、候補rowの実CID/active状態/参照とselected pane/headerの局所DOM関係を一度確認すること。chatbox CID属性欠損と投影バグを分け、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§452のpreclick field-key不一致を新派生fileで最小修正し、保存actual reply→consumerの反例を検証してから、候補行とselected paneの局所DOM関係を一度確認すること。CID投影成功と未取得のpost-click関係を分け、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7021,3 +7021,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 既存target-ready helper430行ではselectedがDOM node配列なのに `selected[0].conversation_id_sha256` を返し、rowData出力と混同する投影バグを確認。row_locatorにも同問題。したがってselected CIDのfalseを実DOM欠損と解釈した§450の記述を訂正する。chatbox CIDcount0は別に探索範囲の属性未取得。exact_scopeは同rootとbox/pane/header一意で、active rowやrow→pane参照までは示さない。
 - 次の一回は実候補rowのdata-conv-id等を再hashし、aria-selected/current/実active marker、aria-controlsの参照先と唯一chatbox/message pane/headerの包含関係、handle一致、前後同一性を捕捉する。実参照がrow→paneを結べればchatbox内CID属性を必須にしない。単なる同root/CSS名/時系列だけなら未確認を維持。閉じたタブの選択状態を次occurrenceへ引き継いだと仮定しない。
 - 動作済controller/atomic選択を再利用し、観測用新fileのみで投影を修正、既存証拠/sourceを保持。本文は同じpaneへの実DOM関係が成立した場合のみ読む。newchat/composer/send/auth/fence禁止、read-state unknown、再クリックそのものを成果にしない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 452. CID投影は実readで成功、preclick field-key不一致を特定
+
+- 同Luna/max担当のONE live run `36829061-99d7-4145-b505-f389e33c4b6b`、39.217秒、candidate_projection_unconfirmed_before_click、terminal。scroll1/rowclick0/send0。derived headerのactual CID投影はdefined=true、candidate CIDと一致。exact list row48/同CIDdigest/missing0/duplicate0も一致している。
+- status preclick_candidate_list_binding_changedは実DOM変化ではない。primaryが保存actual replyとsourceを比較し、helperはtarget_row_count=1を返すがpreclick判定が存在しないcandidate_countを参照するfield-key不一致を特定。未定義keyの比較falseで停止した。コード原因と実画面の対応を分け、DOM変化/相手不在とは解釈しない。fixture PASSはこのconsumer接続の実反例を捕捉していなかった。
+- post-click ARIA関係/本文receiptは未取得、official peer binding/read-state未確認。新reader `8a975100b638394d8b9942e1da4b8de63966ec25197935db563fd4a4da9b77ec`、result `7935e2180d79f704475d03e2d1f87f67beeb088b5fa63c9e910fe82526a9237d`、proof `2c9173212298a6f0681288c56c1ddc82b53cc73a60b738121ae8599408418314`。3files600、実argv/hash一致、原本保持。guard release0/own target absent/prior exact ID+URL保持/lease absent。
+- 次は新派生fileで実helper契約target_row_countを使う最小修正を行い、今回actual reply→consumerの誤停止反例をRED/GREENで確認後、一度だけ同じ局所観測を行う。同じ失敗の無修正retryではない。追加schema/framework/互換aliasは不要。既存クリック前CID/集合再照合、rowclick最大1、send/newchat/composer/auth/fence0を保持。現在3→次4、SelfBuild/Eval最後。
