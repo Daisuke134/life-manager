@@ -5863,3 +5863,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - source HEAD3a7e6e5b8580f75108b2bcd6314393bbcdd61211をbranch fix/reply-blocked-exit-20261004へpush、親git status clean／upstream同taskbranch／ls-remote exact一致を確認。2fileのみ。worker focused関連303PASS（--import-mode=importlib）、初回同名adapter test collection collisionは保持。contract14loops／178jobs／103mapped、diffPASS。
 - 親Node adapter15PASS、kernel34PASSと出口matrixは§333。固定pushed3a7でfull runtimeをtool session35475へ開始、terminal未取得。log /tmp/lm-reply-blocked-parent-runtime.logは検証logのみで、spec／planはrepo正本へ保持。suite中にsourceHEADを変えない。次はsamehandle terminalとfresh Sol6.1 medium source review。
 - 本番profile／auth／provider作用0、API403発生層の公式readback未完。sourcepushを本番復旧と扱わず、全goalactive／SelfBuild最後。
+
+### 335. Reply固定HEAD runtimeのENOSPC失敗と容量再確認
+
+- 親full runtime session35475はexit120でterminal。logにはrelease／pressure関連3ERRORとOSError28 ENOSPC／lost stderrがあり、Ran／OK／suite件数は未出力。759件通過と主張せず初回failureを保持する。sourceはclean／fixed3a7、code変更無し。
+- error時disk free184MiB、自起動test61684をpsでlive確認した後TERMを試みたがno such process（既にterminal）、実kill無し。pytest／unittest active無しを再確認。後続dfはfree3.2GiBへ回復。pytest temp5.6MiB、immutable releases1.6GiB、Library Caches283MiBをread-only計測、手動削除0。容量不足の発生源／自動解放主体は未確定で、今回sourceの欠陥とは断定しない。
+- 同fixed3a7で失敗modules test_cut_loop_release／test_cut_loop_release_pressureを先に再実行、session27107／log lm-reply-blocked-release-recheck.log。terminal後にfull runtimeを再検証する。private source proofにはinitial exit120／3errors／free容量と同handleを保存。source review／PR／main／本番403復旧は未完、全goalactive／SelfBuild最後。
