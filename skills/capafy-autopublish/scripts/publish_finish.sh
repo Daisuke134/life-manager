@@ -335,6 +335,20 @@ case "$POST_CP2_STATUS" in
       --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
       || die "official CP1 model/version changed before review submission"
   fi
+  # 2026-10-04: the 2026-09-29 Hook Lab reprice (agent 8123079349) was approved
+  # and went live still carrying the OLD subscription prices -- nothing here
+  # ever compared the saved billing rows to LISTING.md's pricing table. Same
+  # fail-closed pattern as verify_cp1_model.py above, one gate earlier than
+  # FINAL VERIFY (which also never checks price -- see its step [7] below).
+  # Warn, do not die: once CP1 is confirmed Capafy issues no edit URL, so a
+  # draft stopped here could never be repaired and resume_draft (top priority)
+  # would re-select it every wake, stalling the whole factory. The fix lives in
+  # CP1 (CP1_AGENTIC.md: always set every plan card); this line makes any miss
+  # visible in the run report instead of silent.
+  PRICING_CHECK_RC=0
+  PRICING_CHECK_OUT="$(python3 "$AUTO/scripts/verify_pricing.py" --agent-id "$ID" --listing "$LISTING" 2>&1)" || PRICING_CHECK_RC=$?
+  echo "$PRICING_CHECK_OUT"
+  [ "$PRICING_CHECK_RC" -eq 0 ] || echo "⚠️ PRICE_MISMATCH_WARNING agent=$ID: saved billing rows differ from LISTING.md pricing table; submitting anyway (CP1 already confirmed, no edit URL). Report this in the run summary."
   [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
     || die "Capafy latest version changed before review submission"
   if [ -z "$PUBLISH_REVIEW_URL" ]; then
