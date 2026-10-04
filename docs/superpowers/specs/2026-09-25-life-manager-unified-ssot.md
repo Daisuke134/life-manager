@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refillは65test/構造PASS・fresh財務review待ち、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait引数を実装中、次にWriter READY衝突を直す（§470/476）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7264,3 +7264,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - REDはreader2rows/計7と実downstream checkSpendCaps誤許可を再現。primary固定HEADの関連5 test files65/65 PASS、./bin/lm-loop-contract PASS（14 products/178 jobs/103 mapped/errors0）、diffcheck・remote一致・clean。新fresh gpt-6.1-sol/medium read-only財務reviewを依頼し、受入はまだ保留。本番/private ledger/keys/provider/live/dry実行なし。
 - PromptBase専用AGMSG spawnは--terminal-driver tmux/ready-timeout30/gpt-6-luna-maxで失敗。exact errorは `unsupported: a tmux split needs $TMUX_PANE to target the caller pane (#990)` / tmux placement failed / child rc1。codexにはspawn readiness handshakeがないとのtool出力も保持。placement済みや着手としない。専用worktree HEAD82d/clean、role名を含むcodex process0。他paneを借りるための環境偽装/Terminal restart/新tool導入/旧model fallbackなし。
 - PromptBaseはnative実装枠が空いたら同2file修正へ渡す。独立CLIの登録残りとliveを区別し、AGMSG DB/teamsを直接編集しない。refillの修正者は終了済み、primaryはfreshreview受入とSSOTを所有。§217cursor1/根因確定2、3の例外確認未回答、全goal未完。
+
+
+### 476. refill fresh source PASS、PromptBase native実装へ移行
+
+- fresh gpt-6.1-sol/medium財務安全検証者は固定a2efd6422601438dfe02ea38ac576a1ca21c3125をsource PASS、重要指摘なし。独立関連15/15＋追加fixture7/7 PASS、原本/件数/順序/ts/cost/未訂正legacydedupe保持、最終identity collision拒否を確認。primary65/65・構造gate14/178/103/errors0・remote/cleanの証拠と合わせ、refill sourceのみ受入。本番自然実行/公式receipt/資金移動は未確認。
+- PromptBase専用AGMSGの起動失敗/CLI0を確認後、native generic gpt-6-luna/max promptbase_keyword_wait_implementationへ同worktree・同2file所有範囲を割当。根因/実Playwright契約/RED→arg=expected最小GREEN/no-browser検証/構造gate/commit-push条件を渡した。AGMSGrole登録をnative稼働と混同せず、同session一時workerへteam操作を強制しない。source実装中、PR/main/release/apply/投稿0。
+- §217cursor1、根因確定source2はowner別並行。source受入済み3件（token/fleet/refill）の本番は3に残り、main例外確認は未回答。次のsource修正はPromptBase→Writer、Lancers auth/transport原因は未確認。Coconala個別保留/SelfBuild最後、全goal未完。
