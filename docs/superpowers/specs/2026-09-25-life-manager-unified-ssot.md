@@ -6857,3 +6857,14 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 元親の終了待ち中に別metadata-ready source/proofだけのcode-only修正を有限Luna/max handle33648へ非重複委譲。実log model gpt-6-luna/effort maxを確認。元identity-fixed source56c4df9c926800fc99dcd5a23786e7644c039fcdb1a84e7f5ae8d70e61217335からcopyし、row数だけでreadinessを成立させず、nonempty hash化identity出現を待つ。loaded/metadata有り/未準備のrow数を別記録し、selector/matcher/namespace/一致条件を緩めない。108秒/18秒reserve/child/同envcleanupと元file保持、UI禁止を指示済み。
 - 実producer→readiness→matcherのmarker有り/text空→後でtext有りという同経路を最小RED/GREENで確認する。全row完全一致等の追加gateを発明せず、期限の未準備/loaded範囲不一致はunknown/incompleteとして記録。元親が終端したため、code-only修正の受入とその親終端後にRootのone readへ進める。
 - current3→next4/残51項目/全goalactive。新sourceの検証はまだ未完、案件receipts/全300/納品/財務成果を完了扱いしない。NPO原資料待ちは§418を維持する。
+
+
+### 433. Readiness source受入と20/28 identity取得、未準備行の早期終了を修正対象にする
+
+- 有限code-only exec33648はexit0/terminal。metadata-ready reader SHA256 2a721161e982b7dd6a8a775386b4e8c97726db3b330bf0fc9f5ef1e8f25c9b8a、correction proof SHA256 35229bc6b0d82704746d26e1f33fb7d41913174c8ec254d846d90dc706735a9eをRootが実fileで照合。実ROW_JS→readiness/matcherで空3rowはnot-ready、hydration後3row/一意target1、1/3row metadataでもready、None/空hashはnot-readyのRED/GREENを確認。selector/matcher/namespaceは不変。
+- proofのPASS_WITH_BASELINE_HASH_MISMATCHはnickname途中30a→最終6d3の参照差で、元fileを変更した証明ではない。固定source56c4は一致、参照実resultをfixture入力にしていないことを確認。元各SHA前後一致を保存、scope-only source受入をactual送信/納品へ昇格しない。
+- Rootは旧親/修正親terminal後、既存live_read関数をone実行した。correction proofを上書きしないようruntime invocationでPROOF_PATHだけをmetadata-ready.runtime-proof.jsonへ設定し、実proofにactual_invocation/override理由を記録。source bytes/selection logicは不変、correction proof35229保持を再確認。
+- actual one読取は22.765s/incomplete/sidebar_target_unconfirmed_in_partial_loaded_range。loaded28/identity_present20/identity_absent8、nickname hash20/handle0/uid0、metadata_ready=true。一意target match0/rowclick0/newchat0/compose0/send0/auth0/fence0、ownabsent/prior ID+URLhash集合一致/guardrelease0/leaseabsent PASS、target2保持。metadata-ready.result SHA256 3c307b9b04afec6937cbc31a02f336015045e132605fc08bab172b2b095fe438、runtime proof SHA256 4e2a5458e811dc49111166b5ad611466a1c4be18303fcb25e8e4c507b165d89f。
+- metadata全空で照合した旧問題は解消したが、未準備8行を残してtarget未一致のまま早期終了するため、案件宛先がその未準備範囲かどうかは判定できない。取得済20rowの結果を全28/全履歴の不在へ昇格しない。全row完備をtarget選択の追加gateにするのではなく、target一意時は進み、target不明＋未準備行ありの時だけ予算内の既存pollを継続する。
+- 最小code-only修正を有限Luna/max handle79259へ新target-ready source/correction-proofのみ委譲。既存matcherを同readiness loopで使い、empty→partial target無し→後でtarget一意の実producer経路をRED/GREEN1fixtureへ。108/18、child/同envcleanup/no fallback/no newchatは保持、selector/UIDnamespace/SDK/framework追加無し。新runtime proofとcorrection proofを別名にして元成果物を保持する。
+- current3→next4/残51項目/全goalactive。現在のnext actionは未準備行のsource値を予算内で待つことに限定する。case sender/header/body/ID/time/公式送信数/全300/納品未完、NPO待ちは§418を維持する。
