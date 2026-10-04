@@ -4863,7 +4863,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA03のNPO案件18223833／18250352の既存成果物と公式購入者指示の照合。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks未確定応募・返信の公式照合。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4872,11 +4872,11 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A01 Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。
 - [x] A02 Coconala orders取得のHTTP403境界を切り分け、現行公式readbackでアクセスと一覧取得を確認する。§298でHTTP200・既存orders-only collector成功／3件を確認。過去403のprovider内部原因は未確定、再発時にreceiptで診断する。
 - [ ] A03 Coconala案件の残制作を納品条件まで完了する。
-- [ ] A04 Coconala正式納品の公式記録を確認する。
+- [ ] A04 Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。
 - [ ] A05 Coconala検収の公式記録を確認する。
 - [ ] A06 Coconala支払・手数料・精算明細を取得する。
 - [ ] A07 Coconala payout／銀行着金を照合する。
-- [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。
+- [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§301のfresh公式金融pageはHTTP405／human_verification true、明細unavailable。正規人間検証が必要。
 - [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
 - [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
@@ -5630,3 +5630,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 18223833の元予算書XLSXは現存、保存acceptance SHA一致。openpyxlで7sheet／12formulaを読み、構造検証PASS。公式seller送付message js-talkroomMessage-220802599に同名添付、buyer承認message js-talkroomMessage-222226516に予算書現状納品OK／納品完了処理依頼を確認する。公式添付bytes SHAの再照合と描画検証は未実施。approval本文には別法人の調整指示もあるため、budget承認を他法人書類へ拡張しない。正式納品・検収・精算未完。
 - 提出書類reviewは事業報告の実績原資料、監査情報、退任対象者の法的氏名・本人同一性、役員変更日付・決議の不足を明示する。review ZIPが壊れていないことは最終書類完了ではない。資料にない数字・会議・署名を作らない。購入者資料待ちは具体的な未取得入力として保持する。
 - 証拠state/coconala-a03-artifact-scope.json/mode600。既存project state／source／artifact変更0、client送信／正式納品0。次は予算書承認に結び付いた正式納品候補のowner・effect fence・公式readback前提を確認し、別法人の不足資料を既存受信履歴から照合する。A03全案件完了は未達、全goal未完、SelfBuildは最後。
+
+### 301. Coconala正式納品preflightとLancers正規検証境界
+
+- current b7fbの既存formal browser純粋validatorを、§299の公式historyを持つ隔離project rootへ適用する。予算書承認はbuyer222226516、最新buyerは222226563で異なる。approval_ready false／approval_official_latest false、現行decisionはreview。後続buyerは資料待ちを含むため、scope判断の再取得前に古い承認を最新へ偽装したり正式納品を送ったりしない。証拠state/coconala-a04-formal-preflight.json/mode600、納品作用0。
+- 正規browser-guardでlancers:daisのleaseを取得し、専用profileの自己pageだけで公式/mypage/paymentを読み取り、finally page close／lease release。HTTP405・human_verification true・login path false・finance container false・table0。空DOMを残高や履歴0へ変換しない。証拠state/lancers-a08-finance-readonly-current.json/mode600。credentials／profile／provider設定変更0、challenge bypass0。
+- A03／A04の最新scope判断と不足資料、A08／A09の正規人間検証は未完として保持する。独立した次操作はA10のCrowdWorks応募・返信の公式履歴照合。全goal未完、SelfBuildはA43以降のまま。
