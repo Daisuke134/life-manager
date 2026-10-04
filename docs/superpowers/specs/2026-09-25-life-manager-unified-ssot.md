@@ -5737,3 +5737,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - reply/latest.jsonは旧01:32:53Zのobserved154／effect1／readback140／pending14で、new run開始01:37:04Zより前。thread304360469のeffect1も旧outputであり、新コード失敗や再送の証拠へ結合しない。
 - shared dispatcherに移ったためhintを失うという仮説は現物registryで否定する。直接reply-owner、既存pre-effect allowlistに含まれる。原因境界はlock取得前であり、未確認の追加source修正を始めない。現在holder59143／parent59098／application_owner.pyはelapsed1:11でlive。相手を止めず同handleのterminal後に通常reply wakeを確認する。
 - private state/crowdworks-confirmation-natural-busy-readback.json/mode600へnew events／oldmtime／仮説棄却／保持者を保存。primary送信／wake／fence解除0。次はnew sourceの業務outputとsame occurrence marker、未確定confirmationの再送0／unknown保持の実観測。全goal未完、SelfBuildは最後。
+
+### 317. 新main返信kernelの自然起動とMobile seat観測の限界
+
+- 同application holder59143がps missingとなることを確認。main1a7のnew native run18db30394f2b25a8-65279が01:44:59Z execute／running、actual parent65279／child65340 reply_kernel.py＋reply_adapter.pyでlive／elapsed00:09→00:31。provider-browser.lockを同65340が取得し、旧busy失敗と異なり業務処理へ到達する。手動wake／provider操作0。
+- reply/latestの旧01:32:53Z resultをnew65279へ結合しない。次は同runのreport／actual queued occurrence／markerとthread304360469のpending effect／form receipt metadataを照合し、未確定再送0の本番範囲を確認する。private natural proofに同handleを保存。
+- Mobile担当へ承認共有済みだが、official agmsg peekはno placement recordでrc1。これは停止中や作業中の証明ではない。remote HEAD1f045eff3dは不変、着手response未取得。新seatを勝手に登録／spawnせず、担当branch／認証の編集を重複しない。state/mobile-cfo-owner-gate-refresh.jsonへ観測限界を保存し、partial coverage source修正／本番import gateは未完。
+- specのsource／loaded gateは§309–315、自然実成果は本節から追う。global33323は同handlelive、whole fleet／旧receipt／全金融成果は未完、SelfBuildは最後。
