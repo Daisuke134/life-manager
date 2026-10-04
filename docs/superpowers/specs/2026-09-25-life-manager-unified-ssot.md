@@ -7240,3 +7240,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - DB全occurrenceのqueued/claimed件数は過去行を含み、live並列数ではない。別観測のqueue79ownerと公式queue selectorのeligible agent27/browser1/deterministic32も取得時点が異なり一つの同時snapshotとして差分計算しない。eligible deterministicの先頭support wait約51〜55分は次の容量/公平性診断候補で、API費/売上や完了へ置換しない。owner scope effect_unknownはselectorが除外し、receiptなしに解除しない。
 - refillは実import+pure計画とcorrection projectionの初期GREEN後、primaryが通常row欠損costがspend-gateの `amountUsd || 0` に落ちる反例を指摘。追加REDを確認し、同ledger2filesでfinite numeric ts/nonnegative finite numeric costを検証する最小修正中。raw APIは保持。source受入・commit/push未完、fresh財務安全reviewはその後。
 - §217cursor1/根因確定2並行。3のmain例外確認は未回答であり、goal継続通知を承認と扱わない。独立source作業を継続し、Coconala保留/SelfBuild最後/本番mutation0を保持。
+
+
+### 473. refill固定sourceのfresh財務reviewはHOLD
+
+- branch fix/lm-citizen-refill-dependency-20261005 / HEAD・remote6f827bdaef9f1566ce7863cbaa09712a37709737 / clean、primaryのfixture-only関連61/61 PASS・diffcheck PASS。実refill import→sub-wallet/deploy→pure planRefillを確認。テスト成功をsource受入へ自動昇格しない。
+- fresh gpt-6.1-sol/medium read-only検証者はP1を実測しHOLD。fixture通常ts100/住所wrong/cost3、ts101/住所real/cost4、訂正ts102/correctsTs100→realではresolved2行/計7は維持するがdeployがjobAddressをtxHashへ変換しspend-gateが同hash後行を落とす。cumulative cap6/新規1がallowed trueになり費用を過少計上する。private ledger/鍵/provider未読、fixture原本bytes不変、外部effect0。
+- 必須最小修正：同ledger2filesで、訂正を受けた通常行の最終downstream identity（deployのjobAddress又はno-address-ts fallback）が別通常行と衝突する場合はthrow。後続通常行・別訂正の最終identityも含む。既存未訂正のraw履歴のdedupe意味を勝手に変えず、今回の訂正が作るcollisionを拒否する。費用行削除/金額合算/原本書換/適当なaliasへfallbackしない。
+- REDは実resolved→deploy同history mapping→checkSpendCapsの誤許可まで結ぶfixtureで再現し、GREENはreader拒否で通す。通常行・後続行・複数訂正・missing-address fallback衝突、衝突なし訂正とraw/bytes/cost維持をfocused検証する。既存5file範囲のうちledger2fileだけ追加編集。Luna/maxの同担当へ戻し、commit/push・primary検証・新fresh Sol/medium review後に受入を再判定。
+- §217cursor1/根因確定source2並行、main例外確認未回答。token/fleetはsource受入のまま、refillはHOLD/修正待ち。PromptBase/Writerのsource準備を保持し、全goal未完/本番mutation0。
