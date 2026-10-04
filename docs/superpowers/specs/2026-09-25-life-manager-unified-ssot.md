@@ -5781,3 +5781,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - worker REDはmissing canonical Upwork entrypointで1FAIL→GREEN1。browser32／entrydispatch43／adapter15／contract14loops179jobs104mapped／OSS／shellJSONdiff PASSを報告。要求model gpt-6-luna／max、actual model／effort／usageはAPIから観測不能。親は全4file diffを読み、same pushed HEADでfocused75／6.09s・contract・OSS・diffを再PASS。
 - 親full runtimeは固定f4e34ceea4／tool session40068で進行中。workerはHEADを変更せず、fresh Sol6.1 medium reviewは全required checks後に実行する。本番起動・browser identity／account inventory・源泉ownerの自然実行はsource受入後であり、source checksを完走と扱わない。
 - private state/upwork-browser-owner-source-proof.json/mode600へworker／親検証／commit／次操作を保存。PR本文は準備だけ、まだPR／main／新immutableは未達。A21全業務lane／A20本人accountとprovider例外／全金融成果は未完、SelfBuildは最後。
+
+### 323. Upwork追加ownerのbyte-stable fixture差分を必要scopeへ補正
+
+- 親固定f4e34ceea4のfull runtimeは759／147.930s／failure1。test_production_render_matches_byte_stable_fixtureがrender_job_models(registry)と既存fixtures/macos-loop-jobs.jsonを比較し、新179th browser owner recordの欠落で不一致。他758件は同attemptで通過、初回failureをprivate source proofへ保持する。
+- 新source behaviorを広げず、必須dependent golden fixture1fileをLuna6 maxの追加所有scopeにする（計5file）。既存178record不変／new Upwork record1だけを既存rendererで更新する。testを削除・緩和せず、旧result／他platform configを修正しない。親はfixtureを編集しない。
+- Lunaの同taskへfollowupし、affected registry suite／contract／diff、commit／push／remote object／cleanを要求する。fresh Sol6.1 medium review／PR／main／本番browser起動は修正後gateまで未達。本番profile／auth／provider作用0、全goal未完、SelfBuildは最後。
