@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§452のpreclick field-key不一致を新派生fileで最小修正し、保存actual reply→consumerの反例を検証してから、候補行とselected paneの局所DOM関係を一度確認すること。CID投影成功と未取得のpost-click関係を分け、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§453のpartial metadata25/48をreadyとする早期終了を最小修正し、同range/CID集合のidentity準備をboundedに待ってから候補判定すること。未準備行を残した0候補を不在へ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7029,3 +7029,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - status preclick_candidate_list_binding_changedは実DOM変化ではない。primaryが保存actual replyとsourceを比較し、helperはtarget_row_count=1を返すがpreclick判定が存在しないcandidate_countを参照するfield-key不一致を特定。未定義keyの比較falseで停止した。コード原因と実画面の対応を分け、DOM変化/相手不在とは解釈しない。fixture PASSはこのconsumer接続の実反例を捕捉していなかった。
 - post-click ARIA関係/本文receiptは未取得、official peer binding/read-state未確認。新reader `8a975100b638394d8b9942e1da4b8de63966ec25197935db563fd4a4da9b77ec`、result `7935e2180d79f704475d03e2d1f87f67beeb088b5fa63c9e910fe82526a9237d`、proof `2c9173212298a6f0681288c56c1ddc82b53cc73a60b738121ae8599408418314`。3files600、実argv/hash一致、原本保持。guard release0/own target absent/prior exact ID+URL保持/lease absent。
 - 次は新派生fileで実helper契約target_row_countを使う最小修正を行い、今回actual reply→consumerの誤停止反例をRED/GREENで確認後、一度だけ同じ局所観測を行う。同じ失敗の無修正retryではない。追加schema/framework/互換aliasは不要。既存クリック前CID/集合再照合、rowclick最大1、send/newchat/composer/auth/fence0を保持。現在3→次4、SelfBuild/Eval最後。
+
+
+### 453. Field-key修正PASS、部分metadataをreadyとする別の早期終了
+
+- 新field-fixed readerのactual保存返却値を使ったfixtureは旧consumer=false/new target_row_count consumer=true、CID変更click0を確認。項目名不一致の修正は限定PASS。ONE live run `6a6131bf-0889-4475-be3a-d5c75dee2cfc`、46.973秒、scroll1/rowclick0/send0、terminal。sourceラベルmetadata_ready・候補0で停止した。
+- primaryがactual resultを確認するとloaded48、identity present25/absent23、nickname25/handle0/UID0。CID集合は安定だがidentity準備完了ではない。Python readinessはidentity_present_row_count>0、JSも一つ以上identitiesがあればmetadata_readyにするため、未準備23行を残した早期終了を特定。候補0を当該範囲の全候補不一致や対象不在とは扱わない。source labelと実準備状態を分け、fixtureがproducer→consumerのpartial metadata反例をまだ捕捉していないことを残す。
+- 元source/result/proof保持、新3files600、argv/hash一致。reader `39318a1b0662ad6e39944881717ed75dc137801ef50c9dbe525d88e1711230bd`、result `b9f9a3c67747563a03ead5ece8b4fd7cc3d46b703103a8dcfef06aa6dee2293a`、proof `caf478c7fce6557357d537888afaea5d8cd7ac61ef1eb3e3cec7b58728691045`。guard release0/own target absent/prior exact ID+URL保持/lease absent。post-click関係/本文は未取得、read-state/official peer未確認。
+- 次は今回actual25/48の反例でpartialをunknownとし、同range/CID集合に結び付くbounded metadata準備待機を最小修正する。未知を0へ変換せず、全identity準備または上限を観測してからcandidateを判定する。controller/atomic選択を作り直さず、追加frameworkは不要。現在3→次4、SelfBuild/Eval最後。
