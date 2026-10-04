@@ -6147,3 +6147,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - reviewer限界: probe実装はGUID指定選別ではなく新file1件採用だが今回GUID一致。frameId／取得時owner snapshot／browser-side context消失readbackは未保存、ledger不存在のcleanupまで。これをbinding再downloadや追加作業のgateへ広げない。正式納品scope／最新承認／会計正確性はreview対象外。
 - verified公式原本をprivate official-budget-candidate.xlsxへbyte-preserving copy、SHA0c64483ca4bded5953db98bc4a80d414f62bd3400a5054539cfff4cbdf9eb56e／56351bytes／mode400。原本編集無し、既存projectの7sheet artifact／decision／stateを上書きせず、formal／再添付／client送信0。official-candidate-provenance.json/mode600へ保存。
 - 次は①承認対象の公式original候補を現在の契約scopeへ結合し、②未完作業とformal room終了の扱いを確認してowned delivery pipelineへ渡す。取得済み原本を再生成して内容を変えない。A04／検収／精算／全goal未完、SelfBuild最後。
+
+### 354. 購入済みoffer本文の未取得とA04外部合意境界
+
+- local-only scope調査は初期requirements／purchase見出しが①予算書を指すことを確認。②の見積依頼buyer220783317／seller対応220824525、DM10085794の見積準備／提案は存在するが、②提案と購入済みoffer6361950の対応identifierが未収録。蓄積requirementsが①②混在していることを購入契約への組込みと扱わない。contract-scope-local-readback.json/mode600へ根拠・不足を保存。
+- 次の欠損に対し、既存official URL /mypage/customize/offers/6361950をregistered identity／自己contextでread-only取得。workerreceiptは2026-10-04T04:26:34Z／HTTP403、body13chars／textarea0／request・purchase表示無し。processrc0はprobe終了でありprovider取得成功ではない。入力・click・送信・formal0、owncontext／lease／owner行の終了確認。private purchased-offer-read-receipt.jsonとbodyhash58404bdf6dc25c24fedd979469e69bfb8dc9ebca64a469929a858a12b12b9c30を保存。
+- A04には公式originalbytes candidateが回収済みだが、購入済み提案本文と②の契約識別が不足。最小再開条件は正規提案のアクセス／本文取得、または①だけで当該roomを終了し②を別契約で継続する合意の公式receipt。Daisへ一般的な技術許可を求めたり、その承認をbuyer合意へ置換したりしない。formal gate／approvalreadyを書換えず、未完成②を①承認で完了扱いしない。
+- 同scope boundaryへのblind再試行は行わず、A04holdを保持して独立したA01他案件要件／A03不足入力の作業を進める。全体goalはactive／未完、SelfBuild最後。
