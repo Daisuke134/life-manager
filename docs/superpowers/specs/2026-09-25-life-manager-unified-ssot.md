@@ -5844,3 +5844,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - issue6555へ問題・最小差分・受入を記録し、official viewerPermissionADMINとmaintainer+1 reaction543559706を確認。最新origin/main1a7由来worktree reply-blocked-exit-20261004、branch fix/reply-blocked-exit-20261004、lease owner codex-money-printer。編集所有はskills/_shared/marketplace-core/scripts/reply_kernel.pyとtests/test_reply_kernel.pyの2fileのみ。親はspec／受入を所有しcode編集しない。
 - Luna6 maxの実装はCLI regression RED→最小GREEN。blocked observation JSONを保持してexit75、ok空inventory exit0、既存failed exit1、pending／effect_unknown挙動を保持する。新外部retry・provider設定・認証・state／receipt／fence変更・403 bypass無し。focused reply／adapter testsと既存loop contract／diff、commit／push／remote object確認を要求する。統合・本番復旧・全reply成功は別の未達成果として保持する。
 - このsource修正はAPI403自体を解消する証明ではない。A17／A18の現cursorとして誤成功を修正後に正規inboxアクセスのreceiptを診断する。全goal未完、SelfBuild最後。
+
+### 332. Reply実装handle復旧とCoconala403発生層の診断
+
+- turn開始時native task一覧にreply_blocked_exit_implementation無し、専用worktreeはclean／main1a7／remote task branch無し。完了・稼働と推定せず同taskをfollowupで再開、workerの着手response（sameworktree／sameHEAD／2file）を取得する。重複worker作成0、source検証未達。
+- 現行immutable resolverでcoconala:kosukeはregistered profile／127.0.0.1:9223／process ownership／HTTP200／valid websocketを確認。local GET /json/versionは127.0.0.1とlocalhost双方200、今回環境にproxy scheme無し。profile・auth・tab・provider変更0。
+- cdp_default_tab.py118とcdp_context_lease.py215のHTTPはlocal CDP /json/versionを読む。DefaultTab.__enter__がhelper失敗をfailed to open authenticated default tabへ変換し、reply adapter126–140／snapshot._classify_default_tab_http_errorはHTTP403をprovider inbox_access_forbiddenへ分類するため、helper境界の403もprovider拒否に誤帰属し得る。実provider DOM拒否もsnapshot.validate_inbox_coverageで同reasonを使う。最新resultはerror_detailのみでCollectorUnhealthy.detailsを保持せず、今回の実発生層は未確定。過去403をlocal／providerの一方に断定しない。
+- 次はissue6555のblocked exit修正の受入後、既存receipt／CollectorUnhealthy.detailsの保存とhelper／provider分類の最小不足を診断する。403 bypassや認証resetは行わない。全goalactive／SelfBuild最後。
