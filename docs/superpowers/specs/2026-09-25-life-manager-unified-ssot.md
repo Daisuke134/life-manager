@@ -7080,3 +7080,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 既存helperはIDをbody→bubble祖先の3属性、dateをbubble属性/内部time/separator、senderをbubble内UID属性/avatarリンクだけで探す。親message wrapperと隣接日時separatorは未観測。空sender配列によるfalseは未確認として保持する。
 - 唯一の次手は同bound bubble/bodyとpane内の親祖先最大2段、実対応のtime/日時separator/semantic direction/ID属性を一度だけ局所probe。属性名/sourcefield/hash/存在boolean/generic class/包含・隣接関係のみ保存。単なる近接日時、CSS左右、data-indexをdate/sender/official IDへ昇格しない。
 - この一回でも対応sourceがなければsender_source_not_exposed_in_bound_message_UI/message_id_source_not_exposed/date_source_not_exposedを探索範囲付きで記録。最小再開条件は対象messageへ結び付く公式UI metadataまたは既存公式receiptの実在確認。同欠損probeを反復せず、sent300/settlement/CFO売上を認定しない。read-state unknown、newchat/composer/send/auth/fence0。reviewの外部/file変更0、現在3→次4、SelfBuild/Eval最後。
+
+
+### 459. Private readerの所有path誤編集を完全復元、担当contextを分離
+
+- 局所metadata担当が許可した新bound-message-metadata.pyではなく、保持すべき旧bound-body-read.pyへprobe/fixture変更を加えたと自己報告。live未実行、既存result/proof不変更。primary実hashで旧source81c0→誤編集 `0e72c00b646d416a066f9e2f937371b0a2d5255188b68f76ed75c41d8c421aca` を確認し、所有違反として修正成果を未受入とした。
+- 未変更の新task base（SHA `1aa0caef6949bfec942db6b7eb330db00ff3eeba3b2ca66bcf762f7138046050`）の4箇所のtask名差だけを戻すと、旧source SHA `81c0e1e4b22e2f3de2efb0e25a40805b456a539c81c8926151c500637d396dc7` と完全一致することをmemory上で確認。誤編集bytesはowner-mistake-preserved.pyへ600で保持し、旧sourceを同hashへ復元。result/proofは不変更。private restoration proof SHA `33eaaf7f83b5eba847fb4a383099f20e1808759bcfeeb28af1f78d124effdc07`。
+- 同担当の編集turnをnative interruptで停止し、停止後に旧source/新base/quarantineのhashを再確認。ブラウザ操作・サービスstop/restart・lease強制解放はしない。旧sourceと元実read証拠の対応を回復したが、局所metadata観測は未完。
+- 残taskはfresh generic gpt-6-luna/max `bound_message_metadata_probe` に渡し、exact編集pathは新bound-message-metadata.py/result/proofだけ、旧source read-only、開始前/終了後のhash照合を明示。新contextへ最小根拠だけ渡し、古い編集先を持ち越さない。同§458scope/ONE live/source欠損保持を維持し、余分なframeworkやgateは追加しない。現在3→次4、SelfBuild/Eval最後。
