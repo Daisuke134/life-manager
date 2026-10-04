@@ -1,6 +1,6 @@
 # Capafy Listing — Hook Lab (live Agent 8123079349; same-Agent model update to DeepSeek)
 
-agentType: run_online · Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: video,hook,tiktok
+agentType: run_online · Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: video,hook,tiktok,reels,youtube-shorts
 LLM Config (CP2): OpenRouter, deepseek/deepseek-v4.1-flash, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
 WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. v1.0.3 (DeepSeek) approved 2026-09-29. 2026-09-29 reprice: copy HookAce (868 sold, week $9.99 / month $19.99) per the Capafy market sweep; day $3.99 matches TikTok Scripts / SEO Content Writer day band. 2026-09-29: added a required yearly plan (policy: always a year row, no free trial) at $99.99, matching "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales) — this UPDATE is still in draft (status=0, not yet submitted), so the pricing table is safe to extend.
 
@@ -62,3 +62,27 @@ It writes the part of your video that decides retention: a positioning angle, tr
 
 ## 👤 Who it's for
 Short-form creators, founders, marketers, and social teams on TikTok, Reels, and Shorts.
+
+## 🧪 Example
+**You send:** "Hooks for a 30s TikTok about why most people quit the gym in January — energetic, for beginners."
+
+**You get back (shortened):**
+- **Positioning:** "The gym isn't the problem — your first week is." You own the beginner-who-keeps-quitting angle.
+- **Hooks (5+, each with spoken line + on-screen text + type):**
+  1. *Contrarian* — 🗣 "Stop going to the gym every day." / 🖥 "Day 1 is where you quit"
+  2. *Question* — 🗣 "Why does everyone quit by January 20th?" / 🖥 "The January 20th wall"
+  3. *Mistake* — 🗣 "You're not lazy. You're doing week one wrong." / 🖥 "Week 1 mistake"
+- **Recommended pick:** #3, with one line on why it fits a beginner audience.
+- **Script:** 0–3s hook · 3–10s the mistake · 10–22s the fix in 3 steps · 22–30s CTA.
+- **Caption:** short caption + CTA + hashtags, plus one filming tip.
+
+## ❓ FAQ
+**What should I send?** A topic, product, trend, or niche, plus the platform (TikTok / Reels / Shorts) and the video length if you know it.
+
+**Does it watch my videos or log in to my accounts?** No. It works only from the text you send. It does not post, read analytics, or connect to any platform.
+
+**How many hooks do I get?** At least 5 per request, in different hook types so you can A/B test them.
+
+**Can I ask for changes?** Yes — reply in the same chat (e.g. "make #2 funnier", "shorter script") and it revises.
+
+**Which plan should I pick?** Day for a one-off batch, week for a filming sprint, month or year if you post every week.
