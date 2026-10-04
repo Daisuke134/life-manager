@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: approved for implementation; current execution cursor is unified SSOT §87-J item 2
+Status: approved for implementation; current execution cursor is unified SSOT §87-J item 3
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -258,7 +258,7 @@ Telephony, paid model calls, and user-requested external actions remain separate
 
 ## 10. Current gate
 
-The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. The current evidence, order, and execution cursor are in unified SSOT §87-J/§87-AA. The local Financial Manager is the only user-facing daily sender; the legacy cloud wallet-only sender is retired only after the local natural receipt and replay-zero are proved. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has one durable provider receipt, stable daily period, source coverage, and replay-zero.
+The design is approved for implementation. Existing implementation artifacts remain on the dedicated candidate branch and are not merged or deployed as a whole. Task 8A's receipt-aware pre-ingest replay guard is implemented and independently reviewed on that branch; this is source/test evidence only. The current evidence, order, and execution cursor are in unified SSOT §87-J/§87-AA. The local Financial Manager is the only user-facing daily sender; the legacy cloud wallet-only sender is retired only after the local natural receipt and replay-zero are proved. Its loss of cloud failover is explicit; missing sources remain `partial/unknown`, never zero. The daily report is not complete until it has one durable provider receipt, stable daily period, source coverage, and replay-zero.
 
 ## 11. External provider research and selected cost-reduction design
 

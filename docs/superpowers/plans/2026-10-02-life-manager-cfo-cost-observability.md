@@ -234,9 +234,9 @@
 - [x] **Step 6: Read back official provider state and finalize evidence.** Mark each spec requirement `proved`, `partial`, or `blocked`; do not claim full CFO completion while any required source remains unknown/stale without an owner-visible reason.
 - [x] **Step 7: Commit and push evidence/spec cursor.** `git add apps/life-manager docs/evidence docs/superpowers/specs && git commit -m "docs(cfo): record natural-run acceptance"`.
 
-### Task 8A: Skip repeated local source reads after a verified daily delivery
+### Task 8A: Skip repeated local source reads after a verified daily delivery — DONE
 
-This is the current prerequisite for Task 8 Step 4. The local owner wakes hourly for capacity recovery, but the daily period/destination is already stable in `runHourlyCfo`; it currently invokes ingestion before `deliveryStore.lookup`, so a same-day replay can reread Moneytree/B7 even when a verified report was already sent.
+This was the prerequisite for Task 8 Step 4. At task start, the local owner woke hourly for capacity recovery and had a stable daily period/destination in `runHourlyCfo`, but invoked ingestion before `deliveryStore.lookup`, allowing a same-day replay to reread Moneytree/B7 after a verified report.
 
 **Files:**
 - Modify: `apps/life-manager/scripts/cfo-hourly-local.js`
@@ -247,10 +247,10 @@ This is the current prerequisite for Task 8 Step 4. The local owner wakes hourly
 - A pending snapshot, missing provider receipt, changed destination, or next JST date must not take the early-return path; pending delivery continues through the existing reconciliation behavior.
 - Do not change hourly mode semantics or claim that this source-only task changes production state.
 
-- [ ] **Step 1: Add the failing same-day replay test.** First run delivers a provider receipt; a second run in the same daily period must make zero additional ingestion/notify calls, while the next day ingests again.
-- [ ] **Step 2: Run the focused test and verify RED.** `node --test apps/life-manager/scripts/cfo-hourly-local.test.js` must fail because the current duplicate check occurs after ingestion.
-- [ ] **Step 3: Add the minimal receipt-aware pre-ingest guard.** Keep pending/uncertain and destination-change behavior on the existing path.
-- [ ] **Step 4: Verify GREEN and commit.** Run the focused test and `git diff --check`; commit only the two owned files.
+- [x] **Step 1: Add the failing same-day replay test.** RED confirmed the second same-day wake ingested twice instead of once.
+- [x] **Step 2: Run the focused test and verify RED.** `node --test apps/life-manager/scripts/cfo-hourly-local.test.js` failed only at the expected duplicate-ingestion assertion (14/15 pass).
+- [x] **Step 3: Add the minimal receipt-aware pre-ingest guard.** Pending reconciliation stays first; the guard requires daily cadence, matching JST date/period, matching channel/hash, delivered state, and non-empty provider receipt.
+- [x] **Step 4: Verify GREEN and commit.** Focused suite 15/15, `cd apps/life-manager && npm test`, and `git diff --check` PASS. Commit `d6cb0d4070cd9c96d32c0cd25696c88c1d074fe7` pushed; fresh read-only task review Approved. Production state unchanged.
 
 The cloud-report enqueue/UID/DB path is no longer the chosen user-facing sender. Preserve its code/evidence for now; registry/catalog retirement is a later, ordered action after Task 8 Step 4 proves the local replacement in production.
 
