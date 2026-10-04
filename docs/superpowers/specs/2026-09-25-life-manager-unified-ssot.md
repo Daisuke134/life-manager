@@ -6711,3 +6711,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - senderUID/messageID/dateはunknown、配置centerは送信方向の証明ではない。実renderer3要素を送信3件、300件台帳、全履歴、正式納品へ昇格しない。seen状態はunknown、明示send/auth/fence変更0。ownclose/ownabsent/priorID+URLhash集合一致/target2/guardrelease0/leaseabsentを確認。
 - 同gpt-6.1-sol/medium reviewerが最終実resultのSHA/内容を追確認し、実renderer読取のみ限定SHIP。chatbox/pane/header各1・既知row・handle変化・candidate_only・可視bubble3/各leaf1・cleanupを確認。送受信方向/ID/日時と全300件は未証明、次は既存3bubbleの送受信方向を特定する公式情報。reviewer自身のprovider操作/編集0。
 - 次の最小観測は、選択した同会話内のchat-avatar/送信者表示・time-separator・message DOM/既存SDK decoded状態から送信者と日時/一意性を確定し、公式会話履歴を案件の送信台帳へ結ぶこと。新decoder/frameworkは作らず既存UI/SDK読取を使う。対象外の会話を案件送信件数へ数えず、NPO不足原資料の受領条件も保持する。current3未完、全goalactive。
+
+
+### 418. 番号3のNPO原資料待ちを現在公式履歴で再確認
+
+- TikTok送信者/date/IDのprivate読取追加はgpt-6-luna/maxの同session担当へ非重複委譲。Rootは別registered coconala:kosukeの既存2room読取のみ、workerはTikTok/private新規reader/result/proofのみ。新規メッセージ/制作/正式納品/認証/本番変更無し。
+- 18223833/18250352の公式talkroomを正規guard経由で読取し、HTTP200/history_complete=true/取引中、28/35messagesを確認。前回のordered message ID/side/text/attachment filename-size-typeとの完全一致を確認、新message/新buyer message0。①予算の受入済scopeを②NPOへ流用せず、必要なR6/R7業務報告・役員情報・実議決/日付等の原資料待ちを維持する。今回の2room履歴の範囲であり、全メール/全providerに資料無しとは拡張しない。
+- private raw readback 18223833-current-20261005.json SHA256 8287908dd0486bf464ee02f648c754dac77f448576f46d7ddaf7737e90eeeb25、18250352-current-20261005.json SHA256 6019ec0cc057a30e780f4525e1cc905f1e4029f2f8ff0e7ceec8fb78f9f19821。summary execution3-npo-current-readback-20261005.json SHA256 c4d6df897fdabbd4fba065bf0955d3e978ea1a46a172df139173af1ad48055ea（§399同private dir/mode600）。不足物が案件へ結び付く公式添付/指定送付先の原資料として届くことが再開条件。
+- 各own targetをclose後、finallyで既close targetへ二度closeしたためTarget.closeTarget no target例外が起き、guardrelease前にprocessがexit1。読取成功と後処理失敗を分ける。current statusで自分のoriginal holder PID44348/host一致・process absent・target2を確認。正規acquireはfresh timestampを理由にexit9だったため再試行/forceclearせず、正規releaseへoriginal PID/startの完全一致条件を渡して自分の残leaseだけ解除、exit0/holder無しを確認。既存target ID+URLhashの完全一致はこの例外後に保存できておらず未確認。provider/browserrestartや他owner解除0。
+- 現在cursor3、次4、全goal未完。NPOの資料不足はlatest readback付き外部待ち、TikTokの送信者/日時/一意送信台帳照合は安全な次作業として続ける。
