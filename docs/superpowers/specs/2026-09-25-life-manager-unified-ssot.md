@@ -5800,3 +5800,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - fresh read-only task upwork_browser_owner_source_reviewへgpt-6.1-sol／medium／forknoneを指定し、base1a7→HEAD3851の5file、既存所有権・profile保持・14loop契約の反証を依頼。判定未取得、actual model／effort／usageは未観測。
 - A21の残手順は、独立source判定→account／inventory読取の既存経路と実行可能境界確認→ユーザー成果受入条件の照合→許可された統合・immutable反映→登録済み9233のowner／account公式readback。応募・返信・Paid・storefrontはA22–27として別に未完。新AGENTSのPR／main条件（specユーザー成果の実測PASS）を、旧手順のsource testsだけでPR作成する条件より優先する。途中pushをPR準備完了と扱わない。
 - 本ターンのprofile／auth／provider／本番変更0。全体goalはactive／未完、SelfBuildはA43–46の最後。
+
+### 326. Upwork account観測経路の外部作用境界を現物で確認
+
+- current immutable20261004T102016-1a7a8e2fの登録済みresolverをupwork:daisで実行し、exit10／reachablefalse／endpoint_unavailableを再現。旧registryのlaunched_byはretired labelだが、resolverはlive endpointとprofile所有権を検証するため、その文字列だけを書き換えて接続成功と扱わない。
+- providers/upwork_browser_provider.pyのobserve()1268以降は最初にread_only snapshotを取得する一方、1355以降でcontract worker復帰／negotiation message／inbound offer／sealed proposal実行を含む。CLIに観測専用switchは無く、account／inventory確認のため同CLIを実行しない。次は接続確立後に登録済み直接CDPと既存snapshot／parserで公式account・inventoryだけを読み、送信経路を呼ばずに証拠を保存する。別実装や新observer frameworkは追加しない。
+- 本観測はprovider送信／profile／auth／main統合0。fresh source reviewは継続中、A21・全goal未完。
