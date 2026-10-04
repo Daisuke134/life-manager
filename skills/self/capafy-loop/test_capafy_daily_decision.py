@@ -161,6 +161,68 @@ def test_append_opportunity_dedupes_by_tag(tmp_path):
     assert data["items"][0]["example_title"] == "Y"
 
 
+def test_rank_shelves_prefers_big_market_where_we_are_thin():
+    module = load_module()
+    market_winners = [
+        {"name": "Big Seller A", "category": "finance", "sold": 900},
+        {"name": "Big Seller B", "category": "finance", "sold": 100},
+        {"name": "Small Seller", "category": "hook", "sold": 50},
+    ]
+    own_rows = [
+        {"agent_id": "1", "category": "hook", "stats_30d_orders": 10},
+        {"agent_id": "2", "category": "hook", "stats_30d_orders": 5},
+        {"agent_id": "3", "category": "hook", "stats_30d_orders": 2},
+    ]  # 3 own listings already crowding "hook"; "finance" has 0 -> should rank first
+
+    shelves = module.rank_shelves(market_winners, own_rows)
+
+    assert shelves[0]["category"] == "finance"
+    assert shelves[0]["market_sold_total"] == 1000
+    assert shelves[0]["our_listings"] == 0
+    assert shelves[0]["our_sales_30d"] == 0
+    assert shelves[0]["score"] == 1000  # 1000 / (1 + 0)
+
+    hook = next(s for s in shelves if s["category"] == "hook")
+    assert hook["market_sold_total"] == 50
+    assert hook["our_listings"] == 3
+    assert hook["our_sales_30d"] == 17
+    assert hook["score"] == 12.5  # 50 / (1 + 3)
+
+
+def test_main_appends_top_shelf_opportunity_when_winners_file_present(tmp_path, monkeypatch):
+    module = load_module()
+    state_home = tmp_path / "state"
+    state_home.mkdir()
+    monkeypatch.setattr(module, "STATE_HOME", tmp_path)  # keep glob("state/capafy-market-agents-*") off real data
+    monkeypatch.setattr(module, "ANALYTICS_PATH", state_home / "capafy-skill-analytics.json")
+    monkeypatch.setattr(module, "HOURLY_RECONCILE_PATH", state_home / "capafy-hourly-reconcile.json")
+    monkeypatch.setattr(module, "PRICE_BANDS_PATH", state_home / "capafy-market-price-bands-latest.json")
+    monkeypatch.setattr(module, "DECISIONS_DIR", state_home / "capafy-daily-decisions")
+    monkeypatch.setattr(module, "OPPORTUNITIES_PATH", state_home / "capafy-candidate-opportunities.json")
+    monkeypatch.setattr(module, "MARKET_WINNERS_PATH", state_home / "capafy-market-winners-latest.json")
+    monkeypatch.setattr(module, "build_catalog_index", lambda *a, **kw: {})
+    monkeypatch.setattr(module, "fetch_server_agents", lambda: [
+        {"agentId": "1", "agentStatus": "online", "latestAgentVersionId": "v1", "categoryId": "hook"},
+    ])
+
+    module.ANALYTICS_PATH.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "1", "name": "Hook Lab", "model": "Claude Sonnet 4.6",
+         "net_revenue_30d_usd": "10.00", "cost_30d_actual_usd": "1.00", "stats_30d_orders": 2},
+    ]}), encoding="utf-8")
+    module.MARKET_WINNERS_PATH.write_text(json.dumps({"items": [
+        {"name": "Big Seller", "category": "finance", "sold": 900},
+        {"name": "Small Seller", "category": "hook", "sold": 10},
+    ]}), encoding="utf-8")
+
+    module.main()
+
+    opportunities = json.loads(module.OPPORTUNITIES_PATH.read_text())["items"]
+    shelf_items = [item for item in opportunities if item.get("kind") == "market_shelf"]
+    assert len(shelf_items) == 1
+    assert shelf_items[0]["category"] == "finance"
+    assert shelf_items[0]["tag"] == "shelf_category_finance"
+
+
 def test_write_decision_record_is_dated_and_readable(tmp_path):
     module = load_module()
 

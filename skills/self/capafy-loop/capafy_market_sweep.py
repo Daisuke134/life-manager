@@ -23,6 +23,7 @@ REPO_ROOT = Path(os.environ.get("LIFE_MANAGER_REPO", Path(__file__).resolve().pa
 CAPAFY_HTTP = str(REPO_ROOT / "skills/capafy-autopublish/vendor/capafy-user/scripts/capafy_http.py")
 STATE_HOME = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", Path.home() / ".local/state/life-manager")).expanduser()
 PYTHON = os.environ.get("CAPAFY_PYTHON", "/opt/homebrew/bin/python3")
+WINNERS_PATH = STATE_HOME / "state" / "capafy-market-winners-latest.json"
 
 # ponytail: a fixed keyword list covering our own catalog's job families plus adjacent
 # high-volume Capafy niches, so ~50 search calls sample a broad slice of the marketplace
@@ -100,16 +101,61 @@ def _cycle_prices(agent):
     return out
 
 
-def aggregate_price_bands(agents):
-    """Price band (p25/median/p75) per pricing cycle, restricted to agents whose
-    salesVolume is at/above the overall median AND positive -- i.e. the "successful
-    sellers" baked-in fact #2 says to copy, not every listing including the many
-    with 0 sales."""
+def successful_sellers(agents):
+    """Agents whose salesVolume is at/above the overall median AND positive -- i.e. the
+    "successful sellers" baked-in fact #2 says to copy, not every listing including the
+    many with 0 sales. Shared by aggregate_price_bands and compute_market_winners so both
+    use the identical "winner" definition."""
     sales = sorted(_num(a.get("salesVolume")) or 0.0 for a in agents)
     threshold = statistics.median(sales) if sales else 0.0
-    successful = [a for a in agents
-                  if (_num(a.get("salesVolume")) or 0.0) >= threshold
-                  and (_num(a.get("salesVolume")) or 0.0) > 0]
+    return [a for a in agents
+            if (_num(a.get("salesVolume")) or 0.0) >= threshold
+            and (_num(a.get("salesVolume")) or 0.0) > 0]
+
+
+# Preference order when an agent exposes more than one priced cycle -- pick one
+# representative row per winner rather than one row per cycle (ponytail: arbitrary but
+# deterministic tie-break; add per-cycle winner rows if a future ranking needs them).
+_CYCLE_PREFERENCE = ("download", "day", "week", "month", "year")
+
+
+def compute_market_winners(agents, observed_at):
+    """[{name, developer, category, price, cycle, sold, observed_at}] for every
+    successful seller (see successful_sellers), one row per agent using its first
+    available cycle in _CYCLE_PREFERENCE order. Reuses the same /agent/agents/search
+    data capafy_market_sweep already fetches -- no extra scrape needed, that data
+    already carries salesVolume (sold), categoryId (category) and developerName."""
+    winners = []
+    for a in successful_sellers(agents):
+        prices = _cycle_prices(a)
+        if not prices:
+            continue
+        cycle = next((c for c in _CYCLE_PREFERENCE if c in prices), next(iter(prices)))
+        winners.append({
+            "name": a.get("title"),
+            "developer": a.get("developerName"),
+            "category": a.get("categoryId"),
+            "price": prices[cycle],
+            "cycle": cycle,
+            "sold": _num(a.get("salesVolume")),
+            "observed_at": observed_at,
+        })
+    return winners
+
+
+def write_market_winners(winners, path=None):
+    path = Path(path) if path is not None else WINNERS_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"schema_version": 1, "kind": "capafy_market_winners",
+                                 "items": winners}, ensure_ascii=False, indent=2) + "\n",
+                     encoding="utf-8")
+    return path
+
+
+def aggregate_price_bands(agents):
+    """Price band (p25/median/p75) per pricing cycle, restricted to successful sellers
+    (see successful_sellers)."""
+    successful = successful_sellers(agents)
     by_cycle: dict[str, list] = {}
     for agent in successful:
         for cycle, price in _cycle_prices(agent).items():
@@ -183,6 +229,8 @@ def main():
     }
     bands_path = STATE_HOME / "state" / "capafy-market-price-bands-latest.json"
     bands_path.write_text(json.dumps(bands_out, ensure_ascii=False, indent=2), encoding="utf-8")
+    winners = compute_market_winners(agents, bands_out["observed_at"])
+    write_market_winners(winners)
     print(json.dumps(bands_out, ensure_ascii=False))
     return 0
 
