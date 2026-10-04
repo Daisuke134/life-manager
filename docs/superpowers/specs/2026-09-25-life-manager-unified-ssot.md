@@ -5902,7 +5902,7 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - primary文書branch docs/ssot-orchestration-status-20261002の§217 A01–46が全体TODO。SelfBuild A43–46は最後。CFO文書branchの同名SSOTは§84-A／§87-Bまでで旧全体順（SelfBuild前方）を含む。全体の順序には採用せず、CFO内の不足receipt調査順を尊重し、primaryへ証拠を受け渡す。各branchで全体順序を独自改定しない。
 - iOS growth docs/anicca-ios-growth-plan-20261004はfetch後もHEAD／remote583f1e86a87cd4300c5d7645fe47eeb5e5ec6d68／clean。repo anicca-products、文書worktree /Users/anicca/anicca-project/.worktrees/anicca-ios-growth-plan。計画Task1基準値調査がcursor、Task3配信実績調査はTask1と並列可能。実装は未着手、今回の担当範囲は調査計画まで。
 - CFO docs/lm-cfo-moneytree-refresh-20261004はfetch後HEAD／remote7c3a8e0cf1921403c234e24989e20956ba6c1188／clean。worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-moneytree-refresh-20261004。¥504,302はfreshness未検証のlast-known、B7 historical137／trailing132、14/14 totals・MRR・runway unknownはhandover証拠。今回providerを再取得して現在値と証明したわけではない。
-- native concurrencyはparent込み2枠、primaryから同時に使える補助は1枠。他2Codexは独立sessionなので別laneだが、名前・登録だけで実働数を確定しない。AGMSG team全件診断は長時間実行中で初期席はno_placement_record、primary whereはplain／no_addressable_pane。強制poke／新独立session spawnは行わない。
+- native concurrencyはparent込み2枠、primaryから同時に使える補助は1枠。これは当該sessionのtool制約であり、AGMSG独立sessionを含むチーム全体の上限ではない。複数成果の独立作業は§341に従い並列候補へ分ける。他2Codexは独立sessionなので別laneだが、名前・登録だけで実働数を確定しない。AGMSG team全件診断は長時間実行中で初期席はno_placement_record、primary whereはplain／no_addressable_pane。強制poke／新独立session spawnは行わない。
 - lm-ios-growth-1004から新規AGMSG応答を受信し、growth計画／CFO-mobile担当衝突のread-only監査中と確認。本人はCFO branch／mobile producer／production／providerを変更せず主担当交代無しと明示。lm-cfo-observability-1002へ担当・cursor・scope照会を送信済み、応答未取得。CFOの着手・新担当への引継ぎは未確認として保持。
 - 完成sourceはUpwork3851b5e3（5file、runtime759／sourceSHIP）とReply3a7e6e5b（2file、runtime759／sourceSHIP）。同HEAD再実装／再suiteは不要。PR／mainと本番readbackの循環条件は§328。agent数を増やしてもこの依存は解けない。
 - 反復をすべて浪費とは扱わない。Upwork fixture欠落、Reply ENOSPC exit120は実failureで必要な再検証だった。親／worker／reviewerの重複focused検証と、source受入後の待ちを減らす。重いrelease suiteは同hostで同時に走らせず、diskと既存handleを確認する。
@@ -5955,3 +5955,53 @@ flowchart LR
 #### 独立計画監査
 
 fresh parallel_acceleration_auditへgpt-6.1-sol／medium／forknoneを指定、§217／§320–339をread-only監査。並列化可能なlocal evidence／案件制作準備と、直列必須のprofile／provider作用／releaseを分離する案、10倍を断言しない評価方法、source再検証の再利用、完成sourceの循環条件を確認した。コード／spec／provider変更0。actual model／effort／usageは観測不能。今回primaryは両handoverをfetch／git照合しAGMSG連絡、文書のみ更新する。
+
+### 341. 公式・OSS事例から採る並列開発の既定方式
+
+**今回の範囲**: Daisの追補により「常にprimary＋補助1人まで」をチーム全体の既定としては採用しない。独立した複数成果を持つ開発は最初から並列候補へ分解する。単純な一箇所編集や強く依存する仕事はsoloで閉じる。今回は調査・計画・文書更新までで、独立sessionの起動、製品実装、provider変更、global設定／実稼働capacity変更は行わない。
+
+#### 一次資料と採用する点
+
+| 一次資料 | 実際の知見 | Life Managerへ採用 | そのまま転用しない点 |
+|---|---|---|---|
+| [OpenAI Harness engineering](https://openai.com/index/harness-engineering/) | worktree別にアプリ・観測環境を動かし、agent同士でreview。人手開発との比較で工期約1/10という筆者推定 | 成果単位worktree、直接読めるログ／metrics、短いrepo地図、agent reviewとprimary受入 | 我々の現状より10倍速いという実測ではない。全taskに追加QAや無限reviewを課さない |
+| [Anthropic parallel C compiler](https://www.anthropic.com/engineering/building-c-compiler) | 16agent、agent別container／clone、task claim。全員が同じkernel bugに詰まった時は分割可能な検証へ変更 | files／成果／検証の独立性を先に作る。検証により担当を選べる小さいjobを用意 | 16を固定人数にしない。共有mainへの無制約push、無限shell loop、全員同じbug、API費用を我々へ転用しない |
+| [Anthropic multi-agent research](https://www.anthropic.com/engineering/multi-agent-research-system) | 独立した広い調査で効果があり、曖昧な指示では探索が重複。共有context／依存の多いcodingは同じ利点を得にくい | 目的・入力・範囲・出力・DONEを絞る。取得済み証拠の別目的分析を並行 | research evalの改善率は速度倍率ではない。token増加を成果改善とみなさない |
+| [OpenAI Symphony SPEC](https://github.com/openai/symphony/blob/main/SPEC.md) | issue単位workspace、claimed／running管理、稼働上限と状態別容量、再試行・再開 | 既存AGMSG／worktree lease／task SSOTで重複dispatchを防ぎ、resource別に実働数を調整 | 新schedulerや第二のowner registryを今回作らない。default値を現在hostへ盲目的に適用しない |
+| [Codex subagents公式docs](https://learn.chatgpt.com/docs/agent-configuration/subagents) | 独立contextの探索／検証で主contextを軽くできる。並列writeは衝突と調整費が増える | 短いsubtaskはnative、複数turn・CLIを跨ぐ所有はAGMSG。model／effortを明示 | 文書にある一般model既定よりDais指定Sol6.1 medium／Luna6 maxを優先 |
+
+OSSはofficial repoをghでread-only取得、openai/symphony mainSHA be10a1b79df723d6d7612b5651c8522704dafb2e。orchestrator.exのrunning map／claimed set／max_concurrent_agents、config.exのmax_concurrent_agents_for_stateを実コードで確認。新clone／導入／harness実装は0。
+
+#### 人数ではなく作業と資源で配る
+
+- 依存関係を先に図示し、先行成果を待たないjobを同時に出す。jobsの各ownerへatom ID／files／worktree／branch／入力refs／resource／受入証拠／禁止／次操作を渡す。所有filesだけでなくauth／profile／mutable state／provider effectも排他範囲に含める。
+- **実働数は固定1でも固定6でもない**。開始可能job数、実際のtool／session容量、host RAM／disk／test負荷、API quota／費用、provider排他、成果受入の処理量で決める。現在nativeは2枠なので短期補助は1人だが、長い独立jobはAGMSG独立sessionへ出せる。
+- 先にverified-liveかつ範囲が空いている既存席を使う。足りない時は新独立sessionをspawn --boot-promptで開始し、ready／working／exact owner／actual task／成果を確認する。sendをspawnと同一視しない。未応答のCFO席へ重複財務ownerを足さない。
+- AGMSG spawn.shは--modelを受け取るが、今回readした引数にはeffort指定が無い。新独立実装sessionのLuna6／maxを保証するには、そのCLI／専用session設定のeffort適用経路を起動前に確認する。boot promptにmaxと書くだけをruntime確認と扱わない。旧世代fallbackはしない。native toolではmodel／reasoning_effortを明示する。
+- parentはjob開始後に一緒に同じ実装／調査をしない。必要な差分受入だけ行い、他の独立jobへ進む。長いtaskはownerがspec該当節とcommitを更新し、短いsummaryを返す。巨大な全履歴／全repo図／全ログを各workerへ複製しない。
+- reviewerは毎workerに常設せず、財務結論・外部作用・具体的高リスクへのfresh反証を必要時に割り当てる。成果を返したworkerを増やすより、受入待ちが増えたらreview／統合へ空きcomputeを振る。同HEAD全suiteを各役割が重複実行しない。
+- source変更が独立していれば並行実装できる。shared interface変更は一ownerが先に契約を確定し、他workerはその入力を待つ。provider作用・同profile・release cut/apply・main統合はresource owner単位で直列、単一primaryが全local調査を直列に抱え込む必要はない。既存main-only／PR条件は§328のまま、未解決の統合jobを開始可能と偽らない。
+
+#### 初回候補は6つの仕事束、6session起動済みではない
+
+| 束 | 正本atom | ownerと受渡し | 同時開始の条件 |
+|---|---|---|---|
+| 公開版・課金・ファネル基準 | growth Task1 | 既存growth ownerが所有、新workerは別workspaceで分析packet返却 | 既存ownerがscopeを配分。fresh ASC／RC取得は共有取得owner1人 |
+| 既存配信実績・競合仮説 | growth Task3の調査 | 同growth ownerが配分、製品／投稿変更無し | 取得済み投稿receiptのlocal分析はTask1と独立 |
+| settled revenue・actual cost | CFO／A38–42 | 現CFO owner、growthと定義を分ける | 担当応答・所有確認後。新sessionによる二重担当化無し |
+| Marketplace公式readback | primary／A10 | exact occurrenceを一つ狭める | 対象provider leaseと自然ownerに衝突しない |
+| NPO要件・原資料対応表 | A03／18250352 | 空き分析worker、既存local資料のみ、project state編集無し | 欠損数値／氏名／決議を捏造せず別法人と分離 |
+| 応募mail／receipt照合 | A17–18 | 空き分析worker、取得済み証拠join、primaryへ不足packet | Gmail／seen／auth操作無し。metadataだけで不足する本文を明示 |
+
+まず開始可能なlocal jobsとmarketplace readbackを重ね、growth／CFOの子jobは各ownerの配分確認後に出す。6束が均等工数・全同時実働だという証拠は無い。現在disk freeは追加readbackで2.1GiBであり、以前のENOSPCも保持。computeが多いことをlocal build容量が十分という根拠にしない。
+
+#### 残運用TODOと検証
+
+1. 既存growth／CFO／mobileのowner応答からASC／RC取得担当を一人に決め、同期間report ID／hash／missingを共有する。未応答は所有移転ではない。
+2. 開始可能なNPO local整理／mail証拠joinとprimary official readbackを並列に割当てる。短期nativeか長期AGMSGかをtask寿命・tool容量で選ぶ。
+3. 新独立sessionが必要なjobについて、driver／起動・受信／model・effort／workspace／resource headroomを確認する。既存seatのidentityを外部から書き換えない。
+4. 正本§217 statusはprimaryだけ更新し、各ownerの文書正本へは各ownerが反映する。受渡しpacketはatom・owner・HEADまたはevidencehash・結果・不足・次操作に限定する。
+5. source/main循環と成果受入待ちを解消する。同じ完成sourceを再実装せず、受入可能jobだけを増やす。
+6. §340の次5業務atomで完了／待ち／重複／再作業／費用を測る。最善は独立jobと浪費削減で大幅改善、標準は共有資源が残り並列効果が限定、最悪は外部待ち・統合停滞で人数を増やしても完了数が増えない。主要な反証は、工期の大半がprovider／統合待ちであるという測定。
+
+fresh Sol6.1 mediumの同計画監査は条件付きPASS。指摘4件（6束≠6稼働、read-only auth排他、primary受入の詰まり、10倍未実測）を上記へ反映。新agent数をAGI進捗の証拠にせず、開発／有償成果の改善とAGI能力の改善を別に測る。SelfBuild A43–46は最後。
