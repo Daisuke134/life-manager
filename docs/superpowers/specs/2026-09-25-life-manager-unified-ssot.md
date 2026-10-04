@@ -6293,3 +6293,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - requested Luna6 max workerはorigin/main1a7a8e2faf1eb34931f05287d846fc036bc9eec0をfetch照合。専用worktree reply-collector-evidence-20261004／branch fix/reply-collector-evidence-20261004を作成、sparse初期化後scopedclean／lease owner codex-money-printer・task A18.1-collector-evidenceを確認。初期no-checkoutの全D表示へ親は操作0、共有checkout既存dirtyを保持。
 - 最初に指定したreply_adapter.pyはmainに無く、実coconala_reply_adapter.pyへ所有file名を訂正。§370の3productionfiles上限は維持。workerはhelperHTTP403とproviderDOM403が同reasonになること、.detailsがrawhelper_errorを含むことを確認。raw転載を禁止し、safe origin/status/route保存とcredential除去のfocusedREDを追加中。RED/GREEN／sourcepush／reviewはまだ未完、既存exit修正3a7の再実装／再suite0、本番操作0。
 - 次は実RED→最小保存修正→必要checks→commitpush／remote確認→freshread-onlyreview。単なるworktree作成やsource準備を本番復旧／全goal達成へ置換しない。cursorA18.1／全goalactive／SelfBuild最後。
+
+### 372. A18.1 source push／focusedPASSとfresh FIX-FIRST
+
+- Luna6 max workerはkernel metadata欠落のRED1failed、providerDOM403／helperHTTP403／unknownの追加RED4failed、helperstderr boundary REDを実測。最初のGREEN7／境界追加8、関連2suite69PASS/4FAIL（旧unknown期待3／sparsehelper未取得1）を保持し修正後73/73PASS。3productionfiles net+95、tests2file、exit既存挙動不変。
+- source HEADae86822369777aee5d92965f2e72e99dbafb00f8をfix/reply-collector-evidence-20261004へcommitpush、parentもlocalHEAD／upstream／remoteexact／clean／diffcheck確認。contract14loops178jobs/errors0、Nodeadapter15/15PASS。同HEADlease保持。runtime/loop fullunittestは未実施（source必須検証未達であり、単に所有範囲外として免除しない）。productiondoctor／release／naturalrun／officialreadback未確認。
+- fresh6.1Sol medium read-only reviewer collector_evidence_fresh_reviewはsourceexact／clean／diffcheck確認、focused73PASS＋既存paid_remote_wait HTTP404case1FAILを実測しFIX-FIRST。queue diagnostic requested_route/failed_endpointはB1 ?fromMyPage=trueを残しstandalone CLIがdetailsへ保存するためkernelだけquery除去では不足。navigation／B1source識別は維持しmetadataだけqueryfreeへ修正する。
+- reviewerP2もう1件はtest_paid_remote_wait.py546のhelperHTTP404→provider旧期待。これは変更に直接関連する既存testで、helper分類／safe metadata期待へ更新する。provider/browser/auth/production/state/fence/launchctl／review編集0。重大なclaimはsourceonly、金融／本番復旧完了に置換しない。
+- 同Luna実装workerに2指摘解消を割当て、3productionfiles上限は不変、関連既存paid_remote_wait testfileを所有範囲に追加。失敗証拠を残してfocused再PASS→commitpush／remote確認→再review。origin未知・actualfailedendpoint未知・receiptrefs無しを捏造しない。cursorA18.1／全goalactive／SelfBuild最後。
