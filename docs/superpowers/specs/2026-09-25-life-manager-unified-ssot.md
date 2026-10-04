@@ -6638,3 +6638,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fresh gpt-6.1-sol/medium read-only反証は、headerExprが全rootsの汎用headerhrefを集約しselected conversation ancestor/cardinality/beforeafter未保存と指摘（code30/61–67）。wantedhashは未使用で、判定はroster全候補一致。記録4一致は同handlehashの反復で4人ではない。roster行18col0一致/selfhashとは別という限定事実はあるが、selected peer/campaign exactbindingは未証明。
 - body候補の親子排除はあるがbubble ancestor/可視性/selectedpane対応を未保存。UIlabel/preview/別conversation scopeを完全排除できない。ID/date探索はcandidate/親までのためunknownをprovider不存在としない。確認済表現は『header候補hashがroster列0候補と一致した文脈のrenderer本文候補3要素、selected peer結合は未確認』とする。
 - Source/prodloopを触らず、gpt-6-luna/maxの実装担当が既存private readcodeのselectedpane/header/body対応・局所読取制御だけ修正する。新SDK/decoder/frameworkは追加しない。Rootは成果のfresh反証とSSOT受入を所有し、current3未完→next4/残51項目を維持。
+
+
+### 412. Private観測codeのscope修正とsetup欠落を分離して継続
+
+- gpt-6-luna/max担当はimmutable実行snippetを別private corrected版へcopyし、selected pane/header/body scopeと候補重複/可視性を局所修正。現行matcherのroster-only headerをtrueにするREDを再現し、Python AST/embedded JS compileとpositive/negative projection10casesを確認。ただしstatic projectioncheckをlive entrypoint/controlの成功へ昇格しない。
+- 初回corrected実行はtimer start欠落でguard取得/normalGET後にNameError、selection前で停止。次はline4置換によるidentity/guard/env欠落でguard取得/navigation前に停止。scope式の不備とsetup保持の実装不備をprovider/認証障害へ転嫁しない。guardholderempty/endpointHTTP200/WSvalid/collision0・target数がprior2へ戻るfresh readbackを取得し、force解除0。exact priorID/URL集合/ownID消失は担当が追加照合する。
+- Rootのreadonly AST差分ではidentity/guard/env等の消失を確認。live再実行前に元assignments復元とsetup→navigation→finallyのcontained stub checkを行う。timer/logger例外がownclose/guardreleaseを妨げない順序へ局所修正する。provider liveownerは正規guardstatus/PIDで確認し、leasefile存在だけをBUSY/停止の証明としない。別subagentの旧handle Unknownprocessはnamespace差であり、transfer terminalproofを否定しない。
+- 修正中private `execution3-tiktok-owned-renderer-read.corrected.py` は未受入。元実行証拠/rootSSOT以外のrepo/本番loop/profile/auth/fenceへの変更0、SDKdecoder/framework新設0。workerはcode/controlledread、Rootはfresh反証とSSOT受入を所有。現在3未完→次4/残51項目/全goal未完を維持。
