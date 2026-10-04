@@ -6654,3 +6654,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 初回失敗tracebackはfinallyのstart二次例外が主で、当時identity/guard/envも未定義だったためfirstguard参照で停止した可能性が高い。acquire/navigation実行済みの前記主張を撤回。2回目outputのguard_acquire_exit_code/navigation_countもnull。実行したphaseを後付けせず、未証明のeffect範囲を当該private observerだけに限定して本番fenceへ転嫁しない。
 - fresh inventoryは保存済みprior ID+URLhash両snapshotと完全一致、extra0。guardholderempty/endpointHTTP200/WSvalid/collision0を確認。相反した一時holder表示は当該失敗attemptに帰属させず、holder記録が取れないことをPID終端の証明としない。
 - 正しいsetup/contained cleanupを持つcorrected版のcontrolledUI1回へ進む。source/prodloop/auth/send/fence変更無し、current3未完→next4/全goal未完。
+
+
+### 414. Corrected観測codeのstatic結果とfresh HOLD3点
+
+- private corrected code SHA256 `835630a79747145bcab32cf7bc336abfb8dec399db74bec2464ffd7273859258`、proof SHA256 `13b109524f8acf08b5bd93d36db13e3e68f08963be4686c3345b37b454e9c3ba`。AST/JS構文/projection positive-negative/native contained controlはPASS、元実行code/sampleは不変。正規guardacquireを伴う最終UIentryはexit9/setup停止で、navigation/target/selection/bodyは未取得。直後holder空、先行PID8065 alive→missing、一時holder帰属はunknownであり現在もliveowner待ちとは断定しない。観測SHA256 `5ca4370acce0ff2ec10b15e8cf73f806d887e06fe4fc1059721ed26acd8e0eb9`。
+- fresh gpt-6.1-sol/medium read-only reviewは現codeをHOLD。①listSelがmessagepane内`dm-new-chat-item`/`chat-item`もsidebar rowと数えscopeをreject、header/bubble selectorにactual `dm-new-conversation-header`/`dm-new-chat-item`が欠落、active属性実在未証明（code49、prior sample174/181）。②IDwrapper自身と本文leafを2候補として正常bubbleをreject。③active rowと旧表示paneの同conversationを確認せず、row存在/可視pane/header共通祖先だけで旧paneを受理する（code49/84）。
+- positive fixtureはactualpositiveの証明ではない。実観測markerでsidebar/bubbleを分離、wrapperと本文leafを分離、actualrow-pane根拠またはbefore/after切替の限定証拠でoldpane negativeを拒否する3点だけをLuna/max担当が修正。self除外/hash反復排除/方向unknown/全件数unknown/cleanup先行の改善は保持する。current3未完→next4/残51項目、全goal未完。
