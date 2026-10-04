@@ -4914,7 +4914,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。§381の旧local/handled/review/fileauth hash差を保持、APPROVEDラベルを別feedbackへ流用しない。currentoutcome/実作業量/netmargin/productversionのjoin未完。
 - [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。§382 localmoney event/fee/payout0はprovider売上0でなく、learningfinancialmetricの欠損→verified0を独立BUG/P2確認。source限定修正中、本番DB/設定未変更。
   - [ ] A28.1 financiallearning metricのreceipt/coverage欠損をunknownへ保ち、legacy未証明0をconsumerへ渡さないsource修正。
-  - [ ] A28.2 source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§388のartifact/期間/currency/全件終端coverage不足を解消し、個別receipt合計・account月次値をfirst24h総額へ代用しない。
+  - [ ] A28.2 source統合条件・自然money readbackでtransaction/fee/settlement/payout/cost/commercialbindingを閉じる。§388のartifact/期間/currency/全件終端coverage不足と§389の正しいliveaccount/readkey接続を解消し、個別receipt合計・account月次値・test credentialsをfirst24h実売上へ代用しない。
 - [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。§386/388の共有guardidentity不足とexact旧occurrence18d83ba82b14fb40-24990のofficialreadback不足を保持。
 - [ ] A30 Affiliateのcommission・payout・実費を確認する。
 - [ ] A31 Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。
@@ -6443,3 +6443,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - A28.1は欠損/legacyを金融学習へ渡さないsource修正、A28.2は公式取引→手数料→精算→着金/実費/商業bindingとartifactfirst24h coverageの取得。正当なaccount観測・個別取引/fee・非財務metricは保全し、periodtotalの証拠不足をunknownとして分離する。旧first24h範囲外で再syncされないlegacyにもconsumerguardを適用する条件を実装担当へ追加。signednet情報とcoverage不足を混同しない。
 - Affiliate公式status再取得でoldoccurrence affiliate-loop:18d83ba82b14fb40-24990/claimedを確定。causeeventは09/24 11:15:48UTC report/pass/exit0/effectunknown、official_readback_ref/provider_receipt_idはnull、nextactionofficial_readback_required。pre-effectterminal不足のためauto-close不可。exit0をno-effectや公開成功に変換しない。
 - private affiliate-a29-runtime-readback-20261004.jsonへexactoldoccurrence/causeevent/不足/nextactionを追記。revenue-cycleのNO_TRANSACTIONSや旧failurePROVIDER_SCHEMA_ERRORは公式公開receiptの代用にしない。共有guard登録とexclusiveownership確定後に旧publicationのofficialreadbackを取り、新規公開やfenceclear/replayはしない。現行A28.1cursor・全goalactive・SelfBuild最後、A29税務/paymentとA30finance未完。
+
+### 389. Writer修正のtemp境界とlive金融readkey不足の限定照合
+
+- correctionagentは2反例中心のtestsを先に編集し、pytest初期化のusabletempdir不足を報告。コードのRED/PASS判定ではない。primaryfreshprobeはDataFS空き823517184bytes/785MiB・freeinode8M、/tmpとownprivatewriterdirでmkstemp→4bytewrite→close→ownunlinkPASS。他者temp/state/依存/保護storeの削除0、host/loop再起動0。結果を担当へ渡しtask-specifictempでfocused再実行する。diskpressure全体の解消には置換しない。
+- 専用writer source差分は3prod money_ledger/money_sync/learning_worker、最新観測46追加/55削除＋newtests。金融期間coverage不足をunknown、legacyは値0/positive共通でconsumer拒否、finite signednetはnet_receivedだけ許容する方向。実装/テスト/commitpush/freshreviewの完了証拠はまだなく、A28.1未完。
+- currentimmutablewriter_stripe_sync.load_read_keyはenvWRITER_STRIPE_READ_KEY後にsecurityfind-generic-password fallback。Keychainは禁止なので呼出し0、mainはcollect_onceへstatewriteするため実行0。checkedwriter/configcaller検索は同file定義のみで、全runtime不稼働の証明ではない。
+- credentialSSOTは値を表示せずservice metadata照合、一致はstripe-test-restricted/stripe-test-life-call-webhookの2件。parentenvと実canonicalfile~/.local/state/life-manager/.envでWRITER_STRIPE_READ_KEY設定無し。loadedownerenv未確認、未検索階層/他accountを含む全credential不存在とは断定しない。test鍵をlive金銭receiptへ流用しない。
+- private writer-a28-read-key-boundary-20261004.jsonにcheckedpaths/範囲/禁じた経路/不足/再開条件をmode600保存。A28.2の最小次手は正しいWriterliveaccount/限定readpermissionをcredentialSSOTと実callerへ結び、禁止Keychain依存を実使用経路から除いて公式transaction/fee/payoutとperiodcoverageを取得すること。source修正をsettlement/着金/実利益へ昇格しない。currentA28.1/全goalactive/SelfBuild最後。
