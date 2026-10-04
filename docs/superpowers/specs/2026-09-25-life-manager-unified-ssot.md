@@ -6757,3 +6757,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 次の最小照合対象を台帳119行の1件へ絞った。attempting→sentでruntime payload SHA256 6615c26069ec530ef7ccf749d99fd3c24d8d1931dddff78a8e2246636883d6e0とeffect key/宛先/本文hash/sender込みbindingが完全一致。packet execution3-tiktok-one-receipt-target-packet-20261005.json SHA256 7153655e04207498b9b169f42e8946d227f021ba3a72e15f11af62f23b6ce318にprivate locator/必要fieldを保存。fresh sender identity、selectedpeer/header、outgoing sender、provider message ID/receipt、timestamp、本文hash、取得時刻/証拠を公式側で照合し、契約算入時だけ期間・適格根拠・Sheets行をjoinする。
 - native追加/旧Luna担当再開はthread上限で拒否。有限codex execをgpt-6-luna/maxで起動し実logのmodel/effortを確認、handle55242がlive。所有は新private one-bound-conversation-reader/result/proofだけ、既存source/state/ledger/auth/fence変更禁止。正規guardのnormal profile GETと既存Messages row照合に限定し、matched既存row以外のfallback/新chat/compose/sendをしない。既存transportは--send未指定でもfence更新経路があるためread-only probeとして呼ばない。全311の一斉readや新decoder/frameworkは追加しない。
 - 順序変更無し、current3→next4/残51項目/全goalactive。現在の番号3の次の一手だけを実証された案件1宛先へ具体化し、任意row18の再読を停止する。NPOの原資料待ちは§418を維持する。
+
+
+### 423. 1宛先の照合を公式シート96行とexpected senderへ限定
+
+- 前turnは§422でshared送信fenceの意味と公式件数未確認をfresh reviewで確定しprogress。本turnは同有限exec handle55242のrunning応答を確認して同handleを継続観測。失敗/観測timeoutだけで再起動せず、Rootは担当profile/readerを重複操作しない。
+- payload6615のcandidate hashは取得済み公式シート列0の96行だけに一致。210文字本文のUTF8 SHA256 5a9689c097d5f60082412075b1d5990a5b2ad242bae9aa25fc0ecd8651b5723bは台帳119行のmessage hashに完全一致。expected sender hashと保存済みself観測hashも一致するが、historical self観測を現在の認証成功へ昇格しない。これらはlocal payload/保存済み公式sourceとのbindingであり、fresh outgoing message receiptはまだpending。
+- 私的execution3-tiktok-one-bound-payload-hints.json SHA256 d103d59b1015a8bfab232b0077c7448499adbd1d26fb263104b736788d40d74d（§399同dir/mode600）。宛先/expected sender raw値や本文はrepo/chatへ複製しない。実会話ではこの96行宛先・期待sender・本文hashの対応を確認し、任意row18やgeneric本文candidateを代用しない。
+- 現在cursor3→次4/残51項目/全goalactive。安全な次作業は同有限workerのofficial profile→既存Messages row照合結果を受け入れ、成立/不足したfieldとcleanupを記録すること。current3完成や全300送信は未証明、NPO待ちは§418のまま。
