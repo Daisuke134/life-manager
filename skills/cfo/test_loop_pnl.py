@@ -10,6 +10,7 @@ import csv
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
 import loop_pnl as m  # noqa: E402
@@ -530,6 +531,49 @@ class UsageTest(unittest.TestCase):
 
 
 class B7IntegrationTest(unittest.TestCase):
+    def test_mobile_readback_uses_default_business_outcomes_path(self):
+        expected_products = {
+            "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
+            "desk-stretch-timer", "micro-mood",
+        }
+        rows = [
+            {
+                "schema_version": 1,
+                "snapshot_id": f"{product}:2026-09-30",
+                "business_date": "2026-09-30",
+                "observed_at": "2026-10-01T00:00:00Z",
+                "product_id": product,
+                "sources": {},
+            }
+            for product in sorted(expected_products)
+        ]
+        self.assertEqual(len(rows), 6)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            default_path = Path(tmp) / "marketing-metrics-daily" / "state" / "business-outcomes.jsonl"
+            default_path.parent.mkdir(parents=True)
+            default_path.write_text(
+                "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+                encoding="utf-8",
+            )
+            with patch.object(m, "BUSINESS_OUTCOMES", default_path):
+                records = m.collect_b7_records(
+                    snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env={},
+                )
+
+        mobile_coverage = [
+            row for row in records
+            if row.get("record_type") == "coverage"
+            and row.get("product_loop_id") == "mobile-apps"
+        ]
+        self.assertEqual(
+            {(row["source_id"], row["reason"]) for row in mobile_coverage},
+            {
+                ("app-store-connect-financial", "missing_coverage"),
+                ("revenuecat-mrr", "missing_coverage"),
+            },
+        )
+
     def test_platform_specific_crowdworks_readback_preserves_unconnected_siblings(self):
         import hashlib
         payload = {

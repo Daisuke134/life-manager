@@ -308,12 +308,12 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
             snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
     )
-    mobile_path = env.get("LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES")
+    mobile_path = env.get("LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES") or BUSINESS_OUTCOMES
     sources["b1-capafy-mobile"].extend(
         _safe_b7_adapter(
             lambda: capafy_mobile.adapt_mobile(
                 mobile_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
-            ) if mobile_path else [],
+            ),
             source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
             snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
