@@ -51,7 +51,8 @@ def main():
     cat_m = re.search(r"category:\s*([^\(·\n]+)", L)
     category = cat_m.group(1).strip() if cat_m else "ライティング"
     tags_m = re.search(r"tags:\s*([^\n]+)", L)
-    tags = [t.strip() for t in tags_m.group(1).split(",")][:3] if tags_m else []
+    # Capafy console accepts 5 tags (observed 2026-10-04 on the Basic Info tab).
+    tags = [t.strip() for t in tags_m.group(1).split(",")][:5] if tags_m else []
 
     # A "download" pricing row (one-time fee, no hosted LLM/CP2) is mutually
     # exclusive with the subscription day/week/month table below — Capafy's
