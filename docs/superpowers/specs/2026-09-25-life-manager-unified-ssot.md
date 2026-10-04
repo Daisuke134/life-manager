@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§450のatomic選択/header一致とpane CID未取得をfresh read-only reviewで確認し、実DOMの選択関係で会話対応を結ぶ限定観測を選ぶこと。CID欠損を値不一致や相手不在と扱わず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§451のselected CID投影バグを新観測fileで最小修正し、候補rowの実CID/active状態/参照とselected pane/headerの局所DOM関係を一度確認すること。chatbox CID属性欠損と投影バグを分け、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7013,3 +7013,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 本文helperはCID未取得で実行せず、body hash/receipt ID/dateは未取得。公式peer bindingと送信receiptは未確認。provider read-stateは通常UI clickで既読化する可能性を含むunknown。newchat/compose/send/auth/fence0、guard release0/own target absent/prior exact ID+URL保持/lease absent。
 - primary再fixturePASS（actual JS result.value、CID変更click0/一致click1、nicknameonly peer未確定）、source/result/proofと実argv一致。reader `cf0732023400551e0fd4dc584e37de239ba5d9cfb2faeca65b61c47ae6d44ffb`、result `559eea5ef2f49d360793bc935c4f5b1c7b4e1b6cdb2a58bcc05332d36435003a`、proof `0cb41e03fa00e334a3b36d20ce2cd9fe87bed283619e85de4e64460d1284c231`、新3files600、旧source不変。
 - 次はfresh Sol/medium reviewerがheaderの実source scopeを確認し、CID未提供時に実DOMのactive row/参照関係/unique selected paneと原子click→header identityで会話対応を結べる限定観測を検討する。CID欠損を値不一致と扱わず、観測なしにpeer/送信証明を昇格しない。広い構造/SDK/API探索はしない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 451. Selected CID投影バグと実DOM関係の次観測
+
+- fresh Sol/medium reviewは§450source/result/proof一致、candidate CID再照合後rowclick1、唯一の可視chatbox内header handle本文/nickname一致、send0/cleanupを確認。この表示一致は限定認定できるが会話binding/本文receipt/送信証明ではない。
+- 既存target-ready helper430行ではselectedがDOM node配列なのに `selected[0].conversation_id_sha256` を返し、rowData出力と混同する投影バグを確認。row_locatorにも同問題。したがってselected CIDのfalseを実DOM欠損と解釈した§450の記述を訂正する。chatbox CIDcount0は別に探索範囲の属性未取得。exact_scopeは同rootとbox/pane/header一意で、active rowやrow→pane参照までは示さない。
+- 次の一回は実候補rowのdata-conv-id等を再hashし、aria-selected/current/実active marker、aria-controlsの参照先と唯一chatbox/message pane/headerの包含関係、handle一致、前後同一性を捕捉する。実参照がrow→paneを結べればchatbox内CID属性を必須にしない。単なる同root/CSS名/時系列だけなら未確認を維持。閉じたタブの選択状態を次occurrenceへ引き継いだと仮定しない。
+- 動作済controller/atomic選択を再利用し、観測用新fileのみで投影を修正、既存証拠/sourceを保持。本文は同じpaneへの実DOM関係が成立した場合のみ読む。newchat/composer/send/auth/fence禁止、read-state unknown、再クリックそのものを成果にしない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
