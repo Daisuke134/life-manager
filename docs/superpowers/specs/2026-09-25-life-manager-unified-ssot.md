@@ -6805,3 +6805,13 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - Rootが既存LIST_EXPRで選択無しの追加項目観測を試み、最初はRuntime.evaluate RPCerror、次はPage.getFrameTree timeoutでrow情報を取れなかった。各result SHA256 6ccd8d8393928f3cf045954afbc84d75c797dd1d2488847512db420dd1406181／16aef22136277b926bb14a28b0a1ee90ef5feae50e0ecad8b66cb4c74ae220ec。両者click/send/newchat0、ownabsent/prior exact/guardrelease0 PASS。手書きのorchestration境界の失敗であり、providerのidentity項目不存在を示さない。
 - 次の最小観測は、動作済みreaderのcontroller/foreground/observe/guard/cleanupを再利用し、sidebar_rows取得直後にhash化identity項目と一致/矛盾sourcefieldを保存して必ずreturnする別diagnostics版。geometryはscrollHeight/clientHeight/scrollTopだけ読み、スクロール/選択/新chat/送信はしない。有限Luna/max handle60637へ新private診断filesだけを委譲し、全既存files不変。partial matchとfieldconflict/一覧coverage不足を分けることが次のカーソルであり、同じstrict match0の読取を単純反復しない。
 - current3→next4/残51項目/全goalactive。312等のlocal fenceを公式送信へ昇格せず、historical19も現在値へ流用しない。sender/header/body/ID/time/全300/納品未完、NPO原資料待ちは§418を維持する。
+
+
+### 428. 28行すべてでidentity項目未取得、row scope/初期化を次の観測へ限定
+
+- 有限exec60637はexit0/terminal、sidebar-diagnostics guarded oneUIは58.103s/status sidebar_diagnostics_saved。reader SHA256 f665fb3745c5b1519847b74218a5c4de9f5c2b792d897cb23b196b572043e3d6、result SHA256 91689857670a76e6e153c40192ce0ae9647965db6fa872c4608671979b6090d1、proof SHA256 0e0bedace7f55d816c349e89b3693b85ea26c68a6e4c5a3277451e84d504b013（§399同private dir/600）。Rootも実resultと診断関数のidentities参照を読み取り確認し、元files不変を担当報告と照合。
+- 28/28にconversation ID hash有り、identity_metadata_rows0/rows_without_metadata28、handle/nickname/UID候補は各0。partial match0/conflict sourcefields空は『比較対象のidentity値が未取得』の結果で、対象がproviderに無いという結果ではない。現rowData selectorがID-bearing node内部から情報を取れていない境界へ絞った。row_scope外/Shadow DOM/初期化遅延のどれかはまだ未確認。
+- list1/28rows、scrollHeight657/clientHeight657/scrollTop0、scrollParent無し。scroll操作無し、full page coverageはnot_proven。DOM内のvisible/loaded範囲と全provider履歴を同一視しない。rowclick/newchat/compose/send/auth/fence0、route visit seenはunknown。ownabsent/prior ID+URLhash集合一致/guardrelease0/leaseabsent PASS、target5保持。
+- 過去deep-row metadataも28行/username候補0で、semantic fieldはdata-conv-id/data-conversation-id/data-e2e/data-index/drawerItemWidth/id。数値2値が保存されていてもprovider UID namespaceを証明した値とは扱わない。過去の任意row18選択へ戻らず、台帳119行/payload6615/roster96行の案件1宛先を維持する。
+- 次はbounded構造診断を有限Luna/max handle4772へ委譲。新row-structure reader/result/proofのみ、動作済みcontrollerを再利用。最大3行のself/descendant/open-shadowと最大3段parentのmarker/CID数、global marker数を保存し、初回と同held session15秒後の2snapshotで位置と初期化を区別する。他rowを含むancestorからidentity値を読まない、raw text/username/UID/credential保存0。合計108s内、rowclick/scroll/newchat/send/認証/本番変更は禁止。足りないsnapshotを未取得と記録し、selector修復や一致条件の緩和をこの診断中に行わない。
+- current3→next4/残51項目/全goalactive。統計やsender方向/日時/公式送信数/全300/納品へ昇格しない。NPOの原資料待ちは§418を維持し、安全な次作業は案件1宛先のrow identityを読む実scopeの確定である。
