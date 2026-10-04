@@ -85,7 +85,17 @@ showed).
 |---|---|---|
 | 基本情報 | may still be red after init | fill every value from `<CONFIG_PATH>` (the path emitted by `publish_prepare.sh`): title, short/detailed descriptions, tags, category, icon, privacy URL, support email |
 | Agent ワークスペース (Skill) | red after a model switch, else auto-confirmed ✓ | click the pending skill card once (see above) |
-| 価格設定 | often **red ✗** — the real work | fix the plan cards until GREEN |
+| 価格設定 | often **red ✗** — the real work | **always open it, even when green**, and set every plan card to the TARGET values (fix until GREEN) |
+
+**A green 価格設定 tab is not proof of the right price.** On 2026-09-29 the Hook Lab
+reprice (agent 8123079349, v1.0.4) was saved with a green tab still holding the OLD
+prices (day $1.99/week $4.99/month $9.99, no year row) and was approved that way; the
+LISTING target was day $3.99/week $9.99/month $19.99/year $99.99. Every CP1 pass must
+compare each card's Period/Price/Request-Limit/trial to the TARGET lines printed by
+`publish_prepare.sh`, change any that differ, and add a missing plan (e.g. Yearly) with
+"Add Plan". This is the only chance: after the card is confirmed Capafy issues no edit
+URL. `scripts/verify_pricing.py --agent-id <ID> --listing <LISTING.md>` reads the saved
+billing rows; `publish_finish.sh` prints `PRICE_MISMATCH_WARNING` if they still differ.
 
 ## Fixing 価格設定 (the common breakage)
 1. Read the exact URL bytes from `EDIT_URL_FILE` emitted by `publish_prepare.sh` and
