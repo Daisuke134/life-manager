@@ -118,6 +118,83 @@ function normalizeProviderLaneReadback(value) {
   };
 }
 
+const B7_READBACK_STATUSES = new Set(["fresh", "partial", "stale", "unavailable", "unknown"]);
+const B7_SCOPE_STATUSES = new Set(["verified", "zero", "positive_cashflow", "unknown"]);
+const B7_DECIMAL = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/;
+
+function copyB7Currencies(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const currencies = {};
+  for (const [currency, raw] of Object.entries(value)) {
+    if (!/^[A-Z][A-Z0-9_]{0,31}$/.test(currency)) continue;
+    if (raw === null || (typeof raw === "string" && B7_DECIMAL.test(raw))) {
+      currencies[currency] = raw;
+      continue;
+    }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const amounts = {};
+    for (const [field, amount] of Object.entries(raw)) {
+      if (field === "status") {
+        if (B7_SCOPE_STATUSES.has(amount)) amounts.status = amount;
+      } else if (/^[a-z][a-z0-9_]{0,63}$/.test(field)
+        && (amount === null || (typeof amount === "string" && B7_DECIMAL.test(amount)))) {
+        amounts[field] = amount;
+      }
+    }
+    currencies[currency] = amounts;
+  }
+  return currencies;
+}
+
+function copyB7Scope(value, includeReasons = false) {
+  const scope = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const result = {
+    status: B7_SCOPE_STATUSES.has(scope.status) ? scope.status : "unknown",
+    currencies: copyB7Currencies(scope.currencies),
+  };
+  if (includeReasons) {
+    result.reasons = Array.isArray(scope.reasons)
+      ? scope.reasons.filter((reason) => typeof reason === "string"
+        && /^[a-z][a-z0-9_:-]{0,127}$/.test(reason)) : [];
+  }
+  return result;
+}
+
+function copyB7Loops(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([loopId]) => /^[a-z0-9][a-z0-9-]{0,63}$/.test(loopId))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([loopId, scope]) => [loopId, copyB7Scope(scope)]));
+}
+
+function buildB7EconomicSnapshot(businessReadback) {
+  const projection = businessReadback?.table?.economic_attribution;
+  if (!projection || typeof projection !== "object" || Array.isArray(projection)) return null;
+  const trailing = projection.trailing && typeof projection.trailing === "object"
+    ? projection.trailing : {};
+  const mrr = projection.mrr && typeof projection.mrr === "object" ? projection.mrr : {};
+  const runway = copyB7Scope(projection.runway, true);
+  const observedAt = typeof businessReadback.observedAt === "string"
+    ? businessReadback.observedAt
+    : (typeof projection.snapshot_at === "string" ? projection.snapshot_at : null);
+  return {
+    status: B7_READBACK_STATUSES.has(businessReadback.status) ? businessReadback.status : "unknown",
+    observedAt,
+    sourceReceiptRefs: Array.isArray(businessReadback.sourceReceiptRefs)
+      ? businessReadback.sourceReceiptRefs.filter((ref) => typeof ref === "string"
+        && /^loop-pnl:\/\/sha256\/[a-f0-9]{64}$/.test(ref)) : [],
+    trailing: {
+      windowStart: typeof trailing.window_start === "string" ? trailing.window_start : null,
+      windowEnd: typeof trailing.window_end === "string" ? trailing.window_end : null,
+      company: copyB7Scope(trailing.company),
+      loops: copyB7Loops(trailing.loops),
+    },
+    mrr: copyB7Scope(mrr.company, true),
+    runway,
+  };
+}
+
 function inRange(records, start, end) {
   return records.filter((record) => {
     const occurred = Date.parse(record.occurred_at);
@@ -252,6 +329,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
           categories: Array.isArray(row.categories) ? row.categories.map(String) : [],
         })) : [],
     } : null,
+    b7EconomicSnapshot: buildB7EconomicSnapshot(businessReadback),
     providerCostSettlement: providerCostSettlement ? {
       status: providerCostSettlement.status || "unknown",
       observedAt: providerCostSettlement.observedAt || null,
@@ -338,6 +416,39 @@ function businessLines(label, summary) {
   ];
 }
 
+function b7CurrencyText(currencies) {
+  const rows = Object.entries(currencies || {}).sort(([left], [right]) => left.localeCompare(right));
+  if (!rows.length) return "未確認";
+  return rows.map(([currency, value]) => {
+    if (typeof value === "string") return `${currency}=${value}`;
+    if (value === null) return `${currency}=未確認`;
+    const status = value.status ? `${value.status} ` : "";
+    const amounts = Object.entries(value).filter(([key]) => key !== "status")
+      .map(([key, amount]) => `${key}=${amount === null ? "未確認" : amount}`);
+    return `${currency} ${status}${amounts.join(" ") || "未確認"}`;
+  }).join(" / ");
+}
+
+function businessEconomicSnapshotLines(snapshot) {
+  if (!snapshot) return [];
+  const reasons = (scope) => scope.reasons.length ? scope.reasons.join(", ") : "なし";
+  const loops = Object.entries(snapshot.trailing.loops);
+  return [
+    "\nB7事業スナップショット（FinancialRecord集計とは別・合算なし）",
+    `観測: ${snapshot.observedAt || "未確認"} / status: ${snapshot.status}`
+      + ` / source receipt: ${snapshot.sourceReceiptRefs.join(", ") || "未確認"}`,
+    `直近30日 ${snapshot.trailing.windowStart || "未確認"}～${snapshot.trailing.windowEnd || "未確認"}`
+      + ` company:${snapshot.trailing.company.status} ${b7CurrencyText(snapshot.trailing.company.currencies)}`,
+    `B7 per-loop: ${loops.length ? loops.map(([loopId, scope]) => (
+      `${loopId}:${scope.status} ${b7CurrencyText(scope.currencies)}`
+    )).join(" | ") : "未確認"}`,
+    `MRR: ${snapshot.mrr.status} currencies=${b7CurrencyText(snapshot.mrr.currencies)}`
+      + ` reasons=${reasons(snapshot.mrr)}`,
+    `Runway: ${snapshot.runway.status} currencies=${b7CurrencyText(snapshot.runway.currencies)}`
+      + ` reasons=${reasons(snapshot.runway)}`,
+  ];
+}
+
 function renderFinancialManagerDetailed(report) {
   const lines = ["💰 Financial Manager"];
   if (report.personal.assets.length || report.personal.liabilities.length) {
@@ -386,6 +497,7 @@ function renderFinancialManagerDetailed(report) {
       + `${gap.productLoopIds.length ? ` (${gap.productLoopIds.join(",")})` : ""}`
     )).join("\n"));
   }
+  lines.push(...businessEconomicSnapshotLines(report.b7EconomicSnapshot));
   if (report.providerCostSettlement) {
     const settlement = report.providerCostSettlement;
     lines.push(`Google請求: ${settlement.status === "settled"
@@ -461,6 +573,7 @@ function renderFinancialManagerTelegram(report) {
       `${gap.sourceId}/${gap.reason}=${gap.count}`
     )).join(" | ")}`);
   }
+  lines.push(...businessEconomicSnapshotLines(report.b7EconomicSnapshot));
   if (report.providerCostSettlement) {
     const settlement = report.providerCostSettlement;
     lines.push(`Google請求: ${settlement.status === "settled"

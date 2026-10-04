@@ -5,6 +5,7 @@ const test = require("node:test");
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const {
   buildFinancialManagerReport, renderFinancialManagerDetailed: renderFinancialManagerTelegram,
+  renderFinancialManagerTelegram: renderFinancialManagerShort,
 } = require("./financial-manager-report.js");
 
 function record(key, { kind, amount, occurredAt, provider = "stripe", scope = "business", direction = null }) {
@@ -150,6 +151,81 @@ test("business source coverage is visible without turning a gap into zero", () =
   assert.match(text, /self-build\/source_unconnected/);
   assert.match(text, /事業gap要約\nstripe-financial-record\/source_unconnected=1/);
   assert.doesNotMatch(text, /収益: ¥0/);
+});
+
+test("B7 economic snapshot stays separate from FinancialRecord totals and preserves unknowns", () => {
+  const receiptRef = `loop-pnl://sha256/${"a".repeat(64)}`;
+  const financialRecords = [
+    record("financial-record-revenue", {
+      kind: "business_revenue", amount: 1200, occurredAt: "2026-10-02T01:00:00.000Z",
+    }),
+  ];
+  const { report } = buildFinancialManagerReport(financialRecords, "2026-10-02", {
+    businessReadback: {
+      status: "fresh",
+      observedAt: "2026-10-03T00:00:00.000000Z",
+      sourceReceiptRefs: [receiptRef],
+      table: {
+        reporting_date: "2026-10-02",
+        excluded_receipt_ids: ["private-receipt-id"],
+        raw_provider_payload: { account_name: "private account" },
+        economic_attribution: {
+          snapshot_at: "2026-10-03T00:00:00.000000Z",
+          trailing: {
+            window_start: "2026-09-03T00:00:00.000000Z",
+            window_end: "2026-10-03T00:00:00.000000Z",
+            company: {
+              status: "verified",
+              currencies: { USD: { settled_external_revenue: "987.65", net: null } },
+            },
+            loops: {
+              "self-build": {
+                status: "unknown", currencies: {},
+                coverage_gaps: [{ product_loop_id: "self-build", source_id: "stripe", reason: "source_unconnected" }],
+              },
+            },
+          },
+          mrr: {
+            company: { status: "unknown", currencies: {}, reasons: ["mrr_coverage_unknown"] },
+          },
+          runway: { status: "unknown", currencies: {}, reasons: ["liquid_balance_missing"] },
+        },
+      },
+    },
+  });
+
+  const financialRecordBusiness = buildFinancialManagerReport(financialRecords, "2026-10-02").report.business;
+  assert.deepEqual(report.business, financialRecordBusiness);
+  assert.deepEqual(report.business.revenue, [{ currency: "JPY", amountMinor: 1200 }]);
+  assert.deepEqual(report.b7EconomicSnapshot, {
+    status: "fresh",
+    observedAt: "2026-10-03T00:00:00.000000Z",
+    sourceReceiptRefs: [receiptRef],
+    trailing: {
+      windowStart: "2026-09-03T00:00:00.000000Z",
+      windowEnd: "2026-10-03T00:00:00.000000Z",
+      company: {
+        status: "verified",
+        currencies: { USD: { settled_external_revenue: "987.65", net: null } },
+      },
+      loops: { "self-build": { status: "unknown", currencies: {} } },
+    },
+    mrr: { status: "unknown", currencies: {}, reasons: ["mrr_coverage_unknown"] },
+    runway: { status: "unknown", currencies: {}, reasons: ["liquid_balance_missing"] },
+  });
+  assert.doesNotMatch(JSON.stringify(report), /private-receipt-id|private account|raw_provider_payload/);
+
+  const text = renderFinancialManagerShort(report);
+  assert.match(text, /B7事業スナップショット.*FinancialRecord.*別・合算なし/);
+  assert.match(text, /USD.*settled_external_revenue=987\.65/);
+  assert.match(text, /net=未確認/);
+  assert.match(text, /self-build:unknown/);
+  assert.match(text, /MRR: unknown.*mrr_coverage_unknown/);
+  assert.match(text, /Runway: unknown.*liquid_balance_missing/);
+  assert.match(text, /2026-10-03T00:00:00\.000000Z/);
+  assert.match(text, new RegExp(receiptRef.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(text, /private-receipt-id|private account|収益.*¥1,200.*¥987/);
+  assert.match(renderFinancialManagerTelegram(report), /B7事業スナップショット/);
 });
 
 test("provider cost report keeps Google settlement receipt and unknown state separate", () => {
