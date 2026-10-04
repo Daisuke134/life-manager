@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。最新doctor PASS、health failed21/gap2のうち11はcapacity/FIFO defer、entrypoint exit1は8・exit75は2。これらを根因確認し、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。成功した兄弟経路と実caller/state/receiptを確認し、必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleetはsource受入済み、本番は3に残る。refill依存は実装中、次にPromptBase wait引数、Writer READY衝突を直す（§470）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 待機 | 修正の受入・commit/push・対象統合条件を満たし、immutable releaseとowner限定load/admissionの不整合を解消。loaded argv/SHA・rollback・他owner非干渉を確認。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7212,3 +7212,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Lancers既存CDP9227 `/json/version` は200/WS endpointあり。既存target一覧にはdashboard/loginの観測なし。transport到達を認証済みと扱わない。page.goto/URL/response/login_formのどの境界がaccount_unavailableか未特定、auth/profileは変更しない。
 - PromptBase共有stdoutの最新3publish失敗はRuntimeError:step1_did_not_advance。同runへの時刻bindingは不足、reconciled effectを未送信と推定しない。次は同occurrence snapshot/evidenceからstep1の具体的拒否条件を読取診断、再publish0。
 - 現在cursor1、根因確定source2をowner単位並行。残token/fleetのmain promotionは§328条件を維持し保留。Coconala個別外部作業は保留/SelfBuild最後/全goal未完。
+
+
+### 470. PromptBaseのPlaywright契約不一致をno-effect再現
+
+- occurrence `promptbase-loop-daily:18db69cceb2ccdb8-23997` のsnapshot captured_at2026-10-04T19:20:29Zから同商品・同時刻（差120秒以内）のevidence dirを1件特定。`~/.local/state/life-manager/state/promptbase-evidence/20261004T192029Z-shorts-hook-lab/step1_failure.json`は/sell・step1/3・明示的validation noteなし。保存PNGはloading spinner。新しいブラウザ操作/投稿なし。これ単独をprovider拒否や送信ゼロの証明にしない。
+- current82d publish.py::_wait_for_stepは `page.wait_for_function(expression, expected)` と第2引数をpositionalで渡す。実runtime PythonのPlaywright Page.wait_for_function signatureは `(self, expression, *, arg=None, timeout=None, polling=None)`。実Page methodをsignature-only fixtureへ束縛したno-browser probeでTypeError（takes2 positional arguments but3 given）を再現。caller _fill_step1がExceptionを握りつぶし、semantic step待ちが実行されずfailure snapshotへ進む。既存fakeはpositional expectedを許すのでtest_publish_diagnostics3/3 PASSでもこの根因を覆わない。
+- 最小修正はarg=expectedと、実APIのkeyword-only契約に一致するfake/regression。価格/model/category・submit・provider・fence・auth・cadence・timeoutは変更しない。元修正79f7c24e26/#6461はmainへ統合済み、旧task worktreeはclean/remote branchgone/leaseexpired。今回の契約修正はfresh main82d由来 `.worktrees/lm-promptbase-playwright-step-wait-20261005` / branch `fix/lm-promptbase-playwright-step-wait-20261005`、owner codex-money-printer-promptbase-step、lease24h。担当待ち/source未変更。
+- Writer READY衝突の独立修正用 `.worktrees/lm-writer-ready-canary-wait-20261005` / branch `fix/lm-writer-ready-canary-wait-20261005` はmain82d/clean、owner codex-money-printer-writer-canary/lease24h。変更範囲はclose_canaryのREADY待機判定と既存wrapperのfocused regressionのみ。現在READYの適用/測定不足は別未完として保持し、KEEPや改善成功へ丸めない。
+- source2内の担当順はrefill依存→PromptBase step待ち→Writer READY待機。refillは着手済みで中断しない。公開商品供給を塞ぐ契約修正を評価待ち修正より先にし、収益経路への影響を優先する。§217親順1→14/cursor1/根因確定2並行、main promotion§328保留。
