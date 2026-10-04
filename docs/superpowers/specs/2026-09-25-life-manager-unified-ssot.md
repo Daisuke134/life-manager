@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks確認依頼再送修正のmain1a7 immutable／official target load／自然run確認。§312でsource review ship・PR6552全10CI／main統合。既存release owner17541／cut17715を追い、旧receipt／claim照合も保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA10のCrowdWorks確認依頼再送修正のmain1a7 immutable／official target load／自然run確認。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、target load／自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -5710,3 +5710,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 初回release boundaryではcurrent／target b7fb、reply loaded-idle、visible cut／apply handle無しを確認。primaryがcurrent immutable controllerからorigin/main1a7 complete cutを発行した時点では別cut lockが成立しexit1／作用0。directory lockをFD lockと同一視せず、既存cut codeとlock/pid、actual processを追加診断する。
 - lockはdirectory／pid17715。actual cut17715／parent17541とchild18581、既存reconciler17541／parent17485はlive。shell option付きargvもscript位置で読むscanへ訂正し、コマンド本文のsubstringをPIDと誤認しない。新自然ownerが同時に進むためprimaryは重複build／apply／killをしない。次はsame handlesのterminal→main1a7 complete immutable manifest／blob→reply actual loaded argv／SHA→次自然runで確認依頼再送0とunknown保持。
 - private source proofとstate/crowdworks-confirmation-cut-lock-readback.jsonへCI／merge／lock形式／PID／次操作を保存。Mobile現gateは§217／311、旧provider送信・fence解放0。全金融成果／全goal未完、SelfBuildは最後。API相当費用は使用量観測不能で算定不可。
+
+### 313. main1a7 complete immutableの成立とtarget旧loaded argvの分離
+
+- currentは/Users/anicca/loops/releases/20261004T102016-1a7a8e2f、manifest SHA1a7a8e2faf1eb34931f05287d846fc036bc9eec0／release_paths ALL。修正2fileはgit main blobと完全一致／write bit無し。state/crowdworks-confirmation-immutable-readback.jsonにsha／blob hash／modeを保存する。primary cut作用0のまま既存natural ownerがreleaseを作成する。
+- 同17541／17715のps missingとcut lock不在を確認。その後newreconciler33323／parent33270が同main1a7のimmutable scriptからlive／elapsed00:32→02:33。既存self-handoffを実経路で観測し、primary重複apply／wake／kill0。
+- statusのinstalled SHAはplist由来であり実loaded argvと混同しない。current bin/launchctl-safe print gui501/ai.anicca.crowdworks-revenue-replyのrc0／arguments3要素は旧b7fb/bin/lm-loop-run、対象owner、旧b7fbroot。新main currentと不一致。次はnew33323のterminalとofficial targetload1a7、自然runとmarker／source readbackの再送0。
+- canonical release-reconciler stateの最後のterminalは旧b7fb／error／changed1・skipped175・errors2で、新run成功と結合しない。proof state/crowdworks-confirmation-loaded-argv.jsonとprivate source proofを更新。whole fleet／旧金融receipt／全goal未完、SelfBuildは最後。
