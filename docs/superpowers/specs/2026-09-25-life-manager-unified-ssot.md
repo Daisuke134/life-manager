@@ -5857,3 +5857,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - same Luna6 max taskの着手response後、temp fake adapterによるCLI回帰はblocked JSON保存／旧exit0でRED、mainへblocked時だけexit75を返す2行追加後GREEN1。差分は指定kernelと既存testの2file。worker関連tests／contract／commitpushは進行中、source HEADはまだbase1a7で未push差分。
 - 親は実差分を確認し、kernel suite34件／0.19s PASS。provider-free main matrixでblocked／failed0→75、ok／failed0→0、ok／failed1→1を実測し、各保存JSONは入力resultと完全一致。これは作業差分の検証でありpushed固定HEADの受入ではない。workerpush後にsameHEAD／remote／cleanを確認する。
 - §332のhelper／provider発生層誤帰属は別診断として保持し、今回code修正へ追加していない。次はworker commitpush→必要check→fresh Sol6.1 medium source判定。provider復旧／本番反映／全返信成功は未達、SelfBuild最後。
+
+### 334. Reply blocked修正pushと固定HEADの親検証
+
+- source HEAD3a7e6e5b8580f75108b2bcd6314393bbcdd61211をbranch fix/reply-blocked-exit-20261004へpush、親git status clean／upstream同taskbranch／ls-remote exact一致を確認。2fileのみ。worker focused関連303PASS（--import-mode=importlib）、初回同名adapter test collection collisionは保持。contract14loops／178jobs／103mapped、diffPASS。
+- 親Node adapter15PASS、kernel34PASSと出口matrixは§333。固定pushed3a7でfull runtimeをtool session35475へ開始、terminal未取得。log /tmp/lm-reply-blocked-parent-runtime.logは検証logのみで、spec／planはrepo正本へ保持。suite中にsourceHEADを変えない。次はsamehandle terminalとfresh Sol6.1 medium source review。
+- 本番profile／auth／provider作用0、API403発生層の公式readback未完。sourcepushを本番復旧と扱わず、全goalactive／SelfBuild最後。
