@@ -6504,3 +6504,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - A28.2.1同Luna/max実装者はfreshlistでrunning。4反例のactualRED（refundmode欠落、PI/charge/balance不整合、異契約属性、複数月count消失）とinvoice同親子不整合REDを確認。次はexactidentity/mode、契約stream/currency/scope/artifact/binding、nullableinterval_countを同4filechainで修正する。旧272sourceの50primaryPASS/133reported＋139subtestsとHOLDを保持し、未検証newworkingtreeをSHIPとしない。現在cursor/公式receipts費用期間coverage不足/§328main条件/全goalactive/SelfBuild最後を維持。
 - AGMSG lm-claude-capafy-recipe-1004報告では、healthcheck低disk時のCamoufoxcache削除→verify-loops-auditが毎run約1.3GBをloop-tmpへ再取得・保持する循環を特定。終了済み8tmpを削除し489MiB→6.5GiB、Code PR6563/main1c21656でcachewipeを除去、Codex会話履歴は触っていないとのこと。Rootの独立確認はoriginmain同commit/healthcheck-lib.sh差分とdisk6.0→5.3GiBであり、他ownerのcleanup受領とRoot直接実測を分ける。
 - F4残はverify-loops-audit終了時のownloop-tmp cleanup/保持policy。F4 10GBfloorの達成証明はなく完了にしない。RootはactiveSQLite/session/journal/保護store削除0・VACUUM0・browser/release/loop停止0。既存tmp内のeffecthint/receipt/ledgerを単にterminalというだけで消さず、所有/retentionを確認して該当ownerへ接続する。Rootが別source修正を重複実装せず、他ownerへ範囲を通知する。
+
+### 396. Writer同期間actualcostへ古いRailwayinvoiceを流用しない
+
+- Rootは既存private cfo-railway-official-invoices、invoice-line-reconciliation、allocation-auditの記録をreadonlyで照合。invoiceperiodは2026-08-27T11:58:21Z→2026-09-27T11:58:21Z、記録observedは10/03UTCであり今のprovider再取得ではない。note選択月表示へのsameperiod実費結合は未証明、古いinvoiceをWriter現在期間のactualcostとしない。
+- checkedRailwayschemaにはpaid_at不足、minorunitScaleはdirectdocumentedfalse、canonicalallocationunverified/actual_cost_connectedfalseを保持。別§286の公式PDFUSD確認・invoice/email限定bindingは有効な部分証明だが、bankpaidtimeや全loop配賦を追加で推測しない。sourceamount/privateURL/PIIをrepo/chatへコピー0。
+- private writer-cfo-cost-period-mismatch-20261004.json600にrecordsource/period/不足/最小次手を保存。次はoverlapする公式paidcost/receiptのpaidtime・period・currency・canonicalloopallocationを取得して接続すること。usageestimate/APIpricequote/個人subscriptionや古いinvoice額で欠損を補完しない。
+- A28.2.1同Luna/max実装者の4反例REDは確認済み、newtest差分とmode/contract/countのsource修正を継続中。まだnewcommit/freshreview受入はなくsourceHOLDを保持。§217順序/§328main条件/全goalactive/SelfBuild最後。Rootのprovider/finance/実DB変更0。
