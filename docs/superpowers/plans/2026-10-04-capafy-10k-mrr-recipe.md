@@ -311,11 +311,32 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ## Phase E — 価格
 
-### Task E1: サブスク価格を変えられるようにする
+### Task E1a: 提出前の価格照合（値上げ版が古い価格のまま承認される穴を塞ぐ）
 
-- [ ] CP1 の価格入力を、既存の `drive_cp1.py` の操作で day/week/month の価格欄に書けるようにする（`blocked_no_cp1_support` を解消）。
-- [ ] 価格の型は勝者を写す: 月 $8.33〜$19.99、週 $9.99〜$14.99、day は試用的に。無料の集客用 agent を勝ち棚に 1 本置き、有料の兄弟 agent へ案内する。
-- [ ] 価格実験: 1 本ずつ、変更前後 14 日の注文数と手取りを比べ、手取りが減ったら戻す（`capafy_daily_decision.py` に比較窓を追加、テストつき）。
+**事実（2026-10-04 実測）:** Hook Lab v1.0.4（2104787480225804288）・TikTok Script Pro v1.0.2（2104796738414858240）・YouTube Script Writer v1.0.3（2104868865431072768）は値上げ版として提出・承認（platform_status=4）されたが、各版の billing 行は日$1.99/週$4.99/月$9.99。Hook Lab の billing updatedAt = 2026-09-29 17:41 JST（提出時）。工場は提出後に実際の価格を確かめていない。
+
+**Files（既存の検査の型を写す。モデル検査 `scripts/check_hosted_model.py` と同じ位置で呼ぶ）:**
+- Modify: `skills/capafy-autopublish/scripts/publish_finish.sh`（提出直前）
+- Create: `skills/capafy-autopublish/scripts/check_listing_price.py`
+- Test: `skills/capafy-autopublish/test/test_check_listing_price.py`
+
+- [ ] 失敗するテスト: LISTING の価格表（`| week | $9.99 | 30 | No Free Trial |` 形式）と draft の billing 行（`cycleType`・`cyclePrice`・`cycleMaxMessageCount`・`supportFreeTrial`）が 1 つでも違えば `price_mismatch`（期待値と実値を両方出す）、一致なら ok。実例: LISTING 月 $19.99 ／ billing 月 $9.99 → mismatch。
+- [ ] 最小実装 → テスト PASS → `publish_finish.sh` で mismatch なら提出しない（exit 非 0、理由をログ）。
+- [ ] 公式 readback: 次の値上げ提出で、提出前の draft billing が LISTING と一致したログ、承認後に市場 API の billing が新価格。
+- 状態: Sonnet 実装中（PR 作成まで、merge は確認後）。
+
+### Task E1b: 売れ筋 3 本を市場価格で出し直す
+
+- [ ] `skills/capafy/catalog/{hook-lab,tiktok-script-pro,youtube-script-writer}/UPDATE.json` の `from_version_id` を現行公開版（上の 3 つの version id）に合わせる。今は Hook Lab が旧 `2104491899222904832` で、`inventory_status.py` の一致条件（online かつ latest==from_version）を満たさず永久に出ない。
+- [ ] サブスク価格だけの更新を `inventory_status.py` / `publish_prepare.sh` が受け付けるか確認（今は `target_model_id` か `target_one_time_fee` のどちらか必須）。受け付けないなら、`target_model_id`（現行と同じ DeepSeek）を持つ更新として出し、CP1 で価格表を書く（E1a の照合で担保）。
+- [ ] 審査枠が空いたら、工場が売上順（`update_priority_key`）に Hook Lab → TikTok Script Pro → YouTube Script Writer を出す。
+- [ ] 公式 readback: 市場 API の billing が LISTING どおり（Hook Lab 日$3.99/週$9.99/月$19.99/年$99.99）。成績表で前後 14 日の注文数と手取りを比べ、手取りが減ったら元に戻す。
+
+### Task E1c: 価格の型（以後すべての出品に適用）
+
+- [ ] 市場価格帯（2026-10-03 sweep: 月 p25 $12.99・中央 $19.10・p75 $22.99、週 中央 $6.99、年 中央 $149.99）の中央付近に置き、年プランを必ず置く。無料試用は付けない。
+- [ ] モデル代 ≤ 手数料後売上の 15%。高いモデル（Sonnet 以上）を使う時は回数上限を勝者並み（月 10〜27 回）に絞る。
+- [ ] 価格変更は 1 本ずつ、前後 14 日比較。
 
 ---
 
@@ -325,11 +346,39 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 - [ ] 口座着金ベースで月 $1k → $3k → $10k の各段階を公式 readback で記録する。
 - [ ] $10k を 30 日保ったら、credential を除いて OSS として公開（spec 29 の O0〜O2）。同じレシピをモバイルアプリ・Web アプリ・gig に写す。
 
-## 実行順
+## 実行順（$10k MRR までの全順序。この表が Capafy の TODO 正本）
 
-1. A1 成績表 → 2. B3 空き枠 → 3. B1・B2 赤字と却下 → 4. C1 市場データ → 5. C2 勝ち棚 → 6. D1 検索 → 7. D2 プロフィール → 8. C3 複製 → 9. C4 退役/書き直し → 10. E1 価格 → 11. D3 外部宣伝 → 12. A2 着金 → 13. F レシピ化
+**ゴール:** 口座に入る利益（売上 − Capafy 手数料 − モデル代）で月 $10,000 を 30 日維持。
+**起点（2026-10-04）:** 30日利益 $31.72、口座着金 $0、売上 5 日連続 $0、52 本中 46 本が売上 0。
+**算数:** 月$19.99 の手取り ≈ $13.99（20% 手数料 + Sandbox Fee 月$2）。有料会員 約 700 人、または勝者 1 本（$19.99 × 600 人）＋中堅 10 本。
+**完了の判定:** すべて公式 readback（Capafy API・市場 API の billing・公開ページ・Gmail・銀行着金）。テスト合格や exit 0 は完了ではない。
 
-理由: 数字が無いと何が効いたか分からない（A1 が先）。すぐ取れる売上（空き枠・却下修正）を次に回す。売上の 69% は Capafy 内なので、外部宣伝より検索とプロフィールを先にする。
+| # | 段階 | Task | 完了条件（公式 readback） | 状態 |
+|---|---|---|---|---|
+| 1 | 1 取りこぼしを止める | A1 日次成績表 | 23:50 の daily_close で成績表が Telegram に届く | source+本番 ✅、Telegram 着信は未確認 |
+| 2 | 1 | B2 却下理由 / 重複の関門 / C1・C2 勝ち棚 | 却下 2 本が under_review → online、次の新規が上位棚 | source ✅、自然 run 待ち |
+| 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | source ✅、本番反映 未確認 |
+| 4 | 1 | **E1a 提出前の価格照合** | 値上げ提出の前に draft billing＝LISTING をログで確認 | ▶ 実装中 |
+| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ** | 市場 API の billing が LISTING どおり | 審査枠待ち（5/5） |
+| 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順番待ち |
+| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | 未着手 |
+| 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | 未着手 |
+| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に review ≥ 1、hot 掲載 | 未着手 |
+| 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | 未着手 |
+| 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | 未着手 |
+| 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 未着手 |
+| 13 | 3 | 新規は上位棚（分析・金融・動画）× DeepSeek × 市場価格（E1c） | 新規の 30日注文 > 0 | 工場で継続 |
+| 14 | 3 | G1 集客用の無料 agent 1 本 → 有料の兄弟へ誘導（勝者の型: 無料 download 上位が多数） | 無料 agent の download 数と有料への流入（traffic_sources） | 未着手 |
+| 15 | 4 外部宣伝と着金 → **月 $3k** | D3 外部宣伝の再開（9/30 停止）、全リンク `ct=`、14 日成約 0 の経路は停止 | `ct=` 経由の paid_orders | 未着手 |
+| 16 | 4 | A2 口座着金（9 月分 $59 は 10/15 以降） | Capafy payout record `paid=true` と入金メールの一致 | 10/15 以降 |
+| 17 | 4 | 価格実験を 1 本ずつ（手取りが増えた価格だけ残す） | 成績表の前後比較 | 未着手 |
+| 18 | 5 伸ばす → **月 $10k** | 勝ち agent を軸に勝ち棚で数を増やす（規約の量産禁止を守る） | 口座着金で月 $10k を 30 日 | 未着手 |
+| 19 | 5 | F レシピ化 `skills/capafy/RECIPE.md` | 月 $1k → $3k → $10k を公式 readback で記録 | 未着手 |
+| 20 | 5 | 同じ型をモバイルアプリ・他商品へ | — | 未着手 |
+
+**毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
+**順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
+**現在のカーソル:** #4（E1a）。
 
 
 ## 進捗ログ（実行順のカーソル）
