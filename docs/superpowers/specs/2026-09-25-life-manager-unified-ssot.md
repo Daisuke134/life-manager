@@ -6093,3 +6093,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - current list由来inputで18250352 selected-talkroom-onlyの公式history更新を再開、tool session22869。projects-rootは新private隔離root、既存project state／decision／review／artifact変更0。terminal後に最新要件差分だけworker結果へ結合する。
 - growth新AGMSG報告は境界監査からTask1部分調査／Task3既存receipt読取へ進むと明示。CFO/mobileの旧source所見を再実装せず、公開6／未公開4roster等の既存source修正と本番未importを区別。owner本人返信未取得／ASC・RC再取得0。詳細は担当の一次refs packetとして保持、財務確定ではない。
 - 証拠はstate/coconala-a01-refresh-20261004内orders snapshot／receipt／npo-local-artifact-readback.json、初回／再取得log。A01全案件要件／A03最終化は未完、全goalactive／SelfBuild最後。
+
+### 347. NPO公式talkroom403 receiptと待機中のmail追加照合
+
+- 同selected room session22869はexit1、snapshot未作成。snapshot-failure／source-receiptにselected_talkroom_access_forbidden／provider_http_status403／login_redirect false／coverage_complete falseを保存。今回は公式DOM層のreceiptがあるため、§332のhelper403誤帰属とは区別する。ordersHTTP200／3件と個別room403を丸めない。
+- 追加観測として既存visible-with-screenshot経路のbounded probeを同registered identity／自己ownerで試すが、guardbusy75でprovider dispatch前に終了。正常tabでの成功／失敗は未測定。保持者のprofile／target／leaseを変更せず、authreset／challenge bypass／再送／納品0。
+- browser待ち中にGmail既存title一致mail1件をno-sendでfull GETし、応募完了phrase無し、辞退関連語／message語の検出あり。word detectionを正式辞退や新規messageの証明へ昇格しない。mail body／subjectは保存せずhash・date・flagsだけstate/crowdworks-a17-title-mail-classification.json/mode600。confirmation bindingは未確定。
+- A03 local対応表は§346で一部充足・不足を狭めた。current-boundary-summary.jsonにはordersとroom receipt／normalprobe失敗／作用0を保存。次は同provider leaseが利用可能な時に未実行の通常tab観測を取得し、必要な不足入力だけをlatestofficial要件へ結合する。A01／A03／A17は全完了未達、全goalactive、SelfBuild最後。
