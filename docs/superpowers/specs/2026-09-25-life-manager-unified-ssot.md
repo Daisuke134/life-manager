@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§378のA24.1–4 Fiverr追加条件と既存owner保持の照合。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§379のA25取得済注文/金融receipt照合、A26actualcost/productversion不足の特定。A24.1–4 account/verification/owner待ちは保持。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4909,7 +4909,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
   - [ ] A24.2 正しいFiverr accountとseller onboarding・required verificationを公式readbackで確認する。
   - [ ] A24.3 read_catalogue/publish等のaction permissionとmain由来owned実行経路を接続する。
   - [ ] A24.4 権利あるproduct/version/scope/mediaで公式activeGig/publicURLを確認し、A25以降へorder IDを渡す。
-- [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。
+- [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。§379でCoco18211957に公式CSV1行をidentityjoin限定SHIP、currentformal/bank/cost/productversion未確認。open3のexport一致0は売上0へ変換しない。
 - [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。
 - [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。
@@ -6360,3 +6360,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 公式Creating Gigはseller onboarding／desktop／ownedmedia／phoneverification／personal/business verification／automaticreviewを説明。USperson/W9、EU等DAC7は該当条件を確認し、Daisの税/identity状態を言語や所在地推測で埋めない。本人確認をbypassせず、現accountで要求される各taskのofficialstatusを読む。公式 https://help.fiverr.com/hc/en-us/articles/360010451397-Creating-a-Gig 。
 - A24を4atomicへ具体化: existingowner/bounds/assets/auth保持→correctaccount/seller verification→actionpermission/ownedmain経路→productID/version/scope/media権利とactiveGig/publicURL。初出品の前に既存fundedorderを要求して循環停止させない。受注後の制作/納品はorder-specific fundedscopeとclientrequirementsを確認してA25へ接続。出品statusだけをsale/payout/profitとしない。
 - 新account/signup/login/token/credential/profile/owner/config/Gig変更0、provideraccount browser/API操作0。A24導入未完、currentcursorA24.1–4。次は保持可能な既存導入経路とaccount側外部verification不足を整理し、既存productのA25–27 receipt/actualcost/feedbackは独立readonlyで続ける。A18.2のmain条件を迂回せずSelfBuild最後、全goalactive。
+
+### 379. A25取得済みCoconala order／金融CSVの限定identity join
+
+- primaryは取得provenanceSHIP済み公式CP932CSV samebytes SHA27f6821f2daab04cf516ec8d5ad8feebcebf88342001cc8aa18236b937e54dd0／28rowsからtalkroomNoを比較。18211957はheader込みrow2／2026/09/27／種別サービス／基本料金／振込label未の1行一致。18180857／18223833／18250352は本export一致0のみ、全期売上／問い合わせ／収益0ではない。金額／buyer名／service名はchatへ出さない、duplicate1組の金額集計／勝手なdedup0。
+- local18211957 stateはsource_contract direct-offer6353099／talkroom/transaction取引完了／formal_delivery_confirmed false／WORK_REQUIRED、09/26UTCupdated／v41で古い。CSVdate-onlyを正確なsettlementtimestampへ変換せず、localclosed／falseformalをcurrentprovider状態へ置換しない。recentbrowser/code修復は別receiptで、officialformal/acceptanceの証明ではない。
+- CSVにstable serviceID/versionが無く、title一致だけで4409818等へ帰属させない。publicGig/商品scope→注文→financialrowの完全joinは未達。表示振込未も銀行未入金の負証明ではない。currency/fee/net定義／bank／actualcost／profitをunknown保持。既知order economic filenames9個の存在確認はこのproject内候補が無いだけで全costledger不存在としない。
+- private state/coconala-a25-existing-order-finance-join-20261004.json SHA9f9e3afa0869919387ffc5fcbf3829fe4ed5a9bcf2aa5975fd8d3619f5849a38。4projectのlocalfilehash／必要statusをread-only保存、project/financialledger/CFO更新0、providerGET/送信0。
+- native threadlimit下でfinite独立codexexec ephemeral/read-only requested6.1Solmediumを実行、exit0。reviewはsameCSV SHA/28row／1identitymatch／3scope0／staleflagsを別contextで確認し限定SHIP、currentfinancial/operational成果はHOLD。private coconala-a25-cli-review-20261004/result.txt／review-scope.json、mode600。rawCSV/state全体／個人/金銭値をreportへ複製しない。更新／send／delegation／external0。
+- A25次は正規owner自然readbackのcurrentformal/delivery/acceptanceと、orderID/contractID→productversion/fee/refund/cost/bank refsを閉じる。oldlocalstateを書換えて完了にせず、今回一致だけのためのCSV再GET不要。A26のactualcost/attribution不足を独立特定、A24新account導入は未完のまま保持。cursorA25/A26／全goalactive／SelfBuild最後。
