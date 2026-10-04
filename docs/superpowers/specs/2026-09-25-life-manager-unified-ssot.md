@@ -4839,7 +4839,6 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | 作業 | 残る成果条件・現在の境界 | 所有・次の操作 |
 |---|---|---|
 | Mobile / CFO観測 | 上記ASC外部gate、公式acquisition/financial receipt、RC二重計上0、CFO daily/evidence | lm-cfo-observability-1002が継続。primaryはspec/統合境界を所有 |
-| Self-Build / Eval | 最新official loaded argvでSelfBuildは9c、currentは5fc（§290）。旧80の一致証拠は履歴。自然row/run-ID/report一致は§262で1occurrence確認済み。実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。既存release ownerを追い、実owner別hookを実装・検証 |
 | Paid / 各marketplace | Mercor Paidは§266でproduction期限更新/公式GET/隔離replay-zero確認済み。旧Reply61324/App33812とLancers2/Cw18のeffect unknown（Lancers/Cwは過去census値で最新件数未確認）、契約条件・納品・fee・actualcost・settlement・payoutのofficial receipt join。Coconala等のfinancial gapも保持。Lancer5605912 JPY2000は歴史仮払い通知のみ | primary/各owner。official readback前に再送・fence解放しない |
 | Storefront / 自社商品 | Lancers/Coconalaは既存商品の公式公開・問い合わせ・注文のfresh readback、獲得経路と注文IDのjoin、納品・精算・payout・1注文あたり実cost/利益を確認。Upwork/Freelancerはaccount-bound inventoryと実owner接続、FiverrはMeta導入が未完 | primary/既存owner。応募と併せて販売funnelを閉じ、反復可能な商品へ学習を戻す。価格変更・新marketingは今回の範囲に追加しない |
 | Writer | 自然観測の最初のgateは§198PASS。実transaction→fee→settlement→payout→commercial binding、actualcost。Substack unknown、vault IPv4/IPv6、既存adoption/repair debtも未完 | primary/Writer owner。公式transactionが出た時にmoney pathへjoin |
@@ -4851,6 +4850,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 | TaskMarket / Agent Economy | external paid job、immutable packaging、funnel/margin、x402 treasury receipt、settlement/actualcost | primary/各owner。GET/package/process成功を売上に数えない |
 | Runtime / fleet | Capafy孤児登録の自然退役・公式不在・doctor inventoryは§278で確認済み。直近完了fleetはsource5fc/22:51:45Z/partial/changed41/skipped20/errors1/budget exceeded。旧alpaca-investment-live等の境界も保持。旧Writer/Instagram等の境界も保持。native run/occurrence/SHA/UTC joinは§285で限定PASS、whole fleet/health/admission/diskの収束が未完 | primary。現在5fc自然ownerを追い、残るowner failureとSelfBuild実hookを診断する。稼働ownerをkillしない |
 | 最終CFO統合 | §242の同期間監査では14loops/companyともunknown、duplicate_receipts0。Coconala source接続、Lancers/CW/Writer/Affiliate fresh coverage、ASC/Capafy coverage、Investment receipt、公式費用のloop配賦と期間を閉じ、settled revenue/fee/refund/actualcost/settlement/payoutからnet P&L再計算 | primaryが全成果監査、CFO担当とofficial evidenceをjoin |
+| Self-Build / Eval | 最新official loaded argvでSelfBuildは9c、currentは5fc（§290）。旧80の一致証拠は履歴。自然row/run-ID/report一致は§262で1occurrence確認済み。実safe promotion/recovery、validated eval/cost-first改善/自然前後比較。policybound43/unbound135は運用成功/故障数ではない | primary。他loopとCFO統合後にA43–A46を進める |
 
 #### 現在cursorとfresh runtime evidence
 
@@ -4861,13 +4861,64 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 - Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。既存buyer workは19 verified unique sends/残281、品質・納品条件未達でpending。loaded vaultと既定vaultを混同しない。
 - diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは§278で自然退役/officialabsent/doctor178unmanaged0・retiredpresent0・missing0/隔離replayを確認。全fleet健康・admission・disk、全14経済成果は別の未完条件。全14loops CFO unknownは未完。
 
-#### 現在の一手
+#### 実行順序と現在cursor
 
-1. SelfBuild owner baseline修復HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASS。ただし独立AGMSG fresh reviewはFIX-FIRST。main revert成功後にowner復元が失敗すると、次回同じrevert branchを再作成して復旧が収束しない。既存holdへSHAに結び付いた確認済み復旧結果を保存し、未完側だけ再試行する修正・回帰検証・新fresh reviewが現在cursor。PR／merge／本番復旧は未完。owner journalのnative run/occurrence伝播は§285で自然直接joinまで成立。SelfBuildのowner-local promotion/recovery実hookとeval/cost-first改善を進める。実hook不足をbooleanやclass変更で回避しない。稼働release ownerをfresh確認し、重複build/apply/wakeをしない。
-2. 既存Paid ownerの正式納品、旧exact fenceの公式receipt、storefrontのfresh公開・問い合わせ・注文、finance sourceを閉じる。各platformの最新自然応募occurrenceと公式confirmation・メール通知の結合を確認し、メールが来ない原因を応募停止・配信問題・通知設定・証拠不足に分けて記録する。原因はまだ未確認。
-3. 同期間の公式費用と各取引の精算・payoutをCFOへjoinし、全体の残TODO表に沿ってInvestment、Cloud/self-funding、TaskMarket等を継続する。大きな順序の変更はない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはCoconala既存案件の不足納品条件と公式orders HTTP403境界の確認。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
-Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。既存TODOの大順序は変更せず、全体goalはactive/未完。
+SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
+
+#### Atomic残TODO（上から実行、外部待ちは保持して次の実行可能項目へ）
+
+- [ ] A01 Coconalaの既存案件ごとに残納品条件を確認する。
+- [ ] A02 Coconala orders取得のHTTP403原因を切り分ける。
+- [ ] A03 Coconala案件の残制作を納品条件まで完了する。
+- [ ] A04 Coconala正式納品の公式記録を確認する。
+- [ ] A05 Coconala検収の公式記録を確認する。
+- [ ] A06 Coconala支払・手数料・精算明細を取得する。
+- [ ] A07 Coconala payout／銀行着金を照合する。
+- [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。
+- [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
+- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。
+- [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
+- [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
+- [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
+- [ ] A14 Mercorの正式提出・契約を確認する。本人必須提出はhuman_requiredを保持する。
+- [ ] A15 Mercorの精算・着金・実費を確認する。
+- [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。
+- [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。
+- [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。
+- [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。
+- [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
+- [ ] A21 Upworkのaccount／inventoryを確認し既存実行経路へownerを接続する。
+- [ ] A22 Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。
+- [ ] A23 利用可能な商品販売経路を接続する。適用外は理由付きN/Aとする。
+- [ ] A24 FiverrをMeta Loop経由で導入し、公式出品を確認する。
+- [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。
+- [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。
+- [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。
+- [ ] A28 Writerの取引・手数料・精算・着金・実費の不足を閉じる。
+- [ ] A29 Affiliateのtax／payment設定と旧公開の公式記録を確認する。
+- [ ] A30 Affiliateのcommission・payout・実費を確認する。
+- [ ] A31 Connectorの実候補発生時に登録・契約・精算の公式記録を取得する。
+- [ ] A32 Fundraiser旧申請の公式記録と資金受領を照合する。
+- [ ] A33 Investmentの未完AT・paper取引検証・費用・重複注文判定を閉じる。
+- [ ] A34 Cloudの継続稼働・外部収益によるrenewal・30日benchmarkを確認する。
+- [ ] A35 TaskMarket／Agent Economyの実有償案件・精算・実費を確認する。
+- [ ] A36 Runtime／fleetの残失敗ownerとhealth／admission／disk不足を解消する。
+- [ ] A37 Mobile担当のASC Agreement・再認証・apps list成功を確認する。
+- [ ] A38 Mobile公式acquisition／financial reportのID・currency・settlementを取得する。
+- [ ] A39 MobileのRC二重計上0とCFO daily／evidence／testsを確認する。
+- [ ] A40 Railway等の公式費用の期間・使用額差・loop配賦・着金照合を閉じる。
+- [ ] A41 全loopの同期間売上・fee・refund・実費・精算・payoutをCFOへ結合する。
+- [ ] A42 UNKNOWNを保持してnet P&Lと重複計上0を検証する。
+- [ ] A43 SelfBuildの成功済み復旧処理の再実行不具合を修正する。
+- [ ] A44 SelfBuild修正の回帰検証・独立再review・source統合を行う。
+- [ ] A45 SelfBuildの実owner別promotion／recoveryを公式記録で確認する。
+- [ ] A46 Evalの品質・費用・利益の改善を自然実行の前後で比較する。
+
+A43の既存source HEAD7eaa7af42c325fa17d621802c27be7c520018943はNode154・disk98・runtime再検証766 PASSだが独立reviewはFIX-FIRST。main revertだけ成功した後にowner復元が失敗すると次回同じrevert branch作成が失敗する。SHAに結び付いた確認済み復旧結果を既存holdへ保存し未完側だけ再試行する修正は未実施。PR／merge／本番復旧も未完。この作業はA42より後に置く。
+
+Railway公式invoiceの取得・明細計算は§277で限定確認済み。API invoiceId→公式PDF→請求書番号→認証済みメールの直接bindingとPDFの明示USDは§286で限定SHIP。時刻付きpaid_at・銀行照合・使用額差額・canonical loop配賦・対象期間は未完で、CFO actualcost未接続。DO credit相殺を外部収益と扱わない。Mobile ASC Agreement/2FAは別担当へ保持。実行順序は上記の正本に従い、SelfBuild／Evalは最後に置く。全体goalはactive/未完。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
