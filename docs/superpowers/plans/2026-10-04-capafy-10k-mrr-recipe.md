@@ -365,10 +365,10 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | ✅ 公開ページで新 bio を目視確認（2026-10-04）。残り: リンク欄（タイトル必須）、主力をプロフィール上位に出す方法 |
 | 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。値上げ更新と同時に出る |
 | 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | 未着手 |
-| 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | 未着手 |
-| 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 未着手 |
+| 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | ✅ source+本番（#6575 `26dd2de7`）: 親は 30日注文≥3 かつ売上>0、子 2 本以上が親未満なら停止。本番データ: Hook Lab=停止、TikTok/YouTube=派生候補 1 件ずつ |
+| 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 一部 ✅: 未出品 Hook Lab 派生 5 本を catalog-hold へ（#6576）、売上 0 の学術・Humanizer 12 本を RETIRED.json（#6577、工場の自動再出品から除外）→ 管理画面で公開停止、Capafy API で 12 本 offline を確認。残り: その他の売上 0 agent（書き直し 1 回 → 30 日） |
 | 13 | 3 | 新規は上位棚（分析・金融・動画）× DeepSeek × 市場価格（E1c） | 新規の 30日注文 > 0 | 工場で継続 |
-| 14 | 3 | G1 集客用の無料 agent 1 本 → 有料の兄弟へ誘導（勝者の型: 無料 download 上位が多数） | 無料 agent の download 数と有料への流入（traffic_sources） | 未着手 |
+| 14 | 3 | G1 集客用の無料 agent 1 本 → 有料の兄弟へ誘導（勝者の型: 無料 download 上位が多数） | 無料 agent の download 数と有料への流入（traffic_sources） | source+本番 ✅（#6578 `1b3191a7`）: Hook Grader（無料 download、既存 hook を採点、最後に Hook Lab へ案内）。工場が枠の空き次第出品（重複関門の判定後） |
 | 15 | 4 外部宣伝と着金 → **月 $3k** | D3 外部宣伝の再開（9/30 停止）、全リンク `ct=`、14 日成約 0 の経路は停止 | `ct=` 経由の paid_orders | 未着手 |
 | 16 | 4 | A2 口座着金（9 月分 $59 は 10/15 以降） | Capafy payout record `paid=true` と入金メールの一致 | 10/15 以降 |
 | 17 | 4 | 価格実験を 1 本ずつ（手取りが増えた価格だけ残す） | 成績表の前後比較 | 未着手 |
@@ -411,3 +411,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 - 2026-10-04 21:0x JST **D1 #6572 merge `57c179fc`**: Hook Lab に入出力の見本・FAQ（Capafy doc 4.1.1 推奨）、タグ 5 個（管理画面は 5 個可、`build_config.py` が理由不明の `[:3]` で切っていた → `[:5]`）。題名は変えない（`inventory_status.py` が UPDATE.json の対象を題名の完全一致で照合し、不一致だと SERVER_UNREADABLE で工場全体が止まる）。lint PASS・build_config readback でタグ 5・見本・FAQ・題名不変・DeepSeek・autopublish 259 passed。
 - **D2 完了**: 公開プロフィールの自己紹介を短尺動画ツールの主力 4 本＋「投稿・ログインしない」＋連絡先に変更（変更前 548 字は `/tmp/capafy-bio-before.txt`）。公開ページのスクリーンショットで目視確認。リンク欄はタイトル必須のため未設定。新しく見つかった点: (a) プロフィール先頭に販売数 0 の agent が並び Hook Lab が出ない、(b) Ad/Shorts/Reels Hook Lab の価格欄が「無料トライアル」表示（LISTING は No Free Trial 方針）＝価格が本番に入っていない症状、次の更新で `verify_pricing.py` が検出する。
 - **D4 調査**: hot/trending の算出式は公式 doc（1.x〜6.x）に無い。禁止は偽レビュー・評価操作のみ（https://capafy.ai/developer/doc/4.1 "Fake reviews or rating manipulation | Agent removed…"、doc 4.2 "manipulating ratings"）。正直な依頼を禁じる文言は無い。売れている競合（Ocup 3,084 sold・4.6、Serenity 1,805・4.8、HookAce 927・4.3）も書き込みレビュー 0 件。Trending 並びは販売数順ではない（勢い・鮮度の合成と推定、未確証）。市場 API の index/score 系は全件 null。→ 売れ筋 3 本の SKILL.md に「役に立ったら評価を」1 行（見返り・点数指定なし、#6573）。計測: `capafy-skill-analytics.json` の rating/review_count、`capafy-hourly-reconcile.json` の hot views/paid_orders。
+- 2026-10-04 21:2x JST **ディスク満杯で release 作成が失敗**: `/` 空き 371MiB で release-reconciler の `cut-loop-release: export of 17711638 failed` / `export of 1a723aab failed`（`~/.local/state/life-manager/release-reconciler/events.jsonl`）。未完成 release（755・RELEASE.json 無し）に apply すると `ok:false` で何も変わらない（安全側）。対処: `/private/tmp` の git worktree のうち dirty=0・HEAD がリモート・lock 無し・使用プロセス無しの 11 個だけ `git worktree remove` → 空き 3.9GiB。camoufox cache（#6563 で消さない方針）と他セッションの未 push/lock worktree は触らず。根本（容量を食い続ける原因）は未調査、codex-money-printer（F4）へ共有済み。
+- **本番反映**: `capafy-loop-daily`・`capafy-goal-monitor`・`-daily-close`・`-hourly` を release `20261004T212450-1b3191a7`（#6566〜#6578 全部入り）へ apply、4 つとも plist と launchctl の program が一致。release 内に RETIRED.json と hook-grader を確認。
+- **C4 公開停止（12 本）**: 確認画面「この Agent を marketplace から取り下げますか？ marketplace から削除されます。既存の顧客は現在の利用期間が終了するまで引き続き利用できます。」（削除・60日通知・取り消し不可の文言なし、`/tmp/capafy_unpublish_shots/05_unpublish_dialog.png` を目視）。1 本で試してから残り 11 本。Capafy API `publish-list`: 退役 12 本すべて `offline`、全体 online 35 / under_review 3 / review_rejected 2 / offline 12。再公開ボタンは画面上で未確認（データ・版履歴は残る）。工場は RETIRED.json で再出品しない。
+
