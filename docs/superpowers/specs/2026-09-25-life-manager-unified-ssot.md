@@ -6225,3 +6225,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - actualReply66602は旧Reply61324へjoinしexit1／effect_identity_status not_written／officialreceipt null。reply/logs/launchd.err.log1522–1523にENOSPCによるrecovery intent append／scratch rename失敗。親が該当2行を再確認。保存失敗をpre-effect／送信0に置換しない。
 - private state/mercor-a13-intent-audit-20261004.json SHA1d6400761158db33208f1d54ac31842acb5e1685c01f2d93690b9565f503a7e5を親が再照合。fence解除／再送／provider／browser／auth／mail操作0。最小再開条件はretained archive等のexact hostrun→child intent→listing/candidate/time（App）、thread/message/effectkey/bodyhash（Reply）の回収と当該公式receipt／確実なno-effect proof。取得済み100行を再取得して代用しない。
 - A13はこの証拠不足を保持。次の実行可能cursorはA14の正式提出・本人必須要件を既存証拠から照合、独立するA16–18も取得済み証拠で進める。A36容量不足は現行gateとして保持し大量buildを避ける。SelfBuildは最後、全goalactive。
+
+### 364. A14正式提出ready誤認防止とhuman gateの公式結合不足
+
+- primaryのlocal gate readbackは110event行、既存_latest_by_identityの最新56pending identity（exact account/listing/step14、legacy42）。別表記／legacyとexactの重複あり得るため56個の本人作業と数えない。state/mercor-a14-local-gates-20261004.jsonにread-only保存、gate store変更0。
+- Sol6.1 medium read-only担当の単発applicationsGETはHTTP200／100whitelist行、親もSHAと集計を再検証。Ready to submit92行はrejected82／applied10で、この返却集合にgeneric submitを実行可能と示す行0。applying-started8行は2of3／4of5／2of4／3of4進捗表示のみ、requiredInterviewConfigId全行null。本人必須面接／assessmentの内容はunknown、nullを要件無しとしない。
+- local ledger listingID一致90行、candidate欄無しでcandidate照合不可。exact pending14identity中8identity／4listingが返却集合に一致するが、step identity／completionを証明せず全8identityの残要件unknown。残6identityは返却集合不在で、全件性未証明ゆえ解除しない。過去form観測はlogin転送であり本人必須gateの証明ではない。今回は既存DB／token期限PASS、一般login障害は観測無し。
+- state/mercor-a14-refresh-20261004/receipt.json SHAe72fcfbf468c7257da8fae2021af26bedbcd73b1cb2a4cb7a39c1ac4f934c33f、rows.json SHA00c220a7474f5f3521d97a7d7cca893a72676f5b792fbbaf27482a4f6826828e、cleanup.json SHAb2eebc860ffcc51ff9a8b03553c400c6a43f9d9489fe8c97b025877e0530d41d。mode600、保存はID／status／step／時間のwhitelistのみ。rawtoken／個人情報／rate／title保存0。
+- providerGET1、navigation／submit／refresh／profile変更0。guard解放／UUID不変／既存target保持確認。A13fence／human gate保持。A14次は返却中applying-started候補の公式step identityとcompletionをread-only取得して本人作業と自動実行可能部分を分ける。Paid sourceはcontract stateだけからfunding／price／scope／AI work authorizationを推測せず、人の正式提出receiptを要求する。契約・精算・着金A14/A15未完。cursorA14／全goalactive／SelfBuild最後。
