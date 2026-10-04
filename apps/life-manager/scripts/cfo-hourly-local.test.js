@@ -97,26 +97,34 @@ test("hourly CFO forwards provider-lane readback and exposes it in the delivered
   assert.deepEqual(result.providerLanes, providerLanes);
 });
 
-test("CFO sends at most one consolidated snapshot per local reporting day", async (t) => {
+test("CFO skips source ingestion after receipt-backed daily delivery until the next JST day", async (t) => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-daily-"));
   t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
   const store = createJsonlFinancialRecordStore({ directoryPath: path.join(stateDir, "financial-records") });
   await store.append(revenue());
   const deliveries = [];
+  let ingestions = 0;
+  let sourceFixture = { observed: 0, created: 0, sources: {} };
   const base = {
     stateDir, subjectId: "dais-local", store,
-    ingest: async () => ({ observed: 0, created: 0, sources: {} }),
+    reportCadence: "daily",
+    ingest: async () => { ingestions += 1; return sourceFixture; },
     notify: async (input) => (deliveries.push(input),
       { delivery: "delivered", provider_message_id: String(deliveries.length) }),
   };
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T06:00:00Z") })).status, "sent");
+  assert.equal(ingestions, 1);
   await store.append(revenue({
     idempotency_key: "stripe:payment:2",
     record_id: financialRecordId("dais-local", "stripe:payment:2"),
     source: { provider: "stripe", source_type: "payment_processor", external_ref: "payment-2" },
   }));
+  sourceFixture = { observed: 1, created: 1, sources: { moneytree: "observed_verified" } };
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T10:00:00Z") })).status, "quiet");
+  assert.equal(ingestions, 1);
+  assert.equal(deliveries.length, 1);
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-08T06:00:00Z") })).status, "sent");
+  assert.equal(ingestions, 2);
   assert.equal(deliveries.length, 2);
   assert.equal(deliveries[0].eventKey, "cfo:dais-local:injected:2026-09-07");
   assert.equal(deliveries[1].eventKey, "cfo:dais-local:injected:2026-09-08");

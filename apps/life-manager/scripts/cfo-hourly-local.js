@@ -199,6 +199,16 @@ async function runHourlyCfo(options = {}) {
     }, options);
     return retryResult;
   }
+  if (cadence === "daily" && pending?.status === "delivered"
+    && (pending.reportingDate || pending.report?.reportingDate) === date
+    && pending.periodKey === periodKey
+    && pending.channel === destination.channel
+    && pending.recipientHash === recipientHash
+    && pending.delivery?.delivery === "delivered"
+    && typeof pending.delivery.provider_message_id === "string"
+    && pending.delivery.provider_message_id.trim()) {
+    return { status: "quiet", reason: "unchanged", reportingDate: date, delivered: false };
+  }
   const result = await runFinancialManager({
     subjectId, reportingDate: date, timezone: "Asia/Tokyo", now, store,
     ingest: () => ingest({
