@@ -6160,3 +6160,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - A04契約scope外部待ちを保持して、current orders入力の18180857を既存normal collector／cookie scope coco／自己ownerでread-only実行。session84022はexit1、公式selected_talkroom_access_forbidden／HTTP403／coveragefalse、snapshot未作成。これを過去19verified／281remainingの最新値や納品・取引終了へ置換しない。
 - 私的evidence 18180857-owner-env-evidence/snapshot-failure.json／source-receipt.jsonとlog lm-coconala-a01-campaign-readonly.logを保持。型を狭める新観測無しで同じqueryを繰り返さず、既存証拠のlocal照合や別providerの独立jobへ進む。外部配信／返信／formal／既存project state変更0。
 - 現在のCoconala境界はorders取得可、個別room／offerはattemptによって403／200。NPO／budgetの成功履歴binding、official originalの回収、未確定契約scopeを分ける。globalログイン故障、全provider拒否、経路修正成功を断定しない。全goalactive、SelfBuild最後。
+
+### 356. A06既存金融readerの発見とwrite無しの公式観測分担
+
+- A04／A01 room境界を保持して独立A06へ進む。fresh Sol6.1 medium explorerがCoconala金融経路だけを調査しrevenue_collector.py／parse_revenue_text／scrapeを特定。通常CLIはearnings.jsonlのreconcile／appendを書き、dry-runで抑止。scrapeはdefault browser context newpageでowner ledger無しのためそのまま実行せず、既存ownedDefaultTabとparserを使うbounded観測を同research workerへ割当てる。
+- current registry coconala:kosukeは127.0.0.1:9223であり、古いsource例／探索報告の9222を採用しない。自己owner／guard／cookie domain／既存vault、finally自己contextを解放。振込申請／銀行設定／KYC／authreset／earnings/CFO/projectstate変更／client送信0。
+- parserはclose日時／talkroom ID／記載売上／申請済み／残高／累積／振込予定の範囲。source docstringの22%説明からgross／feeを逆算しない。local idem_keyはprovider payment receiptでない。CFO marketplace adapterはlocal consumerで公式collectorではなく、coconala_outcomesのbank_arrivalはwaiting固定、銀行receipt実装無し。
+- 公式help900000064326を現行help.coconala.comへredirect取得し、/mypage/revenueのPC『売上データを全件CSVダウンロード』が全期間確定日／roomNo／内訳／売上金額／振込状況を返すことを確認。自己contextのCSVdownloadだけをread-only範囲へ追加、振込申請buttonと分離。元CSVが取得できてもfee／payment ID／bank transaction／費用の未取得を0へ置換しない。
+- receipt contractはprivate state/coconala-a06-finance-path-contract.json/mode600、現在worker観測進行中。重要財務事実はfreshread-onlyで受入し、A06完全settlement／A07銀行着金とは分ける。根拠 https://help.coconala.com/hc/ja/articles/900000064326 。全goalactive／SelfBuild最後。
