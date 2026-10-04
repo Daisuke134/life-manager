@@ -7310,3 +7310,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新snapshot作成は現在のactive admitted run（owner/occurrence・process identity・実行由来）の対応を確認し、終了済み/fenced/不一致/確認不能の場合は保存拒否/publisher0。default確認は既存admission境界のreadonly観測を再利用し、DBのcreate/migrate/cleanupやfence mutationは禁止。fixtureはcapture確認callbackを明示注入し、実private DB/claim/env/credentialsを絶対に読まない。serialized証拠にも新producer/captureの来歴を保ち、readerのvalidationと合わせる。
 - 指定4filesだけで必要最小RED→GREEN：3旧反例resolver0、inactive/fenced/misbound capture拒否、正当新capture/no-candidate及びselected readback成立、保存失敗publisher0、immutable/race維持。新harness/DBschema/キャッシュ層/互換migrationは作らない。時刻だけからpre-effectと推定しない。Luna/max追加修正→commit/push→primary/新freshSol受入。
 - 現source順snapshot修正→Writer READY、§217cursor1/根因確定2並行、main例外確認未回答。16testを本番/送信成功へ昇格しない。全goal未完。
+
+
+### 481. snapshot captureのactive PID境界をsource照合
+
+- 追加Luna/max担当は新schema2/capture provenanceのRED実装中。primaryはsource境界を照合：runtime/loop/lm_loop_run.py:794はexec-gate child PIDをon_startedへ渡し、:1231でtransfer_claimを使う。runtime/host/resource_admission.py:1250–1274のtransfer_durableがclaim pid/process_startをchildへ移しphase=runningを記録。runtime/host/exec_gate.py:20は同PIDでcommandへexecvpeする。従ってdirect record CLIのPPID（daily bash）とclaim child PID/startを対応させる境界がある。
+- 選択したdefault capture確認はreadonly DB occurrenceのowner一致/state claimed/effect_unknown0と、owners claimのversion2/phase running/owner・occurrence・PID/start一致、runtime envのrun/occurrence由来。未知/停止済み/fenced/不一致なら拒否する。pid_existsだけのfallbackを安全証明にしない。state_root/process_start等既存readonly機能を使い、新harness/DB変更を作らない。
+- workerの追加fixtureはtemporary DB/claimとcallback明示注入のみ。primaryは実state/credentialsを新worktreeコードへ向けない。旧schema1/null/Bとmissing後付けをHELDのまま保持する§480契約に沿い、まだsource受入や本番復旧とはしない。
+- 現在のbranch HEAD5ee729bから既存testsに追加REDを作成中。最新main由来source修正の所有4filesを維持。§217cursor1/source2部分並行、main例外確認未回答、snapshot→Writerの順を維持。全goal未完。
