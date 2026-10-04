@@ -4865,9 +4865,9 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor（この節が順序の正本）
 
-実行番号は下表の1から順に進める。旧A番号は過去の証拠と照合するIDであり、実行順や完了件数ではない。完了済み項目と親milestoneの重複行を実行表から除外し、未完の原子だけを並べる。
+実行番号は下表の最小の未完番号から順に進める。番号は完了後も付け直さない。旧A番号は過去の証拠と照合するIDであり、実行順や完了件数ではない。完了済み項目と親milestoneの重複行を実行表から除外し、未完の原子だけを並べる。
 
-- 現在cursor：実行番号1、Writer→CFO source修正の受入。次は実行番号2、Coconalaの最新残納品条件確認。
+- 現在cursor：実行番号2、Coconalaの最新残納品条件確認。次は実行番号3、残制作。実行番号1はe3e667a0のsource-only SHIPで完了し、未完表から除外（§397）。
 - 順序変更理由：Daisの明示指示に従い、項目IDと実行順の混同、未完を残した説明なしの飛び先選択を解消する。進行中のsource修正1件を先に閉じて再調査/重複を防ぎ、以後はCoconala→marketplace→販売→残loop→CFO→SelfBuild/Evalを順に進める。
 - 旧運用：A01–46を掲げながら、外部待ちを残してA28.2.1を実行。新運用：Writer進行中原子を1、その後の残原子を2以降に連番化。最終4原子のSelfBuild/Evalは最後。
 - primaryは現在の番号を閉じてから次の番号へ移る。完了はその原子の受入条件の証拠で判定し、source PASSを本番/納品/精算/利益へ拡張しない。
@@ -4880,8 +4880,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 
 | 実行番号 | 状態 | 残作業・受入条件 | 旧照合ID |
 |---|---|---|---|
-| 1 | 実行中 | 進行中Writer→CFO source修正の受入を閉じる。48e7acで旧4反例は解消、primary/fresh54 tests PASS。残る出版社receiptのNULL→settled_at追記でidentityが変わるP2は実測RED確認済み。primaryの独立2case再実行は追記1FAIL/初回正式精算1PASS（0.40s）、既存positive経路を保持。event/fee/payout/allocation/bindingの既存ID/参照を保持し欠落provenanceだけ補完する修正→GREEN→push/remote→freshreview。source受入のみで本番/公式利益は別。 | A28.2.1 |
-| 2 | 順番待ち | Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。 | A01 |
+| 2 | 実行中 | Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。 | A01 |
 | 3 | 順番待ち | Coconala案件の残制作を納品条件まで完了する。 | A03 |
 | 4 | 順番待ち | Coconala正式納品の公式記録を確認する。予算書18223833は§301で最新buyer identityに結び付くformal判断不足、preflight false。古い承認を最新と偽らない。 | A04 |
 | 5 | 順番待ち | Coconala検収の公式記録を確認する。 | A05 |
@@ -6512,3 +6511,10 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - checkedRailwayschemaにはpaid_at不足、minorunitScaleはdirectdocumentedfalse、canonicalallocationunverified/actual_cost_connectedfalseを保持。別§286の公式PDFUSD確認・invoice/email限定bindingは有効な部分証明だが、bankpaidtimeや全loop配賦を追加で推測しない。sourceamount/privateURL/PIIをrepo/chatへコピー0。
 - private writer-cfo-cost-period-mismatch-20261004.json600にrecordsource/period/不足/最小次手を保存。次はoverlapする公式paidcost/receiptのpaidtime・period・currency・canonicalloopallocationを取得して接続すること。usageestimate/APIpricequote/個人subscriptionや古いinvoice額で欠損を補完しない。
 - A28.2.1同Luna/max実装者の4反例REDは確認済み、newtest差分とmode/contract/countのsource修正を継続中。まだnewcommit/freshreview受入はなくsourceHOLDを保持。§217順序/§328main条件/全goalactive/SelfBuild最後。Rootのprovider/finance/実DB変更0。
+
+### 397. 実行番号1 source受入完了、番号2へ順番どおり移動
+
+- Writer sourcebranch fix/writer-cfo-receipt-provenance-20261004/HEAD e3e667a0b26babe1679f41936c6578f6f8568c67はrootがremoteexactSHA/cleanを確認。累積4production/2tests、今回closureはledger/adapter/testの3files。同receipt追記で既存event/fee/payout/allocation/binding ID・初回時刻・refsを保持、欠落settlementだけ補完。nonnull日時/金額競合は拒否、transactionrollbackを確認。
+- primary2caseGREEN/0.11s、fixedHEAD前後一致55tests＋2subtestsPASS/0.41s。実装全138tests＋141subtestsPASS/diffcheck。freshgpt-6.1-sol/medium writer_cfo_enrichment_final_reviewはsource-onlySHIP/mandatory0、55PASSとtmp-onlyreplayzero ledgerhash不変/同instantoffset許容/競合rollbackを反証確認。初回knownsettled正当fee・旧4修正・schema保持を確認。
+- source受入と本番/公式利益を分離。実DB/provider/browser/credentials/runtime/release/PRmain操作0。legacyoccurredより前の公式settlementはmetadata保持しB0pending/gap、全coveragegapを維持。fbddとの共有file/dependency、公式settlement/actualcost/bank/全14成果は後続の番号36/47–49等に残す。
+- private writer-cfo-receipt-source-proof-20261004.json600へfinalHEAD/primary/freshreview/限定scopeを保存。番号1を完了し未完実行表から除外、現在cursor2、次3。番号を付け直したり先の作業へ飛ばさない。番号2ではCoconala案件ごとの現在公式要件・残条件・localfeedback/artifactbindingを確認し、client送信/正式納品/制作の代わりにreadbackを取得する。全goalactive/SelfBuild50–53最後。
