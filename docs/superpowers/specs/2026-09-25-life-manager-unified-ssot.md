@@ -6586,3 +6586,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 待機条件を本文または明示loginへ改善したprobeはDOM4samples後Runtime.evaluate応答timeout。last3samplesのiframe本文は0/0/10文字、会話/本人sender未確認、明示login/challenge表示無し。私的 `execution3-tiktok-owned-route-waited-observation.json` SHA256 `3bc52148780a7be722f84f76e6f3b87117e72461c28965923b0ff59640e84b48`（§399同dir/mode600）。
 - 同routeのNetwork15秒観測はresponse283、200=262/204=20/404=1。404はcache由来Script、同requestと別FetchでERR_ABORTED。公式messaging document200が2、SDK/API XHR response23。URLpath分類のmessagingAPI一致0をAPI不在/認証失敗としない。自動pagePOST41は観測metadataのみで、この観測者のinitiatedPOST/send/authは0。query/token/cookie/body保存0。packet `execution3-tiktok-known-route-network-metadata.json` SHA256 `243fbd8f481bd883361d95d203b443596e8b3fdfdb112dc9fdd000ff3cde78e1`。
 - 公式page/多数SDK取得は成功しているため、次は自己rootframeのdescendant/OOPIFに会話描画があり親Runtimeだけでは読めていない仮説をread-onlyで反証する。別実行環境の所有根拠が取れた場合だけ子sessionのpureDOMを読む。別route巡回や全bundle解析、認証変更、既存sender台帳reconcile/再送はしない。実送信数/残数はunknown、現在3未完→次4。
+
+
+### 406. TikTok想定sender一致と会話loadingを分離、公的原資料照合へ
+
+- 同公式sessionのHTTP200 JSONでexpected sender uniqueId一致をspecific userobject3件/一覧内1件に観測。値はhashのみ保存。sendernav不在だけを認証失敗/ログアウトとする仮説を支持しない。SDK/API30応答の多くcode/status0だが、これを全会話の読取/実送信/全権限の証明にしない。
+- own descendant frameId→contextIdを直接対応した可視読取はouter832文字/complete、messages child10文字/loading・interactive、別child14文字/complete。会話本文/recipientは未取得、unsupported/login/providererrorの可視表示無し。Document.textContent-nullの読取誤りとscript/i18n混入keyword分類を棄却。具体境界は会話frame loading/primary SDK初期化の未特定箇所で、台帳/実送信数/残数はunknownを維持。
+- 私的final `execution3-tiktok-readonly-final-bounded-result.json` SHA256 `0030350a9b5f27af5b8a0d7640a15341375e0aa7b18a9a0bfb0f2705c1eeba76`（§399同dir/mode600）。自己tab閉鎖/lease解放/prior2保持PASS。送信/auth/cookie明示変更/fence/source/ownershipstore変更0。同じ未読取probeの単純反復を次作業にせず、具体SDK/表示阻害を狭める増観測だけを行う。
+- NPO追加原資料の別取得経路として内閣府公式入口 https://www.npo-homepage.go.jp/npoportal/ を読取。対象法人②の検索はcrwl/HTML両経路でJavaScriptを要求するAWS WAF表示となり、detail候補未取得。これを法人/年度資料不存在とはしない。normal registered browserの自己targetで同検索・一致detailを読み、公開事業報告等の年度/法人一致が確認できるかを別read-only担当が確認する。公開版をclient改訂版や未提出年度事実へ自動代用せず、人工CAPTCHA/本人確認要求が出たらその条件を記録する。
+- 公式検索私的packet `execution3-npo-public-target-html.json` SHA256 `27c35939cda099cebe7a7aa9fd9f111de43211c1591875773b1d1039bc847982`。current3未完→next4/残51項目/SelfBuild最後/全goal未完を維持。
