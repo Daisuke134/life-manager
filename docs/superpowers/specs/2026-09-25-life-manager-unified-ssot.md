@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§441の内部scroll実寸とラベル読取の未受入を踏まえ、通常の一覧検索/追加読込の公式UI経路を比較し、§422で案件台帳とpayloadのbindingが一致した1宛先の公式会話へ到達する安全な手を選ぶこと。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§442のfresh reviewに従い、入力せずに一覧の中間非row枝で既存会話検索欄を一度だけ確認すること。用途/一覧bindingが確認できた場合に限り、§422のbound targetの既存会話を通常UIで絞る次工程を検討する。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -6942,3 +6942,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fixtureは小captureの実JS→single result.value、寸法とrow要素除外の範囲でPASS。しかし末尾の非row wrapperがrow descendants28件を含み、innerText/textContentをhash化していた。raw値保存はないが「row文字列を読まない」契約は未達の可能性があり、fixtureはこの反例を捕捉していない。ラベルhash/分類は証拠に採用しない。reader全体の受入はHOLD、構造/寸法の確認と分ける。原result保持、追加live0。
 - cleanupはguard release0、own target absent、prior exact ID+URL hash保持、lease absent。readerの観測範囲click/scroll/search/send/auth/fence0。reader SHA256 `6d63e0097f524bf57b8a930181f8ab3884e412784c434e8c48305c0e07da67db`、result `1deffd0bb1f7901d66ded06b5fd9f2ba517e109d519fe5f08c9a22cd72e14037`、proof `e5c6391e7978fe19650d9b3499dc1d690db7b6882a841429394fd47db07df1d9`、fixture `fb3af421b34e7ee37edf3f36ffa1563402c67135febf584ecc13b10ba919788c`。新files600、元sourceは不変。
 - 次はwrapperの子孫テキスト読取を使わず、特定した内部領域と通常の一覧検索/追加読込の公式UI経路を比較し、対象会話へ最短に到達する安全な手を選ぶ。寸法/末尾の診断を同じ範囲で反復しない。旧readerのラベル経路を再利用する前にrow-descendant反例を修正する。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 442. 対象会話への次手を検索欄の局所観測に絞る
+
+- fresh generic gpt-6.1-sol/medium `inbox_next_action_readonly_review` が§440–441のsource/resultをread-only確認、指定hash一致。先頭末尾の非row枝しか調べず、CONTROL_SELもinput/searchboxを含まなかったため、検索欄未検出は不存在の証拠ではない。truncatedも保持。
+- 単一推奨はexact listの中間非row子と既知header枝の局所観測。入力/focus/click/scrollなし。候補のtag/type/role/contenteditable/visible、一覧との祖先/参照bindingと、候補自身の属性が示すgeneric検索用途のみ。value/row子孫文字列/ラベルhashは取得保存しない。会話詳細/composer/新規宛先選択と区別できなければ用途unknownで検索へ移行しない。
+- scrollは次順位。28件は現在DOM集合で、543/5544/top0・末尾到達・行数不変のいずれも全履歴absenceを証明しない。将来の検索/scrollは明示send0とprovider read-state不変を分け、read-stateは未確認として保持する。今回reviewはbrowser/file変更0。
+- 同Luna/max担当へ新private inbox-search-control reader/result/proofだけを所有させ、動作済controllerを再利用した小capture、必要な小fixture、ONE liveでの構造観測を渡した。広いラベルcapture/旧wrapper読取は再利用しない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
