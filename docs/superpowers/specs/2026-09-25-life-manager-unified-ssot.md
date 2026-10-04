@@ -7291,3 +7291,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 契約3：同occurrence snapshotの既存bytesを上書きしない。異候補/selected→emptyは拒否。安全な同一入力の再読は既存正当な記録を返せるが、壊れた既存記録を置換して成功を作らない。atomic create/排他で同時別candidateを拒否する。既存欠損はproducer修正だけで安全扱いしない。
 - 必須RED→GREEN：保存失敗/occurrenceなしpublish0、各invalid snapshot resolver0、正当なno-candidate/selected既存readback経路保持、Aの効果をB不在で解除不可、同occurrence記録上書き不可/同時競合安全。fixture callbacksのみ、実DB/fence/credentials/HTTP/live送信0。Luna/max→focused/構造gate→commit/push→primary/fresh Sol受入、本番は3の承認待ちに残る。
 - source残順snapshot proof→Writer READY、Lancers account境界は未確認。§217cursor1/source2部分並行、Coconala保留/SelfBuild最後、全goal未完。
+
+
+### 479. 次のWriter READY修正の境界をfixture確認
+
+- snapshot安全修正のnative担当はliveで継続、同worktreeは初回観測HEAD82d/clean。終了とは扱わず、provider/fence/main操作0を維持する。primaryは次の独立Writer sourceを6 fixture statesでcharacterizeした（専用writer worktree base82d、private state/paid model呼出0）。
+- actual close_canary結果：assignmentなし→NO_APPLIED_CANARY/new offline、READY→NO_APPLIED_CANARY/new offline（現不具合）、PREPARED→AWAITING_CANARY_PUBLICATION/offlineなし、APPLIED＋money DBなし→MEASUREMENT_INSUFFICIENT/offlineなし、closed REVERT→CYCLE_COMPLETE/new offline、closed KEEP＋consumptionなし→AWAITING_STRATEGY_CONSUMPTION/offlineなし。callerのoffline判定はNO_APPLIED_CANARY又はCYCLE_COMPLETEだけ。
+- Writer修正契約は既存READYをAWAITING_MATCHED_CANARYとして返し、既存候補・experiment IDを保持して追加offline model処理/assignment上書き0にする。公開・計測・採用・利益成功を意味しない。既存の他5状態の挙動を保つ。実canary適用/測定条件の不足は別未完に残す。
+- 次のLuna/max所有は§470のwriter専用worktree/branch/leaseを再確認し、scripts/writer_learning_worker.py、必要最小tests/test_writer_canary_pending.py、既存tests/self-improve-notification-wiring.shの3files。実関数と実self-improve wrapperをfixtureで確認し、READY時offline呼出0/verify・report到達、無し/完了時offline継続、state bytes不変を検証する。source私的env/provider/browser/SQLite実DB/playbook変更/価格/モデル変更なし。
+- コード変更前にloop-developmentとbuilding-agents/適用TDDを読み、focused/既存構造gate→commit/push→primary受入。snapshot担当の4filesと重ねない。§217cursor1/source2部分並行、source順snapshot proof→Writerを維持。本番反映は例外確認未回答、全goal未完。
