@@ -90,7 +90,7 @@ def _coverage(*, projection: str, start: str | None, end: str,
     })
 
 
-def _read_rows(database: Path) -> tuple[list[tuple], list[tuple], dict[str, str]]:
+def _read_rows(database: Path) -> tuple[list[tuple], list[tuple], dict[str, tuple], dict[str, tuple]]:
     connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
     try:
         event_columns = {
@@ -99,15 +99,19 @@ def _read_rows(database: Path) -> tuple[list[tuple], list[tuple], dict[str, str]
         fee_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(money_fees)")
         }
+        contract_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(subscription_contracts)")
+        }
         event_settled = "settled_at" if "settled_at" in event_columns else "NULL"
         contract_id = (
             "external_contract_id" if "external_contract_id" in event_columns else "NULL"
         )
         fee_occurred = "f.occurred_at" if "occurred_at" in fee_columns else "NULL"
         fee_settled = "f.settled_at" if "settled_at" in fee_columns else "NULL"
+        interval_count = "interval_count" if "interval_count" in contract_columns else "NULL"
         events = connection.execute(
             "SELECT kind, amount, currency, status, external_receipt_id, occurred_at, "
-            f"{event_settled}, {contract_id} "
+            f"{event_settled}, {contract_id}, artifact_id, scope, stream, event_id "
             "FROM money_events WHERE test=0"
         ).fetchall()
         fees = connection.execute(
@@ -117,15 +121,28 @@ def _read_rows(database: Path) -> tuple[list[tuple], list[tuple], dict[str, str]
             "WHERE e.test=0"
         ).fetchall()
         try:
-            intervals = dict(connection.execute(
-                "SELECT external_contract_id, interval_name FROM subscription_contracts "
+            contracts = {
+                row[0]: row[1:] for row in connection.execute(
+                "SELECT external_contract_id, interval_name, "
+                f"{interval_count}, stream, currency, acquisition_artifact_id "
+                "FROM subscription_contracts "
                 "WHERE test=0"
-            ).fetchall())
+                ).fetchall()
+            }
         except sqlite3.Error:
-            intervals = {}
+            contracts = {}
+        try:
+            bindings = {
+                row[0]: row[1:] for row in connection.execute(
+                    "SELECT event_id, recurring_contract_id, revenue_type "
+                    "FROM commercial_payment_bindings"
+                ).fetchall()
+            }
+        except sqlite3.Error:
+            bindings = {}
     finally:
         connection.close()
-    return events, fees, intervals
+    return events, fees, contracts, bindings
 
 
 def adapt_path(path: str | Path | None, *, snapshot_at: str,
@@ -138,7 +155,7 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
     observed_at = _instant(observed_at)
     digest_ref = f"writer-money://sqlite/{database.name}/{int(database.stat().st_mtime)}"
     try:
-        events, fees, intervals = _read_rows(database)
+        events, fees, contracts, bindings = _read_rows(database)
     except (OSError, sqlite3.Error):
         return [
             _coverage(projection="historical", start=None, end=end, observed_at=end,
@@ -151,7 +168,7 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
 
     receipts = []
     for (kind, amount, currency, status, external_id, occurred_at, settled_at,
-         external_contract_id) in events:
+         external_contract_id, artifact_id, scope, stream, event_id) in events:
         if status not in {"verified_received", "refunded"}:
             continue
         if not external_id:
@@ -164,17 +181,44 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
             verification_state = "verified"
         elif kind in {"sale", "subscription_charge", "editorial_fee"}:
             if kind == "subscription_charge":
-                interval = intervals.get(str(external_contract_id))
-                if interval not in {"month", "year"}:
+                linked = contracts.get(str(external_contract_id))
+                if linked is None:
                     continue
-                revenue_class = "monthly_recurring" if interval == "month" else "other_recurring"
+                interval, count, contract_stream, contract_currency, contract_artifact = linked
+                if (scope != "artifact" or artifact_id is None
+                        or stream != contract_stream or currency != contract_currency
+                        or artifact_id != contract_artifact):
+                    continue
+                if (interval not in {"month", "year"} or isinstance(count, bool)
+                        or not isinstance(count, int) or count <= 0):
+                    continue
+                revenue_class = (
+                    "monthly_recurring" if interval == "month" and count == 1
+                    else "other_recurring"
+                )
             elif kind == "editorial_fee":
                 if external_contract_id:
-                    interval = intervals.get(str(external_contract_id))
-                    if interval not in {"month", "year"}:
+                    linked = contracts.get(str(external_contract_id))
+                    binding = bindings.get(str(event_id))
+                    if linked is None or binding is None:
                         continue
-                    revenue_class = "monthly_recurring" if interval == "month" else "other_recurring"
+                    interval, count, contract_stream, contract_currency, contract_artifact = linked
+                    recurring_contract, revenue_type = binding
+                    if (scope != "account" or artifact_id is not None or stream != "editorial_fee"
+                            or contract_stream != "editorial_retainer"
+                            or contract_currency != currency or contract_artifact is not None
+                            or recurring_contract != external_contract_id
+                            or revenue_type != "RECURRING_RETAINER"
+                            or interval not in {"month", "year"} or isinstance(count, bool)
+                            or not isinstance(count, int) or count <= 0):
+                        continue
+                    revenue_class = (
+                        "monthly_recurring" if interval == "month" and count == 1
+                        else "other_recurring"
+                    )
                 else:
+                    if scope != "account" or artifact_id is not None or stream != "editorial_fee":
+                        continue
                     revenue_class = "one_time"
             else:
                 revenue_class = "one_time"

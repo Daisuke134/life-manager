@@ -176,7 +176,8 @@ class MoneyLedger:
                     test INTEGER NOT NULL CHECK(test IN (0,1)),
                     started_at TEXT NOT NULL,
                     ended_at TEXT,
-                    observed_at TEXT NOT NULL
+                    observed_at TEXT NOT NULL,
+                    interval_count INTEGER
                 );
                 CREATE TABLE IF NOT EXISTS money_fees (
                     fee_id TEXT PRIMARY KEY,
@@ -282,17 +283,20 @@ class MoneyLedger:
                 );
                 """
             )
-            for table, column in (
-                ("money_events", "settled_at"),
-                ("money_events", "external_contract_id"),
-                ("money_fees", "occurred_at"),
-                ("money_fees", "settled_at"),
+            for table, column, column_type in (
+                ("money_events", "settled_at", "TEXT"),
+                ("money_events", "external_contract_id", "TEXT"),
+                ("money_fees", "occurred_at", "TEXT"),
+                ("money_fees", "settled_at", "TEXT"),
+                ("subscription_contracts", "interval_count", "INTEGER"),
             ):
                 columns = {
                     row["name"] for row in connection.execute(f"PRAGMA table_info({table})")
                 }
                 if column not in columns:
-                    connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
+                    connection.execute(
+                        f"ALTER TABLE {table} ADD COLUMN {column} {column_type}"
+                    )
 
     def _require_artifact(self, connection: sqlite3.Connection, artifact_id: str) -> None:
         if connection.execute(
@@ -999,11 +1003,17 @@ class MoneyLedger:
         amount: float | int | None, currency: str | None, interval: str,
         status: str, external_contract_id: str, source_url: str, test: bool,
         started_at: str, observed_at: str, ended_at: str | None = None,
+        interval_count: int | None = None,
     ) -> dict[str, Any]:
         stream = _text(stream, "stream")
         interval = _text(interval, "interval")
         if interval not in {"month", "year", "unknown"}:
             raise MoneyInvariant("subscription interval is invalid")
+        if interval_count is not None and (
+            isinstance(interval_count, bool) or not isinstance(interval_count, int)
+            or interval_count <= 0
+        ):
+            raise MoneyInvariant("subscription interval_count is invalid")
         status = _text(status, "status")
         if status not in {"active", "canceled", "past_due", "trial", "unknown", "test"}:
             raise MoneyInvariant("subscription status is invalid")
@@ -1034,11 +1044,14 @@ class MoneyLedger:
             values = (
                 subscription_id, acquisition_artifact_id, stream, numeric,
                 normalized_currency, interval, status, contract, source_url, int(test),
-                started_at, ended_at, observed_at,
+                started_at, ended_at, observed_at, interval_count,
             )
             if existing is None:
                 connection.execute(
-                    "INSERT INTO subscription_contracts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO subscription_contracts(subscription_id,acquisition_artifact_id,"
+                    "stream,amount,currency,interval_name,status,external_contract_id,source_url,"
+                    "test,started_at,ended_at,observed_at,interval_count) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     values,
                 )
                 inserted = True
@@ -1048,11 +1061,12 @@ class MoneyLedger:
                 connection.execute(
                     "UPDATE subscription_contracts SET acquisition_artifact_id=?,stream=?,"
                     "amount=?,currency=?,interval_name=?,status=?,source_url=?,test=?,"
-                    "started_at=?,ended_at=?,observed_at=? WHERE subscription_id=?",
+                    "started_at=?,ended_at=?,observed_at=?,interval_count=? "
+                    "WHERE subscription_id=?",
                     (
                         acquisition_artifact_id, stream, numeric, normalized_currency,
                         interval, status, source_url, int(test), started_at, ended_at,
-                        observed_at, subscription_id,
+                        observed_at, interval_count, subscription_id,
                     ),
                 )
                 inserted = False

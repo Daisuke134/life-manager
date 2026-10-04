@@ -2,6 +2,7 @@
 
 import sys
 import json
+import copy
 import sqlite3
 import tempfile
 import unittest
@@ -28,7 +29,119 @@ METADATA = {
 }
 
 
+def _b2_writer_objects():
+    fixtures = ROOT / "skills" / "cfo" / "fixtures" / "economic_attribution"
+    refunds = json.loads((fixtures / "stripe-refunds.json").read_text())["data"]
+    charges = json.loads((fixtures / "stripe-charges.json").read_text())["data"]
+    balances = json.loads((fixtures / "stripe-balance-transactions.json").read_text())["data"]
+    charge = next(row for row in charges if row["id"] == "ch_external_usd")
+    charge["payment_intent"] = "pi_external_usd"
+    return {
+        "payment_intents": [{
+            "id": "pi_external_usd", "object": "payment_intent",
+            "metadata": METADATA, "livemode": True,
+            "status": "succeeded", "amount_received": charge["amount_captured"],
+            "currency": charge["currency"], "latest_charge": charge,
+        }],
+        "refunds": refunds,
+        "balance_transactions": balances,
+    }
+
+
+def _stripe_subscription_objects():
+    metadata = {**METADATA, "product": "writer_archive"}
+    subscriptions, invoices, balances = [], [], []
+    for key, interval, count in (
+        ("month_one", "month", 1), ("month_three", "month", 3),
+        ("month_missing", "month", None), ("month_zero", "month", 0),
+    ):
+        subscription_id = f"sub_{key}"
+        payment_intent_id = f"pi_{key}"
+        charge_id = f"ch_{key}"
+        balance_id = f"txn_{key}"
+        epoch = 1790798400
+        recurring = {"interval": interval}
+        if count is not None:
+            recurring["interval_count"] = count
+        subscriptions.append({
+            "id": subscription_id, "object": "subscription", "metadata": metadata,
+            "livemode": True, "status": "active", "created": epoch,
+            "items": {"data": [{"price": {
+                "unit_amount": 1000, "currency": "usd", "recurring": recurring,
+            }}]},
+        })
+        charge = {
+            "id": charge_id, "object": "charge", "amount": 1000,
+            "amount_captured": 1000, "amount_refunded": 0,
+            "balance_transaction": balance_id, "captured": True, "created": epoch,
+            "currency": "usd", "disputed": False, "livemode": True,
+            "payment_intent": payment_intent_id, "paid": True, "status": "succeeded",
+        }
+        invoices.append({
+            "id": f"in_{key}", "object": "invoice", "subscription": subscription_id,
+            "currency": "usd", "status": "paid", "paid": True, "livemode": True,
+            "status_transitions": {"paid_at": epoch}, "amount_paid": 1000,
+            "payments": {"data": [{"payment": {
+                "payment_intent": {
+                    "id": payment_intent_id, "object": "payment_intent",
+                    "metadata": metadata, "livemode": True, "status": "succeeded",
+                    "amount_received": 1000, "currency": "usd", "latest_charge": charge,
+                },
+            }}]},
+        })
+        balances.append({
+            "id": balance_id, "object": "balance_transaction", "amount": 1000,
+            "fee": 50, "net": 950, "currency": "usd", "created": epoch,
+            "available_on": 1790884800, "status": "available", "source": charge_id,
+            "type": "charge",
+        })
+    return {"subscriptions": subscriptions, "invoices": invoices,
+            "balance_transactions": balances}
+
+
 class WriterStripeProvenanceTest(unittest.TestCase):
+    def test_refund_without_livemode_inherits_only_exact_live_parent_mode(self):
+        rows = writer_stripe_sync.normalize_objects(
+            _b2_writer_objects(), observed_at=OBSERVED,
+        )
+
+        refund = next(row for row in rows if row["receipt_type"] == "refund")
+        self.assertFalse(refund["test"])
+        self.assertEqual(refund["status"], "refunded")
+        for mutate in (
+            lambda objects: objects["payment_intents"][0].pop("livemode"),
+            lambda objects: objects["refunds"][0].update(livemode=False),
+        ):
+            with self.subTest(mutate=mutate):
+                uncertain = _b2_writer_objects()
+                mutate(uncertain)
+                uncertain_rows = writer_stripe_sync.normalize_objects(
+                    uncertain, observed_at=OBSERVED,
+                )
+                self.assertFalse(any(
+                    row["receipt_type"] == "refund" for row in uncertain_rows
+                ))
+
+    def test_payment_requires_matching_charge_mode_and_balance_source(self):
+        valid = _b2_writer_objects()
+        valid["balance_transactions"][0]["type"] = "payment"
+        valid_rows = writer_stripe_sync.normalize_objects(valid, observed_at=OBSERVED)
+        self.assertTrue(any(
+            row.get("receipt_type") == "money" and row.get("status") == "verified_received"
+            for row in valid_rows
+        ))
+
+        contradicted = _b2_writer_objects()
+        contradicted["payment_intents"][0]["latest_charge"]["livemode"] = False
+        contradicted["balance_transactions"][0]["source"] = "ch_unrelated"
+        contradicted_rows = writer_stripe_sync.normalize_objects(
+            contradicted, observed_at=OBSERVED,
+        )
+        self.assertFalse(any(
+            row.get("receipt_type") == "money" and row.get("status") == "verified_received"
+            for row in contradicted_rows
+        ))
+
     def test_settlement_order_compares_instants_across_timezone_offsets(self):
         with tempfile.TemporaryDirectory() as tmp:
             ledger = MoneyLedger(Path(tmp) / "money.sqlite3")
@@ -136,6 +249,12 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                         amount REAL, currency TEXT, status TEXT,
                         external_receipt_id TEXT, source_url TEXT, observed_at TEXT
                     );
+                    CREATE TABLE subscription_contracts (
+                        subscription_id TEXT PRIMARY KEY, acquisition_artifact_id TEXT,
+                        stream TEXT, amount REAL, currency TEXT, interval_name TEXT,
+                        status TEXT, external_contract_id TEXT, source_url TEXT,
+                        test INTEGER, started_at TEXT, ended_at TEXT, observed_at TEXT
+                    );
                 """)
                 connection.execute(
                     "INSERT INTO money_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -149,11 +268,33 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                     ("legacy-fee", "legacy-event", "stripe", 1, "USD", "verified",
                      "legacy-fee", "https://example.com/fee", OBSERVED),
                 )
+                connection.execute(
+                    "INSERT INTO subscription_contracts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("legacy-subscription", METADATA["artifact_id"],
+                     "self_owned_subscription", 10, "USD", "month", "active",
+                     "legacy-subscription", "https://example.com/subscription", 0,
+                     "2026-09-01T00:00:00Z", None, OBSERVED),
+                )
 
             before_migration = writer_adapter.adapt_path(
                 database, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
             )
             ledger = MoneyLedger(database)
+            ledger.register_artifact(
+                artifact_id=METADATA["artifact_id"], run_id=METADATA["run_id"],
+                platform="self-owned", lang="en", live_url="https://example.com/article",
+                published_at="2026-09-30T19:00:00Z", artifact_sha256="9" * 64,
+            )
+            ledger.record_money_event(
+                artifact_id=METADATA["artifact_id"], scope="artifact",
+                stream="self_owned_subscription", revenue_class="direct_writing",
+                kind="subscription_charge", amount=10, currency="USD",
+                status="verified_received", counterparty="reader",
+                external_receipt_id="legacy-invoice", source_url="https://example.com/invoice",
+                test=False, occurred_at="2026-09-30T20:00:00Z",
+                settled_at="2026-10-01T20:00:00Z",
+                external_contract_id="legacy-subscription",
+            )
             with ledger._connect() as connection:
                 event = connection.execute(
                     "SELECT external_receipt_id,settled_at FROM money_events"
@@ -162,6 +303,10 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                     connection.execute("SELECT COUNT(*) FROM money_events").fetchone()[0],
                     connection.execute("SELECT COUNT(*) FROM money_fees").fetchone()[0],
                 )
+                legacy_interval_count = connection.execute(
+                    "SELECT interval_count FROM subscription_contracts "
+                    "WHERE external_contract_id='legacy-subscription'"
+                ).fetchone()["interval_count"]
             records = writer_adapter.adapt_path(
                 database, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
             )
@@ -173,11 +318,16 @@ class WriterStripeProvenanceTest(unittest.TestCase):
         )
         self.assertEqual(event["external_receipt_id"], "legacy-sale")
         self.assertIsNone(event["settled_at"])
-        self.assertEqual(counts, (1, 1))
+        self.assertEqual(counts, (2, 1))
+        self.assertIsNone(legacy_interval_count)
         self.assertEqual(receipt["verification_state"], "pending")
         self.assertIsNone(receipt["settled_at"])
         self.assertEqual(prior_receipt["verification_state"], "pending")
         self.assertIsNone(prior_receipt["settled_at"])
+        self.assertNotIn(
+            "writer:money_event:legacy-invoice",
+            {row.get("receipt_id") for row in records},
+        )
 
     def test_product_purchase_insert_path_survives_provenance_columns(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -217,149 +367,28 @@ class WriterStripeProvenanceTest(unittest.TestCase):
         self.assertEqual(receipt["verification_state"], "pending")
         self.assertIsNone(receipt["settled_at"])
 
-    def test_invoice_receipt_retains_the_provider_subscription_identity(self):
-        archive_metadata = {**METADATA, "product": "writer_archive"}
-        rows = writer_stripe_sync.normalize_objects(
-            {
-                "subscriptions": [{
-                    "id": "sub_month",
-                    "object": "subscription",
-                    "metadata": archive_metadata,
-                    "livemode": True,
-                    "status": "active",
-                    "created": 1790798400,
-                    "items": {"data": [{"price": {
-                        "unit_amount": 1000,
-                        "currency": "usd",
-                        "recurring": {"interval": "month"},
-                    }}]},
-                }],
-                "invoices": [{
-                    "id": "in_month",
-                    "object": "invoice",
-                    "subscription": "sub_month",
-                    "currency": "usd",
-                    "status": "paid",
-                    "paid": True,
-                    "status_transitions": {"paid_at": 1790798400},
-                    "amount_paid": 1000,
-                    "payments": {"data": [{"payment": {
-                        "payment_intent": {"latest_charge": {
-                            "balance_transaction": "txn_month",
-                        }},
-                    }}]},
-                }],
-                "balance_transactions": [{
-                    "id": "txn_month",
-                    "object": "balance_transaction",
-                    "amount": 1000,
-                    "fee": 0,
-                    "net": 1000,
-                    "currency": "usd",
-                    "created": 1790798400,
-                    "available_on": 1790884800,
-                    "status": "available",
-                    "source": "ch_month",
-                    "type": "charge",
-                }],
-            },
-            observed_at=OBSERVED,
-        )
-
-        invoice = next(
-            row for row in rows
-            if row["receipt_type"] == "money" and row["external_receipt_id"] == "in_month"
-        )
-        self.assertEqual(invoice.get("external_contract_id"), "sub_month")
-
     def test_available_on_is_retained_and_refund_needs_its_balance_receipt(self):
-        rows = writer_stripe_sync.normalize_objects(
-            {
-                "payment_intents": [{
-                    "id": "pi_writer",
-                    "object": "payment_intent",
-                    "metadata": METADATA,
-                    "livemode": True,
-                    "status": "succeeded",
-                    "amount_received": 1000,
-                    "currency": "usd",
-                    "latest_charge": {"balance_transaction": "txn_charge"},
-                }],
-                "balance_transactions": [{
-                    "id": "txn_charge",
-                    "object": "balance_transaction",
-                    "amount": 1000,
-                    "fee": 50,
-                    "net": 950,
-                    "currency": "usd",
-                    "created": 1790798400,
-                    "available_on": 1790884800,
-                    "status": "available",
-                    "source": "ch_writer",
-                    "type": "charge",
-                }],
-                "refunds": [{
-                    "id": "re_unsettled",
-                    "object": "refund",
-                    "amount": 500,
-                    "currency": "usd",
-                    "created": 1790802000,
-                    "livemode": True,
-                    "payment_intent": "pi_writer",
-                    "status": "succeeded",
-                }],
-            },
-            observed_at=OBSERVED,
-        )
+        objects = _b2_writer_objects()
+        rows = writer_stripe_sync.normalize_objects(objects, observed_at=OBSERVED)
 
         sale = next(row for row in rows if row["receipt_type"] == "money")
         fee = next(row for row in rows if row["receipt_type"] == "fee")
+        refund = next(row for row in rows if row["receipt_type"] == "refund")
         self.assertEqual(sale["occurred_at"], "2026-09-30T20:00:00Z")
-        self.assertEqual(sale.get("settled_at"), "2026-10-01T20:00:00Z")
-        self.assertEqual(fee.get("settled_at"), "2026-10-01T20:00:00Z")
-        self.assertFalse(any(row["receipt_type"] == "refund" for row in rows))
+        self.assertEqual(sale.get("settled_at"), "2026-09-30T21:00:00Z")
+        self.assertEqual(fee.get("settled_at"), "2026-09-30T21:00:00Z")
+        self.assertEqual(refund["occurred_at"], "2026-09-30T21:30:00Z")
+        self.assertEqual(refund["settled_at"], "2026-09-30T22:00:00Z")
 
-        settled_rows = writer_stripe_sync.normalize_objects(
-            {
-                "payment_intents": [{
-                    "id": "pi_writer",
-                    "metadata": METADATA,
-                    "livemode": True,
-                    "status": "succeeded",
-                    "amount_received": 1000,
-                    "currency": "usd",
-                    "latest_charge": {"balance_transaction": "txn_missing_charge"},
-                }],
-                "refunds": [{
-                    "id": "re_settled",
-                    "object": "refund",
-                    "amount": 500,
-                    "currency": "usd",
-                    "created": 1790802000,
-                    "livemode": True,
-                    "payment_intent": "pi_writer",
-                    "balance_transaction": "txn_refund",
-                    "status": "succeeded",
-                }],
-                "balance_transactions": [{
-                    "id": "txn_refund",
-                    "object": "balance_transaction",
-                    "amount": -500,
-                    "fee": 0,
-                    "net": -500,
-                    "currency": "usd",
-                    "created": 1790802000,
-                    "available_on": 1790892000,
-                    "status": "available",
-                    "source": "re_settled",
-                    "type": "refund",
-                }],
-            },
-            observed_at=OBSERVED,
+        unsettled = copy.deepcopy(objects)
+        unsettled["balance_transactions"] = [
+            row for row in unsettled["balance_transactions"]
+            if row["id"] != "txn_refund_usd"
+        ]
+        unsettled_rows = writer_stripe_sync.normalize_objects(
+            unsettled, observed_at=OBSERVED,
         )
-        refund = next(row for row in settled_rows if row["receipt_type"] == "refund")
-        self.assertEqual(refund["occurred_at"], "2026-09-30T21:00:00Z")
-        self.assertEqual(refund["settled_at"], "2026-10-01T22:00:00Z")
+        self.assertFalse(any(row["receipt_type"] == "refund" for row in unsettled_rows))
 
     def test_adapter_excludes_test_refund_and_its_verified_fee(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -428,31 +457,7 @@ class WriterStripeProvenanceTest(unittest.TestCase):
 
     def test_stripe_settlement_survives_sync_and_is_used_by_cfo(self):
         rows = writer_stripe_sync.normalize_objects(
-            {
-                "payment_intents": [{
-                    "id": "pi_pipeline",
-                    "object": "payment_intent",
-                    "metadata": METADATA,
-                    "livemode": True,
-                    "status": "succeeded",
-                    "amount_received": 1000,
-                    "currency": "usd",
-                    "latest_charge": {"balance_transaction": "txn_pipeline"},
-                }],
-                "balance_transactions": [{
-                    "id": "txn_pipeline",
-                    "object": "balance_transaction",
-                    "amount": 1000,
-                    "fee": 50,
-                    "net": 950,
-                    "currency": "usd",
-                    "created": 1790798400,
-                    "available_on": 1790884800,
-                    "status": "available",
-                    "source": "ch_pipeline",
-                    "type": "charge",
-                }],
-            },
+            _b2_writer_objects(),
             observed_at=OBSERVED,
         )
 
@@ -475,28 +480,33 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                 self.assertIn("occurred_at", fee_columns)
                 self.assertIn("settled_at", fee_columns)
                 event = connection.execute(
-                    "SELECT settled_at FROM money_events WHERE external_receipt_id='pi_pipeline'"
+                    "SELECT settled_at FROM money_events "
+                    "WHERE external_receipt_id='pi_external_usd'"
                 ).fetchone()
                 fee = connection.execute(
                     "SELECT occurred_at,settled_at FROM money_fees "
-                    "WHERE external_receipt_id='txn_pipeline'"
+                    "WHERE external_receipt_id='txn_charge_usd'"
                 ).fetchone()
             records = writer_adapter.adapt_path(
                 ledger.path, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
             )
 
         receipts = {row["receipt_id"]: row for row in records if row["record_type"] == "receipt"}
-        self.assertEqual(report["inserted"], 2)
-        self.assertEqual(event["settled_at"], "2026-10-01T20:00:00Z")
+        self.assertEqual(report["inserted"], 3)
+        self.assertEqual(event["settled_at"], "2026-09-30T21:00:00Z")
         self.assertEqual(fee["occurred_at"], "2026-09-30T20:00:00Z")
-        self.assertEqual(fee["settled_at"], "2026-10-01T20:00:00Z")
+        self.assertEqual(fee["settled_at"], "2026-09-30T21:00:00Z")
         self.assertEqual(
-            receipts["writer:money_event:pi_pipeline"]["settled_at"],
-            "2026-10-01T20:00:00.000000Z",
+            receipts["writer:money_event:pi_external_usd"]["settled_at"],
+            "2026-09-30T21:00:00.000000Z",
         )
         self.assertEqual(
-            receipts["writer:money_fee:txn_pipeline"]["settled_at"],
-            "2026-10-01T20:00:00.000000Z",
+            receipts["writer:money_fee:txn_charge_usd"]["settled_at"],
+            "2026-09-30T21:00:00.000000Z",
+        )
+        self.assertEqual(
+            receipts["writer:money_event:re_external_usd"]["settled_at"],
+            "2026-09-30T22:00:00.000000Z",
         )
 
     def test_subscription_receipt_class_uses_its_linked_contract_interval(self):
@@ -513,6 +523,7 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                 ledger.record_subscription(
                     acquisition_artifact_id=artifact_id, stream="self_owned_subscription",
                     amount=10, currency="USD", interval=interval, status="active",
+                    interval_count=1 if interval in {"month", "year"} else None,
                     external_contract_id=contract_id,
                     source_url=f"https://example.com/{contract_id}", test=False,
                     started_at="2026-09-01T00:00:00Z", observed_at=OBSERVED,
@@ -543,7 +554,114 @@ class WriterStripeProvenanceTest(unittest.TestCase):
         )
         self.assertNotIn("writer:money_event:invoice_unknown", receipts)
 
-    def test_editorial_fee_recurring_class_requires_a_billing_interval(self):
+    def test_interval_count_survives_stripe_ledger_and_cfo_chain(self):
+        rows = writer_stripe_sync.normalize_objects(
+            _stripe_subscription_objects(), observed_at=OBSERVED,
+        )
+        subscriptions = {
+            row["external_contract_id"]: row for row in rows
+            if row["receipt_type"] == "subscription"
+        }
+        self.assertEqual(subscriptions["sub_month_one"].get("interval_count"), 1)
+        self.assertEqual(subscriptions["sub_month_three"].get("interval_count"), 3)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = MoneyLedger(Path(tmp) / "money.sqlite3")
+            ledger.register_artifact(
+                artifact_id=METADATA["artifact_id"], run_id=METADATA["run_id"],
+                platform="self-owned", lang="en", live_url="https://example.com/article",
+                published_at="2026-09-30T19:00:00Z", artifact_sha256="a" * 64,
+            )
+            report = _sync_stripe_receipts(ledger, rows)
+            with ledger._connect() as connection:
+                contract_columns = {
+                    row["name"] for row in connection.execute(
+                        "PRAGMA table_info(subscription_contracts)"
+                    )
+                }
+                self.assertIn("interval_count", contract_columns)
+            records = writer_adapter.adapt_path(
+                ledger.path, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
+            )
+
+        receipts = {
+            row["receipt_id"]: row for row in records if row["record_type"] == "receipt"
+        }
+        self.assertEqual(report["rejected"], 1)
+        self.assertEqual(
+            receipts["writer:money_event:in_month_one"]["revenue_class"],
+            "monthly_recurring",
+        )
+        self.assertEqual(
+            receipts["writer:money_event:in_month_three"]["revenue_class"],
+            "other_recurring",
+        )
+        self.assertNotIn("writer:money_event:in_month_missing", receipts)
+        self.assertNotIn("writer:money_event:in_month_zero", receipts)
+        self.assertFalse(any(
+            row["record_type"] == "subscription_snapshot" for row in records
+        ))
+
+    def test_invoice_requires_matching_live_charge_and_balance_source(self):
+        objects = _stripe_subscription_objects()
+        payment = objects["invoices"][0]["payments"]["data"][0]["payment"]["payment_intent"]
+        payment["latest_charge"]["livemode"] = False
+        objects["balance_transactions"][0]["source"] = "ch_unrelated"
+
+        rows = writer_stripe_sync.normalize_objects(objects, observed_at=OBSERVED)
+
+        self.assertFalse(any(
+            row.get("receipt_type") == "money"
+            and row.get("external_receipt_id") == "in_month_one"
+            and row.get("status") == "verified_received"
+            for row in rows
+        ))
+
+    def test_contract_id_alone_cannot_cross_stream_currency_or_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = MoneyLedger(Path(tmp) / "money.sqlite3")
+            current_artifact = METADATA["artifact_id"]
+            other_artifact = "other-run__self-owned__en"
+            for artifact_id, run_id, lang in (
+                (current_artifact, METADATA["run_id"], "en"),
+                (other_artifact, "other-run", "en"),
+            ):
+                ledger.register_artifact(
+                    artifact_id=artifact_id, run_id=run_id, platform="self-owned", lang=lang,
+                    live_url=f"https://example.com/{run_id}",
+                    published_at="2026-09-30T19:00:00Z", artifact_sha256="1" * 64,
+                )
+            ledger.record_subscription(
+                acquisition_artifact_id=other_artifact, stream="self_owned_subscription",
+                amount=40, currency="EUR", interval="month", status="active",
+                interval_count=1,
+                external_contract_id="cross-contract",
+                source_url="https://example.com/cross-contract", test=False,
+                started_at="2026-09-01T00:00:00Z", observed_at=OBSERVED,
+            )
+            for kind, scope, artifact_id, stream, currency, receipt in (
+                ("subscription_charge", "artifact", current_artifact,
+                 "self_owned_subscription", "USD", "wrong-artifact"),
+                ("editorial_fee", "account", None, "editorial_fee", "USD", "wrong-stream"),
+            ):
+                ledger.record_money_event(
+                    artifact_id=artifact_id, scope=scope, stream=stream,
+                    revenue_class="direct_writing", kind=kind, amount=40,
+                    currency=currency, status="verified_received", counterparty="reader",
+                    external_receipt_id=receipt, source_url=f"https://example.com/{receipt}",
+                    test=False, occurred_at="2026-09-30T20:00:00Z",
+                    settled_at="2026-10-01T20:00:00Z",
+                    external_contract_id="cross-contract",
+                )
+            records = writer_adapter.adapt_path(
+                ledger.path, snapshot_at=OBSERVED, trailing_start="2026-09-01T00:00:00Z",
+            )
+
+        receipts = {row["receipt_id"] for row in records if row["record_type"] == "receipt"}
+        self.assertNotIn("writer:money_event:wrong-artifact", receipts)
+        self.assertNotIn("writer:money_event:wrong-stream", receipts)
+
+    def test_editorial_fee_contract_requires_real_billing_binding(self):
         with tempfile.TemporaryDirectory() as tmp:
             ledger = MoneyLedger(Path(tmp) / "money.sqlite3")
             for interval in ("month", "year", "unknown"):
@@ -580,17 +698,11 @@ class WriterStripeProvenanceTest(unittest.TestCase):
             row["receipt_id"]: row for row in records if row["record_type"] == "receipt"
         }
         self.assertEqual(
-            receipts["writer:money_event:editorial_month"]["revenue_class"],
-            "monthly_recurring",
-        )
-        self.assertEqual(
-            receipts["writer:money_event:editorial_year"]["revenue_class"],
-            "other_recurring",
-        )
-        self.assertEqual(
             receipts["writer:money_event:editorial_one_time"]["revenue_class"],
             "one_time",
         )
+        self.assertNotIn("writer:money_event:editorial_month", receipts)
+        self.assertNotIn("writer:money_event:editorial_year", receipts)
         self.assertNotIn("writer:money_event:editorial_unknown", receipts)
 
     def test_formal_settled_publisher_receipt_reaches_cfo_as_editorial_fee(self):
@@ -605,7 +717,9 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                 "counterparty": "Publisher", "counterparty_kind": "EXTERNAL_PUBLISHER",
                 "payment_status": "SETTLED", "received_by": "Writer",
                 "settled_at": "2026-10-01T22:00:00Z",
-                "revenue_type": "ONE_TIME", "payment_source_url": "https://example.com/payment",
+                "revenue_type": "RECURRING_RETAINER",
+                "recurring_contract_id": "retainer_month",
+                "payment_source_url": "https://example.com/payment",
                 "fee_source_url": "https://example.com/fee",
                 "payout_source_url": "https://example.com/payout",
                 "test": False, "estimated": False, "gross_amount": 40,
@@ -655,6 +769,13 @@ class WriterStripeProvenanceTest(unittest.TestCase):
                 )
 
             ledger = MoneyLedger(Path(tmp) / "money.sqlite3")
+            ledger.record_subscription(
+                acquisition_artifact_id=None, stream="editorial_retainer",
+                amount=40, currency="USD", interval="month", interval_count=1,
+                status="active", external_contract_id="retainer_month",
+                source_url="https://example.com/retainer_month", test=False,
+                started_at="2026-09-01T00:00:00Z", observed_at=OBSERVED,
+            )
             try:
                 result = ledger.record_commercial_payment(
                     opportunity_db=opportunity_db, payment_evidence_id="payment-evidence",
@@ -680,6 +801,10 @@ class WriterStripeProvenanceTest(unittest.TestCase):
         self.assertEqual(
             receipts["writer:money_event:publisher-payment"]["components"],
             [{"category": "settled_external_revenue", "amount": "40"}],
+        )
+        self.assertEqual(
+            receipts["writer:money_event:publisher-payment"]["revenue_class"],
+            "monthly_recurring",
         )
         self.assertEqual(
             receipts["writer:money_fee:publisher-fee"]["settled_at"],
