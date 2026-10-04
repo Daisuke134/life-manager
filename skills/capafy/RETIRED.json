@@ -1,0 +1,16 @@
+{
+  "agents": [
+    {"agent_id": "1037005959", "title": "Academic Results Humanizer — Clear Findings", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "6043563937", "title": "Academic Methods Humanizer — Natural Precision", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "4094753250", "title": "Literature Review Voice Editor", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "4763185052", "title": "Academic Limitations Editor", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "8722523949", "title": "Academic Abstract Claim Calibrator", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "4960391641", "title": "Journal Article Voice Editor", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "7883384570", "title": "Thesis Structure Humanizer — Chapter-Level Rewrite", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "6501274812", "title": "Japanese Humanizer Pro — Natural, Not AI", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "1059678246", "title": "Grant Proposal Voice Editor", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "3606804881", "title": "Scholarship Essay Voice Editor", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "9172280668", "title": "PhD Research Statement Voice Editor", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"},
+    {"agent_id": "2264929931", "title": "Dissertation Discussion Humanizer", "reason": "C4: 0 sales since launch, near-duplicate academic/humanizer family, Capafy doc 4.2", "retired_on": "2026-10-04"}
+  ]
+}
