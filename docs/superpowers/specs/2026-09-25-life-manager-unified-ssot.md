@@ -6668,3 +6668,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - Root readonly snapshotでcorrected private codeのSHA変更を確認（working SHA256 `933ef3d3e3f25796d8edd009966e0777237e43f39ed03d0fbf829a6e612dc1bd`、ASTparsePASS）。実観測 `dm-new-conversation-list/item` と `dm-new-chatbox` / `chat-uniqueid` / `dm-new-message-list` / `dm-new-chat-item` / `dm-new-message-text`を使うscopeへ変更。`dm-new-conversation-header`の名前だけでselectedchatHeaderと推定せず、sidebarとchatboxを分離する。未反映の修正予定を実装progressとして扱わない。
 - workerはwrapper/本文leafを分離し、active属性hardgateを廃止。row-pane bindingはdirect pane conversationID一致または同sessionのrowclick後の同一chatbox内truehandle変化に限定する。messageID/本文countのみのsignature変化はoldpaneへの新着/scrollでも生じるので、切替証明にしない。header不変/directID無しの本文観測をproviderconversationID確定へ昇格しない。
 - actual marker positive、IDwrapper+leaf positive、oldpane negativeを確認してからcontrolled readonlyUIへ進む。working codeは未受入であり、fixture/構文PASSをactual送信/本番loop修復へ昇格しない。元executed証拠はimmutable、本番source/auth/fence/send変更0。現在3未完→次4/残51項目/全goal未完。
+
+
+### 416. 実UIで一覧/選択まで到達、post-scope未実行のcontrol境界
+
+- corrected ownedUI runは109.283秒でbounded budget終了。正本savedJSONのphaseはselected_header_identity_and_renderer_read、selection clicked=true/row_count1。直前進捗の『選択なし』は最終応答前の値なので訂正。listreadinessは83.6s/28、97.9s/0、103.1s/28。selectionのDOM locator/ancestryとaria-selectedのhashを保存したが、post-header/chatbox/body scopeは未取得、samples0。
+- Runtime.evaluateのtimeout6件があり、最後の5秒click待機後にstart+108内部deadlineへ達してpost-scope expressionを実行できなかった。beforeScope/postScope未取得をprovider側の本文不存在や認証失敗としない。click応答の一部と付随seenはunknown、明示send/auth/fence/source/rawbody保存0。
+- result `execution3-tiktok-owned-renderer-read.corrected-scope-read.json`（§399同dir/mode600）SHA256 `b0f0b68c34a57637e5c5f8f1e4e25f4fa3cd116c0a98e818ed2683d0af092fa7`。targetclose成功/ownabsent/priorID+URLhash集合一致/target2/guardrelease0/leaseabsentを確認。同handle完了、browser/owner restartや他tab操作0。
+- 次は時間上限を増やすだけで反復せず、validMessages frame/list-ready後の重複context/list走査を削り、同Runtime callでbefore scoped snapshotとnormalrowclickを記録してpostscope時間を確保する局所control修正を行う。修正/contained check後のreadonly1runだけで実データを再観測。current3未完→next4/残51項目を維持、実送信数はunknown。
