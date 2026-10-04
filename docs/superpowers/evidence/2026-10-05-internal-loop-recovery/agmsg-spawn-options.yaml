@@ -1,0 +1,4 @@
+codex:
+  -c: model_reasoning_effort="max"
+  -a: never
+  -s: danger-full-access
