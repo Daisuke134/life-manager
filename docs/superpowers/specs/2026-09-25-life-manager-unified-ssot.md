@@ -6154,3 +6154,9 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 次の欠損に対し、既存official URL /mypage/customize/offers/6361950をregistered identity／自己contextでread-only取得。workerreceiptは2026-10-04T04:26:34Z／HTTP403、body13chars／textarea0／request・purchase表示無し。processrc0はprobe終了でありprovider取得成功ではない。入力・click・送信・formal0、owncontext／lease／owner行の終了確認。private purchased-offer-read-receipt.jsonとbodyhash58404bdf6dc25c24fedd979469e69bfb8dc9ebca64a469929a858a12b12b9c30を保存。
 - A04には公式originalbytes candidateが回収済みだが、購入済み提案本文と②の契約識別が不足。最小再開条件は正規提案のアクセス／本文取得、または①だけで当該roomを終了し②を別契約で継続する合意の公式receipt。Daisへ一般的な技術許可を求めたり、その承認をbuyer合意へ置換したりしない。formal gate／approvalreadyを書換えず、未完成②を①承認で完了扱いしない。
 - 同scope boundaryへのblind再試行は行わず、A04holdを保持して独立したA01他案件要件／A03不足入力の作業を進める。全体goalはactive／未完、SelfBuild最後。
+
+### 355. 独立A01案件の読取と403 receipt保持
+
+- A04契約scope外部待ちを保持して、current orders入力の18180857を既存normal collector／cookie scope coco／自己ownerでread-only実行。session84022はexit1、公式selected_talkroom_access_forbidden／HTTP403／coveragefalse、snapshot未作成。これを過去19verified／281remainingの最新値や納品・取引終了へ置換しない。
+- 私的evidence 18180857-owner-env-evidence/snapshot-failure.json／source-receipt.jsonとlog lm-coconala-a01-campaign-readonly.logを保持。型を狭める新観測無しで同じqueryを繰り返さず、既存証拠のlocal照合や別providerの独立jobへ進む。外部配信／返信／formal／既存project state変更0。
+- 現在のCoconala境界はorders取得可、個別room／offerはattemptによって403／200。NPO／budgetの成功履歴binding、official originalの回収、未確定契約scopeを分ける。globalログイン故障、全provider拒否、経路修正成功を断定しない。全goalactive、SelfBuild最後。
