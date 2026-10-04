@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§456の実CID/選択遷移/一意pane/header一致と包含による限定bindingを新occurrenceで確認し、同pane本文を一度だけreadbackすること。残るpost field-keyを最小修正し、欠けるmessage ID/sender/dateをunknownとして送信/財務結論へ昇格しない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§457の同pane本文hash/長さ一致1件をfresh read-only reviewで反証確認し、sender/message ID/dateの局所source境界を絞ること。source未取得を不一致/0/正式送信receiptへ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7063,3 +7063,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 残るpost consumer candidate_count→target_row_count修正と、relation判定を実観測済みCID/選択遷移/一意pane/handle一致/包含へ合わせる。header before/after署名差は正常遷移であり拒否条件ではない。単なる同root/CSS名だけの認定はしない。
 - 次の一回は同occurrenceでこれらを確認した直後、同box内のunique message paneに包含されるbubble/bodyだけを読む。本文読取時もpane同一性とheader一致を保持。期待body hash、実message ID/sender/dateを取得し、欠ける項目はunknown。本文一致を送信成功/receipt完備/settlementへ昇格しない。過去の閉じたtabのbindingを流用しない。send/newchat/composer禁止、read-state unknown。
 - 追加observableは対象bubble/bodyの同pane包含で、本文読取と同時に取得する。reader/fixtureを新体系へ広げず、既存controller/atomics/helperを最小変更してONE live。reviewのbrowser/file変更0。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
+
+
+### 457. 対象本文hash/長さ一致1件を同paneで観測、receipt metadata未取得
+
+- 同Luna/max担当のONE live run `aec7afc8-48fe-4e0e-984e-75596f930fbc`、83.729秒、one_candidate_ui_bound_message_body_observation、terminal。scroll1/rowclick1、candidate CID/集合安定、active false→true、unique visiblebox/pane/header、box包含、headerhandle本文/nickname一致によりUI限定bindingを確認。本文前後のsamepane signature/expectedheader一致も確認。
+- 同selected pane内のbody候補1件で期待UTF8 SHA `5a9689c097d5f60082412075b1d5990a5b2ad242bae9aa25fc0ecd8651b5723b` と長さ210が一致。これは§422bound targetの会話UI内に当該本文が表示された限定観測。送信者profile/UIDのsourceは空、message ID/date hashはunknown。sender_matches_expected=falseは異なる送信者を観測した証拠ではなくsource未取得。本文一致を送信成功/正式receipt完備/300件履行/settlement/CFO売上へ昇格しない。
+- officialprofile href/peerUID/ARIA参照は未確認として保持。send/newchat/compose/auth/fence0、read-state unknown、guard release0/own target absent/prior exact ID+URL保持/lease absent。primary再fixturePASS（実保存postのCID/active/unique/header、CID変更・複数pane拒否）、実argv/source/result一致、新3files600/旧source不変。
+- reader `81c0e1e4b22e2f3de2efb0e25a40805b456a539c81c8926151c500637d396dc7`、result `d15d7710eba15f06ba5054ed2aadb74cda59e709131c86bb0b5dae419cfedaa8`、proof `0fc3fec3b753d2b138baf3b3803d1a70d3a88ddf7107a43865410947ff16f1b4`。fresh Sol/medium reviewerへbody包含/helper/ID-date-sender source境界と次の局所probeを反証確認依頼。
+- 次はこの同bound bubbleの局所属性/semantic/time sourceで欠損境界を狭められるか確認する。data-index/CSS位置をofficial message IDやsenderへ置換しない。公式UIに取得経路がなければ不足source・最小再開条件を明示し、同じ診断の無限反復をしない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
