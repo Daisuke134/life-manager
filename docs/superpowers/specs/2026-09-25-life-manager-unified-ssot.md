@@ -5748,7 +5748,14 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 ### 318. 自然runのconfirmation再送0と旧fence保持／A20実登録境界
 
 - 同new1a7 native run18db30394f2b25a8-65279はexecute01:44:59Z→report01:48:34Z／pass／exit0。actual claimed occurrenceは18db147777f3f2e0-31915。latest outputmtime01:48:32Zはrun内、output154observed／effect0／readback140／pending14／failed0。thread304360469はpending reconcile_unknown／effect0／readback0。
-- actual occurrenceに対応するmarker occurrence一致／同target effect0／status effect_unknown、thread state reconcile_unknown／verified receipt無し。凍結output／markerのSHAは記録したoriginalと一致。以前の219fenceはSQLite mode=roで全219がclaimed／effect_unknown1のまま。今回claimのreleased／unknown0は旧219リストに含まれない。対象の一自然run再送0だけの限定証明で、form受領や全返信／金融成果は未完。fresh reviewer crowdworks_confirmation_natural_reviewをgpt-5.6-sol／medium／forknoneで依頼中。actual model／effort／usageは未観測。
+- actual occurrenceに対応するmarker occurrence一致／同target effect0／status effect_unknown、thread state reconcile_unknown／verified receipt無し。凍結output／markerのSHAは記録したoriginalと一致。以前の219fenceはSQLite mode=roで全219がclaimed／effect_unknown1のまま。今回claimのreleased／unknown0は旧219リストに含まれない。対象の一自然run再送0だけの限定証明で、form受領や全返信／金融成果は未完。fresh reviewer crowdworks_confirmation_natural_review（gpt-5.6-sol／medium／forknone）は一run限定ship。actual model／effort／usageは未観測。
 - A20／A21の現物registryにFreelancer／Upwork active ownerは0。旧Freelancer3label／Upwork2labelはretired。Upwork専用identityは登録済みだがendpoint_unavailable、正規credentials SSOTにはaccount fieldがある（値は非露出）。checked gig-upwork vault pathは不存在だが全vault所在を調べた証明ではない。制作skillは検索／提案／交渉／納品ownerの代わりではない。
 - Freelancer transport／paid adapter／readiness sourceはあるが、正規credential SSOT matching record、旧OAuth path、専用profileの本probeでは未取得。action matrix unknown、local recorded automatic bid policyはprovider承認を要求する。最新公式policyは未再照合で、accountやprovider承認を捏造しない。新owner／retired復活／認証／proposal／支払操作0。
 - 証拠state/crowdworks-confirmation-natural-success-readback.json／同frozen artifact、freelancer-upwork-a20-owner-account-boundary.json/mode600。次は限定自然proofの独立判定を確認し、account-bound source／正規browser ownerを接続する前提をproviderごとに閉じる。全goal未完、SelfBuildは最後。
+
+### 319. confirmation再送抑止の一自然run限定SHIPと証拠再計算参照
+
+- fresh independent natural reviewerはship（限定結論のみ）、指摘なし。manifest／origin main SHA、native run／actual occurrence、01:48:32Z outputのrun窓、frozen output／marker hash、target pending effect0、marker unknown、provider receipt nullを一次資料で照合する。旧form受領や全marketplace／金融成果の成功ではない。
+- 旧219fence集合の参照不足という検証限界に対し、既存crowdworks-a10-marker-boundary.jsonのremaining exact IDsをfrozen historic-fence-ids.jsonへ記録し、SHA256 c3a9ac2804117c2c7d1d1f54b3eb5b492c242812d349a553635b42ea40d0026aと元source hashをprivate proofへ補う。これはsource／provider／admission state変更ではない。旧219件は親のmode-ro比較で全保持、後続の新unknown1件は旧集合と区別する。cadence起動の暗号署名は主張せず、native journal／loaded argv／親のmanualwake0で通常owner実行を観測する。
+- CrowdWorks confirmation source不具合の実装→CI／main→complete immutable→official loaded→一自然runの再送0／unknown保持はこの範囲で成立。A10の旧claim／contract／form receipt、全Paid納品・精算・着金は未完。次はA20／A21のaccount・source／正規browser／owner接続と他providerの残成果を進める。SelfBuildは最後、全goal未完。
+- actual model／effort／usageは非公開のため観測不能、要求値と区別する。API相当費用は算定不能。
