@@ -1,0 +1,36 @@
+# Life Manager CFO handover — 2026-10-05 00:42 JST
+
+## Canonical TODO
+
+- Repository: `https://github.com/Daisuke134/life-manager.git`
+- Remaining-TODO SSOT: `/Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-cost-observability-20261002/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`, §87-J items 5–8. The project-wide Life Manager order remains in the SSOT; do not create another.
+- Detailed execution plan: `/Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-cost-observability-20261002/docs/superpowers/plans/2026-10-02-life-manager-cfo-cost-observability.md`, Task 4 follow-up and Task 8 Step 4–5.
+
+## Git and ownership
+
+- Spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-cost-observability-20261002`
+- Branch/upstream/push target: `docs/lm-cfo-cost-observability-spec-20261002` / `origin/docs/lm-cfo-cost-observability-spec-20261002` / same remote branch.
+- Last verified source/spec HEAD: `9c53feca93dac8c96b00abd8db52d46a81965e3b`, pushed and clean before this handover file was added; `origin/main` `82d31995e68a5220b7a288318a893866a24c7ea6` is an ancestor. This handover file is intended as the only subsequent docs-only change. Fetch and verify the actual branch tip before resuming.
+- The normal checkout `/Users/anicca/Projects/life-manager-main` is on `capafy/podcast-clip-hook-lab-offline-20261005`, behind `origin/main` by 2, with unrelated untracked files. Do not edit, switch, or clean it.
+- Mobile metrics worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-mobile-metrics-20261003` is on `feat/lm-mobile-metrics-20261003`, HEAD `1f045eff3d27cfec3945cd8d2dff64f06928c834`, owned by `codex-money-printer` under lease through `2026-10-04T21:29:23Z` (2026-10-05 06:29 JST). Do not edit its files while the lease is live; refresh the lease first.
+- No separate implementation worktree is designated. Source changes use a fresh dedicated worktree from fetched `origin/main`; document its exact path/branch/upstream/HEAD before writing. Any reviewer uses a detached read-only snapshot of the exact commit. The CFO branch contains unrelated marketing commit `cab8cce811`; exclude it from any eventual CFO PR.
+
+## Current cursor and verified state
+
+- Cursor is §87-J item 5: source-complete business ledger. B7 still has 135/130 historical/trailing gaps, 14/14 loops `unknown`, and unknown MRR/runway (last projection 2026-10-04). Never coerce missing coverage into zero.
+- Apple correction: `--date 2026-09` is an Apple fiscal report with JPY 1,184 from May/June transaction/settlement dates, not September calendar revenue. Fiscal `2026-12` includes one JPY 4,250 row dated 2026-09-12, but its Apple Identifier is not mapped to a current app; both remain unattributed/outside B7. RevenueCat latest complete six-app MRR is JPY 3,196.91 (business date 2026-10-03); JPY 3,363.77 is a RevenueCat September metric, not Apple settlement or bank cash. Local rows still lack currency/revenue definition.
+- MUFG display balance remains last-known without source freshness; latest available bank transaction is 2026-08-25. Do not claim a current bank balance or complete September/October personal expenses.
+- Google’s private 2026-09 invoice CSV is readable; header invoice total is JPY 27,889, but parser omits a cross-month 2026-08-31 Cloud Storage row worth JPY 0.000300. The exact TDD follow-up is in Plan Task 4 follow-up. It is an invoice, not proof of payment. Last recorded production B6 actual-cost readback was `read_failed`; October 1–4 Google-labeled usage USD 5.02665475 and straight-line ~USD 40.64 are estimates, not invoice/forecast.
+- Last `lm-loop status` read at 2026-10-05 00:41 JST: local CFO and cloud Financial Report owners are `loaded-idle` on release `1a20a53798b09e0f58c019b45aa704aa2ddf55b2`; latest attempts exit 75 / `resource_capacity_busy`, `effect=not_applicable`, no provider receipt. No manual retry/send. Issue #6549 remains OPEN with one 👍.
+- Promotion order is item 7. A read-only policy audit found no existing formal path that satisfies both global “merge only after full acceptance” and project “main-derived release before natural production acceptance”. Do not bypass either; source reconciliation can continue independently.
+- This turn changed documents only. No production config/provider data/owner state/enqueue/release or CFO report send changed. One internal Telegram progress DM to Dais was sent through the existing MTProto route (message ID `105672`); no Gmail handover email, public post, or client report was sent. No new CLI was created. The read-only Sol review found no Critical/Important issue; all three minor consistency findings were corrected and rechecked.
+
+## First safe resume action
+
+Fetch `origin`; verify the spec worktree path, branch, upstream, HEAD, clean state, and active lease. Continue §87-J item 5 one unit at a time, starting with the mobile source attribution/currency contract only after checking the mobile lease. Then continue Moneytree freshness and remaining B7 settlement coverage. Do not jump to item 6 before item 5, add a CLI, or edit the dirty shared checkout.
+
+## User-sendable `/goal` (not activated)
+
+```text
+/goal Life ManagerのCFOが、Dais個人のMUFG残高/支出と全事業streamの売上・返金・費用を公式sourceと鮮度付きで日次報告し、$10k MRR目標を支える費用最小化を実測できる状態にする。Done: 全14 loopのcoverageを示し、settled/invoice/estimate/stale/unknownを分離し、根拠のあるnet/MRR/runwayだけ表示する。MUFGの現在残高・freshness・transaction coverage、RevenueCat/Apple/Stripe/Capafy等の売上・返金・fee・settlement帰属、Google Cost Table全行・税・丸め・project/tenant/loop費用を照合する。OpenPOI等の代替は同期間のUXと実費を測り、最安の品質許容laneを選ぶ。local日次CFO reportは自然receiptとsame-period replay-zeroを確認し、その後にのみ旧cloud senderをretire、続けて7日間観測する。まずhandover `/Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-cost-observability-20261002/.claude/handovers/2026-10-05_0042_lm-cfo-cost-observability.md`とSSOT `/Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-cost-observability-20261002/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` §87-Jを読み、fetch後にHEAD/upstream/dirty state/leaseを検証し、事実更新に応じてSSOTを更新してitem 5→8を順に続行する。current spec worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-cost-observability-20261002`, branch/upstream/push target `docs/lm-cfo-cost-observability-spec-20261002` / `origin/docs/lm-cfo-cost-observability-spec-20261002` / 同remote branch; source/spec baseline `9c53feca93dac8c96b00abd8db52d46a81965e3b` (handover-only descendant is expected; fetch and verify its exact tip). Dirty normal checkout and leased `lm-mobile-metrics-20261003` are off-limits. Any code change gets a fresh dedicated worktree from fetched `origin/main` with exact path/branch/upstream/HEAD recorded; reviewer uses detached read-only snapshot of exact commit. Create no new CLI. Plan/review with gpt-6.1-sol/medium; implementation with gpt-6-luna/max; never use 5.6. Use one fresh read-only `spawn_agent` reviewer for financial claims; no write fan-out or overlapping ownership. Declare necessary production mutations per AGENTS, never claim a report/release from tests alone. Resolve the item 7 promotion conflict without bypassing either policy; stop only after three distinct safe diagnostics show no allowed route, and record the exact blocker plus smallest next action. Do not convert unknown to zero or stop at a plan.
+```
