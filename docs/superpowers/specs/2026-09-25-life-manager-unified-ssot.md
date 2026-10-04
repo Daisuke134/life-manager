@@ -6068,3 +6068,11 @@ fresh Sol6.1 mediumの同計画監査は条件付きPASS。指摘4件（6束≠6
 残TODOの正本は§217のA01–46。完了済みはA02／A37とA21.1–3の一部source確認、Reply source受入。残業務はCoconala A01/A03–07、Lancers/CrowdWorks A08–12、Mercor A13–15、応募/mail A16–18、商品公開A19、Freelancer/Upwork A20–22、storefront/Fiverr A23–27、他loop A28–35、runtime A36、Mobile/CFO A38–42、最後SelfBuild/Eval A43–46。2sourceのPR/main依存は§328。既存成果をやり直さず、外部待ちを保持して次の独立jobを進める。
 
 iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件・acceptanceの文書引継ぎであり、$10K MRR達成やTask2–6の製品実装ではない。製品実装・設定・投稿・広告を新規に開始しない。CFOのDoneは同期間settled revenue/refund/fee/actual cost／net／MRR／cash／runwayとdup0の証明で、欠損0埋めではない。全goal未完、SelfBuild最後。
+
+### 344. AGMSG標準recipeへの永続化と残順序の維持
+
+- Daisはagmsg skillへの標準recipe追加を明示依頼。specだけの記録から、汎用skillへ発見可能な参照を追加する。適用skillはagmsg／skill-creator／writing-skills、runtime scriptsやteam DBを変更しない。
+- installed ~/.agentsはanicca-agents-skills共有checkoutで多数の既存dirty変更、agmsg/SKILL.mdも既存変更207追加／67削除。既存内容をcommit／上書きせず、最新origin/main4862e008から専用sparse worktree /Users/anicca/.local/share/anicca/worktrees/agmsg-parallel-recipe-20261004、branch docs/agmsg-parallel-recipe-20261004を作る。
+- native Luna6 max task agmsg_parallel_recipe_implementationはSKILL.mdの短いroutingとreferences/parallel-development.mdの2fileだけ所有。recipeはsubagent／AGMSGの選択、参加／identity再利用、sendとspawn／実働の区別、resource排他、短い成果packet、dynamic並列数、同HEAD検証再利用、singleTODOと成果受入を汎用的に記述する。private LifeManager案件・金額・credentialsを含めず、旧model既定をbakeしない。
+- workerはsource docs検証／commitpush／remote確認、親はinstalled skillの元hashを保存し、同じ参照・recipeだけを差分配置する。hash変化なら上書きしない。部署前後の既存render marker・commands／内容保持を検証する。実agent／provider操作無し、team/schema/scripts変更無し。source／配置完了は未達。
+- 残業務の順は§217 A01–46を維持。Coconala A01/A03–07→Lancers/CrowdWorks A08–12→Mercor A13–15→応募/mail A16–18→既存商品/Freelancer/Upwork A19–22→storefront/Fiverr A23–27→他loop A28–35→runtime A36→Mobile/CFO A38–42→最後SelfBuild/Eval A43–46。A02／A37は完了保持、外部待ちは保持し独立jobのみ先行。iOS growth別計画のTask1調査／Task3調査は既存owner範囲、製品実装を新たに開始しない。
