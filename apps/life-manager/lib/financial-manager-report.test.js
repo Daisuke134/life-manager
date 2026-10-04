@@ -153,6 +153,40 @@ test("business source coverage is visible without turning a gap into zero", () =
   assert.doesNotMatch(text, /収益: ¥0/);
 });
 
+test("B7 partial readback and unknown MRR or runway mark direct reports partial", () => {
+  for (const { status, mrrStatus, runwayStatus, withProjection = true } of [
+    { status: "partial", mrrStatus: "verified", runwayStatus: "verified" },
+    { status: "fresh", mrrStatus: "unknown", runwayStatus: "verified" },
+    { status: "fresh", mrrStatus: "verified", runwayStatus: "unknown" },
+    { status: "unavailable", mrrStatus: "unknown", runwayStatus: "unknown", withProjection: false },
+  ]) {
+    const { report } = buildFinancialManagerReport([], "2026-10-02", {
+      businessReadback: {
+        status,
+        observedAt: "2026-10-03T00:00:00.000000Z",
+        sourceReceiptRefs: [],
+        ...(withProjection ? { table: { economic_attribution: {
+          snapshot_at: "2026-10-03T00:00:00.000000Z",
+          trailing: {
+            window_start: "2026-09-03T00:00:00.000000Z",
+            window_end: "2026-10-03T00:00:00.000000Z",
+            company: { status: "verified", currencies: {} }, loops: {},
+          },
+          mrr: { company: {
+            status: mrrStatus, currencies: {},
+            reasons: mrrStatus === "unknown" ? ["mrr_coverage_unknown"] : [],
+          } },
+          runway: {
+            status: runwayStatus, currencies: {},
+            reasons: runwayStatus === "unknown" ? ["liquid_balance_missing"] : [],
+          },
+        } } } : {}),
+      },
+    });
+    assert.equal(report.partial, true, `${status}/${mrrStatus}/${runwayStatus}`);
+  }
+});
+
 test("B7 economic snapshot stays separate from FinancialRecord totals and preserves unknowns", () => {
   const receiptRef = `loop-pnl://sha256/${"a".repeat(64)}`;
   const financialRecords = [

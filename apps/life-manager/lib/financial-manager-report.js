@@ -169,15 +169,18 @@ function copyB7Loops(value) {
 }
 
 function buildB7EconomicSnapshot(businessReadback) {
+  if (!businessReadback || typeof businessReadback !== "object" || Array.isArray(businessReadback)) return null;
   const projection = businessReadback?.table?.economic_attribution;
-  if (!projection || typeof projection !== "object" || Array.isArray(projection)) return null;
-  const trailing = projection.trailing && typeof projection.trailing === "object"
-    ? projection.trailing : {};
-  const mrr = projection.mrr && typeof projection.mrr === "object" ? projection.mrr : {};
-  const runway = copyB7Scope(projection.runway, true);
+  const economicAttribution = projection && typeof projection === "object" && !Array.isArray(projection)
+    ? projection : {};
+  const trailing = economicAttribution.trailing && typeof economicAttribution.trailing === "object"
+    ? economicAttribution.trailing : {};
+  const mrr = economicAttribution.mrr && typeof economicAttribution.mrr === "object"
+    ? economicAttribution.mrr : {};
+  const runway = copyB7Scope(economicAttribution.runway, true);
   const observedAt = typeof businessReadback.observedAt === "string"
     ? businessReadback.observedAt
-    : (typeof projection.snapshot_at === "string" ? projection.snapshot_at : null);
+    : (typeof economicAttribution.snapshot_at === "string" ? economicAttribution.snapshot_at : null);
   return {
     status: B7_READBACK_STATUSES.has(businessReadback.status) ? businessReadback.status : "unknown",
     observedAt,
@@ -277,6 +280,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       provider,
       ...summarizeBusiness(currentBusiness.filter((record) => record.source.provider === provider)),
     }));
+  const b7EconomicSnapshot = buildB7EconomicSnapshot(businessReadback);
   const report = {
     schemaVersion: 1,
     reportingDate,
@@ -310,7 +314,10 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     sourceFreshness: sourceFreshness || {},
     partial: Object.values(sourceFreshness || {}).some((value) => value && value.status !== "fresh")
       || Boolean(providerBudget && providerBudget.state && providerBudget.state !== "normal")
-      || Boolean(providerLaneReadback && providerLaneReadback.status && providerLaneReadback.status !== "fresh"),
+      || Boolean(providerLaneReadback && providerLaneReadback.status && providerLaneReadback.status !== "fresh")
+      || Boolean(b7EconomicSnapshot && (b7EconomicSnapshot.status !== "fresh"
+        || b7EconomicSnapshot.mrr.status === "unknown"
+        || b7EconomicSnapshot.runway.status === "unknown")),
     businessSourceCoverage: Array.isArray(businessSourceCoverage) ? businessSourceCoverage : [],
     providerLanes: normalizeProviderLanes(providerLanes),
     providerLaneReadback: normalizeProviderLaneReadback(providerLaneReadback),
@@ -329,7 +336,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
           categories: Array.isArray(row.categories) ? row.categories.map(String) : [],
         })) : [],
     } : null,
-    b7EconomicSnapshot: buildB7EconomicSnapshot(businessReadback),
+    b7EconomicSnapshot,
     providerCostSettlement: providerCostSettlement ? {
       status: providerCostSettlement.status || "unknown",
       observedAt: providerCostSettlement.observedAt || null,
