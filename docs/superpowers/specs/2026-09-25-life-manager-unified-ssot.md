@@ -4858,18 +4858,18 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 - 最後に確認したMercor Paidのimmutable/loaded releaseはbe2/completeALL。§266のrun18db1b5057086a18-3074はtoken期限切れ→更新→有効、同run公式契約GET成功。独立reviewはこの範囲の限定SHIP、SPA Profile遷移・scheduler起点の独立証明・金融receiptは未証明。contracts空を売上・費用・利益0へ拡張しない。release ownerの稼働状態は操作前にfresh確認し、重複build/apply/kill/wakeしない。
 - SelfBuild自然UUID/台帳/report一致は§262で確認。safe promotion/recovery、eval/cost-first改善の本成果は未完。Mobile別担当のbranch/Apple/provider/profileを触らない。
 - Mercor旧Paid1件とReply49631はexact業務scope proofで解放/replay0。別旧Reply61324/App33812は証拠不足でHELD。Lancers2/CrowdWorks18は過去censusであり、最新件数と混同しない。
-- Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。既存buyer workは19 verified unique sends/残281、品質・納品条件未達でpending。loaded vaultと既定vaultを混同しない。
+- Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。TikTok案件18180857の旧観測は19 verified unique sends/残281、品質・納品条件未達でpending。Webサイト案件18211957とは別であり、この件数を結合しない。loaded vaultと既定vaultを混同しない。
 - diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは§278で自然退役/officialabsent/doctor178unmanaged0・retiredpresent0・missing0/隔離replayを確認。全fleet健康・admission・disk、全14経済成果は別の未完条件。全14loops CFO unknownは未完。
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはCoconala既存案件の不足納品条件と公式orders HTTP403境界の確認。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorはA02の公式orders HTTP403境界診断。A01はlocal案件分離と要件binding監査を実施し、最新公式要件との照合を残す。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
 #### Atomic残TODO（上から実行、外部待ちは保持して次の実行可能項目へ）
 
-- [ ] A01 Coconalaの既存案件ごとに残納品条件を確認する。
+- [ ] A01 Coconalaの既存案件ごとに残納品条件を確認する。local確認では18211957のdecision／reviewが現行feedbackと不一致。18180857はdecision一致。最新公式要件との照合は未完。
 - [ ] A02 Coconala orders取得のHTTP403原因を切り分ける。
 - [ ] A03 Coconala案件の残制作を納品条件まで完了する。
 - [ ] A04 Coconala正式納品の公式記録を確認する。
@@ -5604,3 +5604,9 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - 初回lm-selfbuild-baseline-review-1004はhooks確認で停止、safe pokeがinput box未特定を理由に拒否。raw typing回避0/hooks信頼付与0。CLIのstable hooks featureと--disableを確認し、review taskだけ--disable hooksを指定した別fresh lm-selfbuild-baseline-review-1004bを起動。globalconfig/他pane/sourcebranch変更0。
 - spawnのlaunched-unconfirmedを成功扱いせず、agmsg peekで指定HEAD task/read-onlyレビューの着手とWorkingを観測。UI banner GPT-5.6-Sol high fastを確認。nativeモデル不明とCLI UI観測を区別しusage/billingは観測不能。現在base..HEAD source/testsを読取中、AGMSG ACK/DONE未受信、verdict未確定。
 - state/selfbuild-owner-baseline-source-20261004.json/mode600へroute/errors/requestedflags/UI observationを保存。次はactual独立review DONE/exactHEAD/tests/verdictを確認してからPR/allCI/source受入。既存コード/実金融をreview結果なしにSHIPへ丸めない。全goalactive、全残TODO → §217。
+
+### 297. Coconala A01の案件分離と要件binding監査
+
+- local state／requirements／decision／reviewを案件別に読み、18180857のTikTok送信件数を18211957へ結合した記述を訂正する。19／281は過去の18180857観測で最新件数ではない。
+- 18211957はstateとrequirementsのfeedback SHA一致、decision／reviewのSHAは不一致。旧review APPROVEDとv41の限定archive PASSは現行要件の完了・正式納品承認を証明しない。18180857はdecision一致だが正式納品未確認。公式最新readbackは両案件とも本監査では未取得。
+- 証拠state/coconala-a01-project-requirements-binding.jsonはmode600、provider作用・client送信・正式納品・project state変更0。A01は部分実施として保持し、A02公式orders HTTP403境界を次に診断する。SelfBuild／Evalは§217のA43以降、全体goalは未完。
