@@ -4878,7 +4878,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A07 Coconala payout／銀行着金を照合する。
 - [ ] A08 Lancersの正規Human Verification／利用可能なaccount状態を確認する。§301のfresh公式金融pageはHTTP405／human_verification true、明細unavailable。正規人間検証が必要。
 - [ ] A09 Lancersの未確定応募・返信を公式案件履歴と照合する。
-- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。
+- [ ] A10 CrowdWorksの未確定応募・返信を公式案件履歴と照合する。§302の最新censusはreply219／application5。provider lock保持reply_kernel PID48806をlive確認、公式readback待ち。旧18と混同しない。
 - [ ] A11 Lancers／CrowdWorksの契約ごとに未完の制作・納品・検収を閉じる。
 - [ ] A12 Lancers／CrowdWorksの精算・手数料・着金を案件ごとに照合する。
 - [ ] A13 Mercorの旧App／Reply未確定状態を公式記録と照合する。
@@ -5636,3 +5636,10 @@ Daisの依頼に沿い、応募／返信／制作・納品／精算・入金／s
 - current b7fbの既存formal browser純粋validatorを、§299の公式historyを持つ隔離project rootへ適用する。予算書承認はbuyer222226516、最新buyerは222226563で異なる。approval_ready false／approval_official_latest false、現行decisionはreview。後続buyerは資料待ちを含むため、scope判断の再取得前に古い承認を最新へ偽装したり正式納品を送ったりしない。証拠state/coconala-a04-formal-preflight.json/mode600、納品作用0。
 - 正規browser-guardでlancers:daisのleaseを取得し、専用profileの自己pageだけで公式/mypage/paymentを読み取り、finally page close／lease release。HTTP405・human_verification true・login path false・finance container false・table0。空DOMを残高や履歴0へ変換しない。証拠state/lancers-a08-finance-readonly-current.json/mode600。credentials／profile／provider設定変更0、challenge bypass0。
 - A03／A04の最新scope判断と不足資料、A08／A09の正規人間検証は未完として保持する。独立した次操作はA10のCrowdWorks応募・返信の公式履歴照合。全goal未完、SelfBuildはA43以降のまま。
+
+### 302. CrowdWorks未確定census・live provider ownerとexact proof不足
+
+- current b7fbの既存reconcile_reply_no_sendを--all-fenced／resolve無しで実行、checked219／rc75／全provider_browser_busy。applicationは最初unsupported --all-fencedでrc2となり、現物CLIを読み修正して再実行、checked5／rc75／provider_browser_busy。失敗attemptもstate/crowdworks-a10-application-readback.logへ保持し、provider成功と扱わない。
+- lock現物のlsofでholder48806を確認し、psのactual entrypoint reply_kernel.py／parent48764／elapsed1:00→2:11をfresh確認する。lock存在だけで稼働と判断せず、kill／重複browser操作／manualwake0。application latest runtime passとreceipt null／effect unknownは別の事実であり、応募成功を証明しない。
+- 既存evaluateを公式会話未取得のcallbackで読み取り実行、219件のproof成立0。内訳effect_marked115、run_marker_unavailable98、official_conversation_unavailable6。thread304360469へ94markersが集中、external_action／submit_google_form／reconcile_unknown／state occurrence binding無し。marker countは新規送信countではなく、94回の送信や重複と断定しない。次はsame live provider owner terminal後に公式thread／form receipt readbackをexact occurrenceへ結合する。
+- 新しいhost pre-effect hintは既存allowlistでseedされるため、旧marker不足だけで現行source欠陥とは断定しない。rc75文字列を作用0へ丸めず、旧fenceを解除しない。proof state/crowdworks-a10-reply-readback.json、crowdworks-a10-application-corrected-readback.json、crowdworks-a10-marker-boundary.json/mode600。provider query待ち／作用0／resolve無し。A10未完、全goal未完、SelfBuildは最後。
