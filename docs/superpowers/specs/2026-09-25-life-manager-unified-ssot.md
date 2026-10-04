@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorは§369のA16–18自然応募・確認mail・返信監視の照合。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在cursorは§373のA18.2 source統合条件／自然run・公式readback境界。条件待ちを保持して独立A19以降へ進める。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4889,7 +4889,7 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
 - [ ] A16 各platformの最新自然応募と公式応募履歴を照合する。§365のMercor最新App／Replyはadmission resource_effect_unknownでblocked。新規応募receiptやメール配信成功の証明ではない。
 - [ ] A17 応募確認メールと返信監視の最終成功をplatformごとに照合する。§369で直近1日到着と7lane現状を再観測、confirmation／same-occurrence joinは未完。§305で6provider送信元のGmail到着を確認済み。最新自然応募confirmationと監視runのjoinは未完。
 - [ ] A18 メール不足の原因を応募停止・通知設定・配信問題・証拠不足に分ける。§305で6providerの受信を確認。§306でCrowdWorks最新自然wakeの新規作用0を確認。直近3応募のconfirmation検索はID query取得0で未結合、全配信障害とは断定しない。
-  - [ ] A18.1 collector403のprovider画面／localCDP helper境界をsecret-freeに保存する最小source修正（§370）。
+  - [x] A18.1 collector403のprovider画面／localCDP helper境界をsecret-freeに保存する最小source修正。§373、HEAD1cc2630／focused75／runtime759／contract／Node15／独立reviewSHIP。sourceのみ、本番未反映。
   - [ ] A18.2 統合条件成立後、自然runで失敗origin・run／occurrence・snapshot／reportを結び、再送0を保持する。
 - [ ] A19 Lancers／Coconala既存商品の最新公開・問い合わせ・注文を確認する。§307でCoconala4409818の公式固定scope／購入入口を再確認。Lancers公開pageは正規人間検証待ち、問い合わせ／注文の最新joinは未完。
 - [ ] A20 Freelancerのaccount／inventoryを確認し既存実行経路へownerを接続する。
@@ -6301,3 +6301,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - fresh6.1Sol medium read-only reviewer collector_evidence_fresh_reviewはsourceexact／clean／diffcheck確認、focused73PASS＋既存paid_remote_wait HTTP404case1FAILを実測しFIX-FIRST。queue diagnostic requested_route/failed_endpointはB1 ?fromMyPage=trueを残しstandalone CLIがdetailsへ保存するためkernelだけquery除去では不足。navigation／B1source識別は維持しmetadataだけqueryfreeへ修正する。
 - reviewerP2もう1件はtest_paid_remote_wait.py546のhelperHTTP404→provider旧期待。これは変更に直接関連する既存testで、helper分類／safe metadata期待へ更新する。provider/browser/auth/production/state/fence/launchctl／review編集0。重大なclaimはsourceonly、金融／本番復旧完了に置換しない。
 - 同Luna実装workerに2指摘解消を割当て、3productionfiles上限は不変、関連既存paid_remote_wait testfileを所有範囲に追加。失敗証拠を残してfocused再PASS→commitpush／remote確認→再review。origin未知・actualfailedendpoint未知・receiptrefs無しを捏造しない。cursorA18.1／全goalactive／SelfBuild最後。
+
+### 373. A18.1二指摘解消／source全検証PASS、A18.2本番境界保持
+
+- 同Luna workerはreview指摘のhelper/DOM診断query残存をRED2failed→修正、navigation safe_coconala_url／B1fromMyPage=true／b1_inbox識別を保持しdiagnostic requested/final/failedrouteだけuserinfo/query/fragment除去。helperHTTP404旧testをsafehelpermetadataへ更新、focused75PASS。新commit1cc263018f552016559738a5d0934bed4016a391を専用branchへpush、parentもremoteexact／clean確認。
+- native新規spawn／既存reviewer再開はagentthreadlimitで拒否。新tool／旧model fallback無しで、既存codex execの独立finite/read-only/ephemeral reviewをrequestedgpt-6.1-sol／mediumで実行、exit0。二指摘ともsourceSHIP、memory counterexampleで診断query除去／B1navigation維持／helper404分類とkernelunknown保持を確認、sourceedit／provider／auth／delegation0。CLI review resultはstate/collector-evidence-cli-review-20261004/result.txt／review-scope.json。actualmodelIDは未露出、requestedと区別。CLIusageは観測済みだがactual paidcostはunknown。
+- worker初回fullruntime295件FAIL29/ERROR28、parent不足runtime/host・lib・cfoをcheckout後755件FAIL18/ERROR23、さらにログで不足sourcepathを限定し759件FAIL5/ERROR1、残4directoryをcheckout後同1ccで759/759PASS／147.850s。初回失敗logs保持。『未mergeなのでreleasecutPASS不能』は同unmergedHEAD最終PASSで否定され、原因はsparse fixture/source欠損。新source変更・install・heavybuild無し。
+- parentも同HEADでfocused75/75、contract14loops178jobs103mapped/errors0、Nodeadapter15/15、diffcheck、remoteexact／cleanを再確認。final unittest logSHA2cc1abce7b7b68f796cc98c72aa2f8307075dba5b950c5e36feef02875ddad47。private source proof state/collector-evidence-source-proof-20261004.json/mode600。
+- A18.1 source受入を完了、A18.2のPR/main統合条件§328・productiondoctor／immutable／loadedargvSHA／自然terminal・sameoccurrencecollectorerror／公式readback／replayzeroは未確認。旧blockedexit source3a7は別branchのまま、再実装無し。過去403originはunknownのまま補完しない、effectfence解放／再送／本番profile／launchctl0。
+- 次はA18.2の既存統合条件とsource受入を照合し、条件待ちを保持して独立A19storefront／A20以降の未接続platform観測へ進める。A17確認mail／返信watchの業務完走や金融成果をsourcePASSへ置換しない。全goalactive／SelfBuild最後。
