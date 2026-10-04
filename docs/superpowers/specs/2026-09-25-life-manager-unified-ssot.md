@@ -4898,7 +4898,7 @@ SelfBuildは修復候補の開発・検証・反映・復旧を担うloopで、�
 | 44→49 | fleet復旧→Mobile公式計測・CFO接続→公式費用→全loop財務結合→純利益・二重計上検証 |
 | 50→53 | 最後にSelfBuild復旧修正→検証・統合→実promotion/recovery→Eval前後比較 |
 
-現在3の次の一手は、§453のpartial metadata25/48をreadyとする早期終了を最小修正し、同range/CID集合のidentity準備をboundedに待ってから候補判定すること。未準備行を残した0候補を不在へ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
+現在3の次の一手は、§454のguard競合解消readbackに従い、修正済み既存readerを通常guard取得で一度だけ再開して、metadata準備とrow→pane関係を確認すること。preflight証拠を別名で保持、未準備行を残した0候補を不在へ変換せず、送信を行わない。寸法/末尾の同一診断を反復せず、row-descendant文字列を含むwrapper label経路は再利用前に修正する。その後に送信receipt・適格件数・納品不足を確定する。表示済み28件だけを全履歴や公式送信数として扱わない。任意の候補会話を繰り返し読むのはやめ、local sentを公式送信数へ昇格しない。NPO案件は不足する原資料・確定情報の受領条件を保持する。読取コードの検証成功だけで制作完了にしない。番号4の正式納品へ進むのは番号3の受入条件を満たした後とする。
 
 今回の整理では実行順を変更しない。旧順序3→…→53、新順序3→…→53、現在cursor3、次4。変更は読み方と要約の明記であり、完了状態の繰り上げはない。
 
@@ -7037,3 +7037,11 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - primaryがactual resultを確認するとloaded48、identity present25/absent23、nickname25/handle0/UID0。CID集合は安定だがidentity準備完了ではない。Python readinessはidentity_present_row_count>0、JSも一つ以上identitiesがあればmetadata_readyにするため、未準備23行を残した早期終了を特定。候補0を当該範囲の全候補不一致や対象不在とは扱わない。source labelと実準備状態を分け、fixtureがproducer→consumerのpartial metadata反例をまだ捕捉していないことを残す。
 - 元source/result/proof保持、新3files600、argv/hash一致。reader `39318a1b0662ad6e39944881717ed75dc137801ef50c9dbe525d88e1711230bd`、result `b9f9a3c67747563a03ead5ece8b4fd7cc3d46b703103a8dcfef06aa6dee2293a`、proof `caf478c7fce6557357d537888afaea5d8cd7ac61ef1eb3e3cec7b58728691045`。guard release0/own target absent/prior exact ID+URL保持/lease absent。post-click関係/本文は未取得、read-state/official peer未確認。
 - 次は今回actual25/48の反例でpartialをunknownとし、同range/CID集合に結び付くbounded metadata準備待機を最小修正する。未知を0へ変換せず、全identity準備または上限を観測してからcandidateを判定する。controller/atomic選択を作り直さず、追加frameworkは不要。現在3→次4、SelfBuild/Eval最後。
+
+
+### 454. Partial readiness修正PASS、guard競合の解消をreadback
+
+- metadata-fixedの最小fixtureはactual48行/25identity/23未準備をpartialとしてcandidate_count=nullへ保持し、48/48のみreadyを確認。primary再fixturePASS。修正source `65d66a113ac4f60f7c17364d9cca4de19e21e20ef5ef99683e386376b29e3bfc` は実画面readinessの成功とは分ける。
+- ONE invocation run `0d637497-24a5-4c55-81a8-4820ae2b1b2a` は0.935秒preflight終了、guard acquire exit9（BUSY）、guard未取得、scroll/click/send0、cleanupなし。実metadata/pane/bodyの観測には到達していない。preflight result `149829d89e6efe0950a21ef7292ab71d4fd722f159384aa11ddbd016951290e9`、proof `b48cf1973356813095e0ccaea747130849a8d2c0b4503298cc3900c7ecc9f8d6` を保存。
+- primaryは通常browser-guard statusをread-only実行し、2026-10-04T21:07:59Zにidentity1/collision0/holder absentを確認。private execution3-browser-guard-status-current.json SHA `50dbffd1f9955079c69e759ab6418f095eadee8e69443e2c5c312a8df61a1c02`、600。過去busyのownerや稼働を断定せず、現在は競合解消として扱う。force release/kill/browser停止なし。
+- 次は元preflight証拠をbyte-identical別名へ保持して、source不変の同既存readerを通常guard取得で一度だけ再開。追加実装/fixture体系なし、guard再busyならeffect0で停止し再送しない。競合解消後の再開であり観測timeoutによるrestartではない。現在3→次4、公式送信receipt/納品未完、SelfBuild/Eval最後。
