@@ -79,7 +79,9 @@ hc_reclaim_disk_if_low() {
   command -v npm >/dev/null 2>&1 && npm cache clean --force >/dev/null 2>&1
   rm -rf "$HOME/.cache/uv" 2>/dev/null
   rm -rf "$HOME/Library/Caches/com.anthropic.claudefordesktop.ShipIt"/* 2>/dev/null
-  rm -rf "$HOME/Library/Caches/camoufox"/* 2>/dev/null
+  # camoufox is NOT cheap to regenerate: wiping it made verify-loops-audit re-download a 1.3GB
+  # zip into its loop-tmp on every run (8 leftover zips = 8.3GB on 2026-10-04), so this reclaim
+  # step itself drove the disk back to full. Keep the camoufox cache.
   rm -rf "$HOME/Library/Caches/node-gyp"/* 2>/dev/null
   rm -rf "$HOME/Library/Caches/pip"/* 2>/dev/null
   command -v brew >/dev/null 2>&1 && brew cleanup -s >/dev/null 2>&1
