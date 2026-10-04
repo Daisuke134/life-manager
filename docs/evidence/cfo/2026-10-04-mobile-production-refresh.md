@@ -15,3 +15,17 @@ Status: `partial`; Marketing Metrics captured source rows, but no settled App St
 - `life-manager-cfo-hourly` remains installed on release `5fc226d9eec06232ef33c5fd49d337bafe5736a3`.
 - Its latest occurrence `18db2736b884a0a8-40862` was capacity-blocked at 2026-10-03 22:59:53Z (2026-10-04 07:59:53 JST), exit 75, with no provider receipt or official readback. No subsequent CFO report was produced in this read.
 - No owner was manually triggered; no production pointer or source data was changed.
+
+## Latest CFO occurrence reread — 2026-10-04 09:18 JST
+
+- `life-manager-cfo-hourly` is installed on main release `b7fb1dfa5a2ca1c8fb561a69536b7ad9061edbfc`.
+- Its latest natural occurrence `18db2a5616cdbc40-72786` ran at `2026-10-03T23:57:09Z` (2026-10-04 08:57:09 JST) and was admission-blocked by `host_admission_deferred:resource_capacity_busy`, exit 75. `provider_receipt_id` and `official_readback_ref` are null; there is no new CFO report.
+- The durable `last-result-report.json` still has modification time `2026-10-03T22:10:43Z` and points to the earlier 07:10 occurrence; this local sent record is not a new official receipt/readback.
+- No owner was manually triggered, and no production data, scheduler state, or provider state was changed.
+
+## Latest CFO occurrence reread — 2026-10-04 09:18 JST
+
+- `life-manager-cfo-hourly` is installed on main release `b7fb1dfa5a2ca1c8fb561a69536b7ad9061edbfc`.
+- Its latest natural occurrence `18db2a5616cdbc40-72786` ran at `2026-10-03T23:57:09Z` (2026-10-04 08:57:09 JST) and was admission-blocked by `host_admission_deferred:resource_capacity_busy`, exit 75. `provider_receipt_id` and `official_readback_ref` are null; there is no new CFO report.
+- The durable `last-result-report.json` still has modification time `2026-10-03T22:10:43Z` and points to the earlier 07:10 occurrence; this local sent record is not a new official receipt/readback.
+- No owner was manually triggered, and no production data, scheduler state, or provider state was changed.
