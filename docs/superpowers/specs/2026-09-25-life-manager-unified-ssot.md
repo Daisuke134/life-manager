@@ -4865,7 +4865,7 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 
 #### 実行順序と現在cursor
 
-順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§376のA23 readonly商品販売route比較。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
+順序変更の理由は、Daisの明示指示に従い、SelfBuild自体の開発へ時間を使う前に各loopの業務・販売・実収益経路を直すため。旧順序はSelfBuild復旧修正→Paid／storefront／メール→CFO／他loop。新順序はPaid／storefront／メール→他loopの残成果→CFO統合→SelfBuild／Eval。現在の実行可能cursorは§378のA24.1–4 Fiverr追加条件と既存owner保持の照合。A18.2統合条件・A19公開/attribution・A20/A21認証owner待ちを保持し、A22はaccount/owner接続後の自然実行に依存する。A01–46の順序は変えず条件待ちを完了扱いしない。A17／A18のReply誤PASSは3a7e6e5bでsource受入済み、sourceと本番の統合条件は保持。A21 UpworkはHEAD3851 source受入済みだが§328の統合順序矛盾を保持する。A10の一自然run再送0は§319限定SHIP、旧receipt照合を保持し、A20 Freelancer account／provider例外を別に進める。§312でsource review ship・PR6552全10CI／main統合。§313でmain1a7 complete immutableは確認済み。旧17541／17715はmissing、新main reconciler33323を追い、§315でtarget official loaded argv1a7は一致。次自然runと旧receipt／claim照合を保持する。A03のNPO成果物scope確認は§300、A04の予算書正式納品は§301の最新buyer判断不足を保持。A08／A09のLancersは正規Human Verification待ち。A01は§299で現在openの3案件の公式履歴を取得。historical18211957の状態は未確認として保持する。A02は§298で公式HTTP200・一覧3件の取得を確認。A01のlocal案件分離と要件binding監査は実施済み。Mobile／ASCは既存別担当が継続する。進行中の外部effectは中断・重複しない。
 
 SelfBuildは修復・改善候補を開発し、検証した変更を安全に本番へ反映し、失敗時に戻すための開発loop。self-healingと接続するが、各marketplaceの応募・返信・納品・販売そのものを担うloopではない。現在のowner復旧不具合は後回しとして保持し、未検証の自動昇格／復旧を成功扱いしない。
 
@@ -4904,7 +4904,11 @@ SelfBuildは修復・改善候補を開発し、検証した変更を安全に�
   - [ ] A21.8 送信経路を呼ばずにproposals／contracts／catalog／payment inventoryを読み、公式証拠を保存する。
 - [ ] A22 Freelancer／Upworkの応募・返信・Paidを自然実行と公式記録で確認する。
 - [ ] A23 利用可能な商品販売経路を接続する。§377で7platformの公式route／existing source／own operational proofを分離。UpworkCatalog/FiverrGig支持、Coco/Lancers現公開確認不足、FreelancerServices概念とsellercatalogを混ぜず、CW/Mercorstorefront未確認。適用外は証明付きN/Aのみ。
-- [ ] A24 FiverrをMeta Loop経由で導入し、公式出品を確認する。
+- [ ] A24 FiverrをMeta Loop経由で導入し、公式出品を確認する。§378、public vocabularyのみ／private選択providerはUpwork／Fiverrauth/ownerなし。onboardで既存設定を上書きせず、account/verification/permission/owned product/activeGigを閉じる。
+  - [ ] A24.1 既存Upworkのowner/bounds/assets/authorizationを保持した追加方法を確認する。
+  - [ ] A24.2 正しいFiverr accountとseller onboarding・required verificationを公式readbackで確認する。
+  - [ ] A24.3 read_catalogue/publish等のaction permissionとmain由来owned実行経路を接続する。
+  - [ ] A24.4 権利あるproduct/version/scope/mediaで公式activeGig/publicURLを確認し、A25以降へorder IDを渡す。
 - [ ] A25 storefront注文ごとに納品・検収・精算・着金を結合する。
 - [ ] A26 商品version・獲得経路・実費を注文へ結合し実利益を算出する。
 - [ ] A27 購入者feedbackと作業量・品質・利益を商品改善へ戻す。
@@ -6347,3 +6351,12 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - 7row privatecomparison state/marketplace-a23-product-route-comparison-20261004.json SHA955d76a5d8018e9426818c02867bb6a12d72beea783e4e35c0fc1f81f2ee0358、mode600。Coco4409818現403と古いcontract、Lancershuman-required、Freelancerauth/inspect/owner不足、Upworkregistered-but-down、FiverrMeta導入予定を別stateで保持。publicsource取得6docs／sourcefile参照、provider account操作0。
 - A23接続の残受入はsameowner認証済catalogのproductID/version/publicURL/status→lead/order/contractID→fundedscope/clientrequirements→制作/納品/検収→fee/refund/settlement/payout/actualcostの同期間join。掲載やmarketing実例を我々の販売・利益へ変換しない。反復margin／作業量／buyerfeedbackをA26/A27へ戻し、少数標本の勝者や因果効果としない。固定scopeはplatform基準や実需要/実費の制約を受けるので持続利益の保証としない。
 - A23readonlyroute整理は進捗、商品販売接続／A24Fiverr正式導入は未完。次はA24のaccount/owner/permissionとMeta既存導入経路をread-onlyで確認し、未認証／未知sourceを稼働済みへしない。A18.2の統合条件やA20/21authownerを迂回しない。全goalactive／SelfBuild最後。
+
+### 378. A24 Fiverr Meta導入の実配置／onboard上書き境界と公開受入
+
+- public provider-capabilities.public.jsonにはFiverr read_catalogue/publish_gig/update/message/customoffer/readorder/deliver/revise/readearnings/readpayoutsのvocabularyがあるがstateunknown。mainregistry activeFiverr job0、全browserregistrymatch0／guardfiverr:dais identities空、canonicalcredentialmatch0、defaultgig-fiverr profile不存在、authorization receipt0。機能名の存在を稼働／承認／公開済みとしない。
+- privateowner-profile/capabilityinventory selectedprovidersはUpworkのみ、authorizationmatrixにFiverrentry無し。境界proof state/fiverr-a24-onboarding-boundary-20261004.json SHA43f6426f083bbd64ef1dca54a0770ee26e4a45445ed8790060a6a2551f742f44/mode600。ownerid/credential値/budget額/asset本文はchatへ複製せず、既存file hashesで保持対象を記録。
+- 既存money_loop_onboarding.py onboardはfilesystemonly probe後にprofiledir作成とowner-profile/authorization-matrix/capability-inventoryを書き直し、portfolio_assetsを空で生成する。『read_only』はmarketplace mutation0の意味でprivateconfig上書き0ではない。今回呼出0／existingUpworkconfig保持。publicunknownmatrixやlocalcapability receiptをprovideraction approvalへ昇格しない。source lookupではonboarding生成入口はあるがFiverr実行owner/callerを確認できず、Meta導入予定と稼働を分ける。
+- 公式Creating Gigはseller onboarding／desktop／ownedmedia／phoneverification／personal/business verification／automaticreviewを説明。USperson/W9、EU等DAC7は該当条件を確認し、Daisの税/identity状態を言語や所在地推測で埋めない。本人確認をbypassせず、現accountで要求される各taskのofficialstatusを読む。公式 https://help.fiverr.com/hc/en-us/articles/360010451397-Creating-a-Gig 。
+- A24を4atomicへ具体化: existingowner/bounds/assets/auth保持→correctaccount/seller verification→actionpermission/ownedmain経路→productID/version/scope/media権利とactiveGig/publicURL。初出品の前に既存fundedorderを要求して循環停止させない。受注後の制作/納品はorder-specific fundedscopeとclientrequirementsを確認してA25へ接続。出品statusだけをsale/payout/profitとしない。
+- 新account/signup/login/token/credential/profile/owner/config/Gig変更0、provideraccount browser/API操作0。A24導入未完、currentcursorA24.1–4。次は保持可能な既存導入経路とaccount側外部verification不足を整理し、既存productのA25–27 receipt/actualcost/feedbackは独立readonlyで続ける。A18.2のmain条件を迂回せずSelfBuild最後、全goalactive。
