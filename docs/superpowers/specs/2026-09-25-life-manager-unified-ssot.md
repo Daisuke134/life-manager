@@ -6698,3 +6698,15 @@ iOS growthの今回Doneは基準表・競合仮説・優先順位・反証条件
 - Runtime.evaluateのtimeout6件があり、最後の5秒click待機後にstart+108内部deadlineへ達してpost-scope expressionを実行できなかった。beforeScope/postScope未取得をprovider側の本文不存在や認証失敗としない。click応答の一部と付随seenはunknown、明示send/auth/fence/source/rawbody保存0。
 - result `execution3-tiktok-owned-renderer-read.corrected-scope-read.json`（§399同dir/mode600）SHA256 `b0f0b68c34a57637e5c5f8f1e4e25f4fa3cd116c0a98e818ed2683d0af092fa7`。targetclose成功/ownabsent/priorID+URLhash集合一致/target2/guardrelease0/leaseabsentを確認。同handle完了、browser/owner restartや他tab操作0。
 - 次は時間上限を増やすだけで反復せず、validMessages frame/list-ready後の重複context/list走査を削り、同Runtime callでbefore scoped snapshotとnormalrowclickを記録してpostscope時間を確保する局所control修正を行う。修正/contained check後のreadonly1runだけで実データを再観測。current3未完→next4/残51項目を維持、実送信数はunknown。
+
+
+### 417. 実行番号3の読取修正を受入、実chatbox本文取得へ到達
+
+- 前turnは実行順の正本を整理してremote commit d050b3602adf88e90bb253abaf0fb41b9e78879fを確認。本turnも現在3→次4、残51項目、SelfBuild/Eval50–53最後を維持する。番号3の制作・納品条件は未完。
+- fresh gpt-6.1-sol/medium read-only reviewで、scope内desc/pathとJS→Python body_leaf_count契約の2不具合解消を確認。一方、atomic before+click生成の置換が内側const宣言を消し、外側rowsのTDZへ代入する追加不具合を実AST生成式で再現（click0）。私的review receipt SHA256 a975ba2f40384f1d3135d1a1fdecabd3556fd58cd2d27589dbd8017c3f347494。
+- native追加threadは上限で拒否。既存codex execの有限runをgpt-6-luna/maxで起動し、実起動logでもmodel/effortを確認。編集は私的corrected.py/proofのみで、置換先を空からconst保持へ1箇所修正。実AST生成式のRED→同経路のbefore取得＋一意rowclick1 GREENを確認。同reviewer追確認は3指摘の限定SHIPで、新しいfreshcontextのreviewとは称しない。元executed.py不変、本番loop/source/provider/auth/fence変更0。
+- 最終private code SHA256 0241fa71bb4eac0d50516c7a5479cce708e3fd2aed13a29b7ed25117c6c474a6、proof SHA256 82572a01c1bf724d0c43bce382a2e9387544e08c6212e2ef0f1f43c0d47de282（§399同dir/mode600）。実装者有限processはexit0/terminalを確認し、終了前に別担当へ同file編集を渡さない。
+- 初回実UIはsetupのRuntime.enable timeoutで会話選択前に停止。errorhashから当該CDP methodへ切り分け、公式endpoint reachable/HTTP200/WSvalid/holder無し/collision0を再確認。失敗結果をruntime-enable-timeout.jsonとして保持（SHA256 46dedc6863cc0a905e48a333127c2547abec602d0bac661a22fa8d66e84472f0）。同request1回だけの空tab追加probeではRuntime.enableが0.299s/context1で応答、navigation/click/send0。probe SHA256 51ba009e060a629326abc772c9d685100fba3c831d29390d5092208f8dd5ec86。close直後のownabsent falseは直後inventoryの過渡観測で、後続inventoryは既存2target/holder無し。再起動/force leaseclear無し。
+- 追加観測後のcorrected UIは71.757sで成功。54.0sに既存一覧28rows、既知row1選択、同一sessionでchat_uniqueid変化、chatbox/pane/header各1、sidebarrowsinside0、visible本文候補3・unbound0・nested0。roster行18列0の一意handle候補一致でcase_bindingはcandidate_only。本文70/5/6文字のhash/locator/ancestryを保存、rawbody保存0。実result corrected-scope-read-next.json SHA256 c72e6b8c98c1ded0924ddeb1e9b50c4a065ec02908370f613d2fd4837af58e83。
+- senderUID/messageID/dateはunknown、配置centerは送信方向の証明ではない。実renderer3要素を送信3件、300件台帳、全履歴、正式納品へ昇格しない。seen状態はunknown、明示send/auth/fence変更0。ownclose/ownabsent/priorID+URLhash集合一致/target2/guardrelease0/leaseabsentを確認。
+- 次の最小観測は、選択した同会話内のchat-avatar/送信者表示・time-separator・message DOM/既存SDK decoded状態から送信者と日時/一意性を確定し、公式会話履歴を案件の送信台帳へ結ぶこと。新decoder/frameworkは作らず既存UI/SDK読取を使う。対象外の会話を案件送信件数へ数えず、NPO不足原資料の受領条件も保持する。current3未完、全goalactive。
