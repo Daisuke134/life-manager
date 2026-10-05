@@ -7621,3 +7621,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 前turnの新観測はtargetがloaded-idle、直後の既存owner lock内applyでは次自然run開始を検出。preflight rc0、ok=true/changed=false/skipped loaded-running、loaded ba69のまま。証拠 /Users/anicca/.local/state/life-manager/state/lancers-diagnostic-idle-apply-20261005.json。停止・強制wake・queue/fence解除なし。
 - 順序変更理由：HTTP405のAWS WAF根因と公式solver成功は既に実測済み。診断だけを先に反映して同じownerを直後solver版へ再反映する必要をなくし、同一の反映機会で両修正を載せる方が最短。旧残1診断反映→2自然診断→3solver修復を、新残1solver source受入/main→2診断とsolverの一括反映→3新source自然readbackへ変更。成果scopeは維持、完了への繰上げなし。残4〜54の順序・Coconala保留・SelfBuild最後を保持。現在cursor1、残54。
 - rootはsource test差分を確認し、Lunaへ既存run_tick mockの必要keys不足、read_only_inventory実callerの未検証、成功実測のcookie domainとの照合を具体連絡。rootの同files編集0。Lunaの3RED後最小GREENは進行中。
+
+
+### 513. Lancers solver初稿受入と実測host反証
+
+- Luna初稿c560d90ddcce1f0a29f95cbabe50e5de7d7e6557をbranch fix/lm-lancers-awswaf-solver-20261005へpush/remote一致。4files、live run_tick限定、default/read-only課金無効、POST前typed sidecar・unknown ID再POST禁止/既知IDpoll、既存guard、Lancers WAF cookie限定変更。担当focused64/構文/contract/diff PASS。これはsource初稿であり受入完了ではない。
+- fresh gpt-6.1-sol/medium read-only reviewerは関連46tests PASSの後HOLD/P1を1件確定。JS/PythonのAWS script host完全一致scripts.token.awswaf.comが実測の地域付きtoken.awswaf.com配下hostを拒否する。公式実測refは /Users/anicca/.local/state/life-manager/state/lancers-challenge-facts-20261005.json。このままではaws_waf_params_missingになり本番目的を満たさない。rootも独立照合済み。
+- Lunaへ同所有worktreeで境界付きtoken.awswaf.com subdomain受入、lookalike/HTTP/credentials/port/query/fragment拒否、実測host RED→GREENを割当。初回followupはthread limit拒否、review終端後に同担当followup成功・running確認。新CLI/旧model fallbackなし。root同files編集0。
+- 初稿rebase時のscope外OSS Capafy manifest不一致はlatestmain04ff493667の既存fixがある。担当へfresh fetch追従とOSS再検証を指示。P1修正/source review/CI/PR/main/immutable反映/自然readbackは未完。§217残54/cursor1を維持。
