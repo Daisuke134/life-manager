@@ -46,8 +46,23 @@ def build_scoreboard(analytics: dict, reconcile: dict) -> dict:
             f["sales_usd"] += _d(s.get("sales_usd")) or 0
     for f in funnel.values():
         f["sales_usd"] = f"{f['sales_usd']:.2f}"
+    ct: dict[str, dict] = {}
+    for agent in ((reconcile.get("traffic_sources") or {}).get("by_agent") or {}).values():
+        for s in (agent.get("last_30d") or {}).get("by_source") or []:
+            # A ct= link's visits land as sourceType="ct" sourceName="<token>"; a matching
+            # sale lands as a separate sourceType="campaign" row with the same token -- see
+            # skills/writer-agent/config/products.json "tracking". Merge both by token.
+            if s.get("source_type") not in ("ct", "campaign"):
+                continue
+            token = s.get("source_name") or "unknown"
+            t = ct.setdefault(token, {"views": 0, "paid_orders": 0, "sales_usd": Decimal("0")})
+            t["views"] += s.get("views") or 0
+            t["paid_orders"] += s.get("paid_orders") or 0
+            t["sales_usd"] += _d(s.get("sales_usd")) or 0
+    for t in ct.values():
+        t["sales_usd"] = f"{t['sales_usd']:.2f}"
     return {"money": money, "zero_revenue_streak_days": streak,
-            "skills": {"total": len(rows), "selling": selling, "never_sold": never}, "funnel": funnel}
+            "skills": {"total": len(rows), "selling": selling, "never_sold": never}, "funnel": funnel, "ct": ct}
 
 
 def render_text(b: dict, comparisons: list[dict] | None = None) -> str:
@@ -57,6 +72,8 @@ def render_text(b: dict, comparisons: list[dict] | None = None) -> str:
              f"売上0の連続日数 {b['zero_revenue_streak_days']} / 売れている {b['skills']['selling']} 本・一度も売れていない {b['skills']['never_sold']} 本"]
     for src, f in sorted(b["funnel"].items(), key=lambda kv: -kv[1]["views"])[:5]:
         lines.append(f"流入 {src}: {f['views']} view → {f['paid_orders']} 件 ${f['sales_usd']}")
+    for token, t in sorted((b.get("ct") or {}).items(), key=lambda kv: -kv[1]["views"]):
+        lines.append(f"ct {token}: {t['views']} view → {t['paid_orders']} 件 ${t['sales_usd']}")
     if comparisons is not None:
         pending = 0
         for c in comparisons:
