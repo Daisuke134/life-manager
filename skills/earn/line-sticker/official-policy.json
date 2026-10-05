@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "source_url": "https://creator.line.me/en/guideline/animationsticker/",
+  "observed_at": "2026-08-28",
+  "max_policy_age_days": 30,
+  "sticker_count": 24,
+  "main": {"width": 240, "height": 240, "animated": true},
+  "tab": {"width": 96, "height": 74, "animated": false},
+  "sticker": {"max_width": 320, "max_height": 270, "required_side": 270},
+  "apng": {"min_frames": 5, "max_frames": 20, "min_plays": 1, "max_plays": 4, "max_duration_ms": 4000},
+  "max_file_bytes": 1000000,
+  "max_zip_bytes": 60000000,
+  "required_color_types": [4, 6]
+}
