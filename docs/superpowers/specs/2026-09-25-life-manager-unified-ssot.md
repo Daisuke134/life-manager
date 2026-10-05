@@ -7629,3 +7629,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh gpt-6.1-sol/medium read-only reviewerは関連46tests PASSの後HOLD/P1を1件確定。JS/PythonのAWS script host完全一致scripts.token.awswaf.comが実測の地域付きtoken.awswaf.com配下hostを拒否する。公式実測refは /Users/anicca/.local/state/life-manager/state/lancers-challenge-facts-20261005.json。このままではaws_waf_params_missingになり本番目的を満たさない。rootも独立照合済み。
 - Lunaへ同所有worktreeで境界付きtoken.awswaf.com subdomain受入、lookalike/HTTP/credentials/port/query/fragment拒否、実測host RED→GREENを割当。初回followupはthread limit拒否、review終端後に同担当followup成功・running確認。新CLI/旧model fallbackなし。root同files編集0。
 - 初稿rebase時のscope外OSS Capafy manifest不一致はlatestmain04ff493667の既存fixがある。担当へfresh fetch追従とOSS再検証を指示。P1修正/source review/CI/PR/main/immutable反映/自然readbackは未完。§217残54/cursor1を維持。
+
+
+### 514. Lancers draft PRでCIを独立並行
+
+- rootがdraft PR6616 https://github.com/Daisuke134/life-manager/pull/6616 を既存source branch/head c560d90ddcce1f0a29f95cbabe50e5de7d7e6557で作成。P1実測AWS host不一致と最新main OSS追従が未完であることを本文に明記。GitHub readbackはisDraft=true、CI run37268124133が開始、Agent instruction contract/CodeRabbit成功、他checks進行中。source受入完了・main/本番成功とは扱わない。
+- 意図はP1のowner-local修正とCIを独立並行させ、修正push後の最終headでreview/CIを評価すること。primaryがPR本文最終更新・ready・統合・release/loadを所有。Lunaは同branch/filesのP1修正・focused・pushのみ、provider/profile操作なし。現在§217残54/cursor1、同effectの再送・中断0。
