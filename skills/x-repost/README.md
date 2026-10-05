@@ -41,6 +41,8 @@ requeue affiliate distribution jobs or publish a fresh affiliate proposal. It st
 exact prior `POSTED` receipt for duplicate protection. Existing `UNVERIFIED` jobs receive a
 readback-only check when the browser is available. The pass preserves their `UNVERIFIED` result and
 Affiliate ledgers, regardless of the readback result, then continues ordinary X discovery.
+When that readback already holds the registered X browser lease, the same CDP session is reused
+for discovery and released once at pass end.
 
 Each Postiz submission belongs to its X-loop occurrence and cannot prove an effect for a later
 occurrence. A readback-only pass or a receipt outside the exact occurrence window leaves that host

@@ -113,6 +113,7 @@ def run_disabled_pass(
     root: Path, state: Path, paths: dict[str, Path], *,
     post_json: dict | None = None, post_rc: int = 0,
     first_browser_unavailable: bool = False,
+    second_browser_unavailable: bool = False,
     twitter_auth_token: str | None = "fixture-only",
 ) -> subprocess.CompletedProcess[str]:
     repo = root / "fake-repo"
@@ -132,6 +133,9 @@ def run_disabled_pass(
         "calls=$((calls + 1)); printf '%s\\n' \"$calls\" >\"$calls_file\"\n"
         "if [ \"${X_REPOST_TEST_FIRST_BROWSER_UNAVAILABLE:-0}\" = 1 ] && [ \"$calls\" -eq 1 ]; then\n"
         "  echo unavailable; exit 1\n"
+        "fi\n"
+        "if [ \"${X_REPOST_TEST_SECOND_BROWSER_UNAVAILABLE:-0}\" = 1 ] && [ \"$calls\" -eq 2 ]; then\n"
+        "  echo busy; exit 1\n"
         "fi\n"
         "echo http://cdp.test\n",
         encoding="utf-8",
@@ -180,6 +184,7 @@ def run_disabled_pass(
         "X_REPOST_CANDIDATES_FILE": str(candidates),
         "X_REPOST_DISABLE_AFFILIATE": "1",
         "X_REPOST_TEST_FIRST_BROWSER_UNAVAILABLE": "1" if first_browser_unavailable else "0",
+        "X_REPOST_TEST_SECOND_BROWSER_UNAVAILABLE": "1" if second_browser_unavailable else "0",
         "X_REPOST_TEST_POST_JSON": json.dumps(post_json or {"posted": False}),
         "X_REPOST_TEST_POST_RC": str(post_rc),
         "X_REPOST_TEST_POST_TRACE": str(post_trace),
@@ -278,7 +283,7 @@ class XRepostAffiliateDisableTests(unittest.TestCase):
             "state": "AFFILIATE_DISABLED", "changed": False,
         })
 
-    def test_disabled_unverified_readback_preserves_ledger_and_reaches_ordinary_recon(self) -> None:
+    def test_disabled_unverified_readback_reuses_browser_lease_for_ordinary_recon(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             state = root / "state"
@@ -307,6 +312,7 @@ class XRepostAffiliateDisableTests(unittest.TestCase):
                     "source_url": "https://x.com/selawmqt/status/999",
                     "provider_submission_id": "postiz-prior-1",
                 },
+                second_browser_unavailable=True,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
@@ -343,7 +349,7 @@ class XRepostAffiliateDisableTests(unittest.TestCase):
                 self.assertNotIn(forbidden, calls[0])
             browser_calls = root / "browser-calls"
             self.assertEqual(
-                browser_calls.read_text().splitlines() if browser_calls.exists() else [], ["2"]
+                browser_calls.read_text().splitlines() if browser_calls.exists() else [], ["1"]
             )
 
     def test_disabled_unverified_browser_unavailable_keeps_state_and_ordinary_recon_runs(self) -> None:
