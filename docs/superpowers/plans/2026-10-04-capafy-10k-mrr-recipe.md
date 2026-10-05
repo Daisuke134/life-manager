@@ -1,0 +1,457 @@
+# Capafy $10k MRR レシピ Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Capafy の agent 工場を「売れる物を作る → 正しい価格で出す → 見つけてもらう → 売れない物を直す/退役 → 口座に入った利益で判定」の再現可能なレシピにし、口座着金ベースの月 $10k MRR へ向かう。
+
+**Architecture:** 新しい仕組みは作らず、既存の Capafy loop（`capafy-loop-daily` 工場、`capafy_daily_decision.py` 改善ループ、`capafy_hourly_reconcile.py` お金の読み戻し、`capafy-distribute-daily` 宣伝）に「判定に使う数字」と「勝ち筋の型」を足す。判断はモデル、計測・集計・記帳だけ決定的コードに置く（building-agents）。
+
+**Tech Stack:** Python 3（stdlib のみ）、pytest、既存の Capafy API クライアント（`skills/capafy-autopublish/vendor/capafy-user`）、`crwl`（公開ページの取得）、Gmail（`gog gmail`）、CloakBrowser lease（`capafy:kosuke`）。
+
+**Spec:** `specs/29-CAPAFY-10K-MRR-CLOSED-LOOP.md`（Capafy の正本）と `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`（実行順の正本、§84-A の 2. Capafy L9-01）。
+
+## Global Constraints
+
+- 完了は公式 readback（Capafy API・公開ページ・Gmail・銀行着金）でだけ判定する。テスト合格や exit 0 は完了ではない。
+- 「収益」は口座に着金した金額。gross・creator earnings・payout 待ち・着金を混ぜない。不明は 0 に丸めない。
+- effect_unknown の提出・投稿は公式 readback なしに再送しない。
+- 直す前に同じ問題を解いている既存 loop を registry と spec から探して写す（`skills/loop-development/SKILL.md` ルール9）。timeout などの数字を自己流で変えない。
+- モデルの文章生成に Mac の `claude -p` を使う時は `--setting-sources ""` と `--system-prompt` を付けて /tmp で動かす。
+- ブラウザは `browser-guard.sh` の lease で `capafy:kosuke` を使う。Dais の Chrome には触らない。
+- 反映は PR → `gh pr merge --squash --admin` → release → `LIFE_MANAGER_APPLY_TARGET=<loop> bin/lm-loop apply` → plist が新 release を指すことを確認。
+- 他の AGMSG 席が持つファイルを触らない（§84-A の lane A Capafy 所有者と調整してから着手）。
+
+---
+
+## 0. As-Is（2026-10-04 実測。出所つき）
+
+| 項目 | 値 | 出所 |
+|---|---|---|
+| 累計 gross / creator earnings | $102.75 / $76.18（101 件、うち trial 69） | `state/capafy-skill-analytics.json` observed 2026-10-04T04:07Z |
+| 直近30日 gross / 7日 | $82.77 / $13.97（3件） | 同上 |
+| 直近の売上 | **9/30〜10/04 の 5 日連続 $0** | `daily_revenue_trend_last_30d` |
+| 口座着金 | **$0.00**（payout 待ち $59.00、pending $11.02、wire_transfer） | `balances` |
+| 30日 AI 実費 / 利益 | $34.50（うち claude-sonnet-4.6 $34.14）/ $31.72 | `openrouter_actual` |
+| 出品 | 52 本（online 47 / under_review 3 / rejected 2）、**売れたことがあるのは 6 本、46 本は売上 0** | `per_skill_rows` |
+| 売れ筋 | Hook Lab $34.88、Slide Maker $19.98、TikTok Script Pro $15.96、Marketing Strategist $13.98（Sonnet で 30日 -$16.74 の赤字、しかも rejected）、Academic Humanizer $9.99、YouTube Script Writer $7.96 | 同上 |
+| 流入（30日） | Capafy 内検索 2,151 view → $56.86（売上の 69%）、hot 98 view → 6.1% 成約で最良、自前の外部宣伝（instagram_bio・direct）はほぼ 0 成約 | `traffic_sources.by_agent` 集計 |
+| 工場 | 審査枠 5、今は PUBLISHABLE（空き 2）。却下 7 件の理由は API で取れず `platform_reason_unavailable` | `inventory_status.py`、`capafy-rejection-repair-queue.json` |
+| 宣伝 | 記事＋X は 9/30 の 1 本が最後。IG は 8/24 以降 0 | distribute ログ、IG ledger |
+| 公開プロフィール | フォロワー 8・51 agents、販売数バッジ 0 本 | https://capafy.ai/publisher/Anicca |
+| 手数料 | Capafy 20%（「you keep 80%」）＋初回 $0.99、サブスクは Sandbox Fee が先に引かれる。実測の差し引き率は 25.9% | https://capafy.ai/earn |
+| 市場の勝者 | CloneCut（動画クローン、$19.99/月）14,030 sold、Ocup Football Analysis（$8.33/月）3,083、Serenity Stock Tracker（$8.33/月）1,795、HookAce（$9.99/週）921 など。上位は「動画/ショート」と「金融シグナル」、無料の集客用 agent も多い | https://capafy.ai/ Trending（2026-10-04） |
+
+## 0.1 規約と精算の一次資料（2026-10-04 取得）
+
+- **量産の禁止**（https://capafy.ai/developer/doc/4.2）: "Do not mass-upload large numbers of Agents with near-identical functionality or minimal variations to dominate search results. This behavior is treated as cheating; the related Agents will be removed and the Publisher account may be warned or suspended." → 既存の Hook Lab 派生 9 本はこの危険域。複製（C3）は「入力・出力・使う場面が本当に違う物」だけにし、近い派生は統合・退役させる（C4）。
+- **却下理由 2.2 Information accuracy**（同 4.2）: 2.2.1 説明どおりの機能、2.2.2 カテゴリとタグの一致、2.2.3 "The Base Model field must accurately reflect the LLM the Agent currently uses." → Marketing Strategist（モデル変更版 v1.0.2）は 2.2.3 のずれが第一仮説。
+- **Agent Card**（同 4.2）: Details に sample input/output・Capabilities・Use Cases・FAQ を推奨。金融系は「専門的な投資助言ではない」免責と元本喪失のリスク表示が必須。
+- **手数料と精算**（https://capafy.ai/developer/doc/3.2）: Subscription Payout = 支払額 − Platform Sandbox Fee − Platform Fee。Sandbox Fee（On-Demand）は月 $2.00・週 $0.50・日 $0.07。Download は Sandbox Fee なし。売上は 7 日の dispute window の後に月次精算の対象、翌月 1 日に明細、条件を満たせば 15 日以降に振込。→ 9 月明細 $59.00 は 10/15 以降の振込が A2 の最初の着金確認点。日額プランは Sandbox Fee の比率が高い（$1.99/日なら 3.5%）ので、月額・週額を主にする。
+
+**$10k MRR の算数:** 手取り 80% として、平均 $9.99/月のサブスクなら有料会員 約 1,250 人。CloneCut 型の勝者 1 本（$19.99/月 × 600 人）＋中堅 10 本（$9.99 × 50 人）でも届く。今は月 $66 の手取り（目標の 0.66%）。
+
+## 0.2 単位経済（2026-10-04 実測。agent 別 30日、出所: `capafy-skill-analytics.json` per_skill_rows、公開価格は `capafy-market-agents-20261003.json`）
+
+| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 手数料後 | モデル代 | 利益 |
+|---|---|---|---|---|---|---|
+| Hook Lab 8123079349 | DeepSeek | 日$1.99/週$4.99/月$9.99 | $24.89 | $19.91 | $0.34 | **+$19.57** |
+| Slide Maker 8828622062 | DeepSeek | 週$9.99/月$24.99 | $19.98 | $15.98 | $0.00 | **+$15.98** |
+| TikTok Script Pro 2844813315 | DeepSeek | 日$1.99/週$4.99/月$9.99 | $15.96 | $12.77 | $0.01 | **+$12.76** |
+| YouTube Script Writer 7686597754 | DeepSeek | 日$1.99/週$4.99/月$9.99 | $7.96 | $6.37 | $0.02 | **+$6.35** |
+| Marketing Strategist 9563867391 | Sonnet 4.6 | 週$6.99/月$12.99 | $13.98 | $11.18 | $27.92 | **-$16.74** |
+| Academic Results Humanizer 1037005959 | Sonnet 4.6 | — | $0 | $0 | $4.63 | **-$4.63** |
+| Contract Red Flags 8416888650 | Sonnet 4.6 | — | $0 | $0 | $1.59 | **-$1.59** |
+
+- DeepSeek の agent は原価がほぼ 0（Hook Lab 11 注文で $0.34）。赤字は Sonnet の 3 本だけで、合計 -$22.96/30日。
+- 後ろの 2 本は repo catalog に無いため、`capafy_daily_decision.py` rule 1 が毎日 `skip no_catalog_match`（2026-10-03 の記録）。誰も止めていない。
+- 市場の勝者（同 sweep）: 高いモデルの勝者は高価格＋少ない回数上限で黒字にしている（Ocup Football Sonnet 4.6 週$14.99/月$29.99・月27回、HookAce Sonnet 5 週$9.99/月$19.99・月25回、Odeo Maker Opus 4.8 週$19.99/月$29.99・月10回）。安いモデルの勝者も価格は下げない（Serenity Stock Tracker・Alpha Consensus は DeepSeek で週$9.99/月$19.99/年$99.99・月40回）。→ 勝者は「市場価格は守る、高いモデルなら回数を絞る」。価格を下げて売る勝者はいない（無料 download の集客用は別枠）。
+- 自社: モデルは既に安い（DeepSeek）が、売れ筋 3 本の公開価格は市場の下 25%（月$12.99）未満の $9.99。catalog の LISTING は値上げ済み（Hook Lab 日$3.99/週$9.99/月$19.99/年$99.99）だが本番に届いていない。
+- 手取りの目安（推定、doc 3.2 の式: 支払額 − Sandbox Fee − Platform Fee 20%）: 月$9.99 ≈ $5.99、月$19.99 ≈ $13.99。同じ 1 人で手取り 2.3 倍。
+
+## 1. 足りないもの（To-Be との差）
+
+1. **売れる場所に作っていない**: 46/52 が売上 0。市場の勝ちカテゴリ（動画・金融）より、学術・人事・法務など小さい棚に散っている。
+2. **勝ち筋の複製が測定ではなくプロンプト手書き**: Hook Lab 系の派生は増えたが、どの派生が売れたかで次を決めていない。
+3. **Capafy 内検索が売上の 69% なのに、題名・説明・タグの検索最適化（marketplace SEO）を測っていない。**
+4. **価格の実験ができない**: サブスクの値付け変更を CP1 から自動でできず、`blocked_no_cp1_support` で止まる。
+5. **赤字 agent が残る**: Marketing Strategist は Sonnet で 1 注文 $13.96 の原価。
+6. **却下理由が取れない**: API は理由なし。Gmail の却下メールには理由（例「2.2 Information accuracy」）がある。
+7. **お金の最終地点（口座着金）を追っていない**: payout 待ち $59 から先の着金 receipt が無い。
+8. **プロフィールが空**: 実績・社会的証明・ブランドの一貫性が無い。
+9. **外部宣伝が成約に結びつかず、しかも 9/30 から止まっている。**
+10. **毎日の「1 枚の成績表」が無い**: 手取り・着金・原価・利益・新規出品・却下・流入→成約を日次で 1 画面に。
+
+## 2. レシピ（To-Be のループ）
+
+```mermaid
+flowchart LR
+  M[市場を読む<br/>勝者の棚・価格・型] --> B[作る<br/>勝ち棚へ・安いモデル]
+  B --> P[正しい価格で出す<br/>枠を空けない]
+  P --> D[見つけてもらう<br/>Capafy内検索・hot・外部]
+  D --> S[成績表<br/>着金・原価・利益・成約]
+  S --> I[直す/複製/退役]
+  I --> M
+```
+
+---
+
+## Phase A — 真実の数字（成績表と着金）
+
+### Task A1: 日次成績表 `capafy_scoreboard.py`
+
+**Files:**
+- Create: `skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`
+- Test: `skills/earn/capafy-marketing/scripts/test_capafy_scoreboard.py`
+- Modify: `skills/earn/capafy-marketing/capafy-goal-monitor.sh`（daily-close で 1 回呼び Telegram へ）
+
+**Interfaces:**
+- Consumes: `state/capafy-skill-analytics.json`（`account_totals`、`balances`、`per_skill_rows`、`daily_revenue_trend_last_30d`）、`state/capafy-hourly-reconcile.json`（`traffic_sources.by_agent`、`openrouter_actual`）
+- Produces: `build_scoreboard(analytics: dict, reconcile: dict) -> dict` と `render_text(board: dict) -> str`
+
+- [ ] **Step 1: 失敗するテストを書く**
+
+```python
+from capafy_scoreboard import build_scoreboard
+
+ANALYTICS = {
+    "account_totals": {"last_30d": {"gross_usd": "82.77", "orders": 78}, "cost30_actual_usd": "34.50", "net30_usd": "66.22"},
+    "balances": {"balance_payout_usd": "59.00", "balance_pending_usd": "11.02", "paid_out_usd": "0.00"},
+    "per_skill_rows": [
+        {"agent_id": "1", "name": "Hook Lab", "status": "online", "stats_30d_orders": 11, "stats_30d_revenue_usd": "24.89", "cost_30d_actual_usd": "0.34"},
+        {"agent_id": "2", "name": "Dead", "status": "online", "stats_30d_orders": 0, "stats_30d_revenue_usd": "0.00", "since_launch_gross_usd": "0.00", "cost_30d_actual_usd": None},
+    ],
+    "daily_revenue_trend_last_30d": [{"date": "2026-10-03", "revenue": 0.0, "orders": 0}, {"date": "2026-10-04", "revenue": 0.0, "orders": 0}],
+}
+RECONCILE = {"traffic_sources": {"by_agent": {"1": {"last_30d": {"by_source": [
+    {"source_type": "search", "views": 100, "paid_orders": 2, "sales_usd": "9.98"}]}}}}}
+
+def test_scoreboard_separates_money_stages_and_flags_zero_streak():
+    b = build_scoreboard(ANALYTICS, RECONCILE)
+    assert b["money"] == {"gross_30d": "82.77", "earnings_after_cost_30d": "66.22", "cost_30d": "34.50",
+                          "payout_waiting": "59.00", "pending": "11.02", "bank_received_total": "0.00"}
+    assert b["zero_revenue_streak_days"] == 2
+    assert b["skills"]["selling"] == 1 and b["skills"]["never_sold"] == 1
+    assert b["funnel"]["search"] == {"views": 100, "paid_orders": 2, "sales_usd": "9.98"}
+```
+
+- [ ] **Step 2: 実行して失敗を確認**
+
+Run: `cd skills/earn/capafy-marketing/scripts && python3 -m pytest test_capafy_scoreboard.py -v`
+Expected: FAIL（`ModuleNotFoundError: capafy_scoreboard`）
+
+- [ ] **Step 3: 最小実装**
+
+```python
+#!/usr/bin/env python3
+"""Daily Capafy scoreboard: money stages kept separate, never rounded unknown to 0."""
+from __future__ import annotations
+import json, sys
+from decimal import Decimal
+from pathlib import Path
+
+STATE = Path.home() / ".local/state/life-manager/state"
+
+
+def _d(v):
+    return None if v in (None, "") else Decimal(str(v))
+
+
+def build_scoreboard(analytics: dict, reconcile: dict) -> dict:
+    t = analytics.get("account_totals") or {}
+    bal = analytics.get("balances") or {}
+    money = {
+        "gross_30d": (t.get("last_30d") or {}).get("gross_usd"),
+        "earnings_after_cost_30d": t.get("net30_usd"),
+        "cost_30d": t.get("cost30_actual_usd"),
+        "payout_waiting": bal.get("balance_payout_usd"),
+        "pending": bal.get("balance_pending_usd"),
+        "bank_received_total": bal.get("paid_out_usd"),
+    }
+    streak = 0
+    for day in reversed(analytics.get("daily_revenue_trend_last_30d") or []):
+        if (day.get("revenue") or 0) > 0:
+            break
+        streak += 1
+    rows = analytics.get("per_skill_rows") or []
+    selling = sum(1 for r in rows if (_d(r.get("stats_30d_revenue_usd")) or 0) > 0)
+    never = sum(1 for r in rows if (_d(r.get("since_launch_gross_usd")) or 0) == 0
+                and (_d(r.get("stats_30d_revenue_usd")) or 0) == 0)
+    funnel: dict[str, dict] = {}
+    for agent in ((reconcile.get("traffic_sources") or {}).get("by_agent") or {}).values():
+        for s in (agent.get("last_30d") or {}).get("by_source") or []:
+            f = funnel.setdefault(s.get("source_type") or "unknown", {"views": 0, "paid_orders": 0, "sales_usd": Decimal("0")})
+            f["views"] += s.get("views") or 0
+            f["paid_orders"] += s.get("paid_orders") or 0
+            f["sales_usd"] += _d(s.get("sales_usd")) or 0
+    for f in funnel.values():
+        f["sales_usd"] = f"{f['sales_usd']:.2f}"
+    return {"money": money, "zero_revenue_streak_days": streak,
+            "skills": {"total": len(rows), "selling": selling, "never_sold": never}, "funnel": funnel}
+
+
+def render_text(b: dict) -> str:
+    m = b["money"]
+    lines = [f"Capafy 成績表: 30日 gross ${m['gross_30d']} / 原価 ${m['cost_30d']} / 原価後 ${m['earnings_after_cost_30d']}",
+             f"出金待ち ${m['payout_waiting']} / 確定待ち ${m['pending']} / 口座着金 累計 ${m['bank_received_total']}",
+             f"売上0の連続日数 {b['zero_revenue_streak_days']} / 売れている {b['skills']['selling']} 本・一度も売れていない {b['skills']['never_sold']} 本"]
+    for src, f in sorted(b["funnel"].items(), key=lambda kv: -kv[1]["views"])[:5]:
+        lines.append(f"流入 {src}: {f['views']} view → {f['paid_orders']} 件 ${f['sales_usd']}")
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    a = json.loads((STATE / "capafy-skill-analytics.json").read_text())
+    r = json.loads((STATE / "capafy-hourly-reconcile.json").read_text())
+    board = build_scoreboard(a, r)
+    print(json.dumps(board, ensure_ascii=False) if "--json" in sys.argv else render_text(board))
+```
+
+- [ ] **Step 4: テスト PASS を確認**（同じコマンド、Expected: PASS）
+- [ ] **Step 5: 実データで 1 回動かし、数字が §0 の表と一致することを目視** — `python3 capafy_scoreboard.py`
+- [ ] **Step 6: `capafy-goal-monitor.sh` の daily-close 分岐で `render_text` の出力を既存の Telegram outbox 経由で送る（新しい送信経路は作らない）**
+- [ ] **Step 7: Commit** — `git add skills/earn/capafy-marketing/scripts/capafy_scoreboard.py skills/earn/capafy-marketing/scripts/test_capafy_scoreboard.py skills/earn/capafy-marketing/capafy-goal-monitor.sh && git commit -m "feat(capafy): daily scoreboard separating gross, cost, payout and bank receipt"`
+
+### Task A2: 口座着金の readback
+
+**Files:** Modify `skills/self/capafy-loop/capafy_earn_reconcile.py`、Test 同ディレクトリの既存テスト
+
+- [ ] Capafy の payout-record（`payoutMonth`、`paid`、`paymentReference`）を月次で読み、`paid=true` の行だけを「着金」として ledger に記録する。着金額の一次証拠は Capafy の payout record と、Wise/銀行の入金メール（Gmail `from:capafy OR subject:payout`）を `paymentReference` で突き合わせる。
+- [ ] テスト: `paid=false` の月は着金に数えない／`paid=true` でも `paymentReference` が無い行は `unverified` として別欄にする。
+- [ ] 最初の着金月（$59 が出金閾値を超えた月）に公式 readback で 1 件閉じる。
+
+---
+
+## Phase B — 出血を止める・今ある枠を使う
+
+### Task B1: Marketing Strategist を安いモデルへ移して再提出
+
+- [ ] 既存ルール1（`capafy_daily_decision.py` losing money → `UPDATE.json` で `deepseek/deepseek-v4.1-flash`）がこの agent に効いていない理由を、`state/capafy-daily-decisions/` の最新記録で確認する（第一仮説: status=review_rejected が `PENDING_SERVER_STATUSES` に入り `blocked=pending_review` で止まる）。
+- [ ] 仮説が当たれば、rejected の場合だけ「却下修正と同じ 1 回の更新」にモデル変更を同梱するよう `decide_actions` を変更（テスト: `review_rejected` かつ赤字 → `model_switch` と `rejection_repair` を 1 つの update にまとめる）。
+- [ ] 公式 readback: Capafy API で model=DeepSeek・status=under_review → online。
+
+### Task B2: 却下理由を Gmail から取る
+
+**Files:** Modify `skills/capafy-autopublish/scripts/` の rejection repair queue を書く箇所（`capafy-rejection-repair-queue.json` を書くスクリプト）
+
+- [ ] Gmail の「Action Required: Your Agent "…" was rejected」から Agent ID・Version・Reason（例 `2.2 Information accuracy`）を抜き出し、queue の `rejection_reason` を埋める（`platform_reason_unavailable` を置き換える）。
+- [ ] テスト: 実メールの本文を fixture にして ID・version・reason を取り出す。
+- [ ] 理由ごとの修正方針（2.2 = 説明文の主張を見本の実出力で裏付けられる範囲に絞る）を LISTING 生成プロンプトに渡す。
+- [ ] 公式 readback: 却下 2 本（4973250899、9563867391）が under_review → online。
+
+### Task B3: 空き 2 枠を今日埋める
+
+- [ ] `inventory_status.py` = PUBLISHABLE（空き 2）なのに提出が無い理由を `capafy-loop-daily.log` で特定（第一仮説: 準備済み候補が無い、第二: 1 時間 1 アクション制限、第三: fence）。
+- [ ] 直したら、自然 run で `platform_status=1` を Capafy API で確認。
+
+---
+
+## Phase C — 勝てる棚に作る（量と質）
+
+### Task C1: 市場の勝者データを毎日取る
+
+**Files:** Modify `skills/self/capafy-loop/capafy_market_sweep.py`
+
+- [ ] 既存の `POST /agent/agents/search` sweep に加え、公開トップページ（Trending）の各 agent の `Sold`・価格・カテゴリを毎日記録する（`crwl crawl https://capafy.ai/ -o markdown-fit` を写す。新しいスクレイパは作らない）。
+- [ ] 出力: `state/capafy-market-winners-latest.json` = `[{name, developer, category, price, cycle, sold, observed_at}]`
+- [ ] テスト: 保存済み HTML fixture から CloneCut = 14,030 sold・$19.99/month を取り出す。
+
+### Task C2: 勝ち棚の判定を測定ベースにする
+
+**Files:** Modify `skills/self/capafy-loop/capafy_daily_decision.py`（rule 4 の拡張）、`skills/self/capafy-loop/test_capafy_daily_decision.py`
+
+**Interfaces:** Produces `rank_shelves(market_winners: list, own_rows: list) -> list[dict]`（各 dict = `{category, market_sold_total, our_listings, our_sales_30d, score}`）
+
+- [ ] テスト（失敗を先に書く）:
+
+```python
+def test_rank_shelves_prefers_big_market_where_we_are_thin():
+    m = load_module()
+    winners = [{"category": "Video", "sold": 14030}, {"category": "Finance", "sold": 3083}, {"category": "Legal", "sold": 10}]
+    own = [{"category": "Legal", "stats_30d_orders": 0}, {"category": "Legal", "stats_30d_orders": 0}]
+    ranked = m.rank_shelves(winners, own)
+    assert [r["category"] for r in ranked][:2] == ["Video", "Finance"]
+    assert ranked[-1]["category"] == "Legal"
+```
+
+- [ ] 実装: `score = market_sold_total / (1 + our_listings)`。上位の棚を `capafy-candidate-opportunities.json` に書き、`capafy-loop-daily.sh:143` の手書き family 一覧を「opportunities ファイルだけを読む」に置き換える。
+- [ ] 公式 readback: 次の新規出品が上位棚のカテゴリで under_review に入る。
+
+### Task C3: 売れた物を複製する（winner cloning を測定で、ただし規約 4.2 の量産禁止を守る）
+
+- [ ] 派生候補は「入力・出力・利用場面」が親と別物であることをモデルに判定させ、近い派生は出さない。既存の Hook Lab 派生 9 本は、売上・閲覧で上位 2〜3 本を残し、残りを統合または非公開にする。
+- [ ] `decide_actions` に rule 5 を追加: 30日で `orders >= 3` の agent ごとに、まだ持っていない派生先（プラットフォーム・ニッチ）を 1 つ opportunities に足す。派生の成否（30日の注文数）を親子で記録し、親より売れない派生が 2 本続いたら、その親からの派生を止める。
+- [ ] テスト: Hook Lab（11 注文）→ 派生候補 1 件。派生 2 本が 0 注文 → その親の派生停止。
+
+### Task C4: 売れない 46 本を直すか退役させる
+
+- [ ] 既存 rule 3（views ≥ 20・注文 0 → `retire_or_rewrite_candidate`）を実行まで進める: 題名・説明の書き直し（勝者の型: 「名前 — 何をするか」、数字のある約束、使うエンジン名）を 1 回だけ。書き直し後 30日で注文 0 なら非公開化して枠と注意を勝ち棚へ回す。
+- [ ] views < 20 の物は「見られていない」問題なので、書き直しより検索語の見直し（Task D1）を先に当てる。
+
+---
+
+## Phase D — 見つけてもらう（売上の 69% は Capafy 内検索）
+
+### Task D1: Capafy 内検索の最適化
+
+- [ ] 勝者と自分の題名・説明・タグを並べ、検索 view の多い語を題名の先頭に入れる。変更前後 14 日の検索 view と成約を成績表（A1）で比較する。
+- [ ] hot（成約率 6.1%、最良）に載る条件を観測する（直近の売上・評価の数）。最初の数件の注文とレビューを集める方法（既存顧客への使い方案内など、規約内のもの）を調べる。
+
+### Task D2: プロフィールを整える
+
+- [ ] spec 29 の「profile edit を main agent が直接しない」ガードに従い、`capafy:kosuke` lease の工場側ブラウザ役で 1 回だけ実行する。内容: ブランド名を 1 つに統一（例「Anicca Hook Lab」系）、実績（累計販売数・対応プラットフォーム）、得意棚、外部リンク（aniccaai.com）。
+- [ ] 公式 readback: https://capafy.ai/publisher/Anicca に新しい bio が出る。
+
+### Task D3: 外部宣伝を成約で測る
+
+- [ ] `capafy-distribute-daily` を再開（9/30 から停止。fence の公式 readback 解除は SSOT の F2 に従う）。
+- [ ] 宣伝の対象を「直近 30 日で一番利益の出た agent」から「hot / 検索で伸びている agent」に変える。`ct=` 付きリンクの成約を成績表に出し、14 日で成約 0 の経路は止める。
+- [ ] 新しい経路（Reddit・YouTube Shorts）は、勝者がそこで集客している証拠を取ってから 1 つずつ足す。
+
+---
+
+### Task D5: SNS（短尺動画）レーン — 2026-10-05 棚卸しの結果
+
+**実測（2026-10-05、read-only）**
+
+| 経路 | 状態 | 実績（30日） |
+|---|---|---|
+| X「sela \| AI Tools」（Postiz） | 稼働。`capafy-distribute-daily` が 3 時間ごとに記事と一緒に投稿 | ct 別の成約は #6600 から成績表に出る |
+| 記事 aniccaai.com | 10/04 22:15 から再開（#6580・#6581） | 同上 |
+| Capafy Instagram（旧 capafy.skills8m4q2z） | 8/24 から投稿なし。`capafy-ig-marketing-daily` は LoginRequired で毎時失敗、`capafy-ig-account-manager` は effect_unknown で停止 | instagram_bio 53 view → 有料 0 |
+| TikTok / YouTube Shorts（Capafy 用） | 一度も作っていない | — |
+| Writer article-daily（ct=article-*） | 9/29 以降成功なし（`resource_effect_unknown` で停止、Writer 所有、codex-money-printer へ共有済み） | — |
+| Postiz の接続 | 30 件すべてアプリ用（IG×7・TikTok×14・YouTube×3）＋X×2。**Capafy 用の IG/TikTok/YouTube は 0 件** | — |
+
+**写す姉妹 loop（推奨）:** `life-manager-anicca-main-instagram`（毎日 3 回、Postiz 経由で reel を投稿している実働レーン）。
+
+- 写すもの: `apps/life-manager/config/mobile-app-loops.json` の 1 行、`apps/life-manager/scripts/honne-ja-cycle.js` の action 定義、`config/loop-registry.json` のエントリ。
+- 共有部品はそのまま使う: `lib/marketing-video-generation-adapter.js`、`lib/marketing-slide-pack-text.js`、`lib/marketing-video-publication-adapter.js`。Postiz の公式読み戻しは `mobile-postiz-provider-reconcile.py`。
+- 中身: 売れ筋（Hook Lab → TikTok Script Pro → YouTube Script Writer → Slide Maker）の「入力 → 実際の出力」を 15 秒で見せる実演。リンクは `ct=capafy-reel-<skill>`。
+
+**順番**
+
+1. Capafy 用 IG を新規作成する（`ig-account-create` skill、メールだけで作れる手順）。資格情報は `~/.local/share/anicca/credentials.json` に保存。
+2. Postiz に接続する。
+3. 7 日間の慣らし運転（`ig-account-warmer`）。その間にレーンを作り、dry-run で生成物を確かめる。
+4. 本投稿を開始。TikTok・YouTube Shorts は IG の成約を見てから同じ手順で足す。
+5. 14 日で ct 経由の成約が 0 の経路は止める（成績表の ct 行で判定）。
+
+**注意:** ディスク空きは 3.6GiB（2026-10-05）。動画生成の前に空きを確かめる。旧 IG の 2 loop は毎時失敗を続けるだけなので、新レーンが動いたら止める。
+
+## Phase E — 価格
+
+### Task E1a: 提出前の価格照合（値上げ版が古い価格のまま承認される穴を塞ぐ）
+
+**事実（2026-10-04 実測）:** Hook Lab v1.0.4（2104787480225804288）・TikTok Script Pro v1.0.2（2104796738414858240）・YouTube Script Writer v1.0.3（2104868865431072768）は値上げ版として提出・承認（platform_status=4）されたが、各版の billing 行は日$1.99/週$4.99/月$9.99。Hook Lab の billing updatedAt = 2026-09-29 17:41 JST（提出時）。工場は提出後に実際の価格を確かめていない。
+
+**Files（既存の検査の型を写す。モデル検査 `scripts/check_hosted_model.py` と同じ位置で呼ぶ）:**
+- Modify: `skills/capafy-autopublish/scripts/publish_finish.sh`（提出直前）
+- Create: `skills/capafy-autopublish/scripts/check_listing_price.py`
+- Test: `skills/capafy-autopublish/test/test_check_listing_price.py`
+
+- [ ] 失敗するテスト: LISTING の価格表（`| week | $9.99 | 30 | No Free Trial |` 形式）と draft の billing 行（`cycleType`・`cyclePrice`・`cycleMaxMessageCount`・`supportFreeTrial`）が 1 つでも違えば `price_mismatch`（期待値と実値を両方出す）、一致なら ok。実例: LISTING 月 $19.99 ／ billing 月 $9.99 → mismatch。
+- [ ] 最小実装 → テスト PASS → `publish_finish.sh` で mismatch なら提出しない（exit 非 0、理由をログ）。
+- [ ] 公式 readback: 次の値上げ提出で、提出前の draft billing が LISTING と一致したログ、承認後に市場 API の billing が新価格。
+- 状態: Sonnet 実装中（PR 作成まで、merge は確認後）。
+
+### Task E1b: 売れ筋 3 本を市場価格で出し直す
+
+- [ ] `skills/capafy/catalog/{hook-lab,tiktok-script-pro,youtube-script-writer}/UPDATE.json` の `from_version_id` を現行公開版（上の 3 つの version id）に合わせる。今は Hook Lab が旧 `2104491899222904832` で、`inventory_status.py` の一致条件（online かつ latest==from_version）を満たさず永久に出ない。
+- [ ] サブスク価格だけの更新を `inventory_status.py` / `publish_prepare.sh` が受け付けるか確認（今は `target_model_id` か `target_one_time_fee` のどちらか必須）。受け付けないなら、`target_model_id`（現行と同じ DeepSeek）を持つ更新として出し、CP1 で価格表を書く（E1a の照合で担保）。
+- [ ] 審査枠が空いたら、工場が売上順（`update_priority_key`）に Hook Lab → TikTok Script Pro → YouTube Script Writer を出す。
+- [ ] 公式 readback: 市場 API の billing が LISTING どおり（Hook Lab 日$3.99/週$9.99/月$19.99/年$99.99）。成績表で前後 14 日の注文数と手取りを比べ、手取りが減ったら元に戻す。
+
+### Task E1c: 価格の型（以後すべての出品に適用）
+
+- [ ] 市場価格帯（2026-10-03 sweep: 月 p25 $12.99・中央 $19.10・p75 $22.99、週 中央 $6.99、年 中央 $149.99）の中央付近に置き、年プランを必ず置く。無料試用は付けない。
+- [ ] モデル代 ≤ 手数料後売上の 15%。高いモデル（Sonnet 以上）を使う時は回数上限を勝者並み（月 10〜27 回）に絞る。
+- [ ] 価格変更は 1 本ずつ、前後 14 日比較。
+
+---
+
+## Phase F — レシピ化と公開
+
+- [ ] Phase A〜E の手順と数字を `skills/capafy/RECIPE.md` に 1 本でまとめる（市場を読む → 作る → 値付け → 見つけてもらう → 成績表 → 直す）。
+- [ ] 口座着金ベースで月 $1k → $3k → $10k の各段階を公式 readback で記録する。
+- [ ] $10k を 30 日保ったら、credential を除いて OSS として公開（spec 29 の O0〜O2）。同じレシピをモバイルアプリ・Web アプリ・gig に写す。
+
+## 実行順（$10k MRR までの全順序。この表が Capafy の TODO 正本）
+
+**ゴール:** 口座に入る利益（売上 − Capafy 手数料 − モデル代）で月 $10,000 を 30 日維持。
+**起点（2026-10-04）:** 30日利益 $31.72、口座着金 $0、売上 5 日連続 $0、52 本中 46 本が売上 0。
+**算数:** 月$19.99 の手取り ≈ $13.99（20% 手数料 + Sandbox Fee 月$2）。有料会員 約 700 人、または勝者 1 本（$19.99 × 600 人）＋中堅 10 本。
+**完了の判定:** すべて公式 readback（Capafy API・市場 API の billing・公開ページ・Gmail・銀行着金）。テスト合格や exit 0 は完了ではない。
+
+| # | 段階 | Task | 完了条件（公式 readback） | 状態 |
+|---|---|---|---|---|
+| 1 | 1 取りこぼしを止める | A1 日次成績表 | 23:50 の daily_close で成績表が Telegram に届く | ✅ source+本番。10/05 01:32 に daily snapshot 初回書き込み（`capafy-scoreboard-daily.jsonl`）。Telegram 着信は未目視 |
+| 2 | 1 | B2 却下理由 / 重複の関門 / C1・C2 勝ち棚 | 却下 2 本が under_review → online、次の新規が上位棚 | source ✅、自然 run 待ち |
+| 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | ✅ 本番（release `1b3191a7` 以降、現在 `82d31995`） |
+| 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | ✅ 本番。最初の値上げ提出で `PRICING_MATCH` を確認する |
+| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | **枠待ち**: 審査枠 5/5 が 10/04 16:26 から不動。#6594 で 2 本を RETIRED.json → release 反映後にコンソールで取り下げて 2 枠空ける |
+| 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順は売上順（#6566）だが枠 5/5 で未実行 |
+| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | source ✅ #6572 `57c179fc`（見本・FAQ・タグ5、題名は不変）。値上げ更新と同時に出る＝枠待ち |
+| 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | ✅ 公開ページで新 bio を目視確認（2026-10-04）。残り: リンク欄（タイトル必須）、主力をプロフィール上位に出す方法 |
+| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。値上げ更新と同時に出る |
+| 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | ✅ 本番（#6574）。変更ログ `capafy-listing-changes.jsonl` への記入は値上げが online になった日から |
+| 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | ✅ source+本番（#6575 `26dd2de7`）: 親は 30日注文≥3 かつ売上>0、子 2 本以上が親未満なら停止。本番データ: Hook Lab=停止、TikTok/YouTube=派生候補 1 件ずつ |
+| 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 一部 ✅: 未出品 Hook Lab 派生 5 本を catalog-hold へ（#6576）、売上 0 の学術・Humanizer 12 本を RETIRED.json（#6577、工場の自動再出品から除外）→ 管理画面で公開停止、Capafy API で 12 本 offline を確認。残り: その他の売上 0 agent（書き直し 1 回 → 30 日） |
+| 13 | 3 | 新規は上位棚（分析・金融・動画）× DeepSeek × 市場価格（E1c） | 新規の 30日注文 > 0 | 工場で継続 |
+| 14 | 3 | G1 集客用の無料 agent 1 本 → 有料の兄弟へ誘導（勝者の型: 無料 download 上位が多数） | 無料 agent の download 数と有料への流入（traffic_sources） | source+本番 ✅（#6578 `1b3191a7`）: Hook Grader（無料 download、既存 hook を採点、最後に Hook Lab へ案内）。工場が枠の空き次第出品（重複関門の判定後） |
+| 15 | 4 外部宣伝と着金 → **月 $3k** | D3 外部宣伝の再開（9/30 停止）、全リンク `ct=`、14 日成約 0 の経路は停止 | `ct=` 経由の paid_orders | 再開 ✅（#6580・#6581、本番 `1a20a537`）: 10/04 22:15 の自然 run で記事公開（HTTP 200・ct 付き）、X は Postiz published（X 上は未目視）。残り: ct 別の成約を測る（集計に ct 内訳が無い）、14 日で成約 0 の経路は止める |
+| 16 | 4 | A2 口座着金（9 月分 $59 は 10/15 以降） | Capafy payout record `paid=true` と入金メールの一致 | 10/15 以降 |
+| 17 | 4 | 価格実験を 1 本ずつ（手取りが増えた価格だけ残す） | 成績表の前後比較 | 未着手 |
+| 18 | 5 伸ばす → **月 $10k** | 勝ち agent を軸に勝ち棚で数を増やす（規約の量産禁止を守る） | 口座着金で月 $10k を 30 日 | 未着手 |
+| 19 | 5 | F レシピ化 `skills/capafy/RECIPE.md` | 月 $1k → $3k → $10k を公式 readback で記録 | 未着手 |
+| 20 | 5 | 同じ型をモバイルアプリ・他商品へ | — | 未着手 |
+
+**毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
+**順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
+**現在のカーソル（2026-10-05 10:0x）:** #5（審査枠を空ける: release 反映→2 本取り下げ）。並行: TikTok/YouTube のカード改善（#7 の横展開、値上げ更新に同梱されるので枠が空く前に入れる）。
+
+
+## 進捗ログ（実行順のカーソル）
+
+- 2026-10-04 18:0x JST **A1 完了（source）**: PR #6559 merge `4ce3a7c3`。実データで gross $82.77 / 原価 $34.50 / 出金待ち $59.00 / 着金 $0.00 / 売上0連続 5 日 / 一度も売れていない 46 本。残り: 23:50 の自然 daily_close で Telegram に成績表が載ることの確認。
+- **C1/C2 完了（source）**: PR #6560 merge `f0e4e824`。既存の認証済み sweep（salesVolume・categoryId）を再利用し、新しいスクレイパは作らない。実データの棚の上位: Analysis 3,159 / Finance 2,593 / Video 1,907 / Writing 205 / Research 139（市場の販売数合計）。categoryId と名前の対応は https://capafy.ai/ のカテゴリリンクから取得。残り: 自然な日次 run で opportunities に `market_shelf` が追加され、次の新規出品がその棚になることの確認。
+- **B3 は自然に解消**: 10/04 15:10〜16:33 に空き枠を工場が使った。CAP_FULL は審査中 3＋却下 2 による正常待機。
+- **B1/B2 の診断（read-only）**: 工場の優先順位は `update_existing`（売れている agent の値上げ・モデル切り替え）＞ `retry_existing`（却下版）＞ `create_fresh`（`inventory_status.py` の `allocate_action`）。10/04 の空き枠 4 回はすべて update_existing（5550040899、6273179459、7599205243、7631594519）。却下版が後回しなのは設計どおりで、「永久停止」仮説は棄却。本当の穴: `rejection_queue.py` がどの loop からも呼ばれていない。修正キューは 9 月の 7 件のまま古い（承認済み 2 件を含む、現在の却下 2 件を含まない）。却下理由を直さずに再提出する可能性がある。Marketing Strategist は公開ページで旧 v1.0.1（Sonnet 4.6）が販売中。却下 v1.0.2 は、カードが DeepSeek・実際の利用が Sonnet（30日 $27.92）で、2.2.3 の不一致が第一仮説（`check_hosted_model` が retry 時に検査する）。次: `rejection_queue.py` を工場の reconcile 後に呼び、Gmail の却下理由で `rejection_reason` を埋め、retry 前の修正プロンプトに渡す（Task B2）。
+- 2026-10-04 18:3x JST **A1 は本番へ自然反映済み**: `ai.anicca.capafy-loop-daily.plist` が release `20261004T175201-4ce3a7c3` を指すことを確認（自動更新役の自然 apply）。
+- **B2 完了（source）**: PR #6561 merge `999201f9`。Capafy の却下メールは HTML だけなので、テキストに変換してから読む。read-only の実行で、却下中の 2 本に `2.2 Information accuracy`（state queued）が入った。毎回の起動で実行される（CAP_FULL 中も）。DAILY_LOOP.md 2c で、再提出の前に理由を直すよう指示。残り: 自然 run で 2 本が under_review → online になることを Capafy API で確認。
+- **重複の関門 完了（source）**: PR #6562 merge `49adafcd`。規約 4.2 の量産禁止に対応。新規出品の前にモデル（claude haiku、`--setting-sources ""`、USER 補完）が既存出品とほぼ同じかを判定し、near_duplicate と unknown は出さない。実判定: 「Reels Hook Lab — First 3 Seconds」= near_duplicate、「Earnings Call Brief」= distinct。
+- **次の判断（C4）**: 既にある学術 Humanizer / Voice Editor 系 約16本（売上は Academic Humanizer の $9.99 だけ）は、規約 4.2 の削除・停止リスクがある。売上と閲覧で上位 1〜2 本を残して統合し、残りを非公開にする案。非公開は `recover_delisted` で戻せる。
+- 2026-10-04 19:xx JST **ディスクの根本修正**: PR #6563 merge `1c21656e`。`hc_reclaim_disk_if_low` が camoufox のキャッシュを消す → verify-loops-audit が毎回 1.3GB を loop-tmp へ再ダウンロードして残す、という悪循環だった（8.3GB）。終わった実行の一時フォルダ 8 件を削除し、空きは 489MiB → 6.5GiB。
+- **管理画面の事実（read-only、lease 使用）**: プロフィール編集は https://capafy.ai/developer/public-profile（バナー 2048×432・アバター・名前・handle〔変更は 14 日に 1 回〕・自己紹介 1000 字〔現在 548 字〕・リンク・連絡先）。agent ごとの「基本情報」「価格設定」タブで、題名・短い説明（500 字）・タグ（5 個）・日/週/月/年のサブスク価格・回数上限・無料試用を直接編集できる（「審査が必要」の表示なし。保存時の挙動は未確認）。→ E1 の「CP1 にサブスク価格欄が無い」は、管理画面の価格設定タブを使えば解消できる見込み。「公開停止」ボタンは審査履歴タブにある。戻せるかの説明は押す前には出ない → C4 は保留。
+- **価格の判断**: 市場の月額は p25 $12.99 / 中央 $19.10 / p75 $22.99。Hook Lab $19.99・Slide Maker $24.99 は市場並み、TikTok Script Pro・YouTube Script Writer の $9.99 は p25 未満。10/04 に工場が値上げ更新を 4 本出したばかりで、5 日連続で売上 0 のため、追加の値上げは今回の結果（14 日の注文数と手取り）を見てから 1 本ずつ行う。
+- 2026-10-04 20:xx JST **B1 は コード変更不要（PR #6565 は merge せず close）**: 却下中の agent は `retry_existing` で `publish_prepare.sh <ID>` に入り、hosted model は LISTING の build_config から決まる。marketing-strategist の LISTING は既に `deepseek/deepseek-v4.1-flash`、UPDATE.json も既にある。よって「Sonnet のまま再提出」の穴は無い。赤字の実体は公開中の旧 v1.0.1（Sonnet）の販売で、DeepSeek 版の retry（B2 の 2.2 理由つき）が承認されれば止まる。残り: retry の承認を Capafy API で監視（作業は不要）。カーソル → D1。
+
+- 2026-10-04 20:xx JST **順序変更**: 理由 = 実測で (1) catalog 外の Sonnet 2 本が rule 1 を素通りして出血中、(2) 売れ筋 3 本の値上げが本番に未反映で、同じ客数でも手取りが約半分。どちらも D1 より早く手取りを増やす。旧順序: D1 → D2 → C3 → C4 → E1 → D3 → A2 → F。新順序: **B4（catalog 外の Sonnet 赤字 2 本を止める）→ E1（決定済みの値上げを売れ筋 3 本の本番価格へ。管理画面の価格設定タブ）** → D1 → D2 → C3 → C4 → D3 → A2 → F。カーソル → B4。D1 の read-only 調査は並行で継続（効果なし・副作用なし）。
+- 2026-10-04 20:xx JST **D1 調査（read-only）**: 検索 view（30日）→ 成約率: Hook Lab 1,503 → 0.20%（3件）、Marketing Strategist 240 → 0.83%、Slide Maker 91 → 2.2%、TikTok Script Pro 61 → 4.9%、Japanese Humanizer 59 → 6.8%、YouTube Script Writer 25 → 16%。他 40 本超は view 0〜8。→ 一番の取りこぼしは Hook Lab（見られているのに買われない）。同じ棚の勝者 HookAce（914 sold、週$9.99/月$19.99）と価格帯は catalog 上同じだが、本番は月$9.99 のまま・review 0 件。題名は Hookfix「Win a Video's First 3s」と字面が近い（doc 4.2 の 4.1.4 類似名）。公式 doc に検索/hot の順位式は無い（4.2・2.1 を確認）。Japanese Humanizer の「注文あり売上 $0」は 9/29 の価格修正前の注文（10/02・10/03 の市場データで oneTimeFee $9.99、7日注文 0）で、今は漏れていない。D1 の最初の実施対象 = Hook Lab の題名・タグ・カード（sample input/output・FAQ、doc 4.1.1）を E1 の値上げと同じ更新で出す。
+- 2026-10-04 21:xx JST **B4 調査（read-only）→ 緊急性なし**: Sonnet 赤字 3 本のモデル代は買い手の無料試用が主因で、3 本とも trial_orders_7d=0・stats_7d_orders=0。アカウント全体の OpenRouter 実費も 09/24〜10/03 は $0.00〜$0.51/日。今は新しい出血なし、30日窓から自然に消える。恒久策は catalog 外 2 本の catalog 再作成 → rule 1 のモデル切替（API に unpublish は無く、subscription agent の正式削除は 60 日前通知 https://capafy.ai/developer/doc/2.10）。C4 に統合。
+- **E1 の真因**: Hook Lab の UPDATE.json は from_version `2104491899222904832` だが公開中は `2104787480225804288`。`inventory_status.py` の一致条件（online かつ latest==from_version）を満たさず、値上げは永久に出ない。TikTok Script Pro・YouTube Script Writer も本番は日$1.99/週$4.99/月$9.99（2026-10-03 市場データ）。decision 記録に `blocked_no_cp1_support` 35 件。→ 管理画面の価格設定タブで直接変更する。Hook Lab 1 本で canary（保存時の審査要否・公開継続を確認）→ 問題なければ TikTok Script Pro・YouTube Script Writer。
+- **retry 順の穴**: CAP 満杯時は retry 不可、空いても retries は agent_id 文字列順（売上を見ない）で Customer Renewal Evidence Brief（$0）が Marketing Strategist（$11.18）より先。→ `update_priority_key` と同じ売上順に揃える（E1 の後）。
+- カーソル: **E1（Hook Lab canary 実行中）** → retry 順 → D1（Hook Lab 題名・カード）→ D2 → C3 → C4 → D3 → A2 → F。
+- 2026-10-04 22:xx JST **retry 順 完了（source）**: PR #6566 merge `4b0a1ae1`（retries を `update_priority_key` の 30日売上順に）。`test_inventory_status.py` 35 passed。呼び出し元 661 行が `load_revenue_by_agent()` を渡すことを確認。残り: 本番 plist が新 release を指すことの確認。
+- **E1 canary は CAP_FULL で未実行（Capafy への送信 0、publish-remote-status で変化なしを確認）**: 価格変更も新しい版＝審査枠を使う。枠 5/5（却下 2: 4973250899・9563867391、審査中 3: 6273179459・7599205243・7631594519）。
+- **E1 の本当の穴（実測）**: 値上げ版として提出した Hook Lab v1.0.4（2104787480225804288）・TikTok Script Pro v1.0.2・YouTube Script Writer v1.0.3 はすべて承認済み（platform_status=4）なのに、その版の billing 行は日$1.99/週$4.99/月$9.99（Hook Lab の billing updatedAt 2026-09-29 17:41 JST = 提出時）。仮説: H1 提出時に価格カードが保存されなかった（採用）、H2 価格は版と別保存で引き継がれない（棄却: billing 行の agentVersionId が v1.0.4 自身）、H3 データが古い（弱い: 市場データは 10/03 の API 取得）。→ 工場は「値上げした」と記録しても実際の価格を確かめていない。修正: 提出前に draft の billing を LISTING の価格表と照合し、不一致なら提出しない（PR 作成中）。
+- カーソル: **E1 = 価格照合の追加 → UPDATE.json を現行版に合わせて枠が空き次第再提出** → D1 → D2 → C3 → C4 → D3 → A2 → F。
+- 2026-10-04 20:3x JST **E1a/E1b（#6569 merge `342ffefb`）**: 仮説 H4 を追加・採用 — TikTok Script Pro・YouTube Script Writer は LISTING の価格表自体が $1.99/$4.99/$9.99 のまま（コメントだけ「月$19.99 帯へ」）。Hook Lab は表は正しく、CP1 が緑の価格タブを素通りした（H1）。提出前の照合を「止める」にすると、CP1 確定後は編集 URL が出ないため直せない下書きが resume_draft 最優先で毎回選ばれ工場全体が止まる → 警告（`PRICE_MISMATCH_WARNING`）にし、根本は CP1_AGENTIC.md で「緑でも毎回全プランを目標値に設定・年プラン追加」。本番データ（token は `~/.local/state/life-manager/runtime/capafy-publisher/config.json`）で `verify_pricing.py` が 3 本とも PRICING_MISMATCH（月 目標$19.99/実$9.99、年なし）を返すことを確認。既知の失敗: `test_agent_work_state_isolation.sh` は main でも同じ `publish_input_contract: ValueError`（今回の変更と無関係）。
+- 2026-10-04 20:4x JST **本番反映**: `capafy-loop-daily` のみ release `e467e363`（#6566・#6569 を含む）へ `LIFE_MANAGER_APPLY_TARGET=capafy-loop-daily lm-loop apply`（ok/changed）。plist と launchctl の program が `e467e363` を指すことを確認。release は自動作成されたが label は自動では切り替わらない（既知）。
+- 2026-10-04 21:0x JST **D1 #6572 merge `57c179fc`**: Hook Lab に入出力の見本・FAQ（Capafy doc 4.1.1 推奨）、タグ 5 個（管理画面は 5 個可、`build_config.py` が理由不明の `[:3]` で切っていた → `[:5]`）。題名は変えない（`inventory_status.py` が UPDATE.json の対象を題名の完全一致で照合し、不一致だと SERVER_UNREADABLE で工場全体が止まる）。lint PASS・build_config readback でタグ 5・見本・FAQ・題名不変・DeepSeek・autopublish 259 passed。
+- **D2 完了**: 公開プロフィールの自己紹介を短尺動画ツールの主力 4 本＋「投稿・ログインしない」＋連絡先に変更（変更前 548 字は `/tmp/capafy-bio-before.txt`）。公開ページのスクリーンショットで目視確認。リンク欄はタイトル必須のため未設定。新しく見つかった点: (a) プロフィール先頭に販売数 0 の agent が並び Hook Lab が出ない、(b) Ad/Shorts/Reels Hook Lab の価格欄が「無料トライアル」表示（LISTING は No Free Trial 方針）＝価格が本番に入っていない症状、次の更新で `verify_pricing.py` が検出する。
+- **D4 調査**: hot/trending の算出式は公式 doc（1.x〜6.x）に無い。禁止は偽レビュー・評価操作のみ（https://capafy.ai/developer/doc/4.1 "Fake reviews or rating manipulation | Agent removed…"、doc 4.2 "manipulating ratings"）。正直な依頼を禁じる文言は無い。売れている競合（Ocup 3,084 sold・4.6、Serenity 1,805・4.8、HookAce 927・4.3）も書き込みレビュー 0 件。Trending 並びは販売数順ではない（勢い・鮮度の合成と推定、未確証）。市場 API の index/score 系は全件 null。→ 売れ筋 3 本の SKILL.md に「役に立ったら評価を」1 行（見返り・点数指定なし、#6573）。計測: `capafy-skill-analytics.json` の rating/review_count、`capafy-hourly-reconcile.json` の hot views/paid_orders。
+- 2026-10-04 21:2x JST **ディスク満杯で release 作成が失敗**: `/` 空き 371MiB で release-reconciler の `cut-loop-release: export of 17711638 failed` / `export of 1a723aab failed`（`~/.local/state/life-manager/release-reconciler/events.jsonl`）。未完成 release（755・RELEASE.json 無し）に apply すると `ok:false` で何も変わらない（安全側）。対処: `/private/tmp` の git worktree のうち dirty=0・HEAD がリモート・lock 無し・使用プロセス無しの 11 個だけ `git worktree remove` → 空き 3.9GiB。camoufox cache（#6563 で消さない方針）と他セッションの未 push/lock worktree は触らず。根本（容量を食い続ける原因）は未調査、codex-money-printer（F4）へ共有済み。
+- **本番反映**: `capafy-loop-daily`・`capafy-goal-monitor`・`-daily-close`・`-hourly` を release `20261004T212450-1b3191a7`（#6566〜#6578 全部入り）へ apply、4 つとも plist と launchctl の program が一致。release 内に RETIRED.json と hook-grader を確認。
+- **C4 公開停止（12 本）**: 確認画面「この Agent を marketplace から取り下げますか？ marketplace から削除されます。既存の顧客は現在の利用期間が終了するまで引き続き利用できます。」（削除・60日通知・取り消し不可の文言なし、`/tmp/capafy_unpublish_shots/05_unpublish_dialog.png` を目視）。1 本で試してから残り 11 本。Capafy API `publish-list`: 退役 12 本すべて `offline`、全体 online 35 / under_review 3 / review_rejected 2 / offline 12。再公開ボタンは画面上で未確認（データ・版履歴は残る）。工場は RETIRED.json で再出品しない。
+- 2026-10-04 22:2x JST **D3 外部宣伝 再開**: 停止原因は fence でも認証でもなく、anicca-products の main に 10/02 18:08 の直接 push（081eeb2 #417）が入って以降、`capafy_free_article.py` の push が毎回 non-fast-forward で拒否（push 前の同期が無い）。記事は毎回生成されていたが未公開、X は「公開 URL 無し」で skip。対処: 未 push の 12 記事コミット（全て capafy-distribute、うち公開停止系・却下中 agent の宣伝を含む）を local branch `backup/capafy-distribute-unpushed-20261004` に退避して共有 checkout を origin/main に合わせた（未コミット 0 件を確認後）。#6580 push 前に `git pull --rebase`（再現テスト: 修正前 fail・後 pass）、#6581 宣伝先を「online かつ 30日利益 > 0」に限定（実データ: hook-lab / slide-maker / tiktok-script-pro / youtube-script-writer、該当 0 なら従来の全巡回）。release `1a20a537` を capafy-distribute-daily・capafy-loop-daily・goal-monitor 3 本へ apply（plist/launchctl 一致）。22:15 の自然 run: https://aniccaai.com/blog/capafy-youtube-script-writer-2026-10-04-h21 = HTTP 200、`ct=capafy-distribute-youtube-script-writer` 付きリンクあり、X は Postiz `published`（post_id cmutupbyg02i3l60ytpqw30vi、receipt の x 欄は pending_wrapper のまま）。Writer article-daily も同じ checkout・同じ push 実装（`self_owned_article.py:601,699`）のため codex-money-printer へ共有済み。
+- 2026-10-05 09:4x〜10:0x JST **朝の実測と修正**:
+  - 審査枠 5/5 が 10/04 16:26 から不動（under_review: 6273179459 Ad Hook Lab / 7599205243 Academic Research Proposal Humanizer / 7631594519 Talent Review Deck Writer、review_rejected: 4973250899 Customer Renewal Evidence Brief / 9563867391 Marketing Strategist）。工場は 09:16 も起動しているが CAP_FULL で提出なし。値上げ（#5）・カード（#7）・評価依頼（#9）・Marketing Strategist 出し直し（#6）がすべてこの枠待ち。
+  - #6594 `1ab27cff`: 4973250899（却下・売上 0）と 7599205243（10/04 退役の学術系と同類）を RETIRED.json＋catalog-hold。stub-retry テストが本物の agent/catalog に依存していたので、退役していない Earnings Call Brief と空の退役パスに切り替え（autopublish 262 passed）。release 反映後にコンソールで 2 本を取り下げる（先に取り下げると旧 release の工場が recover_delisted で出し直す）。
+  - #6596 `8ab5a798`: 工場の指示文（`capafy-loop-daily.sh` の CAP_FULL オフライン生成と通常パス）が「Hook Lab 派生（podcasts, newsletters…）＋週月の無料トライアル」を指示していた。10/04 22:26 に main checkout を `capafy/podcast-clip-hook-lab-offline-20261005` へ切り替え podcast-clip-hook-lab を生成したのはこれ。BEST_PRACTICES §3 の「勝者はほぼ全員トライアル付き」は誤り（2026-10-04 sweep: サブスク売上上位 10 本中トライアル 1 本、上位 20 本中 5 本）→ 全プラン No Free Trial＋年プラン、§13 の Hook Lab 派生は停止と明記、指示文は `capafy-candidate-opportunities.json` から作る。Ad/Reels/Shorts Hook Lab の「無料トライアル」表示の出どころもこれ。
+  - 毎時集計（capafy-goal-monitor-hourly）が 09:09 に `host_admission_deferred:resource_control_busy`、analytics は 07:25 のまま。診断: 毎時の起動が重なり共有 `host-admission/resources/control.lock` を同時に取り合った一時競合（保持 PID は全て生存、stale lease なし、直近 12h で 6 loop に 9 回）。spec `2026-09-15-life-manager-agent-architecture-refinement.md` も「次の自然 wake で回復」と規定 → 手でロックを消さない。10:07 の起動で回復するか確認中。
+  - release-reconciler: 前 release `82d31995` の fleet-apply で Capafy と無関係の 3 owner（article-learn-whitelist・pm-live-trade は rc=124、earn-watch rc=1）が失敗し backoff（09:26 に期限切れ）。promotion hold は無し。00:11 以降の main 変更は #6594・#6596 の 2 本のみで、release 作成待ち。
+- 2026-10-05 10:2x JST **マーケティングの棚卸しと計測**: #6600 `30386440` で成績表が ct（宣伝リンクの印）ごとに 1 行出す（Capafy は `sourceType="ct"`・`campaign` 行を既に返し、毎時集計にも保存されていたが成績表が 1 つにまとめて捨てていた）。SNS の実測は Task D5 に記録。Capafy 用 IG の新規作成を開始。毎時集計は 10:06 に復帰（analytics observed 01:06Z）、ただし capafy-goal-monitor-hourly 自体は 10:13 に `entrypoint_exit_1`（原因未調査、`.err` は 9/17 から更新なし）。在庫の状態が `unknown_unrecognized_status`（公開停止 12 本の `offline` を集計が知らない可能性）。
+
+
+- 2026-10-05 12:5x JST **全体計画**: Capafy 単独の天井（市場全体の累計販売 16,656、出品者 1 位 3,801）から、$10k は Capafy・PromptBase・自社 Stripe・他の売り場の足し算とした。正本 `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。
+- 2026-10-05 13:0x JST **ディスク満杯の原因**: `verify-loops-audit/loop-tmp` に終了済み run の一時ディレクトリ 29 個・4.2GiB（1 run 最大 1.2GiB）。削除で空き 268MiB→4.5GiB。恒久修正は F4（codex-money-printer）へ依頼。
