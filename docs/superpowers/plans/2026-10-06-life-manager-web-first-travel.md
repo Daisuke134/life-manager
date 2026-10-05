@@ -25,7 +25,8 @@
 - Web setup sets `call_enabled=false` and `notifications_enabled=false`; `paid` remains writable only by the existing Stripe webhook.
 - Departure remains event start minus accepted route duration minus one five-minute buffer. Calendar's existing default reminders remain in effect and must be described truthfully.
 - A created Travel event sets `send_updates` to `none`, `exclude_organizer` to `true`, and `create_meeting_room` to `false`.
-- An ambiguous create outcome keeps the `(uid,event_key,leg)` claim fenced; strict readback may resolve it, but failed/empty/ambiguous readback never triggers replay.
+- Release a Travel claim only when no provider write was dispatched or the Composio endpoint explicitly rejects the HTTP request with 4xx. After dispatch, network/5xx/unreadable responses and 2xx `successful:false` outcomes keep the claim fenced pending strict readback.
+- Resolve an unknown Calendar write only when one read-back event matches exact summary and `startMs`/`endMs`, plus destination after whitespace removal and lowercasing. Readback alone is not a create receipt and cannot label a helper `travel_added`.
 - Display the appointment and departure in one effective zone: explicit appointment IANA zone, otherwise browser-local. The Travel helper's persisted UTC is not its display zone.
 - Web pause/resume/disconnect use verified uid, exact Origin, JSON, and CSRF. Resume needs saved home and exact ACTIVE Calendar binding; disconnect leaves automation paused.
 - Do not add Telegram, phone, Gmail, live location, staff management, or Web App Factory features to this MVP.
@@ -266,18 +267,20 @@ Expected: recovered exact accounts work; inactive, ambiguous, mismatched, Telegr
 - Modify: `apps/life-manager/lib/transport/calendar-composio.js`
 - Modify: `apps/life-manager/lib/travel.js` and `apps/life-manager/lib/travel.test.js`
 - Modify: `apps/life-manager/lib/travel-return.test.js`
+- Modify: `apps/life-manager/lib/events-history.test.js`
+- Verify: `apps/life-manager/lib/travel-usage.test.js` preserves Composio outcome recording.
 
 **Interface:**
-- The travel caller can distinguish confirmed creation, definite no-effect rejection, and unknown effect. Transport/network/5xx/unreadable outcomes are not collapsed into definite rejection.
-- `fillTravel` releases a GO/RETURN claim only on a definite no-effect rejection. For unknown outcomes it performs strict Calendar readback for the exact expected helper; an exact match resolves it, while no match, ambiguity, or failed readback keeps the claim fenced and prevents replay.
+- The travel caller can distinguish confirmed creation, definite no-effect rejection, and unknown effect. Only a rejection before provider dispatch (for example, missing credentials or account-marker mismatch) or an explicit Composio HTTP 4xx is definite no-effect. Network/5xx/unreadable responses and a 2xx `successful:false` action body remain unknown because the docs do not guarantee no side effect.
+- `fillTravel` releases a GO/RETURN claim only on a definite no-effect rejection. For unknown outcomes it performs strict Calendar readback through Task 6's same expected account ID. Resolve only one event matching exact expected summary and `startMs`/`endMs`, plus destination after whitespace removal and lowercasing; no match, ambiguity, or failed readback keeps the claim fenced and prevents replay. Readback-only matches remain verified, never newly added.
 
 - [ ] **Step 1: Add failing GO and RETURN claim-fence regressions**
 
-Cover `keeps GO claim after an unknown create result`, `keeps RETURN claim after an unknown create result`, `strict exact readback recognizes an event created before response loss`, and `failed/empty/ambiguous readback never releases an unknown claim`.
+Cover `keeps GO claim after an unknown create result`, `keeps RETURN claim after an unknown create result`, `2xx successful:false remains unknown`, `no-dispatch and Composio HTTP 4xx release only the unperformed claim`, `one exact readback match resolves to verified but not travel_added`, `summary/startMs/endMs/destination mismatch is not a match`, and `failed/empty/ambiguous readback never releases an unknown claim`.
 
 - [ ] **Step 2: Run focused travel tests and confirm the new cases fail**
 
-Run: `node --test lib/travel.test.js lib/travel-return.test.js`.
+Run: `node --test lib/travel.test.js lib/travel-return.test.js lib/events-history.test.js lib/travel-usage.test.js`.
 Expected: unknown create outcomes currently become `successful:false` and unclaim; new assertions fail.
 
 - [ ] **Step 3: Preserve effect uncertainty from Composio through both travel legs**
@@ -286,8 +289,8 @@ Keep confirmed success and definite-rejection behavior. Preserve uncertainty thr
 
 - [ ] **Step 4: Rerun focused tests and commit**
 
-Run: `node --test lib/travel.test.js lib/travel-return.test.js`.
-Expected: both legs remain fenced on unresolved effect and no duplicate create is attempted. Commit as `fix(life-manager): retain claims for unknown calendar writes`.
+Run: `node --test lib/travel.test.js lib/travel-return.test.js lib/events-history.test.js lib/travel-usage.test.js`.
+Expected: both legs remain fenced on unresolved effect, one exact readback stays verified rather than newly added, and no duplicate create is attempted. Commit as `fix(life-manager): retain claims for unknown calendar writes`.
 
 ### Task 8: Complete truthful Today display
 

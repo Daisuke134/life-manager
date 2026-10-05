@@ -38,7 +38,7 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 - The departure calculation remains event start minus accepted route duration minus the existing single 5-minute buffer.
 - The Travel helper starts at the calculated departure instant and uses the user's default Calendar reminders. Google Calendar's API inherits the calendar's default reminders when an event does not override them. If readback shows that no reminder applies, the UI does not claim an alert is configured.
 - Every created Travel event explicitly sets send_updates=none, exclude_organizer=true, and create_meeting_room=false. The event has no attendees, no Meet link, and no invitation emails.
-- Repeated onboarding or scheduler evaluation relies on the existing unique (uid,event_key,leg) claim. If a provider response is ambiguous, retain the claim and reconcile through strict Calendar readback; if readback cannot confirm the exact event, keep the claim fenced and do not replay.
+- Repeated onboarding or scheduler evaluation relies on the existing unique (uid,event_key,leg) claim. Release it only when no provider write was dispatched or the Composio endpoint explicitly rejects the HTTP request with 4xx; after dispatch, a network/5xx/unreadable response or a 2xx `successful:false` result is effect-unknown. Retain that claim and reconcile through strict Calendar readback. Resolve it only when exactly one event matches the expected summary exactly, `startMs`/`endMs` exactly, and destination after whitespace removal plus lowercasing; if the readback is missing, failed, or ambiguous, keep the claim fenced and do not replay. A readback proves the helper exists but is not a create receipt, so do not report `travel_added` without a confirmed create response.
 - Missing event location or missing home location leaves that event unchanged and explains the missing input in the Web view. Web-only users receive no Telegram location question.
 
 ## Web Interface
@@ -81,5 +81,6 @@ Do not implement app-generation automation yet. Start a separate Web App Factory
 
 - Supabase SSR PKCE, server cookies, and verified getUser: https://github.com/supabase/ssr/blob/main/README.md
 - Composio Google Calendar account and event input contract: https://docs.composio.dev/toolkits/googlecalendar
+- Composio tool execution response and error-code contract: https://docs.composio.dev/reference/errors and https://docs.composio.dev/reference/api-reference/tools/postToolsExecuteByToolSlug
 - Google Calendar default reminders and overrides: https://developers.google.com/workspace/calendar/api/concepts/reminders
 - Direct category pricing reference: https://www.addtraveltime.com/
