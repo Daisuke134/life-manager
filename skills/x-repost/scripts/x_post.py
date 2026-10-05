@@ -17,7 +17,6 @@ import html as html_lib
 import json
 import os
 import re
-import stat
 import sys
 import time
 import urllib.parse
@@ -27,6 +26,11 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import sync_playwright
+
+SCRIPT_DIR = str(Path(__file__).resolve().parent)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+from effect_reconcile import _postiz_key
 
 
 POSTIZ_API = "https://api.postiz.com/public/v1/posts"
@@ -46,33 +50,7 @@ class PostizSubmissionOutcomeUnknown(ValueError):
 
 
 def _postiz_api_key() -> str:
-    key = os.environ.get("POSTIZ_API_KEY", "").strip()
-    if key:
-        return key
-
-    credentials_path = Path.home() / ".local/share/anicca/credentials.json"
-    private_dir = credentials_path.parent
-    try:
-        directory_stat = private_dir.lstat()
-        file_stat = credentials_path.lstat()
-        if (stat.S_ISLNK(directory_stat.st_mode) or not stat.S_ISDIR(directory_stat.st_mode)
-                or stat.S_ISLNK(file_stat.st_mode) or not stat.S_ISREG(file_stat.st_mode)
-                or directory_stat.st_uid != os.getuid() or file_stat.st_uid != os.getuid()
-                or stat.S_IMODE(directory_stat.st_mode) != 0o700
-                or stat.S_IMODE(file_stat.st_mode) != 0o600):
-            return ""
-        value = json.loads(credentials_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return ""
-    rows = value.get("credentials") if isinstance(value, dict) else None
-    if not isinstance(rows, list):
-        return ""
-    matches = [row for row in rows if isinstance(row, dict)
-               and row.get("service") == "postiz"]
-    if len(matches) != 1:
-        return ""
-    api_key = matches[0].get("api_key")
-    return api_key.strip() if isinstance(api_key, str) else ""
+    return _postiz_key()
 
 
 def http_error_summary(error: urllib.error.HTTPError) -> str:

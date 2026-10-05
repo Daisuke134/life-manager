@@ -358,6 +358,86 @@ class XPostTests(unittest.TestCase):
                     )
         provider_request.assert_not_called()
 
+    def test_empty_postiz_environment_value_does_not_fall_back_to_ssot(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            private_dir = home / ".local" / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "ssot-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            with patch.object(Path, "home", return_value=home), \
+                    patch.dict(os.environ, {
+                        "POSTIZ_API_KEY": "",
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen") as provider_request:
+                with self.assertRaisesRegex(
+                    MODULE.PostizPreSubmitError, "postiz_configuration_missing",
+                ):
+                    MODULE.postiz_publish(
+                        "Useful comparison", "quote", "https://x.com/source/status/123"
+                    )
+        provider_request.assert_not_called()
+
+    def test_postiz_ssot_read_uses_the_validated_file_descriptor(self) -> None:
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'[{"postId":"provider-ssot"}]'
+
+        def fake_open(request, timeout):
+            captured["authorization"] = request.get_header("Authorization")
+            return Response()
+
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            private_dir = home / ".local" / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "original-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            replacement = home / "replacement.json"
+            replacement.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "replacement-test-secret",
+            }]}), encoding="utf-8")
+            replacement.chmod(0o600)
+            original_lstat = Path.lstat
+            swapped = [False]
+
+            def replace_path_after_lstat(path):
+                result = original_lstat(path)
+                if path == credentials and not swapped[0]:
+                    credentials.unlink()
+                    credentials.symlink_to(replacement)
+                    swapped[0] = True
+                return result
+
+            with patch.object(Path, "home", return_value=home), \
+                    patch.object(Path, "lstat", new=replace_path_after_lstat), \
+                    patch.dict(os.environ, {
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen", fake_open):
+                MODULE.postiz_publish(
+                    "Useful comparison", "quote", "https://x.com/source/status/123"
+                )
+
+        self.assertEqual(captured["authorization"], "original-test-secret")
+
     def test_postiz_response_without_submission_id_is_recorded_as_unknown(self) -> None:
         class Response:
             def __enter__(self):
