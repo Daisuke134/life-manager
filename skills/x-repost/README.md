@@ -41,23 +41,27 @@ also remains `UNVERIFIED` until its owned article URL is confirmed.
 
 ## Host effect reconciliation
 
-The `x-repost` registry adapter closes one exact `effect_unknown` occurrence only after matching
-its runtime execute/report rows, the fence row's `queued_at`, a unique evidence directory modified
-during that run, the exact Postiz integration, and the run's finality window (report time plus
-15 minutes). The no-effect proof accepts only the known readback-safe release
-`c16f437b93028ea5d94014a1fa32c091795cbee0`. A different internally consistent release can prove a
-positive effect only through its exact Postiz submission ID and X permalink in the same pass
-evidence. Unsupported releases or transports without that receipt, missing or ambiguous evidence,
-unfinished Postiz listings, and out-of-window posts stay fenced. Old runtime rows may lack loaded
-argv/env hashes; the adapter does not infer those hashes.
+The `x-repost` registry adapter closes one exact `effect_unknown` occurrence only after pairing all
+of its runtime execute/report attempts, matching the fence row's `queued_at` to the first attempt,
+and reading one unique evidence directory for each attempt. It waits until 15 minutes after the
+latest report, then reads the exact Postiz integration over the combined window. A post counts for
+the occurrence only when its published time falls inside one of those attempt windows; unrelated
+posts returned between attempts do not count. No-effect proof accepts only the known readback-safe
+releases `c16f437b93028ea5d94014a1fa32c091795cbee0`,
+`86fa863d4fe04ec0b5c44e8a2e513e55edaf2928`, and
+`88872a85cc652877f242ead444108a813084cfc9`, with exact readback-only evidence for every attempt.
+Other releases can prove a positive effect only through the exact Postiz submission ID and X
+permalink in the matching pass evidence. Unsupported releases or transports without that receipt,
+missing or ambiguous evidence, unfinished Postiz listings, and out-of-window posts stay fenced. Old
+runtime rows may lack loaded argv/env hashes; the adapter does not infer those hashes.
 
 A positive proof requires one in-window `PUBLISHED` Postiz row whose ID and X permalink match the
-same pass evidence. A no-effect proof requires the exact `UNVERIFIED` readback-only branch, no post
-result, all success/generic/crash recoveries clear, empty reconcile errors, and a complete listing
-with no rows for the owner integration. The Postiz query rounds its request bounds outward to whole
-seconds and then validates each publication time against the exact run window. Its synthetic receipt
-records the exact run window, rounded official query, and Postiz response hash. Historical posts
-outside that window never count for the occurrence.
+same pass evidence. A no-effect proof requires the exact `UNVERIFIED` readback-only branch for every
+attempt, no post result, all success/generic/crash recoveries clear, empty reconcile errors, and a
+complete listing with no owner-integration rows in any attempt window. The Postiz query rounds its
+combined bounds outward to whole seconds and validates each publication time against the exact
+attempt windows. Its synthetic receipt records those windows, the rounded official query, and the
+Postiz response hash. Historical posts outside those windows never count for the occurrence.
 
 The English original owner runs `skills/x-tweeter/scripts/chinese_source_collect.py`. Its default
 public sources are Xiaohongshu, Douyin, Kuaishou, Bilibili, Weibo, Tieba, and Zhihu. The collector
@@ -71,9 +75,10 @@ live in the repository-owned `x-repost-en-cli.sh`, `x-repost-ja-cli.sh`, and `x-
 wrappers; there is no second `loop.toml`/plist generator path.
 
 Runtime credentials stay outside Git. Provide `POSTIZ_API_KEY` when using Postiz and a healthy
-registered CloakBrowser X session for source collection and exact readback. Browser identities are
-resolved through the local browser registry rather than hardcoded CDP ports. The Chinese collector
-also requires the `crwl` CLI on `PATH`.
+registered CloakBrowser X session for source collection and exact readback. `TWITTER_AUTH_TOKEN` is
+an optional recovery cookie used only when that browser session has lost its X auth cookie.
+Browser identities are resolved through the local browser registry rather than hardcoded CDP
+ports. The Chinese collector also requires the `crwl` CLI on `PATH`.
 
 ## Test
 
