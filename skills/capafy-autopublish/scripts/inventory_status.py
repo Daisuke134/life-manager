@@ -292,7 +292,10 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     # Among several queued updates, highest 30d revenue ships first (2026-09-29:
     # four Sonnet->DeepSeek repricing updates queued at once; agent_id-string
     # order picked an arbitrary one instead of the highest-demand agent).
-    if updates and occupied < CAP:
+    # A same-Agent update of an ONLINE agent is not capped: on 2026-10-05 Capafy
+    # accepted publish-init for Hook Lab (8123079349) with 5 (then 6) unlisted
+    # agents. The five-unlisted cap only blocks creating new agents.
+    if updates:
         item = min(updates, key=update_priority_key(revenue_by_agent or {}))
         request = item["update_request"]
         return {

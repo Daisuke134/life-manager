@@ -77,7 +77,11 @@ mkdir -p "$CAPAFY_PUBLISH_HOME_BASE"
 cd "$PUB" || die "cd PUB"
 PRELIST="$(python3 packager.py publish-list 2>/dev/null)" \
   || die "publish-list failed before preparing inputs"
-PRESELECTOR=(--title "$TITLE" --require-free-slot)
+# Same-Agent updates of online agents are not capped by Capafy (measured 2026-10-05);
+# only new-Agent creation and rejected retries need a free slot.
+FREE_SLOT_ARG=(--require-free-slot)
+[ -n "$EXPECTED_UPDATE_ID" ] && FREE_SLOT_ARG=()
+PRESELECTOR=(--title "$TITLE" ${FREE_SLOT_ARG[@]+"${FREE_SLOT_ARG[@]}"})
 [ -z "$REUSE_AGENT_ID" ] || PRESELECTOR+=(--reuse-agent-id "$REUSE_AGENT_ID")
 if [ -n "$EXPECTED_UPDATE_ID$EXPECTED_UPDATE_FROM_VERSION" ]; then
   [ -n "$EXPECTED_UPDATE_ID" ] && [ -n "$EXPECTED_UPDATE_FROM_VERSION" ] \
@@ -197,7 +201,7 @@ TITLE="$(grep -A1 '^## Title' "$LISTING" | tail -1)"
 # top-level agents array and fails closed on duplicate/invalid rows.
 LIST_OUT="$(python3 packager.py publish-list 2>/dev/null)" \
   || die "publish-list failed; cannot select an Agent safely"
-SELECTOR_ARGS=(--title "$TITLE" --require-free-slot)
+SELECTOR_ARGS=(--title "$TITLE" ${FREE_SLOT_ARG[@]+"${FREE_SLOT_ARG[@]}"})
 [ -z "$REUSE_AGENT_ID" ] || SELECTOR_ARGS+=(--reuse-agent-id "$REUSE_AGENT_ID")
 [ -z "$EXPECTED_UPDATE_ID" ] || SELECTOR_ARGS+=(--expected-agent-id "$EXPECTED_UPDATE_ID" \
                                                    --expected-version-id "$EXPECTED_UPDATE_FROM_VERSION")
