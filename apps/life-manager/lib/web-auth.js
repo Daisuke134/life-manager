@@ -1,6 +1,12 @@
 "use strict";
 
 const { createHmac } = require("node:crypto");
+const {
+  WEB_ATTRIBUTION_COOKIE,
+  WEB_ATTRIBUTION_MAX_AGE_SECONDS,
+  captureWebAttribution,
+  consumeWebAttribution,
+} = require("./web-attribution.js");
 
 const WEB_AUTH_COOKIE = "lm-web-auth";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -146,6 +152,52 @@ function createWebCsrfToken(uid, secret) {
 function csrfSecret(opts = {}) {
   const env = envFor(opts);
   return String(opts.csrfSecret || env.LM_WEB_CSRF_SECRET || env.LM_PANEL_SESSION_ROTATION_SECRET || env.LM_UID_SECRET || "").trim();
+}
+
+function attributionSecret(opts = {}) {
+  const env = envFor(opts);
+  return String(env.LM_UID_SECRET || "").trim();
+}
+
+function attributionCookie(req, opts = {}) {
+  const matches = requestCookies(req, opts).filter((cookie) => cookie && cookie.name === WEB_ATTRIBUTION_COOKIE);
+  return { present: matches.length > 0, value: matches.length === 1 ? String(matches[0].value || "") : "" };
+}
+
+function setAttributionCookie(res, opts, value) {
+  const ssr = ssrFor(opts);
+  const serializer = opts.serializeCookieHeader || ssr.serializeCookieHeader;
+  if (typeof serializer !== "function") return;
+  appendResponseCookies(res, [{
+    name: WEB_ATTRIBUTION_COOKIE,
+    value,
+    options: {
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+      secure: cookieOptions(opts).secure,
+      maxAge: WEB_ATTRIBUTION_MAX_AGE_SECONDS,
+    },
+  }], serializer);
+}
+
+async function storeWebFirstTouch(uid, attribution, opts = {}) {
+  const fetchImpl = opts.fetch || globalThis.fetch;
+  if (typeof fetchImpl !== "function") throw new Error("Supabase fetch unavailable");
+  const root = requiredSupabaseUrl(opts);
+  const key = requiredServiceRoleKey(opts);
+  const response = await fetchImpl(
+    `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&web_first_touch=is.null&telegram_chat_id=is.null`,
+    {
+      method: "PATCH",
+      headers: serviceHeaders(key, {
+        "content-type": "application/json",
+        Prefer: "return=minimal",
+      }),
+      body: JSON.stringify({ web_first_touch: attribution }),
+    },
+  );
+  if (!response || !response.ok) throw new Error("Web first-touch write failed");
 }
 
 async function resolveWebUser(req, res, opts = {}) {
@@ -344,6 +396,14 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       });
       const redirect = result && result.data && result.data.url;
       if (!redirect || result.error) throw new Error("Google OAuth start failed");
+      const existing = attributionCookie(req, opts);
+      const secret = attributionSecret(opts);
+      const validExisting = existing.present && consumeWebAttribution(existing.value, secret) !== null;
+      if (existing.present && !validExisting) clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
+      if (!validExisting) {
+        const cookie = captureWebAttribution(requestQuery(req), secret);
+        if (cookie) setAttributionCookie(res, opts, cookie);
+      }
       sendRedirect(res, redirect);
     } catch {
       sendText(res, 503, "Web sign-in unavailable");
@@ -395,6 +455,25 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       anonKey: opts.anonKey || envFor(opts).SUPABASE_ANON_KEY,
       fetch: opts.fetch,
     });
+    const firstTouchCookie = attributionCookie(req, opts);
+    if (firstTouchCookie.present) {
+      const attribution = consumeWebAttribution(firstTouchCookie.value, attributionSecret(opts));
+      if (!attribution) {
+        clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
+      } else {
+        try {
+          await storeWebFirstTouch(uid, attribution, {
+            env: envFor(opts),
+            supabaseUrl: requiredSupabaseUrl(opts),
+            serviceRoleKey: requiredServiceRoleKey(opts),
+            fetch: opts.fetch,
+          });
+          clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
+        } catch {
+          // Attribution is optional to sign-in; retain the signed cookie for a later callback attempt.
+        }
+      }
+    }
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
     sendRedirect(res, "/lm");
   } catch (error) {

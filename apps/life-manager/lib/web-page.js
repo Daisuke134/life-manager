@@ -70,6 +70,18 @@ function dashboardMarkup(snapshot, homeAddress = "") {
 }
 
 const CLIENT_SCRIPT = String.raw`(() => {
+  const signIn = document.getElementById("lm-sign-in");
+  if (signIn) {
+    try {
+      const source = new URL(window.location.href);
+      const destination = new URL(signIn.getAttribute("href") || "/auth/google", source.origin);
+      for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) {
+        const values = source.searchParams.getAll(key);
+        if (values.length === 1 && values[0]) destination.searchParams.set(key, values[0]);
+      }
+      signIn.href = destination.pathname + destination.search;
+    } catch { /* keep the fixed sign-in path if the incoming URL cannot be parsed */ }
+  }
   const root = document.getElementById("lm-dashboard");
   const feedback = document.getElementById("lm-feedback");
   const csrf = document.querySelector('meta[name="lm-web-csrf"]')?.content || "";
@@ -139,7 +151,7 @@ function renderWebPage(model = {}) {
     @media(min-width:600px){.shell{padding-top:40px}.card{padding:26px}.login-card{padding:42px}}
   </style>`;
   if (!user) {
-    return `<!doctype html><html lang="ja"><head>${head}</head><body><main class="shell"><p class="brand">Life Manager</p><section class="card login-card"><h1>予定に合わせた出発時刻を確認</h1><p class="lead">Google カレンダーと接続して、次の予定に間に合う出発時刻を確認できます。</p><a class="button" href="/auth/google">Google で続ける</a></section></main></body></html>`;
+    return `<!doctype html><html lang="ja"><head>${head}</head><body><main class="shell"><p class="brand">Life Manager</p><section class="card login-card"><h1>予定に合わせた出発時刻を確認</h1><p class="lead">Google カレンダーと接続して、次の予定に間に合う出発時刻を確認できます。</p><a id="lm-sign-in" class="button" href="/auth/google">Google で続ける</a></section></main><script>${CLIENT_SCRIPT}</script></body></html>`;
   }
   const snapshot = model.snapshot || null;
   const checkout = snapshot && snapshot.setupState === "ready" && snapshot.paid === false
