@@ -419,11 +419,12 @@ Structured script output from your brief.
                 all(re.fullmatch(r"no[\s_-]+free[\s_-]+trial", trial.strip(), re.I) for _, trial in rows)
             )
 
-    def test_best_practices_documents_the_new_skill_trial_default(self):
+    def test_best_practices_documents_the_no_trial_default(self):
+        # 2026-10-05: top-10 subscription sellers carry no trial (1 of 10); every plan No Free Trial.
         text = (AUTO / "BEST_PRACTICES.md").read_text(encoding="utf-8")
-        self.assertRegex(text, r"[Ff]ree [Tt]rial 24h\s*/\s*3 requests")
-        self.assertRegex(text, r"[Ff]ree [Tt]rial 72h\s*/\s*5 requests")
-        self.assertRegex(text, r"day.{0,40}No Free Trial", re.S)
+        self.assertRegex(text, r"\*\*Every plan:\*\* `No Free Trial`")
+        self.assertRegex(text, r"\| year\s+\| \$X\.XX \| N \| No Free Trial \|")
+        self.assertNotRegex(text, r"\| week\s+\| \$X\.XX \| N \| Free Trial")
 
     def test_free_trial_cell_is_accepted_by_lint_and_build(self):
         lint, build = self.run_tools("Free Trial 24h / 3 requests")

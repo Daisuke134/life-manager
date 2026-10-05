@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from capafy_scoreboard import build_scoreboard, snapshot_rows, compare_changes, append_snapshot_jsonl
+from capafy_scoreboard import build_scoreboard, render_text, snapshot_rows, compare_changes, append_snapshot_jsonl
 
 ANALYTICS = {
     "account_totals": {"last_30d": {"gross_usd": "82.77", "orders": 78}, "cost30_actual_usd": "34.50", "net30_usd": "66.22"},
@@ -28,6 +28,45 @@ def test_scoreboard_separates_money_stages_and_flags_zero_streak():
     assert b["zero_revenue_streak_days"] == 2
     assert b["skills"]["selling"] == 1 and b["skills"]["never_sold"] == 1
     assert b["funnel"]["search"] == {"views": 100, "paid_orders": 2, "sales_usd": "9.98"}
+
+
+# Capafy reports a ct= link's visits as sourceType="ct" sourceName="<token>" and a matching
+# sale as sourceType="campaign" campaignName="<token>" (same token, different row) -- see
+# skills/writer-agent/config/products.json "tracking". The scoreboard must merge those two
+# rows per token so each article/X ct= link shows its own views/orders/sales.
+CT_RECONCILE = {"traffic_sources": {"by_agent": {
+    "7686597754": {"last_30d": {"by_source": [
+        {"source_type": "ct", "source_name": "capafy-distribute-youtube-script-writer",
+         "views": 42, "paid_orders": 0, "sales_usd": "0.00"},
+        {"source_type": "campaign", "source_name": "capafy-distribute-youtube-script-writer",
+         "views": 0, "paid_orders": 3, "sales_usd": "29.97"},
+    ]}},
+    "2844813315": {"last_30d": {"by_source": [
+        {"source_type": "ct", "source_name": "article-tiktok-script-pro",
+         "views": 5, "paid_orders": 0, "sales_usd": "0.00"},
+    ]}},
+}}}
+
+
+def test_scoreboard_merges_ct_and_campaign_rows_per_token():
+    b = build_scoreboard(ANALYTICS, CT_RECONCILE)
+    assert b["ct"] == {
+        "capafy-distribute-youtube-script-writer": {"views": 42, "paid_orders": 3, "sales_usd": "29.97"},
+        "article-tiktok-script-pro": {"views": 5, "paid_orders": 0, "sales_usd": "0.00"},
+    }
+
+
+def test_render_text_prints_one_line_per_ct_token():
+    b = build_scoreboard(ANALYTICS, CT_RECONCILE)
+    text = render_text(b)
+    assert "ct capafy-distribute-youtube-script-writer: 42 view → 3 件 $29.97" in text
+    assert "ct article-tiktok-script-pro: 5 view → 0 件 $0.00" in text
+
+
+def test_render_text_has_no_ct_lines_when_no_ct_rows():
+    b = build_scoreboard(ANALYTICS, RECONCILE)
+    assert b["ct"] == {}
+    assert "ct " not in render_text(b)
 
 
 SNAP_RECONCILE = {"traffic_sources": {"by_agent": {
@@ -109,6 +148,9 @@ def test_compare_changes_skips_not_yet_due():
 
 if __name__ == "__main__":
     test_scoreboard_separates_money_stages_and_flags_zero_streak()
+    test_scoreboard_merges_ct_and_campaign_rows_per_token()
+    test_render_text_prints_one_line_per_ct_token()
+    test_render_text_has_no_ct_lines_when_no_ct_rows()
     test_snapshot_rows_builds_one_row_per_agent()
     test_append_snapshot_jsonl_is_idempotent_per_date()
     test_compare_changes_uses_exact_snapshots_when_present()

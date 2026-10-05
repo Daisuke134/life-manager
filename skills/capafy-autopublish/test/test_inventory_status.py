@@ -103,7 +103,10 @@ def test_paid_same_agent_update_precedes_fresh_only_with_a_free_slot() -> None:
 
     assert selected["action"] == "update_existing"
     assert selected["action_key"] == "update:9563867391:2070737929294868480"
-    assert module.allocate_action(full, [], [fresh], updates=[update])["verdict"] == "CAP_FULL"
+    # 2026-10-05 measured: Capafy accepted publish-init for a same-Agent update of an
+    # ONLINE agent with 5 (then 6) unlisted agents; the cap only blocks creating agents.
+    blocked_full = module.allocate_action(full, [], [fresh], updates=[update])
+    assert blocked_full["action"] == "update_existing"
 
 
 def test_in_progress_update_draft_resumes_before_a_different_update_starts() -> None:
@@ -659,7 +662,8 @@ def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
     full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
 
     assert module.allocate_action(free, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
-    assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "resume_draft"
+    # Same-Agent updates are not capped (measured 2026-10-05), so a paid update outranks a draft resume at full cap too.
+    assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
 
 
 def test_fresh_skill_outranks_draft_resume_when_a_slot_is_free() -> None:
@@ -709,15 +713,19 @@ def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, ca
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
     monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    # Independent of the production retired list (real agent ids get retired over time).
+    monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
     # Every catalog item carrying UPDATE.json needs its target Agent present and
     # unchanged, or main() fails closed with SERVER_UNREADABLE (by design: an
     # update target that vanished/moved must never be silently skipped).
     update_rows = [
+        # Present and unchanged-name (so main() does not fail closed) but already on a
+        # newer version, so no update is eligible and the stub retry is what is tested.
         agent(item["update_request"]["agent_id"], "online", name=item["title"],
-              latestAgentVersionId=item["update_request"]["from_version_id"])
+              latestAgentVersionId="9" + item["update_request"]["from_version_id"])
         for item in module.ready_inventory() if item.get("update_request")
     ]
-    stub_name = "Customer Renewal Evidence Brief" + module.PLACEHOLDER_SUFFIX
+    stub_name = "Earnings Call Brief — Pasted Results to Questions" + module.PLACEHOLDER_SUFFIX
     rows = [agent("4973250899", "draft", name=stub_name)] + [
         agent(str(i), "under_review") for i in range(4)
     ] + update_rows
@@ -729,7 +737,7 @@ def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, ca
     assert decision["verdict"] == "PUBLISHABLE"
     assert decision["action"] == "retry_existing"
     assert decision["item"]["agent_id"] == "4973250899"
-    assert decision["item"]["title"] == "Customer Renewal Evidence Brief"
+    assert decision["item"]["title"] == "Earnings Call Brief — Pasted Results to Questions"
 
     # An unrelated LM-generated stub (no matching repo title) must NOT be touched.
     monkeypatch.setattr(module, "server_agents", lambda: [

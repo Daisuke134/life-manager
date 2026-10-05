@@ -1012,6 +1012,11 @@ def close_canary(
             "decision": "KEEP",
         }
     assignment_status = assignment.get("status")
+    if assignment_status == "READY":
+        return {
+            "status": "AWAITING_MATCHED_CANARY",
+            "experiment_id": experiment_id,
+        }
     if assignment_status not in {"PREPARED", "APPLIED"}:
         return {"status": "NO_APPLIED_CANARY", "experiment_id": experiment_id}
     manifest = _json(experiment_dir / "manifest.json")

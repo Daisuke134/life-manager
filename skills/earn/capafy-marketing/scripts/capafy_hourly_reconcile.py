@@ -217,7 +217,7 @@ def _inventory(payload: dict) -> dict:
     if rows is None:
         return result
 
-    counts = {"listed": 0, "occupied": 0, "retry": 0, "blocked": 0}
+    counts = {"listed": 0, "occupied": 0, "retry": 0, "blocked": 0, "delisted": 0}
     for row in rows:
         if not isinstance(row, dict) or not str(row.get("agentId") or "").strip():
             result.update(status="unknown_invalid_agent", observed_agents=len(rows))
@@ -231,6 +231,9 @@ def _inventory(payload: dict) -> dict:
             counts["retry"] += 1
         elif status == "banned":
             counts["blocked"] += 1
+        elif status in {"offline", "user_offline", "user_delisted", "taken_down"}:
+            # Unpublished agents (2026-10-04: 12 retired near-duplicates) hold no slot.
+            counts["delisted"] += 1
         else:
             result.update(status="unknown_unrecognized_status", observed_agents=len(rows))
             return result
@@ -239,9 +242,12 @@ def _inventory(payload: dict) -> dict:
         observed_agents=len(rows),
         listed=counts["listed"],
         occupied=counts["occupied"],
-        free=max(0, CAPAFY_ACTIVE_SUBMISSION_CAP - counts["occupied"]),
+        # Capafy counts review_rejected toward the same five-unlisted cap
+        # (skills/capafy-autopublish/scripts/inventory_status.py UNLISTED).
+        free=max(0, CAPAFY_ACTIVE_SUBMISSION_CAP - counts["occupied"] - counts["retry"]),
         retry=counts["retry"],
         blocked=counts["blocked"],
+        delisted=counts["delisted"],
     )
     return result
 

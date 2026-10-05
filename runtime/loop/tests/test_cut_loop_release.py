@@ -403,8 +403,12 @@ class CutLoopReleaseTest(unittest.TestCase):
             marker.write_text("sealed\n")
             donor = loops / "releases/donor"
             donor.mkdir(parents=True)
+            release_ref = "origin/main"
             for name in ("package.json", "package-lock.json"):
-                (donor / name).write_bytes((ROOT / name).read_bytes())
+                source_bytes = subprocess.check_output(
+                    ["git", "show", f"{release_ref}:{name}"], cwd=ROOT
+                )
+                (donor / name).write_bytes(source_bytes)
             (donor / "node_modules").symlink_to(modules)
             (donor / "RELEASE.json").write_text(
                 '{"sha":"%s","release_paths":"ALL"}\n' % ("a" * 40)
@@ -414,7 +418,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm.chmod(0o755)
 
             result = subprocess.run(
-                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), release_ref],
                 cwd=ROOT,
                 env={
                     **os.environ,

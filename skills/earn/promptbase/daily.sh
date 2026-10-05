@@ -89,14 +89,16 @@ if [ -z "$SLUG" ]; then
 fi
 log "selected slug=$SLUG title=$TITLE"
 
-# Durable pre-dispatch snapshot for the fence reconciler: record the exact
-# slug/title this occurrence is about to submit, before the one
-# PromptBase-mutating call below runs. Best-effort -- a write failure here
-# never blocks the run; the reconciler falls back to "no candidate" (safe:
-# no PromptBase-mutating step could have run without a snapshot naming one).
-if [ -n "${LIFE_MANAGER_OCCURRENCE_ID:-}" ]; then
-  "$PY" "$FENCE_RECONCILE_TOOL" --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
-    --record-snapshot --slug "$SLUG" --title "$TITLE" >/dev/null 2>&1 || true
+# Durable pre-dispatch snapshot for the fence reconciler. Without a valid
+# occurrence-bound snapshot, do not call the PromptBase-mutating publisher.
+if [ -z "${LIFE_MANAGER_OCCURRENCE_ID:-}" ]; then
+  log "occurrence id missing -- abort before publisher dispatch"
+  exit 1
+fi
+if ! "$PY" "$FENCE_RECONCILE_TOOL" --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
+  --record-snapshot --slug "$SLUG" --title "$TITLE" >/dev/null 2>&1; then
+  log "pre-submit snapshot failed -- abort before publisher dispatch"
+  exit 1
 fi
 
 # PromptBase rejects 4 identical example outputs; make 4 real distinct ones once.
