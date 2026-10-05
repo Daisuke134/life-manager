@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait/snapshot capture修正はsource受入済み。次はWriter READY衝突を直す（§479/483/484）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。token/fleet/refill/PromptBase wait/snapshot/Writer READYの6修正はsource受入済み。本番は3に残る。残owner根因は1で特定し、必要な追加修正だけここへ戻す（§485）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7340,3 +7340,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - worktree `.worktrees/lm-writer-ready-canary-wait-20261005` / branch `fix/lm-writer-ready-canary-wait-20261005` / 新baseHEAD8ab5a798/clean / upstreamoriginmain。既存primary lease owner codex-money-printer-writer-canaryをsupported heartbeatで24h延長（2026-10-06T00:59:39Z）。renewはCLIに存在せず失敗、再実行せずhelp確認後heartbeatを使った。
 - 次のgeneric Luna/maxは§479の3filesだけを所有し、READY→AWAITING_MATCHED_CANARY、追加offline0/候補bytes不変、実関数/実wrapperの他状態維持をRED→最小GREENで検証。building-agents/loop-development/適用TDDを読む。provider/価格/モデル/SQLite実DB/本番を触らず、focused/構造gate/commit-push-remoteまで閉じる。SSOTはprimary所有。
 - §217cursor1/根因確定source2、次はWriter。main例外未回答、本番反映/各loop自然実行/財務接続/SelfBuildは残る。sourceDoneを全goalへ昇格しない。
+
+
+### 485. Writer READY guardのsource受入
+
+- branch fix/lm-writer-ready-canary-wait-20261005 / HEAD・remoteadda0a562efd83fab647abf24551dad1dedce844 / clean / base8ab5a798。所有3filesのみ、worker helperの動作差分はREADY条件の5行。READYはAWAITING_MATCHED_CANARY/experiment ID保持を返す。他状態・候補state bytes・既存NO_APPLIED→offline/report経路を維持。
+- REDは実関数/実wrapperがREADYからofflineへ進むことを検出。primary固定HEAD pytest1/1、既存shell＋追加実worker READY fixture PASS（offline0・verify/report到達・state不変）、bash-n/diffcheck PASS、構造14/178/103/errors0。追加source fixture6状態はREADYだけ待機へ変化し、absence/PREPARED/APPLIED+missing DB/closedREVERT/closedKEEPの他5状態を維持。private DB/paid model/provider/HTTP/本番effect0。
+- 途中の既存shell test置換をprimaryが指摘し、元NO_APPLIED stub検証を保持して実READYケースのみ追加。executable bitを復元。sparse構造gate依存だけmaterializeしtestを弱めない。final fetchのmain追加は他owner Capafy、Writer対象に差分なし。
+- 最小状態guardと実入口の確証からsource受入。採用/公開/計測/利益の成功と扱わず、実canary適用・自然executionは未確認。source受入6件の本番は§217の3に残る。
+- §217親cursor1は残owner（Lancers account/auth/transport）と未自然run gap確認。source2既知6修正は完了分を上位parent Doneへ昇格しない。main例外確認は未回答、production mutation0。各loop自然実行・公式receipt・財務接続・SelfBuild/Evalの残scopeを維持する。
