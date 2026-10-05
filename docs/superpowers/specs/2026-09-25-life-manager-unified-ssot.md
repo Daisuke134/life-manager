@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。token/fleet/refill/PromptBase wait/snapshot/Writer READYの6修正はsource受入済み。本番は3に残る。残owner根因は1で特定し、必要な追加修正だけここへ戻す（§485）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知6修正はsource受入済み、本番は3に残る。週次validationのreload starvationをcalendarへ最小修正中（§486）。他owner根因は1で特定する。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7349,3 +7349,14 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 途中の既存shell test置換をprimaryが指摘し、元NO_APPLIED stub検証を保持して実READYケースのみ追加。executable bitを復元。sparse構造gate依存だけmaterializeしtestを弱めない。final fetchのmain追加は他owner Capafy、Writer対象に差分なし。
 - 最小状態guardと実入口の確証からsource受入。採用/公開/計測/利益の成功と扱わず、実canary適用・自然executionは未確認。source受入6件の本番は§217の3に残る。
 - §217親cursor1は残owner（Lancers account/auth/transport）と未自然run gap確認。source2既知6修正は完了分を上位parent Doneへ昇格しない。main例外確認は未回答、production mutation0。各loop自然実行・公式receipt・財務接続・SelfBuild/Evalの残scopeを維持する。
+
+
+### 486. 残owner再観測と週次reload starvationのsource修正準備
+
+- 01:13:52Z official operator: Lancers work-sync run18db7d0d02794930-96619/occurrence lancers-revenue-work-sync:18db46632b0f6928-67852、installed82d/loaded-idle/exit1/effect not_applicable。Capafy monitor installed292e/occurrenceなし、investment validation installed82d/occurrenceなし。sanitized evidence `~/.local/state/life-manager/state/internal-loop-priority-20261005-remaining-owners.json`。
+- fresh GUI preflight PASS後のprintはCapafy program292 release/runs0/never exited/9:30 calendar、weekly validation82d/runs0/604800秒。OSはJST、loadedcalendarはHour9/Minute30を確認。Capafy eventsはplan3だけ（10/4 16:47Z、10/5 01:04Z、01:11Z）。reload後のruns0を旧release9:30未実行の証明としない。普通のadmission待ちならstart eventが先にあるため、それだけでは欠落を説明できない。
+- fresh Sol/medium read-only診断は、weekly cadence604800がlm_loop_apply.py:196のdaily-divisor calendar変換から漏れStartIntervalになり、install_one:548でrelease applyごとbootout/bootstrapされる実装経路を確認。125installは全部bootstrapの証明ではない。初回9/29 05:21Zからも7日未到来、最後install10/4 16:01Zなら次10/11 16:01Z。現在の未run自体は期限前だが、再loadで次回が延び続けるstarvation gapはsourceで成立し得る。
+- 週1頻度を保ち、既存weekly calendar precedentを再利用。最初のinstallに近い火曜14:30 JST（Weekday2/Hour14/Minute30）を選択。RunAtLoad/手動kick/頻度増加/汎用schedulerなし。scopeはconfig/loop-registry.jsonのinvestment-strategy-validation cadence1rowと既存runtime/loop/tests/test_lm_loop_apply.pyのfocused plist render/regression1件。effect none/provider deterministic/他owner cadenceを維持し、calendar triggerがreload後も同じ曜日時刻を指すsource proofを確認する。
+- fresh main30386440a50db8e9d0d2331c3be9d2d395a22555由来専用worktree `.worktrees/lm-validation-weekly-calendar-20261005` / branch `fix/lm-validation-weekly-calendar-20261005` / primarylease owner codex-money-printer-weekly-calendar24h/clean。他同task worktreeなし。次Luna/maxは2files限定でRED→GREEN/構造gate/commit-push-remote。trading/strategy/model/provider/price/auth/production/applyは変更しない。
+- Lancers保存PASSは09/02、account metadataは08/10 signup_submitted_unconfirmedで現在証明に使わない。最新launchd stdoutはaccount_unavailable125/250末尾linesだがresponse/URL/login_form/exceptionの具体原因は保存されていない。旧browser/work-sync logsも08–09月で、最新auth原因へ流用しない。次はowner境界を守ったfresh account diagnosis又は必要最小source観測。
+- Capafy次probeは9:30直前loaded continuity/pre-eventエラー/event保存境界。§217cursor1/source2の独立weekly修正、main例外未回答/Coconala保留/SelfBuild最後/全goal未完を維持。本番mutation0。
