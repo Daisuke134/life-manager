@@ -7843,3 +7843,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - registered coconala:kosuke/UUID3e99b199-9291-4ae1-826f-6e92cab470c5、既存guardをown PIDで取得/解放、own pageのみclose。07:52Zはreconcile_unknown4threadすべてHTTP200/exactroute/message containerあり、message5/1/7/3、見積りcard0/0/2/0。provider mutation/vault write0。証拠state/coconala-pending-thread-probe-20261005.json。raw DOMのmessage_id欠損は既存hash identity生成があるため、それだけを故障原因としない。見積りcard存在だけをsaved intentの送信receiptへ代用しない。
 - 07:53Zの追加比較は7threadすべてHTTP403。HTTP失敗rawDOMに対する隔離memory内attachment mergeが一部dm_attachment_message_identity_changedを再現したが、正常DOMでの恒常identity不整合の証明ではない。公式200/403の変動を確認し、stale attachmentやvault不一致を主原因と断定しない。保存state/送信fence変更0。証拠state/coconala-attachment-binding-probe-20261005.json。次は成功HTTPのsame-thread semantic context＋saved intentの公式送信/見積りrecordを結び、provider拒否とmerge境界を分ける。
 - audit source PR6632 https://github.com/Daisuke134/life-manager/pull/6632、head7f24d16a34、fresh SHIP済み。CIの現行run37280090654を追跡、pending中はmain統合しない。現在47/cursor1、個別Paid保留は再開しない。
+
+
+### 541. audit診断main統合とCoconala見積りreadbackの確定不具合
+
+- PR6632は全10checks SUCCESS後admin通常merge、main b53c0ab7c250ce110c84ff979d168becc2154f3a/merged07:56:09Zを公式GitHub readback、fetch一致。source診断受入/main完了。次はfull immutable release/verify-loops-audit対象owner反映、自然runの診断・残留照合で、原因cleanup完了とは判定しない。
+- fresh read-only reviewerとrootコード照合でCoconala _estimate_observationが classify_delivery(pre_click_cards=[], post_click_cards=公式cards, click_started_at=None)を渡し、classifierがpost cardsを読まずnot_requiredへ早期returnする実不具合を確認。_readback_estimateはauthoritative_absent=Trueを返し得る。公式カードが存在してもreadbackへ回復できないsource境界。source-only修復の目的は既存公式cardを検証して結果不明を安全に照合できること。未送信を勝手に既送信へ変更しない。
+- 次の実装範囲はlatest main由来専用worktreeのskills/earn/gig/scripts/coconala_reply_adapter.pyと既存関連testsのみ。実classify_deliveryを使用したmatching cardのRED→minimal GREENを先に実証。既存semantic context hash・時刻・terms/価格/数量/own-user・一意card/別thread/不一致/欠損/複数card failclosedを保持。共有requested_estimate・kernel・B1/globalURL・paid/project・provider/model・productionstate/browser変更なし。manifest gateが当該sourceのdigestを要求した場合はowner metadata1entryのみ。Luna6/max実装、Sol6.1/medium fresh review→CI/main→immutable→自然公式readback、receiptなしfence解除/再送なし。
+- 07:55:46Z latest business snapshotは再びblocked、前07:45の194成功を継続正常へ置換しない。provider200/403変動と確定したreadback呼出し不具合を分けて進める。全体47/cursor1。
