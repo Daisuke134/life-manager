@@ -58,7 +58,7 @@ Register.siの条件では、登録者の合意によりregistrarが新しい登
 
 ## 6. state、receipt、重複防止
 
-stateはrelease外のdomain-flip専用rootに置く。候補ごとのappend-only eventは、candidate_id、run_id、owner_id、occurrence_id、release_sha、loaded argv/env、phase、command、exit_code、effect、readback、provider_receipt_id、evidence_refs、error_class、retryable、next_actionを持つ。read-only quoteのようにproviderがreceipt IDを返さない場合は`provider_receipt_id: null`とし、確認済み応答を保存したlocal evidence refを結合する。receipt IDを合成・推測しない。識別子とcommandの生credentialは保存しない。
+stateはrelease外のdomain-flip専用rootに置く。候補ごとのappend-only eventは、candidate_id、run_id、owner_id、occurrence_id、release_sha、loaded argv/env、phase、command、exit_code、effect、readback、provider_receipt_id、evidence_refs、error_class、retryable、next_actionを持つ。read-only quoteのようにproviderがreceipt IDを返さない場合は`provider_receipt_id: null`とし、確認済み応答を保存したlocal evidence refを結合する。receipt IDを合成・推測しない。provider responseに含まれるregistrantの氏名、メール、住所、電話、個人account credentialはevent・log・source・chatへ保存せず、status/期限/匿名化handle fingerprintだけを残す。
 
 一候補はdiscovered、evidence-reviewed、eligible、registered、listed、sale-pending、transferred、payout-confirmed、closed-netの順に進む。購入命令送信後にreceipt/readbackが取れない場合はeffect_unknownとして同一候補・同一ownerをfenceし、公式registrar readbackで状態を確定するまで登録を再送しない。Sedo pendingや登録者変更pendingも売上・移転完了扱いしない。
 
