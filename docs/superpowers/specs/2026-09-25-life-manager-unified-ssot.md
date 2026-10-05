@@ -7522,3 +7522,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh Sol/medium read-only調査で巨大2runのreport/pass/exit0を直接確認：18db5841f6304830-18469/event86378a8619bda66e10b5c9ba/release1a7、18db7006af727260-51948/event7a0b49a1c76fd5c0dfeef044/release82d。終端未保存による意図保持とは説明できない。stderrのENOSPC1行はsame-run bindingなし、cleanup-latestは旧3e7/evaluated_runs0で今回回収の証明ではない。
 - 正常経路はregistry→lm_loop_run→reset_loop_scratch→_run_admitted→audit→verify-loops/self-fix→terminal保存→unprotect→fd remove_owned_tree。removeはgc-trash rename後unlinkのため、readonly失敗仮説は削除前の名前/marker/権限を要確認。peerへ原名かgc-trashか、owner/terminal-unrecorded marker/readonly証拠の既存refsのみを照会。根因未確定の包括sweeper/監査強制run/source修正を追加しない。
 - Agent Economy正規authownerとLancersnewmain順序例外は返答なし。goal自動継続は承認ではない。今回は新しいdisk境界観測とpeer文書保全のprogress、§217cursor残1/全goal未完。
+
+
+### 506. 現行報告規約とblocked監査の再開条件
+
+- Daisの置換AGENTSを適用し、対話型agent/subagentの進捗・節目・blocker・完了・handoverは会話チャネルで報告する。Telegram自発送信は行わない。Life Manager自身が所有する既存業務report loopは変更しない。以前の送信receiptは当時の規約による履歴として保持し、新しい送信を再現しない。
+- 最新fetch main32370e730c7c021917f80d35454bc5545e189b05はCapafy文書変更、current3f/ALL維持。監査scratch空、Agent Economy同3f active brain_transport/codex auth不足、Capafy exact日次event未取得をreadback。AGMSG inboxの新返答なし、新main順序例外の人間承認もなし。新AGENTS置換はその例外承認と解釈しない。
+- 同じ新規main順序確認が、具体的Lancerssource受入後のuser-triggered turnと続く3回以上のgoal継続で未解消。間に安全な診断・auth境界特定・監査terminal確認・peer文書保全を進めたが、現在は同じ確認だけでは必須の本番診断へ進めない。実行中のsource worker/tool handleはなく、goal自動通知は承認でもverified waitでもない。
+- 再開条件1：Daisが§503の残内部loop修正のsource検証/freshreview/CI→main→immutable→本番実測の順序適用を明示承認する。最初の対象はreview済みLancers3521a51b674535f804d53d5c2c02ce6686716aa6（24tests＋17counterexamples/source SHIP/remote一致）。例外外の財布支出/設計外broadcast/copy編集/共有資源同時操作は含めない。
+- 再開条件2：正規account1 auth owner/既存復旧参照、または監査削除前directory/marker/readonly metadataが届けば、その境界の安全な作業を再開する。acct2代用や未確認原因のsweeper・監査強制runは行わない。現在cursor§217残1、残13作業と全goalの金融/自然receipt/SelfBuild/Eval成果は未達のまま。承認済み8sourceのmain/release/8loaded完了は保持し、目標を縮めずblockedとして停止する。
