@@ -54,7 +54,10 @@
       "type": ["array", "null"],
       "items": {"type": "string"}
     },
-    "detected_language": {"type": ["string", "null"]},
+    "detected_language": {
+      "type": ["string", "null"],
+      "description": "ISO 639-1 code for the final post language; null for non-final generations."
+    },
     "value_types": {
       "type": ["array", "null"],
       "items": {"type": "string"}
@@ -80,6 +83,7 @@
     "spam_risk",
     "unsupported_claims",
     "near_duplicate_post_ids",
+    "detected_language",
     "value_types",
     "reason"
   ]

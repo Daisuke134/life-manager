@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import importlib.util
 import subprocess
 import sys
@@ -8,6 +9,7 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "post_contract.py"
+MODEL_SCHEMA = Path(__file__).parents[1] / "config" / "model-output.schema.json"
 SPEC = importlib.util.spec_from_file_location("post_contract", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -15,6 +17,10 @@ SPEC.loader.exec_module(MODULE)
 
 
 class PostContractTests(unittest.TestCase):
+    def test_model_schema_requires_language_classifier_result(self) -> None:
+        schema = json.loads(MODEL_SCHEMA.read_text(encoding="utf-8"))
+        self.assertIn("detected_language", schema["required"])
+
     def test_japanese_slot_requires_japanese_text(self) -> None:
         self.assertTrue(MODULE.language_matches("ja", "これは次に試せる手順です"))
         self.assertFalse(MODULE.language_matches("ja", "Try this next."))
@@ -29,7 +35,7 @@ class PostContractTests(unittest.TestCase):
         self.assertFalse(MODULE.language_matches("en", "Попробуйте это"))
 
     def test_english_slot_rejects_latin_text_critic_identifies_as_spanish(self) -> None:
-        for detected_language, expected_code in (("en", 0), ("es", 1)):
+        for detected_language, expected_code in (("en", 0), ("es", 1), ("", 1)):
             with self.subTest(detected_language=detected_language):
                 result = subprocess.run(
                     [sys.executable, str(SCRIPT), "--language", "en", "--text-file",
@@ -38,6 +44,14 @@ class PostContractTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, expected_code,
                                  result.stdout + result.stderr)
+
+    def test_english_slot_rejects_latin_language_even_if_critic_says_english(self) -> None:
+        self.assertTrue(MODULE.language_matches(
+            "en", "Try this next.", detected_language="en"))
+        self.assertFalse(MODULE.language_matches(
+            "en", "Prueba este paso primero.", detected_language="en"))
+        self.assertFalse(MODULE.language_matches(
+            "en", "Essayez cette étape avant d'envoyer.", detected_language="en"))
 
 
 if __name__ == "__main__":
