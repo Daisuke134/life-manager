@@ -1,7 +1,8 @@
 -- Store Web travel setup atomically without changing Telegram or Stripe-owned fields.
 CREATE OR REPLACE FUNCTION public.complete_lm_web_travel_setup(
   p_uid text,
-  p_home_address text
+  p_home_address text,
+  p_calendar_account_id text
 ) RETURNS timestamptz
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -19,9 +20,13 @@ BEGIN
    WHERE uid = p_uid AND telegram_chat_id IS NULL
    FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'scope_mismatch'; END IF;
-  IF user_row.calendar_provider IS DISTINCT FROM 'composio_gcal'
-     OR coalesce(user_row.calendar_connected_account_id, '') !~ '^[A-Za-z0-9_-]{3,128}$' THEN
+  IF user_row.calendar_provider IS DISTINCT FROM 'composio_gcal' THEN
     RAISE EXCEPTION 'calendar_not_active';
+  END IF;
+  IF p_calendar_account_id IS NULL
+     OR p_calendar_account_id !~ '^[A-Za-z0-9_-]{3,128}$'
+     OR user_row.calendar_connected_account_id IS DISTINCT FROM p_calendar_account_id THEN
+    RAISE EXCEPTION 'calendar_account_changed';
   END IF;
 
   UPDATE public.lm_users
@@ -43,5 +48,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.complete_lm_web_travel_setup(text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_lm_web_travel_setup(text, text) TO service_role;
+REVOKE ALL ON FUNCTION public.complete_lm_web_travel_setup(text, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_lm_web_travel_setup(text, text, text) TO service_role;

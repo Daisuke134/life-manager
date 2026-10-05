@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
-const { buildTodaySnapshot, handleWebTravelRequest } = require("./web-travel.js");
+const { buildTodaySnapshot, completeWebTravelSetup, handleWebTravelRequest } = require("./web-travel.js");
 
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const OTHER_UID = "lm_22222222-2222-4222-8222-222222222222";
@@ -68,6 +68,7 @@ function fixture(overrides = {}) {
   const events = [event()];
   const sequence = [];
   const rpcCalls = [];
+  let preferenceWrites = 0;
   let travelCalls = 0;
   const fetchImpl = async (url, init = {}) => {
     const requestUrl = new URL(String(url));
@@ -75,8 +76,12 @@ function fixture(overrides = {}) {
       sequence.push("rpc");
       const body = JSON.parse(init.body || "{}");
       rpcCalls.push(body);
+      if (body.p_calendar_account_id !== row.calendar_connected_account_id) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
+      }
       row.home_address = body.p_home_address;
       row.trial_expires_at ||= TRIAL_EXPIRES_AT;
+      preferenceWrites++;
       return { ok: true, status: 200, json: async () => ({ trial_expires_at: row.trial_expires_at }) };
     }
     if (requestUrl.pathname.endsWith("/lm_users")) {
@@ -116,12 +121,21 @@ function fixture(overrides = {}) {
       assert.equal(user.uid, UID);
       assert.equal(user.daily_automation_enabled, true);
       assert.equal(user.home_address, row.home_address);
-      if (!events.some((item) => String(item.summary || "").startsWith("[Travel]"))) events.push(travelBlock());
-      return { inserted: 1 };
+      const inserted = !events.some((item) => String(item.summary || "").startsWith("[Travel]"));
+      if (inserted) events.push(travelBlock());
+      return inserted ? {
+        inserted: 1,
+        outboundReports: [{
+          eventId: "event-1",
+          leaveMs: Date.parse("2030-01-01T09:35:00+09:00"),
+          arriveMs: Date.parse("2030-01-01T10:00:00+09:00"),
+        }],
+      } : { inserted: 0, outboundReports: [] };
     },
     ...overrides,
   };
-  return { events, fetchImpl, opts, row, rpcCalls, sequence, get travelCalls() { return travelCalls; } };
+  return { events, fetchImpl, opts, row, rpcCalls, sequence,
+    get preferenceWrites() { return preferenceWrites; }, get travelCalls() { return travelCalls; } };
 }
 
 async function call(fixtureValue, method, url, requestOptions = {}) {
@@ -139,7 +153,7 @@ test("setup stores home and starts one trial only for active unbound web user", 
   assert.equal(response.status, 200);
   assert.equal(f.row.home_address, "自宅住所");
   assert.equal(f.row.trial_expires_at, TRIAL_EXPIRES_AT);
-  assert.deepEqual(f.rpcCalls, [{ p_uid: UID, p_home_address: "自宅住所" }]);
+  assert.deepEqual(f.rpcCalls, [{ p_uid: UID, p_home_address: "自宅住所", p_calendar_account_id: "ca-selected-123" }]);
   assert.equal(f.travelCalls, 1);
   assert.ok(f.sequence.indexOf("calendar_status") < f.sequence.indexOf("rpc"));
   assert.ok(f.sequence.indexOf("rpc") < f.sequence.indexOf("travel"));
@@ -161,7 +175,7 @@ test("ignores client uid and paid fields", async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(f.rpcCalls, [{ p_uid: UID, p_home_address: "自宅住所" }]);
+  assert.deepEqual(f.rpcCalls, [{ p_uid: UID, p_home_address: "自宅住所", p_calendar_account_id: "ca-selected-123" }]);
   assert.equal(f.row.paid, false);
   assert.equal(f.row.telegram_chat_id, null);
 });
@@ -229,6 +243,54 @@ test("missing Calendar helper readback remains pending", async () => {
   assert.equal(travelAttempts, 1);
 });
 
+test("duplicate matching Travel helpers remain pending with no reported block", async () => {
+  const f = fixture();
+  f.row.home_address = "自宅住所";
+  f.events.push(travelBlock(), { ...travelBlock(), id: "travel-2" });
+
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+  assert.equal(snapshot.setupState, "sync_pending");
+  assert.equal(snapshot.travelBlock, null);
+  assert.equal(snapshot.departureAt, null);
+});
+
+test("unrelated outbound report cannot turn a verified helper into travel_added", async () => {
+  let f;
+  f = fixture({ travelUserOnceImpl: async () => {
+    f.events.push(travelBlock());
+    return {
+      inserted: 1,
+      outboundReports: [{ eventId: "event-other", leaveMs: Date.parse("2030-01-01T09:35:00+09:00"), arriveMs: NOW }],
+    };
+  } });
+  const response = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
+  });
+  const result = JSON.parse(response.body);
+  assert.equal(response.status, 200);
+  assert.equal(result.travelBlock.id, "travel-1");
+  assert.equal(result.syncState, "travel_verified");
+});
+
+test("setup RPC rejects a Calendar account changed after ACTIVE readback", async () => {
+  const f = fixture();
+  f.opts.composioCalendarAccountStatusImpl = async (scope, accountId) => {
+    assert.deepEqual(scope, { uid: UID });
+    assert.equal(accountId, "ca-selected-123");
+    f.row.calendar_connected_account_id = "ca-replaced-456";
+    return "ACTIVE";
+  };
+
+  await assert.rejects(
+    () => completeWebTravelSetup(UID, "自宅住所", f.opts),
+    (error) => error.status === 409 && error.code === "calendar_account_changed",
+  );
+  assert.deepEqual(f.rpcCalls, [{ p_uid: UID, p_home_address: "自宅住所", p_calendar_account_id: "ca-selected-123" }]);
+  assert.equal(f.row.home_address, null);
+  assert.equal(f.row.trial_expires_at, null);
+  assert.equal(f.preferenceWrites, 0);
+});
+
 test("repeated setup keeps one trial and shared travel replay yields one helper", async () => {
   const f = fixture();
   const request = {
@@ -259,6 +321,12 @@ test("setup RPC locks and updates only the Web-owned setup fields", () => {
   assert.match(sql, /telegram_chat_id\s+IS\s+NULL/i);
   assert.match(sql, /calendar_provider\s+IS\s+DISTINCT\s+FROM\s+'composio_gcal'/i);
   assert.match(sql, /calendar_connected_account_id/i);
+  assert.match(sql, /p_calendar_account_id\s+text/i);
+  assert.match(sql, /p_calendar_account_id\s+IS\s+NULL/i);
+  assert.match(sql, /p_calendar_account_id\s*!~\s*'\^\[A-Za-z0-9_\-\]\{3,128\}\$'/i);
+  assert.match(sql, /user_row\.calendar_connected_account_id\s+IS\s+DISTINCT\s+FROM\s+p_calendar_account_id/i);
+  assert.ok(sql.indexOf("user_row.calendar_connected_account_id IS DISTINCT FROM p_calendar_account_id")
+    < sql.indexOf("UPDATE public.lm_users"), "the locked account match must precede all setup writes");
   assert.match(sql, /trial_expires_at\s*=\s*coalesce\s*\([^;]*now\(\)\s*\+\s*interval\s+'3 days'/is);
   assert.match(sql, /home_address\s*=\s*home_value/i);
   assert.match(sql, /call_enabled\s*=\s*false/i);

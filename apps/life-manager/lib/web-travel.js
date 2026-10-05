@@ -116,7 +116,13 @@ async function rpc(name, body, opts = {}) {
     headers: serviceHeaders(opts.supaKey, { "content-type": "application/json" }),
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw webError(502, "setup_unavailable");
+  if (!response.ok) {
+    const failure = await response.json().catch(() => null);
+    if (String(failure && failure.message || "").includes("calendar_account_changed")) {
+      throw webError(409, "calendar_account_changed");
+    }
+    throw webError(502, "setup_unavailable");
+  }
   return response.json().catch(() => null);
 }
 
@@ -129,12 +135,13 @@ async function completeWebTravelSetup(uid, homeAddress, opts = {}) {
   if (!address) throw webError(400, "invalid_home_address");
   if (!WEB_UID_RE.test(String(uid || ""))) throw webError(401, "unauthorized");
 
-  const { status } = await readActiveCalendarUser(uid, opts);
-  if (status !== "ACTIVE") throw webError(409, "calendar_not_active");
+  const activeCalendar = await readActiveCalendarUser(uid, opts);
+  if (activeCalendar.status !== "ACTIVE") throw webError(409, "calendar_not_active");
 
   const result = firstValue(await rpc("complete_lm_web_travel_setup", {
     p_uid: uid,
     p_home_address: address,
+    p_calendar_account_id: activeCalendar.row.calendar_connected_account_id,
   }, opts));
   const trialExpiresAt = typeof result === "string" ? result : result && result.trial_expires_at;
   if (typeof trialExpiresAt !== "string" || !Number.isFinite(Date.parse(trialExpiresAt))) {
@@ -156,14 +163,14 @@ function eventSnapshot(event) {
   };
 }
 
-function matchingTravelBlock(events, event) {
-  if (!event || !event.location) return null;
+function matchingTravelBlocks(events, event) {
+  if (!event || !event.location) return [];
   const location = String(event.location).replace(/\s+/g, "").toLowerCase();
-  return events.find((candidate) => isTravel(candidate.summary)
+  return events.filter((candidate) => isTravel(candidate.summary)
     && Number.isFinite(candidate.endMs)
     && candidate.endMs >= event.startMs - 2 * 60_000
     && candidate.endMs <= event.startMs + 60_000
-    && String(candidate.location || "").replace(/\s+/g, "").toLowerCase() === location) || null;
+    && String(candidate.location || "").replace(/\s+/g, "").toLowerCase() === location);
 }
 
 function baseSnapshot(row, setupState, calendarState) {
@@ -216,14 +223,16 @@ async function buildTodaySnapshot(uid, opts = {}) {
   }
   const ordered = events.slice().sort((a, b) => a.startMs - b.startMs);
   const nextEvent = ordered.find((event) => event.startMs >= nowMs && !isTravel(event.summary)) || null;
-  const travel = matchingTravelBlock(ordered, nextEvent);
+  const matches = matchingTravelBlocks(ordered, nextEvent);
+  const travel = matches.length === 1 ? matches[0] : null;
   const snapshot = baseSnapshot(beforeReadRow, "ready", "connected");
   snapshot.nextEvent = eventSnapshot(nextEvent);
   snapshot.travelBlock = eventSnapshot(travel);
   snapshot.departureAt = travel && Number.isFinite(travel.startMs) ? new Date(travel.startMs).toISOString() : null;
 
   const home = String(beforeReadRow.home_address || "").trim();
-  if (!home) snapshot.setupState = "needs_home";
+  if (matches.length > 1) snapshot.setupState = "sync_pending";
+  else if (!home) snapshot.setupState = "needs_home";
   else if (nextEvent && nextEvent.location) {
     const before = ordered.filter((event) => event.startMs < nextEvent.startMs && !isTravel(event.summary)).at(-1) || null;
     if (travelDecision(nextEvent, before, home).insert && !travel) snapshot.setupState = "sync_pending";
@@ -232,7 +241,16 @@ async function buildTodaySnapshot(uid, opts = {}) {
 }
 
 function syncState(snapshot, travelResult) {
-  if (snapshot.travelBlock) return travelResult && travelResult.inserted > 0 ? "travel_added" : "travel_verified";
+  if (snapshot.setupState === "sync_pending") return "sync_pending";
+  if (snapshot.travelBlock) {
+    const nextEvent = snapshot.nextEvent;
+    const eventId = nextEvent.id || `${nextEvent.startMs}:${nextEvent.summary || ""}`;
+    const report = (travelResult && travelResult.outboundReports || []).find((item) => item && item.eventId === eventId);
+    const addedForEvent = Boolean(travelResult && travelResult.inserted > 0 && report
+      && report.leaveMs === snapshot.travelBlock.startMs
+      && report.arriveMs === nextEvent.startMs);
+    return addedForEvent ? "travel_added" : "travel_verified";
+  }
   return snapshot.setupState === "ready" ? "no_travel_needed" : "sync_pending";
 }
 
