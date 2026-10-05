@@ -7970,7 +7970,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - §557の再checkでknown inode752695572/whitelist3/no marker/no symlink/no jsonl、terminalPASS、TMPDIR参照process0/lsof handles0/roottoolTMPDIR非一致を確認。既存remove_owned_treeの開いたfd/同inode限定で回収、removedtrue/path残存false/logical398146100bytes。free213786624→615161856bytes、df591MiB。並行する別消費でfreeは変動するので後の増減をこの回収へ帰属しない。保護store/LibraryCaches/camoufox/provider/effect state変更0、証拠state/audit-closed-cache-reclaim-20261005.json。根本source修復完了とは判定しない。
 - 同model6luna/maxのguard worker再初期化成功、専用worktree/branch/lease取得。base185604a212876fbf5934ca78716d86ae494fd525、tracked checkout82.9MiB。oldunknown→new event fence修復scope§556を開始。旧initENOSPCを着手に置換せず、再開と別記録する。
-- audit sourcecaller確認: self-fix.shがdetach tmuxでRUN_AGENTを開始し、auditwrapperが設定するper-run TMPDIR/NPM_CONFIG_CACHE/NODE_COMPILE_CACHEを背景処理へ継承する。監査windowにcapafy self-fix18:13:09/reddit self-fix18:16:00のspawnログ、reddit runner summary09:16:01→09:26:49Zを確認。recreatedscratch09:20:32＋TMPDIR4PIDsの観測と時間が重なるが、終了後の4PIDから具体writer argvを再取得できずreddit本人へ確定帰属はしない。源流はdetach/cache lifetime境界で、次は隔離fixtureでcacheenv継承を再現しcaller-owned tempへ隔離する最小scopeを正本へ記録する。正常Camoufox cacheを消して再DLさせる修復はしない。
+- audit sourcecaller確認: self-fix.shがdetach tmuxでRUN_AGENTを開始し、auditwrapperが設定するper-run TMPDIR/NPM_CONFIG_CACHEを背景処理へ継承する（NODE_COMPILE_CACHE設定源は未確認）。監査windowにcapafy self-fix18:13:09/reddit self-fix18:16:00のspawnログ、reddit runner summary09:16:01→09:26:49Zを確認。recreatedscratch09:20:32＋TMPDIR4PIDsの観測と時間が重なるが、終了後の4PIDから具体writer argvを再取得できずreddit本人へ確定帰属はしない。源流はdetach/cache lifetime境界で、次は隔離fixtureでcacheenv継承を再現しcaller-owned tempへ隔離する最小scopeを正本へ記録する。正常Camoufox cacheを消して再DLさせる修復はしない。
 - 既存self-fix runnerのselected_model=gpt5.6-terraを観測した。今回のCodex委譲/reviewには使わず、Luna6max/Sol6.1medium指定を保持する。self-fixがコード開発を行う箇所へのmodel規則の適用は未監査であり、旧modelの例外認定や適合PASSをしない。業務model/providerを一括変更せず、具体的な開発経路を確認して必要な修正を別scopeへ記録する。sourceSelfFix tmp寿命修復とSelfBuild成功済recovery重複修正は別、SelfBuildは最後。全体47/cursor1。
 
 
@@ -8035,3 +8035,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 10:30:51Z globalguard取得成功・解放0、helper inventoryはknown2/unknown0、cleanup_pending/PIDnoneのreply candidate2へ変化。単一row前提と異なったためmutation0で保護、state/coconala-owned-context-cleanup-20261005.jsonへ保存。全browserや未知contextは閉じない。
 - 回収範囲を広げず、同operationでsnapshotを取得したknownreply候補のうち1件だけを既存CAS/gc max_reaps1/priority_taskで再照合する。追加knownrowの存在だけを根拠に全回収や中断を要求せず、activePID/parked健康/不明identityは保持。unknown_owner_contexts0、対象contextはledger/browser一致・cleanup_pendingtrue/pidNone、operatorguard正規保有を条件にする。他rowを触らず、actualdispose/readback/remainingcountsを保存する。scopeはtechcontextのみ、vault/fence/provider/send0。全体47/cursor1、source背景tmp寿命とCoconala12未解消を保持。
+
+
+### 568. Known context限定GCの結果とsource診断の追加境界
+
+- 10:31:57Z正規guard保有・helper inventoryknown3/unknown0、対象reply taskhash215a829013b2fd56/context存在true/cleanup pending/pidNoneをrecheckしてmaxreaps1の既存GCがreaped1/known3→2/残pending2、guardrelease0。10:33の再probeはBUSYでmutation0、10:34:46のfreshguard同operationはreaped1/3→2。未知contextclose/vault更新/業務send0。same taskhashのpending再出現から、手動GC成功と通常hidden cleanup失敗を分けsource原因を診断する。evidence state/coconala-owned-context-cleanup-20261005.json とsecond-20261005.json。
+- source cdp_default_tab._serve_hidden_tabはasyncfinally内で同期_release_context_if_idleを直接呼び、同期lease release/parkが内部asyncio.runを使う。入口leaseはto_threadだが出口は同期という非対称を確認。eventloop reentrancyならRuntimeError/pendingに一致するため、freshreadonly6.1solmediumへ実code＋隔離CDP/ledger fixtureの反証を依頼。症状整合だけで本番因果を断定せず、必要最小source修復scopeは次の証明後に記録する。
+- tmp寿命plannerはcaller per-EVIDENCE_DIR3cache分離案を提示したが、existingretentionはsummaryありをliveowner/保護markerがあっても回収でき、遅延writerが再生成するとsummary無しactive扱いになる純fixtureを確認。agent runner finallyのleader退出後groupcleanup省略も潜在穴で、writer本人は未確定。分離だけで完了扱いせず既存ownedprocessgroup終了契約と結んだ最小sourceplanを次に確定する。新TTL/sweeper/任意daemon停止なし。sourceNODE環境設定源は未確認として訂正。全体47/cursor1、12oldpendingを保持。
