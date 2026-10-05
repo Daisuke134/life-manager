@@ -15,14 +15,14 @@ interactive:dais lease-wrapped CDP endpoint daily.sh uses -- never a fresh
 login and never a second submit.
 
 Precision: daily.sh writes one immutable, occurrence-bound snapshot before
-calling publish.py --confirm. Only a well-formed schema-1 snapshot with a
-matching owner, occurrence, and timestamp may prove that an explicit null
-candidate was not dispatched. Missing, malformed, partial, or misbound
-snapshots stay held; they never prove no effect.
+calling publish.py --confirm. Only a validated schema-2 snapshot with matching
+owner, occurrence, active capture provenance, and timestamp may prove that an
+explicit null candidate was not dispatched. Missing, malformed, partial, or
+misbound snapshots stay held; they never prove no effect.
 
 Decision:
-  - a valid schema-2 snapshot with explicit null slug/title -> no-effect
-    immediately (the active admitted run selected no candidate).
+  - a validated schema-2 snapshot with explicit null slug and title ->
+    no-effect immediately (the active admitted run selected no candidate).
   - missing, legacy, malformed, or unbound snapshot -> inconclusive, stays fenced.
   - the ledger already has a row for that slug recorded at/after queued_at ->
     effected via the existing local ledger row (daily.sh crashed on something
