@@ -102,6 +102,7 @@ def test_mutation_and_official_readback_remain_provider_specific(tmp_path):
 
 @pytest.mark.parametrize(("failure_stage", "expected_phase"), [
     ("fill", "fill"), ("read_after", "read_after"), ("final_read", "final_read"),
+    ("final_match_missing", "final_read"),
 ])
 def test_sender_attaches_safe_stage_to_fill_and_readback_exceptions(
     tmp_path, monkeypatch, failure_stage, expected_phase,
@@ -133,7 +134,12 @@ def test_sender_attaches_safe_stage_to_fill_and_readback_exceptions(
                 raise RuntimeError(f"private URL https://private.invalid/{thread_id}")
 
         def click(self):
-            return None
+            self.send_network = [{
+                "method": "POST",
+                "path": f"/mypage/direct_message_ajax/{thread_id}",
+                "status": 200,
+                "outcome": "finished",
+            }]
 
         def read_after(self):
             if failure_stage == "read_after":
@@ -147,6 +153,11 @@ def test_sender_attaches_safe_stage_to_fill_and_readback_exceptions(
         def _read(self):
             if failure_stage == "final_read":
                 raise adapter_module.snapshot.CollectorUnhealthy("unexpected_title")
+            if failure_stage == "final_match_missing":
+                return ({"conversation": [
+                    *context["conversation"],
+                    {"side": "seller", "message_id": "seller-other", "body": "not the requested reply"},
+                ]}, {"last_sender": "seller"})
             return context, {"last_sender": "buyer"}
 
     monkeypatch.setattr(

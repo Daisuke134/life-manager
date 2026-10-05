@@ -254,22 +254,22 @@ class CoconalaReplyAdapter:
                     raise RuntimeError("coconala_reply_reconcile_unknown")
                 phase = "final_read"
                 final_context, _bounded = browser._read()
+            wanted = reply_browser.outgoing_sha256(body)
+            for row in reversed(final_context.get("conversation") or []):
+                if not isinstance(row, Mapping) or row.get("side") != "seller":
+                    continue
+                if reply_browser.outgoing_sha256(str(row.get("body") or "")) == wanted:
+                    return {
+                        "provider_receipt_id": str(row["message_id"]),
+                        "observed_at": _now(),
+                    }
+            raise RuntimeError("coconala_reply_reconcile_unknown")
         except Exception as error:
             _attach_send_diagnostic(
                 error, phase=phase, intent=intent, browser=browser,
                 expected_path=expected_path,
             )
             raise
-        wanted = reply_browser.outgoing_sha256(body)
-        for row in reversed(final_context.get("conversation") or []):
-            if not isinstance(row, Mapping) or row.get("side") != "seller":
-                continue
-            if reply_browser.outgoing_sha256(str(row.get("body") or "")) == wanted:
-                return {
-                    "provider_receipt_id": str(row["message_id"]),
-                    "observed_at": _now(),
-                }
-        raise RuntimeError("coconala_reply_reconcile_unknown")
 
     def _observation(self, thread_id: str) -> dict[str, str]:
         context, _bounded = self._thread_reader(thread_id)
