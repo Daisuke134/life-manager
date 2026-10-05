@@ -40,6 +40,13 @@ Commands (all print a state readout; most also save a screenshot):
   upload <idx> <path>        set_input_files on the idx-th file input
   scroll <y>                 window.scrollTo(0, y), then shot
   toast                      report whether success toast / card-done url is present
+  prices <LISTING.md>        read-only: compare the OPEN 価格設定 tab's current plan
+                              cards (by Period label, not position -- cards re-sort on
+                              a period change) against LISTING.md's pricing table.
+                              Prints `PRICES_MATCH <n>` (exit 0) or
+                              `PRICES_MISMATCH <details>` (exit 1). Run this after
+                              entering values and BEFORE clicking 提出を確認 -- see
+                              CP1_AGENTIC.md.
 
 Screenshot is saved to $CP1_SHOT (default /tmp/cp1_shot.png), viewport-relative
 so the (x,y) in the state readout map directly to `click <x> <y>`.
@@ -212,6 +219,116 @@ def _build_state_js():
 
 STATE_JS = _build_state_js()
 
+# Read-only extraction of the CURRENT plan cards on the open 価格設定 tab, for the
+# `prices` command. Anchor and field order come from the OLD drive_cp1.py's proven
+# GOTCHA-12 fix (scripts/drive_cp1.py CARDS_JS, 2026-07-05): the real per-card
+# element is the minimal node that contains BOTH a period dropdown button
+# (button.pricingConfigDropdownButton) AND the '無料トライアル' trial-section text --
+# card DOM position/order is NOT stable across a period change, so a caller must key
+# off each card's CURRENT Period label, never array position. Within a card the
+# first two visible <input>s are always price/cap (documented in CP1_AGENTIC.md);
+# a card showing "Enable Free Trial" reveals two more inputs (duration hours, free
+# request count) -- their mere presence (not a color/class guess) is what signals
+# the trial is enabled, matching the UI behavior CP1_AGENTIC.md already documents.
+PRICE_CARDS_JS = r"""
+() => {
+  const vis = (e) => {
+    const r = e.getBoundingClientRect();
+    const s = getComputedStyle(e);
+    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+  };
+  const cards = [...document.querySelectorAll('*')].filter((e) =>
+    e.querySelector('button.pricingConfigDropdownButton') && (e.textContent || '').includes('無料トライアル'));
+  const topCards = cards.filter((e) => !cards.some((o) => o !== e && e.contains(o)));
+  return topCards.map((card) => {
+    const btn = card.querySelector('button.pricingConfigDropdownButton');
+    const period = (btn ? btn.textContent : '').trim();
+    const inputs = [...card.querySelectorAll('input')].filter(vis);
+    const price = inputs[0] ? inputs[0].value : null;
+    const cap = inputs[1] ? inputs[1].value : null;
+    const trial = inputs.length > 2
+      ? { hours: inputs[2] ? inputs[2].value : null, requests: inputs[3] ? inputs[3].value : null }
+      : null;
+    return { period, price, cap, trial };
+  });
+}
+"""
+
+# Capafy's Period dropdown shows the English label; LISTING.md's pricing table and
+# verify_pricing.listing_plans() use the lowercase cycle key. Keep this mapping the
+# single source of truth both directions (cp1_agent.py prices <-> drive_cp1.py).
+CYCLE_LABEL = {"day": "Daily", "week": "Weekly", "month": "Monthly", "year": "Yearly"}
+LABEL_CYCLE = {label: cycle for cycle, label in CYCLE_LABEL.items()}
+
+
+def _as_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _price_matches(target, actual) -> bool:
+    t, a = _as_float(target), _as_float(actual)
+    return t is not None and a is not None and f"{t:g}" == f"{a:g}"
+
+
+def _cap_matches(target, actual) -> bool:
+    t, a = _as_float(target), _as_float(actual)
+    return t is not None and a is not None and int(t) == int(a)
+
+
+def _trial_matches(target, actual) -> bool:
+    if target is None:
+        return actual is None
+    if not isinstance(actual, dict):
+        return False
+    return (
+        _as_float(actual.get("hours")) == float(target["hours"])
+        and _as_float(actual.get("requests")) == float(target["requests"])
+    )
+
+
+def compare_price_cards(plans: list[dict], cards: list[dict]) -> list[str]:
+    """Pure comparison: `plans` is verify_pricing.listing_plans()'s output; `cards`
+    is PRICE_CARDS_JS's output (read_price_cards()). Matches each LISTING row to a
+    card by Period LABEL (via LABEL_CYCLE), never by list position -- Capafy
+    plan cards re-sort when a period changes, so position-based matching is exactly
+    the bug this tool exists to catch (see module docstring / CP1_AGENTIC.md).
+    Returns a list of human-readable mismatch strings, one per differing field;
+    empty list means every LISTING row matched a card."""
+    by_cycle = {}
+    for card in cards:
+        cycle = LABEL_CYCLE.get(str(card.get("period", "")).strip())
+        if cycle:
+            by_cycle[cycle] = card
+    mismatches = []
+    for plan in plans:
+        card = by_cycle.get(plan["cycle"])
+        if card is None:
+            mismatches.append(f"{plan['cycle']}: missing (target price=${plan['price']})")
+            continue
+        if not _price_matches(plan["price"], card.get("price")):
+            mismatches.append(f"{plan['cycle']}: price target=${plan['price']} actual={card.get('price')}")
+        if not _cap_matches(plan["cap"], card.get("cap")):
+            mismatches.append(f"{plan['cycle']}: cap target={plan['cap']} actual={card.get('cap')}")
+        if not _trial_matches(plan["trial"], card.get("trial")):
+            mismatches.append(f"{plan['cycle']}: trial target={plan['trial']} actual={card.get('trial')}")
+    return mismatches
+
+
+def prices_result(plans, cards) -> tuple[str, int]:
+    """Combine listing_plans() output with compare_price_cards() into the exact
+    one-line stdout message + exit code the `prices` command prints."""
+    if plans is None:
+        return "PRICES_UNKNOWN listing-has-no-subscription-plans", 0
+    if not plans:
+        return "PRICES_UNKNOWN listing-has-no-pricing-rows", 0
+    mismatches = compare_price_cards(plans, cards)
+    if mismatches:
+        return f"PRICES_MISMATCH {'; '.join(mismatches)}", 1
+    return f"PRICES_MATCH {len(plans)}", 0
+
 
 def all_pages(br):
     out = []
@@ -261,6 +378,18 @@ def _toast_for_output(state):
         "priceSvg": safe_state.get("priceSvg"),
         "url": safe_state.get("url"),
     }
+
+
+def _run_prices(cards, listing_path):
+    """Shared by both backends' `prices` command: DOM extraction already happened
+    (`cards`); this loads LISTING.md and prints the PRICES_MATCH/PRICES_MISMATCH
+    line. Returns the process exit code."""
+    from verify_pricing import listing_plans
+
+    plans = listing_plans(listing_path)
+    message, code = prices_result(plans, cards)
+    print(message)
+    return code
 
 
 def _require_safe_edit_url(url):
@@ -521,6 +650,9 @@ def raw_main(cmd):
             print(json.dumps(_toast_for_output(st), ensure_ascii=False)); return
         elif cmd == "upload":
             _raw_upload(pg, int(sys.argv[2]), sys.argv[3])
+        elif cmd == "prices":
+            cards = pg.evaluate("(" + PRICE_CARDS_JS + ")()")
+            raise SystemExit(_run_prices(cards, sys.argv[2]))
         else:
             print(f"unknown cmd: {cmd}"); return
         time.sleep(1)
@@ -671,6 +803,9 @@ def main():
         elif cmd == "toast":
             st = _state_for_output(pg.evaluate(STATE_JS))
             print(json.dumps(_toast_for_output(st), ensure_ascii=False))
+        elif cmd == "prices":
+            cards = pg.evaluate(PRICE_CARDS_JS)
+            sys.exit(_run_prices(cards, sys.argv[2]))
         else:
             print(f"unknown cmd: {cmd}"); sys.exit(2)
     finally:
