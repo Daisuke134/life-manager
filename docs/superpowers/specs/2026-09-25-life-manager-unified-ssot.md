@@ -7885,3 +7885,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - GitHub run37281487177はLoop control contractsのみFAIL、764tests中test_production_render_matches_byte_stable_fixtureの1failure。残9checks SUCCESS。rerunせずlog-failedを確認、renderer実出力とfixtureをread-only比較した結果、main追加済みlife-manager-capafy-igの1jobがfixtureに欠損、既存179jobsの変更0/削除0。見積りsourceの回帰ではない。
 - 修復scopeを同Coconala branchのruntime/loop/tests/fixtures/macos-loop-jobs.jsonのmain追加済み1jobだけに拡張。現行render_job_models/validated registryから既存方式で生成し、既存rows byte/値保持、config/registry/render code/Capafy業務source変更0。fresh SHIP済みadapter/test source bytes保持。既存fixture RED→最小更新→対象test/contract/OSS/diff→commit/push/remote確認→新head CI。テストを弱めたりjobを削除してPASSにしない。担当はLuna6/max、rootはmetadata差分確認と統合。全体47/cursor1維持。
+
+
+### 547. fixture補完pushとpublic/private共通403の観測
+
+- fixture修復bb4b72f1a830dadad9da14499aad6466c76368eaをPR6634 branchへpush/remote一致/clean。runtime/loop/tests/fixtures/macos-loop-jobs.jsonのみ追加IG1job、既存179変更0/削除0。RED対象fixture test1failure→GREEN1PASS、contract14/180/104/OSS/diff PASS。fresh SHIP対象adapter/test blobsは前後同一cfb5306790c1898819a8d1faf5bda7a9a86c83b8/b0dd6a0cb1d373f9b03ee08365261ff38e9fd119。registry/Capafysource変更なし。
+- GitHub PR headもbb4b72f1を確認、新CI run37282287624/job111672915586ほかがQUEUED。旧CI37281487177のfailureを新head結果にしない。次は同新run terminal/allchecksPASS→通常main/immutable/Reply target apply、sourceの業務正常化は公式readback後に判定。
+- 08:11:54Z guard取得/own pages3/解放0、公式home・service4330368・query inboxの全3route HTTP403/server awselb/2.0、x-amzn-waf-action/Retry-After headerなし。403はprivate inbox限定ではなく共通provider経路。§521の公開4件の過去readbackは保持するが、このprobeで現在公開・非公開・受付停止を新たに断定しない。provider mutation/vaultwrite0。証拠state/coconala-provider-route-comparison-20261005.json。CAPTCHA challenge未取得で無根拠なsolver/login/resetを開始しない。全体47/cursor1、13保留の結果照合を継続する。
