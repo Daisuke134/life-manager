@@ -719,6 +719,162 @@ def test_delivery_unknown_never_blindly_replays_same_intent(tmp_path):
     assert len(adapter.effects) == 1
 
 
+@pytest.mark.parametrize("scenario", ["same_reply", "different_estimate", "noop"])
+def test_reconcile_unknown_reply_or_estimate_fences_new_event_until_old_readback(
+        tmp_path, scenario):
+    old_row = event(latest="event-A")
+    new_row = event(latest="event-B")
+    if scenario == "same_reply":
+        old_action, old_payload = "reply", {"body": "same"}
+        decision = {"action": "reply", "payload": {"body": "same"}}
+        readback = {"authoritative_absent": True}
+    elif scenario == "different_estimate":
+        old_action, old_payload = "estimate", {"quote": "old"}
+        decision = {"action": "estimate", "payload": {"quote": "new"}}
+        readback = {"authoritative_absent": False}
+    else:
+        old_action, old_payload = "reply", {"body": "old"}
+        decision = {"action": "noop", "classification": "no_reply"}
+        readback = {"authoritative_absent": True}
+    old_intent = reply_kernel._intent(old_row, {
+        "action": old_action, "payload": old_payload,
+    })
+    path = reply_kernel._state_path(tmp_path, old_row)
+    reply_kernel._write(path, {
+        "version": 1,
+        "inventory_event_id": "event-A",
+        "observation": old_row,
+        "intent": old_intent,
+        "status": "reconcile_unknown",
+        "occurrence_id": "fixture-reply:run-A",
+    })
+    before = path.read_bytes()
+
+    class UnknownOldIntent(Adapter):
+        def __init__(self):
+            super().__init__([new_row])
+            self.readbacks = []
+            self.context_calls = 0
+
+        def context(self, thread_id):
+            self.context_calls += 1
+            return super().context(thread_id)
+
+        def readback(self, intent):
+            self.readbacks.append(dict(intent))
+            return dict(readback)
+
+    adapter = UnknownOldIntent()
+    decisions = []
+
+    def decide(context):
+        decisions.append(context)
+        return decision
+
+    result = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path,
+    )
+
+    assert result["items"][0]["reason"] == "reconcile_unknown"
+    assert result["items"][0]["status"] == "pending"
+    assert result["effect"] == 0
+    assert adapter.readbacks == [old_intent]
+    assert adapter.context_calls == 0
+    assert decisions == []
+    assert adapter.effects == []
+    assert path.read_bytes() == before
+
+
+def test_verified_old_unknown_receipt_keeps_event_binding_then_processes_new_event(
+        tmp_path, monkeypatch):
+    old_row = event(latest="event-A")
+    new_row = event(latest="event-B")
+    old_intent = reply_kernel._intent(old_row, {
+        "action": "reply", "payload": {"body": "same semantic content"},
+    })
+    path = reply_kernel._state_path(tmp_path, old_row)
+    reply_kernel._write(path, {
+        "version": 1,
+        "inventory_event_id": "event-A",
+        "observation": old_row,
+        "intent": old_intent,
+        "status": "reconcile_unknown",
+        "occurrence_id": "fixture-reply:run-A",
+    })
+    monkeypatch.delenv("LIFE_MANAGER_RESULT_HINT_PATH", raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-B")
+
+    class OldReceiptThenNewEffect(Adapter):
+        def __init__(self):
+            super().__init__([new_row])
+            self.readbacks = []
+
+        def readback(self, intent):
+            self.readbacks.append(dict(intent))
+            if intent["latest_event_id"] == "event-A":
+                return {
+                    "verified": True,
+                    "provider_receipt_id": "provider-receipt-A",
+                    "observed_at": "2026-10-05T00:00:01Z",
+                }
+            return super().readback(intent)
+
+    adapter = OldReceiptThenNewEffect()
+    decisions = []
+    notifications = []
+
+    def decide(context):
+        decisions.append(context)
+        return {"action": "reply", "payload": {"body": "same semantic content"}}
+
+    def notify(intent, receipt):
+        notifications.append((intent["latest_event_id"], receipt["provider_receipt_id"]))
+        return {"delivery": "delivered"}
+
+    first = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
+    )
+    saved_old = reply_kernel._load(path)
+    assert first["items"][0]["reason"] == "replay_zero"
+    assert first["effect"] == 0
+    assert decisions == []
+    assert adapter.effects == []
+    assert saved_old["inventory_event_id"] == "event-A"
+    assert saved_old["observation"]["latest_event_id"] == "event-A"
+    assert saved_old["intent"]["latest_event_id"] == "event-A"
+    assert saved_old["occurrence_id"] == "fixture-reply:run-A"
+    assert saved_old["receipt"]["provider_receipt_id"] == "provider-receipt-A"
+    assert notifications == [("event-A", "provider-receipt-A")]
+
+    second = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
+    )
+    saved_new = reply_kernel._load(path)
+    assert second["items"][0]["reason"] == "submitted"
+    assert second["effect"] == 1
+    assert len(adapter.effects) == 1
+    new_intent = adapter.effects[0]
+    assert new_intent["latest_event_id"] == "event-B"
+    assert new_intent["content_sha256"] == old_intent["content_sha256"]
+    assert new_intent["effect_key"] != old_intent["effect_key"]
+    assert saved_new["inventory_event_id"] == "event-B"
+    assert saved_new["observation"]["latest_event_id"] == "event-B"
+    assert saved_new["occurrence_id"] == "fixture-reply:run-B"
+    assert notifications == [
+        ("event-A", "provider-receipt-A"),
+        ("event-B", "message-1"),
+    ]
+
+    replay = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
+    )
+    assert replay["items"][0]["reason"] == "replay_zero"
+    assert replay["effect"] == 0
+    assert len(adapter.effects) == 1
+    assert len(decisions) == 1
+    assert len(notifications) == 2
+
+
 def test_readback_exception_after_intent_preserves_reconcile_fence(tmp_path):
     class ReadbackBreaksAfterEffect(Adapter):
         def __init__(self):
