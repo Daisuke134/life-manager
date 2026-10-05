@@ -7513,3 +7513,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Agent Economyは新3f自然run18db85e91eb23208-75612/wake00MUUPVCMU6DAF9EE80DB84E50のactive brain_transportを同runで照合。保存runner summary/attempts/stderrにprovider codex/profileacct1/rc2/結果なし/duration4ms/adapter_error codex automation auth unavailableを確認。brain.mjsはこれをcodex_brain_failed:exit_1へまとめる。旧transport履歴からの推論ではない。private instance/state/codex-brain/同wakeとstate/internal-loop-agent-economy-diagnosis-20261005.jsonを参照。
 - agent_runner.pyのauth検証が既定~/.codex/auth.json不在でCLI起動前に拒否する境界を確定。~/.codex-acct1/auth.jsonも不在、acct2/auth.jsonは存在するがacct1へ代用・コピー・route変更をしない。private credentials SSOTは存在し、登録metadataに該当service記録1件を確認したがauth_file/token/key/profileの復旧参照は未確認。資格情報の値は出力・repo複製しない。正しいaccount/profileのauth owner・復旧参照確認が次手。現在attemptのconfiguredmodelは旧gpt5.6-terraだが業務loopの一括model変更は行わず、Codex開発モデル規約と分ける。
 - 追加のsource/prod/auth/browser/queue/fence変更多数を起こさず、capacityに新規retry/increaseを発行しない。§217cursor残1、Lancers源修正は残2の統合順序確認待ち、全goal未完。
+
+
+### 505. peer文書同期と監査scratch原因の境界確定
+
+- fresh main9415eafbe9a934b1b353e150edd3669b719f5d29/PR6607はdocのみ、3fからcode差分0。peerのCapafy recipeとagent-skill factory plan2filesは同commitのGit bytesをそのままdocsbranchへ取り込み、5bf2987cb1でpush。SSOT既存参照anchorが本branchに無く同時追記は停止したため、ここへ参照を補う。product詳細は docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md と docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md を参照。全体残順序正本§217は変えず、peer編集を戻さない。
+- AGMSG peer03:45/04:00Zはverify-loops-auditの終了済みscratch29dirs/4.2GiBを削除してfree268MiB→4.5GiBと報告。root df4785544KiB、owner loaded-idle/PIDなし/installed2a、現scratch空を確認。削除済み量を現存量と扱わず重複削除0。
+- fresh Sol/medium read-only調査で巨大2runのreport/pass/exit0を直接確認：18db5841f6304830-18469/event86378a8619bda66e10b5c9ba/release1a7、18db7006af727260-51948/event7a0b49a1c76fd5c0dfeef044/release82d。終端未保存による意図保持とは説明できない。stderrのENOSPC1行はsame-run bindingなし、cleanup-latestは旧3e7/evaluated_runs0で今回回収の証明ではない。
+- 正常経路はregistry→lm_loop_run→reset_loop_scratch→_run_admitted→audit→verify-loops/self-fix→terminal保存→unprotect→fd remove_owned_tree。removeはgc-trash rename後unlinkのため、readonly失敗仮説は削除前の名前/marker/権限を要確認。peerへ原名かgc-trashか、owner/terminal-unrecorded marker/readonly証拠の既存refsのみを照会。根因未確定の包括sweeper/監査強制run/source修正を追加しない。
+- Agent Economy正規authownerとLancersnewmain順序例外は返答なし。goal自動継続は承認ではない。今回は新しいdisk境界観測とpeer文書保全のprogress、§217cursor残1/全goal未完。
