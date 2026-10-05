@@ -660,16 +660,50 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
         finished.set()
 
 
-def _production_account_ready(page: Any) -> bool:
+def _production_account_diagnostic(page: Any) -> dict[str, object]:
+    diagnostic: dict[str, object] = {
+        "ready": False,
+        "reason": "exception",
+        "http_status": None,
+        "final_route_category": "unavailable",
+        "login_form_count": None,
+        "exception_type": None,
+    }
     try:
         response = page.goto(DASHBOARD_URL)
-        if response is None or response.status != 200:
-            return False
-        if getattr(page, "url", None) != DASHBOARD_URL:
-            return False
-        return page.locator("#login_form").count() == 0
-    except Exception:
-        return False
+        if response is None:
+            diagnostic["reason"] = "response_none"
+            return diagnostic
+        status = response.status
+        diagnostic["http_status"] = status if type(status) is int else None
+        if status != 200:
+            diagnostic["reason"] = "http_non_200"
+            return diagnostic
+        final_url = getattr(page, "url", None)
+        if final_url == DASHBOARD_URL:
+            diagnostic["final_route_category"] = "dashboard"
+        elif final_url == "https://www.lancers.jp/user/login":
+            diagnostic["final_route_category"] = "login"
+        elif isinstance(final_url, str):
+            diagnostic["final_route_category"] = "other"
+        if final_url != DASHBOARD_URL:
+            diagnostic["reason"] = "final_route_mismatch"
+            return diagnostic
+        login_form_count = page.locator("#login_form").count()
+        diagnostic["login_form_count"] = login_form_count if type(login_form_count) is int else None
+        if login_form_count != 0:
+            diagnostic["reason"] = "login_form_present"
+            return diagnostic
+        diagnostic["ready"] = True
+        diagnostic["reason"] = "ready"
+    except Exception as error:
+        diagnostic["reason"] = "exception"
+        diagnostic["exception_type"] = type(error).__name__
+    return diagnostic
+
+
+def _production_account_ready(page: Any) -> bool:
+    return _production_account_diagnostic(page)["ready"] is True
 
 
 def _project_id(opportunity: Mapping[str, object]) -> str:
