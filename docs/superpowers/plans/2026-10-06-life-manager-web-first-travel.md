@@ -18,7 +18,7 @@
 - Existing Telegram sessions, chat IDs, call consent, and Telegram onboarding continue to use their current contracts.
 - Reuse `lm_users`, `lm_panel_preferences`, Composio, `travelUserOnce`/`fillTravel`, route cache, departure calculation, and `lm_travel_log` idempotency.
 - Calendar reads and writes require an ACTIVE Composio account whose owner is the verified uid; multiple or mismatched accounts fail closed.
-- Web Calendar status reports connected only for the persisted exact ACTIVE account. A user-initiated start may recover one unique exact-uid ACTIVE account after an interrupted callback.
+- Web Calendar status reports connected only for the persisted exact ACTIVE account. A user-initiated start may recover one unique exact-uid ACTIVE account after an interrupted callback. Exact MISSING/EXPIRED bindings stay actionable for reauthorization without enabling the stale account; network/provider ownership/ID ambiguity remains fail-closed.
 - Before scheduled Web Calendar event access, re-read the current NULL-Telegram row and exact selected ACTIVE account; keep the Telegram scheduler path unchanged.
 - Carry the account ID returned by that guard through snapshot reads and `fillTravel`; the Calendar adapter rechecks the current NULL-Telegram selected marker before every Composio operation and refuses a changed account rather than re-resolving to another ID.
 - Home address, ACTIVE Calendar, and a successful server-owned setup transition are required before enabling daily travel automation or starting the existing three-day trial.
@@ -239,13 +239,13 @@ Expected: PASS; Stripe remains the only paid-state authority. Commit as `feat(li
 
 **Interface:**
 - `resolveActiveWebCalendar(uid, opts) -> Promise<{ accountId } | null>` re-reads the NULL-Telegram row, verifies its selected provider/account against exact-owner ACTIVE provider readback, then re-reads the unchanged marker before returning it.
-- GET status reports connected only for that persisted exact ACTIVE binding. POST start can recover one unique exact-uid ACTIVE account after an interrupted callback and reports connected only after marker persistence/readback.
+- GET status reports connected only for that persisted exact ACTIVE binding. Exact MISSING/EXPIRED status reports action-required rather than stranding the user. POST start may recover one unique exact-uid ACTIVE account or begin OAuth for a stale binding, then reports connected only after provider verification plus marker persistence/readback. It never enables an expired, missing, or unknown selected account.
 - `travelUserOnce` uses the Web-only guard before `fillTravel` for an `lm_<uuid>` row whose current Telegram binding is NULL; Telegram users retain their existing path.
 - The `accountId` returned by the Web guard is passed as `expectedCalendarAccountId` to both `buildTodaySnapshot` event listing and `fillTravel`. `getCalendar` includes that expected ID in its cache identity, and each Composio event operation verifies the current row is still NULL-Telegram and selects the expected ID; mismatch fails before provider event access.
 
 - [x] **Step 1: Add failing recovery and scheduler-boundary cases**
 
-Cover `status is connected only for the persisted exact ACTIVE account`, `start recovers one ACTIVE account after callback binding was interrupted`, `ambiguous ACTIVE accounts are not bound`, `Web scheduler pins fillTravel to the checked account ID`, `transport issues no Calendar event call after the selected marker changes`, `account-scoped calendar adapters do not share cache entries`, and `Telegram travel keeps its existing path`.
+Cover `status is connected only for the persisted exact ACTIVE account`, `start recovers one ACTIVE account after callback binding was interrupted`, `expired or missing selected binding is actionable for reauthorization without enabling it`, `unknown/network provider status stays fail-closed`, `ambiguous ACTIVE accounts are not bound`, `Web scheduler pins fillTravel to the checked account ID`, `transport issues no Calendar event call after the selected marker changes`, `account-scoped calendar adapters do not share cache entries`, and `Telegram travel keeps its existing path`.
 
 - [x] **Step 2: Run focused tests and confirm the new cases fail**
 
@@ -365,6 +365,34 @@ The SQL functions lock and recheck the NULL-Telegram user row and expected accou
 
 Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
 Expected: pause/resume/disconnect report only verified persisted state and all failures remain fail-closed. Commit as `feat(life-manager): add web travel controls`.
+
+### Task 9 review follow-up: recover stale Calendar bindings
+
+**Files:**
+- Modify: `apps/life-manager/lib/panel-api.js` and `apps/life-manager/lib/panel-api.test.js`
+- Modify: `apps/life-manager/lib/web-calendar.js` and `apps/life-manager/lib/web-calendar.test.js`
+- Modify: `apps/life-manager/lib/web-travel.js`, `apps/life-manager/lib/web-travel.test.js`, `apps/life-manager/lib/web-page.js`, and `apps/life-manager/lib/web-page.test.js`
+
+**Interface:**
+- An exact selected account readback of `MISSING` or `EXPIRED` reports an actionable Calendar state. The user-initiated start may bind one unique exact-uid ACTIVE account or begin fresh OAuth; it never enables the stale account.
+- Network/5xx failures, ownership or ID mismatch, and contradictory/unknown status remain unavailable and fail closed. Those outcomes never initiate OAuth, bind an account, or PATCH the provider.
+
+- [ ] **Step 5: Add failing expired/missing binding recovery cases**
+
+Cover exact MISSING and EXPIRED status with actionable Today/Calendar UI, one exact ACTIVE account recovery, fresh OAuth when no ACTIVE account exists, zero stale-account enable PATCH, and unchanged fail-closed behavior for network/5xx/owner/ID/unknown-status failures. Exercise the real Composio status helper.
+
+- [ ] **Step 6: Run the focused suite and confirm the new cases fail**
+
+Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
+Expected: current EXPIRED/404 readback aborts before the actionable recovery and status path.
+
+- [ ] **Step 7: Keep safe status resolution separate from enable permission**
+
+Map only exact selected-account 404 to MISSING and exact EXPIRED provider state to EXPIRED. Allow those states to enter user-initiated recovery/OAuth without enabling the old account. Preserve no-effect behavior for unknown, ownership, account-ID, and network failures.
+
+- [ ] **Step 8: Rerun focused tests and commit**
+
+Run the same focused suite. Expected: stale accounts offer a usable reauthorization path, unknown outcomes remain fenced, and no stale account is re-enabled.
 
 ## Required continuation after the source implementation
 
