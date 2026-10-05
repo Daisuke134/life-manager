@@ -452,3 +452,6 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
   - release-reconciler: 前 release `82d31995` の fleet-apply で Capafy と無関係の 3 owner（article-learn-whitelist・pm-live-trade は rc=124、earn-watch rc=1）が失敗し backoff（09:26 に期限切れ）。promotion hold は無し。00:11 以降の main 変更は #6594・#6596 の 2 本のみで、release 作成待ち。
 - 2026-10-05 10:2x JST **マーケティングの棚卸しと計測**: #6600 `30386440` で成績表が ct（宣伝リンクの印）ごとに 1 行出す（Capafy は `sourceType="ct"`・`campaign` 行を既に返し、毎時集計にも保存されていたが成績表が 1 つにまとめて捨てていた）。SNS の実測は Task D5 に記録。Capafy 用 IG の新規作成を開始。毎時集計は 10:06 に復帰（analytics observed 01:06Z）、ただし capafy-goal-monitor-hourly 自体は 10:13 に `entrypoint_exit_1`（原因未調査、`.err` は 9/17 から更新なし）。在庫の状態が `unknown_unrecognized_status`（公開停止 12 本の `offline` を集計が知らない可能性）。
 
+
+- 2026-10-05 12:5x JST **全体計画**: Capafy 単独の天井（市場全体の累計販売 16,656、出品者 1 位 3,801）から、$10k は Capafy・PromptBase・自社 Stripe・他の売り場の足し算とした。正本 `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。
+- 2026-10-05 13:0x JST **ディスク満杯の原因**: `verify-loops-audit/loop-tmp` に終了済み run の一時ディレクトリ 29 個・4.2GiB（1 run 最大 1.2GiB）。削除で空き 268MiB→4.5GiB。恒久修正は F4（codex-money-printer）へ依頼。
