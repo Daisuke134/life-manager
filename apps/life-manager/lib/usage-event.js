@@ -109,4 +109,4 @@ async function recordUsageEvent(event, opts = {}) {
   return write(normalizeUsageEvent(event, runtimeEnv), writeOptions);
 }
 
-module.exports = { normalizeUsageEvent, recordUsageEvent, OUTCOMES };
+module.exports = { normalizeUsageEvent, recordUsageEvent, runtimeTrace, OUTCOMES };
