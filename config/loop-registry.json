@@ -3794,6 +3794,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "domain": "growth",
       "effect_class": "publish",
       "effect_reconcile": {
