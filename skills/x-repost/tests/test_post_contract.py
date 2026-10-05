@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -25,6 +27,17 @@ class PostContractTests(unittest.TestCase):
         self.assertFalse(MODULE.language_matches("en", "ﾂｷﾞﾊ ｺﾚｦ ﾀﾒｽ AI"))
         self.assertFalse(MODULE.language_matches("en", "12345"))
         self.assertFalse(MODULE.language_matches("en", "Попробуйте это"))
+
+    def test_english_slot_rejects_latin_text_critic_identifies_as_spanish(self) -> None:
+        for detected_language, expected_code in (("en", 0), ("es", 1)):
+            with self.subTest(detected_language=detected_language):
+                result = subprocess.run(
+                    [sys.executable, str(SCRIPT), "--language", "en", "--text-file",
+                     str(SCRIPT), "--detected-language", detected_language],
+                    capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, expected_code,
+                                 result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

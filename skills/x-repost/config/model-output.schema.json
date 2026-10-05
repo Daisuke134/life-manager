@@ -54,6 +54,7 @@
       "type": ["array", "null"],
       "items": {"type": "string"}
     },
+    "detected_language": {"type": ["string", "null"]},
     "value_types": {
       "type": ["array", "null"],
       "items": {"type": "string"}

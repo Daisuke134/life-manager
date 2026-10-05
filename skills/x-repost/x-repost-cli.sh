@@ -1627,6 +1627,7 @@ SRC_METRICS="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["me
   echo "読者が実行できる手順、判断基準、失敗条件、比較方法のうち異なる2種類を具体的に足した時だけ useful=true。"
   echo "source固有の仕組み・数字・制約を少なくとも1つ使わない一般論は useful=false。"
   echo "five_points は5点を最終本文そのものについて個別判定し、1つでも欠ければ false にする。adds_unique_firsthand_detail はsource固有のexact detail、または選択済みの一次情報seedに根拠がある時だけ true。"
+  echo "最終本文の実際の言語を独立に判定し、detected_languageにはISO 639-1コードを返す。Latin scriptだけを根拠にenと判定しない（Spanishはes、Frenchはfr）。不明ならunknown。ターゲット言語コードは $TARGET_LANGUAGE。"
   echo "URL、文体、viralらしさではなく事実支持と読者効用を別々に判定する。"
   if [ "$KIND" = "original" ]; then
     echo "Originalについてはrecent postsとの主張・角度・表現のnear-duplicateも判定し、novel、spam_risk、near_duplicate_post_idsを返す。"
@@ -1639,10 +1640,17 @@ SRC_METRICS="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["me
   echo; echo "## 選択済み一次情報の種"; cat "$EV/chosen-seed.json"
   echo; echo "## sourceから解決したexact evidence"; "$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("canonical_evidence","")); d=json.load(open(sys.argv[2])); print(d.get("reader_value",""))' "$EV/grounding.json" "$EV/select.json"
   echo; echo "## final post"; cat "$EV/post.txt"
-  echo; echo '## 出力（最後にJSONだけ）'; echo '{"supported":true,"useful":true,"source_specific":true,"five_points":{"does_not_disparage":true,"includes_positive_note":true,"adds_unique_firsthand_detail":true,"avoids_excessive_self_focus":true,"leads_to_action":true},"novel":true,"spam_risk":"low","unsupported_claims":[],"near_duplicate_post_ids":[],"value_types":["procedure","failure_condition"],"reason":"1文"}'
+  echo; echo '## 出力（最後にJSONだけ）'; echo '{"detected_language":"en","supported":true,"useful":true,"source_specific":true,"five_points":{"does_not_disparage":true,"includes_positive_note":true,"adds_unique_firsthand_detail":true,"avoids_excessive_self_focus":true,"leads_to_action":true},"novel":true,"spam_risk":"low","unsupported_claims":[],"near_duplicate_post_ids":[],"value_types":["procedure","failure_condition"],"reason":"1文"}'
 } >"$EV/prompt-verify.txt"
 if ! ask_model "$EV/prompt-verify.txt" "$EV/verify.raw" >"$EV/verify.json"; then
   handle_model_failure "source-grounding critic" "$EV/verify.raw"
+fi
+DETECTED_LANGUAGE="$("$PY" -c 'import json,sys; value=json.load(open(sys.argv[1], encoding="utf-8")).get("detected_language"); print(value if isinstance(value,str) else "")' "$EV/verify.json" 2>/dev/null || true)"
+if ! "$PY" "$SKILL/scripts/post_contract.py" --language "$TARGET_LANGUAGE" \
+    --text-file "$EV/post.txt" --detected-language "$DETECTED_LANGUAGE" \
+    >"$EV/critic-language.json" 2>>"$EV/critic-language.err"; then
+  report "⚠️ 最終言語criticがtarget languageを確認できないため投稿を見送り"
+  finish 0 "critic language gate rejected draft"
 fi
 if [ "$("$PY" -c 'import json,sys; d=json.load(open(sys.argv[1])); allowed={"procedure","decision_criterion","failure_condition","comparison_method"}; values=d.get("value_types") or []; points=("does_not_disparage","includes_positive_note","adds_unique_firsthand_detail","avoids_excessive_self_focus","leads_to_action"); print(d.get("supported") is True and d.get("useful") is True and d.get("source_specific") is True and all(d.get("five_points", {}).get(key) is True for key in points) and len(set(values) & allowed) >= 2)' "$EV/verify.json" 2>/dev/null)" != "True" ]; then
   report "⚠️ 最終本文がsource支持または具体的な読者効用gateを満たさないため投稿を見送り"
