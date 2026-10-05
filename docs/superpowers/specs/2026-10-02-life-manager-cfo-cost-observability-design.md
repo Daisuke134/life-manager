@@ -277,6 +277,8 @@ Task 8A's receipt-aware pre-ingest replay guard, Task 8B's queue ordering change
 
 The configured September invoice reread in §87-AW confirms two Cloud Storage rows starting 2026-08-31, one billable and one zero-value. Both existing Japanese parser implementations use usage-start month as invoice membership, so the billable row is absent from service-level CFO evidence. The parser fix is required before treating that service subtotal as reconciled.
 
+2026-10-05 10:32 JST update (§87-AX): the Japanese parser source fix is on candidate commit `461a8814dd1645a929e0f461e4b6bb5e5cbe50cb`; Node 6/6 and Python 48/48, source-boundary, diff check, and independent source review pass. It accepts valid prior-month usage dates and rejects missing/impossible/year-zero dates; no production/main promotion or savings is proven. The implementation shell and loaded CFO job do not expose the configured private CSV path, so a post-fix invoice replay was not performed. Actual service-cost and period/project/tenant/loop reconciliation remains in §87-J item 6. The item-5 subcursor resumes at official Stripe attribution; top-level order stays 5→6→7→8.
+
 ## 11. External provider research and selected cost-reduction design
 
 Implementation checkboxes below record candidate-branch source/evaluation status only; they do not establish merge, production load, settled savings, or elapsed natural periods. Current live evidence and TODO order are maintained in unified SSOT §87-J.
