@@ -4914,7 +4914,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 28 | Paid loopの成果物品質確認を閉じる | funded scopeに対する実成果物と既存QA結果。 |
 | 29 | 許可された正式納品のreceiptを確認する | 既存納品経路の公式記録。保留のCoconala個別案件は実行対象外。 |
 | 30 | 検収・精算・payoutのreceiptを案件へ結合する | delivery/payment/settlement/payoutを区別、escrowを利益や銀行着金にしない。 |
-| 31 | storefrontの商品公開inventoryを確認する | Lancers7件の公開GETは確認済み。残りは同operation/versionとの結合、Coconala公式browser確認と他platform inventory。403/challengeを公開中にしない。 |
+| 31 | storefrontの商品公開inventoryを確認する | Lancers7件とCoconala4件の公式GETは確認済み。残りは同operation/versionとの結合と他platform inventory。403/challengeを公開中にしない。 |
 | 32 | storefrontの問い合わせ・注文の流入を結合する | listing/lead source/order IDを結び、応募獲得と商品獲得を分ける。 |
 | 33 | 自社商品・定型サービスの履行receiptを確認する | 注文scope/成果物version/納品・精算を結合し、再利用できる商品経路を確認。 |
 | 34 | Writerの販売・公開receiptを確認する | 既存商品build/sell/注文・支払い記録とcursorを結合。 |
@@ -7692,3 +7692,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh gpt-6.1-sol/medium read-only reviewはHOLD/HIGH1件。budget有効でprovider未起動のmissing authもusage unavailableから予約pass token全額をsettleし、次accountのreserveがbudget exceeded。既存fixtureにpass1000/daily10000を設定すると結果(75,[])でprovider起動0となる反例を実証。既存23tests PASSはこの条件を検証していなかった。
 - 同Luna/max担当へ、このtyped prelaunch条件だけactual_tokens=0と根拠あるprelaunch measurementで予約精算、provider_reported偽装なし、一般usage unknown保守的計上維持、budget-enabled RED→GREENとledger/attempt0消費・acct2一度だけ開始を割当。manifest最小更新/focused/OSS/commit/push→再review→CIを待つ。source受入・main・自然THINK・金融成果は未完。
 - 前Lancersworktree退役はignored .deepeval/.pytest_cache/__pycache__残存とopenhandle非確定で保持。unlock/remove/lease削除0。cleanup不成立をsource実装の追加gateにしない。残53/cursor1を維持、Lancers新release反映は既存owner自然経路を継続観測。
+
+
+### 521. Coconala公式公開4件の匿名GETとbudget補正の再検証
+
+- coconala:kosukeの既存guard acquire成功で、公式4330368/4313386/4308502/4244910を確認。seller sessionの全4URLはHTTP200/exact route/challengeなし/サービス内容・編集UIあり。購入ボタン不在はseller表示差だったため、同browserのfetch credentials omitによる公式GETを追加。全4URLでHTTP200/exact route、編集UIなし、購入画面・無料見積り入口あり、非公開/受付停止/404/challengeなし。account cookie変更0/provider mutation0、owned pageだけclose/lease release0。購入click/注文/精算/売上/銀行着金は未実施・未確認。
+- evidenceは /Users/anicca/.local/state/life-manager/state/coconala-storefront-official-readback-20261005.json、coconala-storefront-purchase-surface-20261005.json、coconala-storefront-anonymous-readback-20261005.json。Coconala buyer材料/個別TikTok/NPO納品追跡は再開していない。旧effect_unknownの同run bindingは未確認なのでfence解除/再送なし。§217storefront残表から完了したCoconala browser確認だけを除き、version/operation結合と他platform inventoryを残す。AGMSGでprofile利用終了と証拠/未完をCapafy peerへ共有。
+- Agent Economy budget修正777e23ecacc7914a0867d3802f3fb1c9ba913f96はremote一致/clean。担当failover24/token-budget1/compile/contract/OSS/diff PASS。typed prelaunch auth missingだけ0 token/prelaunch_auth_missing、acct2 only once、invalid path/一般usage unknownは予約1000保守計上維持。
+- native review followup/spawnはthread limit拒否。指定gpt-6.1-sol/mediumの既存Codex CLI有限read-only auditで旧HIGHコード上解消/新重要指摘なし、manifest/diff PASS。read-only sandboxがTemporaryDirectoryを拒否し2fixture未達のため、source外private workspaceだけ書込み可・source読み取り専用の最小再検証を実行中。最初の非Git cwd起動はCLI rc1/no effect（git repo check）で終端し、明示skip-git-repo-checkと固定source HEADで再開。実credential/provider/browser操作なし。既存transient_unavailable fresh-result例外は今回の退行ではなく変更対象外で、全面禁止へscopeを拡大しない。
+- PR6618最終headのCIは進行中。source受入/統合/自然THINKは未完。Lancers新releaseは既存ownerのold888 fleet applyが進行中（provision-browser rc0/article-daily timeout124のowner終端を観測）、重複cut/強制中断なし。現在残53/cursor1。
