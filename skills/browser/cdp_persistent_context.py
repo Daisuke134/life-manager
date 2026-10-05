@@ -110,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", required=True)
     parser.add_argument("--renderer-limit", default="24")
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--extension", action="append", default=[], help="unpacked extension dir (repeatable)")
     args = parser.parse_args(argv)
     try:
         port = int(args.port)
@@ -135,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         args.profile,
         headless=False,
         humanize=True,
+        extension_paths=[os.path.expanduser(path) for path in args.extension] or None,
         args=[
             f"--remote-debugging-port={port}",
             # No --remote-debugging-address: Dais's own Google Chrome (remote

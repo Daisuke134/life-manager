@@ -67,6 +67,21 @@ for block in text.split("[[identity]]")[1:]:
 PYEOF
 )"
 [ -n "$profile" ] || fail "identity '$IDENTITY' is not in $REGISTRY — add an [[identity]] block first"
+# Optional unpacked extensions for this identity: extensions = ["~/path/a", "~/path/b"]
+extension_args=()
+while IFS= read -r ext; do
+  [ -n "$ext" ] && extension_args+=(--extension "$ext")
+done < <("$PY" - "$REGISTRY" "$IDENTITY" <<'PYEOF'
+import os, re, sys
+text = open(os.path.expanduser(sys.argv[1]), encoding="utf-8").read()
+for block in text.split("[[identity]]")[1:]:
+    ident = re.search(r'^id\s*=\s*"([^"]*)"', block, re.M)
+    exts = re.search(r'^extensions\s*=\s*\[([^\]]*)\]', block, re.M)
+    if ident and ident.group(1) == sys.argv[2] and exts:
+        for path in re.findall(r'"([^"]+)"', exts.group(1)):
+            print(os.path.expanduser(path))
+PYEOF
+)
 
 while IFS= read -r protected; do
   [ -n "$protected" ] || continue
@@ -124,7 +139,7 @@ launch() {
   # --port 0 = let the kernel hand us a genuinely free port; Chromium writes the real one into
   # DevToolsActivePort, which the guard reads. This is why no port is ever hardcoded again.
   "$LAUNCHCTL_SAFE" submit -l "$LABEL" -o "$LOG" -e "$LOG" -- \
-    "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0
+    "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 ${extension_args[@]+"${extension_args[@]}"}
   submit_rc=$?
   [ "$submit_rc" -eq 0 ] || return "$submit_rc"
   log "submitted persistent-context owner label=$LABEL profile=$profile port=dynamic"

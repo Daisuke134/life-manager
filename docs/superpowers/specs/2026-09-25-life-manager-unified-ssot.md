@@ -678,6 +678,23 @@ TODO（何を・どう直すか）
 
 **完了の定義（ship 全体）**: main 由来の1つの immutable release が、14 loop の構造/診断 gate、Codex なしの自己修復1件、cloud/local parity、Paid の統合、公式 effect/readback と replay-zero、入金とコストの join、評価器による promote/rollback、自己資金化の net プラス ledger、held-out 付きの LM-EAB 再現を全部通すこと。USD 10K MRR・YC・AGI・UBI は別に報告する成果で、テストや pass から推測しない。
 
+### 5.L LINE 動くスタンプ（2026-10-05 再開。詳細 spec: `docs/superpowers/specs/2026-08-28-line-sticker-loop-design.md`）
+
+8/28 の branch `feat/line-sticker-loop` は未マージのまま放置され、生成物も消えていた。売上は JPY 0。手本は hoko525（キャラシート → 動き案 → 動画モデル → APNG → 24 選定、文字なし・大きな動き）。反例は「25 セット量産で 8 月 52 円」（集客なし）。
+コード: `skills/earn/line-sticker/seedance_set.py`（1 動き = 1 本の fal Seedance lite 720p 3 秒 → クロマキー → 320x270・20 フレーム・2 ループの全フレーム APNG）。実行時 state: `~/.local/state/life-manager/line-sticker/set-002/`。ブラウザ identity: `line-creators:dais`（Dais 個人の LINE。gig-daily-driver にあるのは IFU 顧客の LINE Business で使用禁止）。
+
+| ID | 1 つの作業 | 状態 / 証拠 |
+|---|---|---|
+| L01 | オリジナルキャラ（もちハム）を作る | DONE: gpt-image-2 `char-ref.png`、受領書は `char-ref.receipt.json` |
+| L02 | 30 動きを Seedance で生成 | DONE: 30/30 本、推定 USD 1.97、fal の request_id は `clips/*.json` |
+| L03 | 目視で 24 本を選び、パッケージを validator に通す | DONE: 不採用は tired・peek（キー不良/崩れ）、no・roger・dance・bye（動きが弱い）。画像系の公式チェックは全 PASS |
+| L04 | Creators Market にログインし、専用 profile に session を保存 | DONE: 2026-10-05 にメール+パスワード+スマホ本人確認でログイン。session は `~/.cloak/vault/line-creators/auth-state.json`、credential は SSOT の `line-account` |
+| L05 | 申請する（もちハム（動く）、¥250、`listing.json`） | DONE: スタンプID 48067450、24 個、タグ 5〜6 個/個、特集「気づかいスタンプ」に参加、自動販売開始。公式ステータス「審査待ち」を `creators_readback.py` で readback |
+| L05b | 振込に必要な基本情報と送金先口座を登録する | **cursor（Dais）**。名前欄に既に「いりや / 成田いりや」が入っていて LINE アカウント名（成田 大祐）と違う。支払調書と口座名義に関わるので、本名と国内の口座は Dais の確認待ち。住所・電話は profile.json から入れられる |
+| L06 | 審査結果を読む（`creators_readback.py`） → 却下なら直して再申請 → 承認後にリリースし、LINE STORE の公開 URL を確認 | 未 |
+| L07 | 毎時 owner を main 由来の immutable release で入れる（審査・売上の readback、承認後に次セット） | 未 |
+| L08 | X で集客（制作過程の公開 + ストア URL、`ct=` 付き） | 未 |
+
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
