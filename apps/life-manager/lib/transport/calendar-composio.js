@@ -3,33 +3,10 @@
 // so the same JS runs cloud (this) or local (calendar-gog.js, slice 5). Behaviour-identical to the
 // inline Composio calls it replaces — the live caller is unchanged.
 "use strict";
-const { randomUUID } = require("node:crypto");
 const { recordCost } = require("../ledger.js");
-const { runtimeTrace } = require("../usage-event.js");
+const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
-const MANAGED_RUNTIME_FIELDS = [
-  "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID", "LIFE_MANAGER_RUN_ID",
-  "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RELEASE_SHA",
-];
-
-function composioRuntimeTrace(uid, source = process.env) {
-  const env = source && typeof source === "object" && !Array.isArray(source) ? source : {};
-  const runtimeEnv = Object.fromEntries(MANAGED_RUNTIME_FIELDS
-    .filter((key) => env[key] != null)
-    .map((key) => [key, env[key]]));
-  const managedContextPresent = MANAGED_RUNTIME_FIELDS.some((key) => env[key] != null
-    && String(env[key]).trim() !== "");
-  if (!managedContextPresent && env.RAILWAY_SERVICE_NAME === "life-call") {
-    const ownerId = "life-call-calendar";
-    const runId = `run-${randomUUID()}`;
-    runtimeEnv.LIFE_MANAGER_OWNER_ID = ownerId;
-    runtimeEnv.LIFE_MANAGER_RUN_ID = runId;
-    runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID = `${ownerId}:${runId}`;
-    runtimeEnv.LIFE_MANAGER_RELEASE_SHA = env.RAILWAY_GIT_COMMIT_SHA;
-  }
-  return runtimeTrace({ tenantId: uid }, runtimeEnv);
-}
 
 async function selectedAccountId(uid, apiKey, opts = {}) {
   if (typeof opts.resolveConnectedAccountId === "function") return opts.resolveConnectedAccountId(uid);
@@ -95,7 +72,8 @@ function makeComposioCalendar(opts = {}) {
     });
   });
   const execute = async (tool, uid, args) => {
-    const trace = composioRuntimeTrace(uid, opts.runtimeEnv || process.env);
+    const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
+    const trace = runtimeTrace({ tenantId: uid }, runtimeEnv);
     const recordOutcome = async (outcome) => {
       try { await ledger(uid, tool, { outcome, runtimeTrace: trace }); } catch { /* observability must not break calendar calls */ }
     };

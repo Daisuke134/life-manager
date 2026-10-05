@@ -1,5 +1,6 @@
 "use strict";
 
+const { randomUUID } = require("node:crypto");
 const { recordCost } = require("./ledger.js");
 
 const OUTCOMES = new Set(["success", "failure", "cache_hit"]);
@@ -8,6 +9,32 @@ const SAFE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SAFE_RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 const SECRET_RUNTIME_VALUE = /(?:(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,})/i;
 const RUNTIME_TRACE_FIELDS = ["tenant_id", "loop_id", "owner_id", "run_id", "occurrence_id", "release_sha"];
+const MANAGED_RUNTIME_FIELDS = [
+  "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID", "LIFE_MANAGER_RUN_ID",
+  "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RELEASE_SHA",
+];
+
+function usageRuntimeEnv(source = process.env, options = {}) {
+  const env = source && typeof source === "object" && !Array.isArray(source) ? source : {};
+  const config = options && typeof options === "object" && !Array.isArray(options) ? options : {};
+  const runtimeEnv = Object.fromEntries(MANAGED_RUNTIME_FIELDS
+    .filter((key) => env[key] != null)
+    .map((key) => [key, env[key]]));
+  const managedContextPresent = MANAGED_RUNTIME_FIELDS.some((key) => env[key] != null
+    && String(env[key]).trim() !== "");
+  const ownerId = typeof config.fallbackOwnerId === "string" ? config.fallbackOwnerId.trim() : "";
+  if (!managedContextPresent && env.RAILWAY_SERVICE_NAME === "life-call" && ownerId) {
+    const runId = typeof config.fallbackRunId === "string" && config.fallbackRunId.trim()
+      ? config.fallbackRunId.trim() : `run-${randomUUID()}`;
+    runtimeEnv.LIFE_MANAGER_OWNER_ID = ownerId;
+    runtimeEnv.LIFE_MANAGER_RUN_ID = runId;
+    runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID = `${ownerId}:${runId}`;
+    if (env.RAILWAY_GIT_COMMIT_SHA != null) {
+      runtimeEnv.LIFE_MANAGER_RELEASE_SHA = env.RAILWAY_GIT_COMMIT_SHA;
+    }
+  }
+  return runtimeEnv;
+}
 
 function requiredText(value, name) {
   const text = value == null ? "" : String(value).trim();
@@ -109,4 +136,4 @@ async function recordUsageEvent(event, opts = {}) {
   return write(normalizeUsageEvent(event, runtimeEnv), writeOptions);
 }
 
-module.exports = { normalizeUsageEvent, recordUsageEvent, runtimeTrace, OUTCOMES };
+module.exports = { normalizeUsageEvent, recordUsageEvent, runtimeTrace, usageRuntimeEnv, OUTCOMES };

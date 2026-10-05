@@ -72,13 +72,14 @@ test("life-call travel passes safe route runtime context separately to the usage
   assert.equal(Object.hasOwn(writes[0].event, "runtimeEnv"), false);
   assert.equal(Object.hasOwn(writes[0].event, "runtime_trace"), false);
   const runtimeEnv = writes[0].options && writes[0].options.runtimeEnv;
-  assert.equal(runtimeEnv && runtimeEnv.RAILWAY_SERVICE_NAME, "life-call");
+  assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "RAILWAY_SERVICE_NAME"), false);
   assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_OWNER_ID, "life-call-travel");
   assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "LIFE_MANAGER_LOOP_ID"), false);
   assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_RUN_ID.startsWith("route-"), true);
   assert.match(runtimeEnv && runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID,
     /^life-call-travel:route-[0-9a-f-]{36}$/);
   assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_RELEASE_SHA, "c".repeat(40));
+  assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "RAILWAY_GIT_COMMIT_SHA"), false);
   assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "STRIPE_SECRET_KEY"), false);
   assert.deepEqual(rows[0].meta.runtime_trace, {
     schema_version: 1,
