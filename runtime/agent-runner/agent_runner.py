@@ -546,18 +546,25 @@ def acquire_provider_lease(path_value: str) -> int | None:
 def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
     """Terminate a timed-out provider and every child in its process group."""
     if os.name == "posix":
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            process.wait(timeout=0.5)
-        except subprocess.TimeoutExpired:
-            pass
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        if process.poll() is not None:
+            # Waiting on a dead leader cannot observe children still in its group.
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                pass
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
     else:
         process.kill()
     try:
@@ -1001,16 +1008,24 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
                 raise subprocess.TimeoutExpired(command, timeout)
             time.sleep(0.25)
     finally:
-        if process is not None and process.poll() is None:
-            terminate_process_tree(process)
-        _ACTIVE_PROVIDER_PROCESS = None
-        if provider_lock_fd is not None:
-            os.close(provider_lock_fd)
-        if cleanup_home:
+        termination_succeeded = False
+        try:
+            # On POSIX, start_new_session makes the leader PID the owned group ID;
+            # reap same-group children even when the leader already exited.
+            if process is not None and (os.name == "posix" or process.poll() is None):
+                terminate_process_tree(process)
+            termination_succeeded = True
+        finally:
+            _ACTIVE_PROVIDER_PROCESS = None
             try:
-                shutil.rmtree(cleanup_home, ignore_errors=True)
+                if provider_lock_fd is not None:
+                    os.close(provider_lock_fd)
             finally:
-                _OWNED_CODEX_INVOCATION_HOMES.discard(cleanup_home)
+                if cleanup_home and termination_succeeded:
+                    try:
+                        shutil.rmtree(cleanup_home, ignore_errors=True)
+                    finally:
+                        _OWNED_CODEX_INVOCATION_HOMES.discard(cleanup_home)
     return process.returncode
 
 

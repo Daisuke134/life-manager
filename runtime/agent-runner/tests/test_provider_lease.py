@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import agent_runner
 from agent_runner import (
     CODEX_INVOCATION_HOME_MARKER,
     _OWNED_CODEX_INVOCATION_HOMES,
@@ -55,6 +56,38 @@ class ProviderLeaseTest(unittest.TestCase):
             return False
         finally:
             os.close(descriptor)
+
+    def test_cleanup_error_still_releases_active_process_and_provider_lock(self):
+        codex_home = self.root / "codex-home"
+        codex_home.mkdir()
+        lock_path = codex_home / ".agent-runner-provider.lock"
+        sentinel = codex_home / "sentinel"
+        sentinel.write_text("keep invocation evidence\n", encoding="utf-8")
+        agent_runner._OWNED_CODEX_INVOCATION_HOMES.add(codex_home.resolve())
+        provider = self.root / "provider.py"
+        provider.write_text("raise SystemExit(0)\n", encoding="utf-8")
+        try:
+            with mock.patch("agent_runner.terminate_process_tree", side_effect=PermissionError("fixture denial")):
+                with self.assertRaisesRegex(PermissionError, "fixture denial"):
+                    run_provider_process(
+                        [sys.executable, str(provider)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=5,
+                        cwd=str(self.root),
+                        input_bytes=None,
+                        stdin=subprocess.DEVNULL,
+                        env={
+                            **os.environ,
+                            "CODEX_HOME": str(codex_home),
+                            CODEX_INVOCATION_HOME_MARKER: str(codex_home),
+                        },
+                    )
+            self.assertFalse(self._lease_is_busy(lock_path), "provider lock FD leaked after cleanup error")
+            self.assertIsNone(agent_runner._ACTIVE_PROVIDER_PROCESS, "active provider reference leaked after cleanup error")
+            self.assertTrue(sentinel.is_file(), "invocation home was deleted after process cleanup failed")
+        finally:
+            agent_runner._OWNED_CODEX_INVOCATION_HOMES.discard(codex_home.resolve())
 
     def test_provider_retains_lease_after_intermediate_runtime_is_killed(self):
         """Removing pass_fds must fail after the intermediate runtime is SIGKILLed."""
@@ -102,6 +135,44 @@ class ProviderLeaseTest(unittest.TestCase):
         while time.monotonic() < deadline and self._lease_is_busy(lock_path):
             time.sleep(0.02)
         self.assertFalse(self._lease_is_busy(lock_path), "lease remained busy after provider exit")
+
+    @unittest.skipUnless(os.name == "posix", "owned process groups require POSIX sessions")
+    def test_owned_process_group_is_reaped_after_leader_exits(self):
+        late_write = self.root / "late-write"
+        provider = self.root / "provider.py"
+        provider.write_text(
+            "import subprocess, sys\n"
+            "subprocess.Popen([sys.executable, '-c', "
+            f"\"import time; from pathlib import Path; time.sleep(0.35); Path({str(late_write)!r}).write_text('late')\"])\n"
+            "raise SystemExit(23)\n",
+            encoding="utf-8",
+        )
+        foreign = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(10)"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        try:
+            result = run_provider_process(
+                [sys.executable, str(provider)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                cwd=str(self.root),
+                input_bytes=None,
+                stdin=subprocess.DEVNULL,
+                env=os.environ.copy(),
+            )
+            self.assertEqual(result, 23, "group cleanup changed the provider leader return code")
+            self.assertIsNone(foreign.poll(), "cleanup signalled a process outside the owned group")
+            time.sleep(0.5)
+            self.assertFalse(late_write.exists(), "same-group child wrote after runner returned")
+        finally:
+            if foreign.poll() is None:
+                foreign.terminate()
+            foreign.wait(timeout=5)
 
     def test_shared_codex_home_queues_provider_processes_without_overlap(self):
         events = self.root / "events.jsonl"
