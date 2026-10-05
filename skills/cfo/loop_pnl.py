@@ -196,7 +196,14 @@ def google_billing_actual_cost_readback(
             sku = cells[index["sku"]].strip()
             if not service or not sku or amount == 0:
                 continue
-            occurred = f"{cells[index['date']].strip()}T00:00:00Z"
+            usage_date = cells[index["date"]].strip()
+            try:
+                parsed_usage_date = date.fromisoformat(usage_date)
+            except ValueError as error:
+                raise ValueError("google_billing_usage_date_invalid") from error
+            if parsed_usage_date.isoformat() != usage_date:
+                raise ValueError("google_billing_usage_date_invalid")
+            occurred = f"{usage_date}T00:00:00Z"
             if amount > 0:
                 positive_cost_total += amount
                 lines.append((service, sku, amount, occurred))

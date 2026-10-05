@@ -364,6 +364,25 @@ class StripeTest(unittest.TestCase):
             "invoice_total": "0.0003", "positive_cost_total": "0.0003", "tax_and_rounding": "0",
         })
 
+    def test_google_billing_rejects_missing_and_invalid_usage_dates(self):
+        for usage_date in ("", "2026-02-30"):
+            with self.subTest(usage_date=usage_date):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "cost-table.csv"
+                    rows = [
+                        ["合計お支払い額", "¥0.000300", ""],
+                        ["通貨", "JPY", ""],
+                        ["サービスの説明", "SKU の説明", "費用のタイプ", "使用開始日", "四捨五入前の費用（¥）", "プロジェクト ID"],
+                        ["Cloud Storage", "Standard storage", "使用量", usage_date, "0.000300", "project"],
+                    ]
+                    with path.open("w", encoding="utf-8", newline="") as stream:
+                        csv.writer(stream).writerows(rows)
+                    with self.assertRaisesRegex(ValueError, "google_billing_usage_date_invalid"):
+                        m.google_billing_actual_cost_readback(
+                            path, invoice_month="2026-09", snapshot_at=SNAPSHOT,
+                            trailing_start=TRAILING_START,
+                        )
+
     def test_test_mode_key_is_not_a_live_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             creds = Path(tmp) / "c.json"

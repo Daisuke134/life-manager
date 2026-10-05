@@ -70,6 +70,12 @@ function serviceTotals(rows) {
   }));
 }
 
+function isValidUsageDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function readGoogleBillingCsv(filePath, { invoiceMonth, observedAt = null } = {}) {
   if (!BILLING_MONTH.test(String(invoiceMonth || ""))) throw new Error("google_billing_invoice_month_invalid");
   let bytes;
@@ -158,6 +164,8 @@ function readJapaneseCostTable({ rows, headerRowIndex, headers, invoiceMonth, ob
     if (!String(cells[serviceIndex] || "").trim()
       || !String(cells[skuIndex] || "").trim()) continue;
     if (raw === 0n) continue;
+    const usageStartDate = String(cells[startIndex] || "").trim();
+    if (!isValidUsageDate(usageStartDate)) throw new Error("google_billing_usage_date_invalid");
     cost += raw;
     selected.push({
       service: cells[serviceIndex].trim(), sku: cells[skuIndex].trim(),

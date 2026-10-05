@@ -110,3 +110,19 @@ test("Google Cost Table Japanese export includes prior-month usage in selected i
     { service: "Cloud Storage", costJpy: "0.0003", currency: "JPY" },
   ]);
 });
+
+test("Google Cost Table Japanese export rejects missing and invalid usage dates", (t) => {
+  const errors = ["", "2026-02-30"].map((usageDate) => {
+    const file = csvFile(t, CROSS_MONTH_JAPANESE_COST_TABLE.replace("2026-08-31", usageDate));
+    try {
+      readGoogleBillingCsv(file, { invoiceMonth: "2026-09" });
+      return null;
+    } catch (error) {
+      return error.message;
+    }
+  });
+  assert.deepEqual(errors, [
+    "google_billing_usage_date_invalid",
+    "google_billing_usage_date_invalid",
+  ]);
+});
