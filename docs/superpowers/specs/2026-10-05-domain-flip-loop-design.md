@@ -78,7 +78,7 @@ stateはrelease外のdomain-flip専用root `~/.local/state/life-manager/domain-f
 
 2026-10-05のread-only確認ではcredential SSOTにOpenprovider、Sedo、EUIPO Trademark Searchの資格情報は各0件で、domain-flip専用state rootとfunding/registrant/market/cost snapshotも存在しなかった。残高・seller・rightsのreadbackが揃うまではloopをscout-onlyに留める。
 
-source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専用事業cap・登録者の公開条件が揃うまでは購入機能を有効化せず、scout-onlyの自然passを許す。OpenproviderとSedoのno-charge accessが必要ならcredential SSOTへ登録し、production endpointのread-only availability/quoteとseller-listing termsを確認する。EUIPO API credentialsはSSOTに存在せず、production subscriptionには本人確認書類・住所証明の提出が必要なため、このloopからは新規申請・書類送信をしない。認証済み権利検索が未取得ならcandidateは購入不可とし、個人資金の補填もしない。business resultの完了は、自然pass、登録・出品の公式readback、実際の買い手決済、holder移転、seller payout、cost-complete net、replay-zeroで判断し、購入・出品・希望価格だけで完了としない。
+source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専用事業cap・登録者の公開条件が揃うまでは購入機能を有効化せず、scout-onlyの自然passを許す。OpenproviderとSedoのno-charge accessが必要ならcredential SSOTへ登録し、production endpointのread-only availability/quoteとseller-listing termsを確認する。EUIPO API credentialsはSSOTに存在せず、production subscriptionには本人確認書類・住所証明の提出が必要なため、このloopからは新規申請・書類送信をしない。認証済み権利検索が未取得ならcandidateは購入不可とし、個人資金の補填もしない。Sedo Basic API/WSDLにはmarketplace buyer settlement、ownership-transfer、seller-payout readback operationがなく、`DomainParkingPayments`はparking earnings、`GetBankData`は登録口座設定にとどまる。販売成立は認証済みSeller Centerの公式readback経路を別途確立するまで観測不能とし、listing消失・登録者変更・parking earningsを売上・出金receiptに代用しない。business resultの完了は、自然pass、登録・出品の公式readback、実際の買い手決済、holder移転、seller payout、cost-complete net、replay-zeroで判断し、購入・出品・希望価格だけで完了としない。
 
 ## 8. 実装段階の契約
 
@@ -94,6 +94,8 @@ source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専
 - EUIPO production API subscriber identity requirements: https://dev.euipo.europa.eu/getting-started
 - EUIPO legal notice on automated data collection: https://eutm.euipo.europa.eu/en/info/legal-notices
 - Sedo TLD pricing and fees: https://sedo.com/us/what-we-offer/price-list/
+- Sedo Basic API scope and WSDL: https://api.sedo.com/apidocs/v1/Basic/ and https://api.sedo.com/api/v1/?wsdl
+- Sedo parking payments and payout-account configuration: https://api.sedo.com/apidocs/v1/Basic/functions/sedoapi_DomainParkingPayments.html and https://api.sedo.com/apidocs/v1/Basic/functions/sedoapi_GetBankData.html
 - Sedo escrow and ownership transfer: https://sedo.com/us/services/domain-transfer-service/
 - Dynadot report on .si registrations and Recursive.si: https://www.dynadot.com/blog/why-si-domains-are-gaining-attention
 - Recursive Superintelligence company site: https://www.recursive.com/
