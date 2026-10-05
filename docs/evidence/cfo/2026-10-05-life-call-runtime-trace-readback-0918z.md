@@ -1,6 +1,6 @@
 # A1 production readback: `life-call` provider usage trace
 
-観測時刻: 2026-10-05 18:18 JST（2026-10-05 09:18 UTC）  
+観測時刻: 2026-10-05 18:18 JST（2026-10-05 09:18 UTC）
 範囲: Railway production の `life-call` と、`LM_RUNTIME_TENANT_ID`で指定された1 tenantの読み取り専用cost ledger。会社全体の集計ではない。
 
 ## Deployment
