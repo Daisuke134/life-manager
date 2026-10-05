@@ -4880,13 +4880,13 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 残作業の実行表（未完のみ・1項目1成果）
 
-現在cursor：1（Coconala内部loopの返信・見積り故障を閉じる）。残作業44件。
+現在cursor：1（Coconala保留12件の公式照合）。未完または完了証拠未確認44項目。
 
 **実行順を固定する。Daisの新たな優先順位指示がない限り、primaryは順序を変更しない。必要な原因修復・検証は既存項目の中で進め、一般監査・SelfFix・SelfBuildを先頭へ戻さない。完了済みは残表から除外し、残る項目の相対順序は保持する。現在項目を終えて次へ進み、外部待ちは不足物を記録する。編集と外部effectの所有を重ねず、同項目内の実装/独立検証だけ必要に応じて分担する。**
 
 | 順序 | 残作業 | 完了を示す証拠 |
 |---|---|---|
-| 1 | Coconalaを先頭に内部loopの確認済み故障を閉じる | 残りは共有browser使用終了/正規lease解放の確認→保留12件（unknown8/retry4）の公式照合→必要な原因修復→同対象の自然実行/公式送信・見積り記録。診断source/107tests/独立review/CI/main/Reply反映は完了済み（§605–606参照）で再実行しない。旧unknownの再送/手動解除なし。追加一般監査や新案件制作へ脱線しない。 |
+| 1 | Coconalaを先頭に内部loopの確認済み故障を閉じる | 残りは保留12件（unknown8/retry4）の公式照合→必要な原因修復→同対象の自然実行/公式送信・見積り記録。以前の共有browser待ちは現在解消（§610）。診断source/107tests/独立review/CI/main/Reply反映は完了済みで再実行しない。旧unknownの再送/手動解除なし。追加一般監査や新案件制作へ脱線しない。 |
 | 2 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
 | 3 | Capafy日次monitorの自然wake証拠を取得する | exact owner9:30のrun/phase/sourceを確認。別hourly/daily-close結果を代用しない。 |
 | 4 | Capafy日次monitorの確認された失敗を修復する | 正常な待機は修正しない。真の失敗は修復してsame-owner自然readbackへ結ぶ。 |
@@ -4931,13 +4931,25 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 43 | Evalの品質・費用・利益before/afterを比較する | 自然実測と再現可能なbaseline、unknown/少数標本を誇張しない。 |
 | 44 | 全体Done監査と残外部依存の引継ぎを閉じる | 全明示条件の証拠と13旧blockとの対応を監査。全体未達なら完了としない。 |
 
+#### 現在の問題を基礎から説明する
+
+目的は、応募または商品公開から、返信・契約・作業・納品・精算・利益確認までを一続きに動かすこと。コードのテスト成功、実際の送信、売上、着金、利益は別の成果である。
+
+- Coconalaの以前のbrowser占有待ちは現在解消。登録browserは到達可能でholder空。返信ownerは新release a09d0ad4をloaded、latest business reportはok/observed194/readback182/pending12/failed0。しかし保存状態は未確定8件・再試行待ち4件で、送信/見積りの公式照合は未完。reportのok/failed0はこの12件の完了や入金を意味しない。
+- 未確定8件は送信済みかどうかの公式確認が必要。確認前の再送は二重返信/二重見積りになる可能性がある。再試行待ち4件は原因と現在の再実行条件の確認が必要。保存last_errorは過去の失敗であり、今回12件すべてが新たに失敗した証拠ではない。
+- 各platformの応募・受信・返信・Paid・storefrontについて、同案件/同注文の公式履歴へ結ぶ証拠が不足する。44項目すべてが壊れているという意味ではなく、本番成果の完了確認も含む。メール未着だけで応募失敗とは判定しない。
+- 収益と実費を同期間で結べていないため、全14loopの利益・MRR・現在残高・runwayは完了証拠未確認。販売/売上/精算/着金を混ぜず、欠損を0や利益へ変換しない。
+- SelfBuildはコード改善/復旧の仕組み。収益につながる業務経路の確認を先に進め、SelfBuild修復は40〜42の後段で実施する。TikTok/NPO個別追跡は保留を維持する。
+
+次の1手は、正規browser guard取得下で保留12件の公式記録を読み、送信済み/未確認/再試行可能を案件ごとに分けること。§609のblockedは過去のbrowser待ちを示し、現在の占有状態として使わない。実行順と残TODO正本は上表だけ。
+
 #### 並行実行と保留の扱い
 
 primaryはcurrent1のCoconala内部loop修復・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
-着手の実測：current immutable releaseは82d31995、doctorのmissing/unmanaged/retiredが0。healthはhealthy52/running24/safely_fenced69/failed21/telemetry_gap2、effect_unknown10（他stateと別の集計区分。全state合計がtotal178）、human_required0、total178。failedの11はtyped capacity/FIFOであるため実故障件数と扱わない。error class未取得gap2も根因未確定。現共有checkoutは他owner branch・dirtyなのでreadonlyを維持する。GUI/DS preflight PASSだが、本turnのproduction mutationは0。
+初回着手時の過去観測（現在値ではない）：当時のimmutable releaseは82d31995、doctorのmissing/unmanaged/retiredが0。healthはhealthy52/running24/safely_fenced69/failed21/telemetry_gap2、effect_unknown10（他stateと別の集計区分。全state合計がtotal178）、human_required0、total178。failedの11はtyped capacity/FIFOであるため実故障件数と扱わない。error class未取得gap2も根因未確定。現共有checkoutは他owner branch・dirtyなのでreadonlyを維持する。GUI/DS preflight PASSだが、本turnのproduction mutationは0。
 
 ### 218. SelfBuild昇格・rollbackのidle限定反映をRED再現して修復
 
@@ -8362,3 +8374,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 実施済み：source診断107/freshreviewSHIP/全CI/PR6686main28c09277/ALLrelease/Replyadoption/新source自然wake、取得session/callの特定、独立読取検証、登録済みCFO/iOS/peerへの所有確認連絡、状態再観測。未取得：取得sessionに対応するowner・browser使用終了・正規解放、12件の公式card/reply/receipt。解除/再送/基盤restartで代用しない。順序固定のため別項目へ飛ばず、必須外部所有状態の変更なく同項目を安全に完了できない。
 - Goal全体は完了ではなくblockedへ移す。残44/cursor1、再開条件は取得session01a10aa8-e7ab-74e2-a12c-bf9a51e6690dのowner確認とそのownerによる使用終了/正規lease解放の証拠。再開時はguardstatus→短命ownerで正規取得→公式12件照合→必要修復/自然診断の順。本人承認/未知効果を0や成功へ置換しない。
 - 再開正本：repo /Users/anicca/Projects/life-manager-main、worktree /Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002、branch/upstream docs/ssot-orchestration-status-20261002/origin/docs/ssot-orchestration-status-20261002、spec絶対パス /Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md、残TODO正本§217/current1。runtime release /Users/anicca/loops/releases/20261006T001540-28c09277、sourceproof state/coconala-send-diagnostics-source-proof-20261006.json/mode600。source専用branch fix/lm-coconala-send-boundary-diagnostics-20261005/HEAD87245f38e2a0e8188feea3af45496aca691f1911はpushed/merged。別laneや共有checkoutを切り替えない。
+
+
+### 610. spec更新依頼に対する現在readback・旧browser待ちの訂正
+
+- 最初に旧release28c09277のguardを参照したが、そのpathは既に不存在。単一取得失敗を現状blockerにせずcurrent symlinkへ経路を切り替えた。currentは /Users/anicca/loops/releases/20261006T034355-a09d0ad4、旧release不存在、registeredbrowserPID38496/reachabletrue/holder空を公式guardstatusで確認。owner連絡のinbox新返信0だが、現在占有の証拠には使わない。
+- Reply runtimeはloadedidle/PID無し/installed,eventSHA a09d0ad40b4eddfcaa65ca03b9804604ba692557/run18dbc0b2815cfa10-37150/report/errorclassnull。business latestはstatusok/observed194/readback182/pending12/failed0、mtime1791237171.3924558。保存194件はclosed44/no_reply138/reconcileunknown8/retrywait4。保存last_errorの集計はCollectorUnhealthy10/SemanticJudgementError1/TimeoutError1で、現wakeの12失敗と解釈しない。
+- §217 current1を公式12件照合へ更新、完了済みbrowser所有待ちを残作業から除去。44項目の順序・成果条件・TikTok/NPO保留・SelfBuild後段は不変。基礎説明を同節へ追加し、code/送信/売上/着金/利益の区別と、未完/完了証拠未確認という残表の意味を明記。他43項目は本依頼で全provider再取得しておらず、正本の未確認項目として残す。
+- 本依頼はspec更新と説明。新送信/納品/認証/lease取得解除/production apply/別lane編集0。旧browser理由のgoalblocked記録は歴史証拠であり現在の技術的占有とは別。次の安全な業務作業は正規guard下の公式readbackである。
