@@ -1,138 +1,145 @@
 # Anicca eBook Revenue Loop Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. TODO order and cursor live only in the Life Manager unified SSOT.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. TODO order and current cursor live only in the Life Manager unified SSOT.
 
-**Goal:** eBookを最優先で実装し、既存の英日checkoutと自社SNSから一回購入と任意登録のLetter/Tegami MRRを生み、最初の有料注文とPDF配信を同じreceiptで確認してからCapafy Instagramへ引き継ぐ。
+**Goal:** 既存の英日eBook checkout・PDF納品と任意のLetter/Tegami paid subscriptionを同じcampaignに結び、最初の自然なpaid orderとmatching PDF receiptの後にCapafy Instagram marketingへ引き継ぐ。
 
-**Architecture:** Stripe checkout・receipt・PDF配信は`anicca-products`に残す。Letter webhookはDB発番のreadback generationをStripe GET前に予約し、最新generationだけをsubscription stateへ適用する。既存subscriber pointerはmigrationでstate mappingへ引き継ぎ、複数subscriptionのactive/trialingからtierを集計する。pointer更新はStripe `Subscription.created`の順で決め、created timeを未照合のlegacy pointerは保持する。pointerなしの既存paid tierも公式readback対象として別flagで保持する。Life Managerは既存render receipt・marketing adapter・account registryを一つのpublication ownerへ接続する。Capafy Instagramは`life-manager-capafy-ig` Postiz laneを使い、別担当所有のCapafy開発コードを変更しない。OpenClaw cronは追加で動かさない。
+**Architecture:** Checkout・durable buyer receipt・PDF delivery・subscription stateは既存のanicca-productsに置く。Life ManagerのMarketing Engineが既存account registryとpublication adapterからeBookを配信し、同じtokenでclick・Stripe・buyer receiptを結ぶ。初回receipt後はCapafy開発を変更せず、既存D5の単一Instagram ownerへ移る。
 
-**Tech Stack:** Next.js、Netlify Functions、Stripe Checkout/webhook、Resend、Supabase、Python marketing-engine、Life Manager loop registry、既存の video generation/publication adapters。
+**Tech Stack:** Next.js、Netlify Functions、Stripe、Resend、Supabase、Python Marketing Engine、Life Manager loop registry、既存Postiz/publication adapter。
 
 **Spec:** docs/superpowers/specs/2026-10-05-ebook-revenue-loop-design.md
 
 ## Global Constraints
 
-- Life Manager unified SSOT 以外に実行順・current status TODO を作らない。
-- eBook は one-time sale、Letter/Tegami subscription は MRR として集計する。
-- page price/listing/views/render は売上ではない。sale/refund/fees/cost/payout/bank を同じ期間で read back する。
-- Account status は provider official readback と owner registry を照合する。restriction/unknown 時は投稿・再送・replacement account creation を行わない。
-- No automated engagement, anti-detection, proxy/fingerprint workaround, or account creation to evade a platform restriction.
-- 既存のユーザー所有IG/TikTok accountだけを使う。registryとprovider official identity/statusが合わない場合は`setup_required`/`review_required`で止め、別accountを作らない。
-- Capafy Instagram marketingはeBookで最初の自然な有料決済とPDF配信が同じreceiptに結び付いた後に開始する。eBookの14日間測定はその後も続ける。
-- Capafy Instagramは`life-manager-capafy-ig` Postiz laneだけをpublish ownerとして使う。旧`capafy-ig-marketing-daily`の同一occurrence effect-unknownと二重owner状態をread backするまでどちらからも投稿しない。
-- Capafy code/build/account-lifecycleは別担当の境界。Marketing laneは既存Postiz skeletonのaccount/creative/attribution/readbackだけを扱う。
-- OpenClaw cron と Life Manager owner を二重に enable しない。
-- Customer emailはverified domainの`RESEND_FROM_EMAIL`だけを使う。値が無い場合はResendを呼ばずretryable receiptにする。
+- Life Manager unified SSOTだけが実行順とcurrent cursorを持つ。
+- eBook one-time sales、Letter/Tegami paid MRR、Capafy banked net contributionは別metric。
+- main pushでanicca-products production deployが始まる。DB migration/schema-cache readiness前にPR #420をmergeしない。
+- 既存の本人所有accountとofficial provider statusが合うものだけ使う。account creation・automated engagement・anti-detection・proxy/fingerprint workaroundでrestrictionを避けない。
+- effect_unknownの投稿は同一occurrenceのofficial readbackが終わるまで再送しない。1 accountにpublisher ownerは一つだけ。
+- Resendはverified RESEND_FROM_EMAILを使う。email purchase/subscriptionは明示Checkout以外から作らない。
+- 外部public postは依頼済みmarketing workstreamの範囲・approved creative・owner route内でのみ実行する。
+- Capafy product/listing/account-lifecycleのsourceは別担当。D5 marketingだけを扱う。
+- source evidence・production natural run・provider readbackは別のproofとして記録する。
 
 ## Review Focus
 
-- Stripe GETの遅い応答が解約stateを上書きせず、pending generationでsupersedeされたCheckoutはWelcome receiptを終端確定せず再試行する。
-- 古いCheckout eventの再配信が、新しいStripe subscription pointerを奪わない。
-- migration前からあるsubscriberのsubscription eventをmapping missingにしない。
-- 既存の別active subscriptionがあるとき、一つのcanceled eventでtierをexpiredにしない。
-- migration直後、公式readback前の既存paid tierを誤って失効させない。
+- 古いCheckout webhookが新しいsubscription stateやpointerを戻さず、superseded receiptをretry可能に保つ。
+- unique email constraintがないschemaでも同一RPC内の同じemail予約を1 rowに収束させる。
+- 別writerのlead-magnet POSTが同じsubscriber identityを重複作成しない。
+- PDF/Day-0 emailで未verified senderを使わず、provider outcome unknown時に成功や再送を推測しない。
+- Capafy旧・新laneのeffect_unknownをofficial readbackなしに再生せず、二重publishしない。
+- EN/JA packのaccount・locale・claimとprovider identityを一致させる。
 
 ---
 
-### Task 1: Product offer, locale, and checkout contract
+### Task 1: Checkout attribution and offer contract — DONE
 
 **Files**
-- Modify: Daisuke134/anicca-products/apps/landing/app/monk/page.tsx
-- Modify: Daisuke134/anicca-products/apps/landing/app/achan/page.tsx
-- Modify: Daisuke134/anicca-products/apps/landing/app/letter/page.tsx
-- Modify: Daisuke134/anicca-products/apps/landing/app/tegami/page.tsx
-- Create: Daisuke134/anicca-products/apps/landing/lib/checkout-attribution.js
-- Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/checkout.js
-- Test: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js
-- Create: Daisuke134/anicca-products/.github/workflows/landing-pr-build.yml
+- anicca-products/apps/landing/app/monk/page.tsx
+- anicca-products/apps/landing/app/achan/page.tsx
+- anicca-products/apps/landing/app/letter/page.tsx
+- anicca-products/apps/landing/app/tegami/page.tsx
+- anicca-products/apps/landing/lib/checkout-attribution.js
+- anicca-products/apps/landing/netlify/functions/checkout.js
+- anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js
 
 **Interfaces**
-- Request: `lang`, `product`, `mode`, optional `attribution_token` copied from the existing `utm_campaign` query parameter.
-- Response: Stripe hosted checkout URL.
-- Stripe metadata: `lang`, `product`, `attribution_token`; for subscription mode the token also goes into Subscription metadata. The existing locale Price remains the payment source.
+- Request: lang, product, mode, optional attribution_token copied from utm_campaign.
+- Stripe Checkout and Subscription metadata: lang, product, attribution_token.
+- eBook uses one-time payment; Letter/Tegami use subscription mode with a 14-day trial.
 
-- [x] Step 1: Add failing tests for the page URL helper, EN/JA price selection, eBook payment mode, Letter subscription mode, locale-matched `utm_campaign` → `attribution_token` propagation, and subscription metadata. RED observed before implementation.
-- [x] Step 2: Run apps/landing: `npm run test:telemetry`. The new eBook cases failed before implementation as expected.
-- [x] Step 3: Read `utm_campaign` on `/monk`, `/achan`, `/letter`, and `/tegami`; pass it as `attribution_token` in the checkout request and into Checkout/Subscription metadata. Keep `/go/<token>` as the existing click-receipt entrypoint. Remove the unsupported per-chapter length claims from EN/JA HTML and JSON-LD; retain the verified claim of 49 short chapters.
-- [x] Step 4: `npm run test:telemetry` passes 336/336 and `npm run build` passes in GitHub Actions run `37315148621`. The PR workflow uses a localhost dashboard snapshot URL and performs no deploy.
-- [x] Step 5: Commit and push the focused checkout/content change (`a36098a209`, build workflow `c6614243ee`); PR #419 merged to main as `6c52d4cc13`.
+- [x] Add failing contract tests for locale price, checkout mode, and token propagation; RED observed before implementation.
+- [x] Implement EN/JA offer routing and campaign metadata. Preserve verified 49 short chapter claim; remove unsupported chapter-length claims.
+- [x] Run focused tests and telemetry/build. Product PR #419 merged to main as 6c52d4cc13.
 
-### Task 2: Make buyer receipt and PDF fulfillment retry-safe
+### Task 2: Replay-safe purchase receipt, PDF delivery, and subscription state — SOURCE READY
 
 **Files**
-- Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/webhook.js
-- Create: Daisuke134/anicca-products/apps/landing/netlify/functions/_migrations/2026-10-05-ebook-webhook-receipts.sql
-- Test: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-webhook.test.js
-- Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/writer-webhook.test.js
-- Modify: Daisuke134/anicca-products/.github/workflows/landing-pr-build.yml
+- Modify: anicca-products/apps/landing/netlify/functions/webhook.js
+- Create: anicca-products/apps/landing/netlify/functions/_migrations/2026-10-05-ebook-webhook-receipts.sql
+- Test: anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-webhook.test.js
+- Test: anicca-products/apps/landing/netlify/functions/_lib/__tests__/writer-webhook.test.js
 
 **Interfaces**
-- Input: signature-verified Checkout, invoice, and subscription lifecycle events.
-- Output: durable event/session receipt joined by Stripe session ID/attribution token, plus delivery status for the correct EN/JA PDF. The eBook email has an optional locale subscription CTA with the same `utm_campaign`.
-- Letter subscription events preserve the token, separate trial access from paid MRR, and never enter eBook delivery. Count MRR only after the first paid invoice and active status.
-- `reserve_ebook_subscription_readback(subscription_id,email?,customer_id?)` returns `{generation,subscriber_id}` before Stripe GET. `apply_ebook_subscription_state(subscription_id,subscriber_id,generation,status,subscription_created_at,event_id)` applies only if generation is still current.
-- `RESEND_FROM_EMAIL` is mandatory for eBook/Letter delivery. There is no test-domain fallback; missing sender configuration returns a retryable receipt before provider send.
-- Existing `subscribers.stripe_subscription_id` rows seed subscription mappings. `subscriber.tier` is recomputed from all mapped active/trialing states and preserves migration-carried paid access until mapped subscriptions receive official Stripe readback. A paid legacy row without a Stripe pointer retains a separate pending-readback flag. Pointer ordering uses Stripe `Subscription.created`; an old pointer without created-time readback remains until reconciled. Once reconciled, the pointer is reselected from all saved states by maximum `created` (subscription ID breaks equal-second ties).
+- Reserve/apply RPCs: reserve_ebook_subscription_readback(subscription_id,email?,customer_id?) returns subscriber_id + DB-issued generation; apply_ebook_subscription_state(...) changes state only for current generation.
+- Stripe buyer session receipt and Resend provider message ID join by session_id and attribution_token.
+- Required env: RESEND_FROM_EMAIL. Missing sender configuration causes retryable receipt before any Resend call.
+- Existing subscriber mappings and legacy-paid state are preserved; access aggregates across subscription states. The compatibility pointer follows max Stripe Subscription.created, with stable ID tie-break.
 
-- [x] Step 1: Add failing tests for signature, locale PDF/CTA, event/session replay, DB/email failure, stale same-subscription readback, and delayed cross-subscription Checkout. RED for the two delayed-readback cases was observed before the timestamp-CAS implementation; fresh review then showed that late-delivered old Checkout and legacy subscriber mappings require a generation-based redesign.
-- [x] Step 2: Add failing tests for delayed active response with worker clock skew, late old Checkout, existing migrated lifecycle event, pending generation racing Welcome, legacy pointer re-election, and missing verified sender. RED was observed on the previous timestamp/single-state/fallback implementations.
-- [x] Step 3: Add DB-issued per-subscription readback generations before Stripe GET; apply only the current generation. Keep superseded Checkout receipt retryable. Seed legacy subscription mappings and paid-preservation flags, aggregate access from all mapped states, reselect pointer by maximum Stripe `Subscription.created`, and require configured `RESEND_FROM_EMAIL` before sending.
-- [x] Step 4: Focused eBook/Writer tests pass 27/27. The migration and RPC pass on a local PostgreSQL 18 fixture containing legacy pointer, no-pointer paid, and new subscriber rows; verified stale generation rejection, Welcome retry after supersession, lifecycle mapping, pointer re-election, multiple active state aggregation, and legacy paid preservation.
-- [x] Step 5: `npm run test:telemetry` passes 358/358; `node --check`, `git diff --check`, PostgreSQL 18 fixture, and fresh read-only source review PASS. Commit `b8ea8f0c2e` is pushed to PR #420. PR CI has not appeared yet; manual workflow run `37329324798` is in progress with provider metadata probe before build. Previous PR build passed at `f712eacec4`; workflow_dispatch at that head failed in `next/font` after dashboard snapshot fetch failed, before the old probe position.
-- [ ] Step 6: Read production schema constraints and verified sender before applying SQL or allowing customer delivery. Prior Netlify OpenAPI exposed `buyers` columns (`amount_paid,currency,email,id,lang,product,purchased_at,stripe_session_id`) and `subscribers` columns (`email,id,lang,signed_up_at,source,stripe_customer_id,stripe_subscription_id,tier,unsubscribed_at`) but not types/constraints; `ebook_webhook_receipts` was not exposed. Resend `GET /domains` returned 401. Runtime now requires `RESEND_FROM_EMAIL`; its production presence and verified domain remain unconfirmed. Do not merge while migration, PostgREST schema cache, or sender readiness is missing because main push auto-deploys.
-- [x] Step 7: Initial source PR #420 head `f712eacec4` is superseded by pushed source commit `b8ea8f0c2e`; final source PR remains open and production merge is held on migration/sender readiness.
+- [x] Add failing cases for replay, storage/email failures, stale subscription GET, late Checkout, legacy mapping/pointer, missing sender, and delayed Welcome receipt.
+- [x] Implement durable receipt, one-time PDF delivery, DB generation reserve/apply, subscription aggregation, and retryable superseded Checkout.
+- [x] Add normalized-email advisory locking and lookup-before-insert so same-RPC reservations reuse one subscriber even when email has no unique index. PostgreSQL 18 no-unique fixture confirms two reservations leave one row.
+- [x] Run focused eBook/Writer 27/27, telemetry 358/358, PostgreSQL 18 fixtures, syntax/diff checks; latest independent SQL review PASS.
+- [x] Push SQL lookup fix as bc34edb14b to PR #420.
+- [x] Confirm Landing PR check at exact head bc34edb14b. GitHub Actions run 37339391128 completed PASS.
+- [ ] Read authoritative production schema constraints and duplicate-email status using DB admin access. PostgREST types are known, unique constraints are not. The lead-magnet writer currently bypasses the new advisory lock.
+- [ ] If email has no unique constraint, add one shared DB-owned normalized-email upsert and route every subscriber writer through it before migration/deploy.
+- [ ] Apply the migration; read back ebook_webhook_receipts, ebook_subscription_states, RPC signatures, required columns, and schema cache on production.
+- [ ] Reconfirm verified sender configuration, then merge PR #420. Main push auto-deploys; read back loaded production SHA/health after deploy.
 
-### Task 3: Join the campaign token to money
+### Task 3: Make lead-magnet signup compatible with the verified production sender
 
 **Files**
-- Modify: life-manager/skills/earn/marketing-engine/ebook_runner.py
-- Modify: life-manager/skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json
-- Modify: life-manager/skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json
-- Test: life-manager/skills/earn/marketing-engine/test_ebook_runner_replay.py
-- Test: life-manager/skills/earn/marketing-engine/test_ebook_asset_pack.py
-- Test: life-manager/skills/earn/marketing-engine/test_ebook_portability.py
+- Modify: anicca-products/apps/landing/netlify/functions/lead-magnet.js
+- Modify: anicca-products/apps/landing/netlify/functions/_migrations/2026-10-05-ebook-webhook-receipts.sql or a follow-up migration only if Task 2 schema readback requires it
+- Test: anicca-products/apps/landing/netlify/functions/_lib/__tests__/lead-magnet.test.js
 
 **Interfaces**
-- Existing render receipt carries `product_id`, `creative_id`, `script_id`, `renderer_id`, and the opaque token from `measure/attribution.py`.
-- `/go/<token>` records the click; `utm_campaign` becomes checkout `attribution_token`, Stripe metadata, buyer/subscriber receipt, and channel report. Keep `campaign_id=creative_id` distinct.
-- CFO reads paid sessions, refunds, fees, actual costs, and bank receipts; it does not infer revenue from clicks.
+- Input: normalized email and lang en/jp.
+- Subscriber write: use the unique email constraint if confirmed; otherwise use one DB RPC that applies the same normalized-email advisory lock as the Checkout webhook.
+- Day-0 sender: RESEND_FROM_EMAIL, never onboarding@resend.dev. Return success only after the subscriber write and provider send succeed; never echo provider response bodies to the caller.
 
-- [ ] Step 1: Add failing contract tests for a token surviving render intent → `/go/<token>` → `utm_campaign` → Stripe metadata → buyer/subscriber receipt.
-- [ ] Step 2: Run the focused marketing-engine eBook tests. Expected: the campaign-join case fails.
-- [ ] Step 3: Reuse the existing `campaign_token` helper and receipt schema; do not modify `measure/attribution.py` or create a second attribution ledger unless a failing test proves a missing contract.
-- [ ] Step 4: Run the focused tests. Expected: one token joins to at most one paid session.
-- [ ] Step 5: Commit the focused attribution change.
+- [ ] Add failing tests for missing sender, subscriber write failure, provider failure, and normalized-email replay.
+- [ ] Run the focused lead-magnet tests and observe the expected failures.
+- [ ] Implement the minimal verified-sender/write-status fix and shared upsert only if the authoritative schema shows the unique constraint is absent.
+- [ ] Run focused tests. Do not use this free-signup endpoint as proof of paid MRR.
 
-### Task 4: Add one Life Manager distribution owner
+### Task 4: Join the creative token to the natural purchase receipt
 
 **Files**
-- Create: life-manager/skills/earn/marketing-engine/ebook-distribute-daily.sh
+- Modify: life-manager/skills/earn/marketing-engine/ebook_runner.py only if a contract fails
+- Existing: life-manager/skills/earn/marketing-engine/measure/attribution.py
+- Existing: anicca-products/apps/landing/netlify/functions/marketing-go.js
+- Existing: anicca-products/apps/landing/lib/checkout-attribution.js
+- Test: focused Marketing Engine attribution contract and anicca-products checkout/webhook contract
+
+**Interfaces**
+- Product token prefixes: ebook-en → ee_, ebook-ja → ej_, followed by the existing 20-character lowercase base32 token.
+- Existing flow: render/creative receipt → owned /go/<token> → marketing_click_receipts → utm_campaign → Stripe metadata → buyer/subscriber receipt.
+- Keep creative_id distinct from attribution_token; do not create a second attribution ledger. A click receipt is not a paid order.
+
+- [ ] Add one cross-repo contract proving the same token survives intent creation, redirect validation, checkout metadata, and durable purchase receipt.
+- [ ] Reuse existing campaign_token and click receipt code; change the smallest failing interface only.
+- [ ] Record first natural paid session, correct locale PDF message receipt, refund/fee/cost status, and exact occurrence in unified SSOT. Do not self-purchase with personal funds.
+
+### Task 5: Register one eBook publishing owner using existing accounts
+
+**Files**
+- Create: life-manager/skills/earn/marketing-engine/ebook-distribute-daily.sh only if no current entrypoint can own the occurrence
 - Modify: life-manager/config/loop-registry.json
-- Modify: life-manager/apps/life-manager/config/loop-adapters.json
-- Test: life-manager/apps/life-manager/lib/marketing-video-publication-adapter.test.js
-- Test: new eBook distribution-owner contract test
+- Modify: life-manager/apps/life-manager/config/loop-adapters.json only if required by the existing route
+- Reuse: life-manager/skills/earn/marketing-engine/ebook_runner.py
+- Reuse: life-manager/skills/earn/marketing-engine/publish/publish_cli.py
+- Reuse: existing Marketing Video Publication Adapter
 
 **Interfaces**
-- Owner ID: ebook-distribute-daily, one occurrence and one durable state root.
-- Consumes: rendered eBook creative receipt and one provider-confirmed account/product pack.
-- Produces: stable publish effect key plus either official provider receipt or an effect_unknown fence.
+- Owner ID: ebook-distribute-daily; one occurrence/state root per product campaign; no OpenClaw scheduler.
+- Input: render receipt, deterministic ee_/ej_ token, exact asset hash, matching locale, registry-verified existing account.
+- Output: provider post receipt/public URL or effect_unknown fence; never infer post success from process exit alone.
 
-- [ ] Step 1: Add failing tests for disabled-account admission, duplicate slot, and unknown-effect fence.
-- [ ] Step 2: Run focused registry/publication tests. Expected: restricted accounts and duplicate publish are rejected.
-- [ ] Step 3: Wire ebook_runner receipts through existing marketing-video generation/publication adapters. Keep OpenClaw cron disabled; do not call account factory, warmup automation, or direct-browser bypass.
-- [ ] Step 4: Run focused tests plus loop-registry validation. Expected: one publishing owner, replay-zero, no second scheduler.
-- [ ] Step 5: Commit and merge to main; deploy only from a main-derived immutable release.
+- [ ] Add focused failing contract cases for registry identity mismatch, setup_required account, duplicate publish key, and unknown-effect fence.
+- [ ] Connect the runner to the existing publisher; preserve awaiting_visual_approval until the current approval contract passes.
+- [ ] Use only a matching existing account whose official identity/status and allowed locale are read back. Current English pack has TikTok only; Japanese pack registers TikTok and Instagram.
+- [ ] Confirm render cost/approval before using a paid renderer. Keep unverified spend behind the existing spend cap.
+- [ ] Publish one natural eBook canary through the selected existing account and record the provider receipt. Do not create accounts or automated engagement.
 
-### Task 5: eBook初回canary・有料注文・引き継ぎ
+### Task 6: Capafy Instagram handoff — reference the existing D5 plan
 
-**Files**
-- Update: Life Manager unified SSOT at the eBook-to-Capafy handoff.
-- Readback: provider post receipt, campaign click, Stripe paid session/refund, PDF delivery, subscription state, actual cost, payout, bank receipt.
+- Start only after Task 4 records one natural eBook paid Checkout receipt and the matching PDF delivery receipt.
+- Continue eBook 14-day readback in parallel; it is not a Capafy start gate after the first complete receipt.
+- Execute docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md, Task D5, in its existing order: reconcile both publisher effect_unknowns; install/read back the latest single owner; verify the existing account and Postiz identity; gate at no more than one canary per 24 hours; publish one Reel with official receipt; join ct clicks to available Capafy order/payout evidence; measure 14 days.
+- Change only the D5 Instagram marketing implementation. Do not edit the separate Capafy product/listing/account-lifecycle source.
+- If a visible CAPTCHA appears on the authenticated existing account, inspect the rendered challenge and use only the registered supported challenge path; then verify the expected identity/provider state. Identity, suspension, or appeal screens remain in the provider's official process.
 
-- [ ] Step 1: Require official account status and resolve same-owner effect_unknown before any canary. Do not retry or publish while unknown.
-- [ ] Step 2: Render one original demo and verify the asset receipt, AI disclosure, campaign token, and PDF source.
-- [ ] Step 3: Publish one canary through the approved owner route and record the provider receipt/public URL.
-- [ ] Step 4: 同一occurrence内の有料Stripe session、buyer receipt、正しいPDF配信receipt、campaign token、返金・手数料・実費、subscription状態を照合する。一回購入の履行にsubscription購入を要求しない。
-- [ ] Step 5: この最初の完結した自然receipt後、unified SSOT cursorをCapafy Task D5へ進める。eBookの有料注文と継続購読は14日間read-onlyで計測し、次のlaneを止めない。
-
-**目標算数（予測ではありません）:** $9.99/月でgross MRR $10,000には、手数料・返金前で有料継続購読者1,002人が必要です。$10.99のeBook一回購入で月$10,000のgross salesを得るには910件必要ですが、MRRではありません。別目標のCapafy $10,000 contributionは、viewやseller gross balance、eBook MRRではなくCFO banked-net receiptで測ります。
+**Economic target math (not a forecast):** 1,002 paid active subscriptions at $9.99/month are about $10,000 gross MRR before fees/refunds/cost. A one-time eBook order is never MRR. Capafy acceptance remains the existing 30-day banked-net contribution definition.
