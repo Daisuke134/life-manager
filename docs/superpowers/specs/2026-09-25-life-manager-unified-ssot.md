@@ -8329,3 +8329,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 初回cut準備はfree654827520bytesで旧1GiB目安を下回った。目安を新たな必須gateにせず実出力94320640bytes・完全ALL donor1eefb391・全7依存package/lock変更0・cut script main一致・pressurefalseを確認。既存標準hardlink donor経路で完全cut session3333 exit0、release20261006T001540-28c09277/ALL/mainSHA一致・current一致。sparse/bypass/共有データ削除0。cut後free513744896bytes。
 - freshlaunchctl-safe UID/DS/Aqua/manager/gui PASS、targetadmissioneffectunknownfalse。ただしReply PID8939/loaded-running。target限定apply --loaded-idle-onlyはchangedfalse/skippedloaded-running/oldloaded3f8371b0を公式readback。oktrueを更新成功にしない。停止/手動wake/効果再送0。PID8939自然終了のboundedobserver session12802を開始、欠落確認後fresh target状態を再取得して原子的idleapplyへ進む。
 - sourceproof state/coconala-send-diagnostics-source-proof-20261006.json/mode600へCI/merge/release/skipを保存。main/全releaseは診断source反映の準備であり旧12解消/公式送信成功ではない。残44/cursor1、次は自然終了→対象adoption→実phase/公式readback、順序不変。
+
+
+### 606. Reply対象adoptionと新source自然wake・legacy browser leaseの所有調整
+
+- PID8939のboundedobserverは154秒でmissing、freshstatus loaded-idle/admissioneffectunknownfalseを確認。対象限定loaded-idle-only applyはchangedtrue/install1e4e7556d758d8cf299a38ea/main28c09277。実launchctl-safe print argvもrelease20261006T001540-28c09277一致。停止/手動wake/効果再送0。新source自然run18dbab4f48ea0b00-38276/report/entrypoint_exit75まで公式runtimeで確認。thread診断0は送信段階成功ではなく初期ブラウザ待ち。
+- 旧見積りreadonlyprobeの初回はstate/status選択誤りで対象未選択・provider操作0。statusへ訂正したprobe15:24:58Zはthreadhash3295d49fc476/guardexit9/stateunchanged。state/coconala-estimate-official-readback-20261006.json/mode600。officialcard/contextは未取得でreceiptverified未証明。旧unknown8/retry4を解消しない。
+- guardstatusは登録browserPID29606・legacy holder5434/acquired1791212290/holder_start無し。psで5434はCodex app-serverの長寿命基盤と確認し、そのlivenessを実browser作業所有の証拠にしない。最近更新13sessionだけの限定検索で別session01a10aa8-e7ab-74e2-a12c-bf9a51e6690dの14:58:09.772Z guardacquire call_50eBza6YZFOYWNUVnWD81BFr（explicit holder binding無し）を特定。root自身のleaseではなく、解除/横取り/基盤restart0。AGMSG peerへ所有確認を送信、team.sh読取handle92189は実行中、未回答を稼働承諾にしない。
+- 運用ミスも保持：一時file作成ENOSPC後、rootはcentral_cleanup.py --helpをヘルプ取得と誤解して通常host cleanupを起動。未対応argをsourceで確認後、この誤起動のPID41356/41358/41760だけSIGTERM、session11001 exit143・ps全missing。帰属可能な終了receipt未取得で削除件数/保護削除0を推測しない。既存last-receiptは別時刻なので代用しない。dfはその後約520MB、temporary write PASS。追加cleanup/共有データ削除は行わず、この境界を記録する。
+- sourceproofへadoption/自然run/browser所有待ちを更新。残44/cursor1・順序不変。次は担当側lease使用終了の確認→guard正規取得→旧見積り公式readbackと新自然diagnostic。本人/Account Holder等外部条件を成功にしない。
