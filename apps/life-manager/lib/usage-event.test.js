@@ -5,6 +5,12 @@ const assert = require("node:assert/strict");
 
 const { normalizeUsageEvent, recordUsageEvent, runtimeTrace, usageRuntimeEnv } = require("./usage-event.js");
 
+const USAGE_EVENT = { tenantId: "tenant-test", provider: "test", feature: "test", outcome: "success" };
+
+function normalizeMeta(meta) {
+  return normalizeUsageEvent({ ...USAGE_EVENT, meta });
+}
+
 test("normalizes a tenant/provider/feature usage event without customer billing", () => {
   assert.deepEqual(normalizeUsageEvent({
     tenantId: "tenant-1",
@@ -62,6 +68,84 @@ test("rejects missing dimensions, invalid outcomes, and secret-shaped metadata",
     tenantId: "t", provider: "p", feature: "f", outcome: "success",
     meta: { runtime_trace: { run_id: "forged" } },
   }), /runtime_trace metadata is reserved/);
+});
+
+test("accepts the exact provider metadata enums and scalar types", () => {
+  const enums = {
+    sku: ["Geocoding", "Directions", "Routes: Compute Routes Pro"],
+    pricing_basis: ["list_price_after_free_cap", "list_price_after_free_rpd", "unavailable"],
+    route_mode: ["transit", "google"],
+    fallback_reason: ["transit_no_route", "transit_provider_4xx", "transit_provider_5xx",
+      "transit_network", "transit_timeout", "transit_invalid_response", "non_jp"],
+    model: ["gemini-2.5-flash", "gemini-3.7-flash"],
+    estimate_status: ["estimated", "unavailable"],
+    estimate_basis: ["audio_duration_proxy"],
+  };
+
+  for (const [key, values] of Object.entries(enums)) {
+    for (const value of values) assert.equal(normalizeMeta({ [key]: value }).meta[key], value);
+    for (const invalid of ["unsupported", null, 1, {}, []]) {
+      assert.throws(() => normalizeMeta({ [key]: invalid }), /metadata/);
+    }
+  }
+
+  for (const key of ["input_tokens", "output_tokens"]) {
+    for (const value of [null, 0, 12]) assert.equal(normalizeMeta({ [key]: value }).meta[key], value);
+    for (const invalid of [-1, "12", true, NaN, Infinity, {}, []]) {
+      assert.throws(() => normalizeMeta({ [key]: invalid }), /metadata/);
+    }
+  }
+
+  for (const value of [0, 3]) assert.equal(normalizeMeta({ reconnects: value }).meta.reconnects, value);
+  for (const invalid of [-1, 1.5, "3", null, {}, []]) {
+    assert.throws(() => normalizeMeta({ reconnects: invalid }), /metadata/);
+  }
+});
+
+test("rejects unknown and secret-shaped metadata keys and nested values", () => {
+  for (const key of ["unknown_field", "customer_email", "api_key", "authorization", "secret_token"]) {
+    assert.throws(() => normalizeMeta({ [key]: "synthetic-value" }), /metadata|secret-shaped/);
+  }
+
+  const allowedKeys = ["sku", "pricing_basis", "route_mode", "fallback_reason", "model",
+    "input_tokens", "output_tokens", "estimate_status", "reconnects", "estimate_basis"];
+  for (const key of allowedKeys) {
+    for (const nested of [{ nested: "value" }, ["value"]]) {
+      assert.throws(() => normalizeMeta({ [key]: nested }), /metadata/);
+    }
+  }
+  assert.throws(() => normalizeMeta({ model: "api_key=synthetic-secret" }), /metadata/);
+});
+
+test("rejects metadata keys inherited from the validator object prototype", () => {
+  for (const key of ["constructor", "toString", "__proto__"]) {
+    assert.throws(() => normalizeMeta({ [key]: "synthetic-value" }));
+  }
+});
+
+test("recordUsageEvent sends validated provider metadata to the existing cost sink", async () => {
+  const metadata = {
+    sku: "Routes: Compute Routes Pro",
+    pricing_basis: "list_price_after_free_cap",
+    route_mode: "transit",
+    fallback_reason: "transit_timeout",
+    model: "gemini-2.5-flash",
+    input_tokens: null,
+    output_tokens: 12,
+    estimate_status: "unavailable",
+    reconnects: 2,
+    estimate_basis: "audio_duration_proxy",
+  };
+  const rows = [];
+  const ok = await recordUsageEvent({ ...USAGE_EVENT, providerUnits: 1, meta: metadata }, {
+    recordCost: async (row) => { rows.push(row); return true; },
+    runtimeEnv: {},
+  });
+
+  assert.equal(ok, true);
+  assert.equal(rows.length, 1);
+  for (const [key, value] of Object.entries(metadata)) assert.equal(rows[0].meta[key], value);
+  assert.equal(rows[0].meta.runtime_trace.status, "unlinked");
 });
 
 test("recordUsageEvent delegates the normalized row to the existing cost ledger", async () => {
