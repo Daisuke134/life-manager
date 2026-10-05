@@ -41,10 +41,9 @@ function hasJsonContentType(req) {
 }
 
 function validCsrf(req, user) {
-  const expected = String(user && user.csrf || "");
-  const actual = String(req.headers && req.headers["x-lm-web-csrf"] || "");
-  if (!expected || expected.length !== actual.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual));
+  const expected = Buffer.from(String(user && user.csrf || ""));
+  const actual = Buffer.from(String(req.headers && req.headers["x-lm-web-csrf"] || ""));
+  return expected.length > 0 && expected.length === actual.length && crypto.timingSafeEqual(actual, expected);
 }
 
 function normalizeHomeAddress(value) {

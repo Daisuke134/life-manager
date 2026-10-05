@@ -616,6 +616,21 @@ test("travel controls reject missing or wrong Origin, CSRF, and forged identity 
   assert.deepEqual(f.disconnectCalls, []);
 });
 
+test("travel control rejects same-character-length multibyte CSRF without effects", async () => {
+  const f = fixture();
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN,
+    contentType: "application/json",
+    csrf: "é123456789",
+    body: { action: "pause" },
+  });
+
+  assert.equal("csrf-token".length, "é123456789".length);
+  assert.equal(response.status, 403);
+  assert.deepEqual(f.controlRpcCalls, []);
+  assert.deepEqual(f.disconnectCalls, []);
+});
+
 test("travel controls reject Telegram-bound users", async () => {
   const f = fixture();
   f.row.telegram_chat_id = "telegram-bound";
