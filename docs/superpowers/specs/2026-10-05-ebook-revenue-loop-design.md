@@ -17,7 +17,7 @@
 - Capafyは既存の life-manager-capafy-ig Postiz laneを唯一のpublish ownerにする。Capafy product code・価格・listing・account lifecycleは変更しない。
 - Daisが直接編集したcopyや投稿を、確認なく書き換え・公開しない。通常の技術判断やloop内部のmarketing creativeは既存ownerの権限内で進める。
 
-## 現状（eBook 2026-10-06 03:07 JST / Capafy 03:42 JST readback）
+## 現状（2026-10-06 04:15 JST Product PR readback / Capafy 04:06 JST runtime readback）
 
 ### eBook商品・売上経路
 
@@ -39,6 +39,8 @@
 
 - 03:42 JST `lm-loop status all --json`: old `capafy-ig-marketing-daily` is managed/loaded-idle at SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e`; occurrence `capafy-ig-marketing-daily:18dbb45758667058-79255` is exit 75 / `host_admission_deferred:resource_effect_unknown`, with no provider receipt/readback. Active fence `18db7caff1178a88-68028` remains `no_pre_effect_terminal`; health is `safely_fenced`.
 - New `life-manager-capafy-ig` is now returned as managed/loaded-idle at old SHA `4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`; latest occurrence `life-manager-capafy-ig:18dbb4981f9573c8-86990` is exit 1 / `entrypoint_exit_1` / effect unknown / no receipt / `official_readback_required`. `pre-effect-reconcile --dry-run` returns `no_pre_effect_terminal`. The 02:20 `unmanaged_label` snapshot is superseded; neither owner has official readback, so do not repost from either lane.
+- **04:06 JST refresh supersedes the 03:42 occurrence IDs above:** old `capafy-ig-marketing-daily` remains loaded-idle; current snapshot SHA is `a09d0ad40b4eddfcaa65ca03b9804604ba692557`, while latest scheduled occurrence `capafy-ig-marketing-daily:18dbb79dd35998c8-25553` used event SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e` and exited 75 with `host_admission_deferred:resource_effect_unknown`. Its active fence `18db7caff1178a88-68028` is still unresolved; the adapter reports `active_ig_handle_unresolvable`, not a verified post. New `life-manager-capafy-ig` remains loaded-idle at SHA `4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`; latest occurrence `life-manager-capafy-ig:18dbb7007d247380-97286` failed with `capafy ig reel loop requires node`, provider adapter state `adapter_not_run_yet`, no provider receipt/readback, and an active `effect_unknown` fence.
+- The Node/Python launchd lookup repair is already in Life Manager main at commit `9e3fb448b6` (PR #6663), but the installed new-owner release is still `4eb6bbba`; a current immutable release has not been applied to that owner. The source comment also says `@capafy.hooklab` is not connected to Postiz and the integration ID is unset; verify the actual account and Postiz integration through official readback before planning a canary. These runtime errors do not establish that a CAPTCHA exists. No authenticated challenge screen was inspected during this readback.
 - 現行sourceのowner pathは`config/loop-registry.json`の`life-manager-capafy-ig` → `apps/life-manager/scripts/capafy-ig-reel` → Postizで、effect reconcilerもPostiz post listingを公式receiptとして読む。entrypointは`LM_POSTIZ_API_KEY`と`CAPAFY_IG_POSTIZ_INTEGRATION_ID`を要求し、source commentは`@capafy.hooklab`がPostiz未接続としている。旧`capafy-ig-marketing-daily`は`instagrapi`経路。`capafy-marketing/SKILL.md`のB4 browser-direct推奨はそのskill directory内で未実装の設計メモであり、この現行Life Manager ownerのrouteではない。新laneのaccount/credential/post statusはprovider readbackで未確認なので、Postizとbrowser-direct/instagrapiを併用せず、D5で一つに収束させる。
 - D5の既存正本は docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md。「eBook first receipt後に開始」「両laneのeffectをreadback」「ownerを一つにする」「1日1回以下のcanary」「14日測定」を既に定義している。このspecではD5のTODOを複製しない。
 - 2026-10-06 02:20 JSTのGitHub repository searchでは、最新のlocal/free-code候補は[fiptcha](https://github.com/figranium/fiptcha)（Apache-2.0、2026-10-05 16:42Z更新）。既存のactive Playwright-compatible `page`を受け取りbrowserを起動しない。reCAPTCHA v2 / hCaptcha / Turnstileに対応するが、dynamic 3x3 gridは不安定でdirect-CDP compatibilityは未検証。既存owner helper `skills/fundraiser-agent/runtime/solve-recaptcha-v2.py`は標準reCAPTCHA v2専用で、registered pageのtarget-id、widget site key/response textarea/callbackを必要とする。[Captcha Solver API Python SDK](https://github.com/captcha-solver-api/python-sdk)はrepository licenseがMITのSDKだが、外部API serviceの無料枠/価格はこの調査では確認していないため「無料solver」とは判定しない。Capafy runtime errorはCAPTCHAの証拠ではなく、このturnでは認証済みbrowser画面を未確認。実challengeが現れた場合だけchallenge typeを確認し、既存helperまたはregistered CDP sessionで互換確認できた手段を使う。identity/appeal/suspensionはsolverで回避しない。
@@ -67,7 +69,8 @@ flowchart LR
     SRC["原文・検証済みclaim"] --> RENDER["Marketing Engine render receipt"]
     RENDER --> CAMP["creative id + ee_/ej_ campaign token"]
     CAMP --> OWNER["本人所有accountをregistry/providerで確認"]
-    OWNER --> POST["単一のeBook publication owner"]
+    OWNER --> VISUAL["exact asset hash + existing visual approval"]
+    VISUAL --> POST["単一のeBook publication owner"]
     POST --> PRECEIPT["Instagram/TikTok provider receipt"]
     PRECEIPT --> GO["/go/<token> click receipt"]
     GO --> PAGE["/monk または /achan"]
@@ -75,6 +78,8 @@ flowchart LR
     CHECKOUT --> HOOK["署名検証 + durable webhook receipt"]
     HOOK --> BUYER["buyer/session receipt"]
     BUYER --> PDF["正しいlocaleのPDFをverified senderから納品"]
+    MIG["PR #420 migration + RPC/ACL/schema-cache readback"] --> DEPLOY["merge + auto-deploy + deployed SHA/health readback"]
+    DEPLOY --> CHECKOUT
     PDF --> OPTIONAL["任意のLetter/Tegami CTA"]
     OPTIONAL --> SUBCHECKOUT["本人が選択したsubscription Checkout"]
     SUBCHECKOUT --> TRIAL["14日trial / access state"]
@@ -84,7 +89,9 @@ flowchart LR
   subgraph C["2. 初回eBook paid + PDF receiptの後だけCapafy IG"]
     DEV["別担当が承認した公開listing"] --> DEMO["実物のlistingに沿う独自Reel"]
     DEMO --> CAPOWNER["life-manager-capafy-igの単一owner"]
-    ACCOUNT["本人所有・公式status確認済みCapafy IG"] --> CAPOWNER
+    ACCOUNT["本人所有・公式statusとPostiz integration確認済みCapafy IG"] --> CAPOWNER
+    FENCES["旧・新ownerのeffect_unknownを公式readbackで解消"] --> CAPOWNER
+    RELEASE["Node/Python修正を含むmain由来immutable release"] --> CAPOWNER
     CAPOWNER --> CAPPOST["Postiz/Instagram receipt + public Reel URL"]
     CAPPOST --> CTA["Capafy listingへct campaign link"]
     CTA --> ORDERS["Capafy order/fee/refund/payout readback"]
