@@ -286,12 +286,39 @@ function responseCookieCleared(res, name) {
   return value === "" || /(?:^|;)\s*max-age=0(?:;|$)/i.test(line);
 }
 
-async function clearWebSession(client, res, opts) {
+function responseCookieNames(res) {
+  const previous = typeof res.getHeader === "function" ? res.getHeader("set-cookie") : null;
+  const values = Array.isArray(previous) ? previous : previous ? [previous] : [];
+  return values.map((header) => {
+    const pair = String(header).split(";", 1)[0];
+    const equals = pair.indexOf("=");
+    return equals > 0 ? pair.slice(0, equals).trim() : "";
+  }).filter(Boolean);
+}
+
+function isCookieOrChunk(name, base) {
+  if (name === base) return true;
+  const prefix = `${base}.`;
+  return name.startsWith(prefix) && /^(0|[1-9][0-9]*)$/.test(name.slice(prefix.length));
+}
+
+function authCookieNames(req, res, opts) {
+  const base = authCookieName(opts);
+  const verifier = `${base}-code-verifier`;
+  const names = new Set([base, verifier]);
+  let requestNames = [];
+  try { requestNames = requestCookies(req, opts).map((cookie) => cookie && cookie.name); } catch { /* base cookies still expire below */ }
+  for (const name of [...requestNames, ...responseCookieNames(res)]) {
+    if (typeof name === "string" && (isCookieOrChunk(name, base) || isCookieOrChunk(name, verifier))) names.add(name);
+  }
+  return names;
+}
+
+async function clearWebSession(client, req, res, opts) {
   try { await client.auth.signOut({ scope: "local" }); } catch { /* clear the local cookie below */ }
-  const sessionCookie = authCookieName(opts);
-  const verifierCookie = `${sessionCookie}-code-verifier`;
-  if (!responseCookieCleared(res, sessionCookie)) clearCookie(res, opts, sessionCookie);
-  if (!responseCookieCleared(res, verifierCookie)) clearCookie(res, opts, verifierCookie);
+  for (const name of authCookieNames(req, res, opts)) {
+    if (!responseCookieCleared(res, name)) clearCookie(res, opts, name);
+  }
 }
 
 async function handleWebAuthRequest(req, res, opts = {}) {
@@ -356,7 +383,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     const verified = await client.auth.getUser();
     const user = verified && verified.data && verified.data.user;
     if (!verified || verified.error || !user) {
-      await clearWebSession(client, res, opts);
+      await clearWebSession(client, req, res, opts);
       sendText(res, 401, "Web sign-in unavailable");
       return;
     }
@@ -371,7 +398,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
     sendRedirect(res, "/lm");
   } catch (error) {
-    if (sessionMayExist && client) await clearWebSession(client, res, opts);
+    if (sessionMayExist && client) await clearWebSession(client, req, res, opts);
     const status = error && error.code === "telegram_bound" ? 403 : 503;
     sendText(res, status, "Web sign-in unavailable");
   }

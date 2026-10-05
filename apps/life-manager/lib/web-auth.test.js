@@ -177,6 +177,12 @@ function finalCookieValue(res, name) {
   return String(matching.at(-1)).slice(prefix.length).split(";", 1)[0];
 }
 
+function assertAuthCookiesCleared(res, chunkNames = []) {
+  for (const name of ["lm-web-auth", "lm-web-auth-code-verifier", ...chunkNames]) {
+    assert.equal(finalCookieValue(res, name), "", `${name} must be expired`);
+  }
+}
+
 test("exchange requires PKCE verifier and verified Supabase subject", async () => {
   const missingClient = authClient();
   const missingFetch = makeRestFetch();
@@ -212,18 +218,24 @@ test("exchange requires PKCE verifier and verified Supabase subject", async () =
     events: unverifiedEvents,
     user: null,
     exchange: async (_code, cookies) => {
-      cookies.setAll([{ name: "lm-web-auth", value: "unverified-session", options: { path: "/", httpOnly: true } }]);
+      cookies.setAll([
+        { name: "lm-web-auth.0", value: "unverified-session-0", options: { path: "/", httpOnly: true } },
+        { name: "lm-web-auth.1", value: "unverified-session-1", options: { path: "/", httpOnly: true } },
+        { name: "lm-web-auth-code-verifier", value: "still-issued-verifier", options: { path: "/", httpOnly: true } },
+        { name: "unrelated-cookie", value: "preserve-after-failure", options: { path: "/" } },
+      ]);
       return { data: { session: { access_token: "unverified-session" } }, error: null };
     },
   });
   const unverifiedDb = makeRestFetch();
   const unverifiedRes = makeResponse();
   const unverifiedFixture = authOptions(unverifiedClient, { fetch: unverifiedDb.fetch });
-  await handleWebAuthRequest(callbackRequest(), unverifiedRes, unverifiedFixture.options);
+  await handleWebAuthRequest(callbackRequest({ cookie: "lm-web-auth.4=stale-session-4; lm-web-auth-code-verifier=pkce-verifier" }), unverifiedRes, unverifiedFixture.options);
   assert.equal(unverifiedRes.statusCode, 401);
   assert.deepEqual(unverifiedEvents.map(([name]) => name), ["exchangeCodeForSession", "getUser", "signOut"]);
   assert.deepEqual(unverifiedDb.calls, []);
-  assert.equal(finalCookieValue(unverifiedRes, "lm-web-auth"), "");
+  assertAuthCookiesCleared(unverifiedRes, ["lm-web-auth.0", "lm-web-auth.1", "lm-web-auth.4"]);
+  assert.equal(finalCookieValue(unverifiedRes, "unrelated-cookie"), "preserve-after-failure");
 });
 
 test("OAuth start keeps the PKCE verifier cookie separate from the authenticated session cookie", async () => {
@@ -328,21 +340,27 @@ test("refuses Web session for Telegram-bound uid without changing row", async ()
   const client = authClient({
     events,
     exchange: async (_code, cookies) => {
-      cookies.setAll([{ name: "lm-web-auth", value: "temporary-session", options: { path: "/", httpOnly: true } }]);
+      cookies.setAll([
+        { name: "lm-web-auth.0", value: "temporary-session-0", options: { path: "/", httpOnly: true } },
+        { name: "lm-web-auth.1", value: "temporary-session-1", options: { path: "/", httpOnly: true } },
+        { name: "lm-web-auth-code-verifier", value: "still-issued-verifier", options: { path: "/", httpOnly: true } },
+        { name: "unrelated-cookie", value: "preserve-after-rejection", options: { path: "/" } },
+      ]);
       return { data: { session: { access_token: "temporary-session" } }, error: null };
     },
   });
   const db = makeRestFetch([existing]);
   const res = makeResponse();
   const fixture = authOptions(client, { fetch: db.fetch });
-  await handleWebAuthRequest(callbackRequest(), res, fixture.options);
+  await handleWebAuthRequest(callbackRequest({ cookie: "lm-web-auth.3=old-session-3; lm-web-auth-code-verifier=pkce-verifier; unrelated-cookie=request-value" }), res, fixture.options);
 
   assert.equal(res.statusCode, 403);
   assert.notEqual(res.getHeader("location"), "/lm");
   assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession", "getUser", "signOut"]);
   assert.deepEqual(db.rows[0], before);
   assert.equal(db.calls.filter((call) => call.method === "POST").length, 0);
-  assert.equal(finalCookieValue(res, "lm-web-auth"), "");
+  assertAuthCookiesCleared(res, ["lm-web-auth.0", "lm-web-auth.1", "lm-web-auth.3"]);
+  assert.equal(finalCookieValue(res, "unrelated-cookie"), "preserve-after-rejection");
 
   const directDb = makeRestFetch([existing]);
   await assert.rejects(ensureWebUser(WEB_UID, {
