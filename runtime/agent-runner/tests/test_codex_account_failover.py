@@ -23,7 +23,7 @@ import agent_runner  # noqa: E402
 
 
 class CodexProfileBoundaryTest(unittest.TestCase):
-    def _run_candidate_fixture(self, plan, include_claude):
+    def _run_candidate_fixture(self, plan, include_claude, *, return_records=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates = [
@@ -170,6 +170,15 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     mock.patch.object(sys, "argv", argv), \
                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 status = agent_runner.run()
+            if return_records:
+                attempts = [
+                    json.loads(line) for line in (evidence_dir / "attempts.jsonl").read_text().splitlines()
+                ]
+                budget_path = Path(env["ANICCA_TOKEN_BUDGET_LEDGER"])
+                budget_events = [
+                    json.loads(line) for line in budget_path.read_text().splitlines()
+                ] if budget_path.exists() else []
+                return status, calls, attempts, budget_events
             return status, calls
 
     def test_escalation_route_is_codex_only(self):
@@ -312,13 +321,45 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(calls, [("codex", "acct2", "success")])
 
+    def test_prelaunch_missing_auth_releases_reservation_before_acct2(self):
+        with mock.patch.dict(os.environ, {
+            "ANICCA_BUDGET_SCOPE_ID": "fresh-review-fixture",
+            "ANICCA_PASS_TOKEN_BUDGET": "1000",
+            "ANICCA_LOOP_DAILY_TOKEN_BUDGET": "10000",
+        }, clear=False):
+            status, calls, attempts, budget_events = self._run_candidate_fixture(
+                {("codex", "acct1"): "auth_file_missing", ("codex", "acct2"): "success"},
+                include_claude=False,
+                return_records=True,
+            )
+
+        self.assertEqual(status, 0)
+        self.assertEqual(calls, [("codex", "acct2", "success")])
+        self.assertEqual([row["profile_alias"] for row in attempts], ["acct1", "acct2"])
+        self.assertEqual(attempts[0]["error_class"], "codex_prelaunch_auth_missing")
+        self.assertEqual(attempts[0]["budget"]["charged_tokens"], 0)
+        self.assertEqual(attempts[0]["budget"]["measurement"], "prelaunch_auth_missing")
+        settlements = [row for row in budget_events if row.get("type") == "settlement"]
+        self.assertEqual([row["charged_tokens"] for row in settlements], [0, 1000])
+        self.assertEqual(settlements[0]["measurement"], "prelaunch_auth_missing")
+
     def test_invalid_auth_path_does_not_fallback_to_another_profile(self):
-        status, calls = self._run_candidate_fixture(
-            {("codex", "acct1"): "auth_file_invalid", ("codex", "acct2"): "success"},
-            include_claude=False,
-        )
+        with mock.patch.dict(os.environ, {
+            "ANICCA_BUDGET_SCOPE_ID": "fresh-review-invalid-auth-fixture",
+            "ANICCA_PASS_TOKEN_BUDGET": "1000",
+            "ANICCA_LOOP_DAILY_TOKEN_BUDGET": "10000",
+        }, clear=False):
+            status, calls, attempts, budget_events = self._run_candidate_fixture(
+                {("codex", "acct1"): "auth_file_invalid", ("codex", "acct2"): "success"},
+                include_claude=False,
+                return_records=True,
+            )
         self.assertEqual(status, 1)
         self.assertEqual(calls, [])
+        self.assertEqual(attempts[0]["error_class"], "validation_or_task_failure")
+        settlement = next(row for row in budget_events if row.get("type") == "settlement")
+        self.assertEqual(settlement["charged_tokens"], 1000)
+        self.assertNotEqual(settlement["measurement"], "prelaunch_auth_missing")
 
     def test_run_accepts_fresh_schema_valid_codex_result_written_before_timeout(self):
         status, calls = self._run_candidate_fixture(

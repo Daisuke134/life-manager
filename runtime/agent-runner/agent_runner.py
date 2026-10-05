@@ -1730,8 +1730,13 @@ def run() -> int:
         stdout_text = stdout_path.read_text(encoding="utf-8", errors="replace")
         stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
         usage = extract_provider_usage(provider, stdout_text, model=effective_candidate.get("model"))
+        if codex_prelaunch_auth_missing:
+            usage["measurement"] = "prelaunch_auth_missing"
         if budget_enabled:
-            charged_tokens = budget_charge_tokens(provider, usage, token_reservation)
+            charged_tokens = (
+                0 if codex_prelaunch_auth_missing
+                else budget_charge_tokens(provider, usage, token_reservation)
+            )
             settlement = budget_ledger.settle(
                 event_id=budget_event_id,
                 actual_tokens=charged_tokens,
