@@ -7414,3 +7414,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 統合担当の終端検証：Python focused330 passed＋54 subtests passed/exit0（95.35s）、Node15/15、Writer shell fixture2 PASS、bash-n4/4、loop contract14 catalog loops/178 registry jobs/errors0 PASS。初回Python結果は終端未回収のため成功に数えず、同focused suiteで終端結果を取り直す。
 - 既存immutable bundleにtweetnaclがなく、task-owned overlayからtweetnacl1.0.3単体49,790-byte tarballを使用。lock integrity/version一致を確認し、既存bundle・production依存は変更しない。review再現用のignored overlayは保持。
 - 次は統合branch push/remote照合→fresh Sol/medium read-only反証→PR/CI→main/既存release owner経路の反映。自然ownerと重複するcut/applyをprimaryから発行しない。共有反映の調整は未受信、provider/state mutation0。現在§217cursor1、全goal未完。
+
+
+### 493. 統合fresh反証受入とCI不整合の最小修正
+
+- branch remote cf32f73adc94b2e816bbeb351a7c6e1700371d58一致をprimary確認。fresh gpt-6.1-sol/medium read-only reviewerはsource SHIP/Critical・Importantなし、Python9/Node3反証・diffcheck PASS。費用identity衝突、compound effect_unknown、本体同文例外、旧schema/欠損/競合snapshotで不正な成功へ昇格できないことを確認。本番/receipt/収益は判定対象外。
+- GitHub PR #6605 draftを作成し、fresh reviewとCIを並行。CI run37256635598/job111595007038のOSS gateは2件FAIL：変更テストの固定home文字列とskills/capafy-autopublishのmanifest inventory。前者はpre-start privacy testの/Users/operator/private固定パスで、tmp_path由来へ置換し機密path/token漏洩拒否のassertionを維持する。production helperは変更しない。
+- 後者はbase main2a8の既存CI run37252464458/job111582734001でも同じ1件FAILを公式ログ確認。今回のCapafy source差分は0。docs/manifests/oss-merge-1-sources.jsonの該当mappingは235files/hash356d2d1f…、main現物は240files/hash63b30bf38551d67dd212aee21d64069237fa3204cef620177b25d1d5902e5104。既にmainへ承認済みのsource inventoryに対する検証metadata同期だけを、8修正のCI必須依存としてLunaへ追加する。Capafy実コード/価格/provider/baseline/scannerを編集せず、一般waiverを追加しない。
+- source修正の受入範囲は8件のまま。差分union22filesに上記検証metadata1fileが追加になる理由を保持し、同期後のOSS gateとfocused privacy testを再確認・pushする。統合sourceに対するfresh反証は保持し、新しいproduct behaviorを作らない。CI全PASS前にはmain統合しない。共有release自然ownerの重複cut/applyを発行しない。§217cursor1、main/本番未実施、全goal未完。
