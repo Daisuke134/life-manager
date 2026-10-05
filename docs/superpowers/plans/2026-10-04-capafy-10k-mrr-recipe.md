@@ -309,17 +309,17 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-06 02:20 JST current readback）
+### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-06 03:42 JST latest readback）
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧capafy-ig-marketing-daily | 02:20 JST `lm-loop status all --json`: loaded-idle、installed SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e`、event SHA `4a6b08a9095de29e88f9113b4ca393682f2693ae`。latest occurrence `capafy-ig-marketing-daily:18dbb11054302aa0-89866`はexit 75 / `host_admission_deferred:resource_effect_unknown`、provider receipt/readbackなし。active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`は`no_pre_effect_terminal`。healthは`safely_fenced`。 | occurrence/fenceの公式provider readback、重複publisher解消、account identity/status。effectを照合するまで再送しない。 |
-| 新life-manager-capafy-ig | 02:20 JST statusではlabel `ai.anicca.life-manager-capafy-ig`が`unmanaged_label`、installed SHA `4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`、last exit 1。current occurrence/receipt/readbackは返らない。02:15の前回readbackにあった occurrence/fence `life-manager-capafy-ig:18dbaf9ca7cdaf90-31030`（exit 1 / `entrypoint_exit_1` / effect unknown / receiptなし）は現行CLIで照合できず、`health`と`pre-effect-reconcile --dry-run`は`unknown loop id`。 | launchd labelとregistered owner/fenceの対応を特定し、前回occurrenceを公式provider readbackへ結ぶ。これは解決扱いにしない。既存account/Postiz identity、frequency gate、provider post receiptも必要。 |
+| 旧capafy-ig-marketing-daily | 03:42 JST `lm-loop status all --json`: managed/loaded-idle、installed/event SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e`。latest occurrence `capafy-ig-marketing-daily:18dbb45758667058-79255`はexit 75 / `host_admission_deferred:resource_effect_unknown`、provider receipt/readbackなし。active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`は`no_pre_effect_terminal`、healthは`safely_fenced`。 | occurrence/fenceの公式provider readback、重複publisher解消、account identity/status。effectを照合するまで再送しない。 |
+| 新life-manager-capafy-ig | 03:42 JST `status all`: managed/loaded-idleだがinstalled SHA `4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`。latest occurrence `life-manager-capafy-ig:18dbb4981f9573c8-86990`はexit 1 / `entrypoint_exit_1` / effect unknown / receiptなし / `official_readback_required`。`pre-effect-reconcile --dry-run`はactive fenceを`no_pre_effect_terminal`としてunprovableと返す。02:20の`unmanaged_label`結果はこのstatusで上書きされた。 | current occurrence/fenceのofficial provider readback、既存account/Postiz identity、frequency gate、provider post receipt。effect readbackがない間は再送しない。 |
 | eBook → Capafyの実行順 | eBook配信ownerは未実装。Dais指定順はeBook first receiptの後にCapafy Instagram。 | eBook Task 5の同一occurrenceのpaid-session/PDF receipt後にD5開始 |
 
-**2026-10-06 02:20 JST readback:** `lm-loop status all --json`、old ownerの`health --explain`、new labelの`health`と`pre-effect-reconcile --dry-run`を確認した。旧ownerのeffectは`safely_fenced`だが、provider readbackは空。新labelは現行registered loopとして認識されず、前回のeffect-unknown occurrenceと現状態の対応が取れない。Postizの`instagram.obou_anicca` routeは02:15 JSTに`route_ready=true`と確認済みだが、これはCapafy IGの本人所有/good-standingや投稿receiptを証明しない。challenge画面はこのrunでは観測していない。
+**2026-10-06 03:42 JST readback:** `lm-loop status all --json`、old ownerの`health --explain`、old/new ownerの`pre-effect-reconcile --dry-run`を確認した。両ownerでeffectはunknown、provider receipt/readbackは空、dry-runは`no_pre_effect_terminal`を返したため、どちらからも投稿しない。New ownerはcurrent CLIでmanagedになったが、installed SHAは旧releaseのまま。Postizの`instagram.obou_anicca` routeは02:15 JSTに`route_ready=true`と確認済みだが、これはCapafy IGの本人所有/good-standingや投稿receiptを証明しない。challenge画面はこのrunでは観測していない。
 
 **担当境界とmarketing gate**
 
@@ -335,7 +335,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 **eBook初回receipt後のmarketing手順**
 
 1. eBookの自然なpaid Checkout receiptと一致するPDF delivery receiptがあることを統合SSOTで確認します。14日eBook測定を並行で開始します。
-2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`、latest old occurrence `capafy-ig-marketing-daily:18dbb11054302aa0-89866`、前回new occurrence `life-manager-capafy-ig:18dbaf9ca7cdaf90-31030`をowner別にofficial provider readbackします。現CLIがnew ownerを`unmanaged_label`として返す不一致も解消します。readbackがない間はどちらも再送しません。
+2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`、latest old occurrence `capafy-ig-marketing-daily:18dbb45758667058-79255`、latest new occurrence `life-manager-capafy-ig:18dbb4981f9573c8-86990`をowner別にofficial provider readbackします。readbackがない間はどちらも再送しません。
 3. Life Manager側のInstagram marketing ownerを一つだけ認識可能にし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
 4. 既存ユーザー所有IGのidentity/good-standing statusと対応するPostiz integrationを確認します。既存ownerを検証できなければlaneをheldにし、accountを作りません。
 5. 初期canaryを24時間に1回以下で配信できることを確認します。現在のregistry scheduleは1日3回なので、marketing owner側でfrequency gateを設定して読み戻すまで公開配信を開始しません。

@@ -69,3 +69,10 @@ A later read-only cost-ledger query against the same running deployment and exac
 - All 86 rows have a runtime trace and all lack `loop_id`. The 12 Directions rows remain one per 12 distinct runtime occurrence IDs; event-level distinctness remains unverified. Row estimates are not actual bills or an invoice.
 - The latest aggregate scan read at `2026-10-05T18:12:51Z` reports 16 scans since 16:56Z; all had successful Calendar reads and zero due candidates. The latest counts were 20 users, 5 eligible users, and 10 Calendar items/events/candidates. No natural voice occurrence was observed.
 - This refresh was read-only: no test call, Calendar-content query, provider mutation, database write, or report send.
+
+## Source promotion and production deployment readback (2026-10-05T18:48:42Z)
+
+- PR #6705 merged at `2026-10-05T18:43:49Z` as main merge commit `a09d0ad40b4eddfcaa65ca03b9804604ba692557`.
+- Railway `life-call` deployment `8af6ae6a-0240-472a-9e02-06c663c1a90c` reports `SUCCESS` with `meta.commitHash` equal to the merge commit. A separate `railway status` read reports the `life-call` service `Online` in production.
+- The exact cost-ledger and wake-diagnostics snapshot above predates this deployment. A post-deployment exact-release cost/wake occurrence readback has not yet been captured, so the USD 0.085 estimate is not attributed to the new release and is not actual billing.
+- This promotion check was read-only after the merge: no test call, Calendar-content query, provider mutation, database write, or report send. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
