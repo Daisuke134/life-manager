@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -449,6 +450,121 @@ def test_direct_message_expression_is_javascript_parseable():
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    ("own_path", "author_path", "expected_side"),
+    [
+        ("/users/seller", "/users/seller", "seller"),
+        ("/users/seller", "/users/buyer", "buyer"),
+        ("/users/seller", None, None),
+        (None, "/users/seller", None),
+        (None, "/users/0", None),
+        ("/users/seller", "/users/other", "buyer"),
+    ],
+)
+def test_active_direct_offer_extractor_requires_author_and_own_proof(
+        own_path, author_path, expected_side):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to evaluate the browser expression")
+    harness = r"""
+const input = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+const user = path => path ? {href: `https://coconala.com${path}`} : null;
+const author = user(input.author_path);
+const own = user(input.own_path);
+const title = {innerText: "開発"};
+const content = {innerText: "実装\n完了予定日：2026-10-12（1週間後）"};
+const time = {innerText: "2026-10-05T00:00:01Z"};
+const offerLink = {href: "https://coconala.com/mypage/direct_offers/55"};
+const offer = {
+  innerText: "提案額 10,000 円 完了予定日：2026-10-12",
+  querySelector(selector) {
+    if (selector === ".customize-title-link[href]") return offerLink;
+    if (selector === ".customize-title") return title;
+    if (selector === "p.customize-content.wa_add-mt-4") return content;
+    return null;
+  },
+};
+const card = {
+  closest(selector) { return selector === ".threadMessage" ? offer : null; },
+  querySelector(selector) {
+    return selector === ".message-customize-title"
+      ? {innerText: "見積り提案をしました"} : null;
+  },
+};
+const row = {
+  id: "message-1",
+  getAttribute(name) { return name === "data-message-id" ? "message-1" : null; },
+  querySelector(selector) {
+    if (selector === ".threadMessage") return offer;
+    if (selector === '.threadUser a[href*="/users/"]') return author;
+    if (selector === ".threadPostTime") return time;
+    if (selector === ".js-translateMessageOriginalMessage,.threadMessage") {
+      return {innerText: "見積り依頼"};
+    }
+    return null;
+  },
+  querySelectorAll(selector) { return selector === ".message-customize" ? [card] : []; },
+};
+const container = {
+  querySelectorAll(selector) { return selector === ".threadColomun" ? [row] : []; },
+};
+globalThis.location = {
+  origin: "https://coconala.com",
+  href: "https://coconala.com/mypage/direct_message/12",
+};
+globalThis.document = {
+  title: "メッセージ",
+  body: {innerText: ""},
+  querySelector(selector) {
+    if (selector === ".bl_messages-list") return null;
+    if (selector === ".js_thread-wrapper") return container;
+    if (selector === '.sidebar-profile a[href*="/users/"]') return own;
+    return null;
+  },
+  querySelectorAll() { return []; },
+};
+process.stdout.write(eval(input.expression));
+"""
+    observed = subprocess.run(
+        [node, "-e", harness],
+        input=json.dumps({
+            "expression": adapter_module.snapshot.DIRECT_MESSAGE_EXPRESSION,
+            "own_path": own_path,
+            "author_path": author_path,
+        }),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert observed.returncode == 0, observed.stderr
+    dom = json.loads(observed.stdout)
+    assert len(dom["structured_offers"]) == 1
+    card = dom["structured_offers"][0]
+    assert card.get("author_path") == author_path
+    assert dom.get("own_user_path") == own_path
+    assert card.get("sender_side") == expected_side
+
+    from datetime import date
+    semantic = adapter_module.requested_estimate
+    today = date(2026, 10, 5)
+    terms = semantic.materialize_delivery_content({
+        "title": "開発", "content": "実装", "quantity": 1,
+        "price_jpy": 10000, "delivery_days": 7, "purchase_plan": "single",
+    }, today)
+    outcome = semantic.classify_delivery(
+        pre_click_cards=dom["structured_offers"], post_click_cards=[],
+        terms=terms, click_started_at=None, today=today,
+        request_sent_at="2026-10-05T00:00:00Z",
+        own_user_path=dom.get("own_user_path"),
+    )
+    if expected_side == "seller":
+        assert outcome["status"] == "already_delivered"
+        assert len(outcome["cards"]) == 1
+    else:
+        assert outcome["status"] == "not_required"
+        assert outcome["cards"] == []
 
 
 def test_fill_expression_supports_current_smartphone_message_input():

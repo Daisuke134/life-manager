@@ -4744,18 +4744,18 @@ DIRECT_MESSAGE_EXPRESSION = (
         "const title=document.title;const normalizedBodyText=((document.body&&document.body.innerText)||'').replace(/\\s+/g,' ').trim();const sending_unavailable=normalizedBodyText.includes('相手の方は現在ココナラの利用を制限されているため、メッセージのやりとりができません。');const container=",
     )
     .replace(
-        "const own=document.querySelector('.sidebar-profile a[href*=\"/users/\"]');const path=a=>a?new URL(a.href,location.origin).pathname:null;",
-        "const own=document.querySelector('.sidebar-profile a[href*=\"/users/\"]');const path=a=>a?new URL(a.href,location.origin).pathname:null;const ownPath=path(own);",
+        "const ownLegacy=document.querySelector('.sidebar-profile a[href*=\"/users/\"]');const own=path(ownLegacy)||'/users/0';",
+        "const ownLegacy=document.querySelector('.sidebar-profile a[href*=\"/users/\"]');const ownPath=path(ownLegacy);const own=ownPath||'/users/0';",
     )
     .replace(
         "const offer=card.closest('.threadMessage')||card;const link=offer.querySelector('.customize-title-link[href]');const text=",
         "const offer=card.closest('.threadMessage')||card;const link=offer.querySelector('.customize-title-link[href]');const author=row.querySelector('.threadUser a[href*=\"/users/\"]');const authorPath=path(author);const text=",
     )
     .replace(
-        "sent_at:(time&&time.innerText||'').trim()||null}}).filter(card=>card.offer_url||card.message_kind);",
-        "sent_at:(time&&time.innerText||'').trim()||null,author_path:authorPath,sender_side:ownPath&&authorPath===ownPath?'seller':authorPath?'buyer':null}}).filter(card=>card.offer_url||card.message_kind);",
+        "sent_at:(time&&time.innerText||'').trim()||null}}).filter(card=>card.offer_url||card.message_kind));",
+        "sent_at:(time&&time.innerText||'').trim()||null,author_path:authorPath,sender_side:ownPath&&authorPath?(authorPath===ownPath?'seller':'buyer'):null}}).filter(card=>card.offer_url||card.message_kind));",
     )
-    .replace("own_user_path:path(own),estimate_url", "own_user_path:ownPath,sending_unavailable,estimate_url")
+    .replace("own_user_path:own,estimate_url", "own_user_path:ownPath,estimate_url")
     .replace(
         "完了予定日\\s*(20\\d{2}[\\\\/-]\\d{1,2}[\\\\/-]\\d{1,2}|20\\d{2}年\\d{1,2}月\\d{1,2}日)",
         "完了予定日\\s*[：:]?\\s*(20\\d{2}[\\\\/-]\\d{1,2}[\\\\/-]\\d{1,2}|20\\d{2}年\\d{1,2}月\\d{1,2}日)",
