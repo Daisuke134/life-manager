@@ -265,6 +265,7 @@ Expected: recovered exact accounts work; inactive, ambiguous, mismatched, Telegr
 
 **Files:**
 - Modify: `apps/life-manager/lib/transport/calendar-composio.js`
+- Modify: `apps/life-manager/lib/calendar-cache.js` and `apps/life-manager/lib/calendar-cache.test.js`
 - Modify: `apps/life-manager/lib/travel.js` and `apps/life-manager/lib/travel.test.js`
 - Modify: `apps/life-manager/lib/travel-return.test.js`
 - Modify: `apps/life-manager/lib/events-history.test.js`
@@ -274,14 +275,15 @@ Expected: recovered exact accounts work; inactive, ambiguous, mismatched, Telegr
 - The travel caller can distinguish confirmed creation, definite no-effect rejection, and unknown effect. Only a rejection before provider dispatch (for example, missing credentials or account-marker mismatch) or an explicit Composio HTTP 4xx is definite no-effect. Network/5xx/unreadable responses and a 2xx `successful:false` action body remain unknown because the docs do not guarantee no side effect.
 - `fillTravel` releases a GO/RETURN claim only on a definite no-effect rejection. For unknown outcomes it performs strict Calendar readback through Task 6's same expected account ID. Resolve only one event matching exact expected summary and `startMs`/`endMs`, plus destination after whitespace removal and lowercasing; no match, ambiguity, or failed readback keeps the claim fenced and prevents replay. Readback-only matches remain verified, never newly added.
 - Preserve the existing `createEvent` call path through `makeCachedCalendar`; effect classification must not add an unwrapped second create method. Unknown attempts still invalidate that uid's cached event windows before strict reconciliation.
+- Operation-level `expectedCalendarAccountId` must pass through the cache wrapper to Composio list/create/patch calls even when the adapter was built without a constructor pin; cache keys separate account IDs.
 
 - [ ] **Step 1: Add failing GO and RETURN claim-fence regressions**
 
-Cover `keeps GO claim after an unknown create result`, `keeps RETURN claim after an unknown create result`, `2xx successful:false remains unknown`, `no-dispatch and Composio HTTP 4xx release only the unperformed claim`, `one exact readback match resolves to verified but not travel_added`, `summary/startMs/endMs/destination mismatch is not a match`, `unknown create invalidates cached events before strict readback`, and `failed/empty/ambiguous readback never releases an unknown claim`.
+Cover `keeps GO claim after an unknown create result`, `keeps RETURN claim after an unknown create result`, `2xx successful:false remains unknown`, `no-dispatch and Composio HTTP 4xx release only the unperformed claim`, `one exact readback match resolves to verified but not travel_added`, `summary/startMs/endMs/destination mismatch is not a match`, `unknown create invalidates cached events before strict readback`, `cached adapter forwards operation account pin to list/create`, `cache keys separate account IDs`, and `failed/empty/ambiguous readback never releases an unknown claim`.
 
 - [ ] **Step 2: Run focused travel tests and confirm the new cases fail**
 
-Run: `node --test lib/travel.test.js lib/travel-return.test.js lib/events-history.test.js lib/travel-usage.test.js`.
+Run: `node --test lib/travel.test.js lib/travel-return.test.js lib/events-history.test.js lib/travel-usage.test.js lib/calendar-cache.test.js`.
 Expected: unknown create outcomes currently become `successful:false` and unclaim; new assertions fail.
 
 - [ ] **Step 3: Preserve effect uncertainty from Composio through both travel legs**
@@ -290,7 +292,7 @@ Keep confirmed success and definite-rejection behavior. Preserve uncertainty thr
 
 - [ ] **Step 4: Rerun focused tests and commit**
 
-Run: `node --test lib/travel.test.js lib/travel-return.test.js lib/events-history.test.js lib/travel-usage.test.js`.
+Run: `node --test lib/travel.test.js lib/travel-return.test.js lib/events-history.test.js lib/travel-usage.test.js lib/calendar-cache.test.js`.
 Expected: both legs remain fenced on unresolved effect, one exact readback stays verified rather than newly added, and no duplicate create is attempted. Commit as `fix(life-manager): retain claims for unknown calendar writes`.
 
 ### Task 8: Complete truthful Today display
