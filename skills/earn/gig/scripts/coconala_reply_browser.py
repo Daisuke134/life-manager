@@ -72,6 +72,42 @@ class BrowserSendFailure(RuntimeError):
         self.network = network
 
 
+_SAFE_COLLECTOR_ERROR_REASONS = frozenset({
+    "login", "not_found", "error_page", "unexpected_url", "unexpected_title",
+    "missing_container", "missing_sender_identity", "invalid_message_row",
+    "dm_attachment_message_identity_changed", "thread_changed",
+})
+_SAFE_BROWSER_SEND_ERROR_CODES = frozenset({
+    "network_enable_failed", "bring_to_front_failed", "submit_form_failed",
+    "refresh_thread_failed", "network_drain_failed", "post_click_read_failed",
+    "click_transport_failed", "coconala_thread_changed",
+    "coconala_reply_reconcile_unknown", "submit_rejected_external_contact",
+    "submit_rejected_message_validation", "submit_rejected_sending_unavailable",
+    "submit_rejected_other_validation", "submit_rejected_no_validation",
+})
+
+
+def safe_error_summary(error: Exception) -> dict[str, str]:
+    """Return only stable error identity, never the exception's arbitrary detail."""
+    result = {"error_type": type(error).__name__}
+    code = None
+    if type(error).__name__ == "CollectorUnhealthy":
+        message = str(error)
+        prefix = "collector_unhealthy:"
+        reason = message[len(prefix):] if message.startswith(prefix) else ""
+        if reason in _SAFE_COLLECTOR_ERROR_REASONS:
+            code = f"{prefix}{reason}"
+    elif type(error).__name__ == "BrowserSendFailure":
+        candidate = getattr(error, "code", None)
+        if type(candidate) is str and candidate in _SAFE_BROWSER_SEND_ERROR_CODES:
+            code = candidate
+    elif type(error) is RuntimeError and str(error) in _SAFE_BROWSER_SEND_ERROR_CODES:
+        code = str(error)
+    if code is not None:
+        result["error_code"] = code
+    return result
+
+
 class NetworkSummary:
     """Retain bounded request outcomes without bodies, headers, or query strings."""
 
@@ -133,6 +169,39 @@ class NetworkSummary:
 
     def rows(self) -> list[dict[str, Any]]:
         return [dict(row) for row in list(self._requests.values())[:10]]
+
+    @staticmethod
+    def safe_diagnostic_summary(
+        rows: Any, *, expected_path: str | None = None,
+    ) -> dict[str, Any]:
+        """Project request outcomes without retaining a URL or thread identifier."""
+        source = rows if isinstance(rows, list) else []
+        safe_rows = []
+        for row in source[:10]:
+            if not isinstance(row, dict):
+                continue
+            method = row.get("method")
+            if type(method) is not str or method not in {"POST", "PUT", "PATCH", "DELETE"}:
+                continue
+            outcome = row.get("outcome")
+            if type(outcome) is not str or outcome not in {"pending", "finished", "failed"}:
+                continue
+            request_class = (
+                "direct_message_submit"
+                if expected_path and row.get("path") == expected_path
+                else "other_mutation"
+            )
+            item: dict[str, Any] = {
+                "method": method,
+                "request_class": request_class,
+                "status": row.get("status") if type(row.get("status")) is int else None,
+                "outcome": outcome,
+            }
+            failure = row.get("failure")
+            if type(failure) is str and re.fullmatch(r"(?:ERR_[A-Z0-9_]+|network_error)", failure):
+                item["failure"] = failure
+            safe_rows.append(item)
+        return {"request_count": min(len(source), 10), "rows": safe_rows}
 
     def settled(self) -> bool:
         return bool(self._requests) and all(
@@ -618,6 +687,7 @@ class CoconalaCdpReplyBrowser:
         self.outgoing_hash = ""
         self.send_network: list[dict[str, Any]] = []
         self.send_error_code = ""
+        self.read_after_error: dict[str, str] | None = None
         self.required_official_context = "none"
         self.semantic_context_sha256: str | None = None
         self.semantic_expected_last_sender = "buyer"
@@ -967,6 +1037,7 @@ class CoconalaCdpReplyBrowser:
     def read_after(self) -> dict[str, Any]:
         if self.before is None or not self.outgoing_hash:
             raise RuntimeError("before state and outgoing body are required")
+        self.read_after_error = None
         last: dict[str, Any] = {"status": "read_failed"}
         deadline = time.monotonic() + self.verify_timeout_seconds
         refreshes = 0
@@ -975,7 +1046,8 @@ class CoconalaCdpReplyBrowser:
                 break
             try:
                 _, last = self._read()
-            except Exception:
+            except Exception as error:
+                self.read_after_error = safe_error_summary(error)
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     break
@@ -997,7 +1069,8 @@ class CoconalaCdpReplyBrowser:
                 refreshes += 1
                 try:
                     asyncio.run(self._fresh_navigation(remaining))
-                except Exception:
+                except Exception as error:
+                    self.read_after_error = safe_error_summary(error)
                     last["status"] = "read_failed"
                     break
                 remaining = deadline - time.monotonic()
