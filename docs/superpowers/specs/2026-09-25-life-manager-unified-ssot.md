@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知6修正はsource受入済み、本番は3に残る。週次validationのreload starvationをcalendarへ最小修正中（§486）。他owner根因は1で特定する。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知7修正はsource受入済み（週次calendar含む）、本番は3に残る。Capafy start-event欠落/Lancers account境界の根因は1で特定する（§487）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7360,3 +7360,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh main30386440a50db8e9d0d2331c3be9d2d395a22555由来専用worktree `.worktrees/lm-validation-weekly-calendar-20261005` / branch `fix/lm-validation-weekly-calendar-20261005` / primarylease owner codex-money-printer-weekly-calendar24h/clean。他同task worktreeなし。次Luna/maxは2files限定でRED→GREEN/構造gate/commit-push-remote。trading/strategy/model/provider/price/auth/production/applyは変更しない。
 - Lancers保存PASSは09/02、account metadataは08/10 signup_submitted_unconfirmedで現在証明に使わない。最新launchd stdoutはaccount_unavailable125/250末尾linesだがresponse/URL/login_form/exceptionの具体原因は保存されていない。旧browser/work-sync logsも08–09月で、最新auth原因へ流用しない。次はowner境界を守ったfresh account diagnosis又は必要最小source観測。
 - Capafy次probeは9:30直前loaded continuity/pre-eventエラー/event保存境界。§217cursor1/source2の独立weekly修正、main例外未回答/Coconala保留/SelfBuild最後/全goal未完を維持。本番mutation0。
+
+
+### 487. 週次calendar source受入とCapafy発火後の境界
+
+- weekly branch fix/lm-validation-weekly-calendar-20261005 / HEAD・remote d28c0f6ea0c752a8b6167539591c6b9466767369 / base30386440 / clean。対象registry cadence1rowと既存plist testのみ。Weekday2/Hour14/Minute30、週1頻度維持、RunAtLoadなし。worker focused3 PASS、primary実registry2release描画regression1/1 PASS、構造14/178/103/errors0、diffcheck・remote一致PASS。source受入。本番自然run/初回deadline達成/収益は未確認、現在期限前でmissed扱いしない。
+- Capafy monitorはplist Disabledなし、GUI disabled overrideなし。calendar monitor UserEventAgent-Aquaはrunning/PID365/runs1。loaded triggerはcalendarinterval・Hour9/Minute30、eventchannel idle flagsは過去発火の否定証拠にしない。共有stdout/stderrのowner名付きfailure0は、generic事前失敗を排除しない。
+- OS unified logを09:29–09:32 JST/owner名で限定read（info/debug含む）。09:30:13.735730にUserEventAgent `Running StartCalendarInterval`、09:30:16.128275に翌10/6 09:30へrescheduleを確認。他ownerの09:20–09:40 execute7件もあり、全host停止/時計誤りだけでは説明しない。これはtrigger発火の証拠でありjob child実行/terminal/effectの証明ではない。
+- Capafy root境界はcalendar delivery→launchd spawn→runner pre-event validation/lock→event保存。事後reloadで旧runs消失、保存ログにもowner-specific startup traceなし。system service stop/restart/広いlog設定変更/手動job起動を行わず、次は利用可能なowner別historical spawn/事前失敗の証拠又は必要最小観測を選ぶ。
+- 本turnのruntime readbackはreadonlyのみ。週次source以上のscheduler変更やCapafy修正を推測で入れない。§217cursor1/source2既知7件受入、本番は例外未回答の3に残る。Lancers account、各loop自然実行/公式receipt/CFO/SelfBuild/Evalの残scopeを維持。
