@@ -112,6 +112,18 @@ billing rows; `publish_finish.sh` prints `PRICE_MISMATCH_WARNING` if they still 
    `Daily → price ph "0.07", cap ph "50"` · `Weekly → "0.5" / "200"` · `Monthly → "2" / "500"`.
    (Confirm the placeholders in `state` before trusting them — if the UI changed,
    just read each card's visible Period label and fill that card's two number inputs.)
+   **Use `typeinto`, never `fill`, for price and Request-Limit inputs.** Measured
+   2026-10-05 on Hook Lab v1.0.5: `fill` (JS `.value` + dispatchEvent) showed the new
+   price on screen, but the form's React state kept the old value, and the saved
+   billing was still $1.99/$4.99/$9.99 — the same failure that let the 2026-09-29
+   reprice go live at old prices. `typeinto` (CDP `Input.insertText`) updated the
+   preview price immediately and saved correctly. After saving, run
+   `scripts/verify_pricing.py --agent-id <ID> --listing <LISTING.md>`; on
+   `PRICING_MISMATCH` re-open the edit URL (`publish_prepare.sh` re-issues it) and
+   re-enter the prices with `typeinto`.
+   The card has exactly three plan cards (day/week/month) and no "Add Plan" button
+   (2026-10-05); a Yearly row in the LISTING cannot be added here yet, so
+   `PRICE_MISMATCH_WARNING ... year: missing` is expected until that path is found.
 5. Each plan needs a trial choice (required). Read the TARGET line printed by
    `publish_prepare.sh` for that plan's `trial=` value:
    - `trial=No Free Trial` → click **"No Free Trial"**.
