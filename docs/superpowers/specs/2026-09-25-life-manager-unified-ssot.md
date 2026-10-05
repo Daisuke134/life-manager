@@ -8338,3 +8338,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - guardstatusは登録browserPID29606・legacy holder5434/acquired1791212290/holder_start無し。psで5434はCodex app-serverの長寿命基盤と確認し、そのlivenessを実browser作業所有の証拠にしない。最近更新13sessionだけの限定検索で別session01a10aa8-e7ab-74e2-a12c-bf9a51e6690dの14:58:09.772Z guardacquire call_50eBza6YZFOYWNUVnWD81BFr（explicit holder binding無し）を特定。root自身のleaseではなく、解除/横取り/基盤restart0。AGMSG peerへ所有確認を送信、team.sh読取handle92189は実行中、未回答を稼働承諾にしない。
 - 運用ミスも保持：一時file作成ENOSPC後、rootはcentral_cleanup.py --helpをヘルプ取得と誤解して通常host cleanupを起動。未対応argをsourceで確認後、この誤起動のPID41356/41358/41760だけSIGTERM、session11001 exit143・ps全missing。帰属可能な終了receipt未取得で削除件数/保護削除0を推測しない。既存last-receiptは別時刻なので代用しない。dfはその後約520MB、temporary write PASS。追加cleanup/共有データ削除は行わず、この境界を記録する。
 - sourceproofへadoption/自然run/browser所有待ちを更新。残44/cursor1・順序不変。次は担当側lease使用終了の確認→guard正規取得→旧見積り公式readbackと新自然diagnostic。本人/Account Holder等外部条件を成功にしない。
+
+
+### 607. Browser leaseの連絡先照合と独立read-only確認
+
+- fresh current guardは同legacyholder5434/acquired1791212290/registeredbrowser29606/reachabletrueのまま。AGMSG inbox新返信0。root identities.shの提供経路でlife-manager canonical projectの登録Codex名を確認し、lm-cfo-observability-1002/lm-ios-growth-1004へ所有確認だけsend。新委譲/別lane編集/登録済みを稼働証拠とする判断は0。既存peer lm-claude-capafy-recipe-1004への連絡も保持。
+- fresh read-only Sol6.1/medium検証者が対象1sessionの取得call14:58:09.772Z→対応出力14:58:10.109Z Scriptcompleted/exit0を確認。取得コマンドterminalとbrowser使用終了は別。取得後release呼出しは同log0、末尾15:41:35.089Zはreasoningでsession/browser使用終了を証明しない。実callにAGMSG owner名無し、連絡先未特定。ログの私的本文/URL/credentialを共有せずmetadataのみ使用。
+- root既存team一覧handle92189は未終了。検証者の重複read-only一覧は自分の要求だけ安全停止/exit130、root要求/lease/登録/送信/基盤に変更0。rootは一覧の遅延を停止中seatや解放可能の根拠にしない。最小再開条件は取得sessionに対応するowner確認と、そのownerによる使用終了/正規releaseの証拠。
+- source107/freshSHIP/全CI/main28c09277/ALLrelease/Replyadoption/新source自然wakeは維持するが、旧12件公式照合は未達。残44/cursor1・順序不変。次は所有確認応答と正規lease解放をreadbackし、guard取得後に公式見積りreadback/自然診断を続ける。rootの解除/横取り/基盤restart/送信再試行0。
