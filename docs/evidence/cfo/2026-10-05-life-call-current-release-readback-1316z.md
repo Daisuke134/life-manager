@@ -27,3 +27,8 @@ Schema probe: GET-only、2026-10-05T13:16:44.748Z、exact release SHA filter。r
 
 - 同一windowのGET-only queryでは、`gemini_live` / `telnyx_call` rowsが0件、`provider_usage`かつfeature=`live_api` rowsも0件。
 - これは期間内の該当cost ledger rowを観測しなかった意味だけであり、自然voice occurrenceの不存在、voice費用ゼロ、provider請求なしの証拠ではない。検証者によるprovider call、Calendar call、DB writeは0件。
+
+## Natural carrier occurrence log readback
+
+- Railway production `life-call`のdeployment `38b34ef2-4900-4ccc-83b8-f874bf88fac8`を、同じ開始時刻から2026-10-05T13:28:35.314ZまでGET-onlyで照会。`listening` filterでは既知のstartup markerが1件（12:36:09.930248950Z）返り、期間内のlog検索が機能することを確認。`carrier connected` filterは0件。
+- 取得したlog本文・call ID・phone number・transcriptは保存していない。自然なcarrier connectionはこのreadbackで観測されず、確認者はテスト通話を開始していない。この結果だけで期間外のvoice occurrenceやactual chargeを否定しない。
