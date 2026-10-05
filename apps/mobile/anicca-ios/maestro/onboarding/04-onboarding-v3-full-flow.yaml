@@ -121,7 +121,7 @@ tags:
     id: "paywall-primer-cta"
 - extendedWaitUntil:
     visible:
-      text: "あなたが一番つらいとき"
+      text: "あなたが一番つらいとき、\nそっと届く言葉"
     timeout: 15000
 - takeScreenshot: "v7-12-plan-selection"
 - assertVisible:
