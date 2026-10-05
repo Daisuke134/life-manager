@@ -1,125 +1,131 @@
 # Anicca eBook Revenue Loop — Design
 
-> この文書は設計参照です。Life Manager の実行順・current cursor・TODO state は docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md だけを正本にします。
+> この設計文書は商品・配布間の契約を定めます。全体の実行順と現在cursorの正本は Life Manager unified SSOT です。
 
-## 目的
+## 成果
 
-既存の The Anicca Reset と自社 Stripe checkout を使い、既存の自社SNSアカウントから一回購入と任意の継続購読につながる収益 loop を整えます。eBook の一回購入と subscription MRR を分離し、同じ期間の公式 sale/refund/fee/cost/settlement receipt で成果を判定します。
+1. eBookを既存の自社アカウントで配信し、最初の自然な有料Stripe注文と正しいlocaleのPDF納品を同一campaignに結び付ける。
+2. Letter/Tegamiの有料subscriptionだけをMRRに数える。trialやeBook一回購入はMRRではない。
+3. その最初のeBook注文・PDF receipt後に、Capafy Instagram marketingだけを開始する。Capafyの商品、listing、account lifecycleの開発は別担当の所有範囲に置く。
+4. eBookの14日間readbackはCapafy開始後も継続し、後続の収益作業を止めない。
 
-## 優先度と担当境界
+## 範囲と担当
 
-- Dais が指定した実行順は、(1) eBook を一件の自然な有料checkout・PDF配信receiptまで通す、(2) Capafy Instagram marketing を開始する、です。eBook の14日計測は2へ進んだ後も継続し、次の仕事を止めません。
-- eBook配信loopは未登録で、現在の担当者もいません。このspecとplanの最初の実装対象です。
-- Capafyの商品・listing・account lifecycleのコードは別の担当者が所有します。この作業はCapafy Instagram marketingだけを担当し、既存の`life-manager-capafy-ig` Postiz laneを利用します。Capafy側のコードを重複修正しません。
-- eBookとCapafyの両方で、新規・代替アカウントは作成しません。registryにある既存アカウントをprovider公式状態と照合し、ユーザー所有とgood-standingを確認できたものだけ使います。対応が無いlocale/platformは`setup_required`のままにし、投稿を止めます。
-- eBookの有料購入、Letter/Tegami subscription、Capafyの注文は別の商品・別のcampaign tokenで追跡します。subscriberへの登録は明示opt-inの結果だけです。
+- eBook checkout/webhook/PDF fulfillmentは anicca-products の既存Stripe・Netlify・Supabase・Resend経路を使う。
+- eBookとCapafyのcreative・投稿ownerはLife Managerの既存Marketing Engine、account registry、publication adapterへ接続する。OpenClawにschedulerを追加しない。
+- eBook marketingは既存の本人所有Instagram/TikTok accountだけを使う。registryとprovider readbackでidentity・good-standingを確認できないaccountは使わず、代替accountも作らない。
+- Capafyは既存の life-manager-capafy-ig Postiz laneを唯一のpublish ownerにする。Capafy product code・価格・listing・account lifecycleは変更しない。
+- Daisが直接編集したcopyや投稿を、確認なく書き換え・公開しない。通常の技術判断やloop内部のmarketing creativeは既存ownerの権限内で進める。
 
-## 現在の根拠（read-only、2026-10-05）
+## 現状（2026-10-06に確認した証拠）
 
-- Daisuke134/anicca-products main に /monk、/achan、Stripe checkout、checkout.session.completed webhook、PDF assets があります。公開ページ表示は EN $10.99、JA ¥1,580 です。ページやコードの存在は購入・売上の証明ではありません。
-- /monk と /achan は eBook の一回購入です。/letter $9.99/月、/tegami ¥980/月は別の subscription 商品で、MRR を生む経路です。
-- /letter と /tegami は14日trial後に請求するsubscription checkoutです。trialing状態やsubscription作成だけをpaid MRRに数えず、最初の`invoice.paid`後にactive paid subscriptionとして数えます。
-- 既存`/go/<token>` routeはclick receiptを書き、ebook token `ee_...`/`ej_...`を`utm_campaign`として`/monk`/`/achan`へ渡します。4つのlanding CTAとcheckoutは現在tokenをStripeに渡していません。
-- 現行`/monk` checkout requestは`lang`だけを渡し、Stripe metadataにcampaign idを持ちません。`checkout.js`はebookをone-time payment、Letterをsubscriptionとして扱います。
-- `webhook.js`はbuyer/subscriber記録とメールを処理しますが、Supabase write failureを`.catch(()=>{})`で隠し、同じStripe eventの再配信でメールを再送し得ます。
-- eBook配信メールは現在PDF linkだけを含みます。optional CTAから同じ`utm_campaign`付きで`/letter`/`/tegami`へ進めますが、購読は別のcheckoutを本人が完了した場合だけ成立します。
-- 公開MarkdownはEN/JAともH2章見出しが49個です。各章本文はEN平均76.8語（55–123語）、JA平均178.9文字（空白除外、127–280文字）で、ページの「各章約150語/字」と一致しません。HTMLとJSON-LDから章ごとの長さのclaimを外し、「49の短章」に揃えます。
-- checkout attribution helper とStripe Checkout metadataはproduct PR #419（merge `6c52d4cc13`）でmainへ反映済み。focused tests 7/7、telemetry suite 336/336、GitHub Actions Next build PASS。Life Manager の marketing-engine/ebook_runner.py は receipt 付き render と awaiting_visual_approval の配信 intent を作りますが、Stripe 売上や公開投稿は行いません。
-- Task 2の初回product PR #420 (`f712eacec4`) はdurable receipt、同一session replay防止、Resend ID/409 effect fence、campaign CTA、trial/invoice/status receiptを実装し、PR telemetry/buildはPASSした。fresh reviewsでtimestamp CAS、late-delivered旧Checkout、既存mapping欠落、superseded CheckoutのWelcome終端化、legacy pointer再選出欠落、test-only Resend senderの問題が判明した。修正commit `b8ea8f0c2e` は同じPR #420へpush済み。最終diffはDB generation reserve→Stripe GET→generation一致apply、superseded Checkout receiptのretryable化、legacy mapping/paid flag seed、全subscription stateのtier集計、公式readback後の最大`Subscription.created`pointer再選出を実装する。メール送信元はrequired env `RESEND_FROM_EMAIL`で、未設定時はResend呼び出し前にretryable receiptを返す。eBook/Writer tests 27/27、telemetry 358/358、PostgreSQL 18 fixture、独立source reviewはPASS。最終commit headのPR CIと手動metadata probeは現在実行中。本番schema/type/constraint、migration適用、schema cache、verified senderは未確認。
-- production schema readbackは`buyers`/`subscribers`の列のみで型・制約は不明、`ebook_webhook_receipts`は前回未公開。Resend `GET /domains`は401、`onboarding@resend.dev`はtest-only sender。migration未適用・送信元未確認のためmain deployは保留。workflow_dispatchでは`next/font`のnull-regex errorでbuildが失敗し、manual-only provider metadata probeがskipされた。probeをbuildより前へ移動して再取得する。
-- `ebook-distribute-daily`は`config/loop-registry.json`にありません。EN packはTikTok accountを登録しInstagramを`setup_required`にします。JA packにはTikTokとInstagramが登録されていますが、packの記載自体はprovider login/statusの証拠ではありません。
-- OpenClaw local jobs.json では monk 関連 cron が無効です。Gateway が切断しているため loaded schedule は未確認です。Life Manager の CFO readback でも eBook の sale/net/settlement は unknown です。
-- Capafyには旧`capafy-ig-marketing-daily`と新`life-manager-capafy-ig`のscheduled ownerがあります。新laneのruntime fix PR #6663とeffect-reconcile PR #6668はmainにmerge済みですが、installed releaseは未反映でpost receiptもありません。旧ownerの最新readbackは`18dba3f8c5d30d00-93546`（effect unknown）で、`18db7caff1178a88-68028`もofficial readback待ちです。二重ownerと未解決effectを閉じるまでCapafy投稿を開始しません。
-- 新Postiz laneは09:00/14:00/20:00の3回/日です。最初のマーケティングcanaryは1回/24時間に制限し、その制御ができるまでscheduleをliveにしません。
+### eBook商品・売上経路
 
-## 指標の定義
+- anicca-products PR #419 はmain commit 6c52d4cc13へ統合済み。EN /monk $10.99、JA /achan ¥1,580のone-time checkout、/go token、checkout metadataの接続がある。/letter $9.99/月と/tegami ¥980/月は別のsubscription商品で14日trial後に請求する。
+- PR #420はOPEN。最新head bc34edb14bでは、signature-verified webhook receipt、PDF delivery retry fence、Stripe subscription readback generation、legacy subscriber mapping、trialとpaid MRRの分離、必須RESEND_FROM_EMAILを実装済み。eBook/Writer 27/27、telemetry 358/358、PostgreSQL 18 fixture、source reviewはPASS。head bc34のLanding PR check run 37339391128はPASS。
+- PR #420のPostgreSQL fixtureはemail UNIQUEなしでも、同一正規化emailの2つの購読予約を1 subscriber rowへ収束させる。独立reviewもこの差分をPASSした。ただしこれは同じRPCへ来るwriter間の直列化で、lead-magnet.jsの別writerはまだadvisory lockを使わない。
+- Production PostgREST readbackでbuyersとsubscribersの列型は確認済み。buyersはuuid/text/integer/timestamptz、subscribersはuuid/text/timestamptzを使う。unique index・constraintはPostgRESTから確認できていない。ebook_webhook_receiptsは未作成（PGRST205）。SQL adminでのmigration適用とschema-cache/RPC readbackは未完了。
+- ProductionのRESEND_FROM_EMAIL設定は存在し、送信元domain aniccaai.comはResend dashboardでVerifiedを確認済み。Resend API keyはGET /domainsを許可しないため、API経由のdomain readbackではない。購入者へのemailはまだ送っていない。
+- lead-magnet.jsはsubscribersへ直接PostgREST POSTし、成功状態を検査せず、Day-0 emailにはonboarding@resend.devを固定使用する。登録制約とproduction send readinessを解決してから大規模なlead acquisitionに使う。
+- 同一occurrenceに結び付いた自然なpaid sessionと正しいPDF delivery receiptはまだ確認できていない。売上とsettlementはunknownであり、ゼロとは扱わない。
 
-- MRR は有料invoiceが支払われ、Stripe subscription stateがactiveのLetter/Tegami subscriptionだけの月額recurring revenueです。trialing、invoice未払い、一回のeBook purchaseはMRRに含めません。fees/refunds/actual cost/bank settlement後のnet profitは別metricとして報告します。
-- $9.99/月で$10,000 gross MRRには1,002 active paid subscribersが必要です。fees、refunds、costを引いたnet targetにはそれ以上必要です。
-- $10.99 の eBook 一回購入で月 $10,000 gross には910件の paid orders が必要ですが、これは monthly one-time sales であって MRR ではありません。
-- Life Manager の既存 $10,000 target は30日維持の banked net profit です。Capafy seller earnings、eBook gross、subscription MRR、banked net は別 metric のまま保持します。算数は規模の目安で、予測ではありません。
-- Daisの目標は、eBook subscriptionで$10,000のgross MRR、Capafy marketingでmanagerへ$10,000を加えることです。Capafy contributionは既存CFO定義に従い、手数料・実費・出金・銀行着金を照合した30日banked netで数えます。既存portfolio planのCapafy配分$5,000とは差があるため、実測前のforecastには使いません。
+### eBook marketing
 
-## データフロー
+- Marketing Engineのebook_runner.pyはrender receiptとpublication intentを作るが、intentはawaiting_visual_approvalで、live publication ownerはloop registryにない。
+- attribution.pyはebook-ja/enのee_/ej_ tokenを生成する。anicca-productsの/go endpointは同形式を受け付け、marketing_click_receiptsへ記録して/achan・/monkへutm_campaignを渡す。checkout metadataへのpropagationはPR #419にある。renderからpaid order receiptまでを結ぶcross-repo contract/readbackは未完了。
+- 現行EN packはTikTok accountのみを登録し、Instagramをsetup_requiredとしている。JA packはTikTokとInstagram integrationを登録している。pack登録はprovider login、本人所有、good-standingの証拠ではない。
 
-```mermaid
+### Capafy Instagram marketing
+
+- 現行runtime readback（2026-10-06 01:25 JST）では、旧capafy-ig-marketing-dailyと新life-manager-capafy-igがともにloaded-idleだが、両方にactive effect_unknown fenceが残りprovider receiptはない。旧ownerのactive fenceはcapafy-ig-marketing-daily:18db7caff1178a88-68028（no_pre_effect_terminal）、新ownerの最新occurrence/fenceはlife-manager-capafy-ig:18dbad480e76aff0-21015（entrypoint_exit_1、no_pre_effect_terminal）。新ownerのinstalled SHAは4eb6bbbaで、mainのruntime/effect-reconcile source fixは未反映。旧ownerは28c09277。公式readbackで両effectを閉じ、account identity/statusを確認して一つのownerにするまで公開しない。D5の原子的TODOはdocs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.mdを参照する。
+- D5の既存正本は docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md。「eBook first receipt後に開始」「両laneのeffectをreadback」「ownerを一つにする」「1日1回以下のcanary」「14日測定」を既に定義している。このspecではD5のTODOを複製しない。
+- CAPTCHA候補をGitHub一次資料で調査した。最近更新された[fiptcha](https://github.com/figranium/fiptcha) (Apache-2.0, 2026-10-05更新)はreCAPTCHA v2 / hCaptcha / Turnstile用のlocal solverで、browserを起動せず既存Playwright-compatible pageを受け取る。Dynamic 3x3 gridは不安定で、registered direct-CDP sessionとの互換性は未検証。DataDome/GeeTestは対象外。[aster-go/Datadome-GeeTest-Captcha-Solver](https://github.com/aster-go/Datadome-GeeTest-Captcha-Solver)はMITだがGeeTest puzzle位置を計算するだけでproviderへchallengeを完了しない。[CapSkip Python SDK](https://github.com/capskip/capskip-python)はMITだが有料desktop appが必要。現行Capafy statusのentrypoint_exit_1/resource_effect_unknownはCAPTCHA表示の証拠ではないため、実画面のchallenge typeを確認する前にsolverを導入・実行しない。
+- Capafyの既存landing redirectはInstagram bio clickを記録し、seller analyticsは注文・収益を集計する。1投稿ごとの注文IDが得られない期間の投稿→売上対応はcandidate attributionとして表示し、因果と断定しない。
+
+## 理想の構成
+
+~~~mermaid
 flowchart LR
-  subgraph E[1. eBookを先に実装]
-    EC[原文に基づくeBook実演動画] --> EA[所有と状態を確認した既存IG/TikTok]
-    EA --> GO[/go/<token> click receipt]
-    GO --> EP[/monk または /achan?utm_campaign=<token>]
-    EP --> ES[Stripe一回購入 metadata.attribution_token]
-    ES --> EW[署名検証済み・冪等なwebhook]
-    EW --> ED[購入とPDF配信receipt]
-    ED --> EM[同じtoken付きの任意購読CTAメール]
-    EM -. 本人が選択 .-> LT[/letter または /tegami?utm_campaign=<token>]
-    LT --> TS[14日trial subscription]
-    TS --> PAY[初回 invoice.paid]
-    PAY --> LR[active paid subscription MRR]
+  subgraph E["1. eBookを先に完走"]
+    SRC["原文・検証済みclaim"] --> RENDER["Marketing Engine render receipt"]
+    RENDER --> CAMP["creative id + ee_/ej_ campaign token"]
+    CAMP --> OWNER["本人所有accountをregistry/providerで確認"]
+    OWNER --> POST["単一のeBook publication owner"]
+    POST --> PRECEIPT["Instagram/TikTok provider receipt"]
+    PRECEIPT --> GO["/go/<token> click receipt"]
+    GO --> PAGE["/monk または /achan"]
+    PAGE --> CHECKOUT["Stripe one-time Checkout + attribution metadata"]
+    CHECKOUT --> HOOK["署名検証 + durable webhook receipt"]
+    HOOK --> BUYER["buyer/session receipt"]
+    BUYER --> PDF["正しいlocaleのPDFをverified senderから納品"]
+    PDF --> OPTIONAL["任意のLetter/Tegami CTA"]
+    OPTIONAL --> SUBCHECKOUT["本人が選択したsubscription Checkout"]
+    SUBCHECKOUT --> TRIAL["14日trial / access state"]
+    TRIAL --> PAID["invoice.paid + Stripe active readback"]
+    PAID --> MRR["paid MRR receipt"]
   end
-  subgraph C[2. eBook初回receipt後にCapafy Instagram]
-    CD[別担当が承認したCapafy skill] --> CS[公開中・利益のあるskill選定]
-    CS --> CC[実際のlisting例を使った独自Reel]
-    CI[所有と状態を確認した既存Capafy IG] --> CP[Postiz配信ownerを一つにする]
-    CC --> CP
-    CP --> CR[Postiz receiptと公開Reel URL]
-    CR --> CT[ct=capafy-reel-slug]
-    CT --> CO[Capafy有料注文receipt]
+  subgraph C["2. 初回eBook paid + PDF receiptの後だけCapafy IG"]
+    DEV["別担当が承認した公開listing"] --> DEMO["実物のlistingに沿う独自Reel"]
+    DEMO --> CAPOWNER["life-manager-capafy-igの単一owner"]
+    ACCOUNT["本人所有・公式status確認済みCapafy IG"] --> CAPOWNER
+    CAPOWNER --> CAPPOST["Postiz/Instagram receipt + public Reel URL"]
+    CAPPOST --> CTA["Capafy listingへct campaign link"]
+    CTA --> ORDERS["Capafy order/fee/refund/payout readback"]
   end
-  ES --> CFO[同一期間の返金・手数料・実費・出金・銀行着金readback]
-  LR --> CFO
-  CO --> CFO
-  GATE[owner registry + 公式account状態 + 単一ownerのeffect fence] --> EA
-  GATE --> CI
-```
+  MRR --> CFO["既存CFO: period・currency・cost・settlementを照合"]
+  ORDERS --> CFO
+  GATE["account identity + good standing + effect_unknown解消"] --> OWNER
+  GATE --> ACCOUNT
+  PAID -->|first paid + matching PDF receipt| DEMO
+~~~
 
-Letter subscription stateはStripeのevent到着順やFunction instanceのwall clockに依存させず、同一subscriptionのreadback generationをSupabaseが採番します。
+同じsubscriberに複数のStripe subscriptionを持てるようにし、古いeventの到着順でaccess stateを戻さない。
 
-```mermaid
+~~~mermaid
 sequenceDiagram
   autonumber
   participant Stripe
   participant Hook as Netlify webhook
   participant DB as Supabase
-  Stripe->>Hook: 署名済みCheckout / subscription event
-  Hook->>DB: reserve(subscription_id, email?, customer_id?)
-  DB-->>Hook: subscriber_id + readback_generation
+  Stripe->>Hook: signed Checkout/subscription event
+  Hook->>DB: reserve subscription readback generation
+  DB-->>Hook: subscriber id + generation
   Hook->>Stripe: GET current subscription
-  Stripe-->>Hook: current status + immutable created
-  Hook->>DB: apply(subscription_id, subscriber_id, generation, status, created)
+  Stripe-->>Hook: status + immutable Subscription.created
+  Hook->>DB: apply only when generation is still current
   alt generation is current
-    DB->>DB: state更新、全subscriptionからtierを集計
-    DB->>DB: 保存済みstateの最大createdからpointerを再選出
-    DB-->>Hook: applied
-  else a newer readback was reserved
-    DB-->>Hook: stale + current state
-    Hook->>DB: Checkout receiptをretryable_failureへ
-    Hook-->>Stripe: 5xxでCheckoutを再試行
+    DB->>DB: aggregate access across mapped subscriptions
+    DB->>DB: choose newest created subscription pointer
+    DB-->>Hook: applied; record payment/delivery state
+  else newer readback has started
+    DB-->>Hook: stale
+    Hook->>DB: keep Checkout receipt retryable
   end
-```
+~~~
 
-## 要件
+## 受入契約
 
-1. Public page copy、registry、Stripe Price、locale route、checkout mode、PDF delivery が同じ商品内容を示す。
-2. 既存`/go/<token>`→`utm_campaign` routeを使い、`attribution_token`をeBook checkout・Letter/Tegami checkout・Stripe metadata・buyer/subscriber receiptまで保持します。clickはpaid orderに数えません。
-3. eBook配信メールの任意subscription CTAはlocaleに合った`/letter`または`/tegami`へ同じ`utm_campaign`を付けて案内します。本人がcheckoutしない限り購読を作りません。
-4. webhook retryでbuyer entitlementやemail deliveryを二重計上しません。DB write/email failureは成功として隠しません。Resend idempotencyとdurable event/delivery receiptを併用し、unknown deliveryを無条件に再送しません。
-5. eBook/Letter emailはverified senderを表す`RESEND_FROM_EMAIL`を必須とし、test-only domainへのfallbackを作りません。値が未設定ならprovider callなしでdelivery receiptを`retryable_failure`にし、`configure_verified_resend_sender`を記録します。
-6. 同一subscriptionの状態は、Stripe GET前に予約したDB readback generationがapply時点でも最新の場合だけ更新します。古いgenerationのCheckoutはWelcomeを終端確定せず、receiptをretryableにして再試行します。
-7. 既存`subscribers.stripe_subscription_id`をmigration時にstate mappingへseedし、subscription lifecycle eventが既存顧客で`mapping missing`にならないようにします。既存tierがpaidなら`legacy_paid_pending_readback`として保持し、Stripe公式readbackが来た時点で実statusへ置き換えます。pointerなしpaid rowは`stripe_legacy_paid_pending_readback`で保持し、未知の履歴を自動でexpiredにしません。
-8. 購入者tierは同じsubscriberに紐づく全subscriptionのactive/trialing状態から集計します。一つを解約しても別の有効購読を失効させません。trialingはpaid MRRに数えません。
-9. subscriberの単一互換pointerはStripe `Subscription.created`の最大stateへ収束します。legacy pointerのcreated timeが不明な間は保持し、同じsubscriptionの公式readback後に保存済みstate全体から再選出します。同じ秒はsubscription IDの辞書順で安定化します。
-10. Life Managerのloop registryが配信scheduleとeffect fenceを所有し、同一Instagram accountをpublishするownerは常に一つにします。OpenClawと二重scheduleにしません。
-11. 既存のユーザー所有accountのみ使い、registry identityとprovider公式good-standing readbackを一致させます。restrictionはofficial appeal/status flowで扱い、別accountで回避しません。
-12. effect_unknownのpublish/retryは同一occurrenceのofficial provider readbackまで止めます。
-13. Original/licensed contentとrequired AI disclosuresを使い、copy/research claimはpublic assetと一致させます。
+1. /go/<token>のclick receipt、checkout metadata、buyer/subscriber receiptが同じproduct・locale・campaign tokenを持つ。click・view・renderはsaleではない。
+2. one-time paymentの署名済みCheckoutだけでbuyer/PDF fulfillmentを行い、同じStripe sessionのretryで購入receiptやemailを重複作成しない。
+3. ResendにはverifiedのRESEND_FROM_EMAILだけを渡す。設定不足やDB失敗は成功にせず、durable retry/fenceを残す。
+4. Letter/TegamiのsubscriptionはDB generationをStripe GET前に予約し、最新generationだけを適用する。trial/accessはpaid MRRと区別する。MRRは初回invoice.paidとactive paid stateを確認して数える。
+5. subscribersのemail一意性をproduction schemaで確認する。unique constraintが無ければ、lead-magnetとStripe webhookの全subscriber writerを同じDB-owned normalized-email upsert/lockへ寄せてからtrafficを拡大する。
+6. lead-magnetのDay-0 senderもverified production senderを使い、subscriber writeの失敗を見てから送信する。無料signupをpaid subscriber/MRRとして数えない。
+7. distributionは既存ownerとprovider receiptを使い、effect_unknown occurrenceをreadbackなしに再送しない。1 accountにpublish ownerは一つだけ。
+8. 既存の本人所有accountと公開statusを照合する。challenge_requiredの場合はchallenge typeを実画面で確認し、既存の認証済みchallenge pathだけを使って、解決後に期待accountとprovider stateまでreadbackする。identity/appeal/suspensionはCAPTCHA solverで回避しない。
+9. Capafy marketingは公開中listingと実際の入出力に基づくoriginal Reelを使う。product/listing/account lifecycle codeは別担当の所有に残す。
+10. Capafyのct click、売上、refund、fee、実費、payout、bank receiptを分ける。providerがpost単位注文を返さない場合はcampaign-level correlationと明記し、銀行着金なしにnet contributionを確定しない。
 
-## 一次資料
+## 数値の意味
 
-- checkout/PDF source: Daisuke134/anicca-products main, apps/landing
-- existing campaign route: `apps/landing/netlify/functions/marketing-go.js`, `/go/<token>` → `utm_campaign`
-- 実行順: Life Manager unified SSOT
-- [Resend Send Email API idempotency](https://resend.com/docs/api-reference/emails/send-email)（keyの有効期間は24時間。長期dedupeはdurable receiptで行う）
-- [TikTok Integrity and Authenticity](https://www.tiktok.com/community-guidelines/en/integrity-authenticity/)
-- [Meta Spam Policy](https://transparency.meta.com/policies/community-standards/spam/)
-- [Instagram disabled account help](https://help.instagram.com/366993040048856/)
+- $9.99/monthで$10,000 gross MRRに必要な有料active subscriptionは1,002件。fees・refunds・cost前の算数であり、実測や予測ではない。
+- $10.99のebook saleは一回売上で、subscription MRRではない。
+- Capafyの$10,000は既存CFO定義の同一30日窓banked net contributionと、portfolio計画のchannel allocationを整合させてから測る。seller balanceやviewsを銀行着金とみなさない。
+
+## 正本
+
+- checkout/webhook/PDF implementation: anicca-products PR #419/#420
+- eBook/Capafy marketing execution order and cursor: docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md
+- eBook implementation tasks: docs/superpowers/plans/2026-10-05-ebook-revenue-loop.md
+- Capafy Instagram D5 marketing tasks: docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md
+- Capafy product development cursor: the separate owner's canonical project plan
