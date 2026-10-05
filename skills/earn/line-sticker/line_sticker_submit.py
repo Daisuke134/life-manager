@@ -52,7 +52,13 @@ async def _goto(page: Page, url: str) -> None:
     await _close_modals(page)
 
 
+class TitleTaken(RuntimeError):
+    """Creators Market titles are unique per language across all creators."""
+
+
 async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
+    saves: list = []
+    page.on("response", lambda r: saves.append(r) if r.request.method == "POST" and r.url.endswith("/api/v2/sticker") else None)
     await _goto(page, f"{BASE}/sticker/create")
     radio = page.locator("input[name=sticker_type][value=animation]")
     await radio.locator("xpath=ancestor::label[1]").click()
@@ -79,6 +85,11 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     try:
         await page.wait_for_url(re.compile(re.escape(BASE) + r"/sticker/\d+/?$"), timeout=30000)
     except Exception as exc:
+        if saves and saves[-1].status >= 400:
+            detail = (await saves[-1].text())[:300]
+            if "title already exists" in detail:
+                raise TitleTaken(detail) from exc
+            raise RuntimeError(f"create_rejected status={saves[-1].status} detail={detail}") from exc
         errors = await page.evaluate("""() => [...document.querySelectorAll("[class*=rror], .mdTxtError")]
             .filter(e => e.offsetParent && e.innerText.trim()).map(e => e.innerText.trim().slice(0, 120))""")
         raise RuntimeError(f"create_not_saved url={page.url} errors={errors[:5]}") from exc
@@ -164,7 +175,17 @@ async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: P
         page = await context.new_page()
         try:
             if not item:
-                return await _create_item(page, listing, selection)
+                try:
+                    return await _create_item(page, listing, selection)
+                except TitleTaken as taken:
+                    # Retry once with the character's own name so the title is distinctive.
+                    language = "en" if "English" in str(taken) else "ja"
+                    name = listing.get("character_name") or ""
+                    if not name:
+                        raise
+                    listing = dict(listing, title=dict(listing["title"]))
+                    listing["title"][language] = f"{listing['title'][language]} ({name})"[:40]
+                    return await _create_item(page, listing, selection)
             if item.get("state") == "metadata_saved":
                 await _upload_images(page, item, package_dir)
                 item = dict(item, state="images_uploaded")

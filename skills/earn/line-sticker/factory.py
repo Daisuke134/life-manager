@@ -231,6 +231,9 @@ def run_select(set_dir: Path, state_root: Path, deps: Deps) -> str:
     _atomic_write_json(set_dir / "select.json", selection)
     listing = _read_json(set_dir / "listing.json") or {}
     listing.update(selection.get("listing", {}))
+    draft = _read_json(set_dir / "plan-draft.json") or {}
+    character_id = draft.get("character_id", "")
+    listing["character_name"] = " ".join(part.capitalize() for part in character_id.split("-")[1:] if not part.isdigit())
     listing["main"] = selection["main"]
     listing["tab"] = selection["tab"]
     listing.setdefault("type", "animated_sticker")
