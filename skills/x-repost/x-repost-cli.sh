@@ -1628,6 +1628,7 @@ SRC_METRICS="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["me
   echo "source固有の仕組み・数字・制約を少なくとも1つ使わない一般論は useful=false。"
   echo "five_points は5点を最終本文そのものについて個別判定し、1つでも欠ければ false にする。adds_unique_firsthand_detail はsource固有のexact detail、または選択済みの一次情報seedに根拠がある時だけ true。"
   echo "最終本文の実際の言語を独立に判定し、detected_languageにはISO 639-1コードを返す。Latin scriptだけを根拠にenと判定しない（Spanishはes、Frenchはfr）。不明ならunknown。ターゲット言語コードは $TARGET_LANGUAGE。"
+  echo "言語例: He probado este paso antes de publicar; si falla, revisa los permisos. = es; Or, cette étape permet de vérifier les droits avant de publier. = fr; He crashed; restart manually, abort on timeout. = en。"
   echo "URL、文体、viralらしさではなく事実支持と読者効用を別々に判定する。"
   if [ "$KIND" = "original" ]; then
     echo "Originalについてはrecent postsとの主張・角度・表現のnear-duplicateも判定し、novel、spam_risk、near_duplicate_post_idsを返す。"

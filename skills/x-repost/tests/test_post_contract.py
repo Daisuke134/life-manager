@@ -39,13 +39,34 @@ class PostContractTests(unittest.TestCase):
                 self.assertEqual(result.returncode, expected_code,
                                  result.stdout + result.stderr)
 
-    def test_english_slot_rejects_latin_language_even_if_critic_says_english(self) -> None:
-        self.assertTrue(MODULE.language_matches(
-            "en", "Try this next.", detected_language="en"))
-        self.assertFalse(MODULE.language_matches(
-            "en", "Prueba este paso primero.", detected_language="en"))
-        self.assertFalse(MODULE.language_matches(
-            "en", "Essayez cette étape avant d'envoyer.", detected_language="en"))
+    def test_english_precheck_leaves_latin_language_judgment_to_critic(self) -> None:
+        candidates = (
+            "Retry manually or abort; capture stderr.",
+            "He crashed; restart manually, abort on timeout.",
+            "He probado este paso antes de publicar; si falla, revisa los permisos.",
+            "Has probado este paso antes de publicar; si falla, revisa los permisos.",
+            "Or, cette étape permet de vérifier les droits avant de publier.",
+            "Prüfe die Rechte in deinem Konto; starte danach erneut.",
+        )
+        for text in candidates:
+            with self.subTest(text=text):
+                self.assertTrue(MODULE.language_matches("en", text))
+
+    def test_english_final_gate_requires_exact_critic_language_code(self) -> None:
+        cases = (
+            ("Retry manually or abort; capture stderr.", "en", True),
+            ("He crashed; restart manually, abort on timeout.", "en", True),
+            ("He probado este paso antes de publicar; si falla, revisa los permisos.", "es", False),
+            ("Or, cette étape permet de vérifier les droits avant de publier.", "fr", False),
+            ("Prüfe die Rechte in deinem Konto; starte danach erneut.", "de", False),
+            ("Try this next.", "", False),
+        )
+        for text, detected_language, expected in cases:
+            with self.subTest(detected_language=detected_language, text=text):
+                self.assertEqual(
+                    MODULE.language_matches("en", text, detected_language=detected_language),
+                    expected,
+                )
 
 
 if __name__ == "__main__":

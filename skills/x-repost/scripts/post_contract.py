@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed contracts applied after model writing and before publishing."""
+"""Pre-publish checks for target script and critic language code.
+
+The pipeline checks script compatibility before calling the independent critic,
+then requires the critic's exact ISO-639-1 result before publish. Latin-language
+classification belongs to that critic; this helper does not guess from word lists.
+"""
 
 from __future__ import annotations
 
@@ -12,17 +17,14 @@ from pathlib import Path
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uff66-\uff9f]")
 KANA = re.compile(r"[\u3040-\u30ff\uff66-\uff9f]")
 LATIN = re.compile(r"[A-Za-z]")
-ENGLISH_MARKERS = frozenset(
-    "the and or but if this that these those it they them we you your he she "
-    "is are was were be been being have has had do does did will would can could "
-    "should must for from with without by in into over under after before when "
-    "while where who which what because not more less than to of at"
-    .split()
-)
-
 
 def language_matches(language: str, text: str,
                      detected_language: str | None = None) -> bool:
+    """Check script evidence and exact critic-code agreement when provided.
+
+    A missing code is the pre-critic script gate. A supplied code is the final
+    independent language judgment and must match the requested target exactly.
+    """
     if detected_language is not None and detected_language != language:
         return False
     japanese_count = len(JAPANESE.findall(text))
@@ -32,8 +34,7 @@ def language_matches(language: str, text: str,
         return japanese_dominant
     if language != "en" or japanese_count or latin_count == 0:
         return False
-    words = {word.lower() for word in re.findall(r"[A-Za-z]+", text)}
-    return bool(words & ENGLISH_MARKERS)
+    return True
 
 
 def main() -> int:
