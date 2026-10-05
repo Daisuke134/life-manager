@@ -8070,3 +8070,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - headab0ffbe621のCI37299160629は残Loop control contractsのみin_progress、他9checks SUCCESS。job111727487197は10:50:59Z開始、Verify registry/releases/apply fencing/clean install step生存を公式readback。timeout/継続観測だけで失敗扱い・rerun・main統合をしない。
 - browserfreshregistered UUIDd89b5621-9f7a-46e1-be42-73cc2d34f567/PID83185/CDP9223を確認（旧4b84から変化）。latest10:52:47Z businessblocked0countsは保留12解消ではない。globalguard取得成功の10:53:29 readonly同2thread GETは双方403、優先originalとunionの比較未取得。knownownedpageclose/guardrelease0/businesssend/statewrite0、state/coconala-message-selector-comparison-20261005.jsonへ記録。sourcehiddencleanup修正の自然証拠やbody原因確定へ置換しない。
 - このturnは前候補の新CI終了待ちと現provider失敗境界の再観測。次は同jobterminal/allPASS→通常main/immutable/Replytarget→自然hiddenownedcontext回収、HTTP200同thread原文抽出比較。背景cache寿命/oldadapterreceipt等未完は保持、root sourcebranch/privatefenceを再送しない。全体47/cursor1・SelfBuild最後。
+
+
+### 573. hiddenfinalizer全CI PASS/main統合とfull immutable開始
+
+- PR6651/headab0ffbe621のsameCI37299160629は全10checks SUCCESS、通常admin merge成功。main8e64b3ffc07957dc9002be3d8b345c25fcd5846a/merged10:56:56ZをGitHub/fetch確認。current immutable source/runtimeの実証へ進める。
+- sourcefullcut前のstatvfs4726091776bytes/最低1GiB preflight PASS。standard bin/cut-loop-release.sh main8e64をexec63408で開始、未完成を反映済みとしない。次はcurrentSHA/ALL・sourcebyte→Reply target safeidle apply・actualargs/source→same-source naturalhidden終了とownedledger/context officialreadback。activeowner/未確認effect/privatevaultを強制変更しない。
+- 本番候補のsource受入と未解消12件のofficialreceiptを分離し、bodyselector仮説や過去provider403を完了としない。全体47/cursor1 auditcachecaller根本修復/背景processgroup・SelfBuild最後を維持。
