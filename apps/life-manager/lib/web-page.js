@@ -26,7 +26,8 @@ function timeMarkup(value, timezone) {
 
 function calendarMarkup(snapshot) {
   const state = snapshot && snapshot.calendarState;
-  const status = state === "connected" ? "接続済み" : state === "unavailable" ? "接続状況を確認できません" : "未接続";
+  const status = snapshot && snapshot.enablePending === true ? "接続を確認中"
+    : state === "connected" ? "接続済み" : state === "unavailable" ? "接続状況を確認できません" : "未接続";
   return `<section class="card calendar-card"><div class="card-heading"><h2>Google カレンダー</h2><span id="calendar-status" class="status">${status}</span></div></section>`;
 }
 
@@ -70,6 +71,9 @@ function travelControlsMarkup(snapshot) {
   if (!snapshot || snapshot.calendarBound !== true) return "";
   if (snapshot.disconnectPending === true) {
     return `<section class="card"><h2>Travel 自動化</h2><p>接続解除の確認中のため自動Travelは再開できません。</p><button type="button" class="button secondary" data-action="travel-control" data-control="disconnect">接続解除を再試行</button></section>`;
+  }
+  if (snapshot.enablePending === true) {
+    return `<section class="card"><h2>Travel 自動化</h2><p>Calendarの接続確認中です。自動Travelは再開できません。</p><button type="button" class="button secondary" data-action="calendar-start">Calendar接続を再確認</button></section>`;
   }
   const automationControl = typeof snapshot.dailyAutomationEnabled === "boolean"
     ? `<button type="button" class="button secondary" data-action="travel-control" data-control="${snapshot.dailyAutomationEnabled ? "pause" : "resume"}">${snapshot.dailyAutomationEnabled ? "自動Travelを一時停止" : "自動Travelを再開"}</button>`
@@ -183,7 +187,7 @@ const CLIENT_SCRIPT = String.raw`(() => {
   });
   api("/api/lm-web/calendar/status", "GET").then((status) => {
     const label = document.getElementById("calendar-status");
-    if (label) label.textContent = status.connected === true ? "接続済み" : status.state === "unavailable" ? "接続状況を確認できません" : "未接続";
+    if (label) label.textContent = status.connected === true ? "接続済み" : status.state === "enable_pending" ? "接続を確認中" : status.state === "unavailable" ? "接続状況を確認できません" : "未接続";
   }).catch(() => say("Calendar の状態を確認できません。あとで更新してください。"));
 })();`;
 

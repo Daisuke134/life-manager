@@ -32,6 +32,7 @@ function mountClient(html, responses) {
   const requests = [];
   const redirects = [];
   const feedback = { textContent: "" };
+  const calendarStatus = { textContent: "" };
   const root = {
     innerHTML: "",
     addEventListener(name, handler) { handlers[name] = handler; },
@@ -41,7 +42,7 @@ function mountClient(html, responses) {
   assert.ok(script);
   vm.runInNewContext(script[1], {
     document: {
-      getElementById(id) { return id === "lm-dashboard" ? root : id === "lm-feedback" ? feedback : null; },
+      getElementById(id) { return id === "lm-dashboard" ? root : id === "lm-feedback" ? feedback : id === "calendar-status" ? calendarStatus : null; },
       querySelector() { return { content: user.csrf }; },
     },
     fetch: async (path, init) => {
@@ -51,7 +52,7 @@ function mountClient(html, responses) {
     },
     window: { location: { assign(value) { redirects.push(value); } } },
   });
-  return { handlers, requests, redirects, feedback, root };
+  return { handlers, requests, redirects, feedback, root, calendarStatus };
 }
 
 test("renders sign-in and each missing setup step", () => {
@@ -395,4 +396,30 @@ test("pending disconnect blocks Resume and offers an idempotent retry", async ()
 
   assert.deepEqual(JSON.parse(request.init.body), { action: "disconnect" });
   assert.deepEqual(client.redirects, ["/lm"]);
+});
+
+test("pending Calendar enable blocks Resume and exposes start verification retry", async () => {
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ calendarBound: true, dailyAutomationEnabled: false, disconnectPending: false, enablePending: true }),
+  });
+  const visible = visibleHtml(page);
+  assert.match(visible, /Calendarの接続確認中です。自動Travelは再開できません/);
+  assert.match(visible, /id="calendar-status" class="status">接続を確認中<\/span>/);
+  assert.doesNotMatch(visible, /data-control="resume"/);
+  assert.match(visible, /data-action="calendar-start">Calendar接続を再確認<\/button>/);
+
+  const client = mountClient(page, {
+    "/api/lm-web/calendar/status": { connected: false, state: "enable_pending" },
+    "/api/lm-web/calendar/start": { connected: true, state: "connected" },
+  });
+  const button = { dataset: { action: "calendar-start" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+  const request = client.requests.find((item) => item.path === "/api/lm-web/calendar/start");
+
+  assert.equal(request.init.method, "POST");
+  assert.equal(request.init.headers["x-lm-web-csrf"], user.csrf);
+  assert.deepEqual(JSON.parse(request.init.body), {});
+  assert.deepEqual(client.redirects, ["/lm"]);
+  assert.equal(client.calendarStatus.textContent, "接続を確認中");
 });

@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const { assertWebUserUnbound, createWebCalendarStore, handleWebCalendarRequest } = require("./web-calendar.js");
+const { handleWebTravelRequest } = require("./web-travel.js");
 
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const OTHER_UID = "lm_22222222-2222-4222-8222-222222222222";
@@ -54,11 +55,133 @@ function options(overrides = {}) {
     env: { COMPOSIO_API_KEY: "provider-key", COMPOSIO_GCAL_AUTH_CONFIG: "google-calendar" },
     resolveWebUserImpl: async () => ({ uid: UID, subject: "subject", email: "user@example.test", csrf: "csrf-token" }),
     assertWebUserUnboundImpl: async () => true,
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: null, disconnectPending: false, enablePending: false }),
     fetchImpl: async () => ({ ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null }] }),
     readJsonImpl: async (req) => req.testBody === undefined ? {} : req.testBody,
     composioCalendarAccountsImpl: async () => [],
     ...overrides,
   };
+}
+
+function makeEnableHarness(startCalendarImpl = async (state) => {
+  state.providerStatus = "ACTIVE";
+  return { provider: "calendar", state: "connected" };
+}) {
+  const state = {
+    row: {
+      uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal",
+      calendar_connected_account_id: "ca-selected", calendar_enable_pending: false,
+      home_address: "home", trial_expires_at: null, paid: false,
+    },
+    preference: {
+      call_enabled: false, notifications_enabled: false,
+      daily_automation_enabled: true, calendar_disconnect_pending: false,
+    },
+    providerStatus: "DISABLED",
+    calls: [],
+    providerEnableCalls: 0,
+    providerDisableCalls: 0,
+  };
+  const fetchImpl = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    const method = init.method || "GET";
+    if (parsed.pathname.endsWith("/rpc/begin_lm_web_calendar_enable")) {
+      state.calls.push("begin_enable");
+      if (state.preference.calendar_disconnect_pending) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
+      }
+      state.row.calendar_enable_pending = true;
+      return { ok: true, status: 200, json: async () => true };
+    }
+    if (parsed.pathname.endsWith("/rpc/finish_lm_web_calendar_enable")) {
+      state.calls.push("finish_enable");
+      if (state.providerStatus !== "ACTIVE" || !state.row.calendar_enable_pending) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_enable_pending" }) };
+      }
+      state.row.calendar_enable_pending = false;
+      return { ok: true, status: 200, json: async () => true };
+    }
+    if (parsed.pathname.endsWith("/rpc/bind_lm_web_calendar_account")) {
+      state.calls.push("bind");
+      if (state.preference.calendar_disconnect_pending || state.row.calendar_enable_pending) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_operation_pending" }) };
+      }
+      const body = JSON.parse(init.body || "{}");
+      if (body.p_expected_calendar_provider !== state.row.calendar_provider
+        || body.p_expected_calendar_account_id !== state.row.calendar_connected_account_id) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
+      }
+      state.row.calendar_provider = "composio_gcal";
+      state.row.calendar_connected_account_id = body.p_connected_account_id;
+      return { ok: true, status: 200, json: async () => true };
+    }
+    if (parsed.pathname.endsWith("/rpc/control_lm_web_travel")) {
+      const body = JSON.parse(init.body || "{}");
+      state.calls.push(`control_${body.p_action}`);
+      if (body.p_action === "disconnect_begin") {
+        if (state.row.calendar_enable_pending) {
+          return { ok: false, status: 400, json: async () => ({ message: "calendar_enable_pending" }) };
+        }
+        state.preference.daily_automation_enabled = false;
+        state.preference.calendar_disconnect_pending = true;
+        return { ok: true, status: 200, json: async () => true };
+      }
+      return { ok: false, status: 400, json: async () => ({ message: "unexpected_control_action" }) };
+    }
+    if (parsed.pathname.endsWith("/lm_panel_preferences")) {
+      return { ok: true, status: 200, json: async () => [{ ...state.preference }] };
+    }
+    if (parsed.pathname.endsWith("/lm_users")) {
+      if (method === "PATCH") {
+        state.calls.push("direct_patch");
+        Object.assign(state.row, JSON.parse(init.body || "{}"));
+        return { ok: true, status: 200, json: async () => [{ ...state.row }] };
+      }
+      return { ok: true, status: 200, json: async () => [{ ...state.row }] };
+    }
+    throw new Error(`unexpected service request: ${parsed.pathname}`);
+  };
+  const opts = options({
+    fetchImpl,
+    readWebTravelControlStateImpl: async () => ({
+      dailyAutomationEnabled: state.preference.daily_automation_enabled,
+      disconnectPending: state.preference.calendar_disconnect_pending,
+      enablePending: state.row.calendar_enable_pending,
+    }),
+    composioCalendarAccountStatusImpl: async (scope, accountId) => {
+      assert.deepEqual(scope, { uid: UID });
+      assert.equal(accountId, state.row.calendar_connected_account_id);
+      state.calls.push(`provider_status:${state.providerStatus}`);
+      return state.providerStatus;
+    },
+    composioCalendarStartImpl: async (scope, providerOpts) => {
+      assert.deepEqual(scope, { uid: UID });
+      assert.equal(providerOpts.connectedAccountId, "ca-selected");
+      state.providerEnableCalls++;
+      state.calls.push("provider_enable");
+      return startCalendarImpl(state, scope, providerOpts);
+    },
+    composioCalendarDisconnectImpl: async (scope, providerOpts) => {
+      assert.deepEqual(scope, { uid: UID });
+      assert.equal(providerOpts.connectedAccountId, "ca-selected");
+      state.providerDisableCalls++;
+      state.calls.push("provider_disable");
+      state.providerStatus = "INACTIVE";
+      return { provider: "calendar", state: "action_required" };
+    },
+  });
+  return { state, opts };
+}
+
+async function callTravelControl(opts, action) {
+  const response = makeResponse();
+  await handleWebTravelRequest({
+    method: "POST",
+    url: "/api/lm-web/travel/control",
+    testBody: { action },
+    headers: { origin: ORIGIN, "content-type": "application/json", "x-lm-web-csrf": "csrf-token" },
+  }, response, opts);
+  return response;
 }
 
 test("calendar status is connected only for the persisted exact ACTIVE account", async () => {
@@ -121,6 +244,25 @@ test("calendar status is connected only for the persisted exact ACTIVE account",
   }
 });
 
+test("Calendar status exposes an enable-pending retry even after provider is ACTIVE", async () => {
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" };
+  let providerReads = 0;
+  const response = await call("GET", "/api/lm-web/calendar/status", options({
+    fetchImpl: async () => ({ ok: true, json: async () => [{ ...row }] }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: false, disconnectPending: false, enablePending: true }),
+    composioCalendarAccountStatusImpl: async (scope, accountId) => {
+      providerReads++;
+      assert.deepEqual(scope, { uid: UID });
+      assert.equal(accountId, "ca-selected");
+      return "ACTIVE";
+    },
+  }));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), { connected: false, state: "enable_pending", enablePending: true });
+  assert.equal(providerReads, 1);
+});
+
 test("Calendar start recovers one exact ACTIVE account after callback binding was interrupted", async () => {
   const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
   const methods = [], oauth = [];
@@ -128,7 +270,12 @@ test("Calendar start recovers one exact ACTIVE account after callback binding wa
     fetchImpl: async (_url, init = {}) => {
       const method = init.method || "GET";
       methods.push(method);
-      if (method === "PATCH") Object.assign(row, JSON.parse(init.body));
+      if (String(_url).includes("/rpc/bind_lm_web_calendar_account")) {
+        const body = JSON.parse(init.body || "{}");
+        row.calendar_provider = "composio_gcal";
+        row.calendar_connected_account_id = body.p_connected_account_id;
+        return { ok: true, json: async () => true };
+      }
       return { ok: true, json: async () => [{ ...row }] };
     },
     composioCalendarAccountsImpl: async (scope) => {
@@ -152,7 +299,7 @@ test("Calendar start recovers one exact ACTIVE account after callback binding wa
   assert.deepEqual(JSON.parse(response.body), { connected: true, state: "connected" });
   assert.equal(row.calendar_provider, "composio_gcal");
   assert.equal(row.calendar_connected_account_id, "ca-recovered");
-  assert.deepEqual(methods.filter((method) => method === "PATCH"), ["PATCH"]);
+  assert.deepEqual(methods, ["GET", "GET", "POST", "GET"]);
   assert.deepEqual(oauth, []);
 });
 
@@ -344,32 +491,159 @@ test("Calendar start requires exact Origin, JSON, and Web CSRF", async () => {
 
 test("Calendar start resumes only the uid's selected account after exact ACTIVE readback", async () => {
   let accountStatus = 0, resumes = 0, oauth = 0;
+  let providerStatus = "DISABLED";
   const writes = [];
   const response = await call("POST", "/api/lm-web/calendar/start", options({
-    composioCalendarStatusImpl: async (scope) => { assert.deepEqual(scope, { uid: UID }); return "DISABLED"; },
+    composioCalendarStatusImpl: async (scope) => { assert.deepEqual(scope, { uid: UID }); return providerStatus; },
     composioCalendarAccountStatusImpl: async (scope, id) => {
       accountStatus++;
       assert.deepEqual(scope, { uid: UID });
       assert.equal(id, "ca-selected");
-      return "DISABLED";
+      return providerStatus;
     },
     composioCalendarStartImpl: async (scope, provider) => {
       resumes++;
       assert.deepEqual(scope, { uid: UID });
       assert.equal(provider.connectedAccountId, "ca-selected");
+      providerStatus = "ACTIVE";
       return { provider: "calendar", state: "connected" };
     },
     startCalendarOAuthImpl: async () => { oauth++; throw new Error("existing selected account was resumed"); },
     fetchImpl: async (url, init = {}) => {
       writes.push([init.method || "GET", String(url)]);
-      if (init.method === "PATCH") return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
+      if (String(url).endsWith("/rpc/begin_lm_web_calendar_enable")
+        || String(url).endsWith("/rpc/finish_lm_web_calendar_enable")) return { ok: true, json: async () => true };
       return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
     },
   }), { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} });
   assert.equal(response.status, 200);
   assert.deepEqual(JSON.parse(response.body), { connected: true, state: "connected" });
-  assert.deepEqual([accountStatus, resumes, oauth], [1, 1, 0]);
-  assert.deepEqual(writes.map(([method]) => method), ["GET", "GET", "PATCH", "GET"]);
+  assert.deepEqual([accountStatus, resumes, oauth], [2, 1, 0]);
+  assert.deepEqual(writes.map(([method]) => method), ["GET", "GET", "POST", "POST", "GET"]);
+  assert.match(writes[2][1], /begin_lm_web_calendar_enable$/);
+  assert.match(writes[3][1], /finish_lm_web_calendar_enable$/);
+});
+
+test("Calendar start refuses a pending disconnect before provider enable or OAuth", async () => {
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" };
+  let providerReads = 0, enables = 0, oauthStarts = 0, writes = 0;
+  const response = await call("POST", "/api/lm-web/calendar/start", options({
+    fetchImpl: async (_url, init = {}) => {
+      if (init.method === "PATCH") writes++;
+      return { ok: true, json: async () => [{ ...row }] };
+    },
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: false, disconnectPending: true, enablePending: false }),
+    composioCalendarAccountStatusImpl: async () => { providerReads++; return "DISABLED"; },
+    composioCalendarStartImpl: async () => { enables++; return { provider: "calendar", state: "connected" }; },
+    webCalendarStore: { createWebOAuthState: async () => { writes++; return true; } },
+    startCalendarOAuthImpl: async () => { oauthStarts++; return { connectedAccountId: "ca-new", redirectUrl: "https://accounts.example/connect" }; },
+  }), { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} });
+
+  assert.equal(response.status, 409);
+  assert.deepEqual([providerReads, enables, oauthStarts, writes], [0, 0, 0, 0]);
+});
+
+test("Calendar start enable claim excludes concurrent disconnect begin", async () => {
+  let providerStarted;
+  const started = new Promise((resolve) => { providerStarted = resolve; });
+  let releaseProvider;
+  const providerGate = new Promise((resolve) => { releaseProvider = resolve; });
+  const h = makeEnableHarness(async (state) => {
+    providerStarted();
+    await providerGate;
+    state.providerStatus = "ACTIVE";
+    return { provider: "calendar", state: "connected" };
+  });
+  const startPromise = call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+  await started;
+  const disconnectResponse = await callTravelControl(h.opts, "disconnect");
+  releaseProvider();
+  const startResponse = await startPromise;
+
+  assert.equal(disconnectResponse.status, 409);
+  assert.equal(JSON.parse(disconnectResponse.body).error, "calendar_enable_pending");
+  assert.equal(h.state.providerDisableCalls, 0);
+  assert.equal(startResponse.status, 200);
+  assert.equal(h.state.row.calendar_enable_pending, false);
+  assert.ok(h.state.calls.indexOf("begin_enable") < h.state.calls.indexOf("provider_enable"));
+  assert.ok(h.state.calls.indexOf("provider_status:ACTIVE") < h.state.calls.indexOf("finish_enable"));
+});
+
+test("Calendar start does not reuse a retained enable claim for a second provider enable", async () => {
+  let providerStarted;
+  const started = new Promise((resolve) => { providerStarted = resolve; });
+  let releaseProvider;
+  const providerGate = new Promise((resolve) => { releaseProvider = resolve; });
+  const h = makeEnableHarness(async (state) => {
+    if (state.providerEnableCalls === 1) {
+      providerStarted();
+      await providerGate;
+      state.providerStatus = "ACTIVE";
+    }
+    return { provider: "calendar", state: "connected" };
+  });
+  const request = { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} };
+  const first = call("POST", "/api/lm-web/calendar/start", h.opts, request);
+  await started;
+
+  const second = await call("POST", "/api/lm-web/calendar/start", h.opts, request);
+
+  assert.equal(second.status, 409);
+  assert.equal(JSON.parse(second.body).error, "calendar_enable_pending");
+  assert.equal(h.state.providerEnableCalls, 1);
+  releaseProvider();
+  assert.equal((await first).status, 200);
+});
+
+test("enable retry clears its claim only after exact ACTIVE readback", async () => {
+  const h = makeEnableHarness(async () => ({ provider: "calendar", state: "connected" }));
+  const request = { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} };
+  const first = await call("POST", "/api/lm-web/calendar/start", h.opts, request);
+  assert.notEqual(first.status, 200);
+  assert.equal(h.state.row.calendar_enable_pending, true);
+
+  h.state.providerStatus = "ACTIVE";
+  const retry = await call("POST", "/api/lm-web/calendar/start", h.opts, request);
+
+  assert.equal(retry.status, 200);
+  assert.equal(h.state.row.calendar_enable_pending, false);
+  assert.equal(h.state.providerEnableCalls, 1);
+  assert.ok(h.state.calls.indexOf("provider_status:ACTIVE") < h.state.calls.lastIndexOf("finish_enable"));
+});
+
+test("Calendar callback rejects disconnect pending before consuming state or reading provider", async () => {
+  let claims = 0, providerReads = 0, writes = 0;
+  const response = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, options({
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: false, disconnectPending: true, enablePending: false }),
+    webCalendarStore: { claimWebOAuthAccount: async () => { claims++; return "ca-selected"; } },
+    composioCalendarAccountStatusImpl: async () => { providerReads++; return "ACTIVE"; },
+    fetchImpl: async (_url, init = {}) => { if (init.method === "PATCH") writes++; return { ok: true, json: async () => [] }; },
+  }));
+
+  assert.equal(response.status, 403);
+  assert.deepEqual([claims, providerReads, writes], [0, 0, 0]);
+});
+
+test("OAuth binding RPC rejects a disconnect that starts after provider ACTIVE readback", async () => {
+  const h = makeEnableHarness(async () => ({ provider: "calendar", state: "connected" }));
+  h.state.row.calendar_provider = null;
+  h.state.row.calendar_connected_account_id = null;
+  h.state.providerStatus = "ACTIVE";
+  h.opts.webCalendarStore = { claimWebOAuthAccount: async () => "ca-created" };
+  h.opts.readWebTravelControlStateImpl = async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false });
+  h.opts.composioCalendarAccountStatusImpl = async (scope, accountId) => {
+    assert.deepEqual(scope, { uid: UID });
+    assert.equal(accountId, "ca-created");
+    h.state.preference.calendar_disconnect_pending = true;
+    return "ACTIVE";
+  };
+  const response = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, h.opts);
+
+  assert.notEqual(response.status, 303);
+  assert.equal(h.state.row.calendar_connected_account_id, null);
+  assert.ok(h.state.calls.includes("bind"));
 });
 
 test("callback rejects foreign or inactive connected account", async () => {
@@ -385,7 +659,10 @@ test("callback rejects foreign or inactive connected account", async () => {
         if (outcome instanceof Error) throw outcome;
         return outcome;
       },
-      fetchImpl: async () => { writes++; throw new Error("foreign/inactive account must not mutate lm_users"); },
+      fetchImpl: async (url, init = {}) => {
+        if (String(url).includes("/rpc/bind_lm_web_calendar_account")) writes++;
+        return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null }] };
+      },
       calendarEventsImpl: async () => { eventReads++; },
     }));
     assert.equal(response.status, 403);
@@ -416,6 +693,7 @@ test("callback rejects missing, malformed, or ambiguous state before claim", asy
 
 test("callback claims once, checks exact ACTIVE owner, and reads back the binding", async () => {
   const calls = [];
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
   const store = {
     async claimWebOAuthAccount(scope, hash) {
       calls.push(["claim", scope, hash]);
@@ -430,8 +708,12 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
     },
     fetchImpl: async (url, init = {}) => {
       calls.push([init.method || "GET", String(url), init.body && JSON.parse(init.body)]);
-      if (init.method === "PATCH") return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
-      return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
+      if (String(url).includes("/rpc/bind_lm_web_calendar_account")) {
+        row.calendar_provider = "composio_gcal";
+        row.calendar_connected_account_id = "ca-selected";
+        return { ok: true, json: async () => true };
+      }
+      return { ok: true, json: async () => [{ ...row }] };
     },
     calendarEventsImpl: async () => { throw new Error("callback must not read Calendar events"); },
   }));
@@ -441,33 +723,41 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
   assert.equal(calls[0][0], "claim");
   assert.deepEqual(calls[0][1], { uid: UID });
   assert.equal(calls[0][2], crypto.createHash("sha256").update(STATE).digest("hex"));
-  assert.deepEqual(calls[1], ["provider", { uid: UID }, "ca-selected"]);
-  assert.equal(calls[2][0], "PATCH");
-  assert.match(calls[2][1], /uid=eq\.lm_11111111/);
-  assert.match(calls[2][1], /telegram_chat_id=is\.null/);
-  assert.equal(calls[2][2].calendar_provider, "composio_gcal");
-  assert.equal(calls[2][2].calendar_connected_account_id, "ca-selected");
-  assert.deepEqual(Object.keys(calls[2][2]).sort(), ["calendar_connected_account_id", "calendar_provider", "updated_at"]);
-  assert.equal(calls[3][0], "GET", "binding is independently read back after the write");
+  assert.equal(calls[1][0], "GET", "the expected binding is read before provider verification");
+  assert.deepEqual(calls[2], ["provider", { uid: UID }, "ca-selected"]);
+  assert.equal(calls[3][0], "POST");
+  assert.match(calls[3][1], /rpc\/bind_lm_web_calendar_account$/);
+  assert.deepEqual(calls[3][2], {
+    p_uid: UID,
+    p_connected_account_id: "ca-selected",
+    p_expected_calendar_provider: null,
+    p_expected_calendar_account_id: null,
+  });
+  assert.equal(calls[4][0], "GET", "binding is independently read back after the atomic write");
 });
 
 test("callback replay does not repeat provider read or lm_users mutation", async () => {
-  let claims = 0, providers = 0, writes = 0;
+  let claims = 0, providers = 0, writes = 0, reads = 0;
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
   const opts = options({
     webCalendarStore: { claimWebOAuthAccount: async () => ++claims === 1 ? "ca-selected" : null },
     composioCalendarAccountStatusImpl: async () => { providers++; return "ACTIVE"; },
-    fetchImpl: async (_url, init = {}) => {
-      writes++;
-      return { ok: true, json: async () => init.method === "PATCH"
-        ? [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }]
-        : [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
+    fetchImpl: async (url, init = {}) => {
+      if (String(url).includes("/rpc/bind_lm_web_calendar_account")) {
+        writes++;
+        row.calendar_provider = "composio_gcal";
+        row.calendar_connected_account_id = "ca-selected";
+        return { ok: true, json: async () => true };
+      }
+      reads++;
+      return { ok: true, json: async () => [{ ...row }] };
     },
   });
   const first = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, opts);
   const replay = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, opts);
   assert.equal(first.status, 303);
   assert.equal(replay.status, 403);
-  assert.deepEqual([claims, providers, writes], [2, 1, 2]);
+  assert.deepEqual([claims, providers, writes, reads], [2, 1, 1, 2]);
 });
 
 test("SQL keeps Web NULL scope separate from existing non-null Telegram scope", () => {

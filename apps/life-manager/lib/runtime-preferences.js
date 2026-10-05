@@ -9,6 +9,7 @@
 // call_enabled as SQL NULL, which spreads straight over this object. Consumers must test `=== true`,
 // never `!== false`. See scheduler.js wakeTick / wakeCallOnce.
 const DEFAULTS = Object.freeze({ call_enabled: false, notifications_enabled: true, daily_automation_enabled: true });
+const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function readRuntimePreferences(uid, opts = {}) {
   if (!uid || !opts.supaUrl || !opts.supaKey) return null;
@@ -21,4 +22,46 @@ async function readRuntimePreferences(uid, opts = {}) {
   return { ...DEFAULTS, ...(rows[0] || {}) };
 }
 
-module.exports = { DEFAULTS, readRuntimePreferences };
+async function readWebTravelControlState(uid, opts = {}) {
+  if (!WEB_UID_RE.test(String(uid || "")) || !opts.supaUrl || !opts.supaKey) return null;
+  const base = String(opts.supaUrl).replace(/\/$/, "");
+  const headers = { apikey: opts.supaKey, Authorization: `Bearer ${opts.supaKey}` };
+  const fetchImpl = opts.fetchImpl || fetch;
+  const userUrl = new URL(`${base}/rest/v1/lm_users`);
+  userUrl.searchParams.set("uid", `eq.${uid}`);
+  userUrl.searchParams.set("telegram_chat_id", "is.null");
+  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_enable_pending");
+  userUrl.searchParams.set("limit", "2");
+  const userResponse = await fetchImpl(userUrl.toString(), { headers }).catch(() => null);
+  if (!userResponse || !userResponse.ok) return null;
+  const users = await userResponse.json().catch(() => null);
+  if (!Array.isArray(users) || users.length !== 1
+    || users[0].uid !== uid || users[0].telegram_chat_id !== null
+    || typeof users[0].calendar_enable_pending !== "boolean") return null;
+
+  const preferenceUrl = new URL(`${base}/rest/v1/lm_panel_preferences`);
+  preferenceUrl.searchParams.set("uid", `eq.${uid}`);
+  preferenceUrl.searchParams.set("select", "daily_automation_enabled,calendar_disconnect_pending");
+  preferenceUrl.searchParams.set("limit", "2");
+  const preferenceResponse = await fetchImpl(preferenceUrl.toString(), { headers }).catch(() => null);
+  if (!preferenceResponse || !preferenceResponse.ok) return null;
+  const preferences = await preferenceResponse.json().catch(() => null);
+  if (!Array.isArray(preferences)) return null;
+  if (preferences.length === 0) {
+    return {
+      dailyAutomationEnabled: null,
+      disconnectPending: false,
+      enablePending: users[0].calendar_enable_pending,
+    };
+  }
+  if (preferences.length !== 1
+    || typeof preferences[0].daily_automation_enabled !== "boolean"
+    || typeof preferences[0].calendar_disconnect_pending !== "boolean") return null;
+  return {
+    dailyAutomationEnabled: preferences[0].daily_automation_enabled,
+    disconnectPending: preferences[0].calendar_disconnect_pending,
+    enablePending: users[0].calendar_enable_pending,
+  };
+}
+
+module.exports = { DEFAULTS, readRuntimePreferences, readWebTravelControlState };

@@ -1,0 +1,82 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const test = require("node:test");
+const { makeComposioCalendar } = require("./calendar-composio.js");
+
+const UID = "lm_11111111-1111-4111-8111-111111111111";
+const ACCOUNT_ID = "ca-selected-123";
+
+function fixture(controlState) {
+  const providerCalls = [];
+  const controlReads = [];
+  const fetchImpl = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    const method = init.method || "GET";
+    if (parsed.hostname === "supabase.example" && parsed.pathname.endsWith("/lm_users")) {
+      return { ok: true, status: 200, json: async () => [{
+        uid: UID,
+        telegram_chat_id: null,
+        calendar_provider: "composio_gcal",
+        calendar_connected_account_id: ACCOUNT_ID,
+        calendar_enable_pending: Boolean(controlState.enablePending),
+      }] };
+    }
+    if (parsed.hostname === "supabase.example" && parsed.pathname.endsWith("/lm_panel_preferences")) {
+      return { ok: true, status: 200, json: async () => [{
+        daily_automation_enabled: controlState.dailyAutomationEnabled,
+        calendar_disconnect_pending: controlState.disconnectPending,
+      }] };
+    }
+    if (parsed.hostname === "backend.composio.dev") {
+      providerCalls.push({ path: parsed.pathname, method, body: init.body && JSON.parse(init.body) });
+      const items = parsed.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST") ? [{ id: "event-1" }] : [];
+      return { ok: true, status: 200, json: async () => ({ successful: true, data: { items } }) };
+    }
+    throw new Error(`unexpected request: ${parsed.pathname}`);
+  };
+  return {
+    providerCalls,
+    controlReads,
+    calendar: makeComposioCalendar({
+      apiKey: "provider-key",
+      supaUrl: "https://supabase.example",
+      supaKey: "service-role-key",
+      fetchImpl,
+      readWebTravelControlStateImpl: async () => { controlReads.push("read"); return { ...controlState }; },
+      recordCall: async () => true,
+    }),
+  };
+}
+
+test("Web Calendar create and patch make no provider call while paused or pending", async () => {
+  for (const controlState of [
+    { dailyAutomationEnabled: false, disconnectPending: false, enablePending: false },
+    { dailyAutomationEnabled: true, disconnectPending: true, enablePending: false },
+    { dailyAutomationEnabled: true, disconnectPending: false, enablePending: true },
+  ]) {
+    const f = fixture(controlState);
+    const create = await f.calendar.createEvent(UID, { summary: "Travel" }, { expectedCalendarAccountId: ACCOUNT_ID });
+    const patch = await f.calendar.patchEvent(UID, { eventId: "event-1" }, { expectedCalendarAccountId: ACCOUNT_ID });
+
+    assert.equal(create.effect, "no_effect");
+    assert.equal(patch.successful, false);
+    assert.equal(f.providerCalls.length, 0);
+    assert.equal(f.controlReads.length, 2);
+  }
+});
+
+test("Web Calendar event listing remains available while automation is paused", async () => {
+  const f = fixture({ dailyAutomationEnabled: false, disconnectPending: true, enablePending: false });
+  const events = await f.calendar.listEventsRaw(UID, {
+    timeMin: "2030-01-01T00:00:00.000Z",
+    timeMax: "2030-01-08T00:00:00.000Z",
+    strict: true,
+    expectedCalendarAccountId: ACCOUNT_ID,
+  });
+
+  assert.deepEqual(events, [{ id: "event-1" }]);
+  assert.equal(f.providerCalls.length, 1);
+  assert.match(f.providerCalls[0].path, /GOOGLECALENDAR_EVENTS_LIST/);
+  assert.equal(f.controlReads.length, 0);
+});

@@ -3,6 +3,7 @@
 const crypto = require("node:crypto");
 const { resolveWebUser } = require("./web-auth.js");
 const { assertWebUserUnbound } = require("./web-calendar.js");
+const { readWebTravelControlState } = require("./runtime-preferences.js");
 const { isTravel, listEvents7d, travelDecision } = require("./travel.js");
 
 const SETUP_PATH = "/api/lm-web/setup";
@@ -74,27 +75,12 @@ async function readWebUserRow(uid, opts = {}) {
 }
 
 async function readWebAutomationPreference(uid, opts = {}) {
-  const base = String(opts.supaUrl || "").replace(/\/$/, "");
-  if (!base || !opts.supaKey) throw webError(503, "control_readback_unavailable");
-  const url = new URL(`${base}/rest/v1/lm_panel_preferences`);
-  url.searchParams.set("uid", `eq.${uid}`);
-  url.searchParams.set("select", "daily_automation_enabled,calendar_disconnect_pending");
-  url.searchParams.set("limit", "2");
-  const response = await (opts.fetchImpl || fetch)(url.toString(), { headers: serviceHeaders(opts.supaKey) });
-  if (!response.ok) throw webError(502, "control_readback_unavailable");
-  const rows = await response.json().catch(() => null);
-  if (Array.isArray(rows) && rows.length === 0) {
-    return { dailyAutomationEnabled: null, disconnectPending: null };
-  }
-  if (!Array.isArray(rows) || rows.length !== 1
-    || typeof rows[0].daily_automation_enabled !== "boolean"
-    || typeof rows[0].calendar_disconnect_pending !== "boolean") {
+  const readState = opts.readWebTravelControlStateImpl || readWebTravelControlState;
+  const state = await readState(uid, opts);
+  if (!state || typeof state.disconnectPending !== "boolean" || typeof state.enablePending !== "boolean") {
     throw webError(502, "control_readback_unavailable");
   }
-  return {
-    dailyAutomationEnabled: rows[0].daily_automation_enabled,
-    disconnectPending: rows[0].calendar_disconnect_pending,
-  };
+  return state;
 }
 
 async function assertUnbound(uid, opts) {
@@ -146,6 +132,7 @@ async function rpc(name, body, opts = {}) {
     const message = String(failure && failure.message || "");
     if (message.includes("calendar_account_changed")) throw webError(409, "calendar_account_changed");
     if (message.includes("calendar_disconnect_pending")) throw webError(409, "disconnect_pending");
+    if (message.includes("calendar_enable_pending")) throw webError(409, "calendar_enable_pending");
     if (message.includes("home_required")) throw webError(409, "home_required");
     if (message.includes("calendar_not_connected")) throw webError(409, "calendar_not_connected");
     throw webError(502, "setup_unavailable");
@@ -216,6 +203,7 @@ function baseSnapshot(row, setupState, calendarState) {
       && ACCOUNT_ID_RE.test(String(row.calendar_connected_account_id || ""))),
     dailyAutomationEnabled: null,
     disconnectPending: null,
+    enablePending: null,
     nextEvent: null,
     travelBlock: null,
     departureAt: null,
@@ -333,14 +321,17 @@ async function applyWebTravelControl(uid, accountId, action, opts = {}) {
   const expectedAccountId = action === "disconnect_finish" ? null : accountId;
   const expectedPending = action === "disconnect_begin" ? true
     : action === "disconnect_finish" || action === "resume" ? false : null;
+  const expectedEnablePending = action === "pause" ? null : false;
   if (selectedWebCalendarAccount(row) !== expectedAccountId
     || preference.dailyAutomationEnabled !== (action === "resume")
-    || expectedPending !== null && preference.disconnectPending !== expectedPending) {
+    || expectedPending !== null && preference.disconnectPending !== expectedPending
+    || expectedEnablePending !== null && preference.enablePending !== expectedEnablePending) {
     throw webError(502, "control_readback_unavailable");
   }
   return {
     dailyAutomationEnabled: preference.dailyAutomationEnabled,
     disconnectPending: preference.disconnectPending,
+    enablePending: preference.enablePending,
     calendarBound: expectedAccountId !== null,
   };
 }
@@ -353,6 +344,7 @@ async function controlWebTravel(uid, action, opts = {}) {
 
   if (action === "resume") {
     if (preference.disconnectPending === true) throw webError(409, "disconnect_pending");
+    if (preference.enablePending === true) throw webError(409, "calendar_enable_pending");
     if (!String(row.home_address || "").trim()) throw webError(409, "home_required");
     const active = await readActiveCalendarUser(uid, opts);
     if (active.status !== "ACTIVE" || selectedWebCalendarAccount(active.row) !== accountId) {
@@ -449,7 +441,8 @@ async function handleWebTravelRequest(req, res, opts = {}) {
       await assertUnbound(uid, opts);
       const preference = await readWebAutomationPreference(uid, opts);
       const storedHomeAddress = normalizeHomeAddress(row.home_address);
-      if (preference.dailyAutomationEnabled === true && preference.disconnectPending !== true && storedHomeAddress) {
+      if (preference.dailyAutomationEnabled === true && preference.disconnectPending !== true
+        && preference.enablePending !== true && storedHomeAddress) {
         try {
           travelResult = await travelOwnerOnce({
             uid,

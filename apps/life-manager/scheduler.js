@@ -1236,6 +1236,11 @@ async function travelUserOnce(u, deps = {}) {
         if (!active || !active.accountId) return;
         if (u.expectedCalendarAccountId !== undefined
           && u.expectedCalendarAccountId !== active.accountId) return;
+        const readControlState = deps.readWebTravelControlStateImpl
+          || require("./lib/runtime-preferences.js").readWebTravelControlState;
+        const controlState = await readControlState(u.uid, { supaUrl, supaKey, fetchImpl: deps.fetchImpl });
+        if (!controlState || controlState.dailyAutomationEnabled !== true
+          || controlState.disconnectPending !== false || controlState.enablePending !== false) return;
         expectedCalendarAccountId = active.accountId;
       } else if (u.telegram_chat_id === undefined) {
         return;

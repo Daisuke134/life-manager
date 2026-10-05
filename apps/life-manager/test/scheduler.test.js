@@ -69,9 +69,56 @@ test("Web travel proceeds after the persisted exact account passes the ACTIVE ga
     apiKey: "provider-key",
     mapsKey: "maps-key",
     resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
     fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
   });
   assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
+});
+
+test("Web travel rereads persisted controls after ACTIVE await before entering fillTravel", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const order = [];
+  let fillCalls = 0;
+  const preference = { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false };
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => {
+      order.push("active");
+      preference.dailyAutomationEnabled = false;
+      return { accountId: "ca-selected" };
+    },
+    readWebTravelControlStateImpl: async (uid) => {
+      order.push("controls");
+      assert.equal(uid, "lm_11111111-1111-4111-8111-111111111111");
+      return { ...preference };
+    },
+    fillTravel: async () => { fillCalls++; return { inserted: 0, outboundReports: [] }; },
+  });
+
+  assert.deepEqual(order, ["active", "controls"]);
+  assert.equal(fillCalls, 0);
+});
+
+test("Web control-state reader does not default a missing preference row to enabled", async () => {
+  const { readWebTravelControlState } = require("../lib/runtime-preferences.js");
+  const result = await readWebTravelControlState("lm_11111111-1111-4111-8111-111111111111", {
+    supaUrl: "https://supabase.example",
+    supaKey: "service-role-key",
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url));
+      if (parsed.pathname.endsWith("/lm_users")) {
+        return { ok: true, json: async () => [{
+          uid: "lm_11111111-1111-4111-8111-111111111111",
+          telegram_chat_id: null,
+          calendar_enable_pending: false,
+        }] };
+      }
+      return { ok: true, json: async () => [] };
+    },
+  });
+
+  assert.deepEqual(result, { dailyAutomationEnabled: null, disconnectPending: false, enablePending: false });
 });
 
 test("Web travel refuses to switch account after the caller's ACTIVE check", async () => {

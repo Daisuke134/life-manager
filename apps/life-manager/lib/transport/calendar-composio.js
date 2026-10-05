@@ -5,8 +5,10 @@
 "use strict";
 const { recordCost } = require("../ledger.js");
 const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
+const { readWebTravelControlState } = require("../runtime-preferences.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
+const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function selectedAccountId(uid, apiKey, opts = {}) {
   if (opts.expectedCalendarAccountId != null) {
@@ -72,6 +74,19 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
   catch (error) {
     if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
     throw error;
+  }
+  if (tool !== "GOOGLECALENDAR_EVENTS_LIST" && opts.expectedCalendarAccountId != null
+    && WEB_TRAVEL_UID_RE.test(String(uid || ""))) {
+    let state = null;
+    try {
+      const readState = opts.readWebTravelControlStateImpl || readWebTravelControlState;
+      state = await readState(uid, { supaUrl: opts.supaUrl, supaKey: opts.supaKey, fetchImpl: opts.fetchImpl });
+    } catch { /* unknown Web controls fail closed before provider mutation */ }
+    if (!state || state.dailyAutomationEnabled !== true
+      || state.disconnectPending !== false || state.enablePending !== false) {
+      if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
+      throw new Error("web calendar automation is paused or pending");
+    }
   }
   let result;
   let response;

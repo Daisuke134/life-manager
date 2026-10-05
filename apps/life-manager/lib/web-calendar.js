@@ -3,6 +3,7 @@
 const crypto = require("node:crypto");
 const { resolveWebUser } = require("./web-auth.js");
 const { startCalendarOAuth } = require("./user-command.js");
+const { readWebTravelControlState } = require("./runtime-preferences.js");
 
 const STATUS_PATH = "/api/lm-web/calendar/status";
 const START_PATH = "/api/lm-web/calendar/start";
@@ -94,12 +95,38 @@ async function rpc(name, body, opts = {}) {
     headers: { apikey: opts.supaKey, Authorization: `Bearer ${opts.supaKey}`, "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error("oauth_state_unavailable");
+  if (!response.ok) {
+    const failure = await response.json().catch(() => null);
+    const message = String(failure && failure.message || "");
+    if (message.includes("calendar_disconnect_pending")) throw storeError("calendar_disconnect_pending", 409);
+    if (message.includes("calendar_enable_pending")) throw storeError("calendar_enable_pending", 409);
+    if (message.includes("calendar_operation_pending")) throw storeError("calendar_operation_pending", 409);
+    if (message.includes("calendar_account_changed")) throw storeError("calendar_account_changed", 409);
+    throw new Error("oauth_state_unavailable");
+  }
   return response.json().catch(() => null);
 }
 
 function firstValue(value) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function readCalendarControlState(uid, opts = {}) {
+  const readState = opts.readWebTravelControlStateImpl || readWebTravelControlState;
+  const state = await readState(uid, opts);
+  if (!state || typeof state.disconnectPending !== "boolean" || typeof state.enablePending !== "boolean") {
+    throw storeError("calendar_control_state_unavailable", 503);
+  }
+  return state;
+}
+
+async function calendarEnableClaim(name, uid, accountId, opts = {}) {
+  const result = firstValue(await rpc(name, {
+    p_uid: uid,
+    p_calendar_account_id: accountId,
+  }, opts));
+  if (result !== true) throw storeError(name === "begin_lm_web_calendar_enable" ? "calendar_enable_pending" : "calendar_enable_unconfirmed", 409);
+  return true;
 }
 
 function createWebCalendarStore(opts = {}) {
@@ -188,30 +215,18 @@ function calendarMarkerUnchanged(before, after, uid) {
 }
 
 async function persistCalendarBinding(uid, connectedAccountId, opts = {}, expectedBinding = null) {
-  const url = userRowsUrl(uid, opts);
-  const fetchImpl = opts.fetchImpl || fetch;
-  const patchUrl = new URL(url);
-  if (expectedBinding) {
-    for (const field of ["calendar_provider", "calendar_connected_account_id"]) {
-      const value = expectedBinding[field];
-      patchUrl.searchParams.set(field, value == null ? "is.null" : `eq.${value}`);
-    }
-  }
-  const response = await fetchImpl(patchUrl.toString(), {
-    method: "PATCH",
-    headers: serviceHeaders(opts.supaKey, { "content-type": "application/json", Prefer: "return=representation" }),
-    body: JSON.stringify({ calendar_provider: "composio_gcal", calendar_connected_account_id: connectedAccountId, updated_at: new Date().toISOString() }),
-  });
-  if (!response.ok) throw new Error("calendar_binding_write_failed");
-  const updated = firstValue(await response.json().catch(() => []));
-  if (!calendarBindingMatches(updated, uid, connectedAccountId)) throw new Error("calendar_binding_write_failed");
+  const before = expectedBinding || await readCalendarBinding(uid, opts);
+  if (!before) throw new Error("calendar_binding_write_failed");
+  const result = firstValue(await rpc("bind_lm_web_calendar_account", {
+    p_uid: uid,
+    p_connected_account_id: connectedAccountId,
+    p_expected_calendar_provider: before.calendar_provider,
+    p_expected_calendar_account_id: before.calendar_connected_account_id,
+  }, opts));
+  if (result !== true) throw new Error("calendar_binding_write_failed");
 
-  const readbackResponse = await fetchImpl(url.toString(), { headers: serviceHeaders(opts.supaKey) });
-  if (!readbackResponse.ok) throw new Error("calendar_binding_readback_failed");
-  const rows = await readbackResponse.json().catch(() => []);
-  if (!calendarBindingMatches(Array.isArray(rows) ? rows[0] : null, uid, connectedAccountId)) {
-    throw new Error("calendar_binding_readback_failed");
-  }
+  const readback = await readCalendarBinding(uid, opts);
+  if (!calendarBindingMatches(readback, uid, connectedAccountId)) throw new Error("calendar_binding_readback_failed");
 }
 
 function providerOptions(opts, origin) {
@@ -282,7 +297,11 @@ function validRedirectUrl(value) {
 }
 
 async function handleStatus(scope, res, provider) {
+  const controlState = await readCalendarControlState(scope.uid, provider);
   const active = await resolveActiveWebCalendar(scope.uid, provider);
+  if (controlState.enablePending) {
+    return sendJson(res, 200, { connected: false, state: "enable_pending", enablePending: true });
+  }
   if (active) return sendJson(res, 200, { connected: true, state: "connected" });
   return sendJson(res, 200, { connected: false, state: "action_required" });
 }
@@ -301,20 +320,41 @@ async function startCalendar(scope, req, res, opts, origin) {
   }
 
   const provider = providerOptions(opts, origin);
+  const controlState = await readCalendarControlState(scope.uid, provider);
+  if (controlState.disconnectPending) return sendJson(res, 409, { error: "disconnect_pending" });
   const binding = await readCalendarBinding(scope.uid, provider);
   const current = await verifyCalendarBinding(scope.uid, binding, provider);
+  if (controlState.enablePending && (!current || current.status !== "ACTIVE")) {
+    return sendJson(res, 409, { error: "calendar_enable_pending" });
+  }
   if (current && current.status === "ACTIVE") {
+    if (controlState.enablePending) {
+      await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, provider);
+    }
     return sendJson(res, 200, { connected: true, state: "connected" });
   }
   if (current && current.status === "DISABLED") {
     if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
       return sendJson(res, 403, { error: "unauthorized" });
     }
+    if (!controlState.enablePending) {
+      await calendarEnableClaim("begin_lm_web_calendar_enable", scope.uid, current.accountId, provider);
+    }
     const resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, { ...provider, connectedAccountId: current.accountId });
     if (resumed && (resumed.state === "connected" || resumed.connected === true)) {
-      await persistCalendarBinding(scope.uid, current.accountId, provider, binding);
+      const activeStatus = await (provider.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(
+        scope, current.accountId, provider,
+      );
+      if (activeStatus !== "ACTIVE") throw new Error("provider_readback_failed");
+      await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, provider);
+      const latestBinding = await readCalendarBinding(scope.uid, provider);
+      if (!calendarMarkerUnchanged(binding, latestBinding, scope.uid)) throw new Error("calendar_binding_readback_failed");
       return sendJson(res, 200, { connected: true, state: "connected" });
     }
+    return sendJson(res, 409, { error: "calendar_enable_pending" });
+  }
+  if (controlState.enablePending) {
+    return sendJson(res, 409, { error: "calendar_enable_pending" });
   }
 
   const activeAccounts = (await listCalendarAccounts(scope.uid, provider)).filter((account) =>
@@ -360,6 +400,10 @@ async function startCalendar(scope, req, res, opts, origin) {
   if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
     return sendJson(res, 403, { error: "unauthorized" });
   }
+  const finalControlState = await readCalendarControlState(scope.uid, provider);
+  if (finalControlState.disconnectPending || finalControlState.enablePending) {
+    return sendJson(res, 409, { error: finalControlState.disconnectPending ? "disconnect_pending" : "calendar_enable_pending" });
+  }
   const oauth = await (provider.startCalendarOAuthImpl || startCalendarOAuth)(scope, state, {
     ...provider,
     calendarCallbackPath: CALLBACK_PATH,
@@ -376,12 +420,17 @@ async function handleCallback(scope, req, res, opts, url) {
   const state = parseOAuthState(url.searchParams);
   if (!state) return sendText(res, 403, "calendar connection not verified");
   const provider = providerOptions(opts, configuredOrigin(opts));
+  const controlState = await readCalendarControlState(scope.uid, provider);
+  if (controlState.disconnectPending || controlState.enablePending) {
+    return sendText(res, 403, "calendar connection not verified");
+  }
   const store = opts.webCalendarStore || createWebCalendarStore(provider);
   const accountId = String(await store.claimWebOAuthAccount(scope, stateHash(state)) || "");
   if (!ACCOUNT_ID_RE.test(accountId)) return sendText(res, 403, "calendar connection expired");
   if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
     return sendText(res, 403, "calendar connection not verified");
   }
+  const binding = await readCalendarBinding(scope.uid, provider);
 
   let status;
   try {
@@ -391,7 +440,7 @@ async function handleCallback(scope, req, res, opts, url) {
     throw error;
   }
   if (status !== "ACTIVE") return sendText(res, 403, "calendar connection not verified");
-  await persistCalendarBinding(scope.uid, accountId, provider);
+  await persistCalendarBinding(scope.uid, accountId, provider, binding);
   res.writeHead(303, { Location: "/lm", "cache-control": "no-store", "referrer-policy": "no-referrer" });
   res.end();
 }

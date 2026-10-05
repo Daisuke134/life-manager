@@ -61,6 +61,7 @@ function fixture(overrides = {}) {
     telegram_chat_id: null,
     calendar_provider: "composio_gcal",
     calendar_connected_account_id: "ca-selected-123",
+    calendar_enable_pending: false,
     home_address: null,
     trial_expires_at: null,
     paid: false,
@@ -89,6 +90,9 @@ function fixture(overrides = {}) {
       rpcCalls.push(body);
       if (body.p_calendar_account_id !== row.calendar_connected_account_id) {
         return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
+      }
+      if (row.calendar_enable_pending) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_enable_pending" }) };
       }
       if (preference && preference.calendar_disconnect_pending) {
         return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
@@ -228,7 +232,8 @@ test("setup stores home and starts one trial only for active unbound web user", 
   assert.equal(f.calendarReads[0].expectedCalendarAccountId, "ca-selected-123");
   assert.ok(f.sequence.indexOf("calendar_status") < f.sequence.indexOf("rpc"));
   assert.ok(f.sequence.indexOf("rpc") < f.sequence.indexOf("travel"));
-  assert.equal(f.sequence[f.sequence.indexOf("travel") - 2], "unbound");
+  assert.equal(f.sequence[f.sequence.indexOf("travel") - 3], "unbound");
+  assert.equal(f.sequence[f.sequence.indexOf("travel") - 2], "user_row");
   assert.equal(f.sequence[f.sequence.indexOf("travel") - 1], "preference_read");
   assert.ok(f.sequence.indexOf("travel") < f.sequence.indexOf("calendar_read"));
   const result = JSON.parse(response.body);
@@ -288,6 +293,21 @@ test("setup during pending disconnect makes no home, trial, preference, or Trave
   assert.equal(f.row.trial_expires_at, null);
   assert.equal(f.preference.daily_automation_enabled, false);
   assert.equal(f.preference.calendar_disconnect_pending, true);
+  assert.equal(f.preferenceWrites, 0);
+  assert.equal(f.travelCalls, 0);
+});
+
+test("setup during pending Calendar enable makes no home, trial, preference, or Travel mutation", async () => {
+  const f = fixture();
+  f.row.calendar_enable_pending = true;
+  const response = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(JSON.parse(response.body).error, "calendar_enable_pending");
+  assert.equal(f.row.home_address, null);
+  assert.equal(f.row.trial_expires_at, null);
   assert.equal(f.preferenceWrites, 0);
   assert.equal(f.travelCalls, 0);
 });
@@ -623,7 +643,7 @@ test("pause changes only persisted daily automation preference", async () => {
   assert.equal(f.row.trial_expires_at, before.trial_expires_at);
   assert.equal(f.row.calendar_connected_account_id, before.calendar_connected_account_id);
   assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" }]);
-  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, calendarBound: true });
+  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, enablePending: false, calendarBound: true });
 });
 
 test("resume requires a saved home and the exact selected ACTIVE Calendar account", async () => {
@@ -652,7 +672,32 @@ test("resume requires a saved home and the exact selected ACTIVE Calendar accoun
   assert.equal(activeResponse.status, 200);
   assert.equal(active.preference.daily_automation_enabled, true);
   assert.deepEqual(active.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
-  assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, disconnectPending: false, calendarBound: true });
+  assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false, calendarBound: true });
+});
+
+test("resume is rejected while Calendar enable readback is pending", async () => {
+  const f = fixture();
+  f.row.home_address = "自宅住所";
+  f.row.calendar_enable_pending = true;
+
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(JSON.parse(response.body).error, "calendar_enable_pending");
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.deepEqual(f.controlRpcCalls, []);
+});
+
+test("Today snapshot exposes retained Calendar enable claim with controls paused", async () => {
+  const f = fixture();
+  f.row.calendar_enable_pending = true;
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.enablePending, true);
+  assert.equal(snapshot.dailyAutomationEnabled, false);
+  assert.equal(snapshot.disconnectPending, false);
 });
 
 test("disconnect pauses first, disables and clears only the selected account", async () => {
@@ -677,7 +722,7 @@ test("disconnect pauses first, disables and clears only the selected account", a
   assert.equal(f.preference.calendar_disconnect_pending, false);
   assert.equal(f.row.calendar_provider, null);
   assert.equal(f.row.calendar_connected_account_id, null);
-  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, calendarBound: false });
+  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, enablePending: false, calendarBound: false });
 });
 
 test("uncertain provider readback leaves the exact binding and persisted pause in place", async () => {
@@ -854,6 +899,7 @@ test("pause preserves existing call and notification preferences", async () => {
 test("travel-control RPC locks, verifies the NULL-Telegram user and account, and updates only Web-owned fields", () => {
   const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-06-z-lm-web-travel-controls.sql"), "utf8");
   assert.match(sql, /ADD COLUMN IF NOT EXISTS calendar_disconnect_pending boolean NOT NULL DEFAULT false/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS calendar_enable_pending boolean NOT NULL DEFAULT false/i);
   assert.match(sql, /FOR UPDATE/i);
   assert.match(sql, /telegram_chat_id\s+IS\s+NULL/i);
   assert.match(sql, /calendar_connected_account_id\s+IS\s+DISTINCT\s+FROM\s+p_calendar_account_id/i);
@@ -867,6 +913,10 @@ test("travel-control RPC locks, verifies the NULL-Telegram user and account, and
   assert.match(sql, /VALUES\s*\(p_uid, false, false, false, false\)/i);
   assert.match(sql, /ON CONFLICT\s*\(uid\) DO UPDATE SET daily_automation_enabled = false/i);
   assert.match(sql, /calendar_disconnect_pending\s+THEN\s+RAISE EXCEPTION 'calendar_disconnect_pending'/i);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.begin_lm_web_calendar_enable/i);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.finish_lm_web_calendar_enable/i);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.bind_lm_web_calendar_account/i);
+  assert.match(sql, /user_row\.calendar_enable_pending/i);
   assert.match(sql, /IF p_action = 'pause' THEN[\s\S]*?INSERT INTO public\.lm_panel_preferences[\s\S]*?VALUES\s*\(p_uid, false, false, false, false\)\s+ON CONFLICT\s*\(uid\) DO UPDATE SET daily_automation_enabled = false;/i);
   assert.match(sql, /calendar_provider\s*=\s*NULL/i);
   assert.match(sql, /calendar_connected_account_id\s*=\s*NULL/i);
@@ -877,6 +927,7 @@ test("travel-control RPC locks, verifies the NULL-Telegram user and account, and
   const setupSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.complete_lm_web_travel_setup"));
   assert.notEqual(setupSql, sql, "the ordered controls migration must reapply setup with the fence");
   assert.match(setupSql, /preference_row\.calendar_disconnect_pending/i);
+  assert.match(setupSql, /user_row\.calendar_enable_pending/i);
   assert.match(setupSql, /IF preference_exists THEN[\s\S]*?SET call_enabled = false,[\s\S]*?notifications_enabled = false/i);
   assert.doesNotMatch(setupSql, /UPDATE public\.lm_panel_preferences[\s\S]*daily_automation_enabled\s*=/i);
   assert.match(setupSql, /preference_exists\s+AND\s+preference_row\.calendar_disconnect_pending[\s\S]*?RAISE EXCEPTION 'calendar_disconnect_pending'/i);
