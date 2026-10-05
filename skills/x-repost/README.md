@@ -25,6 +25,13 @@ sources, excessive X length, wrong-account browser sessions, and ambiguous dupli
 6. Read back the exact `https://x.com/<handle>/status/<id>` permalink.
 7. Append `posted.jsonl` and retain the pass evidence directory.
 
+## Shared agent capacity
+
+`x-repost` uses the shared agent pool as a borrow/support owner and preserves the revenue floor.
+When capacity is busy, repeated scheduled wakes coalesce into one pending queue position. Once a
+claim runs, it searches live X at execution time; it does not replay one post for every missed
+half-hour interval.
+
 ## Affiliate disable
 
 The English wrapper sets `X_REPOST_DISABLE_AFFILIATE=1`. While set, the pass does not claim or
