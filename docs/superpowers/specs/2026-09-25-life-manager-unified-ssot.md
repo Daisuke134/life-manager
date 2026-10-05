@@ -8007,3 +8007,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6649/headaa3db6c5のCI37295099594は全10checks SUCCESS、通常admin merge成功。main e851f7a947ab37df66a4285cff636c4cacdc7a53/merged10:19:13ZをGitHub/fetch確認。source unknown guardをruntimeへ結ぶため標準full releasecutを開始、既存complete donor再利用・disk-pressure flag falseを確認。exec22880生存、未完成をcurrent/source反映済みにしない。
 - ask dependency復旧はExpress5.2.1 exact/local68packages、danglinglinkをtarget local node_modulesへ置換、install scripts disabled。package-lock SHA6e04f44e49626b6a264ecbc01b9dc86d4aa3b0d06007add478611b4e66b5a9af、server/plist hashes前後同一。foreground fixturehealthGET200/自PID98502TERM/port listener無し、askPOST0。rootGUIpreflightPASS→元plist bootstrap後running/PID638/runs1/nevere xited、local8789healthGET200/serviceanicca-ask。error492108bytesは停止前後・復帰後も増加無し。state/anicca-ask-dependency-recovery-20261005.jsonへsafehash/healthを保存。
 - このDoneは欠損dependency/クラッシュ再起動/log増大の復旧で、askの外部AI応答や事業収益を検証したとの主張ではない。コード/provider/認証/copy/port/plist/他daemon/Mac/loginwindow/Codexappserver変更0。公式dependency根拠 https://registry.npmjs.org/express と https://expressjs.com/en/5x/api.html。sourceguard実adapterのreceipt課題とCoconala12pending/添付2/SHA1、auditlatecache根本修復は保持。全体47/cursor1。
+
+
+### 564. fullcut ENOSPCのfail-closedと容量測定後の再試行
+
+- fullcut exec22880はe851tar展開中にENOSPCでexit1、標準trapでpartialDESTを回収。e851failed path無し、currentはmain-derivedf9e4b2a6/ALLに保持され、guard未反映を成功にしない。trackedtar payload94074880bytesを実測、source/donor/dependencyの実コピー境界を確認した。元source/main/review/CIは保持。
+- 後dfが885MiB→3.9GiBへ増加したが別producer/GCの因果未確認、root回収だけへ帰属しない。fresh statvfs 4081872896bytes＋complete current donor/main ancestry/pressureflagfalseを確認し、minimum1GiBの実測preflight付きで同e851fullcutを一度再試行（exec41631）。取得エラー/観測timeoutを完了とせず同handle/currentを追跡。
+- ask元jobはrunning/PID638/localhealth200/error492108bytes安定、外部askPOST0。このlocalservice復旧をCoconala全返信・全納品・財務profitへ混同しない。次は新immutable完成/loadedtarget/oldunknownの自然readbackとsource残件。全体47/cursor1 audit後backgroundtemp寿命未修復、Coconala12保留/添付2/SHA1を保持。
