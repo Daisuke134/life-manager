@@ -46,7 +46,8 @@ function mountClient(html, responses) {
     },
     fetch: async (path, init) => {
       requests.push({ path, init });
-      return { ok: true, json: async () => responses[path] };
+      const result = responses[path];
+      return { ok: !(result && result._ok === false), json: async () => result };
     },
     window: { location: { assign(value) { redirects.push(value); } } },
   });
@@ -320,4 +321,56 @@ test("Calendar start follows only the server redirect URL", async () => {
   assert.deepEqual(JSON.parse(start.init.body), {});
   assert.deepEqual(client.redirects, [redirectUrl]);
   assert.ok(client.requests.every(({ init }) => !init.body || !/uid|chat_id|paid/.test(init.body)));
+});
+
+test("travel controls use persisted pause state and expose disconnect only for a bound Calendar", async () => {
+  const pausedPage = renderWebPage({
+    user,
+    snapshot: snapshot({ calendarBound: true, dailyAutomationEnabled: false }),
+  });
+  const runningPage = renderWebPage({
+    user,
+    snapshot: snapshot({ calendarBound: true, dailyAutomationEnabled: true }),
+  });
+  const unboundPage = renderWebPage({
+    user,
+    snapshot: snapshot({ calendarBound: false, dailyAutomationEnabled: false }),
+  });
+
+  assert.match(visibleHtml(pausedPage), /data-action="travel-control" data-control="resume">自動Travelを再開<\/button>/);
+  assert.match(visibleHtml(pausedPage), /data-action="travel-control" data-control="disconnect">Google カレンダーの接続を解除<\/button>/);
+  assert.match(visibleHtml(runningPage), /data-action="travel-control" data-control="pause">自動Travelを一時停止<\/button>/);
+  assert.doesNotMatch(visibleHtml(unboundPage), /data-control="disconnect"/);
+
+  const client = mountClient(runningPage, {
+    "/api/lm-web/calendar/status": { connected: true, state: "connected" },
+    "/api/lm-web/travel/control": { dailyAutomationEnabled: false, calendarBound: true },
+  });
+  const button = { dataset: { action: "travel-control", control: "pause" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+  const request = client.requests.find((item) => item.path === "/api/lm-web/travel/control");
+
+  assert.equal(request.init.method, "POST");
+  assert.equal(request.init.headers["x-lm-web-csrf"], user.csrf);
+  assert.deepEqual(JSON.parse(request.init.body), { action: "pause" });
+  assert.deepEqual(client.redirects, ["/lm"]);
+});
+
+test("disconnect failure tells the user automation remains paused", async () => {
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ calendarBound: true, dailyAutomationEnabled: true }),
+  });
+  const client = mountClient(page, {
+    "/api/lm-web/calendar/status": { connected: true, state: "connected" },
+    "/api/lm-web/travel/control": { _ok: false, error: "control_unavailable", automationPaused: true },
+  });
+  const button = { dataset: { action: "travel-control", control: "disconnect" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+
+  const request = client.requests.find((item) => item.path === "/api/lm-web/travel/control");
+  assert.deepEqual(JSON.parse(request.init.body), { action: "disconnect" });
+  assert.match(client.feedback.textContent, /自動Travelは停止したままです/);
+  assert.equal(button.disabled, false);
+  assert.deepEqual(client.redirects, []);
 });

@@ -554,7 +554,7 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
-  if (path === "/api/lm-web/setup" || path === "/api/lm-web/today") {
+  if (path === "/api/lm-web/setup" || path === "/api/lm-web/today" || path === "/api/lm-web/travel/control") {
     handleWebTravelRequest(req, res, {
       supaUrl: SUPA_URL, supaKey: SUPA_KEY,
       publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,

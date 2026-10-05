@@ -69,7 +69,10 @@ function fixture(overrides = {}) {
   const calendarReads = [];
   const sequence = [];
   const rpcCalls = [];
+  const controlRpcCalls = [];
   const travelExpectedAccountIds = [];
+  const preference = { daily_automation_enabled: false };
+  const disconnectCalls = [];
   let preferenceWrites = 0;
   let travelCalls = 0;
   const fetchImpl = async (url, init = {}) => {
@@ -83,13 +86,35 @@ function fixture(overrides = {}) {
       }
       row.home_address = body.p_home_address;
       row.trial_expires_at ||= TRIAL_EXPIRES_AT;
+      preference.daily_automation_enabled = true;
       preferenceWrites++;
       return { ok: true, status: 200, json: async () => ({ trial_expires_at: row.trial_expires_at }) };
+    }
+    if (requestUrl.pathname.endsWith("/rpc/control_lm_web_travel")) {
+      sequence.push(`control_rpc:${JSON.parse(init.body || "{}").p_action}`);
+      const body = JSON.parse(init.body || "{}");
+      controlRpcCalls.push(body);
+      if (body.p_uid !== UID || body.p_calendar_account_id !== (row.calendar_connected_account_id || null)) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
+      }
+      if (body.p_action === "pause" || body.p_action === "disconnect") preference.daily_automation_enabled = false;
+      else if (body.p_action === "resume") preference.daily_automation_enabled = true;
+      else return { ok: false, status: 400, json: async () => ({ message: "invalid_action" }) };
+      if (body.p_action === "disconnect") {
+        row.calendar_provider = null;
+        row.calendar_connected_account_id = null;
+      }
+      return { ok: true, status: 200, json: async () => true };
     }
     if (requestUrl.pathname.endsWith("/lm_users")) {
       sequence.push("user_row");
       assert.equal((requestUrl.searchParams.get("select") || "").includes("call_time_zone"), false);
-      return { ok: true, status: 200, json: async () => [{ ...row }] };
+      return { ok: true, status: 200, json: async () => row.telegram_chat_id == null ? [{ ...row }] : [] };
+    }
+    if (requestUrl.pathname.endsWith("/lm_panel_preferences")) {
+      sequence.push("preference_read");
+      assert.equal(requestUrl.searchParams.get("select"), "daily_automation_enabled");
+      return { ok: true, status: 200, json: async () => [{ ...preference }] };
     }
     throw new Error(`unexpected service request: ${requestUrl.pathname}`);
   };
@@ -106,6 +131,12 @@ function fixture(overrides = {}) {
       assert.deepEqual(scope, { uid: UID });
       assert.equal(accountId, row.calendar_connected_account_id);
       return "ACTIVE";
+    },
+    composioCalendarDisconnectImpl: async (scope, providerOpts) => {
+      sequence.push("calendar_disconnect");
+      disconnectCalls.push({ scope, connectedAccountId: providerOpts.connectedAccountId });
+      assert.deepEqual(scope, { uid: UID });
+      return { provider: "calendar", state: "action_required" };
     },
     fetchImpl,
     readJsonImpl: async (req) => req.testBody,
@@ -138,7 +169,7 @@ function fixture(overrides = {}) {
     },
     ...overrides,
   };
-  return { events, fetchImpl, opts, row, rpcCalls, sequence, calendarReads, travelExpectedAccountIds,
+  return { events, fetchImpl, opts, row, rpcCalls, controlRpcCalls, disconnectCalls, preference, sequence, calendarReads, travelExpectedAccountIds,
     get preferenceWrites() { return preferenceWrites; }, get travelCalls() { return travelCalls; } };
 }
 
@@ -446,4 +477,155 @@ test("setup RPC locks and updates only the Web-owned setup fields", () => {
   assert.match(sql, /notifications_enabled\s*=\s*false/i);
   assert.match(sql, /daily_automation_enabled\s*=\s*true/i);
   assert.doesNotMatch(sql, /\bpaid\b|\bphone\s*=|tg_onboard_stage|telegram_chat_id\s*=/i);
+});
+
+test("travel controls reject missing or wrong Origin, CSRF, and forged identity fields", async () => {
+  const f = fixture();
+  const path = "/api/lm-web/travel/control";
+  const missingOrigin = await call(f, "POST", path, {
+    contentType: "application/json", csrf: "csrf-token", body: { action: "pause" },
+  });
+  const wrongOrigin = await call(f, "POST", path, {
+    origin: "https://attacker.example", contentType: "application/json", csrf: "csrf-token", body: { action: "pause" },
+  });
+  const wrongCsrf = await call(f, "POST", path, {
+    origin: ORIGIN, contentType: "application/json", csrf: "wrong", body: { action: "pause" },
+  });
+  const forged = await call(f, "POST", path, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token",
+    body: { action: "pause", uid: OTHER_UID, connectedAccountId: "ca-attacker-999" },
+  });
+
+  assert.equal(missingOrigin.status, 403);
+  assert.equal(wrongOrigin.status, 403);
+  assert.equal(wrongCsrf.status, 403);
+  assert.equal(forged.status, 400);
+  assert.deepEqual(f.controlRpcCalls, []);
+  assert.deepEqual(f.disconnectCalls, []);
+});
+
+test("travel controls reject Telegram-bound users", async () => {
+  const f = fixture();
+  f.row.telegram_chat_id = "telegram-bound";
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "pause" },
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(f.controlRpcCalls, []);
+  assert.deepEqual(f.disconnectCalls, []);
+});
+
+test("pause changes only persisted daily automation preference", async () => {
+  const f = fixture();
+  f.row.home_address = "自宅住所";
+  f.preference.daily_automation_enabled = true;
+  const before = { ...f.row };
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "pause" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.row.home_address, before.home_address);
+  assert.equal(f.row.trial_expires_at, before.trial_expires_at);
+  assert.equal(f.row.calendar_connected_account_id, before.calendar_connected_account_id);
+  assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" }]);
+  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, calendarBound: true });
+});
+
+test("resume requires a saved home and the exact selected ACTIVE Calendar account", async () => {
+  const noHome = fixture();
+  const noHomeResponse = await call(noHome, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+  assert.equal(noHomeResponse.status, 409);
+  assert.equal(JSON.parse(noHomeResponse.body).error, "home_required");
+  assert.deepEqual(noHome.controlRpcCalls, []);
+
+  const inactive = fixture({ composioCalendarAccountStatusImpl: async () => "DISABLED" });
+  inactive.row.home_address = "自宅住所";
+  const inactiveResponse = await call(inactive, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+  assert.equal(inactiveResponse.status, 409);
+  assert.equal(JSON.parse(inactiveResponse.body).error, "calendar_not_active");
+  assert.deepEqual(inactive.controlRpcCalls, []);
+
+  const active = fixture();
+  active.row.home_address = "自宅住所";
+  const activeResponse = await call(active, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+  assert.equal(activeResponse.status, 200);
+  assert.equal(active.preference.daily_automation_enabled, true);
+  assert.deepEqual(active.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
+  assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, calendarBound: true });
+});
+
+test("disconnect pauses first, disables and clears only the selected account", async () => {
+  const f = fixture();
+  f.preference.daily_automation_enabled = true;
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  });
+
+  assert.equal(response.status, 200);
+  const sequence = f.sequence.slice(f.sequence.indexOf("control_rpc:pause"), f.sequence.indexOf("control_rpc:disconnect") + 1);
+  assert.ok(sequence.indexOf("control_rpc:pause") < sequence.indexOf("preference_read"));
+  assert.ok(sequence.indexOf("preference_read") < sequence.indexOf("calendar_disconnect"));
+  assert.ok(sequence.indexOf("calendar_disconnect") < sequence.indexOf("control_rpc:disconnect"));
+  assert.deepEqual(f.disconnectCalls, [{ scope: { uid: UID }, connectedAccountId: "ca-selected-123" }]);
+  assert.deepEqual(f.controlRpcCalls, [
+    { p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" },
+    { p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "disconnect" },
+  ]);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.row.calendar_provider, null);
+  assert.equal(f.row.calendar_connected_account_id, null);
+  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, calendarBound: false });
+});
+
+test("uncertain provider readback leaves the exact binding and persisted pause in place", async () => {
+  const f = fixture({
+    composioCalendarDisconnectImpl: async (scope, providerOpts) => {
+      f.sequence.push("calendar_disconnect");
+      f.disconnectCalls.push({ scope, connectedAccountId: providerOpts.connectedAccountId });
+      throw new Error("provider_readback_failed");
+    },
+  });
+  f.preference.daily_automation_enabled = true;
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  });
+
+  assert.equal(response.status, 502);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.row.calendar_connected_account_id, "ca-selected-123");
+  assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" }]);
+  assert.deepEqual(JSON.parse(response.body), { error: "control_unavailable", automationPaused: true });
+});
+
+test("Today reports persisted pause state and exact binding presence", async () => {
+  const f = fixture();
+  f.preference.daily_automation_enabled = false;
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.dailyAutomationEnabled, false);
+  assert.equal(snapshot.calendarBound, true);
+});
+
+test("travel-control RPC locks, verifies the NULL-Telegram user and account, and updates only Web-owned fields", () => {
+  const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-06-lm-web-travel-controls.sql"), "utf8");
+  assert.match(sql, /FOR UPDATE/i);
+  assert.match(sql, /telegram_chat_id\s+IS\s+NULL/i);
+  assert.match(sql, /calendar_connected_account_id\s+IS\s+DISTINCT\s+FROM\s+p_calendar_account_id/i);
+  assert.match(sql, /calendar_provider\s+IS\s+DISTINCT\s+FROM\s+'composio_gcal'/i);
+  assert.match(sql, /daily_automation_enabled\s*=\s*automation_value/i);
+  assert.match(sql, /p_action\s*=\s*'disconnect'/i);
+  assert.match(sql, /calendar_provider\s*=\s*NULL/i);
+  assert.match(sql, /calendar_connected_account_id\s*=\s*NULL/i);
+  assert.doesNotMatch(sql, /\bpaid\b|\btrial_expires_at\s*=|\bhome_address\s*=|\bcall_enabled\s*=|\bnotifications_enabled\s*=/i);
+  assert.ok(sql.search(/user_row\.calendar_connected_account_id\s+IS DISTINCT FROM p_calendar_account_id/i)
+    < sql.indexOf("UPDATE public.lm_panel_preferences"), "the locked account match must precede preference writes");
 });

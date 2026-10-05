@@ -66,17 +66,25 @@ function todayMarkup(snapshot) {
   return `${travelMarkup}${eventMarkup(snapshot && snapshot.nextEvent, displayTimeZone, snapshot && snapshot.missingLocationCount)}${locationCountMarkup(snapshot)}<p class="reminder-note">通知は Google カレンダーのデフォルトリマインダー設定に従います。Life Manager は通知設定を変更しません。</p>`;
 }
 
+function travelControlsMarkup(snapshot) {
+  if (!snapshot || snapshot.calendarBound !== true) return "";
+  const automationControl = typeof snapshot.dailyAutomationEnabled === "boolean"
+    ? `<button type="button" class="button secondary" data-action="travel-control" data-control="${snapshot.dailyAutomationEnabled ? "pause" : "resume"}">${snapshot.dailyAutomationEnabled ? "自動Travelを一時停止" : "自動Travelを再開"}</button>`
+    : "";
+  return `<section class="card"><h2>Travel 自動化</h2><div class="card-heading">${automationControl}<button type="button" class="button secondary" data-action="travel-control" data-control="disconnect">Google カレンダーの接続を解除</button></div></section>`;
+}
+
 function dashboardMarkup(snapshot, homeAddress = "") {
   if (!snapshot || snapshot.setupState === "sync_pending" && snapshot.calendarState === "unavailable") {
-    return `<section class="card"><h2>Calendar の状態を確認中</h2><p>接続状況を確認できません。あとで更新してください。</p><button type="button" class="button secondary" data-action="refresh">今日を更新</button></section>`;
+    return `<section class="card"><h2>Calendar の状態を確認中</h2><p>接続状況を確認できません。あとで更新してください。</p><button type="button" class="button secondary" data-action="refresh">今日を更新</button></section>${travelControlsMarkup(snapshot)}`;
   }
   if (snapshot.setupState === "needs_calendar") {
-    return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 1 / 2</p><h2>Google カレンダーを接続</h2><p>予定を読み取り、出発時刻を確認します。</p><button id="calendar-connect" type="button" class="button" data-action="calendar-start">Google カレンダーを接続</button></section>`;
+    return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 1 / 2</p><h2>Google カレンダーを接続</h2><p>予定を読み取り、出発時刻を確認します。</p><button id="calendar-connect" type="button" class="button" data-action="calendar-start">Google カレンダーを接続</button></section>${travelControlsMarkup(snapshot)}`;
   }
   if (snapshot.setupState === "needs_home") {
-    return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 2 / 2</p><h2>いつもの出発場所を入力</h2><p>住所は移動時間の計算に使います。</p><form id="home-address-form"><label for="homeAddress">自宅の住所</label><input id="homeAddress" name="homeAddress" type="text" maxlength="240" autocomplete="street-address" required value="${escapeHtml(homeAddress)}"><button type="submit" class="button">保存して予定を確認</button></form></section>`;
+    return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 2 / 2</p><h2>いつもの出発場所を入力</h2><p>住所は移動時間の計算に使います。</p><form id="home-address-form"><label for="homeAddress">自宅の住所</label><input id="homeAddress" name="homeAddress" type="text" maxlength="240" autocomplete="street-address" required value="${escapeHtml(homeAddress)}"><button type="submit" class="button">保存して予定を確認</button></form></section>${travelControlsMarkup(snapshot)}`;
   }
-  return `${calendarMarkup(snapshot)}${todayMarkup(snapshot)}`;
+  return `${calendarMarkup(snapshot)}${todayMarkup(snapshot)}${travelControlsMarkup(snapshot)}`;
 }
 
 const CLIENT_SCRIPT = String.raw`(() => {
@@ -111,7 +119,11 @@ const CLIENT_SCRIPT = String.raw`(() => {
     }
     const response = await fetch(path, request);
     const result = await response.json().catch(() => null);
-    if (!response.ok || !result) throw new Error("request_failed");
+    if (!response.ok || !result) {
+      const error = new Error("request_failed");
+      error.automationPaused = Boolean(result && result.automationPaused === true);
+      throw error;
+    }
     return result;
   }
   function say(message) { feedback.textContent = message || ""; }
@@ -120,6 +132,20 @@ const CLIENT_SCRIPT = String.raw`(() => {
     if (!button) return;
     if (button.dataset.action === "refresh") {
       window.location.assign("/lm");
+      return;
+    }
+    if (button.dataset.action === "travel-control") {
+      const action = button.dataset.control;
+      button.disabled = true;
+      try {
+        await api("/api/lm-web/travel/control", "POST", { action });
+        window.location.assign("/lm");
+      } catch (error) {
+        say(action === "disconnect" && error.automationPaused === true
+          ? "接続解除を確認できませんでした。自動Travelは停止したままです。ページを再読み込みして状態を確認してください。"
+          : "Travel の設定を更新できませんでした。ページを再読み込みして状態を確認してください。");
+        button.disabled = false;
+      }
       return;
     }
     if (button.dataset.action !== "calendar-start") return;

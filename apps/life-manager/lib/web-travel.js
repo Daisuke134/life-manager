@@ -7,6 +7,7 @@ const { isTravel, listEvents7d, travelDecision } = require("./travel.js");
 
 const SETUP_PATH = "/api/lm-web/setup";
 const TODAY_PATH = "/api/lm-web/today";
+const CONTROL_PATH = "/api/lm-web/travel/control";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{3,128}$/;
 const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid";
@@ -70,6 +71,23 @@ async function readWebUserRow(uid, opts = {}) {
   const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
   if (!row || row.uid !== uid || row.telegram_chat_id != null) throw webError(403, "unauthorized");
   return row;
+}
+
+async function readWebAutomationPreference(uid, opts = {}) {
+  const base = String(opts.supaUrl || "").replace(/\/$/, "");
+  if (!base || !opts.supaKey) throw webError(503, "control_readback_unavailable");
+  const url = new URL(`${base}/rest/v1/lm_panel_preferences`);
+  url.searchParams.set("uid", `eq.${uid}`);
+  url.searchParams.set("select", "daily_automation_enabled");
+  url.searchParams.set("limit", "2");
+  const response = await (opts.fetchImpl || fetch)(url.toString(), { headers: serviceHeaders(opts.supaKey) });
+  if (!response.ok) throw webError(502, "control_readback_unavailable");
+  const rows = await response.json().catch(() => null);
+  if (Array.isArray(rows) && rows.length === 0) return null;
+  if (!Array.isArray(rows) || rows.length !== 1 || typeof rows[0].daily_automation_enabled !== "boolean") {
+    throw webError(502, "control_readback_unavailable");
+  }
+  return rows[0].daily_automation_enabled;
 }
 
 async function assertUnbound(uid, opts) {
@@ -185,6 +203,9 @@ function baseSnapshot(row, setupState, calendarState) {
   return {
     setupState,
     calendarState,
+    calendarBound: Boolean(row && row.calendar_provider === "composio_gcal"
+      && ACCOUNT_ID_RE.test(String(row.calendar_connected_account_id || ""))),
+    dailyAutomationEnabled: null,
     nextEvent: null,
     travelBlock: null,
     departureAt: null,
@@ -201,12 +222,19 @@ async function buildTodaySnapshot(uid, opts = {}) {
   try { current = await readActiveCalendarUser(uid, opts); }
   catch (error) {
     if (error && error.code === "calendar_status_unavailable") {
-      return baseSnapshot(error.userRow, "sync_pending", "unavailable");
+      const snapshot = baseSnapshot(error.userRow, "sync_pending", "unavailable");
+      snapshot.dailyAutomationEnabled = await readWebAutomationPreference(uid, opts);
+      return snapshot;
     }
     throw error;
   }
   const { row, status } = current;
-  if (status !== "ACTIVE") return baseSnapshot(row, "needs_calendar", "action_required");
+  const dailyAutomationEnabled = await readWebAutomationPreference(uid, opts);
+  if (status !== "ACTIVE") {
+    const snapshot = baseSnapshot(row, "needs_calendar", "action_required");
+    snapshot.dailyAutomationEnabled = dailyAutomationEnabled;
+    return snapshot;
+  }
 
   const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
   // The selected account's exact ACTIVE result above is still current only if its marker is unchanged.
@@ -215,7 +243,9 @@ async function buildTodaySnapshot(uid, opts = {}) {
   await assertUnbound(uid, opts);
   if (beforeReadRow.calendar_provider !== "composio_gcal"
     || beforeReadRow.calendar_connected_account_id !== row.calendar_connected_account_id) {
-    return baseSnapshot(beforeReadRow, "needs_calendar", "action_required");
+    const snapshot = baseSnapshot(beforeReadRow, "needs_calendar", "action_required");
+    snapshot.dailyAutomationEnabled = dailyAutomationEnabled;
+    return snapshot;
   }
 
   let events;
@@ -236,6 +266,7 @@ async function buildTodaySnapshot(uid, opts = {}) {
   const matches = matchingTravelBlocks(ordered, nextEvent);
   const travel = matches.length === 1 ? matches[0] : null;
   const snapshot = baseSnapshot(beforeReadRow, "ready", "connected");
+  snapshot.dailyAutomationEnabled = dailyAutomationEnabled;
   snapshot.nextEvent = eventSnapshot(nextEvent);
   snapshot.travelBlock = eventSnapshot(travel);
   snapshot.departureAt = travel && Number.isFinite(travel.startMs) ? new Date(travel.startMs).toISOString() : null;
@@ -275,9 +306,79 @@ async function travelOwnerOnce(user, opts = {}) {
   return run(user);
 }
 
+function selectedWebCalendarAccount(row) {
+  if (row.calendar_provider == null && row.calendar_connected_account_id == null) return null;
+  const accountId = String(row.calendar_connected_account_id || "");
+  if (row.calendar_provider !== "composio_gcal" || !ACCOUNT_ID_RE.test(accountId)) {
+    throw webError(409, "calendar_account_changed");
+  }
+  return accountId;
+}
+
+async function applyWebTravelControl(uid, accountId, action, opts = {}) {
+  const result = firstValue(await rpc("control_lm_web_travel", {
+    p_uid: uid,
+    p_calendar_account_id: accountId,
+    p_action: action,
+  }, opts));
+  if (result !== true) throw webError(409, "calendar_account_changed");
+
+  await assertUnbound(uid, opts);
+  const row = await readWebUserRow(uid, opts);
+  const enabled = await readWebAutomationPreference(uid, opts);
+  const expectedAccountId = action === "disconnect" ? null : accountId;
+  if (selectedWebCalendarAccount(row) !== expectedAccountId
+    || enabled !== (action === "resume")) {
+    throw webError(502, "control_readback_unavailable");
+  }
+  return {
+    dailyAutomationEnabled: enabled,
+    calendarBound: expectedAccountId !== null,
+  };
+}
+
+async function controlWebTravel(uid, action, opts = {}) {
+  await assertUnbound(uid, opts);
+  let row = await readWebUserRow(uid, opts);
+  let accountId = selectedWebCalendarAccount(row);
+
+  if (action === "resume") {
+    if (!String(row.home_address || "").trim()) throw webError(409, "home_required");
+    const active = await readActiveCalendarUser(uid, opts);
+    if (active.status !== "ACTIVE" || selectedWebCalendarAccount(active.row) !== accountId) {
+      throw webError(409, "calendar_not_active");
+    }
+    row = active.row;
+    if (!String(row.home_address || "").trim()) throw webError(409, "home_required");
+    await assertUnbound(uid, opts);
+    const current = await readWebUserRow(uid, opts);
+    if (selectedWebCalendarAccount(current) !== accountId) throw webError(409, "calendar_account_changed");
+  }
+
+  if (action === "disconnect") {
+    if (!accountId) throw webError(409, "calendar_not_connected");
+    let paused = false;
+    try {
+      await applyWebTravelControl(uid, accountId, "pause", opts);
+      paused = true;
+      const disconnect = opts.composioCalendarDisconnectImpl || panelApi().composioCalendarDisconnect;
+      const result = await disconnect({ uid }, { ...providerOptions(opts), connectedAccountId: accountId });
+      if (!result || result.provider !== "calendar" || result.state !== "action_required") {
+        throw webError(502, "calendar_disconnect_unavailable");
+      }
+      return await applyWebTravelControl(uid, accountId, "disconnect", opts);
+    } catch (error) {
+      if (paused) error.automationPaused = true;
+      throw error;
+    }
+  }
+
+  return applyWebTravelControl(uid, accountId, action, opts);
+}
+
 async function handleWebTravelRequest(req, res, opts = {}) {
   const url = requestUrl(req);
-  if (![SETUP_PATH, TODAY_PATH].includes(url.pathname)) return sendJson(res, 404, { error: "not_found" });
+  if (![SETUP_PATH, TODAY_PATH, CONTROL_PATH].includes(url.pathname)) return sendJson(res, 404, { error: "not_found" });
   let user = null;
   try { user = await (opts.resolveWebUserImpl || resolveWebUser)(req, res, opts); } catch {}
   if (!user || !WEB_UID_RE.test(String(user.uid || ""))) return sendJson(res, 401, { error: "unauthorized" });
@@ -302,6 +403,19 @@ async function handleWebTravelRequest(req, res, opts = {}) {
   try { body = await (opts.readJsonImpl || panelApi().readJson)(req); }
   catch (error) { return sendJson(res, error && error.status === 413 ? 413 : 400, { error: "invalid_json" }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return sendJson(res, 400, { error: "invalid_json" });
+
+  if (url.pathname === CONTROL_PATH) {
+    if (Object.keys(body).length !== 1 || !["pause", "resume", "disconnect"].includes(body.action)) {
+      return sendJson(res, 400, { error: "invalid_control_action" });
+    }
+    try { return sendJson(res, 200, await controlWebTravel(uid, body.action, opts)); }
+    catch (error) {
+      const status = Number.isInteger(error && error.status) ? error.status : 502;
+      const response = { error: status < 500 ? error.code : "control_unavailable" };
+      if (error && error.automationPaused === true) response.automationPaused = true;
+      return sendJson(res, status, response);
+    }
+  }
 
   try {
     const homeAddress = normalizeHomeAddress(body.homeAddress);
@@ -341,6 +455,7 @@ async function handleWebTravelRequest(req, res, opts = {}) {
 }
 
 module.exports = {
+  CONTROL_PATH,
   SETUP_PATH,
   TODAY_PATH,
   buildTodaySnapshot,
