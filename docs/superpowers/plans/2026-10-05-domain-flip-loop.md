@@ -46,7 +46,7 @@
 
 - [ ] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert the 100 EUR cap, four-holding limit, `autorenew=off` policy value, and exact Decimal net arithmetic.
 - [ ] **Step 2: Run the test file and confirm the expected missing-module failures.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: collection fails because `skills/domain-flip/core.py` does not yet exist.
-- [ ] **Step 3: Implement the three pure functions** with `Decimal`, explicit required evidence, stable reason codes, an append-only event schema validator, and no float arithmetic or hidden provider state.
+- [ ] **Step 3: Implement the three pure functions** with `Decimal`, explicit required evidence, stable reason codes, and no float arithmetic or hidden provider state.
 - [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: all named tests pass.
 - [ ] **Step 5: Commit** `feat(domain-flip): add bounded purchase policy`.
 
@@ -99,13 +99,14 @@
 **Interfaces:**
 - Consumes: Tasks 1–3; existing `runtime/agent-runner/agent_runner.py` with `--task-class diagnostic-agent --prompt-stdin --schema ... --read-only`.
 - Produces: one daily pass for owner `domain-flip`, with candidate packet, model result, domain-level event stream, and exact registrar/Sedo readbacks.
+- The owner exposes `append_event(state_dir, event)`; it validates and durably appends all required occurrence fields before any owner-visible transition.
 - `rights_search.py` queries the WIPO Global Brand Database API and the official EUIPO Trademark Search API (`GET https://api.euipo.europa.eu/trademark-search/trademarks`) for exact/close word marks; a failed or unavailable search is `rights_evidence_missing`, never a clean result. EUIPO query uses the documented `wordMarkSpecification.verbalElement` field. The adapter also attaches the official Register.si ADR search reference.
 - The owner generates original, era-inspired names; sends market, official rights-search, registrar, and sale evidence to the model; and accepts only schema-valid recommendations whose source refs are present. Model prose cannot bypass deterministic cap, rights-evidence, or economic checks.
 - `effect_reconcile.py --occurrence-id ...` performs provider GET readbacks only and either records a conclusive effect result or keeps the occurrence fenced.
 
-- [ ] **Step 1: Write failing tests** named `test_wipo_and_euipo_queries_are_candidate_specific`, `test_failed_rights_search_is_not_clean`, `test_pass_is_scout_only_without_provider_credentials`, `test_model_choice_cannot_bypass_purchase_policy`, `test_domain_insert_requires_registered_owner_readback`, `test_lost_registration_response_is_not_replayed`, `test_sedo_listing_is_pending_until_provider_readback`, and `test_reconcile_uses_get_only_and_holds_ambiguous_state`.
+- [ ] **Step 1: Write failing tests** named `test_wipo_and_euipo_queries_are_candidate_specific`, `test_failed_rights_search_is_not_clean`, `test_event_writer_records_required_occurrence_fields`, `test_pass_is_scout_only_without_provider_credentials`, `test_model_choice_cannot_bypass_purchase_policy`, `test_domain_insert_requires_registered_owner_readback`, `test_lost_registration_response_is_not_replayed`, `test_sedo_listing_is_pending_until_provider_readback`, and `test_reconcile_uses_get_only_and_holds_ambiguous_state`.
 - [ ] **Step 2: Run the owner tests and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_run.py -q`. Expected: collection fails because the owner entrypoint is absent.
-- [ ] **Step 3: Implement the one-pass owner and read-only reconciler** using the private state root, required structured occurrence fields, `effect_unknown` fencing, and the existing agent runner.
+- [ ] **Step 3: Implement the one-pass owner and read-only reconciler** using the private state root, validated append-only event writer, `effect_unknown` fencing, and the existing agent runner.
 - [ ] **Step 4: Run focused tests and syntax checks.** Run: `python3 -m pytest skills/domain-flip/test_run.py -q` and `python3 -m py_compile skills/domain-flip/*.py`. Expected: all tests pass and compilation exits 0.
 - [ ] **Step 5: Commit** `feat(domain-flip): add finite owner pass`.
 
