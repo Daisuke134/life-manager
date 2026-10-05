@@ -23,7 +23,7 @@ import agent_runner  # noqa: E402
 
 
 class CodexProfileBoundaryTest(unittest.TestCase):
-    def _run_candidate_fixture(self, plan, include_claude):
+    def _run_candidate_fixture(self, plan, include_claude, *, return_records=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates = [
@@ -129,6 +129,21 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 return 1
 
             def fixture_provider_env(provider, provider_config, environ=None, **_kwargs):
+                profile = provider_config.get("profile_alias", "")
+                behavior = plan.get((provider, profile))
+                if behavior in {"auth_file_missing", "auth_file_invalid"}:
+                    auth_file = root / f"{profile}-auth"
+                    if behavior == "auth_file_invalid":
+                        auth_file.mkdir()
+                    return provider_process_env(
+                        provider,
+                        {
+                            "automation_home": str(root / f"{profile}-automation"),
+                            "auth_file": str(auth_file),
+                        },
+                        environ={"PATH": "/usr/bin:/bin"},
+                        invocation_id=_kwargs.get("invocation_id"),
+                    )
                 env = dict(os.environ if environ is None else environ)
                 env["FIXTURE_PROVIDER"] = f"{provider}:{provider_config.get('profile_alias', '')}"
                 return env
@@ -155,6 +170,15 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     mock.patch.object(sys, "argv", argv), \
                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 status = agent_runner.run()
+            if return_records:
+                attempts = [
+                    json.loads(line) for line in (evidence_dir / "attempts.jsonl").read_text().splitlines()
+                ]
+                budget_path = Path(env["ANICCA_TOKEN_BUDGET_LEDGER"])
+                budget_events = [
+                    json.loads(line) for line in budget_path.read_text().splitlines()
+                ] if budget_path.exists() else []
+                return status, calls, attempts, budget_events
             return status, calls
 
     def test_escalation_route_is_codex_only(self):
@@ -272,12 +296,14 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         work = json.dumps({"type": "item.started", "item": {"type": "command_execution"}})
         self.assertTrue(codex_attempt_started_work(work))
         for candidate in (acct1, {"provider": "codex", "profile_alias": "acct2", "account_fallback_next": False}):
-            for result_fresh, work_started in ((True, False), (False, True), (True, True)):
-                with self.subTest(profile=candidate["profile_alias"], result_fresh=result_fresh, work_started=work_started):
-                    self.assertEqual(
-                        codex_failover_action(candidate, "transient_quota", result_fresh, work_started),
-                        "stop",
-                    )
+            for error_class in ("transient_quota", "codex_prelaunch_auth_missing"):
+                for result_fresh, work_started in ((True, False), (False, True), (True, True)):
+                    with self.subTest(profile=candidate["profile_alias"], error_class=error_class,
+                                      result_fresh=result_fresh, work_started=work_started):
+                        self.assertEqual(
+                            codex_failover_action(candidate, error_class, result_fresh, work_started),
+                            "stop",
+                        )
 
     def test_run_structured_quota_retries_acct1_then_selects_acct2(self):
         status, calls = self._run_candidate_fixture(
@@ -286,6 +312,54 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         )
         self.assertEqual(status, 0)
         self.assertEqual(calls, [("codex", "acct1", "quota"), ("codex", "acct2", "success")])
+
+    def test_prelaunch_missing_auth_retries_only_the_explicit_next_profile(self):
+        status, calls = self._run_candidate_fixture(
+            {("codex", "acct1"): "auth_file_missing", ("codex", "acct2"): "success"},
+            include_claude=False,
+        )
+        self.assertEqual(status, 0)
+        self.assertEqual(calls, [("codex", "acct2", "success")])
+
+    def test_prelaunch_missing_auth_releases_reservation_before_acct2(self):
+        with mock.patch.dict(os.environ, {
+            "ANICCA_BUDGET_SCOPE_ID": "fresh-review-fixture",
+            "ANICCA_PASS_TOKEN_BUDGET": "1000",
+            "ANICCA_LOOP_DAILY_TOKEN_BUDGET": "10000",
+        }, clear=False):
+            status, calls, attempts, budget_events = self._run_candidate_fixture(
+                {("codex", "acct1"): "auth_file_missing", ("codex", "acct2"): "success"},
+                include_claude=False,
+                return_records=True,
+            )
+
+        self.assertEqual(status, 0)
+        self.assertEqual(calls, [("codex", "acct2", "success")])
+        self.assertEqual([row["profile_alias"] for row in attempts], ["acct1", "acct2"])
+        self.assertEqual(attempts[0]["error_class"], "codex_prelaunch_auth_missing")
+        self.assertEqual(attempts[0]["budget"]["charged_tokens"], 0)
+        self.assertEqual(attempts[0]["budget"]["measurement"], "prelaunch_auth_missing")
+        settlements = [row for row in budget_events if row.get("type") == "settlement"]
+        self.assertEqual([row["charged_tokens"] for row in settlements], [0, 1000])
+        self.assertEqual(settlements[0]["measurement"], "prelaunch_auth_missing")
+
+    def test_invalid_auth_path_does_not_fallback_to_another_profile(self):
+        with mock.patch.dict(os.environ, {
+            "ANICCA_BUDGET_SCOPE_ID": "fresh-review-invalid-auth-fixture",
+            "ANICCA_PASS_TOKEN_BUDGET": "1000",
+            "ANICCA_LOOP_DAILY_TOKEN_BUDGET": "10000",
+        }, clear=False):
+            status, calls, attempts, budget_events = self._run_candidate_fixture(
+                {("codex", "acct1"): "auth_file_invalid", ("codex", "acct2"): "success"},
+                include_claude=False,
+                return_records=True,
+            )
+        self.assertEqual(status, 1)
+        self.assertEqual(calls, [])
+        self.assertEqual(attempts[0]["error_class"], "validation_or_task_failure")
+        settlement = next(row for row in budget_events if row.get("type") == "settlement")
+        self.assertEqual(settlement["charged_tokens"], 1000)
+        self.assertNotEqual(settlement["measurement"], "prelaunch_auth_missing")
 
     def test_run_accepts_fresh_schema_valid_codex_result_written_before_timeout(self):
         status, calls = self._run_candidate_fixture(
