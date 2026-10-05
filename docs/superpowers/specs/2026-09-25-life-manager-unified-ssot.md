@@ -3231,10 +3231,11 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 #### 最新AGMSG復旧cursor（2026-10-06）
 
 1. PR #6692はmain merge commit 4a6b08a9095de29e88f9113b4ca393682f2693aeへ到達済み。tempDataDir cleanupのsource修正は統合済みで、容量復旧の再発防止項目をDoneとする。
-2. AGMSG source修正を最新origin/main由来の専用branchへ分離し、dirty checkoutを保持したまま必要なterminal/team依存だけを選別する。他のskill変更やteam runtime stateを取り込まない。
-3. plain adapterのosascript capability probeをboundedにし、timeoutはunknownとして返す回帰testを追加する。通常のteam.sh lm --jsonがstubなしで全49登録を最後まで返すことをsource acceptanceとする。
-4. PR/CI/merge後にteam.shを通常経路でreadbackする。placement・bridge・remote bindingは別々に観測し、registrationやroster-only診断をlive statusへ置き換えない。他seatのidentity/placementは外部から書き換えない。
-5. AGMSG修正と§84-Aの収益TODOは独立に保つ。CFO/Mobile席が実際に再参加するまでは着手済み・handover済みと数えない。
+2. AGMSG source修正は最新origin/main由来の専用branchで行い、local 1.5.1 snapshotのAGMSG packageだけを保全して取り込む。dirty checkoutは変更せず、teams/run/db/.trashとAGMSG外のskill変更は含めない。
+3. 実rosterのplain席14件は全てApple Terminal、iTermは0件。Terminal peek/pokeはwrite-submit未計測なのでApple Event probeを送らず即時unknownにし、despawnのexact-tab probeは維持する。回帰testでTerminal peek/poke unknown・Apple Eventなし・despawn probeありを確認する。
+4. PR/CI/merge後にcurrent AGMSG installへ安全にreadbackし、通常のteam.sh lm --jsonがstubなしで全49登録を返すことを確認する。placement・bridge・remote bindingは別々に観測し、registrationやroster-only診断をlive statusへ置き換えない。他seatのidentity/placementは外部から書き換えない。
+5. PR/CI/merge後にteam.shを通常経路で再readbackする。placement・bridge・remote bindingは別々に観測し、registrationやroster-only診断をlive statusへ置き換えない。他seatのidentity/placementは外部から書き換えない。
+6. AGMSG修正と§84-Aの収益TODOは独立に保つ。CFO/Mobile席が実際に再参加するまでは着手済み・handover済みと数えない.
 
 ### 2026-10-06 JST — ANICCA iOS TestFlight release cursor
 
