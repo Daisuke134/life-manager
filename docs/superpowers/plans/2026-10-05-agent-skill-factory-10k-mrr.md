@@ -34,21 +34,24 @@
 | PromptBase | 19 件掲載、売上 **$0** | `promptbase-sales.json` observed 2026-10-04T19:20Z、`promptbase-listings.jsonl` |
 | 外部集客 | 記事＋X は 3 時間ごと（10/04 再開）、IG は新アカウント @capafy.hooklab 作成済み（投稿 0） | `capafy-distribute-daily` receipt、credentials SSOT |
 
-## 0.1 市場の天井（なぜ Capafy 単独では足りないか）
+## 0.1 市場の実態（2026-10-05 訂正）
 
-- Capafy 全体: 843 agents、**累計販売数の合計 16,656**（`capafy-market-agents-20261004.json`）。
-- 出品者別の累計 1 位 Otata 3,801、2 位 3,619、3 位 2,442。サブスク 1 位 Ocup Football Analysis 3,084（月 $29.99）、2 位 Serenity Stock Tracker 1,809（月 $19.99）、HookAce 930（月 $19.99）。
-- **推論:** Capafy 単独で月 $10k（手取り月 $14 として約 700 人の有料会員）は、市場 1 位の出品者を大きく上回る規模。Capafy は「売れる型を見つけて実証する場所」で、上限は月 $2–3k 程度と置く。残りは同じ skill を他の売り場で売って足す。
-- 判定ルール: 2026-11-05 時点で Capafy の利益が月 $300 未満なら、Capafy への新規投資を止め、勝ち skill の横展開に資源を移す。
+最初の版の「Capafy 単独では天井が低い（累計 16,656）」は、52 キーワード検索だけの不完全なデータ（843 agents）に基づく誤りだった。Trending 1 位の CloneCut（14,400 sold）が丸ごと漏れていた。
+
+- **全カテゴリ列挙（`POST /public/category/hot`、23 カテゴリを最終ページまで、#6609）**: 1,172 agents、累計販売の合計 **42,437**。
+- **販売数の上位**: CloneCut 14,400（動画クローン、Seedance 系）/ Kids Video Generator 3,792 / llm-real-video（無料）3,536 / **Ocup Football Analysis 3,084**（サッカー、月 $19.99）/ Free Transcript to 12 Shorts Pack 2,069（無料）/ **Serenity Stock Tracker 1,817**（株、週 $9.99〜年 $99.99）。上位は「動画生成」「スポーツ」「株」に集中。
+- **稼いでいる実例（一次資料）**: Capafy 公式 X（2026-07-01）「This guy earned $4,208 in his FIRST week on Capafy with a World Cup Skill … over $16,000 a month」（https://x.com/Capafyai/status/2072302872654499993）。作者 Otata 本人も「made over $4K … in its first week」。月 $16k は外挿で、Capafy 外の監査済み証拠は未発見。
+- **勝者の型**: (1) 毎週新しい入力が生まれる題材（試合・銘柄）でサブスクが続く、(2) 作り手の専門性、(3) **集客は Capafy の外**（Ocup は TikTok/Instagram の短尺動画で出力を見せた、Serenity は 90 万フォロワーの投資インフルエンサー周りの需要に乗った）、(4) 月 $19.99 前後のサブスク。
+- **結論の訂正**: Capafy で月 $10k は「上位の実例がある目標」。届かない理由は市場の小ささではなく、私たちの外部集客がほぼゼロだったこと。
 
 ## 1. 収益の積み上げ（目標の内訳）
 
 | 売り場 | 月の利益目標 | 根拠となる型 | 主な部品 |
 |---|---|---|---|
-| Capafy | $2,500 | 勝ち 5 本 × 平均 35 人 × 手取り $14 | 既存工場・価格照合・成績表 |
+| Capafy | $5,000 | 勝ち 1 本（Ocup 型、約 250 人）＋中堅 5 本 × 平均 35 人、手取り約 $14/人 | 既存工場・価格照合・成績表・SNS 短尺動画 |
 | PromptBase | $1,000 | 勝ち 20 本 × 月 10 件 × $4.99（手数料 0% の `?via=keipanda` 経由が主） | `promptbase-loop-daily` |
-| 自社 aniccaai.com（Stripe） | $4,000 | Capafy で売れた skill を Web ツール化、月 $19 × 約 210 人 | 記事 loop の集客、Stripe |
-| 他の agent 売り場（同じ skill を転載） | $2,500 | Capafy で実証済みの skill だけを出す | 共通の skill パッケージ |
+| 自社 aniccaai.com（Stripe） | $2,000 | Capafy で売れた skill を Web ツール化、月 $19 × 約 210 人 | 記事 loop の集客、Stripe |
+| 他の agent 売り場（同じ skill を転載） | $2,000 | Capafy で実証済みの skill だけを出す | 共通の skill パッケージ |
 | **合計** | **$10,000** | | |
 
 ## 2. 仕組み（1 本のループ、売り場ごとの薄い adapter）
@@ -67,6 +70,13 @@ flowchart LR
 ```
 
 ---
+
+## 優先順位（2026-10-05 訂正後）
+
+1. **外部集客を最優先**: Task 2.2（IG→TikTok→YouTube Shorts の短尺動画、入力→出力の実演）を Phase 1 と並行で今すぐ進める。勝者は全員ここで売っている。
+2. **毎週使う題材の agent**: スポーツ（Ocup の別リーグ・別競技）、株・決算（Serenity 型）、動画生成の台本（CloneCut 周辺）。Task 3.1 の新規はこの 3 棚に限る。
+3. 価格・カード・評価（Phase 1）は仕組みとして完了済み、店頭反映を確認する。
+4. PromptBase・自社 Stripe（Phase 4）は Capafy で売れた skill だけ。
 
 ## Phase 1 — Capafy の取りこぼしを止める（〜2026-10-07）
 
