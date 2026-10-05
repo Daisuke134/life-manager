@@ -4755,7 +4755,6 @@ DIRECT_MESSAGE_EXPRESSION = (
         "sent_at:(time&&time.innerText||'').trim()||null}}).filter(card=>card.offer_url||card.message_kind));",
         "sent_at:(time&&time.innerText||'').trim()||null,author_path:authorPath,sender_side:ownPath&&authorPath?(authorPath===ownPath?'seller':'buyer'):null}}).filter(card=>card.offer_url||card.message_kind));",
     )
-    .replace("own_user_path:own,estimate_url", "own_user_path:ownPath,estimate_url")
     .replace(
         "完了予定日\\s*(20\\d{2}[\\\\/-]\\d{1,2}[\\\\/-]\\d{1,2}|20\\d{2}年\\d{1,2}月\\d{1,2}日)",
         "完了予定日\\s*[：:]?\\s*(20\\d{2}[\\\\/-]\\d{1,2}[\\\\/-]\\d{1,2}|20\\d{2}年\\d{1,2}月\\d{1,2}日)",

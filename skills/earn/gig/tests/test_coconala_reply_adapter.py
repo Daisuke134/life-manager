@@ -543,7 +543,7 @@ process.stdout.write(eval(input.expression));
     assert len(dom["structured_offers"]) == 1
     card = dom["structured_offers"][0]
     assert card.get("author_path") == author_path
-    assert dom.get("own_user_path") == own_path
+    assert dom.get("own_user_path") == (own_path or "/users/0")
     assert card.get("sender_side") == expected_side
 
     from datetime import date
@@ -565,6 +565,70 @@ process.stdout.write(eval(input.expression));
     else:
         assert outcome["status"] == "not_required"
         assert outcome["cards"] == []
+
+
+def test_modern_direct_message_keeps_legacy_own_transport_for_event_consumer():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to evaluate the browser expression")
+    harness = r"""
+const expression = require("node:fs").readFileSync(0, "utf8");
+const row = {
+  id: "modern-message-1",
+  classList: {contains(name) { return name === "modi_my-message"; }},
+  getAttribute(name) { return name === "data-message-id" ? "modern-message-1" : null; },
+  querySelector(selector) {
+    if (selector === '.user-icon[href*="/users/"],a[href*="/smartphone/users/"]') {
+      return {href: "https://coconala.com/users/0"};
+    }
+    if (selector === ".message-created") return {innerText: "2026-10-05T00:00:00Z"};
+    if (selector === ".js-translateMessageOriginalMessage,.message") {
+      return {innerText: "販売者からの案内"};
+    }
+    return null;
+  },
+  querySelectorAll() { return []; },
+};
+const container = {
+  querySelectorAll(selector) { return selector === ".bl_message" ? [row] : []; },
+};
+globalThis.location = {
+  origin: "https://coconala.com",
+  href: "https://coconala.com/mypage/direct_message/12",
+};
+globalThis.document = {
+  title: "メッセージ | マイページ | ココナラ",
+  body: {innerText: ""},
+  querySelector(selector) {
+    if (selector === ".bl_messages-list") return container;
+    return null;
+  },
+  querySelectorAll() { return []; },
+};
+process.stdout.write(eval(expression));
+"""
+    observed = subprocess.run(
+        [node, "-e", harness],
+        input=adapter_module.snapshot.DIRECT_MESSAGE_EXPRESSION,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert observed.returncode == 0, observed.stderr
+    dom = json.loads(observed.stdout)
+    assert dom["structured_offers"] == []
+    assert dom["messages"][-1]["author_path"] == "/users/0"
+
+    try:
+        event = adapter_module.snapshot.direct_message_event(
+            dom, "https://coconala.com/mypage/direct_message/12",
+        )
+    except adapter_module.snapshot.CollectorUnhealthy as error:
+        pytest.fail(f"modern message was blocked by {error}")
+
+    assert dom["own_user_path"] == "/users/0"
+    assert event["last_message_side"] == "seller"
+    assert event["reply_required"] is False
 
 
 def test_fill_expression_supports_current_smartphone_message_input():
