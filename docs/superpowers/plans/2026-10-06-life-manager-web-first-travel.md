@@ -242,20 +242,20 @@ Expected: PASS; Stripe remains the only paid-state authority. Commit as `feat(li
 - `travelUserOnce` uses the Web-only guard before `fillTravel` for an `lm_<uuid>` row whose current Telegram binding is NULL; Telegram users retain their existing path.
 - The `accountId` returned by the Web guard is passed as `expectedCalendarAccountId` to both `buildTodaySnapshot` event listing and `fillTravel`. `getCalendar` includes that expected ID in its cache identity, and each Composio event operation verifies the current row is still NULL-Telegram and selects the expected ID; mismatch fails before provider event access.
 
-- [ ] **Step 1: Add failing recovery and scheduler-boundary cases**
+- [x] **Step 1: Add failing recovery and scheduler-boundary cases**
 
 Cover `status is connected only for the persisted exact ACTIVE account`, `start recovers one ACTIVE account after callback binding was interrupted`, `ambiguous ACTIVE accounts are not bound`, `Web scheduler pins fillTravel to the checked account ID`, `transport issues no Calendar event call after the selected marker changes`, `account-scoped calendar adapters do not share cache entries`, and `Telegram travel keeps its existing path`.
 
-- [ ] **Step 2: Run focused tests and confirm the new cases fail**
+- [x] **Step 2: Run focused tests and confirm the new cases fail**
 
 Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js lib/travel.test.js lib/events-history.test.js lib/calendar-cache.test.js`.
 Expected: the new recovery/gate assertions fail before implementation.
 
-- [ ] **Step 3: Reuse one exact-binding guard for status, recovery, and scheduled Web travel**
+- [x] **Step 3: Reuse one exact-binding guard for status, recovery, and scheduled Web travel**
 
 Keep GET status read-only. On explicit POST start, recover only a unique owner-verified ACTIVE account when the local marker is missing/stale; persist and read back the exact binding. Gate `fillTravel` immediately before Calendar access and carry the checked ID into the adapter; each event operation fails closed if the current row no longer selects it. Do not re-resolve to a different account mid-run or change Telegram selection/consent.
 
-- [ ] **Step 4: Rerun focused tests and commit**
+- [x] **Step 4: Rerun focused tests and commit**
 
 Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js lib/travel.test.js lib/events-history.test.js lib/calendar-cache.test.js`.
 Expected: recovered exact accounts work; inactive, ambiguous, mismatched, Telegram-bound, or rebound rows issue no Web Calendar event call. Commit the scoped fix as `fix(life-manager): pin web calendar calls to checked account`.
