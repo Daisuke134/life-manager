@@ -8164,3 +8164,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - freshSol6.1MediumはHEADb45292537dfaf4759662530267afcab2fc133597をSHIP/source受入のみ、重要指摘なし。独立14provider/27self-fix PASS、Darwin normal/completion/timeout各8の実fixtureで23/0/TimeoutExpired維持・child不在24、SIGTERM -15/latewrite0。PermissionError注入＋生存childの継承FD leasebusy/home保持を確認。自然zombie-only PermissionError/nonPOSIX実環境は未証明、production操作0。
 - PR6657 https://github.com/Daisuke134/life-manager/pull/6657 をroot作成、CI/main未完。source最小修復とfocused regression/freshreview受入を満たした旧新1だけ残表から除外し、未完新2–46を新1–45へ連番化。旧順序の未完相対順序は不変。現在cursor1=PR/CI→main/immutable対象反映、次2=自然監査回収。全体Done/自然回収/収益とは分離する。
 - native Luna6max originalworkerへ§580/581のCoconala body原文優先を別worktree/branchでfollowup、rootはruntimePR/CI/promotionを所有。同files・branch・browser/state/release操作は重複0、bodyactual同時DOM証拠と旧unknown-first guard保持を受入条件とする。§579の公式context validationは別後続scope、Coconala未解消12/SelfBuild最後。
+
+
+### 586. PR6657 live CIと対象反映前の現行runtime/readiness
+
+- PR6657/headb4529253 OPEN/UNSTABLE、sameCI37304102098は11:39時点でPython/OSS/Shell/PII/Agent/startup SUCCESS、残gitleaks/Loopcontrol/TruffleHog IN_PROGRESS。Loopjob111743491950はVerify registry/releases/apply fencing/clean install step生存。タイムアウト観測をterminalへ代用せずrerun0/merge0、同runの全checks terminalPASSを確認して通常admin main統合する。
+- current immutable8e64b3ff/ALL、target verify-loops-audit installedb53c0ab7/loadedidle/PIDnone/admissioneffectunknownfalseをlm-loop statusでfresh確認。旧sourceの最新reportPASSは新候補の自然cleanup証拠ではない。target次interval21600秒、手動監査wake0。11:39:41Z launchctl-safe preflightはUID501/DS501/Aqua/managerUID501/managerPID1/GUIすべてPASS。pressureflagfalse/free4274114560bytes。反映直前に再readbackし、他owner/activePID/unknownは変更しない。
+- main統合後のfullimmutable作成は既存standard cut/lock/current/donor/dependency契約を使い、wholefleet applyせずauditだけownerdeploylock/loadedidle条件で反映する。物理cache回収と背景fixer namespace寿命を同source自然runで確認し、source/CIを本番Doneへ代用しない。nativeLunaのCoconala本文修復は別worktreeで稼働中。全体45/cursor1=promotion、Coconala12/取得403とSelfBuild最後を維持。
