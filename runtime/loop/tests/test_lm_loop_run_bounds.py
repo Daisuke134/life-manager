@@ -632,7 +632,7 @@ def test_connector_registry_opt_in_coalesces_queued_scan(tmp_path):
     run.assert_not_called()
 
 
-def test_x_repost_registry_coalesces_missed_wakes_when_agent_capacity_is_busy(tmp_path):
+def test_x_repost_uses_revenue_queue_priority_and_coalesces_when_agent_capacity_is_busy(tmp_path):
     registry = json.loads(
         (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
     )["loops"]
@@ -652,7 +652,7 @@ def test_x_repost_registry_coalesces_missed_wakes_when_agent_capacity_is_busy(tm
         ) == 75
 
     enqueue.assert_called_once_with(
-        "agent", "x-repost", admission_class="borrow", priority="support",
+        "agent", "x-repost", admission_class="borrow", priority="revenue",
         occurrence_id=occurrence_id, coalesce_reserved=True,
     )
     claim.assert_called_once_with(
