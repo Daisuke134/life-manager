@@ -309,34 +309,33 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: SNS（短尺動画）レーン — 2026-10-05 棚卸しの結果
+### Task D5: SNS 短尺動画レーン — official account/status gate (2026-10-05)
 
-**実測（2026-10-05、read-only）**
+**read-only state**
 
-| 経路 | 状態 | 実績（30日） |
+| 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| X「sela \| AI Tools」（Postiz） | 稼働。`capafy-distribute-daily` が 3 時間ごとに記事と一緒に投稿 | ct 別の成約は #6600 から成績表に出る |
-| 記事 aniccaai.com | 10/04 22:15 から再開（#6580・#6581） | 同上 |
-| Capafy Instagram（旧 capafy.skills8m4q2z） | 8/24 から投稿なし。`capafy-ig-marketing-daily` は LoginRequired で毎時失敗、`capafy-ig-account-manager` は effect_unknown で停止 | instagram_bio 53 view → 有料 0 |
-| TikTok / YouTube Shorts（Capafy 用） | 一度も作っていない | — |
-| Writer article-daily（ct=article-*） | 9/29 以降成功なし（`resource_effect_unknown` で停止、Writer 所有、codex-money-printer へ共有済み） | — |
-| Postiz の接続 | 30 件すべてアプリ用（IG×7・TikTok×14・YouTube×3）＋X×2。**Capafy 用の IG/TikTok/YouTube は 0 件** | — |
+| Instagram | 計画に記録された新 account は現行 owner registry と official provider status が一致していない。 | Owner mapping と provider account-status readback |
+| TikTok / YouTube Shorts | Capafy 専用の provider-confirmed publishing account を現行 inventory で確認できていない。 | Platform ごとの identity/status readback |
+| Capafy account/publish owners | Unresolved account/publish effect と release/readback gate がある。 | 同一 occurrence の official reconciliation |
 
-**写す姉妹 loop（推奨）:** `life-manager-anicca-main-instagram`（毎日 3 回、Postiz 経由で reel を投稿している実働レーン）。
+**Platform policy and lifecycle gate**
 
-- 写すもの: `apps/life-manager/config/mobile-app-loops.json` の 1 行、`apps/life-manager/scripts/honne-ja-cycle.js` の action 定義、`config/loop-registry.json` のエントリ。
-- 共有部品はそのまま使う: `lib/marketing-video-generation-adapter.js`、`lib/marketing-slide-pack-text.js`、`lib/marketing-video-publication-adapter.js`。Postiz の公式読み戻しは `mobile-postiz-provider-reconcile.py`。
-- 中身: 売れ筋（Hook Lab → TikTok Script Pro → YouTube Script Writer → Slide Maker）の「入力 → 実際の出力」を 15 秒で見せる実演。リンクは `ct=capafy-reel-<skill>`。
+- TikTok の current Integrity and Authenticity guideline は system 回避用 automation と restriction/ban を避ける alternate account の作成・利用を禁止する。Meta Spam policy は高頻度の asset/account creation、repetitive/inauthentic activity を制限する。Restriction は provider の official status/appeal flow で扱う。
+- capafy_ig_account_manager.sh と capafy_ig_lifecycle.py は ChallengeRequired、scraping_warning、disabled/restricted を replacement account provisioning に変換しない。review_required と official appeal/status を記録し、unknown な account mutation は fence する。
+- Account identity/status と同じ occurrence の publish readback が完了するまで login、replacement provision、Postiz connection、public post を行わない。effect_unknown と release drift はその owner の official reconciliation で閉じる。
+- Automated likes/follows、anti-detection、fingerprint/proxy workaround、mass account creation は使わない。Posts are original product demonstrations, not copied scripts or assets.
 
-**順番**
+**Implementation sequence**
 
-1. Capafy 用 IG を新規作成する（`ig-account-create` skill、メールだけで作れる手順）。資格情報は `~/.local/share/anicca/credentials.json` に保存。
-2. Postiz に接続する。
-3. 7 日間の慣らし運転（`ig-account-warmer`）。その間にレーンを作り、dry-run で生成物を確かめる。
-4. 本投稿を開始。TikTok・YouTube Shorts は IG の成約を見てから同じ手順で足す。
-5. 14 日で ct 経由の成約が 0 の経路は止める（成績表の ct 行で判定）。
+1. Add failing regression tests: provider challenge/restriction → review_required, replacement_requested=false, account creation calls=0. Test files: skills/earn/capafy-marketing/tests/test_capafy_ig_lifecycle.py and test_capafy_ig_account_manager.sh.
+2. Implement the smallest lifecycle/account-manager gate and run those focused tests. No live account mutation.
+3. Reconcile current owner status and unresolved effects through the provider official route. For disabled/restricted accounts, appeal there; do not create/use an alternate to evade.
+4. After good-standing readback, dry-run one original 15-second skill demo using the shared adapter and ct=capafy-reel-<skill>.
+5. Canary at one post per 24 hours for 14 days on one verified account. Read back provider post receipt, CT clicks, paid orders, refunds, fees, creator earnings, payout, and bank receipt.
+6. If paid conversion is zero after 14 days, change one creative variable; if the next 14 days are also zero, stop that route. Add TikTok/YouTube only after each owned account is separately verified and permitted.
 
-**注意:** ディスク空きは 3.6GiB（2026-10-05）。動画生成の前に空きを確かめる。旧 IG の 2 loop は毎時失敗を続けるだけなので、新レーンが動いたら止める。
+**Done:** provider-confirmed identity/status, challenge-to-review fence, same-occurrence official post receipt, CT-to-paid-order readback, and separate payout/bank evidence. Views, profile opens, pending balance, and process exit are not revenue.
 
 ## Phase E — 価格
 
