@@ -3209,6 +3209,20 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 3. CFO/Mobile担当の返信後、primaryがworktree・branch・HEAD・dirty state・所有file・active effectをreadbackし、重複を避けたまま各担当の継続可否を決める。返信が来る前に作業開始やhandover済みと扱わない。
 4. 参加者が別machineにいる必要がある場合は、実在するshared endpoint/bindingの公式情報を得てからremote syncを構成する。現在はremote endpointが未確認であり、接続済みやcross-machine配信を主張しない。
 
+### 2026-10-06 JST — AGMSG temp-space復旧とteam census再試行
+
+- この追記はAGMSG観測基盤の復旧だけを記録し、§84-Aの収益TODO順序、CFO/Mobileの所有境界、収益成果の完了判定は変更しない。
+- **容量障害の原因と修正:** `where.sh`は`mktemp`の`No space left on device`で一度失敗し、Data volume空きは158MiB・使用率100%だった。最新mainの`apps/life-manager/scripts/generate-larry-slide-pack.test.js`を確認すると、共有`tempDataDir()`は各caseでobject-store用一時ディレクトリを作る一方、cleanupは10 case中3 caseだけだった。prefix一致の残存24 directory（約14.7MiBずつ）は`lsof`でopen handleなしを確認し、これらだけ削除した。直後の空きは515MiBとなり、`where.sh`は`resolved=true placement=none terminal=plain`を返して容量エラーが消えた。protected storeやruntime stateの削除はない。
+- **再発防止source proof:** branch `fix/larry-slide-pack-test-cleanup-20261006` / PR #6692 は、全`tempDataDir`作成時にNode test contextの`t.after`でcleanupを登録するtest-only修正を含む。修正前のfocused実行はtest 1/1 PASSでもfixture directory数が0→1へ増えるREDを確認した。修正後はfocused file 10/10 PASS、fixture count 0→0、`node --check`、`git diff --check`、source-boundary PASS。PR/mergeや本番loop動作とは別のsource受入証拠であり、売上やproduction effectの証明ではない。
+- **team census:** 容量回復後の公式`team --json`も5行の後に`plain: no addressable pane has a container`を出し、90秒以上追加出力がなかったため、起動元のread-only processをexit 130で中断した。完全roster・他席の稼働状態は未確定であり、停止扱いや外部seat修復をしていない。別の同名processも観測されたが、ownerと今回のhandleへの帰属は確認できず、停止していない。従って容量障害は解消したが、team censusの停止境界は未解決である。
+
+#### 次のAGMSG cursor
+
+1. PR #6692のrequired checksが揃ったら通常PR経路でmainへ統合し、merged commitをreadbackする。
+2. plain配置での`team --json`停止境界を公式スクリプト/driver経路でread-only診断し、member・terminal capability・最後に完了したcommandを特定する。別ownerのsession/process/placementは推測で止めない。
+3. `codex-money-printer`のmonitor bridgeは未稼働。新しいinteractive zshで`codex` shim経由のCodex起動が必要で、起動後にbridge/inboxをreadbackする。現sessionからrestart済みとは扱わない。
+4. CFO/Mobile担当の返信とdiff/worktree evidenceを確認後、owner重複がない状態で次の正本TODOを順に進める。remote bindingは別machine参加が必要と確認できた場合だけ、実在endpointを取得して構成する。
+
 ### Dais指定のWeb-first Life Manager Travel Product — 現在の最優先cursor
 
 - **優先変更:** 旧グローバル順序は§84-AのPromptBase P5c → Capafy L9-01 → Writer/Ebook/Affiliate → Mobile Apps → Connector → Fundraiser → Paid contract work → Self-Build → Investment → CFO → TaskMarket/BlockRun → Cloud/self-funding。§84-Aの各外部effectは中断・再送せず、同じprovider ownerが継続する。CFO A1→A10の内部順序も変更しない。
