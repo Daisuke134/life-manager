@@ -10,6 +10,7 @@ and validates the runner's JSON against the schemas next to it.
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import subprocess
@@ -54,7 +55,7 @@ def planner(set_dir: Path, prior_listings: list[dict]) -> dict:
 
 要件:
 - character_id: このキャラクター固有の短い英数字スラッグ（例: char-foo-001）。
-- character_prompt: gpt-image-2に渡す英語プロンプト。オリジナルでシンプルな可愛いマスコット、
+- character_prompt: 画像生成モデルに渡す英語プロンプト。オリジナルでシンプルな可愛いマスコット、
   背景は完全な単色クロマグリーン#00FF00で画面全体を埋める、キャラクター自体に緑色を一切使わない、
   文字・ロゴ・透かしなし、という条件を明記する。
 - motions: ちょうど30個。毎日のチャットで使う意図（ありがとう・OK・ごめん・おやすみ・笑う・泣く・
@@ -73,6 +74,9 @@ JSON Schemaに厳密に従ったJSONだけを返す。"""
                            evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-plan-{set_dir.name}")
 
 
+IMAGE_MODEL = "gemini-3.1-flash-image"
+
+
 def _sample_bg_color(png_path: Path) -> str:
     from PIL import Image
     rgb = Image.open(png_path).convert("RGB").getpixel((8, 8))
@@ -80,21 +84,23 @@ def _sample_bg_color(png_path: Path) -> str:
 
 
 def character_image(set_dir: Path, plan_draft: dict) -> None:
+    # Gemini image: the OpenAI org ran out of credit on 2026-10-05 while this key stays funded.
+    body = {"contents": [{"parts": [{"text": plan_draft["character_prompt"]}]}],
+            "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": {"aspectRatio": "1:1"}}}
     request = urllib.request.Request(
-        "https://api.openai.com/v1/images/generations",
-        data=json.dumps({
-            "model": "gpt-image-2", "prompt": plan_draft["character_prompt"],
-            "size": "1024x1024", "background": "opaque",
-        }).encode(),
-        headers={"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"], "Content-Type": "application/json"},
+        f"https://generativelanguage.googleapis.com/v1beta/models/{IMAGE_MODEL}:generateContent?key="
+        + os.environ["GEMINI_API_KEY"],
+        data=json.dumps(body).encode(), headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(request, timeout=180) as response:
         result = json.load(response)
-    image_b64 = result["data"][0]["b64_json"]
+    parts = result["candidates"][0]["content"]["parts"]
+    image_b64 = next(part["inlineData"]["data"] for part in parts if "inlineData" in part)
+    from PIL import Image
     char_ref = set_dir / "char-ref.png"
-    char_ref.write_bytes(base64.b64decode(image_b64))
+    Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB").save(char_ref)
     (set_dir / "char-ref.receipt.json").write_text(json.dumps(
-        {"model": "gpt-image-2", "prompt": plan_draft["character_prompt"], "usage": result.get("usage", {})},
+        {"model": IMAGE_MODEL, "prompt": plan_draft["character_prompt"], "usage": result.get("usageMetadata", {})},
         indent=1, ensure_ascii=False,
     ))
     bg = _sample_bg_color(char_ref)

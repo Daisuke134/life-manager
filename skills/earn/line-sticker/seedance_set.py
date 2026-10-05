@@ -213,7 +213,7 @@ def apng(set_dir: Path, plan: dict) -> None:
 
 
 CHARACTER_ID = "char-hamster-001"
-IMAGE_PROVIDER = "openai:gpt-image-2"
+IMAGE_PROVIDER = "google:gemini-3.1-flash-image"
 
 
 def _sha256_file(path: Path) -> str:
