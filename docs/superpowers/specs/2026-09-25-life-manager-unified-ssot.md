@@ -3158,8 +3158,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 ### A1の実装cursor：既存runtime eventとprovider usageのtrace結合
 
 - mainの`runtime_event.py`はloop/run/owner/occurrence/release/effect/readbackの構造化eventを既に保存する。新しいloop event基盤は作らない。
-- 既存`usage-event.js`はtenant/provider/feature/outcome/quantity/estimateを`lm_api_cost.meta`へ記録するが、利用可能なloop run/owner/occurrence/releaseとの参照がない。そのためloop内provider costをruntime eventへ結合できない。
-- 次は既存`usage-event.js`経路に、検証済みruntime identityをtrace metadataとして記録する。値が無い・無効なら推測せず`unlinked/partial`として残し、provider cost row自体は失わない。A1〜A5の順序は変更しない。
+- 既存`usage-event.js`はtenant/provider/feature/outcome/quantity/estimateを`lm_api_cost.meta`へ記録する。PR #6637で検証済みruntime identityを`runtime_trace`として既存cost rowへ結ぶsource変更はmainに統合済みだが、provider coverageとproduction natural eventのjoinは未確認である（下記のA1 cursor参照）。
 
 **A1最初の実装slice:** 既存`usage-event.js`が`lm_api_cost.meta`へ書くprovider cost rowに、信頼できる`LIFE_MANAGER_*`環境からloop/run/owner/occurrence/releaseを検証して結ぶ`runtime_trace`を追加する。event payloadからruntime identityを上書きしない。loop外・必要値不足・不正なoccurrenceやsecret-shaped IDは`unlinked/partial`として明示し、無効値をそのまま保存しない。既存runtime eventとcost ledgerを再利用し、新しいevent storeやCLIは作らない。
 
