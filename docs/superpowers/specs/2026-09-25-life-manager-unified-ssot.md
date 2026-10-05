@@ -7809,3 +7809,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - full current aac9da8a3e04a8eb9deeb441ee15f87775b11572にReply専用query transportとtrusted source_family direct_inboxの実sourceを確認。対象hf-gig-reply-detectorのloaded/event88872a85、latest running/reportpassを確認したが、旧source latest.jsonはprovider_inbox_access_forbidden。旧ownerのprocess passを修正版自然collector/返信成功へ置換しない。次は既存安全apply/reconcileのidle・ownerlock条件でactualsourceを合わせ、fullpagination/同thread送信receiptを観測する。
 - audit診断の事前spec§535/bc9f61f8c3後、Luna/maxへ専用worktree fix/lm-audit-scratch-cleanup-diagnostics-20261005（worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-audit-scratch-cleanup-diagnostics-20261005）でsource記録・最小fixturesを割当。実state/残骸削除/manualaudit/共有provider操作なし。原因未知を強制cleanupへ拡大せず、False無視/例外/保護状態の診断から進める。source実装/検証は進行中で未完。現在47/cursor1、収益receiptは新5で並行確認。
+
+
+### 537. Coconala対象source反映と残る自然collector拒否
+
+- GUI preflight0、hf-gig-reply-detectorのidleを検出して既存apply --loaded-idle-onlyをtarget1件へ実行。changedtrue/admission_resumedtrue/install event2e9f28f26bfb619dc1edfd46/actual args /Users/anicca/loops/releases/20261005T162621-aac9da8a/bin/lm-loop-run +同root、queue/fence直接編集0/手動顧客send0。証拠 state/coconala-reply-owner-adoption-probe-20261005.json。
+- 新sourceaac9の自然run18db91f7f6aa4640-98741/occurrence hf-gig-reply-detector:18db41941b9b0e80-18854はframework reportpassだが、reply/latest.jsonの07:36:35結果はblocked/provider_inbox_access_forbidden。observed/pending/effect/readbackの0を公式empty inbox・返信完了へ置換しない。source反映完了とbusiness復旧未完を分離する。
+- 次の診断scopeは、同query URIを取得したroot registered default contextの200と、collector helperがseedするisolated context/loaded envの403の失敗境界比較。safe metadata/HTTP/route/sourcefamily/context identity/vault freshness/helper error boundaryを取得し、private session/credential値や顧客本文をlog/chatへ出さない。actualsharedcontext/新session/profileを勝手に変更せず既存guard/ownerで調整、readonly唯一ownerのprobeを使う。証拠取得後に必要なowner-localsource/設定だけ修復する。新login/CAPsolver task/顧客送信/oldfence解放なし。
+- audit診断はLunaがFalse無記録のREDを実証、businesspassとreturn0を維持したままstructuredrecord欠如で失敗。既存_atomic_json使用の最小GREEN進行中。残47/cursor1で、Coconala診断は独立並行する。
