@@ -369,8 +369,7 @@ DIRECT_MESSAGE_EXPRESSION = DIRECT_MESSAGE_EXPRESSION.replace(
 
 DIRECT_INBOX_COVERAGE_EXPRESSION = r'''(async()=>{
 const sleep=ms=>new Promise(r=>setTimeout(r,ms)),
-isB1=location.pathname==='/message'&&new URL(location.href).searchParams.get('fromMyPage')==='true',
-direct=location.pathname==='/message'&&!isB1,
+direct=location.pathname==='/message',
 sel=direct?"a.c-messageItemWrap[href*='/mypage/direct_message/'],a.c-messageItemWrap[href*='/smartphone/direct_messages/'],a[href*='/smartphone/direct_messages/']":null,
 records=new Map(),pageLimit=10,hydrationDeadline=Date.now()+1500;
 const canonical=value=>{try{const u=new URL(value,location.origin),m=u.pathname.match(/^\/(?:mypage\/direct_message|smartphone\/direct_messages)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`https://coconala.com/mypage/direct_message/${m[1]}`:null}catch(_){return null}};
@@ -726,8 +725,16 @@ def bounded_pagination_page_numbers(
     return (current if valid else None, highest if valid else None, supplied, valid)
 
 
-def validate_inbox_coverage(dom: dict[str, Any], previous_count: int | None = None) -> dict[str, Any]:
+def validate_inbox_coverage(
+    dom: dict[str, Any],
+    previous_count: int | None = None,
+    *,
+    source_family: str | None = None,
+) -> dict[str, Any]:
     """Reject an authenticated-but-unenumerated inbox as collector unhealthy."""
+    if source_family not in (None, "direct_inbox", "b1_inbox"):
+        raise ValueError("inbox_source_family_invalid")
+
     def unhealthy(reason: str) -> None:
         observed_url = str(dom.get("url") or "")
         is_b1 = (
@@ -737,7 +744,7 @@ def validate_inbox_coverage(dom: dict[str, Any], previous_count: int | None = No
         raise CollectorUnhealthy(
             reason,
             source_receipt(
-                source="b1_inbox" if is_b1 else "direct_inbox",
+                source=source_family or ("b1_inbox" if is_b1 else "direct_inbox"),
                 requested_url=observed_url or None,
                 observed_at=str(dom.get("observed_at") or datetime.now(timezone.utc).isoformat()),
                 dom=dom,

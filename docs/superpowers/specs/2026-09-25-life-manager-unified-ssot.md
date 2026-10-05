@@ -3119,3 +3119,12 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - **$10kの定義と現状:** 最新main計画の目標は手数料・model cost後のnet profitを30日維持することで、通常のgross MRRとは異なる。計画のchannel splitはCapafy USD 5,000 / PromptBase USD 1,000 / aniccaai.com own checkout USD 2,000 / 他storefront USD 2,000。CapafyのUSD 24.04 artifact fieldは同期間actual profitとして未検証で、whole-company progress numeratorには使わない。現行Life Manager価格USD 29/monthだけでUSD 10,000 grossに届く下限は345 paid subscribers（USD 10,005 gross）で、net targetにはそれ以上必要となる。これを実測subscriber数や達成予測に置き換えない。
 - **担当境界:** Capafy等の商品作成・価格・掲載・distributionの実行順は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md` の担当loopが持つ。これはCFOのTODOではない。成長計画の目標・順序・所有者は変更しない。
 - **CFOだけの残TODO（既存CFO設計A1→A10、既存L9順序を維持）:** (1) A1〜A5: 既存のobservation envelope・実費ledger・geocode/route cache・OpenPOI/free-provider lane・budget governorの未完実装と検証を閉じる。重複する仕組みは作らず、Googleは既存設計どおりbudget付きfallbackとする。(2) A6: Google公式Cost Table CSVを取得し、invoiceのservice/SKU/project別実費とusage estimateを照合する。(3) A7: MoneytreeからMUFG残高・取引・更新時刻をfresh readbackし、銀行/カード/サブスク支出を分類する。古い残高を現在値にしない。(4) A8: 14 loopすべてのsettled revenue/refund/feeと実provider/tool/browser/server costを同一period・currency・owner・receiptで結合し、前項のsource gapsを閉じる。(5) A9: 既存CFO CLI/reportでloop/platform別と全社のrevenue・expense・net・MRR・runwayを表示し、estimated/unknownを実額や0へ丸めない。(6) A10: 既存のnatural-run条件でlocal daily closeとcloud canaryを行い、公式source readback付きで7日間観測する。CFO 14/14は既存L9順序のitem 10のままで、前段ownerの順序を飛ばさない。
+
+### 2026-10-05 15:35 JST：item 5のsource readback更新
+
+- 結論: 9月のLife Manager全社settled損益、総支出、net profit、freshなMUFG残高は確定できない。この部分readbackだけから売上や支出を0円と判断しない。
+- Stripeの2026年9月Checkout Session照会は4件で、すべて`expired/unpaid`。このendpointでpaid sessionを確認できなかったという結果であり、他のStripe売上も含めて0円という意味ではない。別のB7 snapshotでは`self-build`に必要な実費5カテゴリが未充足で、`self-build`、全社売上、MRRはいずれも`unknown`。
+- MoneytreeはJPY口座1件を返したが、providerの更新時刻・同期cursorはない。照会した167件の最新取引日は2026-08-25で、2026-09-01..10-05の明細は0件。9〜10月の支出coverageは未確認であり、0円ではない。個人残高と明細額は記録しない。
+- ASCの`FINANCE_DETAIL` fiscal report `2026-09`は2行・合計JPY 1,184。ただし取引日は2026-05-28..06-03、settlement日は2026-05-31..06-05で、現行24 appのinventoryとのApple Identifier/SKU完全一致はない。9月のLife Manager mobile revenueやB7へ帰属させない。根拠：[item 5 readback](../../evidence/cfo/2026-10-05-item5-source-readback-1535.md)。
+- provider変更、ledger/database書込み、report配信、本番変更は行っていない。
+- CFO専用TODOの順序は変更しない。main上の現在cursorはA1〜A5。candidateのsource/test完了はmain統合・本番反映の完了を意味しない。続けてA6 Google invoice照合、A7 Moneytree鮮度・支出分類、A8 14 loopのreceipt/実費結合、A9既存CFOレポートへの表示、最後にA10 natural runと7日観測を進める。
