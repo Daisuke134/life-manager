@@ -38,7 +38,7 @@ Analysis, Serenity Stock Tracker, HookAce, Alpha Consensus: no trial). The 2026-
 "nearly all carry a free trial" was wrong. Our own data: 69 of 101 units were free-trial units, they
 earned $0 and their model cost (Sonnet) was ours.
 
-**Every plan:** `No Free Trial`. Always include a **year** row. Prices at the market band in §2
+**Every plan:** `No Free Trial`. Exactly three plans — **week, month, year** (the Capafy card holds three cards; the top-6 subscription sellers all use week/month/year, none uses day). Prices at the market band in §2
 (2026-10-03 sweep: month p25 $12.99 / median $19.10 / p75 $22.99, week median $6.99, year median $149.99).
 Expensive hosted models (Sonnet or above) need low request caps, as the winners do (10–27 per month).
 
@@ -196,7 +196,6 @@ Honesty: <what this does NOT do — no live data / no posting / no file export, 
 
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| day   | $X.XX | N | No Free Trial |
 | week  | $X.XX | N | No Free Trial |
 | month | $X.XX | N | No Free Trial |
 | year  | $X.XX | N | No Free Trial |
