@@ -349,8 +349,14 @@ def _run_locked(
         isinstance(prior_observation, Mapping)
         and prior_observation.get("latest_event_id") == row["latest_event_id"]
     )
+    prior_unknown_reply = (
+        state.get("status") == "reconcile_unknown"
+        and isinstance(prior_intent, Mapping)
+        and prior_intent.get("action") in {"reply", "estimate"}
+    )
     if isinstance(prior_intent, Mapping) and (
         same_event or prior_intent.get("action") in RESUMABLE_MUTATIONS
+        or prior_unknown_reply
     ):
         official = adapter.readback(dict(prior_intent))
         if official.get("verified") is True:
@@ -358,8 +364,16 @@ def _run_locked(
             notification = _notify_verified(
                 notify, prior_intent, receipt, state.get("notification")
             )
-            _save({"version": 1, "inventory_event_id": inventory_event_id,
-                          "observation": row, "intent": prior_intent,
+            old_event_verified = prior_unknown_reply and not same_event
+            _save({"version": 1,
+                          "inventory_event_id": (
+                              state.get("inventory_event_id")
+                              if old_event_verified else inventory_event_id
+                          ),
+                          "observation": (
+                              prior_observation if old_event_verified else row
+                          ),
+                          "intent": prior_intent,
                           "receipt": receipt, "notification": notification,
                           "status": "verified"})
             result = {"thread_id": row["thread_id"], "status": "verified",
