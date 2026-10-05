@@ -121,9 +121,11 @@ billing rows; `publish_finish.sh` prints `PRICE_MISMATCH_WARNING` if they still 
    `scripts/verify_pricing.py --agent-id <ID> --listing <LISTING.md>`; on
    `PRICING_MISMATCH` re-open the edit URL (`publish_prepare.sh` re-issues it) and
    re-enter the prices with `typeinto`.
-   The card has exactly three plan cards (day/week/month) and no "Add Plan" button
-   (2026-10-05); a Yearly row in the LISTING cannot be added here yet, so
-   `PRICE_MISMATCH_WARNING ... year: missing` is expected until that path is found.
+   The card has exactly three plan cards and no "Add Plan" button (2026-10-05). Use each
+   card's Period dropdown to make the three cards match the LISTING table — normally
+   Weekly / Monthly / Yearly (the top Capafy subscription sellers use exactly these three,
+   no Daily). Re-check every card's Period, Price and Request-Limit after switching, since
+   cards can re-sort when a period changes.
 5. Each plan needs a trial choice (required). Read the TARGET line printed by
    `publish_prepare.sh` for that plan's `trial=` value:
    - `trial=No Free Trial` → click **"No Free Trial"**.
