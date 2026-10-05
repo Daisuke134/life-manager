@@ -27,7 +27,7 @@ The observations below describe the design baseline. Use unified SSOT §87 for c
 
 - The September 2026 Google Cloud invoice was ¥27,889 including tax (¥25,354 before tax).
 - Read-only Cloud Monitoring counts for the linked projects were 25,526 Geocoding calls, 15,092 Directions calls, 6,510 Places Text Search calls, and 21,796 Gemini GenerateContent calls.
-- Token and current public pricing produced a pre-tax estimate close to ¥25,354. This is a diagnostic estimate, not the settled SKU receipt; the Google Cloud Cost table CSV remains the settlement authority.
+- Token and current public pricing produced a pre-tax estimate close to ¥25,354. This is a diagnostic estimate, not billed SKU evidence; the Google Cloud Cost Table CSV is the authority for billed cost, not cash settlement.
 - The already-connected ChatGPT Moneytree plugin returns one MUFG ordinary JPY account, but the newest available transaction is dated 2026-08-25 and no provider freshness timestamp or completeness cursor is exposed. The balance is last-known/stale; the exact personal balance is intentionally omitted from this tracked design.
 - The September Google invoice is JPY 27,889 tax-included. October 1–4 tenant usage through 20:01 JST shows a Google-labeled estimate of USD 5.02665475; a straight-line month projection is about USD 40.64, not an invoice or forecast. Provider-unattributed usage and missing loop/actual-status metadata remain (unified SSOT §87-Y).
 - Fresh B7 projection still reports 14/14 loops as `unknown` with historical/trailing coverage gaps; no company-wide settled net total or runway is established (unified SSOT §87-V).
@@ -223,9 +223,9 @@ Telephony, paid model calls, and user-requested external actions remain separate
 ### A6 — Official Google billing reconciliation
 
 - collect intramonth Monitoring usage estimates;
-- import Cost table CSV settlement rows;
+- import billed Cost Table invoice rows;
 - join SKU/project/service rows to provider cost events;
-- show estimate-versus-settled variance.
+- show estimate-versus-billed-invoice variance; show cash settlement separately and only with payment evidence.
 
 ### A7 — Personal CFO rail
 
@@ -322,7 +322,7 @@ The candidate-branch implementation allows coordinate-ready Japan Transit to run
 
 ### Cost model and target
 
-The September settled Google service totals are the comparison baseline: Places ¥9,419.856821, Geocoding ¥7,493.014626, Directions ¥3,271.171127, Gemini ¥5,160.873099, and KMS/Storage/Run approximately ¥9.54 pre-tax. The following is a **planning budget**, not a settled invoice:
+The September billed Google service totals are the comparison baseline: Places ¥9,419.856821, Geocoding ¥7,493.014626, Directions ¥3,271.171127, Gemini ¥5,160.873099, and KMS/Storage/Run approximately ¥9.54 pre-tax. They are not evidence of payment. The following is a **planning budget**, not an invoice or payment record:
 
 | layer | current baseline | target budget after this design | gate |
 |---|---:|---:|---|
@@ -332,7 +332,7 @@ The September settled Google service totals are the comparison baseline: Places 
 | Google route fallback | part of September Directions total | ≤¥300/month per tenant | 100 fallback requests/month or lower, whichever trips first |
 | Google Geocoding fallback | September ¥7,493.01 | ¥100–¥800/month after cache | 200 uncached addresses/month until benchmark winner |
 | Gemini | September ¥5,160.87 account-level baseline | ¥5,000–¥6,000 while current path remains | nonessential calls budgeted; voice/high-risk separate |
-| fixed Google services | about ¥10 | about ¥10 | settled CSV |
+| fixed Google services | about ¥10 | about ¥10 | billed Cost Table |
 | total Google target | ¥27,889 tax-included September invoice | roughly ¥5,500–¥7,500 pre-tax / ¥6,000–¥8,300 tax-included | seven natural periods + official CSV |
 
 Best case is a cache hit and successful free primary on nearly every Japan request. Base case retains small fallback/geocode spend and the current Gemini cost. Worst case is provider outage or traffic growth returning the account to the September baseline; budget gates must stop nonessential Google calls before that happens. Google Maps pricing remains SKU/free-cap/volume-tier based, so these caps are safety budgets, not promises of free usage ([official pricing](https://developers.google.com/maps/billing-and-pricing/pricing)).
