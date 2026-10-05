@@ -38,7 +38,7 @@ flowchart LR
 
 ## 4. エージェントの判断と決定的な境界
 
-候補のブランド性、技術系企業との関連性、実販売事例との類似性、権利上の危険性、買い手offerの採否をモデルが判断する。コンテキストにはレジストラの現行見積り、公式の空き・予約情報、Sedoの対応TLDと料金、公開販売報告、WIPO Global Brand DatabaseとEUIPO Trademark Search APIの結果を渡し、判断理由と根拠URLを保存する。公的な権利検索が失敗・未認証・未取得なら候補はscout-onlyとする。著名作品・キャラクターの禁止語リストや文字列regexで権利判断を代行しない。
+候補のブランド性、技術系企業との関連性、実販売事例との類似性、権利上の危険性、買い手offerの採否をモデルが判断する。コンテキストにはレジストラの現行見積り、公式の空き・予約情報、Sedoの対応TLDと料金、公開販売報告、EUIPO Trademark Search APIの結果を渡し、判断理由と根拠URLを保存する。EUIPO APIは`wordMarkSpecification.verbalElement`のwildcard queryで対象候補を検索する。Production subscriptionには本人確認書類と住所証明の提出が必要であることを公式手順で確認した。credential SSOTにclient credentialsがなく、個人書類をこのloopから提出しないため、権利検索未取得の候補はscout-onlyとする。TMviewの公開frontend endpointはstable API contractではなく、EUIPOのlegal noticeは商用目的の自動data collectionを禁止しているため自動取得に使わない。著名作品・キャラクターの禁止語リストや文字列regexで権利判断を代行しない。
 
 ツールは狭く分ける。registrar adapterは空き状況、登録・更新見積り、登録者・期限readback、holder-transfer結果を返す。Sedo adapterは出品、offer、買い手決済、移転状態、手数料、売り手出金を返す。出品category IDは公式DomainCategories APIをread-onlyで取得し、現行taxonomyから解決して使う。CFO adapterはconfirmed receiptsとactual costsを読み取る。モデルは根拠に基づく候補と価格を提案し、ツールの完了申告は公式stateで別途確認する。
 
@@ -80,8 +80,9 @@ source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専
 - Register.si registrar tariff: https://www.register.si/cenik-za-registrarje/
 - Register.si ADR/rights process: https://www.register.si/en/adr-procedure-guidelines/
 - Openprovider API getting started and REST schema: https://developer.openprovider.com/get-started.html and https://developer.openprovider.com/data/swagger.json
-- WIPO Global Brand Database API: https://developers.branddb.wipo.int/
-- EUIPO Trademark Search API: https://dev.euipo.europa.eu/product/trademark-search_110/api/trademark-search
+- EUIPO Trademark Search API and security: https://dev.euipo.europa.eu/product/trademark-search_110/api/trademark-search and https://dev.euipo.europa.eu/security
+- EUIPO production API subscriber identity requirements: https://dev.euipo.europa.eu/getting-started
+- EUIPO legal notice on automated data collection: https://eutm.euipo.europa.eu/en/info/legal-notices
 - Sedo TLD pricing and fees: https://sedo.com/us/what-we-offer/price-list/
 - Sedo escrow and ownership transfer: https://sedo.com/us/services/domain-transfer-service/
 - Dynadot report on .si registrations and Recursive.si: https://www.dynadot.com/blog/why-si-domains-are-gaining-attention

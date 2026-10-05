@@ -170,7 +170,7 @@ def evaluate_purchase(
     )
     if (not isinstance(rights, dict)
             or rights.get("status") != "clear"
-            or not {"wipo", "euipo"}.issubset(rights_sources)
+            or "euipo" not in rights_sources
             or not _refs(rights.get("evidence_refs"))):
         _append_reason(reasons, "rights_evidence_missing")
 
