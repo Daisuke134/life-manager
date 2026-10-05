@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知7修正はsource受入済み（週次calendar含む）、本番は3に残る。Capafy start-event欠落/Lancers account境界の根因は1で特定する（§487）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知8修正はsource受入済み（週次calendar/pre-start観測含む）、本番は3に残る。Capafy/Lancersの実原因は未確定。観測改善を本番復旧へ昇格しない（§489）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7380,3 +7380,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新mainc90b7ca6b9c8790214ccb2dde1d841102c89b75f由来worktree `.worktrees/lm-prestart-lock-observation-20261005` / branch `fix/lm-prestart-lock-observation-20261005` / primarylease codex-money-printer-prestart-observation24h / clean、同taskなし。Luna/max所有はruntime/loop/lm_loop_run.pyと既存tests/test_lm_loop_run_bounds.pyだけ。runtime_eventやshared schema/APIを広げない。
 - 必須fixture：mock lock競合でscratch/child/_run_admitted/realqueue0、rc78とowner・occurrence・release結び付きevent、publish ownerもpre-start確定effect分類、event writerfailureの構造化stderr、既存通常main挙動保持。実lock/実state/credentials/provider/本番を禁止、focused/構造gate→commit/push→primary/fresh safety review。source未知へ成功0を入れない。
 - §217cursor1の観測不足を解消するsource2へ独立repairを戻す。受入7件の本番は3の例外確認未回答、Lancers account境界/自然run/CFO/SelfBuild/Eval全scopeを保持。
+
+
+### 489. pre-start観測source受入とtask-local容量回復
+
+- branch fix/lm-prestart-lock-observation-20261005 / HEAD・remotea61c1da7069491f0e6f772235fbd56aad8409890 / clean / basec90b7ca6。変更はrunnerと既存bounds testの2files。lock取得exact競合だけ新規run/occurrenceへreportし、未開始境界のeffect_status not_applicable、exit78/元apply_lock_busyを保持。body/admitted例外は変換せず、queue/retry/fence解除を追加しない。
+- primary固定HEAD runner/event pytest140/140 PASS（4.99秒）、構造14/178/103/errors0・diffcheck・remote一致PASS。fresh Sol/medium source PASS/重大指摘なし、focused3＋admitted境界同文RuntimeErrorのmock反例を確認しpre-start reportを出さない。writer失敗JSONは同identity/exit/effect/元causeとwriter_type/errnoを分離、秘密/pathなし。実lock/state/provider/entrypoint/broadcast0。sourceのみ受入。
+- staging ENOSPCを診断。Data free264452KiB、inode余裕、task temp約1MiB、index約1MiB、git metadata1byte probePASS。root heredocもENOSPC。無変更retryを重ねず、旧refill検証worktreeのignored/非symlink node_modules811676KiBを限定観測（関連process0/lsof open paths0）して削除。package/lock/tracked source/不可侵store/他owner/productionは変更しない。再生成可能依存だけを回収しfree1130272KiBへ。worker fetch/stage/commit/push成功。
+- refill node_modulesは再試験時にlockから再生成が必要。既存source proofの全tracked bytesは保持し、過去PASSを現在依存残存の証拠へしない。disk問題が過去9:30の原因だったとは断定しない。
+- source受入8件、本番未反映。観測repairはlost wakeの保全/Capafy実原因確定を意味しない。Lancers account境界/Capafy pre-start等のfresh diagnosisは次の実観測に残す。§217cursor1/source2既知8件受入、本番3の例外確認は未回答、全loop自然実行/公式receipt/CFO/SelfBuild/Evalは未完。
