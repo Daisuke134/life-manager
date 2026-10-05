@@ -208,6 +208,10 @@ def run_character(set_dir: Path, deps: Deps) -> str:
 def run_clips(set_dir: Path, deps: Deps) -> str:
     plan = _read_json(set_dir / "plan.json")
     deps.clips_runner(set_dir, plan)
+    receipts = [_read_json(set_dir / "clips" / f"{m['id']}.json") for m in plan["motions"]]
+    spent = sum((Decimal(str(r["estimated_usd"])) for r in receipts if r and "estimated_usd" in r), Decimal("0"))
+    row = _read_json(set_dir / "stage.json") or {}
+    _atomic_write_json(set_dir / "stage.json", {**row, "cost_usd": str(spent)})
     missing = [m["id"] for m in plan["motions"] if not (set_dir / "clips" / f"{m['id']}.json").exists()]
     if missing:
         append_event(set_dir.parent, {"set": set_dir.name, "stage": "clips", "status": "incomplete", "missing": missing})
