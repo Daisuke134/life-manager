@@ -3154,5 +3154,5 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 
 **A1最初の実装slice:** 既存`usage-event.js`が`lm_api_cost.meta`へ書くprovider cost rowに、信頼できる`LIFE_MANAGER_*`環境からloop/run/owner/occurrence/releaseを検証して結ぶ`runtime_trace`を追加する。event payloadからruntime identityを上書きしない。loop外・必要値不足・不正なoccurrenceやsecret-shaped IDは`unlinked/partial`として明示し、無効値をそのまま保存しない。既存runtime eventとcost ledgerを再利用し、新しいevent storeやCLIは作らない。
 
-- **実装状態（candidate）:** branch `feat/cfo-a1-provider-trace-20261005`でtrace metadataと検証を実装。usage-event suite 11/11、Gemini/Maps/ask/ledger等の関連suite 58/58 PASS。secret-shaped runtime ID、foreign occurrence、欠落context、event payloadによるidentity overrideはtrace帰属に使わず、無効値を保存しない。外部provider、ledger/database、production stateは変更していない。
-- **cursor:** A1は未完了。今回のsource/testはloop identity joinの最初のsliceであり、main統合・providerごとの網羅性・natural runを証明しない。A1 acceptanceが閉じるまでA2へ進まない。
+- **実装状態（main source）:** PR #6637 merge `9f7bf142`でtrace metadataと検証を統合。usage-event suite 11/11、Gemini/Maps/ask/ledger等の関連suite 58/58 PASS。secret-shaped runtime ID、foreign occurrence、欠落context、event payloadによるidentity overrideはtrace帰属に使わず、無効値を保存しない。provider API、Supabase ledger row、production release、natural runは変更・確認していない。
+- **cursor:** A1は未完了。今回mainへ入ったのはloop identity joinのsource/test sliceのみで、providerごとの観測coverageとproduction natural eventのjoinは未確認。A1 acceptanceが閉じるまでA2へ進まない。
