@@ -8248,3 +8248,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - No privatebody/URL/thread/account/rawresponse/auth/cookie/credential保存、identityはhashのみ、networkはsend分類・HTTPstatus・時刻/件数・phase等のsafe allowlist。並列threadsで別intentを混同しない。class/error/返値・oldfence・idempotency・receiptbinding・notification契約保持、preeffect自動降格/再送/手動旧trace捏造0。新診断を過去送信の証明へ代用しない。
 - 隔離fakeCDP/actualsender/actualkernel RED→GREENでbefore_read/fill前/clickstarted/after_read/finalread失敗のphase差、例外でも保存、observe/readback/send区別・two-thread provenance不混合・ログprivate漏洩0・oldunknownmutate0を確認。実provider/browser/launchd/auth/state/API/CLI送信禁止。source診断write失敗は未知効果を成功/0へ丸めず、既存fence/receiptを保持。focused/contract/OSS/compile/diff→commitpush→freshreadonly review/CI/main→Replyowner/natural診断を確認。Luna6max実装/Sol6.1medium review、根因解除や全12解消は別の公式readback必要。
 - TaskMarket既存currentregistry/catalog/skillsにはtaskmarket-paid-executorの登録や汎用taskmarket提出jobを確認できず、以前の名称を現在存在へ代用しない。現画像laneだけでprototype契約を完了扱いしない。残44/cursor1自然audit、Coconala限定診断を独立並行/SelfBuild最後。
+
+
+### 596. f61自然audit namespace不在と実frontier SelfFix起動の確認
+
+- 新sourcef61自然run18dba54d2dbb3708-53384は13:30:27Z execute→13:33:55Z terminalPASS。14:25:42Z同run scratchnamespace不在、ps ewwをmemory内filterした当該TMPDIR/NPMcache参照PID0、rootprobe外部mutation0。state/audit-owned-runtime-natural-readback-20261005.json。終端後51分でも再生成を観測せず、古いb53結果を代用しない。
+- 同audit windowのSelfFix self-fix-code-agent/reddit-loopは13:33:49→13:37:47Z success、selected gpt6luna/max/acct2。owner evidence namespaceはaudit scratch外、tmp/npm/nodecacheの各mode700を現物確認。実CLI/APIモデル受理・正常終端という新証拠で、単なるcache supportedflagに依存しない。ただしこれを収益・reddit外部効果や全モデル適合へ広げない。
+- current-run freedbytesはbefore未観測のためUNKNOWNのまま。cleanup-latestはrelease3e7b7771/removed0/reclaimed0/protecteddeletions0で別release・別retention観測のため、今回f61の回収量/削除counterへ代用しない。namespace残留なし/模型起動は確認できたが、残表cursor1の物理bytes/protected範囲の正式readbackを不確かな数値で完了へ丸めない。
+- Luna診断workerのactive旧branch懸念は、root完了PR6649の登録worktreeで実稼働ではないことを共有。旧worktree/leaseは触らずfreshmain035f1d4cから指定diagnosticsworktree/lease取得済み、read_after例外の集約・kernelphase欠損・NetworkSummary rawpathにprivate threadIDが入る境界を確認。safe projectionを隔離RED化中、旧fence/価格/timeout/actor判断変更0。
+- Softwareprototypeの保存SOWにはtestnet/Solidity/hook/adapter/deployment/regression/source要求、netreward4625000 baseunits/expiry10月8日06:41Zをmetadata確認。現在のTaskMarketregistry/catalog/skillsには汎用提出executorの実登録を確認できず、画像laneで完了扱いしない。成果物source/testだけでdeployment/署名owner/実費coverageを代替しない。外部送信/新API/資金移動0、全44/cursor1・SelfBuild最後を保持。
