@@ -150,7 +150,7 @@ async def _tag_all(page: Page, item: dict, tags: dict) -> None:
 
 async def _request_review(page: Page, item: dict) -> dict:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}")
-    await page.get_by_role("link", name="リクエスト", exact=True).click()
+    await page.locator("a:visible", has_text="リクエスト").first.click(timeout=15000)  # <a> without href has no link role
     await page.wait_for_timeout(500)
     agree = page.get_by_text("同意します", exact=True)
     await agree.click()
