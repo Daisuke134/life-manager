@@ -22,6 +22,7 @@
 - An uncertain registration or listing effect fences the same candidate until provider readback resolves it; no blind replay is allowed.
 - Realized revenue requires buyer settlement, registered-holder transfer, seller payout, receiving-account readback, and cost-complete positive net. Sale and payout IDs are deduplicated.
 - Credentials stay in `~/.local/share/anicca/credentials.json`; no token, password, or private registrant fields enter source, events, logs, or chat.
+- Provider responses are whitelist-filtered before persistence; events keep only public domain/status/expiry fields and a one-way owner-handle fingerprint.
 - Do not modify `config/loop-registry.json`, the product-loop catalog, or CFO files while the active CFO lease owns them. Integrate those files after its lease is released and re-read their current source.
 
 ## Review Focus
@@ -62,11 +63,12 @@
 - Consumes: Task 1 purchase result.
 - Produces: `OpenProviderClient.check_domain(name)`, `quote_create(name, funding_fx_basis=None)`, `register(name, owner_handle, idempotency_key)`, `get_domain(domain_id)`, and `list_domains()`.
 - `quote_create` returns registration and one-year renewal amounts in the provider currency. It populates EUR-normalized costs only when a verified funding FX basis matches the provider balance currency; a read-only price response has `provider_receipt_id=null`, and the owner persists its raw response and attaches the resulting `evidence_refs` before policy evaluation.
+- `get_domain` and `list_domains` return only whitelisted domain/status/expiry fields and a one-way fingerprint of the owner handle; they discard registrant names, emails, addresses, and phone fields even when the provider response includes them.
 - The live client uses the official bearer-token API and the credential SSOT. Its production base URL is fixed; tests use a local HTTP server.
 - Read-only price responses may not include a provider receipt ID; the adapter returns `provider_receipt_id=null` and the raw readback payload so the owner can persist it before adding a local evidence ref. The adapter never synthesizes a receipt.
 - Registration sends one-year `.si`, `autorenew="off"`, and the approved owner contact; it never turns private-WHOIS on or retries a timed-out create.
 
-- [ ] **Step 1: Write failing local-server tests** named `test_check_and_quote_use_official_si_fields`, `test_quote_does_not_fabricate_provider_receipt_id`, `test_fx_requires_matching_funding_receipt`, `test_register_sends_owner_and_autorenew_off`, `test_missing_credentials_prevent_mutation`, `test_nonzero_provider_code_is_not_success`, and `test_timeout_is_effect_unknown_without_retry`. Assert method/path/body, `code == 0`, returned domain ID, and no second create request.
+- [ ] **Step 1: Write failing local-server tests** named `test_check_and_quote_use_official_si_fields`, `test_quote_does_not_fabricate_provider_receipt_id`, `test_fx_requires_matching_funding_receipt`, `test_register_sends_owner_and_autorenew_off`, `test_domain_readback_filters_personal_contact_fields`, `test_missing_credentials_prevent_mutation`, `test_nonzero_provider_code_is_not_success`, and `test_timeout_is_effect_unknown_without_retry`. Assert method/path/body, `code == 0`, returned domain ID, no raw registrant fields, and no second create request.
 - [ ] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: collection fails because the client is absent.
 - [ ] **Step 3: Implement the stdlib REST client** for `/v1/auth/login`, `/v1/domains/check`, `/v1/domains/prices`, `/v1/domains`, `/v1/domains/{id}`, and `GET /v1/domains`; validate responses and redact credentials from errors.
 - [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: all named local-server tests pass.
