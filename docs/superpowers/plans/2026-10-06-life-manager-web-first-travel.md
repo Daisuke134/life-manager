@@ -327,9 +327,10 @@ Expected: event and departure times share the correct zone and the UI count/orde
 ### Task 9: Add Web travel pause, resume, and disconnect controls
 
 **Files:**
-- Create: `apps/life-manager/migrations/2026-10-06-lm-web-travel-controls.sql`
+- Create/rename: `apps/life-manager/migrations/2026-10-06-z-lm-web-travel-controls.sql` so its control and setup-fence functions apply after the initial Web setup migration.
 - Modify: `apps/life-manager/lib/web-travel.js` and `apps/life-manager/lib/web-travel.test.js`
 - Modify: `apps/life-manager/lib/web-page.js` and `apps/life-manager/lib/web-page.test.js`
+- Modify: `apps/life-manager/lib/panel-api.js` and `apps/life-manager/lib/panel-api.test.js`
 - Modify: `apps/life-manager/server.js`
 - Reuse: `apps/life-manager/lib/panel-api.js:composioCalendarDisconnect`
 
@@ -337,12 +338,13 @@ Expected: event and departure times share the correct zone and the UI count/orde
 - `POST /api/lm-web/travel/control` accepts only `{ action: "pause" | "resume" | "disconnect" }`; uid and account ID come only from the verified Web user and current server row.
 - Pause atomically sets `daily_automation_enabled=false` for a NULL-Telegram row. If setup has not created the preference row yet, seed safe defaults with `call_enabled=false`, `notifications_enabled=false`, `daily_automation_enabled=false`, and `web_calendar_disconnect_pending=false`, then apply the action-specific pending state in the same RPC; preserve all other fields on existing rows. Resume requires saved home plus exact selected ACTIVE account readback, then conditionally sets only `daily_automation_enabled=true` for that same account and reads back the preference.
 - `TodaySnapshot` returns persisted `dailyAutomationEnabled` and `disconnectPending` even when Calendar event read fails, so controls do not vanish with an event-read error.
-- Disconnect atomically sets automation false plus `calendar_disconnect_pending=true` before provider I/O; resume refuses while pending. Only exact account DISABLED readback allows the SQL finish transition to clear the selected binding and pending flag while keeping automation false. Any provider failure/readback uncertainty leaves the row paused, binding intact, and pending fence set; retry can verify a now-disabled account and finish.
+- Disconnect atomically sets automation false plus `calendar_disconnect_pending=true` before provider I/O; resume and setup refuse while pending. Setup preserves an existing pause, and the immediate travel run checks persisted automation/pending state before dispatch.
+- Provider account mutations and disable readback must verify the exact selected account ID, Web owner, and Google Calendar toolkit. `DISABLED` is returned only for an explicit disabled readback; expired, initiated, mismatched, or contradictory states remain uncertain. Any provider failure/readback uncertainty leaves the row paused, binding intact, and pending fence set; retry can verify a now-disabled account and finish.
 - The page displays Pause or Resume from persisted preference state, blocks Resume while disconnect is pending, and offers Disconnect/retry for the currently bound Calendar.
 
 - [ ] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
 
-Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, pause/disconnect before a preference row exists, preservation of existing call/notification settings, resume without home/inactive account, concurrent resume during disconnect, provider failure/readback retry, exact-account disconnect, persisted pause state after Calendar event-read failure, and button state/copy.
+Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, pause/disconnect before a preference row exists, preservation of existing call/notification settings, resume without home/inactive account, concurrent resume during disconnect, setup during pending disconnect, setup preserving an existing pause and not dispatching Travel after pause, provider failure/readback retry, mismatched provider account ID with zero PATCH, exact disabled state/readback, persisted pause state after Calendar event-read failure, and button state/copy.
 
 - [ ] **Step 2: Run focused Web control tests and confirm the new cases fail**
 
@@ -351,7 +353,7 @@ Expected: the control route, atomic preference contract, and controls are absent
 
 - [ ] **Step 3: Add the smallest Web-only preference RPC and route**
 
-The SQL function locks and rechecks the NULL-Telegram user row and expected account marker before preference writes. It sets/clears the disconnect-pending fence in begin/finish transitions and refuses resume while pending. Reuse `composioCalendarDisconnect`; do not add a settings framework or change Telegram preference RPCs.
+The SQL function locks and rechecks the NULL-Telegram user row and expected account marker before preference writes. It sets/clears the disconnect-pending fence in begin/finish transitions and refuses resume while pending. The setup RPC shares the same lock order, rejects pending disconnect, and preserves an existing automation choice. Reuse `composioCalendarDisconnect`, adding exact provider-ID/status checks at its boundary; do not add a settings framework or change Telegram preference RPCs.
 
 - [ ] **Step 4: Wire controls into the existing page and rerun focused tests**
 
