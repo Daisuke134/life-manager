@@ -52,3 +52,20 @@ No due voice occurrence or same-occurrence provider/cost receipt was observed.
 
 - A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback. Do not test-call or infer zero from absent rows.
 - The verifier made only read-only deployment/log/table reads: no test call, calendar-content query, provider mutation, database write, or report send.
+
+## Later exact-release refresh (2026-10-05T18:15:32Z)
+
+A later read-only cost-ledger query against the same running deployment and exact source SHA returned 86 rows / USD 0.085 in row-level estimates:
+
+| Feature and outcome | Rows | Row `est_usd` sum |
+|---|---:|---:|
+| Google Calendar list / success | 57 | USD 0.000 |
+| Google Maps geocoding / success | 5 | USD 0.025 |
+| Google Directions / failure, `no_route` | 12 | USD 0.060 |
+| Route cache / cache hit | 12 | USD 0.000 |
+| **Total** | **86** | **USD 0.085** |
+
+- Relative to the 17:54:24Z snapshot, the nine added rows are Calendar-list successes; there are no added geocoding or Directions rows, and the estimate total is unchanged.
+- All 86 rows have a runtime trace and all lack `loop_id`. The 12 Directions rows remain one per 12 distinct runtime occurrence IDs; event-level distinctness remains unverified. Row estimates are not actual bills or an invoice.
+- The latest aggregate scan read at `2026-10-05T18:12:51Z` reports 16 scans since 16:56Z; all had successful Calendar reads and zero due candidates. The latest counts were 20 users, 5 eligible users, and 10 Calendar items/events/candidates. No natural voice occurrence was observed.
+- This refresh was read-only: no test call, Calendar-content query, provider mutation, database write, or report send.

@@ -7,7 +7,7 @@
 
 const { createHash, randomUUID } = require("node:crypto");
 const { getCalendar } = require("./transport/index.js");
-const { chooseRouter, parseTransitPlan } = require("./transit.js");
+const { chooseRouter, parseTransitPlan, hasValidTransitEnvelope } = require("./transit.js");
 const {
   makeRouteCache, makeSupabaseRouteStore, cacheFailure, timeBucket,
 } = require("./route-cache.js");
@@ -18,9 +18,28 @@ const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
 const GOOGLE_DIRECTIONS_EST_USD = 0.005; // list price per request after free cap, checked 2026-09-06
 const GOOGLE_GEOCODING_EST_USD = 0.005;
 const GOOGLE_ROUTES_PRO_EST_USD = 0.010;
+const ROUTE_MODES = new Set(["transit", "google"]);
+const FALLBACK_REASONS = new Set([
+  "transit_no_route", "transit_provider_4xx", "transit_provider_5xx", "transit_network",
+  "transit_timeout", "transit_invalid_response", "non_jp",
+]);
 const GEOCODE_SUCCESS_TTL_MS = 24 * 60 * 60_000;
 const GEOCODE_NEGATIVE_TTL_MS = 30 * 60_000;
 const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
+
+function routeUsageMeta(usage) {
+  return {
+    ...(ROUTE_MODES.has(usage && usage.routeMode) ? { route_mode: usage.routeMode } : {}),
+    ...(FALLBACK_REASONS.has(usage && usage.fallbackReason)
+      ? { fallback_reason: usage.fallbackReason } : {}),
+  };
+}
+
+function setTransitFallbackReason(diagnostics, reason) {
+  if (diagnostics && typeof diagnostics === "object" && diagnostics.fallbackReason == null
+      && FALLBACK_REASONS.has(reason)) diagnostics.fallbackReason = reason;
+}
+
 function providerFailureClass(response, providerStatus) {
   const status = Number(response && response.status);
   if (Number.isFinite(status) && status >= 400 && status < 500) return "provider_4xx";
@@ -174,6 +193,7 @@ function clampDepartIso(departAtMs, nowMs) {
 
 async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = {}) {
   const body = JSON.stringify(buildDriveBody(src, dst, clampDepartIso(departAtMs, nowMs)));
+  const routeMeta = routeUsageMeta(usage);
   try {
     const r = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
       method: "POST",
@@ -189,7 +209,7 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
       await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
         feature: "routes_pro", outcome: "failure", failureClass: providerFailureClass(r),
         providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-        meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+        meta: { ...routeMeta, sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
       return null;
     }
     const j = await r.json();
@@ -199,14 +219,14 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
       feature: "routes_pro", outcome: sec == null ? "failure" : "success",
       failureClass: sec == null ? "no_route" : null, providerUnits: 1, providerUnit: "request",
       estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+      meta: { ...routeMeta, sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
     return sec == null ? null : minutesFromSeconds(sec);
   } catch {
     noteProviderFailure(usage, "network");
     await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
       feature: "routes_pro", outcome: "failure", failureClass: "network", providerUnits: 1,
       providerUnit: "request", estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+      meta: { ...routeMeta, sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
     return null;
   }
 }
@@ -215,6 +235,7 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
 // event end). Only one should be non-null; if neither is a future time, falls back to departure_time="now".
 async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.now(), departAtMs = null, usage = {}) {
   const p = new URLSearchParams({ origin: src, destination: dst, mode: "transit", key: mapsKey });
+  const routeMeta = routeUsageMeta(usage);
   // NEVER-LATE: anchor transit to the EVENT, not "now". Future event → arrival_time = event start, so
   // the train time reflects the schedule the user will actually ride. Past/missing → fall back to now.
   // Return leg: departAtMs is set → use departure_time anchored to event end (FIND-004).
@@ -236,7 +257,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       outcome: accepted ? "success" : "failure",
       failureClass: accepted ? null : providerFailureClass(r, j.status),
       providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_DIRECTIONS_EST_USD,
-      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap" },
+      meta: { ...routeMeta, sku: "Directions", pricing_basis: "list_price_after_free_cap" },
     });
     if (!accepted) return null;
     return minutesFromSeconds(j.routes[0].legs[0].duration.value);
@@ -246,7 +267,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       tenantId: usage.tenantId || "anonymous", provider: "google_maps", feature: "directions",
       outcome: "failure", failureClass: "network", providerUnits: 1, providerUnit: "request",
       estimatedCostUsd: GOOGLE_DIRECTIONS_EST_USD,
-      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap" },
+      meta: { ...routeMeta, sku: "Directions", pricing_basis: "list_price_after_free_cap" },
     });
     return null;
   }
@@ -318,7 +339,7 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
 // C2: real FREE JP transit fetch (api.transit.ls8h.com /plan). Injected in tests via opts._transitFetch.
 // The event anchor is deliberately part of the query; a route computed at scheduler time is not a
 // truthful substitute for the train the user will take at the calendar event.
-async function transitFetchPlan(srcGeo, dstGeo, query = {}) {
+async function transitFetchPlan(srcGeo, dstGeo, query = {}, diagnostics = {}) {
   try {
     const p = new URLSearchParams({
       from: `geo:${srcGeo.lat},${srcGeo.lon}`,
@@ -330,9 +351,25 @@ async function transitFetchPlan(srcGeo, dstGeo, query = {}) {
     });
     const request = query.signal ? { signal: query.signal } : undefined;
     const response = await fetch(`https://api.transit.ls8h.com/api/v1/plan?${p}`, request);
-    if (!response || response.ok === false || typeof response.json !== "function") return null;
-    return await response.json();
-  } catch { return null; }
+    if (!response || typeof response.json !== "function") {
+      setTransitFallbackReason(diagnostics, "transit_invalid_response");
+      return null;
+    }
+    if (response.ok === false) {
+      const status = Number(response.status);
+      setTransitFallbackReason(diagnostics, status >= 400 && status < 500 ? "transit_provider_4xx"
+        : status >= 500 ? "transit_provider_5xx" : "transit_invalid_response");
+      return null;
+    }
+    try { return await response.json(); }
+    catch {
+      setTransitFallbackReason(diagnostics, "transit_invalid_response");
+      return null;
+    }
+  } catch {
+    setTransitFallbackReason(diagnostics, "transit_network");
+    return null;
+  }
 }
 
 const DEFAULT_ROUTE_TIMEZONE = "Asia/Tokyo";
@@ -449,6 +486,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const allowanceState = options._allowanceState;
   const usage = { tenantId: uid, options: usageOptions };
   const routeUsage = { tenantId: uid, options: usageOptions, failureClasses: [] };
+  const transitDiagnostics = { fallbackReason: null };
   const timeoutOption = options._transitTimeoutMs ?? options.transitTimeoutMs;
   const transitTimeoutMs = Number.isFinite(Number(timeoutOption)) && Number(timeoutOption) >= 0
     ? Number(timeoutOption) : DEFAULT_TRANSIT_TIMEOUT_MS;
@@ -482,6 +520,10 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const query = wallAnchor(call.anchorAtMs, call.timezone, call.nowMs, call.departureMode);
   const google = async () => {
+    routeUsage.routeMode = routeMode;
+    routeUsage.fallbackReason = routeMode === "google"
+      ? (srcGeo && dstGeo ? "non_jp" : null)
+      : transitDiagnostics.fallbackReason || "transit_invalid_response";
     try {
       const value = googleRouteFn
         ? await googleRouteFn(googleSrc, googleDst, mapsKey, query.anchorAtMs, call.nowMs, call.departureMode)
@@ -502,10 +544,14 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       const transitPromise = Promise.resolve()
         .then(() => transitFetch(srcGeo, dstGeo, {
           ...query, timezone: call.timezone, signal: controller && controller.signal,
-        }))
-        .catch(() => null);
+        }, transitDiagnostics))
+        .catch(() => {
+          setTransitFallbackReason(transitDiagnostics, "transit_network");
+          return null;
+        });
       const timeoutPromise = new Promise((resolve) => {
         timer = setTimeout(() => {
+          setTransitFallbackReason(transitDiagnostics, "transit_timeout");
           if (controller) controller.abort();
           resolve(null);
         }, transitTimeoutMs);
@@ -514,6 +560,14 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       finally { clearTimeout(timer); }
       const parsed = plan && parseTransitPlan(plan, { anchorType: query.type, anchorSecs: query.anchorSecs });
       if (parsed && Number.isFinite(routeDurationSeconds(parsed))) return parsed;
+      if (!transitDiagnostics.fallbackReason) {
+        const unanchored = plan && parseTransitPlan(plan);
+        const hasValidJourney = unanchored && unanchored.serviceDate && unanchored.timezone
+          && Number.isFinite(routeDurationSeconds(unanchored));
+        const noRoute = hasValidTransitEnvelope(plan) && Array.isArray(plan.journeys)
+          && (plan.journeys.length === 0 || hasValidJourney);
+        transitDiagnostics.fallbackReason = noRoute ? "transit_no_route" : "transit_invalid_response";
+      }
     }
     return google(); // non-JP/unresolvable or Transit failure → exactly one Google fallback
   };
