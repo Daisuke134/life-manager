@@ -8300,3 +8300,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 実sender/kernel/fakeCDPを含むfocused106、compile、loop contract14/180、OSS verifier/既存12tests、sourceboundary/diff PASS。実provider/browser/launchd/auth/state/API操作0。source検証は過去送信有無・旧保留12解消・経済成果の証明ではない。
 - PR6686 https://github.com/Daisuke134/life-manager/pull/6686 を作成。fresh read-only `gpt-6.1-sol/medium`検証者が誤再送・漏洩・writer失敗・provenance/他platform契約を反証中。CI/main/immutable/Reply対象反映/自然公式readbackは未完。root current readonly reportは返信blocked、Paid受注観測failed1。blocked時のobserved/pending0を未処理ゼロにしない。
 - §217の旧監査先行段落を現44順へ訂正、docs remote4264464a4cb1e6d91be9cf5bf85a54e3f12eb243で確認。新たな順序変更はない。残44/cursor1、次はfresh review指摘解消とCI確認。監査39/SelfBuild40–42、TikTok/NPO追跡保留を維持する。
+
+
+### 602. Fresh反証で最終本文照合の診断欠損を再現
+
+- 新規fresh Sol6.1/medium検証者は106focused/diff PASS後、adapter._sendの最終本文照合と末尾unknown例外がtry/except外であることを純fixtureで反証しHOLD/P2。click/read_after/final_read成功後seller本文一致なしではkernel_phase=mutateだけになりsend_phase/network_summaryが欠落する。既存unknown fenceは保持され、送信成功/効果0への変換は確認しない。
+- current1内で同Luna/maxへ最小修正を返す。既存try範囲に最終照合を含め、final_readとsafe network projectionを残す。最小RED→GREEN/関連gate→commit/push→独立再確認、PR6686へ継続。新作業や順序変更ではない。private除外/二thread分離/旧occurrence/書込失敗伝播は反証で壊せなかった。実browser/API/auth/production操作0。残44/cursor1を維持する。
