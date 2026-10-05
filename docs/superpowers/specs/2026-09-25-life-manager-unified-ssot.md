@@ -4880,13 +4880,13 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 残作業の実行表（未完のみ・1項目1成果）
 
-現在cursor：1（Lancers診断修正の対象owner反映）。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
+現在cursor：1（Lancers AWS WAF solver接続のsource受入）。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
 
 | 順序 | 残作業 | 完了を示す証拠 |
 |---|---|---|
-| 1 | Lancers診断修正のreleaseを対象ownerへ反映する | main由来immutable/actual loaded argv・SHAを確認。既存owner lock/idleを使用する。 |
-| 2 | Lancersの自然runから原因別診断を取得する | same run/occurrence/sourceのHTTP status/route category/login form/例外型。秘密を出さない。 |
-| 3 | Lancersの観測された失敗境界を修復する | AWS WAFは既存solverで解消済み。Manager live work-syncへの限定接続をRED→GREEN・review・CI→main→反映し、自然再発時の成功を確認。 |
+| 1 | Lancers AWS WAF solver接続を修復・検証してmainへ統合する | 既存solverのlive work-sync限定接続。RED→最小GREEN、read-only/default無効、重複task防止・秘密保護、fresh review・CI・remote merge object。 |
+| 2 | Lancersの診断とsolverを含むreleaseを対象ownerへ反映する | main由来immutable/actual loaded argv・SHAを確認。既存owner lock/idleを使い、稼働中を中断しない。 |
+| 3 | Lancersの新source自然runと原因別readbackを確認する | same run/occurrence/sourceのaccount診断・HTTP状態・公式在庫。fixture成功を自然challenge処理成功に置換しない。 |
 | 4 | Lancersの仕事在庫readbackを確認する | 自然work-syncと公式在庫を結び、失敗/欠損を空在庫0へ変換しない。 |
 | 5 | Agent Economyの正規auth ownerと復旧参照を特定する | private SSOT/登録profile/ownerを照合。別accountの代用をしない。 |
 | 6 | Agent Economyの正規認証を復旧する | 既存accountの正常なauth経路を使い、競合をowner間で調整。credentialはprivate SSOTへ保存。 |
@@ -7614,3 +7614,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - current4caのagent_runner.py実関数をread-only pure probeで呼び出した。resolve_provider_profilesは明示acct1→acct2を展開、acct1 auth_file不存在、acct2存在。provider_process_envが作る既知local error「codex automation auth unavailable」をclassify_provider_errorへ与えるとvalidation_or_task_failure、codex_failover_actionはstop。resultなし/started_work=falseであっても既存明示account順路へ到達しない。provider/network/credential mutation0。証拠 /Users/anicca/.local/state/life-manager/state/agent-economy-auth-failover-pure-probe-20261005.json。
 - 推論：別account credentialをacct1へ複製せず、正規profile名を保持する既存明示順路のpre-launch typed fallbackが最小source候補。acct2認証の有効性・自然THINK成功・金融action成功は未確認。一般のvalidation failureや開始済みworkをfallback許可へ拡大しない。peer lm-capafy-cp2-fix-1002へrunner/auth edit所有範囲を既存AGMSGで照会、重複編集なし。§217のAgent Economy auth項目はこの根因と候補を参照する。
 - Lancers専用Luna担当は既存diagnostics testに追加3fixtureを実行し、未実装のlancers_browser_guard/_capsolverで期待どおりRED。実browser/API/credential readなし。最小GREENは進行中でsource受入未完。現在残54/cursor1、稼働中ownerの強制中断・重複solver task・provider/profile変更なし。
+
+
+### 512. 根因確定後のLancers反映順を一本化
+
+- 前turnの新観測はtargetがloaded-idle、直後の既存owner lock内applyでは次自然run開始を検出。preflight rc0、ok=true/changed=false/skipped loaded-running、loaded ba69のまま。証拠 /Users/anicca/.local/state/life-manager/state/lancers-diagnostic-idle-apply-20261005.json。停止・強制wake・queue/fence解除なし。
+- 順序変更理由：HTTP405のAWS WAF根因と公式solver成功は既に実測済み。診断だけを先に反映して同じownerを直後solver版へ再反映する必要をなくし、同一の反映機会で両修正を載せる方が最短。旧残1診断反映→2自然診断→3solver修復を、新残1solver source受入/main→2診断とsolverの一括反映→3新source自然readbackへ変更。成果scopeは維持、完了への繰上げなし。残4〜54の順序・Coconala保留・SelfBuild最後を保持。現在cursor1、残54。
+- rootはsource test差分を確認し、Lunaへ既存run_tick mockの必要keys不足、read_only_inventory実callerの未検証、成功実測のcookie domainとの照合を具体連絡。rootの同files編集0。Lunaの3RED後最小GREENは進行中。
