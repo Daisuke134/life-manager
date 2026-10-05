@@ -29,6 +29,7 @@ def _load(name: str):
 snapshot = _load("coconala_queue_snapshot")
 reply_browser = _load("coconala_reply_browser")
 requested_estimate = _load("requested_estimate")
+REPLY_INBOX_URL = f"{snapshot.MESSAGES_URL}?fromMyPage=true"
 
 
 def _load_shared(name: str):
@@ -107,8 +108,9 @@ class CoconalaReplyAdapter:
         for attempt in range(2):
             try:
                 dom = snapshot.inspect_page_with_retry(
-                    self.cdp_helper, snapshot.MESSAGES_URL,
+                    self.cdp_helper, REPLY_INBOX_URL,
                     snapshot.MESSAGES_EXPRESSION, None, hidden=False,
+                    coverage_expression=snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION,
                 )
                 snapshot.validate_inbox_coverage(dom)
                 rows = snapshot.inquiries_from_dom(dom)

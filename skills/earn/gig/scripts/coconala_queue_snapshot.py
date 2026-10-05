@@ -369,8 +369,7 @@ DIRECT_MESSAGE_EXPRESSION = DIRECT_MESSAGE_EXPRESSION.replace(
 
 DIRECT_INBOX_COVERAGE_EXPRESSION = r'''(async()=>{
 const sleep=ms=>new Promise(r=>setTimeout(r,ms)),
-isB1=location.pathname==='/message'&&new URL(location.href).searchParams.get('fromMyPage')==='true',
-direct=location.pathname==='/message'&&!isB1,
+direct=location.pathname==='/message',
 sel=direct?"a.c-messageItemWrap[href*='/mypage/direct_message/'],a.c-messageItemWrap[href*='/smartphone/direct_messages/'],a[href*='/smartphone/direct_messages/']":null,
 records=new Map(),pageLimit=10,hydrationDeadline=Date.now()+1500;
 const canonical=value=>{try{const u=new URL(value,location.origin),m=u.pathname.match(/^\/(?:mypage\/direct_message|smartphone\/direct_messages)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`https://coconala.com/mypage/direct_message/${m[1]}`:null}catch(_){return null}};

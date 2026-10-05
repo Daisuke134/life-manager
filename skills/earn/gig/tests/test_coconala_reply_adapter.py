@@ -227,12 +227,17 @@ def test_inventory_retries_transient_incomplete_coverage(monkeypatch, tmp_path):
 
 
 def test_inventory_uses_visible_target_for_dynamic_direct_inbox(monkeypatch, tmp_path):
-    seen_hidden = []
+    seen = {}
 
-    def inspect(*_args, **kwargs):
-        seen_hidden.append(kwargs["hidden"])
+    def inspect(_helper, url, expression, _screenshot, **kwargs):
+        seen.update({
+            "url": url,
+            "expression": expression,
+            "coverage_expression": kwargs.get("coverage_expression"),
+            "hidden": kwargs["hidden"],
+        })
         return {
-            "url": adapter_module.snapshot.MESSAGES_URL,
+            "url": url,
             "title": "メッセージ | マイページ | ココナラ",
             "container_present": True,
             "coverage_complete": True,
@@ -249,8 +254,70 @@ def test_inventory_uses_visible_target_for_dynamic_direct_inbox(monkeypatch, tmp
 
     rows = adapter._read_inventory()
 
-    assert seen_hidden == [False]
+    assert seen == {
+        "url": "https://coconala.com/message?fromMyPage=true",
+        "expression": adapter_module.snapshot.MESSAGES_EXPRESSION,
+        "coverage_expression": adapter_module.snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION,
+        "hidden": False,
+    }
     assert rows[0]["talkroom_id"] == "12"
+
+
+def test_direct_coverage_expression_selects_direct_links_on_mixed_query_inbox():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to evaluate the browser expression")
+    harness = r"""
+const direct = "https://coconala.com/mypage/direct_message/12";
+const paid = "https://coconala.com/talkrooms/34";
+const anchor = (href, text) => ({
+  href, innerText: text, __vue__: null,
+  closest() { return this; }, querySelector() { return null; },
+});
+const anchors = [anchor(direct, "Direct buyer message"), anchor(paid, "Paid talkroom")];
+const root = {
+  innerText: "Direct buyer message\nPaid talkroom",
+  scrollHeight: 100,
+  querySelector() { return null; },
+  querySelectorAll(selector) {
+    const hrefParts = [...selector.matchAll(/href\*='([^']+)'/g)].map(match => match[1]);
+    return anchors.filter(item => hrefParts.some(part => item.href.includes(part)));
+  },
+};
+const current = {innerText: "1", getAttribute(name) { return name === "data-page" ? "1" : null; }};
+const next = {disabled: true, innerText: "", getAttribute(name) { return name === "aria-disabled" ? "true" : null; }, click() {}};
+const pagination = {
+  querySelector(selector) { return selector === ".pagination-link-current" ? current : next; },
+  querySelectorAll() { return [current, next]; },
+};
+globalThis.location = {pathname: "/message", href: "https://coconala.com/message?fromMyPage=true", origin: "https://coconala.com"};
+globalThis.document = {
+  title: "メッセージ",
+  body: root,
+  querySelector(selector) { return selector === ".c-pagination" ? pagination : root; },
+  querySelectorAll: (...args) => root.querySelectorAll(...args),
+};
+globalThis.window = {scrollTo() {}};
+globalThis.crypto = {subtle: {digest: async () => new Uint8Array(32).buffer}};
+(async () => {
+  const expression = require("node:fs").readFileSync(0, "utf8");
+  process.stdout.write(await eval(expression));
+})().catch(error => { console.error(error); process.exit(1); });
+"""
+    result = subprocess.run(
+        [node, "-e", harness],
+        input=adapter_module.snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    dom = __import__("json").loads(result.stdout)
+    assert dom["coverage_complete"] is True
+    assert [row["talkroom_url"] for row in dom["cards"]] == [
+        "https://coconala.com/mypage/direct_message/12",
+    ]
 
 
 def test_modern_smartphone_direct_message_route_is_canonicalized():
