@@ -54,7 +54,8 @@ available. Override it only when necessary with `CP1_PYTHON=/path/to/python`.
 Commands: `open <url>` · `shot` · `state` · `click <x> <y>` · `clicktext "<text>" [nth]`
 · `fill <idx> "<v>"` · `typeinto <idx> "<v>"` · `press <key>` · `upload <idx> <path>`
 · `scroll <dy>` (mouse-wheel; page uses an INNER scroll container, window.scrollTo is
-useless) · `into "<text>"` · `toast`. After each call, **Read the screenshot** and use
+useless) · `into "<text>"` · `toast` · `prices <LISTING.md>` (read-only pre-confirm
+price gate — see the mandatory step before 提出を確認 below). After each call, **Read the screenshot** and use
 the `fields`/`buttons`/`markers` coords (viewport-relative, map 1:1 to `click`).
 
 ## Success signal (the ONLY thing that means done)
@@ -95,7 +96,14 @@ compare each card's Period/Price/Request-Limit/trial to the TARGET lines printed
 `publish_prepare.sh`, change any that differ, and add a missing plan (e.g. Yearly) with
 "Add Plan". This is the only chance: after the card is confirmed Capafy issues no edit
 URL. `scripts/verify_pricing.py --agent-id <ID> --listing <LISTING.md>` reads the saved
-billing rows; `publish_finish.sh` prints `PRICE_MISMATCH_WARNING` if they still differ.
+billing rows AFTER confirmation (right before CP3) and can only warn by then —
+measured 2026-10-05 on YouTube Script Writer (agent 7686597754): CP1 switched cards
+to week/month/year and saved month price=$9.99 (target $19.99) and year cap=8640
+(target 720), and `publish_finish.sh`'s `PRICE_MISMATCH_WARNING` was the only signal,
+with no edit URL left to fix it. **Use `scripts/cp1_agent.py prices <LISTING.md>`
+instead, BEFORE confirming** (see the required gate before step 8 below) — it reads
+the CURRENTLY OPEN card's plan cards directly (no server round-trip, no confirmation
+needed first) and can still be fixed because the card is still editable.
 
 ## Fixing 価格設定 (the common breakage)
 1. Read the exact URL bytes from `EDIT_URL_FILE` emitted by `publish_prepare.sh` and
@@ -147,9 +155,20 @@ billing rows; `publish_finish.sh` prints `PRICE_MISMATCH_WARNING` if they still 
    workspace tab). The 価格設定 tab's `priceSvg` should NOT contain
    `229, 83, 75`/`255, 106, 43` (red/orange = invalid); if it does, something
    is still empty/invalid — screenshot, find the red field, fix it.
-8. Click **下書きを保存** (save draft) → then **提出を確認** (confirm). Read the shot:
+8. **Mandatory gate — run `scripts/cp1_agent.py prices <LISTING.md>` and read its
+   exit line BEFORE clicking 提出を確認. Never confirm the card on a `PRICES_MISMATCH`.**
+   This re-reads the plan cards exactly as they currently stand (after any period
+   switches) and prints `PRICES_MATCH <n>` or `PRICES_MISMATCH <cycle: field
+   target=… actual=…; …>`. On `PRICES_MISMATCH`:
+   - For each named cycle, re-find that card by its CURRENT Period label (`state`),
+     not by its earlier screen position — cards re-sort when a period changes, so
+     "the second card" can silently become a different plan after any switch.
+   - `typeinto` the correct value into that card's price/Request-Limit input (never
+     `fill` — see the measured React-state gotcha above).
+   - Re-run `prices` and repeat until it prints `PRICES_MATCH`. Only then proceed.
+9. Click **下書きを保存** (save draft) → then **提出を確認** (confirm). Read the shot:
    you want the 「カードを保存しました」 card-done page.
-9. Verify server-side: `packager.py publish-remote-status --agent-id <ID>` →
+10. Verify server-side: `packager.py publish-remote-status --agent-id <ID>` →
    `latest_version.is_confirmed_skills == true`. Only then is CP1 done; hand off to
    `publish_finish.sh` with the exact `AGENT_VERSION_ID` emitted by prepare.
 
