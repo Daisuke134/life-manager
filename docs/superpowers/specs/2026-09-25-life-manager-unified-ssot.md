@@ -7369,3 +7369,14 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - OS unified logを09:29–09:32 JST/owner名で限定read（info/debug含む）。09:30:13.735730にUserEventAgent `Running StartCalendarInterval`、09:30:16.128275に翌10/6 09:30へrescheduleを確認。他ownerの09:20–09:40 execute7件もあり、全host停止/時計誤りだけでは説明しない。これはtrigger発火の証拠でありjob child実行/terminal/effectの証明ではない。
 - Capafy root境界はcalendar delivery→launchd spawn→runner pre-event validation/lock→event保存。事後reloadで旧runs消失、保存ログにもowner-specific startup traceなし。system service stop/restart/広いlog設定変更/手動job起動を行わず、次は利用可能なowner別historical spawn/事前失敗の証拠又は必要最小観測を選ぶ。
 - 本turnのruntime readbackはreadonlyのみ。週次source以上のscheduler変更やCapafy修正を推測で入れない。§217cursor1/source2既知7件受入、本番は例外未回答の3に残る。Lancers account、各loop自然実行/公式receipt/CFO/SelfBuild/Evalの残scopeを維持。
+
+
+### 488. pre-start lock観測欠損の独立確認と最小source修復準備
+
+- 当時82d immutableのmanifest/registryとpure build_loop_commandは通る。現在runner555・state700/events600/scratch700は読み書き可能、scratch children0。現在の正常権限は9:30の証明ではない。共有stderr末尾2000行にはgeneric production-apply-owned5/Traceback19、owner/timestamp bindingなし。
+- fresh Sol/mediumはsource経路成立を確認、Capafy実原因帰属はHOLD。mainのlabel lockはrun ID/scratch/start eventより前、LOCK_NB競合はgeneric RuntimeError→stderr/78。durable enqueue/_run_admitted/retry/reserved dispatch/recoveryにも未到達で、当該wake保存の経路なし。calendar wrapperに78の再投入なし。実lock/実job/実queueは触らず、Sourceから事故を断定しない。
+- 最小source観測repairはmainの既知pre-start label-lock競合だけ。lock前にvalid owner/job/run/wake/occurrence・state出力先・release SHAを確定し、競合時に既存runtime event schemaのreport/blocked（又はfail）としてexit78/failure_layer runtime/error_class apply_lock_busy/retryable/安全なnext_actionを残す。entrypoint未開始のこの境界のみeffect_status not_applicableと明示し、publish等を既定unknownのまま誤分類しない。未生成argv hash/provider receiptはnull、既存旧occurrence/fenceを解放しない。
+- event書込みも失敗したら同identity/epoch/errorをsanitizeした構造化stderrへ残し、秘密/環境値/パスは複製しない。通常run順/queue/retry/cap/timeout/cadenceは変えない。これは原因を特定する観測修復であり、wake喪失やCapafy本番が修復済みというDoneではない。
+- 新mainc90b7ca6b9c8790214ccb2dde1d841102c89b75f由来worktree `.worktrees/lm-prestart-lock-observation-20261005` / branch `fix/lm-prestart-lock-observation-20261005` / primarylease codex-money-printer-prestart-observation24h / clean、同taskなし。Luna/max所有はruntime/loop/lm_loop_run.pyと既存tests/test_lm_loop_run_bounds.pyだけ。runtime_eventやshared schema/APIを広げない。
+- 必須fixture：mock lock競合でscratch/child/_run_admitted/realqueue0、rc78とowner・occurrence・release結び付きevent、publish ownerもpre-start確定effect分類、event writerfailureの構造化stderr、既存通常main挙動保持。実lock/実state/credentials/provider/本番を禁止、focused/構造gate→commit/push→primary/fresh safety review。source未知へ成功0を入れない。
+- §217cursor1の観測不足を解消するsource2へ独立repairを戻す。受入7件の本番は3の例外確認未回答、Lancers account境界/自然run/CFO/SelfBuild/Eval全scopeを保持。
