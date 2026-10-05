@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "required": ["order", "main", "tab", "listing", "tags", "taste_id", "character_category_id"],
+  "properties": {
+    "order": {"type": "array", "items": {"type": "string"}},
+    "main": {"type": "string"},
+    "tab": {"type": "string"},
+    "rejected": {"type": "array", "items": {"type": "string"}},
+    "taste_id": {"type": "string"},
+    "character_category_id": {"type": "string"},
+    "campaign_value": {"type": ["string", "null"]},
+    "listing": {
+      "type": "object",
+      "required": ["title", "description"],
+      "properties": {
+        "title": {
+          "type": "object",
+          "required": ["ja", "en"],
+          "properties": {"ja": {"type": "string"}, "en": {"type": "string"}}
+        },
+        "description": {
+          "type": "object",
+          "required": ["ja", "en"],
+          "properties": {"ja": {"type": "string"}, "en": {"type": "string"}}
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

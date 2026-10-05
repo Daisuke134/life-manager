@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "required": ["theme", "character_id", "character_prompt", "motions", "listing"],
+  "properties": {
+    "theme": {"type": "string"},
+    "character_id": {"type": "string"},
+    "character_prompt": {"type": "string"},
+    "motions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "prompt"],
+        "properties": {
+          "id": {"type": "string"},
+          "prompt": {"type": "string"},
+          "start": {"type": "number"},
+          "seconds": {"type": "number"},
+          "plays": {"type": "integer"}
+        }
+      }
+    },
+    "listing": {
+      "type": "object",
+      "required": ["title", "description"],
+      "properties": {
+        "title": {
+          "type": "object",
+          "required": ["ja", "en"],
+          "properties": {"ja": {"type": "string"}, "en": {"type": "string"}}
+        },
+        "description": {
+          "type": "object",
+          "required": ["ja", "en"],
+          "properties": {"ja": {"type": "string"}, "en": {"type": "string"}}
+        }
+      }
+    }
+  }
+}
