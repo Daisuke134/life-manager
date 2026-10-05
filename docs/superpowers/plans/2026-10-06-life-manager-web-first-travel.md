@@ -335,14 +335,14 @@ Expected: event and departure times share the correct zone and the UI count/orde
 
 **Interface:**
 - `POST /api/lm-web/travel/control` accepts only `{ action: "pause" | "resume" | "disconnect" }`; uid and account ID come only from the verified Web user and current server row.
-- Pause atomically sets only `daily_automation_enabled=false` for a NULL-Telegram row. Resume requires saved home plus exact selected ACTIVE account readback, then conditionally sets only `daily_automation_enabled=true` for that same account and reads back the preference.
+- Pause atomically sets `daily_automation_enabled=false` for a NULL-Telegram row. If setup has not created the preference row yet, seed safe defaults with `call_enabled=false`, `notifications_enabled=false`, `daily_automation_enabled=false`, and `web_calendar_disconnect_pending=false`, then apply the action-specific pending state in the same RPC; preserve all other fields on existing rows. Resume requires saved home plus exact selected ACTIVE account readback, then conditionally sets only `daily_automation_enabled=true` for that same account and reads back the preference.
 - `TodaySnapshot` returns persisted `dailyAutomationEnabled` and `disconnectPending` even when Calendar event read fails, so controls do not vanish with an event-read error.
 - Disconnect atomically sets automation false plus `calendar_disconnect_pending=true` before provider I/O; resume refuses while pending. Only exact account DISABLED readback allows the SQL finish transition to clear the selected binding and pending flag while keeping automation false. Any provider failure/readback uncertainty leaves the row paused, binding intact, and pending fence set; retry can verify a now-disabled account and finish.
 - The page displays Pause or Resume from persisted preference state, blocks Resume while disconnect is pending, and offers Disconnect/retry for the currently bound Calendar.
 
 - [ ] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
 
-Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, resume without home/inactive account, concurrent resume during disconnect, provider failure/readback retry, exact-account disconnect, persisted pause state after Calendar event-read failure, and button state/copy.
+Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, pause/disconnect before a preference row exists, preservation of existing call/notification settings, resume without home/inactive account, concurrent resume during disconnect, provider failure/readback retry, exact-account disconnect, persisted pause state after Calendar event-read failure, and button state/copy.
 
 - [ ] **Step 2: Run focused Web control tests and confirm the new cases fail**
 
