@@ -47,7 +47,8 @@
 **Interfaces:**
 - `createWebAuthClient(req, res, opts) -> SupabaseServerClient` uses `@supabase/ssr` with request-cookie `getAll` and response-cookie `setAll` adapters.
 - `handleWebAuthRequest(req, res, opts) -> Promise<void>` owns `GET /auth/google` and `GET /auth/google/callback`; return paths are fixed to `/lm`.
-- `resolveWebUser(req, res, opts) -> Promise<{ uid, subject, email } | null>` calls `auth.getUser()` on every protected request and derives `uid` only from `user.id`.
+- `resolveWebUser(req, res, opts) -> Promise<{ uid, subject, email, csrf } | null>` calls `auth.getUser()` on every protected request and derives `uid` only from `user.id`.
+- `createWebCsrfToken(uid, secret) -> string` binds a CSRF token to the verified uid with HMAC-SHA256; mutating Web endpoints require exact `Origin`, JSON, and matching `x-lm-web-csrf`.
 - `ensureWebUser(uid, opts) -> Promise<void>` inserts the uid into existing `lm_users` with conflict-ignore semantics and never overwrites a row; it rejects an existing Telegram-bound row and never links by email.
 
 - [ ] **Step 1: Add focused failing auth tests**
@@ -85,6 +86,7 @@ Commit the five listed files as `feat(life-manager): add verified web sign-in`.
 **Interfaces:**
 - `handleWebCalendarRequest(req, res, opts) -> Promise<void>` owns `GET /api/lm-web/calendar/status`, `POST /api/lm-web/calendar/start`, and `GET /lm/oauth/calendar/callback`.
 - Every request first calls `resolveWebUser`; the only provider scope is `{ uid: verifiedUid }`.
+- Calendar status is read-only. Start accepts JSON plus exact origin/CSRF and returns `{ connected: false, state: "action_required", redirectUrl }`; the callback consumes OAuth state once and redirects to `/lm` after ACTIVE readback.
 - Calendar start uses `startCalendarOAuth({ uid }, state, { calendarCallbackPath: "/lm/oauth/calendar/callback", ... })`; state values are hashed at rest.
 - The migration allows `chat_id IS NULL` only for Web rows in existing `lm_panel_oauth_states`, adds a unique live Web state per uid, and adds service-role-only create/attach/claim RPCs. Existing Telegram RPC predicates and non-null Telegram state behavior remain unchanged.
 - The callback claims the one-time state, verifies the exact Composio account is ACTIVE and owned by the claimed uid, then writes and reads back `calendar_provider` plus `calendar_connected_account_id` in `lm_users`.
@@ -124,6 +126,7 @@ Expected: PASS, including Telegram/Web state separation. Commit the module, test
 **Interfaces:**
 - `handleWebTravelRequest(req, res, opts) -> Promise<void>` owns `POST /api/lm-web/setup` and `GET /api/lm-web/today`.
 - `completeWebTravelSetup(uid, homeAddress, opts) -> Promise<{ trialExpiresAt }>` calls one service-role RPC that validates and stores the address, requires a Telegram-unbound row plus stored ACTIVE-connection markers, sets `trial_expires_at = coalesce(existing, now() + interval '3 days')`, and writes only Web preference values (`call_enabled=false`, `notifications_enabled=false`, `daily_automation_enabled=true`). It never accepts or updates `paid`.
+- `buildTodaySnapshot(uid, opts) -> Promise<TodaySnapshot>` returns `{ setupState, calendarState, nextEvent, travelBlock, departureAt, trialExpiresAt, paid }`, where `setupState` is one of `needs_calendar | needs_home | sync_pending | ready`; event values are null until an ACTIVE account has been read.
 - After setup commits and Calendar status is read back ACTIVE, call existing `travelUserOnce(user)` for the immediate sync. The same `lm_travel_log` unique `(uid,event_key,leg)` claim remains the only helper dedupe.
 - Export `listEvents7d` from `travel.js` for the Web dashboard to read the same normalized Calendar event shape; do not duplicate its query or event interpretation.
 
@@ -163,6 +166,7 @@ Expected: PASS; no Calendar effect is attempted before ACTIVE, and replay uses t
 **Interfaces:**
 - `renderWebPage(model) -> string` renders only escaped server-owned data and includes a mobile-first Today view, Google sign-in, Calendar status, one home-location form, next physical event, Travel block/departure time, missing-location/setup states, and a plain explanation that Calendar default reminders apply.
 - `GET /lm` uses `resolveWebUser`; anonymous users see Google sign-in, setup users see only the missing next step, and completed users see `GET /api/lm-web/today` data.
+- The page's small inline script links to `/auth/google`; reads Calendar status; POSTs Calendar start and follows only the server-returned `redirectUrl`; POSTs the home address to `/api/lm-web/setup`; and refreshes `/api/lm-web/today`. It sends `x-lm-web-csrf` and never sends uid/chat ID/paid.
 - The payment CTA uses existing `lib/payment-link.js:paymentLink(opts, { uid })`; display the current official Stripe terms only after catalog readback in the later launch task.
 
 - [ ] **Step 1: Add page rendering tests**
