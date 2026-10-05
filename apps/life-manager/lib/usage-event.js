@@ -47,8 +47,9 @@ function runtimeTrace(event, runtimeEnv = {}) {
   const ownerId = safeRuntimeId(ownerSource);
   const runId = safeRuntimeId(env.LIFE_MANAGER_RUN_ID);
   const occurrenceCandidate = safeRuntimeId(env.LIFE_MANAGER_OCCURRENCE_ID);
-  const occurrenceId = loopId && occurrenceCandidate
-    && occurrenceCandidate.startsWith(`${loopId}:`) ? occurrenceCandidate : null;
+  const occurrencePrefix = loopId || ownerId;
+  const occurrenceId = occurrencePrefix && occurrenceCandidate
+    && occurrenceCandidate.startsWith(`${occurrencePrefix}:`) ? occurrenceCandidate : null;
   const releaseCandidate = env.LIFE_MANAGER_RELEASE_SHA;
   const releaseSha = typeof releaseCandidate === "string" && SAFE_RELEASE_SHA.test(releaseCandidate)
     ? releaseCandidate : null;
