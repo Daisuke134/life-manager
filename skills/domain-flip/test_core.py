@@ -51,9 +51,8 @@ def purchase_inputs():
         },
         "rights": {
             "status": "clear",
-            "sources": ["wipo", "euipo"],
+            "sources": ["euipo"],
             "evidence_refs": [
-                "https://branddb.wipo.int/en/quicksearch",
                 "https://api.euipo.europa.eu/trademark-search/trademarks",
             ],
         },
