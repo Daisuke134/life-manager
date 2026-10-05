@@ -8321,3 +8321,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - SHA削除だけはHOLD。requested_estimate1474–1501はmaterialized content全文でなく納期日/相対日数のみ照合し、別業務contentでもverified。1518–1524で欠落request時刻/own identity制約を省略。active extractor coconala_queue_snapshot356はoffer URLのoriginをpathnameへ縮退、外部originリンクもalready_deliveredになる純DOMfixtureを再現。foreign author/request以前/複数cardは未verified。source編集/production/state/browser/API/auth操作0。
 - 次の限定修正受入候補：履歴のみ旧materialized全文/title/price/completiondate厳格一致、有効own author/request identity+時刻/card時刻/公式origin完全URL必須、欠損/改変/foreign/複数は未verified。同terms別offerを当該occurrenceへbindする証拠が無い場合も保留。後続buyer/body抽出変更後でも同一旧receiptはverified、送信guard/fee/category/timing/旧fenceを保持。まず診断PRを反映し、旧intentの公式card全文/author/時刻/完全URLとrequest/occurrence結合を取得する。単純削除や古いstate手動書換えで解消しない。
 - 現CI37330086944はhead87245一致、loop contractも完了して9中8成功、TruffleHogのみin_progress。sourceproof state/coconala-send-diagnostics-source-proof-20261006.json/mode600へsource107/reviewSHIP/CI pendingを保存。残44/cursor1・順序不変。
+
+
+### 605. 診断PR main統合・完全release生成・稼働owner更新見送り
+
+- exacthead87245のCI37330086944全9jobsSUCCESS/CodeRabbitSUCCESS、freshSHIP/107focused等PASS後、PR6686をadmin squash merge。公式gh mergedAt2026-10-05T15:14:56Z/main28c09277c2d385ca87f0ad9c7adecfea85aed52b、fetch origin/main一致。sourcebranchclean/pushed。CI monitor session70603はexit0。
+- 初回cut準備はfree654827520bytesで旧1GiB目安を下回った。目安を新たな必須gateにせず実出力94320640bytes・完全ALL donor1eefb391・全7依存package/lock変更0・cut script main一致・pressurefalseを確認。既存標準hardlink donor経路で完全cut session3333 exit0、release20261006T001540-28c09277/ALL/mainSHA一致・current一致。sparse/bypass/共有データ削除0。cut後free513744896bytes。
+- freshlaunchctl-safe UID/DS/Aqua/manager/gui PASS、targetadmissioneffectunknownfalse。ただしReply PID8939/loaded-running。target限定apply --loaded-idle-onlyはchangedfalse/skippedloaded-running/oldloaded3f8371b0を公式readback。oktrueを更新成功にしない。停止/手動wake/効果再送0。PID8939自然終了のboundedobserver session12802を開始、欠落確認後fresh target状態を再取得して原子的idleapplyへ進む。
+- sourceproof state/coconala-send-diagnostics-source-proof-20261006.json/mode600へCI/merge/release/skipを保存。main/全releaseは診断source反映の準備であり旧12解消/公式送信成功ではない。残44/cursor1、次は自然終了→対象adoption→実phase/公式readback、順序不変。
