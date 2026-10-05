@@ -8352,4 +8352,5 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - §217 current1の受入説明から完了済み診断実装/gates/main/Reply反映を残作業として外し、§605–606参照へ集約。現在の残りはshared browser使用終了/正規解放→12件公式照合→必要修復→自然業務記録。残44/cursor1・各項目の相対順序/成果条件は不変。
 - root自身の長時間team一覧read handle92189だけCtrl-Cで取消、exit130確認。他agent/loop/基盤/lease/登録は停止・変更しない。直後inbox新返信0。新source自然run18dbac518afd9c48-77757/report/entrypointexit75/loadedidle、installed/eventSHA28c09277一致を再確認。current shared legacylease解放や12件解消の証明ではない。
+- 最終guard再観測はregisteredbrowserPID95156/reachabletrue、同holder5434のlease時刻1791214982へ更新。元の取得call1791212290とこの更新を混同せず、heartbeat/再取得/実作業終了のどれかはこの観測だけで断定しない。inbox新返信0でowner対応付け/正規解放は未取得。
 - source/kernel診断保存key send_diagnosticを実コード730–737で再確認し、既存調査のtop-levelkey照合が契約通りであることを確認。初期browser待ちとsender段階失敗を混ぜず、owner使用終了の証拠が取れたら正規guard取得で続ける。root解除/送信再試行/基盤restart0。
