@@ -3247,11 +3247,12 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - **local install:** `/Users/anicca/.agents`はmain `4862e008da3bf4926384900c34f083069d31dc5d`、origin/main `be2a4197457d9d7fe99cc64f84391281c2ce60c9`より7 commit behindで、既存dirty stateは674 paths。対象`plain/ops.sh`は元からuntrackedで、merged sourceと比較してTerminal guardだけを適用した。適用後の対象ファイルはmerged sourceと一致し、dirty path数は674のまま、stage/commitはしていない。他のWIPと`teams/`・`run/`・`db/`は変更していない。
 - **全team census:** 49件（Codex 35、Claude Code 14）。reachは`can=2 / cannot=32 / unknown=15`、activityは`n/a:unsupported=14 / unknown:no_placement_record=32 / unknown:observe_rc_10=3`。terminal driverはplain 14、tmux 3、driver不明32。delivery表示はmonitor 19、off 29、turn 1。identity consistencyはunverified 43、n/a 6。よってcensus停止は解消したが、全席のlivenessやplacementは未確定のまま。
 - **Life Manager project:** `doctor --project ... --team lm --redacted`は31 registrations（Codex 19、Claude Code 12）、watch process 0、stale pidfile 0、warning 5を返した。Claude Code deliveryはoffで、5件にstale lock警告。Codex delivery hooksはmonitor設定だが、6席は記録済みsessionのbridgeがnot running、13席はsession未記録。`codex-money-printer`はlock owner aliveだがCodex bridgeはnot running。team `peek`はproject内31件、他project除外18件のうち`read_rc_10=12`、`no_record=19`を返し、画面内容は稼働証拠にしていない。
-- **接続とidentity:** `team-list --json --scope project`は`lm.binding_state=none`、`remote status lm`は未接続を返した。cross-machine deliveryは成立していない。current `whoami`は19候補の`multiple=true`を返したため、このreadbackではidentity claim、seat takeover、send、poke、arrangeを行わず、他seatのlock/placementも変更していない。
+- **接続とidentity:** `team-list --json --scope project`は`lm.binding_state=none`、`remote status lm`は未接続を返した。`whoami`は19候補の`multiple=true`を返したが、正本が指定するprimary `codex-money-printer`の既存記録と現`CODEX_THREAD_ID`は一致したため、`actas-claim`は`status=ok team=lm`。これは同じseatのclaimで、別ownerのtakeoverではない。current `where.sh`は`resolved=true placement=none terminal=plain`、`delivery.sh status`はmonitor設定にもかかわらずbridge not runningを返す。Codex session記録scriptはexit 0・出力なしだったが、bridge起動は確認できていない。
+- **team共有:** claim後のinboxは新着なし。進捗statusを`send.sh`で`lm-cfo-observability-1002`と`lm-ios-growth-1004`へ送り、両方で`Sent`を確認した。read receiptや作業開始は未確認。`poke`・`arrange`および他seatのlock/placement変更は行っていない。remote bindingがnoneのためcross-machine deliveryも成立していない。
 
 #### AGMSGの残TODO
 
-1. 既存`codex-money-printer` live lockのownerを保ったまま、owner側のCodexをmonitor shim経由で起動し、bridge/inbox readbackを確認する。bridge停止やno placementを、登録のみから稼働と推定しない。
+1. `codex-money-printer`の既存ownerとlockを保ち、monitor shimで起動したCodex sessionのbridge/inbox readbackを確認する。current API sessionはplacement noneなのでbridgeが動作中とは扱わない。
 2. 31件のproject censusで`read_rc_10`と`no_record`の境界をowner-localに解消する。stale lockや他seatのplacementは、ownerと復旧根拠が確認できないまま外部から削除・書換えしない。
 3. remote endpoint/bindingが未確認のため、cross-machine接続は未完了として保持する。
 4. これらの運用課題は§84-Aの収益TODO順を変えず、CFO/Mobileの完了条件にも算入しない。
