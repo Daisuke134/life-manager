@@ -4873,7 +4873,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 - 変更理由：個別案件の外部待ちと長いprivate診断で全体の内部復旧を止めず、収益経路の実故障を先に直すというDaisの明示指示。
 - 旧順序：Coconalaの残納品条件3→正式納品4→検収5→精算6→着金7→他platform→fleet44→CFO→SelfBuild。
-- 承認反映による順序変更：旧1（診断）→2（source修正）→3（本番反映）を、新1（受入済み8修正の統合・反映）→2（新観測による残診断）→3（残不具合の修正）へ更新する。理由は、本番観測を得るためのsource修正が既に受入済みで、反映前の診断継続では不足証拠を取得できないため。4〜14は維持する。現在cursorは下表1のrelease完成・loaded argv/SHA照合。SelfBuild/Evalは11〜14で最後。
+- 現在の残順序：下表1→2→…→13。旧実行順1の承認済み8修正の統合・反映・対象8loaded確認は§502で完了したため、未完表から除外する。旧2〜14を同じ相対順のまま残1〜13へ振り直し、現在cursorは残1（実故障・観測不足の診断）。scopeや受入条件を小さくせず、SelfBuild/Evalは残10〜13で最後。
 - 番号は今回の内部復旧の実行順。旧A番号・旧実行番号は履歴照合だけに使う。今回の保留・順序変更で完了にした業務成果は0。
 - 最小の安全な作業単位で、primaryが実測・状態・受入を所有する。source修正、release反映、自然実行、公式経済結果を区別する。容量待ち・human_required・effect_unknownを一律故障や成功0へ置換しない。
 - 外部待ちは不足物・最新観測・再開条件を残し、内部の独立修復を止めない。進行中の外部effectは中断/重複させない。user所有wallet資金移動、設計外broadcast、本人必須/KYCを自動化したと偽らない。
@@ -4882,24 +4882,23 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
-| 1 | 自然反映・確認中 | 既存release ownerによるmain3f11ad0b由来immutable releaseの完成・current選択・対象ownerの実loaded argv/SHA・admission・rollbackを確認する。active/unknown fenceのownerを強制反映・再送しない。自然実行・経済成果は後続の未確認条件として残す。 |
-| 2 | 1の反映後 | Capafyの発火後/pre-start境界、Lancersのaccount/auth/transport原因を新観測で特定する。14 product/178 jobsの実故障・観測不足をowner・occurrence・loaded SHAへ結び、正常な容量待機/外部待ちと修復対象を区別する。過去health件数を現在値として固定しない。 |
-| 3 | 根因確定ownerごとに並行 | 2で残った実故障だけを最新main由来の専用worktreeで最小RED→GREEN修正し、必要なreview・統合条件・反映・自然実行確認へつなぐ。受入済み8修正を未完sourceとして再作成しない。今回の順序例外を無関係な新規変更へ拡大しない。 |
-| 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
-| 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
-| 6 | 待機 | Paid loopの依頼取得→制作→品質確認→許可された納品経路→結果取得の内部接続を確認。Coconala保留案件の追加手動納品/資料追跡は実行しない。 |
-| 7 | 待機 | storefrontの既存商品・公開状態・問い合わせ・注文・履行経路の内部接続を確認。platformにない販売機能を捏造せず、商品/注文/利益の対応を保つ。 |
-| 8 | 待機 | Writer/Affiliate/Connector/Fundraiserのbuild/sell/readback loopとdurable cursorを確認。外部setup待ちを保持し、同じ公開/申請/送信を重複しない。 |
-| 9 | 待機 | Investment/Cloud/TaskMarket/Agent Economyの内部実行・継続・精算/cost取得経路を確認。paper/live、資金投入、未確定効果を混ぜない。 |
-| 10 | 待機 | Mobile公式計測・RevenueCat/CFO接続と全loop財務集計を確認。担当laneと重複せず、同期間fee/refund/actualcost/settlement/payout、MRR/liquid/runwayの不足をUNKNOWNで残す。内部正常を実利益の証明にしない。 |
-| 11 | 最後 | SelfBuildの成功済み復旧を重複実行する不具合を修正。完了済み復旧結果をSHAへ結び、未完側だけ再試行。 |
-| 12 | 最後 | SelfBuildの必要な回帰検証・独立review・source統合を行う。 |
-| 13 | 最後 | SelfBuildの実owner別promotion/recoveryと再実行の重複なしを公式runtime記録へ結ぶ。 |
-| 14 | 最後 | Evalの品質・費用・利益を自然実行の前後で比較し、内部loop全体の完走条件と未解決external gateを最終readback。 |
+| 1 | 診断中 | Capafyの発火後/pre-start境界、Lancersのaccount/auth/transport原因を新観測で特定する。14 product/178 jobsの実故障・観測不足をowner・occurrence・loaded SHAへ結び、正常な容量待機/外部待ちと修復対象を区別する。過去health件数を現在値として固定しない。 |
+| 2 | 根因確定ownerごとに並行 | 1で残った実故障だけを最新main由来の専用worktreeで最小RED→GREEN修正し、必要なreview・統合条件・反映・自然実行確認へつなぐ。受入済み8修正を未完sourceとして再作成しない。今回の順序例外を無関係な新規変更へ拡大しない。 |
+| 3 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
+| 4 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
+| 5 | 待機 | Paid loopの依頼取得→制作→品質確認→許可された納品経路→結果取得の内部接続を確認。Coconala保留案件の追加手動納品/資料追跡は実行しない。 |
+| 6 | 待機 | storefrontの既存商品・公開状態・問い合わせ・注文・履行経路の内部接続を確認。platformにない販売機能を捏造せず、商品/注文/利益の対応を保つ。 |
+| 7 | 待機 | Writer/Affiliate/Connector/Fundraiserのbuild/sell/readback loopとdurable cursorを確認。外部setup待ちを保持し、同じ公開/申請/送信を重複しない。 |
+| 8 | 待機 | Investment/Cloud/TaskMarket/Agent Economyの内部実行・継続・精算/cost取得経路を確認。paper/live、資金投入、未確定効果を混ぜない。 |
+| 9 | 待機 | Mobile公式計測・RevenueCat/CFO接続と全loop財務集計を確認。担当laneと重複せず、同期間fee/refund/actualcost/settlement/payout、MRR/liquid/runwayの不足をUNKNOWNで残す。内部正常を実利益の証明にしない。 |
+| 10 | 最後 | SelfBuildの成功済み復旧を重複実行する不具合を修正。完了済み復旧結果をSHAへ結び、未完側だけ再試行。 |
+| 11 | 最後 | SelfBuildの必要な回帰検証・独立review・source統合を行う。 |
+| 12 | 最後 | SelfBuildの実owner別promotion/recoveryと再実行の重複なしを公式runtime記録へ結ぶ。 |
+| 13 | 最後 | Evalの品質・費用・利益を自然実行の前後で比較し、内部loop全体の完走条件と未解決external gateを最終readback。 |
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1のrelease/load readback・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1の残故障診断・自然readback・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -7488,3 +7487,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 宣言後、immutable3f/bin/lm-loop apply --loaded-idle-onlyをLIFE_MANAGER_APPLY_TARGET=token-daily-report / capafy-goal-monitorで直列実行。両rc0/oktrue/changedtrue/release3f、loaded_argumentsは正しいimmutable3f/bin/lm-loop-runと同release rootを含む。install event ca19373286df31b4ccd740bc /4bf3430134b48bc460f63a2e、token admission_resumedtrue/capafyfalse。private state/internal-loop-targeted-idle-apply-20261005.json/mode600。
 - 対象8の新loadedは7、残Lancerswork-syncはrunning/PID55547/旧2a/admission_effect_unknownfalseをfresh確認し、割込apply/start/restartを発行しない。idle時も既存atomic guardedapplyだけを使用し、公式receiptなしfence解除をしない。
 - Lancers診断sourceのLuna報告は最小7RED→focused19GREEN、legacybool caller1/1、pycompile/contract178/errors0/OSS/diffcheck PASS。変更は2modules＋1testのみ。rootはbranch push/remoteとfresh reviewを待ち、source受入を本番auth修復へ昇格しない。§217cursor1の残りはLancers旧loadとadmission/rollback照合、全goal未完。
+
+
+### 502. 承認済み8修正の対象反映完了と残順序の繰り上げ
+
+- fresh idle/PIDなし/unknownfalse確認後、Lancerswork-syncにもimmutable3fの既存apply --loaded-idle-onlyを宣言して実行。rc0/oktrue/changedtrue/admission_resumedtrue、install event14bd09e68c597bc7c979261b、loaded_argumentsが正しい3f wrapper/rootと一致。private state/internal-loop-lancers-guarded-apply-20261005.json/mode600。newdiagnostic source branchは反映しない。
+- rootはpreflightPASS後の実GUI readbackで対象8/8が /Users/anicca/loops/releases/20261005T121832-3f11ad0b を参照することを独立確認。private state/internal-loop-eight-owner-load-proof-20261005.jsonに観測UTC/期待fullSHA/各owner実pathを保存(mode600)。main3f/completeALL/sealed555/pinnedTweet1.0.3と合わせ、承認済み8source修正のmerge/release/targetedload部分を完了する。自然業務/receipt/金融成功は未完。
+- §217から旧1の完了作業を削除し、旧2〜14の相対順を変えず残1〜13へ繰り上げる。変更理由は完了済みを残TODOに残さず、Daisが1から実行順を追えるようにするため。現在cursor残1の診断、known informationloss Lancersだけsource残2を独立並行。進行中のeffect中断/重複0、Coconala保留/SelfBuild最後を維持。
+- Lancers新source candidate3521a51b674535f804d53d5c2c02ce6686716aa6/branch fix/lm-lancers-account-diagnostics-20261005はremote一致/clean。Luna最終focused20 PASS、syntax/contract178/errors0/OSS/diffPASSを報告。3filesのみ。fresh Sol/medium read-only reviewを起動、PR/main/本番は未実施・統合条件は別確認。
