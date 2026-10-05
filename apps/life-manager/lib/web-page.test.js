@@ -374,3 +374,25 @@ test("disconnect failure tells the user automation remains paused", async () => 
   assert.equal(button.disabled, false);
   assert.deepEqual(client.redirects, []);
 });
+
+test("pending disconnect blocks Resume and offers an idempotent retry", async () => {
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ calendarBound: true, dailyAutomationEnabled: false, disconnectPending: true }),
+  });
+  const visible = visibleHtml(page);
+  assert.match(visible, /接続解除の確認中のため自動Travelは再開できません/);
+  assert.doesNotMatch(visible, /data-control="resume"/);
+  assert.match(visible, /data-action="travel-control" data-control="disconnect">接続解除を再試行<\/button>/);
+
+  const client = mountClient(page, {
+    "/api/lm-web/calendar/status": { connected: true, state: "connected" },
+    "/api/lm-web/travel/control": { dailyAutomationEnabled: false, disconnectPending: false, calendarBound: false },
+  });
+  const button = { dataset: { action: "travel-control", control: "disconnect" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+  const request = client.requests.find((item) => item.path === "/api/lm-web/travel/control");
+
+  assert.deepEqual(JSON.parse(request.init.body), { action: "disconnect" });
+  assert.deepEqual(client.redirects, ["/lm"]);
+});

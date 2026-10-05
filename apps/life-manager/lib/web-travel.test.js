@@ -71,8 +71,14 @@ function fixture(overrides = {}) {
   const rpcCalls = [];
   const controlRpcCalls = [];
   const travelExpectedAccountIds = [];
-  const preference = { daily_automation_enabled: false };
+  let preference = {
+    call_enabled: false,
+    notifications_enabled: false,
+    daily_automation_enabled: false,
+    calendar_disconnect_pending: false,
+  };
   const disconnectCalls = [];
+  let providerStatus = "ACTIVE";
   let preferenceWrites = 0;
   let travelCalls = 0;
   const fetchImpl = async (url, init = {}) => {
@@ -86,6 +92,9 @@ function fixture(overrides = {}) {
       }
       row.home_address = body.p_home_address;
       row.trial_expires_at ||= TRIAL_EXPIRES_AT;
+      if (!preference) preference = { call_enabled: false, notifications_enabled: false, calendar_disconnect_pending: false };
+      preference.call_enabled = false;
+      preference.notifications_enabled = false;
       preference.daily_automation_enabled = true;
       preferenceWrites++;
       return { ok: true, status: 200, json: async () => ({ trial_expires_at: row.trial_expires_at }) };
@@ -97,10 +106,30 @@ function fixture(overrides = {}) {
       if (body.p_uid !== UID || body.p_calendar_account_id !== (row.calendar_connected_account_id || null)) {
         return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
       }
-      if (body.p_action === "pause" || body.p_action === "disconnect") preference.daily_automation_enabled = false;
-      else if (body.p_action === "resume") preference.daily_automation_enabled = true;
+      if (body.p_action === "pause" && !preference) {
+        preference = { call_enabled: false, notifications_enabled: false, daily_automation_enabled: false, calendar_disconnect_pending: false };
+      } else if (body.p_action === "disconnect_begin" && !preference) {
+        preference = { call_enabled: false, notifications_enabled: false, daily_automation_enabled: false, calendar_disconnect_pending: true };
+      } else if (!preference) {
+        return { ok: false, status: 400, json: async () => ({ message: "preference_missing" }) };
+      } else if (body.p_action === "pause") preference.daily_automation_enabled = false;
+      else if (body.p_action === "resume") {
+        if (preference.calendar_disconnect_pending) {
+          return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
+        }
+        preference.daily_automation_enabled = true;
+      } else if (body.p_action === "disconnect_begin") {
+        preference.daily_automation_enabled = false;
+        preference.calendar_disconnect_pending = true;
+      } else if (body.p_action === "disconnect_finish") {
+        if (!preference.calendar_disconnect_pending || providerStatus !== "DISABLED") {
+          return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
+        }
+        preference.daily_automation_enabled = false;
+        preference.calendar_disconnect_pending = false;
+      } else if (body.p_action === "disconnect") preference.daily_automation_enabled = false;
       else return { ok: false, status: 400, json: async () => ({ message: "invalid_action" }) };
-      if (body.p_action === "disconnect") {
+      if (body.p_action === "disconnect" || body.p_action === "disconnect_finish") {
         row.calendar_provider = null;
         row.calendar_connected_account_id = null;
       }
@@ -113,8 +142,8 @@ function fixture(overrides = {}) {
     }
     if (requestUrl.pathname.endsWith("/lm_panel_preferences")) {
       sequence.push("preference_read");
-      assert.equal(requestUrl.searchParams.get("select"), "daily_automation_enabled");
-      return { ok: true, status: 200, json: async () => [{ ...preference }] };
+      assert.match(requestUrl.searchParams.get("select") || "", /daily_automation_enabled/);
+      return { ok: true, status: 200, json: async () => preference ? [{ ...preference }] : [] };
     }
     throw new Error(`unexpected service request: ${requestUrl.pathname}`);
   };
@@ -130,12 +159,13 @@ function fixture(overrides = {}) {
       sequence.push("calendar_status");
       assert.deepEqual(scope, { uid: UID });
       assert.equal(accountId, row.calendar_connected_account_id);
-      return "ACTIVE";
+      return providerStatus;
     },
     composioCalendarDisconnectImpl: async (scope, providerOpts) => {
       sequence.push("calendar_disconnect");
       disconnectCalls.push({ scope, connectedAccountId: providerOpts.connectedAccountId });
       assert.deepEqual(scope, { uid: UID });
+      providerStatus = "DISABLED";
       return { provider: "calendar", state: "action_required" };
     },
     fetchImpl,
@@ -169,7 +199,8 @@ function fixture(overrides = {}) {
     },
     ...overrides,
   };
-  return { events, fetchImpl, opts, row, rpcCalls, controlRpcCalls, disconnectCalls, preference, sequence, calendarReads, travelExpectedAccountIds,
+  return { events, fetchImpl, opts, row, rpcCalls, controlRpcCalls, disconnectCalls, get preference() { return preference; }, set preference(value) { preference = value; }, sequence, calendarReads, travelExpectedAccountIds,
+    get providerStatus() { return providerStatus; }, set providerStatus(value) { providerStatus = value; },
     get preferenceWrites() { return preferenceWrites; }, get travelCalls() { return travelCalls; } };
 }
 
@@ -531,7 +562,7 @@ test("pause changes only persisted daily automation preference", async () => {
   assert.equal(f.row.trial_expires_at, before.trial_expires_at);
   assert.equal(f.row.calendar_connected_account_id, before.calendar_connected_account_id);
   assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" }]);
-  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, calendarBound: true });
+  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, calendarBound: true });
 });
 
 test("resume requires a saved home and the exact selected ACTIVE Calendar account", async () => {
@@ -560,7 +591,7 @@ test("resume requires a saved home and the exact selected ACTIVE Calendar accoun
   assert.equal(activeResponse.status, 200);
   assert.equal(active.preference.daily_automation_enabled, true);
   assert.deepEqual(active.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
-  assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, calendarBound: true });
+  assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, disconnectPending: false, calendarBound: true });
 });
 
 test("disconnect pauses first, disables and clears only the selected account", async () => {
@@ -571,19 +602,21 @@ test("disconnect pauses first, disables and clears only the selected account", a
   });
 
   assert.equal(response.status, 200);
-  const sequence = f.sequence.slice(f.sequence.indexOf("control_rpc:pause"), f.sequence.indexOf("control_rpc:disconnect") + 1);
-  assert.ok(sequence.indexOf("control_rpc:pause") < sequence.indexOf("preference_read"));
+  const sequence = f.sequence.slice(f.sequence.indexOf("control_rpc:disconnect_begin"), f.sequence.indexOf("control_rpc:disconnect_finish") + 1);
+  assert.ok(sequence.indexOf("control_rpc:disconnect_begin") < sequence.indexOf("preference_read"));
   assert.ok(sequence.indexOf("preference_read") < sequence.indexOf("calendar_disconnect"));
-  assert.ok(sequence.indexOf("calendar_disconnect") < sequence.indexOf("control_rpc:disconnect"));
+  assert.ok(sequence.indexOf("calendar_disconnect") < sequence.indexOf("calendar_status"));
+  assert.ok(sequence.indexOf("calendar_status") < sequence.indexOf("control_rpc:disconnect_finish"));
   assert.deepEqual(f.disconnectCalls, [{ scope: { uid: UID }, connectedAccountId: "ca-selected-123" }]);
   assert.deepEqual(f.controlRpcCalls, [
-    { p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" },
-    { p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "disconnect" },
+    { p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "disconnect_begin" },
+    { p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "disconnect_finish" },
   ]);
   assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.preference.calendar_disconnect_pending, false);
   assert.equal(f.row.calendar_provider, null);
   assert.equal(f.row.calendar_connected_account_id, null);
-  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, calendarBound: false });
+  assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, calendarBound: false });
 });
 
 test("uncertain provider readback leaves the exact binding and persisted pause in place", async () => {
@@ -601,8 +634,9 @@ test("uncertain provider readback leaves the exact binding and persisted pause i
 
   assert.equal(response.status, 502);
   assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.preference.calendar_disconnect_pending, true);
   assert.equal(f.row.calendar_connected_account_id, "ca-selected-123");
-  assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" }]);
+  assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "disconnect_begin" }]);
   assert.deepEqual(JSON.parse(response.body), { error: "control_unavailable", automationPaused: true });
 });
 
@@ -615,14 +649,164 @@ test("Today reports persisted pause state and exact binding presence", async () 
   assert.equal(snapshot.calendarBound, true);
 });
 
+test("concurrent resume is rejected while disconnect is waiting on provider confirmation", async () => {
+  const f = fixture();
+  f.row.home_address = "自宅住所";
+  f.preference.daily_automation_enabled = true;
+  let providerStarted;
+  const started = new Promise((resolve) => { providerStarted = resolve; });
+  let releaseProvider;
+  const providerGate = new Promise((resolve) => { releaseProvider = resolve; });
+  let pendingDuringProvider;
+  f.opts.composioCalendarDisconnectImpl = async (scope, providerOpts) => {
+    f.sequence.push("calendar_disconnect");
+    f.disconnectCalls.push({ scope, connectedAccountId: providerOpts.connectedAccountId });
+    pendingDuringProvider = f.preference.calendar_disconnect_pending;
+    providerStarted();
+    await providerGate;
+    f.providerStatus = "DISABLED";
+    return { provider: "calendar", state: "action_required" };
+  };
+
+  const disconnectPromise = call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  });
+  await started;
+  const resumeResponse = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+  releaseProvider();
+  const disconnectResponse = await disconnectPromise;
+
+  assert.equal(pendingDuringProvider, true);
+  assert.equal(resumeResponse.status, 409);
+  assert.equal(JSON.parse(resumeResponse.body).error, "disconnect_pending");
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(disconnectResponse.status, 200);
+});
+
+test("Calendar event read failure retains persisted automation and disconnect fence state", async () => {
+  const f = fixture();
+  f.row.home_address = "自宅住所";
+  f.preference.daily_automation_enabled = false;
+  f.preference.calendar_disconnect_pending = true;
+  f.opts.listEvents7dImpl = async () => { throw new Error("calendar_readback_failed"); };
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.setupState, "sync_pending");
+  assert.equal(snapshot.dailyAutomationEnabled, false);
+  assert.equal(snapshot.disconnectPending, true);
+  assert.equal(snapshot.calendarBound, true);
+});
+
+test("disconnect retry resolves a previously disabled exact account and clears the fence", async () => {
+  const f = fixture({
+    composioCalendarDisconnectImpl: async () => { throw new Error("provider_readback_failed"); },
+  });
+  f.row.home_address = "自宅住所";
+  const request = {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  };
+  const first = await call(f, "POST", "/api/lm-web/travel/control", request);
+  assert.equal(first.status, 502);
+  assert.equal(f.preference.calendar_disconnect_pending, true);
+  assert.equal(f.row.calendar_connected_account_id, "ca-selected-123");
+
+  f.providerStatus = "DISABLED";
+  f.opts.composioCalendarDisconnectImpl = async (scope, providerOpts) => {
+    f.disconnectCalls.push({ scope, connectedAccountId: providerOpts.connectedAccountId });
+    return { provider: "calendar", state: "action_required" };
+  };
+  const retry = await call(f, "POST", "/api/lm-web/travel/control", request);
+
+  assert.equal(retry.status, 200);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.preference.calendar_disconnect_pending, false);
+  assert.equal(f.row.calendar_connected_account_id, null);
+  assert.deepEqual(f.controlRpcCalls.map((item) => item.p_action), ["disconnect_begin", "disconnect_begin", "disconnect_finish"]);
+});
+
+test("disconnect before home setup seeds safe preferences without enabling automation", async () => {
+  const f = fixture();
+  f.preference = null;
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(f.preference, {
+    call_enabled: false,
+    notifications_enabled: false,
+    daily_automation_enabled: false,
+    calendar_disconnect_pending: false,
+  });
+  assert.equal(f.row.calendar_connected_account_id, null);
+});
+
+test("pause before home setup seeds safe preferences without enabling automation", async () => {
+  const f = fixture();
+  f.preference = null;
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "pause" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(f.preference, {
+    call_enabled: false,
+    notifications_enabled: false,
+    daily_automation_enabled: false,
+    calendar_disconnect_pending: false,
+  });
+  assert.equal(f.row.calendar_connected_account_id, "ca-selected-123");
+});
+
+test("disconnect begin preserves existing call and notification preferences", async () => {
+  const f = fixture();
+  f.preference.call_enabled = true;
+  f.preference.notifications_enabled = true;
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(f.preference.call_enabled, true);
+  assert.equal(f.preference.notifications_enabled, true);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.preference.calendar_disconnect_pending, false);
+});
+
+test("pause preserves existing call and notification preferences", async () => {
+  const f = fixture();
+  f.preference.call_enabled = true;
+  f.preference.notifications_enabled = true;
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "pause" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(f.preference.call_enabled, true);
+  assert.equal(f.preference.notifications_enabled, true);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.preference.calendar_disconnect_pending, false);
+});
+
 test("travel-control RPC locks, verifies the NULL-Telegram user and account, and updates only Web-owned fields", () => {
   const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-06-lm-web-travel-controls.sql"), "utf8");
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS calendar_disconnect_pending boolean NOT NULL DEFAULT false/i);
   assert.match(sql, /FOR UPDATE/i);
   assert.match(sql, /telegram_chat_id\s+IS\s+NULL/i);
   assert.match(sql, /calendar_connected_account_id\s+IS\s+DISTINCT\s+FROM\s+p_calendar_account_id/i);
   assert.match(sql, /calendar_provider\s+IS\s+DISTINCT\s+FROM\s+'composio_gcal'/i);
-  assert.match(sql, /daily_automation_enabled\s*=\s*automation_value/i);
-  assert.match(sql, /p_action\s*=\s*'disconnect'/i);
+  assert.match(sql, /p_action\s*=\s*'disconnect_begin'/i);
+  assert.match(sql, /p_action\s*=\s*'disconnect_finish'/i);
+  assert.match(sql, /calendar_disconnect_pending\s*=\s*true/i);
+  assert.match(sql, /calendar_disconnect_pending\s*=\s*false/i);
+  assert.match(sql, /VALUES\s*\(p_uid, false, false, false, true\)/i);
+  assert.match(sql, /ON CONFLICT\s*\(uid\) DO UPDATE SET\s+daily_automation_enabled = false,\s+calendar_disconnect_pending = true/i);
+  assert.match(sql, /VALUES\s*\(p_uid, false, false, false, false\)/i);
+  assert.match(sql, /ON CONFLICT\s*\(uid\) DO UPDATE SET daily_automation_enabled = false/i);
+  assert.match(sql, /calendar_disconnect_pending\s+THEN\s+RAISE EXCEPTION 'calendar_disconnect_pending'/i);
+  assert.match(sql, /IF p_action = 'pause' THEN[\s\S]*?INSERT INTO public\.lm_panel_preferences[\s\S]*?VALUES\s*\(p_uid, false, false, false, false\)\s+ON CONFLICT\s*\(uid\) DO UPDATE SET daily_automation_enabled = false;/i);
   assert.match(sql, /calendar_provider\s*=\s*NULL/i);
   assert.match(sql, /calendar_connected_account_id\s*=\s*NULL/i);
   assert.doesNotMatch(sql, /\bpaid\b|\btrial_expires_at\s*=|\bhome_address\s*=|\bcall_enabled\s*=|\bnotifications_enabled\s*=/i);

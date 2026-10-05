@@ -68,6 +68,9 @@ function todayMarkup(snapshot) {
 
 function travelControlsMarkup(snapshot) {
   if (!snapshot || snapshot.calendarBound !== true) return "";
+  if (snapshot.disconnectPending === true) {
+    return `<section class="card"><h2>Travel 自動化</h2><p>接続解除の確認中のため自動Travelは再開できません。</p><button type="button" class="button secondary" data-action="travel-control" data-control="disconnect">接続解除を再試行</button></section>`;
+  }
   const automationControl = typeof snapshot.dailyAutomationEnabled === "boolean"
     ? `<button type="button" class="button secondary" data-action="travel-control" data-control="${snapshot.dailyAutomationEnabled ? "pause" : "resume"}">${snapshot.dailyAutomationEnabled ? "自動Travelを一時停止" : "自動Travelを再開"}</button>`
     : "";

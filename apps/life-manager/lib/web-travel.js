@@ -78,16 +78,23 @@ async function readWebAutomationPreference(uid, opts = {}) {
   if (!base || !opts.supaKey) throw webError(503, "control_readback_unavailable");
   const url = new URL(`${base}/rest/v1/lm_panel_preferences`);
   url.searchParams.set("uid", `eq.${uid}`);
-  url.searchParams.set("select", "daily_automation_enabled");
+  url.searchParams.set("select", "daily_automation_enabled,calendar_disconnect_pending");
   url.searchParams.set("limit", "2");
   const response = await (opts.fetchImpl || fetch)(url.toString(), { headers: serviceHeaders(opts.supaKey) });
   if (!response.ok) throw webError(502, "control_readback_unavailable");
   const rows = await response.json().catch(() => null);
-  if (Array.isArray(rows) && rows.length === 0) return null;
-  if (!Array.isArray(rows) || rows.length !== 1 || typeof rows[0].daily_automation_enabled !== "boolean") {
+  if (Array.isArray(rows) && rows.length === 0) {
+    return { dailyAutomationEnabled: null, disconnectPending: null };
+  }
+  if (!Array.isArray(rows) || rows.length !== 1
+    || typeof rows[0].daily_automation_enabled !== "boolean"
+    || typeof rows[0].calendar_disconnect_pending !== "boolean") {
     throw webError(502, "control_readback_unavailable");
   }
-  return rows[0].daily_automation_enabled;
+  return {
+    dailyAutomationEnabled: rows[0].daily_automation_enabled,
+    disconnectPending: rows[0].calendar_disconnect_pending,
+  };
 }
 
 async function assertUnbound(uid, opts) {
@@ -136,9 +143,11 @@ async function rpc(name, body, opts = {}) {
   });
   if (!response.ok) {
     const failure = await response.json().catch(() => null);
-    if (String(failure && failure.message || "").includes("calendar_account_changed")) {
-      throw webError(409, "calendar_account_changed");
-    }
+    const message = String(failure && failure.message || "");
+    if (message.includes("calendar_account_changed")) throw webError(409, "calendar_account_changed");
+    if (message.includes("calendar_disconnect_pending")) throw webError(409, "disconnect_pending");
+    if (message.includes("home_required")) throw webError(409, "home_required");
+    if (message.includes("calendar_not_connected")) throw webError(409, "calendar_not_connected");
     throw webError(502, "setup_unavailable");
   }
   return response.json().catch(() => null);
@@ -206,6 +215,7 @@ function baseSnapshot(row, setupState, calendarState) {
     calendarBound: Boolean(row && row.calendar_provider === "composio_gcal"
       && ACCOUNT_ID_RE.test(String(row.calendar_connected_account_id || ""))),
     dailyAutomationEnabled: null,
+    disconnectPending: null,
     nextEvent: null,
     travelBlock: null,
     departureAt: null,
@@ -222,18 +232,15 @@ async function buildTodaySnapshot(uid, opts = {}) {
   try { current = await readActiveCalendarUser(uid, opts); }
   catch (error) {
     if (error && error.code === "calendar_status_unavailable") {
-      const snapshot = baseSnapshot(error.userRow, "sync_pending", "unavailable");
-      snapshot.dailyAutomationEnabled = await readWebAutomationPreference(uid, opts);
-      return snapshot;
+      return Object.assign(baseSnapshot(error.userRow, "sync_pending", "unavailable"),
+        await readWebAutomationPreference(uid, opts));
     }
     throw error;
   }
   const { row, status } = current;
-  const dailyAutomationEnabled = await readWebAutomationPreference(uid, opts);
+  const preference = await readWebAutomationPreference(uid, opts);
   if (status !== "ACTIVE") {
-    const snapshot = baseSnapshot(row, "needs_calendar", "action_required");
-    snapshot.dailyAutomationEnabled = dailyAutomationEnabled;
-    return snapshot;
+    return Object.assign(baseSnapshot(row, "needs_calendar", "action_required"), preference);
   }
 
   const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
@@ -243,9 +250,7 @@ async function buildTodaySnapshot(uid, opts = {}) {
   await assertUnbound(uid, opts);
   if (beforeReadRow.calendar_provider !== "composio_gcal"
     || beforeReadRow.calendar_connected_account_id !== row.calendar_connected_account_id) {
-    const snapshot = baseSnapshot(beforeReadRow, "needs_calendar", "action_required");
-    snapshot.dailyAutomationEnabled = dailyAutomationEnabled;
-    return snapshot;
+    return Object.assign(baseSnapshot(beforeReadRow, "needs_calendar", "action_required"), preference);
   }
 
   let events;
@@ -259,14 +264,13 @@ async function buildTodaySnapshot(uid, opts = {}) {
       { strict: true, expectedCalendarAccountId: row.calendar_connected_account_id },
     );
   } catch {
-    return baseSnapshot(beforeReadRow, "sync_pending", "connected");
+    return Object.assign(baseSnapshot(beforeReadRow, "sync_pending", "connected"), preference);
   }
   const ordered = events.slice().sort((a, b) => a.startMs - b.startMs);
   const nextEvent = ordered.find((event) => event.startMs >= nowMs && !isTravel(event.summary)) || null;
   const matches = matchingTravelBlocks(ordered, nextEvent);
   const travel = matches.length === 1 ? matches[0] : null;
-  const snapshot = baseSnapshot(beforeReadRow, "ready", "connected");
-  snapshot.dailyAutomationEnabled = dailyAutomationEnabled;
+  const snapshot = Object.assign(baseSnapshot(beforeReadRow, "ready", "connected"), preference);
   snapshot.nextEvent = eventSnapshot(nextEvent);
   snapshot.travelBlock = eventSnapshot(travel);
   snapshot.departureAt = travel && Number.isFinite(travel.startMs) ? new Date(travel.startMs).toISOString() : null;
@@ -325,14 +329,18 @@ async function applyWebTravelControl(uid, accountId, action, opts = {}) {
 
   await assertUnbound(uid, opts);
   const row = await readWebUserRow(uid, opts);
-  const enabled = await readWebAutomationPreference(uid, opts);
-  const expectedAccountId = action === "disconnect" ? null : accountId;
+  const preference = await readWebAutomationPreference(uid, opts);
+  const expectedAccountId = action === "disconnect_finish" ? null : accountId;
+  const expectedPending = action === "disconnect_begin" ? true
+    : action === "disconnect_finish" || action === "resume" ? false : null;
   if (selectedWebCalendarAccount(row) !== expectedAccountId
-    || enabled !== (action === "resume")) {
+    || preference.dailyAutomationEnabled !== (action === "resume")
+    || expectedPending !== null && preference.disconnectPending !== expectedPending) {
     throw webError(502, "control_readback_unavailable");
   }
   return {
-    dailyAutomationEnabled: enabled,
+    dailyAutomationEnabled: preference.dailyAutomationEnabled,
+    disconnectPending: preference.disconnectPending,
     calendarBound: expectedAccountId !== null,
   };
 }
@@ -341,8 +349,10 @@ async function controlWebTravel(uid, action, opts = {}) {
   await assertUnbound(uid, opts);
   let row = await readWebUserRow(uid, opts);
   let accountId = selectedWebCalendarAccount(row);
+  const preference = await readWebAutomationPreference(uid, opts);
 
   if (action === "resume") {
+    if (preference.disconnectPending === true) throw webError(409, "disconnect_pending");
     if (!String(row.home_address || "").trim()) throw webError(409, "home_required");
     const active = await readActiveCalendarUser(uid, opts);
     if (active.status !== "ACTIVE" || selectedWebCalendarAccount(active.row) !== accountId) {
@@ -359,16 +369,20 @@ async function controlWebTravel(uid, action, opts = {}) {
     if (!accountId) throw webError(409, "calendar_not_connected");
     let paused = false;
     try {
-      await applyWebTravelControl(uid, accountId, "pause", opts);
+      await applyWebTravelControl(uid, accountId, "disconnect_begin", opts);
       paused = true;
       const disconnect = opts.composioCalendarDisconnectImpl || panelApi().composioCalendarDisconnect;
       const result = await disconnect({ uid }, { ...providerOptions(opts), connectedAccountId: accountId });
       if (!result || result.provider !== "calendar" || result.state !== "action_required") {
         throw webError(502, "calendar_disconnect_unavailable");
       }
-      return await applyWebTravelControl(uid, accountId, "disconnect", opts);
+      const status = await (opts.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(
+        { uid }, accountId, providerOptions(opts),
+      );
+      if (status !== "DISABLED") throw webError(502, "calendar_disconnect_unavailable");
+      return await applyWebTravelControl(uid, accountId, "disconnect_finish", opts);
     } catch (error) {
-      if (paused) error.automationPaused = true;
+      if (paused && error && typeof error === "object") error.automationPaused = true;
       throw error;
     }
   }
