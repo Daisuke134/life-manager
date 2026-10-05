@@ -4886,7 +4886,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 | 順序 | 残作業 | 完了を示す証拠 |
 |---|---|---|
-| 1 | Coconalaを先頭に内部loopの確認済み故障を閉じる | 現在Coconalaの返信・見積り保留12件。送信段階診断を最小完了→必要な原因修復→同対象の自然実行/公式送信・見積り記録。旧unknownの再送/手動解除なし。本文/context修復のsource/反映済み部分は繰り返さない。追加一般監査や新案件制作へ脱線しない。 |
+| 1 | Coconalaを先頭に内部loopの確認済み故障を閉じる | 残りは共有browser使用終了/正規lease解放の確認→保留12件（unknown8/retry4）の公式照合→必要な原因修復→同対象の自然実行/公式送信・見積り記録。診断source/107tests/独立review/CI/main/Reply反映は完了済み（§605–606参照）で再実行しない。旧unknownの再送/手動解除なし。追加一般監査や新案件制作へ脱線しない。 |
 | 2 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
 | 3 | Capafy日次monitorの自然wake証拠を取得する | exact owner9:30のrun/phase/sourceを確認。別hourly/daily-close結果を代用しない。 |
 | 4 | Capafy日次monitorの確認された失敗を修復する | 正常な待機は修正しない。真の失敗は修復してsame-owner自然readbackへ結ぶ。 |
@@ -8346,3 +8346,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh read-only Sol6.1/medium検証者が対象1sessionの取得call14:58:09.772Z→対応出力14:58:10.109Z Scriptcompleted/exit0を確認。取得コマンドterminalとbrowser使用終了は別。取得後release呼出しは同log0、末尾15:41:35.089Zはreasoningでsession/browser使用終了を証明しない。実callにAGMSG owner名無し、連絡先未特定。ログの私的本文/URL/credentialを共有せずmetadataのみ使用。
 - root既存team一覧handle92189は未終了。検証者の重複read-only一覧は自分の要求だけ安全停止/exit130、root要求/lease/登録/送信/基盤に変更0。rootは一覧の遅延を停止中seatや解放可能の根拠にしない。最小再開条件は取得sessionに対応するowner確認と、そのownerによる使用終了/正規releaseの証拠。
 - source107/freshSHIP/全CI/main28c09277/ALLrelease/Replyadoption/新source自然wakeは維持するが、旧12件公式照合は未達。残44/cursor1・順序不変。次は所有確認応答と正規lease解放をreadbackし、guard取得後に公式見積りreadback/自然診断を続ける。rootの解除/横取り/基盤restart/送信再試行0。
+
+
+### 608. 残表から診断完了手順を除去・一覧読取終了
+
+- §217 current1の受入説明から完了済み診断実装/gates/main/Reply反映を残作業として外し、§605–606参照へ集約。現在の残りはshared browser使用終了/正規解放→12件公式照合→必要修復→自然業務記録。残44/cursor1・各項目の相対順序/成果条件は不変。
+- root自身の長時間team一覧read handle92189だけCtrl-Cで取消、exit130確認。他agent/loop/基盤/lease/登録は停止・変更しない。直後inbox新返信0。新source自然run18dbac518afd9c48-77757/report/entrypointexit75/loadedidle、installed/eventSHA28c09277一致を再確認。current shared legacylease解放や12件解消の証明ではない。
+- source/kernel診断保存key send_diagnosticを実コード730–737で再確認し、既存調査のtop-levelkey照合が契約通りであることを確認。初期browser待ちとsender段階失敗を混ぜず、owner使用終了の証拠が取れたら正規guard取得で続ける。root解除/送信再試行/基盤restart0。
