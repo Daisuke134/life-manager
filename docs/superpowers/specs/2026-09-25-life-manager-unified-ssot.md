@@ -8084,3 +8084,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - full immutable /Users/anicca/loops/releases/20261005T195708-8e64b3ff /main8e64/ALLをcurrentで確認。target Reply idle1probe→apply changedtrue/admissionresumedtrue/installcddb1846d2d4070951cbff02、actualargs同root/bin/lm-loop-run。state/coconala-hidden-finalizer-owner-adoption-20261005.json保存。newsource自然run18db9d0b9ef7e398-10976/reportPASS/idleを確認。
 - 10:59:50Z latestbusinessblocked0counts、10:59:57 readonlyinventoryknown3/unknown0/leases3/pending3/pid無し、反映前baselineと同じ。inbox403でhiddencontextをexerciseしない前段停止なので新cleanup成功や12保留解消へ代用しない。provider/Auth/旧effectfence変更0。
 - 次の切分けscopeはregisteredbrowserguard正規取得後、newmainimmutable helperでroot unique owner about:blank serve-hiddenを開きstdinを閉じるlive技術probe。lease/target ledgerはroot専用private statefileへ分離しexistingbusinessrowsを触らず、既存vaultはreadseedのみ/書戻し0、Recovery/ブラウザ全restartをperprobe無効にする。ownedtarget1/context1だけclose、officialTarget.getContexts/ledgerでownresidue0確認、privatecookie/token/rawoutputを表示せずmetadataのみ保存。BUSY/変化/不明ownerは保持、実customerGET/投稿/ask/providerpaidaction0。自然Coconalaの代用Doneにはせずsource実CDP境界を確認する。全体47/cursor1・12未解消維持。
+
+
+### 575. Immutable hiddenfinalizerの実CDP own-context開閉readback
+
+- 11:01:47Z newmainimmutable8e64helperでregisteredcoconala正規guard取得、root uniqueowner codex-hidden-finalizer-live-20261005/about:blank serve-hiddenを起動→stdinclose。専用privatelease/targetledgerを使用、既存vaultreadseedのみ、recovery/globalcleanupをperprobe無効化。beforecontext0→open1→after0、helperexit0/stderr0/RuntimeWarningfalse、owncontextremainingfalse/ownleaseremainingfalse/ownpendingfalse、guardrelease0。customerGET/send/vaultwrite/foreigncontextclose0、state/coconala-hidden-finalizer-live-blank-readback-20261005.jsonを保存。
+- これはSource受入→main→immutable→actualCDP hidden終了のproof。既存Coconala3pendingがいつ誰に回収されたかや実customer threadの自然処理完了・売上へ代用しない。source自然run前段403は保持、別段のbody/oldreceiptを引き続き公式readbackで照合する。
+- 次はowner新sourceの通常自然hiddenが同契約で終わること、HTTP200同threadのoriginalpriority本文/archived添付identity比較を確認し、旧12保留をreplayなく閉じる。背景SelfFix cache/processgroup寿命は別必須残件/Task1、SelfBuild最後。全体47/cursor1、金融unknownを0にしない。
