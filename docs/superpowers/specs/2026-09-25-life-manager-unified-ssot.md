@@ -7437,3 +7437,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 統合candidate HEAD/remote d283095e3cb10d8cb25078200fb0f32cead2fd0f、clean。既存2fixtureのREDを再現後、donorをcutterと同export refのbytesへ統一、週次保存fixtureを該当cadenceへ同期。focused2/2 GREEN・OSS verifier・diffcheck PASS。
 - primaryは保存fixture178rowsのうち変更が1row/1key cadenceだけで、旧604800秒→calendar Weekday2/Hour14/Minute30と独立照合。fresh-reviewed cf32との差分はprivacy test・donor test・週次fixture・manifestの4filesのみ。production helper/package/registryのbytesはfresh source review時と不変。新しい商品動作や効果判定の変更を追加しない。
 - 最終差分は元8修正のsource/test22files＋必要な検証支援3files。PR #6605本文を最終scopeと検証結果へ更新。CIは最終headで再実行中、OSS gate SUCCESSを確認。全CI終端PASS後にready/mainへ進む。manual cut/current/applyは既存自然release ownerと競合させず発行しない経路を選ぶ。loaded argv/SHA・admission・自然結果は反映後の別proofで、source/CI結果に置換しない。§217cursor1/全goal未完。
+
+
+### 496. 承認済み8修正のmain統合と自然反映readback
+
+- 最終PR #6605 / head d283095e3cb10d8cb25078200fb0f32cead2fd0fの10checks全SUCCESSを公式確認。ready後、承認済み順序例外に従いgh pr merge --merge --admin --match-head-commitで統合成功。公式MERGED/mergedAt2026-10-05T03:04:15Z、mergeCommit3f11ad0b8be553914215aa3263fe8d48cf0f763d、fetch後origin/main一致。server拒否や追加承認待ちはない。
+- 最初のruntime readbackはcurrent2a8d40e6/ALLのまま、release-reconcilerはinstalled2a/loaded-idle/PIDなし、last historical entrypoint_exit_1。cut lock/promotion holdなし。過去失敗を新mainの自然実行結果にしない。main統合と本番反映を分ける。
+- primaryは自前cut/current/apply/startを発行せず、既存reconciler自然ownerへ反映を任せる。Sol/mediumの別read-only担当がcurrent manifest・自然run・exact loaded argv/SHA/admissionを観測し、primaryはSSOTと独立の既存失敗境界を確認する。同じprovider/profile/stateやruntime mutationを二重に触らない。
+- §217cursor1の残りはrelease/load/admission/rollbackの公式readback。本番自然execution/receipt/経済成果とCapafy/Lancers実原因は未確定のまま。source8の再作成は不要、Coconala個別保留・SelfBuild最後を維持する。
