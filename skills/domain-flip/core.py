@@ -96,7 +96,10 @@ def evaluate_purchase(
     if not isinstance(domain, str) or not domain.endswith(".si") or domain != domain.lower():
         _append_reason(reasons, "domain_invalid")
 
-    if quote.get("available") is not True or not quote.get("provider_receipt_id"):
+    if (quote.get("provider") != "openprovider"
+            or quote.get("available") is not True
+            or quote.get("readback_verified") is not True
+            or not _refs(quote.get("evidence_refs"))):
         _append_reason(reasons, "quote_unverified")
 
     quote_currency = quote.get("currency")

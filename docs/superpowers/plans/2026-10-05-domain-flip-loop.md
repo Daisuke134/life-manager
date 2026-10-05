@@ -43,9 +43,10 @@
 **Interfaces:**
 - Produces: `evaluate_purchase(candidate, quote, funding, portfolio, evidence) -> dict`, `advance_phase(current, event) -> str`, and `realized_sale(receipts, costs) -> dict`.
 - `evaluate_purchase` returns `eligible`, stable `reason_codes`, `conditional_net_eur`, and `maximum_loss_eur`; it never calls a provider or model.
+- A read-only price quote needs `readback_verified` and `evidence_refs`; `provider_receipt_id` is null when the provider does not issue one.
 - `realized_sale` returns a revenue amount only when buyer settlement, holder transfer, seller payout, receiving-account readback, and all required costs are present and receipt IDs are unique.
 
-- [ ] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert the 100 EUR cap, business-dedicated funding source, four-holding limit, `autorenew=off` policy value, and exact Decimal net arithmetic.
+- [ ] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_purchase_requires_quote_readback_evidence`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert the 100 EUR cap, business-dedicated funding source, four-holding limit, `autorenew=off` policy value, and exact Decimal net arithmetic. A read-only price response may have `provider_receipt_id=null` only when verified readback and evidence refs are present.
 - [ ] **Step 2: Run the test file and confirm the expected missing-module failures.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: collection fails because `skills/domain-flip/core.py` does not yet exist.
 - [ ] **Step 3: Implement the three pure functions** with `Decimal`, explicit required evidence, stable reason codes, and no float arithmetic or hidden provider state.
 - [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: all named tests pass.
@@ -59,12 +60,13 @@
 
 **Interfaces:**
 - Consumes: Task 1 purchase result.
-- Produces: `OpenProviderClient.check_domain(name)`, `quote_create(name)`, `register(name, owner_handle, idempotency_key)`, `get_domain(domain_id)`, and `list_domains()`.
-- `quote_create` returns a provider-final registration amount and a one-year renewal reserve in EUR; if Openprovider quotes another currency, the adapter ties conversion evidence to the one-time dedicated-business funding receipt.
-- The live client uses the official bearer-token API and the credential SSOT. Its base URL is fixed to Openprovider production or its documented sandbox; tests use a local HTTP server.
+- Produces: `OpenProviderClient.check_domain(name)`, `quote_create(name, funding_fx_basis=None)`, `register(name, owner_handle, idempotency_key)`, `get_domain(domain_id)`, and `list_domains()`.
+- `quote_create` returns registration and one-year renewal amounts in the provider currency. It populates EUR-normalized costs only when a verified funding FX basis matches the provider balance currency; a read-only price response without a provider-issued receipt ID uses `provider_receipt_id=null` plus `evidence_refs`.
+- The live client uses the official bearer-token API and the credential SSOT. Its production base URL is fixed; tests use a local HTTP server.
+- Read-only price responses may not include a provider receipt ID; the adapter records `provider_receipt_id=null` and a local evidence ref for the verified response instead of synthesizing a receipt.
 - Registration sends one-year `.si`, `autorenew="off"`, and the approved owner contact; it never turns private-WHOIS on or retries a timed-out create.
 
-- [ ] **Step 1: Write failing local-server tests** named `test_check_and_quote_use_official_si_fields`, `test_register_sends_owner_and_autorenew_off`, `test_missing_credentials_prevent_mutation`, `test_nonzero_provider_code_is_not_success`, and `test_timeout_is_effect_unknown_without_retry`. Assert method/path/body, `code == 0`, returned domain ID, and no second create request.
+- [ ] **Step 1: Write failing local-server tests** named `test_check_and_quote_use_official_si_fields`, `test_quote_does_not_fabricate_provider_receipt_id`, `test_fx_requires_matching_funding_receipt`, `test_register_sends_owner_and_autorenew_off`, `test_missing_credentials_prevent_mutation`, `test_nonzero_provider_code_is_not_success`, and `test_timeout_is_effect_unknown_without_retry`. Assert method/path/body, `code == 0`, returned domain ID, and no second create request.
 - [ ] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: collection fails because the client is absent.
 - [ ] **Step 3: Implement the stdlib REST client** for `/v1/auth/login`, `/v1/domains/check`, `/v1/domains/prices`, `/v1/domains`, `/v1/domains/{id}`, and `GET /v1/domains`; validate responses and redact credentials from errors.
 - [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: all named local-server tests pass.

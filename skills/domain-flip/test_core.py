@@ -20,7 +20,9 @@ def purchase_inputs():
     quote = {
         "available": True,
         "provider": "openprovider",
-        "provider_receipt_id": "quote-1",
+        "provider_receipt_id": None,
+        "readback_verified": True,
+        "evidence_refs": ["lm-domain-flip://readbacks/openprovider-price-quote-1"],
         "currency": "EUR",
         "registration_cost_eur": "10.00",
         "renewal_cost_eur": "10.00",
@@ -176,6 +178,16 @@ def test_purchase_requires_known_public_registrant_and_rights_evidence():
     assert decision["eligible"] is False
     assert "whois_email_unverified" in decision["reason_codes"]
     assert "rights_evidence_missing" in decision["reason_codes"]
+
+
+def test_purchase_requires_quote_readback_evidence():
+    args = purchase_inputs()
+    args[1]["evidence_refs"] = []
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "quote_unverified" in decision["reason_codes"]
 
 
 def test_currency_mismatch_blocks_purchase():
