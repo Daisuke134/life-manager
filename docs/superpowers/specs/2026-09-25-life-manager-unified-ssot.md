@@ -7899,3 +7899,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 08:14:59Z同registered browserのdefault authenticated/ephemeral anonymousで公開service4330368が双方HTTP200/servernginx/challengeなし。保存auth変更0/解放0。cookie破損だけを原因とする仮説は未支持、403共通経路の変動を確認。証拠state/coconala-anonymous-gate-comparison-20261005.json。
 - 08:16:26Z main-derived b53の既存collector/純classifierを使用したreadonly公式比較でestimate unknown3threadは全HTTP200/page identity valid。card数0/1/2、保存intentと同一terms/所有者/時刻に一致するcardは全0。2threadは有効DOMでもdurable attachment mergeがdm_attachment_message_identity_changed、残1threadはmerge成功だが保存semanticcontext SHA不一致。送信・state更新0、旧fence維持。証拠state/coconala-estimate-official-comparison-20261005.json。card存在だけを既送信/検収/売上へ代用しない。
 - これによりattachment問題は403時だけのfalsecauseではなく、少なくとも有効HTTP200の2threadで再現したと境界を絞る。次の独立診断scopeは当該durable manifest/現在semantic DOMのID・bodyhash・時刻・sender metadata比較と既存merge契約の反例確認。顧客本文・credentialを出さず、archive対象・同thread・attachment checksum保護を弱めない。原因確定後に最小source修復scopeを正本へ追加する。未送信intentの無根拠な再送/手動fence解除/個別Paid保留再開なし。PR6634新CIの最後Loop contractsを同run37282287624で追跡。残47/cursor1。
+
+
+### 549. PR6634全PASS後のfixture merge競合と通常解消
+
+- headbb4b72f1/newCI37282287624は全10checks SUCCESS。通常gh pr merge --admin --mergeはGraphQL Pull Request has merge conflictsで拒否、未merge。fetch後main9f7bf1420ec1416d4c713a218ac7570760992658。git merge-treeのread-only検証で競合pathはruntime/loop/tests/fixtures/macos-loop-jobs.jsonのみ。mainのPR6635はx-repost-pass priority support→revenue、PR6637はCFO usage/runtime identity source。Coconala sourceの競合なし。
+- 次scopeは同Coconala branchへlatestmainを通常mergeし、現main registryから既存fixtureを生成して競合解消。x-repost priority/CFO source/docs/testsをそのまま保持、再実装・巻戻し・弱化0。fresh SHIP済みCoconala adapter/test blobsの前後同一を確認、fixture/adapter focused/contract/OSS/diff→commit/push/新headCIを確認。source候補と他laneのmain変更を混同しない。競合を理由に再承認やmain強制上書きを求めない。全体47/cursor1維持。
