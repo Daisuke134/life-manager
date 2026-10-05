@@ -9,6 +9,31 @@ const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
 
 async function selectedAccountId(uid, apiKey, opts = {}) {
+  if (opts.expectedCalendarAccountId != null) {
+    const expected = String(opts.expectedCalendarAccountId);
+    const base = String(opts.supaUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
+    const key = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!base || !key || !/^[A-Za-z0-9_-]{3,128}$/.test(expected)) {
+      throw new Error("calendar account binding changed");
+    }
+    const url = new URL(`${base}/rest/v1/lm_users`);
+    url.searchParams.set("uid", `eq.${uid}`);
+    url.searchParams.set("telegram_chat_id", "is.null");
+    url.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id");
+    url.searchParams.set("limit", "2");
+    const response = await (opts.fetchImpl || fetch)(url.toString(), {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!response.ok) throw new Error("calendar account lookup failed");
+    const rows = await response.json();
+    const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+    if (!row || row.uid !== uid || row.telegram_chat_id !== null
+      || row.calendar_provider !== "composio_gcal"
+      || row.calendar_connected_account_id !== expected) {
+      throw new Error("calendar account binding changed");
+    }
+    return expected;
+  }
   if (typeof opts.resolveConnectedAccountId === "function") return opts.resolveConnectedAccountId(uid);
   const base = opts.supaUrl || process.env.SUPABASE_URL;
   const key = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,13 +96,14 @@ function makeComposioCalendar(opts = {}) {
       meta: { tool, outcome, runtime_trace: trace },
     });
   });
-  const execute = async (tool, uid, args) => {
+  const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId) => {
+    const operationOpts = expectedCalendarAccountId == null ? opts : { ...opts, expectedCalendarAccountId };
     const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
     const trace = runtimeTrace({ tenantId: uid }, runtimeEnv);
     const recordOutcome = async (outcome) => {
       try { await ledger(uid, tool, { outcome, runtimeTrace: trace }); } catch { /* observability must not break calendar calls */ }
     };
-    return exec(tool, uid, args, key, opts, recordOutcome);
+    return exec(tool, uid, args, key, operationOpts, recordOutcome);
   };
   // ONE page of Google Calendar items PLUS the cursor that unlocks the next. events.list returns at
   // most `maxResults` items per page (250 by default, 2500 max) and sets data.nextPageToken whenever
@@ -102,7 +128,7 @@ function makeComposioCalendar(opts = {}) {
     if (pageToken) args.pageToken = pageToken;
     let j;
     try {
-      j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args);
+      j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args, opts.expectedCalendarAccountId);
     } catch (e) {
       if (strict) throw e;
       return empty;
@@ -127,13 +153,13 @@ function makeComposioCalendar(opts = {}) {
     async listEventsRaw(uid, opts = {}) {
       return (await listEventsPage(uid, opts)).items;
     },
-    async createEvent(uid, args) {
+    async createEvent(uid, args, operationOpts = {}) {
       if (!key) return { successful: false };
-      try { return await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args); } catch { return { successful: false }; }
+      try { return await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args, operationOpts.expectedCalendarAccountId); } catch { return { successful: false }; }
     },
-    async patchEvent(uid, args) {
+    async patchEvent(uid, args, operationOpts = {}) {
       if (!key) return { successful: false };
-      try { return await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args); } catch { return { successful: false }; }
+      try { return await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args, operationOpts.expectedCalendarAccountId); } catch { return { successful: false }; }
     },
   };
 }

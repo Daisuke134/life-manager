@@ -131,12 +131,13 @@ function shortName(addr) {
   return (addr || "").split(/[,、]/)[0].slice(0, 18) || "?";
 }
 
-async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false } = {}) {
-  const cal = calendar || getCalendar({ apiKey, gmailAccountId });
+async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false, expectedCalendarAccountId } = {}) {
+  const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const items = await cal.listEventsRaw(uid, {
     timeMin: new Date(nowMs).toISOString().replace(/\.\d{3}Z$/, "Z"),
     timeMax: new Date(nowMs + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
     ...(strict ? { strict: true } : {}),
+    ...(expectedCalendarAccountId ? { expectedCalendarAccountId } : {}),
   });
   return items.filter((e) => interpretCalendarEvent(e).decision !== "no_call").map((e) => ({
     id: e.id || "",                                   // C-H1: stable per-event key for the atomic claim ledger
@@ -608,18 +609,21 @@ async function directionsMinutes(src, dst, mapsKey, anchorAtMs = null, nowMs = D
   return minutesFromSeconds(routeDurationSeconds(route));
 }
 
-async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId) {
-  const cal = calendar || getCalendar({ apiKey, gmailAccountId });
+async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId) {
+  const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const hours = Math.floor((arriveMs - leaveMs) / 3600000);
   const minutes = Math.round(((arriveMs - leaveMs) % 3600000) / 60000);
-  const j = await cal.createEvent(uid, {
+  const eventArgs = {
     summary: `[Travel] 🚆 ${shortName(fromName)}→${shortName(toName)}`,
     start_datetime: isoNaiveUTC(leaveMs),
     event_duration_hour: hours, event_duration_minutes: Math.min(59, minutes),
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
     send_updates: "none", exclude_organizer: true, create_meeting_room: false,
     description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
-  });
+  };
+  const j = expectedCalendarAccountId
+    ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId })
+    : await cal.createEvent(uid, eventArgs);
   return !!(j && j.successful);
 }
 
@@ -690,11 +694,13 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId, expectedCalendarAccountId } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
-  const cal = calendar || getCalendar({ apiKey, gmailAccountId });
-  const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId);
+  const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
+  const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
+    strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
+  });
   let inserted = 0, checked = 0, skipped = 0;
   const outboundReports = [];
   const releaseAllowance = async (eventKey, state) => {
@@ -795,7 +801,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             try { goClaimed = await claimTravel(uid, evKey, "go", supaUrl, supaKey); } catch { goClaimed = false; }
             if (goClaimed) {
               let created = false;
-              try { created = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId); }
+              try { created = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId); }
               catch { created = false; }
               if (created) {
                 inserted++;
@@ -885,7 +891,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     try { returnClaimed = await claimTravel(uid, evKey, "return", supaUrl, supaKey); } catch { returnClaimed = false; }
     if (returnClaimed) {
       let created = false;
-      try { created = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId); }
+      try { created = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId); }
       catch { created = false; }
       if (created) {
         inserted++;

@@ -216,7 +216,7 @@ async function buildTodaySnapshot(uid, opts = {}) {
       nowMs,
       opts.calendar,
       null,
-      { strict: true },
+      { strict: true, expectedCalendarAccountId: row.calendar_connected_account_id },
     );
   } catch {
     return baseSnapshot(beforeReadRow, "sync_pending", "connected");
@@ -312,6 +312,7 @@ async function handleWebTravelRequest(req, res, opts = {}) {
           call_enabled: false,
           notifications_enabled: false,
           telegram_chat_id: null,
+          expectedCalendarAccountId: row.calendar_connected_account_id,
         }, opts);
       } catch { /* the strict post-run Calendar read remains the success boundary */ }
     }

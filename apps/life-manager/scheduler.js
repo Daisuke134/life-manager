@@ -1225,6 +1225,7 @@ async function travelUserOnce(u, deps = {}) {
   const supaUrl = deps.supaUrl !== undefined ? deps.supaUrl : configuredSupa.url;
   const supaKey = deps.supaKey !== undefined ? deps.supaKey : configuredSupa.key;
   try {
+    let expectedCalendarAccountId;
     if (WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""))) {
       if (u.telegram_chat_id === null) {
         const resolveActive = deps.resolveActiveWebCalendarImpl
@@ -1232,7 +1233,10 @@ async function travelUserOnce(u, deps = {}) {
         const active = await resolveActive(u.uid, {
           supaUrl, supaKey, composioKey: apiKey, fetchImpl: deps.fetchImpl, env: deps.env,
         });
-        if (!active) return;
+        if (!active || !active.accountId) return;
+        if (u.expectedCalendarAccountId !== undefined
+          && u.expectedCalendarAccountId !== active.accountId) return;
+        expectedCalendarAccountId = active.accountId;
       } else if (u.telegram_chat_id === undefined) {
         return;
       }
@@ -1242,6 +1246,7 @@ async function travelUserOnce(u, deps = {}) {
       timezone: u.call_time_zone,
       nowMs: deps.nowMs === undefined ? Date.now() : deps.nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
+      expectedCalendarAccountId,
       _directionsMinutes: deps.directionsMinutes,
       _reserveManagedAction: deps.reserveManagedAction || (deps.fillTravel ? undefined : reserveManagedAction),
       _completeManagedAction: deps.completeManagedAction || (deps.fillTravel ? undefined : completeManagedAction),

@@ -116,29 +116,41 @@ test("shared event reader exposes the existing normalized seven-day calendar que
   assert.equal(events[0].endMs, Date.parse("2030-01-01T11:00:00+09:00"));
 });
 
+test("shared event reader carries the expected account into its Calendar operation", async () => {
+  let bounds;
+  await listEvents7d("uid-web", "unused", Date.parse("2030-01-01T08:00:00+09:00"), {
+    async listEventsRaw(_uid, input) { bounds = input; return []; },
+  }, null, { strict: true, expectedCalendarAccountId: "ca-expected" });
+  assert.equal(bounds.expectedCalendarAccountId, "ca-expected");
+});
+
 test("Travel event uses one five-minute buffer and safe attendee/meeting defaults", async () => {
   const startsAt = Date.parse("2030-01-01T10:00:00+09:00");
   const nowMs = Date.parse("2030-01-01T08:00:00+09:00");
   const created = [];
+  let eventReadOptions;
   const calendar = {
-    async listEventsRaw() {
+    async listEventsRaw(_uid, options) {
+      eventReadOptions = options;
       return [{
         id: "event-1", summary: "Meeting", location: "Shibuya",
         start: { dateTime: new Date(startsAt).toISOString() },
         end: { dateTime: new Date(startsAt + 60 * 60_000).toISOString() },
       }];
     },
-    async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    async createEvent(_uid, args, options) { created.push({ args, options }); return { successful: true }; },
   };
   await fillTravel("uid-1", {
-    mapsKey: "fixture-map-key", home: "Home", nowMs, calendar,
+    mapsKey: "fixture-map-key", home: "Home", nowMs, calendar, expectedCalendarAccountId: "ca-expected",
     _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
   });
   assert.equal(created.length, 1);
-  assert.equal(Date.parse(`${created[0].start_datetime}Z`), startsAt - 25 * 60_000);
-  assert.equal(created[0].event_duration_hour, 0);
-  assert.equal(created[0].event_duration_minutes, 25);
-  assert.equal(created[0].send_updates, "none");
-  assert.equal(created[0].exclude_organizer, true);
-  assert.equal(created[0].create_meeting_room, false);
+  assert.equal(eventReadOptions.expectedCalendarAccountId, "ca-expected");
+  assert.equal(created[0].options.expectedCalendarAccountId, "ca-expected");
+  assert.equal(Date.parse(`${created[0].args.start_datetime}Z`), startsAt - 25 * 60_000);
+  assert.equal(created[0].args.event_duration_hour, 0);
+  assert.equal(created[0].args.event_duration_minutes, 25);
+  assert.equal(created[0].args.send_updates, "none");
+  assert.equal(created[0].args.exclude_organizer, true);
+  assert.equal(created[0].args.create_meeting_room, false);
 });

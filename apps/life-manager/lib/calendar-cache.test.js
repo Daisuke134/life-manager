@@ -306,6 +306,12 @@ test("getCalendar shares the cached wrapper unless LM_CAL_CACHE=off", () => {
     const second = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test" });
     assert.strictEqual(second, first);
 
+    const accountA = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test", expectedCalendarAccountId: "ca-cache-a" });
+    const accountAAgain = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test", expectedCalendarAccountId: "ca-cache-a" });
+    const accountB = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test", expectedCalendarAccountId: "ca-cache-b" });
+    assert.strictEqual(accountAAgain, accountA);
+    assert.notStrictEqual(accountB, accountA, "account-scoped transports must not share a cache wrapper");
+
     process.env.LM_CAL_CACHE = "off";
     const rawFirst = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test" });
     const rawSecond = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test" });

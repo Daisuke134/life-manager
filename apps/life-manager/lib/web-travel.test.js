@@ -66,8 +66,10 @@ function fixture(overrides = {}) {
     paid: false,
   };
   const events = [event()];
+  const calendarReads = [];
   const sequence = [];
   const rpcCalls = [];
+  const travelExpectedAccountIds = [];
   let preferenceWrites = 0;
   let travelCalls = 0;
   const fetchImpl = async (url, init = {}) => {
@@ -110,6 +112,7 @@ function fixture(overrides = {}) {
     calendar: {
       async listEventsRaw(uid, bounds) {
         sequence.push("calendar_read");
+        calendarReads.push(bounds);
         assert.equal(uid, UID);
         assert.equal(bounds.strict, true);
         return events.slice();
@@ -121,6 +124,7 @@ function fixture(overrides = {}) {
       assert.equal(user.uid, UID);
       assert.equal(user.daily_automation_enabled, true);
       assert.equal(user.home_address, row.home_address);
+      travelExpectedAccountIds.push(user.expectedCalendarAccountId);
       const inserted = !events.some((item) => String(item.summary || "").startsWith("[Travel]"));
       if (inserted) events.push(travelBlock());
       return inserted ? {
@@ -134,7 +138,7 @@ function fixture(overrides = {}) {
     },
     ...overrides,
   };
-  return { events, fetchImpl, opts, row, rpcCalls, sequence,
+  return { events, fetchImpl, opts, row, rpcCalls, sequence, calendarReads, travelExpectedAccountIds,
     get preferenceWrites() { return preferenceWrites; }, get travelCalls() { return travelCalls; } };
 }
 
@@ -155,6 +159,8 @@ test("setup stores home and starts one trial only for active unbound web user", 
   assert.equal(f.row.trial_expires_at, TRIAL_EXPIRES_AT);
   assert.deepEqual(f.rpcCalls, [{ p_uid: UID, p_home_address: "自宅住所", p_calendar_account_id: "ca-selected-123" }]);
   assert.equal(f.travelCalls, 1);
+  assert.deepEqual(f.travelExpectedAccountIds, ["ca-selected-123"]);
+  assert.equal(f.calendarReads[0].expectedCalendarAccountId, "ca-selected-123");
   assert.ok(f.sequence.indexOf("calendar_status") < f.sequence.indexOf("rpc"));
   assert.ok(f.sequence.indexOf("rpc") < f.sequence.indexOf("travel"));
   assert.equal(f.sequence[f.sequence.indexOf("travel") - 1], "unbound");
@@ -339,6 +345,13 @@ test("today rechecks Web eligibility before its strict Calendar read", async () 
   assert.ok(calendarReadIndex > 0);
   assert.equal(f.sequence[calendarReadIndex - 1], "unbound");
   assert.ok(f.sequence.slice(0, calendarReadIndex).includes("calendar_status"));
+});
+
+test("today event read carries the exact ACTIVE account into the Calendar adapter", async () => {
+  const f = fixture();
+  await buildTodaySnapshot(UID, f.opts);
+  assert.equal(f.calendarReads.length, 1);
+  assert.equal(f.calendarReads[0].expectedCalendarAccountId, "ca-selected-123");
 });
 
 test("setup RPC locks and updates only the Web-owned setup fields", () => {

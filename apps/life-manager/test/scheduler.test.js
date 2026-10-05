@@ -64,14 +64,27 @@ test("Web travel skips Calendar work unless the persisted account is currently A
 
 test("Web travel proceeds after the persisted exact account passes the ACTIVE gate", async () => {
   const { travelUserOnce } = require("../scheduler.js");
-  let calendarReads = 0;
+  const calendarExpectedIds = [];
   await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true }, {
     apiKey: "provider-key",
     mapsKey: "maps-key",
     resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
+});
+
+test("Web travel refuses to switch account after the caller's ACTIVE check", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let calendarReads = 0;
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    expectedCalendarAccountId: "ca-checked-before", daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-rebound-after" }),
     fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
   });
-  assert.equal(calendarReads, 1);
+  assert.equal(calendarReads, 0);
 });
 
 test("Web travel skips when the Telegram binding field is unavailable", async () => {
