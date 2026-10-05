@@ -8056,3 +8056,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-hidden-context-finalizer-20261005、branch fix/lm-hidden-context-finalizer-20261005、latestmain d6f3a952由来/lease専用owner。headab0ffbe621288f02803527a05587e9fba6fc144aをpush/remote一致/clean。production diffはhidden出口 awaitasyncio.to_thread1行、既存targetownership testのみ。manifest不要。
 - actuallease/fakeCDP/隔離ledger・locksのrelease/park RED2→GREEN2。release dispose1/ownrow削除/pendingなし、park健康probe/parked保持、foreignlease/target不変、警告0。targetownership22/compile/contract/OSSverifier/OSS12/diff PASS。source候補と本番自然finalizer結果を分離、newoldunknown/fundsへ代用しない。freshcontext gpt6.1solmedium read-only reviewerを起動し、stdin終端/offthread await/owner-CAS/park/syncpathを反証中。
 - 10:42:38Z replylatestは194observed/12pending/effect0/readback182/failed0に戻る。接続回復と12未解消を分け、先の5failedを継続source故障と固定しない。次は独立review→CI/main/immutable/Reply owner→自然hidden終了のpending再生0/officialcontext readback。bodyselector/TMP寿命/実adapterreceipt検索は別残件、SelfBuild最後。全体47/cursor1。
+
+
+### 571. hiddenfinalizer fresh SHIP/PR6651とlive CI cursor
+
+- headab0ffbe621288f02803527a05587e9fba6fc144aのfresh Sol6.1medium readonlyreviewはSHIP/重要指摘なし、actualleaseを通す22test独立PASS。offthreadawaitが完了を待ち、owner/token/generation/context-CAS/park/同期close既存契約は不変。強制kill/反復cancel/実CDP障害/本番因果は未証明。sourcefieldだけで旧12保留や利益の完了を宣言しない。
+- PR6651 https://github.com/Daisuke134/life-manager/pull/6651 を作成、sameheadのCI37299160629をlive確認。Agent/startup/OSS/PII/shell SUCCESS、Loop/Python/gitleaks/TruffleHog進行中。次は同run terminal/allPASS→通常adminmain→main-derived immutable→Reply target idle adoption→自然hidden終了/cleanup_pending再生0の公式context/owner readback。pendingを再実行や失敗へ偽装しない。
+- 最新proxy/businessのfresh成功194/12pending/effect0/182readback/failed0を保持、旧5failedのtransport変動と残12未解消を区別。source背景tmp lifetime・metadataidentity/oldreceiptは別の必須残件、SelfBuild最後/全体47/cursor1は維持。
