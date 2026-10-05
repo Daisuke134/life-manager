@@ -36,7 +36,7 @@ The observations below describe the design baseline. Use unified SSOT §87 for c
 ### Code gaps
 
 - The local CFO-result path and five-minute cloud Financial Report path still do not form one canonical daily report; the former has a delivered local result, while the latter is capacity-deferred and lacks the stable period identity needed to prevent duplicate enqueue.
-- Usage telemetry contains estimated amounts without complete `loop_id` and `actual_status` attribution. The September invoice is settled, but October Cost Table reconciliation and current per-loop actual COGS are not complete.
+- Usage telemetry contains estimated amounts without complete `loop_id` and `actual_status` attribution. The September Cost Table establishes an official bill, but cash payment is unverified; October Cost Table reconciliation and current per-loop actual COGS are not complete.
 - The candidate free-provider lane/cache and budget changes are not production proof. Google fallback volume, UX quality, and cost reduction still require natural-run observation.
 - Personal Moneytree freshness, business-source settlement, and provider cost coverage remain separate CFO gaps; `unknown` is never zero.
 
@@ -278,6 +278,7 @@ Task 8A's receipt-aware pre-ingest replay guard, Task 8B's queue ordering change
 The configured September invoice reread in §87-AW confirms two Cloud Storage rows starting 2026-08-31, one billable and one zero-value. Both existing Japanese parser implementations use usage-start month as invoice membership, so the billable row is absent from service-level CFO evidence. The parser fix is required before treating that service subtotal as reconciled.
 
 2026-10-05 10:32 JST update (§87-AX): the Japanese parser source fix is on candidate commit `461a8814dd1645a929e0f461e4b6bb5e5cbe50cb`; Node 6/6 and Python 48/48, source-boundary, diff check, and independent source review pass. It accepts valid prior-month usage dates and rejects missing/impossible/year-zero dates; no production/main promotion or savings is proven. The implementation shell and loaded CFO job do not expose the configured private CSV path, so a post-fix invoice replay was not performed. Actual service-cost and period/project/tenant/loop reconciliation remains in §87-J item 6. The item-5 subcursor resumes at official Stripe attribution; top-level order stays 5→6→7→8.
+ The candidate Python path also currently labels the invoice `paid` and sets `paid_at` to period end; the B7 actual-cost adapter turns that into a settled receipt. The source invoice is not payment proof, and production B6 remains `read_failed`; remove this semantic mismatch before item 6 consumes the invoice (§87-AY).
 
 ## 11. External provider research and selected cost-reduction design
 
