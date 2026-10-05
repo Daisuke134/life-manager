@@ -148,7 +148,7 @@ async function assertWebUserUnbound(uid, opts = {}) {
   if (!response.ok) throw new Error("web_user_read_failed");
   const rows = await response.json().catch(() => []);
   const row = Array.isArray(rows) ? rows[0] : null;
-  return Boolean(row && row.uid === uid && row.telegram_chat_id == null);
+  return Boolean(row && row.uid === uid && row.telegram_chat_id === null);
 }
 
 function userRowsUrl(uid, opts = {}) {
@@ -169,20 +169,35 @@ async function readCalendarBinding(uid, opts = {}) {
   if (!response.ok) throw new Error("calendar_binding_unavailable");
   const rows = await response.json().catch(() => []);
   const row = Array.isArray(rows) ? rows[0] : null;
-  if (!row || row.uid !== uid || row.telegram_chat_id != null) return null;
+  if (!row || row.uid !== uid || row.telegram_chat_id !== null
+    || !Object.hasOwn(row, "calendar_provider") || !Object.hasOwn(row, "calendar_connected_account_id")) return null;
   return row;
 }
 
 function calendarBindingMatches(row, uid, connectedAccountId) {
-  return Boolean(row && row.uid === uid && row.telegram_chat_id == null
+  return Boolean(row && row.uid === uid && row.telegram_chat_id === null
     && row.calendar_provider === "composio_gcal"
     && row.calendar_connected_account_id === connectedAccountId);
 }
 
-async function persistCalendarBinding(uid, connectedAccountId, opts = {}) {
+function calendarMarkerUnchanged(before, after, uid) {
+  return Boolean(before && after && before.uid === uid && after.uid === uid
+    && before.telegram_chat_id === null && after.telegram_chat_id === null
+    && before.calendar_provider === after.calendar_provider
+    && before.calendar_connected_account_id === after.calendar_connected_account_id);
+}
+
+async function persistCalendarBinding(uid, connectedAccountId, opts = {}, expectedBinding = null) {
   const url = userRowsUrl(uid, opts);
   const fetchImpl = opts.fetchImpl || fetch;
-  const response = await fetchImpl(url.toString(), {
+  const patchUrl = new URL(url);
+  if (expectedBinding) {
+    for (const field of ["calendar_provider", "calendar_connected_account_id"]) {
+      const value = expectedBinding[field];
+      patchUrl.searchParams.set(field, value == null ? "is.null" : `eq.${value}`);
+    }
+  }
+  const response = await fetchImpl(patchUrl.toString(), {
     method: "PATCH",
     headers: serviceHeaders(opts.supaKey, { "content-type": "application/json", Prefer: "return=representation" }),
     body: JSON.stringify({ calendar_provider: "composio_gcal", calendar_connected_account_id: connectedAccountId, updated_at: new Date().toISOString() }),
@@ -213,6 +228,51 @@ function allowedStatus(value) {
   return OAUTH_STATUSES.has(String(value || ""));
 }
 
+async function verifyCalendarBinding(uid, binding, provider) {
+  const accountId = String(binding && binding.calendar_connected_account_id || "");
+  if (!binding || binding.calendar_provider !== "composio_gcal" || !ACCOUNT_ID_RE.test(accountId)) return null;
+  const status = await (provider.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(
+    { uid }, accountId, provider,
+  );
+  if (!allowedStatus(status)) throw new Error("calendar_status_unavailable");
+  const current = await readCalendarBinding(uid, provider);
+  return calendarMarkerUnchanged(binding, current, uid) ? { accountId, status } : null;
+}
+
+async function resolveActiveWebCalendar(uid, opts = {}) {
+  if (!WEB_UID_RE.test(String(uid || ""))) return null;
+  const provider = providerOptions(opts, configuredOrigin(opts));
+  const binding = await readCalendarBinding(uid, provider);
+  const current = await verifyCalendarBinding(uid, binding, provider);
+  return current && current.status === "ACTIVE" ? { accountId: current.accountId } : null;
+}
+
+function exactCalendarAccount(uid, item) {
+  const owner = item && (item.user_id || item.userId || item.connection?.user_id);
+  const toolkit = item && (item.toolkit_slug || item.toolkit?.slug || item.toolkit?.slug_name);
+  return Boolean(item && item.id && String(owner) === uid && toolkit === "googlecalendar");
+}
+
+async function listCalendarAccounts(uid, provider) {
+  let accounts;
+  if (typeof provider.composioCalendarAccountsImpl === "function") {
+    accounts = await provider.composioCalendarAccountsImpl({ uid }, provider);
+  } else {
+    if (!provider.composioKey) throw new Error("provider_unavailable");
+    const response = await (provider.fetchImpl || fetch)(
+      `https://backend.composio.dev/api/v3/connected_accounts?user_ids=${encodeURIComponent(uid)}&toolkit_slugs=googlecalendar`,
+      { headers: { "x-api-key": provider.composioKey } },
+    );
+    if (!response.ok) throw new Error("provider_failed");
+    const body = await response.json().catch(() => ({}));
+    accounts = Array.isArray(body && body.items) ? body.items : [];
+  }
+  if (!Array.isArray(accounts) || accounts.some((account) => !exactCalendarAccount(uid, account))) {
+    throw new Error("provider_ownership");
+  }
+  return accounts.filter((account) => account.status !== "EXPIRED");
+}
+
 function validRedirectUrl(value) {
   if (typeof value !== "string" || /[\r\n]/.test(value)) return false;
   try {
@@ -222,9 +282,8 @@ function validRedirectUrl(value) {
 }
 
 async function handleStatus(scope, res, provider) {
-  const status = await (provider.composioCalendarStatusImpl || panelApi().composioCalendarStatus)(scope, provider);
-  if (!allowedStatus(status)) throw new Error("calendar_status_unavailable");
-  if (status === "ACTIVE") return sendJson(res, 200, { connected: true, state: "connected" });
+  const active = await resolveActiveWebCalendar(scope.uid, provider);
+  if (active) return sendJson(res, 200, { connected: true, state: "connected" });
   return sendJson(res, 200, { connected: false, state: "action_required" });
 }
 
@@ -242,29 +301,39 @@ async function startCalendar(scope, req, res, opts, origin) {
   }
 
   const provider = providerOptions(opts, origin);
-  const currentStatus = await (provider.composioCalendarStatusImpl || panelApi().composioCalendarStatus)(scope, provider);
-  if (!allowedStatus(currentStatus)) throw new Error("calendar_status_unavailable");
-  if (currentStatus === "ACTIVE") return sendJson(res, 200, { connected: true, state: "connected" });
+  const binding = await readCalendarBinding(scope.uid, provider);
+  const current = await verifyCalendarBinding(scope.uid, binding, provider);
+  if (current && current.status === "ACTIVE") {
+    return sendJson(res, 200, { connected: true, state: "connected" });
+  }
+  if (current && current.status === "DISABLED") {
+    if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
+      return sendJson(res, 403, { error: "unauthorized" });
+    }
+    const resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, { ...provider, connectedAccountId: current.accountId });
+    if (resumed && (resumed.state === "connected" || resumed.connected === true)) {
+      await persistCalendarBinding(scope.uid, current.accountId, provider, binding);
+      return sendJson(res, 200, { connected: true, state: "connected" });
+    }
+  }
 
-  if (currentStatus === "DISABLED") {
-    const binding = await readCalendarBinding(scope.uid, provider);
-    const accountId = String(binding && binding.calendar_connected_account_id || "");
-    if (binding && binding.calendar_provider === "composio_gcal" && ACCOUNT_ID_RE.test(accountId)) {
+  const activeAccounts = (await listCalendarAccounts(scope.uid, provider)).filter((account) =>
+    account.status === "ACTIVE" && account.is_disabled !== true
+      && (account.enabled === undefined || account.enabled === true));
+  if (activeAccounts.length > 1) throw new Error("provider_ambiguous");
+  if (activeAccounts.length === 1) {
+    const accountId = String(activeAccounts[0].id || "");
+    if (!ACCOUNT_ID_RE.test(accountId)) throw new Error("provider_unavailable");
+    if (await (provider.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(scope, accountId, provider) === "ACTIVE") {
       if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
         return sendJson(res, 403, { error: "unauthorized" });
       }
-      const accountStatus = await (provider.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(scope, accountId, provider);
-      if (accountStatus === "ACTIVE") return sendJson(res, 200, { connected: true, state: "connected" });
-      if (accountStatus === "DISABLED") {
-        if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
-          return sendJson(res, 403, { error: "unauthorized" });
-        }
-        const resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, { ...provider, connectedAccountId: accountId });
-        if (resumed && (resumed.state === "connected" || resumed.connected === true)) {
-          await persistCalendarBinding(scope.uid, accountId, provider);
-          return sendJson(res, 200, { connected: true, state: "connected" });
-        }
+      const latestBinding = await readCalendarBinding(scope.uid, provider);
+      if (!calendarMarkerUnchanged(binding, latestBinding, scope.uid)) {
+        return sendJson(res, 200, { connected: false, state: "action_required" });
       }
+      await persistCalendarBinding(scope.uid, accountId, provider, binding);
+      return sendJson(res, 200, { connected: true, state: "connected" });
     }
   }
 
@@ -362,5 +431,6 @@ module.exports = {
   STATUS_PATH,
   createWebCalendarStore,
   assertWebUserUnbound,
+  resolveActiveWebCalendar,
   handleWebCalendarRequest,
 };

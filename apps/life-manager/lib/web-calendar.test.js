@@ -54,43 +54,127 @@ function options(overrides = {}) {
     env: { COMPOSIO_API_KEY: "provider-key", COMPOSIO_GCAL_AUTH_CONFIG: "google-calendar" },
     resolveWebUserImpl: async () => ({ uid: UID, subject: "subject", email: "user@example.test", csrf: "csrf-token" }),
     assertWebUserUnboundImpl: async () => true,
+    fetchImpl: async () => ({ ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null }] }),
     readJsonImpl: async (req) => req.testBody === undefined ? {} : req.testBody,
+    composioCalendarAccountsImpl: async () => [],
     ...overrides,
   };
 }
 
-test("calendar status requires one exact ACTIVE account for verified uid", async () => {
-  const scopes = [];
-  const status = await call("GET", "/api/lm-web/calendar/status", options({
-    composioCalendarStatusImpl: async (scope) => { scopes.push(scope); return "ACTIVE"; },
+test("calendar status is connected only for the persisted exact ACTIVE account", async () => {
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" };
+  let writes = 0, accountReads = 0, aggregateReads = 0;
+  const fetchImpl = async (_url, init = {}) => {
+    if (init.method === "PATCH") writes++;
+    return { ok: true, json: async () => [{ ...row }] };
+  };
+  const connected = await call("GET", "/api/lm-web/calendar/status", options({
+    fetchImpl,
+    composioCalendarStatusImpl: async () => { aggregateReads++; return "ACTIVE"; },
+    composioCalendarAccountStatusImpl: async (scope, id) => {
+      accountReads++;
+      assert.deepEqual(scope, { uid: UID });
+      assert.equal(id, "ca-selected");
+      return "ACTIVE";
+    },
   }));
-  assert.equal(status.status, 200);
-  assert.deepEqual(JSON.parse(status.body), { connected: true, state: "connected" });
-  assert.deepEqual(scopes, [{ uid: UID }]);
+  assert.equal(connected.status, 200);
+  assert.deepEqual(JSON.parse(connected.body), { connected: true, state: "connected" });
+  assert.deepEqual([writes, accountReads, aggregateReads], [0, 1, 0]);
+
+  const unbound = await call("GET", "/api/lm-web/calendar/status", options({
+    fetchImpl: async () => ({ ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null }] }),
+    composioCalendarStatusImpl: async () => "ACTIVE",
+  }));
+  assert.equal(unbound.status, 200);
+  assert.deepEqual(JSON.parse(unbound.body), { connected: false, state: "action_required" });
+
+  let reads = 0;
+  const rebound = await call("GET", "/api/lm-web/calendar/status", options({
+    fetchImpl: async () => ({ ok: true, json: async () => [
+      reads++ === 0 ? { ...row } : { ...row, calendar_connected_account_id: "ca-rebound" },
+    ] }),
+    composioCalendarAccountStatusImpl: async () => "ACTIVE",
+  }));
+  assert.deepEqual(JSON.parse(rebound.body), { connected: false, state: "action_required" });
+  assert.equal(reads, 2, "status rereads the marker after the exact provider check");
 
   for (const statusValue of ["DISABLED", "MISSING"]) {
-    let writes = 0, eventReads = 0;
     const response = await call("GET", "/api/lm-web/calendar/status", options({
-      composioCalendarStatusImpl: async () => statusValue,
-      fetchImpl: async () => { writes++; throw new Error("status must be read-only"); },
-      calendarEventsImpl: async () => { eventReads++; },
+      fetchImpl,
+      composioCalendarAccountStatusImpl: async () => statusValue,
     }));
     assert.equal(response.status, 200);
     assert.deepEqual(JSON.parse(response.body), { connected: false, state: "action_required" });
-    assert.equal(writes, 0);
-    assert.equal(eventReads, 0);
   }
   for (const failure of [new Error("provider_ambiguous"), new Error("provider_ownership")]) {
-    let writes = 0, eventReads = 0;
+    let forbiddenWrites = 0;
     const response = await call("GET", "/api/lm-web/calendar/status", options({
-      composioCalendarStatusImpl: async () => { throw failure; },
-      fetchImpl: async () => { writes++; throw new Error("status must be read-only"); },
-      calendarEventsImpl: async () => { eventReads++; },
+      fetchImpl: async (_url, init = {}) => {
+        if (init.method === "PATCH") forbiddenWrites++;
+        return { ok: true, json: async () => [{ ...row }] };
+      },
+      composioCalendarAccountStatusImpl: async () => { throw failure; },
     }));
     assert.equal(response.status, 502, "ambiguous and foreign accounts fail closed");
-    assert.equal(writes, 0);
-    assert.equal(eventReads, 0);
+    assert.equal(forbiddenWrites, 0, "GET status must remain read-only");
   }
+});
+
+test("Calendar start recovers one exact ACTIVE account after callback binding was interrupted", async () => {
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
+  const methods = [], oauth = [];
+  const response = await call("POST", "/api/lm-web/calendar/start", options({
+    fetchImpl: async (_url, init = {}) => {
+      const method = init.method || "GET";
+      methods.push(method);
+      if (method === "PATCH") Object.assign(row, JSON.parse(init.body));
+      return { ok: true, json: async () => [{ ...row }] };
+    },
+    composioCalendarAccountsImpl: async (scope) => {
+      assert.deepEqual(scope, { uid: UID });
+      return [{ id: "ca-recovered", user_id: UID, toolkit: { slug: "googlecalendar" }, status: "ACTIVE", is_disabled: false }];
+    },
+    composioCalendarAccountStatusImpl: async (scope, id) => {
+      assert.deepEqual(scope, { uid: UID });
+      assert.equal(id, "ca-recovered");
+      return "ACTIVE";
+    },
+    composioCalendarStatusImpl: async () => { throw new Error("recovery must inspect account rows"); },
+    webCalendarStore: {
+      createWebOAuthState: async () => { oauth.push("create"); return true; },
+      attachWebOAuthAccount: async () => { oauth.push("attach"); return true; },
+    },
+    startCalendarOAuthImpl: async () => { oauth.push("oauth"); throw new Error("recovered account must skip OAuth"); },
+  }), { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { uid: OTHER_UID, connectedAccountId: "ca-client" } });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), { connected: true, state: "connected" });
+  assert.equal(row.calendar_provider, "composio_gcal");
+  assert.equal(row.calendar_connected_account_id, "ca-recovered");
+  assert.deepEqual(methods.filter((method) => method === "PATCH"), ["PATCH"]);
+  assert.deepEqual(oauth, []);
+});
+
+test("Calendar start does not bind ambiguous ACTIVE accounts", async () => {
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
+  let writes = 0, oauth = 0;
+  const response = await call("POST", "/api/lm-web/calendar/start", options({
+    fetchImpl: async (_url, init = {}) => {
+      if (init.method === "PATCH") writes++;
+      return { ok: true, json: async () => [{ ...row }] };
+    },
+    composioCalendarAccountsImpl: async () => [
+      { id: "ca-one", user_id: UID, toolkit: { slug: "googlecalendar" }, status: "ACTIVE" },
+      { id: "ca-two", user_id: UID, toolkit: { slug: "googlecalendar" }, status: "ACTIVE" },
+    ],
+    webCalendarStore: { createWebOAuthState: async () => { oauth++; return true; } },
+    startCalendarOAuthImpl: async () => { oauth++; return { connectedAccountId: "ca-new", redirectUrl: "https://accounts.example/connect" }; },
+  }), { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} });
+  assert.equal(response.status, 502);
+  assert.equal(writes, 0);
+  assert.equal(oauth, 0);
+  assert.equal(row.calendar_connected_account_id, null);
 });
 
 test("Web eligibility rereads the exact row and rejects a later Telegram binding", async () => {
@@ -104,7 +188,9 @@ test("Web eligibility rereads the exact row and rejects a later Telegram binding
   assert.equal(await assertWebUserUnbound(UID, opts), true);
   opts.fetchImpl = async (url) => { queries.push(String(url)); return row("101"); };
   assert.equal(await assertWebUserUnbound(UID, opts), false);
-  assert.equal(queries.length, 2);
+  opts.fetchImpl = async (url) => { queries.push(String(url)); return { ok: true, json: async () => [{ uid: UID }] }; };
+  assert.equal(await assertWebUserUnbound(UID, opts), false);
+  assert.equal(queries.length, 3);
   assert.ok(queries.every((url) => url.includes(`uid=eq.${UID}`)));
   assert.ok(queries.every((url) => url.includes("telegram_chat_id=is.null")));
 });
@@ -283,7 +369,7 @@ test("Calendar start resumes only the uid's selected account after exact ACTIVE 
   assert.equal(response.status, 200);
   assert.deepEqual(JSON.parse(response.body), { connected: true, state: "connected" });
   assert.deepEqual([accountStatus, resumes, oauth], [1, 1, 0]);
-  assert.deepEqual(writes.map(([method]) => method), ["GET", "PATCH", "GET"]);
+  assert.deepEqual(writes.map(([method]) => method), ["GET", "GET", "PATCH", "GET"]);
 });
 
 test("callback rejects foreign or inactive connected account", async () => {
@@ -344,7 +430,7 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
     },
     fetchImpl: async (url, init = {}) => {
       calls.push([init.method || "GET", String(url), init.body && JSON.parse(init.body)]);
-      if (init.method === "PATCH") return { ok: true, json: async () => [{ uid: UID, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
+      if (init.method === "PATCH") return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
       return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
     },
     calendarEventsImpl: async () => { throw new Error("callback must not read Calendar events"); },
@@ -373,7 +459,7 @@ test("callback replay does not repeat provider read or lm_users mutation", async
     fetchImpl: async (_url, init = {}) => {
       writes++;
       return { ok: true, json: async () => init.method === "PATCH"
-        ? [{ uid: UID, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }]
+        ? [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }]
         : [{ uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" }] };
     },
   });

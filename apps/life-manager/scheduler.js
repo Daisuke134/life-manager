@@ -1213,6 +1213,7 @@ function startScheduler() {
 
 // ── Travel auto-fill (every 30 min) — keep today+7d filled with [Travel] blocks ─────────────────
 const TRAVEL_TICK_MS = 30 * 60 * 1000;
+const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function travelUserOnce(u, deps = {}) {
   if (u && u.daily_automation_enabled === false) return;
@@ -1224,6 +1225,18 @@ async function travelUserOnce(u, deps = {}) {
   const supaUrl = deps.supaUrl !== undefined ? deps.supaUrl : configuredSupa.url;
   const supaKey = deps.supaKey !== undefined ? deps.supaKey : configuredSupa.key;
   try {
+    if (WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""))) {
+      if (u.telegram_chat_id === null) {
+        const resolveActive = deps.resolveActiveWebCalendarImpl
+          || require("./lib/web-calendar.js").resolveActiveWebCalendar;
+        const active = await resolveActive(u.uid, {
+          supaUrl, supaKey, composioKey: apiKey, fetchImpl: deps.fetchImpl, env: deps.env,
+        });
+        if (!active) return;
+      } else if (u.telegram_chat_id === undefined) {
+        return;
+      }
+    }
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
       timezone: u.call_time_zone,
