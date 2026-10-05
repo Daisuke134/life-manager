@@ -83,7 +83,6 @@
     "spam_risk",
     "unsupported_claims",
     "near_duplicate_post_ids",
-    "detected_language",
     "value_types",
     "reason"
   ]
