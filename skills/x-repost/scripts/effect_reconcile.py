@@ -459,21 +459,42 @@ def build_proof(occurrence_id: str, runtime_events: list[dict[str, Any]],
 def _postiz_key(credentials_path: Path | None = None) -> str:
     if "POSTIZ_API_KEY" in os.environ:
         return os.environ["POSTIZ_API_KEY"].strip()
-    path = credentials_path or Path.home() / ".local/share/anicca/credentials.json"
+    home = Path.home()
+    path = credentials_path or home / ".local/share/anicca/credentials.json"
+    home = Path(os.path.abspath(home))
+    path = Path(os.path.abspath(path))
+    try:
+        path.relative_to(home)
+    except ValueError:
+        return ""
     nofollow = getattr(os, "O_NOFOLLOW", None)
     directory_flag = getattr(os, "O_DIRECTORY", None)
     if nofollow is None or directory_flag is None:
         return ""
-    directory_fd = None
+    root_fd = None
+    directory_fds: list[int] = []
     file_fd = None
     try:
-        directory_fd = os.open(path.parent, os.O_RDONLY | directory_flag | nofollow)
-        directory_stat = os.fstat(directory_fd)
-        if (not stat.S_ISDIR(directory_stat.st_mode)
-                or directory_stat.st_uid != os.getuid()
-                or stat.S_IMODE(directory_stat.st_mode) != 0o700):
+        root_fd = os.open(os.sep, os.O_RDONLY | directory_flag | nofollow)
+        current_dir_fd = root_fd
+        home_component_index = len(home.parts) - 1
+        for index, component in enumerate(path.parts[1:-1], start=1):
+            directory_fd = os.open(
+                component, os.O_RDONLY | directory_flag | nofollow,
+                dir_fd=current_dir_fd,
+            )
+            directory_fds.append(directory_fd)
+            current_dir_fd = directory_fd
+            directory_stat = os.fstat(directory_fd)
+            if (not stat.S_ISDIR(directory_stat.st_mode)
+                    or (index >= home_component_index
+                        and directory_stat.st_uid != os.getuid())):
+                return ""
+        private_directory_stat = os.fstat(current_dir_fd)
+        if (private_directory_stat.st_uid != os.getuid()
+                or stat.S_IMODE(private_directory_stat.st_mode) != 0o700):
             return ""
-        file_fd = os.open(path.name, os.O_RDONLY | nofollow, dir_fd=directory_fd)
+        file_fd = os.open(path.name, os.O_RDONLY | nofollow, dir_fd=current_dir_fd)
         file_stat = os.fstat(file_fd)
         if (not stat.S_ISREG(file_stat.st_mode) or file_stat.st_uid != os.getuid()
                 or stat.S_IMODE(file_stat.st_mode) != 0o600):
@@ -486,8 +507,10 @@ def _postiz_key(credentials_path: Path | None = None) -> str:
     finally:
         if file_fd is not None:
             os.close(file_fd)
-        if directory_fd is not None:
+        for directory_fd in reversed(directory_fds):
             os.close(directory_fd)
+        if root_fd is not None:
+            os.close(root_fd)
     rows = value.get("credentials") if isinstance(value, dict) else None
     if not isinstance(rows, list):
         return ""

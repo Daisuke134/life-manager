@@ -313,7 +313,7 @@ class XPostTests(unittest.TestCase):
             return Response()
 
         with tempfile.TemporaryDirectory() as td:
-            home = Path(td)
+            home = Path(td).resolve()
             private_dir = home / ".local" / "share" / "anicca"
             private_dir.mkdir(parents=True)
             credentials = private_dir / "credentials.json"
@@ -336,7 +336,7 @@ class XPostTests(unittest.TestCase):
 
     def test_postiz_publish_rejects_non_private_credentials_before_request(self) -> None:
         with tempfile.TemporaryDirectory() as td:
-            home = Path(td)
+            home = Path(td).resolve()
             private_dir = home / ".local" / "share" / "anicca"
             private_dir.mkdir(parents=True)
             credentials = private_dir / "credentials.json"
@@ -358,9 +358,37 @@ class XPostTests(unittest.TestCase):
                     )
         provider_request.assert_not_called()
 
+    def test_postiz_ssot_rejects_symlinked_ancestor_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            home = root / "home"
+            home.mkdir()
+            redirected = root / "redirected"
+            private_dir = redirected / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "ssot-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            (home / ".local").symlink_to(redirected, target_is_directory=True)
+            with patch.object(Path, "home", return_value=home), \
+                    patch.dict(os.environ, {
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen") as provider_request:
+                with self.assertRaisesRegex(
+                    MODULE.PostizPreSubmitError, "postiz_configuration_missing",
+                ):
+                    MODULE.postiz_publish(
+                        "Useful comparison", "quote", "https://x.com/source/status/123"
+                    )
+        provider_request.assert_not_called()
+
     def test_empty_postiz_environment_value_does_not_fall_back_to_ssot(self) -> None:
         with tempfile.TemporaryDirectory() as td:
-            home = Path(td)
+            home = Path(td).resolve()
             private_dir = home / ".local" / "share" / "anicca"
             private_dir.mkdir(parents=True)
             credentials = private_dir / "credentials.json"
@@ -401,7 +429,7 @@ class XPostTests(unittest.TestCase):
             return Response()
 
         with tempfile.TemporaryDirectory() as td:
-            home = Path(td)
+            home = Path(td).resolve()
             private_dir = home / ".local" / "share" / "anicca"
             private_dir.mkdir(parents=True)
             credentials = private_dir / "credentials.json"
@@ -415,19 +443,20 @@ class XPostTests(unittest.TestCase):
                 "service": "postiz", "api_key": "replacement-test-secret",
             }]}), encoding="utf-8")
             replacement.chmod(0o600)
-            original_lstat = Path.lstat
+            original_open = os.open
             swapped = [False]
 
-            def replace_path_after_lstat(path):
-                result = original_lstat(path)
-                if path == credentials and not swapped[0]:
+            def replace_path_after_open(path, flags, *args, **kwargs):
+                descriptor = original_open(path, flags, *args, **kwargs)
+                if (path == "credentials.json" and kwargs.get("dir_fd") is not None
+                        and not swapped[0]):
                     credentials.unlink()
                     credentials.symlink_to(replacement)
                     swapped[0] = True
-                return result
+                return descriptor
 
             with patch.object(Path, "home", return_value=home), \
-                    patch.object(Path, "lstat", new=replace_path_after_lstat), \
+                    patch.object(os, "open", new=replace_path_after_open), \
                     patch.dict(os.environ, {
                         "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
                     }, clear=True), \
@@ -436,6 +465,7 @@ class XPostTests(unittest.TestCase):
                     "Useful comparison", "quote", "https://x.com/source/status/123"
                 )
 
+        self.assertTrue(swapped[0])
         self.assertEqual(captured["authorization"], "original-test-secret")
 
     def test_postiz_response_without_submission_id_is_recorded_as_unknown(self) -> None:
