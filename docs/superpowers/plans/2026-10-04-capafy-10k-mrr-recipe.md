@@ -355,16 +355,16 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | # | 段階 | Task | 完了条件（公式 readback） | 状態 |
 |---|---|---|---|---|
-| 1 | 1 取りこぼしを止める | A1 日次成績表 | 23:50 の daily_close で成績表が Telegram に届く | source+本番 ✅、Telegram 着信は未確認 |
+| 1 | 1 取りこぼしを止める | A1 日次成績表 | 23:50 の daily_close で成績表が Telegram に届く | ✅ source+本番。10/05 01:32 に daily snapshot 初回書き込み（`capafy-scoreboard-daily.jsonl`）。Telegram 着信は未目視 |
 | 2 | 1 | B2 却下理由 / 重複の関門 / C1・C2 勝ち棚 | 却下 2 本が under_review → online、次の新規が上位棚 | source ✅、自然 run 待ち |
-| 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | source ✅（35 passed）、本番は 20:27 時点 `1c21656e` のまま＝反映待ち |
-| 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | source ✅（259 passed、本番データで 3 本の不一致を検出）、本番反映待ち |
-| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | 工場の自然 run 待ち（審査枠 5/5、空き次第 売上順に Hook Lab → TikTok → YouTube） |
-| 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順番待ち |
+| 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | ✅ 本番（release `1b3191a7` 以降、現在 `82d31995`） |
+| 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | ✅ 本番。最初の値上げ提出で `PRICING_MATCH` を確認する |
+| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | **枠待ち**: 審査枠 5/5 が 10/04 16:26 から不動。#6594 で 2 本を RETIRED.json → release 反映後にコンソールで取り下げて 2 枠空ける |
+| 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順は売上順（#6566）だが枠 5/5 で未実行 |
 | 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | source ✅ #6572 `57c179fc`（見本・FAQ・タグ5、題名は不変）。値上げ更新と同時に出る＝枠待ち |
 | 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | ✅ 公開ページで新 bio を目視確認（2026-10-04）。残り: リンク欄（タイトル必須）、主力をプロフィール上位に出す方法 |
 | 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。値上げ更新と同時に出る |
-| 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | 未着手 |
+| 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | ✅ 本番（#6574）。変更ログ `capafy-listing-changes.jsonl` への記入は値上げが online になった日から |
 | 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | ✅ source+本番（#6575 `26dd2de7`）: 親は 30日注文≥3 かつ売上>0、子 2 本以上が親未満なら停止。本番データ: Hook Lab=停止、TikTok/YouTube=派生候補 1 件ずつ |
 | 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 一部 ✅: 未出品 Hook Lab 派生 5 本を catalog-hold へ（#6576）、売上 0 の学術・Humanizer 12 本を RETIRED.json（#6577、工場の自動再出品から除外）→ 管理画面で公開停止、Capafy API で 12 本 offline を確認。残り: その他の売上 0 agent（書き直し 1 回 → 30 日） |
 | 13 | 3 | 新規は上位棚（分析・金融・動画）× DeepSeek × 市場価格（E1c） | 新規の 30日注文 > 0 | 工場で継続 |
@@ -378,7 +378,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
 **順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
-**現在のカーソル:** #5・#7・#9 は同じ更新で枠待ち。手を動かすのは #10（前後比較）→ #11 以降。
+**現在のカーソル（2026-10-05 10:0x）:** #5（審査枠を空ける: release 反映→2 本取り下げ）。並行: TikTok/YouTube のカード改善（#7 の横展開、値上げ更新に同梱されるので枠が空く前に入れる）。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -415,4 +415,10 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 - **本番反映**: `capafy-loop-daily`・`capafy-goal-monitor`・`-daily-close`・`-hourly` を release `20261004T212450-1b3191a7`（#6566〜#6578 全部入り）へ apply、4 つとも plist と launchctl の program が一致。release 内に RETIRED.json と hook-grader を確認。
 - **C4 公開停止（12 本）**: 確認画面「この Agent を marketplace から取り下げますか？ marketplace から削除されます。既存の顧客は現在の利用期間が終了するまで引き続き利用できます。」（削除・60日通知・取り消し不可の文言なし、`/tmp/capafy_unpublish_shots/05_unpublish_dialog.png` を目視）。1 本で試してから残り 11 本。Capafy API `publish-list`: 退役 12 本すべて `offline`、全体 online 35 / under_review 3 / review_rejected 2 / offline 12。再公開ボタンは画面上で未確認（データ・版履歴は残る）。工場は RETIRED.json で再出品しない。
 - 2026-10-04 22:2x JST **D3 外部宣伝 再開**: 停止原因は fence でも認証でもなく、anicca-products の main に 10/02 18:08 の直接 push（081eeb2 #417）が入って以降、`capafy_free_article.py` の push が毎回 non-fast-forward で拒否（push 前の同期が無い）。記事は毎回生成されていたが未公開、X は「公開 URL 無し」で skip。対処: 未 push の 12 記事コミット（全て capafy-distribute、うち公開停止系・却下中 agent の宣伝を含む）を local branch `backup/capafy-distribute-unpushed-20261004` に退避して共有 checkout を origin/main に合わせた（未コミット 0 件を確認後）。#6580 push 前に `git pull --rebase`（再現テスト: 修正前 fail・後 pass）、#6581 宣伝先を「online かつ 30日利益 > 0」に限定（実データ: hook-lab / slide-maker / tiktok-script-pro / youtube-script-writer、該当 0 なら従来の全巡回）。release `1a20a537` を capafy-distribute-daily・capafy-loop-daily・goal-monitor 3 本へ apply（plist/launchctl 一致）。22:15 の自然 run: https://aniccaai.com/blog/capafy-youtube-script-writer-2026-10-04-h21 = HTTP 200、`ct=capafy-distribute-youtube-script-writer` 付きリンクあり、X は Postiz `published`（post_id cmutupbyg02i3l60ytpqw30vi、receipt の x 欄は pending_wrapper のまま）。Writer article-daily も同じ checkout・同じ push 実装（`self_owned_article.py:601,699`）のため codex-money-printer へ共有済み。
+- 2026-10-05 09:4x〜10:0x JST **朝の実測と修正**:
+  - 審査枠 5/5 が 10/04 16:26 から不動（under_review: 6273179459 Ad Hook Lab / 7599205243 Academic Research Proposal Humanizer / 7631594519 Talent Review Deck Writer、review_rejected: 4973250899 Customer Renewal Evidence Brief / 9563867391 Marketing Strategist）。工場は 09:16 も起動しているが CAP_FULL で提出なし。値上げ（#5）・カード（#7）・評価依頼（#9）・Marketing Strategist 出し直し（#6）がすべてこの枠待ち。
+  - #6594 `1ab27cff`: 4973250899（却下・売上 0）と 7599205243（10/04 退役の学術系と同類）を RETIRED.json＋catalog-hold。stub-retry テストが本物の agent/catalog に依存していたので、退役していない Earnings Call Brief と空の退役パスに切り替え（autopublish 262 passed）。release 反映後にコンソールで 2 本を取り下げる（先に取り下げると旧 release の工場が recover_delisted で出し直す）。
+  - #6596 `8ab5a798`: 工場の指示文（`capafy-loop-daily.sh` の CAP_FULL オフライン生成と通常パス）が「Hook Lab 派生（podcasts, newsletters…）＋週月の無料トライアル」を指示していた。10/04 22:26 に main checkout を `capafy/podcast-clip-hook-lab-offline-20261005` へ切り替え podcast-clip-hook-lab を生成したのはこれ。BEST_PRACTICES §3 の「勝者はほぼ全員トライアル付き」は誤り（2026-10-04 sweep: サブスク売上上位 10 本中トライアル 1 本、上位 20 本中 5 本）→ 全プラン No Free Trial＋年プラン、§13 の Hook Lab 派生は停止と明記、指示文は `capafy-candidate-opportunities.json` から作る。Ad/Reels/Shorts Hook Lab の「無料トライアル」表示の出どころもこれ。
+  - 毎時集計（capafy-goal-monitor-hourly）が 09:09 に `host_admission_deferred:resource_control_busy`、analytics は 07:25 のまま。診断: 毎時の起動が重なり共有 `host-admission/resources/control.lock` を同時に取り合った一時競合（保持 PID は全て生存、stale lease なし、直近 12h で 6 loop に 9 回）。spec `2026-09-15-life-manager-agent-architecture-refinement.md` も「次の自然 wake で回復」と規定 → 手でロックを消さない。10:07 の起動で回復するか確認中。
+  - release-reconciler: 前 release `82d31995` の fleet-apply で Capafy と無関係の 3 owner（article-learn-whitelist・pm-live-trade は rc=124、earn-watch rc=1）が失敗し backoff（09:26 に期限切れ）。promotion hold は無し。00:11 以降の main 変更は #6594・#6596 の 2 本のみで、release 作成待ち。
 
