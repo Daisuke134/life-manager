@@ -105,6 +105,41 @@ def test_compute_market_winners_shapes_fields_from_successful_sellers_only():
     assert by_id["Agent dl"]["sold"] == 500
 
 
+def test_fetch_category_agents_paginates_until_empty_page():
+    """Measured gap (2026-10-05): CloneCut (14.4k sold, #1 on the capafy.ai Trending tab) was
+    absent from the whole 843-agent keyword sweep because its title/tags never matched any of
+    the ~52 DEFAULT_QUERIES. The public, paginated /public/category/hot endpoint enumerates
+    every agent in a category regardless of keyword match -- fetch_category_agents must keep
+    pulling pages until the API returns an empty page, not stop after page 1."""
+    module = load_module()
+    pages = {
+        1: [agent("a", 100), agent("b", 50)],
+        2: [agent("c", 30)],
+        3: [],  # empty page -> stop
+    }
+    calls = []
+
+    def fake_fetch_page(category_id, page):
+        calls.append((category_id, page))
+        return pages.get(page, [])
+
+    result = module.fetch_category_agents(5, fetch_page=fake_fetch_page)
+
+    assert [a["agentId"] for a in result] == ["a", "b", "c"]
+    assert calls == [(5, 1), (5, 2), (5, 3)]
+
+
+def test_fetch_category_agents_respects_max_pages_safety_cap():
+    module = load_module()
+
+    def fake_fetch_page(category_id, page):
+        return [agent(f"x{page}", 1)]  # never-empty page -> would loop forever
+
+    result = module.fetch_category_agents(5, fetch_page=fake_fetch_page, max_pages=3)
+
+    assert len(result) == 3
+
+
 def test_write_market_winners_roundtrips_to_tmp_path(tmp_path):
     module = load_module()
     winners = [{"name": "Agent hi", "developer": "TopDev", "category": 5,
