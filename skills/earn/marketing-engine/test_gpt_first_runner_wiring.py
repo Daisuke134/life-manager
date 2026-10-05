@@ -19,10 +19,10 @@ CONSUMERS = (
 EXPECTED_TASK_CLASSES = {
     # capafy drives the Capafy CP1/CP2/CP3 publish UI; a measured read-only
     # pass is already 229s, so 180s (tool-agent) SIGKILLed it daily (X23).
-    ROOT / "self" / "capafy-loop" / "capafy-loop-daily.sh": "browser-lane-agent",
+    ROOT / "self" / "capafy-loop" / "capafy-loop-daily.sh": "application-lane-agent",
     ROOT / "earn" / "capafy-marketing" / "capafy-ig-marketing-daily.sh": "marketing-agent",
     ENGINE / "spawn-marketing-loop.sh": "repeatable-agent",
-    ROOT / "self" / "self-fix.sh": "high-value-agent",
+    ROOT / "self" / "self-fix.sh": "self-fix-code-agent",
 }
 
 EXPECTED_LOOPS = {
@@ -128,6 +128,46 @@ class GptFirstRunnerWiringTest(unittest.TestCase):
             self.assertEqual(args[args.index("--task-class") + 1], "marketing-agent")
             self.assertEqual(args[args.index("--loop") + 1], "larry-marketing")
             self.assertNotIn("--model", args)
+
+    def test_shared_runner_accepts_self_fix_code_agent_and_forwards_escalation_reason(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            args_file = root / "args.json"
+            fake_runner = root / "agent-runner"
+            fake_runner.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json, os, pathlib, sys\n"
+                "args = sys.argv[1:]\n"
+                "pathlib.Path(os.environ['ARGS_FILE']).write_text(json.dumps(args))\n"
+                "print('fixture runner')\n",
+                encoding="utf-8",
+            )
+            fake_runner.chmod(0o755)
+            completed = subprocess.run(
+                [
+                    "bash", str(RUN_AGENT), "--task-class", "self-fix-code-agent",
+                    "--escalation-reason", "SelfFix code repair",
+                    "--evidence-dir", str(root / "evidence"),
+                    "--task-label", "self-fix-fixture", "--loop", "self-fix-loop",
+                    "--workdir", str(root),
+                ],
+                input="Run one isolated SelfFix wrapper fixture.\n",
+                env={
+                    **os.environ,
+                    "AGENT_RUNNER_BIN": str(fake_runner),
+                    "ARGS_FILE": str(args_file),
+                },
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            args = json.loads(args_file.read_text(encoding="utf-8"))
+            self.assertEqual(args[args.index("--task-class") + 1], "self-fix-code-agent")
+            self.assertEqual(args[args.index("--escalation-reason") + 1], "SelfFix code repair")
+            self.assertEqual(args[args.index("--loop") + 1], "self-fix-loop")
+            self.assertNotIn("--model", args)
+            self.assertFalse(any("gpt-5.6" in arg or "claude" in arg for arg in args))
 
     def test_shared_output_schemas_are_strict_codex_contracts(self):
         for name in ("loop_pass.schema.json", "manifest_judgment.schema.json"):

@@ -5,7 +5,7 @@ export LIFE_MANAGER_REPO
 
 RUN_AGENT="$LIFE_MANAGER_REPO/skills/earn/marketing-engine/run_agent.sh"
 if [ "${AGENT_WIRING_PROBE_ONLY:-0}" = "1" ]; then
-  printf '{"task_class":"high-value-agent","runner":"%s"}\n' "$RUN_AGENT"
+  printf '{"task_class":"self-fix-code-agent","runner":"%s"}\n' "$RUN_AGENT"
   exit 0
 fi
 
@@ -161,10 +161,11 @@ printf -v NPM_CONFIG_CACHE_Q '%q' "$NPM_CONFIG_CACHE"
 printf -v NODE_COMPILE_CACHE_Q '%q' "$NODE_COMPILE_CACHE"
 printf -v TASK_LABEL_Q '%q' "self-fix-$LOOP"
 printf -v LOOP_Q '%q' "$LOOP"
+printf -v ESCALATION_REASON_Q '%q' "SelfFix code repair"
 printf -v PROMPT_FILE_Q '%q' "$PROMPT_FILE"
 printf -v LOG_Q '%q' "$LOG"
 tmux -S "$SOCK" new-session -d -s "$SESSION" \
-  "exec /usr/bin/env TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class high-value-agent --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
+  "exec /usr/bin/env TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class self-fix-code-agent --escalation-reason $ESCALATION_REASON_Q --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
 date +%s > "$STARTMARK"
-echo "$(date '+%F %T') self-fix[$LOOP] SPAWNED (high-value-agent): ${BLOCKER:0:90}" >> "$LOG"
-echo "self-fix[$LOOP] spawned (high-value-agent, detached). result→$RESULT log→$LOG evidence→$EVIDENCE_DIR"
+echo "$(date '+%F %T') self-fix[$LOOP] SPAWNED (self-fix-code-agent): ${BLOCKER:0:90}" >> "$LOG"
+echo "self-fix[$LOOP] spawned (self-fix-code-agent, detached). result→$RESULT log→$LOG evidence→$EVIDENCE_DIR"
