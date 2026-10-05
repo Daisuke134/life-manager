@@ -3102,3 +3102,5 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 ## Capafy の TODO 正本
 
 Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状態・現在のカーソル）は `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md` の「実行順」表を正本とする。Capafy の順序・状態はそちらだけで更新し、ここには書き写さない。
+
+Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画（売り場ごとの目標・週ごとの数字・OSS 公開条件）は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。Capafy の実行順・記録はこれまでどおり `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
