@@ -85,9 +85,9 @@ tone earns more first-hour views, refusing to move on fewer than three measured 
 
 - Second samples exist for 1 of 30 posts; the rest arrive as the sampling schedule comes round
 - Seven-day median against the previous seven days needs seven days
-- The scheduled digest remains held by one resource_effect_unknown Telegram occurrence because
-  exact message readback is unavailable; do not replay. Its missing adapter and evidence gate are
-  tracked in the unified SSOT under T5-G-4.
+- The scheduled digest remains held by an unresolved Telegram effect, and the English x-repost pass
+  has a separate claimed effect fence after FIFO admission wait. Its observed Postiz window is empty
+  but proof remains unverified; keep both fenced. Exact recovery gates → unified SSOT T5-G-4.
 - Original posts do not exist yet. Quoting alone gives nobody a reason to follow, which is what a
   zero-follower account needs most; the machinery (kind, strategy mix, evaluator) is already there
 - A Japanese-language sibling account has not been created

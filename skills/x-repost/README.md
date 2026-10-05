@@ -53,14 +53,17 @@ also remains `UNVERIFIED` until its owned article URL is confirmed.
 ## Host effect reconciliation
 
 The `x-repost` registry adapter closes one exact `effect_unknown` occurrence only after pairing all
-of its runtime execute/report attempts, matching the fence row's `queued_at` to the first attempt,
-and reading one unique evidence directory for each attempt. It waits until 15 minutes after the
-latest report, then reads the exact Postiz integration over the combined window. A post counts for
-the occurrence only when its published time falls inside one of those attempt windows; unrelated
-posts returned between attempts do not count. No-effect proof accepts only the known readback-safe
-releases `c16f437b93028ea5d94014a1fa32c091795cbee0`,
-`86fa863d4fe04ec0b5c44e8a2e513e55edaf2928`, and
-`88872a85cc652877f242ead444108a813084cfc9`, with exact readback-only evidence for every attempt.
+of its runtime execute/report attempts, verifying that the fence row's `queued_at` does not follow
+the first attempt, and reading one unique evidence directory for each attempt. FIFO admission wait
+may separate queue time from execution start; the exact occurrence/run pair anchors identity, while
+the Postiz window begins at actual execution. It waits until 15 minutes after the latest report,
+then reads the exact Postiz integration over the combined window. A post counts for the occurrence
+only when its published time falls inside one of those attempt windows; unrelated posts returned
+between attempts do not count. No-effect proof accepts only releases audited for this exact readback-only branch:
+`c16f437b93028ea5d94014a1fa32c091795cbee0`,
+`86fa863d4fe04ec0b5c44e8a2e513e55edaf2928`,
+`88872a85cc652877f242ead444108a813084cfc9`, and
+`4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`, with exact readback-only evidence for every attempt.
 Other releases can prove a positive effect only through the exact Postiz submission ID and X
 permalink in the matching pass evidence. Unsupported releases or transports without that receipt,
 missing or ambiguous evidence, unfinished Postiz listings, and out-of-window posts stay fenced. Old
