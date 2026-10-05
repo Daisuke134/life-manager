@@ -852,6 +852,33 @@
       "state_root": "~/.local/state/life-manager/line-sticker",
       "system_role": "shared"
     },
+    "line-sticker-factory-hourly": {
+      "priority": "revenue",
+      "resource_class": "browser",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 41
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
+      "browser_identity": "line-creators:dais",
+      "browser_target_owner": "line-sticker-factory-hourly",
+      "label": "ai.anicca.line-sticker-factory-hourly",
+      "system_role": "shared",
+      "log_root": "~/.local/state/life-manager/line-sticker/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 1800,
+      "state_root": "~/.local/state/life-manager/line-sticker"
+    },
     "capafy-goal-monitor-hourly": {
       "cadence": {
         "calendar_interval": {

@@ -43,8 +43,17 @@ def _fal(url: str, body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(url, data=data, headers={
         "Authorization": "Key " + os.environ["FAL_KEY"], "Content-Type": "application/json"})
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return json.load(response)
+    # Only reads (status/result) are retried; a retried submit could start a second paid job.
+    attempts = 4 if body is None else 1
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return json.load(response)
+        except (urllib.error.URLError, TimeoutError) as exc:
+            transient = not isinstance(exc, urllib.error.HTTPError) or exc.code >= 500
+            if not transient or attempt == attempts - 1:
+                raise
+            time.sleep(10 * (attempt + 1))
 
 
 def clips(set_dir: Path, plan: dict) -> None:
@@ -213,7 +222,7 @@ def apng(set_dir: Path, plan: dict) -> None:
 
 
 CHARACTER_ID = "char-hamster-001"
-IMAGE_PROVIDER = "openai:gpt-image-2"
+IMAGE_PROVIDER = "google:gemini-3.1-flash-image"
 
 
 def _sha256_file(path: Path) -> str:
