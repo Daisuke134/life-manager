@@ -832,6 +832,80 @@ test("disconnect retry resolves a previously disabled exact account and clears t
   assert.deepEqual(f.controlRpcCalls.map((item) => item.p_action), ["disconnect_begin", "disconnect_begin", "disconnect_finish"]);
 });
 
+test("a delayed Web disconnect readback cannot re-enable Calendar after a concurrent retry finishes", async () => {
+  const { composioCalendarAccountStatus, composioCalendarDisconnect } = require("./panel-api.js");
+  const f = fixture();
+  f.row.home_address = "自宅住所";
+  f.preference.daily_automation_enabled = true;
+  let firstReadbackStarted;
+  const readbackStarted = new Promise((resolve) => { firstReadbackStarted = resolve; });
+  let releaseReadback;
+  const readbackGate = new Promise((resolve) => { releaseReadback = resolve; });
+  const timeline = [];
+  let providerDisabled = false;
+  let accountReads = 0;
+  const serviceFetch = f.opts.fetchImpl;
+  f.opts.fetchImpl = async (input, init = {}) => {
+    const url = new URL(String(input));
+    if (url.hostname === "backend.composio.dev") {
+      const method = init.method || "GET";
+      if (url.pathname.endsWith("/status") && method === "PATCH") {
+        const enabled = JSON.parse(init.body || "{}").enabled;
+        timeline.push(`patch:${enabled}`);
+        providerDisabled = enabled === false;
+        if (providerDisabled) f.providerStatus = "DISABLED";
+        return { ok: true, status: 200, json: async () => ({}) };
+      }
+      if (url.pathname.includes("/connected_accounts/")) {
+        accountReads++;
+        if (accountReads === 2) {
+          firstReadbackStarted();
+          await readbackGate;
+          timeline.push("first_readback_unknown");
+          return { ok: true, status: 200, json: async () => ({
+            id: "ca-selected-123", user_id: UID, toolkit_slug: "googlecalendar",
+            status: "EXPIRED", is_disabled: false, enabled: true,
+          }) };
+        }
+        const account = providerDisabled ? {
+          id: "ca-selected-123", user_id: UID, toolkit_slug: "googlecalendar",
+          status: "INACTIVE", is_disabled: true, enabled: false,
+        } : {
+          id: "ca-selected-123", user_id: UID, toolkit_slug: "googlecalendar",
+          status: "ACTIVE", is_disabled: false, enabled: true,
+        };
+        timeline.push(`read:${accountReads}:${account.status}`);
+        return { ok: true, status: 200, json: async () => account };
+      }
+      throw new Error(`unexpected provider request: ${url.pathname}`);
+    }
+    if (url.pathname.endsWith("/rpc/control_lm_web_travel")
+      && JSON.parse(init.body || "{}").p_action === "disconnect_finish") timeline.push("disconnect_finish");
+    return serviceFetch(input, init);
+  };
+  f.opts.composioCalendarDisconnectImpl = composioCalendarDisconnect;
+  f.opts.composioCalendarAccountStatusImpl = composioCalendarAccountStatus;
+  const request = {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "disconnect" },
+  };
+
+  const firstDisconnect = call(f, "POST", "/api/lm-web/travel/control", request);
+  await readbackStarted;
+  const retryResponse = await call(f, "POST", "/api/lm-web/travel/control", request);
+  assert.equal(retryResponse.status, 200);
+  assert.equal(f.preference.calendar_disconnect_pending, false);
+  assert.equal(f.row.calendar_connected_account_id, null);
+
+  releaseReadback();
+  const firstResponse = await firstDisconnect;
+
+  assert.equal(firstResponse.status, 502);
+  const finishIndex = timeline.indexOf("disconnect_finish");
+  assert.ok(finishIndex >= 0);
+  assert.doesNotMatch(timeline.slice(finishIndex + 1).join(","), /patch:true/);
+  assert.deepEqual(timeline.filter((item) => item.startsWith("patch:")), ["patch:false"]);
+});
+
 test("disconnect before home setup seeds safe preferences without enabling automation", async () => {
   const f = fixture();
   f.preference = null;

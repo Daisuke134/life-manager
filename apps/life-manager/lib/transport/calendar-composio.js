@@ -5,7 +5,7 @@
 "use strict";
 const { recordCost } = require("../ledger.js");
 const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
-const { readWebTravelControlState } = require("../runtime-preferences.js");
+const { readWebTravelControlState, resolveSupabaseServiceConfig } = require("../runtime-preferences.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
 const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,8 +13,9 @@ const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[
 async function selectedAccountId(uid, apiKey, opts = {}) {
   if (opts.expectedCalendarAccountId != null) {
     const expected = String(opts.expectedCalendarAccountId);
-    const base = String(opts.supaUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
-    const key = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const config = resolveSupabaseServiceConfig(opts);
+    const base = config && config.supaUrl;
+    const key = config && config.supaKey;
     if (!base || !key || !/^[A-Za-z0-9_-]{3,128}$/.test(expected)) {
       throw new Error("calendar account binding changed");
     }
@@ -37,8 +38,9 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
     return expected;
   }
   if (typeof opts.resolveConnectedAccountId === "function") return opts.resolveConnectedAccountId(uid);
-  const base = opts.supaUrl || process.env.SUPABASE_URL;
-  const key = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const config = resolveSupabaseServiceConfig(opts);
+  const base = config && config.supaUrl;
+  const key = config && config.supaKey;
   if (!base || !key) return null;
   const r = await (opts.fetchImpl || fetch)(`${base}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=calendar_connected_account_id&limit=1`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },

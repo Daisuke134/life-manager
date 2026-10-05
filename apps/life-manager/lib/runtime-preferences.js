@@ -11,6 +11,12 @@
 const DEFAULTS = Object.freeze({ call_enabled: false, notifications_enabled: true, daily_automation_enabled: true });
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function resolveSupabaseServiceConfig(opts = {}) {
+  const supaUrl = String(opts.supaUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const supaKey = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return supaUrl && supaKey ? { supaUrl, supaKey } : null;
+}
+
 async function readRuntimePreferences(uid, opts = {}) {
   if (!uid || !opts.supaUrl || !opts.supaKey) return null;
   const response = await (opts.fetchImpl || fetch)(`${String(opts.supaUrl).replace(/\/$/, "")}/rest/v1/lm_panel_preferences?uid=eq.${encodeURIComponent(uid)}&select=call_enabled,notifications_enabled,daily_automation_enabled&limit=1`, {
@@ -23,9 +29,10 @@ async function readRuntimePreferences(uid, opts = {}) {
 }
 
 async function readWebTravelControlState(uid, opts = {}) {
-  if (!WEB_UID_RE.test(String(uid || "")) || !opts.supaUrl || !opts.supaKey) return null;
-  const base = String(opts.supaUrl).replace(/\/$/, "");
-  const headers = { apikey: opts.supaKey, Authorization: `Bearer ${opts.supaKey}` };
+  const config = resolveSupabaseServiceConfig(opts);
+  if (!WEB_UID_RE.test(String(uid || "")) || !config) return null;
+  const base = config.supaUrl;
+  const headers = { apikey: config.supaKey, Authorization: `Bearer ${config.supaKey}` };
   const fetchImpl = opts.fetchImpl || fetch;
   const userUrl = new URL(`${base}/rest/v1/lm_users`);
   userUrl.searchParams.set("uid", `eq.${uid}`);
@@ -64,4 +71,4 @@ async function readWebTravelControlState(uid, opts = {}) {
   };
 }
 
-module.exports = { DEFAULTS, readRuntimePreferences, readWebTravelControlState };
+module.exports = { DEFAULTS, readRuntimePreferences, readWebTravelControlState, resolveSupabaseServiceConfig };

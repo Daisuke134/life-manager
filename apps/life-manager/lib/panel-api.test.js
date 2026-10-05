@@ -18,9 +18,10 @@ let handlePanelOAuthCallback = async (_req, res) => {
 let createSupabaseCommandStore = null;
 let composioCalendarAccountStatus = null;
 let composioCalendarDisconnect = null;
+let composioCalendarStart = null;
 try {
   ({ handlePanelApiRequest, handlePanelOAuthCallback, createSupabaseCommandStore,
-    composioCalendarAccountStatus, composioCalendarDisconnect } = require("./panel-api.js"));
+    composioCalendarAccountStatus, composioCalendarDisconnect, composioCalendarStart } = require("./panel-api.js"));
 } catch (error) {
   if (error.code !== "MODULE_NOT_FOUND") throw error;
 }
@@ -75,6 +76,61 @@ test("Calendar disconnect rejects a same-owner response ID mismatch before any P
     },
   }), /provider_account_mismatch/);
   assert.equal(calls.filter((method) => method === "PATCH").length, 0);
+});
+
+test("Calendar start rejects a same-owner returned ID mismatch before any enable PATCH", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const calls = [];
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    fetchImpl: async (url, init = {}) => {
+      const method = init.method || "GET";
+      calls.push({ url: String(url), method, body: init.body && JSON.parse(init.body) });
+      return jsonResponse({
+        id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
+        status: "INACTIVE", is_disabled: true, enabled: false,
+      });
+    },
+  }), /provider_account_mismatch/);
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("uncertain Web Calendar disconnect skips rollback-enable while the default keeps Telegram rollback", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const active = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  };
+  const unknown = {
+    ...active, status: "EXPIRED",
+  };
+  async function disconnect(rollbackOnReadbackFailure) {
+    const patches = [];
+    let reads = 0;
+    await assert.rejects(() => composioCalendarDisconnect(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      ...(rollbackOnReadbackFailure === undefined ? {} : { rollbackOnReadbackFailure }),
+      fetchImpl: async (url, init = {}) => {
+        const parsed = new URL(String(url));
+        const method = init.method || "GET";
+        if (method === "PATCH") {
+          const body = JSON.parse(init.body || "{}");
+          patches.push(body.enabled);
+          return jsonResponse({});
+        }
+        reads++;
+        return jsonResponse(reads === 1 ? active : reads === 2 ? unknown : active);
+      },
+    }), /provider_readback_failed/);
+    return patches;
+  }
+
+  assert.deepEqual(await disconnect(false), [false]);
+  assert.deepEqual(await disconnect(undefined), [false, true]);
 });
 
 function makeFixture() {

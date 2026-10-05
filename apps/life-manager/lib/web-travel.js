@@ -364,7 +364,9 @@ async function controlWebTravel(uid, action, opts = {}) {
       await applyWebTravelControl(uid, accountId, "disconnect_begin", opts);
       paused = true;
       const disconnect = opts.composioCalendarDisconnectImpl || panelApi().composioCalendarDisconnect;
-      const result = await disconnect({ uid }, { ...providerOptions(opts), connectedAccountId: accountId });
+      const result = await disconnect({ uid }, {
+        ...providerOptions(opts), connectedAccountId: accountId, rollbackOnReadbackFailure: false,
+      });
       if (!result || result.provider !== "calendar" || result.state !== "action_required") {
         throw webError(502, "calendar_disconnect_unavailable");
       }
