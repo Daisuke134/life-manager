@@ -32,7 +32,7 @@
 | provider payout balance / provider paid_out / 銀行着金 | $59.00 / **$0** / unknown | 同上 `balances` |
 | Capafy 出品 | online 35 / 審査系 6（5 枠上限は新規作成のみ、更新は対象外＝2026-10-05 実測）/ offline 12 | `packager.py publish-list` |
 | PromptBase | 19 件掲載、売上 **$0** | `promptbase-sales.json` observed 2026-10-04T19:20Z、`promptbase-listings.jsonl` |
-| 外部集客 | 記事＋X は 3 時間ごと（10/04 再開）、IG は新アカウント @capafy.hooklab 作成済み（投稿 0） | `capafy-distribute-daily` receipt、credentials SSOT |
+| 外部集客 | Article/X uses D3. IG identity/status is not matched to an active owner record; no Capafy social post is verified. | Account/status/effect gate in the canonical Capafy D5 must pass before posting |
 
 Capafyの`profit`表示USD 24.04は売上とOpenRouter費用の期間・scopeが一致した検証済みactual profitではない。同期間のCapafy net profitは`unknown`とし、USD 24.04を全社$10k進捗の分子にしない。最新のwindow/scope照合 → unified SSOTの「CFO: 2026年9月Life Manager portfolio収益のas-is」。
 `$59 / $0`はCapafy provider balanceとplatform-reported paid_outであり、銀行着金を示さない。相関するbank receiptは未確認。
@@ -104,10 +104,11 @@ flowchart LR
 - [ ] 14 日後に成績表の比較行（検索 view → 成約）で判定。効かなければ題名以外（短い説明・見本）を 1 回だけ書き換える。
 
 ### Task 2.2: SNS 短尺動画レーン（IG → TikTok → YouTube Shorts）
-- [ ] @capafy.hooklab を Postiz に接続し、7 日間の慣らし（`ig-account-warmer`）。
-- [ ] `life-manager-anicca-main-instagram` を写して `life-manager-capafy-ig` を作る（`apps/life-manager/config/mobile-app-loops.json` 1 行、`honne-ja-cycle.js` の action、`config/loop-registry.json`）。中身は売れ筋 skill の「入力 → 実際の出力」15 秒実演、リンク `ct=capafy-reel-<skill>`。
-- [ ] 1 日 3 回。14 日で ct 経由の成約 0 なら中身を変える、さらに 14 日で 0 なら止める。
-- [ ] IG で成約が出たら TikTok・YouTube Shorts に同じ手順で足す。旧 IG の 2 loop（`capafy-ig-marketing-daily`・`capafy-ig-account-manager`）は新レーン稼働後に止める。
+
+- [ ] The single task procedure is Capafy recipe Task D5; do not keep duplicate account-creation, warm-up, or cadence instructions here.
+- [ ] Require official provider identity/status and reconcile same-owner effect_unknown before connection, retry, or public posting.
+- [ ] A disabled/restricted account uses the provider appeal/status flow. Do not create/use another account to evade a restriction or automate likes/follows.
+- [ ] Use the single original-content canary and CT paid-order readback from Task D5. Add another platform only after that platform's owned account is independently verified.
 
 ### Task 2.3: 記事と X
 - [ ] `capafy-distribute-daily` は稼いでいる 4 本だけを宣伝（#6581）。X の投稿に実演の短い文例を入れる。

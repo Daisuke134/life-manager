@@ -24,11 +24,21 @@ OWNER = "x-repost"
 RUN_ID = "18d619b58da7e748-16052"
 OCCURRENCE = f"{OWNER}:{RUN_ID}"
 RELEASE_SHA = "c16f437b93028ea5d94014a1fa32c091795cbee0"
+QUEUED_RUN_ID = "18d61a2e141e1b30-39087"
+QUEUED_OCCURRENCE = f"{OWNER}:{QUEUED_RUN_ID}"
+REBOUND_RUN_ID = "18db8c60e536c100-75588"
+REBOUND_RELEASE_SHA = "88872a85cc652877f242ead444108a813084cfc9"
+OLD_QUEUED_RELEASE_SHA = "86fa863d4fe04ec0b5c44e8a2e513e55edaf2928"
 INTEGRATION_ID = "cmt4l2jld031tqp0y8qtyo983"
 OTHER_RELEASE_SHA = "1" * 40
 START = dt.datetime(2026, 9, 17, 11, 56, 9, 485319, UTC)
 REPORTED = dt.datetime(2026, 9, 17, 11, 56, 19, 2106, UTC)
 FINAL = REPORTED + dt.timedelta(seconds=900)
+QUEUED_START = dt.datetime(2026, 9, 17, 12, 4, 47, 136940, UTC)
+QUEUED_REPORTED = dt.datetime(2026, 9, 17, 12, 5, 2, 417290, UTC)
+REBOUND_START = dt.datetime(2026, 10, 5, 5, 53, 44, 637767, UTC)
+REBOUND_REPORTED = dt.datetime(2026, 10, 5, 5, 55, 11, 470144, UTC)
+REBOUND_FINAL = REBOUND_REPORTED + dt.timedelta(seconds=900)
 
 
 def events(release_sha: str = RELEASE_SHA) -> list[dict]:
@@ -64,10 +74,10 @@ def later_linked_report() -> dict:
     }
 
 
-def readback_only_evidence() -> dict:
+def readback_only_evidence(mtime: str = "2026-09-17T11:56:16.347559+00:00") -> dict:
     return {
         "pass_id": "20260917T205610",
-        "mtime": "2026-09-17T11:56:16.347559+00:00",
+        "mtime": mtime,
         "affiliate_job_reconcile": {
             "posted": "unverified",
             "mode": "reconcile",
@@ -81,6 +91,32 @@ def readback_only_evidence() -> dict:
         "post": None,
         "errors": "",
     }
+
+
+def queued_attempt_events(
+    *, run_id: str, occurrence_id: str, start_at: dt.datetime,
+    report_at: dt.datetime, release_sha: str, start_occurrence_id: str | None = None,
+    status: str = "pass", exit_code: int | None = None,
+) -> list[dict]:
+    common = {
+        "loop_id": OWNER, "owner_id": OWNER, "release_sha": release_sha,
+        "provider": "shared-agent-runner", "effect_class": "publish",
+    }
+    report = {
+        **common, "run_id": run_id, "occurrence_id": occurrence_id,
+        "phase": "report", "status": status, "effect_status": "unknown",
+        "timestamp": report_at.isoformat(),
+    }
+    if exit_code is not None:
+        report["exit_code"] = exit_code
+    if status == "fail":
+        report.update(blocker="entrypoint_exit_1", error_class="entrypoint_exit_1")
+    return [
+        {**common, "run_id": run_id, "occurrence_id": start_occurrence_id,
+         "phase": "execute", "status": "running", "effect_status": "started",
+         "timestamp": start_at.isoformat()},
+        report,
+    ]
 
 
 def empty_listing() -> dict:
@@ -195,6 +231,62 @@ class EffectReconcileTests(unittest.TestCase):
 
         self.assertIs(result["verified"], True)
         self.assertEqual(result["window_start"], START.isoformat())
+
+    def test_rebound_queue_attempt_pairs_start_run_to_exact_occurrence_report(self):
+        rows = queued_attempt_events(
+            run_id=REBOUND_RUN_ID, occurrence_id=QUEUED_OCCURRENCE,
+            start_at=REBOUND_START, report_at=REBOUND_REPORTED,
+            release_sha=REBOUND_RELEASE_SHA,
+            start_occurrence_id=f"{OWNER}:{REBOUND_RUN_ID}",
+            status="fail", exit_code=1,
+        )
+
+        pair = self.adapter()._event_pair(QUEUED_OCCURRENCE, rows)
+
+        self.assertIsNotNone(pair)
+        self.assertEqual(pair[0]["run_id"], REBOUND_RUN_ID)
+        self.assertEqual(pair[1]["occurrence_id"], QUEUED_OCCURRENCE)
+
+    def test_reconcile_covers_all_queued_attempt_windows_and_ignores_other_posts(self):
+        prior = queued_attempt_events(
+            run_id=QUEUED_RUN_ID, occurrence_id=QUEUED_OCCURRENCE,
+            start_at=QUEUED_START, report_at=QUEUED_REPORTED,
+            release_sha=OLD_QUEUED_RELEASE_SHA,
+        )
+        rebound = queued_attempt_events(
+            run_id=REBOUND_RUN_ID, occurrence_id=QUEUED_OCCURRENCE,
+            start_at=REBOUND_START, report_at=REBOUND_REPORTED,
+            release_sha=REBOUND_RELEASE_SHA,
+            start_occurrence_id=f"{OWNER}:{REBOUND_RUN_ID}",
+            status="fail", exit_code=1,
+        )
+        evidence_by_start = {
+            QUEUED_START: readback_only_evidence("2026-09-17T12:04:53.330757+00:00"),
+            REBOUND_START: readback_only_evidence("2026-10-05T05:54:21.110605+00:00"),
+        }
+        unrelated_post = {
+            "id": "post-from-another-run", "state": "PUBLISHED",
+            "integration": {"id": INTEGRATION_ID},
+            "publishDate": "2026-10-04T13:22:50Z",
+            "releaseURL": "https://x.com/selawmqt/status/2106736899985723579",
+        }
+        listing = {"ok": True, "posts": [unrelated_post], "response_count": 1,
+                   "response_sha256": "c" * 64, "has_more": False}
+        evidence_calls = []
+        listing_calls = []
+        result = self.adapter().reconcile(
+            QUEUED_OCCURRENCE,
+            now=REBOUND_FINAL,
+            events_fn=lambda _occurrence: prior + rebound,
+            fenced_row_fn=lambda _owner, _occurrence: ("claimed", QUEUED_START.timestamp() + 0.12),
+            evidence_fn=lambda start, _report: evidence_calls.append(start) or evidence_by_start[start],
+            postiz_fn=lambda start, end: listing_calls.append((start, end)) or listing,
+        )
+
+        self.assertIs(result["verified"], True)
+        self.assertIs(result["effected"], False)
+        self.assertEqual(evidence_calls, [QUEUED_START, REBOUND_START])
+        self.assertEqual(listing_calls, [(QUEUED_START, REBOUND_FINAL)])
 
     def test_runtime_event_reader_accepts_observed_8506564_byte_log(self):
         with tempfile.TemporaryDirectory() as temporary:

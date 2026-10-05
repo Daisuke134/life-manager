@@ -862,10 +862,15 @@ def _pw_strict_click(page, path, kind):
     return True
 
 
+PROBE_SECONDS_PER_TARGET = 2.5
+
+
 def _open_responsive_page(targets):
-    probe_deadline = time.monotonic() + 5.0
+    # Each target gets its own probe budget: on 2026-10-05 a frozen page=card-done
+    # tab used up a shared 5s budget and the healthy page=edit tab was never tried.
     last_error = None
     for target in targets:
+        probe_deadline = time.monotonic() + PROBE_SECONDS_PER_TARGET
         remaining = probe_deadline - time.monotonic()
         if remaining <= 0:
             break

@@ -14,7 +14,8 @@ final class SubscriptionManager: NSObject {
 
     func configure() {
         // UIテストモード時はRevenueCat初期化をスキップ（CIシミュレータでApple IDダイアログを防止）
-        if ProcessInfo.processInfo.arguments.contains("-UITESTING") {
+        let launchArguments = ProcessInfo.processInfo.arguments
+        if launchArguments.contains("UITESTING") || launchArguments.contains("-UITESTING") {
             print("[RevenueCat] Skipped - UI testing mode")
             return
         }

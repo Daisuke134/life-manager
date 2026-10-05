@@ -627,6 +627,12 @@ struct RatingPrePromptStepView: View {
     }
 
     private func requestStoreReview() {
+        let launchArguments = ProcessInfo.processInfo.arguments
+        if launchArguments.contains("UITESTING") || launchArguments.contains("-UITESTING") {
+            next()
+            return
+        }
+
         AnalyticsManager.shared.track(.ratingStoreReviewRequested)
         awaitingReview = true
         if let scene = UIApplication.shared.connectedScenes

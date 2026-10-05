@@ -1981,6 +1981,7 @@
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
       "priority": "revenue",
+      "reconcile_queued_release": true,
       "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/lancers"
     },
