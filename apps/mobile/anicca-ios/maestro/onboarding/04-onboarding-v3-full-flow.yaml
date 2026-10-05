@@ -1,167 +1,145 @@
-# Onboarding v3 Full Flow E2E Test
-# Tests: Welcome → Struggles → Depth → Goals → Insight → ValueProp → Notifications → Primer → Plan Selection → Dismiss
-# Screenshots at every step for visual verification
-# Flow: 7 onboarding steps + 2 paywall steps (Live Demo & Trial Timeline removed)
+# ANICCA iOS v7 onboarding + soft-paywall E2E
+# Flow: welcome → goal → pain points → frequency → nudge time → processing
+#       → plan reveal → comparison → rating prompt → notifications → paywall → feed
 
 appId: ai.anicca.app.ios
-name: Onboarding v3 Full Flow
+name: ANICCA v7 Onboarding and Soft Paywall
 tags:
   - onboarding
   - paywall
-  - v3
+  - v7
 
 ---
-# Clean start
 - clearState
 - clearKeychain
+- startRecording:
+    path: "anicca-onboarding-v7"
 - launchApp:
     arguments:
       UITESTING: "true"
-
-# Handle Apple Account sign-in dialog (appears on fresh simulator)
-- tapOn:
-    text: "キャンセル|Cancel|Not Now"
-    optional: true
 
 # === Step 1: Welcome ===
 - extendedWaitUntil:
     visible:
       id: "onboarding-welcome-cta"
     timeout: 60000
-
-- takeScreenshot: "v3-01-welcome"
-
+- takeScreenshot: "v7-01-welcome"
 - tapOn:
     id: "onboarding-welcome-cta"
 
-# === Step 2: Struggles ===
+# === Step 2: Goal ===
 - extendedWaitUntil:
     visible:
-      id: "onboarding-struggle-staying_up_late"
+      text: "何を変えたいですか？"
     timeout: 15000
-
-- takeScreenshot: "v3-02-struggles"
-
-# Select two struggles
+- takeScreenshot: "v7-02-goal"
 - tapOn:
-    id: "onboarding-struggle-staying_up_late"
+    text: "悪い習慣を断ち切る"
 
+# === Step 3: Pain points ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-negative_thoughts"
+    timeout: 15000
+- takeScreenshot: "v7-03-pain-points"
 - tapOn:
-    id: "onboarding-struggle-procrastination"
-    optional: true
-
+    id: "onboarding-struggle-putting_off"
 - tapOn:
     id: "onboarding-struggles-next"
 
-# === Step 3: Struggle Depth ===
+# === Step 4: Frequency ===
 - extendedWaitUntil:
     visible:
       id: "onboarding-depth-daily"
     timeout: 15000
-
-- takeScreenshot: "v3-03-struggle-depth"
-
+- takeScreenshot: "v7-04-frequency"
 - tapOn:
     id: "onboarding-depth-daily"
 
-# === Step 4: Goals ===
+# === Step 5: Nudge times ===
 - extendedWaitUntil:
     visible:
-      id: "onboarding-goals-next"
+      text: "いつ言葉を届けましょうか？"
     timeout: 15000
-
-- takeScreenshot: "v3-04-goals"
-
-# Select a goal chip (using first available)
+- takeScreenshot: "v7-05-nudge-times"
 - tapOn:
-    id: "onboarding-goal-better_sleep"
-    optional: true
-
+    text: "朝 (9時)"
 - tapOn:
-    id: "onboarding-goal-self_discipline"
-    optional: true
+    text: "続ける"
 
-- tapOn:
-    id: "onboarding-goals-next"
-
-# === Step 5: Personal Insight ===
+# === Step 6: Processing ===
 - extendedWaitUntil:
     visible:
-      id: "onboarding-insight-continue"
+      text: "悩みを分析中..."
     timeout: 15000
+- takeScreenshot: "v7-06-processing"
 
-- takeScreenshot: "v3-05-personal-insight"
-
-- tapOn:
-    id: "onboarding-insight-continue"
-
-# === Step 6: Value Prop ===
+# === Step 7: Personalized plan reveal ===
 - extendedWaitUntil:
     visible:
-      id: "onboarding-valueprop-continue"
-    timeout: 15000
-
-- takeScreenshot: "v3-06-value-prop"
-
+      id: "onboarding-insight-cta"
+    timeout: 30000
+- takeScreenshot: "v7-07-plan-reveal"
 - tapOn:
-    id: "onboarding-valueprop-continue"
+    id: "onboarding-insight-cta"
 
-# === Step 7: Notifications ===
+# === Step 8: Comparison ===
 - extendedWaitUntil:
     visible:
-      id: "onboarding-notifications-allow"
+      text: "96%"
     timeout: 15000
-
-- takeScreenshot: "v3-07-notifications"
-
+- takeScreenshot: "v7-08-comparison"
 - tapOn:
-    id: "onboarding-notifications-allow"
+    text: "続ける"
 
-# Handle system notification dialog
-- tapOn:
-    text: "許可|Allow"
-    optional: true
-
-# === Paywall Step P0: Primer ===
+# === Step 9: Rating prompt (request only; do not submit a review) ===
 - extendedWaitUntil:
     visible:
-      id: "paywall-primer-continue"
+      text: "アニッチャを評価"
     timeout: 15000
-
-- takeScreenshot: "v3-08-paywall-primer"
-
+- takeScreenshot: "v7-09-rating-prompt"
 - tapOn:
-    id: "paywall-primer-continue"
-
-# === Paywall Step P1: Plan Selection ===
-- extendedWaitUntil:
-    visible:
-      id: "paywall-plan-cta"
-    timeout: 15000
-
-- takeScreenshot: "v3-09-plan-selection"
-
-# Verify key elements exist
-- assertVisible:
-    id: "paywall-dismiss"
-- assertVisible:
-    id: "paywall-maybe-later"
-- assertVisible:
-    id: "paywall-restore"
-
-# Dismiss via X button → main screen
-- tapOn:
-    id: "paywall-dismiss"
-
-# Handle App Store review dialog
+    text: "アニッチャを評価"
 - tapOn:
     text: "今はしない|Not Now"
     optional: true
 
-# === Verify: Main Screen ===
+# === Step 10: Notifications ===
 - extendedWaitUntil:
     visible:
-      id: "mypath-root"
-    timeout: 10000
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+- takeScreenshot: "v7-10-notifications"
+- tapOn:
+    id: "onboarding-notifications-allow"
+- tapOn:
+    text: "許可しない|Don't Allow|Don’t Allow"
+    optional: true
 
-- takeScreenshot: "v3-10-main-screen"
+# === Step 11: Soft paywall ===
+- extendedWaitUntil:
+    visible:
+      id: "paywall-primer-cta"
+    timeout: 30000
+- takeScreenshot: "v7-11-paywall-primer"
+- assertVisible:
+    id: "paywall-close-button"
+- tapOn:
+    id: "paywall-primer-cta"
+- extendedWaitUntil:
+    visible:
+      text: "あなたが一番つらいとき"
+    timeout: 15000
+- takeScreenshot: "v7-12-plan-selection"
+- assertVisible:
+    id: "paywall-close-button"
+- tapOn:
+    id: "paywall-close-button"
+
+# === Verify: main feed ===
+- extendedWaitUntil:
+    visible:
+      id: "feed-scroll"
+    timeout: 15000
+- takeScreenshot: "v7-13-main-feed"
+- stopRecording
