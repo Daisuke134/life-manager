@@ -111,8 +111,8 @@ test("Google Cost Table Japanese export includes prior-month usage in selected i
   ]);
 });
 
-test("Google Cost Table Japanese export rejects missing and invalid usage dates", (t) => {
-  const errors = ["", "2026-02-30"].map((usageDate) => {
+test("Google Cost Table Japanese export rejects missing, invalid, and year-zero usage dates", (t) => {
+  const errors = ["", "2026-02-30", "0000-01-01"].map((usageDate) => {
     const file = csvFile(t, CROSS_MONTH_JAPANESE_COST_TABLE.replace("2026-08-31", usageDate));
     try {
       readGoogleBillingCsv(file, { invoiceMonth: "2026-09" });
@@ -122,6 +122,7 @@ test("Google Cost Table Japanese export rejects missing and invalid usage dates"
     }
   });
   assert.deepEqual(errors, [
+    "google_billing_usage_date_invalid",
     "google_billing_usage_date_invalid",
     "google_billing_usage_date_invalid",
   ]);

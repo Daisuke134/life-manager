@@ -364,8 +364,8 @@ class StripeTest(unittest.TestCase):
             "invoice_total": "0.0003", "positive_cost_total": "0.0003", "tax_and_rounding": "0",
         })
 
-    def test_google_billing_rejects_missing_and_invalid_usage_dates(self):
-        for usage_date in ("", "2026-02-30"):
+    def test_google_billing_rejects_missing_invalid_and_year_zero_usage_dates(self):
+        for usage_date in ("", "2026-02-30", "0000-01-01"):
             with self.subTest(usage_date=usage_date):
                 with tempfile.TemporaryDirectory() as tmp:
                     path = Path(tmp) / "cost-table.csv"
