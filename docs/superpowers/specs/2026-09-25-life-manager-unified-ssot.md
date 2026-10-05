@@ -7879,3 +7879,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 08:06:32Z registered browser own-guard/own pageでquery inboxをGET、HTTP403/server awselb/2.0。CAPTCHA widget/AWSWAF challenge marker/人間確認/password form/CloudFront errorの各signalはfalse、message titleなし。solverに必要なchallenge未確認を成功/無課金/公開へ置換せず、不要なsolve taskは作成しない。provider mutation/vault write0/lease release0。証拠state/coconala-provider-gate-signals-20261005.json。403原因は未確定、認証リセットやプロファイル再起動なし。
 - 08:07:20Z reply latestはblocked/observed0/pending0/effect0/readback0、保存kernelにはclosed44/no_reply137/reconcile_unknown7/retry_wait6。blockedの0は旧保留13の解消や受信0の証明ではない。
 - PR6634/head a23aa8002dab2b095a957b3b90958e8db26ba7a1のGitHub run37281487177をlive確認。Python/OSS/PII/Agent contract/startup/shell SUCCESS、Loop contract/gitleaks/TruffleHog進行中。fresh reviewはSHIP済み。次の1手は同runのterminal確認→全PASS後通常admin merge→main-derived full immutable→Reply対象idle apply→自然公式readback。pendingを失敗として再実行せず、既存effect_unknownを解除しない。audit新source自然runは未取得。全体残47/cursor1のまま。
+
+
+### 546. PR6634 CIのmain由来fixture欠損を特定
+
+- GitHub run37281487177はLoop control contractsのみFAIL、764tests中test_production_render_matches_byte_stable_fixtureの1failure。残9checks SUCCESS。rerunせずlog-failedを確認、renderer実出力とfixtureをread-only比較した結果、main追加済みlife-manager-capafy-igの1jobがfixtureに欠損、既存179jobsの変更0/削除0。見積りsourceの回帰ではない。
+- 修復scopeを同Coconala branchのruntime/loop/tests/fixtures/macos-loop-jobs.jsonのmain追加済み1jobだけに拡張。現行render_job_models/validated registryから既存方式で生成し、既存rows byte/値保持、config/registry/render code/Capafy業務source変更0。fresh SHIP済みadapter/test source bytes保持。既存fixture RED→最小更新→対象test/contract/OSS/diff→commit/push/remote確認→新head CI。テストを弱めたりjobを削除してPASSにしない。担当はLuna6/max、rootはmetadata差分確認と統合。全体47/cursor1維持。
