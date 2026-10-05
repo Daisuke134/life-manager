@@ -42,6 +42,8 @@ TICK_TIMEOUT_SECONDS = 120
 _SAFE_RUNTIME_FAILURES = {
     "account_unavailable",
     "browser_connect_failed",
+    "browser_guard_release_failed",
+    "browser_guard_unavailable",
     "browser_page_unavailable",
     "cleanup_failed",
     "human_verification_required",
@@ -61,6 +63,8 @@ class ReplySemanticUncertain(SourceFailure):
 def _runtime_failure_code(error: Exception) -> str:
     if type(error).__name__ == "_AccountLockBusy":
         return "account_lock_busy"
+    if type(error).__name__ == "BrowserGuardBusy":
+        return "browser_guard_busy"
     if type(error).__name__ == "BrowserAttachBusy":
         # The shared CDP attach lock (one per port, across all four Lancers
         # loops) timed out; no attach happened, so this is transient/no-effect,
@@ -813,40 +817,46 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
     result = _failed("observer_unavailable")
     try:
         verified_proposals = _verified_proposals(Path(state_path))
-        with application_tick.account_lock(Path(state_path).with_name("work-sync.json")):
-            browser, page = application_tick._open_owned_page(browser_factory)
-            account_diagnostic = application_tick._production_account_diagnostic(page)
-            if account_diagnostic["ready"] is not True:
-                raise SourceFailure("account_unavailable")
-            logged_in = True
-            result = _read_surfaces(page, verified_proposals, [])
-            result["reply_action"] = {"status": "owned_by_reply_lane"}
-            _write_state(Path(state_path).with_name("contracts.json"), {
-                "source_complete": True,
-                "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "board_count": result["board_count"],
-                "unread_count": result["unread_count"],
-                "required_reply_count": result["required_reply_count"],
-                "application_board_count": result["application_board_count"],
-                "boards": result["boards"],
-                "reply_status": result["reply_action"]["status"],
-                "proposal_pipeline": result["proposal_pipeline"],
-                "finance": result["finance"],
-                "project_working_count": result["project_working_count"],
-                "monthly_contract_count": result["monthly_contract_count"],
-                "incoming_monthly_offer_count": result["incoming_monthly_offer_count"],
-                "incoming_monthly_offers": result["incoming_monthly_offers"],
-                "storefront_contract_candidate_count": result["storefront_contract_candidate_count"],
-                "contract_candidate_count": result["contract_candidate_count"],
-                "contract_candidates": result["contract_candidates"],
-            })
+        with application_tick.lancers_browser_guard():
+            try:
+                with application_tick.account_lock(Path(state_path).with_name("work-sync.json")):
+                    browser, page = application_tick._open_owned_page(browser_factory)
+                    account_diagnostic = application_tick._production_account_diagnostic(
+                        page,
+                        solve_aws_waf=True,
+                        solver_state_path=Path(state_path).with_name("aws-waf-solver.json"),
+                    )
+                    if account_diagnostic["ready"] is not True:
+                        raise SourceFailure("account_unavailable")
+                    logged_in = True
+                    result = _read_surfaces(page, verified_proposals, [])
+                    result["reply_action"] = {"status": "owned_by_reply_lane"}
+                    _write_state(Path(state_path).with_name("contracts.json"), {
+                        "source_complete": True,
+                        "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        "board_count": result["board_count"],
+                        "unread_count": result["unread_count"],
+                        "required_reply_count": result["required_reply_count"],
+                        "application_board_count": result["application_board_count"],
+                        "boards": result["boards"],
+                        "reply_status": result["reply_action"]["status"],
+                        "proposal_pipeline": result["proposal_pipeline"],
+                        "finance": result["finance"],
+                        "project_working_count": result["project_working_count"],
+                        "monthly_contract_count": result["monthly_contract_count"],
+                        "incoming_monthly_offer_count": result["incoming_monthly_offer_count"],
+                        "incoming_monthly_offers": result["incoming_monthly_offers"],
+                        "storefront_contract_candidate_count": result["storefront_contract_candidate_count"],
+                        "contract_candidate_count": result["contract_candidate_count"],
+                        "contract_candidates": result["contract_candidates"],
+                    })
+            finally:
+                if not _cleanup(page, browser):
+                    result = _failed("cleanup_failed", logged_in)
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
     except Exception as error:
         result = _failed(_runtime_failure_code(error), logged_in)
-    finally:
-        if not _cleanup(page, browser):
-            result = _failed("cleanup_failed", logged_in)
     if account_diagnostic is not None:
         result["account_diagnostic"] = account_diagnostic
     return result
@@ -854,7 +864,7 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
 
 def _worker_exit_code(result: Mapping[str, Any]) -> int:
     if not result.get("ok") and result.get("error") in {
-        "browser_attach_busy", "human_verification_required",
+        "browser_attach_busy", "browser_guard_busy", "human_verification_required",
     }:
         # Transient, no-effect: the shared CDP attach lock timed out. exit 75
         # (not 1) tells the runtime this is a retryable provider-observation
