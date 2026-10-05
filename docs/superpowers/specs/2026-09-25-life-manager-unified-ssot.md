@@ -7892,3 +7892,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fixture修復bb4b72f1a830dadad9da14499aad6466c76368eaをPR6634 branchへpush/remote一致/clean。runtime/loop/tests/fixtures/macos-loop-jobs.jsonのみ追加IG1job、既存179変更0/削除0。RED対象fixture test1failure→GREEN1PASS、contract14/180/104/OSS/diff PASS。fresh SHIP対象adapter/test blobsは前後同一cfb5306790c1898819a8d1faf5bda7a9a86c83b8/b0dd6a0cb1d373f9b03ee08365261ff38e9fd119。registry/Capafysource変更なし。
 - GitHub PR headもbb4b72f1を確認、新CI run37282287624/job111672915586ほかがQUEUED。旧CI37281487177のfailureを新head結果にしない。次は同新run terminal/allchecksPASS→通常main/immutable/Reply target apply、sourceの業務正常化は公式readback後に判定。
 - 08:11:54Z guard取得/own pages3/解放0、公式home・service4330368・query inboxの全3route HTTP403/server awselb/2.0、x-amzn-waf-action/Retry-After headerなし。403はprivate inbox限定ではなく共通provider経路。§521の公開4件の過去readbackは保持するが、このprobeで現在公開・非公開・受付停止を新たに断定しない。provider mutation/vaultwrite0。証拠state/coconala-provider-route-comparison-20261005.json。CAPTCHA challenge未取得で無根拠なsolver/login/resetを開始しない。全体47/cursor1、13保留の結果照合を継続する。
+
+
+### 548. 見積り3件の公式比較と次の診断境界
+
+- 08:14:59Z同registered browserのdefault authenticated/ephemeral anonymousで公開service4330368が双方HTTP200/servernginx/challengeなし。保存auth変更0/解放0。cookie破損だけを原因とする仮説は未支持、403共通経路の変動を確認。証拠state/coconala-anonymous-gate-comparison-20261005.json。
+- 08:16:26Z main-derived b53の既存collector/純classifierを使用したreadonly公式比較でestimate unknown3threadは全HTTP200/page identity valid。card数0/1/2、保存intentと同一terms/所有者/時刻に一致するcardは全0。2threadは有効DOMでもdurable attachment mergeがdm_attachment_message_identity_changed、残1threadはmerge成功だが保存semanticcontext SHA不一致。送信・state更新0、旧fence維持。証拠state/coconala-estimate-official-comparison-20261005.json。card存在だけを既送信/検収/売上へ代用しない。
+- これによりattachment問題は403時だけのfalsecauseではなく、少なくとも有効HTTP200の2threadで再現したと境界を絞る。次の独立診断scopeは当該durable manifest/現在semantic DOMのID・bodyhash・時刻・sender metadata比較と既存merge契約の反例確認。顧客本文・credentialを出さず、archive対象・同thread・attachment checksum保護を弱めない。原因確定後に最小source修復scopeを正本へ追加する。未送信intentの無根拠な再送/手動fence解除/個別Paid保留再開なし。PR6634新CIの最後Loop contractsを同run37282287624で追跡。残47/cursor1。
