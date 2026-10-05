@@ -849,7 +849,8 @@
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/line-sticker"
+      "state_root": "~/.local/state/life-manager/line-sticker",
+      "system_role": "shared"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {
