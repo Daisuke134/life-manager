@@ -133,19 +133,19 @@
 - [ ] **Step 4: Run focused CFO and loop contract checks.** Run: `python3 -m pytest skills/cfo/test_domain_flip_adapter.py skills/cfo/test_economic_attribution.py skills/cfo/test_loop_pnl.py -q` and `./bin/lm-loop-contract`. Expected: focused tests pass and loop contract returns `ok=true` with 15 product loops and no errors.
 - [ ] **Step 5: Commit** `feat(domain-flip): register CFO loop ownership`.
 
-### Task 6: Sandbox proof, live readiness, immutable release, and natural pass
+### Task 6: Live readiness, immutable release, and natural pass
 
 **Files:**
 - Modify only task-owned files if a contract defect is found; otherwise use the canonical runtime and private credential/state stores.
 
 **Interfaces:**
 - Consumes: Task 5 accepted main branch and the normal Life Manager immutable-release/apply path.
-- Produces: sandbox registrar/Sedo proofs, one natural `domain-flip` occurrence, official listing/ownership readbacks, and a cost-complete payout ledger when a buyer closes.
+- Produces: one natural `domain-flip` occurrence, official listing/ownership readbacks, and a cost-complete payout ledger when a buyer closes.
 
-- [ ] **Step 1: Provision or reuse sandbox access** and run the documented Openprovider sandbox checks for domain check, price, create with autorenew off, and official owner/expiry readback. Expected: sandbox credential is in the credential SSOT, receipt IDs match the domain, and no production charge or registry create occurs.
+- [ ] **Step 1: Create or reuse no-charge provider API access** for Openprovider, Sedo, WIPO, and EUIPO, save any new credential to the credential SSOT, and verify production read-only domain availability, current quote, supported listing TLD, and fee terms. Expected: no account or provider balance is funded and no provider write occurs.
 - [ ] **Step 2: Verify payout and registrant readiness** from existing owner-owned account data: exact legal registrant, current .si WHOIS fields, a receiving-tested functional public email alias with no personal data, Sedo payout account, and receiving-account readback. Expected: private legal registrant fields stay in credential SSOT/provider account data; WHOIS exposes only the intended functional email for a natural-person holder.
 - [ ] **Step 3: Run a fresh-context read-only audit** of the exact candidate, rights evidence, public registrant fields, provider quote, payout destination, funding amount, and remaining cap. Expected: the audit returns no unresolved critical or important risk; it does not authorize or perform any external effect.
-- [ ] **Step 4: Create or reuse registrar, Sedo, WIPO, and EUIPO API access** with the existing credential SSOT and enable only no-charge required API/registry access. Verify whether an already allocated `domain-flip` business balance exists; do not move funds from a personal account or card. Expected: every new credential is saved to the SSOT; an existing dedicated balance is verified with no auto-refill, or acquisition remains disabled and the exact missing funding source is recorded while scout-only work continues.
+- [ ] **Step 4: Verify whether an already allocated `domain-flip` business balance exists** and read back its owner, currency, balance, cap, and auto-refill state. Do not transfer or charge funds. Expected: a matching pre-existing business balance can enable acquisition; if absent, acquisition remains disabled and the missing funding source is recorded while scout-only work continues.
 - [ ] **Step 5: Run one natural pass** through the admitted immutable release and confirm loaded SHA/argv/env, owner occurrence, registrar availability/quote, the deterministic acquisition decision, and Sedo listing status. Expected: zero purchase when any identity, rights, quote, evidence, budget, or readback gate is missing; otherwise at most one registration and one verified listing.
 - [ ] **Step 6: Continue scheduled natural passes** without duplicate effects until an actual Sedo sale completes buyer settlement, registered-holder transfer, payout, receiving-account credit, all-cost CFO attribution, and replay-zero. Expected: only then report positive realized net; keep the persistent goal active until this is true.
 
