@@ -1,4 +1,4 @@
-Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: tiktok, script, hooks
+Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: tiktok, script, hooks, short-form, reels
 
 RENEWAL GATE
 R1 recurring input : Each new video has a new topic, trend, product, or idea.
@@ -62,3 +62,26 @@ Every run returns one finished script package: hook options, a timed script tabl
 
 ## 👤 Who it's for
 Creators, founders, marketers, and social media teams who need to turn ideas into posted videos fast.
+
+## 🧪 Example
+**You send:** "A 30-second TikTok about why cold email still works in 2026."
+
+**You get back (shortened):**
+- **Angle:** the single sharpest claim the video makes about cold email in 2026.
+- **Hooks (3, one marked RECOMMENDED):**
+  1. *Contrarian* — "Everyone says cold email is dead. It isn't." (RECOMMENDED, with the reason it works)
+  2. *Question* — "Why did this cold email get a 40% reply rate?"
+  3. *Stat-style* — a hook built only from facts you supplied.
+- **Timed script table:** voiceover · on-screen text · visual/shot cue, beat by beat, HOOK → BUILD → PAYOFF → CTA.
+- **Caption:** 4–6 hashtags plus one filming or posting tip.
+
+## ❓ FAQ
+**What should I send?** A topic, trend, product, or idea. Target length, platform (TikTok/Reels/Shorts), and tone are optional — if you skip length it defaults to 30-45 seconds.
+
+**Does it watch my videos or log in to my accounts?** No. It works only from the text you send. It never posts, reads analytics, or connects to any platform.
+
+**How many hooks do I get?** Three hook options per request, with the strongest one marked RECOMMENDED.
+
+**Can I ask for changes?** Yes — reply in the same chat and it revises the script.
+
+**Which plan should I pick?** Day for a one-off script, week for a filming sprint, month or year if you post every week.
