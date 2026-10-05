@@ -2,10 +2,10 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, PRODUCTION_SLOTS, parseArgs, runSlot, telegramNativeUrlVerified } = require("./honne-ja-cycle.js");
+const { ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified } = require("./honne-ja-cycle.js");
 const { marketingCtaLine } = require("../lib/marketing-app-store-cta.js");
 
-const ALL_LANE_COMMANDS = ["run", "run-anicca-main", "run-anicca-main-instagram", "run-anicca-en-card-instagram", "run-anicca-en-widget-instagram", "run-anicca-ai-youtube", "run-anicca-affirmation-youtube", "run-anicca-ja-widget-instagram", "run-anicca-jp4", "run-anicca-he"];
+const ALL_LANE_COMMANDS = ["run", "run-anicca-main", "run-anicca-main-instagram", "run-anicca-en-card-instagram", "run-anicca-en-widget-instagram", "run-anicca-ai-youtube", "run-anicca-affirmation-youtube", "run-anicca-ja-widget-instagram", "run-anicca-jp4", "run-anicca-he", "run-capafy-ig"];
 
 test("Every Honne JA lane's product/platform/locale resolves to a real App Store CTA line", () => {
   for (const command of ALL_LANE_COMMANDS) {
@@ -84,4 +84,24 @@ test("every anicca-ios lane opts into fresh hook text; honne lanes keep pack tex
 test("HE lane is account-bound and capped at three isolated slots", () => {
   const lane = parseArgs(["run-anicca-he"]).lane;
   assert.equal(lane.account, "@anicca.he"); assert.equal(lane.integrationId, "cmq2aoena08bhqp0yx1epjcik"); assert.equal(lane.approvalKey, "LM_ANICCA_HE_TIKTOK_APPROVAL_REF"); assert.deepEqual([...ANICCA_HE_SLOTS], ["07:15", "13:45", "18:15"]); assert.equal(lane.slots.length, 3);
+});
+
+test("Capafy IG Reel lane exists, is account-bound, and resolves its integration id from env (not a literal)", () => {
+  const lane = parseArgs(["run-capafy-ig"]).lane;
+  assert.equal(lane.product, "capafy-skills");
+  assert.equal(lane.platform, "instagram");
+  assert.equal(lane.account, "@capafy.hooklab");
+  assert.equal(lane.instagramProfileRef, "profile://instagram/capafy.hooklab");
+  assert.equal(lane.integrationEnvKey, "CAPAFY_IG_POSTIZ_INTEGRATION_ID");
+  assert.equal(lane.integrationId, undefined);
+  assert.equal(lane.contentGenerator, "capafy");
+  assert.deepEqual([...CAPAFY_IG_SLOTS], ["09:00", "14:00", "20:00"]);
+  assert.equal(lane.slots.length, 3);
+});
+
+test("Capafy IG Reel fails closed with the exact missing env key when its Postiz integration id is unset", async () => {
+  await assert.rejects(
+    runHonneJaCycle(["run-capafy-ig"], { env: {} }),
+    /CAPAFY_IG_POSTIZ_INTEGRATION_ID is required/,
+  );
 });

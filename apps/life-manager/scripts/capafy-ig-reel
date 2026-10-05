@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Capafy IG reel posting lane -- copied from apps/life-manager/scripts/mobile-app
+# (the life-manager-anicca-main-instagram wrapper), minus the mobile-product
+# registry resolution: Capafy skills are not a mobile app with a pinned git
+# source, so this calls honne-ja-cycle.js's run-capafy-ig action directly
+# instead of going through mobile-app-command.js's manifest/product lookup.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+ENV_FILE="${LIFE_MANAGER_MARKETING_ENV_FILE:-${HOME}/.local/state/life-manager/private/marketing.env}"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/load-env-file.sh"
+lm_load_env_file "$ENV_FILE"
+# Fails closed with a named missing key when either secret is unset -- the
+# Capafy IG account (@capafy.hooklab) is not yet connected to Postiz, so
+# CAPAFY_IG_POSTIZ_INTEGRATION_ID stays unset in production until it is.
+lm_require_env_keys LM_POSTIZ_API_KEY CAPAFY_IG_POSTIZ_INTEGRATION_ID
+
+NODE_BIN="${LIFE_MANAGER_NODE:-$(command -v node || true)}"
+PYTHON_BIN="${LIFE_MANAGER_PYTHON:-$(command -v python3 || true)}"
+[ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || { printf 'capafy ig reel loop requires node\n' >&2; exit 1; }
+[ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ] || { printf 'capafy ig reel loop requires python3\n' >&2; exit 1; }
+
+if ! POSTIZ_API_KEY="$LM_POSTIZ_API_KEY" "$PYTHON_BIN" \
+  "$SCRIPT_DIR/mobile-postiz-provider-reconcile.py" \
+  --auto-owner life-manager-capafy-ig --resolve >&2
+then
+  printf 'capafy ig reel prior-effect reconciliation deferred: life-manager-capafy-ig\n' >&2
+fi
+
+RESULT_CAPTURE="$(mktemp "${TMPDIR:-/tmp}/lm-capafy-ig-result.XXXXXX")"
+trap 'rm -f -- "$RESULT_CAPTURE"' EXIT
+set +e
+"$PYTHON_BIN" "$REPO_ROOT/runtime/run-with-timeout.py" --grace-seconds 10 1200 \
+  "$NODE_BIN" "$SCRIPT_DIR/honne-ja-cycle.js" run-capafy-ig | tee "$RESULT_CAPTURE"
+PIPE_STATUSES=("${PIPESTATUS[@]}")
+set -e
+RUNNER_STATUS="${PIPE_STATUSES[0]}"
+TEE_STATUS="${PIPE_STATUSES[1]}"
+if [ "$TEE_STATUS" -ne 0 ]; then
+  exit "$TEE_STATUS"
+fi
+if [ "$RUNNER_STATUS" -eq 0 ] && [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+  if ! "$NODE_BIN" "$SCRIPT_DIR/mobile-effect-result.js" "$RESULT_CAPTURE"; then
+    printf 'capafy ig reel exact result hint unavailable: life-manager-capafy-ig\n' >&2
+  fi
+fi
+exit "$RUNNER_STATUS"
