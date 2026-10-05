@@ -64,7 +64,8 @@ between attempts do not count. No-effect proof accepts only releases audited for
 `86fa863d4fe04ec0b5c44e8a2e513e55edaf2928`,
 `88872a85cc652877f242ead444108a813084cfc9`, and
 `4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`, and
-`447e5b62693ce67b6ea94aa1993fb2a5a3e5d24b`, with exact readback-only evidence for every attempt.
+`447e5b62693ce67b6ea94aa1993fb2a5a3e5d24b`, and
+`d3d7be63f7de25ddad49d7d8901aaab6d4a0ce66`, with exact readback-only evidence for every attempt.
 Other releases can prove a positive effect only through the exact Postiz submission ID and X
 permalink in the matching pass evidence. Unsupported releases or transports without that receipt,
 missing or ambiguous evidence, unfinished Postiz listings, and out-of-window posts stay fenced. Old

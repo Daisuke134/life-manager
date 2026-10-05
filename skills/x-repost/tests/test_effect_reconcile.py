@@ -213,6 +213,19 @@ class EffectReconcileTests(unittest.TestCase):
         self.assertIs(result["verified"], True)
         self.assertIs(result["effected"], False)
 
+    def test_cjk_fix_release_proves_no_effect_with_exact_readback_only_evidence(self):
+        current_release = "d3d7be63f7de25ddad49d7d8901aaab6d4a0ce66"
+        result = self.adapter().build_proof(
+            OCCURRENCE,
+            events(current_release),
+            readback_only_evidence(),
+            empty_listing(),
+            now=FINAL,
+        )
+
+        self.assertIs(result["verified"], True)
+        self.assertIs(result["effected"], False)
+
     def test_other_release_can_prove_exact_postiz_effect_but_not_no_effect(self):
         positive = self.adapter().build_proof(
             OCCURRENCE, events(OTHER_RELEASE_SHA), published_evidence(),
