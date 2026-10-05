@@ -28,7 +28,7 @@
 - Release a Travel claim only when no provider write was dispatched or the Composio endpoint explicitly rejects the HTTP request with 4xx. After dispatch, network/5xx/unreadable responses and 2xx `successful:false` outcomes keep the claim fenced pending strict readback.
 - Resolve an unknown Calendar write only when one read-back event matches exact summary and `startMs`/`endMs`, plus destination after whitespace removal and lowercasing. Readback alone is not a create receipt and cannot label a helper `travel_added`.
 - Display the appointment and departure in one effective zone: explicit appointment IANA zone, otherwise browser-local. The Travel helper's persisted UTC is not its display zone.
-- Web pause/resume/disconnect use verified uid, exact Origin, JSON, and CSRF. Resume needs saved home and exact ACTIVE Calendar binding; disconnect leaves automation paused.
+- Web pause/resume/disconnect use verified uid, exact Origin, JSON, and CSRF. Resume needs saved home and exact ACTIVE Calendar binding; a DB disconnect-pending fence blocks concurrent resume until exact DISABLED provider readback or a retry resolves it.
 - Do not add Telegram, phone, Gmail, live location, staff management, or Web App Factory features to this MVP.
 - Do not publish a price until the official Stripe catalog and actual cost inputs have been read back. Keep the factory unimplemented until at least 10 paying Web customers and three consecutive profitable months after refunds, Stripe fees, route/provider, hosting, and attributed marketing cost.
 
@@ -336,12 +336,13 @@ Expected: event and departure times share the correct zone and the UI count/orde
 **Interface:**
 - `POST /api/lm-web/travel/control` accepts only `{ action: "pause" | "resume" | "disconnect" }`; uid and account ID come only from the verified Web user and current server row.
 - Pause atomically sets only `daily_automation_enabled=false` for a NULL-Telegram row. Resume requires saved home plus exact selected ACTIVE account readback, then conditionally sets only `daily_automation_enabled=true` for that same account and reads back the preference.
-- Disconnect pauses first, disables the exact selected Composio account through the existing owner-check/readback path, then clears only that exact local binding. Any uncertain provider outcome leaves automation paused and does not clear the binding.
-- The page displays Pause or Resume from persisted preference state and offers Disconnect for the currently bound Calendar.
+- `TodaySnapshot` returns persisted `dailyAutomationEnabled` and `disconnectPending` even when Calendar event read fails, so controls do not vanish with an event-read error.
+- Disconnect atomically sets automation false plus `calendar_disconnect_pending=true` before provider I/O; resume refuses while pending. Only exact account DISABLED readback allows the SQL finish transition to clear the selected binding and pending flag while keeping automation false. Any provider failure/readback uncertainty leaves the row paused, binding intact, and pending fence set; retry can verify a now-disabled account and finish.
+- The page displays Pause or Resume from persisted preference state, blocks Resume while disconnect is pending, and offers Disconnect/retry for the currently bound Calendar.
 
 - [ ] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
 
-Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, resume without home/inactive account, exact-account disconnect, provider readback failure, paused-state persistence, and button state/copy.
+Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, resume without home/inactive account, concurrent resume during disconnect, provider failure/readback retry, exact-account disconnect, persisted pause state after Calendar event-read failure, and button state/copy.
 
 - [ ] **Step 2: Run focused Web control tests and confirm the new cases fail**
 
@@ -350,7 +351,7 @@ Expected: the control route, atomic preference contract, and controls are absent
 
 - [ ] **Step 3: Add the smallest Web-only preference RPC and route**
 
-The SQL function locks and rechecks the NULL-Telegram user row and expected account marker before preference writes. Reuse `composioCalendarDisconnect`; do not add a settings framework or change Telegram preference RPCs.
+The SQL function locks and rechecks the NULL-Telegram user row and expected account marker before preference writes. It sets/clears the disconnect-pending fence in begin/finish transitions and refuses resume while pending. Reuse `composioCalendarDisconnect`; do not add a settings framework or change Telegram preference RPCs.
 
 - [ ] **Step 4: Wire controls into the existing page and rerun focused tests**
 
