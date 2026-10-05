@@ -3221,18 +3221,24 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - この追記はAGMSG観測基盤の復旧だけを記録し、§84-Aの収益TODO順序、CFO/Mobileの所有境界、収益成果の完了判定は変更しない。
 - **容量障害の原因と修正:** `where.sh`は`mktemp`の`No space left on device`で一度失敗し、Data volume空きは158MiB・使用率100%だった。最新mainの`apps/life-manager/scripts/generate-larry-slide-pack.test.js`を確認すると、共有`tempDataDir()`は各caseでobject-store用一時ディレクトリを作る一方、cleanupは10 case中3 caseだけだった。prefix一致の残存24 directory（約14.7MiBずつ）は`lsof`でopen handleなしを確認し、これらだけ削除した。直後の空きは515MiBとなり、`where.sh`は`resolved=true placement=none terminal=plain`を返して容量エラーが消えた。protected storeやruntime stateの削除はない。
 - **再発防止source proof:** branch `fix/larry-slide-pack-test-cleanup-20261006` / PR #6692 は、全`tempDataDir`作成時にNode test contextの`t.after`でcleanupを登録するtest-only修正を含む。修正前のfocused実行はtest 1/1 PASSでもfixture directory数が0→1へ増えるREDを確認した。修正後はfocused file 10/10 PASS、fixture count 0→0、`node --check`、`git diff --check`、source-boundary PASS。PR/mergeや本番loop動作とは別のsource受入証拠であり、売上やproduction effectの証明ではない。
-- **team census:** 容量回復後の公式`team --json`も5行の後に`plain: no addressable pane has a container`を出し、90秒以上追加出力がなかったため、起動元のread-only processをexit 130で中断した。完全roster・他席の稼働状態は未確定であり、停止扱いや外部seat修復をしていない。別の同名processも観測されたが、ownerと今回のhandleへの帰属は確認できず、停止していない。従って容量障害は解消したが、team censusの停止境界は未解決である。
+- **team censusの初回結果:** temp-space解消後も5行の後でplain: no addressable pane has a containerが出て90秒以上止まり、起動元processをexit 130で中断した。完全rosterや全員停止の証拠ではない。
+- **最新readback（2026-10-06）:** 通常のteam.sh lm --jsonは5席目の後で30秒timeoutとなった。根因はteam-status.sh:86のterminal_capability呼び出しからdrivers/terminals/plain/ops.sh:81のosascript起動までで、probeにdeadlineがない。
+- terminal probeだけをプロセス内stubでunknownにしたroster-only診断は全49登録（Codex 35、Claude Code 14）を返した。17件はterminal記録あり、32件はno_placement_record。stubは端末状態を観測していないため、これを稼働証拠として使わない。
+- canonical Life Manager projectのCodex doctorは19登録、watch process 0、warning 0、codex-money-printerだけlock owner(alive)、残り18はlock none。delivery表示はmonitor 19 / off 29 / turn 1で、offにはproject hook未設定も含む。team lmのremote bindingはnone。
+- 現sessionはcodex-money-printerをstatus=okでclaimしたが、whereはplacement none、Codex bridgeはnot running、fix.shはno_candidate_in_env、inboxは新着0件。lm-ios-growth-1004、lm-cfo-observability-1002、lm-claude-capafy-recipe-1004は返信がなく、公式peekはいずれもno_placement_recordを返した。
+- AGMSG source候補の /Users/anicca/.agents は別repository Daisuke134/anicca-agents-skillsのdirty mainで、HEAD 4862e008 / origin/main 8dc1827d（behind 3）、674 changed paths中248件がAGMSG関連。open PR、source worktree、stashはなく、関連fileの最終mtimeは2026-09-30、open file handleなし。既存WIPは保全し、674件を一括統合しない。
 
-#### 次のAGMSG cursor
+#### 最新AGMSG復旧cursor（2026-10-06）
 
-1. PR #6692のrequired checksが揃ったら通常PR経路でmainへ統合し、merged commitをreadbackする。
-2. plain配置での`team --json`停止境界を公式スクリプト/driver経路でread-only診断し、member・terminal capability・最後に完了したcommandを特定する。別ownerのsession/process/placementは推測で止めない。
-3. `codex-money-printer`のmonitor bridgeは未稼働。新しいinteractive zshで`codex` shim経由のCodex起動が必要で、起動後にbridge/inboxをreadbackする。現sessionからrestart済みとは扱わない。
-4. CFO/Mobile担当の返信とdiff/worktree evidenceを確認後、owner重複がない状態で次の正本TODOを順に進める。remote bindingは別machine参加が必要と確認できた場合だけ、実在endpointを取得して構成する。
+1. PR #6692はmain merge commit 4a6b08a9095de29e88f9113b4ca393682f2693aeへ到達済み。tempDataDir cleanupのsource修正は統合済みで、容量復旧の再発防止項目をDoneとする。
+2. AGMSG source修正を最新origin/main由来の専用branchへ分離し、dirty checkoutを保持したまま必要なterminal/team依存だけを選別する。他のskill変更やteam runtime stateを取り込まない。
+3. plain adapterのosascript capability probeをboundedにし、timeoutはunknownとして返す回帰testを追加する。通常のteam.sh lm --jsonがstubなしで全49登録を最後まで返すことをsource acceptanceとする。
+4. PR/CI/merge後にteam.shを通常経路でreadbackする。placement・bridge・remote bindingは別々に観測し、registrationやroster-only診断をlive statusへ置き換えない。他seatのidentity/placementは外部から書き換えない。
+5. AGMSG修正と§84-Aの収益TODOは独立に保つ。CFO/Mobile席が実際に再参加するまでは着手済み・handover済みと数えない。
 
 ### 2026-10-06 JST — ANICCA iOS TestFlight release cursor
 
 - このrelease状態の追記は§84-Aの収益TODO順序を変更せず、MRRの達成証拠とも扱わない。ANICCA iOS source PR #6619とrelease mirror PR #418はmainへ統合済み。StagingのMaestro動画・画像はTelegram Saved Messagesへ配信・readback済みだが、production購入の証拠ではない。
-- ASC `Default` workflowは`main`向け・App Store eligibleで有効。関連repositoryと`main` SCM refは確認済み。手動run #802は2026-10-05 16:51 UTC時点で`PENDING`、source commit SHA空、`startedDate=null`、actions/builds/artifacts 0で、bounded official waitでもterminal結果なし。Appleの公開サービスstatusはoperational。
+- ASCのDefault workflow（ID 755B36A7-4BD1-4B42-85F0-B3D30D49588A）はmain向けに有効・locked、配布先はAPP_STORE_ELIGIBLEで、連携repositoryはDaisuke134/anicca-products。対象appはDaily Affirmations - Anicca（bundle ID ai.anicca.app.ios）。2026-10-06のfresh readbackでrun #802はPENDING、sourceCommit詳細なし、actions 0。doctorはartifacts 0 / log bundles 0。45秒bounded waitはlast status PENDINGでtimeoutし、Apple system statusは51/51 operational。対象build 1.9.6 (391)は未登録。timeoutはterminal状態ではなく、既存runの重複作成・cancelはしていない。
 - ASCのnext build numberは391だが、`1.9.6 (391)`のbuildは未登録。external beta groupはpublic link有効で既存buildとの関連19件があるものの、対象releaseのbuildは未添付で、既存inviteを今回修正のinstall可能linkとして案内しない。
 - 詳細と順序はreference文書`docs/superpowers/specs/2026-10-05-anicca-ios-testflight-release.md`に記録する。次はrun #802を重複/cancelせずread-onlyで追跡し、terminal後に対象build・暗号化状態を確認し、`anicca-beta`へ割当・beta review・public link readbackを順番に閉じる。
