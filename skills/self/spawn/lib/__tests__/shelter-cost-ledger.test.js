@@ -6,7 +6,11 @@ const assert = require("node:assert/strict");
 const os = require("node:os");
 const fs = require("node:fs");
 const path = require("node:path");
-const { readShelterCostEntries, appendShelterCostEntry } = require("../shelter-cost-ledger");
+const {
+  readShelterCostEntries,
+  readShelterCostEntriesResolved,
+  appendShelterCostEntry,
+} = require("../shelter-cost-ledger");
 
 function tmpFile() {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "anicca-shelter-cost-ledger-")), "shelter-cost.jsonl");
@@ -15,6 +19,7 @@ function tmpFile() {
 test("readShelterCostEntries returns [] when the file does not exist", () => {
   const f = path.join(os.tmpdir(), "definitely-missing-" + Date.now(), "shelter-cost.jsonl");
   assert.deepEqual(readShelterCostEntries(f), []);
+  assert.deepEqual(readShelterCostEntriesResolved(f), []);
 });
 
 test("appendShelterCostEntry then readShelterCostEntries round-trips one row per real deploy attempt", () => {
@@ -37,7 +42,241 @@ test("appendShelterCostEntry is append-only (preserves prior rows, never mutates
   );
 });
 
-test("module exports exactly {readShelterCostEntries, appendShelterCostEntry} — no update/upsert primitive (mirrors ledger.js's own discipline)", () => {
+test("resolved reader applies a jobAddress correction without changing source rows or bytes", () => {
+  const f = tmpFile();
+  const first = { ts: 1720000000.125, jobAddress: "wrong-address", settledLeaseCostUsd: 3.5, keep: "metadata" };
+  const correction = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: first.ts,
+    correctedJobAddress: "correct-address",
+    ts: 1720000001.25,
+    reason: "provider readback corrected the address",
+  };
+  const second = { ts: 1720000002.5, settledLeaseCostUsd: 4.25 };
+  for (const row of [first, correction, second]) appendShelterCostEntry(f, row);
+  const sourceBytes = fs.readFileSync(f);
+
+  const resolved = readShelterCostEntriesResolved(f);
+  assert.deepEqual(resolved, [
+    { ...first, jobAddress: "correct-address" },
+    second,
+  ]);
+  assert.deepEqual(resolved.map((row) => row.settledLeaseCostUsd), [3.5, 4.25]);
+  assert.deepEqual(readShelterCostEntries(f), [first, correction, second]);
+  assert.deepEqual(fs.readFileSync(f), sourceBytes);
+});
+
+test("resolved reader rejects corrections without a unique preceding normal row", () => {
+  const correction = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: 1720000000.125,
+    correctedJobAddress: "correct-address",
+    ts: 1720000001.25,
+    reason: "correction fixture",
+  };
+
+  const orphan = tmpFile();
+  appendShelterCostEntry(orphan, correction);
+  assert.throws(() => readShelterCostEntriesResolved(orphan), /orphan|no preceding/i);
+
+  const futureTarget = tmpFile();
+  appendShelterCostEntry(futureTarget, correction);
+  appendShelterCostEntry(futureTarget, { ts: correction.correctsTs, jobAddress: "later", settledLeaseCostUsd: 1 });
+  assert.throws(() => readShelterCostEntriesResolved(futureTarget), /orphan|no preceding/i);
+});
+
+test("resolved reader rejects ambiguous same-ts targets both before and after a correction", () => {
+  const first = { ts: 1720000000.125, jobAddress: "first", settledLeaseCostUsd: 1 };
+  const second = { ts: first.ts, jobAddress: "second", settledLeaseCostUsd: 2 };
+  const correction = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: first.ts,
+    correctedJobAddress: "correct-address",
+    ts: 1720000001.25,
+    reason: "correction fixture",
+  };
+
+  const duplicateBefore = tmpFile();
+  for (const row of [first, second, correction]) appendShelterCostEntry(duplicateBefore, row);
+  assert.throws(() => readShelterCostEntriesResolved(duplicateBefore), /ambiguous/i);
+
+  const duplicateAfter = tmpFile();
+  for (const row of [first, correction, second]) appendShelterCostEntry(duplicateAfter, row);
+  assert.throws(() => readShelterCostEntriesResolved(duplicateAfter), /ambiguous/i);
+});
+
+test("resolved reader rejects unsupported and malformed correction rows", () => {
+  const baseCorrection = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: 1720000000.125,
+    correctedJobAddress: "correct-address",
+    ts: 1720000001.25,
+    reason: "correction fixture",
+  };
+  const target = { ts: baseCorrection.correctsTs, jobAddress: "old", settledLeaseCostUsd: 1 };
+  const unsupported = tmpFile();
+  for (const row of [target, { ...baseCorrection, correctedField: "settledLeaseCostUsd" }]) {
+    appendShelterCostEntry(unsupported, row);
+  }
+  assert.throws(() => readShelterCostEntriesResolved(unsupported), /unsupported correction field/i);
+
+  const malformedRows = [
+    { ...baseCorrection, correction: false },
+    { ...baseCorrection, correctedJobAddress: "" },
+    { ...baseCorrection, correctsTs: "1720000000.125" },
+    { ...baseCorrection, ts: "1720000001.25" },
+    { ...baseCorrection, reason: "" },
+  ];
+  for (const correction of malformedRows) {
+    const f = tmpFile();
+    for (const row of [target, correction]) appendShelterCostEntry(f, row);
+    assert.throws(() => readShelterCostEntriesResolved(f), /malformed correction/i);
+  }
+});
+
+test("resolved reader rejects normal rows with missing or unsafe timestamp and cost values", () => {
+  const invalidRows = [
+    { ts: "1720000000.125", settledLeaseCostUsd: 1 },
+    { ts: true, settledLeaseCostUsd: 1 },
+    { ts: null, settledLeaseCostUsd: 1 },
+    { ts: 1720000000.125, settledLeaseCostUsd: "1" },
+    { ts: 1720000000.125, settledLeaseCostUsd: true },
+    { ts: 1720000000.125, settledLeaseCostUsd: null },
+    { ts: 1720000000.125, settledLeaseCostUsd: -1 },
+    { settledLeaseCostUsd: 1 },
+    { ts: 1720000000.125 },
+    null,
+    true,
+    1,
+    "row",
+    [],
+  ];
+
+  for (const row of invalidRows) {
+    const f = tmpFile();
+    appendShelterCostEntry(f, row);
+    assert.throws(() => readShelterCostEntriesResolved(f), /malformed normal row/i);
+  }
+
+  const notJsonNumber = tmpFile();
+  fs.writeFileSync(notJsonNumber, '{"ts":1,"settledLeaseCostUsd":NaN}\n');
+  assert.throws(() => readShelterCostEntriesResolved(notJsonNumber));
+});
+
+test("resolved reader rejects a corrected spend identity that would collapse capped history", async () => {
+  const f = tmpFile();
+  const first = { ts: 100, jobAddress: "wrong", settledLeaseCostUsd: 3 };
+  const second = { ts: 101, jobAddress: "real", settledLeaseCostUsd: 4 };
+  const correction = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: first.ts,
+    correctedJobAddress: "real",
+    ts: 102,
+    reason: "correction fixture",
+  };
+  for (const row of [first, second, correction]) appendShelterCostEntry(f, row);
+  const sourceBytes = fs.readFileSync(f);
+  const { checkSpendCaps } = await import("../../../shelter/nosana/spend-gate.mjs");
+
+  let resolved;
+  try {
+    resolved = readShelterCostEntriesResolved(f);
+  } catch (error) {
+    assert.match(error.message, /spend identity collision/i);
+    assert.deepEqual(fs.readFileSync(f), sourceBytes);
+    return;
+  }
+
+  const history = resolved.map((row) => ({
+    ts: row.ts,
+    amountUsd: row.settledLeaseCostUsd,
+    status: "sent",
+    txHash: row.jobAddress || `no-address-${row.ts}`,
+  }));
+  const gate = checkSpendCaps({
+    amountUsd: 1,
+    history,
+    config: { perJobUsdCap: 6, dailyUsdCap: 6, cumulativeUsdCap: 6 },
+    nowTs: 103,
+  });
+  assert.deepEqual(resolved, [{ ...first, jobAddress: "real" }, second]);
+  assert.equal(resolved.reduce((sum, row) => sum + row.settledLeaseCostUsd, 0), 7);
+  assert.deepEqual(history.map((row) => row.txHash), ["real", "real"]);
+  assert.equal(gate.allowed, true);
+  assert.deepEqual(fs.readFileSync(f), sourceBytes);
+  assert.fail(`reader allowed a correction collision; checkSpendCaps.allowed=${gate.allowed} (${gate.reason})`);
+});
+
+test("resolved reader checks final identities after multiple corrections", () => {
+  const first = { ts: 201, jobAddress: "old-first", settledLeaseCostUsd: 3 };
+  const second = { ts: 202, jobAddress: "old-second", settledLeaseCostUsd: 4 };
+  const correctedFirst = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: first.ts,
+    correctedJobAddress: "shared",
+    ts: 203,
+    reason: "correction fixture",
+  };
+  const correctedSecond = {
+    ...correctedFirst,
+    correctsTs: second.ts,
+    ts: 204,
+  };
+  const finalCollision = tmpFile();
+  for (const row of [first, second, correctedFirst, correctedSecond]) appendShelterCostEntry(finalCollision, row);
+  assert.throws(() => readShelterCostEntriesResolved(finalCollision), /spend identity collision/i);
+
+  const laterCorrectionResolves = tmpFile();
+  const initiallyShared = { ...second, jobAddress: "shared" };
+  for (const row of [
+    first,
+    initiallyShared,
+    correctedFirst,
+    { ...correctedSecond, correctedJobAddress: "separate" },
+  ]) {
+    appendShelterCostEntry(laterCorrectionResolves, row);
+  }
+  assert.deepEqual(readShelterCostEntriesResolved(laterCorrectionResolves), [
+    { ...first, jobAddress: "shared" },
+    { ...initiallyShared, jobAddress: "separate" },
+  ]);
+});
+
+test("resolved reader detects collisions with another normal row's missing-address fallback", () => {
+  const first = { ts: 301, jobAddress: "wrong", settledLeaseCostUsd: 3 };
+  const second = { ts: 302, settledLeaseCostUsd: 4 };
+  const correction = {
+    correction: true,
+    correctedField: "jobAddress",
+    correctsTs: first.ts,
+    correctedJobAddress: "no-address-302",
+    ts: 303,
+    reason: "correction fixture",
+  };
+  const f = tmpFile();
+  for (const row of [first, second, correction]) appendShelterCostEntry(f, row);
+  assert.throws(() => readShelterCostEntriesResolved(f), /spend identity collision/i);
+});
+
+test("resolved reader keeps uncorrected duplicate identities available to legacy dedupe", () => {
+  const first = { ts: 401, jobAddress: "same", settledLeaseCostUsd: 3 };
+  const second = { ts: 402, jobAddress: "same", settledLeaseCostUsd: 4 };
+  const f = tmpFile();
+  for (const row of [first, second]) appendShelterCostEntry(f, row);
+  assert.deepEqual(readShelterCostEntriesResolved(f), [first, second]);
+});
+
+test("module exports only raw readers, resolved reader, and append — no update/upsert primitive", () => {
   const mod = require("../shelter-cost-ledger");
-  assert.deepEqual(Object.keys(mod).sort(), ["appendShelterCostEntry", "readShelterCostEntries"]);
+  assert.deepEqual(Object.keys(mod).sort(), [
+    "appendShelterCostEntry",
+    "readShelterCostEntries",
+    "readShelterCostEntriesResolved",
+  ]);
 });

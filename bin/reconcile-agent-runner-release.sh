@@ -437,7 +437,7 @@ PY
     } >>"$output_path"
     rm -f "$owner_output_path"
 
-    local owner_changed=0 owner_skipped=0 owner_errors=0
+    local owner_changed=0 owner_skipped=0 owner_errors=0 owner_skip_reason=""
     if [ "$owner_rc" -eq 0 ]; then
       read -r owner_changed owner_skipped owner_errors < <(printf '%s' "$owner_output" | "$runtime_python" -c '
 import json, sys
@@ -472,6 +472,23 @@ print(changed, skipped, errors)
       # not a broken release -- stop this cycle and retry on the very next tick.
       already_owned=1
       apply_message="production apply is already owned"
+    elif [ "$owner_rc" -eq 1 ] && printf '%s' "$owner_output" | "$runtime_python" -c '
+import json, sys
+try:
+    result = json.load(sys.stdin)
+except (ValueError, TypeError):
+    sys.exit(1)
+sys.exit(0 if result == {
+    "ok": False,
+    "error": "admission rebind refused: effect_unknown",
+} else 1)
+' 2>/dev/null; then
+      # A single owner's unresolved external-effect fence must keep that owner on its old release,
+      # but it must not turn an otherwise successful fleet pass into a fleet-wide failure. Match
+      # the exact structured refusal; text containing effect_unknown is not enough to skip.
+      owner_skipped=1
+      skipped=$((skipped + owner_skipped))
+      owner_skip_reason="effect-unknown-fence"
     elif [ "$owner_rc" -eq 124 ]; then
       errors=$((errors + 1))
       timed_out_owners="${timed_out_owners:+$timed_out_owners,}$loop_id"
@@ -483,6 +500,7 @@ print(changed, skipped, errors)
       FLEET_APPLY_OWNER_LOOP_ID="$loop_id" FLEET_APPLY_OWNER_RC="$owner_rc" \
       FLEET_APPLY_OWNER_SECONDS="$owner_seconds" FLEET_APPLY_OWNER_CHANGED="$owner_changed" \
       FLEET_APPLY_OWNER_SKIPPED="$owner_skipped" \
+      FLEET_APPLY_OWNER_SKIP_REASON="$owner_skip_reason" \
       "$runtime_python" - <<'PY'
 import json, os
 from datetime import datetime, timezone
@@ -498,6 +516,9 @@ record = {
     "changed": int(os.environ["FLEET_APPLY_OWNER_CHANGED"]),
     "skipped": int(os.environ["FLEET_APPLY_OWNER_SKIPPED"]),
 }
+skip_reason = os.environ.get("FLEET_APPLY_OWNER_SKIP_REASON")
+if skip_reason:
+    record["reason"] = skip_reason
 with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as handle:
     handle.write(json.dumps(record, sort_keys=True) + "\n")
 PY

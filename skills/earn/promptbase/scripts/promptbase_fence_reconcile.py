@@ -14,15 +14,16 @@ parses with parse_dashboard_cards/status_for_title, read over the SAME
 interactive:dais lease-wrapped CDP endpoint daily.sh uses -- never a fresh
 login and never a second submit.
 
-Precision: daily.sh calls record_snapshot with the exact slug/title it is
-about to submit, immediately before calling publish.py --confirm -- the last
-point before any PromptBase-mutating call. Without a slug in that snapshot
-(no candidate was selected, or the run crashed before selection), nothing
-could have submitted -- this resolves no-effect immediately, no dashboard
-read needed.
+Precision: daily.sh writes one immutable, occurrence-bound snapshot before
+calling publish.py --confirm. Only a validated schema-2 snapshot with matching
+owner, occurrence, active capture provenance, and timestamp may prove that an
+explicit null candidate was not dispatched. Missing, malformed, partial, or
+misbound snapshots stay held; they never prove no effect.
 
 Decision:
-  - snapshot has no slug -> no-effect immediately (read-only run so far).
+  - a validated schema-2 snapshot with explicit null slug and title ->
+    no-effect immediately (the active admitted run selected no candidate).
+  - missing, legacy, malformed, or unbound snapshot -> inconclusive, stays fenced.
   - the ledger already has a row for that slug recorded at/after queued_at ->
     effected via the existing local ledger row (daily.sh crashed on something
     unrelated after already recording the submission).
@@ -46,12 +47,15 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import os
+import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[3]
@@ -78,10 +82,122 @@ BROWSER_GUARD = Path(
     os.environ.get("AI_BROWSER_GUARD", str(REPO_ROOT / "skills/browser/browser-guard.sh"))
 )
 BROWSER_IDENTITY = "interactive:dais"
+SNAPSHOT_FIELDS = frozenset({
+    "schema_version", "owner_id", "occurrence_id", "slug", "title", "captured_at",
+    "capture_provenance",
+})
+CAPTURE_FIELDS = frozenset({
+    "source", "owner_id", "occurrence_id", "run_id", "phase", "claim_pid",
+    "claim_process_start", "capture_pid", "capture_process_start", "queued_at",
+})
+CAPTURE_SOURCE = "resource-admission-v2-active-claim"
+_OCCURRENCE_SUFFIX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_SAFE_RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
 def _safe_occurrence(occurrence_id: str) -> str:
     return occurrence_id.replace(":", "_").replace("/", "_")
+
+
+def _valid_occurrence_id(occurrence_id: str) -> bool:
+    prefix = f"{OWNER_ID}:"
+    if (not isinstance(occurrence_id, str) or len(occurrence_id) > 128
+            or not occurrence_id.startswith(prefix)):
+        return False
+    return _OCCURRENCE_SUFFIX.fullmatch(occurrence_id[len(prefix):]) is not None
+
+
+def capture_active_admission(
+    owner_id: str, occurrence_id: str, *,
+    state_root_fn: Callable[[], Path] | None = None,
+    process_start_fn: Callable[[int], str | None] | None = None,
+    pid_fn: Callable[[], int] = os.getpid,
+    ppid_fn: Callable[[], int] = os.getppid,
+    environ: Mapping[str, str] | None = None,
+) -> dict | None:
+    """Read-only proof that this writer is a child of the active owner claim."""
+    try:
+        from runtime.host import resource_admission
+
+        if (owner_id != OWNER_ID or not _valid_occurrence_id(occurrence_id)):
+            return None
+        env = os.environ if environ is None else environ
+        run_id = env.get("LIFE_MANAGER_RUN_ID")
+        if (env.get("LIFE_MANAGER_OCCURRENCE_ID") != occurrence_id
+                or env.get("LIFE_MANAGER_LOOP_ID") not in (None, owner_id)
+                or not isinstance(run_id, str) or not _SAFE_RUN_ID.fullmatch(run_id)
+                or run_id in {".", ".."}):
+            return None
+
+        capture_pid = pid_fn()
+        claim_pid = ppid_fn()
+        if (type(capture_pid) is not int or capture_pid <= 0
+                or type(claim_pid) is not int or claim_pid <= 0):
+            return None
+        process_start = process_start_fn or resource_admission.process_start
+        capture_start = process_start(capture_pid)
+        claim_start = process_start(claim_pid)
+        if (not isinstance(capture_start, str) or not capture_start.strip()
+                or not isinstance(claim_start, str) or not claim_start.strip()):
+            return None
+
+        root = (state_root_fn or resource_admission.state_root)()
+        database = root / "admission-v2.sqlite3"
+        connection = sqlite3.connect(
+            f"{database.as_uri()}?mode=ro", uri=True, timeout=2.0,
+        )
+        try:
+            connection.execute("PRAGMA query_only=ON")
+            if connection.execute("PRAGMA query_only").fetchone() != (1,):
+                return None
+            occurrence = connection.execute(
+                """SELECT owner_id,queued_at,state,effect_unknown
+                     FROM occurrences WHERE occurrence_id=?""",
+                (occurrence_id,),
+            ).fetchone()
+        finally:
+            connection.close()
+        if (occurrence is None or occurrence[0] != owner_id
+                or occurrence[2] != "claimed" or occurrence[3] != 0
+                or not isinstance(occurrence[1], (int, float))
+                or isinstance(occurrence[1], bool)):
+            return None
+        try:
+            queued_at = float(occurrence[1])
+        except (OverflowError, ValueError):
+            return None
+        if not math.isfinite(queued_at):
+            return None
+
+        owners = root / "owners"
+        if not owners.is_dir():
+            return None
+        owner_claims = []
+        for path in owners.glob("*.json"):
+            try:
+                claim = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return None
+            if isinstance(claim, dict) and claim.get("owner_id") == owner_id:
+                owner_claims.append(claim)
+        if len(owner_claims) != 1:
+            return None
+        claim = owner_claims[0]
+        if (claim.get("version") != 2 or claim.get("resource_class") != "browser"
+                or claim.get("phase") != "running"
+                or claim.get("occurrence_id") != occurrence_id
+                or type(claim.get("pid")) is not int or claim["pid"] != claim_pid
+                or claim.get("process_start") != claim_start):
+            return None
+        return {
+            "source": CAPTURE_SOURCE, "owner_id": owner_id,
+            "occurrence_id": occurrence_id, "run_id": run_id, "phase": "running",
+            "claim_pid": claim_pid, "claim_process_start": claim_start,
+            "capture_pid": capture_pid, "capture_process_start": capture_start,
+            "queued_at": queued_at,
+        }
+    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError, RuntimeError, OverflowError):
+        return None
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -102,37 +218,175 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
 
 
 def snapshot_path(occurrence_id: str, *, snapshot_dir: Path = SNAPSHOT_DIR) -> Path:
+    if not _valid_occurrence_id(occurrence_id):
+        raise ValueError("invalid_occurrence_id")
     return snapshot_dir / f"{_safe_occurrence(occurrence_id)}.json"
 
 
-def _atomic_write_json(path: Path, value: dict, *, mode: int = 0o600) -> None:
+def _atomic_create_json(path: Path, value: dict) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f"{path.name}.", suffix=".tmp", dir=path.parent,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Hard-link creation is atomic and refuses to replace an existing proof.
+        os.link(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def _atomic_write_json(path: Path, value: dict, *, mode: int = 0o600) -> None:
+    """Replace an evidence record atomically; snapshots use create-only above."""
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    descriptor = os.open(temporary_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(value, handle, ensure_ascii=False, sort_keys=True)
-    os.replace(tmp, path)
+    os.replace(temporary_path, path)
+
+
+def _snapshot_error(
+    snapshot: Any, occurrence_id: str, *, now: dt.datetime,
+    queued_at: dt.datetime | None = None,
+) -> str | None:
+    if not isinstance(snapshot, dict) or set(snapshot) != SNAPSHOT_FIELDS:
+        return "snapshot_shape_invalid"
+    if type(snapshot.get("schema_version")) is not int or snapshot["schema_version"] != 2:
+        return "snapshot_schema_invalid"
+    if snapshot.get("owner_id") != OWNER_ID or snapshot.get("occurrence_id") != occurrence_id:
+        return "snapshot_binding_mismatch"
+
+    slug, title = snapshot.get("slug"), snapshot.get("title")
+    no_candidate = slug is None and title is None
+    selected = (
+        isinstance(slug, str) and bool(slug.strip())
+        and isinstance(title, str) and bool(title.strip())
+    )
+    if not (no_candidate or selected):
+        return "snapshot_candidate_invalid"
+
+    provenance = snapshot.get("capture_provenance")
+    if not isinstance(provenance, dict) or set(provenance) != CAPTURE_FIELDS:
+        return "capture_provenance_shape_invalid"
+    if (provenance.get("source") != CAPTURE_SOURCE
+            or provenance.get("owner_id") != OWNER_ID
+            or provenance.get("occurrence_id") != occurrence_id
+            or provenance.get("phase") != "running"):
+        return "capture_provenance_binding_mismatch"
+    run_id = provenance.get("run_id")
+    if not isinstance(run_id, str) or not _SAFE_RUN_ID.fullmatch(run_id) or run_id in {".", ".."}:
+        return "capture_run_id_invalid"
+    for field in ("claim_pid", "capture_pid"):
+        pid = provenance.get(field)
+        if type(pid) is not int or pid <= 0:
+            return "capture_process_identity_invalid"
+    if provenance["claim_pid"] == provenance["capture_pid"]:
+        return "capture_process_identity_invalid"
+    for field in ("claim_process_start", "capture_process_start"):
+        identity = provenance.get(field)
+        if not isinstance(identity, str) or not identity.strip():
+            return "capture_process_identity_invalid"
+    capture_queued_at = provenance.get("queued_at")
+    if (not isinstance(capture_queued_at, (int, float)) or isinstance(capture_queued_at, bool)):
+        return "capture_queue_time_invalid"
+    try:
+        capture_queued_at = float(capture_queued_at)
+    except (OverflowError, ValueError):
+        return "capture_queue_time_invalid"
+    if not math.isfinite(capture_queued_at):
+        return "capture_queue_time_invalid"
+    if queued_at is not None and abs(float(capture_queued_at) - queued_at.timestamp()) > 0.000001:
+        return "capture_queue_binding_mismatch"
+
+    captured_text = snapshot.get("captured_at")
+    if not isinstance(captured_text, str):
+        return "snapshot_timestamp_invalid"
+    try:
+        captured_at = dt.datetime.fromisoformat(captured_text.replace("Z", "+00:00"))
+    except ValueError:
+        return "snapshot_timestamp_invalid"
+    if captured_at.tzinfo is None or captured_at.utcoffset() is None or captured_at.microsecond:
+        return "snapshot_timestamp_invalid"
+    captured_at = captured_at.astimezone(dt.timezone.utc)
+    now = now.astimezone(dt.timezone.utc)
+    if captured_at > now:
+        return "snapshot_timestamp_in_future"
+    if queued_at is not None:
+        queued_at = queued_at.astimezone(dt.timezone.utc)
+        # captured_at is rounded down to seconds by the producer. Its interval
+        # must still overlap the queued occurrence's start time.
+        if captured_at + dt.timedelta(seconds=1) <= queued_at:
+            return "snapshot_before_occurrence"
+    return None
 
 
 def record_snapshot(
     occurrence_id: str, *, slug: str | None, title: str | None,
     snapshot_dir: Path = SNAPSHOT_DIR, now: dt.datetime | None = None,
+    capture_provenance_fn: Callable[[str, str], dict | None] = capture_active_admission,
 ) -> dict:
-    """Called by daily.sh immediately before publish.py --confirm (or with
-    slug=None when no candidate was selected -- nothing could have mutated
-    PromptBase in that case). Best-effort: a write failure never blocks the
-    run; the reconciler then treats a missing snapshot the same as
-    slug=None."""
+    """Atomically create one pre-dispatch snapshot; never replace an existing one."""
     now = now or dt.datetime.now(dt.timezone.utc)
-    snapshot = {
-        "schema_version": 1, "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
-        "slug": slug, "title": title, "captured_at": now.isoformat(timespec="seconds"),
-    }
+    if not _valid_occurrence_id(occurrence_id):
+        return {"write_error": "invalid_occurrence_id"}
+    no_candidate = slug is None and title is None
+    selected = (
+        isinstance(slug, str) and bool(slug.strip())
+        and isinstance(title, str) and bool(title.strip())
+    )
+    if not (no_candidate or selected):
+        return {"write_error": "snapshot_candidate_invalid"}
     try:
-        _atomic_write_json(snapshot_path(occurrence_id, snapshot_dir=snapshot_dir), snapshot)
+        capture = capture_provenance_fn(OWNER_ID, occurrence_id)
+    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError, RuntimeError, OverflowError):
+        capture = None
+    if not isinstance(capture, dict):
+        return {"write_error": "capture_unverified"}
+
+    snapshot = {
+        "schema_version": 2, "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+        "slug": slug, "title": title, "captured_at": now.isoformat(timespec="seconds"),
+        "capture_provenance": capture,
+    }
+    invalid = _snapshot_error(snapshot, occurrence_id, now=now)
+    if invalid:
+        reason = "capture_unverified" if invalid.startswith("capture_") else invalid
+        return {**snapshot, "write_error": reason}
+    try:
+        capture_queued_at = dt.datetime.fromtimestamp(capture["queued_at"], dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return {**snapshot, "write_error": "capture_queue_time_invalid"}
+    invalid = _snapshot_error(snapshot, occurrence_id, now=now, queued_at=capture_queued_at)
+    if invalid:
+        return {**snapshot, "write_error": invalid}
+
+    path = snapshot_path(occurrence_id, snapshot_dir=snapshot_dir)
+    try:
+        _atomic_create_json(path, snapshot)
+        return snapshot
+    except FileExistsError:
+        existing = load_snapshot(occurrence_id, snapshot_dir=snapshot_dir)
+        invalid_existing = _snapshot_error(
+            existing, occurrence_id, now=now, queued_at=capture_queued_at,
+        )
+        same_capture = (
+            not invalid_existing
+            and all(existing["capture_provenance"][key] == capture[key] for key in (
+                "source", "owner_id", "occurrence_id", "run_id", "phase", "claim_pid",
+                "claim_process_start", "queued_at",
+            ))
+        )
+        if (same_capture and existing["slug"] == slug and existing["title"] == title):
+            return existing
+        reason = invalid_existing or "snapshot_conflict"
+        return {**snapshot, "write_error": reason}
     except OSError as exc:
-        snapshot = {**snapshot, "write_error": f"{type(exc).__name__}:{exc}"}
-    return snapshot
+        return {**snapshot, "write_error": f"{type(exc).__name__}:{exc}"}
 
 
 def load_snapshot(occurrence_id: str, *, snapshot_dir: Path = SNAPSHOT_DIR) -> dict | None:
@@ -247,17 +501,23 @@ def reconcile(
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
 
     snapshot = load_snapshot_fn(occurrence_id)
-    slug = (snapshot or {}).get("slug")
-    title = (snapshot or {}).get("title")
+    invalid_snapshot = _snapshot_error(snapshot, occurrence_id, now=now, queued_at=queued_at)
+    if invalid_snapshot:
+        return {
+            "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+            "reason": invalid_snapshot, "error_class": "snapshot_untrusted",
+            "admission_state": state,
+        }
+    slug, title = snapshot["slug"], snapshot["title"]
 
-    if not slug or not title:
+    if slug is None and title is None:
         return _no_effect_result(
             occurrence_id, state,
             {
                 "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                 "checked_at": now.isoformat(timespec="seconds"),
                 "reason": "no_candidate_selected_for_occurrence",
-                "snapshot_present": snapshot is not None,
+                "captured_at": snapshot["captured_at"],
             },
             evidence_dir, resolve, resolve_pre_effect_fn, now,
         )

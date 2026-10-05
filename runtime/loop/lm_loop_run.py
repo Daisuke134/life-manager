@@ -18,6 +18,7 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Callable, NamedTuple
 
@@ -1289,24 +1290,76 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"unknown loop id: {loop_id}")
         loop_state_root = Path(os.path.expanduser(
             os.environ.get("LIFE_MANAGER_STATE_ROOT", entry["state_root"])))
+        run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
+        wake_id = _wake_id(run_id)
+        product_loop_id = _product_loop_for_job(release_root, loop_id)
+        occurrence_id = f"{loop_id}:{run_id}"
+        start_env_sha256 = _identity_sha256({
+            "job_id": loop_id,
+            "owner_id": loop_id,
+            "run_id": run_id,
+            "wake_id": wake_id,
+            "occurrence_id": occurrence_id,
+            "release_sha": manifest["sha"],
+        })
+        event_path = loop_state_root / "events.jsonl"
         current = Path("~/loops/current").expanduser()
         item_lock = _label_apply_lock_path(current, entry["label"])
-        with _apply_lock(current, item_lock):
+        with ExitStack() as apply_lock_stack:
+            try:
+                apply_lock_stack.enter_context(_apply_lock(current, item_lock))
+            except RuntimeError as error:
+                if str(error) != "production apply is already owned":
+                    raise
+                event = build_runtime_event(
+                    loop_id=loop_id, domain=entry["domain"], run_id=run_id,
+                    release_sha=manifest["sha"], provider=entry["provider_route"],
+                    profile_alias=None, effect_class=entry["effect_class"],
+                    succeeded=False, deferred=True, blocker="apply_lock_busy",
+                    evidence_scheme="lm-loop", product_loop_id=product_loop_id,
+                    job_id=loop_id, owner_id=loop_id, wake_id=wake_id,
+                    loaded_argv_sha256=None, loaded_env_sha256=start_env_sha256,
+                    exit_code=78, failure_layer="runtime",
+                    error_class="apply_lock_busy", retryable=True,
+                    next_action="retry_after_eligibility",
+                )
+                event["effect_status"] = "not_applicable"
+                validate_runtime_event(event)
+                try:
+                    append_runtime_event(event_path, event)
+                except (OSError, ValueError) as write_error:
+                    print(json.dumps({
+                        "event": "runtime_event_write_failed",
+                        "timestamp": event["timestamp"],
+                        "event_id": event["event_id"],
+                        "loop_id": loop_id,
+                        "job_id": loop_id,
+                        "owner_id": loop_id,
+                        "wake_id": wake_id,
+                        "run_id": run_id,
+                        "occurrence_id": occurrence_id,
+                        "product_loop_id": product_loop_id,
+                        "release_sha": manifest["sha"],
+                        "phase": "report",
+                        "status": event["status"],
+                        "blocker": event["blocker"],
+                        "failure_layer": "runtime",
+                        "effect_class": event["effect_class"],
+                        "effect_status": event["effect_status"],
+                        "error_class": event["error_class"],
+                        "exit_code": event["exit_code"],
+                        "retryable": event["retryable"],
+                        "next_action": event["next_action"],
+                        "loaded_argv_sha256": event["loaded_argv_sha256"],
+                        "loaded_env_sha256": event["loaded_env_sha256"],
+                        "provider_receipt_id": event["provider_receipt_id"],
+                        "official_readback_ref": event["official_readback_ref"],
+                        "writer_error_type": type(write_error).__name__,
+                        "writer_errno": getattr(write_error, "errno", None),
+                    }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+                return 78
             command = build_loop_command(registry, loop_id, release_root)
-            run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
-            wake_id = _wake_id(run_id)
-            product_loop_id = _product_loop_for_job(release_root, loop_id)
             loaded_argv_sha256 = _identity_sha256(command)
-            occurrence_id = f"{loop_id}:{run_id}"
-            start_env_sha256 = _identity_sha256({
-                "job_id": loop_id,
-                "owner_id": loop_id,
-                "run_id": run_id,
-                "wake_id": wake_id,
-                "occurrence_id": occurrence_id,
-                "release_sha": manifest["sha"],
-            })
-            event_path = loop_state_root / "events.jsonl"
             scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
                 loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
             try:

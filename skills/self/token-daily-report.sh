@@ -50,4 +50,4 @@ $LOOP_SUMMARY
 常駐tmuxセッション: ${TMUX_COUNT:-0}本 / 1日超ゾンビselffix: ${ZOMBIES:-0}本
 (掟: 常駐禁止・自壊タイマー・引退届が先)"
 "$SCRIPT_DIR/../_shared/send-telegram.sh" "$REPORT" \
-  "${TOKEN_REPORT_TELEGRAM_TARGET:-${TELEGRAM_ALERT_CHAT_ID:?TOKEN_REPORT_TELEGRAM_TARGET or TELEGRAM_ALERT_CHAT_ID is required}}"
+  "${TOKEN_REPORT_TELEGRAM_TARGET:-${TELEGRAM_ALERT_CHAT_ID:-}}"
