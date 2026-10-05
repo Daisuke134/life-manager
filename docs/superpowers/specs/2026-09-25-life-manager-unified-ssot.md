@@ -8354,3 +8354,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - root自身の長時間team一覧read handle92189だけCtrl-Cで取消、exit130確認。他agent/loop/基盤/lease/登録は停止・変更しない。直後inbox新返信0。新source自然run18dbac518afd9c48-77757/report/entrypointexit75/loadedidle、installed/eventSHA28c09277一致を再確認。current shared legacylease解放や12件解消の証明ではない。
 - 最終guard再観測はregisteredbrowserPID95156/reachabletrue、同holder5434のlease時刻1791214982へ更新。元の取得call1791212290とこの更新を混同せず、heartbeat/再取得/実作業終了のどれかはこの観測だけで断定しない。inbox新返信0でowner対応付け/正規解放は未取得。
 - source/kernel診断保存key send_diagnosticを実コード730–737で再確認し、既存調査のtop-levelkey照合が契約通りであることを確認。初期browser待ちとsender段階失敗を混ぜず、owner使用終了の証拠が取れたら正規guard取得で続ける。root解除/送信再試行/基盤restart0。
+
+
+### 609. 同一browser所有待ち3turn再現・goal blocked再開点
+
+- 先頭Coconalaの必須公式readbackが、§606→§607–608→本turnの3連続goalturnで同一共有browser leaseにより進めない。fresh guardstatusはregisteredPID95156/reachabletrue/holder5434/lease時刻1791214982。root自身の短命probePIDへ明示bindした正規acquireもexit9、lease変更0。psは5434のCodex app-server稼働を再確認、agent使用終了の代用品にしない。AGMSG inbox新返信0。
+- 実施済み：source診断107/freshreviewSHIP/全CI/PR6686main28c09277/ALLrelease/Replyadoption/新source自然wake、取得session/callの特定、独立読取検証、登録済みCFO/iOS/peerへの所有確認連絡、状態再観測。未取得：取得sessionに対応するowner・browser使用終了・正規解放、12件の公式card/reply/receipt。解除/再送/基盤restartで代用しない。順序固定のため別項目へ飛ばず、必須外部所有状態の変更なく同項目を安全に完了できない。
+- Goal全体は完了ではなくblockedへ移す。残44/cursor1、再開条件は取得session01a10aa8-e7ab-74e2-a12c-bf9a51e6690dのowner確認とそのownerによる使用終了/正規lease解放の証拠。再開時はguardstatus→短命ownerで正規取得→公式12件照合→必要修復/自然診断の順。本人承認/未知効果を0や成功へ置換しない。
+- 再開正本：repo /Users/anicca/Projects/life-manager-main、worktree /Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002、branch/upstream docs/ssot-orchestration-status-20261002/origin/docs/ssot-orchestration-status-20261002、spec絶対パス /Users/anicca/Projects/life-manager-main/.worktrees/ssot-main-20261002/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md、残TODO正本§217/current1。runtime release /Users/anicca/loops/releases/20261006T001540-28c09277、sourceproof state/coconala-send-diagnostics-source-proof-20261006.json/mode600。source専用branch fix/lm-coconala-send-boundary-diagnostics-20261005/HEAD87245f38e2a0e8188feea3af45496aca691f1911はpushed/merged。別laneや共有checkoutを切り替えない。
