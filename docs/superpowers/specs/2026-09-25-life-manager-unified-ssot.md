@@ -3145,3 +3145,14 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - ASCの`FINANCE_DETAIL` fiscal report `2026-09`は2行・合計JPY 1,184。ただし取引日は2026-05-28..06-03、settlement日は2026-05-31..06-05で、現行24 appのinventoryとのApple Identifier/SKU完全一致はない。9月のLife Manager mobile revenueやB7へ帰属させない。根拠：[item 5 readback](../../evidence/cfo/2026-10-05-item5-source-readback-1535.md)。
 - provider変更、ledger/database書込み、report配信、本番変更は行っていない。
 - CFO専用TODOの順序は変更しない。main上の現在cursorはA1〜A5。candidateのsource/test完了はmain統合・本番反映の完了を意味しない。続けてA6 Google invoice照合、A7 Moneytree鮮度・支出分類、A8 14 loopのreceipt/実費結合、A9既存CFOレポートへの表示、最後にA10 natural runと7日観測を進める。
+
+### A1の実装cursor：既存runtime eventとprovider usageのtrace結合
+
+- mainの`runtime_event.py`はloop/run/owner/occurrence/release/effect/readbackの構造化eventを既に保存する。新しいloop event基盤は作らない。
+- 既存`usage-event.js`はtenant/provider/feature/outcome/quantity/estimateを`lm_api_cost.meta`へ記録するが、利用可能なloop run/owner/occurrence/releaseとの参照がない。そのためloop内provider costをruntime eventへ結合できない。
+- 次は既存`usage-event.js`経路に、検証済みruntime identityをtrace metadataとして記録する。値が無い・無効なら推測せず`unlinked/partial`として残し、provider cost row自体は失わない。A1〜A5の順序は変更しない。
+
+**A1最初の実装slice:** 既存`usage-event.js`が`lm_api_cost.meta`へ書くprovider cost rowに、信頼できる`LIFE_MANAGER_*`環境からloop/run/owner/occurrence/releaseを検証して結ぶ`runtime_trace`を追加する。event payloadからruntime identityを上書きしない。loop外・必要値不足・不正なoccurrenceやsecret-shaped IDは`unlinked/partial`として明示し、無効値をそのまま保存しない。既存runtime eventとcost ledgerを再利用し、新しいevent storeやCLIは作らない。
+
+- **実装状態（candidate）:** branch `feat/cfo-a1-provider-trace-20261005`でtrace metadataと検証を実装。usage-event suite 11/11、Gemini/Maps/ask/ledger等の関連suite 58/58 PASS。secret-shaped runtime ID、foreign occurrence、欠落context、event payloadによるidentity overrideはtrace帰属に使わず、無効値を保存しない。外部provider、ledger/database、production stateは変更していない。
+- **cursor:** A1は未完了。今回のsource/testはloop identity joinの最初のsliceであり、main統合・providerごとの網羅性・natural runを証明しない。A1 acceptanceが閉じるまでA2へ進まない。
