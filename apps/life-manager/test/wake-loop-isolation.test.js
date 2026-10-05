@@ -672,3 +672,172 @@ test("the reminder loop reserves the next 60s start before a slow tick and close
     else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSupaKey;
   }
 });
+
+test("the wake scan distinguishes strict calendar failures from successful empty reads", async () => {
+  const { fetchUpcomingEvents } = require("../lib/events.js");
+  const readOptions = [];
+  const calendar = {
+    async listEventsRaw(_uid, options = {}) {
+      readOptions.push(options);
+      if (options.strict) throw new Error("calendar unavailable");
+      return [];
+    },
+  };
+  const now = EVENT_START_MS - 5 * MINUTE;
+
+  assert.deepEqual(await fetchUpcomingEvents("legacy-consumer", { nowMs: now, calendar }), [],
+    "non-wake consumers keep the default non-strict read contract");
+
+  const h = deps();
+  h.deps.calendar = calendar;
+  h.deps.fetchUpcomingEvents = undefined;
+  const stats = await wakeTick({
+    ...h.deps,
+    listUsers: async () => [USER],
+    now,
+  });
+
+  assert.equal(readOptions.at(-1).strict, true, "the 60s wake path asks the transport to preserve read failures");
+  assert.deepEqual(stats, {
+    users_seen: 1,
+    eligible_users: 1,
+    calendar_read_success: 0,
+    calendar_read_failed: 1,
+    calendar_items: 0,
+    calendar_events: 0,
+    wake_candidates: 0,
+    due_candidates: 0,
+  });
+  assert.equal(h.dialed.length, 0, "a failed calendar read safely stands down");
+});
+
+test("the wake scan counts returned events, call candidates, and due candidates", async () => {
+  const h = deps();
+  h.deps.calendar = {
+    async listEventsRaw(_uid, options = {}) {
+      assert.equal(options.strict, true);
+      return [{
+        id: EVENT.id,
+        summary: EVENT.summary,
+        location: EVENT.location,
+        start: { dateTime: EVENT.startIso },
+        end: { dateTime: new Date(EVENT.endMs).toISOString() },
+      }];
+    },
+  };
+  h.deps.fetchUpcomingEvents = undefined;
+  const stats = await wakeTick({
+    ...h.deps,
+    listUsers: async () => [USER],
+    now: EVENT_START_MS - 5 * MINUTE,
+  });
+
+  assert.deepEqual(stats, {
+    users_seen: 1,
+    eligible_users: 1,
+    calendar_read_success: 1,
+    calendar_read_failed: 0,
+    calendar_items: 1,
+    calendar_events: 1,
+    wake_candidates: 1,
+    due_candidates: 1,
+  });
+  assert.equal(h.dialed.length, 1, "diagnostics do not change the existing due-call behavior");
+});
+
+test("the wake scan distinguishes raw items filtered from timed events and a successful empty read", async () => {
+  const { fetchUpcomingEvents } = require("../lib/events.js");
+  const readerOptions = [];
+  const transportOptions = [];
+  let rawItems = [{ id: "all-day", summary: "holiday", start: { date: "2026-08-05" } }];
+  const h = deps();
+  h.deps.calendar = {
+    async listEventsRaw(_uid, options = {}) {
+      transportOptions.push(options);
+      return rawItems;
+    },
+  };
+  h.deps.fetchUpcomingEvents = async (uid, options) => {
+    readerOptions.push(options);
+    return fetchUpcomingEvents(uid, options);
+  };
+  const scan = () => wakeTick({
+    ...h.deps,
+    listUsers: async () => [USER],
+    now: EVENT_START_MS - 5 * MINUTE,
+  });
+
+  const filtered = await scan();
+  assert.equal(readerOptions[0].strictCalendarRead, true, "only the wake reader opts into strict calendar errors");
+  assert.equal(transportOptions[0].strict, true, "the explicit wake option reaches the transport strict flag");
+  assert.deepEqual(filtered, {
+    users_seen: 1,
+    eligible_users: 1,
+    calendar_read_success: 1,
+    calendar_read_failed: 0,
+    calendar_items: 1,
+    calendar_events: 0,
+    wake_candidates: 0,
+    due_candidates: 0,
+  }, "a raw all-day item is counted even though the timed-event reader returns none");
+
+  rawItems = [];
+  const empty = await scan();
+  assert.deepEqual(empty, {
+    users_seen: 1,
+    eligible_users: 1,
+    calendar_read_success: 1,
+    calendar_read_failed: 0,
+    calendar_items: 0,
+    calendar_events: 0,
+    wake_candidates: 0,
+    due_candidates: 0,
+  }, "an empty successful read remains distinct from filtered raw items");
+  assert.equal(h.dialed.length, 0, "neither diagnostic case changes call behavior");
+});
+
+test("a calendar read finishing after the wake timeout cannot change its snapshot or the next window", async () => {
+  let resolveRead;
+  const pendingRead = new Promise((resolve) => { resolveRead = resolve; });
+  let markPublished;
+  const eventsPublished = new Promise((resolve) => { markPublished = resolve; });
+  const diagnostics = [];
+  const h = deps();
+  h.deps.fetchUpcomingEvents = undefined;
+  h.deps.calendar = { async listEventsRaw() { return pendingRead; } };
+  h.deps.putEvents = () => markPublished();
+  const previousError = console.error;
+  console.error = () => {};
+  let stats;
+  try {
+    stats = await wakeTick({
+      ...h.deps,
+      listUsers: async () => [USER],
+      now: EVENT_START_MS - 5 * MINUTE,
+      wakeTimeoutMs: 10,
+      onWakeDiagnostics: (delta) => diagnostics.push(delta),
+    });
+  } finally {
+    console.error = previousError;
+  }
+
+  const emptySnapshot = {
+    users_seen: 1,
+    eligible_users: 1,
+    calendar_read_success: 0,
+    calendar_read_failed: 0,
+    calendar_items: 0,
+    calendar_events: 0,
+    wake_candidates: 0,
+    due_candidates: 0,
+  };
+  assert.deepEqual(stats, emptySnapshot, "the short injected timeout returns before the calendar read");
+  assert.deepEqual(diagnostics, [{ users_seen: 1, eligible_users: 1 }], "only the timed tick's counts were emitted");
+
+  resolveRead([{ id: "all-day", summary: "holiday", start: { date: "2026-08-05" } }]);
+  await eventsPublished;
+
+  assert.deepEqual(stats, emptySnapshot, "the returned snapshot stays immutable after timeout");
+  assert.deepEqual(diagnostics, [{ users_seen: 1, eligible_users: 1 }], "late metrics cannot enter the next 5-minute window");
+  assert.equal(h.dialed.length, 0);
+});

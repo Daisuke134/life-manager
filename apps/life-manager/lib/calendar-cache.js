@@ -31,6 +31,12 @@ function cacheKey(uid, { timeMin, timeMax } = {}, ttlMs) {
   return [uid, timeBucket(timeMin, widthMs), timeBucket(timeMax, widthMs)].join("|");
 }
 
+function forCaller(outcome, input) {
+  if (outcome.ok) return outcome.items;
+  if (input.strict === true) throw outcome.error;
+  return [];
+}
+
 function makeCachedCalendar(inner, opts = {}) {
   const ttlMs = configuredTtlMs(opts.ttlMs);
   const now = opts.now || Date.now;
@@ -54,17 +60,17 @@ function makeCachedCalendar(inner, opts = {}) {
       const key = cacheKey(uid, input, ttlMs);
       const timestamp = now();
       const hit = entries.get(key);
-      if (hit && timestamp - hit.fetchedAt < ttlMs) return hit.promise;
+      if (hit && timestamp - hit.fetchedAt < ttlMs) return forCaller(await hit.promise, input);
 
-      const promise = Promise.resolve().then(() => inner.listEventsRaw(uid, input));
+      const promise = Promise.resolve()
+        .then(() => inner.listEventsRaw(uid, { ...input, strict: true }))
+        .then(
+          (items) => ({ ok: true, items }),
+          (error) => ({ ok: false, error }),
+        );
       const entry = { uid, fetchedAt: timestamp, promise };
       entries.set(key, entry);
-      try {
-        return await promise;
-      } catch (error) {
-        if (entries.get(key) === entry) entries.delete(key);
-        throw error;
-      }
+      return forCaller(await promise, input);
     },
     async createEvent(uid, input) {
       const result = await inner.createEvent(uid, input);
