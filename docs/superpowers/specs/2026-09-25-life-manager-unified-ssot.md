@@ -7646,6 +7646,6 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 ### 516. 最終CIの実job待機とCoconala browser lease診断
 
-- PR6616最終head fcb38b6eのGitHub run37268312024を直接readback。instruction/OSS/PII/構文/Startup/Shell/CodeRabbitはSUCCESS、Loop control contractsのregistry/releases/apply fencing検証、gitleaks full history、TruffleHog filesystemはactual jobs IN_PROGRESS。停止やtimeoutと推測して重複runを作成しない。main統合条件は終端PASS待ちで、同sourceへの追加編集は不要。
+- PR6616最終head fcb38b6eのGitHub run37268312024を直接readback。instruction/OSS/PII/構文/Startup/Shell/CodeRabbitはSUCCESS、追加readbackでgitleaks full history/TruffleHog filesystemはSUCCESS。残るLoop control contractsのregistry/releases/apply fencing検証だけactual job IN_PROGRESS。同run監視のgh pr checks --watchをsession31014で実行中。停止やtimeoutと推測して重複runを作成しない。main統合条件は終端PASS待ちで、同sourceへの追加編集は不要。
 - Coconala browser statusはidentity coconala:kosuke/endpoint9223/reachable/衝突なし、新browser PID54973、記録lease holder PID76619。直後kill0 probeではholder終了。既存guardはdead holderでもage<1800秒はBUSYを維持する実コード（acquireのpid_alive OR age<stale）で、rootは他ownerleaseを手動解除・TTL overrideしない。証拠 /Users/anicca/.local/state/life-manager/state/coconala-storefront-browser-owner-readback-20261005.json。browser attach/provider mutations0。次はguard自身が取得を許可する時点の公式4URL GETで、403を公開成功にしない。
-- CI待機は特定live jobのverified waitである。Agent Economy source修復は別Luna担当へ継続指示、worktree/RED証拠未取得なので着手完了と扱わない。§217残54/cursor1を保持。
+- CI待機は特定live jobのverified waitである。Agent Economy source修復は別Luna担当へ継続指示。専用worktree/branchの実在とorigin/main88872a85由来を確認、RED/修正証拠はまだ未取得。§217残54/cursor1を保持。
