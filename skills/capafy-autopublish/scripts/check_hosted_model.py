@@ -72,6 +72,19 @@ def confirmed_model_id(agent_id: str, token: str) -> str | None:
     return model if isinstance(model, str) and model else None
 
 
+def cp1_confirmed(agent_id: str, token: str) -> bool:
+    """True when the agent's latest version already has a saved CP1 card
+    (`isConfirmedSkills`). Re-preparing such a draft resets that confirmation."""
+    request = urllib.request.Request(
+        f"https://api.capafy.ai/agent/agents/{agent_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(request, timeout=25) as response:
+        payload = json.load(response)
+    data = payload.get("data") if isinstance(payload, dict) and payload.get("code") == 0 else None
+    return isinstance(data, dict) and bool(data.get("isConfirmedSkills"))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent-id", required=True)
@@ -98,7 +111,14 @@ def main() -> int:
         return 1
 
     if confirmed_id is None:
-        print("MODEL_UNKNOWN no-confirmed-model-yet")
+        # CP2 (which confirms the hosted model) runs after CP1. A draft whose CP1 is
+        # already saved must go on to CP2, not be re-prepared (2026-10-05 Hook Lab
+        # v1.0.5 was re-prepared every pass and lost its CP1 each time).
+        try:
+            awaiting_cp2 = cp1_confirmed(args.agent_id, token)
+        except (OSError, urllib.error.URLError, ValueError, KeyError):
+            awaiting_cp2 = False
+        print("MODEL_UNKNOWN cp1-confirmed-awaiting-cp2" if awaiting_cp2 else "MODEL_UNKNOWN no-confirmed-model-yet")
         return 0
     if confirmed_id == target_id:
         print(f"MODEL_MATCH {target_id}")
