@@ -17,7 +17,13 @@ lm_load_env_file "$ENV_FILE"
 # CAPAFY_IG_POSTIZ_INTEGRATION_ID stays unset in production until it is.
 lm_require_env_keys LM_POSTIZ_API_KEY CAPAFY_IG_POSTIZ_INTEGRATION_ID
 
-NODE_BIN="${LIFE_MANAGER_NODE:-$(command -v node || true)}"
+# launchd gives this entrypoint LIFE_MANAGER_RUNTIME_NODE but not LIFE_MANAGER_NODE
+# (lm_loop_apply.py injects that only for named loops); first natural run on
+# 2026-10-05 20:00 failed "capafy ig reel loop requires node". Same fallback as
+# bin/citizen-refill-launchd. Slide rendering needs the managed venv (Pillow),
+# which lm_loop_apply.py sets only for the mobile-app entrypoint.
+NODE_BIN="${LIFE_MANAGER_NODE:-${LIFE_MANAGER_RUNTIME_NODE:-$(command -v node || true)}}"
+export LIFE_MANAGER_PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
 PYTHON_BIN="${LIFE_MANAGER_PYTHON:-$(command -v python3 || true)}"
 [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || { printf 'capafy ig reel loop requires node\n' >&2; exit 1; }
 [ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ] || { printf 'capafy ig reel loop requires python3\n' >&2; exit 1; }
