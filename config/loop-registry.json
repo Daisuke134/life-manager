@@ -828,6 +828,30 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
+    "line-sticker-readback-hourly": {
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 23
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
+      "label": "ai.anicca.line-sticker-readback-hourly",
+      "log_root": "~/.local/state/life-manager/line-sticker/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/line-sticker",
+      "system_role": "shared"
+    },
     "capafy-goal-monitor-hourly": {
       "cadence": {
         "calendar_interval": {
