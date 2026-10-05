@@ -27,12 +27,15 @@
 
 | 項目 | 値 | 出所 |
 |---|---|---|
-| Capafy 30日 gross / 利益 | $72.78 / **$24.04** | `capafy-skill-analytics.json` observed 2026-10-05T01:06Z |
+| Capafy 30日 gross / artifact `profit`表示 | $72.78 / $24.04（actual profit未検証） | `capafy-skill-analytics.json` observed 2026-10-05T01:06Z |
 | Capafy 直近 7 日 | $1.99（1 件）、9/30 から 6 日連続 $0 | 同上 `daily_revenue_trend_last_30d` |
-| 出金待ち / 着金 | $59.00 / **$0** | 同上 `balances` |
+| provider payout balance / provider paid_out / 銀行着金 | $59.00 / **$0** / unknown | 同上 `balances` |
 | Capafy 出品 | online 35 / 審査系 6（5 枠上限は新規作成のみ、更新は対象外＝2026-10-05 実測）/ offline 12 | `packager.py publish-list` |
 | PromptBase | 19 件掲載、売上 **$0** | `promptbase-sales.json` observed 2026-10-04T19:20Z、`promptbase-listings.jsonl` |
 | 外部集客 | 記事＋X は 3 時間ごと（10/04 再開）、IG は新アカウント @capafy.hooklab 作成済み（投稿 0） | `capafy-distribute-daily` receipt、credentials SSOT |
+
+Capafyの`profit`表示USD 24.04は売上とOpenRouter費用の期間・scopeが一致した検証済みactual profitではない。同期間のCapafy net profitは`unknown`とし、USD 24.04を全社$10k進捗の分子にしない。最新のwindow/scope照合 → unified SSOTの「CFO: 2026年9月Life Manager portfolio収益のas-is」。
+`$59 / $0`はCapafy provider balanceとplatform-reported paid_outであり、銀行着金を示さない。相関するbank receiptは未確認。
 
 ## 0.1 市場の実態（2026-10-05 訂正）
 
