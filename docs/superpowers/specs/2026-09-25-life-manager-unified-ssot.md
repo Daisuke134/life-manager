@@ -3158,9 +3158,10 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 ### A1の実装cursor：既存runtime eventとprovider usageのtrace結合
 
 - mainの`runtime_event.py`はloop/run/owner/occurrence/release/effect/readbackの構造化eventを既に保存する。新しいloop event基盤は作らない。
-- 既存`usage-event.js`はtenant/provider/feature/outcome/quantity/estimateを`lm_api_cost.meta`へ記録する。PR #6637で検証済みruntime identityを`runtime_trace`として既存cost rowへ結ぶsource変更はmainに統合済みだが、provider coverageとproduction natural eventのjoinは未確認である（下記のA1 cursor参照）。
+- 既存`usage-event.js`はtenant/provider/feature/outcome/quantity/estimateを`lm_api_cost.meta`へ記録する。PR #6637で検証済みruntime identityを既存cost rowへ結ぶsource変更はmainとRailway productionに反映済みだが、下記readbackではloop-linked rowが0件で、provider coverageも未完了である。
 
 **A1最初の実装slice:** 既存`usage-event.js`が`lm_api_cost.meta`へ書くprovider cost rowに、信頼できる`LIFE_MANAGER_*`環境からloop/run/owner/occurrence/releaseを検証して結ぶ`runtime_trace`を追加する。event payloadからruntime identityを上書きしない。loop外・必要値不足・不正なoccurrenceやsecret-shaped IDは`unlinked/partial`として明示し、無効値をそのまま保存しない。既存runtime eventとcost ledgerを再利用し、新しいevent storeやCLIは作らない。
 
-- **実装状態（main source）:** PR #6637 merge `9f7bf142`でtrace metadataと検証を統合。usage-event suite 11/11、Gemini/Maps/ask/ledger等の関連suite 58/58 PASS。secret-shaped runtime ID、foreign occurrence、欠落context、event payloadによるidentity overrideはtrace帰属に使わず、無効値を保存しない。provider API、Supabase ledger row、production release、natural runは変更・確認していない。
-- **cursor:** A1は未完了。今回mainへ入ったのはloop identity joinのsource/test sliceのみで、providerごとの観測coverageとproduction natural eventのjoinは未確認。A1 acceptanceが閉じるまでA2へ進まない。
+- **実装状態（main / production）:** PR #6637のsource commit `9f7bf142`はmainに統合され、Railway production `life-call`にも2026-10-05 08:17:50 UTCにdeploy済み。usage-event suite 11/11、Gemini/Maps/ask/ledger等の関連suite 58/58 PASS。secret-shaped runtime ID、foreign occurrence、欠落context、event payloadによるidentity overrideはtrace帰属に使わず、無効値を保存しない。Google API呼び出し元とSupabase schemaは変更していない。
+- **A1 production readback（1 tenantのみ）:** deploy後のread-only ledger queryでは、2026-10-05 09:18:35 UTCまでに`provider_usage`が195行、metadata上の価格推定は合計USD 0.085。内訳は`route_cache/travel_route` 178行/USD 0、`google_maps/geocoding` 5行/USD 0.025、`google_maps/directions` 12行/USD 0.060。この推定値はinvoice・settlement・全社費用ではない。186行が`unlinked`、9行はruntime_traceなし、`linked`は0件。詳細は[production readback](../../evidence/cfo/2026-10-05-life-call-runtime-trace-readback-0918z.md)。
+- **cursor:** A1は未完了。production readback時点の`life-call` provider rowsはloop identityなしである。このA1 sliceは既存Travel ownerのrun/occurrence/releaseを記録し、対応するProduct Loopがないため`loop_id`を欠落のままpartialにする。merge後はRailway active SHAと最初の自然Travel route rowを読み戻し、owner traceを確認する。Gemini Live等の残provider coverageとproduct-loop帰属も閉じ、A1 acceptanceが完了するまでA2へ進まない。
