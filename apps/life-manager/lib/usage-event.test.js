@@ -251,3 +251,49 @@ test("provider event identity cannot override the trusted runtime environment", 
   assert.equal(JSON.stringify(rows[0].meta.runtime_trace).includes("event-loop"), false);
   assert.equal(JSON.stringify(rows[0].meta.runtime_trace).includes("event-run"), false);
 });
+
+test("provider usage accepts owner-scoped occurrences when loop identity is absent", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_maps", feature: "travel_route",
+    outcome: "success", providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0.005,
+  }, {
+    LIFE_MANAGER_OWNER_ID: "life-call-travel",
+    LIFE_MANAGER_RUN_ID: "route-123",
+    LIFE_MANAGER_OCCURRENCE_ID: "life-call-travel:route-123",
+    LIFE_MANAGER_RELEASE_SHA: "a".repeat(40),
+  });
+
+  assert.deepEqual(event.meta.runtime_trace, {
+    schema_version: 1,
+    status: "partial",
+    tenant_id: "tenant-1",
+    owner_id: "life-call-travel",
+    run_id: "route-123",
+    occurrence_id: "life-call-travel:route-123",
+    release_sha: "a".repeat(40),
+    missing_fields: ["loop_id"],
+  });
+});
+
+test("provider usage rejects an occurrence belonging to another owner without loop identity", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_maps", feature: "travel_route",
+    outcome: "success", providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0.005,
+  }, {
+    LIFE_MANAGER_OWNER_ID: "life-call-travel",
+    LIFE_MANAGER_RUN_ID: "route-123",
+    LIFE_MANAGER_OCCURRENCE_ID: "foreign-owner:route-123",
+    LIFE_MANAGER_RELEASE_SHA: "b".repeat(40),
+  });
+
+  assert.deepEqual(event.meta.runtime_trace, {
+    schema_version: 1,
+    status: "partial",
+    tenant_id: "tenant-1",
+    owner_id: "life-call-travel",
+    run_id: "route-123",
+    release_sha: "b".repeat(40),
+    missing_fields: ["loop_id", "occurrence_id"],
+  });
+  assert.equal(JSON.stringify(event.meta.runtime_trace).includes("foreign-owner"), false);
+});
