@@ -43,6 +43,7 @@
 - Modify: Daisuke134/anicca-products/apps/landing/app/achan/page.tsx
 - Modify: Daisuke134/anicca-products/apps/landing/app/letter/page.tsx
 - Modify: Daisuke134/anicca-products/apps/landing/app/tegami/page.tsx
+- Create: Daisuke134/anicca-products/apps/landing/lib/checkout-attribution.js
 - Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/checkout.js
 - Test: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js
 
@@ -51,11 +52,11 @@
 - Response: Stripe hosted checkout URL.
 - Stripe metadata: `lang`, `product`, `attribution_token`; for subscription mode the token also goes into Subscription metadata. The existing locale Price remains the payment source.
 
-- [ ] Step 1: Add failing tests for EN/JA price selection, eBook payment mode, Letter subscription mode, `utm_campaign` → `attribution_token` propagation, and subscription metadata.
-- [ ] Step 2: Run apps/landing: npm run test:telemetry. Expected: new eBook cases fail before implementation.
-- [ ] Step 3: Read `utm_campaign` on `/monk`, `/achan`, `/letter`, and `/tegami`; pass it as `attribution_token` in the checkout request and into Checkout/Subscription metadata. Keep `/go/<token>` as the existing click-receipt entrypoint. Align the EN chapter-length claim with the shipped Markdown and verify the JA chapter claim against its published artifact.
-- [ ] Step 4: Run npm run test:telemetry and npm run build in apps/landing. Expected: PASS with /monk, /achan, /letter, and /tegami preserving valid attribution.
-- [ ] Step 5: Commit the focused checkout/content change.
+- [x] Step 1: Add failing tests for the page URL helper, EN/JA price selection, eBook payment mode, Letter subscription mode, locale-matched `utm_campaign` → `attribution_token` propagation, and subscription metadata. RED observed before implementation.
+- [x] Step 2: Run apps/landing: `npm run test:telemetry`. The new eBook cases failed before implementation as expected.
+- [x] Step 3: Read `utm_campaign` on `/monk`, `/achan`, `/letter`, and `/tegami`; pass it as `attribution_token` in the checkout request and into Checkout/Subscription metadata. Keep `/go/<token>` as the existing click-receipt entrypoint. Remove the unsupported per-chapter length claims from EN/JA HTML and JSON-LD; retain the verified claim of 49 short chapters.
+- [ ] Step 4: `npm run test:telemetry` passes 336/336. `npm run build` remains unverified: Next build stopped with `ENOSPC`; the PR has no build check or deploy preview. Re-run after sufficient build space is available.
+- [x] Step 5: Commit and push the focused checkout/content change as `a36098a209`; PR #419 is open. Source tests pass; merge remains behind Step 4 build acceptance.
 
 ### Task 2: Make buyer receipt and PDF fulfillment retry-safe
 
