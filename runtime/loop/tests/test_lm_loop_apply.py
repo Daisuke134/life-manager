@@ -1369,6 +1369,24 @@ class LmLoopApplyTest(unittest.TestCase):
         plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
         self.assertEqual(plist["StartInterval"], 1800)
 
+    def test_investment_strategy_validation_uses_weekly_calendar_across_releases(self):
+        registry_value = json.loads((ROOT / "config/loop-registry.json").read_text())
+        entry = registry_value["loops"]["investment-strategy-validation"]
+        rendered = [
+            plistlib.loads(_plist(
+                "investment-strategy-validation", entry, release_root, release_sha
+            ))
+            for release_root, release_sha in (
+                (self.root, SHA), (self.root / "next-release", "b" * 40)
+            )
+        ]
+
+        expected_calendar = {"Weekday": 2, "Hour": 14, "Minute": 30}
+        for plist in rendered:
+            self.assertEqual(plist.get("StartCalendarInterval"), expected_calendar)
+            self.assertNotIn("StartInterval", plist)
+            self.assertNotIn("RunAtLoad", plist)
+
     def test_rendered_plist_is_deterministic_and_release_exact(self):
         first = build_apply_plan(registry(), self.root, SHA)
         second = build_apply_plan(registry(), self.root, SHA)

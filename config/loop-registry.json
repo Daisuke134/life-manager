@@ -138,7 +138,11 @@
       "adapter": "python",
       "admission_class": "borrow",
       "cadence": {
-        "start_interval_seconds": 604800
+        "calendar_interval": {
+          "Weekday": 2,
+          "Hour": 14,
+          "Minute": 30
+        }
       },
       "cleanup": {
         "max_age_days": 14,
