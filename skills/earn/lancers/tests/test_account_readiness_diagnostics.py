@@ -467,6 +467,43 @@ def test_aws_waf_no_credits_is_typed_without_retry(tmp_path, monkeypatch):
     assert "private api detail" not in rendered
 
 
+def test_aws_waf_challenge_parameters_accepts_observed_token_subdomain():
+    module = _module()
+    challenge_js = (
+        "https://7dcb501c5ea9.423e5b42.ap-northeast-1.token.awswaf.com/a/b/challenge.js"
+    )
+    page = SimpleNamespace(evaluate=lambda _script: {
+        "gokuProps": {"key": "fixture-key", "iv": "fixture-iv", "context": "fixture-context"},
+        "challengeJS": challenge_js,
+    })
+
+    assert module.application_tick._aws_waf_challenge_parameters(page) == {
+        "key": "fixture-key",
+        "iv": "fixture-iv",
+        "context": "fixture-context",
+        "challenge_js": challenge_js,
+    }
+
+
+@pytest.mark.parametrize("challenge_js", [
+    "https://not-token.awswaf.com/a/challenge.js",
+    "https://token.awswaf.com.evil.test/a/challenge.js",
+    "http://scripts.token.awswaf.com/a/challenge.js",
+    "https://user@scripts.token.awswaf.com/a/challenge.js",
+    "https://scripts.token.awswaf.com:8443/a/challenge.js",
+    "https://scripts.token.awswaf.com/a/challenge.js?key=secret",
+    "https://scripts.token.awswaf.com/a/challenge.js#secret",
+])
+def test_aws_waf_challenge_parameters_rejects_lookalikes_and_url_secrets(challenge_js):
+    module = _module()
+    page = SimpleNamespace(evaluate=lambda _script: {
+        "gokuProps": {"key": "fixture-key", "iv": "fixture-iv", "context": "fixture-context"},
+        "challengeJS": challenge_js,
+    })
+
+    assert module.application_tick._aws_waf_challenge_parameters(page) is None
+
+
 @pytest.mark.parametrize(
     ("recorded_start", "reuses_inherited"),
     [("fixture-holder-token", True), ("different-token", False)],

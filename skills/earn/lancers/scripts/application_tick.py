@@ -822,14 +822,19 @@ def _clear_aws_waf_task_state(path: Optional[Path]) -> bool:
 def _aws_waf_challenge_parameters(page: Any) -> Optional[dict[str, str]]:
     try:
         observed = page.evaluate(
-            """() => {
+            r"""() => {
               const props = window.gokuProps;
               const challengeJS = Array.from(document.scripts)
-                .map(script => script.src)
+                .map(script => script.getAttribute('src') || script.src)
                 .find(src => {
                   try {
+                    const authority = src.match(/^https:\/\/([^/?#]*)/i)?.[1] || '';
                     const url = new URL(src);
-                    return url.protocol === 'https:' && url.hostname === 'scripts.token.awswaf.com'
+                    const host = url.hostname;
+                    return url.protocol === 'https:'
+                      && (host === 'token.awswaf.com' || host.endsWith('.token.awswaf.com'))
+                      && !authority.includes('@') && !authority.includes(':')
+                      && !url.search && !url.hash
                       && url.pathname.endsWith('/challenge.js');
                   } catch (_) { return false; }
                 });
@@ -851,8 +856,10 @@ def _aws_waf_challenge_parameters(page: Any) -> Optional[dict[str, str]]:
     if not all(isinstance(value, str) and value.strip() for value in values):
         return None
     parsed = urlsplit(challenge_js)
+    host = parsed.hostname
     if (
-        parsed.scheme != "https" or parsed.hostname != "scripts.token.awswaf.com"
+        parsed.scheme != "https" or host is None
+        or (host != "token.awswaf.com" and not host.endswith(".token.awswaf.com"))
         or parsed.port is not None or parsed.username is not None or parsed.password is not None
         or not parsed.path.endswith("/challenge.js") or parsed.query or parsed.fragment
     ):
