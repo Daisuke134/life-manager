@@ -68,10 +68,6 @@ tags:
     text: "続ける"
 
 # === Step 6: Processing ===
-- extendedWaitUntil:
-    visible:
-      text: "悩みを分析中..."
-    timeout: 15000
 - takeScreenshot: "v7-06-processing"
 
 # === Step 7: Personalized plan reveal ===
