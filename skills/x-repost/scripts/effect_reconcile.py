@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import sqlite3
 import sys
 import urllib.error
@@ -456,21 +457,69 @@ def build_proof(occurrence_id: str, runtime_events: list[dict[str, Any]],
 
 
 def _postiz_key(credentials_path: Path | None = None) -> str:
-    key = (os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY") or "").strip()
-    if key:
-        return key
-    path = credentials_path or Path.home() / ".local/share/anicca/credentials.json"
+    if "POSTIZ_API_KEY" in os.environ:
+        return os.environ["POSTIZ_API_KEY"].strip()
+    home = Path.home()
+    path = credentials_path or home / ".local/share/anicca/credentials.json"
+    home = Path(os.path.abspath(home))
+    path = Path(os.path.abspath(path))
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-        rows = value.get("credentials")
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+        path.relative_to(home)
+    except ValueError:
         return ""
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory_flag is None:
+        return ""
+    root_fd = None
+    directory_fds: list[int] = []
+    file_fd = None
+    try:
+        root_fd = os.open(os.sep, os.O_RDONLY | directory_flag | nofollow)
+        current_dir_fd = root_fd
+        home_component_index = len(home.parts) - 1
+        for index, component in enumerate(path.parts[1:-1], start=1):
+            directory_fd = os.open(
+                component, os.O_RDONLY | directory_flag | nofollow,
+                dir_fd=current_dir_fd,
+            )
+            directory_fds.append(directory_fd)
+            current_dir_fd = directory_fd
+            directory_stat = os.fstat(directory_fd)
+            if (not stat.S_ISDIR(directory_stat.st_mode)
+                    or (index >= home_component_index
+                        and directory_stat.st_uid != os.getuid())):
+                return ""
+        private_directory_stat = os.fstat(current_dir_fd)
+        if (private_directory_stat.st_uid != os.getuid()
+                or stat.S_IMODE(private_directory_stat.st_mode) != 0o700):
+            return ""
+        file_fd = os.open(path.name, os.O_RDONLY | nofollow, dir_fd=current_dir_fd)
+        file_stat = os.fstat(file_fd)
+        if (not stat.S_ISREG(file_stat.st_mode) or file_stat.st_uid != os.getuid()
+                or stat.S_IMODE(file_stat.st_mode) != 0o600):
+            return ""
+        with os.fdopen(file_fd, "r", encoding="utf-8") as credentials_file:
+            file_fd = None
+            value = json.load(credentials_file)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, NotImplementedError):
+        return ""
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        for directory_fd in reversed(directory_fds):
+            os.close(directory_fd)
+        if root_fd is not None:
+            os.close(root_fd)
+    rows = value.get("credentials") if isinstance(value, dict) else None
     if not isinstance(rows, list):
         return ""
-    matches = [str(row.get("api_key") or "").strip() for row in rows
-               if isinstance(row, dict) and row.get("service") == "postiz"
-               and str(row.get("api_key") or "").strip()]
-    return matches[0] if len(matches) == 1 else ""
+    matches = [row for row in rows if isinstance(row, dict)
+               and row.get("service") == "postiz"]
+    if len(matches) != 1:
+        return ""
+    api_key = matches[0].get("api_key")
+    return api_key.strip() if isinstance(api_key, str) else ""
 
 
 def _postiz_has_more(payload: Mapping[str, Any], post_count: int) -> bool:
