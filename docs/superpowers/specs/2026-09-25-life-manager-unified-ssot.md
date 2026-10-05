@@ -8000,3 +8000,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6649/headaa3db6c5のrun37295099594を再確認。Loop contracts/Python/OSS/他主要checksは完了、最後TruffleHog filesystemがin_progress。旧run再起動や結果偽装をせず同jobのterminalを追跡する。
 - ask jobをUID501/Aqua/GUI preflight PASS後target-only bootout、safeprint rc113でunloadedを確認。err492108bytesで後続観測も同サイズ、失敗ログ増大停止。Mac/loginwindow/Codexappserver/他loopには変更0。原plist/server code保持。
 - Luna依存復旧でlocalpackage/lock無し、node_modulesが不存在../imokenet/node_modulesへのdangling symlinkと確認。必要expressは公式npm registryで5.2.1/Node>=18、実Node25.6.1、公式Express5 APIの既存import/get/listen適合を確認。state/credentialや別imokenetを触らずtargetのdependency symlinkだけをlocal node_modulesへ復旧、元server/plist hash維持・healthGETのみで検証してrootが元plist復帰する。まだ稼働復旧成功にはしない。全体47/cursor1、sourceBody/oldunknownは未完。
+
+
+### 563. guard PR6649 main統合とask module/health実復旧
+
+- PR6649/headaa3db6c5のCI37295099594は全10checks SUCCESS、通常admin merge成功。main e851f7a947ab37df66a4285cff636c4cacdc7a53/merged10:19:13ZをGitHub/fetch確認。source unknown guardをruntimeへ結ぶため標準full releasecutを開始、既存complete donor再利用・disk-pressure flag falseを確認。exec22880生存、未完成をcurrent/source反映済みにしない。
+- ask dependency復旧はExpress5.2.1 exact/local68packages、danglinglinkをtarget local node_modulesへ置換、install scripts disabled。package-lock SHA6e04f44e49626b6a264ecbc01b9dc86d4aa3b0d06007add478611b4e66b5a9af、server/plist hashes前後同一。foreground fixturehealthGET200/自PID98502TERM/port listener無し、askPOST0。rootGUIpreflightPASS→元plist bootstrap後running/PID638/runs1/nevere xited、local8789healthGET200/serviceanicca-ask。error492108bytesは停止前後・復帰後も増加無し。state/anicca-ask-dependency-recovery-20261005.jsonへsafehash/healthを保存。
+- このDoneは欠損dependency/クラッシュ再起動/log増大の復旧で、askの外部AI応答や事業収益を検証したとの主張ではない。コード/provider/認証/copy/port/plist/他daemon/Mac/loginwindow/Codexappserver変更0。公式dependency根拠 https://registry.npmjs.org/express と https://expressjs.com/en/5x/api.html。sourceguard実adapterのreceipt課題とCoconala12pending/添付2/SHA1、auditlatecache根本修復は保持。全体47/cursor1。
