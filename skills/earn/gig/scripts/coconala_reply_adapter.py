@@ -51,6 +51,46 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _attach_send_diagnostic(
+    error: Exception,
+    *,
+    phase: str,
+    intent: Mapping[str, Any] | None,
+    browser: Any,
+    expected_path: str | None,
+) -> None:
+    detail = reply_browser.safe_error_summary(error)
+    diagnostic: dict[str, Any] = {
+        "send_phase": phase,
+        "error_type": detail["error_type"],
+        "error_code": detail.get("error_code"),
+        "network_summary": reply_browser.NetworkSummary.safe_diagnostic_summary(
+            getattr(browser, "send_network", getattr(error, "network", [])),
+            expected_path=expected_path,
+        ),
+    }
+    if isinstance(intent, Mapping):
+        for field in ("effect_key", "content_sha256"):
+            value = intent.get(field)
+            if type(value) is str and re.fullmatch(r"[0-9a-f]{64}", value):
+                diagnostic[field] = value
+    cause = getattr(browser, "read_after_error", None)
+    if isinstance(cause, Mapping):
+        cause_type = cause.get("error_type")
+        cause_code = cause.get("error_code")
+        if type(cause_type) is str and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", cause_type):
+            diagnostic["cause"] = {
+                "error_type": cause_type,
+                **({"error_code": cause_code} if type(cause_code) is str and cause_code in {
+                    "collector_unhealthy:unexpected_title",
+                } else {}),
+            }
+    try:
+        error._reply_diagnostic = diagnostic
+    except (AttributeError, TypeError):
+        pass
+
+
 def _event_id(context: Mapping[str, Any]) -> str:
     conversation = context.get("conversation")
     if not isinstance(conversation, list) or not conversation:
@@ -83,7 +123,7 @@ class CoconalaReplyAdapter:
         )
         self._inventory_reader = inventory_reader or self._read_inventory
         self._thread_reader = thread_reader or self._read_thread
-        self._sender = sender or self._send
+        self._sender = sender or None
         self.estimate_composer = estimate_composer
         self.estimate_browser_factory = (
             estimate_browser_factory or requested_estimate._default_browser_factory
@@ -183,21 +223,43 @@ class CoconalaReplyAdapter:
                     raise
         raise AssertionError("unreachable")
 
-    def _send(self, thread_id: str, body: str, expected_event: str) -> dict[str, str]:
-        url = self._thread_url(thread_id)
-        with reply_browser.CoconalaCdpReplyBrowser(
-            self.cdp_helper, url, hidden=True, background=False,
-            owner=self._thread_owner(thread_id),
-        ) as browser:
-            context, _before = browser.read_before()
-            if _event_id(context) != expected_event:
-                raise RuntimeError("coconala_thread_changed")
-            browser.fill(body)
-            browser.click()
-            after = browser.read_after()
-            if after.get("status") == "read_failed":
-                raise RuntimeError("coconala_reply_reconcile_unknown")
-            final_context, _bounded = browser._read()
+    def _send(
+        self, thread_id: str, body: str, expected_event: str,
+        *, intent: Mapping[str, Any] | None = None,
+    ) -> dict[str, str]:
+        url = ""
+        expected_path = None
+        browser = None
+        phase = "read_before"
+        try:
+            url = self._thread_url(thread_id)
+            try:
+                expected_path = reply_browser.native_submit_path(url)
+            except ValueError:
+                expected_path = None
+            with reply_browser.CoconalaCdpReplyBrowser(
+                self.cdp_helper, url, hidden=True, background=False,
+                owner=self._thread_owner(thread_id),
+            ) as browser:
+                context, _before = browser.read_before()
+                if _event_id(context) != expected_event:
+                    raise RuntimeError("coconala_thread_changed")
+                phase = "fill"
+                browser.fill(body)
+                phase = "click_started"
+                browser.click()
+                phase = "read_after"
+                after = browser.read_after()
+                if after.get("status") == "read_failed":
+                    raise RuntimeError("coconala_reply_reconcile_unknown")
+                phase = "final_read"
+                final_context, _bounded = browser._read()
+        except Exception as error:
+            _attach_send_diagnostic(
+                error, phase=phase, intent=intent, browser=browser,
+                expected_path=expected_path,
+            )
+            raise
         wanted = reply_browser.outgoing_sha256(body)
         for row in reversed(final_context.get("conversation") or []):
             if not isinstance(row, Mapping) or row.get("side") != "seller":
@@ -292,9 +354,16 @@ class CoconalaReplyAdapter:
         body = intent.get("payload", {}).get("body")
         if not isinstance(body, str) or not body.strip():
             raise RuntimeError("coconala_reply_body_invalid")
-        self._receipts[intent["effect_key"]] = self._sender(
-            intent["thread_id"], body.strip(), intent["latest_event_id"],
-        )
+        if self._sender is None:
+            receipt = self._send(
+                intent["thread_id"], body.strip(), intent["latest_event_id"],
+                intent=intent,
+            )
+        else:
+            receipt = self._sender(
+                intent["thread_id"], body.strip(), intent["latest_event_id"],
+            )
+        self._receipts[intent["effect_key"]] = receipt
 
     @staticmethod
     def classify_mutation_error(error: Exception) -> dict[str, Any] | None:

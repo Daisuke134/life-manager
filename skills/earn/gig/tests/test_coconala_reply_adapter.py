@@ -1,8 +1,10 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import shutil
 import subprocess
+import threading
 import pytest
 
 
@@ -11,6 +13,7 @@ SPEC = importlib.util.spec_from_file_location("coconala_reply_adapter_test", MOD
 adapter_module = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(adapter_module)
+reply_kernel = adapter_module._load_shared("reply_kernel")
 
 
 def test_provider_rows_are_normalized_without_owning_lifecycle(tmp_path):
@@ -95,6 +98,214 @@ def test_mutation_and_official_readback_remain_provider_specific(tmp_path):
     adapter.mutate(intent)
     assert adapter.readback(intent)["provider_receipt_id"] == "m2"
     assert effects == ["回答"]
+
+
+@pytest.mark.parametrize(("failure_stage", "expected_phase"), [
+    ("fill", "fill"), ("read_after", "read_after"), ("final_read", "final_read"),
+])
+def test_sender_attaches_safe_stage_to_fill_and_readback_exceptions(
+    tmp_path, monkeypatch, failure_stage, expected_phase,
+):
+    thread_id = "77100003"
+    body = "PRIVATE_BODY_STAGE"
+    context = {"conversation": [{
+        "side": "buyer", "message_id": "buyer-stage", "body": "質問です。",
+    }]}
+
+    class FakeCdpBrowser:
+        read_after_error = None
+        send_network = []
+
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read_before(self):
+            return context, {"last_sender": "buyer"}
+
+        def fill(self, _body):
+            if failure_stage == "fill":
+                raise RuntimeError(f"private URL https://private.invalid/{thread_id}")
+
+        def click(self):
+            return None
+
+        def read_after(self):
+            if failure_stage == "read_after":
+                self.read_after_error = {
+                    "error_type": "CollectorUnhealthy",
+                    "error_code": "collector_unhealthy:unexpected_title",
+                }
+                return {"status": "read_failed"}
+            return {"status": "ok"}
+
+        def _read(self):
+            if failure_stage == "final_read":
+                raise adapter_module.snapshot.CollectorUnhealthy("unexpected_title")
+            return context, {"last_sender": "buyer"}
+
+    monkeypatch.setattr(
+        adapter_module.reply_browser, "CoconalaCdpReplyBrowser", FakeCdpBrowser,
+    )
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [],
+    )
+    intent = {
+        "action": "reply", "thread_id": thread_id,
+        "latest_event_id": "buyer-stage", "effect_key": "e" * 64,
+        "payload": {"body": body},
+    }
+
+    with pytest.raises(Exception) as raised:
+        adapter.mutate(intent)
+
+    diagnostic = raised.value._reply_diagnostic
+    assert diagnostic["send_phase"] == expected_phase
+    assert body not in json.dumps(diagnostic)
+    assert thread_id not in json.dumps(diagnostic)
+    assert "https://private.invalid" not in json.dumps(diagnostic)
+    if failure_stage == "read_after":
+        assert diagnostic["cause"] == {
+            "error_type": "CollectorUnhealthy",
+            "error_code": "collector_unhealthy:unexpected_title",
+        }
+
+
+def test_unknown_send_stages_are_bound_to_each_intent_without_private_diagnostics(
+    tmp_path, monkeypatch,
+):
+    thread_ids = ("77100001", "77100002")
+    bodies = {
+        thread_ids[0]: "PRIVATE_BODY_A",
+        thread_ids[1]: "PRIVATE_BODY_B",
+    }
+    event_ids = {
+        thread_ids[0]: "buyer-event-a",
+        thread_ids[1]: "buyer-event-b",
+    }
+    rows = [{
+        "talkroom_id": thread_id,
+        "last_message_identity_sha256": digest,
+    } for thread_id, digest in zip(thread_ids, ("a" * 64, "b" * 64))]
+    barrier = threading.Barrier(2)
+    clicked = []
+
+    def thread_reader(thread_id):
+        return ({"conversation": [{
+            "side": "buyer", "message_id": event_ids[thread_id],
+            "body": f"buyer text for {thread_id}",
+        }]}, {"last_sender": "buyer"})
+
+    class FakeCdpBrowser:
+        def __init__(self, _helper, thread_url, **kwargs):
+            self.thread_id = thread_url.rsplit("/", 1)[-1]
+            self.owner = kwargs["owner"]
+            self.send_network = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read_before(self):
+            assert self.owner == f"coconala-reply-{self.thread_id}"
+            barrier.wait(timeout=5)
+            if self.thread_id == thread_ids[0]:
+                raise adapter_module.snapshot.CollectorUnhealthy("unexpected_title")
+            return thread_reader(self.thread_id)
+
+        def fill(self, body):
+            assert body == bodies[self.thread_id]
+
+        def click(self):
+            clicked.append(self.thread_id)
+            self.send_network = [{
+                "method": "POST",
+                "path": f"/mypage/direct_message_ajax/{self.thread_id}",
+                "status": 200,
+                "outcome": "finished",
+            }]
+            raise adapter_module.reply_browser.BrowserSendFailure(
+                "post_click_read_failed", self.send_network,
+            )
+
+        def read_after(self):
+            raise AssertionError("post-click read must not run after click transport failure")
+
+        def _read(self):
+            raise AssertionError("final read must not run after click transport failure")
+
+    monkeypatch.setattr(
+        adapter_module.reply_browser, "CoconalaCdpReplyBrowser", FakeCdpBrowser,
+    )
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "fixture-current-run")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-current-wake")
+    monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", "c" * 40)
+    monkeypatch.delenv("LIFE_MANAGER_RESULT_HINT_PATH", raising=False)
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path / "state",
+        inventory_reader=lambda: rows,
+        thread_reader=thread_reader,
+    )
+
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda row: {
+            "action": "reply",
+            "payload": {"body": bodies[row["thread_id"]]},
+        },
+        state_root=tmp_path / "state",
+        max_workers=2,
+    )
+
+    assert len(clicked) == 1 and clicked == [thread_ids[1]]
+    assert result["failed"] == 1
+    assert result["pending"] == 1
+    states = {
+        state["intent"]["thread_id"]: state
+        for state in (reply_kernel._load(path) for path in (tmp_path / "state").glob("threads/*/state.json"))
+    }
+    assert set(states) == set(thread_ids)
+    for thread_id in thread_ids:
+        state = states[thread_id]
+        diagnostic = state["send_diagnostic"]
+        intent = state["intent"]
+        assert state["status"] == "reconcile_unknown"
+        assert diagnostic["effect_key"] == intent["effect_key"]
+        assert diagnostic["effect_status"] == "unknown"
+        assert diagnostic["content_sha256"] == intent["content_sha256"]
+        assert diagnostic["current_wake_id"] == "fixture-current-run"
+        assert diagnostic["current_claimed_occurrence_id"] == "fixture-current-wake"
+        assert diagnostic["stored_intent_occurrence_id"] == "fixture-current-wake"
+        assert diagnostic["release_sha"] == "c" * 40
+        assert diagnostic["thread_identity_sha256"] == hashlib.sha256(
+            f"coconala\0default\0{thread_id}".encode()
+        ).hexdigest()
+        assert diagnostic["event_identity_sha256"] == hashlib.sha256(
+            event_ids[thread_id].encode()
+        ).hexdigest()
+        assert thread_id not in json.dumps(diagnostic)
+        assert bodies[thread_id] not in json.dumps(diagnostic)
+        assert "https://coconala.com" not in json.dumps(diagnostic)
+        assert "default" not in json.dumps(diagnostic)
+
+    assert states[thread_ids[0]]["send_diagnostic"]["send_phase"] == "read_before"
+    assert states[thread_ids[0]]["send_diagnostic"]["network_summary"]["request_count"] == 0
+    assert states[thread_ids[1]]["send_diagnostic"]["send_phase"] == "click_started"
+    summary = states[thread_ids[1]]["send_diagnostic"]["network_summary"]
+    assert summary == {
+        "request_count": 1,
+        "rows": [{
+            "method": "POST", "request_class": "direct_message_submit",
+            "status": 200, "outcome": "finished",
+        }],
+    }
 
 
 def test_official_sending_restriction_is_the_only_classified_mutation_wait(tmp_path):
