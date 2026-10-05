@@ -103,6 +103,34 @@ test("renders next event and verified Travel block", () => {
   assert.doesNotThrow(() => new Function(script[1]));
 });
 
+test("missing location gives Google Calendar edit steps and Today refresh", async () => {
+  const html = renderWebPage({
+    user,
+    snapshot: snapshot({
+      nextEvent: {
+        id: "event-location-missing",
+        summary: "Dentist",
+        location: "",
+        startIso: "2026-10-07T01:00:00.000Z",
+        timezone: "Asia/Tokyo",
+        startMs: Date.parse("2026-10-07T01:00:00.000Z"),
+        endMs: Date.parse("2026-10-07T02:00:00.000Z"),
+      },
+    }),
+  });
+  assert.match(html, /Google カレンダーで「Dentist」を開き、場所を追加してください。保存後に「今日を更新」を押してください。/);
+  assert.match(html, /id="today-refresh"[^>]*>今日を更新/);
+
+  const client = mountClient(html, {
+    "/api/lm-web/calendar/status": { connected: true, state: "connected" },
+  });
+  const button = { dataset: { action: "refresh" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+
+  assert.deepEqual(client.redirects, ["/lm"]);
+  assert.ok(client.requests.every((request) => request.path !== "/api/lm-web/today"));
+});
+
 test("escapes event and address text", () => {
   const html = renderWebPage({
     user,
@@ -145,21 +173,11 @@ test("payment link uses only verified uid", () => {
   assert.doesNotMatch(html, /\$29|29\s*\/\s*month|29\s*\/\s*月/i);
 });
 
-test("setup posts only the address with CSRF and renders refreshed Today safely", async () => {
-  const maliciousEvent = {
-    id: "event-2",
-    summary: "<script>alert(4)</script>",
-    location: "<img src=x onerror=alert(5)>",
-    startIso: "2026-10-07T01:00:00.000Z",
-    timezone: "Asia/Tokyo",
-    startMs: Date.parse("2026-10-07T01:00:00.000Z"),
-    endMs: Date.parse("2026-10-07T02:00:00.000Z"),
-  };
+test("setup posts only the address and reloads server-rendered Today", async () => {
   const page = renderWebPage({ user, snapshot: snapshot({ setupState: "needs_home" }) });
   const client = mountClient(page, {
     "/api/lm-web/calendar/status": { connected: true, state: "connected" },
     "/api/lm-web/setup": { setupState: "ready", syncState: "sync_pending" },
-    "/api/lm-web/today": snapshot({ nextEvent: maliciousEvent }),
   });
   const form = {
     id: "home-address-form",
@@ -177,10 +195,16 @@ test("setup posts only the address with CSRF and renders refreshed Today safely"
   assert.equal(setup.init.method, "POST");
   assert.equal(setup.init.headers["x-lm-web-csrf"], user.csrf);
   assert.deepEqual(JSON.parse(setup.init.body), { homeAddress: "1-2-3 Tokyo" });
-  assert.ok(client.requests.some((request) => request.path === "/api/lm-web/today" && request.init.method === "GET"), JSON.stringify(client.requests.map(({ path, init }) => ({ path, method: init.method }))));
-  assert.match(client.root.innerHTML, /&lt;script&gt;alert\(4\)&lt;\/script&gt;/);
-  assert.match(client.root.innerHTML, /&lt;img src=x onerror=alert\(5\)&gt;/);
-  assert.doesNotMatch(client.root.innerHTML, /<script>alert\(4\)<\/script>|<img src=x onerror=alert\(5\)>/);
+  assert.deepEqual(client.redirects, ["/lm"]);
+  assert.ok(client.requests.every((request) => request.path !== "/api/lm-web/today"));
+  const reRendered = renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "ready", paid: false }),
+    stripePaymentLink: "https://buy.stripe.com/example",
+  });
+  assert.match(reRendered, /プランを確認/);
+  assert.doesNotMatch(reRendered, /\$29|29\s*\/\s*month|29\s*\/\s*月/i);
+  assert.doesNotMatch(reRendered, /telegram/i);
 });
 
 test("Calendar start follows only the server redirect URL", async () => {
