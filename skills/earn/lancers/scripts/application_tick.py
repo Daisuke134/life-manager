@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
@@ -11,6 +12,9 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
+import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -31,6 +35,13 @@ if _CDP_ENDPOINT_SPEC is None or _CDP_ENDPOINT_SPEC.loader is None:
 _cdp_endpoint = importlib.util.module_from_spec(_CDP_ENDPOINT_SPEC)
 sys.modules[_CDP_ENDPOINT_SPEC.name] = _cdp_endpoint
 _CDP_ENDPOINT_SPEC.loader.exec_module(_cdp_endpoint)
+_CAPSOLVER_PATH = Path(__file__).resolve().parents[3] / "fundraiser-agent" / "runtime" / "solve-recaptcha-v2.py"
+_CAPSOLVER_SPEC = importlib.util.spec_from_file_location("anicca_lancers_capsolver", _CAPSOLVER_PATH)
+if _CAPSOLVER_SPEC is None or _CAPSOLVER_SPEC.loader is None:
+    raise RuntimeError("capsolver_unavailable")
+_capsolver = importlib.util.module_from_spec(_CAPSOLVER_SPEC)
+sys.modules[_CAPSOLVER_SPEC.name] = _capsolver
+_CAPSOLVER_SPEC.loader.exec_module(_capsolver)
 CDP_URL = _cdp_endpoint.configured_cdp_endpoint(
     "http://127.0.0.1:9227", require_identity_join=True,
 )
@@ -47,9 +58,97 @@ DEFAULT_BROWSER_ATTACH_LOCK_PATH = (
 )
 PLATFORM = "lancers"
 DASHBOARD_URL = "https://www.lancers.jp/mypage"
+BROWSER_IDENTITY = "lancers:dais"
+REPO_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "anicca" / "lancers" / "application.json"
 TERMINAL_STATE_RECORD_TYPE = "application_terminal_state"
 TERMINAL_STATE_STATUS = "provider_terminal_blocked"
+AWS_WAF_TASK_RECORD_TYPE = "lancers_aws_waf_task.v1"
+
+
+class BrowserGuardBusy(RuntimeError):
+    pass
+
+
+def _browser_guard_path() -> Path:
+    configured = os.environ.get("LIFE_MANAGER_BROWSER_GUARD", "").strip()
+    return Path(configured).expanduser() if configured else REPO_ROOT / "skills" / "browser" / "browser-guard.sh"
+
+
+def _has_inherited_browser_guard(guard: Path, identity: str) -> bool:
+    holder_pid = os.environ.get("LIFE_MANAGER_BROWSER_LEASE_HOLDER_PID", "")
+    lease_identity = os.environ.get("LIFE_MANAGER_BROWSER_LEASE_IDENTITY", "")
+    holder_start = os.environ.get("AI_BROWSER_HOLDER_START", "")
+    if not holder_pid.isdigit() or lease_identity != identity or not holder_start:
+        return False
+    try:
+        result = subprocess.run(
+            [str(guard), "status", identity], capture_output=True, text=True,
+            check=False, timeout=8,
+        )
+        rows = json.loads(result.stdout).get("identities", []) if result.returncode == 0 else []
+    except (OSError, subprocess.SubprocessError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict) or row.get("identity") != identity:
+            continue
+        try:
+            holder = json.loads(row.get("holder", ""))
+            pid = int(holder_pid)
+            recorded_pid = int(holder.get("pid"))
+            os.kill(pid, 0)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return False
+        return (
+            holder.get("identity") == identity
+            and recorded_pid == pid
+            and holder.get("holder_start") == holder_start
+            and holder.get("host") == socket.gethostname().split(".")[0]
+        )
+    return False
+
+
+@contextmanager
+def lancers_browser_guard():
+    """Hold the registered Lancers browser identity for one owner invocation."""
+    identity = os.environ.get("LIFE_MANAGER_BROWSER_IDENTITY", "")
+    if identity != BROWSER_IDENTITY:
+        raise RuntimeError("browser_guard_unavailable")
+    guard = _browser_guard_path()
+    if _has_inherited_browser_guard(guard, identity):
+        yield
+        return
+
+    owner_pid = os.getpid()
+    owner_start = secrets.token_hex(16)
+    environment = os.environ.copy()
+    environment.update({
+        "AI_BROWSER_HOLDER_PID": str(owner_pid),
+        "AI_BROWSER_HOLDER_START": owner_start,
+    })
+    try:
+        acquired = subprocess.run(
+            [str(guard), "acquire", identity], capture_output=True, text=True,
+            check=False, timeout=12, env=environment,
+        )
+    except (OSError, subprocess.SubprocessError):
+        raise RuntimeError("browser_guard_unavailable") from None
+    if acquired.returncode == 9:
+        raise BrowserGuardBusy("browser_guard_busy")
+    if acquired.returncode != 0:
+        raise RuntimeError("browser_guard_unavailable")
+    try:
+        yield
+    finally:
+        try:
+            released = subprocess.run(
+                [str(guard), "release", identity], capture_output=True, text=True,
+                check=False, timeout=12, env=environment,
+            )
+        except (OSError, subprocess.SubprocessError):
+            raise RuntimeError("browser_guard_release_failed") from None
+        if released.returncode != 0:
+            raise RuntimeError("browser_guard_release_failed")
 
 
 def _load_shared():
@@ -660,7 +759,284 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
         finished.set()
 
 
-def _production_account_diagnostic(page: Any) -> dict[str, object]:
+def _aws_waf_task_state(path: Optional[Path]) -> Optional[dict[str, object]]:
+    if path is None or Path(path).is_symlink():
+        return {"record_type": AWS_WAF_TASK_RECORD_TYPE, "status": "invalid", "task_id": None}
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, TypeError, ValueError):
+        return {"record_type": AWS_WAF_TASK_RECORD_TYPE, "status": "invalid", "task_id": None}
+    if not isinstance(raw, dict) or set(raw) != {"record_type", "status", "task_id"}:
+        return {"record_type": AWS_WAF_TASK_RECORD_TYPE, "status": "invalid", "task_id": None}
+    task_id = raw.get("task_id")
+    if (
+        raw.get("record_type") != AWS_WAF_TASK_RECORD_TYPE
+        or raw.get("status") not in {"effect_unknown", "pending"}
+        or (task_id is not None and (not isinstance(task_id, str) or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", task_id) is None))
+        or (raw.get("status") == "effect_unknown" and task_id is not None)
+        or (raw.get("status") == "pending" and task_id is None)
+    ):
+        return {"record_type": AWS_WAF_TASK_RECORD_TYPE, "status": "invalid", "task_id": None}
+    return raw
+
+
+def _write_aws_waf_task_state(path: Path, status: str, task_id: Optional[str]) -> bool:
+    path = Path(path)
+    if path.is_symlink() or path.parent.is_symlink():
+        return False
+    path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump({"record_type": AWS_WAF_TASK_RECORD_TYPE, "status": status, "task_id": task_id}, handle,
+                      sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        path.chmod(0o600)
+    except OSError:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        return False
+    return True
+
+
+def _clear_aws_waf_task_state(path: Optional[Path]) -> bool:
+    if path is None or Path(path).is_symlink():
+        return False
+    try:
+        Path(path).unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return False
+    return True
+
+
+def _aws_waf_challenge_parameters(page: Any) -> Optional[dict[str, str]]:
+    try:
+        observed = page.evaluate(
+            """() => {
+              const props = window.gokuProps;
+              const challengeJS = Array.from(document.scripts)
+                .map(script => script.src)
+                .find(src => {
+                  try {
+                    const url = new URL(src);
+                    return url.protocol === 'https:' && url.hostname === 'scripts.token.awswaf.com'
+                      && url.pathname.endsWith('/challenge.js');
+                  } catch (_) { return false; }
+                });
+              return {
+                gokuProps: props && {key: props.key, iv: props.iv, context: props.context},
+                challengeJS: challengeJS || null,
+              };
+            }"""
+        )
+    except Exception:
+        return None
+    if not isinstance(observed, Mapping):
+        return None
+    props = observed.get("gokuProps")
+    challenge_js = observed.get("challengeJS")
+    if not isinstance(props, Mapping) or not isinstance(challenge_js, str):
+        return None
+    values = (props.get("key"), props.get("iv"), props.get("context"))
+    if not all(isinstance(value, str) and value.strip() for value in values):
+        return None
+    parsed = urlsplit(challenge_js)
+    if (
+        parsed.scheme != "https" or parsed.hostname != "scripts.token.awswaf.com"
+        or parsed.port is not None or parsed.username is not None or parsed.password is not None
+        or not parsed.path.endswith("/challenge.js") or parsed.query or parsed.fragment
+    ):
+        return None
+    return {"key": values[0], "iv": values[1], "context": values[2], "challenge_js": challenge_js}
+
+
+def _install_aws_waf_cookie(page: Any, value: str) -> bool:
+    if not value or any(character in value for character in "\r\n;"):
+        return False
+    try:
+        context = page.context
+        cookies = context.cookies([DASHBOARD_URL])
+        if not isinstance(cookies, list):
+            return False
+        cleared: set[tuple[str, str]] = set()
+        for cookie in cookies:
+            if not isinstance(cookie, Mapping) or cookie.get("name") != "aws-waf-token":
+                continue
+            domain = cookie.get("domain")
+            if not isinstance(domain, str):
+                continue
+            normalized_domain = domain.lstrip(".").lower()
+            if normalized_domain != "lancers.jp" and not normalized_domain.endswith(".lancers.jp"):
+                continue
+            path = cookie.get("path") if isinstance(cookie.get("path"), str) else "/"
+            selector = (domain, path)
+            if selector in cleared:
+                continue
+            context.clear_cookies(name="aws-waf-token", domain=domain, path=path)
+            cleared.add(selector)
+        context.add_cookies([{
+            "name": "aws-waf-token",
+            "value": value,
+            "domain": ".lancers.jp",
+            "path": "/",
+            "secure": True,
+            "httpOnly": True,
+            "sameSite": "Lax",
+        }])
+    except Exception:
+        return False
+    return True
+
+
+def _aws_waf_reason(error: Exception) -> str:
+    mapping = {
+        "CAPSOLVER_CREDENTIALS_UNAVAILABLE": "aws_waf_credentials_unavailable",
+        "CAPSOLVER_NO_CREDITS": "aws_waf_no_credits",
+        "CAPSOLVER_API_ERROR": "aws_waf_api_error",
+        "CAPSOLVER_TIMEOUT": "aws_waf_timeout",
+        "CAPSOLVER_TASK_FAILED": "aws_waf_task_failed",
+        "CAPSOLVER_COOKIE_MISSING": "aws_waf_cookie_missing",
+        "CAPSOLVER_CREATE_UNKNOWN": "aws_waf_effect_unknown",
+    }
+    code = getattr(error, "code", None)
+    return mapping.get(code, "aws_waf_api_error")
+
+
+def _solve_aws_waf_challenge(
+    page: Any, diagnostic: dict[str, object], solver_state_path: Optional[Path],
+) -> dict[str, object]:
+    http_statuses: list[Optional[int]] = [diagnostic.get("http_status") if type(diagnostic.get("http_status")) is int else None]
+    diagnostic["aws_waf"] = {"http_statuses": http_statuses}
+    if solver_state_path is None:
+        diagnostic["reason"] = "aws_waf_state_unavailable"
+        return diagnostic
+    if getattr(page, "url", None) != DASHBOARD_URL:
+        diagnostic["reason"] = "http_non_200"
+        return diagnostic
+    parameters = _aws_waf_challenge_parameters(page)
+    if parameters is None:
+        diagnostic["reason"] = "aws_waf_params_missing"
+        return diagnostic
+
+    state = _aws_waf_task_state(solver_state_path)
+    if state is not None and state.get("status") == "invalid":
+        diagnostic["reason"] = "aws_waf_state_invalid"
+        return diagnostic
+    if state is not None and state.get("status") == "effect_unknown":
+        diagnostic["reason"] = "aws_waf_effect_unknown"
+        diagnostic["aws_waf"] = {"status": "effect_unknown", "http_statuses": http_statuses}
+        return diagnostic
+
+    try:
+        client_key = _capsolver.api_key()
+    except Exception as error:
+        diagnostic["reason"] = _aws_waf_reason(error)
+        diagnostic["aws_waf"]["status"] = "credentials_unavailable"
+        return diagnostic
+
+    task_id = state.get("task_id") if state is not None else None
+    if task_id is None:
+        if not _write_aws_waf_task_state(solver_state_path, "effect_unknown", None):
+            diagnostic["reason"] = "aws_waf_state_unavailable"
+            return diagnostic
+        try:
+            created = _capsolver.create_aws_waf_task(
+                client_key, DASHBOARD_URL, parameters["key"], parameters["iv"],
+                parameters["context"], parameters["challenge_js"],
+            )
+        except Exception as error:
+            diagnostic["reason"] = _aws_waf_reason(error)
+            if getattr(error, "definitive", False):
+                _clear_aws_waf_task_state(solver_state_path)
+            else:
+                diagnostic["aws_waf"]["status"] = "effect_unknown"
+            return diagnostic
+        task_id = created.get("task_id") if isinstance(created, Mapping) else None
+        if not isinstance(task_id, str) or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", task_id) is None:
+            diagnostic["reason"] = "aws_waf_effect_unknown"
+            diagnostic["aws_waf"]["status"] = "effect_unknown"
+            return diagnostic
+        if not _write_aws_waf_task_state(solver_state_path, "pending", task_id):
+            diagnostic["reason"] = "aws_waf_effect_unknown"
+            diagnostic["aws_waf"].update({"task_id": task_id, "status": "pending"})
+            return diagnostic
+
+    try:
+        solved = _capsolver.solve_aws_waf_task(client_key, task_id)
+    except Exception as error:
+        diagnostic["reason"] = _aws_waf_reason(error)
+        diagnostic["aws_waf"].update({
+            "task_id": task_id,
+            "status": getattr(error, "status", None) or "processing",
+        })
+        cost = getattr(error, "cost", None)
+        if isinstance(cost, (int, float)) and not isinstance(cost, bool):
+            diagnostic["aws_waf"]["cost"] = cost
+        if getattr(error, "definitive", False):
+            _clear_aws_waf_task_state(solver_state_path)
+        return diagnostic
+
+    cookie = solved.get("cookie") if isinstance(solved, Mapping) else None
+    cost = solved.get("cost") if isinstance(solved, Mapping) else None
+    diagnostic["aws_waf"].update({"task_id": task_id, "status": "ready"})
+    if isinstance(cost, (int, float)) and not isinstance(cost, bool):
+        diagnostic["aws_waf"]["cost"] = cost
+    if not isinstance(cookie, str) or not _install_aws_waf_cookie(page, cookie):
+        diagnostic["reason"] = "aws_waf_cookie_update_failed"
+        return diagnostic
+
+    try:
+        response = page.goto(DASHBOARD_URL)
+        status = response.status if response is not None else None
+    except Exception:
+        status = None
+    status = status if type(status) is int else None
+    http_statuses.append(status)
+    diagnostic["http_status"] = status
+    final_url = getattr(page, "url", None)
+    if final_url == DASHBOARD_URL:
+        diagnostic["final_route_category"] = "dashboard"
+    elif final_url == "https://www.lancers.jp/user/login":
+        diagnostic["final_route_category"] = "login"
+    else:
+        diagnostic["final_route_category"] = "other" if isinstance(final_url, str) else "unavailable"
+    if status != 200 or final_url != DASHBOARD_URL:
+        diagnostic["reason"] = "aws_waf_challenge_remains" if status == 405 else "aws_waf_readback_failed"
+        return diagnostic
+    try:
+        if page.evaluate("() => Boolean(window.gokuProps)") is True:
+            diagnostic["reason"] = "aws_waf_challenge_remains"
+            return diagnostic
+        login_form_count = page.locator("#login_form").count()
+    except Exception:
+        diagnostic["reason"] = "aws_waf_readback_failed"
+        return diagnostic
+    diagnostic["login_form_count"] = login_form_count if type(login_form_count) is int else None
+    if login_form_count != 0:
+        diagnostic["reason"] = "aws_waf_login_form_present"
+        return diagnostic
+    if not _clear_aws_waf_task_state(solver_state_path):
+        diagnostic["reason"] = "aws_waf_state_unavailable"
+        return diagnostic
+    diagnostic["ready"] = True
+    diagnostic["reason"] = "ready"
+    return diagnostic
+
+
+def _production_account_diagnostic(
+    page: Any, *, solve_aws_waf: bool = False,
+    solver_state_path: Optional[Path] = None,
+) -> dict[str, object]:
     diagnostic: dict[str, object] = {
         "ready": False,
         "reason": "exception",
@@ -677,6 +1053,8 @@ def _production_account_diagnostic(page: Any) -> dict[str, object]:
         status = response.status
         diagnostic["http_status"] = status if type(status) is int else None
         if status != 200:
+            if status == 405 and solve_aws_waf and getattr(page, "url", None) == DASHBOARD_URL:
+                return _solve_aws_waf_challenge(page, diagnostic, solver_state_path)
             diagnostic["reason"] = "http_non_200"
             return diagnostic
         final_url = getattr(page, "url", None)
