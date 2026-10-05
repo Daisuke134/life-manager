@@ -4,10 +4,11 @@ agentType: run_online · Primary Model: DeepSeek V4.1 Flash · category: マー�
 LLM Config (CP2): OpenRouter, deepseek/deepseek-v4.1-flash, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
 WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. v1.0.3 (DeepSeek) approved 2026-09-29. 2026-09-29 reprice: copy HookAce (868 sold, week $9.99 / month $19.99) per the Capafy market sweep; day $3.99 matches TikTok Scripts / SEO Content Writer day band. 2026-09-29: added a required yearly plan (policy: always a year row, no free trial) at $99.99, matching "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales) — this UPDATE is still in draft (status=0, not yet submitted), so the pricing table is safe to extend.
 
+## 2026-10-05: plans = week/month/year only, copying the top-6 Capafy subscription sellers (Serenity, Alpha Consensus, Unison: week $9.99 / month $19.99 / year $99.99; Ocup, HookAce, Odeo also week/month/year, no day). The Capafy card holds exactly 3 plan cards.
+
 ## Pricing
 | cycle | price | cap | trial |
 |---|---|---|---|
-| day | $3.99 | 10 | No Free Trial |
 | week | $9.99 | 30 | No Free Trial |
 | month | $19.99 | 80 | No Free Trial |
 | year | $99.99 | 960 | No Free Trial |

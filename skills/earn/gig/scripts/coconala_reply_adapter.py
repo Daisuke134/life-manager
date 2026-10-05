@@ -383,8 +383,8 @@ class CoconalaReplyAdapter:
         offer_date = date.fromisoformat(str(payload.get("_offer_date") or ""))
         materialized = requested_estimate.materialize_delivery_content(dict(terms), offer_date)
         outcome = requested_estimate.classify_delivery(
-            pre_click_cards=[],
-            post_click_cards=observation.get("structured_offers") or [],
+            pre_click_cards=observation.get("structured_offers") or [],
+            post_click_cards=[],
             terms=materialized,
             click_started_at=None,
             today=offer_date,

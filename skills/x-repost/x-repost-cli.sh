@@ -917,15 +917,19 @@ fi
 # ---------------------------------------------------------------- browser (leased, never :9222)
 # A logged-in browser session is sufficient. x_collect.py/x_post.py consult the optional
 # TWITTER_AUTH_TOKEN only when the browser's own X auth cookie is missing.
-CDP="$(bash "$ENSURE_BROWSER" "$IDENTITY" 2>>"$EV/browser.err")"
-case "$CDP" in
-  http*) log "leased $IDENTITY at $CDP" ;;
-  *) log "browser unavailable for $IDENTITY (see $EV/browser.err) -- skipping this pass"
-     report "⚠️ ブラウザ($IDENTITY)を確保できずパスを見送り: $(tail -1 "$EV/browser.err" 2>/dev/null)"
-     exit 0 ;;
-esac
-BROWSER_LEASED=1
-trap '[ "$BROWSER_LEASED" -eq 1 ] && bash "$GUARD" release "$IDENTITY" >/dev/null 2>&1 || true' EXIT
+if [ "$BROWSER_LEASED" -eq 1 ]; then
+  log "reusing browser lease $IDENTITY at $CDP"
+else
+  CDP="$(bash "$ENSURE_BROWSER" "$IDENTITY" 2>>"$EV/browser.err")"
+  case "$CDP" in
+    http*) log "leased $IDENTITY at $CDP" ;;
+    *) log "browser unavailable for $IDENTITY (see $EV/browser.err) -- skipping this pass"
+       report "⚠️ ブラウザ($IDENTITY)を確保できずパスを見送り: $(tail -1 "$EV/browser.err" 2>/dev/null)"
+       exit 0 ;;
+  esac
+  BROWSER_LEASED=1
+  trap '[ "$BROWSER_LEASED" -eq 1 ] && bash "$GUARD" release "$IDENTITY" >/dev/null 2>&1 || true' EXIT
+fi
 
 # ---------------------------------------------------------------- generic original readback-only recovery
 if [ "$GENERIC_RECOVERY_PENDING" = "True" ]; then
