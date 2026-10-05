@@ -4880,60 +4880,59 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 残作業の実行表（未完のみ・1項目1成果）
 
-現在cursor：1（監査scratchの原因に対応する最小修復・source検証）。残作業46件。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
+現在cursor：1（監査cleanup修正のPR/CI・main/immutable対象反映）。残作業45件。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
 
 | 順序 | 残作業 | 完了を示す証拠 |
 |---|---|---|
-| 1 | 監査scratchの原因に対応する最小cleanup修正を行う | 所有scratchだけ、protected store/effect証拠は保持。原因対応のfocused regression。 |
-| 2 | 監査cleanup修正を対象ownerへ反映する | 対象source acceptance/review/CI→main→immutable→guarded owner apply。 |
-| 3 | 監査の自然終了後にscratch回収を確認する | same run terminalと回収結果・物理bytes・protected削除0を確認。 |
-| 4 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
-| 5 | Capafy日次monitorの自然wake証拠を取得する | exact owner9:30のrun/phase/sourceを確認。別hourly/daily-close結果を代用しない。 |
-| 6 | Capafy日次monitorの確認された失敗を修復する | 正常な待機は修正しない。真の失敗は修復してsame-owner自然readbackへ結ぶ。 |
-| 7 | Token daily reportの自然配信receiptを確認する | 新sourceによる業務reportの公式配信記録。対話agentの進捗Telegram送信はしない。 |
-| 8 | Writer改善loopの自然canary結果を確認する | READY待機/experiment ID/適用・評価結果の対応。小標本を勝者や因果効果にしない。 |
-| 9 | 週次validationのcalendar自然実行を確認する | Weekday2/14:30のactual occurrence、source一致・週次頻度維持・重複0。 |
-| 10 | 14 products/178 jobsの残故障を再分類する | 現在のrun/sourceで待機/外部依存/実故障/観測不足を分ける。過去health数を固定しない。 |
-| 11 | 残る実故障をownerごとに1件ずつ閉じる | 11で特定した各故障を最小修正・source gates・本番readbackへ展開。新項目は原因確定後に連番へ反映。 |
-| 12 | Lancersの応募receiptを確認する | 自然選定/提出と公式応募履歴をsame案件へ結合。 |
-| 13 | Mercorの応募receiptを確認する | 本人必須/外部待ちは明示し、既存応募の公式履歴へ結合。 |
-| 14 | Coconalaの供給・提案receiptを確認する | 既存内部loopを確認。保留のTikTok/NPO個別納品追跡は再開しない。 |
-| 15 | CrowdWorksの応募receiptを確認する | 自然応募と公式応募履歴を結合し、メールの有無だけで成功を判定しない。 |
-| 16 | Freelancerの供給receiptを確認する | source/inventory/登録owner/自然run/公式提出記録の結合。 |
-| 17 | Upworkの供給receiptを確認する | account-bound ownerの自然runと公式proposal履歴の結合。 |
-| 18 | 各platformの受信監視coverageを確認する | platform別に公式inbox/通知とcollector occurrenceを照合。件数欠損はunknown。 |
-| 19 | 各platformの返信receiptを確認する | 自然replyと同案件の公式送信履歴を照合し、重複送信0。 |
-| 20 | Paid loopのfunded条件を確認する | 依頼/正式contract/authorizationを同案件へ結合。選考段階を有償作業にしない。 |
-| 21 | Paid loopの成果物品質確認を閉じる | funded scopeに対する実成果物と既存QA結果。 |
-| 22 | 許可された正式納品のreceiptを確認する | 既存納品経路の公式記録。保留のCoconala個別案件は実行対象外。 |
-| 23 | 検収・精算・payoutのreceiptを案件へ結合する | delivery/payment/settlement/payoutを区別、escrowを利益や銀行着金にしない。 |
-| 24 | storefrontの商品公開inventoryを確認する | Lancers7件とCoconala4件の公式GETは確認済み。残りは同operation/versionとの結合と他platform inventory。403/challengeを公開中にしない。 |
-| 25 | storefrontの問い合わせ・注文の流入を結合する | listing/lead source/order IDを結び、応募獲得と商品獲得を分ける。 |
-| 26 | 自社商品・定型サービスの履行receiptを確認する | 注文scope/成果物version/納品・精算を結合し、再利用できる商品経路を確認。 |
-| 27 | Writerの販売・公開receiptを確認する | 既存商品build/sell/注文・支払い記録とcursorを結合。 |
-| 28 | Affiliateのconversion・commission receiptを確認する | 公式conversion/報酬/精算と実cost、重複公開なし。 |
-| 29 | Connectorの公式readbackと重複0を確認する | 既存ownerのeffect/Calendar等公式count/自然replayを照合。 |
-| 30 | Fundraiserの申請・結果receiptを確認する | 既存build/sell/申請cursorと公式受領・結果。本人手続きを偽らない。 |
-| 31 | Investmentの実行・risk・精算記録を確認する | paper/liveを分け、既存cap内の公式position/trade/fee/costを結合。 |
-| 32 | Cloudの実収益・実費用receiptを確認する | 既存実行・継続・請求/usageを期間一致で結合。 |
-| 33 | TaskMarketのcontract・履行・settlementを確認する | 公式contract/delivery/paymentとactual cost、replay-zero。 |
-| 34 | MobileのASC公式readbackをCFOへ結合する | mobile lane重複編集なし。acquisitionとfinal financialのreport ID/currency/settlementを区別。 |
-| 35 | RevenueCatの観測収益とMRRを照合する | 同期間/商品binding、ASC settled proceedsと二重計上0、年額/買い切りをMRRへ混ぜない。 |
-| 36 | 14 loopsのsettled revenue・refund・feeを結合する | 同期間の公式receiptsからcoverage表を作り、欠損はunknown。 |
-| 37 | 14 loopsのactual費用を結合する | inference/tool/browser/cloudのinvoice/usage、Google/API費内訳・before/afterを実測。 |
-| 38 | 14 loopsのnet marginを示す | 同期間settled収益−実費、二重計上0、未確定cost/通貨はunknown。 |
-| 39 | MRRの定義と期間を検証する | 継続課金/年額/買い切り/開発者収益/入金/利益を別指標で示す。 |
-| 40 | liquid balanceの鮮度と所有範囲を示す | 個人cashと会社cashを分け、last-knownを現在値にしない。 |
-| 41 | runwayを同期間の実費から示す | 必要coverageが欠ける場合はunknownを残す。 |
-| 42 | SelfBuildの成功済み復旧重複を修正する | 最後に実施。完了済み結果をSHAへ結び、未完だけ再試行。 |
-| 43 | SelfBuildの回帰検証と独立reviewを通す | 成功済みrecoveryの重複実行が失敗するRED→最小GREEN。 |
-| 44 | SelfBuildの本番promotion・recoveryを確認する | source gates→main→immutable→自然owner、重複0・rollbackの記録。 |
-| 45 | Evalの品質・費用・利益before/afterを比較する | 自然実測と再現可能なbaseline、unknown/少数標本を誇張しない。 |
-| 46 | 全体Done監査と残外部依存の引継ぎを閉じる | 全明示条件の証拠と13旧blockとの対応を監査。全体未達なら完了としない。 |
+| 1 | 監査cleanup修正を対象ownerへ反映する | 対象source acceptance/review/CI→main→immutable→guarded owner apply。 |
+| 2 | 監査の自然終了後にscratch回収を確認する | same run terminalと回収結果・物理bytes・protected削除0を確認。 |
+| 3 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
+| 4 | Capafy日次monitorの自然wake証拠を取得する | exact owner9:30のrun/phase/sourceを確認。別hourly/daily-close結果を代用しない。 |
+| 5 | Capafy日次monitorの確認された失敗を修復する | 正常な待機は修正しない。真の失敗は修復してsame-owner自然readbackへ結ぶ。 |
+| 6 | Token daily reportの自然配信receiptを確認する | 新sourceによる業務reportの公式配信記録。対話agentの進捗Telegram送信はしない。 |
+| 7 | Writer改善loopの自然canary結果を確認する | READY待機/experiment ID/適用・評価結果の対応。小標本を勝者や因果効果にしない。 |
+| 8 | 週次validationのcalendar自然実行を確認する | Weekday2/14:30のactual occurrence、source一致・週次頻度維持・重複0。 |
+| 9 | 14 products/178 jobsの残故障を再分類する | 現在のrun/sourceで待機/外部依存/実故障/観測不足を分ける。過去health数を固定しない。 |
+| 10 | 残る実故障をownerごとに1件ずつ閉じる | 11で特定した各故障を最小修正・source gates・本番readbackへ展開。新項目は原因確定後に連番へ反映。 |
+| 11 | Lancersの応募receiptを確認する | 自然選定/提出と公式応募履歴をsame案件へ結合。 |
+| 12 | Mercorの応募receiptを確認する | 本人必須/外部待ちは明示し、既存応募の公式履歴へ結合。 |
+| 13 | Coconalaの供給・提案receiptを確認する | 既存内部loopを確認。保留のTikTok/NPO個別納品追跡は再開しない。 |
+| 14 | CrowdWorksの応募receiptを確認する | 自然応募と公式応募履歴を結合し、メールの有無だけで成功を判定しない。 |
+| 15 | Freelancerの供給receiptを確認する | source/inventory/登録owner/自然run/公式提出記録の結合。 |
+| 16 | Upworkの供給receiptを確認する | account-bound ownerの自然runと公式proposal履歴の結合。 |
+| 17 | 各platformの受信監視coverageを確認する | platform別に公式inbox/通知とcollector occurrenceを照合。件数欠損はunknown。 |
+| 18 | 各platformの返信receiptを確認する | 自然replyと同案件の公式送信履歴を照合し、重複送信0。 |
+| 19 | Paid loopのfunded条件を確認する | 依頼/正式contract/authorizationを同案件へ結合。選考段階を有償作業にしない。 |
+| 20 | Paid loopの成果物品質確認を閉じる | funded scopeに対する実成果物と既存QA結果。 |
+| 21 | 許可された正式納品のreceiptを確認する | 既存納品経路の公式記録。保留のCoconala個別案件は実行対象外。 |
+| 22 | 検収・精算・payoutのreceiptを案件へ結合する | delivery/payment/settlement/payoutを区別、escrowを利益や銀行着金にしない。 |
+| 23 | storefrontの商品公開inventoryを確認する | Lancers7件とCoconala4件の公式GETは確認済み。残りは同operation/versionとの結合と他platform inventory。403/challengeを公開中にしない。 |
+| 24 | storefrontの問い合わせ・注文の流入を結合する | listing/lead source/order IDを結び、応募獲得と商品獲得を分ける。 |
+| 25 | 自社商品・定型サービスの履行receiptを確認する | 注文scope/成果物version/納品・精算を結合し、再利用できる商品経路を確認。 |
+| 26 | Writerの販売・公開receiptを確認する | 既存商品build/sell/注文・支払い記録とcursorを結合。 |
+| 27 | Affiliateのconversion・commission receiptを確認する | 公式conversion/報酬/精算と実cost、重複公開なし。 |
+| 28 | Connectorの公式readbackと重複0を確認する | 既存ownerのeffect/Calendar等公式count/自然replayを照合。 |
+| 29 | Fundraiserの申請・結果receiptを確認する | 既存build/sell/申請cursorと公式受領・結果。本人手続きを偽らない。 |
+| 30 | Investmentの実行・risk・精算記録を確認する | paper/liveを分け、既存cap内の公式position/trade/fee/costを結合。 |
+| 31 | Cloudの実収益・実費用receiptを確認する | 既存実行・継続・請求/usageを期間一致で結合。 |
+| 32 | TaskMarketのcontract・履行・settlementを確認する | 公式contract/delivery/paymentとactual cost、replay-zero。 |
+| 33 | MobileのASC公式readbackをCFOへ結合する | mobile lane重複編集なし。acquisitionとfinal financialのreport ID/currency/settlementを区別。 |
+| 34 | RevenueCatの観測収益とMRRを照合する | 同期間/商品binding、ASC settled proceedsと二重計上0、年額/買い切りをMRRへ混ぜない。 |
+| 35 | 14 loopsのsettled revenue・refund・feeを結合する | 同期間の公式receiptsからcoverage表を作り、欠損はunknown。 |
+| 36 | 14 loopsのactual費用を結合する | inference/tool/browser/cloudのinvoice/usage、Google/API費内訳・before/afterを実測。 |
+| 37 | 14 loopsのnet marginを示す | 同期間settled収益−実費、二重計上0、未確定cost/通貨はunknown。 |
+| 38 | MRRの定義と期間を検証する | 継続課金/年額/買い切り/開発者収益/入金/利益を別指標で示す。 |
+| 39 | liquid balanceの鮮度と所有範囲を示す | 個人cashと会社cashを分け、last-knownを現在値にしない。 |
+| 40 | runwayを同期間の実費から示す | 必要coverageが欠ける場合はunknownを残す。 |
+| 41 | SelfBuildの成功済み復旧重複を修正する | 最後に実施。完了済み結果をSHAへ結び、未完だけ再試行。 |
+| 42 | SelfBuildの回帰検証と独立reviewを通す | 成功済みrecoveryの重複実行が失敗するRED→最小GREEN。 |
+| 43 | SelfBuildの本番promotion・recoveryを確認する | source gates→main→immutable→自然owner、重複0・rollbackの記録。 |
+| 44 | Evalの品質・費用・利益before/afterを比較する | 自然実測と再現可能なbaseline、unknown/少数標本を誇張しない。 |
+| 45 | 全体Done監査と残外部依存の引継ぎを閉じる | 全明示条件の証拠と13旧blockとの対応を監査。全体未達なら完了としない。 |
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の監査scratch最小修復/source検証・反映・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1の監査cleanup修正のPR/CI・main/immutable対象反映・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -8158,3 +8157,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - §576専用branch fix/lm-self-fix-owned-runtime-lifetime-20261005 / worktree .worktrees/lm-self-fix-owned-runtime-lifetime-20261005。最新main29fe8f71基点、HEADb45292537dfaf4759662530267afcab2fc133597をroot ls-remoteで一致/clean確認。source/test4＋agent_runner単一manifestdigestの5fileだけ。SelfFix tmp/npm/nodecache evidence-owned700/explicit tmux env、POSIXleader退出後ownedgroup停止、cleanup失敗は例外伝播/parentFDとactive参照解放・invocationhome証拠保持。生存leader/nonPOSIX/既存返値・lease/model/provider契約を保持するsource候補。
 - 原担当実測: actualisolatedtmux env継承/leader退出後latewrite/cleanup失敗時home削除のRED→GREEN、providerlease14/SelfFixshell27、実timeout TimeoutExpired保持/foreignsession生存/rc維持、compile/bash-n/contract14loops180jobs/sourceboundary/OSS/diff PASS。source外のprovider/browser/launchd操作0。source受入だけを自然auditcache回収やCoconala/収益の完了へ代用しない。
 - 作者contextを渡さないfresh native owned_runtime_lifetime_fresh_review/gpt6.1solMediumを起動。macOS zombiegroup/二重cleanup/parentFDとchildfence/home保持/ownedgroup以外不変を実コード＋隔離関連testsで反証。指摘があればLuna6maxでsource修正し再検証、SHIP後CI/main/immutable/targetnaturalreadbackへ進む。review未完なのでsource候補を本番反映済と認定しない。全体46/cursor新1、Coconala§580本文/§579公式context修復は後続source scopeとして保持、SelfBuild最後。
+
+
+### 585. Lifetime候補fresh SHIP・PR6657と次独立body実装
+
+- freshSol6.1MediumはHEADb45292537dfaf4759662530267afcab2fc133597をSHIP/source受入のみ、重要指摘なし。独立14provider/27self-fix PASS、Darwin normal/completion/timeout各8の実fixtureで23/0/TimeoutExpired維持・child不在24、SIGTERM -15/latewrite0。PermissionError注入＋生存childの継承FD leasebusy/home保持を確認。自然zombie-only PermissionError/nonPOSIX実環境は未証明、production操作0。
+- PR6657 https://github.com/Daisuke134/life-manager/pull/6657 をroot作成、CI/main未完。source最小修復とfocused regression/freshreview受入を満たした旧新1だけ残表から除外し、未完新2–46を新1–45へ連番化。旧順序の未完相対順序は不変。現在cursor1=PR/CI→main/immutable対象反映、次2=自然監査回収。全体Done/自然回収/収益とは分離する。
+- native Luna6max originalworkerへ§580/581のCoconala body原文優先を別worktree/branchでfollowup、rootはruntimePR/CI/promotionを所有。同files・branch・browser/state/release操作は重複0、bodyactual同時DOM証拠と旧unknown-first guard保持を受入条件とする。§579の公式context validationは別後続scope、Coconala未解消12/SelfBuild最後。
