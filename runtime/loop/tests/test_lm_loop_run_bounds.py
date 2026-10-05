@@ -1680,6 +1680,7 @@ def test_main_records_apply_lock_busy_before_dispatch(tmp_path):
 
 def test_main_reports_sanitized_prestart_event_write_failure(tmp_path, capsys):
     release = _write_prestart_lock_release(tmp_path)
+    private_events_path = tmp_path / "private" / "events.jsonl"
     with (patch.dict(os.environ, {
               "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
               "LIFE_MANAGER_RUN_ID": "run-1",
@@ -1689,8 +1690,8 @@ def test_main_reports_sanitized_prestart_event_write_failure(tmp_path, capsys):
                 side_effect=RuntimeError("production apply is already owned")),
           patch("runtime.loop.lm_loop_run.append_runtime_event",
                 side_effect=PermissionError(
-                    13, "token=private /Users/operator/private/events.jsonl",
-                    "/Users/operator/private/events.jsonl")),
+                    13, f"token=private {private_events_path}",
+                    str(private_events_path))),
           patch("runtime.loop.lm_loop_run.build_loop_command") as build_command,
           patch("runtime.loop.lm_loop_run._run_admitted") as run_admitted):
         assert lm_loop_run_main(["example-publisher", str(release)]) == 78
