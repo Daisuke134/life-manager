@@ -118,3 +118,17 @@ def test_main_treats_download_listing_as_ok(monkeypatch, tmp_path):
     monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "tok")
     monkeypatch.setattr(sys, "argv", ["check_hosted_model.py", "--agent-id", "123", "--listing", str(listing)])
     assert module.main() == 0
+
+
+def test_main_reports_cp1_confirmed_awaiting_cp2(monkeypatch, tmp_path, capsys):
+    # 2026-10-05 Hook Lab v1.0.5: CP1 was confirmed but CP2 not yet, so no confirmed
+    # model existed; daily_loop re-prepared on every pass and wiped the saved CP1.
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(LISTING_DEEPSEEK)
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "tok")
+    monkeypatch.setattr(module, "confirmed_model_id", lambda *_a: None)
+    monkeypatch.setattr(module, "cp1_confirmed", lambda *_a: True)
+    monkeypatch.setattr(sys, "argv", ["check_hosted_model.py", "--agent-id", "8123079349", "--listing", str(listing)])
+    assert module.main() == 0
+    assert capsys.readouterr().out.strip() == "MODEL_UNKNOWN cp1-confirmed-awaiting-cp2"

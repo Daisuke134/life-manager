@@ -20,3 +20,8 @@ def test_mismatch_still_reprepared_and_other_unknowns_are_not():
     assert p.search("MODEL_MISMATCH anthropic/claude-sonnet-4.6 deepseek/deepseek-v4.1-flash")
     assert not p.search("MODEL_UNKNOWN detail-fetch-failed:URLError")
     assert not p.search("MODEL_MATCH deepseek/deepseek-v4.1-flash")
+
+
+def test_cp1_confirmed_draft_is_not_reprepared():
+    # Re-preparing a draft whose CP1 is already confirmed resets that confirmation.
+    assert not _pattern().search("MODEL_UNKNOWN cp1-confirmed-awaiting-cp2")
