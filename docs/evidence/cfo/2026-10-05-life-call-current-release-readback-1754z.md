@@ -93,3 +93,21 @@ Scope: exact Railway release SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557`, sta
 - The exact release has no Google Directions or voice cost row in this window, so the deployed `route_mode`/`fallback_reason` metadata has not yet been exercised by a natural Google fallback.
 - Read-only GETs returned zero `lm_wake_log.called_at` rows and zero `lm_wake_miss.occurred_at` rows since deployment. Four aggregate `[wake] scan` records were present in the deployment logs; all had `calendar_read_failed=0` and `due_candidates=0`. The latest was users/eligible/items/events/candidates/due=`20/5/10/10/10/0`; the earliest of the four was `24/6/12/12/12/0`.
 - No test call, Calendar-content query, provider mutation, database write, or report send was performed. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
+
+## A1 transit-timeout production readback (2026-10-05T19:29:46Z)
+
+Scope: exact Railway release SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557`, from deployment creation `2026-10-05T18:43:51.815Z`. Two sequential read-only GETs to `lm_api_cost` returned the same 59 unique row IDs and the same estimate. No row IDs, tenant IDs, event IDs, addresses, or raw provider payloads are retained.
+
+| Kind / provider / feature / outcome | Rows | Row `est_usd` sum |
+|---|---:|---:|
+| `composio_call` / success | 36 | USD 0.000 |
+| `provider_usage` / Google Maps / geocoding / success | 5 | USD 0.025 |
+| `provider_usage` / route cache / travel_route / cache_hit (`no_route`) | 6 | USD 0.000 |
+| `provider_usage` / Google Maps / directions / failure (`no_route`, route mode `transit`, fallback `transit_timeout`) | 12 | USD 0.060 |
+| **Total** | **59** | **USD 0.085** |
+
+- All 59 rows have a runtime occurrence ID, but none has `loop_id`, a fully linked trace, `actual_usd`, or a provider receipt ID. These are missing actual/billing fields, not actual spend of USD 0.
+- The 12 Directions rows have 12 distinct occurrence IDs and run IDs, with no repeated occurrence ID. The cost table has no Calendar event ID, so distinctness at event level is unverified. Each row carries `fallback_reason=transit_timeout`.
+- Read-only wake GETs at `2026-10-05T19:29:46Z` returned zero `lm_wake_log` and `lm_wake_miss` rows. A log read at `19:30:29Z` found seven `[wake] scan` aggregates from this deployment; all had successful Calendar reads, zero read errors, and zero due candidates. The latest counts were users/eligible/items/events/candidates/due=`20/5/10/10/10/0`.
+- **Read consistency anomaly:** single exact-window GETs at `19:20:30Z` and `19:21:10Z` returned 49 and 48 rows, respectively. Later repeated GET pairs returned stable identical row-ID sets at 50, 51, 56, and 59 rows. The inspected repository and migrations contain no `lm_api_cost` delete/update path, but the 49→48 discrepancy's cause is unresolved; it is not treated as zero or silently discarded.
+- No test call, Calendar-content query, provider mutation, database write, or report send was performed. These row estimates are not invoices or monthly actual cost. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
