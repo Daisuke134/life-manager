@@ -3226,3 +3226,10 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 2. plain配置での`team --json`停止境界を公式スクリプト/driver経路でread-only診断し、member・terminal capability・最後に完了したcommandを特定する。別ownerのsession/process/placementは推測で止めない。
 3. `codex-money-printer`のmonitor bridgeは未稼働。新しいinteractive zshで`codex` shim経由のCodex起動が必要で、起動後にbridge/inboxをreadbackする。現sessionからrestart済みとは扱わない。
 4. CFO/Mobile担当の返信とdiff/worktree evidenceを確認後、owner重複がない状態で次の正本TODOを順に進める。remote bindingは別machine参加が必要と確認できた場合だけ、実在endpointを取得して構成する。
+
+### 2026-10-06 JST — ANICCA iOS TestFlight release cursor
+
+- このrelease状態の追記は§84-Aの収益TODO順序を変更せず、MRRの達成証拠とも扱わない。ANICCA iOS source PR #6619とrelease mirror PR #418はmainへ統合済み。StagingのMaestro動画・画像はTelegram Saved Messagesへ配信・readback済みだが、production購入の証拠ではない。
+- ASC `Default` workflowは`main`向け・App Store eligibleで有効。関連repositoryと`main` SCM refは確認済み。手動run #802は2026-10-05 16:51 UTC時点で`PENDING`、source commit SHA空、`startedDate=null`、actions/builds/artifacts 0で、bounded official waitでもterminal結果なし。Appleの公開サービスstatusはoperational。
+- ASCのnext build numberは391だが、`1.9.6 (391)`のbuildは未登録。external beta groupはpublic link有効で既存buildとの関連19件があるものの、対象releaseのbuildは未添付で、既存inviteを今回修正のinstall可能linkとして案内しない。
+- 詳細と順序はreference文書`docs/superpowers/specs/2026-10-05-anicca-ios-testflight-release.md`に記録する。次はrun #802を重複/cancelせずread-onlyで追跡し、terminal後に対象build・暗号化状態を確認し、`anicca-beta`へ割当・beta review・public link readbackを順番に閉じる。
