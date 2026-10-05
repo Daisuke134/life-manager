@@ -4873,22 +4873,22 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 - 変更理由：個別案件の外部待ちと長いprivate診断で全体の内部復旧を止めず、収益経路の実故障を先に直すというDaisの明示指示。
 - 旧順序：Coconalaの残納品条件3→正式納品4→検収5→精算6→着金7→他platform→fleet44→CFO→SelfBuild。
-- 現在の残順序：下表1→…→47。旧13blockを1成果ずつ分解し、source準備済みLancersの統合・自然診断を先頭へ進める。変更理由は、誤った承認待ちを撤回し、既存成果を利用して最短で実原因を取得するため。旧順は診断→修正→供給/返信/Paid/storefront→他収益→CFO→SelfBuild/Eval、相対順と全scopeを保持する。現在cursor1、SelfBuildは43からで最後。
+- 現在の残順序：下表1→…→47。監査scratchのディスクburstが全laneとセッションを妨げる実測報告を受け、旧2〜5の監査診断→修復→反映→自然回収を新1〜4へ先行、旧1のAgent Economy公式収益receiptを新5へ移す。旧6〜47は不変。現在cursor1、SelfBuildは43からで最後。
 - 番号は今回の内部復旧の実行順。旧A番号・旧実行番号は履歴照合だけに使う。今回の保留・順序変更で完了にした業務成果は0。
 - 最小の安全な作業単位で、primaryが実測・状態・受入を所有する。source修正、release反映、自然実行、公式経済結果を区別する。容量待ち・human_required・effect_unknownを一律故障や成功0へ置換しない。
 - 外部待ちは不足物・最新観測・再開条件を残し、内部の独立修復を止めない。進行中の外部effectは中断/重複させない。user所有wallet資金移動、設計外broadcast、本人必須/KYCを自動化したと偽らない。
 
 #### 残作業の実行表（未完のみ・1項目1成果）
 
-現在cursor：1（Agent Economy実収益actionの公式receipt確認）。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
+現在cursor：1（監査scratch残留の失敗境界確定）。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
 
 | 順序 | 残作業 | 完了を示す証拠 |
 |---|---|---|
-| 1 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
-| 2 | 監査scratch残留の失敗境界を確定する | 削除前marker/名前/権限の既存観測、または次自然runの最小probeで原因を絞る。 |
-| 3 | 監査scratchの原因に対応する最小cleanup修正を行う | 所有scratchだけ、protected store/effect証拠は保持。原因対応のfocused regression。 |
-| 4 | 監査cleanup修正を対象ownerへ反映する | 対象source acceptance/review/CI→main→immutable→guarded owner apply。 |
-| 5 | 監査の自然終了後にscratch回収を確認する | same run terminalと回収結果・物理bytes・protected削除0を確認。 |
+| 1 | 監査scratch残留の失敗境界を確定する | 削除前marker/名前/権限の既存観測、または次自然runの最小probeで原因を絞る。 |
+| 2 | 監査scratchの原因に対応する最小cleanup修正を行う | 所有scratchだけ、protected store/effect証拠は保持。原因対応のfocused regression。 |
+| 3 | 監査cleanup修正を対象ownerへ反映する | 対象source acceptance/review/CI→main→immutable→guarded owner apply。 |
+| 4 | 監査の自然終了後にscratch回収を確認する | same run terminalと回収結果・物理bytes・protected削除0を確認。 |
+| 5 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
 | 6 | Capafy日次monitorの自然wake証拠を取得する | exact owner9:30のrun/phase/sourceを確認。別hourly/daily-close結果を代用しない。 |
 | 7 | Capafy日次monitorの確認された失敗を修復する | 正常な待機は修正しない。真の失敗は修復してsame-owner自然readbackへ結ぶ。 |
 | 8 | Token daily reportの自然配信receiptを確認する | 新sourceによる業務reportの公式配信記録。対話agentの進捗Telegram送信はしない。 |
@@ -4934,7 +4934,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の対象owner反映・自然診断・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1の監査scratch診断・必要修復/反映・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -7787,3 +7787,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6626最終head a99e3a4cb1aba4d9fbc6edc6c7d48b9fa6fd142d/source動作fresh SHIP/関連42＋必要metadata検証/CI全10終端SUCCESSを確認してadmin merge。公式MERGED/2026-10-05T07:19:43Z/merge SHAee27ac09fe2bbfc2d8757028b071ef85c675c503、fetch後remote object確認。Capafy sourceはmain追従のみでrootのbusiness変更0、manifest当該inventoryだけ整合。
 - query付きReply transport、明示Direct selector/coverage、caller-trusted Direct failure receipt、B1既定分類・HTTP/identity/pagination failclosed保持をmainへ統合済み。source完了と公開4件の確認を、自然Reply成功/正式納品/精算へ置換しない。
 - 次の運用範囲はmain由来full immutableにee27 sourceを搭載、Coconala Reply対象ownerのactual argv/SHA→自然collectorのfull pagination/Direct family→同thread返信receipt/replay-zeroを確認すること。使用中profileは既存guardで調整し、手動顧客送信・旧fence解除・個別TikTok/NPO保留の再開なし。現在残47/cursor1はAgent Economy公式収益action receipt、Coconalaの独立反映/自然readbackを並行する。
+
+
+### 534. 全laneを止めるdisk burst復旧を先行する事前spec
+
+- Agent Economy wake00MUUWV9IAD43A538C760F4754の自然decisionはensure、liquid capitalがcompute buffer未満の間にzero-capital固定menu shopを維持する方針。資金deployやsaleを示すreceiptではない。公式収益/settlement/costの確認を継続し、exit0をearnへ置換しない。
+- AGMSG peerの追加実測報告は、verify-loops-audit scratch29dir/4.2GiB（最大1.2GiB/run）の削除と今日5回のsession停止、2分観測では他dir増加が小さくrun burstが大きいというもの。root前実測の空き188MiBも保持。共通容量故障は全laneを妨げるため、旧2〜5の監査境界/最小修復/反映/自然回収を新1〜4へ先行、旧1の収益receiptは新5へ移し独立観測継続。旧6〜47/保留/SelfBuild最後は維持。完了への繰上げ0、外部effect中断/重複0。現在47/cursor1。
+- 次の調査/修復scopeはruntime/loop/lm_loop_run.pyのowner scratch lifecycleと既存loop_cleanup/sharedtests、verify-loops-auditの自然run metadata。まずmarker/owner/path/permission/terminalを実測、report/passがある旧2巨大runをterminal未保存/effect_unknown原因と決め付けない。peerへ既存削除前metadataのみ依頼し、重複source編集しないようroot所有を通知。新たな破壊的live再現・他ownercleanup・protected store/memory/state jsonl削除は行わない。原因対応最小RED→GREEN/必要review/CI/main→immutable→自然終端/物理回収/保護削除0を完了条件とする。
+- Coconala自然反映は並行scope§533で継続。仕様を先に更新してからsource/運用を進める。
