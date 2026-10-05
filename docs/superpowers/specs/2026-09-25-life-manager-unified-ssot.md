@@ -7932,3 +7932,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - candidate d12cdcd3のfresh Sol6.1/medium read-only reviewerは55関連tests PASS後、実modernRows JS fixtureで回帰を確定。raw own_user_path=ownPath/null、message author=/users/0、cards0によりdirect_message_eventがmissing_sender_identity。legacy6ケースはcardproofとして妥当だがmodern会話transportを検出していなかった。source候補HOLD、PR/main/production未反映。
 - 次修正scopeは同authorproof branchのown_user_path置換だけを外し、既存会話transport ownを保持することと、既存direct testsへmodern実JS→consumerの回帰case追加。card sender_sideは実ownPath&&authorPath由来のまま、own不在/synthetic/users0はseller card proof不可。modernの新consumer実装や合成本人証明を足さない。RED modern regression→最小GREEN→既存legacy6＋関連tests/compile/contract/OSS/diff→commit/push/remote一致→fresh反証再確認。sourcefacts/falsefinancialのHOLDを解消するまで統合しない。全体47/cursor1、firstfixc797の自然businessblocked・添付2/SHA1未解決を保持。
+
+
+### 554. authorproof modern修復SHIPとPR6643のlive CI
+
+- head eec318c5b3e83b993c91421c1da8e69817c83bbfをpush/remote一致/clean。own_user_path置換1行を削除し従来会話transportを維持、カードproofはactualownPath&&authorPath由来のまま。modern実JS→consumer RED1failure→GREEN、legacy6＋modern7/関連54/compile/contract/OSS/diff PASS。fresh reviewerは前重要指摘解消SHIP、関連57と同modern独立反証PASS、本番操作0。
+- PR6643 https://github.com/Daisuke134/life-manager/pull/6643 を作成、head eec318c5b3、新CI37286406991をlive確認。OSS/PII/Agent contract/startup/shell SUCCESS、Loop/Python/gitleaks/TruffleHog進行中。次は同run terminal/allPASS→通常main統合→full immutable→Reply対象idle apply→公式offer author proof/保存intentの自然readback。sourceSHIPを送信完了/入金へ代用しない。
+- Reply ownerの後続installed4eb6bbbaeb9a8368895e6391e34e8c895908b0ecを確認、firstfix c797とadapter blob同一cfb5306790c1898819a8d1faf5bda7a9a86c83b8。新しいmain-derived ownerを旧c797へ戻さない。fail/runningの一観測後、08:54:33Z run18db96147acc9f98-7066 reportPASSを再確認。frameworkとbusiness/officialreceiptを分離、保留解消未証明。
+- body selector差のreadonly probeはguardBUSY rc9で未取得、送信/state変更0。state/coconala-message-selector-comparison-20261005.json。既存manifestと現在bodyが違う原因を未確認のままtimestampだけで結び替えず、現HTTP200で同thread DOM/collectorの差を取得するscope§548/551を継続。全体47/cursor1 audit新source自然観測、個別Paid保留とSelfBuild最後を維持。
