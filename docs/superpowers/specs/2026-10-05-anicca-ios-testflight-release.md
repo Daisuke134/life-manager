@@ -6,11 +6,11 @@ Release the onboarding and paywall fixes as an installable ANICCA iOS TestFlight
 
 ## Source and release state
 
-- Life Manager `main` is the app source of truth. PR [#6619](https://github.com/Daisuke134/life-manager/pull/6619) merged at `46fa60d619f31dd7719083e891b001ba372c4871`; latest observed Life Manager `main` is `cd5b63901e83189692d4c36dd0c2b4eba5f76ec8`.
+- Life Manager `main` is the app source of truth. PR [#6619](https://github.com/Daisuke134/life-manager/pull/6619) merged at `46fa60d619f31dd7719083e891b001ba372c4871`; latest observed Life Manager `main` is `ee27ac09fe2bbfc2d8757028b071ef85c675c503`.
 - App Store Connect Xcode Cloud is still connected to `Daisuke134/anicca-products`. PR [#418](https://github.com/Daisuke134/anicca-products/pull/418) mirrors the release-relevant ANICCA source and Maestro flow and merged as `6168d52cef4770cf6213c44d3d9aabf5c225e1e5`.
 - The merged release source sets all 12 app, widget, and notification-service configurations to marketing version `1.9.6`, build `391`; the existing provider bootstrap is preserved.
-- ASC workflow `Default` is enabled for `main` and App Store eligible. Manual Xcode Cloud run `#802` (`5056c6f4-0b79-4ebd-ba1f-50e946f4e20e`) is `PENDING` as of `2026-10-05 07:14 UTC`; it has no actions or artifacts yet, and ASC has not exposed its source commit. ASC reports build number `391` unused; no App Store Connect build `1.9.6 (391)` exists yet.
-- Spec PR [#6625](https://github.com/Daisuke134/life-manager/pull/6625) is open. Its `OSS self-contained boundary` check reports `manifest_inventory_mismatch skills/capafy-autopublish`; the same failure appears on main CI run `37275422749` for main commit `cd5b639`. This is a separate main-branch integrity failure; it is not treated as a pass or bypassed.
+- ASC workflow `Default` is enabled for `main` and App Store eligible. Manual Xcode Cloud run `#802` (`5056c6f4-0b79-4ebd-ba1f-50e946f4e20e`) is `PENDING` as of `2026-10-05 07:21 UTC`; it has no actions or artifacts yet, and ASC has not exposed its source commit. ASC reports build number `391` unused; no App Store Connect build `1.9.6 (391)` exists yet.
+- Spec PR [#6625](https://github.com/Daisuke134/life-manager/pull/6625) is open. Its earlier `OSS self-contained boundary` check reported `manifest_inventory_mismatch skills/capafy-autopublish` on the old base `cd5b639`. PR [#6626](https://github.com/Daisuke134/life-manager/pull/6626) refreshed that inventory digest and passed all checks, including the boundary check, before merging as current main `ee27ac0`. The spec branch now includes that main commit; fresh checks are required for its current head.
 - External beta group `anicca-beta` is enabled with public link `https://testflight.apple.com/join/5j9nuumu`. The link is not yet installable because no new build is assigned or approved.
 
 ## Verified evidence
