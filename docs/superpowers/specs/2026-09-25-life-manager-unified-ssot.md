@@ -7905,3 +7905,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - headbb4b72f1/newCI37282287624は全10checks SUCCESS。通常gh pr merge --admin --mergeはGraphQL Pull Request has merge conflictsで拒否、未merge。fetch後main9f7bf1420ec1416d4c713a218ac7570760992658。git merge-treeのread-only検証で競合pathはruntime/loop/tests/fixtures/macos-loop-jobs.jsonのみ。mainのPR6635はx-repost-pass priority support→revenue、PR6637はCFO usage/runtime identity source。Coconala sourceの競合なし。
 - 次scopeは同Coconala branchへlatestmainを通常mergeし、現main registryから既存fixtureを生成して競合解消。x-repost priority/CFO source/docs/testsをそのまま保持、再実装・巻戻し・弱化0。fresh SHIP済みCoconala adapter/test blobsの前後同一を確認、fixture/adapter focused/contract/OSS/diff→commit/push/新headCIを確認。source候補と他laneのmain変更を混同しない。競合を理由に再承認やmain強制上書きを求めない。全体47/cursor1維持。
+
+
+### 550. 有効offer DOMの出品者proof欠損と独立source修復scope
+
+- deployed b53の実module-load後DIRECT_MESSAGE_EXPRESSIONをread-only確認: sender_side count0/author_path:authorPath fieldなし/ownPath宣言なし。module末尾の旧compact expression向けreplaceはactive modern対応expressionのreturn形へ一致せず、authorPath宣言だけ挿入されcardに渡らない。CoconalaEstimateBrowser.read_thread_contextはstructured_offersをそのまま返す。実classifierはseller side/author_path/own_user_path一致を必須とするため、実カードが存在してもsource抽出の必須proof不足でverified不可。§548のmatching0はcard内容相違や送信不存在の証明ではない。
+- 次実装scopeはlatestmain由来の独立worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-coconala-offer-author-proof-20261005 / branch fix/lm-coconala-offer-author-proof-20261005、skills/earn/gig/scripts/coconala_queue_snapshot.pyの実active offer extractorと直接既存testsのみ。rowの公式author pathと公式own pathからsender_sideを導く。buyer/author不在/own不在/別authorはseller proofにしない。matching一件/別owner/不足の実JS extractor→実classifier RED/GREEN、B1/inbox/query/pagination/attachment/kernel/provider/model/price/content/送信sourceを変えない。旧expression全体整理や汎用frameworkを追加しない。新source完成後fresh Sol6.1/medium review/CI/main/immutable→自然公式readback。Luna6/max実装、root統合owner。
+- PR6634はmain追従merge54d20ff5cd7941e044f9a9eb6c520c8e94b5e3a2をpush/remote一致/clean、fixture1＋adapter46/contract/OSS/diff PASS、Coconala blobs不変。CFO/x-repost/docs/tests保持。現在CI37283166728を追跡。第二sourceは別file/専用branchで並行し、同provider/release反映はrootが直列。全体47/cursor1、正式送信・精算は未証明。
