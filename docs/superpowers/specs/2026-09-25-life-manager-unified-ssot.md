@@ -4786,7 +4786,7 @@ Portfolio Trackerは公式`pending_review`（Sales `0/$0`、PortfolioのGmail審
 
 ### 217. 現在の担当・残TODOの正本
 
-過去の§185–216は証拠履歴。現在の担当、未完条件、実行cursorはこの節を参照する。全体goalはactive、settled profit・全loop修復・financial independenceは未証明。
+過去の§185–216は証拠履歴。現在の担当、未完条件、実行cursorはこの節を参照する。全体goalは未達、settled profit・全loop修復・financial independenceは未証明。順序例外は承認済み（§490）。
 
 #### CFO / Mobile Metricsの担当境界
 
@@ -4873,7 +4873,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 - 変更理由：個別案件の外部待ちと長いprivate診断で全体の内部復旧を止めず、収益経路の実故障を先に直すというDaisの明示指示。
 - 旧順序：Coconalaの残納品条件3→正式納品4→検収5→精算6→着金7→他platform→fleet44→CFO→SelfBuild。
-- 新順序：下表1→2→…→14。現在cursor1、内部の実故障・観測不足をowner単位で確定する。次は2、根因のsource修正。SelfBuild/Evalは11〜14で最後。
+- 承認反映による順序変更：旧1（診断）→2（source修正）→3（本番反映）を、新1（受入済み8修正の統合・反映）→2（新観測による残診断）→3（残不具合の修正）へ更新する。理由は、本番観測を得るためのsource修正が既に受入済みで、反映前の診断継続では不足証拠を取得できないため。4〜14は維持する。現在cursorは下表1の統合準備。SelfBuild/Evalは11〜14で最後。
 - 番号は今回の内部復旧の実行順。旧A番号・旧実行番号は履歴照合だけに使う。今回の保留・順序変更で完了にした業務成果は0。
 - 最小の安全な作業単位で、primaryが実測・状態・受入を所有する。source修正、release反映、自然実行、公式経済結果を区別する。容量待ち・human_required・effect_unknownを一律故障や成功0へ置換しない。
 - 外部待ちは不足物・最新観測・再開条件を残し、内部の独立修復を止めない。進行中の外部effectは中断/重複させない。user所有wallet資金移動、設計外broadcast、本人必須/KYCを自動化したと偽らない。
@@ -4882,9 +4882,9 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
-| 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知8修正はsource受入済み（週次calendar/pre-start観測含む）、本番は3に残る。Capafy/Lancersの実原因は未確定。観測改善を本番復旧へ昇格しない（§489）。必要なRED→GREENを専用main由来worktreeで行う。 |
-| 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。受入済み8修正（§490）のsource検証後main統合→immutable release→owner限定反映→自然実行確認を先行できる順序例外の承認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
+| 1 | 次に実行・承認済み | 受入済み8修正（§489–490）を最新main・CI・所有者との非干渉を照合して統合し、main由来immutable releaseへowner限定で反映する。loaded argv/SHA・admission・rollbackを確認する。ソース検証の再実施は新差分/失敗/未解消懸念がある範囲だけ。自然実行・経済成果は未確認のまま残す。 |
+| 2 | 1の反映後 | Capafyの発火後/pre-start境界、Lancersのaccount/auth/transport原因を新観測で特定する。14 product/178 jobsの実故障・観測不足をowner・occurrence・loaded SHAへ結び、正常な容量待機/外部待ちと修復対象を区別する。過去health件数を現在値として固定しない。 |
+| 3 | 根因確定ownerごとに並行 | 2で残った実故障だけを最新main由来の専用worktreeで最小RED→GREEN修正し、必要なreview・統合条件・反映・自然実行確認へつなぐ。受入済み8修正を未完sourceとして再作成しない。今回の順序例外を無関係な新規変更へ拡大しない。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
 | 6 | 待機 | Paid loopの依頼取得→制作→品質確認→許可された納品経路→結果取得の内部接続を確認。Coconala保留案件の追加手動納品/資料追跡は実行しない。 |
@@ -4899,7 +4899,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の実runtime readbackとSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1の統合準備・所有者調整・反映readbackとSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -7391,10 +7391,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - source受入8件、本番未反映。観測repairはlost wakeの保全/Capafy実原因確定を意味しない。Lancers account境界/Capafy pre-start等のfresh diagnosisは次の実観測に残す。§217cursor1/source2既知8件受入、本番3の例外確認は未回答、全loop自然実行/公式receipt/CFO/SelfBuild/Evalは未完。
 
 
-### 490. 本番検証へ進む順序例外の承認待ち
+### 490. 本番検証へ進む順序例外の承認と再開条件
 
-- 現common-rules.md:17は成果全体の実測PASS後だけPR/main統合を許す。§328のmain→immutable→本番実測と循環し、source受入を全成果PASSへ置換できない。最初の例外確認以降、複数の連続goal turnで未回答を確認した。goal自動継続は明示承認と扱わない。
+- common-rules.md:17と§328の循環について、Daisの明示返信「Yes I approve but first update spec and tell me remaining todo」により、下記8修正に限るsource検証→main統合→immutable release→owner限定反映→自然実行/公式readbackの順序例外は承認済み。自動goal継続を承認根拠にしない。source受入を全成果PASSへ置換しない。
 - 最終readback origin/main2a8d40e68f306105c59fa21631f6b9bf01ab5c90、docsbranch clean。8remote branch objectを再確認：token b2cde91595e949376bf11304f8a3cdf67bbaa1a8、fleet4878be8d8b65097e15b3a6ac24a6fb98823d6da4、refilla2efd6422601438dfe02ea38ac576a1ca21c3125、PromptBase wait36a786b59fdf8cc3ac737fc36c2824f4d0b772b5、snapshot a4a8477a7e9ba41eb0f6d8b0b41f1a173c96f069、Writeradda0a562efd83fab647abf24551dad1dedce844、weeklyd28c0f6ea0c752a8b6167539591c6b9466767369、prestarta61c1da7069491f0e6f772235fbd56aad8409890。検証詳細は各既存evidence節。本番に入ったとはしない。
-- 必要な例外は『この8修正をsource検証後にmainへ統合し、その後既存release ownerと調整してimmutable release・owner限定反映・自然実行/公式readbackを行う』という順序。価格/paywall/app submission/外部marketing/個人資金移動/receiptなしfence解除は含まない。承認後もresource owner/最新main・CI・他者非干渉・release/load検証を守る。
+- 承認された例外は『この8修正をsource検証後にmainへ統合し、その後既存release ownerと調整してimmutable release・owner限定反映・自然実行/公式readbackを行う』という順序。価格/paywall/app submission/外部marketing/個人資金移動/receiptなしfence解除は含まない。承認後もresource owner/最新main・CI・他者非干渉・release/load検証を守る。
 - Capafyの過去発火後失敗/Lancersのaccount原因はなお未確定。現行保存記録の限界を調査し、必要な観測修復をsourceで完了したが、新観測を本番へ反映せず成功を作れない。全loop自然実行・公式receipts/CFO actualcost/net margin/MRR/liquid/runway・最後のSelfBuild/Evalも未完で、source完了へ縮めない。
-- 最小再開条件はDaisが上記source→main→本番実測の順序例外を明示承認すること。現在cursor1を保持し、再開時は最新状態をreadbackし、3の反映条件を解いて未完の実原因診断と4〜14へ戻る。追加の仮説修正や同じstatus-only自動turnを積み重ねず、全goalは未達/承認待ちとして停止する。
+- 承認不足は解消済み。Daisの指定どおり、最初に本spec更新・commit/push・remote object照合とチャットで残TODOの報告を行う。この文書更新ではPR/main統合・本番反映を実行しない。次の作業は§217のcurrent1（最新main/8修正/CI/ownerを照合して統合準備）。承認はresource同時操作の許可や全成果完了を意味しない。Coconala個別作業保留・SelfBuild最後を維持する。
