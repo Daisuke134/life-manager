@@ -115,38 +115,52 @@
 - [x] Run a local source-chain probe using the actual `stage_intents`, `/go` click receipt/redirect, checkout request/Stripe metadata, and signed webhook durable receipt/PDF payload. The Japanese vector stayed identical through every stage; all provider calls were faked.
 - [x] Run Life Manager attribution tests 8/8 and Product marketing-go/checkout/webhook tests 39/39. Product Landing check `37356856068` passes at PR #420 head `85116e29`.
 - [x] Keep render, click, and checkout-session creation distinct from a paid order; no attribution step marks them as a sale.
-- [ ] Record one natural paid Checkout and matching locale PDF provider receipt under Task 5. The source probe is not a sale or production receipt.
+- [ ] Record one natural paid Checkout and matching locale PDF provider receipt under Task 6. The source probe is not a sale or production receipt.
 
-### Task 5: Register one eBook publishing owner using existing accounts
+### Task 5: Build one source-only eBook publishing owner
 
 **Files**
 - Create: life-manager/skills/earn/marketing-engine/ebook-distribute-daily.sh only if no current entrypoint can own the occurrence
 - Modify: life-manager/config/loop-registry.json
+- Modify: life-manager/apps/life-manager/config/product-loop-catalog.json for the eBook owner mapping
 - Modify: life-manager/apps/life-manager/config/loop-adapters.json only if required by the existing route
 - Reuse: life-manager/skills/earn/marketing-engine/ebook_runner.py
 - Reuse: life-manager/skills/earn/marketing-engine/publish/publish_cli.py
 - Reuse: existing Marketing Video Publication Adapter
+- Test: create life-manager/skills/earn/marketing-engine/test_ebook_distribution_owner.py
+- Test: focused eBook owner contract tests and the existing loop-contract gate
 
 **Interfaces**
 - Owner ID: ebook-distribute-daily; one occurrence/state root per product campaign; no OpenClaw scheduler.
 - Input: render receipt, deterministic ee_/ej_ token, exact asset hash, matching locale, registry-verified existing account.
 - Output: provider post receipt/public URL or effect_unknown fence; never infer post success from process exit alone.
+- This task produces source only. It does not call Instagram/TikTok, apply a release, or publish a post.
 
-- [ ] Read back the existing owned account's provider identity/status and match it to the account registry and locale. Japanese Instagram `instagram.obou_anicca` is a candidate because its route was ready; this is not yet proof of account status or ownership.
-- [ ] Add focused contract coverage for identity/locale mismatch, setup-required account, duplicate publish key, and unknown-effect fence.
-- [ ] Connect `ebook_runner.py` to one existing publisher owner; preserve `awaiting_visual_approval` until its current approval contract passes.
-- [ ] Confirm renderer cost against the existing spend cap before rendering paid assets.
-- [ ] Publish one eBook canary through the verified existing account, then read back the provider receipt and public URL. Do not create accounts or automate likes/follows.
-- [ ] Wait for one natural paid Checkout and its matching locale PDF provider receipt. Join both to the same product, campaign token, and occurrence; record refund/fee/cost status. Do not self-purchase.
-- [ ] On the first matching paid/PDF receipt, start the 14-day eBook measurement; continue it while Capafy Instagram begins.
+- [ ] Add failing tests named test_account_locale_mismatch_is_rejected, test_setup_required_account_has_no_provider_effect, test_replay_key_collision_is_fenced, and test_unapproved_visual_intent_has_zero_provider_calls.
+- [ ] Register exactly one eBook Product Loop job and catalog mapping; follow the existing owner entrypoint and Marketing Video Publication Adapter contract rather than adding another provider adapter.
+- [ ] Implement the owner entrypoint around the existing render receipt and publisher preflight; it must preserve `awaiting_visual_approval` and perform zero provider calls when the approval/readiness contract is absent.
+- [ ] Verify the focused contract, loop catalog/registry gate, and source boundary; commit and push this source-only change.
 
-### Task 6: Capafy Instagram marketing handoff — existing D5 plan only
+### Task 6: Publish the first eBook campaign and record its natural order
 
-- [ ] Start only after Task 5 records one natural eBook paid Checkout receipt and its matching PDF delivery receipt.
+**Prerequisites:** Task 5 source owner merged; an authorized production DDL route; official identity/status for the selected existing account.
+
+- [ ] Apply the production migration through an authorized Supabase DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. The current blocker is the absent DDL-capable route.
+- [ ] Merge PR #420 only after migration readback; verify the production deployed SHA and health.
+- [ ] Read back the existing account identity, provider status, and matching integration. `instagram.obou_anicca` remains a candidate, not verified ownership/good-standing evidence.
+- [ ] Check render cost against the existing spend cap and preserve the exact-asset visual approval contract.
+- [ ] Publish one approved canary through the single eBook owner; read back provider receipt and public URL.
+- [ ] Record one natural paid Checkout and its matching locale PDF delivery receipt under the same product, campaign token, and occurrence; record refunds, fees, and measured costs. Do not self-purchase.
+- [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during the later Capafy work.
+
+### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
+
+- [ ] Start only after Task 6 records one natural eBook paid Checkout receipt and its matching PDF delivery receipt.
 - [ ] Continue eBook 14-day measurement in parallel; it is not a Capafy start gate after that first complete receipt.
-- [ ] Follow the single source of Capafy marketing order in `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`, Task D5: reconcile both publisher effects by official readback; make one Life Manager Instagram owner recognizable and loaded; verify the existing owned account and Postiz identity; enforce at most one canary per 24 hours; publish one Reel with provider receipt; join `ct` clicks to available paid-order/payout evidence; measure 14 days.
+- [ ] Reconcile both existing Capafy publisher effects by official readback before any retry. Current 04:06 JST status: old owner fence remains unresolved with `active_ig_handle_unresolvable`; new owner is on release `4eb6bbba` and failed because Node was unavailable to that installed entrypoint. Neither owner has a post receipt/readback.
+- [ ] The Node/Python launchd lookup repair is already in Life Manager main at `9e3fb448b6` (PR #6663); build and load a current main-derived immutable release only after the eBook start gate. Verify account identity/status and Postiz integration through provider readback; current source comment says `@capafy.hooklab` is not connected.
+- [ ] Follow the single source of Capafy marketing order in `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`, Task D5: use one Life Manager Instagram owner; enforce at most one canary per 24 hours; publish one Reel with provider receipt; join `ct` clicks to available paid-order/payout evidence; measure 14 days.
 - [ ] Keep the work limited to Capafy Instagram marketing. Do not change Capafy product, listing, pricing, or account-lifecycle code owned by the other developer. Do not switch to TikTok/YouTube or create a replacement account.
-- [ ] Current starting state: both publishers have active `resource_effect_unknown` fences. At 03:42 JST the new owner is managed but remains on old installed SHA `4eb6bbba`; current occurrence `life-manager-capafy-ig:18dbb4981f9573c8-86990` is exit 1 with no receipt, and both dry-run reconciliations return `no_pre_effect_terminal`. Obtain official provider readback for each occurrence before either lane can publish; never replay an unknown effect.
 - [ ] If the authenticated existing page visibly shows a supported CAPTCHA, inspect the rendered challenge first. The latest local/open-source candidate `fiptcha` is Apache-2.0 but direct-CDP compatibility is untested; use it only after a same-session compatibility check. Otherwise use the registered challenge path. After any solve, read back the expected identity and provider state. Identity, suspension, or appeal screens stay in the provider's official process.
 
 **Economic target math (not a forecast):** 1,002 paid active subscriptions at $9.99/month are about $10,000 gross MRR before fees/refunds/cost. A one-time eBook order is never MRR. Capafy acceptance remains the existing 30-day banked-net contribution definition.
