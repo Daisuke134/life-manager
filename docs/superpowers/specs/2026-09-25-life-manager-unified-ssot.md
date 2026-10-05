@@ -7635,3 +7635,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - rootがdraft PR6616 https://github.com/Daisuke134/life-manager/pull/6616 を既存source branch/head c560d90ddcce1f0a29f95cbabe50e5de7d7e6557で作成。P1実測AWS host不一致と最新main OSS追従が未完であることを本文に明記。GitHub readbackはisDraft=true、CI run37268124133が開始、Agent instruction contract/CodeRabbit成功、他checks進行中。source受入完了・main/本番成功とは扱わない。
 - 意図はP1のowner-local修正とCIを独立並行させ、修正push後の最終headでreview/CIを評価すること。primaryがPR本文最終更新・ready・統合・release/loadを所有。Lunaは同branch/filesのP1修正・focused・pushのみ、provider/profile操作なし。現在§217残54/cursor1、同effectの再送・中断0。
+
+
+### 515. Lancers P1解消SHIPと次の独立source修復
+
+- 最新main88872a85由来のLancers head fcb38b6e3ad942fad8ba2c4f9f392ead5cc12c3bはremote一致/clean。実測host fixture RED（1fail/7invalid PASS）→最小GREEN、readiness23/work-sync17/attach7、構文/contract/OSS/diff PASS。fresh reviewerによるP1再検証はSHIP、Python8/実コードJS判定10（explicit443含む）PASS。実測host受入とlookalike等拒否の双方を確認、旧HOLD指摘は解消。
+- PR6616本文を最終scope/検証へ更新、readyへ変更。GitHub最終head fcb38b6eのCIは進行中。旧head結果を代用せず、全CI終端PASS後に通常統合へ進む。main/immutable/対象load/新source自然challenge結果・売上は未完。§217残54/cursor1を維持。
+- CI待ちの独立作業として既存Luna/max担当へAgent Economy prelaunch auth failover source修復を割当。専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-codex-prelaunch-auth-failover-20261005、branch fix/lm-codex-prelaunch-auth-failover-20261005、最新main由来/lease。所有はruntime/agent-runner/agent_runner.pyと既存関連testsのみ。Lancersfiles/profile/state・credential・provider設定/model・本番操作なし。既知local missing-authをtyped判定し明示account順路だけ継続、一般validation/開始済みwork/resultは再実行しない。旧§511のpure反例をREDへ結ぶ。primaryがSSOT/受入/review/統合/反映を所有し、現在cursorを飛ばして完了扱いしない。
