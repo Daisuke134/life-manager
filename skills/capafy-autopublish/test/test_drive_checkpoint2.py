@@ -289,10 +289,9 @@ def test_raw_call_queues_interleaved_events_and_honors_deadline(monkeypatch) -> 
         page.call("Runtime.evaluate")
 
 
-def test_probe_loop_uses_one_shared_five_second_budget(monkeypatch) -> None:
+def test_probe_loop_gives_each_target_its_own_budget(monkeypatch) -> None:
     module = load_module()
-    clock = iter((100.0, 100.0, 101.0, 104.0, 104.0))
-    monkeypatch.setattr(module.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(module.time, "monotonic", lambda: 100.0)
     budgets = []
     probed = []
 
@@ -316,8 +315,9 @@ def test_probe_loop_uses_one_shared_five_second_budget(monkeypatch) -> None:
 
     assert page is not None
     assert probed == ["good"]
-    assert budgets[0][1:] == (5.0, 5.0)
-    assert budgets[1][1:] == (4.0, 4.0)
+    per_target = module.PROBE_SECONDS_PER_TARGET
+    assert budgets[0][1:] == (per_target, per_target)
+    assert budgets[1][1:] == (per_target, per_target)
 
 
 def test_provider_section_skips_count_button_when_path_already_expanded() -> None:
@@ -1197,3 +1197,30 @@ class _FakePage:
 
     def close(self):
         pass
+
+
+def test_frozen_tab_does_not_starve_the_next_target(monkeypatch):
+    # 2026-10-05 Hook Lab v1.0.5: a frozen page=card-done tab consumed the whole
+    # shared 5s probe budget, so the healthy page=edit tab was never tried.
+    module = load_module()
+    clock = {"t": 0.0}
+    monkeypatch.setattr(module.time, "monotonic", lambda: clock["t"])
+
+    class FakePage:
+        def __init__(self, url, call_timeout=None, connect_timeout=None):
+            self.url = url
+            self._call_timeout_s = call_timeout
+
+        def evaluate(self, _expr):
+            if "frozen" in self.url:
+                clock["t"] += 5.0
+                raise TimeoutError("CDP call timeout: Runtime.evaluate")
+            return 1
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "_RawPage", FakePage)
+    targets = [{"webSocketDebuggerUrl": "ws://x/frozen"}, {"webSocketDebuggerUrl": "ws://x/healthy"}]
+    page = module._open_responsive_page(targets)
+    assert page.url == "ws://x/healthy"
