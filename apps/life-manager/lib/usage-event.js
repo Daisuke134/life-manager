@@ -5,6 +5,16 @@ const { recordCost } = require("./ledger.js");
 
 const OUTCOMES = new Set(["success", "failure", "cache_hit"]);
 const SECRET_KEY = /(api[_-]?key|authorization|credential|password|secret|token)/i;
+const META_ENUMS = {
+  sku: ["Geocoding", "Directions", "Routes: Compute Routes Pro"],
+  pricing_basis: ["list_price_after_free_cap", "list_price_after_free_rpd", "unavailable"],
+  route_mode: ["transit", "google"],
+  fallback_reason: ["transit_no_route", "transit_provider_4xx", "transit_provider_5xx",
+    "transit_network", "transit_timeout", "transit_invalid_response", "non_jp"],
+  model: ["gemini-2.5-flash", "gemini-3.7-flash"],
+  estimate_status: ["estimated", "unavailable"],
+  estimate_basis: ["audio_duration_proxy"],
+};
 const SAFE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SAFE_RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 const SECRET_RUNTIME_VALUE = /(?:(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,})/i;
@@ -42,14 +52,36 @@ function requiredText(value, name) {
   return text;
 }
 
+function enumValue(key, value) {
+  return typeof value === "string" && META_ENUMS[key].includes(value);
+}
+
+const META_VALIDATORS = {
+  sku: (value) => enumValue("sku", value),
+  pricing_basis: (value) => enumValue("pricing_basis", value),
+  route_mode: (value) => enumValue("route_mode", value),
+  fallback_reason: (value) => enumValue("fallback_reason", value),
+  model: (value) => enumValue("model", value),
+  input_tokens: (value) => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0),
+  output_tokens: (value) => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0),
+  estimate_status: (value) => enumValue("estimate_status", value),
+  reconnects: (value) => Number.isInteger(value) && value >= 0,
+  estimate_basis: (value) => enumValue("estimate_basis", value),
+};
+
 function safeMeta(meta) {
   const source = meta == null ? {} : meta;
   if (!source || typeof source !== "object" || Array.isArray(source)) {
     throw new Error("meta must be an object");
   }
   for (const key of Object.keys(source)) {
-    if (SECRET_KEY.test(key)) throw new Error(`secret-shaped metadata key: ${key}`);
     if (key === "runtime_trace") throw new Error("runtime_trace metadata is reserved");
+    const validate = Object.hasOwn(META_VALIDATORS, key) ? META_VALIDATORS[key] : null;
+    if (!validate) {
+      if (SECRET_KEY.test(key)) throw new Error(`secret-shaped metadata key: ${key}`);
+      throw new Error(`unknown metadata key: ${key}`);
+    }
+    if (!validate(source[key])) throw new Error(`invalid metadata value: ${key}`);
   }
   return { ...source };
 }
