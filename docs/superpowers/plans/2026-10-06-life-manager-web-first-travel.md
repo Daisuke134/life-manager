@@ -304,10 +304,11 @@ Expected: both legs remain fenced on unresolved effect, one exact readback stays
 **Interface:**
 - `TodaySnapshot` adds `displayTimeZone` (the next event's validated IANA zone, otherwise null for browser-local formatting) and `missingLocationCount` (upcoming seven-day non-Travel events without a location).
 - Appointment and departure use `displayTimeZone`; the helper's stored `timezone: "UTC"` is never used as the display zone. The departure card renders before the appointment card.
+- A nonzero locationless count renders an actionable same-origin Today refresh button even if the next event itself already has a location.
 
 - [ ] **Step 1: Add failing display-zone, order, and location-count tests**
 
-Cover an event with an explicit non-UTC timezone, an event without a timezone, a helper stored in UTC, departure-first markup, and the exact upcoming seven-day count excluding past and Travel events.
+Cover an event with an explicit non-UTC timezone, an event without a timezone, a helper stored in UTC, departure-first markup, the exact upcoming seven-day count excluding past and Travel events, and a refresh button when a later event lacks a location but the next event has one.
 
 - [ ] **Step 2: Run focused page and snapshot tests and confirm the new cases fail**
 
@@ -316,7 +317,7 @@ Expected: current rendering formats the helper in UTC, places appointment first,
 
 - [ ] **Step 3: Add snapshot facts and use one effective display zone**
 
-Use the normalized seven-day event list already fetched by the snapshot. Do not add another Calendar query or timezone field/table. When no valid event zone exists, leave formatting to the browser's local zone.
+Use the normalized seven-day event list already fetched by the snapshot. Do not add another Calendar query or timezone field/table. When no valid event zone exists, leave formatting to the browser's local zone. Keep the count notice's refresh control visible when the next event is located.
 
 - [ ] **Step 4: Rerun focused tests and commit**
 
