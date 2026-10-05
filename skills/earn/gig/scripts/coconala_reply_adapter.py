@@ -111,8 +111,11 @@ class CoconalaReplyAdapter:
                     self.cdp_helper, REPLY_INBOX_URL,
                     snapshot.MESSAGES_EXPRESSION, None, hidden=False,
                     coverage_expression=snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION,
+                    validate_coverage=False,
                 )
-                snapshot.validate_inbox_coverage(dom)
+                dom["coverage_receipt"] = snapshot.validate_inbox_coverage(
+                    dom, source_family="direct_inbox",
+                )
                 rows = snapshot.inquiries_from_dom(dom)
                 for row in rows:
                     thread_id = str(row.get("talkroom_id") or "")

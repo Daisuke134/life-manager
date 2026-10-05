@@ -263,6 +263,60 @@ def test_inventory_uses_visible_target_for_dynamic_direct_inbox(monkeypatch, tmp
     assert rows[0]["talkroom_id"] == "12"
 
 
+@pytest.mark.parametrize(
+    ("title", "reason"),
+    [
+        ("403 Forbidden", "inbox_access_forbidden"),
+        ("メッセージ | マイページ | ココナラ", "inbox_coverage_incomplete"),
+    ],
+)
+def test_reply_query_failure_receipt_uses_direct_family(monkeypatch, tmp_path, title, reason):
+    calls = []
+
+    def inspect(_helper, url, _expression, _screenshot, **kwargs):
+        calls.append((url, kwargs))
+        return {
+            "url": url,
+            "title": title,
+            "source": "b1_inbox",
+            "cards": [],
+            "cards_count": 0,
+            "coverage_complete": False,
+            "termination_reason": None,
+            "iterations": 3,
+        }
+
+    monkeypatch.setattr(adapter_module.snapshot, "inspect_page_with_retry", inspect)
+    adapter = adapter_module.CoconalaReplyAdapter(state_root=tmp_path)
+
+    with pytest.raises(adapter_module.snapshot.CollectorUnhealthy, match=reason) as raised:
+        adapter._read_inventory()
+
+    assert raised.value.details["source"] == "direct_inbox"
+    assert calls
+    assert all(url == adapter_module.REPLY_INBOX_URL for url, _ in calls)
+    assert all(kwargs["validate_coverage"] is False for _, kwargs in calls)
+
+
+def test_query_failure_receipt_keeps_b1_default_despite_dom_source_label():
+    with pytest.raises(
+        adapter_module.snapshot.CollectorUnhealthy,
+        match="inbox_access_forbidden",
+    ) as raised:
+        adapter_module.snapshot.validate_inbox_coverage({
+            "url": adapter_module.REPLY_INBOX_URL,
+            "title": "403 Forbidden",
+            "source": "direct_inbox",
+            "cards": [],
+            "cards_count": 0,
+            "coverage_complete": False,
+            "termination_reason": None,
+            "iterations": 3,
+        })
+
+    assert raised.value.details["source"] == "b1_inbox"
+
+
 def test_direct_coverage_expression_selects_direct_links_on_mixed_query_inbox():
     node = shutil.which("node")
     if node is None:
