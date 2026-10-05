@@ -8151,3 +8151,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - §217旧順序1の受入は『終端前marker/名前/権限の観測と最小probeで原因を絞る』。§557の元inode/終端PASS/再生成別inode/TMPDIR継承4PID、§568/576の現caller境界・所有group寿命穴、§582/worker actualtmux env継承とleader退出後latewrite REDにより当該失敗境界診断を完了と判定。旧物理writerの具体PID/caller帰属は未確定だが、終端後cache再生成の境界と修復対象を特定したことと分離する。自然cleanupや全収益を完了にしない。
 - 旧順序1–47→完了済旧1だけ除外→未完旧2–47を新1–46へ連番化。未完相対順序/所有/外部effectは変更0、理由は完了済項目を残TODOへ重複掲載しないため。現在cursor新1=最小cleanup/source修復、次は新2=main/immutable対象反映、新3=自然回収readback。Coconala source/readbackは独立並行、SelfBuildは最後のまま。
 - §576候補はworker報告Python13/SelfFix27/contract14loops180jobs PASS、実timeoutもTimeoutExpired保持。macOS leader退出後group再signalの分岐、cleanup例外時のowned FD解放/生存childの証拠保持を最小回帰確認中。sourceまだ未push/review/CI/mainなので新1未完。最新Paid別run18db9e84ccc63e80-66537は11:26:23Z fail/exit1、orders403/loginredirectfalse。先の追跡run正常終端を恒常的取得安定へ代用しない。
+
+
+### 584. Owned-runtime寿命候補のsource gates PASS/push・fresh反証開始
+
+- §576専用branch fix/lm-self-fix-owned-runtime-lifetime-20261005 / worktree .worktrees/lm-self-fix-owned-runtime-lifetime-20261005。最新main29fe8f71基点、HEADb45292537dfaf4759662530267afcab2fc133597をroot ls-remoteで一致/clean確認。source/test4＋agent_runner単一manifestdigestの5fileだけ。SelfFix tmp/npm/nodecache evidence-owned700/explicit tmux env、POSIXleader退出後ownedgroup停止、cleanup失敗は例外伝播/parentFDとactive参照解放・invocationhome証拠保持。生存leader/nonPOSIX/既存返値・lease/model/provider契約を保持するsource候補。
+- 原担当実測: actualisolatedtmux env継承/leader退出後latewrite/cleanup失敗時home削除のRED→GREEN、providerlease14/SelfFixshell27、実timeout TimeoutExpired保持/foreignsession生存/rc維持、compile/bash-n/contract14loops180jobs/sourceboundary/OSS/diff PASS。source外のprovider/browser/launchd操作0。source受入だけを自然auditcache回収やCoconala/収益の完了へ代用しない。
+- 作者contextを渡さないfresh native owned_runtime_lifetime_fresh_review/gpt6.1solMediumを起動。macOS zombiegroup/二重cleanup/parentFDとchildfence/home保持/ownedgroup以外不変を実コード＋隔離関連testsで反証。指摘があればLuna6maxでsource修正し再検証、SHIP後CI/main/immutable/targetnaturalreadbackへ進む。review未完なのでsource候補を本番反映済と認定しない。全体46/cursor新1、Coconala§580本文/§579公式context修復は後続source scopeとして保持、SelfBuild最後。
