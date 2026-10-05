@@ -7398,3 +7398,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 承認された例外は『この8修正をsource検証後にmainへ統合し、その後既存release ownerと調整してimmutable release・owner限定反映・自然実行/公式readbackを行う』という順序。価格/paywall/app submission/外部marketing/個人資金移動/receiptなしfence解除は含まない。承認後もresource owner/最新main・CI・他者非干渉・release/load検証を守る。
 - Capafyの過去発火後失敗/Lancersのaccount原因はなお未確定。現行保存記録の限界を調査し、必要な観測修復をsourceで完了したが、新観測を本番へ反映せず成功を作れない。全loop自然実行・公式receipts/CFO actualcost/net margin/MRR/liquid/runway・最後のSelfBuild/Evalも未完で、source完了へ縮めない。
 - 承認不足は解消済み。Daisの指定どおり、最初に本spec更新・commit/push・remote object照合とチャットで残TODOの報告を行う。この文書更新ではPR/main統合・本番反映を実行しない。次の作業は§217のcurrent1（最新main/8修正/CI/ownerを照合して統合準備）。承認はresource同時操作の許可や全成果完了を意味しない。Coconala個別作業保留・SelfBuild最後を維持する。
+
+
+### 491. 承認後の8修正統合準備と最新runtime照合
+
+- Daisの追加返信「I approve」を受領。§490の8修正限定例外を再確認し、§217current1へ着手。最新fetch後origin/mainは2a8d40e68f306105c59fa21631f6b9bf01ab5c90。8remote branchesは全て未main、計12source commits・既存open PR重複なし。shared checkoutの他者branch/未追跡変更は保持する。
+- Luna/max実装担当は専用lm-internal-loop-integration-20261005 worktree/同名fix branchを最新mainから作成し、8修正だけを組み合わせてfocused tests/contract/remote確認する。primaryはSSOT・PR・反映調整、workerはsource統合のみ。provider/browser/state/release操作をworkerへ渡さない。GitHub issue #6604へ統合scopeと既存受入証拠を記録する。
+- 最新runtime readback 2026-10-05T02:29:54Z：currentは2a8d40e6/complete ALL、doctor178 jobs PASS。health total178=healthy46/running23/safely_fenced71/failed28/telemetry_gap2/effect_unknown8。failed28の内訳はcapacity15/FIFO4/brain_transport1/entrypoint_exit_1が8。待機19件を実故障へしない。証拠はprivate state/internal-loop-approved-doctor-20261005.jsonとinternal-loop-approved-health-20261005.json（mode600）。
+- release-reconcilerの自然実行PID12863、cut lock無し、promotion-hold無しを観測。main merge後に同既存ownerが自動cut/current/fleetへ進むsource経路を確認。AGMSGでlm-claude-capafy-recipe-1004へ共有release/current/apply予定の調整を送る。送信を排他成立や着手証明へしない。source準備は継続し、共有資源の反映前に最新所有者を照合する。main統合/本番mutationはまだ0、全goal未完。
