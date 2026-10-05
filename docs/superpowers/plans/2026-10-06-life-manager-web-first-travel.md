@@ -348,20 +348,20 @@ Expected: event and departure times share the correct zone and the UI count/orde
 - `travelUserOnce` re-reads exact Web automation and pending flags after the provider ACTIVE await; the Calendar transport repeats the check before Web create/patch dispatch. The control-state reader uses the same Supabase config resolution as account binding on the production `getCalendar` path. Paused dashboard event reads continue to work.
 - The page displays Pause or Resume from persisted preference state, blocks Resume while either Calendar operation is pending, and offers Disconnect/retry for the currently bound Calendar.
 
-- [ ] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
+- [x] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
 
 Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, pause/disconnect/calendar-enable before a preference row exists, preservation of existing call/notification settings, resume without home/inactive account, concurrent resume during disconnect, provider enable claim excluding concurrent disconnect and second start, start/callback/binding blocked during disconnect pending, setup during pending disconnect, setup preserving an existing pause and not dispatching Travel after pause, scheduler owner recheck after ACTIVE await, transport create/patch fence after a pause through normal `getCalendar` config resolution, Calendar start returned-ID mismatch and EXPIRED/missing/contradictory status with zero PATCH, Web disconnect unknown readback with zero rollback-enable (including a delayed concurrent retry), exact disabled state/readback, persisted pause state after Calendar event-read failure, and button state/copy.
 
-- [ ] **Step 2: Run focused Web control tests and confirm the new cases fail**
+- [x] **Step 2: Run focused Web control tests and confirm the new cases fail**
 
 Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
 Expected: the control route, atomic preference contract, and controls are absent.
 
-- [ ] **Step 3: Add the smallest Web-only preference RPC and route**
+- [x] **Step 3: Add the smallest Web-only preference RPC and route**
 
 The SQL functions lock and recheck the NULL-Telegram user row and expected account marker before preference writes. `begin_lm_web_calendar_enable` and disconnect-begin are mutually exclusive durable claims; enable-finish clears only after exact ACTIVE provider readback. The binding RPC refuses both pending flags. The setup RPC shares the same lock order, rejects pending operations, and preserves an existing automation choice. Reuse `composioCalendarDisconnect`, adding exact provider-ID/status checks and a Web-only no-rollback option at its boundary; do not add a settings framework or change Telegram preference RPCs.
 
-- [ ] **Step 4: Wire controls into the existing page and rerun focused tests**
+- [x] **Step 4: Wire controls into the existing page and rerun focused tests**
 
 Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
 Expected: pause/resume/disconnect report only verified persisted state and all failures remain fail-closed. Commit as `feat(life-manager): add web travel controls`.
