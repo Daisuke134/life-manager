@@ -807,3 +807,26 @@ def test_malformed_retired_json_fails_closed(monkeypatch, tmp_path, capsys) -> N
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
 
     assert decision["verdict"] == "SERVER_UNREADABLE"
+
+
+def test_retired_draft_is_not_resumed(monkeypatch, tmp_path, capsys) -> None:
+    # 2026-10-05: Shorts Hook Lab (retired, $0 lifetime) kept being resumed as a
+    # draft every pass and blocked at CP1; retired agents must not be resumed.
+    module = load_module()
+    catalog = tmp_path / "catalog" / "shorts"
+    catalog.mkdir(parents=True)
+    (catalog / "LISTING.md").write_text("## Title\nShorts Skill\n", encoding="utf-8")
+    (catalog / "SKILL.md").write_text("x", encoding="utf-8")
+    (catalog / "icon.svg").write_text("<svg/>", encoding="utf-8")
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(tmp_path / "catalog"))
+    retired_path = tmp_path / "RETIRED.json"
+    retired_path.write_text(json.dumps({"agents": [
+        {"agent_id": "9466718786", "title": "Shorts Skill", "reason": "C3", "retired_on": "2026-10-05"}]}), encoding="utf-8")
+    monkeypatch.setattr(module, "RETIRED", str(retired_path))
+    monkeypatch.setattr(module, "server_agents", lambda: [agent("9466718786", "draft", name="Shorts Skill")])
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+
+    assert decision.get("action") != "resume_draft"

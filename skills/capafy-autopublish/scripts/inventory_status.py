@@ -645,6 +645,10 @@ def main():
     for agent in agents:
         if agent.get("agentStatus") != "draft":
             continue
+        # Retired agents get no further factory work, including draft resumes
+        # (2026-10-05: retired Shorts Hook Lab draft was resumed every pass).
+        if str(agent.get("agentId") or "").strip() in retired_ids:
+            continue
         title = (agent.get("name") or "").strip()
         item = ready_by_title.get(title)
         if not item or item.get("source") != "repo_catalog":
