@@ -15,6 +15,8 @@ function snapshot(overrides = {}) {
     nextEvent: null,
     travelBlock: null,
     departureAt: null,
+    displayTimeZone: null,
+    missingLocationCount: 0,
     trialExpiresAt: null,
     paid: null,
     ...overrides,
@@ -101,6 +103,71 @@ test("renders next event and verified Travel block", () => {
   const script = html.match(/<script>([\s\S]*?)<\/script>/);
   assert.ok(script, "authenticated page includes its inline client script");
   assert.doesNotThrow(() => new Function(script[1]));
+});
+
+test("renders departure first and formats both times in the snapshot display timezone", () => {
+  const html = renderWebPage({
+    user,
+    snapshot: snapshot({
+      displayTimeZone: "America/Los_Angeles",
+      nextEvent: {
+        id: "event-1",
+        summary: "Dentist",
+        location: "Tokyo Station",
+        startIso: "2026-10-07T01:00:00.000Z",
+        timezone: "Asia/Tokyo",
+        startMs: Date.parse("2026-10-07T01:00:00.000Z"),
+        endMs: Date.parse("2026-10-07T02:00:00.000Z"),
+      },
+      travelBlock: {
+        id: "travel-1",
+        summary: "Travel to Dentist",
+        location: "Tokyo Station",
+        startIso: "2026-10-07T00:30:00.000Z",
+        timezone: "UTC",
+        startMs: Date.parse("2026-10-07T00:30:00.000Z"),
+        endMs: Date.parse("2026-10-07T01:00:00.000Z"),
+      },
+      departureAt: "2026-10-07T00:30:00.000Z",
+    }),
+  });
+  const departurePosition = html.indexOf('class="card departure-card"');
+  const appointmentPosition = html.indexOf("<h2>次の予定</h2>");
+  const labels = [...html.matchAll(/<time\b[^>]*>(.*?)<\/time>/g)].map((match) => match[1]);
+
+  assert.ok(departurePosition >= 0 && departurePosition < appointmentPosition);
+  assert.deepEqual(labels, ["2026/10/06 17:30", "2026/10/06 18:00"]);
+});
+
+test("missing display timezone uses browser-local times and shows actionable location count", () => {
+  const html = renderWebPage({
+    user,
+    snapshot: snapshot({
+      missingLocationCount: 2,
+      nextEvent: {
+        id: "event-1",
+        summary: "Dentist",
+        location: "Tokyo Station",
+        startIso: "2026-10-07T01:00:00.000Z",
+        timezone: "Asia/Tokyo",
+        startMs: Date.parse("2026-10-07T01:00:00.000Z"),
+        endMs: Date.parse("2026-10-07T02:00:00.000Z"),
+      },
+      travelBlock: {
+        id: "travel-1",
+        summary: "Travel to Dentist",
+        location: "Tokyo Station",
+        startIso: "2026-10-07T00:30:00.000Z",
+        timezone: "UTC",
+        startMs: Date.parse("2026-10-07T00:30:00.000Z"),
+        endMs: Date.parse("2026-10-07T01:00:00.000Z"),
+      },
+      departureAt: "2026-10-07T00:30:00.000Z",
+    }),
+  });
+
+  assert.equal((html.match(/data-local-time="true"/g) || []).length, 2);
+  assert.match(html, /今後7日間に場所が未設定の予定が2件あります。Google カレンダーで各予定を開いて場所を追加してください。保存後に「今日を更新」を押してください。/);
 });
 
 test("missing location gives Google Calendar edit steps and Today refresh", async () => {

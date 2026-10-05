@@ -15,12 +15,13 @@ function timeMarkup(value, timezone) {
   if (!Number.isFinite(date.getTime())) return "";
   const iso = date.toISOString();
   let label = iso;
-  try {
+  let useLocalTime = !timezone;
+  if (timezone) try {
     label = new Intl.DateTimeFormat("ja-JP", {
-      dateStyle: "medium", timeStyle: "short", timeZone: timezone || "UTC",
+      dateStyle: "medium", timeStyle: "short", timeZone: timezone,
     }).format(date);
-  } catch {}
-  return `<time datetime="${escapeHtml(iso)}">${escapeHtml(label)}</time>`;
+  } catch { useLocalTime = true; }
+  return `<time datetime="${escapeHtml(iso)}"${useLocalTime ? ' data-local-time="true"' : ""}>${escapeHtml(label)}</time>`;
 }
 
 function calendarMarkup(snapshot) {
@@ -29,31 +30,40 @@ function calendarMarkup(snapshot) {
   return `<section class="card calendar-card"><div class="card-heading"><h2>Google カレンダー</h2><span id="calendar-status" class="status">${status}</span></div></section>`;
 }
 
-function eventMarkup(event) {
+function eventMarkup(event, displayTimeZone, missingLocationCount) {
   if (!event) return `<section class="card"><h2>次の予定</h2><p>今後の予定は見つかりませんでした。</p></section>`;
   const location = String(event.location || "").trim();
   const summary = escapeHtml(event.summary || "名称のない予定");
+  const missingCount = Number.isSafeInteger(missingLocationCount) && missingLocationCount > 0 ? missingLocationCount : 0;
   const locationState = location
     ? `<p class="event-location">${escapeHtml(location)}</p>`
-    : `<p class="notice">この予定には場所がありません。Google カレンダーで「${summary}」を開き、場所を追加してください。保存後に「今日を更新」を押してください。</p><button id="today-refresh" type="button" class="button secondary" data-action="refresh">今日を更新</button>`;
-  return `<section class="card"><h2>次の予定</h2><p class="event-title">${summary}</p>${timeMarkup(event.startIso, event.timezone)}${locationState}</section>`;
+    : `<p class="notice">${missingCount ? `今後7日間に場所が未設定の予定が${missingCount}件あります。` : "この予定には場所がありません。"}Google カレンダーで「${summary}」を開き、場所を追加してください。保存後に「今日を更新」を押してください。</p><button id="today-refresh" type="button" class="button secondary" data-action="refresh">今日を更新</button>`;
+  return `<section class="card"><h2>次の予定</h2><p class="event-title">${summary}</p>${timeMarkup(event.startIso, displayTimeZone)}${locationState}</section>`;
+}
+
+function locationCountMarkup(snapshot) {
+  const count = snapshot && snapshot.missingLocationCount;
+  if (!Number.isSafeInteger(count) || count <= 0
+    || snapshot.nextEvent && !String(snapshot.nextEvent.location || "").trim()) return "";
+  return `<p class="notice">今後7日間に場所が未設定の予定が${count}件あります。Google カレンダーで各予定を開いて場所を追加してください。保存後に「今日を更新」を押してください。</p>`;
 }
 
 function todayMarkup(snapshot) {
   const travel = snapshot && snapshot.travelBlock;
+  const displayTimeZone = snapshot && snapshot.displayTimeZone;
   let travelMarkup = "";
   if (travel) {
     const departure = snapshot.departureAt || travel.startIso;
     const minutes = Number.isFinite(travel.startMs) && Number.isFinite(travel.endMs)
       ? Math.max(0, Math.round((travel.endMs - travel.startMs) / 60_000)) : null;
-    travelMarkup = `<section class="card departure-card"><p class="eyebrow">次の出発</p><h2 class="departure-time">${timeMarkup(departure, travel.timezone)}</h2><p class="event-title">${escapeHtml(travel.summary || "Travel")}</p>${minutes == null ? "" : `<p class="muted">移動時間の予定: ${minutes} 分</p>`}</section>`;
+    travelMarkup = `<section class="card departure-card"><p class="eyebrow">次の出発</p><h2 class="departure-time">${timeMarkup(departure, displayTimeZone)}</h2><p class="event-title">${escapeHtml(travel.summary || "Travel")}</p>${minutes == null ? "" : `<p class="muted">移動時間の予定: ${minutes} 分</p>`}</section>`;
   } else if (snapshot && snapshot.setupState === "sync_pending"
     && !(snapshot.nextEvent && !snapshot.nextEvent.location)) {
     travelMarkup = `<section class="card"><h2>Travel の確認中</h2><p>予定表の読み取り結果を確認しています。少し待ってから更新してください。</p><button type="button" class="button secondary" data-action="refresh">今日を更新</button></section>`;
   } else if (snapshot && snapshot.nextEvent && snapshot.nextEvent.location) {
     travelMarkup = `<section class="card"><h2>出発時刻</h2><p>この予定には Travel の予定は必要ありません。</p></section>`;
   }
-  return `${eventMarkup(snapshot && snapshot.nextEvent)}${travelMarkup}<p class="reminder-note">通知は Google カレンダーのデフォルトリマインダー設定に従います。Life Manager は通知設定を変更しません。</p>`;
+  return `${travelMarkup}${eventMarkup(snapshot && snapshot.nextEvent, displayTimeZone, snapshot && snapshot.missingLocationCount)}${locationCountMarkup(snapshot)}<p class="reminder-note">通知は Google カレンダーのデフォルトリマインダー設定に従います。Life Manager は通知設定を変更しません。</p>`;
 }
 
 function dashboardMarkup(snapshot, homeAddress = "") {
@@ -81,6 +91,11 @@ const CLIENT_SCRIPT = String.raw`(() => {
       }
       signIn.href = destination.pathname + destination.search;
     } catch { /* keep the fixed sign-in path if the incoming URL cannot be parsed */ }
+  }
+  for (const time of document.querySelectorAll?.('time[data-local-time]') || []) {
+    const date = new Date(time.getAttribute("datetime") || "");
+    if (!Number.isFinite(date.getTime())) continue;
+    time.textContent = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(date);
   }
   const root = document.getElementById("lm-dashboard");
   const feedback = document.getElementById("lm-feedback");

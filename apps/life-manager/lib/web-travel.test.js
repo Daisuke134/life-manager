@@ -234,6 +234,80 @@ test("missing home and a locationless next event remain actionable states", asyn
   assert.equal(locationlessSnapshot.departureAt, null);
 });
 
+test("Today uses the next event's validated timezone instead of the UTC Travel helper", async () => {
+  const nextStart = NOW + 2 * 60 * 60_000;
+  const next = {
+    id: "event-zone",
+    summary: "Los Angeles meeting",
+    location: "Los Angeles",
+    startIso: new Date(nextStart).toISOString(),
+    timezone: "America/Los_Angeles",
+    startMs: nextStart,
+    endMs: nextStart + 60 * 60_000,
+  };
+  const helper = {
+    id: "travel-zone",
+    summary: "[Travel] Home→Los Angeles",
+    location: "Los Angeles",
+    startIso: new Date(nextStart - 30 * 60_000).toISOString(),
+    timezone: "UTC",
+    startMs: nextStart - 30 * 60_000,
+    endMs: nextStart,
+  };
+  const f = fixture({ listEvents7dImpl: async () => [helper, next] });
+  f.row.home_address = "Home";
+
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.displayTimeZone, "America/Los_Angeles");
+  assert.equal(snapshot.travelBlock.timezone, "UTC");
+});
+
+test("Today leaves missing or non-IANA event timezones for browser-local formatting", async () => {
+  for (const timezone of ["", "+09:00", "Not/IANA"]) {
+    const nextStart = NOW + 60 * 60_000;
+    const f = fixture({ listEvents7dImpl: async () => [{
+      id: `event-${timezone || "missing"}`,
+      summary: "Meeting",
+      location: "Office",
+      startIso: new Date(nextStart).toISOString(),
+      timezone,
+      startMs: nextStart,
+      endMs: nextStart + 60 * 60_000,
+    }] });
+    f.row.home_address = "Home";
+
+    const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+    assert.equal(snapshot.displayTimeZone, null, `timezone ${timezone || "(missing)"}`);
+  }
+});
+
+test("Today counts only upcoming seven-day non-Travel events without a location", async () => {
+  const item = (id, offsetMs, { summary = "Meeting", location = "", timezone = "America/Los_Angeles" } = {}) => ({
+    id,
+    summary,
+    location,
+    startIso: new Date(NOW + offsetMs).toISOString(),
+    timezone,
+    startMs: NOW + offsetMs,
+    endMs: NOW + offsetMs + 60 * 60_000,
+  });
+  const f = fixture({ listEvents7dImpl: async () => [
+    item("past", -60 * 60_000),
+    item("next", 60 * 60_000),
+    item("later-missing", 2 * 86400_000),
+    item("located", 3 * 86400_000, { location: "Office" }),
+    item("travel", 4 * 86400_000, { summary: "[Travel] commute" }),
+    item("outside-window", 8 * 86400_000),
+  ] });
+  f.row.home_address = "Home";
+
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.missingLocationCount, 2);
+});
+
 test("missing Calendar helper readback remains pending", async () => {
   let travelAttempts = 0;
   const f = fixture({ travelUserOnceImpl: async () => { travelAttempts++; return { inserted: 1 }; }, calendar: { async listEventsRaw() { return [event()]; } } });

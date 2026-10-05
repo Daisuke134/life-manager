@@ -173,6 +173,14 @@ function matchingTravelBlocks(events, event) {
     && String(candidate.location || "").replace(/\s+/g, "").toLowerCase() === location);
 }
 
+function validEventTimeZone(value) {
+  if (typeof value !== "string") return null;
+  const timezone = value.trim();
+  if (!timezone || /^[+-]\d{2}(?::?\d{2})?$/.test(timezone)) return null;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }); return timezone; }
+  catch { return null; }
+}
+
 function baseSnapshot(row, setupState, calendarState) {
   return {
     setupState,
@@ -180,6 +188,8 @@ function baseSnapshot(row, setupState, calendarState) {
     nextEvent: null,
     travelBlock: null,
     departureAt: null,
+    displayTimeZone: null,
+    missingLocationCount: 0,
     trialExpiresAt: row && row.trial_expires_at || null,
     paid: row && typeof row.paid === "boolean" ? row.paid : null,
   };
@@ -229,6 +239,12 @@ async function buildTodaySnapshot(uid, opts = {}) {
   snapshot.nextEvent = eventSnapshot(nextEvent);
   snapshot.travelBlock = eventSnapshot(travel);
   snapshot.departureAt = travel && Number.isFinite(travel.startMs) ? new Date(travel.startMs).toISOString() : null;
+  snapshot.displayTimeZone = validEventTimeZone(nextEvent && nextEvent.timezone);
+  const sevenDaysLater = nowMs + 7 * 86400_000;
+  snapshot.missingLocationCount = ordered.filter((event) => event.startMs >= nowMs
+    && event.startMs <= sevenDaysLater
+    && !isTravel(event.summary)
+    && !String(event.location || "").trim()).length;
 
   const home = String(beforeReadRow.home_address || "").trim();
   if (matches.length > 1) snapshot.setupState = "sync_pending";
