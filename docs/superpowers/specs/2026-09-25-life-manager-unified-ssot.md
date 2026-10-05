@@ -4884,7 +4884,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
 | 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。既知8修正はsource受入済み（週次calendar/pre-start観測含む）、本番は3に残る。Capafy/Lancersの実原因は未確定。観測改善を本番復旧へ昇格しない（§489）。必要なRED→GREENを専用main由来worktreeで行う。 |
-| 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
+| 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。受入済み8修正（§490）のsource検証後main統合→immutable release→owner限定反映→自然実行確認を先行できる順序例外の承認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
 | 6 | 待機 | Paid loopの依頼取得→制作→品質確認→許可された納品経路→結果取得の内部接続を確認。Coconala保留案件の追加手動納品/資料追跡は実行しない。 |
@@ -7389,3 +7389,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - staging ENOSPCを診断。Data free264452KiB、inode余裕、task temp約1MiB、index約1MiB、git metadata1byte probePASS。root heredocもENOSPC。無変更retryを重ねず、旧refill検証worktreeのignored/非symlink node_modules811676KiBを限定観測（関連process0/lsof open paths0）して削除。package/lock/tracked source/不可侵store/他owner/productionは変更しない。再生成可能依存だけを回収しfree1130272KiBへ。worker fetch/stage/commit/push成功。
 - refill node_modulesは再試験時にlockから再生成が必要。既存source proofの全tracked bytesは保持し、過去PASSを現在依存残存の証拠へしない。disk問題が過去9:30の原因だったとは断定しない。
 - source受入8件、本番未反映。観測repairはlost wakeの保全/Capafy実原因確定を意味しない。Lancers account境界/Capafy pre-start等のfresh diagnosisは次の実観測に残す。§217cursor1/source2既知8件受入、本番3の例外確認は未回答、全loop自然実行/公式receipt/CFO/SelfBuild/Evalは未完。
+
+
+### 490. 本番検証へ進む順序例外の承認待ち
+
+- 現common-rules.md:17は成果全体の実測PASS後だけPR/main統合を許す。§328のmain→immutable→本番実測と循環し、source受入を全成果PASSへ置換できない。最初の例外確認以降、複数の連続goal turnで未回答を確認した。goal自動継続は明示承認と扱わない。
+- 最終readback origin/main2a8d40e68f306105c59fa21631f6b9bf01ab5c90、docsbranch clean。8remote branch objectを再確認：token b2cde91595e949376bf11304f8a3cdf67bbaa1a8、fleet4878be8d8b65097e15b3a6ac24a6fb98823d6da4、refilla2efd6422601438dfe02ea38ac576a1ca21c3125、PromptBase wait36a786b59fdf8cc3ac737fc36c2824f4d0b772b5、snapshot a4a8477a7e9ba41eb0f6d8b0b41f1a173c96f069、Writeradda0a562efd83fab647abf24551dad1dedce844、weeklyd28c0f6ea0c752a8b6167539591c6b9466767369、prestarta61c1da7069491f0e6f772235fbd56aad8409890。検証詳細は各既存evidence節。本番に入ったとはしない。
+- 必要な例外は『この8修正をsource検証後にmainへ統合し、その後既存release ownerと調整してimmutable release・owner限定反映・自然実行/公式readbackを行う』という順序。価格/paywall/app submission/外部marketing/個人資金移動/receiptなしfence解除は含まない。承認後もresource owner/最新main・CI・他者非干渉・release/load検証を守る。
+- Capafyの過去発火後失敗/Lancersのaccount原因はなお未確定。現行保存記録の限界を調査し、必要な観測修復をsourceで完了したが、新観測を本番へ反映せず成功を作れない。全loop自然実行・公式receipts/CFO actualcost/net margin/MRR/liquid/runway・最後のSelfBuild/Evalも未完で、source完了へ縮めない。
+- 最小再開条件はDaisが上記source→main→本番実測の順序例外を明示承認すること。現在cursor1を保持し、再開時は最新状態をreadbackし、3の反映条件を解いて未完の実原因診断と4〜14へ戻る。追加の仮説修正や同じstatus-only自動turnを積み重ねず、全goalは未達/承認待ちとして停止する。
