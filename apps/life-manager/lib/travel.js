@@ -112,11 +112,12 @@ function shortName(addr) {
   return (addr || "").split(/[,、]/)[0].slice(0, 18) || "?";
 }
 
-async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId) {
+async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false } = {}) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId });
   const items = await cal.listEventsRaw(uid, {
     timeMin: new Date(nowMs).toISOString().replace(/\.\d{3}Z$/, "Z"),
     timeMax: new Date(nowMs + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    ...(strict ? { strict: true } : {}),
   });
   return items.filter((e) => interpretCalendarEvent(e).decision !== "no_call").map((e) => ({
     id: e.id || "",                                   // C-H1: stable per-event key for the atomic claim ledger
@@ -562,6 +563,7 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     start_datetime: isoNaiveUTC(leaveMs),
     event_duration_hour: hours, event_duration_minutes: Math.min(59, minutes),
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
+    send_updates: "none", exclude_organizer: true, create_meeting_room: false,
     description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
   });
   return !!(j && j.successful);
@@ -882,7 +884,7 @@ function returnDecision(ev, next, home) {
 }
 
 module.exports = {
-  fillTravel, directionsRoute, directionsMinutes, isTravel, travelDecision, returnDecision, claimTravel, unclaimTravel,
+  fillTravel, directionsRoute, directionsMinutes, listEvents7d, isTravel, travelDecision, returnDecision, claimTravel, unclaimTravel,
   recordTravelTelegramReceipt,
   // #71 pure helpers (unit-tested)
   parseDurationSeconds, minutesFromSeconds, buildDriveBody, clampDepartIso, acceptRouteResults,

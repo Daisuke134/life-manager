@@ -53,6 +53,7 @@ const {
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
 const { handleWebAuthRequest } = require("./lib/web-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
+const { handleWebTravelRequest } = require("./lib/web-travel.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
 const { createMoneyPrinterRuntimeStore } = require("./lib/money-printer-runtime-store.js");
@@ -507,6 +508,17 @@ const server = http.createServer(async (req, res) => {
     }).catch(() => {
       if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "calendar_unavailable" }));
+    });
+    return;
+  }
+  if (path === "/api/lm-web/setup" || path === "/api/lm-web/today") {
+    handleWebTravelRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "travel_unavailable" }));
     });
     return;
   }
