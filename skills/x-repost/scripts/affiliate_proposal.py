@@ -1018,6 +1018,16 @@ def main() -> int:
     parser.add_argument("--post-url")
     parser.add_argument("--provider-submission-id")
     args = parser.parse_args()
+    if os.environ.get("X_REPOST_DISABLE_AFFILIATE") == "1" and (
+        args.claim_next_job or args.render_claimed_job
+        or (args.record_job_result is not None and args.record_job_result != "POSTED")
+        or (args.record_job_result == "POSTED"
+            and (not args.post_url or not args.provider_submission_id))
+        or args.requeue_no_effect or args.revise_raw_limit or args.claim
+        or args.record is not None
+    ):
+        print(json.dumps({"state": "AFFILIATE_DISABLED", "changed": False}, sort_keys=True))
+        return 0
     if args.claim_next_job:
         if args.job_queue is None or args.job_claims is None:
             parser.error("--claim-next-job requires --job-queue and --job-claims")

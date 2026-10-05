@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """capafy_market_sweep.py (C6 #1) — refresh a dated sweep of successful Capafy sellers via the
-read-only POST /agent/agents/search (~50 queries) and compute price bands, so the daily
-decision step (capafy_daily_decision.py) can compare OUR prices against the market instead of
-guessing.
+read-only POST /agent/agents/search (~50 queries) plus a full per-category POST
+/public/category/hot enumeration, and compute price bands, so the daily decision step
+(capafy_daily_decision.py) can compare OUR prices against the market instead of guessing.
 
 Baked-in fact #2 (docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md): "Copy
 successful people first" — price/model/product decisions start from top sellers, not our own
 listings or failures. This is the refresh half of that rule; capafy_daily_decision.py is the
-compare-and-act half. Never a WRITE call: /agent/agents/search only reads the marketplace.
+compare-and-act half. Never a WRITE call: /agent/agents/search and /public/category/hot only
+read the marketplace.
+
+Coverage gap measured 2026-10-05: the keyword-only sweep (DEFAULT_QUERIES) missed CloneCut
+(14.4k sold, #1 on the capafy.ai homepage Trending tab) because its title/tags never matched
+any of the ~52 keywords -- keyword search can only ever surface agents whose text happens to
+match a guessed query. /public/category/hot is public, needs no auth, and paginates through
+EVERY agent in a category regardless of title/tags (verified: 23 categories, 1,172 unique
+agents vs. 843 from keywords alone, CloneCut included). It is fetched first so the richer
+keyword-search billing/price data (category/hot omits `billings`) overwrites it per agent via
+dedupe_agents' last-write-wins merge.
 """
 from __future__ import annotations
 
@@ -65,6 +75,59 @@ def _fetch_query(query, page_size=30, timeout=30):
         return []
     lst = (((payload or {}).get("data") or {}).get("list")) or []
     return lst if isinstance(lst, list) else []
+
+
+# ponytail: hard cap on pages per category so a server regression that never returns an
+# empty page (e.g. always echoing page 1) can't loop forever; 60 pages * 20/page = 1200
+# agents/category, well above the largest category measured (2026-10-05: Video ~180).
+CATEGORY_HOT_PAGE_SIZE = 20
+MAX_CATEGORY_PAGES = 60
+
+
+def _fetch_category_page(category_id, page, page_size=CATEGORY_HOT_PAGE_SIZE, timeout=30):
+    body = json.dumps({"categoryId": category_id, "page": page, "pageSize": page_size})
+    result = subprocess.run(
+        [PYTHON, CAPAFY_HTTP, "POST", "/public/category/hot", "--json", body],
+        capture_output=True, text=True, timeout=timeout,
+    )
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return []
+    lst = (((payload or {}).get("data") or {}).get("list")) or []
+    return lst if isinstance(lst, list) else []
+
+
+def fetch_category_agents(category_id, fetch_page=None, max_pages=MAX_CATEGORY_PAGES):
+    """Every agent in one category via /public/category/hot, paginating page 1, 2, 3...
+    until the API returns an empty page (or max_pages safety cap). Unlike keyword search,
+    this needs no guessed query text -- it is a full enumeration of the category."""
+    fetch_page = fetch_page or _fetch_category_page
+    agents = []
+    page = 1
+    while page <= max_pages:
+        batch = fetch_page(category_id, page)
+        if not batch:
+            break
+        agents.extend(batch)
+        page += 1
+    return agents
+
+
+def _fetch_category_ids(timeout=30):
+    """Every live categoryId from /public/category/hot's own taxonomy endpoint, so the
+    category sweep below stays correct if Capafy adds/removes a homepage tab instead of
+    silently missing it like a hardcoded list would."""
+    result = subprocess.run(
+        [PYTHON, CAPAFY_HTTP, "POST", "/public/agent/category/list", "--json", "{}"],
+        capture_output=True, text=True, timeout=timeout,
+    )
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return []
+    lst = (((payload or {}).get("data") or {}).get("list")) or []
+    return [c.get("categoryId") for c in lst if isinstance(c, dict) and c.get("categoryId") is not None]
 
 
 def dedupe_agents(batches):
@@ -206,6 +269,17 @@ def main():
         queries = [line.strip() for line in Path(queries_file).read_text().splitlines() if line.strip()]
     batches = []
     errors = 0
+    # Category enumeration first: covers every agent regardless of title/tags (fixes the
+    # CloneCut-class gap, 2026-10-05). Keyword batches are appended after, so their richer
+    # billings data overwrites the category stub for any agent both sides found (dedupe_agents
+    # keeps the last write per agentId).
+    try:
+        category_ids = _fetch_category_ids()
+        for category_id in category_ids:
+            batches.append(fetch_category_agents(category_id))
+    except Exception as e:  # network / server-broken — never crash the daily loop
+        errors += 1
+        print(f"[capafy_market_sweep] category sweep failed: {e}", file=sys.stderr)
     for query in queries:
         try:
             batches.append(_fetch_query(query))

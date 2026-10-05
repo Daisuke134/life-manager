@@ -809,12 +809,14 @@ def _failed(error: str, logged_in: bool = False) -> dict[str, Any]:
 def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional[Callable[[str], Any]] = None) -> dict[str, Any]:
     browser = page = None
     logged_in = False
+    account_diagnostic: Optional[dict[str, object]] = None
     result = _failed("observer_unavailable")
     try:
         verified_proposals = _verified_proposals(Path(state_path))
         with application_tick.account_lock(Path(state_path).with_name("work-sync.json")):
             browser, page = application_tick._open_owned_page(browser_factory)
-            if not application_tick._production_account_ready(page):
+            account_diagnostic = application_tick._production_account_diagnostic(page)
+            if account_diagnostic["ready"] is not True:
                 raise SourceFailure("account_unavailable")
             logged_in = True
             result = _read_surfaces(page, verified_proposals, [])
@@ -845,6 +847,8 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
     finally:
         if not _cleanup(page, browser):
             result = _failed("cleanup_failed", logged_in)
+    if account_diagnostic is not None:
+        result["account_diagnostic"] = account_diagnostic
     return result
 
 
