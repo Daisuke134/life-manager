@@ -76,3 +76,20 @@ A later read-only cost-ledger query against the same running deployment and exac
 - Railway `life-call` deployment `8af6ae6a-0240-472a-9e02-06c663c1a90c` reports `SUCCESS` with `meta.commitHash` equal to the merge commit. A separate `railway status` read reports the `life-call` service `Online` in production.
 - The exact cost-ledger and wake-diagnostics snapshot above predates this deployment. A post-deployment exact-release cost/wake occurrence readback has not yet been captured, so the USD 0.085 estimate is not attributed to the new release and is not actual billing.
 - This promotion check was read-only after the merge: no test call, Calendar-content query, provider mutation, database write, or report send. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
+
+
+## A1 post-deployment exact-release cost and wake readback (2026-10-05T19:09:30Z)
+
+Scope: exact Railway release SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557`, starting at deployment creation `2026-10-05T18:43:51.815Z`. Cost and wake tables were queried with read-only GETs. Deployment logs were separately read at `2026-10-05T19:10:16Z` and reduced to aggregate wake counters only.
+
+| Kind / provider / feature / outcome | Rows | Row `est_usd` sum |
+|---|---:|---:|
+| `composio_call` / success | 24 | USD 0.000 |
+| `provider_usage` / Google Maps / geocoding / success | 3 | USD 0.015 |
+| `provider_usage` / route cache / travel_route / cache_hit (`no_route`) | 6 | USD 0.000 |
+| **Total** | **33** | **USD 0.015** |
+
+- All 33 exact-release rows have an occurrence ID. None has a `loop_id`, a fully linked runtime trace, `actual_usd`, or a provider receipt ID. These missing actual/billing fields are unknown, not actual spend of USD 0.
+- The exact release has no Google Directions or voice cost row in this window, so the deployed `route_mode`/`fallback_reason` metadata has not yet been exercised by a natural Google fallback.
+- Read-only GETs returned zero `lm_wake_log.called_at` rows and zero `lm_wake_miss.occurred_at` rows since deployment. Four aggregate `[wake] scan` records were present in the deployment logs; all had `calendar_read_failed=0` and `due_candidates=0`. The latest was users/eligible/items/events/candidates/due=`20/5/10/10/10/0`; the earliest of the four was `24/6/12/12/12/0`.
+- No test call, Calendar-content query, provider mutation, database write, or report send was performed. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
