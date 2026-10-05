@@ -8107,3 +8107,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 今回の再readbackでreply latest mtime11:12:06Z/statusok/observed194/readback182/pending12/effect0/failed0を確認。12件の解消は未証明。Paid latestは10:40:54Z/orders_observation failedのままだが、orders/source-receipt.jsonは10:47:20Z HTTP200/loginredirectfalse/containertrue/cards3/coveragecomplete、orders-only snapshot10:47:23Z/orders3/read_onlytrue。10:40:51Zの失敗receiptは403/orders_access_forbidden。古いlatestだけから継続取得不能と断定した説明を訂正し、後続取得成功を納品・入金や全lane正常へ代用しない。
 - Paid execute run18db9c63b1348280-76611/sourcee851/10:47:08ZはPID76611が現在生存（PPID1、Python）。後の異なるrunID reportPASSを当該run terminalへ結ばない。entrypointstderrは空。再送・再起動せず、この生存handleと子・結果保存境界を追加観測する。過去item結果を現在の3件へ代用しない。
 - §576のsource-only修復をnative worker owned_runtime_lifetime_implementation/gpt6lunaMaxへ割当、専用main-derived branch/所有self-fix・agent_runner・直接testsのみ。本番操作はroot、他者sourceと非重複。SelfBuildは最後、全体47/cursor1を保持。Coconala個別TikTok/NPO資料追跡は後回しのまま。
+
+
+### 578. Paid生存処理の子まで照合・返信保留の内訳
+
+- 同runPID76611→with-browser76639→paid_direct76943→prepare78108→agent_runner27222→Codex27236の生存をps typedmetadataで確認。actual loaded scriptsはimmutable20261005T192220-e851f7a9、runnerは3600秒budgetの顧客処理。attempt-02 stdoutは11:13:58Zまで更新/166651bytes、イベント42・command_execution33/file_change4をmetadataのみ集計。会話本文/credential/具体変更内容は表示せず、現物停止や不具合と断定しない。新しい任意投稿・納品・TikTok資料追跡をrootから起動せず、自然処理を再送/中断しない。state/coconala-paid-live-process-readback-20261005.jsonに正規生存handleを保存。
+- Paid全体summaryはexecutor.shutdown(wait=True)と各job結果回収後に書くsource契約なので、現時点の古いlatest失敗は生存中wakeの終端結果ではない。orders200/3件の後続取得と未完Paid結果を分離する。異なるreportPASS/runIDをこの長時間runへ代用しない。
+- reply kernelのthreadsだけを現行集計:closed44/no_reply138/reconcile_unknown7/retry_wait5。旧unknown7のactionはestimate3/reply4、retry5はintentactionなし。過去runsのeffect_unknown履歴5071件は現在未解消件数へ足さない。registeredbrowserreachable/CDP9223/PID83185、別liveholderを尊重してrootbrowsermutation0。latestblocked/0countsも12件解消へ代用しない。
+- §576実装workerはfreshmainb52a13ad由来worktree/lease取得・現経路確認まで進行、隔離REDに着手。source修復は未完、全体47/cursor1/SelfBuild最後を保持。
