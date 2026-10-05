@@ -8306,3 +8306,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 新規fresh Sol6.1/medium検証者は106focused/diff PASS後、adapter._sendの最終本文照合と末尾unknown例外がtry/except外であることを純fixtureで反証しHOLD/P2。click/read_after/final_read成功後seller本文一致なしではkernel_phase=mutateだけになりsend_phase/network_summaryが欠落する。既存unknown fenceは保持され、送信成功/効果0への変換は確認しない。
 - current1内で同Luna/maxへ最小修正を返す。既存try範囲に最終照合を含め、final_readとsafe network projectionを残す。最小RED→GREEN/関連gate→commit/push→独立再確認、PR6686へ継続。新作業や順序変更ではない。private除外/二thread分離/旧occurrence/書込失敗伝播は反証で壊せなかった。実browser/API/auth/production操作0。残44/cursor1を維持する。
+
+
+### 603. 最終照合P2解消・fresh再確認SHIP・修正HEADのCI開始
+
+- Luna/maxは最終本文照合/末尾unknown例外を既存diagnostic try内へ移動し、同一反例1caseでRED→GREEN。HEAD/remote87245f38e2a0e8188feea3af45496aca691f1911一致・clean。focused107、compile、contract14/180、OSS verifier/既存12、sourceboundary/diff PASS。fresh Sol6.1/mediumが前回反例を実再確認しSHIP、final_read/safe network保持、effectunknown/旧occurrence/現在claim/receipt未生成を維持、重大残存指摘なし。
+- PR6686を最終内容へ更新。旧HEAD87c3のCI37329490974は稼働中だが修正HEADの証拠に代用しない。87245の自動check/run未生成を公式ghで確認後、既存Security Scanを同branchへworkflow dispatch。新run37330086944のheadSha87245一致・jobs queued/in_progressを確認。CI結果/main/immutable/自然公式readbackはまだ未完。
+- launchctl-safe preflightはUID501/DS/Aqua/manageruid501/managerpid1/gui PASS。対象ai.anicca.hf-gig-reply-detectorはPID76912/running/loaded3f8371b0、最終exit75。停止/再起動/手動wake/効果再送0。更新はCI完了後のtarget loaded-idle-onlyで行い、稼働を中断しない。最新mainとの共通base035f..差分で今回6所有filesのincoming変更0を確認。残44/cursor1、順序変更なし。
