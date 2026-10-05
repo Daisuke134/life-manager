@@ -4882,7 +4882,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
-| 1 | 次に実行・承認済み | 受入済み8修正（§489–490）を最新main・CI・所有者との非干渉を照合して統合し、main由来immutable releaseへowner限定で反映する。loaded argv/SHA・admission・rollbackを確認する。ソース検証の再実施は新差分/失敗/未解消懸念がある範囲だけ。自然実行・経済成果は未確認のまま残す。 |
+| 1 | 実行中・承認済み | 受入済み8修正（§489–490）を最新main・CI・所有者との非干渉を照合して統合し、main由来immutable releaseへowner限定で反映する。loaded argv/SHA・admission・rollbackを確認する。ソース検証の再実施は新差分/失敗/未解消懸念がある範囲だけ。自然実行・経済成果は未確認のまま残す。 |
 | 2 | 1の反映後 | Capafyの発火後/pre-start境界、Lancersのaccount/auth/transport原因を新観測で特定する。14 product/178 jobsの実故障・観測不足をowner・occurrence・loaded SHAへ結び、正常な容量待機/外部待ちと修復対象を区別する。過去health件数を現在値として固定しない。 |
 | 3 | 根因確定ownerごとに並行 | 2で残った実故障だけを最新main由来の専用worktreeで最小RED→GREEN修正し、必要なreview・統合条件・反映・自然実行確認へつなぐ。受入済み8修正を未完sourceとして再作成しない。今回の順序例外を無関係な新規変更へ拡大しない。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
@@ -7430,3 +7430,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 初回全loop CI run37256635598/job111595006929は763tests/failures2。base mainの同gateはSUCCESSを照合。失敗1はtest_matching_symlinked_donor_creates_a_self_contained_bundle：donor fixtureが候補ROOTの新package/lockを読む一方、cutterはorigin/mainの旧package/lockをexportするためmatching条件を満たさずfake npm exit99となる。donorを同export refのbytesへ揃え、no-npm/self-contained検証は維持する。production cutterを緩めない。
 - 失敗2はtest_production_render_matches_byte_stable_fixture：既存macos-loop-jobs.jsonが週次start_interval604800のまま、承認済みregistryはcalendar Weekday2/Hour14/Minute30。該当jobの保存fixtureだけ更新し、他row/fieldを保持する。
 - 必要なfixture2filesをLunaへ追加割当。既存2testのRED→最小GREEN・OSS/diffcheck→pushし、CI全PASSを確認する。新product behavior/provider操作や契約検証の弱体化を追加しない。元22source/test filesにmanifestと今回fixture2filesが追加になる根拠を記録。main/本番未実施、§217cursor1のまま。
+
+
+### 495. 最終candidateのfixture受入とCI再確認
+
+- 統合candidate HEAD/remote d283095e3cb10d8cb25078200fb0f32cead2fd0f、clean。既存2fixtureのREDを再現後、donorをcutterと同export refのbytesへ統一、週次保存fixtureを該当cadenceへ同期。focused2/2 GREEN・OSS verifier・diffcheck PASS。
+- primaryは保存fixture178rowsのうち変更が1row/1key cadenceだけで、旧604800秒→calendar Weekday2/Hour14/Minute30と独立照合。fresh-reviewed cf32との差分はprivacy test・donor test・週次fixture・manifestの4filesのみ。production helper/package/registryのbytesはfresh source review時と不変。新しい商品動作や効果判定の変更を追加しない。
+- 最終差分は元8修正のsource/test22files＋必要な検証支援3files。PR #6605本文を最終scopeと検証結果へ更新。CIは最終headで再実行中、OSS gate SUCCESSを確認。全CI終端PASS後にready/mainへ進む。manual cut/current/applyは既存自然release ownerと競合させず発行しない経路を選ぶ。loaded argv/SHA・admission・自然結果は反映後の別proofで、source/CI結果に置換しない。§217cursor1/全goal未完。
