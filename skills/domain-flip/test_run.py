@@ -361,6 +361,390 @@ def event_for(occurrence_id: str, *, effect: str, phase: str, candidate_id: str 
     }
 
 
+def seed_listed_holding(
+    state_root: Path,
+    domain: str = "novara.si",
+    resource_id: str = "123",
+    registration_phase: str = "registration-readback",
+    reserve_loss: bool = True,
+) -> None:
+    occurrence_id = "domain-flip:prior-run"
+    owner_handle_fingerprint = hashlib.sha256(b"OWNER-1").hexdigest()
+    registration = event_for(occurrence_id, effect="pending", phase="registration-dispatch", candidate_id=domain)
+    registration_readback = {"owner_handle_fingerprint": owner_handle_fingerprint}
+    if reserve_loss:
+        registration_readback["maximum_loss_eur"] = "20.00"
+    registration["readback"] = registration_readback
+    run.append_event(state_root, registration)
+    registration_readback = event_for(
+        occurrence_id, effect="verified", phase=registration_phase, candidate_id=domain,
+    )
+    registration_readback.update(
+        command="get_domain",
+        provider_receipt_id=resource_id,
+        readback={
+            "id": resource_id,
+            "domain": domain,
+            "status": "ACT",
+            "provider": "openprovider",
+            "provider_receipt_id": resource_id,
+            "readback_verified": True,
+            "owner_handle_fingerprint": owner_handle_fingerprint,
+        },
+    )
+    run.append_event(state_root, registration_readback)
+    listing_dispatch = event_for(
+        occurrence_id, effect="pending", phase="listing-dispatch", candidate_id=domain,
+    )
+    listing_dispatch.update(
+        command="sedo_insert",
+        readback={
+            "domain": domain,
+            "price": "500.00",
+            "minimum_accepted_price_eur": "300.00",
+            "currency": "EUR",
+        },
+    )
+    run.append_event(state_root, listing_dispatch)
+    listing_readback = event_for(
+        occurrence_id, effect="verified", phase="listing-readback", candidate_id=domain,
+    )
+    listing_readback.update(
+        command="sedo_status",
+        readback={
+            "domain": domain,
+            "listed": True,
+            "status": "listed",
+            "price": "500.00",
+            "min_price_eur": "300.00",
+            "currency": "EUR",
+            "provider": "sedo",
+            "readback_verified": True,
+        },
+    )
+    run.append_event(state_root, listing_readback)
+
+
+def test_existing_listing_holding_is_reconciled_each_pass(tmp_path):
+    seed_listed_holding(tmp_path)
+    registrar = FakeRegistrar()
+    sedo_client = FakeSedo(listing_confirmed=True)
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-2"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["novara.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("held domain must not be reviewed for purchase"),
+    )
+
+    assert result["status"] == "scout_only"
+    assert result["reason_codes"] == ["domain_already_held"]
+    assert registrar.read_calls == [("get", "123")]
+    assert sedo_client.read_calls == [("status", "novara.si"), ("list", "novara.si")]
+    assert registrar.register_calls == 0
+    assert sedo_client.insert_calls == 0
+    monitor = next(event for event in reversed(run.read_events(tmp_path))
+                   if event["phase"] == "holding-monitor")
+    assert monitor["effect"] == "verified"
+    assert monitor["readback"]["listed"] is True
+
+
+def test_unlisted_holding_is_not_counted_as_sale(tmp_path):
+    seed_listed_holding(tmp_path)
+    registrar = FakeRegistrar()
+    sedo_client = FakeSedo(listing_confirmed=False)
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-2"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["novara.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("changed listing must wait for sale readback"),
+    )
+
+    assert result["status"] == "sale_or_listing_change_unresolved"
+    assert result["reason_codes"] == ["sale_or_listing_change_unresolved"]
+    assert registrar.register_calls == 0
+    assert sedo_client.insert_calls == 0
+    monitor = next(event for event in reversed(run.read_events(tmp_path))
+                   if event["phase"] == "holding-monitor")
+    assert monitor["effect"] == "verified"
+    assert monitor["readback"]["listed"] is False
+    assert "revenue" not in monitor["readback"]
+
+
+def test_holding_readback_failure_does_not_relist_or_claim_sale(tmp_path):
+    seed_listed_holding(tmp_path)
+
+    class FailingSedo(FakeSedo):
+        def domain_status(self, domain):
+            self.read_calls.append(("status", domain))
+            raise openprovider.ProviderError("provider_read_failed")
+
+    registrar = FakeRegistrar()
+    sedo_client = FailingSedo(listing_confirmed=True)
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-2"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["novara.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("readback failure must not trigger a write"),
+    )
+
+    assert result["status"] == "holding_readback_unavailable"
+    assert result["reason_codes"] == ["holding_readback_unavailable"]
+    assert registrar.register_calls == 0
+    assert sedo_client.insert_calls == 0
+    monitor = next(event for event in reversed(run.read_events(tmp_path))
+                   if event["phase"] == "holding-monitor")
+    assert monitor["effect"] == "none"
+    assert monitor["error_class"] == "provider_read_failed"
+
+
+def test_registration_reconciled_event_is_a_valid_holding_readback(tmp_path):
+    seed_listed_holding(tmp_path, registration_phase="registration-reconciled")
+    registrar = FakeRegistrar()
+    sedo_client = FakeSedo(listing_confirmed=True)
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-2"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["novara.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("reconciled holding must not be reviewed for purchase"),
+    )
+
+    assert result["status"] == "scout_only"
+    assert result["reason_codes"] == ["domain_already_held"]
+    assert registrar.read_calls == [("get", "123")]
+    assert sedo_client.read_calls == [("status", "novara.si"), ("list", "novara.si")]
+
+
+def test_reconciled_registration_without_listing_dispatch_still_reads_all_providers(tmp_path):
+    occurrence_id = "domain-flip:prior-run"
+    owner_handle_fingerprint = hashlib.sha256(b"OWNER-1").hexdigest()
+    dispatch = event_for(
+        occurrence_id, effect="effect_unknown", phase="registration-dispatch",
+    )
+    dispatch["readback"] = {
+        "owner_handle_fingerprint": owner_handle_fingerprint,
+        "maximum_loss_eur": "20.00",
+    }
+    run.append_event(tmp_path, dispatch)
+
+    registrar = FakeRegistrar()
+    registrar.domains = [{
+        "id": "123",
+        "domain": "novara.si",
+        "status": "ACT",
+        "provider": "openprovider",
+        "provider_receipt_id": "123",
+        "readback_verified": True,
+        "owner_handle_fingerprint": owner_handle_fingerprint,
+    }]
+    sedo_client = FakeSedo(listing_confirmed=False)
+    reconciled = effect_reconcile.reconcile_occurrence(
+        occurrence_id=occurrence_id,
+        state_root=tmp_path,
+        registrar=registrar,
+    )
+
+    assert reconciled["status"] == "resolved_registered"
+    assert registrar.read_calls == [("list", "")]
+    registrar.read_calls.clear()
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-2"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["nextcandidate.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("a recovered holding must not be reviewed for purchase"),
+    )
+
+    assert result["status"] == "holding_readback_unavailable"
+    assert result["reason_codes"] == ["listing_terms_missing"]
+    assert registrar.read_calls == [("get", "123")]
+    assert sedo_client.read_calls == [("status", "novara.si"), ("list", "novara.si")]
+    assert registrar.register_calls == 0
+    assert sedo_client.insert_calls == 0
+    monitor = next(event for event in reversed(run.read_events(tmp_path))
+                   if event["run_id"] == "run-2" and event["phase"] == "holding-monitor")
+    assert monitor["error_class"] == "listing_terms_missing"
+
+
+@pytest.mark.parametrize("alpha_mode", ["unlisted", "read_failed"])
+def test_first_holding_issue_does_not_starve_later_holdings(tmp_path, alpha_mode):
+    seed_listed_holding(tmp_path, domain="alpha.si", resource_id="123")
+    seed_listed_holding(tmp_path, domain="beta.si", resource_id="456")
+
+    class MultiRegistrar(FakeRegistrar):
+        def get_domain(self, domain_id):
+            self.read_calls.append(("get", str(domain_id)))
+            domain = {"123": "alpha.si", "456": "beta.si"}[str(domain_id)]
+            return {
+                "id": str(domain_id),
+                "domain": domain,
+                "status": "ACT",
+                "provider": "openprovider",
+                "provider_receipt_id": str(domain_id),
+                "readback_verified": True,
+                "owner_handle_fingerprint": hashlib.sha256(b"OWNER-1").hexdigest(),
+            }
+
+    class MultiSedo(FakeSedo):
+        def domain_status(self, domain):
+            self.read_calls.append(("status", domain))
+            if domain == "alpha.si" and alpha_mode == "read_failed":
+                raise openprovider.ProviderError("provider_read_failed")
+            listed = domain == "beta.si"
+            return {
+                "domain": domain,
+                "listed": listed,
+                "status": "listed" if listed else "not-listed",
+                "price": self.price,
+                "currency": self.currency,
+                "provider": "sedo",
+                "provider_receipt_id": None,
+                "readback_verified": True,
+            }
+
+        def domain_list(self, domains):
+            domain = domains[0]
+            self.read_calls.append(("list", domain))
+            listed = domain == "beta.si"
+            return [{
+                "domain": domain,
+                "listed": listed,
+                "price": self.price,
+                "min_price": self.min_price,
+                "fixed_price": False,
+                "currency": self.currency,
+                "provider": "sedo",
+                "readback_verified": True,
+            }]
+
+    registrar = MultiRegistrar()
+    sedo_client = MultiSedo(listing_confirmed=True)
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-2"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["neonorbit.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("changed holding must stop new purchase review"),
+    )
+
+    assert result["status"] == (
+        "holding_readback_unavailable" if alpha_mode == "read_failed"
+        else "sale_or_listing_change_unresolved"
+    )
+    assert registrar.read_calls == [("get", "123"), ("get", "456")]
+    expected_sedo_calls = [
+        [("status", "alpha.si")]
+        if alpha_mode == "read_failed" else [("status", "alpha.si"), ("list", "alpha.si")],
+        [("status", "beta.si"), ("list", "beta.si")],
+    ]
+    assert sedo_client.read_calls == [call for group in expected_sedo_calls for call in group]
+    monitors = [event for event in run.read_events(tmp_path)
+                if event["run_id"] == "run-2" and event["phase"] == "holding-monitor"]
+    assert {event["candidate_id"] for event in monitors} == {"alpha.si", "beta.si"}
+
+
+def test_effect_unknown_candidate_does_not_starve_known_holding_monitor(tmp_path):
+    seed_listed_holding(tmp_path, domain="beta.si", resource_id="456")
+    unknown = event_for(
+        "domain-flip:unknown-run", effect="effect_unknown", phase="registration-dispatch",
+        candidate_id="alpha.si",
+    )
+    unknown["readback"] = {"maximum_loss_eur": "20.00"}
+    run.append_event(tmp_path, unknown)
+    registrar = FakeRegistrar()
+    registrar.registered_domain = "beta.si"
+    sedo_client = FakeSedo(listing_confirmed=True)
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-current"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["alpha.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("unknown candidate must remain fenced"),
+    )
+
+    assert result["status"] == "effect_unknown"
+    assert registrar.read_calls == [("get", "456")]
+    assert sedo_client.read_calls == [("status", "beta.si"), ("list", "beta.si")]
+    assert registrar.register_calls == 0
+
+
+def test_missing_cap_reservation_does_not_starve_known_holding_monitor(tmp_path):
+    seed_listed_holding(tmp_path, domain="beta.si", resource_id="456", reserve_loss=False)
+    registrar = FakeRegistrar()
+    registrar.registered_domain = "beta.si"
+    sedo_client = FakeSedo(listing_confirmed=True)
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context("run-current"),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=sedo_client,
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["neonorbit.si"],
+        reviewer=lambda *_args, **_kwargs: pytest.fail("unknown cap must block candidate review"),
+    )
+
+    assert result["status"] == "scout_only"
+    assert result["reason_codes"] == ["cap_reservation_evidence_missing"]
+    assert registrar.read_calls == [("get", "456")]
+    assert sedo_client.read_calls == [("status", "beta.si"), ("list", "beta.si")]
+    assert registrar.register_calls == 0
+
+
 def test_event_writer_records_required_occurrence_fields(tmp_path):
     event = event_for("domain-flip:run-1", effect="none", phase="started")
     path = run.append_event(tmp_path, event)

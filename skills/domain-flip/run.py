@@ -451,6 +451,142 @@ def _history_state(events: list[dict[str, Any]], run_id: str) -> dict[str, Any]:
     }
 
 
+def _monitor_existing_holdings(
+    state_root: Path,
+    context: dict[str, Any],
+    events: list[dict[str, Any]],
+    portfolio: dict[str, Any],
+    registrar: Any,
+    sedo: Any,
+) -> dict[str, Any] | None:
+    """Refresh known owner/listing state; a missing listing is never a sale receipt."""
+    unknown = set(portfolio.get("effect_unknown_domains", []))
+    unresolved: list[dict[str, Any]] = []
+    for domain in portfolio.get("active_domains", []):
+        if domain in unknown:
+            continue
+        registration = next((event for event in reversed(events)
+                             if event.get("candidate_id") == domain
+                             and event.get("phase") in {"registration-readback", "registration-reconciled"}
+                             and event.get("effect") == "verified"
+                             and isinstance(event.get("readback"), dict)), None)
+        dispatch = next((event for event in reversed(events)
+                         if event.get("candidate_id") == domain
+                         and event.get("phase") == "listing-dispatch"
+                         and isinstance(event.get("readback"), dict)), None)
+        registered = registration.get("readback", {}) if registration else {}
+        listing_terms = dispatch.get("readback", {}) if dispatch else {}
+        resource_id = registered.get("id")
+        owner_fingerprint = registered.get("owner_handle_fingerprint")
+        expected_price = listing_terms.get("price")
+        expected_minimum = listing_terms.get("minimum_accepted_price_eur")
+        if (not isinstance(resource_id, str) or not resource_id.isdigit()
+                or not isinstance(owner_fingerprint, str)):
+            _event(state_root, context, domain, phase="holding-monitor", command="run_once",
+                   effect="none", error_class="holding_evidence_missing",
+                   next_action="seller_sale_readback")
+            unresolved.append({"status": "holding_readback_unavailable", "domain": domain,
+                               "reason_codes": ["holding_evidence_missing"]})
+            continue
+        try:
+            registrar_readback = registrar.get_domain(resource_id)
+            status_readback = sedo.domain_status(domain)
+            domain_rows = sedo.domain_list([domain])
+        except Exception as error:
+            code = _safe_error_class(error, "provider_read_failed")
+            _event(state_root, context, domain, phase="holding-monitor", command="sedo_status",
+                   effect="none", error_class=code, next_action="retry_daily_readback")
+            unresolved.append({"status": "holding_readback_unavailable", "domain": domain,
+                               "reason_codes": ["holding_readback_unavailable"]})
+            continue
+
+        registrar_safe = _readback(registrar_readback, {
+            "id", "domain", "status", "provider", "provider_receipt_id", "readback_verified",
+            "owner_handle_fingerprint", "activation_date", "expiration_date", "renewal_date",
+        }) if isinstance(registrar_readback, dict) else {}
+        status_safe = _readback(status_readback, {
+            "provider", "domain", "status", "listed", "price", "currency",
+            "provider_receipt_id", "readback_verified",
+        }) if isinstance(status_readback, dict) else {}
+        safe_rows = [{key: _json_ready(row[key]) for key in (
+            "domain", "listed", "price", "min_price", "fixed_price", "currency",
+            "provider", "readback_verified",
+        ) if key in row} for row in domain_rows if isinstance(row, dict)] if isinstance(domain_rows, list) else []
+        evidence_dir = Path(state_root) / "evidence" / context["run_id"] / domain[:-3]
+        _private_dir(evidence_dir.parent.parent)
+        _private_dir(evidence_dir.parent)
+        _private_dir(evidence_dir)
+        _write_private_json(evidence_dir / "holding-readbacks.json", {
+            "registrar": registrar_safe,
+            "sedo_domain_status": status_safe,
+            "sedo_domain_list": safe_rows,
+        })
+        evidence_ref = f"domain-flip://evidence/{context['run_id']}/{domain[:-3]}/holding-readbacks.json"
+        registrar_matches = (
+            registrar_safe.get("provider") == "openprovider"
+            and registrar_safe.get("id") == resource_id
+            and registrar_safe.get("provider_receipt_id") == resource_id
+            and registrar_safe.get("domain") == domain
+            and registrar_safe.get("readback_verified") is True
+            and str(registrar_safe.get("status", "")).casefold() in {"act", "active", "registered"}
+            and registrar_safe.get("owner_handle_fingerprint") == owner_fingerprint
+        )
+        if not registrar_matches:
+            safe = registrar_safe or None
+            _event(state_root, context, domain, phase="holding-monitor", command="get_domain",
+                   effect="verified" if registrar_safe.get("readback_verified") is True else "none",
+                   readback=safe,
+                   provider_receipt_id=registrar_safe.get("provider_receipt_id")
+                   if isinstance(registrar_safe.get("provider_receipt_id"), str) else None,
+                   evidence_refs=[evidence_ref], error_class="holder_state_changed",
+                   next_action="seller_sale_readback")
+            unresolved.append({"status": "sale_or_listing_change_unresolved", "domain": domain,
+                               "reason_codes": ["holder_state_changed"]})
+            continue
+
+        listed, listing_safe = _listing_terms_match(
+            domain, expected_price, expected_minimum, status_readback, domain_rows,
+        )
+        if not isinstance(status_readback, dict) or status_readback.get("readback_verified") is not True:
+            _event(state_root, context, domain, phase="holding-monitor", command="sedo_status",
+                   effect="none", readback=status_safe or None, evidence_refs=[evidence_ref],
+                   error_class="holding_listing_readback_unverified",
+                   next_action="retry_daily_readback")
+            unresolved.append({"status": "holding_readback_unavailable", "domain": domain,
+                               "reason_codes": ["holding_listing_readback_unverified"]})
+            continue
+        if not isinstance(expected_price, str) or not isinstance(expected_minimum, str):
+            _event(state_root, context, domain, phase="holding-monitor", command="sedo_status",
+                   effect="verified", readback=status_safe or None,
+                   provider_receipt_id=status_safe.get("provider_receipt_id")
+                   if isinstance(status_safe.get("provider_receipt_id"), str) else None,
+                   evidence_refs=[evidence_ref], error_class="listing_terms_missing",
+                   next_action="resume_listing_review")
+            unresolved.append({"status": "holding_readback_unavailable", "domain": domain,
+                               "reason_codes": ["listing_terms_missing"]})
+            continue
+        if not listed:
+            readback = status_safe or {
+                "provider": "sedo", "domain": domain, "listed": False,
+                "status": "not-found", "readback_verified": True,
+            }
+            _event(state_root, context, domain, phase="holding-monitor", command="sedo_status",
+                   effect="verified", readback=readback,
+                   provider_receipt_id=readback.get("provider_receipt_id")
+                   if isinstance(readback.get("provider_receipt_id"), str) else None,
+                   evidence_refs=[evidence_ref], error_class="sale_or_listing_change_unresolved",
+                   next_action="seller_sale_readback")
+            unresolved.append({"status": "sale_or_listing_change_unresolved", "domain": domain,
+                               "reason_codes": ["sale_or_listing_change_unresolved"]})
+            continue
+
+        _event(state_root, context, domain, phase="holding-monitor", command="sedo_status",
+               effect="verified", readback=listing_safe,
+               provider_receipt_id=listing_safe.get("provider_receipt_id"),
+               evidence_refs=[evidence_ref], next_action="next_daily_monitor")
+    return unresolved[0] if unresolved else None
+
+
 def _private_json(path: Path) -> Any | None:
     if not path.exists():
         return None
@@ -936,22 +1072,28 @@ def _run_once(
     names = list(dict.fromkeys(_domain(name) for name in names))
     history = read_events(root)
     portfolio = _history_state(history, context["run_id"])
+    existing_unknown = set(portfolio["effect_unknown_domains"])
+    missing = _preflight_credentials(registrar) or _preflight_credentials(sedo)
+    if missing:
+        for domain in names:
+            if domain in existing_unknown:
+                return _append_simple(root, context, domain, reason="effect_unknown",
+                                      next_action="official_readback", status="effect_unknown")
+        if portfolio["committed_loss_eur"] is None:
+            return _append_simple(root, context, names[0], reason="cap_reservation_evidence_missing",
+                                  next_action="reconcile_registration_state")
+        return _append_simple(root, context, names[0], reason=missing,
+                              next_action="configure_provider_credentials")
+    holding_result = _monitor_existing_holdings(root, context, history, portfolio, registrar, sedo)
+    if holding_result is not None:
+        return holding_result
     if portfolio["committed_loss_eur"] is None:
         return _append_simple(root, context, names[0], reason="cap_reservation_evidence_missing",
                               next_action="reconcile_registration_state")
-    existing_unknown = set(portfolio["effect_unknown_domains"])
     for domain in names:
         if domain in existing_unknown:
             return _append_simple(root, context, domain, reason="effect_unknown",
                                   next_action="official_readback", status="effect_unknown")
-        if domain in portfolio["active_domains"]:
-            return _append_simple(root, context, domain, reason="domain_already_held",
-                                  next_action="manage_existing_holding")
-
-    missing = _preflight_credentials(registrar) or _preflight_credentials(sedo)
-    if missing:
-        return _append_simple(root, context, names[0], reason=missing,
-                              next_action="configure_provider_credentials")
     if rights_searcher is None:
         return _append_simple(root, context, names[0], reason="rights_evidence_missing",
                               next_action="authorized_euipo_subscription")
@@ -959,6 +1101,9 @@ def _run_once(
     # Candidate names are local blends; the rights service receives only the public label.
     # Each pass reviews at most one name and can register at most one domain.
     for domain in names:
+        if domain in portfolio["active_domains"]:
+            return _append_simple(root, context, domain, reason="domain_already_held",
+                                  next_action="manage_existing_holding")
         label = domain[:-3]
         _private_dir(root / "evidence")
         _private_dir(root / "evidence" / context["run_id"])
