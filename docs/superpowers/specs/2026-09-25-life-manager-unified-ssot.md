@@ -7701,3 +7701,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Agent Economy budget修正777e23ecacc7914a0867d3802f3fb1c9ba913f96はremote一致/clean。担当failover24/token-budget1/compile/contract/OSS/diff PASS。typed prelaunch auth missingだけ0 token/prelaunch_auth_missing、acct2 only once、invalid path/一般usage unknownは予約1000保守計上維持。
 - native review followup/spawnはthread limit拒否。指定gpt-6.1-sol/mediumの既存Codex CLI有限read-only auditで旧HIGHコード上解消/新重要指摘なし、manifest/diff PASS。read-only sandboxがTemporaryDirectoryを拒否し2fixture未達のため、source外private workspaceだけ書込み可・source読み取り専用の最小再検証を実行中。最初の非Git cwd起動はCLI rc1/no effect（git repo check）で終端し、明示skip-git-repo-checkと固定source HEADで再開。実credential/provider/browser操作なし。既存transient_unavailable fresh-result例外は今回の退行ではなく変更対象外で、全面禁止へscopeを拡大しない。
 - PR6618最終headのCIは進行中。source受入/統合/自然THINKは未完。Lancers新releaseは既存ownerのold888 fleet applyが進行中（provision-browser rc0/article-daily timeout124のowner終端を観測）、重複cut/強制中断なし。現在残53/cursor1。
+
+
+### 522. Agent Economy auth/budget修復のmain統合
+
+- source外fixture workspaceをcwdにしたgpt-6.1-sol/medium有限read-only再検証はbudget2fixtures PASS（2 passed/0.10s）、HEAD777e23ecacc7914a0867d3802f3fb1c9ba913f96/clean前後一致。初回は外部pytest pluginのsocket権限エラー、plugin自動読込を無効化して既存2件を成功。前auditのコード上旧HIGH解消/新重要指摘なしと合わせ、未達だったtest gateを解消。source/credential/provider/browser/本番stateの編集操作なし。evidenceは /Users/anicca/.local/state/life-manager/state/codex-auth-budget-review-20261005.txt と codex-auth-budget-temp-review-20261005.txt/jsonl。
+- PR6618を最終問題/振る舞い/検証へ本文更新。最終head777e23ecacとCI全10終端SUCCESSを再照合、ready後gh pr merge --merge --admin --match-head-commitで統合。公式MERGED/2026-10-05T06:00:33Z/merge SHA35056bec66ec486de61906f61f81450e64f69b33、fetch後remote object存在を確認。typed prelaunch0はtoken予算の精算であり、全社actual cost/利益0の証明ではない。
+- Agent Economyのsource修復/mainは完了。正規profileの自然認証、same-wake schema-valid THINK、収益action/settlement/cost、対象loaded/sourceは未完なので§217の金融/自然成果を完了にしない。Lancersのsource/main d71も保持し、main350由来releaseでは双方を採用できる。既存release ownerのold888 fleet applyを中断・重複cutせず追跡する。残53/cursor1（Lancers対象owner反映）。Coconala公開4URL/購入入口確認と旧run effect_unknownの未解消を分け、注文・収益は未確認。
