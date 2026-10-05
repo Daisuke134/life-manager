@@ -1,4 +1,4 @@
-Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: YouTube, script, retention
+Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: YouTube, script, retention, video, youtube-shorts
 
 RENEWAL GATE
 R1 recurring input : Each new video has a new topic, audience, source material, target length, and conversion goal.
@@ -63,3 +63,24 @@ Each new video has a new topic, audience, source material, length, and goal. The
 👤 **Built for**
 
 Creators, educators, marketers, and founders who want a complete script they can record without rewriting it from essay prose.
+
+## 🧪 Example
+**You send:** "Write an 8-minute video for self-taught beginners about five mistakes when learning to code. Tone: encouraging but direct."
+
+**You get back (shortened):**
+- **Titles (3) + one thumbnail-text idea.**
+- **Hooks (3, first 15 seconds):** e.g. "You're not bad at coding. You're making these five mistakes." plus the explicit promise the opening makes.
+- **Timestamped script** with `[B-ROLL: ...]` and `[ON-SCREEN: ...]` cues, built around open/close loops and pacing changes.
+- **CTA + end-screen transition** into a next-video tease.
+- **Notes:** pacing, the first A/B test to run, and any missing facts marked `[ADD: ...]`.
+
+## ❓ FAQ
+**What should I send?** A topic, draft, product, or channel idea. Audience, target length, tone, real facts, and goal are optional — if length is absent it picks a reasonable one and states the assumption.
+
+**Does it watch my videos or log in to my accounts?** No. It works only from the text you send. It never posts, reads analytics, or connects to any platform.
+
+**How many options do I get?** Three title options, one thumbnail-text idea, and three hook options per request.
+
+**Can I ask for changes?** Yes — reply in the same chat and it revises the script.
+
+**Which plan should I pick?** Day for a one-off script, week for a filming sprint, month or year if you post every week.
