@@ -3122,6 +3122,15 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 
 Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画（売り場ごとの目標・週ごとの数字・OSS 公開条件）は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。Capafy の実行順・記録はこれまでどおり `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
+## Dais指定のeBook → Capafy Instagram実行順
+
+- **順序変更:** 旧順序はCapafy SNSをPhase 1と並行し、eBookを全体の後段laneに残していました。新順序は(1) eBookを実装して自然な有料Stripe sessionとPDF配信receiptを同一campaignに結び付け、(2) そのreceipt後にCapafy Instagram marketingだけへ進みます。eBookの14日間readbackはCapafy開始後も続けます。
+- **変更理由:** eBook distribution ownerは未登録で、他に担当者がいません。Capafy product/account-lifecycle開発は別担当が所有し、このworkstreamではCapafy Instagram marketingだけを扱います。
+- **Capafy owner境界:** PR #6631のPostiz-based `life-manager-capafy-ig` laneはmainにmerge済みで、release `b53c0ab`にloadedですが、terminal occurrenceとofficial post receiptはありません。旧`capafy-ig-marketing-daily`には`active_ig_handle_unresolvable`のeffect-unknown occurrenceがあり、provider receiptも欠けています。同じInstagram accountを配信するpublisherは一つにし、旧occurrence readbackとowner重複を解消するまで投稿しません。Capafy devのcode/registryは別担当のscopeに残します。
+- **他担当cursor:** Capafy canonical execution tableの#5（E1b、審査枠/価格更新）は既存Capafy dev ownerが担当し、このworkstreamでは変更しません。#5は並行して進められます。D5 marketingの開始条件はeBook receiptとInstagram owner/effect gatesです。
+- **指標:** eBookの目標は、Letter/Tegamiの有料継続購読によるgross MRR $10,000です。Capafyの目標はLife Managerへ$10,000を加えることで、CFOの合格指標は手数料・実費後の同じ30日窓banked netです。eBook gross sales、subscription MRR、Capafy earnings、payout、banked netを混ぜません。全体planの旧Capafy配分$5,000との差はforecast前に整合させます。
+- **現在cursor:** eBook revenue-loop plan Task 1（offer/locale/checkout contract、未着手）です。Task 5で初回natural paid-session/PDF receiptを得た後、Capafy recipe Task D5のmarketing-only部分へ移ります。14日間計測はその後も並行します。
+
 ## CFO: 2026年9月Life Manager portfolio収益のas-is
 
 - **結論:** 2026-09-01..09-30のLife Manager全体gross revenue、実際のsettled inflow、net profitはすべて`unknown`であり、0ではない。2026-10-05 13:49 JSTのCFO CLI readbackでも、2026-09-05..10-05のtrailing 30-dayは14/14 loop `unknown`、company MRRも`unknown`だった。2026-10-05のagent-skill factory計画はCapafy/PromptBase/自社checkout等の成長計画であり、14 loop全体のCFO closeではない。
