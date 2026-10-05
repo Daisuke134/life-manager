@@ -7599,3 +7599,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Manager自然work-syncはrun18db890f373691b0-20564、occurrence lancers-revenue-work-sync:18db57998cc32c30-96569、source ba69f92893c3fae4d05ed06f6bd4eba179a757e9でpass。新diagnostic load・仕事在庫binding・収益receiptを完了とは扱わない。
 - Manager継続接続はLuna/max専用branch fix/lm-lancers-awswaf-solver-20261005、worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-lancers-awswaf-solver-20261005。既存solver再利用、live work-syncだけ明示enable、read-only/defaultはsolver無効、所有lease、同challengeへの重複task防止、秘密出力なしをfocused fixtureで検証。source-only担当はlive API/browser/credential/production変更なし。primaryがreview・統合・反映を所有。
 - Coconala4URL（4330368/4313386/4308502/4244910）はcrawl HTTP403。公開中とは判定しない。coconala:kosukeを使用するCapafy peerへ既存AGMSGでowner調整を送信し、共有profile同時操作なしで公式browser確認へ進む。個別TikTok/NPO納品追跡保留、SelfBuild最後を維持。
+
+
+### 510. Lancers自然在庫回復とidle限定反映の実測
+
+- 現行ownerの自然run18db8940d5247280-26760/occurrence lancers-revenue-work-sync:18db57c779a2d8c0-4824はreport pass/exit0/error_classなし、source ba69f92893c3fae4d05ed06f6bd4eba179a757e9。同owner registry state_rootは ~/.local/state/anicca/lancers。contracts.jsonの観測2026-10-05T04:58:18.302486Zはsource_complete=true、board18/unread6/required_reply0/application_board6。応募pipelineはcurrent370/open14/selecting67/canceled200/ended89/working0/unknown0、保存済みreceipt260。同案件の公式応募送信と同occurrenceのreceipt結合は引き続き必要。
+- unread_countとrequired_reply_countは公式boardの別fieldsである。未読6だけで返信漏れや必要返信6と断定しない。返信判定0はproviderの現在判定であり、全platform coverageや過去返信完了の証明ではない。financial readerは公式口座残高と空履歴の限定readbackであり、全期間settlement・銀行着金・14loops利益0の証明にしない。safe evidenceは /Users/anicca/.local/state/life-manager/state/lancers-work-inventory-safe-readback-20261005.json。
+- current immutableは /Users/anicca/loops/releases/20261005T134657-4ca1ab6c。launchctl-safe preflight rc0の後、target=lancers-revenue-work-syncの既存apply --loaded-idle-onlyを1回実行。結果ok=true/changed=false/skipped=loaded-running、actual loadedは旧ba69のまま。稼働中owner停止・manualwake・queue/fence解除0。evidenceは /Users/anicca/.local/state/life-manager/state/lancers-diagnostic-target-apply-20261005.json。source修正がcurrentにあるだけで対象load完了としない。
+- §217残54/cursor1を維持。独立LunaのAWS solver接続はsource-only、fresh owner idle時の反映と新source自然結果は未完。Coconala共有profileはpeer調整返答待ちで並行操作なし。
