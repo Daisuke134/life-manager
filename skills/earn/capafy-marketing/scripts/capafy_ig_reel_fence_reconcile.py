@@ -123,14 +123,37 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
     return proof
 
 
+MARKETING_ENV = Path.home() / ".local/state/life-manager/private/marketing.env"
+
+
+def integration_id(env_file: Path | None = None) -> str:
+    """Runtime env first, then the same marketing.env the lane itself loads
+    (lm-fence-reconciler does not load it; 2026-10-05 integration_id_missing)."""
+    value = os.environ.get("CAPAFY_IG_POSTIZ_INTEGRATION_ID", "").strip()
+    if value:
+        return value
+    try:
+        lines = (env_file or MARKETING_ENV).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    for line in lines:
+        line = line.strip()
+        if line.startswith("export "):
+            line = line[len("export "):]
+        key, sep, val = line.partition("=")
+        if sep and key.strip() == "CAPAFY_IG_POSTIZ_INTEGRATION_ID":
+            return val.strip().strip('"').strip("'")
+    return ""
+
+
 def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | None = None,
               fenced_row_fn=fenced_row, posts_fn=read_ig_posts, resolve_fn=None) -> dict[str, Any]:
     now = now or dt.datetime.now(dt.timezone.utc)
-    integration_id = os.environ.get("CAPAFY_IG_POSTIZ_INTEGRATION_ID", "")
+    integration = integration_id()
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     end = queued_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
     proof = build_proof(occurrence_id, queued_at, now=now, posts=posts_fn(queued_at, end),
-                        integration_id=integration_id)
+                        integration_id=integration)
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result

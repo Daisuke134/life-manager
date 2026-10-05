@@ -91,3 +91,12 @@ def test_reconcile_wires_fenced_row_and_resolve(monkeypatch):
     assert result["effected"] is False
     assert result["closed"] is True
     assert closed["called"]
+
+
+def test_integration_id_falls_back_to_marketing_env_file(tmp_path, monkeypatch):
+    # 2026-10-05: lm-fence-reconciler runs the adapter without marketing.env loaded,
+    # so CAPAFY_IG_POSTIZ_INTEGRATION_ID was empty -> adapter_held:integration_id_missing.
+    monkeypatch.delenv("CAPAFY_IG_POSTIZ_INTEGRATION_ID", raising=False)
+    env_file = tmp_path / "marketing.env"
+    env_file.write_text("LM_POSTIZ_API_KEY=secret\nexport CAPAFY_IG_POSTIZ_INTEGRATION_ID=cmabc123\n", encoding="utf-8")
+    assert rec.integration_id(env_file) == "cmabc123"
