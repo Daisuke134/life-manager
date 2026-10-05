@@ -7716,3 +7716,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - hf-gig-storefront-directのarchive events-20261001T025344997289Z.jsonl.gzからrun18d8d288748508e8-23902のexecute/report2件を取得。source61b48c819ccd1150c29683b89e6fe79526913118、08:45:35.395開始→08:46:05.422終端、report pass/exit0/effect unknown/provider receiptなし。start occurrenceは当該run、reportは以前の18d8d2334ab70e80-9111 claimを参照する。
 - 当該時間内のlaunchd stdout行4106にpass storefront-direct-1790412337636093000-23946/status pending/reason official_inventory_empty_or_invalid/effect count0/readback0の候補を発見。以前参照したcurrent.jsonは別pass1790412524275908000-28241（08:48:44開始/08:50:01観測）で、当該08:45runのofficial_service_contract_invalid証拠に使えない。source61bの該当gateも照合。ただしstdoutにruntime run_idがなく、時間一致だけでsame-runゼロeffectを認定しない。
 - 既存lm-loop pre-effect-reconcile hf-gig-storefront-direct --dry-runはok=true/resolved[]/unprovable no_pre_effect_terminal。fence解除・再送0。証拠 /Users/anicca/.local/state/life-manager/state/coconala-storefront-legacy-occurrence-binding-20261005.json。次は同runの明示binding/受理可能pre-effect terminal、または当時の公式receiptを取得する。公開4件の現在readbackを旧runのmutation結果へ置換しない。残53/cursor1を維持し、独立laneは継続する。
+
+
+### 524. Coconala4工程のfresh状態と公開・実行の分離
+
+- Daisの確認に対しStorefront→Apply→Negotiate→Paid（正式納品）を分けてfresh runtime readback。全工程正常・全Paid完了とは未証明。公開4件の公式匿名GET/購入入口は§521の完了証拠であり、以下のautomatic owner成功へ置換しない。
+- Storefront hf-gig-storefront-direct：installed88872a85/loaded-idle、run18db8d405dd23240-29122/2026-10-05T06:10:40 report blocked/resource_control_busy、admission_effect_unknown=true。既存商品は公開されているがautomatic更新ownerは未正常。
+- Apply hf-gig-apply-direct：installed88872a85/loaded-idle、run18db8d2d33122500-22845/06:08:33 blocked/resource_effect_unknown、admission_effect_unknown=true。過去提出の結果未確定を消して新応募しない。
+- Negotiate hf-gig-reply-detector：installed88872a85/loaded-idle、run18db8d01fa235b68-15849/06:07:49 report fail/entrypoint_exit_1。reply/latest.jsonの直近保存結果（mtime06:04:09）はblocked/provider_inbox_access_forbidden、error_detail collector_unhealthy:inbox_access_forbidden。このfileにはrun_idがなく当該latest runとexact bindingは未確認。公開sellerページ到達とinbox accessは別経路として診断する。
+- Paid hf-gig-paid-direct：installed4ca1ab6c/loaded-idle、run18db8d3979912218-28137/06:10:18 blocked/resource_control_busy/admission_effect_unknown=false。現在はentrypoint実行前の待機で、納品処理故障の証明でも納品成功の証明でもない。個別の納品済み/依頼側待ちとPaid ownerの自然実行を混ぜず、Coconala TikTok/NPO追跡保留を維持。
+- 最小の残作業は返信collectorの拒否境界/入力/認証済browser transportを調べる、Apply/Storefrontの同run結果証拠を結ぶ、制御待ちの自然解消後にPaidの実行・許可scopeの納品readbackを確認する。価格/サービス内容/投稿/買い手への手動送信・既存fence解除・個別保留再開0。全体残順序§217は53/cursor1のまま、独立read-only診断を並行する。
