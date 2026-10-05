@@ -331,6 +331,10 @@ Expected: event and departure times share the correct zone and the UI count/orde
 - Modify: `apps/life-manager/lib/web-travel.js` and `apps/life-manager/lib/web-travel.test.js`
 - Modify: `apps/life-manager/lib/web-page.js` and `apps/life-manager/lib/web-page.test.js`
 - Modify: `apps/life-manager/lib/panel-api.js` and `apps/life-manager/lib/panel-api.test.js`
+- Modify: `apps/life-manager/lib/web-calendar.js` and `apps/life-manager/lib/web-calendar.test.js`
+- Modify: `apps/life-manager/scheduler.js` and `apps/life-manager/test/scheduler.test.js`
+- Modify: `apps/life-manager/lib/runtime-preferences.js`
+- Modify: `apps/life-manager/lib/transport/calendar-composio.js`; create `apps/life-manager/lib/transport/calendar-composio.test.js`
 - Modify: `apps/life-manager/server.js`
 - Reuse: `apps/life-manager/lib/panel-api.js:composioCalendarDisconnect`
 
@@ -340,24 +344,26 @@ Expected: event and departure times share the correct zone and the UI count/orde
 - `TodaySnapshot` returns persisted `dailyAutomationEnabled` and `disconnectPending` even when Calendar event read fails, so controls do not vanish with an event-read error.
 - Disconnect atomically sets automation false plus `calendar_disconnect_pending=true` before provider I/O; resume and setup refuse while pending. Setup preserves an existing pause, and the immediate travel run checks persisted automation/pending state before dispatch.
 - Provider account mutations and disable readback must verify the exact selected account ID, Web owner, and Google Calendar toolkit. `DISABLED` is returned only for an explicit disabled readback; expired, initiated, mismatched, or contradictory states remain uncertain. Any provider failure/readback uncertainty leaves the row paused, binding intact, and pending fence set; retry can verify a now-disabled account and finish.
-- The page displays Pause or Resume from persisted preference state, blocks Resume while disconnect is pending, and offers Disconnect/retry for the currently bound Calendar.
+- Calendar re-enable takes a durable `calendar_enable_pending` claim under the same NULL-Telegram user row lock used by disconnect. Disconnect begin refuses while enable is claimed; enable finish releases the claim only after exact ACTIVE readback. Calendar start and OAuth callback/recovery binding writes use SQL RPCs that lock the same row and refuse an in-progress disconnect.
+- `travelUserOnce` re-reads exact Web automation and pending flags after the provider ACTIVE await; the Calendar transport repeats the check before Web create/patch dispatch. Paused dashboard event reads continue to work.
+- The page displays Pause or Resume from persisted preference state, blocks Resume while either Calendar operation is pending, and offers Disconnect/retry for the currently bound Calendar.
 
 - [ ] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
 
-Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, pause/disconnect before a preference row exists, preservation of existing call/notification settings, resume without home/inactive account, concurrent resume during disconnect, setup during pending disconnect, setup preserving an existing pause and not dispatching Travel after pause, provider failure/readback retry, mismatched provider account ID with zero PATCH, exact disabled state/readback, persisted pause state after Calendar event-read failure, and button state/copy.
+Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, pause/disconnect/calendar-enable before a preference row exists, preservation of existing call/notification settings, resume without home/inactive account, concurrent resume during disconnect, provider enable claim excluding concurrent disconnect, start/callback/binding blocked during disconnect pending, setup during pending disconnect, setup preserving an existing pause and not dispatching Travel after pause, scheduler owner recheck after ACTIVE await, transport create/patch fence after a pause, provider failure/readback retry, mismatched provider account ID with zero PATCH, exact disabled state/readback, persisted pause state after Calendar event-read failure, and button state/copy.
 
 - [ ] **Step 2: Run focused Web control tests and confirm the new cases fail**
 
-Run: `node --test lib/web-travel.test.js lib/web-page.test.js`.
+Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
 Expected: the control route, atomic preference contract, and controls are absent.
 
 - [ ] **Step 3: Add the smallest Web-only preference RPC and route**
 
-The SQL function locks and rechecks the NULL-Telegram user row and expected account marker before preference writes. It sets/clears the disconnect-pending fence in begin/finish transitions and refuses resume while pending. The setup RPC shares the same lock order, rejects pending disconnect, and preserves an existing automation choice. Reuse `composioCalendarDisconnect`, adding exact provider-ID/status checks at its boundary; do not add a settings framework or change Telegram preference RPCs.
+The SQL functions lock and recheck the NULL-Telegram user row and expected account marker before preference writes. `begin_lm_web_calendar_enable` and disconnect-begin are mutually exclusive durable claims; enable-finish clears only after exact ACTIVE provider readback. The binding RPC refuses both pending flags. The setup RPC shares the same lock order, rejects pending operations, and preserves an existing automation choice. Reuse `composioCalendarDisconnect`, adding exact provider-ID/status checks at its boundary; do not add a settings framework or change Telegram preference RPCs.
 
 - [ ] **Step 4: Wire controls into the existing page and rerun focused tests**
 
-Run: `node --test lib/web-travel.test.js lib/web-page.test.js`.
+Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
 Expected: pause/resume/disconnect report only verified persisted state and all failures remain fail-closed. Commit as `feat(life-manager): add web travel controls`.
 
 ## Required continuation after the source implementation
