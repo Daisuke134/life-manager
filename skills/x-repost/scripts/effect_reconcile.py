@@ -23,6 +23,7 @@ READBACK_ONLY_RELEASES = {
     "86fa863d4fe04ec0b5c44e8a2e513e55edaf2928",
     "88872a85cc652877f242ead444108a813084cfc9",
     "4eb6bbbaeb9a8368895e6391e34e8c895908b0ec",
+    "447e5b62693ce67b6ea94aa1993fb2a5a3e5d24b",
 }
 POSTIZ_INTEGRATION_ID = "cmt4l2jld031tqp0y8qtyo983"
 POSTIZ_POSTS_URL = "https://api.postiz.com/public/v1/posts"

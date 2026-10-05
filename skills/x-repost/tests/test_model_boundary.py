@@ -53,6 +53,14 @@ class ModelBoundaryTest(unittest.TestCase):
         ):
             self.assertIn(example, critic_prompt)
 
+    def test_critic_prompt_braces_language_variable_before_cjk_punctuation(self) -> None:
+        prompt_line = next(
+            line for line in CLI.read_text().splitlines()
+            if "ターゲット言語コードは" in line
+        )
+        self.assertIn("ターゲット言語コードは ${TARGET_LANGUAGE}。", prompt_line)
+        self.assertNotIn("ターゲット言語コードは $TARGET_LANGUAGE。", prompt_line)
+
     def run_boundary(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(SCRIPT), *args], check=False, text=True,
