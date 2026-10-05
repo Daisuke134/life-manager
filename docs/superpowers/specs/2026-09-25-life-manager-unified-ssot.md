@@ -8022,3 +8022,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - newsource e851のrun18db9b1c08723c70-24198をrunningで確認。業務latest10:21:56Zは194observed/7pending/5failed/182readback/effect0で、7だけを改善とせず12未解消（no_reply138/closed44/retry5/failedRuntimeError4/ConnectionClosed1/pendingunknown1/observation不足1）。savedunknown7/retry5保持、newofficial送信/利益は未確認。
 - failed detailの安全な分類はcontext_cleanup_pending、URLError Errno61 Connection refused、no close frame received or sent。registered coconala:kosukeのfresh UUID4b84df25-f896-4758-9b31-14ab9a1e4433/PID11858/CDP9223を確認、旧3e99から変化しtransport再生成の境界。guard holder23410が存在するのでrootが横取り/未知context消去/認証resetを行わず、所有者調整・既存helperのcleanup/readback経路を診断する。最新5failedはsourceguardが重複送信した証拠ではない。
 - askは元jobhealth200/err492108bytes安定、外部provider呼出し0。guard source受入/main/loaded完了はformalPaid/finances/全supplier完了へ置換しない。全体47/cursor1（audit背景cache寿命）、Coconala未解消12・添付2/SHA1を保持。
+
+
+### 566. Browser cleanup_pendingのowner-backed限定回収scope
+
+- fresh holderPID23410/parent23366はaliveでcommand metadataがgig paid系、ReplyPID24864もalive/capacity待ち。同profile使用中をrootが横取りしない。registeredbrowser4b84/CDP9223 reachable。helper auditを実env（coconala-reply-leases/既存gig vault）でreadonly実行、context_count1/leasedIDs1/unknown_owner_contexts0。helper listはrow1/cleanup_pending1/pidなし/cleanup_error_typeRuntimeError。認証cookieやtokenを表示せず、genericcleanup条件を取得した。
+- 次の運用scopeはglobalbrowserguardを正規取得できた時のみ、既存cdp_context_lease.gcのowner/CAS/dispose読戻しで当該knownreply row最大1件を再照合し回収。snapshot task/fence/context一致、ownerPIDなし/cleanup_pendingtrue、browser inventoryknown1/unknown0をrecheck。newactive owner/不明context/変化があれば保持してmutationを中止。privatecredential/vault更新/ブラウザ全restart/未知contextclose/手動JSON編集/第三者送信0。readback後guard解放、次自然replyで取得とoldintent保持を確認する。globalguardがbusyならliveholderを検証し待機、当該oldunknown fenceは解除しない。
+- bodyselectorとbackgroundTMP寿命のsource診断は独立継続、残12とsourceRoot状態を成功に置換しない。全体47/cursor1、SelfBuild最後。
