@@ -45,7 +45,7 @@ function locationCountMarkup(snapshot) {
   const count = snapshot && snapshot.missingLocationCount;
   if (!Number.isSafeInteger(count) || count <= 0
     || snapshot.nextEvent && !String(snapshot.nextEvent.location || "").trim()) return "";
-  return `<p class="notice">今後7日間に場所が未設定の予定が${count}件あります。Google カレンダーで各予定を開いて場所を追加してください。保存後に「今日を更新」を押してください。</p>`;
+  return `<p class="notice">今後7日間に場所が未設定の予定が${count}件あります。Google カレンダーで各予定を開いて場所を追加してください。保存後に「今日を更新」を押してください。</p><button id="today-refresh" type="button" class="button secondary" data-action="refresh">今日を更新</button>`;
 }
 
 function todayMarkup(snapshot) {

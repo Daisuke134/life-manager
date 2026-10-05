@@ -170,6 +170,36 @@ test("missing display timezone uses browser-local times and shows actionable loc
   assert.match(html, /今後7日間に場所が未設定の予定が2件あります。Google カレンダーで各予定を開いて場所を追加してください。保存後に「今日を更新」を押してください。/);
 });
 
+test("location count notice has a working Today refresh when the next event has a location", async () => {
+  const html = renderWebPage({
+    user,
+    snapshot: snapshot({
+      missingLocationCount: 2,
+      nextEvent: {
+        id: "event-located",
+        summary: "Office meeting",
+        location: "Tokyo Station",
+        startIso: "2026-10-07T01:00:00.000Z",
+        timezone: "Asia/Tokyo",
+        startMs: Date.parse("2026-10-07T01:00:00.000Z"),
+        endMs: Date.parse("2026-10-07T02:00:00.000Z"),
+      },
+    }),
+  });
+  const visible = visibleHtml(html);
+
+  assert.match(visible, /今後7日間に場所が未設定の予定が2件あります。Google カレンダーで各予定を開いて場所を追加してください。保存後に「今日を更新」を押してください。/);
+  assert.match(visible, /<button id="today-refresh" type="button" class="button secondary" data-action="refresh">今日を更新<\/button>/);
+
+  const client = mountClient(html, {
+    "/api/lm-web/calendar/status": { connected: true, state: "connected" },
+  });
+  const button = { dataset: { action: "refresh" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+
+  assert.deepEqual(client.redirects, ["/lm"]);
+});
+
 test("missing location gives Google Calendar edit steps and Today refresh", async () => {
   const html = renderWebPage({
     user,
