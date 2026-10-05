@@ -8138,3 +8138,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 11:22:36Z registeredguard正規取得/解放0、samehashのページ準備後、一つのRuntime.evaluateの同期JS内でactive/preferredの両実expressionを評価。same_evaluationtrue、両message7、activeexact0/mergefalse identitychanged→preferredexact1/author_is_ownfalse/actualmerge_verified_dm_attachments true。同じDOM時点と現保存archive/hashbytesで当該1件の親要素先行抽出差が結合失敗へ入ることを確認。customer send/attachmentstatewrite0、state/coconala-message-body-single-evaluation-20261005.json保存。
 - §580 source候補の受入条件はこのsame-evaluation契約と実mergeをfixtureに含め、legacy/modern/original無しfallback/重複・改変・author不明・attachmenthash不足拒否を保持する。初期page準備直後のbody不一致も観測したが、勝手なtimeout延長・archive刷新・effect再送は足さず、原文取得安定性を自然readbackで別観測する。全7件の原因/12解消/収益は未確認のまま。
 - §576workerはactualtmux serverの3cacheenv継承を隔離readbackし、既存test_provider_lease.pyにleader退出後latewrite/foreignsession/返値のRED追加、self-fix既存testも追加中。source修復未完/未統合。全体47/cursor1/SelfBuild最後を保持。
+
+
+### 582. 追跡Paid同run終端PASS・業務pending1/awaitingbuyer2
+
+- 正規追跡run18db9c63b1348280-76611/sourcee851は11:20:08Z reportPASS/exit0、同PID・runner27222/Codex27236は終了。Paid latest11:20:07Zはpending/observed3/effect0/readback2/failed0/pending1へ更新。旧orders_observation失敗summaryから現在の処理結果に更新されたことを確認。自然処理終了を納品・売上・入金へ代用しない。
+- 内訳はawaiting_buyer2/send_performedfalse、pending1。pendingpreparedは11:19:43Z/statuspending/readback1/_paid_prepare_statuspending/progressledger、runner summary11:07:52→11:19:38Z/statussuccess、newbusinesssend0。pending個別のTikTok等資料追跡をrootで再開せず、既存進捗台帳と通常loopを保持する。顧客waitをloop故障へ丸めず、pendingの最終納品・検収・settlementは未証明。runner観測model5.6terraは現開発規則適合とは認定せず、今回のroot開発委譲はLuna6max/reviewSol6.1mediumを維持する。
+- §576source RED確定: existingtmux3cacheenv継承、runnerleader退出rc23/foreignsession生存を保持しつつreturn後同groupchildlatewrite発生。workerはfixtureのsysimport欠損による偽GREENを先に修正して再RED確認、既存shelltest10FAIL。source最小GREENへ進行、全体47/cursor1/12reply未解消/SelfBuild最後を維持。
