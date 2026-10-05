@@ -4873,7 +4873,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 - 変更理由：個別案件の外部待ちと長いprivate診断で全体の内部復旧を止めず、収益経路の実故障を先に直すというDaisの明示指示。
 - 旧順序：Coconalaの残納品条件3→正式納品4→検収5→精算6→着金7→他platform→fleet44→CFO→SelfBuild。
-- 承認反映による順序変更：旧1（診断）→2（source修正）→3（本番反映）を、新1（受入済み8修正の統合・反映）→2（新観測による残診断）→3（残不具合の修正）へ更新する。理由は、本番観測を得るためのsource修正が既に受入済みで、反映前の診断継続では不足証拠を取得できないため。4〜14は維持する。現在cursorは下表1の統合準備。SelfBuild/Evalは11〜14で最後。
+- 承認反映による順序変更：旧1（診断）→2（source修正）→3（本番反映）を、新1（受入済み8修正の統合・反映）→2（新観測による残診断）→3（残不具合の修正）へ更新する。理由は、本番観測を得るためのsource修正が既に受入済みで、反映前の診断継続では不足証拠を取得できないため。4〜14は維持する。現在cursorは下表1のrelease完成・loaded argv/SHA照合。SelfBuild/Evalは11〜14で最後。
 - 番号は今回の内部復旧の実行順。旧A番号・旧実行番号は履歴照合だけに使う。今回の保留・順序変更で完了にした業務成果は0。
 - 最小の安全な作業単位で、primaryが実測・状態・受入を所有する。source修正、release反映、自然実行、公式経済結果を区別する。容量待ち・human_required・effect_unknownを一律故障や成功0へ置換しない。
 - 外部待ちは不足物・最新観測・再開条件を残し、内部の独立修復を止めない。進行中の外部effectは中断/重複させない。user所有wallet資金移動、設計外broadcast、本人必須/KYCを自動化したと偽らない。
@@ -4882,7 +4882,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
-| 1 | 実行中・承認済み | 受入済み8修正（§489–490）を最新main・CI・所有者との非干渉を照合して統合し、main由来immutable releaseへowner限定で反映する。loaded argv/SHA・admission・rollbackを確認する。ソース検証の再実施は新差分/失敗/未解消懸念がある範囲だけ。自然実行・経済成果は未確認のまま残す。 |
+| 1 | 自然反映・確認中 | 既存release ownerによるmain3f11ad0b由来immutable releaseの完成・current選択・対象ownerの実loaded argv/SHA・admission・rollbackを確認する。active/unknown fenceのownerを強制反映・再送しない。自然実行・経済成果は後続の未確認条件として残す。 |
 | 2 | 1の反映後 | Capafyの発火後/pre-start境界、Lancersのaccount/auth/transport原因を新観測で特定する。14 product/178 jobsの実故障・観測不足をowner・occurrence・loaded SHAへ結び、正常な容量待機/外部待ちと修復対象を区別する。過去health件数を現在値として固定しない。 |
 | 3 | 根因確定ownerごとに並行 | 2で残った実故障だけを最新main由来の専用worktreeで最小RED→GREEN修正し、必要なreview・統合条件・反映・自然実行確認へつなぐ。受入済み8修正を未完sourceとして再作成しない。今回の順序例外を無関係な新規変更へ拡大しない。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
@@ -4899,7 +4899,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の統合準備・所有者調整・反映readbackとSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1のrelease/load readback・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -7445,3 +7445,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最初のruntime readbackはcurrent2a8d40e6/ALLのまま、release-reconcilerはinstalled2a/loaded-idle/PIDなし、last historical entrypoint_exit_1。cut lock/promotion holdなし。過去失敗を新mainの自然実行結果にしない。main統合と本番反映を分ける。
 - primaryは自前cut/current/apply/startを発行せず、既存reconciler自然ownerへ反映を任せる。Sol/mediumの別read-only担当がcurrent manifest・自然run・exact loaded argv/SHA/admissionを観測し、primaryはSSOTと独立の既存失敗境界を確認する。同じprovider/profile/stateやruntime mutationを二重に触らない。
 - §217cursor1の残りはrelease/load/admission/rollbackの公式readback。本番自然execution/receipt/経済成果とCapafy/Lancers実原因は未確定のまま。source8の再作成は不要、Coconala個別保留・SelfBuild最後を維持する。
+
+
+### 497. 自然release buildと残TODOからのmain統合除外
+
+- Sol read-only観測03:05:12.642Zの自然reconciler run18db832e855372c8-20666/PID20666は実行中。03:06–07Zに新release directory /Users/anicca/loops/releases/20261005T120517-3f11ad0bの作成とcanonical .release-cut.lock所有を確認。RELEASE.json未作成/未sealedで、currentは旧2a8d40e6/ALLを維持。失敗や本番反映完了とはしない。
+- safe GUI readbackはAqua/UID/domain PASS後に対象8ownerの実loaded argvが旧immutable2a8d40e6を示す。各argv hashは担当private観測artifactへ記録する。current選択・installed SHA・loadedargv・自然executionを同じproofにしない。独立manual cut/apply0。
+- financial-report最新healthは旧2a/occurrence life-manager-financial-report:18db831ee2b38328-18478/run18db831ee2b38328-18478、host_admission_deferred:resource_capacity_busy/retry_after_eligibility、effect none/not_applicable。過去entrypoint_exit1を現在の実故障へ固定しない。private state/internal-loop-financial-report-diagnosis-20261005.json/mode600。新規CFO source/取得/送信の重複作業を起こさない。
+- §217残TODO1から完了済みmain統合を除外し、release完成/current/loaded/admission/rollbackの未完だけを記載する。2〜14の順序を維持。次は自然build終端と対象loadedを照合する。全goalは未完。
