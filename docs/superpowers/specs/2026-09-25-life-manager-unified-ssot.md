@@ -7583,3 +7583,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 永続正本 ~/.config/ai/common-rules.md のPush、core.md のNo-human-loop/行動境界/検証、harness-codex.md の参照を旧文置換で更新。sync.shによりCodex2系統/Claude/Geminiへ同期し、生成instruction200lines以内と新ルール存在・旧3段承認節不在を確認。system自体を変えたとは言わず、再読込されるlocal instructionの更新とする。 Telegram進捗自发送は禁止維持。
 - §217旧13blockを55の未完成果へ分解。元scopeを追加・削減せず、完了済み8修正source/main/loadやLancers診断の実装・source reviewは表に残さない。先頭はsource-ready修正のCI/main統合。確認待ちを解消してPR6611を作成、主branch3521はlatestmainのLancers同filesと非衝突を確認、CI実行中。main後に安全なowner反映とsame-run診断へ直進する。
 - 資源競合は既存owner/lease/lockで調整し、metadata/authが不足なら実不足物として報告して他を進める。別account代用、未知のeffect再送、価格/paywall/submission/外部marketing変更を進行高速化の口実にしない。新規tool/frameworkや未確定原因のsweeperを作らない。全goal未達、誤った承認blockは解消して作業を再開する。
+
+
+### 508. 通常順序によるLancers PRと最新main追従
+
+- 承認質問を撤回した通常開発としてPR6611を作成。初回CIのOSSはCapafy inventory既存不整合1件だけ。Luna/max source-only担当が最新origin/main4b5c7db403917d91bf05e4c4e8c34c873b77d7ee（既存fix OSS含む）を専用Lancersbranchへmergeし、a40b6184797a43303de257c3c868a6dcd4a391cbをpush/remote一致/clean確認。Capafy treeはmainと一致、source diffはLancers既存3filesのみ。
+- 取り込んだ既存main metadataでOSS verifier/diffcheck PASS。Lancersコードbytesが変わらないため、既存24tests＋17反証を無理由に再実行しない。新headのCI実行中。source acceptance/review/CI→main→immutable→自然診断の通常順序で続け、Daisの承認を求めない。現在§217残55成果/cursor1、main後は完了項目を残表から除去して連番更新する。
