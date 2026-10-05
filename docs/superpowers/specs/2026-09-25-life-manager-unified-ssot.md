@@ -4893,8 +4893,8 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 7 | Token daily reportの自然配信receiptを確認する | 新sourceによる業務reportの公式配信記録。対話agentの進捗Telegram送信はしない。 |
 | 8 | Writer改善loopの自然canary結果を確認する | READY待機/experiment ID/適用・評価結果の対応。小標本を勝者や因果効果にしない。 |
 | 9 | 週次validationのcalendar自然実行を確認する | Weekday2/14:30のactual occurrence、source一致・週次頻度維持・重複0。 |
-| 10 | 14 products/178 jobsの残故障を再分類する | 現在のrun/sourceで待機/外部依存/実故障/観測不足を分ける。過去health数を固定しない。 |
-| 11 | 残る実故障をownerごとに1件ずつ閉じる | 11で特定した各故障を最小修正・source gates・本番readbackへ展開。新項目は原因確定後に連番へ反映。 |
+| 10 | 14 productsと現行登録jobsの残故障を再分類する | 現在のrun/sourceで待機/外部依存/実故障/観測不足を分ける。過去health数を固定しない。 |
+| 11 | 残る実故障をownerごとに1件ずつ閉じる | 直前の再分類で特定した故障を最小修正・source gates・本番readbackへ展開。Coconalaは本文修復PR6660のCI/main/対象反映→公式応募context取得前validation修復→旧12件の公式照合を順に行う。新項目は原因確定後に連番へ反映。 |
 | 12 | Lancersの応募receiptを確認する | 自然選定/提出と公式応募履歴をsame案件へ結合。 |
 | 13 | Mercorの応募receiptを確認する | 本人必須/外部待ちは明示し、既存応募の公式履歴へ結合。 |
 | 14 | Coconalaの供給・提案receiptを確認する | 既存内部loopを確認。保留のTikTok/NPO個別納品追跡は再開しない。 |
@@ -8180,3 +8180,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 反映前source再readbackでSelfFixの--task-class high-value-agentがconfig内gpt5.6terra/medium/acct1→claude fallbackを選ぶと確認。既存self-heal-code-agentも5.6terraで、単純にそこへ換えるだけではDaisの開発モデル指定を満たさない。新規の同旧世代開発起動を避けるためauditownerへの反映をこの依存修復後に行う。既存modelcacheのgpt6luna/supported_in_apitrue/max対応をmetadataのみ確認、nativeLuna6max/Sol6.1mediumも現toolで実稼働。cacheだけをprovider費用/成果の証明へ代用しない。
 - 最小scope候補 latestmain専用worktree lm-self-fix-frontier-route-20261005 / branch fix/lm-self-fix-frontier-route-20261005、self-fix.shの呼出taskclass・runtime/agent-runner/config.jsonのSelfFix専用class・run_agent.shの既存allowlist・直接既存tests/必要ownedmanifestのみ。既存high-value routeをそのまま残し、SelfFixだけの専用コード開発classを再利用形で置きgpt6luna/max/acct2既存profile単一候補へ結ぶ。既存timeout/tokenreservation/permissions/effect/namespace/leaseは保持、旧世代/別provider fallback0、credential複製0、業務Paid/marketing等のroute一括変更0、新tool/frameworkなし。既存self-heal-code-agentの制限sandboxへ不用意に換えてprovider復旧契約を変えない。firstclass候補が利用不可ならtyped不足条件で止まり旧modelへ戻さない。
 - 実呼出command→実config候補→CLI model/effort/profileを隔離RED/GREENで証明、旧model fallbackを禁止しtimeout/cache/fallbacknamespace保持、actualprovider/browser/launchd操作禁止。Luna6max source実装/freshSol6.1medium review/CI/main後にcombinedimmutable/audit対象反映、自然model/cleanupをreadback。旧順序1–45の未完相対順序は保ち、その前に新規必須依存1を追加して2–46へ連番化（既存source修復をやり直さない）。現在cursor1はこの開発route修復、body§580は独立並行/SelfBuild最後。
+
+
+### 588. ユーザー向け残TODO再照合とCoconala候補PR6660
+
+- §217を未完46項目・cursor1で再照合。古い178jobs固定表現を現行登録jobsへ直し、renumber後の自己参照11を直前の再分類へ訂正。完了済の診断/source修復を再掲載しない。Coconala残明細を既存故障修復項目へ結び、本文PR6660 CI/main/反映→公式application contextを妨げるvalidation修復→旧12件公式照合という実行順を記録。独立source/公式照合は並行、同branch/profile/state/effectは直列、個別TikTok/NPO追跡は保留・SelfBuildは最後。
+- body候補c8fe9828のfreshreviewは重要runtime欠陥なし、adapter55/merge8/oldunknown5等独立PASS。ただしtest keyがreaderだけでlegacy/modernを上書きするP2を確認。Lunaは1行key=freader-modernの修正で4cases→4keys/対象2testsPASS、production2file blob不変。修正HEADd6d407993d2a84dc20464c3627ce88c7edba8cdbをremote一致/clean確認、同freshreviewerが再確認してSHIP。PR6660 https://github.com/Daisuke134/life-manager/pull/6660 を作成、同head CIは進行中、本番未反映。
+- incomingmain重複と疑った19093dc08cは公式PR6659/CFO docsのみ。commonbase d3d7be63..origin/mainのowned3file diffは空。featureHEAD..mainの逆差分を他者変更と誤認しないようrootが訂正し、無関係main更新の追跡/全suite再実行を打ち切って1行修正を完了。
+- SelfFix frontier route§587はnativeLuna6maxへ別worktreeで担当割当済み、確認時点で専用worktree存在は未確認（開始済のsource変更と扱わない）。最新reply保存threads closed44/no_reply138/unknown7/retry5、12未解消。Paid latestは11:26:19Z orders_observation failedの保存値、先の11:20同run終了結果とは分ける。財務欠損を0・入金へ変換しない。正本の実行順/根拠をこの更新と同じbranchへpushしてチャットへ残表を提示する。
