@@ -43,6 +43,25 @@ class BuildListingTest(unittest.TestCase):
         self.assertIn("Northbridge FC vs River Athletic", listing.example_input)
         self.assertIn("No reliable ranking is produced.", listing.example_output)
 
+    def test_builds_sales_objection_reply_builder_from_verified_demonstration(self):
+        catalog_dir = REPO_ROOT / "skills" / "capafy" / "catalog" / "sales-objection-reply-builder"
+        listing = build_listing(catalog_dir)
+
+        self.assertEqual(listing.slug, "sales-objection-reply-builder")
+        self.assertIn("The tool we use today is cheaper", listing.example_input)
+        self.assertIn("synthetic scenario", listing.example_input.lower())
+        self.assertIn("$299/month", listing.example_input)
+        self.assertIn("guided onboarding", listing.example_input.lower())
+        self.assertIn("no published roi study", listing.example_input.lower())
+        self.assertEqual(listing.example_output.count("### Variant "), 3)
+        self.assertIn("guided onboarding", listing.example_output.lower())
+        self.assertIn("no published roi study", listing.example_output.lower())
+        self.assertIn("softened", listing.example_output.lower())
+        self.assertEqual(listing.example_output.count("?"), 1)
+        self.assertEqual(listing.example_output.count("### Follow-up question"), 1)
+        for section in ("### Diagnosis", "### Proof gaps", "### Follow-up question", "### Honesty check"):
+            self.assertIn(section, listing.example_output)
+
     def test_title_never_exceeds_promptbase_limit(self):
         listing = build_listing(CATALOG_DIR)
         self.assertLessEqual(len(listing.title), 40)
