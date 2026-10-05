@@ -309,38 +309,38 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: Capafy Instagram marketing — single Postiz owner (2026-10-05)
+### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-05）
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧`capafy-ig-marketing-daily` | Release `8853fc9`、scheduled/loaded-idle。occurrence `18db9053a89bb470-22522` は `active_ig_handle_unresolvable`、exit 75、effect unknown、provider receipt/readbackなし。 | 同一occurrenceのprovider official readbackと重複publisher解消 |
-| 新`life-manager-capafy-ig` | PR #6631はmainへmerge済み。release `b53c0ab`でloaded-idle、09:00/14:00/20:00の3回/日。まだterminal occurrenceとPostiz/Instagram receiptなし。PR時点の記録では`@capafy.hooklab`はPostiz未接続。 | 既存所有accountのidentity/status、Postiz integration、初回頻度gate、provider post receipt |
-| eBook → Capafyの実行順 | eBook配信ownerが未実装。Daisの順序はeBook first receiptの後にCapafy Instagram。 | eBook Task 5のsame-occurrence paid-session/PDF receipt後にD5開始 |
+| 旧`capafy-ig-marketing-daily` | Release `8853fc9`、scheduled/loaded-idle。occurrence `18db9053a89bb470-22522`は`active_ig_handle_unresolvable`、exit 75、effect unknown、provider receipt/readbackなし。 | 同一occurrenceの公式readbackと重複publisher解消 |
+| 新`life-manager-capafy-ig` | PR #6631はmainへmerge済み。release `b53c0ab`でloaded-idle、09:00/14:00/20:00の1日3回。terminal occurrenceとPostiz/Instagram receiptなし。PR時点の記録では`@capafy.hooklab`はPostiz未接続。 | 既存accountのidentity/status、Postiz接続、初回頻度gate、provider post receipt |
+| eBook → Capafyの実行順 | eBook配信ownerは未実装。Dais指定順はeBook first receiptの後にCapafy Instagram。 | eBook Task 5の同一occurrenceのpaid-session/PDF receipt後にD5開始 |
 
-**Owner boundary and marketing gate**
+**担当境界とmarketing gate**
 
-- Capafy商品・listing・account-lifecycleの実装は別担当。PR #6631の`life-manager-capafy-ig` Postiz skeletonを使い、このmarketing計画からCapafy dev codeを変更しない。
-- IG posting ownerは`life-manager-capafy-ig`だけにする。旧`capafy-ig-marketing-daily`のeffect-unknownを公式readbackで閉じる前に再送せず、新laneとの二重publisherも許可しない。readbackできない場合は両方から公開しない。
-- 現行Postiz laneは3回/日だが、初期marketing canaryは1回/24時間を上限とする。lane側でslot抑制できることをdev ownerが確認するまでlive scheduleを開始しない。
-- `@capafy.hooklab`とregistry/Postiz integrationのidentityを公式account statusで照合し、現行のユーザー所有・good-standing IGだけを使う。Challenge/制限は公式status/appealで処理し、別account作成、automated likes/follows、anti-detection、proxy/fingerprint回避をしない。
-- ReelはCapafyのonline/profitable skill selectorとLISTING.mdの実例から作る独自demoにし、CTAは`ct=capafy-reel-<slug>`を含む該当Capafy listingへ向ける。
+- Capafyの商品・listing・account-lifecycleの実装は別担当が所有します。PR #6631の`life-manager-capafy-ig` Postiz skeletonを使い、このmarketing計画からCapafy開発コードを変更しません。
+- IG投稿ownerは`life-manager-capafy-ig`だけにします。旧`capafy-ig-marketing-daily`のeffect-unknownを公式readbackで閉じる前に再送せず、新laneとの二重publisherも許可しません。readbackできない場合は両方から公開しません。
+- 現行Postiz laneは1日3回ですが、初期canaryは24時間に1回を上限とします。lane側で投稿slotを抑制できると別担当の開発者が確認するまで、live scheduleを開始しません。
+- `@capafy.hooklab`とregistry/Postiz integrationのidentityを公式account statusで照合し、現在ユーザー所有でgood-standingのIGだけを使います。Challenge/制限は公式status/appealで処理し、別account作成、automated likes/follows、anti-detection、proxy/fingerprint回避をしません。
+- ReelはCapafyの公開中・利益のあるskill選定とLISTING.mdの実例から独自demoを作り、CTAは`ct=capafy-reel-<slug>`を含む該当Capafy listingへ向けます。
 
-**Atomic marketing sequence (after eBook first receipt)**
+**eBook初回receipt後のmarketing手順**
 
-1. Close the old `capafy-ig-marketing-daily:18db9053a89bb470-22522` occurrence with same-owner provider readback. Do not replay while effect is unknown.
-2. Confirm one publisher owner, current owned IG identity/good-standing status, and the matching Postiz integration. If the existing owner cannot be verified, keep the lane held; do not provision an account.
-3. Confirm the new lane can publish at no more than one post per 24 hours for the initial canary. Its checked-in schedule is three slots per day; until the dev-owned slot gate is verified, keep live publication disabled.
-4. Verify the required Postiz integration and approved pack/media/Instagram approval refs are configured without logging credential values. Dry-run one original demo using the selected online/profitable skill's real LISTING.md input/output and `ct=capafy-reel-<slug>`.
-5. Publish one canary through `life-manager-capafy-ig` only. Record the Postiz/Instagram receipt and public Reel URL; do not use the legacy instagrapi publisher as fallback.
-6. Reconcile that occurrence to CT clicks, Capafy paid orders, refunds, platform/sandbox fees, actual model/video cost, payout, and bank receipt. Views and profile opens are reach metrics, not revenue.
-7. Measure 14 days at one post/24 hours. If paid conversion is zero, change one creative variable for the next 14-day window; if that window also has zero paid orders, stop this route. TikTok/YouTube are outside this Capafy Instagram workstream.
-8. Before forecasts, reconcile the existing portfolio table's $5,000 Capafy allocation with Dais's $10,000 Capafy contribution target. Keep the CFO acceptance at 30-day banked net and label the other channels as additive or upside in the plan.
+1. 旧`capafy-ig-marketing-daily:18db9053a89bb470-22522` occurrenceを同ownerのprovider readbackで閉じます。effect unknownの間は再送しません。
+2. 投稿ownerを一つにし、既存所有IGのidentity/good-standing statusと対応するPostiz integrationを確認します。既存ownerを検証できなければlaneをheldにし、accountを作りません。
+3. 初期canaryを24時間に1回以下で配信できることを確認します。現在のregistry scheduleは1日3回なので、別担当のslot gateが確認できるまで公開配信を無効のままにします。
+4. 必要なPostiz integrationと承認済みpack/media/Instagram approval refを、credential値を記録せず確認します。公開中・利益のあるskillのLISTING.mdにある実際のinput/outputと`ct=capafy-reel-<slug>`を使って、効果のないdry-runを行います。
+5. canaryは`life-manager-capafy-ig`だけから一件公開します。Postiz/Instagram receiptと公開Reel URLを記録し、旧instagrapi publisherをfallbackにしません。
+6. そのoccurrenceのCT clicks、Capafy有料注文、返金、platform/sandbox fee、実際のmodel/video費、出金、銀行着金を照合します。viewsやprofile opensはreach指標であり売上ではありません。
+7. 24時間に1投稿で14日測定します。有料成約が0ならcreative要素を一つ変えて次の14日を試し、その期間も注文0なら経路を止めます。TikTok/YouTubeはこのCapafy Instagram workstreamの対象外です。
+8. forecast前にportfolio planの既存Capafy配分$5,000と、DaisのCapafy contribution目標$10,000を整合させます。CFO acceptanceは30日banked netのままにし、他channelの目標を追加分か上振れ分か明記します。
 
-**Done:** eBook-first handoff reached; old IG effect is reconciled; one verified owned account and one publisher owner are selected; one-post/24-hour canary produces an official receipt; CT joins to Capafy paid orders; fees/cost/payout/bank evidence stay separate. Capafy dev implementation remains owned by the other contributor.
+**完了条件:** eBook-first handoff後、旧IG effectがreadbackされ、一つの検証済み所有accountと一つのpublisher ownerが選ばれ、24時間1回以下のcanaryに公式receiptが付き、CTがCapafy有料注文へ結合されること。手数料・実費・出金・銀行着金は別に記録します。Capafy開発実装は別担当が所有します。
 
-**Cursor ownership:** the Capafy project-wide development cursor remains #5 (E1b price update/review slots) for its existing owner. The eBook → Instagram sequence is Dais's separate assigned marketing workstream; it does not move or duplicate that developer cursor.
+**cursorの担当:** Capafy project-wide development cursorは既存担当者の#5（E1b価格更新/審査枠）に残します。eBook → InstagramはDaisが割り当てた別のmarketing workstreamであり、そのdeveloper cursorを移動・重複させません。
 
 ## Phase E — 価格
 

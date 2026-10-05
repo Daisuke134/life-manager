@@ -3122,14 +3122,14 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 
 Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画（売り場ごとの目標・週ごとの数字・OSS 公開条件）は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。Capafy の実行順・記録はこれまでどおり `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
-## Dais-directed eBook → Capafy Instagram workstream order
+## Dais指定のeBook → Capafy Instagram実行順
 
-- **順序変更:** 旧順序はCapafy SNSをPhase 1と並行して開始し、eBookは全体の後段laneに残す形だった。新順序は (1) eBookの実装を進め、自然な有料Stripe sessionとPDF delivery receiptを同一campaignに結合する、(2) そのreceipt後にCapafy Instagram marketingだけへ進む。14日間のeBook readbackはCapafy開始後も続ける。
-- **変更理由:** eBookのdistribution ownerは未登録で、他にownerがいない。Capafy product/account-lifecycle devは別担当が所有し、このworkstreamではCapafy Instagram marketingだけを扱う。
-- **Capafy owner境界:** PR #6631のPostiz-based `life-manager-capafy-ig` laneはmainにmerge済みで、release `b53c0ab`にloadedだが、まだterminal occurrenceやofficial post receiptはない。旧`capafy-ig-marketing-daily`は`active_ig_handle_unresolvable`のeffect-unknown occurrenceとprovider receipt欠落を持つ。同一Instagram accountのpublisherは一つにし、旧occurrence readbackとowner重複の解消前は投稿しない。Capafy devのcode/registryは他担当のscopeに残す。
-- **他担当cursor:** Capafy canonical execution tableの#5（E1b、審査枠/価格更新）はCapafy dev ownerが持ち、このworkstreamでは変更しない。#5は並行進行でき、D5のmarketing開始条件はeBook receiptとInstagram owner/effect gatesである。
-- **Target metrics:** eBook goalは$10,000 gross MRR from active paid Letter/Tegami subscriptions。Capafy goalはLife Managerへの$10,000 contributionで、公式CFOのacceptanceは同一30日窓のbanked net after fees/costs。gross eBook sales、subscription MRR、Capafy earnings、payout、banked netを混ぜない。全体planの旧Capafy配分$5,000との差はforecast前に reconciled する。
-- **現在cursor:** eBook revenue-loop plan Task 1（offer/locale/checkout contract、未着手）。Task 5の初回natural paid-session/PDF receipt後にCapafy recipe Task D5 marketing-onlyへ移る。14日間計測は並行するfollow-throughである。
+- **順序変更:** 旧順序はCapafy SNSをPhase 1と並行し、eBookを全体の後段laneに残していました。新順序は(1) eBookを実装して自然な有料Stripe sessionとPDF配信receiptを同一campaignに結び付け、(2) そのreceipt後にCapafy Instagram marketingだけへ進みます。eBookの14日間readbackはCapafy開始後も続けます。
+- **変更理由:** eBook distribution ownerは未登録で、他に担当者がいません。Capafy product/account-lifecycle開発は別担当が所有し、このworkstreamではCapafy Instagram marketingだけを扱います。
+- **Capafy owner境界:** PR #6631のPostiz-based `life-manager-capafy-ig` laneはmainにmerge済みで、release `b53c0ab`にloadedですが、terminal occurrenceとofficial post receiptはありません。旧`capafy-ig-marketing-daily`には`active_ig_handle_unresolvable`のeffect-unknown occurrenceがあり、provider receiptも欠けています。同じInstagram accountを配信するpublisherは一つにし、旧occurrence readbackとowner重複を解消するまで投稿しません。Capafy devのcode/registryは別担当のscopeに残します。
+- **他担当cursor:** Capafy canonical execution tableの#5（E1b、審査枠/価格更新）は既存Capafy dev ownerが担当し、このworkstreamでは変更しません。#5は並行して進められます。D5 marketingの開始条件はeBook receiptとInstagram owner/effect gatesです。
+- **指標:** eBookの目標は、Letter/Tegamiの有料継続購読によるgross MRR $10,000です。Capafyの目標はLife Managerへ$10,000を加えることで、CFOの合格指標は手数料・実費後の同じ30日窓banked netです。eBook gross sales、subscription MRR、Capafy earnings、payout、banked netを混ぜません。全体planの旧Capafy配分$5,000との差はforecast前に整合させます。
+- **現在cursor:** eBook revenue-loop plan Task 1（offer/locale/checkout contract、未着手）です。Task 5で初回natural paid-session/PDF receiptを得た後、Capafy recipe Task D5のmarketing-only部分へ移ります。14日間計測はその後も並行します。
 
 ## CFO: 2026年9月Life Manager portfolio収益のas-is
 

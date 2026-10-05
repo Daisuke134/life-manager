@@ -33,35 +33,35 @@
 - $9.99/月で $10,000 gross MRR には1,002 active subscribers が必要です。fees、refunds、cost を引いた net target にはそれ以上必要です。
 - $10.99 の eBook 一回購入で月 $10,000 gross には910件の paid orders が必要ですが、これは monthly one-time sales であって MRR ではありません。
 - Life Manager の既存 $10,000 target は30日維持の banked net profit です。Capafy seller earnings、eBook gross、subscription MRR、banked net は別 metric のまま保持します。算数は規模の目安で、予測ではありません。
-- Daisの事業目標はeBook subscriptionで$10,000 gross MRR、Capafy marketingでmanagerへの$10,000 contributionです。Capafy contributionは既存CFO定義に従い、fees/cost/payout/bank receiptを照合した30日banked netで数えます。既存portfolio planのCapafy配分$5,000とは差があるため、実測前のforecastには使いません。
+- Daisの目標は、eBook subscriptionで$10,000のgross MRR、Capafy marketingでmanagerへ$10,000を加えることです。Capafy contributionは既存CFO定義に従い、手数料・実費・出金・銀行着金を照合した30日banked netで数えます。既存portfolio planのCapafy配分$5,000とは差があるため、実測前のforecastには使いません。
 
 ## データフロー
 
 ```mermaid
 flowchart LR
-  subgraph E[1. eBook first]
-    EC[Original eBook demo] --> EA[Existing verified owned IG or TikTok]
-    EA --> EL[Campaign token CTA]
-    EL --> EP[/monk or /achan]
-    EP --> ES[Stripe one-time checkout]
-    ES --> EW[Signed idempotent webhook]
-    EW --> ED[Buyer and PDF delivery receipt]
-    ED -. explicit opt-in only .-> LT[/letter or /tegami]
-    LT --> LR[Active paid subscription MRR]
+  subgraph E[1. eBookを先に実装]
+    EC[原文に基づくeBook実演動画] --> EA[所有と状態を確認した既存IG/TikTok]
+    EA --> EL[計測token付きCTA]
+    EL --> EP[/monk または /achan]
+    EP --> ES[Stripe一回購入]
+    ES --> EW[署名検証済み・冪等なwebhook]
+    EW --> ED[購入とPDF配信receipt]
+    ED -. 明示opt-inのみ .-> LT[/letter または /tegami]
+    LT --> LR[有料継続購読MRR]
   end
-  subgraph C[2. Capafy Instagram after eBook first receipt]
-    CD[Other owner's approved Capafy skill] --> CS[Online/profitable skill selector]
-    CS --> CC[Original Reel from real listing example]
-    CI[Existing verified owned Capafy IG] --> CP[Single Postiz publisher owner]
+  subgraph C[2. eBook初回receipt後にCapafy Instagram]
+    CD[別担当が承認したCapafy skill] --> CS[公開中・利益のあるskill選定]
+    CS --> CC[実際のlisting例を使った独自Reel]
+    CI[所有と状態を確認した既存Capafy IG] --> CP[Postiz配信ownerを一つにする]
     CC --> CP
-    CP --> CR[Postiz receipt and public Reel URL]
+    CP --> CR[Postiz receiptと公開Reel URL]
     CR --> CT[ct=capafy-reel-slug]
-    CT --> CO[Capafy paid-order receipt]
+    CT --> CO[Capafy有料注文receipt]
   end
-  ES --> CFO[Same-window refunds, fees, actual costs, payout, bank readback]
+  ES --> CFO[同一期間の返金・手数料・実費・出金・銀行着金readback]
   LR --> CFO
   CO --> CFO
-  GATE[Owner registry + official account status + one-owner effect fence] --> EA
+  GATE[owner registry + 公式account状態 + 単一ownerのeffect fence] --> EA
   GATE --> CI
 ```
 

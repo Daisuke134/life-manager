@@ -76,13 +76,13 @@ flowchart LR
 
 ## 優先順位（2026-10-05 訂正後）
 
-1. **eBook first**: この作業streamではeBook Task 1–5を優先し、1件の自然な有料Stripe sessionと正しいPDF delivery receiptまで通す。/letter・/tegamiのactive paid subscriptionsだけをgross MRRに数える。
+1. **eBookを先に進める**: この作業streamではeBook Task 1–5を優先し、自然な有料Stripe session 1件と正しいPDF配信receiptまで通す。`/letter`・`/tegami`の有料継続購読だけをgross MRRに数える。
 2. **次にCapafy Instagram marketingだけ**: eBookの初回same-occurrence receipt後、Capafy recipe Task D5に進む。既存Postiz laneを使い、Capafy product/listing/account-lifecycleの開発は別担当のscopeに残す。
-3. Capafy IGは1回/24時間の初期canaryとし、current 3x/day scheduleのslot gate、既存account identity/status、旧owner effect readbackを確認するまでpublic postingを始めない。
+3. Capafy IGは1回/24時間の初期canaryとし、現在の1日3回scheduleのslot gate、既存account identity/status、旧owner effect readbackを確認するまで公開投稿を始めない。
 4. 毎週使う題材のagent（スポーツ、株/決算、動画生成）とCapafy内検索改善は現在のCapafy canonical cursorに従う。Instagram作業のために開発担当の順序を変更しない。
-5. PromptBase・自社 Stripe（Phase 4）はCapafyで売れたskillだけにし、TikTok/YouTubeはこのInstagram workstreamの後段にする。
+5. PromptBase・自社Stripe（Phase 4）はCapafyで売れたskillだけにし、TikTok/YouTubeはこのInstagram workstreamの後段にする。
 
-**Metric note:** eBook $10,000 gross MRR and Capafy's $10,000 manager contribution are separate targets. The canonical CFO acceptance for Capafy contribution is 30-day banked net after fees and actual costs; the existing channel allocation lists Capafy at $5,000, so current figures are planning targets, not a forecast or a verified revenue claim.
+**指標:** eBookのgross MRR $10,000とCapafyからmanagerへ加える$10,000は別目標です。Capafy contributionは既存CFO定義に従い、手数料・実費後の30日banked netで受け入れます。既存channel allocationはCapafy $5,000のため、現状の数値は計画目標であり、forecastや実績ではありません。
 
 ## Phase 1 — Capafy の取りこぼしを止める（〜2026-10-07）
 
@@ -106,12 +106,12 @@ flowchart LR
 - [ ] 売れ筋 3 本のカード（見本・FAQ・タグ 5）は Task 1.1 と同時に出る。
 - [ ] 14 日後に成績表の比較行（検索 view → 成約）で判定。効かなければ題名以外（短い説明・見本）を 1 回だけ書き換える。
 
-### Task 2.2: Capafy Instagram marketing (TikTok / YouTube deferred)
+### Task 2.2: Capafy Instagram marketing（TikTok / YouTubeは後段）
 
-- [ ] Current Dais-directed scope is Capafy Instagram only, after the eBook first-receipt cursor.
-- [ ] The single task procedure is Capafy recipe Task D5; do not keep duplicate account-creation, warm-up, or cadence instructions here.
-- [ ] Require official provider identity/status and reconcile same-owner effect_unknown before connection, retry, or public posting.
-- [ ] Select only one scheduled publisher. Current D5 uses the Postiz `life-manager-capafy-ig` lane and resolves the legacy Instagram effect before any route switch.
+- [ ] 現在のDais指定scopeは、eBook初回receipt後のCapafy Instagramだけです。
+- [ ] このtaskの手順はCapafy recipe Task D5に集約します。account creation、warm-up、cadenceの説明を重複させません。
+- [ ] 接続・retry・公開投稿の前にprovider公式のidentity/statusを読み、同ownerのeffect_unknownを照合します。
+- [ ] scheduled publisherは一つだけ選びます。D5はPostizの`life-manager-capafy-ig` laneを使い、route切替前に旧Instagram effectを読み戻します。
 - [ ] A disabled/restricted account uses the provider appeal/status flow. Do not create/use another account to evade a restriction or automate likes/follows.
 - [ ] Use the single original-content canary and CT paid-order readback from Task D5. Add another platform only after that platform's owned account is independently verified.
 
