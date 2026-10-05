@@ -309,6 +309,35 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
+### Task D5: SNS（短尺動画）レーン — 2026-10-05 棚卸しの結果
+
+**実測（2026-10-05、read-only）**
+
+| 経路 | 状態 | 実績（30日） |
+|---|---|---|
+| X「sela \| AI Tools」（Postiz） | 稼働。`capafy-distribute-daily` が 3 時間ごとに記事と一緒に投稿 | ct 別の成約は #6600 から成績表に出る |
+| 記事 aniccaai.com | 10/04 22:15 から再開（#6580・#6581） | 同上 |
+| Capafy Instagram（旧 capafy.skills8m4q2z） | 8/24 から投稿なし。`capafy-ig-marketing-daily` は LoginRequired で毎時失敗、`capafy-ig-account-manager` は effect_unknown で停止 | instagram_bio 53 view → 有料 0 |
+| TikTok / YouTube Shorts（Capafy 用） | 一度も作っていない | — |
+| Writer article-daily（ct=article-*） | 9/29 以降成功なし（`resource_effect_unknown` で停止、Writer 所有、codex-money-printer へ共有済み） | — |
+| Postiz の接続 | 30 件すべてアプリ用（IG×7・TikTok×14・YouTube×3）＋X×2。**Capafy 用の IG/TikTok/YouTube は 0 件** | — |
+
+**写す姉妹 loop（推奨）:** `life-manager-anicca-main-instagram`（毎日 3 回、Postiz 経由で reel を投稿している実働レーン）。
+
+- 写すもの: `apps/life-manager/config/mobile-app-loops.json` の 1 行、`apps/life-manager/scripts/honne-ja-cycle.js` の action 定義、`config/loop-registry.json` のエントリ。
+- 共有部品はそのまま使う: `lib/marketing-video-generation-adapter.js`、`lib/marketing-slide-pack-text.js`、`lib/marketing-video-publication-adapter.js`。Postiz の公式読み戻しは `mobile-postiz-provider-reconcile.py`。
+- 中身: 売れ筋（Hook Lab → TikTok Script Pro → YouTube Script Writer → Slide Maker）の「入力 → 実際の出力」を 15 秒で見せる実演。リンクは `ct=capafy-reel-<skill>`。
+
+**順番**
+
+1. Capafy 用 IG を新規作成する（`ig-account-create` skill、メールだけで作れる手順）。資格情報は `~/.local/share/anicca/credentials.json` に保存。
+2. Postiz に接続する。
+3. 7 日間の慣らし運転（`ig-account-warmer`）。その間にレーンを作り、dry-run で生成物を確かめる。
+4. 本投稿を開始。TikTok・YouTube Shorts は IG の成約を見てから同じ手順で足す。
+5. 14 日で ct 経由の成約が 0 の経路は止める（成績表の ct 行で判定）。
+
+**注意:** ディスク空きは 3.6GiB（2026-10-05）。動画生成の前に空きを確かめる。旧 IG の 2 loop は毎時失敗を続けるだけなので、新レーンが動いたら止める。
+
 ## Phase E — 価格
 
 ### Task E1a: 提出前の価格照合（値上げ版が古い価格のまま承認される穴を塞ぐ）
@@ -421,4 +450,5 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
   - #6596 `8ab5a798`: 工場の指示文（`capafy-loop-daily.sh` の CAP_FULL オフライン生成と通常パス）が「Hook Lab 派生（podcasts, newsletters…）＋週月の無料トライアル」を指示していた。10/04 22:26 に main checkout を `capafy/podcast-clip-hook-lab-offline-20261005` へ切り替え podcast-clip-hook-lab を生成したのはこれ。BEST_PRACTICES §3 の「勝者はほぼ全員トライアル付き」は誤り（2026-10-04 sweep: サブスク売上上位 10 本中トライアル 1 本、上位 20 本中 5 本）→ 全プラン No Free Trial＋年プラン、§13 の Hook Lab 派生は停止と明記、指示文は `capafy-candidate-opportunities.json` から作る。Ad/Reels/Shorts Hook Lab の「無料トライアル」表示の出どころもこれ。
   - 毎時集計（capafy-goal-monitor-hourly）が 09:09 に `host_admission_deferred:resource_control_busy`、analytics は 07:25 のまま。診断: 毎時の起動が重なり共有 `host-admission/resources/control.lock` を同時に取り合った一時競合（保持 PID は全て生存、stale lease なし、直近 12h で 6 loop に 9 回）。spec `2026-09-15-life-manager-agent-architecture-refinement.md` も「次の自然 wake で回復」と規定 → 手でロックを消さない。10:07 の起動で回復するか確認中。
   - release-reconciler: 前 release `82d31995` の fleet-apply で Capafy と無関係の 3 owner（article-learn-whitelist・pm-live-trade は rc=124、earn-watch rc=1）が失敗し backoff（09:26 に期限切れ）。promotion hold は無し。00:11 以降の main 変更は #6594・#6596 の 2 本のみで、release 作成待ち。
+- 2026-10-05 10:2x JST **マーケティングの棚卸しと計測**: #6600 `30386440` で成績表が ct（宣伝リンクの印）ごとに 1 行出す（Capafy は `sourceType="ct"`・`campaign` 行を既に返し、毎時集計にも保存されていたが成績表が 1 つにまとめて捨てていた）。SNS の実測は Task D5 に記録。Capafy 用 IG の新規作成を開始。毎時集計は 10:06 に復帰（analytics observed 01:06Z）、ただし capafy-goal-monitor-hourly 自体は 10:13 に `entrypoint_exit_1`（原因未調査、`.err` は 9/17 から更新なし）。在庫の状態が `unknown_unrecognized_status`（公開停止 12 本の `offline` を集計が知らない可能性）。
 
