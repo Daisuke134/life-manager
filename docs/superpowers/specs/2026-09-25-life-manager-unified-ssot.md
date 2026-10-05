@@ -8313,3 +8313,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna/maxは最終本文照合/末尾unknown例外を既存diagnostic try内へ移動し、同一反例1caseでRED→GREEN。HEAD/remote87245f38e2a0e8188feea3af45496aca691f1911一致・clean。focused107、compile、contract14/180、OSS verifier/既存12、sourceboundary/diff PASS。fresh Sol6.1/mediumが前回反例を実再確認しSHIP、final_read/safe network保持、effectunknown/旧occurrence/現在claim/receipt未生成を維持、重大残存指摘なし。
 - PR6686を最終内容へ更新。旧HEAD87c3のCI37329490974は稼働中だが修正HEADの証拠に代用しない。87245の自動check/run未生成を公式ghで確認後、既存Security Scanを同branchへworkflow dispatch。新run37330086944のheadSha87245一致・jobs queued/in_progressを確認。CI結果/main/immutable/自然公式readbackはまだ未完。
 - launchctl-safe preflightはUID501/DS/Aqua/manageruid501/managerpid1/gui PASS。対象ai.anicca.hf-gig-reply-detectorはPID76912/running/loaded3f8371b0、最終exit75。停止/再起動/手動wake/効果再送0。更新はCI完了後のtarget loaded-idle-onlyで行い、稼働を中断しない。最新mainとの共通base035f..差分で今回6所有filesのincoming変更0を確認。残44/cursor1、順序変更なし。
+
+
+### 604. 見積り履歴readbackの限定反証・単純guard削除HOLD
+
+- CI待ち中にfresh Sol6.1/mediumがsource-only反証。adapter449–451の全会話SHA一致は旧receiptカード照合の前に必要とされ、buyer1行追加後readback未verified・同カードを実classify_deliveryへ渡すとalready_deliveredを純fixture再現。新send側497–498/534–535の独立freshness guardは変更不要。本番3件の原因を証明するものではない。
+- SHA削除だけはHOLD。requested_estimate1474–1501はmaterialized content全文でなく納期日/相対日数のみ照合し、別業務contentでもverified。1518–1524で欠落request時刻/own identity制約を省略。active extractor coconala_queue_snapshot356はoffer URLのoriginをpathnameへ縮退、外部originリンクもalready_deliveredになる純DOMfixtureを再現。foreign author/request以前/複数cardは未verified。source編集/production/state/browser/API/auth操作0。
+- 次の限定修正受入候補：履歴のみ旧materialized全文/title/price/completiondate厳格一致、有効own author/request identity+時刻/card時刻/公式origin完全URL必須、欠損/改変/foreign/複数は未verified。同terms別offerを当該occurrenceへbindする証拠が無い場合も保留。後続buyer/body抽出変更後でも同一旧receiptはverified、送信guard/fee/category/timing/旧fenceを保持。まず診断PRを反映し、旧intentの公式card全文/author/時刻/完全URLとrequest/occurrence結合を取得する。単純削除や古いstate手動書換えで解消しない。
+- 現CI37330086944はhead87245一致、loop contractも完了して9中8成功、TruffleHogのみin_progress。sourceproof state/coconala-send-diagnostics-source-proof-20261006.json/mode600へsource107/reviewSHIP/CI pendingを保存。残44/cursor1・順序不変。
