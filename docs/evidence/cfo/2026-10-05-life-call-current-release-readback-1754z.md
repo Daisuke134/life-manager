@@ -111,3 +111,20 @@ Scope: exact Railway release SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557`, fro
 - Read-only wake GETs at `2026-10-05T19:29:46Z` returned zero `lm_wake_log` and `lm_wake_miss` rows. A log read at `19:30:29Z` found seven `[wake] scan` aggregates from this deployment; all had successful Calendar reads, zero read errors, and zero due candidates. The latest counts were users/eligible/items/events/candidates/due=`20/5/10/10/10/0`.
 - **Read consistency anomaly:** single exact-window GETs at `19:20:30Z` and `19:21:10Z` returned 49 and 48 rows, respectively. Later repeated GET pairs returned stable identical row-ID sets at 50, 51, 56, and 59 rows. The inspected repository and migrations contain no `lm_api_cost` delete/update path, but the 49→48 discrepancy's cause is unresolved; it is not treated as zero or silently discarded.
 - No test call, Calendar-content query, provider mutation, database write, or report send was performed. These row estimates are not invoices or monthly actual cost. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
+
+## A1 latest repeatable post-deployment snapshot (2026-10-05T19:40:57Z)
+
+The same read-only exact-release GET was run twice against SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557`, for `2026-10-05T18:43:51.815Z <= ts < 2026-10-05T19:40:57Z`. Both reads returned the same 65 unique row IDs and USD 0.085 in row estimates.
+
+| Kind / provider / feature / outcome | Rows | Row `est_usd` sum |
+|---|---:|---:|
+| `composio_call` / success | 42 | USD 0.000 |
+| `provider_usage` / Google Maps / geocoding / success | 5 | USD 0.025 |
+| `provider_usage` / route cache / travel_route / cache_hit (`no_route`) | 6 | USD 0.000 |
+| `provider_usage` / Google Maps / directions / failure (`no_route`, `transit_timeout`) | 12 | USD 0.060 |
+| **Total** | **65** | **USD 0.085** |
+
+- The 12 Directions rows remain 12 distinct runtime occurrence IDs and run IDs, with no same-occurrence duplicate. The cost rows do not contain Calendar event IDs, so event-level distinctness remains unverified. No new Directions row appeared after the prior 19:29Z snapshot; only successful Composio calls increased.
+- All 65 rows have occurrence IDs, but no `loop_id`, fully linked trace, `actual_usd`, or provider receipt ID. The amount is estimated usage, not actual billing.
+- At `19:40:33Z`, exact-deployment logs contained eight `[wake] scan` aggregates; all had successful Calendar reads, zero read failures, and zero due candidates. `lm_wake_log` and `lm_wake_miss` GETs returned zero rows since deployment.
+- No test call, Calendar-content query, provider mutation, database write, or report send was performed. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
