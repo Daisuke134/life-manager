@@ -1,7 +1,7 @@
 {
   "version": 1,
   "source_url": "https://creator.line.me/en/guideline/animationsticker/",
-  "observed_at": "2026-08-28",
+  "observed_at": "2026-10-05",
   "max_policy_age_days": 30,
   "sticker_count": 24,
   "main": {"width": 240, "height": 240, "animated": true},
