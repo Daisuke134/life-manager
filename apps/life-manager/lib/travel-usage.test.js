@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { directionsRoute, geocodeAddress } = require("./travel.js");
 const { makeRouteCache } = require("./route-cache.js");
+const { recordUsageEvent } = require("./usage-event.js");
 
 test("Google Directions success and later cache hit emit separate usage facts", async () => {
   const events = [];
@@ -35,6 +36,98 @@ test("Google Directions success and later cache hit emit separate usage facts", 
     { provider: "google_maps", feature: "directions", outcome: "success", units: 1, cost: 0.005 },
     { provider: "google_maps", feature: "travel_route", outcome: "cache_hit", units: 0, cost: 0 },
   ]);
+});
+
+test("life-call travel passes safe route runtime context separately to the usage writer", async () => {
+  const writes = [];
+  const rows = [];
+  const cache = makeRouteCache({ store: new Map(), ttlMs: 600000, now: () => 1000 });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+    status: "OK", routes: [{ legs: [{ duration: { value: 900 } }] }],
+  }) });
+  try {
+    await directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "key", 2000000, 1000, false, {
+      uid: "tenant-1",
+      _routeCache: cache,
+      _runtimeEnv: {
+        RAILWAY_SERVICE_NAME: "life-call",
+        RAILWAY_GIT_COMMIT_SHA: "c".repeat(40),
+        STRIPE_SECRET_KEY: "must-not-enter-runtime-metadata",
+      },
+      _recordUsageEvent: async (event, options) => {
+        writes.push({ event, options });
+        return recordUsageEvent(event, {
+          ...options,
+          recordCost: async (row) => { rows.push(row); return true; },
+        });
+      },
+    });
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+
+  assert.ok(writes.length > 0);
+  assert.ok(rows.length > 0);
+  assert.equal(Object.hasOwn(writes[0].event, "runtimeEnv"), false);
+  assert.equal(Object.hasOwn(writes[0].event, "runtime_trace"), false);
+  const runtimeEnv = writes[0].options && writes[0].options.runtimeEnv;
+  assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "RAILWAY_SERVICE_NAME"), false);
+  assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_OWNER_ID, "life-call-travel");
+  assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "LIFE_MANAGER_LOOP_ID"), false);
+  assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_RUN_ID.startsWith("route-"), true);
+  assert.match(runtimeEnv && runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID,
+    /^life-call-travel:route-[0-9a-f-]{36}$/);
+  assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_RELEASE_SHA, "c".repeat(40));
+  assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "RAILWAY_GIT_COMMIT_SHA"), false);
+  assert.equal(runtimeEnv && Object.hasOwn(runtimeEnv, "STRIPE_SECRET_KEY"), false);
+  assert.deepEqual(rows[0].meta.runtime_trace, {
+    schema_version: 1,
+    status: "partial",
+    tenant_id: "tenant-1",
+    owner_id: "life-call-travel",
+    run_id: runtimeEnv.LIFE_MANAGER_RUN_ID,
+    occurrence_id: runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID,
+    release_sha: "c".repeat(40),
+    missing_fields: ["loop_id"],
+  });
+  assert.equal(JSON.stringify(rows).includes("must-not-enter-runtime-metadata"), false);
+});
+
+test("complete managed loop runtime context stays authoritative on life-call travel", async () => {
+  const writes = [];
+  const cache = makeRouteCache({ store: new Map(), ttlMs: 600000, now: () => 1000 });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+    status: "OK", routes: [{ legs: [{ duration: { value: 900 } }] }],
+  }) });
+  try {
+    await directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "key", 2000000, 1000, false, {
+      uid: "tenant-1",
+      _routeCache: cache,
+      _runtimeEnv: {
+        LIFE_MANAGER_LOOP_ID: "life-manager-cfo-hourly",
+        LIFE_MANAGER_OWNER_ID: "managed-owner",
+        LIFE_MANAGER_RUN_ID: "managed-run-1",
+        LIFE_MANAGER_OCCURRENCE_ID: "life-manager-cfo-hourly:managed-run-1",
+        LIFE_MANAGER_RELEASE_SHA: "d".repeat(40),
+        RAILWAY_SERVICE_NAME: "life-call",
+        RAILWAY_GIT_COMMIT_SHA: "e".repeat(40),
+      },
+      _recordUsageEvent: async (_event, options) => { writes.push(options); return true; },
+    });
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+
+  assert.ok(writes.length > 0);
+  const runtimeEnv = writes[0] && writes[0].runtimeEnv;
+  assert.equal(runtimeEnv && runtimeEnv.LIFE_MANAGER_LOOP_ID, "life-manager-cfo-hourly");
+  assert.equal(writes[0].runtimeEnv.LIFE_MANAGER_OWNER_ID, "managed-owner");
+  assert.equal(writes[0].runtimeEnv.LIFE_MANAGER_RUN_ID, "managed-run-1");
+  assert.equal(writes[0].runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID,
+    "life-manager-cfo-hourly:managed-run-1");
+  assert.equal(writes[0].runtimeEnv.LIFE_MANAGER_RELEASE_SHA, "d".repeat(40));
 });
 
 test("Google Directions 4xx response is recorded as paid failure work", async () => {

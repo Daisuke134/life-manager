@@ -4,6 +4,7 @@
 // inline Composio calls it replaces — the live caller is unchanged.
 "use strict";
 const { recordCost } = require("../ledger.js");
+const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
 
@@ -40,27 +41,43 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
   return active[0].id;
 }
 
-async function exec(tool, uid, args, apiKey, opts) {
+async function exec(tool, uid, args, apiKey, opts, recordOutcome) {
   const connectedAccountId = await selectedAccountId(uid, apiKey, opts);
-  const r = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args }),
-  });
-  return r.json();
+  let result;
+  try {
+    const r = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args }),
+    });
+    result = await r.json();
+  } catch (error) {
+    await recordOutcome("unknown");
+    throw error;
+  }
+  await recordOutcome(result && result.successful === true ? "success"
+    : result && result.successful === false ? "failure" : "unknown");
+  return result;
 }
 
 function makeComposioCalendar(opts = {}) {
   const { apiKey, recordCall } = opts;
   const key = apiKey || process.env.COMPOSIO_API_KEY;
-  const ledger = recordCall || ((uid, tool) => {
+  const ledger = recordCall || ((uid, tool, details) => {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
-    return recordCost({ uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: 0, meta: { tool } });
+    const { outcome, runtimeTrace: trace } = details || {};
+    return recordCost({
+      uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: 0,
+      meta: { tool, outcome, runtime_trace: trace },
+    });
   });
   const execute = async (tool, uid, args) => {
-    const result = await exec(tool, uid, args, key, opts);
-    await Promise.resolve(ledger(uid, tool)).catch(() => false);
-    return result;
+    const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
+    const trace = runtimeTrace({ tenantId: uid }, runtimeEnv);
+    const recordOutcome = async (outcome) => {
+      try { await ledger(uid, tool, { outcome, runtimeTrace: trace }); } catch { /* observability must not break calendar calls */ }
+    };
+    return exec(tool, uid, args, key, opts, recordOutcome);
   };
   // ONE page of Google Calendar items PLUS the cursor that unlocks the next. events.list returns at
   // most `maxResults` items per page (250 by default, 2500 max) and sets data.nextPageToken whenever

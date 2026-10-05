@@ -5,7 +5,7 @@ export LIFE_MANAGER_REPO
 
 RUN_AGENT="$LIFE_MANAGER_REPO/skills/earn/marketing-engine/run_agent.sh"
 if [ "${AGENT_WIRING_PROBE_ONLY:-0}" = "1" ]; then
-  printf '{"task_class":"high-value-agent","runner":"%s"}\n' "$RUN_AGENT"
+  printf '{"task_class":"self-fix-code-agent","runner":"%s"}\n' "$RUN_AGENT"
   exit 0
 fi
 
@@ -141,20 +141,31 @@ DO, in order:
 (5) Write the outcome to ${RESULT} as a single line: 'SUCCESS <utc> <one-line real evidence, e.g. published URL>' or 'FAIL <utc> <why + what is still blocked>'. If the fix resolved a selfheal-request json, rm it.
 If after honest effort the fix is genuinely impossible (e.g. an external service is down), write FAIL with a precise diagnosis to ${RESULT} and invoke self/issue-dev — still never ask a human. Report what you fixed + the real evidence at the end."
 TASK="${TASK} 重要な結果（数字・IDを含む成果、realized P&L、致命的エラー）が出たら PushNotification ツールで Dais へ verbatim 送信してから終了する。narration・定常報告には使わない。"
-PROMPT_FILE="$STATE/.self-fix-$LOOP.prompt"
-EVIDENCE_DIR="$STATE/agent-runner-evidence/self-fix-$LOOP/$(date +%s)-$$"
+EVIDENCE_ROOT="$STATE/agent-runner-evidence/self-fix-$LOOP"
+mkdir -p "$EVIDENCE_ROOT"
+EVIDENCE_DIR="$(mktemp -d "$EVIDENCE_ROOT/$(date +%s)-$$.XXXXXX")" || exit 2
+mkdir -p "$EVIDENCE_DIR/tmp" "$EVIDENCE_DIR/npm-cache" "$EVIDENCE_DIR/node-compile-cache" || exit 2
+chmod 700 "$EVIDENCE_DIR" "$EVIDENCE_DIR/tmp" "$EVIDENCE_DIR/npm-cache" "$EVIDENCE_DIR/node-compile-cache" || exit 2
+export TMPDIR="$EVIDENCE_DIR/tmp"
+export NPM_CONFIG_CACHE="$EVIDENCE_DIR/npm-cache"
+export NODE_COMPILE_CACHE="$EVIDENCE_DIR/node-compile-cache"
+PROMPT_FILE="$(mktemp "$TMPDIR/self-fix-$LOOP.prompt.XXXXXX")" || exit 2
 printf '%s\n' "$TASK" > "$PROMPT_FILE"
 
 # Keep the historical detached tmux lifecycle, but delegate provider/model selection to the
 # shared task-class runner. Shell-escape every interpolated value before tmux evaluates the command.
 printf -v RUN_AGENT_Q '%q' "$RUN_AGENT"
 printf -v EVIDENCE_DIR_Q '%q' "$EVIDENCE_DIR"
+printf -v TMPDIR_Q '%q' "$TMPDIR"
+printf -v NPM_CONFIG_CACHE_Q '%q' "$NPM_CONFIG_CACHE"
+printf -v NODE_COMPILE_CACHE_Q '%q' "$NODE_COMPILE_CACHE"
 printf -v TASK_LABEL_Q '%q' "self-fix-$LOOP"
 printf -v LOOP_Q '%q' "$LOOP"
+printf -v ESCALATION_REASON_Q '%q' "SelfFix code repair"
 printf -v PROMPT_FILE_Q '%q' "$PROMPT_FILE"
 printf -v LOG_Q '%q' "$LOG"
 tmux -S "$SOCK" new-session -d -s "$SESSION" \
-  "exec /bin/bash $RUN_AGENT_Q --task-class high-value-agent --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
+  "exec /usr/bin/env TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class self-fix-code-agent --escalation-reason $ESCALATION_REASON_Q --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
 date +%s > "$STARTMARK"
-echo "$(date '+%F %T') self-fix[$LOOP] SPAWNED (high-value-agent): ${BLOCKER:0:90}" >> "$LOG"
-echo "self-fix[$LOOP] spawned (high-value-agent, detached). result→$RESULT log→$LOG evidence→$EVIDENCE_DIR"
+echo "$(date '+%F %T') self-fix[$LOOP] SPAWNED (self-fix-code-agent): ${BLOCKER:0:90}" >> "$LOG"
+echo "self-fix[$LOOP] spawned (self-fix-code-agent, detached). result→$RESULT log→$LOG evidence→$EVIDENCE_DIR"

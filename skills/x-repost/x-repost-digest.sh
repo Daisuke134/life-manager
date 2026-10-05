@@ -103,8 +103,8 @@ print("registered:",dict(collections.Counter(x.get("registered") for x in a)))
 print("state:",dict(collections.Counter(x.get("actual_state") for x in a)))' 2>/dev/null
   echo; echo "## 直近のパスのログ"
   tail -12 "${X_REPOST_LOG:-$HOME/.local/state/life-manager/x-repost/logs/pass.out.log}" 2>/dev/null
-  echo; echo '## 出力（最後に JSON 配列だけを1つ）'
-  echo '[{"fact":"...","measured_on":"YYYY-MM-DD","source":"どのセクションから取ったか"}]'
+  echo; echo '## 出力（最後に JSON オブジェクトだけを1つ）'
+  echo '{"facts":[{"fact":"...","measured_on":"YYYY-MM-DD","source":"どのセクションから取ったか"}]}'
 } >"$STATE/last-harvest-prompt.txt"
 
 HARVEST_RUN="$STATE/evidence/digest-$(date +%Y%m%dT%H%M%S)"
@@ -134,10 +134,11 @@ try:
     data = json.load(open(sys.argv[1], encoding="utf-8"))
 except Exception:
     raise SystemExit(0)
-rows = data if isinstance(data, list) else [data]
-for row in rows:
-    if isinstance(row, dict) and (row.get("fact") or "").strip():
-        print(json.dumps(row, ensure_ascii=False))
+facts = data.get("facts") if isinstance(data, dict) else None
+if isinstance(facts, list):
+    for row in facts:
+        if isinstance(row, dict) and (row.get("fact") or "").strip():
+            print(json.dumps(row, ensure_ascii=False))
 PYINNER
 )
   echo "x-repost-digest: harvested $ADDED seed(s)"

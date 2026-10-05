@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { normalizeUsageEvent, recordUsageEvent } = require("./usage-event.js");
+const { normalizeUsageEvent, recordUsageEvent, runtimeTrace, usageRuntimeEnv } = require("./usage-event.js");
 
 test("normalizes a tenant/provider/feature usage event without customer billing", () => {
   assert.deepEqual(normalizeUsageEvent({
@@ -250,4 +250,92 @@ test("provider event identity cannot override the trusted runtime environment", 
   });
   assert.equal(JSON.stringify(rows[0].meta.runtime_trace).includes("event-loop"), false);
   assert.equal(JSON.stringify(rows[0].meta.runtime_trace).includes("event-run"), false);
+});
+
+test("provider usage accepts owner-scoped occurrences when loop identity is absent", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_maps", feature: "travel_route",
+    outcome: "success", providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0.005,
+  }, {
+    LIFE_MANAGER_OWNER_ID: "life-call-travel",
+    LIFE_MANAGER_RUN_ID: "route-123",
+    LIFE_MANAGER_OCCURRENCE_ID: "life-call-travel:route-123",
+    LIFE_MANAGER_RELEASE_SHA: "a".repeat(40),
+  });
+
+  assert.deepEqual(event.meta.runtime_trace, {
+    schema_version: 1,
+    status: "partial",
+    tenant_id: "tenant-1",
+    owner_id: "life-call-travel",
+    run_id: "route-123",
+    occurrence_id: "life-call-travel:route-123",
+    release_sha: "a".repeat(40),
+    missing_fields: ["loop_id"],
+  });
+});
+
+test("provider usage rejects an occurrence belonging to another owner without loop identity", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_maps", feature: "travel_route",
+    outcome: "success", providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0.005,
+  }, {
+    LIFE_MANAGER_OWNER_ID: "life-call-travel",
+    LIFE_MANAGER_RUN_ID: "route-123",
+    LIFE_MANAGER_OCCURRENCE_ID: "foreign-owner:route-123",
+    LIFE_MANAGER_RELEASE_SHA: "b".repeat(40),
+  });
+
+  assert.deepEqual(event.meta.runtime_trace, {
+    schema_version: 1,
+    status: "partial",
+    tenant_id: "tenant-1",
+    owner_id: "life-call-travel",
+    run_id: "route-123",
+    release_sha: "b".repeat(40),
+    missing_fields: ["loop_id", "occurrence_id"],
+  });
+  assert.equal(JSON.stringify(event.meta.runtime_trace).includes("foreign-owner"), false);
+});
+
+test("usage runtime context creates an allowlisted, unique life-call fallback", () => {
+  assert.equal(typeof usageRuntimeEnv, "function");
+  const source = {
+    RAILWAY_SERVICE_NAME: "life-call",
+    RAILWAY_GIT_COMMIT_SHA: "f".repeat(40),
+    STRIPE_SECRET_KEY: "must-not-enter-runtime-metadata",
+    LIFE_MANAGER_PRIVATE_CONTEXT: "must-not-be-copied",
+  };
+  const first = usageRuntimeEnv(source, { fallbackOwnerId: "life-call-voice" });
+  const second = usageRuntimeEnv(source, { fallbackOwnerId: "life-call-voice" });
+
+  assert.equal(first.LIFE_MANAGER_OWNER_ID, "life-call-voice");
+  assert.match(first.LIFE_MANAGER_RUN_ID, /^run-[0-9a-f-]{36}$/);
+  assert.equal(first.LIFE_MANAGER_OCCURRENCE_ID, `life-call-voice:${first.LIFE_MANAGER_RUN_ID}`);
+  assert.equal(first.LIFE_MANAGER_RELEASE_SHA, "f".repeat(40));
+  assert.equal(Object.hasOwn(first, "LIFE_MANAGER_LOOP_ID"), false);
+  assert.notEqual(first.LIFE_MANAGER_RUN_ID, second.LIFE_MANAGER_RUN_ID);
+  assert.deepEqual(Object.keys(first).sort(), [
+    "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_OWNER_ID",
+    "LIFE_MANAGER_RELEASE_SHA", "LIFE_MANAGER_RUN_ID",
+  ]);
+  assert.equal(JSON.stringify(first).includes("must-not-enter-runtime-metadata"), false);
+  assert.deepEqual(runtimeTrace({ tenantId: "tenant-1" }, first).missing_fields, ["loop_id"]);
+});
+
+test("usage runtime context keeps managed partial identity and rejects non-life-call Railway fallback", () => {
+  assert.equal(typeof usageRuntimeEnv, "function");
+  const partial = usageRuntimeEnv({
+    LIFE_MANAGER_OWNER_ID: "managed-owner",
+    RAILWAY_SERVICE_NAME: "life-call",
+    RAILWAY_GIT_COMMIT_SHA: "a".repeat(40),
+  }, { fallbackOwnerId: "life-call-voice" });
+  const otherService = usageRuntimeEnv({
+    RAILWAY_SERVICE_NAME: "unrelated-service",
+    RAILWAY_GIT_COMMIT_SHA: "b".repeat(40),
+    STRIPE_SECRET_KEY: "must-not-be-copied",
+  }, { fallbackOwnerId: "life-call-voice" });
+
+  assert.deepEqual(partial, { LIFE_MANAGER_OWNER_ID: "managed-owner" });
+  assert.deepEqual(otherService, {});
 });

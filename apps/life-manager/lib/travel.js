@@ -5,7 +5,7 @@
 // Idempotent: never inserts a second [Travel] for an event that already has one.
 "use strict";
 
-const { createHash } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const { getCalendar } = require("./transport/index.js");
 const { chooseRouter, parseTransitPlan } = require("./transit.js");
 const {
@@ -13,7 +13,7 @@ const {
 } = require("./route-cache.js");
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
-const { recordUsageEvent } = require("./usage-event.js");
+const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
 
 const GOOGLE_DIRECTIONS_EST_USD = 0.005; // list price per request after free cap, checked 2026-09-06
 const GOOGLE_GEOCODING_EST_USD = 0.005;
@@ -21,7 +21,6 @@ const GOOGLE_ROUTES_PRO_EST_USD = 0.010;
 const GEOCODE_SUCCESS_TTL_MS = 24 * 60 * 60_000;
 const GEOCODE_NEGATIVE_TTL_MS = 30 * 60_000;
 const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
-
 function providerFailureClass(response, providerStatus) {
   const status = Number(response && response.status);
   if (Number.isFinite(status) && status >= 400 && status < 500) return "provider_4xx";
@@ -34,7 +33,8 @@ async function emitUsage(options, event) {
   const injected = options && options._recordUsageEvent;
   if (!injected && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)) return;
   const write = injected || recordUsageEvent;
-  try { await write(event); } catch { /* observability must not break routing */ }
+  const runtimeEnv = options && options._usageRuntimeEnv;
+  try { await write(event, runtimeEnv ? { runtimeEnv } : {}); } catch { /* observability must not break routing */ }
 }
 
 function noteProviderFailure(usage, failureClass) {
@@ -441,9 +441,14 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const uid = options.uid ?? options.tenantId ?? options.userId ?? "anonymous";
   const purpose = options.purpose || (call.departureMode ? "return" : "go");
   const eventVersion = routeEventVersion({ eventId: options.eventId, anchorAtMs: call.anchorAtMs, src, dst, purpose });
+  const routeId = randomUUID();
+  const usageOptions = { ...options, _usageRuntimeEnv: usageRuntimeEnv(
+    options._runtimeEnv || process.env,
+    { fallbackOwnerId: "life-call-travel", fallbackRunId: `route-${routeId}` },
+  ) };
   const allowanceState = options._allowanceState;
-  const usage = { tenantId: uid, options };
-  const routeUsage = { tenantId: uid, options, failureClasses: [] };
+  const usage = { tenantId: uid, options: usageOptions };
+  const routeUsage = { tenantId: uid, options: usageOptions, failureClasses: [] };
   const timeoutOption = options._transitTimeoutMs ?? options.transitTimeoutMs;
   const transitTimeoutMs = Number.isFinite(Number(timeoutOption)) && Number(timeoutOption) >= 0
     ? Number(timeoutOption) : DEFAULT_TRANSIT_TIMEOUT_MS;
@@ -451,7 +456,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   // The durable event index is intentionally checked before geocoding. A coordinate-key-only lookup
   // would itself require two paid geocodes and could not serve an exhausted tenant's cached result.
   if (cache && typeof cache.getByEvent === "function" && options.eventId) {
-    const cached = await cache.getByEvent(uid, eventVersion, purpose, (_value, entry) => emitUsage(options, {
+    const cached = await cache.getByEvent(uid, eventVersion, purpose, (_value, entry) => emitUsage(usageOptions, {
       tenantId: uid, provider: "route_cache", feature: "travel_route", outcome: "cache_hit",
       failureClass: entry.failureClass, cacheHit: true, providerUnits: 0,
       providerUnit: "request", estimatedCostUsd: 0,
@@ -524,7 +529,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
     purpose,
   };
   const result = await cache.getOrCompute(uid, srcGeo || {}, dstGeo || {}, timeBucket(query.anchorAtMs), compute, context,
-    (value, cacheEntry) => emitUsage(options, {
+    (value, cacheEntry) => emitUsage(usageOptions, {
       tenantId: uid, provider: routeMode === "google" || (value && value.provider === "google")
         ? "google_maps" : "transit_api",
       feature: "travel_route", outcome: "cache_hit", failureClass: cacheEntry.failureClass,

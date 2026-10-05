@@ -1,10 +1,12 @@
+import argparse
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent_runner import configured_task_classes, resolve_provider_profiles
+from agent_runner import command_for, configured_task_classes, resolve_provider_profiles
 
 
 class TerraDefaultTest(unittest.TestCase):
@@ -28,7 +30,7 @@ class TerraDefaultTest(unittest.TestCase):
 
         self.assertEqual(config["providers"]["codex"]["executable"], "~/.local/bin/codex")
 
-    def test_every_executable_agent_class_prefers_terra(self):
+    def test_executable_agent_classes_use_their_declared_candidates(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
 
@@ -66,6 +68,9 @@ class TerraDefaultTest(unittest.TestCase):
                 if name == "self-heal-code-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "profile_alias": "acct1"}]
+                if name == "self-fix-code-agent":
+                    expected = [{"provider": "codex", "model": "gpt-6-luna",
+                                 "effort": "max", "profile_alias": "acct2"}]
                 if name == "affiliate-marketing-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "high", "profile_alias": "acct2"}]
@@ -89,7 +94,7 @@ class TerraDefaultTest(unittest.TestCase):
                 if name not in {
                     "paid-owner-agent", "escalation-agent", "codex-brain-agent",
                     "affiliate-marketing-agent", "affiliate-escalation-agent",
-                    "self-heal-code-agent",
+                    "self-heal-code-agent", "self-fix-code-agent",
                 } and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
@@ -102,6 +107,51 @@ class TerraDefaultTest(unittest.TestCase):
             [{"provider": "codex", "model": "gpt-5.6-terra",
               "effort": "medium", "profile_alias": "acct1"}],
         )
+
+    def test_self_fix_code_route_builds_only_gpt6_luna_max_for_acct2(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        task = config["task_classes"]["self-fix-code-agent"]
+        expected = [{
+            "provider": "codex", "model": "gpt-6-luna",
+            "effort": "max", "profile_alias": "acct2",
+        }]
+
+        self.assertEqual(task["route"], "self-fix-frontier-luna-max-code")
+        self.assertTrue(task["requires_explicit_escalation"])
+        self.assertEqual(task["timeout_seconds"], 900)
+        self.assertEqual(task["token_reservation"], 65536)
+        self.assertEqual(task["candidates"], expected)
+        resolved = resolve_provider_profiles(task["candidates"], config["providers"])
+        self.assertEqual(len(resolved), 1, "SelfFix must not expand to another account candidate")
+        self.assertEqual(resolved[0]["profile_alias"], "acct2")
+        self.assertEqual(
+            resolved[0]["automation_home"],
+            config["providers"]["codex"]["profiles"]["acct2"]["automation_home"],
+        )
+
+        with tempfile.TemporaryDirectory() as root:
+            workdir = Path(root)
+            provider_config = {
+                **config["providers"]["codex"],
+                "automation_home": resolved[0]["automation_home"],
+            }
+            args = argparse.Namespace(
+                task_class="self-fix-code-agent", codex_resume_session_id=None,
+                image=[], read_only=False, workdir=workdir,
+            )
+            command = command_for(
+                "codex", "/fixture/codex", provider_config, resolved[0], args,
+                "fixture-only self-fix code task", {"type": "object"},
+                workdir / "result.json",
+            )
+
+        self.assertEqual(command[command.index("--model") + 1], "gpt-6-luna")
+        self.assertIn('model_reasoning_effort="max"', command)
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", command)
+        self.assertNotIn("--sandbox", command)
+        self.assertNotIn("gpt-5.6", " ".join(command))
+        self.assertNotIn("claude", " ".join(command))
 
     def test_paid_route_resolves_each_codex_account_once(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
@@ -125,6 +175,7 @@ class TerraDefaultTest(unittest.TestCase):
                         expected = (
                             "acct2" if name in {
                                 "affiliate-marketing-agent", "affiliate-escalation-agent",
+                                "self-fix-code-agent",
                             } else "acct1"
                         )
                         self.assertEqual(candidate.get("profile_alias"), expected)

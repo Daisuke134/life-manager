@@ -53,14 +53,19 @@ also remains `UNVERIFIED` until its owned article URL is confirmed.
 ## Host effect reconciliation
 
 The `x-repost` registry adapter closes one exact `effect_unknown` occurrence only after pairing all
-of its runtime execute/report attempts, matching the fence row's `queued_at` to the first attempt,
-and reading one unique evidence directory for each attempt. It waits until 15 minutes after the
-latest report, then reads the exact Postiz integration over the combined window. A post counts for
-the occurrence only when its published time falls inside one of those attempt windows; unrelated
-posts returned between attempts do not count. No-effect proof accepts only the known readback-safe
-releases `c16f437b93028ea5d94014a1fa32c091795cbee0`,
-`86fa863d4fe04ec0b5c44e8a2e513e55edaf2928`, and
-`88872a85cc652877f242ead444108a813084cfc9`, with exact readback-only evidence for every attempt.
+of its runtime execute/report attempts, verifying that the fence row's `queued_at` does not follow
+the first attempt, and reading one unique evidence directory for each attempt. FIFO admission wait
+may separate queue time from execution start; the exact occurrence/run pair anchors identity, while
+the Postiz window begins at actual execution. It waits until 15 minutes after the latest report,
+then reads the exact Postiz integration over the combined window. A post counts for the occurrence
+only when its published time falls inside one of those attempt windows; unrelated posts returned
+between attempts do not count. No-effect proof accepts only releases audited for this exact readback-only branch:
+`c16f437b93028ea5d94014a1fa32c091795cbee0`,
+`86fa863d4fe04ec0b5c44e8a2e513e55edaf2928`,
+`88872a85cc652877f242ead444108a813084cfc9`, and
+`4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`, and
+`447e5b62693ce67b6ea94aa1993fb2a5a3e5d24b`, and
+`d3d7be63f7de25ddad49d7d8901aaab6d4a0ce66`, with exact readback-only evidence for every attempt.
 Other releases can prove a positive effect only through the exact Postiz submission ID and X
 permalink in the matching pass evidence. Unsupported releases or transports without that receipt,
 missing or ambiguous evidence, unfinished Postiz listings, and out-of-window posts stay fenced. Old
@@ -85,9 +90,13 @@ The single scheduler declaration is `config/loop-registry.json`. Account-specifi
 live in the repository-owned `x-repost-en-cli.sh`, `x-repost-ja-cli.sh`, and `x-tweeter-cli.sh`
 wrappers; there is no second `loop.toml`/plist generator path.
 
-Runtime credentials stay outside Git. Provide `POSTIZ_API_KEY` when using Postiz and a healthy
-registered CloakBrowser X session for source collection and exact readback. `TWITTER_AUTH_TOKEN` is
-an optional recovery cookie used only when that browser session has lost its X auth cookie.
+Runtime credentials stay outside Git. When `POSTIZ_API_KEY` is absent, the Postiz publisher and
+readback adapter use the single `service=postiz` / `api_key` record from
+`~/.local/share/anicca/credentials.json`; an explicitly present but empty environment value fails
+closed. The SSOT reader validates ownership and modes through opened directory/file descriptors,
+rejects symlinks, and requires exactly one Postiz record. A healthy registered CloakBrowser X
+session is still required for source collection and exact readback. `TWITTER_AUTH_TOKEN` is an
+optional recovery cookie used only when that browser session has lost its X auth cookie.
 Browser identities are resolved through the local browser registry rather than hardcoded CDP
 ports. The Chinese collector also requires the `crwl` CLI on `PATH`.
 

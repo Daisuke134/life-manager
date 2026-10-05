@@ -11,6 +11,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).parents[1] / "scripts" / "model_boundary.py"
 CLI = Path(__file__).parents[1] / "x-repost-cli.sh"
 MODEL_SCHEMA = Path(__file__).parents[1] / "config" / "model-output.schema.json"
+DIGEST_SCRIPT = Path(__file__).parents[1] / "x-repost-digest.sh"
 
 
 class ModelBoundaryTest(unittest.TestCase):
@@ -21,6 +22,44 @@ class ModelBoundaryTest(unittest.TestCase):
         self.assertEqual(set(schema["required"]), set(schema["properties"]))
         for field in ("selected", "drafts", "tone", "text", "supported", "five_points"):
             self.assertIn(field, schema["properties"])
+
+    def test_digest_harvest_schema_matches_fact_consumer(self) -> None:
+        schema = json.loads(MODEL_SCHEMA.read_text())
+        self.assertIn("facts", schema["required"])
+        facts = schema["properties"]["facts"]
+        self.assertEqual(facts["type"], ["array", "null"])
+        item = facts["items"]
+        self.assertEqual(item["type"], "object")
+        self.assertFalse(item["additionalProperties"])
+        self.assertEqual(set(item["required"]), {"fact", "measured_on", "source"})
+        self.assertEqual(set(item["required"]), set(item["properties"]))
+        properties = item["properties"]
+        for field in ("fact", "measured_on", "source"):
+            self.assertEqual(properties[field]["type"], "string")
+        source = DIGEST_SCRIPT.read_text()
+        contracts = (
+            '--schema "$MODEL_SCHEMA"',
+            '"facts":[{"fact":',
+            'facts = data.get("facts") if isinstance(data, dict) else None',
+            'if isinstance(facts, list):',
+        )
+        for contract in contracts:
+            self.assertIn(contract, source)
+        critic_prompt = CLI.read_text()
+        for example in (
+            "He probado este paso antes de publicar; si falla, revisa los permisos. = es",
+            "Or, cette étape permet de vérifier les droits avant de publier. = fr",
+            "He crashed; restart manually, abort on timeout. = en",
+        ):
+            self.assertIn(example, critic_prompt)
+
+    def test_critic_prompt_braces_language_variable_before_cjk_punctuation(self) -> None:
+        prompt_line = next(
+            line for line in CLI.read_text().splitlines()
+            if "ターゲット言語コードは" in line
+        )
+        self.assertIn("ターゲット言語コードは ${TARGET_LANGUAGE}。", prompt_line)
+        self.assertNotIn("ターゲット言語コードは $TARGET_LANGUAGE。", prompt_line)
 
     def run_boundary(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(

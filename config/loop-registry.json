@@ -980,6 +980,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": [],
+      "effect_reconcile": {
+        "argv": ["skills/earn/capafy-marketing/scripts/capafy_ig_reel_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/capafy-ig-reel",
       "label": "ai.anicca.life-manager-capafy-ig",
       "log_root": "~/.local/state/life-manager/logs",

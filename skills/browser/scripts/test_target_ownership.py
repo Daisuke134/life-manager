@@ -356,13 +356,44 @@ def test_prune_fails_closed_when_official_target_list_is_invalid(
     assert ownership.targets_for_owner("paid") == {"existing"}
 
 
-def test_hidden_tab_closes_target_before_releasing_ownership(tmp_path, monkeypatch):
+@pytest.mark.parametrize("park_on_idle", [False, True], ids=["release", "park"])
+def test_hidden_tab_closes_target_before_releasing_ownership(
+    tmp_path, monkeypatch, recwarn, park_on_idle,
+):
     registry = tmp_path / "target-owners.json"
+    leases_file = tmp_path / "context-leases.json"
     monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(registry))
     monkeypatch.setenv("CLOAK_BROWSER_MAX_TABS_PER_OWNER", "2")
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    monkeypatch.setenv("CLOAK_CONTEXT_DISPOSE_LOCK_FILE", str(tmp_path / "dispose.lock"))
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://browser:9222")
+    monkeypatch.setenv("CLOAK_CONTEXT_PARK_ON_IDLE", "1" if park_on_idle else "0")
     ownership.claim_target("dead-hidden-1", "paid", max_targets=2)
     ownership.claim_target("dead-hidden-2", "paid", max_targets=2)
-    sent = []
+    ownership.claim_target("foreign-target", "other")
+    foreign_lease = {
+        "context_id": "context-other",
+        "target_id": "foreign-target",
+        "ws": "ws://browser:9222/devtools/page/foreign-target",
+        "token": "fixture-other-token",
+        "generation": 8,
+        "pid": 4321,
+        "ts": 1,
+    }
+    default_tab.cdp_context_lease._save({
+        "paid": {
+            "context_id": "context-paid",
+            "target_id": "hidden-1",
+            "ws": "ws://browser:9222/devtools/page/hidden-1",
+            "token": "fixture-paid-token",
+            "generation": 7,
+            "pid": 1234,
+            "ts": 1,
+        },
+        "other": foreign_lease,
+    })
+    events = []
+
     def nested_lease(owner):
         async def lease_result():
             return {"ok": True, "context_id": f"context-{owner}"}
@@ -374,44 +405,87 @@ def test_hidden_tab_closes_target_before_releasing_ownership(tmp_path, monkeypat
             coroutine.close()
             raise
 
+    async def fake_calls(pairs, timeout=None):
+        replies = []
+        for method, _params in pairs:
+            events.append(method)
+            if method == "Target.getTargets":
+                replies.append({"targetInfos": []})
+            elif method == "Target.disposeBrowserContext":
+                replies.append({"success": True})
+            else:
+                raise AssertionError(f"unexpected fake CDP method: {method}")
+        return replies
+
     monkeypatch.setattr(default_tab, "_lease", nested_lease)
-    monkeypatch.setattr(
-        default_tab.cdp_context_lease, "release", lambda _owner: {"ok": True}
-    )
+    monkeypatch.setattr(default_tab.cdp_context_lease, "_calls", fake_calls)
 
     class FakeWebSocket:
+        def __init__(self):
+            self.request = None
+
         async def send(self, payload):
-            sent.append(json.loads(payload))
+            self.request = json.loads(payload)
+            events.append(self.request["method"])
 
         async def recv(self):
-            request = sent[-1]
+            request = self.request
             request_id = request["id"]
-            if request["method"] == "Target.getTargets":
-                return json.dumps({"id": request_id, "result": {"targetInfos": []}})
             if request["method"] == "Target.createTarget":
                 return json.dumps({"id": 1, "result": {"targetId": "hidden-1"}})
-            return json.dumps({"id": 2, "result": {"success": True}})
+            if request["method"] == "Target.closeTarget":
+                return json.dumps({"id": request_id, "result": {"success": True}})
+            if request["method"] == "Runtime.evaluate":
+                return json.dumps({"id": request_id, "result": {"result": {"value": 1}}})
+            raise AssertionError(f"unexpected fake websocket method: {request['method']}")
 
     class FakeConnection:
         async def __aenter__(self):
-            return FakeWebSocket()
+            return self.websocket
+
+        def __init__(self, *_args, **_kwargs):
+            self.websocket = FakeWebSocket()
 
         async def __aexit__(self, *_args):
             return None
 
     monkeypatch.setattr(default_tab, "_browser_ws", lambda: "ws://browser")
     monkeypatch.setattr(default_tab.websockets, "connect", lambda *_args, **_kwargs: FakeConnection())
-    monkeypatch.setattr(default_tab, "_browser_ws", lambda: "ws://browser")
     monkeypatch.setattr(
         default_tab.sys, "stdin", SimpleNamespace(buffer=SimpleNamespace(read=lambda: b"")),
     )
 
-    asyncio.run(default_tab._serve_hidden_tab("https://coconala.com", owner="paid"))
+    failure = None
+    try:
+        asyncio.run(default_tab._serve_hidden_tab("https://coconala.com", owner="paid"))
+    except RuntimeError as error:
+        failure = str(error)
 
-    assert [row["method"] for row in sent] == [
-        "Target.getTargets", "Target.createTarget", "Target.closeTarget",
-    ]
-    assert sent[1]["params"]["browserContextId"] == "context-paid"
-    assert sent[-1]["params"] == {"targetId": "hidden-1"}
-    assert ownership.owner_for_target("hidden-1") is None
-    assert ownership.targets_for_owner("paid") == set()
+    leases_after = default_tab.cdp_context_lease._leases()
+    own_lease = leases_after.get("paid")
+    summary = {
+        "failure": failure,
+        "events": events,
+        "own_lease_present": own_lease is not None,
+        "own_cleanup_pending": bool(own_lease and own_lease.get("cleanup_pending")),
+        "own_parked": bool(own_lease and own_lease.get("parked")),
+        "own_pid_none": own_lease is None or own_lease.get("pid") is None,
+        "warnings": len(recwarn),
+        "foreign_lease_unchanged": leases_after.get("other") == foreign_lease,
+        "foreign_targets_unchanged": ownership.targets_for_owner("other") == {"foreign-target"},
+        "hidden_target_released": ownership.owner_for_target("hidden-1") is None,
+    }
+    expected_events = ["Target.getTargets", "Target.createTarget", "Target.closeTarget"]
+    expected = {
+        "failure": None,
+        "events": expected_events + (["Runtime.evaluate"] if park_on_idle else ["Target.disposeBrowserContext"]),
+        "own_lease_present": park_on_idle,
+        "own_cleanup_pending": False,
+        "own_parked": park_on_idle,
+        "own_pid_none": True,
+        "warnings": 0,
+        "foreign_lease_unchanged": True,
+        "foreign_targets_unchanged": True,
+        "hidden_target_released": True,
+    }
+    assert summary == expected

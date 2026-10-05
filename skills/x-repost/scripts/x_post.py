@@ -22,13 +22,35 @@ import time
 import urllib.parse
 import urllib.error
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import sync_playwright
 
+SCRIPT_DIR = str(Path(__file__).resolve().parent)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+from effect_reconcile import _postiz_key
+
 
 POSTIZ_API = "https://api.postiz.com/public/v1/posts"
 X_SNOWFLAKE_EPOCH_MS = 1288834974657
+
+
+class PostizPreSubmitError(ValueError):
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
+
+
+class PostizSubmissionOutcomeUnknown(ValueError):
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
+
+
+def _postiz_api_key() -> str:
+    return _postiz_key()
 
 
 def http_error_summary(error: urllib.error.HTTPError) -> str:
@@ -55,12 +77,12 @@ def postiz_publish(text: str, mode: str, source_url: str | None) -> str:
 
     Acceptance is not publication proof. The caller must still exact-read the X permalink.
     """
-    api_key = os.environ.get("POSTIZ_API_KEY", "").strip()
+    api_key = _postiz_api_key()
     integration_id = os.environ.get("X_REPOST_POSTIZ_INTEGRATION_ID", "").strip()
     if not api_key or not integration_id:
-        raise ValueError("Postiz transport is not configured")
+        raise PostizPreSubmitError("postiz_configuration_missing")
     if mode == "reply":
-        raise ValueError("unsolicited automated replies are disabled")
+        raise PostizPreSubmitError("automated_reply_disabled")
     content = text
     if mode == "quote" and source_url and source_url not in content:
         content = f"{content.rstrip()}\n{source_url}"
@@ -85,12 +107,15 @@ def postiz_publish(text: str, mode: str, source_url: str | None) -> str:
                  "User-Agent": "life-manager-x-repost/1"},
         method="POST",
     )
-    with urlopen(request, timeout=30) as response:
-        result = json.load(response)
+    try:
+        with urlopen(request, timeout=30) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        raise PostizSubmissionOutcomeUnknown("postiz_submission_response_unknown") from None
     row = result[0] if isinstance(result, list) and result else result
     submission_id = row.get("postId") if isinstance(row, dict) else None
     if not submission_id:
-        raise ValueError("Postiz response omitted postId")
+        raise PostizSubmissionOutcomeUnknown("postiz_submission_id_missing")
     return str(submission_id)
 
 
@@ -98,10 +123,10 @@ def postiz_published_url(
     submission_id: str, observed_at: str, expected_text: str
 ) -> str | None:
     """Resolve one accepted Postiz effect to its exact published X permalink."""
-    api_key = os.environ.get("POSTIZ_API_KEY", "").strip()
+    api_key = _postiz_api_key()
     integration_id = os.environ.get("X_REPOST_POSTIZ_INTEGRATION_ID", "").strip()
     if not api_key or not integration_id or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", submission_id):
-        raise ValueError("Postiz reconciliation is not configured")
+        raise PostizPreSubmitError("postiz_reconciliation_configuration_missing")
     observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
     if observed.tzinfo is None:
         raise ValueError("Postiz reconciliation time must be timezone-aware")
@@ -520,6 +545,19 @@ def main():
                 transport, text, args.mode, args.source_url,
                 postiz_publish, lambda *_args: None,
             )
+        except PostizPreSubmitError as exc:
+            receipt = {"posted": False, "mode": args.mode, "source_url": args.source_url,
+                       "provider": "postiz", "provider_status": None,
+                       "failure_phase": "pre_submit", "reason_code": exc.reason_code}
+            json.dump(receipt, sys.stdout, ensure_ascii=False)
+            print(); sys.exit(1)
+        except PostizSubmissionOutcomeUnknown as exc:
+            receipt = {"posted": "unverified", "mode": args.mode,
+                       "source_url": args.source_url, "provider": "postiz",
+                       "provider_status": None, "failure_phase": "post_submit",
+                       "reason_code": exc.reason_code}
+            json.dump(receipt, sys.stdout, ensure_ascii=False)
+            print(); sys.exit(2)
         except (ValueError, OSError, urllib.error.HTTPError) as exc:
             status = exc.code if isinstance(exc, urllib.error.HTTPError) else None
             receipt = {"posted": False, "mode": args.mode, "source_url": args.source_url,

@@ -88,7 +88,7 @@ const { claimEvent, unclaimEvent, applyBilling } = require("./lib/billing.js");
 const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
 const { recordCost } = require("./lib/ledger.js");
-const { recordUsageEvent } = require("./lib/usage-event.js");
+const { recordUsageEvent, runtimeTrace, usageRuntimeEnv } = require("./lib/usage-event.js");
 const { createCloudCitizenStore } = require("./lib/cloud-citizen-store.js");
 const { provisionAndStartAgentEconomy } = require("./lib/agent-economy-cloud-provisioning.js");
 const { planProductOnboarding } = require("./lib/product-onboarding.js");
@@ -1586,6 +1586,8 @@ wss.on("connection", (carrierWs, req) => {
   }
   liveCalls++;
   const { event, urgency, lang, name, wakeUid, wakeEventKey, voiceReservation } = ctx;
+  const voiceRuntimeEnv = usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call-voice" });
+  const voiceRuntimeTrace = runtimeTrace({ tenantId: wakeUid || "unknown" }, voiceRuntimeEnv);
   console.log(`[bridge] carrier connected urgency=${urgency} live=${liveCalls}`);
   const state = { streamSid: null, inFrames: 0, outFrames: 0, setupComplete: false,
     firstAudioAtMs: null, audioBytes: 0, audioSquares: 0, audioSamples: 0,
@@ -1684,12 +1686,14 @@ wss.on("connection", (carrierWs, req) => {
         // Keep the legacy kind for existing panels, but put estimated cost on the normalized event
         // only so aggregate cost is not counted twice.
         recordCost({ uid: wakeUid || null, kind: "gemini_live", quantity, unit: "seconds",
-          estUsd: 0, meta: { reconnect: geminiReconnects, cost_source: "provider_usage" } });
+          estUsd: 0, meta: { reconnect: geminiReconnects, cost_source: "provider_usage",
+            runtime_trace: voiceRuntimeTrace } });
         recordUsageEvent({ tenantId: wakeUid || "unknown", provider: "gemini",
           feature: "live_api", outcome: gotAudio ? "success" : "failure",
           failureClass: gotAudio ? null : "no_audio", providerUnits: quantity,
           providerUnit: "seconds_proxy", estimatedCostUsd: quantity / 60 * 0.023,
-          meta: { reconnects: geminiReconnects, estimate_basis: "audio_duration_proxy" } });
+          meta: { reconnects: geminiReconnects, estimate_basis: "audio_duration_proxy" },
+        }, { runtimeEnv: voiceRuntimeEnv });
       }
       onGeminiEnd("closed");
     });
@@ -1753,7 +1757,8 @@ wss.on("connection", (carrierWs, req) => {
     if (callStartedAtMs != null) {
       const quantity = Math.max(0, (Date.now() - callStartedAtMs) / 1000);
       recordCost({ uid: wakeUid || null, kind: "telnyx_call", quantity, unit: "seconds",
-        estUsd: quantity / 60 * 0.002, meta: { stream_id: state.streamSid || null } });
+        estUsd: quantity / 60 * 0.002,
+        meta: { stream_id: state.streamSid || null, runtime_trace: voiceRuntimeTrace } });
     }
     if (gemini) { try { gemini.close(); } catch {} }
   });
