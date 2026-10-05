@@ -1213,3 +1213,176 @@ def test_estimate_post_click_unknown_returns_for_reconciliation_without_retry_si
         estimate_composer=Composer(), estimate_browser_factory=lambda *_args: Browser(),
     )
     assert adapter.mutate(_estimate_intent()) is None
+
+
+_DOM_ORDER_BODY_READER_HARNESS = r"""
+const fs = require("node:fs");
+const input = JSON.parse(fs.readFileSync(0, "utf8"));
+const read = testCase => {
+  const fallbackClass = testCase.modern ? ".message" : ".threadMessage";
+  const fallback = {
+    selector: fallbackClass,
+    innerText: "Parent wrapper with buyer-file.pdf",
+    children: [],
+    querySelectorAll() { return []; },
+  };
+  const original = {
+    selector: ".js-translateMessageOriginalMessage",
+    innerText: "Exact original buyer message",
+    querySelectorAll() { return []; },
+  };
+  // The fallback parent precedes its original-message child in DOM order.
+  if (testCase.has_original) fallback.children.push(original);
+  const bodyNodes = [fallback, ...fallback.children];
+  const selectBody = selector => bodyNodes.find(node =>
+    selector.split(",").map(token => token.trim()).includes(node.selector)) || null;
+  const author = testCase.author_present
+    ? {href: "https://coconala.com/users/buyer", innerText: "Buyer"} : null;
+  const seller = {href: "https://coconala.com/users/seller"};
+  const sentAt = {innerText: "2026-10-05 11:00:00"};
+  const row = {
+    id: null,
+    classList: {contains() { return false; }},
+    getAttribute(name) { return name === "data-message-id" ? "message-123" : null; },
+    querySelector(selector) {
+      if (selector === ".threadMessage") return fallback;
+      if (selector === ".comment-detail") return null;
+      if (selector === '.threadUser a[href*="/users/"]'
+        || selector === '.user-icon[href*="/users/"],a[href*="/smartphone/users/"]') return author;
+      if (selector === ".threadPostTime" || selector === ".message-created") return sentAt;
+      if (selector === fallbackClass || selector === ".js-translateMessageOriginalMessage"
+        || selector.includes(",")) return selectBody(selector);
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+  const container = {
+    querySelectorAll(selector) {
+      return selector === ".threadColomun" || selector === ".bl_message" ? [row] : [];
+    },
+  };
+  globalThis.location = {
+    origin: "https://coconala.com",
+    href: "https://coconala.com/mypage/direct_message/123",
+  };
+  globalThis.document = {
+    title: "メッセージ",
+    body: {innerText: ""},
+    querySelector(selector) {
+      if (selector === ".bl_messages-list") return testCase.modern ? container : null;
+      if (selector === ".js_thread-wrapper") return testCase.modern ? null : container;
+      if (selector === '.sidebar-profile a[href*="/users/"]') return seller;
+      if (selector === ".bl_direct-message-fixed-header") return null;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+  return JSON.parse(eval(testCase.expression));
+};
+process.stdout.write(JSON.stringify(input.cases.map(testCase => ({key: testCase.key, dom: read(testCase)}))));
+"""
+
+
+def _run_body_reader_dom_cases(cases):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to evaluate the browser expressions")
+    result = subprocess.run(
+        [node, "-e", _DOM_ORDER_BODY_READER_HARNESS],
+        input=json.dumps({"cases": cases}),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return {row["key"]: row["dom"] for row in json.loads(result.stdout)}
+
+
+def test_active_message_readers_prioritize_original_and_merge_one_exact_verified_attachment():
+    snapshot = adapter_module.snapshot
+    expressions = {
+        "snapshot": snapshot.DIRECT_MESSAGE_EXPRESSION,
+        "attachments": snapshot._dm_collect_module().DM_THREAD_EXPRESSION,
+    }
+    cases = []
+    for reader, expression in expressions.items():
+        for modern in (False, True):
+            for has_original in (False, True):
+                key = f"{reader}-{modern}-{has_original}"
+                cases.append({
+                    "key": key,
+                    "expression": expression,
+                    "modern": modern,
+                    "has_original": has_original,
+                    "author_present": True,
+                })
+    observed = _run_body_reader_dom_cases(cases)
+    attachment_url = "https://coconala.com/uploaded_files/view/123"
+    attachment = {
+        "url": attachment_url, "filename": "buyer-file.pdf",
+        "bytes": 632406, "sha256": "a" * 64, "content_type": "application/pdf",
+    }
+    for case in cases:
+        key = case["key"]
+        dom = observed[key]
+        expected_body = "Exact original buyer message" if case["has_original"] else "Parent wrapper with buyer-file.pdf"
+        assert len(dom["messages"]) == 1, key
+        message = dom["messages"][0]
+        assert message["body"] == expected_body, key
+        assert message["message_id"] == "message-123", key
+        assert message["author_path"] == "/users/buyer", key
+        assert message["sent_at"] == "2026-10-05 11:00:00", key
+        document = {
+            "messages": [{
+                "message_id": None, "side": "buyer", "text": expected_body,
+                "attachments": [{"url": attachment_url, "filename": "buyer-file.pdf"}],
+            }],
+            "attachment_index": [attachment],
+        }
+        snapshot.merge_verified_dm_attachments(dom, document)
+        assert message["verified_attachments"] == [{
+            "filename": "buyer-file.pdf", "content_type": "application/pdf",
+            "size_bytes": 632406, "sha256": "a" * 64,
+        }], key
+
+        tampered_dom = json.loads(json.dumps(observed[key]))
+        tampered_document = json.loads(json.dumps(document))
+        tampered_document["messages"][0]["text"] += " tampered"
+        with pytest.raises(snapshot.CollectorUnhealthy, match="dm_attachment_message_identity_changed"):
+            snapshot.merge_verified_dm_attachments(tampered_dom, tampered_document)
+
+        duplicate_dom = json.loads(json.dumps(observed[key]))
+        duplicate_dom["messages"].append(json.loads(json.dumps(duplicate_dom["messages"][0])))
+        with pytest.raises(snapshot.CollectorUnhealthy, match="dm_attachment_message_identity_changed"):
+            snapshot.merge_verified_dm_attachments(duplicate_dom, document)
+
+
+def test_active_message_readers_do_not_merge_when_author_identity_is_missing():
+    snapshot = adapter_module.snapshot
+    expressions = {
+        "snapshot": snapshot.DIRECT_MESSAGE_EXPRESSION,
+        "attachments": snapshot._dm_collect_module().DM_THREAD_EXPRESSION,
+    }
+    cases = [{
+        "key": reader,
+        "expression": expression,
+        "modern": modern,
+        "has_original": True,
+        "author_present": False,
+    } for reader, expression in expressions.items() for modern in (False, True)]
+    observed = _run_body_reader_dom_cases(cases)
+    document = {
+        "messages": [{
+            "message_id": None, "side": "buyer", "text": "Exact original buyer message",
+            "attachments": [{"url": "https://coconala.com/uploaded_files/view/123"}],
+        }],
+        "attachment_index": [{
+            "url": "https://coconala.com/uploaded_files/view/123", "filename": "buyer-file.pdf",
+            "bytes": 632406, "sha256": "a" * 64, "content_type": "application/pdf",
+        }],
+    }
+    for case in cases:
+        dom = observed[case["key"]]
+        assert dom["messages"] == [], case["key"]
+        with pytest.raises(adapter_module.snapshot.CollectorUnhealthy, match="dm_attachment_message_identity_changed"):
+            adapter_module.snapshot.merge_verified_dm_attachments(dom, document)
