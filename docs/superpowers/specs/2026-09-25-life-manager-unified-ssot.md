@@ -7607,3 +7607,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - unread_countとrequired_reply_countは公式boardの別fieldsである。未読6だけで返信漏れや必要返信6と断定しない。返信判定0はproviderの現在判定であり、全platform coverageや過去返信完了の証明ではない。financial readerは公式口座残高と空履歴の限定readbackであり、全期間settlement・銀行着金・14loops利益0の証明にしない。safe evidenceは /Users/anicca/.local/state/life-manager/state/lancers-work-inventory-safe-readback-20261005.json。
 - current immutableは /Users/anicca/loops/releases/20261005T134657-4ca1ab6c。launchctl-safe preflight rc0の後、target=lancers-revenue-work-syncの既存apply --loaded-idle-onlyを1回実行。結果ok=true/changed=false/skipped=loaded-running、actual loadedは旧ba69のまま。稼働中owner停止・manualwake・queue/fence解除0。evidenceは /Users/anicca/.local/state/life-manager/state/lancers-diagnostic-target-apply-20261005.json。source修正がcurrentにあるだけで対象load完了としない。
 - §217残54/cursor1を維持。独立LunaのAWS solver接続はsource-only、fresh owner idle時の反映と新source自然結果は未完。Coconala共有profileはpeer調整返答待ちで並行操作なし。
+
+
+### 511. Agent Economy認証failoverのpre-launch根因とLancers RED
+
+- current4caのagent_runner.py実関数をread-only pure probeで呼び出した。resolve_provider_profilesは明示acct1→acct2を展開、acct1 auth_file不存在、acct2存在。provider_process_envが作る既知local error「codex automation auth unavailable」をclassify_provider_errorへ与えるとvalidation_or_task_failure、codex_failover_actionはstop。resultなし/started_work=falseであっても既存明示account順路へ到達しない。provider/network/credential mutation0。証拠 /Users/anicca/.local/state/life-manager/state/agent-economy-auth-failover-pure-probe-20261005.json。
+- 推論：別account credentialをacct1へ複製せず、正規profile名を保持する既存明示順路のpre-launch typed fallbackが最小source候補。acct2認証の有効性・自然THINK成功・金融action成功は未確認。一般のvalidation failureや開始済みworkをfallback許可へ拡大しない。peer lm-capafy-cp2-fix-1002へrunner/auth edit所有範囲を既存AGMSGで照会、重複編集なし。§217のAgent Economy auth項目はこの根因と候補を参照する。
+- Lancers専用Luna担当は既存diagnostics testに追加3fixtureを実行し、未実装のlancers_browser_guard/_capsolverで期待どおりRED。実browser/API/credential readなし。最小GREENは進行中でsource受入未完。現在残54/cursor1、稼働中ownerの強制中断・重複solver task・provider/profile変更なし。
