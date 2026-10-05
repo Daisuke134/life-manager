@@ -20,6 +20,7 @@
 - Calendar reads and writes require an ACTIVE Composio account whose owner is the verified uid; multiple or mismatched accounts fail closed.
 - Web Calendar status reports connected only for the persisted exact ACTIVE account. A user-initiated start may recover one unique exact-uid ACTIVE account after an interrupted callback.
 - Before scheduled Web Calendar event access, re-read the current NULL-Telegram row and exact selected ACTIVE account; keep the Telegram scheduler path unchanged.
+- Carry the account ID returned by that guard through snapshot reads and `fillTravel`; the Calendar adapter rechecks the current NULL-Telegram selected marker before every Composio operation and refuses a changed account rather than re-resolving to another ID.
 - Home address, ACTIVE Calendar, and a successful server-owned setup transition are required before enabling daily travel automation or starting the existing three-day trial.
 - Web setup sets `call_enabled=false` and `notifications_enabled=false`; `paid` remains writable only by the existing Stripe webhook.
 - Departure remains event start minus accepted route duration minus one five-minute buffer. Calendar's existing default reminders remain in effect and must be described truthfully.
@@ -231,29 +232,33 @@ Expected: PASS; Stripe remains the only paid-state authority. Commit as `feat(li
 - Modify: `apps/life-manager/lib/web-calendar.js` and `apps/life-manager/lib/web-calendar.test.js`
 - Modify: `apps/life-manager/lib/web-travel.js` and `apps/life-manager/lib/web-travel.test.js`
 - Modify: `apps/life-manager/scheduler.js` and `apps/life-manager/test/scheduler.test.js`
+- Modify: `apps/life-manager/lib/travel.js` and `apps/life-manager/lib/travel.test.js`
+- Modify: `apps/life-manager/lib/transport/index.js` and `apps/life-manager/lib/transport/calendar-composio.js`
+- Modify: `apps/life-manager/lib/events-history.test.js` and `apps/life-manager/lib/calendar-cache.test.js`
 
 **Interface:**
 - `resolveActiveWebCalendar(uid, opts) -> Promise<{ accountId } | null>` re-reads the NULL-Telegram row, verifies its selected provider/account against exact-owner ACTIVE provider readback, then re-reads the unchanged marker before returning it.
 - GET status reports connected only for that persisted exact ACTIVE binding. POST start can recover one unique exact-uid ACTIVE account after an interrupted callback and reports connected only after marker persistence/readback.
 - `travelUserOnce` uses the Web-only guard before `fillTravel` for an `lm_<uuid>` row whose current Telegram binding is NULL; Telegram users retain their existing path.
+- The `accountId` returned by the Web guard is passed as `expectedCalendarAccountId` to both `buildTodaySnapshot` event listing and `fillTravel`. `getCalendar` includes that expected ID in its cache identity, and each Composio event operation verifies the current row is still NULL-Telegram and selects the expected ID; mismatch fails before provider event access.
 
 - [ ] **Step 1: Add failing recovery and scheduler-boundary cases**
 
-Cover `status is connected only for the persisted exact ACTIVE account`, `start recovers one ACTIVE account after callback binding was interrupted`, `ambiguous ACTIVE accounts are not bound`, `Web scheduler performs no Calendar read for inactive or rebound account`, and `Telegram travel keeps its existing path`.
+Cover `status is connected only for the persisted exact ACTIVE account`, `start recovers one ACTIVE account after callback binding was interrupted`, `ambiguous ACTIVE accounts are not bound`, `Web scheduler pins fillTravel to the checked account ID`, `transport issues no Calendar event call after the selected marker changes`, `account-scoped calendar adapters do not share cache entries`, and `Telegram travel keeps its existing path`.
 
 - [ ] **Step 2: Run focused tests and confirm the new cases fail**
 
-Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js`.
+Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js lib/travel.test.js lib/events-history.test.js lib/calendar-cache.test.js`.
 Expected: the new recovery/gate assertions fail before implementation.
 
 - [ ] **Step 3: Reuse one exact-binding guard for status, recovery, and scheduled Web travel**
 
-Keep GET status read-only. On explicit POST start, recover only a unique owner-verified ACTIVE account when the local marker is missing/stale; persist and read back the exact binding. Gate `fillTravel` immediately before Calendar access without changing Telegram selection or consent.
+Keep GET status read-only. On explicit POST start, recover only a unique owner-verified ACTIVE account when the local marker is missing/stale; persist and read back the exact binding. Gate `fillTravel` immediately before Calendar access and carry the checked ID into the adapter; each event operation fails closed if the current row no longer selects it. Do not re-resolve to a different account mid-run or change Telegram selection/consent.
 
 - [ ] **Step 4: Rerun focused tests and commit**
 
-Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js`.
-Expected: recovered exact accounts work; inactive, ambiguous, mismatched, or Telegram-bound rows issue no Web Calendar read. Commit as `fix(life-manager): recover web calendar binding safely`.
+Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js lib/travel.test.js lib/events-history.test.js lib/calendar-cache.test.js`.
+Expected: recovered exact accounts work; inactive, ambiguous, mismatched, Telegram-bound, or rebound rows issue no Web Calendar event call. Commit the scoped fix as `fix(life-manager): pin web calendar calls to checked account`.
 
 ### Task 7: Fence ambiguous Calendar create outcomes
 
