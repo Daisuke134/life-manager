@@ -7940,3 +7940,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6643 https://github.com/Daisuke134/life-manager/pull/6643 を作成、head eec318c5b3、新CI37286406991をlive確認。OSS/PII/Agent contract/startup/shell SUCCESS、Loop/Python/gitleaks/TruffleHog進行中。次は同run terminal/allPASS→通常main統合→full immutable→Reply対象idle apply→公式offer author proof/保存intentの自然readback。sourceSHIPを送信完了/入金へ代用しない。
 - Reply ownerの後続installed4eb6bbbaeb9a8368895e6391e34e8c895908b0ecを確認、firstfix c797とadapter blob同一cfb5306790c1898819a8d1faf5bda7a9a86c83b8。新しいmain-derived ownerを旧c797へ戻さない。fail/runningの一観測後、08:54:33Z run18db96147acc9f98-7066 reportPASSを再確認。frameworkとbusiness/officialreceiptを分離、保留解消未証明。
 - body selector差のreadonly probeはguardBUSY rc9で未取得、送信/state変更0。state/coconala-message-selector-comparison-20261005.json。既存manifestと現在bodyが違う原因を未確認のままtimestampだけで結び替えず、現HTTP200で同thread DOM/collectorの差を取得するscope§548/551を継続。全体47/cursor1 audit新source自然観測、個別Paid保留とSelfBuild最後を維持。
+
+
+### 555. PR6643 main/immutable/Reply対象反映と添付selector診断
+
+- PR6643/head eec318c5b3、CI37286406991全10checks SUCCESS、通常admin merge成功。main4fdb0b472edf23f1d0845245c79b15783c2d15d9/merged08:57:32Zを公式GitHub/fetch readback。full immutable /Users/anicca/loops/releases/20261005T175744-4fdb0b47をcut/current一致。bounded idle13probes後target-only apply changedtrue/admission_resumedtrue/install event44e146d49014440c944d3166、actualargs同release/bin/lm-loop-run＋rootをGUI確認。旧稼働runを止めず、state/coconala-author-proof-owner-adoption-20261005.jsonへ保存。
+- 反映直前の業務latest08:59:53Zはstatusok/194observed/12pending/0effect/182readback、no_reply138/closed44/retry5/unknown4/observation不足3。旧13→12はno_reply1増で、authorproof反映前の実行なので修正因果・返信送信・見積り精算へ代用しない。saved unknown7/retry5保持。新source4fの自然run18db96c90e3a6120-41978/reportPASS/idleを確認、business成功/officialcard binding未証明。
+- body selector比較08:58/09:03はguard取得できたが当該2thread HTTP403、preferred original vs unionの本文比較未取得。state/coconala-message-selector-comparison-20261005.json、業務send/state変更0。timestampだけでarchived添付を再結合せず、provider200の同thread比較を継続。
+- 独立readonly gpt6.1sol/mediumへsource/既存privateartifactと純fixtureのselector契約調査を割当。sourcequeue snapshot/DMcollector/replybrowserと旧OR→currentCSS union、attachmentbinding/メッセージID/replayへの影響だけ。browser/helper/provider/state編集0、顧客本文/添付URL/credential出力なし。現2件の原因を仮説だけで確定しない。全体47/cursor1 audit自然失敗境界、Coconala独立12保留を進める。
