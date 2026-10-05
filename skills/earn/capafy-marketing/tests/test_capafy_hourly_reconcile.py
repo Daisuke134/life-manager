@@ -160,9 +160,10 @@ def test_inventory_normalizes_five_slot_lifecycle() -> None:
         "observed_agents": 4,
         "listed": 1,
         "occupied": 2,
-        "free": 3,
+        "free": 2,
         "retry": 1,
         "blocked": 0,
+        "delisted": 0,
     }
 
 
@@ -942,3 +943,21 @@ def test_build_skill_analytics_adds_traffic_line_to_telegram_summary() -> None:
     analytics = module.build_skill_analytics(payloads, {}, {}, "2026-08-22T10:00:00Z")
 
     assert "Traffic (30d) top sources:" in analytics["telegram_summary"]
+
+
+def test_inventory_counts_delisted_agents_instead_of_giving_up() -> None:
+    """2026-10-05: 12 agents were unpublished (agentStatus offline) and the whole
+    inventory became unknown_unrecognized_status. Capafy also counts
+    review_rejected toward its five-unlisted cap (inventory_status.py)."""
+    module = load_module()
+    payloads = live_payloads()
+    rows = payloads["inventory"]["data"]
+    rows = rows if isinstance(rows, list) else (rows.get("list") or rows.get("agents"))
+    rows.append({"agentId": "9001", "agentStatus": "offline"})
+    rows.append({"agentId": "9002", "agentStatus": "user_delisted"})
+
+    inventory = module.build_receipt(payloads, "2026-10-05T01:00:00Z")["inventory"]
+
+    assert inventory["status"] == "normalized"
+    assert inventory["delisted"] == 2
+    assert inventory["free"] == 2  # 5 - (2 under_review/draft + 1 review_rejected)
