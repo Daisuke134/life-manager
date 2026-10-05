@@ -709,6 +709,8 @@ def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, ca
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
     monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    # Independent of the production retired list (real agent ids get retired over time).
+    monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
     # Every catalog item carrying UPDATE.json needs its target Agent present and
     # unchanged, or main() fails closed with SERVER_UNREADABLE (by design: an
     # update target that vanished/moved must never be silently skipped).
@@ -717,7 +719,7 @@ def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, ca
               latestAgentVersionId=item["update_request"]["from_version_id"])
         for item in module.ready_inventory() if item.get("update_request")
     ]
-    stub_name = "Customer Renewal Evidence Brief" + module.PLACEHOLDER_SUFFIX
+    stub_name = "Earnings Call Brief — Pasted Results to Questions" + module.PLACEHOLDER_SUFFIX
     rows = [agent("4973250899", "draft", name=stub_name)] + [
         agent(str(i), "under_review") for i in range(4)
     ] + update_rows
@@ -729,7 +731,7 @@ def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, ca
     assert decision["verdict"] == "PUBLISHABLE"
     assert decision["action"] == "retry_existing"
     assert decision["item"]["agent_id"] == "4973250899"
-    assert decision["item"]["title"] == "Customer Renewal Evidence Brief"
+    assert decision["item"]["title"] == "Earnings Call Brief — Pasted Results to Questions"
 
     # An unrelated LM-generated stub (no matching repo title) must NOT be touched.
     monkeypatch.setattr(module, "server_agents", lambda: [
