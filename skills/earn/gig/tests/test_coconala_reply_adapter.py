@@ -1364,7 +1364,7 @@ def test_active_message_readers_do_not_merge_when_author_identity_is_missing():
         "attachments": snapshot._dm_collect_module().DM_THREAD_EXPRESSION,
     }
     cases = [{
-        "key": reader,
+        "key": f"{reader}-{modern}",
         "expression": expression,
         "modern": modern,
         "has_original": True,
