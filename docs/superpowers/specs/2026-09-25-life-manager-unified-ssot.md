@@ -7865,3 +7865,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 専用branch fix/lm-coconala-estimate-readback-20261005 / worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-coconala-estimate-readback-20261005 / base b53c0ab7c2 / lease codex-lm-coconala-estimate-readback-20261005。head a23aa8002dab2b095a957b3b90958e8db26ba7a1をpush/remote SHA一致/clean確認。production diffは_estimate_observationのpre_click_cards=observedcards/post_click_cards=[]のみ、既存classifier/helper/kernel/stateは変更なし。
 - 実hash/実classifierを使うadapter回帰はRED1failed/4passed（matchingcardのverified欠如）、GREEN5/5。wrong owner/request前/金額違い/複数一致はverified不可、browser mutation0。adapter46/46、compile、contract14/180/104、OSS/diff PASS。manifest変更不要。source候補の受入結果を自然公式見積りreceipt・13保留の解消・売上へ置換しない。次はfresh read-only source review→PR/CI/main→immutable Reply owner→保存intentの公式readback。
 - audit後続disk観測はpeerが16:43〜48の一時burstとCaches減少を報告、削除元は未確認。root releasecutは16:56開始で当該burstへ帰属しない。旧loaded2aのhealthcheck-libもPR6563のcamoufox保持を含むとgit showで確認、再修復やcache削除を実施しない。auditinstalledb53/latest自然event旧2a/idleを再確認。全体47/cursor1は診断の自然観測、独立Coconala修復を継続。
+
+
+### 544. 見積りreadback独立SHIPとPR6634
+
+- fresh context Sol6.1/medium reviewerはhead a23aa8002dab2b095a957b3b90958e8db26ba7a1をread-only反証してSHIP、重要指摘なし。adapter46/shared kernel33PASS、合成probe9でcard kind/side/author/date/content/URL/time/SHA不足をfalse verifiedにしない。matching receiptはmutation前return、複数一致と旧unknown fence保持。本番操作/編集0。
+- PR6634 https://github.com/Daisuke134/life-manager/pull/6634 を作成。次はhead CIを確認し通常main統合/immutable/Reply ownerの安全なidle反映、自然official card readbackへ接続する。authoritative_absentは一致cardなしの既存意味で、old unknownを消す許可ではない。sourceSHIPを13保留の全件解消/精算/入金へ代用しない。
+- 追加provider gate probeは08:05Z guardBUSY rc9のためbrowser操作0、state/coconala-provider-gate-probe-20261005.jsonに境界のみ保存。CAPTCHA/challengeの存在未確認をsolver必要と断定しない。audit自然eventは旧2aのままで新b53 installed/idle。全体47/cursor1維持、source同filesの重複作業なし。
