@@ -16,3 +16,4 @@ here too — both are in `skills/capafy/RETIRED.json` (C4: 12 zero-sale near-dup
 academic/humanizer agents, Capafy doc 4.2). `inventory_status.py` now excludes any
 agent_id/title listed in RETIRED.json from recovery, retry and fresh-publish candidates,
 so these two can no longer be auto-republished by the drain loop.
+- 2026-10-05: customer-renewal-evidence-brief (review_rejected, 0 sales) and academic-research-proposal-humanizer (retired academic family) moved here; both in RETIRED.json to free review slots for the paid top-3 reprice.
