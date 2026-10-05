@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const vm = require("node:vm");
 const { renderWebPage } = require("./web-page.js");
 
 const verifiedUid = "lm_123e4567-e89b-12d3-a456-426614174000";
@@ -20,6 +21,36 @@ function snapshot(overrides = {}) {
   };
 }
 
+function visibleHtml(html) {
+  return html.replace(/<script>[\s\S]*?<\/script>/g, "");
+}
+
+function mountClient(html, responses) {
+  const handlers = {};
+  const requests = [];
+  const redirects = [];
+  const feedback = { textContent: "" };
+  const root = {
+    innerHTML: "",
+    addEventListener(name, handler) { handlers[name] = handler; },
+    querySelector() { return null; },
+  };
+  const script = html.match(/<script>([\s\S]*?)<\/script>/);
+  assert.ok(script);
+  vm.runInNewContext(script[1], {
+    document: {
+      getElementById(id) { return id === "lm-dashboard" ? root : id === "lm-feedback" ? feedback : null; },
+      querySelector() { return { content: user.csrf }; },
+    },
+    fetch: async (path, init) => {
+      requests.push({ path, init });
+      return { ok: true, json: async () => responses[path] };
+    },
+    window: { location: { assign(value) { redirects.push(value); } } },
+  });
+  return { handlers, requests, redirects, feedback, root };
+}
+
 test("renders sign-in and each missing setup step", () => {
   const anonymous = renderWebPage({});
   assert.match(anonymous, /href="\/auth\/google"/);
@@ -27,12 +58,12 @@ test("renders sign-in and each missing setup step", () => {
   assert.doesNotMatch(anonymous, /telegram/i);
 
   const needsCalendar = renderWebPage({ user, snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required" }) });
-  assert.match(needsCalendar, /id="calendar-connect"/);
-  assert.doesNotMatch(needsCalendar, /name="homeAddress"/);
+  assert.match(visibleHtml(needsCalendar), /id="calendar-connect"/);
+  assert.doesNotMatch(visibleHtml(needsCalendar), /name="homeAddress"/);
 
   const needsHome = renderWebPage({ user, snapshot: snapshot({ setupState: "needs_home" }) });
-  assert.match(needsHome, /name="homeAddress"/);
-  assert.doesNotMatch(needsHome, /id="calendar-connect"/);
+  assert.match(visibleHtml(needsHome), /name="homeAddress"/);
+  assert.doesNotMatch(visibleHtml(needsHome), /id="calendar-connect"/);
 });
 
 test("renders next event and verified Travel block", () => {
@@ -112,4 +143,60 @@ test("payment link uses only verified uid", () => {
   assert.match(match[1], new RegExp(`client_reference_id=${verifiedUid}`));
   assert.doesNotMatch(match[1], /aaaaaaaa/);
   assert.doesNotMatch(html, /\$29|29\s*\/\s*month|29\s*\/\s*月/i);
+});
+
+test("setup posts only the address with CSRF and renders refreshed Today safely", async () => {
+  const maliciousEvent = {
+    id: "event-2",
+    summary: "<script>alert(4)</script>",
+    location: "<img src=x onerror=alert(5)>",
+    startIso: "2026-10-07T01:00:00.000Z",
+    timezone: "Asia/Tokyo",
+    startMs: Date.parse("2026-10-07T01:00:00.000Z"),
+    endMs: Date.parse("2026-10-07T02:00:00.000Z"),
+  };
+  const page = renderWebPage({ user, snapshot: snapshot({ setupState: "needs_home" }) });
+  const client = mountClient(page, {
+    "/api/lm-web/calendar/status": { connected: true, state: "connected" },
+    "/api/lm-web/setup": { setupState: "ready", syncState: "sync_pending" },
+    "/api/lm-web/today": snapshot({ nextEvent: maliciousEvent }),
+  });
+  const form = {
+    id: "home-address-form",
+    elements: { homeAddress: { value: "1-2-3 Tokyo" } },
+    querySelector() { return { disabled: false }; },
+  };
+  let prevented = false;
+  await client.handlers.submit({ target: form, preventDefault() { prevented = true; } });
+
+  const setup = client.requests.find((request) => request.path === "/api/lm-web/setup");
+  const calendarStatus = client.requests.find((request) => request.path === "/api/lm-web/calendar/status");
+  assert.equal(prevented, true);
+  assert.equal(calendarStatus.init.method, "GET");
+  assert.equal(calendarStatus.init.body, undefined);
+  assert.equal(setup.init.method, "POST");
+  assert.equal(setup.init.headers["x-lm-web-csrf"], user.csrf);
+  assert.deepEqual(JSON.parse(setup.init.body), { homeAddress: "1-2-3 Tokyo" });
+  assert.ok(client.requests.some((request) => request.path === "/api/lm-web/today" && request.init.method === "GET"), JSON.stringify(client.requests.map(({ path, init }) => ({ path, method: init.method }))));
+  assert.match(client.root.innerHTML, /&lt;script&gt;alert\(4\)&lt;\/script&gt;/);
+  assert.match(client.root.innerHTML, /&lt;img src=x onerror=alert\(5\)&gt;/);
+  assert.doesNotMatch(client.root.innerHTML, /<script>alert\(4\)<\/script>|<img src=x onerror=alert\(5\)>/);
+});
+
+test("Calendar start follows only the server redirect URL", async () => {
+  const page = renderWebPage({ user, snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required" }) });
+  const redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?state=server-value";
+  const client = mountClient(page, {
+    "/api/lm-web/calendar/status": { connected: false, state: "action_required" },
+    "/api/lm-web/calendar/start": { connected: false, state: "action_required", redirectUrl },
+  });
+  const button = { dataset: { action: "calendar-start" }, disabled: false };
+  await client.handlers.click({ target: { closest() { return button; } } });
+
+  const start = client.requests.find((request) => request.path === "/api/lm-web/calendar/start");
+  assert.equal(start.init.method, "POST");
+  assert.equal(start.init.headers["x-lm-web-csrf"], user.csrf);
+  assert.deepEqual(JSON.parse(start.init.body), {});
+  assert.deepEqual(client.redirects, [redirectUrl]);
+  assert.ok(client.requests.every(({ init }) => !init.body || !/uid|chat_id|paid/.test(init.body)));
 });

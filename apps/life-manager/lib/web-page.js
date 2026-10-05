@@ -71,6 +71,42 @@ const CLIENT_SCRIPT = String.raw`(() => {
   const feedback = document.getElementById("lm-feedback");
   const csrf = document.querySelector('meta[name="lm-web-csrf"]')?.content || "";
   if (!root) return;
+  function escapeHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+  }
+  function timeMarkup(value, timezone) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "";
+    const iso = date.toISOString();
+    let label = iso;
+    try { label = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: timezone || "UTC" }).format(date); } catch {}
+    return '<time datetime="' + escapeHtml(iso) + '">' + escapeHtml(label) + "</time>";
+  }
+  function render(snapshot, homeAddress) {
+    const calendarStatus = snapshot.calendarState === "connected" ? "接続済み" : snapshot.calendarState === "unavailable" ? "接続状況を確認できません" : "未接続";
+    const calendar = '<section class="card calendar-card"><div class="card-heading"><h2>Google カレンダー</h2><span id="calendar-status" class="status">' + calendarStatus + "</span></div></section>";
+    if (snapshot.setupState === "needs_calendar") return calendar + '<section class="card setup-card"><p class="eyebrow">設定 1 / 2</p><h2>Google カレンダーを接続</h2><p>予定を読み取り、出発時刻を確認します。</p><button id="calendar-connect" type="button" class="button" data-action="calendar-start">Google カレンダーを接続</button></section>';
+    if (snapshot.setupState === "needs_home") return calendar + '<section class="card setup-card"><p class="eyebrow">設定 2 / 2</p><h2>いつもの出発場所を入力</h2><p>住所は移動時間の計算に使います。</p><form id="home-address-form"><label for="homeAddress">自宅の住所</label><input id="homeAddress" name="homeAddress" type="text" maxlength="240" autocomplete="street-address" required value="' + escapeHtml(homeAddress) + '"><button type="submit" class="button">保存して予定を確認</button></form></section>';
+    if (snapshot.setupState === "sync_pending" && snapshot.calendarState === "unavailable") return '<section class="card"><h2>Calendar の状態を確認中</h2><p>接続状況を確認できません。あとで更新してください。</p><button type="button" class="button secondary" data-action="refresh">更新</button></section>';
+    let next = '<section class="card"><h2>次の予定</h2><p>今後の予定は見つかりませんでした。</p></section>';
+    if (snapshot.nextEvent) {
+      const event = snapshot.nextEvent;
+      const location = String(event.location || "").trim();
+      next = '<section class="card"><h2>次の予定</h2><p class="event-title">' + escapeHtml(event.summary || "名称のない予定") + "</p>" + timeMarkup(event.startIso, event.timezone) + (location ? '<p class="event-location">' + escapeHtml(location) + "</p>" : '<p class="notice">この予定には場所がありません。場所が登録されるまで Travel の予定は表示されません。</p>') + "</section>";
+    }
+    let travelMarkup = "";
+    const travel = snapshot.travelBlock;
+    if (travel) {
+      const departure = snapshot.departureAt || travel.startIso;
+      const minutes = Number.isFinite(travel.startMs) && Number.isFinite(travel.endMs) ? Math.max(0, Math.round((travel.endMs - travel.startMs) / 60000)) : null;
+      travelMarkup = '<section class="card departure-card"><p class="eyebrow">次の出発</p><h2 class="departure-time">' + timeMarkup(departure, travel.timezone) + '</h2><p class="event-title">' + escapeHtml(travel.summary || "Travel") + "</p>" + (minutes == null ? "" : '<p class="muted">移動時間の予定: ' + minutes + " 分</p>") + "</section>";
+    } else if (snapshot.setupState === "sync_pending") {
+      travelMarkup = '<section class="card"><h2>Travel の確認中</h2><p>予定表の読み取り結果を確認しています。少し待ってから更新してください。</p><button type="button" class="button secondary" data-action="refresh">更新</button></section>';
+    } else if (snapshot.nextEvent && snapshot.nextEvent.location) {
+      travelMarkup = '<section class="card"><h2>出発時刻</h2><p>この予定には Travel の予定は必要ありません。</p></section>';
+    }
+    return calendar + next + travelMarkup + '<p class="reminder-note">通知は Google カレンダーのデフォルトリマインダー設定に従います。Life Manager は通知設定を変更しません。</p>';
+  }
   async function api(path, method, body) {
     const headers = { Accept: "application/json" };
     const request = { method: method || "GET", credentials: "same-origin", headers };
@@ -85,9 +121,10 @@ const CLIENT_SCRIPT = String.raw`(() => {
     return result;
   }
   function say(message) { feedback.textContent = message || ""; }
-  async function refresh() {
-    await api("/api/lm-web/today", "GET");
-    window.location.assign("/lm");
+  async function refresh(homeAddress) {
+    const snapshot = await api("/api/lm-web/today", "GET");
+    root.innerHTML = render(snapshot, homeAddress);
+    return snapshot;
   }
   root.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action]");
@@ -105,18 +142,20 @@ const CLIENT_SCRIPT = String.raw`(() => {
       }
       say("予定を更新しています…");
       await refresh();
+      say("");
     } catch {
       say("予定を更新できませんでした。あとでもう一度お試しください。");
-      button.disabled = false;
     }
+    button.disabled = false;
   });
   root.addEventListener("submit", async (event) => {
     if (!event.target || event.target.id !== "home-address-form") return;
     event.preventDefault();
     const button = event.target.querySelector('button[type="submit"]');
     button.disabled = true;
+    let homeAddress;
     try {
-      const homeAddress = String(event.target.elements.homeAddress.value || "").trim();
+      homeAddress = String(event.target.elements.homeAddress.value || "").trim();
       await api("/api/lm-web/setup", "POST", { homeAddress });
     } catch {
       say("住所を保存できませんでした。入力内容を確認して、もう一度お試しください。");
@@ -125,11 +164,12 @@ const CLIENT_SCRIPT = String.raw`(() => {
     }
     try {
       say("住所を保存しました。予定を更新しています…");
-      await refresh();
+      await refresh(homeAddress);
+      say("");
     } catch {
       say("住所を保存しましたが、予定を更新できませんでした。あとで更新してください。");
-      button.disabled = false;
     }
+    button.disabled = false;
   });
   api("/api/lm-web/calendar/status", "GET").then((status) => {
     const label = document.getElementById("calendar-status");
