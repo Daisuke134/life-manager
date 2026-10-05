@@ -17,11 +17,13 @@ import html as html_lib
 import json
 import os
 import re
+import stat
 import sys
 import time
 import urllib.parse
 import urllib.error
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import sync_playwright
@@ -29,6 +31,48 @@ from playwright.sync_api import sync_playwright
 
 POSTIZ_API = "https://api.postiz.com/public/v1/posts"
 X_SNOWFLAKE_EPOCH_MS = 1288834974657
+
+
+class PostizPreSubmitError(ValueError):
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
+
+
+class PostizSubmissionOutcomeUnknown(ValueError):
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
+
+
+def _postiz_api_key() -> str:
+    key = os.environ.get("POSTIZ_API_KEY", "").strip()
+    if key:
+        return key
+
+    credentials_path = Path.home() / ".local/share/anicca/credentials.json"
+    private_dir = credentials_path.parent
+    try:
+        directory_stat = private_dir.lstat()
+        file_stat = credentials_path.lstat()
+        if (stat.S_ISLNK(directory_stat.st_mode) or not stat.S_ISDIR(directory_stat.st_mode)
+                or stat.S_ISLNK(file_stat.st_mode) or not stat.S_ISREG(file_stat.st_mode)
+                or directory_stat.st_uid != os.getuid() or file_stat.st_uid != os.getuid()
+                or stat.S_IMODE(directory_stat.st_mode) != 0o700
+                or stat.S_IMODE(file_stat.st_mode) != 0o600):
+            return ""
+        value = json.loads(credentials_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return ""
+    rows = value.get("credentials") if isinstance(value, dict) else None
+    if not isinstance(rows, list):
+        return ""
+    matches = [row for row in rows if isinstance(row, dict)
+               and row.get("service") == "postiz"]
+    if len(matches) != 1:
+        return ""
+    api_key = matches[0].get("api_key")
+    return api_key.strip() if isinstance(api_key, str) else ""
 
 
 def http_error_summary(error: urllib.error.HTTPError) -> str:
@@ -55,12 +99,12 @@ def postiz_publish(text: str, mode: str, source_url: str | None) -> str:
 
     Acceptance is not publication proof. The caller must still exact-read the X permalink.
     """
-    api_key = os.environ.get("POSTIZ_API_KEY", "").strip()
+    api_key = _postiz_api_key()
     integration_id = os.environ.get("X_REPOST_POSTIZ_INTEGRATION_ID", "").strip()
     if not api_key or not integration_id:
-        raise ValueError("Postiz transport is not configured")
+        raise PostizPreSubmitError("postiz_configuration_missing")
     if mode == "reply":
-        raise ValueError("unsolicited automated replies are disabled")
+        raise PostizPreSubmitError("automated_reply_disabled")
     content = text
     if mode == "quote" and source_url and source_url not in content:
         content = f"{content.rstrip()}\n{source_url}"
@@ -85,12 +129,15 @@ def postiz_publish(text: str, mode: str, source_url: str | None) -> str:
                  "User-Agent": "life-manager-x-repost/1"},
         method="POST",
     )
-    with urlopen(request, timeout=30) as response:
-        result = json.load(response)
+    try:
+        with urlopen(request, timeout=30) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        raise PostizSubmissionOutcomeUnknown("postiz_submission_response_unknown") from None
     row = result[0] if isinstance(result, list) and result else result
     submission_id = row.get("postId") if isinstance(row, dict) else None
     if not submission_id:
-        raise ValueError("Postiz response omitted postId")
+        raise PostizSubmissionOutcomeUnknown("postiz_submission_id_missing")
     return str(submission_id)
 
 
@@ -98,10 +145,10 @@ def postiz_published_url(
     submission_id: str, observed_at: str, expected_text: str
 ) -> str | None:
     """Resolve one accepted Postiz effect to its exact published X permalink."""
-    api_key = os.environ.get("POSTIZ_API_KEY", "").strip()
+    api_key = _postiz_api_key()
     integration_id = os.environ.get("X_REPOST_POSTIZ_INTEGRATION_ID", "").strip()
     if not api_key or not integration_id or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", submission_id):
-        raise ValueError("Postiz reconciliation is not configured")
+        raise PostizPreSubmitError("postiz_reconciliation_configuration_missing")
     observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
     if observed.tzinfo is None:
         raise ValueError("Postiz reconciliation time must be timezone-aware")
@@ -520,6 +567,19 @@ def main():
                 transport, text, args.mode, args.source_url,
                 postiz_publish, lambda *_args: None,
             )
+        except PostizPreSubmitError as exc:
+            receipt = {"posted": False, "mode": args.mode, "source_url": args.source_url,
+                       "provider": "postiz", "provider_status": None,
+                       "failure_phase": "pre_submit", "reason_code": exc.reason_code}
+            json.dump(receipt, sys.stdout, ensure_ascii=False)
+            print(); sys.exit(1)
+        except PostizSubmissionOutcomeUnknown as exc:
+            receipt = {"posted": "unverified", "mode": args.mode,
+                       "source_url": args.source_url, "provider": "postiz",
+                       "provider_status": None, "failure_phase": "post_submit",
+                       "reason_code": exc.reason_code}
+            json.dump(receipt, sys.stdout, ensure_ascii=False)
+            print(); sys.exit(2)
         except (ValueError, OSError, urllib.error.HTTPError) as exc:
             status = exc.code if isinstance(exc, urllib.error.HTTPError) else None
             receipt = {"posted": False, "mode": args.mode, "source_url": args.source_url,

@@ -90,9 +90,13 @@ The single scheduler declaration is `config/loop-registry.json`. Account-specifi
 live in the repository-owned `x-repost-en-cli.sh`, `x-repost-ja-cli.sh`, and `x-tweeter-cli.sh`
 wrappers; there is no second `loop.toml`/plist generator path.
 
-Runtime credentials stay outside Git. Provide `POSTIZ_API_KEY` when using Postiz and a healthy
-registered CloakBrowser X session for source collection and exact readback. `TWITTER_AUTH_TOKEN` is
-an optional recovery cookie used only when that browser session has lost its X auth cookie.
+Runtime credentials stay outside Git. Postiz uses `POSTIZ_API_KEY` from the process environment
+when supplied, and otherwise reads the single `service=postiz` / `api_key` record from
+`~/.local/share/anicca/credentials.json`. The fallback fails closed unless the file is owned by the
+current user with mode `0600`, its parent directory is owned by that user with mode `0700`, and
+exactly one Postiz record exists. A healthy registered CloakBrowser X session is still required for
+source collection and exact readback. `TWITTER_AUTH_TOKEN` is an optional recovery cookie used
+only when that browser session has lost its X auth cookie.
 Browser identities are resolved through the local browser registry rather than hardcoded CDP
 ports. The Chinese collector also requires the `crwl` CLI on `PATH`.
 
