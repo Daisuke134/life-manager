@@ -7768,3 +7768,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Lancers仕事在庫readbackの旧残1を完了として除き、旧2〜51を新1〜50へ繰上げ。相対順/外部effectは変えない。現在cursor1はAgent Economy auth owner/参照のfresh確認。auth source/main修復済みを再実装せず、正規設定・現在auth存在・自然THINKへ結ぶ。必要credential値をspec/chatへ出さずprivate SSOT/SDK経路で確認する。
 - Coconala family修正ae38c5de0b5fae3b9980544e2db24cea587fa2d9をpush/remote一致/clean。caller-trusted Direct familyをreceipt生成に優先、None/direct_inbox/b1_inboxのみ受理、DOM任意ラベル無視、B1default維持。adapter41/owner1/compile/contract/OSS/diff PASS。fresh reviewは前重要指摘解消SHIP/41＋追加反証PASS。
 - PR6626 https://github.com/Daisuke134/life-manager/pull/6626 を最終scope・検証・未確認を本文へ記載して作成、CI進行中。完全pagination/自然collector/実返信/全Paidは未確認、個別保留/旧fenceを解除しない。rootが統合・反映・自然readbackを追う。残50/cursor1。
+
+
+### 531. Coconala CIの既存Capafy inventory不整合を分離
+
+- PR6626最終ae38c5de0bのOSS CIはmanifest_inventory_mismatch skills/capafy-autopublishでFAIL。run37275894849/job111652716290のcompleted job logsを取得し、terminal escapeをcapture/除去して当該診断だけ確認。全run進行中でgh run --log-failed取得不可だったためjob APIへ経路変更。
+- Coconala branchのlocal OSSはbase f2dでPASS。GitHub merge CIはmain cd5b63901e/Capafy CP2 probe-budget修復PR6624を含むため、非重複source差分とmetadata整合を確認する。Capafy peerへ当該inventory修正のowner/既存branchをAGMSG照会済み。再実装やテスト弱化は行わない。
+- 次の変更範囲は、同Coconala branchをlatestmainへ追従しCoconalaのsource bytesを維持、必要なOSS manifest当該inventory digestだけを既存方式で更新すること。Capafy price/product/CP source・provider/model/production/state変更なし。他entryは保持、peer修正があればそれを採用し重複変更しない。metadata/OSS/focused privacy/source-diff→commit/push→最終CIを確認する。
+- Agent Economy fresh runtimeはinstalled/event8853/loaded-running/run18db8fd9e1b42578-93632、explicit profile順acct1→acct2、auth1不存在/auth2存在を再確認。これは設定/ファイル状態までで自然THINK成功や資金成果の証明ではない。変更前specとして不足物/範囲を記録し、source auth修復を重複しない。現在残50/cursor1。
