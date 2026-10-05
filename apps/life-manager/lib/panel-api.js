@@ -960,9 +960,10 @@ async function composioCalendarStart(scope, opts = {}) {
   const account = await jsonOr(response, {});
   if (!exactCalendarAccount(scope, account)) throw new Error("provider_ownership");
   if (String(account.id) !== connectedAccountId) throw new Error("provider_account_mismatch");
-  if (account.status === "ACTIVE" && account.is_disabled !== true
-    && (account.enabled === undefined || account.enabled === true)) return { provider: "calendar", state: "connected" };
-  if (account.is_disabled !== true && account.enabled !== false) return null;
+  if (sameEnabledCalendarAccount(account, connectedAccountId)) return { provider: "calendar", state: "connected" };
+  if (opts.requireExplicitDisabled === true) {
+    if (!sameDisabledCalendarAccount(account, connectedAccountId)) throw new Error("provider_status_unknown");
+  } else if (account.is_disabled !== true && account.enabled !== false) return null;
   const enabled = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(connectedAccountId)}/status`, {
     method: "PATCH",
     headers: { "x-api-key": opts.composioKey, "content-type": "application/json" },

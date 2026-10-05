@@ -340,7 +340,9 @@ async function startCalendar(scope, req, res, opts, origin) {
     if (!controlState.enablePending) {
       await calendarEnableClaim("begin_lm_web_calendar_enable", scope.uid, current.accountId, provider);
     }
-    const resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, { ...provider, connectedAccountId: current.accountId });
+    const resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, {
+      ...provider, connectedAccountId: current.accountId, requireExplicitDisabled: true,
+    });
     if (resumed && (resumed.state === "connected" || resumed.connected === true)) {
       const activeStatus = await (provider.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(
         scope, current.accountId, provider,

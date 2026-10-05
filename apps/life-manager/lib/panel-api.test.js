@@ -97,6 +97,64 @@ test("Calendar start rejects a same-owner returned ID mismatch before any enable
   assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
 });
 
+test("Web Calendar start requires explicit disabled state while Telegram retains its legacy enable predicate", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const inactive = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const cases = [
+    { ...inactive, status: "EXPIRED" },
+    { ...inactive, status: undefined },
+    { ...inactive, status: "INACTIVE", enabled: true },
+  ];
+  async function start(initial, options = {}) {
+    let account = { ...initial };
+    const patches = [];
+    const result = await composioCalendarStart(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      ...options,
+      fetchImpl: async (url, init = {}) => {
+        const parsed = new URL(String(url));
+        if ((init.method || "GET") === "PATCH") {
+          patches.push(JSON.parse(init.body || "{}").enabled);
+          account = {
+            id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+            status: "ACTIVE", is_disabled: false, enabled: true,
+          };
+          return jsonResponse({});
+        }
+        return jsonResponse(account);
+      },
+    });
+    return { result, patches };
+  }
+
+  for (const account of cases) {
+    const patches = [];
+    await assert.rejects(() => composioCalendarStart(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      requireExplicitDisabled: true,
+      fetchImpl: async (_url, init = {}) => {
+        if (init.method === "PATCH") patches.push(JSON.parse(init.body || "{}").enabled);
+        return jsonResponse(account);
+      },
+    }), /provider_status_unknown/);
+    assert.deepEqual(patches, []);
+  }
+
+  const webStart = await start(inactive, { requireExplicitDisabled: true });
+  assert.deepEqual(webStart.result, { provider: "calendar", state: "connected" });
+  assert.deepEqual(webStart.patches, [true]);
+
+  const telegramStart = await start(cases[0]);
+  assert.deepEqual(telegramStart.result, { provider: "calendar", state: "connected" });
+  assert.deepEqual(telegramStart.patches, [true]);
+});
+
 test("uncertain Web Calendar disconnect skips rollback-enable while the default keeps Telegram rollback", async () => {
   const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
   const selectedId = "ca-selected-123";

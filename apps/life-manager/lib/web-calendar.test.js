@@ -524,6 +524,40 @@ test("Calendar start resumes only the uid's selected account after exact ACTIVE 
   assert.match(writes[3][1], /finish_lm_web_calendar_enable$/);
 });
 
+test("Web Calendar start does not enable an EXPIRED selected account with disabled flags", async () => {
+  const row = { uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" };
+  let providerPatches = 0;
+  let providerEnabled = false;
+  const response = await call("POST", "/api/lm-web/calendar/start", options({
+    composioCalendarAccountStatusImpl: async () => "DISABLED",
+    fetchImpl: async (input, init = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === "backend.composio.dev") {
+        if (url.pathname.endsWith("/status") && init.method === "PATCH") {
+          providerPatches++;
+          providerEnabled = JSON.parse(init.body || "{}").enabled === true;
+          return { ok: true, status: 200, json: async () => ({}) };
+        }
+        return { ok: true, status: 200, json: async () => providerEnabled ? {
+          id: "ca-selected", user_id: UID, toolkit_slug: "googlecalendar",
+          status: "ACTIVE", is_disabled: false, enabled: true,
+        } : {
+          id: "ca-selected", user_id: UID, toolkit_slug: "googlecalendar",
+          status: "EXPIRED", is_disabled: true, enabled: false,
+        } };
+      }
+      if (url.pathname.endsWith("/rpc/begin_lm_web_calendar_enable")
+        || url.pathname.endsWith("/rpc/finish_lm_web_calendar_enable")) {
+        return { ok: true, status: 200, json: async () => true };
+      }
+      return { ok: true, status: 200, json: async () => [{ ...row }] };
+    },
+  }), { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} });
+
+  assert.notEqual(response.status, 200);
+  assert.equal(providerPatches, 0);
+});
+
 test("Calendar start refuses a pending disconnect before provider enable or OAuth", async () => {
   const row = { uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected" };
   let providerReads = 0, enables = 0, oauthStarts = 0, writes = 0;
