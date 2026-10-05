@@ -9,7 +9,7 @@ Originality = lost sales + rejection risk. For each new listing: search a proven
 data (`GET /agent/agent/agents/<id>`), and **copy its price / cap / category / structure verbatim**.
 Write original *words* (avoid plagiarism), copy the *facts/structure*. NEVER invent a price or cap
 "to be safe" — the winner already proved the numbers convert and the cap keeps cost < revenue.
-Follow the free-trial DEFAULT in §3 for new skills rather than copying a winner's exact trial value.
+Use No Free Trial on every plan and always a year plan (§3), as the top sellers do.
 
 ## 1. SELLABLE TEST (decide before building)
 - **run_online** (what we sell): buyer chats in a sandbox = model + pasted input only. No web/tool/
@@ -31,28 +31,20 @@ Common shapes that sell (pick the one your winner uses; don't blend two):
 - Cheap impulse niches (cold email) run low (week $1.99 / month $5.99). Pro/analyst niches run high
   (month $24.99–27.99). Match the niche's proven band.
 
-## 3. TRIAL config — new skills default to a trial (2026-09-28 policy, supersedes the old paid-only rule)
-Measured 2026-09-28: every seller with revenue in our own catalog is short-form/recurring-input content
-(Hook Lab, Slide Maker, Marketing Strategist, TikTok Script Pro, YouTube Script Writer), the marketplace
-winners in those verticals nearly all carry a free trial, and 69 of our 98 historical units were free-trial
-units before we banned trials outright. Banning trials cost us conversion volume for no measured benefit.
+## 3. TRIAL config — No Free Trial on every plan, always a year plan (2026-10-05, supersedes 2026-09-28)
+Measured 2026-10-05 from `capafy-market-agents-20261004.json` (subscription sellers, other publishers):
+top 10 by sales = **1 of 10** carry a free trial, top 20 = 5 of 20, top 50 = 14 of 50 (Ocup Football
+Analysis, Serenity Stock Tracker, HookAce, Alpha Consensus: no trial). The 2026-09-28 claim that winners
+"nearly all carry a free trial" was wrong. Our own data: 69 of 101 units were free-trial units, they
+earned $0 and their model cost (Sonnet) was ours.
 
-**New skills** (not yet published): set a trial on the **week** and **month** plans; the **day** plan
-stays **No Free Trial** (day-plan buyers are already impulse-converting, a trial there just delays revenue).
-Defaults unless a specific winner's data says otherwise:
-- week plan: `Free Trial 24h / 3 requests`
-- month plan: `Free Trial 72h / 5 requests`
+**Every plan:** `No Free Trial`. Always include a **year** row. Prices at the market band in §2
+(2026-10-03 sweep: month p25 $12.99 / median $19.10 / p75 $22.99, week median $6.99, year median $149.99).
+Expensive hosted models (Sonnet or above) need low request caps, as the winners do (10–27 per month).
 
-`lint_listing.py` and `build_config.py` accept exactly two trial cell shapes: `No Free Trial` or
-`Free Trial <hours>h / <N> requests` (e.g. `Free Trial 24h / 3 requests`); anything else is rejected.
-`build_config.py` emits `{"trial": {"hours": H, "requests": N}}` or `null` per plan.
-
-**Already-published skills are never retroactively edited** to add a trial — touching a live agent's
-pricing config is out of scope for routine catalog work (would require a CP1 edit + re-review on an
-Agent that is already earning). Only NEW skills use this default.
-
-See `CP1_AGENTIC.md` §"Fixing 価格設定" for how the agent enables the trial in the CP1 UI and what to
-do when the revealed fields don't match the target.
+`lint_listing.py` and `build_config.py` still accept `Free Trial <hours>h / <N> requests` cells, but new
+listings use `No Free Trial`. CP1 must set every plan card to the LISTING table on every pass
+(`CP1_AGENTIC.md`); `publish_finish.sh` prints `PRICE_MISMATCH_WARNING` when saved billing differs.
 
 ## 4. CATEGORY (use the winner's; JP labels in the CP1 dropdown)
 writing→ライティング · research→リサーチ · marketing→マーケティング · social→ソーシャルメディア ·
@@ -160,13 +152,14 @@ after football fixture analysis — both are now `Demand rank`ed (see §8) to pu
 
 **Next candidates, in priority order, are variants inside these already-proven families — not novel
 categories:**
-1. Hook Lab variants for a specific platform or niche (Reels, YouTube Shorts, ads, podcasts,
-   newsletters) — same recurring-input shape (buyer pastes new raw footage/topic each time), new
-   audience.
+1. ~~Hook Lab variants~~ — STOPPED 2026-10-04 (C3 rule in `capafy_daily_decision.py`): the live
+   Ad/Reels/Shorts Hook Lab variants sold 0 in 30 days while Hook Lab sold 11, and Capafy doc 4.2 removes
+   near-identical mass uploads. Unpublished variants are in `skills/capafy/catalog-hold/`. Do not build
+   another Hook Lab variant; use `capafy-candidate-opportunities.json` (market shelves, winner_clone).
 2. Finance summaries (earnings/market recap style, not stock-tracking — that's Portfolio Tracker).
 3. Sports analysis beyond football fixtures (a different league/sport with the same weekly-fixture
    recurring-input shape as `football-match-analyst`).
-Use **DeepSeek V4.1 Flash** as Primary Model (§5's cheaper default) and set the trial per §3.
+Use **DeepSeek V4.1 Flash** as Primary Model (§5's cheaper default) and No Free Trial on every plan per §3.
 
 ### Description template (derived from Hook Lab's live listing style)
 Use this shape for every new listing in this family — outcome headline, buyer identity, 3 concrete
@@ -204,6 +197,7 @@ Honesty: <what this does NOT do — no live data / no posting / no file export, 
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | day   | $X.XX | N | No Free Trial |
-| week  | $X.XX | N | Free Trial 24h / 3 requests |
-| month | $X.XX | N | Free Trial 72h / 5 requests |
+| week  | $X.XX | N | No Free Trial |
+| month | $X.XX | N | No Free Trial |
+| year  | $X.XX | N | No Free Trial |
 ```
