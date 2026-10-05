@@ -6,6 +6,273 @@ const { directionsRoute, geocodeAddress } = require("./travel.js");
 const { makeRouteCache } = require("./route-cache.js");
 const { recordUsageEvent } = require("./usage-event.js");
 
+const ROUTE_RUNTIME_ENV = {
+  LIFE_MANAGER_LOOP_ID: "life-manager-cfo-hourly",
+  LIFE_MANAGER_OWNER_ID: "managed-travel-owner",
+  LIFE_MANAGER_RUN_ID: "managed-travel-run",
+  LIFE_MANAGER_OCCURRENCE_ID: "life-manager-cfo-hourly:managed-travel-run",
+  LIFE_MANAGER_RELEASE_SHA: "f".repeat(40),
+};
+
+async function runRouteWithFakeFetch({
+  src = "geo:35.681,139.767",
+  dst = "geo:35.659,139.700",
+  geocode,
+  transitFetch,
+  timeoutMs,
+} = {}) {
+  const requests = [];
+  const events = [];
+  const rows = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    requests.push(requestUrl);
+    if (requestUrl.includes("api.transit.ls8h.com")) {
+      return transitFetch ? transitFetch(requestUrl, options) : {
+        ok: true,
+        status: 200,
+        json: async () => ({ date: "20260827", timezone: "Asia/Tokyo", journeys: [] }),
+      };
+    }
+    if (requestUrl.includes("maps.googleapis.com/maps/api/directions")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ status: "OK", routes: [{ legs: [{ duration: { value: 1800 } }] }] }),
+      };
+    }
+    throw new Error("unexpected fake fetch URL");
+  };
+  try {
+    const options = {
+      uid: "tenant-transit-fallback",
+      timezone: "Asia/Tokyo",
+      _routeCache: makeRouteCache({ store: new Map(), ttlMs: 600000, now: () => 1000 }),
+      _runtimeEnv: ROUTE_RUNTIME_ENV,
+      _recordUsageEvent: async (event, writeOptions) => {
+        events.push(event);
+        return recordUsageEvent(event, {
+          ...writeOptions,
+          recordCost: async (row) => { rows.push(row); return true; },
+        });
+      },
+    };
+    if (geocode) options._geocode = geocode;
+    if (Number.isFinite(timeoutMs)) options._transitTimeoutMs = timeoutMs;
+    const route = await directionsRoute(
+      src, dst, "fake-maps-key", Date.parse("2026-08-27T18:30:00+09:00"),
+      Date.parse("2026-08-26T00:00:00Z"), false, options,
+    );
+    return { route, requests, events, rows };
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+test("JP Transit outcomes map to fixed Google fallback metadata on the same runtime trace", async () => {
+  const scenarios = [
+    {
+      name: "explicit no route",
+      transitFetch: async () => ({ ok: true, status: 200,
+        json: async () => ({ date: "20260827", timezone: "Asia/Tokyo", journeys: [] }) }),
+      fallbackReason: "transit_no_route",
+    },
+    {
+      name: "empty journeys with invalid service date",
+      transitFetch: async () => ({ ok: true, status: 200,
+        json: async () => ({ date: "20260230", timezone: "Asia/Tokyo", journeys: [] }) }),
+      fallbackReason: "transit_invalid_response",
+    },
+    {
+      name: "empty journeys with invalid timezone",
+      transitFetch: async () => ({ ok: true, status: 200,
+        json: async () => ({ date: "20260827", timezone: "Not/AZone", journeys: [] }) }),
+      fallbackReason: "transit_invalid_response",
+    },
+    {
+      name: "provider 4xx",
+      transitFetch: async () => ({ ok: false, status: 429, json: async () => ({}) }),
+      fallbackReason: "transit_provider_4xx",
+    },
+    {
+      name: "provider 5xx",
+      transitFetch: async () => ({ ok: false, status: 503, json: async () => ({}) }),
+      fallbackReason: "transit_provider_5xx",
+    },
+    {
+      name: "invalid response shape",
+      transitFetch: async () => ({ ok: true, status: 200, json: async () => ({ error: "bad response" }) }),
+      fallbackReason: "transit_invalid_response",
+    },
+    {
+      name: "invalid service date",
+      transitFetch: async () => ({ ok: true, status: 200, json: async () => ({
+        date: "20260230", timezone: "Asia/Tokyo", type: "arrival",
+        journeys: [{ departureSecs: 18 * 3600 + 31 * 60, arrivalSecs: 18 * 3600 + 40 * 60,
+          durationSecs: 9 * 60, transferCount: 0, legs: [{ mode: "rail" }] }],
+      }) }),
+      fallbackReason: "transit_invalid_response",
+    },
+    {
+      name: "invalid timezone",
+      transitFetch: async () => ({ ok: true, status: 200, json: async () => ({
+        date: "20260827", timezone: "Not/AZone", type: "arrival",
+        journeys: [{ departureSecs: 18 * 3600 + 31 * 60, arrivalSecs: 18 * 3600 + 40 * 60,
+          durationSecs: 9 * 60, transferCount: 0, legs: [{ mode: "rail" }] }],
+      }) }),
+      fallbackReason: "transit_invalid_response",
+    },
+    {
+      name: "invalid response body",
+      transitFetch: async () => ({ ok: true, status: 200, json: async () => { throw new Error("bad JSON body"); } }),
+      fallbackReason: "transit_invalid_response",
+    },
+    {
+      name: "network error",
+      transitFetch: async () => { throw new Error("Authorization: Bearer fixture-transit-secret"); },
+      fallbackReason: "transit_network",
+    },
+    {
+      name: "timeout",
+      transitFetch: async () => new Promise(() => {}),
+      timeoutMs: 5,
+      fallbackReason: "transit_timeout",
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const result = await runRouteWithFakeFetch(scenario);
+    assert.equal(result.route.provider, "google", scenario.name);
+    assert.equal(result.requests.filter((url) => url.includes("api.transit.ls8h.com")).length, 1, scenario.name);
+    assert.equal(result.requests.filter((url) => url.includes("maps.googleapis.com/maps/api/directions")).length, 1,
+      scenario.name);
+    assert.equal(result.rows.length, 1, scenario.name);
+    assert.equal(result.rows[0].meta.route_mode, "transit", scenario.name);
+    assert.equal(result.rows[0].meta.fallback_reason, scenario.fallbackReason, scenario.name);
+    assert.deepEqual(result.rows[0].meta.runtime_trace, {
+      schema_version: 1,
+      status: "linked",
+      tenant_id: "tenant-transit-fallback",
+      loop_id: "life-manager-cfo-hourly",
+      owner_id: "managed-travel-owner",
+      run_id: "managed-travel-run",
+      occurrence_id: "life-manager-cfo-hourly:managed-travel-run",
+      release_sha: "f".repeat(40),
+    }, scenario.name);
+    assert.equal(JSON.stringify(result.rows[0].meta).includes("fixture-transit-secret"), false, scenario.name);
+  }
+});
+
+test("JP Transit success emits no Google fallback usage row", async () => {
+  const result = await runRouteWithFakeFetch({
+    transitFetch: async (requestUrl) => {
+      const query = new URL(requestUrl).searchParams;
+      const [hours, minutes] = query.get("time").split(":").map(Number);
+      const anchorSecs = hours * 3600 + minutes * 60;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          date: query.get("date"),
+          timezone: "Asia/Tokyo",
+          type: query.get("type"),
+          journeys: [{
+            departureSecs: anchorSecs - 1029,
+            arrivalSecs: anchorSecs,
+            durationSecs: 1029,
+            transferCount: 0,
+            legs: [],
+          }],
+        }),
+      };
+    },
+  });
+
+  assert.equal(result.route.provider, "transit");
+  assert.equal(result.requests.filter((url) => url.includes("api.transit.ls8h.com")).length, 1);
+  assert.equal(result.requests.filter((url) => url.includes("maps.googleapis.com/maps/api/directions")).length, 0);
+  assert.equal(result.rows.length, 0);
+});
+
+test("valid Transit journeys after the requested arrival anchor classify fallback as no route", async () => {
+  const result = await runRouteWithFakeFetch({
+    transitFetch: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        date: "20260827",
+        timezone: "Asia/Tokyo",
+        type: "arrival",
+        journeys: [{
+          departureSecs: 18 * 3600 + 31 * 60,
+          arrivalSecs: 18 * 3600 + 40 * 60,
+          durationSecs: 9 * 60,
+          transferCount: 0,
+          legs: [{ mode: "rail" }],
+        }],
+      }),
+    }),
+  });
+
+  assert.equal(result.route.provider, "google");
+  assert.equal(result.requests.filter((url) => url.includes("api.transit.ls8h.com")).length, 1);
+  assert.equal(result.requests.filter((url) => url.includes("maps.googleapis.com/maps/api/directions")).length, 1);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].meta.route_mode, "transit");
+  assert.equal(result.rows[0].meta.fallback_reason, "transit_no_route");
+});
+
+test("non-JP direct Google usage records only the safe non-JP fallback reason", async () => {
+  const result = await runRouteWithFakeFetch({
+    src: "New York origin",
+    dst: "New York destination",
+    geocode: async () => ({ lat: 40.7128, lon: -74.0060 }),
+  });
+
+  assert.equal(result.route.provider, "google");
+  assert.equal(result.requests.filter((url) => url.includes("api.transit.ls8h.com")).length, 0);
+  assert.equal(result.requests.filter((url) => url.includes("maps.googleapis.com/maps/api/directions")).length, 1);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].meta.route_mode, "google");
+  assert.equal(result.rows[0].meta.fallback_reason, "non_jp");
+});
+
+test("an unresolved geocode keeps Google mode without inventing a non-JP reason", async () => {
+  const result = await runRouteWithFakeFetch({
+    src: "Resolved Tokyo origin",
+    dst: "Unresolved destination",
+    geocode: async (address) => address === "Resolved Tokyo origin"
+      ? { lat: 35.681, lon: 139.767 } : null,
+  });
+
+  assert.equal(result.route.provider, "google");
+  assert.equal(result.requests.filter((url) => url.includes("maps.googleapis.com/maps/api/directions")).length, 1);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].meta.route_mode, "google");
+  assert.equal(Object.hasOwn(result.rows[0].meta, "fallback_reason"), false);
+});
+
+test("fallback usage metadata excludes endpoint text and raw Transit errors", async () => {
+  const address = "住所秘密-42";
+  const destination = "目的地秘密-84";
+  const rawError = "Authorization: Bearer fixture-transit-secret";
+  const result = await runRouteWithFakeFetch({
+    src: address,
+    dst: destination,
+    geocode: async () => ({ lat: 35.681, lon: 139.767 }),
+    transitFetch: async () => { throw new Error(rawError); },
+  });
+
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].meta.fallback_reason, "transit_network");
+  const metadata = JSON.stringify(result.rows[0].meta);
+  assert.equal(metadata.includes(address), false);
+  assert.equal(metadata.includes(destination), false);
+  assert.equal(metadata.includes(rawError), false);
+  assert.equal(metadata.includes("fixture-transit-secret"), false);
+});
+
 test("Google Directions success and later cache hit emit separate usage facts", async () => {
   const events = [];
   const cache = makeRouteCache({ store: new Map(), ttlMs: 600000, now: () => 1000 });

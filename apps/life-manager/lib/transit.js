@@ -55,6 +55,11 @@ function validTimezone(value) {
   try { new Intl.DateTimeFormat("en", { timeZone: zone }).format(0); return zone; } catch { return null; }
 }
 
+function hasValidTransitEnvelope(plan) {
+  const source = plan && typeof plan === "object" && !Array.isArray(plan) ? plan : {};
+  return dateKey(source.date) != null && validTimezone(source.timezone) != null;
+}
+
 // Transit API times are wall-clock seconds from service-date midnight, not Unix seconds.
 // Resolve that wall time in the provider timezone, including values beyond 24:00 and below 00:00.
 function zonedWallInstant(date, seconds, timezone) {
@@ -201,4 +206,4 @@ function parseTransitPlan(plan, anchor = {}) {
   };
 }
 
-module.exports = { isJapanGeo, chooseRouter, parseTransitPlan, JP_BBOX };
+module.exports = { isJapanGeo, chooseRouter, parseTransitPlan, hasValidTransitEnvelope, JP_BBOX };
