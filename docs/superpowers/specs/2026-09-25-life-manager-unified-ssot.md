@@ -7971,7 +7971,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - §557の再checkでknown inode752695572/whitelist3/no marker/no symlink/no jsonl、terminalPASS、TMPDIR参照process0/lsof handles0/roottoolTMPDIR非一致を確認。既存remove_owned_treeの開いたfd/同inode限定で回収、removedtrue/path残存false/logical398146100bytes。free213786624→615161856bytes、df591MiB。並行する別消費でfreeは変動するので後の増減をこの回収へ帰属しない。保護store/LibraryCaches/camoufox/provider/effect state変更0、証拠state/audit-closed-cache-reclaim-20261005.json。根本source修復完了とは判定しない。
 - 同model6luna/maxのguard worker再初期化成功、専用worktree/branch/lease取得。base185604a212876fbf5934ca78716d86ae494fd525、tracked checkout82.9MiB。oldunknown→new event fence修復scope§556を開始。旧initENOSPCを着手に置換せず、再開と別記録する。
 - audit sourcecaller確認: self-fix.shがdetach tmuxでRUN_AGENTを開始し、auditwrapperが設定するper-run TMPDIR/NPM_CONFIG_CACHE/NODE_COMPILE_CACHEを背景処理へ継承する。監査windowにcapafy self-fix18:13:09/reddit self-fix18:16:00のspawnログ、reddit runner summary09:16:01→09:26:49Zを確認。recreatedscratch09:20:32＋TMPDIR4PIDsの観測と時間が重なるが、終了後の4PIDから具体writer argvを再取得できずreddit本人へ確定帰属はしない。源流はdetach/cache lifetime境界で、次は隔離fixtureでcacheenv継承を再現しcaller-owned tempへ隔離する最小scopeを正本へ記録する。正常Camoufox cacheを消して再DLさせる修復はしない。
-- 通常業務self-fix runnerのselected_modelは既存gpt5.6-terraという観測値、今回Codex開発/reviewモデルではない。業務model/provider一括変更を行わず、開発のLuna6max/Sol6.1medium指定を保持。sourceSelfFix tmp寿命の修復はSelfBuild成功済recovery重複修正と別、SelfBuildは最後。全体47/cursor1。
+- 既存self-fix runnerのselected_model=gpt5.6-terraを観測した。今回のCodex委譲/reviewには使わず、Luna6max/Sol6.1medium指定を保持する。self-fixがコード開発を行う箇所へのmodel規則の適用は未監査であり、旧modelの例外認定や適合PASSをしない。業務model/providerを一括変更せず、具体的な開発経路を確認して必要な修正を別scopeへ記録する。sourceSelfFix tmp寿命修復とSelfBuild成功済recovery重複修正は別、SelfBuildは最後。全体47/cursor1。
 
 
 ### 559. guard source候補とENOSPC再発・完了worktree退役scope
