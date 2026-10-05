@@ -7684,3 +7684,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - main PR6612/6613/6617由来のCFO as-is表をd71a75b09dのGit bytesから取り込み、既存観測期間/定義/unknown/担当境界/A1→A10をそのまま保持する。rootの今回fresh financial readbackではなく担当の2026-10-05記録であり、MRR・gross・Apple settlement・provider残高・bank inflow・利益を合算しない。Capafy等の成長planは同担当loop、CFOの14/14接続・費用・receiptはCFO laneが所有する。
 - 全体の内部修復/受入順序正本は§217、各ownerの詳細・専用CFO設計は上記既存参照へ結ぶ。完了済みLancers sourceは残表に戻さず、rootがCFO/mobile/providerの同filesを重複実装しない。現在残53/cursor1。
+
+
+### 520. Agent Economy auth source pushとbudget反証
+
+- source5c91e600dfef065eddd45b8b771b06df1baa895eをbranch fix/lm-codex-prelaunch-auth-failover-20261005へpush/remote一致/clean確認。Codex missing authだけtyped CodexAutomationAuthMissingとして明示account順路を継続、invalid path/generic failure/started work/freshresult保護維持。担当failover23/env6/lease12/isolation5、構文/contract/OSS/diff PASS。runner manifest digestは当該1entryのみ。draft PR6618 https://github.com/Daisuke134/life-manager/pull/6618 作成、CIとreviewを並行。
+- fresh gpt-6.1-sol/medium read-only reviewはHOLD/HIGH1件。budget有効でprovider未起動のmissing authもusage unavailableから予約pass token全額をsettleし、次accountのreserveがbudget exceeded。既存fixtureにpass1000/daily10000を設定すると結果(75,[])でprovider起動0となる反例を実証。既存23tests PASSはこの条件を検証していなかった。
+- 同Luna/max担当へ、このtyped prelaunch条件だけactual_tokens=0と根拠あるprelaunch measurementで予約精算、provider_reported偽装なし、一般usage unknown保守的計上維持、budget-enabled RED→GREENとledger/attempt0消費・acct2一度だけ開始を割当。manifest最小更新/focused/OSS/commit/push→再review→CIを待つ。source受入・main・自然THINK・金融成果は未完。
+- 前Lancersworktree退役はignored .deepeval/.pytest_cache/__pycache__残存とopenhandle非確定で保持。unlock/remove/lease削除0。cleanup不成立をsource実装の追加gateにしない。残53/cursor1を維持、Lancers新release反映は既存owner自然経路を継続観測。
