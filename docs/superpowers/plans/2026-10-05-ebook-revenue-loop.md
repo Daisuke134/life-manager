@@ -41,18 +41,20 @@
 **Files**
 - Modify: Daisuke134/anicca-products/apps/landing/app/monk/page.tsx
 - Modify: Daisuke134/anicca-products/apps/landing/app/achan/page.tsx
+- Modify: Daisuke134/anicca-products/apps/landing/app/letter/page.tsx
+- Modify: Daisuke134/anicca-products/apps/landing/app/tegami/page.tsx
 - Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/checkout.js
 - Test: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js
 
 **Interfaces**
-- Request: lang, product=ebook, optional campaign_id from the landing query string.
+- Request: `lang`, `product`, `mode`, optional `attribution_token` copied from the existing `utm_campaign` query parameter.
 - Response: Stripe hosted checkout URL.
-- Stripe metadata: lang, product, campaign_id; the existing locale Price remains the payment source.
+- Stripe metadata: `lang`, `product`, `attribution_token`; for subscription mode the token also goes into Subscription metadata. The existing locale Price remains the payment source.
 
-- [ ] Step 1: Add failing tests for EN/JA price selection, eBook payment mode, Letter subscription mode, and campaign token propagation.
+- [ ] Step 1: Add failing tests for EN/JA price selection, eBook payment mode, Letter subscription mode, `utm_campaign` → `attribution_token` propagation, and subscription metadata.
 - [ ] Step 2: Run apps/landing: npm run test:telemetry. Expected: new eBook cases fail before implementation.
-- [ ] Step 3: Pass campaign_id through both Buy buttons to Stripe metadata. Align the EN chapter-length claim with the shipped Markdown; verify the JA chapter claim against its published artifact before retaining it.
-- [ ] Step 4: Run npm run test:telemetry and npm run build in apps/landing. Expected: PASS with /monk and /achan working.
+- [ ] Step 3: Read `utm_campaign` on `/monk`, `/achan`, `/letter`, and `/tegami`; pass it as `attribution_token` in the checkout request and into Checkout/Subscription metadata. Keep `/go/<token>` as the existing click-receipt entrypoint. Align the EN chapter-length claim with the shipped Markdown and verify the JA chapter claim against its published artifact.
+- [ ] Step 4: Run npm run test:telemetry and npm run build in apps/landing. Expected: PASS with /monk, /achan, /letter, and /tegami preserving valid attribution.
 - [ ] Step 5: Commit the focused checkout/content change.
 
 ### Task 2: Make buyer receipt and PDF fulfillment retry-safe
@@ -63,12 +65,12 @@
 
 **Interfaces**
 - Input: signature-verified checkout.session.completed event.
-- Output: buyer receipt joined by Stripe session ID/campaign ID, plus delivery status for the correct EN/JA PDF.
-- Letter subscription events update paid/expired state and never enter eBook delivery.
+- Output: buyer receipt joined by Stripe session ID/attribution token, plus delivery status for the correct EN/JA PDF. The eBook email has an optional locale subscription CTA with the same `utm_campaign`.
+- Letter subscription events preserve the token, separate trial access from paid MRR, and never enter eBook delivery. Count MRR only after the first paid invoice and active status.
 
-- [ ] Step 1: Add failing tests for invalid signature, EN/JA PDF selection, subscription separation, replay of the same Stripe event, and DB/email failures.
+- [ ] Step 1: Add failing tests for invalid signature, EN/JA PDF and CTA selection, subscription separation, trial versus `invoice.paid`, replay of the same event/session, token persistence, and DB/email failures.
 - [ ] Step 2: Run apps/landing: npm run test:telemetry. Expected: replay and error-path cases fail.
-- [ ] Step 3: Read the existing Supabase buyer schema first. Use its unique Stripe session/event key; add the smallest durable idempotency receipt only if no such key exists. Persist delivery state and surface failures so provider retry is observable.
+- [ ] Step 3: Read the live Supabase buyer/subscriber schema first. Use its unique Stripe session/event key; add the smallest durable event/delivery receipt and attribution field only if missing. Resend's `Idempotency-Key` expires after 24 hours, so it is a secondary guard, not the durable ledger. Persist delivery/subscription state and surface errors so retry/readback is observable.
 - [ ] Step 4: Run npm run test:telemetry. Expected: one purchase receipt per session and no hidden fulfillment failure.
 - [ ] Step 5: Commit the focused webhook change.
 
@@ -76,7 +78,6 @@
 
 **Files**
 - Modify: life-manager/skills/earn/marketing-engine/ebook_runner.py
-- Modify: life-manager/skills/earn/marketing-engine/attribution.py
 - Modify: life-manager/skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json
 - Modify: life-manager/skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json
 - Test: life-manager/skills/earn/marketing-engine/test_ebook_runner_replay.py
@@ -84,13 +85,13 @@
 - Test: life-manager/skills/earn/marketing-engine/test_ebook_portability.py
 
 **Interfaces**
-- Existing render receipt carries product_id, creative_id, script_id, renderer_id, and attribution token.
-- The same token goes to the landing URL, Stripe metadata, buyer receipt, and channel report.
+- Existing render receipt carries `product_id`, `creative_id`, `script_id`, `renderer_id`, and the opaque token from `measure/attribution.py`.
+- `/go/<token>` records the click; `utm_campaign` becomes checkout `attribution_token`, Stripe metadata, buyer/subscriber receipt, and channel report. Keep `campaign_id=creative_id` distinct.
 - CFO reads paid sessions, refunds, fees, actual costs, and bank receipts; it does not infer revenue from clicks.
 
-- [ ] Step 1: Add failing contract tests for a campaign token surviving render intent → URL → Stripe metadata → buyer receipt.
+- [ ] Step 1: Add failing contract tests for a token surviving render intent → `/go/<token>` → `utm_campaign` → Stripe metadata → buyer/subscriber receipt.
 - [ ] Step 2: Run the focused marketing-engine eBook tests. Expected: the campaign-join case fails.
-- [ ] Step 3: Reuse the existing campaign_token helper and receipt schema; do not create a second attribution ledger.
+- [ ] Step 3: Reuse the existing `campaign_token` helper and receipt schema; do not modify `measure/attribution.py` or create a second attribution ledger unless a failing test proves a missing contract.
 - [ ] Step 4: Run the focused tests. Expected: one token joins to at most one paid session.
 - [ ] Step 5: Commit the focused attribution change.
 
