@@ -18,8 +18,10 @@ const {
 const TENANT = "dais-local";
 const NOW = "2026-09-28T01:30:00.000Z";
 
-function tempDataDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "larry-slide-pack-scheduler-"));
+function tempDataDir(t) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "larry-slide-pack-scheduler-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  return dataDir;
 }
 
 function fakeResolveBackground() {
@@ -73,9 +75,9 @@ function writeDistributionLedger(dataDir, rows) {
   fs.writeFileSync(file, rows.map((r) => `${JSON.stringify(r)}\n`).join(""));
 }
 
-test("resolveLarryJaSlot generates a pool from empty and returns a candidate", { timeout: 60_000 }, async () => {
+test("resolveLarryJaSlot generates a pool from empty and returns a candidate", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
-  const dataDir = tempDataDir();
+  const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const { slot, selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   assert.equal(slot, "2026-09-28T01:30:00.000Z");
@@ -86,9 +88,9 @@ test("resolveLarryJaSlot generates a pool from empty and returns a candidate", {
   assert.ok(fs.existsSync(pool));
 });
 
-test("resolveLarryJaSlot does not regenerate once the pool already has enough candidates", { timeout: 60_000 }, async () => {
+test("resolveLarryJaSlot does not regenerate once the pool already has enough candidates", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
-  const dataDir = tempDataDir();
+  const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
@@ -98,9 +100,9 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
 });
 
-test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REPEAT and is idempotent per slot", { timeout: 60_000 }, async () => {
+test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REPEAT and is idempotent per slot", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
-  const dataDir = tempDataDir();
+  const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const first = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   const firstHash = /object:\/\/sha256\/([0-9a-f]{64})/.exec(first.selected.packRef)[1];
@@ -118,8 +120,8 @@ test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REP
   assert.equal(retry.selected.packRef, second.selected.packRef);
 });
 
-test("readPostedHistory maps carousel distribution receipts to packRef/postedAt", () => {
-  const dataDir = tempDataDir();
+test("readPostedHistory maps carousel distribution receipts to packRef/postedAt", (t) => {
+  const dataDir = tempDataDir(t);
   const hash = crypto.createHash("sha256").update("x").digest("hex");
   const file = path.join(dataDir, "ledger.jsonl");
   fs.writeFileSync(file, `${JSON.stringify({ receipt: { kind: "marketing_native_carousel_distribution", status: "published", pack_sha256: hash, published_at: NOW } })}\n`);
@@ -136,9 +138,9 @@ test("MIN_DAYS_BETWEEN_REPEAT is at least a week (per spec: never repeat within 
 // what lets anicca-larry-ja-rotating.js stop TikTok "Affirmation Girl" /
 // "anicca" / "アニッチャ iOS" / "アニッチャ お笑い" / Instagram "anicca" from
 // reposting the same fixed pack.
-test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a non-default lane in its own pool file", { timeout: 60_000 }, async () => {
+test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a non-default lane in its own pool file", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
-  const dataDir = tempDataDir();
+  const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const { slot, selected } = await resolveLarryJaSlot({
     env, now: () => NOW, slot: "2026-09-28T09:00:00.000Z",
@@ -167,9 +169,9 @@ test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a no
   assert.equal(pack.slides.at(-1).role, "cta");
 });
 
-test("resolveLarryJaSlot renders slides with the managed LIFE_MANAGER_PYTHON, not PATH python3", { timeout: 60_000 }, async () => {
+test("resolveLarryJaSlot renders slides with the managed LIFE_MANAGER_PYTHON, not PATH python3", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
-  const dataDir = tempDataDir();
+  const dataDir = tempDataDir(t);
   const calls = path.join(dataDir, "python-calls.txt");
   const shim = path.join(dataDir, "managed-python");
   // Records every argv then defers to the real interpreter so rendering still succeeds.
@@ -184,8 +186,7 @@ test("resolveLarryJaSlot renders slides with the managed LIFE_MANAGER_PYTHON, no
 });
 
 test("an exhausted pool replenishes once and never selects a recently published pack", async (t) => {
-  const dataDir = tempDataDir();
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const candidates = Array.from({ length: 5 }, (_, n) => ({
     packRef: `object://sha256/${String(n).repeat(64)}`, familyId: "fixture", createdAt: NOW,
@@ -210,8 +211,7 @@ test("an exhausted pool replenishes once and never selects a recently published 
 });
 
 test("an exhausted pool stays failed when generation yields no fresh approved candidates", async (t) => {
-  const dataDir = tempDataDir();
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const candidates = Array.from({ length: 4 }, (_, n) => ({
     packRef: `object://sha256/${String(n).repeat(64)}`, familyId: "fixture", createdAt: NOW,
@@ -232,8 +232,7 @@ test("an exhausted pool stays failed when generation yields no fresh approved ca
 });
 
 test("selection rereads publication history after the factory finishes", async (t) => {
-  const dataDir = tempDataDir();
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const dataDir = tempDataDir(t);
   const old = { packRef: `object://sha256/${"a".repeat(64)}`, familyId: "fixture", createdAt: "2026-09-27T00:00:00.000Z" };
   const fresh = { ...old, packRef: `object://sha256/${"f".repeat(64)}`, createdAt: NOW };
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
