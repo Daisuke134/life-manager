@@ -63,6 +63,71 @@ function options(overrides = {}) {
   };
 }
 
+function makeStaleCalendarHarness({ selectedId = "ca-stale-123", selectedResponse, accounts = [] } = {}) {
+  const state = {
+    row: {
+      uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal",
+      calendar_connected_account_id: selectedId,
+    },
+    accountListReads: 0,
+    providerAccountReads: [],
+    providerPatches: [],
+    bindings: [],
+    oauth: [],
+  };
+  const response = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+  const fetchImpl = async (input, init = {}) => {
+    const url = new URL(String(input));
+    const method = init.method || "GET";
+    if (url.hostname === "supabase.example") {
+      if (url.pathname.endsWith("/rpc/bind_lm_web_calendar_account")) {
+        const body = JSON.parse(init.body || "{}");
+        state.bindings.push(body);
+        if (body.p_expected_calendar_provider !== state.row.calendar_provider
+          || body.p_expected_calendar_account_id !== state.row.calendar_connected_account_id) {
+          return response({ message: "calendar_account_changed" }, 400);
+        }
+        state.row.calendar_provider = "composio_gcal";
+        state.row.calendar_connected_account_id = body.p_connected_account_id;
+        return response(true);
+      }
+      if (url.pathname.endsWith("/lm_users")) return response([{ ...state.row }]);
+    }
+    if (url.hostname === "backend.composio.dev") {
+      if (url.pathname.endsWith("/api/v3/connected_accounts")) {
+        state.accountListReads++;
+        return response({ items: accounts });
+      }
+      if (url.pathname.includes("/api/v3.1/connected_accounts/")) {
+        const accountId = decodeURIComponent(url.pathname.split("/").at(-1));
+        state.providerAccountReads.push(accountId);
+        if (accountId === selectedId) return typeof selectedResponse === "function"
+          ? selectedResponse() : selectedResponse;
+        const account = accounts.find((item) => item.id === accountId);
+        return account ? response(account) : response({ message: "not found" }, 404);
+      }
+      if (url.pathname.endsWith("/status") && method === "PATCH") {
+        state.providerPatches.push(JSON.parse(init.body || "{}").enabled);
+        return response({});
+      }
+    }
+    throw new Error(`unexpected stale Calendar request: ${url.hostname}${url.pathname}`);
+  };
+  const opts = options({
+    fetchImpl,
+    composioCalendarAccountsImpl: undefined,
+    webCalendarStore: {
+      createWebOAuthState: async () => { state.oauth.push("state"); return true; },
+      attachWebOAuthAccount: async (_scope, _digest, accountId) => { state.oauth.push(`attached:${accountId}`); return true; },
+    },
+    startCalendarOAuthImpl: async () => {
+      state.oauth.push("oauth");
+      return { connectedAccountId: "ca-new-456", redirectUrl: "https://accounts.example/connect" };
+    },
+  });
+  return { opts, state, response };
+}
+
 function makeEnableHarness(startCalendarImpl = async (state) => {
   state.providerStatus = "ACTIVE";
   return { provider: "calendar", state: "connected" };
@@ -556,6 +621,87 @@ test("Web Calendar start does not enable an EXPIRED selected account with disabl
 
   assert.notEqual(response.status, 200);
   assert.equal(providerPatches, 0);
+});
+
+test("Calendar start recovers an exact EXPIRED binding to one ACTIVE account without enabling the stale ID", async () => {
+  const staleId = "ca-stale-123";
+  const activeId = "ca-active-456";
+  const active = {
+    id: activeId, user_id: UID, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  };
+  const h = makeStaleCalendarHarness({
+    selectedId: staleId,
+    selectedResponse: () => ({ ok: true, status: 200, json: async () => ({
+      id: staleId, user_id: UID, toolkit_slug: "googlecalendar",
+      status: "EXPIRED", is_disabled: false, enabled: true,
+    }) }),
+    accounts: [active],
+  });
+
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), { connected: true, state: "connected" });
+  assert.deepEqual(h.state.providerAccountReads, [staleId, activeId]);
+  assert.deepEqual(h.state.providerPatches, []);
+  assert.equal(h.state.row.calendar_connected_account_id, activeId);
+  assert.equal(h.state.bindings.length, 1);
+  assert.equal(h.state.bindings[0].p_expected_calendar_account_id, staleId);
+  assert.deepEqual(h.state.oauth, []);
+});
+
+test("Calendar start begins fresh OAuth after exact selected-account 404 without stale enable", async () => {
+  const staleId = "ca-deleted-123";
+  const h = makeStaleCalendarHarness({
+    selectedId: staleId,
+    selectedResponse: () => ({ ok: false, status: 404, json: async () => ({ message: "not found" }) }),
+  });
+
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), {
+    connected: false, state: "action_required", redirectUrl: "https://accounts.example/connect",
+  });
+  assert.deepEqual(h.state.providerPatches, []);
+  assert.equal(h.state.bindings.length, 0);
+  assert.equal(h.state.row.calendar_connected_account_id, staleId);
+  assert.deepEqual(h.state.oauth, ["state", "oauth", "attached:ca-new-456"]);
+});
+
+test("provider errors and mismatched/unknown stale bindings do not start OAuth or bind", async () => {
+  const staleId = "ca-stale-123";
+  const cases = [
+    () => ({ ok: false, status: 503, json: async () => ({ message: "unavailable" }) }),
+    () => ({ ok: true, status: 200, json: async () => ({
+      id: staleId, user_id: UID, toolkit_slug: "googlecalendar",
+      status: "INITIATED", is_disabled: false, enabled: false,
+    }) }),
+    () => ({ ok: true, status: 200, json: async () => ({
+      id: staleId, user_id: OTHER_UID, toolkit_slug: "googlecalendar", status: "EXPIRED",
+    }) }),
+    () => ({ ok: true, status: 200, json: async () => ({
+      id: "ca-other-999", user_id: UID, toolkit_slug: "googlecalendar", status: "EXPIRED",
+    }) }),
+  ];
+  for (const selectedResponse of cases) {
+    const h = makeStaleCalendarHarness({ selectedId: staleId, selectedResponse });
+    const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+      origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+    });
+
+    assert.equal(response.status, 502);
+    assert.equal(h.state.accountListReads, 0);
+    assert.equal(h.state.providerPatches.length, 0);
+    assert.equal(h.state.bindings.length, 0);
+    assert.deepEqual(h.state.oauth, []);
+    assert.equal(h.state.row.calendar_connected_account_id, staleId);
+  }
 });
 
 test("Calendar start refuses a pending disconnect before provider enable or OAuth", async () => {

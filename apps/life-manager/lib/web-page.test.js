@@ -70,6 +70,17 @@ test("renders sign-in and each missing setup step", () => {
   assert.doesNotMatch(visibleHtml(needsHome), /id="calendar-connect"/);
 });
 
+test("a stale selected Calendar binding presents a reauthorization action", () => {
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required", calendarBound: true }),
+  });
+  const visible = visibleHtml(page);
+
+  assert.match(visible, /id="calendar-connect"/);
+  assert.match(visible, /Google カレンダーを再接続/);
+});
+
 test("renders next event and verified Travel block", () => {
   const html = renderWebPage({
     user,

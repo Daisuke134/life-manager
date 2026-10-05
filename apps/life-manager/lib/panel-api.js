@@ -847,10 +847,12 @@ async function composioCalendarAccountStatus(scope, connectedAccountId, opts = {
   const expectedId = String(connectedAccountId || "");
   if (!opts.composioKey || !/^[A-Za-z0-9_-]{3,128}$/.test(expectedId)) throw new Error("provider_unavailable");
   const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(expectedId)}`, { headers: { "x-api-key": opts.composioKey } });
+  if (response.status === 404) return "MISSING";
   if (!response.ok) throw new Error("provider_failed");
   const item = await jsonOr(response, {});
   if (!exactCalendarAccount(scope, item)) throw new Error("provider_ownership");
   if (String(item.id) !== expectedId) throw new Error("provider_account_mismatch");
+  if (item.status === "EXPIRED") return "EXPIRED";
   if (sameEnabledCalendarAccount(item, expectedId)) return "ACTIVE";
   if (sameDisabledCalendarAccount(item, expectedId)) return "DISABLED";
   throw new Error("provider_status_unknown");

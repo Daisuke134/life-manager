@@ -12,7 +12,7 @@ const STATE_TTL_MS = 5 * 60 * 1000;
 const STATE_RE = /^[A-Za-z0-9_-]{43}$/;
 const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{3,128}$/;
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const OAUTH_STATUSES = new Set(["ACTIVE", "MISSING", "DISABLED", "INACTIVE"]);
+const OAUTH_STATUSES = new Set(["ACTIVE", "MISSING", "EXPIRED", "DISABLED", "INACTIVE"]);
 
 function sendJson(res, status, body, extra = {}) {
   res.writeHead(status, {

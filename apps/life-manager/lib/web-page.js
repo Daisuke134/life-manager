@@ -86,7 +86,8 @@ function dashboardMarkup(snapshot, homeAddress = "") {
     return `<section class="card"><h2>Calendar の状態を確認中</h2><p>接続状況を確認できません。あとで更新してください。</p><button type="button" class="button secondary" data-action="refresh">今日を更新</button></section>${travelControlsMarkup(snapshot)}`;
   }
   if (snapshot.setupState === "needs_calendar") {
-    return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 1 / 2</p><h2>Google カレンダーを接続</h2><p>予定を読み取り、出発時刻を確認します。</p><button id="calendar-connect" type="button" class="button" data-action="calendar-start">Google カレンダーを接続</button></section>${travelControlsMarkup(snapshot)}`;
+    const calendarAction = snapshot.calendarBound === true ? "Google カレンダーを再接続" : "Google カレンダーを接続";
+    return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 1 / 2</p><h2>Google カレンダーを接続</h2><p>予定を読み取り、出発時刻を確認します。</p><button id="calendar-connect" type="button" class="button" data-action="calendar-start">${calendarAction}</button></section>${travelControlsMarkup(snapshot)}`;
   }
   if (snapshot.setupState === "needs_home") {
     return `${calendarMarkup(snapshot)}<section class="card setup-card"><p class="eyebrow">設定 2 / 2</p><h2>いつもの出発場所を入力</h2><p>住所は移動時間の計算に使います。</p><form id="home-address-form"><label for="homeAddress">自宅の住所</label><input id="homeAddress" name="homeAddress" type="text" maxlength="240" autocomplete="street-address" required value="${escapeHtml(homeAddress)}"><button type="submit" class="button">保存して予定を確認</button></form></section>${travelControlsMarkup(snapshot)}`;

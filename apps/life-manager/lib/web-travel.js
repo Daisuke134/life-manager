@@ -112,7 +112,7 @@ async function readActiveCalendarUser(uid, opts = {}) {
   let status;
   try { status = await statusImpl({ uid }, accountId, providerOptions(opts)); }
   catch { throw Object.assign(webError(502, "calendar_status_unavailable"), { userRow: row }); }
-  if (!["ACTIVE", "DISABLED", "MISSING"].includes(status)) {
+  if (!["ACTIVE", "DISABLED", "MISSING", "EXPIRED"].includes(status)) {
     throw Object.assign(webError(502, "calendar_status_unavailable"), { userRow: row });
   }
   return { row, status };

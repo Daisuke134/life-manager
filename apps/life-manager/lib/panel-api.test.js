@@ -50,14 +50,39 @@ test("Composio Calendar status requires exact ACTIVE or explicit exact disabled 
     id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
     status: "INACTIVE", is_disabled: true, enabled: false,
   }), "DISABLED");
-  await assert.rejects(statusOf({
+  assert.equal(await statusOf({
     id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
     status: "EXPIRED", is_disabled: false, enabled: true,
+  }), "EXPIRED");
+  await assert.rejects(statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INITIATED", is_disabled: false, enabled: false,
   }), /provider_status_unknown/);
   await assert.rejects(statusOf({
     id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
     status: "INACTIVE", is_disabled: true, enabled: false,
   }), /provider_account_mismatch/);
+  await assert.rejects(statusOf({
+    id: selectedId, user_id: "lm_22222222-2222-4222-8222-222222222222", toolkit_slug: "googlecalendar",
+    status: "EXPIRED", is_disabled: false, enabled: true,
+  }), /provider_ownership/);
+});
+
+test("selected Composio Calendar 404 is MISSING while server failures stay unavailable", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const missing = await composioCalendarAccountStatus(scope, selectedId, {
+    composioKey: "provider-key",
+    fetchImpl: async (url) => {
+      assert.match(String(url), new RegExp(`/connected_accounts/${selectedId}$`));
+      return jsonResponse({ message: "not found" }, 404);
+    },
+  });
+  assert.equal(missing, "MISSING");
+  await assert.rejects(() => composioCalendarAccountStatus(scope, selectedId, {
+    composioKey: "provider-key",
+    fetchImpl: async () => jsonResponse({ message: "provider unavailable" }, 503),
+  }), /provider_failed/);
 });
 
 test("Calendar disconnect rejects a same-owner response ID mismatch before any PATCH", async () => {

@@ -661,6 +661,39 @@ test("pause changes only persisted daily automation preference", async () => {
   assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, enablePending: false, calendarBound: true });
 });
 
+test("Today keeps exact MISSING and EXPIRED Calendar bindings actionable", async () => {
+  const { composioCalendarAccountStatus } = require("./panel-api.js");
+  for (const providerState of ["MISSING", "EXPIRED"]) {
+    const f = fixture();
+    const serviceFetch = f.opts.fetchImpl;
+    f.opts.composioCalendarAccountStatusImpl = composioCalendarAccountStatus;
+    f.opts.fetchImpl = async (input, init = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === "backend.composio.dev") {
+        if (providerState === "MISSING") {
+          return { ok: false, status: 404, json: async () => ({ message: "not found" }) };
+        }
+        return { ok: true, status: 200, json: async () => ({
+          id: f.row.calendar_connected_account_id,
+          user_id: UID,
+          toolkit_slug: "googlecalendar",
+          status: "EXPIRED",
+          is_disabled: false,
+          enabled: true,
+        }) };
+      }
+      return serviceFetch(input, init);
+    };
+
+    const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+    assert.equal(snapshot.setupState, "needs_calendar");
+    assert.equal(snapshot.calendarState, "action_required");
+    assert.equal(snapshot.calendarBound, true);
+    assert.equal(f.calendarReads.length, 0);
+  }
+});
+
 test("resume requires a saved home and the exact selected ACTIVE Calendar account", async () => {
   const noHome = fixture();
   const noHomeResponse = await call(noHome, "POST", "/api/lm-web/travel/control", {
