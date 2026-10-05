@@ -181,23 +181,57 @@ function setAttributionCookie(res, opts, value) {
   }], serializer);
 }
 
+function matchesAttribution(value, expected) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const actualKeys = Object.keys(value).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  return actualKeys.length === expectedKeys.length
+    && actualKeys.every((key, index) => key === expectedKeys[index] && value[key] === expected[key]);
+}
+
+function isUnboundWebRow(row, uid) {
+  return Boolean(row && row.uid === uid
+    && Object.prototype.hasOwnProperty.call(row, "telegram_chat_id")
+    && row.telegram_chat_id === null);
+}
+
+async function readWebFirstTouch(uid, fetchImpl, root, key) {
+  const response = await fetchImpl(
+    `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=uid,telegram_chat_id,web_first_touch&limit=2`,
+    { headers: serviceHeaders(key) },
+  );
+  if (!response || !response.ok) throw new Error("Web first-touch readback failed");
+  const rows = await response.json();
+  if (!Array.isArray(rows) || rows.length !== 1) return false;
+  const row = rows[0];
+  return isUnboundWebRow(row, uid) && row.web_first_touch != null;
+}
+
 async function storeWebFirstTouch(uid, attribution, opts = {}) {
   const fetchImpl = opts.fetch || globalThis.fetch;
   if (typeof fetchImpl !== "function") throw new Error("Supabase fetch unavailable");
   const root = requiredSupabaseUrl(opts);
   const key = requiredServiceRoleKey(opts);
   const response = await fetchImpl(
-    `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&web_first_touch=is.null&telegram_chat_id=is.null`,
+    `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&web_first_touch=is.null&telegram_chat_id=is.null&select=uid,telegram_chat_id,web_first_touch`,
     {
       method: "PATCH",
       headers: serviceHeaders(key, {
         "content-type": "application/json",
-        Prefer: "return=minimal",
+        Prefer: "return=representation",
       }),
       body: JSON.stringify({ web_first_touch: attribution }),
     },
   );
   if (!response || !response.ok) throw new Error("Web first-touch write failed");
+  const rows = response.status === 204 ? [] : await response.json();
+  if (!Array.isArray(rows) || rows.length > 1) return false;
+  if (rows.length === 1) {
+    const row = rows[0];
+    return Boolean(isUnboundWebRow(row, uid)
+      && matchesAttribution(row.web_first_touch, attribution));
+  }
+  return readWebFirstTouch(uid, fetchImpl, root, key);
 }
 
 async function resolveWebUser(req, res, opts = {}) {
@@ -462,13 +496,13 @@ async function handleWebAuthRequest(req, res, opts = {}) {
         clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
       } else {
         try {
-          await storeWebFirstTouch(uid, attribution, {
+          const stored = await storeWebFirstTouch(uid, attribution, {
             env: envFor(opts),
             supabaseUrl: requiredSupabaseUrl(opts),
             serviceRoleKey: requiredServiceRoleKey(opts),
             fetch: opts.fetch,
           });
-          clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
+          if (stored) clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
         } catch {
           // Attribution is optional to sign-in; retain the signed cookie for a later callback attempt.
         }

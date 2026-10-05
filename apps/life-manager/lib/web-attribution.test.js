@@ -59,7 +59,7 @@ function serializeCookieHeader(name, value, options = {}) {
   return attrs.join("; ");
 }
 
-function makeFlow(initialRows = []) {
+function makeFlow(initialRows = [], behavior = {}) {
   const events = [];
   const rows = initialRows.map((row) => structuredClone(row));
   const client = {
@@ -126,12 +126,26 @@ function makeFlow(initialRows = []) {
       const patch = JSON.parse(init.body);
       events.push(["db:PATCH", url.searchParams.toString(), patch]);
       const row = rows.find((candidate) => candidate.uid === uid);
+      if (behavior.patchMode === "delete") {
+        if (row) rows.splice(rows.indexOf(row), 1);
+        return response(200, []);
+      }
+      if (behavior.patchMode === "telegram-bound") {
+        if (row) row.telegram_chat_id = "chat-existing";
+        return response(200, []);
+      }
+      if (behavior.patchMode === "zero") return response(200, []);
       if (row && url.searchParams.get("web_first_touch") === "is.null"
         && url.searchParams.get("telegram_chat_id") === "is.null"
         && row.web_first_touch == null && row.telegram_chat_id == null) {
         Object.assign(row, patch);
+        return response(200, [{
+          uid: row.uid,
+          telegram_chat_id: row.telegram_chat_id,
+          web_first_touch: row.web_first_touch,
+        }]);
       }
-      return response(204, null);
+      return response(200, []);
     }
     return response(405, { message: "unsupported method" });
   };
@@ -270,6 +284,40 @@ test("keeps first touch immutable", async () => {
   assert.deepEqual(flow.rows[0].web_first_touch, firstTouch);
   assert.equal(flow.calls.filter((call) => call.method === "PATCH").length, 1);
   assert.equal(flow.calls.find((call) => call.method === "PATCH").url.searchParams.get("web_first_touch"), "is.null");
+});
+
+test("zero-row update accepts only a read-back immutable first-touch winner", async () => {
+  const firstTouch = { utm_source: "instagram", utm_campaign: "earlier-winner" };
+  const flow = makeFlow([{ uid: VERIFIED_UID, telegram_chat_id: null, paid: false, web_first_touch: firstTouch }]);
+  const cookie = captureWebAttribution(new URLSearchParams("utm_source=x&utm_campaign=concurrent"), SECRET, Date.now());
+  const res = makeResponse();
+  await handleWebAuthRequest(oauthCallback(`lm-web-attribution=${cookie}`), res, flow.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.deepEqual(flow.rows[0].web_first_touch, firstTouch);
+  assert.ok(flow.calls.some((call) => call.method === "GET"
+    && call.url.searchParams.get("select") === "uid,telegram_chat_id,web_first_touch"), "zero-row update reads back the exact user row");
+  assert.equal(cookieValue(responseCookies(res), "lm-web-attribution"), "", "verified immutable winner permits cookie cleanup");
+});
+
+test("zero-row update retains attribution unless readback verifies storage", async () => {
+  const cases = [
+    { name: "still-null row", patchMode: "zero", rows: [{ uid: VERIFIED_UID, telegram_chat_id: null, paid: false, web_first_touch: null }] },
+    { name: "missing row", patchMode: "delete", rows: [{ uid: VERIFIED_UID, telegram_chat_id: null, paid: false, web_first_touch: null }] },
+    { name: "Telegram-bound row", patchMode: "telegram-bound", rows: [{ uid: VERIFIED_UID, telegram_chat_id: null, paid: false, web_first_touch: null }] },
+  ];
+  for (const fixture of cases) {
+    const flow = makeFlow(fixture.rows, { patchMode: fixture.patchMode });
+    const cookie = captureWebAttribution(new URLSearchParams("utm_source=x"), SECRET, Date.now());
+    const res = makeResponse();
+    await handleWebAuthRequest(oauthCallback(`lm-web-attribution=${cookie}`), res, flow.options);
+
+    assert.equal(res.statusCode, 302, `${fixture.name}: valid login continues`);
+    assert.ok(flow.calls.some((call) => call.method === "GET"
+      && call.url.searchParams.get("select") === "uid,telegram_chat_id,web_first_touch"), `${fixture.name}: exact row readback attempted`);
+    assert.equal(responseCookies(res).some((header) => header.startsWith("lm-web-attribution=")), false,
+      `${fixture.name}: unverified save keeps the browser's signed cookie`);
+  }
 });
 
 test("checkout carries verified uid only", () => {
