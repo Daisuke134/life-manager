@@ -621,13 +621,34 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     send_updates: "none", exclude_organizer: true, create_meeting_room: false,
     description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
   };
-  const j = expectedCalendarAccountId
-    ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId })
-    : await cal.createEvent(uid, eventArgs);
-  return !!(j && j.successful);
+  let result;
+  try {
+    result = expectedCalendarAccountId
+      ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId })
+      : await cal.createEvent(uid, eventArgs);
+  } catch { result = null; }
+  const status = result?.effect === "no_effect" ? "no_effect"
+    : result?.effect === "unknown" || result?.successful !== true ? "unknown" : "created";
+  const startMs = Date.parse(`${eventArgs.start_datetime}Z`);
+  const endMs = startMs + (hours * 60 + eventArgs.event_duration_minutes) * 60000;
+  return { status, summary: eventArgs.summary, startMs, endMs, destination: dstAddr };
 }
 
-// Returns { inserted, checked, skipped }. home = lm_users.home_address (may be null → first-of-day
+async function reconcileTravelBlock(uid, apiKey, nowMs, calendar, gmailAccountId, expectedCalendarAccountId, write) {
+  if (write.status !== "unknown" || !expectedCalendarAccountId) return write;
+  try {
+    const events = await listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, {
+      strict: true, expectedCalendarAccountId,
+    });
+    const normalize = (value) => String(value || "").replace(/\s+/g, "").toLowerCase();
+    const matches = events.filter((event) => event.summary === write.summary
+      && event.startMs === write.startMs && event.endMs === write.endMs
+      && normalize(event.location) === normalize(write.destination));
+    return matches.length === 1 ? { ...write, status: "verified" } : write;
+  } catch { return write; }
+}
+
+// Returns { inserted, verified, checked, skipped }. home = lm_users.home_address (may be null → first-of-day
 // located events are skipped this run and should be handled by the ask-loop separately).
 // _directionsMinutes: test seam — inject a stub so unit/integration tests avoid real network calls.
 //   In production this is always undefined and the real directionsMinutes function is used.
@@ -701,7 +722,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
     strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
   });
-  let inserted = 0, checked = 0, skipped = 0;
+  let inserted = 0, verified = 0, checked = 0, skipped = 0;
   const outboundReports = [];
   const releaseAllowance = async (eventKey, state) => {
     if (!state || !state.receipt || typeof _releaseManagedAction !== "function") return;
@@ -800,10 +821,9 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             let goClaimed = false;
             try { goClaimed = await claimTravel(uid, evKey, "go", supaUrl, supaKey); } catch { goClaimed = false; }
             if (goClaimed) {
-              let created = false;
-              try { created = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId); }
-              catch { created = false; }
-              if (created) {
+              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId);
+              write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
+              if (write.status === "created") {
                 inserted++;
                 outboundInserted = true;
                 if (typeof _completeManagedAction === "function") {
@@ -821,10 +841,18 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
                   leaveMs,
                   arriveMs,
                 });
+              } else if (write.status === "verified") {
+                verified++;
+                if (typeof _completeManagedAction === "function") {
+                  await _completeManagedAction(uid, evKey, supaUrl, supaKey,
+                    { reservation: allowanceState.receipt });
+                }
+              } else if (write.status === "no_effect") {
+                skipped++;
+                await unclaimTravel(uid, evKey, "go", supaUrl, supaKey);
+                await releaseAllowance(evKey, allowanceState);
               } else {
                 skipped++;
-                await unclaimTravel(uid, evKey, "go", supaUrl, supaKey); // create failed → release for retry
-                await releaseAllowance(evKey, allowanceState);
               }
             } else {
               skipped++; // another writer already claimed the GO block (race-safe)
@@ -890,28 +918,34 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     let returnClaimed = false;
     try { returnClaimed = await claimTravel(uid, evKey, "return", supaUrl, supaKey); } catch { returnClaimed = false; }
     if (returnClaimed) {
-      let created = false;
-      try { created = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId); }
-      catch { created = false; }
-      if (created) {
+      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId);
+      write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
+      if (write.status === "created") {
         inserted++;
         if (typeof _completeManagedAction === "function") {
           await _completeManagedAction(uid, evKey, supaUrl, supaKey,
             { reservation: returnAllowanceState.receipt });
         }
-      }
-      else {
+      } else if (write.status === "verified") {
+        verified++;
+        if (typeof _completeManagedAction === "function") {
+          await _completeManagedAction(uid, evKey, supaUrl, supaKey,
+            { reservation: returnAllowanceState.receipt });
+        }
+      } else if (write.status === "no_effect") {
         skipped++;
         await unclaimTravel(uid, evKey, "return", supaUrl, supaKey);
         await releaseAllowance(evKey, returnAllowanceState);
-      } // create failed → release
+      } else {
+        skipped++;
+      }
     } else {
       skipped++; // another writer already claimed the RETURN block (race-safe)
       await releaseAllowance(evKey, returnAllowanceState);
     }
     void outboundInserted; // suppress unused warning — used for semantic clarity only
   }
-  return { inserted, checked, skipped, outboundReports };
+  return { inserted, verified, checked, skipped, outboundReports };
 }
 
 // PURE return-leg decision — mirrors travelDecision geometry for the post-event leg (venue→home).

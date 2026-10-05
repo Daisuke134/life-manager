@@ -66,19 +66,45 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
   return active[0].id;
 }
 
-async function exec(tool, uid, args, apiKey, opts, recordOutcome) {
-  const connectedAccountId = await selectedAccountId(uid, apiKey, opts);
+async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCreate = false) {
+  let connectedAccountId;
+  try { connectedAccountId = await selectedAccountId(uid, apiKey, opts); }
+  catch (error) {
+    if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
+    throw error;
+  }
   let result;
+  let response;
   try {
-    const r = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
+    response = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
       method: "POST",
       headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args }),
     });
-    result = await r.json();
   } catch (error) {
     await recordOutcome("unknown");
+    if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
     throw error;
+  }
+  const status = Number.isInteger(response?.status) ? response.status : null;
+  if (effectAwareCreate && status !== null && status >= 400 && status < 500) {
+    await recordOutcome("failure");
+    return { effect: "no_effect", result: { successful: false } };
+  }
+  if (effectAwareCreate && status !== null && (status < 200 || status >= 300)) {
+    await recordOutcome("unknown");
+    return { effect: "unknown", result: { successful: false } };
+  }
+  try { result = await response.json(); }
+  catch (error) {
+    await recordOutcome("unknown");
+    if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
+    throw error;
+  }
+  if (effectAwareCreate) {
+    const effect = result && result.successful === true ? "created" : "unknown";
+    await recordOutcome(effect === "created" ? "success" : "unknown");
+    return { effect, result };
   }
   await recordOutcome(result && result.successful === true ? "success"
     : result && result.successful === false ? "failure" : "unknown");
@@ -96,14 +122,19 @@ function makeComposioCalendar(opts = {}) {
       meta: { tool, outcome, runtime_trace: trace },
     });
   });
-  const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId) => {
+  const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId, effectAwareCreate = false) => {
     const operationOpts = expectedCalendarAccountId == null ? opts : { ...opts, expectedCalendarAccountId };
     const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
     const trace = runtimeTrace({ tenantId: uid }, runtimeEnv);
     const recordOutcome = async (outcome) => {
       try { await ledger(uid, tool, { outcome, runtimeTrace: trace }); } catch { /* observability must not break calendar calls */ }
     };
-    return exec(tool, uid, args, key, operationOpts, recordOutcome);
+    return exec(tool, uid, args, key, operationOpts, recordOutcome, effectAwareCreate);
+  };
+  const withCreateEffect = ({ effect, result }) => {
+    const value = result && typeof result === "object" ? result : { successful: false };
+    Object.defineProperty(value, "effect", { value: effect, configurable: true });
+    return value;
   };
   // ONE page of Google Calendar items PLUS the cursor that unlocks the next. events.list returns at
   // most `maxResults` items per page (250 by default, 2500 max) and sets data.nextPageToken whenever
@@ -154,8 +185,11 @@ function makeComposioCalendar(opts = {}) {
       return (await listEventsPage(uid, opts)).items;
     },
     async createEvent(uid, args, operationOpts = {}) {
-      if (!key) return { successful: false };
-      try { return await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args, operationOpts.expectedCalendarAccountId); } catch { return { successful: false }; }
+      if (!key) return withCreateEffect({ effect: "no_effect", result: { successful: false } });
+      try {
+        return withCreateEffect(await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args,
+          operationOpts.expectedCalendarAccountId, true));
+      } catch { return withCreateEffect({ effect: "unknown", result: { successful: false } }); }
     },
     async patchEvent(uid, args, operationOpts = {}) {
       if (!key) return { successful: false };

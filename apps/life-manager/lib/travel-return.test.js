@@ -490,3 +490,85 @@ test("[AC-14][INTEGRATION] fillTravel failed Transit calls exactly one legacy Go
     assert.equal(routesRequests, 0, "structured fallback does not invoke Routes API");
   } finally { global.fetch = originalFetch; }
 });
+
+async function withReturnClaimStore(run) {
+  const originalFetch = globalThis.fetch;
+  const claims = new Set();
+  const deletes = [];
+  globalThis.fetch = async (input, init = {}) => {
+    const url = new URL(String(input));
+    if (url.pathname !== "/rest/v1/lm_travel_log") throw new Error("unexpected test fetch");
+    const body = init.body ? JSON.parse(init.body) : null;
+    const eventKey = body?.event_key || url.searchParams.get("event_key")?.replace(/^eq\./, "");
+    const leg = body?.leg || url.searchParams.get("leg")?.replace(/^eq\./, "");
+    const key = `${eventKey}:${leg}`;
+    if (init.method === "POST") {
+      if (claims.has(key)) return { status: 409 };
+      claims.add(key);
+      return { status: 201 };
+    }
+    if (init.method === "DELETE") {
+      deletes.push(key);
+      claims.delete(key);
+      return { status: 204 };
+    }
+    throw new Error("unexpected travel log method");
+  };
+  try { await run({ claims, deletes }); }
+  finally { globalThis.fetch = originalFetch; }
+}
+
+const RETURN_EVENT = {
+  id: "event-return-unknown", summary: "Dentist", location: VENUE,
+  start: { dateTime: "2030-01-01T10:00:00+09:00" },
+  end: { dateTime: "2030-01-01T11:00:00+09:00" },
+};
+const RETURN_OPTIONS = {
+  home: HOME, mapsKey: "fixture", nowMs: Date.parse("2030-01-01T08:00:00+09:00"),
+  expectedCalendarAccountId: "ca-expected", supaUrl: "https://db.example", supaKey: "fixture",
+  _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? 20 : null,
+};
+
+test("keeps RETURN claim after an unknown create result and does not replay the Calendar write", async () => {
+  await withReturnClaimStore(async ({ claims, deletes }) => {
+    let writes = 0;
+    const reads = [];
+    const calendar = {
+      async listEventsRaw(_uid, options) { reads.push(options); return [RETURN_EVENT]; },
+      async createEvent(_uid, _args, options) {
+        writes++;
+        assert.equal(options.expectedCalendarAccountId, "ca-expected");
+        return { successful: false, effect: "unknown" };
+      },
+    };
+    const first = await fillTravel("tenant-return", { ...RETURN_OPTIONS, calendar });
+    const second = await fillTravel("tenant-return", { ...RETURN_OPTIONS, calendar });
+    assert.equal(first.inserted, 0);
+    assert.equal(first.verified, 0);
+    assert.equal(second.inserted, 0);
+    assert.equal(writes, 1);
+    assert.equal(claims.has("event-return-unknown:return"), true);
+    assert.deepEqual(deletes, []);
+    assert.equal(reads[1].strict, true);
+    assert.equal(reads[1].expectedCalendarAccountId, "ca-expected");
+  });
+});
+
+test("a definite RETURN no-effect rejection releases only the RETURN claim", async () => {
+  await withReturnClaimStore(async ({ claims, deletes }) => {
+    const calendar = {
+      async listEventsRaw() { return [RETURN_EVENT]; },
+      async createEvent(_uid, args) {
+        return args.location === HOME
+          ? { successful: false, effect: "no_effect" }
+          : { successful: true, effect: "created" };
+      },
+    };
+    await fillTravel("tenant-return-rejected", {
+      ...RETURN_OPTIONS, _directionsMinutes: async () => 20, calendar,
+    });
+    assert.deepEqual(deletes, ["event-return-unknown:return"]);
+    assert.equal(claims.has("event-return-unknown:go"), true);
+    assert.equal(claims.has("event-return-unknown:return"), false);
+  });
+});

@@ -362,3 +362,53 @@ test("history projection preserves attendee identity metadata for the relations 
 test("no uid → [] (mirrors fetchUpcomingEvents' guard)", async () => {
   assert.deepEqual(await fetchCalendarHistory("", { nowMs: NOW, calendar: fakeCalendar([{ id: "x" }]) }), []);
 });
+
+test("Composio create outcome marks only pre-dispatch and outer 4xx as definite no-effect", async () => {
+  const { makeComposioCalendar } = require("./transport/calendar-composio.js");
+  let providerCalls = 0;
+  const blocked = makeComposioCalendar({
+    apiKey: "k", supaUrl: "https://db.example", supaKey: "service",
+    expectedCalendarAccountId: "ca-expected", recordCall: () => false,
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      if (url.hostname === "db.example") return { ok: true, json: async () => [{ uid: "tenant-a", telegram_chat_id: null,
+        calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-current" }] };
+      providerCalls++;
+      return { status: 200, ok: true, json: async () => ({ successful: true }) };
+    },
+  });
+  const preflight = await blocked.createEvent("tenant-a", { summary: "fixture" });
+  assert.equal(preflight.effect, "no_effect");
+  assert.equal(providerCalls, 0, "account-marker mismatch is rejected before provider dispatch");
+
+  const recorded = [];
+  const fourXx = makeComposioCalendar({
+    apiKey: "k", recordCall: (_uid, _tool, details) => recorded.push(details.outcome),
+    resolveConnectedAccountId: async () => null,
+    fetchImpl: async () => ({ status: 429, ok: false, json: async () => ({ successful: true }) }),
+  });
+  const rejected = await fourXx.createEvent("tenant-a", { summary: "fixture" });
+  assert.equal(rejected.effect, "no_effect");
+  assert.equal(rejected.successful, false, "an outer 4xx cannot become a claimed create success");
+  assert.deepEqual(recorded, ["failure"]);
+});
+
+test("Composio 2xx unsuccessful, 5xx, unreadable, and network create outcomes remain unknown", async () => {
+  const { makeComposioCalendar } = require("./transport/calendar-composio.js");
+  const scenarios = [
+    { name: "2xx successful false", response: async () => ({ status: 200, ok: true, json: async () => ({ successful: false }) }) },
+    { name: "5xx", response: async () => ({ status: 503, ok: false, json: async () => ({ successful: false }) }) },
+    { name: "unreadable 2xx", response: async () => ({ status: 200, ok: true, json: async () => { throw new Error("invalid JSON"); } }) },
+    { name: "network", response: async () => { throw new Error("network unavailable"); } },
+  ];
+  for (const scenario of scenarios) {
+    const outcomes = [];
+    const calendar = makeComposioCalendar({
+      apiKey: "k", recordCall: (_uid, _tool, details) => outcomes.push(details.outcome),
+      resolveConnectedAccountId: async () => null, fetchImpl: scenario.response,
+    });
+    const result = await calendar.createEvent("tenant-a", { summary: "fixture" });
+    assert.equal(result.effect, "unknown", scenario.name);
+    assert.deepEqual(outcomes, ["unknown"], scenario.name);
+  }
+});
