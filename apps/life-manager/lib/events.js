@@ -5,11 +5,12 @@
 // cloud wake scheduler (life-call). No per-user Google API token needed — Composio holds it.
 //
 // Contract:
-//   fetchUpcomingEvents(uid, { nowMs?, horizonH=18, apiKey? }) -> Promise<Event[]>
+//   fetchUpcomingEvents(uid, { nowMs?, horizonH=18, apiKey?, strictCalendarRead?, onCalendarRead? }) -> Promise<Event[]>
 //     Event = { summary: string, location: string|null, startMs: number, startIso: string }
 //     - timed events only (all-day date-only events are skipped — no leave time to compute)
 //     - filtered to [now, now+horizonH], sorted ascending by start
-//     - [] on: no API key, connection not ACTIVE, Composio error, or no qualifying events
+//     - [] by default on: no API key, connection not ACTIVE, Composio error, or no qualifying events
+//     - strictCalendarRead=true propagates transport errors; onCalendarRead receives raw item count
 //   fetchNextEvent(uid, opts) -> Promise<Event|null>  (the soonest upcoming timed event)
 "use strict";
 
@@ -34,7 +35,14 @@ async function fetchUpcomingEvents(uid, opts = {}) {
   // #74: calendar reads go through the transport adapter (composio cloud / gog local). Tests inject
   // their own via opts.calendar; production builds the env-selected one.
   const calendar = opts.calendar || getCalendar({ apiKey: opts.apiKey, gmailAccountId: opts.gmailAccountId });
-  const items = await calendar.listEventsRaw(uid, { timeMin: isoZ(nowMs - lookbackMs), timeMax: isoZ(horizonMs) });
+  const items = await calendar.listEventsRaw(uid, {
+    timeMin: isoZ(nowMs - lookbackMs),
+    timeMax: isoZ(horizonMs),
+    ...(opts.strictCalendarRead === true ? { strict: true } : {}),
+  });
+  if (typeof opts.onCalendarRead === "function") {
+    try { opts.onCalendarRead({ rawItemCount: items.length }); } catch { /* observability must not break calendar reads */ }
+  }
   const out = [];
   for (const e of items) {
     const interpreted = interpretCalendarEvent(e);

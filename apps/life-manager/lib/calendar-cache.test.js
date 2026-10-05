@@ -227,6 +227,74 @@ test("an empty inner result remains an empty array", async () => {
   assert.deepEqual(await calendar.listEventsRaw("u1", WINDOW), []);
 });
 
+test("a cached failure stays strict after a non-strict caller first receives an empty array", async () => {
+  const readError = new Error("calendar unavailable");
+  const calls = [];
+  const inner = {
+    async listEventsRaw(_uid, input = {}) {
+      calls.push(input);
+      if (input.strict) throw readError;
+      return [];
+    },
+  };
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000, ttlMs: 300_000 });
+
+  assert.deepEqual(await calendar.listEventsRaw("u1", WINDOW), []);
+  await assert.rejects(calendar.listEventsRaw("u1", { ...WINDOW, strict: true }), (error) => error === readError);
+  assert.equal(calls.length, 1, "both callers share one underlying read");
+  assert.equal(calls[0].strict, true, "cached reads ask the transport to preserve failures");
+});
+
+test("a cached failure maps to empty for a non-strict caller after a strict caller throws", async () => {
+  const readError = new Error("calendar unavailable");
+  const calls = [];
+  const inner = {
+    async listEventsRaw(_uid, input = {}) {
+      calls.push(input);
+      if (input.strict) throw readError;
+      return [];
+    },
+  };
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000, ttlMs: 300_000 });
+
+  await assert.rejects(calendar.listEventsRaw("u1", { ...WINDOW, strict: true }), (error) => error === readError);
+  assert.deepEqual(await calendar.listEventsRaw("u1", WINDOW), []);
+  assert.equal(calls.length, 1, "the failed outcome remains cached for the TTL");
+});
+
+test("concurrent mixed strict callers share one failed read but receive caller-specific results", async () => {
+  const readError = new Error("calendar unavailable");
+  const calls = [];
+  let rejectRead;
+  const pendingRead = new Promise((_, reject) => { rejectRead = reject; });
+  const inner = {
+    listEventsRaw(_uid, input = {}) {
+      calls.push(input);
+      return pendingRead;
+    },
+  };
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000, ttlMs: 300_000 });
+  const nonStrict = calendar.listEventsRaw("u1", WINDOW).then(
+    (items) => ({ ok: true, items }),
+    (error) => ({ ok: false, error }),
+  );
+  const strict = calendar.listEventsRaw("u1", { ...WINDOW, strict: true }).then(
+    (items) => ({ ok: true, items }),
+    (error) => ({ ok: false, error }),
+  );
+
+  await new Promise(setImmediate);
+  assert.equal(calls.length, 1, "concurrent callers share one in-flight transport read");
+  assert.equal(calls[0].strict, true);
+  rejectRead(readError);
+  const [nonStrictResult, strictResult] = await Promise.all([nonStrict, strict]);
+
+  assert.deepEqual(nonStrictResult, { ok: true, items: [] });
+  assert.equal(strictResult.ok, false);
+  assert.strictEqual(strictResult.error, readError);
+  assert.equal(calls.length, 1);
+});
+
 test("getCalendar shares the cached wrapper unless LM_CAL_CACHE=off", () => {
   const beforeCache = process.env.LM_CAL_CACHE;
   const beforeTransport = process.env.LIFE_TRANSPORT;
