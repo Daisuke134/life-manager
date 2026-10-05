@@ -8292,3 +8292,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 旧順序9(現在Coconala確認済み故障)を新1へ戻し、旧1(監査scratch計測)を全業務loop/財務後の新39へ保留。その他旧2–8/10–39/40–44の相対順序は保持。根拠は今回の明示指示でありrootの追加最適化ではない。全44/cursor1、以後新優先指示なしに再reorderしない。SelfBuild新40–42も後段、旧TikTok/NPO資料追跡は再開しない。
 - 新1内の実行：現send診断候補のsource/gates/push→独立review/CI/main/Reply対象反映→実phase/officialpositive記録で必要原因修復→12件の自然処理確認。既存本文/context/モデルroute修復をやり直さず、監査byte不足やTaskMarketprototype制作を先行しない。未知効果を0/成功へ変換せず、再送/fence解除は公式証拠なしに行わない。
 - currentLuna診断候補106focused等PASS、OSS ownshared inventory189/count不変の該当digest1entryのみ整合中。追加case/設計を増やさずsource候補完了を優先し、role6LunaMax実装/6.1SolMedium reviewを保持する。
+
+
+### 601. Coconala送信境界診断のsource受入と独立検証
+
+- current1の限定診断をLuna/maxが完了。専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-coconala-send-boundary-diagnostics-20261005`、branch `fix/lm-coconala-send-boundary-diagnostics-20261005`、HEAD/remote `87c3ccad996367bfee5cc85052e6f35e4b1ff2b9`一致・clean。6files、OSS ownshared count189のdigest entryだけ整合。既存writerへsender/kernel段階・hash・run/release・claimed/stored occurrenceを結合し、本文/URL/thread/account/raw networkを保存しない。旧unknown fence・通常sender契約を保持、write失敗を成功/effect0へ隠さない。
+- 実sender/kernel/fakeCDPを含むfocused106、compile、loop contract14/180、OSS verifier/既存12tests、sourceboundary/diff PASS。実provider/browser/launchd/auth/state/API操作0。source検証は過去送信有無・旧保留12解消・経済成果の証明ではない。
+- PR6686 https://github.com/Daisuke134/life-manager/pull/6686 を作成。fresh read-only `gpt-6.1-sol/medium`検証者が誤再送・漏洩・writer失敗・provenance/他platform契約を反証中。CI/main/immutable/Reply対象反映/自然公式readbackは未完。root current readonly reportは返信blocked、Paid受注観測failed1。blocked時のobserved/pending0を未処理ゼロにしない。
+- §217の旧監査先行段落を現44順へ訂正、docs remote4264464a4cb1e6d91be9cf5bf85a54e3f12eb243で確認。新たな順序変更はない。残44/cursor1、次はfresh review指摘解消とCI確認。監査39/SelfBuild40–42、TikTok/NPO追跡保留を維持する。
