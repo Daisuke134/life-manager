@@ -688,9 +688,10 @@ TODO（何を・どう直すか）
 | L01 | オリジナルキャラ（もちハム）を作る | DONE: gpt-image-2 `char-ref.png`、受領書は `char-ref.receipt.json` |
 | L02 | 30 動きを Seedance で生成 | DONE: 30/30 本、推定 USD 1.97、fal の request_id は `clips/*.json` |
 | L03 | 目視で 24 本を選び、パッケージを validator に通す | DONE: 不採用は tired・peek（キー不良/崩れ）、no・roger・dance・bye（動きが弱い）。画像系の公式チェックは全 PASS |
-| L04 | Creators Market にログインし、専用 profile に session を保存 | **cursor**。クリエイター登録は 2025-11-30 に完了済み（keiodaisuke@gmail.com）。LINE のパスワードはスマホのアプリでしか変えられず、Web ログインにはスマホでの本人確認が要る = Dais の手続き |
-| L05 | 申請する（もちハム（動く）、¥250、`listing.json`） | 未 |
-| L06 | 審査結果を読む → 却下なら直して再申請 → 承認後にリリースし、LINE STORE の公開 URL を確認 | 未 |
+| L04 | Creators Market にログインし、専用 profile に session を保存 | DONE: 2026-10-05 にメール+パスワード+スマホ本人確認でログイン。session は `~/.cloak/vault/line-creators/auth-state.json`、credential は SSOT の `line-account` |
+| L05 | 申請する（もちハム（動く）、¥250、`listing.json`） | DONE: スタンプID 48067450、24 個、タグ 5〜6 個/個、特集「気づかいスタンプ」に参加、自動販売開始。公式ステータス「審査待ち」を `creators_readback.py` で readback |
+| L05b | 振込に必要な基本情報と送金先口座を登録する | **cursor（Dais）**。名前欄に既に「いりや / 成田いりや」が入っていて LINE アカウント名（成田 大祐）と違う。支払調書と口座名義に関わるので、本名と国内の口座は Dais の確認待ち。住所・電話は profile.json から入れられる |
+| L06 | 審査結果を読む（`creators_readback.py`） → 却下なら直して再申請 → 承認後にリリースし、LINE STORE の公開 URL を確認 | 未 |
 | L07 | 毎時 owner を main 由来の immutable release で入れる（審査・売上の readback、承認後に次セット） | 未 |
 | L08 | X で集客（制作過程の公開 + ストア URL、`ct=` 付き） | 未 |
 
