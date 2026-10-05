@@ -7655,3 +7655,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6616の最終head fcb38b6e3ad942fad8ba2c4f9f392ead5cc12c3bをGitHubで再照合し、全10checks終端SUCCESS、fresh review P1解消SHIP、関連source acceptanceを確認。gh pr merge --merge --admin --match-head-commitで統合し、公式state MERGED/mergedAt2026-10-05T05:38:58Z/merge commit d71a75b09d458a7257e62801b7d4ec6021fcaf86。fetch後にremote mainとmerge commit objectの存在を確認。
 - §217旧残1のsolver source受入/main統合は完了し残表から除外。旧2〜54を新1〜53へ繰上げ。完了済みを残TODOに残さないための番号更新で、実行の相対順・進行中effectを変更しない。現在cursor1はimmutable release/対象owner反映。SelfBuildは新49からで最後。
 - source/main完了は対象loaded、新source自然challenge処理、仕事在庫binding、注文・精算・売上・入金の完了ではない。次は既存release ownerと競合せずmain由来complete immutableを確認し、既存guarded idle限定apply→actual argv/SHA→自然run/readbackを結ぶ。新規solver task・provider/browser/state変更0。Agent Economy sourceは別専用worktreeで継続。
+
+
+### 518. 新release待機の実owner確認と低空き容量診断
+
+- currentはmain祖先88872a85/full ALLでsolver統合d71以前。Lancerswork-syncは旧ba69 loaded-running/自然pass。既存release reconcilerはPID36709と子reconcile37032/lm-loop37423/child37482がlive、current88872から稼働中。promotion-holdなし。重複cut/apply/global再起動なし。次は既存owner終端/自然次cycleとd71由来releaseを照合する。
+- df実測は空き188MiB。既存central_cleanup.py --release-gc-onlyを実行、evaluated22/preserved22/protected_release_count22/removed0/reclaimed0/errors0/protected_deletions0。実cut lock .release-cut.lockは当時なし。ロード/実process/保護台帳参照を持つreleaseを削除しない。audit scratchは空。Lancers solver/diagnostic worktreeは各約100MiB。
+- 自分の前task終了worktreeだけを所有Lunaへ退役条件確認依頼。runbookの同操作6条件（登録/HEAD不変、caller=leaseowner、tracked/untracked/ignoredなし、freshmain到達、openPRなし、cwd/openfileなし）全PASSの場合のみexactpath remove、他owner/保護store/state/branch削除なし。不明条件は保持。容量不足を人間承認の条件にせず既存安全経路を進める。
+- Agent Economy RED→GREENは担当Codex failover23/providerenv6/providerlease12/planner isolation5・構文/contract PASS。OSSの所有runner digest mismatchだけに対しdocs/manifests/oss-merge-1-sources.json当該1entryへ所有範囲を拡張し、既存方式の最小更新・OSS再確認を指示。他entry/credentials/config/model/provider変更なし。source push/fresh review/CI/main/自然THINKは未完。§217残53/cursor1。
