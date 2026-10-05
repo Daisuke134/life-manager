@@ -304,6 +304,20 @@
         }
       ]
     },
+    "self-fix-code-agent": {
+      "route": "self-fix-frontier-luna-max-code",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "profile_alias": "acct2"
+        }
+      ]
+    },
     "escalation-agent": {
       "route": "explicit-escalation",
       "requires_explicit_escalation": true,

@@ -7,6 +7,8 @@ eq(){ [ "$2" = "$3" ]&&{ echo "  ok $1"; P=$((P+1)); }||{ echo "  FAIL $1 ($2 vs
 ne(){ [ "$2" != "$3" ]&&{ echo "  ok $1"; P=$((P+1)); }||{ echo "  FAIL $1 (both $2)"; F=$((F+1)); }; }
 
 echo "(A) loop-name normalization"
+WIRING="$(AGENT_WIRING_PROBE_ONLY=1 /bin/bash "$SF" 2>&1)"
+a "SelfFix wiring probe reports its dedicated code task class" "$WIRING" '"task_class":"self-fix-code-agent"'
 S="$(SELF_FIX_DRYRUN=1 bash "$SF" capafy hint 2>&1)"; L="$(SELF_FIX_DRYRUN=1 bash "$SF" capafy-loop hint 2>&1)"
 a "short 'capafy' → LOOP=capafy-loop" "$S" 'LOOP=capafy-loop'
 a "short → RESULT .self-fix-capafy-loop.result" "$S" '.self-fix-capafy-loop.result'
@@ -52,9 +54,13 @@ cat > "$TEST_REPO/skills/earn/marketing-engine/run_agent.sh" <<'SH'
 #!/bin/bash
 set -euo pipefail
 evidence=""
+task_class=""
+escalation_reason=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --evidence-dir) evidence="$2"; shift 2 ;;
+    --task-class) task_class="$2"; shift 2 ;;
+    --escalation-reason) escalation_reason="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -62,6 +68,8 @@ exists=0; [ -d "$evidence" ] && exists=1
 {
   printf 'EVIDENCE_EXISTS_AT_START=%s\n' "$exists"
   printf 'EVIDENCE_DIR=%s\n' "$evidence"
+  printf 'TASK_CLASS=%s\n' "$task_class"
+  printf 'ESCALATION_REASON=%s\n' "$escalation_reason"
   printf 'TMPDIR=%s\n' "${TMPDIR:-}"
   printf 'NPM_CONFIG_CACHE=%s\n' "${NPM_CONFIG_CACHE:-}"
   printf 'NODE_COMPILE_CACHE=%s\n' "${NODE_COMPILE_CACHE:-}"
@@ -111,6 +119,8 @@ if [ -f "$TEST_HOME/observed-runtime.env" ]; then
   eq "evidence root uses mode 700" "$(stat -f '%Lp' "$EVIDENCE_DIR")" '700'
   PROMPT_FILE="$(find "$EVIDENCE_DIR/tmp" -maxdepth 1 -type f -name "self-fix-$LOOP_CANONICAL.prompt.*" -print -quit 2>/dev/null)"
   a "self-fix prompt mktemp is inside owned TMPDIR" "$PROMPT_FILE" "$EVIDENCE_DIR/tmp/"
+  eq "detached SelfFix class is dedicated to code repair" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^TASK_CLASS=//p')" 'self-fix-code-agent'
+  eq "detached SelfFix carries its bounded escalation reason" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^ESCALATION_REASON=//p')" 'SelfFix code repair'
 else
   echo "  FAIL detached fake runner did not write its fixture readback"
   F=$((F+1))
