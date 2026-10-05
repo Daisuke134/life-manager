@@ -10,8 +10,8 @@ tags:
   - v7
 
 ---
-- clearState
-- clearKeychain
+# Preconditions: freshly erased dedicated simulator with the Staging app installed.
+# clearState reinstalls iOS apps; this avoids a second WebRTC app-bundle copy.
 - startRecording:
     path: "anicca-onboarding-v7"
 - launchApp:
