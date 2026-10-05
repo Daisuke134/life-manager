@@ -1,10 +1,10 @@
 # Anicca eBook Revenue Loop Implementation Plan
 
-> For agentic workers: この plan は実装時の作業設計です。TODO 順と cursor は Life Manager unified SSOT が所有します。
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. TODO order and cursor live only in the Life Manager unified SSOT.
 
 **Goal:** eBookを最優先で実装し、既存の英日checkoutと自社SNSから一回購入と任意登録のLetter/Tegami MRRを生み、最初の有料注文とPDF配信を同じreceiptで確認してからCapafy Instagramへ引き継ぐ。
 
-**Architecture:** Stripe checkoutとPDF配信は`anicca-products`に残す。Life Managerは現在のeBook render receipt、marketing video adapter、既存account registryを一つのpublication ownerから接続する。Capafy Instagramは別の`life-manager-capafy-ig` Postiz laneを使い、Capafy開発担当者が所有するコードを変更しない。OpenClaw cronは追加で動かさない。
+**Architecture:** Stripe checkout・receipt・PDF配信は`anicca-products`に残す。Letter webhookはDB発番のreadback generationをStripe GET前に予約し、最新generationだけをsubscription stateへ適用する。既存subscriber pointerはmigrationでstate mappingへ引き継ぎ、複数subscriptionのactive/trialingからtierを集計する。pointer更新はStripe `Subscription.created`の順で決め、created timeを未照合のlegacy pointerは保持する。pointerなしの既存paid tierも公式readback対象として別flagで保持する。Life Managerは既存render receipt・marketing adapter・account registryを一つのpublication ownerへ接続する。Capafy Instagramは`life-manager-capafy-ig` Postiz laneを使い、別担当所有のCapafy開発コードを変更しない。OpenClaw cronは追加で動かさない。
 
 **Tech Stack:** Next.js、Netlify Functions、Stripe Checkout/webhook、Resend、Supabase、Python marketing-engine、Life Manager loop registry、既存の video generation/publication adapters。
 
@@ -22,17 +22,15 @@
 - Capafy Instagramは`life-manager-capafy-ig` Postiz laneだけをpublish ownerとして使う。旧`capafy-ig-marketing-daily`の同一occurrence effect-unknownと二重owner状態をread backするまでどちらからも投稿しない。
 - Capafy code/build/account-lifecycleは別担当の境界。Marketing laneは既存Postiz skeletonのaccount/creative/attribution/readbackだけを扱う。
 - OpenClaw cron と Life Manager owner を二重に enable しない。
+- Customer emailはverified domainの`RESEND_FROM_EMAIL`だけを使う。値が無い場合はResendを呼ばずretryable receiptにする。
 
 ## Review Focus
 
-- 表示価格と Stripe Price ID が違う。
-- /achan と旧 /jp route が混在する。
-- webhook retry が二重 email / buyer row を作る、または DB/email failure を隠す。
-- campaign click が checkout metadata / paid order に join しない。
-- account registry と provider status がずれ、誤った account に投稿する。
-- 旧Capafy IG ownerとPostiz laneが同じaccountへ二重投稿する、または未確認の旧effectを再送する。
-- 1日3回のCapafy scheduleが初回canaryの上限1回/24時間を超える。
-- eBook one-time gross を MRR と誤算入する。
+- Stripe GETの遅い応答が解約stateを上書きせず、pending generationでsupersedeされたCheckoutはWelcome receiptを終端確定せず再試行する。
+- 古いCheckout eventの再配信が、新しいStripe subscription pointerを奪わない。
+- migration前からあるsubscriberのsubscription eventをmapping missingにしない。
+- 既存の別active subscriptionがあるとき、一つのcanceled eventでtierをexpiredにしない。
+- migration直後、公式readback前の既存paid tierを誤って失効させない。
 
 ---
 
@@ -63,18 +61,26 @@
 
 **Files**
 - Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/webhook.js
+- Create: Daisuke134/anicca-products/apps/landing/netlify/functions/_migrations/2026-10-05-ebook-webhook-receipts.sql
 - Test: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-webhook.test.js
+- Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/writer-webhook.test.js
+- Modify: Daisuke134/anicca-products/.github/workflows/landing-pr-build.yml
 
 **Interfaces**
-- Input: signature-verified checkout.session.completed event.
-- Output: buyer receipt joined by Stripe session ID/attribution token, plus delivery status for the correct EN/JA PDF. The eBook email has an optional locale subscription CTA with the same `utm_campaign`.
+- Input: signature-verified Checkout, invoice, and subscription lifecycle events.
+- Output: durable event/session receipt joined by Stripe session ID/attribution token, plus delivery status for the correct EN/JA PDF. The eBook email has an optional locale subscription CTA with the same `utm_campaign`.
 - Letter subscription events preserve the token, separate trial access from paid MRR, and never enter eBook delivery. Count MRR only after the first paid invoice and active status.
+- `reserve_ebook_subscription_readback(subscription_id,email?,customer_id?)` returns `{generation,subscriber_id}` before Stripe GET. `apply_ebook_subscription_state(subscription_id,subscriber_id,generation,status,subscription_created_at,event_id)` applies only if generation is still current.
+- `RESEND_FROM_EMAIL` is mandatory for eBook/Letter delivery. There is no test-domain fallback; missing sender configuration returns a retryable receipt before provider send.
+- Existing `subscribers.stripe_subscription_id` rows seed subscription mappings. `subscriber.tier` is recomputed from all mapped active/trialing states and preserves migration-carried paid access until mapped subscriptions receive official Stripe readback. A paid legacy row without a Stripe pointer retains a separate pending-readback flag. Pointer ordering uses Stripe `Subscription.created`; an old pointer without created-time readback remains until reconciled. Once reconciled, the pointer is reselected from all saved states by maximum `created` (subscription ID breaks equal-second ties).
 
-- [ ] Step 1: Add failing tests for invalid signature, EN/JA PDF and CTA selection, subscription separation, trial versus `invoice.paid`, replay of the same event/session, token persistence, and DB/email failures.
-- [ ] Step 2: Run apps/landing: npm run test:telemetry. Expected: replay and error-path cases fail.
-- [ ] Step 3: Read the live Supabase buyer/subscriber schema first. Use its unique Stripe session/event key; add the smallest durable event/delivery receipt and attribution field only if missing. Resend's `Idempotency-Key` expires after 24 hours, so it is a secondary guard, not the durable ledger. Persist delivery/subscription state and surface errors so retry/readback is observable.
-- [ ] Step 4: Run npm run test:telemetry. Expected: one purchase receipt per session and no hidden fulfillment failure.
-- [ ] Step 5: Commit the focused webhook change.
+- [x] Step 1: Add failing tests for signature, locale PDF/CTA, event/session replay, DB/email failure, stale same-subscription readback, and delayed cross-subscription Checkout. RED for the two delayed-readback cases was observed before the timestamp-CAS implementation; fresh review then showed that late-delivered old Checkout and legacy subscriber mappings require a generation-based redesign.
+- [x] Step 2: Add failing tests for delayed active response with worker clock skew, late old Checkout, existing migrated lifecycle event, pending generation racing Welcome, legacy pointer re-election, and missing verified sender. RED was observed on the previous timestamp/single-state/fallback implementations.
+- [x] Step 3: Add DB-issued per-subscription readback generations before Stripe GET; apply only the current generation. Keep superseded Checkout receipt retryable. Seed legacy subscription mappings and paid-preservation flags, aggregate access from all mapped states, reselect pointer by maximum Stripe `Subscription.created`, and require configured `RESEND_FROM_EMAIL` before sending.
+- [x] Step 4: Focused eBook/Writer tests pass 27/27. The migration and RPC pass on a local PostgreSQL 18 fixture containing legacy pointer, no-pointer paid, and new subscriber rows; verified stale generation rejection, Welcome retry after supersession, lifecycle mapping, pointer re-election, multiple active state aggregation, and legacy paid preservation.
+- [x] Step 5: `npm run test:telemetry` passes 358/358; `node --check`, `git diff --check`, PostgreSQL 18 fixture, and fresh read-only source review PASS. Commit `b8ea8f0c2e` is pushed to PR #420. PR CI has not appeared yet; manual workflow run `37329324798` is in progress with provider metadata probe before build. Previous PR build passed at `f712eacec4`; workflow_dispatch at that head failed in `next/font` after dashboard snapshot fetch failed, before the old probe position.
+- [ ] Step 6: Read production schema constraints and verified sender before applying SQL or allowing customer delivery. Prior Netlify OpenAPI exposed `buyers` columns (`amount_paid,currency,email,id,lang,product,purchased_at,stripe_session_id`) and `subscribers` columns (`email,id,lang,signed_up_at,source,stripe_customer_id,stripe_subscription_id,tier,unsubscribed_at`) but not types/constraints; `ebook_webhook_receipts` was not exposed. Resend `GET /domains` returned 401. Runtime now requires `RESEND_FROM_EMAIL`; its production presence and verified domain remain unconfirmed. Do not merge while migration, PostgREST schema cache, or sender readiness is missing because main push auto-deploys.
+- [x] Step 7: Initial source PR #420 head `f712eacec4` is superseded by pushed source commit `b8ea8f0c2e`; final source PR remains open and production merge is held on migration/sender readiness.
 
 ### Task 3: Join the campaign token to money
 
