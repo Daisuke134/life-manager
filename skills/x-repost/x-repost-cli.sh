@@ -353,16 +353,7 @@ if [ "$($PY -c 'import json,sys; print(json.load(open(sys.argv[1])).get("pending
       --record-job-result POSTED --post-url "$RECOVERED_POST_URL" \
       --provider-submission-id "$RECOVERED_PROVIDER_ID" >/dev/null || \
       finish 1 "prior Affiliate success receipt recovery failed before any new effect"
-  else
-    "$PY" "$SKILL/scripts/affiliate_proposal.py" --job-claims "$AFFILIATE_JOB_CLAIMS" \
-      --job-payload-dir "$AFFILIATE_JOB_PAYLOADS" --job-results "$AFFILIATE_JOB_RESULTS" \
-      --record-job-result UNVERIFIED --provider-submission-id "$RECOVERED_PROVIDER_ID" \
-      >/dev/null || finish 1 "prior Affiliate unresolved receipt recovery failed"
-  fi
-  if [ "$RECOVERED_STATE" = "UNVERIFIED" ]; then
-    finish 0 "recovered prior Affiliate accepted effect as UNVERIFIED without reposting"
-  fi
-  "$PY" - "$POSTED" "$AFFILIATE_SUCCESS_RECOVERY" <<'PYEOF'
+    "$PY" - "$POSTED" "$AFFILIATE_SUCCESS_RECOVERY" <<'PYEOF'
 import datetime, fcntl, json, os, sys
 posted, recovery = sys.argv[1:3]
 row = json.load(open(recovery, encoding="utf-8"))["row"]
@@ -381,8 +372,19 @@ with open(posted, "a+", encoding="utf-8") as stream:
         stream.seek(0, 2); stream.write(json.dumps(receipt, ensure_ascii=False) + "\n")
         stream.flush(); os.fsync(stream.fileno())
 PYEOF
-  [ "$?" -eq 0 ] || finish 1 "recovered Affiliate cadence receipt append failed"
-  log "recovered prior Affiliate success receipt and cadence ledger without reposting"
+    [ "$?" -eq 0 ] || finish 1 "recovered Affiliate cadence receipt append failed"
+    log "recovered prior Affiliate success receipt and cadence ledger without reposting"
+  else
+    if [ "${X_REPOST_DISABLE_AFFILIATE:-0}" = "1" ]; then
+      log "prior Affiliate success remains UNVERIFIED; continuing to ordinary X search"
+    else
+      "$PY" "$SKILL/scripts/affiliate_proposal.py" --job-claims "$AFFILIATE_JOB_CLAIMS" \
+        --job-payload-dir "$AFFILIATE_JOB_PAYLOADS" --job-results "$AFFILIATE_JOB_RESULTS" \
+        --record-job-result UNVERIFIED --provider-submission-id "$RECOVERED_PROVIDER_ID" \
+        >/dev/null || finish 1 "prior Affiliate unresolved receipt recovery failed"
+      finish 0 "recovered prior Affiliate accepted effect as UNVERIFIED without reposting"
+    fi
+  fi
 fi
 
 # ---------------------------------------------------------- gate: at most one post per half-hour
@@ -456,25 +458,29 @@ json.dump({"pending": bool(selected), "row": selected}, open(target, "w", encodi
           ensure_ascii=False, sort_keys=True)
 PYEOF
 GENERIC_RECOVERY_PENDING="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("pending") is True)' "$GENERIC_RECOVERY")"
-# Claim one durable Affiliate distribution job before reading the legacy proposal handoff.
-# D03 owns only queued -> EFFECT_STARTED. D04 will render the safe payload; until then an
-# existing claim does not block ordinary Repost work and can never trigger an external post.
-if ! AFFILIATE_JOB_CLAIM="$("$PY" "$SKILL/scripts/affiliate_proposal.py" \
-  --job-queue "$AFFILIATE_JOB_QUEUE" --job-claims "$AFFILIATE_JOB_CLAIMS" \
-  --job-results "$AFFILIATE_JOB_RESULTS" \
-  --claim-next-job 2>>"$EV/affiliate-job.err")"; then
-  report "🛑 Affiliate distribution queue is invalid; no queue effect is allowed"
-  finish 1 "affiliate distribution job claim failed"
-fi
-AFFILIATE_JOB_STATE="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("state","NO_JOB"))' \
-  <<<"$AFFILIATE_JOB_CLAIM" 2>/dev/null || echo NO_JOB)"
-AFFILIATE_JOB_CHANGED="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("changed",False))' \
-  <<<"$AFFILIATE_JOB_CLAIM" 2>/dev/null || echo False)"
-if [ "$AFFILIATE_JOB_STATE" = "EFFECT_STARTED" ] && [ "$AFFILIATE_JOB_CHANGED" = "True" ]; then
-  AFFILIATE_JOB_ID="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["job_id"])' \
-    <<<"$AFFILIATE_JOB_CLAIM")"
-  report "✅ Affiliate distribution job claimed without posting\njob: $AFFILIATE_JOB_ID\nnext: D04 safe payload"
-  finish 0 "affiliate distribution job claimed"
+# Claim a durable Affiliate distribution job only while Affiliate is enabled. Disabled passes
+# skip claims and inspect any existing effect state read-only before ordinary X discovery.
+AFFILIATE_JOB_CLAIM='{"state":"NO_JOB","changed":false}'
+AFFILIATE_JOB_STATE="NO_JOB"
+AFFILIATE_JOB_CHANGED="False"
+if [ "${X_REPOST_DISABLE_AFFILIATE:-0}" != "1" ]; then
+  if ! AFFILIATE_JOB_CLAIM="$("$PY" "$SKILL/scripts/affiliate_proposal.py" \
+    --job-queue "$AFFILIATE_JOB_QUEUE" --job-claims "$AFFILIATE_JOB_CLAIMS" \
+    --job-results "$AFFILIATE_JOB_RESULTS" \
+    --claim-next-job 2>>"$EV/affiliate-job.err")"; then
+    report "🛑 Affiliate distribution queue is invalid; no queue effect is allowed"
+    finish 1 "affiliate distribution job claim failed"
+  fi
+  AFFILIATE_JOB_STATE="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("state","NO_JOB"))' \
+    <<<"$AFFILIATE_JOB_CLAIM" 2>/dev/null || echo NO_JOB)"
+  AFFILIATE_JOB_CHANGED="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("changed",False))' \
+    <<<"$AFFILIATE_JOB_CLAIM" 2>/dev/null || echo False)"
+  if [ "$AFFILIATE_JOB_STATE" = "EFFECT_STARTED" ] && [ "$AFFILIATE_JOB_CHANGED" = "True" ]; then
+    AFFILIATE_JOB_ID="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["job_id"])' \
+      <<<"$AFFILIATE_JOB_CLAIM")"
+    report "✅ Affiliate distribution job claimed without posting\njob: $AFFILIATE_JOB_ID\nnext: D04 safe payload"
+    finish 0 "affiliate distribution job claimed"
+  fi
 fi
 if [ "$AFFILIATE_JOB_STATE" = "EFFECT_STARTED" ]; then
   AFFILIATE_COPY_FILE=""
@@ -589,9 +595,25 @@ EOF
     report "🛑 Affiliate distribution effect state is invalid; no post is allowed"
     finish 1 "affiliate distribution effect state failed"
   fi
-  AFFILIATE_EFFECT_STATE="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("state","UNKNOWN"))' \
-    <<<"$AFFILIATE_JOB_EFFECT" 2>/dev/null || echo UNKNOWN)"
-  if [ "$AFFILIATE_EFFECT_STATE" = "NO_EFFECT" ]; then
+AFFILIATE_EFFECT_STATE="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("state","UNKNOWN"))' \
+  <<<"$AFFILIATE_JOB_EFFECT" 2>/dev/null || echo UNKNOWN)"
+else
+  AFFILIATE_JOB_EFFECT=""
+  AFFILIATE_EFFECT_STATE="NO_JOB"
+  if [ -s "$AFFILIATE_JOB_CLAIMS" ]; then
+    if AFFILIATE_JOB_EFFECT="$("$PY" "$SKILL/scripts/affiliate_proposal.py" \
+      --job-claims "$AFFILIATE_JOB_CLAIMS" --job-payload-dir "$AFFILIATE_JOB_PAYLOADS" \
+      --job-results "$AFFILIATE_JOB_RESULTS" --job-effect-state \
+      2>>"$EV/affiliate-job.err")"; then
+      AFFILIATE_EFFECT_STATE="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("state","UNKNOWN"))' \
+        <<<"$AFFILIATE_JOB_EFFECT" 2>/dev/null || echo UNKNOWN)"
+    else
+      log "Affiliate readback state unavailable; keeping its ledger and continuing ordinary X search"
+    fi
+  fi
+fi
+  if [ "$AFFILIATE_EFFECT_STATE" = "NO_EFFECT" ] \
+    && [ "${X_REPOST_DISABLE_AFFILIATE:-0}" != "1" ]; then
     AFFILIATE_RETRY_JOB="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["job_id"])' \
       <<<"$AFFILIATE_JOB_EFFECT")"
     AFFILIATE_RETRY_COUNT="$("$PY" -c 'import json,sys; print(json.load(sys.stdin).get("retry_count",0))' \
@@ -653,11 +675,20 @@ EOF
     finish 0 "affiliate distribution job requeued"
   fi
   if [ "$AFFILIATE_EFFECT_STATE" = "UNVERIFIED" ]; then
+    AFFILIATE_RECONCILE_AVAILABLE=1
     CDP="$(bash "$ENSURE_BROWSER" "$IDENTITY" 2>>"$EV/browser.err")"
     case "$CDP" in
       http*) log "leased $IDENTITY at $CDP for Affiliate reconciliation" ;;
-      *) finish 0 "affiliate distribution job awaits reconciliation" ;;
+      *)
+        if [ "${X_REPOST_DISABLE_AFFILIATE:-0}" = "1" ]; then
+          AFFILIATE_RECONCILE_AVAILABLE=0
+          log "Affiliate readback browser unavailable; keeping UNVERIFIED and continuing ordinary X search"
+        else
+          finish 0 "affiliate distribution job awaits reconciliation"
+        fi
+        ;;
     esac
+    if [ "$AFFILIATE_RECONCILE_AVAILABLE" = "1" ]; then
     BROWSER_LEASED=1
     trap '[ "$BROWSER_LEASED" -eq 1 ] && bash "$GUARD" release "$IDENTITY" >/dev/null 2>&1 || true' EXIT
     AFFILIATE_RECONCILE_TEXT="$EV/affiliate-job-reconcile.txt"
@@ -685,7 +716,9 @@ PYEOF
     AFFILIATE_RECONCILED="$("$PY" -c 'import json,sys
 try: print(json.load(open(sys.argv[1])).get("posted") is True)
 except Exception: print(False)' "$EV/affiliate-job-reconcile.json")"
-    if [ "$AFFILIATE_RECONCILE_RC" -eq 0 ] && [ "$AFFILIATE_RECONCILED" = "True" ]; then
+    if [ "${X_REPOST_DISABLE_AFFILIATE:-0}" = "1" ]; then
+      log "Affiliate X readback completed without changing its ledgers; keeping UNVERIFIED and continuing ordinary X search"
+    elif [ "$AFFILIATE_RECONCILE_RC" -eq 0 ] && [ "$AFFILIATE_RECONCILED" = "True" ]; then
       AFFILIATE_POST_URL="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["post_url"])' \
         "$EV/affiliate-job-reconcile.json")"
       X_REPOST_PROVIDER_ID="$AFFILIATE_PROVIDER_ID" "$PY" - \
@@ -719,11 +752,14 @@ PYEOF
         finish 1 "affiliate distribution reconciliation receipt failed"
       report "✅ Affiliate distribution job reconciled without reposting\npost: $AFFILIATE_POST_URL"
       finish 0 "affiliate distribution job reconciled without duplicate publish"
+    else
+      log "affiliate distribution job awaits D06 reconciliation ($AFFILIATE_EFFECT_STATE)"
+      finish 0 "affiliate distribution job awaits reconciliation"
     fi
-    log "affiliate distribution job awaits D06 reconciliation ($AFFILIATE_EFFECT_STATE)"
-    finish 0 "affiliate distribution job awaits reconciliation"
+    fi
   fi
-  if [ "$AFFILIATE_EFFECT_STATE" = "READY_TO_POST" ]; then
+  if [ "$AFFILIATE_EFFECT_STATE" = "READY_TO_POST" ] \
+    && [ "${X_REPOST_DISABLE_AFFILIATE:-0}" != "1" ]; then
     CDP="$(bash "$ENSURE_BROWSER" "$IDENTITY" 2>>"$EV/browser.err")"
     case "$CDP" in
       http*) log "leased $IDENTITY at $CDP for Affiliate distribution" ;;
@@ -816,9 +852,10 @@ except Exception: print(False)' "$EV/affiliate-job-post.json")" = "True" ]; then
     report "⚠️ Affiliate distribution job ended $AFFILIATE_TERMINAL; duplicate post is fenced"
     finish 1 "affiliate distribution job $AFFILIATE_TERMINAL"
   fi
-fi
 # Read and validate the proposal ledger before the daily generic-post gate. An unresolved
 # EFFECT_STARTED claim must remain recoverable even when generic reposts already hit their brake.
+AFFILIATE_STATE="DISABLED"
+if [ "${X_REPOST_DISABLE_AFFILIATE:-0}" != "1" ]; then
 if ! AFFILIATE_PICK="$($PY "$SKILL/scripts/affiliate_proposal.py" --proposal "$AFFILIATE_PROPOSAL" --consumed "$AFFILIATE_CONSUMED" --posted "$POSTED" 2>>"$EV/affiliate-proposal.err")"; then
   report "🛑 Affiliate proposal helper failed; no new Affiliate or generic X post is allowed"
   finish 1 "affiliate proposal helper failed"
@@ -848,6 +885,7 @@ PYEOF
 if [ "$AFFILIATE_STATE" = "READY" ] && [ "${AFFILIATE_7D_COUNT:-0}" -ge "${X_REPOST_AFFILIATE_WEEKLY_MAX:-3}" ]; then
   AFFILIATE_STATE="DEFERRED_WEEKLY_CAP"
   log "fresh affiliate proposal deferred (${AFFILIATE_7D_COUNT}/${X_REPOST_AFFILIATE_WEEKLY_MAX:-3} in rolling 7d)"
+fi
 fi
 # A fresh/recoverable Affiliate proposal has its own exact proposal claim and terminal ledger,
 # so the generic calendar-hour fence adds no duplicate protection and only suppresses distinct

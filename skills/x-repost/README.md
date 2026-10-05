@@ -25,6 +25,40 @@ sources, excessive X length, wrong-account browser sessions, and ambiguous dupli
 6. Read back the exact `https://x.com/<handle>/status/<id>` permalink.
 7. Append `posted.jsonl` and retain the pass evidence directory.
 
+## Affiliate disable
+
+The English wrapper sets `X_REPOST_DISABLE_AFFILIATE=1`. While set, the pass does not claim or
+requeue affiliate distribution jobs or publish a fresh affiliate proposal. It still records an
+exact prior `POSTED` receipt for duplicate protection. Existing `UNVERIFIED` jobs receive a
+readback-only check when the browser is available. The pass preserves their `UNVERIFIED` result and
+Affiliate ledgers, regardless of the readback result, then continues ordinary X discovery.
+
+Each Postiz submission belongs to its X-loop occurrence and cannot prove an effect for a later
+occurrence. A readback-only pass or a receipt outside the exact occurrence window leaves that host
+effect fenced.
+Any host effect without a unique, in-window `PUBLISHED` receipt remains fenced. An Affiliate result
+also remains `UNVERIFIED` until its owned article URL is confirmed.
+
+## Host effect reconciliation
+
+The `x-repost` registry adapter closes one exact `effect_unknown` occurrence only after matching
+its runtime execute/report rows, the fence row's `queued_at`, a unique evidence directory modified
+during that run, the exact Postiz integration, and the run's finality window (report time plus
+15 minutes). The no-effect proof accepts only the known readback-safe release
+`c16f437b93028ea5d94014a1fa32c091795cbee0`. A different internally consistent release can prove a
+positive effect only through its exact Postiz submission ID and X permalink in the same pass
+evidence. Unsupported releases or transports without that receipt, missing or ambiguous evidence,
+unfinished Postiz listings, and out-of-window posts stay fenced. Old runtime rows may lack loaded
+argv/env hashes; the adapter does not infer those hashes.
+
+A positive proof requires one in-window `PUBLISHED` Postiz row whose ID and X permalink match the
+same pass evidence. A no-effect proof requires the exact `UNVERIFIED` readback-only branch, no post
+result, all success/generic/crash recoveries clear, empty reconcile errors, and a complete listing
+with no rows for the owner integration. The Postiz query rounds its request bounds outward to whole
+seconds and then validates each publication time against the exact run window. Its synthetic receipt
+records the exact run window, rounded official query, and Postiz response hash. Historical posts
+outside that window never count for the occurrence.
+
 The English original owner runs `skills/x-tweeter/scripts/chinese_source_collect.py`. Its default
 public sources are Xiaohongshu, Douyin, Kuaishou, Bilibili, Weibo, Tieba, and Zhihu. The collector
 only gathers source text and URLs; the model makes the editorial decision. MediaCrawler is not
