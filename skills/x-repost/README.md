@@ -27,9 +27,11 @@ sources, excessive X length, wrong-account browser sessions, and ambiguous dupli
 
 ## Shared agent capacity
 
-`x-repost` uses the shared agent pool as a borrow/support owner and preserves the revenue floor.
-When capacity is busy, repeated scheduled wakes coalesce into one pending queue position. Once a
-claim runs, it searches live X at execution time; it does not replay one post for every missed
+`x-repost` uses the shared agent pool with `admission_class=borrow` and `priority=revenue`. This
+queue priority puts the requested X feed ahead of routine support work when a borrow slot opens;
+the borrow admission class still preserves reserved revenue capacity and never preempts an active
+owner. When capacity is busy, scheduled wakes coalesce into one pending queue position. Once a
+claim runs, it searches live X at execution time and does not replay one post for every missed
 half-hour interval.
 
 ## Affiliate disable

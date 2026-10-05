@@ -74,7 +74,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = registry["loops"]["x-repost"]
         self.assertEqual(row.get("resource_class"), "agent")
         self.assertEqual(row.get("admission_class"), "borrow")
-        self.assertEqual(row.get("priority"), "support")
+        self.assertEqual(row.get("priority"), "revenue")
         self.assertIs(row.get("reconcile_queued_release"), True)
 
     def test_queued_wake_coalescing_requires_reserved_wake_coalescing(self):

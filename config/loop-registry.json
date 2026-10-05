@@ -3864,7 +3864,7 @@
       },
       "entrypoint": "skills/x-repost/x-repost-en-cli.sh",
       "label": "ai.anicca.x-repost-pass",
-      "priority": "support",
+      "priority": "revenue",
       "reconcile_queued_release": true,
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/en/logs",
