@@ -17,7 +17,7 @@
 
 ## 指標の定義
 
-- MRR は active paid Letter/Tegami subscription の月額 recurring net です。一回の eBook purchase は MRR に含めません。
+- MRR は active paid Letter/Tegami subscription の月額 recurring revenue です。一回の eBook purchase は MRR に含めません。fees/refunds/actual cost/bank settlement 後の net profit は別 metric として報告します。
 - $9.99/月で $10,000 gross MRR には1,002 active subscribers が必要です。fees、refunds、cost を引いた net target にはそれ以上必要です。
 - $10.99 の eBook 一回購入で月 $10,000 gross には910件の paid orders が必要ですが、これは monthly one-time sales であって MRR ではありません。
 - Life Manager の既存 $10,000 target は30日維持の banked net profit です。Capafy seller earnings、eBook gross、subscription MRR、banked net は別 metric のまま保持します。算数は規模の目安で、予測ではありません。
