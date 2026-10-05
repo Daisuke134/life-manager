@@ -7471,3 +7471,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 自然release/loadの1は継続し、実コードが旧/新releaseで同一の上記ownerだけ、診断2からsource準備3を独立並行する。理由は同じ情報欠落が新release採用だけでは解消せず、待つより次の安全な自然観測が早まるため。全体1→14順/現在cursor1と進行中effectは変更しない。
 - Luna/maxを最新main由来の専用lm-lancers-account-diagnostics-20261005 worktree/fix branchに割当。許可filesは上記2modules/関連focused testsのみ。既存bool callersの実動作を維持し、work-sync結果へHTTP status/knownroute category/login count/例外型/typedreasonを伝搬、body/query/contact/credentials/例外messageを出さない。5False枝/成功/秘密非出力の最小RED→GREENを行う。
 - 本件はsource-only準備。8修正のmain例外をこの新規変更へ自動拡大せず、freshreview後に統合条件をprimaryが確認する。provider/browser/auth/state/SSOT/PR/main/releaseはworker操作0。Capafy/CFO他laneと重複しない。
+
+
+### 500. 実loaded 5/8と自然観測の進行
+
+- root safe wrapper preflight PASS後のGUI readbackはcitizen-refill/PB daily/article-self-improve/investment-strategy-validation/controllerの5targetsが実immutable3fを参照、token-daily-report/capafy-goal-monitor/lancers-revenue-work-syncの3targetsは旧2a。private state/internal-loop-target-gui-readback-20261005.json/mode600。installed判定だけではなくGUI source pathを照合する。
+- 3f自然ownerjournalでPB03:35:37Z、weekly03:43:15Z、CFO hourly03:43:26Zのrc0/changed1を確認。Lancerswork-syncは03:35:08Z rc0/changed0/skipped1で、当時running・現在idleを別snapshotで確認。次の安全な自然反映へ残す。
+- 新3fのcitizen自然run18db8471b346af08-99234はapply_lock_busyを新観測形式でreportしており、import正常/資金実行/利益の成功ではない。旧過去exit1やcurrent選択を自然business成功へ拡張しない。
+- fleet stateはまだ旧sha2aの02:57errorを保持し、新run89185のterminalは未到着。新journalのalpaca-live rc1を確認したが、mutable last-outputは別ownerに更新されるため、そのerror文をAlpacaの原因へjoinしない。scope外loopを再起動・修復しない。
+- additional native followupはthread上限で拒否。source Lunaは独立branchで継続、反映観測はprimaryが担当し、新しいsession/toolを増やさない。§217cursor1の残target3、Lancers診断source-onlyは並行準備。全goal未完。
