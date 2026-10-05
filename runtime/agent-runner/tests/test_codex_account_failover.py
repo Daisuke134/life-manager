@@ -129,6 +129,21 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 return 1
 
             def fixture_provider_env(provider, provider_config, environ=None, **_kwargs):
+                profile = provider_config.get("profile_alias", "")
+                behavior = plan.get((provider, profile))
+                if behavior in {"auth_file_missing", "auth_file_invalid"}:
+                    auth_file = root / f"{profile}-auth"
+                    if behavior == "auth_file_invalid":
+                        auth_file.mkdir()
+                    return provider_process_env(
+                        provider,
+                        {
+                            "automation_home": str(root / f"{profile}-automation"),
+                            "auth_file": str(auth_file),
+                        },
+                        environ={"PATH": "/usr/bin:/bin"},
+                        invocation_id=_kwargs.get("invocation_id"),
+                    )
                 env = dict(os.environ if environ is None else environ)
                 env["FIXTURE_PROVIDER"] = f"{provider}:{provider_config.get('profile_alias', '')}"
                 return env
@@ -272,12 +287,14 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         work = json.dumps({"type": "item.started", "item": {"type": "command_execution"}})
         self.assertTrue(codex_attempt_started_work(work))
         for candidate in (acct1, {"provider": "codex", "profile_alias": "acct2", "account_fallback_next": False}):
-            for result_fresh, work_started in ((True, False), (False, True), (True, True)):
-                with self.subTest(profile=candidate["profile_alias"], result_fresh=result_fresh, work_started=work_started):
-                    self.assertEqual(
-                        codex_failover_action(candidate, "transient_quota", result_fresh, work_started),
-                        "stop",
-                    )
+            for error_class in ("transient_quota", "codex_prelaunch_auth_missing"):
+                for result_fresh, work_started in ((True, False), (False, True), (True, True)):
+                    with self.subTest(profile=candidate["profile_alias"], error_class=error_class,
+                                      result_fresh=result_fresh, work_started=work_started):
+                        self.assertEqual(
+                            codex_failover_action(candidate, error_class, result_fresh, work_started),
+                            "stop",
+                        )
 
     def test_run_structured_quota_retries_acct1_then_selects_acct2(self):
         status, calls = self._run_candidate_fixture(
@@ -286,6 +303,22 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         )
         self.assertEqual(status, 0)
         self.assertEqual(calls, [("codex", "acct1", "quota"), ("codex", "acct2", "success")])
+
+    def test_prelaunch_missing_auth_retries_only_the_explicit_next_profile(self):
+        status, calls = self._run_candidate_fixture(
+            {("codex", "acct1"): "auth_file_missing", ("codex", "acct2"): "success"},
+            include_claude=False,
+        )
+        self.assertEqual(status, 0)
+        self.assertEqual(calls, [("codex", "acct2", "success")])
+
+    def test_invalid_auth_path_does_not_fallback_to_another_profile(self):
+        status, calls = self._run_candidate_fixture(
+            {("codex", "acct1"): "auth_file_invalid", ("codex", "acct2"): "success"},
+            include_claude=False,
+        )
+        self.assertEqual(status, 1)
+        self.assertEqual(calls, [])
 
     def test_run_accepts_fresh_schema_valid_codex_result_written_before_timeout(self):
         status, calls = self._run_candidate_fixture(
