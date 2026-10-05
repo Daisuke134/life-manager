@@ -309,33 +309,38 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: SNS 短尺動画レーン — official account/status gate (2026-10-05)
+### Task D5: Capafy Instagram marketing — single Postiz owner (2026-10-05)
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| Instagram | 計画に記録された新 account は現行 owner registry と official provider status が一致していない。 | Owner mapping と provider account-status readback |
-| TikTok / YouTube Shorts | Capafy 専用の provider-confirmed publishing account を現行 inventory で確認できていない。 | Platform ごとの identity/status readback |
-| Capafy account/publish owners | Unresolved account/publish effect と release/readback gate がある。 | 同一 occurrence の official reconciliation |
+| 旧`capafy-ig-marketing-daily` | Release `8853fc9`、scheduled/loaded-idle。occurrence `18db9053a89bb470-22522` は `active_ig_handle_unresolvable`、exit 75、effect unknown、provider receipt/readbackなし。 | 同一occurrenceのprovider official readbackと重複publisher解消 |
+| 新`life-manager-capafy-ig` | PR #6631はmainへmerge済み。release `b53c0ab`でloaded-idle、09:00/14:00/20:00の3回/日。まだterminal occurrenceとPostiz/Instagram receiptなし。PR時点の記録では`@capafy.hooklab`はPostiz未接続。 | 既存所有accountのidentity/status、Postiz integration、初回頻度gate、provider post receipt |
+| eBook → Capafyの実行順 | eBook配信ownerが未実装。Daisの順序はeBook first receiptの後にCapafy Instagram。 | eBook Task 5のsame-occurrence paid-session/PDF receipt後にD5開始 |
 
-**Platform policy and lifecycle gate**
+**Owner boundary and marketing gate**
 
-- TikTok の current Integrity and Authenticity guideline は system 回避用 automation と restriction/ban を避ける alternate account の作成・利用を禁止する。Meta Spam policy は高頻度の asset/account creation、repetitive/inauthentic activity を制限する。Restriction は provider の official status/appeal flow で扱う。
-- capafy_ig_account_manager.sh と capafy_ig_lifecycle.py は ChallengeRequired、scraping_warning、disabled/restricted を replacement account provisioning に変換しない。review_required と official appeal/status を記録し、unknown な account mutation は fence する。
-- Account identity/status と同じ occurrence の publish readback が完了するまで login、replacement provision、Postiz connection、public post を行わない。effect_unknown と release drift はその owner の official reconciliation で閉じる。
-- Automated likes/follows、anti-detection、fingerprint/proxy workaround、mass account creation は使わない。Posts are original product demonstrations, not copied scripts or assets.
+- Capafy商品・listing・account-lifecycleの実装は別担当。PR #6631の`life-manager-capafy-ig` Postiz skeletonを使い、このmarketing計画からCapafy dev codeを変更しない。
+- IG posting ownerは`life-manager-capafy-ig`だけにする。旧`capafy-ig-marketing-daily`のeffect-unknownを公式readbackで閉じる前に再送せず、新laneとの二重publisherも許可しない。readbackできない場合は両方から公開しない。
+- 現行Postiz laneは3回/日だが、初期marketing canaryは1回/24時間を上限とする。lane側でslot抑制できることをdev ownerが確認するまでlive scheduleを開始しない。
+- `@capafy.hooklab`とregistry/Postiz integrationのidentityを公式account statusで照合し、現行のユーザー所有・good-standing IGだけを使う。Challenge/制限は公式status/appealで処理し、別account作成、automated likes/follows、anti-detection、proxy/fingerprint回避をしない。
+- ReelはCapafyのonline/profitable skill selectorとLISTING.mdの実例から作る独自demoにし、CTAは`ct=capafy-reel-<slug>`を含む該当Capafy listingへ向ける。
 
-**Implementation sequence**
+**Atomic marketing sequence (after eBook first receipt)**
 
-1. Add failing regression tests: provider challenge/restriction → review_required, replacement_requested=false, account creation calls=0. Test files: skills/earn/capafy-marketing/tests/test_capafy_ig_lifecycle.py and test_capafy_ig_account_manager.sh.
-2. Implement the smallest lifecycle/account-manager gate and run those focused tests. No live account mutation.
-3. Reconcile current owner status and unresolved effects through the provider official route. For disabled/restricted accounts, appeal there; do not create/use an alternate to evade.
-4. After good-standing readback, dry-run one original 15-second skill demo using the shared adapter and ct=capafy-reel-<skill>.
-5. Canary at one post per 24 hours for 14 days on one verified account. Read back provider post receipt, CT clicks, paid orders, refunds, fees, creator earnings, payout, and bank receipt.
-6. If paid conversion is zero after 14 days, change one creative variable; if the next 14 days are also zero, stop that route. Add TikTok/YouTube only after each owned account is separately verified and permitted.
+1. Close the old `capafy-ig-marketing-daily:18db9053a89bb470-22522` occurrence with same-owner provider readback. Do not replay while effect is unknown.
+2. Confirm one publisher owner, current owned IG identity/good-standing status, and the matching Postiz integration. If the existing owner cannot be verified, keep the lane held; do not provision an account.
+3. Confirm the new lane can publish at no more than one post per 24 hours for the initial canary. Its checked-in schedule is three slots per day; until the dev-owned slot gate is verified, keep live publication disabled.
+4. Verify the required Postiz integration and approved pack/media/Instagram approval refs are configured without logging credential values. Dry-run one original demo using the selected online/profitable skill's real LISTING.md input/output and `ct=capafy-reel-<slug>`.
+5. Publish one canary through `life-manager-capafy-ig` only. Record the Postiz/Instagram receipt and public Reel URL; do not use the legacy instagrapi publisher as fallback.
+6. Reconcile that occurrence to CT clicks, Capafy paid orders, refunds, platform/sandbox fees, actual model/video cost, payout, and bank receipt. Views and profile opens are reach metrics, not revenue.
+7. Measure 14 days at one post/24 hours. If paid conversion is zero, change one creative variable for the next 14-day window; if that window also has zero paid orders, stop this route. TikTok/YouTube are outside this Capafy Instagram workstream.
+8. Before forecasts, reconcile the existing portfolio table's $5,000 Capafy allocation with Dais's $10,000 Capafy contribution target. Keep the CFO acceptance at 30-day banked net and label the other channels as additive or upside in the plan.
 
-**Done:** provider-confirmed identity/status, challenge-to-review fence, same-occurrence official post receipt, CT-to-paid-order readback, and separate payout/bank evidence. Views, profile opens, pending balance, and process exit are not revenue.
+**Done:** eBook-first handoff reached; old IG effect is reconciled; one verified owned account and one publisher owner are selected; one-post/24-hour canary produces an official receipt; CT joins to Capafy paid orders; fees/cost/payout/bank evidence stay separate. Capafy dev implementation remains owned by the other contributor.
+
+**Cursor ownership:** the Capafy project-wide development cursor remains #5 (E1b price update/review slots) for its existing owner. The eBook → Instagram sequence is Dais's separate assigned marketing workstream; it does not move or duplicate that developer cursor.
 
 ## Phase E — 価格
 

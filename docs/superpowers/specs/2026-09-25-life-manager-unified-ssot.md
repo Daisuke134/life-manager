@@ -3122,6 +3122,15 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 
 Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画（売り場ごとの目標・週ごとの数字・OSS 公開条件）は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。Capafy の実行順・記録はこれまでどおり `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
+## Dais-directed eBook → Capafy Instagram workstream order
+
+- **順序変更:** 旧順序はCapafy SNSをPhase 1と並行して開始し、eBookは全体の後段laneに残す形だった。新順序は (1) eBookの実装を進め、自然な有料Stripe sessionとPDF delivery receiptを同一campaignに結合する、(2) そのreceipt後にCapafy Instagram marketingだけへ進む。14日間のeBook readbackはCapafy開始後も続ける。
+- **変更理由:** eBookのdistribution ownerは未登録で、他にownerがいない。Capafy product/account-lifecycle devは別担当が所有し、このworkstreamではCapafy Instagram marketingだけを扱う。
+- **Capafy owner境界:** PR #6631のPostiz-based `life-manager-capafy-ig` laneはmainにmerge済みで、release `b53c0ab`にloadedだが、まだterminal occurrenceやofficial post receiptはない。旧`capafy-ig-marketing-daily`は`active_ig_handle_unresolvable`のeffect-unknown occurrenceとprovider receipt欠落を持つ。同一Instagram accountのpublisherは一つにし、旧occurrence readbackとowner重複の解消前は投稿しない。Capafy devのcode/registryは他担当のscopeに残す。
+- **他担当cursor:** Capafy canonical execution tableの#5（E1b、審査枠/価格更新）はCapafy dev ownerが持ち、このworkstreamでは変更しない。#5は並行進行でき、D5のmarketing開始条件はeBook receiptとInstagram owner/effect gatesである。
+- **Target metrics:** eBook goalは$10,000 gross MRR from active paid Letter/Tegami subscriptions。Capafy goalはLife Managerへの$10,000 contributionで、公式CFOのacceptanceは同一30日窓のbanked net after fees/costs。gross eBook sales、subscription MRR、Capafy earnings、payout、banked netを混ぜない。全体planの旧Capafy配分$5,000との差はforecast前に reconciled する。
+- **現在cursor:** eBook revenue-loop plan Task 1（offer/locale/checkout contract、未着手）。Task 5の初回natural paid-session/PDF receipt後にCapafy recipe Task D5 marketing-onlyへ移る。14日間計測は並行するfollow-throughである。
+
 ## CFO: 2026年9月Life Manager portfolio収益のas-is
 
 - **結論:** 2026-09-01..09-30のLife Manager全体gross revenue、実際のsettled inflow、net profitはすべて`unknown`であり、0ではない。2026-10-05 13:49 JSTのCFO CLI readbackでも、2026-09-05..10-05のtrailing 30-dayは14/14 loop `unknown`、company MRRも`unknown`だった。2026-10-05のagent-skill factory計画はCapafy/PromptBase/自社checkout等の成長計画であり、14 loop全体のCFO closeではない。

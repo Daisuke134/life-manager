@@ -2,9 +2,9 @@
 
 > For agentic workers: この plan は実装時の作業設計です。TODO 順と cursor は Life Manager unified SSOT が所有します。
 
-**Goal:** 既存 EN/JA eBook checkout と marketing assets から、計測可能な one-time sales と opted-in Letter/Tegami MRR を生み、公式 receipt で確認する。
+**Goal:** eBookを最優先で実装し、既存 EN/JA checkoutと自社SNSからone-time salesとopt-in Letter/Tegami MRRを生み、最初の有料注文とPDF deliveryを同一receiptで確認してからCapafy Instagram marketingへ渡す。
 
-**Architecture:** Stripe checkout/PDF fulfillment は anicca-products に残す。Life Manager は現在の eBook render receipt、marketing video adapters、account registry を1つの publication owner から接続する。OpenClaw cron を追加で動かさない。
+**Architecture:** Stripe checkout/PDF fulfillmentは`anicca-products`に残す。Life Managerは現在のeBook render receipt、marketing video adapters、既存account registryを1つのpublication ownerから接続する。Capafy Instagramは別の`life-manager-capafy-ig` Postiz laneを使い、Capafy開発担当者が所有するコードを変更しない。OpenClaw cronを追加で動かさない。
 
 **Tech Stack:** Next.js、Netlify Functions、Stripe Checkout/webhook、Resend、Supabase、Python marketing-engine、Life Manager loop registry、既存の video generation/publication adapters。
 
@@ -17,6 +17,10 @@
 - page price/listing/views/render は売上ではない。sale/refund/fees/cost/payout/bank を同じ期間で read back する。
 - Account status は provider official readback と owner registry を照合する。restriction/unknown 時は投稿・再送・replacement account creation を行わない。
 - No automated engagement, anti-detection, proxy/fingerprint workaround, or account creation to evade a platform restriction.
+- 既存のユーザー所有IG/TikTok accountだけを使う。registryとprovider official identity/statusが合わない場合は`setup_required`/`review_required`で止め、別accountを作らない。
+- Capafy Instagram marketingはeBookの最初のnatural paid-session + PDF-delivery receipt後に開始する。eBookの14日間測定はその後も続ける。
+- Capafy Instagramは`life-manager-capafy-ig` Postiz laneだけをpublish ownerとして使う。旧`capafy-ig-marketing-daily`の同一occurrence effect-unknownと二重owner状態をread backするまでどちらからも投稿しない。
+- Capafy code/build/account-lifecycleは別担当の境界。Marketing laneは既存Postiz skeletonのaccount/creative/attribution/readbackだけを扱う。
 - OpenClaw cron と Life Manager owner を二重に enable しない。
 
 ## Review Focus
@@ -26,6 +30,8 @@
 - webhook retry が二重 email / buyer row を作る、または DB/email failure を隠す。
 - campaign click が checkout metadata / paid order に join しない。
 - account registry と provider status がずれ、誤った account に投稿する。
+- legacy Capafy IG owner と Postiz lane が同じ account へ二重投稿する、または未確認の旧effectを再送する。
+- 3回/日のCapafy scheduleが最初の1回/24時間canary上限を超える。
 - eBook one-time gross を MRR と誤算入する。
 
 ---
@@ -108,16 +114,16 @@
 - [ ] Step 4: Run focused tests plus loop-registry validation. Expected: one publishing owner, replay-zero, no second scheduler.
 - [ ] Step 5: Commit and merge to main; deploy only from a main-derived immutable release.
 
-### Task 5: Canary and read back MRR
+### Task 5: eBook canary, first sale, and handoff
 
 **Files**
-- Update: Life Manager unified SSOT only if its established cursor or measured state changes.
+- Update: Life Manager unified SSOT at the eBook-to-Capafy handoff.
 - Readback: provider post receipt, campaign click, Stripe paid session/refund, PDF delivery, subscription state, actual cost, payout, bank receipt.
 
 - [ ] Step 1: Require official account status and resolve same-owner effect_unknown before any canary. Do not retry or publish while unknown.
 - [ ] Step 2: Render one original demo and verify the asset receipt, AI disclosure, campaign token, and PDF source.
 - [ ] Step 3: Publish one canary through the approved owner route and record the provider receipt/public URL.
-- [ ] Step 4: Reconcile the same occurrence to paid order, refund, fee, PDF delivery, active subscription, actual cost, and bank receipt.
-- [ ] Step 5: Measure 14 days. Change one creative variable per window; scale only from paid orders and active-subscription readback.
+- [ ] Step 4: Reconcile one same-occurrence paid Stripe session, buyer receipt, correct PDF delivery receipt, campaign token, refund/fee/cost, and any subscription state. Do not require a subscription purchase to fulfill the one-time eBook order.
+- [ ] Step 5: After this first complete natural receipt, update the unified SSOT cursor to Capafy Task D5. Continue eBook's 14-day paid-order and active-subscription measurement as read-only follow-through; it does not block the next lane.
 
-**Target math (not forecast):** $10,000 gross MRR at $9.99/mo needs 1,002 active subscriptions before fees/refunds. $10,000 gross eBook sales at $10.99 means 910 one-time orders/month and is not MRR.
+**Target math (not forecast):** $10,000 gross MRR at $9.99/mo needs 1,002 active subscriptions before fees/refunds. $10,000 gross eBook sales at $10.99 means 910 one-time orders/month and is not MRR. The separate Capafy $10,000 contribution target is assessed from CFO banked-net receipts, not views, gross seller balance, or the eBook MRR number.
