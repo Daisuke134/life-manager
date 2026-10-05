@@ -51,6 +51,7 @@ const {
   handleLateApprovalCallback,
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
+const { handleWebAuthRequest } = require("./lib/web-auth.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
 const { createMoneyPrinterRuntimeStore } = require("./lib/money-printer-runtime-store.js");
@@ -490,6 +491,13 @@ function ctxFromReq(req) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
+  if (path === "/auth/google" || path === "/auth/google/callback") {
+    handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+      if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Web sign-in unavailable");
+    });
+    return;
+  }
   if (path === "/api/internal/mental/outcomes") {
     if (req.method !== "POST") {
       res.writeHead(405, { "allow": "POST", "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
