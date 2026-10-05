@@ -18,6 +18,18 @@ SPEC.loader.exec_module(attribution)
 
 
 class CampaignTokenContractTest(unittest.TestCase):
+    def test_ebook_tokens_match_landing_golden_vectors(self):
+        # Shared with anicca-products checkout/redirect/webhook contract tests.
+        publication_id = "creative.contract.1"
+        self.assertEqual(
+            attribution.campaign_token("ebook-en", publication_id),
+            "ee_hcp4v5pifa2ovj47rsir",
+        )
+        self.assertEqual(
+            attribution.campaign_token("ebook-ja", publication_id),
+            "ej_cs6k5hu42kvx65x66imw",
+        )
+
     def test_token_is_deterministic_opaque_and_below_apple_limit(self):
         one = attribution.campaign_token("anicca-ios", "postiz:publication-123")
         two = attribution.campaign_token("anicca-ios", "postiz:publication-123")
