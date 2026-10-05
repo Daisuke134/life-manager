@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import re
 import os
 import stat
+from datetime import datetime, timezone
+from html.parser import HTMLParser
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -15,6 +19,7 @@ from typing import Any, Callable
 
 
 PRODUCTION_BASE_URL = "https://api.sedo.com/api/v1/"
+PRODUCTION_FEE_PAGE_URL = "https://sedo.com/us/what-we-offer/price-list/"
 DEFAULT_CREDENTIALS_FILE = Path.home() / ".local/share/anicca/credentials.json"
 _ALLOWED_TEST_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
@@ -40,6 +45,16 @@ class CredentialStoreUnsafe(SedoError):
 class EffectUnknown(SedoError):
     def __init__(self):
         super().__init__("effect_unknown")
+
+
+class _VisibleText(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        if data.strip():
+            self.parts.append(data.strip())
 
 
 def _local_name(tag: str) -> str:
@@ -87,6 +102,7 @@ class SedoClient:
         *,
         credentials_file: Path | None = None,
         base_url: str = PRODUCTION_BASE_URL,
+        fee_page_url: str = PRODUCTION_FEE_PAGE_URL,
         timeout: float = 20.0,
         opener: Callable[..., Any] | None = None,
     ):
@@ -99,9 +115,73 @@ class SedoClient:
         if parsed.scheme == "https" and parsed.netloc != "api.sedo.com":
             raise ValueError("base_url_invalid")
         self.base_url = base_url.rstrip("/") + "/"
+        fee_page = urllib.parse.urlparse(fee_page_url)
+        fee_local = fee_page.scheme == "http" and fee_page.hostname in _ALLOWED_TEST_HOSTS
+        if not ((fee_page.scheme == "https" and fee_page.netloc == "sedo.com"
+                 and fee_page.path == "/us/what-we-offer/price-list/") or
+                (fee_local and parsed.scheme == "http" and parsed.hostname in _ALLOWED_TEST_HOSTS)):
+            raise ValueError("fee_page_url_invalid")
+        self.fee_page_url = fee_page_url
         self.timeout = timeout
         self._opener = opener or urllib.request.urlopen
         self._credentials: dict[str, str] | None = None
+
+    def fee_schedule(self) -> dict[str, Any]:
+        """Read current public seller rates; use the maximum route commission for policy."""
+        request = urllib.request.Request(
+            self.fee_page_url,
+            headers={"Accept": "text/html", "User-Agent": "LifeManager-domain-flip/1"},
+            method="GET",
+        )
+        try:
+            with self._opener(request, timeout=self.timeout) as response:
+                payload = response.read(4 * 1024 * 1024 + 1)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
+            raise SedoError("fee_read_failed") from None
+        if not payload or len(payload) > 4 * 1024 * 1024:
+            raise SedoError("fee_read_invalid")
+        try:
+            parser = _VisibleText()
+            parser.feed(payload.decode("utf-8"))
+            text = re.sub(r"\s+", " ", " ".join(parser.parts))
+        except (UnicodeError, ValueError):
+            raise SedoError("fee_read_invalid") from None
+        lowered = text.casefold()
+        direct_heading = "other domain sales through the sedo marketplace"
+        mls_heading = "domain sales through the sedomls network"
+        category_i_heading = "top level domains (tld) - category i"
+        category_ii_heading = "top level domains (tld) - category ii"
+        direct_start = lowered.find(direct_heading)
+        mls_start = lowered.find(mls_heading)
+        category_start = lowered.find(category_i_heading)
+        category_end = lowered.find(category_ii_heading, category_start + 1) if category_start >= 0 else -1
+        if min(direct_start, mls_start, category_start) < 0 or mls_start <= direct_start:
+            raise SedoError("fee_terms_missing")
+        direct_text = lowered[direct_start:mls_start]
+        mls_end = lowered.find("domain sale: minimum fees", mls_start + len(mls_heading))
+        mls_text = lowered[mls_start:mls_end if mls_end > mls_start else None]
+        category_text = lowered[category_start:category_end if category_end > category_start else None]
+        direct_match = re.search(r"\b(\d{1,2})%\s+commission will apply", direct_text)
+        mls_match = re.search(r"\b(\d{1,2})%\s+of the gross sale price", mls_text)
+        minimum_match = re.search(r"minimum sales price\s*(\d+)\s*usd/eur/gbp", category_text)
+        if (not direct_match or not mls_match
+                or not minimum_match
+                or re.search(r"(?<![a-z0-9-])\.si(?![a-z0-9-])", category_text) is None):
+            raise SedoError("fee_terms_unverified")
+        direct_rate = Decimal(direct_match.group(1)) / Decimal("100")
+        mls_rate = Decimal(mls_match.group(1)) / Decimal("100")
+        maximum_rate = max(direct_rate, mls_rate)
+        return {
+            "sedo_fee_rate": format(maximum_rate, "f"),
+            "direct_marketplace_fee_rate": format(direct_rate, "f"),
+            "sedomls_fee_rate": format(mls_rate, "f"),
+            "domain_category": "I",
+            "minimum_sale_price_eur": minimum_match.group(1),
+            "readback_verified": True,
+            "readback_at": datetime.now(timezone.utc).isoformat(),
+            "source_sha256": hashlib.sha256(payload).hexdigest(),
+            "evidence_refs": [PRODUCTION_FEE_PAGE_URL],
+        }
 
     def _load_credentials(self) -> dict[str, str]:
         if self._credentials is not None:
@@ -335,5 +415,7 @@ class SedoClient:
                 "fixed_price": (_text(item, "fixedprice") or "0") == "1",
                 "currency": currency,
                 "domain_language": _text(item, "domainlanguage"),
+                "provider": "sedo",
+                "readback_verified": True,
             })
         return result

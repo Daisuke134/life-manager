@@ -65,10 +65,62 @@ def _domain_parts(domain: str) -> tuple[str, str]:
     return label, "si"
 
 
-def _contact_fingerprint(owner_handle: Any) -> str | None:
+def _owner_handle_fingerprint(owner_handle: Any) -> str | None:
     if not isinstance(owner_handle, str) or not owner_handle:
         return None
     return hashlib.sha256(owner_handle.encode("utf-8")).hexdigest()
+
+
+def _contact_readback(data: dict[str, Any], expected_handle: str) -> dict[str, Any]:
+    handle = data.get("handle")
+    object_id = data.get("id")
+    email = data.get("email")
+    email_status = data.get("email_verification_status")
+    name = data.get("name")
+    address = data.get("address")
+    phone = data.get("phone")
+    company = data.get("company_name", "")
+    if (handle != expected_handle or not isinstance(object_id, (int, str))
+            or not str(object_id).isdigit() or data.get("is_deleted") is not False
+            or not isinstance(email, str) or "@" not in email or "." not in email.rsplit("@", 1)[-1]
+            or not isinstance(email_status, str) or not email_status
+            or not isinstance(name, dict) or not isinstance(address, dict)
+            or not isinstance(phone, dict) or not isinstance(company, str)):
+        raise ProviderError("customer_readback_invalid")
+    name_fields = ("first_name", "full_name", "initials", "last_name", "prefix")
+    address_fields = ("city", "country", "number", "state", "street", "suffix", "zipcode")
+    phone_fields = ("area_code", "country_code", "subscriber_number")
+    name_values = {key: name.get(key, "") for key in name_fields}
+    address_values = {key: address.get(key, "") for key in address_fields}
+    phone_values = {key: phone.get(key, "") for key in phone_fields}
+    has_human_name = bool(name_values["full_name"].strip()
+                          or (name_values["first_name"].strip() and name_values["last_name"].strip()))
+    if (not company.strip() and not has_human_name
+            or not all(isinstance(value, str) for value in (*name_values.values(), *address_values.values(), *phone_values.values()))
+            or not all(address_values[key].strip() for key in ("city", "country", "street", "zipcode"))):
+        raise ProviderError("customer_readback_invalid")
+    holder_type = "legal_entity" if company.strip() else "natural_person"
+    normalized_email = email.strip().casefold()
+    record = {
+        "handle": handle,
+        "id": str(object_id),
+        "name": {key: value.strip() for key, value in name_values.items()},
+        "company_name": company.strip(),
+        "email": normalized_email,
+        "email_verification_status": email_status.strip().upper(),
+        "address": {key: value.strip() for key, value in address_values.items()},
+        "phone": {key: value.strip() for key, value in phone_values.items()},
+    }
+    encoded = json.dumps(record, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        "provider": "openprovider",
+        "readback_verified": True,
+        "holder_type": holder_type,
+        "owner_handle_fingerprint": _owner_handle_fingerprint(handle),
+        "contact_fingerprint": hashlib.sha256(encoded).hexdigest(),
+        "email_fingerprint": hashlib.sha256(normalized_email.encode("utf-8")).hexdigest(),
+        "email_verified": record["email_verification_status"] in {"ACT", "ACTIVE", "VERIFIED"},
+    }
 
 
 def _safe_domain(data: dict[str, Any]) -> dict[str, Any]:
@@ -88,7 +140,7 @@ def _safe_domain(data: dict[str, Any]) -> dict[str, Any]:
         "activation_date": data.get("activation_date"),
         "expiration_date": data.get("expiration_date"),
         "renewal_date": data.get("renewal_date"),
-        "owner_contact_fingerprint": _contact_fingerprint(data.get("owner_handle")),
+        "owner_handle_fingerprint": _owner_handle_fingerprint(data.get("owner_handle")),
     }
     return {key: value for key, value in safe.items() if value is not None}
 
@@ -387,8 +439,21 @@ class OpenProviderClient:
         result = _safe_domain(data)
         if not result.get("domain") or not result.get("id"):
             raise ProviderError("domain_readback_invalid")
+        if result["id"] != str(domain_id):
+            raise ProviderError("domain_readback_id_mismatch")
         result.update(provider="openprovider", provider_receipt_id=result["id"], readback_verified=True)
         return result
+
+    def get_customer(self, owner_handle: str) -> dict[str, Any]:
+        if not isinstance(owner_handle, str) or not owner_handle.strip():
+            raise ValueError("owner_handle_invalid")
+        encoded_handle = urllib.parse.quote(owner_handle, safe="")
+        _, data = self._exchange(
+            "GET",
+            f"/customers/{encoded_handle}",
+            query={"with_additional_data": 0},
+        )
+        return _contact_readback(data, owner_handle)
 
     def list_domains(self) -> list[dict[str, Any]]:
         _, data = self._exchange(
@@ -405,4 +470,12 @@ class OpenProviderClient:
         safe_rows = [_safe_domain(row) for row in rows if isinstance(row, dict)]
         if len(safe_rows) != len(rows):
             raise ProviderError("domain_list_invalid")
+        for row in safe_rows:
+            if not row.get("id") or not row.get("domain"):
+                raise ProviderError("domain_list_invalid")
+            row.update(
+                provider="openprovider",
+                provider_receipt_id=row["id"],
+                readback_verified=True,
+            )
         return safe_rows

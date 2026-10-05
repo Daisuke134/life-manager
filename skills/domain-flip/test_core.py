@@ -35,19 +35,40 @@ def purchase_inputs():
         "source_type": "business_dedicated",
         "source_owner_id": "domain-flip",
         "source_verified": True,
+        "balance_readback_verified": True,
+        "balance_provider_receipt_id": "balance-readback-1",
+        "funding_receipt_id": "funding-1",
         "top_up_count": 1,
         "automatic_refill_enabled": False,
     }
     portfolio = {
         "active_holdings": 0,
         "acquisitions_this_pass": 0,
+        "committed_loss_eur": "0.00",
         "effect_unknown_domains": [],
     }
     evidence = {
         "registrant": {
             "legal_holder_verified": True,
+            "holder_type": "natural_person",
             "whois_email_functional": True,
             "whois_email_receiving_verified": True,
+            "whois_public_fields": ["email"],
+            "whois_optional_fields_opted_in": [],
+            "whois_policy_verified": True,
+            "whois_policy_evidence_refs": ["https://www.register.si/splosni-pogoji/#pravila_whois"],
+            "owner_handle_fingerprint": "a" * 64,
+            "contact_fingerprint": "b" * 64,
+            "whois_email_fingerprint": "c" * 64,
+        },
+        "registrant_readback": {
+            "provider": "openprovider",
+            "readback_verified": True,
+            "holder_type": "natural_person",
+            "owner_handle_fingerprint": "a" * 64,
+            "contact_fingerprint": "b" * 64,
+            "email_fingerprint": "c" * 64,
+            "email_verified": True,
         },
         "rights": {
             "status": "clear",
@@ -63,7 +84,11 @@ def purchase_inputs():
             ],
         },
         "fees": {
-            "sedo_fee_rate": "0.15",
+            "readback_verified": True,
+            "cost_readback_verified": True,
+            "cost_evidence_refs": ["domain-flip://cost-readback/run-1"],
+            "minimum_sale_price_eur": "20.00",
+            "sedo_fee_rate": "0.20",
             "tax_eur": "0.00",
             "payout_fee_eur": "0.00",
             "fx_fee_eur": "0.00",
@@ -132,7 +157,7 @@ def test_purchase_obeys_total_cap_and_one_per_pass():
     decision = core.evaluate_purchase(*args)
 
     assert decision["eligible"] is True
-    assert decision["conditional_net_eur"] == Decimal("404.99")
+    assert decision["conditional_net_eur"] == Decimal("379.99")
     assert decision["maximum_loss_eur"] == Decimal("20.01")
     assert decision["autorenew"] == "off"
     assert "expected_profit_eur" not in decision
@@ -167,6 +192,38 @@ def test_purchase_obeys_total_cap_and_one_per_pass():
     assert "personal_funding_forbidden" in personal["reason_codes"]
 
 
+def test_purchase_reserves_all_fixed_costs_against_the_cap():
+    args = purchase_inputs()
+    args[2]["remaining_eur"] = "22.00"
+    args[4]["fees"].update(tax_eur="0.50", payout_fee_eur="0.50", fx_fee_eur="1.00")
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert decision["maximum_loss_eur"] == Decimal("22.01")
+    assert "funding_insufficient" in decision["reason_codes"]
+
+
+def test_purchase_requires_fresh_matching_provider_contact_readback():
+    args = purchase_inputs()
+    args[4]["registrant_readback"]["contact_fingerprint"] = "d" * 64
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "registrant_contact_readback_mismatch" in decision["reason_codes"]
+
+
+def test_purchase_requires_explicit_natural_person_whois_publication_scope():
+    args = purchase_inputs()
+    args[4]["registrant"].pop("whois_optional_fields_opted_in")
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "whois_publication_unverified" in decision["reason_codes"]
+
+
 def test_purchase_requires_known_public_registrant_and_rights_evidence():
     args = purchase_inputs()
     args[4]["registrant"]["whois_email_receiving_verified"] = False
@@ -187,6 +244,37 @@ def test_purchase_requires_quote_readback_evidence():
 
     assert decision["eligible"] is False
     assert "quote_unverified" in decision["reason_codes"]
+
+
+def test_purchase_requires_verified_business_balance_readback():
+    args = purchase_inputs()
+    args[2].pop("balance_readback_verified")
+    args[2].pop("balance_provider_receipt_id")
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "business_balance_unverified" in decision["reason_codes"]
+
+
+def test_purchase_respects_current_marketplace_minimum_sale_price():
+    args = purchase_inputs()
+    args[0]["minimum_accepted_price_eur"] = "15.00"
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "minimum_sale_price_invalid" in decision["reason_codes"]
+
+
+def test_prior_committed_loss_reserves_the_lifetime_cap():
+    args = purchase_inputs()
+    args[3]["committed_loss_eur"] = "90.00"
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "lifetime_cap_exceeded" in decision["reason_codes"]
 
 
 def test_currency_mismatch_blocks_purchase():

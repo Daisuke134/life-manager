@@ -120,6 +120,12 @@ def evaluate_purchase(
           or funding.get("source_owner_id") != "domain-flip"
           or funding.get("source_verified") is not True):
         _append_reason(reasons, "business_funding_unverified")
+    if (funding.get("balance_readback_verified") is not True
+            or not isinstance(funding.get("balance_provider_receipt_id"), str)
+            or not funding.get("balance_provider_receipt_id")
+            or not isinstance(funding.get("funding_receipt_id"), str)
+            or not funding.get("funding_receipt_id")):
+        _append_reason(reasons, "business_balance_unverified")
 
     cap = _decimal(funding.get("lifetime_cap_eur"))
     owner_funded = _decimal(funding.get("owner_funded_total_eur"))
@@ -128,17 +134,20 @@ def evaluate_purchase(
             or cap < 0 or owner_funded < 0 or remaining < 0):
         _append_reason(reasons, "funding_invalid")
     elif (cap > INITIAL_CAP_EUR or owner_funded > INITIAL_CAP_EUR
-          or owner_funded > cap):
+          or owner_funded > cap or remaining > owner_funded):
         _append_reason(reasons, "lifetime_cap_exceeded")
 
     if funding.get("automatic_refill_enabled") is not False:
         _append_reason(reasons, "automatic_refill_enabled")
     top_up_count = funding.get("top_up_count")
-    if type(top_up_count) is not int or top_up_count > 1:
+    if type(top_up_count) is not int or top_up_count < 0 or top_up_count > 1:
         _append_reason(reasons, "repeat_funding_forbidden")
 
     active_holdings = portfolio.get("active_holdings")
     acquisitions = portfolio.get("acquisitions_this_pass")
+    committed_loss = _decimal(portfolio.get("committed_loss_eur", "0"))
+    if committed_loss is None or committed_loss < 0:
+        _append_reason(reasons, "portfolio_invalid")
     if type(active_holdings) is not int or active_holdings < 0:
         _append_reason(reasons, "portfolio_invalid")
     elif active_holdings >= MAX_ACTIVE_HOLDINGS:
@@ -161,6 +170,28 @@ def evaluate_purchase(
             or registrant.get("whois_email_functional") is not True
             or registrant.get("whois_email_receiving_verified") is not True):
         _append_reason(reasons, "whois_email_unverified")
+    whois_policy_refs = registrant.get("whois_policy_evidence_refs") if isinstance(registrant, dict) else None
+    if (not isinstance(registrant, dict)
+            or registrant.get("holder_type") != "natural_person"
+            or registrant.get("whois_public_fields") != ["email"]
+            or registrant.get("whois_optional_fields_opted_in") != []
+            or registrant.get("whois_policy_verified") is not True
+            or not _refs(whois_policy_refs)
+            or "https://www.register.si/splosni-pogoji/#pravila_whois" not in whois_policy_refs):
+        _append_reason(reasons, "whois_publication_unverified")
+
+    registrant_readback = evidence.get("registrant_readback", {})
+    if (not isinstance(registrant_readback, dict)
+            or registrant_readback.get("provider") != "openprovider"
+            or registrant_readback.get("readback_verified") is not True):
+        _append_reason(reasons, "registrant_contact_readback_missing")
+    elif (not isinstance(registrant, dict)
+          or registrant_readback.get("owner_handle_fingerprint") != registrant.get("owner_handle_fingerprint")
+          or registrant_readback.get("contact_fingerprint") != registrant.get("contact_fingerprint")
+          or registrant_readback.get("holder_type") != registrant.get("holder_type")
+          or registrant_readback.get("email_fingerprint") != registrant.get("whois_email_fingerprint")
+          or registrant_readback.get("email_verified") is not True):
+        _append_reason(reasons, "registrant_contact_readback_mismatch")
 
     rights = evidence.get("rights", {})
     raw_rights_sources = rights.get("sources") if isinstance(rights, dict) else None
@@ -181,12 +212,17 @@ def evaluate_purchase(
         _append_reason(reasons, "market_evidence_missing")
 
     fees = evidence.get("fees", {})
-    if not isinstance(fees, dict) or not _refs(fees.get("evidence_refs")):
+    if (not isinstance(fees, dict) or fees.get("readback_verified") is not True
+            or not _refs(fees.get("evidence_refs"))
+            or fees.get("cost_readback_verified") is not True
+            or not _refs(fees.get("cost_evidence_refs"))
+            or _decimal(fees.get("minimum_sale_price_eur")) is None):
         _append_reason(reasons, "fee_evidence_missing")
         fees = {}
 
     amount_fields = {
         "minimum_sale": _decimal(candidate.get("minimum_accepted_price_eur")),
+        "minimum_sale_floor": _decimal(fees.get("minimum_sale_price_eur")),
         "registration": _decimal(
             quote.get("final_charge_eur") if quote_currency != "EUR" and fx_valid
             else quote.get("registration_cost_eur")
@@ -217,7 +253,7 @@ def evaluate_purchase(
         fx_fee = values["fx_fee"]
         model_cost = values["model_cost"]
         infra_cost = values["infra_cost"]
-        maximum_loss = registration + renewal + model_cost + infra_cost
+        maximum_loss = registration + renewal + tax + payout_fee + fx_fee + model_cost + infra_cost
         conditional_net = (
             minimum_sale - (minimum_sale * fee_rate) - tax - payout_fee - fx_fee
             - registration - renewal - model_cost - infra_cost
@@ -226,10 +262,15 @@ def evaluate_purchase(
         result["conditional_net_eur"] = conditional_net
         if minimum_sale <= 0:
             _append_reason(reasons, "minimum_sale_price_invalid")
+        if minimum_sale < values["minimum_sale_floor"]:
+            _append_reason(reasons, "minimum_sale_price_invalid")
         if conditional_net <= 0:
             _append_reason(reasons, "conditional_net_not_positive")
         if remaining is not None and maximum_loss > remaining:
             _append_reason(reasons, "funding_insufficient")
+        if (cap is not None and committed_loss is not None
+                and committed_loss + maximum_loss > cap):
+            _append_reason(reasons, "lifetime_cap_exceeded")
 
     result["eligible"] = not reasons
     return result

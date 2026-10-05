@@ -14,8 +14,12 @@
 
 - Product Loop ID is `domain-flip`; it is a separate financial money owner and never uses `agent-economy-loop`'s Base-USDC treasury.
 - The initial cap is 100 EUR equivalent from a verified, already allocated `domain-flip` business balance only; no personal wallet, bank account, Upwork card, credit, automatic refill, or repeat charge is used. If the dedicated balance is absent, the loop remains scout-only.
+- Acquisition requires an official dedicated-balance readback and provider receipt no older than 24 hours, tied to the original funding receipt and limited by the 100 EUR lifetime cap.
+- Sedo's public fee page is re-read each pass; the owner uses the highest applicable route rate and the current TLD minimum-sale price. Measured model/infra and other cost receipts use a separate readback snapshot no older than 24 hours.
+- Each pre-registration dispatch event reserves its maximum loss, including renewal reserve and current measured costs. Pending/unknown registration holds its reservation; missing historical reservation evidence blocks further purchase.
+- The lifetime funding cap reserves all fixed cost inputs used by conditional-net arithmetic, including tax, payout, and FX amounts; an absent, stale, or changed contact readback keeps acquisition scout-only.
 - The registrar request sets `autorenew` to `off`; each renewal is a fresh bounded decision with its cost reserved.
-- A purchase requires a fresh registrar availability and price readback, rights review with source references, a legal registrant whose publication conditions are known, a verified business-owned dedicated balance, sufficient funds, and a positive conditional net at the minimum accepted Sedo price after measured fees and reserved costs.
+- A purchase requires a fresh registrar availability and price readback, rights review with source references, a verified natural-person registrant whose approved public WHOIS fields are exactly email with no optional fields opted in, a verified business-owned dedicated balance, sufficient funds, and a positive conditional net at the minimum accepted Sedo price after measured fees and reserved costs.
 - A foreign-currency quote is eligible only when its EUR cost is normalized from FX evidence tied to the actual dedicated-business funding receipt; a generic reference rate alone cannot attest the charge.
 - Conditional net is not a sale-probability or expected-profit estimate. Listings, offers, and acquisition costs are never revenue.
 - State lives outside the immutable release at `~/.local/state/life-manager/domain-flip`; events include `run_id`, `owner_id`, `occurrence_id`, `release_sha`, loaded argv/env, phase, command, exit code, effect, readback, provider receipt, evidence refs, error class, retryability, and next action.
@@ -47,11 +51,11 @@
 - A read-only price quote needs `readback_verified` and `evidence_refs`; `provider_receipt_id` is null when the provider does not issue one.
 - `realized_sale` returns a revenue amount only when buyer settlement, holder transfer, seller payout, receiving-account readback, and all required costs are present and receipt IDs are unique.
 
-- [ ] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_purchase_requires_quote_readback_evidence`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert the 100 EUR cap, business-dedicated funding source, four-holding limit, `autorenew=off` policy value, and exact Decimal net arithmetic. A read-only price response may have `provider_receipt_id=null` only when verified readback and evidence refs are present.
-- [ ] **Step 2: Run the test file and confirm the expected missing-module failures.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: collection fails because `skills/domain-flip/core.py` does not yet exist.
-- [ ] **Step 3: Implement the three pure functions** with `Decimal`, explicit required evidence, stable reason codes, and no float arithmetic or hidden provider state.
-- [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: all named tests pass.
-- [ ] **Step 5: Commit** `feat(domain-flip): add bounded purchase policy`.
+- [x] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_purchase_requires_quote_readback_evidence`, `test_purchase_requires_verified_business_balance_readback`, `test_prior_committed_loss_reserves_the_lifetime_cap`, `test_purchase_respects_current_marketplace_minimum_sale_price`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert receipt-backed business funding, cumulative 100 EUR cap, four-holding limit, Sedo minimum sale price, `autorenew=off`, and exact Decimal arithmetic.
+- [x] **Step 2: Run the test file and confirm the expected missing-module failures.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: collection fails because `skills/domain-flip/core.py` does not yet exist.
+- [x] **Step 3: Implement the three pure functions** with `Decimal`, explicit required evidence, stable reason codes, and no float arithmetic or hidden provider state.
+- [x] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: all named tests pass.
+- [x] **Step 5: Commit** `feat(domain-flip): add bounded purchase policy`.
 
 ### Task 2: Openprovider read, quote, registration, and ownership readback
 
@@ -62,18 +66,18 @@
 **Interfaces:**
 - Consumes: Task 1 purchase result.
 - Produces: `OpenProviderClient.check_domain(name)`, `quote_create(name, funding_fx_basis=None)`, `register(name, owner_handle, idempotency_key)`, `get_domain(domain_id)`, and `list_domains()`.
-- `quote_create` returns registration and one-year renewal amounts in the provider currency. It populates EUR-normalized costs only when a verified funding FX basis matches the provider balance currency; a read-only price response has `provider_receipt_id=null`, and the owner persists its raw response and attaches the resulting `evidence_refs` before policy evaluation.
-- `get_domain` and `list_domains` return only whitelisted domain/status/expiry fields and a one-way fingerprint of the owner handle; they discard registrant names, emails, addresses, and phone fields even when the provider response includes them.
+- Produces: `get_customer(handle)` via official `GET /v1/customers/{handle}?with_additional_data=0`; it returns only verified fingerprints and email-verification state, never raw contact fields.
+- `get_domain` and `list_domains` return only whitelisted domain/status/expiry fields and a one-way fingerprint of the owner handle; they discard registrant names, emails, addresses, and phone fields even when the provider response includes them. Complete `list_domains` rows carry explicit official-readback metadata for receipt-loss reconciliation.
 - `list_domains` fails closed if the provider's reported `total` exceeds the returned rows; a truncated page cannot prove that an owned domain is absent.
 - The live client uses the official bearer-token API and the credential SSOT. Its production base URL is fixed; tests use a local HTTP server.
-- Read-only price responses may not include a provider receipt ID; the adapter returns `provider_receipt_id=null` and the raw readback payload so the owner can persist it before adding a local evidence ref. The adapter never synthesizes a receipt.
+- Read-only price responses may not include a provider receipt ID; the owner persists only the verified, privacy-filtered quote and its evidence refs. The adapter never synthesizes a receipt.
 - Registration sends one-year `.si`, `autorenew="off"`, and the approved owner contact; it never turns private-WHOIS on or retries a timed-out create.
 
-- [ ] **Step 1: Write failing local-server tests** named `test_check_and_quote_use_official_si_fields`, `test_quote_does_not_fabricate_provider_receipt_id`, `test_fx_requires_matching_funding_receipt`, `test_register_sends_owner_and_autorenew_off`, `test_domain_readback_filters_personal_contact_fields`, `test_list_truncation_is_not_complete_readback`, `test_missing_credentials_prevent_mutation`, `test_nonzero_provider_code_is_not_success`, and `test_timeout_is_effect_unknown_without_retry`. Assert method/path/body, `code == 0`, returned domain ID, no raw registrant fields, and no second create request.
-- [ ] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: collection fails because the client is absent.
-- [ ] **Step 3: Implement the stdlib REST client** for `/v1/auth/login`, `/v1/domains/check`, `/v1/domains/prices`, `/v1/domains`, `/v1/domains/{id}`, and `GET /v1/domains`; validate responses and redact credentials from errors.
-- [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: all named local-server tests pass.
-- [ ] **Step 5: Commit** `feat(domain-flip): add Openprovider adapter`.
+- [x] **Step 1: Write failing local-server tests** named `test_check_and_quote_use_official_si_fields`, `test_quote_does_not_fabricate_provider_receipt_id`, `test_fx_requires_matching_funding_receipt`, `test_register_sends_owner_and_autorenew_off`, `test_domain_readback_filters_personal_contact_fields`, `test_customer_readback_fingerprints_current_contact_without_returning_pii`, `test_list_truncation_is_not_complete_readback`, `test_missing_credentials_prevent_mutation`, `test_nonzero_provider_code_is_not_success`, and `test_timeout_is_effect_unknown_without_retry`. Assert method/path/body, `code == 0`, returned domain ID, no raw registrant fields, and no second create request.
+- [x] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: collection fails because the client is absent.
+- [x] **Step 3: Implement the stdlib REST client** for `/v1/auth/login`, `/v1/domains/check`, `/v1/domains/prices`, `/v1/domains`, `/v1/domains/{id}`, and `GET /v1/domains`; validate responses and redact credentials from errors.
+- [x] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_openprovider.py -q`. Expected: all named local-server tests pass.
+- [x] **Step 5: Commit** `feat(domain-flip): add Openprovider adapter`.
 
 ### Task 3: Sedo listing and official listing readback
 
@@ -88,18 +92,24 @@
 - The adapter submits documented POST form requests and parses XML with the stdlib. `DomainInsert` returning `Ok` is only submission; `listed` requires a later official `DomainStatus` or `DomainList` match.
 - Sedo's listing API does not prove buyer settlement or seller payout; those receipts remain separate events.
 
-- [ ] **Step 1: Write failing tests** named `test_insert_uses_post_eur_price_and_live_category_ids`, `test_missing_ai_category_prevents_insert`, `test_ok_submission_does_not_mark_listed`, `test_domain_status_confirms_exact_price`, `test_domain_not_in_sedo_is_not_listed`, and `test_sedo_fault_stays_unverified`. Use fixture XML based on the official API response examples.
-- [ ] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_sedo.py -q`. Expected: collection fails because the adapter is absent.
-- [ ] **Step 3: Implement the minimal form/XML adapter** for `DomainInsert`, `DomainStatus`, and `DomainList`; read API credentials only from the credential SSOT and never log them.
-- [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_sedo.py -q`. Expected: all named tests pass.
-- [ ] **Step 5: Commit** `feat(domain-flip): add Sedo listing adapter`.
+- [x] **Step 1: Write failing tests** named `test_insert_uses_post_eur_price_and_live_category_ids`, `test_missing_ai_category_prevents_insert`, `test_ok_submission_does_not_mark_listed`, `test_domain_status_confirms_exact_price`, `test_domain_not_in_sedo_is_not_listed`, `test_sedo_fault_stays_unverified`, and `test_fee_schedule_uses_live_category_and_maximum_sale_route`. Use fixture XML and fee markup, while the runtime reads the official fee page.
+- [x] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_sedo.py -q`. Expected: collection fails because the adapter is absent.
+- [x] **Step 3: Implement the minimal form/XML adapter** for `DomainInsert`, `DomainStatus`, and `DomainList`; read API credentials only from the credential SSOT and never log them.
+- [x] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_sedo.py -q`. Expected: all named tests pass.
+- [x] **Step 5: Commit** `feat(domain-flip): add Sedo listing adapter`.
 
 ### Task 4: Finite owner pass and effect reconciliation
 
 **Files:**
+- Modify: `skills/domain-flip/core.py`
+- Modify: `skills/domain-flip/test_core.py`
+- Modify: `skills/domain-flip/openprovider.py`
+- Modify: `skills/domain-flip/test_openprovider.py`
 - Create: `skills/domain-flip/run.py`
-- Create: `skills/domain-flip/effect_reconcile.py`
+- Modify: `skills/domain-flip/effect_reconcile.py`
 - Create: `skills/domain-flip/rights_search.py`
+- Modify: `skills/domain-flip/sedo.py`
+- Modify: `skills/domain-flip/test_sedo.py`
 - Create: `skills/domain-flip/candidate-review.schema.json`
 - Create: `skills/domain-flip/test_run.py`
 - Create: `skills/domain-flip/test_rights_search.py`
@@ -108,15 +118,25 @@
 - Consumes: Tasks 1–3; existing `runtime/agent-runner/agent_runner.py` with `--task-class diagnostic-agent --prompt-stdin --schema ... --read-only`.
 - Produces: one daily pass for owner `domain-flip`, with candidate packet, model result, domain-level event stream, and exact registrar/Sedo readbacks.
 - The owner exposes `append_event(state_dir, event)`; it validates and durably appends all required occurrence fields before any owner-visible transition.
+- The owner saves sanitized Openprovider readback payloads to private evidence files and attaches resolvable local evidence refs; it combines fresh availability with the separate create/renew quote response.
+- Sedo fee readback includes Category I minimum-sale price; acquisition is ineligible below that floor. A listing is recognized only when `DomainStatus` and `DomainList` agree on the submitted price, minimum, EUR currency, and non-fixed-price mode.
+- The owner revalidates the full review schema, restricts loaded environment/argv fields, rejects PII-like values, and reads runner result files as mode 0600 even if the provider fallback creates them as 0644.
+- The standard model runner writes raw stdout/stderr/result only inside a private temporary evidence directory; that directory is removed immediately after reading, before review validation. Only schema-valid, PII-free review JSON is persisted.
+- Registration submission, provider identity, resource ID, and registration readback ID must match exactly; any missing or mismatched value keeps the registration fenced and prevents listing.
+- Before acquisition, the owner compares a fresh official Openprovider customer readback against the private approved handle/contact/email fingerprints; changed or incomplete contact state blocks registration. Events and evidence retain only safe fingerprints/status, never raw contact fields.
+- Registration requires the Register.si natural-person WHOIS rule to be recorded in private state as email-only with no optional fields opted in; a mismatched provider holder type or absent official policy evidence blocks the candidate before model review.
+- `submitted` is an unresolved external effect. Only an exact active domain/owner readback or matching confirmed listing readback clears its fence; PRE, mismatched, or missing readback remains uncertain.
 - `rights_search.py` queries the official EUIPO Trademark Search API with `wordMarkSpecification.verbalElement` wildcard RSQL; it loads OAuth client credentials from the credential SSOT. Missing credentials, subscription approval, readback, or complete results is `rights_evidence_missing`, never a clean result. It retains only mark name, office, status, class, and official record URL. The adapter also attaches the official Register.si ADR procedure reference. It does not scrape the TMview web UI because the EUIPO legal notice prohibits automated commercial data collection.
+- Production token endpoint and subscription state must be explicitly verified in the official EUIPO portal and recorded in credential SSOT; the sandbox token URL is never inferred as production.
+- A purchase pass requires a business-balance receipt, a live Sedo fee/minimum-price readback, and a separate measured-cost snapshot. Each readback must be no older than 24 hours; missing or stale costs stay scout-only.
 - The owner generates original, era-inspired names; sends market, official rights-search, registrar, and sale evidence to the model; and accepts only schema-valid recommendations whose source refs are present. Model prose cannot bypass deterministic cap, rights-evidence, or economic checks.
 - `effect_reconcile.py --occurrence-id ...` performs provider read-only calls only. Sedo readback may use POST with credentials in the body; no mutating endpoint is allowed. The reconciler either records a conclusive effect result or keeps the occurrence fenced.
 
-- [ ] **Step 1: Write failing tests** named `test_euipo_query_uses_documented_rsql`, `test_missing_or_failed_euipo_search_is_not_clean`, `test_event_writer_records_required_occurrence_fields`, `test_pass_is_scout_only_without_provider_credentials`, `test_missing_rights_credentials_keep_scout_only`, `test_model_choice_cannot_bypass_purchase_policy`, `test_domain_insert_requires_registered_owner_readback`, `test_lost_registration_response_is_not_replayed`, `test_sedo_listing_is_pending_until_provider_readback`, and `test_reconcile_uses_read_only_calls_and_holds_ambiguous_state`.
-- [ ] **Step 2: Run the owner tests and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_run.py -q`. Expected: collection fails because the owner entrypoint is absent.
-- [ ] **Step 3: Implement the one-pass owner and read-only reconciler** using the private state root, validated append-only event writer, `effect_unknown` fencing, and the existing agent runner.
-- [ ] **Step 4: Run focused tests and syntax checks.** Run: `python3 -m pytest skills/domain-flip/test_run.py -q` and `python3 -m py_compile skills/domain-flip/*.py`. Expected: all tests pass and compilation exits 0.
-- [ ] **Step 5: Commit** `feat(domain-flip): add finite owner pass`.
+- [x] **Step 1: Write failing tests** named `test_euipo_query_uses_documented_rsql`, `test_missing_or_failed_euipo_search_is_not_clean`, `test_unverified_production_token_endpoint_is_not_used`, `test_incomplete_euipo_pagination_is_not_clean`, `test_event_writer_records_required_occurrence_fields`, `test_event_writer_rejects_private_values_in_allowed_fields`, `test_runner_result_is_restricted_to_private_mode`, `test_review_validator_enforces_schema_types_and_unique_refs`, `test_standard_review_runner_artifacts_are_ephemeral_until_validation`, `test_pass_is_scout_only_without_provider_credentials`, `test_missing_rights_credentials_keep_scout_only`, `test_stale_business_balance_keeps_scout_only`, `test_stale_sedo_fee_readback_keeps_scout_only`, `test_stale_measured_cost_readback_keeps_scout_only`, `test_model_choice_cannot_bypass_purchase_policy`, `test_owner_persists_and_attaches_real_provider_readbacks`, `test_get_domain_requires_the_requested_resource_id`, `test_domain_insert_requires_registered_owner_readback`, `test_registration_readback_must_match_provider_resource_id`, `test_registration_submit_receipt_must_match_domain_id`, `test_lost_registration_response_is_not_replayed`, `test_unclassified_registration_exception_keeps_effect_fence`, `test_prior_purchase_reservations_enforce_cumulative_cap`, `test_missing_prior_reservation_fails_closed`, `test_sedo_listing_is_pending_until_provider_readback`, `test_listed_requires_matching_current_price_minimum_and_currency`, `test_reconcile_uses_read_only_calls_and_holds_ambiguous_state`, `test_reconcile_resolves_only_matching_registered_owner_readback`, `test_reconcile_holds_registration_readback_with_wrong_provider_identity`, `test_reconcile_holds_listing_with_mismatched_terms`, `test_purchase_reserves_all_fixed_costs_against_the_cap`, `test_purchase_requires_fresh_matching_provider_contact_readback`, `test_changed_provider_contact_keeps_candidate_scout_only`, `test_purchase_requires_explicit_natural_person_whois_publication_scope`, `test_optional_whois_publication_without_approval_keeps_candidate_scout_only`, `test_submitted_registration_is_reconciled_before_reported_resolved`, and `test_submitted_listing_is_reconciled_before_reported_resolved`.
+- [x] **Step 2: Run the owner tests and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_run.py -q`. Expected: collection fails because the owner entrypoint is absent.
+- [x] **Step 3: Implement the one-pass owner and read-only reconciler** using the private state root, validated append-only event writer, `effect_unknown` fencing, and the existing agent runner.
+- [x] **Step 4: Run focused tests and syntax checks.** Run: `python3 -m pytest skills/domain-flip/test_run.py -q` and `python3 -m py_compile skills/domain-flip/*.py`. Expected: all tests pass and compilation exits 0.
+- [x] **Step 5: Commit** `feat(domain-flip): add finite owner pass`.
 
 ### Task 5: CFO attribution, canonical loop contract, and SSOT cursor
 

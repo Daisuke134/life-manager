@@ -57,6 +57,16 @@ def start_api(state: dict):
     <currency>0</currency><domainlanguage>en</domainlanguage></item></SEDODOMAINLIST>"""
     empty_list = b"""<?xml version="1.0" encoding="UTF-8"?>
     <SEDODOMAINLIST />"""
+    fee_page = b"""<html><body>
+      <h2>Other domain sales through the Sedo Marketplace</h2>
+      <p>If the domain is sold directly, 15% commission will apply.</p>
+      <h2>Domain sales through the SedoMLS network</h2>
+      <p>We charge a fee of 20% of the gross sale price.</p>
+      <h2>Top Level Domains (TLD) - Category I</h2>
+      <p>No minimum fee | Minimum sales price 20 USD/EUR/GBP</p><p>.com, .si, .net</p>
+      <h2>Top Level Domains (TLD) - Category II</h2>
+      <h2>Domain sale: minimum fees</h2>
+    </body></html>"""
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -83,6 +93,8 @@ def start_api(state: dict):
             path = urlparse(self.path).path
             if path.endswith("/DomainCategories"):
                 self.reply(state.get("categories_xml", categories))
+            elif path.endswith("/price-list"):
+                self.reply(state.get("fee_page", fee_page), "text/html")
             else:
                 self.reply(b"<SEDOFAULT ver='1.0'><faultcode>E404</faultcode></SEDOFAULT>")
 
@@ -221,5 +233,30 @@ def test_sedo_fault_stays_unverified(tmp_path):
             client.insert_for_sale("novara.si", Decimal("500"), Decimal("300"))
 
         assert state["insert_count"] == 1
+    finally:
+        stop_api(server, thread)
+
+
+def test_fee_schedule_uses_live_category_and_maximum_sale_route(tmp_path):
+    state = {"requests": [], "insert_count": 0}
+    server, thread, base_url = start_api(state)
+    try:
+        client = sedo.SedoClient(
+            credentials_file=credential_file(tmp_path),
+            base_url=base_url,
+            fee_page_url=f"{base_url}price-list",
+        )
+
+        result = client.fee_schedule()
+
+        assert result["readback_verified"] is True
+        assert result["domain_category"] == "I"
+        assert result["minimum_sale_price_eur"] == "20"
+        assert result["direct_marketplace_fee_rate"] == "0.15"
+        assert result["sedomls_fee_rate"] == "0.2"
+        assert result["sedo_fee_rate"] == "0.2"
+        assert result["minimum_sale_price_eur"] == "20"
+        assert len(result["source_sha256"]) == 64
+        assert result["evidence_refs"] == [sedo.PRODUCTION_FEE_PAGE_URL]
     finally:
         stop_api(server, thread)

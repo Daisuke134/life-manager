@@ -102,7 +102,7 @@ def start_api(state: dict):
                 }, "desc": ""})
             elif parsed.path == "/v1/domains/123":
                 self.reply({"code": 0, "data": {
-                    "id": 123,
+                    "id": state.get("domain_readback_id", 123),
                     "domain": {"name": "novara", "extension": "si"},
                     "status": "ACT",
                     "owner_handle": "OWNER-1",
@@ -112,6 +112,21 @@ def start_api(state: dict):
                         "address": "private-fixture-address",
                     },
                     "expiration_date": "2027-10-05",
+                }, "desc": ""})
+            elif parsed.path == "/v1/customers/OWNER-1":
+                self.reply({"code": 0, "data": {
+                    "id": 456,
+                    "handle": "OWNER-1",
+                    "name": {"first_name": "Private", "last_name": "Fixture", "full_name": "Private Fixture Name"},
+                    "company_name": "",
+                    "email": state.get("customer_email", "functional@example.test"),
+                    "email_verification_status": state.get("customer_email_status", "ACT"),
+                    "address": {
+                        "street": "private fixture street", "number": "123", "city": "private fixture city",
+                        "state": "private fixture state", "country": "NL", "zipcode": "1234 AB",
+                    },
+                    "phone": {"country_code": "+31", "area_code": "20", "subscriber_number": "1234567"},
+                    "is_deleted": False,
                 }, "desc": ""})
             elif parsed.path == "/v1/domains":
                 self.reply({"code": 0, "data": {"results": [{
@@ -238,10 +253,13 @@ def test_register_sends_owner_and_autorenew_off(tmp_path):
         assert submitted["status"] == "submitted"
         assert submitted["provider_receipt_id"] == "123"
         assert domain["status"] == "ACT"
-        assert domain["owner_contact_fingerprint"]
+        assert domain["owner_handle_fingerprint"]
         assert "owner_handle" not in domain
         assert portfolio[0]["domain"] == "novara.si"
         assert "owner_handle" not in portfolio[0]
+        assert portfolio[0]["provider"] == "openprovider"
+        assert portfolio[0]["readback_verified"] is True
+        assert portfolio[0]["provider_receipt_id"] == "123"
         request = next(row for row in state["requests"] if row["method"] == "POST" and row["path"] == "/v1/domains")
         assert request["body"]["domain"] == {"name": "novara", "extension": "si"}
         assert request["body"]["owner_handle"] == "OWNER-1"
@@ -269,8 +287,55 @@ def test_domain_readback_filters_personal_contact_fields(tmp_path):
         assert "Private Fixture Name" not in sanitized
         assert "private-fixture@example.test" not in sanitized
         assert "private-fixture-address" not in sanitized
-        assert domain["owner_contact_fingerprint"]
-        assert portfolio[0]["owner_contact_fingerprint"]
+        assert domain["owner_handle_fingerprint"]
+        assert portfolio[0]["owner_handle_fingerprint"]
+    finally:
+        stop_api(server, thread)
+
+
+def test_get_domain_requires_the_requested_resource_id(tmp_path):
+    state = {"requests": [], "create_count": 0, "domain_readback_id": 456}
+    server, thread, base_url = start_api(state)
+    try:
+        client = openprovider.OpenProviderClient(
+            credentials_file=credential_file(tmp_path),
+            base_url=base_url,
+        )
+
+        with pytest.raises(openprovider.ProviderError) as error:
+            client.get_domain("123")
+
+        assert error.value.code == "domain_readback_id_mismatch"
+    finally:
+        stop_api(server, thread)
+
+
+def test_customer_readback_fingerprints_current_contact_without_returning_pii(tmp_path):
+    state = {"requests": [], "create_count": 0}
+    server, thread, base_url = start_api(state)
+    try:
+        client = openprovider.OpenProviderClient(
+            credentials_file=credential_file(tmp_path),
+            base_url=base_url,
+        )
+
+        first = client.get_customer("OWNER-1")
+        state["customer_email"] = "changed@example.test"
+        changed = client.get_customer("OWNER-1")
+
+        assert first["readback_verified"] is True
+        assert first["provider"] == "openprovider"
+        assert first["holder_type"] == "natural_person"
+        assert first["email_verified"] is True
+        assert first["owner_handle_fingerprint"]
+        assert first["contact_fingerprint"] != changed["contact_fingerprint"]
+        assert first["email_fingerprint"] != changed["email_fingerprint"]
+        assert "email" not in first
+        assert "address" not in first
+        assert "Private Fixture Name" not in json.dumps([first, changed])
+        assert "functional@example.test" not in json.dumps([first, changed])
+        request = next(row for row in state["requests"] if row["path"] == "/v1/customers/OWNER-1")
+        assert request["query"]["with_additional_data"] == ["0"]
     finally:
         stop_api(server, thread)
 
