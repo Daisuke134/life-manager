@@ -927,6 +927,68 @@ def test_estimate_readback_finds_existing_official_card_without_mutation(monkeyp
     assert factory_calls[0][-1] == "coconala-reply-12"
 
 
+@pytest.mark.parametrize(
+    "case", ["matching", "wrong_owner", "before_request", "wrong_price", "multiple_matches"],
+)
+def test_estimate_readback_uses_real_delivery_classifier_for_observed_cards(tmp_path, case):
+    card = {
+        "message_kind": "見積り提案をしました",
+        "sender_side": "seller",
+        "author_path": "/users/1",
+        "title": "開発",
+        "price_jpy": 10000,
+        "completion_date": "2026-09-15",
+        "content": "実装\n完了予定日：2026-09-15（1週間後）",
+        "offer_url": "/mypage/direct_offers/55",
+        "sent_at": "2026-09-08T00:00:01Z",
+    }
+    cards = [card]
+    if case == "wrong_owner":
+        card["author_path"] = "/users/2"
+    elif case == "before_request":
+        card["sent_at"] = "2026-09-07T23:59:59Z"
+    elif case == "wrong_price":
+        card["price_jpy"] = 9999
+    elif case == "multiple_matches":
+        cards.append({**card, "offer_url": "/mypage/direct_offers/56"})
+
+    class Browser:
+        def __init__(self):
+            self.mutation_calls = []
+
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def read_thread_context(self):
+            return {"conversation": []}, {
+                "structured_offers": cards,
+                "own_user_path": "/users/1",
+            }
+        def first_submit(self, *_args): self.mutation_calls.append("first_submit")
+        def final_submit(self, *_args, **_kwargs): self.mutation_calls.append("final_submit")
+
+    browser = Browser()
+    semantic = adapter_module.requested_estimate
+    intent = _estimate_intent()
+    intent["payload"]["_semantic_context_sha256"] = semantic.semantic_context_sha256([])
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path,
+        inventory_reader=lambda: [],
+        thread_reader=lambda _thread: ({}, {}),
+        sender=lambda *_args: {},
+        estimate_composer=object(),
+        estimate_browser_factory=lambda *_args: browser,
+    )
+
+    result = adapter.readback(intent)
+
+    assert browser.mutation_calls == []
+    if case == "matching":
+        assert result["verified"] is True
+        assert result["provider_receipt_id"] == "/mypage/direct_offers/55"
+    else:
+        assert result.get("verified") is not True
+
+
 def test_estimate_post_click_unknown_returns_for_reconciliation_without_retry_signal(monkeypatch, tmp_path):
     class Composer:
         def select_category(self, level, _context, _form):
