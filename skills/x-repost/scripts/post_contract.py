@@ -9,8 +9,8 @@ import re
 from pathlib import Path
 
 
-JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
-KANA = re.compile(r"[\u3040-\u30ff]")
+JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uff66-\uff9f]")
+KANA = re.compile(r"[\u3040-\u30ff\uff66-\uff9f]")
 LATIN = re.compile(r"[A-Za-z]")
 
 

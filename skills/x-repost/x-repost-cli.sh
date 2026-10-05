@@ -1488,11 +1488,11 @@ fi
 # ---------------------------------------------------------------- 4. humanize (separate call)
 {
   echo "以下の各案について、**内容は一切変えず文体だけ**を直せ。事実・数値・固有名詞・主張・情報量を足しても引いてもいけない。"
-  if [ "$TARGET_LANGUAGE" = "en" ]; then
-    echo "英語の文案は英語のまま保ち、日本語へ翻訳しない。出力する3案はすべて英語にする。"
-  fi
   echo
   cat "$HUMANIZER_SKILL"
+  if [ "$TARGET_LANGUAGE" = "en" ]; then
+    echo "この英語slotではchecklist内の日本語固有の字数制限を適用しない。英語のまま文体だけを直し、日本語へ翻訳しない。3案すべて英語にする。"
+  fi
   echo; echo "## 入力（この drafts を直す）"
   "$PY" -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["drafts"], sys.stdout, ensure_ascii=False, indent=1)' "$EV/select.json"
   echo; echo
@@ -1507,9 +1507,6 @@ fi
 # ---------------------------------------------------------------- 5. choose one
 {
   echo "次の3案から、今回の $KIND として実際に投稿する1案を選べ。"
-  if [ "$TARGET_LANGUAGE" = "en" ]; then
-    echo "選んだ投稿は英語のまま出力し、日本語へ翻訳しない。"
-  fi
   echo "基準: 相手をディスっていない / 元投稿にない実行手順・判断基準・失敗条件・比較方法を異なる2種類足す / sourceや種に無い数値・期間・回数を作らない / 自分語りが不要なら0 / 次の行動につながる / AI 文体でない。"
   echo
   echo "## 今回 優先するトーン: $TARGET_TONE"
@@ -1519,6 +1516,9 @@ fi
   echo; echo "## 引用元"; "$PY" -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["source_url"]); print(d.get("why",""))' "$EV/select.json"
   echo; echo "## 3案"; cat "$EV/humanized.json"
   echo; echo '## 出力（最後に JSON オブジェクトだけを1つ）'
+  if [ "$TARGET_LANGUAGE" = "en" ]; then
+    echo "英語slotなので英語案を選び、英語のまま出力する。日本語へ翻訳しない。"
+  fi
   echo '{"tone":"...","text":"実際に投稿する本文そのまま","why":"選んだ理由1文"}'
 } >"$EV/prompt-choose.txt"
 

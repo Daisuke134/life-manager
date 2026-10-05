@@ -22,6 +22,7 @@ class PostContractTests(unittest.TestCase):
     def test_english_slot_rejects_japanese_text(self) -> None:
         self.assertTrue(MODULE.language_matches("en", "Try this next."))
         self.assertFalse(MODULE.language_matches("en", "次はこれを試す。"))
+        self.assertFalse(MODULE.language_matches("en", "ﾂｷﾞﾊ ｺﾚｦ ﾀﾒｽ AI"))
         self.assertFalse(MODULE.language_matches("en", "12345"))
         self.assertFalse(MODULE.language_matches("en", "Попробуйте это"))
 
