@@ -7780,3 +7780,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Currentの明示profile順acct1→acct2/auth paths/automation homeをfresh確認。acct1 authは不在、acct2は正規file存在。自然wake00MUUWV9IAD43A538C760F4754のsummary07:11:18.173→07:11:36.996はsuccess/selected codex acct2。attempt1はtyped codex_prelaunch_auth_missing/rc2/resultなし、attempt2はrc0/schema valid/result present。account2をaccount1へコピー・別名偽装・認証設定変更なし。既存business loop model設定は変更しておらず、Codex開発のSol6.1/medium・Luna6/max規約と別に記録する。
 - 同wakeのschema-valid resultはtool_calls envelope内run_skill判断1件。engine ledgerにも同wake/kind wake/exit0あり。これで正規profile/復旧参照、認証経路回復、自然THINKの旧残1〜3を完了として除外。旧4〜50を新1〜47へ繰上げ。scope/相対順を変えず現在cursor1は実収益actionのreceipt/settlement/costを確認すること。modelのprofitable宣言・process exit0を公式収益へ置換しない。根拠 state/agent-economy-auth-think-natural-readback-20261005.jsonとcodex-brain同wake summary/attempts/result、engine ledger。
 - Coconala source branchはlatestmain cd5b63901eを取り込み、source/adapter/test3file SHAは前後一致。当該OSS absorbed_roots inventory240filesのdigestだけ既存verifier方式で更新、Capafy business source/他entry不変。head a99e3a4cb1aba4d9fbc6edc6c7d48b9fa6fd142dをpush/remote一致/clean。関連42/compile/contract/OSS/diff PASS。動作bytesはfresh SHIPのae38と同一、最終head CIを確認して通常統合へ進む。source/metadata結果を自然Coconala collector/返信/全Paidへ置換しない。残47/cursor1。
+
+
+### 533. Coconala Direct Inbox修復main統合
+
+- PR6626最終head a99e3a4cb1aba4d9fbc6edc6c7d48b9fa6fd142d/source動作fresh SHIP/関連42＋必要metadata検証/CI全10終端SUCCESSを確認してadmin merge。公式MERGED/2026-10-05T07:19:43Z/merge SHAee27ac09fe2bbfc2d8757028b071ef85c675c503、fetch後remote object確認。Capafy sourceはmain追従のみでrootのbusiness変更0、manifest当該inventoryだけ整合。
+- query付きReply transport、明示Direct selector/coverage、caller-trusted Direct failure receipt、B1既定分類・HTTP/identity/pagination failclosed保持をmainへ統合済み。source完了と公開4件の確認を、自然Reply成功/正式納品/精算へ置換しない。
+- 次の運用範囲はmain由来full immutableにee27 sourceを搭載、Coconala Reply対象ownerのactual argv/SHA→自然collectorのfull pagination/Direct family→同thread返信receipt/replay-zeroを確認すること。使用中profileは既存guardで調整し、手動顧客送信・旧fence解除・個別TikTok/NPO保留の再開なし。現在残47/cursor1はAgent Economy公式収益action receipt、Coconalaの独立反映/自然readbackを並行する。
