@@ -1608,6 +1608,141 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     enqueue.assert_not_called()
 
 
+def _write_prestart_lock_release(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "apps/life-manager/config").mkdir(parents=True)
+    (release / "config/loop-registry.json").write_text(json.dumps({
+        "loops": {"example-publisher": {
+            "label": "ai.anicca.example-publisher",
+            "domain": "earn",
+            "entrypoint": "bin/example-publisher",
+            "provider_route": "test-provider",
+            "effect_class": "publish",
+            "state_root": str(tmp_path / "unused-state"),
+        }},
+    }), encoding="utf-8")
+    (release / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}), encoding="utf-8")
+    (release / "apps/life-manager/config/product-loop-catalog.json").write_text(json.dumps({
+        "loops": [{"id": "publisher-products", "job_ids": ["example-publisher"]}],
+    }), encoding="utf-8")
+    return release
+
+
+def test_main_records_apply_lock_busy_before_dispatch(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    event_path = state_root / "events.jsonl"
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock",
+                side_effect=RuntimeError("production apply is already owned")),
+          patch("runtime.loop.lm_loop_run.build_loop_command") as build_command,
+          patch("runtime.loop.lm_loop_run.reset_loop_scratch") as reset_scratch,
+          patch("runtime.loop.lm_loop_run._run_admitted") as run_admitted,
+          patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire_resource,
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource") as enqueue_resource):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
+
+    assert event_path.exists()
+    events = [json.loads(line) for line in event_path.read_text(encoding="utf-8").splitlines()]
+    assert len(events) == 1
+    event = events[0]
+    assert event["phase"] == "report"
+    assert event["status"] == "blocked"
+    assert event["loop_id"] == event["job_id"] == event["owner_id"] == "example-publisher"
+    assert event["product_loop_id"] == "publisher-products"
+    assert event["run_id"] == "run-1"
+    assert event["wake_id"] == "wake-1"
+    assert event["occurrence_id"] == "example-publisher:run-1"
+    assert event["release_sha"] == "a" * 40
+    assert event["effect_class"] == "publish"
+    assert event["effect_status"] == "not_applicable"
+    assert event["blocker"] == event["error_class"] == "apply_lock_busy"
+    assert event["failure_layer"] == "runtime"
+    assert event["exit_code"] == 78
+    assert event["retryable"] is True
+    assert event["next_action"] == "retry_after_eligibility"
+    assert event["loaded_argv_sha256"] is None
+    assert event["provider_receipt_id"] is None
+    assert event["official_readback_ref"] is None
+    assert not (state_root / "loop-tmp/example-publisher/run-1").exists()
+    build_command.assert_not_called()
+    reset_scratch.assert_not_called()
+    run_admitted.assert_not_called()
+    acquire_resource.assert_not_called()
+    enqueue_resource.assert_not_called()
+
+
+def test_main_reports_sanitized_prestart_event_write_failure(tmp_path, capsys):
+    release = _write_prestart_lock_release(tmp_path)
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock",
+                side_effect=RuntimeError("production apply is already owned")),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=PermissionError(
+                    13, "token=private /Users/operator/private/events.jsonl",
+                    "/Users/operator/private/events.jsonl")),
+          patch("runtime.loop.lm_loop_run.build_loop_command") as build_command,
+          patch("runtime.loop.lm_loop_run._run_admitted") as run_admitted):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    diagnostic = json.loads(captured.err)
+    assert diagnostic["event"] == "runtime_event_write_failed"
+    assert diagnostic["loop_id"] == diagnostic["job_id"] == diagnostic["owner_id"] == "example-publisher"
+    assert diagnostic["wake_id"] == "wake-1"
+    assert diagnostic["run_id"] == "run-1"
+    assert diagnostic["occurrence_id"] == "example-publisher:run-1"
+    assert diagnostic["release_sha"] == "a" * 40
+    assert diagnostic["blocker"] == "apply_lock_busy"
+    assert diagnostic["effect_class"] == "publish"
+    assert diagnostic["effect_status"] == "not_applicable"
+    assert diagnostic["error_class"] == "apply_lock_busy"
+    assert diagnostic["exit_code"] == 78
+    assert diagnostic["retryable"] is True
+    assert diagnostic["next_action"] == "retry_after_eligibility"
+    assert diagnostic["loaded_argv_sha256"] is None
+    assert diagnostic["provider_receipt_id"] is None
+    assert diagnostic["official_readback_ref"] is None
+    assert diagnostic["writer_error_type"] == "PermissionError"
+    assert diagnostic["writer_errno"] == 13
+    assert "/Users" not in captured.err
+    assert "events.jsonl" not in captured.err
+    assert "token=private" not in captured.err
+    assert str(tmp_path) not in captured.err
+    build_command.assert_not_called()
+    run_admitted.assert_not_called()
+
+
+def test_main_does_not_classify_body_runtime_error_as_lock_contention(tmp_path, capsys):
+    release = _write_prestart_lock_release(tmp_path)
+    event_path = tmp_path / "state/events.jsonl"
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command",
+                side_effect=RuntimeError("production apply is already owned")),
+          patch("runtime.loop.lm_loop_run.append_runtime_event") as append_event):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
+
+    assert not event_path.exists()
+    assert "lm-loop-run: production apply is already owned" in capsys.readouterr().err
+    append_event.assert_not_called()
+
+
 def test_shared_runner_failure_emits_one_exact_recovery_intent(tmp_path):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)
