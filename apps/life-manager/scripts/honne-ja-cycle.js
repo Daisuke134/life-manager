@@ -19,6 +19,7 @@ const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../l
 const { buildMarketingCtaCaptionRef } = require("../lib/marketing-app-store-cta.js");
 const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
 const { generateVideoHookText } = require("../lib/marketing-slide-pack-text.js");
+const { buildCapafyReelCaptionRef, capafyReelTextGenerator } = require("../lib/capafy-reel-content.js");
 const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
 const { executeCapabilityJob } = require("./runtime-up.js");
 
@@ -33,6 +34,7 @@ const ANICCA_AFFIRMATION_YOUTUBE_SLOTS = Object.freeze(["08:15", "14:15", "20:15
 const ANICCA_JA_WIDGET_INSTAGRAM_SLOTS = Object.freeze(["08:05", "13:05", "18:20"]);
 const ANICCA_JP4_SLOTS = Object.freeze(["09:15", "15:15", "20:45"]);
 const ANICCA_HE_SLOTS = Object.freeze(["07:15", "13:45", "18:15"]);
+const CAPAFY_IG_SLOTS = Object.freeze(["09:00", "14:00", "20:00"]);
 // freshHookText: every anicca-ios lane cycles a 2-4 hook pack 3x/day, so the same
 // caption reposted every ~1.3 days (Postiz public API 2026-09-25..29, e.g. @anicca.he
 // "強い人の口癖、5つだけ" 6 times). honne packs hold enough distinct hooks and a
@@ -48,6 +50,11 @@ const LANES = Object.freeze({
   "run-anicca-ja-widget-instagram": { name: "Anicca JA Widget Instagram", product: "anicca-ios", format: "reelclaw-widget", locale: "ja", platform: "instagram", account: "@anicca.jp.videos", instagramProfileRef: "profile://instagram/anicca.jp.videos", integrationId: "cmmzzg2es0539p30ycb94ayx0", slots: ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, packKey: "LM_ANICCA_JA_WIDGET_PRODUCTION_PACK_REF", mediaKey: "LM_ANICCA_JA_WIDGET_PRODUCTION_MEDIA_REFS", approvalKey: "LM_ANICCA_JA_WIDGET_PRODUCTION_APPROVAL_REF", telegramLane: "anicca-ja-widget-instagram", freshHookText: true },
   "run-anicca-jp4": { name: "Anicca JP4", product: "anicca-ios", format: "reelclaw-card", locale: "ja", platform: "tiktok", account: "@anicca.jp4", integrationId: "cmn8x8hdv028uqx0y4gdfse5t", slots: ANICCA_JP4_SLOTS, packKey: "LM_ANICCA_JP4_PACK_REF", mediaKey: "LM_ANICCA_JP4_MEDIA_REFS", approvalKey: "LM_ANICCA_JP4_TIKTOK_APPROVAL_REF", telegramLane: "anicca-jp4-ja-tiktok", freshHookText: true },
   "run-anicca-he": { name: "Anicca HE", product: "anicca-ios", format: "reelclaw-card", locale: "ja", platform: "tiktok", account: "@anicca.he", integrationId: "cmq2aoena08bhqp0yx1epjcik", slots: ANICCA_HE_SLOTS, packKey: "LM_ANICCA_HE_PACK_REF", mediaKey: "LM_ANICCA_HE_MEDIA_REFS", approvalKey: "LM_ANICCA_HE_TIKTOK_APPROVAL_REF", telegramLane: "anicca-he-ja-tiktok", freshHookText: true },
+  // @capafy.hooklab is not connected to Postiz yet (2026-10-05) -- no literal
+  // integration id is ever written here; integrationEnvKey is resolved from
+  // the environment at run time and the lane fails closed when it is unset
+  // (see runHonneJaCycle below), instead of a hardcoded placeholder id.
+  "run-capafy-ig": { name: "Capafy IG Reel", product: "capafy-skills", format: "reelclaw-card", locale: "en", platform: "instagram", account: "@capafy.hooklab", instagramProfileRef: "profile://instagram/capafy.hooklab", integrationEnvKey: "CAPAFY_IG_POSTIZ_INTEGRATION_ID", slots: CAPAFY_IG_SLOTS, packKey: "LM_CAPAFY_IG_PACK_REF", mediaKey: "LM_CAPAFY_IG_MEDIA_REFS", approvalKey: "LM_CAPAFY_IG_INSTAGRAM_APPROVAL_REF", telegramLane: "capafy-ig-reel", contentGenerator: "capafy" },
 });
 
 function required(value, label) {
@@ -58,7 +65,7 @@ function required(value, label) {
 
 function parseArgs(argv) {
   if (!LANES[argv[0]] || ![1, 3].includes(argv.length) || (argv.length === 3 && argv[1] !== "--slot")) {
-    throw new Error("usage: honne-ja-cycle.js <run|run-anicca-main|run-anicca-main-instagram|run-anicca-en-card-instagram|run-anicca-en-widget-instagram|run-anicca-ai-youtube|run-anicca-affirmation-youtube|run-anicca-ja-widget-instagram|run-anicca-jp4|run-anicca-he> [--slot <ISO instant>]");
+    throw new Error("usage: honne-ja-cycle.js <run|run-anicca-main|run-anicca-main-instagram|run-anicca-en-card-instagram|run-anicca-en-widget-instagram|run-anicca-ai-youtube|run-anicca-affirmation-youtube|run-anicca-ja-widget-instagram|run-anicca-jp4|run-anicca-he|run-capafy-ig> [--slot <ISO instant>]");
   }
   return { lane: LANES[argv[0]], slot: argv[1] ? String(argv[2]) : null };
 }
@@ -140,8 +147,15 @@ function services(env, dataDir, tenantId, lane) {
 
 async function runHonneJaCycle(argv, deps = {}) {
   const parsed = parseArgs(argv);
-  const lane = { ...parsed.lane, integrationRef: `integration://postiz/${parsed.lane.platform}/${parsed.lane.integrationId}` };
   const env = deps.env || process.env;
+  // Lanes with a literal integrationId (already Postiz-connected) keep it
+  // verbatim; a lane with integrationEnvKey instead (not yet connected, e.g.
+  // run-capafy-ig) resolves it from the environment and fails closed with
+  // the exact missing key name when unset -- never a placeholder id.
+  const integrationId = parsed.lane.integrationEnvKey
+    ? required(env[parsed.lane.integrationEnvKey], parsed.lane.integrationEnvKey)
+    : parsed.lane.integrationId;
+  const lane = { ...parsed.lane, integrationId, integrationRef: `integration://postiz/${parsed.lane.platform}/${integrationId}` };
   const dataDir = path.resolve(required(deps.dataDir || env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   if (tenantId !== TENANT) throw new Error("honne JA cycle tenant is invalid");
@@ -160,21 +174,42 @@ async function runHonneJaCycle(argv, deps = {}) {
   const generationQueued = await store.enqueueJob({ jobId: generationJob.job_id, tenantId, loopId: generationJob.loop_id, capability: generationJob.capability, effectClass: generationJob.effect_class, effectKey: generationJob.effect_key, inputRefs: generationJob.input_refs, maxAttempts: generationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
   // Fresh hook/title/description text (instead of a fixed pack string reused forever)
   // is opt-in per lane via lane.freshHookText -- see marketing-video-generation-
-  // adapter.js's execute() for the generic mechanism this wires into.
-  const textGenerator = lane.freshHookText
-    ? (deps.textGenerator || ((args) => generateVideoHookText({ ...args, apiKey: required(env.GEMINI_API_KEY, "GEMINI_API_KEY") })))
-    : null;
+  // adapter.js's execute() for the generic mechanism this wires into. The
+  // Capafy lane (lane.contentGenerator === "capafy") plugs in its own
+  // generator instead: it rotates real capafy-skills earners and their own
+  // LISTING.md examples rather than asking Gemini for new words, and the
+  // closure below records the chosen earner's CTA url for the caption step.
+  let capafyCtaUrl = null;
+  const textGenerator = lane.contentGenerator === "capafy"
+    ? (deps.textGenerator || (async (args) => {
+      const generated = await capafyReelTextGenerator({ ...args, nowMs });
+      capafyCtaUrl = generated.ctaUrl;
+      return generated;
+    }))
+    : lane.freshHookText
+      ? (deps.textGenerator || ((args) => generateVideoHookText({ ...args, apiKey: required(env.GEMINI_API_KEY, "GEMINI_API_KEY") })))
+      : null;
   const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir), now: () => new Date(nowMs).toISOString(), ...(textGenerator ? { textGenerator } : {}) });
   const artifact = await executeJob(store, generationJob, "honne-ja-cycle", (job) => generationAdapter.execute(job));
   const publicationCreativeId = `${artifact.creative_id}-${slot.replace(/[^A-Za-z0-9]/g, "")}`;
-  const captionRef = buildMarketingCtaCaptionRef({
-    objectStore,
-    workspaceDir: path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "video-generation"),
-    baseCaptionRef: artifact.copy_ref,
-    productId: lane.product,
-    platform: lane.platform,
-    locale: lane.locale,
-  });
+  // Capafy's CTA is a dynamic per-earner capafy.ai link (?ct=capafy-reel-<slug>),
+  // not the fixed App Store url buildMarketingCtaCaptionRef looks up per
+  // product -- see apps/life-manager/lib/capafy-reel-content.js.
+  const captionRef = lane.contentGenerator === "capafy"
+    ? buildCapafyReelCaptionRef({
+      objectStore,
+      workspaceDir: path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "video-generation"),
+      ctaUrl: capafyCtaUrl,
+      locale: lane.locale,
+    })
+    : buildMarketingCtaCaptionRef({
+      objectStore,
+      workspaceDir: path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "video-generation"),
+      baseCaptionRef: artifact.copy_ref,
+      productId: lane.product,
+      platform: lane.platform,
+      locale: lane.locale,
+    });
   const publicationJob = buildMarketingVideoPublicationJob({ tenantId, productId: lane.product, formatId: lane.format, form: artifact.form, locale: lane.locale, slot, creativeId: publicationCreativeId, platform: lane.platform, videoRef: artifact.video_ref, captionRef, approvalRef, instagramProfileRef: lane.platform === "instagram" ? lane.instagramProfileRef : "profile://instagram/unassigned", postizTokenRef: "secret://postiz/api-key", ...(lane.platform === "instagram" ? { instagramIntegrationRef: lane.integrationRef } : lane.platform === "youtube" ? { youtubeIntegrationRef: lane.integrationRef } : { tiktokIntegrationRef: lane.integrationRef }) });
   const publicationQueued = await store.enqueueJob({ jobId: publicationJob.job_id, tenantId, loopId: publicationJob.loop_id, capability: publicationJob.capability, effectClass: publicationJob.effect_class, effectKey: publicationJob.effect_key, inputRefs: publicationJob.input_refs, maxAttempts: publicationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
   const runtime = services(env, dataDir, tenantId, lane);
@@ -199,4 +234,4 @@ async function runHonneJaCycle(argv, deps = {}) {
 
 if (require.main === module) runHonneJaCycle(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 
-module.exports = { ANICCA_AFFIRMATION_YOUTUBE_SLOTS, ANICCA_AI_YOUTUBE_SLOTS, ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, PRODUCTION_SLOTS, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified };
+module.exports = { ANICCA_AFFIRMATION_YOUTUBE_SLOTS, ANICCA_AI_YOUTUBE_SLOTS, ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified };
