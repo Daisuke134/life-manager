@@ -148,7 +148,7 @@ function makeComposioCalendar(opts = {}) {
   // Error contract unchanged and shared with listEventsRaw: default (wake path) swallows every
   // failure to an empty page — load-bearing, a transport blip must not crash the 60s tick — while
   // strict (history path) THROWS, because "empty calendar" and "the read failed" must never merge.
-  const listEventsPage = async (uid, { timeMin, timeMax, maxResults, pageToken, strict } = {}) => {
+  const listEventsPage = async (uid, { timeMin, timeMax, maxResults, pageToken, strict, expectedCalendarAccountId } = {}) => {
     const empty = { items: [], nextPageToken: null };
     if (!key || !uid) {
       if (strict) throw new Error(`calendar transport not ready (missing ${key ? "uid" : "API key"})`);
@@ -159,7 +159,7 @@ function makeComposioCalendar(opts = {}) {
     if (pageToken) args.pageToken = pageToken;
     let j;
     try {
-      j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args, opts.expectedCalendarAccountId);
+      j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args, expectedCalendarAccountId);
     } catch (e) {
       if (strict) throw e;
       return empty;
