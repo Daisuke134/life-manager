@@ -341,9 +341,12 @@ def _verified_attachment_denial_debt(rows: list[dict[str, Any]]) -> bool:
 
 
 def validate_semantic_judgement(
-    payload: Any, rows: list[dict[str, str]],
+    payload: Any,
+    rows: list[dict[str, str]],
+    *,
+    application_context_available: bool | None = None,
 ) -> dict[str, Any]:
-    """Enforce the effect-bearing parts the runner's schema validator cannot."""
+    """Enforce effect-bearing checks; only explicit absence enables first-pass hydration."""
     if not isinstance(payload, dict):
         raise SemanticJudgementError("semantic_result_not_object")
     expected = {
@@ -359,8 +362,36 @@ def validate_semantic_judgement(
         raise SemanticJudgementError("semantic_enum_invalid")
     if state == "explicit_estimate_request" and action == "reply":
         raise SemanticJudgementError("semantic_estimate_request_reply_conflict")
+    audit_keys = {
+        "answered_buyer_message_ids", "unanswered_questions", "unsupported_claims",
+        "unrequested_cta", "repeats_seller_message", "off_platform_contact",
+    }
+    application_hydration_wait = action == "wait" and official_context == "application"
+    if application_hydration_wait:
+        audit = payload.get("reply_audit")
+        if (
+            application_context_available is not False
+            or state != "question"
+            or not isinstance(payload.get("uncertainty"), list)
+            or not payload["uncertainty"]
+            or payload.get("estimate_terms") is not None
+            or payload.get("reply_body") is not None
+            or not isinstance(audit, dict)
+            or set(audit) != audit_keys
+            or audit.get("answered_buyer_message_ids") != []
+            or audit.get("unanswered_questions") != []
+            or audit.get("unsupported_claims") != []
+            or any(audit.get(field) is not False for field in (
+                "unrequested_cta", "repeats_seller_message", "off_platform_contact",
+            ))
+        ):
+            raise SemanticJudgementError("semantic_application_context_wait_invalid")
     purchase_decision = _unanswered_purchase_decision(rows)
-    if purchase_decision is not None and state in {"question", "negotiating", "ready_to_buy"}:
+    if (
+        purchase_decision is not None
+        and state in {"question", "negotiating", "ready_to_buy"}
+        and not application_hydration_wait
+    ):
         body = payload.get("reply_body")
         proactive = type(body) is str and body.strip().startswith(
             ("はい、いけます", "はい、ぜひ", "ぜひ対応", "対応可能です", "できます")
@@ -411,10 +442,6 @@ def validate_semantic_judgement(
         raise SemanticJudgementError("semantic_buyer_last_wait_without_blocker")
     reply_body = payload.get("reply_body")
     audit = payload.get("reply_audit")
-    audit_keys = {
-        "answered_buyer_message_ids", "unanswered_questions", "unsupported_claims",
-        "unrequested_cta", "repeats_seller_message", "off_platform_contact",
-    }
     if not isinstance(audit, dict) or set(audit) != audit_keys:
         raise SemanticJudgementError("semantic_reply_audit_invalid")
     answered = _semantic_ids(
@@ -627,6 +654,22 @@ class SemanticJudge:
         service_contract = _referenced_service_contract(rows)
         if official_context is not None and not isinstance(official_context, dict):
             raise SemanticJudgementError("semantic_official_context_invalid")
+        # A service contract merged below does not prove an application was read.
+        application = (
+            official_context.get("application")
+            if isinstance(official_context, dict) else None
+        )
+        applications = (
+            official_context.get("applications")
+            if isinstance(official_context, dict) else None
+        )
+        application_context_available = (
+            isinstance(application, dict) and bool(application)
+        ) or (
+            isinstance(applications, list)
+            and bool(applications)
+            and all(isinstance(item, dict) and bool(item) for item in applications)
+        )
         resolved_official_context = dict(official_context or {})
         if service_contract is not None:
             supplied_service = resolved_official_context.get("service")
@@ -693,7 +736,10 @@ class SemanticJudge:
                 result_path = Path(str(summary["result_path"])).resolve()
                 result_path.relative_to(run_evidence.resolve())
                 payload = json.loads(result_path.read_text(encoding="utf-8"))
-                judgement = validate_semantic_judgement(payload, rows)
+                judgement = validate_semantic_judgement(
+                    payload, rows,
+                    application_context_available=application_context_available,
+                )
                 break
             except SemanticJudgementError as error:
                 if attempt:

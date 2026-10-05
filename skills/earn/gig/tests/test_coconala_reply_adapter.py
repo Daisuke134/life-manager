@@ -898,6 +898,148 @@ def test_semantic_composer_projects_validated_judgement_without_provider_decide(
     assert calls[0][1].endswith("/12")
 
 
+@pytest.mark.parametrize(("application_mode", "second_action"), [
+    ("present", "stop"), ("present", "reply"), ("missing", None), ("error", None),
+])
+def test_semantic_composer_hydrates_application_after_real_firstpass_validation(
+    tmp_path, monkeypatch, application_mode, second_action,
+):
+    dom = {
+        "url": "https://coconala.com/mypage/direct_message/12",
+        "title": "メッセージ詳細",
+        "container_present": True,
+        "own_user_path": "/users/seller",
+        "messages": [{
+            "message_id": "buyer-1", "author_path": "/users/buyer",
+            "body": "対応できる場合は購入します。",
+            "sent_at": "2026-09-08T00:01:00Z",
+        }],
+    }
+    empty_audit = {
+        "answered_buyer_message_ids": [], "unanswered_questions": [],
+        "unsupported_claims": [], "unrequested_cta": False,
+        "repeats_seller_message": False, "off_platform_contact": False,
+    }
+    outputs = [{
+        "conversation_state": "question", "next_action": "wait",
+        "cycle_start_message_id": "buyer-1", "evidence_message_ids": ["buyer-1"],
+        "required_official_context": "application", "estimate_terms": None,
+        "reply_body": None, "reply_audit": empty_audit,
+        "uncertainty": ["公式応募条件"],
+    }]
+    if second_action == "stop":
+        outputs.append({
+            "conversation_state": "declined", "next_action": "stop",
+            "cycle_start_message_id": "buyer-1", "evidence_message_ids": [],
+            "required_official_context": "none", "estimate_terms": None,
+            "reply_body": None, "reply_audit": empty_audit, "uncertainty": [],
+        })
+    elif second_action == "reply":
+        outputs.append({
+            "conversation_state": "question", "next_action": "reply",
+            "cycle_start_message_id": "buyer-1", "evidence_message_ids": ["buyer-1"],
+            "required_official_context": "none", "estimate_terms": None,
+            "reply_body": "対応可能です。",
+            "reply_audit": {
+                **empty_audit, "answered_buyer_message_ids": ["buyer-1"],
+            },
+            "uncertainty": [],
+        })
+    runner_prompts = []
+
+    def run_isolated_runner(argv, **kwargs):
+        runner_prompts.append(kwargs["input"])
+        payload = outputs[len(runner_prompts) - 1]
+        evidence = Path(argv[argv.index("--evidence-dir") + 1])
+        evidence.mkdir(parents=True, exist_ok=True)
+        result_path = evidence / "result.json"
+        result_path.write_text(json.dumps(payload), encoding="utf-8")
+        (evidence / "summary.json").write_text(json.dumps({
+            "status": "success", "result_path": str(result_path),
+        }), encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(
+        adapter_module.requested_estimate.subprocess, "run", run_isolated_runner,
+    )
+
+    class Adapter:
+        def __init__(self):
+            self.application_reads = 0
+            self.dom_reads = 0
+            self.effects = []
+
+        def semantic_dom(self, _thread_id):
+            self.dom_reads += 1
+            return dom
+
+        def official_application_context(self, _thread_id):
+            self.application_reads += 1
+            if application_mode == "error":
+                raise RuntimeError("official application unavailable")
+            if application_mode == "missing":
+                return None
+            return {"application": {"proposal_id": "7"}}
+
+        def mutate(self, intent):
+            self.effects.append(intent)
+
+    class RecordingJudge(adapter_module.requested_estimate.SemanticJudge):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.official_inputs = []
+
+        def __call__(self, dom, expected_url, *, official_context=None):
+            self.official_inputs.append(official_context)
+            return super().__call__(dom, expected_url, official_context=official_context)
+
+    judge = RecordingJudge(
+        runner=Path(__file__),
+        schema=(
+            Path(__file__).parents[1] / "schemas" / "reply_semantic_judgement.schema.json"
+        ),
+        workdir=tmp_path,
+        evidence_root=tmp_path / "evidence",
+        seller_facts=[],
+    )
+    adapter = Adapter()
+
+    composer = adapter_module.CoconalaSemanticComposer(adapter, judge)
+    if application_mode == "error":
+        with pytest.raises(RuntimeError, match="official application unavailable"):
+            composer({"thread_id": "12"})
+        assert adapter.application_reads == 1
+        assert adapter.dom_reads == 1
+        assert judge.official_inputs == [None]
+        assert len(runner_prompts) == 1
+        assert adapter.effects == []
+        return
+
+    result = composer({"thread_id": "12"})
+    assert adapter.application_reads == 1
+    assert adapter.effects == []
+    if application_mode == "missing":
+        assert result["next_action"] == "wait"
+        assert result["required_official_context"] == "application"
+        assert result["uncertainty"] == ["公式応募条件"]
+        assert adapter.dom_reads == 1
+        assert judge.official_inputs == [None]
+        assert len(runner_prompts) == 1
+        return
+
+    if second_action == "stop":
+        assert result["conversation_state"] == "declined"
+        assert result["next_action"] == "stop"
+    else:
+        assert result["conversation_state"] == "question"
+        assert result["next_action"] == "reply"
+        assert result["reply_body"] == "対応可能です。"
+    assert adapter.dom_reads == 2
+    assert judge.official_inputs == [None, {"application": {"proposal_id": "7"}}]
+    assert len(runner_prompts) == 2
+    assert "proposal_id" in runner_prompts[1] and "7" in runner_prompts[1]
+
+
 def test_semantic_composer_waits_when_official_estimate_control_is_absent():
     class Adapter:
         def semantic_dom(self, _thread_id):
