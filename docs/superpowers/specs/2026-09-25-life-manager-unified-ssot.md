@@ -7453,3 +7453,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - safe GUI readbackはAqua/UID/domain PASS後に対象8ownerの実loaded argvが旧immutable2a8d40e6を示す。各argv hashは担当private観測artifactへ記録する。current選択・installed SHA・loadedargv・自然executionを同じproofにしない。独立manual cut/apply0。
 - financial-report最新healthは旧2a/occurrence life-manager-financial-report:18db831ee2b38328-18478/run18db831ee2b38328-18478、host_admission_deferred:resource_capacity_busy/retry_after_eligibility、effect none/not_applicable。過去entrypoint_exit1を現在の実故障へ固定しない。private state/internal-loop-financial-report-diagnosis-20261005.json/mode600。新規CFO source/取得/送信の重複作業を起こさない。
 - §217残TODO1から完了済みmain統合を除外し、release完成/current/loaded/admission/rollbackの未完だけを記載する。2〜14の順序を維持。次は自然build終端と対象loadedを照合する。全goalは未完。
+
+
+### 498. ENOSPC同run確定と後続自然build成功の分離
+
+- 最初の自然run18db832e855372c8-20666は03:11:01.768Z FAIL/rc1。最初の原因はdependency bundle npm ciのTAR_ENTRY_ERROR ENOSPC→locked dependency bundle failed。candidate/canonical cut lockは自然cleanup済み。scratch stderrもruntime自然削除済みで、観測時刻・参照・分類・terminalはprivate state/internal-loop-postmerge-readback-20261005.json/mode600に保持する。
+- root追加probe：free1136776KiB、own integration worktree103788KiB、他ownedsource3件18–20MiB。9sealed bundlesは全て既存release refsあり、protected/current/credentials/ledgerを削除しない。実lock差分はTweetNaCl1.0.3の1 package追加だけで、既存packages削除/変更なし（root dependencies以外）。手製complete/RELEASE、旧immutableへnpm変更、偽ci wrapper、unsupported additive stagingは実施しない。
+- fresh Sol/medium planning probe中にcurrent更新を確認したため、追加復旧/cleanup/source変更を中止。後続の正規cutterは /Users/anicca/loops/releases/20261005T121832-3f11ad0b をsealし、RELEASE.sha3f11ad0b8be553914215aa3263fe8d48cf0f763d/ALL/ancestor-of-origin-main、cut_at03:23:18Z、mode555、root新bundle/npm-5a322c8b…/.complete/hidden lockとtweetnacl1.0.3を確認。失敗した20666を成功へ書き換えない。
+- 03:27–28Zのsafe GUI実argvはcontrollerとcitizen-refillが新3f（2/8）、残6は旧2a。new controller自然run18db84447ebca558-89185/event_release3f開始03:25:06.543816Zがfleet段階へ進み、03:28:34–35Z ownerjournalに新3f/citizen rc0/currentを記録。old run64052の03:24:05Z rc75をこのnewrunの失敗にしない。
+- current選択はPASS、target loadは部分確認。§217cursor1の残りは6targetの実argv/admission/rollback照合。extra dependency featureや手動cut/apply/queue/fence操作0。全loop自然execution/officialreceipt/CFO/SelfBuild/Evalは依然未完。
