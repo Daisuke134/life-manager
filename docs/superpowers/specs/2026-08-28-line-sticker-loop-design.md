@@ -158,19 +158,13 @@ effect, be within the configured per-set cap, and be durably reserved by `set_id
 missing provenance fails before generation or submission.
 No provider is retried after an acknowledged paid generation effect; it is reconciled first.
 
-The first live animation route uses official Runware P-Video
-(`prunaai:p-video@0`) in 720p draft mode. The official schema supports image-to-video and a maximum
-duration of ten seconds; the official catalog price is USD 0.005 per second in that configuration.
-The source of truth is `https://runware.ai/docs/models/prunaai-p-video` plus the official
-`model pricing` readback. The production reference enters through its previously read-back Runware
-media UUID. No local path, credential, or invented cost enters the provider request.
-
-If a paid provider cannot start without personal funding, the zero-cost local fallback is a native
-FFmpeg motion provider. It uses the exact hashed production reference, produces one ten-second green
-screen source with ten visibly different whole-character transforms, and returns the same fenced
-quote/generate/reconcile receipt shape at USD 0. Deterministic transforms generate candidates only;
-they never score, select, or claim that a transform matches a chat intent. The model still inspects
-the rendered animations and owns all creative selection. The source is retained as non-regenerable.
+The live animation route is `skills/earn/line-sticker/seedance_set.py`, submitting one fal
+Seedance (`fal-ai/bytedance/seedance/v1/lite/image-to-video`) image-to-video clip per plan motion
+against the hashed character reference, with a receipt (`request_id`, `sha256`, `estimated_usd`)
+written before the loop waits on it so a crash never resubmits a paid job. Each completed clip is
+green-screen keyed and composited frame-by-frame into a full-canvas APNG candidate; `package`
+selects 24 ordered candidates plus main/tab and writes `provenance.json` with the plan and
+character hashes and the 24 clip receipts the validator checks against.
 
 The animation adapter protocol is two-phase and identity-first. `quote` returns provider, model,
 stable request id, quote token, exact Decimal cost, and expiry without generating media. The loop

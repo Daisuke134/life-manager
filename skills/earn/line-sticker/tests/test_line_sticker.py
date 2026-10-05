@@ -164,36 +164,22 @@ def _write_zip(root: Path, names: list[str] | None = None) -> None:
 
 def _write_provenance(root: Path) -> None:
     assets = {}
-    prompt_hashes = {}
     for name in PNG_NAMES:
         contents = (root / name).read_bytes()
         assets[name] = {
             "sha256": _sha256(contents),
             "intentional_alpha_holes": [],
         }
-        prompt_hashes[name] = _sha256(("prompt:" + name).encode("ascii"))
     digest = "a" * 64
     generation = {
-        "rights_evidence": {"receipt_sha256": "", "set_id": "set-20260828-001", "character_id": "char-001", "character_sha256": digest, "creation_source": "fixture", "rights": "original_ai_generated"},
         "character_sha256": digest,
         "plan_sha256": digest,
-        "selection_sha256": digest,
-        "prompt_sha256": digest,
-        "model": "fixture-model",
-        "provider": "fixture-provider",
-        "reserved_cost_usd": "0.06",
-        "actual_cost_usd": "0.06",
-        "batches": {
-            str(batch): {"quote_request_id": f"quote-{batch}", "generation_request_id": f"quote-{batch}", "quote_token": f"token-{batch}", "provider": "fixture-provider", "model": "fixture-model", "reserved_cost_usd": "0.01", "actual_cost_usd": "0.01", "source_sha256": digest, "regenerable": True}
-            for batch in range(1, 7)
-        },
-        "candidate_bindings": {
-            f"{index:02d}.png": {"motion_id": f"motion-{index:02d}", "source_sha256": digest, "segment": {"motion_id": f"motion-{index:02d}", "start_ms": 0, "end_ms": 500}, "candidate_sha256": assets[f"{index:02d}.png"]["sha256"], "conversion_argv_sha256": digest, "asset_sha256": assets[f"{index:02d}.png"]["sha256"]}
+        "clip_receipts": [
+            {"id": f"motion-{index:02d}", "request_id": f"req-{index:02d}", "sha256": digest, "estimated_usd": "0.01"}
             for index in range(1, 25)
-        },
+        ],
+        "actual_cost_usd": "0.24",
     }
-    generation["rights_evidence"]["receipt_sha256"] = _sha256(json.dumps({key: generation["rights_evidence"][key] for key in ("set_id", "character_id", "character_sha256", "creation_source", "rights")}, sort_keys=True, separators=(",", ":")).encode("utf-8"))
-    generation["generation_sha256"] = _sha256(json.dumps(generation, sort_keys=True, separators=(",", ":")).encode("utf-8"))
     (root / "provenance.json").write_text(
         json.dumps(
             {
@@ -201,7 +187,6 @@ def _write_provenance(root: Path) -> None:
                 "character_id": "char-001",
                 "rights": "original_ai_generated",
                 "providers": {"image": "openai", "animation": "fixture-provider"},
-                "prompt_hashes": prompt_hashes,
                 "assets": assets,
                 "generation": generation,
             },
@@ -216,15 +201,6 @@ def _write_provenance(root: Path) -> None:
 def _refresh_package(root: Path) -> None:
     _write_provenance(root)
     _write_zip(root)
-
-
-def _rehash_generation(root: Path) -> dict[str, object]:
-    provenance = json.loads((root / "provenance.json").read_text())
-    generation = provenance["generation"]
-    generation.pop("generation_sha256")
-    generation["generation_sha256"] = _sha256(json.dumps(generation, sort_keys=True, separators=(",", ":")).encode())
-    (root / "provenance.json").write_text(json.dumps(provenance, sort_keys=True) + "\n")
-    return provenance
 
 
 def _make_package(root: Path) -> Path:
@@ -368,7 +344,7 @@ class LineStickerValidatorTests(unittest.TestCase):
             {
                 "version": 1,
                 "source_url": "https://creator.line.me/en/guideline/animationsticker/",
-                "observed_at": "2026-08-28",
+                "observed_at": "2026-10-05",
                 "max_policy_age_days": 30,
                 "sticker_count": 24,
                 "main": {"width": 240, "height": 240, "animated": True},
@@ -398,27 +374,20 @@ class LineStickerValidatorTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual([entry["name"] for entry in first["files"]], sorted(PNG_NAMES))
 
-    def test_generation_batch_contract_rejects_cost_identity_and_source_mismatches(self) -> None:
+    def test_generation_contract_rejects_malformed_clip_receipts_and_costs(self) -> None:
         variants = {
-            "negative": lambda g: g["batches"]["1"].update({"actual_cost_usd": "-1"}),
-            "overrun": lambda g: g["batches"]["1"].update({"actual_cost_usd": "0.02"}),
-            "request": lambda g: g["batches"]["1"].update({"generation_request_id": "other"}),
-            "provider": lambda g: g["batches"]["1"].update({"provider": "other"}),
-            "top_provider": lambda g: g.update({"provider": "other"}),
-            "wrong_batch_source": lambda g: (g["batches"]["2"].update({"source_sha256": "b" * 64}), g["candidate_bindings"]["01.png"].update({"source_sha256": "b" * 64})),
-            "batch_list": lambda g: g["batches"].update({"1": []}),
-            "batch_null": lambda g: g["batches"].update({"1": None}),
-            "batch_string": lambda g: g["batches"].update({"1": "invalid"}),
-            "unsafe_motion_id": lambda g: g["candidate_bindings"]["01.png"].update({"motion_id": "junk-01", "segment": {"motion_id": "junk-01", "start_ms": 0, "end_ms": 500}}),
-            "unpadded_motion_id": lambda g: g["candidate_bindings"]["01.png"].update({"motion_id": "motion-1", "segment": {"motion_id": "motion-1", "start_ms": 0, "end_ms": 500}}),
+            "negative_cost": lambda g: g.update({"actual_cost_usd": "-1"}),
+            "non_numeric_cost": lambda g: g.update({"actual_cost_usd": "invalid"}),
+            "wrong_receipt_count": lambda g: g["clip_receipts"].pop(),
+            "receipt_missing_field": lambda g: g["clip_receipts"][0].pop("request_id"),
+            "receipt_bad_sha256": lambda g: g["clip_receipts"][0].update({"sha256": "not-hex"}),
+            "receipt_negative_estimate": lambda g: g["clip_receipts"][0].update({"estimated_usd": "-0.01"}),
         }
         for label, mutate in variants.items():
             with self.subTest(label=label):
                 _refresh_package(self.root)
                 provenance = json.loads((self.root / "provenance.json").read_text())
                 mutate(provenance["generation"])
-                generation = provenance["generation"]; generation.pop("generation_sha256")
-                generation["generation_sha256"] = _sha256(json.dumps(generation, sort_keys=True, separators=(",", ":")).encode())
                 (self.root / "provenance.json").write_text(json.dumps(provenance, sort_keys=True) + "\n")
                 self.assertIn("provenance_invalid", self._validate()["errors"])
 
@@ -811,7 +780,7 @@ class LineStickerValidatorTests(unittest.TestCase):
     def _remove_provenance(self) -> None:
         path = self.root / "provenance.json"
         provenance = json.loads(path.read_text(encoding="utf-8"))
-        del provenance["prompt_hashes"]["01.png"]
+        del provenance["assets"]["01.png"]
         path.write_text(json.dumps(provenance, sort_keys=True) + "\n", encoding="utf-8")
 
     def _change_provenance_hash(self) -> None:

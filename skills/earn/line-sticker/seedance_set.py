@@ -24,10 +24,12 @@ import urllib.error
 import urllib.request
 import zipfile
 import zlib
+from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 ENDPOINT = "fal-ai/bytedance/seedance/v1/lite/image-to-video"
 USD_PER_MILLION_TOKENS = 1.0
@@ -112,12 +114,45 @@ def _chunk(kind: bytes, data: bytes) -> bytes:
     return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
 
 
+def _enclosed_holes(alpha: np.ndarray) -> tuple[np.ndarray, int]:
+    labels, count = ndimage.label(alpha == 0)
+    border = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    return np.where(np.isin(labels, border), 0, labels), count
+
+
+def _fill_pinholes(image: Image.Image) -> Image.Image:
+    # Keying noise leaves 1-2 px fully transparent dots inside the character; paint them with the
+    # nearest opaque colour. Larger enclosed gaps (arm/body) are real art and are declared instead.
+    rgba = np.array(image.convert("RGBA"))
+    holes, count = _enclosed_holes(rgba[..., 3])
+    if not holes.any():
+        return image
+    sizes = ndimage.sum(np.ones_like(holes), holes, index=np.arange(count + 1))
+    small = (holes > 0) & (sizes[holes] <= 40)
+    _, (iy, ix) = ndimage.distance_transform_edt(rgba[..., 3] == 0, return_indices=True)
+    rgba[small] = rgba[iy[small], ix[small]]
+    rgba[small, 3] = 255
+    return Image.fromarray(rgba, "RGBA")
+
+
+def _hole_seeds(path: Path) -> list[dict[str, int]]:
+    image, seeds = Image.open(path), []
+    for index in range(getattr(image, "n_frames", 1)):
+        image.seek(index)
+        holes, _ = _enclosed_holes(np.array(image.convert("RGBA"))[..., 3])
+        for label in np.unique(holes[holes > 0]):
+            y, x = np.argwhere(holes == label)[0]
+            seeds.append({"x": int(x), "y": int(y)})
+    return seeds
+
+
 def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
     # LINE requires every frame at full canvas size; PIL and ffmpeg both crop frames to the changed
     # region, so assemble full-size frames directly from each frame's own PNG encoding.
     out = [b"\x89PNG\r\n\x1a\n"]
     sequence = 0
     for index, image in enumerate(images):
+        image = _fill_pinholes(image)
         buffer = io.BytesIO()
         image.save(buffer, "PNG", optimize=True)
         raw, chunks, offset = buffer.getvalue(), [], 8
@@ -177,7 +212,41 @@ def apng(set_dir: Path, plan: dict) -> None:
     sheet.save(set_dir / "candidates-sheet.png")
 
 
-def package(set_dir: Path, order: list[str], main_id: str, tab_id: str) -> None:
+CHARACTER_ID = "char-hamster-001"
+IMAGE_PROVIDER = "openai:gpt-image-2"
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_provenance(set_dir: Path, plan_path: Path, out: Path, names: list[str], order: list[str]) -> None:
+    assets = {name: {"sha256": _sha256_file(out / name), "intentional_alpha_holes": _hole_seeds(out / name)} for name in names}
+    clip_receipts = []
+    for motion_id in order:
+        receipt = json.loads((set_dir / "clips" / f"{motion_id}.json").read_text())
+        clip_receipts.append({
+            "id": receipt["id"], "request_id": receipt["request_id"],
+            "sha256": receipt["sha256"], "estimated_usd": str(receipt["estimated_usd"]),
+        })
+    actual_cost_usd = sum(Decimal(receipt["estimated_usd"]) for receipt in clip_receipts)
+    provenance = {
+        "set_id": set_dir.name,
+        "character_id": CHARACTER_ID,
+        "rights": "original_ai_generated",
+        "providers": {"image": IMAGE_PROVIDER, "animation": ENDPOINT},
+        "assets": assets,
+        "generation": {
+            "character_sha256": _sha256_file(set_dir / "char-ref.png"),
+            "plan_sha256": _sha256_file(plan_path),
+            "clip_receipts": clip_receipts,
+            "actual_cost_usd": str(actual_cost_usd),
+        },
+    }
+    (out / "provenance.json").write_text(json.dumps(provenance, sort_keys=True, indent=2) + "\n")
+
+
+def package(set_dir: Path, plan_path: Path, order: list[str], main_id: str, tab_id: str) -> None:
     if len(order) != 24 or len(set(order)) != 24:
         sys.exit("order must name 24 distinct candidates")
     out = set_dir / "package"
@@ -199,8 +268,9 @@ def package(set_dir: Path, order: list[str], main_id: str, tab_id: str) -> None:
     tab.thumbnail((96, 74), Image.LANCZOS)
     tab_canvas = Image.new("RGBA", (96, 74), (0, 0, 0, 0))
     tab_canvas.paste(tab, ((96 - tab.width) // 2, (74 - tab.height) // 2))
-    tab_canvas.save(out / "tab.png")
+    _fill_pinholes(tab_canvas).save(out / "tab.png")
     names = sorted(["main.png", "tab.png"] + [f"{n:02d}.png" for n in range(1, 25)])
+    _write_provenance(set_dir, plan_path, out, names, order)
     with zipfile.ZipFile(out / "submission.zip", "w", zipfile.ZIP_DEFLATED) as archive:
         for name in names:
             archive.write(out / name, name)
@@ -217,7 +287,9 @@ def main() -> None:
     parser.add_argument("--tab")
     args = parser.parse_args()
     if args.command == "package":
-        package(args.set_dir, args.order, args.main, args.tab)
+        if args.plan is None:
+            sys.exit("--plan is required for package")
+        package(args.set_dir, args.plan, args.order, args.main, args.tab)
         return
     plan = json.loads(args.plan.read_text())
     (clips if args.command == "clips" else apng)(args.set_dir, plan)

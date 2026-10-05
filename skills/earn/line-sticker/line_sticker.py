@@ -487,16 +487,22 @@ def _decode_and_check_alpha(path: Path, parsed: dict[str, object], ffmpeg: str, 
     return None
 
 
-GENERATION_KEYS = frozenset({
-    "rights_evidence", "character_sha256", "plan_sha256", "selection_sha256", "prompt_sha256",
-    "model", "provider", "reserved_cost_usd", "actual_cost_usd", "batches", "candidate_bindings", "generation_sha256",
-})
+GENERATION_KEYS = frozenset({"character_sha256", "plan_sha256", "clip_receipts", "actual_cost_usd"})
+CLIP_RECEIPT_KEYS = frozenset({"id", "request_id", "sha256", "estimated_usd"})
+
+
+def _decimal_or_none(value: object) -> Decimal | None:
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return decimal_value if decimal_value.is_finite() and decimal_value >= 0 else None
 
 
 def _provenance_errors(provenance: object, file_hashes: dict[str, str]) -> list[str]:
     if not isinstance(provenance, dict):
         return ["provenance_missing"]
-    required = {"set_id", "character_id", "rights", "providers", "prompt_hashes", "assets", "generation"}
+    required = {"set_id", "character_id", "rights", "providers", "assets", "generation"}
     if set(provenance) != required:
         return ["provenance_invalid"] if required.intersection(provenance) else ["provenance_missing"]
     errors: list[str] = []
@@ -513,20 +519,15 @@ def _provenance_errors(provenance: object, file_hashes: dict[str, str]) -> list[
         errors.append("provenance_invalid" if set(providers) else "provenance_missing")
     elif not all(type(providers[key]) is str and providers[key] for key in ("image", "animation")):
         errors.append("provenance_invalid")
-    prompt_hashes = provenance.get("prompt_hashes")
     assets = provenance.get("assets")
-    if not isinstance(prompt_hashes, dict) or not isinstance(assets, dict):
-        return ["provenance_invalid"]
-    if set(prompt_hashes) != set(PNG_NAMES):
-        errors.append("provenance_missing" if set(prompt_hashes).issubset(PNG_NAMES) else "provenance_invalid")
+    if not isinstance(assets, dict):
+        return sorted(set(errors)) + ["provenance_invalid"]
     if set(assets) != set(PNG_NAMES):
         errors.append("provenance_missing" if set(assets).issubset(PNG_NAMES) else "provenance_invalid")
     for name in PNG_NAMES:
-        if name not in prompt_hashes:
-            continue
-        if type(prompt_hashes[name]) is not str or not HEX64.fullmatch(prompt_hashes[name]):
-            errors.append("provenance_invalid")
         entry = assets.get(name)
+        if entry is None:
+            continue  # already reported as provenance_missing above
         if not isinstance(entry, dict):
             errors.append("provenance_invalid")
             continue
@@ -552,60 +553,23 @@ def _provenance_errors(provenance: object, file_hashes: dict[str, str]) -> list[
     if not isinstance(generation, dict) or set(generation) != GENERATION_KEYS:
         errors.append("provenance_invalid")
         return sorted(set(errors))
-    generation_body = dict(generation)
-    generation_hash = generation_body.pop("generation_sha256")
-    if not isinstance(generation_hash, str) or not HEX64.fullmatch(generation_hash) or _sha256(_canonical_json(generation_body)) != generation_hash:
+    if not all(type(generation.get(key)) is str and HEX64.fullmatch(str(generation[key])) for key in ("character_sha256", "plan_sha256")):
         errors.append("provenance_invalid")
-    if not all(type(generation.get(key)) is str and HEX64.fullmatch(str(generation[key])) for key in ("character_sha256", "plan_sha256", "selection_sha256", "prompt_sha256")):
+    if _decimal_or_none(generation.get("actual_cost_usd")) is None:
         errors.append("provenance_invalid")
-    rights = generation["rights_evidence"]
-    if not isinstance(rights, dict) or set(rights) != {"receipt_sha256", "set_id", "character_id", "character_sha256", "creation_source", "rights"} or not isinstance(rights.get("receipt_sha256"), str) or not HEX64.fullmatch(str(rights["receipt_sha256"])) or rights.get("set_id") != provenance.get("set_id") or rights.get("character_id") != provenance.get("character_id") or rights.get("character_sha256") != generation["character_sha256"] or rights.get("rights") != "original_ai_generated" or not isinstance(rights.get("creation_source"), str) or not rights["creation_source"]:
-        errors.append("provenance_invalid")
-    elif _sha256(_canonical_json({key: rights[key] for key in ("set_id", "character_id", "character_sha256", "creation_source", "rights")})) != rights["receipt_sha256"]:
-        errors.append("provenance_invalid")
-    if not all(type(generation.get(key)) is str and generation[key] for key in ("model", "provider", "reserved_cost_usd", "actual_cost_usd")):
-        errors.append("provenance_invalid")
-    for key in ("reserved_cost_usd", "actual_cost_usd"):
-        try:
-            value = Decimal(str(generation[key]))
-            if not value.is_finite() or value < 0:
-                errors.append("provenance_invalid")
-        except (InvalidOperation, ValueError):
-            errors.append("provenance_invalid")
-    batches = generation["batches"]
-    bindings = generation["candidate_bindings"]
-    if not isinstance(batches, dict) or set(batches) != {str(value) for value in range(1, 7)} or not isinstance(bindings, dict) or set(bindings) != {f"{value:02d}.png" for value in range(1, 25)}:
+    receipts = generation.get("clip_receipts")
+    if not isinstance(receipts, list) or len(receipts) != 24:
         errors.append("provenance_invalid")
     else:
-        reserved_total = Decimal(0)
-        actual_total = Decimal(0)
-        valid_batches: set[str] = set()
-        for batch_name, batch in batches.items():
-            if not isinstance(batch, dict) or set(batch) != {"quote_request_id", "generation_request_id", "quote_token", "provider", "model", "reserved_cost_usd", "actual_cost_usd", "source_sha256", "regenerable"} or not all(type(batch.get(key)) is str and batch[key] for key in ("quote_request_id", "generation_request_id", "quote_token", "provider", "model", "reserved_cost_usd", "actual_cost_usd")) or not isinstance(batch.get("regenerable"), bool) or not isinstance(batch.get("source_sha256"), str) or not HEX64.fullmatch(str(batch["source_sha256"])):
-                errors.append("provenance_invalid")
-                break
-            valid_batches.add(batch_name)
-            if not isinstance(providers, dict) or batch.get("generation_request_id") != batch.get("quote_request_id") or batch.get("provider") != generation.get("provider") or batch.get("model") != generation.get("model") or batch.get("provider") != providers.get("animation"):
-                errors.append("provenance_invalid")
-                break
-            try:
-                reserved_cost = Decimal(batch["reserved_cost_usd"])
-                actual_cost = Decimal(batch["actual_cost_usd"])
-                if not reserved_cost.is_finite() or not actual_cost.is_finite() or reserved_cost < 0 or actual_cost < 0 or actual_cost > reserved_cost:
-                    raise ValueError
-                reserved_total += reserved_cost
-                actual_total += actual_cost
-            except (InvalidOperation, ValueError):
-                errors.append("provenance_invalid")
-                break
-        if format(reserved_total, "f") != generation.get("reserved_cost_usd") or format(actual_total, "f") != generation.get("actual_cost_usd"):
-            errors.append("provenance_invalid")
-        for name, binding in bindings.items():
-            motion_id = binding.get("motion_id") if isinstance(binding, dict) else None
-            matched = re.fullmatch(r"motion-(0[1-9]|[1-5][0-9]|60)", motion_id) if isinstance(motion_id, str) else None
-            expected_batch = str((int(matched.group(1)) - 1) // 10 + 1) if matched else ""
-            expected = batches.get(expected_batch)
-            if not isinstance(binding, dict) or set(binding) != {"motion_id", "source_sha256", "segment", "candidate_sha256", "conversion_argv_sha256", "asset_sha256"} or expected_batch not in valid_batches or not isinstance(expected, dict) or not isinstance(motion_id, str) or not matched or any(not isinstance(binding.get(key), str) or not HEX64.fullmatch(str(binding[key])) for key in ("source_sha256", "candidate_sha256", "conversion_argv_sha256", "asset_sha256")) or (name in file_hashes and (binding.get("asset_sha256") != file_hashes[name] or binding.get("candidate_sha256") != file_hashes[name])) or binding.get("source_sha256") != expected.get("source_sha256") or not isinstance(binding.get("segment"), dict) or set(binding["segment"]) != {"motion_id", "start_ms", "end_ms"} or binding["segment"].get("motion_id") != motion_id or type(binding["segment"].get("start_ms")) is not int or type(binding["segment"].get("end_ms")) is not int or binding["segment"]["start_ms"] < 0 or binding["segment"]["end_ms"] <= binding["segment"]["start_ms"]:
+        for receipt in receipts:
+            if (
+                not isinstance(receipt, dict)
+                or set(receipt) != CLIP_RECEIPT_KEYS
+                or not all(type(receipt.get(key)) is str and receipt[key] for key in ("id", "request_id"))
+                or type(receipt.get("sha256")) is not str
+                or not HEX64.fullmatch(receipt["sha256"])
+                or _decimal_or_none(receipt.get("estimated_usd")) is None
+            ):
                 errors.append("provenance_invalid")
                 break
     return sorted(set(errors))
