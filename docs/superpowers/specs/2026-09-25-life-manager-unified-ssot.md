@@ -7406,3 +7406,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna/max実装担当は専用lm-internal-loop-integration-20261005 worktree/同名fix branchを最新mainから作成し、8修正だけを組み合わせてfocused tests/contract/remote確認する。primaryはSSOT・PR・反映調整、workerはsource統合のみ。provider/browser/state/release操作をworkerへ渡さない。GitHub issue #6604へ統合scopeと既存受入証拠を記録する。
 - 最新runtime readback 2026-10-05T02:29:54Z：currentは2a8d40e6/complete ALL、doctor178 jobs PASS。health total178=healthy46/running23/safely_fenced71/failed28/telemetry_gap2/effect_unknown8。failed28の内訳はcapacity15/FIFO4/brain_transport1/entrypoint_exit_1が8。待機19件を実故障へしない。証拠はprivate state/internal-loop-approved-doctor-20261005.jsonとinternal-loop-approved-health-20261005.json（mode600）。
 - release-reconcilerの自然実行PID12863、cut lock無し、promotion-hold無しを観測。main merge後に同既存ownerが自動cut/current/fleetへ進むsource経路を確認。AGMSGでlm-claude-capafy-recipe-1004へ共有release/current/apply予定の調整を送る。送信を排他成立や着手証明へしない。source準備は継続し、共有資源の反映前に最新所有者を照合する。main統合/本番mutationはまだ0、全goal未完。
+
+
+### 492. 8修正の組み合わせ検証
+
+- 統合worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-internal-loop-integration-20261005、branch fix/lm-internal-loop-integration-20261005、base2a8d40e68f306105c59fa21631f6b9bf01ab5c90、source HEADcf32f73adc94b2e816bbeb351a7c6e1700371d58。11commitsをconflict/意味解決なしで適用。primary独立照合で22filesが承認済み8branchの差分unionと完全一致、diffcheck PASS。
+- 統合担当の終端検証：Python focused330 passed＋54 subtests passed/exit0（95.35s）、Node15/15、Writer shell fixture2 PASS、bash-n4/4、loop contract14 catalog loops/178 registry jobs/errors0 PASS。初回Python結果は終端未回収のため成功に数えず、同focused suiteで終端結果を取り直す。
+- 既存immutable bundleにtweetnaclがなく、task-owned overlayからtweetnacl1.0.3単体49,790-byte tarballを使用。lock integrity/version一致を確認し、既存bundle・production依存は変更しない。review再現用のignored overlayは保持。
+- 次は統合branch push/remote照合→fresh Sol/medium read-only反証→PR/CI→main/既存release owner経路の反映。自然ownerと重複するcut/applyをprimaryから発行しない。共有反映の調整は未受信、provider/state mutation0。現在§217cursor1、全goal未完。
