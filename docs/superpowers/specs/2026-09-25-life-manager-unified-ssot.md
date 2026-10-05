@@ -7318,3 +7318,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 選択したdefault capture確認はreadonly DB occurrenceのowner一致/state claimed/effect_unknown0と、owners claimのversion2/phase running/owner・occurrence・PID/start一致、runtime envのrun/occurrence由来。未知/停止済み/fenced/不一致なら拒否する。pid_existsだけのfallbackを安全証明にしない。state_root/process_start等既存readonly機能を使い、新harness/DB変更を作らない。
 - workerの追加fixtureはtemporary DB/claimとcallback明示注入のみ。primaryは実state/credentialsを新worktreeコードへ向けない。旧schema1/null/Bとmissing後付けをHELDのまま保持する§480契約に沿い、まだsource受入や本番復旧とはしない。
 - 現在のbranch HEAD5ee729bから既存testsに追加REDを作成中。最新main由来source修正の所有4filesを維持。§217cursor1/source2部分並行、main例外確認未回答、snapshot→Writerの順を維持。全goal未完。
+
+
+### 482. snapshot schema2/capture修正の固定source再検証
+
+- branch fix/lm-promptbase-snapshot-proof-20261005 / HEAD・remotea88a3a2fa186414b495b34acaf8de87924b99107 / clean。追加修正は既存reconciler/test2files、全scopeは§478の4filesのみ。schema2/capture provenance、新旧記録の区別、readonly active admission確認を実装。
+- primary固定HEADの関連pytest21/21 PASS（2.59秒）、構造gate14/178/103/errors0、bash-n/diffcheck PASS。旧schema1/null/B拒否、inactive missingへの後付け拒否、正当active capture/owner・occurrence・PID/start/state/fence/run identity条件、immutable/失敗時publisher0をfixtureで確認。real DB/claim/env/credentials/HTTP/provider/実resolver操作0。
+- 新fresh gpt-6.1-sol/medium read-only reviewerにdefault capture経路・旧3反例・正当な新証拠・時刻精度/同時作成の反証を依頼。結果待ちでsource受入は保留。未来の本番自然実行や公式receiptは未確認。
+- fetch後origin/main82dのまま、受入済みtoken/fleet/refill/waitの4commitは未main。例外確認未回答なのでPR/main/applyは実行しない。§217cursor1/source2部分並行、snapshot受入後Writerへ進む、Coconala保留/SelfBuild最後、全goal未完。
