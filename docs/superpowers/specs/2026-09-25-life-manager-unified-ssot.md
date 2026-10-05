@@ -7795,3 +7795,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - AGMSG peerの追加実測報告は、verify-loops-audit scratch29dir/4.2GiB（最大1.2GiB/run）の削除と今日5回のsession停止、2分観測では他dir増加が小さくrun burstが大きいというもの。root前実測の空き188MiBも保持。共通容量故障は全laneを妨げるため、旧2〜5の監査境界/最小修復/反映/自然回収を新1〜4へ先行、旧1の収益receiptは新5へ移し独立観測継続。旧6〜47/保留/SelfBuild最後は維持。完了への繰上げ0、外部effect中断/重複0。現在47/cursor1。
 - 次の調査/修復scopeはruntime/loop/lm_loop_run.pyのowner scratch lifecycleと既存loop_cleanup/sharedtests、verify-loops-auditの自然run metadata。まずmarker/owner/path/permission/terminalを実測、report/passがある旧2巨大runをterminal未保存/effect_unknown原因と決め付けない。peerへ既存削除前metadataのみ依頼し、重複source編集しないようroot所有を通知。新たな破壊的live再現・他ownercleanup・protected store/memory/state jsonl削除は行わない。原因対応最小RED→GREEN/必要review/CI/main→immutable→自然終端/物理回収/保護削除0を完了条件とする。
 - Coconala自然反映は並行scope§533で継続。仕様を先に更新してからsource/運用を進める。
+
+
+### 535. Scratch診断の最小source変更を事前定義
+
+- fresh Sol read-only探索でremove_owned_treeのFalseをcallerが無視するgapを確定。readonly unlinkならgc-trash suffix残骸となるため、原名残留を単一原因にしない。auditは直接test/bootstrapを呼ばず、self-fix detached agent以降は可変経路。Camoufox1.3GB注記は保持するが、現inventory_status→packager publish-listにcamoufox文字列はなくdownload源と認定しない。現scratch空・self-fix tmux socket0で、旧29dirの削除前metadataは未取得。
+- 次の最小実装scopeはruntime/loop/lm_loop_run.pyの既存terminal後scratch cleanupに結果recordを加え、False/例外/未記録保護を観測可能にすることと、既存scratch/runtime fixture。共通sweeper・retention期間変更・強制chmod/未知inode削除・helper/provider/model改造なし。
+- recordはscratch外のowner stateに保存し、run/owner/occurrence/release、terminal_saved、phase、cleanup status/error class/errno、元scratch名、開いたinode/mode、marker/実残存の範囲で安全に取得したmetadataを残す。argv/envは既存hashと非secret command identityを使用し、credential値/私的本文を出さない。business terminalの成功/失敗とcleanup結果を分離する。Falseを成功にしないがunknown/effect証拠の保護は維持する。
+- RED→GREENはremove Falseが無記録になる既存main fixture、正常終端success、terminal未記録保持、cleanup例外の最小counterexamples。record失敗もtypedに観測、元business outcomeを偽装しない。source受入/fresh read-only review/CI/main→immutable owner→次自然run record/物理回収を確認し、実原因判明後だけ必要cleanup修復を追加する。現段階は診断sourceであり残留ゼロを完了扱いしない。現在47/cursor1。
