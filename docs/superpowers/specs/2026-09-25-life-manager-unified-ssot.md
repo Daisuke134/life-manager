@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 実行順 | 状態 | 残作業・受入条件 |
 |---|---|---|
 | 1 | 実行中 | 14 product/178 jobsの実故障と観測不足をowner・occurrence・loaded SHAへ結ぶ。doctorの初回PASSを保持。最新healthのfailed45はcapacity38/FIFO2/entrypoint exit1が5、gap2（§472）。履歴の失敗数を現在値に固定せず、正常待機と修復対象を分ける。 |
-| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait修正はsource受入済み。次にsnapshot proof誤認を修正し、Writer READY衝突へ進む（§478）。必要なRED→GREENを専用main由来worktreeで行う。 |
+| 2 | owner単位で並行中 | 実故障のsource根因を最小修正。token/fleet/refillはsource受入済み、本番は3に残る。PromptBase wait/snapshot capture修正はsource受入済み。次はWriter READY衝突を直す（§479/483/484）。必要なRED→GREENを専用main由来worktreeで行う。 |
 | 3 | 統合条件の確認待ち | §328の成果全体PASS→mainとmain→本番実測の循環が残る。検証済みtoken b2cde915/fleet4878be8のsource受入後main統合→immutable release→owner限定反映→自然実行確認を先行できる例外の確認が必要。他owner非干渉・effect fence・loaded argv/SHA・rollbackを保持。確認待ちの間も1/2の独立作業を続ける。 |
 | 4 | 待機 | 応募・供給loopの選定→提出→公式応募履歴を自然実行で確認。本人必須・provider待ちはtyped awaitに残し、効果不明を再送しない。 |
 | 5 | 待機 | メール・inbox・返信監視→既存返信経路を自然実行と公式記録へ結合。通知不足の根因を応募停止/設定/配信/観測不足に分ける。 |
@@ -7326,3 +7326,17 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - primary固定HEADの関連pytest21/21 PASS（2.59秒）、構造gate14/178/103/errors0、bash-n/diffcheck PASS。旧schema1/null/B拒否、inactive missingへの後付け拒否、正当active capture/owner・occurrence・PID/start/state/fence/run identity条件、immutable/失敗時publisher0をfixtureで確認。real DB/claim/env/credentials/HTTP/provider/実resolver操作0。
 - 新fresh gpt-6.1-sol/medium read-only reviewerにdefault capture経路・旧3反例・正当な新証拠・時刻精度/同時作成の反証を依頼。結果待ちでsource受入は保留。未来の本番自然実行や公式receiptは未確認。
 - fetch後origin/main82dのまま、受入済みtoken/fleet/refill/waitの4commitは未main。例外確認未回答なのでPR/main/applyは実行しない。§217cursor1/source2部分並行、snapshot受入後Writerへ進む、Coconala保留/SelfBuild最後、全goal未完。
+
+
+### 483. snapshot source PASSと中断した記述整合の保存
+
+- fresh gpt-6.1-sol/mediumは固定a88a3a2fa186414b495b34acaf8de87924b99107をsource PASS、重要指摘なし、独立21/21 PASS。旧schema/missing/binding不正resolver0、同occurrence immutable、active claim/親PID/start対応、正当schema2、秒精度・同時作成を確認。private state/provider/本番proofは未評価。primary§482検証と合わせsourceのみ受入。
+- 中断後readbackではnative担当handleなし、該当pytest/codex/git process0。残差分はLunaが編集したdocstringのみ、未commit。primaryがHEADとの差で実行AST（module docstring除外）とCLI description第1段落の一致を確認、diffcheck後に保存/pushした。新最終HEAD・remotea4a8477a7e9ba41eb0f6d8b0b41f1a173c96f069、clean。新しい動作変更/広suite/reviewは追加しない。
+- 直前の§483保存toolはabortedでファイル差分なし、commit未成立だった。状態を推定して重複commitせず、このreadback後に本節だけ記録する。source受入5件と本番未反映を分け、全goal未完を保持する。
+
+### 484. Writer READY guardを最新mainへ更新して着手準備
+
+- fetch後mainは8ab5a798a2089f433b5f822a4bb132893498c34c。追加2commitsは他ownerのCapafy sourceで、Writer対象にdiffなし。未編集writer専用branchをff-onlyで最新mainへ更新、shared checkout/他者変更を戻さない。
+- worktree `.worktrees/lm-writer-ready-canary-wait-20261005` / branch `fix/lm-writer-ready-canary-wait-20261005` / 新baseHEAD8ab5a798/clean / upstreamoriginmain。既存primary lease owner codex-money-printer-writer-canaryをsupported heartbeatで24h延長（2026-10-06T00:59:39Z）。renewはCLIに存在せず失敗、再実行せずhelp確認後heartbeatを使った。
+- 次のgeneric Luna/maxは§479の3filesだけを所有し、READY→AWAITING_MATCHED_CANARY、追加offline0/候補bytes不変、実関数/実wrapperの他状態維持をRED→最小GREENで検証。building-agents/loop-development/適用TDDを読む。provider/価格/モデル/SQLite実DB/本番を触らず、focused/構造gate/commit-push-remoteまで閉じる。SSOTはprimary所有。
+- §217cursor1/根因確定source2、次はWriter。main例外未回答、本番反映/各loop自然実行/財務接続/SelfBuildは残る。sourceDoneを全goalへ昇格しない。
