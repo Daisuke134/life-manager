@@ -7836,3 +7836,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Coconala reply保留13のsaved stateにreconcile_unknown7件を確認。estimate3件はdm_attachment_message_identity_changed、reply4件はunexpected_title3/attachment identity changed1。最新pending分類は4 reconcile_unknown/3 observation unavailable/6 retry_backoffで、state数とlatest分類を同一指標にしない。旧unknown stateにoccurrence欠損あり、receiptなし解除/再送0。
 - Paidの実業務snapshot /Users/anicca/gig/evidence/paid-direct-live/latest.json は07:01:11Z status failed/observed3/readback2/failed1、remote_builder1/awaiting_buyer2。runtime07:33 runner PASSと業務snapshotを混同しない。failed project18180857にはTikTok既存証拠があり個別追跡保留scopeを維持、全案件正常/正式納品済みとは判定しない。古い08/27 remote-owner successを現在builder復旧証拠へ代用しない。
 - 証拠state/coconala-pending-boundary-20261005.jsonにsafe counts/error classes/sourcehash/mtimeを保存。次のreadonly probeはReply保留threadの公式ページHTTP/メッセージDOM identity/見積りcard metadataの照合。raw顧客本文/credentialは出さず、既存guard配下でown pageのみ、送信・フォーム操作・vault更新・個別Paid再実行なし。
+
+
+### 540. Coconala保留threadの到達とHTTP変動の反証
+
+- registered coconala:kosuke/UUID3e99b199-9291-4ae1-826f-6e92cab470c5、既存guardをown PIDで取得/解放、own pageのみclose。07:52Zはreconcile_unknown4threadすべてHTTP200/exactroute/message containerあり、message5/1/7/3、見積りcard0/0/2/0。provider mutation/vault write0。証拠state/coconala-pending-thread-probe-20261005.json。raw DOMのmessage_id欠損は既存hash identity生成があるため、それだけを故障原因としない。見積りcard存在だけをsaved intentの送信receiptへ代用しない。
+- 07:53Zの追加比較は7threadすべてHTTP403。HTTP失敗rawDOMに対する隔離memory内attachment mergeが一部dm_attachment_message_identity_changedを再現したが、正常DOMでの恒常identity不整合の証明ではない。公式200/403の変動を確認し、stale attachmentやvault不一致を主原因と断定しない。保存state/送信fence変更0。証拠state/coconala-attachment-binding-probe-20261005.json。次は成功HTTPのsame-thread semantic context＋saved intentの公式送信/見積りrecordを結び、provider拒否とmerge境界を分ける。
+- audit source PR6632 https://github.com/Daisuke134/life-manager/pull/6632、head7f24d16a34、fresh SHIP済み。CIの現行run37280090654を追跡、pending中はmain統合しない。現在47/cursor1、個別Paid保留は再開しない。
