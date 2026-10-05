@@ -7503,3 +7503,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh gpt-6.1-sol/medium read-only reviewはsource SHIP、修正要求なし。関連4files24tests PASS＋メモリ内17counterexamplesでlegacybool/順序・回数/秘密非出力一致、diffcheck/cleanを独立確認。源認証/本番/自然成功/収益は未検証。source受入をauth復旧へ置換しない。
 - §490の明示順序例外は既存8修正に限定し、その統合・反映は§502で完了した。今回の新Lancers sourceと以後の残loop修正へ黙って拡大せず、具体的candidateを準備してから『残13作業内の内部loop修正をsource検証・freshreview・CI→main→immutable→本番実測の順序で進める』適用範囲確認をDaisへ提示する。変更不要のexternal receipt取得やread-only観測はこの確認を理由に停止しない。
 - 提示対象の境界は現specの残内部loop修正のみで、価格/paywall/app submission/外部marketing/個人資金移動/receiptなしfence解除/共有profile並行操作を含めない。今回PR/main/本番は未実施。承認後も必要なCI/source条件・release owner/lock/readbackを守る。現在cursor残1、known-root Lancers source残2はsource受入/統合順序確認待ち。全goal未完。
+
+
+### 504. 反映後の現在healthとAgent Economy auth境界
+
+- 前goal turnはprogress（承認済み8main/release/8loadedとLancerssource受入）。今回は残1の安全なread-only診断を継続。goal自動継続を§503の新規main順序例外承認と扱わず、Lancers3521sourceのPR/main/本番を保持する。docs HEADd3de479bf1とorigin/main3fをfreshfetch確認。
+- 最新health03:54:34.934Z/178はhealthy26/running23/safely_fenced69/failed53/effect_unknown5/telemetry_gap2。failed53内訳はcapacity35/FIFO2/apply_lock_busy8/brain_transport1/entrypoint_exit1が7。待機45を実故障へしない。新3fのLancersrun18db85d42470d358-71810はexit1/effectnoneで、まだ現行bool情報欠落が残る。Token/Writer/PB表示は旧release過去terminalであり新修正の再失敗を意味しない。private state/internal-loop-postrollout-health-20261005.json/mode600。
+- Capafy exact日次は新3f/loaded-idle、next calendar9:30、event/runなし。health.pyはdiagnostic_complete/last_pass不足をtelemetry_gapとする。hourlyの旧2a同entrypointrun18db8348e2c98630-30352はcapacitywait、daily-closeの旧1a20成功は履歴で、exact日次の現在成功を証明しない。新pre-start観測は次自然9:30のsame-owner/runで確認し、旧9:30発火後欠落の原因を猜測で閉じない。
+- Agent Economyは新3f自然run18db85e91eb23208-75612/wake00MUUPVCMU6DAF9EE80DB84E50のactive brain_transportを同runで照合。保存runner summary/attempts/stderrにprovider codex/profileacct1/rc2/結果なし/duration4ms/adapter_error codex automation auth unavailableを確認。brain.mjsはこれをcodex_brain_failed:exit_1へまとめる。旧transport履歴からの推論ではない。private instance/state/codex-brain/同wakeとstate/internal-loop-agent-economy-diagnosis-20261005.jsonを参照。
+- agent_runner.pyのauth検証が既定~/.codex/auth.json不在でCLI起動前に拒否する境界を確定。~/.codex-acct1/auth.jsonも不在、acct2/auth.jsonは存在するがacct1へ代用・コピー・route変更をしない。private credentials SSOTは存在し、登録metadataに該当service記録1件を確認したがauth_file/token/key/profileの復旧参照は未確認。資格情報の値は出力・repo複製しない。正しいaccount/profileのauth owner・復旧参照確認が次手。現在attemptのconfiguredmodelは旧gpt5.6-terraだが業務loopの一括model変更は行わず、Codex開発モデル規約と分ける。
+- 追加のsource/prod/auth/browser/queue/fence変更多数を起こさず、capacityに新規retry/increaseを発行しない。§217cursor残1、Lancers源修正は残2の統合順序確認待ち、全goal未完。
