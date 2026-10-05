@@ -248,7 +248,7 @@ function syncState(snapshot, travelResult) {
     const report = (travelResult && travelResult.outboundReports || []).find((item) => item && item.eventId === eventId);
     const addedForEvent = Boolean(travelResult && travelResult.inserted > 0 && report
       && report.leaveMs === snapshot.travelBlock.startMs
-      && report.arriveMs === nextEvent.startMs);
+      && report.arriveMs === snapshot.travelBlock.endMs);
     return addedForEvent ? "travel_added" : "travel_verified";
   }
   return snapshot.setupState === "ready" ? "no_travel_needed" : "sync_pending";

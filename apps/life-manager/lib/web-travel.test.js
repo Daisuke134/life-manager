@@ -272,6 +272,32 @@ test("unrelated outbound report cannot turn a verified helper into travel_added"
   assert.equal(result.syncState, "travel_verified");
 });
 
+test("travel_added requires the report arrival to match the helper end time", async () => {
+  let f;
+  f = fixture({ travelUserOnceImpl: async () => {
+    const helper = travelBlock();
+    helper.end.dateTime = "2030-01-01T09:59:30+09:00";
+    f.events.push(helper);
+    return {
+      inserted: 1,
+      outboundReports: [{
+        eventId: "event-1",
+        leaveMs: Date.parse("2030-01-01T09:35:00+09:00"),
+        arriveMs: Date.parse("2030-01-01T10:00:00+09:00"),
+      }],
+    };
+  } });
+  const response = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
+  });
+  const result = JSON.parse(response.body);
+
+  assert.equal(response.status, 200);
+  assert.equal(result.nextEvent.id, "event-1");
+  assert.notEqual(result.travelBlock.endMs, result.nextEvent.startMs);
+  assert.equal(result.syncState, "travel_verified");
+});
+
 test("setup RPC rejects a Calendar account changed after ACTIVE readback", async () => {
   const f = fixture();
   f.opts.composioCalendarAccountStatusImpl = async (scope, accountId) => {
