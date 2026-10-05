@@ -53,7 +53,7 @@
 - [x] Implement EN/JA offer routing and campaign metadata. Preserve verified 49 short chapter claim; remove unsupported chapter-length claims.
 - [x] Run focused tests and telemetry/build. Product PR #419 merged to main as 6c52d4cc13.
 
-### Task 2: Replay-safe purchase receipt, PDF delivery, and subscription state — SOURCE READY / PRODUCTION BLOCKED
+### Task 2: Replay-safe purchase receipt, PDF delivery, and subscription state — SOURCE READY / DDL ADMIN PATH REQUIRED
 
 **Files**
 - Modify: anicca-products/apps/landing/netlify/functions/webhook.js
@@ -69,14 +69,16 @@
 
 - [x] Implement signed durable webhook receipts, PDF delivery fence, DB-issued subscription generation, legacy mapping preservation, stale-readback rejection, and paid-MRR separation.
 - [x] Route both Stripe reservation and lead-magnet signup through one normalized-email advisory-lock RPC; prefer existing Stripe mapping and preserve `signed_up_at` on signup replay.
-- [x] Run focused eBook/Writer/lead-magnet tests 31/31 and PostgreSQL 18.6 fixture; verify concurrent email writers leave one subscriber row without email UNIQUE and preserve legacy mapping. Syntax/diff checks pass.
-- [x] Push source-ready change to PR #420 head `5ca501d335de3f8fdb2bf3f95e87fcf5283f0dfb`; exact-head Landing check run `37345444514` is SUCCESS.
-- [ ] Use the existing Supabase admin path to read the production email unique constraint and normalized duplicate count. Current PostgREST column types are known; unique constraint and duplicate count are not.
-- [ ] Compare production schema with the checked-in migration. Add a follow-up migration only if this authoritative readback shows an actual schema/data conflict; do not create another subscriber writer.
-- [ ] Apply the migration through the authorized production admin path, then read back `ebook_webhook_receipts`, `ebook_subscription_states`, RPC signatures/ACLs, required columns, and PostgREST schema cache.
-- [ ] Reconfirm the verified sender setting, merge PR #420 only after the production readback passes, then verify deployed SHA and health. Main push triggers production deploy.
+- [x] Run focused eBook/Writer/lead-magnet tests 31/31, writer-entitlement tests 6/6, and PostgreSQL 18.6 fixture; verify concurrent email writers leave one subscriber row without email UNIQUE and preserve legacy mapping.
+- [x] Fix non-canonical base64url signature aliases in the existing entitlement verifier; the new targeted regression was RED before the guard and the complete focused file passes 6/6.
+- [x] Extend the existing manual-only metadata workflow to report ebook schema/RPC visibility, PostgREST unique-index access, and normalized subscriber duplicate counts without logging addresses.
+- [x] Push source-ready changes to PR #420 head `85116e29aceb3d951e65f125fb3473fcb17d2b99`; exact-head Landing check `37356856068` is SUCCESS.
+- [x] Read production metadata in manual workflow run `37353322073`: buyers/subscribers column shapes match migration assumptions; 9 subscriber rows, 0 normalized-email duplicate groups, 0 empty emails. `ebook_webhook_receipts` and `ebook_subscription_states` are not exposed; ebook RPCs are absent from OpenAPI; `pg_indexes` returns 404/PGRST205. The email unique index remains unknown, but current subscriber writers use the shared advisory-lock RPC and migration logic does not require a new email index.
+- [ ] Obtain a direct Supabase DDL-capable admin path and apply the migration. Local CLI has no project link; production env has no `DATABASE_URL`/`SUPABASE_DB_URL`; Supabase management token/admin credential is absent from configured env, GitHub secrets, and credential SSOT.
+- [ ] Read back `ebook_webhook_receipts`, `ebook_subscription_states`, RPC signatures/ACLs, required columns, and PostgREST schema cache after migration.
+- [ ] Reconfirm sender readiness, merge PR #420 only after migration readback, then verify deployed SHA and health. Main push triggers production deploy.
 
-**Current production blocker:** Supabase CLI has no linked project/access token and the credentials SSOT has no Supabase admin credential. The PR body records this exact gate. Do not merge or claim production readiness until an existing admin path is available and the migration/RPC readback is complete.
+**Current production blocker:** the production REST service-role key permits schema/data readback, but no direct DDL route is available. Do not merge or claim production readiness before migration application and post-migration table/RPC/schema-cache readback.
 
 ### Task 3: Make lead-magnet signup compatible with the verified production sender — SOURCE DONE IN PR #420
 
@@ -95,7 +97,7 @@
 - [x] Run the focused tests as part of PR #420: lead-magnet plus eBook/Writer total 31/31 PASS.
 - [ ] After Task 2 deploys, verify the production function uses the configured verified sender. Free signup remains separate from paid MRR.
 
-### Task 4: Join the creative token to the natural purchase receipt
+### Task 4: Join the creative token to the natural purchase receipt — SOURCE CONTRACT DONE
 
 **Files**
 - Modify: life-manager/skills/earn/marketing-engine/ebook_runner.py only if a contract fails
@@ -109,10 +111,11 @@
 - Existing flow: render/creative receipt → owned /go/<token> → marketing_click_receipts → utm_campaign → Stripe metadata → buyer/subscriber receipt.
 - Keep creative_id distinct from attribution_token; do not create a second attribution ledger. A click receipt is not a paid order.
 
-- [ ] Add or update one focused cross-repo contract proving the same `ee_`/`ej_` token survives intent creation, `/go` validation, checkout metadata, and durable buyer receipt.
-- [ ] Reuse existing `campaign_token` and click receipt code; change only the interface the focused contract proves is broken.
-- [ ] Run that focused contract and the existing checkout/webhook tests; record the exact commands and outcomes in the unified SSOT.
-- [ ] Keep render, click, and checkout-session creation distinct from a paid order; no attribution step may mark them as a sale.
+- [x] Pin cross-repo golden vectors for `creative.contract.1`: EN `ee_hcp4v5pifa2ovj47rsir`, JA `ej_cs6k5hu42kvx65x66imw`. The Life Manager generator test and Product redirect/checkout/webhook fixtures use these same values.
+- [x] Run a local source-chain probe using the actual `stage_intents`, `/go` click receipt/redirect, checkout request/Stripe metadata, and signed webhook durable receipt/PDF payload. The Japanese vector stayed identical through every stage; all provider calls were faked.
+- [x] Run Life Manager attribution tests 8/8 and Product marketing-go/checkout/webhook tests 39/39. Product Landing check `37356856068` passes at PR #420 head `85116e29`.
+- [x] Keep render, click, and checkout-session creation distinct from a paid order; no attribution step marks them as a sale.
+- [ ] Record one natural paid Checkout and matching locale PDF provider receipt under Task 5. The source probe is not a sale or production receipt.
 
 ### Task 5: Register one eBook publishing owner using existing accounts
 
@@ -143,7 +146,7 @@
 - [ ] Continue eBook 14-day measurement in parallel; it is not a Capafy start gate after that first complete receipt.
 - [ ] Follow the single source of Capafy marketing order in `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`, Task D5: reconcile both publisher effects by official readback; make one Life Manager Instagram owner recognizable and loaded; verify the existing owned account and Postiz identity; enforce at most one canary per 24 hours; publish one Reel with provider receipt; join `ct` clicks to available paid-order/payout evidence; measure 14 days.
 - [ ] Keep the work limited to Capafy Instagram marketing. Do not change Capafy product, listing, pricing, or account-lifecycle code owned by the other developer. Do not switch to TikTok/YouTube or create a replacement account.
-- [ ] Current starting state: old publisher has active `resource_effect_unknown`; the new launchd label is currently `unmanaged_label` and its earlier occurrence is not returned by current `lm-loop` status. Resolve that owner/fence mapping before either lane can publish; never replay an unknown effect.
+- [ ] Current starting state: both publishers have active `resource_effect_unknown` fences. At 03:42 JST the new owner is managed but remains on old installed SHA `4eb6bbba`; current occurrence `life-manager-capafy-ig:18dbb4981f9573c8-86990` is exit 1 with no receipt, and both dry-run reconciliations return `no_pre_effect_terminal`. Obtain official provider readback for each occurrence before either lane can publish; never replay an unknown effect.
 - [ ] If the authenticated existing page visibly shows a supported CAPTCHA, inspect the rendered challenge first. The latest local/open-source candidate `fiptcha` is Apache-2.0 but direct-CDP compatibility is untested; use it only after a same-session compatibility check. Otherwise use the registered challenge path. After any solve, read back the expected identity and provider state. Identity, suspension, or appeal screens stay in the provider's official process.
 
 **Economic target math (not a forecast):** 1,002 paid active subscriptions at $9.99/month are about $10,000 gross MRR before fees/refunds/cost. A one-time eBook order is never MRR. Capafy acceptance remains the existing 30-day banked-net contribution definition.
