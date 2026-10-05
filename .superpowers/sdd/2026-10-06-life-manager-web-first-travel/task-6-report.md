@@ -30,3 +30,12 @@ DONE。Calendar binding の安全な復旧と定期 Web travel の ACTIVE accoun
 ## 制限
 
 本番/provider state は変更していない。今回の受け入れ範囲は source と focused test までで、本番 release・natural run・公式 readback は含めていない。
+
+## Fix round 1: checked account の固定
+
+- 原因: scheduler の ACTIVE guard が返した account ID を `fillTravel` へ渡さず、Composio transport が後から `lm_users` を再読して別の selected ID を使う余地があった。
+- 修正: Web today/snapshot と setup の共有 travel user に `expectedCalendarAccountId` を付与し、scheduler は guard の返却 ID と呼び出し元の確認 ID が違えば停止する。`fillTravel` と `listEvents7d` を通して ID を transport へ渡し、`getCalendar` の cache identity にも ID を含めた。
+- Composio list/create/patch の各 event operation 前に `uid`、`telegram_chat_id IS NULL`、`calendar_provider`、expected account ID を同じ `lm_users` row で確認する。一致しない場合は provider event endpoint を呼ばず、別 account へ fallback しない。
+- TDD RED: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js lib/travel.test.js lib/events-history.test.js lib/calendar-cache.test.js` は implementation 前に 93 件中 8 件が失敗、85 件が pass。失敗は expected ID handoff、cache 分離、marker mismatch 防止の追加回帰に限定された。
+- focused GREEN: 同じ command は 93/93 PASS。Task 6 の10ファイル全て `node --check` PASS、`git diff --check` PASS。
+- fix commit: `658f527b6b1cbeea921052ca9d4f3c98745dbd1c` (`fix(life-manager): pin web calendar calls to checked account`)。push 後の `git ls-remote` readback は同 SHA。
