@@ -8205,3 +8205,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Replyの自然終了/loadedidle/PIDnone/unknownfalse確認後に同root target-onlyapply changed/admissionresumed/install8302d79f5b6bf8f6377bbd03、safeprintactualargv一致。state/coconala-body-priority-owner-adoption-20261005.json。kernel closed44/no_reply138/unknown7/retry5、旧fence移行/解除・manualsend0、12解消はまだ未証明。Paidownerは変更しない。
 - 完了した旧残1の開発routesource/CI/mainと旧残2のauditowner反映を残表から除外、未完旧3–46を新1–44へ連番化。旧未完相対順序は不変。現在cursor1=同新sourceの自然scratch回収/再生成0、自然6h待機中は独立Coconala source/readbackを継続、manualauditwake0。source反映を物理回収/収益Doneへ代用しない。
 - §589の公式context validation修復をLuna6maxへ専用worktree/branchで割当、モデルreview6.1solMediumのCONFIRMEDと安全なfirstpass/declined契約を渡した。source以外provider/browser/launchd/auth/state操作禁止、取得無し/例外で新effect0、guard全撤去・yes合成なし。SelfBuild最後、財務unknownは維持。
+
+
+### 591. 公式context候補source SHIPとOSS exact inventory整合scope
+
+- Context候補HEAD15bec6cb40f1997d49bff71284dc44115813a775/remote一致/clean。requested_estimate.py＋既存semantic/adaptertests3files、Luna実judge→composerのhydration0 RED→1回/同judge secondpass GREEN。service-onlyと未取得はfalse、取得済み strict、declined/stop・negative replyの原文保持、missing wait/取得例外effect0。rootがfresh独立Sol6.1Mediumへ検証しsourceSHIP/重要指摘なし、pytest112/追加19/compile/contract/diff PASS、provider/browser/CLI/auth/state/source操作0。
+- source受入と統合gateは分離: node scripts/verify-oss-self-contained.mjsはroot再実行でもexit1/manifest_inventory_mismatch skills/capafy-autopublishのみ。AGMSG当該ownerへ共有済み、未返信。全gatePASS/PR/main完了とは判定しない。最小補完scopeはこの候補branchの既存OSS manifest内、現在HEADのskills/capafy-autopublish inventory/digest該当entryだけを既存generator/算定方式で整合させる。Capafy source/価格/設定/実effect、他manifestentry、Root3sourceblobは変更0。metadata差分でもLuna6maxが所有、実inventoryが不明/未知生成物を含むなら隠してPASSにせず保持し報告。
+- 13:16:22Z新sourcef61d2adb Reply自然run18dba48196fa5608-22889 reportPASS/exit0、business194observed/182readback/12pending/effect0/failed0。これは旧12解消の証拠ではない。保存last_error mtimeは反映前、7unknownの未verified readbackはstateを書換えない既存契約なので古いerror文字列を新source故障へ代用しない。retry5のnexteligible13:23:27–39Zを確認、manualwake/fence変更0。
+- 同audit新sourceはinstall以外の自然execute/terminal未取得、actualGUI env LIFE_MANAGER_REPOはimmutablef61root、releaseSHAf61をwhitelistのみ確認。物理scratch回収/実frontierModel起動は引続き未証明、cursor1を自然readbackに保持。全体44、Coconala独立修復/SelfBuild最後。
