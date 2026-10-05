@@ -18,10 +18,15 @@
 - Existing Telegram sessions, chat IDs, call consent, and Telegram onboarding continue to use their current contracts.
 - Reuse `lm_users`, `lm_panel_preferences`, Composio, `travelUserOnce`/`fillTravel`, route cache, departure calculation, and `lm_travel_log` idempotency.
 - Calendar reads and writes require an ACTIVE Composio account whose owner is the verified uid; multiple or mismatched accounts fail closed.
+- Web Calendar status reports connected only for the persisted exact ACTIVE account. A user-initiated start may recover one unique exact-uid ACTIVE account after an interrupted callback.
+- Before scheduled Web Calendar event access, re-read the current NULL-Telegram row and exact selected ACTIVE account; keep the Telegram scheduler path unchanged.
 - Home address, ACTIVE Calendar, and a successful server-owned setup transition are required before enabling daily travel automation or starting the existing three-day trial.
 - Web setup sets `call_enabled=false` and `notifications_enabled=false`; `paid` remains writable only by the existing Stripe webhook.
 - Departure remains event start minus accepted route duration minus one five-minute buffer. Calendar's existing default reminders remain in effect and must be described truthfully.
 - A created Travel event sets `send_updates` to `none`, `exclude_organizer` to `true`, and `create_meeting_room` to `false`.
+- An ambiguous create outcome keeps the `(uid,event_key,leg)` claim fenced; strict readback may resolve it, but failed/empty/ambiguous readback never triggers replay.
+- Display the appointment and departure in one effective zone: explicit appointment IANA zone, otherwise browser-local. The Travel helper's persisted UTC is not its display zone.
+- Web pause/resume/disconnect use verified uid, exact Origin, JSON, and CSRF. Resume needs saved home and exact ACTIVE Calendar binding; disconnect leaves automation paused.
 - Do not add Telegram, phone, Gmail, live location, staff management, or Web App Factory features to this MVP.
 - Do not publish a price until the official Stripe catalog and actual cost inputs have been read back. Keep the factory unimplemented until at least 10 paying Web customers and three consecutive profitable months after refunds, Stripe fees, route/provider, hosting, and attributed marketing cost.
 
@@ -30,8 +35,8 @@
 - Supabase callback with missing, expired, or replayed PKCE state must create no user row or session; pin in Task 1's callback tests.
 - Any body/query uid, chat ID, or paid value must be ignored; pin in Task 1 and Task 3's cross-tenant tests.
 - A pre-existing `lm_users` row must keep its Telegram binding and billing fields during Web sign-in; pin in Task 1's insert-only identity test.
-- A Composio account owned by another uid, an ambiguous account list, or an inactive account must cause no Calendar event read/write, trial, or automation enablement; pin in Task 2's provider tests and Task 3's setup test.
-- Missing home, an event without a physical location, an overlapping event, and repeated sync must preserve the current travel decision and create at most one helper; pin in Task 3 using the existing travel fixtures and claim contract.
+- A foreign, ambiguous, inactive, unpersisted, or rebound Composio account must never enable event access; pin Task 2/3 and OAuth/scheduler recovery in Task 6.
+- Missing home/location, overlap/repeated sync, ambiguous GO/RETURN creation, missing/invalid display timezone, or failed Web control must preserve safe travel state and show an actionable result; pin Tasks 3 and 7–9.
 
 ---
 
@@ -51,25 +56,25 @@
 - `createWebCsrfToken(uid, secret) -> string` binds a CSRF token to the verified uid with HMAC-SHA256; mutating Web endpoints require exact `Origin`, JSON, and matching `x-lm-web-csrf`.
 - `ensureWebUser(uid, opts) -> Promise<void>` inserts the uid into existing `lm_users` with conflict-ignore semantics and never overwrites a row; it rejects an existing Telegram-bound row and never links by email.
 
-- [ ] **Step 1: Add focused failing auth tests**
+- [x] **Step 1: Add focused failing auth tests**
 
 Create `web-auth.test.js` cases named `exchange requires PKCE verifier and verified Supabase subject`, `ignores client tenant fields and derives lm uid from subject`, and `refuses Web session for Telegram-bound uid without changing row`; assert existing `telegram_chat_id`, `paid`, and Stripe fields are byte-for-byte unchanged.
 
-- [ ] **Step 2: Run the auth tests and confirm the new handler contract is missing**
+- [x] **Step 2: Run the auth tests and confirm the new handler contract is missing**
 
 Run: `node --test lib/web-auth.test.js`
 Expected: FAIL because the Web auth module and HTTP routes do not exist.
 
-- [ ] **Step 3: Add the SSR dependency and implement the Web auth handler**
+- [x] **Step 3: Add the SSR dependency and implement the Web auth handler**
 
 Use the official `@supabase/ssr` server-cookie adapter and PKCE flow. Require `SUPABASE_URL` and the public `SUPABASE_ANON_KEY`; keep the service-role key server-only for the insert-only `lm_users` write. On callback, exchange the code, call `auth.getUser()`, derive `lm_<user.id>`, insert with `Prefer: resolution=ignore-duplicates`, and redirect only to `/lm`. Set no identity from query or body.
 
-- [ ] **Step 4: Wire the auth routes and rerun focused tests**
+- [x] **Step 4: Wire the auth routes and rerun focused tests**
 
 Route `/auth/google` and `/auth/google/callback` from `server.js` through `handleWebAuthRequest`. Re-run: `node --test lib/web-auth.test.js`.
 Expected: PASS; no authenticated session or user row is issued before verified `getUser`, and existing Telegram/billing fields remain unchanged. The PKCE verifier cookie is expected before the callback.
 
-- [ ] **Step 5: Commit the auth boundary**
+- [x] **Step 5: Commit the auth boundary**
 
 Commit the five listed files as `feat(life-manager): add verified web sign-in`.
 
@@ -91,24 +96,24 @@ Commit the five listed files as `feat(life-manager): add verified web sign-in`.
 - The migration allows `chat_id IS NULL` only for Web rows in existing `lm_panel_oauth_states`, adds a unique live Web state per uid, and adds service-role-only create/attach/claim RPCs. Existing Telegram RPC predicates and non-null Telegram state behavior remain unchanged.
 - The callback claims the one-time state, verifies the exact Composio account is ACTIVE and owned by the claimed uid, then writes and reads back `calendar_provider` plus `calendar_connected_account_id` in `lm_users`.
 
-- [ ] **Step 1: Add provider/state failure tests**
+- [x] **Step 1: Add provider/state failure tests**
 
 Create `web-calendar.test.js` cases `calendar status requires one exact ACTIVE account for verified uid`, `web OAuth state is single-use and unique per uid`, and `callback rejects foreign or inactive connected account`; assert rejected states cause no Calendar event call or `lm_users` mutation.
 
-- [ ] **Step 2: Run the Calendar tests and confirm the contract is missing**
+- [x] **Step 2: Run the Calendar tests and confirm the contract is missing**
 
 Run: `node --test lib/web-calendar.test.js`
 Expected: FAIL because Web-scoped OAuth routes and state functions do not exist.
 
-- [ ] **Step 3: Add Web-only atomic OAuth state to the existing state store**
+- [x] **Step 3: Add Web-only atomic OAuth state to the existing state store**
 
 Create the nullable `chat_id` Web scope, unique live-state index, and three RPCs. Keep raw OAuth state out of the database. Preserve all existing Telegram state functions and add SQL contract coverage for both NULL Web scope and non-null Telegram scope.
 
-- [ ] **Step 4: Implement Web Calendar start, status, and callback**
+- [x] **Step 4: Implement Web Calendar start, status, and callback**
 
 Require exact `Origin`, JSON, and a Web CSRF token for `POST`. Reuse the existing Composio account/status functions and `startCalendarOAuth`; do not trust a client-selected uid/account. Save the selected account only after ACTIVE owner readback. On callback, consume state exactly once before provider readback.
 
-- [ ] **Step 5: Rerun focused Calendar tests and commit**
+- [x] **Step 5: Rerun focused Calendar tests and commit**
 
 Run: `node --test lib/web-calendar.test.js`.
 Expected: PASS, including Telegram/Web state separation. Commit the module, tests, migration, and server route as `feat(life-manager): connect web calendar accounts`.
@@ -130,28 +135,28 @@ Expected: PASS, including Telegram/Web state separation. Commit the module, test
 - After setup commits and Calendar status is read back ACTIVE, call existing `travelUserOnce(user)` for the immediate sync. The same `lm_travel_log` unique `(uid,event_key,leg)` claim remains the only helper dedupe.
 - Export `listEvents7d` from `travel.js` for the Web dashboard to read the same normalized Calendar event shape; do not duplicate its query or event interpretation.
 
-- [ ] **Step 1: Add failing setup/sync tests**
+- [x] **Step 1: Add failing setup/sync tests**
 
 Create `web-travel.test.js` cases `setup stores home and starts one trial only for active unbound web user`, `ignores client uid and paid fields`, and `calendar readback must be ACTIVE before setup writes`; also pin missing-home/locationless-event state and repeat setup/scheduler execution to one trial and one helper. Keep existing overlapping/back-to-back decisions in `travel.test.js` and add only the missing replay assertion.
 
-- [ ] **Step 2: Run the setup tests and confirm the contract is missing**
+- [x] **Step 2: Run the setup tests and confirm the contract is missing**
 
 Run: `node --test lib/web-travel.test.js`
 Expected: FAIL because the Web setup/snapshot routes and RPC do not exist.
 
-- [ ] **Step 3: Add the atomic setup RPC and verified server handler**
+- [x] **Step 3: Add the atomic setup RPC and verified server handler**
 
 Validate a trimmed home address of 1–240 characters. Require a fresh exact Calendar ACTIVE readback before the RPC. The RPC locks the `lm_users` row, requires `telegram_chat_id IS NULL`, `calendar_provider='composio_gcal'`, and a selected account ID; it writes `home_address`, starts the existing trial only once, and upserts Web preferences. Do not mutate Telegram stage, phone, chat ID, Stripe billing fields, or `paid`.
 
-- [ ] **Step 4: Connect the first sync to the existing travel owner**
+- [x] **Step 4: Connect the first sync to the existing travel owner**
 
 Call `travelUserOnce` once after the committed setup transition. Return a truthful sync state; only report “Travel time added” after a fresh Calendar read contains the matching helper. A thrown, missing, or ambiguous provider read remains pending/error and never causes a second ad-hoc travel implementation.
 
-- [ ] **Step 5: Pin safe Calendar event defaults and export the existing event reader**
+- [x] **Step 5: Pin safe Calendar event defaults and export the existing event reader**
 
 In `createTravelBlock`, pass `send_updates: "none"`, `exclude_organizer: true`, and `create_meeting_room: false`. Export `listEvents7d` and add focused assertions in `travel.test.js` that event creation keeps the existing single five-minute buffer while applying all three safe defaults.
 
-- [ ] **Step 6: Rerun focused tests and commit**
+- [x] **Step 6: Rerun focused tests and commit**
 
 Run: `node --test lib/web-travel.test.js lib/travel.test.js`.
 Expected: PASS; no Calendar effect is attempted before ACTIVE, and replay uses the existing unique travel claim. Commit the files as `feat(life-manager): onboard web travel users`.
@@ -169,20 +174,20 @@ Expected: PASS; no Calendar effect is attempted before ACTIVE, and replay uses t
 - The page's small inline script links to `/auth/google`; reads Calendar status; POSTs Calendar start and follows only the server-returned `redirectUrl`; POSTs the home address to `/api/lm-web/setup`; and refreshes `/api/lm-web/today`. It sends `x-lm-web-csrf` and never sends uid/chat ID/paid.
 - The payment CTA uses existing `lib/payment-link.js:paymentLink(opts, { uid })`; display the current official Stripe terms only after catalog readback in the later launch task.
 
-- [ ] **Step 1: Add page rendering tests**
+- [x] **Step 1: Add page rendering tests**
 
 Create `web-page.test.js` cases `renders sign-in and each missing setup step`, `renders next event and verified Travel block`, `escapes event and address text`, and `payment link uses only verified uid`; assert the responsive layout includes a small-screen viewport and no Telegram setup prompt.
 
-- [ ] **Step 2: Run page tests and confirm the route does not exist**
+- [x] **Step 2: Run page tests and confirm the route does not exist**
 
 Run: `node --test lib/web-page.test.js`
 Expected: FAIL because no Web page renderer or `/lm` handler exists in the Railway server.
 
-- [ ] **Step 3: Implement the page and mount `/lm`**
+- [x] **Step 3: Implement the page and mount `/lm`**
 
 Use existing Node server and minimal inline CSS/JS; no front-end framework or second site build. Keep static public marketing source and Telegram `/panel` separate. Map only normalized data from the server API into the page.
 
-- [ ] **Step 4: Rerun page tests and commit**
+- [x] **Step 4: Rerun page tests and commit**
 
 Run: `node --test lib/web-page.test.js`.
 Expected: PASS with no client-supplied tenant identity and no false success copy. Commit as `feat(life-manager): serve web travel dashboard`.
@@ -202,23 +207,143 @@ Expected: PASS with no client-supplied tenant identity and no false success copy
 - `consumeWebAttribution(cookie, secret, nowMs) -> attribution | null` verifies signature/expiry and stores first touch only once in a new nullable `lm_users.web_first_touch` JSONB field.
 - Checkout uses `paymentLink({ stripePaymentLink }, { uid: verifiedUid })`, preserving the existing `client_reference_id` to `checkout.session.completed` → Stripe-only paid writer mapping.
 
-- [ ] **Step 1: Add attribution tests**
+- [x] **Step 1: Add attribution tests**
 
 Create `web-attribution.test.js` cases `preserves signed first-touch through Google OAuth`, `rejects tampered or expired attribution`, `keeps first touch immutable`, and `checkout carries verified uid only`; assert unknown UTM keys and oversized values are discarded.
 
-- [ ] **Step 2: Run attribution tests and confirm the contract is missing**
+- [x] **Step 2: Run attribution tests and confirm the contract is missing**
 
 Run: `node --test lib/web-attribution.test.js`
 Expected: FAIL because Web signup currently drops source data.
 
-- [ ] **Step 3: Implement signed first-touch persistence and checkout linkage**
+- [x] **Step 3: Implement signed first-touch persistence and checkout linkage**
 
 Add only a nullable `web_first_touch` field to the existing `lm_users` row. Sign attribution state with the server-only `LM_UID_SECRET`, set a secure same-site cookie, consume it after verified Google callback, and use existing Payment Link/webhook behavior. Do not create a second billing table or paid writer.
 
-- [ ] **Step 4: Rerun focused tests and commit**
+- [x] **Step 4: Rerun focused tests and commit**
 
 Run: `node --test lib/web-attribution.test.js lib/payment-link.test.js lib/billing.test.js`.
 Expected: PASS; Stripe remains the only paid-state authority. Commit as `feat(life-manager): retain web acquisition source`.
+
+### Task 6: Recover Web Calendar binding and gate scheduled reads
+
+**Files:**
+- Modify: `apps/life-manager/lib/web-calendar.js` and `apps/life-manager/lib/web-calendar.test.js`
+- Modify: `apps/life-manager/lib/web-travel.js` and `apps/life-manager/lib/web-travel.test.js`
+- Modify: `apps/life-manager/scheduler.js` and `apps/life-manager/test/scheduler.test.js`
+
+**Interface:**
+- `resolveActiveWebCalendar(uid, opts) -> Promise<{ accountId } | null>` re-reads the NULL-Telegram row, verifies its selected provider/account against exact-owner ACTIVE provider readback, then re-reads the unchanged marker before returning it.
+- GET status reports connected only for that persisted exact ACTIVE binding. POST start can recover one unique exact-uid ACTIVE account after an interrupted callback and reports connected only after marker persistence/readback.
+- `travelUserOnce` uses the Web-only guard before `fillTravel` for an `lm_<uuid>` row whose current Telegram binding is NULL; Telegram users retain their existing path.
+
+- [ ] **Step 1: Add failing recovery and scheduler-boundary cases**
+
+Cover `status is connected only for the persisted exact ACTIVE account`, `start recovers one ACTIVE account after callback binding was interrupted`, `ambiguous ACTIVE accounts are not bound`, `Web scheduler performs no Calendar read for inactive or rebound account`, and `Telegram travel keeps its existing path`.
+
+- [ ] **Step 2: Run focused tests and confirm the new cases fail**
+
+Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js`.
+Expected: the new recovery/gate assertions fail before implementation.
+
+- [ ] **Step 3: Reuse one exact-binding guard for status, recovery, and scheduled Web travel**
+
+Keep GET status read-only. On explicit POST start, recover only a unique owner-verified ACTIVE account when the local marker is missing/stale; persist and read back the exact binding. Gate `fillTravel` immediately before Calendar access without changing Telegram selection or consent.
+
+- [ ] **Step 4: Rerun focused tests and commit**
+
+Run: `node --test lib/web-calendar.test.js lib/web-travel.test.js test/scheduler.test.js`.
+Expected: recovered exact accounts work; inactive, ambiguous, mismatched, or Telegram-bound rows issue no Web Calendar read. Commit as `fix(life-manager): recover web calendar binding safely`.
+
+### Task 7: Fence ambiguous Calendar create outcomes
+
+**Files:**
+- Modify: `apps/life-manager/lib/transport/calendar-composio.js`
+- Modify: `apps/life-manager/lib/travel.js` and `apps/life-manager/lib/travel.test.js`
+- Modify: `apps/life-manager/lib/travel-return.test.js`
+
+**Interface:**
+- The travel caller can distinguish confirmed creation, definite no-effect rejection, and unknown effect. Transport/network/5xx/unreadable outcomes are not collapsed into definite rejection.
+- `fillTravel` releases a GO/RETURN claim only on a definite no-effect rejection. For unknown outcomes it performs strict Calendar readback for the exact expected helper; an exact match resolves it, while no match, ambiguity, or failed readback keeps the claim fenced and prevents replay.
+
+- [ ] **Step 1: Add failing GO and RETURN claim-fence regressions**
+
+Cover `keeps GO claim after an unknown create result`, `keeps RETURN claim after an unknown create result`, `strict exact readback recognizes an event created before response loss`, and `failed/empty/ambiguous readback never releases an unknown claim`.
+
+- [ ] **Step 2: Run focused travel tests and confirm the new cases fail**
+
+Run: `node --test lib/travel.test.js lib/travel-return.test.js`.
+Expected: unknown create outcomes currently become `successful:false` and unclaim; new assertions fail.
+
+- [ ] **Step 3: Preserve effect uncertainty from Composio through both travel legs**
+
+Keep confirmed success and definite-rejection behavior. Preserve uncertainty through the adapter, use the existing strict event reader for exact readback, and never delete the unique claim while the result remains unresolved. Preserve route-cost/allowance settlement semantics.
+
+- [ ] **Step 4: Rerun focused tests and commit**
+
+Run: `node --test lib/travel.test.js lib/travel-return.test.js`.
+Expected: both legs remain fenced on unresolved effect and no duplicate create is attempted. Commit as `fix(life-manager): retain claims for unknown calendar writes`.
+
+### Task 8: Complete truthful Today display
+
+**Files:**
+- Modify: `apps/life-manager/lib/web-travel.js` and `apps/life-manager/lib/web-travel.test.js`
+- Modify: `apps/life-manager/lib/web-page.js` and `apps/life-manager/lib/web-page.test.js`
+
+**Interface:**
+- `TodaySnapshot` adds `displayTimeZone` (the next event's validated IANA zone, otherwise null for browser-local formatting) and `missingLocationCount` (upcoming seven-day non-Travel events without a location).
+- Appointment and departure use `displayTimeZone`; the helper's stored `timezone: "UTC"` is never used as the display zone. The departure card renders before the appointment card.
+
+- [ ] **Step 1: Add failing display-zone, order, and location-count tests**
+
+Cover an event with an explicit non-UTC timezone, an event without a timezone, a helper stored in UTC, departure-first markup, and the exact upcoming seven-day count excluding past and Travel events.
+
+- [ ] **Step 2: Run focused page and snapshot tests and confirm the new cases fail**
+
+Run: `node --test lib/web-travel.test.js lib/web-page.test.js`.
+Expected: current rendering formats the helper in UTC, places appointment first, and exposes no count.
+
+- [ ] **Step 3: Add snapshot facts and use one effective display zone**
+
+Use the normalized seven-day event list already fetched by the snapshot. Do not add another Calendar query or timezone field/table. When no valid event zone exists, leave formatting to the browser's local zone.
+
+- [ ] **Step 4: Rerun focused tests and commit**
+
+Run: `node --test lib/web-travel.test.js lib/web-page.test.js`.
+Expected: event and departure times share the correct zone and the UI count/order match the spec. Commit as `fix(life-manager): render travel times in event timezone`.
+
+### Task 9: Add Web travel pause, resume, and disconnect controls
+
+**Files:**
+- Create: `apps/life-manager/migrations/2026-10-06-lm-web-travel-controls.sql`
+- Modify: `apps/life-manager/lib/web-travel.js` and `apps/life-manager/lib/web-travel.test.js`
+- Modify: `apps/life-manager/lib/web-page.js` and `apps/life-manager/lib/web-page.test.js`
+- Modify: `apps/life-manager/server.js`
+- Reuse: `apps/life-manager/lib/panel-api.js:composioCalendarDisconnect`
+
+**Interface:**
+- `POST /api/lm-web/travel/control` accepts only `{ action: "pause" | "resume" | "disconnect" }`; uid and account ID come only from the verified Web user and current server row.
+- Pause atomically sets only `daily_automation_enabled=false` for a NULL-Telegram row. Resume requires saved home plus exact selected ACTIVE account readback, then conditionally sets only `daily_automation_enabled=true` for that same account and reads back the preference.
+- Disconnect pauses first, disables the exact selected Composio account through the existing owner-check/readback path, then clears only that exact local binding. Any uncertain provider outcome leaves automation paused and does not clear the binding.
+- The page displays Pause or Resume from persisted preference state and offers Disconnect for the currently bound Calendar.
+
+- [ ] **Step 1: Add failing endpoint, migration-contract, and UI control tests**
+
+Cover missing/wrong Origin and CSRF, forged uid/account fields, Telegram-bound uid, resume without home/inactive account, exact-account disconnect, provider readback failure, paused-state persistence, and button state/copy.
+
+- [ ] **Step 2: Run focused Web control tests and confirm the new cases fail**
+
+Run: `node --test lib/web-travel.test.js lib/web-page.test.js`.
+Expected: the control route, atomic preference contract, and controls are absent.
+
+- [ ] **Step 3: Add the smallest Web-only preference RPC and route**
+
+The SQL function locks and rechecks the NULL-Telegram user row and expected account marker before preference writes. Reuse `composioCalendarDisconnect`; do not add a settings framework or change Telegram preference RPCs.
+
+- [ ] **Step 4: Wire controls into the existing page and rerun focused tests**
+
+Run: `node --test lib/web-travel.test.js lib/web-page.test.js`.
+Expected: pause/resume/disconnect report only verified persisted state and all failures remain fail-closed. Commit as `feat(life-manager): add web travel controls`.
 
 ## Required continuation after the source implementation
 

@@ -29,19 +29,23 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 - Set daily_automation_enabled=true only after Calendar is ACTIVE and a valid home address is stored. Start the existing 3-day trial once at that server-owned transition; the browser cannot set trial or paid. Stripe webhook remains the only writer of lm_users.paid.
 - Do not auto-link a Google account to a Telegram tenant by matching an unverified email. Existing Telegram accounts keep their current session and records; a future explicit link flow can be added from measured user need.
 - Calendar account writes remain user-scoped by uid and selected connected_account_id. OAuth status must be ACTIVE before Calendar reads or writes begin.
+- Web status reports connected only when the exact selected account is ACTIVE and its provider/account markers are persisted and read back on the Telegram-unbound `lm_users` row. If a callback consumed OAuth state before marker persistence, a user-initiated Calendar start may recover only one exact-uid ACTIVE account and must persist/read it back before reporting connected.
+- Before scheduled Calendar event access for a Web uid, re-read the current user row, require `telegram_chat_id IS NULL`, and verify that the exact selected account is still ACTIVE. Preserve the existing Telegram scheduler path.
 
 ## Travel Calendar Effect
 
 - The departure calculation remains event start minus accepted route duration minus the existing single 5-minute buffer.
 - The Travel helper starts at the calculated departure instant and uses the user's default Calendar reminders. Google Calendar's API inherits the calendar's default reminders when an event does not override them. If readback shows that no reminder applies, the UI does not claim an alert is configured.
 - Every created Travel event explicitly sets send_updates=none, exclude_organizer=true, and create_meeting_room=false. The event has no attendees, no Meet link, and no invitation emails.
-- Repeated onboarding or scheduler evaluation relies on the existing unique (uid,event_key,leg) claim. If a provider response is ambiguous, retain the claim and reconcile through Calendar readback; never blindly create a second helper.
+- Repeated onboarding or scheduler evaluation relies on the existing unique (uid,event_key,leg) claim. If a provider response is ambiguous, retain the claim and reconcile through strict Calendar readback; if readback cannot confirm the exact event, keep the claim fenced and do not replay.
 - Missing event location or missing home location leaves that event unchanged and explains the missing input in the Web view. Web-only users receive no Telegram location question.
 
 ## Web Interface
 
 - The route is server-rendered HTML/CSS using the existing raw Node service and the visual direction of the approved UX mock: departure time first, travel block and appointment beneath it, responsive at phone width.
-- Logged-out view has one Google sign-in action. Onboarding exposes Calendar connection and one home-location input. The signed-in view shows today's next departure, the associated appointment, travel duration, Calendar connection status, missing-location count, and pause/disconnect actions.
+- Display appointment and departure in the appointment's explicit IANA timezone; when it is absent, use the browser's local timezone. The helper's UTC storage timezone must not become the display timezone.
+- Logged-out view has one Google sign-in action. Onboarding exposes Calendar connection and one home-location input. The signed-in view shows today's next departure, the associated appointment, travel duration, Calendar connection status, the count of locationless non-Travel events in the upcoming seven-day Calendar window, and pause/resume/disconnect actions.
+- Pause changes only Web daily automation. Resume requires a saved home and the exact selected Calendar account to be ACTIVE. Disconnect pauses automation, disables the exact selected provider account with readback, then clears the local binding; a failed or unknown provider result leaves automation paused.
 - Do not add a chat interface, app-store client, employee/staff feature, background GPS, generic calendar replacement, or factory dashboard to the first version.
 - Keep the old aniccaai.com marketing surface separate from the Railway product route. The production handoff must point to the exact verified Railway /lm origin; do not edit the archived anicca-products checkout to change this feature.
 
@@ -61,15 +65,16 @@ Do not implement app-generation automation yet. Start a separate Web App Factory
 
 1. A fresh browser opens the hosted Railway /lm route, signs in with Google, and resumes without Telegram.
 2. The server verifies the Supabase user, derives uid from the verified subject, and refuses cross-tenant requests and client-supplied uid/chat_id/paid values.
-3. Calendar connection is bound to that uid; ACTIVE account readback precedes any event access.
+3. Calendar connection is bound to that uid; persisted exact ACTIVE account readback precedes any event access, including scheduler runs. Interrupted callback completion can recover through a user-initiated start only when the exact-uid ACTIVE account is unique.
 4. Home location is validated and saved. No phone, Telegram, Gmail, or call opt-in is required; Web user calls are off.
 5. First setup runs the shared travel owner and creates at most one Travel helper for each eligible event. Departure time matches the shared calculation and one 5-minute buffer.
 6. New Travel events send no attendee emails, add no organizer attendee, and request no Meet link. Calendar's default reminder behavior is read back and described truthfully.
-7. The dashboard renders the Calendar-backed appointment and Travel helper at mobile and desktop widths; missing location or Calendar authorization is shown as an actionable state.
-8. Repeat onboarding, OAuth callback, and scheduler replay produce no duplicate Calendar helper. Existing Telegram auth, call consent, and existing-user behavior pass their current contracts.
-9. Stripe subscription changes are accepted only through the existing webhook. The public price and terms match the official Stripe catalog before launch.
-10. Railway deploy SHA, fresh browser signup, Calendar ACTIVE account, created Travel event, replay-zero, Stripe invoice/renewal, and actual cost readback are reported separately.
-11. The Web App Factory remains unimplemented until its paid-user and positive-contribution gate is met.
+7. The dashboard renders the departure first, then its appointment and Travel helper at mobile and desktop widths, using one correct display timezone; missing location and Calendar authorization are actionable, and locationless upcoming events are counted.
+8. Pause/resume/disconnect controls use the verified Web identity and CSRF fence. Resume requires saved home plus exact ACTIVE Calendar binding; disconnect pauses, disables/read-backs that exact account, and clears its binding.
+9. Repeat onboarding, OAuth callback, and scheduler replay produce no duplicate Calendar helper. Unknown create outcomes retain the claim and require strict readback before any resolution. Existing Telegram auth, call consent, and existing-user behavior pass their current contracts.
+10. Stripe subscription changes are accepted only through the existing webhook. The public price and terms match the official Stripe catalog before launch.
+11. Railway deploy SHA, fresh browser signup, Calendar ACTIVE account, created Travel event, replay-zero, Stripe invoice/renewal, and actual cost readback are reported separately.
+12. The Web App Factory remains unimplemented until its paid-user and positive-contribution gate is met.
 
 ## Current External Documentation
 
