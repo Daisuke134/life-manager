@@ -13,7 +13,7 @@ const {
 } = require("./route-cache.js");
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
-const { recordUsageEvent } = require("./usage-event.js");
+const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
 
 const GOOGLE_DIRECTIONS_EST_USD = 0.005; // list price per request after free cap, checked 2026-09-06
 const GOOGLE_GEOCODING_EST_USD = 0.005;
@@ -21,14 +21,6 @@ const GOOGLE_ROUTES_PRO_EST_USD = 0.010;
 const GEOCODE_SUCCESS_TTL_MS = 24 * 60 * 60_000;
 const GEOCODE_NEGATIVE_TTL_MS = 30 * 60_000;
 const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
-const MANAGED_RUNTIME_FIELDS = [
-  "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID", "LIFE_MANAGER_RUN_ID",
-  "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RELEASE_SHA",
-];
-const USAGE_RUNTIME_FIELDS = [
-  ...MANAGED_RUNTIME_FIELDS, "RAILWAY_SERVICE_NAME", "RAILWAY_GIT_COMMIT_SHA",
-];
-
 function providerFailureClass(response, providerStatus) {
   const status = Number(response && response.status);
   if (Number.isFinite(status) && status >= 400 && status < 500) return "provider_4xx";
@@ -43,22 +35,6 @@ async function emitUsage(options, event) {
   const write = injected || recordUsageEvent;
   const runtimeEnv = options && options._usageRuntimeEnv;
   try { await write(event, runtimeEnv ? { runtimeEnv } : {}); } catch { /* observability must not break routing */ }
-}
-
-function usageRuntimeEnv(options, routeId) {
-  const source = options._runtimeEnv || process.env;
-  const runtimeEnv = Object.fromEntries(USAGE_RUNTIME_FIELDS
-    .filter((key) => source[key] != null)
-    .map((key) => [key, source[key]]));
-  const managedContextPresent = MANAGED_RUNTIME_FIELDS.some((key) => source[key] != null
-    && String(source[key]).trim() !== "");
-  if (!managedContextPresent && source.RAILWAY_SERVICE_NAME === "life-call") {
-    runtimeEnv.LIFE_MANAGER_OWNER_ID = "life-call-travel";
-    runtimeEnv.LIFE_MANAGER_RUN_ID = `route-${routeId}`;
-    runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID = `life-call-travel:route-${routeId}`;
-    runtimeEnv.LIFE_MANAGER_RELEASE_SHA = source.RAILWAY_GIT_COMMIT_SHA;
-  }
-  return runtimeEnv;
 }
 
 function noteProviderFailure(usage, failureClass) {
@@ -466,7 +442,10 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const purpose = options.purpose || (call.departureMode ? "return" : "go");
   const eventVersion = routeEventVersion({ eventId: options.eventId, anchorAtMs: call.anchorAtMs, src, dst, purpose });
   const routeId = randomUUID();
-  const usageOptions = { ...options, _usageRuntimeEnv: usageRuntimeEnv(options, routeId) };
+  const usageOptions = { ...options, _usageRuntimeEnv: usageRuntimeEnv(
+    options._runtimeEnv || process.env,
+    { fallbackOwnerId: "life-call-travel", fallbackRunId: `route-${routeId}` },
+  ) };
   const allowanceState = options._allowanceState;
   const usage = { tenantId: uid, options: usageOptions };
   const routeUsage = { tenantId: uid, options: usageOptions, failureClasses: [] };

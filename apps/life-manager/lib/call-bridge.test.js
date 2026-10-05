@@ -7,6 +7,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHmac } = require("node:crypto");
+const { EventEmitter } = require("node:events");
 const {
   routeGeminiMessage,
   buildTelnyxMediaFrame,
@@ -80,4 +82,117 @@ test("decideGeminiEnd: reconnect ONCE on a pre-audio transient failure, then end
   assert.equal(decideGeminiEnd({ gotAudio: true, reconnects: 0, carrierOpen: true }), "close");
   // Carrier already gone → nothing to reconnect for.
   assert.equal(decideGeminiEnd({ gotAudio: false, reconnects: 0, carrierOpen: false }), "close");
+});
+
+test("voice Gemini and Telnyx cost writers share one call runtime trace", async () => {
+  const RealWebSocket = require("ws");
+  const wsModulePath = require.resolve("ws");
+  const wsModule = require.cache[wsModulePath];
+  const originalWsExports = wsModule.exports;
+  const serverPath = require.resolve("../server.js");
+  const previousServerModule = require.cache[serverPath];
+  const envKeys = [
+    "GEMINI_API_KEY", "LM_CALL_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY",
+    "RAILWAY_SERVICE_NAME", "RAILWAY_GIT_COMMIT_SHA", "LIFE_MANAGER_LOOP_ID",
+    "LIFE_MANAGER_OWNER_ID", "LIFE_MANAGER_RUN_ID", "LIFE_MANAGER_OCCURRENCE_ID",
+    "LIFE_MANAGER_RELEASE_SHA",
+  ];
+  const originalEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  let bridgeServer;
+  let carrier;
+  let resolveGeminiClosed;
+  const geminiClosed = new Promise((resolve) => { resolveGeminiClosed = resolve; });
+  class FakeGeminiSocket extends EventEmitter {
+    constructor() { super(); this.readyState = RealWebSocket.CONNECTING; }
+    send() {}
+    close() {
+      if (this.readyState === FakeGeminiSocket.CLOSED) return;
+      this.readyState = FakeGeminiSocket.CLOSED;
+      this.emit("close");
+      resolveGeminiClosed();
+    }
+  }
+  Object.assign(FakeGeminiSocket, {
+    Server: RealWebSocket.Server,
+    CONNECTING: RealWebSocket.CONNECTING,
+    OPEN: RealWebSocket.OPEN,
+    CLOSED: RealWebSocket.CLOSED,
+  });
+
+  try {
+    process.env.GEMINI_API_KEY = "fake-gemini-key";
+    process.env.LM_CALL_SECRET = "fake-call-signing-secret";
+    process.env.SUPABASE_URL = "https://supa.test";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "fake-supabase-key";
+    process.env.RAILWAY_SERVICE_NAME = "life-call";
+    process.env.RAILWAY_GIT_COMMIT_SHA = "a".repeat(40);
+    for (const key of envKeys.filter((key) => key.startsWith("LIFE_MANAGER_"))) delete process.env[key];
+    globalThis.fetch = async (url, options) => {
+      requests.push({ url: String(url), options });
+      return { ok: true, status: 201, json: async () => ({}) };
+    };
+    wsModule.exports = FakeGeminiSocket;
+    delete require.cache[serverPath];
+    const { server } = require("../server.js");
+    bridgeServer = server;
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+
+    const secret = process.env.LM_CALL_SECRET;
+    const signature = createHmac("sha256", secret)
+      .update(["", "", "", "gentle", "en", "", "voice-tenant", "", "", "", ""].join("\n"))
+      .digest("base64url");
+    const query = new URLSearchParams({ urgency: "gentle", lang: "en", wakeUid: "voice-tenant", sig: signature });
+    carrier = new RealWebSocket(`ws://127.0.0.1:${server.address().port}/ws?${query}`);
+    await new Promise((resolve, reject) => {
+      carrier.once("error", reject);
+      carrier.once("open", () => carrier.send(JSON.stringify({
+        event: "start", start: { streamSid: "stream-fixture" },
+      }), (error) => error ? reject(error) : resolve()));
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const closed = new Promise((resolve) => carrier.once("close", resolve));
+    carrier.close();
+    await closed;
+    await geminiClosed;
+
+    const rows = requests
+      .filter(({ url }) => url.endsWith("/rest/v1/lm_api_cost"))
+      .map(({ options }) => JSON.parse(options.body));
+    assert.deepEqual(rows.map((row) => row.kind).sort(), ["gemini_live", "provider_usage", "telnyx_call"]);
+    const trace = rows[0].meta.runtime_trace;
+    assert.ok(trace);
+    assert.deepEqual(rows.map((row) => row.meta.runtime_trace), [trace, trace, trace]);
+    assert.deepEqual(trace, {
+      schema_version: 1,
+      status: "partial",
+      tenant_id: "voice-tenant",
+      owner_id: "life-call-voice",
+      run_id: trace.run_id,
+      occurrence_id: `life-call-voice:${trace.run_id}`,
+      release_sha: "a".repeat(40),
+      missing_fields: ["loop_id"],
+    });
+    assert.match(trace.run_id, /^run-[0-9a-f-]{36}$/);
+    assert.equal(rows.find((row) => row.kind === "provider_usage").meta.outcome, "failure");
+    assert.ok(rows.find((row) => row.kind === "provider_usage").est_usd > 0);
+    assert.equal(JSON.stringify(trace).includes("stream-fixture"), false);
+  } finally {
+    if (carrier && carrier.readyState !== RealWebSocket.CLOSED) carrier.terminate();
+    if (bridgeServer && bridgeServer.listening) {
+      await new Promise((resolve) => bridgeServer.close(resolve));
+    }
+    globalThis.fetch = originalFetch;
+    for (const key of envKeys) {
+      if (originalEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalEnv[key];
+    }
+    wsModule.exports = originalWsExports;
+    if (previousServerModule) require.cache[serverPath] = previousServerModule;
+    else delete require.cache[serverPath];
+  }
 });
