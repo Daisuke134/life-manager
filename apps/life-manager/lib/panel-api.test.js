@@ -16,8 +16,11 @@ let handlePanelOAuthCallback = async (_req, res) => {
   res.end(JSON.stringify({ error: "panel callback not implemented" }));
 };
 let createSupabaseCommandStore = null;
+let composioCalendarAccountStatus = null;
+let composioCalendarDisconnect = null;
 try {
-  ({ handlePanelApiRequest, handlePanelOAuthCallback, createSupabaseCommandStore } = require("./panel-api.js"));
+  ({ handlePanelApiRequest, handlePanelOAuthCallback, createSupabaseCommandStore,
+    composioCalendarAccountStatus, composioCalendarDisconnect } = require("./panel-api.js"));
 } catch (error) {
   if (error.code !== "MODULE_NOT_FOUND") throw error;
 }
@@ -29,6 +32,50 @@ const SESSION_HASH = crypto.createHash("sha256").update(SESSION).digest("hex");
 function jsonResponse(rows, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => rows };
 }
+
+test("Composio Calendar status requires exact ACTIVE or explicit exact disabled readback", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const statusOf = (item) => composioCalendarAccountStatus(scope, selectedId, {
+    composioKey: "provider-key",
+    fetchImpl: async () => jsonResponse(item),
+  });
+
+  assert.equal(await statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  }), "ACTIVE");
+  assert.equal(await statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  }), "DISABLED");
+  await assert.rejects(statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "EXPIRED", is_disabled: false, enabled: true,
+  }), /provider_status_unknown/);
+  await assert.rejects(statusOf({
+    id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  }), /provider_account_mismatch/);
+});
+
+test("Calendar disconnect rejects a same-owner response ID mismatch before any PATCH", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const calls = [];
+  await assert.rejects(() => composioCalendarDisconnect(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    fetchImpl: async (_url, init = {}) => {
+      calls.push(init.method || "GET");
+      return jsonResponse({
+        id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
+        status: "ACTIVE", is_disabled: false, enabled: true,
+      });
+    },
+  }), /provider_account_mismatch/);
+  assert.equal(calls.filter((method) => method === "PATCH").length, 0);
+});
 
 function makeFixture() {
   const calls = [];

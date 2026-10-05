@@ -90,12 +90,14 @@ function fixture(overrides = {}) {
       if (body.p_calendar_account_id !== row.calendar_connected_account_id) {
         return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
       }
+      if (preference && preference.calendar_disconnect_pending) {
+        return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
+      }
       row.home_address = body.p_home_address;
       row.trial_expires_at ||= TRIAL_EXPIRES_AT;
-      if (!preference) preference = { call_enabled: false, notifications_enabled: false, calendar_disconnect_pending: false };
+      if (!preference) preference = { call_enabled: false, notifications_enabled: false, daily_automation_enabled: true, calendar_disconnect_pending: false };
       preference.call_enabled = false;
       preference.notifications_enabled = false;
-      preference.daily_automation_enabled = true;
       preferenceWrites++;
       return { ok: true, status: 200, json: async () => ({ trial_expires_at: row.trial_expires_at }) };
     }
@@ -212,6 +214,7 @@ async function call(fixtureValue, method, url, requestOptions = {}) {
 
 test("setup stores home and starts one trial only for active unbound web user", async () => {
   const f = fixture();
+  f.preference = null;
   const response = await call(f, "POST", "/api/lm-web/setup", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "  自宅住所  " },
   });
@@ -225,7 +228,8 @@ test("setup stores home and starts one trial only for active unbound web user", 
   assert.equal(f.calendarReads[0].expectedCalendarAccountId, "ca-selected-123");
   assert.ok(f.sequence.indexOf("calendar_status") < f.sequence.indexOf("rpc"));
   assert.ok(f.sequence.indexOf("rpc") < f.sequence.indexOf("travel"));
-  assert.equal(f.sequence[f.sequence.indexOf("travel") - 1], "unbound");
+  assert.equal(f.sequence[f.sequence.indexOf("travel") - 2], "unbound");
+  assert.equal(f.sequence[f.sequence.indexOf("travel") - 1], "preference_read");
   assert.ok(f.sequence.indexOf("travel") < f.sequence.indexOf("calendar_read"));
   const result = JSON.parse(response.body);
   assert.equal(result.setupState, "ready");
@@ -235,6 +239,7 @@ test("setup stores home and starts one trial only for active unbound web user", 
 
 test("ignores client uid and paid fields", async () => {
   const f = fixture();
+  f.preference = null;
   const response = await call(f, "POST", "/api/lm-web/setup", {
     origin: ORIGIN,
     contentType: "application/json",
@@ -267,6 +272,58 @@ test("calendar readback must be ACTIVE before setup writes", async () => {
   assert.equal(rpcCount, 0);
   assert.equal(travelCount, 0);
   assert.equal(eventReads, 0);
+});
+
+test("setup during pending disconnect makes no home, trial, preference, or Travel mutation", async () => {
+  const f = fixture();
+  f.preference.daily_automation_enabled = false;
+  f.preference.calendar_disconnect_pending = true;
+  const response = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(JSON.parse(response.body).error, "disconnect_pending");
+  assert.equal(f.row.home_address, null);
+  assert.equal(f.row.trial_expires_at, null);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.preference.calendar_disconnect_pending, true);
+  assert.equal(f.preferenceWrites, 0);
+  assert.equal(f.travelCalls, 0);
+});
+
+test("setup preserves an existing pause and does not dispatch immediate Travel", async () => {
+  const f = fixture();
+  f.preference.daily_automation_enabled = false;
+  const response = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(f.row.home_address, "自宅住所");
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.travelCalls, 0);
+});
+
+test("setup rechecks persisted pause after Calendar ACTIVE readback before Travel dispatch", async () => {
+  const f = fixture();
+  f.preference.daily_automation_enabled = true;
+  let statusReads = 0;
+  f.opts.composioCalendarAccountStatusImpl = async (scope, accountId) => {
+    statusReads++;
+    assert.deepEqual(scope, { uid: UID });
+    assert.equal(accountId, f.row.calendar_connected_account_id);
+    if (statusReads === 2) f.preference.daily_automation_enabled = false;
+    return "ACTIVE";
+  };
+  const response = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(statusReads >= 2, true);
+  assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.travelCalls, 0);
 });
 
 test("home address length is validated before provider activity or setup RPC", async () => {
@@ -373,6 +430,7 @@ test("Today counts only upcoming seven-day non-Travel events without a location"
 test("missing Calendar helper readback remains pending", async () => {
   let travelAttempts = 0;
   const f = fixture({ travelUserOnceImpl: async () => { travelAttempts++; return { inserted: 1 }; }, calendar: { async listEventsRaw() { return [event()]; } } });
+  f.preference = null;
   const response = await call(f, "POST", "/api/lm-web/setup", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
   });
@@ -405,6 +463,7 @@ test("unrelated outbound report cannot turn a verified helper into travel_added"
       outboundReports: [{ eventId: "event-other", leaveMs: Date.parse("2030-01-01T09:35:00+09:00"), arriveMs: NOW }],
     };
   } });
+  f.preference = null;
   const response = await call(f, "POST", "/api/lm-web/setup", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
   });
@@ -429,6 +488,7 @@ test("travel_added requires the report arrival to match the helper end time", as
       }],
     };
   } });
+  f.preference = null;
   const response = await call(f, "POST", "/api/lm-web/setup", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
   });
@@ -461,6 +521,7 @@ test("setup RPC rejects a Calendar account changed after ACTIVE readback", async
 
 test("repeated setup keeps one trial and shared travel replay yields one helper", async () => {
   const f = fixture();
+  f.preference = null;
   const request = {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
   };
@@ -791,7 +852,7 @@ test("pause preserves existing call and notification preferences", async () => {
 });
 
 test("travel-control RPC locks, verifies the NULL-Telegram user and account, and updates only Web-owned fields", () => {
-  const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-06-lm-web-travel-controls.sql"), "utf8");
+  const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-06-z-lm-web-travel-controls.sql"), "utf8");
   assert.match(sql, /ADD COLUMN IF NOT EXISTS calendar_disconnect_pending boolean NOT NULL DEFAULT false/i);
   assert.match(sql, /FOR UPDATE/i);
   assert.match(sql, /telegram_chat_id\s+IS\s+NULL/i);
@@ -809,7 +870,18 @@ test("travel-control RPC locks, verifies the NULL-Telegram user and account, and
   assert.match(sql, /IF p_action = 'pause' THEN[\s\S]*?INSERT INTO public\.lm_panel_preferences[\s\S]*?VALUES\s*\(p_uid, false, false, false, false\)\s+ON CONFLICT\s*\(uid\) DO UPDATE SET daily_automation_enabled = false;/i);
   assert.match(sql, /calendar_provider\s*=\s*NULL/i);
   assert.match(sql, /calendar_connected_account_id\s*=\s*NULL/i);
-  assert.doesNotMatch(sql, /\bpaid\b|\btrial_expires_at\s*=|\bhome_address\s*=|\bcall_enabled\s*=|\bnotifications_enabled\s*=/i);
+  const controlSql = sql.slice(0, sql.indexOf("CREATE OR REPLACE FUNCTION public.complete_lm_web_travel_setup"));
+  assert.doesNotMatch(controlSql, /\bpaid\b|\btrial_expires_at\s*=|\bhome_address\s*=|\bcall_enabled\s*=|\bnotifications_enabled\s*=/i);
   assert.ok(sql.search(/user_row\.calendar_connected_account_id\s+IS DISTINCT FROM p_calendar_account_id/i)
     < sql.indexOf("UPDATE public.lm_panel_preferences"), "the locked account match must precede preference writes");
+  const setupSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.complete_lm_web_travel_setup"));
+  assert.notEqual(setupSql, sql, "the ordered controls migration must reapply setup with the fence");
+  assert.match(setupSql, /preference_row\.calendar_disconnect_pending/i);
+  assert.match(setupSql, /IF preference_exists THEN[\s\S]*?SET call_enabled = false,[\s\S]*?notifications_enabled = false/i);
+  assert.doesNotMatch(setupSql, /UPDATE public\.lm_panel_preferences[\s\S]*daily_automation_enabled\s*=/i);
+  assert.match(setupSql, /preference_exists\s+AND\s+preference_row\.calendar_disconnect_pending[\s\S]*?RAISE EXCEPTION 'calendar_disconnect_pending'/i);
+  assert.ok(setupSql.indexOf("RAISE EXCEPTION 'calendar_disconnect_pending'") < setupSql.indexOf("UPDATE public.lm_users"),
+    "the pending fence must be checked before address or trial updates");
+  assert.match(setupSql, /VALUES\s*\(p_uid, false, false, true, false\)/i);
+  assert.doesNotMatch(setupSql, /ON CONFLICT\s*\(uid\)\s*DO UPDATE SET[\s\S]*daily_automation_enabled\s*=\s*true/i);
 });

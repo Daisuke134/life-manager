@@ -844,12 +844,16 @@ function exactCalendarAccount(scope, item) {
 }
 
 async function composioCalendarAccountStatus(scope, connectedAccountId, opts = {}) {
-  if (!opts.composioKey || !/^[A-Za-z0-9_-]{3,128}$/.test(String(connectedAccountId || ""))) throw new Error("provider_unavailable");
-  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectedAccountId)}`, { headers: { "x-api-key": opts.composioKey } });
+  const expectedId = String(connectedAccountId || "");
+  if (!opts.composioKey || !/^[A-Za-z0-9_-]{3,128}$/.test(expectedId)) throw new Error("provider_unavailable");
+  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(expectedId)}`, { headers: { "x-api-key": opts.composioKey } });
   if (!response.ok) throw new Error("provider_failed");
   const item = await jsonOr(response, {});
   if (!exactCalendarAccount(scope, item)) throw new Error("provider_ownership");
-  return sameEnabledCalendarAccount(item, connectedAccountId) ? "ACTIVE" : "DISABLED";
+  if (String(item.id) !== expectedId) throw new Error("provider_account_mismatch");
+  if (sameEnabledCalendarAccount(item, expectedId)) return "ACTIVE";
+  if (sameDisabledCalendarAccount(item, expectedId)) return "DISABLED";
+  throw new Error("provider_status_unknown");
 }
 
 async function composioCalendarEventCount(scope, connectedAccountId, opts = {}) {
@@ -877,7 +881,7 @@ function sameEnabledCalendarAccount(item, id) {
 }
 
 function sameDisabledCalendarAccount(item, id) {
-  return Boolean(item && item.id === id && item.status !== "ACTIVE" && item.is_disabled === true
+  return Boolean(item && item.id === id && ["INACTIVE", "DISABLED"].includes(item.status) && item.is_disabled === true
     && (item.enabled === undefined || item.enabled === false));
 }
 
@@ -910,34 +914,38 @@ async function composioCalendarAccounts(scope, opts = {}) {
 
 async function composioCalendarDisconnect(scope, opts = {}) {
   let account;
+  const expectedId = String(opts.connectedAccountId || "");
   if (opts.connectedAccountId) {
-    const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(opts.connectedAccountId)}`, { headers: { "x-api-key": opts.composioKey } });
+    const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(expectedId)}`, { headers: { "x-api-key": opts.composioKey } });
     if (!response.ok) throw new Error("provider_failed");
     account = await jsonOr(response, {});
     if (!exactCalendarAccount(scope, account)) throw new Error("provider_ownership");
+    if (String(account.id) !== expectedId) throw new Error("provider_account_mismatch");
   } else {
     const accounts = await composioCalendarAccounts(scope, opts);
     if (accounts.length === 0) return { provider: "calendar", state: "action_required" };
     if (accounts.length !== 1 || !accounts[0].id) throw new Error("provider_ambiguous");
     account = accounts[0];
   }
-  if (account.status !== "ACTIVE" || account.is_disabled === true || account.enabled === false) return { provider: "calendar", state: "action_required" };
-  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(account.id)}/status`, {
+  const accountId = String(account.id);
+  if (sameDisabledCalendarAccount(account, accountId)) return { provider: "calendar", state: "action_required" };
+  if (!sameEnabledCalendarAccount(account, accountId)) throw new Error("provider_status_unknown");
+  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(accountId)}/status`, {
     method: "PATCH",
     headers: { "x-api-key": opts.composioKey, "content-type": "application/json" },
     body: JSON.stringify({ enabled: false }),
   });
   if (!response.ok) throw new Error("provider_failed");
   const readback = opts.connectedAccountId
-    ? await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(account.id)}`, { headers: { "x-api-key": opts.composioKey } }).then((value) => value.ok ? jsonOr(value, {}) : null)
+    ? await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(accountId)}`, { headers: { "x-api-key": opts.composioKey } }).then((value) => value.ok ? jsonOr(value, {}) : null)
     : await composioCalendarAccounts(scope, opts).then((items) => items.length === 1 ? items[0] : null);
-  if (!sameDisabledCalendarAccount(readback, account.id)) {
-    const rollback = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(account.id)}/status`, { method: "PATCH", headers: { "x-api-key": opts.composioKey, "content-type": "application/json" }, body: JSON.stringify({ enabled: true }) });
+  if (!exactCalendarAccount(scope, readback) || !sameDisabledCalendarAccount(readback, accountId)) {
+    const rollback = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(accountId)}/status`, { method: "PATCH", headers: { "x-api-key": opts.composioKey, "content-type": "application/json" }, body: JSON.stringify({ enabled: true }) });
     if (!rollback.ok) throw new Error("provider_rollback_failed");
     const restored = opts.connectedAccountId
-      ? await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(account.id)}`, { headers: { "x-api-key": opts.composioKey } }).then((value) => value.ok ? jsonOr(value, {}) : null)
+      ? await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(accountId)}`, { headers: { "x-api-key": opts.composioKey } }).then((value) => value.ok ? jsonOr(value, {}) : null)
       : await composioCalendarAccounts(scope, opts).then((items) => items.length === 1 ? items[0] : null);
-    if (!sameEnabledCalendarAccount(restored, account.id)) throw new Error("provider_rollback_failed");
+    if (!exactCalendarAccount(scope, restored) || !sameEnabledCalendarAccount(restored, accountId)) throw new Error("provider_rollback_failed");
     throw new Error("provider_readback_failed");
   }
   return { provider: "calendar", state: "action_required" };

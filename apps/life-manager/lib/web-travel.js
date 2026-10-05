@@ -447,18 +447,22 @@ async function handleWebTravelRequest(req, res, opts = {}) {
     let travelResult = null;
     if (status === "ACTIVE") {
       await assertUnbound(uid, opts);
-      try {
-        travelResult = await travelOwnerOnce({
-          uid,
-          home_address: homeAddress,
-          call_time_zone: null,
-          daily_automation_enabled: true,
-          call_enabled: false,
-          notifications_enabled: false,
-          telegram_chat_id: null,
-          expectedCalendarAccountId: row.calendar_connected_account_id,
-        }, opts);
-      } catch { /* the strict post-run Calendar read remains the success boundary */ }
+      const preference = await readWebAutomationPreference(uid, opts);
+      const storedHomeAddress = normalizeHomeAddress(row.home_address);
+      if (preference.dailyAutomationEnabled === true && preference.disconnectPending !== true && storedHomeAddress) {
+        try {
+          travelResult = await travelOwnerOnce({
+            uid,
+            home_address: storedHomeAddress,
+            call_time_zone: null,
+            daily_automation_enabled: preference.dailyAutomationEnabled,
+            call_enabled: false,
+            notifications_enabled: false,
+            telegram_chat_id: null,
+            expectedCalendarAccountId: row.calendar_connected_account_id,
+          }, opts);
+        } catch { /* the strict post-run Calendar read remains the success boundary */ }
+      }
     }
     const snapshot = await buildTodaySnapshot(uid, opts);
     return sendJson(res, 200, { ...snapshot, syncState: syncState(snapshot, travelResult) });
