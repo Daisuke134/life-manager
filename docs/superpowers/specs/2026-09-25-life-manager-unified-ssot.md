@@ -3220,6 +3220,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 ### 2026-10-06 JST — AGMSG temp-space復旧とteam census再試行
 
 - この追記はAGMSG観測基盤の復旧だけを記録し、§84-Aの収益TODO順序、CFO/Mobileの所有境界、収益成果の完了判定は変更しない。
+- 以下のteam/source数値はPR #4統合前の履歴値。現在の状態は後続の「AGMSG source修正統合後」節で上書きする。
 - **容量障害の原因と修正:** `where.sh`は`mktemp`の`No space left on device`で一度失敗し、Data volume空きは158MiB・使用率100%だった。最新mainの`apps/life-manager/scripts/generate-larry-slide-pack.test.js`を確認すると、共有`tempDataDir()`は各caseでobject-store用一時ディレクトリを作る一方、cleanupは10 case中3 caseだけだった。prefix一致の残存24 directory（約14.7MiBずつ）は`lsof`でopen handleなしを確認し、これらだけ削除した。直後の空きは515MiBとなり、`where.sh`は`resolved=true placement=none terminal=plain`を返して容量エラーが消えた。protected storeやruntime stateの削除はない。
 - **再発防止source proof:** branch `fix/larry-slide-pack-test-cleanup-20261006` / PR #6692 は、全`tempDataDir`作成時にNode test contextの`t.after`でcleanupを登録するtest-only修正を含む。修正前のfocused実行はtest 1/1 PASSでもfixture directory数が0→1へ増えるREDを確認した。修正後はfocused file 10/10 PASS、fixture count 0→0、`node --check`、`git diff --check`、source-boundary PASS。PR/mergeや本番loop動作とは別のsource受入証拠であり、売上やproduction effectの証明ではない。
 - **team censusの初回結果:** temp-space解消後も5行の後でplain: no addressable pane has a containerが出て90秒以上止まり、起動元processをexit 130で中断した。完全rosterや全員停止の証拠ではない。
@@ -3229,7 +3230,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - 現sessionはcodex-money-printerをstatus=okでclaimしたが、whereはplacement none、Codex bridgeはnot running、fix.shはno_candidate_in_env、inboxは新着0件。lm-ios-growth-1004、lm-cfo-observability-1002、lm-claude-capafy-recipe-1004は返信がなく、公式peekはいずれもno_placement_recordを返した。
 - AGMSG source候補の /Users/anicca/.agents は別repository Daisuke134/anicca-agents-skillsのdirty mainで、HEAD 4862e008 / origin/main 8dc1827d（behind 3）、674 changed paths中248件がAGMSG関連。open PR、source worktree、stashはなく、関連fileの最終mtimeは2026-09-30、open file handleなし。既存WIPは保全し、674件を一括統合しない。
 
-#### 最新AGMSG復旧cursor（2026-10-06）
+#### source修正前のAGMSG復旧cursor（2026-10-06）
 
 1. PR #6692はmain merge commit 4a6b08a9095de29e88f9113b4ca393682f2693aeへ到達済み。tempDataDir cleanupのsource修正は統合済みで、容量復旧の再発防止項目をDoneとする。
 2. AGMSG source修正は最新origin/main由来の専用branchで行い、local 1.5.1 snapshotのAGMSG packageだけを保全して取り込む。dirty checkoutは変更せず、teams/run/db/.trashとAGMSG外のskill変更は含めない。
@@ -3237,6 +3238,22 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 4. PR/CI/merge後にcurrent AGMSG installへ安全にreadbackし、通常のteam.sh lm --jsonがstubなしで全49登録を返すことを確認する。placement・bridge・remote bindingは別々に観測し、registrationやroster-only診断をlive statusへ置き換えない。他seatのidentity/placementは外部から書き換えない。
 5. PR/CI/merge後にteam.shを通常経路で再readbackする。placement・bridge・remote bindingは別々に観測し、registrationやroster-only診断をlive statusへ置き換えない。他seatのidentity/placementは外部から書き換えない。
 6. AGMSG修正と§84-Aの収益TODOは独立に保つ。CFO/Mobile席が実際に再参加するまでは着手済み・handover済みと数えない.
+
+### 2026-10-06 JST — AGMSG source修正統合後のteam readback
+
+- **結論:** Terminalの未計測peek/pokeで止まっていた通常の`team.sh lm --json`は、local installにmerged guardを適用した後、stubなしで完走し49登録を返した。これは登録・到達可能性のreadbackであり、49人が稼働中という証拠ではない。
+- **source修正:** `Daisuke134/anicca-agents-skills` PR #4（head `0b843635fa3c9f7fefb98cbb2f70ddf067f9fd80`）はmain merge commit `be2a4197457d9d7fe99cc64f84391281c2ce60c9`へ統合済み。Terminal peek/pokeをApple Eventなしの`unknown`へ短絡し、despawnのexact-tab probeを維持した。独立read-only reviewで見つかったSlack curlrc、team-delete再検証、ext-tool PGIDの3件も回帰test付きで修正した。focused tests 4/4、Bash 142件・Node 14件・Python 5件のsyntax、ShellCheck、gitleaks、diff checkがPASS。CodeRabbitは198 changed filesが上限150を超えたため自動reviewをskipした。
+- **local install:** `/Users/anicca/.agents`はmain `4862e008da3bf4926384900c34f083069d31dc5d`、origin/main `be2a4197457d9d7fe99cc64f84391281c2ce60c9`より7 commit behindで、既存dirty stateは674 paths。対象`plain/ops.sh`は元からuntrackedで、merged sourceと比較してTerminal guardだけを適用した。適用後の対象ファイルはmerged sourceと一致し、dirty path数は674のまま、stage/commitはしていない。他のWIPと`teams/`・`run/`・`db/`は変更していない。
+- **全team census:** 49件（Codex 35、Claude Code 14）。reachは`can=2 / cannot=32 / unknown=15`、activityは`n/a:unsupported=14 / unknown:no_placement_record=32 / unknown:observe_rc_10=3`。terminal driverはplain 14、tmux 3、driver不明32。delivery表示はmonitor 19、off 29、turn 1。identity consistencyはunverified 43、n/a 6。よってcensus停止は解消したが、全席のlivenessやplacementは未確定のまま。
+- **Life Manager project:** `doctor --project ... --team lm --redacted`は31 registrations（Codex 19、Claude Code 12）、watch process 0、stale pidfile 0、warning 5を返した。Claude Code deliveryはoffで、5件にstale lock警告。Codex delivery hooksはmonitor設定だが、6席は記録済みsessionのbridgeがnot running、13席はsession未記録。`codex-money-printer`はlock owner aliveだがCodex bridgeはnot running。team `peek`はproject内31件、他project除外18件のうち`read_rc_10=12`、`no_record=19`を返し、画面内容は稼働証拠にしていない。
+- **接続とidentity:** `team-list --json --scope project`は`lm.binding_state=none`、`remote status lm`は未接続を返した。cross-machine deliveryは成立していない。current `whoami`は19候補の`multiple=true`を返したため、このreadbackではidentity claim、seat takeover、send、poke、arrangeを行わず、他seatのlock/placementも変更していない。
+
+#### AGMSGの残TODO
+
+1. 既存`codex-money-printer` live lockのownerを保ったまま、owner側のCodexをmonitor shim経由で起動し、bridge/inbox readbackを確認する。bridge停止やno placementを、登録のみから稼働と推定しない。
+2. 31件のproject censusで`read_rc_10`と`no_record`の境界をowner-localに解消する。stale lockや他seatのplacementは、ownerと復旧根拠が確認できないまま外部から削除・書換えしない。
+3. remote endpoint/bindingが未確認のため、cross-machine接続は未完了として保持する。
+4. これらの運用課題は§84-Aの収益TODO順を変えず、CFO/Mobileの完了条件にも算入しない。
 
 ### 2026-10-06 JST — ANICCA iOS TestFlight release cursor
 
