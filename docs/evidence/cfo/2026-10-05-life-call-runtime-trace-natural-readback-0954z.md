@@ -21,10 +21,10 @@
 
 実請求額は分からない。`$0.085`はcost row直下の`est_usd` usage推定値であり、Google invoice、settlement、音声通話料、会社全体の実費はこの照会では確認していない。
 
-同じwindowには上記の38 `provider_usage`以外に7 `composio_call` rowsもある。row `est_usd`は7行とも$0.000で、operationはCalendar list 6回とcreate 1回。これは記録されたtool呼び出しと推定額であり、Calendar側のeffect receiptや実請求が0である証明ではない。全ledger行数は45。音声carrier費用もこのledger集計では確認できない。
+同じwindowには上記の38 `provider_usage`以外に7 `composio_call` rowsもある。row `est_usd`は7行とも$0.000で、operationはCalendar list 6回とcreate 1回。返却された`meta`は`tool`だけで、runtime trace、receipt/effect/readback、actual cost、billing statusは含まれない。CREATE_EVENT行は実行結果を保存していないため、Calendar effectの成功・失敗・未発生はいずれも確定できず、呼出しを再送しない。7件の$0推定額も実請求ゼロの証明ではない。全ledger行数は45。音声carrier費用もこのledger集計では確認できない。
 
 - 34件の`partial`はすべてowner=`life-call-travel`で、run ID・owner-prefixed occurrence ID・deploy SHA一致のrelease SHAを持つ。欠落項目は`loop_id`だけ。
 - 4件の`unlinked`は09:44:34.329592–09:45:35.520675 UTCに記録され、5つのtrace identity項目を欠く。writer境界は未特定。`provider_usage`の`linked` rowは0件。
 - canonical Product Loop catalogにこのTravel ownerのloop IDがないため、`loop_id`は推測していない。
 
-A1は未完了。自然runのtrace contextは記録されたが、Product Loopへの正しい帰属、4 unlinked rowsのwriter境界、他provider経路のtrace/cost coverageは未確認である。
+A1は未完了。自然runのtrace contextは記録されたが、Product Loopへの正しい帰属、4 unlinked rowsのwriter境界、7件のComposio callのtrace/receipt/cost、他provider経路のcoverageは未確認である。
