@@ -320,7 +320,7 @@ def wake(state_root: Path, deps: Deps) -> dict:
 
 # --------------------------------------------------------------------------------------
 # Production dependency wiring (real APIs / browser). Imported lazily so tests never
-# need FAL_KEY, OPENAI_API_KEY, or a browser lease.
+# need FAL_KEY, GEMINI_API_KEY, or a browser lease.
 # --------------------------------------------------------------------------------------
 
 def production_deps() -> Deps:

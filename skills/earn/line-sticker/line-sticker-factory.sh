@@ -12,15 +12,15 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOM
 set -uo pipefail
 PY="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
 [ -x "$PY" ] || { echo "python with playwright is required" >&2; exit 2; }
-ENV_FILE="${LINE_STICKER_ENV_FILE:-$HOME/.openclaw/.env}"
+ENV_FILE="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}/.env"
 if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090
   . "$ENV_FILE"
   set +a
 fi
-if [ -z "${FAL_KEY:-}" ] || [ -z "${OPENAI_API_KEY:-}" ]; then
-  echo "FAL_KEY and OPENAI_API_KEY are required (checked $ENV_FILE)" >&2
+if [ -z "${FAL_KEY:-}" ] || [ -z "${GEMINI_API_KEY:-}" ]; then
+  echo "FAL_KEY and GEMINI_API_KEY are required (checked $ENV_FILE)" >&2
   exit 2
 fi
 exec "$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/factory.py"
