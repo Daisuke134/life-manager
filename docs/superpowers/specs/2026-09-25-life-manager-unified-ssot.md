@@ -7979,3 +7979,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - guard source eb90543166818b041d6dcfcc641b18fae6fc3d67をpush/remote一致/clean。reply/estimate oldunknown→newBのRED4→GREEN、kernel37/Coconalaowner1/CrowdWorksreply40/Mercorreply14/compile/contract/diff PASS。OSSはskills/_shared（今回source）とskills/capafy-autopublish（main由来）のinventory mismatch。source候補未review/未統合。次は当該2inventory entryだけ既存方式で更新、他source/registry/価格/旧fence変更0、Coconalaを含むsharedkernelの反証reviewへ進める。
 - ENOSPC再発でspec文言修正とfetchが失敗、成功と判定しない。audit scratch回収後も他消費が続き、Root会話履歴/SQLite/認証/stateJSONLは削除しない。source再開容量scopeはroot委譲したmain統合済み専用worktree5件（lancers-awswaf-solver/reserved-release-adoption/codex-prelaunch-auth-failover/coconala-reply-inbox-transport/coconala-estimate-readback、末尾20261005）。tracked/untracked clean・HEAD main到達をread-only確認、ignoredはpytest/cache pycだけ。
 - 原所有workerが具体path/登録/HEAD/leaseowner/empty状態/新fetchmain到達/PR無し/cwd・openfile無しを同operationで再確認して退役する。known cacheのみ清掃、未知ignored/所有者不一致/不可用条件は保持。force-remove/一括unlock/他owner/未完branch/currentdocs/rootactiveguardを触らない。remote/main/sourceevidence保持、退役結果と空き容量を保存。metadata補完2entryも同workerが所有、価格/内容変更無し。全体47/cursor1、SelfBuildは最後。
+
+
+### 560. 原所有者による完了5worktree退役とmanifest補完継続
+
+- 原所有workerが§559の5件を個別に全6条件で正規退役。追加.deepevalは空dir/file0と確認、known pytest/pycのみ先に清掃してENOSPC循環を解消。known finalHEADと旧leaseHEAD差は履歴/remote/main到達を確認して通常heartbeat整合、未知変更として強制解除せず。freshmain f9e4b2a6d82729b1218c10346e25f8a6685738cf、各openPR無し/clean/owner一致/cwd・openfile無し→unlock/remove→記録leaseのみ削除、worktreelist/prune-n readbackで5件無し。未完guard/currentdocs/他owner/認証/履歴/stateJSONLは保持。
+- dfは回収後一時383MiB、別消費が続くため数字を恒久容量やroot回収効果だけへ帰属しない。止まっていたlocal§559のcommit/pushは0c29fa28b9で復旧、remote確認済み。SelfFix旧modelを規則適合として扱う文言はed72977841で修正、開発委譲6lunaMax/review6.1solMediumを維持。
+- guard候補eb90543166818b041d6dcfcc641b18fae6fc3d67は専用branch/remote/clean保持、Luna原workerが指定shared/Capafy inventory2entryのみ補完中。sourceGREEN37/1/40/14、OSS未PASS・freshreview未完で本番へ進めない。次はmetadataPASS/commitpush→freshread-only反証→CI/main/immutable/targetnatural oldunknown保持/replay0。全体47/cursor1、Coconala保留12/添付2/SHA1は解消未証明。
