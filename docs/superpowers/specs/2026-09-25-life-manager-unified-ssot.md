@@ -7462,3 +7462,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh Sol/medium planning probe中にcurrent更新を確認したため、追加復旧/cleanup/source変更を中止。後続の正規cutterは /Users/anicca/loops/releases/20261005T121832-3f11ad0b をsealし、RELEASE.sha3f11ad0b8be553914215aa3263fe8d48cf0f763d/ALL/ancestor-of-origin-main、cut_at03:23:18Z、mode555、root新bundle/npm-5a322c8b…/.complete/hidden lockとtweetnacl1.0.3を確認。失敗した20666を成功へ書き換えない。
 - 03:27–28Zのsafe GUI実argvはcontrollerとcitizen-refillが新3f（2/8）、残6は旧2a。new controller自然run18db84447ebca558-89185/event_release3f開始03:25:06.543816Zがfleet段階へ進み、03:28:34–35Z ownerjournalに新3f/citizen rc0/currentを記録。old run64052の03:24:05Z rc75をこのnewrunの失敗にしない。
 - current選択はPASS、target loadは部分確認。§217cursor1の残りは6targetの実argv/admission/rollback照合。extra dependency featureや手動cut/apply/queue/fence操作0。全loop自然execution/officialreceipt/CFO/SelfBuild/Evalは依然未完。
+
+
+### 499. Lancers情報欠落のread-only確定と独立source準備
+
+- Sol/medium read-only診断はLancers run18db8437c931fbe0-84924/occurrence lancers-revenue-work-sync:18db4c8d06b05418-91938/installed・event2a/exit1/effect none-not_applicableを照合。work-sync-owner/application_tick.py/work_sync.pyは2a→3fで差分0。旧成功log/JSONでないwork-sync.jsonを現認証証拠にしない。
+- 確定した境界はapplication_tick._production_account_readyで、responseなし/HTTP非200/final route不一致/login_form/例外をFalseへ潰し、work_sync.run_tickのaccount_unavailableが詳細を失う点。根本のauth/access/transport原因は未確定。再ログイン/強制wake/fence解放の根拠へしない。
+- 自然release/loadの1は継続し、実コードが旧/新releaseで同一の上記ownerだけ、診断2からsource準備3を独立並行する。理由は同じ情報欠落が新release採用だけでは解消せず、待つより次の安全な自然観測が早まるため。全体1→14順/現在cursor1と進行中effectは変更しない。
+- Luna/maxを最新main由来の専用lm-lancers-account-diagnostics-20261005 worktree/fix branchに割当。許可filesは上記2modules/関連focused testsのみ。既存bool callersの実動作を維持し、work-sync結果へHTTP status/knownroute category/login count/例外型/typedreasonを伝搬、body/query/contact/credentials/例外messageを出さない。5False枝/成功/秘密非出力の最小RED→GREENを行う。
+- 本件はsource-only準備。8修正のmain例外をこの新規変更へ自動拡大せず、freshreview後に統合条件をprimaryが確認する。provider/browser/auth/state/SSOT/PR/main/releaseはworker操作0。Capafy/CFO他laneと重複しない。
