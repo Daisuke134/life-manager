@@ -120,8 +120,9 @@ def selector(set_dir: Path, plan: dict) -> dict:
 2. 残りから24個を選び order に入れる（見た目のバリエーションと使いやすさを優先、文字なし）。
 3. 24個のうち、メインアイコンにふさわしい1つを main、タブアイコンにふさわしい1つを tab として選ぶ。
 4. listing.title / listing.description を日本語・英語で確定する（既存の下書き: {json.dumps(plan.get('listing', {}), ensure_ascii=False)}）。
-5. tags: order内の各idごとに、日本語タグを以下の有効リストだけから4〜6個（最大9個）選ぶ。
-   リストにない語は使わない。 有効タグ一覧: {json.dumps(tags, ensure_ascii=False)}
+5. tags: orderの1番目を"01"、2番目を"02"、...24番目を"24"として、各sticker_numberごとに日本語タグを
+   以下の有効リストだけから4〜6個（最大9個）選ぶ。リストにない語は使わない。
+   有効タグ一覧: {json.dumps(tags, ensure_ascii=False)}
 6. taste_id: 次の候補からこのキャラクターに最も合うものを1つ選ぶ: {json.dumps(TASTE_OPTIONS, ensure_ascii=False)}
 7. character_category_id: 次の候補から1つ選ぶ: {json.dumps(CHARACTER_OPTIONS, ensure_ascii=False)}
 8. campaign_value は null にする（キャンペーン不参加）。

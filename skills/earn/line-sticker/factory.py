@@ -194,8 +194,10 @@ def run_character(set_dir: Path, deps: Deps) -> str:
     seedance_plan = {
         "reference": "ref-padded.png",
         "motions": [
-            {"id": m["id"], "prompt": m["prompt"], "start": m.get("start", 0.0),
-             "seconds": m.get("seconds", 2.0), "plays": m.get("plays", 2)}
+            {"id": m["id"], "prompt": m["prompt"],
+             "start": m.get("start") if m.get("start") is not None else 0.0,
+             "seconds": m.get("seconds") if m.get("seconds") is not None else 2.0,
+             "plays": m.get("plays") if m.get("plays") is not None else 2}
             for m in plan_draft["motions"]
         ],
     }
@@ -233,7 +235,8 @@ def run_select(set_dir: Path, state_root: Path, deps: Deps) -> str:
     listing.setdefault("price_jpy", 250)
     listing.setdefault("regions", "all")
     _atomic_write_json(set_dir / "listing.json", listing)
-    _atomic_write_json(set_dir / "tags.json", selection["tags"])
+    tags_by_number = {row["sticker_number"]: row["tags"] for row in selection["tags"]}
+    _atomic_write_json(set_dir / "tags.json", tags_by_number)
     return "package"
 
 

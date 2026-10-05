@@ -35,7 +35,7 @@ def _fake_deps(**overrides) -> MODULE.Deps:
         selector=lambda set_dir, plan: {
             "order": [f"m{i}" for i in range(24)], "main": "m0", "tab": "m1",
             "listing": {"title": {"ja": "テスト", "en": "Test"}, "description": {"ja": "説明", "en": "desc"}},
-            "tags": {f"{n:02d}": ["はぁ"] for n in range(1, 25)},
+            "tags": [{"sticker_number": f"{n:02d}", "tags": ["はぁ"]} for n in range(1, 25)],
             "taste_id": "1", "character_category_id": "10", "campaign_value": None,
         },
         packager=lambda set_dir, plan_path, order, main_id, tab_id: (set_dir / "package").mkdir(exist_ok=True),
