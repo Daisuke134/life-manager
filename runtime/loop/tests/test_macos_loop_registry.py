@@ -69,6 +69,14 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 "schema_version": 2, "loops": {"example": missing_contract},
             })
 
+    def test_x_repost_opts_into_queued_release_reconcile(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x-repost"]
+        self.assertEqual(row.get("resource_class"), "agent")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertIs(row.get("reconcile_queued_release"), True)
+
     def test_queued_wake_coalescing_requires_reserved_wake_coalescing(self):
         row = entry()
         row["coalesce_queued_wakes"] = True

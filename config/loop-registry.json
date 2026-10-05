@@ -3778,6 +3778,7 @@
       "state_root": "~/.local/state/life-manager/writer"
     },
     "x-repost": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": [
           {
@@ -3802,9 +3803,12 @@
       },
       "entrypoint": "skills/x-repost/x-repost-en-cli.sh",
       "label": "ai.anicca.x-repost-pass",
+      "priority": "support",
+      "reconcile_queued_release": true,
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/en/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
     },
     "x-repost-digest": {
