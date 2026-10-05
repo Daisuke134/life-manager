@@ -518,6 +518,10 @@ class ProviderLeaseBusy(RuntimeError):
     pass
 
 
+class CodexAutomationAuthMissing(ValueError):
+    pass
+
+
 def acquire_provider_lease(path_value: str) -> int | None:
     """Acquire the optional provider-owned lock and return its open descriptor."""
     if not path_value:
@@ -734,7 +738,11 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
         auth_file = Path(os.path.expandvars(os.path.expanduser(str(
             provider_config.get("auth_file", "~/.codex/auth.json")
         ))))
-        if not auth_file.is_file():
+        try:
+            auth_stat = auth_file.stat()
+        except FileNotFoundError as error:
+            raise CodexAutomationAuthMissing("codex automation auth unavailable") from error
+        if not stat.S_ISREG(auth_stat.st_mode):
             raise ValueError("codex automation auth unavailable")
         auth_source = auth_file.resolve()
         auth_target = codex_home / "auth.json"
@@ -1382,13 +1390,14 @@ def codex_failover_action(
     if result_fresh and error_class != "transient_unavailable":
         return "stop"
     if candidate.get("account_fallback_next"):
-        if error_class in {"transient_quota", "transient_auth"}:
+        if error_class in {"transient_quota", "transient_auth", "codex_prelaunch_auth_missing"}:
             return "retry_next_account"
         if error_class in {"transient_timeout", "transient_unavailable"}:
             return "continue_next_non_codex"
         return "stop"
     if error_class in {
         "transient_timeout", "transient_quota", "transient_unavailable", "transient_auth",
+        "codex_prelaunch_auth_missing",
     }:
         return "continue_next_non_codex"
     return "stop"
@@ -1615,6 +1624,7 @@ def run() -> int:
         timed_out = False
         launch_error = ""
         adapter_error = ""
+        codex_prelaunch_auth_missing = False
         required_capabilities: list[str] = []
         model_capabilities: dict[str, Any] = {}
         candidate_prompt = prompt
@@ -1690,6 +1700,12 @@ def run() -> int:
                     launch_error = str(error)
                     stderr.write((launch_error + "\n").encode())
                     rc = 127
+        except CodexAutomationAuthMissing as error:
+            adapter_error = str(error)
+            codex_prelaunch_auth_missing = True
+            rc = 2
+            stdout_path.touch()
+            stderr_path.write_text(adapter_error + "\n", encoding="utf-8")
         except Exception as error:
             adapter_error = str(error)
             rc = 2
@@ -1714,8 +1730,13 @@ def run() -> int:
         stdout_text = stdout_path.read_text(encoding="utf-8", errors="replace")
         stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
         usage = extract_provider_usage(provider, stdout_text, model=effective_candidate.get("model"))
+        if codex_prelaunch_auth_missing:
+            usage["measurement"] = "prelaunch_auth_missing"
         if budget_enabled:
-            charged_tokens = budget_charge_tokens(provider, usage, token_reservation)
+            charged_tokens = (
+                0 if codex_prelaunch_auth_missing
+                else budget_charge_tokens(provider, usage, token_reservation)
+            )
             settlement = budget_ledger.settle(
                 event_id=budget_event_id,
                 actual_tokens=charged_tokens,
@@ -1738,8 +1759,11 @@ def run() -> int:
             and (rc == 0 or (provider == "codex" and timed_out))
             and not codex_toolhost_unavailable
         )
-        error_class = None if accepted_result else classify_provider_error(
-            rc, timed_out, stdout_text, stderr_text, launch_error, provider=provider,
+        error_class = None if accepted_result else (
+            "codex_prelaunch_auth_missing" if codex_prelaunch_auth_missing
+            else classify_provider_error(
+                rc, timed_out, stdout_text, stderr_text, launch_error, provider=provider,
+            )
         )
 
         row = {
