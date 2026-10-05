@@ -145,20 +145,19 @@ function readJapaneseCostTable({ rows, headerRowIndex, headers, invoiceMonth, ob
   }
   if (currency !== "JPY") throw new Error("google_billing_currency_invalid");
   const selected = [];
-  let cost = 0n; let tax = 0n; let rounding = 0n; let matchedDate = false;
+  let cost = 0n; let tax = 0n; let rounding = 0n;
   for (const values of rows.slice(headerRowIndex + 1)) {
     if (values.length > headers.length) throw new Error("google_billing_csv_row_invalid");
     const cells = values.length === headers.length
       ? values : [...values, ...Array(headers.length - values.length).fill("")];
     const type = String(cells[typeIndex] || "").trim();
-    const month = String(cells[startIndex] || "").trim().slice(0, 7);
-    if (month === String(invoiceMonth)) matchedDate = true;
     const raw = decimalUnits(cells[rawCostIndex] || cells[costIndex]);
     if (type === "税金") { tax += raw; continue; }
     if (type === "丸めエラー") { rounding += raw; continue; }
     if (type === "合計") { if (invoiceTotal == null) invoiceTotal = decimalText(raw); continue; }
-    if (month !== String(invoiceMonth) || !String(cells[serviceIndex] || "").trim()
+    if (!String(cells[serviceIndex] || "").trim()
       || !String(cells[skuIndex] || "").trim()) continue;
+    if (raw === 0n) continue;
     cost += raw;
     selected.push({
       service: cells[serviceIndex].trim(), sku: cells[skuIndex].trim(),
@@ -166,7 +165,7 @@ function readJapaneseCostTable({ rows, headerRowIndex, headers, invoiceMonth, ob
       projectId: projectIndex >= 0 ? cells[projectIndex].trim() : null,
     });
   }
-  if (!matchedDate || invoiceTotal == null || !selected.length) {
+  if (invoiceTotal == null || !selected.length) {
     return {
       status: "unknown", rows: [], receiptRef, totals: null, invoiceTotalJpy: invoiceTotal,
       invoiceMonth: String(invoiceMonth), observedAt,

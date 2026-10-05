@@ -192,8 +192,6 @@ def google_billing_actual_cost_readback(
                 if invoice_total is None:
                     invoice_total = amount
                 continue
-            if cells[index["date"]].strip()[:7] != invoice_month:
-                continue
             service = cells[index["service"]].strip()
             sku = cells[index["sku"]].strip()
             if not service or not sku or amount == 0:

@@ -341,6 +341,29 @@ class StripeTest(unittest.TestCase):
         })
         self.assertTrue(all(line["basis"] == "official_invoice" for line in payload["documents"][0]["line_items"]))
 
+    def test_google_billing_includes_previous_month_usage_row_in_selected_invoice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cost-table.csv"
+            rows = [
+                ["合計お支払い額", "¥0.000300", ""],
+                ["通貨", "JPY", ""],
+                ["サービスの説明", "SKU の説明", "費用のタイプ", "使用開始日", "四捨五入前の費用（¥）", "プロジェクト ID"],
+                ["Cloud Storage", "Standard storage", "使用量", "2026-08-31", "0.000300", "project"],
+            ]
+            with path.open("w", encoding="utf-8", newline="") as stream:
+                csv.writer(stream).writerows(rows)
+            payload = m.google_billing_actual_cost_readback(
+                path, invoice_month="2026-09", snapshot_at=SNAPSHOT,
+                trailing_start=TRAILING_START,
+            )
+
+        line = payload["documents"][0]["line_items"][0]
+        self.assertEqual(line["amount"], "0.0003")
+        self.assertEqual(line["occurred_at"], "2026-08-31T00:00:00Z")
+        self.assertEqual(payload["readback"]["variance"], {
+            "invoice_total": "0.0003", "positive_cost_total": "0.0003", "tax_and_rounding": "0",
+        })
+
     def test_test_mode_key_is_not_a_live_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             creds = Path(tmp) / "c.json"
