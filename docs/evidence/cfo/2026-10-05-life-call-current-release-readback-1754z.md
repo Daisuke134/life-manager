@@ -146,3 +146,19 @@ Window: `2026-10-05T18:43:51.815Z <= ts < 2026-10-05T19:52:09Z`. Two sequential 
 - The exact-release readback contains 77 distinct runtime occurrence IDs and 77 distinct run IDs; all 80 rows lack `loop_id`, and zero rows carry a provider receipt. The 12 Directions timeout rows remain distinct by occurrence/run, but no Calendar event ID join exists. USD 0.085 is the row-estimate sum, not a Google invoice or actual billed amount.
 - Railway still reports deployment `8af6ae6a-0240-472a-9e02-06c663c1a90c` / SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557` as `SUCCESS`, with its instance `RUNNING`. Twelve exact-deployment scans through `2026-10-05T19:47:07Z` had `calendar_read_failed=0` and `due_candidates=0`; the latest users/eligible/items/events/candidates/due counts were `20/5/10/10/10/0`. `lm_wake_log` and `lm_wake_miss` had zero rows in the deployment window.
 - No test call, Calendar-content query, provider mutation, database write, or report send was performed. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.
+
+## A1 latest strict-release snapshot (2026-10-05T20:00:27Z)
+
+Window: `2026-10-05T18:43:51.815Z <= ts < 2026-10-05T20:00:27Z`. Two sequential strict read-only GETs for SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557` returned the same 81-row ID set and USD 0.085 in row estimates. The same fixed window without a release filter returned 84 rows: 3 rows belong to other or missing release SHA and are excluded from this target-release total.
+
+| Kind / provider / feature / outcome | Rows | Row `est_usd` sum |
+|---|---:|---:|
+| `composio_call` / success | 52 | USD 0.000 |
+| `provider_usage` / Google Maps / geocoding / success | 5 | USD 0.025 |
+| `provider_usage` / route cache / travel_route / cache_hit | 12 | USD 0.000 |
+| `provider_usage` / Google Maps / directions / failure (`transit_timeout`) | 12 | USD 0.060 |
+| **Target release total** | **81** | **USD 0.085** |
+
+- The exact-release readback contains 78 distinct runtime occurrence IDs and 78 distinct run IDs; all 81 rows lack `loop_id`, and zero rows carry a provider receipt. The 12 Directions timeout rows remain distinct by occurrence/run, but no Calendar event ID join exists. USD 0.085 is the row-estimate sum, not a Google invoice or actual billed amount.
+- Railway still reports deployment `8af6ae6a-0240-472a-9e02-06c663c1a90c` / SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557` as `SUCCESS`, with its instance `RUNNING`. Fourteen exact-deployment scans through `2026-10-05T19:57:15Z` had `calendar_read_failed=0` and `due_candidates=0`; the latest users/eligible/items/events/candidates/due counts were `20/5/10/10/10/0`. `lm_wake_log` and `lm_wake_miss` had zero rows in the deployment window.
+- No test call, Calendar-content query, provider mutation, database write, or report send was performed. A1 remains open until a natural due voice occurrence has same-occurrence wake/provider/cost receipt and readback.

@@ -2,6 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { geminiUsageEvents, persistGeminiUsage, persistGeminiFailure } = require("./gemini-usage.js");
+const { recordUsageEvent } = require("./usage-event.js");
 
 test("separates Gemini token cost from Search grounding cost", () => {
   const events = geminiUsageEvents({
@@ -35,6 +36,24 @@ test("persistGeminiUsage writes every normalized event through an injected write
   }), true);
   assert.equal(rows.length, 2);
   assert.deepEqual(rows.map((row) => row.provider), ["gemini", "google_search_grounding"]);
+});
+
+test("persistGeminiUsage accepts token metadata through the real usage normalizer", async () => {
+  const rows = [];
+  const ok = await persistGeminiUsage({
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+    candidates: [{}],
+  }, { tenantId: "t1", feature: "specialist" }, {
+    recordUsageEvent: (event) => recordUsageEvent(event, {
+      recordCost: async (row) => { rows.push(row); return true; },
+      runtimeEnv: {},
+    }),
+  });
+
+  assert.equal(ok, true);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].meta.input_tokens, 10);
+  assert.equal(rows[0].meta.output_tokens, 5);
 });
 
 test("uses the 2026 Gemini 3.7 Flash and grounding rates", () => {
