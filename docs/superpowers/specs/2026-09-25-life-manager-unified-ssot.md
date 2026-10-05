@@ -7828,3 +7828,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Apply：aac9/loaded-idle、run18db923c86681020-21882 blocked/resource_effect_unknown。旧run18dadcd76d9c61b0-37711のone_to_one_occurrence_intent_mapping_not_presentで公式結果未結合。重複応募を避けるfenceは維持。
 - Paid：再観測時8853fc9533c7f527c09bbf005e69c9e6f5fef79b/loaded-running。07:33:34Z agent-runner run798461c1a4ebdc8d0db12669 report PASS、official_readback_ref/provider_receipt_idなし。以前の06:10制御待ちを現在状態として扱わない。現在稼働しているが正式納品・検収・精算・入金の全件完了は未確認。
 - Coconala残作業の依存順：1) Reply保留13件を6 backoff/4結果不明/3観測不足に分け既存thread receipt・最新観測で解消、2) Apply旧runの応募intentと公式結果を一対一結合し安全にfenceを解消、3) Storefront旧runの結果証拠を結び更新loopを復旧、4) Paidの現在自然実行の業務receiptで正式納品と依頼側待ちを分類、5) 確定した検収・精算・fee/refundをCFOへ結ぶ。1/2/3のread-only観測と4の既存自然実行追跡は独立して並行可能。receiptなし再送なし。全体正本§217は47/cursor1 audit診断のまま、Coconalaの相対順を完了捏造で変更しない。
+
+
+### 539. audit診断source SHIPとCoconala保留の具体境界
+
+- audit専用branch fix/lm-audit-scratch-cleanup-diagnostics-20261005、worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-audit-scratch-cleanup-diagnostics-20261005、head7f24d16a34e0a47fd7b6a6fd3273f335b8a4d2adをpush/remote一致/clean確認。runtime runnerと既存bounds testのみ。Luna focused bounds/scratch PASS、compile/contract/OSS/diff PASS。fresh Sol6.1/medium reviewerはbounds117/cleanup51＋実gc-trash rename後False/例外・0700/0600独立fixturesを確認してSHIP、重要指摘なし。cleanup OSError時のexit78を業務結果へ分離する変更は§535の仕様に一致。診断sourceの受入であり巨大残留原因の解消ではない。次はPR/CI/main→immutable対象owner→自然run観測。全体47/cursor1を維持。
+- Coconala reply保留13のsaved stateにreconcile_unknown7件を確認。estimate3件はdm_attachment_message_identity_changed、reply4件はunexpected_title3/attachment identity changed1。最新pending分類は4 reconcile_unknown/3 observation unavailable/6 retry_backoffで、state数とlatest分類を同一指標にしない。旧unknown stateにoccurrence欠損あり、receiptなし解除/再送0。
+- Paidの実業務snapshot /Users/anicca/gig/evidence/paid-direct-live/latest.json は07:01:11Z status failed/observed3/readback2/failed1、remote_builder1/awaiting_buyer2。runtime07:33 runner PASSと業務snapshotを混同しない。failed project18180857にはTikTok既存証拠があり個別追跡保留scopeを維持、全案件正常/正式納品済みとは判定しない。古い08/27 remote-owner successを現在builder復旧証拠へ代用しない。
+- 証拠state/coconala-pending-boundary-20261005.jsonにsafe counts/error classes/sourcehash/mtimeを保存。次のreadonly probeはReply保留threadの公式ページHTTP/メッセージDOM identity/見積りcard metadataの照合。raw顧客本文/credentialは出さず、既存guard配下でown pageのみ、送信・フォーム操作・vault更新・個別Paid再実行なし。
