@@ -66,6 +66,16 @@ function stateHash(state) {
   return crypto.createHash("sha256").update(state).digest("hex");
 }
 
+function parseOAuthState(searchParams) {
+  let state = "", count = 0;
+  for (const [key, value] of searchParams) {
+    if (!key.toLowerCase().startsWith("state")) continue;
+    if (key !== "state" || ++count > 1) return "";
+    state = value;
+  }
+  return count === 1 && STATE_RE.test(state) ? state : "";
+}
+
 function panelApi() {
   return require("./panel-api.js");
 }
@@ -294,9 +304,8 @@ async function startCalendar(scope, req, res, opts, origin) {
 
 async function handleCallback(scope, req, res, opts, url) {
   if (req.method !== "GET") return sendJson(res, 405, { error: "method_not_allowed" }, { Allow: "GET" });
-  const states = url.searchParams.getAll("state");
-  const state = states.length === 1 ? states[0] : "";
-  if (!STATE_RE.test(state)) return sendText(res, 403, "calendar connection not verified");
+  const state = parseOAuthState(url.searchParams);
+  if (!state) return sendText(res, 403, "calendar connection not verified");
   const provider = providerOptions(opts, configuredOrigin(opts));
   const store = opts.webCalendarStore || createWebCalendarStore(provider);
   const accountId = String(await store.claimWebOAuthAccount(scope, stateHash(state)) || "");

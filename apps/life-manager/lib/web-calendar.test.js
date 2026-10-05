@@ -314,7 +314,14 @@ test("callback rejects missing, malformed, or ambiguous state before claim", asy
     composioCalendarAccountStatusImpl: async () => { providers++; return "ACTIVE"; },
     fetchImpl: async () => { writes++; throw new Error("invalid state must not mutate lm_users"); },
   });
-  for (const url of ["/lm/oauth/calendar/callback", "/lm/oauth/calendar/callback?state=bad", `/lm/oauth/calendar/callback?state=${STATE}&state=${STATE}`]) {
+  for (const url of [
+    "/lm/oauth/calendar/callback",
+    "/lm/oauth/calendar/callback?state=bad",
+    `/lm/oauth/calendar/callback?state=${STATE}&state=${STATE}`,
+    `/lm/oauth/calendar/callback?state=${STATE}&state[]=x`,
+    `/lm/oauth/calendar/callback?state=${STATE}&state[extra]=x`,
+    `/lm/oauth/calendar/callback?state=${STATE}&State[]=x`,
+  ]) {
     const response = await call("GET", url, opts);
     assert.equal(response.status, 403);
   }
@@ -329,7 +336,7 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
       return "ca-selected";
     },
   };
-  const response = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, options({
+  const response = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}&connectedAccountId=untrusted`, options({
     webCalendarStore: store,
     composioCalendarAccountStatusImpl: async (scope, id) => {
       calls.push(["provider", scope, id]);
