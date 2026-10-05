@@ -7480,3 +7480,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新3fのcitizen自然run18db8471b346af08-99234はapply_lock_busyを新観測形式でreportしており、import正常/資金実行/利益の成功ではない。旧過去exit1やcurrent選択を自然business成功へ拡張しない。
 - fleet stateはまだ旧sha2aの02:57errorを保持し、新run89185のterminalは未到着。新journalのalpaca-live rc1を確認したが、mutable last-outputは別ownerに更新されるため、そのerror文をAlpacaの原因へjoinしない。scope外loopを再起動・修復しない。
 - additional native followupはthread上限で拒否。source Lunaは独立branchで継続、反映観測はprimaryが担当し、新しいsession/toolを増やさない。§217cursor1の残target3、Lancers診断source-onlyは並行準備。全goal未完。
+
+
+### 501. fleet budget終端と残idle2ownerの限定反映
+
+- 新3f自然fleet終端03:46:42Zはpartial/changed49/skipped21/errors1、message timed out owners:none; budget exceeded、next_retry_epoch1791172712。当該controllerはloaded-idle/PIDなしを再確認。全fleet待ちより対象の限定反映が早いため、自然cut/current経路は保持し、idle2ownerだけ既存applyへ移す。これは停止中の自然applyとの重複ではなく、既存owner deploy lock/admission/loaded-idle checksに従う。
+- 宣言後、immutable3f/bin/lm-loop apply --loaded-idle-onlyをLIFE_MANAGER_APPLY_TARGET=token-daily-report / capafy-goal-monitorで直列実行。両rc0/oktrue/changedtrue/release3f、loaded_argumentsは正しいimmutable3f/bin/lm-loop-runと同release rootを含む。install event ca19373286df31b4ccd740bc /4bf3430134b48bc460f63a2e、token admission_resumedtrue/capafyfalse。private state/internal-loop-targeted-idle-apply-20261005.json/mode600。
+- 対象8の新loadedは7、残Lancerswork-syncはrunning/PID55547/旧2a/admission_effect_unknownfalseをfresh確認し、割込apply/start/restartを発行しない。idle時も既存atomic guardedapplyだけを使用し、公式receiptなしfence解除をしない。
+- Lancers診断sourceのLuna報告は最小7RED→focused19GREEN、legacybool caller1/1、pycompile/contract178/errors0/OSS/diffcheck PASS。変更は2modules＋1testのみ。rootはbranch push/remoteとfresh reviewを待ち、source受入を本番auth修復へ昇格しない。§217cursor1の残りはLancers旧loadとadmission/rollback照合、全goal未完。
