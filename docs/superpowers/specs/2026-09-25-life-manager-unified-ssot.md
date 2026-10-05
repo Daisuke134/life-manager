@@ -8063,3 +8063,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - headab0ffbe621288f02803527a05587e9fba6fc144aのfresh Sol6.1medium readonlyreviewはSHIP/重要指摘なし、actualleaseを通す22test独立PASS。offthreadawaitが完了を待ち、owner/token/generation/context-CAS/park/同期close既存契約は不変。強制kill/反復cancel/実CDP障害/本番因果は未証明。sourcefieldだけで旧12保留や利益の完了を宣言しない。
 - PR6651 https://github.com/Daisuke134/life-manager/pull/6651 を作成、sameheadのCI37299160629をlive確認。Agent/startup/OSS/PII/shell SUCCESS、Loop/Python/gitleaks/TruffleHog進行中。次は同run terminal/allPASS→通常adminmain→main-derived immutable→Reply target idle adoption→自然hidden終了/cleanup_pending再生0の公式context/owner readback。pendingを再実行や失敗へ偽装しない。
 - 最新proxy/businessのfresh成功194/12pending/effect0/182readback/failed0を保持、旧5failedのtransport変動と残12未解消を区別。source背景tmp lifetime・metadataidentity/oldreceiptは別の必須残件、SelfBuild最後/全体47/cursor1は維持。
+
+
+### 572. PR6651残CIのlive確認と再生成browser403
+
+- headab0ffbe621のCI37299160629は残Loop control contractsのみin_progress、他9checks SUCCESS。job111727487197は10:50:59Z開始、Verify registry/releases/apply fencing/clean install step生存を公式readback。timeout/継続観測だけで失敗扱い・rerun・main統合をしない。
+- browserfreshregistered UUIDd89b5621-9f7a-46e1-be42-73cc2d34f567/PID83185/CDP9223を確認（旧4b84から変化）。latest10:52:47Z businessblocked0countsは保留12解消ではない。globalguard取得成功の10:53:29 readonly同2thread GETは双方403、優先originalとunionの比較未取得。knownownedpageclose/guardrelease0/businesssend/statewrite0、state/coconala-message-selector-comparison-20261005.jsonへ記録。sourcehiddencleanup修正の自然証拠やbody原因確定へ置換しない。
+- このturnは前候補の新CI終了待ちと現provider失敗境界の再観測。次は同jobterminal/allPASS→通常main/immutable/Replytarget→自然hiddenownedcontext回収、HTTP200同thread原文抽出比較。背景cache寿命/oldadapterreceipt等未完は保持、root sourcebranch/privatefenceを再送しない。全体47/cursor1・SelfBuild最後。
