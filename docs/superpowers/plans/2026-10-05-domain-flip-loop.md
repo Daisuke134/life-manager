@@ -13,9 +13,10 @@
 ## Global Constraints
 
 - Product Loop ID is `domain-flip`; it is a separate financial money owner and never uses `agent-economy-loop`'s Base-USDC treasury.
-- The initial owner-funded cap is 100 EUR equivalent total, with no automatic refill or repeat charge; one registration per pass and four active holdings maximum.
+- The initial cap is 100 EUR equivalent from a verified, already allocated `domain-flip` business balance only; no personal wallet, bank account, Upwork card, credit, automatic refill, or repeat charge is used. If the dedicated balance is absent, the loop remains scout-only.
 - The registrar request sets `autorenew` to `off`; each renewal is a fresh bounded decision with its cost reserved.
-- A purchase requires a fresh registrar availability and price readback, rights review with source references, a legal registrant whose publication conditions are known, sufficient dedicated balance, and a positive conditional net at the minimum accepted Sedo price after measured fees and reserved costs.
+- A purchase requires a fresh registrar availability and price readback, rights review with source references, a legal registrant whose publication conditions are known, a verified business-owned dedicated balance, sufficient funds, and a positive conditional net at the minimum accepted Sedo price after measured fees and reserved costs.
+- A foreign-currency quote is eligible only when its EUR cost is normalized from FX evidence tied to the actual dedicated-business funding receipt; a generic reference rate alone cannot attest the charge.
 - Conditional net is not a sale-probability or expected-profit estimate. Listings, offers, and acquisition costs are never revenue.
 - State lives outside the immutable release at `~/.local/state/life-manager/domain-flip`; events include `run_id`, `owner_id`, `occurrence_id`, `release_sha`, loaded argv/env, phase, command, exit code, effect, readback, provider receipt, evidence refs, error class, retryability, and next action.
 - An uncertain registration or listing effect fences the same candidate until provider readback resolves it; no blind replay is allowed.
@@ -44,7 +45,7 @@
 - `evaluate_purchase` returns `eligible`, stable `reason_codes`, `conditional_net_eur`, and `maximum_loss_eur`; it never calls a provider or model.
 - `realized_sale` returns a revenue amount only when buyer settlement, holder transfer, seller payout, receiving-account readback, and all required costs are present and receipt IDs are unique.
 
-- [ ] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert the 100 EUR cap, four-holding limit, `autorenew=off` policy value, and exact Decimal net arithmetic.
+- [ ] **Step 1: Write failing tests** named `test_purchase_obeys_total_cap_and_one_per_pass`, `test_purchase_requires_known_public_registrant_and_rights_evidence`, `test_currency_mismatch_blocks_purchase`, `test_effect_unknown_fences_same_domain`, `test_pending_offer_is_not_revenue`, `test_sale_requires_settlement_transfer_and_payout`, and `test_duplicate_sale_or_payout_receipt_is_counted_once`. Assert the 100 EUR cap, business-dedicated funding source, four-holding limit, `autorenew=off` policy value, and exact Decimal net arithmetic.
 - [ ] **Step 2: Run the test file and confirm the expected missing-module failures.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: collection fails because `skills/domain-flip/core.py` does not yet exist.
 - [ ] **Step 3: Implement the three pure functions** with `Decimal`, explicit required evidence, stable reason codes, and no float arithmetic or hidden provider state.
 - [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_core.py -q`. Expected: all named tests pass.
@@ -59,6 +60,7 @@
 **Interfaces:**
 - Consumes: Task 1 purchase result.
 - Produces: `OpenProviderClient.check_domain(name)`, `quote_create(name)`, `register(name, owner_handle, idempotency_key)`, `get_domain(domain_id)`, and `list_domains()`.
+- `quote_create` returns a provider-final registration amount and a one-year renewal reserve in EUR; if Openprovider quotes another currency, the adapter ties conversion evidence to the one-time dedicated-business funding receipt.
 - The live client uses the official bearer-token API and the credential SSOT. Its base URL is fixed to Openprovider production or its documented sandbox; tests use a local HTTP server.
 - Registration sends one-year `.si`, `autorenew="off"`, and the approved owner contact; it never turns private-WHOIS on or retries a timed-out create.
 
@@ -143,7 +145,7 @@
 - [ ] **Step 1: Provision or reuse sandbox access** and run the documented Openprovider sandbox checks for domain check, price, create with autorenew off, and official owner/expiry readback. Expected: sandbox credential is in the credential SSOT, receipt IDs match the domain, and no production charge or registry create occurs.
 - [ ] **Step 2: Verify payout and registrant readiness** from existing owner-owned account data: exact legal registrant, current .si WHOIS fields, a receiving-tested functional public email alias with no personal data, Sedo payout account, and receiving-account readback. Expected: private legal registrant fields stay in credential SSOT/provider account data; WHOIS exposes only the intended functional email for a natural-person holder.
 - [ ] **Step 3: Run a fresh-context read-only audit** of the exact candidate, rights evidence, public registrant fields, provider quote, payout destination, funding amount, and remaining cap. Expected: the audit returns no unresolved critical or important risk; it does not authorize or perform any external effect.
-- [ ] **Step 4: Create or reuse registrar, Sedo, WIPO, and EUIPO API access** with the existing credential SSOT, enable only required API/registry access, fund no more than the initial 100 EUR equivalent once, and verify account/balance/auto-refill state. Expected: every new credential is saved to the SSOT, final charge is within cap, auto-refill is off, and official account readback matches.
+- [ ] **Step 4: Create or reuse registrar, Sedo, WIPO, and EUIPO API access** with the existing credential SSOT and enable only no-charge required API/registry access. Verify whether an already allocated `domain-flip` business balance exists; do not move funds from a personal account or card. Expected: every new credential is saved to the SSOT; an existing dedicated balance is verified with no auto-refill, or acquisition remains disabled and the exact missing funding source is recorded while scout-only work continues.
 - [ ] **Step 5: Run one natural pass** through the admitted immutable release and confirm loaded SHA/argv/env, owner occurrence, registrar availability/quote, the deterministic acquisition decision, and Sedo listing status. Expected: zero purchase when any identity, rights, quote, evidence, budget, or readback gate is missing; otherwise at most one registration and one verified listing.
 - [ ] **Step 6: Continue scheduled natural passes** without duplicate effects until an actual Sedo sale completes buyer settlement, registered-holder transfer, payout, receiving-account credit, all-cost CFO attribution, and replay-zero. Expected: only then report positive realized net; keep the persistent goal active until this is true.
 
