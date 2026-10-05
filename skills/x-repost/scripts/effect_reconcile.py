@@ -18,7 +18,11 @@ from typing import Any, Callable, Mapping
 
 
 OWNER_ID = "x-repost"
-READBACK_ONLY_RELEASES = {"c16f437b93028ea5d94014a1fa32c091795cbee0"}
+READBACK_ONLY_RELEASES = {
+    "c16f437b93028ea5d94014a1fa32c091795cbee0",
+    "86fa863d4fe04ec0b5c44e8a2e513e55edaf2928",
+    "88872a85cc652877f242ead444108a813084cfc9",
+}
 POSTIZ_INTEGRATION_ID = "cmt4l2jld031tqp0y8qtyo983"
 POSTIZ_POSTS_URL = "https://api.postiz.com/public/v1/posts"
 FINALITY_SECONDS = 900
@@ -86,37 +90,80 @@ def read_runtime_events(path: Path | None = None) -> list[dict[str, Any]] | None
     return rows
 
 
+def _event_pairs(occurrence_id: str,
+                 events: list[dict[str, Any]]) -> list[tuple[dict, dict]] | None:
+    """Pair every reported attempt for a queued occurrence with its actual executor run."""
+    original_run_id = _occurrence_run(occurrence_id)
+    if original_run_id is None or not isinstance(events, list):
+        return None
+    reports = [row for row in events if isinstance(row, dict)
+               and row.get("loop_id") == OWNER_ID and row.get("phase") == "report"
+               and row.get("effect_status") == "unknown"
+               and (row.get("occurrence_id") == occurrence_id
+                    or (row.get("run_id") == original_run_id
+                        and row.get("occurrence_id") in {None, occurrence_id}))]
+    if not reports:
+        return None
+    pairs: list[tuple[dict, dict]] = []
+    seen_run_ids: set[str] = set()
+    for report in reports:
+        run_id = report.get("run_id")
+        if not isinstance(run_id, str) or RUN_ID.fullmatch(run_id) is None \
+                or run_id in seen_run_ids:
+            return None
+        related = [row for row in events if isinstance(row, dict)
+                   and row.get("loop_id") == OWNER_ID and row.get("run_id") == run_id]
+        if len(related) != 2:
+            return None
+        if any(row.get("owner_id") not in {None, OWNER_ID}
+               or row.get("effect_class") != "publish"
+               or row.get("provider") != "shared-agent-runner"
+               or not isinstance(row.get("release_sha"), str)
+               or RELEASE_SHA.fullmatch(row["release_sha"]) is None
+               for row in related):
+            return None
+        starts = [row for row in related if row.get("phase") == "execute"]
+        run_reports = [row for row in related if row.get("phase") == "report"]
+        if len(starts) != 1 or len(run_reports) != 1 or run_reports[0] is not report:
+            return None
+        start = starts[0]
+        report_occurrence = report.get("occurrence_id")
+        expected_report_occurrence = (
+            report_occurrence == occurrence_id
+            or (run_id == original_run_id and report_occurrence is None)
+        )
+        expected_start_occurrence = start.get("occurrence_id") in {
+            None, occurrence_id, f"{OWNER_ID}:{run_id}",
+        }
+        if not expected_report_occurrence or not expected_start_occurrence:
+            return None
+        start_at = _parse_time(start.get("timestamp"))
+        report_at = _parse_time(report.get("timestamp"))
+        status, exit_code = report.get("status"), report.get("exit_code")
+        valid_terminal = (
+            (status == "pass" and exit_code in {None, 0}
+             and report.get("blocker") is None)
+            or (status == "fail" and type(exit_code) is int and exit_code != 0
+                and isinstance(report.get("blocker"), str) and bool(report["blocker"]))
+        )
+        if (start_at is None or report_at is None or start_at >= report_at
+                or start.get("status") != "running"
+                or start.get("effect_status") != "started"
+                or report.get("effect_status") != "unknown"
+                or not valid_terminal
+                or start.get("release_sha") != report.get("release_sha")):
+            return None
+        pairs.append((start, report))
+        seen_run_ids.add(run_id)
+    pairs.sort(key=lambda pair: _parse_time(pair[0]["timestamp"]) or dt.datetime.min.replace(
+        tzinfo=dt.timezone.utc))
+    return pairs
+
+
 def _event_pair(occurrence_id: str, events: list[dict[str, Any]]) -> tuple[dict, dict] | None:
-    run_id = _occurrence_run(occurrence_id)
-    if run_id is None or not isinstance(events, list):
-        return None
-    related = [row for row in events if isinstance(row, dict)
-               and row.get("loop_id") == OWNER_ID and row.get("run_id") == run_id]
-    if len(related) != 2:
-        return None
-    if any((row.get("occurrence_id") is not None
-            and row.get("occurrence_id") != occurrence_id)
-           or row.get("owner_id") not in {None, OWNER_ID}
-           or row.get("effect_class") != "publish"
-           or row.get("provider") != "shared-agent-runner"
-           or not isinstance(row.get("release_sha"), str)
-           or RELEASE_SHA.fullmatch(row["release_sha"]) is None
-           for row in related):
-        return None
-    starts = [row for row in related if row.get("phase") == "execute"]
-    reports = [row for row in related if row.get("phase") == "report"]
-    if len(starts) != 1 or len(reports) != 1:
-        return None
-    start, report = starts[0], reports[0]
-    start_at, report_at = _parse_time(start.get("timestamp")), _parse_time(report.get("timestamp"))
-    if (start_at is None or report_at is None or start_at >= report_at
-            or start.get("status") != "running" or start.get("effect_status") != "started"
-            or report.get("status") != "pass" or report.get("effect_status") != "unknown"
-            or report.get("exit_code") not in {None, 0}
-            or report.get("blocker") is not None
-            or start.get("release_sha") != report.get("release_sha")):
-        return None
-    return start, report
+    """Return the sole attempt; multi-attempt proof uses ``_event_pairs`` directly."""
+    pairs = _event_pairs(occurrence_id, events)
+    return pairs[-1] if pairs else None
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -283,30 +330,50 @@ def build_proof(occurrence_id: str, runtime_events: list[dict[str, Any]],
         "effected": None,
         "checked_at": checked_at.isoformat(),
     }
-    pair = _event_pair(occurrence_id, runtime_events)
-    if pair is None:
+    pairs = _event_pairs(occurrence_id, runtime_events)
+    if not pairs:
         proof["reason"] = "runtime_occurrence_missing_ambiguous_or_unsupported"
         return proof
-    start, report = pair
-    start_at, report_at = _parse_time(start["timestamp"]), _parse_time(report["timestamp"])
-    assert start_at is not None and report_at is not None
-    end_at = report_at + dt.timedelta(seconds=FINALITY_SECONDS)
+    if isinstance(evidence, Mapping) and len(pairs) == 1:
+        evidence_rows = [evidence]
+    elif isinstance(evidence, list) and len(evidence) == len(pairs) \
+            and all(isinstance(row, Mapping) for row in evidence):
+        evidence_rows = evidence
+    else:
+        proof["reason"] = "run_evidence_missing_or_ambiguous"
+        return proof
+    attempts: list[dict[str, Any]] = []
+    for (start, report), run_evidence in zip(pairs, evidence_rows):
+        start_at = _parse_time(start["timestamp"])
+        report_at = _parse_time(report["timestamp"])
+        assert start_at is not None and report_at is not None
+        attempt_end = report_at + dt.timedelta(seconds=FINALITY_SECONDS)
+        evidence_mtime = _parse_time(run_evidence.get("mtime"))
+        if (run_evidence.get("ok", True) is not True or evidence_mtime is None
+                or not start_at <= evidence_mtime <= report_at):
+            proof["reason"] = "run_evidence_missing_or_ambiguous"
+            return proof
+        attempts.append({
+            "start": start, "report": report, "evidence": run_evidence,
+            "start_at": start_at, "report_at": report_at, "end_at": attempt_end,
+        })
+    start_at = min(attempt["start_at"] for attempt in attempts)
+    end_at = max(attempt["end_at"] for attempt in attempts)
+    latest = attempts[-1]
     proof.update({
         "window_start": start_at.isoformat(),
         "window_end": end_at.isoformat(),
         "finality_at": end_at.isoformat(),
-        "release_sha": report["release_sha"],
+        "release_sha": latest["report"]["release_sha"],
+        "attempt_windows": [{
+            "run_id": attempt["report"]["run_id"],
+            "start": attempt["start_at"].isoformat(),
+            "end": attempt["end_at"].isoformat(),
+            "release_sha": attempt["report"]["release_sha"],
+        } for attempt in attempts],
     })
     if checked_at < end_at:
         proof["reason"] = "provider_window_not_final"
-        return proof
-    if not isinstance(evidence, Mapping):
-        proof["reason"] = "run_evidence_missing_or_ambiguous"
-        return proof
-    evidence_mtime = _parse_time(evidence.get("mtime"))
-    if evidence.get("ok", True) is not True or evidence_mtime is None or not (
-            start_at <= evidence_mtime <= report_at):
-        proof["reason"] = "run_evidence_missing_or_ambiguous"
         return proof
     if not isinstance(postiz_listing, Mapping):
         proof["reason"] = "postiz_listing_incomplete_or_invalid"
@@ -318,11 +385,26 @@ def build_proof(occurrence_id: str, runtime_events: list[dict[str, Any]],
     query_url = _postiz_query_url(start_at, end_at)
     proof["official_query"] = query_url
     proof["postiz_integration_id"] = POSTIZ_INTEGRATION_ID
-    target_posts = [row for row in posts
-                    if row["integration"]["id"] == POSTIZ_INTEGRATION_ID]
+    target_posts = []
+    for post in posts:
+        if post["integration"]["id"] != POSTIZ_INTEGRATION_ID:
+            continue
+        published_at = _post_time(post)
+        if published_at is None:
+            proof["reason"] = "postiz_target_post_outside_or_missing_exact_window"
+            return proof
+        matching = [attempt for attempt in attempts
+                    if attempt["start_at"] <= published_at <= attempt["end_at"]]
+        if matching:
+            if len(matching) != 1:
+                proof["reason"] = "postiz_target_post_matches_multiple_attempt_windows"
+                return proof
+            target_posts.append((post, matching[0]))
     if not target_posts:
-        if (report["release_sha"] not in READBACK_ONLY_RELEASES
-                or not _readback_only_evidence(evidence, start_at, report_at)):
+        if any(attempt["report"]["release_sha"] not in READBACK_ONLY_RELEASES
+               or not _readback_only_evidence(
+                   attempt["evidence"], attempt["start_at"], attempt["report_at"],
+               ) for attempt in attempts):
             proof["reason"] = "empty_listing_without_exact_readback_only_evidence"
             return proof
         response_hash = postiz_listing["response_sha256"]
@@ -343,15 +425,13 @@ def build_proof(occurrence_id: str, runtime_events: list[dict[str, Any]],
     if len(target_posts) != 1:
         proof["reason"] = "postiz_target_integration_has_multiple_window_rows"
         return proof
-    post = target_posts[0]
+    post, attempt = target_posts[0]
     if post.get("state") != "PUBLISHED":
         proof["reason"] = "postiz_target_effect_not_final_published"
         return proof
-    published_at = _post_time(post)
-    if published_at is None or not start_at <= published_at <= end_at:
-        proof["reason"] = "postiz_target_post_outside_or_missing_exact_window"
-        return proof
-    published_id, evidence_url = _positive_evidence(evidence, start_at, report_at) or (None, None)
+    published_id, evidence_url = _positive_evidence(
+        attempt["evidence"], attempt["start_at"], attempt["report_at"],
+    ) or (None, None)
     release_url = post.get("releaseURL")
     match = X_URL.fullmatch(str(release_url or ""))
     canonical_release_url = (
@@ -520,13 +600,18 @@ def reconcile(occurrence_id: str, *, resolve: bool = False,
         proof = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                  "verified": False, "reason": "runtime_events_unreadable"}
         return proof
-    pair = _event_pair(occurrence_id, events)
-    if pair is None:
+    pairs = _event_pairs(occurrence_id, events)
+    if not pairs:
         proof = build_proof(occurrence_id, events, {}, {"ok": False}, now=now)
         return proof
-    start_at, report_at = (_parse_time(pair[0]["timestamp"]), _parse_time(pair[1]["timestamp"]))
-    assert start_at is not None and report_at is not None
-    end_at = report_at + dt.timedelta(seconds=FINALITY_SECONDS)
+    attempt_times = [
+        (_parse_time(start["timestamp"]), _parse_time(report["timestamp"]))
+        for start, report in pairs
+    ]
+    assert all(start is not None and report is not None for start, report in attempt_times)
+    start_at = min(start for start, _report in attempt_times if start is not None)
+    end_at = max(report + dt.timedelta(seconds=FINALITY_SECONDS)
+                 for _start, report in attempt_times if report is not None)
     checked_at = (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc)
     if checked_at < end_at:
         return build_proof(occurrence_id, events, {}, {"ok": False}, now=checked_at)
@@ -536,9 +621,14 @@ def reconcile(occurrence_id: str, *, resolve: bool = False,
         proof = build_proof(occurrence_id, events, {}, {"ok": False}, now=checked_at)
         proof["reason"] = "fenced_occurrence_does_not_match_runtime_start"
         return proof
-    evidence = (evidence_fn or read_run_evidence)(start_at, report_at)
+    evidence_rows = [
+        (evidence_fn or read_run_evidence)(
+            _parse_time(start["timestamp"]), _parse_time(report["timestamp"]),
+        )
+        for start, report in pairs
+    ]
     listing = (postiz_fn or read_postiz_listing)(start_at, end_at)
-    proof = build_proof(occurrence_id, events, evidence, listing, now=now)
+    proof = build_proof(occurrence_id, events, evidence_rows, listing, now=now)
     proof["admission_state"] = state
     proof["admission_queued_at"] = dt.datetime.fromtimestamp(
         float(queued_at), dt.timezone.utc,

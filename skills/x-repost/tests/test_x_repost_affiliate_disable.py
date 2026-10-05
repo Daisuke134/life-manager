@@ -113,6 +113,7 @@ def run_disabled_pass(
     root: Path, state: Path, paths: dict[str, Path], *,
     post_json: dict | None = None, post_rc: int = 0,
     first_browser_unavailable: bool = False,
+    twitter_auth_token: str | None = "fixture-only",
 ) -> subprocess.CompletedProcess[str]:
     repo = root / "fake-repo"
     (repo / "skills").mkdir(parents=True)
@@ -186,10 +187,13 @@ def run_disabled_pass(
         "AFFILIATE_X_DISTRIBUTION_QUEUE": str(paths["queue"]),
         "AFFILIATE_REPOST_PROPOSAL_PATH": str(root / "no-proposal.json"),
         "AI_BROWSER_GUARD": str(guard),
-        "TWITTER_AUTH_TOKEN": "fixture-only",
         "BASH_ENV": str(bash_env),
         "PYTHONPATH": str(site_packages),
     })
+    if twitter_auth_token is not None:
+        env["TWITTER_AUTH_TOKEN"] = twitter_auth_token
+    else:
+        env.pop("TWITTER_AUTH_TOKEN", None)
     result = subprocess.run(
         ["bash", str(repo / "skills/x-repost/x-repost-cli.sh")],
         cwd=repo, capture_output=True, text=True, check=False, env=env, timeout=30,
@@ -198,6 +202,22 @@ def run_disabled_pass(
 
 
 class XRepostAffiliateDisableTests(unittest.TestCase):
+    def test_disabled_pass_reaches_existing_browser_recon_without_repair_token(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / "state"
+            paths = prepare_unverified_distribution(state)
+            (state / "posted.jsonl").write_text("", encoding="utf-8")
+
+            result = run_disabled_pass(
+                root, state, paths, twitter_auth_token=None,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertIn("collected 0 candidates", result.stdout)
+            self.assertNotIn("TWITTER_AUTH_TOKEN unset", result.stdout)
+            self.assertEqual((root / "browser-calls").read_text().splitlines(), ["1"])
+
     def test_disabled_mode_does_not_claim_a_queued_affiliate_job(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

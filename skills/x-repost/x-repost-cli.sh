@@ -914,12 +914,9 @@ if [ "${X_REPOST_DAILY_MAX:-0}" -gt 0 ] \
   exit 0
 fi
 
-if [ -z "${TWITTER_AUTH_TOKEN:-}" ]; then
-  report "❌ TWITTER_AUTH_TOKEN unset — cannot restore the X session"
-  finish 1 "TWITTER_AUTH_TOKEN unset"
-fi
-
 # ---------------------------------------------------------------- browser (leased, never :9222)
+# A logged-in browser session is sufficient. x_collect.py/x_post.py consult the optional
+# TWITTER_AUTH_TOKEN only when the browser's own X auth cookie is missing.
 CDP="$(bash "$ENSURE_BROWSER" "$IDENTITY" 2>>"$EV/browser.err")"
 case "$CDP" in
   http*) log "leased $IDENTITY at $CDP" ;;
