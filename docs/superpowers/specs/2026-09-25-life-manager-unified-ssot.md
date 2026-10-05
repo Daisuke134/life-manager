@@ -4880,11 +4880,13 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 残作業の実行表（未完のみ・1項目1成果）
 
-現在cursor：1（監査の自然終了後のscratch回収・再生成なしを確認）。残作業44件。PR6611のCI/main統合は完了し、残表から除外する。実装とsource review済みの作業をやり直さない。依存のないauth境界/監査scratch調査・各laneのread-only照合は並行し、同じbranch/profile/state/releaseの変更はlock/owner調整で直列にする。以下は全体終了までの残作業で、外部待ちは不足物を記録し独立項目を先行する。
+現在cursor：1（Coconala内部loopの返信・見積り故障を閉じる）。残作業44件。
+
+**実行順を固定する。Daisの新たな優先順位指示がない限り、primaryは順序を変更しない。必要な原因修復・検証は既存項目の中で進め、一般監査・SelfFix・SelfBuildを先頭へ戻さない。完了済みは残表から除外し、残る項目の相対順序は保持する。現在項目を終えて次へ進み、外部待ちは不足物を記録する。編集と外部effectの所有を重ねず、同項目内の実装/独立検証だけ必要に応じて分担する。**
 
 | 順序 | 残作業 | 完了を示す証拠 |
 |---|---|---|
-| 1 | 監査の自然終了後にscratch回収を確認する | same run terminalと回収結果・物理bytes・protected削除0を確認。 |
+| 1 | Coconalaを先頭に内部loopの確認済み故障を閉じる | 現在Coconalaの返信・見積り保留12件。送信段階診断を最小完了→必要な原因修復→同対象の自然実行/公式送信・見積り記録。旧unknownの再送/手動解除なし。本文/context修復のsource/反映済み部分は繰り返さない。追加一般監査や新案件制作へ脱線しない。 |
 | 2 | Agent Economyの実収益actionのreceiptを確認する | 既存spend-cap内・公式action/settlement/cost、effect_unknown再送なし。 |
 | 3 | Capafy日次monitorの自然wake証拠を取得する | exact owner9:30のrun/phase/sourceを確認。別hourly/daily-close結果を代用しない。 |
 | 4 | Capafy日次monitorの確認された失敗を修復する | 正常な待機は修正しない。真の失敗は修復してsame-owner自然readbackへ結ぶ。 |
@@ -4892,37 +4894,37 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 | 6 | Writer改善loopの自然canary結果を確認する | READY待機/experiment ID/適用・評価結果の対応。小標本を勝者や因果効果にしない。 |
 | 7 | 週次validationのcalendar自然実行を確認する | Weekday2/14:30のactual occurrence、source一致・週次頻度維持・重複0。 |
 | 8 | 14 productsと現行登録jobsの残故障を再分類する | 現在のrun/sourceで待機/外部依存/実故障/観測不足を分ける。過去health数を固定しない。 |
-| 9 | 残る実故障をownerごとに1件ずつ閉じる | 直前の再分類で特定した故障を最小修正・source gates・本番readbackへ展開。Coconalaは本文修復PR6660のCI/main/対象反映→公式応募context取得前validation修復→旧12件の公式照合を順に行う。新項目は原因確定後に連番へ反映。 |
-| 10 | Lancersの応募receiptを確認する | 自然選定/提出と公式応募履歴をsame案件へ結合。 |
-| 11 | Mercorの応募receiptを確認する | 本人必須/外部待ちは明示し、既存応募の公式履歴へ結合。 |
-| 12 | Coconalaの供給・提案receiptを確認する | 既存内部loopを確認。保留のTikTok/NPO個別納品追跡は再開しない。 |
-| 13 | CrowdWorksの応募receiptを確認する | 自然応募と公式応募履歴を結合し、メールの有無だけで成功を判定しない。 |
-| 14 | Freelancerの供給receiptを確認する | source/inventory/登録owner/自然run/公式提出記録の結合。 |
-| 15 | Upworkの供給receiptを確認する | account-bound ownerの自然runと公式proposal履歴の結合。 |
-| 16 | 各platformの受信監視coverageを確認する | platform別に公式inbox/通知とcollector occurrenceを照合。件数欠損はunknown。 |
-| 17 | 各platformの返信receiptを確認する | 自然replyと同案件の公式送信履歴を照合し、重複送信0。 |
-| 18 | Paid loopのfunded条件を確認する | 依頼/正式contract/authorizationを同案件へ結合。選考段階を有償作業にしない。 |
-| 19 | Paid loopの成果物品質確認を閉じる | funded scopeに対する実成果物と既存QA結果。 |
-| 20 | 許可された正式納品のreceiptを確認する | 既存納品経路の公式記録。保留のCoconala個別案件は実行対象外。 |
-| 21 | 検収・精算・payoutのreceiptを案件へ結合する | delivery/payment/settlement/payoutを区別、escrowを利益や銀行着金にしない。 |
-| 22 | storefrontの商品公開inventoryを確認する | Lancers7件とCoconala4件の公式GETは確認済み。残りは同operation/versionとの結合と他platform inventory。403/challengeを公開中にしない。 |
-| 23 | storefrontの問い合わせ・注文の流入を結合する | listing/lead source/order IDを結び、応募獲得と商品獲得を分ける。 |
-| 24 | 自社商品・定型サービスの履行receiptを確認する | 注文scope/成果物version/納品・精算を結合し、再利用できる商品経路を確認。 |
-| 25 | Writerの販売・公開receiptを確認する | 既存商品build/sell/注文・支払い記録とcursorを結合。 |
-| 26 | Affiliateのconversion・commission receiptを確認する | 公式conversion/報酬/精算と実cost、重複公開なし。 |
-| 27 | Connectorの公式readbackと重複0を確認する | 既存ownerのeffect/Calendar等公式count/自然replayを照合。 |
-| 28 | Fundraiserの申請・結果receiptを確認する | 既存build/sell/申請cursorと公式受領・結果。本人手続きを偽らない。 |
-| 29 | Investmentの実行・risk・精算記録を確認する | paper/liveを分け、既存cap内の公式position/trade/fee/costを結合。 |
-| 30 | Cloudの実収益・実費用receiptを確認する | 既存実行・継続・請求/usageを期間一致で結合。 |
-| 31 | TaskMarketのcontract・履行・settlementを確認する | 公式contract/delivery/paymentとactual cost、replay-zero。 |
-| 32 | MobileのASC公式readbackをCFOへ結合する | mobile lane重複編集なし。acquisitionとfinal financialのreport ID/currency/settlementを区別。 |
-| 33 | RevenueCatの観測収益とMRRを照合する | 同期間/商品binding、ASC settled proceedsと二重計上0、年額/買い切りをMRRへ混ぜない。 |
-| 34 | 14 loopsのsettled revenue・refund・feeを結合する | 同期間の公式receiptsからcoverage表を作り、欠損はunknown。 |
-| 35 | 14 loopsのactual費用を結合する | inference/tool/browser/cloudのinvoice/usage、Google/API費内訳・before/afterを実測。 |
-| 36 | 14 loopsのnet marginを示す | 同期間settled収益−実費、二重計上0、未確定cost/通貨はunknown。 |
-| 37 | MRRの定義と期間を検証する | 継続課金/年額/買い切り/開発者収益/入金/利益を別指標で示す。 |
-| 38 | liquid balanceの鮮度と所有範囲を示す | 個人cashと会社cashを分け、last-knownを現在値にしない。 |
-| 39 | runwayを同期間の実費から示す | 必要coverageが欠ける場合はunknownを残す。 |
+| 9 | Lancersの応募receiptを確認する | 自然選定/提出と公式応募履歴をsame案件へ結合。 |
+| 10 | Mercorの応募receiptを確認する | 本人必須/外部待ちは明示し、既存応募の公式履歴へ結合。 |
+| 11 | Coconalaの供給・提案receiptを確認する | 既存内部loopを確認。保留のTikTok/NPO個別納品追跡は再開しない。 |
+| 12 | CrowdWorksの応募receiptを確認する | 自然応募と公式応募履歴を結合し、メールの有無だけで成功を判定しない。 |
+| 13 | Freelancerの供給receiptを確認する | source/inventory/登録owner/自然run/公式提出記録の結合。 |
+| 14 | Upworkの供給receiptを確認する | account-bound ownerの自然runと公式proposal履歴の結合。 |
+| 15 | 各platformの受信監視coverageを確認する | platform別に公式inbox/通知とcollector occurrenceを照合。件数欠損はunknown。 |
+| 16 | 各platformの返信receiptを確認する | 自然replyと同案件の公式送信履歴を照合し、重複送信0。 |
+| 17 | Paid loopのfunded条件を確認する | 依頼/正式contract/authorizationを同案件へ結合。選考段階を有償作業にしない。 |
+| 18 | Paid loopの成果物品質確認を閉じる | funded scopeに対する実成果物と既存QA結果。 |
+| 19 | 許可された正式納品のreceiptを確認する | 既存納品経路の公式記録。保留のCoconala個別案件は実行対象外。 |
+| 20 | 検収・精算・payoutのreceiptを案件へ結合する | delivery/payment/settlement/payoutを区別、escrowを利益や銀行着金にしない。 |
+| 21 | storefrontの商品公開inventoryを確認する | Lancers7件とCoconala4件の公式GETは確認済み。残りは同operation/versionとの結合と他platform inventory。403/challengeを公開中にしない。 |
+| 22 | storefrontの問い合わせ・注文の流入を結合する | listing/lead source/order IDを結び、応募獲得と商品獲得を分ける。 |
+| 23 | 自社商品・定型サービスの履行receiptを確認する | 注文scope/成果物version/納品・精算を結合し、再利用できる商品経路を確認。 |
+| 24 | Writerの販売・公開receiptを確認する | 既存商品build/sell/注文・支払い記録とcursorを結合。 |
+| 25 | Affiliateのconversion・commission receiptを確認する | 公式conversion/報酬/精算と実cost、重複公開なし。 |
+| 26 | Connectorの公式readbackと重複0を確認する | 既存ownerのeffect/Calendar等公式count/自然replayを照合。 |
+| 27 | Fundraiserの申請・結果receiptを確認する | 既存build/sell/申請cursorと公式受領・結果。本人手続きを偽らない。 |
+| 28 | Investmentの実行・risk・精算記録を確認する | paper/liveを分け、既存cap内の公式position/trade/fee/costを結合。 |
+| 29 | Cloudの実収益・実費用receiptを確認する | 既存実行・継続・請求/usageを期間一致で結合。 |
+| 30 | TaskMarketのcontract・履行・settlementを確認する | 公式contract/delivery/paymentとactual cost、replay-zero。 |
+| 31 | MobileのASC公式readbackをCFOへ結合する | mobile lane重複編集なし。acquisitionとfinal financialのreport ID/currency/settlementを区別。 |
+| 32 | RevenueCatの観測収益とMRRを照合する | 同期間/商品binding、ASC settled proceedsと二重計上0、年額/買い切りをMRRへ混ぜない。 |
+| 33 | 14 loopsのsettled revenue・refund・feeを結合する | 同期間の公式receiptsからcoverage表を作り、欠損はunknown。 |
+| 34 | 14 loopsのactual費用を結合する | inference/tool/browser/cloudのinvoice/usage、Google/API費内訳・before/afterを実測。 |
+| 35 | 14 loopsのnet marginを示す | 同期間settled収益−実費、二重計上0、未確定cost/通貨はunknown。 |
+| 36 | MRRの定義と期間を検証する | 継続課金/年額/買い切り/開発者収益/入金/利益を別指標で示す。 |
+| 37 | liquid balanceの鮮度と所有範囲を示す | 個人cashと会社cashを分け、last-knownを現在値にしない。 |
+| 38 | runwayを同期間の実費から示す | 必要coverageが欠ける場合はunknownを残す。 |
+| 39 | 監査の自然終了後にscratch回収を確認する | same run terminalと回収結果・物理bytes・protected削除0を確認。 |
 | 40 | SelfBuildの成功済み復旧重複を修正する | 最後に実施。完了済み結果をSHAへ結び、未完だけ再試行。 |
 | 41 | SelfBuildの回帰検証と独立reviewを通す | 成功済みrecoveryの重複実行が失敗するRED→最小GREEN。 |
 | 42 | SelfBuildの本番promotion・recoveryを確認する | source gates→main→immutable→自然owner、重複0・rollbackの記録。 |
@@ -4931,7 +4933,7 @@ Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証�
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の監査自然回収readbackと独立Coconala修復・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1のCoconala内部loop修復・所有者調整とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -8282,3 +8284,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Root追加source確認でstate.intent有りの最初observe_oneが裸呼出しと判明。old8を診断できるようobserve_prior_intentだけsameintentへtagする補完を指示、intent無しの新規observeは従来どおり。最小1fixtureでoldunknownのdecide/mutate0と保存を確認、他stage/case/frameworkは増やさない。LIFE_MANAGER_RUN_IDはactualwrapper1450のchildenvに存在、仮定で新envを発明しない。
 - 14:47の初期DOMmetadataはtargetidentity未確認で認証/CAPTCHA判断へ使えず、14:48:11Zにregisteredguard正規取得後ownedtargetでready bounded2probes。sitehostCoconala/aboutblankfalse/readycomplete/titleメッセージ/maincontenttrue、captcha/password/forbidden/error/human各false、probe send/fence変更0/guard解放0。state/coconala-access-dom-metadata-20261005.json。今回challenge未観測のためsolverへ架空sitekey/requestを送らず、別threadのunexpectedtitle/403を否定しない。
 - Root節598のprototype準備一次資料/実chainreadbackは計画証拠のみ、署名/展開/submit0。先頭44/cursor1自然auditのbytes不足を維持し、独立CoconalaSourceの診断受入を進める。metadata量を増やすこと自体を完了にせず、sameintentの実phase/officialreceiptを次naturalrunで照合する。SelfBuild最後。
+
+
+### 600. Daisの優先順位訂正：内部loop先行・順序固定
+
+- Daisは『SelfFix等は全部のloopが直った後』『なぜ実行順を変える』『一件ずつ最後まで』と明示。rootが監査を先頭に置き、source不確実性の検証/番号更新を繰り返して主要loop成果を遅らせた判断を訂正する。質問/許可待ちにはせず本更新から適用する。
+- 旧順序9(現在Coconala確認済み故障)を新1へ戻し、旧1(監査scratch計測)を全業務loop/財務後の新39へ保留。その他旧2–8/10–39/40–44の相対順序は保持。根拠は今回の明示指示でありrootの追加最適化ではない。全44/cursor1、以後新優先指示なしに再reorderしない。SelfBuild新40–42も後段、旧TikTok/NPO資料追跡は再開しない。
+- 新1内の実行：現send診断候補のsource/gates/push→独立review/CI/main/Reply対象反映→実phase/officialpositive記録で必要原因修復→12件の自然処理確認。既存本文/context/モデルroute修復をやり直さず、監査byte不足やTaskMarketprototype制作を先行しない。未知効果を0/成功へ変換せず、再送/fence解除は公式証拠なしに行わない。
+- currentLuna診断候補106focused等PASS、OSS ownshared inventory189/count不変の該当digest1entryのみ整合中。追加case/設計を増やさずsource候補完了を優先し、role6LunaMax実装/6.1SolMedium reviewを保持する。
