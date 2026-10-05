@@ -84,10 +84,11 @@
 **Interfaces:**
 - Consumes: Task 1 policy and Task 2 registered-domain readback.
 - Produces: `SedoClient.insert_for_sale(domain, price_eur, min_price_eur)`, `domain_status(domain)`, and `domain_list(domains)`.
+- `insert_for_sale` reads the current official `DomainCategories` taxonomy, resolves the `Computers > Artificial Intelligence` category path, and sends those returned IDs. If the source is unavailable or the category is absent, it submits no listing.
 - The adapter submits documented POST form requests and parses XML with the stdlib. `DomainInsert` returning `Ok` is only submission; `listed` requires a later official `DomainStatus` or `DomainList` match.
 - Sedo's listing API does not prove buyer settlement or seller payout; those receipts remain separate events.
 
-- [ ] **Step 1: Write failing tests** named `test_insert_uses_post_and_eur_price`, `test_ok_submission_does_not_mark_listed`, `test_domain_status_confirms_exact_price`, `test_domain_not_in_sedo_is_not_listed`, and `test_sedo_fault_stays_unverified`. Use fixture XML based on the official API response examples.
+- [ ] **Step 1: Write failing tests** named `test_insert_uses_post_eur_price_and_live_category_ids`, `test_missing_ai_category_prevents_insert`, `test_ok_submission_does_not_mark_listed`, `test_domain_status_confirms_exact_price`, `test_domain_not_in_sedo_is_not_listed`, and `test_sedo_fault_stays_unverified`. Use fixture XML based on the official API response examples.
 - [ ] **Step 2: Run the test file and confirm the expected missing-module failure.** Run: `python3 -m pytest skills/domain-flip/test_sedo.py -q`. Expected: collection fails because the adapter is absent.
 - [ ] **Step 3: Implement the minimal form/XML adapter** for `DomainInsert`, `DomainStatus`, and `DomainList`; read API credentials only from the credential SSOT and never log them.
 - [ ] **Step 4: Run the focused tests.** Run: `python3 -m pytest skills/domain-flip/test_sedo.py -q`. Expected: all named tests pass.
@@ -158,6 +159,7 @@
 
 - Openprovider official getting-started guide and REST schema: `https://developer.openprovider.com/get-started.html`, `https://developer.openprovider.com/data/swagger.json`
 - Sedo official Basic API: `https://api.sedo.com/apidocs/v1/Basic/`
+- Sedo official DomainCategories API: `https://api.sedo.com/apidocs/v1/Basic/functions/sedoapi_Categories.html`
 - Register.si official rules and WHOIS §13: `https://www.register.si/splosni-pogoji/`
 - WIPO Global Brand Database API: `https://developers.branddb.wipo.int/`
 - EUIPO Trademark Search API: `https://dev.euipo.europa.eu/product/trademark-search_110/api/trademark-search`

@@ -40,7 +40,7 @@ flowchart LR
 
 候補のブランド性、技術系企業との関連性、実販売事例との類似性、権利上の危険性、買い手offerの採否をモデルが判断する。コンテキストにはレジストラの現行見積り、公式の空き・予約情報、Sedoの対応TLDと料金、公開販売報告、WIPO Global Brand DatabaseとEUIPO Trademark Search APIの結果を渡し、判断理由と根拠URLを保存する。公的な権利検索が失敗・未認証・未取得なら候補はscout-onlyとする。著名作品・キャラクターの禁止語リストや文字列regexで権利判断を代行しない。
 
-ツールは狭く分ける。registrar adapterは空き状況、登録・更新見積り、登録者・期限readback、holder-transfer結果を返す。Sedo adapterは出品、offer、買い手決済、移転状態、手数料、売り手出金を返す。CFO adapterはconfirmed receiptsとactual costsを読み取る。モデルは根拠に基づく候補と価格を提案し、ツールの完了申告は公式stateで別途確認する。
+ツールは狭く分ける。registrar adapterは空き状況、登録・更新見積り、登録者・期限readback、holder-transfer結果を返す。Sedo adapterは出品、offer、買い手決済、移転状態、手数料、売り手出金を返す。出品category IDは公式DomainCategories APIをread-onlyで取得し、現行taxonomyから解決して使う。CFO adapterはconfirmed receiptsとactual costsを読み取る。モデルは根拠に基づく候補と価格を提案し、ツールの完了申告は公式stateで別途確認する。
 
 ## 5. 資金、費用、法的境界
 
