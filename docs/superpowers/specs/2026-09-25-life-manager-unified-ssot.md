@@ -8077,3 +8077,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6651/headab0ffbe621のsameCI37299160629は全10checks SUCCESS、通常admin merge成功。main8e64b3ffc07957dc9002be3d8b345c25fcd5846a/merged10:56:56ZをGitHub/fetch確認。current immutable source/runtimeの実証へ進める。
 - sourcefullcut前のstatvfs4726091776bytes/最低1GiB preflight PASS。standard bin/cut-loop-release.sh main8e64をexec63408で開始、未完成を反映済みとしない。次はcurrentSHA/ALL・sourcebyte→Reply target safeidle apply・actualargs/source→same-source naturalhidden終了とownedledger/context officialreadback。activeowner/未確認effect/privatevaultを強制変更しない。
 - 本番候補のsource受入と未解消12件のofficialreceiptを分離し、bodyselector仮説や過去provider403を完了としない。全体47/cursor1 auditcachecaller根本修復/背景processgroup・SelfBuild最後を維持。
+
+
+### 574. hidden修正owner反映と403前段停止・live空白probeの範囲
+
+- full immutable /Users/anicca/loops/releases/20261005T195708-8e64b3ff /main8e64/ALLをcurrentで確認。target Reply idle1probe→apply changedtrue/admissionresumedtrue/installcddb1846d2d4070951cbff02、actualargs同root/bin/lm-loop-run。state/coconala-hidden-finalizer-owner-adoption-20261005.json保存。newsource自然run18db9d0b9ef7e398-10976/reportPASS/idleを確認。
+- 10:59:50Z latestbusinessblocked0counts、10:59:57 readonlyinventoryknown3/unknown0/leases3/pending3/pid無し、反映前baselineと同じ。inbox403でhiddencontextをexerciseしない前段停止なので新cleanup成功や12保留解消へ代用しない。provider/Auth/旧effectfence変更0。
+- 次の切分けscopeはregisteredbrowserguard正規取得後、newmainimmutable helperでroot unique owner about:blank serve-hiddenを開きstdinを閉じるlive技術probe。lease/target ledgerはroot専用private statefileへ分離しexistingbusinessrowsを触らず、既存vaultはreadseedのみ/書戻し0、Recovery/ブラウザ全restartをperprobe無効にする。ownedtarget1/context1だけclose、officialTarget.getContexts/ledgerでownresidue0確認、privatecookie/token/rawoutputを表示せずmetadataのみ保存。BUSY/変化/不明ownerは保持、実customerGET/投稿/ask/providerpaidaction0。自然Coconalaの代用Doneにはせずsource実CDP境界を確認する。全体47/cursor1・12未解消維持。
