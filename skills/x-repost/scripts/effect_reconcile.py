@@ -22,6 +22,7 @@ READBACK_ONLY_RELEASES = {
     "c16f437b93028ea5d94014a1fa32c091795cbee0",
     "86fa863d4fe04ec0b5c44e8a2e513e55edaf2928",
     "88872a85cc652877f242ead444108a813084cfc9",
+    "4eb6bbbaeb9a8368895e6391e34e8c895908b0ec",
 }
 POSTIZ_INTEGRATION_ID = "cmt4l2jld031tqp0y8qtyo983"
 POSTIZ_POSTS_URL = "https://api.postiz.com/public/v1/posts"
@@ -616,8 +617,10 @@ def reconcile(occurrence_id: str, *, resolve: bool = False,
     if checked_at < end_at:
         return build_proof(occurrence_id, events, {}, {"ok": False}, now=checked_at)
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
+    # A queued owner may start after its original queue time when shared capacity opens later.
+    # The exact occurrence/run event pair anchors identity; a queue time after start stays fenced.
     if (state not in {"claimed", "released"}
-            or abs(float(queued_at) - start_at.timestamp()) > FENCE_START_TOLERANCE_SECONDS):
+            or float(queued_at) > start_at.timestamp() + FENCE_START_TOLERANCE_SECONDS):
         proof = build_proof(occurrence_id, events, {}, {"ok": False}, now=checked_at)
         proof["reason"] = "fenced_occurrence_does_not_match_runtime_start"
         return proof
