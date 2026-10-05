@@ -1639,6 +1639,167 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     enqueue.assert_not_called()
 
 
+def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    events = []
+    scratch = state_root / "loop-tmp/example-publisher/run-1"
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree", return_value=False)):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    diagnostic_path = state_root / "scratch-cleanup-diagnostics/run-1.json"
+    assert diagnostic_path.is_file()
+    assert scratch not in diagnostic_path.parents
+    diagnostic = json.loads(diagnostic_path.read_text(encoding="utf-8"))
+    assert diagnostic["run_id"] == "run-1"
+    assert diagnostic["owner_id"] == "example-publisher"
+    assert diagnostic["occurrence_id"] == "example-publisher:run-1"
+    assert diagnostic["release_sha"] == "a" * 40
+    assert diagnostic["terminal_saved"] is True
+    assert diagnostic["phase"] == "terminal_cleanup"
+    assert diagnostic["cleanup_status"] == "preserved"
+    assert diagnostic["scratch_path"] == "loop-tmp/example-publisher/run-1"
+    assert diagnostic["loaded_argv_sha256"] == events[-1]["loaded_argv_sha256"]
+    assert diagnostic["loaded_env_sha256"] == events[-1]["loaded_env_sha256"]
+    assert diagnostic["command"] == "bin/example-publisher"
+    assert diagnostic["error_class"] is None
+    assert diagnostic["errno"] is None
+    assert diagnostic["scratch_identity"]["inode"] == scratch.stat().st_ino
+    assert diagnostic["scratch_identity"]["mode"] == "0700"
+    assert diagnostic["scratch_identity"]["path_present"] is True
+    assert diagnostic["scratch_identity"]["path_matches_open"] is True
+    assert diagnostic["scratch_identity"]["terminal_marker_remaining"] is False
+    assert scratch.is_dir()
+
+
+def test_main_records_cleanup_exception_without_changing_business_result(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    events = []
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree",
+                side_effect=OSError(13, "private cleanup path"))):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    diagnostic_raw = (state_root / "scratch-cleanup-diagnostics/run-1.json").read_text()
+    diagnostic = json.loads(diagnostic_raw)
+    assert diagnostic["cleanup_status"] == "error"
+    assert diagnostic["cleanup_operation"] == "remove_owned_tree"
+    assert diagnostic["error_class"] == "PermissionError"
+    assert diagnostic["errno"] == 13
+    assert diagnostic["scratch_identity"]["terminal_marker_remaining"] is False
+    assert "private cleanup path" not in diagnostic_raw
+
+
+def test_main_keeps_scratch_protected_when_terminal_event_is_not_saved(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    scratch = state_root / "loop-tmp/example-publisher/run-1"
+    events = []
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+
+    def append_event(_path, event):
+        if len(events) == 0:
+            events.append(event)
+            return
+        raise OSError(28, "terminal write unavailable")
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=append_event),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree") as remove):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    diagnostic = json.loads((state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
+    assert diagnostic["terminal_saved"] is False
+    assert diagnostic["phase"] == "terminal_unrecorded_hold"
+    assert diagnostic["cleanup_status"] == "held_terminal_unrecorded"
+    assert diagnostic["error_class"] == "OSError"
+    assert diagnostic["errno"] == 28
+    assert diagnostic["scratch_identity"]["path_matches_open"] is True
+    assert diagnostic["scratch_identity"]["terminal_marker_remaining"] is True
+    assert (scratch / ".terminal-unrecorded").is_file()
+    remove.assert_not_called()
+
+
+def test_main_reports_typed_diagnostic_when_cleanup_record_cannot_be_written(
+        tmp_path, capsys):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    events = []
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree", return_value=False),
+          patch("runtime.loop.lm_loop_run._atomic_json",
+                side_effect=PermissionError(13, "private diagnostic path"))):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    captured = capsys.readouterr()
+    diagnostic = json.loads(captured.err)
+    assert diagnostic["event"] == "scratch_cleanup_diagnostic_write_failed"
+    assert diagnostic["run_id"] == "run-1"
+    assert diagnostic["owner_id"] == "example-publisher"
+    assert diagnostic["phase"] == "diagnostic_record"
+    assert diagnostic["cleanup_status"] == "preserved"
+    assert diagnostic["error_class"] == "PermissionError"
+    assert diagnostic["errno"] == 13
+    assert "private diagnostic path" not in captured.err
+
+
 def _write_prestart_lock_release(tmp_path):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)

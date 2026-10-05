@@ -347,6 +347,66 @@ def _atomic_json(path: Path, value: dict) -> None:
         except FileNotFoundError: pass
 
 
+def _record_scratch_cleanup_diagnostic(
+        state_root: Path, parent_fd: int, run_fd: int, *,
+        loop_id: str, run_id: str, occurrence_id: str, release_sha: str,
+        terminal_saved: bool, phase: str, cleanup_status: str,
+        cleanup_operation: str, error: Exception | None,
+        loaded_argv_sha256: str, loaded_env_sha256: str,
+        command: str) -> None:
+    if not SAFE_RUN_ID.fullmatch(loop_id) or not SAFE_RUN_ID.fullmatch(run_id):
+        raise ValueError("unsafe scratch cleanup diagnostic identity")
+    if not OCCURRENCE_ID_PATTERN.fullmatch(occurrence_id):
+        raise ValueError("unsafe scratch cleanup diagnostic occurrence")
+
+    opened = os.fstat(run_fd)
+    try:
+        named = os.stat(run_id, dir_fd=parent_fd, follow_symlinks=False)
+        path_present = True
+        path_matches_open = (opened.st_dev, opened.st_ino) == (named.st_dev, named.st_ino)
+    except FileNotFoundError:
+        path_present = False
+        path_matches_open = False
+    except OSError:
+        path_present = None
+        path_matches_open = None
+    try:
+        os.stat(".terminal-unrecorded", dir_fd=run_fd, follow_symlinks=False)
+        marker_remaining = True
+    except FileNotFoundError:
+        marker_remaining = False
+    except OSError:
+        marker_remaining = None
+
+    diagnostic = {
+        "schema_version": 1,
+        "event": "scratch_cleanup_diagnostic",
+        "run_id": run_id,
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "release_sha": release_sha,
+        "terminal_saved": terminal_saved,
+        "phase": phase,
+        "cleanup_status": cleanup_status,
+        "cleanup_operation": cleanup_operation,
+        "error_class": type(error).__name__ if error is not None else None,
+        "errno": getattr(error, "errno", None) if error is not None else None,
+        "scratch_path": f"loop-tmp/{loop_id}/{run_id}",
+        "scratch_identity": {
+            "device": opened.st_dev,
+            "inode": opened.st_ino,
+            "mode": f"{stat.S_IMODE(opened.st_mode):04o}",
+            "path_present": path_present,
+            "path_matches_open": path_matches_open,
+            "terminal_marker_remaining": marker_remaining,
+        },
+        "loaded_argv_sha256": loaded_argv_sha256,
+        "loaded_env_sha256": loaded_env_sha256,
+        "command": command,
+    }
+    _atomic_json(state_root / "scratch-cleanup-diagnostics" / f"{run_id}.json", diagnostic)
+
+
 class EffectIdentityResult(NamedTuple):
     """Outcome of an effect-identity persistence attempt.
 
@@ -1413,6 +1473,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"lm-loop-run: effect identity preservation deferred: {error}", file=sys.stderr)
         terminal_saved = False
         event = None
+        terminal_error = None
         try:
             succeeded, deferred, blocker = _terminal_outcome(
                 return_code, host_deferred=host_deferred)
@@ -1449,6 +1510,7 @@ def main(argv: list[str] | None = None) -> int:
             append_runtime_event(event_path, event)
             terminal_saved = True
         except (OSError, ValueError) as error:
+            terminal_error = error
             print(f"lm-loop-run: terminal event failed: {error}", file=sys.stderr)
         if terminal_saved and event is not None and _should_enqueue_recovery_intent(entry, event):
             try:
@@ -1456,9 +1518,51 @@ def main(argv: list[str] | None = None) -> int:
             except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
                 print(f"lm-loop-run: recovery intent append failed: {error}", file=sys.stderr)
         try:
+            cleanup_status = "held_terminal_unrecorded"
+            cleanup_operation = "terminal_not_saved"
+            cleanup_error = terminal_error
             if terminal_saved:
-                unprotect_loop_scratch(scratch_fd)
-                remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+                try:
+                    cleanup_operation = "unprotect_marker"
+                    unprotect_loop_scratch(scratch_fd)
+                    cleanup_operation = "remove_owned_tree"
+                    removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+                    cleanup_status = "removed" if removed else "preserved"
+                    cleanup_error = None
+                except Exception as error:
+                    cleanup_status = "error"
+                    cleanup_error = error
+            if cleanup_status != "removed":
+                try:
+                    _record_scratch_cleanup_diagnostic(
+                        loop_state_root, scratch_parent_fd, scratch_fd,
+                        loop_id=loop_id, run_id=run_id,
+                        occurrence_id=claimed_occurrence_id or occurrence_id,
+                        release_sha=manifest["sha"], terminal_saved=terminal_saved,
+                        phase=("terminal_cleanup" if terminal_saved
+                               else "terminal_unrecorded_hold"),
+                        cleanup_status=cleanup_status,
+                        cleanup_operation=cleanup_operation,
+                        error=cleanup_error,
+                        loaded_argv_sha256=loaded_argv_sha256,
+                        loaded_env_sha256=(event.get("loaded_env_sha256")
+                                           if isinstance(event, dict)
+                                           else start_env_sha256),
+                        command=entry["entrypoint"],
+                    )
+                except Exception as error:
+                    print(json.dumps({
+                        "event": "scratch_cleanup_diagnostic_write_failed",
+                        "run_id": run_id,
+                        "owner_id": loop_id,
+                        "occurrence_id": claimed_occurrence_id or occurrence_id,
+                        "release_sha": manifest["sha"],
+                        "phase": "diagnostic_record",
+                        "cleanup_status": cleanup_status,
+                        "error_class": type(error).__name__,
+                        "errno": getattr(error, "errno", None),
+                        "command": entry["entrypoint"],
+                    }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
         finally:
             os.close(scratch_fd)
             os.close(scratch_parent_fd)
