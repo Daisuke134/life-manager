@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import OSLog
+import Singular
 
 @MainActor
 final class SingularManager {

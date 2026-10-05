@@ -90,7 +90,6 @@ struct PaywallVariantBView: View {
         .onAppear {
             if !hasTracked {
                 hasTracked = true
-                AnalyticsManager.shared.track(.paywallPlanSelectionViewed)
                 AnalyticsManager.shared.trackPaywallViewed()
             }
             if selectedPackage == nil {
