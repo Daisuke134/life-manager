@@ -46,6 +46,7 @@
 - Create: Daisuke134/anicca-products/apps/landing/lib/checkout-attribution.js
 - Modify: Daisuke134/anicca-products/apps/landing/netlify/functions/checkout.js
 - Test: Daisuke134/anicca-products/apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js
+- Create: Daisuke134/anicca-products/.github/workflows/landing-pr-build.yml
 
 **Interfaces**
 - Request: `lang`, `product`, `mode`, optional `attribution_token` copied from the existing `utm_campaign` query parameter.
@@ -55,8 +56,8 @@
 - [x] Step 1: Add failing tests for the page URL helper, EN/JA price selection, eBook payment mode, Letter subscription mode, locale-matched `utm_campaign` → `attribution_token` propagation, and subscription metadata. RED observed before implementation.
 - [x] Step 2: Run apps/landing: `npm run test:telemetry`. The new eBook cases failed before implementation as expected.
 - [x] Step 3: Read `utm_campaign` on `/monk`, `/achan`, `/letter`, and `/tegami`; pass it as `attribution_token` in the checkout request and into Checkout/Subscription metadata. Keep `/go/<token>` as the existing click-receipt entrypoint. Remove the unsupported per-chapter length claims from EN/JA HTML and JSON-LD; retain the verified claim of 49 short chapters.
-- [ ] Step 4: `npm run test:telemetry` passes 336/336. `npm run build` remains unverified: Next build stopped with `ENOSPC`; the PR has no build check or deploy preview. Re-run after sufficient build space is available.
-- [x] Step 5: Commit and push the focused checkout/content change as `a36098a209`; PR #419 is open. Source tests pass; merge remains behind Step 4 build acceptance.
+- [x] Step 4: `npm run test:telemetry` passes 336/336 and `npm run build` passes in GitHub Actions run `37315148621`. The PR workflow uses a localhost dashboard snapshot URL and performs no deploy.
+- [x] Step 5: Commit and push the focused checkout/content change (`a36098a209`, build workflow `c6614243ee`); PR #419 merged to main as `6c52d4cc13`.
 
 ### Task 2: Make buyer receipt and PDF fulfillment retry-safe
 

@@ -315,8 +315,8 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧`capafy-ig-marketing-daily` | Release `d3d7be63`、scheduled/loaded-idle。2026-10-05 13:06Z readbackの最新 occurrence `18dba3f8c5d30d00-93546`は`host_admission_deferred:resource_effect_unknown`/exit 75、provider receipt/readbackなし。別の未解決admission fence `18db7caff1178a88-68028`も`official_readback_required`。 | 両effect-unknown occurrenceの公式readbackと重複publisher解消 |
-| 新`life-manager-capafy-ig` | PR #6631のlane sourceにPR #6663のNode/Python runtime fix（merge `9e3fb448`）とPR #6668の`effect_reconcile` adapter（merge `e43ffd01`）が反映済み。installed releaseはまだ`4eb6bbba`。最新既知 occurrence `18dba2da79ab8048-54298`はcapacity-deferred/effect-unknownでreceiptなし。scheduleは09:00/14:00/20:00の1日3回。 | 別担当release後のloaded SHA/argv、旧effect fence、既存accountとPostiz identity、頻度gate、provider post receipt |
+| 旧`capafy-ig-marketing-daily` | Release `d3d7be63`、scheduled/loaded-idle。2026-10-05 13:06Z readbackの最新 occurrence `18dba3f8c5d30d00-93546`は`host_admission_deferred:resource_effect_unknown`/exit 75、provider receipt/readbackなし。admission fence `18db7caff1178a88-68028`も`official_readback_required`。 | 両unresolved occurrenceの公式readbackと重複publisher解消 |
+| 新`life-manager-capafy-ig` | PR #6631のlane sourceにPR #6663のNode/Python runtime fix（merge `9e3fb448`）とPR #6668の`effect_reconcile` adapter（merge `e43ffd01`）が反映済み。installed releaseはまだ`4eb6bbba`。2026-10-05 12:45Z readbackの最新 occurrence `18dba2da79ab8048-54298`は`host_admission_deferred:resource_effect_unknown`でreceiptなし。admission fence `18db9d1858bcbc20-12593`も`official_readback_required`。scheduleは09:00/14:00/20:00の1日3回。 | 別担当release後のloaded SHA/argv、全effect fence、既存accountとPostiz identity、頻度gate、provider post receipt |
 | eBook → Capafyの実行順 | eBook配信ownerは未実装。Dais指定順はeBook first receiptの後にCapafy Instagram。 | eBook Task 5の同一occurrenceのpaid-session/PDF receipt後にD5開始 |
 
 **担当境界とmarketing gate**
@@ -329,7 +329,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **eBook初回receipt後のmarketing手順**
 
-1. 旧`capafy-ig-marketing-daily:18dba3f8c5d30d00-93546`と未解決fence`18db7caff1178a88-68028`、新`life-manager-capafy-ig:18dba2da79ab8048-54298`をowner別のprovider readbackで照合します。effect unknownの間はどちらも再送しません。
+1. 旧`capafy-ig-marketing-daily:18dba3f8c5d30d00-93546`と未解決fence`18db7caff1178a88-68028`、新`life-manager-capafy-ig:18dba2da79ab8048-54298`とfence`18db9d1858bcbc20-12593`をowner別のprovider readbackで照合します。effect unknownの間はどちらも再送しません。
 2. 投稿ownerを一つにし、既存所有IGのidentity/good-standing statusと対応するPostiz integrationを確認します。既存ownerを検証できなければlaneをheldにし、accountを作りません。
 3. 初期canaryを24時間に1回以下で配信できることを確認します。現在のregistry scheduleは1日3回なので、別担当のslot gateが確認できるまで公開配信を無効のままにします。
 4. 必要なPostiz integrationと承認済みpack/media/Instagram approval refを、credential値を記録せず確認します。公開中・利益のあるskillのLISTING.mdにある実際のinput/outputと`ct=capafy-reel-<slug>`を使って、効果のないdry-runを行います。

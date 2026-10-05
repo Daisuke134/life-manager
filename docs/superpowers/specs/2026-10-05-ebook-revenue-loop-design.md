@@ -24,7 +24,7 @@
 - `webhook.js`はbuyer/subscriber記録とメールを処理しますが、Supabase write failureを`.catch(()=>{})`で隠し、同じStripe eventの再配信でメールを再送し得ます。
 - eBook配信メールは現在PDF linkだけを含みます。optional CTAから同じ`utm_campaign`付きで`/letter`/`/tegami`へ進めますが、購読は別のcheckoutを本人が完了した場合だけ成立します。
 - 公開MarkdownはEN/JAともH2章見出しが49個です。各章本文はEN平均76.8語（55–123語）、JA平均178.9文字（空白除外、127–280文字）で、ページの「各章約150語/字」と一致しません。HTMLとJSON-LDから章ごとの長さのclaimを外し、「49の短章」に揃えます。
-- checkout attribution helper とStripe Checkout metadataはproduct PR #419（`a36098a209`）で実装済み。focused tests 7/7、telemetry suite 336/336 PASS。Next buildは`ENOSPC`で未確認、GitHub PRにbuild/deploy checkなし。Life Manager の marketing-engine/ebook_runner.py は receipt 付き render と awaiting_visual_approval の配信 intent を作りますが、Stripe 売上や公開投稿は行いません。
+- checkout attribution helper とStripe Checkout metadataはproduct PR #419（merge `6c52d4cc13`）でmainへ反映済み。focused tests 7/7、telemetry suite 336/336、GitHub Actions Next build PASS。Life Manager の marketing-engine/ebook_runner.py は receipt 付き render と awaiting_visual_approval の配信 intent を作りますが、Stripe 売上や公開投稿は行いません。
 - `ebook-distribute-daily`は`config/loop-registry.json`にありません。EN packはTikTok accountを登録しInstagramを`setup_required`にします。JA packにはTikTokとInstagramが登録されていますが、packの記載自体はprovider login/statusの証拠ではありません。
 - OpenClaw local jobs.json では monk 関連 cron が無効です。Gateway が切断しているため loaded schedule は未確認です。Life Manager の CFO readback でも eBook の sale/net/settlement は unknown です。
 - Capafyには旧`capafy-ig-marketing-daily`と新`life-manager-capafy-ig`のscheduled ownerがあります。新laneのruntime fix PR #6663とeffect-reconcile PR #6668はmainにmerge済みですが、installed releaseは未反映でpost receiptもありません。旧ownerの最新readbackは`18dba3f8c5d30d00-93546`（effect unknown）で、`18db7caff1178a88-68028`もofficial readback待ちです。二重ownerと未解決effectを閉じるまでCapafy投稿を開始しません。
