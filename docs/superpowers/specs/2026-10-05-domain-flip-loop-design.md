@@ -68,7 +68,7 @@ stateはrelease外のdomain-flip専用rootに置く。候補ごとのappend-only
 
 調査時点でcredential SSOTにregistrarまたはSedoの既存credentialはなく、完了済み .si 売却の一次資料も確認できていない。DDG HTML検索ではDynadotの記事と市場投稿が見つかったが、いずれも売却receiptではない。Xの「Superintell_」投稿もRecursive.siへのリンクを示すだけで、会社による売買や価格の一次証拠ではない。登録・移転・料金はRegister.si、売却手数料・escrowはSedoの一次資料で確認した。
 
-source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専用事業cap・登録者の公開条件が揃うまでは購入機能を有効化せず、scout-onlyの自然passを許す。no-chargeのAPI accountが必要ならcredential SSOTへ登録し、production endpointのread-only availability/quoteを確認する。購入には専用事業残高の公式readbackが必要で、個人資金の補填はしない。business resultの完了は、自然pass、登録・出品の公式readback、実際の買い手決済、holder移転、seller payout、cost-complete net、replay-zeroで判断し、購入・出品・希望価格だけで完了としない。
+source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専用事業cap・登録者の公開条件が揃うまでは購入機能を有効化せず、scout-onlyの自然passを許す。OpenproviderとSedoのno-charge accessが必要ならcredential SSOTへ登録し、production endpointのread-only availability/quoteとseller-listing termsを確認する。EUIPO API credentialsはSSOTに存在せず、production subscriptionには本人確認書類・住所証明の提出が必要なため、このloopからは新規申請・書類送信をしない。認証済み権利検索が未取得ならcandidateは購入不可とし、個人資金の補填もしない。business resultの完了は、自然pass、登録・出品の公式readback、実際の買い手決済、holder移転、seller payout、cost-complete net、replay-zeroで判断し、購入・出品・希望価格だけで完了としない。
 
 ## 8. 実装段階の契約
 
