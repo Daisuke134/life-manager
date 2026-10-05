@@ -7817,3 +7817,14 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新sourceaac9の自然run18db91f7f6aa4640-98741/occurrence hf-gig-reply-detector:18db41941b9b0e80-18854はframework reportpassだが、reply/latest.jsonの07:36:35結果はblocked/provider_inbox_access_forbidden。observed/pending/effect/readbackの0を公式empty inbox・返信完了へ置換しない。source反映完了とbusiness復旧未完を分離する。
 - 次の診断scopeは、同query URIを取得したroot registered default contextの200と、collector helperがseedするisolated context/loaded envの403の失敗境界比較。safe metadata/HTTP/route/sourcefamily/context identity/vault freshness/helper error boundaryを取得し、private session/credential値や顧客本文をlog/chatへ出さない。actualsharedcontext/新session/profileを勝手に変更せず既存guard/ownerで調整、readonly唯一ownerのprobeを使う。証拠取得後に必要なowner-localsource/設定だけ修復する。新login/CAPsolver task/顧客送信/oldfence解放なし。
 - audit診断はLunaがFalse無記録のREDを実証、businesspassとreturn0を維持したままstructuredrecord欠如で失敗。既存_atomic_json使用の最小GREEN進行中。残47/cursor1で、Coconala診断は独立並行する。
+
+
+### 538. Coconala四工程の再観測と残作業の整理
+
+- 目的・範囲・Done：CoconalaのStorefront/Apply/Negotiate/Paidを現在の公式公開証拠・runtime・業務結果で分け、内部loopの未完だけを明示する。個別TikTok/NPO資料追跡は保留を維持。納品・検収・精算・入金をprocess PASSから推定しない。
+- Replyの新source aac9自然run18db926cfc8e0bf8-29029/occurrence hf-gig-reply-detector:18db41f3a9afef10-30444は07:45:07Z report PASS。coconala/reply/latest.json mtime07:45:02Zはstatus ok/observed194/pending13/effect0/readback181/failed0。fileにはrun_idがなく厳密binding未確認。§537の07:36拒否後に取得成功を観測したが、継続復旧・全返信完了の証明ではない。137 no_reply/replay_zero、44 closed/replay_zero、保留6 retry_backoff/4 reconcile_unknown/3 provider_inbox_observation_unavailable。181を送信数や売上へ置換しない。
+- 07:42:44Zの同query比較はdefault/vault-seeded双方HTTP403。証拠state/coconala-context-comparison-20261005.json。「isolatedだけ拒否」「vault更新で解決」は反証され、原因未確定。新CAPTCHA/login/認証state変更をこの観測だけで開始しない。
+- Storefront：§521の公式匿名公開4件・購入入口は確認済み。automatic ownerはaac9/loaded-idle、run18db9282fb093300-31348 blocked/resource_effect_unknown。公開済み商品と更新loopを区別する。
+- Apply：aac9/loaded-idle、run18db923c86681020-21882 blocked/resource_effect_unknown。旧run18dadcd76d9c61b0-37711のone_to_one_occurrence_intent_mapping_not_presentで公式結果未結合。重複応募を避けるfenceは維持。
+- Paid：再観測時8853fc9533c7f527c09bbf005e69c9e6f5fef79b/loaded-running。07:33:34Z agent-runner run798461c1a4ebdc8d0db12669 report PASS、official_readback_ref/provider_receipt_idなし。以前の06:10制御待ちを現在状態として扱わない。現在稼働しているが正式納品・検収・精算・入金の全件完了は未確認。
+- Coconala残作業の依存順：1) Reply保留13件を6 backoff/4結果不明/3観測不足に分け既存thread receipt・最新観測で解消、2) Apply旧runの応募intentと公式結果を一対一結合し安全にfenceを解消、3) Storefront旧runの結果証拠を結び更新loopを復旧、4) Paidの現在自然実行の業務receiptで正式納品と依頼側待ちを分類、5) 確定した検収・精算・fee/refundをCFOへ結ぶ。1/2/3のread-only観測と4の既存自然実行追跡は独立して並行可能。receiptなし再送なし。全体正本§217は47/cursor1 audit診断のまま、Coconalaの相対順を完了捏造で変更しない。
