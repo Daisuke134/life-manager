@@ -248,6 +248,6 @@ Telephony, paid model calls, and user-requested external actions remain separate
 - verify official Moneytree, Google billing, revenue, and expense readbacks;
 - close only when all required numbers are either fresh and sourced or explicitly partial with an owner-visible blocker.
 
-## 10. Current gate
+## 10. Status ownership
 
-This design is now written as a dedicated spec draft. It is not yet the implementation plan and no production code has been changed. After review, the next Superpowers step is `writing-plans`, followed by implementation in owned slices.
+This document defines the target design and A0–A10 acceptance criteria. The current implementation state, evidence, blockers, and active cursor are maintained only in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` (CFO section). A source merge alone does not satisfy production acceptance; use the unified SSOT for the current gate.
