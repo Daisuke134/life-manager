@@ -142,6 +142,8 @@ def test_contract_summary_amount_observation_keeps_multiple_values_ambiguous():
 @pytest.mark.parametrize("rows, expected_status", [
     ([], "unknown"),
     ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12,00円"}], "unknown"),
+    ([{"label": "契約金額", "tax_included": True, "same_row": True, "cell_tag": "TD", "text": "12.5円"}], "unknown"),
+    ([{"label": "契約金額", "tax_included": True, "same_row": True, "cell_tag": "TD", "text": "-12円"}], "unknown"),
     ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12円"}] * 2, "ambiguous"),
 ])
 def test_contract_summary_amount_observation_fails_closed(rows, expected_status):

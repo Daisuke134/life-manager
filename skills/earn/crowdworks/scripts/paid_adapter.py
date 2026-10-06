@@ -114,7 +114,7 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
             or row.get("cell_tag") != "TD" or not isinstance(row.get("text"), str)):
         return {"status": "unknown", "label": "契約金額"}
     text = row["text"]
-    tokens = re.findall(r"(?<![0-9,])([0-9][0-9,]*)\s*円", text)
+    tokens = re.findall(r"(?<![0-9,.+-])([+-]?[0-9][0-9,.+-]*)\s*円", text)
     amounts: list[int] = []
     invalid_amount = False
     for token in tokens:
