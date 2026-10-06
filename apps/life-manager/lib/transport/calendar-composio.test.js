@@ -98,6 +98,8 @@ test("getCalendar passes the production Supabase config to real Web control read
           calendar_provider: "composio_gcal",
           calendar_connected_account_id: ACCOUNT_ID,
           calendar_enable_pending: controlState.enablePending,
+          calendar_enable_claim_id: controlState.enablePending ? "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f" : null,
+          calendar_enable_claimed_at: controlState.enablePending ? "2030-01-01T07:00:00.000Z" : null,
         }] };
       }
       if (url.pathname.endsWith("/lm_panel_preferences")) {

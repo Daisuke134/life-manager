@@ -136,6 +136,7 @@ function makeEnableHarness(startCalendarImpl = async (state) => {
     row: {
       uid: UID, telegram_chat_id: null, calendar_provider: "composio_gcal",
       calendar_connected_account_id: "ca-selected", calendar_enable_pending: false,
+      calendar_enable_claim_id: null, calendar_enable_claimed_at: null,
       home_address: "home", trial_expires_at: null, paid: false,
     },
     preference: {
@@ -146,24 +147,54 @@ function makeEnableHarness(startCalendarImpl = async (state) => {
     calls: [],
     providerEnableCalls: 0,
     providerDisableCalls: 0,
+    recoverCalls: 0,
+    finishClaimIds: [],
+    beginClaimIds: [],
+    lastIssuedClaimId: null,
   };
   const fetchImpl = async (url, init = {}) => {
     const parsed = new URL(String(url));
     const method = init.method || "GET";
     if (parsed.pathname.endsWith("/rpc/begin_lm_web_calendar_enable")) {
       state.calls.push("begin_enable");
+      const body = JSON.parse(init.body || "{}");
       if (state.preference.calendar_disconnect_pending) {
         return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
       }
+      const claimId = body.p_claim_id || "2e59df08-f437-44fd-bbe9-5d835ba467f0";
+      state.beginClaimIds.push(body.p_claim_id || null);
       state.row.calendar_enable_pending = true;
+      state.row.calendar_enable_claim_id = claimId;
+      state.row.calendar_enable_claimed_at = new Date().toISOString();
+      state.lastIssuedClaimId = claimId;
+      return { ok: true, status: 200, json: async () => true };
+    }
+    if (parsed.pathname.endsWith("/rpc/recover_lm_web_calendar_enable")) {
+      state.calls.push("recover_enable");
+      state.recoverCalls++;
+      const body = JSON.parse(init.body || "{}");
+      const claimedAt = Date.parse(state.row.calendar_enable_claimed_at || "");
+      if (!state.row.calendar_enable_pending || body.p_expected_claim_id !== state.row.calendar_enable_claim_id
+        || !Number.isFinite(claimedAt) || Date.now() - claimedAt < 120_000
+        || state.preference.calendar_disconnect_pending) {
+        return { ok: true, status: 200, json: async () => false };
+      }
+      state.row.calendar_enable_claim_id = body.p_new_claim_id;
+      state.row.calendar_enable_claimed_at = new Date().toISOString();
+      state.lastIssuedClaimId = body.p_new_claim_id;
       return { ok: true, status: 200, json: async () => true };
     }
     if (parsed.pathname.endsWith("/rpc/finish_lm_web_calendar_enable")) {
       state.calls.push("finish_enable");
-      if (state.providerStatus !== "ACTIVE" || !state.row.calendar_enable_pending) {
-        return { ok: false, status: 400, json: async () => ({ message: "calendar_enable_pending" }) };
+      const body = JSON.parse(init.body || "{}");
+      state.finishClaimIds.push(body.p_claim_id || null);
+      if (!state.row.calendar_enable_pending
+        || (body.p_claim_id && body.p_claim_id !== state.row.calendar_enable_claim_id)) {
+        return { ok: true, status: 200, json: async () => false };
       }
       state.row.calendar_enable_pending = false;
+      state.row.calendar_enable_claim_id = null;
+      state.row.calendar_enable_claimed_at = null;
       return { ok: true, status: 200, json: async () => true };
     }
     if (parsed.pathname.endsWith("/rpc/bind_lm_web_calendar_account")) {
@@ -212,6 +243,10 @@ function makeEnableHarness(startCalendarImpl = async (state) => {
       dailyAutomationEnabled: state.preference.daily_automation_enabled,
       disconnectPending: state.preference.calendar_disconnect_pending,
       enablePending: state.row.calendar_enable_pending,
+      ...(state.row.calendar_enable_pending ? {
+        enableClaimId: state.row.calendar_enable_claim_id,
+        enableClaimedAt: state.row.calendar_enable_claimed_at,
+      } : {}),
     }),
     composioCalendarAccountStatusImpl: async (scope, accountId) => {
       assert.deepEqual(scope, { uid: UID });
@@ -314,7 +349,9 @@ test("Calendar status exposes an enable-pending retry even after provider is ACT
   let providerReads = 0;
   const response = await call("GET", "/api/lm-web/calendar/status", options({
     fetchImpl: async () => ({ ok: true, json: async () => [{ ...row }] }),
-    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: false, disconnectPending: false, enablePending: true }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: false, disconnectPending: false,
+      enablePending: true, enableClaimId: "2e59df08-f437-44fd-bbe9-5d835ba467f0",
+      enableClaimedAt: "2026-10-06T03:00:00.000Z" }),
     composioCalendarAccountStatusImpl: async (scope, accountId) => {
       providerReads++;
       assert.deepEqual(scope, { uid: UID });
@@ -793,6 +830,163 @@ test("enable retry clears its claim only after exact ACTIVE readback", async () 
   assert.ok(h.state.calls.indexOf("provider_status:ACTIVE") < h.state.calls.lastIndexOf("finish_enable"));
 });
 
+test("Calendar start bounds its final ACTIVE readback", async () => {
+  const h = makeEnableHarness();
+  const statusSignals = [];
+  const originalStatus = h.opts.composioCalendarAccountStatusImpl;
+  h.opts.composioCalendarAccountStatusImpl = async (scope, accountId, providerOpts = {}) => {
+    statusSignals.push(providerOpts.signal);
+    return originalStatus(scope, accountId, providerOpts);
+  };
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(statusSignals.length, 2);
+  assert.equal(statusSignals[0], undefined, "the pre-claim status read has no enable lease");
+  assert.ok(statusSignals[1] instanceof AbortSignal, "the post-enable readback has a bounded signal");
+});
+
+test("Calendar enable uses a server UUID and finishes only the matching claim", async () => {
+  const h = makeEnableHarness();
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(h.state.beginClaimIds[0], /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  assert.deepEqual(h.state.finishClaimIds, [h.state.beginClaimIds[0]]);
+});
+
+test("a known pre-PATCH Calendar failure releases its matching claim without changing preferences", async () => {
+  const h = makeEnableHarness(async () => {
+    const error = new Error("provider_failed");
+    error.calendarEnableEffect = "no_effect";
+    throw error;
+  });
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 502);
+  assert.equal(h.state.row.calendar_enable_pending, false);
+  assert.equal(h.state.row.calendar_enable_claim_id, null);
+  assert.equal(h.state.preference.daily_automation_enabled, true);
+  assert.deepEqual(h.state.finishClaimIds, [h.state.beginClaimIds[0]]);
+});
+
+test("an unknown post-dispatch Calendar failure retains its claim", async () => {
+  const h = makeEnableHarness(async () => {
+    const error = new Error("provider timeout");
+    error.calendarEnableEffect = "unknown";
+    throw error;
+  });
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 502);
+  assert.equal(h.state.row.calendar_enable_pending, true);
+  assert.equal(h.state.row.calendar_enable_claim_id, h.state.beginClaimIds[0]);
+  assert.deepEqual(h.state.finishClaimIds, []);
+});
+
+test("Calendar start refuses a non-expired DISABLED claim without provider enable", async () => {
+  const h = makeEnableHarness();
+  h.state.row.calendar_enable_pending = true;
+  h.state.row.calendar_enable_claim_id = "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f";
+  h.state.row.calendar_enable_claimed_at = new Date().toISOString();
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(h.state.recoverCalls, 1);
+  assert.equal(h.state.providerEnableCalls, 0);
+  assert.equal(h.state.row.calendar_enable_claim_id, "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f");
+});
+
+test("a stale DISABLED Calendar claim rotates once before one provider enable", async () => {
+  const h = makeEnableHarness();
+  const oldClaimId = "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f";
+  h.state.row.calendar_enable_pending = true;
+  h.state.row.calendar_enable_claim_id = oldClaimId;
+  h.state.row.calendar_enable_claimed_at = new Date(Date.now() - 120_001).toISOString();
+  const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(h.state.recoverCalls, 1);
+  assert.equal(h.state.providerEnableCalls, 1);
+  assert.notEqual(h.state.lastIssuedClaimId, oldClaimId);
+  assert.deepEqual(h.state.finishClaimIds, [h.state.lastIssuedClaimId]);
+  assert.equal(h.state.row.calendar_enable_pending, false);
+  assert.ok(h.state.calls.indexOf("recover_enable") < h.state.calls.indexOf("provider_enable"));
+});
+
+test("concurrent stale Calendar enable recovery has only one provider owner", async () => {
+  const h = makeEnableHarness();
+  const oldClaimId = "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f";
+  h.state.row.calendar_enable_pending = true;
+  h.state.row.calendar_enable_claim_id = oldClaimId;
+  h.state.row.calendar_enable_claimed_at = new Date(Date.now() - 120_001).toISOString();
+  let statusReads = 0;
+  let releaseReads;
+  const readsReady = new Promise((resolve) => { releaseReads = resolve; });
+  h.opts.composioCalendarAccountStatusImpl = async () => {
+    statusReads++;
+    if (statusReads === 2) releaseReads();
+    if (statusReads <= 2) {
+      await readsReady;
+      return "DISABLED";
+    }
+    return h.state.providerStatus;
+  };
+  const request = { origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {} };
+  const [first, second] = await Promise.all([
+    call("POST", "/api/lm-web/calendar/start", h.opts, request),
+    call("POST", "/api/lm-web/calendar/start", h.opts, request),
+  ]);
+
+  assert.ok([first.status, second.status].includes(200));
+  assert.equal(h.state.recoverCalls, 2);
+  assert.equal(h.state.providerEnableCalls, 1);
+  assert.equal(h.state.row.calendar_enable_pending, false);
+  assert.notEqual(h.state.lastIssuedClaimId, oldClaimId);
+});
+
+test("expired MISSING or EXPIRED claims release before user-initiated reauthorization", async () => {
+  for (const providerStatus of ["MISSING", "EXPIRED"]) {
+    const h = makeEnableHarness();
+    const oldClaimId = "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f";
+    h.state.row.calendar_enable_pending = true;
+    h.state.row.calendar_enable_claim_id = oldClaimId;
+    h.state.row.calendar_enable_claimed_at = new Date(Date.now() - 120_001).toISOString();
+    h.state.providerStatus = providerStatus;
+    h.opts.webCalendarStore = {
+      createWebOAuthState: async () => true,
+      attachWebOAuthAccount: async () => true,
+    };
+    h.opts.startCalendarOAuthImpl = async () => ({
+      connectedAccountId: "ca-new-456",
+      redirectUrl: "https://accounts.example/connect",
+    });
+    const response = await call("POST", "/api/lm-web/calendar/start", h.opts, {
+      origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+    });
+
+    assert.equal(response.status, 200, providerStatus);
+    assert.deepEqual(JSON.parse(response.body), {
+      connected: false, state: "action_required", redirectUrl: "https://accounts.example/connect",
+    });
+    assert.equal(h.state.providerEnableCalls, 0, `${providerStatus} stale account is never enabled`);
+    assert.equal(h.state.row.calendar_enable_pending, false);
+    assert.equal(h.state.row.calendar_connected_account_id, "ca-selected");
+  }
+});
+
 test("Calendar callback rejects disconnect pending before consuming state or reading provider", async () => {
   let claims = 0, providerReads = 0, writes = 0;
   const response = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, options({
@@ -954,4 +1148,30 @@ test("SQL keeps Web NULL scope separate from existing non-null Telegram scope", 
   assert.match(telegramMigration, /p_chat_id IS NULL OR p_chat_id = ''/);
   assert.match(telegramMigration + telegramAccountMigration, /state\.chat_id = p_chat_id/);
   assert.match(telegramMigration, /telegram_chat_id::text = p_chat_id/);
+});
+
+test("Calendar enable migration owns and recovers a claim only by token and database lease", () => {
+  const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-06-z-lm-web-travel-controls.sql"), "utf8");
+  const beginAt = sql.indexOf("CREATE OR REPLACE FUNCTION public.begin_lm_web_calendar_enable");
+  const recoverAt = sql.indexOf("CREATE OR REPLACE FUNCTION public.recover_lm_web_calendar_enable");
+  const finishAt = sql.indexOf("CREATE OR REPLACE FUNCTION public.finish_lm_web_calendar_enable");
+  const bindAt = sql.indexOf("CREATE OR REPLACE FUNCTION public.bind_lm_web_calendar_account");
+  const begin = sql.slice(beginAt, recoverAt);
+  const recover = sql.slice(recoverAt, finishAt);
+  const finish = sql.slice(finishAt, bindAt);
+
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS calendar_enable_claim_id uuid/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS calendar_enable_claimed_at timestamptz/i);
+  assert.match(begin, /p_claim_id uuid/i);
+  assert.match(begin, /calendar_enable_claim_id\s*=\s*p_claim_id/i);
+  assert.match(begin, /calendar_enable_claimed_at\s*=\s*now\(\)/i);
+  assert.match(recover, /p_expected_claim_id uuid/i);
+  assert.match(recover, /p_new_claim_id uuid/i);
+  assert.match(recover, /FOR UPDATE/i);
+  assert.match(recover, /calendar_enable_claim_id\s+IS DISTINCT FROM\s+p_expected_claim_id/i);
+  assert.match(recover, /calendar_enable_claimed_at[\s\S]*interval\s+'120 seconds'/i);
+  assert.match(recover, /calendar_enable_claim_id\s*=\s*p_new_claim_id/i);
+  assert.match(finish, /p_claim_id uuid/i);
+  assert.match(finish, /IF p_claim_id IS NULL THEN RAISE EXCEPTION 'calendar_enable_claim_invalid'/i);
+  assert.match(finish, /calendar_enable_claim_id\s*=\s*p_claim_id/i);
 });

@@ -31,6 +31,7 @@ const ONBOARDING_ACTIONS = new Set(["name.save", "home.save", "notifications.ena
 const CALL_MINUTES_BEFORE = Object.freeze([10, 5]);
 const SCORE_ORGANS = Object.freeze(["daily", "physical", "mental", "financial"]);
 const SORTED_SCORE_ORGANS = Object.freeze([...SCORE_ORGANS].sort());
+const CALENDAR_ENABLE_TIMEOUT_MS = 20_000;
 
 function headers(key) {
   return { apikey: key, Authorization: `Bearer ${key}` };
@@ -843,10 +844,18 @@ function exactCalendarAccount(scope, item) {
   return Boolean(item && item.id && String(owner) === String(scope.uid) && toolkit === "googlecalendar");
 }
 
+function calendarEnableError(message, effect) {
+  const error = new Error(message);
+  error.calendarEnableEffect = effect;
+  return error;
+}
+
 async function composioCalendarAccountStatus(scope, connectedAccountId, opts = {}) {
   const expectedId = String(connectedAccountId || "");
   if (!opts.composioKey || !/^[A-Za-z0-9_-]{3,128}$/.test(expectedId)) throw new Error("provider_unavailable");
-  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(expectedId)}`, { headers: { "x-api-key": opts.composioKey } });
+  const request = { headers: { "x-api-key": opts.composioKey } };
+  if (opts.signal) request.signal = opts.signal;
+  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(expectedId)}`, request);
   if (response.status === 404) return "MISSING";
   if (!response.ok) throw new Error("provider_failed");
   const item = await jsonOr(response, {});
@@ -957,22 +966,66 @@ async function composioCalendarDisconnect(scope, opts = {}) {
 async function composioCalendarStart(scope, opts = {}) {
   const connectedAccountId = String(opts.connectedAccountId || "");
   if (!connectedAccountId) return null;
-  const response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectedAccountId)}`, { headers: { "x-api-key": opts.composioKey } });
-  if (!response.ok) throw new Error("provider_failed");
+  const webEnable = opts.requireExplicitDisabled === true;
+  const accountRequest = { headers: { "x-api-key": opts.composioKey } };
+  if (webEnable) accountRequest.signal = AbortSignal.timeout(CALENDAR_ENABLE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectedAccountId)}`, accountRequest);
+  } catch (error) {
+    if (webEnable) throw calendarEnableError("provider_failed", "no_effect");
+    throw error;
+  }
+  if (!response.ok) {
+    if (webEnable) throw calendarEnableError("provider_failed", "no_effect");
+    throw new Error("provider_failed");
+  }
   const account = await jsonOr(response, {});
-  if (!exactCalendarAccount(scope, account)) throw new Error("provider_ownership");
-  if (String(account.id) !== connectedAccountId) throw new Error("provider_account_mismatch");
+  if (!exactCalendarAccount(scope, account)) {
+    if (webEnable) throw calendarEnableError("provider_ownership", "no_effect");
+    throw new Error("provider_ownership");
+  }
+  if (String(account.id) !== connectedAccountId) {
+    if (webEnable) throw calendarEnableError("provider_account_mismatch", "no_effect");
+    throw new Error("provider_account_mismatch");
+  }
   if (sameEnabledCalendarAccount(account, connectedAccountId)) return { provider: "calendar", state: "connected" };
   if (opts.requireExplicitDisabled === true) {
-    if (!sameDisabledCalendarAccount(account, connectedAccountId)) throw new Error("provider_status_unknown");
+    if (!sameDisabledCalendarAccount(account, connectedAccountId)) {
+      throw calendarEnableError("provider_status_unknown", "no_effect");
+    }
   } else if (account.is_disabled !== true && account.enabled !== false) return null;
-  const enabled = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(connectedAccountId)}/status`, {
+  const enableRequest = {
     method: "PATCH",
     headers: { "x-api-key": opts.composioKey, "content-type": "application/json" },
     body: JSON.stringify({ enabled: true }),
-  });
-  if (!enabled.ok) throw new Error("provider_failed");
-  if (await composioCalendarAccountStatus(scope, connectedAccountId, opts) !== "ACTIVE") throw new Error("provider_readback_failed");
+  };
+  if (webEnable) enableRequest.signal = AbortSignal.timeout(CALENDAR_ENABLE_TIMEOUT_MS);
+  let enabled;
+  try {
+    enabled = await (opts.fetchImpl || fetch)(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(connectedAccountId)}/status`, enableRequest);
+  } catch (error) {
+    if (webEnable) throw calendarEnableError("provider_failed", "unknown");
+    throw error;
+  }
+  if (!enabled.ok) {
+    if (webEnable) throw calendarEnableError("provider_failed", "unknown");
+    throw new Error("provider_failed");
+  }
+  let status;
+  try {
+    const statusOptions = webEnable
+      ? { ...opts, signal: AbortSignal.timeout(CALENDAR_ENABLE_TIMEOUT_MS) }
+      : opts;
+    status = await composioCalendarAccountStatus(scope, connectedAccountId, statusOptions);
+  } catch (error) {
+    if (webEnable) throw calendarEnableError("provider_readback_failed", "unknown");
+    throw error;
+  }
+  if (status !== "ACTIVE") {
+    if (webEnable) throw calendarEnableError("provider_readback_failed", "unknown");
+    throw new Error("provider_readback_failed");
+  }
   return { provider: "calendar", state: "connected" };
 }
 

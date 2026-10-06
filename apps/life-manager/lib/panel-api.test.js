@@ -180,6 +180,110 @@ test("Web Calendar start requires explicit disabled state while Telegram retains
   assert.deepEqual(telegramStart.patches, [true]);
 });
 
+test("Composio Calendar enable GET, PATCH, and ACTIVE readback use 20-second abort signals", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const disabled = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const active = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  };
+  const timeoutCalls = [];
+  const fetchCalls = [];
+  const originalTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = (milliseconds) => {
+    timeoutCalls.push(milliseconds);
+    return originalTimeout.call(AbortSignal, milliseconds);
+  };
+  let providerEnabled = false;
+  try {
+    const result = await composioCalendarStart(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      requireExplicitDisabled: true,
+      fetchImpl: async (_url, init = {}) => {
+        const method = init.method || "GET";
+        fetchCalls.push({ method, signal: init.signal });
+        if (method === "PATCH") {
+          providerEnabled = true;
+          return jsonResponse({});
+        }
+        return jsonResponse(providerEnabled ? active : disabled);
+      },
+    });
+
+    assert.deepEqual(result, { provider: "calendar", state: "connected" });
+  } finally {
+    AbortSignal.timeout = originalTimeout;
+  }
+
+  assert.deepEqual(timeoutCalls, [20_000, 20_000, 20_000]);
+  assert.deepEqual(fetchCalls.map((call) => call.method), ["GET", "PATCH", "GET"]);
+  assert.ok(fetchCalls.every((call) => call.signal instanceof AbortSignal));
+});
+
+test("Composio Calendar enable labels a failed read-only preflight as known no-effect", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: "ca-selected-123",
+    requireExplicitDisabled: true,
+    fetchImpl: async () => jsonResponse({ message: "provider unavailable" }, 503),
+  }), (error) => error.calendarEnableEffect === "no_effect" && /provider_failed/.test(error.message));
+});
+
+test("Composio Calendar enable labels an error after PATCH dispatch as unknown", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const disabled = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const calls = [];
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    requireExplicitDisabled: true,
+    fetchImpl: async (_url, init = {}) => {
+      calls.push(init.method || "GET");
+      if (init.method === "PATCH") throw new Error("provider timeout");
+      return jsonResponse(disabled);
+    },
+  }), (error) => error.calendarEnableEffect === "unknown");
+  assert.deepEqual(calls, ["GET", "PATCH"]);
+});
+
+test("Telegram Calendar start preserves a preflight network error", async () => {
+  const scope = { uid: "telegram-user" };
+  const providerError = new Error("connected-account read timed out");
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: "ca-selected-123",
+    fetchImpl: async () => { throw providerError; },
+  }), (error) => error === providerError);
+});
+
+test("Telegram Calendar start preserves a network error after enable PATCH dispatch", async () => {
+  const scope = { uid: "telegram-user" };
+  const selectedId = "ca-selected-123";
+  const disabled = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const providerError = new Error("enable request timed out");
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    fetchImpl: async (_url, init = {}) => {
+      if (init.method === "PATCH") throw providerError;
+      return jsonResponse(disabled);
+    },
+  }), (error) => error === providerError);
+});
+
 test("uncertain Web Calendar disconnect skips rollback-enable while the default keeps Telegram rollback", async () => {
   const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
   const selectedId = "ca-selected-123";

@@ -10,6 +10,7 @@
 // never `!== false`. See scheduler.js wakeTick / wakeCallOnce.
 const DEFAULTS = Object.freeze({ call_enabled: false, notifications_enabled: true, daily_automation_enabled: true });
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const WEB_CLAIM_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function resolveSupabaseServiceConfig(opts = {}) {
   const supaUrl = String(opts.supaUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
@@ -37,7 +38,7 @@ async function readWebTravelControlState(uid, opts = {}) {
   const userUrl = new URL(`${base}/rest/v1/lm_users`);
   userUrl.searchParams.set("uid", `eq.${uid}`);
   userUrl.searchParams.set("telegram_chat_id", "is.null");
-  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_enable_pending");
+  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at");
   userUrl.searchParams.set("limit", "2");
   const userResponse = await fetchImpl(userUrl.toString(), { headers }).catch(() => null);
   if (!userResponse || !userResponse.ok) return null;
@@ -45,6 +46,15 @@ async function readWebTravelControlState(uid, opts = {}) {
   if (!Array.isArray(users) || users.length !== 1
     || users[0].uid !== uid || users[0].telegram_chat_id !== null
     || typeof users[0].calendar_enable_pending !== "boolean") return null;
+  const enableClaim = users[0].calendar_enable_pending
+    ? {
+      enableClaimId: users[0].calendar_enable_claim_id,
+      enableClaimedAt: users[0].calendar_enable_claimed_at,
+    }
+    : {};
+  if (users[0].calendar_enable_pending
+    && (typeof enableClaim.enableClaimId !== "string" || !WEB_CLAIM_ID_RE.test(enableClaim.enableClaimId)
+      || typeof enableClaim.enableClaimedAt !== "string" || !Number.isFinite(Date.parse(enableClaim.enableClaimedAt)))) return null;
 
   const preferenceUrl = new URL(`${base}/rest/v1/lm_panel_preferences`);
   preferenceUrl.searchParams.set("uid", `eq.${uid}`);
@@ -59,6 +69,7 @@ async function readWebTravelControlState(uid, opts = {}) {
       dailyAutomationEnabled: null,
       disconnectPending: false,
       enablePending: users[0].calendar_enable_pending,
+      ...enableClaim,
     };
   }
   if (preferences.length !== 1
@@ -68,6 +79,7 @@ async function readWebTravelControlState(uid, opts = {}) {
     dailyAutomationEnabled: preferences[0].daily_automation_enabled,
     disconnectPending: preferences[0].calendar_disconnect_pending,
     enablePending: users[0].calendar_enable_pending,
+    ...enableClaim,
   };
 }
 

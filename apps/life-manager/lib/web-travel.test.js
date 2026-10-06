@@ -11,6 +11,14 @@ const OTHER_UID = "lm_22222222-2222-4222-8222-222222222222";
 const ORIGIN = "https://life.example";
 const NOW = Date.parse("2030-01-01T08:00:00+09:00");
 const TRIAL_EXPIRES_AT = "2030-01-04T00:00:00.000Z";
+const ENABLE_CLAIM_ID = "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f";
+const ENABLE_CLAIMED_AT = "2030-01-01T07:00:00.000Z";
+
+function markEnablePending(row) {
+  row.calendar_enable_pending = true;
+  row.calendar_enable_claim_id = ENABLE_CLAIM_ID;
+  row.calendar_enable_claimed_at = ENABLE_CLAIMED_AT;
+}
 
 function makeRequest(method, url, { body, origin, contentType, csrf } = {}) {
   return {
@@ -62,6 +70,8 @@ function fixture(overrides = {}) {
     calendar_provider: "composio_gcal",
     calendar_connected_account_id: "ca-selected-123",
     calendar_enable_pending: false,
+    calendar_enable_claim_id: null,
+    calendar_enable_claimed_at: null,
     home_address: null,
     trial_expires_at: null,
     paid: false,
@@ -299,7 +309,7 @@ test("setup during pending disconnect makes no home, trial, preference, or Trave
 
 test("setup during pending Calendar enable makes no home, trial, preference, or Travel mutation", async () => {
   const f = fixture();
-  f.row.calendar_enable_pending = true;
+  markEnablePending(f.row);
   const response = await call(f, "POST", "/api/lm-web/setup", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { homeAddress: "自宅住所" },
   });
@@ -726,7 +736,7 @@ test("resume requires a saved home and the exact selected ACTIVE Calendar accoun
 test("resume is rejected while Calendar enable readback is pending", async () => {
   const f = fixture();
   f.row.home_address = "自宅住所";
-  f.row.calendar_enable_pending = true;
+  markEnablePending(f.row);
 
   const response = await call(f, "POST", "/api/lm-web/travel/control", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
@@ -740,7 +750,7 @@ test("resume is rejected while Calendar enable readback is pending", async () =>
 
 test("Today snapshot exposes retained Calendar enable claim with controls paused", async () => {
   const f = fixture();
-  f.row.calendar_enable_pending = true;
+  markEnablePending(f.row);
   const snapshot = await buildTodaySnapshot(UID, f.opts);
 
   assert.equal(snapshot.enablePending, true);

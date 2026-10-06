@@ -12,6 +12,8 @@ const STATE_TTL_MS = 5 * 60 * 1000;
 const STATE_RE = /^[A-Za-z0-9_-]{43}$/;
 const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{3,128}$/;
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ENABLE_CLAIM_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ENABLE_REQUEST_TIMEOUT_MS = 20_000;
 const OAUTH_STATUSES = new Set(["ACTIVE", "MISSING", "EXPIRED", "DISABLED", "INACTIVE"]);
 
 function sendJson(res, status, body, extra = {}) {
@@ -117,15 +119,29 @@ async function readCalendarControlState(uid, opts = {}) {
   if (!state || typeof state.disconnectPending !== "boolean" || typeof state.enablePending !== "boolean") {
     throw storeError("calendar_control_state_unavailable", 503);
   }
+  if (state.enablePending && (!ENABLE_CLAIM_ID_RE.test(String(state.enableClaimId || ""))
+    || typeof state.enableClaimedAt !== "string" || !Number.isFinite(Date.parse(state.enableClaimedAt)))) {
+    throw storeError("calendar_control_state_unavailable", 503);
+  }
   return state;
 }
 
-async function calendarEnableClaim(name, uid, accountId, opts = {}) {
-  const result = firstValue(await rpc(name, {
+async function calendarEnableClaim(name, uid, accountId, claimId, opts = {}, newClaimId = null) {
+  const body = {
     p_uid: uid,
     p_calendar_account_id: accountId,
-  }, opts));
-  if (result !== true) throw storeError(name === "begin_lm_web_calendar_enable" ? "calendar_enable_pending" : "calendar_enable_unconfirmed", 409);
+  };
+  if (name === "recover_lm_web_calendar_enable") {
+    body.p_expected_claim_id = claimId;
+    body.p_new_claim_id = newClaimId;
+  } else {
+    body.p_claim_id = claimId;
+  }
+  const result = firstValue(await rpc(name, body, opts));
+  if (result !== true) {
+    const pending = name === "begin_lm_web_calendar_enable" || name === "recover_lm_web_calendar_enable";
+    throw storeError(pending ? "calendar_enable_pending" : "calendar_enable_unconfirmed", 409);
+  }
   return true;
 }
 
@@ -324,38 +340,65 @@ async function startCalendar(scope, req, res, opts, origin) {
   if (controlState.disconnectPending) return sendJson(res, 409, { error: "disconnect_pending" });
   const binding = await readCalendarBinding(scope.uid, provider);
   const current = await verifyCalendarBinding(scope.uid, binding, provider);
-  if (controlState.enablePending && (!current || current.status !== "ACTIVE")) {
-    return sendJson(res, 409, { error: "calendar_enable_pending" });
+  let enablePending = controlState.enablePending;
+  let enableClaimId = controlState.enableClaimId || null;
+  if (enablePending) {
+    if (current && current.status === "ACTIVE") {
+      await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, enableClaimId, provider);
+      enablePending = false;
+      enableClaimId = null;
+    } else if (current && ["DISABLED", "MISSING", "EXPIRED"].includes(current.status)) {
+      const recoveredClaimId = crypto.randomUUID();
+      await calendarEnableClaim("recover_lm_web_calendar_enable", scope.uid, current.accountId,
+        enableClaimId, provider, recoveredClaimId);
+      enableClaimId = recoveredClaimId;
+      if (current.status === "MISSING" || current.status === "EXPIRED") {
+        await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, enableClaimId, provider);
+        enablePending = false;
+        enableClaimId = null;
+      }
+    } else {
+      return sendJson(res, 409, { error: "calendar_enable_pending" });
+    }
   }
   if (current && current.status === "ACTIVE") {
-    if (controlState.enablePending) {
-      await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, provider);
-    }
     return sendJson(res, 200, { connected: true, state: "connected" });
   }
   if (current && current.status === "DISABLED") {
     if (!await (opts.assertWebUserUnboundImpl || assertWebUserUnbound)(scope.uid, opts)) {
       return sendJson(res, 403, { error: "unauthorized" });
     }
-    if (!controlState.enablePending) {
-      await calendarEnableClaim("begin_lm_web_calendar_enable", scope.uid, current.accountId, provider);
+    if (!enablePending) {
+      enableClaimId = crypto.randomUUID();
+      await calendarEnableClaim("begin_lm_web_calendar_enable", scope.uid, current.accountId, enableClaimId, provider);
+      enablePending = true;
     }
-    const resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, {
-      ...provider, connectedAccountId: current.accountId, requireExplicitDisabled: true,
-    });
+    let resumed;
+    try {
+      resumed = await (provider.composioCalendarStartImpl || panelApi().composioCalendarStart)(scope, {
+        ...provider, connectedAccountId: current.accountId, requireExplicitDisabled: true,
+      });
+    } catch (error) {
+      if (error && error.calendarEnableEffect === "no_effect") {
+        await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, enableClaimId, provider);
+        enablePending = false;
+        enableClaimId = null;
+      }
+      throw error;
+    }
     if (resumed && (resumed.state === "connected" || resumed.connected === true)) {
       const activeStatus = await (provider.composioCalendarAccountStatusImpl || panelApi().composioCalendarAccountStatus)(
-        scope, current.accountId, provider,
+        scope, current.accountId, { ...provider, signal: AbortSignal.timeout(ENABLE_REQUEST_TIMEOUT_MS) },
       );
       if (activeStatus !== "ACTIVE") throw new Error("provider_readback_failed");
-      await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, provider);
+      await calendarEnableClaim("finish_lm_web_calendar_enable", scope.uid, current.accountId, enableClaimId, provider);
       const latestBinding = await readCalendarBinding(scope.uid, provider);
       if (!calendarMarkerUnchanged(binding, latestBinding, scope.uid)) throw new Error("calendar_binding_readback_failed");
       return sendJson(res, 200, { connected: true, state: "connected" });
     }
     return sendJson(res, 409, { error: "calendar_enable_pending" });
   }
-  if (controlState.enablePending) {
+  if (enablePending) {
     return sendJson(res, 409, { error: "calendar_enable_pending" });
   }
 
@@ -468,6 +511,9 @@ async function handleWebCalendarRequest(req, res, opts = {}) {
     }
     return await handleCallback(scope, req, res, opts, url);
   } catch (error) {
+    if (error && error.status === 409 && error.message === "calendar_enable_pending") {
+      return sendJson(res, 409, { error: "calendar_enable_pending" });
+    }
     if (error && Number.isInteger(error.status) && error.status >= 400 && error.status < 500) {
       return sendJson(res, error.status, { error: "calendar_unavailable" });
     }
