@@ -9239,3 +9239,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - rootでdisk空き128MiBを確認。protected .cloak/memory/state JSONL/configAI/稼働app/他owner worktree/認証データの削除0。Sparkle cache Installation/AfUvdGuGpの展開済みChatGPT.appが存在し、重複zipはlsof open handle0/正常zipを確認。exact zip1個（688902989 bytes）だけ除去、展開appを保持。証拠 `source-repair-disk-cache-cleanup.json`。
 - 空き1.0GiB、専用worktreeのwrite/read/delete probe PASS。この必要な書込復旧をcurrent1.1内で実施し、SelfBuild等を先頭へ繰り上げない。
 - 同worktree/branch/lease/2files scopeのLuna/max finite run96732へ継続を渡した。既存testsを戻さずRED→minimal production→GREEN、rootがGit/review/CI/promotionを担当する。source/本番/実納品は未完。
+
+### 709. 額取得修復は139GREEN、税込判定P1を独立確認して保留
+
+- Luna source修復2filesは139 adapter tests/loop-contract/diffcheck PASS、rootも139を再実行して確認。net_amountをDOM cloneから除外し、observed summaryのみprice_minorへ接続、legacy本文fallback削除。source commit/push/main/productionは未実行。
+- root境界probeとfresh Sol/medium read-only reviewは同じP1を再現：header税抜またはbare、primary12円、net注記のみ税込10円でtaxtrue/observed/price12を誤採用。price textはcloneだが税込判定は元TD全文であるため。既存税込gateの不具合であり追加の架空gateではない。fresh判定HOLD、関連14 tests PASS、source変更/外部effect0。証拠 `crowdworks-contract-amount-review-result.txt`。
+- 同2files/同leaseのLuna/max有限runへ、税込判定も除外後cloneへ限定し、2 DOM反証ケースのRED/GREENを渡した。単に通常ケースがPASSしたことを根拠に統合しない。src2filesの途中変更を保持、RootがGit/review/CI/promotionを担当。現在1.1/残29順序不変、実納品未完。
