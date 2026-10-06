@@ -1,5 +1,6 @@
 """Fixture tests for loop_pnl: one per source adapter plus the table/unverified contract."""
 
+import hashlib
 import json
 import sqlite3
 import sys
@@ -701,7 +702,6 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
         env = {
             "CFO_STATE_DIR": str(state_dir),
             "LIFE_MANAGER_LOOP_ID": "life-manager-cfo-hourly",
-            "LIFE_MANAGER_OWNER_ID": "life-manager-cfo-hourly",
             "LIFE_MANAGER_RUN_ID": "run-natural-1",
             "LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK": "1" if live else "0",
             "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(
@@ -774,6 +774,27 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                 self.assertEqual(row["availability"], "available")
                 self.assertRegex(row["query_sha256"], r"^[0-9a-f]{64}$")
                 self.assertRegex(row["evidence_sha256"], r"^[0-9a-f]{64}$")
+                app_id = m.capafy_mobile.MOBILE_PRODUCT_BINDINGS[
+                    row["product_id"]
+                ]["revenuecat_app_id"]
+                scope = {
+                    "chart": "mrr",
+                    "chart_endpoint": "/v2/projects/{project_id}/charts/mrr",
+                    "options_endpoint": "/v2/projects/{project_id}/charts/mrr/options",
+                    "project_id_sha256": hashlib.sha256(
+                        b"fixture-project"
+                    ).hexdigest(),
+                    "start_date": "2026-09-10",
+                    "end_date": "2026-10-07",
+                    "resolution": "0",
+                    "filters": [{"name": "app_id", "values": [app_id]}],
+                }
+                self.assertEqual(row.get("query_scope"), scope)
+                expected_scope_sha = hashlib.sha256(json.dumps(
+                    scope, sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode()).hexdigest()
+                self.assertEqual(row["query_sha256"], expected_scope_sha)
             records = evidence["mobile_records"]
             self.assertTrue(any(
                 row["record_type"] == "receipt"
@@ -798,6 +819,8 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                 ],
             )
             self.assertNotIn("Bearer do-not-persist-this", text)
+            self.assertNotIn('"Authorization"', text)
+            self.assertNotIn("https://api.revenuecat.com", text)
             self.assertNotIn("also-do-not-persist", text)
             self.assertNotIn("fixture-key", text)
             self.assertNotIn("fixture-project", text)
@@ -838,6 +861,10 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
             self.assertEqual(evidence["revenuecat"]["availability"], "unavailable")
             self.assertEqual(len(evidence["revenuecat"]["rows"]), 6)
             self.assertEqual({row["reason"] for row in evidence["revenuecat"]["rows"]}, {"credential_missing"})
+            self.assertTrue(all(
+                row["query_scope"] is None and row["query_sha256"] is None
+                for row in evidence["revenuecat"]["rows"]
+            ))
             records = evidence["mobile_records"]
             self.assertTrue(any(
                 row["record_type"] == "receipt"
@@ -882,16 +909,28 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                 fetch.assert_not_called()
             self.assertFalse((state_dir / "mobile-readbacks").exists())
 
-            for field, value in (
-                ("LIFE_MANAGER_OCCURRENCE_ID", None),
-                ("LIFE_MANAGER_OWNER_ID", None),
-                ("LIFE_MANAGER_OWNER_ID", "another-owner"),
-            ):
+            invalid_contexts = (
+                {"LIFE_MANAGER_OCCURRENCE_ID": None},
+                {"LIFE_MANAGER_OWNER_ID": "another-owner"},
+                {"LIFE_MANAGER_OWNER_ID": ""},
+                {
+                    "LIFE_MANAGER_LOOP_ID": "another-loop",
+                    "LIFE_MANAGER_OCCURRENCE_ID": "another-loop:run-natural-1",
+                },
+                {
+                    "LIFE_MANAGER_RUN_ID": "bad/run",
+                    "LIFE_MANAGER_OCCURRENCE_ID": "life-manager-cfo-hourly:bad/run",
+                },
+                {"LIFE_MANAGER_OCCURRENCE_ID": "life-manager-cfo-hourly:other-run"},
+                {"LIFE_MANAGER_OCCURRENCE_ID": "life-manager-cfo-hourly:bad/run"},
+            )
+            for updates in invalid_contexts:
                 invalid = self._native_env(state_dir, None, live=True)
-                if value is None:
-                    invalid.pop(field)
-                else:
-                    invalid[field] = value
+                for field, value in updates.items():
+                    if value is None:
+                        invalid.pop(field, None)
+                    else:
+                        invalid[field] = value
                 with mock.patch.object(
                     m, "_live_mobile_revenuecat_readback", return_value=readback,
                 ) as fetch:

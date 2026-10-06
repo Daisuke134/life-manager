@@ -388,6 +388,8 @@ def _persist_mobile_natural_evidence(*, mobile_readback: dict, records: list[dic
     loop_id, run_id = env.get("LIFE_MANAGER_LOOP_ID", ""), env.get("LIFE_MANAGER_RUN_ID", "")
     occurrence_id = env.get("LIFE_MANAGER_OCCURRENCE_ID", "")
     owner_id = env.get("LIFE_MANAGER_OWNER_ID", "")
+    if "LIFE_MANAGER_OWNER_ID" not in env and loop_id == "life-manager-cfo-hourly":
+        owner_id = loop_id
     safe_id = lambda value: isinstance(value, str) and 0 < len(value) <= 128 and all(
         c.isascii() and (c.isalnum() or c in "._-") for c in value
     )
@@ -452,27 +454,38 @@ def _persist_mobile_natural_evidence(*, mobile_readback: dict, records: list[dic
         outer = row.get("readback") if isinstance(row.get("readback"), dict) else {}
         query = meta.get("query") if isinstance(meta.get("query"), dict) else outer.get("query_scope")
         app_id = capafy_mobile.MOBILE_PRODUCT_BINDINGS[product_id]["revenuecat_app_id"]
-        scope = {
-            key: query[key] for key in ("chart", "endpoint", "start_date", "end_date", "resolution")
-            if isinstance(query, dict) and type(query.get(key)) is str
-        }
-        if isinstance(query, dict) and query.get("app_id") == app_id:
-            scope["app_id"] = app_id
         filters = query.get("filters") if isinstance(query, dict) else None
-        if isinstance(filters, list):
-            scope["filters"] = [
-                {"name": item["name"], "values": [app_id]}
-                for item in filters if isinstance(item, dict)
-                and item.get("name") in {"app_id", "app_config_id"}
-                and item.get("values") == [app_id]
-            ]
+        scope = None
+        project_id = query.get("project_id") if isinstance(query, dict) else None
+        if (
+            isinstance(query, dict) and query.get("chart") == "mrr"
+            and query.get("app_id") == app_id
+            and isinstance(project_id, str) and project_id
+            and all(type(query.get(key)) is str and query[key]
+                    for key in ("start_date", "end_date", "resolution"))
+            and isinstance(filters, list) and len(filters) == 1
+            and isinstance(filters[0], dict)
+            and filters[0].get("name") in {"app_id", "app_config_id"}
+            and filters[0].get("values") == [app_id]
+        ):
+            scope = {
+                "chart": "mrr",
+                "chart_endpoint": "/v2/projects/{project_id}/charts/mrr",
+                "options_endpoint": "/v2/projects/{project_id}/charts/mrr/options",
+                "project_id_sha256": hashlib.sha256(project_id.encode()).hexdigest(),
+                "start_date": query["start_date"],
+                "end_date": query["end_date"],
+                "resolution": query["resolution"],
+                "filters": [{"name": filters[0]["name"], "values": [app_id]}],
+            }
         query_sha = hashlib.sha256(json.dumps(
             scope, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-        ).encode()).hexdigest() if scope else outer.get("scope_sha256")
+        ).encode()).hexdigest() if scope else None
         evidence_sha = source.get("evidence_sha256")
         summaries.append({
             "product_id": product_id, "availability": status, "reason": reason,
             "observed_at": row.get("observed_at") if isinstance(row.get("observed_at"), str) else None,
+            "query_scope": scope,
             "query_sha256": query_sha.lower() if is_sha(query_sha, 64) else None,
             "evidence_sha256": evidence_sha.lower() if is_sha(evidence_sha, 64) else None,
         })
