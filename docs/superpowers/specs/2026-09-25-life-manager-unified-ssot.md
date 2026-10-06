@@ -4940,7 +4940,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 
 #### 先頭2項目の実行対象と順序
 
-- 1.1（今の操作）：CrowdWorks64033100/63989657/63942104の公式契約詳細を読み、金額不足/不正の原因を確認する。最新保存Paid output `crowdworks-revenue-paid:18dbf0a281806e30-92303` は3候補とも `crowdworks_paid_handoff_unavailable_price_minor`。これは候補3件の診断であり、正規納品対象/成果物3件が確定した証拠ではない。
+- 1.1（今の操作）：CrowdWorks64033100/63989657/63942104の公式契約詳細はregistered identity lease/既存provider lock内で取得済み。観測UTC12:51:37〜12:51:48、3件ともprovider_state funded、契約金額欄は税込表示あり/検出12円・10円/ambiguous/price_minor null。表示区分をまだ確認できず、どちらも確定契約金額・売上へ採用しない。代表64033100の同欄で表示区分を確認するread-only probe（handle31181）は進行中。候補を正式納品対象へ丸めない。証拠 `crowdworks-three-contract-detail-readback.json`。
 - 1.2：その3候補の作業指示・期限・実費から、実行する契約1件のIDと具体的成果物名を確定する。金額/要件/採算が確認できなければ、制作は開始しない。
 - 1.3：確定した契約と指定成果物だけを履行・正式納品し、同案件の公式記録を取得する。現時点で『何を制作するか』は未特定なので、架空の成果物名を記載しない。
 - 2：Coconala18211957の公式売上CSV行と振込/手数料/案件実費を照合する。公式取引完了を確認済みの案件を再制作するTODOではない。TikTok18180857とNPO18223833/18250352は引き続き追跡延期。
@@ -9204,3 +9204,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Paid owner新SHA ba9f796260の自然terminalは `2026-10-06T11:30:54.919119+00:00`、run29141/occurrence `crowdworks-revenue-paid:18dbed5abfd29e38-29141`/exit75。現business outputは別旧occurrence84924であり新runへ結合しない。RO host DBでは新occurrence released/effect_unknown0、旧fence保持。新error codeの実個体確認・実納品は未達。証拠 `handoff-paid-natural-current.json`。
 - 独立Mercor applicationの現CLIはloaded3ae4176e/idle、occurrence `mercor-revenue-application:18dbed5d41ac2bc0-29601`、`2026-10-06T11:31:01.918059+00:00` にresource_effect_unknownでblocked。現応募経路を止める旧effectだけを、既存intent/official application readbackへ照合する。blind応募再送・fence解除は行わない。証拠 `mercor-current-application-status.json`。
 - current1/残29は不変。独立platformの既存CLI/収益行動を進め、同じ403巡回や過去保留一括照合を全体の停止条件にしない。
+
+### 704. current1.1の3契約公式detail取得
+
+- main由来ba9f7962の既存adapterを、registered crowdworks:dais/target owner crowdworks-revenue-browserのwith-browser leaseと既存provider-browser.lock内で使用。prune_blank_source_pages false、対象3件だけtargeted_detail、提出/返信/再送/納品0。3件は別個の公式取得時刻/terms hash/body hashを保存し、生buyer本文・credentialを保存/出力しない。
+- 64033100/63989657/63942104は契約金額欄に12円と10円があり、既存安全observerはambiguous。form候補数は1/3/1。この時点では納品要件/成果物/価格の採用根拠/採算は未確定。1.2・1.3のDoneへ拡張しない。
+- 初回のCLI呼び出しはwrapper背景実行でstdinが引き継がれないことを独立ローカル再現した。自分の待機子PID43505だけをlog/parentPID43428で照合後TERMしexit143、先行ownerは中断0。引数経由へ修正した同scopeのread-only取得はexit0/3rows。これは呼出し修正であり商品mockや本番source変更ではない。
+- role確認probeは同じhelperが契約金額欄を読む時点に安全な表示token/hashだけ採取し、元の判定値を変更しない。root専用process内の観測のみ、production source/state/他ownerを変更しない。取得済み3件の証拠と継続probeを区別する。現在cursor1.1、主29項目の相対順序は不変。
