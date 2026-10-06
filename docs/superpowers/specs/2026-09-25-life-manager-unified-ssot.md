@@ -9781,3 +9781,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - rootがrepo loop-developmentの既存runtime suiteを一度起動、handle76872/log cfo-asc-runtime-contract-tests.logは継続中。warningを終了/FAILへ断定せず同handleを追う。
 - fresh Sol6.1/medium native spawn_agentはagent thread limit reachedで拒否。代替として独立fresh codex exec -m gpt-6.1-sol/medium/read-only/ephemeralを起動handle26022、同codeとprivate原artifactの反証review。旧モデルfallback/実装者context継承/外部effectなし。結果はprivate cfo-fresh-review-result.mdへ保存予定、完了を先取りしない。
 - 現在17。残りはfresh review findings解消/必要CI/PRmain/immutable/正規実入力接続/自然CFOreport/未取得財務証拠。全goalや14loop財務Doneにはしない。
+
+
+### 781. runtime suite終端774PASS/1ENOSPCを診断
+
+- root実行handle76872はterminal exit1、775tests/145.414s/FAIL1。失敗test_cut_loop_release.CutLoopReleaseTest.test_release_builds_immutable_bytecode_for_its_runtime_pythonは隔離temporary releaseのruntime/agentmail locked npm依存展開でENOSPC。CFO50+38/表示9/contract PASSとは別。warningだけをFAIL原因にせずterminal traceを確認した。
+- fresh df Data空き767MiB。npm cache38MB/log380KBなので小cache削除で解決するとは判断せず削除0。一時fixtureはTemporaryDirectoryのcleanupを使う。protected store/他owner release/profile/stateを削除しない。再検証条件は隔離依存展開に十分な容量を確保した環境、または同sourceのCIで当該release testを実行すること。未実施をPASSへ丸めない。
+- fresh read-only財務review handle26022は継続中、原artifact/source反証を進行しているイベントを確認。観測timeoutをterminalと誤認して再起動しない。current17/相対順序維持。
