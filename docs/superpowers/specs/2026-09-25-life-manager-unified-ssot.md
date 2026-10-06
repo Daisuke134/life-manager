@@ -3352,6 +3352,15 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - (7) **A9 report:** 既存CLI/panelにloop/platform/全社revenue・expense・net・MRR・runwayを出し、partial/unknownを保つ。
 - (8) **A10 natural-run acceptance:** local close/cloud canary後、7日間の自然runと公式source receiptをreadbackし、不足値がfresh/sourcedまたはowner-visible partialであることを確認する。
 
+### 2026-10-06 09:30 UTC — CFO A3 source統合
+
+- この更新はA3のsource統合状態だけを更新する。A3 production acceptance、CFO目標、A4以降のTODO相対順は変更しない。
+- PR #6754 head `467bd660c2349041c42dcd0bd151a574230c24f8` はmain merge commit `5f56e1d12d364ccdb7ae7f467d07a07dde39a252`として統合済み。
+- 変更は成功geocodeのtenant/provider別HMAC key cacheと24時間TTL、route event identityのtimezone/direction/anchor/policy強化、opaque event-version cost metadataである。失敗HTTPまたはGoogle `status != OK`の座標は採用・永続化しない。migrationは共有`private` schemaの既存`service_role`権限を維持し、新規geocode tableだけを直接制限する。
+- source検証: focused geocode/route/usage/migration suite 95/95 PASS、GitHub travel/notification contract 98/98 PASS、required CI PASS、loop contract PASS、独立read-only reviewは修正後SHIP。CodeRabbitはrepository policyによりskip。
+- **残るA3 acceptance:** `apps/life-manager/migrations/2026-10-06-lm-geocode-cache.sql`のproduction適用と公式schema/RPC readback、main由来immutable releaseのproduction deploy、同一tenant/event-versionの自然な再実行で有料provider rowが増えないことのreadbackは未実施。production DB write/provider callは行っていない。
+- **現在cursorはA3のまま:** source実装はmain済みだが、上記migration/deploy/natural replay-zeroが未証明のためA3を完了扱いしない。A1は引き続き非ブロッキングhardeningで、A3 acceptanceを止めない。
+
 ### 2026-10-06 JST — AGMSG `lm` teamの状態と復旧cursor
 
 - この追記はAGMSGの通信状態だけを記録し、§84-Aの収益TODO順序、CFO/Mobileの所有境界、各収益成果の完了判定は変更しない。
