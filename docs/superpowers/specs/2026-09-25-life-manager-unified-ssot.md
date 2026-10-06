@@ -9739,3 +9739,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - raw取得済みFINANCIAL ZZ/FINANCE_DETAIL Z1/公式app→subscription relationshipの3artifactを、Lunaテストschemaと同じpacketへまとめた。各原SHA、公式download metadata、実期間を保持し、observed_atは元detail取得時刻を使用。local組立時刻をprovider観測時刻へすり替えない。native report IDは作成しない。
 - private cfo-asc-current-official-financial-packet.json/SHA b4485cbe9e0746fa90fdedd011ac64262e52dfab5cca09e1a42d56aa32f84850/mode600。vendor/credential/raw個人列をrepo/log/chatへ複製しない。本番env接続・台帳書込・送信0。
 - LunaへGREEN後の実packet read-only検証を依頼。期待は根拠付き1receipt＋coverage gaps、全期間/全社Doneへの拡張なし。現在17/sourceworker live、完了待ちを再起動・重複委譲で代用しない。
+
+
+### 775. 実ASC packetをdraft normalizerで1receiptへ変換
+
+- draft sourceの実packet probeは当初receipt0。境界probeでFINANCIAL artifactPASS/mapping7、DETAIL metadata検証だけ拒否と特定。rootが旧safe metadataからvendorNumber/decompressedを除いていた入力不足で、source検証を緩めずFINANCE_DETAIL Z1/2026-12を公式再取得。raw SHAは旧cbe1dc9242aca2cf049b7ced284a08601bddcef7eafa0a0c4553ea5e53957070と一致。
+- full metadataをprivate asc-current-detail-full-download-metadata.jsonへ保存しpacket更新。新packet SHA c8f8a94dc9437309a6b4a6ee808b0e0096aa4a1ec37829bb1742ee60d28e816d、元observed_at保持、nativeID作成なし、本番接続なし。
+- 作業中normalizerへ再probeするとreceipt1/JPY4250/settled2026-09-12、historical/trailing coverage gap2。private cfo-asc-real-packet-draft-adapter-readback.json。これは実原報告→draft正規receiptの限定確認で、source review/全tests/統合/自然CFO/銀行着金/利益は未完。
+- rootはwireが全legacy ASC receiptを一律除去する点を検出し、異なる期間の正当receiptを消さず対象期間supersessionに限定するようLunaへ検証指示。重複防止を無関係receipt消去で代用しない。current17維持。
