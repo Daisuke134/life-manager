@@ -9704,3 +9704,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現cfo-result-summary.js::renderEconomicSummaryはcompany mrrだけを表示。§766の実入力projectionをrenderResultSummaryへread-onlyで渡すとmobile verified/USD20.34、company unknownで、出力MRR未確認のみ、20.34表示false。private cfo-known-mobile-mrr-render-gap.json/2026-10-06T17:56:31.090Z、provider effect0。集計成功と表示反映を区別する。
 - cursor17の自然reportに実測を示すため、ASC修正後の別最小commitとして既存reportのverified loop MRRを表示する。Luna所有追加はapps/life-manager/lib/cfo-result-summary.jsと既存testのみ。会社unknownを維持し、未確認loop0化なし、既存decimal/economicField再利用。ASC RED→GREENを先に行い、scopeを混ぜず別commit/push。一般dashboard新設/送信/価格変更なし。
 - 受入はcompanyunknown/mobileverifiedケースで同時に会社未確認とmobileUSD20.34を表示し、不明loopの値を生成しないこと。current17/29項目相対順序不変。
+
+
+### 770. ASC修正と独立して既存Investment公式約定・手数料を取得
+
+- 現在cursor17のLuna実装修正がliveの間、既存順序18の独立read-only観測を進める。現alpaca-investment skill/CLI _context/_runを読み、private credential SSOTとpinned CLIでmode liveのaccount GET、FILL activity、CFEE/FEE activityを取得。新規trade/資金移動/loop起動/台帳変更0。
+- 公式account status ACTIVE、blocked fieldsはnullでfalseへ丸めない。fills10/fees10、symbol BTC/USDC、各fee order IDは取得fillsに一致10。取得fill時刻範囲2026-09-09〜10-01、buy/sell交互。CLI activity listの既定page-size100をhelpで確認。取得件数を全期間利益/清算済み/最新取引成功へ拡張しない。
+- private investment-current-official-fills-fees.jsonへ原readbackを保存。残18は実約定/手数料/精算の会計結合とfresh財務review、実インフラ費、bank settlement coverage。利益の金額計算・確定は今回行わない。source修正への重複編集なし、現在17/相対順序不変。
