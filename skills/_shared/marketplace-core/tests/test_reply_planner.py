@@ -63,13 +63,13 @@ def test_model_wait_and_missing_facts_are_normalized():
     }
 
     class MissingFacts(RuntimeError):
-        remaining_work = ["本人の回答"]
+        remaining_work = ["  本人の回答  "]
 
     def missing(_context):
         raise MissingFacts()
 
     assert planner_module.ReplyPlanner(missing)(row()) == {
-        "action": "human",
+        "action": "wait",
         "reason": "reply_facts_required",
         "remaining_work": ["本人の回答"],
     }
@@ -110,6 +110,49 @@ def test_structured_wait_is_normalized_and_invalid_effect_is_rejected():
         assert str(error) == "reply_payload_invalid"
     else:
         raise AssertionError("empty estimate payload was accepted")
+
+
+def test_structured_human_requires_title_url_and_deadline():
+    decision = {
+        "action": "human",
+        "reason": "person_bound_interview",
+        "remaining_work": ["Complete the official interview"],
+        "handoff": {
+            "title": "Japanese evaluator",
+            "url": "https://work.mercor.com/jobs/list_1",
+            "deadline": "Official deadline unavailable",
+        },
+    }
+    valid = planner_module.ReplyPlanner(lambda _context: decision)
+    assert valid(row()) == decision
+
+    explicit = row()
+    explicit["context"]["required_action"] = decision
+
+    def unexpected(_context):
+        raise AssertionError("model called")
+
+    assert planner_module.ReplyPlanner(unexpected)(explicit) == decision
+
+    for field in ("title", "url", "deadline"):
+        handoff = {
+            "title": "Japanese evaluator",
+            "url": "https://work.mercor.com/jobs/list_1",
+            "deadline": "Official deadline unavailable",
+        }
+        handoff[field] = " "
+        invalid = planner_module.ReplyPlanner(lambda _context: {
+            "action": "human",
+            "reason": "person_bound_interview",
+            "remaining_work": ["Complete the official interview"],
+            "handoff": handoff,
+        })
+        try:
+            invalid(row())
+        except ValueError as error:
+            assert str(error) == "reply_human_handoff_invalid"
+        else:
+            raise AssertionError(f"blank human handoff {field} was accepted")
 
 
 def test_validated_semantic_judgement_projects_to_shared_actions():

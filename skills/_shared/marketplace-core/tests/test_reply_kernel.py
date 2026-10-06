@@ -13,6 +13,14 @@ reply_kernel = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(reply_kernel)
 
+PLANNER_MODULE = Path(__file__).parents[1] / "scripts" / "reply_planner.py"
+PLANNER_SPEC = importlib.util.spec_from_file_location(
+    "marketplace_reply_planner_kernel_test", PLANNER_MODULE
+)
+planner_module = importlib.util.module_from_spec(PLANNER_SPEC)
+assert PLANNER_SPEC and PLANNER_SPEC.loader
+PLANNER_SPEC.loader.exec_module(planner_module)
+
 
 def event(thread="thread-1", latest="buyer-1"):
     return {
@@ -569,6 +577,32 @@ def test_human_gate_is_durable_pending_and_does_not_block_another_thread(tmp_pat
     assert result["effect"] == 1
     assert result["failed"] == 0
     assert [effect["thread_id"] for effect in adapter.effects] == ["ready"]
+
+
+def test_planner_missing_facts_waits_without_effect_or_human_notification(tmp_path):
+    class MissingFacts(RuntimeError):
+        remaining_work = ["本人の回答"]
+
+    def compose(_context):
+        raise MissingFacts()
+
+    adapter = Adapter()
+    notices = []
+    planner = planner_module.ReplyPlanner(compose)
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=planner,
+        state_root=tmp_path,
+        max_workers=1,
+        human_notify=lambda row, decision: notices.append((row, decision)),
+    )
+
+    assert result["pending"] == 1
+    assert result["failed"] == 0
+    assert result["effect"] == 0
+    assert result["items"][0]["reason"] == "reply_facts_required"
+    assert adapter.effects == []
+    assert notices == []
 
 
 def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_path,
