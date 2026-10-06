@@ -77,6 +77,6 @@ OpenClaw、Deep Agents、LangGraph、Hermes core、OpenAI JS、Pi、MAF、CrewAI
 |---|---|
 | best | native providerとtool契約がそのまま適合し、薄いadapterでself-build・制作・販売を移行。既存cost/receipt joinが維持できる |
 | base | 制作agentとread-only collectorを先に移行し、販売・金銭ownerは既存wrapperを使う。安全契約を保ちながら不要なrunner/cronを徐々に削る |
-| worst | native toolsからfenceを迂回できる、provider sessionが互換でない、費用やメモリが現行を上回る。この場合はcanaryを止め、外部effectは現行ownerに保持し、Deep Agents JSの局所導入へ設計を改定する |
+| worst | native toolsからfenceを迂回できる、provider sessionが互換でない、同taskの総費用がbaseを上回る、またはRSSが既存host admissionの許容capacityを超える。この場合はcanaryを止め、外部effectは現行ownerに保持し、Deep Agents JSの局所導入へ設計を改定する |
 
 **自分が間違うとしたら最有力の筋:** OpenClawがLife Managerのstrict occurrence/schema/admissionを保持するために必要なadapter量と常駐メモリが、Deep Agents JSの局所導入より大きくなること。隔離canaryでコード量・RSS・task成功・費用を測って反証する。

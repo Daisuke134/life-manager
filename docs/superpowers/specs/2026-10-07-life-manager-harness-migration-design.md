@@ -68,6 +68,16 @@ operator transportはprivate loopbackのOpenResponses `POST /v1/responses`を第
 
 `invoke_tool(owner_id, occurrence_id, tool_name, arguments)`は既存owner限定のschemaを受ける。tool名は実装済みtoolsの名前を広告するもので、skill inventoryを能力admission whitelistにしない。外部effect前に既存policy/lease/reserve/fenceを確認し、結果を同じoccurrenceへ戻す。任意shell、native MCP、browser HTTPなどの別経路からfenceを迂回できないことを実装テストする。制作に必要なshell/codeは隔離worktree内に限定し、secret/network/effect authorityは渡さない。
 
+### 推論admissionの唯一のauthority
+
+scheduler authorityとmodel admissionは別契約。OpenClaw独自cron枠だけではLife Manager全体の枠を保証しない。HTTP、cron、retry、subagentの全推論はmodel開始前に既存`runtime/host/resource_admission.py`の同一global authorityでreserve/claimする。nested業務brokerは取得済みclaimを参照し、同じ枠を再claimしない。subagentが親と同時推論する場合は追加model枠を取得し、親のclaimを子へ複製して並列上限を抜けない。
+
+legacy wrapper経由のclaimはgateway run受領時に同一occurrenceのexecution ownerへdurable transferし、transfer完了を記録する。`runtime/loop/lm_loop_run.py`の子PID終了/finally releaseに委ねる現行契約を新routeだけ変更する。OpenClaw cronから始まるrunはpluginのbefore-model入口で同じclaimを取得する。各runのheartbeatは実際のupstream execution identityにbindし、wrapper PIDだけで生存判定しない。
+
+HTTP caller消失、heartbeat expiry、cancel timeoutでは、native推論・工具・childrenの停止/terminalをreadbackするまでclaim/capacityを再利用しない。確認不能はdurable resource-effect-unknown fenceを維持し、勝手にstale枠を掃除しない。gateway pluginにbefore-model admissionとterminal/cancel readbackを実装できない配布版は採用HOLDとする。終了時は工具結果/receiptを保存後に同じauthorityで一度だけreleaseする。
+
+採用比較は同じ3case/model/tools/budgetで総model/tool観測費用<=base、task成功数>=base、安全case全PASSを満たすこと。RSSはHM-00で記録する既存host admissionの許容capacity内を条件にし、base RSSと増分を報告する。メモリがbaseを超えることだけでは棄却せず、host上限超過・費用増・admission不成立でHOLDとする。subscription実費割当が不明なら採用費用判定をunknownとして保留する。
+
 ## クラッシュ・復旧・rollback
 
 状態遷移は`admitted → dispatch_started → running → terminal/readback`。任意の曖昧境界は`unknown → reconcile original occurrence`へ分岐し、`unknown → resend`にはしない。OpenClawのmessage delivery fenceは一般販売toolまで保証しない。

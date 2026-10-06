@@ -3658,7 +3658,7 @@ Daisの依頼範囲は比較調査・設計・原子的実行計画まで。本�
 | 未着手 | HM-03 | owner工具/fence/native bypass拒否 | HM-02 | foreign/effect_unknown/duplicate tests |
 | 未着手 | HM-04 | trace/usage/receiptのsame-occurrence join | HM-03 | export欠測・cost unknown・secret非露出 |
 | 未着手 | HM-05 | 5 crash境界の復旧/replay-zero | HM-04 | fake provider/state recovery結果 |
-| 未着手 | HM-06 | 現行との制作task/cost比較・採用判定 | HM-05 | 互換・安全・同task成功/費用比較 |
+| 未着手 | HM-06 | 現行との制作task/cost比較・採用判定 | HM-05 | 共通admission、安全全PASS、task成功>=base、総費用<=base、RSSはhost許容内 |
 | 未着手 | HM-07 | 新harnessの自然read-only canary | HM-06 | main release/loaded/natural/trace |
 | 未着手 | HM-08 | scheduler所有権移行/rollback | HM-07 | 新旧authority<=1、旧wake0 |
 | 未着手 | HM-09 | Capafy制作/販売owner1件移行 | HM-08 | 正当な自然成果/公式receipt/費用 |

@@ -61,13 +61,13 @@ DONE: 公開配布版の実際の互換APIが記録され、canaryはproduction�
 
 ### HM-02: 既存runner契約を保つoperator bridge
 
-Files: 新規`runtime/openclaw/{protocol.py,transport.py,bridge.py}`、`runtime/openclaw/tests/test_bridge.py`、`config/harness-migration.json`。変更`runtime/agent-runner/agent_runner.py`。
-Interfaces: `dispatch(request: HarnessRequest) -> HarnessResult`、`reconcile(request: HarnessRequest) -> HarnessResult`。設計のfieldsをそのまま使う。
+Files: 新規`runtime/openclaw/{protocol.py,transport.py,bridge.py,admission.py}`、`runtime/openclaw/tests/test_bridge.py`、`config/harness-migration.json`。変更`runtime/agent-runner/agent_runner.py`、`runtime/loop/lm_loop_run.py`。
+Interfaces: `dispatch(request: HarnessRequest) -> HarnessResult`、`reconcile(request: HarnessRequest) -> HarnessResult`、`acquire_model_claim(request: HarnessRequest, execution_identity: dict) -> dict`、`release_model_claim(claim_ref: dict, terminal_proof: dict) -> dict`。既存resource_admissionを唯一のauthorityとして使い、設計のfieldsをそのまま使う。
 
-- [ ] `test_bridge.py`に未知owner、schema不一致、受領前timeout、受領後ack喪失、previous session不一致をREDとして追加する。assert: schema invalidはsuccessなし、ack喪失ではPOST count=1/自動再送0。
+- [ ] `test_bridge.py`に未知owner、schema不一致、受領前timeout、受領後ack喪失、previous session不一致をREDとして追加する。assert: schema invalidはsuccessなし、ack喪失ではPOST count=1/自動再送0、model開始前claimあり、caller終了後もupstream未停止ならcapacity再利用0。
 - [ ] `python3 -m pytest runtime/openclaw/tests/test_bridge.py -q`でREDを確認する。
 - [ ] HM-01で固定したtransportへ`dispatch/reconcile`を最小実装する。session keyはowner+occurrence、promptはstdin/body、secretはoperatorだけ。dispatch-startedを送信前にdurable記録する。
-- [ ] runnerにeligible owner限定selectorを追加し、既存args、result_path、exit/status/summary契約を保つ。未移行ownerは現行route。
+- [ ] runnerにeligible owner限定selectorを追加し、既存args、result_path、exit/status/summary契約を保つ。claimは同じoccurrenceのgateway executionへdurable transferし、新routeのwrapper finallyでは未terminal枠を解放しない。upstream heartbeat/停止確認ができない場合はdurable fenceを維持する。未移行ownerは現行route。
 - [ ] 同focused testと既存`runtime/agent-runner/tests/test_runtime_event_boundary.py`をPASSしcommit/pushする。
 DONE: 同一occurrenceを二重dispatchせず、既存consumerがJSON/schema/eventを読める。
 
@@ -76,7 +76,7 @@ DONE: 同一occurrenceを二重dispatchせず、既存consumerがJSON/schema/eve
 Files: 新規`runtime/openclaw/tool_broker.py`、`runtime/openclaw/plugin/index.ts`、`runtime/openclaw/tests/test_tool_broker.py`、pluginのfocused test。既存resource/effect authorityを利用する。
 Interfaces: `invoke_tool(owner_id: str, occurrence_id: str, tool_name: str, arguments: dict) -> dict`。plugin→brokerはowner-bound local IPC、authorityはsession文字列だけで認証しない。
 
-- [ ] foreign-owner request、重複occurrence、budgetなし、browser leaseなし、effect_unknown、native tool迂回をREDにする。assert: fake provider write count=0、blocked reasonとnext_actionあり。
+- [ ] foreign-owner request、重複occurrence、budgetなし、browser leaseなし、effect_unknown、native tool迂回をREDにする。assert: fake provider write count=0、blocked reasonとnext_actionあり。nested brokerは既存claim参照のみ、並列subagentは追加model枠を持ち、枠未取得では推論0。
 - [ ] focused Python/plugin testのREDを確認する。
 - [ ] actor authority→既存admission/fence→owner工具という最小経路を実装する。sender/owner bindingはoperator側で固定し、modelから受けたowner_idを信用しない。
 - [ ] fake provider成功後の再callは同receiptを返しwrite count=1であることをGREENにする。
@@ -102,7 +102,7 @@ Files: 新規`runtime/openclaw/tests/test_recovery.py`、`fixtures/recovery-case
 - [ ] admission後、dispatch後ack前、工具開始後、provider成功後receipt前、terminal保存後の5 crash位置をfake provider/stateで固定する。
 - [ ] RED assertを各caseに追加: 未実行はeffect=0、成功後はwrite count=1、曖昧境界はfence保持・replay0、terminal後は新実行0。
 - [ ] REDを確認し、bridge/brokerの不足部分だけ修正する。
-- [ ] 同一owner2wake、別owner2wake、gateway停止中schedule、usage欠測も隔離profileで確認する。production processをkillしない。
+- [ ] 同一owner2wake、別owner2wake、gateway停止中schedule、caller死亡後のupstream継続、heartbeat expiry、cancel acknowledgement喪失、usage欠測も隔離profileで確認する。assert: upstream/children未停止の間capacity再利用0、停止proof後release1回。production processをkillしない。
 - [ ] `python3 -m pytest runtime/openclaw/tests -q`をPASSして証拠をcommit/pushする。
 DONE: documented restartと販売工具replay-zeroの両方が成立。
 
@@ -113,7 +113,7 @@ Files: 新規`docs/evidence/harness-migration/task-cases.json`・`comparison.jso
 - [ ] baselineからproduction失敗のprefixを1件、成功prefixを1件、fake商品制作taskを1件選び、データ/seed/model/tools/budgetを固定する。
 - [ ] 現行と新harnessを隔離output/worktreeで各caseに実行し、production catalog/marketplaceへのwriteを禁止する。
 - [ ] Capafy制作例ではSKILL.md/LISTING.md/icon/evidenceの4成果物と既存listing lintを検証する。公開・新商品販売はこの比較に含めない。
-- [ ] task成功、総usage/観測cost、RSS、timeout/recovery、adapter量を比較する。新harness安全caseは全PASS、task成功数はbase以上。予算超過/unknown costは採用判断を保留する。
+- [ ] task成功、総usage/観測cost、RSS、timeout/recovery、adapter量を比較する。新harness安全caseは全PASS、task成功数はbase以上、同じ3caseの総model/tool観測費用<=base、peak RSSはHM-00で記録した既存host admission許容capacity内。base RSSとの差も報告する。費用増/予算超過/host capacity超過/unknown costは採用HOLD。
 - [ ] HM-01の互換・HM-05の安全・同task比較が成立すれば採用判定をSSOTに記録しcommit/pushする。不成立なら元ownerは保持し、具体causeを診断して設計を改定する。
 DONE: 根拠付きSHIP/HOLD。主観的な便利さや公開benchmark点数だけで採用しない。
 
@@ -135,8 +135,8 @@ DONE: natural run1件がPASS、既存owner・gatewayに影響なし。
 Files: 新規`runtime/openclaw/schedule_transfer.py`、`runtime/openclaw/tests/test_schedule_transfer.py`、`docs/runbooks/openclaw-owner-cutover.md`。変更selectorとcanary registry rowのみ。
 Interface: `transfer_owner(owner_id: str, expected_release_sha: str, target: str) -> dict`、target=`legacy|openclaw`。stateは既存owner authorityを使う。
 
-- [ ] old running、unknown effect、foreign lease、新cron作成直後crash、旧disable直後crashのREDを作る。assert:同時scheduler authority<=1、job喪失0、外部write0。
-- [ ] frozen wake→drain→new cron disabled登録→旧schedule退役→new enabled→readbackの順を実装する。通常gateway defaultや別ownerは変更しない。
+- [ ] old running、unknown effect、foreign lease、新cron作成直後crash、旧disable直後crashのREDを作る。assert:同時scheduler authority<=1、job喪失0、外部write0。cron/retry/subagentは全て既存global model admissionへ入り、native model開始前claimあり、TTL後もupstream未停止なら枠再利用0。
+- [ ] frozen wake→drain→new cron disabled登録→旧schedule退役→new enabled→readbackの順を実装する。新cronのbefore-model hookでHM-02のclaimを取得し、run heartbeat/terminal後releaseを同じauthorityに接続する。nested brokerは再claimしない。通常gateway defaultや別ownerは変更しない。
 - [ ] rollbackを逆順に実装する。未解決occurrenceは両方でfencedを維持する。
 - [ ] fixtureでGREENを確認し、source acceptance→main release後にread-only canaryだけschedule移行する。
 - [ ] 次の自然due occurrenceが1件だけterminalになることと、旧label/旧wake不在を確認する。
