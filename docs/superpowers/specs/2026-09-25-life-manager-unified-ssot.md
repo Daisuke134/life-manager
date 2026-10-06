@@ -9856,3 +9856,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最初のapply positional target/--release-rootはCLI構文不一致でexit2/変更0。実registry controllerと同じLIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourly/LIFE_MANAGER_RELEASE_ROOT=current、apply --loaded-idle-onlyを1回実行handle64347/exit0。対象1/changedtrue/install event2d14eedddbd256ca73628f8b、loaded argvはcurrent owner作成20261007T032608-64895457へ一致。同owner競合/稼働中は内部lock/idleguardが拒否、force/全fleet/手動wakeなし。
 - fresh CFO CLIはinstalled64895457/loaded-idle/PIDnull、loadedargv SHA65814ff88a37fe76dcd6b2c460b19c1cc994333af92864a81bd8405b4673e68d、admissionunknownfalse。自然wake18dc045a20ce42f8-96996/2026-10-06T18:32:17.941396Zはexit75のcapacity延期。新reportはまだ旧18:11/104522で、新source入力読込・MRR表示・自然二重計上readbackは未確認。
 - private cfo-main648-target-apply-readback.jsonへ保存。current17は自然readback待ち、正常なadmission延期をsource故障へ丸めず適格な次wakeを観測する。独立項目18のowner/receipt bindingと19以降の公式財務coverageを進められる。
+
+
+### 791. Investmentの実state pathとeffect ID照合範囲を確認
+
+- 直近2client IDのlm-ai形式は既存effect_store.sealのeffect_id先頭24桁生成と一致するが、形式だけをowner帰属の証明にしない。live/cross-venue/validationのJSON/JSONLとstateの4MiB以下JSON系（現観測artifact除外）にclient ID一致0。初回exclude globは自身artifactを拾ったため**/付きで訂正し、循環証拠を除外した。
+- installed Alpaca live plistの非秘密contextをread-only確認:mode live/deployment local、live stateは既存alpaca-investment-live、paper stateはlegacy alpaca-investment。live354/legacy1075 receipt rowsをclient由来effect_id先頭24桁でも照合し一致0。state path変更やbroker取引0。この範囲のowner/正規receipt binding不足を保持し、全履歴不存在・利益0へ拡張しない。
+- 一時heredoc ENOSPC後にdfを追加観測、空き551MiB。python -c経路で必要readを実行し、release各104MiBというlogical sizeを物理回収量にしない。今回削除0、protected store/state台帳を保持。current17自然readback待ち、18の正規採用はfreshreviewHOLDを維持。
