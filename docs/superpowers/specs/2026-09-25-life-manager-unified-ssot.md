@@ -10107,3 +10107,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - deployed main1305/current releaseの同実入力をrootがread-only collectorで追加照合、ASC receipt1/RC subscription_snapshot6/RC settled receipt0。cfo-main1305-production-input-join-readback.json SHA5c58bae670cd26e64207ea65edd379164dbe5d83dd99aaa284c16ad9c9561ec5。これは追加observer readbackであり自然runそのもののraw traceではない、と区別する。
 - ASC_BYPASS_KEYCHAIN=true asc apps list --output json はexit0/data24、Anicca6755129214/Honne6759667221を現在公式応答で確認。private cfo-asc-current-apps-official-readback.json。Keychain不使用の既存API認証で、Agreement回避/Chat承認の法務承認化0。アプリ一覧をacquisition件数・金融settlementの証拠へ昇格しない。
 - 投資新証拠のfresh read-only handle56315はexit0。開始NAV点/終了snapshot/2注文照合は限定SHIP、確定期間・tradepair settled・会社利益採用はHOLD。09/09 USDC transferとUSD評価は別、future request end/CFEE前日date/取得幅/fee換算/owner receiptを未確認で保持。参考NAV差を収益へしない。source/API/銀行/会社利益の不足は残18〜24へ維持。cursor17の公式接続成果と全goal未完を区別。
+
+
+### 823. ASC既存requestの獲得公式CSV4件を取得、日付と欠損を分離
+
+- ASC analytics requestsの現在GETでAnicca ongoing04c74879-547f-4e35-b231-1fafd485801d/Honne ongoingc7c05836-181e-49cc-ae71-b57b7a0b466e（停止false）を確認。request作成/設定/投稿0、mobile lane実装変更0。
+- 初回analytics viewはCLIが全instanceへfan-outしAnicca258/Honne162件を取得する警告を返した。想定より広かったため同全期間取得を反復せず、取得済みcatalogからDownloads Standard/Discovery and Engagement Standardの共通最新DAILY instanceだけ選択して4CSVをdownload/decompress。metadataにrequest/report/instanceID・processingDate・観測時刻・rawSHA、signedURL/token保存0。
+- processingDateとCSV Dateは異なる。Anicca処理10/06の共通data Date10/05はCounts impression36/Product page view2/Store sheet view1/初回download2。Honne処理10/04の共通data Date10/02はimpression10/Store sheet view1/初回download1、Product page view行無しはnot_observed_not_zero。異なる日・page種別を混ぜず、Unique Countsを合算ユーザー数やcohort/post attributionへしない。少数標本の勝者/因果効果・収益化を認定しない。
+- private cfo-asc-current-acquisition-official-readback-packet.json SHA467f23c9b7100e3e207bcb8ed8f8036b358482662478b3189dbffe8301ebba3a、4CSV/metaのrawhash/appID一致をroot検証。自然CFO104639・deployed財務join・appslist・獲得CSVをfresh Sol6.1/medium read-only acceptance handle23772で反証中。scope17の受入前に全goal/会社利益のDoneへしない。現在cursor17を保持。
