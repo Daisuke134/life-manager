@@ -4876,6 +4876,19 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 - 新順序：下表1→31。現在cursor1（Lancers以外の既存CLIで現在の収益対象を集約）。SelfBuildは27、Lancers再開28〜30、最終確認31。旧A番号は実行順や完了証明に使わない。
 - 各行の成果に必要な原因修復・検証はその行内で行う。正常な待機/観測不足を一律code故障へ変換しない。外部待ちは不足物・再開条件を残し、独立した収益channelを止めない。進行中effectを中断・重複させず、同branch/profile/state/provider effectの所有を重ねない。
 
+#### 現在の収益対象と不足情報（公式観測の集約）
+
+| channel | 確認した対象 | 次に必要な行動・不足情報 |
+|---|---|---|
+| Coconala受注 | 現受注一覧3件、表示9000/8000/24000円、状態unknown | TikTok/NPO追跡延期を保持し、それ以外の現在必要行動だけを確認。表示額を入金にしない。§631 |
+| Coconala問い合わせ | 先頭30行はobserve、返信要求flagなし | 1page/head-onlyで全件性なし。新着の具体的必要行動がある時だけ該当thread確認。§631 |
+| Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
+| CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
+| Mercor | 返却100行中reject86/途中8/応募済6 | 全件性・契約/精算coverage未確認、既存effect-unknownは再送せず応募行で照合。§620–622 |
+| Upwork | browser復旧/公式contract画面active0・available表示$0 | account独立照合/transaction/refund/fee/payout/costは未確認。表示0を過去売上や利益0にしない。§637–639 |
+| Freelancer | 既存readiness/transportあり、旧scheduler退役 | 現account/実inventory fetch/receipt未確認。定義を現稼働へ変換しない。§634–635 |
+| Lancers | 接続未解決 | Dais指示どおりSelfBuild後へ保留、既存solver taskを重複させない。§615 |
+
 #### 残作業の実行表（収益行動中心・未完のみ）
 
 現在cursor：1（既存CLIによる現在の実案件・注文・収益情報の集約）。主経路31項目。
@@ -8663,3 +8676,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 正規guard取得/解放0で自身about:blank target→Page.enable/navigate→既存load helper→safe controls読取を実行。対象1商品のページは403/controls空、原本coconala-storefront-1791263703624628000/purchase-exact-nav-1791264486601950000.json。HTML GETも同公式host/services route/serviceID一致/query無しを検証してHTTP403。不正URLを原因にせず、購入停止/受付休止とも断定しない。
 - 先のinventory20公開/本文取得とは別観測であり、今回のbuyer-route取得失敗を過去成功で上書きしない。code/source/価格/商品公開/購入/外部送信0。既存_fetch_categoryはws指定時にscope成立まで3回のbounded読取を持つため、次の再観測はその既存経路に合わせ、同じ初回遷移だけの反復を増やさない。current1/主経路31/Lancers後段維持。
+
+
+### 641. Coconala独立公開crawlも403・対象情報を正本へ集約
+
+- 既存crwl crawlで同1商品を独立公開取得、process exit0だが本文17byte/403 Forbiddenのみ。人間確認文言/CAPTCHA/購入・見積り導線/商品scopeはなし。private原本coconala-storefront-1791263703624628000/public-crawl.stdout（hash7e3b4621f06baaae1d3c94c524327d7c8bca1598ea70001bee07942d59d06efb）。exit0を公開/購入成功へ丸めない。
+- registered browserの既存_fetch_category ws限定3回取得もscope/categoryなし、emptyhash/403/control空。原本purchase-collector-probe-1791264615065174000.json、guard取得/解放0。現在のbuyer-route取得失敗を明示し、同経路の無観測反復を止める。
+- §217へ現在の収益対象・各coverage・不足情報・次手を1表で集約。未確認の受注action/購入/receiptは未完を保持、current1/主経路31の順を変更しない。新商品/価格/送信/支払/solver task0。
