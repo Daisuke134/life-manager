@@ -9676,3 +9676,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - FINANCIAL/ZZ/fiscal2026-12を公式CLIで取得成功、raw SHA64469568f0407c7ffa7ccc7b87320bfebd526847c210b0ae071b5ca55767eb2b。実期間08/30〜09/26、dated row1/対象SKU6762049696/Quantity1/4250JPY/JP/S。JP限定から全地域という取得scopeを補完し、CFO workerへ証拠共有。全履歴・最新trailing・銀行入金・利益のcomplete証明にはしない。
 - 初回はASC_VENDOR_NUMBER未設定でCLI validation exit2/通信前。既存private .envの該当値だけをsubprocess envへ渡し、秘密を表示・複製せず再取得。private asc-current-fy2026-p12-all-regions.tsv、asc-current-all-regions-download-metadata.json。外部mutation0。
 - fresh CFO CLIはloaded4429/idle/PIDnull/effectunknownfalse、最後のattempt16:57capacity busy。last-result-reportは16:44/旧入力。正常なhost deferralをadapter故障へ丸めず、手動wake/送信なし。cursor17のsource修正workerが稼働中。
+
+
+### 766. 接続済みMRR入力を現行CFO projectionで確認
+
+- 現immutableのloop_pnl.build_b7_projectionへLM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES=current-mrr.jsonだけをenv指定し、provider live readbackを無効にしたlocal read-only projectionを実行。snapshot2026-10-06T17:53:50.330599Z、mobile-apps MRR verified/USD20.34/coverage_gaps空、company MRR unknown。実入力→現adapter→B7 projectionの接続を限定確認。
+- envを意図的に限定したため他loopのsource_unconnected/read_failed等を本番の最新障害認定へ使わない。全社売上/利益/銀行着金/自然レポート送信の証明でもない。保存private cfo-connected-mobile-local-projection.json、外部provider操作/通知/ledger write0。
+- Luna担当はliveで最新main4429由来専用worktreeを作成、code編集前のcallpath/RED診断中。根因は原報告と正規入力契約の差、最小変換でcoverage/財務区別を維持する。現在cursor17/後段順序保持。
