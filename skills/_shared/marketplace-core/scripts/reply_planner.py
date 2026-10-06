@@ -113,7 +113,7 @@ class ReplyPlanner:
             ):
                 raise
             return {
-                "action": "human",
+                "action": "wait",
                 "reason": "reply_facts_required",
                 "remaining_work": [item.strip() for item in remaining],
             }
