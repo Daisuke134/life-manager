@@ -9525,3 +9525,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - inventory_status.server_agentsの既存publish-list read-only経路を使用、duplicate model judge/daily_loop/publishを起動せず。handle39157 exit0、UTC2026-10-06T16:15:31.699646、server read成功53rows/list online36/draft3/review rejected1/offline12/under review1。private capafy-current-official-inventory.json。一覧onlineを売上/hosted成功へしない、offlineはRETIRED照合前に再公開しない。
 - 同wrapperのfetch_agent_detailを5対象だけ実行、handle63592 exit0。draft9531771963/9466718786/7599205243はdetail status0/audit0、under review9563867391はstatus1/audit2、Hook Lab8123079349はstatus4/audit4（listed/審査passed）。private capafy-current-five-details.json。今回はstale list未公開枠の解放を示す差分無し。5occupied枠を新商品createで重複消費しない。
 - cursor11は既存online Hook Lab8123079349を販売候補として、現pricing/model/output cap/購入導線と既存distribution ownerのcycleを確認する。商品を追加するより現商品販売の条件へ進む。host cost/注文/settlementは未取得、36onlineを収益36件へしない。公開/価格/marketing送信/購入/鍵変更0。主29相対順序/前段保留/SelfBuild後段保持。
+
+
+### 748. Hook Lab公式価格と進行中distribution owner
+
+- 同Agent8123079349/version2106921306758606848のpublish remote statusでplatform4/audit4/can_report_published true/confirmed skills true/confirmed config keys true/status complete true/run_onlineを確認。公開・設定確認の証拠であり購入/host call成功/実売上ではない。
+- 既存Capafy-autopublish vendor market readerからofficial buyer GET /agent/agent/agents/8123079349。code0/online/同version、公開model label DeepSeek V4.1 Flash/runtime openclaw、day3.99USD/10messages、week9.99USD/30messages、month19.99USD/80messages、supportFreeTrial0、on_demandを取得。requiredCredentials/token/support emailは取得値を保存表示しない。公開model labelを実host provider/cost/output capの証拠にしない。private capafy-hooklab-buyer-detail-boundary.json/capafy-hooklab-current-public-terms.json。
+- capafy-distribute-daily statusはloaded-running PID11234/main4429release、先行occurrence2066 capacitybusy rc75。ただしpsで11234 live、exact scratch18dbfcdfa1358938-11234/host-admission.jsonはstatus pass/resource_slot_acquired/effect0を確認し現在実行中。過去capacity recordを現停止へしない。重複起動/apply/kill/manualwake0。
+- canonical business ledgerはnested capafy-distribute/ledger.jsonで、h18 slide-maker/h21 youtube-script-writer status publishedがある。run_id/receiptなしのledgerだけで今回11234成功/公式送信/売上としない。top ledger古い1slotと混同しない。current run正式receipt/自然terminalを回収する。
+- cursor11は既存distribution owner11234の自然完了/公式readback照合。Hook Labの勝手なrotation変更や他商品販売中断を行わない。注文/settlement/actualhostcost未知保持、主29相対順序/前段保留/SelfBuild後段保持。今回public GETのみ、publish/price/marketing send/購入/鍵変更0。
