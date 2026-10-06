@@ -8721,3 +8721,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 旧残1の成果は『既存CLIで現在対象を一度集約し金額/期限/次手・取得不足を一覧化、欠損を0にしない』。§217の集約表と§615〜646のCLI/current runtime/private証拠によりこの限定成果を完了とする。全platform official coverage・全loop修復・納品・入金・利益のDoneへ拡張しない。各未取得は既存の対応残taskへ保持する。
 - 旧1だけを残表から除外、未完旧2〜31→新1〜30。相対順/所有/外部effect不変、理由は完了した集約の反復を止め有償履行・販売へ進むため。現在cursor新1=既存有償案件の次成果物。SelfBuild新26/Lancers新27〜29は最後のまま。§615等の旧番号は過去履歴、最新順序は§217のみ。
 - 新1で現在実行可能なbuyer scope/成果物・公式納品条件を確認し、TikTok/NPO延期を戻さず、最新seller発言を理由に不要な再返信を作らない。scope不足・buyer待ちは具体的に記録し独立した後続販売行動を止めない。
+
+
+### 647. 現cursor1：既存有償案件の履行stateと古いWORK_REQUIREDを分離
+
+- 現受注8000/24000円に一致する既存project state.jsonだけをreadonly確認、実current artifact pathは両方file exists。両stateはnext_action await_buyer_feedback/buyer_visible true/last_delivery_attempt_outcome confirmed/正式納品false。一方work_state WORK_REQUIREDも残る。8000更新2026-09-23T11:39:17.917290Z、24000更新2026-09-22T22:13:46.199100Zの過去stateであり現況の独立証明にしない。
+- 現公式readでは両方取引中/表示最新seller（§645–646）。この組合せから不要な再生成/再返信/再納品を起動しない。old confirmedは送信種類/条件/本文・成果物version/公式landingと結ばず正式納品・検収・精算に昇格しない。buyer_feedback flagsの混在も推測で書き換えない。
+- 現cursor1はscope/公式納品条件を確かめ、実際の未履行だけを行う。確認済み成果物の再作業を止め、buyer待ち/未確定はその不足物へ限定する。TikTok/NPO材料追跡は延期維持、過去12全件照合なし。source/state/browser変更/外部effect0。独立した既存商品準備・販売行動はこの待機で停止しない。
