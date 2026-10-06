@@ -774,6 +774,18 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                 self.assertEqual(row["availability"], "available")
                 self.assertRegex(row["query_sha256"], r"^[0-9a-f]{64}$")
                 self.assertRegex(row["evidence_sha256"], r"^[0-9a-f]{64}$")
+                self.assertRegex(row["chart_response_sha256"], r"^[0-9a-f]{64}$")
+                source_row = next(
+                    item for item in readback["rows"]
+                    if item["product_id"] == row["product_id"]
+                )
+                source = source_row["sources"]["revenuecat"]
+                self.assertEqual(row["evidence_sha256"], source["evidence_sha256"])
+                self.assertEqual(
+                    row["chart_response_sha256"],
+                    source["data"]["charts"]["mrr"]["evidence_sha256"],
+                )
+                self.assertNotEqual(row["evidence_sha256"], row["chart_response_sha256"])
                 app_id = m.capafy_mobile.MOBILE_PRODUCT_BINDINGS[
                     row["product_id"]
                 ]["revenuecat_app_id"]
@@ -833,20 +845,74 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
             self.assertEqual(list(readbacks_dir.iterdir()), [evidence_path])
             self.assertGreaterEqual(fsync.call_count, 2)
 
+    def test_release_provenance_rejects_env_mismatch_root_override_and_bad_manifest(self):
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            actual = root / "actual-release"
+            actual.mkdir()
+            (actual / "RELEASE.json").write_text(
+                json.dumps({"sha": "a" * 40}), encoding="utf-8",
+            )
+            override = root / "override-release"
+            override.mkdir()
+            (override / "RELEASE.json").write_text(
+                json.dumps({"sha": "c" * 40}), encoding="utf-8",
+            )
+            missing = root / "missing-manifest"
+            missing.mkdir()
+            invalid = root / "invalid-manifest"
+            invalid.mkdir()
+            (invalid / "RELEASE.json").write_text("{", encoding="utf-8")
+            readback = {
+                "rows": self._economic_fixture("mobile-verified.json"),
+                "started_at": "2026-10-01T00:00:00.000000Z",
+                "completed_at": SNAPSHOT,
+            }
+            cases = (
+                ("stale-sha", actual, {"LIFE_MANAGER_RELEASE_SHA": "b" * 40}),
+                ("root-override", actual, {"LIFE_MANAGER_RELEASE_ROOT": str(override)}),
+                ("missing-manifest", missing, {}),
+                ("invalid-manifest", invalid, {}),
+            )
+            for name, module_root, updates in cases:
+                state_dir = root / f"state-{name}"
+                state_dir.mkdir()
+                env = self._native_env(state_dir, None)
+                env.update(updates)
+                with mock.patch.object(m, "ROOT", module_root):
+                    saved = m._persist_mobile_natural_evidence(
+                        mobile_readback=readback, records=[], projection={}, env=env,
+                    )
+                self.assertFalse(saved, name)
+                self.assertFalse((
+                    state_dir / "mobile-readbacks"
+                    / "life-manager-cfo-hourly:run-natural-1.json"
+                ).exists(), name)
+
     def test_unavailable_mobile_readback_is_saved_as_gap_without_zeroing(self):
         import tempfile
         from unittest import mock
 
         with tempfile.TemporaryDirectory() as tmp:
-            state_dir = Path(tmp) / "state"
+            root = Path(tmp)
+            state_dir = root / "state"
             state_dir.mkdir()
+            release_root = root / "release"
+            release_root.mkdir()
+            release_sha = "a" * 40
+            (release_root / "RELEASE.json").write_text(
+                json.dumps({"sha": release_sha}), encoding="utf-8",
+            )
             readback = m.revenuecat_readback.fetch_current_mrr(
                 project_id="fixture-project", api_key=None,
                 product_bindings=m.capafy_mobile.MOBILE_PRODUCT_BINDINGS,
                 now=lambda: datetime(2026, 10, 1, tzinfo=timezone.utc),
             )
             env = self._native_env(state_dir, None)
-            with mock.patch.object(
+            with mock.patch.object(m, "ROOT", release_root), mock.patch.object(
                 m, "_live_mobile_revenuecat_readback", return_value=readback,
             ):
                 projection = m.build_b7_projection(
@@ -857,7 +923,7 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                 state_dir / "mobile-readbacks"
                 / "life-manager-cfo-hourly:run-natural-1.json"
             ).read_text(encoding="utf-8"))
-            self.assertIsNone(evidence["release_sha"])
+            self.assertEqual(evidence["release_sha"], release_sha)
             self.assertEqual(evidence["revenuecat"]["availability"], "unavailable")
             self.assertEqual(len(evidence["revenuecat"]["rows"]), 6)
             self.assertEqual({row["reason"] for row in evidence["revenuecat"]["rows"]}, {"credential_missing"})
@@ -892,8 +958,14 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
         from unittest import mock
 
         with tempfile.TemporaryDirectory() as tmp:
-            state_dir = Path(tmp) / "state"
+            root = Path(tmp)
+            state_dir = root / "state"
             state_dir.mkdir()
+            release_root = root / "release"
+            release_root.mkdir()
+            (release_root / "RELEASE.json").write_text(
+                json.dumps({"sha": "a" * 40}), encoding="utf-8",
+            )
             readback = {
                 "rows": self._economic_fixture("mobile-verified.json"),
                 "started_at": "2026-10-01T00:00:00.000000Z",
@@ -905,6 +977,17 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
             ) as fetch:
                 m.build_b7_projection(
                     snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=base,
+                )
+                fetch.assert_not_called()
+            self.assertFalse((state_dir / "mobile-readbacks").exists())
+
+            missing_release = self._native_env(state_dir, None, live=True)
+            with mock.patch.object(m, "ROOT", root / "missing-release"), mock.patch.object(
+                m, "_live_mobile_revenuecat_readback", return_value=readback,
+            ) as fetch:
+                m.build_b7_projection(
+                    snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                    env=missing_release,
                 )
                 fetch.assert_not_called()
             self.assertFalse((state_dir / "mobile-readbacks").exists())
@@ -923,6 +1006,7 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                 },
                 {"LIFE_MANAGER_OCCURRENCE_ID": "life-manager-cfo-hourly:other-run"},
                 {"LIFE_MANAGER_OCCURRENCE_ID": "life-manager-cfo-hourly:bad/run"},
+                {"LIFE_MANAGER_RELEASE_SHA": "b" * 40},
             )
             for updates in invalid_contexts:
                 invalid = self._native_env(state_dir, None, live=True)
@@ -931,29 +1015,90 @@ class MobileNaturalEvidenceTest(unittest.TestCase):
                         invalid.pop(field, None)
                     else:
                         invalid[field] = value
-                with mock.patch.object(
+                with mock.patch.object(m, "ROOT", release_root), mock.patch.object(
                     m, "_live_mobile_revenuecat_readback", return_value=readback,
-                ) as fetch:
-                    m.build_b7_projection(
+                ) as fetch, mock.patch.object(
+                    m, "project_records", wraps=m.project_records,
+                ) as project:
+                    projection = m.build_b7_projection(
                         snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=invalid,
                     )
-                    fetch.assert_called_once()
+                    fetch.assert_not_called()
+                    records = project.call_args.args[0]
                 self.assertFalse((state_dir / "mobile-readbacks").exists())
+                self.assertTrue(any(
+                    row.get("record_type") == "receipt"
+                    and row.get("provider") == "app-store-connect-financial"
+                    for row in records
+                ))
+                self.assertFalse(any(
+                    row.get("record_type") == "subscription_snapshot"
+                    and row.get("provider") == "revenuecat"
+                    for row in records
+                ))
+                self.assertTrue(any(
+                    row.get("record_type") == "coverage"
+                    and row.get("source_id") == "revenuecat-mrr"
+                    and row.get("reason") == "missing_coverage"
+                    and "adapter://revenuecat-mrr/native_context_missing"
+                    in row.get("evidence_refs", [])
+                    for row in records
+                ))
+                mobile_mrr = projection["mrr"]["loops"]["mobile-apps"]
+                self.assertEqual(mobile_mrr["status"], "unknown")
+                self.assertTrue(mobile_mrr["coverage_gaps"])
+
+    def test_private_cfo_state_path_is_validated_before_live_readback(self):
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "state"
+            state_dir.mkdir()
+            release_root = root / "release"
+            release_root.mkdir()
+            (release_root / "RELEASE.json").write_text(
+                json.dumps({"sha": "a" * 40}), encoding="utf-8",
+            )
+            linked_state = root / "linked-state"
+            linked_state.symlink_to(state_dir, target_is_directory=True)
+            outside = root / "outside"
+            outside.mkdir()
+            (state_dir / "mobile-readbacks").symlink_to(
+                outside, target_is_directory=True,
+            )
+            for candidate in (root / "missing-state", linked_state, state_dir):
+                env = self._native_env(candidate, release_root, live=True)
+                with mock.patch.object(
+                    m, "_live_mobile_revenuecat_readback",
+                    return_value={"rows": []},
+                ) as fetch:
+                    m.build_b7_projection(
+                        snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=env,
+                    )
+                    fetch.assert_not_called()
+            self.assertEqual(list(outside.iterdir()), [])
+            self.assertTrue((state_dir / "mobile-readbacks").is_symlink())
 
     def test_mobile_evidence_write_failure_does_not_abort_existing_projection(self):
         import tempfile
         from unittest import mock
 
         with tempfile.TemporaryDirectory() as tmp:
-            state_dir = Path(tmp) / "state"
+            root = Path(tmp)
+            state_dir = root / "state"
             state_dir.mkdir()
+            (root / "RELEASE.json").write_text(
+                json.dumps({"sha": "a" * 40}), encoding="utf-8",
+            )
             readback = {
                 "rows": self._economic_fixture("mobile-verified.json"),
                 "started_at": "2026-10-01T00:00:00.000000Z",
                 "completed_at": SNAPSHOT,
             }
             env = self._native_env(state_dir, None)
-            with mock.patch.object(
+            with mock.patch.object(m, "ROOT", root), mock.patch.object(
                 m, "_live_mobile_revenuecat_readback", return_value=readback,
             ), mock.patch.object(
                 m.os, "replace", side_effect=OSError("simulated storage failure"),

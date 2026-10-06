@@ -128,6 +128,69 @@ def _read_b7_payload(path: str | Path):
     return json.loads(text)
 
 
+def _mobile_natural_context(env: dict[str, str]) -> dict | None:
+    if env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") != "1":
+        return None
+    loop_id = env.get("LIFE_MANAGER_LOOP_ID", "")
+    owner_id = env.get("LIFE_MANAGER_OWNER_ID", "")
+    run_id = env.get("LIFE_MANAGER_RUN_ID", "")
+    occurrence_id = env.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+    if "LIFE_MANAGER_OWNER_ID" not in env and loop_id == "life-manager-cfo-hourly":
+        owner_id = loop_id
+    safe_id = lambda value: isinstance(value, str) and 0 < len(value) <= 128 and all(
+        c.isascii() and (c.isalnum() or c in "._-") for c in value
+    )
+    if (
+        loop_id != "life-manager-cfo-hourly" or owner_id != loop_id
+        or not safe_id(run_id) or occurrence_id != f"{loop_id}:{run_id}"
+    ):
+        return None
+    state_value = env.get("CFO_STATE_DIR")
+    if not isinstance(state_value, str) or not state_value:
+        return None
+    try:
+        state = Path(state_value).expanduser()
+        if not state.is_absolute() or state.is_symlink() or not state.is_dir():
+            return None
+        state = state.resolve(strict=True)
+        directory = state / "mobile-readbacks"
+        if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+            return None
+        if directory.exists():
+            resolved_directory = directory.resolve(strict=True)
+            if os.path.commonpath((str(state), str(resolved_directory))) != str(state):
+                return None
+
+        module_root = Path(ROOT).expanduser().resolve(strict=True)
+        supplied_root = env.get("LIFE_MANAGER_RELEASE_ROOT")
+        if supplied_root is not None:
+            supplied_path = Path(supplied_root).expanduser()
+            if not supplied_path.is_absolute() or supplied_path.resolve(strict=True) != module_root:
+                return None
+        manifest_path = module_root / "RELEASE.json"
+        if manifest_path.is_symlink() or not manifest_path.is_file():
+            return None
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        release_sha = manifest.get("sha") if isinstance(manifest, dict) else None
+        is_sha = lambda value, size: isinstance(value, str) and len(value) == size and all(
+            c in "0123456789abcdef" for c in value.lower()
+        )
+        if not is_sha(release_sha, 40):
+            return None
+        supplied_sha = env.get("LIFE_MANAGER_RELEASE_SHA")
+        if supplied_sha is not None and (
+            not is_sha(supplied_sha, 40) or supplied_sha.lower() != release_sha.lower()
+        ):
+            return None
+        return {
+            "loop_id": loop_id, "owner_id": owner_id, "run_id": run_id,
+            "occurrence_id": occurrence_id, "state": state,
+            "release_sha": release_sha.lower(),
+        }
+    except (OSError, TypeError, ValueError):
+        return None
+
+
 def _live_mobile_revenuecat_readback(env: dict[str, str]) -> dict:
     started_at = _utc_text(datetime.now(timezone.utc))
     try:
@@ -168,14 +231,18 @@ def _safe_b7_adapter(call, *, source_id: str, loop_ids: tuple[str, ...],
 def collect_b7_records(*, snapshot_at: str, trailing_start: str,
                        adapter_records: dict[str, list[dict]] | None = None,
                        mobile_readback: dict | None = None,
+                       mobile_readback_reason: str | None = None,
                        env: dict[str, str] | None = None) -> list[dict]:
     """Read only already-captured B1-B6 artifacts and return one joined record array."""
     if adapter_records is not None:
         return join_adapter_records(adapter_records)
     env = os.environ if env is None else env
     mobile_live = env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") == "1"
-    if mobile_live and mobile_readback is None:
-        mobile_readback = _live_mobile_revenuecat_readback(env)
+    if mobile_live and mobile_readback is None and mobile_readback_reason is None:
+        if _mobile_natural_context(env) is None:
+            mobile_readback_reason = "native_context_missing"
+        else:
+            mobile_readback = _live_mobile_revenuecat_readback(env)
     sources: dict[str, list[dict]] = {name: [] for name in B7_ADAPTER_ORDER}
 
     capafy_path = env.get("LM_CFO_CAPAFY_ANALYTICS")
@@ -199,14 +266,25 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
     if mobile_live:
-        live_mobile_records = _safe_b7_adapter(
-            lambda: capafy_mobile.adapt_mobile(
-                mobile_readback.get("rows") if isinstance(mobile_readback, dict) else None,
+        if mobile_readback_reason is not None:
+            live_mobile_records = _b7_gap_records(
+                source_id="revenuecat-mrr", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+                reason="missing_coverage", snapshot_at=snapshot_at,
+                trailing_start=trailing_start,
+            )
+            for record in live_mobile_records:
+                record["evidence_refs"] = [
+                    "adapter://revenuecat-mrr/native_context_missing"
+                ]
+        else:
+            live_mobile_records = _safe_b7_adapter(
+                lambda: capafy_mobile.adapt_mobile(
+                    mobile_readback.get("rows") if isinstance(mobile_readback, dict) else None,
+                    snapshot_at=snapshot_at, trailing_start=trailing_start,
+                ),
+                source_id="revenuecat-mrr", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
                 snapshot_at=snapshot_at, trailing_start=trailing_start,
-            ),
-            source_id="revenuecat-mrr", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
-            snapshot_at=snapshot_at, trailing_start=trailing_start,
-        )
+            )
         # Static business-outcomes may still carry ASC evidence, but its RevenueCat MRR is
         # deliberately discarded whenever live mode is enabled.
         mobile_records = [row for row in mobile_records if (
@@ -383,47 +461,27 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
 
 def _persist_mobile_natural_evidence(*, mobile_readback: dict, records: list[dict],
                                      projection: dict, env: dict[str, str]) -> bool:
-    if env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") != "1":
+    context = _mobile_natural_context(env)
+    if context is None:
         return False
-    loop_id, run_id = env.get("LIFE_MANAGER_LOOP_ID", ""), env.get("LIFE_MANAGER_RUN_ID", "")
-    occurrence_id = env.get("LIFE_MANAGER_OCCURRENCE_ID", "")
-    owner_id = env.get("LIFE_MANAGER_OWNER_ID", "")
-    if "LIFE_MANAGER_OWNER_ID" not in env and loop_id == "life-manager-cfo-hourly":
-        owner_id = loop_id
-    safe_id = lambda value: isinstance(value, str) and 0 < len(value) <= 128 and all(
-        c.isascii() and (c.isalnum() or c in "._-") for c in value
-    )
-    if (loop_id != "life-manager-cfo-hourly" or owner_id != loop_id or not safe_id(run_id)
-            or occurrence_id != f"{loop_id}:{run_id}"):
-        return False
+    loop_id, owner_id = context["loop_id"], context["owner_id"]
+    run_id, occurrence_id = context["run_id"], context["occurrence_id"]
+    state, release_sha = context["state"], context["release_sha"]
     try:
-        state = Path(env["CFO_STATE_DIR"]).expanduser()
-        if not state.is_absolute() or not state.is_dir():
-            return False
-        state = state.resolve(strict=True)
         directory = state / "mobile-readbacks"
         directory.mkdir(mode=0o700, exist_ok=True)
-        if directory.is_symlink():
+        if directory.is_symlink() or not directory.is_dir():
             return False
         directory = directory.resolve(strict=True)
         if os.path.commonpath((str(state), str(directory))) != str(state):
             return False
         os.chmod(directory, 0o700)
-    except (KeyError, OSError, ValueError):
+    except (OSError, ValueError):
         return False
 
     is_sha = lambda value, size: isinstance(value, str) and len(value) == size and all(
         c in "0123456789abcdef" for c in value.lower()
     )
-    release_sha = env.get("LIFE_MANAGER_RELEASE_SHA")
-    if not is_sha(release_sha, 40):
-        try:
-            root = Path(env.get("LIFE_MANAGER_RELEASE_ROOT") or ROOT).expanduser()
-            release_sha = json.loads((root / "RELEASE.json").read_text()).get("sha")
-        except (AttributeError, OSError, TypeError, ValueError):
-            release_sha = None
-    release_sha = release_sha.lower() if is_sha(release_sha, 40) else None
-
     rows = mobile_readback.get("rows")
     summaries, statuses = [], set()
     for row in rows if isinstance(rows, list) else ():
@@ -482,12 +540,18 @@ def _persist_mobile_natural_evidence(*, mobile_readback: dict, records: list[dic
             scope, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
         ).encode()).hexdigest() if scope else None
         evidence_sha = source.get("evidence_sha256")
+        charts = data.get("charts") if isinstance(data.get("charts"), dict) else {}
+        chart = charts.get("mrr") if isinstance(charts.get("mrr"), dict) else {}
+        chart_response_sha = chart.get("evidence_sha256")
         summaries.append({
             "product_id": product_id, "availability": status, "reason": reason,
             "observed_at": row.get("observed_at") if isinstance(row.get("observed_at"), str) else None,
             "query_scope": scope,
             "query_sha256": query_sha.lower() if is_sha(query_sha, 64) else None,
             "evidence_sha256": evidence_sha.lower() if is_sha(evidence_sha, 64) else None,
+            "chart_response_sha256": (
+                chart_response_sha.lower() if is_sha(chart_response_sha, 64) else None
+            ),
         })
     availability = (
         "unknown" if not isinstance(rows, list) or "unknown" in statuses
@@ -558,31 +622,38 @@ def build_b7_projection(*, snapshot_at: str, trailing_start: str,
                         env: dict[str, str] | None = None) -> dict:
     env = os.environ if env is None else env
     mobile_readback = None
+    mobile_readback_reason = None
+    mobile_context = None
     if (
         adapter_records is None
         and env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") == "1"
     ):
-        mobile_readback = _live_mobile_revenuecat_readback(env)
-        read_at = mobile_readback.get("completed_at")
-        if read_at and not snapshot_at_is_explicit:
-            current_end = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
-            read_end = datetime.fromisoformat(read_at.replace("Z", "+00:00"))
-            if read_end > current_end:
-                delta = read_end - current_end
-                snapshot_at = _utc_text(read_end)
-                if not trailing_start_is_explicit:
-                    trailing_end = datetime.fromisoformat(
-                        trailing_start.replace("Z", "+00:00")
-                    ) + delta
-                    trailing_start = _utc_text(trailing_end)
+        mobile_context = _mobile_natural_context(env)
+        if mobile_context is None:
+            mobile_readback_reason = "native_context_missing"
+        else:
+            mobile_readback = _live_mobile_revenuecat_readback(env)
+            read_at = mobile_readback.get("completed_at")
+            if read_at and not snapshot_at_is_explicit:
+                current_end = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+                read_end = datetime.fromisoformat(read_at.replace("Z", "+00:00"))
+                if read_end > current_end:
+                    delta = read_end - current_end
+                    snapshot_at = _utc_text(read_end)
+                    if not trailing_start_is_explicit:
+                        trailing_end = datetime.fromisoformat(
+                            trailing_start.replace("Z", "+00:00")
+                        ) + delta
+                        trailing_start = _utc_text(trailing_end)
     records = collect_b7_records(
         snapshot_at=snapshot_at, trailing_start=trailing_start,
-        adapter_records=adapter_records, mobile_readback=mobile_readback, env=env,
+        adapter_records=adapter_records, mobile_readback=mobile_readback,
+        mobile_readback_reason=mobile_readback_reason, env=env,
     )
     projection = project_records(
         records, snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
-    if adapter_records is None and mobile_readback is not None:
+    if adapter_records is None and mobile_context is not None and mobile_readback is not None:
         _persist_mobile_natural_evidence(
             mobile_readback=mobile_readback, records=records,
             projection=projection, env=env,
