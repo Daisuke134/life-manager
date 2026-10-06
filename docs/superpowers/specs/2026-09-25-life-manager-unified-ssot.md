@@ -9459,3 +9459,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 初回verification control取得は有料Verified営業messageまで広く取得してしまった。不要なprivate message出力を完了証拠に使わず、以降control labels/状態のみへ縮小。営業Verified badgeをemail認証必須条件へ混同しない。
 - handle78427 exit0、UTC2026-10-06T16:04:22.264462、dashboard「Already Verified」、案件40753376本文「Email verified」、bid amount/days/proposal/milestone inputsとPlace Bid buttonの表示を確認。先行button/body取得はhydration前の観測だったためbid action false/email noticeだけを応募不可へ採用しない。現メール未確認はblockerから除外。private freelancer-bid-control-boundary.json。クリック/応募0。
 - cursor8残は費用/適格性と既存自動化許可境界。公式API automatic bidder例外receipt無しは保持し、UI送信で迂回しない。低予算40753376に採算ありとは未判定、scope/fee/実費を照合前に価格/納期を約束しない。主29相対順序/2〜7保留/SelfBuild後段保持。
+
+
+### 740. Freelancer応募費用と最低残高の公式条件
+
+- 案件40753376の公式bid formをread-only取得。現在入力例bid1050INR/days7/milestone1050、表示fee250INR/paid-to-you800INR、6 bids left out of6。これはdefault入力の見込で実売上/実手数料/入金ではない。Sponsored1.90USD/Sealed0.10USD/Highlight0.49USDはoptional。選択/送信/課金0。private freelancer-40753376-bid-cost-private.json/freelancer-40753376-fee-controls.json。
+- crwl公式 https://www.freelancer.com/feesandcharges を取得保存。標準minimum available account balance20USDをbid前に要求し、risk/highvalueは20以上通知額。fixed-price feeは10%または5USDの高い方。公式一般料金と今回INR表示の差を推測で換算せず、実invoice未取得。private freelancer-official-fees.md。
+- 先行account menuのdisplay balance0USDとminimum requirementを照合。資金移動対象/範囲の指定が無いため入金しない。既存automation例外receiptも無し。Freelancer8は認証復旧/募集readback/フォーム取得の限定成果、応募/契約/精算は未完。再開条件は利用可能残高の公式readbackと既存設計内の資金範囲、および自動化許可境界の充足。低予算候補の利益を未確認実費で断定しない。
+- 次の独立実行cursor9 Upwork account/tax/withdrawal/Connects/公式proposal/readiness。主29の相対順序を変更せず2〜8の不足を保持、SelfBuild25/Lancers26〜28は後段。応募/返信/振込/optional upgrade/本番loop変更0。
