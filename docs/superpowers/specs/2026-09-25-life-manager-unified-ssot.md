@@ -9321,3 +9321,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 本人の技能を測る実選考課題は代作・本人回答として送信しない。一般的な応募資料整理と、本人評価課題を分離。作品/実績・プロフィールは裏付けのある既存factsだけを使い、実績を捏造しない。旧結果照合待ち2候補は未完を保持し、重複提出しない。
 - current1.1の額取得はDone、1.2の作業型確認で通常納品対象無しと判明。主項目1の納品成果は未達のまま条件付き待ち：実際の適格サービス契約・scope・期限・受入条件が確認された時に再開。採用対象を収益0/終了へ丸めずapplication/human条件を別記する。
 - 旧cursor1.2から新cursor2へ進める理由は、存在しないサービス納品物を作らず、既存の具体的精算対象18211957を処理するため。29主項目の相対順序・SelfBuild25/Lancers26〜28は変えず、1の待ち条件を保持して次の既存順序を実行する。
+
+### 722. cursor2の案件18211957精算証拠を再照合
+
+- 保存済み公式CP932CSVのsamebytes SHA27f6821f2daab04cf516ec8d5ad8feebcebf88342001cc8aa18236b937e54dd0/28rowsを読み、talkroom18211957はheader込みrow2に1件一致。9列にはfee/currency/銀行receipt/実費が無い。07/25〜09/27の過去export、対象date09/27/振込label未を現在銀行状態へしない。今回CSV再取得0/台帳write0/外部effect0。
+- 公開一次資料 https://help.coconala.com/hc/ja/articles/230180287 を現在取得し、platform売上金は取引完了時に販売手数料控除後に計上する規則を確認。通常とvideoの料金体系が異なるため、一律率や逆算で対象のactual feeを作らず、CSVに第二のflat feeを差し引かない。CSV「売上金額」列の定義との直接bindingは未確認と残す。二次記事の数値を根拠へしない。
+- project18211957内にmoney-related filenamesは見つからないが全costledger無し/0円とは断定しない。不足はorder-bound gross/net/fee明細、payoutと銀行着金のmatching receipt（batchならaggregation map）、同案件actual cost記録。残高や取引完了だけを銀行入金/利益へ昇格しない。private evidence `coconala-18211957-settlement-gap.json`。
+- 再開条件は正規accountreadbackと同案件financial/cost sources取得。既存Coconala403に同じ操作を盲反復せず、source boundaryを診断する。current2は未完、適格サービス契約待ち1/正式納品/全14financeも未完、SelfBuild/Lancersの後段を維持。
