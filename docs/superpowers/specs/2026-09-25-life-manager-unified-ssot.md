@@ -9754,3 +9754,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 実設定先current-mrr.jsonをfresh確認、6rowのapp_store_financial available0/not_queried_in_mrr_readback。今回の実入力では旧verified ASC receiptとraw packetの混在はない。
 - draft collect_b7_recordsへ実current-mrrと公式packetを同時に渡しlocal projection:mobile receipt1、mobile MRR verified/USD20.34、company MRR unknown、historical/trailing mobile経済総額unknown。原partial evidenceを消さず、不足coverageを0化しない。private cfo-asc-rc-draft-integration-readback.json。provider/send/ledger mutation0、未commit sourceでの限定検証。
 - 旧fixtureの別period verified receiptsを一律除去する問題の最小契約を確定:packet有効かつlegacy verified ASC receipt有りはmixed-sourceを明示unverified_receipt gapとして両ASC receiptを保留、原資料は保持。legacy receipt無しならpacket receipt+gapを用い、RC MRRは保持、observed revenueはsettledにしない。現実に存在しない複数period producerの新設はしない。LunaがfocusedGREEN→commit/pushへ継続。current17不変。
+
+
+### 777. ASC input混在修正後の関連50testsをroot検証
+
+- Lunaの現wireはlegacy ASC verified receiptとraw packetが混在する場合unverified_receipt gapへ分離する修正を反映。rootが専用worktreeでpython3 -m unittest skills.cfo.test_capafy_mobile_attributionをfresh実行し50/50 PASS（0.065s）。これにはraw同形packetとlegacy/raw mixed拒否を含む。
+- source未commit段階の関連test証拠でありfresh財務review/main/immutable/自然CFO/銀行入金/利益の証拠ではない。workerは残relatedchecks/sourcecommit/pushと後続MRR表示修正を継続。rootは同編集範囲へ変更せず、完了後freshSol reviewを担当。current17/相対順序維持。
