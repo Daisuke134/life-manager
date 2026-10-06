@@ -8535,3 +8535,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - rootがPR6727 https://github.com/Daisuke134/life-manager/pull/6727 を作成。初期head8ccc29eda79a3eac2eb7b9b7c6e4412817357a1eでCI37416248518の実行中を公式gh readback確認。追加修正push後の最終headで全checkとfresh readonly reviewを確認してから統合する。初期headのCIを最終差分のPASSへ流用しない。
 - Coconala正規guard statusのholder72486はpsでlive/bashを確認。leaseファイルだけを稼働証拠にせず、共有browser/profileを奪わない。readonly orders CLIの次実行は正規取得可能時に行う。
 - 現在cursor1/主経路31、Lancers28〜30後段を維持。最終source受入→main/immutable同CLI readbackが次手であり、売上/納品Doneではない。
+
+
+### 624. 最終HEADレビューHOLDと限定修復の継続
+
+- CrowdWorks source最終441edf10c68e94dca85a0abeb30a2ae1073926aaをremote一致/clean確認。担当検証adapter128/contract/OSS/diff PASS。fresh Sol6.1medium readonly reviewはfocused9 PASSだがP2 HOLD：円token regexが12.5円を5円、-12円を12円としてobservedにする。§619の不正unknown契約違反のためmergeしない。metadata分離/12,10ambiguous/readonly sharedprune抑止/Paid既定維持は確認済み。
+- 最小修復は数値表現全体の検証と小数/負値unknownの既存回帰tests。production price/funding/receipt/送信/納品/admissionには触れない。PR6727の最終head CI37416307285は実行中、旧headrunはcancelled。修正後HEADのCIへ旧PASSを代用しない。
+- native followup/spawn双方がagent thread limit reachedで拒否。旧世代fallbackやrootによる指定外model実装へ切り替えず、既存codex exec有限runを同worktree/同2file所有で起動。runtime headerでmodel gpt-6-luna/reasoning effort maxを確認、exec handle33233。provider/browser/auth/launchd操作は禁止しrootが受入/反映を所有。private成果場所state/cli-observability-20261006/crowdworks-invalid-amount-fix-{run.log,result.txt}。
+- current1/主経路31/Lancers28〜30後段を維持。修復push→fresh再review/同headCI→main/immutable/同CLI公式観測が次手。
