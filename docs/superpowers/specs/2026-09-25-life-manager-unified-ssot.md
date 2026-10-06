@@ -8839,3 +8839,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - installed9c9fd29d/loaded-idle/PIDnullを再確認、最新terminalは旧78c run18dbdfcd/2026-10-06T07:22:40.743953Zのまま。plist StartInterval300/RunAtLoadなし/Disabledなし。予定消失とは判定せず、まだ新SHA自然event未取得。
 - 新release既存lm-loop pre-effect-reconcile crowdworks-revenue-paid --dry-runはexit0/oktrue、resolved空/unprovable26件、reason no_pre_effect_terminal。private原本crowdworks-pre-effect-dry-run.json。別wakeのreport/markerを流用せず、proof無しの過去claimを解除しない。
 - current1の残る入口課題は§654のactual新規occurrence/未dispatch証拠と現在handoff不足を狭めること。source reader修復の反映成功を自然Paid実行/納品/収益成功へ代用しない。manual wake/restart/解除/再送0、current1/残30/後段順維持。
+
+
+### 663. CrowdWorks handoff不足の必須field境界
+
+- paid_adapter.paid_handoffはファイル探索ではなく、context.contract funded/positive integer price_minor/64桁terms hash等から共有receiptを組み立てる。price_minor nullは必須guardでcrowdworks_paid_handoff_unavailableになる実コードを確認。
+- §630の公式5候補はamount observation[12,10]/ambiguous、production price_minor全nullでありこのguardと整合する。引継ぎファイル欠損・資格情報expiryとは未確認で断定せず、rootの最初の候補診断を必須price fieldへ狭める。正額を推測しないための境界は維持する。
+- 次の必要観測は同契約金額欄の税込/税抜ラベルと金額の対応をsafe metadataで取得し、公式grossを唯一に確定できるかを確認すること。小額表示をsettled/利益へ変換せず、priceを単純12へ補完してpaid admissionを通さない。ファイル再制作/marker後付け/条件緩和/送信0。current1/残30/mock取消/後段順維持。
