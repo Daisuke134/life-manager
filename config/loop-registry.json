@@ -901,7 +901,8 @@
       "log_root": "~/.local/state/life-manager/line-creators-browser/logs",
       "provider_route": "deterministic",
       "resource_class": "browser",
-      "state_root": "~/.local/state/life-manager/line-creators-browser"
+      "state_root": "~/.local/state/life-manager/line-creators-browser",
+      "system_role": "shared"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {
