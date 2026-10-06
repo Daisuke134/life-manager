@@ -9420,3 +9420,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - registered interactive:dais lease内の自分の新規pageでForgot Password公式formを取得。email/Nextのみ。初回placeholder selectorはcustom componentとnative inputの2matchでfill前に失敗し、request0。実DOM確認に基づくnative input selectorへ修正し、handle76712 exit0、UTC2026-10-06T15:57:14.389295にNext送信1・公式email sent表示true。再送0、application effects0。証拠private freelancer-recovery-form.json/freelancer-recovery-request-result.json。
 - 既存Gmail read-only検索（gmail-no-send/file backend）はUTC15:57:24 exit0、直近1日のFreelancer password/reset該当thread1。本文/tokenは未保存・未表示。証拠private freelancer-recovery-mail-availability.json。cursor8は公式復旧メールのsource/宛先/時刻を照合してリンクをmemory内で処理し、成功したcredentialを正本へ保存→新規page再login確認する段階。復旧requestを繰り返さない。
 - 認証復旧/公式account readback/新規応募はまだ未完。2〜7保留と主29順序を保持。Gmailユーザー送信/応募/価格/出品/振込/本番loop変更0（providerから復旧メール送信を要求した1件と区別）。
+
+
+### 735. Freelancer公式復旧メールのidentity確認
+
+- Gmailのthread/get fullをfile backend/gmail-no-sendでメモリ内読取。公式freelancer.com送信元、credential正本の宛先、今回request後のinternalDateを照合。公式hostのreset/password URLは重複除去後2種類。token/link/code/本文/アドレスをchat/log/artifactへ保存0、password change0。handle67122 exit0、証拠private freelancer-reset-link-form.json。
+- 2URLのquery key metadataは一方token/uniqid/userid、他方はそれら+linkid。追跡parameter差の可能性はあるがcanonical target/tokenの同一性は未確認なので勝手に選ばない。次はメモリ内で両URLのhost/pathとtoken/uniqid/userid一致を照合し、一致した公式reset form1件を開く。不一致ならメールHTMLの実Reset Password CTA hrefを特定する。復旧メールrequest再送0。
+- cursor8の認証復旧/credential更新/新規page再loginは未完。主29順序と前段不足を保持。Gmailユーザーsend/応募/価格/出品/振込/本番loop変更0。
