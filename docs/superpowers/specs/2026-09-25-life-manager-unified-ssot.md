@@ -8796,3 +8796,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - runtime/loop/lm_loop_run.pyはLIFE_MANAGER_RUN_IDを継承可能、無ければtime_ns/PIDから生成しowner:run_idを作る。durable claimではclaim fileのoccurrenceへ置換しowner prefix/formatを検証後child envへ渡す。生成形式だけを新規性・過去未dispatchの証明にしない。
 - CrowdWorks paid-ownerはpre-effect hint許可の既存entrypoint。hostはspawn前にentrypoint-result.json pre_effect_failure/effect0を初期化する一方、paid kernelはstartup hintをクリアしてoccurrence marker履歴を確認し、prior armedでない時だけ再準備する。入口でこのhistory checkを飛ばしてhint/markerを作らない。
 - busy receiptの安全条件はclaim再利用/attempt/dispatch/既存markerを含むため、§654 HOLDを維持。実state/claim/hint変更0。既存resolver修復run38270はlive handle確認、担当2fileに差分あり、検証/pushは未完。mock制作再開0。current1/残30の順維持。
+
+
+### 657. Paid resolver修復source push・review/CI開始
+
+- resolver修復HEAD62a24f2d4f483f9b60c4d1d88ba4f977c561aa58をlocal/origin branch/ls-remote一致、source2file/clean確認。canonical存在またはsymlink時fallbackせず、shared layoutはcanonical無しのmercor-revenue-paidだけ、leaf symlink拒否という最小差分。実marker/state変更0。
+- fresh gpt-6.1-sol/medium readonly safety reviewをhandle74520で開始。対象は同HEAD差分/既存関連fixtures、price/funding/新marker・old解除を追加しない。review結果/担当最終検証報告は未完。
+- 同remote branchへPRをroot作成してCIを並行開始。最終HEADのreview/全CIを確認して通常main統合し、旧HEADのPASSを流用しない。current1/残30、mock取消/後段順を維持。
