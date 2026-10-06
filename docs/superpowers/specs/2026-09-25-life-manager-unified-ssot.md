@@ -9509,3 +9509,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - provider_authorization正本を読取するとUpwork propose/message/accept_offer/deliver_milestone/searchはdenied、expiry2027-08-26、terms_version upwork-trust-safety-warning-7VRYVE-Z3EN5。inspect/read_payments/read_payoutsのapproved receiptは2026-09-25期限切れ。これをもっと早くreadiness前に確認すべきだった。provider gate外の直接read成功を許可へ代用せず、今後追加Upwork操作を止めて根拠の照合へ切り替える。
 - 既存evidence/upwork-special-approval.jsonはoperator_direct_special_approval/2026-08-22記録/2026-09-22期限、warning後のprovider解除receiptではない。現警告の外部source/bodyと解除証拠はまだ未確認。receiptを自分でapprovedへ変更しない、Daisの一般実行委任をprovider警告解除と扱わない。
 - cursor9残は既存warning公式証拠/現解除状態の保存readback。CIE応募はHOLD、提案フォーム可視だけで送信しない。独立後続10の実storefront注文/11Capafyへ進める条件は既存正本順序に従う。主29相対順序/前段保留/SelfBuild後段保持、応募/返信/Connects消費/課金/振込/本番loop変更0。
+
+
+### 746. Upwork公式警告メールを確認しUI自動化保留
+
+- 既存Gmail file backend/gmail-no-sendでcredential-bound accountの公式warning thread7VRYVE-Z3EN5を読取。providerの2026-08-26通知は無許可bots/scrapers/automated toolsに対するtemporary restrictionsと停止要求、継続時の追加制限を明示。見込termsやページ到達をこの警告解除の代用にしない。private upwork-warning-mail-boundary.json、秘密/URL/tokenの表示保存0。
+- 同thread後続のFull Access/disabled automation/API scope照会はoperator送信文でありprovider承認返信ではない。本文keywordだけでreinstatementを判定しない。今回限定検索は2threadsで、providerのbrowser自動化許可返信は確認できず、全メール不在とは一般化しない。追加メールsend0。
+- 先行直接browser readはexpired/denied receiptを確認する前に進めてしまった。今後Upwork UI自動化を停止し、receiptをapprovedへ書き換えない。現providerの解除/許可証拠が不足する9を保留。Daisへの承認質問では代替せず、再開条件はprovider由来のaction/transport/account-bound許可・既存gateの適切な更新。
+- 主10の実storefront注文は現在未確認で、架空履行を作らない。Coconala取得境界の保留を維持し、独立11 Capafyの既存販売cycle観測/担当調整へ進む。Capafy source経路はskills/capafy-autopublish/（inventory_status/既存publisher）とskills/earn/capafy-marketing/。新marketplace executorや重複publishを作らない。AGMSG inbox新着無し。主29相対順序/前段保留/SelfBuild後段保持。
