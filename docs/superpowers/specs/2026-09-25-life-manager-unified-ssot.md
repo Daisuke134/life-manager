@@ -9869,5 +9869,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - env未設定をsource不在へしない。実cfo-hourly-localのgetterを使いCapafy state/capafy-skill-analytics.json、Affiliate provider-reports/partnerstack/latest.json、Agent Economy revenue-receipts.jsonlのdefault path存在を確認。actual_costにはLM_CFO_ACTUAL_COST_READBACK/ACTUAL_COST inputが必要で、今回確認.envの対象keysには明示設定なし。他alias/実launcher設定を無視して全source不在と断定しない。
 - 保存provider-billingのAnthropicは2026-07-20〜08-20/paid07-20/USD/provider_receipt、GoogleCloudは202607/provider_billed/観測08-10。現在期間の実費へ転用しない。
-- 既存Railway公式17invoice保存とOct04 allocation/line reconciliationを回復。対象08-27〜09-27、旧fresh reviewはusage限定SHIP、paid invoice/currency/paid-at/loop allocation bindingはHOLD、service details3/6projects。owner codex-money-printer/actual_cost_connectedfalse。過去の計算/照合を再実行して完了を作らず、不足する公式receipt bindingと残service allocationが次の観測対象。shared planの按分やestimateを実費にしない。
+- 既存Railway公式17invoice保存とOct04 allocation/line reconciliationを回復。対象08-27〜09-27、旧fresh reviewはusage限定SHIP、初期reviewではpaid invoice/currency/paid-at/loop allocation bindingをHOLDとしたが、同保存群の後続PDF reviewは対象invoiceのUSD/対応を確認済み。残るpaid-at/loop allocationはHOLD、service details3/6projects。owner codex-money-printer/actual_cost_connectedfalse。過去の計算/照合を再実行して完了を作らず、不足する公式receipt bindingと残service allocationが次の観測対象。shared planの按分やestimateを実費にしない。
 - current17の新source自然report待ちは維持、19/20の独立source確認を進める。provider変更/外部送信/台帳write/新invoice取得0。
+
+
+### 793. Railway請求のUSDとinvoice対応を既存後続証拠で確認
+
+- 先の報告で通貨未確定としたのは不正確だった。保存invoice-mail-binding/pdf-readonlyの後続独立reviewは、API invoice→公式PDFのlabelled invoice number→認証済みmail対応をverified、公式PDFにexplicit USDを確認済み。確認済みcurrency/bindingを残TODOへ戻さない。paid_atはunavailable/unverified、canonical allocationは未確認。
+- 現Railway公式CLI api search/describeで実type CustomerInvoiceを取得、17fieldsにstatus/paymentIntentStatus/periodStart/End/hostedURL/pdfURL等、currency/paidAt/datePaidは無し。誤type Invoiceの初probeはtype not found、検索で正名へ訂正。private railway-current-invoice-schema-readback.jsonへ現在観測保存、外部mutation0。型に無いfieldを成功や支払日へ捏造しない。
+- all-services過去auditは6projects/18servicesのinventory確認で、3/6projectのusage詳細coverageや費用帰属とは別。名前や請求総額だけからshared planを按分しない。残る最小観測は公式paid receiptの支払時刻とservice→loopの同期間provenance。current17自然readback待ち/19・20独立作業を維持。
