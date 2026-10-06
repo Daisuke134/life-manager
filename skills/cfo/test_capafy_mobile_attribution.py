@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import hashlib
+import importlib.util
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from skills.cfo import economic_attribution as contract
 
@@ -67,6 +69,19 @@ def bind_revenuecat_hash(row):
         "reason": source.get("reason"),
         "data": source.get("data"),
     })
+
+
+def load_business_outcomes_producer():
+    path = (
+        Path(__file__).parent.parent / "earn" / "marketing-engine" / "measure"
+        / "business_outcomes.py"
+    )
+    spec = importlib.util.spec_from_file_location("cfo_business_outcomes", path)
+    if not spec or not spec.loader:
+        raise AssertionError("business_outcomes producer is not importable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def bind_financial_report_hash(rows):
@@ -1095,7 +1110,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         }
         self.assertEqual(snapshots["revenuecat:anicca-ios:mrr"], "3000.5")
 
-    def test_mobile_current_producer_shape_is_explicit_fail_closed_input(self):
+    def test_incomplete_revenuecat_shape_remains_fail_closed(self):
         records = self.adapt_mobile("mobile-current-producer.json")
         self.assert_contract_records(records)
         self.assertFalse(any(
@@ -1104,6 +1119,57 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertEqual({
             row["source_id"] for row in records if row["record_type"] == "coverage"
         }, {"app-store-connect-financial", "revenuecat-mrr"})
+
+    def test_business_outcomes_revenuecat_envelope_reaches_mobile_mrr_consumer(self):
+        module = self.require_adapter()
+        producer = load_business_outcomes_producer()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for row in rows:
+            app_id = module.MOBILE_PRODUCT_BINDINGS[row["product_id"]][
+                "revenuecat_app_id"
+            ]
+            body = {
+                "yaxis_currency": "USD",
+                "measures": [{"display_name": "MRR"}],
+                "periods": [{"date": "2026-09-30"}],
+                "values": [{
+                    "cohort": 0,
+                    "value": row["sources"]["revenuecat"]["data"]["charts"]
+                    ["mrr"]["latest_complete"]["MRR"]["value"],
+                    "incomplete": False,
+                }],
+            }
+            options = {
+                "filters": [{"id": "app_id", "options": [{"id": app_id}]}],
+            }
+            with (
+                mock.patch.object(producer, "RC_CHARTS", ("mrr",)),
+                mock.patch.object(producer, "http_json", side_effect=[options, body]),
+                mock.patch.object(producer, "revenuecat_products", return_value={}),
+                mock.patch.object(producer, "collect_asc", return_value={}),
+                mock.patch.object(producer, "collect_asc_sales", return_value=({}, {})),
+                mock.patch.object(producer, "collect_mixpanel", return_value={}),
+            ):
+                snapshot = producer.collect_snapshot(
+                    {
+                        "REVENUECAT_PROJECT_ID": "fixture-project",
+                        "REVENUECAT_V2_SECRET_KEY": "fixture-token",
+                    },
+                    row["product_id"],
+                    row["business_date"],
+                )
+            row["sources"]["revenuecat"] = snapshot["sources"]["revenuecat"]
+
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assert_contract_records(records)
+        snapshots = {
+            row["subscription_id"]: row["normalized_monthly_amount"]
+            for row in records if row["record_type"] == "subscription_snapshot"
+        }
+        self.assertEqual(len(snapshots), len(module.MOBILE_PRODUCTS))
+        self.assertEqual(snapshots["revenuecat:anicca-ios:mrr"], "3000")
 
     def test_mobile_partial_stale_unsupported_and_missing_sources_fail_closed(self):
         partial = self.adapt_mobile("mobile-partial.jsonl")
