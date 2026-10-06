@@ -9211,3 +9211,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 64033100/63989657/63942104は契約金額欄に12円と10円があり、既存安全observerはambiguous。form候補数は1/3/1。この時点では納品要件/成果物/価格の採用根拠/採算は未確定。1.2・1.3のDoneへ拡張しない。
 - 初回のCLI呼び出しはwrapper背景実行でstdinが引き継がれないことを独立ローカル再現した。自分の待機子PID43505だけをlog/parentPID43428で照合後TERMしexit143、先行ownerは中断0。引数経由へ修正した同scopeのread-only取得はexit0/3rows。これは呼出し修正であり商品mockや本番source変更ではない。
 - role確認probeは同じhelperが契約金額欄を読む時点に安全な表示token/hashだけ採取し、元の判定値を変更しない。root専用process内の観測のみ、production source/state/他ownerを変更しない。取得済み3件の証拠と継続probeを区別する。現在cursor1.1、主29項目の相対順序は不変。
+
+### 705. 契約金額とnet_amount注記の混同を修復するscope
+
+- 代表64033100の公式契約金額欄を `2026-10-06T13:02:39.477844+00:00` に同じregistered lease/既存lock内で取得。THは「契約金額（税込）」、TD直下textは12円、子SPAN.net_amountは「システム利用料控除後のメンバー報酬：10円」。これは契約金額と説明側のnet額であり、契約金額2件の曖昧さではない。銀行入金・実精算・利益の証拠にはしない。
+- 現observerはTD全体の12円/10円をambiguousにする。さらにfunded detailのprice_minorはページ全体の旧parserから算出し、現bodyのrange character/fixed label不在でnullとなる。source2境界を特定、契約金額としてnet10円を採用しない。証拠 `crowdworks-64033100-amount-cell-readback.json`/role readback/3contract readback（private600、buyer本文/credential保存0、外部effect0）。
+- 修復は契約金額の同じ行/正しいTD/税込/正規JPY整数という既存gateを維持し、net_amount注記を価格抽出から除外する。観測済みの契約金額をfunded detailのprice_minorへ接続する。非正数・negative/range・複数primary金額・不正label/税区分はfail-closed、未確認のfinancial receipt/着金へ昇格しない。
+- 最新main由来専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-crowdworks-contract-amount-20261006`/branch `fix/lm-crowdworks-contract-amount-20261006`。Luna/max所有はpaid_adapter.pyと既存test_paid_adapter.py（必要なら同既存test内の実DOM構造fixture）。rootはspec/review/CI/main/immutable/実readbackを所有。他者source/state/browser/profile/branch/本番はworker変更禁止。新schema/framework/tool/mock商品なし。
+- RED→minimalGREEN、実採取markupに対応する価格12/net10ケース・曖昧primary reject・valid handoff/既存fence不変、通常gate・fresh read-only review・push/CI/main後、immutableのread-only公式GETで対象3件のpriceを確認する。unfinished worktreeをproduction profileへ接続しない。取得改善だけで1.2/1.3・納品Doneにしない。current1.1/残29順序不変。
+- 独立CFO17診断はfresh Sol/medium read-onlyで完了。11:12:12.602888 UTCのrelease-reconciler run43699がCFOへ旧3aeをchanged1/rc0で再適用した公式owner記録を確認。controllerはcurrent由来releaseを選ぶ。現plistと実loadedは別で、DS前提失敗により実loaded未照合。CFOへの競合reapplyを繰り返さず、controllerとrelease選択を調整する。証拠 `cfo-release-drift-review-result.txt`。
