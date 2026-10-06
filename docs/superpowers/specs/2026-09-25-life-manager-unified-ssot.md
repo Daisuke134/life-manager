@@ -8543,3 +8543,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最小修復は数値表現全体の検証と小数/負値unknownの既存回帰tests。production price/funding/receipt/送信/納品/admissionには触れない。PR6727の最終head CI37416307285は実行中、旧headrunはcancelled。修正後HEADのCIへ旧PASSを代用しない。
 - native followup/spawn双方がagent thread limit reachedで拒否。旧世代fallbackやrootによる指定外model実装へ切り替えず、既存codex exec有限runを同worktree/同2file所有で起動。runtime headerでmodel gpt-6-luna/reasoning effort maxを確認、exec handle33233。provider/browser/auth/launchd操作は禁止しrootが受入/反映を所有。private成果場所state/cli-observability-20261006/crowdworks-invalid-amount-fix-{run.log,result.txt}。
 - current1/主経路31/Lancers28〜30後段を維持。修復push→fresh再review/同headCI→main/immutable/同CLI公式観測が次手。
+
+
+### 625. Coconala受注CLIの現在公式403・認証source照合
+
+- current完全immutable由来の既存orders-only CLIを正規guard/一意owner/hidden-no-screenshotで再実行。guard取得0/collector1/解放0。公式source receiptはHTTP403、title403 Forbidden、login_redirect=false、container_found=false、coverage_complete=false。cards_count0は空受注の証明ではない。error collector_unhealthy:orders_access_forbidden。private原本state/cli-observability-20261006/coconala-orders-1791262990283241000。
+- production Reply plistの非secret envをreadonly照合し、identity coconala:kosuke、cookie domain coconala.com、vault gig-daily-driver/auth-state.jsonが今回CLIと一致することを確認。vault更新2026-10-06T04:48:35.820224Z。fresh timestampは有効認証の証明にしない。過去保留12record照合/再送/認証変更0。
+- tier-a-bypass skillを読んだが、403 titleだけではsupported CAPTCHA widgetの証明にならないためsolver taskを作成していない。次の接続診断はrendered script/frame/widgetのsafe観測でprovider access拒否とchallengeを区別すること。本人手続き/認証を成功へ丸めない。
+- CrowdWorks修復run33233はlive handleを再poll確認。再起動/重複実装者0。current1/主経路31、Lancers後段を維持。
