@@ -9766,3 +9766,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - Luna関連loop_pnl38test中37PASS/1FAIL、TableTest.test_every_catalog_loop_is_a_row_and_nothing_is_inventedの固定len14に対し現catalog15。rootが現immutable4429同testを独立実行し同じ15!=14を再現、今回のASC差分によるregressionではない。
 - 当該test後続はlist(rows)==catalog idsで全件/架空row無しを検証する。自所有CFO testの古い固定件数だけを現catalog（14product＋内部CFO）に整合させる最小修正をLunaへ割当、所有追加test_loop_pnl.py当該assertionのみ。関連38を再実行してPASS、追加機能/新suite/全repo修復へ広げない。sourcecommit/push前の必要checkを完了する。current17維持。
+
+
+### 779. ASC入力source pushとCFO関連88tests PASS
+
+- Luna source commit4e39eeb1476db08cff1474851c174dfaf7b63afa/fix/cfo-asc-official-input-20261007をremote ls-remoteで確認。ASC packet normalizer/wire/回帰test/運用契約をsource確定。続くtest89d3c1af7bは古い固定catalog件数assertion1行だけを除き既存catalog全件row一致の検証を保持。
+- rootがtest修正後のpython3 -m unittest skills.cfo.test_capafy_mobile_attribution skills.cfo.test_loop_pnlをfresh実行、88/88 PASS。./bin/lm-loop-contractもoktrue/catalog15/registry184/mapped107/errors[]。15は現catalog構造の観測で、財務coverage全完了を示さない。
+- MRR表示修正・fresh財務review・CI/main/immutable/自然reportは未完。新sourceを本番へ直接patch/接続しない。current17/相対順序維持。
