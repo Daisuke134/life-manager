@@ -307,6 +307,28 @@ python3 -c "import json;d=json.load(open('/Users/anicca/.claude.json'));print(d[
 launchctl kickstart -k gui/501/com.anicca.claude-remote-control
 ```
 
+#### ログアウトで落ちた（2026-10-06 の事故 → 自動化済み）
+
+症状: スマホの Code 画面「デバイス」欄に Mac mini が出ない。`~/Library/Logs/claude-remote-control.err.log` に
+`Error: You must be logged in to use Remote Control.` が15秒ごとに並ぶ。`claude auth status` が `"loggedIn": false`。
+原因: データボリューム100%で keychain の OAuth トークン更新が書けず失効した（`credentials.json` の
+`CLAUDE_CODE_OAUTH_TOKEN` 注入では RC は通らなかった）。Dais は帰宅してログインし直すしかなかった。
+
+**今は自動**: `bin/claude-remote-control-preflight.sh`（インストール先 `~/.local/bin/`）が起動のたびに
+`claude auth status` を確認し、未ログインなら `claude auth login --claudeai` を裏で起動して承認URLを Telegram に送る
+（30分に1回まで、ログイン処理は同時に1つ）。**スマホでURLを開いて承認を押すだけで復旧**し、コード貼り付けは不要。
+状態とログ: `~/.local/state/life-manager/claude-remote-control/`。
+
+手動で同じことをする場合:
+
+```bash
+df -h /System/Volumes/Data                    # 100% ならまず空ける（再発の根本原因）
+~/.local/bin/claude auth status               # loggedIn を確認
+sleep 1200 | ~/.local/bin/claude auth login --claudeai   # 出たURLをスマホで承認 → "Login successful."
+```
+
+承認後は launchd の KeepAlive が自動で再起動し、out.log に `Connected · life-manager` が出れば完了。
+
 ## バックアップの場所
 
 | 中身 | パス |
