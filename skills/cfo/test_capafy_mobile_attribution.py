@@ -690,6 +690,96 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             for row in records
         ))
 
+    def test_mobile_mrr_accepts_six_observations_spread_over_5660180_microseconds(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        observed_times = (
+            "2026-09-30T23:59:54.339748Z",
+            "2026-09-30T23:59:55.471784Z",
+            "2026-09-30T23:59:56.603820Z",
+            "2026-09-30T23:59:57.735856Z",
+            "2026-09-30T23:59:58.867892Z",
+            "2026-09-30T23:59:59.999928Z",
+        )
+        expected_by_product = {}
+        for row, observed_at in zip(rows, observed_times, strict=True):
+            row["observed_at"] = observed_at
+            expected_by_product[row["product_id"]] = observed_at
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertEqual({
+            row["subscription_id"].split(":")[1]: row["observed_at"]
+            for row in snapshots
+        }, expected_by_product)
+        mrr_coverage = next(
+            row for row in records if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        )
+        financial_coverage = next(
+            row for row in records if row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+        )
+        self.assertEqual(mrr_coverage["coverage_state"], "complete")
+        self.assertIsNone(mrr_coverage["reason"])
+        self.assertEqual(financial_coverage["coverage_state"], "gap")
+        self.assertEqual(financial_coverage["reason"], "stale_readback")
+        projected = contract.project(
+            records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["currencies"], {
+            "JPY": "3000",
+        })
+
+    def test_mobile_mrr_accepts_24_hours_and_rejects_older_or_future_observations(self):
+        module = self.require_adapter()
+        cases = (
+            ("2026-09-30T00:00:00Z", "complete", None),
+            ("2026-09-29T23:59:59.999999Z", "gap", "stale_readback"),
+            ("2026-10-01T00:00:00.000001Z", "gap", "stale_readback"),
+        )
+        for observed_at, expected_state, expected_reason in cases:
+            with self.subTest(observed_at=observed_at):
+                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                for row in rows:
+                    row["observed_at"] = observed_at
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                mrr_coverage = next(
+                    row for row in records if row["record_type"] == "coverage"
+                    and row["source_id"] == "revenuecat-mrr"
+                )
+                self.assertEqual(mrr_coverage["coverage_state"], expected_state)
+                self.assertEqual(mrr_coverage["reason"], expected_reason)
+
+    def test_mobile_mrr_rejects_one_25_hour_old_product_when_five_are_current(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["observed_at"] = "2026-09-29T23:00:00Z"
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertEqual(
+            max(row["observed_at"] for row in snapshots),
+            SNAPSHOT.replace("Z", ".000000Z"),
+        )
+        self.assertEqual({
+            (row["coverage_state"], row["reason"])
+            for row in records if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        }, {("gap", "stale_readback")})
+        projected = contract.project(
+            records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["status"], "unknown")
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["currencies"], {})
+
     def test_mobile_empty_financial_report_requires_envelope_product_identity(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())

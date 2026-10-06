@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 
@@ -32,6 +32,7 @@ ALL_CATEGORIES = (*COUNTED_CATEGORIES, *EXCLUDED_CATEGORIES)
 VERIFICATION_STATES = ("verified", "unverified", "pending")
 REVENUE_CLASSES = ("one_time", "monthly_recurring", "other_recurring")
 COVERAGE_STATES = ("complete", "gap")
+MOBILE_MRR_FRESHNESS_MAX_AGE = timedelta(hours=24)
 GAP_REASONS = (
     "source_unconnected", "credential_missing", "read_failed", "stale_readback",
     "unsupported_currency", "unverified_receipt", "missing_coverage", "missing_category",
@@ -101,6 +102,13 @@ def _instant(value, field: str) -> str:
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         _fail("timestamp_naive", field)
     return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def mobile_mrr_is_fresh(observed_at: str, end: str) -> bool:
+    observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    projection_end = datetime.fromisoformat(end.replace("Z", "+00:00"))
+    age = projection_end - observed
+    return timedelta(0) <= age <= MOBILE_MRR_FRESHNESS_MAX_AGE
 
 
 def _text(value, field: str, pattern: re.Pattern) -> str:
@@ -312,6 +320,10 @@ def _exact_add(*numbers: Decimal) -> Decimal:
 
 def _coverage(rows: list[dict], loop_id: str, projection: str, start: str | None, end: str,
               required_categories: tuple[str, ...]) -> list[dict]:
+    mobile_mrr_coverage = (
+        loop_id == "mobile-apps" and projection == "as_of"
+        and required_categories == ("mrr",)
+    )
     candidates = [row for row in rows if row["product_loop_id"] == loop_id
                   and row["projection"] == projection and row["window_start"] == start
                   and row["window_end"] == end]
@@ -326,7 +338,12 @@ def _coverage(rows: list[dict], loop_id: str, projection: str, start: str | None
                          "reason": "stale_readback"})
             continue
         latest = max(eligible, key=lambda row: row["observed_at"])
-        if latest["observed_at"] != end:
+        fresh = (
+            mobile_mrr_is_fresh(latest["observed_at"], end)
+            if mobile_mrr_coverage and source_id == "revenuecat-mrr"
+            else latest["observed_at"] == end
+        )
+        if not fresh:
             gaps.append({"product_loop_id": loop_id, "source_id": source_id,
                          "reason": "stale_readback"})
             continue
@@ -434,7 +451,16 @@ def _latest_subscriptions(snapshots: list[dict], end: str) -> tuple[list[dict], 
             continue
         selected = max(eligible, key=lambda row: row["observed_at"])
         latest.append(selected)
-        if selected["observed_at"] != end:
+        mobile_mrr_snapshot = (
+            selected["product_loop_id"] == "mobile-apps"
+            and selected["provider"] == "revenuecat"
+            and selected["normalization_basis"] == "provider_monthly"
+        )
+        fresh = (
+            mobile_mrr_is_fresh(selected["observed_at"], end)
+            if mobile_mrr_snapshot else selected["observed_at"] == end
+        )
+        if not fresh:
             stale_loops.add(selected["product_loop_id"])
     return latest, stale_loops
 
