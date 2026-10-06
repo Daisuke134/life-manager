@@ -8818,3 +8818,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - metadata修正HEAD12f69dc169d8525de9d2cdfd0cf9bc490c17ac79をremote一致/clean確認。diffはmanifest inventory_sha2561項目だけ、files189維持。既存verifier同計算digest3434de248dc4cb3d0c0e8068c5ad7eeeb672a23322253f2c13dadd3b98b8004aと一致。
 - 承認済み62a24f2d4fのresolver/test2fileと新HEADはgit diff exit0でblob同一。Luna最終関連11PASS/normal push hook0evalPASS、--no-verifyなし、handle83327 exit0。旧source safetySHIP/追加反証19を変更していないsourceへ保持する。
 - PR6742新head12f69同CIでOSS self-contained boundary SUCCESSを公式gh確認。残checkは実行中、全CI/main/immutable/反映は未完。旧失敗headのPASSを新sourceへ流用せず新head全checkで判定する。実state/provider/送信0、current1/残30/後段順維持。
+
+
+### 660. Paid resolver PR6742 main統合・完全release開始
+
+- 最終head12f69dc169d8525de9d2cdfd0cf9bc490c17ac79は全9CI SUCCESS/CodeRabbitSUCCESSをofficial gh確認。source/test blob不変のfresh safetySHIP/11＋19PASS/metadata一致を受入しgh pr merge --merge --admin --match-head-commitで統合。MERGED/merge9c9fd29d7b7b47711a9009a5977d0b00afc848e7/mergedAt2026-10-06T07:20:59Z、fetch後main一致。
+- release lock無し/current78c55432 ALL/cut script latestmain同blobを確認。既存cut-loop-releaseでpushed main9c9fd29dから完全candidate作成開始、LOOPS_ACTIVATE_CURRENT=0/handle43472/private log paid-proof-release-cut.log。shared current切替/label apply/旧fence解除0。
+- 完全release完了/source一致/readonly実経路確認は未完。browser busy証拠の新規性/dispatch契約は§654 HOLDのまま、このreader修復をPaid全体稼働/売上成功へ代用しない。current1/残30/mock取消/後段順維持。
