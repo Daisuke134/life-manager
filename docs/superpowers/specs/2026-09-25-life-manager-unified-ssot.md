@@ -8803,3 +8803,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - resolver修復HEAD62a24f2d4f483f9b60c4d1d88ba4f977c561aa58をlocal/origin branch/ls-remote一致、source2file/clean確認。canonical存在またはsymlink時fallbackせず、shared layoutはcanonical無しのmercor-revenue-paidだけ、leaf symlink拒否という最小差分。実marker/state変更0。
 - fresh gpt-6.1-sol/medium readonly safety reviewをhandle74520で開始。対象は同HEAD差分/既存関連fixtures、price/funding/新marker・old解除を追加しない。review結果/担当最終検証報告は未完。
 - 同remote branchへPRをroot作成してCIを並行開始。最終HEADのreview/全CIを確認して通常main統合し、旧HEADのPASSを流用しない。current1/残30、mock取消/後段順を維持。
+
+
+### 658. Paid resolver source SHIP・OSS inventory metadata修復
+
+- HEAD62a24f2d4fのfresh Sol6.1medium safety reviewはSHIP/重要指摘0、既存11＋追加反証19 PASS。LunaはRED4fail→GREEN11/diff/source-boundary PASS、main進行3commitへrebaseしてpush。source/test2fileの最終blobを固定する。
+- PR6742 https://github.com/Daisuke134/life-manager/pull/6742 の同head CI37427812029でOSS boundary FAILURE、他checkは進行中。既存verifierと同じ局所計算によりmanifestのskills/_shared rootはfiles189一致/digest不一致を確認。sparse欠落114fileはcheckout補充後に0、別rootの未検証を全PASSにしない。
+- 担当の初回--no-verifyはsparse内eval-loop不足によるhook停止だった。rootがskills/eval-loopをcheckout追加し、legacy hook env file不存在を確認、通常git push --set-upstreamで0eval PASS/remote up-to-date。迂回不要に戻した。未実施のJudge/backendテストを成功とはしない。
+- 必要metadataだけを同Luna6max sessionへ追加タスクとして渡した、handle83327。所有追加はdocs/manifests/oss-merge-1-sources.jsonのskills/_shared entryだけ、他root/codes/tests blobを維持。normal commitpush・digest照合・必要関連check後、同新headCIを再確認。metadata修復/main/反映は未完、current1/残30/後段順不変。
