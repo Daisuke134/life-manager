@@ -8744,3 +8744,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - production Storefront plistのGIG_STOREFRONT_ROOTはprivate/storefront-bundle。families更新2026-09-04/scorecard2026-08-19、scorecard11件と現inventory20は異なる時点・母集団。過去のfamily/競合記録は参考で現在の成功・需要として扱わない。既存競合service1件をcrwl取得したがexit0/17byte403、現在市場未取得。原本storefront-competitor-probe-1791265849410444000。
 - 候補は現inventoryのAPI連携・開発商品（既存表示60000円、public scopeにAPI/業務）。価格変更0。見本設計は合成注文JSONをlocal mock APIから取得して業務CSVへ変換する、stdlib中心の小さな自己所有demo。顧客/NPO artifact・credentialを再利用しない。実provider接続・実顧客納品・販売/利益の証拠ではないことを見本と説明へ明示する。
 - 実装する場合は最新main専用worktreeでLuna6/maxがdemo/fixture/READMEの限定範囲を所有、rootはspec/受入/統合を所有。合成入力→期待CSVの実行確認だけを必要検証にし、広いQA・eval・本番広告・公開を追加しない。current1/残30、SelfBuild26/Lancers27〜29維持。
+
+
+### 650. API商品見本の専用worktree・Luna実装開始
+
+- 最新origin/main5d8da831becc0a6abf30f595d4a62bd64b010580から専用sparse worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-storefront-api-sample-20261006、branch feat/lm-storefront-api-sample-20261006を作成。shared checkout切替/他者変更0、重複task worktreeなしを確認。既存worktree-lease.pyでowner codex-money-printer-api-sample/24hを取得。
+- §649の限定契約をgpt-6-luna/max有限実装へ渡した、handle36180。所有はexamples/storefront/api-json-to-csv/demo.py/orders.json/README.mdのみ、stdlib/local mock HTTP GET/2件合成注文→固定列CSV/自身server終了。実provider/customer/NPO/credential/本番loop/価格/公開変更は禁止。rootはspec/受入/PR/mainを所有。
+- 必要検証は実HTTP→期待CSVとREADME整合、pycompile/diffの必要範囲。新テスト体系/full loop suitesを見本のgateにしない。source・push・実行検証は未完、market/current buyability未確認を販売成功へ代用しない。current1/残30、残4の独立並行、SelfBuild26/Lancers27〜29維持。
