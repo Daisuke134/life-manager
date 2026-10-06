@@ -3640,3 +3640,35 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
   9. **A9 Report:** 既存CLI/panelでloop/platform/company別revenue/expense/net/MRR/runway、bank balance、freshness/coverage/estimate-vs-settled/unknownを同一期間に表示する。
   10. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runとofficial source receiptをreadbackする。
       14-loop financial view、Moneytree freshness、RevenueCat、Google actual-vs-estimate、total expense/net/unknown/report receipt、replay-zeroを確認する。
+
+
+## 公開ハーネスへの移行 — HM lane
+
+Daisの依頼範囲は比較調査・設計・原子的実行計画まで。本番切替・認証・state変更・新harnessでの実業務はこの依頼では未着手。別laneのcurrent cursorと稼働effectを変更しない。
+
+- [x] **HM-D0: 調査・設計・計画。** [比較](../../research/2026-10-07-agent-harness-comparison.md)、[設計](2026-10-07-life-manager-harness-migration-design.md)、[実行計画](../plans/2026-10-07-life-manager-harness-migration.md)。単一推奨=OpenClaw2026.9.8の専用profileへ段階移行。候補実務benchmarkは未実施で、採用判定はHM-06。既存installed OpenClaw2026.6.1/5agentとNode25を直接更新しない。
+
+**実装cursor=HM-00（未着手）。** 新規laneのため旧順序はなし。新順序はHM-00→HM-17。理由は、配布版互換・effect safety・task/cost比較を先に成立させ、read-only canaryと1ownerの自然実行から拡大するため。他laneの順序は据え置く。各ownerのwave順変更は同じ差分に理由・旧順・新順・cursorを記録する。
+
+| 状態 | ID | 原子的成果 | 依存 | 完了証拠 |
+|---|---|---|---|---|
+| 未着手 | HM-00 | nested callerまで含むowner inventory/baselineを固定 | HM-D0 | version/occurrence/cost basis付きinventory |
+| 未着手 | HM-01 | 配布版互換・専用Node/profileを隔離確認 | HM-00 | exact package/integrity/API probe |
+| 未着手 | HM-02 | runner契約互換のoperator bridge | HM-01 | schema/ack喪失/再送0のfocused tests |
+| 未着手 | HM-03 | owner工具/fence/native bypass拒否 | HM-02 | foreign/effect_unknown/duplicate tests |
+| 未着手 | HM-04 | trace/usage/receiptのsame-occurrence join | HM-03 | export欠測・cost unknown・secret非露出 |
+| 未着手 | HM-05 | 5 crash境界の復旧/replay-zero | HM-04 | fake provider/state recovery結果 |
+| 未着手 | HM-06 | 現行との制作task/cost比較・採用判定 | HM-05 | 共通admission、安全全PASS、task成功>=base、総費用<=base、RSSはhost許容内 |
+| 未着手 | HM-07 | 新harnessの自然read-only canary | HM-06 | main release/loaded/natural/trace |
+| 未着手 | HM-08 | scheduler所有権移行/rollback | HM-07 | 新旧authority<=1、旧wake0 |
+| 未着手 | HM-09 | Capafy制作/販売owner1件移行 | HM-08 | 正当な自然成果/公式receipt/費用 |
+| 未着手 | HM-10 | inventory順に残owner移行 | HM-09 | 各owner source/release/natural/readback |
+| 未着手 | HM-11 | 自己所有コード修復1件を実証 | HM-10 | before/after occurrence/code/receipt |
+| 未着手 | HM-12 | 固定holdoutを既存evalへ接続 | HM-11 | reproducible task/business score |
+| 未着手 | HM-13 | 評価済skill/prompt改善1件昇格 | HM-12 | base/candidate/費用/natural evidence |
+| 未着手 | HM-14 | 実測容量と収益配分 | HM-13 | queue/RSS/cost/cap evidence |
+| 未着手 | HM-15 | 不要な自作runner/agent cron退役 | HM-14 | caller0/削除差分/natural evidence |
+| 未着手 | HM-16 | 全owner技術移行の完了判定 | HM-15 | joined final-acceptance |
+| 未着手 | HM-17 | 各販売agentの経済成果をCFO照合 | HM-16 | sale/settlement/actual-cost/純利益 |
+
+HM-17の外部購入待ちはHM-16の技術移行を未完へ戻す条件にしない。経済成果は公式証拠が揃うまで未達/unknown。planのcheckboxは手順であり、状態とcursorはこの表だけが正本。
