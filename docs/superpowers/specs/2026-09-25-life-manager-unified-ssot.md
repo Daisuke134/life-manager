@@ -9435,3 +9435,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最初の変更run30747はGmail read failureで変更前exit1。credential正本にpending無し、Gmail再read exit0を確認後、同メールの実CTAで再開。request再送0。run86786は新passwordをcredential正本のpendingへatomic保存→公式Submit→正本currentpassword更新（旧値も同private正本内で保持）→新pageのdashboard到達。UTC2026-10-06T16:00:43.829755、HTTP200、新page /dashboard/login form無し。private freelancer-reset-and-login-result.json。値/link/code表示0。
 - 新page到達は既存profile authの影響を含み得るため、cookieを引き継がないowned temporary contextで独立loginを実測。run10478 initial_cookie_count0/login_submitted trueだがUTC16:01:07 /login/form保持、authenticated_dashboard false。contextは閉鎖済み、application effect0。private freelancer-clean-context-login.json。新session credential認証は未成功で、復旧Doneを宣言しない。
 - cursor8はclean-context失敗の公式エラー表示/認証responseを次に観測する段階。既存profile dashboard成功をaccount inventory/応募可能へ広げない。credential current値の再変更・再resetは失敗境界確認まで行わない。主29順序/前段保留保持、応募/返信/振込/価格/出品/本番loop変更0。
+
+
+### 737. Freelancer保存credentialのclean-context再login確認
+
+- 先行新規contextは固定短時間で/loginを判定していた。認証route filterは実POST pathを捕捉していなかったため、既知エラー無しを認証失敗確定へ広げない。追加probeはnetworkidle後にinput validity/aria-invalid/button enabledとPOST metadataを観測した。
+- handle60254 exit0。UTC2026-10-06T16:02:17.586682、cookieゼロowned contextでcredential正本のnewpasswordを入力、email/password valid=true/aria-invalid=false、submit enabled=true、公式POST HTTP200、最終/dashboard/login form無し/alert0。context closed、自分のtabのみ操作。証拠private freelancer-clean-login-submit-boundary.json。先行固定待機の未成功は現credential拒否を証明せず、今回の十分な待機で新規context認証を確認した。
+- 認証復旧は限定Done。account-bound inventory/応募準備/承認済み自動入札/新規応募/収益は未完。現在cursor8の公式account identityと案件一覧取得へ進む。新passwordはprivate credential SSOTに保存済みmode600、秘密値/token/メール本文をrepo/chatへコピー0。復旧メール再送0。
+- 主29順序、2〜7の既存保留を保持。応募/返信/価格/出品/振込/本番loop変更0。
