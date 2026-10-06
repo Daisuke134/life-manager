@@ -10047,3 +10047,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - CI run37528401518はcompleted/success、9workflow checks全PASS（CodeRabbit skipとは区別）。fresh sourceSHIP/133tests/確定source実API証拠を受入し、rootがadmin squash merge。PR6790 mergedAt2026-10-06T20:45:50Z/main1305c07f5e4c6d6ede9b5bdfbef752a107421f0f、fetch origin/main同SHA、source branchc739/clean。
 - LOOPS_ACTIVATE_CURRENT=0でmain1305のALL immutable releaseを自己所有build handle45668で作成中。dest /Users/anicca/loops/releases/20261007T054603-1305c07f はまだRELEASE.json無し、未完成をapplyしない。既存current6489/自然reconcilerのownerを維持。
 - GUI preflight20:46:15.976141UTCはUID501/DS/Aqua/manager501/PID1/GUI PASS。CFOはloaded-idle/旧6489/admission_effect_unknownfalse、旧自然送信104594と新source成果を分離。残操作release完成/対象限定反映/live flag/新source自然readback。cursor17を保持。
+
+
+### 815. main1305のCFO限定反映/live flag完了、初回はcapacity待ち
+
+- main1305 ALL immutable /Users/anicca/loops/releases/20261007T054603-1305c07f のbuild handle45668はexit0/RELEASE.json sha・ALL確認、currentはroot変更なし。
+- private .envを.env.lock flock/atomic/fsync/mode600でLM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK=1へ設定。他行保持/credential値の出力0。20:47:14.157635UTCのGUI preflight PASS後、LIFE_MANAGER_RELEASE_ROOTを完成release/LIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourlyでapply --loaded-idle-only。changedtrue/install eventbb6af512a54e8baa6f402224、loaded argv main1305一致、対象1/他label変更0。
+- 新版自然occurrence life-manager-cfo-hourly:18dc0bb8101a12d8-73989 は20:47:17UTCにhost_admission_deferred:resource_capacity_busy/exit75、取得前でprovider receipt無し。loaded1305/admission_effect_unknownfalse/loaded-idle、argvSHA2b2e92c2d9d9ea19b414a84a8fe453f7473c20f5d689fe7812194fc911d0e04c。旧送信104594を新版の成果へ流用しない。
+- cursor17の残操作は新版がadmissionを通る自然実行の公式取得/レポート・ASC分離・不足coverage/readback。source/CI/main/liveflag/対象反映は確認済みなので再実装・再merge・重複applyへ戻さない。手動wake/receipt無しfence解除/重複送信0。
