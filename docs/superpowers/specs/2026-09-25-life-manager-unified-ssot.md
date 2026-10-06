@@ -8925,3 +8925,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - HEAD6d5e6602ab658092d6a027472440be7f670bd581をremote branch一致/clean確認。planner1行human→wait、既存planner/kernel回帰tests、必要_shared manifest digestの4fileだけ。既存source contractを変更せず実state/送信/通知0。
 - fresh gpt-6.1-sol/medium readonly reviewをhandle60255で開始、同HEADのfacts wait/noeffect/explicit human維持を反証。Luna最終報告とreview結果は未完。
 - rootが同branchへPRを作成しCIを並行開始。最終head/wholecheckを受入して通常統合、既存source検証を売上成果へ代用しない。current1/残29/mock取消/後段順維持。
+
+
+### 675. Reply fallback fresh source SHIP・root関連56PASS
+
+- fresh Sol6.1medium reviewerはHEAD6d5e6602ab一致/sourceSHIP/重要指摘0。planner12PASS/baseRED→HEADGREEN、_shared189/digest一致/diffPASSを確認。readonly sandboxでkernel tmp_path setup不能の限界を明示し、未実行をPASSと報告していない。
+- rootが同HEADの既存test_reply_planner.py＋test_reply_kernel.pyを実行、56PASS/0.25sでその実行不足を確認。facts wait/no send/no human notification、explicit human/schema validationを関連suiteで検証。実provider/state/送信変更0。
+- PR6749 https://github.com/Daisuke134/life-manager/pull/6749 の同HEAD CIはOSS/Python/PII/指示契約/文脈/shell成功、残3は実行中。全CI/main/immutable/自然Reply改善は未完。current1/残29/mock取消/後段順維持。
