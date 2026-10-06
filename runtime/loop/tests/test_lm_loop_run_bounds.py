@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
+from runtime.loop import lm_loop_run as loop_runner
 from runtime.loop.lm_loop import PRE_EFFECT_ADMISSION_BLOCKERS
 from runtime.loop.lm_loop_run import (
     ADMISSION_CONTROL_RETRY_DELAY_SECONDS,
@@ -113,6 +114,108 @@ def test_scheduled_wake_can_declare_a_longer_finite_safety_limit():
 
 def test_continuous_owner_has_no_scheduled_wake_deadline():
     assert _runtime_limit({"cadence": {"keep_alive": True}}) is None
+
+
+def test_ebook_child_environment_loads_postiz_key_from_private_ssot(tmp_path):
+    private = tmp_path / ".local/share/anicca"
+    private.mkdir(parents=True)
+    os.chmod(private, 0o700)
+    credentials = private / "credentials.json"
+    api_key = "test-postiz-key-not-real"
+    credentials.write_text(json.dumps({
+        "version": 1,
+        "credentials": [{"service": "postiz", "api_key": api_key}],
+    }))
+    os.chmod(credentials, 0o600)
+    base = {
+        "LM_EBOOK_PUBLISHING_ENABLED": "true",
+        "LM_POSTIZ_API_KEY": "untrusted-inherited-key",
+        "KEEP": "value",
+    }
+
+    child = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+
+    assert child["LM_POSTIZ_API_KEY"] == api_key
+    assert child["KEEP"] == "value"
+    assert base["LM_POSTIZ_API_KEY"] == "untrusted-inherited-key"
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path / "missing-home",
+    ) == base
+
+
+def test_ebook_child_environment_drops_inherited_key_when_ssot_is_unavailable(tmp_path):
+    base = {
+        "LM_EBOOK_PUBLISHING_ENABLED": "true",
+        "LM_POSTIZ_API_KEY": "untrusted-inherited-key",
+        "KEEP": "value",
+    }
+
+    child = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+
+    assert "LM_POSTIZ_API_KEY" not in child
+    assert child["KEEP"] == "value"
+    assert base["LM_POSTIZ_API_KEY"] == "untrusted-inherited-key"
+
+
+def test_ebook_child_environment_does_not_inject_key_while_publish_flag_is_closed(tmp_path):
+    private = tmp_path / ".local/share/anicca"
+    private.mkdir(parents=True)
+    os.chmod(private, 0o700)
+    credentials = private / "credentials.json"
+    credentials.write_text(json.dumps({
+        "version": 1,
+        "credentials": [{"service": "postiz", "api_key": "test-postiz-key-not-real"}],
+    }))
+    os.chmod(credentials, 0o600)
+    base = {
+        "LM_EBOOK_PUBLISHING_ENABLED": "false",
+        "LM_POSTIZ_API_KEY": "untrusted-inherited-key",
+        "KEEP": "value",
+    }
+
+    child = loop_runner._child_environment_for_owner(
+        "ebook-ja-instagram-daily", base, home=tmp_path,
+    )
+
+    assert "LM_POSTIZ_API_KEY" not in child
+    assert child["KEEP"] == "value"
+
+
+def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
+    private = tmp_path / ".local/share/anicca"
+    private.mkdir(parents=True)
+    os.chmod(private, 0o700)
+    credentials = private / "credentials.json"
+    api_key = "test-postiz-key-not-real"
+    credentials.write_text(json.dumps({
+        "version": 1,
+        "credentials": [{"service": "postiz", "api_key": api_key}],
+    }))
+    os.chmod(credentials, 0o600)
+    base = {
+        "LM_EBOOK_PUBLISHING_ENABLED": "true",
+        "LM_POSTIZ_API_KEY": "untrusted-inherited-key",
+    }
+    captured = {}
+
+    def run_child(command, *, env=None, **_kwargs):
+        captured.update(env or {})
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.Path.home", return_value=tmp_path),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        result = _run_admitted(
+            ["/bin/true"], {"cadence": {"keep_alive": True}, "effect_class": "publish"},
+            "ebook-en-tiktok-daily", base, tmp_path / "receipt",
+        )
+
+    assert result == 0
+    assert captured["LM_POSTIZ_API_KEY"] == api_key
+    assert base["LM_POSTIZ_API_KEY"] == "untrusted-inherited-key"
 
 
 def test_resource_class_is_explicit_or_provider_default():

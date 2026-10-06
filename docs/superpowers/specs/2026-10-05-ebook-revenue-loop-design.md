@@ -59,13 +59,13 @@
 
 - 実行順・現在状態・容量/readback evidenceの正本は `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`。
 
-#### 2026-10-06 16:18 JST — live distribution refresh
+#### 2026-10-06 16:23 JST — live distribution refresh
 
 - Dais reconfirmed the intended pipeline and cadence: English uses HeyGen Avatar IV and its existing TikTok route; Japanese uses Watercolor Monk Factory and its existing TikTok+Instagram routes. The three daily slots per locale remain unchanged: EN 08:00/14:00/21:00 JST, JA 07:00/12:30/20:00 JST.
 - PR #6739 is merged at `78c55432421dbe821773a96f7a7deb9646ee7599`. The selected main-derived immutable release is `/Users/anicca/loops/releases/20261006T160404-78c55432`; `lm-loop doctor` returns `ok=true`, 184 registry entries, and no missing, retired, or unmanaged labels. The active `upwork:dais` browser remains reachable under its dedicated owner.
 - The three eBook launchd jobs are enabled and `loaded-idle` at installed SHA `0ba957af5405bfbea5f1d6e9ce6ca78deb66b421`. All have null occurrence IDs and no provider receipts or public URLs. Their calendar schedules are loaded, but `LM_EBOOK_PUBLISHING_ENABLED` and `LM_POSTIZ_API_KEY` are unset in the launchd environment. The source checks the publish flag before rendering; the next due occurrence should stop before render or Postiz. This is an inference from source and environment, not a natural-run result.
 - Authenticated Postiz `GET /public/v1/integrations` readback at 16:18 JST returned 31 integrations: 30 enabled, 1 disabled. The EN `Monk Anicca` TikTok integration exists but is disabled; JA `obou` Instagram and the Japanese TikTok integration are enabled. English Instagram is unregistered. Postiz integration state does not prove native account identity/good-standing or an available channel slot.
-- The protected credential SSOT has a Postiz API key, but the shared Life Manager child-process path does not inject it into the three eBook jobs. The key remains in `~/.local/share/anicca/credentials.json`; the only use in this refresh was in-memory for the official API GET. The source fix belongs in the central loop runtime, not a launchd plist or the eBook publisher.
+- The protected credential SSOT has a Postiz API key, but the selected production release child-process path does not inject it into the three eBook jobs. The key remains in `~/.local/share/anicca/credentials.json`; the only use in this refresh was in-memory for the official API GET. The local branch now implements this mapping in the central loop runtime and withholds the key while publishing is disabled. Focused tests pass 121/121 and the loop contract passes. A no-effect SSOT smoke reports the key present only for an enabled eBook child and absent for a flag-off run or sibling owner; the source change is not merged or loaded, so the selected production release still lacks the mapping.
 - Product PR #420 remains OPEN. Production metadata workflow `37425532984` confirms the webhook/subscription tables and eBook RPCs are absent (`404/PGRST205`); `supabase projects list` finds no linked project reference, and the credential SSOT has no Supabase management credential. No authorized DDL path, deployed Checkout/PDF proof, natural paid order, or matching PDF receipt is currently confirmed.
 - A bounded owner cleanup at 16:01 JST reclaimed 712,142,339 bytes with zero errors/protected deletions; it preserved five open candidates and recorded 14 inventory gaps. Current free space at 16:18 JST is 3.2 GiB, below the 11 GiB renderer floor. The scheduled cleanup owner remains disabled. HeyGen wallet readback remains USD 12.30 with USD 10 auto-reload at USD 5 threshold enabled; no live video has been generated and no eBook video has been posted.
 
@@ -90,7 +90,7 @@ flowchart LR
   SOURCE --> RELEASE["selected main-derived release 78c55432; doctor ok=true"]
   RELEASE --> OWNER["three scheduled owners loaded-idle at old SHA 0ba957af; no occurrence/receipt/URL"]
   OWNER -. "LM_EBOOK_PUBLISHING_ENABLED unset" .-> NORUNTIME["pre-render and pre-Postiz hold"]
-  KEY["postiz.api_key in protected credential SSOT"] -. "central runner does not inject it" .-> ENV["LM_POSTIZ_API_KEY unset in child environment"]
+  KEY["postiz.api_key in protected credential SSOT"] -. "selected release does not inject it" .-> ENV["LM_POSTIZ_API_KEY unset in child environment"]
   SOURCE --> EN["EN HeyGen Avatar IV → existing TikTok integration"]
   SOURCE --> JA["JA Watercolor → existing TikTok + Instagram integrations"]
   EN -. "official Postiz readback: disabled=true" .-> ENHOLD["EN effect-free hold"]
