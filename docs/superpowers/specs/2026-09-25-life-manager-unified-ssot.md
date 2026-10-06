@@ -8979,3 +8979,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Daisの指示に従い、mock商品・demo制作を再開しない。今回の成果は§217の未完29項目と実行順の明示。旧番号や完了済み応募を残TODOへ戻さない。current1、SelfBuild25、Lancers26〜28、最終29を保持する。
 - 新source aed62f3bの自然Reply run 18dbe3ee46fea418-58844 は2026-10-06T08:38:12.184829Zにexit75/provider_browser_busy。kernelの新source再判定成功は未確認。対象3threadは反映前に書かれたretry状態で、次回eligibleは09:01/09:12/09:16 UTC。旧状態だけで修正失敗と判定しない。
 - 今回state/backoff/intent/旧unknownの変更・手動再送・provider操作は行わない。次の検証は既存自然実行での再判定。新しいモックや追加監査を販売の前提にしない。
+
+
+### 682. current1のCrowdWorks実納品境界を限定観測
+
+- 最新Paid report occurrence crowdworks-revenue-paid:18dbe24c3d94cd10-62095はobserved5/effect0/readback0/failed2。64033100/63989657はpre_effect trueのpaid_handoff_unavailable、63942104はform_selection_required、63826932/63819060はreconcile_unknown。旧reportのfailed1を現状へ流用しない。
+- provider-browser.lockはlive PID64712/parent64677が保持していることをlsof/psで確認。終了後に既存lockをnonblocking取得し、current immutableの既存adapter.contextで63942104だけ公式取得。observed_at2026-10-06T08:44:37.461343Z、funded/price_minor null/form1/candidate1/body3450字/completed0/buyer_contextあり。送信・フォーム回答・正式納品・未知effect解除0。取得した本文/個人情報は文書へ複製しない。
+- 既存grounding loaderは実profileから正常に構築、verified facts30。フォームが存在しない/本文を取得できない/profile不在という仮説は今回の対象では反証。選択composerの成功/失敗原因は未確認。次の診断probeはprovider-browser_busyで変更前に拒否され、モデル実行・再送無し。
+- 安全な再開条件は同providerのidle/既存lock取得と、選択composerのerror class/contract判定を送信せず観測すること。price nullを確定報酬や利益へ変換せず、2件のreconcile_unknownはreceipt無しで再送しない。current1/残29/後段順/mock取消を保持する。
