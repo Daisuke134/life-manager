@@ -10091,3 +10091,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 旧lease1800秒経過後の通常with-browser取得はbusy/75。その後holder空の追加観測で1回再取得したところlease取得後ValueError、source DefaultTabが必須CLOAK_BROWSER_OWNER無しで拒否した呼出元不足と特定。page取得前/外部effect0。自分専用ownerを設定して修正したが、再試行は新lease占有で75。ソース設定や他者tab変更0。
 - 新holder14225をps argv/startでlive確認、hf-gig-paid-directのwith-browser→gig_disk_guard→paid_direct.py経路。旧dead49507の保護期間待ちとは別。guard reachablefalseも観測したが、active paid ownerに重複操作/再起動/lease解除を行わない。現在公開・購入導線は未確認、稼働中を納品/売上完了にしない。
 - CFOには次report periodの新wake life-manager-cfo-hourly:18dc0c40ad46ac28-2867 が発生、loaded1305/idle/capacity busy75。前duplicate runと区別し、次の自然admission/GET/レポートを待つ。cursor17・主順序維持、残3の再開はpaid ownerのlease解放後。
+
+
+### 821. 投資残18の開始NAV・活動・transfer・終了口座を公式取得
+
+- 既存pinned Alpaca CLI/context/live credentialでGETのみ。activity request Oct1 UTC～Oct6 23:59:59UTC/asc/page100はFILL2/CFEE4、CFEE dateに09/30を含む。future request endを完了期間へせず、dateだけでUTC期間所属や費用を割り当てない。
+- portfolio request10/01 00:00UTC～00:10UTC/1Min/continuousはtimestamp/equity11点、初時刻1790812800。wallet transferはUSDC/COMPLETE1件。終了account/positions/clockは10/06 21:07:15.342747～21:07:16.943683UTC取得、ACTIVE/currencyUSD/USDCUSD position1。開始/終了点・transferを売上・latestpair利益・会社利益へ昇格しない。
+- private artifacts/hash: investment-period-all-activities-official-readback.json:bfa1869e8712175c8b9fdd3b771eee50c0efee1ea81dca47234221023d2b1926; investment-period-start-nav-official-readback.json:8224b5b57dbd6e366992c8c849bf7fa439adaa24c84883c1fde0f350716cd844; investment-official-transfers-current-readback.json:36857d61fc9dd6f252f287efd783ee83cfb9c2126a3570c2665f936e69e3fcb6; investment-current-ending-nav-official-readback.json:efe135eb4fb5671ed3cf741e761e11d76fcff09eeef66dcb913e3babbe1a4125。credential/header出力・注文操作・資金移動0。
+- 最初の公式docs routeはBroker APIなので不採用。Trading account-activities公式 https://docs.alpaca.markets/docs/account-activities をcrwlで取得し、非取引dateの発生/settlement意味とpage_token/page_size100を確認。基準時刻・fee対応・coverage/owner・通貨評価の採用はfresh Sol6.1/medium read-only handle56315で検証中。新実測資料を追加しても§819のHOLDを自動解除しない。cursor17/独立残18/相対順保持。
