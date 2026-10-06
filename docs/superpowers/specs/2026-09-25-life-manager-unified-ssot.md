@@ -9370,3 +9370,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - existing listing_inventory parse_list_pageを使うread-only seller route取得run81421はexit0。2026-10-06T15:30:27.132236Z、/mypage/services_lists HTTP403/container無し/body13/SHA58404.../loginfalse。source gateでparser入力を止め、service_count0/target無し/休止/公開不可として計上しない。画像/商品price/catalog/rootstate/credential/本番変更0、証拠 `coconala-4313100-current-seller-inventory.json`。
 - currentrevenueHTTP200/明細一致とseller/publicservice403は別route。全vendor永久blockedや完全復旧とはしない。適切な正規navigationとdirect URLの差、同account/source provenanceを次に観測する。private API bypass・空solver task・source設定の憶測修正を行わない。
 - cursor2 financeHOLDと独立3の準備を保持。bank/actualfee/costは未取得、31/27等過去countを今のpublished/buyableへしない。主29相対順序/SelfBuild25/Lancers26〜28不変。
+
+
+### 729. Coconala振込導線のread-only観測
+
+- current cursorは§217の2.2。18211957の公式売上明細1件は取得済みで、今回の残操作は振込明細/銀行receipt/手数料/実費の取得。再納品・振込操作・再送は行わない。
+- 開始済みmenu probe handle52311はexit0で終了。公式top HTTP200、想定seller inventoryリンク0。証拠private cli-observability-20261006/coconala-seller-menu-navigation.json。リンク0は商品無し/非公開を示さない。
+- revenue_collectorは申請済みと振込予定日をparseするが銀行着金を取得しない。coconala_outcomesのbank_arrivalは固定waitingであり、公式銀行readbackではない。CLIが存在することと必要証拠のcoverageを区別する。
+- 新probe handle88821はregistered coconala:kosuke leaseと既存provider lock内で自分の新規pageのみ使用しexit0。UTC2026-10-06T15:49:18.168643、公式revenue HTTP403/body13/SHA58404bdf6dc25c24fedd979469e69bfb8dc9ebca64a469929a858a12b12b9c30、振込導線取得不可。provider effect0、ledger/CFO writes0。最初のwrapper引数不足exit64はbrowser観測前に終了し、usage確認後に修正した。
+- 証拠private cli-observability-20261006/coconala-revenue-navigation-boundary.json。直前のHTTP200実明細取得を否定せず、間欠403の取得境界を次に確認する。現在の残高/未入金/非公開/売上0を推定しない。銀行receipt・案件fee・実費は未確認のまま。
