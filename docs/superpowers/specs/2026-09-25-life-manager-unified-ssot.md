@@ -9302,3 +9302,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - run97213はexit0、64033100の同一URLをread-onlyでform attached待ち後に観測。2026-10-06T14:33:50.173696Z、HTTP200/form1/FB_PUBLIC_LOAD_DATA存在、受付終了・login要求・permission拒否・CAPTCHA表示flagsすべてfalse。既存_form_itemsが26設問/必須18を取得。初回直後のmetadata失敗をprovider恒久障害へしない。証拠 `crowdworks-64033100-form-health.json`。外部effect0。
 - 次はquestion title/type/required/allowed choicesだけを同じexisting getterから取得するread-only run92091。回答値・buyer本文・email・credentialを出力/保存しない。必要プロフィールfacts/作業条件と実費の確認を終えてから回答・正式納品へ進む。現未取得の設問内容を捏造しない。
 - Current1.2/29主項目相対順序不変。納品1.3/精算2は未完、受注12円・表示net10円を銀行入金や利益へ計上しない。
+
+### 719. 64033100は採用応募フォーム、納品artifactと分類を分離
+
+- run92091はexit0、フォーム26設問をmetadataから取得（必須18）。内容は登録氏名/応募媒体/学歴/全職歴/Excel・ツール経験/希望時給/カメラPC・回線・セキュリティ/平日4h週20h可否/応募職種/通常privacy確認で、採用応募フォームであることを確認。設問情報はprivate questions.json、回答値/credential/生buyer本文の出力保存0、外部送信0。受取済売上/一般アンケート納品として扱わない。
+- privateプロフィールSSOTはcandidate30keys/facts43件、教育/勤務/希望報酬・availability等の既存factsとprovider profileのhourly/hour_limit設定は存在する。存在だけで全18必須回答が裏付けられるとはしない。個人情報/希望条件/実体験・機器・時間を作り上げて送信しない。
+- 既存PR6338はopen/未統合、広いrecruitment拒否とPaid gateを提案している。現work_fitの通常contract-selection interviewはapplicationを止めない方針と衝突し、buyerの採用運営支援まで一律refuseするため、Rootがそのままmerge/横展開しない。採用応募行動と、既存有償成果物の制作/正式納品を混同しない。申請は既存source/条件が揃った範囲で処理する。
+- 1.2の正式納品対象は未確定。次は残る契約候補63942104/63989657の実作業型と既存receiptをread-onlyで確認し、履行可能なservice artifactを選定する。64033100はapplication条件/不足factsの対象として保持し、完了・無料/無意味とは捏造しない。Root source編集/復旧/自動返信/正式納品0。現在1.2/主29順序不変。
