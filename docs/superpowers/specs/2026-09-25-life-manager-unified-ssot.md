@@ -8502,3 +8502,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最新main専用worktree/branch lm-crowdworks-contract-amount-observability-20261006でLuna6/maxがpaid_adapter.pyのsummary観測/readonly inventoryと既存関連testsだけ所有。_detailがcontract pageを持つ時点で公式summaryを読んでsafe observationをcacheへ保持し、read_only_inventoryへdetail_unavailable/amount observation/price_minor/currencyを返す。本文/URL/個人情報は出さず、支払い済み/net/収益と名付けない。欠落/複数/不正金額はunknown/ambiguousへ。既存進行stateを新規未納品と扱わない。
 - 重要境界：productionのprice_minor/funding判断/合成receipt/decide/handoff/フォーム回答/送信/納品/費用cap/モデル/頻度を変更しない。税込表示を理由に低額作業や高額inferenceを新たに起動させない。現在のcaller取得情報の改善だけで、利益を確定するものではない。新CLI/framework/DB/schedulerを作らず既存helperへ保持する。
 - 5件の未知納品/精算や金額表示は保持。actualDOMに基づく最小positive/negative fixture、readonly/effect0/既存gates不変をRED→GREEN/必要focused/contract/OSS/diff、commitpush/freshSol6.1medium反証/CI/main/immutable/同readbackへ結ぶ。私的live/state/browser/provider/API操作は実装担当禁止、rootが反映/公式readbackを所有。主経路31/current1/Lancers後段は不変。
+
+
+### 620. Lancers延期の再確認と他channelの現在cursor
+
+- Daisの指示を再確認：LancersのCAPTCHA接続・storefront・応募は未解決としてSelfBuildの後、§217の28〜30へ保留する。他platformの収益作業を進め、solverの反復・重複task作成をしない。順序変更は§615に記録済みで、今回さらにreorderしない。
+- Mercorの既存auth readback CLIはauthenticated/API200、既存reply snapshot CLIは取得成功。観測時刻2026-10-06T04:47:40.246533Z。返却された応募100行の状態はrejected86/applying-started8/applied6。返却上限・pagination全件性は未確認で、総応募数とは扱わない。next_stepのReady to submit表示92を提出可能92件と扱わない（rejected行を含む）。contracts返却0もcoverage未確認のため実契約不存在/売上0へ変換しない。
+- Mercor原本はrepo外private state/cli-observability-20261006/mercor-business-1791262057490743000/snapshot.json。認証原本はmercor-auth-1791261995936841000。正規guard/context取得・park/guard解放成功。新login・provider送信・応募・面接回答・資金移動は実施していない。
+- CrowdWorksは§619の観測metadataだけの限定修復をLuna6/maxが担当。production price_minorを補完・上書きせず、複数表示12円/10円はambiguousとして保持する。source検証・push・review・反映・公式同CLI確認は未完。
+- 現在cursor1、主経路31は維持。次はこのCLI修復を終え、他channelの取得範囲を揃えて実案件/注文/精算の次手を選ぶ。旧Coconala12record全件照合・Lancers反復・SelfBuildへ先頭を戻さない。
