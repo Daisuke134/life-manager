@@ -4894,7 +4894,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 - Coconala：registered browserと既存orders-only CLIで公式受注route HTTP403/coverage incomplete。表示CAPTCHA・login redirectなし。現受注件数/待返信/納品状態はunknown。Storefrontの現在購入経路も未確認。過去3件/公開20件を現状へ代用しない。§703。
 - CrowdWorks Paid：最新保存business output92303では64033100/63989657/63942104の3候補がprice_minor不足/不正、63826932/63819060の2候補が結果照合待ち。診断codeの新出力を確認したが、正規納品対象/成果物・価格の原因は未確定。次は3候補の公式契約金額と作業指示をCLIで確認する。5候補を有償納品5件へ丸めない。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
-- CFO：修復4b961b36を限定loaded反映した過去証拠はあるが、今回の現loadedは3ae4176eへ戻っている。最後のterminalはrun63090/apply_lock_busy。変更元・理由は未確認であり、他ownerと競合する再applyを繰り返さない。反映owner/現在のrelease選択を照合し、修復を維持できる経路へ接続する。
+- CFO：4b反映後、release-reconcilerのrun43699が11:12:12 UTCに3aeを再適用したowner記録を確認した。controllerはcurrent由来releaseを対象へ渡す。後続snapshotはplist345fe64f/current57e09ccfで、実loadedはDS前提失敗により未照合。旧3aeを現在値として固定しない。rootの単独target applyとcontrollerのrelease選択を調整し、競合再applyを繰り返さない。§705/CFO read-only診断。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
 - 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。今回の作業はspec更新/報告で、外部応募・返信・納品・再送0。残29の相対順序/current1、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
 
@@ -4940,7 +4940,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 
 #### 先頭2項目の実行対象と順序
 
-- 1.1（今の操作）：CrowdWorks64033100/63989657/63942104の公式契約詳細はregistered identity lease/既存provider lock内で取得済み。観測UTC12:51:37〜12:51:48、3件ともprovider_state funded、契約金額欄は税込表示あり/検出12円・10円/ambiguous/price_minor null。表示区分をまだ確認できず、どちらも確定契約金額・売上へ採用しない。代表64033100の同欄で表示区分を確認するread-only probe（handle31181）は進行中。候補を正式納品対象へ丸めない。証拠 `crowdworks-three-contract-detail-readback.json`。
+- 1.1（今の操作）：CrowdWorks64033100/63989657/63942104の公式契約詳細はregistered identity lease/既存provider lock内で取得済み。観測UTC12:51:37〜12:51:48、3件ともprovider_state funded、契約金額欄は税込表示あり/検出12円・10円/ambiguous/price_minor null。表示区分をまだ確認できず、どちらも確定契約金額・売上へ採用しない。代表64033100のrole/DOM probeは完了し、契約税込12円と子SPAN.net_amountの控除後報酬10円を区別した（§705）。getter修復のLuna/max有限run（handle38532）が専用main由来worktreeで進行中。候補を正式納品対象へ丸めない。証拠 `crowdworks-three-contract-detail-readback.json`。
 - 1.2：その3候補の作業指示・期限・実費から、実行する契約1件のIDと具体的成果物名を確定する。金額/要件/採算が確認できなければ、制作は開始しない。
 - 1.3：確定した契約と指定成果物だけを履行・正式納品し、同案件の公式記録を取得する。現時点で『何を制作するか』は未特定なので、架空の成果物名を記載しない。
 - 2：Coconala18211957の公式売上CSV行と振込/手数料/案件実費を照合する。公式取引完了を確認済みの案件を再制作するTODOではない。TikTok18180857とNPO18223833/18250352は引き続き追跡延期。
@@ -9220,3 +9220,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最新main由来専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-crowdworks-contract-amount-20261006`/branch `fix/lm-crowdworks-contract-amount-20261006`。Luna/max所有はpaid_adapter.pyと既存test_paid_adapter.py（必要なら同既存test内の実DOM構造fixture）。rootはspec/review/CI/main/immutable/実readbackを所有。他者source/state/browser/profile/branch/本番はworker変更禁止。新schema/framework/tool/mock商品なし。
 - RED→minimalGREEN、実採取markupに対応する価格12/net10ケース・曖昧primary reject・valid handoff/既存fence不変、通常gate・fresh read-only review・push/CI/main後、immutableのread-only公式GETで対象3件のpriceを確認する。unfinished worktreeをproduction profileへ接続しない。取得改善だけで1.2/1.3・納品Doneにしない。current1.1/残29順序不変。
 - 独立CFO17診断はfresh Sol/medium read-onlyで完了。11:12:12.602888 UTCのrelease-reconciler run43699がCFOへ旧3aeをchanged1/rc0で再適用した公式owner記録を確認。controllerはcurrent由来releaseを選ぶ。現plistと実loadedは別で、DS前提失敗により実loaded未照合。CFOへの競合reapplyを繰り返さず、controllerとrelease選択を調整する。証拠 `cfo-release-drift-review-result.txt`。
+
+### 706. 契約金額修復の専用source実装を開始
+
+- worktree `lm-crowdworks-contract-amount-20261006`/branch `fix/lm-crowdworks-contract-amount-20261006` はbase `2cf94f43669a8afdd9cf8bb84c8ba7764c323221`、owner `codex-money-printer-contract-amount`/24h lease取得。sparse index/checkoutを初期化しdirty0/対象adapter・既存test存在を確認。他者worktree操作0。
+- native thread上限の既知制約のため既存Codex finite runで実装を依頼。実runtimeのmodel gpt-6-luna/provider openai/effort max/workspace-writeをheader確認。所有2filesのみ、source/read-only fixture tests、外部effect0。read-onlyCFO診断runはexit0で終了しており、実装と同じstate/browser/branchへ重ねない。
+- source受入・commit/push/fresh review/CI/main/immutableと実3候補readbackは未完。現在cursor1.1、価格GETの改善を納品/売上Doneにしない。
