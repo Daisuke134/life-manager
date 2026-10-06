@@ -4,7 +4,7 @@
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 
-**現在の優先順位は内部loop復旧。§217の実行順1→14を正本とし、現在1、次2。Coconalaの外部納品/資料追跡は保留で、完了扱いではない。**
+**現在の残TODO・実行順・cursorの正本は§217。実行cursorは17。前段の保留は未完のまま保持し、SelfBuildは25、Lancersは26〜28で扱う。**
 **読み方：旧A番号・旧3〜53は履歴照合用。優先順位変更前の未完業務成果は§464に保持する。過去節のcursorを現在位置として使わない。**
 
 設計の詳細は次の資料を参照する。現在のTODO・実行順・状態の正本はこの文書の§217だけとする。
@@ -4873,7 +4873,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 - 変更理由：現在の有償仕事と販売行動へ時間を使い、既存観測CLIを使わない個別巡回・過去状態の再集計を止めるというDaisの明示指示。
 - 旧順序：Coconala旧保留→Agent Economy receipt→monitor/監査→応募/納品→storefront→会計→SelfBuild。旧44表は§611の履歴を参照。
-- 新順序：集約を終えた旧1だけを除き、未完旧2〜31を繰り上げた30表から、確認済みCrowdWorks応募の旧8だけを除いて残29へ連番化する。未完の相対順序は不変。現在cursor1.1はCrowdWorks3候補の公式金額field確認。納品対象と成果物は1.2で確定する。SelfBuildは25、Lancers再開26〜28、最終確認29。旧A番号は実行順や完了証明に使わない。
+- 新順序：集約を終えた旧1だけを除き、未完旧2〜31を繰り上げた30表から、確認済みCrowdWorks応募の旧8だけを除いて残29へ連番化する。未完の相対順序は不変。CrowdWorks3候補の金額取得・分類は完了。通常サービスの納品契約は未確定で残1を条件付き保留とする。現在cursorは下記実行表を参照。SelfBuildは25、Lancers再開26〜28、最終確認29。旧A番号は実行順や完了証明に使わない。
 - 各行の成果に必要な原因修復・検証はその行内で行う。正常な待機/観測不足を一律code故障へ変換しない。外部待ちは不足物・再開条件を残し、独立した収益channelを止めない。進行中effectを中断・重複させず、同branch/profile/state/provider effectの所有を重ねない。
 
 #### 現在の収益対象と不足情報（公式観測の集約）
@@ -4916,15 +4916,15 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 6 | Mercor旧応募occurrence18d6f9cb5bdaef98-33812の結果を公式応募記録へ照合し、停止解消後に未送信の適合listingを選んで応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
 | 7 | Coconala募集案件CLIから条件の合う未提案案件IDを選び、既存供給loopで提案する（案件ID未選定） | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
 | 8 | Freelancerの既存account/readiness CLIと実案件一覧を取得し、応募可能な案件IDを選んで応募する（案件ID未選定） | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
-| 9 | Upworkの既存account CLIでtax/withdrawal/応募準備を確認し、応募可能な案件IDを選んで提案する（案件ID未選定） | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
+| 9 | Upworkの公式automation制限解除証拠を確認する。解除証拠が得られた場合だけ既存CLIで適合案件を選び提案する。現在はUI自動化を再開しない | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
 | 10 | Coconala storefrontの実注文をCLIで検出した時に、その注文IDの商品条件で履行・納品する（現注文ID未確認、注文無しなら制作しない） | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
-| 11 | Capafyの公式商品一覧・販売導線を既存CLIで取得し、公開済み商品1件を選んで既存販売cycleを実行する（商品ID未選定） | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
-| 12 | Writerの販売可能な既存記事/商品と販売導線を取得し、1件を選んで既存販売cycleを実行する（商品ID未選定） | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
+| 11 | Capafy Hook Lab（8123079349）の実注文・売上・精算と実費を公式CLIで取得して結合する。自然販売促進は確認済みなので再実行を残作業にしない | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
+| 12 | Writer xcta4の記事購入/アーカイブ購読の実決済をStripe公式記録へ照合し、旧article-daily occurrenceと公開receiptの対応を解決する。購入導線確認は済み | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
 | 13 | Affiliateの既存program別conversion/commissionレポートを取得し、成約のあるprogram・取引IDを精算へ照合する（取引ID未選定） | 許可済み既存運用のconversion/commission/settlementと実費。 |
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
 | 15 | Fundraiserの既存申請cursorと公式募集条件を照合し、適合する申請先1件へ既存申請を進める（申請先未選定） | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | CFOのloaded版が旧3aeへ戻る反映経路を特定し、ANICCA/Honneの公式ASC・RevenueCatデータを維持できるCFO経路へ接続する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
+| 17 | ANICCA/Honne等のASC財務データをapp/SKU・期間・通貨でCFOへ結合し、接続済みRevenueCat入力を使った自然レポートと二重計上防止を確認する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
 | 18 | Investmentの既存接続口座・実約定・手数料・精算を公式read-only経路で取得し、同じ取引IDで会計へ結合する | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
@@ -4938,16 +4938,12 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 28 | Lancersの公式募集一覧から条件の合う未応募案件IDを選び、既存応募loopで応募する（案件ID未選定） | 既存応募loop/cap内の同案件公式応募記録。 |
 | 29 | 1〜28の公式応募・販売・納品・精算・実費の証拠をSSOTへ結合し、未達と外部依存を引き継ぐ | 実応募/販売/納品/精算/利益の証拠と保留台帳。未達を全体Doneにしない。 |
 
-#### 先頭の残作業：具体的な対象・操作・終了条件
+#### 納品・精算の対象と現在cursor
 
-- 条件付き保留（主項目1）：CrowdWorks64033100・63989657・63942104は採用応募/選考であり、通常のサービス成果物の納品対象ではない。契約金額getter修復と3件の公式readbackは完了済みなので残TODOから除く。適格な実サービス契約ID・依頼成果物・期限が確認された時だけ、その契約の履行を再開する。今は制作・再納品しない。
-- 2.1（現在cursor）：Coconala案件18211957について、既存revenue_collectorの公式売上取得経路で最新明細を取得し、保存済み公式CSVの同じトークルームIDと照合する。既に取得した明細を売上全履歴や銀行入金へ広げない。
-- 2.2：同案件に対応するCoconalaの振込明細/振込集約IDを公式read-only経路で取得し、口座側の入金receiptへ照合する。対応ID・振込日・銀行receiptが不足する場合は、その不足物を残す。振込操作は行わない。
-- 2.3：同案件の公式売上内訳で手数料と売上金の定義を確認する。一般手数料率から案件の手数料を逆算せず、売上金から二重控除しない。
-- 2.4：同案件の実作業に対応するprovider/tool/browserのusage・請求記録を取得し、案件ID/実行ID/期間で費用へ帰属する。取得できない実費はunknownとする。
-- 2.5：2.1〜2.4の証拠参照と不足物をCFO接続表へ記録する。公式取引完了済みの18211957を制作/納品待ちに戻さず、銀行入金・利益を証拠なしに確定しない。
-- 次の実行対象（3）：Coconala商品4313100「Webサイトの画像差し替えと公開表示確認」。既存listing_inventoryのseller inventory取得と公式商品ページで、現在の公開状態・購入/見積導線を確認する。HTTP403を非公開/商品無しへ変換せず、正規メニュー経由と直接URLの取得結果を比較して取得境界を特定する。
-- 後続の未選定商品/募集/task/注文は、表の対象platformの既存CLIでIDと条件を選定してから実行する。候補が無い時は架空案件を作らず、条件付き保留にして次の独立項目を進める。相対順序は変更せず、現在cursorは2.1、SelfBuild25とLancers26〜28は後段のまま。
+- 残1は条件付き保留。CrowdWorks64033100・63989657・63942104は採用選考であり、納品するサービス契約ではない。通常サービスの契約ID・成果物・期限が未確定なので、現在作る納品物はない。実契約が確認された時にだけ、その契約の成果物を制作して公式納品する。
+- 残2の対象はCoconala案件18211957。制作・取引完了・公式売上明細の照合は済んでいる。残操作は①公式振込明細の取得、②対応する銀行入金receiptとの照合、③同案件の公式手数料内訳の取得、④案件実行IDに結び付く実請求/usageの取得、⑤不足を含むCFO記録の更新。再納品・振込操作・一般率からの費用逆算はしない。
+- 現在cursorは17。ANICCA/Honne等のRevenueCat公式MRR入力はCFOへ接続済み。残操作はASCのIAP→app対応確認、Apple財務報告の期間・通貨・精算情報の結合、新入力を使ったCFO自然レポートの確認、RevenueCat observed revenueとの二重計上検証。不足するreport IDや銀行入金証拠は未確認で保持する。旧版反映原因の再調査は完了作業なので残TODOへ戻さない。
+- 実行順は表の1〜29を維持する。現在17であることは1〜16の完了を意味しない。対象未確定・provider制限・外部待ちの行は保留し、条件が揃った時だけ再開する。
 
 #### 実商品の販売準備（残4の独立準備・未完）
 
@@ -4978,7 +4974,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の既存有償案件の履行とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryは§217の現在cursorとSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -9639,3 +9635,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新観測UTC2026-10-06T17:32:07.717439でofficial options1/body6 GET、各単一appfilter/sentquery/HTTP200/options/body/envelopehashを保存。fresh Sol6.1 medium reviewerは6identityと全hash一致、latestcompleteOct5/Oct6incomplete、観測差0.604042sを確認しMRR限定SHIP。ANICCA20.34USD、他5explicit0、6verified snapshots/MRRcoveragecomplete。ASC notqueried/gap、settled/bank/profit/companytotalはunknownのまま。private cfo-mobile-scoped-mrr-{input,request-refs,adapter-records,summary}.jsonと6body/options。
 - Cfoだけのcurrent-mrr.jsonを ~/.local/state/life-manager/life-manager-cfo-hourly/mobile-readbacks/ にatomic mode600で保存し、shared.envのLM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES単一keyをlock下で接続。marketing/acquisition input変更0、source/価格/providerモデル変更0。consumer getterで実path/fileを確認。private cfo-mobile-mrr-input-connection.json、targetSHA1a01aa34...。AGMSG CFO seatへ当初.env不変更方針からの変更と接続範囲を即共有、peerの着手/承認とは扱わない。
 - 接続は実設定済みだが自然CFOreportの新入力readbackは未確認。current17は自然readbackとASC financial/reportID/currency/settlement不足の照合を続ける。MRR24h freshnessは緩めず、次のofficial refreshが必要。台帳/manualsend/再起動/外部effect0、主29相対順序/前段保留/TaskMarket受賞待ち/SelfBuild後段保持。
+
+
+### 761. 残TODOの対象・操作を明確化
+
+- 目的は曖昧な「既存有償案件の納品/検収」を実行可能な対象・操作へ直すこと。範囲は文書更新のみ、完了条件は§217の現cursorと残操作が一致し、対象未確定を架空案件で埋めないこと。
+- CrowdWorks3件は採用選考で通常サービス納品対象ではない。Coconala18211957は納品済みで、残りは公式振込・銀行receipt・手数料・実請求の照合。確認済み成果を再実行するTODOから除く。
+- 旧cursor1/2の案内を現在17へ統一し、Capafy Hook Lab、Writer xcta4、Upwork公式制限、Mobile CFO接続の既知状態に残操作を合わせる。29項目の相対順序は変更しない。今回新たなprovider観測・外部送信・実装は行わない。
