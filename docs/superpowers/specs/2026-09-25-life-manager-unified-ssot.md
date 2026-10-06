@@ -9732,3 +9732,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Lunaは訂正したsecretless同形fixtureを再実行。summary header/data/footer3、detail preamble3/header/data/footer別表、文字列SKUと購読Apple Identifierを現物に一致させた。focused3testはRED:normalizer未実装AttributeError、integrationは新packet env未使用で旧receipt3/期待1。ここから最小normalizer/wire実装を進める。REDをsource完成や収益証明にしない。
 - root独立項目18の既存private原応答をorder IDで照合。直近buy/sell各orderにfill1/fee1、filled_at/qty/avgpriceがactivityと一致。原source SHAを付けinvestment-current-order-fill-fee-join.jsonへ保存。P&L/bankarrivalはfalseではなく未検証フラグ、金額計算・外部provider操作0。
 - current17維持。残りはASC sourceGREEN/finance fresh review/統合/実入力接続/自然report、18は正規入力結合/精算実費/review。確認済み観測を再提出・再取引へ戻さない。
+
+
+### 774. CFO修正の実データ検証用packetをprivate準備
+
+- raw取得済みFINANCIAL ZZ/FINANCE_DETAIL Z1/公式app→subscription relationshipの3artifactを、Lunaテストschemaと同じpacketへまとめた。各原SHA、公式download metadata、実期間を保持し、observed_atは元detail取得時刻を使用。local組立時刻をprovider観測時刻へすり替えない。native report IDは作成しない。
+- private cfo-asc-current-official-financial-packet.json/SHA b4485cbe9e0746fa90fdedd011ac64262e52dfab5cca09e1a42d56aa32f84850/mode600。vendor/credential/raw個人列をrepo/log/chatへ複製しない。本番env接続・台帳書込・送信0。
+- LunaへGREEN後の実packet read-only検証を依頼。期待は根拠付き1receipt＋coverage gaps、全期間/全社Doneへの拡張なし。現在17/sourceworker live、完了待ちを再起動・重複委譲で代用しない。
