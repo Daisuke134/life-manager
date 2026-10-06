@@ -9642,3 +9642,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 目的は曖昧な「既存有償案件の納品/検収」を実行可能な対象・操作へ直すこと。範囲は文書更新のみ、完了条件は§217の現cursorと残操作が一致し、対象未確定を架空案件で埋めないこと。
 - CrowdWorks3件は採用選考で通常サービス納品対象ではない。Coconala18211957は納品済みで、残りは公式振込・銀行receipt・手数料・実請求の照合。確認済み成果を再実行するTODOから除く。
 - 旧cursor1/2の案内を現在17へ統一し、Capafy Hook Lab、Writer xcta4、Upwork公式制限、Mobile CFO接続の既知状態に残操作を合わせる。29項目の相対順序は変更しない。今回新たなprovider観測・外部送信・実装は行わない。
+
+
+### 762. ASC現財務報告のSKU照合とCFO接続契約の不足
+
+- ASC既存handle36034はexit0で完了。subscriptions list --app 6755129214の保存結果は6762049696/ai.anicca.app.ios.yearly.b/ONE_YEAR/APPROVEDを1件、次ページなし。外部mutation0。
+- FINANCIAL JP/FINANCE_DETAIL Z1のfiscal2026-12は実期間2026-08-30〜09-26。SKU6762049696、販売1件、reported developer proceeds4250JPY、詳細Transaction/Settlement2026-09-12。銀行着金/MRR/利益ではない。
+- fresh Sol6.1/medium reviewer asc_parent_binding_reviewは両TSV SHA・SKU・金額・日付一致を限定SHIP。親app取得経路は保存mappingにAPI URL/raw relationshipが無いため独立証明HOLD、provider native report IDも未取得。
+- loaded capafy_mobile.pyはreport_id/finalと親app ID一致を要求するが実TSVはSKU ID。次は親app/SKUの公式対応証拠の補完と、公式report identityを捏造しない接続契約の確認。現自然CFO reportは16:44観測のままで新MRR入力反映未確認。手動sender/再送/コード変更/ledger write0。
+- 現cursor17維持。private証拠asc-current-sku-parent-app-mapping.json、asc-current-financial-detailed-readback.json、asc-current-cfo-contract-gap.json。文書追記の最初の試行はcwd未指定で失敗し変更0、専用worktreeで再実行。
