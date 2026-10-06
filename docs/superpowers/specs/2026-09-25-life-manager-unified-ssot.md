@@ -8580,3 +8580,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6727最終head1c1478b22210380fe10e860c7fc1bcc979ce3cccは全9CI SUCCESS/CodeRabbitSUCCESSを公式ghで確認。fresh reviewSHIPとsource130PASSを受入、gh pr merge --merge --admin --match-head-commitで通常統合。公式stateMERGED/merge4acfd541a7c9fbeeb012767a5c6de9f8233256a6/mergedAt2026-10-06T05:10:17Z、fetch後origin/main一致。
 - 先行release builder3633は終了、lock不在を確認。currentはa9868ad4/ALL、cut scriptはorigin/main同blob。既存cut-loop-releaseでpushed main4acfd541a7から完全candidate releaseを開始（LOOPS_ACTIVATE_CURRENT=0）、handle61887。共有current切替/他ownerapply0。private log state/cli-observability-20261006/crowdworks-release-cut.log。
 - 完全release終了/metadata/source一致/同readonly helperの公式readbackは未完。source/main成功は売上/納品/全loop成功とは扱わない。current1/主経路31/Lancers後段を維持。
+
+
+### 630. CrowdWorks観測CLI修復のmain/完全release/公式readback PASS
+
+- cut handle61887はexit0で完了。完全immutable /Users/anicca/loops/releases/20261006T141051-4acfd541 のRELEASE sha4acfd541a7c9fbeeb012767a5c6de9f8233256a6/release_paths ALL/provenance ancestor-of-origin-main、source paid_adapter.pyのmain blob一致、release書込不可をroot確認。共有current切替/他loopapply0。
+- 同releaseの既存read_only_inventoryを正規crowdworks:dais guardで実行、guard取得/解放0、helper ok/source_complete true、返却5候補、detail_unavailable0。5件すべて契約金額表示候補[12,10]、amount_observation.status ambiguous、production price_minorは全nullのまま。safe parserが実DOMで取得できること、推測価格補完なしを公式provider読取で確認。private原本state/cli-observability-20261006/crowdworks-final-inventory-1791263528756235000.json。
+- この限定CLI gap修復はsource130PASS/freshreviewSHIP/全9CI/main/完全release/同provider readbackまでPASS。funded5を未納品有償仕事5/確定売上5/利益へ変換しない。送信/回答/納品/旧fence解除0。current1の他channel取得・現案件/注文/精算の未確認は残り、全体Doneではない。
+- AGMSG lm-crowdworksへ変更・検証・残る財務/納品未知・runtime apply未実施をsend成功で報告。次はCoconala現在受注/商品購入経路の取得境界と、他channelの現行owner/観測範囲を閉じて収益次手を選ぶ。主経路31/Lancers後段を維持。
