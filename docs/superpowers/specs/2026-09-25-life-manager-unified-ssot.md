@@ -9990,3 +9990,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - gpt-6.1-sol/mediumの独立read-only reviewer handle84885はexit0、判定HOLD。sourceテスト成功だけでは不足する4条件を隔離CLI main→build→collectで再現：不正incomplete型がcomplete化して999×6をverified、ASC/static両path未設定のas_of gapが正常RC MRRをunknown化、逆順periodで古値verified、失敗appの完了時刻がimplicit snapshotへ反映されない。
 - rootは結果private cfo-mrr-live-fresh-review-result.mdを読み、lm-cfo-mrr-live-1007へ4条件と最小RED→GREENを送信。reviewはprimary所有、担当からの重複review起動は不要と明示。marketing helperの変更は範囲外、CFO側検証/接続で解消する。
 - default-off/明示過去snapshot/hash・definition・currency不正拒否/正常7GET/ASC二重計上防止は反証で崩れなかった。実API6app取得の§805証拠は正常応答の限定証拠であり、4条件の解消を代用しない。未commit source、本番変更0、cursor17維持。
+
+
+### 807. CFO修正指示の未受領を解消し、5条件付きで同sourceを継続
+
+- rootが新scope guardを公式保存応答へ照合。query end_date10/06にAPIは10/06 UTC epochを返すが、新guardは翌日を要求し正常応答をgap化する。12tests PASSのfixtureはこの形を誤って模倣していたため、source成功として受入しない。§806の4件に加えこの1件を修正対象へ確定。
+- 旧Luna有限runは実task/handle23227がliveでもAGMSG受領証拠なし。primary所有reviewの重複準備と未受領指摘による誤った修正継続を止めるため、exact argv/worktree/outputに一致する自己所有PID2204/2211だけへSIGINT、handle exit1とPID不在を確認。観測timeoutを理由にrestartしたものではない。本番/別owner/外部effect変更0。
+- 既存差分を維持し、5条件・レビュー結果path・inbox受領・reviewer起動禁止をboot promptへ直接渡して同worktree/branchをgpt-6-luna/max有限run handle12753で再開。private prompt cfo-mrr-luna-correction-boot-prompt.txt/log cfo-mrr-luna-correction-run.jsonl。追加source編集は担当のみ、rootが受入/統合。
+- 実入力結合probe cfo-mrr-live-reader-asc-join-readback.json はASC receipt1/RC subscription_snapshot6/RC settled receipt0。これは正常入力のsource証拠、レビュー指摘解消や本番成果の代用ではない。cursor17と既存順を維持。
