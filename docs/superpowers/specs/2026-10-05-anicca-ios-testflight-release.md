@@ -2,15 +2,15 @@
 
 ## Goal
 
-Deliver the merged ANICCA onboarding/paywall changes in an installable TestFlight build, then build a measured growth loop for the six published iOS apps, starting with Anicca. The business target is USD 10,000 verified net MRR; it is not achieved and must not be reported as achieved.
+Grow Anicca first through distribution, then repeat the measured playbook across the six currently published iOS apps. The intermediate acquisition target is 100 ASC first-time downloads per day per app on a trailing seven-day average; ramp Anicca first, then the other five. At target this is 600 first-time downloads/day across the portfolio, not a forecast. Anicca's business target is USD 10,000 verified net MRR; it is not achieved and must not be reported as achieved. The TestFlight release remains a separate, non-blocking lane for marketing distribution.
 
 This lane uses App Store Connect CLI/API and TestFlight. TapKit is not a dependency.
 
 ## Source, ownership, and current readback
 
-The app source of truth remains Life Manager main. PR #6619 contains the onboarding/paywall source; PR #418 mirrors the release source and Maestro flow to anicca-products main. The target source sets app, widget, and notification-service targets to version 1.9.6, build 391. Fresh readbacks in this update were taken on 2026-10-07 JST (2026-10-06 21:45–21:47 UTC); where this section differs from the earlier dated snapshots below, this readback is current.
+The app source of truth remains Life Manager main. PR #6619 contains the onboarding/paywall source; PR #418 mirrors the release source and Maestro flow to anicca-products main. The target source sets app, widget, and notification-service targets to version 1.9.6, build 391. Fresh distribution, ASC acquisition, RevenueCat, and Mixpanel readbacks in this update were taken on 2026-10-07 JST; source data windows and processing dates are listed separately. The TestFlight cursor below remains the separate 2026-10-06 readback and must be refreshed before any release action.
 
-The separate mobile-metrics implementation remains on branch feat/lm-mobile-metrics-20261003 in its own worktree, with no open PR in the 2026-10-06 readback. It owns those Life Manager acquisition/CFO ingestion edits; this TestFlight lane consumes its read-only provider results and does not edit its files or worktree.
+The existing mobile-metrics implementation remains in its owner-held `feat/lm-mobile-metrics-20261003` worktree. It owns Life Manager acquisition/CFO ingestion edits; this growth spec records evidence and routes collector gaps to that lane without editing its locked worktree.
 
 ## Published portfolio
 
@@ -27,6 +27,25 @@ ASC lists 24 app records, of which 6 are published across 175 territories. The o
 
 Anicca and Honne each have zero ratings in the US public listing readback. The public TestFlight join URL exists at https://testflight.apple.com/join/5j9nuumu, but it is not evidence that the intended 1.9.6 build is installable.
 
+## Distribution and marketing metrics — 2026-10-07 readback
+
+The organic publishing system is active, but social views are not yet joined to installs. Postiz reports 31 connected integrations overall (9 Instagram, 17 TikTok, 2 X, 3 YouTube). The current product registry has 15 Anicca and 2 Honne posting lanes across Instagram, TikTok, and YouTube. A read-only Postiz post-list readback for approximately 2026-09-07–2026-10-07 found 605 Anicca and 80 Honne posts in `PUBLISHED` state, each with a release ID and public URL. It also found 21 Anicca `ERROR` posts: 19 on one Instagram cards lane, one on another Instagram lane, and one on TikTok. Their provider error details have not yet been classified; do not blindly replay them.
+
+| Product / channel | Published posts in the readback window | Latest Postiz account-level metrics, rolling 30 days | Store-link evidence in post text |
+|---|---:|---|---|
+| Anicca Instagram (6 accounts) | 251 | 70,804 views, 2,584 summed reach, 231 likes, 22 shares, 88 saves, 0 comments | 0/251 contain an App Store URL, Apple `ct`, or UTM parameter; profile/bio links were not verified |
+| Anicca TikTok (7 accounts) | 248 | 27,123 views; other engagement fields are not returned by this Postiz query | 0/248 contain an App Store URL, Apple `ct`, or UTM parameter; profile/bio links were not verified |
+| Anicca YouTube (2 accounts) | 106 | Postiz did not return a views metric for either account; this is unavailable, not zero | 52/106 contain the exact Anicca App Store app ID, but none contain Apple `ct` or UTM tags |
+| Honne TikTok (2 accounts) | 80 | 6,040 views; other engagement fields are not returned by this Postiz query | 29/80 contain the exact Honne App Store app ID and an Apple campaign parameter, but all 29 reuse one campaign token; ASC campaign counts remain unavailable |
+| X | 0 on the configured Anicca target account | No Anicca-target account metric readback | A separate connected X account has 25 posts but is not mapped to Anicca/Honne; the Anicca X target is held |
+| SEO | No Anicca-specific Search Console/organic-install readback found | Unknown | No Search Console query-to-App-Store attribution is connected in the current readback |
+
+These platform figures are account-level totals and are not unique people; overlapping audiences cannot be deduplicated. Do not divide these views by ASC downloads because the date windows, identities, and click-attribution path are not joined. The current feed shows distribution activity, not distribution efficiency.
+
+No paid-media spend/cost-per-install readback is present in this mobile campaign snapshot; organic account views cannot be used to claim CAC, ROAS, or paid conversion.
+
+The native-metrics adapter already supports post checkpoints at 6h, 24h, 72h, and 7d for views, reach, impressions, likes, comments, shares, and saves. However, persisted account snapshots are current only through 2026-09-30 for the most active accounts; the local mobile daily summary is last dated 2026-09-01, the weekly portfolio summary is 2026-W37, campaign coverage is last observed 2026-09-26, and the latest persisted ASC acquisition snapshot is 2026-10-03. Today's direct provider readbacks are fresher than the durable daily summaries. The next metric task is to restore the existing writeback/report path rather than add a new analytics vendor or schema.
+
 ## Money: what is verified now
 
 | App/source | Latest verified observation | Meaning |
@@ -34,17 +53,17 @@ Anicca and Honne each have zero ratings in the US public listing readback. The p
 | Anicca, RevenueCat | USD 20.34 MRR and 5 active subscriptions; latest complete chart point is 2026-10-05 UTC | Current provider-observed subscription run rate, not reconciled net proceeds |
 | Honne, RevenueCat | USD 0 MRR and 0 actives; latest complete chart point is 2026-10-05 UTC | Current result for this mapped RevenueCat app, not lifetime revenue |
 | Apple Finance Detail | The latest completed report covers 2026-08-30–2026-09-26. It contains one Anicca Annual sale: partner share JPY 4,250, quantity 1, transaction and settlement date 2026-09-12. No Honne row appears in this report. | Official Apple financial row; no matching bank receipt or expense reconciliation was verified here |
-| Other four published apps | No current RevenueCat app/product binding was found in the verified project crosswalk | Their MRR is unknown, not zero |
+| Other four published apps | Current CFO RevenueCat reader includes four legacy/non-published product bindings (BreathCalm Test, SleepRitual, DeskStretch, and MicroMood), not Dhamma Quotes, Sleep Reset, STUDIO CHERIE, or Thankful | MRR for those four currently published apps is unknown, not zero |
 
 The exact attribution is ASC subscription child record 6762049696 plus SKU ai.anicca.app.ios.yearly.b under Anicca parent app 6755129214. This corrects the 2026-10-05 SSOT note that left the row unassigned after comparing the child record ID directly to the parent app ID. The row remains Apple partner share, not a bank receipt or company net result.
 
-The current mobile-portfolio net MRR is unknown. RevenueCat MRR, Apple partner share, bank payout, refunds, platform fees, and direct app/provider costs are different measures and are not yet joined for one common period.
+The current mobile-portfolio net MRR is unknown. The CFO RevenueCat reader now returns six app-scoped MRR points, but only Anicca and Honne overlap the current six-app published set; do not label the other four legacy rows as current live-app MRR. RevenueCat MRR, Apple partner share, bank payout, refunds, platform fees, and direct app/provider costs are different measures and are not yet joined for one common period.
 
 At Anicca's current RevenueCat ratio, USD 20.34 / 5 is about USD 4.07 MRR per active subscription. USD 10,000 / USD 20.34 is about 492 times the present provider-observed MRR; the same observed mix would require about 2,459 active-subscription equivalents. This is a scale calculation, not a forecast or net-MRR proof. The Apple JPY 4,250 report row is not monthly MRR and must not be divided by 12 to claim MRR.
 
 ## Acquisition and store-page funnel
 
-The latest read-only run of the main ASC acquisition collector was processed on 2026-10-06. For Anicca, its download and discovery reports cover 2026-10-04–2026-10-05: 3 first-time downloads, 25 unique impressions, and 0 unique product-page views. The descriptive store-total ratio is 3/25 (12.0%) on only 25 impressions; it is not campaign attribution or a stable conversion estimate. Page-view-to-install and install-to-paid remain unavailable. For Honne, the collector returns 1 first-time download over 2026-10-02–2026-10-05 and 114 unique impressions / 0 unique product-page views over that reported window, but the source report processing dates differ (2026-10-04 vs 2026-10-06), so do not calculate a matched conversion rate. The current main collector registers only Anicca and Honne; it does not produce fresh rows for the other four published apps. The ASC web-cohort read for Anicca previously returned asc_web_session_expired; no install-to-paid numerator is verified.
+The latest read-only run of the main ASC acquisition collector was processed on 2026-10-06. For Anicca, its download and discovery reports cover 2026-10-04–2026-10-05: 3 first-time downloads, 25 unique impressions, and 0 unique product-page views. The descriptive store-total ratio is 3/25 (12.0%) on only 25 impressions; it is not campaign attribution or a stable conversion estimate. The raw average is 1.5 first-time downloads/day across only two data days, about 67x below the 100/day intermediate target. Page-view-to-install and install-to-paid remain unavailable. For Honne, the collector returns 1 first-time download over 2026-10-02–2026-10-05 and 114 unique impressions / 0 unique product-page views over that reported window, but the source report processing dates differ (2026-10-04 vs 2026-10-06), so do not calculate a matched conversion rate. The current main collector registers only Anicca and Honne; it does not produce fresh rows for the other four published apps. The ASC web-cohort read for Anicca previously returned asc_web_session_expired; no install-to-paid numerator is verified.
 
 | App | Latest acquisition result |
 |---|---|
@@ -59,35 +78,48 @@ Anicca has no campaign configured. Honne's configured campaign currently returns
 
 ## Product analytics and onboarding
 
-Mixpanel export for 2026-09-08 through 2026-10-06 contains 2,790 events and includes a partial final UTC day. The events are predominantly from public app version 1.9.4, build 390.
+The official Mixpanel Raw Event Export query for 2026-09-08 through 2026-10-06 returned 2,813 events; 2026-10-06 was still a partial UTC day at read time. App metadata was present on 2,811 events: 2,793 from version 1.9.4/build 390, 12 from 1.9.3/build 370, and 6 from 1.6.3/build 332.
 
 | Mixpanel event | Event count | Distinct IDs |
 |---|---:|---:|
-| onboarding_started | 128 | 28 |
-| onboarding_step_advanced | 584 | 20 |
-| onboarding_completed | 52 | 17 |
-| paywall_primer_viewed | 497 | 23 |
-| paywall_plan_selection_viewed | 214 | 19 |
+| onboarding_started | 129 | 29 |
+| onboarding_step_advanced | 594 | 21 |
+| onboarding_completed | 53 | 18 |
+| paywall_primer_viewed | 499 | 24 |
+| paywall_plan_selection_viewed | 216 | 20 |
 | purchase_completed | 206 | 5 |
 | onboarding_paywall_purchased | 6 | 1 |
 | trial_started | 0 | 0 |
 | rc_initial_purchase_event | 1 | 1 |
 
-A small exploratory seven-day cohort of 20 distinct IDs that started onboarding between 2026-09-08 and 2026-09-28 shows 14 users reaching the first recorded onboarding advance, 12 completing onboarding, 12 reaching the plan-selection paywall, 2 emitting purchase_completed, 1 emitting onboarding_paywall_purchased, and 0 emitting trial_started within seven days. This is an event-defined Mixpanel cohort, not an App Store install cohort or proof of payment. In particular, 206 purchase_completed events across 5 distinct IDs do not mean 206 paying users; reconcile client events to RevenueCat entitlements and Apple Finance Detail before using purchase conversion or revenue.
+A matched event-defined seven-day cohort of 20 distinct IDs that first started onboarding between 2026-09-08 and 2026-09-29 shows 14 users reaching the first recorded onboarding advance, 12 completing onboarding, 12 reaching the plan-selection paywall, 2 emitting `purchase_completed`, 1 emitting `onboarding_paywall_purchased`, 0 emitting `trial_started`, and 0 emitting `rc_initial_purchase_event` within seven days. This is not an App Store install cohort or proof of payment. The 206 `purchase_completed` events across 5 distinct IDs do not mean 206 paying users.
 
-Mixpanel and RevenueCat SDKs are already integrated in the Anicca source. Mixpanel currently receives events, so do not add a new analytics vendor as the first action. Use ASC for impressions/downloads/settlement, Mixpanel for app events, and RevenueCat for subscription state; join by a defined app and cohort identity. Source code also configures PostHog feature flags/session replay, but a current PostHog event readback was not verified. Session replay is enabled in the source with text inputs masked and images unmasked; review image masking and ensure affirmation/mood content is not exposed before expanding replay.
+All 2,813 events have a `distinct_id`, but only 182 carry `$user_id`; none of the selected onboarding or `purchase_completed` events carry `$user_id`. The export contains no campaign/UTM properties. There is no reliable current user-level join from a social post or ASC install through Mixpanel to a RevenueCat entitlement. Treat `purchase_completed` as client telemetry until it is reconciled to RevenueCat and Apple Finance Detail.
+
+Mixpanel and RevenueCat SDKs are already integrated in the Anicca source. Mixpanel currently receives events, so do not add a new analytics vendor. Use ASC for store acquisition/settlement, Mixpanel for distinct-user app events, and RevenueCat for subscription state; the current user-ID/campaign join is missing as described above. Source code configures PostHog feature flags/session replay, but no current PostHog event readback was verified and the source leaves images unmasked. Do not expand replay; keep Mixpanel as the current in-app event source until privacy and a decision need are established.
 
 The v7 onboarding/soft-paywall Maestro flow passed 1/1 on Staging in 46.038 seconds. The 46-second MP4 is at /Users/anicca/.local/state/life-manager/maestro-evidence/anicca-ios/20261005T140737/maestro/2026-10-05_151457/ANICCA v7 Onboarding and Soft Paywall/startRecording/anicca-onboarding-v7.mp4. It was resent to Telegram chat Cloud Life Manager on 2026-10-06 and read back as message 107093. Its caption says Staging, not TestFlight or purchase/restore evidence. The 13 screenshots were previously sent to Saved Messages, not resent to Cloud Life Manager. Staging has no RevenueCat offerings.
 
 ## Growth direction
 
-1. Distribution is the first growth lever, with attribution tags configured as each asset is published. Run consistent social posts and articles around one concrete Anicca outcome; give each channel/creative its own App Store campaign or Custom Product Page URL, then read back impressions, page views, and downloads by source.
-2. Improve the store page after traffic is flowing. Test a single screenshot/icon/app-preview hypothesis at a time. Apple Product Page Optimization supports up to three treatments and reports impression/conversion/confidence; wait for meaningful traffic and at least 90% confidence before choosing a winner. Apple Custom Product Pages provide distinct URLs and per-page acquisition/engagement reporting. These are measurement tools, not a promised lift.
-3. Use the live Mixpanel funnel to find onboarding exits by distinct-user cohort, not event totals. The current small cohort points to testing the first value step and first paywall exposure: show a personalized affirmation quickly, defer notification permission until its benefit is clear, and keep recurring price, trial terms, close, and restore behavior explicit. The v7 soft paywall is a candidate, not a validated winner. Decide hard versus soft paywall only from a properly assigned cohort.
-4. Track trial start, verified first purchase, restore, cancellation/refund, and D1/D7/D30 retention. Retention cannot be postponed entirely in a subscription business because churn determines whether MRR accumulates.
-5. Reconcile settled Apple proceeds and variable provider/acquisition costs for Anicca before calling the $10,000 target net MRR. Once Anicca's channel, conversion, retention, and positive net contribution are repeatable, apply the same template to the other five published apps. Do not scale the 18 unpublished ASC records as if they were live products.
+Distribution remains the first growth lever, but the present evidence shows high posting volume without an attributable install path. Keep the existing Anicca/Honne publishing lanes running while restoring metric freshness and adding trackable links; do not increase account count or run multiple creative/ASO/onboarding experiments at once. Reuse the existing Postiz publication receipts, native-metrics checkpoints, per-publication campaign-token generator, ASC collector, and CFO RevenueCat reader. Before the next creative direction change, inspect current top-selling affirmation apps and their public store/social formats; this benchmark is a single preparation step, not a second experiment.
 
-Apple references: [Product Page Optimization](https://developer.apple.com/app-store/product-page-optimization/), [Custom Product Pages](https://developer.apple.com/app-store/custom-product-pages/), [Xcode Cloud with GitHub](https://developer.apple.com/documentation/xcode/connecting-xcode-cloud-to-github), [RevenueCat API v2](https://www.revenuecat.com/docs/api-v2), [Mixpanel iOS SDK](https://docs.mixpanel.com/docs/tracking-methods/sdks/swift), [PostHog iOS SDK](https://posthog.com/docs/libraries/ios).
+The dashboard should show three separate layers on aligned dates: (1) marketing by platform/account/post/campaign (published URL, views/reach, engagement, link clicks, errors, freshness), (2) app acquisition and paid state (ASC impressions, product-page views, first-time downloads, campaign/source, and RevenueCat trials/active MRR/renewals/cancellations), and (3) in-app experience by distinct-user cohort (first value, onboarding step/completion, paywall, trial, verified purchase/restore, and D1/D7/D30 retention). A view is not a user; an App Store impression is not an install; client purchase events are not a payment; RevenueCat MRR is not settled net revenue.
+
+```mermaid
+flowchart LR
+  P[IG / TikTok / YouTube / X / SEO posts<br/>native reach and views] -->|tracked CTA| C[Channel campaign link<br/>click receipt]
+  C --> A[App Store Connect<br/>impressions / page views / first-time downloads]
+  A -. aggregate install cohort; no user join yet .-> M[Mixpanel<br/>onboarding and paywall cohort]
+  M -. limited user ID coverage .-> R[RevenueCat<br/>trial / paid entitlement / MRR]
+  R -. settlement and costs not joined .-> F[Apple finance + bank + actual costs<br/>verified net MRR]
+```
+
+The distribution gate is 100 first-time downloads/day/app on a trailing seven-day average, starting with Anicca. Continue to the other five public apps using their own links and acquisition rows. Do not count the 18 non-published ASC records. Capture the ASC/RevenueCat and Mixpanel baseline while distributing, but do not run ASO or onboarding experiments during this phase. Begin onboarding refinement only after all six published apps reach their per-app distribution target; start with one Anicca cohort and then move one app at a time. ASO stays parked unless aligned ASC evidence shows a product-page conversion bottleneck; only then run one screenshot hypothesis with Apple Product Page Optimization. The soft-paywall flow remains a candidate, not a validated winner.
+
+Use the paid subscription and actual settlement/cost readbacks to track refunds, fees, churn, and net MRR. A USD 10,000 Anicca net-MRR target must be proved from same-period receipts and actual costs; the current USD 20.34 RevenueCat MRR is only a scale reference. At its current USD 4.07 MRR/active, it implies about 2,459 active-subscription equivalents before costs, not a forecast. A factory with 10 products each at USD 10,000 net MRR would equal USD 100,000/month; 1,000 such products would equal USD 10,000,000/month. Those are portfolio arithmetic, not a prediction that every app will succeed.
+
+Apple references: [Product Page Optimization](https://developer.apple.com/app-store/product-page-optimization/), [Custom Product Pages and their acquisition reporting](https://developer.apple.com/app-store/custom-product-pages/), [Xcode Cloud with GitHub](https://developer.apple.com/documentation/xcode/connecting-xcode-cloud-to-github), [RevenueCat API v2](https://www.revenuecat.com/docs/api-v2), [Mixpanel iOS SDK](https://docs.mixpanel.com/docs/tracking-methods/sdks/swift), [Mixpanel Raw Event Export](https://developer.mixpanel.com/reference/raw-event-export), [YouTube Reach reports](https://support.google.com/youtube/answer/9314355), [PostHog iOS SDK](https://posthog.com/docs/libraries/ios).
 
 ## TestFlight release cursor — current readback
 
@@ -99,17 +131,19 @@ ASC currently lists GitHub Cloud and repository `Daisuke134/anicca-products`; re
 
 Growth measurement and distribution are independent of the Xcode Cloud recovery, so these two lanes can progress in parallel. Distribution remains the first revenue-growth lever; the TestFlight lane remains the release cursor.
 
-### Growth lane — start now
+### Growth lane — distribution first, measurements in the same flow
 
-1. **Acquire full ASC coverage (owner: mobile-metrics lane):** verify the exact ASC analytics request/report mapping for Dhamma Quotes, Sleep Reset, STUDIO CHERIE, and Thankful; add/read their rows through that lane without editing its active worktree here. Done when all six published apps have a current data-date row or an explicit provider error/next observation, and every download/impression comparison uses aligned dates.
-2. **Create tracked distribution links (owner: mobile growth):** create distinct Apple campaign or Custom Product Page URLs for each channel and creative. Done when every planned social/article asset has a stored URL and campaign identity before publication.
-3. **Publish and read back distribution:** publish the approved social posts/articles against those links. Done when post URLs/IDs are recorded and the corresponding official ASC impressions, page views, and first-time downloads are read after processing; absent attribution stays unknown.
-4. **Refresh the user funnel (owner: mobile-metrics lane):** query Mixpanel by distinct users for onboarding start → steps → completion → paywall → trial/purchase/restore and exact UTC cohorts; reconcile purchase/trial events to RevenueCat entitlements and Apple rows. Done when event counts, unique users, date range, identity join rate, and missing fields are reported separately.
-5. **Close analytics privacy gap:** verify PostHog image masking before expanding session replay; keep affirmation, mood, and other private text out of event properties. Done when settings and a safe test event/session readback match the policy.
-6. **Run one store-page experiment:** after enough traffic, test one screenshot hypothesis using Apple Product Page Optimization and its tagged page link. Done when ASC experiment exposure, conversion, and confidence are read back; do not call a small sample a winner.
-7. **Run one onboarding/paywall experiment:** assign a matched install cohort to the current flow and one focused change (including the soft-paywall option only as a test). Measure completion, verified trial/purchase, restore, refund/cancel, and D7/D30 retention. Done when cohort denominators and provider-confirmed subscription outcomes are available; Mixpanel `purchase_completed` alone is not payment proof.
-8. **Prove Anicca unit economics:** join same-period Apple proceeds, refunds, fees and bank settlement with RevenueCat subscription state and actual app/provider/acquisition costs. Done when net contribution and net MRR are calculated without estimates/unknowns being treated as zero.
-9. **Scale only a repeatable loop:** after Anicca shows repeatable attributed acquisition, conversion, retention, and positive net contribution, apply the measured playbook to the other five published apps. Done when each app has its own source-linked acquisition and same-period net economics; the USD 10,000 net-MRR goal remains open until verified.
+1. **Complete A1 duplicate-content proof:** PR #6127's carousel guard is in main, but verify a fresh 7-day window of published IDs/content hashes for the affected Instagram/TikTok carousel lanes and the separate Anicca YouTube pipeline. Done only when a fresh natural readback shows zero same-account caption/slide hash repeats inside the guard window; if a duplicate remains, fix that exact owner lane and repeat the readback. Published Postiz rows alone do not prove creative uniqueness.
+2. **Restore fresh native metrics writeback (owner: mobile-metrics lane):** read the owner status and exact last checkpoint, then restore the existing Postiz 6h/24h/72h/7d collection and daily/weekly summary. Done when a fresh natural post checkpoint is persisted with post ID, account, platform, window, views/reach/engagement, field-level unavailable reasons, and observed_at. Do not edit the locked `lm-mobile-metrics-20261003` worktree.
+3. **Wire trackable store links (owner: mobile growth):** use the existing product CTA and Apple campaign-token code to create a stable app×channel link for Instagram/TikTok profiles and tagged publication links for YouTube descriptions; pilot one app/channel token before rolling it out. Read back every public profile/description link and ensure it resolves to the exact app ID. Keep the planned X/SEO landing route separate until its source/property is ready. Do not run creative A/B tests during this setup.
+4. **Close the current publish failures:** inspect the official provider readback for all 21 Anicca Postiz `ERROR` rows, identify exact account/error/effect state, and repair owner-local causes. Done when every row is a verified published item or a verified no-publication terminal state; do not replay an effect-unknown post.
+5. **Complete 6/6 ASC acquisition mapping (owner: mobile-metrics lane):** add exact request/report IDs for Dhamma Quotes, Sleep Reset, STUDIO CHERIE, and Thankful to the existing collector; preserve the existing Anicca/Honne configuration. Done when all six public apps have daily impressions, product-page views, first-time downloads, aligned report dates, and explicit unavailable reasons where Apple's source withholds a metric.
+6. **Complete the live-app RevenueCat crosswalk (owner: mobile-metrics lane; CFO supplies read-only official IDs/points):** retain the six existing CFO MRR bindings as six exact products, then map the four remaining public ASC apps to their own RevenueCat app IDs without editing the locked CFO worktree. Done when each of the six currently published apps has an exact ASC ID ↔ RevenueCat app/product mapping or a named source gap; never copy legacy-app zeroes onto a different live app.
+7. **Run the distribution target:** continue the current approved Anicca social lanes with one core outcome and channel-specific tracked links; use native post metrics plus link clicks and ASC campaign results to choose where to allocate the existing cadence. Done when Anicca reaches 100 first-time downloads/day on a rolling seven-day average. Then repeat the same measured system for the other five public apps; all six at target is 600/day. No extra account or posting-cadence expansion is justified by view totals alone.
+8. **Close the in-app measurement join (owner: mobile-metrics lane):** maintain Mixpanel distinct-user cohorts and add only the app/version/campaign identifiers needed to join an ASC install cohort to RevenueCat; do not add private affirmation text. Done when cohort start/denominator, onboarding step, paywall, trial, RevenueCat entitlement, restore, cancellation/refund, and D7/D30 have explicit status and join coverage. This is baseline work, not an experiment.
+9. **Refine onboarding after the six-app distribution gate:** only after each of the six published apps reaches 100 ASC first-time downloads/day on a trailing seven-day average, begin with one Anicca cohort and one onboarding/paywall hypothesis. Read verified trial/purchase/restore/refund/cancel and D7/D30 outcomes, then repeat one app at a time. Review PostHog image masking before any replay expansion; Mixpanel `purchase_completed` alone is not payment proof.
+10. **Keep ASO deferred unless data points there:** do not run keyword changes or screenshot treatments now. After all six published apps reach the distribution gate, if aligned ASC data shows the App Store product page is the bottleneck, run one screenshot hypothesis and wait for Apple's experiment result/confidence readback.
+11. **Prove $10,000 net MRR and factory readiness:** join same-period Apple proceeds/refunds/fees/bank settlement and actual app/provider/acquisition costs with RevenueCat subscriptions and measured churn. Done only when Anicca's net contribution is positive and USD 10,000 net MRR is source-backed. Then repeat the recipe across the other five published apps before expanding the factory target to USD 100,000 and USD 10,000,000/month.
 
 ### TestFlight lane — current release blocker
 
@@ -122,4 +156,4 @@ Growth measurement and distribution are independent of the Xcode Cloud recovery,
 
 ## Completion boundary
 
-The TestFlight lane is not complete until a valid build containing the intended source is approved and installable from the verified link, Maestro evidence covers that exact binary, and the link/evidence delivery is read back. The growth lane is not complete until acquisition and onboarding can be read by app/cohort/period and same-period net economics are verified. The release task can complete before the business target; USD 10,000 verified net MRR cannot be claimed from RevenueCat MRR or Mixpanel event counts alone.
+The TestFlight lane is not complete until a valid build containing the intended source is approved and installable from the verified link, Maestro evidence covers that exact binary, and link/evidence delivery is read back. The growth lane's acquisition milestone is reached only at 100 ASC first-time downloads/day/app on a seven-day average with channel-level click/install attribution. The business target remains separate: Anicca is complete only at USD 10,000 verified net MRR with same-period settled revenue and actual cost evidence. RevenueCat MRR or Mixpanel event counts alone cannot satisfy it.
