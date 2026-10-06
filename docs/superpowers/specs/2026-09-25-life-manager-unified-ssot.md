@@ -9809,3 +9809,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Lunaは既存render_schema()でJSONのみ再生成、ebook enum3挿入。parity RED確認後、経済契約27/27/diff PASS。source355d2770cde4c9b6796a9d5f77a034a34e30705aをremote一致/clean確認。freshreviewの正確性指摘を解消、validator設計変更なし。
 - draft PR https://github.com/Daisuke134/life-manager/pull/6786 を1回作成。sourceレビューSHIP、Python50+38+27/表示9/contract PASSと、runtime774/775/隔離依存ENOSPC1件を本文へ明記。CI環境でrelease testを再検証し、未検証をPASSへ丸めずdraft保持。main/本番/自然新source/銀行入金/利益は未完。
 - current17、残りCI結果→必要指摘解消→通常統合/immutable→対象CFO反映/公式packet設定→自然レポート/二重計上readback。後段25SelfBuild/26〜28Lancers等の相対順序は維持。
+
+
+### 785. CI継続とInvestment独立財務review
+
+- PR6786同head355d2770のCIはPython syntax+unittest SUCCESS、runtime/secret scans継続中。sec-scan.yml:36はruntime/loop/tests全既存suiteを実行するため、ローカルENOSPCのrelease testを含む。異なる狭いgateで代用しない。監視handle17648を再利用、再run発行0。
+- 現current release manifestは4429/release_paths ALL/provenance ancestor-of-origin-main。既存cut-loop-release.shのfull clone donorは親main由来ALLのみ許可しhard-link+差分overlay/依存再利用を実装する。統合後に実preflightを行いこの既存経路を使えるか確認、今はcut/apply変更0。
+- 項目18の独立作業として、取得済みAlpaca raw約定/手数料/直近公式orders/ID数量価格時刻joinをfresh Sol6.1/medium/read-only codex execへ渡しhandle66515を起動。利益/会社cash/銀行入金を認定せず、既存CFO正規receiptへ結合可能な証拠と不足fieldを反証確認する。結果private investment-fresh-review-result.md、外部IO/変更/通知/委譲禁止。current17/相対順序維持。
