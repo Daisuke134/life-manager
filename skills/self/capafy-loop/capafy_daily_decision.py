@@ -6,6 +6,7 @@ without ever writing to Capafy directly.
 Four rules (docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md row C6):
   1. losing money (model cost > 30% of net)              -> queue a model-switch UPDATE.json
   2. priced below the successful sellers' band            -> queue a reprice UPDATE.json
+     (never for an Agent already selling at a profit -- Dais 2026-10-06 freeze)
      (download/one-time only; CP1 has no subscription-cycle reprice field yet -- C4 note)
   3. zero sales in 30d with real traffic (views)           -> flag a retire/rewrite candidate
   4. best uncovered category among top sellers             -> append a category opportunity
@@ -247,7 +248,13 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
             download_band = bands.get("download")
             if download_price is not None and download_band and download_price < download_band["p25"] - UNDERPRICE_MARGIN_USD:
                 already_has_action = any(f.get("action") == "queue_update" for f in decision["findings"])
-                if blocked or already_has_action:
+                # Dais 2026-10-06: never reprice an Agent that is already selling at a profit.
+                profitable = orders > 0 and net is not None and net > 0 and not losing
+                if profitable and not blocked and not already_has_action:
+                    decision["findings"].append({
+                        "rule": "underpriced", "action": "skip", "reason": "profitable_seller_frozen",
+                    })
+                elif blocked or already_has_action:
                     decision["findings"].append({
                         "rule": "underpriced", "action": "skip",
                         "reason": block_reason or "losing_money_update_already_queued",
