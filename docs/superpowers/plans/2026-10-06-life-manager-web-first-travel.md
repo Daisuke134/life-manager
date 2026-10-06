@@ -434,11 +434,11 @@ Expected: Web-only Calendar/organ calls are zero, and Telegram-bound behavior pa
 **Interface:**
 - Store a server-generated `calendar_enable_claim_id` UUID and database `calendar_enable_claimed_at` on the exact Web `lm_users` row. `begin_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_claim_id uuid) -> boolean`, `recover_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_expected_claim_id uuid, p_new_claim_id uuid) -> boolean`, and `finish_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_claim_id uuid) -> boolean` set/rotate/clear only the matching owner claim. `readWebTravelControlState` returns the internal `enableClaimId` and `enableClaimedAt`; neither value is sent to the browser.
 - A claim is recoverable after 120 seconds. Each Composio enable GET/PATCH/status read is bounded to 20 seconds. Before the lease expires, an exact DISABLED read remains pending and sends no PATCH. After expiry, exact ACTIVE finishes the old claim, exact DISABLED rotates the UUID atomically before one retry, and exact MISSING/EXPIRED clears only the stale claim before existing active-account recovery/new OAuth. Unknown states remain fenced.
-- A failure before provider enable PATCH is known no-effect and releases only the current matching claim while automation stays paused. A PATCH timeout, network/5xx, or post-dispatch readback failure remains unknown and retains the claim. A previous owner cannot finish or clear a rotated claim.
+- A failure before provider enable PATCH is known no-effect and releases only the current matching claim without changing the saved daily-automation preference. Pending transports are fenced, and the still-DISABLED account remains blocked by the scheduled owner's exact ACTIVE gate. A PATCH timeout, network/5xx, or post-dispatch readback failure remains unknown and retains the claim. A previous owner cannot finish or clear a rotated claim.
 
 - [ ] **Step 1: Add failing claim-ownership and recovery tests**
 
-Cover token-scoped begin/finish, pre-PATCH no-effect release, post-PATCH unknown retention, non-expired DISABLED refusal, expired DISABLED one-winner rotation, exact ACTIVE finish, expired MISSING/EXPIRED reauthorization, old-token rejection, and two concurrent recovery requests with only one provider enable. Pin the 20-second provider timeout and 120-second SQL lease in focused contracts.
+Cover token-scoped begin/finish, pre-PATCH no-effect release without changing saved daily automation, post-PATCH unknown retention, non-expired DISABLED refusal, expired DISABLED one-winner rotation, exact ACTIVE finish, expired MISSING/EXPIRED reauthorization, old-token rejection, and two concurrent recovery requests with only one provider enable. Pin the 20-second provider timeout and 120-second SQL lease in focused contracts.
 
 - [ ] **Step 2: Run the focused Calendar and state tests and confirm they fail**
 
@@ -447,7 +447,7 @@ Expected: current boolean-only claim cannot identify an owner or reclaim a crash
 
 - [ ] **Step 3: Add the smallest token-owned claim lease**
 
-Extend the existing claim columns/RPCs, read internal claim metadata, bound the exact Composio enable requests, and change `startCalendar` to recover only from exact provider readback and token-checked SQL transitions. Keep automation paused throughout recovery.
+Extend the existing claim columns/RPCs, read internal claim metadata, bound the exact Composio enable requests, and change `startCalendar` to recover only from exact provider readback and token-checked SQL transitions. Keep Calendar operations fenced and leave the saved daily-automation preference unchanged.
 
 - [ ] **Step 4: Rerun the focused Calendar and state tests and commit**
 
