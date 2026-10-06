@@ -4927,7 +4927,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 15 | Fundraiserの既存申請cursorと公式募集条件を照合し、適合する申請先1件へ既存申請を進める（申請先未選定） | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
 | 17 | ANICCA/Honne等のASC財務データをapp/SKU・期間・通貨でCFOへ結合し、接続済みRevenueCat入力を使った自然レポートと二重計上防止を確認する | 公式取得tuple・原report SHA・正規receipt identity・currency/settlementを保存し、native report IDは非返却/未確認と区別する。RevenueCat同期間join/二重計上0、mobile lane実装の重複なし。 |
-| 18 | Investmentの既存接続口座・実約定・手数料・精算を公式read-only経路で取得し、同じ取引IDで会計へ結合する | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
+| 18 | Investmentの既存10/01 BTC/USDC買い・売り注文について、確認済みFILL/CFEEを維持し、期間開始NAV・全活動/入出金・資産別USD評価/換算・実行owner receiptを取得して同注文へ結合する。口座全体NAV差額をこのpairの利益へ代用しない | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
 | 21 | 19と20の同期間・同通貨の実収益/実費を使って、loop別と全体のnet marginを計算する | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
@@ -10076,3 +10076,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - main1305の自然occurrence life-manager-cfo-hourly:18dc0bff56e33a68-92073 はexit0/loaded-idle/blocker無し。last-result.jsonはstatus quiet/resolutionKind duplicate/deliveredfalse。前runのproviderMessageId104594/created・sentAt20:17:41.583Zを同期間解決へ再利用していることをlast-result-reportと実cfo-result-local.jsで照合。
 - 同period sentの分岐はPython collectより前に戻るため、今回の新版runは新GET/新送信を実施していない。旧receiptを新取得の証明にせず、新版公式readback成果は未完。private cfo-main1305-natural-report-readback.jsonはduplicateの観測証拠として保持。
 - 次のreport periodの自然runがlive取得・reportへ進むことを確認する。重複防止を外す/時刻偽装/手動送信0。source反映は完了済みで再修復へ戻さない。cursor17の自然実測待ちと独立18の不足証拠確認を並行、主相対順は保持。
+
+
+### 819. 投資期間利益のfresh反証HOLD、必要入力を残18へ具体化
+
+- gpt-6.1-sol/medium有限read-only検証handle4162はexit0、最新pair/指定期間利益採用HOLD。source read_live_performance_snapshotは指定2注文のFILL/CFEEだけ選ぶ一方、realized値は全口座endingNAV−元transfer−unrealized、startingNAV0固定。performance.projectも同差額一致しか確認せず、複数roundtripの過去利益混入を隔離fixtureで再現。合成数値は実口座の利益ではない。API/credential/取引/本番変更0。
+- 公式保存FILL10/CFEE10、最新2注文各FILL1/CFEE1と数量/価格/時刻/hash対応は限定確認済み。最新pair以前の別FILL8件、pnl_verifiedfalse/bank_arrival_verifiedfalseを保持。必要入力は期間開始NAV・全口座活動/入出金の期間coverage・費用symbol/USDC→USD評価根拠・owner receipt。
+- source callerはperformance_gate.main。rootはこのmutationを実行せず、既存CFOのconfirmed P&L inputへ昇格しない。LM_CFO_INVESTMENT_READBACK等の確認した設定keyは未設定、B5別経路の完全非流入証明へ一般化しない。
+- lm-investへAGMSGでHOLD/不足資料/次手を報告（受領・稼働は未確認、sendのみを着手にしない）。§217残18を同案件の必要入力と結合操作へ具体化。cursor17/主相対順保持。証拠private investment-performance-scope-fresh-review-result.md。
