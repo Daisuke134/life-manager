@@ -9245,3 +9245,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna source修復2filesは139 adapter tests/loop-contract/diffcheck PASS、rootも139を再実行して確認。net_amountをDOM cloneから除外し、observed summaryのみprice_minorへ接続、legacy本文fallback削除。source commit/push/main/productionは未実行。
 - root境界probeとfresh Sol/medium read-only reviewは同じP1を再現：header税抜またはbare、primary12円、net注記のみ税込10円でtaxtrue/observed/price12を誤採用。price textはcloneだが税込判定は元TD全文であるため。既存税込gateの不具合であり追加の架空gateではない。fresh判定HOLD、関連14 tests PASS、source変更/外部effect0。証拠 `crowdworks-contract-amount-review-result.txt`。
 - 同2files/同leaseのLuna/max有限runへ、税込判定も除外後cloneへ限定し、2 DOM反証ケースのRED/GREENを渡した。単に通常ケースがPASSしたことを根拠に統合しない。src2filesの途中変更を保持、RootがGit/review/CI/promotionを担当。現在1.1/残29順序不変、実納品未完。
+
+### 710. 税区分P1修復を142GREENでpush、PR6781最終review中
+
+- 同2filesのLuna/maxは税区分3ケースRED（3failed）を確認後、clone/headerだけの税込判定・税抜/税別の矛盾reject・Python側元text税込fallback削除でGREEN。actual税込gross12/net10、曖昧primary、元fenceは維持。142 adapter/共有contract11 PASS、rootも142/diffcheck/loop-contract15/184/107を確認。生buyer本文/credential/source外変更/外部effect0。
+- sourceを最新main571ffbedf8へrebaseし、commit `cf6b0e6e76d4a62298c59ed1e8dc8ef76105ff4a` を `fix/lm-crowdworks-contract-amount-20261006` へpush、remote一致/clean確認。Draft PR6781作成。rebase後の関連testsを再確認する。
+- 最終pinned diffのfresh Sol6.1/medium read-only run3802でP1解消と残riskを確認中。CI/main/immutable/実3候補のreadback/1.2対象選定/納品は未完。現在1.1/主29順序不変。
