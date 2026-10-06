@@ -9718,3 +9718,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 項目18の追加read-only観測:既存fillsの直近2order IDについてpinned CLI order getを実行、双方BTC/USDCのbuy/sell、status filled、filled_atが元activityと一致。最新pairは2026-10-01T11:30:17.599123Z buy /11:35:17.612894Z sell。注文作成/取消/変更/資金移動0。
 - 同account GETはACTIVE/USD/cash値ありを取得、2026-10-06T17:58:43.421626Z。private investment-current-recent-order-readback.jsonへ保存。ブローカーcashと会社cash/銀行入金を同一視せず、実P&Lやsettlementを計算・認定しない。
 - 現CFO adapt_investmentにはfinalized/status、P&L basis、同snapshot/coverage等の正規入力条件がある。raw fills取得だけで成功payloadを偽造しない。残18は正規入力への根拠付き結合とfresh財務review。cursor17のLuna修正live、相対順序保持。
+
+
+### 772. 実報告と逆の回帰fixtureを実装前に検出して修正
+
+- rootがLuna作業中のtest差分をread-only照合し、fixtureがApple Identifier=親app ID、UPC/SKU=購読IDという実報告と逆の配置を検出。raw FINANCIAL現物はApple Identifier6762049696/UPC空/Vendor Identifier ai.anicca.app.ios.yearly.b、DETAILは同Apple Identifier/SKU ai.anicca.app.ios.yearly.b。このfixtureのまま実装しても実報告を取り込めないのでLunaへ訂正し、担当が誤読を認め修正着手。
+- production codeは未編集で、誤形fixtureで成功を判定していない。公式relationshipのgroup→subscription ID→productIdとlinks.self親appを結合し、safe列だけの同形fixtureでREDを再実行する。
+- detailのpreamble3行/Transaction+Settlement header/dated行1/後続別集計footer、aggregate footer3行をsecretless fixtureで再現し、前置Start Dateをdetail headerと誤判定せずfooterを売上rowにしない。追加の架空商品・外部作用なし。current17を維持しsource受入前の誤りを解消する。
