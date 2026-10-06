@@ -98,6 +98,11 @@ PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",
 })
+EBOOK_POSTIZ_LOOP_IDS = frozenset({
+    "ebook-en-tiktok-daily",
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
+})
 JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})
 
 
@@ -127,6 +132,52 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
         command.insert(0, _runtime_node())
     command.extend(entry.get("command", []))
     return command
+
+
+def _child_environment_for_owner(
+        loop_id: str, base: dict[str, str], home: Path | None = None) -> dict[str, str]:
+    """Pass the protected Postiz credential only to the registered eBook owners."""
+    environment = dict(base)
+    if loop_id not in EBOOK_POSTIZ_LOOP_IDS:
+        return environment
+
+    # Ignore any inherited alias. The credential SSOT is the only source for eBook
+    # publisher authentication. Do not even pass it to the child while publishing
+    # is disabled.
+    environment.pop("LM_POSTIZ_API_KEY", None)
+    if environment.get("LM_EBOOK_PUBLISHING_ENABLED") != "true":
+        return environment
+    private = (home or Path.home()) / ".local/share/anicca"
+    credentials = private / "credentials.json"
+    try:
+        if private.is_symlink() or credentials.is_symlink():
+            return environment
+        private_stat = private.stat()
+        credentials_stat = credentials.stat()
+        if (not stat.S_ISDIR(private_stat.st_mode)
+                or not stat.S_ISREG(credentials_stat.st_mode)
+                or private_stat.st_uid != os.getuid()
+                or stat.S_IMODE(private_stat.st_mode) != 0o700
+                or credentials_stat.st_uid != os.getuid()
+                or stat.S_IMODE(credentials_stat.st_mode) != 0o600):
+            return environment
+        payload = json.loads(credentials.read_text(encoding="utf-8"))
+        rows = [row for row in payload.get("credentials", [])
+                if isinstance(row, dict) and row.get("service") == "postiz"]
+        if len(rows) != 1:
+            return environment
+        api_key = rows[0].get("api_key")
+        if not isinstance(api_key, str):
+            return environment
+        api_key = api_key.strip()
+        if (not api_key or len(api_key) > 4096
+                or any(ord(character) < 33 or ord(character) > 126 for character in api_key)):
+            return environment
+    except (OSError, AttributeError, TypeError, ValueError):
+        return environment
+
+    environment["LM_POSTIZ_API_KEY"] = api_key
+    return environment
 
 
 def _identity_sha256(value: object) -> str:
@@ -1081,6 +1132,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None,
                   on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
+    env = _child_environment_for_owner(loop_id, env)
     limit = _runtime_limit(entry)
     if loop_id in CONTROL_PLANE_SAFETY_LOOPS or limit is None:
         # Exempt owners have a native wake identity, but no durable claim.

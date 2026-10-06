@@ -185,19 +185,27 @@
 
 ### Task 6: Publish the first eBook campaign and record its natural order
 
-**Prerequisites:** Task 5 source owners merged; an authorized production DDL route; production Checkout/PDF fulfillment readback; `lm-loop doctor` fully green; host free space above the 11 GiB floor; official identity/status for each selected existing account; available Postiz channel capacity for every owner to be enabled.
+**Prerequisites:** Task 5 source owners merged; PR #6744 released and applied with publishing still closed; the production Checkout function loads; both locale PDF URLs respond; `lm-loop doctor` green; Japanese native identity/status and enabled Postiz routes verified. The 11 GiB cleanup tier and Product PR #420 receipt-table DDL do not gate the first one-time eBook post; PR #420 remains required before durable PDF-receipt claims and 14-day receipt-based measurement.
 
-- [ ] Merge `fix/upwork-provision-external-label-20261006` and read back a green `lm-loop doctor` on its main-derived release. The active `upwork:dais` provisioner belongs to the registered browser owner; preserve its running process and profile.
-- [ ] Recheck the existing Supabase/admin route. Apply the production migration only through an authorized DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. Current CLI has no linked project ref.
-- [ ] Merge PR #420 only after migration readback; verify the production deployed SHA and health.
-- [ ] Read back existing account identity/status and Postiz integration state. Japanese `obou` integrations are present/enabled in Postiz; English `monk_anicca` is present but disabled, and an additional active channel may require a plan slot.
-- [ ] Confirm Postiz has an available channel slot for Monk Anicca. Current API readback is 30 enabled channels and one disabled channel; public pricing lists Pro at 30 and Ultimate at 100, so the current plan tier still needs official readback. A required paid upgrade is outside this task's current spend cap.
-- [ ] Set `LM_EBOOK_PUBLISHING_ENABLED=true` only after the production checkout/PDF route and the exact Postiz account identity/status readbacks are ready.
-- [ ] Read back deployed `/monk` and `/achan` Checkout/PDF fulfillment and post-migration RPC/schema state before publishing either locale.
-- [ ] Publish one Japanese Watercolor video to existing TikTok and Instagram; read each exact provider receipt and public URL. Then leave its three daily slots enabled through the installed owner.
-- [ ] Only after an existing no-cost Postiz slot is available and the exact English integration reads `disabled=false`, publish one English HeyGen video and read its provider receipt/public URL; then leave its three daily slots enabled.
-- [ ] Record one natural paid Checkout and its matching locale PDF delivery receipt under the same product, campaign token, and occurrence; record refunds, fees, and measured costs. Do not self-purchase.
-- [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during the later Capafy work.
+- [x] PR #6739 merged at `78c55432421dbe821773a96f7a7deb9646ee7599`; immutable release `20261006T160404-78c55432` is selected and `lm-loop doctor` returns `ok=true`. The active `upwork:dais` owner was preserved.
+- [x] Run the canonical cleanup one-shot at 16:30 JST: reclaimed 56,844,145 bytes; `errors=0`; `protected_deletions=0`; six open candidates preserved; 21 inventory gaps. Both disk policy markers are absent; the 11 GiB level is the preventive cleanup tier.
+- [x] Extend the existing `apps/landing/scripts/money-path-smoke.mjs` with a read-only GET to `/.netlify/functions/checkout` that expects the handler's `405 method not allowed`; keep the assertion inside the current post-deploy smoke/rollback flow.
+- [x] Run `node apps/landing/scripts/money-path-smoke.mjs https://aniccaai.com` before source changes; it failed specifically at checkout GET with `502` after the site/Stripe-link checks passed.
+- [x] In `/Users/anicca/Projects/anicca-products-worktrees/ebook-checkout-module-runtime-20261006` on `fix/ebook-checkout-module-runtime-20261006` (main base `7ca532244`), commit `21293ac4` makes checkout module-safe by moving the shared token validator to `.cjs`; the ESM landing helper reuses that module through a facade. Prices, locale handling, attribution metadata, and response shape remain covered by existing focused checkout tests.
+- [x] Run focused eBook/Writer checkout tests (17/17), `node --check apps/landing/scripts/money-path-smoke.mjs`, and `git diff --check`.
+- [x] Product PR #422 at `21293ac4` passes `Landing PR build` (`npm ci`, full telemetry tests, Next.js build); the fresh read-only verifier reports no Critical/Important findings.
+- [x] Product PR #422 merged at 45bba82e; Netlify workflow 37432940639 completed and production money-path smoke passed: checkout GET 405, both locale PDFs 200 application/pdf.
+- [x] PR #6744 source review found no Critical/Important findings and all required checks passed at head df4fdf106b; the current spec/plan correction still needs to be pushed and checked before merge.
+- [x] Authenticated Postiz readback: Japanese TikTok obou_anicca and Instagram obou.anicca are enabled, and public profile pages identify those handles. This confirms routing/profile presence, not a provider good-standing badge. English monk_anicca is disabled; aniccaen2 is excluded from the eBook route.
+- [ ] Push the current SSOT/plan correction; pass latest-head CI on PR #6744, merge it, cut/apply a main-derived release, and pass doctor. Targeted-apply the three owners one at a time with publishing closed, then verify loaded SHA/argv/state.
+- [ ] Before the first Japanese public post, obtain a fresh read-only review of the exact Watercolor render/caption, profile, and both enabled Postiz routes. Let the natural 07:00/12:30/20:00 JST slot run; collect official TikTok and Instagram receipts/public URLs for each occurrence.
+- [ ] Keep English at zero render/publish until its exact owned TikTok account is publicly present, enabled in Postiz, and mapped in the eBook destination registry; then use HeyGen Avatar IV at 08:00/14:00/21:00 JST.
+- [ ] Keep both locale schedules on their three daily slots with per-occurrence replay/readback; a schedule or render is not a published post.
+- [ ] Continue Product PR #420's DDL hardening through an authorized Supabase management route; read back tables/RPC signatures/ACLs/schema cache before merging the migration. The current one-time eBook main flow uses existing Checkout metadata and direct PDF email fulfillment; PR #420's new receipt/subscription tables are separate hardening.
+- [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence only after durable receipt readback; record refunds, fees, and measured costs. Do not self-purchase.
+- [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
+
+- Current cursor (2026-10-06 17:09 JST): commit/push the current spec correction on PR #6744, require fresh CI, then merge and deploy its main-derived release with publishing closed. Verify the three loaded owners. Japanese targets are enabled for the 20:00 slot after exact-content read-only review; English has no verified eBook route and remains held.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
