@@ -11,8 +11,8 @@ const META_ENUMS = {
   route_mode: ["transit", "google"],
   fallback_reason: ["transit_no_route", "transit_provider_4xx", "transit_provider_5xx",
     "transit_network", "transit_timeout", "transit_invalid_response", "non_jp"],
-  model: ["gemini-2.5-flash", "gemini-3.7-flash"],
-  estimate_status: ["estimated", "unavailable"],
+  model: ["gemini-2.5-flash", "gemini-3.7-flash", "gemini-2.5-flash-native-audio-preview-09-2025"],
+  estimate_status: ["estimated", "unavailable", "not_applicable"],
   estimate_basis: ["audio_duration_proxy"],
 };
 const SAFE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -61,10 +61,12 @@ const META_VALIDATORS = {
   pricing_basis: (value) => enumValue("pricing_basis", value),
   route_mode: (value) => enumValue("route_mode", value),
   fallback_reason: (value) => enumValue("fallback_reason", value),
-  model: (value) => enumValue("model", value),
+  model: (value) => value === null || enumValue("model", value),
   input_tokens: (value) => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0),
   output_tokens: (value) => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0),
   estimate_status: (value) => enumValue("estimate_status", value),
+  pricing_version: (value) => value === null || (typeof value === "string"
+    && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(value)),
   reconnects: (value) => Number.isInteger(value) && value >= 0,
   estimate_basis: (value) => enumValue("estimate_basis", value),
 };
@@ -86,9 +88,10 @@ function safeMeta(meta) {
   return { ...source };
 }
 
-function finiteNonNegative(value) {
+function finiteNonNegativeOrNull(value) {
+  if (value == null || (typeof value === "string" && value.trim() === "")) return null;
   const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : 0;
+  return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
 function safeRuntimeId(value) {
@@ -138,9 +141,21 @@ function normalizeUsageEvent(event = {}, runtimeEnv = {}) {
   if (!OUTCOMES.has(outcome)) throw new Error(`invalid outcome: ${outcome}`);
 
   const cacheHit = outcome === "cache_hit" || event.cacheHit === true;
-  const quantity = cacheHit ? 0 : finiteNonNegative(event.providerUnits);
-  const estUsd = cacheHit ? 0 : finiteNonNegative(event.estimatedCostUsd);
   const meta = safeMeta(event.meta);
+  const quantity = cacheHit ? 0 : finiteNonNegativeOrNull(event.providerUnits);
+  const estimateUnavailable = meta.estimate_status === "unavailable";
+  const estUsd = cacheHit ? 0 : (estimateUnavailable ? null
+    : finiteNonNegativeOrNull(event.estimatedCostUsd));
+  const operation = requiredText(event.operation || feature, "operation");
+  const billingStatus = cacheHit ? "not_applicable"
+    : (estUsd == null || estUsd === 0 ? "unknown" : "estimated");
+  const estimateStatus = cacheHit ? "not_applicable"
+    : (estUsd == null ? "unavailable" : (meta.estimate_status || "estimated"));
+  const pricingVersion = Object.hasOwn(meta, "pricing_version") ? meta.pricing_version : ({
+    google_maps: "lm-google-maps-estimate-2026-09-06-v1",
+    gemini: "lm-gemini-estimate-2026-10-06-v1",
+    google_search_grounding: "lm-gemini-estimate-2026-10-06-v1",
+  })[provider] || null;
 
   return {
     uid: tenantId,
@@ -151,6 +166,13 @@ function normalizeUsageEvent(event = {}, runtimeEnv = {}) {
     meta: {
       ...meta,
       provider,
+      sku: meta.sku || meta.model || null,
+      operation,
+      currency: "USD",
+      actual_usd: cacheHit ? 0 : null,
+      billing_status: billingStatus,
+      pricing_version: pricingVersion,
+      estimate_status: estimateStatus,
       feature,
       outcome,
       failure_class: event.failureClass == null ? null : String(event.failureClass),

@@ -8,7 +8,7 @@ const { normalizeUsageEvent, recordUsageEvent, runtimeTrace, usageRuntimeEnv } =
 const USAGE_EVENT = { tenantId: "tenant-test", provider: "test", feature: "test", outcome: "success" };
 
 function normalizeMeta(meta) {
-  return normalizeUsageEvent({ ...USAGE_EVENT, meta });
+  return normalizeUsageEvent({ ...USAGE_EVENT, providerUnits: 1, estimatedCostUsd: 0.005, meta });
 }
 
 test("normalizes a tenant/provider/feature usage event without customer billing", () => {
@@ -30,6 +30,13 @@ test("normalizes a tenant/provider/feature usage event without customer billing"
     estUsd: 0.005,
     meta: {
       provider: "google_maps",
+      sku: null,
+      operation: "travel_route",
+      currency: "USD",
+      actual_usd: null,
+      billing_status: "estimated",
+      pricing_version: "lm-google-maps-estimate-2026-09-06-v1",
+      estimate_status: "estimated",
       feature: "travel_route",
       outcome: "failure",
       failure_class: "provider_4xx",
@@ -53,6 +60,38 @@ test("cache hits carry zero provider units and zero estimated cost", () => {
   assert.equal(event.quantity, 0);
   assert.equal(event.estUsd, 0);
   assert.equal(event.meta.cache_hit, true);
+  assert.equal(event.meta.actual_usd, 0);
+  assert.equal(event.meta.billing_status, "not_applicable");
+  assert.equal(event.meta.estimate_status, "not_applicable");
+});
+
+test("missing provider quantity and estimate stay unknown, not zero", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "gemini", feature: "ask",
+    outcome: "failure", failureClass: "usage_unavailable",
+    meta: { estimate_status: "unavailable" },
+  });
+
+  assert.equal(event.quantity, null);
+  assert.equal(event.estUsd, null);
+  assert.equal(event.meta.operation, "ask");
+  assert.equal(event.meta.sku, null);
+  assert.equal(event.meta.actual_usd, null);
+  assert.equal(event.meta.billing_status, "unknown");
+  assert.equal(event.meta.pricing_version, "lm-gemini-estimate-2026-10-06-v1");
+  assert.equal(event.meta.estimate_status, "unavailable");
+});
+
+test("an estimate cannot be marked available when its amount is missing", () => {
+  const event = normalizeUsageEvent({
+    tenantId: "tenant-1", provider: "google_maps", feature: "directions",
+    outcome: "failure", estimatedCostUsd: null,
+    meta: { estimate_status: "estimated" },
+  });
+
+  assert.equal(event.estUsd, null);
+  assert.equal(event.meta.estimate_status, "unavailable");
+  assert.equal(event.meta.billing_status, "unknown");
 });
 
 test("rejects missing dimensions, invalid outcomes, and secret-shaped metadata", () => {
@@ -77,17 +116,19 @@ test("accepts the exact provider metadata enums and scalar types", () => {
     route_mode: ["transit", "google"],
     fallback_reason: ["transit_no_route", "transit_provider_4xx", "transit_provider_5xx",
       "transit_network", "transit_timeout", "transit_invalid_response", "non_jp"],
-    model: ["gemini-2.5-flash", "gemini-3.7-flash"],
+    model: ["gemini-2.5-flash", "gemini-3.7-flash", "gemini-2.5-flash-native-audio-preview-09-2025"],
     estimate_status: ["estimated", "unavailable"],
     estimate_basis: ["audio_duration_proxy"],
   };
 
   for (const [key, values] of Object.entries(enums)) {
     for (const value of values) assert.equal(normalizeMeta({ [key]: value }).meta[key], value);
-    for (const invalid of ["unsupported", null, 1, {}, []]) {
+    const invalidValues = key === "model" ? ["unsupported", 1, {}, []] : ["unsupported", null, 1, {}, []];
+    for (const invalid of invalidValues) {
       assert.throws(() => normalizeMeta({ [key]: invalid }), /metadata/);
     }
   }
+  assert.equal(normalizeMeta({ model: null }).meta.model, null);
 
   for (const key of ["input_tokens", "output_tokens"]) {
     for (const value of [null, 0, 12]) assert.equal(normalizeMeta({ [key]: value }).meta[key], value);

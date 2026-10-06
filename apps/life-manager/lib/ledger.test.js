@@ -39,20 +39,64 @@ test("recordCost inserts the normalized row through Supabase REST", async () => 
   assert.equal(calls[0][1].headers.Prefer, "return=minimal");
   assert.deepEqual(JSON.parse(calls[0][1].body), {
     uid: "u1", kind: "telnyx_call", quantity: 90, unit: "seconds",
-    est_usd: 0.003, meta: { event: "wake" },
+    est_usd: 0.003, meta: {
+      event: "wake", provider: null, sku: null, operation: "telnyx_call",
+      currency: "USD", actual_usd: null, billing_status: "estimated",
+      pricing_version: null, estimate_status: "estimated",
+    },
   });
+});
+
+test("recordCost preserves unavailable measurements and separates estimate from actual", async () => {
+  let body;
+  const ok = await ledger().recordCost({
+    uid: "u1", kind: "composio_call", quantity: null, unit: "call", estUsd: null,
+    meta: { provider: "composio", operation: "EVENTS_LIST",
+      billing_status: "estimated", estimate_status: "estimated" },
+  }, {
+    supaUrl: "https://db.example", supaKey: "service",
+    fetchImpl: async (_url, init) => { body = JSON.parse(init.body); return { ok: true, status: 201 }; },
+  });
+
+  assert.equal(ok, true);
+  assert.equal(body.quantity, null);
+  assert.equal(body.est_usd, null);
+  assert.equal(body.meta.provider, "composio");
+  assert.equal(body.meta.operation, "EVENTS_LIST");
+  assert.equal(body.meta.currency, "USD");
+  assert.equal(body.meta.actual_usd, null);
+  assert.equal(body.meta.billing_status, "unknown");
+  assert.equal(body.meta.estimate_status, "unavailable");
+  assert.equal(body.meta.pricing_version, null);
 });
 
 test("recordCost logs and resolves false when Supabase fails", async () => {
   const errors = [];
-  const result = await ledger().recordCost({ uid: "u1", kind: "x", quantity: 1 }, {
+  const result = await ledger().recordCost({ uid: "u1", kind: "user@example.invalid", quantity: 1, meta: {
+    runtime_trace: { loop_id: "loop-1", owner_id: "owner@example.invalid",
+      run_id: "sk-0123456789abcdef", occurrence_id: "loop-1:sk-0123456789abcdef",
+      release_sha: "a".repeat(40) },
+  } }, {
     supaUrl: "https://db.example", supaKey: "service",
     fetchImpl: async () => { throw new Error("offline"); },
-    log: (...args) => errors.push(args.join(" ")),
+    log: (value) => errors.push(value),
   });
   assert.equal(result, false);
   assert.equal(errors.length, 1);
-  assert.match(errors[0], /offline/);
+  const diagnostic = JSON.parse(errors[0]);
+  assert.equal(diagnostic.event, "lm_api_cost_write_failed");
+  assert.equal(diagnostic.kind, "unknown");
+  assert.equal(diagnostic.owner_id, null);
+  assert.equal(diagnostic.loop_id, "loop-1");
+  assert.equal(diagnostic.run_id, null);
+  assert.equal(diagnostic.occurrence_id, null);
+  assert.equal(diagnostic.release_sha, "a".repeat(40));
+  assert.equal(diagnostic.phase, "cost_ledger_write");
+  assert.equal(diagnostic.command, "supabase_post_lm_api_cost");
+  assert.equal(diagnostic.effect, "effect_unknown");
+  assert.equal(diagnostic.retryable, false);
+  assert.equal(diagnostic.next_action, "readback_before_retry");
+  assert.doesNotMatch(errors[0], /offline|service|https:\/\/|owner@example\.invalid|sk-0123456789abcdef/);
 });
 
 test("recordDailyComposioPoll uses a DB day query and inserts at most one row", async () => {
@@ -76,6 +120,12 @@ test("recordDailyComposioPoll uses a DB day query and inserts at most one row", 
   assert.match(requests[0][0], /ts=gte\.2026-07-18T00%3A00%3A00\.000Z/);
   assert.match(requests[0][0], /ts=lt\.2026-07-19T00%3A00%3A00\.000Z/);
   assert.equal(requests[1][1].method, "POST");
+  const pollRow = JSON.parse(requests[1][1].body);
+  assert.equal(pollRow.est_usd, null);
+  assert.equal(pollRow.meta.provider, "composio");
+  assert.equal(pollRow.meta.operation, "daily_usage_poll");
+  assert.equal(pollRow.meta.actual_usd, null);
+  assert.equal(pollRow.meta.billing_status, "unknown");
   assert.equal(requests[2][1].method, undefined);
 });
 

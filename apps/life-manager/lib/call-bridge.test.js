@@ -178,8 +178,24 @@ test("voice Gemini and Telnyx cost writers share one call runtime trace", async 
       missing_fields: ["loop_id"],
     });
     assert.match(trace.run_id, /^run-[0-9a-f-]{36}$/);
-    assert.equal(rows.find((row) => row.kind === "provider_usage").meta.outcome, "failure");
-    assert.ok(rows.find((row) => row.kind === "provider_usage").est_usd > 0);
+    const providerUsage = rows.find((row) => row.kind === "provider_usage");
+    assert.equal(providerUsage.meta.outcome, "failure");
+    assert.ok(providerUsage.est_usd > 0);
+    assert.equal(providerUsage.meta.provider, "gemini");
+    assert.equal(providerUsage.meta.operation, "live_api");
+    assert.equal(providerUsage.meta.sku, "gemini-2.5-flash-native-audio-preview-09-2025");
+    assert.equal(providerUsage.meta.currency, "USD");
+    assert.equal(providerUsage.meta.actual_usd, null);
+    assert.equal(providerUsage.meta.billing_status, "estimated");
+    assert.equal(providerUsage.meta.pricing_version, "lm-gemini-live-duration-proxy-2026-10-06-v1");
+    const legacyGemini = rows.find((row) => row.kind === "gemini_live");
+    assert.equal(legacyGemini.meta.billing_status, "not_applicable");
+    assert.equal(legacyGemini.meta.actual_usd, 0);
+    const telnyx = rows.find((row) => row.kind === "telnyx_call");
+    assert.equal(telnyx.meta.provider, "telnyx");
+    assert.equal(telnyx.meta.operation, "voice_call");
+    assert.equal(telnyx.meta.actual_usd, null);
+    assert.equal(telnyx.meta.billing_status, "estimated");
     assert.equal(JSON.stringify(trace).includes("stream-fixture"), false);
   } finally {
     if (carrier && carrier.readyState !== RealWebSocket.CLOSED) carrier.terminate();

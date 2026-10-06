@@ -24,6 +24,7 @@ const {
   makeGeminiEndHandler,
 } = require("./lib/call-bridge.cjs");
 const {
+  LIVE_MODEL,
   geminiLiveWsUrl,
   buildGeminiTurn,
   parseGeminiTranscripts,
@@ -1761,13 +1762,17 @@ wss.on("connection", (carrierWs, req) => {
         // Keep the legacy kind for existing panels, but put estimated cost on the normalized event
         // only so aggregate cost is not counted twice.
         recordCost({ uid: wakeUid || null, kind: "gemini_live", quantity, unit: "seconds",
-          estUsd: 0, meta: { reconnect: geminiReconnects, cost_source: "provider_usage",
+          estUsd: 0, meta: { provider: "gemini", sku: LIVE_MODEL, operation: "live_api_legacy_duplicate",
+            currency: "USD", actual_usd: 0, billing_status: "not_applicable",
+            pricing_version: null, estimate_status: "not_applicable",
+            reconnect: geminiReconnects, cost_source: "provider_usage",
             runtime_trace: voiceRuntimeTrace } });
         recordUsageEvent({ tenantId: wakeUid || "unknown", provider: "gemini",
-          feature: "live_api", outcome: gotAudio ? "success" : "failure",
+          feature: "live_api", operation: "live_api", outcome: gotAudio ? "success" : "failure",
           failureClass: gotAudio ? null : "no_audio", providerUnits: quantity,
           providerUnit: "seconds_proxy", estimatedCostUsd: quantity / 60 * 0.023,
-          meta: { reconnects: geminiReconnects, estimate_basis: "audio_duration_proxy" },
+          meta: { model: LIVE_MODEL, pricing_version: "lm-gemini-live-duration-proxy-2026-10-06-v1",
+            reconnects: geminiReconnects, estimate_basis: "audio_duration_proxy" },
         }, { runtimeEnv: voiceRuntimeEnv });
       }
       onGeminiEnd("closed");
@@ -1833,7 +1838,11 @@ wss.on("connection", (carrierWs, req) => {
       const quantity = Math.max(0, (Date.now() - callStartedAtMs) / 1000);
       recordCost({ uid: wakeUid || null, kind: "telnyx_call", quantity, unit: "seconds",
         estUsd: quantity / 60 * 0.002,
-        meta: { stream_id: state.streamSid || null, runtime_trace: voiceRuntimeTrace } });
+        meta: { provider: "telnyx", operation: "voice_call", sku: null,
+          currency: "USD", actual_usd: null, billing_status: "estimated",
+          pricing_version: "lm-telnyx-local-estimate-2026-10-06-v1",
+          estimate_status: "estimated", stream_id: state.streamSid || null,
+          runtime_trace: voiceRuntimeTrace } });
     }
     if (gemini) { try { gemini.close(); } catch {} }
   });
