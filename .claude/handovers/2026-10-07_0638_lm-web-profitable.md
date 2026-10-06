@@ -1,37 +1,35 @@
-# Life Manager Web-first handover
+# Life Manager Web-first 作業引き継ぎ
 
-## 正本とcursor
+## 正本と現在cursor
 
-- Repository: /Users/anicca/Projects/life-manager-main (origin=https://github.com/Daisuke134/life-manager.git)
-- Handover/spec worktree: /Users/anicca/Projects/life-manager-main/.worktrees/lm-web-handover-20261007
-- Branch/upstream: codex/lm-web-handover-20261007 → origin
-- Verified base commit when this handover worktree was created: 1305c07f5e4c6d6ede9b5bdfbef752a107421f0f (origin/main, 2026-10-06 UTC); the handover/spec commit is on this branch and is recorded by the final commit/PR readback.
-- Canonical TODO SSOT: /Users/anicca/Projects/life-manager-main/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md, section Dais指定のWeb-first Life Manager Travel Product — 現在の最優先cursor, subsection Web-first進行状態と原子TODO.
-- Current cursor: WB-01 / W3-P0 — obtain authorized same-project Supabase owner/key and SQL path. Exact next step: refresh official/credential status without printing values, then acquire the authorized Supabase route; do not replay the ambiguous GitHub recovery POST.
-- Web behavior/design reference (not a second TODO SSOT): /Users/anicca/Projects/life-manager-main/docs/superpowers/specs/2026-10-06-life-manager-web-first-travel-design.md.
+- 主repo: /Users/anicca/Projects/life-manager-main、originはhttps://github.com/Daisuke134/life-manager.git。
+- 前回のhandover作成branch/worktree: codex/lm-web-handover-20261007、/Users/anicca/Projects/life-manager-main/.worktrees/lm-web-handover-20261007。
+- 前回handoverのcommit 1f814f451f15be8bae6850bd30f86af72ff35299はPR #6792でmainへmerge済み。merge commitは9ca3803060938343a8d8a64063f738a52bec573c。branchと作業worktreeはcleanup済み。
+- 唯一のTODO正本: /Users/anicca/Projects/life-manager-main/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md の「Dais指定のWeb-first Life Manager Travel Product — 現在の最優先cursor」内「Web-first進行状態と原子TODO」。
+- 現在cursor: WB-01 / W3-P0。最初の次手は資格情報の値を出さずにcredential/provider状態を再確認し、同一Supabase projectのowner経路を確保すること。曖昧なGitHub recovery POSTは再送しない。
+- Webの振る舞い・画面の参照spec（TODO正本ではない）: /Users/anicca/Projects/life-manager-main/docs/superpowers/specs/2026-10-06-life-manager-web-first-travel-design.md。
 
-## Verified state and blocker
+## 確認済み状態と阻害原因
 
-- On 2026-10-06 production GET: /lm returned 200; /auth/google returned 503 because production Railway life-call lacks SUPABASE_ANON_KEY. Source requires it and rejects substituting the service-role key.
-- Same-project public key and DB/Management access were not found in known authorized distribution locations. Web control columns are missing and five existing Web migrations remain unapplied. The SSOT contains the exact five names and owner-console/direct-DB apply/readback sequence.
-- GitHub login password was rejected. A replacement reset link arrived at 2026-10-06 13:05:53Z and was stored in private credential SSOT, unused at the last readback. Recheck current validity/provider state without printing the URL. An earlier recovery POST to /sessions/recovery/without_password returned HTTP 200 with a blank body; its effect/status remains ambiguous. Do not submit again until official provider status/no-effect evidence exists. The first reset URL invalidation was not confirmed. If Supabase access is independently available, continue Web work without waiting on GitHub.
-- Stripe live read-only pre-read: active Life Manager Payment Link uses $29/month; an active $20/month price also exists; subscriptions were 0 for both at that readback. Stripe trial days are null while the app starts a three-day entitlement; reconcile before claiming or changing trial terms.
-- Service-wide 30-day cost estimate was USD 69.278553, not actual billed cost and not Web-attributed. Web refund/fee/settlement, Composio/hosting and attributed marketing spend remain unjoined.
-- Public aniccaai.com/lm last showed Telegram CTA, $29/month and phone-call copy. Prepared competitor research, 50 unmeasured keyword candidates, two SEO outlines and X/Reel drafts exist in the Web design spec; they are unpublished. No CTA, price or marketing publication changed in this handover.
-- Running workers: none reported by the current session census.
-- Worktree at creation was clean. The shared Life Manager checkout /Users/anicca/Projects/life-manager-main is on a Capafy branch, 468 commits behind origin/main, with unrelated untracked paths. Do not edit, clean, switch, or delete anything in it.
+- 2026-10-06のproduction GETでは/lmがHTTP 200、/auth/googleがHTTP 503。直接原因はRailway productionのlife-callにSUPABASE_ANON_KEYが無いこと。sourceはこのkeyを必須とし、service-role keyによる代替を拒否する。
+- 既知のauthorized配布先から同一projectのpublic keyとDB/Management accessは見つからなかった。Web control columnsはremote schemaに無く、既存Web migrations 5件が未適用。正本に正確なファイル名と適用順・readbackがある。
+- GitHub loginのSSOT passwordは拒否された。replacement reset linkは2026-10-06 13:05:53Zに受信し、最後のreadbackではcredential SSOT内に未使用で保存されていた。今の有効性とprovider statusを先にreadbackし、URLを表示・複製しない。以前の/sessions/recovery/without_password POSTはHTTP 200の空bodyでeffect/statusが不明なままなので、公式providerのstatus/no-effect証拠前に再送しない。最初のreset URLがprovider側で無効化された証拠もない。GitHubを待たずSupabase owner accessが得られればWeb作業を進める。
+- Stripeのlive read-only pre-readではLife Managerのactive Payment Linkは$29/month、同商品のactive $20/month priceもあり、各priceのsubscription readbackは0件。Stripe trial_period_daysはnullだがappは3日entitlementを開始するため、広告やterms変更前に整合を取る。
+- 30日service-wide cost estimateはUSD 69.278553。実請求額でもWeb別配賦額でもない。Webのrefund/fee/settlement、Composio/hosting、attributed marketing spendは未照合。
+- 2026-10-06最後の公開readbackではaniccaai.com/lmはTelegram CTA、$29/month、phone-call copyを表示。競合調査、未計測の50キーワード、SEO outline 2本、X/Reel案はWeb design specにあり、未公開。今回の作業でCTA、price、marketing公開は変更していない。
+- 今sessionのagent censusでは稼働workerなし。旧handover goalはruntime上blockedのまま。この文書と貼り付け用goalはまだ新sessionで有効化していない。
+- 旧共有Life Manager checkout /Users/anicca/Projects/life-manager-mainはCapafy branch、origin/mainより470 commit遅れ、無関係のuntracked pathあり。触らず、switch/cleanupもしない。
 
-## Marketing repository routing
+## marketing repoの経路
 
-- Live landing source is the separate repository /Users/anicca/Projects/anicca-products, origin=https://github.com/Daisuke134/anicca-products.git.
-- Read-only state at handover: main checkout clean, local HEAD 1a8f5a30d27135f0c4d28f61adde0be9b3b469d8, three commits behind origin/main 45bba82eacc684c0dfe44d2cbe563f74649efa2d. Do not edit the shared checkout.
-- When WB-14 becomes eligible, fetch fresh main and create writable worktree /Users/anicca/Projects/anicca-products/.worktrees/lm-web-marketing-next on branch codex/lm-web-marketing-next-20261007, push target origin/codex/lm-web-marketing-next-20261007. Do not use the Life Manager repo's diverged apps/landing as production source.
+- 公開landingの正本は別repo /Users/anicca/Projects/anicca-products、originはhttps://github.com/Daisuke134/anicca-products.git。
+- 前回read-only確認では共有main checkoutはclean、local HEAD 1a8f5a30d27135f0c4d28f61adde0be9b3b469d8、origin/mainより3 commit遅れ。そこは編集しない。
+- WB-14に着手できる条件が揃ったら、fresh fetch後に専用worktree /Users/anicca/Projects/anicca-products/.worktrees/lm-web-marketing-next とbranch codex/lm-web-marketing-next-20261007を作り、origin/codex/lm-web-marketing-next-20261007へpushする。production sourceとしてLife Manager repo内のdiverged apps/landingを使わない。
 
-## Fresh-session exact /goal
+## 新sessionで送信する完全な/goal
 
-    /goal Use the goal-setter and handover skills. Begin by reading this handover and the canonical SSOT, then verify them against fresh git/provider state. Complete every remaining item in the canonical Life Manager unified SSOT, starting with its current Web-first cursor. First make Life Manager Cloud a Telegram-independent production Web product: prove a fresh Google signup, exact Calendar ACTIVE binding, home setup, correct travel/departure block, strict Calendar readback and replay-zero. Then reconcile Stripe trial/checkout, actual Web-attributed settled revenue and all same-period costs, choose consistent terms, ship the attributed Web CTA and prepared X/Instagram/SEO marketing, and continue acquisition until at least 10 paying Web customers produce positive contribution for three consecutive months. Only after that gate, reuse the existing mobile factory and reviewed Self-Build boundaries to implement and demonstrate one measured Web App Factory iteration; then resume the next ordered unified-SSOT cursor (currently §84-A P5c). Done means each existing SSOT acceptance criterion has authoritative evidence; update that single SSOT as evidence changes and continue through its open TODOs instead of stopping at a plan or local tests. Preserve existing Telegram users, the auth guard, provider effect fences and truthful revenue/cost attribution; never expose secrets or replay the ambiguous GitHub recovery action without official status/no-effect readback. If owner-only Supabase access is the only blocker, finish independent read-only/preparation work and report the exact missing provider action; do not fabricate a credential or substitute a service-role key. Routing: repository /Users/anicca/Projects/life-manager-main; writable Life Manager worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-web-profit-next; branch codex/lm-web-profit-next-20261007; push target origin/codex/lm-web-profit-next-20261007; at handover creation origin/main was 1305c07f5e4c6d6ede9b5bdfbef752a107421f0f, so fetch fresh before creating/using the branch. For WB-14, use /Users/anicca/Projects/anicca-products/.worktrees/lm-web-marketing-next, branch codex/lm-web-marketing-next-20261007, push target origin/codex/lm-web-marketing-next-20261007; its verified pre-handover origin/main was 45bba82eacc684c0dfe44d2cbe563f74649efa2d; fetch fresh before creating it. Never write to shared checkout /Users/anicca/Projects/life-manager-main or /Users/anicca/Projects/anicca-products. Before any edit, read this handover and SSOT, fetch origin, verify exact HEAD/upstream/dirty state and create the dedicated worktree. Keep reviewers read-only on a detached snapshot of the reviewed commit.
+    /goal goal-setterとhandoverのskillを使い、まずhandover /Users/anicca/Projects/life-manager-main/.claude/handovers/2026-10-07_0638_lm-web-profitable.mdとSSOT /Users/anicca/Projects/life-manager-main/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.mdを読み、fresh git/provider stateと照合したうえで、統一SSOTに残るTODOを最初から最後まで完了する。開発はsuperpowers:using-superpowersを最初に読み、該当するskillの手順に従う。最優先のWeb-first cursorから、Life Manager CloudをTelegramなしで使えるproduction Web商品にする。新規Google signup、同じuidのCalendar ACTIVE readback、home設定、正しいtravel/departure block、厳密なCalendar readback、replay-zeroまでを実証する。次にStripe checkoutとtrialを整合し、Web別settled revenueと同期間のrefund・fees・route/provider・hosting・marketing costを実データで照合してofferを決め、source attribution付きWeb CTAと準備済みX/Instagram/SEOを配信し、有料Web顧客10人以上でcontributionが3か月連続positiveになるまで獲得と改善を続ける。このgate後にだけ既存mobile app factoryとreviewed Self-Build boundaryを再利用したWeb App Factoryを最小実装し、計測可能な1 iterationで動作を実証してから、統一SSOT次cursor（現在§84-A P5c）へ戻る。Doneは既存SSOT acceptance criteriaごとのauthoritative evidenceで判断し、同じ正本を証拠に合わせて更新してopen TODOを最後まで続ける。既存Telegram利用者、auth guard、provider effect fence、正確な売上/原価帰属を維持し、secretを表示せず、曖昧なGitHub recovery actionをofficial status/no-effect readback前に再送しない。Supabase owner-only accessだけがblockerなら独立調査・準備を続け、不足するprovider actionを正確に記録し、credentialを捏造したりservice-role keyで代用したりしない。作業routing: Life Manager repoは/Users/anicca/Projects/life-manager-main、書込worktreeは/Users/anicca/Projects/life-manager-main/.worktrees/lm-web-profit-next、branch codex/lm-web-profit-next-20261007、push先origin/codex/lm-web-profit-next-20261007。handover merge後に確認したorigin/mainは9ca3803060938343a8d8a64063f738a52bec573cだが、開始時に必ずfresh fetchして最新を使う。WB-14用anicca-products worktreeは/Users/anicca/Projects/anicca-products/.worktrees/lm-web-marketing-next、branch codex/lm-web-marketing-next-20261007、push先origin/codex/lm-web-marketing-next-20261007。開始前に両repoでhandoverとSSOTを読み、HEAD/upstream/dirtyをreadbackしてから専用worktreeを作る。共有checkout /Users/anicca/Projects/life-manager-main と /Users/anicca/Projects/anicca-products は書き換えない。reviewが必要なら対象commitのdetached snapshotに対するread-only reviewとする。
 
+## メール
 
-## Email
-
-- このhandoverはチャットのみ。メール本文の作成・送信・mailbox readbackは行わない。
+- Daisの指示どおりhandoverはチャットのみ。メール本文の作成・送信・mailbox readbackはしていない。
