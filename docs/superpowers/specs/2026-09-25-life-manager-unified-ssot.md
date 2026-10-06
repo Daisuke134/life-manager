@@ -9659,3 +9659,5 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 原応答private asc-current-app-subscription-relationships.json/SHA cb042b9481d584b55740db74b1339422415f25526ac10d88c27961dadbb884d2。秘密・vendor個人名をspecへ複製しない。
 - 使用中CLI commit08fae4dの一次GitHub sourceをgh取得。internal/asc/finance.goは/v1/financeReportsへvendor/reportType/regionCode/reportDate filterを指定しgzipstreamを受け、Body/ContentLengthを返す。native report IDの取得処理はこの経路にない。金融入力が要求するreport_id/finalは、この公式APIの返却項目と分けて契約確認が必要。requestID/生成filenameを公式reportIDへ昇格しない。
 - AGMSG skillを適用し既存lm CFO ownerへ取得証拠/変換契約の不足/編集なしをsend。sendを担当着手・完了の証拠にしない。current17/相対順序不変、コード変更・送信・再送・ledger write0。
+
+- §763のfresh再検証結果：原応答SHA/links.self/group relationship/included SKUの一致を確認し、親app帰属HOLDを解消、限定SHIP。finance取得経路にnative reportID必須の根拠はなく、非返却として保持しrequest tuple＋artifact SHAを証拠参照にするのが適切とのreview。未知HTTP headerの絶対不存在までは未証明。次はCFO正規入力のreport identity/SKU変換契約をこの公式証拠へ整合させる。銀行入金/MRR/利益は未確認を維持。
