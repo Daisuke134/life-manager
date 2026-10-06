@@ -8634,3 +8634,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - gig-upwork profileは存在、SingletonLock/Socket/Cookieも存在。SingletonLock参照PID95505は現在process missing、同profile user-data-dir process match0。guard endpoint未到達と合わせ、現live browser占有ではなくstale profile起動条件へ診断を絞る。PID不在だけでstate/credentialを消さない。
 - 既存helperはlaunch前にSingleton3fileをrmするため、現在の不可侵storeルールに照らし盲目的に実行しない。登録profileだけを通常browser ownerで起動する、手動store削除を伴わない既存経路を確認し、launchctl-safe preflightの順序を守ることが次手。基盤restart/別profile/account/fingerprintへの切替0。
 - Coconala購入導線比較は正規acquire9/未開始。ownerstatus読取とacquire間に使用状態が変わるため、statusの空きを取得成功へ流用しない。独立調査は継続、current1/主経路31/Lancers後段維持。
+
+
+### 637. Upwork registered browser owner通常起動・接続回復
+
+- launchctl-safe preflightはid/Directory Services/Aqua/manager UID/PID/GUI全PASS、mutation_allowed true。private receipt upwork-launchd-preflight.json。既存persistent-context disk preflightも0、同profile live process0、provision label不在（safe list113）を確認。
+- 既存main由来完全release4acfd541のlaunch_gig_browser.shをlaunchctl-safe submitでlabel ai.anicca.provision-browser.upwork.daisへ一度だけ通常起動、exit0。登録profile gig-upwork/既存fingerprint80138/既存vault gig-upworkを保持、browser_port_owner境界を迂回しない。ensure helperのSingleton rmは実行せず、手動store削除/別profile/応募loop再有効化0。
+- official browser-guard statusはupwork:dais reachable true/HTTP200/websocket valid/PID65586/ownership_source process_commandへ回復。既存session衝突/disk blockなし。private ownlog upwork-browser-owner.log/mode600。browser接続回復だけの成果であり、provider login/account/contract/payment/payoutは未確認。
+- 次は正規leaseと既存read-only page/parserでaccount-bound公式inventoryを取得。応募/返信/Connects購入/契約承諾/納品/資金移動0。current1/主経路31/Lancers後段維持。
