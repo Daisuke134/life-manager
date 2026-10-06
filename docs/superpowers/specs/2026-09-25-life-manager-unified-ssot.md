@@ -9154,3 +9154,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh CLIはCFO installed4b961b36/loaded-idle/pidnull/admission_effect_unknown false。新SHAのrun/occurrence `life-manager-cfo-hourly:18dbec39f8730290-57315` は `2026-10-06T11:10:10.991723+00:00` に host_admission_deferred:resource_capacity_busy。新SHAの起動とloaded反映は確認済み、集計・配信の自然完了/公式receiptは未完。手動再起動・capacity迂回は行わない。証拠 `mrr-cfo-loaded-status.json`。
 - marketing-metrics-dailyは別の旧82d31995 loaded/occurrence `marketing-metrics-daily:18db657457826458-2280`/effect_unknown trueを現CLIで再確認。送信親子binding不足を解消するまでfence保持。pure実API入力replayのMobile MRR USD20.34を本番自然レポート成功へ拡張しない。
 - 残29/current1を維持。次はCFO自然集計の結果と、cursor1の有償案件を止める具体的なhandoff/form選択原因を既存CLI・担当境界で確認する。mock商品・古い保留一括巡回は再開しない。
+
+### 700. cursor1のhandoff診断は使用中browserへ競合しない
+
+- 既存adapterの2契約（64033100/63942104）targeted_detail/純粋paid_handoff検証をnonblocking provider-browser.lock内で試した。exit75/provider_browser_busy、公式契約取得は未実行、外部effect/再送/提出0。不足fieldを今回probeで確認済みとはしない。
+- lsofはlock保持Python PID45284、psはparent45224/稼働約3分。現Reply CLIはparentPID45224/loaded-running、installed07a215959fe8、occurrence `crowdworks-revenue-reply:cd45a664387089032515dd79`。先行ownerを中断/cleanupせず、担当へAGMSG共有。既存memberへのsendだけを応答・着手証明にしない。
+- 診断の目的は実納品を止めるprice/terms等の不足項目特定。汎用 `crowdworks_paid_handoff_unavailable` が具体的不足原因をCLIで隠す場合、現行出力の最小改善だけを検討する。fresh read-only Sol/medium担当が保存済み公式証拠とsourceを確認中。生buyer本文・credential・架空契約は出力しない。source変更は原因/範囲確定後の専用main由来worktreeでのみ行う。
+- 証拠 `crowdworks-handoff-probe-lock-result.json`/`crowdworks-current-reply-status.json`。CFO current CLIは新4b961b36 loaded-idle/容量待ちのまま、自然集計・配信未完。current1/残29を保持する。
