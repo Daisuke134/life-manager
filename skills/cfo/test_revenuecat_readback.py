@@ -99,6 +99,30 @@ class RevenueCatReadbackTest(unittest.TestCase):
             now=lambda: NOW,
         )
 
+    def native_live_env(self, tmp):
+        root = Path(tmp)
+        state_dir = root / "cfo-state"
+        state_dir.mkdir()
+        release_root = root / "release"
+        release_root.mkdir()
+        release_sha = "a" * 40
+        (release_root / "RELEASE.json").write_text(
+            json.dumps({"sha": release_sha}), encoding="utf-8",
+        )
+        loop_id = "life-manager-cfo-hourly"
+        run_id = "fixture-run-1"
+        return {
+            LIVE_FLAG: "1",
+            "REVENUECAT_PROJECT_ID": "fixture-project",
+            "LIFE_MANAGER_LOOP_ID": loop_id,
+            "LIFE_MANAGER_OWNER_ID": loop_id,
+            "LIFE_MANAGER_RUN_ID": run_id,
+            "LIFE_MANAGER_OCCURRENCE_ID": f"{loop_id}:{run_id}",
+            "CFO_STATE_DIR": str(state_dir),
+            "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
+            "LIFE_MANAGER_RELEASE_SHA": release_sha,
+        }, release_root
+
     def test_reads_exactly_six_app_scoped_mrr_charts_and_hashes_the_envelopes(self):
         get, calls, bodies = fake_revenuecat_get()
         result = self.fetch(get=get)
@@ -206,32 +230,35 @@ class RevenueCatReadbackTest(unittest.TestCase):
             "started_at": NOW_TEXT, "completed_at": completed_at,
         }
         trailing = (NOW - timedelta(days=30)).isoformat().replace("+00:00", "Z")
-        with mock.patch.object(m, "_live_mobile_revenuecat_readback", return_value=readback), \
-                mock.patch.object(m, "collect_b7_records", return_value=[]) as collect:
-            implicit = m.build_b7_projection(
-                snapshot_at=NOW_TEXT, trailing_start=trailing, env={LIVE_FLAG: "1"},
-            )
-            self.assertEqual(implicit["snapshot_at"], completed_at)
-            expected_trailing = datetime.fromisoformat(
-                trailing.replace("Z", "+00:00")
-            ) + timedelta(seconds=20)
-            self.assertEqual(
-                implicit["trailing_start"],
-                expected_trailing.isoformat(timespec="microseconds").replace("+00:00", "Z"),
-            )
+        with tempfile.TemporaryDirectory() as tmp:
+            env, release_root = self.native_live_env(tmp)
+            with mock.patch.object(m, "ROOT", release_root), \
+                    mock.patch.object(m, "_live_mobile_revenuecat_readback", return_value=readback), \
+                    mock.patch.object(m, "collect_b7_records", return_value=[]) as collect:
+                implicit = m.build_b7_projection(
+                    snapshot_at=NOW_TEXT, trailing_start=trailing, env=env,
+                )
+                self.assertEqual(implicit["snapshot_at"], completed_at)
+                expected_trailing = datetime.fromisoformat(
+                    trailing.replace("Z", "+00:00")
+                ) + timedelta(seconds=20)
+                self.assertEqual(
+                    implicit["trailing_start"],
+                    expected_trailing.isoformat(timespec="microseconds").replace("+00:00", "Z"),
+                )
 
-            past = "2026-10-01T00:00:00Z"
-            explicit = m.build_b7_projection(
-                snapshot_at=past,
-                trailing_start="2026-09-01T00:00:00Z",
-                snapshot_at_is_explicit=True,
-                env={LIVE_FLAG: "1"},
-            )
-            self.assertEqual(
-                datetime.fromisoformat(explicit["snapshot_at"].replace("Z", "+00:00")),
-                datetime.fromisoformat(past.replace("Z", "+00:00")),
-            )
-            self.assertEqual(collect.call_args.kwargs["snapshot_at"], past)
+                past = "2026-10-01T00:00:00Z"
+                explicit = m.build_b7_projection(
+                    snapshot_at=past,
+                    trailing_start="2026-09-01T00:00:00Z",
+                    snapshot_at_is_explicit=True,
+                    env=env,
+                )
+                self.assertEqual(
+                    datetime.fromisoformat(explicit["snapshot_at"].replace("Z", "+00:00")),
+                    datetime.fromisoformat(past.replace("Z", "+00:00")),
+                )
+                self.assertEqual(collect.call_args.kwargs["snapshot_at"], past)
 
     def test_missing_credential_returns_six_gaps_without_provider_calls(self):
         get, calls, _ = fake_revenuecat_get()
@@ -413,17 +440,19 @@ class RevenueCatReadbackTest(unittest.TestCase):
         requested_snapshot = (before - timedelta(minutes=1)).isoformat().replace("+00:00", "Z")
         requested_trailing = (before - timedelta(days=31)).isoformat().replace("+00:00", "Z")
         with tempfile.TemporaryDirectory() as tmp:
+            env, release_root = self.native_live_env(tmp)
             credentials = Path(tmp) / "credentials.json"
             credentials.write_text(json.dumps({"credentials": [{
                 "service": "revenuecat-mobile-existing-deployment", "api_key": "fixture-key",
             }]}))
-            with mock.patch.object(m, "CREDENTIALS", credentials), \
+            with mock.patch.object(m, "ROOT", release_root), \
+                    mock.patch.object(m, "CREDENTIALS", credentials), \
                     mock.patch.object(helpers, "http_json", get), \
                     mock.patch.object(m, "collect_b7_records", return_value=[]) as collect:
                 projection = m.build_b7_projection(
                     snapshot_at=requested_snapshot,
                     trailing_start=requested_trailing,
-                    env={LIVE_FLAG: "1", "REVENUECAT_PROJECT_ID": "fixture-project"},
+                    env=env,
                 )
         after = datetime.now(timezone.utc)
 
@@ -439,19 +468,18 @@ class RevenueCatReadbackTest(unittest.TestCase):
         helpers = reader._business_outcomes_helpers()
         get = mock.Mock(side_effect=AssertionError("credential missing must prevent GET"))
         with tempfile.TemporaryDirectory() as tmp:
+            env, release_root = self.native_live_env(tmp)
             credentials = Path(tmp) / "credentials.json"
             credentials.write_text(json.dumps({"credentials": []}))
-            with mock.patch.object(m, "CREDENTIALS", credentials), \
+            env["LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES"] = str(FIX / "mobile-verified.json")
+            with mock.patch.object(m, "ROOT", release_root), \
+                    mock.patch.object(m, "CREDENTIALS", credentials), \
                     mock.patch.object(helpers, "http_json", get), \
                     mock.patch.object(m, "collect_b7_records", return_value=[]) as collect:
                 m.build_b7_projection(
                     snapshot_at=NOW_TEXT,
                     trailing_start=(NOW - timedelta(days=30)).isoformat().replace("+00:00", "Z"),
-                    env={
-                        LIVE_FLAG: "1",
-                        "REVENUECAT_PROJECT_ID": "fixture-project",
-                        "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(FIX / "mobile-verified.json"),
-                    },
+                    env=env,
                 )
 
         get.assert_not_called()
