@@ -3397,7 +3397,42 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - **最新A3固定window:** `2026-10-06T09:30:50.251Z <= ts < 2026-10-06T10:10:00Z`の同一条件GETは2回とも322行で、row ID集合が一致した。うち対象release SHAの行は282件、Google有料request rowは41件（geocoding 9、directions 32）、そのrow estimate subtotalはUSD `0.205`。同window全行のestimateはUSD `0.30505`。いずれもrow estimateであり、settled billing、invoice、Google月額totalではない。322行で`loop_id`は0件。
 - **再試行の内訳:** 対象SHAの24 tenant/event-version scope中18 scopeで別occurrenceの自然反復を確認し、12 scopeに後続Google有料rowがあった。その12件はすべてDirections `no_route`後の`transit_timeout` fallbackで、前回の有料Google rowから`1,834.193–1,855.262`秒後に発生しており、1,800秒未満の再課金は観測していない。
 - **解釈（推論）:** この時間幅は`no_route`の30分negative TTL満了後の再試行と整合する。従って「TTL内の重複有料callを観測した」とは言えず、A1障害でもない。一方、negative resultは期限後に再計算されるため再発費用は残る。TTL内のroute cache hitが見えたが、未適用のgeocode RPCがないため、新しいpersistent geocode cacheやprocess restart後の再利用を証明したものではない。A3全体をreplay-zero完了とは扱わない。
-- **責務とcursor:** `loop_id`欠落はA2/A8の費用帰属coverage、請求実額との照合はA6の責務であり、A1 outageではない。A1のproduction append-only ACL/trigger readback・canonical same-occurrence wake/voice/cost/receipt join・`crash`/`stale`/`effect_unknown`証跡は非ブロッキングhardeningとして残す。現在cursorは引き続きA3で、次はSupabaseの正規DDL credentialを得てmigrationを適用し、schema/RPC/ACL readbackの後、persistent cache/process restart/natural replayを確認する。TODO順はA3→A4→A5→A6→A7→A8→A9→A10のまま。
+- **責務とcursor:** `loop_id`欠落はA2/A8の費用帰属coverage、請求実額との照合はA6の責務であり、A1 outageではない。A1のproduction append-only ACL/trigger readback・canonical same-occurrence wake/voice/cost/receipt join・`crash`/`stale`/`effect_unknown`証跡は非ブロッキングhardeningとして残す。現在cursorは引き続きA3で、次は既存Supabase CLI profileの対象project migration権限を確認し、公式migration endpointで適用、schema/RPC/ACL readback、persistent cache/process restart/natural replayを確認する。新tokenが必要かはpermission readback後に決める。TODO順はA3→A4→A5→A6→A7→A8→A9→A10のまま。
+
+### 2026-10-06 13:37 UTC — CFO A3 Supabase CLI auth / project-link再監査
+
+- この追記はA3の認証・link・schema確認だけを更新し、CFO目標・設計・TODO順を変更しない。
+- **CLI認証の訂正:** Supabase CLI `2.95.4`のdebugログと同版sourceから、current profileのcredential storeからaccess tokenを取得したことを確認した。raw tokenは表示・複製していない。`projects list`は終了code 0でAPI errorを出さず、前回の「CLI未ログイン」という解釈は誤り。`~/.supabase/access-token`ファイルが無いことだけでは未ログインと判定できない。
+- **CLI version probe:** installed `2.95.4`が`2.119.0`を更新候補として表示した。`npx supabase@2.119.0 --version`は成功したが、同版のread-only `projects list`が90秒超返らず中断した。このprobeは権限・認証の結論に使わない。
+- **project visibility/link状態:** 読み取り専用`projects list`の結果にruntime URLから導いた対象project refは現れなかった。token scopeによる一覧制限とSupabase account/project membership不足は分離できず、対象projectにaccessがないとまでは断定しない。`Cannot find project ref`はローカルlink不足の警告で、認証なしの証明ではない。現在登録中の全Life Manager worktreeに`supabase/config.toml`または`supabase/.temp/project-ref`はなく、Git履歴にもtracked configはない。従ってGitから復元できる削除ファイルは確認できず、削除主体・時期も証明されていない。SQL migrationはCLI既定の`supabase/migrations/`ではなく`apps/life-manager/migrations/`にある。
+- **native profileの権限readback:** `SUPABASE_PROJECT_ID`に対象refを一時指定し、`supabase db query --linked`へread-only `SELECT`を渡したが、CLIのlogin-role取得段階で`403: account does not have necessary privileges`となったためSELECTの実行は確認できない。`supabase --experimental postgres-config get --project-ref ...`も`403`だった。これは当該Database/login-role要求の拒否を示すが、Database read scope不足かSupabase account roleかは分離できていない。project listにも対象refは出ず、現在profileからtarget visibilityは未確認。migration endpointに必要な`Migrations` read-write scopeの有無も未検査。production DDL/data/provider writeは0件。
+- **別credentialの扱い:** credential SSOTの`supabase-life-manager-production`項目はRailway runtime用API keyのみで、Management API tokenや直接Postgres URL/passwordはない。runtime keyによるManagement API GETは`401`。PostgREST OpenAPI GETはHTTP 200・RPC 60件だが、`/rpc/lm_geocode_cache_get`/`/rpc/lm_geocode_cache_upsert`のpathは引き続き現れず、A3は未完了。
+- **旧10:01判定の訂正:** 「Management API token/direct DB credentialがSSOTに無い」ことから「Supabase CLIにもtokenがない」「不足物は新PAT/OAuth」とした判定は誤り。current profile tokenは存在する。未確認の不足物は対象projectへのmigration権限であり、新tokenが必要かは未確定。scoped PATはSupabase account roleが持つ権限を超えないため、role自体が不足する場合はproject/organization ownerによるrole付与が先。
+- **次の修復gate:** current profile tokenのまま公式`POST /v1/projects/{ref}/database/migrations`（fine-grained `database_migrations_write` またはOAuth `database:write`が必要）でA3 migrationを適用可能か確認し、拒否時にだけtoken scopeとaccount roleを分離して必要な最小権限を整える。適用後にschema/RPC/ACLをreadbackし、persistent cache/natural replayを検証する。`supabase db query --linked`の`/database/query`は別のexperimental endpointであり、production migrationには使わない。local `supabase/config.toml`はManagement API migration経路の前提ではないため、認証修復と混同して生成しない。
+
+### 2026-10-07 06:41 JST — CFO A3 fresh readback / RevenueCat source / atomic cursor
+
+- この追記はA3のアクセス・schema状態、RevenueCat MRR reader、次のCFO原子TODOだけを更新する。CFO目標と既存順序は変えない。
+- **A3 fresh readback:** Supabase CLI `2.95.4`のcurrent profileはcredential storeからaccess tokenを取得し、read-only `projects list`は終了code 0/API errorなしだったが、runtime URLに結び付くLife Manager project refは一覧に現れなかった。これはtoken scope制限とSupabase account/project membership不足を区別しない。
+- 対象refを指定したread-only `SELECT 1`はCLI login-role取得時に`403: account does not have necessary privileges`となり、SELECTは実行されなかった。read-only `postgres-config get`も403であり、migration-write permissionは別なので未検査である。
+- PostgREST OpenAPI GETはHTTP 200・122 paths・60 RPCで、`/rpc/lm_geocode_cache_get`と`/rpc/lm_geocode_cache_upsert`は依然存在しない。geocode-cache migration適用・schema反映は未確認であり、このreadback中のproduction DB/data/provider writeは0件。
+- `supabase/config.toml`/`.temp/project-ref`は現登録worktreeとGit履歴で確認できず、復元可能なtracked fileや削除の証拠はない。missing linkは認証の証拠ではなく、公式Management API migration経路の前提でもない。
+- **RevenueCat MRR source:** PR #6790はmerge commit `1305c07f5e4c6d6ede9b5bdfbef752a107421f0f`としてmainへ統合済み。CFO RevenueCat readerは明示live flag時だけ公式APIのoptions＋6 app MRRを取得し、static stale MRRへのfallbackをしない。PR CIと関連Python suitesはPASSしたが、source mergeだけではscheduled/production自然実行を証明しない。
+- 2026-10-07 06:40 JSTのread-only official RevenueCat runは6/6 app rows available、latest complete period `2026-10-05`、total MRR USD `20.34`だった。内訳は`anicca-ios` USD 20.34、`honne-ai`、`breath-reset`、`sleep-ritual`、`desk-stretch-timer`、`micro-mood`が各USD 0.00。これはsubscription MRR observationであり、settled revenue、Apple proceeds、bank cash、net profitではない。
+- **現在cursor/order:** A2はmain統合・production metadata readback済み、A3 sourceはmain済みだがproduction acceptance未完了。active orderはA3→A4→A5→A6→A7→A8→A9→A10のまま。A1 append-only/canonical-occurrence audit hardeningは非ブロッキングの別追跡とし、この順序へ挿入しない。
+- **Atomic remaining TODO — active order:**
+  1. **A3.1 Access:** current CLI identityの対象project visibilityとMigrations write permissionを、利用可能な安全な公式経路で確定する。新tokenが必須と仮定せず、権限不足時だけproject/account roleまたは対象限定scoped PATを整える。
+  2. **A3.2 Apply:** `apps/life-manager/migrations/2026-10-06-lm-geocode-cache.sql`を公式`POST /v1/projects/{ref}/database/migrations`で適用し、provider receipt/statusを記録する。experimental `/database/query`はproduction DDLに使わない。
+  3. **A3.3 Schema acceptance:** private cache table、RPC signature、RLS/ACL、PostgREST schema visibilityをreadbackし、anon/authenticatedから非公開で`service_role`経路のみが意図どおり動くことを確認する。
+  4. **A3.4 Runtime acceptance:** main由来immutable releaseをproductionへ反映し、process restartをまたぐ同一tenant/event-versionの自然な再実行で余分な有料Google rowが0件であることをreadbackする。
+  5. **A4.1 Free lane:** OpenPOIとJapan geocoderの利用条件・対応coverage・出典表示を確認し、既存ユーザー体験に必要な検索結果を満たす無料/低費用経路を接続する。
+  6. **A4.2 Fallback:** transit-firstとGoogle fallbackの条件、provider/SKU/operation attributionを実装し、自然またはfocused end-to-end証拠で不要な有料callが増えないことを確認する。
+  7. **A5 Budget:** 既存設定とcall pathを照合し、daily/monthly spend cap、非必須call抑止、cap到達・reset・retry stateを実装・検証する。未定義の金額やmissing costを0として補わない。
+  8. **A6 Billing:** Google Monitoring usageと公式Cost Table CSVをproject/SKU/service/期間で照合し、row estimateとsettled bill、credits/tax/currency、coverage gapを分けて残す。
+  9. **A7 Personal CFO:** MoneytreeのMUFG account balanceと全transactions/subscriptionsをread-onlyで取得し、freshness cursor・dedupe・source receipt付きでLife Managerへ取り込む。資金移動はしない。
+  10. **A8 Business coverage:** 全14 loopごとにauthoritative revenue/refund/feeと銀行・カード・subscription・provider/cloud cost sourceを列挙し、期間・通貨・owner・official receiptでjoinする。transferを除外し、欠損`loop_id`/actualはunknown/unattributedで保持する。
+  11. **A9 Report:** 既存CLI/panelを再利用し、loop/platform/company別revenue・expense・net・MRR・runway、bank balance、freshness・coverage・estimate-vs-settled・unknownを同じperiodで表示する。RevenueCat readerはmerged済みだが、live flag/natural report経路と他source joinは未受入。
+  12. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runで14-loop receipts、Moneytree freshness、RevenueCat MRR、Google actual-vs-estimate、expense/net/unknown、report receiptをreadbackし、同一取引・売上の二重計上0を確認する。
 
 ### 2026-10-06 JST — AGMSG `lm` teamの状態と復旧cursor
 
