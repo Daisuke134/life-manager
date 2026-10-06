@@ -405,11 +405,11 @@ Run the same focused suite. Expected: stale accounts offer a usable reauthorizat
 **Interface:**
 - `organsUserOnce` returns before cache/provider reads and non-Travel organ work when `uid` matches the Web UUID form and `telegram_chat_id === null`. `travelTick` remains the sole scheduled Calendar consumer for those Web-only rows; Telegram-bound users keep current organ behavior.
 
-- [ ] **Step 1: Add the failing Web-only scheduler regression**
+- [x] **Step 1: Add the failing Web-only scheduler regression**
 
 Cover a Web UUID with NULL Telegram binding and enabled daily automation: `organsUserOnce` must make zero `fetchUpcomingEvents` calls and zero care-organ calls. Also cover a Telegram-bound user to prove its legacy organ path still runs.
 
-- [ ] **Step 2: Run the scheduler test and confirm it fails**
+- [x] **Step 2: Run the scheduler test and confirm it fails**
 
 Run: `node --test test/scheduler.test.js`.
 Expected: the Web-only fixture reaches the upcoming-event reader and non-Travel organ path.

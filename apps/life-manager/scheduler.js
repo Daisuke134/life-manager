@@ -777,6 +777,7 @@ async function reminderUserOnce(u, nowMs, deps = {}) {
 // `tenant timeout` fired (spec §3 row 1c done receipt).
 async function organsUserOnce(u, nowMs, deps = {}) {
   if (u && u.daily_automation_enabled === false) return;
+  if (u && u.telegram_chat_id === null && WEB_TRAVEL_UID_RE.test(String(u.uid || ""))) return;
   const now = nowMs !== undefined ? nowMs : Date.now();
   const log = deps.log || console.log;
 

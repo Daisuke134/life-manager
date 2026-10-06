@@ -159,3 +159,33 @@ test("Telegram travel keeps the existing Calendar path without the Web gate", as
   assert.equal(guardCalls, 0);
   assert.equal(calendarReads, 1);
 });
+
+async function observeOrganCalendarAndCare(uid, telegramChatId) {
+  const { organsUserOnce } = require("../scheduler.js");
+  let calendarReads = 0, careRuns = 0;
+  await organsUserOnce({
+    uid,
+    telegram_chat_id: telegramChatId,
+    daily_automation_enabled: true,
+    notifications_enabled: false,
+  }, Date.UTC(2026, 9, 6), {
+    getEvents: () => null,
+    fetchUpcomingEvents: async () => { calendarReads++; return []; },
+    putEvents: () => {},
+    fetchVerifiedOutcomes: async () => [],
+    mental: async () => null,
+    care: async () => { careRuns++; return null; },
+    log: () => {},
+  });
+  return { calendarReads, careRuns };
+}
+
+test("legacy organ scheduler does not read Calendar or run care for a Web-only tenant", async () => {
+  const result = await observeOrganCalendarAndCare("lm_11111111-1111-4111-8111-111111111111", null);
+  assert.deepEqual(result, { calendarReads: 0, careRuns: 0 });
+});
+
+test("legacy organ scheduler keeps Calendar reads and care for a Telegram tenant", async () => {
+  const result = await observeOrganCalendarAndCare("telegram-user", "101");
+  assert.deepEqual(result, { calendarReads: 1, careRuns: 1 });
+});
