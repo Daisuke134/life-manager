@@ -9443,3 +9443,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - handle60254 exit0。UTC2026-10-06T16:02:17.586682、cookieゼロowned contextでcredential正本のnewpasswordを入力、email/password valid=true/aria-invalid=false、submit enabled=true、公式POST HTTP200、最終/dashboard/login form無し/alert0。context closed、自分のtabのみ操作。証拠private freelancer-clean-login-submit-boundary.json。先行固定待機の未成功は現credential拒否を証明せず、今回の十分な待機で新規context認証を確認した。
 - 認証復旧は限定Done。account-bound inventory/応募準備/承認済み自動入札/新規応募/収益は未完。現在cursor8の公式account identityと案件一覧取得へ進む。新passwordはprivate credential SSOTに保存済みmode600、秘密値/token/メール本文をrepo/chatへコピー0。復旧メール再送0。
 - 主29順序、2〜7の既存保留を保持。応募/返信/価格/出品/振込/本番loop変更0。
+
+
+### 738. Freelancer現在の公式募集2件とemail verification
+
+- registered interactive:dais lease/self pageで公式dashboard/search/projectsをread-only取得。handle44026 exit0、UTC2026-10-06T16:02:53.255718、両HTTP200/login form無し。検索は可視project links20件（全件coverageではない）。dashboard account menuあり/email verification noticeあり。private freelancer-current-account-projects.json。
+- 具体的候補は40753447「Website for modern style portfolio site -- 2」と40753376「High-Converting Product Landing Page」。handle40059 exit0、UTC16:03:13.839803、両公式details HTTP200/Project ID一致/募集残期間表示、PHP/WordPress等・Elementor/CRO等のskill tags。詳細要件/実費/応募可能control/account identityはまだ未確定。private freelancer-two-project-readiness.json。budgetは表示見積で売上ではない。
+- crwlで公式 https://developers.freelancer.com/docs/api-overview/types-of-integrations を取得。Automatic Biddersは禁止対象、agency自身用internal toolの例外承認は場合により存在。現private authorizationsにFreelancer receipt無し。一般応募権限をAPI自動入札例外の証拠に代用せず、browser経由で既存gateを迂回しない。文書scopeはAPI integrationであり、全手動応募禁止へ一般化しない。
+- cursor8次はdashboard email verificationの実control/公式receiptと2案件の完全要件を取得する。応募は実要件/必要資格/automation承認境界を照合後。公開案件が存在すること・login成功は応募/受注/収益の証拠ではない。主29順序・前段保留保持。応募/返信/価格/出品/振込/本番loop変更0。
