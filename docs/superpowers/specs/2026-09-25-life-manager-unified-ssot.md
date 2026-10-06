@@ -9483,3 +9483,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - handle1494 exit0で5official interview detailを読み、全HTTP200/同invitation path/job posting hrefを確認。2105756913412502284→~022105752488520310959（1000sentence本人音声10USD）、2104732869414606387→~022102780151062298310（AI audio/text transcription）、2097397140352494608→~022095199288617847857（Japanese transcription）、2095139827604571626→~022094517285315731611（AI Software Engineer）、2092250550587497010→~022069529109989179058（本人English recording15USD）。表示金額は募集予算、収益ではない。private upwork-five-invitation-details-private.json。
 - 表示expired/closed token無しだけで募集有効性を全証明しない。Submit a proposal linkは存在するがクリック0。既存能力に近いAI Software Engineer invitation2095139827604571626を先行候補に選ぶ。表示条件週30h超/6months以上を候補本人SSOTのavailability/職歴と照合する。完全job text/費用/automation適格性は未確認。本人声・本人評価を偽造/代替しない。
 - cursor9次は同求人の完全要件と既存candidate facts/稼働条件照合→履行可能なら同招待のproposal準備。tax/withdrawal不足保持、応募/返信/Connects消費/課金0。主29相対順序と2〜8保留、SelfBuild後段を維持。
+
+
+### 743. Upwork AI Engineer招待の必須条件と実profile照合
+
+- 同招待job~022094517285315731611をofficial GET、handle18763 exit0/HTTP200、private upwork-ai-engineer-full-job-private.jsonへ完全要件保存。4+years engineering、Java/Python、production agents/MCP、APAC/LATAM、100%allocation約40h/week、US Central overlap（APACはIST overlap/11am CTまでprefer）、end March31 2027を確認。公開summaryの週30h超だけで適格としない。
+- candidate private profile/factsとREADMEのcanonical material manifestを確認。AI/agent reliabilityの実装経験は保存factsにあり、engineering master PDFはApril2025–present、研究April2024–April2026。これだけでは4+years職務経験を証明できず、40h専任/CT overlapも根拠無し。broad experience attestationを具体的年数/稼働約束へ変換しない。private material保持/改変0。
+- 招待2095139827604571626を現優先proposal対象から外す（本人の全生涯経験を不足と断定するのでなく、現証拠で必須条件を約束できない）。送信/decline0、招待は保持。既存本人録音/選考を代替しない。
+- cursor9次は既存SEARCH_URLからscope明確なAI/API/Web開発の募集を取得し、実証できる経験・稼働範囲・Connects18/feeで候補を選ぶ。40h専任の雇用型契約をmanagerのサービス納品と混同しない。tax/withdrawalと前段不足を保持、主29順序/後段SelfBuild不変。応募/返信/Connects消費/振込/本番loop変更0。
