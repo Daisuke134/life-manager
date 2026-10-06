@@ -15,6 +15,7 @@ const META_ENUMS = {
   estimate_status: ["estimated", "unavailable", "not_applicable"],
   estimate_basis: ["audio_duration_proxy"],
 };
+const OPAQUE_EVENT_VERSION = /^[a-f0-9]{64}$/;
 const SAFE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SAFE_RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 const SECRET_RUNTIME_VALUE = /(?:(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,})/i;
@@ -69,6 +70,7 @@ const META_VALIDATORS = {
     && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(value)),
   reconnects: (value) => Number.isInteger(value) && value >= 0,
   estimate_basis: (value) => enumValue("estimate_basis", value),
+  event_version: (value) => typeof value === "string" && OPAQUE_EVENT_VERSION.test(value),
 };
 
 function safeMeta(meta) {

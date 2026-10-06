@@ -285,7 +285,7 @@ test("Google Directions success and later cache hit emit separate usage facts", 
     }) };
   };
   const opts = {
-    uid: "tenant-1", _routeCache: cache,
+    uid: "tenant-1", eventId: "event-for-route-usage", _routeCache: cache,
     _recordUsageEvent: async (event) => { events.push(event); return true; },
   };
   try {
@@ -303,6 +303,8 @@ test("Google Directions success and later cache hit emit separate usage facts", 
     { provider: "google_maps", feature: "directions", outcome: "success", units: 1, cost: 0.005 },
     { provider: "google_maps", feature: "travel_route", outcome: "cache_hit", units: 0, cost: 0 },
   ]);
+  assert.match(events[0].meta.event_version, /^[a-f0-9]{64}$/);
+  assert.equal(events[1].meta.event_version, events[0].meta.event_version);
 });
 
 test("life-call travel passes safe route runtime context separately to the usage writer", async () => {
@@ -479,25 +481,34 @@ test("Calendar, Telegram, and call consumers share one event-version route fact"
 });
 
 test("persisted event cache hit runs before geocoding or route provider work", async () => {
-  let geocodes = 0, providerCalls = 0, lookup;
+  let geocodes = 0, providerCalls = 0, reservations = 0, lookup;
+  const allowanceState = {};
+  const usageEvents = [];
   const cachedRoute = { provider: "google", durationSeconds: 720 };
   const route = await directionsRoute("raw home", "raw venue", "key", 2_000_000, 1000, false, {
     uid: "tenant-cached", eventId: "event-cached", purpose: "go",
     _routeCache: {
-      getByEvent: async (uid, eventVersion, purpose) => {
+      getByEvent: async (uid, eventVersion, purpose, onCacheHit) => {
         lookup = { uid, eventVersion, purpose };
+        await onCacheHit(cachedRoute, { failureClass: null });
         return { hit: true, value: cachedRoute };
       },
     },
     _geocode: async () => { geocodes += 1; return null; },
     _directionsMinutesGoogle: async () => { providerCalls += 1; return 12; },
+    _allowanceState: allowanceState,
+    _reserveManagedAction: async () => { reservations += 1; return { allowed: true }; },
+    _recordUsageEvent: async (event) => { usageEvents.push(event); return true; },
   });
   assert.deepEqual(route, cachedRoute);
   assert.equal(lookup.uid, "tenant-cached");
   assert.equal(lookup.purpose, "go");
-  assert.ok(lookup.eventVersion);
+  assert.match(lookup.eventVersion, /^[a-f0-9]{64}$/);
   assert.equal(geocodes, 0);
   assert.equal(providerCalls, 0);
+  assert.equal(reservations, 0);
+  assert.equal(usageEvents[0].meta.event_version, lookup.eventVersion);
+  assert.equal(JSON.stringify(usageEvents).includes("event-cached"), false);
 });
 
 test("exact schedule, location, event, and purpose changes invalidate the shared route fact", async () => {
@@ -515,4 +526,39 @@ test("exact schedule, location, event, and purpose changes invalidate the shared
   await route("geo:40.741,-73.980", 2_060_000, "event-2");
   await route("geo:40.741,-73.980", 2_060_000, "event-2", "return");
   assert.equal(calls, 5);
+});
+
+test("route event versions bind timezone and arrival/departure routing direction", async () => {
+  const versions = [];
+  const events = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+    status: "OK", routes: [{ legs: [{ duration: { value: 900 } }] }],
+  }) });
+  const cache = {
+    getByEvent: async (_uid, eventVersion) => {
+      versions.push(eventVersion);
+      return { hit: false, value: null };
+    },
+    getOrCompute: async (_uid, _src, _dst, _bucket, compute) => compute(),
+  };
+  const common = {
+    uid: "tenant-version-dimensions", eventId: "calendar-private-event", purpose: "go",
+    _routeCache: cache,
+    _recordUsageEvent: async (event) => { events.push(event); return true; },
+  };
+  try {
+    await directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "key", 2_000_000, 1000, false,
+      { ...common, timezone: "Asia/Tokyo" });
+    await directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "key", 2_000_000, 1000, false,
+      { ...common, timezone: "UTC" });
+    await directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "key", 2_000_000, 1000, true,
+      { ...common, timezone: "Asia/Tokyo" });
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+  assert.equal(new Set(versions).size, 3);
+  assert.ok(versions.every((version) => /^[a-f0-9]{64}$/.test(version)));
+  assert.deepEqual(events.map((event) => event.meta.event_version), versions);
+  assert.equal(JSON.stringify(events).includes("calendar-private-event"), false);
 });

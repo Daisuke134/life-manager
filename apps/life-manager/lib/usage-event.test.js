@@ -143,6 +143,13 @@ test("accepts the exact provider metadata enums and scalar types", () => {
   }
 });
 
+test("usage metadata accepts only opaque 64-hex event versions", () => {
+  assert.equal(normalizeMeta({ event_version: "b".repeat(64) }).meta.event_version, "b".repeat(64));
+  for (const invalid of ["event-id", "b".repeat(63), "b".repeat(65), "B".repeat(64), null, 12]) {
+    assert.throws(() => normalizeMeta({ event_version: invalid }), /metadata/);
+  }
+});
+
 test("rejects unknown and secret-shaped metadata keys and nested values", () => {
   for (const key of ["unknown_field", "customer_email", "api_key", "authorization", "secret_token"]) {
     assert.throws(() => normalizeMeta({ [key]: "synthetic-value" }), /metadata|secret-shaped/);
