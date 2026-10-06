@@ -9412,3 +9412,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最初のlogin probeはbutton名大小文字不一致でsubmit0（Log In想定、実DOM Log in）。実button取得後に正規Log inへ通常認証を1回実施。handle37808 exit0、UTC2026-10-06T15:55:39.051549、/login/password form保持/invalid_credentials_visible true、CAPTCHA/2FA false。application effect0。証拠private freelancer-normal-login-result.json。認証成功/account-bound inventory取得は未完。
 - 今のcursor8はcredential有効性/既存account復旧経路の診断。必要な次の操作は公式Forgot Password経路と既存メールreceipt取得経路の確認、復旧できたcredentialは正本へ保存して再login実測。秘密やcodeをchatへ出さない。providerの自動入札例外receiptが無い点は応募前に公式規約/既存承認証拠を確認し、認証成功と応募可能を混同しない。
 - 2〜7の保留/銀行fee実費unknownを保持し主29相対順序不変。今回のsource/本番loop変更、応募、返信、価格/出品変更、振込0。
+
+
+### 734. Freelancer公式復旧リクエストとメール取得経路
+
+- 現google-login catalog/canonicalを読んだ。旧skillのKeychain利用/復旧禁止は現Dais指示（local credential SSOT/通常復旧自律）と矛盾するため現指示を優先。gog configはfile backend、既存password envあり、Apple storeを使用しない。target accountのstored Gmail identity一致1、Gmail readはexit0で確認。秘密値/アドレス/メール本文の表示0。
+- registered interactive:dais lease内の自分の新規pageでForgot Password公式formを取得。email/Nextのみ。初回placeholder selectorはcustom componentとnative inputの2matchでfill前に失敗し、request0。実DOM確認に基づくnative input selectorへ修正し、handle76712 exit0、UTC2026-10-06T15:57:14.389295にNext送信1・公式email sent表示true。再送0、application effects0。証拠private freelancer-recovery-form.json/freelancer-recovery-request-result.json。
+- 既存Gmail read-only検索（gmail-no-send/file backend）はUTC15:57:24 exit0、直近1日のFreelancer password/reset該当thread1。本文/tokenは未保存・未表示。証拠private freelancer-recovery-mail-availability.json。cursor8は公式復旧メールのsource/宛先/時刻を照合してリンクをmemory内で処理し、成功したcredentialを正本へ保存→新規page再login確認する段階。復旧requestを繰り返さない。
+- 認証復旧/公式account readback/新規応募はまだ未完。2〜7保留と主29順序を保持。Gmailユーザー送信/応募/価格/出品/振込/本番loop変更0（providerから復旧メール送信を要求した1件と区別）。
