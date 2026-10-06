@@ -9232,3 +9232,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - root実行環境のlaunchctl-safe preflightは2026-10-06T13:12:55.411878+00:00、UID501/DS/Aqua/managerUID501/PID1/GUI PASS。read-only reviewer環境のDS失敗をMacの永続不具合へ拡張しない。
 - safe print `gui/501/ai.anicca.life-manager-cfo-hourly` をenv非出力で読み、実loaded argumentsはimmutable20261006T214226-57e09ccfのlm-loop-run/owner/release rootへ一致。ディスクplistも同じ、currentは20261006T220922-2cf94f43。pidなし。git ancestryは4b→57e、loaded packageにMOBILE_MRR_FRESHNESS_MAX_AGE 24hの修復sourceあり。
 - 本turnはprint/metadata照合のみ、source/state/apply/restart/current変更/外部送信0。旧再適用原因は解明し、現loaded修復包含も確認したが、必要なofficial data/finance receipts/自然reportの成果は未完。current1.1の額取得修復と独立にCFO17の証拠を更新した。
+
+### 708. 額取得修復のENOSPCを所有範囲内で復旧
+
+- Luna/max finite run38532はexit101、stderr出力時No space left on deviceでpanic。test_paid_adapter.pyに176added/7removedの途中変更のみ、adapter未変更。途中変更を破棄せず保持し、source完了/commit/納品Doneへしない。初期baseline133 tests PASS、追加RED/GREENは未完。
+- rootでdisk空き128MiBを確認。protected .cloak/memory/state JSONL/configAI/稼働app/他owner worktree/認証データの削除0。Sparkle cache Installation/AfUvdGuGpの展開済みChatGPT.appが存在し、重複zipはlsof open handle0/正常zipを確認。exact zip1個（688902989 bytes）だけ除去、展開appを保持。証拠 `source-repair-disk-cache-cleanup.json`。
+- 空き1.0GiB、専用worktreeのwrite/read/delete probe PASS。この必要な書込復旧をcurrent1.1内で実施し、SelfBuild等を先頭へ繰り上げない。
+- 同worktree/branch/lease/2files scopeのLuna/max finite run96732へ継続を渡した。既存testsを戻さずRED→minimal production→GREEN、rootがGit/review/CI/promotionを担当する。source/本番/実納品は未完。
