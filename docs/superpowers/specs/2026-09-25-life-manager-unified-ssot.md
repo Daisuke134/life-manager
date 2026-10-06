@@ -4883,7 +4883,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 | Coconala受注 | 過去一覧3件、表示9000/8000/24000円。現在の公式orders-only CLIは403/coverage incomplete、現件数unknown | TikTok/NPO追跡延期を保持。過去の件数・senderを現在値へしない。現在必要行動は取得復旧後に確認。表示額を入金にしない。§631/703 |
 | Coconala問い合わせ | 先頭30行はobserve、返信要求flagなし | 1page/head-onlyで全件性なし。新着の具体的必要行動がある時だけ該当thread確認。§631 |
 | Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
-| CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
+| CrowdWorks | 3候補64033100/63989657/63942104は公式税込12JPY・handoff PASS。別2候補は結果照合待ち | 64033100は採用応募フォームと確認。残2候補の作業型/receiptを確認し、納品対象を選ぶ。契約額・表示net額を入金へしない。§716/719 |
 | Mercor | 返却100行中reject86/途中8/応募済6 | 全件性・契約/精算coverage未確認、既存effect-unknownは再送せず応募行で照合。§620–622 |
 | Upwork | browser復旧/公式contract画面active0・available表示$0 | 支払画面のavailable/pending表示0を取得。account独立照合/全履歴/refund/fee/payout/costは未確認。財務reviewは表示限定SHIP、表示0を過去売上や利益0にしない。§637–639/643–644 |
 | Freelancer | 既存readiness/transportあり、旧scheduler退役 | 現account/実inventory fetch/receipt未確認。定義を現稼働へ変換しない。§634–635 |
@@ -4892,7 +4892,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 #### 現在の詰まり（今回のCLI readbackで確認）
 
 - Coconala：registered browserと既存orders-only CLIで公式受注route HTTP403/coverage incomplete。表示CAPTCHA・login redirectなし。現受注件数/待返信/納品状態はunknown。Storefrontの現在購入経路も未確認。過去3件/公開20件を現状へ代用しない。§703。
-- CrowdWorks Paid：最新保存business output92303では64033100/63989657/63942104の3候補がprice_minor不足/不正、63826932/63819060の2候補が結果照合待ち。診断codeの新出力を確認したが、正規納品対象/成果物・価格の原因は未確定。次は3候補の公式契約金額と作業指示をCLIで確認する。5候補を有償納品5件へ丸めない。
+- CrowdWorks Paid：価格取得不具合はmain4429と公式3readbackで解消。64033100は採用応募フォームであり、サービス成果物の納品と混同しない。63942104/63989657の実要件とbound receiptを取得中。63826932/63819060の旧結果照合待ちは再送しない。正式納品・入金は未確認。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
 - CFO：旧3ae再適用はrelease-reconcilerのrun43699と確認済み。その後rootのsafe preflightは13:12:55 UTCにPASSし、公式GUI printで実loaded argvとplistが57e09ccf一致、current2cf94f43を確認した。57eは4bのdescendantでMRR24h修復を含む。旧版へ戻った状態は現blockerから除く。公式データ接続・自然集計/レポートは未完。競合再applyなし。§707。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
@@ -4902,7 +4902,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 現在cursor：1.2（CrowdWorks64033100/63989657/63942104の既存receipt・作業指示・期限・実費を確認し、実行する1件と成果物名を確定する）。1.1の額取得修復は実readback限定Done、主経路29項目の履行/精算は未完。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
 
-今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO現loadedが旧版へ戻る反映経路の確認と接続維持が未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
+今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然reportの成果は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
 Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監査→収益確認」の順を変更する。新順は実債務/納品・精算→Lancers以外のstorefront/応募/販売→会計→SelfBuild→Lancers再開→最終確認。理由は古い状態の巡回を全収益経路の停止条件にせず、実際の仕事と売上へ時間を使うため。以後この順を保持する。各行の必要な観測・原因修復・focused検証はその行の中で行い、観測だけを何度も独立taskに増やさない。新しい外部effect/価格変更等の権限はこの文書更新から推定しない。
 
@@ -9309,3 +9309,8 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - privateプロフィールSSOTはcandidate30keys/facts43件、教育/勤務/希望報酬・availability等の既存factsとprovider profileのhourly/hour_limit設定は存在する。存在だけで全18必須回答が裏付けられるとはしない。個人情報/希望条件/実体験・機器・時間を作り上げて送信しない。
 - 既存PR6338はopen/未統合、広いrecruitment拒否とPaid gateを提案している。現work_fitの通常contract-selection interviewはapplicationを止めない方針と衝突し、buyerの採用運営支援まで一律refuseするため、Rootがそのままmerge/横展開しない。採用応募行動と、既存有償成果物の制作/正式納品を混同しない。申請は既存source/条件が揃った範囲で処理する。
 - 1.2の正式納品対象は未確定。次は残る契約候補63942104/63989657の実作業型と既存receiptをread-onlyで確認し、履行可能なservice artifactを選定する。64033100はapplication条件/不足factsの対象として保持し、完了・無料/無意味とは捏造しない。Root source編集/復旧/自動返信/正式納品0。現在1.2/主29順序不変。
+
+### 720. 1.2の残2候補を同じ既存GETで確認
+
+- 63942104/63989657だけを対象に、main4429 immutable・registered identity lease・既存provider lock内で契約とフォーム設問title/type/required、completed bound receipt件数をread-only取得するrun2086を開始。回答値/buyer本文/credential保存0、送信/正式納品/再送0。
+- 64033100の採用応募フォームをサービス成果物へ誤分類せず、残候補の実作業が確認できるまで納品対象を捏造しない。§217の古いprice-null/反映不明の記述を確認済み最新状態へ置換。current1.2/29主項目順序不変。
