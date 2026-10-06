@@ -9902,3 +9902,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現公式CLI schemaでservice(id:String!)/ServiceInstance source/rootDirectory/dockerfilePath/startCommand/latestDeploymentを確認し、未対応10IDだけをmaxworkers3で並行read-only取得。成功9/instances8/削除済み1、current metadataとして保存し過去period source証明へ使わない。commandはscript pathだけ、repoは安全slugだけ、画像/秘密env/生outputは保存しない。private railway-current-unmatched-service-provenance.json。
 - 失敗1IDはid/deletedAt/projectIdへ最小化した追加probeでもGraphQL INTERNAL_SERVER_ERROR/has service datafalse。provider server errorでありservice不存在/費用0/credential失効とは認定しない。private railway-unmatched-service-minimal-error-readback.json。次は当該billing periodのdeployment/runtime provenanceとcanonical loop binding、必要ならarchived deployment経路。
 - fresh CFO statusはmain6489/idle、最新自然18:57:06/exit75/capacity延期。新reportは旧18:11のまま。current17の自然readbackと20の独立帰属観測を継続し、手動送信/再起動/取引0。
+
+
+### 797. Railway deployment metadataとshared manager実行pathを照合
+
+- 未対応serviceの最新8deploymentを請求期間08-27〜09-27へ比較、before6/during2/after0。最新metadataだけで期間中の全versionを証明しない。公式Deployment/DeploymentMeta scalar schemaを確認し8IDをmaxworkers3でread-only取得、8/8成功。private railway-unmatched-deployment-code-provenance.json。metaはkeynamesと安全code refsのみ、env/秘密/生command保存0。
+- Life Manager deployment1件はcreated09-19/commitdd88f573e5829a5b1a421a3be1a3d8d6ff86992a/repoRootDirectory slashを取得。script basename server.jsをrepo rootでgitshowするとpath無し、これをdeploy故障と断定せず実startCommandのcd operandだけを追加観測。workingdir apps/life-manager→server.jsを確認し同commit apps/life-manager/server.jsの存在/importsを照合。shared call-bridge/scheduler/maybe-start-loops serverであり、特定収益loopの専用費用へ昇格しない。private railway-life-manager-deployment-entrypoint-readback.json。
+- 残る費用帰属は同periodのversion/runtime usage/共有費配分根拠。sourceが分かったこととpaid invoice26.07USDのloop allocationを区別する。CFO newsourceはmain6489/最新自然18:57capacity延期、new reportは旧18:11のまま。current17自然readback待ち/20独立観測を継続、変更・取引・送信0。
