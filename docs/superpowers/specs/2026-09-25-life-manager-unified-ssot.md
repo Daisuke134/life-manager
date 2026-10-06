@@ -9258,3 +9258,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - same2files/leaseのLuna/max run24015へ、primary cloneの税抜/税別表記も拒否する最小RED/GREENを依頼。現142baselineとvalidactual税込12/net10を維持。RootだけがGit/review/CI/mainを所有。
 - PR6781 CI37473722440/job112303570280のOSS failは3個のCapafy icon.webp generated_artifact。hook-lab/slide-maker/tiktok-script-proはbase571ffbedとpushed cf6bで同bytes、当branchの変更ではないことをgit object比較で確認。現gateはtracked JSON契約でdigestが宣言されたproduct source画像を許可する。画像削除・baseline waiving・guard緩和をせず、canonicalasset宣言の不足をownerへ共有。AGMSG sendを着手証明にしない。
 - rebase後root関連suite再実行はshared test path指定誤りでtests未実行だったため、この実行をPASS扱いしない。正しい既存shared pathはtest_contracts.py（11件）。次の修復後にadapter/sharedとrequired gateを実行する。current1.1/残29・主順序不変。
+
+### 712. primary税抜/税別P1修復を147/11GREENでpush
+
+- Luna/maxは逆向き/同居税矛盾5caseのRED→GREENを確認。clone primaryの税抜/税別をJSとPython両方で拒否し、旧注記P1修正も維持。147 adapter＋shared test_contracts.py11件PASS、rootも合計158件PASSを再実行。loop-contract/diffcheck PASS。修正commit4220d8d543を同PR6781へpush。最終独立review/CI/main/actualreadbackは未完。
+- base由来OSS 3iconsは画像そのものを消さず、既存declaredAssetDigests契約に従うhash宣言を追加する。専用最新main由来worktree/branch `fix/lm-capafy-source-assets-20261006`、所有は新規 `skills/capafy/catalog/source-assets.json` 1fileだけ。実商品iconのrelative path/sha256/roleを宣言し、SourceProofで同bytesを確認する。guard/baseline/pricing/catalog listings/画像bytes/本番を変更しない。既存Luna/max有限runへ分離して依頼しrootが統合。
+- canonical asset宣言は現在のCIを通すための必要最小source修復であり、新tool/商品/販売企画ではない。Capafy ownerへのsendは返答なし、同じ既存sourceファイルを触らず新規manifest1fileの所有を明記。Rootの現在cursor1.1/主29順序は不変。
