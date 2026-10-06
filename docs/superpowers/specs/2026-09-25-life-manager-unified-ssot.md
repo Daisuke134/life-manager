@@ -9269,4 +9269,4 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - Luna/maxは新規source-assets.jsonだけを作成。rootでversion1/3assets/relativepath/role agent_icon/actual SHA一致を確認。既存画像3filesとverifier/baseline/pricing/listings/runtimeは不変更。rootがindexへstage後、既存node scripts/verify-oss-self-contained.mjsはPASS、diffcheck PASS。外部effect0。
 - source commit `99657d44433eaa40d069a8091b3836d9950c15e0` を専用branchfix/lm-capafy-source-assets-20261006へpush、remote一致/clean。PR6782作成、通常CIは未完。source metadata1fileなので追加の新QAを作らず、既存hash/OSS検証を受入根拠とする。
-- CrowdWorks4220d8d543の最終tax解消fresh Sol6.1/medium read-only run1589が進行中。asset PRをmainへ統合後、CrowdWorks branchを最新mainへ更新してCI再検証する。current1.1/残29順序不変、actualreadback/納品は未完。
+- CrowdWorks4220d8d543の最終fresh Sol6.1/medium read-only reviewはSHIP、focused23/独立probe40 PASS、追加findingなし。全税矛盾・型・多値・構造・例外rejectとgross12/net10成功、bodyfallbackなしを独立確認。source-only、編集/Git/外部effect0。PR6781をreadyへ変更。asset PR6782のCI OSSはPASS、残CI未完。asset統合後、CrowdWorks branchを最新mainへ更新してCI再検証する。current1.1/残29順序不変、actualreadback/納品は未完。
