@@ -10084,3 +10084,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 公式保存FILL10/CFEE10、最新2注文各FILL1/CFEE1と数量/価格/時刻/hash対応は限定確認済み。最新pair以前の別FILL8件、pnl_verifiedfalse/bank_arrival_verifiedfalseを保持。必要入力は期間開始NAV・全口座活動/入出金の期間coverage・費用symbol/USDC→USD評価根拠・owner receipt。
 - source callerはperformance_gate.main。rootはこのmutationを実行せず、既存CFOのconfirmed P&L inputへ昇格しない。LM_CFO_INVESTMENT_READBACK等の確認した設定keyは未設定、B5別経路の完全非流入証明へ一般化しない。
 - lm-investへAGMSGでHOLD/不足資料/次手を報告（受領・稼働は未確認、sendのみを着手にしない）。§217残18を同案件の必要入力と結合操作へ具体化。cursor17/主相対順保持。証拠private investment-performance-scope-fresh-review-result.md。
+
+
+### 820. Coconala保護期限経過後はlive paid owner占有、CFO次期間wake待ち
+
+- 旧lease1800秒経過後の通常with-browser取得はbusy/75。その後holder空の追加観測で1回再取得したところlease取得後ValueError、source DefaultTabが必須CLOAK_BROWSER_OWNER無しで拒否した呼出元不足と特定。page取得前/外部effect0。自分専用ownerを設定して修正したが、再試行は新lease占有で75。ソース設定や他者tab変更0。
+- 新holder14225をps argv/startでlive確認、hf-gig-paid-directのwith-browser→gig_disk_guard→paid_direct.py経路。旧dead49507の保護期間待ちとは別。guard reachablefalseも観測したが、active paid ownerに重複操作/再起動/lease解除を行わない。現在公開・購入導線は未確認、稼働中を納品/売上完了にしない。
+- CFOには次report periodの新wake life-manager-cfo-hourly:18dc0c40ad46ac28-2867 が発生、loaded1305/idle/capacity busy75。前duplicate runと区別し、次の自然admission/GET/レポートを待つ。cursor17・主順序維持、残3の再開はpaid ownerのlease解放後。
