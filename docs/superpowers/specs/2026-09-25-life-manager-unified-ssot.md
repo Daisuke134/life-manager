@@ -3300,14 +3300,51 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 
 ### 2026-10-06 08:25 UTC — CFO A1/A2 本番再確認と現在cursor
 
-- この節は上記A1/A2 statusのうちcurrent classification・production readback・cursorを上書きする。CFOの目標、architecture、A2〜A10の相対順は変更しない。
-- **A1判定:** A1は現時点のproduction障害ではなく、A2〜A10の開始を止める依存でもない。A2 deploymentのapplication logでservice start、`loops ON`、`[wake] started`を確認し、後続scanはeligible users 6件のCalendar readがすべて成功、`calendar_read_failed=0`、`due_candidates=0`だった。scan counterは約5分分の累積値であり、unique user数や単一tickの件数ではない。このscanではdue voice callが期待されなかったが、ledger固定window全体のnatural voice occurrence/join有無をこれだけで断定しない。未観測のjoinをvoice outageの証拠にもしない。テスト通話は行わない。
-- **A1の非ブロッキングhardening:** production append-only ACL/trigger/migration適用のreadback、wake/Telnyx/Gemini cost/provider receiptのcanonical same-occurrence join、`crash`/`stale`/`effect_unknown` lifecycle証拠は未完。A1をDone/immutable/audit-gradeとは扱わないが、非ブロッキング追跡項目として維持し、A2〜A10の順序を止めない。既存historical rowsへ推測backfillしない。
-- **A2統合・readback:** PR #6746は`ec7530a10137e79953b6e8cae2a602d2e127e065`として`2026-10-06T08:09:15Z`にmainへmerge済み。Railway deployment `05ada396-bff5-46a5-87d6-5d2b216a397e`はsuccessful、serviceはOnline。`lm_api_cost`固定window`2026-10-06T08:09:17.835Z <= ts < 08:20:50.650Z`の2回のGETは両方`0-83/84`でrow ID集合が安定した。84行のrow estimate subtotalはUSD 0.079863（merged SHA `ec7530a1`: 44行/USD 0.070000、prior SHA `0ba957af`: 30行/USD 0.005000、release SHAなし: 10行/USD 0.004863）。これはinvoice・実請求・Google限定・月次totalではない。
-- **A2 metadata readback:** merged-releaseの44行は`composio_call` 9行・`provider_usage` 35行。`billing_status`は`unknown=9`, `estimated=14`, `not_applicable=21`; `estimate_status`は`unavailable=9`, `estimated=14`, `not_applicable=21`。21 cache-hit行だけが`actual_usd=0` / `not_applicable`で、残り23行はactual不明。全84行で`runtime_trace.loop_id`が欠落し、うち10行はrelease traceなしでunlinked。A2が意図するunknown/not-applicable/estimateの区別はproduction rowで確認できた一方、loop配賦とsettled billingはA6/A8で継続する。A2 source contractのfocused testsは169/169 PASS。全`npm test`は変更外の7日freshness guard 2件により189件中187件PASS/2件FAILで、repo全体PASSとは扱わない。
-- **A1 wake readback:** 20分のlog queryは229行、server start 1回、`loops ON` 1回、`[wake] started` 1回、wake error 0件。`2026-10-06T08:20:51.220933872Z`のscan counterは`users_seen=24`, `eligible_users=6`, `calendar_read_success=6`, `calendar_read_failed=0`, `calendar_items=72`, `calendar_events=72`, `wake_candidates=18`, `due_candidates=0`。これらはinterval中の累積値。scanはledger窓上限より約0.57秒後なので、同一固定windowのvoice joinとは呼ばない。詳細は[sanitized A1/A2 evidence](../../evidence/cfo/2026-10-06-a1-a2-readback-0821z.md)。
-- **cursor更新:** 旧cursor=`A2`、新cursor=`A3`。A2 sourceのmain統合とproduction deploy後の自然rowで、stable repeat-readおよびunknown/estimate/not-applicable metadataを確認したため進む。TODO相対順は変更せず、A1はactive order外のnon-blocking hardeningとして維持する。
-- **残TODO（現在の実行順）:** (1) **A3 cache/dedupe:** geocode/routeを永続化し、同一eventの再実行で有料callが増えないことをevent identityで検証する。 (2) **A4 free lane:** OpenPOI/Japan geocoder、transit-first、Google fallbackとattributionを整える。 (3) **A5 budget:** daily/monthly limit、非必須call抑止、状態遷移を実装する。 (4) **A6 Google billing:** Monitoring usageと公式Cost Table CSVをSKU/project/serviceで照合してestimate-versus-settledを出す。 (5) **A7 personal CFO:** Moneytree account/transactionsにfreshness cursorを付けてLife Managerへ取り込む。 (6) **A8 business coverage:** 全14 loopのsettled revenue/refund/feeと銀行・カード・provider費用を期間/通貨/owner/receiptで結び、transferを除外する。loop_id不明費用は0/配賦にせずunknownとして残す。 (7) **A9 report:** 既存CLI/panelにloop/platform/全社revenue・expense・net・MRR・runwayを出し、partial/unknownを保つ。 (8) **A10 natural-run acceptance:** local close/cloud canary後、7日間の自然runと公式source receiptをreadbackし、不足値がfresh/sourcedまたはowner-visible partialであることを確認する。
+- この節は上記A1/A2 statusのうちcurrent classification・production readback・cursorを上書きする。
+- CFOの目標、architecture、A2〜A10の相対順は変更しない。
+- **A1判定:** A1は現時点のproduction障害ではなく、A2〜A10の開始を止める依存でもない。
+- A2 deploymentのapplication logでservice start、`loops ON`、`[wake] started`を確認した。
+- 後続scanはeligible users 6件のCalendar readがすべて成功し、`calendar_read_failed=0`、`due_candidates=0`だった。
+- scan counterは約5分分の累積値であり、unique user数や単一tickの件数ではない。
+- このscanではdue voice callが期待されなかったが、ledger固定window全体のnatural voice occurrence/join有無をこれだけで断定しない。
+- 未観測のjoinをvoice outageの証拠にもしない。
+- テスト通話は行わない。
+- **A1の非ブロッキングhardening:** production append-only ACL/trigger/migration適用のreadbackは未完である。
+- wake/Telnyx/Gemini cost/provider receiptのcanonical same-occurrence joinと`crash`/`stale`/`effect_unknown` lifecycle証拠は未完である。
+- A1をDone/immutable/audit-gradeとは扱わない。
+- これらは非ブロッキング追跡項目として維持し、A2〜A10の順序を止めない。
+- 既存historical rowsへ推測backfillしない。
+- **A2統合・readback:** PR #6746は`ec7530a10137e79953b6e8cae2a602d2e127e065`として`2026-10-06T08:09:15Z`にmainへmerge済みである。
+- Railway deployment `05ada396-bff5-46a5-87d6-5d2b216a397e`はsuccessfulで、serviceはOnlineである。
+- `lm_api_cost`固定window`2026-10-06T08:09:17.835Z <= ts < 08:20:50.650Z`の2回のGETは両方`0-83/84`で、row ID集合が安定した。
+- 84行のrow estimate subtotalはUSD 0.079863だった。
+- 内訳はmerged SHA `ec7530a1`が44行/USD 0.070000、prior SHA `0ba957af`が30行/USD 0.005000、release SHAなしが10行/USD 0.004863である。
+- これはinvoice・実請求・Google限定費用・月次totalではない。
+- **A2 metadata readback:** merged-releaseの44行は`composio_call` 9行・`provider_usage` 35行だった。
+- `billing_status`は`unknown=9`, `estimated=14`, `not_applicable=21`だった。
+- `estimate_status`は`unavailable=9`, `estimated=14`, `not_applicable=21`だった。
+- 21 cache-hit行だけが`actual_usd=0` / `not_applicable`で、残り23行はactual不明である。
+- 全84行で`runtime_trace.loop_id`が欠落し、うち10行はrelease traceなしでunlinkedである。
+- A2が意図するunknown/not-applicable/estimateの区別はproduction rowで確認できた。
+- loop配賦とsettled billingはA6/A8で継続する。
+- A2 source contractのfocused testsは169/169 PASSだった。
+- 全`npm test`は変更外の7日freshness guard 2件により189件中187件PASS/2件FAILであり、repo全体PASSとは扱わない。
+- **A1 wake readback:** 20分のlog queryは229行で、server start 1回、`loops ON` 1回、`[wake] started` 1回、wake error 0件だった。
+- `2026-10-06T08:20:51.220933872Z`のscan counterは`users_seen=24`, `eligible_users=6`, `calendar_read_success=6`, `calendar_read_failed=0`, `calendar_items=72`, `calendar_events=72`, `wake_candidates=18`, `due_candidates=0`だった。
+- これらはinterval中の累積値である。
+- scanはledger窓上限より約0.57秒後なので、同一固定windowのvoice joinとは呼ばない。
+- 詳細は[sanitized A1/A2 evidence](../../evidence/cfo/2026-10-06-a1-a2-readback-0821z.md)を参照する。
+- **cursor更新:** 旧cursor=`A2`、新cursor=`A3`である。
+- A2 sourceのmain統合とproduction deploy後の自然rowで、stable repeat-readおよびunknown/estimate/not-applicable metadataを確認したため進む。
+- TODO相対順は変更せず、A1はactive order外のnon-blocking hardeningとして維持する。
+- **残TODO（現在の実行順）:** (1) **A3 cache/dedupe:** geocode/routeを永続化し、同一eventの再実行で有料callが増えないことをevent identityで検証する。
+- (2) **A4 free lane:** OpenPOI/Japan geocoder、transit-first、Google fallbackとattributionを整える。
+- (3) **A5 budget:** daily/monthly limit、非必須call抑止、状態遷移を実装する。
+- (4) **A6 Google billing:** Monitoring usageと公式Cost Table CSVをSKU/project/serviceで照合してestimate-versus-settledを出す。
+- (5) **A7 personal CFO:** Moneytree account/transactionsにfreshness cursorを付けてLife Managerへ取り込む。
+- (6) **A8 business coverage:** 全14 loopのsettled revenue/refund/feeと銀行・カード・provider費用を期間/通貨/owner/receiptで結び、transferを除外し、loop_id不明費用は0/配賦にせずunknownとして残す。
+- (7) **A9 report:** 既存CLI/panelにloop/platform/全社revenue・expense・net・MRR・runwayを出し、partial/unknownを保つ。
+- (8) **A10 natural-run acceptance:** local close/cloud canary後、7日間の自然runと公式source receiptをreadbackし、不足値がfresh/sourcedまたはowner-visible partialであることを確認する。
 
 ### 2026-10-06 JST — AGMSG `lm` teamの状態と復旧cursor
 
