@@ -6,31 +6,38 @@
 
 - Engagement score: `views + likes*3 + comments*5`.
 - One latest metrics snapshot per Reel. Snapshots are not summed.
-- Ledger Reels: 2
-- Reels with metrics: 2
+- Ledger Reels: 3
+- Reels with metrics: 3
 - Reels without metrics: 0
 - Invalid JSONL rows skipped: ledger=0, metrics=0
 
 ## Status
 
-**SAMPLE INSUFFICIENT — baseline only.** 2 measured Reel(s); at least 3 are required before claiming a winning or losing pattern.
+Comparison active across 3 measured Reels. Observations are associations, not causal proof.
 
 ## Top Reels (N=1)
 
 | Rank | Reel | Score | Views | Likes | Comments | Listing |
 |---:|---|---:|---:|---:|---:|---|
-| 1 | [DcWRx9ys7Cv](https://www.instagram.com/capafy.skills8m4q2z/reel/DcWRx9ys7Cv/) | 8 | 8 | 0 | 0 | Decision Debate — Three Experts Argue It Out |
+| 1 | [DcWRx9ys7Cv](https://www.instagram.com/capafy.skills8m4q2z/reel/DcWRx9ys7Cv/) | 10 | 10 | 0 | 0 | Decision Debate — Three Experts Argue It Out |
 
 ## Lower-performing Reels
 
-Not reported until at least 3 Reels have metrics; a baseline cannot form a lower cohort.
+| Rank | Reel | Score | Views | Likes | Comments | Listing |
+|---:|---|---:|---:|---:|---:|---|
+| 1 | [DcaoB6uMTZm](https://www.instagram.com/reel/DcaoB6uMTZm/) | 0 | 0 | 0 | 0 | Data Analyst — WHAT, WHY, SO WHAT |
 
 ## Observed Tendencies
 
-- No winning pattern claimed from the current sample.
+- Observed score range: 0 to 10.
 - Listing category metadata unavailable; no category trend inferred from listing names.
-- Hook metadata unavailable; no hook-tone trend inferred.
+
+### Hook style averages
+
+| Observed group | Reels | Average score |
+|---|---:|---:|
+| question | 1 | 0.00 |
 
 ## Next Test Direction
 
-Collect metrics for 1 more Reel(s). Keep current measured Reel(s) as baseline; do not change copy solely because of this ranking yet.
+Test the highest observed hook style again: `question` (average score 0.00, n=1).
