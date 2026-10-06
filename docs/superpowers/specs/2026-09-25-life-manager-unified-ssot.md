@@ -3560,3 +3560,83 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - **並行回復レーン（cursor変更なし）:** GitHub primary passwordは公式loginでinvalid credentials。2026-10-06 13:05:53Zに受信したreplacement reset linkは当時credential SSOT内で未使用だったが、再開時に有効性とprovider stateを公式readbackし、still-freshと決めつけない。URLを文書/log/chatへ出さない。first reset URLのprovider invalidationは未確認。/sessions/recovery/without_passwordへの前回POSTはHTTP 200 blank responseでeffect/statusがambiguousのまま。公式provider status/no-effect receiptを得る前に同endpointを再送・factorを送らない。providerがfactorを明示した後にだけ既存PAT recovery factorを試す。Supabase keyが別のauthorized owner sessionで得られたら、GitHubレーンを待たずWB-02以降を進める。
 - **現時点の阻害原因:** sourceのapps/life-manager/lib/web-auth.js:48-52はSUPABASE_ANON_KEY必須で、Railway life-callにそれが無く/auth/googleが503になる。service-role keyへの置換はsourceが拒否する。remote schemaにはWeb制御列が無く、既存5 migration未適用。既知の認証済み配置先から同一project anon/publishable keyまたはDB credentialは見つかっていない。従って阻害はUI実装やTelegramからWebへの画面移植ではなく、Supabase project owner access/同一project credentialとmigration実行経路の欠落。実際の解消はWB-01→WB-05の順。CTA/公開marketing・billing termsは変更せず、準備済みmarket researchは維持する。
 - **最終readbackの鮮度:** production/auth/Stripe/key-sourceの上記観測は2026-10-06のもの。公開 aniccaai.com/lm は同readbackでTG CTA・$29/mo・phone-call copyを表示した。fresh session開始時に対象URL・Railway deployment・credential metadataをread-only再確認してから動く。handoverはchatのみ。メール送信はしていない。
+
+### 2026-10-07 JST — CFO cursor更新: A4を先行、A3 migrationは条件付き延期
+
+- この追記は直前のCFO cursor/order/TODOだけを上書きし、CFOの全収益・全費用・net報告という目的は変えない。
+- A1 append-only/canonical-occurrence hardeningは従来どおり独立・非ブロッキングである。
+- **A3とは何か:** `2026-10-06-lm-geocode-cache.sql`は`private.lm_geocode_cache`へtenant/provider/HMAC住所digest単位で成功した緯度経度を24時間保存し、`lm_geocode_cache_get/upsert` RPCを作るschema migrationである。
+- このmigrationは生住所を保存せず、Life Manager runtimeやGoogle API自体を移行しない。
+- A3はprocess memoryを越えた住所の再ジオコードを減らすための任意cacheである。
+- **runtime上の影響:** 現行コードはmemory cache → Supabase persistent cache → Google Geocodingの順で参照し、成功値のDB保存はbest-effortである。
+- Supabase RPCが存在しない場合はcache missとなり、Google Geocodingへ進む。
+- 未適用migrationはA4の着手や通常のtravel route計算を止めず、主な損失はprocess再起動後に有料Geocoding結果を再利用できないことである。
+- 日本国内routeはTransit APIが先であり、Google routeへ進む条件は非日本・座標未解決・Transit失敗である。
+- A3 migrationはGoogle Routes/Directions cacheではない。
+- **別のruntime信頼性欠陥:** cache `get/set` はawaitされるが明示timeoutがない。
+- 404等の即時RPC失敗はcache miss/best-effort writeになる一方、Supabase応答がhangすればroute処理も遅れる可能性がある。
+- A4の受入条件にcache read/writeのbounded timeoutと、型付きtelemetryを残してfail-openする動作を含める。
+- このtimeout修正はA3 production migrationを先に適用する理由にはしない。
+- **A3の具体的blocker（2026-10-07 fresh readback）:** Supabase CLI `2.95.4`のprofileからaccess tokenを取得でき、`projects list`も正常終了するがruntime URLのproject refは一覧に出ていない。
+- target ref付き`SELECT 1`はSQL実行前のlogin-role取得で`403: account does not have necessary privileges`となった。
+- PostgREST OpenAPIはHTTP 200だがgeocode RPC 2件は無い。
+- Migration write権限は未検査なので「未ログイン」や「migration writeも403」とは断定しない。
+- 現在わかる不足はexact target projectに対する管理migration許可をreadbackできていないことである。
+- local `supabase/config.toml`欠落はこの公式Management API経路の阻害ではない。
+- **A3を後日再開する場合:** exact project refとcurrent identityのproject accessを確定し、必要な時だけownerが最小のproject/database migration権限を付与する。
+- Supabase公式migration endpointは`POST /v1/projects/{ref}/database/migrations`であり、scoped PATには`database_migrations_write`（OAuthは`database:write`）が必要である。
+- scoped tokenはaccount roleを超えないため、新PATを推測で作る前にroleとtoken scopeを分けて確認する。
+- apply後にschema/RPC/ACLをreadbackする。
+- experimental `/database/query`でproduction DDLを実行しない。
+- **外部候補の調査と判断:**
+- [国土地理院 AddressSearch](https://msearch.gsi.go.jp/address-search/AddressSearch?q=%E6%9D%B1%E4%BA%AC%E9%A7%85)へ実際にqueryし、API keyなしでGeoJSONが返ることを確認した。
+- [国土地理院コンテンツ利用規約](https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html)は原則PDL1.0を適用し、出典記載を求める。
+- 今回確認できた公式ページではGSI APIのSLA/rate limitを確認できず、「無制限」とは扱わない。
+- `東京駅` queryは複数候補を返したため、曖昧結果を自動採用しない。
+- [OpenPOI API](https://docs.openpoiapi.com/)は施設・店舗検索用であり、汎用の住所→座標Geocoderではない。
+- 認証不要の`/v1/search`はPOI名/施設住所を検索できるが、docsは数km以上の座標ずれ、古い閉業情報、欠落、弱い順位付けを既知制約としている。
+- OpenPOIは出典/license表示を守り、明示的な施設検索にだけ使う。
+- OpenPOIでCalendarの任意住所を丸ごと置き換えない。
+- [Geolonia normalize-japanese-addresses](https://github.com/geolonia/normalize-japanese-addresses)はMITの住所正規化/座標ライブラリで位置情報levelを返す。
+- Geoloniaライブラリは既定で住所データAPIから取得するため、依存先のrate/SLAが不要になるわけではない。
+- 低いprecision levelの座標をroute確定値として自動採用しない。
+- [Jageocoder](https://github.com/t-sagara/jageocoder)はMITのOSSだが、住所辞書のdata licenseは別確認が必要である。
+- Jageocoder日本全国DBは20GB以上で、公開demo serverにはrequest/second制限があるため、最小変更・低運用費案には選ばない。
+- **推奨する同一UXの簡易経路:** 日本の住所文字列はGSI、名前付き施設はOpenPOIを候補sourceとして試し、結果が一意・妥当でない時、source timeout/失敗時、日本以外では既存Google Geocodingへfallbackする。
+- Google Routesの既存Transit-first/Google fallback条件は変えない。
+- 入力欄・Calendar動作・出発時刻/route表示に新しい手順を足さない。
+- 各sourceのrequest count/provider/result quality/fallback reason/estimated costを記録し、安いsourceの誤位置でUXを悪化させない。
+- **順序変更:** 旧order=`A3→A4→A5→A6→A7→A8→A9→A10`。
+- 新mainline=`A4→A5→A6→A7→A8→A9→A10`。
+- A3はA6後の条件付き再開とし、Google Geocodingのsettled costまたはprocess再起動後の重複requestに十分な節約効果があればA7前へ戻す。
+- A3のDB許可待ちは通常UXやA4を止めず、A4のfree laneとA6のSKU別実請求が先に価値と投資効果を示すため順序を変えた。
+- 現在cursor=`A4.1`。
+- **A5 spend policy:** spend/usage/unknownの可視化と事前warningのみを行う。
+- 機能を無言で止めるglobal hard cap、推測金額による自動cutoff、未知費用を0にする処理は作らない。
+- 将来、非必須callを抑止する場合も、理由・対象・fallback・再開条件を同じrun reportに出す。
+- core travel/calendar UXを費用しきい値だけで停止しない。
+- **Atomic remaining TODO — active order:**
+  1. **A4.1 Free lane:** fixtureでGSIの住所、OpenPOIの名前付き施設候補を既知住所/POI/曖昧/未検出/timeoutに対して評価し、productionで比較目的の二重provider callをしない。
+     GSI rate/SLAと各data attributionを確認し、低品質候補は採用しない。
+  2. **A4.2 Fallback/observability:** 既存route UXを保ったまま無料候補→適格性検査→必要時のみGoogle Geocodingの順に接続する。
+     Transit-firstを維持し、Google routeへ進む既存条件（非日本・座標未解決・Transit失敗）を変えない。
+     cache keyはtenant/provider/正規化queryで分け、異なるsourceの座標・費用帰属を混ぜない。
+     cache RPCはbounded timeoutでfail-openする。
+     provider/SKU/request/result/fallback/estimated costを記録する。
+     accepted free resultではGoogle Geocoding call 0、曖昧query/provider failureではGoogle Geocoding fallbackを正確に1回とするfocused testを追加する。
+  3. **A4.3 Natural readback:** main由来releaseの自然runで国内address/POI、曖昧query、provider停止時の旧来同等calendar/route UX、attribution、fallback理由、重複0をreadbackする。
+     無料sourceを無制限または常時稼働と仮定しない。
+  4. **A5 Warning-only cost visibility:** provider daily/monthly usage、estimate、actual/unknownを既存CLI/panelへ出す。
+     Google請求との比較後にwarning値を定め、spend到達だけでcore travel/calendarを自動停止しない。
+  5. **A6 Google billing:** Monitoring usageと公式Cost Table CSVをproject/SKU/service/期間で照合する。
+     estimateとsettled bill、credit/tax/currency、coverage gapを分ける。
+     CSVが未取得でも独立なA7は止めず、実請求はunknownのまま残す。
+  6. **A3 conditional gate:** A6でGoogle Geocodingの有意なsettled spendまたはrestart後の重複callを確認した時だけA3.1 access→A3.2 official migration apply→A3.3 schema/RPC/ACL readback→A3.4 restart後natural replay-zeroを行う。
+     条件を満たさなければA3を延期し、cache migrationを成果の必須条件にしない。
+  7. **A7 Personal CFO:** MoneytreeからMUFG balanceと全transactions/subscriptionsをread-onlyで取得する。
+     freshness cursor/dedupe/source receiptを付けてLife Managerへ取り込み、資金移動はしない。
+  8. **A8 Business coverage:** 全14 loopのsettled revenue/refund/feeと銀行・card/subscription/provider/cloud expenseを期間/通貨/owner/official receiptでjoinする。
+     transferを除外し、欠落`loop_id`/actualはunknown/unattributedとする。
+  9. **A9 Report:** 既存CLI/panelでloop/platform/company別revenue/expense/net/MRR/runway、bank balance、freshness/coverage/estimate-vs-settled/unknownを同一期間に表示する。
+  10. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runとofficial source receiptをreadbackする。
+      14-loop financial view、Moneytree freshness、RevenueCat、Google actual-vs-estimate、total expense/net/unknown/report receipt、replay-zeroを確認する。
