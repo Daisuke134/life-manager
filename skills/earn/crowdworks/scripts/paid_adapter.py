@@ -1439,12 +1439,13 @@ class CrowdWorksPaidAdapter:
             raise RuntimeError("crowdworks_paid_handoff_unavailable")
         price = contract.get("price_minor")
         terms_sha256 = contract.get("contract_terms_sha256")
+        if type(price) is not int or price < 1:
+            raise RuntimeError("crowdworks_paid_handoff_unavailable_price_minor")
         if (
-            type(price) is not int or price < 1
-            or not isinstance(terms_sha256, str)
+            not isinstance(terms_sha256, str)
             or not re.fullmatch(r"[0-9a-f]{64}", terms_sha256)
         ):
-            raise RuntimeError("crowdworks_paid_handoff_unavailable")
+            raise RuntimeError("crowdworks_paid_handoff_unavailable_contract_terms_sha256")
         contract_id = contract.get("contract_external_id")
         if not isinstance(contract_id, str) or not contract_id.strip():
             contract_id = f"contract:{work_id.strip()}"

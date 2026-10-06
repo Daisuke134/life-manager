@@ -41,6 +41,8 @@ from pathlib import Path
 
 SAFE_OBSERVATION_ERRORS = frozenset({
     "crowdworks_paid_handoff_unavailable",
+    "crowdworks_paid_handoff_unavailable_price_minor",
+    "crowdworks_paid_handoff_unavailable_contract_terms_sha256",
     "crowdworks_paid_browser_unavailable",
     "crowdworks_paid_browser_context_unavailable",
     "crowdworks_paid_active_contracts_timeout",
