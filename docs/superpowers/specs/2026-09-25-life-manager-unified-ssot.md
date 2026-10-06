@@ -8573,3 +8573,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Coconala同registered default browser自身のhidden targetから公開トップGETをCookie omit/includeで比較し、両方HTTP200。private原本coconala-cookie-probe-1791263276884347000.json、guard取得/解放0。cookie不良やsite-wide継続拒否をこの結果だけで断定しない。受注情報/接続回復の証明ではない。
 - 追加観測後の既存orders-only CLI再取得はwith-browser正規wrapper exit75（使用中、collector開始前）。private原本coconala-orders-1791263304381159000。独立観測の成功でbusy guardを迂回しない。次は正規取得時の同CLI readback、403が再現する場合だけnavigation/request条件を狭める。旧保留再送0。
 - current1/主経路31/Lancers後段維持。次のsource手順は同head全CI→通常main統合→既存完全immutable→readonly同helperの公式readback。
+
+
+### 629. CrowdWorks main統合・完全release作成開始
+
+- PR6727最終head1c1478b22210380fe10e860c7fc1bcc979ce3cccは全9CI SUCCESS/CodeRabbitSUCCESSを公式ghで確認。fresh reviewSHIPとsource130PASSを受入、gh pr merge --merge --admin --match-head-commitで通常統合。公式stateMERGED/merge4acfd541a7c9fbeeb012767a5c6de9f8233256a6/mergedAt2026-10-06T05:10:17Z、fetch後origin/main一致。
+- 先行release builder3633は終了、lock不在を確認。currentはa9868ad4/ALL、cut scriptはorigin/main同blob。既存cut-loop-releaseでpushed main4acfd541a7から完全candidate releaseを開始（LOOPS_ACTIVATE_CURRENT=0）、handle61887。共有current切替/他ownerapply0。private log state/cli-observability-20261006/crowdworks-release-cut.log。
+- 完全release終了/metadata/source一致/同readonly helperの公式readbackは未完。source/main成功は売上/納品/全loop成功とは扱わない。current1/主経路31/Lancers後段を維持。
