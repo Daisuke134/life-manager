@@ -450,7 +450,7 @@ Expected: current boolean-only claim cannot identify an owner or reclaim a crash
 
 Extend the existing claim columns/RPCs, read internal claim metadata, bound the exact Composio enable requests, and change `startCalendar` to recover only from exact provider readback and token-checked SQL transitions. Keep Calendar operations fenced and leave the saved daily-automation preference unchanged.
 
-- [ ] **Step 4: Rerun the focused Calendar and state tests and commit**
+- [x] **Step 4: Rerun the focused Calendar and state tests and commit**
 
 Run: `node --test lib/runtime-preferences.test.js lib/panel-api.test.js lib/web-calendar.test.js`.
 Expected: confirmed ACTIVE completes, exact DISABLED has one leased owner, definite no-effect is retryable, and uncertain provider outcomes stay fenced. Commit as `fix(life-manager): recover stale calendar enable claims`.
@@ -459,7 +459,7 @@ Expected: confirmed ACTIVE completes, exact DISABLED has one leased owner, defin
 
 The main goal remains active after this source plan. Continue the existing SSOT cursor through these real-world steps; none is proven by source tests or merge alone:
 
-1. Complete Task 10 then Task 11, and run their focused tests plus the full Web travel focused suite.
+1. [x] Complete Task 10 then Task 11; Task 10 scheduler suite 12/12, Task 11 task-done suite 100/100, and full Web travel focused suite 171/171.
 2. Open the PR, pass CI, merge to latest `main`, cut the immutable Railway release, and read back the deployed SHA and `LM_PANEL_BASE/lm` response.
 3. Read back Supabase Google provider/callback configuration, Composio Calendar ACTIVE account, home setup, first Travel event ID, Calendar readback, and duplicate-zero for one natural Web signup. Keep each provider receipt separate.
 4. Inspect the authoritative public `aniccaai.com/lm` owner and route; point its CTA and all campaign links to the verified Railway `/lm` origin without changing the archived test copy as if it were production.
