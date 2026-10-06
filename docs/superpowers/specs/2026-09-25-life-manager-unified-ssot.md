@@ -9491,3 +9491,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - candidate private profile/factsとREADMEのcanonical material manifestを確認。AI/agent reliabilityの実装経験は保存factsにあり、engineering master PDFはApril2025–present、研究April2024–April2026。これだけでは4+years職務経験を証明できず、40h専任/CT overlapも根拠無し。broad experience attestationを具体的年数/稼働約束へ変換しない。private material保持/改変0。
 - 招待2095139827604571626を現優先proposal対象から外す（本人の全生涯経験を不足と断定するのでなく、現証拠で必須条件を約束できない）。送信/decline0、招待は保持。既存本人録音/選考を代替しない。
 - cursor9次は既存SEARCH_URLからscope明確なAI/API/Web開発の募集を取得し、実証できる経験・稼働範囲・Connects18/feeで候補を選ぶ。40h専任の雇用型契約をmanagerのサービス納品と混同しない。tax/withdrawalと前段不足を保持、主29順序/後段SelfBuild不変。応募/返信/Connects消費/振込/本番loop変更0。
+
+
+### 744. Upwork現在検索10件からCIE修復候補を選定
+
+- registered Upwork lease/owned newpage、handle56011 exit0。official SEARCH_URL HTTP200/traffic limited false、visible10job identitiesを既存_dedupe_linksで取得。private upwork-current-ai-search.json。全件coverageではない。
+- 2候補の完全detailsをhandle10941 exit0/HTTP200/既存parse_candidateで照合。~022107489024836993369 API/n8n/ecommerce統合はopen/10Connects、Argentina優先/LATAM compatible hours、12–25USD hourly表示。~022107485659013535977 CIE既存AI content platform修復はopen/13Connects/available18、less30h/week/1–3months、urgent。private upwork-two-development-jobs-private.json。
+- CIE要件はdata collection/dup run防止/failed-only retry/draft durability/renderer/publishing/timezone/provider reconciliation/performance before-after、小さな検証可能release、proposal prefix CIE。現agent reliability/実production repair経験に近いため優先candidateとする。未経験FastAPI等を捏造しない、scope外の広告/スパム送信を約束しない。要件取得は受注や実利益ではない。
+- 個人profileのDec1 new-role startをfreelance/service開始禁止へ機械流用しない。一方、即時40h稼働等も根拠なしに約束しない。cursor9次はCIEのproposal form/feeと既存公開profileのhourly termsをread-only照合、実証できる経験でproposal準備→既存authorization/effect fence/source-bound正式送信条件。現Connects18/必要13を支払済みへしない。tax/withdrawal不足を維持。
+- 主29相対順序/2〜8保留/SelfBuild後段不変。応募/返信/Connects消費/課金/振込/本番loop変更0。
