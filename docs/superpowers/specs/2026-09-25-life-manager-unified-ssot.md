@@ -8649,3 +8649,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - main由来4acfd541 releaseの既存hidden_page_target/observe_targetを正規upwork:dais guardで契約homeへ実行。guard取得/解放0、outer45秒でTimeoutError。private原本state/cli-observability-20261006/upwork-contracts-1791264274395728000/safe-summary.json。契約body/screenshot/live-DOM未生成、未取得を契約/売上0へ変換しない。
 - 実行後のregistered browserはreachable true/HTTP200/PID65586を維持。取得timeoutはbrowser終了の証拠ではないのでrestart/relaunch0。sourceはPage.enable→navigate→load15秒→location/title→screenshot25秒calls→artifactを順に待つため、未生成だけでは停止phaseを決められない。
 - 次の最小probeは自身のabout:blank targetのCDP応答と段階eventを先に記録し、navigation後のsafe login/challenge/route/headingだけを取得する。screenshotや全業務CLIを先行せず、追加観測なしに同失敗を反復しない。応募/送信/Connects購入/契約承諾/納品0。current1/主経路31/Lancers後段維持。
+
+
+### 639. Upwork短いCDP診断・既存契約parser公式readback
+
+- 自身about:blank targetでRuntime complete→contracts Page.navigate errorなし→safe DOM確認を段階記録。expected route true/login route false/password field false/captcha widget false/challenge title false/contract heading true。guard取得/解放0、probe exit0。原本upwork-phase-1791264378866202000.json（run_id/owner/release/phaseイベント）。前回timeoutを未認証/browser終了と決めず、navigation/page-readが現在成立することを確認。screenshot待ち等の前回停止phaseは未確定。
+- 同main由来releaseの既存upwork_browser_provider.parse_contractsを公式contracts homeのbody/linksへ適用、parser success。公式文言There are no active contracts.とEarnings available now:あり、返却active_contract_count0/earnings_available_usd_minor0。原本upwork-inventory-1791264421568264000.json、bodyhash81e95550319a2d7c15972622bb4850cbfcd0123c4e25a93ca972637651cc55e3。生本文/名前/リンクを保存・表示しない。guard取得/解放0。
+- この結果は登録profileの現在画面におけるactive contract/available表示だけの観測。account identityの独立照合、全履歴transactions/refund/fee/payout/bank/cost coverageは未確認。過去売上/settled収益/着金/利益0や全lane稼働へ変換しない。応募/送信/承諾/納品/Connects購入/資金移動0。
+- 次は既存transactions/withdrawalsのread-only scopeへ結び、Coconala商品導線と他channelの必要行動を進める。current1/主経路31/Lancers後段維持。
