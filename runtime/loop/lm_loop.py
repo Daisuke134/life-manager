@@ -59,6 +59,16 @@ PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
 })
 FUNDRAISER_PRE_EFFECT_ENTRYPOINT = "skills/fundraiser-agent/runtime/run.sh"
 FUNDRAISER_PRE_EFFECT_BLOCKER = "entrypoint_exit_75"
+EBOOK_DISTRIBUTION_ENTRYPOINT = "apps/life-manager/scripts/ebook-distribute-daily.sh"
+EBOOK_DISTRIBUTION_LOOP_IDS = frozenset({
+    "ebook-en-tiktok-daily",
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
+})
+EBOOK_RUNTIME_ENV_PRE_EFFECT_ERRORS = frozenset({
+    "LM_DATA_DIR is required",
+    "LM_RUNTIME_TENANT_ID is required",
+})
 PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
     FUNDRAISER_PRE_EFFECT_BLOCKER,
 })
@@ -151,9 +161,25 @@ def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
             os.close(descriptor)
 
 
+def _is_ebook_runtime_env_pre_effect_terminal(entry: dict, row: dict) -> bool:
+    return (
+        row.get("loop_id") in EBOOK_DISTRIBUTION_LOOP_IDS
+        and entry.get("entrypoint") == EBOOK_DISTRIBUTION_ENTRYPOINT
+        and entry.get("effect_class") == "publish"
+        and row.get("effect_class") == "publish"
+        and row.get("status") == "fail"
+        and row.get("effect_status") == "unknown"
+        and row.get("blocker") == "entrypoint_exit_1"
+        and row.get("error_class") == "entrypoint_exit_1"
+        and row.get("error_detail") in EBOOK_RUNTIME_ENV_PRE_EFFECT_ERRORS
+    )
+
+
 def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
     if (row.get("status") == "blocked"
             and row.get("blocker") in PRE_EFFECT_ADMISSION_BLOCKERS):
+        return True
+    if _is_ebook_runtime_env_pre_effect_terminal(entry, row):
         return True
     # fundraiser's exit 75 is emitted only by the disk/CDP preflight in
     # run.sh, before run_agent.sh can open an application or dispatch a
@@ -308,13 +334,11 @@ def _pre_effect_occurrence_proof(
     runtime_rows: list[dict], *, queued_at: float | None = None,
     history_start: float | None = None,
 ) -> tuple[dict | None, str]:
-    """Prove one exact occurrence stopped in host admission before entrypoint.
+    """Prove one exact occurrence stopped before external dispatch.
 
-    Accepts either a start execute/running/started event plus one pre-effect
-    terminal event (start before terminal), or exactly one pre-effect terminal
-    event with no start event and no other events for that run_id. Any other
-    shape, or any ``lm-effect://`` evidence ref, is rejected. Returns
-    ``(proof, "ok")`` on success or ``(None, reason)`` otherwise.
+    Occurrence identity binds nested runner events even when their run IDs
+    differ. Legacy rows without an occurrence ID remain bound to the suffix
+    run ID. Any other event shape or ``lm-effect://`` reference fails closed.
     """
     prefix = f"{loop_id}:"
     if (expected_state not in {"claimed", "released"}
@@ -322,18 +346,63 @@ def _pre_effect_occurrence_proof(
             or not SAFE_OCCURRENCE.fullmatch(occurrence_id)
             or not occurrence_id.startswith(prefix)):
         return None, "invalid_occurrence"
-    run_id = occurrence_id[len(prefix):]
-    claim_ref = f"lm-occurrence://{loop_id}/{occurrence_id}/claim"
-    if any(row.get("run_id") != run_id and claim_ref in (row.get("evidence_refs") or [])
-           for row in runtime_rows):
-        # A later wake claimed and executed this occurrence; the queuing run's
-        # admission-deferred terminal proves nothing about that execution.
-        return None, "claimed_by_other_run"
+    claim_ref = f"lm-occurrence://{loop_id}/{occurrence_id[len(prefix):]}/claim"
     if queued_at is not None and (history_start is None or history_start > queued_at):
         # Rotated-out journals could hide a foreign claim; fail closed.
         return None, "history_incomplete"
-    exact = [row for row in runtime_rows
-             if row.get("loop_id") == loop_id and row.get("run_id") == run_id]
+    owner_rows = [row for row in runtime_rows if row.get("loop_id") == loop_id]
+    occurrence_rows = [
+        row for row in owner_rows if row.get("occurrence_id") == occurrence_id
+    ]
+    claim_rows = [
+        row for row in owner_rows
+        if claim_ref in (row.get("evidence_refs") or [])
+    ]
+    if any(row.get("occurrence_id") not in (None, occurrence_id)
+           for row in claim_rows):
+        return None, "claim_occurrence_mismatch"
+    claim_runs = {
+        row.get("run_id") for row in claim_rows
+        if isinstance(row.get("run_id"), str)
+    }
+    if len(claim_runs) > 1:
+        return None, "claimed_by_multiple_runs"
+    if not occurrence_rows:
+        # Legacy event rows lack occurrence_id. Retain the suffix-run proof,
+        # but reject a claim explicitly attributed to another execution.
+        occurrence_run_id = occurrence_id[len(prefix):]
+        if claim_runs and claim_runs != {occurrence_run_id}:
+            return None, "claimed_by_other_run"
+        related = [
+            row for row in owner_rows
+            if row.get("run_id") in {occurrence_run_id, *claim_runs}
+            and row.get("occurrence_id") in (None, occurrence_id)
+        ]
+    else:
+        # Include legacy-format rows from the one claiming run so an effect
+        # reference cannot hide outside the occurrence-tagged records. The
+        # occurrence suffix is also a run ID in the owner-level event stream.
+        relevant_runs = {occurrence_id[len(prefix):], *claim_runs}
+        relevant_runs.update(
+            row.get("run_id") for row in occurrence_rows
+            if isinstance(row.get("run_id"), str)
+        )
+        related = [
+            row for row in owner_rows
+            if row.get("run_id") in relevant_runs
+            and row.get("occurrence_id") is None
+        ]
+    exact_by_event = {}
+    for row in [*occurrence_rows, *claim_rows, *related]:
+        key = row.get("event_id")
+        key = key if isinstance(key, str) else id(row)
+        if key in exact_by_event and exact_by_event[key] != row:
+            return None, "duplicate_event_id"
+        exact_by_event[key] = row
+    exact = list(exact_by_event.values())
+    if any(isinstance(ref, str) and ref.startswith("lm-effect://")
+           for row in exact for ref in (row.get("evidence_refs") or [])):
+        return None, "effect_ref_present"
     starts = [row for row in exact
               if row.get("phase") == "execute" and row.get("status") == "running"
               and row.get("effect_status") == "started"]
@@ -343,34 +412,49 @@ def _pre_effect_occurrence_proof(
     if len(terminals) != 1:
         return None, "no_pre_effect_terminal"
     terminal = terminals[0]
+    terminal_run_id = terminal.get("run_id")
+    if claim_runs and terminal_run_id not in claim_runs:
+        return None, "terminal_not_claiming_run"
+    if (_is_ebook_runtime_env_pre_effect_terminal(entry, terminal)
+            and terminal_run_id not in claim_runs
+            and terminal.get("occurrence_id") != occurrence_id):
+        return None, "ebook_claim_missing"
     if len(starts) == 1 and len(exact) == 2:
         start = starts[0]
     elif len(starts) == 0 and len(exact) == 1:
         start = None
     else:
         return None, "unexpected_events"
-    summary_ref = f"lm-loop://{loop_id}/{run_id}/summary.json"
-    evidence_refs = terminal.get("evidence_refs", [])
-    if any(isinstance(ref, str) and ref.startswith("lm-effect://") for ref in evidence_refs):
-        return None, "effect_ref_present"
+    terminal_summary_ref = f"lm-loop://{loop_id}/{terminal_run_id}/summary.json"
     if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
+            and not _is_ebook_runtime_env_pre_effect_terminal(entry, terminal)
             or terminal.get("effect_status") != "unknown"
-            or summary_ref not in evidence_refs):
+            or terminal_summary_ref not in (terminal.get("evidence_refs") or [])):
         return None, "terminal_not_pre_effect"
+    proof_evidence_refs = []
     if start is not None:
-        if summary_ref not in start.get("evidence_refs", []):
+        start_run_id = start.get("run_id")
+        start_summary_ref = f"lm-loop://{loop_id}/{start_run_id}/summary.json"
+        if start_summary_ref not in (start.get("evidence_refs") or []):
             return None, "terminal_not_pre_effect"
         try:
             if _event_epoch(start.get("timestamp")) > _event_epoch(terminal.get("timestamp")):
                 return None, "start_after_terminal"
         except ValueError:
             return None, "invalid_timestamp"
+        proof_evidence_refs.append(
+            f"lm-event://{loop_id}/{start_run_id}/{start['event_id']}"
+        )
+    proof_evidence_refs.append(
+        f"lm-event://{loop_id}/{terminal_run_id}/{terminal['event_id']}"
+    )
     proof = {
         "owner_id": loop_id,
         "occurrence_id": occurrence_id,
         "verified": True,
         "proof_type": "pre_effect",
-        "evidence_ref": f"lm-event://{loop_id}/{run_id}/{terminal['event_id']}",
+        "evidence_ref": proof_evidence_refs[-1],
+        "evidence_refs": proof_evidence_refs,
         "blocker": terminal["blocker"],
     }
     return proof, "ok"
