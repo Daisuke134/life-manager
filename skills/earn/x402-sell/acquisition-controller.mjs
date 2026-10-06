@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { runAcquisitionCycle } from './lib/acquisition-controller.mjs';
 import { openThe402Inbox } from './lib/the402-inbox.mjs';
+import { resolveX402StateDir } from './state-paths.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +27,7 @@ function actionAppender(path) {
 
 async function main() {
   const stateRoot = join(homedir(), '.anicca');
+  const stateDir = resolveX402StateDir();
   const credentials = JSON.parse(readFileSync(join(stateRoot, 'the402-credentials.json'), 'utf8'));
   if (typeof credentials.api_key !== 'string' || credentials.api_key.length < 16) throw new Error('invalid credentials');
   const inbox = openThe402Inbox(join(stateRoot, 'the402-inbox.sqlite'));
@@ -35,7 +37,7 @@ async function main() {
       apiKey: credentials.api_key,
       researchServiceId: serviceId(join(stateRoot, 'the402-service.json')),
       explainerServiceId: serviceId(join(stateRoot, 'the402-service-http402.json')),
-      appendAction: actionAppender(join(stateRoot, 'state', 'x402-acquisition-actions.jsonl')),
+      appendAction: actionAppender(join(stateDir, 'x402-acquisition-actions.jsonl')),
     });
     process.stdout.write(`${JSON.stringify({
       observed_at: new Date().toISOString(),
