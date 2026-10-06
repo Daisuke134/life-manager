@@ -9475,3 +9475,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - parse_connects balance18/visible transactions empty。parse_inventory offers0/invites5/active proposals0/submitted proposals1/account tasks[]。working style completed falseは今回results source未取得を含むため未完assessmentと断定しない。payment available/pending表示0USD、tax_profile_complete false/withdrawal_method_configured false、recognized revenue null。表示0を全履歴売上/入金/利益0へしない。
 - 既存招待5の先行照合へ進み、公式invites HTTP200をhandle25632で取得。parse_stable_entitiesのinvitation IDs0で、一覧count5とのsource bindingが未取得。招待無しへ丸めず、href形式/DOM hydration/招待card identityを次に診断する。private upwork-current-invitation-identities.json。取得DOM0を再応募根拠にしない。
 - cursor9次は5招待の具体的ID/状態/必要行動をCLI取得経路へ結ぶ。tax/withdrawalは公式不足として保持し、Connects18だけで応募可能/契約/精算Doneとしない。2〜8保留と主29順序/SelfBuild後段を保持。応募/返信/Connects消費/課金/出金/本番loop変更0。
+
+
+### 742. Upwork招待5identityの公式source binding
+
+- handle37420 exit0。旧INVITES_URL /nx/find-work/invitesは/nx/s/find-work/invitesへ転送、HTTP200でも招待href無し。公式PROPOSALS_URLを正規invitation link出現まで待つと既存parse_stable_entitiesが5IDs取得。source修復不要、待機/source選択境界を確認。private upwork-invitation-dom-boundary.json。
+- handle1494 exit0で5official interview detailを読み、全HTTP200/同invitation path/job posting hrefを確認。2105756913412502284→~022105752488520310959（1000sentence本人音声10USD）、2104732869414606387→~022102780151062298310（AI audio/text transcription）、2097397140352494608→~022095199288617847857（Japanese transcription）、2095139827604571626→~022094517285315731611（AI Software Engineer）、2092250550587497010→~022069529109989179058（本人English recording15USD）。表示金額は募集予算、収益ではない。private upwork-five-invitation-details-private.json。
+- 表示expired/closed token無しだけで募集有効性を全証明しない。Submit a proposal linkは存在するがクリック0。既存能力に近いAI Software Engineer invitation2095139827604571626を先行候補に選ぶ。表示条件週30h超/6months以上を候補本人SSOTのavailability/職歴と照合する。完全job text/費用/automation適格性は未確認。本人声・本人評価を偽造/代替しない。
+- cursor9次は同求人の完全要件と既存candidate facts/稼働条件照合→履行可能なら同招待のproposal準備。tax/withdrawal不足保持、応募/返信/Connects消費/課金0。主29相対順序と2〜8保留、SelfBuild後段を維持。
