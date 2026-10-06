@@ -872,13 +872,36 @@
       "effect_class": "publish",
       "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
       "browser_identity": "line-creators:dais",
-      "browser_target_owner": "line-sticker-factory-hourly",
+      "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-factory-hourly",
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 1800,
       "state_root": "~/.local/state/life-manager/line-sticker"
+    },
+    "line-creators-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9231,
+        "profile": "~/.cloak/profiles/line-creators"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/line-sticker/scripts/browser-owner",
+      "label": "ai.anicca.line-creators-browser",
+      "log_root": "~/.local/state/life-manager/line-creators-browser/logs",
+      "provider_route": "deterministic",
+      "resource_class": "browser",
+      "state_root": "~/.local/state/life-manager/line-creators-browser"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {
