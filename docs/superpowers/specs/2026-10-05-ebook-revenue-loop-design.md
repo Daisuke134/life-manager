@@ -84,6 +84,12 @@
 - Latest successful main deploy is `90e03fcc0f5cf2a11c66c3af92d27303c78f5cc0` (run `37362288819`). Main has no later `apps/landing` source changes; newer deploy run `37398436701` failed in Build before deployment. Product PR #420 does not modify `checkout.js`, so its DDL migration cannot fix this runtime error.
 - Current one-time eBook source flow creates locale-priced Stripe Checkout Sessions with `ee_`/`ej_` attribution metadata and emails the public locale PDF link through the existing webhook. PR #420 adds durable webhook/subscription receipts and subscriber-state RPCs. The new schema is separate hardening; live checkout module loading is the immediate campaign blocker.
 
+#### 2026-10-06 16:52 JST — checkout fix in flight
+
+- Product PR #422 is based on latest Product main `7ca532244`; head `21293ac4` moves the shared locale-token validator into CJS and keeps the checkout entrypoint out of mixed CJS/ESM mode. Focused checkout tests pass 17/17; the `Landing PR build` CI is pending.
+- The current production Checkout endpoint still returns 502; the post-deploy money-path smoke now expects a GET to reach the handler and return its no-effect 405 method response. No Postiz publication is enabled yet.
+- Life Manager PR #6744 head `b5265bf743` is independently waiting on loop-contract and security scans. Its child-only Postiz key injection remains behind `LM_EBOOK_PUBLISHING_ENABLED`.
+
 ### Capafy Instagram marketing
 
 - 03:42 JST `lm-loop status all --json`: old `capafy-ig-marketing-daily` is managed/loaded-idle at SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e`; occurrence `capafy-ig-marketing-daily:18dbb45758667058-79255` is exit 75 / `host_admission_deferred:resource_effect_unknown`, with no provider receipt/readback. Active fence `18db7caff1178a88-68028` remains `no_pre_effect_terminal`; health is `safely_fenced`.
@@ -115,6 +121,7 @@ flowchart LR
   TOKEN["ee_/ej_ campaign token"] --> GO["/go click receipt"]
   GO --> CHECKOUT["main checkout.js with locale price + campaign metadata"]
   CHECKOUT -. "live module error: module is not defined in ES module scope" .-> CHECKOUTHOLD["checkout runtime fix required"]
+  CHECKOUTFIX["Product PR #422: CJS-safe shared attribution + GET/405 smoke"] -. "CI pending; not deployed" .-> CHECKOUTHOLD
   WH["current signed webhook: existing one-time PDF email path"] -. "PR #420 durable receipt tables/RPCs absent" .-> NOORDER["no verified natural paid + PDF receipt"]
   PDF["EN and JA direct PDF URLs: HEAD 200"]
   OLD["Capafy old owner: active effect_unknown fence"] --> HOLD["no retry; provider readback missing"]
