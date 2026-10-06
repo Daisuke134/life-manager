@@ -8918,3 +8918,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - live実装run66123の現在差分はplanner fallback action human→waitの1行、既存planner testsとkernel integration caseのみ。rootはdiffをread確認、generic reason reply_facts_required/remaining_workは維持、explicit human処理は未変更。
 - 担当ログでfocused planner＋missing facts kernel case13 PASSを確認。これは限定検証の進捗であり、最終関連suite/manifest/push/independentreview/CI/main/自然反映の成功には拡張しない。実装は同live handleを追い、重複run0。
 - current1/残29、mock取消/oldunknown保持/後段順を維持。provider送信/通知/privateprofile変更0。
+
+
+### 674. Reply facts fallback修復commit・review/CI開始
+
+- HEAD6d5e6602ab658092d6a027472440be7f670bd581をremote branch一致/clean確認。planner1行human→wait、既存planner/kernel回帰tests、必要_shared manifest digestの4fileだけ。既存source contractを変更せず実state/送信/通知0。
+- fresh gpt-6.1-sol/medium readonly reviewをhandle60255で開始、同HEADのfacts wait/noeffect/explicit human維持を反証。Luna最終報告とreview結果は未完。
+- rootが同branchへPRを作成しCIを並行開始。最終head/wholecheckを受入して通常統合、既存source検証を売上成果へ代用しない。current1/残29/mock取消/後段順維持。
