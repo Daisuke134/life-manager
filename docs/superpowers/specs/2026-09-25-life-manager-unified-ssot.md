@@ -9863,3 +9863,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 直近2client IDのlm-ai形式は既存effect_store.sealのeffect_id先頭24桁生成と一致するが、形式だけをowner帰属の証明にしない。live/cross-venue/validationのJSON/JSONLとstateの4MiB以下JSON系（現観測artifact除外）にclient ID一致0。初回exclude globは自身artifactを拾ったため**/付きで訂正し、循環証拠を除外した。
 - installed Alpaca live plistの非秘密contextをread-only確認:mode live/deployment local、live stateは既存alpaca-investment-live、paper stateはlegacy alpaca-investment。live354/legacy1075 receipt rowsをclient由来effect_id先頭24桁でも照合し一致0。state path変更やbroker取引0。この範囲のowner/正規receipt binding不足を保持し、全履歴不存在・利益0へ拡張しない。
 - 一時heredoc ENOSPC後にdfを追加観測、空き551MiB。python -c経路で必要readを実行し、release各104MiBというlogical sizeを物理回収量にしない。今回削除0、protected store/state台帳を保持。current17自然readback待ち、18の正規採用はfreshreviewHOLDを維持。
+
+
+### 792. CFO実費入力のdefault接続と過去billing証拠を回復
+
+- env未設定をsource不在へしない。実cfo-hourly-localのgetterを使いCapafy state/capafy-skill-analytics.json、Affiliate provider-reports/partnerstack/latest.json、Agent Economy revenue-receipts.jsonlのdefault path存在を確認。actual_costにはLM_CFO_ACTUAL_COST_READBACK/ACTUAL_COST inputが必要で、今回確認.envの対象keysには明示設定なし。他alias/実launcher設定を無視して全source不在と断定しない。
+- 保存provider-billingのAnthropicは2026-07-20〜08-20/paid07-20/USD/provider_receipt、GoogleCloudは202607/provider_billed/観測08-10。現在期間の実費へ転用しない。
+- 既存Railway公式17invoice保存とOct04 allocation/line reconciliationを回復。対象08-27〜09-27、旧fresh reviewはusage限定SHIP、paid invoice/currency/paid-at/loop allocation bindingはHOLD、service details3/6projects。owner codex-money-printer/actual_cost_connectedfalse。過去の計算/照合を再実行して完了を作らず、不足する公式receipt bindingと残service allocationが次の観測対象。shared planの按分やestimateを実費にしない。
+- current17の新source自然report待ちは維持、19/20の独立source確認を進める。provider変更/外部送信/台帳write/新invoice取得0。
