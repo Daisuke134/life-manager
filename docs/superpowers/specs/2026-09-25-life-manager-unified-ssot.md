@@ -9689,3 +9689,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - FINANCIAL/ZZ/fiscal2027-01を公式APIでread-only要求、2026-10-06T17:54:26.961323Z/exit4。原errorはThe request expected results but none were found: There were no sales for the date specified。当該report未取得として保持し、現在/全期間の売上0、銀行入金0、coverage completeへ変換しない。原原因が未提供期間なのか報告対象sales無しなのかはこの応答だけで拡張認定しない。
 - private asc-current-next-period-availability.jsonへ要求tuple/観測時刻/exit/error/effect0を保存しCFO workerへ共有。取得済みfiscal2026-12実期間08/30〜09/26と未取得次期間を分離する。current17/sourceworker live、外部mutation/再送/通知0。
+
+
+### 768. CFO財務入力欠落の実callpathとREDを確認
+
+- Lunaのread-only実callpath: loop_pnl.collect_b7_recordsはbusiness-outcomes JSON→adapt_mobileだけ。mobile collect_ascはanalytics、collect_asc_salesは日次salesで、app_store_financialのproducerはない。公式FINANCIAL TSVを現adapt_mobileへ渡すprobeは3coverage/read_failed/receipt0。JSON/JSONL-only _loadが最初の拒否境界。
+- 次境界は全6appの正規payload/native report_id/final/親app ID/canonical hashとfinancial_complete必須。部分的に検証できたrowもcomplete不足で捨てられる。実TSVのSKU・nativeID非返却を公式根拠なしに正規payloadへ偽装しない。
+- 実装範囲を具体化: CFO collect_b7_recordsへraw ASC packet入力を1つ追加、CFO-owned normalizerへFINANCIALとFINANCE_DETAIL両artifact/取得tuple/SHA/公式app↔SKU relationshipを渡す。既存mobile acquisitionは変更しない。Luna所有にloop_pnl.pyの最小入力wireを追加。
+- acceptance: aggregate/detailの期間・SKU・currency・quantity・amount一致とdetail settlement日を検証、原SHA/rowをreceipt evidenceへ保存。adapter-generated identityはnative reportIDと区別。verified receiptとincomplete coverageを分離し、既存全6app/最新trailing/history規則を緩めない。wrongapp/欠mapping/hash改変/重複を拒否、RC revenue二重計上なし。raw個人情報/秘密をrepoへ複製せず合成回帰fixtureでRED→GREEN。現在17保持。
