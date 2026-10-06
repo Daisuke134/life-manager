@@ -4934,6 +4934,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 - 第一候補は既存service4313100「Webサイトの画像差し替えと公開表示確認」。保存済み公式inventoryは公開中/表示3000円/見積相談導線/残1枠。過去観測であり、現在購入可能・受注・着金・利益を証明しない。新mock/API demoは作らない。
 - 販売対象は既存サイトの画像差し替えと公開表示確認。必要入力は対象URL・差替位置・使用許諾のある画像・正規編集権限・対応範囲/期限の契約内確定。受入は同対象の差替結果と実公開表示、納品記録。ここで未公開の保証・新価格・固定件数を作らない。
 - 既存families.jsonのservice_familiesは4313100→web_image_update。family正本の納品は更新済みWebページ/PC・モバイル表示確認/変更報告、入力は対象URL/画像/対象箇所/CMS権限/希望納期。対象と権限確認前に更新を約束せず、画像制作と差し替えを区別する。source SHA2567577ee20d205a4cdb2fed61e1ba85ec06aaa3fc758b1d68bf3ceebc9eebb176f。公開本文との最新一致は未確認。
+- 過去公式offer-contractsの同商品最新保存は2026-09-14T23:28:56.287760Z/version c53deddaf6d6d26dfed7fac3a7aad56d4ef21a66c9a3f760ca7f6d90747d3e56。既存基本範囲は1ページ内画像最大3点を目安/指定箇所反映/表示とリンク確認/軽微文言1か所（内容相談）。追加画像1点表示500円、基本表示3000円。これらは新価格設定でなく過去出品本文の記録。現在条件一致・受注・利益は未確認。
 - 未確認は現商品本文の全条件、買い手の具体的scope、所要時間/実費、公式手数料/精算。sellerカードの「実納品・入金済み」という説明だけを公式財務receiptへ代用しない。これらが未確認なので残4はDoneにしない。
 - 独立準備を進めてもcurrent1/残29の順序は変更しない。CrowdWorksの同provider lock待ちをCoconala商品準備の停止条件にしない。AGMSG lm-crowdworksへ実観測と非重複境界を共有し、sendを着手・完了証明にしない。
 
@@ -9005,3 +9006,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現hf-gig-storefront-direct statusはmanaged/scheduled/loaded-idle/current aed62f3b、run18dbe4a9e0168ba0-87227、blocked/host_admission_deferred:resource_effect_unknown。旧~/gig/storefront-direct/wakes.jsonlの失敗だけを現runtimeと扱わず現statusを照合した。
 - host admission DB mode=roで同ownerのeffect_unknownは1件、claimed occurrence hf-gig-storefront-direct:18d8d288748508e8-23902。archive events-20261001T025344997289Z.jsonl.gzではrun18d8d2b3f46565c8-28218がこのoccurrenceに結合し、2026-09-26T08:50:02.527789Z/exit1/unknown/official_readback_ref null/provider_receipt_id null。直前run23902のpass exit0は別occurrence18d8d2334ab70e80-9111なので流用しない。
 - 該当scratch/receiptのexact filename検索は未取得。外部結果不確実の解除・再送は行わない。最小再開条件は同occurrenceのmutation intentと公式result/readback、または同occurrenceに結合した既存pre-effect証拠。単なるeffect0の別passや現在公開中を代用品にしない。現在の販売loop停止を解く対象はこの1件に限定し、古いCoconala12件の全件監査へ拡大しない。current1/残29/順序維持。
+
+
+### 684. storefront fresh反証HOLDと現公式403境界
+
+- fresh read-only gpt-6.1-sol/medium reviewer storefront_occurrence_binding_reviewはHOLD。oldsourceのofficial_service_contract_invalidはmutation前の強い経路だが、pass28241→対象parent run/claimの恒久結合が無い。receipt effect0は既定値でもあり、時刻だけで未知claimを解除しない。最小不足はrun18d8d2b3f46565c8-28218のsummary/stdout/result hint、またはparent→childPID28241/passID mapping。reviewのstate/provider/解除変更0。
+- registered guardのholder無しを再確認し、acquire成功/自己所有about:blank targetから既存seller read5回を実行。4313100 expected route true/fields0。追加1回の限定DOM診断でreadyState complete/body13文字/Forbidden true/loginRoute false/captchaWidget false/inputCount0。private原本coconala-4313100-seller-terms.jsonとcoconala-4313100-seller-boundary.json。自己targetのみclose/guard release。CAPTCHA無しなのでsolver taskを作らず、同403を反復しない。source/publication/価格/送信変更0。
+- 保存済みinventory20件のpublic_textはfull terms headingsを含むもの0。過去official offer-contracts4313100は35保存/最新09-14/fullscope853字。取得scope不足は確認できるが、最新rawDOMの完全本文が無いため抽出delimiter変更を推測実装しない。実商品条件の過去baselineを§217に補完、mock無し/残4未完。
+- 独立Mercor現statusはcurrent aed62f3b/loaded-idle/run18dbe4a8d6e82d78-86931/blocked host_admission_deferred:resource_effect_unknown。応募を実行済みと報告せず、旧fenceのまま新応募を強制しない。current1/残29の相対順序と条件付き保留を維持。
