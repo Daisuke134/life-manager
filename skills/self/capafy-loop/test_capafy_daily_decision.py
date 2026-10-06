@@ -324,3 +324,15 @@ def test_winner_clone_ignores_free_order_parent():
     out = m.decide_actions(rows, {"3332784488": {"agentStatus": "online"}}, catalog, {}, {})
     findings = [f for d in out for f in d["findings"] if f.get("rule") == "winner_clone"]
     assert findings == []
+
+
+def test_profitable_seller_is_frozen_no_reprice_queued():
+    # Dais 2026-10-06: an Agent that is selling at a profit is not repriced;
+    # the 9/29 run of version updates on the winners preceded 7 days of zero orders.
+    module = load_module()
+    rows = [row("jh", "Japanese Humanizer", net=8.0, cost=0.1, orders=1)]
+
+    decisions = module.decide_actions(rows, server("jh"), CATALOG, BANDS, {})
+
+    assert decisions[0]["findings"][0] == {"rule": "underpriced", "action": "skip",
+                                            "reason": "profitable_seller_frozen"}
