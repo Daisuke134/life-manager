@@ -77,6 +77,13 @@
 - Product PR #420 remains open at `85116e29aceb3d951e65f125fb3473fcb17d2b99`. Production webhook/subscription tables and eBook RPCs remain absent; no production Checkout/PDF fulfillment receipt exists.
 - The 16:30 JST canonical cleanup pass reclaimed 56,844,145 bytes with zero errors and protected deletions, preserved six open candidates, and recorded 21 inventory gaps. Free space is 1.7 GiB; both disk policy markers are absent. The 11 GiB level is a preventive cleanup tier, not a publishing gate.
 
+#### 2026-10-06 16:39 JST — live Checkout diagnosis
+
+- Public `/monk` and `/achan` pages show the existing one-time eBook offers and CTAs. Both direct locale PDF URLs return `200 application/pdf` by HEAD readback.
+- Live GET `/.netlify/functions/checkout` returns a Netlify runtime stack trace: `ReferenceError: module is not defined in ES module scope` from `checkout.js`. The app package sets `type=module`; the checkout file uses CommonJS `require`/`exports` and an ESM dynamic import. A GET to `/.netlify/functions/webhook` returns `no sig`, proving that the webhook handler loads and rejects requests without Stripe signature.
+- Latest successful main deploy is `90e03fcc0f5cf2a11c66c3af92d27303c78f5cc0` (run `37362288819`). Main has no later `apps/landing` source changes; newer deploy run `37398436701` failed in Build before deployment. Product PR #420 does not modify `checkout.js`, so its DDL migration cannot fix this runtime error.
+- Current one-time eBook source flow creates locale-priced Stripe Checkout Sessions with `ee_`/`ej_` attribution metadata and emails the public locale PDF link through the existing webhook. PR #420 adds durable webhook/subscription receipts and subscriber-state RPCs. The new schema is separate hardening; live checkout module loading is the immediate campaign blocker.
+
 ### Capafy Instagram marketing
 
 - 03:42 JST `lm-loop status all --json`: old `capafy-ig-marketing-daily` is managed/loaded-idle at SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e`; occurrence `capafy-ig-marketing-daily:18dbb45758667058-79255` is exit 75 / `host_admission_deferred:resource_effect_unknown`, with no provider receipt/readback. Active fence `18db7caff1178a88-68028` remains `no_pre_effect_terminal`; health is `safely_fenced`.
@@ -106,9 +113,10 @@ flowchart LR
   EN -. "Postiz TikTok disabled=true; Instagram absent" .-> ENHOLD["EN effect-free hold"]
   JA -. "Postiz TikTok+Instagram enabled; native status and Checkout/PDF proof absent" .-> JAHOLD["JA effect-free hold"]
   TOKEN["ee_/ej_ campaign token"] --> GO["/go click receipt"]
-  GO --> CHECKOUT["PR #419 checkout + Stripe metadata: main"]
-  CHECKOUT --> WH["PR #420 webhook/PDF/shared subscriber RPC: source ready, OPEN"]
-  WH -. "production migration/schema cache absent" .-> NOORDER["no verified natural paid + PDF receipt"]
+  GO --> CHECKOUT["main checkout.js with locale price + campaign metadata"]
+  CHECKOUT -. "live module error: module is not defined in ES module scope" .-> CHECKOUTHOLD["checkout runtime fix required"]
+  WH["current signed webhook: existing one-time PDF email path"] -. "PR #420 durable receipt tables/RPCs absent" .-> NOORDER["no verified natural paid + PDF receipt"]
+  PDF["EN and JA direct PDF URLs: HEAD 200"]
   OLD["Capafy old owner: active effect_unknown fence"] --> HOLD["no retry; provider readback missing"]
   NEW["Capafy new owner: managed, active effect_unknown, old installed SHA"] --> HOLD
 ~~~
