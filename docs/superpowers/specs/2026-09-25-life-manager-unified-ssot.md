@@ -4873,7 +4873,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 - 変更理由：現在の有償仕事と販売行動へ時間を使い、既存観測CLIを使わない個別巡回・過去状態の再集計を止めるというDaisの明示指示。
 - 旧順序：Coconala旧保留→Agent Economy receipt→monitor/監査→応募/納品→storefront→会計→SelfBuild。旧44表は§611の履歴を参照。
-- 新順序：集約を終えた旧1だけを除き、未完旧2〜31を繰り上げた30表から、確認済みCrowdWorks応募の旧8だけを除いて残29へ連番化する。未完の相対順序は不変。現在cursor1は既存有償案件の次成果物・履行確認。SelfBuildは25、Lancers再開26〜28、最終確認29。旧A番号は実行順や完了証明に使わない。
+- 新順序：集約を終えた旧1だけを除き、未完旧2〜31を繰り上げた30表から、確認済みCrowdWorks応募の旧8だけを除いて残29へ連番化する。未完の相対順序は不変。現在cursor1.1はCrowdWorks3候補の公式金額field確認。納品対象と成果物は1.2で確定する。SelfBuildは25、Lancers再開26〜28、最終確認29。旧A番号は実行順や完了証明に使わない。
 - 各行の成果に必要な原因修復・検証はその行内で行う。正常な待機/観測不足を一律code故障へ変換しない。外部待ちは不足物・再開条件を残し、独立した収益channelを止めない。進行中effectを中断・重複させず、同branch/profile/state/provider effectの所有を重ねない。
 
 #### 現在の収益対象と不足情報（公式観測の集約）
@@ -4892,7 +4892,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 #### 現在の詰まり（今回のCLI readbackで確認）
 
 - Coconala：registered browserと既存orders-only CLIで公式受注route HTTP403/coverage incomplete。表示CAPTCHA・login redirectなし。現受注件数/待返信/納品状態はunknown。Storefrontの現在購入経路も未確認。過去3件/公開20件を現状へ代用しない。§703。
-- CrowdWorks Paid：最新自然run49279は新ba9f796260/exit75。business outputは旧84924のまま、2候補handoff不足/1候補form選択待ち/2候補結果照合待ち。この旧出力を新runの診断や有償案件5件の完了証明にしない。次は公式契約fieldと実処理の同run readback。
+- CrowdWorks Paid：最新保存business output92303では64033100/63989657/63942104の3候補がprice_minor不足/不正、63826932/63819060の2候補が結果照合待ち。診断codeの新出力を確認したが、正規納品対象/成果物・価格の原因は未確定。次は3候補の公式契約金額と作業指示をCLIで確認する。5候補を有償納品5件へ丸めない。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
 - CFO：修復4b961b36を限定loaded反映した過去証拠はあるが、今回の現loadedは3ae4176eへ戻っている。最後のterminalはrun63090/apply_lock_busy。変更元・理由は未確認であり、他ownerと競合する再applyを繰り返さない。反映owner/現在のrelease選択を照合し、修復を維持できる経路へ接続する。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
@@ -4900,43 +4900,51 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在cursor：1（確認済み既存有償案件の次成果物・履行確認）。主経路29項目。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
+現在cursor：1.1（CrowdWorks契約候補64033100/63989657/63942104のprice_minor不足原因と公式契約金額を確認する）。主経路29項目。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
 
-今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにする修復は§696で進行中。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
+今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO現loadedが旧版へ戻る反映経路の確認と接続維持が未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
 Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監査→収益確認」の順を変更する。新順は実債務/納品・精算→Lancers以外のstorefront/応募/販売→会計→SelfBuild→Lancers再開→最終確認。理由は古い状態の巡回を全収益経路の停止条件にせず、実際の仕事と売上へ時間を使うため。以後この順を保持する。各行の必要な観測・原因修復・focused検証はその行の中で行い、観測だけを何度も独立taskに増やさない。新しい外部effect/価格変更等の権限はこの文書更新から推定しない。
 
 | 順序 | 残作業 | 完了を示す成果 |
 |---|---|---|
-| 1 | 確認済みの既存有償案件で、次の成果物を完成・納品する | funded scope/期限に対応する実成果物と公式納品記録。保留のTikTok/NPO個別追跡は除外。 |
-| 2 | 実際に納品済みで検収・精算が必要な案件の次手を実行する | 同案件の公式検収/請求/精算記録。個人口座の資金移動を追加しない。 |
-| 3 | Coconalaの既存storefront商品を購入可能な状態にする | 既存商品/購入経路の現公式状態。古いreply保留を公開・販売全体のgateにしない。 |
-| 4 | 既存の自社商品・定型サービス1件の販売内容と履行条件を確定する | 実際に販売・履行できる既存商品、その説明・受け入れ条件・実費。未依頼のmock/demo制作を前提にしない。価格/paywall変更を追加しない。 |
-| 5 | 実際の新着問い合わせ・見積依頼に返信し、有償契約へ進める | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
-| 6 | Mercorで適合する新規案件へ応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
-| 7 | Coconalaで適合する新規案件へ提案する | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
-| 8 | Freelancerで適合する新規案件へ応募する | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
-| 9 | Upworkで適合する新規案件へ応募する | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
-| 10 | 実際の新規storefront注文を履行・納品する | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
-| 11 | Capafyの既存商品で次の販売cycleを進める | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
-| 12 | Writerの販売可能な既存商品で次の販売cycleを進める | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
-| 13 | Affiliateの既存販売経路で成約・報酬へ進める | 許可済み既存運用のconversion/commission/settlementと実費。 |
-| 14 | TaskMarket/Agent Economyで実行可能で採算の合う有償taskを一つ進める | 現在の公式要件/報酬/既存executor/capを照合して履行・receiptへ。候補無しなら投機的無料prototypeや延々pollingへ進まない。 |
-| 15 | Fundraiserで既存の適合申請を一件進める | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
-| 16 | Cloudの既存収益サービスの次の収益行動を進める | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | Mobileの公式収益・acquisitionデータをCFOへ接続する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
-| 18 | 既存Investmentの実取引・手数料・精算を会計へ結ぶ | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
-| 19 | 14loopの確定収益・返金・手数料を同期間で集計する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
-| 20 | 14loopの実費を同期間で集計する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
-| 21 | 実収益と実費からnet marginを示す | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
-| 22 | 継続課金のMRRを算出する | 年額/買い切り/開発者収益/着金/利益を分離。 |
-| 23 | 個人と会社を分け、現在のliquid balanceを示す | 公式残高と観測鮮度。last-knownを現在値にしない。 |
-| 24 | 現在残高と実費からrunwayを示す | 同期間cost coverage、欠損はunknown。 |
-| 25 | 収益経路を整えた後にSelfBuildの復旧重複を修復する | 成功済み復旧の再実行防止、必要最小tests/freshreview/main/immutable/自然recovery/replay-zero。先頭へ戻さない。 |
-| 26 | LancersのCAPTCHA接続を回復し、業務CLIの取得を再開する | 未解決のAWS WAF HTTP405/solver API errorを後段で再開。既存pending task状態を再利用し重複task作成を防ぐ。正規guardと同CLIで取得成功を確認。 |
-| 27 | Lancersの既存storefront商品を購入可能な状態にする | 既存listingの現公開/購入経路をCLI等既存観測で確認し、購入を止める故障だけ修復。 |
-| 28 | Lancersで適合する新規案件へ応募する | 既存応募loop/cap内の同案件公式応募記録。 |
-| 29 | 全体成果と残る外部依存を最終確認し引き継ぐ | 実応募/販売/納品/精算/利益の証拠と保留台帳。未達を全体Doneにしない。 |
+| 1 | CrowdWorks契約候補64033100・63989657・63942104を対象に、公式契約金額とCLI price_minorの不一致/欠損原因を確認する。その後、作業指示・期限・実費を照合し、履行可能な1件の指定成果物を作成・納品する | 1.1＝3候補の金額field原因確認、1.2＝実作業/期限/採算に基づく納品対象ID・成果物名の確定、1.3＝その対象だけの公式納品記録。現時点の具体的納品物は未特定。TikTok/NPO追跡は除外。 |
+| 2 | Coconala案件18211957の保存済み公式売上CSV行を、振込・手数料・案件実費の記録へ照合する | この案件は公式取引完了を確認済み（§6569）、制作/再納品対象へ戻さない。CSV identity joinは§379/§703以前の証拠を参照。振込未labelの過去観測を現在値にせず、現精算/着金と費用の公式証拠・不足物を明記。資金移動なし。 |
+| 3 | Coconala商品4313100「Webサイトの画像差し替えと公開表示確認」の公式商品ページ・購入導線を確認し、アクセスを止める原因を修復する | 既存商品/購入経路の現公式状態。古いreply保留を公開・販売全体のgateにしない。 |
+| 4 | Coconala商品4313100の現在の販売説明を既存offer contractと照合し、対象範囲・必要入力・納品物・実費を確定する | 実際に販売・履行できる既存商品、その説明・受け入れ条件・実費。未依頼のmock/demo制作を前提にしない。価格/paywall変更を追加しない。 |
+| 5 | Coconala新着問い合わせCLIを取得し、実際に返信が必要なthreadを特定して返信する（thread ID未特定、依頼が無ければ待機） | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
+| 6 | Mercor旧応募occurrence18d6f9cb5bdaef98-33812の結果を公式応募記録へ照合し、停止解消後に未送信の適合listingを選んで応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
+| 7 | Coconala募集案件CLIから条件の合う未提案案件IDを選び、既存供給loopで提案する（案件ID未選定） | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
+| 8 | Freelancerの既存account/readiness CLIと実案件一覧を取得し、応募可能な案件IDを選んで応募する（案件ID未選定） | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
+| 9 | Upworkの既存account CLIでtax/withdrawal/応募準備を確認し、応募可能な案件IDを選んで提案する（案件ID未選定） | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
+| 10 | Coconala storefrontの実注文をCLIで検出した時に、その注文IDの商品条件で履行・納品する（現注文ID未確認、注文無しなら制作しない） | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
+| 11 | Capafyの公式商品一覧・販売導線を既存CLIで取得し、公開済み商品1件を選んで既存販売cycleを実行する（商品ID未選定） | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
+| 12 | Writerの販売可能な既存記事/商品と販売導線を取得し、1件を選んで既存販売cycleを実行する（商品ID未選定） | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
+| 13 | Affiliateの既存program別conversion/commissionレポートを取得し、成約のあるprogram・取引IDを精算へ照合する（取引ID未選定） | 許可済み既存運用のconversion/commission/settlementと実費。 |
+| 14 | TaskMarket/Agent Economyの公式有償task一覧から、報酬・要件・既存executor・実費が合うtask IDを1件選んで履行する（ID未選定） | 現在の公式要件/報酬/既存executor/capを照合して履行・receiptへ。候補無しなら投機的無料prototypeや延々pollingへ進まない。 |
+| 15 | Fundraiserの既存申請cursorと公式募集条件を照合し、適合する申請先1件へ既存申請を進める（申請先未選定） | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
+| 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
+| 17 | CFOのloaded版が旧3aeへ戻る反映経路を特定し、ANICCA/Honneの公式ASC・RevenueCatデータを維持できるCFO経路へ接続する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
+| 18 | Investmentの既存接続口座・実約定・手数料・精算を公式read-only経路で取得し、同じ取引IDで会計へ結合する | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
+| 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
+| 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
+| 21 | 19と20の同期間・同通貨の実収益/実費を使って、loop別と全体のnet marginを計算する | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
+| 22 | Mobileを含む継続課金の公式snapshotを集計し、loop別/会社全体のMRRと未取得sourceを表示する | 年額/買い切り/開発者収益/着金/利益を分離。 |
+| 23 | Moneytree等の既存残高CLIで公式残高と更新時刻を取得し、個人cashと会社cashを分離する | 公式残高と観測鮮度。last-knownを現在値にしない。 |
+| 24 | 20の実費と23の最新残高を使って、会社のrunwayを計算する | 同期間cost coverage、欠損はunknown。 |
+| 25 | SelfBuild recovery処理の成功済み復旧IDを照合し、同じ復旧が再実行される不具合を修復する | 成功済み復旧の再実行防止、必要最小tests/freshreview/main/immutable/自然recovery/replay-zero。先頭へ戻さない。 |
+| 26 | Lancersの既存CAPTCHA solver task/接続エラーを確認し、同じtaskを重複作成せず公式CLI取得を復旧する | 未解決のAWS WAF HTTP405/solver API errorを後段で再開。既存pending task状態を再利用し重複task作成を防ぐ。正規guardと同CLIで取得成功を確認。 |
+| 27 | Lancers既存商品一覧から販売する商品IDを特定し、公式公開/購入導線の故障を修復する（商品ID未選定） | 既存listingの現公開/購入経路をCLI等既存観測で確認し、購入を止める故障だけ修復。 |
+| 28 | Lancersの公式募集一覧から条件の合う未応募案件IDを選び、既存応募loopで応募する（案件ID未選定） | 既存応募loop/cap内の同案件公式応募記録。 |
+| 29 | 1〜28の公式応募・販売・納品・精算・実費の証拠をSSOTへ結合し、未達と外部依存を引き継ぐ | 実応募/販売/納品/精算/利益の証拠と保留台帳。未達を全体Doneにしない。 |
+
+#### 先頭2項目の実行対象と順序
+
+- 1.1（今の操作）：CrowdWorks64033100/63989657/63942104の公式契約詳細を読み、金額不足/不正の原因を確認する。最新保存Paid output `crowdworks-revenue-paid:18dbf0a281806e30-92303` は3候補とも `crowdworks_paid_handoff_unavailable_price_minor`。これは候補3件の診断であり、正規納品対象/成果物3件が確定した証拠ではない。
+- 1.2：その3候補の作業指示・期限・実費から、実行する契約1件のIDと具体的成果物名を確定する。金額/要件/採算が確認できなければ、制作は開始しない。
+- 1.3：確定した契約と指定成果物だけを履行・正式納品し、同案件の公式記録を取得する。現時点で『何を制作するか』は未特定なので、架空の成果物名を記載しない。
+- 2：Coconala18211957の公式売上CSV行と振込/手数料/案件実費を照合する。公式取引完了を確認済みの案件を再制作するTODOではない。TikTok18180857とNPO18223833/18250352は引き続き追跡延期。
+- 未選定の後続商品/募集/task/注文には『ID未選定/未確認』を明記し、最初の操作を既存CLIからの対象選定にする。選定前に応募/納品/販売を実施済み・実行可能と扱わない。29主項目の相対順序は不変で、先頭だけを1.1〜1.3へ具体化する。
 
 #### 実商品の販売準備（残4の独立準備・未完）
 
