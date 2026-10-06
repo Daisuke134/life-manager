@@ -94,6 +94,100 @@ def test_fixed_price_parser_rejects_hourly_and_ranges():
     assert module._fixed_price_from_contract_body("時間単価制 2,000円") is None
 
 
+def _summary_page(rows):
+    class Locator:
+        def evaluate_all(self, script):
+            assert "契約金額" in script
+            assert "nextElementSibling" in script
+            return rows
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "th"
+            return Locator()
+
+    return Page()
+
+
+def test_contract_summary_amount_observation_accepts_one_tax_included_yen_value():
+    module = load()
+    page = _summary_page([{
+        "same_row": True, "cell_tag": "TD", "text": "12円（税込）",
+    }])
+
+    assert module._contract_amount_observation(page) == {
+        "status": "observed", "label": "契約金額", "tax_included": True,
+        "displayed_amounts_yen": [12], "price_minor": 12, "currency": "JPY",
+    }
+
+
+def test_contract_summary_amount_observation_keeps_multiple_values_ambiguous():
+    module = load()
+    page = _summary_page([{
+        "same_row": True, "cell_tag": "TD", "text": "12円（税込） / 10円",
+    }])
+
+    result = module._contract_amount_observation(page)
+
+    assert result == {
+        "status": "ambiguous", "label": "契約金額", "tax_included": True,
+        "displayed_amounts_yen": [12, 10],
+    }
+
+
+@pytest.mark.parametrize("rows, expected_status", [
+    ([], "unknown"),
+    ([{"same_row": True, "cell_tag": "TD", "text": "12,00円（税込）"}], "unknown"),
+    ([{"same_row": True, "cell_tag": "TD", "text": "12円（税込）"}] * 2, "ambiguous"),
+])
+def test_contract_summary_amount_observation_fails_closed(rows, expected_status):
+    module = load()
+    assert module._contract_amount_observation(_summary_page(rows))["status"] == expected_status
+
+
+def test_read_only_inventory_exposes_only_safe_amount_metadata_and_decision_ignores_it(monkeypatch):
+    module = load()
+    summary = {
+        "status": "ambiguous", "label": "契約金額", "tax_included": True,
+        "displayed_amounts_yen": [12, 10], "price_minor": 12, "currency": "JPY",
+        "buyer_context": "private", "url": "https://example.invalid",
+    }
+
+    class Adapter:
+        def observe_active(self):
+            return [{"work_id": "63570481", "provider_state": "funded"}]
+
+        def _cached_item(self, work_id):
+            assert work_id == "63570481"
+            return {"detail_unavailable": True, "amount_observation": summary,
+                    "price_minor": 50000, "currency": "JPY"}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "CrowdWorksPaidAdapter", lambda **_kwargs: Adapter())
+    inventory = module.read_only_inventory()
+    candidate = inventory["contract_candidates"][0]
+
+    assert candidate == {
+        "provider_id": "63570481", "provider_state": "funded",
+        "detail_unavailable": True,
+        "price_minor": 50000, "currency": "JPY",
+        "amount_observation": {
+            "status": "ambiguous", "label": "契約金額", "tax_included": True,
+            "displayed_amounts_yen": [12, 10],
+        },
+    }
+    assert "price_minor" not in candidate["amount_observation"]
+    assert candidate["price_minor"] == 50000
+    baseline = module.decide({"context": {"contract": funded()}}, form_selector=lambda _item: None)
+    augmented_contract = {
+        **funded(), "amount_observation": candidate["amount_observation"],
+    }
+    augmented = module.decide({"context": {"contract": augmented_contract}}, form_selector=lambda _item: None)
+    assert augmented == baseline
+
+
 def test_two_official_active_contracts_normalize_to_unique_stable_observations():
     module = load()
     adapter = module.CrowdWorksPaidAdapter(
@@ -2049,6 +2143,10 @@ def test_detail_timeout_keeps_basic_contract_and_does_not_block_other_rows():
 
     def detail(row):
         if row["work_id"] == "63570481":
+            adapter._cache_amount_observation(row, {
+                "status": "ambiguous", "label": "契約金額", "tax_included": True,
+                "displayed_amounts_yen": [12, 10],
+            })
             raise module.CrowdWorksPaidContractTimeout()
         return {**row, "provider_state": "funded", "form_url": None, "milestone_id": None}
 
@@ -2057,6 +2155,7 @@ def test_detail_timeout_keeps_basic_contract_and_does_not_block_other_rows():
 
     assert [row["work_id"] for row in observed] == ["63570481", "63568785"]
     assert adapter._cached_item("63570481")["detail_unavailable"] is True
+    assert adapter._cached_item("63570481")["amount_observation"]["status"] == "ambiguous"
     assert adapter._cached_item("63568785").get("detail_unavailable") is not True
 
 

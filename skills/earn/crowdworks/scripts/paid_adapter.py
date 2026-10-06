@@ -82,6 +82,83 @@ def _fixed_price_from_contract_body(body: str) -> int | None:
     return int(matches[0].replace(",", ""))
 
 
+def _contract_amount_observation(page: Any) -> dict[str, Any]:
+    """Capture only safe amounts from the official contract summary row."""
+    try:
+        rows = page.locator("th").evaluate_all(
+            """nodes => nodes
+              .filter(node => node.tagName === "TH"
+                && (node.innerText || "").replace(/\\s+/g, "").trim() === "契約金額")
+              .map(node => {
+                const row = node.closest("tr");
+                const cell = node.nextElementSibling;
+                return {same_row: Boolean(row && cell && cell.parentElement === row),
+                        cell_tag: cell?.tagName || "", text: cell?.innerText || ""};
+              })"""
+        )
+    except Exception:
+        return {"status": "unknown"}
+    if not isinstance(rows, list) or not rows:
+        return {"status": "unknown"}
+    if len(rows) != 1:
+        return {"status": "ambiguous", "label": "契約金額"}
+    row = rows[0]
+    if (not isinstance(row, Mapping) or row.get("same_row") is not True
+            or row.get("cell_tag") != "TD" or not isinstance(row.get("text"), str)):
+        return {"status": "unknown", "label": "契約金額"}
+    text = row["text"]
+    tokens = re.findall(r"(?<![0-9,])([0-9][0-9,]*)\s*円", text)
+    amounts: list[int] = []
+    invalid_amount = False
+    for token in tokens:
+        if not re.fullmatch(r"(?:[0-9]+|[1-9][0-9]{0,2}(?:,[0-9]{3})+)", token):
+            invalid_amount = True
+            continue
+        amount = int(token.replace(",", ""))
+        if amount < 1:
+            invalid_amount = True
+            continue
+        amounts.append(amount)
+    observation: dict[str, Any] = {
+        "status": "unknown", "label": "契約金額",
+        "tax_included": "税込" in text,
+        "displayed_amounts_yen": amounts,
+    }
+    if invalid_amount:
+        return observation
+    if len(amounts) > 1:
+        observation["status"] = "ambiguous"
+        return observation
+    if len(amounts) == 1 and observation["tax_included"]:
+        observation.update({"status": "observed", "price_minor": amounts[0], "currency": "JPY"})
+    return observation
+
+
+def _safe_amount_observation(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping) or value.get("status") not in {"unknown", "ambiguous", "observed"}:
+        return {"status": "unknown"}
+    result: dict[str, Any] = {"status": value["status"]}
+    if value.get("label") == "契約金額":
+        result["label"] = "契約金額"
+    if isinstance(value.get("tax_included"), bool):
+        result["tax_included"] = value["tax_included"]
+    amounts = value.get("displayed_amounts_yen")
+    if (isinstance(amounts, list)
+            and all(type(amount) is int and amount > 0 for amount in amounts)):
+        result["displayed_amounts_yen"] = list(amounts)
+    if result["status"] == "observed":
+        if (result.get("tax_included") is True
+                and isinstance(result.get("displayed_amounts_yen"), list)
+                and len(result["displayed_amounts_yen"]) == 1
+                and type(value.get("price_minor")) is int
+                and value["price_minor"] == result["displayed_amounts_yen"][0]
+                and value.get("currency") == "JPY"):
+            result.update({"price_minor": value["price_minor"], "currency": "JPY"})
+        else:
+            result["status"] = "unknown"
+    return result
+
+
 def _google_form_url(value: str) -> bool:
     return google_form.is_google_form_url(value)
 
@@ -624,6 +701,8 @@ class CrowdWorksPaidAdapter:
             self.page.wait_for_timeout(3_000)
         except Exception:
             pass
+        amount_observation = _contract_amount_observation(self.page)
+        self._cache_amount_observation(basic, amount_observation)
         self._expand_folded_messages()
         body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")
         buyer_event = self._latest_buyer_event(work_id) or {}
@@ -641,19 +720,22 @@ class CrowdWorksPaidAdapter:
         if state == "awaiting_escrow":
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
-                    "application_date": None, "buyer_context": body}
+                    "application_date": None, "buyer_context": body,
+                    "amount_observation": amount_observation}
         if state == "delivered":
             if inspection_pending:
                 return {"work_id": work_id, "title": title, "client": client,
                         "provider_state": state, "milestone_id": None,
                         "form_url": None, "proposal_id": None,
-                        "application_date": None, "buyer_context": body}
+                        "application_date": None, "buyer_context": body,
+                        "amount_observation": amount_observation}
             forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
             if forms.count() or not any(token in body for token in ("納品済み", "納品完了")):
                 raise RuntimeError("crowdworks_paid_contract_state_changed")
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
-                    "application_date": None, "buyer_context": body}
+                    "application_date": None, "buyer_context": body,
+                    "amount_observation": amount_observation}
         forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
         actions = {str(forms.nth(i).get_attribute("action") or "") for i in range(forms.count())}
         match = re.fullmatch(r"/milestones/(\d+)/complete", actions.pop()) if len(actions) == 1 else None
@@ -681,6 +763,7 @@ class CrowdWorksPaidAdapter:
                 "proposal_id": proposal_id, "application_date": application_date,
                 "buyer_context": body, **buyer_event,
                 "price_minor": price_minor, "currency": "JPY",
+                "amount_observation": amount_observation,
                 "contract_terms_sha256": hashlib.sha256(body.encode()).hexdigest(),
                 "document_urls": document_urls, **artifact}
 
@@ -967,6 +1050,13 @@ class CrowdWorksPaidAdapter:
             self._contract_cache[work_id] = normalized
         return dict(normalized)
 
+    def _cache_amount_observation(self, basic: Mapping[str, Any], value: Mapping[str, Any]) -> None:
+        work_id = _text(basic.get("work_id"))
+        with self._cache_lock:
+            item = dict(self._contract_cache.get(work_id) or basic)
+            item["amount_observation"] = dict(value)
+            self._contract_cache[work_id] = item
+
     def _legacy_form_urls(self, item: Mapping[str, Any]) -> list[str]:
         """Recover raw form URLs from prior durable intents for receipt aliases."""
         if self.state_path is None:
@@ -1065,7 +1155,11 @@ class CrowdWorksPaidAdapter:
                 try:
                     details.append(self._detail(row))
                 except CrowdWorksPaidContractTimeout:
-                    details.append({**row, "detail_unavailable": True})
+                    partial = self._cached_item(row["work_id"]) or {}
+                    detail = {**row, "detail_unavailable": True}
+                    if isinstance(partial.get("amount_observation"), Mapping):
+                        detail["amount_observation"] = dict(partial["amount_observation"])
+                    details.append(detail)
         self._cache_replace(details)
         return [self._observation(item) for item in details]
 
@@ -1848,8 +1942,17 @@ def read_only_inventory() -> dict[str, Any]:
     adapter = CrowdWorksPaidAdapter(account_id=ACCOUNT_ID)
     try:
         rows = adapter.observe_active()
-        return {"ok": True, "source_complete": True, "contract_candidates": [
-            {"provider_id": row["work_id"], "provider_state": row["provider_state"]} for row in rows], "observed_at": _now()}
+        candidates = []
+        for row in rows:
+            cached = adapter._cached_item(row["work_id"]) or {}
+            candidates.append({
+                "provider_id": row["work_id"], "provider_state": row["provider_state"],
+                "detail_unavailable": cached.get("detail_unavailable") is True,
+                "amount_observation": _safe_amount_observation(cached.get("amount_observation")),
+                "price_minor": cached.get("price_minor"), "currency": cached.get("currency"),
+            })
+        return {"ok": True, "source_complete": True,
+                "contract_candidates": candidates, "observed_at": _now()}
     finally:
         adapter.close()
 
