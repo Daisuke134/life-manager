@@ -8528,3 +8528,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Mercor application/paid/replyはloaded-idle/last_exit75、host_admission_deferred:resource_effect_unknown、installed a09d0ad40b4eddfcaa65ca03b9804604ba692557。applicationの未確定occurrenceはmercor-revenue-application:18d6f9cb5bdaef98-33812。公式readbackの不足を認証成功で代用し、fence解除/再送していない。応募行7に進む時はこの同occurrenceの送信結果を既存公式履歴へ結ぶ。
 - CrowdWorks application/paidはloaded-idle、replyはloaded-running、last_exit75/entrypoint_exit_75という観測。これだけで正常・売上成功・全故障へ分類しない。旧Freelancer application/旧Upwork free-loopはretired/disabledであり、現行後継ownerの不存在を意味しない。
 - CrowdWorks source 8ccc29eda79a3eac2eb7b9b7c6e4412817357a1eのpush/remote一致/cleanをroot確認。見出し側の税込表示対応とreadonly shared blank prune回避を受入前に実装担当へ戻した。fresh review/CI/main/immutable/live確認は未完。current1/主経路31を保持。
+
+
+### 623. CrowdWorks PR作成・最終HEAD受入待ち
+
+- rootがPR6727 https://github.com/Daisuke134/life-manager/pull/6727 を作成。初期head8ccc29eda79a3eac2eb7b9b7c6e4412817357a1eでCI37416248518の実行中を公式gh readback確認。追加修正push後の最終headで全checkとfresh readonly reviewを確認してから統合する。初期headのCIを最終差分のPASSへ流用しない。
+- Coconala正規guard statusのholder72486はpsでlive/bashを確認。leaseファイルだけを稼働証拠にせず、共有browser/profileを奪わない。readonly orders CLIの次実行は正規取得可能時に行う。
+- 現在cursor1/主経路31、Lancers28〜30後段を維持。最終source受入→main/immutable同CLI readbackが次手であり、売上/納品Doneではない。
