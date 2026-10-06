@@ -50,16 +50,16 @@ def find_paid_no_effect_proof(state_root: Path, owner: str,
             or not occurrence.startswith(f"{owner}:")):
         return None
     marker_path = run_marker_path(state_root, occurrence)
-    marker = _read(marker_path)
-    if not _marker_proves_no_effect(marker, occurrence):
+    if not (marker_path.exists() or marker_path.is_symlink()):
+        if owner != "mercor-revenue-paid":
+            return None
         # Mercor keeps the shared Paid kernel under ``shared-paid`` while the
-        # other marketplace owners use ``paid``.  Probe that provider-owned
-        # layout only after the canonical path has no valid exact marker.
-        shared_marker_path = state_root / "shared-paid" / "runs" / marker_path.name
-        if shared_marker_path != marker_path:
-            marker = _read(shared_marker_path)
-            if _marker_proves_no_effect(marker, occurrence):
-                marker_path = shared_marker_path
+        # other marketplace owners use ``paid``.  Probe only its existing
+        # layout when the canonical occurrence path is absent.
+        marker_path = state_root / "shared-paid" / "runs" / marker_path.name
+    if marker_path.is_symlink():
+        return None
+    marker = _read(marker_path)
     if not _marker_proves_no_effect(marker, occurrence):
         return None
     evidence_ref = f"lm-paid-run://{owner}/{marker_path.name}"
