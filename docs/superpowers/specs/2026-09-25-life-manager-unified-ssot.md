@@ -8442,3 +8442,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Source確認：application_tick._production_account_diagnosticは既存ready/reason/http_status/final_route_category/login_form_count/exception_typeを返し、production run_tickは既に保存する。一方read_only_inventory692–706はboolean _production_account_readyへ縮退し、preflight763–769もaccount_unavailableだけ返すため原因情報を落とす。これは現在のCLI結果で観測された取得失敗を診断できない具体的欠落。
 - 限定修正契約：latestmain専用worktree/branch lm-lancers-cli-preflight-observability-20261006でwork_sync.pyのread_only_inventory/preflightと既存関連testsだけをLuna6/maxが所有。既存診断関数を一度だけ呼び、同safe fieldsをCLI JSONへ保持する。readonlyでWAFsolver/認証/返信/承諾/送信/取引/価格/timeout/モデル/運用stateを変更しない。ready判定・七surface読取・二pass比較・cleanupを維持。HTTP405/別HTTP/ログインroute/例外の最小RED→GREEN、sourcegates/commitpush/freshSol6.1medium反証/CI/main/immutable/CLI再観測へ結ぶ。manifest必要ならowner該当entryだけ。
 - 機能全体の新CLI/新DB/新scheduler/二重経路は作らない。同fileの他owner変更を戻さず、Lancers既存ownerへ範囲を通知して調整する。current1/主経路30と後段SelfBuildの順は不変。
+
+
+### 613. CLI診断欠落の最小修復source PASS・fresh SHIP
+
+- current1内の限定修復をLuna6/maxが完了。worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-lancers-cli-preflight-observability-20261006、branch fix/lm-lancers-cli-preflight-observability-20261006、basea296875592b9b6196d279bcd0946788da8547cd8、HEAD/remote20adcff9dd3e4aa076607c7f40917c37f9bafb0a一致・clean。production差分13行＋既存test1file、既存account診断をinventory→preflightへ保持、新観測基盤/CLI/stateは追加しない。
+- focused33、contract、OSS12、diff PASS。HTTP405/503/route/login/exceptionのCLI実境界でRED→GREEN、元error/exit1・diag1回/pass・solverfalse・cleanup1回を確認。fresh Sol6.1/mediumはSHIP/重大指摘0、関連6＋readonly/cleanup3＋隔離追加probe5を独立PASS。ready2pass一致/不一致/secondfail/cleanupfail/login、secret URL/例外本文不出力・providerwrite0を反証確認。
+- PR6722 https://github.com/Daisuke134/life-manager/pull/6722 作成。exacthead20adcffのCI37411123679はin_progress、現在5/9成功/CodeRabbitSUCCESS。main/immutable/本番CLI再観測は未完。sourcePASSを取得成功や売上/契約確認へ置換しない。次はCI→main→immutable→同readonlyCLI再観測→実原因に対する必要修復。主経路30/cursor1・順序不変。
+- 旧Lancers fixseatはsend時に未登録と判明、登録済みlm-claude-lancers-plan-1002へ範囲通知。新委譲/登録済みを稼働証拠にしない。既存account-diagnostics worktreeはclean/別ownerとして触らない。新scopeはreadonlyの2関数だけ、production営業/価格/モデル/registry/solver/auth/browserstate操作0。
