@@ -9969,3 +9969,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - finiteexec8114はexit0/未実装でterminal。workerはworktree lease lockの共通.git/worktrees metadata書込がworkspace-write sandboxでOperation not permittedと確定し、clean/base6489/lease未作成/source変更0をAGMSG ready/blockerで報告。観測timeoutで再起動したのではない。
 - 依頼済みのworktree lease/commit/pushに必要なGit操作を可能にするため、同gpt6-luna/max/approvalnever/専用3file scopeのfiniteexecをdanger-full-accessで再開handle23227。他者source/共有checkout/acquisition/本番/実API/SSOT編集禁止を維持、既旧writerterminalを確認して重複writer0。旧世代fallback/新provider設定0。
 - AGMSGで変更理由と未編集確認を報告、rootは同sourceへ編集せず実装結果を待つ。scope/§801受入は不変。current17の持続MRR readerを最小RED→GREEN→sourcepush→review→自然更新まで完走する。
+
+
+### 804. CFO-owned RevenueCat MRR取得の最小実装とfocused検証
+
+- cursor17のLuna/max担当 lm-cfo-mrr-live-1007 が専用branch fix/cfo-current-mrr-readback-20261007 にreader・loop_pnl接続・回帰testを実装中。primaryは同じsourceを編集しない。options1回+6app exact filter MRR取得、live時のstatic RC MRR除外とASC保持、明示過去snapshotに現在値を混ぜない接続を実差分で確認。
+- primaryがdate参照不具合を発見して担当へ連絡し、dt.dateへの修正を確認。新機能7tests GREEN後、primary独立実行の python3 -m unittest skills.cfo.test_revenuecat_readback skills.cfo.test_loop_pnl skills.cfo.test_capafy_mobile_attribution skills.cfo.test_economic_attribution は122/122 PASS。これは隔離source検証で、公式API取得・本番鮮度・利益の証明ではない。
+- sourceはまだ未commit/未push。scope/hash/実main経路の追加確認、fresh read-only review、source commit/push・CI/main・immutable反映・自然readbackが残る。現在cursor17、既存相対順と前段保留、SelfBuild25/Lancers26〜28を保持。
