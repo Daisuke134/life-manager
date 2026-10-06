@@ -8766,3 +8766,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - canonical paid-latest.jsonは2026-10-06T05:27:55.767700Zの別occurrence18dbd97230e018a0-72538。5observed/5actionable/1failed/4pending/effect0/readback0。pendingはform_selection_required1/reconcile_unknown3、failedはpre_effect true/crowdworks_paid_handoff_unavailable。この別reportをlatest occurrenceの証明に代用しない。handoff/フォーム選択/既存unknown照合は資格・所有境界であり、無条件解除しない。
 - 同latest occurrenceを既存reconcile_paid_no_effect CLIのreadonly previewで照合、exit75/exact_paid_zero_effect_proof_unavailable/resolved false。--resolve未指定、fence/state解除0。次はcaller/lock/marker生成境界を読み、実コードの不足か正当な不足証拠かを区別して必要修復だけ行う。
 - 未依頼mock/demo制作は取消のまま。current1/残30、TikTok/NPO/旧12追加追跡延期、SelfBuild26/Lancers27〜29後段を維持。送信/納品/支払/既存unknown再送0。
+
+
+### 653. CrowdWorks Paidのbrowser lock→marker未到達境界
+
+- current source paid-ownerはrun_with_file_lock --non-blockingの内側でpaid_kernelを実行する。run_with_file_lockはBlockingIOError時にexec前で75を返す。paid kernelの_prepare_run_markerはkernel開始後なので、このbusy occurrenceにmarkerが生成されないcallgraphを確認。後段resolverのexact proof missingはこの経路と整合する。
+- 必要修復の範囲候補は入口の同occurrence pre-effect証拠生成だけ。現在receipt不足を0にする/既存effect_startedまたはcompleted非zeroを上書きする/過去unknownへmarkerを後付けすることは禁止。kernel未起動の新しいactual boundaryに結ぶ。修復方式・review・実装・テストはまだ未完。source編集0。
+- 既存lm-crowdworksへscopeと重複編集確認をAGMSG send成功で通知。登録済みを稼働/着手と判断しない。primaryはSSOT/受入を保持し、workerに渡す場合はlatest-main専用worktree/限定files/Luna6max、fresh safety reviewはSol6.1medium。
+- current1/残30、mock取消/TikTok・NPO追跡延期/SelfBuild26・Lancers27〜29後段を維持。新provider mutation/旧fence解除/再送0。
