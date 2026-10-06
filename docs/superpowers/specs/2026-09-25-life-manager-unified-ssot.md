@@ -10115,3 +10115,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 初回analytics viewはCLIが全instanceへfan-outしAnicca258/Honne162件を取得する警告を返した。想定より広かったため同全期間取得を反復せず、取得済みcatalogからDownloads Standard/Discovery and Engagement Standardの共通最新DAILY instanceだけ選択して4CSVをdownload/decompress。metadataにrequest/report/instanceID・processingDate・観測時刻・rawSHA、signedURL/token保存0。
 - processingDateとCSV Dateは異なる。Anicca処理10/06の共通data Date10/05はCounts impression36/Product page view2/Store sheet view1/初回download2。Honne処理10/04の共通data Date10/02はimpression10/Store sheet view1/初回download1、Product page view行無しはnot_observed_not_zero。異なる日・page種別を混ぜず、Unique Countsを合算ユーザー数やcohort/post attributionへしない。少数標本の勝者/因果効果・収益化を認定しない。
 - private cfo-asc-current-acquisition-official-readback-packet.json SHA467f23c9b7100e3e207bcb8ed8f8036b358482662478b3189dbffe8301ebba3a、4CSV/metaのrawhash/appID一致をroot検証。自然CFO104639・deployed財務join・appslist・獲得CSVをfresh Sol6.1/medium read-only acceptance handle23772で反証中。scope17の受入前に全goal/会社利益のDoneへしない。現在cursor17を保持。
+
+
+### 824. 残17 acceptanceはsame-occurrence観測記録不足HOLD、最小保存を修正
+
+- fresh Sol6.1/medium acceptance handle23772はexit0/限定HOLD。財務3artifact SHA/期間・SKU・JPY4250/正規ID、自然run1305/送信104639/outbox/本文SHA、追加observer ASC1/RC MRR6/RC settled0/duplicate空/unknown保持、獲得4CSVは確認済み。自然run内のlive取得query/時刻/evidenceSHAとASC/RC分離・coverageを同occurrenceへ結ぶ保存記録だけ不足。故障判定や全財務gate追加ではない。
+- 目的は既存collectorの観測を自然runのprivate JSONへ保存し、同occurrence送信receiptへ結べるようにする。最新main由来専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/cfo-mobile-natural-evidence-20261007、branch fix/cfo-mobile-natural-evidence-20261007。source所有はCFO collectorと必要最小CFO testのみ、実装gpt-6-luna/max、primaryはSSOT/受入/統合。
+- acceptance：既存live modeかつnative CFO occurrence/state contextの時だけ、既存CFO state/mobile-readbacksにoccurrence別JSONをatomic/fsync/file600/dir700で保存。owner/occurrence/run/release/liveflag・取得開始完了・RC query/evidenceSHA/結果・同集計ASC receipt/RC snapshots/settled/duplicate/coverageを記録。credential/Authorization/全envを保存しない。入力current-mrr.jsonを上書きせず、source report/message cadence/宛先/価格/購読/送信/API回数を変えない。
+- 失敗・unavailableも欠損として保存、旧値をfreshen/0化しない。flag offや自然context無しの既存CLI経路は維持。focused RED→GREEN・既存関連suite・fresh read-only review・commit/push/CI/main/immutable・次の自然same-occurrence readbackまで続ける。node reportやeffect fence/全frameworkを書き換えず、単一run JSONの最小差分。cursor17/前段保留/主相対順を維持。
