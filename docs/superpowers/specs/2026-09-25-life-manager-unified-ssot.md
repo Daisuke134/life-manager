@@ -4893,6 +4893,8 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 現在cursor：1（確認済み既存有償案件の次成果物・履行確認）。主経路29項目。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
 
+今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文は作らず、実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Reply修復はmain統合・対象loaded反映済みだが自然処理の改善は未確認であり、完了項目へ丸めない。
+
 Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監査→収益確認」の順を変更する。新順は実債務/納品・精算→Lancers以外のstorefront/応募/販売→会計→SelfBuild→Lancers再開→最終確認。理由は古い状態の巡回を全収益経路の停止条件にせず、実際の仕事と売上へ時間を使うため。以後この順を保持する。各行の必要な観測・原因修復・focused検証はその行の中で行い、観測だけを何度も独立taskに増やさない。新しい外部effect/価格変更等の権限はこの文書更新から推定しない。
 
 | 順序 | 残作業 | 完了を示す成果 |
@@ -8970,3 +8972,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - manual reconcileでは予約release rebindがautomatic callerに限定されるため、既存apply_liveのallow_reserved_release_rebind/skip_busy/preserve_pending_admissionを明示して対象1件だけ有限監視。稼働runはskipし、idle guard許可時にcurrent aed62f3bへ反映、changedtrue/loaded argv一致/admission_resumedtrue。原本reply-facts-reserved-apply.json。新source codeやframeworkを作らず既存APIを使用。
 - freshstatus installed aed62f3b一致、latest terminalはまだ旧9c9。admission DBは初回read lockだったが同readonly経路を再pollし旧unknown250保持を確認。別sourceの記録を流用せず、未知の過去を解除していない。shared current/他label/provider route変更0。
 - 次は新sourceの自然run/remaining_work/no invalidhandoffを確認。main/loaded成功を自然返信・収益成功へ代用しない。current1/残29/mock取消/後段順維持。
+
+
+### 681. mock取消を維持・未完TODOの正本更新
+
+- Daisの指示に従い、mock商品・demo制作を再開しない。今回の成果は§217の未完29項目と実行順の明示。旧番号や完了済み応募を残TODOへ戻さない。current1、SelfBuild25、Lancers26〜28、最終29を保持する。
+- 新source aed62f3bの自然Reply run 18dbe3ee46fea418-58844 は2026-10-06T08:38:12.184829Zにexit75/provider_browser_busy。kernelの新source再判定成功は未確認。対象3threadは反映前に書かれたretry状態で、次回eligibleは09:01/09:12/09:16 UTC。旧状態だけで修正失敗と判定しない。
+- 今回state/backoff/intent/旧unknownの変更・手動再送・provider操作は行わない。次の検証は既存自然実行での再判定。新しいモックや追加監査を販売の前提にしない。
