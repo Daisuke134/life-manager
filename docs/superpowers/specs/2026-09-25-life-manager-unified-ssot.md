@@ -9104,3 +9104,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 残17内の最小追加修復はMRRのみ、periods無し/cohort-onlyのUnix秒を、API本文のstart/end範囲で確認できる場合だけUTC dateへ正規化する。cohort index0/無効文字列/範囲外/欠損rangeを当日や1970年の有効snapshotにせず、既存period配列・explicit period・period_index・canonical bodyhash/wrapperhashは保つ。consumer/app/financial/coverage gateは変更しない。actual保存形からのREDと実consumer回帰で受入する。
 - 専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-revenuecat-cohort-20261006、branch fix/lm-cfo-revenuecat-cohort-20261006、base07a215959fe8d9a6b87bf3172f848ce5dee6dde6、lease codex-money-printer-rc-cohort/24h。Luna6max所有はbusiness_outcomes.py/既存producer test/必要な既存CFO consumer回帰のみ。rootがSSOT/review/CI/main/readbackを所有。HTTP429は別境界で、最小rate/phase観測を増やしてから当該製品だけ再取得する。追加のoptions→mrr chart限定probeは2026-10-06T10:26:07Zにavailable/USD/app_id filter確認、canonical hash3a8dbc1bad300810d9e44a39621910cdd019fba30189d5e66c984d6d1f5ce473。原本rc-desk-rate-probe.json/rc-desk-mrr-actual-body.json。MRR取得の再開を確認したが、全chart・全6consumer受入とは分ける。
 - 全体Done/自然scheduled反映/14loop財務Doneは未完。旧senderの反映HOLDとguardを維持し、current1/残29/順序・後段保留は変更しない。
+
+
+### 694. actual cohort形のsource受入PASS・PR6760 CI監視
+
+- Luna6max commit dd4fd12e30f8f42b39a28e63a38d1c40a157c97aをremote一致/clean確認。3fileだけ：producer16行程度の補正/既存producer test/既存CFO integration。periods無し・explicit period無しのcohortはUnix秒スケールで本文start/end範囲内の時だけUTC date化、index0/欠損/逆転range/非整数/範囲外は有効snapshotへdefaultしない。consumer/bodyhash/wrapperhash/period_index/他chart維持。
+- actual-shape REDはproducer period None・実wrapper→CFO snapshot0/6。GREENはproducer27+CFO43、root再実行70PASS/33subtests/diffcheck/構造gate15catalog184jobs/errors0。fixtureはbusiness_dateから本文のrange/cohortを生成し、同じ対象日というAPI条件を再現。hash再bindやconsumer timestamp補正で受入を偽装しない。
+- rootが保存済みactual mrr本文を純粋parserへ直接渡し、period2026-09-26/value20.34/period_index1790380800/incompletefalse、元canonical hash ec4835b9650297cf26882e995dc9ad3fbf221a3129af1bc9959d130610bbe8e9を確認。cfo-cohort-actual-body-parser-proof.json保存/provider IO0。fresh Sol6.1medium cfo_actual_cohort_reviewはsourceSHIP/重大指摘0、異常値と既存経路の維持も確認。
+- PR6760 https://github.com/Daisuke134/life-manager/pull/6760、同head CI37450601703は現在in_progress、watch handle70181稼働。全CI/main/immutable/新actualreadbackは未完。source受入を本番や全6実観測受入へ代用しない。旧marketing sender unknown1の解除/再送/反映0。current1/残29/順序保持。
