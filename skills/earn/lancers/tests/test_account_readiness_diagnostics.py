@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
-from io import BytesIO
+from io import BytesIO, StringIO
 import json
 import os
 import sys
@@ -193,6 +193,154 @@ def test_work_sync_result_keeps_account_unavailable_and_safe_diagnostic(tmp_path
     serialized = json.dumps(result)
     assert "hidden-user" not in serialized
     assert "work-sync-secret" not in serialized
+
+
+@pytest.mark.parametrize(
+    ("name", "status", "url", "login_count", "error", "expected"),
+    [
+        (
+            "http_405",
+            405,
+            DASHBOARD_URL,
+            0,
+            None,
+            {
+                "ready": False,
+                "reason": "http_non_200",
+                "http_status": 405,
+                "final_route_category": "unavailable",
+                "login_form_count": None,
+                "exception_type": None,
+            },
+        ),
+        (
+            "http_503",
+            503,
+            DASHBOARD_URL,
+            0,
+            None,
+            {
+                "ready": False,
+                "reason": "http_non_200",
+                "http_status": 503,
+                "final_route_category": "unavailable",
+                "login_form_count": None,
+                "exception_type": None,
+            },
+        ),
+        (
+            "final_route_mismatch",
+            200,
+            "https://www.lancers.jp/users/4242?email=private%40example.test&token=route-secret",
+            0,
+            None,
+            {
+                "ready": False,
+                "reason": "final_route_mismatch",
+                "http_status": 200,
+                "final_route_category": "other",
+                "login_form_count": None,
+                "exception_type": None,
+            },
+        ),
+        (
+            "login_form_present",
+            200,
+            DASHBOARD_URL,
+            2,
+            None,
+            {
+                "ready": False,
+                "reason": "login_form_present",
+                "http_status": 200,
+                "final_route_category": "dashboard",
+                "login_form_count": 2,
+                "exception_type": None,
+            },
+        ),
+        (
+            "exception",
+            200,
+            DASHBOARD_URL,
+            0,
+            "private exception text https://www.lancers.jp/mypage?token=exception-secret",
+            {
+                "ready": False,
+                "reason": "exception",
+                "http_status": None,
+                "final_route_category": "unavailable",
+                "login_form_count": None,
+                "exception_type": "RuntimeError",
+            },
+        ),
+    ],
+)
+def test_preflight_cli_retains_safe_account_diagnostic(
+    tmp_path, monkeypatch, name, status, url, login_count, error, expected
+):
+    module = _module()
+    page = _page(status=status, url=url, login_count=login_count, error=error)
+    diagnostic_calls = []
+    cleanup_calls = []
+    surface_reads = []
+    original_diagnostic = module.application_tick._production_account_diagnostic
+
+    def observe_diagnostic(observed_page, **kwargs):
+        diagnostic_calls.append(kwargs)
+        return original_diagnostic(observed_page, **kwargs)
+
+    monkeypatch.setattr(
+        module.application_tick, "_production_account_diagnostic", observe_diagnostic
+    )
+    monkeypatch.setattr(module, "_verified_proposals", lambda _path: set())
+    monkeypatch.setattr(
+        module.application_tick,
+        "_open_owned_page",
+        lambda *_args, **_kwargs: (object(), page),
+    )
+    monkeypatch.setattr(
+        module,
+        "_read_surfaces",
+        lambda *_args: surface_reads.append(True),
+    )
+
+    def cleanup(*_args):
+        cleanup_calls.append(True)
+        return True
+
+    monkeypatch.setattr(module, "_cleanup", cleanup)
+
+    @contextmanager
+    def fake_account_lock(_path):
+        yield
+
+    monkeypatch.setattr(module.application_tick, "account_lock", fake_account_lock)
+
+    output = StringIO()
+    exit_code = module.main(
+        ["--preflight", "--json", "--state-path", str(tmp_path / "state.json")],
+        output_stream=output,
+        browser_factory=lambda _name: None,
+    )
+
+    result = json.loads(output.getvalue())
+    assert exit_code == 1, name
+    assert result["error"] == "account_unavailable"
+    assert result["failed_read"] == 1
+    assert result["logged_in"] is False
+    assert result["account_diagnostic"] == expected
+    assert diagnostic_calls == [{"solve_aws_waf": False}]
+    assert surface_reads == []
+    assert len(cleanup_calls) == 1
+    serialized = json.dumps(result)
+    for secret in (
+        "4242",
+        "private%40example.test",
+        "route-secret",
+        "exception-secret",
+        "private exception text",
+    ):
+        assert secret not in serialized
 
 
 @pytest.mark.parametrize(
