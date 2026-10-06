@@ -136,10 +136,16 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
 
 def _child_environment_for_owner(
         loop_id: str, base: dict[str, str], home: Path | None = None) -> dict[str, str]:
-    """Pass the protected Postiz credential only to the registered eBook owners."""
+    """Scope the canonical data root and Postiz credential to eBook owners."""
     environment = dict(base)
     if loop_id not in EBOOK_POSTIZ_LOOP_IDS:
         return environment
+
+    # The eBook entrypoint stores its render/object/ledger data beneath the shared
+    # Life Manager data root. Do not inherit an arbitrary manager-level override.
+    environment["LM_DATA_DIR"] = str(
+        Path(home or Path.home()).expanduser() / ".local/state/life-manager"
+    )
 
     # Ignore any inherited alias. The credential SSOT is the only source for eBook
     # publisher authentication. Do not even pass it to the child while publishing
