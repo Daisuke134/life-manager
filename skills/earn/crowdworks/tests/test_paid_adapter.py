@@ -307,6 +307,39 @@ def test_funded_detail_rejects_tax_included_primary_amount_under_tax_excluded_he
     assert detail["price_minor"] is None
 
 
+@pytest.mark.parametrize("primary_text", [
+    "12円（税抜）", "12円（税別）", "12円（税込・税抜）",
+])
+def test_funded_detail_rejects_tax_excluded_primary_under_tax_included_header(primary_text):
+    module = load()
+    cell = _amount_cell_fixture()
+    cell["direct_text"] = f"\n        {primary_text}\n      "
+
+    detail = _detail_for_amount_dom(module, [cell])
+
+    assert detail["amount_observation"] == {
+        "status": "unknown", "label": "契約金額", "tax_included": False,
+        "displayed_amounts_yen": [12],
+    }
+    assert detail["price_minor"] is None
+
+
+@pytest.mark.parametrize("text", ["12円（税抜）", "12円（税別）"])
+def test_contract_summary_amount_observation_rejects_tax_excluded_primary_text_even_when_dom_flags_included(text):
+    module = load()
+    page = _summary_page([{
+        "label": "契約金額", "tax_included": True,
+        "same_row": True, "cell_tag": "TD", "text": text,
+    }])
+
+    result = module._contract_amount_observation(page)
+
+    assert result == {
+        "status": "unknown", "label": "契約金額", "tax_included": False,
+        "displayed_amounts_yen": [12],
+    }
+
+
 def test_contract_summary_amount_observation_accepts_one_tax_included_yen_value():
     module = load()
     page = _summary_page([{

@@ -88,11 +88,13 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
                 const cell = node.nextElementSibling;
                 const amountCell = cell?.cloneNode(true);
                 amountCell?.querySelectorAll(".net_amount").forEach(note => note.remove());
+                const text = amountCell?.innerText || "";
                 return {label: "契約金額", tax_included: !label.includes("税抜")
                           && !label.includes("税別")
-                          && (label.includes("税込") || (amountCell?.innerText || "").includes("税込")),
+                          && !text.includes("税抜") && !text.includes("税別")
+                          && (label.includes("税込") || text.includes("税込")),
                         same_row: Boolean(row && cell && cell.parentElement === row),
-                        cell_tag: cell?.tagName || "", text: amountCell?.innerText || ""};
+                        cell_tag: cell?.tagName || "", text};
               })"""
         )
     except Exception:
@@ -121,7 +123,8 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
         amounts.append(amount)
     observation: dict[str, Any] = {
         "status": "unknown", "label": "契約金額",
-        "tax_included": row.get("tax_included") is True,
+        "tax_included": (row.get("tax_included") is True
+                         and "税抜" not in text and "税別" not in text),
         "displayed_amounts_yen": amounts,
     }
     if invalid_amount:
