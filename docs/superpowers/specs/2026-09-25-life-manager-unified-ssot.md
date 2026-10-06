@@ -9567,3 +9567,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 既存writer_stripe_syncのrestricted-key collector gateを変更・実行せず、別のbounded GET-only公式probeでaccount/Checkoutを読む。決済/返金/payout/key発行・権限変更0。2026-09-29T00:00:00〜2026-10-06T16:23:53.643619UTCをcreated gte/lte指定、checkout sessions1page/data0/has_morefalse。strict再検証HTTP200/objectlist/datalist/同一期間0、request ID/responseSHA523270.../GET host/path/query/Connect header無しを保存。private writer-stripe-official-checkout-readback.json。live分類はprivate credential prefix根拠で空response内livemode証拠ではない。
 - fresh native reviewer writer_checkout_scope_review（gpt-6.1-sol/medium、2evidence filesのみread-only）が初回のrequest/scope不足を指摘し追加metadataで再review限定SHIP。rawresponse未保存なので独立hash再計算は未確認と残す。指定期間Checkout記録0の限定結論のみ、他決済/settled/銀行/利益の0はHOLD。reviewer credentials/外部GET/変更0。
 - cursor12次は同accountの公式payment intents/subscriptions/invoices/balance/refunds/payoutsへGET-only観測を広げ、Writer metadata/同期間coverageを照合する。CFO設定ファイル不存在やCheckout0を全14財務0へしない。主29相対順序/旧Writerhostfence/前段保留/SelfBuild後段保持。
+
+
+### 753. Stripe6source限定reviewとHook Lab自然販売促進readback
+
+- Stripe同account/同期間のpayment intents/subscriptions(status all)/invoices/balance transactions/refunds/payoutsをGET-onlyで取得。6sources全HTTP200/list data[]/has_morefalse、request ID/query/raw empty response/SHAをprivate writer-stripe-six-source-readback.jsonへ保存。個人情報/secretコピー0。created期間に限定し、期間前購読/期間内の旧object決済/MRR/銀行/利益へ0を広げない。settled revenue/profit null。
+- fresh同Sol6.1 medium reviewerが追加ファイルの6raw response SHAを再計算し全一致、限定件数SHIP/金融成果0判定HOLD。前のraw保存不足はこの6sourcesについて解消、公式通信の独立再照合は未実施。
+- Capafy11234はpsから消え、exact run16:24:41Z reportpass/exit0/effectunknown/receipt無しを確認。既存fenced_row probeはValueErrorでunknown行無し（未解決と即断せずread-only occurrence照合）。最初のDB path typoはread-only open前失敗しcorrect canonical admission-v2へ修正、mutation0。
+- exactoccurrence18dbfcdfa1358938-11234は現在released/effectunknown false/queued16:15:04.673706Z。official remoteGitHub fetchedcommit877b6a6b42e8b0040341de65267489a05f535246は同slug capafy-hook-lab-2026-10-07-h00（JST01:17:11）、publicpage200、Postiz official listing同投稿IDcmuww25q30ajjrz0yt15q12fb（business ledger一致）。private capafy-hooklab-natural-official-readback.json。root fence mutations0、解除元のexact proofは未調査なのでroot解放成果としない。
+- 主11の既存商品販売促進cycleは実行・公式article/post readbackの限定Done。注文/精算/host実費/利益は未確認で保持し、全11Doneや収益発生としない。主12の売上源は公開/Checkoutと6source取得の限定進捗、旧hostbinding不足は保留。次の独立cursor13 Affiliate成約/commission/settlementの既存source照合へ進む。主29相対順序と前段不足/SelfBuild後段を保持。新publish/新marketing send/購入/支払/振込/鍵発行0。
