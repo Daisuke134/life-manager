@@ -9251,3 +9251,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同2filesのLuna/maxは税区分3ケースRED（3failed）を確認後、clone/headerだけの税込判定・税抜/税別の矛盾reject・Python側元text税込fallback削除でGREEN。actual税込gross12/net10、曖昧primary、元fenceは維持。142 adapter/共有contract11 PASS、rootも142/diffcheck/loop-contract15/184/107を確認。生buyer本文/credential/source外変更/外部effect0。
 - sourceを最新main571ffbedf8へrebaseし、commit `cf6b0e6e76d4a62298c59ed1e8dc8ef76105ff4a` を `fix/lm-crowdworks-contract-amount-20261006` へpush、remote一致/clean確認。Draft PR6781作成。rebase後の関連testsを再確認する。
 - 最終pinned diffのfresh Sol6.1/medium read-only run3802でP1解消と残riskを確認中。CI/main/immutable/実3候補のreadback/1.2対象選定/納品は未完。現在1.1/主29順序不変。
+
+### 711. PR6781の逆向き税矛盾P1とbase由来OSS gateを診断
+
+- final fresh Sol/medium reviewはHOLD：税込header＋primary税抜/税別表記でもprice12を採用する逆向き矛盾を独立再現。旧net注記税込P1は解消、focused22/type boundary10 PASS、逆向き3case reject失敗。source以外の外部effect/編集0。証拠 `crowdworks-contract-amount-final-review-result.txt`。
+- same2files/leaseのLuna/max run24015へ、primary cloneの税抜/税別表記も拒否する最小RED/GREENを依頼。現142baselineとvalidactual税込12/net10を維持。RootだけがGit/review/CI/mainを所有。
+- PR6781 CI37473722440/job112303570280のOSS failは3個のCapafy icon.webp generated_artifact。hook-lab/slide-maker/tiktok-script-proはbase571ffbedとpushed cf6bで同bytes、当branchの変更ではないことをgit object比較で確認。現gateはtracked JSON契約でdigestが宣言されたproduct source画像を許可する。画像削除・baseline waiving・guard緩和をせず、canonicalasset宣言の不足をownerへ共有。AGMSG sendを着手証明にしない。
+- rebase後root関連suite再実行はshared test path指定誤りでtests未実行だったため、この実行をPASS扱いしない。正しい既存shared pathはtest_contracts.py（11件）。次の修復後にadapter/sharedとrequired gateを実行する。current1.1/残29・主順序不変。
