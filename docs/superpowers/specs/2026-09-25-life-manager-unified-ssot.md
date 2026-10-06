@@ -8825,3 +8825,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最終head12f69dc169d8525de9d2cdfd0cf9bc490c17ac79は全9CI SUCCESS/CodeRabbitSUCCESSをofficial gh確認。source/test blob不変のfresh safetySHIP/11＋19PASS/metadata一致を受入しgh pr merge --merge --admin --match-head-commitで統合。MERGED/merge9c9fd29d7b7b47711a9009a5977d0b00afc848e7/mergedAt2026-10-06T07:20:59Z、fetch後main一致。
 - release lock無し/current78c55432 ALL/cut script latestmain同blobを確認。既存cut-loop-releaseでpushed main9c9fd29dから完全candidate作成開始、LOOPS_ACTIVATE_CURRENT=0/handle43472/private log paid-proof-release-cut.log。shared current切替/label apply/旧fence解除0。
 - 完全release完了/source一致/readonly実経路確認は未完。browser busy証拠の新規性/dispatch契約は§654 HOLDのまま、このreader修復をPaid全体稼働/売上成功へ代用しない。current1/残30/mock取消/後段順維持。
+
+
+### 661. Paid resolver完全release・対象限定反映
+
+- 完全immutable /Users/anicca/loops/releases/20261006T162129-9c9fd29d はmain9c9fd29d/ALL/source blob一致/書込不可を確認。新readerの旧occurrence18dbde readonly previewはexit75/exact proof unavailable/unknown/resolved falseを維持。--resolve0。
+- GUI preflight UID501/DS/Aqua/manager/GUI全PASS、CrowdWorks Paid loaded-idle/PIDnull/installed78cをfresh確認。lm-loop apply --loaded-idle-onlyをCrowdWorks Paidだけへ実行、exit0/ok true/changed true/loaded argvとrelease9c9fd29d一致、admission_resumed false。原本paid-proof-target-apply.json。shared current/他label変更0、既存claim再開/解除0。
+- 自然予定runの新SHA terminalは未確認。source/反映成功はPaid送信/納品/売上やbusy proof解消の証明ではない。次は同SHAの自然eventを既存CLIでreadbackし、未確定claimを保持したまま残る入口証拠不足へ進める。current1/残30/mock取消/後段順維持。
