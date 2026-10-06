@@ -9760,3 +9760,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - Lunaの現wireはlegacy ASC verified receiptとraw packetが混在する場合unverified_receipt gapへ分離する修正を反映。rootが専用worktreeでpython3 -m unittest skills.cfo.test_capafy_mobile_attributionをfresh実行し50/50 PASS（0.065s）。これにはraw同形packetとlegacy/raw mixed拒否を含む。
 - source未commit段階の関連test証拠でありfresh財務review/main/immutable/自然CFO/銀行入金/利益の証拠ではない。workerは残relatedchecks/sourcecommit/pushと後続MRR表示修正を継続。rootは同編集範囲へ変更せず、完了後freshSol reviewを担当。current17/相対順序維持。
+
+
+### 778. CFO既存固定catalog件数testのbaseline失敗を確認
+
+- Luna関連loop_pnl38test中37PASS/1FAIL、TableTest.test_every_catalog_loop_is_a_row_and_nothing_is_inventedの固定len14に対し現catalog15。rootが現immutable4429同testを独立実行し同じ15!=14を再現、今回のASC差分によるregressionではない。
+- 当該test後続はlist(rows)==catalog idsで全件/架空row無しを検証する。自所有CFO testの古い固定件数だけを現catalog（14product＋内部CFO）に整合させる最小修正をLunaへ割当、所有追加test_loop_pnl.py当該assertionのみ。関連38を再実行してPASS、追加機能/新suite/全repo修復へ広げない。sourcecommit/push前の必要checkを完了する。current17維持。
