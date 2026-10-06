@@ -8939,3 +8939,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同最終head6d5e6602ab658092d6a027472440be7f670bd581のCI37434523722はcompleted success/全9checkを確認。sourceSHIP・root関連56PASS・manifest一致を受入、gh pr merge --merge --admin --match-head-commitで通常統合。MERGED/merge37bbd2ed7a9bf830e59d1fed584f2d2582dedbaf/mergedAt2026-10-06T08:17:26Z、fetch main一致。
 - sourceはfacts exception待機への1行修復、explicit human条件/送信/通知/旧intentやstateは未変更。main成功を自然Reply改善や顧客返信・利益の成果へ代用しない。
 - 次はmain由来完全immutableを既存release owner/lockと調整して作成、対象CrowdWorks Replyのloaded-idle反映と自然event/remaining_workを確認。source-onlyのsource受入はPASS、反映・自然の受入は未完。current1/残29/mock取消/後段順維持。
+
+
+### 677. Reply完全release作成・対象applyはpending admission skip
+
+- 完全immutable /Users/anicca/loops/releases/20261006T171831-37bbd2ed のmain37bbd2ed/ALL/source blob一致/書込不可を確認。cut92590はexit0、sharedcurrent変更0。Luna source run66123もterminal exit0を確認。
+- GUI preflight UID501/DS/Aqua/manager/GUI PASS、Reply loaded-idle/PIDnull/installed9c9をfresh確認して対象限定apply --loaded-idle-onlyを発行。exit0/oktrueだがchanged false/skipped pending-admission。private原本reply-facts-target-apply.json。新releaseがloadedになったとは報告しない。
+- pending予約/claimを壊さず、次は既存admission rebind guardと予約release再結合の正式経路を確認する。実返信/通知/旧unknown解除/手動wake/他label変更0。反映・新SHA自然改善は未完、current1/残29/mock取消/後段順維持。
