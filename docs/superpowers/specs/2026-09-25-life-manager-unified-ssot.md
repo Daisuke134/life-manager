@@ -10033,3 +10033,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - handle55387はexit0/source限定SHIP。前HOLD4+UTC終了日1件を実main→build→collectの独立6fixtureで反証、106tests PASS。primaryのeconomic含む133testsと合わせsource gateを満たす。同SHA c7399c63aa9b7df380dd55c1554f64387c45d6beで最終再検証/3file安定を確認。
 - 公式artifact6appのscope/epoch/day形は再構成fixtureで受入を確認、生response全体replayは未検証。この限界を自然API取得の代用にせず保持。secret/provider操作0。
 - rootはPR6790をreadyへ変更、CI run37528401518の残checkは進行中。統合/本番変更はまだ0。§217の現在残操作をsource再実装からCI/main/immutable/liveflag/自然readbackへ同期。cursor17と主29相対順は維持。
+
+
+### 813. 確定CFO sourceの公式7GET・生応答保存、CI残1項目
+
+- source commit c7399c63aa9b7df380dd55c1554f64387c45d6beのreaderで公式API options1+6app MRR GETをprimary read-only実行。started_at2026-10-06T20:45:05.065342Z/completed_at20:45:09.349957Z、6available/subscription_snapshot6件。認証header/tokenを保存せず、URL・元response・responsehash/観測時刻をprivate保存。外部設定/課金/投稿/本番loop変更0。
+- 証拠 cfo-mrr-final-source-official-readback.json SHA33ed68e77f5b9cb4d95aae61140830d3c99170a08944479b55dd7f05c19e644f。前reviewの生応答未保存という限界を今回新取得で補完し、過去取得が完全replayだったと書き換えない。確定source/API接続の証拠、本番自然実行の代用ではない。
+- PR6790のLoop control contracts/TruffleHogもPASS、CI run37528401518残gitleaksは実行中。既存CodeRabbit skipとfreshSHIPは別。PR本文を確定source/独立review/実API証拠へ同期。本番/統合は未完、cursor17保持。
