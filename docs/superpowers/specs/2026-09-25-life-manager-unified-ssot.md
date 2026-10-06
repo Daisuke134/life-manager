@@ -9276,3 +9276,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 待機を減らすため、検証済みasset宣言99657d4443をCrowdWorks専用branchへmerge。HEAD `20881e092908dfeaadc84f3db1142ec595194818` をpush/remote一致/clean確認。レビュー済み4220d8d543からadapter/testの差分0、追加は別owned source-assets.jsonだけ。main統合は未実行。主29項目の順序変更ではない。
 - PR6782 workflow37476160673は8jobs PASS/TruffleHogだけ実行中。PR6781 workflow37476564474もOSS PASS、残Loop contract/TruffleHog/gitleaksが実行中。source-only、guard/baseline回避/画像変更/本番/外部effect0。
 - 両branchのexisting gate実行が完了してからmainへ統合し、main由来immutableと実3候補readbackへ進む。1.1は未完、納品/利益Doneにしない。
+
+### 715. 全CI PASSの両PRをmainへ統合、immutable実readback開始
+
+- asset PR6782はworkflow37476160673全9completed/success、--merge --admin --match-head99657dでmain4301c7cd69へ統合（14:14:23Z）。CrowdWorks PR6781もworkflow37476564474全9completed/success、fresh sourceSHIP、--merge --admin --match-head20881eでmain `4429dfb454ef58f7dd4d52d4410e90f058da17a4` へ統合（14:15:07Z）。server bypass/gate waiverなし。
+- pushed main由来ALL immutable `/Users/anicca/loops/releases/20261006T231533-4429dfb4` 作成、currentは2cf94f43のまま。adapterはmain blob一致。source-only worker/Root既存testsのPASSを実納品へ丸めない。
+- registered crowdworks:dais/targetowner、with-browser lease＋既存provider lock内で新immutableの対象3件read-only GETを開始（run79847）。funded/price/税込source/terms hash/純粋handoff検証を保存し、buyer本文/credentialを保存/出力しない。提出/再送/納品/台帳write0。actual price/readback/1.1完了は結果が出るまで未確認。
+- current1.1/残29順序不変。新Paid owner applyと自然処理成果は未完。
