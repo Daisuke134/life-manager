@@ -187,11 +187,11 @@
 
 **Prerequisites:** Task 5 source owners merged; an authorized production DDL route; production Checkout/PDF fulfillment readback; `lm-loop doctor` fully green; host free space above the 11 GiB floor; official identity/status for each selected existing account; available Postiz channel capacity for every owner to be enabled.
 
-- [ ] Merge `fix/upwork-provision-external-label-20261006` and read back a green `lm-loop doctor` on its main-derived release. The active `upwork:dais` provisioner belongs to the registered browser owner; preserve its running process and profile.
+- [x] PR #6739 merged at `78c55432421dbe821773a96f7a7deb9646ee7599`; immutable release `20261006T160404-78c55432` is selected and `lm-loop doctor` returns `ok=true`. The active `upwork:dais` provisioner remains reachable under its registered owner; its process and profile were preserved.
+- [ ] Fix shared runtime credential wiring: read the existing `postiz.api_key` from `~/.local/share/anicca/credentials.json` and pass it in memory as `LM_POSTIZ_API_KEY` only to the three eBook child processes. Keep the publish flag closed; never store the key in a plist, argv, log, or repository.
 - [ ] Recheck the existing Supabase/admin route. Apply the production migration only through an authorized DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. Current CLI has no linked project ref.
 - [ ] Merge PR #420 only after migration readback; verify the production deployed SHA and health.
-- [ ] Read back existing account identity/status and Postiz integration state. Japanese `obou` integrations are present/enabled in Postiz; English `monk_anicca` is present but disabled, and an additional active channel may require a plan slot.
-- [ ] Confirm Postiz has an available channel slot for Monk Anicca. Current API readback is 30 enabled channels and one disabled channel; public pricing lists Pro at 30 and Ultimate at 100, so the current plan tier still needs official readback. A required paid upgrade is outside this task's current spend cap.
+- [ ] Read back native account identity/good-standing and Postiz channel capacity. Authenticated API readback shows 30 enabled integrations and one disabled: the existing English `Monk Anicca` TikTok is disabled; the JA Instagram/TikTok integrations are enabled. English Instagram is unregistered.
 - [ ] Set `LM_EBOOK_PUBLISHING_ENABLED=true` only after the production checkout/PDF route and the exact Postiz account identity/status readbacks are ready.
 - [ ] Read back deployed `/monk` and `/achan` Checkout/PDF fulfillment and post-migration RPC/schema state before publishing either locale.
 - [ ] Publish one Japanese Watercolor video to existing TikTok and Instagram; read each exact provider receipt and public URL. Then leave its three daily slots enabled through the installed owner.
