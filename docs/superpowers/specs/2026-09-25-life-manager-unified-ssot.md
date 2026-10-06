@@ -8476,3 +8476,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - newcurrent1でCoconalaの既存注文CLI orders-onlyを正規guardで試行したがexit9、CLI未開始。旧reply12recordへ戻らず、このchannelの現在情報取得待ちだけを残す。他channelの観測は継続する。
 - Agent Economy既存status.mjsをcurrent symlink経由で呼ぶとexit0/stdout空。実装のisMainはimport.meta実pathとargvの論理pathを比較するため、symlink経由ではentryが走らないことをsourceで確認。実immutable絶対pathへ実行経路を補正し、同CLI exit0/JSON取得成功。30日窓の保存ledger上でverified external rows0/unverified rows0。実世界の収益/費用0の証明ではなく、cost receipt欠損の0集計も会計へ信用しない。
 - 原本 state/cli-observability-20261006/agent-economy-status.json/mode600。provider送信/署名/資金移動/契約承諾/旧fence解除0。現cursor1/主経路31/Lancers28〜30後段を保持し、normalCLIの取得対象・freshness・読取失敗をchannel別に集約する。
+
+
+### 617. CrowdWorks現在契約の読取成功・財務解釈HOLD
+
+- newcurrent1で登録CrowdWorks guard正規取得下、既存CrowdWorksPaidAdapter.observe_activeをreadonlyで実行。5rows/provider_state funded5を取得、自分のcontext/pageのみclose、共有blank page pruneは呼ばずsource_context参照を外してclientcleanup、guardrelease0。artifact crowdworks-business-1791260468229748000.json。これは未納品5/入金5/作業可能5とは宣言しない。
+- fresh Sol6.1/medium source反証は財務/業務解釈HOLD。detailtimeout時basic funded fallbackを_observationがdetail_unavailable無しで出す反例、行全文の題名『進行中』が実status検収中をfundedへ誤分類する反例をpurefixture再現。現5rowsへの発生は未確認。合成escrow:contract referenceをprovider発行receiptと扱わない。
+- 再readはregistry paidstate_root/paidを渡し、同adapter cacheをsafe fieldsだけ集約。5件ともdetail_unavailablefalse/milestone有り/buyer_event有り、price_minor全件null/JPY、form counts3,1,1,1,2/completed counts全0。ただし完了履歴欠損は未実施の証明ではなく、form submission/delivery/検収/payoutは未確認。artifact crowdworks-safe-cache-1791260706454525000.json。context()で外部フォームを開くことや送信/回答/納品0。
+- 金額未取得の境界診断を1契約へ限定。cache buyer_contextは契約bodyと同じと仮定できないため、その文字列のlabel probesをparser故障の証明に使わない。既存priceparserの実inputを観測するreadonly instrumentation（返値変更0）ではparsednull/fixed-label-match0/hourly-wordtrue/range-chartrue。現時点で不正な価格や0を補完せず、実契約summary field/支払い方式の追加readbackが必要。数値label追加probeはPlaywright Errorで情報未取得、これも価格0にしない。
+- 原本はstate/cli-observability-20261006/crowdworks-{price-probe-1791260862840479000,price-label-1791260942518850000,actual-price-input-1791261022124269000,price-numeric-1791261140826415000}.json/mode600。私的本文/URL/氏名をchat/repoへ保存せずmetadataのみ。sourcecode編集/返信/フォーム回答/納品/取引/旧fence解除0。
+- current1/主経路31、Lancers28〜30後段維持。次の対象は現在CrowdWorks契約の公式金額/納品・検収状態/実作業scopeを既存観測経路へ結ぶこと。CLI取得成功と収益確定を区別し、古いCoconala12recordやLancersCAPTCHA反復へ戻らない。
