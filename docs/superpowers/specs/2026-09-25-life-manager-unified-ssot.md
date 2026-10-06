@@ -8782,3 +8782,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同reviewはreconcile_paid_no_effectがcanonical effect_started/completed非zero/invalidを拒否した後もshared-paidゼロmarkerへfallbackでき、symlinkも読む反例をメモリfixtureで再現。これは既存証拠判定の正確性を阻害するため、先にresolverと既存testだけで最小修復する。
 - 修復受入：canonical markerが存在またはsymlinkならそこをauthoritativeとし、不正・effect_started・nonzero・symlinkはHOLDして別pathへ迂回しない。canonical無しの場合のみ、既存Mercor ownerのshared-paid layoutを許す。CrowdWorks等へMercor専用fallbackを拡張しない。合法canonical zero/pre_effect・Mercor shared-only zeroは維持。既存marker/stateを書き換えず、旧unknown解除/新marker後付け/price/funding/送信判断変更0。
 - 最新main専用worktreeでLuna6maxがresolver/既存testを所有、最小RED反例→GREEN/既存関連tests/diff/commitpush/fresh safety review/CI/mainをroot受入。provider/browser/auth/実state/launchd操作0。busy receipt設計と過去調査を新しい全体gateに増やさず、current1/残30/mock取消/後段順維持。
+
+
+### 655. Paid proof resolver修復のsource所有・実装開始
+
+- 最新origin/main654e8c72e65f398c1ffa4c6514ec08d3a0d152c7から専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-paid-proof-fallback-20261006、branch fix/lm-paid-proof-fallback-20261006を作成。該当重複worktreeなし/clean、root lease codex-money-printer-paid-proof/24hを取得。
+- Luna6/max有限実装handle38270はresolverと既存CW testの2fileだけ所有。§654のcanonical authoritative/symlink拒否/Mercor限定fallback/危険state保持をRED→GREENにする。新marker/事前prepare/busy receipt生成/過去state解除は対象外。rootはSSOT/受入/fresh safety review/PR/main/releaseを所有。
+- 必要検証は実反例の隔離fixtureと既存関連test、source contract/diffの必要範囲。商品mockは取消のまま、全repo新QAを追加しない。sourcepush・review・CI・main・反映は未完。current1/残30/後段順不変。
