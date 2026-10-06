@@ -9534,3 +9534,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - capafy-distribute-daily statusはloaded-running PID11234/main4429release、先行occurrence2066 capacitybusy rc75。ただしpsで11234 live、exact scratch18dbfcdfa1358938-11234/host-admission.jsonはstatus pass/resource_slot_acquired/effect0を確認し現在実行中。過去capacity recordを現停止へしない。重複起動/apply/kill/manualwake0。
 - canonical business ledgerはnested capafy-distribute/ledger.jsonで、h18 slide-maker/h21 youtube-script-writer status publishedがある。run_id/receiptなしのledgerだけで今回11234成功/公式送信/売上としない。top ledger古い1slotと混同しない。current run正式receipt/自然terminalを回収する。
 - cursor11は既存distribution owner11234の自然完了/公式readback照合。Hook Labの勝手なrotation変更や他商品販売中断を行わない。注文/settlement/actualhostcost未知保持、主29相対順序/前段保留/SelfBuild後段保持。今回public GETのみ、publish/price/marketing send/購入/鍵変更0。
+
+
+### 749. Capafy同実行live待機とWriter旧publish binding不足
+
+- psでCapafy PID11234 liveを再確認、同occurrence18dbfcdfa1358938-11234のeventsはexecute/runningのみ、公式receipt/terminal無し、exactscratch存在。再起動/再送0。このspecific live processの自然完了を待ち、独立12 Writer読取を進めた。
+- Writer canonical skill/current registry/loaded statusを取得。skill旧Firecrawl/旧配信matrixは現Dais制約・runtime正本を優先し適用しない。article-daily main4429 loaded-idle、旧claimed effect_unknown article-daily:18d9a4f19ed7acb8-67928、cause2026-09-29T01:14:04 exit1/officialreceipt無し/effect_reconcile no_adapterを確認。applylock recordもあるがそれだけを根因にしない。
+- Writer runs/20260929-010128に記事・publication-state/self-owned-publication/report evidenceが保存されている。対象run内のJSON/JSONL/TXT/LOG/MDを限定readするとexact hostrid一致0、report-evidenceのrun_idはbusiness ID20260929-010128、host/occurrence fields無し。時刻近似だけで同hostpublishを解放しない。root現journalにもexactrid matches無し。
+- cursor11のowner待機、独立12の診断cursorはhost67928→businessrun/immutable artifact→公式publicationのbinding回収。次は保存publication receiptのstable IDs/hashesと当時host entrypointの持続journalを照合する。別記事/別run receiptでfence解除や新publishを行わない。Writer source修復が必要ならloop-development/latestmain worktree/Luna実装へ限定する。
+- 主29相対順序/前段保留/SelfBuild後段保持。今回provider publish/marketing送信/再起動/fence変更/価格/購入/振込0。
