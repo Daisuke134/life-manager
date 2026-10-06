@@ -39,13 +39,13 @@
 
 ### eBook marketing
 
-- `main`/installed releaseでは、Marketing Engineの`ebook_runner.py`がrender receiptと`awaiting_visual_approval`のpublication intentを作る一方、live eBook publication ownerはまだない。feature worktreeのsource/release/acceptance状態はunified SSOTを正本とする。
-- 現行feature sourceの日本語`watercolor-monk`は六つの単色placeholder clipを生成する。これはWatercolor Monk Factoryの実rendererではない。Factoryの既存cacheにscene 02–10/12/13の11本があり、約48.8 MB。これらをLife Managerの外部asset rootへコピーし、hash-verified asset receiptを使う変更がTask 5に追加された。
-- HeyGen CLI v0.5.0のreadbackはwallet USD 12.30、auto-reload USD 10、threshold USD 5、enabled。今回の`user me get`はwallet settingsだけを確認し、videoごとのchargeは未確認。現行`heygen_candidate.py`にはrender前後balance/cost receiptがまだない。Avatar IV renderは費用証拠が取れるまで再実行しない。
+- `main`/installed releaseにはlive eBook publisher ownerがまだない。feature branch `feat/ebook-publisher-source-20261006`にはEN HeyGen TikTok、JA Watercolor TikTok、JA Watercolor Instagramの3 ownerと各localeの3 daily slotがある。PR #6729はOPENで、sourceはproduction release/applyされていない。実行順の正本はunified SSOT。
+- 日本語`watercolor-monk` sourceはFactoryのscene 02–10/12/13をLife Manager外部asset rootへ一度コピーし、11個のSHA-256を検証する。local preview `ebook-run.8fb24a21e077a2a9c210ac0f`は720×1280、H.264/AAC、11.933秒で完成し、実際の水彩sceneと字幕を確認した。これはlocal previewであり投稿ではない。
+- HeyGen sourceはAvatar IV createごとにwalletを前後readbackし、USD差額とauto-reload状態をeffect receiptへ保存する。wallet readbackなし・threshold以下・未解決の先行effectでは新規createを止める。CLI v0.5.0の過去readbackはwallet USD 12.30、auto-reload USD 10、threshold USD 5、enabled。live EN renderはまだなく、実動画単価は未測定。
 - Watercolorのlocal previewはrun `ebook-run.8fb24a21e077a2a9c210ac0f`（20:00 JST pack slot）で完成した。asset pack `watercolor-mark-factory-v1`、manifest SHA `b68216830c5be7b4969caaec095f8376d03af06cc4b90494c71f10aea0b1d06e`、H.264/AAC 720×1280、11.933秒、caption renderer `pillow-overlay`、output SHA `56b25dc8d052326fabcbb4b1f588917146374a0dbb9619ce20e66695daa795ab`。Receiptは`external_effects=[]`、Postiz callは0。実フレーム確認で既存の水彩Kling sceneと日本語captionを確認した。これはdirty worktreeからのlocal previewで、公開投稿やproduction releaseではない。
 - 標準`/opt/homebrew/bin/ffmpeg`は`subtitles` filterがなく`overlay`はある。`ffmpeg-full 9.0.1`は`libx265.216`を要求するがhostには`.217`のみあり起動しないため、production pathでは標準FFmpeg+Pillow overlayを使う。libassのないhostでもPillow/日本語font/overlayが揃わない場合は`setup_required`でfail-closedする。
-- 2026-10-06 14:02 JSTのPostiz公式`GET /public/v1/integrations`は31件、30 enabled / 1 disabledを返した。英語`Monk Anicca` TikTok integration `cmo5rwq2p00twn10yrsdglng3`のみdisabled、日本語`obou` Instagram `cmooplxmu04tpmd0y4h3cpk33`とTikTok `cmo5s4edx00vgn10ygnu34a0n`はenabled。EN Instagramは未登録。Englishは無料枠が公式確認されて`disabled=false`になるまでholdする。
-- 2026-10-06 14:02 JSTのcheckout gate readback: Product PR #420はOPEN、head `85116e29aceb3d951e65f125fb3473fcb17d2b99`。Supabase CLI v2.95.4の`projects list`はproject ref/link欠落でreadbackできず、production migration/RPC/schema-cache readbackも未実施。Checkout後のPDF fulfillmentが未確認なので、英日どちらも公開投稿を始めない。
+- Last authenticated Postiz `GET /public/v1/integrations` readback (2026-10-06 14:02 JST) returned 31 integrations: 30 enabled / 1 disabled. English `Monk Anicca` TikTok `cmo5rwq2p00twn10yrsdglng3` was disabled; Japanese `obou` Instagram `cmooplxmu04tpmd0y4h3cpk33` and TikTok `cmo5s4edx00vgn10ygnu34a0n` were enabled; English Instagram was unregistered. A refresh attempt at 14:49 JST returned HTTP 401 because this session has no Postiz API key; the registered daily-driver CDP endpoint `:9222/json/version` returned HTTP 404. No newer authenticated readback is available. Keep English held until its exact integration reads `disabled=false` and a no-cost slot is verified.
+- Checkout/PDF gate refresh (2026-10-06 14:49 JST): Product PR #420 remains OPEN at head `85116e29aceb3d951e65f125fb3473fcb17d2b99`; production migration/RPC/schema-cache readback is still absent. Public `/monk` and `/achan` pages load and show purchase CTAs plus an instant-PDF promise, but that is not a delivery receipt. The latest main Netlify deploy run `37398436701` failed while fetching Google Fonts in `app/comedy/ja/page.tsx`; no current production fulfillment proof exists. Do not publish either locale until the deployed Checkout/PDF route is verified.
 - cleanupはDaisの指示でowner `life-manager-disk-cleanup`をstopし、同じlaunchd label `ai.anicca.life-manager-disk-cleanup`をdisabledにした。readbackは`launchd_state=disabled`, `pid=null`。このrefresh時のData volume free spaceは5.6 GiBで11 GiB floor未満だが、cleanupを再起動しない。
 - Cross-repo source contractはgolden vector `creative.contract.1`で固定した: EN `ee_hcp4v5pifa2ovj47rsir`、JA `ej_cs6k5hu42kvx65x66imw`。Life Managerの`stage_intents`からProduct `/go`, `utm_campaign`, Checkout metadata、webhook durable receipt、locale PDF payloadまで同じJP tokenを使うlocal integration probeがPASS（provider callsはfake、production effect 0）。PR #6704のLife Manager testはmainへmerge済み。Productの対応testsはPR #420 head `85116e29`にあり、PRはOPEN。
 - 既存account registryでは`instagram.obou_anicca`のPostiz routeが`route_ready=true`と読み戻されている（02:15 JST）。これはroute設定の証拠であり、現アカウントの本人所有・good-standing・Instagram側の投稿receiptの証拠ではない。EN packはTikTokのみ、JA packはTikTokとInstagram integrationを登録している。pack登録だけではprovider login/statusを証明しない。
@@ -73,9 +73,13 @@
 ~~~mermaid
 flowchart LR
   CONTENT["ebook source + verified claims"] --> ENGINE["Marketing Engine render receipt"]
-  ENGINE --> INTENT["publication intent: awaiting_visual_approval"]
-  INTENT -. "live eBook owner not registered" .-> STOP["no eBook post receipt"]
-  ENGINE -. "current JA path" .-> PLACEHOLDER["six solid-color clips; not Watercolor Mark Factory"]
+  ENGINE --> PREVIEW["JA local Watercolor preview; 11 pinned scenes; external effects 0"]
+  ENGINE --> SOURCE["three account-scoped publisher owners in feature branch"]
+  SOURCE -. "PR #6729 open; not on main/release" .-> NORUNTIME["no production cadence or post receipt"]
+  SOURCE --> EN["EN HeyGen Avatar IV → existing TikTok integration"]
+  SOURCE --> JA["JA Watercolor → existing TikTok + Instagram integrations"]
+  EN -. "last official readback: disabled; no fresh authorized readback" .-> ENHOLD["effect-free hold"]
+  JA -. "Checkout/PDF production receipt absent" .-> JAHOLD["no public post"]
   TOKEN["ee_/ej_ campaign token"] --> GO["/go click receipt"]
   GO --> CHECKOUT["PR #419 checkout + Stripe metadata: main"]
   CHECKOUT --> WH["PR #420 webhook/PDF/shared subscriber RPC: source ready, not merged"]

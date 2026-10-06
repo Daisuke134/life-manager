@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
+import threading
 import time
 
 import ebook_distribute_daily
@@ -85,3 +86,74 @@ def test_english_slot_uses_the_heygen_pack_and_english_campaign_token(tmp_path, 
     assert result["script"]["language"] == "en"
     assert result["receipt"]["renderer_id"] == "heygen-avatar-iv"
     assert result["attribution_token"].startswith("ee_")
+
+
+def test_new_english_slot_waits_for_an_unresolved_prior_heygen_cost(tmp_path, monkeypatch):
+    state_root = tmp_path / "ebook-state"
+    runs = state_root / "runs"
+    runs.mkdir(parents=True)
+    (runs / "ebook-run.previous-slot.heygen-effect.json").write_text(
+        '{"schema_version":"marketing.heygen-effect.v1",'
+        '"state":"cost_reconciliation_required","video_id":"video_pending"}\n',
+        encoding="utf-8",
+    )
+    render_calls = []
+
+    def render(*, script, output, intent_path, environment):
+        render_calls.append(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"must not render while prior charge is unresolved")
+        return {
+            "renderer_id": "heygen-avatar-iv", "state": "rendered",
+            "video_id": "video_new", "output": str(output),
+            "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+            "wallet_cost": {"currency": "usd", "cost_usd": "0.3"},
+            "external_effects": ["heygen_video_created"],
+        }
+
+    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    result = ebook_distribute_daily.render_slot(
+        product="ebook-en", slot_at="2026-10-07T08:00:00+09:00", state_root=state_root,
+    )
+
+    assert result["receipt"]["state"] == "setup_required"
+    assert result["receipt"]["setup"]["reason"] == "prior_heygen_effect_unresolved"
+    assert render_calls == []
+
+
+def test_english_slots_serialize_shared_heygen_wallet_reads_and_creates(tmp_path, monkeypatch):
+    lock = threading.Lock()
+    active = 0
+    maximum_active = 0
+    renders = 0
+
+    def render(*, script, output, intent_path, environment):
+        nonlocal active, maximum_active, renders
+        with lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+            renders += 1
+        time.sleep(0.05)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(f"HeyGen render {renders}".encode())
+        with lock:
+            active -= 1
+        return {
+            "renderer_id": "heygen-avatar-iv", "state": "rendered",
+            "video_id": f"video_{renders:08d}", "output": str(output),
+            "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+            "wallet_cost": {"currency": "usd", "cost_usd": "0.3"},
+            "external_effects": ["heygen_video_created"],
+        }
+
+    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    state_root = tmp_path / "ebook-state"
+    slots = ("2026-10-07T08:00:00+09:00", "2026-10-07T14:00:00+09:00")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda slot: ebook_distribute_daily.render_slot(
+            product="ebook-en", slot_at=slot, state_root=state_root,
+        ), slots))
+
+    assert all(item["receipt"]["state"] == "rendered" for item in results)
+    assert renders == 2
+    assert maximum_active == 1

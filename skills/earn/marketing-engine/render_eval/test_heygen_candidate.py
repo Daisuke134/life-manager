@@ -197,6 +197,9 @@ def test_crossing_auto_reload_threshold_keeps_render_fenced_and_never_recreates(
 
 def test_unknown_create_outcome_is_durable_and_replay_never_creates_again(tmp_path):
     calls = []
+    hint = tmp_path / "entrypoint-result.json"
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+    hint_state_at_create = []
 
     def execute(args, **kwargs):
         calls.append(args)
@@ -204,21 +207,25 @@ def test_unknown_create_outcome_is_durable_and_replay_never_creates_again(tmp_pa
             return subprocess.CompletedProcess(args, 0, "{}", "")
         if args[1:4] == ["user", "me", "get"]:
             return subprocess.CompletedProcess(args, 0, wallet_response(12.3), "")
+        if args[2] == "create":
+            hint_state_at_create.append(hint.exists())
         raise RuntimeError("connection lost after create request")
 
     output = tmp_path / "unknown.mp4"
     intent = tmp_path / "effect.json"
     try:
         render(script="Breathe.", output=output, intent_path=intent,
-               environment=READY, executor=execute)
+               environment={**READY, "LIFE_MANAGER_RESULT_HINT_PATH": str(hint)}, executor=execute)
     except RuntimeError:
         pass
     else:
         raise AssertionError("unknown provider outcome must not become success")
     assert json.loads(intent.read_text())["state"] == "delivery_uncertain"
+    assert hint_state_at_create == [False]
+    assert not hint.exists()
 
     replay = render(script="Breathe.", output=output, intent_path=intent,
-                    environment=READY, executor=execute)
+                    environment={**READY, "LIFE_MANAGER_RESULT_HINT_PATH": str(hint)}, executor=execute)
     assert replay["state"] == "reconciliation_required"
     assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
 

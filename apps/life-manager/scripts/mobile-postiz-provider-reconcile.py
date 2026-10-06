@@ -296,10 +296,13 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
     if len(matches) != 1:
         return None
     provider_id, row = next(iter(matches.items()))
+    selected_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
     return ({
         "caption_sha256": identity["caption_sha256"],
         "slot": identity["slot"],
-        "provider_video_sha256": row_video_sha if row_video_sha == identity.get("video_sha256") else None,
+        "provider_video_sha256": (
+            selected_video_sha if selected_video_sha == identity.get("video_sha256") else None
+        ),
         "remote_effect_locator": {
             "source": "postiz_public_v1_posts",
             "post_id": provider_id,
@@ -437,7 +440,8 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         raise ValueError("Postiz video hash mismatch")
     provider_content = {"caption_sha256": identity["caption_sha256"]}
     local_content: dict[str, Any] = {}
-    for key in ("video_sha256", "media_sha256", "pack_sha256", "media_order_sha256"):
+    for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256",
+                "media_order_sha256"):
         if key in identity:
             local_content[key] = identity[key]
     if provider_video_sha is not None:

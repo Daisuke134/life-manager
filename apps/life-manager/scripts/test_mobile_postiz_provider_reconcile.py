@@ -129,6 +129,72 @@ def test_official_postiz_readback_recovers_post_missing_from_local_distribution_
     assert proof["provider_readback"]["remote_effect_locator"]["caption_sha256"] == caption_sha
 
 
+def test_real_postiz_readback_carries_local_caption_hash_into_recovery_row(tmp_path, monkeypatch):
+    integration_id = "cmooplxmu04tpmd0y4h3cpk33"
+    provider_id = "post-124"
+    caption = "A Japanese reflection.\n\nhttps://aniccaai.com/go/ej_abcdefghijklmnopqrst\n\n#内省"
+    caption_sha = hashlib.sha256(caption.encode()).hexdigest()
+    video_sha = "c" * 64
+    identity = {
+        "product_id": "ebook-ja",
+        "format_id": "ebook-watercolor",
+        "form": "ebook-reflection-reel",
+        "locale": "ja",
+        "creative_id": "baseline.ebook-ja.d1.s1",
+        "platform": "instagram",
+        "slot": "2026-10-06T22:00:00.000Z",
+        "video_sha256": video_sha,
+        "caption_sha256": caption_sha,
+        "account_id": "@obou.anicca",
+        "integration_ref": f"integration://postiz/instagram/{integration_id}",
+    }
+    provider_row = {
+        "id": provider_id,
+        "state": "PUBLISHED",
+        "releaseURL": "https://www.instagram.com/reel/abc124",
+        "integration": {"id": integration_id},
+        "content": caption,
+        "lifeManagerVideoSha256": video_sha,
+    }
+
+    def request(url, _key):
+        if url.endswith(f"/public/posts/{provider_id}"):
+            return provider_row
+        if url.endswith("/public/v1/integrations"):
+            return {"integrations": [{
+                "id": integration_id, "identifier": "instagram-standalone",
+                "profile": "obou.anicca",
+            }]}
+        raise AssertionError(f"unexpected provider read: {url}")
+
+    class PublishedPostAdapter:
+        @staticmethod
+        def find_post(rows, post_id, platform):
+            assert rows == [provider_row]
+            assert post_id == provider_id and platform == "instagram"
+            return {"state": "PUBLISHED", "post_url": provider_row["releaseURL"]}
+
+    monkeypatch.setattr(reconcile, "_request_json", request)
+    monkeypatch.setattr(reconcile, "_load_postiz_video_adapter", lambda: PublishedPostAdapter())
+    readback = reconcile._provider_readback(identity, provider_id, "test-only")
+    proof = {
+        "verified": True,
+        "identity": identity,
+        "provider_receipt_id": provider_id,
+        "provider_readback": readback,
+    }
+    ledger = (
+        tmp_path / "data" / "tenants" / "dais-local" / "marketing"
+        / "video-publication" / "ebook-ja" / "distribution.jsonl"
+    )
+
+    recovered = reconcile._recovered_distribution_row(identity, proof, ledger)
+
+    assert readback["content"]["caption_sha256"] == caption_sha
+    assert readback["local_content"]["caption_sha256"] == caption_sha
+    assert recovered["caption_sha256"] == caption_sha
+
+
 def test_remote_recovery_accepts_the_english_campaign_token_for_heygen_posts(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     video_sha = "b" * 64
@@ -175,6 +241,18 @@ def test_remote_recovery_accepts_the_english_campaign_token_for_heygen_posts(tmp
     receipt, recovered_id = recovered
     assert recovered_id == provider_id
     assert receipt["remote_effect_locator"]["integration_id"] == integration_id
+    unrelated_later_post = {
+        **provider_row,
+        "id": "post-en-unrelated",
+        "content": "unrelated caption",
+        "lifeManagerVideoSha256": None,
+    }
+    monkeypatch.setattr(reconcile, "_request_json", lambda *_args: {
+        "posts": [provider_row, unrelated_later_post],
+    })
+    recovered_with_unrelated_tail = reconcile._remote_video_receipt(identity, ledger, "test-only")
+    assert recovered_with_unrelated_tail is not None
+    assert recovered_with_unrelated_tail[0]["provider_video_sha256"] == video_sha
 
     monkeypatch.setattr(reconcile, "_request_json", lambda *_args: {
         "posts": [provider_row, {**provider_row, "id": "post-en-456"}],

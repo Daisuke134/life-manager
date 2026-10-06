@@ -64,6 +64,16 @@ def _run(executor: Executor, args: list[str], *, input_text: str | None = None) 
     return executor(args, input=input_text, text=True, capture_output=True, check=True)
 
 
+def _clear_pre_effect_hint(environment: dict[str, str]) -> None:
+    hint = str(environment.get("LIFE_MANAGER_RESULT_HINT_PATH", "")).strip()
+    if not hint:
+        return
+    try:
+        Path(hint).unlink()
+    except FileNotFoundError:
+        pass
+
+
 def _decimal_text(value: object, label: str) -> str:
     try:
         number = Decimal(str(value))
@@ -230,6 +240,7 @@ def render(
             os.fsync(handle.fileno())
         _write_json(intent_path, {**expected, "state": "sending", "wallet_before": wallet_before})
         try:
+            _clear_pre_effect_hint(os.environ if environment is None else environment)
             created = _run(
                 executor,
                 [config["cli"], "video", "create", "-d", "-", "--wait"],

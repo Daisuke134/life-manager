@@ -146,11 +146,13 @@ class EbookPortabilityTest(unittest.TestCase):
                     "missing": ["LM_EBOOK_EN_HEYGEN_AVATAR_ID"], "external_effects": [],
                 }) as renderer:
             ledger.return_value.get.return_value = script
-            receipt = ebook_runner.run(
-                engine=Path(temp), product="ebook-en", slot_at="2026-09-12T08:00:00+09:00",
-                script_id="script-1", ledger_path=Path(temp) / "scripts.db",
-                state_root=Path(temp) / "runs", render_output=Path(temp) / "out.mp4",
-            )
+            hint_path = Path(temp) / "entrypoint-result.json"
+            with mock.patch.dict(os.environ, {"LIFE_MANAGER_RESULT_HINT_PATH": str(hint_path)}):
+                receipt = ebook_runner.run(
+                    engine=Path(temp), product="ebook-en", slot_at="2026-09-12T08:00:00+09:00",
+                    script_id="script-1", ledger_path=Path(temp) / "scripts.db",
+                    state_root=Path(temp) / "runs", render_output=Path(temp) / "out.mp4",
+                )
         renderer.assert_called_once()
         self.assertEqual(renderer.call_args.kwargs["script"], "Breathe slowly.")
         self.assertEqual(renderer.call_args.kwargs["output"], Path(temp) / "out.mp4")
@@ -165,6 +167,10 @@ class EbookPortabilityTest(unittest.TestCase):
         self.assertEqual(
             renderer.call_args.kwargs["environment"]["LM_EBOOK_EN_HEYGEN_VOICE_ID"],
             "8be9884ebd16499fbe0efb274e769ed5",
+        )
+        self.assertEqual(
+            renderer.call_args.kwargs["environment"]["LIFE_MANAGER_RESULT_HINT_PATH"],
+            str(hint_path),
         )
         self.assertEqual(receipt["state"], "setup_required")
         self.assertEqual(receipt["external_effects"], [])
