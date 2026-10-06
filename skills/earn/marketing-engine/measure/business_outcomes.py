@@ -197,7 +197,22 @@ def latest_complete_chart_points(
                 if 0 <= cohort < len(periods):
                     period = _period_value(periods, cohort)
                 elif not periods:
-                    period = value.get("period")
+                    if "period" in value:
+                        period = value.get("period")
+                    else:
+                        start_date = body.get("start_date")
+                        end_date = body.get("end_date")
+                        # Keep small cohort indexes from becoming Unix-epoch dates.
+                        if (
+                            type(cohort) is int
+                            and type(start_date) is int
+                            and start_date >= 1_000_000_000
+                            and type(end_date) is int
+                            and start_date <= cohort <= end_date
+                        ):
+                            period = cohort
+                        else:
+                            period = None
                 else:
                     period = None
             else:
