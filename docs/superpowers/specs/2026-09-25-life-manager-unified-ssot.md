@@ -8868,3 +8868,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - canonical admission-v2.sqlite3をmode=roで2occurrenceだけ照合。18dbe01はstate released/effect_unknown0、18dbe064はcancelled/effect_unknown0。前者はprovider lock busy、後者はhost capacity wait。既存host pre-effect処理でこの新runのclaimは保持されていない。DB/state変更0。
 - runtime eventのeffect unknownと、既存26 admission claimsのeffect unknownを同一視した仮説を訂正する。新busy runのための追加marker/新DB/receipt framework実装は不要として取り下げる。§653/654の新入口修復候補は履歴に残すが実装しない。既存resolver迂回bugの修復は別の実在不具合としてmain/反映を保持。
 - released0はhost制御状態であり、settled収益・全過去送信・入金0の証明ではない。旧26unprovableは未解除、現在の新run正常待機の停止条件へ追加しない。残る実課題は契約amount/handoff必須情報と新しい採算の合う有償対象。current1/残30/mock取消/後段順維持。
+
+
+### 667. 契約金額のprimary DOM表示・役割未確定を分離
+
+- 同1契約のsafe metadata追加probeで、税込header true、TD direct text primary yen12円を確認。tooltip/title/aria annotation無し、SPAN10円のbefore/afterに税label無し。原本crowdworks-amount-role-1791272466868829000.json/guard取得解放0。前回全文内の2額列挙より表示構造を狭めた。
+- この観測はprimary表示12円の証拠で、10円が税抜/手数料後/別額のどれかや精算・利益は未確認。production price/handoff/funding条件を変更していない。実装するならprimary欄の厳密なsource契約と費用/資格を確認し、低額仕事の自動実行をprice補完だけで許可しない。
+- 新busy claimはhost処理済みという§666訂正を維持し、不要なmarker実装を再開しない。current1/残30/mock取消/TikTok・NPO保留/SelfBuild26・Lancers27〜29維持。送信/フォーム回答/納品/価格設定/旧fence解除0。
