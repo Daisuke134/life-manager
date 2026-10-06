@@ -9661,3 +9661,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - AGMSG skillを適用し既存lm CFO ownerへ取得証拠/変換契約の不足/編集なしをsend。sendを担当着手・完了の証拠にしない。current17/相対順序不変、コード変更・送信・再送・ledger write0。
 
 - §763のfresh再検証結果：原応答SHA/links.self/group relationship/included SKUの一致を確認し、親app帰属HOLDを解消、限定SHIP。finance取得経路にnative reportID必須の根拠はなく、非返却として保持しrequest tuple＋artifact SHAを証拠参照にするのが適切とのreview。未知HTTP headerの絶対不存在までは未証明。次はCFO正規入力のreport identity/SKU変換契約をこの公式証拠へ整合させる。銀行入金/MRR/利益は未確認を維持。
+
+
+### 764. CFO公式ASC入力の最小修正に着手
+
+- cursor17の目的は、公式gzip財務報告とapp→SKU relationshipをCFOへ安全に接続すること。根因は現adapterが正規化済み親app ID/native report_id/final/canonical hashを要求する一方、公式報告がSKU IDとraw artifactを返す契約差。公式nativeIDを捏造せず、取得条件/原artifact SHA/公式relationshipを検証する入力正規化を既存経路で最小実装する。
+- Luna6/max worker cfo_asc_official_input_fixへ専用最新main worktree/branch fix/cfo-asc-official-input-20261007を割当。所有はCFO adapter/関連test/必要最小normalizer/doc、mobile acquisition/共有checkout/本番/SSOT編集禁止。rootがSSOTと統合を所有。実装前にREDと最小契約を報告する。
+- acceptance: 実報告同形のsecretless regressionでSKU/app対応とraw証拠を検証、違うapp/hash/重複row/不足coverageを拒否、RC observed revenue二重計上なし。nativeIDと正規化identityを分離、古い報告/部分app・regionを全coverageへ昇格しない。bank/MRR/profit unknown維持。source PASSを本番財務成果へ代用しない。
+- AGMSG inboxは新着なし。初回check.shは不存在でexit127、存在する公式inbox.shへ切替し確認。待返信を他者着手の証拠にしない。相対順序/現在17/SelfBuild25/Lancers26〜28保持。
