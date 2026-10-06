@@ -9651,3 +9651,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh Sol6.1/medium reviewer asc_parent_binding_reviewは両TSV SHA・SKU・金額・日付一致を限定SHIP。親app取得経路は保存mappingにAPI URL/raw relationshipが無いため独立証明HOLD、provider native report IDも未取得。
 - loaded capafy_mobile.pyはreport_id/finalと親app ID一致を要求するが実TSVはSKU ID。次は親app/SKUの公式対応証拠の補完と、公式report identityを捏造しない接続契約の確認。現自然CFO reportは16:44観測のままで新MRR入力反映未確認。手動sender/再送/コード変更/ledger write0。
 - 現cursor17維持。private証拠asc-current-sku-parent-app-mapping.json、asc-current-financial-detailed-readback.json、asc-current-cfo-contract-gap.json。文書追記の最初の試行はcwd未指定で失敗し変更0、専用worktreeで再実行。
+
+
+### 763. 親app→購読SKUの公式relationship原応答を取得
+
+- 既存CLI asc5.9.2/commit08fae4dのsubscriptions groups list --app6755129214 --include subscriptions --paginateをread-only実行、exit0。保存原応答links.selfはhttps://api.appstoreconnect.apple.com/v1/apps/6755129214/subscriptionGroups?include=subscriptions&limit=200。group22027036のrelationshipsにsubscriptions6762049696、includedに同SKU詳細を含む。group3/included7。親app対応の独立検証不足を埋める証拠としてfresh reviewerへ再照合依頼。
+- 原応答private asc-current-app-subscription-relationships.json/SHA cb042b9481d584b55740db74b1339422415f25526ac10d88c27961dadbb884d2。秘密・vendor個人名をspecへ複製しない。
+- 使用中CLI commit08fae4dの一次GitHub sourceをgh取得。internal/asc/finance.goは/v1/financeReportsへvendor/reportType/regionCode/reportDate filterを指定しgzipstreamを受け、Body/ContentLengthを返す。native report IDの取得処理はこの経路にない。金融入力が要求するreport_id/finalは、この公式APIの返却項目と分けて契約確認が必要。requestID/生成filenameを公式reportIDへ昇格しない。
+- AGMSG skillを適用し既存lm CFO ownerへ取得証拠/変換契約の不足/編集なしをsend。sendを担当着手・完了の証拠にしない。current17/相対順序不変、コード変更・送信・再送・ledger write0。
