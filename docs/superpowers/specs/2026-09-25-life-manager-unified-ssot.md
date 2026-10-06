@@ -8954,3 +8954,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Reply21174のlive run終了→loaded-idleを確認後candidate37bbからreconcileを実行、release no longer currentで変更前に拒否/failed1/applied空。候補releaseをcurrentへ強制切替しない。
 - existing current172318-aed62f3b ALLは37bb祖先含有/planner blob承認済み一致を確認。そこから同route deterministic/loop-id crowdworks-revenue-reply/max1/loaded-idle-onlyでreconcile実行、exit0/failed空だがapply時loaded-runningへ変わりchangedfalse/skipped loaded-running、loaded argvは旧9c9。原本reply-facts-current-reconcile.json。target反映済みと誤報しない。
 - nextは同guardでidle区間の対象反映。sharedcurrent切替/稼働停止/予約解除/新送信0。current1/残29/mock取消/後段順維持。
+
+
+### 679. Reply rebindの現在admission保護をowner DBで診断
+
+- loaded-idle確認後、current aed62f3b/同route/対象ID1/max1/loaded-idle-only reconcileを実行。exit0/oktrue/eligible1/applied空/skipped_pending crowdworks-revenue-reply、failed空。原本reply-facts-current-reconcile-final.json。今回はrunning raceではなくpending保護が主因。
+- admission DB mode=roで該当ownerだけaggregate。claimed/effect_unknown1=250、queued/effect_unknown0=362、released/effect_unknown0=5995、reservation無し/queue有り。registry resource agent/admission revenue/priority revenue/effect_scope明示無し。これらはresource occurrence履歴で、Reply reportの18pending threads/11reconcileunknownと別母集団。新規未返信250人とは報告しない。
+- newsource反映のために旧claimsを無証拠解除したりeffect_scopeを勝手に変更しない。次は既存guardのsource-only rebind条件/旧proof利用可能性を対象owner限定で確認する。解決までtargetは旧9c9のまま、main/完全release37bb成功をloaded反映済みへ代用しない。
+- provider送信/通知/queuecancel/予約force/他label変更0。current1/残29/mock取消/後段順維持。
