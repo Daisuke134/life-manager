@@ -8832,3 +8832,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 完全immutable /Users/anicca/loops/releases/20261006T162129-9c9fd29d はmain9c9fd29d/ALL/source blob一致/書込不可を確認。新readerの旧occurrence18dbde readonly previewはexit75/exact proof unavailable/unknown/resolved falseを維持。--resolve0。
 - GUI preflight UID501/DS/Aqua/manager/GUI全PASS、CrowdWorks Paid loaded-idle/PIDnull/installed78cをfresh確認。lm-loop apply --loaded-idle-onlyをCrowdWorks Paidだけへ実行、exit0/ok true/changed true/loaded argvとrelease9c9fd29d一致、admission_resumed false。原本paid-proof-target-apply.json。shared current/他label変更0、既存claim再開/解除0。
 - 自然予定runの新SHA terminalは未確認。source/反映成功はPaid送信/納品/売上やbusy proof解消の証明ではない。次は同SHAの自然eventを既存CLIでreadbackし、未確定claimを保持したまま残る入口証拠不足へ進める。current1/残30/mock取消/後段順維持。
+
+
+### 662. 自然run待ちの予定・admission証拠診断
+
+- installed9c9fd29d/loaded-idle/PIDnullを再確認、最新terminalは旧78c run18dbdfcd/2026-10-06T07:22:40.743953Zのまま。plist StartInterval300/RunAtLoadなし/Disabledなし。予定消失とは判定せず、まだ新SHA自然event未取得。
+- 新release既存lm-loop pre-effect-reconcile crowdworks-revenue-paid --dry-runはexit0/oktrue、resolved空/unprovable26件、reason no_pre_effect_terminal。private原本crowdworks-pre-effect-dry-run.json。別wakeのreport/markerを流用せず、proof無しの過去claimを解除しない。
+- current1の残る入口課題は§654のactual新規occurrence/未dispatch証拠と現在handoff不足を狭めること。source reader修復の反映成功を自然Paid実行/納品/収益成功へ代用しない。manual wake/restart/解除/再送0、current1/残30/後段順維持。
