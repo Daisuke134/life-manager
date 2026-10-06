@@ -181,11 +181,11 @@
 - [x] Fetch latest `origin/main` `e842309e59d9065fd6e2005d4e8027ead0beea97`, rebase the dedicated feature branch, and rerun source acceptance: Python 172/172, Node 54/54, loop contract, source-boundary, and diff checks passed.
 - [x] Commit `5d68435a3d71b8f72019cf778589b7872cfcbedd` and push `feat/ebook-publisher-source-20261006` to origin.
 - [x] Obtain a fresh read-only review on head `6f7395bf6f`; fix the Postiz recovered-receipt caption hash, serialize English HeyGen renders and hold unresolved prior wallet receipts, clear the pre-effect hint before paid HeyGen create, and use the selected remote post's video hash. Regression tests pass for each behavior.
-- [ ] Merge latest `origin/main` `5d8da831becc0a6abf30f595d4a62bd64b010580` into the already-published feature branch, commit/push these fixes and the registry fixture, refresh PR #6729 CI, then merge and build a main-derived immutable release. This preserves the open PR head and avoids rewriting a shared branch. Keep production publishing closed.
+- [x] PR #6729 merged with all required checks PASS at `0ba957af5405bfbea5f1d6e9ce6ca78deb66b421`. At the 15:19 JST readback, main-derived immutable release `/Users/anicca/loops/releases/20261006T150708-0ba957af` was selected by `~/loops/current` and read-only. The three eBook owners were registered but unloaded; production publishing remains closed.
 
 ### Task 6: Publish the first eBook campaign and record its natural order
 
-**Prerequisites:** Task 5 source owners merged; an authorized production DDL route; official identity/status for the selected existing account; available Postiz channel capacity for every owner to be enabled.
+**Prerequisites:** Task 5 source owners merged; an authorized production DDL route; production Checkout/PDF fulfillment readback; `lm-loop doctor` fully green; host free space above the 11 GiB floor; official identity/status for each selected existing account; available Postiz channel capacity for every owner to be enabled.
 
 - [ ] Recheck the existing Supabase/admin route. Apply the production migration only through an authorized DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. Current CLI has no linked project ref.
 - [ ] Merge PR #420 only after migration readback; verify the production deployed SHA and health.
