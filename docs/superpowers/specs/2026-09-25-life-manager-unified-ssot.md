@@ -8861,3 +8861,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最新statusは次のrun18dbe064df05a280-68052/2026-10-06T07:33:20.825232Z/host_admission_deferred:resource_capacity_busy。これはhost admission段階の別待機であり、前runのprovider lock停止やhandoff不足に混ぜない。
 - lsofはprovider-browser.lockのopen holder Python74549を確認、ps live/経過47秒、reply_kernel.py/reply_adapter.pyの現reply owner。dead lockや孤児と決めつけず、稼働返信を停止/lock削除しない。次は既存排他による正常待機と、新しいbusy occurrence証拠不足を区別した入口修復。
 - current1/残30/mock取消/旧未確定保持/後段順不変。manual wake/restart/provider送信/解除0。
+
+
+### 666. host admission照合で新busy fence仮説を訂正
+
+- canonical admission-v2.sqlite3をmode=roで2occurrenceだけ照合。18dbe01はstate released/effect_unknown0、18dbe064はcancelled/effect_unknown0。前者はprovider lock busy、後者はhost capacity wait。既存host pre-effect処理でこの新runのclaimは保持されていない。DB/state変更0。
+- runtime eventのeffect unknownと、既存26 admission claimsのeffect unknownを同一視した仮説を訂正する。新busy runのための追加marker/新DB/receipt framework実装は不要として取り下げる。§653/654の新入口修復候補は履歴に残すが実装しない。既存resolver迂回bugの修復は別の実在不具合としてmain/反映を保持。
+- released0はhost制御状態であり、settled収益・全過去送信・入金0の証明ではない。旧26unprovableは未解除、現在の新run正常待機の停止条件へ追加しない。残る実課題は契約amount/handoff必須情報と新しい採算の合う有償対象。current1/残30/mock取消/後段順維持。
