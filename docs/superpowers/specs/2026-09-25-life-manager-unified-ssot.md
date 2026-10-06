@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17の残る操作は①稼働中release-reconcilerの終端を確認（main64895457由来ALL immutableはcurrent非切替で作成済み）、②CFO対象へ新sourceを反映し公式ASC packet入力を接続、③同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+現在17の残る操作は①稼働中release-reconcilerの終端を確認（main64895457由来ALL immutableはcurrent非切替で作成済み）、②CFO対象へ新sourceを反映（公式ASC packet入力pathは設定済み）、③同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -9839,3 +9839,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - registered release owner59182はpsで実PID/UID501/Python/経過2:21を確認。旧4429 fleet stateはerror/changed0/skipped181/errors3の過去終端で、これを59182の終端へ結び付けない。cut lock不在、同ownerは旧fleet apply中。rootはcurrent切替/apply/killを重ねない。
 - 独立cut lockを使いLOOPS_ACTIVATE_CURRENT=0 bash bin/cut-loop-release.sh origin/mainを1回実行handle57306/exit0。新release /Users/anicca/loops/releases/20261007T032425-64895457、manifest64895457b7232a954f2f4492073b867009b6da85/release_paths ALL/provenance ancestor-of-origin-main。currentは旧4429のまま。依存再利用で容量不足再展開なし。private cfo-main-64895457-cut.log。CFO実loaded/自然新sourceは未完。
 - 項目18は既存live-close/close-plan/performance-latestとreceipts.jsonl354行を直近2order ID/client IDへbounded read-only照合、一致0。この4store範囲のみで全provider receipt不存在/利益0へ拡張しない。private investment-existing-receipt-coverage-readback.json。次は同orderのowner/source receipt bindingを確認、取引runner/資金移動なし。current17維持。
+
+
+### 789. Aqua preflight・current新main・ASC input接続
+
+- 新immutableのlaunchctl-safe preflightは2026-10-06T18:26:35Z PASS。UID501/DS一致/Aqua/manager UID501/PID1/GUI readbackまで順序通り確認。root対象applyはまだ未発行。旧59182は終端後missing、次owner77859が実PIDでlive。reconciler sourceはorigin/main fetch→current必要cut→fleet applyの経路であり旧版固定設定ではない。
+- currentはownerにより/Users/anicca/loops/releases/20261007T032608-64895457へ更新、main64895457/release_paths ALL。root準備の032425とは同SHAの別immutableで、rootがcurrentを切替したとは記録しない。CFO actual loadedは旧4429のまま、稼働中fleetに重複applyしない。
+- rootはCFO専用LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKETを既存private .envへflock/atomic/fsync/mode600で1key設定。packet SHA c8f8a94d…e816d、他line保持true、設定readback一致。provider effect/通知/取引/台帳write0。private cfo-asc-production-input-connection.json。新source自然実行は未確認。MRR snapshotと財務periodの鮮度・全coverage不足を維持する。
+- 診断中rootがcentral_cleanup.py --helpを呼び、scriptがhelp未対応で通常cleanupを開始した誤操作を記録。自身のprocess限定停止probeは一致0/signal0、処理はexit0/oktrue/errors0/protected deletion0/release removed0、scratch removed59/host reclaimed8071bytesで終端。help目的で再実行しない。稼働owner停止/基盤restart0。このfootgunは今回CFO source反映の追加gateにしない。
+- cursor17はCFO新loaded/自然report/二重計上readbackが残る。main統合/current更新/input設定だけを銀行入金・利益・14loop完了へ昇格しない。
