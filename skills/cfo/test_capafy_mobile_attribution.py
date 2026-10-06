@@ -6,6 +6,7 @@ import json
 import hashlib
 import importlib.util
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -1124,16 +1125,23 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         module = self.require_adapter()
         producer = load_business_outcomes_producer()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        produced_mrr_periods = []
         for row in rows:
+            cohort = int(datetime.fromisoformat(row["business_date"]).replace(
+                tzinfo=timezone.utc,
+            ).timestamp())
             app_id = module.MOBILE_PRODUCT_BINDINGS[row["product_id"]][
                 "revenuecat_app_id"
             ]
             body = {
+                "start_date": cohort - 27 * 24 * 60 * 60,
+                "end_date": cohort,
                 "yaxis_currency": "USD",
                 "measures": [{"display_name": "MRR"}],
-                "periods": [{"date": "2026-09-30"}],
+                "periods": None,
                 "values": [{
-                    "cohort": 0,
+                    "cohort": cohort,
+                    "measure": 0,
                     "value": row["sources"]["revenuecat"]["data"]["charts"]
                     ["mrr"]["latest_complete"]["MRR"]["value"],
                     "incomplete": False,
@@ -1158,6 +1166,10 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     row["product_id"],
                     row["business_date"],
                 )
+            point = snapshot["sources"]["revenuecat"]["data"]["charts"][
+                "mrr"
+            ]["latest_complete"]["MRR"]
+            produced_mrr_periods.append(point["period"])
             row["sources"]["revenuecat"] = snapshot["sources"]["revenuecat"]
 
         records = module.adapt_mobile(
@@ -1170,6 +1182,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         }
         self.assertEqual(len(snapshots), len(module.MOBILE_PRODUCTS))
         self.assertEqual(snapshots["revenuecat:anicca-ios:mrr"], "3000")
+        self.assertEqual(produced_mrr_periods, [row["business_date"] for row in rows])
 
     def test_mobile_partial_stale_unsupported_and_missing_sources_fail_closed(self):
         partial = self.adapt_mobile("mobile-partial.jsonl")
