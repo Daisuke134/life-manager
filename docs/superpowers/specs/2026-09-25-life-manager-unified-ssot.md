@@ -8932,3 +8932,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh Sol6.1medium reviewerはHEAD6d5e6602ab一致/sourceSHIP/重要指摘0。planner12PASS/baseRED→HEADGREEN、_shared189/digest一致/diffPASSを確認。readonly sandboxでkernel tmp_path setup不能の限界を明示し、未実行をPASSと報告していない。
 - rootが同HEADの既存test_reply_planner.py＋test_reply_kernel.pyを実行、56PASS/0.25sでその実行不足を確認。facts wait/no send/no human notification、explicit human/schema validationを関連suiteで検証。実provider/state/送信変更0。
 - PR6749 https://github.com/Daisuke134/life-manager/pull/6749 の同HEAD CIはOSS/Python/PII/指示契約/文脈/shell成功、残3は実行中。全CI/main/immutable/自然Reply改善は未完。current1/残29/mock取消/後段順維持。
+
+
+### 676. Reply facts fallback PR6749 main統合
+
+- 同最終head6d5e6602ab658092d6a027472440be7f670bd581のCI37434523722はcompleted success/全9checkを確認。sourceSHIP・root関連56PASS・manifest一致を受入、gh pr merge --merge --admin --match-head-commitで通常統合。MERGED/merge37bbd2ed7a9bf830e59d1fed584f2d2582dedbaf/mergedAt2026-10-06T08:17:26Z、fetch main一致。
+- sourceはfacts exception待機への1行修復、explicit human条件/送信/通知/旧intentやstateは未変更。main成功を自然Reply改善や顧客返信・利益の成果へ代用しない。
+- 次はmain由来完全immutableを既存release owner/lockと調整して作成、対象CrowdWorks Replyのloaded-idle反映と自然event/remaining_workを確認。source-onlyのsource受入はPASS、反映・自然の受入は未完。current1/残29/mock取消/後段順維持。
