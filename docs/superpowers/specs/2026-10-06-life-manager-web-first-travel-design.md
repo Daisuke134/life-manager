@@ -6,6 +6,10 @@ Let a new Life Manager customer use the hosted product from a browser without in
 
 The Web App Factory is a later phase. It starts only after this product has paid users and verified positive contribution; the first app's acquisition and cost evidence then becomes the factory's first reusable lesson.
 
+## Delivery Status and TODO Authority
+
+The current production cursor, W3-P0 root cause and unblock runbook, and remaining TODO order live in the [canonical Life Manager SSOT](2026-09-25-life-manager-unified-ssot.md). This document remains the Web product behavior/design reference.
+
 ## Superseded Contract
 
 The approved 2026-08-26 Cloud On-Time Core contract made a verified Telegram actor the only tenant identity and retired the standalone browser onboarding flow. Dais's current explicit Web-first instruction supersedes that interface and identity choice for new Web users. It does not remove existing Telegram users, change their identity/session, enable phone calls, or weaken the existing Stripe-only paid-state writer.
@@ -116,4 +120,5 @@ Do not implement app-generation automation yet. Start a separate Web App Factory
 - Google Calendar default reminders and overrides: https://developers.google.com/workspace/calendar/api/concepts/reminders
 - Direct category pricing reference: https://www.addtraveltime.com/
 - Supabase Auth redirect URL allowlist: https://supabase.com/docs/guides/auth/redirect-urls
-- Supabase CLI database migration credentials and db push: https://github.com/supabase/cli/blob/develop/apps/cli/docs/go-cli-reference.md
+- Supabase Google OAuth provider setup and callback: https://supabase.com/docs/guides/auth/social-login/auth-google
+- Supabase CLI db push: https://supabase.com/docs/reference/cli/usage#supabase-db-push
