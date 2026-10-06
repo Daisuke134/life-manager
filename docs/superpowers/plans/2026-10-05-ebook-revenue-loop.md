@@ -185,19 +185,20 @@
 
 ### Task 6: Publish the first eBook campaign and record its natural order
 
-**Prerequisites:** Task 5 source owners merged; an authorized production DDL route; production Checkout/PDF fulfillment readback; `lm-loop doctor` fully green; host free space above the 11 GiB floor; official identity/status for each selected existing account; available Postiz channel capacity for every owner to be enabled.
+**Prerequisites:** Task 5 source owners merged; authorized production DDL path; production Checkout/PDF fulfillment readback; `lm-loop doctor` green; native identity/status for selected accounts; Postiz route enabled and available for each target. The 11 GiB cleanup tier is not a posting prerequisite; only a real owner preflight or active disk-policy marker can defer the operation.
 
-- [x] PR #6739 merged at `78c55432421dbe821773a96f7a7deb9646ee7599`; immutable release `20261006T160404-78c55432` is selected and `lm-loop doctor` returns `ok=true`. The active `upwork:dais` provisioner remains reachable under its registered owner; its process and profile were preserved.
-- [ ] Complete source acceptance/promotion for the shared runtime Postiz credential wiring. The local implementation passes the Postiz key only to the three eBook child environments when the publish flag is true; focused tests pass 121/121 and loop contract passes. Commit, review, CI, merge, and release remain.
-- [ ] Recheck the existing Supabase/admin route. Apply the production migration only through an authorized DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. Current CLI has no linked project ref.
-- [ ] Merge PR #420 only after migration readback; verify the production deployed SHA and health.
-- [ ] Read back native account identity/good-standing and Postiz channel capacity. Authenticated API readback shows 30 enabled integrations and one disabled: the existing English `Monk Anicca` TikTok is disabled; the JA Instagram/TikTok integrations are enabled. English Instagram is unregistered.
-- [ ] Set `LM_EBOOK_PUBLISHING_ENABLED=true` only after the production checkout/PDF route and the exact Postiz account identity/status readbacks are ready.
-- [ ] Read back deployed `/monk` and `/achan` Checkout/PDF fulfillment and post-migration RPC/schema state before publishing either locale.
-- [ ] Publish one Japanese Watercolor video to existing TikTok and Instagram; read each exact provider receipt and public URL. Then leave its three daily slots enabled through the installed owner.
-- [ ] Only after an existing no-cost Postiz slot is available and the exact English integration reads `disabled=false`, publish one English HeyGen video and read its provider receipt/public URL; then leave its three daily slots enabled.
-- [ ] Record one natural paid Checkout and its matching locale PDF delivery receipt under the same product, campaign token, and occurrence; record refunds, fees, and measured costs. Do not self-purchase.
-- [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during the later Capafy work.
+- [x] PR #6739 merged at `78c55432421dbe821773a96f7a7deb9646ee7599`; immutable release `20261006T160404-78c55432` is selected and `lm-loop doctor` returns `ok=true`. The active `upwork:dais` owner was preserved.
+- [x] Run the canonical cleanup one-shot at 16:30 JST: reclaimed 56,844,145 bytes; `errors=0`; `protected_deletions=0`; six open candidates preserved; 21 inventory gaps. Free space is 1.7 GiB and both disk policy markers are absent. Code confirms 11 GiB is the preventive cleanup tier, not this publisher's gate.
+- [ ] PR #6744 promotes Postiz credential wiring for the three eBook owners. Local focused checks pass 121/121 and fresh read-only review found no Critical/Important issues. Every required CI check passes at source head `4a85b0866e`; commit/push the spec update, rerun CI on the new head, then merge and cut the main-derived release.
+- [ ] Resolve the authorized Supabase/admin DDL path for Product PR #420. Production metadata workflow `37425532984` previously found the eBook webhook/subscription tables and RPCs absent; the Supabase CLI has no linked project ref and the credential SSOT has no Supabase management credential.
+- [ ] Apply the migration only through that authorized DDL path; read back tables, RPC signatures/ACLs, required columns and PostgREST schema cache. Then merge PR #420 and verify deployed SHA, Checkout and correct locale PDF delivery.
+- [ ] Read back native identity/good-standing and available Postiz slots. Latest authenticated integration readback at 16:30 JST: JA `obou` Instagram/TikTok enabled; EN `Monk Anicca` TikTok exists but is disabled; EN Instagram is absent. Integration state does not prove native account status or available capacity.
+- [ ] After source release, fulfillment, and account/route readbacks are ready, set `LM_EBOOK_PUBLISHING_ENABLED=true` and targeted-apply the three existing owners.
+- [ ] Publish the first Japanese Watercolor video to TikTok and Instagram and read both provider receipts/public URLs. The locale makes three renders/day and sends each to both targets: six Japanese platform posts/day.
+- [ ] Once the existing English TikTok integration reads `disabled=false` and capacity is confirmed, publish an English HeyGen video and read its receipt/public URL. Maintain three English posts/day at 08:00, 14:00 and 21:00 JST; Japanese slots remain 07:00, 12:30 and 20:00 JST.
+- [ ] Keep the three daily locale slots running with per-occurrence replay/readback; do not treat a schedule or render as a published post.
+- [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence; record refunds, fees and measured costs. Do not self-purchase.
+- [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
