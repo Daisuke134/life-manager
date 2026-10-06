@@ -40,6 +40,8 @@
     "@browserbasehq/stagehand": "3.7.1",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
+    "@supabase/ssr": "0.12.0",
+    "@supabase/supabase-js": "2.109.0",
     "canonicalize": "^1.0.8",
     "inngest": "^4.11.0",
     "jsqr": "1.4.0",

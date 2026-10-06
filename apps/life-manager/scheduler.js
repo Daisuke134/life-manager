@@ -777,6 +777,7 @@ async function reminderUserOnce(u, nowMs, deps = {}) {
 // `tenant timeout` fired (spec §3 row 1c done receipt).
 async function organsUserOnce(u, nowMs, deps = {}) {
   if (u && u.daily_automation_enabled === false) return;
+  if (u && u.telegram_chat_id === null && WEB_TRAVEL_UID_RE.test(String(u.uid || ""))) return;
   const now = nowMs !== undefined ? nowMs : Date.now();
   const log = deps.log || console.log;
 
@@ -1213,6 +1214,7 @@ function startScheduler() {
 
 // ── Travel auto-fill (every 30 min) — keep today+7d filled with [Travel] blocks ─────────────────
 const TRAVEL_TICK_MS = 30 * 60 * 1000;
+const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function travelUserOnce(u, deps = {}) {
   if (u && u.daily_automation_enabled === false) return;
@@ -1224,11 +1226,33 @@ async function travelUserOnce(u, deps = {}) {
   const supaUrl = deps.supaUrl !== undefined ? deps.supaUrl : configuredSupa.url;
   const supaKey = deps.supaKey !== undefined ? deps.supaKey : configuredSupa.key;
   try {
+    let expectedCalendarAccountId;
+    if (WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""))) {
+      if (u.telegram_chat_id === null) {
+        const resolveActive = deps.resolveActiveWebCalendarImpl
+          || require("./lib/web-calendar.js").resolveActiveWebCalendar;
+        const active = await resolveActive(u.uid, {
+          supaUrl, supaKey, composioKey: apiKey, fetchImpl: deps.fetchImpl, env: deps.env,
+        });
+        if (!active || !active.accountId) return;
+        if (u.expectedCalendarAccountId !== undefined
+          && u.expectedCalendarAccountId !== active.accountId) return;
+        const readControlState = deps.readWebTravelControlStateImpl
+          || require("./lib/runtime-preferences.js").readWebTravelControlState;
+        const controlState = await readControlState(u.uid, { supaUrl, supaKey, fetchImpl: deps.fetchImpl });
+        if (!controlState || controlState.dailyAutomationEnabled !== true
+          || controlState.disconnectPending !== false || controlState.enablePending !== false) return;
+        expectedCalendarAccountId = active.accountId;
+      } else if (u.telegram_chat_id === undefined) {
+        return;
+      }
+    }
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
       timezone: u.call_time_zone,
       nowMs: deps.nowMs === undefined ? Date.now() : deps.nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
+      expectedCalendarAccountId,
       _directionsMinutes: deps.directionsMinutes,
       _reserveManagedAction: deps.reserveManagedAction || (deps.fillTravel ? undefined : reserveManagedAction),
       _completeManagedAction: deps.completeManagedAction || (deps.fillTravel ? undefined : completeManagedAction),

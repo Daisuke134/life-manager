@@ -50,7 +50,7 @@ function getCalendar(opts = {}) {
     ? [kind, opts.account !== undefined ? opts.account : (process.env.GOG_ACCOUNT || ""), opts.bin || process.env.GOG_BIN || "gog", opts.calId || "primary"]
     : kind === "unipile"
       ? [kind, unipileOpts.accountId || "", unipileOpts.token || "", unipileOpts.dsn || ""]
-      : [kind, opts.apiKey || process.env.COMPOSIO_API_KEY || ""];
+      : [kind, opts.apiKey || process.env.COMPOSIO_API_KEY || "", opts.expectedCalendarAccountId || ""];
   const key = JSON.stringify(identity);
   let cached = cachedCalendars.get(key);
   if (!cached) {
