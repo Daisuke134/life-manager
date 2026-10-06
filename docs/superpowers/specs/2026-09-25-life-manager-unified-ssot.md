@@ -9296,3 +9296,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新main4429immutableのregistered lease/既存lock内で64033100をtargeted_detail取得。2026-10-06T14:30:21Zにfunded/12JPY、form_count1/completed_bound_receipt_count0。既存helperのbound receipt確認では0だが全履歴未送信やmutation安全性の全証明へしない。既存Google form metadata getterはRuntimeErrorで設問取得不可、回答/正式納品対象の確定は未完。提出/返信/再送/台帳write0。証拠 `crowdworks-64033100-delivery-requirements.json`。
 - 失敗境界をGoogle form metadataへ狭め、同URLのform attached待ち/HTTP status/FB_PUBLIC_LOAD_DATA有無/受付終了・login・permission・CAPTCHA flags/body hashだけ追加取得するread-only run97213を開始。生buyer本文/回答値/email/credentialを保存しない。metadataが取れない理由を待機・閉鎖・権限と区別し、未知の回答や完了を捏造しない。
 - sharedreleaseowner後続snapshotは4429がloadedでPID61490 live。Rootはcurrent/targetapplyを競合変更せず、Paid ownerへの反映状態を追加readbackする。Rootの現在1.2/主29順序不変、1.3納品/2精算未完。
+
+### 718. フォームmetadataは正常、設問内容の取得へ
+
+- run97213はexit0、64033100の同一URLをread-onlyでform attached待ち後に観測。2026-10-06T14:33:50.173696Z、HTTP200/form1/FB_PUBLIC_LOAD_DATA存在、受付終了・login要求・permission拒否・CAPTCHA表示flagsすべてfalse。既存_form_itemsが26設問/必須18を取得。初回直後のmetadata失敗をprovider恒久障害へしない。証拠 `crowdworks-64033100-form-health.json`。外部effect0。
+- 次はquestion title/type/required/allowed choicesだけを同じexisting getterから取得するread-only run92091。回答値・buyer本文・email・credentialを出力/保存しない。必要プロフィールfacts/作業条件と実費の確認を終えてから回答・正式納品へ進む。現未取得の設問内容を捏造しない。
+- Current1.2/29主項目相対順序不変。納品1.3/精算2は未完、受注12円・表示net10円を銀行入金や利益へ計上しない。
