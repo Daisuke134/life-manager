@@ -178,7 +178,9 @@
 - [x] Add a no-libass fallback using the installed Japanese font, Pillow PNG overlays, and FFmpeg `overlay`; add a focused regression for the missing `subtitles` filter path.
 - [x] Add regressions for English-vs-Japanese renderer selection, three daily slots per locale, disabled English integration zero-effect behavior, and shared English render receipt across its Postiz owner.
 - [x] Rerun focused reconciler/publisher/pre-effect, eBook owner/asset/HeyGen/Watercolor, product routing, loop bounds and catalog tests after the latest edits: Python 172/172, Node 54/54, `./bin/lm-loop-contract` PASS, source-boundary PASS, `git diff --check` PASS.
-- [ ] Fetch latest `origin/main` (`e842309e59d9`, 96 commits ahead), rebase this feature branch and preserve all existing changes, then commit/push, obtain a fresh read-only branch review, complete PR/CI/merge, and build a main-derived immutable release. Keep production publishing closed.
+- [x] Fetch latest `origin/main` `e842309e59d9065fd6e2005d4e8027ead0beea97`, rebase the dedicated feature branch, and rerun source acceptance: Python 172/172, Node 54/54, loop contract, source-boundary, and diff checks passed.
+- [x] Commit `5d68435a3d71b8f72019cf778589b7872cfcbedd` and push `feat/ebook-publisher-source-20261006` to origin.
+- [ ] Obtain fresh read-only branch review, open the PR, pass CI, merge, and build a main-derived immutable release. Keep production publishing closed.
 
 ### Task 6: Publish the first eBook campaign and record its natural order
 
