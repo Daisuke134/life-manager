@@ -8962,3 +8962,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - admission DB mode=roで該当ownerだけaggregate。claimed/effect_unknown1=250、queued/effect_unknown0=362、released/effect_unknown0=5995、reservation無し/queue有り。registry resource agent/admission revenue/priority revenue/effect_scope明示無し。これらはresource occurrence履歴で、Reply reportの18pending threads/11reconcileunknownと別母集団。新規未返信250人とは報告しない。
 - newsource反映のために旧claimsを無証拠解除したりeffect_scopeを勝手に変更しない。次は既存guardのsource-only rebind条件/旧proof利用可能性を対象owner限定で確認する。解決までtargetは旧9c9のまま、main/完全release37bb成功をloaded反映済みへ代用しない。
 - provider送信/通知/queuecancel/予約force/他label変更0。current1/残29/mock取消/後段順維持。
+
+
+### 680. Reply admission scope訂正・予約保持APIで対象反映成功
+
+- §679のscope確認は誤ったkey effect_scopeを参照していたため訂正。正しいadmission_effect_scopeはCW Reply/Paidともoccurrence指定。250旧unknownの存在だけを現在owner-wide阻害の証明にしない。scope設定は変更0。
+- manual reconcileでは予約release rebindがautomatic callerに限定されるため、既存apply_liveのallow_reserved_release_rebind/skip_busy/preserve_pending_admissionを明示して対象1件だけ有限監視。稼働runはskipし、idle guard許可時にcurrent aed62f3bへ反映、changedtrue/loaded argv一致/admission_resumedtrue。原本reply-facts-reserved-apply.json。新source codeやframeworkを作らず既存APIを使用。
+- freshstatus installed aed62f3b一致、latest terminalはまだ旧9c9。admission DBは初回read lockだったが同readonly経路を再pollし旧unknown250保持を確認。別sourceの記録を流用せず、未知の過去を解除していない。shared current/他label/provider route変更0。
+- 次は新sourceの自然run/remaining_work/no invalidhandoffを確認。main/loaded成功を自然返信・収益成功へ代用しない。current1/残29/mock取消/後段順維持。
