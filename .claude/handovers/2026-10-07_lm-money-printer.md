@@ -13,3 +13,9 @@ live writer: gpt-6-luna/max finite codex exec、旧session handle12812、PID7288
 公式acquisitionはAnicca10/05 impression36/Product page2/FTdownload2、Honne10/02 impression10/FTdownload1/Product page未観測。cohort/post attributionなし。投資は開始NAV/終了snapshot/2注文の限定SHIP、期間利益・通貨/settlement・ownerはHOLD。証拠を0/銀行/利益へ昇格しない。
 
 最初の安全な作業: source writerの生存と差分を確認し、§824修正を受入/必要最小検証→fresh review→push/CI/main/immutable→自然runのJSONと同receiptを結ぶ。docsは上記docs branch、sourceは上記source branch。共有checkoutのbranchを切り替えず、他者編集を戻さない。sourceレビューはexact SHAのread-only snapshot。モデルplanning/review6.1-sol medium、実装6-luna max、旧世代fallbackなし。AGMSG playbook/skillを読みlmへ専用identityで参加し所有を調整。メール/Telegram自発進捗送信なし。
+
+## 最新再開状態（旧PID情報を上書き）
+
+旧handle12812/PID72880・72891は不存在、sourceはclean/未実装。primaryが専用branchをlatest origin/main cd9626fadbへff（CFO source diff0）して、gpt-6-luna/max finite run56106/PID84545・84559で再開。log/resultは同private dirのcfo-natural-evidence-luna-resume-run.jsonl / cfo-natural-evidence-luna-resume-result.md。timeout由来restartではなく、旧process不在を確認した継承。新sessionはこれらのPID/argv/worktree/log/gitを再readbackし、live writerへ重複編集しない。
+
+並行CFO laneのmain handover 2026-10-07_0644_cfo-revenue-truth.md はSupabase A3/panel等を対象にする。こちらは§824のPython collector観測保存だけ、Supabase/schema/panel/provider設定は触らない。lm-cfo-observability-1002へ境界と新writer状態をAGMSG共有済み（受領は未確認）。

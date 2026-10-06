@@ -10131,3 +10131,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 文書worktree ssot-main-20261002/branch docs/ssot-orchestration-status-20261002 を正本の編集先として保持。source worktree cfo-mobile-natural-evidence-20261007/branch fix/cfo-mobile-natural-evidence-20261007 は1305/base/clean（観測時）/current upstream origin/main、source push先は同名origin branch（まだ未push）。原primaryはcodex-money-printer/team lm。
 - Luna finite run12812/PID72880・72891をexact argv/output/worktreeでlive確認。local log cfo-natural-evidence-luna-run.jsonl/result cfo-natural-evidence-luna-result.md、private evidence dir cli-observability-20261006。native handleは旧session限定、新sessionはOS PID/argv・log・git・AGMSGで再確認。source branchのlive writerがいる間に同じ編集/別writer起動をしない。稼働/終了は状態fileだけで判断せずprocess/terminal結果で判定。
 - current17、前段1〜16の外部/条件付き保留、18〜24財務、25SelfBuild、26〜28Lancers、29最終証拠。相対順不変、完了した source/公式取得/送信を残作業へ戻さない。新sessionはfetch/HEAD/upstream/dirty/runtime/providerを更新し、同cause timeoutだけでrestartせず、必要な証拠が安全に取れる間は続ける。
+
+
+### 826. 旧writer停止を確認して保存修正を再開、別CFO laneとの境界共有
+
+- 旧handle12812はUnknown process、PID72880/72891不在、source clean/未実装を確認。旧runをlive/完了とせず、origin/main7 docs commits進行・CFO source差分0をreadbackし専用branchをcd9626fadbへff。新Luna/max finite handle56106/PID84545/84559のexact argvをlive確認。source-boundary PASS、実装前確認中、重複writer無し。
+- 並行CFOのSupabase A3/panel範囲をmainの別handoverで確認。こちらは§824 loop_pnl.py/必要最小testsのみ、DB/panel/source他者範囲・provider設定を変更しない。AGMSG lm-cfo-observability-1002へ更新送信、sendを受領/着手証明へしない。
+- 記録不足は自所有の実装対象で、ユーザー承認や外部権限待ちではない。新writer保存修正→検証/review/commit-push/CI/main/immutable→同自然occurrence JSON+送信照合を継続。handover/goalのPID/log/source anchorを最新再開状態へ同期、cursor17/主相対順保持。
