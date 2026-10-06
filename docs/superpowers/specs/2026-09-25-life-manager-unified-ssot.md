@@ -3373,6 +3373,16 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - Railwayの`SUPABASE_SERVICE_ROLE_KEY`でManagement API project GETを行うread-only probeはHTTP 401。GitHub repository secretと4つのenvironment secret listは空。Supabase browser identity/MCP toolは未登録で、Supabase senderの直近90日Gmail metadata 19件にもlogin/token/migration/invitation subjectはなかった。Supabase CLI `projects list -o json`は`Cannot find project ref. Have you run supabase link?`を返す。PostgRESTにはgeneric SQL/migration RPCがない。
 - **現在cursor=A3:** 足りない具体物はSupabase scoped PAT（`database_migrations_write`）またはOAuth access token（`database:write`）である。これがない間はproduction DDLを推測実行・再試行しない。source deploymentと観測4 scopeのreplay-zeroは確認済みだが、geocode persistence、migrationのschema readback、process restart後の再利用は未達である。A1は引き続き非ブロッキングhardeningである。
 
+### 2026-10-06 10:25 UTC — CFO A1再判定とA3 readback追記
+
+- この追記はA1の分類とA3の最新readbackを明確化する。CFOの目標、設計、TODO相対順は変更しない。
+- **A1とは:** `A1 — Observation envelope`は設計上の段階名であり、現在発生中のincident名ではない。現在のproduction障害でもA2〜A10の依存blockerでもない。稼働中の観測・記録経路があり、今回までのreadbackにA1起因のoutageや実際の`lm_api_cost` row mutation/deletionは現れていない。
+- **誤読を避ける根拠:** PostgREST OpenAPIの`PATCH`/`DELETE`広告はAPI methodの表示で、実行やrow変更の証拠ではない。確認したcost writerは`lm_api_cost`へ`POST`、readerは`GET`を使用する。アプリ中の`PATCH`はwake lifecycle (`lm_wake_log`)の更新であり、cost row更新ではない。append-only migrationのproduction適用・ACL・triggerは`unverified`のままなので、適用済みともrow消失が起きたとも断定しない。過去の単発`49→48` GET差異は原因未解明で、削除の証拠に昇格させない。
+- **最新A3固定window:** `2026-10-06T09:30:50.251Z <= ts < 2026-10-06T10:10:00Z`の同一条件GETは2回とも322行で、row ID集合が一致した。うち対象release SHAの行は282件、Google有料request rowは41件（geocoding 9、directions 32）、そのrow estimate subtotalはUSD `0.205`。同window全行のestimateはUSD `0.30505`。いずれもrow estimateであり、settled billing、invoice、Google月額totalではない。322行で`loop_id`は0件。
+- **再試行の内訳:** 対象SHAの24 tenant/event-version scope中18 scopeで別occurrenceの自然反復を確認し、12 scopeに後続Google有料rowがあった。その12件はすべてDirections `no_route`後の`transit_timeout` fallbackで、前回の有料Google rowから`1,834.193–1,855.262`秒後に発生しており、1,800秒未満の再課金は観測していない。
+- **解釈（推論）:** この時間幅は`no_route`の30分negative TTL満了後の再試行と整合する。従って「TTL内の重複有料callを観測した」とは言えず、A1障害でもない。一方、negative resultは期限後に再計算されるため再発費用は残る。TTL内のroute cache hitが見えたが、未適用のgeocode RPCがないため、新しいpersistent geocode cacheやprocess restart後の再利用を証明したものではない。A3全体をreplay-zero完了とは扱わない。
+- **責務とcursor:** `loop_id`欠落はA2/A8の費用帰属coverage、請求実額との照合はA6の責務であり、A1 outageではない。A1のproduction append-only ACL/trigger readback・canonical same-occurrence wake/voice/cost/receipt join・`crash`/`stale`/`effect_unknown`証跡は非ブロッキングhardeningとして残す。現在cursorは引き続きA3で、次はSupabaseの正規DDL credentialを得てmigrationを適用し、schema/RPC/ACL readbackの後、persistent cache/process restart/natural replayを確認する。TODO順はA3→A4→A5→A6→A7→A8→A9→A10のまま。
+
 ### 2026-10-06 JST — AGMSG `lm` teamの状態と復旧cursor
 
 - この追記はAGMSGの通信状態だけを記録し、§84-Aの収益TODO順序、CFO/Mobileの所有境界、各収益成果の完了判定は変更しない。
