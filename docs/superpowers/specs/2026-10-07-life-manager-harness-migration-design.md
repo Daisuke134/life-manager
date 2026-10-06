@@ -109,3 +109,38 @@ OpenClawのpersonal-agent benchmarkは運用smokeとして参考にするが、�
 今回の完了は調査・設計・原子的計画のcommit/push・統合。将来のharness移行完了は、対象ownerのsource acceptance、既製harnessからの自然wake、公式tool/readback、cost/trace join、rollback可能性、旧scheduler/runnerの退役で判定する。外部buyerの購入待ちを技術移行の追加gateにはしない。各販売agentの経済成果は公式sale/settlement/actual costが揃った時だけ別途合格とする。
 
 移行対象・順序・状態は統合SSOTのHM laneだけが正本。現在の他業務lane/cursorや稼働effectは変更しない。実行手順は[計画](../plans/2026-10-07-life-manager-harness-migration.md)。
+
+## 条件付き: OSS配布・他人の端末・クラウド
+
+これはDaisの仮定に対する設計で、公開・hosted service開始の決定ではない。推奨は引き続きOpenClaw。理由はMITによる再配布と公式embedding/Node client/Dockerがあり、24時間運用のsession・cron・復旧資産を維持できるため。Deep Agents JSはpure embedded SDKの対案だが、今回の目的ではscheduler/daemonの組合せが別途必要。Mastraも有力だが既存runnerをframeworkへ結ぶ作業とcrash/effect契約は残る。
+
+公式資料を再確認: [embedding](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/embedding.md)、[client](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/clients.md)、[Docker](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/install/docker.md)、[tenant分離](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/multi-tenant-hosting.md)。npm公開metadataで`openclaw=2026.9.8`、`@openclaw/gateway-client=2026.8.1`、`@openclaw/gateway-protocol=2026.8.1`とexportsを確認した。GatewayClientの`request(method, params, options)`、agentのidempotencyKey、agent.wait、sessions.abortを公開tagのsourceで確認した。配布物同士のruntime互換は未実測なので、具体的な互換テストを計画の先頭に置く。
+
+### 配布境界
+
+- 初版の販売機能実行環境はmacOS/Linux、WindowsはWSL2またはDocker。native WindowsのOpenClaw対応を、Python fcntl/bash/launchdを含むLife Manager全商品の対応へ転写しない。native Windows全商品の対応は今回の初版目標に含めない。
+- iOS/Androidはブラウザの操作画面。実行はユーザーの対応PCまたはLinux cloud。端末停止中の継続が必要ならcloudを選ぶ。
+- self-host cloudはsingle-tenant cellを初期単位にする。複数userへ提供するならprocess/container/data root/credential/gatewayをtenantごとに分離。OpenClaw agentId/sessionKeyはtenant security boundaryではない。fleet CLIはexperimentalなので初版の必須依存にしない。
+- ユーザーは自身のmodel/provider/platform accountsを設定する。Daisのaccount/profile/absolute paths、Codex subscription、Apple Passwords、Macのlaunchdは配布coreの必須依存にしない。native Codexは利用者が持つ場合の選択肢。未設定の販売能力は具体的な不足credential/toolを表示する。
+- `LM_DATA_DIR`にinstance root、`LM_CREDENTIALS_FILE`に唯一のユーザーcredential SSOTを指す。local defaultは`~/.local/share/anicca/credentials.json`、cloudはそのSSOTをread-only secret mountする。keyをOpenClaw configへ複製せずSecretRefで注入する。
+- OpenClawは正常なnpm installのpackage executableを起動する。dist部分のコピー/vendorはしない。MIT noticesとthird-party noticesを配布へ含める。Dockerは同一source/lockfileを使い、machine-specific toolingはLinux host adapterへ限定する。
+
+### 初回実装を固定する契約
+
+前のHTTP候補transportは、実行可能な初版では**公式WebSocket GatewayClient**へ変更する。HTTP bearerのscope縮小を独自実装しない。Gatewayはinstance-owned loopback、portはconfigで指定、secretはoperatorだけに渡す。直下を`runtime/openclaw/`とし、Node ES modulesとPython既存host adapterを使う。
+
+`RunRequest`: version=1、owner_id/occurrence_id/run_idは`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`、release_shaは40hex、promptはtrim後16字以上、schemaはJSON object、workdirは絶対path、timeout_secondsは正整数、task_class/model/provider/effortはcallerの設定。effect_mode=`read_only|brokered`。owner mapはrequest ownerをキーに既存registryを参照する。
+
+`sessionKey = 'agent:' + agentId + ':lm:' + sha256(owner_id + ':' + occurrence_id)`、`idempotencyKey = sha256(release_sha + ':' + owner_id + ':' + occurrence_id + ':' + task_class)`。hash対象へsecret/promptを含めない。accepted runId喪失時は新idempotencyKeyを作らずunknownを記録し、同じsession/occurrenceをread-only照合する。
+
+RPC submitは`client.request('agent', {message,agentId,sessionKey,idempotencyKey,deliver:false,timeout:timeout_seconds}, {expectFinal:false})`。waitは`client.request('agent.wait',{runId,timeoutMs:1000})`、cancelは`client.request('sessions.abort',{key:sessionKey,runId,agentId})`。abort成功ACKだけを停止proofにせず、run terminal・session activeRunIds・owned processesのcleanupを確認する。SDK内部の再接続で新agent dispatchを作らない。
+
+`DispatchRecord`: `{version:1,owner_id,occurrence_id,idempotency_key,session_key,upstream_run_id:null|string,phase:'prepared'|'sent'|'accepted'|'terminal'|'unknown',claim_ref:null|string,result_ref:null|string}`。同一occurrence単一record、durable保存後に送信、結果/receipt保存後にrelease。
+
+`RunOutcome`: `{status:'success'|'failed'|'pending'|'effect_unknown',result:null|object,upstream_run_id:null|string,evidence_refs:string[],usage:{input_tokens:null|integer,output_tokens:null|integer,provider_cost_usd:null|number,cost_basis:string},error_class:null|string,next_action:null|string}`。既存runner summaryへprojectし、schema成功だけでtool effectをverifiedにしない。
+
+`ModelClaim`: `{ref:string,owner_id:string,occurrence_id:string,execution_pid:integer,execution_start:string,state:'active'|'resource_effect_unknown'|'released'}`。既存claim pathを信頼できるenv/host APIで渡す。modelがclaim_ref/ownerを指定した工具requestはauthorityへ使わない。
+
+plugin一般hookのtimeoutはfail-openになるsurfaceがあるため、before_prompt_buildだけをadmissionの強制保証にしない。public gatewayの初期cronはdisabled、agent dispatchはoperator bridgeだけ。native tool経路とmodel-start admissionのfail-closed検証に不合格ならeffectを有効化しない。schedule移行は検証済み契約成立後の別atomとする。
+
+**計画の訂正:** 前版18task/90checkboxはroadmapとしては読めるが、互換API・工具binding・host切替を実装者へ残すため、全移行をそのまま実行できるatomic planではなかった。現在の[計画](../plans/2026-10-07-life-manager-harness-migration.md)はファイル/関数単位へ置換する。conditional配布atomsは未有効であり、実装/本番操作は未着手。
