@@ -9557,7 +9557,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 初回browser regexは「購入/Buy/Subscribe」だけで「この記事を¥500で読む/有料アーカイブを購読」を取りこぼし、restore待機前にcontrol0を記録。購入機能故障と断定しない。共有anicca checkoutはread-onlyでREADME/source route/WriterUnlockを確認し、receipt delivery commit8a5b9253のprivatearticle metadata access_model both/run20260929-010128/同paidshaをgit showで照合（本文を表示しない）。
 - live expected日本語buttonまで待つprobe handle74853 exit0、UTC2026-10-06T16:21:46.338325、buttons「この記事を ¥500 で読む」「有料アーカイブを月額 ¥980 で購読」、paid section有り/checking無し、unpaid writer-content GET401。sourceはrestore401→lockedで正常に販売controlを出す。private writer-xcta4-ready-purchase-controls.json。checkout POST/購入/決済0。
-- Writer Stripe syncのread_objectsはrestricted rk_ keyを要求しload_read_keyのfallbackはKeychainなので現指示により使わない。private SSOTと現envでWRITER_STRIPE_READ_KEY/rk_live recordは未確認、state.envにSTRIPE_SECRET_KEYはあるがscope/account-bound restricted sourceの代用へしない。LM_CFO_STRIPE_LIVE_READBACK設定先は現ファイル無し。欠損を公式売上0へしない。
+- Writer Stripe syncのread_objectsはrestricted rk_ keyを要求しload_read_keyのfallbackはKeychainなので現指示により使わない。private SSOTと現envでWRITER_STRIPE_READ_KEY/rk_live recordは未確認、state.envにSTRIPE_SECRET_KEYはあるがscope/account-bound restricted sourceの代用へしない。LM_CFO_STRIPE_LIVE_READBACK=1はlive読取flagでありファイルパスではない。先行のファイル不存在という解釈は訂正する（§760）。欠損を公式売上0へしない。
 - cursor12残は適切なread-only Stripe source/receipt取得、現単品/継続購入と売上/fee/settlement/CFO結合。商品ページの販売準備は限定確認済み、checkout成功/売上/利益は未完。旧host67928→businessrun binding不足は保持。主29順序/前段保留/SelfBuild後段保持。source/商品price/鍵/本番変更0。
 
 
@@ -9629,3 +9629,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Cloud関連の現billing sourceとして同Stripe account acct_1RT5QgEeDsUAcaLSをperiodfilter無し/statusallでGET。pagination完了7records、前turn期間内作成0と別scope。7recordsは全部canceled/livemode true、同price/product参照。product GET HTTP200/requestID付はAnicca Pro/live。public product active trueを有効subscriptionへ変換しない。private cloud-writer-current-stripe-subscription-stock.json/cloud-writer-stripe-subscription-metadata.json/cloud-writer-stripe-product-identities.json。
 - fresh Sol6.1 medium reviewerは3filesのcount/status/product整合を限定SHIP、Cloud/Writer契約帰属/全社MRR/売上/銀行/利益HOLD。product GETmethod/status/requestID不足はpacket追記で対応。raw7subscription response未保存の独立SHA再計算限界は残す。機密値・顧客email/token出力0、subscription変更/請求/価格変更0。
 - sourceCloud仕様のlaunch推奨価格やreminder formatter証拠をpaidCloud契約へ流用しない。16の現在Cloud service/customer contract/official billing/usageは未確認。15/16をDoneへせず保留、現在cursor17 Mobile CFO公式接続へ進む。main29相対順序/前段不足/TaskMarket受賞待ち/SelfBuild後段保持。
+
+
+### 760. Mobile公式MRRのscope検証とCFO専用入力接続
+
+- CFO current loadedmain4429/idle/lastcapacitybusyを確認、修復版消失とは扱わない。last-delivered-snapshotはSep25で、latestresultreportと同じ証拠ではない。CFO default mobile input140rowsにはebooks/旧aliasesもあり、最新6mobileRCdataはapp_id/chartsのみでcurrency/definition無し。既存code修復だけで入力更新を完了扱いしない。
+- Stripe LIVE_READBACK=1はbuild_stripe_readbackを有効化するflagでありpathではない。§751の不存在解釈を訂正。Mobile env未設定でもNode consumerはdefault marketing-metrics-daily/state/business-outcomes.jsonlを解決するので「入力path無し」とはしない。
+- 既存deployment RCkeyをprivate credential SSOTへlock/atomic/mode600保存（新発行/値出力0）。公式GET初観測17:25:40はbody/appscope対応未保存でfreshreview限定SHIP。sourceenvelopehashをdata-onlyで作ったprobeはadaptergapとなり、source既存契約status/reason/data canonicalhashへ修正して旧観測時刻を変えず再検証した。
+- 新観測UTC2026-10-06T17:32:07.717439でofficial options1/body6 GET、各単一appfilter/sentquery/HTTP200/options/body/envelopehashを保存。fresh Sol6.1 medium reviewerは6identityと全hash一致、latestcompleteOct5/Oct6incomplete、観測差0.604042sを確認しMRR限定SHIP。ANICCA20.34USD、他5explicit0、6verified snapshots/MRRcoveragecomplete。ASC notqueried/gap、settled/bank/profit/companytotalはunknownのまま。private cfo-mobile-scoped-mrr-{input,request-refs,adapter-records,summary}.jsonと6body/options。
+- Cfoだけのcurrent-mrr.jsonを ~/.local/state/life-manager/life-manager-cfo-hourly/mobile-readbacks/ にatomic mode600で保存し、shared.envのLM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES単一keyをlock下で接続。marketing/acquisition input変更0、source/価格/providerモデル変更0。consumer getterで実path/fileを確認。private cfo-mobile-mrr-input-connection.json、targetSHA1a01aa34...。AGMSG CFO seatへ当初.env不変更方針からの変更と接続範囲を即共有、peerの着手/承認とは扱わない。
+- 接続は実設定済みだが自然CFOreportの新入力readbackは未確認。current17は自然readbackとASC financial/reportID/currency/settlement不足の照合を続ける。MRR24h freshnessは緩めず、次のofficial refreshが必要。台帳/manualsend/再起動/外部effect0、主29相対順序/前段保留/TaskMarket受賞待ち/SelfBuild後段保持。
