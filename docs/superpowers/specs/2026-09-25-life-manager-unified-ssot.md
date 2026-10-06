@@ -8611,3 +8611,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 既存20商品のうちAPI連携categoryの1商品だけで購入/見積りcontrolをreadonly確認。認証なしpublic HTTPSはHTTPError、registered default context自身hidden targetの初回表示は403/controls空。商品非公開/購入不能の証明へ変換しない。private原本coconala-storefront-1791263703624628000/purchase-{html-probe-1791263796305182000,dom-probe-1791263819056015000}.json。guard取得/解放0、click/purchase/send0。
 - 成功した既存listing inventory collectorはhidden target作成後にPage.enable/Page.navigateを明示する。今回の初回表示probeとの差をsourceで特定し、同navigation形状で比較する最小probeを準備。正規acquireはexit9で未開始、共有leaseを奪わず、購入導線は未確認を保持。
 - 20公開inventoryを購入/売上成功へ拡張せず、追加の全20商品購入検証や実購入を完了gateに発明しない。次は正規取得可能時にこの1件の既存成功navigation経路を確認。current1/主経路31/Lancers後段維持。
+
+
+### 634. 独立channelの既存観測経路・effect境界確認
+
+- Coconala1商品navigation比較probeの正規acquireはexit9/開始0。共有ownerへ干渉せず、独立したFreelancer/Upworkの実装・runtime経路を調査。旧scheduler退役をCLI/adapter不存在と判断しない。
+- Freelancer/Upworkのreadiness/transport部品はskills/earn/gig/scripts内に存在し、official contract/payment/payout inventoryのaccount-bound receipt検証を持つ。FreelancerTransport.read_inventoryのproduction呼出元とconcrete fetchは今回の検索範囲で未特定。定義があるだけを稼働成功へ置換しない。
+- Upworkの既存CLIはproviders/upwork_browser_provider.py main。ただしobserveは全ページ読取だけでなくsealed proposal等の業務effect経路を含むため、観測目的でdefault CLIを盲目的に実行しない。現runtime旧ownerはretired/disabled、現行接続/許可receipt/公式inventoryは未取得。既存read-only page/readback関数へ対象限定して接続することが次の観測経路であり、旧owner無条件再有効化はしない。
+- README/provider manifestの許可stateは設定証拠であり最新provider事実の独立証明ではない。provider state unknownを0/全稼働へ変換しない。新CLI/framework/設定変更/応募/送信/支払0。current1/主経路31/Lancers後段維持。
