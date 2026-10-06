@@ -395,7 +395,10 @@ def _pre_effect_occurrence_proof(
     exact_by_event = {}
     for row in [*occurrence_rows, *claim_rows, *related]:
         key = row.get("event_id")
-        exact_by_event[key if isinstance(key, str) else id(row)] = row
+        key = key if isinstance(key, str) else id(row)
+        if key in exact_by_event and exact_by_event[key] != row:
+            return None, "duplicate_event_id"
+        exact_by_event[key] = row
     exact = list(exact_by_event.values())
     if any(isinstance(ref, str) and ref.startswith("lm-effect://")
            for row in exact for ref in (row.get("evidence_refs") or [])):

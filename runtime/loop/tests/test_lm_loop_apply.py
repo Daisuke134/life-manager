@@ -5125,6 +5125,20 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertIsNone(proof)
         self.assertEqual(reason, "effect_ref_present")
 
+    def test_ebook_pre_effect_rejects_conflicting_duplicate_event_id(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        terminal = dict(rows[1])
+        terminal["evidence_refs"] = [
+            ref for ref in terminal["evidence_refs"]
+            if not ref.startswith("lm-occurrence://")
+        ] + ["lm-effect://postiz/posts/provider-post-collision"]
+        rows.append(terminal)
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "duplicate_event_id")
+
     def test_rejects_when_another_run_claimed_the_occurrence(self):
         occurrence = f"{self.OWNER}:runA"
         wake_id = occurrence.split(":", 1)[1]
