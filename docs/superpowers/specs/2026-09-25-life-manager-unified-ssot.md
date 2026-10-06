@@ -8846,3 +8846,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - paid_adapter.paid_handoffはファイル探索ではなく、context.contract funded/positive integer price_minor/64桁terms hash等から共有receiptを組み立てる。price_minor nullは必須guardでcrowdworks_paid_handoff_unavailableになる実コードを確認。
 - §630の公式5候補はamount observation[12,10]/ambiguous、production price_minor全nullでありこのguardと整合する。引継ぎファイル欠損・資格情報expiryとは未確認で断定せず、rootの最初の候補診断を必須price fieldへ狭める。正額を推測しないための境界は維持する。
 - 次の必要観測は同契約金額欄の税込/税抜ラベルと金額の対応をsafe metadataで取得し、公式grossを唯一に確定できるかを確認すること。小額表示をsettled/利益へ変換せず、priceを単純12へ補完してpaid admissionを通さない。ファイル再制作/marker後付け/条件緩和/送信0。current1/残30/mock取消/後段順維持。
+
+
+### 664. 金額label限定観測・新SHA自然run確認
+
+- 正規crowdworks:dais guard取得/解放0、1契約だけ公式金額DOMを既存adapterからsafe読取。header税込true、TD税込/税抜label false、12円/10円、子SPAN10円に税役割label無し。productionprice null/amountambiguous維持。原本crowdworks-tax-label-1791271856512561000.json。式や順位だけでgross/netを補完しない。provider返信/フォーム/納品/価格変更0。
+- 既存CLI fresh statusはinstalled/eventとも9c9fd29d一致、自然run18dbe01eba875480-49512/terminal2026-10-06T07:28:20.258991Z/exit75/entrypoint_exit_75/effect unknown/loaded-idle。source更新の自然到達は確認、Paid全体正常化・売上成功は未達。手動wake/restart0。
+- 次はこの新occurrenceのactual lock/dispatch証拠を既存経路へ結び、price/handoff必須guardと資格・費用の不明を維持したまま必要な修復だけ進める。旧26claims解除/marker後付け0。current1/残30/mock取消/後段順維持。
