@@ -9328,3 +9328,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 公開一次資料 https://help.coconala.com/hc/ja/articles/230180287 を現在取得し、platform売上金は取引完了時に販売手数料控除後に計上する規則を確認。通常とvideoの料金体系が異なるため、一律率や逆算で対象のactual feeを作らず、CSVに第二のflat feeを差し引かない。CSV「売上金額」列の定義との直接bindingは未確認と残す。二次記事の数値を根拠へしない。
 - project18211957内にmoney-related filenamesは見つからないが全costledger無し/0円とは断定しない。不足はorder-bound gross/net/fee明細、payoutと銀行着金のmatching receipt（batchならaggregation map）、同案件actual cost記録。残高や取引完了だけを銀行入金/利益へ昇格しない。private evidence `coconala-18211957-settlement-gap.json`。
 - 再開条件は正規accountreadbackと同案件financial/cost sources取得。既存Coconala403に同じ操作を盲反復せず、source boundaryを診断する。current2は未完、適格サービス契約待ち1/正式納品/全14financeも未完、SelfBuild/Lancersの後段を維持。
+
+### 723. cursor2の現売上routeは403、empty salesへ誤変換しない
+
+- 同main4429 immutableとregistered coconala:kosuke/既存gig lock内で `/mypage/revenue` をread-only観測。2026-10-06T15:07:26.584183Z、HTTP403/route一致/body13chars/bodySHA58404bdf6dc25c24fedd979469e69bfb8dc9ebca64a469929a858a12b12b9c30、revenue container無し/login redirectfalse/CAPTCHA表示false。正規revenue parserへ渡す前のsource gateで止め、row_count0/売上0/完了へしない。
+- legacyrevenue_collectorをsource/caller確認したが、append mode・振込申請・銀行変更・CFOledger writeは実行0。見つからないページ/同URL403を受取0の成功として扱わない。証拠 `coconala-current-revenue-route.json`、own pageとleaseを終了、外部effect0。
+- 受注と売上の異なる公式route両方で403を確認。vendor認証不良・アクセス制限・ブラウザfingerprint原因はまだ断定せず、表示challenge無しにsolver taskを作らない。再開条件はregistered正規accountのrevenue route HTTP200/expectedcontainer/同18211957明細とpayout/costのsource。現在2は未完、unknown財務を0やsettledにしない。
+- このvendor依存だけで全channelを止めず、アクセス境界診断と独立source取得を進める。主29順序/SelfBuild25/Lancers26〜28は維持。
