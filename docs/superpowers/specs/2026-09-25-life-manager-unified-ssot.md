@@ -9925,3 +9925,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - CFO registryはdeterministic/borrow/support/startInterval3600。health explainはruntime ok/effect not_applicable、productivity blocked/recovery degraded、capacity延期/retry_after_eligibility。最新18:57runのscratch admission receiptは確認pathに無し、別runを代用品にしない。
 - current resource owner JSON4件にPID存在をread-only確認（process-start一致の完全証明ではない）。durable SQLiteをmode roで読んだ予約5件は時点lease active、revenue class。CFO occurrence最新はqueued/effectunknown0、cancelled/released履歴あり。current occupancyを18:57当時のsnapshotへ遡及しない。設定は既存default上限とplist revenue floor3を確認、予約/owner/state変更0。CFO effect fenceで止まっている証拠は無く、他収益owner停止・capacity制約迂回をしない。
 - current17自然readback待ち。20はperiod runtime/共有費配分の不足を保持し、B7利益や支払費用を猜測で閉じない。provider mutation/取引/通知/追加source実装0。
+
+
+### 800. 個人Moneytreeの現在応答と銀行鮮度の不足
+
+- 既存Moneytree app tool moneytree.show-accountsが現sessionでcallableと確認しlocaleja/read-only取得。provider current responseはJPY504302/1savings account、個人scope。provider/bank更新時刻はdata/rowに返らないため取得時刻19:41:45Zを銀行更新時刻へすり替えない。会社cash/銀行fresh balanceへ採用せずprivate moneytree-current-personal-balance-readback.jsonへ匿名balance情報だけ保存mode600。
+- show-transactionsで09-27〜10-06/limit100/sortdescは成功/0rows（当該scopeだけ）。鮮度境界の追加観測として既定3months/最新1を取得、07-06〜10-06/total167/returned1/latest2026-08-25T00:00:00+09:00。休眠/未同期のどちらかは断定しない。私的merchant/口座番号/名称は保存・表示せずprivate moneytree-recent-transaction-scope-readback.json/mode600。
+- 新login/connector追加/資金移動/ledger write0。残23は銀行側updated-atまたは同期公式readback、個人と会社cashの分離。欠損を0、古い最後の取引を現在残高証明、個人balanceをcompany runwayへ変換しない。
+- 実費adapterはinvoice lineのexplicit job/document/line→canonical loop joinsを要求し、shared managerというrepo/名前だけでCFOへ全額押込まない。20帰属不足と17新source自然readbackを保持、独立した既存23読取だけを進めた。
