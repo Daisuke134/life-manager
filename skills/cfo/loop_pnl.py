@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from skills.cfo import economic_attribution as contract  # noqa: E402
+from skills.cfo import revenuecat_readback  # noqa: E402
 from skills.cfo.adapters import actual_cost, affiliate, agent_economy_investment
 from skills.cfo.adapters import capafy_mobile, marketplace, stripe, writer  # noqa: E402
 
@@ -126,6 +127,27 @@ def _read_b7_payload(path: str | Path):
     return json.loads(text)
 
 
+def _live_mobile_revenuecat_readback(env: dict[str, str]) -> dict:
+    started_at = _utc_text(datetime.now(timezone.utc))
+    try:
+        row = credential(
+            "revenuecat-mobile-existing-deployment", path=CREDENTIALS,
+        )
+        api_key = row.get("api_key") if isinstance(row, dict) else None
+        return revenuecat_readback.fetch_current_mrr(
+            project_id=env.get("REVENUECAT_PROJECT_ID"),
+            api_key=api_key,
+            product_bindings=capafy_mobile.MOBILE_PRODUCT_BINDINGS,
+        )
+    except Exception:
+        # A missing helper/credential read is a coverage gap; it must not reopen the static MRR.
+        return {
+            "rows": [], "latest_observed_at": None,
+            "started_at": started_at,
+            "completed_at": _utc_text(datetime.now(timezone.utc)),
+        }
+
+
 def _paths(value: str | None) -> list[Path]:
     return [Path(item) for item in str(value or "").split(os.pathsep) if item.strip()]
 
@@ -144,11 +166,15 @@ def _safe_b7_adapter(call, *, source_id: str, loop_ids: tuple[str, ...],
 
 def collect_b7_records(*, snapshot_at: str, trailing_start: str,
                        adapter_records: dict[str, list[dict]] | None = None,
+                       mobile_readback: dict | None = None,
                        env: dict[str, str] | None = None) -> list[dict]:
     """Read only already-captured B1-B6 artifacts and return one joined record array."""
     if adapter_records is not None:
         return join_adapter_records(adapter_records)
     env = os.environ if env is None else env
+    mobile_live = env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") == "1"
+    if mobile_live and mobile_readback is None:
+        mobile_readback = _live_mobile_revenuecat_readback(env)
     sources: dict[str, list[dict]] = {name: [] for name in B7_ADAPTER_ORDER}
 
     capafy_path = env.get("LM_CFO_CAPAFY_ANALYTICS")
@@ -171,6 +197,30 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
+    if mobile_live:
+        live_mobile_records = _safe_b7_adapter(
+            lambda: capafy_mobile.adapt_mobile(
+                mobile_readback.get("rows") if isinstance(mobile_readback, dict) else None,
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ),
+            source_id="revenuecat-mrr", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+        # Static business-outcomes may still carry ASC evidence, but its RevenueCat MRR is
+        # deliberately discarded whenever live mode is enabled.
+        mobile_records = [row for row in mobile_records if (
+            (row.get("record_type") == "receipt"
+             and row.get("provider") == "app-store-connect-financial")
+            or (row.get("record_type") == "coverage"
+                and row.get("source_id") == "app-store-connect-financial"
+                and row.get("projection") in {"historical", "trailing"})
+        )]
+        mobile_records.extend(row for row in live_mobile_records if (
+            (row.get("record_type") == "subscription_snapshot"
+             and row.get("provider") == "revenuecat")
+            or (row.get("record_type") == "coverage"
+                and row.get("source_id") == "revenuecat-mrr")
+        ))
     if financial_packet_path:
         legacy_asc_receipts = any(
             row.get("record_type") == "receipt"
@@ -332,11 +382,32 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
 
 def build_b7_projection(*, snapshot_at: str, trailing_start: str,
                         adapter_records: dict[str, list[dict]] | None = None,
+                        snapshot_at_is_explicit: bool = False,
+                        trailing_start_is_explicit: bool = False,
                         env: dict[str, str] | None = None) -> dict:
+    env = os.environ if env is None else env
+    mobile_readback = None
+    if (
+        adapter_records is None
+        and env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") == "1"
+    ):
+        mobile_readback = _live_mobile_revenuecat_readback(env)
+        read_at = mobile_readback.get("completed_at")
+        if read_at and not snapshot_at_is_explicit:
+            current_end = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+            read_end = datetime.fromisoformat(read_at.replace("Z", "+00:00"))
+            if read_end > current_end:
+                delta = read_end - current_end
+                snapshot_at = _utc_text(read_end)
+                if not trailing_start_is_explicit:
+                    trailing_end = datetime.fromisoformat(
+                        trailing_start.replace("Z", "+00:00")
+                    ) + delta
+                    trailing_start = _utc_text(trailing_end)
     return project_records(
         collect_b7_records(
             snapshot_at=snapshot_at, trailing_start=trailing_start,
-            adapter_records=adapter_records, env=env,
+            adapter_records=adapter_records, mobile_readback=mobile_readback, env=env,
         ),
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
@@ -1022,6 +1093,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         projection = build_b7_projection(
             snapshot_at=snapshot_at, trailing_start=trailing_start,
+            snapshot_at_is_explicit=args.snapshot_at is not None,
+            trailing_start_is_explicit=args.trailing_start is not None,
         )
     except contract.ContractError as error:
         print(json.dumps({"status": "failed", "reason": error.code, "field": error.field}))
