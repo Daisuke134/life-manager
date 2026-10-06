@@ -9403,3 +9403,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Coconala3〜5/7は同ALB取得境界を保持。Mercor6も旧intent不足なので独立順序8 Freelancerの既存経路を確認。freelancer_readinessはvalidator、freelancer_transportはauthorization-bound公式route取得、bid_watchは公開GETでありaccount/bidderの受注判定ではない。bid_watch mainのstate append/Telegramを実行せず、pure fetchだけ使用した。
 - handle49705 exit0。UTC2026-10-06T15:53:42.930921、公式公開GET4件40620700/40620877/40620839/40620523すべてstatus closed/sub_status closed_expired/frontend complete。新規応募候補から除外する。frontend completeを自分の納品・精算の証拠にしない。証拠private cli-observability-20261006/freelancer-four-public-project-readback.json。provider effects/notify/state append/応募0。
 - 現在の実行cursorは8のaccount-bound公式inventory/新規案件取得。2の振込・fee・実費、3〜7の具体的不足を保留で保持し、主29の相対順序とSelfBuild/Lancers後段を変更しない。次はcredential SSOTの存在を秘密値非表示で確認し、既存authorized transport/登録browserの現readinessを照合する。
+
+
+### 733. Freelancer通常ログインの実測と現credential不足
+
+- private credential SSOT mode600にはFreelancer login/password recordが1件存在。最初のservice/url/name/provider検索は一致0だったが、URL/noteを含む直下全field検索で回収。秘密値の表示/コピー/変更0。旧oauth file無し、旧gig-freelancer profile無し、authorization storeにFreelancer receipt無し。これらをcredential全体不在へ一般化しない。
+- browser registry19identity中Freelancer専用identity無し。interactive:daisはreachableで、registered leaseを使い自分の新規pageだけを開閉した。公式dashboardはHTTP200→/login、password formあり、visible CAPTCHA無し。証拠private freelancer-current-auth-boundary.json。
+- 最初のlogin probeはbutton名大小文字不一致でsubmit0（Log In想定、実DOM Log in）。実button取得後に正規Log inへ通常認証を1回実施。handle37808 exit0、UTC2026-10-06T15:55:39.051549、/login/password form保持/invalid_credentials_visible true、CAPTCHA/2FA false。application effect0。証拠private freelancer-normal-login-result.json。認証成功/account-bound inventory取得は未完。
+- 今のcursor8はcredential有効性/既存account復旧経路の診断。必要な次の操作は公式Forgot Password経路と既存メールreceipt取得経路の確認、復旧できたcredentialは正本へ保存して再login実測。秘密やcodeをchatへ出さない。providerの自動入札例外receiptが無い点は応募前に公式規約/既存承認証拠を確認し、認証成功と応募可能を混同しない。
+- 2〜7の保留/銀行fee実費unknownを保持し主29相対順序不変。今回のsource/本番loop変更、応募、返信、価格/出品変更、振込0。
