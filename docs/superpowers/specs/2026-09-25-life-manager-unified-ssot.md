@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在cursor：1.1（CrowdWorks契約候補64033100/63989657/63942104のprice_minor不足原因と公式契約金額を確認する）。主経路29項目。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
+現在cursor：1.2（CrowdWorks64033100/63989657/63942104の既存receipt・作業指示・期限・実費を確認し、実行する1件と成果物名を確定する）。1.1の額取得修復は実readback限定Done、主経路29項目の履行/精算は未完。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
 
 今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO現loadedが旧版へ戻る反映経路の確認と接続維持が未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
@@ -9283,3 +9283,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - pushed main由来ALL immutable `/Users/anicca/loops/releases/20261006T231533-4429dfb4` 作成、currentは2cf94f43のまま。adapterはmain blob一致。source-only worker/Root既存testsのPASSを実納品へ丸めない。
 - registered crowdworks:dais/targetowner、with-browser lease＋既存provider lock内で新immutableの対象3件read-only GETを開始（run79847）。funded/price/税込source/terms hash/純粋handoff検証を保存し、buyer本文/credentialを保存/出力しない。提出/再送/納品/台帳write0。actual price/readback/1.1完了は結果が出るまで未確認。
 - current1.1/残29順序不変。新Paid owner applyと自然処理成果は未完。
+
+### 716. 1.1公式3契約価格・handoff検証PASS、cursor1.2へ
+
+- main4429dfb4 immutableのread-only GET run79847はexit0、2026-10-06T14:18:41〜14:18:54Zに対象64033100/63989657/63942104を取得。全3funded、税込契約金額12JPY、amount observation observed/primary values[12]、純粋paid_handoff検証true。SourceSHA25635c57360a8441dcd41c56efed892a3b16a3fe3630b9a76b86392bbf7ab473173、terms hashは個別保持。外部effect/台帳write0。証拠 `crowdworks-fixed-three-contract-readback.json`。銀行入金・実精算・利益とは別であり、契約額12を収益へ計上しない。
+- 1.1のfield欠損原因特定・source修復・source review/CI/main/immutable/実3readbackは限定Done。次1.2ではどの契約を実行し何を納品するかを確定する。form候補数1/3/1、prepared workなし。63989657/63942104の保存itemは旧form selection待ち・intent/receiptなしだが、古い状態だけで未送信と確定しない。公式フォーム/既存bound receiptをread-onlyで確認してから選ぶ。
+- runtimePaid ownerは14:21のreadbackでまだ旧2cf、shared release-reconcilerはPID43121のlive owner。rootは競合apply/current変更を行わず、別のcurrent選択が4429dfb4へ進んだことを確認した。reconciler state errorは既知なので全fleetの反映成功とはしない。新getterを含むPaid実loaded/自然処理は未完、1.1データ修復Doneとruntime完了を分離する。証拠 `amount-release-owner-current.json`/`amount-fixed-runtime-status.json`。
+- 現在cursor1.2、主29の相対順序不変、正式納品1.3・精算/着金2は未完。
