@@ -9500,3 +9500,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - CIE要件はdata collection/dup run防止/failed-only retry/draft durability/renderer/publishing/timezone/provider reconciliation/performance before-after、小さな検証可能release、proposal prefix CIE。現agent reliability/実production repair経験に近いため優先candidateとする。未経験FastAPI等を捏造しない、scope外の広告/スパム送信を約束しない。要件取得は受注や実利益ではない。
 - 個人profileのDec1 new-role startをfreelance/service開始禁止へ機械流用しない。一方、即時40h稼働等も根拠なしに約束しない。cursor9次はCIEのproposal form/feeと既存公開profileのhourly termsをread-only照合、実証できる経験でproposal準備→既存authorization/effect fence/source-bound正式送信条件。現Connects18/必要13を支払済みへしない。tax/withdrawal不足を維持。
 - 主29相対順序/2〜8保留/SelfBuild後段不変。応募/返信/Connects消費/課金/振込/本番loop変更0。
+
+
+### 745. CIE提案条件と既存Upwork deny receipt発見
+
+- CIE Apply nowのanchor待機はtimeout/effect0。既存proposal_browserのcanonical /nx/proposals/job/{job_id}/apply/#/をsource確認して同formへread-only GET。handle89786 exit0、UTC2026-10-06T16:12:35.161072、HTTP200/正規job path/textareaとhourly rate controls。private upwork-cie-proposal-form-private.json。
+- 公式form profile rate50USD/hr、fee10%、required13Connects/remaining5、rate increase optional、boost optional。boost input表示52は必要Connectsではなく順位向上候補で、送信costへ採用しない。フォーム入力/submit/boost/Connects消費0。実売上/利益でなく見込terms。
+- provider_authorization正本を読取するとUpwork propose/message/accept_offer/deliver_milestone/searchはdenied、expiry2027-08-26、terms_version upwork-trust-safety-warning-7VRYVE-Z3EN5。inspect/read_payments/read_payoutsのapproved receiptは2026-09-25期限切れ。これをもっと早くreadiness前に確認すべきだった。provider gate外の直接read成功を許可へ代用せず、今後追加Upwork操作を止めて根拠の照合へ切り替える。
+- 既存evidence/upwork-special-approval.jsonはoperator_direct_special_approval/2026-08-22記録/2026-09-22期限、warning後のprovider解除receiptではない。現警告の外部source/bodyと解除証拠はまだ未確認。receiptを自分でapprovedへ変更しない、Daisの一般実行委任をprovider警告解除と扱わない。
+- cursor9残は既存warning公式証拠/現解除状態の保存readback。CIE応募はHOLD、提案フォーム可視だけで送信しない。独立後続10の実storefront注文/11Capafyへ進める条件は既存正本順序に従う。主29相対順序/前段保留/SelfBuild後段保持、応募/返信/Connects消費/課金/振込/本番loop変更0。
