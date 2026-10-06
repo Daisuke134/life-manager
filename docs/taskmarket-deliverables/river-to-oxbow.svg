@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1220" viewBox="0 0 1600 1220" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">A River Leaves a Lake Behind</title>
+  <desc id="svg-desc">Three connected overhead landscape panels show one possible river change: a pronounced meander with a narrow neck, a shorter cutoff channel beside the former bend, and a detached curved oxbow lake beside a river that continues to flow. The repeated hills, fields, trees, and cottage keep the reach recognizable. Schematic, not to scale, with no fixed elapsed time.</desc>
+  <metadata>Original vector illustration. Reading order: left to right, stages 1 through 3. A public scholarly abstract supports entrance aggradation and lake isolation; this simplified sequence claims no universal outcome or fixed timetable.</metadata>
+  <!--
+    Source mapping (claims are paraphrased; no source diagram or prose is copied):
+    https://opentextbc.ca/geology/chapter/13-4-stream-types/
+      Stage 1 caption: faster outer-bank flow erodes, inner-bank deposition builds point bars, and meanders can become more sinuous; a thin neck may erode through, allowing an oxbow to form.
+      Stage 2 caption: the neck cutoff is presented as one possible shorter route, not as an inevitable fate of every bend.
+    https://api.openalex.org/works/https://doi.org/10.1111/j.1365-3091.2009.01084.x
+      Stage 3 caption: the public abstract reports that aggradation within abandoned-channel entrances can isolate lakes, at rates that vary with conditions. The article full text was not accessed; no universal outcome or fixed timetable is claimed.
+  -->
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbfaf4"/>
+      <stop offset="1" stop-color="#f1efe4"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#81d1c8"/>
+      <stop offset="1" stop-color="#46aaa9"/>
+    </linearGradient>
+    <linearGradient id="lake-water" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a3ded5"/>
+      <stop offset="1" stop-color="#65bdb9"/>
+    </linearGradient>
+    <filter id="panel-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#45584b" flood-opacity=".10"/>
+    </filter>
+    <marker id="flow-arrow" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L11 6 L1 11 Z" fill="#fff8e9" stroke="#387f7e" stroke-width="1.2" stroke-linejoin="round"/>
+    </marker>
+    <clipPath id="map-clip-1"><rect x="0" y="0" width="450" height="480" rx="22"/></clipPath>
+    <clipPath id="map-clip-2"><rect x="0" y="0" width="450" height="480" rx="22"/></clipPath>
+    <clipPath id="map-clip-3"><rect x="0" y="0" width="450" height="480" rx="22"/></clipPath>
+    <g id="landmarks">
+      <!-- common high meadow -->
+      <path d="M0 0H450V111 C406 122 369 107 329 112 C283 117 255 137 207 127 C162 118 126 106 84 119 C49 129 23 122 0 113Z" fill="#e3ecd7"/>
+      <path d="M0 54 C36 27 70 28 110 51 C131 63 147 82 164 108 C123 97 91 88 54 100 C32 107 16 111 0 106Z" fill="#d0e0c6"/>
+      <path d="M303 20 C344 3 397 18 450 48V109 C419 109 388 96 354 103 C326 109 304 115 277 116 C300 89 308 59 303 20Z" fill="#d6e4cb"/>
+      <path d="M8 31 C47 15 79 18 104 37" fill="none" stroke="#c0d5b8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M338 43 C369 26 401 34 429 55" fill="none" stroke="#c1d8bb" stroke-width="3" stroke-linecap="round"/>
+      <!-- shared field geometry -->
+      <path d="M0 319 C47 300 87 300 130 320 L127 480H0Z" fill="#e5e9c9"/>
+      <path d="M0 347 C46 327 83 330 120 346 M0 370 C43 351 81 353 120 369 M0 395 C41 378 78 378 119 393 M0 420 C38 405 77 404 118 418" fill="none" stroke="#c9d39e" stroke-width="3" opacity=".82"/>
+      <path d="M326 325 C369 301 408 303 450 320V480H319Z" fill="#e9ebd1"/>
+      <path d="M330 350 C367 328 408 329 450 345 M326 378 C368 356 409 357 450 374 M322 406 C365 384 408 386 450 402" fill="none" stroke="#d0d7ad" stroke-width="3" opacity=".8"/>
+      <!-- shared hedgerow and footpath -->
+      <path d="M111 0 C133 41 126 76 144 108 M337 0 C324 43 343 68 330 106 M0 311 C60 291 99 301 136 317 M310 318 C353 297 394 302 450 314" fill="none" stroke="#99b48b" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" opacity=".8"/>
+      <path d="M294 301 C310 331 304 358 319 388 C333 414 355 435 370 480" fill="none" stroke="#d7c9a7" stroke-width="5" stroke-linecap="round"/>
+      <path d="M294 301 C310 331 304 358 319 388 C333 414 355 435 370 480" fill="none" stroke="#f7f1df" stroke-width="2" stroke-dasharray="4 8" stroke-linecap="round"/>
+      <!-- shared cottage and orchard -->
+      <g transform="translate(362 382)">
+        <path d="M-18 1 L0 -15 L19 1 V23 H-18Z" fill="#f5ead2" stroke="#7f7864" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M-22 2 L0 -18 L23 2" fill="none" stroke="#a9634c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="-5" y="9" width="9" height="14" rx="1" fill="#9a7652"/>
+        <rect x="-14" y="6" width="7" height="7" rx="1" fill="#8ec7bd"/>
+        <rect x="8" y="6" width="7" height="7" rx="1" fill="#8ec7bd"/>
+      </g>
+      <g fill="#6f9871" stroke="#4f775e" stroke-width="2">
+        <circle cx="391" cy="376" r="13"/><circle cx="420" cy="395" r="11"/><circle cx="392" cy="414" r="10"/>
+        <circle cx="33" cy="149" r="15"/><circle cx="63" cy="165" r="12"/><circle cx="404" cy="151" r="14"/><circle cx="431" cy="169" r="11"/>
+      </g>
+      <g fill="#a8c58c">
+        <circle cx="28" cy="144" r="5"/><circle cx="58" cy="160" r="4"/><circle cx="399" cy="146" r="5"/><circle cx="427" cy="165" r="4"/>
+        <circle cx="387" cy="371" r="4"/><circle cx="416" cy="391" r="4"/><circle cx="389" cy="411" r="3.5"/>
+      </g>
+      <!-- shared small stones and meadow flowers -->
+      <g fill="#c4b894" opacity=".78">
+        <ellipse cx="76" cy="290" rx="7" ry="3"/><ellipse cx="89" cy="286" rx="4" ry="2.5"/><ellipse cx="281" cy="335" rx="6" ry="3"/>
+        <ellipse cx="249" cy="28" rx="6" ry="3"/><ellipse cx="267" cy="34" rx="4" ry="2.5"/>
+      </g>
+      <g fill="#e2aa73" opacity=".9">
+        <circle cx="146" cy="365" r="2.7"/><circle cx="157" cy="382" r="2.3"/><circle cx="285" cy="373" r="2.5"/>
+        <circle cx="299" cy="396" r="2.2"/><circle cx="189" cy="316" r="2.3"/>
+      </g>
+    </g>
+    <style>
+      .panel { fill:#fffdf7; stroke:#dedbcf; stroke-width:1.5; }
+      .panel-title { font:700 27px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill:#263e39; letter-spacing:-.45px; }
+      .stage { font:700 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill:#42655a; letter-spacing:1.3px; }
+      .caption { font:500 20px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill:#334741; }
+      .map-label { font:700 14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill:#34534c; letter-spacing:.15px; }
+      .map-note { font:600 17px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill:#557068; letter-spacing:.35px; }
+      .flow-arrow { fill:none; stroke:#fff8e9; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; marker-end:url(#flow-arrow); }
+      .active-bank { fill:none; stroke:#b5a276; stroke-width:57; stroke-linecap:round; stroke-linejoin:round; }
+      .active-water { fill:none; stroke:url(#water); stroke-width:49; stroke-linecap:round; stroke-linejoin:round; }
+      .active-glint { fill:none; stroke:#bce9df; stroke-width:31; stroke-linecap:round; stroke-linejoin:round; opacity:.78; }
+      .old-bank { fill:none; stroke:#b8ad91; stroke-width:55; stroke-linecap:round; stroke-linejoin:round; }
+      .old-water { fill:none; stroke:#a9d1c8; stroke-width:46; stroke-linecap:round; stroke-linejoin:round; }
+      .old-glint { fill:none; stroke:#d2e8dc; stroke-width:28; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+    </style>
+  </defs>
+  <rect width="1600" height="1220" fill="url(#page)"/>
+  <circle cx="1511" cy="69" r="43" fill="#e2ead7" opacity=".72"/>
+  <circle cx="1541" cy="46" r="17" fill="#bfd7bc" opacity=".86"/>
+  <path d="M1483 89c13-17 27-26 48-28" fill="none" stroke="#93b49d" stroke-width="4" stroke-linecap="round"/>
+  <text x="43" y="65" font-family="Georgia,'Times New Roman',serif" font-size="44" font-weight="700" fill="#263e39" letter-spacing="-.8">A River Leaves a Lake Behind</text>
+  <text x="46" y="101" font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="20" fill="#65776b">One possible path from a meander to an oxbow lake</text>
+  <g transform="translate(1067 42)">
+    <rect width="442" height="47" rx="23.5" fill="#e6ecdd" stroke="#d2ddcb"/>
+    <circle cx="23" cy="23.5" r="5" fill="#729779"/>
+    <text x="39" y="29" font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="17" font-weight="700" fill="#456052" letter-spacing=".45">SCHEMATIC  •  NOT TO SCALE  •  NO FIXED TIME</text>
+  </g>
+  <path d="M44 122 H1556" stroke="#d9ddd1" stroke-width="1.5"/>
+
+  <!-- Panel 1: the active river follows the full meander. -->
+  <g transform="translate(36 146)">
+    <rect class="panel" x="0" y="0" width="494" height="1012" rx="28" filter="url(#panel-shadow)"/>
+    <g transform="translate(25 26)">
+      <circle cx="19" cy="19" r="18" fill="#dce9d7"/><text x="19" y="24" text-anchor="middle" class="stage">01</text>
+      <text x="50" y="27" class="panel-title">A bend grows</text>
+      <text x="0" y="60" class="stage">OUTER BANK ERODES  ·  INNER BANK BUILDS</text>
+    </g>
+    <g transform="translate(22 104)">
+      <rect width="450" height="480" rx="22" fill="#edf1dd" stroke="#d7ddcf" stroke-width="1.5"/>
+      <g clip-path="url(#map-clip-1)">
+        <use href="#landmarks"/>
+        <path d="M-12 260 C47 260 90 250 132 245 Q155 240 177 240 C174 218 169 193 164 164 C156 126 170 96 198 72 C220 53 250 66 268 96 C286 126 278 158 266 187 C256 213 248 226 245 244 Q277 250 309 259 C356 272 402 258 462 260" class="active-bank"/>
+        <path d="M-12 260 C47 260 90 250 132 245 Q155 240 177 240 C174 218 169 193 164 164 C156 126 170 96 198 72 C220 53 250 66 268 96 C286 126 278 158 266 187 C256 213 248 226 245 244 Q277 250 309 259 C356 272 402 258 462 260" class="active-water"/>
+        <path d="M-12 260 C47 260 90 250 132 245 Q155 240 177 240 C174 218 169 193 164 164 C156 126 170 96 198 72 C220 53 250 66 268 96 C286 126 278 158 266 187 C256 213 248 226 245 244 Q277 250 309 259 C356 272 402 258 462 260" class="active-glint"/>
+        <!-- A small inner-bank bar and outer-bank erosion marks make the process visible. -->
+        <path d="M201 215 C216 211 231 213 240 221 C227 226 211 225 201 215Z" fill="#d6bb82" stroke="#b89b62" stroke-width="1.4"/>
+        <path d="M147 202l-7 6 M151 211l-8 6 M276 204l8 5 M272 214l8 6" stroke="#8d8068" stroke-width="2.3" stroke-linecap="round" opacity=".8"/>
+        <path d="M25 260L81 258" class="flow-arrow"/>
+        <path d="M174 222Q171 208 169 194" class="flow-arrow"/>
+        <path d="M215 65Q234 64 250 78" class="flow-arrow"/>
+        <path d="M315 260L371 263" class="flow-arrow"/>
+        <g transform="translate(170 188)">
+          <rect x="0" y="0" width="115" height="24" rx="12" fill="#fffdf3" stroke="#d7c89f"/>
+          <text x="57.5" y="17" text-anchor="middle" class="map-note">narrow neck</text>
+        </g>
+        <path d="M225 214L220 231" fill="none" stroke="#9a8456" stroke-width="1.6" stroke-linecap="round"/>
+        <g transform="translate(16 438)">
+          <rect width="145" height="25" rx="12.5" fill="#fffdf3" stroke="#d8ddcf"/>
+          <path d="M13 13h23" class="flow-arrow"/>
+          <text x="45" y="17" class="map-note">active flow</text>
+        </g>
+      </g>
+    </g>
+    <g transform="translate(25 617)">
+      <rect width="444" height="350" rx="21" fill="#f5f3e9" stroke="#e3e0d3"/>
+      <text x="24" y="41" class="stage">THE RIVER SHAPES THE BEND</text>
+      <text x="24" y="87" class="caption">
+        <tspan x="24" dy="0">Faster flow erodes the outer banks while</tspan>
+        <tspan x="24" dy="30">slower water deposits sand on inner banks,</tspan>
+        <tspan x="24" dy="30">sharpening this bend and narrowing the land</tspan>
+        <tspan x="24" dy="30">between its limbs.</tspan>
+      </text>
+      <g transform="translate(24 250)">
+        <circle cx="8" cy="8" r="7" fill="#c4a76c"/><text x="25" y="13" class="map-note">Same reach · same landmarks · overhead view</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Panel 2: a possible shortcut captures the active flow; the old loop remains connected. -->
+  <g transform="translate(553 146)">
+    <rect class="panel" x="0" y="0" width="494" height="1012" rx="28" filter="url(#panel-shadow)"/>
+    <g transform="translate(25 26)">
+      <circle cx="19" cy="19" r="18" fill="#f2e5c9"/><text x="19" y="24" text-anchor="middle" class="stage">02</text>
+      <text x="50" y="27" class="panel-title">A shortcut opens</text>
+      <text x="0" y="60" class="stage">ONE POSSIBLE NECK CUTOFF</text>
+    </g>
+    <g transform="translate(22 104)">
+      <rect width="450" height="480" rx="22" fill="#edf1dd" stroke="#d7ddcf" stroke-width="1.5"/>
+      <g clip-path="url(#map-clip-2)">
+        <use href="#landmarks"/>
+        <!-- The former bend remains connected at both ends but carries no directional arrows. -->
+        <path d="M177 240 C174 218 169 193 164 164 C156 126 170 96 198 72 C220 53 250 66 268 96 C286 126 278 158 266 187 C256 213 248 226 245 244" class="old-bank"/>
+        <path d="M177 240 C174 218 169 193 164 164 C156 126 170 96 198 72 C220 53 250 66 268 96 C286 126 278 158 266 187 C256 213 248 226 245 244" class="old-water"/>
+        <path d="M177 240 C174 218 169 193 164 164 C156 126 170 96 198 72 C220 53 250 66 268 96 C286 126 278 158 266 187 C256 213 248 226 245 244" class="old-glint"/>
+        <path d="M-12 260 C47 260 90 250 132 245 Q155 240 177 240 L245 244 Q277 250 309 259 C356 272 402 258 462 260" class="active-bank"/>
+        <path d="M-12 260 C47 260 90 250 132 245 Q155 240 177 240 L245 244 Q277 250 309 259 C356 272 402 258 462 260" class="active-water"/>
+        <path d="M-12 260 C47 260 90 250 132 245 Q155 240 177 240 L245 244 Q277 250 309 259 C356 272 402 258 462 260" class="active-glint"/>
+        <path d="M25 260L81 258" class="flow-arrow"/>
+        <path d="M187 241L232 243" class="flow-arrow"/>
+        <path d="M315 260L371 263" class="flow-arrow"/>
+        <g transform="translate(166 201)">
+          <rect width="114" height="24" rx="12" fill="#fffdf3" stroke="#d7c89f"/>
+          <text x="57" y="17" text-anchor="middle" class="map-note">new channel</text>
+        </g>
+        <path d="M223 228L222 239" fill="none" stroke="#9a8456" stroke-width="1.6" stroke-linecap="round"/>
+        <g transform="translate(16 438)">
+          <rect width="145" height="25" rx="12.5" fill="#fffdf3" stroke="#d8ddcf"/>
+          <path d="M13 13h23" class="flow-arrow"/>
+          <text x="45" y="17" class="map-note">active flow</text>
+        </g>
+      </g>
+    </g>
+    <g transform="translate(25 617)">
+      <rect width="444" height="350" rx="21" fill="#f5f3e9" stroke="#e3e0d3"/>
+      <text x="24" y="41" class="stage">A SHORTER ROUTE CAN TAKE OVER</text>
+      <text x="24" y="87" class="caption">
+        <tspan x="24" dy="0">Here, one possible neck cutoff creates a</tspan>
+        <tspan x="24" dy="30">shorter channel; active flow takes that route</tspan>
+        <tspan x="24" dy="30">while the former bend remains connected as</tspan>
+        <tspan x="24" dy="30">a quieter side loop.</tspan>
+      </text>
+      <g transform="translate(24 250)">
+        <circle cx="8" cy="8" r="7" fill="#c4a76c"/><text x="25" y="13" class="map-note">Shortcut active · former bend still open</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Panel 3: both old entrances are visibly detached; the active river continues. -->
+  <g transform="translate(1070 146)">
+    <rect class="panel" x="0" y="0" width="494" height="1012" rx="28" filter="url(#panel-shadow)"/>
+    <g transform="translate(25 26)">
+      <circle cx="19" cy="19" r="18" fill="#d9ebe5"/><text x="19" y="24" text-anchor="middle" class="stage">03</text>
+      <text x="50" y="27" class="panel-title">A lake is left behind</text>
+      <text x="0" y="60" class="stage">A CURVED LAKE BESIDE THE ACTIVE RIVER</text>
+    </g>
+    <g transform="translate(22 104)">
+      <rect width="450" height="480" rx="22" fill="#edf1dd" stroke="#d7ddcf" stroke-width="1.5"/>
+      <g clip-path="url(#map-clip-3)">
+        <use href="#landmarks"/>
+        <!-- Both rounded lake tips stop well above the continuously flowing shortcut channel. -->
+        <path d="M177 190 C173 164 166 137 171 113 C178 81 201 64 226 65 C254 66 273 88 279 116 C286 144 273 170 251 190" fill="none" stroke="#b4a477" stroke-width="51" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M177 190 C173 164 166 137 171 113 C178 81 201 64 226 65 C254 66 273 88 279 116 C286 144 273 170 251 190" fill="none" stroke="url(#lake-water)" stroke-width="43" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M177 190 C173 164 166 137 171 113 C178 81 201 64 226 65 C254 66 273 88 279 116 C286 144 273 170 251 190" fill="none" stroke="#d0eee4" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" opacity=".78"/>
+        <!-- Small sediment fans sit at the separated former entrances. -->
+        <path d="M168 207l8 5 8 1 M171 214l8 4 7 1 M243 213l9-2 8-5 M244 220l8-2 8-5" fill="none" stroke="#bd9b61" stroke-width="3" stroke-linecap="round"/>
+        <path d="M-12 260 C47 260 91 260 137 260 C184 260 222 260 267 260 C326 260 391 260 462 260" class="active-bank"/>
+        <path d="M-12 260 C47 260 91 260 137 260 C184 260 222 260 267 260 C326 260 391 260 462 260" class="active-water"/>
+        <path d="M-12 260 C47 260 91 260 137 260 C184 260 222 260 267 260 C326 260 391 260 462 260" class="active-glint"/>
+        <path d="M25 260L81 260" class="flow-arrow"/>
+        <path d="M185 260L235 260" class="flow-arrow"/>
+        <path d="M319 260L375 260" class="flow-arrow"/>
+        <g transform="translate(175 119)">
+          <rect width="100" height="24" rx="12" fill="#f7fffb" stroke="#b9d9d0"/>
+          <text x="50" y="17" text-anchor="middle" class="map-note">oxbow lake</text>
+        </g>
+        <g transform="translate(16 438)">
+          <rect width="145" height="25" rx="12.5" fill="#fffdf3" stroke="#d8ddcf"/>
+          <path d="M13 13h23" class="flow-arrow"/>
+          <text x="45" y="17" class="map-note">active flow</text>
+        </g>
+        <g transform="translate(286 197)">
+          <rect width="150" height="23" rx="11.5" fill="#fffaf0" stroke="#dfcfaa"/>
+          <text x="75" y="16.5" text-anchor="middle" class="map-note">old ends sealed</text>
+        </g>
+      </g>
+    </g>
+    <g transform="translate(25 617)">
+      <rect width="444" height="350" rx="21" fill="#f5f3e9" stroke="#e3e0d3"/>
+      <text x="24" y="41" class="stage">THE FORMER LOOP BECOMES A LAKE</text>
+      <text x="24" y="87" class="caption">
+        <tspan x="24" dy="0">As sediment builds at abandoned-channel</tspan>
+        <tspan x="24" dy="30">entrances, this simplified sequence leaves</tspan>
+        <tspan x="24" dy="30">a curved lake isolated beside the still</tspan>
+        <tspan x="24" dy="30">flowing river; rates and outcomes vary.</tspan>
+      </text>
+      <g transform="translate(24 250)">
+        <circle cx="8" cy="8" r="7" fill="#c4a76c"/><text x="25" y="13" class="map-note">Schematic inference · not a universal outcome</text>
+      </g>
+    </g>
+  </g>
+  <text x="800" y="1193" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14" fill="#758174">Shared hills, fields, trees, and cottage keep the same river reach in view.</text>
+</svg>
