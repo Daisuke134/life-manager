@@ -8904,3 +8904,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 必要最小修復は、このgeneric事実不足fallbackをaction waitとしてreason/remaining_workを維持すること。欠損事実を埋めたふりせず、技術/情報不足をhuman-onlyと推定しない。明示required_action/structured humanとtitle/url/deadline検証・real identity/interviewの制約は維持する。新regex/keyword判断・model/provider変更・新frameworkを作らない。
 - 最新main専用worktreeでLuna6maxがreply_planner.py/既存test_reply_planner.pyを所有、必要なら該当source inventory digestだけ更新。最小REDで例外→missinghandoff→retryを示し、GREENはfacts wait/remaining保持/no send/no human notification、valid human維持、invalid human拒否を検証。rootはfreshreview/CI/main/対象反映を所有。
 - building-agentsを読み、修正は既存判断のtransport/state契約に限定。新provider/API/通知/送信/old11unknown解除0。current1/残29/mock取消/SelfBuild25・Lancers26〜28後段を維持。
+
+
+### 672. Reply facts fallback限定実装開始
+
+- 最新main9c9fd29dから専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-reply-facts-wait-20261006、branch fix/lm-reply-facts-wait-20261006を作成、root lease codex-money-printer-reply-facts/24h。_shared/eval-loop/manifestをsparseへ準備しpre-push欠損を再発させない。
+- Luna6max有限run66123が§671のplanner/既存testを所有、必要時のみ既存kernel test最小caseと_shared inventory digestを更新。facts wait/no send/no humannotify、explicit valid human維持/invalidhuman拒否をRED→GREENで受入。source/rootstateを混ぜず実provider/API/browser/credential/通知/launchd操作禁止。
+- lm-crowdworksへ修復producer訂正と範囲をAGMSG send成功で通知。primaryがSSOT/受入/fresh review/CI/main/反映を所有、source完成/検証/pushは未完。current1/残29/mock取消/後段順不変。
