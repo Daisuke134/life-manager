@@ -9917,3 +9917,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 5row側の期間範囲09-03〜09-11、status SUCCESS1/FAILED1/REMOVED3。100row側は07-22〜09-19で請求開始08-27以前まで取得、SUCCESS1/REMOVED85/FAILED13/SKIPPED1。さらに古いpage存在を隠さず全履歴completeへしない。REMOVEDやcreatedAtだけで全稼働時間・loop配分を証明しない。
 - 失敗serviceは最小Service queryと削除含むdeployment queryの別経路でINTERNAL_SERVER_ERROR、データ取得不可をsource欠損として保持し費用0/不存在へ変換しない。自己所有parser/credentials不良とは9成功等の証拠から区別する。残る帰属は当該periodのruntime/billed usage/canonical ownership。
 - CFOはmain6489/最新18:57capacity延期/newreport旧18:11をfresh再確認。current17自然readback待ちと20の独立証拠観測を継続。今回mutations/取引/通知0。
+
+
+### 799. period source refsとCFO admission境界を診断
+
+- 保存historyのperiod内はupload側5deployments/code refs0、shared manager側64deployments/repo LifeManager/commit refs60、period前36rows。commit/source refsがあることをruntime usageへの帰属と同一視せず、より古いhistoryを目的なく増やさない。
+- CFO registryはdeterministic/borrow/support/startInterval3600。health explainはruntime ok/effect not_applicable、productivity blocked/recovery degraded、capacity延期/retry_after_eligibility。最新18:57runのscratch admission receiptは確認pathに無し、別runを代用品にしない。
+- current resource owner JSON4件にPID存在をread-only確認（process-start一致の完全証明ではない）。durable SQLiteをmode roで読んだ予約5件は時点lease active、revenue class。CFO occurrence最新はqueued/effectunknown0、cancelled/released履歴あり。current occupancyを18:57当時のsnapshotへ遡及しない。設定は既存default上限とplist revenue floor3を確認、予約/owner/state変更0。CFO effect fenceで止まっている証拠は無く、他収益owner停止・capacity制約迂回をしない。
+- current17自然readback待ち。20はperiod runtime/共有費配分の不足を保持し、B7利益や支払費用を猜測で閉じない。provider mutation/取引/通知/追加source実装0。
