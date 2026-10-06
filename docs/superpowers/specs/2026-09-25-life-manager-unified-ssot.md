@@ -10055,3 +10055,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - private .envを.env.lock flock/atomic/fsync/mode600でLM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK=1へ設定。他行保持/credential値の出力0。20:47:14.157635UTCのGUI preflight PASS後、LIFE_MANAGER_RELEASE_ROOTを完成release/LIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourlyでapply --loaded-idle-only。changedtrue/install eventbb6af512a54e8baa6f402224、loaded argv main1305一致、対象1/他label変更0。
 - 新版自然occurrence life-manager-cfo-hourly:18dc0bb8101a12d8-73989 は20:47:17UTCにhost_admission_deferred:resource_capacity_busy/exit75、取得前でprovider receipt無し。loaded1305/admission_effect_unknownfalse/loaded-idle、argvSHA2b2e92c2d9d9ea19b414a84a8fe453f7473c20f5d689fe7812194fc911d0e04c。旧送信104594を新版の成果へ流用しない。
 - cursor17の残操作は新版がadmissionを通る自然実行の公式取得/レポート・ASC分離・不足coverage/readback。source/CI/main/liveflag/対象反映は確認済みなので再実装・再merge・重複applyへ戻さない。手動wake/receipt無しfence解除/重複送信0。
+
+
+### 816. CFO natural capacity待ちのdurable境界をread-onlyで特定
+
+- 新版CFOはloaded1305/idle/exit75のまま。2026-10-06T20:48:57.686282UTCのread-only SQLite観測ではCFO queue sequence529427/resource deterministic/admission borrow/base support/effect_unknown0、CFO予約無し。queue全体agent27/browser1/deterministic24。private cfo-main1305-current-admission-readback.json。DB/claim/priority/fence write0。
+- owners JSONのhf-gig-apply-reconcile PID59408、hf-gig-reply-detector60253、crowdworks-revenue-application75173をpsの実starttime/argvと照合してlive確認。Coconala共有leaseはこれら既存業務経路が使うため別ownerを停止しない。後続観測では期限内予約4件も存在、予約を実行中と同一視しない。
+- loaded CFO plistのrevenue floor3を確認、他limit key未設定。queue数だけで実capacity/失敗件数を計算せず、既存release-and-reserve/_dispatch_reservedまたはcadenceによる再開を待つ。source修正/再merge/手動wake/上限変更/他owner停止/重複送信0。自然readback未完/cursor17保持。
