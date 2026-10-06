@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 import threading
 
@@ -87,13 +88,6 @@ def load_kernel():
     return module
 
 
-def test_fixed_price_parser_rejects_hourly_and_ranges():
-    module = load()
-    assert module._fixed_price_from_contract_body("固定報酬制 50,000円") == 50000
-    assert module._fixed_price_from_contract_body("固定報酬制 50,000円〜100,000円") is None
-    assert module._fixed_price_from_contract_body("時間単価制 2,000円") is None
-
-
 def _summary_page(rows):
     class Locator:
         def evaluate_all(self, script):
@@ -109,6 +103,208 @@ def _summary_page(rows):
             return Locator()
 
     return Page()
+
+
+_SUMMARY_DOM_RUNNER = r"""
+const fs = require("node:fs");
+const {script, cells} = JSON.parse(fs.readFileSync(0, "utf8"));
+
+function makeCell(fixture, row) {
+  const cell = {
+    tagName: "TD",
+    parentElement: row,
+    children: [],
+    get innerText() {
+      return fixture.direct_text + this.children.map(child => child.innerText).join("");
+    },
+    cloneNode() {
+      return makeCell(fixture, row);
+    },
+    querySelectorAll(selector) {
+      if (selector !== ".net_amount") return [];
+      return this.children.filter(child => child.className.split(/\s+/).includes("net_amount"));
+    },
+  };
+  cell.children = (fixture.children || []).map(child => ({
+    tagName: child.tag,
+    className: child.class_name,
+    innerText: child.text,
+    parentElement: cell,
+    remove() {
+      const index = cell.children.indexOf(this);
+      if (index >= 0) cell.children.splice(index, 1);
+    },
+  }));
+  return cell;
+}
+
+const nodes = cells.map(fixture => {
+  const row = {};
+  const cell = makeCell(fixture, row);
+  return {
+    tagName: "TH",
+    innerText: fixture.label,
+    nextElementSibling: cell,
+    closest(selector) { return selector === "tr" ? row : null; },
+  };
+});
+const result = Function("nodes", "return (" + script + ")(nodes)")(nodes);
+process.stdout.write(JSON.stringify(result));
+"""
+
+
+def _summary_dom_page(cells):
+    class Locator:
+        def evaluate_all(self, script):
+            result = subprocess.run(
+                ["node", "-e", _SUMMARY_DOM_RUNNER],
+                input=json.dumps({"script": script, "cells": cells}, ensure_ascii=False),
+                text=True, capture_output=True, check=True,
+            )
+            return json.loads(result.stdout)
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "th"
+            return Locator()
+
+    return Page()
+
+
+def _amount_cell_fixture():
+    return {
+        "label": "契約金額（税込）",
+        "direct_text": "\n        12円\n          \n      ",
+        "children": [{
+            "tag": "SPAN", "class_name": "net_amount",
+            "text": "（システム利用料控除後のメンバー報酬：10円）",
+        }],
+    }
+
+
+def _detail_page_with_amount_dom(cells, body_text):
+    summary = _summary_dom_page(cells)
+
+    class Body:
+        def inner_text(self):
+            return body_text
+
+    class Forms:
+        def count(self):
+            return 1
+
+        def nth(self, index):
+            assert index == 0
+            return self
+
+        def get_attribute(self, name):
+            assert name == "action"
+            return "/milestones/123/complete"
+
+    class Links:
+        def evaluate_all(self, _script):
+            return []
+
+    class Page:
+        def wait_for_timeout(self, milliseconds):
+            assert milliseconds == 3_000
+
+        def locator(self, selector):
+            if selector == "th":
+                return summary.locator(selector)
+            if selector == "body":
+                return Body()
+            if selector == 'form[action^="/milestones/"][action$="/complete"]':
+                return Forms()
+            if selector == "a[href]":
+                return Links()
+            raise AssertionError(selector)
+
+    return Page()
+
+
+def test_contract_summary_amount_dom_excludes_net_amount_child():
+    module = load()
+
+    result = module._contract_amount_observation(
+        _summary_dom_page([_amount_cell_fixture()])
+    )
+
+    assert result == {
+        "status": "observed", "label": "契約金額", "tax_included": True,
+        "displayed_amounts_yen": [12], "price_minor": 12, "currency": "JPY",
+    }
+
+
+def _detail_for_amount_dom(module, cells):
+    title, client = "fixture contract", "fixture buyer"
+    page = _detail_page_with_amount_dom(
+        cells,
+        f"{title} {client} 業務を開始しています。無関係な固定報酬制 50,000円",
+    )
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = page
+    adapter._goto_contract = lambda _work_id: None
+    adapter._expand_folded_messages = lambda: None
+    adapter._latest_buyer_event = lambda _work_id: None
+    adapter._document_access = lambda _urls: {}
+    return adapter._detail_once({
+        "work_id": "64033100", "title": title, "client": client,
+        "provider_state": "funded", "milestone_id": "123",
+    })
+
+
+def test_funded_detail_uses_observed_gross_contract_amount():
+    module = load()
+
+    detail = _detail_for_amount_dom(module, [_amount_cell_fixture()])
+
+    assert detail["amount_observation"] == {
+        "status": "observed", "label": "契約金額", "tax_included": True,
+        "displayed_amounts_yen": [12], "price_minor": 12, "currency": "JPY",
+    }
+    assert detail["price_minor"] == 12
+
+
+def test_funded_detail_does_not_fallback_to_body_price_when_summary_is_ambiguous():
+    module = load()
+    cell = _amount_cell_fixture()
+
+    detail = _detail_for_amount_dom(module, [cell, cell])
+
+    assert detail["amount_observation"]["status"] == "ambiguous"
+    assert detail["price_minor"] is None
+
+
+@pytest.mark.parametrize("label", ["契約金額（税抜）", "契約金額"])
+def test_funded_detail_ignores_net_amount_tax_notice_for_primary_contract_amount(label):
+    module = load()
+    cell = {
+        "label": label,
+        "direct_text": "\n        12円\n      ",
+        "children": [{
+            "tag": "SPAN", "class_name": "net_amount",
+            "text": "（システム利用料控除後のメンバー報酬（税込）：10円）",
+        }],
+    }
+
+    detail = _detail_for_amount_dom(module, [cell])
+
+    assert detail["amount_observation"]["status"] == "unknown"
+    assert detail["price_minor"] is None
+
+
+def test_funded_detail_rejects_tax_included_primary_amount_under_tax_excluded_header():
+    module = load()
+    cell = {
+        "label": "契約金額（税抜）",
+        "direct_text": "12円（税込）",
+    }
+
+    detail = _detail_for_amount_dom(module, [cell])
+
+    assert detail["amount_observation"]["status"] == "unknown"
+    assert detail["price_minor"] is None
 
 
 def test_contract_summary_amount_observation_accepts_one_tax_included_yen_value():
@@ -144,6 +340,10 @@ def test_contract_summary_amount_observation_keeps_multiple_values_ambiguous():
     ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12,00円"}], "unknown"),
     ([{"label": "契約金額", "tax_included": True, "same_row": True, "cell_tag": "TD", "text": "12.5円"}], "unknown"),
     ([{"label": "契約金額", "tax_included": True, "same_row": True, "cell_tag": "TD", "text": "-12円"}], "unknown"),
+    ([{"label": "契約金額", "tax_included": True, "same_row": True, "cell_tag": "TD", "text": "12円〜13円"}], "ambiguous"),
+    ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12円"}], "unknown"),
+    ([{"label": "契約金額", "tax_included": True, "same_row": False, "cell_tag": "TD", "text": "12円"}], "unknown"),
+    ([{"label": "契約金額", "tax_included": True, "same_row": True, "cell_tag": "DIV", "text": "12円"}], "unknown"),
     ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12円"}] * 2, "ambiguous"),
 ])
 def test_contract_summary_amount_observation_fails_closed(rows, expected_status):

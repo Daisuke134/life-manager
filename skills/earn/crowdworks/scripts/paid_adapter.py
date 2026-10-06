@@ -72,16 +72,6 @@ def _digest(value: Mapping[str, Any]) -> str:
                                      separators=(",", ":")).encode()).hexdigest()
 
 
-def _fixed_price_from_contract_body(body: str) -> int | None:
-    """Read one unambiguous fixed-price amount from the official contract body."""
-    if not isinstance(body, str) or "時間単価" in body or "〜" in body or "～" in body:
-        return None
-    matches = re.findall(r"固定報酬制\s*([1-9][0-9]{0,2}(?:,[0-9]{3})*)\s*円", body)
-    if len(matches) != 1:
-        return None
-    return int(matches[0].replace(",", ""))
-
-
 def _contract_amount_observation(page: Any) -> dict[str, Any]:
     """Capture only safe amounts from the official contract summary row."""
     try:
@@ -96,10 +86,13 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
                 const label = (node.innerText || "").replace(/\\s+/g, "").trim();
                 const row = node.closest("tr");
                 const cell = node.nextElementSibling;
-                return {label: "契約金額", tax_included: label.includes("税込")
-                          || (cell?.innerText || "").includes("税込"),
+                const amountCell = cell?.cloneNode(true);
+                amountCell?.querySelectorAll(".net_amount").forEach(note => note.remove());
+                return {label: "契約金額", tax_included: !label.includes("税抜")
+                          && !label.includes("税別")
+                          && (label.includes("税込") || (amountCell?.innerText || "").includes("税込")),
                         same_row: Boolean(row && cell && cell.parentElement === row),
-                        cell_tag: cell?.tagName || "", text: cell?.innerText || ""};
+                        cell_tag: cell?.tagName || "", text: amountCell?.innerText || ""};
               })"""
         )
     except Exception:
@@ -128,7 +121,7 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
         amounts.append(amount)
     observation: dict[str, Any] = {
         "status": "unknown", "label": "契約金額",
-        "tax_included": row.get("tax_included") is True or "税込" in text,
+        "tax_included": row.get("tax_included") is True,
         "displayed_amounts_yen": amounts,
     }
     if invalid_amount:
@@ -766,7 +759,8 @@ class CrowdWorksPaidAdapter:
             application_date = self._receipt_application_date(title, proposal_id)
         if match is None:
             raise RuntimeError("crowdworks_paid_task_unavailable")
-        price_minor = _fixed_price_from_contract_body(body)
+        price_minor = (amount_observation.get("price_minor")
+                       if amount_observation.get("status") == "observed" else None)
         return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                 "milestone_id": match.group(1), "form_urls": form_urls,
                 "form_url": form_urls[0] if len(form_urls) == 1 else None,
