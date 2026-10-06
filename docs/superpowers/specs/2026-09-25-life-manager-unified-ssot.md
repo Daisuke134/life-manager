@@ -10017,3 +10017,5 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - cursor17のLuna handle37833は同runで最後app失敗/全app失敗のstarted_at未返却、implicit snapshotがcompleted_atでなく最後成功時刻へ止まる3条件をRED再現。reader終了日比較・fetch時間返却・loopのimplicit snapshot参照だけを修正中。本番変更0。
 - 独立残3のCoconala商品4313100はcurrent immutableのregistered with-browser/既存inspect_page経路で1回のread-only取得を試みたが、identity coconala:kosuke lease busy/exit75。browser取得前に停止、page/read/write/purchase/send0。私有coconala-4313100-latest-lease-readback.jsonに保存。今回のbusyを旧403原因や非公開/購入不可へ置換しない。既存順序/cursor17保持。
+
+- 同handle37833の残2件修正後、担当focused5/5 PASS、primary独立のreader/loop/mobile/economic4suiteは133/133 PASS、diffcheck PASS。fresh gpt-6.1-sol/medium再反証handle55387開始。source commit/push・再review受入・CI/main/immutable・自然readbackは未完で保持。
