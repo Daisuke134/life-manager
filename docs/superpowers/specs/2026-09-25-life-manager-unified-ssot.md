@@ -4889,6 +4889,15 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 | Freelancer | 既存readiness/transportあり、旧scheduler退役 | 現account/実inventory fetch/receipt未確認。定義を現稼働へ変換しない。§634–635 |
 | Lancers | 接続未解決 | Dais指示どおりSelfBuild後へ保留、既存solver taskを重複させない。§615 |
 
+#### 現在の詰まり（今回のCLI readbackで確認）
+
+- Coconala：registered browserと既存orders-only CLIで公式受注route HTTP403/coverage incomplete。表示CAPTCHA・login redirectなし。現受注件数/待返信/納品状態はunknown。Storefrontの現在購入経路も未確認。過去3件/公開20件を現状へ代用しない。§703。
+- CrowdWorks Paid：最新自然run49279は新ba9f796260/exit75。business outputは旧84924のまま、2候補handoff不足/1候補form選択待ち/2候補結果照合待ち。この旧出力を新runの診断や有償案件5件の完了証明にしない。次は公式契約fieldと実処理の同run readback。
+- Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
+- CFO：修復4b961b36を限定loaded反映した過去証拠はあるが、今回の現loadedは3ae4176eへ戻っている。最後のterminalはrun63090/apply_lock_busy。変更元・理由は未確認であり、他ownerと競合する再applyを繰り返さない。反映owner/現在のrelease選択を照合し、修復を維持できる経路へ接続する。
+- 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
+- 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。今回の作業はspec更新/報告で、外部応募・返信・納品・再送0。残29の相対順序/current1、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
+
 #### 残作業の実行表（収益行動中心・未完のみ）
 
 現在cursor：1（確認済み既存有償案件の次成果物・履行確認）。主経路29項目。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
