@@ -4900,7 +4900,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 1 | 確認済みの既存有償案件で、次の成果物を完成・納品する | funded scope/期限に対応する実成果物と公式納品記録。保留のTikTok/NPO個別追跡は除外。 |
 | 2 | 実際に納品済みで検収・精算が必要な案件の次手を実行する | 同案件の公式検収/請求/精算記録。個人口座の資金移動を追加しない。 |
 | 3 | Coconalaの既存storefront商品を購入可能な状態にする | 既存商品/購入経路の現公式状態。古いreply保留を公開・販売全体のgateにしない。 |
-| 4 | 既存の自社商品・定型サービスから売る1商品を選び、見本と説明を整える | 再利用できる履行scope/見本/費用見積を持つ1商品。価格/paywall変更や未承認の新規公開を追加しない。 |
+| 4 | 既存の自社商品・定型サービス1件の販売内容と履行条件を確定する | 実際に販売・履行できる既存商品、その説明・受け入れ条件・実費。未依頼のmock/demo制作を前提にしない。価格/paywall変更を追加しない。 |
 | 5 | 実際の新着問い合わせ・見積依頼に返信し、有償契約へ進める | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
 | 6 | Mercorで適合する新規案件へ応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
 | 7 | Coconalaで適合する新規案件へ提案する | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
@@ -4948,7 +4948,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 
 #### 並行実行と保留の扱い
 
-primaryはcurrent1の既存CLIによる収益対象の集約とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
+primaryはcurrent1の既存有償案件の履行とSSOTを所有し、独立Sol/medium reviewerは契約/source照合をread-onlyで行う。根因確定後の独立修正はLuna/maxへfile/owner/worktreeを分けて同時に渡す。同じbranch/profile/state/release applyは重ねず、共有境界の統合・反映だけ直列にする。登録済みseatを稼働中と誤認せず、実task/status/証拠で受入する。
 
 Coconala保留条件：前回保存済み公式観測ではNPO2室の最後の発言はseller側。ただし現在の公式状態は未再取得。Daisの優先順位指示により追加確認を保留するのであり、最新全件seller済みと断定しない。本文一致1件・未確認sender/ID/date・未検証300件・不足原資料を履歴に保持。private marker probeは新live0/lease absentで取消済み、source copyのみ未受入で保存し、本番へ接続しない。
 
@@ -8738,7 +8738,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現cursor1の未延期・現実行可能な有償履行が確認できた時だけ進め、既存商品準備・販売の独立作業は並行可能とする。TikTok/NPO/旧12保留延期、SelfBuild26/Lancers27〜29の順を維持。source/state変更/送信/再納品/資金移動0。
 
 
-### 649. 独立した既存商品見本のbounded準備契約
+### 649. 取消済み：既存商品mock見本の準備案（§651を優先）
 
 - 主cursor1のTikTok/NPO追跡延期を維持し、残4『既存商品1件の見本・説明準備』を外部effect無しで独立並行する。TODOの相対順は変更しない。brainstormingのbounded共有理解：既存商品への説明可能な実見本だけを用意し、新framework/新サービス/価格・公開設定変更を増やさない。継続委任の範囲内で進め、再承認待ちを追加しない。
 - production Storefront plistのGIG_STOREFRONT_ROOTはprivate/storefront-bundle。families更新2026-09-04/scorecard2026-08-19、scorecard11件と現inventory20は異なる時点・母集団。過去のfamily/競合記録は参考で現在の成功・需要として扱わない。既存競合service1件をcrwl取得したがexit0/17byte403、現在市場未取得。原本storefront-competitor-probe-1791265849410444000。
@@ -8746,8 +8746,15 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 実装する場合は最新main専用worktreeでLuna6/maxがdemo/fixture/READMEの限定範囲を所有、rootはspec/受入/統合を所有。合成入力→期待CSVの実行確認だけを必要検証にし、広いQA・eval・本番広告・公開を追加しない。current1/残30、SelfBuild26/Lancers27〜29維持。
 
 
-### 650. API商品見本の専用worktree・Luna実装開始
+### 650. 取消済み：API商品mock実装run（§651を優先）
 
 - 最新origin/main5d8da831becc0a6abf30f595d4a62bd64b010580から専用sparse worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-storefront-api-sample-20261006、branch feat/lm-storefront-api-sample-20261006を作成。shared checkout切替/他者変更0、重複task worktreeなしを確認。既存worktree-lease.pyでowner codex-money-printer-api-sample/24hを取得。
 - §649の限定契約をgpt-6-luna/max有限実装へ渡した、handle36180。所有はexamples/storefront/api-json-to-csv/demo.py/orders.json/README.mdのみ、stdlib/local mock HTTP GET/2件合成注文→固定列CSV/自身server終了。実provider/customer/NPO/credential/本番loop/価格/公開変更は禁止。rootはspec/受入/PR/mainを所有。
 - 必要検証は実HTTP→期待CSVとREADME整合、pycompile/diffの必要範囲。新テスト体系/full loop suitesを見本のgateにしない。source・push・実行検証は未完、market/current buyability未確認を販売成功へ代用しない。current1/残30、残4の独立並行、SelfBuild26/Lancers27〜29維持。
+
+
+### 651. Dais指示：mock見本制作を取消、実収益作業だけを残す
+
+- Daisはmock制作を不要として、spec更新と残TODOのchat提示を要求。§649/650の案・実装を取消す。handle36180へSIGINTを送りexit1で終了、同runのcodex process不在を確認。専用worktreeはbase5d8da831/clean、追加artifact/source commit/pushなし。本番/価格/公開/顧客データ変更0。再開しない。
+- §217の残4から見本制作gateを外し、実在する既存商品1件の販売内容・履行条件の確定へ修正。未依頼mock/demoを実販売や必要loop修復の代用品にしない。隔離fixtureによる必要なcode検証を禁止する指示へ拡張しない。
+- 残30項目の相対順序/現在cursor1は不変。TikTok/NPO/旧12record追加追跡は保留、SelfBuild26、Lancers27〜29、最終確認30。新規taskや承認待ちを増やさない。
