@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: design draft for review
+Status: current design reference; implementation state, cursor, and ordered TODOs are maintained only in [the unified SSOT](2026-09-25-life-manager-unified-ssot.md)
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -167,7 +167,9 @@ Telephony, paid model calls, and user-requested external actions remain separate
 5. Evaluate OSRM/Valhalla self-hosting for driving routes and OpenTripPlanner self-hosting for scheduled transit only after the current route cache and budget gates are measured.
 6. Keep Google as an explicit, budget-authorized fallback rather than the scheduler default.
 
-## 9. Ordered atomic delivery
+## 9. Delivery scope by design phase
+
+This section defines phase scope and acceptance intent, not the live TODO order or completion status. The unified SSOT is the sole source for the active cursor and remaining work.
 
 ### A0 — Spec and ownership
 
@@ -176,12 +178,11 @@ Telephony, paid model calls, and user-requested external actions remain separate
 - write the implementation plan only after this spec is accepted;
 - record file ownership and excluded files in the plan.
 
-### A1 — Observation envelope
+### A1 — Observation envelope (operational; hardening remains)
 
-- add schema and validation tests;
-- add append-only storage/migration;
-- redact secrets and PII;
-- prove success, timeout, provider failure, crash, stale, and `effect_unknown` rows.
+The production observation path is active; the 2026-10-06 read-only evidence shows no A1-caused outage or confirmed row mutation. A1 is not a current production issue and does not block A2–A10. The advertised REST `PATCH`/`DELETE` methods do not prove that rows were changed; the inspected application path writes with `POST` and reads with `GET`, while production ACL/trigger state remains unverified. Keep that missing readback, the canonical wake/voice/provider-cost join, and crash/stale/`effect_unknown` lifecycle evidence as non-blocking audit hardening in the unified SSOT. Missing `loop_id` and actual billing attribution are cost-coverage gaps owned by A2/A6/A8, not evidence that A1 observation is down. Do not backfill historical rows by inference.
+
+The A1 acceptance contract is schema validation, append-only storage, secret/PII redaction, and evidence for success, timeout, provider failure, crash, stale, and `effect_unknown` outcomes. The remaining production verification status is in the unified SSOT; these acceptance items are not the active cursor.
 
 ### A2 — Cost ledger
 
