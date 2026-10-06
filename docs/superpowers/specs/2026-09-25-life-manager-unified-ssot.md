@@ -9083,3 +9083,14 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh read-only Sol6.1medium reviewer cfo_revenuecat_shape_reviewはsourceSHIP/重大指摘0、通貨欠損・無効periodがCFO0snapshotで拒否されるfixture probeを確認。provider/state/credentials/browser操作0。fixture受入を実財務/本番接続完了へ代用しない。
 - PR6757 https://github.com/Daisuke134/life-manager/pull/6757、同head workflow37446705956はcompleted success/全9job conclusion success、CodeRabbit success/serverCLEAN。Shell check statusだけin_progress表示が残るがconclusion successとworkflow terminal successを照合し通常統合。MERGED2026-10-06T10:05:17Z/main ec921a149c1d2ea5fdb80d2268f1f8f47d742768/fetch一致。
 - cut lock無しを確認しLOOPS_ACTIVATE_CURRENT=0で同mainの完全immutable作成を開始、handle89591。共有current変更/他label操作0。対象marketing-metrics-dailyの新SHA loaded/自然収集/CFO readbackは未完。current1/残29/順序維持。
+
+
+### 692. 完全release作成PASS・metrics旧claimの反映保護はHOLD
+
+- cut89591はterminal exit0。完全immutable /Users/anicca/loops/releases/20261006T190622-ec921a14 はmain ec921a14/ALL/source blob一致/write bits0。共有currentは別ownerの183206-5f56e1d1へ移っており、rootによるcurrent切替0。
+- UID501/DS501/Aqua/managerUID501/PID1/GUIのlaunchctl-safe preflight PASS。marketing-metrics-dailyはloaded-idle/installed82d。対象apply --loaded-idle-onlyはoktrue/changedfalse/skipped pending-admission、原本cfo-rc-shape-target-apply.json。反映済みとは報告しない。
+- admission DB mode=roで対象owner claimed unknown1/queued24/released265/queue無し。unknown occurrence marketing-metrics-daily:18db657457826458-2280に結合するterminal run18dbc4a68685e040-3922は2026-10-05T23:05:26.871071Z/82d/exit75/receipt readback null。old/new registryはeffect_class none/typed admission情報無し。
+- fresh Sol6.1medium metrics_admission_readonly_reviewはHOLD。旧scheduled_runnerはno-send無しでrun_with_contract.execute(send=True)に到達し得て、後段Telegram管理reportを送る。none分類だけで無作用としない。内部274 execution/run-report、272run-delivery、146owner-report-deliveryにouter run/occurrence/releaseのexact結合無し。sourceUUIDは独立乱数、time-only join不可。既存外側summary/stdout/stderr exactファイルも未取得。
+- legacy rebind guardはqueue/完全identity/claimed・unknown無しを要求するため現在pending。typed fieldsを後付けしてnone枝のclear_no_effect_unknownへ進める操作は行わない。最小再開条件は対象outer run→内部UUID、または送信前ガードの確定proof/同effect公式readback。claim解除/再送/queue取消0。
+- 次の独立安全作業は新immutableの既存pure RevenueCat readerでCFO所有のread-only snapshotを取得し、actual observation→consumer接続を確認すること。旧scheduled_senderは実行せず、他provider POST/report request/manager送信/canonical ledger変更を追加しない。自然scheduled反映DoneはHOLDのまま。
+- source worktree lm-cfo-revenuecat-shape-20261006は存在無し/worktree登録無しをroot確認（除去owner/理由は未確認）。remote source e207/main ec921/完全immutableへ成果は保存済み、共有checkoutのbranch切替・他者編集復元0。spec worktreeは存在し本正本を維持。current1/残29/順序保持。
