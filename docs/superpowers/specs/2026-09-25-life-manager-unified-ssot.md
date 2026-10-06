@@ -9585,3 +9585,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - isolated affiliate browser ownerはregistry affiliate-browser/profile ~/.cloak/profiles/affiliate/en/9324。CDP metadataのみ読取でtop ElevenLabs sign-inを確認、iframes/workersをprovider tabs/契約countへしない。専用pageを操作せずregistered interactive:dais guard内のowned新pageでPartnerStack report GET。HTTP200→/handshake/login、report heading無し。private affiliate-partnerstack-auth-boundary.json。これは認証不足で収益0ではない。
 - credential正本にPartnerStack email/password1record存在。公式通常loginはWork Email Address/Continue。handle4331でemail入力とContinue1回、固定短時間観測ではLoading.../同routeを確認。login完了/失敗/メール送信完了は未確定。private affiliate-partnerstack-login-step.json。signup/commission/payout操作0。次は通常loginの非Loading終端と認証レスポンス/既存メールを照合し、待機不足をauth failureへ丸めない。
 - cursor13はPartnerStack再認証→公式commission/payout capture。旧保留fenceは別途exact intent/receiptが必要。主29相対順序/前段不足/SelfBuild後段保持。外部marketing送信/販売再送/登録/価格/支払/振込/本番loop変更0。
+
+
+### 755. PartnerStack通常loginと現commission/payout観測
+
+- 前fixedwait/Loading観測をfailureへ固定せず、同registered profileでnormal handshakeを非Loading終端まで待つ。handle70057 exit0/authPOST200、/login/password formへ到達。credential正本の通常passwordでhandle94811 exit0、UTC2026-10-06T16:31:47.502432 /home/form無し/invalid credential・2FA・CAPTCHA無し。signup/復旧/鍵変更0。private affiliate-partnerstack-login-ready.json/affiliate-partnerstack-normal-login-result.json。
+- 同authsession/ownedpageでofficial payouts/commission_performance/payouts rewardsをread。handle75000 exit0、commissions API /api/v2/stats/commission_report/stack/stck_NCzCmpfaODzjl3 HTTP200/list0/SHA4f53...。filter/period/全件性は未保存なのでcurrent visible report0の限定結果のみ、全歴史commission/会社収益0へ広げない。英文heading waitはlocale違いでfalse、route/API実応答を別scopeで記録する。private affiliate-current-official-report-boundary.json。
+- official payout rewards HTTP200/zero-row marker、既存payout_readinessでtax REQUIRED/provider SELECTION_REQUIRED/PAYOUT_BLOCKED_BY_TAX_SETUP。payoutsummary URLがrewardsへ転送され同textになっているため利用可能資金合計は未取得。認証成功をwithdrawal readiness/銀行着金へ代用しない。金銭移動/commission ledger writes/marketing送信0。
+- cursor13次は同report period/filterとprogram/account sourceを確認し限定countを正規receiptへ結ぶ。tax/provider不足は残し、利益/精算Doneにしない。旧hosteffectunknown24990は今回収益GETでは解放できない。主29相対順序/前段保留/SelfBuild後段維持。
