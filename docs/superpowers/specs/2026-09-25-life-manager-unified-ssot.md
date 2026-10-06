@@ -10138,3 +10138,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 旧handle12812はUnknown process、PID72880/72891不在、source clean/未実装を確認。旧runをlive/完了とせず、origin/main7 docs commits進行・CFO source差分0をreadbackし専用branchをcd9626fadbへff。新Luna/max finite handle56106/PID84545/84559のexact argvをlive確認。source-boundary PASS、実装前確認中、重複writer無し。
 - 並行CFOのSupabase A3/panel範囲をmainの別handoverで確認。こちらは§824 loop_pnl.py/必要最小testsのみ、DB/panel/source他者範囲・provider設定を変更しない。AGMSG lm-cfo-observability-1002へ更新送信、sendを受領/着手証明へしない。
 - 記録不足は自所有の実装対象で、ユーザー承認や外部権限待ちではない。新writer保存修正→検証/review/commit-push/CI/main/immutable→同自然occurrence JSON+送信照合を継続。handover/goalのPID/log/source anchorを最新再開状態へ同期、cursor17/主相対順保持。
+
+
+### 827. CFO保存sourceの本番owner contextを照合し、2点をLuna修正へ
+
+- PR#6790由来自然CFO save source commit3346c7b2cfaedb4ab6fe0f89e606a9a4c5a9cb5aはrelated137/137 PASS/remote cleanだがprimary code/root config readbackはowner env不一致を発見。current plist/.envにLIFE_MANAGER_OWNER_IDなし、LIFE_MANAGER_LOOP_IDはCFO。main runtime `lm_loop_run.py`はchildへ native run/occurrenceを伝播しruntime event owner_id=loop_idにする。strict save guardはowner変数欠落で自然記録をskipする。別ownerを捏造せずexact native loop_id/occurrence/run一致だけcanonical ownerとできる箇所を回帰検証する。
+- 同save diffはquery builderからendpoint=optionsを継承するため保存query SHAのendpoint descriptorも誤り得る。chart GETの実chart path/options pathを区別し、project ID raw value/Auth/URL/tokenを保存しないscope descriptorへ修正する。既存自然GET成功/送信104639はsaved same-occurrence RC evidenceの代用にしない。
+- Rootはprimaryowned filesを編集せず、2件だけの短いgpt-6-luna/max continuationをhandle1530で開始。source worktree fix/cfo-mobile-natural-evidence-20261007、HEAD3346c7b2fa; clean/push済み、latest-main base cd9626fadb。field/projectconfig全体・credentials・環境dump・人間承認の依頼を作業に広げない。
