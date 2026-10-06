@@ -8657,3 +8657,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同main由来releaseの既存upwork_browser_provider.parse_contractsを公式contracts homeのbody/linksへ適用、parser success。公式文言There are no active contracts.とEarnings available now:あり、返却active_contract_count0/earnings_available_usd_minor0。原本upwork-inventory-1791264421568264000.json、bodyhash81e95550319a2d7c15972622bb4850cbfcd0123c4e25a93ca972637651cc55e3。生本文/名前/リンクを保存・表示しない。guard取得/解放0。
 - この結果は登録profileの現在画面におけるactive contract/available表示だけの観測。account identityの独立照合、全履歴transactions/refund/fee/payout/bank/cost coverageは未確認。過去売上/settled収益/着金/利益0や全lane稼働へ変換しない。応募/送信/承諾/納品/Connects購入/資金移動0。
 - 次は既存transactions/withdrawalsのread-only scopeへ結び、Coconala商品導線と他channelの必要行動を進める。current1/主経路31/Lancers後段維持。
+
+
+### 640. Coconala購入導線の実遷移403再現
+
+- 正規guard取得/解放0で自身about:blank target→Page.enable/navigate→既存load helper→safe controls読取を実行。対象1商品のページは403/controls空、原本coconala-storefront-1791263703624628000/purchase-exact-nav-1791264486601950000.json。HTML GETも同公式host/services route/serviceID一致/query無しを検証してHTTP403。不正URLを原因にせず、購入停止/受付休止とも断定しない。
+- 先のinventory20公開/本文取得とは別観測であり、今回のbuyer-route取得失敗を過去成功で上書きしない。code/source/価格/商品公開/購入/外部送信0。既存_fetch_categoryはws指定時にscope成立まで3回のbounded読取を持つため、次の再観測はその既存経路に合わせ、同じ初回遷移だけの反復を増やさない。current1/主経路31/Lancers後段維持。
