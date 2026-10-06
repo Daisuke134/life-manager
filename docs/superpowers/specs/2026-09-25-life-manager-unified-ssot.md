@@ -9697,3 +9697,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 次境界は全6appの正規payload/native report_id/final/親app ID/canonical hashとfinancial_complete必須。部分的に検証できたrowもcomplete不足で捨てられる。実TSVのSKU・nativeID非返却を公式根拠なしに正規payloadへ偽装しない。
 - 実装範囲を具体化: CFO collect_b7_recordsへraw ASC packet入力を1つ追加、CFO-owned normalizerへFINANCIALとFINANCE_DETAIL両artifact/取得tuple/SHA/公式app↔SKU relationshipを渡す。既存mobile acquisitionは変更しない。Luna所有にloop_pnl.pyの最小入力wireを追加。
 - acceptance: aggregate/detailの期間・SKU・currency・quantity・amount一致とdetail settlement日を検証、原SHA/rowをreceipt evidenceへ保存。adapter-generated identityはnative reportIDと区別。verified receiptとincomplete coverageを分離し、既存全6app/最新trailing/history規則を緩めない。wrongapp/欠mapping/hash改変/重複を拒否、RC revenue二重計上なし。raw個人情報/秘密をrepoへ複製せず合成回帰fixtureでRED→GREEN。現在17保持。
+
+
+### 769. 確認済みMobile MRRがCFO表示から落ちる境界を実測
+
+- 現cfo-result-summary.js::renderEconomicSummaryはcompany mrrだけを表示。§766の実入力projectionをrenderResultSummaryへread-onlyで渡すとmobile verified/USD20.34、company unknownで、出力MRR未確認のみ、20.34表示false。private cfo-known-mobile-mrr-render-gap.json/2026-10-06T17:56:31.090Z、provider effect0。集計成功と表示反映を区別する。
+- cursor17の自然reportに実測を示すため、ASC修正後の別最小commitとして既存reportのverified loop MRRを表示する。Luna所有追加はapps/life-manager/lib/cfo-result-summary.jsと既存testのみ。会社unknownを維持し、未確認loop0化なし、既存decimal/economicField再利用。ASC RED→GREENを先に行い、scopeを混ぜず別commit/push。一般dashboard新設/送信/価格変更なし。
+- 受入はcompanyunknown/mobileverifiedケースで同時に会社未確認とmobileUSD20.34を表示し、不明loopの値を生成しないこと。current17/29項目相対順序不変。
