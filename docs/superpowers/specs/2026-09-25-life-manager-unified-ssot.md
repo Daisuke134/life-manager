@@ -4880,7 +4880,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 | channel | 確認した対象 | 次に必要な行動・不足情報 |
 |---|---|---|
-| Coconala受注 | 現受注一覧3件、表示9000/8000/24000円、状態unknown | TikTok/NPO追跡延期を保持し、それ以外の現在必要行動だけを確認。表示額を入金にしない。§631 |
+| Coconala受注 | 現受注一覧3件、表示9000/8000/24000円。24000円は取引中/表示最新sender seller、8000円は未取得 | TikTok/NPO追跡延期を保持し、それ以外の現在必要行動だけを確認。表示額を入金にしない。§631 |
 | Coconala問い合わせ | 先頭30行はobserve、返信要求flagなし | 1page/head-onlyで全件性なし。新着の具体的必要行動がある時だけ該当thread確認。§631 |
 | Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
 | CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
@@ -8706,3 +8706,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh gpt-6.1-sol/medium readonly reviewerは指定source2file/summary/既存reader/parserだけを反証。両sourceハッシュ一致/parser再計算一致。観測時のavailable/pending各$0.00表示、税プロフィール完了・出金方法未設定の案内に限定してSHIP。過去売上/着金/全期間/net profit0の断定はHOLD。recognized_revenue null/account独立照合/全履歴/settlement/cost未知を保持。private結果upwork-finance-review-result.txt、handle57316 exit0、外部操作0。
 - Coconala Replyのcanonical state_root最新reportをreadonly確認。latest.json更新2026-10-06T05:36:56.251542Z、status blocked/blocker provider_inbox_access_forbidden。observed/actionable/pending/failed/effect/readback0は取得拒否時のreportであり新着/待返信/実契約0の証明ではない。過去保留12へ結論を拡張しない。paid rootのtop latestはcleanupしかなく、cleanupを業務成果へ代用しない。
 - 現受注2件だけの既存helper readをwith-browser正規待機45秒で一回起動、handle49707。送信/attachment capture/project state変更なし、同readの重複起動をしない。終了/公式状態取得は未完。current1/主経路31/Lancers後段維持。
+
+
+### 645. 現受注2件の限定状態read終了
+
+- 正規with-browser待機後handle49707はexit0。TikTok除外2件だけの既存TALKROOM_EXPRESSION取得、attachment capture/project state変更/送信0。private原本coconala-two-order-result-1791265208981952000.json。
+- 24000円/id hash0b34ba1f724fはtransaction_state取引中/step進行中/visible messages20/last visible sender seller。history_complete未証明、正式納品・検収・精算は未確認。seller latestだけで全buyer要件充足/取引完了/入金を断定しない。
+- 8000円/id hash6b17bcab37dfはstate unknown/step空/messages0/history_complete null。取得不足を誰も待っていない/完了/未納品0にしない。次に同取得を行うならHTTP/route/title/コンテナのsafe diagnosticを追加し、ゼロ行の原因を狭める。旧12全件やTikTok/NPO材料追跡は再開しない。
+- current1/主経路31の順を維持し、実行済み読取runの重複起動/返信/再納品を行わない。
