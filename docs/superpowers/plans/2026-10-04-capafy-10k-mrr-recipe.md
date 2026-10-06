@@ -399,11 +399,11 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | 2 | 1 | B2 却下理由 / 重複の関門 / C1・C2 勝ち棚 | 却下 2 本が under_review → online、次の新規が上位棚 | source ✅、自然 run 待ち |
 | 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | ✅ 本番（release `1b3191a7` 以降、現在 `82d31995`） |
 | 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | ✅ 本番。最初の値上げ提出で `PRICING_MATCH` を確認する |
-| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | **枠待ち**: 審査枠 5/5 が 10/04 16:26 から不動。#6594 で 2 本を RETIRED.json → release 反映後にコンソールで取り下げて 2 枠空ける |
+| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | **凍結（Dais 2026-10-06）**: 売れた 4 本（Hook Lab・Slide Maker・TikTok Script Pro・YouTube Script Writer）は注文が戻るまで価格・モデル・カードを変えない。再開は N1 で原因が出た後、1 本 1 変更・14 日比較 |
 | 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順は売上順（#6566）だが枠 5/5 で未実行 |
-| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | source ✅ #6572 `57c179fc`（見本・FAQ・タグ5、題名は不変）。値上げ更新と同時に出る＝枠待ち |
+| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | **凍結（#5 と同じ）**: source ✅ #6572 `57c179fc` は提出しない |
 | 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | ✅ 公開ページで新 bio を目視確認（2026-10-04）。残り: リンク欄（タイトル必須）、主力をプロフィール上位に出す方法 |
-| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。値上げ更新と同時に出る |
+| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。**凍結（#5 と同じ）**: 売れた 4 本の新版を出さない |
 | 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | ✅ 本番（#6574）。変更ログ `capafy-listing-changes.jsonl` への記入は値上げが online になった日から |
 | 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | ✅ source+本番（#6575 `26dd2de7`）: 親は 30日注文≥3 かつ売上>0、子 2 本以上が親未満なら停止。本番データ: Hook Lab=停止、TikTok/YouTube=派生候補 1 件ずつ |
 | 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 一部 ✅: 未出品 Hook Lab 派生 5 本を catalog-hold へ（#6576）、売上 0 の学術・Humanizer 12 本を RETIRED.json（#6577、工場の自動再出品から除外）→ 管理画面で公開停止、Capafy API で 12 本 offline を確認。残り: その他の売上 0 agent（書き直し 1 回 → 30 日） |
@@ -418,7 +418,17 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
 **順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
-**現在のカーソル（2026-10-05 10:0x）:** #5（審査枠を空ける: release 反映→2 本取り下げ）。並行: TikTok/YouTube のカード改善（#7 の横展開、値上げ更新に同梱されるので枠が空く前に入れる）。
+**2026-10-06 の追加項目（表の #1〜#20 より先に、この順で実行）:**
+
+| # | Task | 完了条件（公式 readback） | 状態 |
+|---|---|---|---|
+| N1 | 注文 0 の切り分け: 売れた 4 本と競合（HookAce・Video Hook Forensics 等）の Capafy 内検索・カテゴリ順位を毎日記録し、9/29 前後の版更新・無料トライアル廃止との対応を見る | 0 の原因が 1 つに絞れる（または棄却が記録される） | 未着手 |
+| N2 | 審査枠を空ける: 却下中の Marketing Strategist（9563867391、30日 −$16.45）と Customer Renewal Evidence Brief（4973250899）を取り下げる（#6594 の release 反映後） | Capafy API で 2 本 offline、枠 3/5 以下 | 未着手 |
+| N3 | ディスク満杯で工場が落ちる（10/06 06:23Z `OSError: [Errno 28] No space left on device`、`duplicate_gate.py`） | 次の自然 run が ENOSPC なしで終わる | 未着手（F4 と同じ根） |
+| N4 | 宣伝ループの今日の失敗（10/06 10:15 `model pass exit=1`、未公開） | 次の自然 run で記事 HTTP 200＋X published | 未着手 |
+| N5 | 売れない agent は書き直さず、勝った型（hook/台本・金融/スポーツ追跡）を学びを入れた新 agent として出す（#11・#13 に合流） | 新 agent の 30日注文 > 0 | 工場で継続 |
+
+**現在のカーソル（2026-10-06）:** N1。並行: N2・N3（N1 と独立、同じ枠・同じディスクを使わない）。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -466,3 +476,9 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 - 2026-10-05 12:5x JST **全体計画**: Capafy 単独の天井（市場全体の累計販売 16,656、出品者 1 位 3,801）から、$10k は Capafy・PromptBase・自社 Stripe・他の売り場の足し算とした。正本 `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。
 - 2026-10-05 13:0x JST **ディスク満杯の原因**: `verify-loops-audit/loop-tmp` に終了済み run の一時ディレクトリ 29 個・4.2GiB（1 run 最大 1.2GiB）。削除で空き 268MiB→4.5GiB。恒久修正は F4（codex-money-printer）へ依頼。
+- 2026-10-06 16:xx JST **実測（read-only）と順序変更**:
+  - 売上: 9/30〜10/06 の 7 日連続で全 agent の注文 0（`capafy-skill-analytics.json` observed 2026-10-06T06:27Z の `daily_revenue_trend_last_30d`）。全期間 101 件（有料 32・無料トライアル 69）、gross $102.75、creator earnings $76.18、出金待ち $59.00、着金 $0。売上がある agent は 52 本中 6 本: Hook Lab $34.88・Slide Maker $19.98・TikTok Script Pro $15.96・Marketing Strategist $13.98（30日 −$16.45、Sonnet）・Academic Humanizer $9.99・YouTube Script Writer $7.96。
+  - 市場は動いている: 2026-09-29 → 10-05 の sweep 比較で 803 本中 48 本の salesVolume が増加（HookAce 877→936、Video Hook Forensics 860→921、Serenity 1,681→1,827）。同期間の Hook Lab は 12→12。→ 0 は Capafy 全体の客減りではなく自分たちの側の問題。
+  - 9/29 に起きたこと: Hook Lab v1.0.3（DeepSeek）承認 03:23Z、v1.0.4 承認 09:10Z（Gmail `from:capafy.ai`）、v1.0.5 承認 10/06 02:01Z。価格は変わっていない（P-12・#6200・E1 実測 = 月$9.99 のまま）。仮説: (1) 短期間の版更新で検索・棚の露出が落ちた、(2) 無料トライアル廃止で入口が消えた（全期間 69/101 がトライアル）、(3) 9/30〜10/04 の外部宣伝停止（外部の成約はもともとほぼ 0 で弱い）。棄却: 価格変更（変えていない）、市場全体の減少（競合は増加）、12 本の退役（10/04、0 の開始より後）。
+  - 注文単位の履歴は無い: Capafy API は日別合計のみ、メールは agent ごとの初回販売だけ（最新 2026-09-27 07:06 JST YouTube Script Writer $1.99）。
+  - **順序変更（Dais 2026-10-06「売れて利益の出ている物を何度も変えない」）**: 理由 = 0 の開始が売れ筋への版更新の連続と重なり、原因が分からないまま値上げ・カード変更を重ねると前後比較もできなくなる。旧順序: #5 E1b（売れ筋 3 本の値上げ）→ #6 → #7 D1（Hook Lab カード）→ … 新順序: **N1 原因の切り分け → N2 枠を空ける → N3 ディスク → N4 宣伝の失敗 → N5 新 agent（勝った型）** → #6 → #11〜#20。#5・#7・#9 は売れた 4 本について凍結。カーソル → N1。
