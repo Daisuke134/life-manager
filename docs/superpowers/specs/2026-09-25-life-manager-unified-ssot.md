@@ -9998,3 +9998,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 旧Luna有限runは実task/handle23227がliveでもAGMSG受領証拠なし。primary所有reviewの重複準備と未受領指摘による誤った修正継続を止めるため、exact argv/worktree/outputに一致する自己所有PID2204/2211だけへSIGINT、handle exit1とPID不在を確認。観測timeoutを理由にrestartしたものではない。本番/別owner/外部effect変更0。
 - 既存差分を維持し、5条件・レビュー結果path・inbox受領・reviewer起動禁止をboot promptへ直接渡して同worktree/branchをgpt-6-luna/max有限run handle12753で再開。private prompt cfo-mrr-luna-correction-boot-prompt.txt/log cfo-mrr-luna-correction-run.jsonl。追加source編集は担当のみ、rootが受入/統合。
 - 実入力結合probe cfo-mrr-live-reader-asc-join-readback.json はASC receipt1/RC subscription_snapshot6/RC settled receipt0。これは正常入力のsource証拠、レビュー指摘解消や本番成果の代用ではない。cursor17と既存順を維持。
+
+
+### 808. CFO5条件のうち3件GREEN、書込失敗後は残2件だけ継続
+
+- Luna修正handle12753はファイル書込失敗後exit101、exact process不在。rootは保存sourceでtest_revenuecat_readback15/15 PASSを独立確認。不正incomplete・逆順period・ASC無しMRRの3件はRED→GREEN証拠あり。終了したrunをlive扱いせず、差分を保持。
+- 残る公式response end_date一致と成功/部分失敗/全失敗のstarted/completed/snapshot整合の2件だけを短いboot promptへ明記し、同sourceのgpt-6-luna/max有限run handle61471へ継承。空き120MB、apply_patch書込失敗を再発させないため対象ファイルのPython atomic write・compile/focused検証へ指定。source所有3files/レビューprimary/本番禁止を保持。
+- 現稼働CFOはmain64895457、最新自然run18dc0a1a7690c3a8-25779が20:17:49UTCにexit0/loaded-idle。対応sentAt20:17:41.583Z/providerMessageId104594、本文MRR未確認/mobile USD20.34をlast-result-reportで照合。新live readerの本番成果ではない。private証拠 cfo-main648-latest-natural-report-readback.json。cursor17、順序変更なし。
