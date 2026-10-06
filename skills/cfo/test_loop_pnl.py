@@ -691,5 +691,240 @@ class TableTest(unittest.TestCase):
         self.assertEqual(result.entries, [])
 
 
+class MobileNaturalEvidenceTest(unittest.TestCase):
+    def _economic_fixture(self, name):
+        return json.loads((
+            Path(__file__).parent / "fixtures" / "economic_attribution" / name
+        ).read_text(encoding="utf-8"))
+
+    def _native_env(self, state_dir, release_root, *, occurrence=True, live=True):
+        env = {
+            "CFO_STATE_DIR": str(state_dir),
+            "LIFE_MANAGER_LOOP_ID": "life-manager-cfo-hourly",
+            "LIFE_MANAGER_OWNER_ID": "life-manager-cfo-hourly",
+            "LIFE_MANAGER_RUN_ID": "run-natural-1",
+            "LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK": "1" if live else "0",
+            "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(
+                Path(__file__).parent / "fixtures" / "economic_attribution"
+                / "mobile-verified.json"
+            ),
+        }
+        if occurrence:
+            env["LIFE_MANAGER_OCCURRENCE_ID"] = (
+                "life-manager-cfo-hourly:run-natural-1"
+            )
+        if release_root is not None:
+            env["LIFE_MANAGER_RELEASE_ROOT"] = str(release_root)
+        return env
+
+    def test_live_native_projection_persists_atomic_secret_free_mobile_join(self):
+        import os
+        import stat
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "state"
+            state_dir.mkdir()
+            current_mrr = state_dir / "current-mrr.json"
+            current_mrr.write_bytes(b"existing-current-mrr")
+            release_root = root / "release"
+            release_root.mkdir()
+            release_sha = "a" * 40
+            (release_root / "RELEASE.json").write_text(
+                json.dumps({"sha": release_sha}), encoding="utf-8",
+            )
+            from skills.cfo.test_revenuecat_readback import (
+                NOW, fake_revenuecat_get,
+            )
+            get, _, _ = fake_revenuecat_get()
+            readback = m.revenuecat_readback.fetch_current_mrr(
+                project_id="fixture-project", api_key="fixture-key",
+                product_bindings=m.capafy_mobile.MOBILE_PRODUCT_BINDINGS,
+                get=get, now=lambda: NOW,
+            )
+            readback["Authorization"] = "Bearer do-not-persist-this"
+            readback["environment"] = {"TOKEN": "also-do-not-persist"}
+            env = self._native_env(state_dir, None)
+
+            with mock.patch.object(m, "ROOT", release_root), mock.patch.object(
+                m, "_live_mobile_revenuecat_readback", return_value=readback,
+            ), mock.patch.object(m.os, "fsync", wraps=os.fsync) as fsync:
+                projection = m.build_b7_projection(
+                    snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=env,
+                )
+
+            occurrence = "life-manager-cfo-hourly:run-natural-1"
+            readbacks_dir = state_dir / "mobile-readbacks"
+            evidence_path = readbacks_dir / f"{occurrence}.json"
+            self.assertTrue(evidence_path.is_file())
+            text = evidence_path.read_text(encoding="utf-8")
+            evidence = json.loads(text)
+            self.assertEqual(evidence["owner_id"], "life-manager-cfo-hourly")
+            self.assertEqual(evidence["occurrence_id"], occurrence)
+            self.assertEqual(evidence["run_id"], "run-natural-1")
+            self.assertEqual(evidence["release_sha"], release_sha)
+            self.assertTrue(evidence["live_readback_enabled"])
+            self.assertEqual(evidence["revenuecat"]["started_at"], readback["started_at"])
+            self.assertEqual(evidence["revenuecat"]["completed_at"], readback["completed_at"])
+            self.assertEqual(evidence["revenuecat"]["availability"], "available")
+            self.assertEqual(len(evidence["revenuecat"]["rows"]), 6)
+            for row in evidence["revenuecat"]["rows"]:
+                self.assertEqual(row["availability"], "available")
+                self.assertRegex(row["query_sha256"], r"^[0-9a-f]{64}$")
+                self.assertRegex(row["evidence_sha256"], r"^[0-9a-f]{64}$")
+            records = evidence["mobile_records"]
+            self.assertTrue(any(
+                row["record_type"] == "receipt"
+                and row["provider"] == "app-store-connect-financial"
+                for row in records
+            ))
+            self.assertEqual(sum(
+                row["record_type"] == "subscription_snapshot"
+                and row["provider"] == "revenuecat" for row in records
+            ), 6)
+            self.assertTrue(any(row["record_type"] == "coverage" for row in records))
+            self.assertEqual(
+                evidence["projection"]["mobile_mrr"],
+                projection["mrr"]["loops"]["mobile-apps"],
+            )
+            mobile_providers = {"app-store-connect-financial", "revenuecat"}
+            self.assertEqual(
+                evidence["projection"]["duplicate_receipts"],
+                [
+                    row for row in projection["duplicate_receipts"]
+                    if row["provider"] in mobile_providers
+                ],
+            )
+            self.assertNotIn("Bearer do-not-persist-this", text)
+            self.assertNotIn("also-do-not-persist", text)
+            self.assertNotIn("fixture-key", text)
+            self.assertNotIn("fixture-project", text)
+            self.assertNotIn('"query":', text)
+            self.assertEqual(len({row["query_sha256"] for row in evidence["revenuecat"]["rows"]}), 6)
+            self.assertNotIn(str(release_root), text)
+            self.assertEqual(current_mrr.read_bytes(), b"existing-current-mrr")
+            self.assertEqual(stat.S_IMODE(readbacks_dir.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(evidence_path.stat().st_mode), 0o600)
+            self.assertEqual(list(readbacks_dir.iterdir()), [evidence_path])
+            self.assertGreaterEqual(fsync.call_count, 2)
+
+    def test_unavailable_mobile_readback_is_saved_as_gap_without_zeroing(self):
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            readback = m.revenuecat_readback.fetch_current_mrr(
+                project_id="fixture-project", api_key=None,
+                product_bindings=m.capafy_mobile.MOBILE_PRODUCT_BINDINGS,
+                now=lambda: datetime(2026, 10, 1, tzinfo=timezone.utc),
+            )
+            env = self._native_env(state_dir, None)
+            with mock.patch.object(
+                m, "_live_mobile_revenuecat_readback", return_value=readback,
+            ):
+                projection = m.build_b7_projection(
+                    snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=env,
+                )
+
+            evidence = json.loads((
+                state_dir / "mobile-readbacks"
+                / "life-manager-cfo-hourly:run-natural-1.json"
+            ).read_text(encoding="utf-8"))
+            self.assertIsNone(evidence["release_sha"])
+            self.assertEqual(evidence["revenuecat"]["availability"], "unavailable")
+            self.assertEqual(len(evidence["revenuecat"]["rows"]), 6)
+            self.assertEqual({row["reason"] for row in evidence["revenuecat"]["rows"]}, {"credential_missing"})
+            records = evidence["mobile_records"]
+            self.assertTrue(any(
+                row["record_type"] == "receipt"
+                and row["provider"] == "app-store-connect-financial"
+                for row in records
+            ))
+            self.assertFalse(any(
+                row["record_type"] == "subscription_snapshot"
+                and row["provider"] == "revenuecat" for row in records
+            ))
+            self.assertEqual(
+                evidence["projection"]["mobile_mrr"]["status"], "unknown",
+            )
+            self.assertEqual(
+                evidence["projection"]["mobile_mrr"]["currencies"], {},
+            )
+            self.assertTrue(evidence["projection"]["mobile_mrr"]["coverage_gaps"])
+            self.assertEqual(
+                evidence["projection"]["mobile_mrr"],
+                projection["mrr"]["loops"]["mobile-apps"],
+            )
+
+    def test_no_native_context_or_live_flag_does_not_write_evidence(self):
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            readback = {
+                "rows": self._economic_fixture("mobile-verified.json"),
+                "started_at": "2026-10-01T00:00:00.000000Z",
+                "completed_at": SNAPSHOT,
+            }
+            base = self._native_env(state_dir, None, live=False)
+            with mock.patch.object(
+                m, "_live_mobile_revenuecat_readback", return_value=readback,
+            ) as fetch:
+                m.build_b7_projection(
+                    snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=base,
+                )
+                fetch.assert_not_called()
+            self.assertFalse((state_dir / "mobile-readbacks").exists())
+
+            for field, value in (
+                ("LIFE_MANAGER_OCCURRENCE_ID", None),
+                ("LIFE_MANAGER_OWNER_ID", None),
+                ("LIFE_MANAGER_OWNER_ID", "another-owner"),
+            ):
+                invalid = self._native_env(state_dir, None, live=True)
+                if value is None:
+                    invalid.pop(field)
+                else:
+                    invalid[field] = value
+                with mock.patch.object(
+                    m, "_live_mobile_revenuecat_readback", return_value=readback,
+                ) as fetch:
+                    m.build_b7_projection(
+                        snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=invalid,
+                    )
+                    fetch.assert_called_once()
+                self.assertFalse((state_dir / "mobile-readbacks").exists())
+
+    def test_mobile_evidence_write_failure_does_not_abort_existing_projection(self):
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            readback = {
+                "rows": self._economic_fixture("mobile-verified.json"),
+                "started_at": "2026-10-01T00:00:00.000000Z",
+                "completed_at": SNAPSHOT,
+            }
+            env = self._native_env(state_dir, None)
+            with mock.patch.object(
+                m, "_live_mobile_revenuecat_readback", return_value=readback,
+            ), mock.patch.object(
+                m.os, "replace", side_effect=OSError("simulated storage failure"),
+            ) as replace:
+                projection = m.build_b7_projection(
+                    snapshot_at=SNAPSHOT, trailing_start=TRAILING_START, env=env,
+                )
+            self.assertIsInstance(projection, dict)
+            replace.assert_called_once()
+            self.assertEqual(list((state_dir / "mobile-readbacks").iterdir()), [])
+
 if __name__ == "__main__":
     unittest.main()

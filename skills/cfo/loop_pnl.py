@@ -16,6 +16,7 @@ import json
 import os
 import sqlite3
 import sys
+import tempfile
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -380,6 +381,163 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
     return join_adapter_records(sources)
 
 
+def _persist_mobile_natural_evidence(*, mobile_readback: dict, records: list[dict],
+                                     projection: dict, env: dict[str, str]) -> bool:
+    if env.get("LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK") != "1":
+        return False
+    loop_id, run_id = env.get("LIFE_MANAGER_LOOP_ID", ""), env.get("LIFE_MANAGER_RUN_ID", "")
+    occurrence_id = env.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+    owner_id = env.get("LIFE_MANAGER_OWNER_ID", "")
+    safe_id = lambda value: isinstance(value, str) and 0 < len(value) <= 128 and all(
+        c.isascii() and (c.isalnum() or c in "._-") for c in value
+    )
+    if (loop_id != "life-manager-cfo-hourly" or owner_id != loop_id or not safe_id(run_id)
+            or occurrence_id != f"{loop_id}:{run_id}"):
+        return False
+    try:
+        state = Path(env["CFO_STATE_DIR"]).expanduser()
+        if not state.is_absolute() or not state.is_dir():
+            return False
+        state = state.resolve(strict=True)
+        directory = state / "mobile-readbacks"
+        directory.mkdir(mode=0o700, exist_ok=True)
+        if directory.is_symlink():
+            return False
+        directory = directory.resolve(strict=True)
+        if os.path.commonpath((str(state), str(directory))) != str(state):
+            return False
+        os.chmod(directory, 0o700)
+    except (KeyError, OSError, ValueError):
+        return False
+
+    is_sha = lambda value, size: isinstance(value, str) and len(value) == size and all(
+        c in "0123456789abcdef" for c in value.lower()
+    )
+    release_sha = env.get("LIFE_MANAGER_RELEASE_SHA")
+    if not is_sha(release_sha, 40):
+        try:
+            root = Path(env.get("LIFE_MANAGER_RELEASE_ROOT") or ROOT).expanduser()
+            release_sha = json.loads((root / "RELEASE.json").read_text()).get("sha")
+        except (AttributeError, OSError, TypeError, ValueError):
+            release_sha = None
+    release_sha = release_sha.lower() if is_sha(release_sha, 40) else None
+
+    rows = mobile_readback.get("rows")
+    summaries, statuses = [], set()
+    for row in rows if isinstance(rows, list) else ():
+        if not isinstance(row, dict):
+            statuses.add("unknown")
+            continue
+        product_id = row.get("product_id")
+        if not isinstance(product_id, str) or product_id not in capafy_mobile.MOBILE_PRODUCT_BINDINGS:
+            statuses.add("unknown")
+            continue
+        sources = row.get("sources")
+        source = sources.get("revenuecat", {}) if isinstance(sources, dict) else {}
+        source = source if isinstance(source, dict) else {}
+        status = source.get("status")
+        status = status if status in {"available", "unavailable"} else "unknown"
+        statuses.add(status)
+        reason = source.get("reason")
+        if not isinstance(reason, str) or reason not in {
+            "project_id_missing", "credential_missing", "provider_query_failed",
+            "scope_invalid", "chart_response_invalid", "chart_incomplete_flag_invalid",
+            "chart_periods_invalid", "chart_period_order_invalid", "mrr_point_unavailable",
+            "mrr_period_invalid", "mrr_period_out_of_scope", "currency_missing",
+            "provider_response_invalid",
+        }:
+            reason = None
+        data = source.get("data") if isinstance(source.get("data"), dict) else {}
+        meta = data.get("readback") if isinstance(data.get("readback"), dict) else {}
+        outer = row.get("readback") if isinstance(row.get("readback"), dict) else {}
+        query = meta.get("query") if isinstance(meta.get("query"), dict) else outer.get("query_scope")
+        app_id = capafy_mobile.MOBILE_PRODUCT_BINDINGS[product_id]["revenuecat_app_id"]
+        scope = {
+            key: query[key] for key in ("chart", "endpoint", "start_date", "end_date", "resolution")
+            if isinstance(query, dict) and type(query.get(key)) is str
+        }
+        if isinstance(query, dict) and query.get("app_id") == app_id:
+            scope["app_id"] = app_id
+        filters = query.get("filters") if isinstance(query, dict) else None
+        if isinstance(filters, list):
+            scope["filters"] = [
+                {"name": item["name"], "values": [app_id]}
+                for item in filters if isinstance(item, dict)
+                and item.get("name") in {"app_id", "app_config_id"}
+                and item.get("values") == [app_id]
+            ]
+        query_sha = hashlib.sha256(json.dumps(
+            scope, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode()).hexdigest() if scope else outer.get("scope_sha256")
+        evidence_sha = source.get("evidence_sha256")
+        summaries.append({
+            "product_id": product_id, "availability": status, "reason": reason,
+            "observed_at": row.get("observed_at") if isinstance(row.get("observed_at"), str) else None,
+            "query_sha256": query_sha.lower() if is_sha(query_sha, 64) else None,
+            "evidence_sha256": evidence_sha.lower() if is_sha(evidence_sha, 64) else None,
+        })
+    availability = (
+        "unknown" if not isinstance(rows, list) or "unknown" in statuses
+        else "unavailable" if not statuses or statuses == {"unavailable"}
+        else "available" if statuses == {"available"} else "partial"
+    )
+
+    mobile = [r for r in records if isinstance(r, dict) and r.get("product_loop_id") == "mobile-apps"]
+    mrr = projection.get("mrr", {}).get("loops", {}).get("mobile-apps")
+    coverage = {
+        key: projection.get(key, {}).get("loops", {}).get("mobile-apps", {}).get("coverage_gaps")
+        for key in ("historical", "trailing")
+    }
+    coverage["mrr"] = mrr.get("coverage_gaps") if isinstance(mrr, dict) else None
+    duplicates = [
+        r for r in projection.get("duplicate_receipts", [])
+        if r.get("provider") in {"app-store-connect-financial", "revenuecat"}
+    ]
+    payload = {
+        "schema_version": 1, "owner_id": owner_id, "occurrence_id": occurrence_id,
+        "run_id": run_id, "release_sha": release_sha, "live_readback_enabled": True,
+        "revenuecat": {
+            "started_at": mobile_readback.get("started_at"),
+            "completed_at": mobile_readback.get("completed_at"),
+            "latest_observed_at": mobile_readback.get("latest_observed_at"),
+            "availability": availability, "rows": summaries,
+        },
+        "mobile_records": mobile,
+        "projection": {"duplicate_receipts": duplicates, "coverage": coverage, "mobile_mrr": mrr},
+    }
+    descriptor = temporary = None
+    try:
+        body = (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n").encode()
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{occurrence_id}.", dir=str(directory))
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = None
+            stream.write(body)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, directory / f"{occurrence_id}.json")
+        temporary = None
+        directory_fd = os.open(str(directory), os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        return True
+    except (OSError, TypeError, ValueError, OverflowError):
+        return False
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if temporary and os.path.exists(temporary):
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
+
+
 def build_b7_projection(*, snapshot_at: str, trailing_start: str,
                         adapter_records: dict[str, list[dict]] | None = None,
                         snapshot_at_is_explicit: bool = False,
@@ -404,13 +562,19 @@ def build_b7_projection(*, snapshot_at: str, trailing_start: str,
                         trailing_start.replace("Z", "+00:00")
                     ) + delta
                     trailing_start = _utc_text(trailing_end)
-    return project_records(
-        collect_b7_records(
-            snapshot_at=snapshot_at, trailing_start=trailing_start,
-            adapter_records=adapter_records, mobile_readback=mobile_readback, env=env,
-        ),
+    records = collect_b7_records(
         snapshot_at=snapshot_at, trailing_start=trailing_start,
+        adapter_records=adapter_records, mobile_readback=mobile_readback, env=env,
     )
+    projection = project_records(
+        records, snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+    if adapter_records is None and mobile_readback is not None:
+        _persist_mobile_natural_evidence(
+            mobile_readback=mobile_readback, records=records,
+            projection=projection, env=env,
+        )
+    return projection
 
 
 def day_window(day: date) -> tuple[datetime, datetime]:
