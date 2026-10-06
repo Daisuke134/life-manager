@@ -3640,3 +3640,23 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
   9. **A9 Report:** 既存CLI/panelでloop/platform/company別revenue/expense/net/MRR/runway、bank balance、freshness/coverage/estimate-vs-settled/unknownを同一期間に表示する。
   10. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runとofficial source receiptをreadbackする。
       14-loop financial view、Moneytree freshness、RevenueCat、Google actual-vs-estimate、total expense/net/unknown/report receipt、replay-zeroを確認する。
+
+### 2026-10-07 JST — A3 Supabase permission probe
+
+- **Scope:** このprobeはA3の対象解決とManagement API access確認だけを行い、CFO mainline cursor=`A4.1`を変更しない。
+- Railway production `life-call`の`SUPABASE_URL`から対象Supabase project refを特定したが、refは公開SSOTに保存しない。
+- 現在のSupabase CLI profileで`supabase orgs list --output json`を実行した結果、可視organizationは0件だった。
+- 同profileから対象projectへの`supabase projects api-keys`はHTTP 403 `account does not have the necessary privileges`で失敗した。
+- このendpointはAPI Keys readであり、403だけでは`database_migrations_write`が無いことを証明しない。
+- `SUPABASE_ACCESS_TOKEN`と`SUPABASE_DB_PASSWORD`はshell environmentに無い。
+- production `life-call`のSupabase関連variableはruntime用`SUPABASE_URL`と`SUPABASE_SERVICE_ROLE_KEY`のみであり、他の非Supabase variableとは区別する。
+- private credential SSOTのSupabase項目にもruntime用`api_key`のみがあり、Management PATまたはSupabase direct database credentialは確認できない。
+- `SUPABASE_SERVICE_ROLE_KEY`はSupabase Management API tokenではないため、migration authorizationに流用しない。
+- 既存`interactive:dais` browser profileからDashboardを開いたread-only probeは`/dashboard/sign-in`へredirectしたため、既存Dashboard sessionは利用できなかった。
+- Supabase Management API用の接続toolはこのsessionに無く、current CLI tokenを任意endpointへ渡す安全な公式CLI subcommandも確認できていない。
+- したがって`POST /v1/projects/{ref}/database/migrations`によるA3 migration write permissionは未検査のままで、migration applyもproduction DDL/data/provider writeも0件である。
+- browser probeの一時CDP contextとidentity leaseはdispose/releaseし、他のbrowser profileやtabは変更していない。
+- **確定した次の必要条件:** project owner/adminが、現在のSupabase identityを対象projectでmigrationを実行できるroleへ追加するか、そのroleが許す範囲で対象project限定の`Migrations: Read-write` tokenを用意する。
+- scoped tokenの`Migrations: Read-write`はaccount roleを拡張しないため、role不足とtoken scope不足は分けてreadbackする。
+- authorized Management tokenが利用可能になった時だけ公式migration endpointへA3 SQLを送り、migration history・private table・RPC・ACL・PostgREST schemaをreadbackする。
+- owner access/scopeの確認後にmigration write probeとapplyを行い、403の推測やruntime keyの流用で再試行しない。
