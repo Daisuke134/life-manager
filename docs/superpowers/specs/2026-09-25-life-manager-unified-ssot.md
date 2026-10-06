@@ -9773,3 +9773,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna source commit4e39eeb1476db08cff1474851c174dfaf7b63afa/fix/cfo-asc-official-input-20261007をremote ls-remoteで確認。ASC packet normalizer/wire/回帰test/運用契約をsource確定。続くtest89d3c1af7bは古い固定catalog件数assertion1行だけを除き既存catalog全件row一致の検証を保持。
 - rootがtest修正後のpython3 -m unittest skills.cfo.test_capafy_mobile_attribution skills.cfo.test_loop_pnlをfresh実行、88/88 PASS。./bin/lm-loop-contractもoktrue/catalog15/registry184/mapped107/errors[]。15は現catalog構造の観測で、財務coverage全完了を示さない。
 - MRR表示修正・fresh財務review・CI/main/immutable/自然reportは未完。新sourceを本番へ直接patch/接続しない。current17/相対順序維持。
+
+
+### 780. source全3commit確定とfresh財務review起動
+
+- sourcebranch fix/cfo-asc-official-input-20261007/HEAD59ac78f7a6085001b1c960cafb4e1a980236206dはremote一致/worktree clean。4e39 ASC入力、89d3 catalog固定assert1行除去、59ac verified loop MRR表示の3commit。worker完了報告はPython50+38/JS9/source-boundary/diff PASS、実packet1receipt/coveragegap、混在typedgapを確認。本番反映・利益は未完。
+- rootがrepo loop-developmentの既存runtime suiteを一度起動、handle76872/log cfo-asc-runtime-contract-tests.logは継続中。warningを終了/FAILへ断定せず同handleを追う。
+- fresh Sol6.1/medium native spawn_agentはagent thread limit reachedで拒否。代替として独立fresh codex exec -m gpt-6.1-sol/medium/read-only/ephemeralを起動handle26022、同codeとprivate原artifactの反証review。旧モデルfallback/実装者context継承/外部effectなし。結果はprivate cfo-fresh-review-result.mdへ保存予定、完了を先取りしない。
+- 現在17。残りはfresh review findings解消/必要CI/PRmain/immutable/正規実入力接続/自然CFOreport/未取得財務証拠。全goalや14loop財務Doneにはしない。
