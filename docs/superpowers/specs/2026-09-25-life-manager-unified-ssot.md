@@ -4873,14 +4873,14 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 - 変更理由：現在の有償仕事と販売行動へ時間を使い、既存観測CLIを使わない個別巡回・過去状態の再集計を止めるというDaisの明示指示。
 - 旧順序：Coconala旧保留→Agent Economy receipt→monitor/監査→応募/納品→storefront→会計→SelfBuild。旧44表は§611の履歴を参照。
-- 新順序：下表1→31。現在cursor1（Lancers以外の既存CLIで現在の収益対象を集約）。SelfBuildは27、Lancers再開28〜30、最終確認31。旧A番号は実行順や完了証明に使わない。
+- 新順序：集約を終えた旧1だけを除き、未完旧2〜31を新1〜30へ連番化する。未完の相対順序は不変。現在cursor1は既存有償案件の次成果物・履行確認。SelfBuildは26、Lancers再開27〜29、最終確認30。旧A番号は実行順や完了証明に使わない。
 - 各行の成果に必要な原因修復・検証はその行内で行う。正常な待機/観測不足を一律code故障へ変換しない。外部待ちは不足物・再開条件を残し、独立した収益channelを止めない。進行中effectを中断・重複させず、同branch/profile/state/provider effectの所有を重ねない。
 
 #### 現在の収益対象と不足情報（公式観測の集約）
 
 | channel | 確認した対象 | 次に必要な行動・不足情報 |
 |---|---|---|
-| Coconala受注 | 現受注一覧3件、表示9000/8000/24000円。24000円は取引中/表示最新sender seller、8000円は未取得 | TikTok/NPO追跡延期を保持し、それ以外の現在必要行動だけを確認。表示額を入金にしない。§631 |
+| Coconala受注 | 現受注一覧3件、表示9000/8000/24000円。8000/24000円は取引中/表示最新sender seller | TikTok/NPO追跡延期を保持し、それ以外の現在必要行動だけを確認。表示額を入金にしない。§631 |
 | Coconala問い合わせ | 先頭30行はobserve、返信要求flagなし | 1page/head-onlyで全件性なし。新着の具体的必要行動がある時だけ該当thread確認。§631 |
 | Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
 | CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
@@ -4891,47 +4891,46 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在cursor：1（既存CLIによる現在の実案件・注文・収益情報の集約）。主経路31項目。
+現在cursor：1（確認済み既存有償案件の次成果物・履行確認）。主経路30項目。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
 
 Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監査→収益確認」の順を変更する。新順は実債務/納品・精算→Lancers以外のstorefront/応募/販売→会計→SelfBuild→Lancers再開→最終確認。理由は古い状態の巡回を全収益経路の停止条件にせず、実際の仕事と売上へ時間を使うため。以後この順を保持する。各行の必要な観測・原因修復・focused検証はその行の中で行い、観測だけを何度も独立taskに増やさない。新しい外部effect/価格変更等の権限はこの文書更新から推定しない。
 
 | 順序 | 残作業 | 完了を示す成果 |
 |---|---|---|
-| 1 | Lancers以外の既存CLIで現在の有償案件・新着・注文・精算待ちを一度集約する | runtime状態と公式業務情報を区別。金額/期限/必要行動のある対象リストを作る。空/取得失敗を案件0へ変換しない。 |
-| 2 | 確認済みの既存有償案件で、次の成果物を完成・納品する | funded scope/期限に対応する実成果物と公式納品記録。保留のTikTok/NPO個別追跡は除外。 |
-| 3 | 実際に納品済みで検収・精算が必要な案件の次手を実行する | 同案件の公式検収/請求/精算記録。個人口座の資金移動を追加しない。 |
-| 4 | Coconalaの既存storefront商品を購入可能な状態にする | 既存商品/購入経路の現公式状態。古いreply保留を公開・販売全体のgateにしない。 |
-| 5 | 既存の自社商品・定型サービスから売る1商品を選び、見本と説明を整える | 再利用できる履行scope/見本/費用見積を持つ1商品。価格/paywall変更や未承認の新規公開を追加しない。 |
-| 6 | 実際の新着問い合わせ・見積依頼に返信し、有償契約へ進める | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
-| 7 | Mercorで適合する新規案件へ応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
-| 8 | Coconalaで適合する新規案件へ提案する | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
-| 9 | CrowdWorksで適合する新規案件へ応募する | 現account/ownerと同案件の公式応募記録。メールの有無だけで判定しない。 |
-| 10 | Freelancerで適合する新規案件へ応募する | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
-| 11 | Upworkで適合する新規案件へ応募する | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
-| 12 | 実際の新規storefront注文を履行・納品する | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
-| 13 | Capafyの既存商品で次の販売cycleを進める | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
-| 14 | Writerの販売可能な既存商品で次の販売cycleを進める | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
-| 15 | Affiliateの既存販売経路で成約・報酬へ進める | 許可済み既存運用のconversion/commission/settlementと実費。 |
-| 16 | TaskMarket/Agent Economyで実行可能で採算の合う有償taskを一つ進める | 現在の公式要件/報酬/既存executor/capを照合して履行・receiptへ。候補無しなら投機的無料prototypeや延々pollingへ進まない。 |
-| 17 | Fundraiserで既存の適合申請を一件進める | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
-| 18 | Cloudの既存収益サービスの次の収益行動を進める | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 19 | Mobileの公式収益・acquisitionデータをCFOへ接続する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
-| 20 | 既存Investmentの実取引・手数料・精算を会計へ結ぶ | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
-| 21 | 14loopの確定収益・返金・手数料を同期間で集計する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
-| 22 | 14loopの実費を同期間で集計する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
-| 23 | 実収益と実費からnet marginを示す | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
-| 24 | 継続課金のMRRを算出する | 年額/買い切り/開発者収益/着金/利益を分離。 |
-| 25 | 個人と会社を分け、現在のliquid balanceを示す | 公式残高と観測鮮度。last-knownを現在値にしない。 |
-| 26 | 現在残高と実費からrunwayを示す | 同期間cost coverage、欠損はunknown。 |
-| 27 | 収益経路を整えた後にSelfBuildの復旧重複を修復する | 成功済み復旧の再実行防止、必要最小tests/freshreview/main/immutable/自然recovery/replay-zero。先頭へ戻さない。 |
-| 28 | LancersのCAPTCHA接続を回復し、業務CLIの取得を再開する | 未解決のAWS WAF HTTP405/solver API errorを後段で再開。既存pending task状態を再利用し重複task作成を防ぐ。正規guardと同CLIで取得成功を確認。 |
-| 29 | Lancersの既存storefront商品を購入可能な状態にする | 既存listingの現公開/購入経路をCLI等既存観測で確認し、購入を止める故障だけ修復。 |
-| 30 | Lancersで適合する新規案件へ応募する | 既存応募loop/cap内の同案件公式応募記録。 |
-| 31 | 全体成果と残る外部依存を最終確認し引き継ぐ | 実応募/販売/納品/精算/利益の証拠と保留台帳。未達を全体Doneにしない。 |
+| 1 | 確認済みの既存有償案件で、次の成果物を完成・納品する | funded scope/期限に対応する実成果物と公式納品記録。保留のTikTok/NPO個別追跡は除外。 |
+| 2 | 実際に納品済みで検収・精算が必要な案件の次手を実行する | 同案件の公式検収/請求/精算記録。個人口座の資金移動を追加しない。 |
+| 3 | Coconalaの既存storefront商品を購入可能な状態にする | 既存商品/購入経路の現公式状態。古いreply保留を公開・販売全体のgateにしない。 |
+| 4 | 既存の自社商品・定型サービスから売る1商品を選び、見本と説明を整える | 再利用できる履行scope/見本/費用見積を持つ1商品。価格/paywall変更や未承認の新規公開を追加しない。 |
+| 5 | 実際の新着問い合わせ・見積依頼に返信し、有償契約へ進める | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
+| 6 | Mercorで適合する新規案件へ応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
+| 7 | Coconalaで適合する新規案件へ提案する | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
+| 8 | CrowdWorksで適合する新規案件へ応募する | 現account/ownerと同案件の公式応募記録。メールの有無だけで判定しない。 |
+| 9 | Freelancerで適合する新規案件へ応募する | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
+| 10 | Upworkで適合する新規案件へ応募する | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
+| 11 | 実際の新規storefront注文を履行・納品する | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
+| 12 | Capafyの既存商品で次の販売cycleを進める | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
+| 13 | Writerの販売可能な既存商品で次の販売cycleを進める | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
+| 14 | Affiliateの既存販売経路で成約・報酬へ進める | 許可済み既存運用のconversion/commission/settlementと実費。 |
+| 15 | TaskMarket/Agent Economyで実行可能で採算の合う有償taskを一つ進める | 現在の公式要件/報酬/既存executor/capを照合して履行・receiptへ。候補無しなら投機的無料prototypeや延々pollingへ進まない。 |
+| 16 | Fundraiserで既存の適合申請を一件進める | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
+| 17 | Cloudの既存収益サービスの次の収益行動を進める | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
+| 18 | Mobileの公式収益・acquisitionデータをCFOへ接続する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
+| 19 | 既存Investmentの実取引・手数料・精算を会計へ結ぶ | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
+| 20 | 14loopの確定収益・返金・手数料を同期間で集計する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
+| 21 | 14loopの実費を同期間で集計する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
+| 22 | 実収益と実費からnet marginを示す | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
+| 23 | 継続課金のMRRを算出する | 年額/買い切り/開発者収益/着金/利益を分離。 |
+| 24 | 個人と会社を分け、現在のliquid balanceを示す | 公式残高と観測鮮度。last-knownを現在値にしない。 |
+| 25 | 現在残高と実費からrunwayを示す | 同期間cost coverage、欠損はunknown。 |
+| 26 | 収益経路を整えた後にSelfBuildの復旧重複を修復する | 成功済み復旧の再実行防止、必要最小tests/freshreview/main/immutable/自然recovery/replay-zero。先頭へ戻さない。 |
+| 27 | LancersのCAPTCHA接続を回復し、業務CLIの取得を再開する | 未解決のAWS WAF HTTP405/solver API errorを後段で再開。既存pending task状態を再利用し重複task作成を防ぐ。正規guardと同CLIで取得成功を確認。 |
+| 28 | Lancersの既存storefront商品を購入可能な状態にする | 既存listingの現公開/購入経路をCLI等既存観測で確認し、購入を止める故障だけ修復。 |
+| 29 | Lancersで適合する新規案件へ応募する | 既存応募loop/cap内の同案件公式応募記録。 |
+| 30 | 全体成果と残る外部依存を最終確認し引き継ぐ | 実応募/販売/納品/精算/利益の証拠と保留台帳。未達を全体Doneにしない。 |
 
 #### 後段・条件付き保留（完了ではない）
 
-- LancersのCAPTCHA接続/業務CLI取得・storefront・新規応募はDaisの明示指示で後段28〜30へ移す。未解決で保持し、他platformの収益経路を止めない。新たな反復solver task作成は行わない。既に実契約/資金/期限が確認された債務があれば、その事実を別途明示して扱い、架空の完了にはしない。
+- LancersのCAPTCHA接続/業務CLI取得・storefront・新規応募はDaisの明示指示で後段27〜29へ移す。未解決で保持し、他platformの収益経路を止めない。新たな反復solver task作成は行わない。既に実契約/資金/期限が確認された債務があれば、その事実を別途明示して扱い、架空の完了にはしない。
 
 - Coconalaの旧保留12record：自動再送防止は維持し、全体の停止条件から外す。新しいbuyer依頼・有償契約/期限・入金risk、または現在の収益行動を止める故障の証拠が出た時に、その該当recordだけ照合する。待返信無し/売上影響無しとは断定しない。
 - Capafy日次monitor、Token report、Writer改善canary、週次validation、fleet全件再分類、scratch/Eval追加監査はroutineとして維持する。収益行動を止めている証拠が無ければ先行しない。故障が実際の現在作業を止める場合は、その作業内の最小修復へ戻す。
@@ -8714,3 +8713,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 24000円/id hash0b34ba1f724fはtransaction_state取引中/step進行中/visible messages20/last visible sender seller。history_complete未証明、正式納品・検収・精算は未確認。seller latestだけで全buyer要件充足/取引完了/入金を断定しない。
 - 8000円/id hash6b17bcab37dfはstate unknown/step空/messages0/history_complete null。取得不足を誰も待っていない/完了/未納品0にしない。次に同取得を行うならHTTP/route/title/コンテナのsafe diagnosticを追加し、ゼロ行の原因を狭める。旧12全件やTikTok/NPO材料追跡は再開しない。
 - current1/主経路31の順を維持し、実行済み読取runの重複起動/返信/再納品を行わない。
+
+
+### 646. 限定集約のDone・残作業30への繰上げ
+
+- 追加safe diagnostic付き既存readで8000円/id hash6b17bcab37dfも取引中/進行中/visible20/last visible sender seller、expectedroute true/loginroute false/forbiddentitle falseを確認。history_complete未証明、正式納品/検収/精算は未知。private原本coconala-two-order-result-1791265304243987000.json。送信/再納品/attachment capture/project state変更0。
+- 旧残1の成果は『既存CLIで現在対象を一度集約し金額/期限/次手・取得不足を一覧化、欠損を0にしない』。§217の集約表と§615〜646のCLI/current runtime/private証拠によりこの限定成果を完了とする。全platform official coverage・全loop修復・納品・入金・利益のDoneへ拡張しない。各未取得は既存の対応残taskへ保持する。
+- 旧1だけを残表から除外、未完旧2〜31→新1〜30。相対順/所有/外部effect不変、理由は完了した集約の反復を止め有償履行・販売へ進むため。現在cursor新1=既存有償案件の次成果物。SelfBuild新26/Lancers新27〜29は最後のまま。§615等の旧番号は過去履歴、最新順序は§217のみ。
+- 新1で現在実行可能なbuyer scope/成果物・公式納品条件を確認し、TikTok/NPO延期を戻さず、最新seller発言を理由に不要な再返信を作らない。scope不足・buyer待ちは具体的に記録し独立した後続販売行動を止めない。
