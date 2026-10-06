@@ -8789,3 +8789,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最新origin/main654e8c72e65f398c1ffa4c6514ec08d3a0d152c7から専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-paid-proof-fallback-20261006、branch fix/lm-paid-proof-fallback-20261006を作成。該当重複worktreeなし/clean、root lease codex-money-printer-paid-proof/24hを取得。
 - Luna6/max有限実装handle38270はresolverと既存CW testの2fileだけ所有。§654のcanonical authoritative/symlink拒否/Mercor限定fallback/危険state保持をRED→GREENにする。新marker/事前prepare/busy receipt生成/過去state解除は対象外。rootはSSOT/受入/fresh safety review/PR/main/releaseを所有。
 - 必要検証は実反例の隔離fixtureと既存関連test、source contract/diffの必要範囲。商品mockは取消のまま、全repo新QAを追加しない。sourcepush・review・CI・main・反映は未完。current1/残30/後段順不変。
+
+
+### 656. Paid caller identity/hintの実経路確認
+
+- runtime/loop/lm_loop_run.pyはLIFE_MANAGER_RUN_IDを継承可能、無ければtime_ns/PIDから生成しowner:run_idを作る。durable claimではclaim fileのoccurrenceへ置換しowner prefix/formatを検証後child envへ渡す。生成形式だけを新規性・過去未dispatchの証明にしない。
+- CrowdWorks paid-ownerはpre-effect hint許可の既存entrypoint。hostはspawn前にentrypoint-result.json pre_effect_failure/effect0を初期化する一方、paid kernelはstartup hintをクリアしてoccurrence marker履歴を確認し、prior armedでない時だけ再準備する。入口でこのhistory checkを飛ばしてhint/markerを作らない。
+- busy receiptの安全条件はclaim再利用/attempt/dispatch/既存markerを含むため、§654 HOLDを維持。実state/claim/hint変更0。既存resolver修復run38270はlive handle確認、担当2fileに差分あり、検証/pushは未完。mock制作再開0。current1/残30の順維持。
