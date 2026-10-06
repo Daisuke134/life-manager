@@ -8619,3 +8619,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Freelancer/Upworkのreadiness/transport部品はskills/earn/gig/scripts内に存在し、official contract/payment/payout inventoryのaccount-bound receipt検証を持つ。FreelancerTransport.read_inventoryのproduction呼出元とconcrete fetchは今回の検索範囲で未特定。定義があるだけを稼働成功へ置換しない。
 - Upworkの既存CLIはproviders/upwork_browser_provider.py main。ただしobserveは全ページ読取だけでなくsealed proposal等の業務effect経路を含むため、観測目的でdefault CLIを盲目的に実行しない。現runtime旧ownerはretired/disabled、現行接続/許可receipt/公式inventoryは未取得。既存read-only page/readback関数へ対象限定して接続することが次の観測経路であり、旧owner無条件再有効化はしない。
 - README/provider manifestの許可stateは設定証拠であり最新provider事実の独立証明ではない。provider state unknownを0/全稼働へ変換しない。新CLI/framework/設定変更/応募/送信/支払0。current1/主経路31/Lancers後段維持。
+
+
+### 635. Upwork現接続readback・credential検索範囲
+
+- registered browser-guard status upwork:daisをreadonly実行。reachable=false/http_status null/websocket shape null/pid null、現browser接続は未成立。旧scheduler退役/disabledは別のlifecycle証拠として保持し、旧default CLIを実行して応募/送信を混ぜない。
+- credential SSOTは存在。構造化service/platform/name/url等の非secretmetadataだけを再帰照合しUpwork対応entry2を確認。secret値/ユーザー名/email/URL/token/passwordを表示・コピーしない。トップレベルkey不在をcredential不在にしない。Freelancer metadata一致0は検索結果のみでprovider account不存在ではない。
+- Upwork再開条件は登録profile/browser ownerの現在稼働を安全に復元し、既存receipt/transportのread-only観測条件と公式account readbackを確認すること。認証・再有効化・provider設定・応募・外部送信はこのターン未実施。独立Coconala/他channelを停止しない。current1/主経路31/Lancers後段維持。
