@@ -9355,3 +9355,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - projectにはreceipt系ファイルが存在し、先行限定economic filenames検索から全金融receipt不在へ一般化しない。確認範囲でfinancialreceipt未特定、missing refs/再開条件は維持。reviewerのsource検索に不要な金額コメント出力があり、指定stdout境界の逸脱を完了証拠に使わない。証拠 `coconala-settlement-fresh-review-result.txt`。
 - cursor2のfinance成果は未完。待機に独立順序3の商品4313100公開/購入導線をreadonlyで観測する。初回は退役したoldimmutableのwrapper pathmissing/exit127で未起動、currentの同4429SHA immutableへ切替え、profile/source/商品設定を変更せず再実行。外部write/購入/出品/価格変更0。
 - current2の不足を保持、主29相対順序不変。外部receipts不足だけで他channelを停止しない。
+
+### 727. 商品4313100の現在publicrouteは403、設定を推測しない
+
+- currentの同4429main-derived immutable wrapper/registered coconala:kosuke/既存giglockで公開top→service4313100をread-only取得。2026-10-06T15:23:25.231261Z、serviceHTTP403/expectedroute/body13/SHA58404.../loginfalse。title/purchase/estimate/paused tokenは未観測であり、受付休止・公開無し・購入不可設定と分類しない。
+- この商品routeの結果は、直前のrevenue HTTP200復帰と別scope。vendor全体が永久403/完全復旧とは断定しない。商品/price/出品/購入/銀行/source/credentialを変更0。証拠 `coconala-4313100-current-public-route.json`。
+- cursor2の金融不足は保持し、順序3の独立readonly準備を実行した。次は正常seller inventoryとpublicroute/購入導線のsourcebindingを確認し、失敗の本当の境界だけを修復する。主29順序/SelfBuild25/Lancers26〜28は不変、financeDone/商品buyableは未完。
