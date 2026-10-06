@@ -8551,3 +8551,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - production Reply plistの非secret envをreadonly照合し、identity coconala:kosuke、cookie domain coconala.com、vault gig-daily-driver/auth-state.jsonが今回CLIと一致することを確認。vault更新2026-10-06T04:48:35.820224Z。fresh timestampは有効認証の証明にしない。過去保留12record照合/再送/認証変更0。
 - tier-a-bypass skillを読んだが、403 titleだけではsupported CAPTCHA widgetの証明にならないためsolver taskを作成していない。次の接続診断はrendered script/frame/widgetのsafe観測でprovider access拒否とchallengeを区別すること。本人手続き/認証を成功へ丸めない。
 - CrowdWorks修復run33233はlive handleを再poll確認。再起動/重複実装者0。current1/主経路31、Lancers後段を維持。
+
+
+### 626. Coconala403のrendered challenge反証
+
+- 正規coconala:kosuke guard取得/解放0、登録daily-driver default contextに自身だけのhidden targetを開閉し、同受注URLのsafe DOMを観測。forbidden=true/login_form=false、recaptcha widget/response textarea/captcha frame/WAF scriptはいずれもfalse、script0/frame0。公式title403 Forbiddenはisolated vaultだけの問題ではなくdefault contextでも再現。
+- private原本state/cli-observability-20261006/coconala-access-probe-1791263085346032000.json。生本文/URL/個人情報/credential/response tokenを保存・表示しない。別owner pageの変更/close、login、solver task、provider送信0。対応widget未出現のため既存solverへ渡すsitekey/textarea/callbackがなく、solver成功を捏造しない。
+- 接続調査の残りは公式public/home routeとの比較でroute限定拒否とsite-wide拒否を分け、適切な既存接続経路のownerへ結ぶこと。受注/新着/販売件数は未取得を保持、旧12recordを再調査しない。current1/主経路31/Lancers後段は不変。
