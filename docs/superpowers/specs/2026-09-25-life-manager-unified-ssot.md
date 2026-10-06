@@ -4885,7 +4885,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 | Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
 | CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
 | Mercor | 返却100行中reject86/途中8/応募済6 | 全件性・契約/精算coverage未確認、既存effect-unknownは再送せず応募行で照合。§620–622 |
-| Upwork | browser復旧/公式contract画面active0・available表示$0 | 支払画面のavailable/pending表示0を取得。account独立照合/全履歴/refund/fee/payout/costは未確認。財務review未完、表示0を過去売上や利益0にしない。§637–639/643 |
+| Upwork | browser復旧/公式contract画面active0・available表示$0 | 支払画面のavailable/pending表示0を取得。account独立照合/全履歴/refund/fee/payout/costは未確認。財務reviewは表示限定SHIP、表示0を過去売上や利益0にしない。§637–639/643–644 |
 | Freelancer | 既存readiness/transportあり、旧scheduler退役 | 現account/実inventory fetch/receipt未確認。定義を現稼働へ変換しない。§634–635 |
 | Lancers | 接続未解決 | Dais指示どおりSelfBuild後へ保留、既存solver taskを重複させない。§615 |
 
@@ -8699,3 +8699,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同releaseの既存_read_evidenceとparse_payment_observerでtransactions/withdrawalsの公式DOMを検証、両reader accepted/parser ok、guard取得/解放0。返却available0/pending0、state clear、tax_profile_complete false/withdrawal_method_configured false/recognized_revenue null。表示の集約であり過去売上・着金・net0ではない。private原本upwork-reader-1791264924321159000のsource2file/safe-summary、mode600。
 - 財務表示と設定未完了案内の事実認定をfresh gpt-6.1-sol/medium readonly有限reviewへ渡した、handle57316。native thread上限の既存制約を受け、旧世代fallback0。private sourceだけ反証しprovider/銀行/税設定変更0。account identity独立照合/全履歴coverage/settlement/costは未知を保持。review結果は未完。
 - 次はreview指摘があれば正確性を解消し、現在の対象行動へ戻る。current1/主経路31/Lancers後段維持。
+
+
+### 644. Upwork財務表示fresh review完了・自然Reply最新状態
+
+- fresh gpt-6.1-sol/medium readonly reviewerは指定source2file/summary/既存reader/parserだけを反証。両sourceハッシュ一致/parser再計算一致。観測時のavailable/pending各$0.00表示、税プロフィール完了・出金方法未設定の案内に限定してSHIP。過去売上/着金/全期間/net profit0の断定はHOLD。recognized_revenue null/account独立照合/全履歴/settlement/cost未知を保持。private結果upwork-finance-review-result.txt、handle57316 exit0、外部操作0。
+- Coconala Replyのcanonical state_root最新reportをreadonly確認。latest.json更新2026-10-06T05:36:56.251542Z、status blocked/blocker provider_inbox_access_forbidden。observed/actionable/pending/failed/effect/readback0は取得拒否時のreportであり新着/待返信/実契約0の証明ではない。過去保留12へ結論を拡張しない。paid rootのtop latestはcleanupしかなく、cleanupを業務成果へ代用しない。
+- 現受注2件だけの既存helper readをwith-browser正規待機45秒で一回起動、handle49707。送信/attachment capture/project state変更なし、同readの重複起動をしない。終了/公式状態取得は未完。current1/主経路31/Lancers後段維持。
