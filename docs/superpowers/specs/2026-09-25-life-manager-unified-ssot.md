@@ -8565,3 +8565,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Coconala同registered browserの公開トップも403、CAPTCHAなし/script0/frame0を確認。private原本coconala-public-probe-1791263161075831000.json。独立した認証なしHTTPS公開トップ取得はHTTP200/server nginx（coconala-public-https-1791263178311076000.json）。したがってsite全体停止とは判定せず、browser/session/network条件へ診断境界を絞る。public200は受注一覧/認証/販売可能の証明ではない。
 - CrowdWorks小数/負値unknown修正commit1c1478b22210380fe10e860c7fc1bcc979ce3cccをlocal/tracking/ls-remote三点一致/clean確認。productionはまだ未反映。native thread上限を維持するためfresh codex exec readonly reviewerをgpt-6.1-sol/mediumで起動、handle42066。対象は前回HEADとの差分/既存helper/caller/関連focusedのみ、全repo監査とprovider操作0。
 - 実装run33233の最終終了報告・再review・同最終headCI・main/immutable/liveは未完。current1/主経路31/Lancers後段を維持。
+
+
+### 628. CrowdWorks最終source SHIP・Coconala browser内GET差分
+
+- source1c1478b22210380fe10e860c7fc1bcc979ce3cccはLuna実装RED小数/負値2fail→focused7/adapter130/contract/OSS/source-boundary/diff PASS、remote一致/clean。fresh Sol6.1medium readonly再reviewはSHIP、focused11 PASS、旧regex再現/修正後unknown/正整数observed/複数ambiguous/production admission不変を確認。重要Done指摘残0。PR6727最終headのCIはまだ実行中、main/immutable/liveは未完。
+- Coconala同registered default browser自身のhidden targetから公開トップGETをCookie omit/includeで比較し、両方HTTP200。private原本coconala-cookie-probe-1791263276884347000.json、guard取得/解放0。cookie不良やsite-wide継続拒否をこの結果だけで断定しない。受注情報/接続回復の証明ではない。
+- 追加観測後の既存orders-only CLI再取得はwith-browser正規wrapper exit75（使用中、collector開始前）。private原本coconala-orders-1791263304381159000。独立観測の成功でbusy guardを迂回しない。次は正規取得時の同CLI readback、403が再現する場合だけnavigation/request条件を狭める。旧保留再送0。
+- current1/主経路31/Lancers後段維持。次のsource手順は同head全CI→通常main統合→既存完全immutable→readonly同helperの公式readback。
