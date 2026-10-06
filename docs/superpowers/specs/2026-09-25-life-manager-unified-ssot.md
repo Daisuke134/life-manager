@@ -9379,3 +9379,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - revenue_collectorは申請済みと振込予定日をparseするが銀行着金を取得しない。coconala_outcomesのbank_arrivalは固定waitingであり、公式銀行readbackではない。CLIが存在することと必要証拠のcoverageを区別する。
 - 新probe handle88821はregistered coconala:kosuke leaseと既存provider lock内で自分の新規pageのみ使用しexit0。UTC2026-10-06T15:49:18.168643、公式revenue HTTP403/body13/SHA58404bdf6dc25c24fedd979469e69bfb8dc9ebca64a469929a858a12b12b9c30、振込導線取得不可。provider effect0、ledger/CFO writes0。最初のwrapper引数不足exit64はbrowser観測前に終了し、usage確認後に修正した。
 - 証拠private cli-observability-20261006/coconala-revenue-navigation-boundary.json。直前のHTTP200実明細取得を否定せず、間欠403の取得境界を次に確認する。現在の残高/未入金/非公開/売上0を推定しない。銀行receipt・案件fee・実費は未確認のまま。
+
+
+### 730. Coconala取得失敗のALB境界と案件実費のjoin不足
+
+- §729の単純再取得にせず、registered identity/既存giglock/自分の新規pageでレスポンスと認証表示を追加観測。handle90749 exit0。UTC2026-10-06T15:50:02.802488、topとrevenue?ref=menuの両方HTTP403/server awselb/2.0/body13/SHA58404...、login/logout/account linksとvisible CAPTCHA無し、challenge header無し。アプリ画面前の失敗境界は確認、認証期限切れ・CAPTCHA・具体的ALB拒否理由は未確定。credentials/profile/proxy/source変更0。証拠private coconala-auth-response-boundary.json。
+- 案件18211957のsource-receipt.json全14ファイルをkey metadataで照合。画面取得/納品観測のreceiptでありprovider_cost_usd/invoice_id/paid_receipt/amount_minor keys無し。この確認範囲だけでfinancial sourceではないと分類し、全金融証拠の不在へ一般化しない。
+- CFO既存usage_files経路のagent-usage.jsonl 5本、計33702行をread-only照合し案件ID文字列一致0。hf-gig-paid-directの300usage eventsに費用fieldはあるがrun/occurrence/project/order/session join fields無し（task_label/task_classのみ）。Paid latest itemはtalkroom_id/evidence_pathsを持ちusage event_idを持たない。時刻近似だけで案件実費に割り当てない。案件実費はunknownで保持。証拠private coconala-18211957-actual-usage-coverage.json。
+- current cursor2.2の振込取得は公式ALB取得境界の診断待ち。独立2.4は実行ID→usage eventの既存伝播経路をsourceから確認する段階。必要な再開証拠は公式振込/銀行receipt、案件fee明細、案件にsource-boundされたusage/invoice。外部送信/振込/金融ledger writes0。主29順序、SelfBuild25/Lancers26〜28の後段を保持。
