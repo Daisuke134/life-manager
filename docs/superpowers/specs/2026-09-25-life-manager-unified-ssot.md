@@ -8811,3 +8811,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6742 https://github.com/Daisuke134/life-manager/pull/6742 の同head CI37427812029でOSS boundary FAILURE、他checkは進行中。既存verifierと同じ局所計算によりmanifestのskills/_shared rootはfiles189一致/digest不一致を確認。sparse欠落114fileはcheckout補充後に0、別rootの未検証を全PASSにしない。
 - 担当の初回--no-verifyはsparse内eval-loop不足によるhook停止だった。rootがskills/eval-loopをcheckout追加し、legacy hook env file不存在を確認、通常git push --set-upstreamで0eval PASS/remote up-to-date。迂回不要に戻した。未実施のJudge/backendテストを成功とはしない。
 - 必要metadataだけを同Luna6max sessionへ追加タスクとして渡した、handle83327。所有追加はdocs/manifests/oss-merge-1-sources.jsonのskills/_shared entryだけ、他root/codes/tests blobを維持。normal commitpush・digest照合・必要関連check後、同新headCIを再確認。metadata修復/main/反映は未完、current1/残30/後段順不変。
+
+
+### 659. Paid resolver最終metadata push・OSS CI回復
+
+- metadata修正HEAD12f69dc169d8525de9d2cdfd0cf9bc490c17ac79をremote一致/clean確認。diffはmanifest inventory_sha2561項目だけ、files189維持。既存verifier同計算digest3434de248dc4cb3d0c0e8068c5ad7eeeb672a23322253f2c13dadd3b98b8004aと一致。
+- 承認済み62a24f2d4fのresolver/test2fileと新HEADはgit diff exit0でblob同一。Luna最終関連11PASS/normal push hook0evalPASS、--no-verifyなし、handle83327 exit0。旧source safetySHIP/追加反証19を変更していないsourceへ保持する。
+- PR6742新head12f69同CIでOSS self-contained boundary SUCCESSを公式gh確認。残checkは実行中、全CI/main/immutable/反映は未完。旧失敗headのPASSを新sourceへ流用せず新head全checkで判定する。実state/provider/送信0、current1/残30/後段順維持。
