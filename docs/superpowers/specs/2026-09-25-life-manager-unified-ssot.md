@@ -4867,16 +4867,14 @@ Daisの既定方針は、契約仕事から実収益と学習を得ながら、�
 - Coconala orders修復はmain642/actual load後のrun21571で公式HTTP403とsource receiptを記録（§260）。provider403の解消・正式納品・精算は未達。TikTok案件18180857の旧観測は19 verified unique sends/残281、品質・納品条件未達でpending。Webサイト案件18211957とは別であり、この件数を結合しない。loaded vaultと既定vaultを混同しない。
 - diskはprotected storeを維持し、使用されないTrash内test dependency bundle2件だけを除去して書込復旧を確認（§257）。pressure解消floorは未達。新release buildの可否は既存donor条件とlive ownerに従い判断し、追加のgateを発明しない。doctor unmanaged capafy.kosukeは§278で自然退役/officialabsent/doctor178unmanaged0・retiredpresent0・missing0/隔離replayを確認。全fleet健康・admission・disk、全14経済成果は別の未完条件。全14loops CFO unknownは未完。
 
-#### 実行順序と現在cursor（内部loop優先の正本）
+#### 実行順序と現在cursor（収益行動優先の正本）
 
-Daisの最新指示に従い、Coconalaの手動納品・TikTok公式送信証拠調査・NPO不足資料追跡を保留し、内部loopの稼働修復を先に進める。保留は完了ではない。既存の未完業務成果・受入条件は§464の引継ぎ履歴を参照し、売上・検収・着金・receipt未確認を消さない。
+Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算情報を集約し、納品・精算・storefront・営業へ進める。古いCoconala保留の全件照合と一般監査を収益経路全体の停止条件にしない。未確認の完了/待返信無し/利益を捏造しない。
 
-- 変更理由：個別案件の外部待ちと長いprivate診断で全体の内部復旧を止めず、収益経路の実故障を先に直すというDaisの明示指示。
-- 旧順序：Coconalaの残納品条件3→正式納品4→検収5→精算6→着金7→他platform→fleet44→CFO→SelfBuild。
-- 現在の残順序：下表1→…→44。Coconala内部loop修復を先頭に固定し、一般監査は39、SelfBuildは40〜42へ置く。旧監査先行順序は§600の訂正により失効する。現在cursor1。残る項目の相対順序は保持し、Daisの新たな優先順位指示がない限り変更しない。
-- 番号は今回の内部復旧の実行順。旧A番号・旧実行番号は履歴照合だけに使う。今回の保留・順序変更で完了にした業務成果は0。
-- 最小の安全な作業単位で、primaryが実測・状態・受入を所有する。source修正、release反映、自然実行、公式経済結果を区別する。容量待ち・human_required・effect_unknownを一律故障や成功0へ置換しない。
-- 外部待ちは不足物・最新観測・再開条件を残し、内部の独立修復を止めない。進行中の外部effectは中断/重複させない。user所有wallet資金移動、設計外broadcast、本人必須/KYCを自動化したと偽らない。
+- 変更理由：現在の有償仕事と販売行動へ時間を使い、既存観測CLIを使わない個別巡回・過去状態の再集計を止めるというDaisの明示指示。
+- 旧順序：Coconala旧保留→Agent Economy receipt→monitor/監査→応募/納品→storefront→会計→SelfBuild。旧44表は§611の履歴を参照。
+- 新順序：下表1→30。現在cursor1（既存CLIで現在の収益対象を集約）。SelfBuildは29、最終確認30。旧A番号は実行順や完了証明に使わない。
+- 各行の成果に必要な原因修復・検証はその行内で行う。正常な待機/観測不足を一律code故障へ変換しない。外部待ちは不足物・再開条件を残し、独立した収益channelを止めない。進行中effectを中断・重複させず、同branch/profile/state/provider effectの所有を重ねない。
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
@@ -8435,4 +8433,3 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 | 42 | SelfBuildの本番promotion・recoveryを確認する | source gates→main→immutable→自然owner、重複0・rollbackの記録。 |
 | 43 | Evalの品質・費用・利益before/afterを比較する | 自然実測と再現可能なbaseline、unknown/少数標本を誇張しない。 |
 | 44 | 全体Done監査と残外部依存の引継ぎを閉じる | 全明示条件の証拠と13旧blockとの対応を監査。全体未達なら完了としない。 |
-
