@@ -380,10 +380,16 @@ def _pre_effect_occurrence_proof(
         ]
     else:
         # Include legacy-format rows from the one claiming run so an effect
-        # reference cannot hide outside the occurrence-tagged records.
+        # reference cannot hide outside the occurrence-tagged records. The
+        # occurrence suffix is also a run ID in the owner-level event stream.
+        relevant_runs = {occurrence_id[len(prefix):], *claim_runs}
+        relevant_runs.update(
+            row.get("run_id") for row in occurrence_rows
+            if isinstance(row.get("run_id"), str)
+        )
         related = [
             row for row in owner_rows
-            if row.get("run_id") in claim_runs
+            if row.get("run_id") in relevant_runs
             and row.get("occurrence_id") is None
         ]
     exact_by_event = {}
@@ -407,7 +413,8 @@ def _pre_effect_occurrence_proof(
     if claim_runs and terminal_run_id not in claim_runs:
         return None, "terminal_not_claiming_run"
     if (_is_ebook_runtime_env_pre_effect_terminal(entry, terminal)
-            and terminal_run_id not in claim_runs):
+            and terminal_run_id not in claim_runs
+            and terminal.get("occurrence_id") != occurrence_id):
         return None, "ebook_claim_missing"
     if len(starts) == 1 and len(exact) == 2:
         start = starts[0]

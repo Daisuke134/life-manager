@@ -5016,6 +5016,18 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertEqual(proof["proof_type"], "pre_effect")
         self.assertEqual(proof["blocker"], "entrypoint_exit_1")
 
+    def test_ebook_pre_effect_uses_exact_occurrence_without_claim_uri(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        rows[1]["evidence_refs"] = [
+            ref for ref in rows[1]["evidence_refs"]
+            if not ref.startswith("lm-occurrence://")
+        ]
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["occurrence_id"], occurrence)
+
     def test_ebook_pre_effect_rejects_an_extra_unresolved_run_for_the_occurrence(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
         rows.append({
@@ -5077,7 +5089,7 @@ class PreEffectForeignClaimTests(unittest.TestCase):
 
     def test_ebook_pre_effect_rejects_effect_reference_in_legacy_run_row(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
-        execution_run_id = "execution-20261006-2009"
+        execution_run_id = occurrence.split(":", 1)[1]
         rows.append({
             "loop_id": owner, "run_id": execution_run_id, "phase": "report",
             "status": "fail", "effect_class": "publish", "effect_status": "unknown",
@@ -5091,6 +5103,24 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         })
         proof, reason = lm_loop._pre_effect_occurrence_proof(
             owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "effect_ref_present")
+
+    def test_ebook_terminal_only_proof_checks_suffix_run_legacy_effect_rows(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        terminal = rows[1]
+        suffix_run_id = occurrence.split(":", 1)[1]
+        legacy_effect = {
+            "loop_id": owner, "run_id": suffix_run_id, "phase": "report",
+            "status": "fail", "effect_class": "publish", "effect_status": "unknown",
+            "blocker": "entrypoint_exit_1", "error_class": "entrypoint_exit_1",
+            "error_detail": "LM_DATA_DIR is required",
+            "evidence_refs": ["lm-effect://postiz/posts/provider-post-2"],
+            "event_id": "9" * 24, "timestamp": "2026-10-06T11:29:07+00:00",
+        }
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", [terminal, legacy_effect],
         )
         self.assertIsNone(proof)
         self.assertEqual(reason, "effect_ref_present")
