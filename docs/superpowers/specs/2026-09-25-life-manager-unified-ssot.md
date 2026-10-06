@@ -8946,3 +8946,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 完全immutable /Users/anicca/loops/releases/20261006T171831-37bbd2ed のmain37bbd2ed/ALL/source blob一致/書込不可を確認。cut92590はexit0、sharedcurrent変更0。Luna source run66123もterminal exit0を確認。
 - GUI preflight UID501/DS/Aqua/manager/GUI PASS、Reply loaded-idle/PIDnull/installed9c9をfresh確認して対象限定apply --loaded-idle-onlyを発行。exit0/oktrueだがchanged false/skipped pending-admission。private原本reply-facts-target-apply.json。新releaseがloadedになったとは報告しない。
 - pending予約/claimを壊さず、次は既存admission rebind guardと予約release再結合の正式経路を確認する。実返信/通知/旧unknown解除/手動wake/他label変更0。反映・新SHA自然改善は未完、current1/残29/mock取消/後段順維持。
+
+
+### 678. 予約release再結合経路・current guard/running race
+
+- 既存reconcile CLIは同provider routeのrequested loop IDだけを選択し、loaded-idle/allow_reserved_release_rebind guardで同owner/FIFO occurrenceを保持する経路を持つ。手動target起動/予約cancel/route変更を追加しない。
+- Reply21174のlive run終了→loaded-idleを確認後candidate37bbからreconcileを実行、release no longer currentで変更前に拒否/failed1/applied空。候補releaseをcurrentへ強制切替しない。
+- existing current172318-aed62f3b ALLは37bb祖先含有/planner blob承認済み一致を確認。そこから同route deterministic/loop-id crowdworks-revenue-reply/max1/loaded-idle-onlyでreconcile実行、exit0/failed空だがapply時loaded-runningへ変わりchangedfalse/skipped loaded-running、loaded argvは旧9c9。原本reply-facts-current-reconcile.json。target反映済みと誤報しない。
+- nextは同guardでidle区間の対象反映。sharedcurrent切替/稼働停止/予約解除/新送信0。current1/残29/mock取消/後段順維持。
