@@ -8683,3 +8683,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 既存crwl crawlで同1商品を独立公開取得、process exit0だが本文17byte/403 Forbiddenのみ。人間確認文言/CAPTCHA/購入・見積り導線/商品scopeはなし。private原本coconala-storefront-1791263703624628000/public-crawl.stdout（hash7e3b4621f06baaae1d3c94c524327d7c8bca1598ea70001bee07942d59d06efb）。exit0を公開/購入成功へ丸めない。
 - registered browserの既存_fetch_category ws限定3回取得もscope/categoryなし、emptyhash/403/control空。原本purchase-collector-probe-1791264615065174000.json、guard取得/解放0。現在のbuyer-route取得失敗を明示し、同経路の無観測反復を止める。
 - §217へ現在の収益対象・各coverage・不足情報・次手を1表で集約。未確認の受注action/購入/receiptは未完を保持、current1/主経路31の順を変更しない。新商品/価格/送信/支払/solver task0。
+
+
+### 642. 現在受注の限定read待機・Upwork支払routeの公式差分
+
+- Coconala現在受注のTikTok除外2件だけを既存inspect_page_with_retry/TALKROOM_EXPRESSIONで読む準備。project state変更/attachment captureなし。正規acquire9で未開始、過去12record照合/再送0。
+- Upwork transactions/withdrawalsを同registered profileの自身hidden targetでreadonly取得、guard取得/解放0。withdrawals expected route true/challenge false/password field false。transactionsは期待route不一致のためpayment parserを実行せず金額unknown。原本upwork-payment-display-1791264805733984000.json。
+- 最小追加probeでtransactions旧URLが公式hostの /nx/payments/reports/transactions/[id] へ遷移することを確認。login/auth route false、旧Transaction history見出しは未観測。account固有path値は保存・表示せず形状だけ保持。原本upwork-transaction-route-1791264839485283000.json。単なる認証失敗ではなく既存canonical URL/DOM readback契約との不一致へ診断を狭める。
+- 新routeのaccount binding/実DOM金額labels/既存strict source validationとの整合が次手。現在値・精算・費用・利益0は作らず、URL変更を理由にauthorization/funding/receipt gateを緩めない。出金/銀行設定/税設定/送信/応募/支払0。current1/主経路31/Lancers後段維持。
