@@ -10145,3 +10145,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR#6790由来自然CFO save source commit3346c7b2cfaedb4ab6fe0f89e606a9a4c5a9cb5aはrelated137/137 PASS/remote cleanだがprimary code/root config readbackはowner env不一致を発見。current plist/.envにLIFE_MANAGER_OWNER_IDなし、LIFE_MANAGER_LOOP_IDはCFO。main runtime `lm_loop_run.py`はchildへ native run/occurrenceを伝播しruntime event owner_id=loop_idにする。strict save guardはowner変数欠落で自然記録をskipする。別ownerを捏造せずexact native loop_id/occurrence/run一致だけcanonical ownerとできる箇所を回帰検証する。
 - 同save diffはquery builderからendpoint=optionsを継承するため保存query SHAのendpoint descriptorも誤り得る。chart GETの実chart path/options pathを区別し、project ID raw value/Auth/URL/tokenを保存しないscope descriptorへ修正する。既存自然GET成功/送信104639はsaved same-occurrence RC evidenceの代用にしない。
 - Rootはprimaryowned filesを編集せず、2件だけの短いgpt-6-luna/max continuationをhandle1530で開始。source worktree fix/cfo-mobile-natural-evidence-20261007、HEAD3346c7b2fa; clean/push済み、latest-main base cd9626fadb。field/projectconfig全体・credentials・環境dump・人間承認の依頼を作業に広げない。
+
+
+### 828. 自然readback保存owner/query整合を修正、137関連tests PASS
+
+- latest-main cd9626fadb source専用branch fix/cfo-mobile-natural-evidence-20261007/HEAD68725963df1d7f1e9cf9dfe5b113c8883379f4e9、remote一致/clean。修正はskills/cfo/loop_pnl.pyとtest_loop_pnl.pyの2filesのみ。
+- 本番CFO plist/.envにLIFE_MANAGER_OWNER_IDは無い一方、lm_loop_runはnative childへCFO LOOP_ID/RUN_ID/OCCURRENCE_ID/RELEASE_ROOTを供給しruntime event owner_id=loop_idと定義する。live flag/loop/run/exact occurrence一致時だけ canonical owner fallbackを許可、他loop/malformed/mismatched identityはno-write。
+- sidecar query-scopeはreader由来endpoint=optionsの誤表記を直し、actual chart path /options pathを別記、project ID raw値なしのsha256、期間/resolution/exact app filterとscope hashを保存。provider reasonはfixed allowlist、credential/Authorization/full env/signedURLは記録しない。既存input/static/offline/report cadence/economic projectionは保持。
+- 新しいprimary RED→GREEN境界testsとprimary独立の4suite 137/137 PASS、diffcheck PASS。fresh gpt-6.1-sol/medium source反証review handle8653は進行中。次はreview受入/PR CI/main/latest immutable/targeted apply/自然occurrence JSON+delivery readback。source/API/provider/send main変更は0。cursor17保持。
