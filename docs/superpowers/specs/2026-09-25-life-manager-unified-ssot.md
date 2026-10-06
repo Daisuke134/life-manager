@@ -10011,3 +10011,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - handle61471はexit0で終了したが成果未完。fixtureを公式response終了日へ修正してREDを再現、reader修正前にzshのheredoc一時file作成がENOSPCで失敗しPythonは未起動。担当報告の空き813MiB/inode40%だけで書込可能と断定しない。
 - rootはpython3 -cで/private/tmpと対象skills/cfoの8KB write/flush/fsync probeを実施、両方PASS、自己probe fileだけ削除。追加観測後、同差分/同Luna/maxをhandle37833で再開しheredoc禁止・Python-c/file scriptへ変更。残2件だけ、source本番変更0/cursor17維持。
+
+
+### 810. 取得完了時刻の3REDとCoconala共有lease境界
+
+- cursor17のLuna handle37833は同runで最後app失敗/全app失敗のstarted_at未返却、implicit snapshotがcompleted_atでなく最後成功時刻へ止まる3条件をRED再現。reader終了日比較・fetch時間返却・loopのimplicit snapshot参照だけを修正中。本番変更0。
+- 独立残3のCoconala商品4313100はcurrent immutableのregistered with-browser/既存inspect_page経路で1回のread-only取得を試みたが、identity coconala:kosuke lease busy/exit75。browser取得前に停止、page/read/write/purchase/send0。私有coconala-4313100-latest-lease-readback.jsonに保存。今回のbusyを旧403原因や非公開/購入不可へ置換しない。既存順序/cursor17保持。
