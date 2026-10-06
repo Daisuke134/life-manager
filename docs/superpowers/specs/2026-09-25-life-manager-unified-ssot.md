@@ -9795,3 +9795,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh CLIはloaded4429/idle/PIDnull、last_pass2026-10-06T18:11:19.522552Z/exit0/errornull/admissioneffectunknownfalse。先の16:57capacity延期は最新終端から外れた。occurrence life-manager-cfo-hourly:18dc0333d5e79c20-36172。
 - last-result-reportは同occurrence、created/sent2026-10-06T18:11:14.289Z/statussent/providerMessageId104522。既存Manager所有loopの自然配信receiptで、root手動送信0。snapshot18:11:14.862625Z、旧formatterはMRR未確認のみ/20.34表示false。新source59ac反映済みやASC packet自然接続済みとはしない。
 - private cfo-current-natural-report-readback.jsonへsame-occurrence/runtime/report限定fieldsを保存。freshreview26022は未終端/結果未出力、同handleを継続。current17、残るsource反映後の自然観測を完了扱いしない。
+
+
+### 783. fresh財務review SHIPと既存schema parity修正
+
+- fresh codex exec Sol6.1/medium/read-only handle26022はexit0/sourceSHIP/新重大finding0。原3artifact SHA/gzip/08-30〜09-26/SKU/JPY/quantity1/4250/apprelationship、09-12 settlementのreceipt1、同identity replay、mixed保留とMRR維持、observed RC非settled、partialcoverage/会社MRR/銀行入金/利益unknown、mobile20.34表示を独立確認。adapter50/表示9/B7選択3/実packetnegative7/diff PASS。private cfo-fresh-review-result.md。
+- reviewは既存test_economic_attribution.py:687のschema parity FAILを発見。schemaJSONがcatalog由来validatorのebookを欠き、baseと同じ旧不整合。CFO正確性に関係する指摘なので解消する。範囲はskills/cfo/schemas/economic-attribution-v1.schema.jsonだけを既存render_schema()で同期、既存parity/経済契約testをRED→GREEN、意味のあるcommit/push。validator設計やprovider変更は追加しない。Luna既存workerを再利用、rootがSSOT所有。
+- runtime1件ENOSPCの再検証条件は§781。sourceSHIPを全本番/全財務Doneへ拡張しない。current17維持、残りschema同期/sourceCI/統合/immutable/自然source反映。
