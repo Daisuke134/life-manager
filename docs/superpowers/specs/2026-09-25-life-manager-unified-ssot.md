@@ -9669,3 +9669,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna6/max worker cfo_asc_official_input_fixへ専用最新main worktree/branch fix/cfo-asc-official-input-20261007を割当。所有はCFO adapter/関連test/必要最小normalizer/doc、mobile acquisition/共有checkout/本番/SSOT編集禁止。rootがSSOTと統合を所有。実装前にREDと最小契約を報告する。
 - acceptance: 実報告同形のsecretless regressionでSKU/app対応とraw証拠を検証、違うapp/hash/重複row/不足coverageを拒否、RC observed revenue二重計上なし。nativeIDと正規化identityを分離、古い報告/部分app・regionを全coverageへ昇格しない。bank/MRR/profit unknown維持。source PASSを本番財務成果へ代用しない。
 - AGMSG inboxは新着なし。初回check.shは不存在でexit127、存在する公式inbox.shへ切替し確認。待返信を他者着手の証拠にしない。相対順序/現在17/SelfBuild25/Lancers26〜28保持。
+
+
+### 765. ASC全地域報告を追加取得
+
+- FINANCIAL/ZZ/fiscal2026-12を公式CLIで取得成功、raw SHA64469568f0407c7ffa7ccc7b87320bfebd526847c210b0ae071b5ca55767eb2b。実期間08/30〜09/26、dated row1/対象SKU6762049696/Quantity1/4250JPY/JP/S。JP限定から全地域という取得scopeを補完し、CFO workerへ証拠共有。全履歴・最新trailing・銀行入金・利益のcomplete証明にはしない。
+- 初回はASC_VENDOR_NUMBER未設定でCLI validation exit2/通信前。既存private .envの該当値だけをsubprocess envへ渡し、秘密を表示・複製せず再取得。private asc-current-fy2026-p12-all-regions.tsv、asc-current-all-regions-download-metadata.json。外部mutation0。
+- fresh CFO CLIはloaded4429/idle/PIDnull/effectunknownfalse、最後のattempt16:57capacity busy。last-result-reportは16:44/旧入力。正常なhost deferralをadapter故障へ丸めず、手動wake/送信なし。cursor17のsource修正workerが稼働中。
