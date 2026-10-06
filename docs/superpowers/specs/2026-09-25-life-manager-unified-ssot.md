@@ -9467,3 +9467,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - crwl公式 https://www.freelancer.com/feesandcharges を取得保存。標準minimum available account balance20USDをbid前に要求し、risk/highvalueは20以上通知額。fixed-price feeは10%または5USDの高い方。公式一般料金と今回INR表示の差を推測で換算せず、実invoice未取得。private freelancer-official-fees.md。
 - 先行account menuのdisplay balance0USDとminimum requirementを照合。資金移動対象/範囲の指定が無いため入金しない。既存automation例外receiptも無し。Freelancer8は認証復旧/募集readback/フォーム取得の限定成果、応募/契約/精算は未完。再開条件は利用可能残高の公式readbackと既存設計内の資金範囲、および自動化許可境界の充足。低予算候補の利益を未確認実費で断定しない。
 - 次の独立実行cursor9 Upwork account/tax/withdrawal/Connects/公式proposal/readiness。主29の相対順序を変更せず2〜8の不足を保持、SelfBuild25/Lancers26〜28は後段。応募/返信/振込/optional upgrade/本番loop変更0。
+
+
+### 741. Upwork公式readinessと招待identity取得不足
+
+- registered upwork:daisはreachable/holder空を確認し自分の新規pageをlease内で使用。初回importはproviders依存path不足でbrowser read前に終了、provider scripts pathを追加して既存pure parserを利用した。handle97175 exit0、UTC2026-10-06T16:06:38.671474、Connects/proposals/transactions/withdrawals全HTTP200/login redirect/challenge無し。private upwork-current-readiness.json。
+- parse_connects balance18/visible transactions empty。parse_inventory offers0/invites5/active proposals0/submitted proposals1/account tasks[]。working style completed falseは今回results source未取得を含むため未完assessmentと断定しない。payment available/pending表示0USD、tax_profile_complete false/withdrawal_method_configured false、recognized revenue null。表示0を全履歴売上/入金/利益0へしない。
+- 既存招待5の先行照合へ進み、公式invites HTTP200をhandle25632で取得。parse_stable_entitiesのinvitation IDs0で、一覧count5とのsource bindingが未取得。招待無しへ丸めず、href形式/DOM hydration/招待card identityを次に診断する。private upwork-current-invitation-identities.json。取得DOM0を再応募根拠にしない。
+- cursor9次は5招待の具体的ID/状態/必要行動をCLI取得経路へ結ぶ。tax/withdrawalは公式不足として保持し、Connects18だけで応募可能/契約/精算Doneとしない。2〜8保留と主29順序/SelfBuild後段を保持。応募/返信/Connects消費/課金/出金/本番loop変更0。
