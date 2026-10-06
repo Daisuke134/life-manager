@@ -9878,3 +9878,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 先の報告で通貨未確定としたのは不正確だった。保存invoice-mail-binding/pdf-readonlyの後続独立reviewは、API invoice→公式PDFのlabelled invoice number→認証済みmail対応をverified、公式PDFにexplicit USDを確認済み。確認済みcurrency/bindingを残TODOへ戻さない。paid_atはunavailable/unverified、canonical allocationは未確認。
 - 現Railway公式CLI api search/describeで実type CustomerInvoiceを取得、17fieldsにstatus/paymentIntentStatus/periodStart/End/hostedURL/pdfURL等、currency/paidAt/datePaidは無し。誤type Invoiceの初probeはtype not found、検索で正名へ訂正。private railway-current-invoice-schema-readback.jsonへ現在観測保存、外部mutation0。型に無いfieldを成功や支払日へ捏造しない。
 - all-services過去auditは6projects/18servicesのinventory確認で、3/6projectのusage詳細coverageや費用帰属とは別。名前や請求総額だけからshared planを按分しない。残る最小観測は公式paid receiptの支払時刻とservice→loopの同期間provenance。current17自然readback待ち/19・20独立作業を維持。
+
+
+### 794. Railway公式receiptのpaid_atをexact invoiceで取得
+
+- CustomerInvoice/payment schemaは支払時刻fieldを返さない。登録済みinteractive:dais browserをwith-browser leaseで借り、既存CLI workspace.customer.invoicesの対象native ID1件から公式hostedURLへ自分の新tabだけでread-onlyアクセス。Stripe API JSONで同invoice.idに一致するstatus_transitions.paid_atを取得しUTC2026-09-27T12:58:51へ変換、currency usd/status paid。HTTP200、人間確認なし、payment attempt/provider mutation0、own tabをfinally close。private URL/全raw body/PII保存なし。
+- 独立検証のためsafe native fragmentと原responseSHA de8288f724ed4b5c2d50b2a774d24f26bf9c9a4ea8a91109cb073ba66fb0f7c4/host api.stripe.comを追加取得。private railway-current-paid-receipt-readback.jsonとoperational probe source。raw responseは秘密を含むため保存せず、hash独立再計算の限界を残す。bank match/loop allocation/利益を認定しない。
+- 既存Railway OAuth CLI sessionがprivate credential SSOT未記載だったためrailway-existing-cli-sessionとして既存access/refresh情報をmode600で保存、新発行/login0/秘密表示0。SSOTから新subprocessの認証whoami READはexit0、応答にuser id無しなのでid一致を捏造しない。対象invoice API一致で今回のscopeを確認。
+- fresh Sol6.1/medium/read-only reviewを起動。最初は旧source worktree不存在で実行前exit1/No such file、provider不良と混同せず現docs worktreeへcwdを訂正してhandle93407継続。source source同一invoiceの支払時刻・通貨・amountと既存PDF対応を反証確認し、未完はloopへの同期間費用帰属。current17の自然report待ち/20の独立観測を維持。
