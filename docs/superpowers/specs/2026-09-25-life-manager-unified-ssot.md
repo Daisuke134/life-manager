@@ -9121,3 +9121,14 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 全6RC source available/各28point/最新period2026-10-05/incompletefalse/USD。ANICCA stock MRR20.34、他5製品0はbody明示0.0。実CFO adapterはsubscription_snapshot6件を生成し、保存recordと再実行が完全一致。fresh Sol6.1medium actual_current_mrr_reviewは数字限定SHIP。報告は10/05終了時点の6製品RevenueCat MRR合計USD20.34に限定し、銀行入金/売上/利益/14loop総MRR/current CFO完了へ昇格しない。
 - 残る実不具合：adapter capafy_mobile.py931とcentral economic_attribution.py437はobserved_at==snapshot_at/endの完全一致を要求。collectorは製品ごとのHTTP完了時にnow()を保存し、今回の差0.000072〜5.660180秒でcoverage gap/stale_readback、projectionはunknown/currencies空となる。fresh snapshot/fail-closed自体は既存spec/testの意図だが、秒単位の逐次実取得と完全一致の統合は両立せず短時間境界test無し。adapterだけ直してもcentral contractが拒否する。
 - 次の最小修復は実observed_at/hashを保持した明示freshness/collection-window契約をadapterとcentral contractで揃えること。短い今回の実取得差を受入れ、古い/future/不完全/identity違いは拒否するfocused regressionを使う。観測日時を集計日時へ書き換えて通す操作は行わない。旧senderの反映HOLD/金融receipt費用不足/全体Done未完を維持。current1/残29/順序不変。
+
+
+### 696. daily RevenueCat MRRの限定鮮度契約を確定して修復する
+
+- 現marketing-metrics-daily cadenceは毎日07:00、既存mobile complete-point最大lagは1day。実6製品GETの観測差0.000072〜5.660180秒を根拠に、日時偽装ではなくMRRのdaily refreshに合わせた明示24h契約を採る。24hは唯一の数学的値とは主張せず、当該daily readbackの上限として定義する。
+- source snapshot例外はproduct_loop_id mobile-apps/provider revenuecat/normalization_basis provider_monthlyの3属性が一致したstock MRRだけ。UTC差0≤snapshot_at−observed_at≤24hをshared predicateで判定。future・24h超を拒否。他loop/provider/銀行残高/financialの完全一致・現安全gateは維持する。
+- coverage例外はloop mobile-apps/projection as_of/source_id revenuecat-mrr/required_categories==(mrr,)をすべて満たす場合だけ。同source名のliquid_balance等を緩めない。central _coverage/_latest_subscriptionsとadapterのMRR coverageへ同じpolicyを使い、financial fresh/reasonとMRR fresh/reasonを分離。adapterは6件全てのageを判定し、max観測時刻1件だけで受入しない。
+- point.period==business_date、latest complete date、incompletefalse、6products、app/hash、既存identity/dedupは変更しない。UTC日付またぎでpointが古くなれば24h内でもHOLD。observed_at・raw/canonical hashを書換えて通さない。表示はlatest complete-period MRR/取得時刻/daily freshness内とし、瞬間値や銀行/利益/全14loopへ昇格しない。
+- fresh Sol6.1medium actual_current_mrr_reviewは上記限定でpolicySHIP。focused受入は実5.66秒差PASS、ちょうど24h境界、24h+1us/future+1us拒否、1件25h古いmixed6製品拒否、他provider/loop/balance/financial旧gate維持。既存specのfresh/fail-closed目的を保ちながら実逐次取得との不整合を修復する。
+- 最新main3ae4176e由来専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-mobile-mrr-freshness-20261006、branch fix/lm-mobile-mrr-freshness-20261006、lease codex-money-printer-mrr-freshness/24h。Luna6max所有はskills/cfo/economic_attribution.py/adapters/capafy_mobile.pyと既存対応tests（必要schemaはrootへ相談、新schema/configは既定不要）。rootはSSOT/受入/freshreview/CI/main/actualreadbackを所有。
+- source/runtime/projection受入は未完。現在cursor1/残29/相対順序、旧senderのunknown保護、SelfBuild25/Lancers26〜28の後段を維持する。
