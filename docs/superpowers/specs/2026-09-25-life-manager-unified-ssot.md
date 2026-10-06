@@ -8642,3 +8642,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 既存main由来完全release4acfd541のlaunch_gig_browser.shをlaunchctl-safe submitでlabel ai.anicca.provision-browser.upwork.daisへ一度だけ通常起動、exit0。登録profile gig-upwork/既存fingerprint80138/既存vault gig-upworkを保持、browser_port_owner境界を迂回しない。ensure helperのSingleton rmは実行せず、手動store削除/別profile/応募loop再有効化0。
 - official browser-guard statusはupwork:dais reachable true/HTTP200/websocket valid/PID65586/ownership_source process_commandへ回復。既存session衝突/disk blockなし。private ownlog upwork-browser-owner.log/mode600。browser接続回復だけの成果であり、provider login/account/contract/payment/payoutは未確認。
 - 次は正規leaseと既存read-only page/parserでaccount-bound公式inventoryを取得。応募/返信/Connects購入/契約承諾/納品/資金移動0。current1/主経路31/Lancers後段維持。
+
+
+### 638. Upwork公式契約readbackの取得境界
+
+- main由来4acfd541 releaseの既存hidden_page_target/observe_targetを正規upwork:dais guardで契約homeへ実行。guard取得/解放0、outer45秒でTimeoutError。private原本state/cli-observability-20261006/upwork-contracts-1791264274395728000/safe-summary.json。契約body/screenshot/live-DOM未生成、未取得を契約/売上0へ変換しない。
+- 実行後のregistered browserはreachable true/HTTP200/PID65586を維持。取得timeoutはbrowser終了の証拠ではないのでrestart/relaunch0。sourceはPage.enable→navigate→load15秒→location/title→screenshot25秒calls→artifactを順に待つため、未生成だけでは停止phaseを決められない。
+- 次の最小probeは自身のabout:blank targetのCDP応答と段階eventを先に記録し、navigation後のsafe login/challenge/route/headingだけを取得する。screenshotや全業務CLIを先行せず、追加観測なしに同失敗を反復しない。応募/送信/Connects購入/契約承諾/納品0。current1/主経路31/Lancers後段維持。
