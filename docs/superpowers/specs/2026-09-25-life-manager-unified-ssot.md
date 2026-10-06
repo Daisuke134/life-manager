@@ -8888,3 +8888,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - canonical application-owner.json更新2026-10-06T07:45:13.761962Z/submitted true/application_verified true/status verified。ledger最新application_receipt observed2026-10-06T07:45:13.403650Z/status verified、ownerとreceiptのproposal identity/案件identity/occurrence一致を確認。既存execute_hourly_application→_readback_applicationは提出後の公式proposal詳細を読む。manual応募/再送0。
 - 提出条件はhourly rate5000JPY/weekly limit30h、契約/稼働時間/着金/利益の保証ではない。393は保存ledgerのhistorical row数であり新規応募393件とは報告しない。private内容/案件名/顧客identityをchat/specへ複製しない。
 - 残8『CrowdWorks適合新規案件へ応募』の一回成果を完了として除外。未完旧1〜7は不変、旧9〜30→新8〜29。未完相対順/owner/cadence不変、current1は既存有償履行のまま。SelfBuild新25/Lancers新26〜28/最終29。未達Paid/他platform/全14経済は未完を保持。
+
+
+### 670. CrowdWorks Replyの現在retry原因を3件へ限定
+
+- canonical Reply latest更新2026-10-06T07:41:11.455577Zは168observed/35actionable/failed0/effect0/readback150。内訳verified17/awaiting_buyer93/no_reply40/pending18。pendingはretry_backoff3/human_required4/reconcile_unknown11。actionable35を新規待返信35人と扱わず、全18再送もしない。
+- retry3だけの既存thread stateをreadonly確認、全3 last_error ValueError/last_error_detail reply_human_handoff_invalid/retry_count10。thread hash8eeccb3cdfb7/a1dcc6625cd8/a675c3ddb87a、nexteligibleは2026-10-06T07:55:50.035440Z/08:11:40.148056Z/08:14:23.151640Z。state変更0。
+- reply_kernel human処理は通知callback有りでhandoff Mappingを必須とする。CW classify_mutation_errorの一部pre-dispatch GoogleFormエラーはreason human_required/remaining_workだけを返し、handoff無しの経路が存在。このschema不整合を具体的な修復候補へ絞る。元GoogleForm errorの正確なkindは別途観測し、real identity/interview等human_requiredを自動送信へ降格しない。
+- 次はprovider contextに結ぶ最小handoff修復または元エラーの正しい分類をfresh source reviewで決め、Luna限定実装へ。新通知/送信/旧11unknown解除/全件audit0。current1/残29/mock取消/SelfBuild25・Lancers26〜28後段を維持。
