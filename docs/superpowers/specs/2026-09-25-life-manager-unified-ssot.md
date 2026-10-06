@@ -9882,7 +9882,15 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 ### 794. Railway公式receiptのpaid_atをexact invoiceで取得
 
-- CustomerInvoice/payment schemaは支払時刻fieldを返さない。登録済みinteractive:dais browserをwith-browser leaseで借り、既存CLI workspace.customer.invoicesの対象native ID1件から公式hostedURLへ自分の新tabだけでread-onlyアクセス。Stripe API JSONで同invoice.idに一致するstatus_transitions.paid_atを取得しUTC2026-09-27T12:58:51へ変換、currency usd/status paid。HTTP200、人間確認なし、payment attempt/provider mutation0、own tabをfinally close。private URL/全raw body/PII保存なし。
+- CustomerInvoice/payment schemaは支払時刻fieldを返さない。登録済みinteractive:dais browserをwith-browser leaseで借り、既存CLI workspace.customer.invoicesの対象native ID1件から公式hostedURLへ自分の新tabだけでread-onlyアクセス。Stripe API JSONで同invoice.idに一致するstatus_transitions.paid_atを取得しUTC2026-09-27T12:58:51へ変換、Stripe currency usd、paid状態はRailway APIのstatus paidを出所とする。HTTP200、人間確認なし、payment attempt/provider mutation0、own tabをfinally close。private URL/全raw body/PII保存なし。
 - 独立検証のためsafe native fragmentと原responseSHA de8288f724ed4b5c2d50b2a774d24f26bf9c9a4ea8a91109cb073ba66fb0f7c4/host api.stripe.comを追加取得。private railway-current-paid-receipt-readback.jsonとoperational probe source。raw responseは秘密を含むため保存せず、hash独立再計算の限界を残す。bank match/loop allocation/利益を認定しない。
 - 既存Railway OAuth CLI sessionがprivate credential SSOT未記載だったためrailway-existing-cli-sessionとして既存access/refresh情報をmode600で保存、新発行/login0/秘密表示0。SSOTから新subprocessの認証whoami READはexit0、応答にuser id無しなのでid一致を捏造しない。対象invoice API一致で今回のscopeを確認。
 - fresh Sol6.1/medium/read-only reviewを起動。最初は旧source worktree不存在で実行前exit1/No such file、provider不良と混同せず現docs worktreeへcwdを訂正してhandle93407継続。source source同一invoiceの支払時刻・通貨・amountと既存PDF対応を反証確認し、未完はloopへの同期間費用帰属。current17の自然report待ち/20の独立観測を維持。
+
+
+### 795. Railway支払時刻freshreview限定SHIPとprobe成功条件修正
+
+- freshSol6.1/medium/read-only handle93407はexit0。safe fragmentのnative invoice IDは親Railway/PDF/mail記録と完全一致、currency usd、Unix1790513931→2026-09-27T12:58:51Z、amount_paid2607→公式PDF/親APIの26.07USDを限定SHIP。全raw response非保存で原SHAの独立再計算不能を限界として保持。
+- Stripe fragment statusはnullなのでpaidの直接出所はRailwayと訂正。Stripe paid直接証明を完了条件へ追加せず、確認済みprovider-statusを正しく分離。未完は費用のloop帰属・全coverage/銀行照合/利益。過去artifactの時点不足を改変せず現在解決証拠を追記する。
+- probeのreadback_completeが必要fieldを要求せずcapture例外無記録/競合上書き可能だったfindingをLuna6/maxでprivate helper1fileだけ修正。Railway paid provider明示/Stripe nullable、exactinvoice+currency+paid_at+amount_paid必須、完全fragment競合はconflict/incompleteでreceipt値保留、例外class countのみ。AST/隔離合成exercise PASS、network/browser/login/send/payment0、mode600。本番/新suite/新CLI追加なし。rootは既存取得の実値を、このコード修正だけで再取得済みと扱わない。
+- 既存source provenance8serviceはGit repo6/image2、repoはAnicca-productsとLife Manager。repo/名前だけでshared invoiceを按分せず同期間のservice usageとcanonical ownerを必要条件として保持。current17自然CFO待ち/20独立接続作業を継続。
