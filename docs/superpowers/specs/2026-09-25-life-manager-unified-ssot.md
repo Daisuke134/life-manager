@@ -3275,9 +3275,9 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 ### 2026-10-06 JST — CFO A2 cost-ledger source status
 
 - **現在cursor:** A2 source implementation。TODO順とCFO architectureは変更しない。実装は専用worktree branch `feat/cfo-a2-cost-ledger-20261006` にあり、まだmain merge・production deploy・自然readback前。
-- **実装範囲:** 既存`lm_api_cost`を再利用。quantity/estimate欠損はnull、actual欠損は`meta.actual_usd=null`、`billing_status=unknown`、既知の推定だけ`estimated`、cache/重複互換rowの明示ゼロだけ`not_applicable`。provider/SKU/operation/currency/pricing version/estimate statusは`meta` JSONBに追加し、新規table/migrationは作らない。Gemini usage/rate不明とComposio未計測単価は0円にせずunknown。Cost POST失敗はowner/runtime trace付き構造化logにし、POST結果が不明なら`effect_unknown`・`readback_before_retry`としてblind retryをしない。
+- **実装範囲:** 既存`lm_api_cost`を再利用。quantity/estimate欠損はnull、actual欠損は`meta.actual_usd=null`、`billing_status=unknown`、既知の推定だけ`estimated`、cache/重複互換rowの明示ゼロだけ`not_applicable`。provider/SKU/operation/currency/pricing version/estimate statusは`meta` JSONBに追加し、新規table/migrationは作らない。Gemini usage/rate不明とComposio未計測単価は0円にせずunknown。Cost POST失敗はowner/runtime trace付き構造化logにし、POST結果が不明なら`effect_unknown`・`readback_before_retry`としてblind retryをしない。Financial Manager ingestionはunknown costをFinancialRecordの0円へ変換せずスキップし、件数/statusをpartialとして返し、既知revenue/balance ingestionを続ける。
 - **Panelのcost一覧:** 既知estimateだけをsubtotalとして表示し、nullまたは旧metadataなしのゼロ行を金額不明件数へ数える。settled actualがない行は`actual_status=unknown/partial`で返す。daily CFO snapshot/CLI全体のactual-vs-estimate contractはA9で揃える。
-- **検証状態:** A2 focused testsは148/148 PASS。全`npm test`はexit 1で、変更外の`marketing-video-publication-chain.test.js`の2件（`claim, execute, complete, then replay drives zero additional provider executions`、`re-enqueueing the same artifact at a different slot cannot create a second publish effect`）だけがcaption/slide 7日freshness guardで失敗。A2 source差分のproduction readbackは未実施で、実請求ゼロやproduction反映は主張しない。
+- **検証状態:** A2 focused testsは169/169 PASS。全`npm test`はexit 1で、変更外の`marketing-video-publication-chain.test.js`の2件（`claim, execute, complete, then replay drives zero additional provider executions`、`re-enqueueing the same artifact at a different slot cannot create a second publish effect`）だけがcaption/slide 7日freshness guardで失敗（189件中187 PASS）。A2 source差分のproduction readbackは未実施で、実請求ゼロやproduction反映は主張しない。
 
 ### 2026-10-06 JST — AGMSG `lm` teamの状態と復旧cursor
 

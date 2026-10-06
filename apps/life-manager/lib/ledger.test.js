@@ -51,7 +51,8 @@ test("recordCost preserves unavailable measurements and separates estimate from 
   let body;
   const ok = await ledger().recordCost({
     uid: "u1", kind: "composio_call", quantity: null, unit: "call", estUsd: null,
-    meta: { provider: "composio", operation: "EVENTS_LIST", billing_status: "estimated" },
+    meta: { provider: "composio", operation: "EVENTS_LIST",
+      billing_status: "estimated", estimate_status: "estimated" },
   }, {
     supaUrl: "https://db.example", supaKey: "service",
     fetchImpl: async (_url, init) => { body = JSON.parse(init.body); return { ok: true, status: 201 }; },
@@ -71,9 +72,10 @@ test("recordCost preserves unavailable measurements and separates estimate from 
 
 test("recordCost logs and resolves false when Supabase fails", async () => {
   const errors = [];
-  const result = await ledger().recordCost({ uid: "u1", kind: "x", quantity: 1, meta: {
-    runtime_trace: { loop_id: "loop-1", owner_id: "owner-1", run_id: "run-1",
-      occurrence_id: "loop-1:run-1", release_sha: "a".repeat(40) },
+  const result = await ledger().recordCost({ uid: "u1", kind: "user@example.invalid", quantity: 1, meta: {
+    runtime_trace: { loop_id: "loop-1", owner_id: "owner@example.invalid",
+      run_id: "sk-0123456789abcdef", occurrence_id: "loop-1:sk-0123456789abcdef",
+      release_sha: "a".repeat(40) },
   } }, {
     supaUrl: "https://db.example", supaKey: "service",
     fetchImpl: async () => { throw new Error("offline"); },
@@ -83,18 +85,18 @@ test("recordCost logs and resolves false when Supabase fails", async () => {
   assert.equal(errors.length, 1);
   const diagnostic = JSON.parse(errors[0]);
   assert.equal(diagnostic.event, "lm_api_cost_write_failed");
-  assert.equal(diagnostic.kind, "x");
-  assert.equal(diagnostic.owner_id, "owner-1");
+  assert.equal(diagnostic.kind, "unknown");
+  assert.equal(diagnostic.owner_id, null);
   assert.equal(diagnostic.loop_id, "loop-1");
-  assert.equal(diagnostic.run_id, "run-1");
-  assert.equal(diagnostic.occurrence_id, "loop-1:run-1");
+  assert.equal(diagnostic.run_id, null);
+  assert.equal(diagnostic.occurrence_id, null);
   assert.equal(diagnostic.release_sha, "a".repeat(40));
   assert.equal(diagnostic.phase, "cost_ledger_write");
   assert.equal(diagnostic.command, "supabase_post_lm_api_cost");
   assert.equal(diagnostic.effect, "effect_unknown");
   assert.equal(diagnostic.retryable, false);
   assert.equal(diagnostic.next_action, "readback_before_retry");
-  assert.doesNotMatch(errors[0], /offline|service|https:\/\//);
+  assert.doesNotMatch(errors[0], /offline|service|https:\/\/|owner@example\.invalid|sk-0123456789abcdef/);
 });
 
 test("recordDailyComposioPoll uses a DB day query and inserts at most one row", async () => {

@@ -26,6 +26,16 @@ test("missing usage metadata stays explicitly unestimated", () => {
   assert.equal(event.meta.estimate_status, "unavailable");
 });
 
+test("explicit null token counts remain unavailable instead of becoming zero", () => {
+  const [event] = geminiUsageEvents({ usageMetadata: {
+    promptTokenCount: null, candidatesTokenCount: null, totalTokenCount: null,
+  } }, { tenantId: "t1", feature: "ask_location" });
+
+  assert.equal(event.providerUnits, null);
+  assert.equal(event.estimatedCostUsd, null);
+  assert.equal(event.meta.estimate_status, "unavailable");
+});
+
 test("unknown model pricing stays unavailable instead of inventing a zero estimate", () => {
   const [event] = geminiUsageEvents({
     usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },

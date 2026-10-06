@@ -307,6 +307,30 @@ test("cloud FinancialRecord source rows retain stable ids across different worke
   assert.equal(store.rows.filter((row) => row.idempotency_key === "api-cost:7").length, 1);
 });
 
+test("unknown API estimates stay out of FinancialRecords without blocking known sources", async () => {
+  const store = memoryFinancialStore();
+  const result = await appendCloudFinancialRecords({
+    store, subjectId: "tenant-a", walletAddress: WALLET, balanceAtomic: "1",
+    observedAt: "2026-08-02T11:05:00.000Z",
+    ledgerRows: [{ entry_key: "known-income", wallet_address: WALLET,
+      kind: "financial_external_income", amount_minor: 100, currency: "USD",
+      occurred_at: "2026-08-02T10:00:00.000Z", source: "x402_sale" }],
+    costRows: [
+      { id: 9, ts: "2026-08-02T10:30:00.000Z", est_usd: null,
+        meta: { billing_status: "unknown", estimate_status: "unavailable" } },
+      { id: 10, ts: "2026-08-02T10:31:00.000Z", est_usd: 0,
+        meta: { billing_status: "unknown" } },
+    ],
+  });
+
+  assert.equal(result.unknownApiCostRows, 2);
+  assert.equal(result.sources.apiCosts, "partial_unverified");
+  assert.equal(store.rows.some((row) => row.idempotency_key === "api-cost:9"), false);
+  assert.equal(store.rows.some((row) => row.idempotency_key === "api-cost:10"), false);
+  assert.equal(store.rows.some((row) => row.idempotency_key === "wallet-ledger:known-income"), true);
+  assert.equal(result.created, 2, "known revenue and balance are still ingested");
+});
+
 test("cloud Financial Manager preserves fractional API costs across stable replay", async () => {
   const store = memoryFinancialStore();
   const source = {

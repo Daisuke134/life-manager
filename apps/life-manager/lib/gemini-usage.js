@@ -8,6 +8,7 @@ const PRICING_VERSION = "lm-gemini-estimate-2026-10-06-v1";
 const { recordUsageEvent } = require("./usage-event.js");
 
 function count(value) {
+  if (value == null || (typeof value === "string" && value.trim() === "")) return null;
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
@@ -38,7 +39,7 @@ function geminiUsageEvents(response, context = {}) {
     outcome: success ? "success" : "failure",
     failureClass: success ? null : (context.failureClass || "empty_response"),
     providerUnits: 1, providerUnit: "grounded_prompt", estimatedCostUsd: prices ? prices.grounding : null,
-    meta: { model, pricing_version: prices ? PRICING_VERSION : null,
+    meta: { model: prices ? model : null, pricing_version: prices ? PRICING_VERSION : null,
       pricing_basis: prices ? "list_price_after_free_rpd" : "unavailable" },
   });
   return events;

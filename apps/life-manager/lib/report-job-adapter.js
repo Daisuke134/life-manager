@@ -193,18 +193,29 @@ function ledgerRecord(subjectId, row, observedAt) {
   });
 }
 
-// API usage is an estimate. It is kept unverified until a provider receipt is
-// available, so it cannot make a cloud Financial Manager report claim a cost.
-function apiCostRecord(subjectId, row, observedAt) {
-  const amount = String(row && row.est_usd != null ? row.est_usd : "").trim();
-  const key = String(row && row.id != null ? row.id : "").trim();
+function apiCostEstimateStatus(row) {
+  const meta = row && row.meta && typeof row.meta === "object" && !Array.isArray(row.meta)
+    ? row.meta : {};
+  if (meta.billing_status === "not_applicable" || meta.estimate_status === "not_applicable"
+    || meta.cache_hit === true) return "not_applicable";
+  if (!row || row.est_usd == null || meta.estimate_status === "unavailable") return "unknown";
   let micros;
   try {
-    micros = usdMicrosFromDecimal(amount);
+    micros = usdMicrosFromDecimal(row.est_usd);
   } catch {
-    throw new Error("Financial Manager API cost amount is invalid");
+    return "unknown";
   }
+  if (micros === 0n && meta.estimate_status !== "estimated") return "unknown";
+  return "estimated";
+}
+
+// API usage remains an unverified estimate. Unknown or not-applicable amounts
+// stay out of the money ledger instead of stopping ingestion or becoming zero.
+function apiCostRecord(subjectId, row, observedAt) {
+  if (apiCostEstimateStatus(row) !== "estimated") return null;
+  const key = String(row && row.id != null ? row.id : "").trim();
   if (!key) throw new Error("Financial Manager API cost id is required");
+  const micros = usdMicrosFromDecimal(row.est_usd);
   const minorBig = (micros + 9_999n) / 10_000n;
   if (minorBig > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Financial Manager API cost amount is invalid");
   const minor = Number(minorBig);
@@ -237,16 +248,27 @@ async function appendCloudFinancialRecords({ store, subjectId, walletAddress, le
   ))) {
     throw new Error("Financial Manager wallet ledger tenant scope mismatch");
   }
+  const sourceCosts = Array.isArray(costRows) ? costRows : [];
+  const costEstimates = sourceCosts.map(apiCostEstimateStatus);
+  const unknownApiCostRows = costEstimates.filter((status) => status === "unknown").length;
   const rows = [
     ...(Array.isArray(ledgerRows) ? ledgerRows.map((row) => ledgerRecord(subjectId, row, observedAt)) : []),
-    ...(Array.isArray(costRows) ? costRows.map((row) => apiCostRecord(subjectId, row, observedAt)) : []),
+    ...sourceCosts.map((row) => apiCostRecord(subjectId, row, observedAt)).filter(Boolean),
     baseBalanceRecord(subjectId, walletAddress, balanceAtomic, observedAt),
   ].filter(Boolean);
   let created = 0;
   for (const item of rows) {
     if ((await store.append(item)).created) created += 1;
   }
-  return { observed: rows.length, created, sources: { wallet: "observed_verified", apiCosts: "observed_unverified" } };
+  return {
+    observed: rows.length,
+    created,
+    unknownApiCostRows,
+    sources: {
+      wallet: "observed_verified",
+      apiCosts: unknownApiCostRows > 0 ? "partial_unverified" : "observed_unverified",
+    },
+  };
 }
 
 async function runCloudFinancialManagerReport(request = {}, deps = {}) {

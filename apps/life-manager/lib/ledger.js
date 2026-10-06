@@ -5,9 +5,11 @@ function headers(key, extra) {
 }
 
 const BILLING_STATUSES = new Set(["estimated", "settled", "unknown", "not_applicable"]);
-const ESTIMATE_STATUSES = new Set(["estimated", "unavailable", "not_applicable"]);
 const SAFE_LOG_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SAFE_PRICING_VERSION = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+const SAFE_LOG_KIND = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
+const SECRET_LOG_VALUE = /(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,}/i;
+const PHONE_SHAPED = /^\+?\d{9,15}$/;
 
 function finiteNonNegativeOrNull(value) {
   if (value == null || (typeof value === "string" && value.trim() === "")) return null;
@@ -17,23 +19,31 @@ function finiteNonNegativeOrNull(value) {
 
 function safeLogId(value) {
   return typeof value === "string" && SAFE_LOG_ID.test(value)
-    && !/(?:token|secret|password|credential|api.?key)\s*[=:]/i.test(value)
+    && !SECRET_LOG_VALUE.test(value) && !PHONE_SHAPED.test(value)
     ? value : null;
+}
+
+function safeLogKind(value) {
+  return typeof value === "string" && SAFE_LOG_KIND.test(value)
+    && !SECRET_LOG_VALUE.test(value) && !PHONE_SHAPED.test(value) ? value : "unknown";
 }
 
 function normalizedCostMeta(kind, estUsd, suppliedMeta) {
   const source = suppliedMeta && typeof suppliedMeta === "object" && !Array.isArray(suppliedMeta)
     ? suppliedMeta : {};
   const cacheHit = source.cache_hit === true;
-  const billingStatus = BILLING_STATUSES.has(source.billing_status) ? source.billing_status
-    : cacheHit ? "not_applicable" : (estUsd == null || estUsd === 0 ? "unknown" : "estimated");
-  const estimateStatus = ESTIMATE_STATUSES.has(source.estimate_status) ? source.estimate_status
-    : cacheHit || billingStatus === "not_applicable" ? "not_applicable"
-      : (estUsd == null || (estUsd === 0 && billingStatus === "unknown")
-        ? "unavailable" : "estimated");
-  const actualUsd = cacheHit ? 0 : finiteNonNegativeOrNull(source.actual_usd);
-  const finalBillingStatus = (billingStatus === "settled" && actualUsd == null)
-    || (billingStatus === "estimated" && estUsd == null) ? "unknown" : billingStatus;
+  let billingStatus = cacheHit ? "not_applicable"
+    : (BILLING_STATUSES.has(source.billing_status) ? source.billing_status
+      : (estUsd == null || estUsd === 0 ? "unknown" : "estimated"));
+  let actualUsd = cacheHit ? 0 : finiteNonNegativeOrNull(source.actual_usd);
+  if (billingStatus === "settled" && actualUsd == null) billingStatus = "unknown";
+  if (billingStatus === "estimated" && estUsd == null) billingStatus = "unknown";
+  if (billingStatus === "not_applicable" && actualUsd == null) actualUsd = 0;
+  const estimateStatus = cacheHit || billingStatus === "not_applicable" ? "not_applicable"
+    : (estUsd == null || source.estimate_status === "unavailable"
+      || (estUsd === 0 && billingStatus === "unknown" && source.estimate_status !== "estimated")
+      ? "unavailable" : "estimated");
+  if (estimateStatus === "unavailable" && billingStatus === "estimated") billingStatus = "unknown";
   const pricingVersion = typeof source.pricing_version === "string"
     && SAFE_PRICING_VERSION.test(source.pricing_version) ? source.pricing_version : null;
   const provider = typeof source.provider === "string" ? source.provider : null;
@@ -49,7 +59,7 @@ function normalizedCostMeta(kind, estUsd, suppliedMeta) {
       ? source.operation : String(kind),
     currency,
     actual_usd: actualUsd,
-    billing_status: finalBillingStatus,
+    billing_status: billingStatus,
     pricing_version: pricingVersion,
     estimate_status: estimateStatus,
   };
@@ -66,7 +76,7 @@ function costWriteFailure({ status, requestStarted, supaUrl, supaKey, kind, meta
       : httpStatus >= 500 ? "supabase_http_5xx" : "supabase_http_4xx";
   return {
     event: "lm_api_cost_write_failed",
-    kind: typeof kind === "string" ? kind : null,
+    kind: safeLogKind(kind),
     loop_id: safeLogId(trace.loop_id),
     owner_id: safeLogId(trace.owner_id),
     run_id: safeLogId(trace.run_id),
