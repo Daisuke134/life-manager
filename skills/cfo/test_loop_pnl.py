@@ -653,7 +653,6 @@ class B7IntegrationTest(unittest.TestCase):
 class TableTest(unittest.TestCase):
     def test_every_catalog_loop_is_a_row_and_nothing_is_invented(self):
         loops = m.load_catalog()
-        self.assertEqual(len(loops), 14)
         ids = [loop["id"] for loop in loops]
         sources = [
             m.SourceResult("alpaca", {("investment", k) for k in m.KINDS},

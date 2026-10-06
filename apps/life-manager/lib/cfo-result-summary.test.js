@@ -94,3 +94,23 @@ test("economic attribution summary keeps historical and trailing facts, MRR, run
   assert.match(text, /未確認: writer/);
   assert.doesNotMatch(text, /writer: 0/);
 });
+
+test("verified loop MRR stays visible while company and unknown loop MRR stay unknown", () => {
+  const unknown = { status: "unknown", currencies: {}, reasons: ["mrr_coverage_unknown"], coverage_gaps: [] };
+  const projection = {
+    snapshot_at: "2026-10-01T00:00:00Z", trailing_start: "2026-09-24T00:00:00Z",
+    historical: { loops: {}, company: unknown },
+    trailing: { loops: {}, company: unknown },
+    mrr: { company: unknown, loops: {
+      "mobile-apps": { status: "verified", currencies: { USD: "20.34" } },
+      writer: unknown,
+    } },
+    runway: { status: "unknown", currencies: {}, reasons: ["trailing_burn_unknown"] },
+  };
+  const text = renderResultSummary({
+    reporting_date: "2026-10-01", timezone: "Asia/Tokyo", economic_attribution: projection,
+  });
+  assert.match(text, /MRR: 未確認/);
+  assert.match(text, /確認済みloop MRR: mobile-apps USD 20\.34/);
+  assert.doesNotMatch(text, /writer USD 0/);
+});

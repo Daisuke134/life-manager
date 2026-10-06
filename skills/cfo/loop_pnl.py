@@ -162,15 +162,45 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         )
     )
     mobile_path = env.get("LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES")
-    sources["b1-capafy-mobile"].extend(
-        _safe_b7_adapter(
-            lambda: capafy_mobile.adapt_mobile(
-                mobile_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
-            ) if mobile_path else [],
-            source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+    financial_packet_path = env.get("LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET")
+    mobile_records = _safe_b7_adapter(
+        lambda: capafy_mobile.adapt_mobile(
+            mobile_path if mobile_path else ([] if financial_packet_path else None),
             snapshot_at=snapshot_at, trailing_start=trailing_start,
-        )
+        ) if mobile_path or financial_packet_path else [],
+        source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
+    if financial_packet_path:
+        legacy_asc_receipts = any(
+            row.get("record_type") == "receipt"
+            and row.get("provider") == "app-store-connect-financial"
+            for row in mobile_records
+        )
+        mobile_records = [row for row in mobile_records if not (
+            (row.get("record_type") == "receipt"
+             and row.get("provider") == "app-store-connect-financial")
+            or (row.get("record_type") == "coverage"
+                and row.get("source_id") == "app-store-connect-financial")
+        )]
+        if legacy_asc_receipts:
+            # Different source identities cannot be safely merged or deduplicated.
+            mobile_records.extend(row for row in _b7_gap_records(
+                source_id="app-store-connect-financial",
+                loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+                reason="unverified_receipt", snapshot_at=snapshot_at,
+                trailing_start=trailing_start,
+            ) if row["projection"] in {"historical", "trailing"})
+        else:
+            mobile_records.extend(_safe_b7_adapter(
+                lambda: capafy_mobile.adapt_mobile_financial_packet(
+                    financial_packet_path, snapshot_at=snapshot_at,
+                    trailing_start=trailing_start,
+                ),
+                source_id="app-store-connect-financial", loop_ids=B7_SOURCE_LOOPS["b1-mobile"],
+                snapshot_at=snapshot_at, trailing_start=trailing_start,
+            ))
+    sources["b1-capafy-mobile"].extend(mobile_records)
 
     stripe_path = env.get("LM_CFO_STRIPE_READBACK")
     stripe_default_category = env.get("LM_CFO_STRIPE_DEFAULT_ECONOMIC_CATEGORY") or None
