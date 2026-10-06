@@ -9788,3 +9788,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - root実行handle76872はterminal exit1、775tests/145.414s/FAIL1。失敗test_cut_loop_release.CutLoopReleaseTest.test_release_builds_immutable_bytecode_for_its_runtime_pythonは隔離temporary releaseのruntime/agentmail locked npm依存展開でENOSPC。CFO50+38/表示9/contract PASSとは別。warningだけをFAIL原因にせずterminal traceを確認した。
 - fresh df Data空き767MiB。npm cache38MB/log380KBなので小cache削除で解決するとは判断せず削除0。一時fixtureはTemporaryDirectoryのcleanupを使う。protected store/他owner release/profile/stateを削除しない。再検証条件は隔離依存展開に十分な容量を確保した環境、または同sourceのCIで当該release testを実行すること。未実施をPASSへ丸めない。
 - fresh read-only財務review handle26022は継続中、原artifact/source反証を進行しているイベントを確認。観測timeoutをterminalと誤認して再起動しない。current17/相対順序維持。
+
+
+### 782. CFO新自然実行と送信receiptを同occurrence照合
+
+- fresh CLIはloaded4429/idle/PIDnull、last_pass2026-10-06T18:11:19.522552Z/exit0/errornull/admissioneffectunknownfalse。先の16:57capacity延期は最新終端から外れた。occurrence life-manager-cfo-hourly:18dc0333d5e79c20-36172。
+- last-result-reportは同occurrence、created/sent2026-10-06T18:11:14.289Z/statussent/providerMessageId104522。既存Manager所有loopの自然配信receiptで、root手動送信0。snapshot18:11:14.862625Z、旧formatterはMRR未確認のみ/20.34表示false。新source59ac反映済みやASC packet自然接続済みとはしない。
+- private cfo-current-natural-report-readback.jsonへsame-occurrence/runtime/report限定fieldsを保存。freshreview26022は未終端/結果未出力、同handleを継続。current17、残るsource反映後の自然観測を完了扱いしない。
