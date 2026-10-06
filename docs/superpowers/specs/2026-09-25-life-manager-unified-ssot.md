@@ -8486,3 +8486,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 金額未取得の境界診断を1契約へ限定。cache buyer_contextは契約bodyと同じと仮定できないため、その文字列のlabel probesをparser故障の証明に使わない。既存priceparserの実inputを観測するreadonly instrumentation（返値変更0）ではparsednull/fixed-label-match0/hourly-wordtrue/range-chartrue。現時点で不正な価格や0を補完せず、実契約summary field/支払い方式の追加readbackが必要。数値label追加probeはPlaywright Errorで情報未取得、これも価格0にしない。
 - 原本はstate/cli-observability-20261006/crowdworks-{price-probe-1791260862840479000,price-label-1791260942518850000,actual-price-input-1791261022124269000,price-numeric-1791261140826415000}.json/mode600。私的本文/URL/氏名をchat/repoへ保存せずmetadataのみ。sourcecode編集/返信/フォーム回答/納品/取引/旧fence解除0。
 - current1/主経路31、Lancers28〜30後段維持。次の対象は現在CrowdWorks契約の公式金額/納品・検収状態/実作業scopeを既存観測経路へ結ぶこと。CLI取得成功と収益確定を区別し、古いCoconala12recordやLancersCAPTCHA反復へ戻らない。
+
+
+### 618. CrowdWorks公式金額欄の読取・低額契約と取得formatの区別
+
+- current1で契約画面そのもののTH/TR価格欄をreadonly観測。最初の1件はTH『契約金額』/税込表示/同TR yen values12円,10円。既存price_minorはnull。固定報酬制に直結した本文regexだけではこの表形式を取得していない。artifact crowdworks-price-dom-1791261349441064000.json/mode600。
+- 5件を同一passで再取得し、全5件の公式契約金額欄が税込表示/12円,10円だった。入金・利益・振込済み・未納品の証明へ変換しない。source-only反証でfunded分類や価格と収益の差を指摘済みのため、実作業開始可とはしない。artifact crowdworks-summary-prices-1791261543105860000.json/mode600。私的本文/URL/名前を表示・repo保存しない。
+- 既存契約の義務は保持し、根拠なく完了/取消へ変更しない。一方、低額契約の詳細巡回を新しい高単価案件/商品販売すべての停止条件にしない。現在のcode gapは公式contract summaryの金額format取得であり、buyer_contextからの推測やunknownを0へ補完して直さない。取得方式の修復は既存payer/fee/escrow/priceの意味を分離し、実額取得で自動的に高額inferenceを起動させない。
+- 次は価格summaryのsafe読取契約と現在の納品/検収状態を既存CLIへ結び、費用/品質/真正性の条件が整った実作業だけ進める。scope/費用が不明なGoogle Forms回答・納品を盲目的に開始しない。Lancers後段28〜30/current1/主経路31は不変。readonly実操作のguard取得/解放成功、provider送信/回答/納品/価格変更/個人資金移動0。
