@@ -9348,3 +9348,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 既存gigearnings.jsonlの18211957同ID/idempotency一致は0。project内known economic filenames無し、現在checked .env/global.envでactualcost/marketplace receipt sourcekeysは未設定。これは確認した範囲の参照欠損であり全provider請求不存在/actualcost0の証明ではない。書込/送信0。
 - 新公式revenue readbackと旧CSVsamebytes/identity/amount/currency/provenance、platformcreditとactualfee/bank/profitの分離をfresh Sol6.1/medium read-only有限runへ渡した。銀行操作・provider/browser・台帳・mail・Telegram禁止。金融重要事実の認定は独立結果/不足解消まで保留。
 - 既存公式source取得と不足記録を続け、繰り返しの再exportや仮のコストを作らない。current2/主29順序不変。
+
+### 726. 現売上/CSV identityは独立SHIP、精算/利益はHOLD
+
+- fresh Sol6.1/medium read-only reviewはcurrentUI保存packetと旧CSV sameSHA/28rows/9cols/同18211957各1件・amount一致を限定SHIP。円表記をparserが要求するがCSVにcurrency/fee列なし、実fee/bank/orderactualcostはHOLD。payoutfalseを銀行未入金にせず、rate逆算やcost0認定なし。help本文はreviewer環境で未取得なのでrootの一次資料取得と独立検証範囲を分離。
+- projectにはreceipt系ファイルが存在し、先行限定economic filenames検索から全金融receipt不在へ一般化しない。確認範囲でfinancialreceipt未特定、missing refs/再開条件は維持。reviewerのsource検索に不要な金額コメント出力があり、指定stdout境界の逸脱を完了証拠に使わない。証拠 `coconala-settlement-fresh-review-result.txt`。
+- cursor2のfinance成果は未完。待機に独立順序3の商品4313100公開/購入導線をreadonlyで観測する。初回は退役したoldimmutableのwrapper pathmissing/exit127で未起動、currentの同4429SHA immutableへ切替え、profile/source/商品設定を変更せず再実行。外部write/購入/出品/価格変更0。
+- current2の不足を保持、主29相対順序不変。外部receipts不足だけで他channelを停止しない。
