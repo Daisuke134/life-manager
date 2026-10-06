@@ -8896,3 +8896,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - retry3だけの既存thread stateをreadonly確認、全3 last_error ValueError/last_error_detail reply_human_handoff_invalid/retry_count10。thread hash8eeccb3cdfb7/a1dcc6625cd8/a675c3ddb87a、nexteligibleは2026-10-06T07:55:50.035440Z/08:11:40.148056Z/08:14:23.151640Z。state変更0。
 - reply_kernel human処理は通知callback有りでhandoff Mappingを必須とする。CW classify_mutation_errorの一部pre-dispatch GoogleFormエラーはreason human_required/remaining_workだけを返し、handoff無しの経路が存在。このschema不整合を具体的な修復候補へ絞る。元GoogleForm errorの正確なkindは別途観測し、real identity/interview等human_requiredを自動送信へ降格しない。
 - 次はprovider contextに結ぶ最小handoff修復または元エラーの正しい分類をfresh source reviewで決め、Luna限定実装へ。新通知/送信/旧11unknown解除/全件audit0。current1/残29/mock取消/SelfBuild25・Lancers26〜28後段を維持。
+
+
+### 671. Reply handoff不整合のproducerを訂正・最小修復契約
+
+- §670のCW mutation classifierは候補だったが、その呼出後はwaiting_externalへ保存する別経路でありhuman validatorへの直接producerではない。共通ReplyPlanner.__call__のcompose例外＋remaining_work fallbackがaction human/reason reply_facts_required/handoff無しを直接返し、kernel要求へ違反する経路を確認。compose実装の戻りはstr/None、CW明示human required_actionは別途validhandoffを持つ。
+- 必要最小修復は、このgeneric事実不足fallbackをaction waitとしてreason/remaining_workを維持すること。欠損事実を埋めたふりせず、技術/情報不足をhuman-onlyと推定しない。明示required_action/structured humanとtitle/url/deadline検証・real identity/interviewの制約は維持する。新regex/keyword判断・model/provider変更・新frameworkを作らない。
+- 最新main専用worktreeでLuna6maxがreply_planner.py/既存test_reply_planner.pyを所有、必要なら該当source inventory digestだけ更新。最小REDで例外→missinghandoff→retryを示し、GREENはfacts wait/remaining保持/no send/no human notification、valid human維持、invalid human拒否を検証。rootはfreshreview/CI/main/対象反映を所有。
+- building-agentsを読み、修正は既存判断のtransport/state契約に限定。新provider/API/通知/送信/old11unknown解除0。current1/残29/mock取消/SelfBuild25・Lancers26〜28後段を維持。
