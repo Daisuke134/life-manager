@@ -8596,3 +8596,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - private原本state/cli-observability-20261006/coconala-orders-1791263570740503000。直前403と今回200の差を恒久修復/原因確定へ変換しない。新login/solver/source変更/送信/納品/旧fence解除0。実3受注表示と歴史的12保留recordは別母集団である。
 - 既存direct-inbox-head-only CLIもexit0/read_only true/head_only true。observed2026-10-06T05:13:59.031775Z、先頭30行はreply_required false/next_action observe。container present true、coverage_complete false/terminal pagination未証明/1page、semantic_ssot false。このflagだけで全件待返信なしと断定せず、新着有償問い合わせを捏造しない。private原本coconala-inbox-head-1791263636545147000。
 - current1/主経路31を維持。次は残2の現在必要行動だけを既存CLIへ結び（旧12全件巡回なし、TikTok/NPO材料追跡延期維持）、Coconala商品購入経路と他channelの現行ownerを確認する。全体Doneではない。
+
+
+### 632. Coconala既存storefront公式inventory取得
+
+- 既存listing_inventory.py collect --outを正規guard/一意ownerで実行、exit0。private原本state/cli-observability-20261006/coconala-storefront-1791263703624628000/inventory.json。20unique service IDs、seller管理一覧のstate公開中20、各公式public pageのscope/hash/category取得20。過去4という値を現在catalog数へ流用しない。価格は3000〜200000円の既存表示値で、変更0。
+- public sales_count parserは各20商品で0を返す。この一覧の表示販売実績であり、他の受注/売上/着金/会社利益0へ拡張しない。売上成果を公開数だけでDoneにしない。public scope本文は見積り語あり20/受付休止語0だが、active購入・見積りcontrolの証明ではないためbuyabilityは未完。
+- source観測CLIはlisting fit judgementをnot_wiredと明示しており、20公開を商品適合・利益・需要の勝者と判定しない。生公開本文や顧客情報はchat/specへ複製しない。新出品/公開変更/価格変更/購入/送信/個人資金移動0。
+- current1の現在業務情報取得内でstorefrontを観測。実行順は変えず主経路31/Lancers後段維持。次は既存商品1件の購入/見積り導線の公式readback、残2受注の具体的必要行動の限定確認。旧12保留全件照合へ戻らない。
