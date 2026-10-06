@@ -430,6 +430,7 @@ Expected: Web-only Calendar/organ calls are zero, and Telegram-bound behavior pa
 - Modify: `apps/life-manager/lib/runtime-preferences.js` and `apps/life-manager/lib/runtime-preferences.test.js`
 - Modify: `apps/life-manager/lib/panel-api.js` and `apps/life-manager/lib/panel-api.test.js`
 - Modify: `apps/life-manager/lib/web-calendar.js` and `apps/life-manager/lib/web-calendar.test.js`
+- Update pending-claim fixtures: `apps/life-manager/lib/web-travel.test.js` and `apps/life-manager/lib/transport/calendar-composio.test.js`
 
 **Interface:**
 - Store a server-generated `calendar_enable_claim_id` UUID and database `calendar_enable_claimed_at` on the exact Web `lm_users` row. `begin_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_claim_id uuid) -> boolean`, `recover_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_expected_claim_id uuid, p_new_claim_id uuid) -> boolean`, and `finish_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_claim_id uuid) -> boolean` set/rotate/clear only the matching owner claim. `readWebTravelControlState` returns the internal `enableClaimId` and `enableClaimedAt`; neither value is sent to the browser.
@@ -438,7 +439,7 @@ Expected: Web-only Calendar/organ calls are zero, and Telegram-bound behavior pa
 
 - [ ] **Step 1: Add failing claim-ownership and recovery tests**
 
-Cover token-scoped begin/finish, pre-PATCH no-effect release without changing saved daily automation, post-PATCH unknown retention, non-expired DISABLED refusal, expired DISABLED one-winner rotation, exact ACTIVE finish, expired MISSING/EXPIRED reauthorization, old-token rejection, and two concurrent recovery requests with only one provider enable. Pin the 20-second provider timeout and 120-second SQL lease in focused contracts.
+Cover token-scoped begin/finish, pre-PATCH no-effect release without changing saved daily automation, post-PATCH unknown retention, non-expired DISABLED refusal, expired DISABLED one-winner rotation, exact ACTIVE finish, expired MISSING/EXPIRED reauthorization, old-token rejection, and two concurrent recovery requests with only one provider enable. Pin the 20-second provider timeout and 120-second SQL lease in focused contracts. Update pending-state fixtures in `web-travel.test.js` and `calendar-composio.test.js` to carry a valid claim UUID/time; missing metadata remains unavailable and triggers no Calendar read/write.
 
 - [ ] **Step 2: Run the focused Calendar and state tests and confirm they fail**
 
