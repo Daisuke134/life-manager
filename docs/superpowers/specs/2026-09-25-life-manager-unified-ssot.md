@@ -9137,5 +9137,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 実API保存入力 `~/.local/state/life-manager/state/cli-observability-20261006/cfo-actual-current-mrr-input.json` の6商品分を、専用branch `fix/lm-mobile-mrr-freshness-20261006` の修復候補adapterとcentral projectionへ通した。provider I/O・外部effect・canonical ledger書込は0。観測時刻/hashを変更せず、snapshot_at `2026-10-06T10:41:16.952030Z`、latest complete period `2026-10-05` を保持した。
 - 実入力replay結果はMobile MRR `verified / USD 20.34`、RevenueCat MRR coverage complete。会社MRRはunknown、ASC historical/trailing financial coverageはgapのまま。年額proceeds・入金・利益への置換はしない。保存証拠 `cfo-mrr-freshness-actual-replay.json`。これは取得済み実入力へのsource候補検証であり、本番loaded/natural成果ではない。
-- 実装は指定4 CFO filesのみ。source commit `b77f485e3b1a1891454be9c3271b95e01dd6490b` を専用branchへpushしremote一致/clean確認。不足していた既存producerファイル取得後、関連72 tests/55 subtests PASS。唯一のschema parity FAILはbase mainでも同じebook enum不足で再現し、今回差分と区別する。`lm-loop-contract` PASS（15 loops/184 jobs/107 mapped）。Draft PR6763を作成、fresh Sol/medium read-only review進行中。CI・main統合・immutable反映・本番natural成果は未完。
+- 実装は指定4 CFO filesのみ。source commit `b77f485e3b1a1891454be9c3271b95e01dd6490b` を専用branchへpushしremote一致/clean確認。不足していた既存producerファイル取得後、関連72 tests/55 subtests PASS。唯一のschema parity FAILはbase mainでも同じebook enum不足で再現し、今回差分と区別する。`lm-loop-contract` PASS（15 loops/184 jobs/107 mapped）。PR6763をreadyへ変更。fresh Sol/medium read-only reviewはsource限定SHIP、阻害findingなし。実入力独立replay/重複入力不変/1商品oldまたはfutureでunknownを確認。実B7 collector経由でもMobile USD20.34/company unknownを確認し `cfo-mrr-freshness-b7-collector-replay.json` に保存（他sourceは問い合わせ対象外、外部effect/台帳書込0）。CI workflow37453992545は実行中、Python syntax/unittestを含む6 jobsはPASS、残3 jobs未完。main統合・immutable反映・本番natural成果は未完。
 - §217の残29/current1・相対順序は不変。独立したCFO原因修復を進めても、既存有償案件の納品・精算をDoneにはしない。mock商品制作は再開しない。
+
+### 698. cursor1の最新Paid診断とCFO runtime境界
+
+- CrowdWorks `paid-latest.json` のoccurrenceは `crowdworks-revenue-paid:18dbe825f45c8450-31415`、observed5/effect0/readback0/failed2。2候補はpre_effectのhandoff_unavailable、1候補form_selection_required、2候補reconcile_unknown。latest CLI terminalは別occurrence `crowdworks-revenue-paid:18dbebd1ae44f498-7975`/run `18dbebd1ae44f498-7975`、loaded3ae4176e、exit75。別occurrenceのbusiness出力をterminalへ結合しない。納品・検収・精算のDone証拠なし、effect fence解放/再送0。AGMSG lm-crowdworksへ現在のfunded scope/次成果物/期限/receipt/担当の確認をsend、sendだけを着手やlive seatの証明にしない。
+- CFO owner `life-manager-cfo-hourly` の現CLI readbackはloaded3ae4176e、loaded-idle、admission_effect_unknown false、最新run `18dbebf6bcacab78-20578`/exit78/apply_lock_busy。共有applyにmutationを重ねず、MRR source候補の本番反映を主張しない。
+- 残29/current1・SelfBuild25/Lancers26〜28の順序は不変。全体成果は未完。
