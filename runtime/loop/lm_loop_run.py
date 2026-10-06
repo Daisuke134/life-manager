@@ -103,6 +103,7 @@ EBOOK_POSTIZ_LOOP_IDS = frozenset({
     "ebook-ja-instagram-daily",
     "ebook-ja-tiktok-daily",
 })
+EBOOK_RUNTIME_TENANT_ID = "dais-local"
 JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})
 
 
@@ -146,6 +147,7 @@ def _child_environment_for_owner(
     environment["LM_DATA_DIR"] = str(
         Path(home or Path.home()).expanduser() / ".local/state/life-manager"
     )
+    environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
 
     # Ignore any inherited alias. The credential SSOT is the only source for eBook
     # publisher authentication. Do not even pass it to the child while publishing

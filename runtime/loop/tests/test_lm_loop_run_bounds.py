@@ -131,6 +131,7 @@ def test_ebook_child_environment_loads_postiz_key_from_private_ssot(tmp_path):
         "LM_EBOOK_PUBLISHING_ENABLED": "true",
         "LM_POSTIZ_API_KEY": "untrusted-inherited-key",
         "LM_DATA_DIR": "untrusted-inherited-data-root",
+        "LM_RUNTIME_TENANT_ID": "untrusted-inherited-tenant",
         "KEEP": "value",
     }
 
@@ -139,8 +140,10 @@ def test_ebook_child_environment_loads_postiz_key_from_private_ssot(tmp_path):
     )
 
     assert child["LM_DATA_DIR"] == str(tmp_path / ".local/state/life-manager")
+    assert child["LM_RUNTIME_TENANT_ID"] == "dais-local"
     assert child["LM_POSTIZ_API_KEY"] == api_key
     assert base["LM_DATA_DIR"] == "untrusted-inherited-data-root"
+    assert base["LM_RUNTIME_TENANT_ID"] == "untrusted-inherited-tenant"
     assert child["KEEP"] == "value"
     assert base["LM_POSTIZ_API_KEY"] == "untrusted-inherited-key"
     assert loop_runner._child_environment_for_owner(
@@ -178,6 +181,7 @@ def test_ebook_child_environment_does_not_inject_key_while_publish_flag_is_close
         "LM_EBOOK_PUBLISHING_ENABLED": "false",
         "LM_POSTIZ_API_KEY": "untrusted-inherited-key",
         "LM_DATA_DIR": "untrusted-inherited-data-root",
+        "LM_RUNTIME_TENANT_ID": "untrusted-inherited-tenant",
         "KEEP": "value",
     }
 
@@ -186,6 +190,7 @@ def test_ebook_child_environment_does_not_inject_key_while_publish_flag_is_close
     )
 
     assert child["LM_DATA_DIR"] == str(tmp_path / ".local/state/life-manager")
+    assert child["LM_RUNTIME_TENANT_ID"] == "dais-local"
     assert "LM_POSTIZ_API_KEY" not in child
     assert child["KEEP"] == "value"
 
