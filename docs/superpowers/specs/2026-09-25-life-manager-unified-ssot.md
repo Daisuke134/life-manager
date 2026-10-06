@@ -9802,3 +9802,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh codex exec Sol6.1/medium/read-only handle26022はexit0/sourceSHIP/新重大finding0。原3artifact SHA/gzip/08-30〜09-26/SKU/JPY/quantity1/4250/apprelationship、09-12 settlementのreceipt1、同identity replay、mixed保留とMRR維持、observed RC非settled、partialcoverage/会社MRR/銀行入金/利益unknown、mobile20.34表示を独立確認。adapter50/表示9/B7選択3/実packetnegative7/diff PASS。private cfo-fresh-review-result.md。
 - reviewは既存test_economic_attribution.py:687のschema parity FAILを発見。schemaJSONがcatalog由来validatorのebookを欠き、baseと同じ旧不整合。CFO正確性に関係する指摘なので解消する。範囲はskills/cfo/schemas/economic-attribution-v1.schema.jsonだけを既存render_schema()で同期、既存parity/経済契約testをRED→GREEN、意味のあるcommit/push。validator設計やprovider変更は追加しない。Luna既存workerを再利用、rootがSSOT所有。
 - runtime1件ENOSPCの再検証条件は§781。sourceSHIPを全本番/全財務Doneへ拡張しない。current17維持、残りschema同期/sourceCI/統合/immutable/自然source反映。
+
+
+### 784. schema指摘解消とdraft PR6786
+
+- Lunaは既存render_schema()でJSONのみ再生成、ebook enum3挿入。parity RED確認後、経済契約27/27/diff PASS。source355d2770cde4c9b6796a9d5f77a034a34e30705aをremote一致/clean確認。freshreviewの正確性指摘を解消、validator設計変更なし。
+- draft PR https://github.com/Daisuke134/life-manager/pull/6786 を1回作成。sourceレビューSHIP、Python50+38+27/表示9/contract PASSと、runtime774/775/隔離依存ENOSPC1件を本文へ明記。CI環境でrelease testを再検証し、未検証をPASSへ丸めずdraft保持。main/本番/自然新source/銀行入金/利益は未完。
+- current17、残りCI結果→必要指摘解消→通常統合/immutable→対象CFO反映/公式packet設定→自然レポート/二重計上readback。後段25SelfBuild/26〜28Lancers等の相対順序は維持。
