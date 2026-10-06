@@ -9361,3 +9361,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - currentの同4429main-derived immutable wrapper/registered coconala:kosuke/既存giglockで公開top→service4313100をread-only取得。2026-10-06T15:23:25.231261Z、serviceHTTP403/expectedroute/body13/SHA58404.../loginfalse。title/purchase/estimate/paused tokenは未観測であり、受付休止・公開無し・購入不可設定と分類しない。
 - この商品routeの結果は、直前のrevenue HTTP200復帰と別scope。vendor全体が永久403/完全復旧とは断定しない。商品/price/出品/購入/銀行/source/credentialを変更0。証拠 `coconala-4313100-current-public-route.json`。
 - cursor2の金融不足は保持し、順序3の独立readonly準備を実行した。次は正常seller inventoryとpublicroute/購入導線のsourcebindingを確認し、失敗の本当の境界だけを修復する。主29順序/SelfBuild25/Lancers26〜28は不変、financeDone/商品buyableは未完。
+
+### 728. seller inventory routeの現在403を分離
+
+- existing listing_inventory parse_list_pageを使うread-only seller route取得run81421はexit0。2026-10-06T15:30:27.132236Z、/mypage/services_lists HTTP403/container無し/body13/SHA58404.../loginfalse。source gateでparser入力を止め、service_count0/target無し/休止/公開不可として計上しない。画像/商品price/catalog/rootstate/credential/本番変更0、証拠 `coconala-4313100-current-seller-inventory.json`。
+- currentrevenueHTTP200/明細一致とseller/publicservice403は別route。全vendor永久blockedや完全復旧とはしない。適切な正規navigationとdirect URLの差、同account/source provenanceを次に観測する。private API bypass・空solver task・source設定の憶測修正を行わない。
+- cursor2 financeHOLDと独立3の準備を保持。bank/actualfee/costは未取得、31/27等過去countを今のpublished/buyableへしない。主29相対順序/SelfBuild25/Lancers26〜28不変。
