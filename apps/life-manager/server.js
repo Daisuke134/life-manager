@@ -51,6 +51,10 @@ const {
   handleLateApprovalCallback,
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
+const { handleWebAuthRequest, resolveWebUser } = require("./lib/web-auth.js");
+const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
+const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
+const { renderWebPage } = require("./lib/web-page.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
 const { createMoneyPrinterRuntimeStore } = require("./lib/money-printer-runtime-store.js");
@@ -490,6 +494,77 @@ function ctxFromReq(req) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
+  if (path === "/lm") {
+    if (req.method !== "GET") {
+      res.writeHead(405, { allow: "GET", "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Method not allowed");
+      return;
+    }
+    let user = null;
+    let snapshot = null;
+    try { user = await resolveWebUser(req, res, { publicOrigin: LM_PANEL_BASE }); } catch {}
+    if (user) {
+      try {
+        snapshot = await buildTodaySnapshot(user.uid, {
+          supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+          publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+          composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+        });
+      } catch (error) {
+        if (error && [401, 403].includes(error.status)) {
+          res.writeHead(error.status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+          res.end("<!doctype html><html lang=\"ja\"><meta charset=\"utf-8\"><title>Life Manager</title><body><main><h1>Life Manager を利用できません</h1><p>このアカウントではWebセットアップを利用できません。</p></main></body></html>");
+          return;
+        }
+        snapshot = {
+          setupState: "sync_pending", calendarState: "unavailable",
+          nextEvent: null, travelBlock: null, departureAt: null,
+          trialExpiresAt: null, paid: null,
+        };
+      }
+    }
+    const html = renderWebPage({
+      user,
+      snapshot,
+      stripePaymentLink: process.env.LM_STRIPE_PAYMENT_LINK || process.env.STRIPE_PAYMENT_LINK,
+    });
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    res.end(html);
+    return;
+  }
+  if (path === "/auth/google" || path === "/auth/google/callback") {
+    handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+      if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Web sign-in unavailable");
+    });
+    return;
+  }
+  if (path === "/api/lm-web/calendar/status" || path === "/api/lm-web/calendar/start" || path === "/lm/oauth/calendar/callback") {
+    handleWebCalendarRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "calendar_unavailable" }));
+    });
+    return;
+  }
+  if (path === "/api/lm-web/setup" || path === "/api/lm-web/today" || path === "/api/lm-web/travel/control") {
+    handleWebTravelRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "travel_unavailable" }));
+    });
+    return;
+  }
   if (path === "/api/internal/mental/outcomes") {
     if (req.method !== "POST") {
       res.writeHead(405, { "allow": "POST", "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });

@@ -10,7 +10,7 @@
 // Run: node --test lib/runtime-preferences.test.js
 const test = require("node:test");
 const assert = require("node:assert");
-const { DEFAULTS, readRuntimePreferences } = require("./runtime-preferences.js");
+const { DEFAULTS, readRuntimePreferences, readWebTravelControlState } = require("./runtime-preferences.js");
 
 const SUPA = { supaUrl: "https://supa.invalid", supaKey: "service-role-key" };
 const rows = (value) => async () => ({ ok: true, status: 200, json: async () => value });
@@ -50,4 +50,60 @@ test("an unreadable preference store yields no preferences at all, not a permiss
   assert.equal(await readRuntimePreferences("u1", { ...SUPA, fetchImpl: async () => { throw new Error("offline"); } }), null);
   assert.equal(await readRuntimePreferences("u1", { ...SUPA, fetchImpl: async () => ({ ok: false, status: 503 }) }), null);
   assert.equal(await readRuntimePreferences("", { ...SUPA, fetchImpl: rows([]) }), null);
+});
+
+test("Web control state returns the exact Calendar enable claim and database timestamp", async () => {
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const claimId = "2e59df08-f437-44fd-bbe9-5d835ba467f0";
+  const claimedAt = "2026-10-06T03:00:00+00:00";
+  const queries = [];
+  const result = await readWebTravelControlState(uid, {
+    ...SUPA,
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url));
+      queries.push(parsed);
+      if (parsed.pathname.endsWith("/lm_users")) {
+        return rows([{
+          uid,
+          telegram_chat_id: null,
+          calendar_enable_pending: true,
+          calendar_enable_claim_id: claimId,
+          calendar_enable_claimed_at: claimedAt,
+        }])();
+      }
+      return rows([{ daily_automation_enabled: false, calendar_disconnect_pending: false }])();
+    },
+  });
+
+  assert.deepEqual(result, {
+    dailyAutomationEnabled: false,
+    disconnectPending: false,
+    enablePending: true,
+    enableClaimId: claimId,
+    enableClaimedAt: claimedAt,
+  });
+  assert.match(queries[0].searchParams.get("select"), /calendar_enable_claim_id/);
+  assert.match(queries[0].searchParams.get("select"), /calendar_enable_claimed_at/);
+});
+
+test("Web control state fails closed when a pending Calendar claim has no valid owner metadata", async () => {
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const result = await readWebTravelControlState(uid, {
+    ...SUPA,
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url));
+      if (parsed.pathname.endsWith("/lm_users")) {
+        return rows([{
+          uid,
+          telegram_chat_id: null,
+          calendar_enable_pending: true,
+          calendar_enable_claim_id: null,
+          calendar_enable_claimed_at: null,
+        }])();
+      }
+      return rows([{ daily_automation_enabled: false, calendar_disconnect_pending: false }])();
+    },
+  });
+
+  assert.equal(result, null);
 });
