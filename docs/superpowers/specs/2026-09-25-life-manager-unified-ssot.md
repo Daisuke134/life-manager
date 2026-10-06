@@ -9543,3 +9543,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Writer runs/20260929-010128に記事・publication-state/self-owned-publication/report evidenceが保存されている。対象run内のJSON/JSONL/TXT/LOG/MDを限定readするとexact hostrid一致0、report-evidenceのrun_idはbusiness ID20260929-010128、host/occurrence fields無し。時刻近似だけで同hostpublishを解放しない。root現journalにもexactrid matches無し。
 - cursor11のowner待機、独立12の診断cursorはhost67928→businessrun/immutable artifact→公式publicationのbinding回収。次は保存publication receiptのstable IDs/hashesと当時host entrypointの持続journalを照合する。別記事/別run receiptでfence解除や新publishを行わない。Writer source修復が必要ならloop-development/latestmain worktree/Luna実装へ限定する。
 - 主29相対順序/前段保留/SelfBuild後段保持。今回provider publish/marketing送信/再起動/fence変更/価格/購入/振込0。
+
+
+### 750. Writer実公開receiptとhost bindingを分離
+
+- Capafy11234はps live、同eventsはexecute/runningのみでterminal/receipt無しを再確認。既存実行を再起動/並行送信しない。
+- Writer businessrun20260929-010128のself-owned receiptはmain delivery commit8a5b9253f324d5c8924336c01d10626c1b9c8c23、JA xcta4/artifact455774.../official URL https://aniccaai.com/blog/xcta4 、EN a-viral-x-post-is-not-a-funnel-connect-substack-and-four-decisions/artifact05edc...、observedSep29T01:37:14〜15Z。host unknown67928のexit1は01:14:04Zであり、後続receiptを同runへ時刻だけで結合しない。publication-state/receipt/initにhost/occurrence無し、retained writer/logsでもexacthost/PID一致0。
+- 既存記事の独立販売導線をcrwlで確認。handle54292 exit0、UTC2026-10-06T16:20:00.789732、xcta4 markdown2573文字/SHAbc68ecbd...、購入/Stripe tokenあり/notfound無し。private writer-xcta4-current-public-crawl.json。ページ取得/文字列存在はcheckout成功/受注/入金/利益の証拠ではない。
+- cursor12次はxcta4の実purchase CTA/価格/既存Stripe read-only receipt sourceを照合する。新記事再publishより現在商品を売れる状態へ結ぶ。旧hostbinding不足は保留で保持しofficialreceipt無しでfence解除しない。主29相対順序/前段保留/SelfBuild後段保持。publish/購入/marketing送信/振込/本番loop変更0。
