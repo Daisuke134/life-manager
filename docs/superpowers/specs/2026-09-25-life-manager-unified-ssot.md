@@ -10019,3 +10019,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 独立残3のCoconala商品4313100はcurrent immutableのregistered with-browser/既存inspect_page経路で1回のread-only取得を試みたが、identity coconala:kosuke lease busy/exit75。browser取得前に停止、page/read/write/purchase/send0。私有coconala-4313100-latest-lease-readback.jsonに保存。今回のbusyを旧403原因や非公開/購入不可へ置換しない。既存順序/cursor17保持。
 
 - 同handle37833の残2件修正後、担当focused5/5 PASS、primary独立のreader/loop/mobile/economic4suiteは133/133 PASS、diffcheck PASS。fresh gpt-6.1-sol/medium再反証handle55387開始。source commit/push・再review受入・CI/main/immutable・自然readbackは未完で保持。
+
+
+### 811. CFO live MRR sourceをpush、draft PR6790でCI開始
+
+- Luna有限run37833はexit0、source3files/commit c7399c63aa9b7df380dd55c1554f64387c45d6be、branch fix/cfo-current-mrr-readback-20261007、origin同SHA/cleanをprimary readback済み。終了日照合・started/completed・implicit snapshot修正、関連133/focused5/compile/diff PASS。新API/本番操作0。
+- primaryは同branchの既存PR無しを確認してdraft PR6790（https://github.com/Daisuke134/life-manager/pull/6790）を作成、head SHA一致。CI run37528401518は進行中、fresh Sol6.1/medium反証handle55387も進行中。CodeRabbitのdraft skipをsource review PASSにしない。
+- cursor17の残操作は同SHAのreview受入/CI→main/immutable→live flag接続→自然取得/レポート・ASC分離のreadback。sourceを再実装するTODOへ戻さず、前段不足/全社MRR・財務gapを保持。
