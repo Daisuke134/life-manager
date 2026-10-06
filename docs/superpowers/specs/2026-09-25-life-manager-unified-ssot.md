@@ -9909,3 +9909,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 未対応serviceの最新8deploymentを請求期間08-27〜09-27へ比較、before6/during2/after0。最新metadataだけで期間中の全versionを証明しない。公式Deployment/DeploymentMeta scalar schemaを確認し8IDをmaxworkers3でread-only取得、8/8成功。private railway-unmatched-deployment-code-provenance.json。metaはkeynamesと安全code refsのみ、env/秘密/生command保存0。
 - Life Manager deployment1件はcreated09-19/commitdd88f573e5829a5b1a421a3be1a3d8d6ff86992a/repoRootDirectory slashを取得。script basename server.jsをrepo rootでgitshowするとpath無し、これをdeploy故障と断定せず実startCommandのcd operandだけを追加観測。workingdir apps/life-manager→server.jsを確認し同commit apps/life-manager/server.jsの存在/importsを照合。shared call-bridge/scheduler/maybe-start-loops serverであり、特定収益loopの専用費用へ昇格しない。private railway-life-manager-deployment-entrypoint-readback.json。
 - 残る費用帰属は同periodのversion/runtime usage/共有費配分根拠。sourceが分かったこととpaid invoice26.07USDのloop allocationを区別する。CFO newsourceはmain6489/最新自然18:57capacity延期、new reportは旧18:11のまま。current17自然readback待ち/20独立観測を継続、変更・取引・送信0。
+
+
+### 798. 請求期間中変更2serviceのdeployment履歴と代替経路
+
+- 公式Query.deployments/DeploymentListInputでserviceId/includeDeleted/connection paginationを確認。during-period最新2serviceとService resolver失敗1IDに限定し、maxworkers3/first100/includeDeletedtrueで履歴READ。結果は5rows/page終端、100rows/hasNexttrue、内部error/rows0の3件。private railway-billing-period-deployment-history.json。
+- 5row側の期間範囲09-03〜09-11、status SUCCESS1/FAILED1/REMOVED3。100row側は07-22〜09-19で請求開始08-27以前まで取得、SUCCESS1/REMOVED85/FAILED13/SKIPPED1。さらに古いpage存在を隠さず全履歴completeへしない。REMOVEDやcreatedAtだけで全稼働時間・loop配分を証明しない。
+- 失敗serviceは最小Service queryと削除含むdeployment queryの別経路でINTERNAL_SERVER_ERROR、データ取得不可をsource欠損として保持し費用0/不存在へ変換しない。自己所有parser/credentials不良とは9成功等の証拠から区別する。残る帰属は当該periodのruntime/billed usage/canonical ownership。
+- CFOはmain6489/最新18:57capacity延期/newreport旧18:11をfresh再確認。current17自然readback待ちと20の独立証拠観測を継続。今回mutations/取引/通知0。
