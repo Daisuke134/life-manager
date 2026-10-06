@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在の実行cursor：15（Fundraiserの既存申請cursor・公式募集条件の照合）。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
+現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
 今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然reportの成果は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
@@ -9620,3 +9620,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同submissionの公式一覧・my-submissions・artifactはtask/worker/SHA/20136bytes/image-svg/final一致。tx0xa74f3a0dc19e0f15079d75cf43dc92af9ada210be4f08b9081a8498df09e7b10をBase RPC eth_getTransactionReceiptでstatus0x1/block0x31d660c確認（urllib403後curl transport成功）。private taskmarket-svg-official-submission-readback.json。現在返却一覧は同task/worker1行、operator submit呼出1回というscopeだけで全履歴version無重複を断定しない。readback operation effect0は正式納品作用0の意味ではない。
 - fresh別Sol6.1 medium receipt reviewerは期待worker/重複scope不足を指摘。post-submitに期待workerを追記したことを明示し、actual artifactworker/同worker現在一覧countを追加、再reviewSHIP。保存資料内整合の検証で外部GET/credential/書込0。納品完了だけが成果で、award/earnings/actualcost/profitはnullを維持。wallet balance before/after表示1000baseunitsは費用0/利益の証拠にしない。
 - task fullID0x47ba360a65c39a3fd9dc60503fb2607fa6d35f538a4446563328e4e4920d86b2、expiry2026-10-07T02:37:49.641Z（JST11:37）。受賞待ちは再提出せず14保留。次の独立cursor15 Fundraiserへ進み、主29相対順序/前段不足/SelfBuild25・Lancers26〜28後段を維持する。source/loop/価格/鍵発行/新wallet/新prototype変更0、実納品署名・upload・submitのみ1回。
+
+
+### 759. Fundraiser旧identity不足とCloud関連Stripe現stock
+
+- Fundraiser現在statusはmain4429/loadedidle/exit75、old fundraiser:18d9b0b6311a2018-87933 unknown/no_entrypoint_preflight_signature。§171等の既調査を再実行せず現cursor/660legacy receiptsを照合。cursorはSep29 managed_cdp_target_http_403、最終child87970/DeepScale Seed Lead Funding Intake rolling2026 failure/official applicationID無し。applications配下に同DeepScaleのprepared保存物は確認範囲0。現在の応募適格性/資金受領をlegacylabelから推定しない。
+- 旧receipt accountをemailと思ってprivate candidate application_emailと比較したが不一致でGmail検索前に停止。その後accountはemailを含まないidentity labelと判明、email不一致を別受信箱確定の証拠にしない。過去Oct3 mail-readbackのmatchboolだけで新mailaccountとの対応を捏造しない。必要再開条件はexact host→child→intended application/providerID/officialreceipt/account対応。再送/解除/メールsend0。AGMSG lm-fundraiser-adapter-1002へ現境界と既存証拠参照の照会を送信、稼働/着手とは断定しない。
+- Cloud関連の現billing sourceとして同Stripe account acct_1RT5QgEeDsUAcaLSをperiodfilter無し/statusallでGET。pagination完了7records、前turn期間内作成0と別scope。7recordsは全部canceled/livemode true、同price/product参照。product GET HTTP200/requestID付はAnicca Pro/live。public product active trueを有効subscriptionへ変換しない。private cloud-writer-current-stripe-subscription-stock.json/cloud-writer-stripe-subscription-metadata.json/cloud-writer-stripe-product-identities.json。
+- fresh Sol6.1 medium reviewerは3filesのcount/status/product整合を限定SHIP、Cloud/Writer契約帰属/全社MRR/売上/銀行/利益HOLD。product GETmethod/status/requestID不足はpacket追記で対応。raw7subscription response未保存の独立SHA再計算限界は残す。機密値・顧客email/token出力0、subscription変更/請求/価格変更0。
+- sourceCloud仕様のlaunch推奨価格やreminder formatter証拠をpaidCloud契約へ流用しない。16の現在Cloud service/customer contract/official billing/usageは未確認。15/16をDoneへせず保留、現在cursor17 Mobile CFO公式接続へ進む。main29相対順序/前段不足/TaskMarket受賞待ち/SelfBuild後段保持。
