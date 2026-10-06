@@ -10005,3 +10005,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna修正handle12753はファイル書込失敗後exit101、exact process不在。rootは保存sourceでtest_revenuecat_readback15/15 PASSを独立確認。不正incomplete・逆順period・ASC無しMRRの3件はRED→GREEN証拠あり。終了したrunをlive扱いせず、差分を保持。
 - 残る公式response end_date一致と成功/部分失敗/全失敗のstarted/completed/snapshot整合の2件だけを短いboot promptへ明記し、同sourceのgpt-6-luna/max有限run handle61471へ継承。空き120MB、apply_patch書込失敗を再発させないため対象ファイルのPython atomic write・compile/focused検証へ指定。source所有3files/レビューprimary/本番禁止を保持。
 - 現稼働CFOはmain64895457、最新自然run18dc0a1a7690c3a8-25779が20:17:49UTCにexit0/loaded-idle。対応sentAt20:17:41.583Z/providerMessageId104594、本文MRR未確認/mobile USD20.34をlast-result-reportで照合。新live readerの本番成果ではない。private証拠 cfo-main648-latest-natural-report-readback.json。cursor17、順序変更なし。
+
+
+### 809. 公式終了日のREDを確認、heredocのENOSPCを分離して継続
+
+- handle61471はexit0で終了したが成果未完。fixtureを公式response終了日へ修正してREDを再現、reader修正前にzshのheredoc一時file作成がENOSPCで失敗しPythonは未起動。担当報告の空き813MiB/inode40%だけで書込可能と断定しない。
+- rootはpython3 -cで/private/tmpと対象skills/cfoの8KB write/flush/fsync probeを実施、両方PASS、自己probe fileだけ削除。追加観測後、同差分/同Luna/maxをhandle37833で再開しheredoc禁止・Python-c/file scriptへ変更。残2件だけ、source本番変更0/cursor17維持。
