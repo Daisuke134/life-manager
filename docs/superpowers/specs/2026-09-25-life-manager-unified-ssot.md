@@ -8728,3 +8728,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現受注8000/24000円に一致する既存project state.jsonだけをreadonly確認、実current artifact pathは両方file exists。両stateはnext_action await_buyer_feedback/buyer_visible true/last_delivery_attempt_outcome confirmed/正式納品false。一方work_state WORK_REQUIREDも残る。8000更新2026-09-23T11:39:17.917290Z、24000更新2026-09-22T22:13:46.199100Zの過去stateであり現況の独立証明にしない。
 - 現公式readでは両方取引中/表示最新seller（§645–646）。この組合せから不要な再生成/再返信/再納品を起動しない。old confirmedは送信種類/条件/本文・成果物version/公式landingと結ばず正式納品・検収・精算に昇格しない。buyer_feedback flagsの混在も推測で書き換えない。
 - 現cursor1はscope/公式納品条件を確かめ、実際の未履行だけを行う。確認済み成果物の再作業を止め、buyer待ち/未確定はその不足物へ限定する。TikTok/NPO材料追跡は延期維持、過去12全件照合なし。source/state/browser変更/外部effect0。独立した既存商品準備・販売行動はこの待機で停止しない。
+
+
+### 648. 既存artifact送信整合・NPO追跡延期のscope適用
+
+- 8000円v16b/24000円v15の実ZIP hashはcurrent_package_sha256と一致し、current/最新buyer-visible version・digestも一致。対応latest acceptanceはそれぞれPASS。古いWORK_REQUIREDだけで再生成しない。
+- 8000円latest delivery receiptはsent/v16b/provider receiptあり/正式納品checkbox false。package hash一致、send evidence/official readback/live DOMの全3参照file exists＋sha一致、replay_zero not_replayed。これは当該artifact送信の過去証拠であり正式納品・検収・精算の証拠ではない。24000円latest delivery JSONはok/acceptance PASSという準備記録で、同等の公式送信receiptとは扱わない。
+- 両requirementsのfeedback/accumulated内容にNPO関連記述を確認。DaisのNPO材料/残納品条件追跡延期を優先し、追加scope精査/資料催促/正式納品操作をここで保留する。最初にscopeを確認せず一般の履行確認を先行した順序を是正。保留を完了にせず、この2件の追加監査を収益全体の停止条件へ戻さない。
+- 現cursor1の未延期・現実行可能な有償履行が確認できた時だけ進め、既存商品準備・販売の独立作業は並行可能とする。TikTok/NPO/旧12保留延期、SelfBuild26/Lancers27〜29の順を維持。source/state変更/送信/再納品/資金移動0。
