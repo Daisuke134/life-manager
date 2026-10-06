@@ -25,6 +25,21 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
+def shared_marker_path(state_root: Path, occurrence: str) -> Path:
+    digest = hashlib.sha256(occurrence.encode()).hexdigest()
+    return state_root / "shared-paid" / "runs" / f"{digest}.json"
+
+
+def write_paid_marker(path: Path, occurrence: str, *, status: str = "completed",
+                      effect: int = 0, version: int = 1) -> None:
+    write_json(path, {
+        "version": version,
+        "occurrence_id": occurrence,
+        "status": status,
+        "effect": effect,
+    })
+
+
 def seed(tmp_path: Path, *, owner: str = "crowdworks-revenue-paid",
          occurrence: str = "crowdworks-revenue-paid:run-1",
          marker_status: str = "completed", marker_effect: int = 0,
@@ -165,6 +180,69 @@ def test_exact_paid_zero_effect_run_supports_shared_paid_state_layout(tmp_path):
 
     assert proof["verified"] is True
     assert proof["occurrence_id"] == occurrence
+
+
+def test_invalid_or_effectful_canonical_marker_blocks_shared_fallback(tmp_path):
+    module = load()
+    owner = "mercor-revenue-paid"
+    canonical_markers = [
+        ("effect_started", 0, 1),
+        ("completed", 1, 1),
+        ("completed", 0, 2),
+    ]
+
+    for index, (status, effect, version) in enumerate(canonical_markers):
+        occurrence = f"{owner}:authoritative-{index}"
+        state_root = tmp_path / str(index)
+        write_paid_marker(shared_marker_path(state_root, occurrence), occurrence)
+        write_paid_marker(
+            module.run_marker_path(state_root, occurrence), occurrence,
+            status=status, effect=effect, version=version,
+        )
+
+        assert module.find_paid_no_effect_proof(
+            state_root, owner, occurrence) is None
+
+
+def test_canonical_symlink_does_not_prove_no_effect(tmp_path):
+    module = load()
+    owner = "mercor-revenue-paid"
+    occurrence = f"{owner}:canonical-symlink"
+    state_root = tmp_path / "mercor"
+    shared_marker = shared_marker_path(state_root, occurrence)
+    write_paid_marker(shared_marker, occurrence)
+    canonical_marker = module.run_marker_path(state_root, occurrence)
+    canonical_marker.parent.mkdir(parents=True, exist_ok=True)
+    canonical_marker.symlink_to(tmp_path / "missing-target.json")
+
+    assert module.find_paid_no_effect_proof(
+        state_root, owner, occurrence) is None
+
+
+def test_shared_paid_fallback_is_mercor_only(tmp_path):
+    module = load()
+    occurrence = "crowdworks-revenue-paid:shared-only"
+    state_root = tmp_path / "crowdworks"
+    shared_marker = shared_marker_path(state_root, occurrence)
+    write_paid_marker(shared_marker, occurrence)
+
+    assert module.find_paid_no_effect_proof(
+        state_root, "crowdworks-revenue-paid", occurrence) is None
+
+
+def test_shared_paid_symlink_does_not_prove_no_effect(tmp_path):
+    module = load()
+    owner = "mercor-revenue-paid"
+    occurrence = f"{owner}:shared-symlink"
+    state_root = tmp_path / "mercor"
+    target = tmp_path / "valid-marker.json"
+    write_paid_marker(target, occurrence)
+    shared_marker = shared_marker_path(state_root, occurrence)
+    shared_marker.parent.mkdir(parents=True, exist_ok=True)
+    shared_marker.symlink_to(target)
+
+    assert module.find_paid_no_effect_proof(
+        state_root, owner, occurrence) is None
 
 
 def test_cli_reports_missing_occurrence_proof_as_structured_safety_stop(tmp_path,
