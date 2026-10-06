@@ -9576,3 +9576,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Capafy11234はpsから消え、exact run16:24:41Z reportpass/exit0/effectunknown/receipt無しを確認。既存fenced_row probeはValueErrorでunknown行無し（未解決と即断せずread-only occurrence照合）。最初のDB path typoはread-only open前失敗しcorrect canonical admission-v2へ修正、mutation0。
 - exactoccurrence18dbfcdfa1358938-11234は現在released/effectunknown false/queued16:15:04.673706Z。official remoteGitHub fetchedcommit877b6a6b42e8b0040341de65267489a05f535246は同slug capafy-hook-lab-2026-10-07-h00（JST01:17:11）、publicpage200、Postiz official listing同投稿IDcmuww25q30ajjrz0yt15q12fb（business ledger一致）。private capafy-hooklab-natural-official-readback.json。root fence mutations0、解除元のexact proofは未調査なのでroot解放成果としない。
 - 主11の既存商品販売促進cycleは実行・公式article/post readbackの限定Done。注文/精算/host実費/利益は未確認で保持し、全11Doneや収益発生としない。主12の売上源は公開/Checkoutと6source取得の限定進捗、旧hostbinding不足は保留。次の独立cursor13 Affiliate成約/commission/settlementの既存source照合へ進む。主29相対順序と前段不足/SelfBuild後段を保持。新publish/新marketing send/購入/支払/振込/鍵発行0。
+
+
+### 754. Affiliate公式収益CLIと現認証境界
+
+- canonical affiliate skill/revenue_cliを確認。旧Keychain指示は現credential正本方針を優先し不使用。CLI observe/links/captureは公式reports取得、reconcileはcommission-ledger appendを含むので診断で呼ばない。旧financial latestは2026-10-03/ElevenLabs commissions0/payouts emptyで、現在値にしない。link latestはSep23。
+- 現affiliate-loop loadedmain4429/idle/exit75、old occurrence affiliate-loop:18d83ba82b14fb40-24990 effectunknown、既存adapter held target_not_queued_before_window。一般exit0をeffect0へせず、fence解除/再送0。
+- isolated affiliate browser ownerはregistry affiliate-browser/profile ~/.cloak/profiles/affiliate/en/9324。CDP metadataのみ読取でtop ElevenLabs sign-inを確認、iframes/workersをprovider tabs/契約countへしない。専用pageを操作せずregistered interactive:dais guard内のowned新pageでPartnerStack report GET。HTTP200→/handshake/login、report heading無し。private affiliate-partnerstack-auth-boundary.json。これは認証不足で収益0ではない。
+- credential正本にPartnerStack email/password1record存在。公式通常loginはWork Email Address/Continue。handle4331でemail入力とContinue1回、固定短時間観測ではLoading.../同routeを確認。login完了/失敗/メール送信完了は未確定。private affiliate-partnerstack-login-step.json。signup/commission/payout操作0。次は通常loginの非Loading終端と認証レスポンス/既存メールを照合し、待機不足をauth failureへ丸めない。
+- cursor13はPartnerStack再認証→公式commission/payout capture。旧保留fenceは別途exact intent/receiptが必要。主29相対順序/前段不足/SelfBuild後段保持。外部marketing送信/販売再送/登録/価格/支払/振込/本番loop変更0。
