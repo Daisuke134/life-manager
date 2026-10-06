@@ -39,6 +39,8 @@
 - A pre-existing `lm_users` row must keep its Telegram binding and billing fields during Web sign-in; pin in Task 1's insert-only identity test.
 - A foreign, ambiguous, inactive, unpersisted, or rebound Composio account must never enable event access; pin Task 2/3 and OAuth/scheduler recovery in Task 6.
 - Missing home/location, overlap/repeated sync, ambiguous GO/RETURN creation, missing/invalid display timezone, or failed Web control must preserve safe travel state and show an actionable result; pin Tasks 3 and 7–9.
+- A Web UUID with NULL Telegram binding must not enter the legacy organ tick or trigger upcoming/history Calendar reads; scheduled Travel remains enabled through its exact-bound owner; pin Task 10.
+- A failed or interrupted Calendar-enable claim must remain single-owner, release only after known no-effect or exact readback, and recover only after its lease plus an exact provider status; pin Task 11.
 
 ---
 
@@ -394,15 +396,74 @@ Map only exact selected-account 404 to MISSING and exact EXPIRED provider state 
 
 Run the same focused suite. Expected: stale accounts offer a usable reauthorization path, unknown outcomes remain fenced, and no stale account is re-enabled.
 
+### Task 10: Keep Web-only tenants out of legacy organ Calendar reads
+
+**Files:**
+- Modify: `apps/life-manager/scheduler.js`
+- Modify: `apps/life-manager/test/scheduler.test.js`
+
+**Interface:**
+- `organsUserOnce` returns before cache/provider reads and non-Travel organ work when `uid` matches the Web UUID form and `telegram_chat_id === null`. `travelTick` remains the sole scheduled Calendar consumer for those Web-only rows; Telegram-bound users keep current organ behavior.
+
+- [ ] **Step 1: Add the failing Web-only scheduler regression**
+
+Cover a Web UUID with NULL Telegram binding and enabled daily automation: `organsUserOnce` must make zero `fetchUpcomingEvents` calls and zero care-organ calls. Also cover a Telegram-bound user to prove its legacy organ path still runs.
+
+- [ ] **Step 2: Run the scheduler test and confirm it fails**
+
+Run: `node --test test/scheduler.test.js`.
+Expected: the Web-only fixture reaches the upcoming-event reader and non-Travel organ path.
+
+- [ ] **Step 3: Skip Web-only rows at the organ owner boundary**
+
+Add the exact Web UUID plus NULL-Telegram guard at the start of `organsUserOnce`. Do not disable `travelTick` or add another Calendar adapter.
+
+- [ ] **Step 4: Rerun the scheduler test and commit**
+
+Run: `node --test test/scheduler.test.js`.
+Expected: Web-only Calendar/organ calls are zero, and Telegram-bound behavior passes. Commit as `fix(life-manager): keep web tenants in travel scheduler only`.
+
+### Task 11: Recover Web Calendar-enable claims safely
+
+**Files:**
+- Modify: `apps/life-manager/migrations/2026-10-06-z-lm-web-travel-controls.sql`
+- Modify: `apps/life-manager/lib/runtime-preferences.js` and `apps/life-manager/lib/runtime-preferences.test.js`
+- Modify: `apps/life-manager/lib/panel-api.js` and `apps/life-manager/lib/panel-api.test.js`
+- Modify: `apps/life-manager/lib/web-calendar.js` and `apps/life-manager/lib/web-calendar.test.js`
+
+**Interface:**
+- Store a server-generated `calendar_enable_claim_id` UUID and database `calendar_enable_claimed_at` on the exact Web `lm_users` row. `begin_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_claim_id uuid) -> boolean`, `recover_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_expected_claim_id uuid, p_new_claim_id uuid) -> boolean`, and `finish_lm_web_calendar_enable(p_uid text, p_calendar_account_id text, p_claim_id uuid) -> boolean` set/rotate/clear only the matching owner claim. `readWebTravelControlState` returns the internal `enableClaimId` and `enableClaimedAt`; neither value is sent to the browser.
+- A claim is recoverable after 120 seconds. Each Composio enable GET/PATCH/status read is bounded to 20 seconds. Before the lease expires, an exact DISABLED read remains pending and sends no PATCH. After expiry, exact ACTIVE finishes the old claim, exact DISABLED rotates the UUID atomically before one retry, and exact MISSING/EXPIRED clears only the stale claim before existing active-account recovery/new OAuth. Unknown states remain fenced.
+- A failure before provider enable PATCH is known no-effect and releases only the current matching claim while automation stays paused. A PATCH timeout, network/5xx, or post-dispatch readback failure remains unknown and retains the claim. A previous owner cannot finish or clear a rotated claim.
+
+- [ ] **Step 1: Add failing claim-ownership and recovery tests**
+
+Cover token-scoped begin/finish, pre-PATCH no-effect release, post-PATCH unknown retention, non-expired DISABLED refusal, expired DISABLED one-winner rotation, exact ACTIVE finish, expired MISSING/EXPIRED reauthorization, old-token rejection, and two concurrent recovery requests with only one provider enable. Pin the 20-second provider timeout and 120-second SQL lease in focused contracts.
+
+- [ ] **Step 2: Run the focused Calendar and state tests and confirm they fail**
+
+Run: `node --test lib/runtime-preferences.test.js lib/panel-api.test.js lib/web-calendar.test.js`.
+Expected: current boolean-only claim cannot identify an owner or reclaim a crashed operation.
+
+- [ ] **Step 3: Add the smallest token-owned claim lease**
+
+Extend the existing claim columns/RPCs, read internal claim metadata, bound the exact Composio enable requests, and change `startCalendar` to recover only from exact provider readback and token-checked SQL transitions. Keep automation paused throughout recovery.
+
+- [ ] **Step 4: Rerun the focused Calendar and state tests and commit**
+
+Run: `node --test lib/runtime-preferences.test.js lib/panel-api.test.js lib/web-calendar.test.js`.
+Expected: confirmed ACTIVE completes, exact DISABLED has one leased owner, definite no-effect is retryable, and uncertain provider outcomes stay fenced. Commit as `fix(life-manager): recover stale calendar enable claims`.
+
 ## Required continuation after the source implementation
 
 The main goal remains active after this source plan. Continue the existing SSOT cursor through these real-world steps; none is proven by source tests or merge alone:
 
-1. Pass current source acceptance and review, merge to latest `main`, cut the immutable Railway release, and read back the deployed SHA and `LM_PANEL_BASE/lm` response.
-2. Read back Supabase Google provider/callback configuration, Composio Calendar ACTIVE account, home setup, first Travel event ID, Calendar readback, and duplicate-zero for one natural Web signup. Keep each provider receipt separate.
-3. Inspect the authoritative public `aniccaai.com/lm` owner and route; point its CTA and all campaign links to the verified Railway `/lm` origin without changing the archived test copy as if it were production.
-4. Read back the live Stripe catalog/subscribers and same-period route, provider, hosting, refund, fee, and marketing costs. Research current successful travel/calendar apps and profitable narrow SaaS offers from primary/current sources before selecting or publishing a price.
-5. Restart acquisition on Instagram and X and publish high-intent SEO articles. Carry UTM attribution into the verified signup, Stripe checkout, subscription receipt, and contribution report. Publish only product claims supported by the live UX.
-6. Prove at least 10 paying Web customers and three consecutive months of positive contribution after refunds, Stripe fees, route/provider, hosting, and attributed marketing spend.
-7. Only after that exact gate, write a separate Web App Factory design and implementation plan that reuses the mobile loop, shared marketing evidence, and reviewed Self-Build boundary; build and measure one Web product at a time.
-8. After the factory gate is complete, resume the prior §84-A cursor at PromptBase P5c.
+1. Complete Task 10 then Task 11, and run their focused tests plus the full Web travel focused suite.
+2. Open the PR, pass CI, merge to latest `main`, cut the immutable Railway release, and read back the deployed SHA and `LM_PANEL_BASE/lm` response.
+3. Read back Supabase Google provider/callback configuration, Composio Calendar ACTIVE account, home setup, first Travel event ID, Calendar readback, and duplicate-zero for one natural Web signup. Keep each provider receipt separate.
+4. Inspect the authoritative public `aniccaai.com/lm` owner and route; point its CTA and all campaign links to the verified Railway `/lm` origin without changing the archived test copy as if it were production.
+5. Read back the live Stripe catalog/subscribers and same-period route, provider, hosting, refund, fee, and marketing costs. Research current successful travel/calendar apps and profitable narrow SaaS offers from primary/current sources before selecting or publishing a price.
+6. Restart acquisition on Instagram and X and publish high-intent SEO articles. Carry UTM attribution into the verified signup, Stripe checkout, subscription receipt, and contribution report. Publish only product claims supported by the live UX.
+7. Prove at least 10 paying Web customers and three consecutive months of positive contribution after refunds, Stripe fees, route/provider, hosting, and attributed marketing spend.
+8. Only after that exact gate, write a separate Web App Factory design and implementation plan that reuses the mobile loop, shared marketing evidence, and reviewed Self-Build boundary; build and measure one Web product at a time.
+9. After the factory gate is complete, resume the prior §84-A cursor at PromptBase P5c.
