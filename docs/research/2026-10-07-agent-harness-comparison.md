@@ -80,3 +80,9 @@ OpenClaw、Deep Agents、LangGraph、Hermes core、OpenAI JS、Pi、MAF、CrewAI
 | worst | native toolsからfenceを迂回できる、provider sessionが互換でない、同taskの総費用がbaseを上回る、またはRSSが既存host admissionの許容capacityを超える。この場合はcanaryを止め、外部effectは現行ownerに保持し、Deep Agents JSの局所導入へ設計を改定する |
 
 **自分が間違うとしたら最有力の筋:** OpenClawがLife Managerのstrict occurrence/schema/admissionを保持するために必要なadapter量と常駐メモリが、Deep Agents JSの局所導入より大きくなること。隔離canaryでコード量・RSS・task成功・費用を測って反証する。
+
+## 独立検証と文書acceptance
+
+fresh contextの`gpt-6.1-sol / medium`によるread-only敵対的検証は、初回HOLD（HIGH: 新cron/HTTPのmodel claim lifetime未定義、MEDIUM: 費用採用条件の不一致）だった。commit `8812de3f2ee886e353113118c12e9e16a08982e7`で共通admission/claim transfer/停止proof後releaseと、同task総費用<=base/RSS host許容内を設計・計画・SSOTへ統一。再検証はこの2件の文書修正についてPASS。実装・本番・収益のPASSではない。
+
+local relative links、HM-00〜17の18 taskとSSOT対応、90 checkbox手順、12 source SHA、source-boundary、diff whitespaceを確認した。今回のruntime/provider/browser/business mutationは未実施。Gitの文書commit/push/PR統合だけを実施する。
