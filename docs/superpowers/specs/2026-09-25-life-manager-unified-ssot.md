@@ -9551,3 +9551,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Writer businessrun20260929-010128のself-owned receiptはmain delivery commit8a5b9253f324d5c8924336c01d10626c1b9c8c23、JA xcta4/artifact455774.../official URL https://aniccaai.com/blog/xcta4 、EN a-viral-x-post-is-not-a-funnel-connect-substack-and-four-decisions/artifact05edc...、observedSep29T01:37:14〜15Z。host unknown67928のexit1は01:14:04Zであり、後続receiptを同runへ時刻だけで結合しない。publication-state/receipt/initにhost/occurrence無し、retained writer/logsでもexacthost/PID一致0。
 - 既存記事の独立販売導線をcrwlで確認。handle54292 exit0、UTC2026-10-06T16:20:00.789732、xcta4 markdown2573文字/SHAbc68ecbd...、購入/Stripe tokenあり/notfound無し。private writer-xcta4-current-public-crawl.json。ページ取得/文字列存在はcheckout成功/受注/入金/利益の証拠ではない。
 - cursor12次はxcta4の実purchase CTA/価格/既存Stripe read-only receipt sourceを照合する。新記事再publishより現在商品を売れる状態へ結ぶ。旧hostbinding不足は保留で保持しofficialreceipt無しでfence解除しない。主29相対順序/前段保留/SelfBuild後段保持。publish/購入/marketing送信/振込/本番loop変更0。
+
+
+### 751. Writer xcta4の実購入control・価格確認
+
+- 初回browser regexは「購入/Buy/Subscribe」だけで「この記事を¥500で読む/有料アーカイブを購読」を取りこぼし、restore待機前にcontrol0を記録。購入機能故障と断定しない。共有anicca checkoutはread-onlyでREADME/source route/WriterUnlockを確認し、receipt delivery commit8a5b9253のprivatearticle metadata access_model both/run20260929-010128/同paidshaをgit showで照合（本文を表示しない）。
+- live expected日本語buttonまで待つprobe handle74853 exit0、UTC2026-10-06T16:21:46.338325、buttons「この記事を ¥500 で読む」「有料アーカイブを月額 ¥980 で購読」、paid section有り/checking無し、unpaid writer-content GET401。sourceはrestore401→lockedで正常に販売controlを出す。private writer-xcta4-ready-purchase-controls.json。checkout POST/購入/決済0。
+- Writer Stripe syncのread_objectsはrestricted rk_ keyを要求しload_read_keyのfallbackはKeychainなので現指示により使わない。private SSOTと現envでWRITER_STRIPE_READ_KEY/rk_live recordは未確認、state.envにSTRIPE_SECRET_KEYはあるがscope/account-bound restricted sourceの代用へしない。LM_CFO_STRIPE_LIVE_READBACK設定先は現ファイル無し。欠損を公式売上0へしない。
+- cursor12残は適切なread-only Stripe source/receipt取得、現単品/継続購入と売上/fee/settlement/CFO結合。商品ページの販売準備は限定確認済み、checkout成功/売上/利益は未完。旧host67928→businessrun binding不足は保持。主29順序/前段保留/SelfBuild後段保持。source/商品price/鍵/本番変更0。
