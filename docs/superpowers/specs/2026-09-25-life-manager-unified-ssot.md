@@ -8758,3 +8758,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Daisはmock制作を不要として、spec更新と残TODOのchat提示を要求。§649/650の案・実装を取消す。handle36180へSIGINTを送りexit1で終了、同runのcodex process不在を確認。専用worktreeはbase5d8da831/clean、追加artifact/source commit/pushなし。本番/価格/公開/顧客データ変更0。再開しない。
 - §217の残4から見本制作gateを外し、実在する既存商品1件の販売内容・履行条件の確定へ修正。未依頼mock/demoを実販売や必要loop修復の代用品にしない。隔離fixtureによる必要なcode検証を禁止する指示へ拡張しない。
 - 残30項目の相対順序/現在cursor1は不変。TikTok/NPO/旧12record追加追跡は保留、SelfBuild26、Lancers27〜29、最終確認30。新規taskや承認待ちを増やさない。
+
+
+### 652. mock取消後：CrowdWorks Paidの実停止点を既存CLIで確認
+
+- 既存lm-loop status crowdworks-revenue-paid --jsonをfresh取得。loaded-idle/installed0ba957af5405bfbea5f1d6e9ce6ca78deb66b421/last exit75、latest occurrence crowdworks-revenue-paid:18dbde03cc325558-49983、official readbackなし/effect unknown。browser busyを成功やzero effectに丸めない。
+- canonical paid-latest.jsonは2026-10-06T05:27:55.767700Zの別occurrence18dbd97230e018a0-72538。5observed/5actionable/1failed/4pending/effect0/readback0。pendingはform_selection_required1/reconcile_unknown3、failedはpre_effect true/crowdworks_paid_handoff_unavailable。この別reportをlatest occurrenceの証明に代用しない。handoff/フォーム選択/既存unknown照合は資格・所有境界であり、無条件解除しない。
+- 同latest occurrenceを既存reconcile_paid_no_effect CLIのreadonly previewで照合、exit75/exact_paid_zero_effect_proof_unavailable/resolved false。--resolve未指定、fence/state解除0。次はcaller/lock/marker生成境界を読み、実コードの不足か正当な不足証拠かを区別して必要修復だけ行う。
+- 未依頼mock/demo制作は取消のまま。current1/残30、TikTok/NPO/旧12追加追跡延期、SelfBuild26/Lancers27〜29後段を維持。送信/納品/支払/既存unknown再送0。
