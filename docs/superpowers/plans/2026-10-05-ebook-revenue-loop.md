@@ -203,14 +203,17 @@
 - [x] 20:00 JST natural attempt verified no Postiz post: official GET /public/v1/posts returned zero slot-token matches. Two owners produced 71 entrypoint failures, each error_detail LM_DATA_DIR is required, before Postiz/render. Do not replay this slot.
 - [x] TDD root-cause fix: _child_environment_for_owner now sets canonical LM_DATA_DIR for the three registered eBook owners before the publish gate and overrides inherited values. No other owner receives this value.
 - [x] Verification: focused regression 2/2, test_lm_loop_run_bounds.py 121/121, full runtime/loop unittest 765/765, registry Node tests 15/15, doctor 184 entries PASS, git diff --check PASS. The full suite emitted pre-existing ResourceWarnings for SQLite connections; no tests failed.
-- [ ] Commit/push the main-based fix, get a fresh read-only review and required CI, merge, cut a main-derived release, target-apply the three owners one at a time, and verify before tomorrow's 07:00 Japanese occurrence.
+- [x] Commit and push the LM_DATA_DIR child-environment fix; fresh read-only review passed and all required PR #6766 checks passed. PR #6766 merged to main as `345fe64f5cfffa10e108404f70aec1d84414db1c`.
+- [ ] Cut a complete immutable release from the latest `origin/main`; run `lm-loop doctor` and confirm zero missing/unmanaged/retired labels.
+- [ ] Apply `ebook-ja-instagram-daily`, `ebook-ja-tiktok-daily`, and `ebook-en-tiktok-daily` one at a time. Read back each install receipt, loaded release SHA, argv, state path, and rollback receipt; preserve the English disabled-route hold.
+- [ ] Allow the natural Japanese 07:00 JST occurrence on 2026-10-07; verify official Postiz receipts and public URLs for Instagram and TikTok. Do not replay the failed 20:00 slot.
 - [ ] Keep English held: monk_anicca is disabled/not found publicly; aniccaen2 is excluded from eBook destinations and not found; anicca.daily is a separate app-marketing identity. Verify exact owned eBook route before enabling HeyGen at 08:00/14:00/21:00 JST.
 - [ ] Keep both locale schedules on their three daily slots with per-occurrence replay/readback; a schedule or render is not a published post.
 - [ ] Continue Product PR #420's DDL hardening through an authorized Supabase management route; read back tables/RPC signatures/ACLs/schema cache before merging the migration. The current one-time eBook main flow uses existing Checkout metadata and direct PDF email fulfillment; PR #420's new receipt/subscription tables are separate hardening.
 - [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence only after durable receipt readback; record refunds, fees, and measured costs. Do not self-purchase.
 - [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
 
-- Current cursor (2026-10-06 20:22 JST): root cause is LM_DATA_DIR missing from the eBook child environment; the focused tests now pass with canonical-path injection. Official Postiz readback found no post for the 20:00 slot. Finish PR/release/targeted apply, then verify the next natural Japanese 07:00 slot.
+- Current cursor (2026-10-06 20:32 JST): source fix is merged as PR #6766 / main `345fe64f`. The selected release is still `3ae4176e` and predates the fix; its only relevant main diff is the LM_DATA_DIR child injection. Launchd preflight passes in Aqua UID 501 and the publish flag reads `true`; all three owners are loaded-idle on the three-slot daily schedules. No Postiz post exists for 20:00. Cut the current main release, doctor, target-apply owners individually, then verify the natural Japanese 07:00 occurrence.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
