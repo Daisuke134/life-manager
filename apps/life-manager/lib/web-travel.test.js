@@ -259,7 +259,7 @@ test("ignores client uid and paid fields", async () => {
     origin: ORIGIN,
     contentType: "application/json",
     csrf: "csrf-token",
-    body: { homeAddress: "自宅住所", uid: OTHER_UID, paid: true, telegram_chat_id: "attacker", phone: "+819000000000" },
+    body: { homeAddress: "自宅住所", uid: OTHER_UID, paid: true, telegram_chat_id: "attacker", phone: "forged-phone" },
   });
 
   assert.equal(response.status, 200);
