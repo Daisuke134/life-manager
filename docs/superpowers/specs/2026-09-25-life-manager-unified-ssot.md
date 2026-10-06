@@ -8450,3 +8450,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - focused33、contract、OSS12、diff PASS。HTTP405/503/route/login/exceptionのCLI実境界でRED→GREEN、元error/exit1・diag1回/pass・solverfalse・cleanup1回を確認。fresh Sol6.1/mediumはSHIP/重大指摘0、関連6＋readonly/cleanup3＋隔離追加probe5を独立PASS。ready2pass一致/不一致/secondfail/cleanupfail/login、secret URL/例外本文不出力・providerwrite0を反証確認。
 - PR6722 https://github.com/Daisuke134/life-manager/pull/6722 作成。exacthead20adcffのCI37411123679はin_progress、現在5/9成功/CodeRabbitSUCCESS。main/immutable/本番CLI再観測は未完。sourcePASSを取得成功や売上/契約確認へ置換しない。次はCI→main→immutable→同readonlyCLI再観測→実原因に対する必要修復。主経路30/cursor1・順序不変。
 - 旧Lancers fixseatはsend時に未登録と判明、登録済みlm-claude-lancers-plan-1002へ範囲通知。新委譲/登録済みを稼働証拠にしない。既存account-diagnostics worktreeはclean/別ownerとして触らない。新scopeはreadonlyの2関数だけ、production営業/価格/モデル/registry/solver/auth/browserstate操作0。
+
+
+### 614. CLI修復のmain/immutable反映と本番再観測の実行条件
+
+- PR6722 exacthead20adcffのCI37411123679全9SUCCESS/freshSHIP/33focused等PASS後admin squash merge。公式maincd533008b565072782aaa7197558fb9d0a7fe14c/mergedAt2026-10-06T03:58:32Z/fetch一致。標準cutは別liveholder62772で失敗したため手動lock解除しない。holder終了後、別生成処理の完全release /Users/anicca/loops/releases/20261006T125843-cd533008/ALL/mainSHA一致/work_sync source bytes一致を確認し、重複cutせず再利用。
+- 正規Lancers guard取得は初回exit9。guardstatusでholder18506のprocess missingとlease時刻を確認、既存guardはdeadPIDでもfresh30分を保護する仕様とsourceで診断。age1824秒後の正規acquireはexit0で取得、手動lease削除/基盤restart0。
+- 最初の実CLI再実行はstdoutJSON無し/exit1。rootがCLOAK_CDP_BASE_URLを明示しながらLIFE_MANAGER_BROWSER_TARGET_OWNERを渡していなかった実行設定不足をsource configured_cdp_endpointで確定。require_identity_joinはIDENTITYとTARGET_OWNER両方が必須。これはrootの設定ミスで、追加の取得code故障にしない。自分のguardはrelease0。
+- 次の正しいCLI環境は短命AI_BROWSER_HOLDER_PID、LIFE_MANAGER_BROWSER_IDENTITY=lancers:dais、LIFE_MANAGER_BROWSER_TARGET_OWNER=root-lancers-cli-<ownpid>、guardで得たCLOAK_CDP_BASE_URL。この補正後の正規acquireは別holder使用中のexit9でCLI未開始。stdout/stderrはprivate artifactに保持する契約へ補正。最新summary state/cli-observability-20261006/lancers-postfix-summary.json。
+- CLI診断修復はsource/CI/main/完全releaseまで完了、実業務情報の取得は未完。source成功を資金/顧客/注文/営業成功へ変換しない。次は正常なprofile空きで同正しい環境のCLIを再実行し、diagnosticを根拠にauth/HTTP/接続の必要修復へ進む。current1/主経路30・独立収益channelを止めない方針は維持。readonlysolverfalse、取引/返信/価格/課金設定/全体loop停止/旧fence解除0。
