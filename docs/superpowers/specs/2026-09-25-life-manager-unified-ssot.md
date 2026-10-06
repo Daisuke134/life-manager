@@ -8588,3 +8588,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同releaseの既存read_only_inventoryを正規crowdworks:dais guardで実行、guard取得/解放0、helper ok/source_complete true、返却5候補、detail_unavailable0。5件すべて契約金額表示候補[12,10]、amount_observation.status ambiguous、production price_minorは全nullのまま。safe parserが実DOMで取得できること、推測価格補完なしを公式provider読取で確認。private原本state/cli-observability-20261006/crowdworks-final-inventory-1791263528756235000.json。
 - この限定CLI gap修復はsource130PASS/freshreviewSHIP/全9CI/main/完全release/同provider readbackまでPASS。funded5を未納品有償仕事5/確定売上5/利益へ変換しない。送信/回答/納品/旧fence解除0。current1の他channel取得・現案件/注文/精算の未確認は残り、全体Doneではない。
 - AGMSG lm-crowdworksへ変更・検証・残る財務/納品未知・runtime apply未実施をsend成功で報告。次はCoconala現在受注/商品購入経路の取得境界と、他channelの現行owner/観測範囲を閉じて収益次手を選ぶ。主経路31/Lancers後段を維持。
+
+
+### 631. Coconala現在受注CLI回復・問い合わせhead取得
+
+- 同既存orders-only CLIを正規with-browser wrapper/registeredidentity/production同vault/hidden targetで実行しexit0。observed2026-10-06T05:12:52.491988Z、公式HTTP200/coverage_complete true/open_orders_list_observed true/返却3。priceはstructured_order_label由来9000/8000/24000円、各status unknown、表示delivery_dateは2026-09-18/09-30/09-21。予定日が過去でも未納品/期限違反/入金をこの一覧だけで断定しない。9000円は既知TikTok保留案件へ一致、Dais指示の個別追跡延期は維持。残2も既存project directoryは存在、納品/検収/精算/最新必要行動は未確認。
+- private原本state/cli-observability-20261006/coconala-orders-1791263570740503000。直前403と今回200の差を恒久修復/原因確定へ変換しない。新login/solver/source変更/送信/納品/旧fence解除0。実3受注表示と歴史的12保留recordは別母集団である。
+- 既存direct-inbox-head-only CLIもexit0/read_only true/head_only true。observed2026-10-06T05:13:59.031775Z、先頭30行はreply_required false/next_action observe。container present true、coverage_complete false/terminal pagination未証明/1page、semantic_ssot false。このflagだけで全件待返信なしと断定せず、新着有償問い合わせを捏造しない。private原本coconala-inbox-head-1791263636545147000。
+- current1/主経路31を維持。次は残2の現在必要行動だけを既存CLIへ結び（旧12全件巡回なし、TikTok/NPO材料追跡延期維持）、Coconala商品購入経路と他channelの現行ownerを確認する。全体Doneではない。
