@@ -9517,3 +9517,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同thread後続のFull Access/disabled automation/API scope照会はoperator送信文でありprovider承認返信ではない。本文keywordだけでreinstatementを判定しない。今回限定検索は2threadsで、providerのbrowser自動化許可返信は確認できず、全メール不在とは一般化しない。追加メールsend0。
 - 先行直接browser readはexpired/denied receiptを確認する前に進めてしまった。今後Upwork UI自動化を停止し、receiptをapprovedへ書き換えない。現providerの解除/許可証拠が不足する9を保留。Daisへの承認質問では代替せず、再開条件はprovider由来のaction/transport/account-bound許可・既存gateの適切な更新。
 - 主10の実storefront注文は現在未確認で、架空履行を作らない。Coconala取得境界の保留を維持し、独立11 Capafyの既存販売cycle観測/担当調整へ進む。Capafy source経路はskills/capafy-autopublish/（inventory_status/既存publisher）とskills/earn/capafy-marketing/。新marketplace executorや重複publishを作らない。AGMSG inbox新着無し。主29相対順序/前段保留/SelfBuild後段保持。
+
+
+### 747. Capafy既存公式inventoryとHook Lab販売候補
+
+- capafy-autopublish canonical skillとinventory_statusを確認。旧skillのVCSDD指示は現禁止により適用しない。AGMSG team一覧は登録seatを示すがCapafy担当のlive task/sessionを確認できず、稼働中と断定しない。team handle2956はexit0終了。
+- inventory_status.server_agentsの既存publish-list read-only経路を使用、duplicate model judge/daily_loop/publishを起動せず。handle39157 exit0、UTC2026-10-06T16:15:31.699646、server read成功53rows/list online36/draft3/review rejected1/offline12/under review1。private capafy-current-official-inventory.json。一覧onlineを売上/hosted成功へしない、offlineはRETIRED照合前に再公開しない。
+- 同wrapperのfetch_agent_detailを5対象だけ実行、handle63592 exit0。draft9531771963/9466718786/7599205243はdetail status0/audit0、under review9563867391はstatus1/audit2、Hook Lab8123079349はstatus4/audit4（listed/審査passed）。private capafy-current-five-details.json。今回はstale list未公開枠の解放を示す差分無し。5occupied枠を新商品createで重複消費しない。
+- cursor11は既存online Hook Lab8123079349を販売候補として、現pricing/model/output cap/購入導線と既存distribution ownerのcycleを確認する。商品を追加するより現商品販売の条件へ進む。host cost/注文/settlementは未取得、36onlineを収益36件へしない。公開/価格/marketing送信/購入/鍵変更0。主29相対順序/前段保留/SelfBuild後段保持。
