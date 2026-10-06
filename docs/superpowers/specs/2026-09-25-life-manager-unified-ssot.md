@@ -8875,3 +8875,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同1契約のsafe metadata追加probeで、税込header true、TD direct text primary yen12円を確認。tooltip/title/aria annotation無し、SPAN10円のbefore/afterに税label無し。原本crowdworks-amount-role-1791272466868829000.json/guard取得解放0。前回全文内の2額列挙より表示構造を狭めた。
 - この観測はprimary表示12円の証拠で、10円が税抜/手数料後/別額のどれかや精算・利益は未確認。production price/handoff/funding条件を変更していない。実装するならprimary欄の厳密なsource契約と費用/資格を確認し、低額仕事の自動実行をprice補完だけで許可しない。
 - 新busy claimはhost処理済みという§666訂正を維持し、不要なmarker実装を再開しない。current1/残30/mock取消/TikTok・NPO保留/SelfBuild26・Lancers27〜29維持。送信/フォーム回答/納品/価格設定/旧fence解除0。
+
+
+### 668. 小額既存候補と新規営業の既存選定経路を分離
+
+- Paid decide/shared handoffのprice/funded guardだけではnet profitを判定していないことを関連source読取で確認。実費未取得を0へ置換し、positive priceだけで利益を保証しない。既存承諾済み債務は単に小額という理由で取消・完了にしない。
+- 新規CrowdWorks応募は既存共通catalog tier/予算照合とwork-fit判定を使用。現release catalogは20商品/最低tier5000円。価格・tier・判定を変更0。5000を新しい根拠無し閾値としてPaidへ後付けせず、現12円候補を新規営業の基準にもしない。
+- 現在の小額候補はprice役割/契約scope/過去effectの不明を保持し、追加微小価格probeを全体の主作業に増やさない。次は既存選定ownerの現在候補・資格・実予算をCLI/official readbackへ結び、実行可能な未延期案件だけを履行する。current1/残30/mock取消/後段順維持。
