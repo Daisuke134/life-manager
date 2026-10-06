@@ -402,7 +402,7 @@ function appendFreshnessRow(freshnessPath, row) {
 // LM_DISTRIBUTION_APPROVALS, LM_INSTAGRAM_HANDLE, LM_INSTAGRAM_ACCOUNTS,
 // LM_INSTAGRAM_POSTER, LM_TIKTOK_INTEGRATION, LM_TIKTOK_DIRECT_MIGRATION,
 // LM_POSTIZ_RESOLVE_IP),
-// and the non-LM_ variables the real chain reads:
+// the loop result-hint path, and the non-LM_ variables the real chain reads:
 // INSTAGRAPI_PYTHON (instagram_video.sh interpreter override) and CDP_HOST/CDP_PORT
 // (skills/earn/marketing-engine/poster.py:44,50,509). Never the full parent environment.
 const SUBPROCESS_ENV_KEYS = [
@@ -424,6 +424,7 @@ const SUBPROCESS_ENV_KEYS = [
   "LM_TIKTOK_INTEGRATION",
   "LM_YOUTUBE_INTEGRATION",
   "LM_POSTIZ_RESOLVE_IP",
+  "LIFE_MANAGER_RESULT_HINT_PATH",
 ];
 
 function subprocessEnv(postizToken) {

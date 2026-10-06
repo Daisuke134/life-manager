@@ -1493,8 +1493,11 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
             occurrence_id="life-manager-honne-ja:run-1") == 0
 
     assert EFFECT_RESULT_HINT_ENTRYPOINTS == frozenset({
+        "apps/life-manager/scripts/ebook-distribute-daily.sh",
         "apps/life-manager/scripts/mobile-app",
     })
+    assert "apps/life-manager/scripts/ebook-distribute-daily.sh" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert {"ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"} <= PRE_EFFECT_HINT_LOOP_IDS
     assert observed["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
         tmp_path / "entrypoint-result.json")
 

@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 from datetime import datetime, timezone
 from typing import Mapping
@@ -16,6 +18,9 @@ from typing import Mapping
 
 class DistributionError(RuntimeError):
     pass
+
+
+MAX_DISTRIBUTION_BYTES = 8 * 1024 * 1024
 
 
 class DistributionConfig:
@@ -235,6 +240,54 @@ def _existing(rows: list[dict], platform: str, creative_id: str, video_hash: str
     return matches[-1] if matches else None
 
 
+def append_distribution_row(path: Path, row: dict) -> dict:
+    """Append one published receipt under the shared per-file lock.
+
+    Reconciliation and distribution both write this ledger. A matching existing
+    row is an idempotent replay only when provider ID, route, and URL agree.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    flags = os.O_CREAT | os.O_RDWR | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1):
+            raise DistributionError("distribution ledger file identity is invalid")
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            size = os.fstat(descriptor).st_size
+            if size > MAX_DISTRIBUTION_BYTES:
+                raise DistributionError("distribution ledger exceeds the read bound")
+            if size and os.pread(descriptor, 1, size - 1) != b"\n":
+                raise DistributionError("distribution ledger has an incomplete final row")
+            rows = _read_ledger(path)
+            keys = ("platform", "creative_id", "video_sha256", "caption_sha256", "slot")
+            matches = [existing for existing in rows
+                       if all(existing.get(key) == row.get(key) for key in keys)]
+            if matches:
+                if (len(matches) == 1
+                        and matches[0].get("provider_id") == row.get("provider_id")
+                        and matches[0].get("route") == row.get("route")
+                        and matches[0].get("public_url") == row.get("public_url")):
+                    return matches[0]
+                raise DistributionError("distribution receipt conflicts with an existing slot row")
+            encoded = (json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+            if len(encoded) > 64 * 1024:
+                raise DistributionError("distribution ledger row exceeds the write bound")
+            offset = 0
+            while offset < len(encoded):
+                offset += os.write(descriptor, encoded[offset:])
+            os.fsync(descriptor)
+            return row
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
+
+
 def _valid_public_url(platform: str, value) -> bool:
     if not isinstance(value, str):
         return False
@@ -322,11 +375,7 @@ def _append_success(
         "locale": config.locale,
         "slot": config.slot,
     }
-    config.ledger.parent.mkdir(parents=True, exist_ok=True)
-    with config.ledger.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
-    os.chmod(config.ledger, 0o600)
-    return row
+    return append_distribution_row(config.ledger, row)
 
 
 def distribute_platform(config: DistributionConfig, platform: str) -> dict:

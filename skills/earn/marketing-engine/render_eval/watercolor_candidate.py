@@ -73,6 +73,46 @@ def resolve_tts() -> str | None:
     return str(candidate)
 
 
+def resolve_japanese_caption_font() -> str | None:
+    fc_match = shutil.which("fc-match")
+    if not fc_match:
+        return None
+    try:
+        result = subprocess.run(
+            [fc_match, "--format=%{file}", "sans:lang=ja"],
+            capture_output=True, text=True, check=True,
+        )
+        font_path = pathlib.Path(result.stdout.strip())
+        if not font_path.is_file():
+            return None
+        from PIL import ImageFont
+        ImageFont.truetype(str(font_path), 48)
+    except (OSError, subprocess.SubprocessError, ImportError):
+        return None
+    return str(font_path)
+
+
+def write_caption_overlay(phrase: str, output: pathlib.Path, font_path: str) -> None:
+    from PIL import Image, ImageDraw, ImageFont
+
+    canvas = Image.new("RGBA", (720, 1280), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    lines = wrap_ja(phrase, width=13).replace(r"\N", "\n").splitlines()
+    if not lines:
+        lines = [phrase]
+    line_height = 58
+    card_height = 36 + len(lines) * line_height
+    top = 1240 - card_height
+    draw.rounded_rectangle((24, top, 696, 1240), radius=24, fill=(0, 0, 0, 166))
+    font = ImageFont.truetype(font_path, 48)
+    y = top + 18
+    for line in lines:
+        draw.text((360, y), line, font=font, fill=(255, 255, 255, 255),
+                  stroke_width=2, stroke_fill=(20, 20, 20, 255), anchor="mt")
+        y += line_height
+    canvas.save(output, format="PNG")
+
+
 def render(*, script: str, output: pathlib.Path, clips: list[pathlib.Path],
            voice: str = "Kyoko", voice_rate: int = 165,
            caption_style_id: str = "ass.watercolor.safe-v1") -> dict:
@@ -92,9 +132,11 @@ def render(*, script: str, output: pathlib.Path, clips: list[pathlib.Path],
         filters = subprocess.run([ffmpeg, "-filters"], capture_output=True, text=True, check=True).stdout
     except subprocess.CalledProcessError:
         filters = ""
-    if "subtitles" not in filters:
+    use_libass = "subtitles" in filters
+    caption_font = None if use_libass else resolve_japanese_caption_font()
+    if not use_libass and ("overlay" not in filters or not caption_font):
         return {"renderer_id": "watercolor-monk", "state": "setup_required",
-                "missing": ["ffmpeg_subtitles_filter"], "external_effects": []}
+                "missing": ["japanese_caption_renderer"], "external_effects": []}
     output = pathlib.Path(output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="watercolor-preview-") as raw:
@@ -106,12 +148,21 @@ def render(*, script: str, output: pathlib.Path, clips: list[pathlib.Path],
                        check=True, capture_output=True)
         audio_duration = duration(audio, ffprobe)
         phrases = [piece.strip() for piece in script.replace("。", "。|").split("|") if piece.strip()]
+        if not phrases:
+            raise ValueError("Japanese eBook script has no subtitle phrases")
         segment = audio_duration / len(phrases)
         events = []
+        caption_frames = []
         for index, phrase in enumerate(phrases):
+            start = index * segment
+            end = (index + 1) * segment
             events.append(
-                f"Dialogue: 0,{ass_time(index * segment)},{ass_time((index + 1) * segment)},Default,,0,0,0,,{wrap_ja(phrase)}"
+                f"Dialogue: 0,{ass_time(start)},{ass_time(end)},Default,,0,0,0,,{wrap_ja(phrase)}"
             )
+            if not use_libass:
+                frame = work / f"caption-{index:02d}.png"
+                write_caption_overlay(phrase, frame, caption_font)
+                caption_frames.append(frame)
         ass.write_text("""[Script Info]
 ScriptType: v4.00+
 PlayResX: 720
@@ -127,14 +178,31 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
         while len(enough) * 5 < audio_duration + 5:
             enough.extend(clips)
         listing.write_text("".join(f"file '{path}'\n" for path in enough), encoding="utf-8")
-        video_filter = subtitle_filter(ass)
         command = [
             ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "concat",
             "-safe", "0", "-i", str(listing), "-i", str(audio),
-            "-vf", video_filter, "-c:v", "libx264", "-preset", "veryfast",
-            "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "128k",
-            "-shortest", "-movflags", "+faststart", str(output)
         ]
+        if use_libass:
+            command.extend(["-vf", subtitle_filter(ass)])
+        else:
+            for frame in caption_frames:
+                command.extend(["-loop", "1", "-i", str(frame)])
+            chains = []
+            previous = "[0:v]"
+            for index in range(len(caption_frames)):
+                output_label = f"[caption{index}]"
+                start = index * segment
+                end = (index + 1) * segment
+                chains.append(
+                    f"{previous}[{index + 2}:v]overlay=0:0:format=auto:"
+                    f"enable='between(t,{start:.3f},{end:.3f})'{output_label}"
+                )
+                previous = output_label
+            command.extend(["-filter_complex", ";".join(chains), "-map", previous, "-map", "1:a"])
+        command.extend([
+            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30",
+            "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", str(output),
+        ])
         completed = subprocess.run(command, capture_output=True, text=True)
         if completed.returncode:
             raise RuntimeError(f"ffmpeg render failed: {completed.stderr.strip()}")
@@ -142,7 +210,8 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     return {"status": "rendered_preview", "output": str(output), "sha256": digest,
             "duration": round(duration(output, ffprobe), 3), "external_cost_usd": 0,
             "external_effects": [], "voice": voice, "voice_rate": voice_rate,
-            "caption_style_id": caption_style_id}
+            "caption_style_id": caption_style_id,
+            "caption_renderer": "libass" if use_libass else "pillow-overlay"}
 
 
 def main() -> None:

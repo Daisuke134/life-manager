@@ -167,6 +167,19 @@
       }
     },
     {
+      "id": "ebook",
+      "job_ids": ["ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"],
+      "name": "eBook",
+      "description": "Publish attributed English and Japanese eBook campaigns through existing owned social accounts and reconcile checkout and delivery receipts.",
+      "recovery_classes": ["external_effect_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","subscription"],"sources":{"funnel":{"adapter":"ebook-checkout-attribution","implementation":"partial"},"financial":{"adapter":"ebook-financial-record","implementation":"missing"},"cost":{"adapter":"ebook-render-cost","implementation":"partial"}}},
+      "requirements": ["ebook_checkout_and_delivery", "existing_social_account", "postiz_credentials"],
+      "hosts": {
+        "local": {"availability": "setup_required", "command": null},
+        "cloud": {"availability": "setup_required", "command": null}
+      }
+    },
+    {
       "id": "capafy",
       "job_ids": ["capafy-browser", "capafy-distribute-daily", "capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor", "life-manager-capafy-ig"],
       "name": "Capafy",

@@ -18,9 +18,9 @@ repositoryはopen sourceで、dataをowner端末に置くportable self-host版�
 phoneだけで常時稼働させたい時はpaid monthly cloudを使います。どちらもこのrepositoryの同じcoreから作り、同じstate・証拠・人間向け報告contractへ収束させます。資産増加や投資収益を保証せず、
 receiptのない試行を「完了」と報告しません。
 
-## 14本の主要product loop
+## 15本の主要product loop
 
-14本はuser-facingな製品能力の数です。process数ではありません。registryには、各product loopを実装する
+15本はuser-facingな製品能力の数です。process数ではありません。registryには、各product loopを実装する
 応募・browser owner・報告・照合・healthcheckなどの小さいjobが多数あります。
 
 1〜3は**Human Gig Work** familyです。案件発見、選別、応募、交渉、納品支援、照合、報告をLife Managerが自動化し、platformが本人確認、面談、承認、最終納品を要求する箇所だけ人が参加します。
@@ -39,8 +39,9 @@ receiptのない試行を「完了」と報告しません。
 | 10 | Connector | `life-manager-connector-native` | event発見・応募・登録確認・Calendar/Telegram receipt報告 |
 | 11 | Self-Build / Product Improvement | `life-manager-selfbuild`、`life-manager-dev` | 検証済みのuser feedbackとproduct evidenceから、review済みのLife Manager改善を作る。Cloudは別loopではなくloopを動かすhost。 |
 | 12 | Mobile App Loops | Anicca iOS、Honne、その他の`life-manager-anicca-*` / `life-manager-honne-*` product job | product accountとappの作成、build・署名・公開、継続改善、Postizまたはnative provider adapterによるmarketing配信、成果計測、検証済み収益のCFO連携までを一つのmobile-app lifecycleとして運用する。現時点では共通のmarketing・配信・計測・receipt経路をrepo内で所有し、app作成・署名・release・iterationは同じE2E loopへ統合中。 |
-| 13 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Capafyという別productの販売・outcome・audience-growth workflowを運用 |
-| 14 | CFO | `life-manager-cfo-hourly` | 全earning loopのverified revenue、cash flow、残高、payout、財務報告を照合 |
+| 13 | eBook | `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | 既存accountから日本語eBookのcampaignを配信し、投稿・checkout・PDF納品のreceiptを分けて記録 |
+| 14 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Capafyという別productの販売・outcome・audience-growth workflowを運用 |
+| 15 | CFO | `life-manager-cfo-hourly` | 全earning loopのverified revenue、cash flow、残高、payout、財務報告を照合 |
 
 ### setupと開始方法の現在地
 
@@ -58,13 +59,15 @@ receiptのない試行を「完了」と報告しません。
 | Connector | Calendar/Telegram、必要時のevent provider login | `./install.sh connector` |
 | Self-Build / Product Improvement | repository accessと設定済みdevelopment agent・review credential | managed registry jobは存在、public guided installerは未完成 |
 | Mobile App Loops | 既存appは不要。生成したproductが各stageへ到達した時だけApple/Postiz/RevenueCatを接続 | 共通marketing jobは存在、zero-to-App-Store app-factory installerは未完成 |
+| eBook | 既存checkout/PDF納品経路。公開前に既存の日本語Postiz accountを確認 | account単位のregistry owner。公式accountとproduction checkoutのreadbackまで公開停止 |
 | Capafy | Capafy account/API credentialとpublication profile | registry jobは存在、public guided installerは未完成 |
 | CFO | ユーザーが接続するfinancial sourceだけのcredential | 1回の有限passは`bash skills/cfo/run.sh` |
 
-日本語・英語のe-book productは、repo所有のscript ledger、publication intent、Postiz
-adapter、receipt、attribution、CFO、Telegram経路を共有します。日本語creativeは
-`watercolor-monk`、英語Anicca Monk creativeはchecked-inされた`heygen-avatar-iv`
-adapterから公式HeyGen CLIを使います。OmniAvatarやrepo外checkoutのsource codeは
+英語・日本語のeBook productは、repo所有のscript ledger、Postiz publication
+adapter、provider receipt、campaign attribution経路を共有します。日本語creativeは
+local `watercolor-monk` rendererを使います。英語Anicca Monk creativeは
+checked-inされた`heygen-avatar-iv` adapterから公式HeyGen CLIを使いますが、既存accountと
+cost capの確認まではsetup-requiredです。OmniAvatarやrepo外checkoutのsource codeは
 実行しません。privateなHeyGen avatar ID・voice ID・CLI loginが未設定のclean hostでは、
 provider effectを起こさず明示的な`setup_required` receiptを返します。これらの値と
 HeyGen sessionはhostまたはtenantのprivate stateであり、Gitにはcommitしません。
@@ -102,7 +105,7 @@ XcodeGen、Xcode、Apple team、App Store Connect capabilityが不足する場�
 `setup_required`になります。揃っている場合はportableなbuild/test commandを持つ`ready_to_build`になります。
 このbootstrapはApp Store提出、Postiz投稿、収益eventを実行済みとは主張せず、実送信もしません。
 
-Local/self-hostedとCloud/hostedは同じ14 Product Loopsを動かす二つの方法であり、別のProduct Loopではありません。Localは選択したloopをuserのdeviceで動かし、private stateもそこで保持します。CloudはLife Managerのhosted infrastructure上でtenantごとに動かします。両方が同じloop実装、provider adapter、receipt、CFO event、Telegram体験を使い、異なるのはscheduler、secret保存、durable state、browser transportだけです。
+Local/self-hostedとCloud/hostedは同じ15 Product Loopsを動かす二つの方法であり、別のProduct Loopではありません。Localは選択したloopをuserのdeviceで動かし、private stateもそこで保持します。CloudはLife Managerのhosted infrastructure上でtenantごとに動かします。両方が同じloop実装、provider adapter、receipt、CFO event、Telegram体験を使い、異なるのはscheduler、secret保存、durable state、browser transportだけです。
 
 ```mermaid
 flowchart LR
@@ -172,10 +175,10 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-default installerが14本すべてを黙って開始することはありません。provider account、credential、KYC、
+default installerが15本すべてを黙って開始することはありません。provider account、credential、KYC、
 browser loginが未設定のloopは`setup_required`のままです。guided installerが現在あるのは
 `./install.sh coconala`、`connector`、`fundraiser`、`job-hunter`で、その他のloopの現在の境界は上の
-14-loop catalogに記載します。
+15-loop catalogに記載します。
 
 選んだloopだけの副作用ゼロplanを先に確認できます。このplanはCloud `/start`も読む
 [`apps/life-manager/config/product-loop-catalog.json`](apps/life-manager/config/product-loop-catalog.json)を使い、
