@@ -21,19 +21,74 @@ from script_ledger import ScriptLedger, preflight  # noqa: E402
 from ebook_packs import load_ebook_packs  # noqa: E402
 from watercolor_candidate import render as render_watercolor  # noqa: E402
 from heygen_candidate import render as render_heygen  # noqa: E402
-from ebook_asset_pack import (  # noqa: E402
-    WATERCOLOR_CLIP_NAMES,
-    default_asset_root,
-    default_pack_root,
-    provision_default_pack,
-)
+from ebook_asset_pack import default_asset_root  # noqa: E402
 from skills._shared.telegram import TelegramClient  # noqa: E402
 from attribution import campaign_token  # noqa: E402
 
 
+WATERCOLOR_FACTORY_SCENE_IDS = ("02", "03", "04", "05", "06", "07", "08", "09", "10", "12", "13")
+WATERCOLOR_FACTORY_MANIFEST = HERE / "ebook-asset-packs/watercolor-mark-factory-v1/manifest.json"
+
+
 def watercolor_clip_paths(asset_root: Path) -> list[Path]:
-    clips = Path(asset_root) / "watercolor-monk/clips"
-    return [clips / name for name in WATERCOLOR_CLIP_NAMES]
+    clips = Path(asset_root) / "packs/watercolor-mark-factory-v1/watercolor-monk/clips"
+    return [clips / f"scene-{scene_id}.mp4" for scene_id in WATERCOLOR_FACTORY_SCENE_IDS]
+
+
+def verify_watercolor_mark_factory_pack(
+    asset_root: Path, *, manifest_path: Path = WATERCOLOR_FACTORY_MANIFEST,
+) -> dict:
+    try:
+        manifest_path = Path(manifest_path)
+        if manifest_path.is_symlink() or not manifest_path.is_file():
+            raise ValueError("Watercolor asset manifest is unavailable")
+        manifest_bytes = manifest_path.read_bytes()
+        manifest = json.loads(manifest_bytes)
+        if (not isinstance(manifest, dict)
+                or set(manifest) != {"schema_version", "pack_id", "source", "clips"}
+                or manifest.get("schema_version") != "marketing.ebook-watercolor-assets.v1"
+                or manifest.get("pack_id") != "watercolor-mark-factory-v1"
+                or not isinstance(manifest.get("clips"), list)
+                or len(manifest["clips"]) != len(WATERCOLOR_FACTORY_SCENE_IDS)
+                or any(not isinstance(item, dict) for item in manifest["clips"])):
+            raise ValueError("Watercolor asset manifest is invalid")
+        expected_paths = [
+            f"watercolor-monk/clips/scene-{scene_id}.mp4"
+            for scene_id in WATERCOLOR_FACTORY_SCENE_IDS
+        ]
+        if [item.get("path") for item in manifest["clips"]] != expected_paths:
+            raise ValueError("Watercolor asset manifest scene order differs")
+        root = Path(asset_root)
+        pack_root = root / "packs/watercolor-mark-factory-v1"
+        path_roots = (root, root / "packs", pack_root,
+                      pack_root / "watercolor-monk", pack_root / "watercolor-monk/clips")
+        if any(path.is_symlink() for path in path_roots):
+            raise ValueError("Watercolor asset path must not contain symlinks")
+        missing: list[str] = []
+        mismatched: list[str] = []
+        clips = watercolor_clip_paths(root)
+        for item, scene_id, clip in zip(
+            manifest["clips"], WATERCOLOR_FACTORY_SCENE_IDS, clips, strict=True,
+        ):
+            if (set(item) != {"factory_scene_id", "path", "sha256", "bytes"}
+                    or item.get("factory_scene_id") != scene_id
+                    or not isinstance(item.get("bytes"), int)
+                    or not isinstance(item.get("sha256"), str)):
+                raise ValueError("Watercolor asset entry is invalid")
+            if clip.is_symlink() or not clip.is_file():
+                missing.append(clip.name)
+                continue
+            if (clip.stat().st_size != item["bytes"]
+                    or hashlib.sha256(clip.read_bytes()).hexdigest() != item["sha256"]):
+                mismatched.append(clip.name)
+        if missing or mismatched:
+            return {"state": "setup_required", "missing": missing,
+                    "mismatched": mismatched, "external_effects": []}
+        return {"state": "verified", "pack_id": manifest["pack_id"],
+                "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                "clips": [str(path) for path in clips], "external_effects": []}
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        return {"state": "setup_required", "reason": str(exc), "external_effects": []}
 
 
 def require(value: bool, message: str) -> None:
@@ -105,17 +160,33 @@ def run(*, engine: Path, product: str, slot_at: str, script_id: str, ledger_path
     if render_output is not None:
         if receipt.get("state") not in {"rendered", "telegram_delivery_pending"}:
             if product == "ebook-ja":
-                resolved_assets = default_pack_root(asset_root or default_asset_root())
-                provisioned = provision_default_pack(asset_root=resolved_assets)
-                if provisioned.get("state") == "setup_required":
-                    receipt.update({"state": "setup_required", "setup": provisioned})
+                asset_check = verify_watercolor_mark_factory_pack(asset_root or default_asset_root())
+                if asset_check.get("state") != "verified":
+                    receipt.update({"state": "setup_required", "setup": asset_check})
                     write_receipt(path, receipt)
                     return receipt
-                clips = watercolor_clip_paths(resolved_assets)
+                clips = [Path(item) for item in asset_check["clips"]]
                 rendered = render_watercolor(script=script["body"], output=render_output, clips=clips)
+                rendered.update({"asset_pack_id": asset_check["pack_id"],
+                                 "asset_manifest_sha256": asset_check["manifest_sha256"]})
             else:
-                rendered = render_heygen(script=script["body"], output=render_output,
-                                         intent_path=state_root / f"{receipt['run_id']}.heygen-effect.json")
+                heygen = pack.get("heygen") if isinstance(pack.get("heygen"), dict) else {}
+                renderer_environment = {
+                    key: os.environ[key]
+                    for key in ("HOME", "PATH", "LANG", "LC_ALL", "TMPDIR", "LIFE_MANAGER_HEYGEN")
+                    if os.environ.get(key)
+                }
+                renderer_environment["LM_EBOOK_EN_HEYGEN_AVATAR_ID"] = str(
+                    heygen.get("avatar_id", "")
+                ).strip()
+                renderer_environment["LM_EBOOK_EN_HEYGEN_VOICE_ID"] = str(
+                    heygen.get("voice_id", "")
+                ).strip()
+                rendered = render_heygen(
+                    script=script["body"], output=render_output,
+                    intent_path=state_root / f"{receipt['run_id']}.heygen-effect.json",
+                    environment=renderer_environment,
+                )
             if rendered.get("state") == "setup_required":
                 receipt.update({"state": "setup_required", "setup": rendered})
                 write_receipt(path, receipt)

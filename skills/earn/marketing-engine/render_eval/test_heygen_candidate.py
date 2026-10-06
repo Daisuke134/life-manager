@@ -16,6 +16,13 @@ READY = {
 }
 
 
+def wallet_response(balance):
+    return json.dumps({"data": {"wallet": {
+        "currency": "usd", "remaining_balance": balance,
+        "auto_reload": {"enabled": True, "amount_usd": 10, "threshold_usd": 5},
+    }}})
+
+
 def test_missing_private_configuration_is_setup_required_without_effect(tmp_path, monkeypatch):
     monkeypatch.setattr("heygen_candidate.shutil.which", lambda _name: None)
     calls = []
@@ -64,11 +71,14 @@ def test_missing_login_is_setup_required_before_create(tmp_path):
 
 def test_render_uses_stdin_then_downloads_and_hashes_receipt(tmp_path):
     calls = []
+    balances = iter((12.3, 12.0))
 
     def execute(args, **kwargs):
         calls.append((args, kwargs))
         if args[1:3] == ["auth", "status"]:
             return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(next(balances)), "")
         if args[2] == "create":
             return subprocess.CompletedProcess(args, 0, json.dumps({
                 "data": {"video_id": "video_12345678", "status": "completed"}
@@ -82,14 +92,107 @@ def test_render_uses_stdin_then_downloads_and_hashes_receipt(tmp_path):
     assert receipt["video_id"] == "video_12345678"
     assert receipt["sha256"] == "0cab1c9617404faf2b24e221e189ca5945813e14d3f766345b09ca13bbe28ffc"
     assert calls[0][0] == [READY["LIFE_MANAGER_HEYGEN"], "auth", "status"]
-    assert calls[1][0] == [READY["LIFE_MANAGER_HEYGEN"], "video", "create", "-d", "-", "--wait"]
-    assert json.loads(calls[1][1]["input"])["script"] == "Breathe."
-    assert "Breathe." not in " ".join(calls[1][0])
-    assert calls[2][0] == [
+    assert calls[2][0] == [READY["LIFE_MANAGER_HEYGEN"], "video", "create", "-d", "-", "--wait"]
+    assert json.loads(calls[2][1]["input"])["script"] == "Breathe."
+    assert "Breathe." not in " ".join(calls[2][0])
+    assert calls[3][0] == [
         READY["LIFE_MANAGER_HEYGEN"], "video", "download", "video_12345678",
         "--output-path", str(output.with_name(f".{output.name}.part")),
     ]
+    assert calls[4][0] == [READY["LIFE_MANAGER_HEYGEN"], "user", "me", "get"]
+    assert receipt["wallet_cost"]["cost_usd"] == "0.3"
     assert not output.with_name(f".{output.name}.part").exists()
+
+
+def test_render_records_before_after_wallet_and_measured_cost(tmp_path):
+    calls = []
+    balances = iter((12.3, 12.0))
+
+    def execute(args, **kwargs):
+        calls.append((args, kwargs))
+        if args[1:3] == ["auth", "status"]:
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            balance = next(balances)
+            return subprocess.CompletedProcess(args, 0, json.dumps({"data": {"wallet": {
+                "currency": "usd", "remaining_balance": balance,
+                "auto_reload": {"enabled": True, "amount_usd": 10, "threshold_usd": 5},
+            }}}), "")
+        if args[2] == "create":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"video_id": "video_12345678", "status": "completed"}
+            }), "")
+        Path(args[-1]).write_bytes(b"video")
+        return subprocess.CompletedProcess(args, 0, "{}", "")
+
+    output = tmp_path / "wallet-receipt.mp4"
+    receipt = render(script="Breathe.", output=output, environment=READY, executor=execute)
+    expected = {
+        "currency": "usd",
+        "balance_before_usd": "12.3",
+        "balance_after_usd": "12",
+        "cost_usd": "0.3",
+        "auto_reload_before": {"enabled": True, "amount_usd": "10", "threshold_usd": "5"},
+        "auto_reload_after": {"enabled": True, "amount_usd": "10", "threshold_usd": "5"},
+    }
+    assert receipt["wallet_cost"] == expected
+    assert [call[0][1:4] for call in calls] == [
+        ["auth", "status"], ["user", "me", "get"], ["video", "create", "-d"],
+        ["video", "download", "video_12345678"], ["user", "me", "get"],
+    ]
+    intent = json.loads(output.with_name(f".{output.name}.heygen-effect.json").read_text())
+    assert intent["wallet_cost"] == expected
+
+
+def test_unavailable_or_low_wallet_readback_blocks_video_create(tmp_path):
+    for wallet_failure in ("unavailable", "at_threshold"):
+        calls = []
+
+        def execute(args, **kwargs):
+            calls.append(args)
+            if args[1:3] == ["auth", "status"]:
+                return subprocess.CompletedProcess(args, 0, "{}", "")
+            if args[1:4] == ["user", "me", "get"]:
+                if wallet_failure == "unavailable":
+                    raise RuntimeError("wallet readback unavailable")
+                return subprocess.CompletedProcess(args, 0, wallet_response(5), "")
+            raise AssertionError("provider video call ran without an acceptable wallet readback")
+
+        output = tmp_path / f"{wallet_failure}.mp4"
+        receipt = render(script="Breathe.", output=output, environment=READY, executor=execute)
+        assert receipt["state"] == "setup_required"
+        assert not output.exists()
+        assert not output.with_name(f".{output.name}.heygen-effect.json").exists()
+        assert not any(args[1:3] == ["video", "create"] for args in calls)
+
+
+def test_crossing_auto_reload_threshold_keeps_render_fenced_and_never_recreates(tmp_path):
+    calls = []
+    balances = iter((5.4, 4.9, 4.9))
+
+    def execute(args, **kwargs):
+        calls.append(args)
+        if args[1:3] == ["auth", "status"]:
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(next(balances)), "")
+        if args[2] == "create":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"video_id": "video_12345678", "status": "completed"}
+            }), "")
+        Path(args[-1]).write_bytes(b"video")
+        return subprocess.CompletedProcess(args, 0, "{}", "")
+
+    output = tmp_path / "threshold.mp4"
+    intent = tmp_path / "threshold-effect.json"
+    first = render(script="Breathe.", output=output, intent_path=intent,
+                   environment=READY, executor=execute)
+    replay = render(script="Breathe.", output=output, intent_path=intent,
+                    environment=READY, executor=execute)
+    assert first["state"] == "reconciliation_required"
+    assert replay["state"] == "reconciliation_required"
+    assert json.loads(intent.read_text())["state"] == "cost_reconciliation_required"
+    assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
 
 
 def test_unknown_create_outcome_is_durable_and_replay_never_creates_again(tmp_path):
@@ -99,6 +202,8 @@ def test_unknown_create_outcome_is_durable_and_replay_never_creates_again(tmp_pa
         calls.append(args)
         if args[1:3] == ["auth", "status"]:
             return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(12.3), "")
         raise RuntimeError("connection lost after create request")
 
     output = tmp_path / "unknown.mp4"
@@ -121,12 +226,15 @@ def test_unknown_create_outcome_is_durable_and_replay_never_creates_again(tmp_pa
 def test_download_failure_resumes_from_stored_video_id_without_second_create(tmp_path):
     calls = []
     fail_download = True
+    balances = iter((12.3, 12.0))
 
     def execute(args, **kwargs):
         nonlocal fail_download
         calls.append(args)
         if args[1:3] == ["auth", "status"]:
             return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(next(balances)), "")
         if args[2] == "create":
             return subprocess.CompletedProcess(args, 0, json.dumps({
                 "data": {"video_id": "video_12345678", "status": "completed"}
@@ -157,11 +265,14 @@ def test_download_failure_resumes_from_stored_video_id_without_second_create(tmp
 
 def test_replay_recovers_crash_after_output_rename_without_second_create(tmp_path, monkeypatch):
     calls = []
+    balances = iter((12.3, 12.0, 12.0))
 
     def execute(args, **kwargs):
         calls.append(args)
         if args[1:3] == ["auth", "status"]:
             return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(next(balances)), "")
         if args[2] == "create":
             return subprocess.CompletedProcess(args, 0, json.dumps({
                 "data": {"video_id": "video_12345678", "status": "completed"}

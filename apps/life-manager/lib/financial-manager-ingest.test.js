@@ -57,7 +57,7 @@ test("ingestion projects real provider receipts and appends through the common s
       capafy: "not_configured", mobileApps: "not_configured",
     },
   });
-  assert.equal(result.economicSourceCoverage.loops.length, 14);
+  assert.equal(result.economicSourceCoverage.loops.length, 15);
   assert.equal(result.economicSourceCoverage.subject_id, "tenant-1");
   assert.equal(result.economicSourceCoverage.complete, false);
   const agentEconomy = result.economicSourceCoverage.loops.find(

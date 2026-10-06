@@ -544,6 +544,17 @@ def create_post(payload: dict, api_key: str) -> str:
     return extract_post_id(_request_json(request))
 
 
+def clear_pre_effect_hint() -> None:
+    """Clear the loop's no-effect proof immediately before the first upload POST."""
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH")
+    if not hint:
+        return
+    try:
+        Path(hint).unlink()
+    except FileNotFoundError:
+        pass
+
+
 def read_publish_state(post_id: str, api_key: str, platform: str = "tiktok") -> dict:
     now = datetime.now(timezone.utc)
     query = urllib.parse.urlencode(
@@ -640,6 +651,7 @@ def _publish(args, api_key: str, caption: str) -> int:
 
         upload_ids = []
         upload_paths = []
+        clear_pre_effect_hint()
         for image in args.image:
             upload_id, upload_path = upload_image(image, api_key)
             upload_ids.append(upload_id)
@@ -710,6 +722,7 @@ def _publish(args, api_key: str, caption: str) -> int:
         return 0
 
     posted_after = int(time.time())
+    clear_pre_effect_hint()
     upload_id, upload_path = upload_video(args.video, api_key)
     payload = build_payload(
         integration=args.integration,

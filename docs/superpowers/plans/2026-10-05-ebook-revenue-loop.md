@@ -31,6 +31,13 @@
 - Capafy旧・新laneのeffect_unknownをofficial readbackなしに再生せず、二重publishしない。
 - EN/JA packのaccount・locale・claimとprovider identityを一致させる。
 
+## Design ruling
+
+- **Reason:** A separate scheduled render owner duplicates lifecycle state and can race with the two platform publishers. The eBook receipt is already keyed by product and exact slot, so the smallest ownership model is one publisher job per account, both reading the same locked receipt.
+- **Old Task 5 design:** `ebook-ja-generate-daily` plus TikTok and Instagram publisher jobs.
+- **New Task 5 design:** three account owners share locale-scoped product/slot renders: English HeyGen Avatar IV to the existing TikTok integration, and Japanese Watercolor Mark Factory to existing TikTok and Instagram integrations. Each owner performs at most one Postiz effect per occurrence; each locale has three scheduled slots per day.
+- **Execution cursor and current host state:** → `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`.
+
 ---
 
 ### Task 1: Checkout attribution and offer contract — DONE
@@ -117,39 +124,74 @@
 - [x] Keep render, click, and checkout-session creation distinct from a paid order; no attribution step marks them as a sale.
 - [ ] Record one natural paid Checkout and matching locale PDF provider receipt under Task 6. The source probe is not a sale or production receipt.
 
-### Task 5: Build one source-only eBook publishing owner
+### Task 5: Add the eBook Product Loop with account-scoped publishing owners
 
 **Files**
-- Create: life-manager/skills/earn/marketing-engine/ebook-distribute-daily.sh only if no current entrypoint can own the occurrence
+- Create: life-manager/apps/life-manager/scripts/ebook-distribute-daily.sh
+- Create: life-manager/apps/life-manager/scripts/ebook-distribute-daily.js
+- Create: life-manager/skills/earn/marketing-engine/ebook_distribute_daily.py
+- Modify: life-manager/skills/earn/marketing-engine/render_eval/heygen_candidate.py to record verified wallet-cost evidence per render
+- Modify: life-manager/skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json with the selected existing private avatar look and English voice IDs
+- Modify: life-manager/skills/earn/marketing-engine/registry/accounts/tiktok.monk_anicca.json only after official Postiz enabled/account readback
 - Modify: life-manager/config/loop-registry.json
-- Modify: life-manager/apps/life-manager/config/product-loop-catalog.json for the eBook owner mapping
-- Modify: life-manager/apps/life-manager/config/loop-adapters.json only if required by the existing route
+- Modify: life-manager/config/marketing-destinations.json to add the English target only after its existing Postiz integration reads back enabled; preserve its current `provider_disabled` hold until then
+- Modify: life-manager/apps/life-manager/config/product-loop-catalog.json with Product Loop id ebook and three account owners
+- Modify: life-manager/apps/life-manager/lib/product-onboarding.js and the existing count assertions in its test files, economic-source-contract.test.js, and financial-manager-ingest.test.js; modify repository-root README.md and README.ja.md to update the public catalog from 14 to 15
+- Modify: life-manager/runtime/loop/lm_loop_run.py and runtime/loop/tests/test_lm_loop_run_bounds.py to authorize exact result/pre-effect hints from this entrypoint
+- Modify: life-manager/apps/life-manager/lib/marketing-video-publication-adapter.js and skills/video/lm-distribution/postiz_video.py to carry and clear the exact pre-effect marker at upload; modify `distribute.py` to serialize ledger appends, and `mobile-postiz-provider-reconcile.py` to persist exact recovered receipts before resolving a fence
+- Create: life-manager/skills/earn/marketing-engine/ebook_distribute_daily.py to select deterministic baselines and serialize product-slot rendering across the two account owners
+- Add: life-manager/skills/earn/marketing-engine/ebook-asset-packs/watercolor-mark-factory-v1/manifest.json with SHA-256 pins for the existing 11 Watercolor Monk Factory Kling scenes; copy those assets once into the Life Manager-owned asset root
+- Modify: life-manager/skills/earn/marketing-engine/ebook_runner.py and test_ebook_portability.py to verify and use that asset pack, and to fail closed if it is missing or differs
 - Reuse: life-manager/skills/earn/marketing-engine/ebook_runner.py
-- Reuse: life-manager/skills/earn/marketing-engine/publish/publish_cli.py
-- Reuse: existing Marketing Video Publication Adapter
-- Test: create life-manager/skills/earn/marketing-engine/test_ebook_distribution_owner.py
-- Test: focused eBook owner contract tests and the existing loop-contract gate
+- Reuse: life-manager/skills/earn/marketing-engine/brain/baseline_queue.py
+- Reuse: existing Marketing Video Publication Adapter and mobile-postiz-provider-reconcile.py
+- Test: life-manager/apps/life-manager/scripts/ebook-distribute-daily.test.js, life-manager/skills/earn/marketing-engine/test_ebook_distribution_owner.py, and life-manager/skills/video/lm-distribution/test_postiz_video_pre_effect.py
+- Test: focused runner replay/pre-effect contracts, product catalog tests, and ./bin/lm-loop-contract
 
 **Interfaces**
-- Owner ID: ebook-distribute-daily; one occurrence/state root per product campaign; no OpenClaw scheduler.
-- Input: render receipt, deterministic ee_/ej_ token, exact asset hash, matching locale, registry-verified existing account.
-- Output: provider post receipt/public URL or effect_unknown fence; never infer post success from process exit alone.
-- This task produces source only. It does not call Instagram/TikTok, apply a release, or publish a post.
+- Product Loop: ebook; jobs: `ebook-en-tiktok-daily`, `ebook-ja-tiktok-daily`, and `ebook-ja-instagram-daily`. Each publisher job owns one existing account, so one LM occurrence causes at most one provider post.
+- Render input: the locale's current product pack and one approved baseline script selected by date/slot. English uses `heygen-avatar-iv`; Japanese uses the 11 existing Watercolor Monk Factory Kling scenes, copied to Life Manager's versioned asset root and SHA-256 verified. Distribution runtime does not call or depend on the legacy OpenClaw checkout. All publishers for one product/slot reuse the exact render receipt and campaign token.
+- Cadence: English `08:00`, `14:00`, `21:00` JST; Japanese `07:00`, `12:30`, `20:00` JST. Japanese TikTok/Instagram share each of the three daily Watercolor renders. English is scoped to its existing TikTok integration; its Postiz destination remains in a disabled hold until a channel slot is available. No English Instagram account is registered.
+- Publisher input: exact rendered asset, approved-claims-compatible caption and ee_/ej_ token, account/integration resolved from the eBook pack, and the product-scoped standing policy authorized by this eBook marketing request.
+- Output: durable render receipt, then one Postiz provider receipt/public URL or a typed effect_unknown fence. The owner never retries an unknown provider effect.
+- The existing English TikTok Postiz integration is in a `provider_disabled` hold; official readback showed 30 enabled channels and one disabled. Keep the owner effect-free until a no-cost slot is confirmed and the exact integration reads back enabled. English Instagram remains setup-required; do not create or repurpose an account.
+- HeyGen CLI v0.5.0 is available and API-key authenticated. Its existing `Wise Buddhist Monk` avatar and English `Simon - Calm & Gentle` voice are selected. Current wallet readback is USD 12.30 with USD 10 auto-reload at USD 5 threshold; preserve these settings. Do not start another render unless the prior render's exact wallet/cost receipt is reconciled.
+- The current distribution renderer was found to use six generated solid-color placeholders, not Watercolor Monk Factory. Replace those inputs with the 11 pinned existing Kling scenes. Copy assets only; do not edit or run the legacy factory publisher.
+- Official Postiz readback now returns 30 enabled integrations and one disabled. Keep English TikTok in `provider_disabled` until an existing no-cost slot is confirmed. Japanese Instagram/TikTok integrations are enabled.
+- Product PR #420 is still OPEN and the Supabase CLI has no linked project ref. Do not publish until the production Checkout/PDF fulfillment route is deployed and verified. Cleanup owner is disabled by Dais's instruction; do not restart it.
+- Task 5 is source work and does not publish. After merge/release, Task 6 owns production activation and official post receipts.
 
-- [ ] Add failing tests named test_account_locale_mismatch_is_rejected, test_setup_required_account_has_no_provider_effect, test_replay_key_collision_is_fenced, and test_unapproved_visual_intent_has_zero_provider_calls.
-- [ ] Register exactly one eBook Product Loop job and catalog mapping; follow the existing owner entrypoint and Marketing Video Publication Adapter contract rather than adding another provider adapter.
-- [ ] Implement the owner entrypoint around the existing render receipt and publisher preflight; it must preserve `awaiting_visual_approval` and perform zero provider calls when the approval/readiness contract is absent.
-- [ ] Verify the focused contract, loop catalog/registry gate, and source boundary; commit and push this source-only change.
+- [x] Cover account/locale resolution, disabled live gate, one platform per publication job, shared same-slot render replay, approved baseline claim scope, and exact Postiz pre-effect boundary.
+- [x] Add Product Loop id ebook and the two Japanese publisher job mappings; update current catalog-count assertions and the public English/Japanese catalog rows.
+- [x] Add eBook-specific Postiz targets for the existing Japanese Instagram/TikTok accounts and remove only their matching hold rows; keep English account routes disabled/setup-required.
+- [x] Implement one account-scoped publisher entrypoint using baseline_queue, ebook_runner, the existing publication adapter, the existing Postiz readback reconciler, and the product-scoped standing policy for system-generated eBook baseline content.
+- [x] Add a same-slot render lock so concurrent account owners reuse one exact video receipt; keep effect identity separate per owner/occurrence.
+- [x] Add this entrypoint to the loop runner's result/pre-effect hint allowlists; classify setup/readiness gates before upload and carry official provider receipts after reconciliation.
+- [x] Make official Postiz lookup reachable for an eBook identity sidecar whose local published row is missing; require one unique post matching integration, exact caption hash, bounded slot window, and published public URL.
+- [x] Persist the recovered provider receipt in `distribution.jsonl` before resolving the effect fence. A same-slot replay must reuse the durable receipt and make zero provider publish calls.
+- [x] Add focused regressions for missing-local-receipt recovery, ambiguous/no-match fail-closed behavior, durable receipt persistence, and same-slot replay-zero.
+- [x] Extend the publisher owner to `ebook-en`/`ebook-ja`; pin locale, renderer, claims, CTA token prefix, and approved pack. Share one render per product/slot across active platform owners.
+- [x] Add `ebook-en-tiktok-daily` with the existing 08:00/14:00/21:00 JST pack slots. Keep English Instagram setup-required. The Monk Anicca Postiz integration remains in a provider-disabled hold until an existing no-cost slot and `disabled=false` readback are confirmed. Do not upgrade Postiz or disable another product's integration.
+- [x] Replace Japanese solid-color placeholders with the 11 existing Watercolor Monk Factory Kling scenes: pin source hashes, copy once into Life Manager asset state, verify clips before each render, and return `setup_required` without falling back if an asset is missing or mismatched.
+- [x] Add regressions for Watercolor Factory scene selection and missing/hash-mismatched assets; copy and verify the 48,810,971-byte asset pack. Local preview run `ebook-run.8fb24a21e077a2a9c210ac0f` rendered 11.933 seconds at 720×1280 from the copied pack with Japanese captions and provider effects zero. Legacy publisher was not invoked.
+- [x] Record HeyGen wallet before/after every Avatar IV render and persist the observed delta/reload state in its durable effect receipt. Refuse create without a USD wallet readback; if cost cannot be reconciled, keep the render fenced and block the next one. Preserve the $10 reload / $5 threshold. No live HeyGen render was used to calibrate cost because English Postiz is disabled and checkout/PDF fulfillment is not live.
+- [x] Add a no-libass fallback using the installed Japanese font, Pillow PNG overlays, and FFmpeg `overlay`; add a focused regression for the missing `subtitles` filter path.
+- [x] Add regressions for English-vs-Japanese renderer selection, three daily slots per locale, disabled English integration zero-effect behavior, and shared English render receipt across its Postiz owner.
+- [x] Rerun focused reconciler/publisher/pre-effect, eBook owner/asset/HeyGen/Watercolor, product routing, loop bounds and catalog tests after the latest edits: Python 172/172, Node 54/54, `./bin/lm-loop-contract` PASS, source-boundary PASS, `git diff --check` PASS.
+- [ ] Fetch latest `origin/main` (`e842309e59d9`, 96 commits ahead), rebase this feature branch and preserve all existing changes, then commit/push, obtain a fresh read-only branch review, complete PR/CI/merge, and build a main-derived immutable release. Keep production publishing closed.
 
 ### Task 6: Publish the first eBook campaign and record its natural order
 
-**Prerequisites:** Task 5 source owner merged; an authorized production DDL route; official identity/status for the selected existing account.
+**Prerequisites:** Task 5 source owners merged; an authorized production DDL route; official identity/status for the selected existing account; available Postiz channel capacity for every owner to be enabled.
 
-- [ ] Apply the production migration through an authorized Supabase DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. The current blocker is the absent DDL-capable route.
+- [ ] Recheck the existing Supabase/admin route. Apply the production migration only through an authorized DDL path; read back tables, RPC signatures/ACLs, required columns, and PostgREST schema cache. Current CLI has no linked project ref.
 - [ ] Merge PR #420 only after migration readback; verify the production deployed SHA and health.
-- [ ] Read back the existing account identity, provider status, and matching integration. `instagram.obou_anicca` remains a candidate, not verified ownership/good-standing evidence.
-- [ ] Check render cost against the existing spend cap and preserve the exact-asset visual approval contract.
-- [ ] Publish one approved canary through the single eBook owner; read back provider receipt and public URL.
+- [ ] Read back existing account identity/status and Postiz integration state. Japanese `obou` integrations are present/enabled in Postiz; English `monk_anicca` is present but disabled, and an additional active channel may require a plan slot.
+- [ ] Confirm Postiz has an available channel slot for Monk Anicca. Current API readback is 30 enabled channels and one disabled channel; public pricing lists Pro at 30 and Ultimate at 100, so the current plan tier still needs official readback. A required paid upgrade is outside this task's current spend cap.
+- [ ] Set `LM_EBOOK_PUBLISHING_ENABLED=true` only after the production checkout/PDF route and the exact Postiz account identity/status readbacks are ready.
+- [ ] Read back deployed `/monk` and `/achan` Checkout/PDF fulfillment and post-migration RPC/schema state before publishing either locale.
+- [ ] Publish one Japanese Watercolor video to existing TikTok and Instagram; read each exact provider receipt and public URL. Then leave its three daily slots enabled through the installed owner.
+- [ ] Only after an existing no-cost Postiz slot is available and the exact English integration reads `disabled=false`, publish one English HeyGen video and read its provider receipt/public URL; then leave its three daily slots enabled.
 - [ ] Record one natural paid Checkout and its matching locale PDF delivery receipt under the same product, campaign token, and occurrence; record refunds, fees, and measured costs. Do not self-purchase.
 - [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during the later Capafy work.
 
@@ -157,10 +199,10 @@
 
 - [ ] Start only after Task 6 records one natural eBook paid Checkout receipt and its matching PDF delivery receipt.
 - [ ] Continue eBook 14-day measurement in parallel; it is not a Capafy start gate after that first complete receipt.
-- [ ] Reconcile both existing Capafy publisher effects by official readback before any retry. Current 04:06 JST status: old owner fence remains unresolved with `active_ig_handle_unresolvable`; new owner is on release `4eb6bbba` and failed because Node was unavailable to that installed entrypoint. Neither owner has a post receipt/readback.
+- [ ] Reconcile both existing Capafy publisher effects by official readback before any retry. Latest 2026-10-06 06:56 JST status: old owner remains effect-unknown with active fence `18db7caff1178a88-68028`; latest occurrence `18dbbe2a2b66f258-49164` exited 75 with no receipt/readback. New owner remains installed at `4eb6bbba`; latest occurrence `18dbc04f9ffa3f18-5828` exited 1 (`capafy ig reel loop requires node`) with effect unknown and no receipt/readback. Do not retry either lane before exact official readback.
 - [ ] The Node/Python launchd lookup repair is already in Life Manager main at `9e3fb448b6` (PR #6663); build and load a current main-derived immutable release only after the eBook start gate. Verify account identity/status and Postiz integration through provider readback; current source comment says `@capafy.hooklab` is not connected.
 - [ ] Follow the single source of Capafy marketing order in `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`, Task D5: use one Life Manager Instagram owner; enforce at most one canary per 24 hours; publish one Reel with provider receipt; join `ct` clicks to available paid-order/payout evidence; measure 14 days.
 - [ ] Keep the work limited to Capafy Instagram marketing. Do not change Capafy product, listing, pricing, or account-lifecycle code owned by the other developer. Do not switch to TikTok/YouTube or create a replacement account.
-- [ ] If the authenticated existing page visibly shows a supported CAPTCHA, inspect the rendered challenge first. The latest local/open-source candidate `fiptcha` is Apache-2.0 but direct-CDP compatibility is untested; use it only after a same-session compatibility check. Otherwise use the registered challenge path. After any solve, read back the expected identity and provider state. Identity, suspension, or appeal screens stay in the provider's official process.
+- [ ] Runtime errors do not prove that a CAPTCHA exists; no authenticated challenge screen was observed in the latest refresh. If a supported challenge is actually present, use the registered challenge path and read back account identity/provider state afterward. Identity, suspension, or appeal screens stay in the provider's official process.
 
 **Economic target math (not a forecast):** 1,002 paid active subscriptions at $9.99/month are about $10,000 gross MRR before fees/refunds/cost. A one-time eBook order is never MRR. Capafy acceptance remains the existing 30-day banked-net contribution definition.
