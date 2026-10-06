@@ -9427,3 +9427,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Gmailのthread/get fullをfile backend/gmail-no-sendでメモリ内読取。公式freelancer.com送信元、credential正本の宛先、今回request後のinternalDateを照合。公式hostのreset/password URLは重複除去後2種類。token/link/code/本文/アドレスをchat/log/artifactへ保存0、password change0。handle67122 exit0、証拠private freelancer-reset-link-form.json。
 - 2URLのquery key metadataは一方token/uniqid/userid、他方はそれら+linkid。追跡parameter差の可能性はあるがcanonical target/tokenの同一性は未確認なので勝手に選ばない。次はメモリ内で両URLのhost/pathとtoken/uniqid/userid一致を照合し、一致した公式reset form1件を開く。不一致ならメールHTMLの実Reset Password CTA hrefを特定する。復旧メールrequest再送0。
 - cursor8の認証復旧/credential更新/新規page再loginは未完。主29順序と前段不足を保持。Gmailユーザーsend/応募/価格/出品/振込/本番loop変更0。
+
+
+### 736. Freelancer再設定後のprofile認証とclean-context未成功を分離
+
+- 復旧メール2URLはhost/path/token/userid一致、uniqid不一致。HTML実CTA「Reset password now」の公式href1件を確認して使用。公式reset formはHTTP200/www.freelancer.com/new passwordとconfirm/Submit。一般URL順で選ばない。private freelancer-reset-canonical-form.json。
+- 最初の変更run30747はGmail read failureで変更前exit1。credential正本にpending無し、Gmail再read exit0を確認後、同メールの実CTAで再開。request再送0。run86786は新passwordをcredential正本のpendingへatomic保存→公式Submit→正本currentpassword更新（旧値も同private正本内で保持）→新pageのdashboard到達。UTC2026-10-06T16:00:43.829755、HTTP200、新page /dashboard/login form無し。private freelancer-reset-and-login-result.json。値/link/code表示0。
+- 新page到達は既存profile authの影響を含み得るため、cookieを引き継がないowned temporary contextで独立loginを実測。run10478 initial_cookie_count0/login_submitted trueだがUTC16:01:07 /login/form保持、authenticated_dashboard false。contextは閉鎖済み、application effect0。private freelancer-clean-context-login.json。新session credential認証は未成功で、復旧Doneを宣言しない。
+- cursor8はclean-context失敗の公式エラー表示/認証responseを次に観測する段階。既存profile dashboard成功をaccount inventory/応募可能へ広げない。credential current値の再変更・再resetは失敗境界確認まで行わない。主29順序/前段保留保持、応募/返信/振込/価格/出品/本番loop変更0。
