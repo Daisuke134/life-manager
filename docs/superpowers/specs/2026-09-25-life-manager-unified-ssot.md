@@ -3361,6 +3361,18 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - **残るA3 acceptance:** `apps/life-manager/migrations/2026-10-06-lm-geocode-cache.sql`のproduction適用と公式schema/RPC readback、main由来immutable releaseのproduction deploy、同一tenant/event-versionの自然な再実行で有料provider rowが増えないことのreadbackは未実施。production DB write/provider callは行っていない。
 - **現在cursorはA3のまま:** source実装はmain済みだが、上記migration/deploy/natural replay-zeroが未証明のためA3を完了扱いしない。A1は引き続き非ブロッキングhardeningで、A3 acceptanceを止めない。
 
+### 2026-10-06 10:01 UTC — CFO A3 production readbackとDDL access
+
+- この節はA3のproduction状態だけを更新する。CFO目標、A3設計、TODO相対順は変更しない。
+- **source deployment:** Railway `life-call` service `ca978c74-639a-4fa1-af22-9cdd53c3f615` のdeployment `09f17de0-9021-4b02-a7f4-821954f70964`はcommit `5f56e1d12d364ccdb7ae7f467d07a07dde39a252`、status `SUCCESS`、`stopped=false`である。後続docs-only commit `e2bdae300763864d9b7bdbd9b0ca5a362c6f1115`のdeploymentは`SKIPPED`である。
+- **schema/RPC readback:** Supabase PostgREST OpenAPI GETはHTTP 200、RPC 60件を返すが、`/rpc/lm_geocode_cache_get`と`/rpc/lm_geocode_cache_upsert`は現れない。これはmigration適用の証明がない状態であり、private table/RPCが未適用か、schema cacheへの反映が未確認である。production migration/DB writeは行っていない。
+- **natural ledger window:** 固定window `2026-10-06T09:30:50.251Z <= ts < 2026-10-06T09:50:00Z`の同一GETを2回実行し、両方`Content-Range: 0-165/166`、row ID集合は一致した。166行のrow estimate subtotalはUSD `0.172615`であり、実請求、invoice、Google限定費用、月次totalではない。
+- 166行中、140行はA3 release SHA、123行に64-hex `event_version`があり、`loop_id`は0行。`occurrence_id`/`run_id`は各149行である。21 tenant/event-version scopeのうち4件は異なるoccurrence/run間で自然反復し、すべてA3 release由来だった。反復4件は75行・cache-hit 68行で、異なる後続occurrenceにGoogle有料rowがあるscopeは0件だった。初行以降に有料Google rowが見える3件は同一初回occurrence内であり、再実行課金とは数えない。
+- **受け入れ範囲:** このwindowでは観測された4 scopeについて、後続occurrenceのGoogle有料row 0件を確認した。これは部分的なproduction replay-zero evidenceである。一方、geocode RPCがOpenAPIに出ていないため、新しい永続geocode cacheのproduction read/writeやprocess restart後の再利用は未証明である。既存`lm_route_cache`が反復時の有料callを抑えた可能性を残し、A3全体は未完了とする。
+- **DDL access gate:** Supabase公式[apply migration endpoint](https://supabase.com/docs/reference/api/v1-apply-a-migration)はscoped PATの`database_migrations_write`またはOAuthの`database:write`を要求し、[Management API authentication](https://supabase.com/docs/reference/api/introduction)はBearer access tokenを要求する。確認したcredential SSOT/process environment/`~/.supabase`/Railway production 8 serviceのvariable namesに該当tokenはない。RailwayのDB URL候補は`postgres-1nl0.railway.internal`で、Supabase direct DB URLではない。
+- Railwayの`SUPABASE_SERVICE_ROLE_KEY`でManagement API project GETを行うread-only probeはHTTP 401。GitHub repository secretと4つのenvironment secret listは空。Supabase browser identity/MCP toolは未登録で、Supabase senderの直近90日Gmail metadata 19件にもlogin/token/migration/invitation subjectはなかった。Supabase CLI `projects list -o json`は`Cannot find project ref. Have you run supabase link?`を返す。PostgRESTにはgeneric SQL/migration RPCがない。
+- **現在cursor=A3:** 足りない具体物はSupabase scoped PAT（`database_migrations_write`）またはOAuth access token（`database:write`）である。これがない間はproduction DDLを推測実行・再試行しない。source deploymentと観測4 scopeのreplay-zeroは確認済みだが、geocode persistence、migrationのschema readback、process restart後の再利用は未達である。A1は引き続き非ブロッキングhardeningである。
+
 ### 2026-10-06 JST — AGMSG `lm` teamの状態と復旧cursor
 
 - この追記はAGMSGの通信状態だけを記録し、§84-Aの収益TODO順序、CFO/Mobileの所有境界、各収益成果の完了判定は変更しない。
