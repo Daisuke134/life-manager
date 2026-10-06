@@ -152,23 +152,23 @@ Dais は iOS の Claude app から Mac Mini のセッションに入って作業
 | スリープ | `pmset sleep 0` | `pmset -g` で確認（眠らない） |
 | ディスク満杯 | `com.anicca.disk-watchdog`（15分毎） | `runs = 1` 稼働確認 |
 
-### 唯一残る穴: OAuth 失効
+### Claude Remote Control の認証不一致
 
-2026-08-30 に iOS から見えなくなった**真の原因はこれ**。設定の問題ではなかった。
+`claude auth status` がログイン済みでも、Remote Control の接続は保証されない。
 
-- access token 期限切れ 2026-08-09、refresh token 期限切れ 2026-08-18
-- 症状: `claude auth status` → `{"loggedIn": false}`、`claude remote-control` は即 `Error: You must be logged in` で終了
-- 対処: Dais が対話ターミナルで `/login` を1回実行（ブラウザ OAuth なので自動化不可）
-- 予防: 24/7 常駐していればトークンは自動更新される。この常駐化自体が再発防止
-
-**★ 今後「iOS に出ない」時は、設定を疑う前にまず `claude auth status` を見る。★**
+- `loggedIn: false` の場合、Claude.ai の対話ログインが失効している。CLI で再ログインする。
+- `loggedIn: true` でも、起動環境に `CLAUDE_CODE_OAUTH_TOKEN` が残るとネイティブのClaude.aiログインを上書きする。長期トークンは推論専用で、Remote Control は拒否する。
+- 起動ラッパーは `claude auth status` と `claude remote-control` の実行前に `CLAUDE_CODE_OAUTH_TOKEN` を解除し、credentials SSOT から同変数を再注入しない。Remote Control はClaude CLIのfull-scope対話ログインを使う。
+- iOS に Mac が出ない時は、CLIログイン状態に加えてLaunchAgentの実行状態、stderrのscope/authentication error、実接続、CLIの `Connected · life-manager` 表示を確認する。
 
 ### 確認コマンド
 
 ```bash
-launchctl print gui/$UID/com.anicca.claude-remote-control | grep -E 'state|pid ='
 claude auth status
+launchctl print gui/$UID/com.anicca.claude-remote-control | grep -E 'state|pid ='
 ```
+
+接続成立の条件は、LaunchAgentが `running`、Claude Remote Control の TLS 接続が確立、CLIに新しい `Connected · life-manager` が表示されること。`loggedIn: true` だけでは復旧扱いにしない。
 
 ---
 
