@@ -8500,6 +8500,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - current1のCLI取得gapを修復する。公式contract summaryのTH契約金額/税込表示/同TR12円,10円をlive readonlyで5件確認したが、既存body regexはprice_minorをnullにし、read_only_inventoryはprovider状態だけへ縮退する。金額表示と検証済みfunding/作業開始許可を区別した読取情報が必要。
 - 最新main専用worktree/branch lm-crowdworks-contract-amount-observability-20261006でLuna6/maxがpaid_adapter.pyのsummary観測/readonly inventoryと既存関連testsだけ所有。_detailがcontract pageを持つ時点で公式summaryを読んでsafe observationをcacheへ保持し、read_only_inventoryへdetail_unavailable/amount observation/price_minor/currencyを返す。本文/URL/個人情報は出さず、支払い済み/net/収益と名付けない。欠落/複数/不正金額はunknown/ambiguousへ。既存進行stateを新規未納品と扱わない。
+- 観測受入の追加具体化：契約金額見出し側の税込表示もsafe metadataとして保持し、表示が付加された見出しを取り逃さない。read_only_inventoryの終了処理は自身のpage/contextだけを閉じ、shared source contextの別owner blank pageをpruneしない。production paid経路のcleanupは変更対象外。
 - 重要境界：productionのprice_minor/funding判断/合成receipt/decide/handoff/フォーム回答/送信/納品/費用cap/モデル/頻度を変更しない。税込表示を理由に低額作業や高額inferenceを新たに起動させない。現在のcaller取得情報の改善だけで、利益を確定するものではない。新CLI/framework/DB/schedulerを作らず既存helperへ保持する。
 - 5件の未知納品/精算や金額表示は保持。actualDOMに基づく最小positive/negative fixture、readonly/effect0/既存gates不変をRED→GREEN/必要focused/contract/OSS/diff、commitpush/freshSol6.1medium反証/CI/main/immutable/同readbackへ結ぶ。私的live/state/browser/provider/API操作は実装担当禁止、rootが反映/公式readbackを所有。主経路31/current1/Lancers後段は不変。
 
