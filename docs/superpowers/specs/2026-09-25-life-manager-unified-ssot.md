@@ -9145,3 +9145,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - CrowdWorks `paid-latest.json` のoccurrenceは `crowdworks-revenue-paid:18dbe825f45c8450-31415`、observed5/effect0/readback0/failed2。2候補はpre_effectのhandoff_unavailable、1候補form_selection_required、2候補reconcile_unknown。latest CLI terminalは別occurrence `crowdworks-revenue-paid:18dbebd1ae44f498-7975`/run `18dbebd1ae44f498-7975`、loaded3ae4176e、exit75。別occurrenceのbusiness出力をterminalへ結合しない。納品・検収・精算のDone証拠なし、effect fence解放/再送0。AGMSG lm-crowdworksへ現在のfunded scope/次成果物/期限/receipt/担当の確認をsend、sendだけを着手やlive seatの証明にしない。
 - CFO owner `life-manager-cfo-hourly` の現CLI readbackはloaded3ae4176e、loaded-idle、admission_effect_unknown false、最新run `18dbebf6bcacab78-20578`/exit78/apply_lock_busy。共有applyにmutationを重ねず、MRR source候補の本番反映を主張しない。
 - 残29/current1・SelfBuild25/Lancers26〜28の順序は不変。全体成果は未完。
+
+### 699. MRR鮮度修復のmain統合・CFO限定loaded反映
+
+- PR6763はfresh source review SHIP、CI workflow37453992545全9 jobs completed/success後、`--merge --admin --match-head-commit` で統合。merge main `4b961b3675d4d281cd79515d7f68f0ea36422292`、merged_at `2026-10-06T11:09:22Z`。関連72 tests/55 subtests PASS、既存schema parity差異はbase再現として残す。
+- 同pushed mainから `LOOPS_ACTIVATE_CURRENT=0` でimmutable `/Users/anicca/loops/releases/20261006T200929-4b961b36` を作成。修復2 source filesはmain blob一致/read-only444、root555。currentは `/Users/anicca/loops/releases/20261006T194053-3ae4176e` のまま。
+- launchctl-safe preflightはUID501/Directory Services/Aqua/managerUID501/PID1/GUI PASS。`LIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourly`/新releaseで `apply --loaded-idle-only` を実行、changed true/ok true/admission_resumed true、loaded argvは新immutableへ一致。証拠 `mrr-cfo-target-apply.json`、install_event `250678101c178b7e68d84ac2`。fleet reload/current変更/marketing owner変更なし。
+- fresh CLIはCFO installed4b961b36/loaded-idle/pidnull/admission_effect_unknown false。新SHAのrun/occurrence `life-manager-cfo-hourly:18dbec39f8730290-57315` は `2026-10-06T11:10:10.991723+00:00` に host_admission_deferred:resource_capacity_busy。新SHAの起動とloaded反映は確認済み、集計・配信の自然完了/公式receiptは未完。手動再起動・capacity迂回は行わない。証拠 `mrr-cfo-loaded-status.json`。
+- marketing-metrics-dailyは別の旧82d31995 loaded/occurrence `marketing-metrics-daily:18db657457826458-2280`/effect_unknown trueを現CLIで再確認。送信親子binding不足を解消するまでfence保持。pure実API入力replayのMobile MRR USD20.34を本番自然レポート成功へ拡張しない。
+- 残29/current1を維持。次はCFO自然集計の結果と、cursor1の有償案件を止める具体的なhandoff/form選択原因を既存CLI・担当境界で確認する。mock商品・古い保留一括巡回は再開しない。
