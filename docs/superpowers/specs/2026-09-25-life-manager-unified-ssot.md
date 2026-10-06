@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17の残る操作は①PR6786同head355d2770のruntime/secret CI終端を確認、②PASS後に通常main統合・main由来immutableへ反映、③CFO対象に公式ASC packet入力を接続、④同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+現在17の残る操作は①稼働中release-reconcilerの終端とmain64895457由来immutableを確認、②CFO対象へ新sourceを反映し公式ASC packet入力を接続、③同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -9824,3 +9824,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - §217内に残るcurrent1/文書更新のみという古い案内を現在の作業範囲へ同期し、17の次の実行操作をCI→main/immutable→公式packet接続→自然readbackと明示。完了したsource/review/関連testsを残作業へ戻さない。公式report identityと非返却nativeIDを区別する。
 - 29の相対順序や前段の保留を変更しない。現CIはgitleaks/Python等PASS、runtime/TruffleHog継続、watch17648とInvestment review66515を継続。今回のprovider送信/本番変更0。
+
+
+### 787. CI完了・main統合とlive release owner境界
+
+- CI watch17648はexit0。PR6786同head355d2770のCI10項目すべてSUCCESS、Loop control contractsもPASS（同runtime suiteでローカルENOSPC testを含む）。CodeRabbitはdraft skipであり独立レビュー済みと取り違えず、freshSolSHIPをsource review証拠にする。
+- ready後gh pr merge --admin --squash --match-head-commit355d2770を実行、MERGED2026-10-06T18:22:36Z/main64895457b7232a954f2f4492073b867009b6da85。freshfetch origin/main一致。source再PR/再merge不要。
+- release-reconcilerの正しいregistry ID life-manager-release-reconcilerはloaded-running/PID59182/installed4429/admissionunknownfalse。初回短縮IDはinvalid_inputで操作0、訂正してreadback。live ownerがいるためroot重複cut/apply/kill0。終端とmain由来immutableを次に確認し、CFO対象反映/packet設定/自然新reportを継続。AGMSG CFO ownerへ統合と非重複境界を報告。
+- Investment freshreview66515はexit0/HOLD。live10FILL+10CFEE一意/集合一致、直近2filledと数量価格時刻一致。buyのBTC fee控除後qtyがsellqtyと一致、sell feeはUSDC、CFEE net_amount0を手数料0にしない。CFO normalized outcome/P&L basis/fee currency評価/coverage/account帰属が未確定。既存private receipt/close plan/performance保存結果の同order照合が次の最小操作、取引runnerは実行しない。current17/18独立read-onlyを維持。
