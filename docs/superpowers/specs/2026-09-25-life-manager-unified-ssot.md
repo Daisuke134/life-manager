@@ -9161,3 +9161,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - lsofはlock保持Python PID45284、psはparent45224/稼働約3分。現Reply CLIはparentPID45224/loaded-running、installed07a215959fe8、occurrence `crowdworks-revenue-reply:cd45a664387089032515dd79`。先行ownerを中断/cleanupせず、担当へAGMSG共有。既存memberへのsendだけを応答・着手証明にしない。
 - 診断の目的は実納品を止めるprice/terms等の不足項目特定。汎用 `crowdworks_paid_handoff_unavailable` が具体的不足原因をCLIで隠す場合、現行出力の最小改善だけを検討する。fresh read-only Sol/medium担当が保存済み公式証拠とsourceを確認中。生buyer本文・credential・架空契約は出力しない。source変更は原因/範囲確定後の専用main由来worktreeでのみ行う。
 - 証拠 `crowdworks-handoff-probe-lock-result.json`/`crowdworks-current-reply-status.json`。CFO current CLIは新4b961b36 loaded-idle/容量待ちのまま、自然集計・配信未完。current1/残29を保持する。
+
+### 701. Paid handoff不足を既存CLIで区別する最小修復
+
+- fresh read-only診断で現個別失敗はpre_effect/effect0であることを確認。保存価格probeはID匿名化のため2対象との結合不可、現在の個別不足原因は未確認と残す。source関数の隔離再現ではprice_minor不足とcontract_terms_sha256不足を同一RuntimeErrorへ潰すことを確認した。
+- 目的は既存Paid CLIの原因可視化。CrowdWorks adapterの金額/terms判定を分け、安全な固定error codeでどちらが不足/無効か示す。既存paid-ownerのpre_effect safe observation allowlistへ対応する固定codeだけ追加する。shared kernelの出力形式・判定・schemaへ新frameworkを加えない。
+- 所有は最新main由来専用worktree/branch `fix/lm-crowdworks-handoff-diagnostic-20261006`。変更は `skills/earn/crowdworks/scripts/paid_adapter.py`、`scripts/paid-owner`、既存関連testsのみ。Luna/maxが実装、primaryがspec/受け入れ/統合を所有。他ownerのstate/browser/profile/branch/releaseは編集しない。
+- 受け入れ：価格不足とterms不足の既存失敗が異なる安全codeとして同CLI結果へ出る、wrapperはpre_effect/effect0の場合に従来どおりexit75、post-effectは緩めない、有効契約のhandoff結果不変。実個体原因はlock解放後の公式readbackで別途確認し、fixtures/sourceだけで納品Doneにしない。focused RED/GREEN、fresh review、通常CI、commit/push/main/immutable反映まで行う。
+- §217 current1/残29は不変。新mock商品・架空注文・effect replayは行わない。
