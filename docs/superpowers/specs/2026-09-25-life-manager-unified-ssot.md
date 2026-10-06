@@ -8604,3 +8604,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - public sales_count parserは各20商品で0を返す。この一覧の表示販売実績であり、他の受注/売上/着金/会社利益0へ拡張しない。売上成果を公開数だけでDoneにしない。public scope本文は見積り語あり20/受付休止語0だが、active購入・見積りcontrolの証明ではないためbuyabilityは未完。
 - source観測CLIはlisting fit judgementをnot_wiredと明示しており、20公開を商品適合・利益・需要の勝者と判定しない。生公開本文や顧客情報はchat/specへ複製しない。新出品/公開変更/価格変更/購入/送信/個人資金移動0。
 - current1の現在業務情報取得内でstorefrontを観測。実行順は変えず主経路31/Lancers後段維持。次は既存商品1件の購入/見積り導線の公式readback、残2受注の具体的必要行動の限定確認。旧12保留全件照合へ戻らない。
+
+
+### 633. 商品購入導線の限定probeと取得方法の差
+
+- 既存20商品のうちAPI連携categoryの1商品だけで購入/見積りcontrolをreadonly確認。認証なしpublic HTTPSはHTTPError、registered default context自身hidden targetの初回表示は403/controls空。商品非公開/購入不能の証明へ変換しない。private原本coconala-storefront-1791263703624628000/purchase-{html-probe-1791263796305182000,dom-probe-1791263819056015000}.json。guard取得/解放0、click/purchase/send0。
+- 成功した既存listing inventory collectorはhidden target作成後にPage.enable/Page.navigateを明示する。今回の初回表示probeとの差をsourceで特定し、同navigation形状で比較する最小probeを準備。正規acquireはexit9で未開始、共有leaseを奪わず、購入導線は未確認を保持。
+- 20公開inventoryを購入/売上成功へ拡張せず、追加の全20商品購入検証や実購入を完了gateに発明しない。次は正規取得可能時にこの1件の既存成功navigation経路を確認。current1/主経路31/Lancers後段維持。
