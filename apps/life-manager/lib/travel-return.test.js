@@ -457,7 +457,8 @@ test("[AC-14][INTEGRATION] fillTravel failed Transit calls exactly one legacy Go
   global.fetch = async (url) => {
     const requestUrl = String(url);
     if (requestUrl.includes("maps.googleapis.com/maps/api/geocode/json")) {
-      return { ok: true, json: async () => ({ results: [{ geometry: { location: { lat: 35.681, lng: 139.767 } } }] }) };
+      return { ok: true, status: 200, json: async () => ({ status: "OK",
+        results: [{ geometry: { location: { lat: 35.681, lng: 139.767 } } }] }) };
     }
     if (requestUrl.includes("api.transit.ls8h.com")) {
       transitRequests++;

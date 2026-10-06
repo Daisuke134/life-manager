@@ -11,6 +11,9 @@ const { chooseRouter, parseTransitPlan, hasValidTransitEnvelope } = require("./t
 const {
   makeRouteCache, makeSupabaseRouteStore, cacheFailure, timeBucket,
 } = require("./route-cache.js");
+const {
+  makeSupabaseGeocodeStore, addressDigest, isValidGeocode, GEOCODE_SUCCESS_TTL_MS,
+} = require("./geocode-cache.js");
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
 const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
@@ -23,15 +26,23 @@ const FALLBACK_REASONS = new Set([
   "transit_no_route", "transit_provider_4xx", "transit_provider_5xx", "transit_network",
   "transit_timeout", "transit_invalid_response", "non_jp",
 ]);
-const GEOCODE_SUCCESS_TTL_MS = 24 * 60 * 60_000;
 const GEOCODE_NEGATIVE_TTL_MS = 30 * 60_000;
 const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
+const ROUTING_POLICY_VERSION = "travel-routing-policy-v1";
+const OPAQUE_EVENT_VERSION = /^[a-f0-9]{64}$/;
+
+function eventVersionMeta(usage) {
+  const eventVersion = usage && usage.eventVersion;
+  return typeof eventVersion === "string" && OPAQUE_EVENT_VERSION.test(eventVersion)
+    ? { event_version: eventVersion } : {};
+}
 
 function routeUsageMeta(usage) {
   return {
     ...(ROUTE_MODES.has(usage && usage.routeMode) ? { route_mode: usage.routeMode } : {}),
     ...(FALLBACK_REASONS.has(usage && usage.fallbackReason)
       ? { fallback_reason: usage.fallbackReason } : {}),
+    ...eventVersionMeta(usage),
   };
 }
 
@@ -67,10 +78,11 @@ function opaqueEndpointKey(value) {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
-function routeEventVersion({ eventId, anchorAtMs, src, dst, purpose }) {
+function routeEventVersion({ eventId, anchorAtMs, src, dst, purpose, timezone, departureMode, anchorType }) {
   return createHash("sha256").update(JSON.stringify([
     String(eventId || ""), Number(anchorAtMs) || 0,
     opaqueEndpointKey(src), opaqueEndpointKey(dst), String(purpose || "go"),
+    String(timezone || "UTC"), departureMode === true, String(anchorType || "arrival"), ROUTING_POLICY_VERSION,
   ])).digest("hex");
 }
 
@@ -296,45 +308,100 @@ async function directionsMinutesGoogle(src, dst, mapsKey, departAtMs = Date.now(
 }
 
 // C3: address→geo memo — the 60s scheduler tick must NOT re-geocode the same home/event address every
-// time. Keyed on the address string; a geo rarely changes for a fixed address. Process-lifetime cache.
+// time. Keyed by tenant/provider/address scope; successful entries also persist across process restarts.
 const _geoMemo = new Map();
+const _geoInFlight = new Map();
+
+function geocodeStoreFor(options = {}) {
+  if (Object.hasOwn(options, "_geocodeCacheStore")) return options._geocodeCacheStore || null;
+  const supaUrl = options.supaUrl || process.env.SUPABASE_URL;
+  const supaKey = options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supaUrl || !supaKey) return null;
+  return makeSupabaseGeocodeStore({
+    supaUrl, supaKey, fetchImpl: options._cacheFetch || global.fetch,
+  });
+}
+
+function geocodeMemoKey(tenantId, address, supaKey) {
+  const digest = supaKey ? addressDigest({
+    tenantId, provider: "google_maps", address, digestKey: supaKey,
+  }) : null;
+  return JSON.stringify([tenantId, "google_maps", digest || String(address)]);
+}
+
+async function emitGeocodeCacheHit(usage, tenantId) {
+  await emitUsage(usage.options, {
+    tenantId, provider: "google_maps", feature: "geocoding", outcome: "cache_hit",
+    cacheHit: true, providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+    meta: { sku: "Geocoding", ...eventVersionMeta(usage) },
+  });
+}
 
 // C2: geocode a JP address ONCE via Google Geocoding (cheap, one-time; NOT the Routes-Pro cost driver).
 // Returns {lat,lon} or null. Injected in tests via opts._geocode.
 async function geocodeAddress(addr, mapsKey, usage = {}) {
   if (!addr || !mapsKey) return null;
-  const memo = _geoMemo.get(addr);
+  const tenantId = String(usage.tenantId || "anonymous");
+  const options = usage.options || {};
+  const supaKey = options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const store = geocodeStoreFor(options);
+  const memoKey = geocodeMemoKey(tenantId, addr, store ? supaKey : null);
+  const memo = _geoMemo.get(memoKey);
   if (memo && typeof memo === "object" && Object.hasOwn(memo, "value")) {
     const transient = ["network", "provider_5xx", "timeout"].includes(memo.failureClass);
     const ttl = memo.value ? GEOCODE_SUCCESS_TTL_MS
       : transient ? GEOCODE_TRANSIENT_TTL_MS : GEOCODE_NEGATIVE_TTL_MS;
-    if (Date.now() - memo.computedAt < ttl) return memo.value;
-    _geoMemo.delete(addr);
+    if (Date.now() - memo.computedAt < ttl) {
+      if (memo.value) await emitGeocodeCacheHit(usage, tenantId);
+      return memo.value;
+    }
+    _geoMemo.delete(memoKey);
   }
+  if (_geoInFlight.has(memoKey)) return _geoInFlight.get(memoKey);
+
+  const run = Promise.resolve().then(async () => {
+    if (store) {
+      const cached = await store.get(tenantId, "google_maps", addr);
+      if (cached && isValidGeocode(cached.value)
+          && Date.now() - cached.computedAt < cached.ttlMs) {
+        const value = { lat: cached.value.lat, lon: cached.value.lon };
+        _geoMemo.set(memoKey, { value, computedAt: cached.computedAt, failureClass: null });
+        await emitGeocodeCacheHit(usage, tenantId);
+        return value;
+      }
+    }
+    try {
+      const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
+      const response = await fetch(u);
+      const j = await response.json();
+      const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
+      const providerSucceeded = response && response.ok !== false && j && j.status === "OK";
+      const candidate = providerSucceeded && loc ? { lat: loc.lat, lon: loc.lng } : null;
+      const failureClass = !providerSucceeded || !loc ? providerFailureClass(response, j && j.status)
+        : isValidGeocode(candidate) ? null : "invalid_coordinates";
+      const value = failureClass ? null : candidate;
+      await emitUsage(options, { tenantId, provider: "google_maps",
+        feature: "geocoding", outcome: value ? "success" : "failure", failureClass,
+        providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
+        meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...eventVersionMeta(usage) } });
+      const computedAt = Date.now();
+      _geoMemo.set(memoKey, { value, computedAt, failureClass });
+      if (value && store) await store.set(tenantId, "google_maps", addr, value, computedAt);
+      return value;
+    } catch {
+      await emitUsage(options, { tenantId, provider: "google_maps",
+        feature: "geocoding", outcome: "failure", failureClass: "network", providerUnits: 1,
+        providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
+        meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...eventVersionMeta(usage) } });
+      _geoMemo.set(memoKey, { value: null, computedAt: Date.now(), failureClass: "network" });
+      return null;
+    }
+  });
+  _geoInFlight.set(memoKey, run);
   try {
-    const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
-    const response = await fetch(u);
-    const j = await response.json();
-    const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
-    await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
-      feature: "geocoding", outcome: loc ? "success" : "failure",
-      failureClass: loc ? null : providerFailureClass(response, j && j.status), providerUnits: 1,
-      providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
-      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
-    const value = loc ? { lat: loc.lat, lon: loc.lng } : null;
-    _geoMemo.set(addr, {
-      value,
-      computedAt: Date.now(),
-      failureClass: value ? null : providerFailureClass(response, j && j.status),
-    });
-    return value;
-  } catch {
-    await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
-      feature: "geocoding", outcome: "failure", failureClass: "network", providerUnits: 1,
-      providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
-      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
-    _geoMemo.set(addr, { value: null, computedAt: Date.now(), failureClass: "network" });
-    return null;
+    return await run;
+  } finally {
+    if (_geoInFlight.get(memoKey) === run) _geoInFlight.delete(memoKey);
   }
 }
 
@@ -479,15 +546,17 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const cache = routeCacheFor(options); // tests inject a fresh cache to avoid cross-test leakage
   const uid = options.uid ?? options.tenantId ?? options.userId ?? "anonymous";
   const purpose = options.purpose || (call.departureMode ? "return" : "go");
-  const eventVersion = routeEventVersion({ eventId: options.eventId, anchorAtMs: call.anchorAtMs, src, dst, purpose });
+  const eventVersion = routeEventVersion({ eventId: options.eventId, anchorAtMs: call.anchorAtMs, src, dst, purpose,
+    timezone: call.timezone, departureMode: call.departureMode,
+    anchorType: call.departureMode ? "departure" : "arrival" });
   const routeId = randomUUID();
   const usageOptions = { ...options, _usageRuntimeEnv: usageRuntimeEnv(
     options._runtimeEnv || process.env,
     { fallbackOwnerId: "life-call-travel", fallbackRunId: `route-${routeId}` },
   ) };
   const allowanceState = options._allowanceState;
-  const usage = { tenantId: uid, options: usageOptions };
-  const routeUsage = { tenantId: uid, options: usageOptions, failureClasses: [] };
+  const usage = { tenantId: uid, options: usageOptions, eventVersion };
+  const routeUsage = { tenantId: uid, options: usageOptions, eventVersion, failureClasses: [] };
   const transitDiagnostics = { fallbackReason: null };
   const timeoutOption = options._transitTimeoutMs ?? options.transitTimeoutMs;
   const transitTimeoutMs = Number.isFinite(Number(timeoutOption)) && Number(timeoutOption) >= 0
@@ -500,6 +569,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       tenantId: uid, provider: "route_cache", feature: "travel_route", outcome: "cache_hit",
       failureClass: entry.failureClass, cacheHit: true, providerUnits: 0,
       providerUnit: "request", estimatedCostUsd: 0,
+      meta: eventVersionMeta({ eventVersion }),
     }));
     if (cached && cached.hit === true) {
       if (allowanceState && cached.value == null) allowanceState.negativeCacheHit = true;
@@ -519,8 +589,8 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const [srcGeo, dstGeo] = await Promise.all([
     srcLiteral || geocode(src, mapsKey, usage), dstLiteral || geocode(dst, mapsKey, usage),
   ]);
-  const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const query = wallAnchor(call.anchorAtMs, call.timezone, call.nowMs, call.departureMode);
+  const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const google = async () => {
     routeUsage.routeMode = routeMode;
     routeUsage.fallbackReason = routeMode === "google"
@@ -591,6 +661,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       feature: "travel_route", outcome: "cache_hit", failureClass: cacheEntry.failureClass,
       cacheHit: true,
       providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+      meta: routeUsageMeta(routeUsage),
     }));
   if (result == null && allowanceState) allowanceState.providerFailure = true;
   if (result == null && options._deferAllowanceRelease !== true && allowanceState && allowanceState.receipt
