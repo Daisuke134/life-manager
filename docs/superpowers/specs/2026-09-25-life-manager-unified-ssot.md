@@ -9711,3 +9711,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現在cursor17のLuna実装修正がliveの間、既存順序18の独立read-only観測を進める。現alpaca-investment skill/CLI _context/_runを読み、private credential SSOTとpinned CLIでmode liveのaccount GET、FILL activity、CFEE/FEE activityを取得。新規trade/資金移動/loop起動/台帳変更0。
 - 公式account status ACTIVE、blocked fieldsはnullでfalseへ丸めない。fills10/fees10、symbol BTC/USDC、各fee order IDは取得fillsに一致10。取得fill時刻範囲2026-09-09〜10-01、buy/sell交互。CLI activity listの既定page-size100をhelpで確認。取得件数を全期間利益/清算済み/最新取引成功へ拡張しない。
 - private investment-current-official-fills-fees.jsonへ原readbackを保存。残18は実約定/手数料/精算の会計結合とfresh財務review、実インフラ費、bank settlement coverage。利益の金額計算・確定は今回行わない。source修正への重複編集なし、現在17/相対順序不変。
+
+
+### 771. Investment直近公式order確定状態を補完
+
+- 項目18の追加read-only観測:既存fillsの直近2order IDについてpinned CLI order getを実行、双方BTC/USDCのbuy/sell、status filled、filled_atが元activityと一致。最新pairは2026-10-01T11:30:17.599123Z buy /11:35:17.612894Z sell。注文作成/取消/変更/資金移動0。
+- 同account GETはACTIVE/USD/cash値ありを取得、2026-10-06T17:58:43.421626Z。private investment-current-recent-order-readback.jsonへ保存。ブローカーcashと会社cash/銀行入金を同一視せず、実P&Lやsettlementを計算・認定しない。
+- 現CFO adapt_investmentにはfinalized/status、P&L basis、同snapshot/coverage等の正規入力条件がある。raw fills取得だけで成功payloadを偽造しない。残18は正規入力への根拠付き結合とfresh財務review。cursor17のLuna修正live、相対順序保持。
