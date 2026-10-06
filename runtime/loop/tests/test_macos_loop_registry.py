@@ -15,7 +15,7 @@ from runtime.loop.macos_loop_registry import (
     render_loop_json_schema,
     validate_registry,
 )
-from runtime.loop.lm_loop import status_rows
+from runtime.loop.lm_loop import doctor_report, status_rows
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -1321,6 +1321,19 @@ class MacosLoopRegistryTest(unittest.TestCase):
         value["external_labels"] = ["ai.anicca.example"]
         with self.assertRaisesRegex(ValueError, "overlap"):
             validate_registry(value)
+
+    def test_upwork_provision_browser_is_owned_by_the_external_browser_registry(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        label = "ai.anicca.provision-browser.upwork.dais"
+        expected_entrypoints = {row["entrypoint"] for row in registry["loops"].values()}
+        report = doctor_report(
+            registry,
+            installed_labels={label},
+            loaded_labels={label},
+            existing_entrypoints=expected_entrypoints,
+        )
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(report["unmanaged_labels"], [])
 
     def test_retired_labels_accept_safe_non_managed_namespaces(self):
         value = {"schema_version": 2, "loops": {"example": entry()},
