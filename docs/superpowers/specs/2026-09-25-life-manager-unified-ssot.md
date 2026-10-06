@@ -8511,3 +8511,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Mercor原本はrepo外private state/cli-observability-20261006/mercor-business-1791262057490743000/snapshot.json。認証原本はmercor-auth-1791261995936841000。正規guard/context取得・park/guard解放成功。新login・provider送信・応募・面接回答・資金移動は実施していない。
 - CrowdWorksは§619の観測metadataだけの限定修復をLuna6/maxが担当。production price_minorを補完・上書きせず、複数表示12円/10円はambiguousとして保持する。source検証・push・review・反映・公式同CLI確認は未完。
 - 現在cursor1、主経路31は維持。次はこのCLI修復を終え、他channelの取得範囲を揃えて実案件/注文/精算の次手を選ぶ。旧Coconala12record全件照合・Lancers反復・SelfBuildへ先頭を戻さない。
+
+
+### 621. current1のMercor coverage確認・Coconala CLI呼出診断
+
+- Mercor snapshot sourceは公式candidates/jobs/assessments/interviews GETのHTTP200 body、欠落sourceは失敗する実装。返却contracts空は当該GETの返却結果だけとし、全履歴・精算・売上不存在へ拡張しない。applications responseにpagination/total fieldなし、100行の全件性未確認。通知はhasMore=false/nextCursor=null。interviewsはisComplete=1 endpointの返却1行、status=videoRecordingUploaded、作成2026-08-22であり現在の未対応面接1件とは扱わない。
+- Coconala既存orders-only CLIをcurrent完全immutable d0699847から実行。正しい登録identityはcoconala:kosuke。正規guard取得/解放0、初回collector1は呼出envのCLOAK_BROWSER_OWNER不足で、provider受注情報の未取得。原本private state/cli-observability-20261006/coconala-orders-1791262405697154000（failure/source receiptあり）。
+- 根因を既存cdp_default_tab.pyのowner契約へ狭め、一意のowner指定を追加。次の正規acquireはexit9でcollector開始0、共有leaseを奪わず解放/強制retryをしない。未取得を受注0・正常稼働へ変換しない。sourcecode変更・provider送信・旧Coconala保留再送0。
+- CrowdWorks限定修復はRED/GREEN、既存adapter126件/loop contract/diff PASSという実装担当報告。rootのcommit/source/review/CI/immutable/live受入はまだ未完。current1/主経路31/Lancers28〜30を維持する。
