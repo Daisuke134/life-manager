@@ -206,11 +206,14 @@
 - [x] Commit and push the LM_DATA_DIR child-environment fix; fresh read-only review passed and all required PR #6766 checks passed. PR #6766 merged to main as `345fe64f5cfffa10e108404f70aec1d84414db1c`.
 - [x] Merge PR #6771 at main `57e09ccf0d5ba84eadf7fabcfff9120ac3aff2e1` and select immutable release
   `20261006T214226-57e09ccf`.
-- [x] Official Postiz `GET /public/v1/posts` readback at 21:50 JST returned zero target rows for the Japanese TikTok 20:00
-  window and Japanese Instagram 21:47 occurrence. Sanitized evidence is
-  `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-occurrences-20261006T2150.json`.
+- [x] Occurrence-specific official Postiz GET readback was captured at 21:54:37 JST, not 21:50 JST; it returned zero target rows for the Japanese TikTok 20:00 window and Japanese Instagram 21:47 occurrence.
+  Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-occurrences-20261006T215437.json`.
 - [x] Resolve only the proven pre-effect Japanese TikTok occurrence `ebook-ja-tiktok-daily:18dbed383f505970-22876`; the
   current-main CLI wrote a `HOST_PRE_EFFECT_RECONCILIATION` receipt with `resolution=RESOLVED` and zero unprovable rows.
+- [x] Full-day official Postiz GET at 22:14:03 JST returned zero rows for English TikTok, Japanese TikTok, and Japanese Instagram from 00:00–22:14 JST.
+  Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-all-routes-20261006T221403.json`.
+- [x] Integrations GET at 22:11:40 JST confirms Japanese TikTok/Instagram enabled, English TikTok disabled, and English Instagram unregistered.
+  Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-integrations-20261006T221140.json`.
 - [ ] Run `lm-loop doctor` from the latest main-derived release and confirm zero missing/unmanaged/retired labels. The selected
   57e release currently returns `ok=false` because live retired label `ai.anicca.provision-browser.capafy.kosuke` is PID 91210.
   It belongs to the separate Capafy owner; do not stop/reload it from this eBook task.
@@ -218,9 +221,8 @@
   under each owner lock, only while idle. Read back each install receipt, release SHA, argv, state path, and rollback receipt.
 - [ ] Allow the next natural Japanese 07:00 JST occurrence; verify official Postiz receipts and public URLs for Instagram and
   TikTok. The failed 20:00 slot is verified no-effect and must not be replayed.
-- [ ] Re-enable only the existing English TikTok Postiz integration through its supported account flow; require official
-  `disabled=false` readback and a successful identity preflight before the English owner can render or publish. English
-  Instagram remains unregistered; do not create an account or upgrade Postiz.
+- [ ] Re-enable the existing English TikTok integration through the Postiz Calendar channel menu: use Enable/Disable, and use Reconnect with the same Monk Anicca account only if Postiz shows an authorization marker. Official instructions: https://docs.postiz.com/general/channels/manage.
+  The public API/CLI references expose no existing-channel toggle. The current direct daily-driver `:9222/json/version` read returned HTTP 404; complete the UI action when the registered session is available, then verify `disabled=false`. Do not create another channel, add Instagram, or upgrade Postiz.
 - [ ] Keep the intended three daily slots per locale: English 08:00/14:00/21:00 JST; Japanese 07:00/12:30/20:00 JST. Japanese
   shares each Watercolor video across TikTok and Instagram; each owner still requires its own provider receipt/public URL.
 - [ ] Continue per-occurrence Postiz readback and replay-zero. A schedule, HeyGen CLI completion, Watercolor render, or QA CTA
@@ -229,11 +231,10 @@
 - [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence only after durable receipt readback; record refunds, fees, and measured costs. Do not self-purchase.
 - [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
 
-- Current cursor (2026-10-06 22:03 JST): PR #6771 is merged and release 57e is selected, but no eBook owner is applied to it.
-  Full doctor is blocked by the live Capafy retired label above. JA TikTok exact pre-effect fence is resolved; the English
-  TikTok route is disabled in Postiz. All three owners remain installed on 345fe64f. Latest readback has all three idle.
-  First the Capafy owner must reconcile its label; next cut from current main 2cf, pass doctor, apply owners one at a time,
-  and read the natural Japanese post receipts before continuing with English reconnection and its three slots.
+- Current cursor (2026-10-06 22:20 JST): PR #6771 is merged; release 57e remains selected; PR #6767 is merged at `99ba53b3fc9ad0c15b3eaa8dc92dd1415e8fe3a0`; current main is `fe74b69d2b9691721c018c9f4bc61c139cf23ed1`.
+  No eBook owner is applied to 57e. Doctor is blocked by live retired Capafy label PID 91210. The three owners remain on 345fe64f, loaded-idle. JA Instagram and EN TikTok fail pre-effect with `LM_RUNTIME_TENANT_ID is required`; the exact JA TikTok `LM_DATA_DIR` occurrence is reconciled.
+  Latest Postiz readbacks show zero posts on all three eBook routes, Japanese TikTok/Instagram enabled, and English TikTok disabled. Old order was English reconnect before Japanese receipt readback; current order verifies the next Japanese receipt first, then English UI re-enable.
+  First the Capafy owner must reconcile its retired label; next cut from latest main, pass doctor, apply owners one at a time, and read the natural Japanese post receipts. Then enable the English TikTok channel in Postiz UI and verify its English natural posts.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
