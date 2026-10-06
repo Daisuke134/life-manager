@@ -8469,3 +8469,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - DaisはLancersのCAPTCHA反復に時間を使わず、未解決として他platformへ進み、LancersをSelfBuild同様の後段で扱うよう明示。旧30順のLancers商品4/応募8を除き、他項目の相対順序を維持。SelfBuild新27の後にLancers接続再開28/商品29/応募30、最終確認31。現在cursor1はLancers以外の業務CLI集約。今回の明示指示による変更で、質問/承認待ちを追加しない。
 - 開始済みsolver操作49245はterminalexit0。provider状態はreadyfalse/http405/reasonaws_waf_api_error、solverstatusprocessing、cost未取得。自分のpageclose true/guardrelease0。frameヘルパーの完了をCAPTCHA解決/取得成功へ丸めない。既存canonical aws-waf-solver.jsonのpending/unknown状態を保存し、taskを再作成せず、追加反復を止める。artifact state/cli-observability-20261006/lancers-waf-recovery-1791259900023058000.json/mode600。
 - Lancers CLI診断修復そのものはmaincd533008/完全release/33focused/freshSHIP/全CIまで完了している。接続回復と公式業務情報の取得は未完で後段へ。CLI/provider scopeは他platformと分け、他platformも利益実現済みと未確認で断定しない。旧Coconala保留巡回は再開しない。
+
+
+### 616. Lancers後段化後の他channel CLI観測
+
+- newcurrent1でCoconalaの既存注文CLI orders-onlyを正規guardで試行したがexit9、CLI未開始。旧reply12recordへ戻らず、このchannelの現在情報取得待ちだけを残す。他channelの観測は継続する。
+- Agent Economy既存status.mjsをcurrent symlink経由で呼ぶとexit0/stdout空。実装のisMainはimport.meta実pathとargvの論理pathを比較するため、symlink経由ではentryが走らないことをsourceで確認。実immutable絶対pathへ実行経路を補正し、同CLI exit0/JSON取得成功。30日窓の保存ledger上でverified external rows0/unverified rows0。実世界の収益/費用0の証明ではなく、cost receipt欠損の0集計も会計へ信用しない。
+- 原本 state/cli-observability-20261006/agent-economy-status.json/mode600。provider送信/署名/資金移動/契約承諾/旧fence解除0。現cursor1/主経路31/Lancers28〜30後段を保持し、normalCLIの取得対象・freshness・読取失敗をchannel別に集約する。
