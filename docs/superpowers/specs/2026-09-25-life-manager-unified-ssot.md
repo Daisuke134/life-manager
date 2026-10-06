@@ -4933,6 +4933,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 
 - 第一候補は既存service4313100「Webサイトの画像差し替えと公開表示確認」。保存済み公式inventoryは公開中/表示3000円/見積相談導線/残1枠。過去観測であり、現在購入可能・受注・着金・利益を証明しない。新mock/API demoは作らない。
 - 販売対象は既存サイトの画像差し替えと公開表示確認。必要入力は対象URL・差替位置・使用許諾のある画像・正規編集権限・対応範囲/期限の契約内確定。受入は同対象の差替結果と実公開表示、納品記録。ここで未公開の保証・新価格・固定件数を作らない。
+- 既存families.jsonのservice_familiesは4313100→web_image_update。family正本の納品は更新済みWebページ/PC・モバイル表示確認/変更報告、入力は対象URL/画像/対象箇所/CMS権限/希望納期。対象と権限確認前に更新を約束せず、画像制作と差し替えを区別する。source SHA2567577ee20d205a4cdb2fed61e1ba85ec06aaa3fc758b1d68bf3ceebc9eebb176f。公開本文との最新一致は未確認。
 - 未確認は現商品本文の全条件、買い手の具体的scope、所要時間/実費、公式手数料/精算。sellerカードの「実納品・入金済み」という説明だけを公式財務receiptへ代用しない。これらが未確認なので残4はDoneにしない。
 - 独立準備を進めてもcurrent1/残29の順序は変更しない。CrowdWorksの同provider lock待ちをCoconala商品準備の停止条件にしない。AGMSG lm-crowdworksへ実観測と非重複境界を共有し、sendを着手・完了証明にしない。
 
@@ -8996,3 +8997,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 追加観測：自然Reply PID71594の稼働と終了をpsで確認、別自然実行PID82279へ移行。有限probe handle97591は最大120秒のnonblocking lock待ち後exit75/provider_browser_busyでterminal。browser取得・モデル実行・送信0。再起動やlock解除をせず、同条件のprobeを即再発行しない。
 - 保存済みagent-usageからtask_label crowdworks-paid-form-selectionの08:00UTC以降5eventを限定抽出。provider successとtransient_unavailableの両方があり、work_id/resultとの結合は未確認。原本crowdworks-form-selection-usage-readback.json。モデル成功を選択成功へ、provider_reported costを請求確定額へ代用しない。業務loopの旧モデルrouteを開発モデル指定と混同して一括変更しない。
 - 安全な再開条件は同providerのidle/既存lock取得と、選択composerのerror class/contract判定を送信せず観測すること。price nullを確定報酬や利益へ変換せず、2件のreconcile_unknownはreceipt無しで再送しない。current1/残29/後段順/mock取消を保持する。
+
+
+### 683. 既存storefront販売条件と現停止occurrenceの特定
+
+- 4313100の現seller本文取得はregistered guard acquire exit9/BUSYで変更前に停止。browser取得/投稿/価格変更/注文/送信0。旧公開観測を現在購入可能へ代用しない。ローカル既存familyから必要入力と納品条件を§217の残4準備へ反映し、mock制作無し。
+- 現hf-gig-storefront-direct statusはmanaged/scheduled/loaded-idle/current aed62f3b、run18dbe4a9e0168ba0-87227、blocked/host_admission_deferred:resource_effect_unknown。旧~/gig/storefront-direct/wakes.jsonlの失敗だけを現runtimeと扱わず現statusを照合した。
+- host admission DB mode=roで同ownerのeffect_unknownは1件、claimed occurrence hf-gig-storefront-direct:18d8d288748508e8-23902。archive events-20261001T025344997289Z.jsonl.gzではrun18d8d2b3f46565c8-28218がこのoccurrenceに結合し、2026-09-26T08:50:02.527789Z/exit1/unknown/official_readback_ref null/provider_receipt_id null。直前run23902のpass exit0は別occurrence18d8d2334ab70e80-9111なので流用しない。
+- 該当scratch/receiptのexact filename検索は未取得。外部結果不確実の解除・再送は行わない。最小再開条件は同occurrenceのmutation intentと公式result/readback、または同occurrenceに結合した既存pre-effect証拠。単なるeffect0の別passや現在公開中を代用品にしない。現在の販売loop停止を解く対象はこの1件に限定し、古いCoconala12件の全件監査へ拡大しない。current1/残29/順序維持。
