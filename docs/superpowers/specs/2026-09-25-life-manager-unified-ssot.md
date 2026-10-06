@@ -9168,5 +9168,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 目的は既存Paid CLIの原因可視化。CrowdWorks adapterの金額/terms判定を分け、安全な固定error codeでどちらが不足/無効か示す。既存paid-ownerのpre_effect safe observation allowlistへ対応する固定codeだけ追加する。shared kernelの出力形式・判定・schemaへ新frameworkを加えない。
 - 所有は最新main由来専用worktree/branch `fix/lm-crowdworks-handoff-diagnostic-20261006`。変更は `skills/earn/crowdworks/scripts/paid_adapter.py`、`scripts/paid-owner`、既存関連testsのみ。Luna/maxが実装、primaryがspec/受け入れ/統合を所有。他ownerのstate/browser/profile/branch/releaseは編集しない。
 - 受け入れ：価格不足とterms不足の既存失敗が異なる安全codeとして同CLI結果へ出る、wrapperはpre_effect/effect0の場合に従来どおりexit75、post-effectは緩めない、有効契約のhandoff結果不変。実個体原因はlock解放後の公式readbackで別途確認し、fixtures/sourceだけで納品Doneにしない。focused RED/GREEN、fresh review、通常CI、commit/push/main/immutable反映まで行う。
-- source `065ba0fc30f776da77d69bc303c828d96fd10808` を専用branchへpushしremote SHA一致/clean確認。変更4filesのみ、rootも既存関連142 tests PASSを独立再実行。loop-contract15/184/107、bash syntax、diff-check PASS。Draft PR6764を作成。native spawn/followupはagent thread limitで拒否されたため、実model gpt-6.1-sol/provider openai/medium/read-only/ephemeralの有限Codex CLI run（handle11639）でfreshレビューを開始。review結果・CI・main・本番反映・現対象個別field確認は未完。
+- source `065ba0fc30f776da77d69bc303c828d96fd10808` を専用branchへpushしremote SHA一致/clean確認。変更4filesのみ、rootも既存関連142 tests PASSを独立再実行。loop-contract15/184/107、bash syntax、diff-check PASS。PR6764はfresh source review SHIP（独立handoff5 tests/contract/syntax/diff PASS、変更0）、CI37455738948全9 jobs completed/success後main ba9f796260へ統合。native spawn/followupはagent thread limitで拒否されたため、実model gpt-6.1-sol/provider openai/medium/read-only/ephemeralの有限Codex CLI runでfreshレビューを実施（exit0、結果artifact保存）。Paid owner限定loaded反映は§702。現対象個別field確認・自然業務成果は未完。
 - §217 current1/残29は不変。新mock商品・架空注文・effect replayは行わない。
+
+### 702. Paid CLI診断修復のmain統合・対象限定反映
+
+- PR6764/source065ba0fc30はfresh read-only SHIPと全9CI PASS後、main `ba9f7962604104987410795102e938b68f8d03d6` へ統合（merged_at `2026-10-06T11:24:55Z`）。実CLI失敗の固定code分離であり、金額/termsの受入条件を緩和しない。
+- 同pushed mainのALL immutable `/Users/anicca/loops/releases/20261006T202503-ba9f7962` をcurrent不変更で作成。source2filesはmain blob一致/read-only555。launchctl-safe UID501/DS/Aqua/managerUID501/PID1/GUI preflight PASS後、Paid ownerのみguarded loaded-idle apply。changed true/ok true、install_event `ced58b78326a70f31fb0c4a6`、loaded argv新immutable、admission_resumed false。旧未確定fenceの解放・再送・全fleet/current変更0。
+- 証拠 `handoff-paid-target-apply.json`/`handoff-paid-loaded-status.json`。自然runの新error codeと実個体不足fieldは未確認、実納品・検収・精算のDoneではない。
+- CFO容量の現read-only snapshotは上限8、live6/未失効reservation2、CFO deterministic borrow queue510323/effect_unknown0/next_eligible0。現容量available false、support deterministic上限2/revenue floor3。`_durable_capacity` は内部mutationを含むため呼ばず、RO SQLite/plist/pid照合とpure predicateだけ使用。証拠 `cfo-capacity-current-readonly.json`。これは現在snapshotであり11:10過去失敗の同時再現ではない。共有capや台帳を変更せずキュー待ちを保持する。
+- 残29/current1を維持。次は新Paid SHAの自然診断・既存契約の不足情報を確認し、具体的原因に対応する次の安全な納品作業へ進む。
