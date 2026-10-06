@@ -284,7 +284,7 @@ async def _serve_hidden_tab(url, owner=None):
                         break
             finally:
                 target_ownership.release_target(target_id, owner)
-                _release_context_if_idle(owner)
+                await asyncio.to_thread(_release_context_if_idle, owner)
 
 
 def close_tab(target_id, owner=None):

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import hashlib
+import importlib.util
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 from skills.cfo import economic_attribution as contract
 
@@ -67,6 +70,19 @@ def bind_revenuecat_hash(row):
         "reason": source.get("reason"),
         "data": source.get("data"),
     })
+
+
+def load_business_outcomes_producer():
+    path = (
+        Path(__file__).parent.parent / "earn" / "marketing-engine" / "measure"
+        / "business_outcomes.py"
+    )
+    spec = importlib.util.spec_from_file_location("cfo_business_outcomes", path)
+    if not spec or not spec.loader:
+        raise AssertionError("business_outcomes producer is not importable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def bind_financial_report_hash(rows):
@@ -674,6 +690,96 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             for row in records
         ))
 
+    def test_mobile_mrr_accepts_six_observations_spread_over_5660180_microseconds(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        observed_times = (
+            "2026-09-30T23:59:54.339748Z",
+            "2026-09-30T23:59:55.471784Z",
+            "2026-09-30T23:59:56.603820Z",
+            "2026-09-30T23:59:57.735856Z",
+            "2026-09-30T23:59:58.867892Z",
+            "2026-09-30T23:59:59.999928Z",
+        )
+        expected_by_product = {}
+        for row, observed_at in zip(rows, observed_times, strict=True):
+            row["observed_at"] = observed_at
+            expected_by_product[row["product_id"]] = observed_at
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertEqual({
+            row["subscription_id"].split(":")[1]: row["observed_at"]
+            for row in snapshots
+        }, expected_by_product)
+        mrr_coverage = next(
+            row for row in records if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        )
+        financial_coverage = next(
+            row for row in records if row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+        )
+        self.assertEqual(mrr_coverage["coverage_state"], "complete")
+        self.assertIsNone(mrr_coverage["reason"])
+        self.assertEqual(financial_coverage["coverage_state"], "gap")
+        self.assertEqual(financial_coverage["reason"], "stale_readback")
+        projected = contract.project(
+            records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["currencies"], {
+            "JPY": "3000",
+        })
+
+    def test_mobile_mrr_accepts_24_hours_and_rejects_older_or_future_observations(self):
+        module = self.require_adapter()
+        cases = (
+            ("2026-09-30T00:00:00Z", "complete", None),
+            ("2026-09-29T23:59:59.999999Z", "gap", "stale_readback"),
+            ("2026-10-01T00:00:00.000001Z", "gap", "stale_readback"),
+        )
+        for observed_at, expected_state, expected_reason in cases:
+            with self.subTest(observed_at=observed_at):
+                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                for row in rows:
+                    row["observed_at"] = observed_at
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                mrr_coverage = next(
+                    row for row in records if row["record_type"] == "coverage"
+                    and row["source_id"] == "revenuecat-mrr"
+                )
+                self.assertEqual(mrr_coverage["coverage_state"], expected_state)
+                self.assertEqual(mrr_coverage["reason"], expected_reason)
+
+    def test_mobile_mrr_rejects_one_25_hour_old_product_when_five_are_current(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["observed_at"] = "2026-09-29T23:00:00Z"
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = [row for row in records if row["record_type"] == "subscription_snapshot"]
+        self.assertEqual(len(snapshots), 6)
+        self.assertEqual(
+            max(row["observed_at"] for row in snapshots),
+            SNAPSHOT.replace("Z", ".000000Z"),
+        )
+        self.assertEqual({
+            (row["coverage_state"], row["reason"])
+            for row in records if row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+        }, {("gap", "stale_readback")})
+        projected = contract.project(
+            records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["status"], "unknown")
+        self.assertEqual(projected["mrr"]["loops"]["mobile-apps"]["currencies"], {})
+
     def test_mobile_empty_financial_report_requires_envelope_product_identity(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
@@ -1095,7 +1201,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         }
         self.assertEqual(snapshots["revenuecat:anicca-ios:mrr"], "3000.5")
 
-    def test_mobile_current_producer_shape_is_explicit_fail_closed_input(self):
+    def test_incomplete_revenuecat_shape_remains_fail_closed(self):
         records = self.adapt_mobile("mobile-current-producer.json")
         self.assert_contract_records(records)
         self.assertFalse(any(
@@ -1104,6 +1210,69 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertEqual({
             row["source_id"] for row in records if row["record_type"] == "coverage"
         }, {"app-store-connect-financial", "revenuecat-mrr"})
+
+    def test_business_outcomes_revenuecat_envelope_reaches_mobile_mrr_consumer(self):
+        module = self.require_adapter()
+        producer = load_business_outcomes_producer()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        produced_mrr_periods = []
+        for row in rows:
+            cohort = int(datetime.fromisoformat(row["business_date"]).replace(
+                tzinfo=timezone.utc,
+            ).timestamp())
+            app_id = module.MOBILE_PRODUCT_BINDINGS[row["product_id"]][
+                "revenuecat_app_id"
+            ]
+            body = {
+                "start_date": cohort - 27 * 24 * 60 * 60,
+                "end_date": cohort,
+                "yaxis_currency": "USD",
+                "measures": [{"display_name": "MRR"}],
+                "periods": None,
+                "values": [{
+                    "cohort": cohort,
+                    "measure": 0,
+                    "value": row["sources"]["revenuecat"]["data"]["charts"]
+                    ["mrr"]["latest_complete"]["MRR"]["value"],
+                    "incomplete": False,
+                }],
+            }
+            options = {
+                "filters": [{"id": "app_id", "options": [{"id": app_id}]}],
+            }
+            with (
+                mock.patch.object(producer, "RC_CHARTS", ("mrr",)),
+                mock.patch.object(producer, "http_json", side_effect=[options, body]),
+                mock.patch.object(producer, "revenuecat_products", return_value={}),
+                mock.patch.object(producer, "collect_asc", return_value={}),
+                mock.patch.object(producer, "collect_asc_sales", return_value=({}, {})),
+                mock.patch.object(producer, "collect_mixpanel", return_value={}),
+            ):
+                snapshot = producer.collect_snapshot(
+                    {
+                        "REVENUECAT_PROJECT_ID": "fixture-project",
+                        "REVENUECAT_V2_SECRET_KEY": "fixture-token",
+                    },
+                    row["product_id"],
+                    row["business_date"],
+                )
+            point = snapshot["sources"]["revenuecat"]["data"]["charts"][
+                "mrr"
+            ]["latest_complete"]["MRR"]
+            produced_mrr_periods.append(point["period"])
+            row["sources"]["revenuecat"] = snapshot["sources"]["revenuecat"]
+
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assert_contract_records(records)
+        snapshots = {
+            row["subscription_id"]: row["normalized_monthly_amount"]
+            for row in records if row["record_type"] == "subscription_snapshot"
+        }
+        self.assertEqual(len(snapshots), len(module.MOBILE_PRODUCTS))
+        self.assertEqual(snapshots["revenuecat:anicca-ios:mrr"], "3000")
+        self.assertEqual(produced_mrr_periods, [row["business_date"] for row in rows])
 
     def test_mobile_partial_stale_unsupported_and_missing_sources_fail_closed(self):
         partial = self.adapt_mobile("mobile-partial.jsonl")

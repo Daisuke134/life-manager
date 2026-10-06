@@ -4945,10 +4945,205 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         }]
         return base + list(extra)
 
+    def _ebook_pre_effect_claim(self, error_detail="LM_DATA_DIR is required"):
+        owner = "ebook-ja-tiktok-daily"
+        occurrence = f"{owner}:slot-20261006-2000"
+        owner_run_id = occurrence.split(":", 1)[1]
+        execution_run_id = "execution-20261006-2009"
+        owner_summary_ref = f"lm-loop://{owner}/{owner_run_id}/summary.json"
+        execution_summary_ref = f"lm-loop://{owner}/{execution_run_id}/summary.json"
+        claim_ref = f"lm-occurrence://{owner}/{owner_run_id}/claim"
+        entry = {
+            "effect_class": "publish",
+            "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+            "state_root": "/private/state/ebook",
+        }
+        rows = [
+            {
+                "loop_id": owner, "run_id": owner_run_id,
+                "occurrence_id": occurrence, "phase": "execute",
+                "status": "running", "effect_class": "publish",
+                "effect_status": "started", "blocker": None,
+                "evidence_refs": [owner_summary_ref], "event_id": "a" * 24,
+                "timestamp": "2026-10-06T11:29:08+00:00",
+            },
+            {
+                "loop_id": owner, "run_id": execution_run_id,
+                "occurrence_id": occurrence, "phase": "report",
+                "status": "fail", "effect_class": "publish",
+                "effect_status": "unknown", "blocker": "entrypoint_exit_1",
+                "error_class": "entrypoint_exit_1", "error_detail": error_detail,
+                "evidence_refs": [execution_summary_ref, claim_ref], "event_id": "b" * 24,
+                "timestamp": "2026-10-06T11:29:09+00:00",
+            },
+        ]
+        return owner, occurrence, entry, rows
+
+    def test_ebook_data_dir_failure_follows_the_exact_claiming_run_as_pre_effect(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["proof_type"], "pre_effect")
+        self.assertEqual(proof["blocker"], "entrypoint_exit_1")
+        self.assertEqual(
+            proof["evidence_refs"],
+            [
+                "lm-event://ebook-ja-tiktok-daily/slot-20261006-2000/" + "a" * 24,
+                "lm-event://ebook-ja-tiktok-daily/execution-20261006-2009/" + "b" * 24,
+            ],
+        )
+
+    def test_ebook_pre_effect_is_exact_to_the_data_dir_error(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
+            "LM_POSTIZ_API_KEY is required",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "no_pre_effect_terminal")
+
+    def test_ebook_tenant_id_error_is_pre_effect(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
+            "LM_RUNTIME_TENANT_ID is required",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["proof_type"], "pre_effect")
+        self.assertEqual(proof["blocker"], "entrypoint_exit_1")
+
+    def test_ebook_pre_effect_uses_exact_occurrence_without_claim_uri(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        rows[1]["evidence_refs"] = [
+            ref for ref in rows[1]["evidence_refs"]
+            if not ref.startswith("lm-occurrence://")
+        ]
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["occurrence_id"], occurrence)
+
+    def test_ebook_pre_effect_rejects_an_extra_unresolved_run_for_the_occurrence(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        rows.append({
+            "loop_id": owner, "run_id": "execution-20261006-2010",
+            "occurrence_id": occurrence, "phase": "execute", "status": "running",
+            "effect_class": "publish", "effect_status": "started",
+            "blocker": None,
+            "evidence_refs": [
+                f"lm-loop://{owner}/execution-20261006-2010/summary.json",
+            ],
+            "event_id": "c" * 24, "timestamp": "2026-10-06T11:29:10+00:00",
+        })
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "unexpected_events")
+
+    def test_ebook_pre_effect_rejects_foreign_claim_without_occurrence_id(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        wake_id = occurrence.split(":", 1)[1]
+        rows.append({
+            "loop_id": owner, "run_id": "foreign-execution", "phase": "report",
+            "status": "fail", "effect_class": "publish", "effect_status": "unknown",
+            "blocker": "entrypoint_exit_1", "error_class": "entrypoint_exit_1",
+            "error_detail": "LM_DATA_DIR is required",
+            "evidence_refs": [
+                f"lm-loop://{owner}/foreign-execution/summary.json",
+                f"lm-occurrence://{owner}/{wake_id}/claim",
+            ],
+            "event_id": "d" * 24, "timestamp": "2026-10-06T11:29:10+00:00",
+        })
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "claimed_by_multiple_runs")
+
+    def test_ebook_pre_effect_rejects_claim_with_conflicting_occurrence_id(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        wake_id = occurrence.split(":", 1)[1]
+        rows.append({
+            "loop_id": owner, "run_id": "foreign-execution",
+            "occurrence_id": f"{owner}:other-slot", "phase": "report",
+            "status": "fail", "effect_class": "publish", "effect_status": "unknown",
+            "blocker": "entrypoint_exit_1", "error_class": "entrypoint_exit_1",
+            "error_detail": "LM_DATA_DIR is required",
+            "evidence_refs": [
+                f"lm-loop://{owner}/foreign-execution/summary.json",
+                f"lm-occurrence://{owner}/{wake_id}/claim",
+            ],
+            "event_id": "e" * 24, "timestamp": "2026-10-06T11:29:10+00:00",
+        })
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "claim_occurrence_mismatch")
+
+    def test_ebook_pre_effect_rejects_effect_reference_in_legacy_run_row(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        execution_run_id = occurrence.split(":", 1)[1]
+        rows.append({
+            "loop_id": owner, "run_id": execution_run_id, "phase": "report",
+            "status": "fail", "effect_class": "publish", "effect_status": "unknown",
+            "blocker": "entrypoint_exit_1", "error_class": "entrypoint_exit_1",
+            "error_detail": "LM_DATA_DIR is required",
+            "evidence_refs": [
+                f"lm-loop://{owner}/{execution_run_id}/summary.json",
+                "lm-effect://postiz/posts/provider-post-1",
+            ],
+            "event_id": "f" * 24, "timestamp": "2026-10-06T11:29:10+00:00",
+        })
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "effect_ref_present")
+
+    def test_ebook_terminal_only_proof_checks_suffix_run_legacy_effect_rows(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        terminal = rows[1]
+        suffix_run_id = occurrence.split(":", 1)[1]
+        legacy_effect = {
+            "loop_id": owner, "run_id": suffix_run_id, "phase": "report",
+            "status": "fail", "effect_class": "publish", "effect_status": "unknown",
+            "blocker": "entrypoint_exit_1", "error_class": "entrypoint_exit_1",
+            "error_detail": "LM_DATA_DIR is required",
+            "evidence_refs": ["lm-effect://postiz/posts/provider-post-2"],
+            "event_id": "9" * 24, "timestamp": "2026-10-06T11:29:07+00:00",
+        }
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", [terminal, legacy_effect],
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "effect_ref_present")
+
+    def test_ebook_pre_effect_rejects_conflicting_duplicate_event_id(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
+        terminal = dict(rows[1])
+        terminal["evidence_refs"] = [
+            ref for ref in terminal["evidence_refs"]
+            if not ref.startswith("lm-occurrence://")
+        ] + ["lm-effect://postiz/posts/provider-post-collision"]
+        rows.append(terminal)
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "duplicate_event_id")
+
     def test_rejects_when_another_run_claimed_the_occurrence(self):
         occurrence = f"{self.OWNER}:runA"
+        wake_id = occurrence.split(":", 1)[1]
         foreign = {"loop_id": self.OWNER, "run_id": "runB", "phase": "report", "status": "fail",
-                   "evidence_refs": [f"lm-occurrence://{self.OWNER}/{occurrence}/claim"],
+                   "evidence_refs": [f"lm-occurrence://{self.OWNER}/{wake_id}/claim"],
                    "event_id": "e2", "timestamp": "2026-09-20T00:05:00+00:00"}
         proof, reason = lm_loop._pre_effect_occurrence_proof(
             self.OWNER, self.ENTRY, occurrence, "released", self._rows([foreign]))

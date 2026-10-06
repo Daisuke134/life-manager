@@ -367,3 +367,35 @@ row while an earlier row is unfinished.
 | C02 | Run the next natural wake after release. | Submit and release both report `duplicate_effect=0`. |
 | D01 | Read official sales and payout state. | Provider receipt records actual revenue or zero. |
 | D02 | Change exactly one creative decision and start the next set. | Next-set plan names the evidence, hypothesis, and one changed variable. |
+
+## 2026-10-05 update: factory loop (supersedes the Runware/A-B-C-D plan above)
+
+The provider changed from Runware to fal Seedance lite (`skills/earn/line-sticker/seedance_set.py`,
+reused unmodified: `clips`/`apng`/`package`), and set-002 ("もちハム（動く）", product id 48067450) was
+submitted manually end to end and is `審査待ち`. This section documents the hourly **factory** that
+now automates the same path for every future set, in `skills/earn/line-sticker/factory.py`.
+
+- **State machine**: one wake advances the newest open `set-NNN/` directory by exactly one stage —
+  `plan -> character -> clips -> apng -> select -> package -> submit -> submitted` — and persists a
+  `stage.json` marker plus running `cost_usd`. A new set starts only when no set is mid-pipeline and
+  fewer than `LINE_STICKER_MAX_SETS_PER_DAY` (default 2) started today JST. A cost cap
+  (`LINE_STICKER_MAX_USD_PER_SET`, default 4) halts a set before any further paid stage.
+- **Judgment goes through the model only.** `line_sticker_planner.py` calls
+  `runtime/agent-runner/agent_runner.py` (task class `marketing-agent`, reused — no new task class)
+  for: the 30-motion plan + listing copy (`plan()`), and the 24-of-30 selection + main/tab + tags +
+  taste/character category off the existing `candidates-sheet.png` contact sheet (`selector()`).
+  Both are schema-validated against `schemas/plan.schema.json` / `schemas/selection.schema.json`.
+  `character_image()` is the one deterministic step: gpt-image-2 generates the chroma-green
+  reference, ffmpeg pads it exactly as set-002's was built.
+- **Submit fence**: `line_sticker_submit.py` drives the verified Creators Market flow (create item →
+  upload zip → tag all 24 → request review) as four separate browser sub-steps, each one `submit`
+  stage call. `creators-item.json.state` is the durable cursor
+  (`metadata_saved -> images_uploaded -> tagged -> review_requested`), so a crash or BUSY lease never
+  creates a second item for one set — a later wake reads the existing item's state back and resumes.
+  `submitted` is reached only once `creators-item.json.state == "review_requested"`.
+- **Registry**: `line-sticker-factory-hourly` (Minute 41, `resource_class: browser`,
+  `effect_class: publish`, `admission_class: revenue`), copying `promptbase-loop-daily`'s shape —
+  the closest sibling that also submits to a marketplace through a leased identity browser.
+- **Not built in this pass**: an `effect_reconcile` fence script (promptbase has one; this loop's
+  submit fence lives entirely in `creators-item.json.state` and was judged sufficient for one
+  single-tenant browser identity) and X-side marketing for new sets (row L08 in the unified SSOT).

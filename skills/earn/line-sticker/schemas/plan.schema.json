@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["theme", "character_id", "character_prompt", "motions", "listing"],
+  "properties": {
+    "theme": {"type": "string"},
+    "character_id": {"type": "string"},
+    "character_prompt": {"type": "string"},
+    "motions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "prompt", "start", "seconds", "plays"],
+        "properties": {
+          "id": {"type": "string"},
+          "prompt": {"type": "string"},
+          "start": {"type": ["number", "null"]},
+          "seconds": {"type": ["number", "null"]},
+          "plays": {"type": ["integer", "null"]}
+        }
+      }
+    },
+    "listing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "description"],
+      "properties": {
+        "title": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ja", "en"],
+          "properties": {"ja": {"type": "string"}, "en": {"type": "string"}}
+        },
+        "description": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ja", "en"],
+          "properties": {"ja": {"type": "string"}, "en": {"type": "string"}}
+        }
+      }
+    }
+  }
+}

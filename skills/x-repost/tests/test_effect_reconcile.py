@@ -187,6 +187,45 @@ class EffectReconcileTests(unittest.TestCase):
         self.assertEqual(result["post_url"],
                          "https://x.com/selawmqt/status/2094445556667778888")
 
+    def test_current_release_proves_no_effect_with_exact_readback_only_evidence(self):
+        current_release = "4eb6bbbaeb9a8368895e6391e34e8c895908b0ec"
+        result = self.adapter().build_proof(
+            OCCURRENCE,
+            events(current_release),
+            readback_only_evidence(),
+            empty_listing(),
+            now=FINAL,
+        )
+
+        self.assertIs(result["verified"], True)
+        self.assertIs(result["effected"], False)
+
+    def test_main_release_proves_no_effect_with_exact_readback_only_evidence(self):
+        main_release = "447e5b62693ce67b6ea94aa1993fb2a5a3e5d24b"
+        result = self.adapter().build_proof(
+            OCCURRENCE,
+            events(main_release),
+            readback_only_evidence(),
+            empty_listing(),
+            now=FINAL,
+        )
+
+        self.assertIs(result["verified"], True)
+        self.assertIs(result["effected"], False)
+
+    def test_cjk_fix_release_proves_no_effect_with_exact_readback_only_evidence(self):
+        current_release = "d3d7be63f7de25ddad49d7d8901aaab6d4a0ce66"
+        result = self.adapter().build_proof(
+            OCCURRENCE,
+            events(current_release),
+            readback_only_evidence(),
+            empty_listing(),
+            now=FINAL,
+        )
+
+        self.assertIs(result["verified"], True)
+        self.assertIs(result["effected"], False)
+
     def test_other_release_can_prove_exact_postiz_effect_but_not_no_effect(self):
         positive = self.adapter().build_proof(
             OCCURRENCE, events(OTHER_RELEASE_SHA), published_evidence(),
@@ -302,7 +341,24 @@ class EffectReconcileTests(unittest.TestCase):
         self.assertIsNotNone(rows)
         self.assertEqual(rows[0]["loop_id"], OWNER)
 
-    def test_fence_queued_at_must_match_exact_event_start_before_readbacks(self):
+    def test_fence_queued_at_may_precede_start_after_capacity_wait(self):
+        calls = []
+        queued_at = START.timestamp() - 600
+        result = self.adapter().reconcile(
+            OCCURRENCE,
+            now=FINAL,
+            events_fn=lambda _occurrence: events(),
+            fenced_row_fn=lambda _owner, _occurrence: ("claimed", queued_at),
+            evidence_fn=lambda _start, _reported: calls.append("evidence")
+            or readback_only_evidence(),
+            postiz_fn=lambda _start, _end: calls.append("postiz") or empty_listing(),
+        )
+
+        self.assertIs(result["verified"], True)
+        self.assertIs(result["effected"], False)
+        self.assertEqual(calls, ["evidence", "postiz"])
+
+    def test_fence_queued_at_after_attempt_start_stays_fenced(self):
         calls = []
         fence_calls = []
         result = self.adapter().reconcile(

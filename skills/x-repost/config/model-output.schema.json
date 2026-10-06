@@ -54,6 +54,24 @@
       "type": ["array", "null"],
       "items": {"type": "string"}
     },
+    "detected_language": {
+      "type": ["string", "null"],
+      "description": "ISO 639-1 code for the final post language; null for non-final generations."
+    },
+    "facts": {
+      "type": ["array", "null"],
+      "description": "Harvested reusable facts for the daily digest; null for other stages.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fact": {"type": "string"},
+          "measured_on": {"type": "string"},
+          "source": {"type": "string"}
+        },
+        "required": ["fact", "measured_on", "source"]
+      }
+    },
     "value_types": {
       "type": ["array", "null"],
       "items": {"type": "string"}
@@ -79,6 +97,8 @@
     "spam_risk",
     "unsupported_claims",
     "near_duplicate_post_ids",
+    "detected_language",
+    "facts",
     "value_types",
     "reason"
   ]

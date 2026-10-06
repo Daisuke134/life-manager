@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import threading
+import pytest
 
 import pytest
 
@@ -11,6 +12,14 @@ SPEC = importlib.util.spec_from_file_location("marketplace_reply_kernel_test", M
 reply_kernel = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(reply_kernel)
+
+PLANNER_MODULE = Path(__file__).parents[1] / "scripts" / "reply_planner.py"
+PLANNER_SPEC = importlib.util.spec_from_file_location(
+    "marketplace_reply_planner_kernel_test", PLANNER_MODULE
+)
+planner_module = importlib.util.module_from_spec(PLANNER_SPEC)
+assert PLANNER_SPEC and PLANNER_SPEC.loader
+PLANNER_SPEC.loader.exec_module(planner_module)
 
 
 def event(thread="thread-1", latest="buyer-1"):
@@ -570,6 +579,32 @@ def test_human_gate_is_durable_pending_and_does_not_block_another_thread(tmp_pat
     assert [effect["thread_id"] for effect in adapter.effects] == ["ready"]
 
 
+def test_planner_missing_facts_waits_without_effect_or_human_notification(tmp_path):
+    class MissingFacts(RuntimeError):
+        remaining_work = ["本人の回答"]
+
+    def compose(_context):
+        raise MissingFacts()
+
+    adapter = Adapter()
+    notices = []
+    planner = planner_module.ReplyPlanner(compose)
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=planner,
+        state_root=tmp_path,
+        max_workers=1,
+        human_notify=lambda row, decision: notices.append((row, decision)),
+    )
+
+    assert result["pending"] == 1
+    assert result["failed"] == 0
+    assert result["effect"] == 0
+    assert result["items"][0]["reason"] == "reply_facts_required"
+    assert adapter.effects == []
+    assert notices == []
+
+
 def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_path,
                                                                             monkeypatch):
     adapter = Adapter([event("human", "buyer-1"), event("ready", "buyer-2")])
@@ -719,6 +754,162 @@ def test_delivery_unknown_never_blindly_replays_same_intent(tmp_path):
     assert len(adapter.effects) == 1
 
 
+@pytest.mark.parametrize("scenario", ["same_reply", "different_estimate", "noop"])
+def test_reconcile_unknown_reply_or_estimate_fences_new_event_until_old_readback(
+        tmp_path, scenario):
+    old_row = event(latest="event-A")
+    new_row = event(latest="event-B")
+    if scenario == "same_reply":
+        old_action, old_payload = "reply", {"body": "same"}
+        decision = {"action": "reply", "payload": {"body": "same"}}
+        readback = {"authoritative_absent": True}
+    elif scenario == "different_estimate":
+        old_action, old_payload = "estimate", {"quote": "old"}
+        decision = {"action": "estimate", "payload": {"quote": "new"}}
+        readback = {"authoritative_absent": False}
+    else:
+        old_action, old_payload = "reply", {"body": "old"}
+        decision = {"action": "noop", "classification": "no_reply"}
+        readback = {"authoritative_absent": True}
+    old_intent = reply_kernel._intent(old_row, {
+        "action": old_action, "payload": old_payload,
+    })
+    path = reply_kernel._state_path(tmp_path, old_row)
+    reply_kernel._write(path, {
+        "version": 1,
+        "inventory_event_id": "event-A",
+        "observation": old_row,
+        "intent": old_intent,
+        "status": "reconcile_unknown",
+        "occurrence_id": "fixture-reply:run-A",
+    })
+    before = path.read_bytes()
+
+    class UnknownOldIntent(Adapter):
+        def __init__(self):
+            super().__init__([new_row])
+            self.readbacks = []
+            self.context_calls = 0
+
+        def context(self, thread_id):
+            self.context_calls += 1
+            return super().context(thread_id)
+
+        def readback(self, intent):
+            self.readbacks.append(dict(intent))
+            return dict(readback)
+
+    adapter = UnknownOldIntent()
+    decisions = []
+
+    def decide(context):
+        decisions.append(context)
+        return decision
+
+    result = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path,
+    )
+
+    assert result["items"][0]["reason"] == "reconcile_unknown"
+    assert result["items"][0]["status"] == "pending"
+    assert result["effect"] == 0
+    assert adapter.readbacks == [old_intent]
+    assert adapter.context_calls == 0
+    assert decisions == []
+    assert adapter.effects == []
+    assert path.read_bytes() == before
+
+
+def test_verified_old_unknown_receipt_keeps_event_binding_then_processes_new_event(
+        tmp_path, monkeypatch):
+    old_row = event(latest="event-A")
+    new_row = event(latest="event-B")
+    old_intent = reply_kernel._intent(old_row, {
+        "action": "reply", "payload": {"body": "same semantic content"},
+    })
+    path = reply_kernel._state_path(tmp_path, old_row)
+    reply_kernel._write(path, {
+        "version": 1,
+        "inventory_event_id": "event-A",
+        "observation": old_row,
+        "intent": old_intent,
+        "status": "reconcile_unknown",
+        "occurrence_id": "fixture-reply:run-A",
+    })
+    monkeypatch.delenv("LIFE_MANAGER_RESULT_HINT_PATH", raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-B")
+
+    class OldReceiptThenNewEffect(Adapter):
+        def __init__(self):
+            super().__init__([new_row])
+            self.readbacks = []
+
+        def readback(self, intent):
+            self.readbacks.append(dict(intent))
+            if intent["latest_event_id"] == "event-A":
+                return {
+                    "verified": True,
+                    "provider_receipt_id": "provider-receipt-A",
+                    "observed_at": "2026-10-05T00:00:01Z",
+                }
+            return super().readback(intent)
+
+    adapter = OldReceiptThenNewEffect()
+    decisions = []
+    notifications = []
+
+    def decide(context):
+        decisions.append(context)
+        return {"action": "reply", "payload": {"body": "same semantic content"}}
+
+    def notify(intent, receipt):
+        notifications.append((intent["latest_event_id"], receipt["provider_receipt_id"]))
+        return {"delivery": "delivered"}
+
+    first = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
+    )
+    saved_old = reply_kernel._load(path)
+    assert first["items"][0]["reason"] == "replay_zero"
+    assert first["effect"] == 0
+    assert decisions == []
+    assert adapter.effects == []
+    assert saved_old["inventory_event_id"] == "event-A"
+    assert saved_old["observation"]["latest_event_id"] == "event-A"
+    assert saved_old["intent"]["latest_event_id"] == "event-A"
+    assert saved_old["occurrence_id"] == "fixture-reply:run-A"
+    assert saved_old["receipt"]["provider_receipt_id"] == "provider-receipt-A"
+    assert notifications == [("event-A", "provider-receipt-A")]
+
+    second = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
+    )
+    saved_new = reply_kernel._load(path)
+    assert second["items"][0]["reason"] == "submitted"
+    assert second["effect"] == 1
+    assert len(adapter.effects) == 1
+    new_intent = adapter.effects[0]
+    assert new_intent["latest_event_id"] == "event-B"
+    assert new_intent["content_sha256"] == old_intent["content_sha256"]
+    assert new_intent["effect_key"] != old_intent["effect_key"]
+    assert saved_new["inventory_event_id"] == "event-B"
+    assert saved_new["observation"]["latest_event_id"] == "event-B"
+    assert saved_new["occurrence_id"] == "fixture-reply:run-B"
+    assert notifications == [
+        ("event-A", "provider-receipt-A"),
+        ("event-B", "message-1"),
+    ]
+
+    replay = reply_kernel.run_wake(
+        adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
+    )
+    assert replay["items"][0]["reason"] == "replay_zero"
+    assert replay["effect"] == 0
+    assert len(adapter.effects) == 1
+    assert len(decisions) == 1
+    assert len(notifications) == 2
+
+
 def test_readback_exception_after_intent_preserves_reconcile_fence(tmp_path):
     class ReadbackBreaksAfterEffect(Adapter):
         def __init__(self):
@@ -746,6 +937,183 @@ def test_readback_exception_after_intent_preserves_reconcile_fence(tmp_path):
     assert replay["effect"] == 0
     assert replay["items"][0]["reason"] == "replay_zero"
     assert len(adapter.effects) == 1
+
+
+@pytest.mark.parametrize(("failure_phase", "expected_phase"), [
+    ("observe_after_intent", "observe_after_intent"),
+    ("readback_before_mutate", "readback_before_mutate"),
+    ("mutate", "mutate"),
+    ("readback_after_mutate", "readback_after_mutate"),
+])
+def test_intent_boundary_errors_persist_safe_phase_provenance(
+    tmp_path, monkeypatch, failure_phase, expected_phase,
+):
+    class BoundaryFails(Adapter):
+        def __init__(self):
+            row = event()
+            row.update({"provider": "coconala", "account_id": "default"})
+            super().__init__([row])
+            self.observe_count = 0
+            self.readback_count = 0
+
+        def observe_one(self, thread_id):
+            self.observe_count += 1
+            if failure_phase == "observe_after_intent" and self.observe_count == 2:
+                raise RuntimeError(
+                    "PRIVATE_BODY_SENTINEL https://private.invalid/thread/private-thread"
+                )
+            return super().observe_one(thread_id)
+
+        def readback(self, intent):
+            self.readback_count += 1
+            if failure_phase == "readback_before_mutate" and self.readback_count == 1:
+                raise RuntimeError("PRIVATE_READBACK_SENTINEL")
+            if failure_phase == "readback_after_mutate" and self.effects:
+                raise RuntimeError("PRIVATE_POST_READBACK_SENTINEL")
+            return super().readback(intent)
+
+        def mutate(self, intent):
+            if failure_phase == "mutate":
+                raise RuntimeError("private_body_secret_42")
+            return super().mutate(intent)
+
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "fixture-run-current")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-occurrence-current")
+    monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", "d" * 40)
+    monkeypatch.delenv("LIFE_MANAGER_RESULT_HINT_PATH", raising=False)
+    adapter = BoundaryFails()
+
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: {
+            "action": "reply", "payload": {"body": "PRIVATE_INTENT_BODY"},
+        },
+        state_root=tmp_path,
+        max_workers=1,
+    )
+
+    assert result["failed"] == 1
+    state_path = next(tmp_path.glob("threads/*/state.json"))
+    state = reply_kernel._load(state_path)
+    diagnostic = state["send_diagnostic"]
+    assert state["status"] == "reconcile_unknown"
+    assert diagnostic["kernel_phase"] == expected_phase
+    assert diagnostic["effect_key"] == state["intent"]["effect_key"]
+    assert diagnostic["effect_status"] == "unknown"
+    assert diagnostic["current_wake_id"] == "fixture-run-current"
+    assert diagnostic["current_claimed_occurrence_id"] == "fixture-occurrence-current"
+    assert diagnostic["stored_intent_occurrence_id"] == "fixture-occurrence-current"
+    assert diagnostic["release_sha"] == "d" * 40
+    assert "PRIVATE_" not in json.dumps(diagnostic)
+    assert "https://private.invalid" not in json.dumps(diagnostic)
+    assert "private-thread" not in json.dumps(diagnostic)
+    assert "PRIVATE_" not in state["last_error_detail"]
+    assert len(adapter.effects) == (1 if failure_phase == "readback_after_mutate" else 0)
+
+
+def test_prior_unknown_observation_error_is_bound_to_old_intent_without_mutating(tmp_path, monkeypatch):
+    row = event(thread="77100999", latest="buyer-event-old")
+    row.update({"provider": "coconala", "account_id": "default"})
+    intent = reply_kernel._intent(row, {
+        "action": "reply", "payload": {"body": "old intent body"},
+    })
+    state_path = reply_kernel._state_path(tmp_path, row)
+    reply_kernel._write(state_path, {
+        "version": 1, "inventory_event_id": row["latest_event_id"],
+        "observation": row, "intent": intent,
+        "occurrence_id": "fixture-admission-old", "status": "reconcile_unknown",
+    })
+
+    class PriorUnknownUnavailable(Adapter):
+        def observe_one(self, _thread_id):
+            raise RuntimeError("collector_unhealthy:unexpected_title")
+
+        def readback(self, _intent):
+            raise AssertionError("unreadable old unknown must not advance to readback")
+
+        def context(self, _thread_id):
+            raise AssertionError("old unknown must not call the decision callback")
+
+        def classify_observation_error(self, error):
+            if str(error) == "collector_unhealthy:unexpected_title":
+                return {"reason": "provider_inbox_observation_unavailable"}
+            return None
+
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "fixture-run-new")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-occurrence-new")
+    monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", "e" * 40)
+    monkeypatch.delenv("LIFE_MANAGER_RESULT_HINT_PATH", raising=False)
+    adapter = PriorUnknownUnavailable([row])
+
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: (_ for _ in ()).throw(
+            AssertionError("old unknown must not be reconsidered")
+        ),
+        state_root=tmp_path,
+        max_workers=1,
+    )
+
+    saved = reply_kernel._load(state_path)
+    diagnostic = saved["send_diagnostic"]
+    assert saved["status"] == "reconcile_unknown"
+    assert diagnostic["kernel_phase"] == "observe_prior_intent"
+    assert diagnostic["effect_key"] == intent["effect_key"]
+    assert diagnostic["effect_status"] == "unknown"
+    assert diagnostic["stored_intent_occurrence_id"] == "fixture-admission-old"
+    assert diagnostic["current_claimed_occurrence_id"] == "fixture-occurrence-new"
+    assert diagnostic["current_wake_id"] == "fixture-run-new"
+    assert diagnostic["error_code"] == "collector_unhealthy:unexpected_title"
+    assert adapter.effects == []
+    assert result["items"][0]["reason"] == "provider_inbox_observation_unavailable"
+
+
+def test_provenance_write_failure_keeps_existing_intent_fence_and_raises(tmp_path, monkeypatch):
+    class ReadbackBreaksAfterEffect(Adapter):
+        def __init__(self):
+            rows = []
+            for thread_id in ("thread-A", "thread-B"):
+                row = event(thread=thread_id, latest=f"buyer-{thread_id}")
+                row.update({"provider": "coconala", "account_id": "default"})
+                rows.append(row)
+            super().__init__(rows)
+
+        def readback(self, intent):
+            if (intent["thread_id"] == "thread-A" and any(
+                item["effect_key"] == intent["effect_key"] for item in self.effects
+            )):
+                raise RuntimeError("PRIVATE_AFTER_EFFECT_SENTINEL")
+            return super().readback(intent)
+
+    adapter = ReadbackBreaksAfterEffect()
+    original_write = reply_kernel._write
+
+    def fail_send_diagnostic(path, value):
+        if "send_diagnostic" in value:
+            raise OSError("diagnostic_storage_failed")
+        return original_write(path, value)
+
+    monkeypatch.setattr(reply_kernel, "_write", fail_send_diagnostic)
+    with pytest.raises(OSError, match="diagnostic_storage_failed"):
+        reply_kernel.run_wake(
+            adapter=adapter,
+            decide=lambda _context: {
+                "action": "reply", "payload": {"body": "PRIVATE_INTENT_BODY"},
+            },
+            state_root=tmp_path,
+            max_workers=2,
+        )
+
+    assert len(adapter.effects) == 2
+    states = {
+        state["intent"]["thread_id"]: state
+        for state in (reply_kernel._load(path) for path in tmp_path.glob("threads/*/state.json"))
+    }
+    assert states["thread-A"]["status"] == "intent_persisted"
+    assert states["thread-A"]["intent"]["effect_key"] in {
+        item["effect_key"] for item in adapter.effects
+    }
+    assert states["thread-B"]["status"] == "verified"
 
 
 def test_classified_observation_error_before_intent_is_pending_with_backoff(tmp_path):

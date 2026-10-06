@@ -107,6 +107,13 @@ def complete_coverage():
             for projection in ("historical", "trailing", "as_of")]
 
 
+def mobile_mrr_coverage(observed_at):
+    row = coverage("mobile-apps", "as_of", observed_at=observed_at,
+                   covered_categories=["mrr"])
+    row["source_id"] = "revenuecat-mrr"
+    return row
+
+
 class EconomicAttributionContractTest(unittest.TestCase):
     def project(self, receipts, coverage_rows=None):
         rows = [*receipts, *(complete_coverage() if coverage_rows is None else coverage_rows)]
@@ -558,6 +565,97 @@ class EconomicAttributionContractTest(unittest.TestCase):
             gap["reason"] in {"stale_readback", "missing_category"}
             for gap in result["historical"]["company"]["coverage_gaps"]
         ))
+
+    def test_mobile_revenuecat_mrr_accepts_only_the_24_hour_window(self):
+        cases = (
+            ("2026-09-30T00:00:00Z", "verified"),
+            ("2026-09-29T23:59:59.999999Z", "unknown"),
+            ("2026-10-01T00:00:00.000001Z", "unknown"),
+        )
+        for observed_at, expected in cases:
+            with self.subTest(observed_at=observed_at):
+                coverage_rows = [
+                    row for row in complete_coverage()
+                    if not (row["product_loop_id"] == "mobile-apps"
+                            and row["projection"] == "as_of")
+                ]
+                coverage_rows.append(mobile_mrr_coverage(observed_at))
+                snapshot = subscription_snapshot(
+                    "revenuecat:mobile:2026-09-30",
+                    subscription_id="revenuecat:mobile-mrr",
+                    loop_id="mobile-apps", provider="revenuecat",
+                    observed_at=observed_at,
+                )
+                result = self.project([snapshot], coverage_rows)["mrr"]["loops"]["mobile-apps"]
+                self.assertEqual(result["status"], expected)
+                if expected == "verified":
+                    self.assertEqual(result["currencies"], {"USD": "30"})
+                else:
+                    self.assertIn("subscription_snapshot_stale", result["reasons"])
+                    self.assertIn("mrr_coverage_unknown", result["reasons"])
+
+    def test_mobile_non_revenuecat_as_of_coverage_keeps_exact_freshness_gate(self):
+        coverage_rows = [
+            row for row in complete_coverage()
+            if not (row["product_loop_id"] == "mobile-apps"
+                    and row["projection"] == "as_of")
+        ]
+        financial_as_of = coverage(
+            "mobile-apps", "as_of", observed_at="2026-09-30T23:59:54.339748Z",
+            covered_categories=["mrr", "liquid_balance"],
+        )
+        coverage_rows.append(financial_as_of)
+        snapshot = subscription_snapshot(
+            "revenuecat:mobile:current", subscription_id="revenuecat:mobile-mrr",
+            loop_id="mobile-apps", provider="revenuecat",
+        )
+        result = self.project([snapshot], coverage_rows)["mrr"]["loops"]["mobile-apps"]
+        self.assertEqual(result["status"], "unknown")
+        self.assertIn("mrr_coverage_unknown", result["reasons"])
+        self.assertIn({
+            "product_loop_id": "mobile-apps", "source_id": "mobile-apps-financial-record",
+            "reason": "stale_readback",
+        }, result["coverage_gaps"])
+
+    def test_daily_mrr_window_does_not_relax_other_snapshots_or_financial_coverage(self):
+        old_at_boundary = "2026-09-30T00:00:00Z"
+        for provider, loop_id in (("stripe", "mobile-apps"),
+                                  ("revenuecat", "capafy")):
+            with self.subTest(provider=provider, loop_id=loop_id):
+                snapshot = subscription_snapshot(
+                    f"{provider}:{loop_id}:old", subscription_id=f"{provider}:{loop_id}",
+                    loop_id=loop_id, provider=provider, observed_at=old_at_boundary,
+                )
+                result = self.project([snapshot])["mrr"]["loops"][loop_id]
+                self.assertEqual(result["status"], "unknown")
+                self.assertIn("subscription_snapshot_stale", result["reasons"])
+
+        cost = receipt(
+            "infra:boundary", provider="infra", revenue_class=None,
+            components=[{"category": "infra_cost", "amount": "1"}],
+        )
+        balance = liquid_balance(observed_at=old_at_boundary)
+        self.assertIn(
+            "liquid_balance_stale",
+            self.project([cost, balance])["runway"]["reasons"],
+        )
+
+        coverage_rows = [
+            row for row in complete_coverage()
+            if not (row["product_loop_id"] == "mobile-apps"
+                    and row["projection"] == "trailing")
+        ]
+        financial = coverage(
+            "mobile-apps", "trailing", observed_at=old_at_boundary,
+            covered_categories=list(m.COUNTED_CATEGORIES),
+        )
+        financial["source_id"] = "app-store-connect-financial"
+        projected = self.project([receipt()], [*coverage_rows, financial])
+        self.assertIn({
+            "product_loop_id": "mobile-apps",
+            "source_id": "app-store-connect-financial",
+            "reason": "stale_readback",
+        }, projected["trailing"]["loops"]["mobile-apps"]["coverage_gaps"])
 
     def test_provider_scoped_identities_do_not_dedupe_other_providers(self):
         same_receipt_id = [

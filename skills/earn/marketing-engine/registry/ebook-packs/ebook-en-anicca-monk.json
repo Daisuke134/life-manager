@@ -4,6 +4,12 @@
   "pack_id": "ebook-en-anicca-monk",
   "language": "en",
   "renderer_id": "heygen-avatar-iv",
+  "heygen": {
+    "avatar_id": "ce6ef33ff2d0484dabf8a13ce059bbe8",
+    "avatar_name": "Wise Buddhist Monk",
+    "voice_id": "8be9884ebd16499fbe0efb274e769ed5",
+    "voice_name": "Simon - Calm & Gentle"
+  },
   "destination_url": "https://aniccaai.com/monk",
   "price": {"amount": 10.99, "currency": "USD"},
   "slots_jst": ["08:00", "14:00", "21:00"],

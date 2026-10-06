@@ -41,3 +41,151 @@ test("late tick scheduler surface has no mail sender dependency", () => {
   const lateTickSource = source.slice(start, end);
   assert.doesNotMatch(lateTickSource, /sendLateNotice|noticeOpts|RESEND_API_KEY/);
 });
+
+test("Web travel skips Calendar work unless the persisted account is currently ACTIVE", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  for (const [accountState, accountId] of [["inactive", "ca-disabled"], ["rebound", "ca-replaced"]]) {
+    let guardCalls = 0, calendarReads = 0;
+    await travelUserOnce({ uid, telegram_chat_id: null, calendar_connected_account_id: accountId, daily_automation_enabled: true }, {
+      apiKey: "provider-key",
+      mapsKey: "maps-key",
+      resolveActiveWebCalendarImpl: async (verifiedUid) => {
+        guardCalls++;
+        assert.equal(verifiedUid, uid);
+        return null;
+      },
+      fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
+    });
+    assert.equal(guardCalls, 1, `${accountState} account must be checked`);
+    assert.equal(calendarReads, 0, `${accountState} account must not read Calendar`);
+  }
+});
+
+test("Web travel proceeds after the persisted exact account passes the ACTIVE gate", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const calendarExpectedIds = [];
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+    fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
+});
+
+test("Web travel rereads persisted controls after ACTIVE await before entering fillTravel", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const order = [];
+  let fillCalls = 0;
+  const preference = { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false };
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => {
+      order.push("active");
+      preference.dailyAutomationEnabled = false;
+      return { accountId: "ca-selected" };
+    },
+    readWebTravelControlStateImpl: async (uid) => {
+      order.push("controls");
+      assert.equal(uid, "lm_11111111-1111-4111-8111-111111111111");
+      return { ...preference };
+    },
+    fillTravel: async () => { fillCalls++; return { inserted: 0, outboundReports: [] }; },
+  });
+
+  assert.deepEqual(order, ["active", "controls"]);
+  assert.equal(fillCalls, 0);
+});
+
+test("Web control-state reader does not default a missing preference row to enabled", async () => {
+  const { readWebTravelControlState } = require("../lib/runtime-preferences.js");
+  const result = await readWebTravelControlState("lm_11111111-1111-4111-8111-111111111111", {
+    supaUrl: "https://supabase.example",
+    supaKey: "service-role-key",
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url));
+      if (parsed.pathname.endsWith("/lm_users")) {
+        return { ok: true, json: async () => [{
+          uid: "lm_11111111-1111-4111-8111-111111111111",
+          telegram_chat_id: null,
+          calendar_enable_pending: false,
+        }] };
+      }
+      return { ok: true, json: async () => [] };
+    },
+  });
+
+  assert.deepEqual(result, { dailyAutomationEnabled: null, disconnectPending: false, enablePending: false });
+});
+
+test("Web travel refuses to switch account after the caller's ACTIVE check", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let calendarReads = 0;
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    expectedCalendarAccountId: "ca-checked-before", daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-rebound-after" }),
+    fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.equal(calendarReads, 0);
+});
+
+test("Web travel skips when the Telegram binding field is unavailable", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let guardCalls = 0, calendarReads = 0;
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => { guardCalls++; return { accountId: "ca-selected" }; },
+    fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.equal(guardCalls, 0);
+  assert.equal(calendarReads, 0);
+});
+
+test("Telegram travel keeps the existing Calendar path without the Web gate", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let guardCalls = 0, calendarReads = 0;
+  await travelUserOnce({ uid: "telegram-user", telegram_chat_id: "101", daily_automation_enabled: true }, {
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => { guardCalls++; return null; },
+    fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.equal(guardCalls, 0);
+  assert.equal(calendarReads, 1);
+});
+
+async function observeOrganCalendarAndCare(uid, telegramChatId) {
+  const { organsUserOnce } = require("../scheduler.js");
+  let calendarReads = 0, careRuns = 0;
+  await organsUserOnce({
+    uid,
+    telegram_chat_id: telegramChatId,
+    daily_automation_enabled: true,
+    notifications_enabled: false,
+  }, Date.UTC(2026, 9, 6), {
+    getEvents: () => null,
+    fetchUpcomingEvents: async () => { calendarReads++; return []; },
+    putEvents: () => {},
+    fetchVerifiedOutcomes: async () => [],
+    mental: async () => null,
+    care: async () => { careRuns++; return null; },
+    log: () => {},
+  });
+  return { calendarReads, careRuns };
+}
+
+test("legacy organ scheduler does not read Calendar or run care for a Web-only tenant", async () => {
+  const result = await observeOrganCalendarAndCare("lm_11111111-1111-4111-8111-111111111111", null);
+  assert.deepEqual(result, { calendarReads: 0, careRuns: 0 });
+});
+
+test("legacy organ scheduler keeps Calendar reads and care for a Telegram tenant", async () => {
+  const result = await observeOrganCalendarAndCare("telegram-user", "101");
+  assert.deepEqual(result, { calendarReads: 1, careRuns: 1 });
+});

@@ -1,8 +1,10 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import shutil
 import subprocess
+import threading
 import pytest
 
 
@@ -11,6 +13,7 @@ SPEC = importlib.util.spec_from_file_location("coconala_reply_adapter_test", MOD
 adapter_module = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(adapter_module)
+reply_kernel = adapter_module._load_shared("reply_kernel")
 
 
 def test_provider_rows_are_normalized_without_owning_lifecycle(tmp_path):
@@ -95,6 +98,225 @@ def test_mutation_and_official_readback_remain_provider_specific(tmp_path):
     adapter.mutate(intent)
     assert adapter.readback(intent)["provider_receipt_id"] == "m2"
     assert effects == ["回答"]
+
+
+@pytest.mark.parametrize(("failure_stage", "expected_phase"), [
+    ("fill", "fill"), ("read_after", "read_after"), ("final_read", "final_read"),
+    ("final_match_missing", "final_read"),
+])
+def test_sender_attaches_safe_stage_to_fill_and_readback_exceptions(
+    tmp_path, monkeypatch, failure_stage, expected_phase,
+):
+    thread_id = "77100003"
+    body = "PRIVATE_BODY_STAGE"
+    context = {"conversation": [{
+        "side": "buyer", "message_id": "buyer-stage", "body": "質問です。",
+    }]}
+
+    class FakeCdpBrowser:
+        read_after_error = None
+        send_network = []
+
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read_before(self):
+            return context, {"last_sender": "buyer"}
+
+        def fill(self, _body):
+            if failure_stage == "fill":
+                raise RuntimeError(f"private URL https://private.invalid/{thread_id}")
+
+        def click(self):
+            self.send_network = [{
+                "method": "POST",
+                "path": f"/mypage/direct_message_ajax/{thread_id}",
+                "status": 200,
+                "outcome": "finished",
+            }]
+
+        def read_after(self):
+            if failure_stage == "read_after":
+                self.read_after_error = {
+                    "error_type": "CollectorUnhealthy",
+                    "error_code": "collector_unhealthy:unexpected_title",
+                }
+                return {"status": "read_failed"}
+            return {"status": "ok"}
+
+        def _read(self):
+            if failure_stage == "final_read":
+                raise adapter_module.snapshot.CollectorUnhealthy("unexpected_title")
+            if failure_stage == "final_match_missing":
+                return ({"conversation": [
+                    *context["conversation"],
+                    {"side": "seller", "message_id": "seller-other", "body": "not the requested reply"},
+                ]}, {"last_sender": "seller"})
+            return context, {"last_sender": "buyer"}
+
+    monkeypatch.setattr(
+        adapter_module.reply_browser, "CoconalaCdpReplyBrowser", FakeCdpBrowser,
+    )
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [],
+    )
+    intent = {
+        "action": "reply", "thread_id": thread_id,
+        "latest_event_id": "buyer-stage", "effect_key": "e" * 64,
+        "payload": {"body": body},
+    }
+
+    with pytest.raises(Exception) as raised:
+        adapter.mutate(intent)
+
+    diagnostic = raised.value._reply_diagnostic
+    assert diagnostic["send_phase"] == expected_phase
+    assert body not in json.dumps(diagnostic)
+    assert thread_id not in json.dumps(diagnostic)
+    assert "https://private.invalid" not in json.dumps(diagnostic)
+    if failure_stage == "read_after":
+        assert diagnostic["cause"] == {
+            "error_type": "CollectorUnhealthy",
+            "error_code": "collector_unhealthy:unexpected_title",
+        }
+
+
+def test_unknown_send_stages_are_bound_to_each_intent_without_private_diagnostics(
+    tmp_path, monkeypatch,
+):
+    thread_ids = ("77100001", "77100002")
+    bodies = {
+        thread_ids[0]: "PRIVATE_BODY_A",
+        thread_ids[1]: "PRIVATE_BODY_B",
+    }
+    event_ids = {
+        thread_ids[0]: "buyer-event-a",
+        thread_ids[1]: "buyer-event-b",
+    }
+    rows = [{
+        "talkroom_id": thread_id,
+        "last_message_identity_sha256": digest,
+    } for thread_id, digest in zip(thread_ids, ("a" * 64, "b" * 64))]
+    barrier = threading.Barrier(2)
+    clicked = []
+
+    def thread_reader(thread_id):
+        return ({"conversation": [{
+            "side": "buyer", "message_id": event_ids[thread_id],
+            "body": f"buyer text for {thread_id}",
+        }]}, {"last_sender": "buyer"})
+
+    class FakeCdpBrowser:
+        def __init__(self, _helper, thread_url, **kwargs):
+            self.thread_id = thread_url.rsplit("/", 1)[-1]
+            self.owner = kwargs["owner"]
+            self.send_network = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read_before(self):
+            assert self.owner == f"coconala-reply-{self.thread_id}"
+            barrier.wait(timeout=5)
+            if self.thread_id == thread_ids[0]:
+                raise adapter_module.snapshot.CollectorUnhealthy("unexpected_title")
+            return thread_reader(self.thread_id)
+
+        def fill(self, body):
+            assert body == bodies[self.thread_id]
+
+        def click(self):
+            clicked.append(self.thread_id)
+            self.send_network = [{
+                "method": "POST",
+                "path": f"/mypage/direct_message_ajax/{self.thread_id}",
+                "status": 200,
+                "outcome": "finished",
+            }]
+            raise adapter_module.reply_browser.BrowserSendFailure(
+                "post_click_read_failed", self.send_network,
+            )
+
+        def read_after(self):
+            raise AssertionError("post-click read must not run after click transport failure")
+
+        def _read(self):
+            raise AssertionError("final read must not run after click transport failure")
+
+    monkeypatch.setattr(
+        adapter_module.reply_browser, "CoconalaCdpReplyBrowser", FakeCdpBrowser,
+    )
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "fixture-current-run")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-current-wake")
+    monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", "c" * 40)
+    monkeypatch.delenv("LIFE_MANAGER_RESULT_HINT_PATH", raising=False)
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path / "state",
+        inventory_reader=lambda: rows,
+        thread_reader=thread_reader,
+    )
+
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda row: {
+            "action": "reply",
+            "payload": {"body": bodies[row["thread_id"]]},
+        },
+        state_root=tmp_path / "state",
+        max_workers=2,
+    )
+
+    assert len(clicked) == 1 and clicked == [thread_ids[1]]
+    assert result["failed"] == 1
+    assert result["pending"] == 1
+    states = {
+        state["intent"]["thread_id"]: state
+        for state in (reply_kernel._load(path) for path in (tmp_path / "state").glob("threads/*/state.json"))
+    }
+    assert set(states) == set(thread_ids)
+    for thread_id in thread_ids:
+        state = states[thread_id]
+        diagnostic = state["send_diagnostic"]
+        intent = state["intent"]
+        assert state["status"] == "reconcile_unknown"
+        assert diagnostic["effect_key"] == intent["effect_key"]
+        assert diagnostic["effect_status"] == "unknown"
+        assert diagnostic["content_sha256"] == intent["content_sha256"]
+        assert diagnostic["current_wake_id"] == "fixture-current-run"
+        assert diagnostic["current_claimed_occurrence_id"] == "fixture-current-wake"
+        assert diagnostic["stored_intent_occurrence_id"] == "fixture-current-wake"
+        assert diagnostic["release_sha"] == "c" * 40
+        assert diagnostic["thread_identity_sha256"] == hashlib.sha256(
+            f"coconala\0default\0{thread_id}".encode()
+        ).hexdigest()
+        assert diagnostic["event_identity_sha256"] == hashlib.sha256(
+            event_ids[thread_id].encode()
+        ).hexdigest()
+        assert thread_id not in json.dumps(diagnostic)
+        assert bodies[thread_id] not in json.dumps(diagnostic)
+        assert "https://coconala.com" not in json.dumps(diagnostic)
+        assert "default" not in json.dumps(diagnostic)
+
+    assert states[thread_ids[0]]["send_diagnostic"]["send_phase"] == "read_before"
+    assert states[thread_ids[0]]["send_diagnostic"]["network_summary"]["request_count"] == 0
+    assert states[thread_ids[1]]["send_diagnostic"]["send_phase"] == "click_started"
+    summary = states[thread_ids[1]]["send_diagnostic"]["network_summary"]
+    assert summary == {
+        "request_count": 1,
+        "rows": [{
+            "method": "POST", "request_class": "direct_message_submit",
+            "status": 200, "outcome": "finished",
+        }],
+    }
 
 
 def test_official_sending_restriction_is_the_only_classified_mutation_wait(tmp_path):
@@ -898,6 +1120,148 @@ def test_semantic_composer_projects_validated_judgement_without_provider_decide(
     assert calls[0][1].endswith("/12")
 
 
+@pytest.mark.parametrize(("application_mode", "second_action"), [
+    ("present", "stop"), ("present", "reply"), ("missing", None), ("error", None),
+])
+def test_semantic_composer_hydrates_application_after_real_firstpass_validation(
+    tmp_path, monkeypatch, application_mode, second_action,
+):
+    dom = {
+        "url": "https://coconala.com/mypage/direct_message/12",
+        "title": "メッセージ詳細",
+        "container_present": True,
+        "own_user_path": "/users/seller",
+        "messages": [{
+            "message_id": "buyer-1", "author_path": "/users/buyer",
+            "body": "対応できる場合は購入します。",
+            "sent_at": "2026-09-08T00:01:00Z",
+        }],
+    }
+    empty_audit = {
+        "answered_buyer_message_ids": [], "unanswered_questions": [],
+        "unsupported_claims": [], "unrequested_cta": False,
+        "repeats_seller_message": False, "off_platform_contact": False,
+    }
+    outputs = [{
+        "conversation_state": "question", "next_action": "wait",
+        "cycle_start_message_id": "buyer-1", "evidence_message_ids": ["buyer-1"],
+        "required_official_context": "application", "estimate_terms": None,
+        "reply_body": None, "reply_audit": empty_audit,
+        "uncertainty": ["公式応募条件"],
+    }]
+    if second_action == "stop":
+        outputs.append({
+            "conversation_state": "declined", "next_action": "stop",
+            "cycle_start_message_id": "buyer-1", "evidence_message_ids": [],
+            "required_official_context": "none", "estimate_terms": None,
+            "reply_body": None, "reply_audit": empty_audit, "uncertainty": [],
+        })
+    elif second_action == "reply":
+        outputs.append({
+            "conversation_state": "question", "next_action": "reply",
+            "cycle_start_message_id": "buyer-1", "evidence_message_ids": ["buyer-1"],
+            "required_official_context": "none", "estimate_terms": None,
+            "reply_body": "対応可能です。",
+            "reply_audit": {
+                **empty_audit, "answered_buyer_message_ids": ["buyer-1"],
+            },
+            "uncertainty": [],
+        })
+    runner_prompts = []
+
+    def run_isolated_runner(argv, **kwargs):
+        runner_prompts.append(kwargs["input"])
+        payload = outputs[len(runner_prompts) - 1]
+        evidence = Path(argv[argv.index("--evidence-dir") + 1])
+        evidence.mkdir(parents=True, exist_ok=True)
+        result_path = evidence / "result.json"
+        result_path.write_text(json.dumps(payload), encoding="utf-8")
+        (evidence / "summary.json").write_text(json.dumps({
+            "status": "success", "result_path": str(result_path),
+        }), encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(
+        adapter_module.requested_estimate.subprocess, "run", run_isolated_runner,
+    )
+
+    class Adapter:
+        def __init__(self):
+            self.application_reads = 0
+            self.dom_reads = 0
+            self.effects = []
+
+        def semantic_dom(self, _thread_id):
+            self.dom_reads += 1
+            return dom
+
+        def official_application_context(self, _thread_id):
+            self.application_reads += 1
+            if application_mode == "error":
+                raise RuntimeError("official application unavailable")
+            if application_mode == "missing":
+                return None
+            return {"application": {"proposal_id": "7"}}
+
+        def mutate(self, intent):
+            self.effects.append(intent)
+
+    class RecordingJudge(adapter_module.requested_estimate.SemanticJudge):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.official_inputs = []
+
+        def __call__(self, dom, expected_url, *, official_context=None):
+            self.official_inputs.append(official_context)
+            return super().__call__(dom, expected_url, official_context=official_context)
+
+    judge = RecordingJudge(
+        runner=Path(__file__),
+        schema=(
+            Path(__file__).parents[1] / "schemas" / "reply_semantic_judgement.schema.json"
+        ),
+        workdir=tmp_path,
+        evidence_root=tmp_path / "evidence",
+        seller_facts=[],
+    )
+    adapter = Adapter()
+
+    composer = adapter_module.CoconalaSemanticComposer(adapter, judge)
+    if application_mode == "error":
+        with pytest.raises(RuntimeError, match="official application unavailable"):
+            composer({"thread_id": "12"})
+        assert adapter.application_reads == 1
+        assert adapter.dom_reads == 1
+        assert judge.official_inputs == [None]
+        assert len(runner_prompts) == 1
+        assert adapter.effects == []
+        return
+
+    result = composer({"thread_id": "12"})
+    assert adapter.application_reads == 1
+    assert adapter.effects == []
+    if application_mode == "missing":
+        assert result["next_action"] == "wait"
+        assert result["required_official_context"] == "application"
+        assert result["uncertainty"] == ["公式応募条件"]
+        assert adapter.dom_reads == 1
+        assert judge.official_inputs == [None]
+        assert len(runner_prompts) == 1
+        return
+
+    if second_action == "stop":
+        assert result["conversation_state"] == "declined"
+        assert result["next_action"] == "stop"
+    else:
+        assert result["conversation_state"] == "question"
+        assert result["next_action"] == "reply"
+        assert result["reply_body"] == "対応可能です。"
+    assert adapter.dom_reads == 2
+    assert judge.official_inputs == [None, {"application": {"proposal_id": "7"}}]
+    assert len(runner_prompts) == 2
+    assert "proposal_id" in runner_prompts[1] and "7" in runner_prompts[1]
+
+
 def test_semantic_composer_waits_when_official_estimate_control_is_absent():
     class Adapter:
         def semantic_dom(self, _thread_id):
@@ -1213,3 +1577,176 @@ def test_estimate_post_click_unknown_returns_for_reconciliation_without_retry_si
         estimate_composer=Composer(), estimate_browser_factory=lambda *_args: Browser(),
     )
     assert adapter.mutate(_estimate_intent()) is None
+
+
+_DOM_ORDER_BODY_READER_HARNESS = r"""
+const fs = require("node:fs");
+const input = JSON.parse(fs.readFileSync(0, "utf8"));
+const read = testCase => {
+  const fallbackClass = testCase.modern ? ".message" : ".threadMessage";
+  const fallback = {
+    selector: fallbackClass,
+    innerText: "Parent wrapper with buyer-file.pdf",
+    children: [],
+    querySelectorAll() { return []; },
+  };
+  const original = {
+    selector: ".js-translateMessageOriginalMessage",
+    innerText: "Exact original buyer message",
+    querySelectorAll() { return []; },
+  };
+  // The fallback parent precedes its original-message child in DOM order.
+  if (testCase.has_original) fallback.children.push(original);
+  const bodyNodes = [fallback, ...fallback.children];
+  const selectBody = selector => bodyNodes.find(node =>
+    selector.split(",").map(token => token.trim()).includes(node.selector)) || null;
+  const author = testCase.author_present
+    ? {href: "https://coconala.com/users/buyer", innerText: "Buyer"} : null;
+  const seller = {href: "https://coconala.com/users/seller"};
+  const sentAt = {innerText: "2026-10-05 11:00:00"};
+  const row = {
+    id: null,
+    classList: {contains() { return false; }},
+    getAttribute(name) { return name === "data-message-id" ? "message-123" : null; },
+    querySelector(selector) {
+      if (selector === ".threadMessage") return fallback;
+      if (selector === ".comment-detail") return null;
+      if (selector === '.threadUser a[href*="/users/"]'
+        || selector === '.user-icon[href*="/users/"],a[href*="/smartphone/users/"]') return author;
+      if (selector === ".threadPostTime" || selector === ".message-created") return sentAt;
+      if (selector === fallbackClass || selector === ".js-translateMessageOriginalMessage"
+        || selector.includes(",")) return selectBody(selector);
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+  const container = {
+    querySelectorAll(selector) {
+      return selector === ".threadColomun" || selector === ".bl_message" ? [row] : [];
+    },
+  };
+  globalThis.location = {
+    origin: "https://coconala.com",
+    href: "https://coconala.com/mypage/direct_message/123",
+  };
+  globalThis.document = {
+    title: "メッセージ",
+    body: {innerText: ""},
+    querySelector(selector) {
+      if (selector === ".bl_messages-list") return testCase.modern ? container : null;
+      if (selector === ".js_thread-wrapper") return testCase.modern ? null : container;
+      if (selector === '.sidebar-profile a[href*="/users/"]') return seller;
+      if (selector === ".bl_direct-message-fixed-header") return null;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+  return JSON.parse(eval(testCase.expression));
+};
+process.stdout.write(JSON.stringify(input.cases.map(testCase => ({key: testCase.key, dom: read(testCase)}))));
+"""
+
+
+def _run_body_reader_dom_cases(cases):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to evaluate the browser expressions")
+    result = subprocess.run(
+        [node, "-e", _DOM_ORDER_BODY_READER_HARNESS],
+        input=json.dumps({"cases": cases}),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return {row["key"]: row["dom"] for row in json.loads(result.stdout)}
+
+
+def test_active_message_readers_prioritize_original_and_merge_one_exact_verified_attachment():
+    snapshot = adapter_module.snapshot
+    expressions = {
+        "snapshot": snapshot.DIRECT_MESSAGE_EXPRESSION,
+        "attachments": snapshot._dm_collect_module().DM_THREAD_EXPRESSION,
+    }
+    cases = []
+    for reader, expression in expressions.items():
+        for modern in (False, True):
+            for has_original in (False, True):
+                key = f"{reader}-{modern}-{has_original}"
+                cases.append({
+                    "key": key,
+                    "expression": expression,
+                    "modern": modern,
+                    "has_original": has_original,
+                    "author_present": True,
+                })
+    observed = _run_body_reader_dom_cases(cases)
+    attachment_url = "https://coconala.com/uploaded_files/view/123"
+    attachment = {
+        "url": attachment_url, "filename": "buyer-file.pdf",
+        "bytes": 632406, "sha256": "a" * 64, "content_type": "application/pdf",
+    }
+    for case in cases:
+        key = case["key"]
+        dom = observed[key]
+        expected_body = "Exact original buyer message" if case["has_original"] else "Parent wrapper with buyer-file.pdf"
+        assert len(dom["messages"]) == 1, key
+        message = dom["messages"][0]
+        assert message["body"] == expected_body, key
+        assert message["message_id"] == "message-123", key
+        assert message["author_path"] == "/users/buyer", key
+        assert message["sent_at"] == "2026-10-05 11:00:00", key
+        document = {
+            "messages": [{
+                "message_id": None, "side": "buyer", "text": expected_body,
+                "attachments": [{"url": attachment_url, "filename": "buyer-file.pdf"}],
+            }],
+            "attachment_index": [attachment],
+        }
+        snapshot.merge_verified_dm_attachments(dom, document)
+        assert message["verified_attachments"] == [{
+            "filename": "buyer-file.pdf", "content_type": "application/pdf",
+            "size_bytes": 632406, "sha256": "a" * 64,
+        }], key
+
+        tampered_dom = json.loads(json.dumps(observed[key]))
+        tampered_document = json.loads(json.dumps(document))
+        tampered_document["messages"][0]["text"] += " tampered"
+        with pytest.raises(snapshot.CollectorUnhealthy, match="dm_attachment_message_identity_changed"):
+            snapshot.merge_verified_dm_attachments(tampered_dom, tampered_document)
+
+        duplicate_dom = json.loads(json.dumps(observed[key]))
+        duplicate_dom["messages"].append(json.loads(json.dumps(duplicate_dom["messages"][0])))
+        with pytest.raises(snapshot.CollectorUnhealthy, match="dm_attachment_message_identity_changed"):
+            snapshot.merge_verified_dm_attachments(duplicate_dom, document)
+
+
+def test_active_message_readers_do_not_merge_when_author_identity_is_missing():
+    snapshot = adapter_module.snapshot
+    expressions = {
+        "snapshot": snapshot.DIRECT_MESSAGE_EXPRESSION,
+        "attachments": snapshot._dm_collect_module().DM_THREAD_EXPRESSION,
+    }
+    cases = [{
+        "key": f"{reader}-{modern}",
+        "expression": expression,
+        "modern": modern,
+        "has_original": True,
+        "author_present": False,
+    } for reader, expression in expressions.items() for modern in (False, True)]
+    observed = _run_body_reader_dom_cases(cases)
+    document = {
+        "messages": [{
+            "message_id": None, "side": "buyer", "text": "Exact original buyer message",
+            "attachments": [{"url": "https://coconala.com/uploaded_files/view/123"}],
+        }],
+        "attachment_index": [{
+            "url": "https://coconala.com/uploaded_files/view/123", "filename": "buyer-file.pdf",
+            "bytes": 632406, "sha256": "a" * 64, "content_type": "application/pdf",
+        }],
+    }
+    for case in cases:
+        dom = observed[case["key"]]
+        assert dom["messages"] == [], case["key"]
+        with pytest.raises(adapter_module.snapshot.CollectorUnhealthy, match="dm_attachment_message_identity_changed"):
+            adapter_module.snapshot.merge_verified_dm_attachments(dom, document)

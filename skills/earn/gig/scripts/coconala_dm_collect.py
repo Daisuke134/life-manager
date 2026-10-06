@@ -136,7 +136,7 @@ DM_THREAD_EXPRESSION = r'''(()=>{
     const mine=modern&&row.classList.contains('modi_my-message');
     const author=modern?row.querySelector('.user-icon[href*="/users/"],a[href*="/smartphone/users/"]'):row.querySelector('.threadUser a[href*="/users/"]');
     const time=modern?row.querySelector('.message-created'):row.querySelector('.threadPostTime');
-    const body=modern?row.querySelector('.js-translateMessageOriginalMessage,.message'):row.querySelector('.js-translateMessageOriginalMessage,.threadMessage');
+    const body=row.querySelector('.js-translateMessageOriginalMessage')||(modern?row.querySelector('.message'):row.querySelector('.threadMessage'));
     const scope=modern?(row.querySelector('.comment-detail')||row):(row.querySelector('.threadMessage')||row);
     const attachments=[];
     const push=(url,filename)=>{if(!url||attachments.some(item=>item.url===url))return;attachments.push({url,filename:(filename||'').trim()||null});};

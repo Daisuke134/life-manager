@@ -88,6 +88,12 @@ RC_CHARTS = (
     "subscription_retention",
 )
 
+REVENUECAT_MRR_DEFINITION = {
+    "metric": "mrr",
+    "scope": "active_paid_subscriptions",
+    "normalization": "monthly",
+}
+
 ASC_REPORTS = {
     "downloads": "App Downloads Standard",
     "discovery": "App Store Discovery and Engagement Standard",
@@ -148,7 +154,25 @@ def _period_value(periods: list[Any], index: int) -> Any:
     return value
 
 
-def latest_complete_chart_points(body: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _normalize_mrr_period(value: Any) -> Any:
+    if type(value) is int:
+        try:
+            return dt.datetime.fromtimestamp(value, dt.timezone.utc).date().isoformat()
+        except (OverflowError, OSError, ValueError):
+            return value
+    if isinstance(value, str):
+        try:
+            return dt.date.fromisoformat(value).isoformat()
+        except ValueError:
+            return value
+    return value
+
+
+def latest_complete_chart_points(
+    body: dict[str, Any],
+    *,
+    normalize_period_utc_date: bool = False,
+) -> dict[str, dict[str, Any]]:
     """Return the latest complete value for every measure in a v3 chart.
 
     RevenueCat's current chart values are objects whose ``cohort`` indexes the
@@ -167,9 +191,36 @@ def latest_complete_chart_points(body: dict[str, Any]) -> dict[str, dict[str, An
         if not isinstance(cohort, int):
             continue
         name = _measure_name(measures, measure_index)
+        period = _period_value(periods, cohort)
+        if normalize_period_utc_date:
+            if "cohort" in value:
+                if 0 <= cohort < len(periods):
+                    period = _period_value(periods, cohort)
+                elif not periods:
+                    if "period" in value:
+                        period = value.get("period")
+                    else:
+                        start_date = body.get("start_date")
+                        end_date = body.get("end_date")
+                        # Keep small cohort indexes from becoming Unix-epoch dates.
+                        if (
+                            type(cohort) is int
+                            and type(start_date) is int
+                            and start_date >= 1_000_000_000
+                            and type(end_date) is int
+                            and start_date <= cohort <= end_date
+                        ):
+                            period = cohort
+                        else:
+                            period = None
+                else:
+                    period = None
+            else:
+                period = value.get("period")
+            period = _normalize_mrr_period(period)
         candidates.setdefault(name, []).append({
             "value": value.get("value"),
-            "period": _period_value(periods, cohort),
+            "period": period,
             "period_index": cohort,
             "incomplete": False,
         })
@@ -706,12 +757,17 @@ def collect_revenuecat(
         })
         body = http_json(f"{base}/{chart}?{query}", headers)
         result["charts"][chart] = {
-            "latest_complete": latest_complete_chart_points(body),
+            "latest_complete": latest_complete_chart_points(
+                body, normalize_period_utc_date=(chart == "mrr")
+            ),
             "resolution": body.get("resolution"),
             "start_date": body.get("start_date"),
             "end_date": body.get("end_date"),
             "evidence_sha256": _json_hash(body),
         }
+        if chart == "mrr":
+            result["currency"] = body.get("yaxis_currency")
+            result["revenue_definition"] = dict(REVENUECAT_MRR_DEFINITION)
         if chart == "revenue":
             # Revenue is a flow metric: the queried window is exactly the
             # report's 28-day window (see collect_snapshot), so summing every
@@ -809,7 +865,13 @@ def collect_snapshot(
             data = collect_revenuecat(
                 env, config["revenuecat_app_id"], start, business_date
             )
-            sources["revenuecat"] = available_source(data, evidence_sha256=_json_hash(data))
+            source = available_source(data)
+            source["evidence_sha256"] = _json_hash({
+                "status": source["status"],
+                "reason": source["reason"],
+                "data": source["data"],
+            })
+            sources["revenuecat"] = source
         except Exception as error:
             sources["revenuecat"] = unavailable_source(
                 "provider_query_failed", error=f"{type(error).__name__}: {error}"

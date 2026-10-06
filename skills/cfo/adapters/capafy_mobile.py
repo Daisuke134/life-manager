@@ -928,12 +928,18 @@ def adapt_mobile(
         except (KeyError, TypeError, ValueError, contract.ContractError):
             rc_complete = False
 
-    fresh = bool(observed_values) and all(value == snapshot_at for value in observed_values)
+    financial_fresh = bool(observed_values) and all(
+        value == snapshot_at for value in observed_values
+    )
+    mrr_fresh = bool(observed_values) and all(
+        contract.mobile_mrr_is_fresh(value, snapshot_at) for value in observed_values
+    )
     receipts = financial_receipts if financial_complete else []
-    reason = "stale_readback" if not fresh else "missing_coverage"
+    financial_reason = "stale_readback" if not financial_fresh else "missing_coverage"
+    mrr_reason = "stale_readback" if not mrr_fresh else "missing_coverage"
     trailing_date = datetime.fromisoformat(trailing_start.replace("Z", "+00:00")).date()
     trailing_complete = (
-        fresh and financial_complete and len(report_periods) == len(products)
+        financial_fresh and financial_complete and len(report_periods) == len(products)
         and latest_date == latest_complete_date
         and financial_period is not None and financial_period[1] == latest_complete_date
         and all(
@@ -948,14 +954,14 @@ def adapt_mobile(
             projection="historical", snapshot_at=snapshot_at,
             trailing_start=trailing_start, observed_at=observed_at,
             evidence_ref=f"appstoreconnect://financial-reports/readback/{latest_date.isoformat()}",
-            complete=False, reason=reason, categories=(),
+            complete=False, reason=financial_reason, categories=(),
         ),
         _coverage(
             loop_id=MOBILE_LOOP, source_id="app-store-connect-financial",
             projection="trailing", snapshot_at=snapshot_at,
             trailing_start=trailing_start, observed_at=observed_at,
             evidence_ref=f"appstoreconnect://financial-reports/readback/{latest_date.isoformat()}",
-            complete=trailing_complete, reason=reason,
+            complete=trailing_complete, reason=financial_reason,
             categories=("refund", "settled_external_revenue"),
         ),
         _coverage(
@@ -963,8 +969,8 @@ def adapt_mobile(
             snapshot_at=snapshot_at, trailing_start=trailing_start,
             observed_at=observed_at,
             evidence_ref=f"revenuecat://charts/mrr/readback/{latest_date.isoformat()}",
-            complete=fresh and rc_complete and len(snapshots) == len(products),
-            reason=reason, categories=("mrr",),
+            complete=mrr_fresh and rc_complete and len(snapshots) == len(products),
+            reason=mrr_reason, categories=("mrr",),
         ),
     ]
     return (

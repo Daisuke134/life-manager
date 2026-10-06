@@ -105,6 +105,162 @@ class RevenueCatContractTest(unittest.TestCase):
         body = {"measures": [{"display_name": "Revenue"}], "values": []}
         self.assertIsNone(outcomes.sum_complete_chart_points(body, "Revenue"))
 
+    def test_collect_mrr_exports_cfo_metadata_and_utc_period_without_losing_evidence(self):
+        body = {
+            "yaxis_currency": "USD",
+            "measures": [{"display_name": "MRR"}],
+            "periods": None,
+            "values": [{
+                "period": 1790380800,
+                "value": 20.34,
+                "incomplete": False,
+            }],
+        }
+        options = {
+            "filters": [{
+                "id": "app_id",
+                "options": [{"id": "app-a"}],
+            }],
+        }
+        with mock.patch.object(outcomes, "RC_CHARTS", ("mrr",)):
+            with mock.patch.object(
+                outcomes, "http_json", side_effect=[options, body]
+            ):
+                with mock.patch.object(outcomes, "revenuecat_products", return_value={}):
+                    data = outcomes.collect_revenuecat(
+                        {
+                            "REVENUECAT_PROJECT_ID": "project-fixture",
+                            "REVENUECAT_V2_SECRET_KEY": "test-token",
+                        },
+                        "app-a",
+                        "2026-09-01",
+                        "2026-09-30",
+                    )
+
+        self.assertEqual(data["currency"], "USD")
+        self.assertEqual(data["revenue_definition"], {
+            "metric": "mrr",
+            "scope": "active_paid_subscriptions",
+            "normalization": "monthly",
+        })
+        point = data["charts"]["mrr"]["latest_complete"]["MRR"]
+        self.assertEqual(point["period"], "2026-09-26")
+        self.assertEqual(point["period_index"], 1790380800)
+        expected_body_hash = hashlib.sha256(json.dumps(
+            body, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode()).hexdigest()
+        self.assertEqual(data["charts"]["mrr"]["evidence_sha256"], expected_body_hash)
+        iso_point = outcomes.latest_complete_chart_points({
+            "measures": [{"display_name": "MRR"}],
+            "periods": [{"date": "2026-09-30"}],
+            "values": [{"cohort": 0, "value": 20.34, "incomplete": False}],
+        }, normalize_period_utc_date=True)["MRR"]
+        self.assertEqual(iso_point["period"], "2026-09-30")
+
+    def test_cohort_only_mrr_timestamp_requires_matching_chart_range(self):
+        body = {
+            "start_date": 1788048000,
+            "end_date": 1790380800,
+            "yaxis_currency": "USD",
+            "measures": [{"display_name": "MRR"}],
+            "periods": None,
+            "values": [{
+                "cohort": 1790380800,
+                "incomplete": False,
+                "measure": 0,
+                "value": 20.34,
+            }],
+        }
+
+        point = outcomes.latest_complete_chart_points(
+            body, normalize_period_utc_date=True,
+        )["MRR"]
+        self.assertEqual(point["period"], "2026-09-26")
+        self.assertEqual(point["period_index"], 1790380800)
+
+        unbounded = dict(body)
+        unbounded.pop("start_date")
+        unbounded.pop("end_date")
+        unbounded_point = outcomes.latest_complete_chart_points(
+            unbounded, normalize_period_utc_date=True,
+        )["MRR"]
+        self.assertIsNone(unbounded_point["period"])
+
+        index_zero = dict(body)
+        index_zero.update({"start_date": 0, "end_date": 86400})
+        index_zero["values"] = [{
+            "cohort": 0,
+            "incomplete": False,
+            "measure": 0,
+            "value": 20.34,
+        }]
+        zero_point = outcomes.latest_complete_chart_points(
+            index_zero, normalize_period_utc_date=True,
+        )["MRR"]
+        self.assertIsNone(zero_point["period"])
+
+        out_of_range = dict(body)
+        out_of_range["values"] = [{
+            "cohort": 1790467200,
+            "incomplete": False,
+            "measure": 0,
+            "value": 20.34,
+        }]
+        range_point = outcomes.latest_complete_chart_points(
+            out_of_range, normalize_period_utc_date=True,
+        )["MRR"]
+        self.assertIsNone(range_point["period"])
+
+        invalid_cohort = dict(body)
+        invalid_cohort["values"] = [{
+            "cohort": "invalid",
+            "incomplete": False,
+            "measure": 0,
+            "value": 20.34,
+        }]
+        invalid_points = outcomes.latest_complete_chart_points(
+            invalid_cohort, normalize_period_utc_date=True,
+        )
+        self.assertNotIn("MRR", invalid_points)
+
+    def test_collect_mrr_does_not_default_missing_currency_or_invalid_period(self):
+        body = {
+            "measures": [{"display_name": "MRR"}],
+            "periods": None,
+            "values": [{
+                "cohort": 0,
+                "period": "invalid-period",
+                "value": 20.34,
+                "incomplete": False,
+            }],
+        }
+        options = {
+            "filters": [{
+                "id": "app_id",
+                "options": [{"id": "app-a"}],
+            }],
+        }
+        with mock.patch.object(outcomes, "RC_CHARTS", ("mrr",)):
+            with mock.patch.object(
+                outcomes, "http_json", side_effect=[options, body]
+            ):
+                with mock.patch.object(outcomes, "revenuecat_products", return_value={}):
+                    data = outcomes.collect_revenuecat(
+                        {
+                            "REVENUECAT_PROJECT_ID": "project-fixture",
+                            "REVENUECAT_V2_SECRET_KEY": "test-token",
+                        },
+                        "app-a",
+                        "2026-09-01",
+                        "2026-09-30",
+                    )
+
+        self.assertIsNone(data.get("currency"))
+        point = data["charts"]["mrr"]["latest_complete"]["MRR"]
+        self.assertEqual(point["period"], "invalid-period")
+        self.assertEqual(point["period_index"], 0)
+        self.assertNotEqual(point["period"], "2026-09-30")
+
 
 class AppStoreContractTest(unittest.TestCase):
     def test_download_types_are_never_collapsed_into_installs(self):

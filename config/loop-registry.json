@@ -10,6 +10,7 @@
     "ai.anicca.provision-browser.colors-hachioji.owner-18211957",
     "ai.anicca.provision-browser.instagram.capafy-provision",
     "ai.anicca.provision-browser.tiktok-anicca-jp",
+    "ai.anicca.provision-browser.upwork.dais",
     "ai.anicca.provision-browser.x.anicca",
     "ai.anicca.provision-browser.x.diceai0",
     "ai.anicca.tsbridge"
@@ -852,6 +853,33 @@
       "state_root": "~/.local/state/life-manager/line-sticker",
       "system_role": "shared"
     },
+    "line-sticker-factory-hourly": {
+      "priority": "revenue",
+      "resource_class": "browser",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 41
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
+      "browser_identity": "line-creators:dais",
+      "browser_target_owner": "line-sticker-factory-hourly",
+      "label": "ai.anicca.line-sticker-factory-hourly",
+      "system_role": "shared",
+      "log_root": "~/.local/state/life-manager/line-sticker/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 1800,
+      "state_root": "~/.local/state/life-manager/line-sticker"
+    },
     "capafy-goal-monitor-hourly": {
       "cadence": {
         "calendar_interval": {
@@ -953,6 +981,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": [],
+      "effect_reconcile": {
+        "argv": ["skills/earn/capafy-marketing/scripts/capafy_ig_reel_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/capafy-ig-reel",
       "label": "ai.anicca.life-manager-capafy-ig",
       "log_root": "~/.local/state/life-manager/logs",
@@ -1420,6 +1454,72 @@
       "resource_class": "deterministic",
       "runtime_timeout_seconds": 3600,
       "state_root": "~/.local/state/life-manager/coconala/apply-evidence-gc"
+    },
+    "ebook-en-tiktok-daily": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":14,"Minute":0},{"Hour":21,"Minute":0}]},
+      "cleanup": {"max_age_days":14,"max_runs":100},
+      "domain": "growth",
+      "effect_class": "publish",
+      "adapter": "exec",
+      "command": ["ebook-en-tiktok-daily"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily"],
+        "occurrence_flag": null,
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "label": "ai.anicca.life-manager-ebook-en-tiktok-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/ebook"
+    },
+    "ebook-ja-instagram-daily": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "cadence": {"calendar_interval":[{"Hour":7,"Minute":0},{"Hour":12,"Minute":30},{"Hour":20,"Minute":0}]},
+      "cleanup": {"max_age_days":14,"max_runs":100},
+      "domain": "growth",
+      "effect_class": "publish",
+      "adapter": "exec",
+      "command": ["ebook-ja-instagram-daily"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily"],
+        "occurrence_flag": null,
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "label": "ai.anicca.life-manager-ebook-ja-instagram-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/ebook"
+    },
+    "ebook-ja-tiktok-daily": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "cadence": {"calendar_interval":[{"Hour":7,"Minute":0},{"Hour":12,"Minute":30},{"Hour":20,"Minute":0}]},
+      "cleanup": {"max_age_days":14,"max_runs":100},
+      "domain": "growth",
+      "effect_class": "publish",
+      "adapter": "exec",
+      "command": ["ebook-ja-tiktok-daily"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily"],
+        "occurrence_flag": null,
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "label": "ai.anicca.life-manager-ebook-ja-tiktok-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/ebook"
     },
     "hf-gig-apply-direct": {
       "admission_class": "revenue",

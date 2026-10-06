@@ -294,10 +294,216 @@ class XPostTests(unittest.TestCase):
         self.assertEqual(captured["payload"]["posts"][0]["integration"]["id"], "integration-1")
         self.assertTrue(captured["payload"]["posts"][0]["settings"]["made_with_ai"])
 
+    def test_postiz_publish_reads_key_from_private_credentials_ssot(self) -> None:
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'[{"postId":"provider-ssot"}]'
+
+        def fake_open(request, timeout):
+            captured["authorization"] = request.get_header("Authorization")
+            captured["timeout"] = timeout
+            return Response()
+
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td).resolve()
+            private_dir = home / ".local" / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "ssot-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            with patch.object(Path, "home", return_value=home), \
+                    patch.dict(os.environ, {
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen", fake_open):
+                submission = MODULE.postiz_publish(
+                    "Useful comparison", "quote", "https://x.com/source/status/123"
+                )
+
+        self.assertEqual(submission, "provider-ssot")
+        self.assertEqual(captured["authorization"], "ssot-test-secret")
+
+    def test_postiz_publish_rejects_non_private_credentials_before_request(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td).resolve()
+            private_dir = home / ".local" / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "ssot-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o644)
+            with patch.object(Path, "home", return_value=home), \
+                    patch.dict(os.environ, {
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen") as provider_request:
+                with self.assertRaisesRegex(
+                    MODULE.PostizPreSubmitError, "postiz_configuration_missing",
+                ):
+                    MODULE.postiz_publish(
+                        "Useful comparison", "quote", "https://x.com/source/status/123"
+                    )
+        provider_request.assert_not_called()
+
+    def test_postiz_ssot_rejects_symlinked_ancestor_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            home = root / "home"
+            home.mkdir()
+            redirected = root / "redirected"
+            private_dir = redirected / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "ssot-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            (home / ".local").symlink_to(redirected, target_is_directory=True)
+            with patch.object(Path, "home", return_value=home), \
+                    patch.dict(os.environ, {
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen") as provider_request:
+                with self.assertRaisesRegex(
+                    MODULE.PostizPreSubmitError, "postiz_configuration_missing",
+                ):
+                    MODULE.postiz_publish(
+                        "Useful comparison", "quote", "https://x.com/source/status/123"
+                    )
+        provider_request.assert_not_called()
+
+    def test_empty_postiz_environment_value_does_not_fall_back_to_ssot(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td).resolve()
+            private_dir = home / ".local" / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "ssot-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            with patch.object(Path, "home", return_value=home), \
+                    patch.dict(os.environ, {
+                        "POSTIZ_API_KEY": "",
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen") as provider_request:
+                with self.assertRaisesRegex(
+                    MODULE.PostizPreSubmitError, "postiz_configuration_missing",
+                ):
+                    MODULE.postiz_publish(
+                        "Useful comparison", "quote", "https://x.com/source/status/123"
+                    )
+        provider_request.assert_not_called()
+
+    def test_postiz_ssot_read_uses_the_validated_file_descriptor(self) -> None:
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'[{"postId":"provider-ssot"}]'
+
+        def fake_open(request, timeout):
+            captured["authorization"] = request.get_header("Authorization")
+            return Response()
+
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td).resolve()
+            private_dir = home / ".local" / "share" / "anicca"
+            private_dir.mkdir(parents=True)
+            credentials = private_dir / "credentials.json"
+            credentials.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "original-test-secret",
+            }]}), encoding="utf-8")
+            private_dir.chmod(0o700)
+            credentials.chmod(0o600)
+            replacement = home / "replacement.json"
+            replacement.write_text(json.dumps({"credentials": [{
+                "service": "postiz", "api_key": "replacement-test-secret",
+            }]}), encoding="utf-8")
+            replacement.chmod(0o600)
+            original_open = os.open
+            swapped = [False]
+
+            def replace_path_after_open(path, flags, *args, **kwargs):
+                descriptor = original_open(path, flags, *args, **kwargs)
+                if (path == "credentials.json" and kwargs.get("dir_fd") is not None
+                        and not swapped[0]):
+                    credentials.unlink()
+                    credentials.symlink_to(replacement)
+                    swapped[0] = True
+                return descriptor
+
+            with patch.object(Path, "home", return_value=home), \
+                    patch.object(os, "open", new=replace_path_after_open), \
+                    patch.dict(os.environ, {
+                        "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1",
+                    }, clear=True), \
+                    patch.object(MODULE, "urlopen", fake_open):
+                MODULE.postiz_publish(
+                    "Useful comparison", "quote", "https://x.com/source/status/123"
+                )
+
+        self.assertTrue(swapped[0])
+        self.assertEqual(captured["authorization"], "original-test-secret")
+
+    def test_postiz_response_without_submission_id_is_recorded_as_unknown(self) -> None:
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'[{"status":"accepted"}]'
+
+        with tempfile.TemporaryDirectory() as td:
+            text_file = Path(td) / "post.txt"
+            text_file.write_text("Useful comparison", encoding="utf-8")
+            argv = ["x_post.py", "--cdp", "http://127.0.0.1:1", "--mode", "quote",
+                    "--source-url", "https://x.com/source/status/123",
+                    "--text-file", str(text_file)]
+            output = io.StringIO()
+            with patch.dict(os.environ, {"X_REPOST_PUBLISH_TRANSPORT": "postiz",
+                                         "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1"},
+                            clear=True), \
+                    patch.object(MODULE, "_postiz_api_key", return_value="ssot-test-secret"), \
+                    patch.object(MODULE, "urlopen", return_value=Response()), \
+                    patch.object(MODULE.sys, "argv", argv), redirect_stdout(output):
+                with self.assertRaisesRegex(SystemExit, "2"):
+                    MODULE.main()
+
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(receipt["posted"], "unverified")
+        self.assertEqual(receipt["failure_phase"], "post_submit")
+        self.assertEqual(receipt["reason_code"], "postiz_submission_id_missing")
+
     def test_postiz_refuses_automated_reply(self) -> None:
         env = {"POSTIZ_API_KEY": "secret", "X_REPOST_POSTIZ_INTEGRATION_ID": "integration-1"}
         with patch.dict(os.environ, env, clear=False):
-            with self.assertRaisesRegex(ValueError, "unsolicited"):
+            with self.assertRaisesRegex(ValueError, "automated_reply_disabled"):
                 MODULE.postiz_publish("No", "reply", "https://x.com/source/status/123")
 
     def test_public_ssr_reconciles_exact_owned_post(self) -> None:

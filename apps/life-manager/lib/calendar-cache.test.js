@@ -227,6 +227,74 @@ test("an empty inner result remains an empty array", async () => {
   assert.deepEqual(await calendar.listEventsRaw("u1", WINDOW), []);
 });
 
+test("a cached failure stays strict after a non-strict caller first receives an empty array", async () => {
+  const readError = new Error("calendar unavailable");
+  const calls = [];
+  const inner = {
+    async listEventsRaw(_uid, input = {}) {
+      calls.push(input);
+      if (input.strict) throw readError;
+      return [];
+    },
+  };
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000, ttlMs: 300_000 });
+
+  assert.deepEqual(await calendar.listEventsRaw("u1", WINDOW), []);
+  await assert.rejects(calendar.listEventsRaw("u1", { ...WINDOW, strict: true }), (error) => error === readError);
+  assert.equal(calls.length, 1, "both callers share one underlying read");
+  assert.equal(calls[0].strict, true, "cached reads ask the transport to preserve failures");
+});
+
+test("a cached failure maps to empty for a non-strict caller after a strict caller throws", async () => {
+  const readError = new Error("calendar unavailable");
+  const calls = [];
+  const inner = {
+    async listEventsRaw(_uid, input = {}) {
+      calls.push(input);
+      if (input.strict) throw readError;
+      return [];
+    },
+  };
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000, ttlMs: 300_000 });
+
+  await assert.rejects(calendar.listEventsRaw("u1", { ...WINDOW, strict: true }), (error) => error === readError);
+  assert.deepEqual(await calendar.listEventsRaw("u1", WINDOW), []);
+  assert.equal(calls.length, 1, "the failed outcome remains cached for the TTL");
+});
+
+test("concurrent mixed strict callers share one failed read but receive caller-specific results", async () => {
+  const readError = new Error("calendar unavailable");
+  const calls = [];
+  let rejectRead;
+  const pendingRead = new Promise((_, reject) => { rejectRead = reject; });
+  const inner = {
+    listEventsRaw(_uid, input = {}) {
+      calls.push(input);
+      return pendingRead;
+    },
+  };
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000, ttlMs: 300_000 });
+  const nonStrict = calendar.listEventsRaw("u1", WINDOW).then(
+    (items) => ({ ok: true, items }),
+    (error) => ({ ok: false, error }),
+  );
+  const strict = calendar.listEventsRaw("u1", { ...WINDOW, strict: true }).then(
+    (items) => ({ ok: true, items }),
+    (error) => ({ ok: false, error }),
+  );
+
+  await new Promise(setImmediate);
+  assert.equal(calls.length, 1, "concurrent callers share one in-flight transport read");
+  assert.equal(calls[0].strict, true);
+  rejectRead(readError);
+  const [nonStrictResult, strictResult] = await Promise.all([nonStrict, strict]);
+
+  assert.deepEqual(nonStrictResult, { ok: true, items: [] });
+  assert.equal(strictResult.ok, false);
+  assert.strictEqual(strictResult.error, readError);
+  assert.equal(calls.length, 1);
+});
+
 test("getCalendar shares the cached wrapper unless LM_CAL_CACHE=off", () => {
   const beforeCache = process.env.LM_CAL_CACHE;
   const beforeTransport = process.env.LIFE_TRANSPORT;
@@ -238,6 +306,12 @@ test("getCalendar shares the cached wrapper unless LM_CAL_CACHE=off", () => {
     const second = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test" });
     assert.strictEqual(second, first);
 
+    const accountA = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test", expectedCalendarAccountId: "ca-cache-a" });
+    const accountAAgain = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test", expectedCalendarAccountId: "ca-cache-a" });
+    const accountB = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test", expectedCalendarAccountId: "ca-cache-b" });
+    assert.strictEqual(accountAAgain, accountA);
+    assert.notStrictEqual(accountB, accountA, "account-scoped transports must not share a cache wrapper");
+
     process.env.LM_CAL_CACHE = "off";
     const rawFirst = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test" });
     const rawSecond = getCalendar({ kind: "composio", apiKey: "calendar-cache-wiring-test" });
@@ -248,4 +322,69 @@ test("getCalendar shares the cached wrapper unless LM_CAL_CACHE=off", () => {
     if (beforeTransport == null) delete process.env.LIFE_TRANSPORT;
     else process.env.LIFE_TRANSPORT = beforeTransport;
   }
+});
+
+test("operation account ID separates otherwise identical cached list windows", async () => {
+  const { inner, calls } = fakeCalendar();
+  const calendar = makeCachedCalendar(inner, { now: () => 1_000 });
+
+  await calendar.listEventsRaw("u1", { ...WINDOW, expectedCalendarAccountId: "ca-a" });
+  await calendar.listEventsRaw("u1", { ...WINDOW, expectedCalendarAccountId: "ca-b" });
+
+  assert.equal(calls.list, 2);
+});
+
+test("cached list, create, and patch preserve operation account options", async () => {
+  const calls = [];
+  const inner = {
+    async listEventsRaw(_uid, options) { calls.push(["list", options]); return []; },
+    async createEvent(_uid, _input, options) { calls.push(["create", options]); return { successful: true }; },
+    async patchEvent(_uid, _input, options) { calls.push(["patch", options]); return { successful: true }; },
+  };
+  const calendar = makeCachedCalendar(inner, { ttlMs: 0 });
+  const operation = { expectedCalendarAccountId: "ca-operation" };
+
+  await calendar.listEventsRaw("u1", { ...WINDOW, ...operation });
+  await calendar.createEvent("u1", { summary: "fixture" }, operation);
+  await calendar.patchEvent("u1", { event_id: "event-1" }, operation);
+
+  assert.deepEqual(calls.map(([method, options]) => [method, options?.expectedCalendarAccountId]), [
+    ["list", "ca-operation"], ["create", "ca-operation"], ["patch", "ca-operation"],
+  ]);
+});
+
+test("cached Composio list, create, and patch use only operation-level account pin", async () => {
+  const { makeComposioCalendar } = require("./transport/calendar-composio.js");
+  const pinned = "ca-operation";
+  const accountLookups = [];
+  const providerCalls = [];
+  const inner = makeComposioCalendar({
+    apiKey: "fixture-key", supaUrl: "https://db.example", supaKey: "fixture-service",
+    recordCall: () => false,
+    fetchImpl: async (input, init = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === "db.example") {
+        accountLookups.push(url);
+        const operationPinned = url.searchParams.get("telegram_chat_id") === "is.null";
+        const accountId = operationPinned ? pinned : "ca-current-unpinned";
+        return { ok: true, status: 200, json: async () => operationPinned
+          ? [{ uid: "tenant-cache", telegram_chat_id: null, calendar_provider: "composio_gcal", calendar_connected_account_id: accountId }]
+          : [{ calendar_connected_account_id: accountId }] };
+      }
+      const body = JSON.parse(init.body);
+      providerCalls.push(body);
+      return { ok: true, status: 200, json: async () => ({ successful: true, data: { items: [] } }) };
+    },
+  });
+  const calendar = makeCachedCalendar(inner, { ttlMs: 300_000, now: () => 1_000 });
+  const operation = { expectedCalendarAccountId: pinned };
+
+  await calendar.listEventsRaw("tenant-cache", { ...WINDOW, ...operation, strict: true });
+  await calendar.createEvent("tenant-cache", { summary: "fixture" }, operation);
+  await calendar.patchEvent("tenant-cache", { event_id: "event-1" }, operation);
+
+  assert.equal(accountLookups.length, 3);
+  assert.ok(accountLookups.every((url) => url.searchParams.get("telegram_chat_id") === "is.null"),
+    "each transport operation must validate the operation-level expected ID");
+  assert.deepEqual(providerCalls.map((body) => body.connected_account_id), [pinned, pinned, pinned]);
 });

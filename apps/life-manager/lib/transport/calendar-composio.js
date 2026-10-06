@@ -4,13 +4,43 @@
 // inline Composio calls it replaces — the live caller is unchanged.
 "use strict";
 const { recordCost } = require("../ledger.js");
+const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
+const { readWebTravelControlState, resolveSupabaseServiceConfig } = require("../runtime-preferences.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
+const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function selectedAccountId(uid, apiKey, opts = {}) {
+  if (opts.expectedCalendarAccountId != null) {
+    const expected = String(opts.expectedCalendarAccountId);
+    const config = resolveSupabaseServiceConfig(opts);
+    const base = config && config.supaUrl;
+    const key = config && config.supaKey;
+    if (!base || !key || !/^[A-Za-z0-9_-]{3,128}$/.test(expected)) {
+      throw new Error("calendar account binding changed");
+    }
+    const url = new URL(`${base}/rest/v1/lm_users`);
+    url.searchParams.set("uid", `eq.${uid}`);
+    url.searchParams.set("telegram_chat_id", "is.null");
+    url.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id");
+    url.searchParams.set("limit", "2");
+    const response = await (opts.fetchImpl || fetch)(url.toString(), {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!response.ok) throw new Error("calendar account lookup failed");
+    const rows = await response.json();
+    const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+    if (!row || row.uid !== uid || row.telegram_chat_id !== null
+      || row.calendar_provider !== "composio_gcal"
+      || row.calendar_connected_account_id !== expected) {
+      throw new Error("calendar account binding changed");
+    }
+    return expected;
+  }
   if (typeof opts.resolveConnectedAccountId === "function") return opts.resolveConnectedAccountId(uid);
-  const base = opts.supaUrl || process.env.SUPABASE_URL;
-  const key = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const config = resolveSupabaseServiceConfig(opts);
+  const base = config && config.supaUrl;
+  const key = config && config.supaKey;
   if (!base || !key) return null;
   const r = await (opts.fetchImpl || fetch)(`${base}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=calendar_connected_account_id&limit=1`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -40,27 +70,88 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
   return active[0].id;
 }
 
-async function exec(tool, uid, args, apiKey, opts) {
-  const connectedAccountId = await selectedAccountId(uid, apiKey, opts);
-  const r = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args }),
-  });
-  return r.json();
+async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCreate = false) {
+  let connectedAccountId;
+  try { connectedAccountId = await selectedAccountId(uid, apiKey, opts); }
+  catch (error) {
+    if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
+    throw error;
+  }
+  if (tool !== "GOOGLECALENDAR_EVENTS_LIST" && opts.expectedCalendarAccountId != null
+    && WEB_TRAVEL_UID_RE.test(String(uid || ""))) {
+    let state = null;
+    try {
+      const readState = opts.readWebTravelControlStateImpl || readWebTravelControlState;
+      state = await readState(uid, { supaUrl: opts.supaUrl, supaKey: opts.supaKey, fetchImpl: opts.fetchImpl });
+    } catch { /* unknown Web controls fail closed before provider mutation */ }
+    if (!state || state.dailyAutomationEnabled !== true
+      || state.disconnectPending !== false || state.enablePending !== false) {
+      if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
+      throw new Error("web calendar automation is paused or pending");
+    }
+  }
+  let result;
+  let response;
+  try {
+    response = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args }),
+    });
+  } catch (error) {
+    await recordOutcome("unknown");
+    if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
+    throw error;
+  }
+  const status = Number.isInteger(response?.status) ? response.status : null;
+  if (effectAwareCreate && status !== null && status >= 400 && status < 500) {
+    await recordOutcome("failure");
+    return { effect: "no_effect", result: { successful: false } };
+  }
+  if (effectAwareCreate && status !== null && (status < 200 || status >= 300)) {
+    await recordOutcome("unknown");
+    return { effect: "unknown", result: { successful: false } };
+  }
+  try { result = await response.json(); }
+  catch (error) {
+    await recordOutcome("unknown");
+    if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
+    throw error;
+  }
+  if (effectAwareCreate) {
+    const effect = result && result.successful === true ? "created" : "unknown";
+    await recordOutcome(effect === "created" ? "success" : "unknown");
+    return { effect, result };
+  }
+  await recordOutcome(result && result.successful === true ? "success"
+    : result && result.successful === false ? "failure" : "unknown");
+  return result;
 }
 
 function makeComposioCalendar(opts = {}) {
   const { apiKey, recordCall } = opts;
   const key = apiKey || process.env.COMPOSIO_API_KEY;
-  const ledger = recordCall || ((uid, tool) => {
+  const ledger = recordCall || ((uid, tool, details) => {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
-    return recordCost({ uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: 0, meta: { tool } });
+    const { outcome, runtimeTrace: trace } = details || {};
+    return recordCost({
+      uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: null,
+      meta: { provider: "composio", operation: String(tool), tool, outcome, runtime_trace: trace },
+    });
   });
-  const execute = async (tool, uid, args) => {
-    const result = await exec(tool, uid, args, key, opts);
-    await Promise.resolve(ledger(uid, tool)).catch(() => false);
-    return result;
+  const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId, effectAwareCreate = false) => {
+    const operationOpts = expectedCalendarAccountId == null ? opts : { ...opts, expectedCalendarAccountId };
+    const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
+    const trace = runtimeTrace({ tenantId: uid }, runtimeEnv);
+    const recordOutcome = async (outcome) => {
+      try { await ledger(uid, tool, { outcome, runtimeTrace: trace }); } catch { /* observability must not break calendar calls */ }
+    };
+    return exec(tool, uid, args, key, operationOpts, recordOutcome, effectAwareCreate);
+  };
+  const withCreateEffect = ({ effect, result }) => {
+    const value = result && typeof result === "object" ? result : { successful: false };
+    Object.defineProperty(value, "effect", { value: effect, configurable: true });
+    return value;
   };
   // ONE page of Google Calendar items PLUS the cursor that unlocks the next. events.list returns at
   // most `maxResults` items per page (250 by default, 2500 max) and sets data.nextPageToken whenever
@@ -74,7 +165,7 @@ function makeComposioCalendar(opts = {}) {
   // Error contract unchanged and shared with listEventsRaw: default (wake path) swallows every
   // failure to an empty page — load-bearing, a transport blip must not crash the 60s tick — while
   // strict (history path) THROWS, because "empty calendar" and "the read failed" must never merge.
-  const listEventsPage = async (uid, { timeMin, timeMax, maxResults, pageToken, strict } = {}) => {
+  const listEventsPage = async (uid, { timeMin, timeMax, maxResults, pageToken, strict, expectedCalendarAccountId } = {}) => {
     const empty = { items: [], nextPageToken: null };
     if (!key || !uid) {
       if (strict) throw new Error(`calendar transport not ready (missing ${key ? "uid" : "API key"})`);
@@ -85,7 +176,7 @@ function makeComposioCalendar(opts = {}) {
     if (pageToken) args.pageToken = pageToken;
     let j;
     try {
-      j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args);
+      j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args, expectedCalendarAccountId);
     } catch (e) {
       if (strict) throw e;
       return empty;
@@ -110,13 +201,16 @@ function makeComposioCalendar(opts = {}) {
     async listEventsRaw(uid, opts = {}) {
       return (await listEventsPage(uid, opts)).items;
     },
-    async createEvent(uid, args) {
-      if (!key) return { successful: false };
-      try { return await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args); } catch { return { successful: false }; }
+    async createEvent(uid, args, operationOpts = {}) {
+      if (!key) return withCreateEffect({ effect: "no_effect", result: { successful: false } });
+      try {
+        return withCreateEffect(await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args,
+          operationOpts.expectedCalendarAccountId, true));
+      } catch { return withCreateEffect({ effect: "unknown", result: { successful: false } }); }
     },
-    async patchEvent(uid, args) {
+    async patchEvent(uid, args, operationOpts = {}) {
       if (!key) return { successful: false };
-      try { return await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args); } catch { return { successful: false }; }
+      try { return await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args, operationOpts.expectedCalendarAccountId); } catch { return { successful: false }; }
     },
   };
 }

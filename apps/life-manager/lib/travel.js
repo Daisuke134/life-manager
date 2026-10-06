@@ -5,22 +5,51 @@
 // Idempotent: never inserts a second [Travel] for an event that already has one.
 "use strict";
 
-const { createHash } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const { getCalendar } = require("./transport/index.js");
-const { chooseRouter, parseTransitPlan } = require("./transit.js");
+const { chooseRouter, parseTransitPlan, hasValidTransitEnvelope } = require("./transit.js");
 const {
   makeRouteCache, makeSupabaseRouteStore, cacheFailure, timeBucket,
 } = require("./route-cache.js");
+const {
+  makeSupabaseGeocodeStore, addressDigest, isValidGeocode, GEOCODE_SUCCESS_TTL_MS,
+} = require("./geocode-cache.js");
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
-const { recordUsageEvent } = require("./usage-event.js");
+const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
 
 const GOOGLE_DIRECTIONS_EST_USD = 0.005; // list price per request after free cap, checked 2026-09-06
 const GOOGLE_GEOCODING_EST_USD = 0.005;
 const GOOGLE_ROUTES_PRO_EST_USD = 0.010;
-const GEOCODE_SUCCESS_TTL_MS = 24 * 60 * 60_000;
+const ROUTE_MODES = new Set(["transit", "google"]);
+const FALLBACK_REASONS = new Set([
+  "transit_no_route", "transit_provider_4xx", "transit_provider_5xx", "transit_network",
+  "transit_timeout", "transit_invalid_response", "non_jp",
+]);
 const GEOCODE_NEGATIVE_TTL_MS = 30 * 60_000;
 const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
+const ROUTING_POLICY_VERSION = "travel-routing-policy-v1";
+const OPAQUE_EVENT_VERSION = /^[a-f0-9]{64}$/;
+
+function eventVersionMeta(usage) {
+  const eventVersion = usage && usage.eventVersion;
+  return typeof eventVersion === "string" && OPAQUE_EVENT_VERSION.test(eventVersion)
+    ? { event_version: eventVersion } : {};
+}
+
+function routeUsageMeta(usage) {
+  return {
+    ...(ROUTE_MODES.has(usage && usage.routeMode) ? { route_mode: usage.routeMode } : {}),
+    ...(FALLBACK_REASONS.has(usage && usage.fallbackReason)
+      ? { fallback_reason: usage.fallbackReason } : {}),
+    ...eventVersionMeta(usage),
+  };
+}
+
+function setTransitFallbackReason(diagnostics, reason) {
+  if (diagnostics && typeof diagnostics === "object" && diagnostics.fallbackReason == null
+      && FALLBACK_REASONS.has(reason)) diagnostics.fallbackReason = reason;
+}
 
 function providerFailureClass(response, providerStatus) {
   const status = Number(response && response.status);
@@ -34,7 +63,8 @@ async function emitUsage(options, event) {
   const injected = options && options._recordUsageEvent;
   if (!injected && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)) return;
   const write = injected || recordUsageEvent;
-  try { await write(event); } catch { /* observability must not break routing */ }
+  const runtimeEnv = options && options._usageRuntimeEnv;
+  try { await write(event, runtimeEnv ? { runtimeEnv } : {}); } catch { /* observability must not break routing */ }
 }
 
 function noteProviderFailure(usage, failureClass) {
@@ -48,10 +78,11 @@ function opaqueEndpointKey(value) {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
-function routeEventVersion({ eventId, anchorAtMs, src, dst, purpose }) {
+function routeEventVersion({ eventId, anchorAtMs, src, dst, purpose, timezone, departureMode, anchorType }) {
   return createHash("sha256").update(JSON.stringify([
     String(eventId || ""), Number(anchorAtMs) || 0,
     opaqueEndpointKey(src), opaqueEndpointKey(dst), String(purpose || "go"),
+    String(timezone || "UTC"), departureMode === true, String(anchorType || "arrival"), ROUTING_POLICY_VERSION,
   ])).digest("hex");
 }
 
@@ -112,11 +143,13 @@ function shortName(addr) {
   return (addr || "").split(/[,、]/)[0].slice(0, 18) || "?";
 }
 
-async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId) {
-  const cal = calendar || getCalendar({ apiKey, gmailAccountId });
+async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false, expectedCalendarAccountId } = {}) {
+  const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const items = await cal.listEventsRaw(uid, {
     timeMin: new Date(nowMs).toISOString().replace(/\.\d{3}Z$/, "Z"),
     timeMax: new Date(nowMs + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    ...(strict ? { strict: true } : {}),
+    ...(expectedCalendarAccountId ? { expectedCalendarAccountId } : {}),
   });
   return items.filter((e) => interpretCalendarEvent(e).decision !== "no_call").map((e) => ({
     id: e.id || "",                                   // C-H1: stable per-event key for the atomic claim ledger
@@ -174,6 +207,7 @@ function clampDepartIso(departAtMs, nowMs) {
 
 async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = {}) {
   const body = JSON.stringify(buildDriveBody(src, dst, clampDepartIso(departAtMs, nowMs)));
+  const routeMeta = routeUsageMeta(usage);
   try {
     const r = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
       method: "POST",
@@ -189,7 +223,7 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
       await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
         feature: "routes_pro", outcome: "failure", failureClass: providerFailureClass(r),
         providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-        meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+        meta: { ...routeMeta, sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
       return null;
     }
     const j = await r.json();
@@ -199,14 +233,14 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
       feature: "routes_pro", outcome: sec == null ? "failure" : "success",
       failureClass: sec == null ? "no_route" : null, providerUnits: 1, providerUnit: "request",
       estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+      meta: { ...routeMeta, sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
     return sec == null ? null : minutesFromSeconds(sec);
   } catch {
     noteProviderFailure(usage, "network");
     await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
       feature: "routes_pro", outcome: "failure", failureClass: "network", providerUnits: 1,
       providerUnit: "request", estimatedCostUsd: GOOGLE_ROUTES_PRO_EST_USD,
-      meta: { sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
+      meta: { ...routeMeta, sku: "Routes: Compute Routes Pro", pricing_basis: "list_price_after_free_cap" } });
     return null;
   }
 }
@@ -215,6 +249,7 @@ async function routesDriveMinutes(src, dst, mapsKey, departAtMs, nowMs, usage = 
 // event end). Only one should be non-null; if neither is a future time, falls back to departure_time="now".
 async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.now(), departAtMs = null, usage = {}) {
   const p = new URLSearchParams({ origin: src, destination: dst, mode: "transit", key: mapsKey });
+  const routeMeta = routeUsageMeta(usage);
   // NEVER-LATE: anchor transit to the EVENT, not "now". Future event → arrival_time = event start, so
   // the train time reflects the schedule the user will actually ride. Past/missing → fall back to now.
   // Return leg: departAtMs is set → use departure_time anchored to event end (FIND-004).
@@ -236,7 +271,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       outcome: accepted ? "success" : "failure",
       failureClass: accepted ? null : providerFailureClass(r, j.status),
       providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_DIRECTIONS_EST_USD,
-      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap" },
+      meta: { ...routeMeta, sku: "Directions", pricing_basis: "list_price_after_free_cap" },
     });
     if (!accepted) return null;
     return minutesFromSeconds(j.routes[0].legs[0].duration.value);
@@ -246,7 +281,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       tenantId: usage.tenantId || "anonymous", provider: "google_maps", feature: "directions",
       outcome: "failure", failureClass: "network", providerUnits: 1, providerUnit: "request",
       estimatedCostUsd: GOOGLE_DIRECTIONS_EST_USD,
-      meta: { sku: "Directions", pricing_basis: "list_price_after_free_cap" },
+      meta: { ...routeMeta, sku: "Directions", pricing_basis: "list_price_after_free_cap" },
     });
     return null;
   }
@@ -273,52 +308,107 @@ async function directionsMinutesGoogle(src, dst, mapsKey, departAtMs = Date.now(
 }
 
 // C3: address→geo memo — the 60s scheduler tick must NOT re-geocode the same home/event address every
-// time. Keyed on the address string; a geo rarely changes for a fixed address. Process-lifetime cache.
+// time. Keyed by tenant/provider/address scope; successful entries also persist across process restarts.
 const _geoMemo = new Map();
+const _geoInFlight = new Map();
+
+function geocodeStoreFor(options = {}) {
+  if (Object.hasOwn(options, "_geocodeCacheStore")) return options._geocodeCacheStore || null;
+  const supaUrl = options.supaUrl || process.env.SUPABASE_URL;
+  const supaKey = options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supaUrl || !supaKey) return null;
+  return makeSupabaseGeocodeStore({
+    supaUrl, supaKey, fetchImpl: options._cacheFetch || global.fetch,
+  });
+}
+
+function geocodeMemoKey(tenantId, address, supaKey) {
+  const digest = supaKey ? addressDigest({
+    tenantId, provider: "google_maps", address, digestKey: supaKey,
+  }) : null;
+  return JSON.stringify([tenantId, "google_maps", digest || String(address)]);
+}
+
+async function emitGeocodeCacheHit(usage, tenantId) {
+  await emitUsage(usage.options, {
+    tenantId, provider: "google_maps", feature: "geocoding", outcome: "cache_hit",
+    cacheHit: true, providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+    meta: { sku: "Geocoding", ...eventVersionMeta(usage) },
+  });
+}
 
 // C2: geocode a JP address ONCE via Google Geocoding (cheap, one-time; NOT the Routes-Pro cost driver).
 // Returns {lat,lon} or null. Injected in tests via opts._geocode.
 async function geocodeAddress(addr, mapsKey, usage = {}) {
   if (!addr || !mapsKey) return null;
-  const memo = _geoMemo.get(addr);
+  const tenantId = String(usage.tenantId || "anonymous");
+  const options = usage.options || {};
+  const supaKey = options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const store = geocodeStoreFor(options);
+  const memoKey = geocodeMemoKey(tenantId, addr, store ? supaKey : null);
+  const memo = _geoMemo.get(memoKey);
   if (memo && typeof memo === "object" && Object.hasOwn(memo, "value")) {
     const transient = ["network", "provider_5xx", "timeout"].includes(memo.failureClass);
     const ttl = memo.value ? GEOCODE_SUCCESS_TTL_MS
       : transient ? GEOCODE_TRANSIENT_TTL_MS : GEOCODE_NEGATIVE_TTL_MS;
-    if (Date.now() - memo.computedAt < ttl) return memo.value;
-    _geoMemo.delete(addr);
+    if (Date.now() - memo.computedAt < ttl) {
+      if (memo.value) await emitGeocodeCacheHit(usage, tenantId);
+      return memo.value;
+    }
+    _geoMemo.delete(memoKey);
   }
+  if (_geoInFlight.has(memoKey)) return _geoInFlight.get(memoKey);
+
+  const run = Promise.resolve().then(async () => {
+    if (store) {
+      const cached = await store.get(tenantId, "google_maps", addr);
+      if (cached && isValidGeocode(cached.value)
+          && Date.now() - cached.computedAt < cached.ttlMs) {
+        const value = { lat: cached.value.lat, lon: cached.value.lon };
+        _geoMemo.set(memoKey, { value, computedAt: cached.computedAt, failureClass: null });
+        await emitGeocodeCacheHit(usage, tenantId);
+        return value;
+      }
+    }
+    try {
+      const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
+      const response = await fetch(u);
+      const j = await response.json();
+      const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
+      const providerSucceeded = response && response.ok !== false && j && j.status === "OK";
+      const candidate = providerSucceeded && loc ? { lat: loc.lat, lon: loc.lng } : null;
+      const failureClass = !providerSucceeded || !loc ? providerFailureClass(response, j && j.status)
+        : isValidGeocode(candidate) ? null : "invalid_coordinates";
+      const value = failureClass ? null : candidate;
+      await emitUsage(options, { tenantId, provider: "google_maps",
+        feature: "geocoding", outcome: value ? "success" : "failure", failureClass,
+        providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
+        meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...eventVersionMeta(usage) } });
+      const computedAt = Date.now();
+      _geoMemo.set(memoKey, { value, computedAt, failureClass });
+      if (value && store) await store.set(tenantId, "google_maps", addr, value, computedAt);
+      return value;
+    } catch {
+      await emitUsage(options, { tenantId, provider: "google_maps",
+        feature: "geocoding", outcome: "failure", failureClass: "network", providerUnits: 1,
+        providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
+        meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...eventVersionMeta(usage) } });
+      _geoMemo.set(memoKey, { value: null, computedAt: Date.now(), failureClass: "network" });
+      return null;
+    }
+  });
+  _geoInFlight.set(memoKey, run);
   try {
-    const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
-    const response = await fetch(u);
-    const j = await response.json();
-    const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
-    await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
-      feature: "geocoding", outcome: loc ? "success" : "failure",
-      failureClass: loc ? null : providerFailureClass(response, j && j.status), providerUnits: 1,
-      providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
-      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
-    const value = loc ? { lat: loc.lat, lon: loc.lng } : null;
-    _geoMemo.set(addr, {
-      value,
-      computedAt: Date.now(),
-      failureClass: value ? null : providerFailureClass(response, j && j.status),
-    });
-    return value;
-  } catch {
-    await emitUsage(usage.options, { tenantId: usage.tenantId || "anonymous", provider: "google_maps",
-      feature: "geocoding", outcome: "failure", failureClass: "network", providerUnits: 1,
-      providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
-      meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap" } });
-    _geoMemo.set(addr, { value: null, computedAt: Date.now(), failureClass: "network" });
-    return null;
+    return await run;
+  } finally {
+    if (_geoInFlight.get(memoKey) === run) _geoInFlight.delete(memoKey);
   }
 }
 
 // C2: real FREE JP transit fetch (api.transit.ls8h.com /plan). Injected in tests via opts._transitFetch.
 // The event anchor is deliberately part of the query; a route computed at scheduler time is not a
 // truthful substitute for the train the user will take at the calendar event.
-async function transitFetchPlan(srcGeo, dstGeo, query = {}) {
+async function transitFetchPlan(srcGeo, dstGeo, query = {}, diagnostics = {}) {
   try {
     const p = new URLSearchParams({
       from: `geo:${srcGeo.lat},${srcGeo.lon}`,
@@ -330,9 +420,25 @@ async function transitFetchPlan(srcGeo, dstGeo, query = {}) {
     });
     const request = query.signal ? { signal: query.signal } : undefined;
     const response = await fetch(`https://api.transit.ls8h.com/api/v1/plan?${p}`, request);
-    if (!response || response.ok === false || typeof response.json !== "function") return null;
-    return await response.json();
-  } catch { return null; }
+    if (!response || typeof response.json !== "function") {
+      setTransitFallbackReason(diagnostics, "transit_invalid_response");
+      return null;
+    }
+    if (response.ok === false) {
+      const status = Number(response.status);
+      setTransitFallbackReason(diagnostics, status >= 400 && status < 500 ? "transit_provider_4xx"
+        : status >= 500 ? "transit_provider_5xx" : "transit_invalid_response");
+      return null;
+    }
+    try { return await response.json(); }
+    catch {
+      setTransitFallbackReason(diagnostics, "transit_invalid_response");
+      return null;
+    }
+  } catch {
+    setTransitFallbackReason(diagnostics, "transit_network");
+    return null;
+  }
 }
 
 const DEFAULT_ROUTE_TIMEZONE = "Asia/Tokyo";
@@ -440,10 +546,18 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const cache = routeCacheFor(options); // tests inject a fresh cache to avoid cross-test leakage
   const uid = options.uid ?? options.tenantId ?? options.userId ?? "anonymous";
   const purpose = options.purpose || (call.departureMode ? "return" : "go");
-  const eventVersion = routeEventVersion({ eventId: options.eventId, anchorAtMs: call.anchorAtMs, src, dst, purpose });
+  const eventVersion = routeEventVersion({ eventId: options.eventId, anchorAtMs: call.anchorAtMs, src, dst, purpose,
+    timezone: call.timezone, departureMode: call.departureMode,
+    anchorType: call.departureMode ? "departure" : "arrival" });
+  const routeId = randomUUID();
+  const usageOptions = { ...options, _usageRuntimeEnv: usageRuntimeEnv(
+    options._runtimeEnv || process.env,
+    { fallbackOwnerId: "life-call-travel", fallbackRunId: `route-${routeId}` },
+  ) };
   const allowanceState = options._allowanceState;
-  const usage = { tenantId: uid, options };
-  const routeUsage = { tenantId: uid, options, failureClasses: [] };
+  const usage = { tenantId: uid, options: usageOptions, eventVersion };
+  const routeUsage = { tenantId: uid, options: usageOptions, eventVersion, failureClasses: [] };
+  const transitDiagnostics = { fallbackReason: null };
   const timeoutOption = options._transitTimeoutMs ?? options.transitTimeoutMs;
   const transitTimeoutMs = Number.isFinite(Number(timeoutOption)) && Number(timeoutOption) >= 0
     ? Number(timeoutOption) : DEFAULT_TRANSIT_TIMEOUT_MS;
@@ -451,10 +565,11 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   // The durable event index is intentionally checked before geocoding. A coordinate-key-only lookup
   // would itself require two paid geocodes and could not serve an exhausted tenant's cached result.
   if (cache && typeof cache.getByEvent === "function" && options.eventId) {
-    const cached = await cache.getByEvent(uid, eventVersion, purpose, (_value, entry) => emitUsage(options, {
+    const cached = await cache.getByEvent(uid, eventVersion, purpose, (_value, entry) => emitUsage(usageOptions, {
       tenantId: uid, provider: "route_cache", feature: "travel_route", outcome: "cache_hit",
       failureClass: entry.failureClass, cacheHit: true, providerUnits: 0,
       providerUnit: "request", estimatedCostUsd: 0,
+      meta: eventVersionMeta({ eventVersion }),
     }));
     if (cached && cached.hit === true) {
       if (allowanceState && cached.value == null) allowanceState.negativeCacheHit = true;
@@ -474,9 +589,13 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const [srcGeo, dstGeo] = await Promise.all([
     srcLiteral || geocode(src, mapsKey, usage), dstLiteral || geocode(dst, mapsKey, usage),
   ]);
-  const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const query = wallAnchor(call.anchorAtMs, call.timezone, call.nowMs, call.departureMode);
+  const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const google = async () => {
+    routeUsage.routeMode = routeMode;
+    routeUsage.fallbackReason = routeMode === "google"
+      ? (srcGeo && dstGeo ? "non_jp" : null)
+      : transitDiagnostics.fallbackReason || "transit_invalid_response";
     try {
       const value = googleRouteFn
         ? await googleRouteFn(googleSrc, googleDst, mapsKey, query.anchorAtMs, call.nowMs, call.departureMode)
@@ -497,10 +616,14 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       const transitPromise = Promise.resolve()
         .then(() => transitFetch(srcGeo, dstGeo, {
           ...query, timezone: call.timezone, signal: controller && controller.signal,
-        }))
-        .catch(() => null);
+        }, transitDiagnostics))
+        .catch(() => {
+          setTransitFallbackReason(transitDiagnostics, "transit_network");
+          return null;
+        });
       const timeoutPromise = new Promise((resolve) => {
         timer = setTimeout(() => {
+          setTransitFallbackReason(transitDiagnostics, "transit_timeout");
           if (controller) controller.abort();
           resolve(null);
         }, transitTimeoutMs);
@@ -509,6 +632,14 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       finally { clearTimeout(timer); }
       const parsed = plan && parseTransitPlan(plan, { anchorType: query.type, anchorSecs: query.anchorSecs });
       if (parsed && Number.isFinite(routeDurationSeconds(parsed))) return parsed;
+      if (!transitDiagnostics.fallbackReason) {
+        const unanchored = plan && parseTransitPlan(plan);
+        const hasValidJourney = unanchored && unanchored.serviceDate && unanchored.timezone
+          && Number.isFinite(routeDurationSeconds(unanchored));
+        const noRoute = hasValidTransitEnvelope(plan) && Array.isArray(plan.journeys)
+          && (plan.journeys.length === 0 || hasValidJourney);
+        transitDiagnostics.fallbackReason = noRoute ? "transit_no_route" : "transit_invalid_response";
+      }
     }
     return google(); // non-JP/unresolvable or Transit failure → exactly one Google fallback
   };
@@ -524,12 +655,13 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
     purpose,
   };
   const result = await cache.getOrCompute(uid, srcGeo || {}, dstGeo || {}, timeBucket(query.anchorAtMs), compute, context,
-    (value, cacheEntry) => emitUsage(options, {
+    (value, cacheEntry) => emitUsage(usageOptions, {
       tenantId: uid, provider: routeMode === "google" || (value && value.provider === "google")
         ? "google_maps" : "transit_api",
       feature: "travel_route", outcome: "cache_hit", failureClass: cacheEntry.failureClass,
       cacheHit: true,
       providerUnits: 0, providerUnit: "request", estimatedCostUsd: 0,
+      meta: routeUsageMeta(routeUsage),
     }));
   if (result == null && allowanceState) allowanceState.providerFailure = true;
   if (result == null && options._deferAllowanceRelease !== true && allowanceState && allowanceState.receipt
@@ -548,21 +680,46 @@ async function directionsMinutes(src, dst, mapsKey, anchorAtMs = null, nowMs = D
   return minutesFromSeconds(routeDurationSeconds(route));
 }
 
-async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId) {
-  const cal = calendar || getCalendar({ apiKey, gmailAccountId });
+async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId) {
+  const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const hours = Math.floor((arriveMs - leaveMs) / 3600000);
   const minutes = Math.round(((arriveMs - leaveMs) % 3600000) / 60000);
-  const j = await cal.createEvent(uid, {
+  const eventArgs = {
     summary: `[Travel] 🚆 ${shortName(fromName)}→${shortName(toName)}`,
     start_datetime: isoNaiveUTC(leaveMs),
     event_duration_hour: hours, event_duration_minutes: Math.min(59, minutes),
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
+    send_updates: "none", exclude_organizer: true, create_meeting_room: false,
     description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
-  });
-  return !!(j && j.successful);
+  };
+  let result;
+  try {
+    result = expectedCalendarAccountId
+      ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId })
+      : await cal.createEvent(uid, eventArgs);
+  } catch { result = null; }
+  const status = result?.effect === "no_effect" ? "no_effect"
+    : result?.effect === "unknown" || result?.successful !== true ? "unknown" : "created";
+  const startMs = Date.parse(`${eventArgs.start_datetime}Z`);
+  const endMs = startMs + (hours * 60 + eventArgs.event_duration_minutes) * 60000;
+  return { status, summary: eventArgs.summary, startMs, endMs, destination: dstAddr };
 }
 
-// Returns { inserted, checked, skipped }. home = lm_users.home_address (may be null → first-of-day
+async function reconcileTravelBlock(uid, apiKey, nowMs, calendar, gmailAccountId, expectedCalendarAccountId, write) {
+  if (write.status !== "unknown" || !expectedCalendarAccountId) return write;
+  try {
+    const events = await listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, {
+      strict: true, expectedCalendarAccountId,
+    });
+    const normalize = (value) => String(value || "").replace(/\s+/g, "").toLowerCase();
+    const matches = events.filter((event) => event.summary === write.summary
+      && event.startMs === write.startMs && event.endMs === write.endMs
+      && normalize(event.location) === normalize(write.destination));
+    return matches.length === 1 ? { ...write, status: "verified" } : write;
+  } catch { return write; }
+}
+
+// Returns { inserted, verified, checked, skipped }. home = lm_users.home_address (may be null → first-of-day
 // located events are skipped this run and should be handled by the ask-loop separately).
 // _directionsMinutes: test seam — inject a stub so unit/integration tests avoid real network calls.
 //   In production this is always undefined and the real directionsMinutes function is used.
@@ -629,12 +786,14 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId, expectedCalendarAccountId } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
-  const cal = calendar || getCalendar({ apiKey, gmailAccountId });
-  const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId);
-  let inserted = 0, checked = 0, skipped = 0;
+  const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
+  const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
+    strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
+  });
+  let inserted = 0, verified = 0, checked = 0, skipped = 0;
   const outboundReports = [];
   const releaseAllowance = async (eventKey, state) => {
     if (!state || !state.receipt || typeof _releaseManagedAction !== "function") return;
@@ -733,10 +892,9 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             let goClaimed = false;
             try { goClaimed = await claimTravel(uid, evKey, "go", supaUrl, supaKey); } catch { goClaimed = false; }
             if (goClaimed) {
-              let created = false;
-              try { created = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId); }
-              catch { created = false; }
-              if (created) {
+              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId);
+              write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
+              if (write.status === "created") {
                 inserted++;
                 outboundInserted = true;
                 if (typeof _completeManagedAction === "function") {
@@ -754,10 +912,18 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
                   leaveMs,
                   arriveMs,
                 });
+              } else if (write.status === "verified") {
+                verified++;
+                if (typeof _completeManagedAction === "function") {
+                  await _completeManagedAction(uid, evKey, supaUrl, supaKey,
+                    { reservation: allowanceState.receipt });
+                }
+              } else if (write.status === "no_effect") {
+                skipped++;
+                await unclaimTravel(uid, evKey, "go", supaUrl, supaKey);
+                await releaseAllowance(evKey, allowanceState);
               } else {
                 skipped++;
-                await unclaimTravel(uid, evKey, "go", supaUrl, supaKey); // create failed → release for retry
-                await releaseAllowance(evKey, allowanceState);
               }
             } else {
               skipped++; // another writer already claimed the GO block (race-safe)
@@ -823,28 +989,34 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     let returnClaimed = false;
     try { returnClaimed = await claimTravel(uid, evKey, "return", supaUrl, supaKey); } catch { returnClaimed = false; }
     if (returnClaimed) {
-      let created = false;
-      try { created = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId); }
-      catch { created = false; }
-      if (created) {
+      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId);
+      write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
+      if (write.status === "created") {
         inserted++;
         if (typeof _completeManagedAction === "function") {
           await _completeManagedAction(uid, evKey, supaUrl, supaKey,
             { reservation: returnAllowanceState.receipt });
         }
-      }
-      else {
+      } else if (write.status === "verified") {
+        verified++;
+        if (typeof _completeManagedAction === "function") {
+          await _completeManagedAction(uid, evKey, supaUrl, supaKey,
+            { reservation: returnAllowanceState.receipt });
+        }
+      } else if (write.status === "no_effect") {
         skipped++;
         await unclaimTravel(uid, evKey, "return", supaUrl, supaKey);
         await releaseAllowance(evKey, returnAllowanceState);
-      } // create failed → release
+      } else {
+        skipped++;
+      }
     } else {
       skipped++; // another writer already claimed the RETURN block (race-safe)
       await releaseAllowance(evKey, returnAllowanceState);
     }
     void outboundInserted; // suppress unused warning — used for semantic clarity only
   }
-  return { inserted, checked, skipped, outboundReports };
+  return { inserted, verified, checked, skipped, outboundReports };
 }
 
 // PURE return-leg decision — mirrors travelDecision geometry for the post-event leg (venue→home).
@@ -877,7 +1049,7 @@ function returnDecision(ev, next, home) {
 }
 
 module.exports = {
-  fillTravel, directionsRoute, directionsMinutes, isTravel, travelDecision, returnDecision, claimTravel, unclaimTravel,
+  fillTravel, directionsRoute, directionsMinutes, listEvents7d, isTravel, travelDecision, returnDecision, claimTravel, unclaimTravel,
   recordTravelTelegramReceipt,
   // #71 pure helpers (unit-tested)
   parseDurationSeconds, minutesFromSeconds, buildDriveBody, clampDepartIso, acceptRouteResults,

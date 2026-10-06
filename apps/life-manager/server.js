@@ -24,6 +24,7 @@ const {
   makeGeminiEndHandler,
 } = require("./lib/call-bridge.cjs");
 const {
+  LIVE_MODEL,
   geminiLiveWsUrl,
   buildGeminiTurn,
   parseGeminiTranscripts,
@@ -51,6 +52,10 @@ const {
   handleLateApprovalCallback,
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
+const { handleWebAuthRequest, resolveWebUser } = require("./lib/web-auth.js");
+const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
+const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
+const { renderWebPage } = require("./lib/web-page.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
 const { createMoneyPrinterRuntimeStore } = require("./lib/money-printer-runtime-store.js");
@@ -88,7 +93,7 @@ const { claimEvent, unclaimEvent, applyBilling } = require("./lib/billing.js");
 const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
 const { recordCost } = require("./lib/ledger.js");
-const { recordUsageEvent } = require("./lib/usage-event.js");
+const { recordUsageEvent, runtimeTrace, usageRuntimeEnv } = require("./lib/usage-event.js");
 const { createCloudCitizenStore } = require("./lib/cloud-citizen-store.js");
 const { provisionAndStartAgentEconomy } = require("./lib/agent-economy-cloud-provisioning.js");
 const { planProductOnboarding } = require("./lib/product-onboarding.js");
@@ -490,6 +495,77 @@ function ctxFromReq(req) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
+  if (path === "/lm") {
+    if (req.method !== "GET") {
+      res.writeHead(405, { allow: "GET", "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Method not allowed");
+      return;
+    }
+    let user = null;
+    let snapshot = null;
+    try { user = await resolveWebUser(req, res, { publicOrigin: LM_PANEL_BASE }); } catch {}
+    if (user) {
+      try {
+        snapshot = await buildTodaySnapshot(user.uid, {
+          supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+          publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+          composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+        });
+      } catch (error) {
+        if (error && [401, 403].includes(error.status)) {
+          res.writeHead(error.status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+          res.end("<!doctype html><html lang=\"ja\"><meta charset=\"utf-8\"><title>Life Manager</title><body><main><h1>Life Manager を利用できません</h1><p>このアカウントではWebセットアップを利用できません。</p></main></body></html>");
+          return;
+        }
+        snapshot = {
+          setupState: "sync_pending", calendarState: "unavailable",
+          nextEvent: null, travelBlock: null, departureAt: null,
+          trialExpiresAt: null, paid: null,
+        };
+      }
+    }
+    const html = renderWebPage({
+      user,
+      snapshot,
+      stripePaymentLink: process.env.LM_STRIPE_PAYMENT_LINK || process.env.STRIPE_PAYMENT_LINK,
+    });
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    res.end(html);
+    return;
+  }
+  if (path === "/auth/google" || path === "/auth/google/callback") {
+    handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+      if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Web sign-in unavailable");
+    });
+    return;
+  }
+  if (path === "/api/lm-web/calendar/status" || path === "/api/lm-web/calendar/start" || path === "/lm/oauth/calendar/callback") {
+    handleWebCalendarRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "calendar_unavailable" }));
+    });
+    return;
+  }
+  if (path === "/api/lm-web/setup" || path === "/api/lm-web/today" || path === "/api/lm-web/travel/control") {
+    handleWebTravelRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "travel_unavailable" }));
+    });
+    return;
+  }
   if (path === "/api/internal/mental/outcomes") {
     if (req.method !== "POST") {
       res.writeHead(405, { "allow": "POST", "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -1586,6 +1662,8 @@ wss.on("connection", (carrierWs, req) => {
   }
   liveCalls++;
   const { event, urgency, lang, name, wakeUid, wakeEventKey, voiceReservation } = ctx;
+  const voiceRuntimeEnv = usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call-voice" });
+  const voiceRuntimeTrace = runtimeTrace({ tenantId: wakeUid || "unknown" }, voiceRuntimeEnv);
   console.log(`[bridge] carrier connected urgency=${urgency} live=${liveCalls}`);
   const state = { streamSid: null, inFrames: 0, outFrames: 0, setupComplete: false,
     firstAudioAtMs: null, audioBytes: 0, audioSquares: 0, audioSamples: 0,
@@ -1684,12 +1762,18 @@ wss.on("connection", (carrierWs, req) => {
         // Keep the legacy kind for existing panels, but put estimated cost on the normalized event
         // only so aggregate cost is not counted twice.
         recordCost({ uid: wakeUid || null, kind: "gemini_live", quantity, unit: "seconds",
-          estUsd: 0, meta: { reconnect: geminiReconnects, cost_source: "provider_usage" } });
+          estUsd: 0, meta: { provider: "gemini", sku: LIVE_MODEL, operation: "live_api_legacy_duplicate",
+            currency: "USD", actual_usd: 0, billing_status: "not_applicable",
+            pricing_version: null, estimate_status: "not_applicable",
+            reconnect: geminiReconnects, cost_source: "provider_usage",
+            runtime_trace: voiceRuntimeTrace } });
         recordUsageEvent({ tenantId: wakeUid || "unknown", provider: "gemini",
-          feature: "live_api", outcome: gotAudio ? "success" : "failure",
+          feature: "live_api", operation: "live_api", outcome: gotAudio ? "success" : "failure",
           failureClass: gotAudio ? null : "no_audio", providerUnits: quantity,
           providerUnit: "seconds_proxy", estimatedCostUsd: quantity / 60 * 0.023,
-          meta: { reconnects: geminiReconnects, estimate_basis: "audio_duration_proxy" } });
+          meta: { model: LIVE_MODEL, pricing_version: "lm-gemini-live-duration-proxy-2026-10-06-v1",
+            reconnects: geminiReconnects, estimate_basis: "audio_duration_proxy" },
+        }, { runtimeEnv: voiceRuntimeEnv });
       }
       onGeminiEnd("closed");
     });
@@ -1753,7 +1837,12 @@ wss.on("connection", (carrierWs, req) => {
     if (callStartedAtMs != null) {
       const quantity = Math.max(0, (Date.now() - callStartedAtMs) / 1000);
       recordCost({ uid: wakeUid || null, kind: "telnyx_call", quantity, unit: "seconds",
-        estUsd: quantity / 60 * 0.002, meta: { stream_id: state.streamSid || null } });
+        estUsd: quantity / 60 * 0.002,
+        meta: { provider: "telnyx", operation: "voice_call", sku: null,
+          currency: "USD", actual_usd: null, billing_status: "estimated",
+          pricing_version: "lm-telnyx-local-estimate-2026-10-06-v1",
+          estimate_status: "estimated", stream_id: state.streamSid || null,
+          runtime_trace: voiceRuntimeTrace } });
     }
     if (gemini) { try { gemini.close(); } catch {} }
   });

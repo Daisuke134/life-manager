@@ -270,7 +270,7 @@ def test_semantic_judge_uses_fast_task_class_and_bounded_outer_timeout(tmp_path,
     monkeypatch.setattr(
         requested_estimate,
         "validate_semantic_judgement",
-        lambda _payload, _rows: {"next_action": "reply"},
+        lambda _payload, _rows, **_kwargs: {"next_action": "reply"},
     )
     judge = requested_estimate.SemanticJudge(
         runner=RUNNER_PATH,
@@ -315,8 +315,10 @@ def test_semantic_judge_corrects_any_model_validation_error_once(tmp_path, monke
     validations = iter((requested_estimate.SemanticJudgementError(
         "semantic_content_evidence_invalid"
     ), {"next_action": "wait"}))
+    application_context_flags = []
 
-    def validate(_payload, _rows):
+    def validate(_payload, _rows, **kwargs):
+        application_context_flags.append(kwargs.get("application_context_available"))
         value = next(validations)
         if isinstance(value, Exception):
             raise value
@@ -337,9 +339,12 @@ def test_semantic_judge_corrects_any_model_validation_error_once(tmp_path, monke
             {"message_id": "buyer-1", "author_path": "/users/buyer",
              "body": "質問です", "sent_at": "2026-08-19T00:01:00Z"},
         ],
-    }, "https://coconala.com/messages/123")
+    }, "https://coconala.com/messages/123", official_context={
+        "service": {"service_id": "123"},
+    })
 
     assert receipt["judgement"] == {"next_action": "wait"}
+    assert application_context_flags == [False, False]
     assert len(calls) == 2
     assert "semantic_content_evidence_invalid" in calls[1]
     assert "一文字も変えずコピー" in calls[1]
@@ -625,6 +630,70 @@ def test_purchase_decision_reply_cannot_lead_with_internal_confirmation():
         match="semantic_purchase_decision_requires_proactive_reply",
     ):
         requested_estimate.validate_semantic_judgement(payload, rows)
+
+
+def _application_hydration_wait_case():
+    rows = [{
+        "message_id": "buyer-go", "role": "buyer",
+        "sent_at": "2026-08-22T14:55:00Z", "body": "対応できる場合は購入します。",
+    }]
+    payload = {
+        "conversation_state": "question", "next_action": "wait",
+        "cycle_start_message_id": "buyer-go", "evidence_message_ids": ["buyer-go"],
+        "required_official_context": "application", "estimate_terms": None,
+        "reply_body": None,
+        "reply_audit": {
+            "answered_buyer_message_ids": [], "unanswered_questions": [],
+            "unsupported_claims": [], "unrequested_cta": False,
+            "repeats_seller_message": False, "off_platform_contact": False,
+        },
+        "uncertainty": ["公式応募条件"],
+    }
+    return rows, payload
+
+
+def test_application_hydration_wait_is_allowed_only_before_application_context():
+    rows, payload = _application_hydration_wait_case()
+
+    assert requested_estimate.validate_semantic_judgement(
+        payload, rows, application_context_available=False,
+    )["next_action"] == "wait"
+    with pytest.raises(
+        requested_estimate.SemanticJudgementError,
+        match="semantic_application_context_wait_invalid",
+    ):
+        requested_estimate.validate_semantic_judgement(
+            payload, rows, application_context_available=True,
+        )
+    with pytest.raises(requested_estimate.SemanticJudgementError):
+        requested_estimate.validate_semantic_judgement(payload, rows)
+
+
+@pytest.mark.parametrize(("changes", "application_context_available"), [
+    ({"required_official_context": "none"}, False),
+    ({"required_official_context": "service"}, False),
+    ({"next_action": "reply"}, False),
+    ({"conversation_state": "negotiating"}, False),
+    ({"uncertainty": []}, False),
+    ({"estimate_terms": {}}, False),
+    ({"reply_body": "確認しました。"}, False),
+    ({"reply_audit": {
+        "answered_buyer_message_ids": [], "unanswered_questions": [],
+        "unsupported_claims": ["未確認"], "unrequested_cta": False,
+        "repeats_seller_message": False, "off_platform_contact": False,
+    }}, False),
+])
+def test_application_hydration_wait_rejects_generic_or_mixed_payloads(
+    changes, application_context_available,
+):
+    rows, payload = _application_hydration_wait_case()
+    payload.update(changes)
+
+    with pytest.raises(requested_estimate.SemanticJudgementError):
+        requested_estimate.validate_semantic_judgement(
+            payload, rows,
+            application_context_available=application_context_available,
+        )
 
 
 def test_system_notice_with_purchase_words_does_not_force_customer_reply():

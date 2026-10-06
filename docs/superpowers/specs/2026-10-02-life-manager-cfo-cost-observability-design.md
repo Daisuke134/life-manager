@@ -1,6 +1,6 @@
 # Life Manager CFO and Provider Cost Observability Design
 
-Status: design draft for review
+Status: current design reference; implementation state, cursor, and ordered TODOs are maintained only in [the unified SSOT](2026-09-25-life-manager-unified-ssot.md)
 Owner: `lm-cfo-observability-1002`
 Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
 
@@ -167,7 +167,9 @@ Telephony, paid model calls, and user-requested external actions remain separate
 5. Evaluate OSRM/Valhalla self-hosting for driving routes and OpenTripPlanner self-hosting for scheduled transit only after the current route cache and budget gates are measured.
 6. Keep Google as an explicit, budget-authorized fallback rather than the scheduler default.
 
-## 9. Ordered atomic delivery
+## 9. Delivery scope by design phase
+
+This section defines phase scope and acceptance intent, not the live TODO order or completion status. The unified SSOT is the sole source for the active cursor and remaining work.
 
 ### A0 — Spec and ownership
 
@@ -176,16 +178,16 @@ Telephony, paid model calls, and user-requested external actions remain separate
 - write the implementation plan only after this spec is accepted;
 - record file ownership and excluded files in the plan.
 
-### A1 — Observation envelope
+### A1 — Observation envelope (operational; hardening remains)
 
-- add schema and validation tests;
-- add append-only storage/migration;
-- redact secrets and PII;
-- prove success, timeout, provider failure, crash, stale, and `effect_unknown` rows.
+The production observation path is active; the 2026-10-06 read-only evidence shows no A1-caused outage or confirmed row mutation. A1 is not a current production issue and does not block A2–A10. The advertised REST `PATCH`/`DELETE` methods do not prove that rows were changed; the inspected application path writes with `POST` and reads with `GET`, while production ACL/trigger state remains unverified. Keep that missing readback, the canonical wake/voice/provider-cost join, and crash/stale/`effect_unknown` lifecycle evidence as non-blocking audit hardening in the unified SSOT. Missing `loop_id` and actual billing attribution are cost-coverage gaps owned by A2/A6/A8, not evidence that A1 observation is down. Do not backfill historical rows by inference.
+
+The A1 acceptance contract is schema validation, append-only storage, secret/PII redaction, and evidence for success, timeout, provider failure, crash, stale, and `effect_unknown` outcomes. The remaining production verification status is in the unified SSOT; these acceptance items are not the active cursor.
 
 ### A2 — Cost ledger
 
 - extend provider cost rows with provider, SKU, operation, quantity, estimate, actual, billing status, and pricing version;
+- keep the existing `lm_api_cost` table: `quantity` and `est_usd` remain nullable columns; provider, SKU, operation, actual amount, billing status, pricing version, and currency go in existing `meta` JSONB. Do not add a table or migration for A2;
 - reject missing actual billing as zero;
 - make failed ledger writes visible to the owner.
 
@@ -195,6 +197,17 @@ Telephony, paid model calls, and user-requested external actions remain separate
 - persist route results with tenant/event/time/mode/provider identity;
 - prove repeated scheduler ticks create zero duplicate paid calls;
 - preserve cache reads in degraded/stopped budget states.
+
+Implementation boundary for A3:
+
+- Keep the existing `lm_route_cache` route-result store and its tenant/provider/mode/timezone/event scope. Do not create a second route cache or change Transit-first → one sequential Google fallback.
+- Add a private `lm_geocode_cache` store for successful coordinates. Key by tenant, geocoder provider, and a keyed digest of the NFKC/trim/whitespace-normalized address; persist only `lat`, `lon`, `computed_at`, and TTL, never the raw address, event title, provider response, or API credential.
+- Preserve the current 24-hour successful-geocode TTL and process-local transient/negative memo. Persist only provider-success coordinates that are finite and within latitude/longitude bounds; cache-store read/write failure is a miss/fallback and must not change the user's result flow.
+- Deduplicate concurrent same-process geocodes by scoped key. Do not claim distributed exactly-once for simultaneous cold misses across independent processes; the scheduled single-owner path and later natural repeated ticks are the acceptance target.
+- Retain the current hashed event/anchor/endpoint/purpose dimensions and add timezone, arrival/departure direction, and a routing-policy version to route `event_version`, so the early persistent event lookup cannot bypass the coordinate cache's scope. Keep the route cache's existing provider and mode identity.
+- Add the 64-hex opaque `event_version` to route/geocode usage metadata for correlation; never persist the raw Calendar event ID, address, or full route cache key in cost rows or logs.
+- Verify a durable success survives a fresh cache/store instance and produces zero additional Google calls for an equivalent normalized address within TTL; verify tenant/provider isolation, TTL expiry, valid-coordinate checks, secret/PII exclusion, route-cache hit before reservation, and unchanged route/fallback UX.
+- A3 source acceptance is focused tests plus main deployment and natural readback showing stable same-tenant/same-`event_version` repeated ticks add zero paid provider rows after the first computation. Settled Google invoice reconciliation remains A6; the seven-day cross-loop finance close remains A10.
 
 ### A4 — Free-provider lane
 

@@ -25,10 +25,17 @@ function timeBucket(value, widthMs) {
   return widthMs > 0 ? Math.floor(epochMs / widthMs) : epochMs;
 }
 
-function cacheKey(uid, { timeMin, timeMax } = {}, ttlMs) {
+function cacheKey(uid, { timeMin, timeMax, expectedCalendarAccountId } = {}, ttlMs) {
   // Same resolver as makeCachedCalendar, so a standalone call and the wrapper agree by construction.
   const widthMs = configuredTtlMs(ttlMs);
-  return [uid, timeBucket(timeMin, widthMs), timeBucket(timeMax, widthMs)].join("|");
+  const account = expectedCalendarAccountId ? [String(expectedCalendarAccountId)] : [];
+  return [uid, ...account, timeBucket(timeMin, widthMs), timeBucket(timeMax, widthMs)].join("|");
+}
+
+function forCaller(outcome, input) {
+  if (outcome.ok) return outcome.items;
+  if (input.strict === true) throw outcome.error;
+  return [];
 }
 
 function makeCachedCalendar(inner, opts = {}) {
@@ -51,28 +58,31 @@ function makeCachedCalendar(inner, opts = {}) {
       if (ttlMs <= 0) return inner.listEventsRaw(uid, input);
 
       // The SAME resolved ttlMs that decides expiry below also sets the key's width — one number.
-      const key = cacheKey(uid, input, ttlMs);
+      const key = cacheKey(uid, {
+        ...input,
+        expectedCalendarAccountId: input.expectedCalendarAccountId ?? opts.expectedCalendarAccountId,
+      }, ttlMs);
       const timestamp = now();
       const hit = entries.get(key);
-      if (hit && timestamp - hit.fetchedAt < ttlMs) return hit.promise;
+      if (hit && timestamp - hit.fetchedAt < ttlMs) return forCaller(await hit.promise, input);
 
-      const promise = Promise.resolve().then(() => inner.listEventsRaw(uid, input));
+      const promise = Promise.resolve()
+        .then(() => inner.listEventsRaw(uid, { ...input, strict: true }))
+        .then(
+          (items) => ({ ok: true, items }),
+          (error) => ({ ok: false, error }),
+        );
       const entry = { uid, fetchedAt: timestamp, promise };
       entries.set(key, entry);
-      try {
-        return await promise;
-      } catch (error) {
-        if (entries.get(key) === entry) entries.delete(key);
-        throw error;
-      }
+      return forCaller(await promise, input);
     },
-    async createEvent(uid, input) {
-      const result = await inner.createEvent(uid, input);
+    async createEvent(uid, input, operationOpts = {}) {
+      const result = await inner.createEvent(uid, input, operationOpts);
       invalidateUid(uid);
       return result;
     },
-    async patchEvent(uid, input) {
-      const result = await inner.patchEvent(uid, input);
+    async patchEvent(uid, input, operationOpts = {}) {
+      const result = await inner.patchEvent(uid, input, operationOpts);
       invalidateUid(uid);
       return result;
     },

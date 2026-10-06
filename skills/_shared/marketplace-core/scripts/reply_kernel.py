@@ -25,6 +25,27 @@ from typing import Any, Callable, Mapping, Protocol
 MUTATIONS = frozenset({"reply", "estimate", "accept_contract", "external_action"})
 RESUMABLE_MUTATIONS = frozenset({"accept_contract", "external_action"})
 NO_EFFECT = frozenset({"awaiting_buyer", "closed", "no_reply", "noop"})
+_SAFE_REPLY_ERROR_CODES = frozenset({
+    "collector_unhealthy:login", "collector_unhealthy:not_found",
+    "collector_unhealthy:error_page", "collector_unhealthy:unexpected_url",
+    "collector_unhealthy:unexpected_title", "collector_unhealthy:missing_container",
+    "collector_unhealthy:missing_sender_identity", "collector_unhealthy:invalid_message_row",
+    "collector_unhealthy:dm_attachment_message_identity_changed",
+    "collector_unhealthy:thread_changed", "network_enable_failed",
+    "bring_to_front_failed", "submit_form_failed", "refresh_thread_failed",
+    "network_drain_failed", "post_click_read_failed", "click_transport_failed",
+    "coconala_thread_changed", "coconala_reply_reconcile_unknown",
+    "submit_rejected_external_contact", "submit_rejected_message_validation",
+    "submit_rejected_sending_unavailable", "submit_rejected_other_validation",
+    "submit_rejected_no_validation",
+})
+_REPLY_PHASES = frozenset({
+    "observe_prior_intent", "observe_after_intent", "readback_prior_intent",
+    "readback_before_mutate", "mutate", "readback_after_mutate",
+})
+_COCONALA_SEND_PHASES = frozenset({
+    "read_before", "fill", "click_started", "read_after", "final_read",
+})
 
 
 class ReplyAdapter(Protocol):
@@ -225,6 +246,143 @@ def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
     }
 
 
+def _reply_boundary(intent: Mapping[str, Any], phase: str, callback):
+    try:
+        return callback()
+    except Exception as error:
+        if intent.get("provider") == "coconala":
+            current = getattr(error, "_reply_diagnostic", None)
+            diagnostic = dict(current) if isinstance(current, Mapping) else {}
+            diagnostic["kernel_phase"] = phase
+            try:
+                error._reply_diagnostic = diagnostic
+            except (AttributeError, TypeError):
+                pass
+        raise
+
+
+def _diagnostic_token(value: Any, *, maximum: int = 160) -> str | None:
+    if type(value) is str and len(value) <= maximum and re.fullmatch(
+        r"[A-Za-z0-9._:-]+", value,
+    ):
+        return value
+    return None
+
+
+def _diagnostic_network(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, Mapping):
+        return None
+    source_rows = value.get("rows")
+    rows = []
+    if isinstance(source_rows, list):
+        for raw in source_rows[:10]:
+            if not isinstance(raw, Mapping):
+                continue
+            method = raw.get("method")
+            request_class = raw.get("request_class")
+            outcome = raw.get("outcome")
+            if (type(method) is not str or method not in {"POST", "PUT", "PATCH", "DELETE"}
+                    or type(request_class) is not str
+                    or request_class not in {"direct_message_submit", "other_mutation"}
+                    or type(outcome) is not str
+                    or outcome not in {"pending", "finished", "failed"}):
+                continue
+            status = raw.get("status")
+            row = {
+                "method": method,
+                "request_class": request_class,
+                "status": status if type(status) is int and 100 <= status <= 599 else None,
+                "outcome": outcome,
+            }
+            failure = raw.get("failure")
+            if type(failure) is str and re.fullmatch(r"(?:ERR_[A-Z0-9_]+|network_error)", failure):
+                row["failure"] = failure
+            rows.append(row)
+    count = value.get("request_count")
+    return {
+        "request_count": min(count, 10) if type(count) is int and count >= 0 else len(rows),
+        "rows": rows,
+    }
+
+
+def _intent_failure_diagnostic(
+    error: Exception, state: Mapping[str, Any], current_occurrence_id: str | None,
+) -> dict[str, Any] | None:
+    intent = state.get("intent")
+    if not isinstance(intent, Mapping) or intent.get("provider") != "coconala":
+        return None
+    source = getattr(error, "_reply_diagnostic", None)
+    if not isinstance(source, Mapping):
+        return None
+    kernel_phase = source.get("kernel_phase")
+    send_phase = source.get("send_phase")
+    if not (
+        type(kernel_phase) is str and kernel_phase in _REPLY_PHASES
+    ) and not (
+        type(send_phase) is str and send_phase in _COCONALA_SEND_PHASES
+    ):
+        return None
+    effect_key = intent.get("effect_key")
+    content_sha256 = intent.get("content_sha256")
+    if (type(effect_key) is not str or not re.fullmatch(r"[0-9a-f]{64}", effect_key)
+            or type(content_sha256) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", content_sha256)):
+        return None
+    if source.get("effect_key") is not None and source.get("effect_key") != effect_key:
+        return None
+    if source.get("content_sha256") is not None and source.get("content_sha256") != content_sha256:
+        return None
+    identity = "\0".join(str(intent.get(key) or "") for key in (
+        "provider", "account_id", "thread_id",
+    ))
+    event_identity = str(intent.get("latest_event_id") or "")
+    error_type = type(error).__name__
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", error_type):
+        error_type = "Exception"
+    error_code = source.get("error_code")
+    if type(error_code) is not str or error_code not in _SAFE_REPLY_ERROR_CODES:
+        error_code = None
+    if error_code is None:
+        candidate = str(error)
+        if candidate in _SAFE_REPLY_ERROR_CODES:
+            error_code = candidate
+    result: dict[str, Any] = {
+        "version": 1,
+        "effect_key": effect_key,
+        "intent_sha256": _digest(intent),
+        "content_sha256": content_sha256,
+        "thread_identity_sha256": hashlib.sha256(identity.encode()).hexdigest(),
+        "event_identity_sha256": hashlib.sha256(event_identity.encode()).hexdigest(),
+        "effect_status": "unknown",
+        "current_wake_id": _diagnostic_token(os.environ.get("LIFE_MANAGER_RUN_ID")),
+        "current_claimed_occurrence_id": _diagnostic_token(current_occurrence_id),
+        "stored_intent_occurrence_id": _diagnostic_token(state.get("occurrence_id")),
+        "release_sha": (
+            os.environ.get("LIFE_MANAGER_RELEASE_SHA")
+            if re.fullmatch(r"[0-9a-f]{40,64}", os.environ.get("LIFE_MANAGER_RELEASE_SHA", ""))
+            else None
+        ),
+        "error_type": error_type,
+        "error_code": error_code,
+        "recorded_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+    if kernel_phase in _REPLY_PHASES:
+        result["kernel_phase"] = kernel_phase
+    if send_phase in _COCONALA_SEND_PHASES:
+        result["send_phase"] = send_phase
+    network = _diagnostic_network(source.get("network_summary"))
+    if network is not None:
+        result["network_summary"] = network
+    cause = source.get("cause")
+    if isinstance(cause, Mapping):
+        cause_type, cause_code = cause.get("error_type"), cause.get("error_code")
+        if type(cause_type) is str and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", cause_type):
+            result["cause"] = {"error_type": cause_type}
+            if type(cause_code) is str and cause_code in _SAFE_REPLY_ERROR_CODES:
+                result["cause"]["error_code"] = cause_code
+    return result
+
+
 def _redact_private(value: Any, identities: tuple[str, ...]) -> Any:
     if isinstance(value, str):
         result = value
@@ -338,28 +496,52 @@ def _run_locked(
             raise ValueError("reply_retry_state_invalid") from None
         if datetime.now(timezone.utc) < eligible:
             return _pending(row, "retry_backoff")
-    current = _observation(adapter.observe_one(row["thread_id"]))
+    prior_intent = state.get("intent")
+    if isinstance(prior_intent, Mapping):
+        observed = _reply_boundary(
+            prior_intent, "observe_prior_intent",
+            lambda: adapter.observe_one(row["thread_id"]),
+        )
+    else:
+        observed = adapter.observe_one(row["thread_id"])
+    current = _observation(observed)
     if any(current[field] != row[field] for field in ("provider", "account_id", "thread_id")):
         raise ValueError("reply_thread_identity_changed")
     row = current
 
-    prior_intent = state.get("intent")
     prior_observation = state.get("observation")
     same_event = (
         isinstance(prior_observation, Mapping)
         and prior_observation.get("latest_event_id") == row["latest_event_id"]
     )
+    prior_unknown_reply = (
+        state.get("status") == "reconcile_unknown"
+        and isinstance(prior_intent, Mapping)
+        and prior_intent.get("action") in {"reply", "estimate"}
+    )
     if isinstance(prior_intent, Mapping) and (
         same_event or prior_intent.get("action") in RESUMABLE_MUTATIONS
+        or prior_unknown_reply
     ):
-        official = adapter.readback(dict(prior_intent))
+        official = _reply_boundary(
+            prior_intent, "readback_prior_intent",
+            lambda: adapter.readback(dict(prior_intent)),
+        )
         if official.get("verified") is True:
             receipt = _receipt(prior_intent, official)
             notification = _notify_verified(
                 notify, prior_intent, receipt, state.get("notification")
             )
-            _save({"version": 1, "inventory_event_id": inventory_event_id,
-                          "observation": row, "intent": prior_intent,
+            old_event_verified = prior_unknown_reply and not same_event
+            _save({"version": 1,
+                          "inventory_event_id": (
+                              state.get("inventory_event_id")
+                              if old_event_verified else inventory_event_id
+                          ),
+                          "observation": (
+                              prior_observation if old_event_verified else row
+                          ),
+                          "intent": prior_intent,
                           "receipt": receipt, "notification": notification,
                           "status": "verified"})
             result = {"thread_id": row["thread_id"], "status": "verified",
@@ -455,12 +637,17 @@ def _run_locked(
     _save({"version": 1, "inventory_event_id": inventory_event_id,
                   "observation": row, "intent": intent,
                   "status": "intent_persisted"})
-    refreshed = _observation(adapter.observe_one(row["thread_id"]))
+    refreshed = _observation(_reply_boundary(
+        intent, "observe_after_intent",
+        lambda: adapter.observe_one(row["thread_id"]),
+    ))
     if refreshed["latest_event_id"] != row["latest_event_id"]:
         _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "status": "context_stale"})
         return _pending(row, "newer_provider_event")
-    existing = adapter.readback(intent)
+    existing = _reply_boundary(
+        intent, "readback_before_mutate", lambda: adapter.readback(intent),
+    )
     if existing.get("verified") is True:
         receipt = _receipt(intent, existing)
         notification = _notify_verified(notify, intent, receipt)
@@ -480,7 +667,7 @@ def _run_locked(
         return _pending(row, "pre_effect_reconcile_unknown")
     try:
         _clear_pre_effect_hint(pre_effect_hint)
-        adapter.mutate(intent)
+        _reply_boundary(intent, "mutate", lambda: adapter.mutate(intent))
     except Exception as error:
         classify = getattr(adapter, "classify_mutation_error", None)
         classified = classify(error) if callable(classify) else None
@@ -496,7 +683,9 @@ def _run_locked(
                       "observation": refreshed, "status": "waiting_external",
                       "blocker": reason, "remaining_work": remaining})
         return _pending(row, reason)
-    official = adapter.readback(intent)
+    official = _reply_boundary(
+        intent, "readback_after_mutate", lambda: adapter.readback(intent),
+    )
     if official.get("verified") is not True:
         _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "intent": intent,
@@ -526,19 +715,35 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
                                pre_effect_hint, occurrence_id)
         except Exception as error:
             state = _load(path)
-            error_detail = str(error).strip()[:500] or type(error).__name__
+            diagnostic = _intent_failure_diagnostic(error, state, occurrence_id)
+            error_detail = (
+                diagnostic.get("error_code") or diagnostic["error_type"]
+                if diagnostic is not None
+                else str(error).strip()[:500] or type(error).__name__
+            )
             classify = getattr(adapter, "classify_observation_error", None)
             classified = classify(error) if callable(classify) else None
             transient_reason = None
             if isinstance(classified, Mapping):
                 transient_reason = _text(classified.get("reason"), "reason")
             if isinstance(state.get("intent"), Mapping):
-                _write(path, {
+                saved = {
                     **state,
                     "status": "reconcile_unknown",
                     "last_error": type(error).__name__,
                     "last_error_detail": error_detail,
-                })
+                }
+                if diagnostic is not None:
+                    saved["send_diagnostic"] = diagnostic
+                try:
+                    _write(path, saved)
+                except Exception as write_error:
+                    if diagnostic is not None:
+                        try:
+                            write_error._reply_diagnostic_write_failed = True
+                        except (AttributeError, TypeError):
+                            pass
+                    raise
                 if transient_reason is not None:
                     return _pending(row, transient_reason)
                 return {"thread_id": row["thread_id"], "status": "failed",
@@ -598,6 +803,8 @@ def run_wake(*, adapter: ReplyAdapter,
                     try:
                         items.append(future.result())
                     except Exception as error:
+                        if getattr(error, "_reply_diagnostic_write_failed", False):
+                            raise
                         items.append({"thread_id": row["thread_id"], "status": "failed",
                                       "reason": type(error).__name__, "effect": 0,
                                       "readback": 0, "failed": 1})

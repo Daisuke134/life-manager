@@ -16,8 +16,12 @@ let handlePanelOAuthCallback = async (_req, res) => {
   res.end(JSON.stringify({ error: "panel callback not implemented" }));
 };
 let createSupabaseCommandStore = null;
+let composioCalendarAccountStatus = null;
+let composioCalendarDisconnect = null;
+let composioCalendarStart = null;
 try {
-  ({ handlePanelApiRequest, handlePanelOAuthCallback, createSupabaseCommandStore } = require("./panel-api.js"));
+  ({ handlePanelApiRequest, handlePanelOAuthCallback, createSupabaseCommandStore,
+    composioCalendarAccountStatus, composioCalendarDisconnect, composioCalendarStart } = require("./panel-api.js"));
 } catch (error) {
   if (error.code !== "MODULE_NOT_FOUND") throw error;
 }
@@ -29,6 +33,292 @@ const SESSION_HASH = crypto.createHash("sha256").update(SESSION).digest("hex");
 function jsonResponse(rows, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => rows };
 }
+
+test("Composio Calendar status requires exact ACTIVE or explicit exact disabled readback", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const statusOf = (item) => composioCalendarAccountStatus(scope, selectedId, {
+    composioKey: "provider-key",
+    fetchImpl: async () => jsonResponse(item),
+  });
+
+  assert.equal(await statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  }), "ACTIVE");
+  assert.equal(await statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  }), "DISABLED");
+  assert.equal(await statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "EXPIRED", is_disabled: false, enabled: true,
+  }), "EXPIRED");
+  await assert.rejects(statusOf({
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INITIATED", is_disabled: false, enabled: false,
+  }), /provider_status_unknown/);
+  await assert.rejects(statusOf({
+    id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  }), /provider_account_mismatch/);
+  await assert.rejects(statusOf({
+    id: selectedId, user_id: "lm_22222222-2222-4222-8222-222222222222", toolkit_slug: "googlecalendar",
+    status: "EXPIRED", is_disabled: false, enabled: true,
+  }), /provider_ownership/);
+});
+
+test("selected Composio Calendar 404 is MISSING while server failures stay unavailable", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const missing = await composioCalendarAccountStatus(scope, selectedId, {
+    composioKey: "provider-key",
+    fetchImpl: async (url) => {
+      assert.match(String(url), new RegExp(`/connected_accounts/${selectedId}$`));
+      return jsonResponse({ message: "not found" }, 404);
+    },
+  });
+  assert.equal(missing, "MISSING");
+  await assert.rejects(() => composioCalendarAccountStatus(scope, selectedId, {
+    composioKey: "provider-key",
+    fetchImpl: async () => jsonResponse({ message: "provider unavailable" }, 503),
+  }), /provider_failed/);
+});
+
+test("Calendar disconnect rejects a same-owner response ID mismatch before any PATCH", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const calls = [];
+  await assert.rejects(() => composioCalendarDisconnect(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    fetchImpl: async (_url, init = {}) => {
+      calls.push(init.method || "GET");
+      return jsonResponse({
+        id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
+        status: "ACTIVE", is_disabled: false, enabled: true,
+      });
+    },
+  }), /provider_account_mismatch/);
+  assert.equal(calls.filter((method) => method === "PATCH").length, 0);
+});
+
+test("Calendar start rejects a same-owner returned ID mismatch before any enable PATCH", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const calls = [];
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    fetchImpl: async (url, init = {}) => {
+      const method = init.method || "GET";
+      calls.push({ url: String(url), method, body: init.body && JSON.parse(init.body) });
+      return jsonResponse({
+        id: "ca-other-999", user_id: scope.uid, toolkit_slug: "googlecalendar",
+        status: "INACTIVE", is_disabled: true, enabled: false,
+      });
+    },
+  }), /provider_account_mismatch/);
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("Web Calendar start requires explicit disabled state while Telegram retains its legacy enable predicate", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const inactive = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const cases = [
+    { ...inactive, status: "EXPIRED" },
+    { ...inactive, status: undefined },
+    { ...inactive, status: "INACTIVE", enabled: true },
+  ];
+  async function start(initial, options = {}) {
+    let account = { ...initial };
+    const patches = [];
+    const result = await composioCalendarStart(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      ...options,
+      fetchImpl: async (url, init = {}) => {
+        const parsed = new URL(String(url));
+        if ((init.method || "GET") === "PATCH") {
+          patches.push(JSON.parse(init.body || "{}").enabled);
+          account = {
+            id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+            status: "ACTIVE", is_disabled: false, enabled: true,
+          };
+          return jsonResponse({});
+        }
+        return jsonResponse(account);
+      },
+    });
+    return { result, patches };
+  }
+
+  for (const account of cases) {
+    const patches = [];
+    await assert.rejects(() => composioCalendarStart(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      requireExplicitDisabled: true,
+      fetchImpl: async (_url, init = {}) => {
+        if (init.method === "PATCH") patches.push(JSON.parse(init.body || "{}").enabled);
+        return jsonResponse(account);
+      },
+    }), /provider_status_unknown/);
+    assert.deepEqual(patches, []);
+  }
+
+  const webStart = await start(inactive, { requireExplicitDisabled: true });
+  assert.deepEqual(webStart.result, { provider: "calendar", state: "connected" });
+  assert.deepEqual(webStart.patches, [true]);
+
+  const telegramStart = await start(cases[0]);
+  assert.deepEqual(telegramStart.result, { provider: "calendar", state: "connected" });
+  assert.deepEqual(telegramStart.patches, [true]);
+});
+
+test("Composio Calendar enable GET, PATCH, and ACTIVE readback use 20-second abort signals", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const disabled = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const active = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  };
+  const timeoutCalls = [];
+  const fetchCalls = [];
+  const originalTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = (milliseconds) => {
+    timeoutCalls.push(milliseconds);
+    return originalTimeout.call(AbortSignal, milliseconds);
+  };
+  let providerEnabled = false;
+  try {
+    const result = await composioCalendarStart(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      requireExplicitDisabled: true,
+      fetchImpl: async (_url, init = {}) => {
+        const method = init.method || "GET";
+        fetchCalls.push({ method, signal: init.signal });
+        if (method === "PATCH") {
+          providerEnabled = true;
+          return jsonResponse({});
+        }
+        return jsonResponse(providerEnabled ? active : disabled);
+      },
+    });
+
+    assert.deepEqual(result, { provider: "calendar", state: "connected" });
+  } finally {
+    AbortSignal.timeout = originalTimeout;
+  }
+
+  assert.deepEqual(timeoutCalls, [20_000, 20_000, 20_000]);
+  assert.deepEqual(fetchCalls.map((call) => call.method), ["GET", "PATCH", "GET"]);
+  assert.ok(fetchCalls.every((call) => call.signal instanceof AbortSignal));
+});
+
+test("Composio Calendar enable labels a failed read-only preflight as known no-effect", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: "ca-selected-123",
+    requireExplicitDisabled: true,
+    fetchImpl: async () => jsonResponse({ message: "provider unavailable" }, 503),
+  }), (error) => error.calendarEnableEffect === "no_effect" && /provider_failed/.test(error.message));
+});
+
+test("Composio Calendar enable labels an error after PATCH dispatch as unknown", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const disabled = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const calls = [];
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    requireExplicitDisabled: true,
+    fetchImpl: async (_url, init = {}) => {
+      calls.push(init.method || "GET");
+      if (init.method === "PATCH") throw new Error("provider timeout");
+      return jsonResponse(disabled);
+    },
+  }), (error) => error.calendarEnableEffect === "unknown");
+  assert.deepEqual(calls, ["GET", "PATCH"]);
+});
+
+test("Telegram Calendar start preserves a preflight network error", async () => {
+  const scope = { uid: "telegram-user" };
+  const providerError = new Error("connected-account read timed out");
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: "ca-selected-123",
+    fetchImpl: async () => { throw providerError; },
+  }), (error) => error === providerError);
+});
+
+test("Telegram Calendar start preserves a network error after enable PATCH dispatch", async () => {
+  const scope = { uid: "telegram-user" };
+  const selectedId = "ca-selected-123";
+  const disabled = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "INACTIVE", is_disabled: true, enabled: false,
+  };
+  const providerError = new Error("enable request timed out");
+  await assert.rejects(() => composioCalendarStart(scope, {
+    composioKey: "provider-key",
+    connectedAccountId: selectedId,
+    fetchImpl: async (_url, init = {}) => {
+      if (init.method === "PATCH") throw providerError;
+      return jsonResponse(disabled);
+    },
+  }), (error) => error === providerError);
+});
+
+test("uncertain Web Calendar disconnect skips rollback-enable while the default keeps Telegram rollback", async () => {
+  const scope = { uid: "lm_11111111-1111-4111-8111-111111111111" };
+  const selectedId = "ca-selected-123";
+  const active = {
+    id: selectedId, user_id: scope.uid, toolkit_slug: "googlecalendar",
+    status: "ACTIVE", is_disabled: false, enabled: true,
+  };
+  const unknown = {
+    ...active, status: "EXPIRED",
+  };
+  async function disconnect(rollbackOnReadbackFailure) {
+    const patches = [];
+    let reads = 0;
+    await assert.rejects(() => composioCalendarDisconnect(scope, {
+      composioKey: "provider-key",
+      connectedAccountId: selectedId,
+      ...(rollbackOnReadbackFailure === undefined ? {} : { rollbackOnReadbackFailure }),
+      fetchImpl: async (url, init = {}) => {
+        const parsed = new URL(String(url));
+        const method = init.method || "GET";
+        if (method === "PATCH") {
+          const body = JSON.parse(init.body || "{}");
+          patches.push(body.enabled);
+          return jsonResponse({});
+        }
+        reads++;
+        return jsonResponse(reads === 1 ? active : reads === 2 ? unknown : active);
+      },
+    }), /provider_readback_failed/);
+    return patches;
+  }
+
+  assert.deepEqual(await disconnect(false), [false]);
+  assert.deepEqual(await disconnect(undefined), [false, true]);
+});
 
 function makeFixture() {
   const calls = [];
@@ -756,16 +1046,28 @@ test("PANEL-8g scores use source outcomes and expose all four closed organs", as
 
 test("REPORT-1 panel reads the real earnings table and the exact Telegram snapshots", async () => {
   const fixture = makeFixture();
+  fixture.byUid.u1.costs.push({ uid: "u1", ts: "2026-07-21T09:30:00.000Z",
+    kind: "composio_call", quantity: 1, unit: "call", est_usd: null,
+    meta: { provider: "composio", billing_status: "unknown", actual_usd: null } });
+  fixture.byUid.u1.costs.push({ uid: "u1", ts: "2026-07-21T09:45:00.000Z",
+    kind: "composio_call", quantity: 1, unit: "call", est_usd: 0,
+    meta: { provider: "composio", tool: "GOOGLECALENDAR_EVENTS_LIST" } });
   await withApiServer(fixture, async (base) => {
     const { response, body } = await getJson(base, "ledger");
     assert.equal(response.status, 200);
     assert.deepEqual(body, {
       api_cost: {
         no_data: false,
-        total: "USD 0.42",
+        total: "USD 0.42（既知推定小計・金額不明2件）",
+        estimate_status: "partial",
+        unknown_estimate_entries: 2,
+        actual_status: "unknown",
+        unknown_actual_entries: 4,
         items: [
           { label: "API利用料", date: "2026-07-21", amount: "USD 0.12", link: null },
           { label: "API利用料", date: "2026-07-21", amount: "USD 0.30", link: null },
+          { label: "API利用料", date: "2026-07-21", amount: "金額不明", link: null },
+          { label: "API利用料", date: "2026-07-21", amount: "金額不明", link: null },
         ],
       },
       financial: {

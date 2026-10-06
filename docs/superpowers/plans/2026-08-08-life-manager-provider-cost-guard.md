@@ -51,7 +51,7 @@ function createSupabaseGeocodeStore({ supaUrl, supaKey, fetchImpl })
 - [ ] Write tests proving equivalent whitespace/case forms share one key, a successful first result is persisted, a second process instance performs zero Google calls, and failed/empty responses are not cached as success.
 - [ ] Run `node --test lib/geocode-cache.test.js test/mobile-geocode-cost-guard.test.js`; record RED.
 - [ ] Add the cache migration and store, then replace `_geoMemo` as the production authority while retaining a small in-process read-through layer.
-- [ ] Ensure `travel.js` writes after a valid success; the current implementation never calls `_geoMemo.set`.
+- [ ] Ensure `travel.js` persists a valid success beyond the process; current `geocodeAddress` already updates `_geoMemo`, but that memo is lost on process restart.
 - [ ] Re-run the focused tests and read the staging row back.
 - [ ] Commit and push this slice.
 

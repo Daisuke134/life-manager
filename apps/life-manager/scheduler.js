@@ -489,10 +489,17 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
       nowMs: now, horizonH: 6, lookbackMs: MENTAL_LOOKBACK_MS,
       apiKey: deps.apiKey || process.env.COMPOSIO_API_KEY,
       calendar: deps.calendar, gmailAccountId: u.gmail_account_id,
+      strictCalendarRead: true,
+      onCalendarRead: ({ rawItemCount }) => reportWakeDiagnostics(deps, { calendar_items: rawItemCount }),
     });
   } catch {
+    reportWakeDiagnostics(deps, { calendar_read_failed: 1 });
     return;
   }
+  reportWakeDiagnostics(deps, {
+    calendar_read_success: 1,
+    calendar_events: Array.isArray(events) ? events.length : 0,
+  });
   const wakeEvents = (events || []).filter((e) => Number(e.startMs) >= now - 2 * 60000);
   // The organ tick reads this instead of fetching. Publish the raw events because MENTAL needs
   // its wider lookback; the wake scan uses only the final two minutes for missed-call evidence.
@@ -504,7 +511,9 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
   // gate on the Inngest per-user path, which reaches wakeCallOnce through wakeUserOnce and never passes
   // wakeTick's filter.
   if (u.paid === true && u.call_enabled === true && isCallablePhone(u.phone)) {
-    for (const ev of wakeEvents.filter((e) => shouldWake(e, u.home_address, u.wake_policy))) {
+    const candidates = wakeEvents.filter((e) => shouldWake(e, u.home_address, u.wake_policy));
+    reportWakeDiagnostics(deps, { wake_candidates: candidates.length });
+    for (const ev of candidates) {
       const actionBaseKey = String(ev.id || `${ev.startMs || ev.startIso}:${ev.summary || ""}`);
       const allowanceReserve = deps.reserveManagedAction || (deps.placeCall ? undefined : reserveManagedAction);
       const allowanceRelease = deps.releaseManagedAction || (deps.placeCall ? undefined : releaseManagedAction);
@@ -521,6 +530,7 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
       const due = WAKE_LEVELS
         .filter((lvl) => mins <= lvl.min + 0.5 && mins > LATE_CUTOFF_MIN)
         .sort((a, b) => a.min - b.min);
+      if (due.length) reportWakeDiagnostics(deps, { due_candidates: 1 });
       // The moment an event starts, its wake cannot ring again. If the finest
       // level was never even claimed, nothing was ever attempted — the exact failure that looked like
       // a non-event in lm_wake_log. Record it once, in the two ticks just past the cutoff: later ticks
@@ -685,6 +695,11 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
   }
 }
 
+function reportWakeDiagnostics(deps, delta) {
+  if (typeof deps.recordWakeDiagnostics !== "function") return;
+  try { deps.recordWakeDiagnostics(delta); } catch { /* observability must not gate a wake call */ }
+}
+
 // The deadline-critical Telegram reminder has its own fixed tick. It reads the same raw lookback
 // calendar shape as the old organ path, but its route/live-location/claim/send body remains one
 // invocation path so a slow/degraded organ tick cannot suppress the reminder or duplicate it.
@@ -762,6 +777,7 @@ async function reminderUserOnce(u, nowMs, deps = {}) {
 // `tenant timeout` fired (spec §3 row 1c done receipt).
 async function organsUserOnce(u, nowMs, deps = {}) {
   if (u && u.daily_automation_enabled === false) return;
+  if (u && u.telegram_chat_id === null && WEB_TRAVEL_UID_RE.test(String(u.uid || ""))) return;
   const now = nowMs !== undefined ? nowMs : Date.now();
   const log = deps.log || console.log;
 
@@ -1038,21 +1054,50 @@ async function tick(deps = {}) {
 // actually does — one calendar fetch, one departure resolve, one dial — where 90s was sized for the
 // care organ's browser work. A user who blows 20s here still cannot delay the next user's dial.
 const WAKE_USER_TIMEOUT_MS = Number(process.env.LIFE_WAKE_USER_TIMEOUT_MS) || 20000;
+const WAKE_DIAGNOSTICS_INTERVAL_MS = 5 * 60 * 1000;
+const WAKE_DIAGNOSTIC_FIELDS = ["users_seen", "eligible_users", "calendar_read_success", "calendar_read_failed",
+  "calendar_items",
+  "calendar_events", "wake_candidates", "due_candidates"];
+function emptyWakeDiagnostics() {
+  return Object.fromEntries(WAKE_DIAGNOSTIC_FIELDS.map((field) => [field, 0]));
+}
 
 async function wakeTick(deps = {}) {
   const listUsers = deps.listUsers || supaUsers;
   const wake = deps.wake || wakeCallOnce;
   const users = await listUsers();
   const now = deps.now !== undefined ? deps.now : Date.now();
-  await forEachUserSafe(
-    // `call_enabled === true` plus strict E.164 phone (spec §5.2.1): the phone is an extra someone opts into,
-    // not the default. Missing/malformed values must never enter the dial path.
-    // `daily_automation_enabled !== false` keeps its opt-OUT sense — that switch means "run nothing
-    // for me", and it is not the thing §5.2.1 flipped.
-    users.filter(u => u.daily_automation_enabled !== false && u.paid === true
-      && u.call_enabled === true && isCallablePhone(u.phone)),
-    "wake", (u) => wake(u, now), WAKE_USER_TIMEOUT_MS,
-  );
+  const eligibleUsers = users.filter(u => u.daily_automation_enabled !== false && u.paid === true
+    && u.call_enabled === true && isCallablePhone(u.phone));
+  const stats = emptyWakeDiagnostics();
+  let reporterOpen = true;
+  const report = (delta) => {
+    if (!reporterOpen) return;
+    for (const field of WAKE_DIAGNOSTIC_FIELDS) {
+      if (Number.isFinite(delta && delta[field])) stats[field] += delta[field];
+    }
+    if (typeof deps.onWakeDiagnostics === "function") {
+      try { deps.onWakeDiagnostics(delta); } catch { /* observability must not gate a wake call */ }
+    }
+  };
+  report({ users_seen: users.length, eligible_users: eligibleUsers.length });
+  const runWake = deps.wake
+    ? (u) => wake(u, now)
+    : (u) => wakeCallOnce(u, now, { ...deps, recordWakeDiagnostics: report });
+  const wakeTimeoutMs = deps.wakeTimeoutMs !== undefined ? deps.wakeTimeoutMs : WAKE_USER_TIMEOUT_MS;
+  try {
+    await forEachUserSafe(
+      // `call_enabled === true` plus strict E.164 phone (spec §5.2.1): the phone is an extra someone opts into,
+      // not the default. Missing/malformed values must never enter the dial path.
+      // `daily_automation_enabled !== false` keeps its opt-OUT sense — that switch means "run nothing
+      // for me", and it is not the thing §5.2.1 flipped.
+      eligibleUsers,
+      "wake", runWake, wakeTimeoutMs,
+    );
+  } finally {
+    reporterOpen = false;
+  }
+  return { ...stats };
 }
 
 // The T-5 Telegram reminder is deadline-critical but does not require a phone or call opt-in. Keep
@@ -1087,9 +1132,24 @@ function startWakeLoop() {
   let voiceReconcileOffset = 0;
   let voiceReconcileRunning = false;
   let voiceReconcileLogged = false;
+  let wakeDiagnostics = emptyWakeDiagnostics();
+  let nextWakeDiagnosticsAt = Date.now() + WAKE_DIAGNOSTICS_INTERVAL_MS;
   let closed = false;
   const run = async () => {
-    try { await wakeTick(); } catch (e) { console.error("[wake] tick err", e.message); }
+    try {
+      await wakeTick({
+        onWakeDiagnostics: (delta) => {
+          for (const field of WAKE_DIAGNOSTIC_FIELDS) {
+            if (Number.isFinite(delta && delta[field])) wakeDiagnostics[field] += delta[field];
+          }
+        },
+      });
+    } catch (e) { console.error("[wake] tick err", e.message); }
+    if (!closed && Date.now() >= nextWakeDiagnosticsAt) {
+      console.log(`[wake] scan ${WAKE_DIAGNOSTIC_FIELDS.map((field) => `${field}=${wakeDiagnostics[field]}`).join(" ")}`);
+      wakeDiagnostics = emptyWakeDiagnostics();
+      nextWakeDiagnosticsAt = Date.now() + WAKE_DIAGNOSTICS_INTERVAL_MS;
+    }
     if (!closed) timer = setTimeout(run, TICK_MS);
     if (!closed && !voiceReconcileRunning && Date.now() >= nextVoiceReconcileAt) {
       nextVoiceReconcileAt = Date.now() + 5 * 60 * 1000;
@@ -1154,6 +1214,7 @@ function startScheduler() {
 
 // ── Travel auto-fill (every 30 min) — keep today+7d filled with [Travel] blocks ─────────────────
 const TRAVEL_TICK_MS = 30 * 60 * 1000;
+const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function travelUserOnce(u, deps = {}) {
   if (u && u.daily_automation_enabled === false) return;
@@ -1165,11 +1226,33 @@ async function travelUserOnce(u, deps = {}) {
   const supaUrl = deps.supaUrl !== undefined ? deps.supaUrl : configuredSupa.url;
   const supaKey = deps.supaKey !== undefined ? deps.supaKey : configuredSupa.key;
   try {
+    let expectedCalendarAccountId;
+    if (WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""))) {
+      if (u.telegram_chat_id === null) {
+        const resolveActive = deps.resolveActiveWebCalendarImpl
+          || require("./lib/web-calendar.js").resolveActiveWebCalendar;
+        const active = await resolveActive(u.uid, {
+          supaUrl, supaKey, composioKey: apiKey, fetchImpl: deps.fetchImpl, env: deps.env,
+        });
+        if (!active || !active.accountId) return;
+        if (u.expectedCalendarAccountId !== undefined
+          && u.expectedCalendarAccountId !== active.accountId) return;
+        const readControlState = deps.readWebTravelControlStateImpl
+          || require("./lib/runtime-preferences.js").readWebTravelControlState;
+        const controlState = await readControlState(u.uid, { supaUrl, supaKey, fetchImpl: deps.fetchImpl });
+        if (!controlState || controlState.dailyAutomationEnabled !== true
+          || controlState.disconnectPending !== false || controlState.enablePending !== false) return;
+        expectedCalendarAccountId = active.accountId;
+      } else if (u.telegram_chat_id === undefined) {
+        return;
+      }
+    }
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
       timezone: u.call_time_zone,
       nowMs: deps.nowMs === undefined ? Date.now() : deps.nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
+      expectedCalendarAccountId,
       _directionsMinutes: deps.directionsMinutes,
       _reserveManagedAction: deps.reserveManagedAction || (deps.fillTravel ? undefined : reserveManagedAction),
       _completeManagedAction: deps.completeManagedAction || (deps.fillTravel ? undefined : completeManagedAction),

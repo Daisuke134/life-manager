@@ -166,7 +166,14 @@ function financialAmount(row) {
     const fraction = rawFraction.replace(/0+$/, "").padEnd(2, "0");
     return `${currency} ${whole}.${fraction}`;
   }
-  if (row.est_usd != null) return formatCurrencyAmount(row.est_usd, "USD");
+  if (row.est_usd != null) {
+    const meta = record(row.meta) ? row.meta : {};
+    const estimate = Number(row.est_usd);
+    const zeroKnown = meta.cache_hit === true || meta.estimate_status === "estimated"
+      || meta.estimate_status === "not_applicable";
+    if (meta.estimate_status !== "unavailable" && Number.isFinite(estimate)
+      && (estimate !== 0 || zeroKnown)) return formatCurrencyAmount(estimate, "USD");
+  }
   return null;
 }
 
@@ -266,10 +273,32 @@ function projectLedger(candidate) {
   ) fail("ledger");
   const apiItems = candidate.apiCostEntries.map((row) => ledgerItem(row, "API利用料"));
   const financialItems = candidate.financialEntries.map((row) => ledgerItem(row, financialLabel(row)));
-  const total = candidate.apiCostEntries.reduce((sum, row) => {
-    const amount = Number(record(row) ? row.est_usd : NaN);
-    return Number.isFinite(amount) ? sum + amount : sum;
-  }, 0);
+  let total = 0;
+  let unknownEstimateEntries = 0;
+  let unknownActualEntries = 0;
+  for (const row of candidate.apiCostEntries) {
+    const meta = record(row && row.meta) ? row.meta : {};
+    const estimate = row && row.est_usd != null ? Number(row.est_usd) : NaN;
+    const zeroHasExplicitStatus = meta.estimate_status === "estimated"
+      || meta.estimate_status === "not_applicable";
+    const estimateKnown = Number.isFinite(estimate) && estimate >= 0
+      && meta.estimate_status !== "unavailable"
+      && (estimate !== 0 || zeroHasExplicitStatus);
+    if (estimateKnown) total += estimate;
+    else unknownEstimateEntries += 1;
+
+    const actual = meta.actual_usd == null ? NaN : Number(meta.actual_usd);
+    const actualKnown = meta.billing_status === "settled" && Number.isFinite(actual) && actual >= 0;
+    const notApplicable = meta.billing_status === "not_applicable" && actual === 0;
+    if (!actualKnown && !notApplicable) unknownActualEntries += 1;
+  }
+  const estimateStatus = apiItems.length === 0 ? "unknown"
+    : (unknownEstimateEntries > 0 ? "partial" : "estimated");
+  const actualStatus = apiItems.length === 0 || unknownActualEntries === apiItems.length ? "unknown"
+    : (unknownActualEntries > 0 ? "partial" : "complete");
+  const totalText = apiItems.length === 0 ? "金額不明"
+    : `${formatCurrencyAmount(total, "USD")}${unknownEstimateEntries > 0
+      ? `（既知推定小計・金額不明${unknownEstimateEntries}件）` : "（推定）"}`;
   const latest = { daily: null, weekly: null };
   for (const receipt of candidate.reportReceipts) {
     const kind = record(receipt) ? receipt.report_kind : "";
@@ -280,7 +309,11 @@ function projectLedger(candidate) {
   return {
     api_cost: {
       no_data: apiItems.length === 0,
-      total: formatCurrencyAmount(total, "USD"),
+      total: totalText,
+      estimate_status: estimateStatus,
+      unknown_estimate_entries: unknownEstimateEntries,
+      actual_status: actualStatus,
+      unknown_actual_entries: unknownActualEntries,
       items: apiItems,
     },
     financial: {

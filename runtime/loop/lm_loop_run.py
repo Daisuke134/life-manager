@@ -63,6 +63,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 # Stay under resource_admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS (300s).
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
@@ -77,6 +78,7 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
 EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
 })
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
@@ -89,10 +91,19 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "alpaca-investment-live",
     "alpaca-investment-paper",
+    "ebook-en-tiktok-daily",
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
     "hf-gig-apply-direct",
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",
 })
+EBOOK_POSTIZ_LOOP_IDS = frozenset({
+    "ebook-en-tiktok-daily",
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
+})
+EBOOK_RUNTIME_TENANT_ID = "dais-local"
 JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})
 
 
@@ -122,6 +133,59 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
         command.insert(0, _runtime_node())
     command.extend(entry.get("command", []))
     return command
+
+
+def _child_environment_for_owner(
+        loop_id: str, base: dict[str, str], home: Path | None = None) -> dict[str, str]:
+    """Scope the canonical data root and Postiz credential to eBook owners."""
+    environment = dict(base)
+    if loop_id not in EBOOK_POSTIZ_LOOP_IDS:
+        return environment
+
+    # The eBook entrypoint stores its render/object/ledger data beneath the shared
+    # Life Manager data root. Do not inherit an arbitrary manager-level override.
+    environment["LM_DATA_DIR"] = str(
+        Path(home or Path.home()).expanduser() / ".local/state/life-manager"
+    )
+    environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
+
+    # Ignore any inherited alias. The credential SSOT is the only source for eBook
+    # publisher authentication. Do not even pass it to the child while publishing
+    # is disabled.
+    environment.pop("LM_POSTIZ_API_KEY", None)
+    if environment.get("LM_EBOOK_PUBLISHING_ENABLED") != "true":
+        return environment
+    private = (home or Path.home()) / ".local/share/anicca"
+    credentials = private / "credentials.json"
+    try:
+        if private.is_symlink() or credentials.is_symlink():
+            return environment
+        private_stat = private.stat()
+        credentials_stat = credentials.stat()
+        if (not stat.S_ISDIR(private_stat.st_mode)
+                or not stat.S_ISREG(credentials_stat.st_mode)
+                or private_stat.st_uid != os.getuid()
+                or stat.S_IMODE(private_stat.st_mode) != 0o700
+                or credentials_stat.st_uid != os.getuid()
+                or stat.S_IMODE(credentials_stat.st_mode) != 0o600):
+            return environment
+        payload = json.loads(credentials.read_text(encoding="utf-8"))
+        rows = [row for row in payload.get("credentials", [])
+                if isinstance(row, dict) and row.get("service") == "postiz"]
+        if len(rows) != 1:
+            return environment
+        api_key = rows[0].get("api_key")
+        if not isinstance(api_key, str):
+            return environment
+        api_key = api_key.strip()
+        if (not api_key or len(api_key) > 4096
+                or any(ord(character) < 33 or ord(character) > 126 for character in api_key)):
+            return environment
+    except (OSError, AttributeError, TypeError, ValueError):
+        return environment
+
+    environment["LM_POSTIZ_API_KEY"] = api_key
+    return environment
 
 
 def _identity_sha256(value: object) -> str:
@@ -1076,6 +1140,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None,
                   on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
+    env = _child_environment_for_owner(loop_id, env)
     limit = _runtime_limit(entry)
     if loop_id in CONTROL_PLANE_SAFETY_LOOPS or limit is None:
         # Exempt owners have a native wake identity, but no durable claim.
