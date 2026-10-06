@@ -8433,3 +8433,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 | 42 | SelfBuildの本番promotion・recoveryを確認する | source gates→main→immutable→自然owner、重複0・rollbackの記録。 |
 | 43 | Evalの品質・費用・利益before/afterを比較する | 自然実測と再現可能なbaseline、unknown/少数標本を誇張しない。 |
 | 44 | 全体Done監査と残外部依存の引継ぎを閉じる | 全明示条件の証拠と13旧blockとの対応を監査。全体未達なら完了としない。 |
+
+
+### 612. CEO所有：CLI観測取得の欠落を現在task内で修復
+
+- Daisは既存CLIの観測を使い、壊れたCLI/観測取得をownerとして継続修復するよう明示。これは独立した一般監査の先行ではなく、current1の実案件/収益対象取得を止める必要修復。CLI→原因診断→最小修復→同CLI再観測を同task内で進める。情報が取れないことをCLI不存在/案件0/売上0へ変換せず、旧record巡回へ戻らない。
+- 実Lancers CLI work_sync.py --preflight --jsonは初回read/account_unavailable/exit1。実Coconala CLI coconala_queue_snapshot.py --mode orders-onlyは正規guard exit9で開始前待機、旧12件の個別再調査はしない。原本/summaryはstate/cli-observability-20261006、private fieldsはchat/repoへ出さない。
+- Source確認：application_tick._production_account_diagnosticは既存ready/reason/http_status/final_route_category/login_form_count/exception_typeを返し、production run_tickは既に保存する。一方read_only_inventory692–706はboolean _production_account_readyへ縮退し、preflight763–769もaccount_unavailableだけ返すため原因情報を落とす。これは現在のCLI結果で観測された取得失敗を診断できない具体的欠落。
+- 限定修正契約：latestmain専用worktree/branch lm-lancers-cli-preflight-observability-20261006でwork_sync.pyのread_only_inventory/preflightと既存関連testsだけをLuna6/maxが所有。既存診断関数を一度だけ呼び、同safe fieldsをCLI JSONへ保持する。readonlyでWAFsolver/認証/返信/承諾/送信/取引/価格/timeout/モデル/運用stateを変更しない。ready判定・七surface読取・二pass比較・cleanupを維持。HTTP405/別HTTP/ログインroute/例外の最小RED→GREEN、sourcegates/commitpush/freshSol6.1medium反証/CI/main/immutable/CLI再観測へ結ぶ。manifest必要ならowner該当entryだけ。
+- 機能全体の新CLI/新DB/新scheduler/二重経路は作らない。同fileの他owner変更を戻さず、Lancers既存ownerへ範囲を通知して調整する。current1/主経路30と後段SelfBuildの順は不変。
