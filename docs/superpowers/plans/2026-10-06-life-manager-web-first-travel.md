@@ -414,11 +414,11 @@ Cover a Web UUID with NULL Telegram binding and enabled daily automation: `organ
 Run: `node --test test/scheduler.test.js`.
 Expected: the Web-only fixture reaches the upcoming-event reader and non-Travel organ path.
 
-- [ ] **Step 3: Skip Web-only rows at the organ owner boundary**
+- [x] **Step 3: Skip Web-only rows at the organ owner boundary**
 
 Add the exact Web UUID plus NULL-Telegram guard at the start of `organsUserOnce`. Do not disable `travelTick` or add another Calendar adapter.
 
-- [ ] **Step 4: Rerun the scheduler test and commit**
+- [x] **Step 4: Rerun the scheduler test and commit**
 
 Run: `node --test test/scheduler.test.js`.
 Expected: Web-only Calendar/organ calls are zero, and Telegram-bound behavior passes. Commit as `fix(life-manager): keep web tenants in travel scheduler only`.
