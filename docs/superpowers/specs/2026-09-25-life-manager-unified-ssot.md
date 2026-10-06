@@ -8736,3 +8736,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 8000円latest delivery receiptはsent/v16b/provider receiptあり/正式納品checkbox false。package hash一致、send evidence/official readback/live DOMの全3参照file exists＋sha一致、replay_zero not_replayed。これは当該artifact送信の過去証拠であり正式納品・検収・精算の証拠ではない。24000円latest delivery JSONはok/acceptance PASSという準備記録で、同等の公式送信receiptとは扱わない。
 - 両requirementsのfeedback/accumulated内容にNPO関連記述を確認。DaisのNPO材料/残納品条件追跡延期を優先し、追加scope精査/資料催促/正式納品操作をここで保留する。最初にscopeを確認せず一般の履行確認を先行した順序を是正。保留を完了にせず、この2件の追加監査を収益全体の停止条件へ戻さない。
 - 現cursor1の未延期・現実行可能な有償履行が確認できた時だけ進め、既存商品準備・販売の独立作業は並行可能とする。TikTok/NPO/旧12保留延期、SelfBuild26/Lancers27〜29の順を維持。source/state変更/送信/再納品/資金移動0。
+
+
+### 649. 独立した既存商品見本のbounded準備契約
+
+- 主cursor1のTikTok/NPO追跡延期を維持し、残4『既存商品1件の見本・説明準備』を外部effect無しで独立並行する。TODOの相対順は変更しない。brainstormingのbounded共有理解：既存商品への説明可能な実見本だけを用意し、新framework/新サービス/価格・公開設定変更を増やさない。継続委任の範囲内で進め、再承認待ちを追加しない。
+- production Storefront plistのGIG_STOREFRONT_ROOTはprivate/storefront-bundle。families更新2026-09-04/scorecard2026-08-19、scorecard11件と現inventory20は異なる時点・母集団。過去のfamily/競合記録は参考で現在の成功・需要として扱わない。既存競合service1件をcrwl取得したがexit0/17byte403、現在市場未取得。原本storefront-competitor-probe-1791265849410444000。
+- 候補は現inventoryのAPI連携・開発商品（既存表示60000円、public scopeにAPI/業務）。価格変更0。見本設計は合成注文JSONをlocal mock APIから取得して業務CSVへ変換する、stdlib中心の小さな自己所有demo。顧客/NPO artifact・credentialを再利用しない。実provider接続・実顧客納品・販売/利益の証拠ではないことを見本と説明へ明示する。
+- 実装する場合は最新main専用worktreeでLuna6/maxがdemo/fixture/READMEの限定範囲を所有、rootはspec/受入/統合を所有。合成入力→期待CSVの実行確認だけを必要検証にし、広いQA・eval・本番広告・公開を追加しない。current1/残30、SelfBuild26/Lancers27〜29維持。
