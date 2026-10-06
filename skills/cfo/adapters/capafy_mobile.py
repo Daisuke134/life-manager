@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import csv
+import gzip
 import hashlib
+import io
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, DecimalException, InvalidOperation
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from skills.cfo import economic_attribution as contract
 
@@ -580,6 +585,341 @@ def _mobile_gaps(reason: str, snapshot_at: str, trailing_start: str) -> list[dic
             ("revenuecat-mrr", "as_of"),
         )
     ]
+
+
+def _mobile_financial_packet_gaps(
+    *, snapshot_at: str, trailing_start: str, observed_at: str,
+    reason: str, evidence_ref: str,
+) -> list[dict]:
+    return [
+        _coverage(
+            loop_id=MOBILE_LOOP, source_id="app-store-connect-financial",
+            projection=projection, snapshot_at=snapshot_at,
+            trailing_start=trailing_start, observed_at=observed_at,
+            evidence_ref=evidence_ref, complete=False, reason=reason, categories=(),
+        )
+        for projection in ("historical", "trailing")
+    ]
+
+
+def _asc_packet_report(report: Any, *, report_type: str, region_code: str):
+    if not isinstance(report, dict) or not isinstance(report.get("metadata"), dict):
+        raise ValueError("missing_coverage")
+    metadata = report["metadata"]
+    if (
+        metadata.get("reportType") != report_type
+        or metadata.get("regionCode") != region_code
+        or not isinstance(metadata.get("vendorNumber"), str)
+        or not metadata["vendorNumber"]
+        or not isinstance(metadata.get("reportDate"), str)
+        or not re.fullmatch(r"\d{4}-\d{2}", metadata["reportDate"])
+        or metadata.get("decompressed") is not True
+    ):
+        raise ValueError("missing_coverage")
+    compressed_path = metadata.get("filePath")
+    artifact_path = report.get("artifact_path")
+    decompressed_path = metadata.get("decompressedPath")
+    if not all(isinstance(path, str) and path for path in (
+        compressed_path, artifact_path, decompressed_path,
+    )):
+        raise ValueError("missing_coverage")
+    if Path(artifact_path).expanduser().resolve() != Path(decompressed_path).expanduser().resolve():
+        raise ValueError("missing_coverage")
+    compressed = Path(compressed_path).expanduser().read_bytes()
+    raw = Path(artifact_path).expanduser().read_bytes()
+    if (
+        Path(compressed_path).suffix != ".gz"
+        or type(metadata.get("fileSize")) is not int
+        or metadata["fileSize"] != len(compressed)
+        or type(metadata.get("decompressedSize")) is not int
+        or metadata["decompressedSize"] != len(raw)
+        or gzip.decompress(compressed) != raw
+    ):
+        raise ValueError("read_failed")
+    expected_sha = _sha256(report.get("artifact_sha256"))
+    if hashlib.sha256(raw).hexdigest() != expected_sha:
+        raise ValueError("content_hash_invalid")
+    return metadata, raw, expected_sha
+
+
+def _asc_tsv_rows(raw: bytes, required_headers: tuple[str, ...], date_headers: tuple[str, ...]):
+    try:
+        reader = csv.reader(io.StringIO(raw.decode("utf-8-sig")), delimiter="\t")
+        headers: list[str] | None = None
+        rows: list[tuple[int, dict[str, str]]] = []
+        for cells in reader:
+            line_number = reader.line_num
+            if headers is None:
+                if set(required_headers).issubset(cells):
+                    headers = cells
+                continue
+            if not any(cell.strip() for cell in cells):
+                continue
+            row = {
+                header: cells[index].strip()
+                for index, header in enumerate(headers)
+                if header and index < len(cells)
+            }
+            parsed_dates = []
+            for field in date_headers:
+                try:
+                    parsed_dates.append(_asc_business_date(row.get(field)))
+                except ValueError:
+                    parsed_dates.append(None)
+            if not any(parsed_dates):
+                continue  # provider preamble/footer and footer summary tables are not dated rows
+            if any(value is None for value in parsed_dates):
+                raise ValueError("missing_coverage")
+            rows.append((line_number, row))
+        if headers is None or not rows:
+            raise ValueError("missing_coverage")
+        return rows
+    except (csv.Error, UnicodeError):
+        raise ValueError("read_failed") from None
+
+
+def _asc_business_date(value: Any) -> date:
+    if not isinstance(value, str):
+        raise ValueError("date_invalid")
+    for format_string in ("%m/%d/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, format_string).date()
+        except ValueError:
+            pass
+    raise ValueError("date_invalid") from None
+
+
+def _asc_quantity(value: Any) -> int:
+    if not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]{0,25}", value):
+        raise ValueError("amount_invalid")
+    return int(value)
+
+
+def _asc_subscription_mapping(source: Any, expected_sha: Any):
+    if not isinstance(source, dict) or not isinstance(source.get("artifact_path"), str):
+        raise ValueError("missing_coverage")
+    path = Path(source["artifact_path"]).expanduser()
+    raw = path.read_bytes()
+    relationship_sha = _sha256(expected_sha)
+    if hashlib.sha256(raw).hexdigest() != relationship_sha:
+        raise ValueError("content_hash_invalid")
+    try:
+        payload = json.loads(raw)
+    except (UnicodeError, json.JSONDecodeError):
+        raise ValueError("read_failed") from None
+    self_url = (payload.get("links") or {}).get("self") if isinstance(payload, dict) else None
+    parsed = urlsplit(self_url) if isinstance(self_url, str) else None
+    match = re.fullmatch(
+        r"/v1/apps/([A-Za-z0-9-]+)/subscriptionGroups/?", parsed.path
+    ) if parsed and parsed.scheme == "https" and parsed.netloc == "api.appstoreconnect.apple.com" else None
+    if not match:
+        raise ValueError("missing_coverage")
+    app_id = match.group(1)
+    product = next((name for name, binding in MOBILE_PRODUCT_BINDINGS.items()
+                    if binding["asc_app_id"] == app_id), None)
+    if product is None:
+        return {}, relationship_sha
+    if not isinstance(payload.get("data"), list) or not isinstance(payload.get("included"), list):
+        raise ValueError("missing_coverage")
+    groups: dict[str, list[int]] = {}
+    for group_index, group in enumerate(payload["data"], start=1):
+        if not isinstance(group, dict) or group.get("type") != "subscriptionGroups":
+            continue
+        group_id = group.get("id")
+        subscriptions = ((group.get("relationships") or {}).get("subscriptions") or {}).get("data")
+        if not isinstance(group_id, str) or not isinstance(subscriptions, list):
+            continue
+        for subscription in subscriptions:
+            if isinstance(subscription, dict) and subscription.get("type") == "subscriptions":
+                subscription_id = subscription.get("id")
+                if isinstance(subscription_id, str):
+                    groups.setdefault(subscription_id, []).append(group_index)
+    included: dict[str, list[tuple[int, str]]] = {}
+    for included_index, subscription in enumerate(payload["included"], start=1):
+        if not isinstance(subscription, dict) or subscription.get("type") != "subscriptions":
+            continue
+        subscription_id = subscription.get("id")
+        product_id = (subscription.get("attributes") or {}).get("productId")
+        if isinstance(subscription_id, str) and isinstance(product_id, str) and product_id:
+            included.setdefault(subscription_id, []).append((included_index, product_id))
+    mapped = {}
+    for subscription_id, group_positions in groups.items():
+        details = included.get(subscription_id, [])
+        if len(group_positions) == 1 and len(details) == 1:
+            included_position, product_id = details[0]
+            mapped[subscription_id] = (product, product_id, group_positions[0], included_position)
+    return mapped, relationship_sha
+
+
+def adapt_mobile_financial_packet(
+    source: Any, *, snapshot_at: str, trailing_start: str,
+) -> list[dict]:
+    """Normalize one private, read-only ASC FINANCIAL + FINANCE_DETAIL evidence packet."""
+    snapshot_at, trailing_start = _instant(snapshot_at), _instant(trailing_start)
+    payload, load_error = _load(source)
+    if load_error:
+        return _mobile_financial_packet_gaps(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+            observed_at=snapshot_at, reason=load_error,
+            evidence_ref=f"adapter://app-store-connect-financial/{load_error}",
+        )
+    observed_at = snapshot_at
+    evidence_ref = "adapter://app-store-connect-financial/missing_coverage"
+    try:
+        if not isinstance(payload, dict) or type(payload.get("schema_version")) is not int \
+                or payload["schema_version"] != 1:
+            raise ValueError("missing_coverage")
+        observed_at = _instant(payload.get("observed_at"))
+        financial_meta, financial_raw, financial_sha = _asc_packet_report(
+            payload.get("financial"), report_type="FINANCIAL", region_code="ZZ",
+        )
+        detail_meta, detail_raw, detail_sha = _asc_packet_report(
+            payload.get("detail"), report_type="FINANCE_DETAIL", region_code="Z1",
+        )
+        if (
+            financial_meta["vendorNumber"] != detail_meta["vendorNumber"]
+            or financial_meta["reportDate"] != detail_meta["reportDate"]
+        ):
+            raise ValueError("missing_coverage")
+        period = payload["detail"].get("period")
+        if not isinstance(period, dict):
+            raise ValueError("missing_coverage")
+        period_start = _asc_business_date(period.get("start"))
+        period_end = _asc_business_date(period.get("end"))
+        financial_period = payload["financial"].get("period")
+        if not isinstance(financial_period, dict) or (
+            _asc_business_date(financial_period.get("start")) != period_start
+            or _asc_business_date(financial_period.get("end")) != period_end
+        ) or period_start > period_end:
+            raise ValueError("missing_coverage")
+
+        financial_rows = _asc_tsv_rows(financial_raw, (
+            "Start Date", "End Date", "Vendor Identifier", "Quantity",
+            "Extended Partner Share", "Partner Share Currency", "Sales or Return",
+            "Apple Identifier", "Product Type Identifier", "Country Of Sale",
+        ), ("Start Date", "End Date"))
+        detail_rows = _asc_tsv_rows(detail_raw, (
+            "Transaction Date", "Settlement Date", "Apple Identifier", "SKU",
+            "Product Type Identifier", "Country of Sale", "Quantity",
+            "Extended Partner Share", "Partner Share Currency", "Sale or Return",
+        ), ("Transaction Date", "Settlement Date"))
+        report_keys: dict[tuple, list[Any]] = {}
+        summary_lines: dict[tuple, list[int]] = {}
+        for line_number, row in financial_rows:
+            start, end = _asc_business_date(row["Start Date"]), _asc_business_date(row["End Date"])
+            if start != period_start or end != period_end:
+                raise ValueError("missing_coverage")
+            currency = _currency(row.get("Partner Share Currency"))
+            key = (
+                row.get("Apple Identifier"), row.get("Vendor Identifier"),
+                row.get("Product Type Identifier"), row.get("Country Of Sale"),
+                currency, row.get("Sales or Return"), start, end,
+            )
+            if not all(isinstance(value, str) and value for value in key[:4]) or key[5] not in {"S", "R"}:
+                raise ValueError("missing_coverage")
+            total = report_keys.setdefault(key, [0, Decimal(0)])
+            total[0] += _asc_quantity(row.get("Quantity"))
+            total[1] += _bounded_decimal(row.get("Extended Partner Share"), signed=True)
+            summary_lines.setdefault(key, []).append(line_number)
+
+        detail_totals: dict[tuple, list[Any]] = {}
+        parsed_detail: list[tuple[tuple, int, dict, Decimal]] = []
+        for line_number, row in detail_rows:
+            transaction_date = _asc_business_date(row.get("Transaction Date"))
+            settlement_date = _asc_business_date(row.get("Settlement Date"))
+            if (
+                transaction_date > settlement_date
+                or transaction_date < period_start or settlement_date > period_end
+            ):
+                raise ValueError("missing_coverage")
+            currency = _currency(row.get("Partner Share Currency"))
+            key = (
+                row.get("Apple Identifier"), row.get("SKU"),
+                row.get("Product Type Identifier"), row.get("Country of Sale"),
+                currency, row.get("Sale or Return"), period_start, period_end,
+            )
+            if not all(isinstance(value, str) and value for value in key[:4]) or key[5] not in {"S", "R"}:
+                raise ValueError("missing_coverage")
+            amount = _bounded_decimal(row.get("Extended Partner Share"), signed=True)
+            total = detail_totals.setdefault(key, [0, Decimal(0)])
+            total[0] += _asc_quantity(row.get("Quantity"))
+            total[1] += amount
+            parsed_detail.append((key, line_number, row, amount))
+        if report_keys.keys() != detail_totals.keys() or any(
+            report_keys[key] != detail_totals[key] for key in report_keys
+        ):
+            raise ValueError("missing_coverage")
+
+        relationships = payload.get("relationships")
+        if not isinstance(relationships, dict):
+            raise ValueError("missing_coverage")
+        mapping, relationship_sha = _asc_subscription_mapping(
+            relationships, relationships.get("artifact_sha256"),
+        )
+        evidence_ref = (
+            f"appstoreconnect://financial-packet/{financial_sha}/{detail_sha}"
+        )
+        receipts = []
+        for key, line_number, row, raw_amount in parsed_detail:
+            subscription_id, sku = key[0], key[1]
+            relation = mapping.get(subscription_id)
+            if not relation or relation[1] != sku:
+                continue
+            product, _, group_line, included_line = relation
+            transaction_date = _asc_business_date(row["Transaction Date"])
+            settlement_date = _asc_business_date(row["Settlement Date"])
+            sale_or_return = row["Sale or Return"]
+            if sale_or_return == "S" and raw_amount > 0:
+                category, revenue_class, amount = "settled_external_revenue", (
+                    "one_time" if row["Product Type Identifier"] in {"1", "IA1"}
+                    else "other_recurring" if row["Product Type Identifier"] in {"IA9", "IAY"}
+                    else None
+                ), _money(raw_amount)
+                if revenue_class is None:
+                    continue
+            elif sale_or_return == "R" and raw_amount < 0:
+                category, revenue_class, amount = "refund", None, _money(-raw_amount)
+            elif raw_amount == 0:
+                continue
+            else:
+                raise ValueError("missing_coverage")
+            summary_ref = ",".join(str(index) for index in summary_lines[key])
+            receipts.append(contract.validate_record({
+                "schema_version": contract.SCHEMA_VERSION,
+                "record_type": "receipt",
+                "receipt_id": f"app-store-connect-financial:normalized:{detail_sha}:{line_number}",
+                "product_loop_id": MOBILE_LOOP,
+                "provider": "app-store-connect-financial",
+                "currency": key[4],
+                "occurred_at": f"{transaction_date.isoformat()}T00:00:00Z",
+                "settled_at": f"{settlement_date.isoformat()}T00:00:00Z",
+                "verification_state": "verified",
+                "revenue_class": revenue_class,
+                "evidence_refs": [
+                    f"appstoreconnect://financial-reports/sha256/{financial_sha}#rows/{summary_ref}",
+                    f"appstoreconnect://finance-detail/sha256/{detail_sha}#row/{line_number}",
+                    f"appstoreconnect://subscription-relationships/sha256/{relationship_sha}#data/{group_line}",
+                    f"appstoreconnect://subscription-relationships/sha256/{relationship_sha}#included/{included_line}",
+                ],
+                "components": [{"category": category, "amount": amount}],
+            }))
+        return sorted(receipts, key=lambda row: row["receipt_id"]) + _mobile_financial_packet_gaps(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+            observed_at=observed_at, reason="missing_coverage", evidence_ref=evidence_ref,
+        )
+    except (OSError, EOFError, gzip.BadGzipFile, UnicodeError, json.JSONDecodeError,
+            AttributeError, TypeError, KeyError):
+        reason = "read_failed"
+    except ValueError as exc:
+        reason = "unsupported_currency" if str(exc) == "unsupported_currency" else "missing_coverage"
+    except contract.ContractError:
+        reason = "missing_coverage"
+    return _mobile_financial_packet_gaps(
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+        observed_at=observed_at, reason=reason,
+        evidence_ref=evidence_ref if evidence_ref.startswith("appstoreconnect://")
+        else f"adapter://app-store-connect-financial/{reason}",
+    )
 
 
 def _business_date(value: Any) -> date:
