@@ -9137,5 +9137,5 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 実API保存入力 `~/.local/state/life-manager/state/cli-observability-20261006/cfo-actual-current-mrr-input.json` の6商品分を、専用branch `fix/lm-mobile-mrr-freshness-20261006` の修復候補adapterとcentral projectionへ通した。provider I/O・外部effect・canonical ledger書込は0。観測時刻/hashを変更せず、snapshot_at `2026-10-06T10:41:16.952030Z`、latest complete period `2026-10-05` を保持した。
 - 実入力replay結果はMobile MRR `verified / USD 20.34`、RevenueCat MRR coverage complete。会社MRRはunknown、ASC historical/trailing financial coverageはgapのまま。年額proceeds・入金・利益への置換はしない。保存証拠 `cfo-mrr-freshness-actual-replay.json`。これは取得済み実入力へのsource候補検証であり、本番loaded/natural成果ではない。
-- 実装は指定4 CFO filesのみ。focusedテストGREEN、全体テストでsparse checkout不足によるproducer integration failureを検出し、既存ファイル取得後に再確認する。schema parityの既存差分も今回変更との因果を分けて確認中。commit/push・fresh read-only review・CI・main統合・immutable反映は未完。
+- 実装は指定4 CFO filesのみ。source commit `b77f485e3b1a1891454be9c3271b95e01dd6490b` を専用branchへpushしremote一致/clean確認。不足していた既存producerファイル取得後、関連72 tests/55 subtests PASS。唯一のschema parity FAILはbase mainでも同じebook enum不足で再現し、今回差分と区別する。`lm-loop-contract` PASS（15 loops/184 jobs/107 mapped）。Draft PR6763を作成、fresh Sol/medium read-only review進行中。CI・main統合・immutable反映・本番natural成果は未完。
 - §217の残29/current1・相対順序は不変。独立したCFO原因修復を進めても、既存有償案件の納品・精算をDoneにはしない。mock商品制作は再開しない。
