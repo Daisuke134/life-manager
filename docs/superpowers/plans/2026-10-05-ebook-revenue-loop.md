@@ -195,17 +195,19 @@
 - [x] Run focused eBook/Writer checkout tests (17/17), `node --check apps/landing/scripts/money-path-smoke.mjs`, and `git diff --check`.
 - [x] Product PR #422 at `21293ac4` passes `Landing PR build` (`npm ci`, full telemetry tests, Next.js build); the fresh read-only verifier reports no Critical/Important findings.
 - [x] Product PR #422 merged at 45bba82e; Netlify workflow 37432940639 completed and production money-path smoke passed: checkout GET 405, both locale PDFs 200 application/pdf.
-- [x] PR #6744 source review found no Critical/Important findings and all required checks passed at head df4fdf106b; the current spec/plan correction still needs to be pushed and checked before merge.
+- [x] PR #6744 source review found no Critical/Important findings; all required checks passed and it merged at main SHA aed62f3bb8d736d8f323939dd4d2240bb4551c63.
 - [x] Authenticated Postiz readback: Japanese TikTok obou_anicca and Instagram obou.anicca are enabled, and public profile pages identify those handles. This confirms routing/profile presence, not a provider good-standing badge. English monk_anicca is disabled; aniccaen2 is excluded from the eBook route.
-- [ ] Push the current SSOT/plan correction; pass latest-head CI on PR #6744, merge it, cut/apply a main-derived release, and pass doctor. Targeted-apply the three owners one at a time with publishing closed, then verify loaded SHA/argv/state.
-- [ ] Before the first Japanese public post, obtain a fresh read-only review of the exact Watercolor render/caption, profile, and both enabled Postiz routes. Let the natural 07:00/12:30/20:00 JST slot run; collect official TikTok and Instagram receipts/public URLs for each occurrence.
-- [ ] Keep English at zero render/publish until its exact owned TikTok account is publicly present, enabled in Postiz, and mapped in the eBook destination registry; then use HeyGen Avatar IV at 08:00/14:00/21:00 JST.
+- [x] Main-derived release 20261006T172318-aed62f3b passes doctor; all three eBook owners were target-applied one at a time and read back on exact SHA/argv/state path. Publishing was closed during apply, then enabled through launchctl-safe in the active Aqua manager.
+- [x] Local 20:00 Watercolor preview, scene manifest (11/11 hashes), exact Japanese copy/claims, CTA token/destination, and both enabled Postiz routes passed fresh read-only review. Preview SHA-256 1e6ac82267640c2f5bfc21aa83c39958e8f37d126c3fa16790bdfa82f349d0cf; external cost/effects 0.
+- [x] CTA verification GET wrote reviewer click receipt 13faac90-8154-47f8-a45d-bbb3ec93cebf for token ej_lkbfh5nprxsjxnd3ec57 at 17:22 JST; exclude this QA click from natural click/conversion outcomes.
+- [ ] Let the natural Japanese 20:00 JST occurrence run and collect TikTok+Instagram provider receipts/public URLs. Never manually wake/replay an effect-unknown occurrence.
+- [ ] Keep English held: monk_anicca is disabled/not found publicly; aniccaen2 is excluded from eBook destinations and not found; anicca.daily is a separate app-marketing identity. Verify exact owned eBook route before enabling HeyGen at 08:00/14:00/21:00 JST.
 - [ ] Keep both locale schedules on their three daily slots with per-occurrence replay/readback; a schedule or render is not a published post.
 - [ ] Continue Product PR #420's DDL hardening through an authorized Supabase management route; read back tables/RPC signatures/ACLs/schema cache before merging the migration. The current one-time eBook main flow uses existing Checkout metadata and direct PDF email fulfillment; PR #420's new receipt/subscription tables are separate hardening.
 - [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence only after durable receipt readback; record refunds, fees, and measured costs. Do not self-purchase.
 - [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
 
-- Current cursor (2026-10-06 17:09 JST): commit/push the current spec correction on PR #6744, require fresh CI, then merge and deploy its main-derived release with publishing closed. Verify the three loaded owners. Japanese targets are enabled for the 20:00 slot after exact-content read-only review; English has no verified eBook route and remains held.
+- Current cursor (2026-10-06 17:34 JST): all owners are loaded on main release aed62f3b and the Aqua publish flag is enabled. Japanese creative/route review passed; wait for natural 20:00 and read both official receipts. English remains held pending exact account verification.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
