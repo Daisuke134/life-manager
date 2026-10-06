@@ -9683,3 +9683,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 現immutableのloop_pnl.build_b7_projectionへLM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES=current-mrr.jsonだけをenv指定し、provider live readbackを無効にしたlocal read-only projectionを実行。snapshot2026-10-06T17:53:50.330599Z、mobile-apps MRR verified/USD20.34/coverage_gaps空、company MRR unknown。実入力→現adapter→B7 projectionの接続を限定確認。
 - envを意図的に限定したため他loopのsource_unconnected/read_failed等を本番の最新障害認定へ使わない。全社売上/利益/銀行着金/自然レポート送信の証明でもない。保存private cfo-connected-mobile-local-projection.json、外部provider操作/通知/ledger write0。
 - Luna担当はliveで最新main4429由来専用worktreeを作成、code編集前のcallpath/RED診断中。根因は原報告と正規入力契約の差、最小変換でcoverage/財務区別を維持する。現在cursor17/後段順序保持。
+
+
+### 767. 次財務期間の公式availabilityを確認
+
+- FINANCIAL/ZZ/fiscal2027-01を公式APIでread-only要求、2026-10-06T17:54:26.961323Z/exit4。原errorはThe request expected results but none were found: There were no sales for the date specified。当該report未取得として保持し、現在/全期間の売上0、銀行入金0、coverage completeへ変換しない。原原因が未提供期間なのか報告対象sales無しなのかはこの応答だけで拡張認定しない。
+- private asc-current-next-period-availability.jsonへ要求tuple/観測時刻/exit/error/effect0を保存しCFO workerへ共有。取得済みfiscal2026-12実期間08/30〜09/26と未取得次期間を分離する。current17/sourceworker live、外部mutation/再送/通知0。
