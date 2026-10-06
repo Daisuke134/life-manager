@@ -9094,3 +9094,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - legacy rebind guardはqueue/完全identity/claimed・unknown無しを要求するため現在pending。typed fieldsを後付けしてnone枝のclear_no_effect_unknownへ進める操作は行わない。最小再開条件は対象outer run→内部UUID、または送信前ガードの確定proof/同effect公式readback。claim解除/再送/queue取消0。
 - 次の独立安全作業は新immutableの既存pure RevenueCat readerでCFO所有のread-only snapshotを取得し、actual observation→consumer接続を確認すること。旧scheduled_senderは実行せず、他provider POST/report request/manager送信/canonical ledger変更を追加しない。自然scheduled反映DoneはHOLDのまま。
 - source worktree lm-cfo-revenuecat-shape-20261006は存在無し/worktree登録無しをroot確認（除去owner/理由は未確認）。remote source e207/main ec921/完全immutableへ成果は保存済み、共有checkoutのbranch切替・他者編集復元0。spec worktreeは存在し本正本を維持。current1/残29/順序保持。
+
+
+### 693. 実6製品readbackでMRR cohort形の未受入を再現
+
+- main由来ec immutableの既存collect_snapshotへRevenueCat読取資格情報だけを渡し、10/05 mobile6製品の実GETを実行。通知/旧scheduled_sender/ASC request作成/Mixpanel/他provider/canonical ledgerへの書込は呼ばず、他sourceはnot_queried_in_cfo_read_only_scope/nullと明示。private cfo-real-mobile-readback-20261005.json/adapter-records/summaryを保存。
+- RCは5製品available、desk-stretch-timerだけHTTP429。currency USD/定義は取得できたが、5製品ともMRR period None、実CFO consumerはsnapshot0で拒否。0収益とはしない。旧claim解除/再送/本番source入力更新0。
+- 実raw API形はperiods null、valuesにperiod属性無し、cohortがUnix秒。保存済みmrr本文start1788048000/end1790380800、firstcohort1788048000/lastcohort1790380800を確認。先の新normalizerがcohortをindexだけと解釈し、空periodsでvalue.periodを取りNoneへ落とした。テストのperiod属性付き形ではこの実形を取りこぼしたため、sourceSHIPを本番受入に代用せず追加修復する。
+- 残17内の最小追加修復はMRRのみ、periods無し/cohort-onlyのUnix秒を、API本文のstart/end範囲で確認できる場合だけUTC dateへ正規化する。cohort index0/無効文字列/範囲外/欠損rangeを当日や1970年の有効snapshotにせず、既存period配列・explicit period・period_index・canonical bodyhash/wrapperhashは保つ。consumer/app/financial/coverage gateは変更しない。actual保存形からのREDと実consumer回帰で受入する。
+- 専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-revenuecat-cohort-20261006、branch fix/lm-cfo-revenuecat-cohort-20261006、base07a215959fe8d9a6b87bf3172f848ce5dee6dde6、lease codex-money-printer-rc-cohort/24h。Luna6max所有はbusiness_outcomes.py/既存producer test/必要な既存CFO consumer回帰のみ。rootがSSOT/review/CI/main/readbackを所有。HTTP429は別境界で、最小rate/phase観測を増やしてから当該製品だけ再取得する。
+- 全体Done/自然scheduled反映/14loop財務Doneは未完。旧senderの反映HOLDとguardを維持し、current1/残29/順序・後段保留は変更しない。
