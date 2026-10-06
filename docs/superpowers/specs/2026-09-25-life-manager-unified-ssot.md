@@ -8520,3 +8520,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Coconala既存orders-only CLIをcurrent完全immutable d0699847から実行。正しい登録identityはcoconala:kosuke。正規guard取得/解放0、初回collector1は呼出envのCLOAK_BROWSER_OWNER不足で、provider受注情報の未取得。原本private state/cli-observability-20261006/coconala-orders-1791262405697154000（failure/source receiptあり）。
 - 根因を既存cdp_default_tab.pyのowner契約へ狭め、一意のowner指定を追加。次の正規acquireはexit9でcollector開始0、共有leaseを奪わず解放/強制retryをしない。未取得を受注0・正常稼働へ変換しない。sourcecode変更・provider送信・旧Coconala保留再送0。
 - CrowdWorks限定修復はRED/GREEN、既存adapter126件/loop contract/diff PASSという実装担当報告。rootのcommit/source/review/CI/immutable/live受入はまだ未完。current1/主経路31/Lancers28〜30を維持する。
+
+
+### 622. marketplace runtime current readbackとsource受入継続
+
+- current完全release d0699847の既存lm-loop status all --jsonはexit0/286row。private原本state/cli-observability-20261006/runtime-current-1791262524855701000.json。これはlifecycle証拠であり売上receiptではない。
+- Mercor application/paid/replyはloaded-idle/last_exit75、host_admission_deferred:resource_effect_unknown、installed a09d0ad40b4eddfcaa65ca03b9804604ba692557。applicationの未確定occurrenceはmercor-revenue-application:18d6f9cb5bdaef98-33812。公式readbackの不足を認証成功で代用し、fence解除/再送していない。応募行7に進む時はこの同occurrenceの送信結果を既存公式履歴へ結ぶ。
+- CrowdWorks application/paidはloaded-idle、replyはloaded-running、last_exit75/entrypoint_exit_75という観測。これだけで正常・売上成功・全故障へ分類しない。旧Freelancer application/旧Upwork free-loopはretired/disabledであり、現行後継ownerの不存在を意味しない。
+- CrowdWorks source 8ccc29eda79a3eac2eb7b9b7c6e4412817357a1eのpush/remote一致/cleanをroot確認。見出し側の税込表示対応とreadonly shared blank prune回避を受入前に実装担当へ戻した。fresh review/CI/main/immutable/live確認は未完。current1/主経路31を保持。
