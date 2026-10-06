@@ -8853,3 +8853,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 正規crowdworks:dais guard取得/解放0、1契約だけ公式金額DOMを既存adapterからsafe読取。header税込true、TD税込/税抜label false、12円/10円、子SPAN10円に税役割label無し。productionprice null/amountambiguous維持。原本crowdworks-tax-label-1791271856512561000.json。式や順位だけでgross/netを補完しない。provider返信/フォーム/納品/価格変更0。
 - 既存CLI fresh statusはinstalled/eventとも9c9fd29d一致、自然run18dbe01eba875480-49512/terminal2026-10-06T07:28:20.258991Z/exit75/entrypoint_exit_75/effect unknown/loaded-idle。source更新の自然到達は確認、Paid全体正常化・売上成功は未達。手動wake/restart0。
 - 次はこの新occurrenceのactual lock/dispatch証拠を既存経路へ結び、price/handoff必須guardと資格・費用の不明を維持したまま必要な修復だけ進める。旧26claims解除/marker後付け0。current1/残30/mock取消/後段順維持。
+
+
+### 665. 新runを固定したlock停止証拠・別capacity待ちと分離
+
+- 対象run18dbe01eba875480-49512をcanonical events.jsonlからrun_id固定で読取。source9c9fd29d/execute running→report fail75/unknown、error detailにprovider_browser_busyとsame occurrence proofmissingを確認。同occurrence paid marker absent/symlink false。旧paid-latestは別wakeなので代用しない。protected JSONL変更0。
+- 最新statusは次のrun18dbe064df05a280-68052/2026-10-06T07:33:20.825232Z/host_admission_deferred:resource_capacity_busy。これはhost admission段階の別待機であり、前runのprovider lock停止やhandoff不足に混ぜない。
+- lsofはprovider-browser.lockのopen holder Python74549を確認、ps live/経過47秒、reply_kernel.py/reply_adapter.pyの現reply owner。dead lockや孤児と決めつけず、稼働返信を停止/lock削除しない。次は既存排他による正常待機と、新しいbusy occurrence証拠不足を区別した入口修復。
+- current1/残30/mock取消/旧未確定保持/後段順不変。manual wake/restart/provider送信/解除0。
