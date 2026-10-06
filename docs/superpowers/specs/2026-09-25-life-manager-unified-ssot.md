@@ -9941,3 +9941,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - producer marketing-metrics-dailyは実loaded82d31995/idle/effectunknowntrue、保存最新10-05のRCdataはapp_id/chartsのみでcurrency/revenue_definition無し。CFO固定current-mrr snapshotは継続更新未完。mobile lane fenceを解放・acquisition実装重複・無根拠applyしない。AGMSG CFO ownerへ新自然receiptと未完を報告。
 - bounded修正の目的:既存CFO pass内のoptional live MRR readerで公式options1+6app MRR GETだけを取得し既存consumerへ渡す。sourcehelpers revenuecat_app_filter/latest_complete_chart_points/MRR definition/hashを再利用、producer source編集/新scheduler/商品料金/購読/マーケ投稿無し。API失敗はunknown、古い値のfreshen/RCflowをsettledへ代用しない。credentialsはprivate SSOT既存RCrecord、project/app bindingsは既存配置。
 - acceptance:6app exactfilter/currency/definition/envelopehash、incomplete latest日除外、取得失敗/credential不在/不正scopeはgap、ASC rawpacket receiptとMrrを分離/二重計上0、optional flag無しは既存path、旧静的snapshotを成功値として残さない。最新main専用worktree/Luna6maxがCFO3files責任、rootがSSOT/review/統合。current17のsource持続更新と自然証明を完了させ、既存29順は維持。
+
+
+### 802. 持続MRR readerのLuna実装を専用sourceへ着手
+
+- native followupはagent thread limitで拒否、旧モデルfallback0。AGMSG標準spawnのtask専用optionsでgpt6-luna/max/approvalnever/workspacewriteを明示、newworktree .worktrees/cfo-current-mrr-readback-20261007/branch fix/cfo-current-mrr-readback-20261007/base6489/cleanを作成。AGMSG lm-cfo-mrr-live-1007は登録されたがplain OS terminal owner start time検証が失敗しplacement無し。send/登録だけで着手を認定しない。
+- 部分spawnの同boot task PID42117/42357は実在/cwd一致/model+max flags確認、native threadは未作成/sourceclean。標準despawnはplacement無しで不可。自身のunique boot argvを再検証してこの2processだけSIGTERM、両missing確認。共通app-server/Mac/loginwindow/他owner停止0。重複writerを重ねない。
+- 同promptを明示gpt-6-luna/maxの有限codex execへ渡しhandle8114継続。thread.started/commandeventsと担当messageでGitroot/branch/remote/mergebase/source-boundary確認を取得、実着手を確認。sourceownershipはCFO3filesのみ、producer/acquisition/本番/SSOT編集禁止。AGMSG ownidentity/readiness/reportはchildから確認、placementの偽修復無し。
+- skill Brainstormingの承認待ち指示は現No-humanと矛盾し上位現指示を採用。boundeddesign/§801受入を先に提示・保存し、追加承認質問無し。rootは同source編集せず結果/検証/reviewを担当。current17は持続source更新を完走し、自然20.34表示の既Doneを再作業へ戻さない。
