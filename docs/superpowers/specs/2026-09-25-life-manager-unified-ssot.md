@@ -9395,3 +9395,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 案件内attempts.jsonlの10実行をread-only照合。6実行cost_basis=api_equivalent_estimate、4実行unavailable。見積値はactual billed/paid receiptではないため案件利益へ加算しない。保存stdout_path/attemptから10identityを導出し既存5usage logsと照合したが一致0。これは実行/費用0の証拠ではない。証拠private coconala-18211957-derived-usage-join.json。
 - 主項目2のfinanceDoneはHOLD。振込/feeはALB403取得境界、実費は案件bound公式請求不足。3〜5も同Coconala browser取得境界に依存するので、独立した既存順序6 Mercor旧応募33812の公式readback準備へ進む。順序変更/完了扱いではなく保留を保持した独立作業。
 - Mercor skill/canonical application-ownerを確認。ownerはapplication effect/認証writebackを含むので診断目的で実行しない。まず旧intent/listing identityと既存公式snapshot/read-only取得経路を照合し、旧resource_effect_unknownのfenceを証拠なしに解除しない。AGMSG既存lm inboxは新着無し。送信/応募/振込/本番設定変更0。
+
+
+### 732. Mercor旧intent保存不足を保持しFreelancer実取得へ進む
+
+- Mercor旧33812の既存§363/A13 auditを先に読み、公式100行の再取得を反復しなかった。現在のlife-managerおよびjob-search/mercor state内でexact run名artifact検索は0、Mercor名のcompressed/archive候補も確認範囲0。既存のhost→child listing/candidate/time不足を解消する保存物は見つからず、fence解除/再応募0。全storage不在とは一般化しない。
+- Coconala3〜5/7は同ALB取得境界を保持。Mercor6も旧intent不足なので独立順序8 Freelancerの既存経路を確認。freelancer_readinessはvalidator、freelancer_transportはauthorization-bound公式route取得、bid_watchは公開GETでありaccount/bidderの受注判定ではない。bid_watch mainのstate append/Telegramを実行せず、pure fetchだけ使用した。
+- handle49705 exit0。UTC2026-10-06T15:53:42.930921、公式公開GET4件40620700/40620877/40620839/40620523すべてstatus closed/sub_status closed_expired/frontend complete。新規応募候補から除外する。frontend completeを自分の納品・精算の証拠にしない。証拠private cli-observability-20261006/freelancer-four-public-project-readback.json。provider effects/notify/state append/応募0。
+- 現在の実行cursorは8のaccount-bound公式inventory/新規案件取得。2の振込・fee・実費、3〜7の具体的不足を保留で保持し、主29の相対順序とSelfBuild/Lancers後段を変更しない。次はcredential SSOTの存在を秘密値非表示で確認し、既存authorized transport/登録browserの現readinessを照合する。
