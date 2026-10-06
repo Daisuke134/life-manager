@@ -144,10 +144,11 @@ test("partial managed context is not completed from Railway and other services s
   } finally { global.fetch = original; }
 });
 
-test("Composio outcome follows the API successful flag and excludes Calendar contents", async () => {
+test("Composio records read failures and fences uncertain create outcomes", async () => {
   const original = global.fetch;
   const responses = [
     { successful: true, data: { items: [{ id: "event-1", summary: "private calendar title" }] } },
+    { successful: false, error: "provider rejected read" },
     { successful: false, error: "provider rejected operation" },
     { data: { opaque: true } },
   ];
@@ -161,9 +162,10 @@ test("Composio outcome follows the API successful flag and excludes Calendar con
       recordCall: async (uid, tool, trace) => records.push({ tool, trace }),
     });
     assert.deepEqual(await calendar.listEventsRaw("u1", {}), [{ id: "event-1", summary: "private calendar title" }]);
-    assert.deepEqual(await calendar.createEvent("u1", {}), responses[1]);
-    assert.deepEqual(await calendar.patchEvent("u1", {}), responses[2]);
-    assert.deepEqual(records.map(({ trace }) => trace.outcome), ["success", "failure", "unknown"]);
+    assert.deepEqual(await calendar.listEventsRaw("u1", {}), []);
+    assert.deepEqual(await calendar.createEvent("u1", {}), responses[2]);
+    assert.deepEqual(await calendar.patchEvent("u1", {}), responses[3]);
+    assert.deepEqual(records.map(({ trace }) => trace.outcome), ["success", "failure", "unknown", "unknown"]);
     assert.equal(JSON.stringify(records).includes("private calendar title"), false);
     assert.equal(JSON.stringify(records).includes("provider rejected operation"), false);
   } finally { global.fetch = original; }
@@ -219,8 +221,16 @@ test("default recordCost row persists Composio outcome and runtime trace in meta
       kind: "composio_call",
       quantity: 1,
       unit: "call",
-      est_usd: 0,
+      est_usd: null,
       meta: {
+        provider: "composio",
+        sku: null,
+        operation: "GOOGLECALENDAR_EVENTS_LIST",
+        currency: "USD",
+        actual_usd: null,
+        billing_status: "unknown",
+        pricing_version: null,
+        estimate_status: "unavailable",
         tool: "GOOGLECALENDAR_EVENTS_LIST",
         outcome: "success",
         runtime_trace: {

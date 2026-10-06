@@ -186,6 +186,7 @@ Telephony, paid model calls, and user-requested external actions remain separate
 ### A2 — Cost ledger
 
 - extend provider cost rows with provider, SKU, operation, quantity, estimate, actual, billing status, and pricing version;
+- keep the existing `lm_api_cost` table: `quantity` and `est_usd` remain nullable columns; provider, SKU, operation, actual amount, billing status, pricing version, and currency go in existing `meta` JSONB. Do not add a table or migration for A2;
 - reject missing actual billing as zero;
 - make failed ledger writes visible to the owner.
 

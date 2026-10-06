@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { geminiUsageEvents, persistGeminiUsage, persistGeminiFailure } = require("./gemini-usage.js");
-const { recordUsageEvent } = require("./usage-event.js");
+const { normalizeUsageEvent, recordUsageEvent } = require("./usage-event.js");
 
 test("separates Gemini token cost from Search grounding cost", () => {
   const events = geminiUsageEvents({
@@ -21,9 +21,22 @@ test("separates Gemini token cost from Search grounding cost", () => {
 test("missing usage metadata stays explicitly unestimated", () => {
   const [event] = geminiUsageEvents({}, { tenantId: "t1", feature: "ask_location" });
   assert.equal(event.outcome, "failure");
-  assert.equal(event.providerUnits, 0);
-  assert.equal(event.estimatedCostUsd, 0);
+  assert.equal(event.providerUnits, null);
+  assert.equal(event.estimatedCostUsd, null);
   assert.equal(event.meta.estimate_status, "unavailable");
+});
+
+test("unknown model pricing stays unavailable instead of inventing a zero estimate", () => {
+  const [event] = geminiUsageEvents({
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+  }, { tenantId: "t1", feature: "ask_location", model: "future-model" });
+
+  assert.equal(event.providerUnits, 15);
+  assert.equal(event.estimatedCostUsd, null);
+  assert.equal(event.meta.model, null);
+  assert.equal(event.meta.estimate_status, "unavailable");
+  assert.equal(event.meta.pricing_version, null);
+  assert.equal(normalizeUsageEvent(event).meta.pricing_version, null);
 });
 
 test("persistGeminiUsage writes every normalized event through an injected writer", async () => {
@@ -61,6 +74,9 @@ test("uses the 2026 Gemini 3.7 Flash and grounding rates", () => {
     usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 100, totalTokenCount: 1100 },
   }, { tenantId: "t1", feature: "scout", model: "gemini-3.7-flash", grounded: true, success: true });
   assert.deepEqual(events.map((event) => event.estimatedCostUsd), [0.001125, 0.014]);
+  assert.equal(events[0].operation, "generate_content");
+  assert.equal(events[0].meta.pricing_version, "lm-gemini-estimate-2026-10-06-v1");
+  assert.equal(events[1].operation, "search_grounding");
 });
 
 test("provider failure is observable without inventing token or grounding cost", async () => {
@@ -73,7 +89,7 @@ test("provider failure is observable without inventing token or grounding cost",
   assert.equal(rows[0].provider, "gemini");
   assert.equal(rows[0].outcome, "failure");
   assert.equal(rows[0].failureClass, "provider_5xx");
-  assert.equal(rows[0].providerUnits, 0);
-  assert.equal(rows[0].estimatedCostUsd, 0);
+  assert.equal(rows[0].providerUnits, null);
+  assert.equal(rows[0].estimatedCostUsd, null);
   assert.equal(rows[0].meta.estimate_status, "unavailable");
 });

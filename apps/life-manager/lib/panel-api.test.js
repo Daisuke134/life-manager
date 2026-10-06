@@ -1046,16 +1046,28 @@ test("PANEL-8g scores use source outcomes and expose all four closed organs", as
 
 test("REPORT-1 panel reads the real earnings table and the exact Telegram snapshots", async () => {
   const fixture = makeFixture();
+  fixture.byUid.u1.costs.push({ uid: "u1", ts: "2026-07-21T09:30:00.000Z",
+    kind: "composio_call", quantity: 1, unit: "call", est_usd: null,
+    meta: { provider: "composio", billing_status: "unknown", actual_usd: null } });
+  fixture.byUid.u1.costs.push({ uid: "u1", ts: "2026-07-21T09:45:00.000Z",
+    kind: "composio_call", quantity: 1, unit: "call", est_usd: 0,
+    meta: { provider: "composio", tool: "GOOGLECALENDAR_EVENTS_LIST" } });
   await withApiServer(fixture, async (base) => {
     const { response, body } = await getJson(base, "ledger");
     assert.equal(response.status, 200);
     assert.deepEqual(body, {
       api_cost: {
         no_data: false,
-        total: "USD 0.42",
+        total: "USD 0.42（既知推定小計・金額不明2件）",
+        estimate_status: "partial",
+        unknown_estimate_entries: 2,
+        actual_status: "unknown",
+        unknown_actual_entries: 4,
         items: [
           { label: "API利用料", date: "2026-07-21", amount: "USD 0.12", link: null },
           { label: "API利用料", date: "2026-07-21", amount: "USD 0.30", link: null },
+          { label: "API利用料", date: "2026-07-21", amount: "金額不明", link: null },
+          { label: "API利用料", date: "2026-07-21", amount: "金額不明", link: null },
         ],
       },
       financial: {

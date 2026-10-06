@@ -135,8 +135,8 @@ function makeComposioCalendar(opts = {}) {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
     const { outcome, runtimeTrace: trace } = details || {};
     return recordCost({
-      uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: 0,
-      meta: { tool, outcome, runtime_trace: trace },
+      uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: null,
+      meta: { provider: "composio", operation: String(tool), tool, outcome, runtime_trace: trace },
     });
   });
   const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId, effectAwareCreate = false) => {

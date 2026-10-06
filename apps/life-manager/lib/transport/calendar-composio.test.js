@@ -82,6 +82,47 @@ test("Web Calendar event listing remains available while automation is paused", 
   assert.equal(f.controlReads.length, 0);
 });
 
+test("Composio calls with no verified unit rate are stored as unknown, not free", async () => {
+  const env = new Map(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+    .map((name) => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  const ledgerRows = [];
+  process.env.SUPABASE_URL = "https://supabase.example";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(String(url), "https://supabase.example/rest/v1/lm_api_cost");
+    ledgerRows.push(JSON.parse(init.body));
+    return { ok: true, status: 201 };
+  };
+  try {
+    const calendar = makeComposioCalendar({
+      apiKey: "provider-key",
+      resolveConnectedAccountId: async () => ACCOUNT_ID,
+      fetchImpl: async () => ({ ok: true, status: 200,
+        json: async () => ({ successful: true, data: { items: [] } }) }),
+    });
+    await calendar.listEventsRaw(UID, {
+      timeMin: "2030-01-01T00:00:00.000Z",
+      timeMax: "2030-01-08T00:00:00.000Z",
+    });
+
+    assert.equal(ledgerRows.length, 1);
+    assert.equal(ledgerRows[0].est_usd, null);
+    assert.equal(ledgerRows[0].meta.provider, "composio");
+    assert.equal(ledgerRows[0].meta.operation, "GOOGLECALENDAR_EVENTS_LIST");
+    assert.equal(ledgerRows[0].meta.actual_usd, null);
+    assert.equal(ledgerRows[0].meta.billing_status, "unknown");
+    assert.equal(ledgerRows[0].meta.estimate_status, "unavailable");
+    assert.equal(ledgerRows[0].meta.pricing_version, null);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of env) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
 test("getCalendar passes the production Supabase config to real Web control reads", async () => {
   const envNames = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "LM_CAL_CACHE", "LIFE_TRANSPORT", "LIFE_CAL_TRANSPORT"];
   const previous = new Map(envNames.map((name) => [name, process.env[name]]));
