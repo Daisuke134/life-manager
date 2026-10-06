@@ -9894,3 +9894,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Stripe fragment statusはnullなのでpaidの直接出所はRailwayと訂正。Stripe paid直接証明を完了条件へ追加せず、確認済みprovider-statusを正しく分離。未完は費用のloop帰属・全coverage/銀行照合/利益。過去artifactの時点不足を改変せず現在解決証拠を追記する。
 - probeのreadback_completeが必要fieldを要求せずcapture例外無記録/競合上書き可能だったfindingをLuna6/maxでprivate helper1fileだけ修正。Railway paid provider明示/Stripe nullable、exactinvoice+currency+paid_at+amount_paid必須、完全fragment競合はconflict/incompleteでreceipt値保留、例外class countのみ。AST/隔離合成exercise PASS、network/browser/login/send/payment0、mode600。本番/新suite/新CLI追加なし。rootは既存取得の実値を、このコード修正だけで再取得済みと扱わない。
 - 既存source provenance8serviceはGit repo6/image2、repoはAnicca-productsとLife Manager。repo/名前だけでshared invoiceを按分せず同期間のservice usageとcanonical ownerを必要条件として保持。current17自然CFO待ち/20独立接続作業を継続。
+
+
+### 796. 既存6project usageをservice ID結合し不足10件を公式取得
+
+- 保存allocation-readonlyの6projectすべてでservice別usage取得はexit0済み、同期間08-27〜09-27/計18service IDs一意。3/6という途中reviewだけを最新全取得状況にせず、再取得0で既存source provenance8件とexact ID join。matched8/unmatched10、10件にはusageあり。private railway-existing-service-usage-source-join.json。usage金額をpaid allocationへ昇格しない。
+- 現公式CLI schemaでservice(id:String!)/ServiceInstance source/rootDirectory/dockerfilePath/startCommand/latestDeploymentを確認し、未対応10IDだけをmaxworkers3で並行read-only取得。成功9/instances8/削除済み1、current metadataとして保存し過去period source証明へ使わない。commandはscript pathだけ、repoは安全slugだけ、画像/秘密env/生outputは保存しない。private railway-current-unmatched-service-provenance.json。
+- 失敗1IDはid/deletedAt/projectIdへ最小化した追加probeでもGraphQL INTERNAL_SERVER_ERROR/has service datafalse。provider server errorでありservice不存在/費用0/credential失効とは認定しない。private railway-unmatched-service-minimal-error-readback.json。次は当該billing periodのdeployment/runtime provenanceとcanonical loop binding、必要ならarchived deployment経路。
+- fresh CFO statusはmain6489/idle、最新自然18:57:06/exit75/capacity延期。新reportは旧18:11のまま。current17の自然readbackと20の独立帰属観測を継続し、手動送信/再起動/取引0。
