@@ -8911,3 +8911,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 最新main9c9fd29dから専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-reply-facts-wait-20261006、branch fix/lm-reply-facts-wait-20261006を作成、root lease codex-money-printer-reply-facts/24h。_shared/eval-loop/manifestをsparseへ準備しpre-push欠損を再発させない。
 - Luna6max有限run66123が§671のplanner/既存testを所有、必要時のみ既存kernel test最小caseと_shared inventory digestを更新。facts wait/no send/no humannotify、explicit valid human維持/invalidhuman拒否をRED→GREENで受入。source/rootstateを混ぜず実provider/API/browser/credential/通知/launchd操作禁止。
 - lm-crowdworksへ修復producer訂正と範囲をAGMSG send成功で通知。primaryがSSOT/受入/fresh review/CI/main/反映を所有、source完成/検証/pushは未完。current1/残29/mock取消/後段順不変。
+
+
+### 673. Reply facts fallback差分・focused検証進捗
+
+- live実装run66123の現在差分はplanner fallback action human→waitの1行、既存planner testsとkernel integration caseのみ。rootはdiffをread確認、generic reason reply_facts_required/remaining_workは維持、explicit human処理は未変更。
+- 担当ログでfocused planner＋missing facts kernel case13 PASSを確認。これは限定検証の進捗であり、最終関連suite/manifest/push/independentreview/CI/main/自然反映の成功には拡張しない。実装は同live handleを追い、重複run0。
+- current1/残29、mock取消/oldunknown保持/後段順を維持。provider送信/通知/privateprofile変更0。
