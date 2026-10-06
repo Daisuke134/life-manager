@@ -4880,7 +4880,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 | channel | 確認した対象 | 次に必要な行動・不足情報 |
 |---|---|---|
-| Coconala受注 | 現受注一覧3件、表示9000/8000/24000円。8000/24000円は取引中/表示最新sender seller | TikTok/NPO追跡延期を保持し、それ以外の現在必要行動だけを確認。表示額を入金にしない。§631 |
+| Coconala受注 | 過去一覧3件、表示9000/8000/24000円。現在の公式orders-only CLIは403/coverage incomplete、現件数unknown | TikTok/NPO追跡延期を保持。過去の件数・senderを現在値へしない。現在必要行動は取得復旧後に確認。表示額を入金にしない。§631/703 |
 | Coconala問い合わせ | 先頭30行はobserve、返信要求flagなし | 1page/head-onlyで全件性なし。新着の具体的必要行動がある時だけ該当thread確認。§631 |
 | Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
 | CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
@@ -9178,3 +9178,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 証拠 `handoff-paid-target-apply.json`/`handoff-paid-loaded-status.json`。自然runの新error codeと実個体不足fieldは未確認、実納品・検収・精算のDoneではない。
 - CFO容量の現read-only snapshotは上限8、live6/未失効reservation2、CFO deterministic borrow queue510323/effect_unknown0/next_eligible0。現容量available false、support deterministic上限2/revenue floor3。`_durable_capacity` は内部mutationを含むため呼ばず、RO SQLite/plist/pid照合とpure predicateだけ使用。証拠 `cfo-capacity-current-readonly.json`。これは現在snapshotであり11:10過去失敗の同時再現ではない。共有capや台帳を変更せずキュー待ちを保持する。
 - 残29/current1を維持。次は新Paid SHAの自然診断・既存契約の不足情報を確認し、具体的原因に対応する次の安全な納品作業へ進む。
+
+### 703. Coconala現受注CLIの403とPaid新SHA自然起動
+
+- main由来ba9f7962 immutableの既存 `coconala_queue_snapshot.py --mode orders-only --visible-with-screenshot` を、registered `coconala:kosuke` のwith-browser leaseと既存CDP lock内で実行。初回は専用 `CLOAK_BROWSER_OWNER` 未指定で取得前に失敗し、同CLIが要求する専用ownerを設定して再実行した。新tool/商品/投稿/返信/納品/再送0。
+- 公式receiptは `2026-10-06T11:30:15.425681+00:00`、requested/final `/mypage/received_orders/open`、HTTP403/page title403 Forbidden/login_redirect false/container false/empty_state false/coverage_complete false。collector error `orders_access_forbidden`。current orders snapshotは作成されず、受注件数・必要返信・納品状態はunknownのまま。保存画像は403のみ、表示CAPTCHA入力欄/ログイン画面なし。solver対象が確認できていないため空のsolver taskを作らず、403を公開/成功/0件へ丸めない。
+- 証拠 `coconala-current-orders-evidence/source-receipt.json`/`snapshot-failure.json`/`received-orders-open.png`。TikTok/NPO追跡は延期継続、過去3件を現件数として表示しない。復帰条件は公式受注routeで正常HTTP/expected container/coverage確認。認証不良・bot原因はまだ断定しない。
+- Paid owner新SHA ba9f796260の自然terminalは `2026-10-06T11:30:54.919119+00:00`、run29141/occurrence `crowdworks-revenue-paid:18dbed5abfd29e38-29141`/exit75。現business outputは別旧occurrence84924であり新runへ結合しない。RO host DBでは新occurrence released/effect_unknown0、旧fence保持。新error codeの実個体確認・実納品は未達。証拠 `handoff-paid-natural-current.json`。
+- current1/残29は不変。独立platformの既存CLI/収益行動を進め、同じ403巡回や過去保留一括照合を全体の停止条件にしない。
