@@ -9290,3 +9290,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 1.1のfield欠損原因特定・source修復・source review/CI/main/immutable/実3readbackは限定Done。次1.2ではどの契約を実行し何を納品するかを確定する。form候補数1/3/1、prepared workなし。63989657/63942104の保存itemは旧form selection待ち・intent/receiptなしだが、古い状態だけで未送信と確定しない。公式フォーム/既存bound receiptをread-onlyで確認してから選ぶ。
 - runtimePaid ownerは14:21のreadbackでまだ旧2cf、shared release-reconcilerはPID43121のlive owner。rootは競合apply/current変更を行わず、別のcurrent選択が4429dfb4へ進んだことを確認した。reconciler state errorは既知なので全fleetの反映成功とはしない。新getterを含むPaid実loaded/自然処理は未完、1.1データ修復Doneとruntime完了を分離する。証拠 `amount-release-owner-current.json`/`amount-fixed-runtime-status.json`。
 - 現在cursor1.2、主29の相対順序不変、正式納品1.3・精算/着金2は未完。
+
+### 717. 1.2候補64033100の未提出フォーム要件をread-onlyで確認
+
+- 新main4429immutableのregistered lease/既存lock内で64033100をtargeted_detail取得。2026-10-06T14:30:21Zにfunded/12JPY、form_count1/completed_bound_receipt_count0。既存helperのbound receipt確認では0だが全履歴未送信やmutation安全性の全証明へしない。既存Google form metadata getterはRuntimeErrorで設問取得不可、回答/正式納品対象の確定は未完。提出/返信/再送/台帳write0。証拠 `crowdworks-64033100-delivery-requirements.json`。
+- 失敗境界をGoogle form metadataへ狭め、同URLのform attached待ち/HTTP status/FB_PUBLIC_LOAD_DATA有無/受付終了・login・permission・CAPTCHA flags/body hashだけ追加取得するread-only run97213を開始。生buyer本文/回答値/email/credentialを保存しない。metadataが取れない理由を待機・閉鎖・権限と区別し、未知の回答や完了を捏造しない。
+- sharedreleaseowner後続snapshotは4429がloadedでPID61490 live。Rootはcurrent/targetapplyを競合変更せず、Paid ownerへの反映状態を追加readbackする。Rootの現在1.2/主29順序不変、1.3納品/2精算未完。
