@@ -4894,17 +4894,17 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 - Coconala：以前の受注/売上403後、同registered profileで公開top/revenue比較はHTTP200へ復帰し、current revenue parserで18211957の1明細を取得（§724）。恒久403とは固定しない。銀行receipt/fee/実費と全履歴・現在の受注/購入導線は未確認。過去件数を現在値へしない。
 - CrowdWorks Paid：価格取得不具合はmain4429と公式3readbackで解消。64033100は採用応募フォームであり、サービス成果物の納品と混同しない。63942104/63989657も採用選考と分類済み。通常サービスの納品対象は未確定。63826932/63819060の旧結果照合待ちは再送しない。正式納品・入金は未確認。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
-- CFO：旧3ae再適用はrelease-reconcilerのrun43699と確認済み。その後rootのsafe preflightは13:12:55 UTCにPASSし、公式GUI printで実loaded argvとplistが57e09ccf一致、current2cf94f43を確認した。57eは4bのdescendantでMRR24h修復を含む。旧版へ戻った状態は現blockerから除く。公式データ接続・自然集計/レポートは未完。競合再applyなし。§707。
+- CFO：main1305の公式MRR取得/自然送信104639は確認済み。残る詰まりは同自然occurrenceの取得query/hash/time・ASC/RC分離/coverageの保存証拠不足。§824の最小保存修正をLuna担当が専用branchで進める。旧版反映原因や完了sourceの再調査はしない。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
 - 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。この集約は過去観測で、現在cursorは下記実行表を参照する。残29の相対順序、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17はmain64895457のCFO自然run/同occurrence送信receiptとmobile USD20.34表示を確認済み。CFO-owned公式MRR取得sourceはc7399c63aaで実装/push、関連133testsとfresh反証reviewはPASS。残る操作はPR6790のCI→main/immutable反映→live flag有効化→同source自然runで持続鮮度・ASC receipt/RC二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+現在17はmain1305c07f5eでCFO live MRR取得を反映済み、133tests/fresh sourceSHIP/全CI/自然送信104639まで確認済み。ASC apps list24・獲得4CSV・追加observerのASC receipt1/RC MRR6/RC settled0も確認済み。残る操作は§824の自然run取得/同集計をoccurrence別private JSONへ保存する最小修正、同SHAのreview/CI/main/immutable、次の自然run JSONと同run送信receiptの照合だけ。追加observerを自然runそのものへ代用しない。現在のLuna担当は専用branch fix/cfo-mobile-natural-evidence-20261007、base1305、実handleで稼働確認済み。完了済みの取得・送信・MRR source修復を再実行TODOへ戻さない。銀行/会社利益/全期間coverageの不足は残18〜24へ保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
-現在の作業範囲は未完の収益経路・公式CFO接続と、それを止める自所有故障の最小修復・検証・反映。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然reportの成果は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
+現在の作業範囲は未完の収益経路・公式CFO接続と、それを止める自所有故障の最小修復・検証・反映。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然送信は確認済み、自然run内の取得・分離の保存証拠は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
 Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監査→収益確認」の順を変更する。新順は実債務/納品・精算→Lancers以外のstorefront/応募/販売→会計→SelfBuild→Lancers再開→最終確認。理由は古い状態の巡回を全収益経路の停止条件にせず、実際の仕事と売上へ時間を使うため。以後この順を保持する。各行の必要な観測・原因修復・focused検証はその行の中で行い、観測だけを何度も独立taskに増やさない。新しい外部effect/価格変更等の権限はこの文書更新から推定しない。
 
@@ -4917,17 +4917,17 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 5 | Coconala新着問い合わせCLIを取得し、実際に返信が必要なthreadを特定して返信する（thread ID未特定、依頼が無ければ待機） | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
 | 6 | Mercor旧応募occurrence18d6f9cb5bdaef98-33812の結果を公式応募記録へ照合し、停止解消後に未送信の適合listingを選んで応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
 | 7 | Coconala募集案件CLIから条件の合う未提案案件IDを選び、既存供給loopで提案する（案件ID未選定） | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
-| 8 | Freelancerの既存account/readiness CLIと実案件一覧を取得し、応募可能な案件IDを選んで応募する（案件ID未選定） | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
+| 8 | Freelancerの最低20USD条件と許可された応募手段を確認し、条件成立時だけ未応募案件IDを選んで応募する。残高0のため勝手なtop-upなし、認証復旧は再実行しない | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
 | 9 | Upworkの公式automation制限解除証拠を確認する。解除証拠が得られた場合だけ既存CLIで適合案件を選び提案する。現在はUI自動化を再開しない | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
 | 10 | Coconala storefrontの実注文をCLIで検出した時に、その注文IDの商品条件で履行・納品する（現注文ID未確認、注文無しなら制作しない） | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
 | 11 | Capafy Hook Lab（8123079349）の実注文・売上・精算と実費を公式CLIで取得して結合する。自然販売促進は確認済みなので再実行を残作業にしない | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
 | 12 | Writer xcta4の記事購入/アーカイブ購読の実決済をStripe公式記録へ照合し、旧article-daily occurrenceと公開receiptの対応を解決する。購入導線確認は済み | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
 | 13 | Affiliateの既存program別conversion/commissionレポートを取得し、成約のあるprogram・取引IDを精算へ照合する（取引ID未選定） | 許可済み既存運用のconversion/commission/settlementと実費。 |
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
-| 15 | Fundraiserの既存申請cursorと公式募集条件を照合し、適合する申請先1件へ既存申請を進める（申請先未選定） | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
+| 15 | Fundraiserの旧申請provider/account/intentと公式結果を照合し、対応が解決してから適格な未送信申請を進める。結果未確認の再申請なし | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | ANICCA/Honne等のASC財務データをapp/SKU・期間・通貨でCFOへ結合し、接続済みRevenueCat入力を使った自然レポートと二重計上防止を確認する | 公式取得tuple・原report SHA・正規receipt identity・currency/settlementを保存し、native report IDは非返却/未確認と区別する。RevenueCat同期間join/二重計上0、mobile lane実装の重複なし。 |
-| 18 | Investmentの既存10/01 BTC/USDC買い・売り注文について、確認済みFILL/CFEEを維持し、期間開始NAV・全活動/入出金・資産別USD評価/換算・実行owner receiptを取得して同注文へ結合する。口座全体NAV差額をこのpairの利益へ代用しない | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
+| 17 | 稼働中Lunaの自然run観測保存修正を完了→focused検証/fresh review/commit-push/CI→main immutableのCFO限定反映→次の自然occurrenceのJSONと送信receiptを照合する | 公式取得tuple・原report SHA・正規receipt identity・currency/settlementを保存し、native report IDは非返却/未確認と区別する。RevenueCat同期間join/二重計上0、mobile lane実装の重複なし。 |
+| 18 | Investmentの既存10/01 BTC/USDC買い・売り注文について、確認済みFILL/CFEEを維持し、取得済み開始NAV/2注文照合を保持し、同じ確定終端NAV・activity/transferの期間完全性・資産別settlement/USD換算・実行owner receiptを確認して同注文へ結合する。口座全体NAV差額をこのpairの利益へ代用しない | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
 | 21 | 19と20の同期間・同通貨の実収益/実費を使って、loop別と全体のnet marginを計算する | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
@@ -4944,7 +4944,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 
 - 残1は条件付き保留。CrowdWorks64033100・63989657・63942104は採用選考であり、納品するサービス契約ではない。通常サービスの契約ID・成果物・期限が未確定なので、現在作る納品物はない。実契約が確認された時にだけ、その契約の成果物を制作して公式納品する。
 - 残2の対象はCoconala案件18211957。制作・取引完了・公式売上明細の照合は済んでいる。残操作は①公式振込明細の取得、②対応する銀行入金receiptとの照合、③同案件の公式手数料内訳の取得、④案件実行IDに結び付く実請求/usageの取得、⑤不足を含むCFO記録の更新。再納品・振込操作・一般率からの費用逆算はしない。
-- 現在cursorは17。ASCのIAP→app対応・財務入力のsource接続、CFO自然レポートのmobile MRR USD20.34表示は確認済み。残操作は固定RevenueCat snapshotをCFO-owned公式MRR取得へ置換し、その新sourceの自然実行で鮮度・ASC receiptとの二重計上防止・不足coverageの保持を確認する。銀行入金と全社利益は未確認。確認済みの対応確認・初回表示・旧版原因調査を再実行TODOへ戻さない。
+- 現在cursorは17。公式接続・自然送信を再実行TODOにせず、§824のrun別観測保存→同SHA source検証/review/CI/main/immutable→次自然run JSONと送信receipt照合だけを完了させる。現実の銀行着金・全社利益は残18〜24で未確認のまま。
 - 実行順は表の1〜29を維持する。現在17であることは1〜16の完了を意味しない。対象未確定・provider制限・外部待ちの行は保留し、条件が揃った時だけ再開する。
 
 #### 残1・2の具体的な実行操作（曖昧な「既存有償案件」を使わない）
@@ -10123,3 +10123,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 目的は既存collectorの観測を自然runのprivate JSONへ保存し、同occurrence送信receiptへ結べるようにする。最新main由来専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/cfo-mobile-natural-evidence-20261007、branch fix/cfo-mobile-natural-evidence-20261007。source所有はCFO collectorと必要最小CFO testのみ、実装gpt-6-luna/max、primaryはSSOT/受入/統合。
 - acceptance：既存live modeかつnative CFO occurrence/state contextの時だけ、既存CFO state/mobile-readbacksにoccurrence別JSONをatomic/fsync/file600/dir700で保存。owner/occurrence/run/release/liveflag・取得開始完了・RC query/evidenceSHA/結果・同集計ASC receipt/RC snapshots/settled/duplicate/coverageを記録。credential/Authorization/全envを保存しない。入力current-mrr.jsonを上書きせず、source report/message cadence/宛先/価格/購読/送信/API回数を変えない。
 - 失敗・unavailableも欠損として保存、旧値をfreshen/0化しない。flag offや自然context無しの既存CLI経路は維持。focused RED→GREEN・既存関連suite・fresh read-only review・commit/push/CI/main/immutable・次の自然same-occurrence readbackまで続ける。node reportやeffect fence/全frameworkを書き換えず、単一run JSONの最小差分。cursor17/前段保留/主相対順を維持。
+
+
+### 825. 新セッション引継ぎ：残TODOだけを同期、live writerを重複させない
+
+- Daisはspec更新・原子的残TODO・chat上のgoal-setter/handover promptを要求、メール不要。handover skillのメール手順はこの明示指示で不適用。docs専用branchへ永続handoverとgoalを保存/commit/pushし、remote objectを確認する。
+- 文書worktree ssot-main-20261002/branch docs/ssot-orchestration-status-20261002 を正本の編集先として保持。source worktree cfo-mobile-natural-evidence-20261007/branch fix/cfo-mobile-natural-evidence-20261007 は1305/base/clean（観測時）/current upstream origin/main、source push先は同名origin branch（まだ未push）。原primaryはcodex-money-printer/team lm。
+- Luna finite run12812/PID72880・72891をexact argv/output/worktreeでlive確認。local log cfo-natural-evidence-luna-run.jsonl/result cfo-natural-evidence-luna-result.md、private evidence dir cli-observability-20261006。native handleは旧session限定、新sessionはOS PID/argv・log・git・AGMSGで再確認。source branchのlive writerがいる間に同じ編集/別writer起動をしない。稼働/終了は状態fileだけで判断せずprocess/terminal結果で判定。
+- current17、前段1〜16の外部/条件付き保留、18〜24財務、25SelfBuild、26〜28Lancers、29最終証拠。相対順不変、完了した source/公式取得/送信を残作業へ戻さない。新sessionはfetch/HEAD/upstream/dirty/runtime/providerを更新し、同cause timeoutだけでrestartせず、必要な証拠が安全に取れる間は続ける。
