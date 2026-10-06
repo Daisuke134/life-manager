@@ -115,3 +115,5 @@ Do not implement app-generation automation yet. Start a separate Web App Factory
 - Composio tool execution response and error-code contract: https://docs.composio.dev/reference/errors and https://docs.composio.dev/reference/api-reference/tools/postToolsExecuteByToolSlug
 - Google Calendar default reminders and overrides: https://developers.google.com/workspace/calendar/api/concepts/reminders
 - Direct category pricing reference: https://www.addtraveltime.com/
+- Supabase Auth redirect URL allowlist: https://supabase.com/docs/guides/auth/redirect-urls
+- Supabase CLI database migration credentials and db push: https://github.com/supabase/cli/blob/develop/apps/cli/docs/go-cli-reference.md
