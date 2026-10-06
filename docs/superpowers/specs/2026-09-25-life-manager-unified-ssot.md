@@ -9983,3 +9983,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - cursor17の追加focused testは10/10 PASS。fresh gpt-6.1-sol/medium read-only source reviewを有限独立session handle84885で開始。Luna実装handle23227はliveのまま、重複source編集なし。
 - primaryのread-only実API probeは2026-10-06T20:23:17.681921Zに完了。private SSOTの既存credential/既存projectを新readerに渡し、6app全available、既存adapterでsubscription_snapshot6件へ変換。USD20.34が1件、explicit USD0が5件。これはMRRだけで、settled receipt・銀行着金・利益ではない。
 - 証拠private cfo-mrr-live-reader-official-readback.json、SHA4e12cb080749cd0d2295e4a81fe3aedea9960c443dfaa806488eefb8211dd529。実API取得にmockを代用せず、API設定/購読/価格/本番loop変更0。未commit sourceのprobeであり、最終source SHAに結び付けたreview/本番自然実行は未完。
+
+
+### 806. CFO live MRRのfresh反証reviewはHOLD、4条件を修正対象へ
+
+- gpt-6.1-sol/mediumの独立read-only reviewer handle84885はexit0、判定HOLD。sourceテスト成功だけでは不足する4条件を隔離CLI main→build→collectで再現：不正incomplete型がcomplete化して999×6をverified、ASC/static両path未設定のas_of gapが正常RC MRRをunknown化、逆順periodで古値verified、失敗appの完了時刻がimplicit snapshotへ反映されない。
+- rootは結果private cfo-mrr-live-fresh-review-result.mdを読み、lm-cfo-mrr-live-1007へ4条件と最小RED→GREENを送信。reviewはprimary所有、担当からの重複review起動は不要と明示。marketing helperの変更は範囲外、CFO側検証/接続で解消する。
+- default-off/明示過去snapshot/hash・definition・currency不正拒否/正常7GET/ASC二重計上防止は反証で崩れなかった。実API6app取得の§805証拠は正常応答の限定証拠であり、4条件の解消を代用しない。未commit source、本番変更0、cursor17維持。
