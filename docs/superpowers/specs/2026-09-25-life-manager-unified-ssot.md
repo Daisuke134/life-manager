@@ -10069,3 +10069,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - natural reconcilerがcurrentを /Users/anicca/loops/releases/20261007T054821-1305c07f へ更新したことをread-only確認。CFO loaded1305は保持、同capacity deferred occurrenceのまま。旧resource owner59408/60253はps不在、CrowdWorks75173は実starttime/argv一致でlive。終了したownerを稼働中へ数えない。
 - Coconala guard statusのholder49507はps不在。追加観測後に通常with-browser取得1回を再試行したがexit75/page取得0。guard実コードはpid liveness OR acquired_atから1800秒を保護するため、PID不在だけでは取得可能にならない。acquired_at1791318697の同leaseをstatusで再照合し、保護期間内のBUSYと特定。手動lease削除/TTL短縮/別tab操作0。
 - 通常保護期間経過後のregistered guard確認を再開条件にし、同BUSYの短周期反復を止める。sourceのNo TTLというコメントと実処理の差を観測したが、新規一般修復を今回の収益完了gateへ追加しない。cursor17/残3未確認/既存相対順保持。
+
+
+### 818. 新版自然runはquiet duplicate、同時間帯の新規GET/送信は無し
+
+- main1305の自然occurrence life-manager-cfo-hourly:18dc0bff56e33a68-92073 はexit0/loaded-idle/blocker無し。last-result.jsonはstatus quiet/resolutionKind duplicate/deliveredfalse。前runのproviderMessageId104594/created・sentAt20:17:41.583Zを同期間解決へ再利用していることをlast-result-reportと実cfo-result-local.jsで照合。
+- 同period sentの分岐はPython collectより前に戻るため、今回の新版runは新GET/新送信を実施していない。旧receiptを新取得の証明にせず、新版公式readback成果は未完。private cfo-main1305-natural-report-readback.jsonはduplicateの観測証拠として保持。
+- 次のreport periodの自然runがlive取得・reportへ進むことを確認する。重複防止を外す/時刻偽装/手動送信0。source反映は完了済みで再修復へ戻さない。cursor17の自然実測待ちと独立18の不足証拠確認を並行、主相対順は保持。
