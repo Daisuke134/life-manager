@@ -189,21 +189,23 @@
 
 - [x] PR #6739 merged at `78c55432421dbe821773a96f7a7deb9646ee7599`; immutable release `20261006T160404-78c55432` is selected and `lm-loop doctor` returns `ok=true`. The active `upwork:dais` owner was preserved.
 - [x] Run the canonical cleanup one-shot at 16:30 JST: reclaimed 56,844,145 bytes; `errors=0`; `protected_deletions=0`; six open candidates preserved; 21 inventory gaps. Both disk policy markers are absent; the 11 GiB level is the preventive cleanup tier.
-- [ ] PR #6744 promotes Postiz credential wiring for the three eBook owners. Local focused checks pass 121/121; fresh read-only review found no Critical/Important issues. Code-head CI passed at `4a85b0866e`; the latest spec correction is being pushed and will rerun required CI before merge/release/apply.
 - [x] Extend the existing `apps/landing/scripts/money-path-smoke.mjs` with a read-only GET to `/.netlify/functions/checkout` that expects the handler's `405 method not allowed`; keep the assertion inside the current post-deploy smoke/rollback flow.
 - [x] Run `node apps/landing/scripts/money-path-smoke.mjs https://aniccaai.com` before source changes; it failed specifically at checkout GET with `502` after the site/Stripe-link checks passed.
 - [x] In `/Users/anicca/Projects/anicca-products-worktrees/ebook-checkout-module-runtime-20261006` on `fix/ebook-checkout-module-runtime-20261006` (main base `7ca532244`), commit `21293ac4` makes checkout module-safe by moving the shared token validator to `.cjs`; the ESM landing helper reuses that module through a facade. Prices, locale handling, attribution metadata, and response shape remain covered by existing focused checkout tests.
 - [x] Run focused eBook/Writer checkout tests (17/17), `node --check apps/landing/scripts/money-path-smoke.mjs`, and `git diff --check`.
-- [ ] Product PR #422 CI installs dependencies, runs the complete telemetry suite and `npm run build`, and passes before merge. A local baseline full-suite attempt in the fresh worktree was blocked by absent `node_modules` (`ethers` missing).
-- [ ] Product PR #422 at `21293ac4` has `Landing PR build` running (`37432207766`). After CI and a fresh read-only check, merge; the main Netlify deploy workflow then runs the existing money-path smoke, which must verify checkout GET `405` and both PDFs `200 application/pdf`.
-- [ ] Read back Japanese native account identity/good-standing and available Postiz slots. Latest authenticated integration readback at 16:30 JST: JA `obou` Instagram/TikTok enabled; EN `Monk Anicca` TikTok exists but is disabled; EN Instagram is absent.
-- [ ] After the Japanese Checkout/PDF route and account/Postiz readbacks are ready, set `LM_EBOOK_PUBLISHING_ENABLED=true` and targeted-apply the three existing owners. EN stays in its disabled-route hold until separately re-enabled.
-- [ ] Publish Japanese Watercolor to TikTok+Instagram; read both official provider receipts/public URLs. Maintain three daily renders at 07:00, 12:30, and 20:00 JST, fanned out to both platforms (six platform posts/day).
-- [ ] Once the existing English TikTok integration reads `disabled=false` and capacity is available, publish the HeyGen Avatar IV campaign at 08:00, 14:00, and 21:00 JST (three English posts/day); record each receipt/public URL.
+- [x] Product PR #422 at `21293ac4` passes `Landing PR build` (`npm ci`, full telemetry tests, Next.js build); the fresh read-only verifier reports no Critical/Important findings.
+- [x] Product PR #422 merged at 45bba82e; Netlify workflow 37432940639 completed and production money-path smoke passed: checkout GET 405, both locale PDFs 200 application/pdf.
+- [x] PR #6744 source review found no Critical/Important findings and all required checks passed at head df4fdf106b; the current spec/plan correction still needs to be pushed and checked before merge.
+- [x] Authenticated Postiz readback: Japanese TikTok obou_anicca and Instagram obou.anicca are enabled, and public profile pages identify those handles. This confirms routing/profile presence, not a provider good-standing badge. English monk_anicca is disabled; aniccaen2 is excluded from the eBook route.
+- [ ] Push the current SSOT/plan correction; pass latest-head CI on PR #6744, merge it, cut/apply a main-derived release, and pass doctor. Targeted-apply the three owners one at a time with publishing closed, then verify loaded SHA/argv/state.
+- [ ] Before the first Japanese public post, obtain a fresh read-only review of the exact Watercolor render/caption, profile, and both enabled Postiz routes. Let the natural 07:00/12:30/20:00 JST slot run; collect official TikTok and Instagram receipts/public URLs for each occurrence.
+- [ ] Keep English at zero render/publish until its exact owned TikTok account is publicly present, enabled in Postiz, and mapped in the eBook destination registry; then use HeyGen Avatar IV at 08:00/14:00/21:00 JST.
 - [ ] Keep both locale schedules on their three daily slots with per-occurrence replay/readback; a schedule or render is not a published post.
 - [ ] Continue Product PR #420's DDL hardening through an authorized Supabase management route; read back tables/RPC signatures/ACLs/schema cache before merging the migration. The current one-time eBook main flow uses existing Checkout metadata and direct PDF email fulfillment; PR #420's new receipt/subscription tables are separate hardening.
 - [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence only after durable receipt readback; record refunds, fees, and measured costs. Do not self-purchase.
 - [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
+
+- Current cursor (2026-10-06 17:09 JST): commit/push the current spec correction on PR #6744, require fresh CI, then merge and deploy its main-derived release with publishing closed. Verify the three loaded owners. Japanese targets are enabled for the 20:00 slot after exact-content read-only review; English has no verified eBook route and remains held.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
