@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17の残る操作は①稼働中release-reconcilerの終端を確認（main64895457由来ALL immutableはcurrent非切替で作成済み）、②CFO対象へ新sourceを反映（公式ASC packet入力pathは設定済み）、③同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+現在17の残る操作は①稼働中release-reconcilerの終端を確認（main64895457由来ALL immutableはcurrent非切替で作成済み）、②CFO新source/公式ASC packet入力は反映済み。残る同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -9848,3 +9848,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - rootはCFO専用LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKETを既存private .envへflock/atomic/fsync/mode600で1key設定。packet SHA c8f8a94d…e816d、他line保持true、設定readback一致。provider effect/通知/取引/台帳write0。private cfo-asc-production-input-connection.json。新source自然実行は未確認。MRR snapshotと財務periodの鮮度・全coverage不足を維持する。
 - 診断中rootがcentral_cleanup.py --helpを呼び、scriptがhelp未対応で通常cleanupを開始した誤操作を記録。自身のprocess限定停止probeは一致0/signal0、処理はexit0/oktrue/errors0/protected deletion0/release removed0、scratch removed59/host reclaimed8071bytesで終端。help目的で再実行しない。稼働owner停止/基盤restart0。このfootgunは今回CFO source反映の追加gateにしない。
 - cursor17はCFO新loaded/自然report/二重計上readbackが残る。main統合/current更新/input設定だけを銀行入金・利益・14loop完了へ昇格しない。
+
+
+### 790. CFO対象限定反映成功と新自然wakeのcapacity延期
+
+- 現apply実コードは通常owner別_apply_lock＋admission_rebind_guardを使い、global process liveだけを対象applyの禁止理由にしない。host .apply.lock/CFO label lockをfresh非blocking probeでfree確認、Aqua preflight§789もPASS。
+- 最初のapply positional target/--release-rootはCLI構文不一致でexit2/変更0。実registry controllerと同じLIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourly/LIFE_MANAGER_RELEASE_ROOT=current、apply --loaded-idle-onlyを1回実行handle64347/exit0。対象1/changedtrue/install event2d14eedddbd256ca73628f8b、loaded argvはcurrent owner作成20261007T032608-64895457へ一致。同owner競合/稼働中は内部lock/idleguardが拒否、force/全fleet/手動wakeなし。
+- fresh CFO CLIはinstalled64895457/loaded-idle/PIDnull、loadedargv SHA65814ff88a37fe76dcd6b2c460b19c1cc994333af92864a81bd8405b4673e68d、admissionunknownfalse。自然wake18dc045a20ce42f8-96996/2026-10-06T18:32:17.941396Zはexit75のcapacity延期。新reportはまだ旧18:11/104522で、新source入力読込・MRR表示・自然二重計上readbackは未確認。
+- private cfo-main648-target-apply-readback.jsonへ保存。current17は自然readback待ち、正常なadmission延期をsource故障へ丸めず適格な次wakeを観測する。独立項目18のowner/receipt bindingと19以降の公式財務coverageを進められる。
