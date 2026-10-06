@@ -4896,13 +4896,15 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
 - CFO：旧3ae再適用はrelease-reconcilerのrun43699と確認済み。その後rootのsafe preflightは13:12:55 UTCにPASSし、公式GUI printで実loaded argvとplistが57e09ccf一致、current2cf94f43を確認した。57eは4bのdescendantでMRR24h修復を含む。旧版へ戻った状態は現blockerから除く。公式データ接続・自然集計/レポートは未完。競合再applyなし。§707。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
-- 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。今回の作業はspec更新/報告で、外部応募・返信・納品・再送0。残29の相対順序/current1、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
+- 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。この集約は過去観測で、現在cursorは下記実行表を参照する。残29の相対順序、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
+現在17の残る操作は①PR6786同head355d2770のruntime/secret CI終端を確認、②PASS後に通常main統合・main由来immutableへ反映、③CFO対象に公式ASC packet入力を接続、④同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
-今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然reportの成果は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
+現在の作業範囲は未完の収益経路・公式CFO接続と、それを止める自所有故障の最小修復・検証・反映。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然reportの成果は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
 Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監査→収益確認」の順を変更する。新順は実債務/納品・精算→Lancers以外のstorefront/応募/販売→会計→SelfBuild→Lancers再開→最終確認。理由は古い状態の巡回を全収益経路の停止条件にせず、実際の仕事と売上へ時間を使うため。以後この順を保持する。各行の必要な観測・原因修復・focused検証はその行の中で行い、観測だけを何度も独立taskに増やさない。新しい外部effect/価格変更等の権限はこの文書更新から推定しない。
 
@@ -4924,7 +4926,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
 | 15 | Fundraiserの既存申請cursorと公式募集条件を照合し、適合する申請先1件へ既存申請を進める（申請先未選定） | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | ANICCA/Honne等のASC財務データをapp/SKU・期間・通貨でCFOへ結合し、接続済みRevenueCat入力を使った自然レポートと二重計上防止を確認する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
+| 17 | ANICCA/Honne等のASC財務データをapp/SKU・期間・通貨でCFOへ結合し、接続済みRevenueCat入力を使った自然レポートと二重計上防止を確認する | 公式取得tuple・原report SHA・正規receipt identity・currency/settlementを保存し、native report IDは非返却/未確認と区別する。RevenueCat同期間join/二重計上0、mobile lane実装の重複なし。 |
 | 18 | Investmentの既存接続口座・実約定・手数料・精算を公式read-only経路で取得し、同じ取引IDで会計へ結合する | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
@@ -4952,7 +4954,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 - 既存families.jsonのservice_familiesは4313100→web_image_update。family正本の納品は更新済みWebページ/PC・モバイル表示確認/変更報告、入力は対象URL/画像/対象箇所/CMS権限/希望納期。対象と権限確認前に更新を約束せず、画像制作と差し替えを区別する。source SHA2567577ee20d205a4cdb2fed61e1ba85ec06aaa3fc758b1d68bf3ceebc9eebb176f。公開本文との最新一致は未確認。
 - 過去公式offer-contractsの同商品最新保存は2026-09-14T23:28:56.287760Z/version c53deddaf6d6d26dfed7fac3a7aad56d4ef21a66c9a3f760ca7f6d90747d3e56。既存基本範囲は1ページ内画像最大3点を目安/指定箇所反映/表示とリンク確認/軽微文言1か所（内容相談）。追加画像1点表示500円、基本表示3000円。これらは新価格設定でなく過去出品本文の記録。現在条件一致・受注・利益は未確認。
 - 未確認は現商品本文の全条件、買い手の具体的scope、所要時間/実費、公式手数料/精算。sellerカードの「実納品・入金済み」という説明だけを公式財務receiptへ代用しない。これらが未確認なので残4はDoneにしない。
-- 独立準備を進めてもcurrent1/残29の順序は変更しない。CrowdWorksの同provider lock待ちをCoconala商品準備の停止条件にしない。AGMSG lm-crowdworksへ実観測と非重複境界を共有し、sendを着手・完了証明にしない。
+- 独立準備を進めても残29の相対順序は変更しない。現在cursorは本実行表を参照する。CrowdWorksの同provider lock待ちをCoconala商品準備の停止条件にしない。AGMSG lm-crowdworksへ実観測と非重複境界を共有し、sendを着手・完了証明にしない。
 
 #### 後段・条件付き保留（完了ではない）
 
@@ -9816,3 +9818,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - PR6786同head355d2770のCIはPython syntax+unittest SUCCESS、runtime/secret scans継続中。sec-scan.yml:36はruntime/loop/tests全既存suiteを実行するため、ローカルENOSPCのrelease testを含む。異なる狭いgateで代用しない。監視handle17648を再利用、再run発行0。
 - 現current release manifestは4429/release_paths ALL/provenance ancestor-of-origin-main。既存cut-loop-release.shのfull clone donorは親main由来ALLのみ許可しhard-link+差分overlay/依存再利用を実装する。統合後に実preflightを行いこの既存経路を使えるか確認、今はcut/apply変更0。
 - 項目18の独立作業として、取得済みAlpaca raw約定/手数料/直近公式orders/ID数量価格時刻joinをfresh Sol6.1/medium/read-only codex execへ渡しhandle66515を起動。利益/会社cash/銀行入金を認定せず、既存CFO正規receiptへ結合可能な証拠と不足fieldを反証確認する。結果private investment-fresh-review-result.md、外部IO/変更/通知/委譲禁止。current17/相対順序維持。
+
+
+### 786. 実行表の古いcursor案内と文書のみscopeを解消
+
+- §217内に残るcurrent1/文書更新のみという古い案内を現在の作業範囲へ同期し、17の次の実行操作をCI→main/immutable→公式packet接続→自然readbackと明示。完了したsource/review/関連testsを残作業へ戻さない。公式report identityと非返却nativeIDを区別する。
+- 29の相対順序や前段の保留を変更しない。現CIはgitleaks/Python等PASS、runtime/TruffleHog継続、watch17648とInvestment review66515を継続。今回のprovider送信/本番変更0。
