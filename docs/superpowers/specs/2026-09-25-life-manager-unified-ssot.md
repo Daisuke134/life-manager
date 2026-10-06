@@ -9342,3 +9342,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 同じ正規経路でcurrentrevenue GET run8272はexit0。15:12:18.206181Z、HTTP200/expectedcontainertrue/loginfalse、取得bodyhashd6d00fa749419bd08134b06332eeae3bee9ffcde11b953f7de95a0cf2f5cf499。既存pureparserに渡し1row/18211957 identity1、close表示09/27 03:00を取得。client名/title/回答値/credentialをpacketへ複製せず、必要fieldsのみprivate保持。
 - parserのjpy表示はplatformrevenue rowの観測であり、rawcolumnのnet/gross定義・actualfee・銀行入金・profitを追加確認前に認定しない。payout_requestedfalseは表示token不在であり銀行未入金の証明ではない。1row取得を全28履歴や全periodの売上0/全件completeにしない。金融高リスク結論を更新する時はfresh reviewでsourcebindingを確認する。
 - 証拠 `coconala-current-order-revenue-readback.json`。外部send/ledger/CFOwrite/transfer/account/profile設定変更0、ownpageclose/lease解放。current2のアクセス境界は復帰確認、fee/bank/actualcost joinは未完。次は同案件payout/費用sourceを閉じる。
+
+### 725. cursor2の実費sourceと独立金融確認を継続
+
+- 既存gigearnings.jsonlの18211957同ID/idempotency一致は0。project内known economic filenames無し、現在checked .env/global.envでactualcost/marketplace receipt sourcekeysは未設定。これは確認した範囲の参照欠損であり全provider請求不存在/actualcost0の証明ではない。書込/送信0。
+- 新公式revenue readbackと旧CSVsamebytes/identity/amount/currency/provenance、platformcreditとactualfee/bank/profitの分離をfresh Sol6.1/medium read-only有限runへ渡した。銀行操作・provider/browser・台帳・mail・Telegram禁止。金融重要事実の認定は独立結果/不足解消まで保留。
+- 既存公式source取得と不足記録を続け、繰り返しの再exportや仮のコストを作らない。current2/主29順序不変。
