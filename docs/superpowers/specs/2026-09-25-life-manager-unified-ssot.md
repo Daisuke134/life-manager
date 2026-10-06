@@ -8558,3 +8558,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 正規coconala:kosuke guard取得/解放0、登録daily-driver default contextに自身だけのhidden targetを開閉し、同受注URLのsafe DOMを観測。forbidden=true/login_form=false、recaptcha widget/response textarea/captcha frame/WAF scriptはいずれもfalse、script0/frame0。公式title403 Forbiddenはisolated vaultだけの問題ではなくdefault contextでも再現。
 - private原本state/cli-observability-20261006/coconala-access-probe-1791263085346032000.json。生本文/URL/個人情報/credential/response tokenを保存・表示しない。別owner pageの変更/close、login、solver task、provider送信0。対応widget未出現のため既存solverへ渡すsitekey/textarea/callbackがなく、solver成功を捏造しない。
 - 接続調査の残りは公式public/home routeとの比較でroute限定拒否とsite-wide拒否を分け、適切な既存接続経路のownerへ結ぶこと。受注/新着/販売件数は未取得を保持、旧12recordを再調査しない。current1/主経路31/Lancers後段は不変。
+
+
+### 627. Coconala接続差分とCrowdWorks P2修正push
+
+- Coconala同registered browserの公開トップも403、CAPTCHAなし/script0/frame0を確認。private原本coconala-public-probe-1791263161075831000.json。独立した認証なしHTTPS公開トップ取得はHTTP200/server nginx（coconala-public-https-1791263178311076000.json）。したがってsite全体停止とは判定せず、browser/session/network条件へ診断境界を絞る。public200は受注一覧/認証/販売可能の証明ではない。
+- CrowdWorks小数/負値unknown修正commit1c1478b22210380fe10e860c7fc1bcc979ce3cccをlocal/tracking/ls-remote三点一致/clean確認。productionはまだ未反映。native thread上限を維持するためfresh codex exec readonly reviewerをgpt-6.1-sol/mediumで起動、handle42066。対象は前回HEADとの差分/既存helper/caller/関連focusedのみ、全repo監査とprovider操作0。
+- 実装run33233の最終終了報告・再review・同最終headCI・main/immutable/liveは未完。current1/主経路31/Lancers後段を維持。
