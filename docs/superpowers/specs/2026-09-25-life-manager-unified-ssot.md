@@ -4885,7 +4885,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 | Coconala商品 | seller inventory公開20/各public本文の過去取得あり | 現1商品buyer routeはregistered browser/HTTPS/crwlすべて403。現在購入導線未確認。§632/640/641 |
 | CrowdWorks | 5contract候補、表示12/10円、ambiguous、price null | 納品・検収・精算は未確認。低額候補を高額実行へ自動投入しない。観測修復はmain/immutable/公式readback PASS。§630 |
 | Mercor | 返却100行中reject86/途中8/応募済6 | 全件性・契約/精算coverage未確認、既存effect-unknownは再送せず応募行で照合。§620–622 |
-| Upwork | browser復旧/公式contract画面active0・available表示$0 | account独立照合/transaction/refund/fee/payout/costは未確認。表示0を過去売上や利益0にしない。§637–639 |
+| Upwork | browser復旧/公式contract画面active0・available表示$0 | 支払画面のavailable/pending表示0を取得。account独立照合/全履歴/refund/fee/payout/costは未確認。財務review未完、表示0を過去売上や利益0にしない。§637–639/643 |
 | Freelancer | 既存readiness/transportあり、旧scheduler退役 | 現account/実inventory fetch/receipt未確認。定義を現稼働へ変換しない。§634–635 |
 | Lancers | 接続未解決 | Dais指示どおりSelfBuild後へ保留、既存solver taskを重複させない。§615 |
 
@@ -8691,3 +8691,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Upwork transactions/withdrawalsを同registered profileの自身hidden targetでreadonly取得、guard取得/解放0。withdrawals expected route true/challenge false/password field false。transactionsは期待route不一致のためpayment parserを実行せず金額unknown。原本upwork-payment-display-1791264805733984000.json。
 - 最小追加probeでtransactions旧URLが公式hostの /nx/payments/reports/transactions/[id] へ遷移することを確認。login/auth route false、旧Transaction history見出しは未観測。account固有path値は保存・表示せず形状だけ保持。原本upwork-transaction-route-1791264839485283000.json。単なる認証失敗ではなく既存canonical URL/DOM readback契約との不一致へ診断を狭める。
 - 新routeのaccount binding/実DOM金額labels/既存strict source validationとの整合が次手。現在値・精算・費用・利益0は作らず、URL変更を理由にauthorization/funding/receipt gateを緩めない。出金/銀行設定/税設定/送信/応募/支払0。current1/主経路31/Lancers後段維持。
+
+
+### 643. Upwork既存readerでの支払画面取得・前診断の訂正
+
+- §642の『既存canonical URL契約との不一致』を訂正：_read_evidenceは既にofficial same-origin/account numeric transactions redirectを許容していた。root独自probeのexact URL比較が厳しすぎたため、production code故障や修復必要とは判定しない。追加code変更0。
+- 同releaseの既存_read_evidenceとparse_payment_observerでtransactions/withdrawalsの公式DOMを検証、両reader accepted/parser ok、guard取得/解放0。返却available0/pending0、state clear、tax_profile_complete false/withdrawal_method_configured false/recognized_revenue null。表示の集約であり過去売上・着金・net0ではない。private原本upwork-reader-1791264924321159000のsource2file/safe-summary、mode600。
+- 財務表示と設定未完了案内の事実認定をfresh gpt-6.1-sol/medium readonly有限reviewへ渡した、handle57316。native thread上限の既存制約を受け、旧世代fallback0。private sourceだけ反証しprovider/銀行/税設定変更0。account identity独立照合/全履歴coverage/settlement/costは未知を保持。review結果は未完。
+- 次はreview指摘があれば正確性を解消し、現在の対象行動へ戻る。current1/主経路31/Lancers後段維持。
