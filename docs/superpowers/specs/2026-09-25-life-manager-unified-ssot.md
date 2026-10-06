@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17はmain64895457のCFO自然run/同occurrence送信receiptとmobile USD20.34表示を確認済み。残る操作は①固定RC snapshot依存をCFO-owned公式MRR更新へ置換、②同source自然runで持続鮮度・ASC receipt/RC二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+現在17はmain64895457のCFO自然run/同occurrence送信receiptとmobile USD20.34表示を確認済み。CFO-owned公式MRR取得sourceはc7399c63aaで実装/push、関連133testsとfresh反証reviewはPASS。残る操作はPR6790のCI→main/immutable反映→live flag有効化→同source自然runで持続鮮度・ASC receipt/RC二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -10026,3 +10026,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna有限run37833はexit0、source3files/commit c7399c63aa9b7df380dd55c1554f64387c45d6be、branch fix/cfo-current-mrr-readback-20261007、origin同SHA/cleanをprimary readback済み。終了日照合・started/completed・implicit snapshot修正、関連133/focused5/compile/diff PASS。新API/本番操作0。
 - primaryは同branchの既存PR無しを確認してdraft PR6790（https://github.com/Daisuke134/life-manager/pull/6790）を作成、head SHA一致。CI run37528401518は進行中、fresh Sol6.1/medium反証handle55387も進行中。CodeRabbitのdraft skipをsource review PASSにしない。
 - cursor17の残操作は同SHAのreview受入/CI→main/immutable→live flag接続→自然取得/レポート・ASC分離のreadback。sourceを再実装するTODOへ戻さず、前段不足/全社MRR・財務gapを保持。
+
+
+### 812. CFO live MRR fresh再review SHIP、PR6790 ready
+
+- handle55387はexit0/source限定SHIP。前HOLD4+UTC終了日1件を実main→build→collectの独立6fixtureで反証、106tests PASS。primaryのeconomic含む133testsと合わせsource gateを満たす。同SHA c7399c63aa9b7df380dd55c1554f64387c45d6beで最終再検証/3file安定を確認。
+- 公式artifact6appのscope/epoch/day形は再構成fixtureで受入を確認、生response全体replayは未検証。この限界を自然API取得の代用にせず保持。secret/provider操作0。
+- rootはPR6790をreadyへ変更、CI run37528401518の残checkは進行中。統合/本番変更はまだ0。§217の現在残操作をsource再実装からCI/main/immutable/liveflag/自然readbackへ同期。cursor17と主29相対順は維持。
