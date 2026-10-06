@@ -9066,3 +9066,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - latest Reply report09:45:08Zはobserved171/pending19/failed0/effect0/readback152。pendingは有償顧客19人という証拠ではなく、旧unknownを解除しない。今回state reset/手動再送/旧host fence clear0。
 - Luna6max cfo_revenuecat_shape_implementationはnative running。source clean/base e2bdae3を確認、§688と公式MRR定義/producer→consumer境界を照合し、既存test_business_outcomes.pyの最小RED準備を報告。source acceptance/commit/push/freshreview/CI/main/反映は未完。owner単位browser lockは既存契約のため変更しない。
 - release候補作成に先立ち現complete aed releaseの実サイズ104MiBを確認。disk free3.3GiBを理由に全停止や無断cleanupをせず、専用sparse worktreeで進める。cutは既存immutable donor/guard経路を使い、実preflightに従う。current1/残29/順序・後段保留維持。
+
+
+### 690. CFO実wrapper経路のhash不整合を同scopeで修復する
+
+- Lunaが既存26件中の追加2REDを確認：currency欠落、periods null/無効periodがcohort index0へすり替わるケース。MRRに限定する最小GREENを進める。
+- 実producer→consumer回帰で、collect_snapshotのRevenueCat evidence_sha256=_json_hash(data)と、CFO _revenuecat_content_sha256のcanonical(status,reason,data)が不一致と判明。test helperでhashを再bindした経路では隠れるため、実collect_snapshot wrapperを通す回帰へ訂正する。rootもconsumer591行の対象3field hashを確認。
+- §688の同じproducer境界修復に、RevenueCat wrapper hashの正しいbindを追加する。raw chart body evidence hashは維持し、他providerのgeneric wrapperを無関係に変更しない。CFOのhash/identity/coverage/未完gateは緩めない。currency/定義/UTC dateが追加できても、このhashが一致するまでsource接続PASSとは報告しない。
+- marketing-metrics-dailyの現statusはloaded-idle/installed82d31995/last exit75/reconcile_owner。source受入後の対象限定反映で新SHA/自然収集を確認する。稼働中loopの停止・旧fence解除・provider送信変更0。current1/残29/順序維持。
