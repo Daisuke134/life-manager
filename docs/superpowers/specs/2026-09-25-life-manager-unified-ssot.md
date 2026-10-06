@@ -10062,3 +10062,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 新版CFOはloaded1305/idle/exit75のまま。2026-10-06T20:48:57.686282UTCのread-only SQLite観測ではCFO queue sequence529427/resource deterministic/admission borrow/base support/effect_unknown0、CFO予約無し。queue全体agent27/browser1/deterministic24。private cfo-main1305-current-admission-readback.json。DB/claim/priority/fence write0。
 - owners JSONのhf-gig-apply-reconcile PID59408、hf-gig-reply-detector60253、crowdworks-revenue-application75173をpsの実starttime/argvと照合してlive確認。Coconala共有leaseはこれら既存業務経路が使うため別ownerを停止しない。後続観測では期限内予約4件も存在、予約を実行中と同一視しない。
 - loaded CFO plistのrevenue floor3を確認、他limit key未設定。queue数だけで実capacity/失敗件数を計算せず、既存release-and-reserve/_dispatch_reservedまたはcadenceによる再開を待つ。source修正/再merge/手動wake/上限変更/他owner停止/重複送信0。自然readback未完/cursor17保持。
+
+
+### 817. Currentもmain1305へ自然更新、Coconala BUSYの保護期間を特定
+
+- natural reconcilerがcurrentを /Users/anicca/loops/releases/20261007T054821-1305c07f へ更新したことをread-only確認。CFO loaded1305は保持、同capacity deferred occurrenceのまま。旧resource owner59408/60253はps不在、CrowdWorks75173は実starttime/argv一致でlive。終了したownerを稼働中へ数えない。
+- Coconala guard statusのholder49507はps不在。追加観測後に通常with-browser取得1回を再試行したがexit75/page取得0。guard実コードはpid liveness OR acquired_atから1800秒を保護するため、PID不在だけでは取得可能にならない。acquired_at1791318697の同leaseをstatusで再照合し、保護期間内のBUSYと特定。手動lease削除/TTL短縮/別tab操作0。
+- 通常保護期間経過後のregistered guard確認を再開条件にし、同BUSYの短周期反復を止める。sourceのNo TTLというコメントと実処理の差を観測したが、新規一般修復を今回の収益完了gateへ追加しない。cursor17/残3未確認/既存相対順保持。
