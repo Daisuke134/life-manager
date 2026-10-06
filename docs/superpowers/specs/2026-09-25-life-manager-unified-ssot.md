@@ -9112,3 +9112,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - actual-shape REDはproducer period None・実wrapper→CFO snapshot0/6。GREENはproducer27+CFO43、root再実行70PASS/33subtests/diffcheck/構造gate15catalog184jobs/errors0。fixtureはbusiness_dateから本文のrange/cohortを生成し、同じ対象日というAPI条件を再現。hash再bindやconsumer timestamp補正で受入を偽装しない。
 - rootが保存済みactual mrr本文を純粋parserへ直接渡し、period2026-09-26/value20.34/period_index1790380800/incompletefalse、元canonical hash ec4835b9650297cf26882e995dc9ad3fbf221a3129af1bc9959d130610bbe8e9を確認。cfo-cohort-actual-body-parser-proof.json保存/provider IO0。fresh Sol6.1medium cfo_actual_cohort_reviewはsourceSHIP/重大指摘0、異常値と既存経路の維持も確認。
 - PR6760 https://github.com/Daisuke134/life-manager/pull/6760、同head CI37450601703は現在in_progress、watch handle70181稼働。全CI/main/immutable/新actualreadbackは未完。source受入を本番や全6実観測受入へ代用しない。旧marketing sender unknown1の解除/再送/反映0。current1/残29/順序保持。
+
+
+### 695. cohort修復main統合・実6製品MRR consumer生成PASS・鮮度契約は未完
+
+- PR6760同head dd4fd12e CI37450601703はcompleted success/全9job success。通常merge --admin --match-headでMERGED2026-10-06T10:39:24Z/main3ae4176e074e3640f89587d0d6ceb9c574ca98c5/fetch一致。完全immutable /Users/anicca/loops/releases/20261006T193940-3ae4176e cut3370 exit0/current変更0。
+- 新immutableのpure parser/既存app filter/http readerでMRR options/chartだけを6製品分実GET。送信app filter/09/08〜10/05/12GET scopeを記録し、bodyとwrapper canonical hashを保存。旧scheduled_sender/通知/ASC POST/canonical ledger書込/claim解除0。private cfo-actual-current-mrr-input/refs/records/summary.json と各製品actual-current-mrr-body.jsonへ保存。
+- 全6RC source available/各28point/最新period2026-10-05/incompletefalse/USD。ANICCA stock MRR20.34、他5製品0はbody明示0.0。実CFO adapterはsubscription_snapshot6件を生成し、保存recordと再実行が完全一致。fresh Sol6.1medium actual_current_mrr_reviewは数字限定SHIP。報告は10/05終了時点の6製品RevenueCat MRR合計USD20.34に限定し、銀行入金/売上/利益/14loop総MRR/current CFO完了へ昇格しない。
+- 残る実不具合：adapter capafy_mobile.py931とcentral economic_attribution.py437はobserved_at==snapshot_at/endの完全一致を要求。collectorは製品ごとのHTTP完了時にnow()を保存し、今回の差0.000072〜5.660180秒でcoverage gap/stale_readback、projectionはunknown/currencies空となる。fresh snapshot/fail-closed自体は既存spec/testの意図だが、秒単位の逐次実取得と完全一致の統合は両立せず短時間境界test無し。adapterだけ直してもcentral contractが拒否する。
+- 次の最小修復は実observed_at/hashを保持した明示freshness/collection-window契約をadapterとcentral contractで揃えること。短い今回の実取得差を受入れ、古い/future/不完全/identity違いは拒否するfocused regressionを使う。観測日時を集計日時へ書き換えて通す操作は行わない。旧senderの反映HOLD/金融receipt費用不足/全体Done未完を維持。current1/残29/順序不変。
