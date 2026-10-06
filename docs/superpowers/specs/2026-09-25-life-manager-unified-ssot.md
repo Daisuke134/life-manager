@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在cursor：2（Coconala取引完了案件18211957の公式売上CSV・振込・手数料・案件実費の照合）。1.1は額取得修復Done、1.2の3候補分類は確認済みだが通常サービス納品対象は無し。主項目1は適格な実納品対象の確定待ちとして未完を保持し、外部条件待ちの間に既存順序2を進める。集約は§646の限定Done、全channel正常・金融Doneとは分ける。
+現在の実行cursor：15（Fundraiserの既存申請cursor・公式募集条件の照合）。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
 今回の範囲は正本spec更新と未完TODOの報告。mock商品・demo・架空注文の制作は中止し、再開しない。実商品/実案件/公式記録を対象とする。残29の相対順序は変更しない。Replyの事実取得失敗はmain統合・対象loaded反映後、3対象の自然処理でwaiting_external/reply_facts_requiredへの移行を確認済み（§695）。これは故障修復の限定成果であり、実返信・納品・精算の完了ではない。RevenueCatの実取得時刻差を誤ってstaleにするsource修復はmain統合済み。CFO旧版再適用元は解明し、修復を含む実loadedも確認済み。公式データ接続と自然reportの成果は未完。隔離回帰テストは実故障の検証であり、mock商品の制作ではない。
 
@@ -4921,7 +4921,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 11 | Capafyの公式商品一覧・販売導線を既存CLIで取得し、公開済み商品1件を選んで既存販売cycleを実行する（商品ID未選定） | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
 | 12 | Writerの販売可能な既存記事/商品と販売導線を取得し、1件を選んで既存販売cycleを実行する（商品ID未選定） | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
 | 13 | Affiliateの既存program別conversion/commissionレポートを取得し、成約のあるprogram・取引IDを精算へ照合する（取引ID未選定） | 許可済み既存運用のconversion/commission/settlementと実費。 |
-| 14 | TaskMarket/Agent Economyの公式有償task一覧から、報酬・要件・既存executor・実費が合うtask IDを1件選んで履行する（ID未選定） | 現在の公式要件/報酬/既存executor/capを照合して履行・receiptへ。候補無しなら投機的無料prototypeや延々pollingへ進まない。 |
+| 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
 | 15 | Fundraiserの既存申請cursorと公式募集条件を照合し、適合する申請先1件へ既存申請を進める（申請先未選定） | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
 | 17 | CFOのloaded版が旧3aeへ戻る反映経路を特定し、ANICCA/Honneの公式ASC・RevenueCatデータを維持できるCFO経路へ接続する | ASC report ID/currency/settlementとRevenueCat同期間join/二重計上0。mobile lane実装の重複なし。 |
@@ -9611,3 +9611,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - DDG HTMLはhuman challenge、Wikiは一次参照URLの発見だけ。USGS PDFはcrwl/urllib403後curl/UAで4.5MB取得/PDFmagic/sha995877...を確認。ただしcutoff/closure根拠はこの抽出では十分でなく制作へ流用しない。scholarly Physical Geology13.4 Stream Typesと13.3 Stream Erosion and Depositionをcrwl一次読取しouterbank erosion/innerbank deposition/narrowneck cutoff/flow-dependent depositionを確認。URLs https://opentextbc.ca/geology/chapter/13-4-stream-types/ と https://opentextbc.ca/geology/chapter/13-3-stream-erosion-and-deposition/ 。原図/文章をコピーせずcaption original、panel3は簡略推論としてmapping。
 - latest origin/main4429dfb4から専用sparse worktree /Users/anicca/Projects/life-manager-main/.worktrees/taskmarket-oxbow-svg-20261007、branch feat/taskmarket-oxbow-svg-20261007を作成、clean/base照合。所有artifact docs/taskmarket-deliverables/river-to-oxbow.svg の1fileのみ。native worker taskmarket_oxbow_svg gpt-6-luna/max runningを確認、外部effect/署名/wallet/他者編集禁止、rootが表示/acceptance/commitpush/正式submitを所有。
 - cursor14は実納品SVG制作中。次はXML/size/caption words/prohibited elements/3stages/flow geometryの最小受入・render確認→fresh read-only review→artifact専用branchcommitpush→同task事前readback/既存正式submit1回/officialreceipt。mock/無料prototype制作ではない。外部submit/claim/支払/鍵発行0、主29相対順序/前段不足/SelfBuild後段保持。
+
+
+### 758. 実SVG正式納品・成功txの公式readback
+
+- Luna/max納品SVGは20,136bytes、3panels、caption24/25/23words、flow arrows4/3/3、XML/static/prohibited elements0、1000px表示PASS。fresh Sol6.1 medium reviewerは当初Stage3 source-supportをHOLD、公開Sedimentology abstractのdirect entrance aggradation/isolationへsource2を差替え、全文を確認したとせず2sources以内で再reviewSHIP。sourcebranch feat/taskmarket-oxbow-svg-20261007/commit721cf200746508c827c6a7ded293358f4733e387をpush/remote一致確認。初回sparse pre-push helpermissingは既存eval-loopをcheckout範囲へ含めて正常hookでpush、hook迂回0。
+- 正式submit前にopen/active/window/stakefalse/worker一致/同task既存提出0/artifact SHA38066f9c7d16751bc00645943e3b2534c868da81d880a4fca1f33075d83166ffをfresh確認。persistent intentをexclusive作成して既存CLI task submit --file river-to-oxbow.svg --role finalを1回実行。run taskmarket-svg-701a572f-26fa-4369-abbe-586409fb836e、CLIexit0/oktrue、submission e0a72f43-10c1-4003-a7c7-a7649c68da1c。private taskmarket-svg-submit-intent.json。
+- 同submissionの公式一覧・my-submissions・artifactはtask/worker/SHA/20136bytes/image-svg/final一致。tx0xa74f3a0dc19e0f15079d75cf43dc92af9ada210be4f08b9081a8498df09e7b10をBase RPC eth_getTransactionReceiptでstatus0x1/block0x31d660c確認（urllib403後curl transport成功）。private taskmarket-svg-official-submission-readback.json。現在返却一覧は同task/worker1行、operator submit呼出1回というscopeだけで全履歴version無重複を断定しない。readback operation effect0は正式納品作用0の意味ではない。
+- fresh別Sol6.1 medium receipt reviewerは期待worker/重複scope不足を指摘。post-submitに期待workerを追記したことを明示し、actual artifactworker/同worker現在一覧countを追加、再reviewSHIP。保存資料内整合の検証で外部GET/credential/書込0。納品完了だけが成果で、award/earnings/actualcost/profitはnullを維持。wallet balance before/after表示1000baseunitsは費用0/利益の証拠にしない。
+- task fullID0x47ba360a65c39a3fd9dc60503fb2607fa6d35f538a4446563328e4e4920d86b2、expiry2026-10-07T02:37:49.641Z（JST11:37）。受賞待ちは再提出せず14保留。次の独立cursor15 Fundraiserへ進み、主29相対順序/前段不足/SelfBuild25・Lancers26〜28後段を維持する。source/loop/価格/鍵発行/新wallet/新prototype変更0、実納品署名・upload・submitのみ1回。
