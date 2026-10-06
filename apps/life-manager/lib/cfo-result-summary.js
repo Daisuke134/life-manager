@@ -46,6 +46,10 @@ function renderEconomicSummary(table, projection) {
   const trailingNet = economicField(projection.trailing.company, "net");
   const trailingCost = economicField(projection.trailing.company, "total_cost");
   const mrr = economicField(projection.mrr.company, "monthly");
+  const loopMrr = Object.entries(projection.mrr.loops || {}).map(([loopId, scope]) => {
+    const amount = economicField(scope, "monthly");
+    return amount ? `${loopId} ${amount}` : null;
+  }).filter(Boolean);
   const runway = [];
   if (["verified", "positive_cashflow"].includes(projection.runway.status) && projection.runway.currencies) {
     for (const [currency, value] of Object.entries(projection.runway.currencies).sort(([a], [b]) => a.localeCompare(b))) {
@@ -64,6 +68,7 @@ function renderEconomicSummary(table, projection) {
     `trailing cost-complete cost: ${trailingCost || "未確認"}`,
     `trailing cost-complete net: ${trailingNet || "未確認"}`,
     `MRR: ${mrr || "未確認"}`,
+    `確認済みloop MRR: ${loopMrr.join(" / ") || "未確認"}`,
     `runway: ${runway.join(" / ") || "未確認"}`,
     "銀行への入金: 未確認",
   ];
