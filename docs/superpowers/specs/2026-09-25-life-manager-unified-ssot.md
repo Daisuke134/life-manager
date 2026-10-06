@@ -8774,3 +8774,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 必要修復の範囲候補は入口の同occurrence pre-effect証拠生成だけ。現在receipt不足を0にする/既存effect_startedまたはcompleted非zeroを上書きする/過去unknownへmarkerを後付けすることは禁止。kernel未起動の新しいactual boundaryに結ぶ。修復方式・review・実装・テストはまだ未完。source編集0。
 - 既存lm-crowdworksへscopeと重複編集確認をAGMSG send成功で通知。登録済みを稼働/着手と判断しない。primaryはSSOT/受入を保持し、workerに渡す場合はlatest-main専用worktree/限定files/Luna6max、fresh safety reviewはSol6.1medium。
 - current1/残30、mock取消/TikTok・NPO追跡延期/SelfBuild26・Lancers27〜29後段を維持。新provider mutation/旧fence解除/再送0。
+
+
+### 654. Paid入口安全性HOLD・resolver迂回反例の先行修復契約
+
+- fresh Sol6.1medium readonly reviewはHOLD。単純なkernel marker事前prepareはmarker無し過去unknownの新規性を証明せず、排他的createでもないため棄却。新busy receiptは実BlockingIOError/child未dispatch/今回owner-occurrence-attemptに結び、callerの生成・再利用・並行排除記録を追加確認するまで実装しない。現在run18dbdeのunknownは保持。private review結果crowdworks-paid-entry-review-result.txt、handle19575 exit0。
+- 同reviewはreconcile_paid_no_effectがcanonical effect_started/completed非zero/invalidを拒否した後もshared-paidゼロmarkerへfallbackでき、symlinkも読む反例をメモリfixtureで再現。これは既存証拠判定の正確性を阻害するため、先にresolverと既存testだけで最小修復する。
+- 修復受入：canonical markerが存在またはsymlinkならそこをauthoritativeとし、不正・effect_started・nonzero・symlinkはHOLDして別pathへ迂回しない。canonical無しの場合のみ、既存Mercor ownerのshared-paid layoutを許す。CrowdWorks等へMercor専用fallbackを拡張しない。合法canonical zero/pre_effect・Mercor shared-only zeroは維持。既存marker/stateを書き換えず、旧unknown解除/新marker後付け/price/funding/送信判断変更0。
+- 最新main専用worktreeでLuna6maxがresolver/既存testを所有、最小RED反例→GREEN/既存関連tests/diff/commitpush/fresh safety review/CI/mainをroot受入。provider/browser/auth/実state/launchd操作0。busy receipt設計と過去調査を新しい全体gateに増やさず、current1/残30/mock取消/後段順維持。
