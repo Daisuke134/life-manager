@@ -9559,3 +9559,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - live expected日本語buttonまで待つprobe handle74853 exit0、UTC2026-10-06T16:21:46.338325、buttons「この記事を ¥500 で読む」「有料アーカイブを月額 ¥980 で購読」、paid section有り/checking無し、unpaid writer-content GET401。sourceはrestore401→lockedで正常に販売controlを出す。private writer-xcta4-ready-purchase-controls.json。checkout POST/購入/決済0。
 - Writer Stripe syncのread_objectsはrestricted rk_ keyを要求しload_read_keyのfallbackはKeychainなので現指示により使わない。private SSOTと現envでWRITER_STRIPE_READ_KEY/rk_live recordは未確認、state.envにSTRIPE_SECRET_KEYはあるがscope/account-bound restricted sourceの代用へしない。LM_CFO_STRIPE_LIVE_READBACK設定先は現ファイル無し。欠損を公式売上0へしない。
 - cursor12残は適切なread-only Stripe source/receipt取得、現単品/継続購入と売上/fee/settlement/CFO結合。商品ページの販売準備は限定確認済み、checkout成功/売上/利益は未完。旧host67928→businessrun binding不足は保持。主29順序/前段保留/SelfBuild後段保持。source/商品price/鍵/本番変更0。
+
+
+### 752. Writer Stripe account-bound公式Checkout readback
+
+- 専用rk_未設定だけを取得不能の根拠にせず、既存site checkout sourceはSTRIPE_SECRET_KEYを使うと確認。private credential正本にはtest-only recordsでruntime live keyとの一致0。既存runtime keyを新発行/変更せずprivate正本へatomic mode600登録（service stripe-life-manager-existing-deployment）し、正本からGET /v1/account。HTTP200/account acct_1RT5QgEeDsUAcaLS/businessURL aniccaai.com/charges/payouts enabledを確認。private writer-stripe-account-read-boundary.json。Keychain不使用、secret値のrepo/chat/logコピー0。
+- 既存writer_stripe_syncのrestricted-key collector gateを変更・実行せず、別のbounded GET-only公式probeでaccount/Checkoutを読む。決済/返金/payout/key発行・権限変更0。2026-09-29T00:00:00〜2026-10-06T16:23:53.643619UTCをcreated gte/lte指定、checkout sessions1page/data0/has_morefalse。strict再検証HTTP200/objectlist/datalist/同一期間0、request ID/responseSHA523270.../GET host/path/query/Connect header無しを保存。private writer-stripe-official-checkout-readback.json。live分類はprivate credential prefix根拠で空response内livemode証拠ではない。
+- fresh native reviewer writer_checkout_scope_review（gpt-6.1-sol/medium、2evidence filesのみread-only）が初回のrequest/scope不足を指摘し追加metadataで再review限定SHIP。rawresponse未保存なので独立hash再計算は未確認と残す。指定期間Checkout記録0の限定結論のみ、他決済/settled/銀行/利益の0はHOLD。reviewer credentials/外部GET/変更0。
+- cursor12次は同accountの公式payment intents/subscriptions/invoices/balance/refunds/payoutsへGET-only観測を広げ、Writer metadata/同期間coverageを照合する。CFO設定ファイル不存在やCheckout0を全14財務0へしない。主29相対順序/旧Writerhostfence/前段保留/SelfBuild後段保持。
