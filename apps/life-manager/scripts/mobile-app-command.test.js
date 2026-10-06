@@ -65,6 +65,47 @@ test("the shared mobile wrapper is host portable and uses the repository timeout
   assert.doesNotMatch(wrapper, /\/opt\/homebrew|\/Users\/|openclaw|hermes|profitable-claude/iu);
 });
 
+test("the affirmation Instagram owner holds an unknown effect when authoritative reconciliation reports a release mismatch", (t) => {
+  const fixture = require("../test/fixtures/mobile-app-release-mismatch-reconciliation.json");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-release-mismatch-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *mobile-postiz-provider-reconcile.py) printf '%s\\n' '${JSON.stringify(fixture.reconciliation)}' ;;\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":true,"provider_post_id":"must-not-run"}}' ;;\nesac\nexit 0\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(
+    envFile,
+    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\nLIFE_MANAGER_RELEASE_SHA=${"b".repeat(40)}\n`,
+    { mode: 0o600 },
+  );
+
+  const result = spawnSync(
+    path.join(root, "apps/life-manager/scripts/mobile-app"),
+    [fixture.owner_id],
+    {
+      cwd: root,
+      env: {
+        ...process.env,
+        LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+        LIFE_MANAGER_PYTHON: python,
+        LIFE_MANAGER_RELEASE_SHA: fixture.release_sha,
+      },
+      encoding: "utf8",
+    },
+  );
+
+  assert.notEqual(result.status, 0, result.stderr);
+  assert.match(result.stderr, /prior-effect reconciliation deferred: life-manager-anicca-en-affirmation-instagram/);
+  const invoked = fs.readFileSync(calls, "utf8").trim().split("\n");
+  assert.equal(invoked.length, 1, "the publisher must not run after an inconclusive readback");
+  assert.match(invoked[0], /mobile-postiz-provider-reconcile\.py --auto-owner life-manager-anicca-en-affirmation-instagram/);
+  assert.ok(invoked[0].endsWith(`|release=${fixture.release_sha}`), "the official readback keeps the immutable release binding");
+});
+
 for (const binding of [
   {name: "bound", value: "a".repeat(40), expected: "a".repeat(40)},
   {name: "absent", value: undefined, expected: "unset"},
