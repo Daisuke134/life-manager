@@ -8626,3 +8626,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - registered browser-guard status upwork:daisをreadonly実行。reachable=false/http_status null/websocket shape null/pid null、現browser接続は未成立。旧scheduler退役/disabledは別のlifecycle証拠として保持し、旧default CLIを実行して応募/送信を混ぜない。
 - credential SSOTは存在。構造化service/platform/name/url等の非secretmetadataだけを再帰照合しUpwork対応entry2を確認。secret値/ユーザー名/email/URL/token/passwordを表示・コピーしない。トップレベルkey不在をcredential不在にしない。Freelancer metadata一致0は検索結果のみでprovider account不存在ではない。
 - Upwork再開条件は登録profile/browser ownerの現在稼働を安全に復元し、既存receipt/transportのread-only観測条件と公式account readbackを確認すること。認証・再有効化・provider設定・応募・外部送信はこのターン未実施。独立Coconala/他channelを停止しない。current1/主経路31/Lancers後段維持。
+
+
+### 636. Upwork browser owner復旧の原因境界
+
+- 旧Upwork browser labelの退役commit d5e9d67d898は非稼働label分類であり、現在account不可/CLI不存在を証明しない。既存ensure_provision_browserは登録profile/launchctl-safe経路を持つ。
+- gig-upwork profileは存在、SingletonLock/Socket/Cookieも存在。SingletonLock参照PID95505は現在process missing、同profile user-data-dir process match0。guard endpoint未到達と合わせ、現live browser占有ではなくstale profile起動条件へ診断を絞る。PID不在だけでstate/credentialを消さない。
+- 既存helperはlaunch前にSingleton3fileをrmするため、現在の不可侵storeルールに照らし盲目的に実行しない。登録profileだけを通常browser ownerで起動する、手動store削除を伴わない既存経路を確認し、launchctl-safe preflightの順序を守ることが次手。基盤restart/別profile/account/fingerprintへの切替0。
+- Coconala購入導線比較は正規acquire9/未開始。ownerstatus読取とacquire間に使用状態が変わるため、statusの空きを取得成功へ流用しない。独立調査は継続、current1/主経路31/Lancers後段維持。
