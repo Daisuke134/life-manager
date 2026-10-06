@@ -87,12 +87,18 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
     try:
         rows = page.locator("th").evaluate_all(
             """nodes => nodes
-              .filter(node => node.tagName === "TH"
-                && (node.innerText || "").replace(/\\s+/g, "").trim() === "契約金額")
+              .filter(node => {
+                const label = (node.innerText || "").replace(/\\s+/g, "").trim();
+                return node.tagName === "TH"
+                  && label.replace(/[（(](?:税込|税抜|税別)[）)]/g, "") === "契約金額";
+              })
               .map(node => {
+                const label = (node.innerText || "").replace(/\\s+/g, "").trim();
                 const row = node.closest("tr");
                 const cell = node.nextElementSibling;
-                return {same_row: Boolean(row && cell && cell.parentElement === row),
+                return {label: "契約金額", tax_included: label.includes("税込")
+                          || (cell?.innerText || "").includes("税込"),
+                        same_row: Boolean(row && cell && cell.parentElement === row),
                         cell_tag: cell?.tagName || "", text: cell?.innerText || ""};
               })"""
         )
@@ -103,7 +109,8 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
     if len(rows) != 1:
         return {"status": "ambiguous", "label": "契約金額"}
     row = rows[0]
-    if (not isinstance(row, Mapping) or row.get("same_row") is not True
+    if (not isinstance(row, Mapping) or row.get("label") != "契約金額"
+            or row.get("same_row") is not True
             or row.get("cell_tag") != "TD" or not isinstance(row.get("text"), str)):
         return {"status": "unknown", "label": "契約金額"}
     text = row["text"]
@@ -121,7 +128,7 @@ def _contract_amount_observation(page: Any) -> dict[str, Any]:
         amounts.append(amount)
     observation: dict[str, Any] = {
         "status": "unknown", "label": "契約金額",
-        "tax_included": "税込" in text,
+        "tax_included": row.get("tax_included") is True or "税込" in text,
         "displayed_amounts_yen": amounts,
     }
     if invalid_amount:
@@ -334,6 +341,7 @@ class CrowdWorksPaidAdapter:
                  provider_profile: Mapping[str, Any] | None = None,
                  connection_factory: Callable[[], tuple[Any, Any]] | None = None,
                  context_factory: Callable[[Any, Any], Any] | None = None,
+                 prune_blank_source_pages: bool = True,
                  application_receipts_path: Path = DEFAULT_APPLICATION_RECEIPTS):
         if not isinstance(account_id, str) or not account_id.strip():
             raise ValueError("crowdworks_account_id_invalid")
@@ -345,6 +353,7 @@ class CrowdWorksPaidAdapter:
         self.connection_factory = connection_factory or _connect_existing_cdp
         self._requires_isolation = context_factory is None
         self.context_factory = context_factory or self._isolated_context
+        self.prune_blank_source_pages = prune_blank_source_pages
         self.application_receipts_path = Path(application_receipts_path).expanduser()
         self._local = threading.local()
         self._cache_lock = threading.Lock()
@@ -410,7 +419,8 @@ class CrowdWorksPaidAdapter:
             raise RuntimeError("crowdworks_paid_browser_unavailable")
         try:
             self.source_context = contexts[0]
-            self._prune_blank_source_pages()
+            if self.prune_blank_source_pages:
+                self._prune_blank_source_pages()
             self.owned_context = self.context_factory(self.browser, contexts[0])
             self.owns_context = self.owned_context is not contexts[0]
             if self._requires_isolation and self.owned_context is contexts[0]:
@@ -1931,7 +1941,8 @@ class CrowdWorksPaidAdapter:
             try: self.owned_context.close()
             except Exception: pass
         self.owned_context = None
-        self._prune_blank_source_pages()
+        if self.prune_blank_source_pages:
+            self._prune_blank_source_pages()
         if self.runtime is not None:
             try: self.runtime.stop()
             except Exception: pass
@@ -1939,7 +1950,7 @@ class CrowdWorksPaidAdapter:
 
 
 def read_only_inventory() -> dict[str, Any]:
-    adapter = CrowdWorksPaidAdapter(account_id=ACCOUNT_ID)
+    adapter = CrowdWorksPaidAdapter(account_id=ACCOUNT_ID, prune_blank_source_pages=False)
     try:
         rows = adapter.observe_active()
         candidates = []

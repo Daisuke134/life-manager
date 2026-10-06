@@ -99,6 +99,8 @@ def _summary_page(rows):
         def evaluate_all(self, script):
             assert "契約金額" in script
             assert "nextElementSibling" in script
+            assert "label.replace" in script
+            assert 'label.includes("税込")' in script
             return rows
 
     class Page:
@@ -112,7 +114,8 @@ def _summary_page(rows):
 def test_contract_summary_amount_observation_accepts_one_tax_included_yen_value():
     module = load()
     page = _summary_page([{
-        "same_row": True, "cell_tag": "TD", "text": "12円（税込）",
+        "label": "契約金額", "tax_included": True,
+        "same_row": True, "cell_tag": "TD", "text": "12円",
     }])
 
     assert module._contract_amount_observation(page) == {
@@ -124,7 +127,8 @@ def test_contract_summary_amount_observation_accepts_one_tax_included_yen_value(
 def test_contract_summary_amount_observation_keeps_multiple_values_ambiguous():
     module = load()
     page = _summary_page([{
-        "same_row": True, "cell_tag": "TD", "text": "12円（税込） / 10円",
+        "label": "契約金額", "tax_included": True,
+        "same_row": True, "cell_tag": "TD", "text": "12円 / 10円",
     }])
 
     result = module._contract_amount_observation(page)
@@ -137,8 +141,8 @@ def test_contract_summary_amount_observation_keeps_multiple_values_ambiguous():
 
 @pytest.mark.parametrize("rows, expected_status", [
     ([], "unknown"),
-    ([{"same_row": True, "cell_tag": "TD", "text": "12,00円（税込）"}], "unknown"),
-    ([{"same_row": True, "cell_tag": "TD", "text": "12円（税込）"}] * 2, "ambiguous"),
+    ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12,00円"}], "unknown"),
+    ([{"label": "契約金額", "same_row": True, "cell_tag": "TD", "text": "12円"}] * 2, "ambiguous"),
 ])
 def test_contract_summary_amount_observation_fails_closed(rows, expected_status):
     module = load()
@@ -165,7 +169,11 @@ def test_read_only_inventory_exposes_only_safe_amount_metadata_and_decision_igno
         def close(self):
             pass
 
-    monkeypatch.setattr(module, "CrowdWorksPaidAdapter", lambda **_kwargs: Adapter())
+    def make_adapter(**kwargs):
+        assert kwargs["prune_blank_source_pages"] is False
+        return Adapter()
+
+    monkeypatch.setattr(module, "CrowdWorksPaidAdapter", make_adapter)
     inventory = module.read_only_inventory()
     candidate = inventory["contract_candidates"][0]
 
@@ -186,6 +194,48 @@ def test_read_only_inventory_exposes_only_safe_amount_metadata_and_decision_igno
     }
     augmented = module.decide({"context": {"contract": augmented_contract}}, form_selector=lambda _item: None)
     assert augmented == baseline
+
+
+@pytest.mark.parametrize("prune_blank_source_pages, expected_prune_calls", [
+    (False, 0),
+    (True, 2),
+])
+def test_adapter_prunes_shared_blank_pages_only_when_enabled(prune_blank_source_pages, expected_prune_calls):
+    module = load()
+    pruned = []
+
+    class Page:
+        def set_default_timeout(self, _timeout):
+            pass
+
+        def close(self):
+            pass
+
+    class Context:
+        def new_page(self):
+            return Page()
+
+        def close(self):
+            pass
+
+    class Browser:
+        contexts = [Context()]
+
+    class Runtime:
+        def stop(self):
+            pass
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, _source: Context(),
+        prune_blank_source_pages=prune_blank_source_pages,
+    )
+    adapter._prune_blank_source_pages = lambda: pruned.append(True)
+
+    adapter._open()
+    adapter.close()
+
+    assert len(pruned) == expected_prune_calls
 
 
 def test_two_official_active_contracts_normalize_to_unique_stable_observations():
