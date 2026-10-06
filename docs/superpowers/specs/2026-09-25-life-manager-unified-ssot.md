@@ -9074,3 +9074,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 実producer→consumer回帰で、collect_snapshotのRevenueCat evidence_sha256=_json_hash(data)と、CFO _revenuecat_content_sha256のcanonical(status,reason,data)が不一致と判明。test helperでhashを再bindした経路では隠れるため、実collect_snapshot wrapperを通す回帰へ訂正する。rootもconsumer591行の対象3field hashを確認。
 - §688の同じproducer境界修復に、RevenueCat wrapper hashの正しいbindを追加する。raw chart body evidence hashは維持し、他providerのgeneric wrapperを無関係に変更しない。CFOのhash/identity/coverage/未完gateは緩めない。currency/定義/UTC dateが追加できても、このhashが一致するまでsource接続PASSとは報告しない。
 - marketing-metrics-dailyの現statusはloaded-idle/installed82d31995/last exit75/reconcile_owner。source受入後の対象限定反映で新SHA/自然収集を確認する。稼働中loopの停止・旧fence解除・provider送信変更0。current1/残29/順序維持。
+
+
+### 691. CFO producer→consumer source受入・PR6757 main統合
+
+- Luna6max source commit e207c7fa20c93716010ed528e7ed0db392c7c1b1をremote一致/clean確認。3fileだけ：business_outcomes.py/既存producer test/既存CFO consumer test。currency/定義/MRR UTC dateと実status/reason/data wrapper hashを修復、consumer gate/他chart解析/元chart canonical hash/period_indexを保持。
+- REDはmetadata/invalid period/cohort index代用、実collect_snapshot envelopeのdata-only hashによるCFO0/6 snapshotを再現。GREENでは実producer→実consumerで6/6、producer26+CFO43 PASS。root再実行69PASS/33subtests、diffcheck PASS。loop contract gate15catalog/184jobs/107mapped/errors0。
+- fresh read-only Sol6.1medium reviewer cfo_revenuecat_shape_reviewはsourceSHIP/重大指摘0、通貨欠損・無効periodがCFO0snapshotで拒否されるfixture probeを確認。provider/state/credentials/browser操作0。fixture受入を実財務/本番接続完了へ代用しない。
+- PR6757 https://github.com/Daisuke134/life-manager/pull/6757、同head workflow37446705956はcompleted success/全9job conclusion success、CodeRabbit success/serverCLEAN。Shell check statusだけin_progress表示が残るがconclusion successとworkflow terminal successを照合し通常統合。MERGED2026-10-06T10:05:17Z/main ec921a149c1d2ea5fdb80d2268f1f8f47d742768/fetch一致。
+- cut lock無しを確認しLOOPS_ACTIVATE_CURRENT=0で同mainの完全immutable作成を開始、handle89591。共有current変更/他label操作0。対象marketing-metrics-dailyの新SHA loaded/自然収集/CFO readbackは未完。current1/残29/順序維持。
