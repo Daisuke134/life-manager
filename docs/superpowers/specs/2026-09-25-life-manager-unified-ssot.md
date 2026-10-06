@@ -9058,3 +9058,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 残17内の最小source修復：既存producerのMRRにAPI本文由来のcurrencyを保持し、確認済みMRR定義を伝達、complete pointのUnix秒/既存ISO dateをUTC ISO business dateへ正規化する。period_index/元body evidence hashは保持。欠損通貨・無効periodをUSD/0/当日へ丸めず、app binding/未完判定/financial final/replay/cost/全6product coverage gateを弱めない。financial parser/広告/価格/paywall/配信/ブラウザlock/cadenceには触れない。
 - source worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-cfo-revenuecat-shape-20261006、branch fix/lm-cfo-revenuecat-shape-20261006、base e2bdae300763864d9b7bdbd9b0ca5a362c6f1115、lease owner codex-money-printer-rc-shape/24h。Luna6maxの所有はbusiness_outcomes.py/既存test_business_outcomes.py、必要な既存test_capafy_mobile_attribution.pyのproducer→consumer回帰と該当manifest metadataのみ。rootはSSOT/受入/freshreview/CI/main/反映を所有。RED→最小GREEN/関連suite/diff/commit/push、全source受入前に統合しない。実provider操作は実装者に渡さない。
 - Reply lockのSol6.1medium source調査はowner全kernel/model待機中lock保持、waiting再compositionを確認したが、仕様違反のsource bugは確認無し。NO_EFFECTはversion保存/cache済み。lock解除/回数制限/追加fixtureだけの作業を開始しない。current1/残29/相対順序、SelfBuild25/Lancers26〜28/mock取消を維持。
+
+
+### 689. Reply修正対象3件の自然再判定PASS・CFO修復RED準備
+
+- 3対象8eeccb3cdfb7/a1dcc6625cd8/a675c3ddb87aは09:41:01/09:41:58/09:44:39 UTCに自然waiting_external/reply_facts_requiredへ更新。last_error無し/intent無し/remaining_work1・2・4。同occurrence crowdworks-revenue-reply:18dbd549eacc65e8-90847のterminal run18dbe745b49e96e0-93997は09:45:13.702620Z/aed62f3b/pass/exit0。private reply-three-facts-wait-proof.jsonへstate hashとexact terminal結合を保存。対象のinvalidhandoff/Timeout反復はこの自然再判定で解消、資料待ち・実返信・納品・精算の完了とは分ける。
+- latest Reply report09:45:08Zはobserved171/pending19/failed0/effect0/readback152。pendingは有償顧客19人という証拠ではなく、旧unknownを解除しない。今回state reset/手動再送/旧host fence clear0。
+- Luna6max cfo_revenuecat_shape_implementationはnative running。source clean/base e2bdae3を確認、§688と公式MRR定義/producer→consumer境界を照合し、既存test_business_outcomes.pyの最小RED準備を報告。source acceptance/commit/push/freshreview/CI/main/反映は未完。owner単位browser lockは既存契約のため変更しない。
+- release候補作成に先立ち現complete aed releaseの実サイズ104MiBを確認。disk free3.3GiBを理由に全停止や無断cleanupをせず、専用sparse worktreeで進める。cutは既存immutable donor/guard経路を使い、実preflightに従う。current1/残29/順序・後段保留維持。
