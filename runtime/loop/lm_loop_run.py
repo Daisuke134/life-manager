@@ -63,6 +63,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 # Stay under resource_admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS (300s).
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
@@ -77,6 +78,7 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
 EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
 })
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
@@ -89,6 +91,9 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "alpaca-investment-live",
     "alpaca-investment-paper",
+    "ebook-en-tiktok-daily",
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
     "hf-gig-apply-direct",
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",

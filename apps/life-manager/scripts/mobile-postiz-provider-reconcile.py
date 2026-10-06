@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 import hashlib
 import importlib.util
 import json
@@ -30,6 +31,13 @@ ACCOUNT = re.compile(r"^@[A-Za-z0-9._-]{1,127}$")
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+VIDEO_DISTRIBUTION = ROOT / "skills/video/lm-distribution"
+if str(VIDEO_DISTRIBUTION) not in sys.path:
+    sys.path.insert(0, str(VIDEO_DISTRIBUTION))
+
+from distribute import append_distribution_row  # noqa: E402
+
+EBOOK_TOKEN_PREFIXES = {"ebook-en": "ee_", "ebook-ja": "ej_"}
 
 
 def _load_read_only_module():
@@ -172,19 +180,137 @@ def _receipt_matches(identity: dict[str, Any], row: dict[str, Any]) -> tuple[boo
 
 
 def _local_receipt(identity: dict[str, Any], ledger: Path) -> tuple[dict[str, Any], str] | None:
+    scoped_ledger = ledger.expanduser().resolve()
+    expected_product = urllib.parse.quote(str(identity.get("product_id", "")), safe="")
+    if scoped_ledger.name != "distribution.jsonl" or scoped_ledger.parent.name != expected_product:
+        return None
     rows = _safe_jsonl(ledger)
     if rows is None:
         return None
     candidates: list[tuple[dict[str, Any], str]] = []
     for row in rows:
-        matches, provider_id = _receipt_matches(identity, row)
+        candidate = row
+        if "receipt" not in row and row.get("product_id") is None:
+            # Legacy flat rows omit product_id because their file is product-scoped.
+            # Infer it only after validating that exact path.
+            candidate = {**row, "product_id": identity.get("product_id")}
+        matches, provider_id = _receipt_matches(identity, candidate)
         if matches and provider_id is not None:
-            receipt, _, _ = _receipt_from_row(row)
+            receipt, _, _ = _receipt_from_row(candidate)
             candidates.append((receipt, provider_id))
     unique = {provider_id for _, provider_id in candidates}
     if len(unique) != 1:
         return None
     return candidates[-1]
+
+
+def _stored_caption(identity: dict[str, Any], ledger: Path) -> str | None:
+    if identity.get("video_sha256") is None:
+        return None
+    descriptor = -1
+    try:
+        data_dir = ledger.expanduser().resolve().parents[5]
+        digest = str(identity["caption_sha256"])
+        path = data_dir / "objects" / "sha256" / digest
+        info = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600):
+            return None
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = -1
+            content = handle.read(1024 * 1024 + 1)
+    except (OSError, KeyError, IndexError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if (len(content) > 1024 * 1024
+            or hashlib.sha256(content).hexdigest() != identity.get("caption_sha256")):
+        return None
+    try:
+        return content.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _load_postiz_video_adapter():
+    postiz_path = ROOT / "skills/video/lm-distribution/postiz_video.py"
+    spec = importlib.util.spec_from_file_location("life_manager_postiz_video", postiz_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("Postiz adapter unavailable")
+    adapter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adapter)
+    return adapter
+
+
+def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
+                          api_key: str) -> tuple[dict[str, Any], str] | None:
+    """Recover an exact Postiz post when its local published row was not flushed."""
+    caption = _stored_caption(identity, ledger)
+    token_prefix = EBOOK_TOKEN_PREFIXES.get(str(identity.get("product_id", "")))
+    if (token_prefix is None or caption is None
+            or not re.search(
+                rf"https://aniccaai\.com/go/{re.escape(token_prefix)}[a-z2-7]{{20}}(?:\b|$)",
+                caption,
+            )):
+        return None
+    try:
+        slot = datetime.fromisoformat(str(identity["slot"]).replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        return None
+    if slot.tzinfo is None:
+        return None
+    slot_utc = slot.astimezone(timezone.utc)
+    start = (slot_utc - timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+    end = (slot_utc + timedelta(hours=36)).isoformat().replace("+00:00", "Z")
+    query = urllib.parse.urlencode({"startDate": start, "endDate": end, "limit": "100"})
+    payload = _request_json(f"{POSTIZ_V1}/posts?{query}", api_key)
+    integration_id = str(identity["integration_ref"]).rsplit("/", 1)[-1]
+    adapter = _load_postiz_video_adapter()
+    matches: dict[str, dict[str, Any]] = {}
+    for row in _rows(payload):
+        nested = row.get("integration")
+        row_integration = nested.get("id") if isinstance(nested, dict) else row.get("integrationId")
+        row_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
+        provider_id = row.get("id")
+        if (row_integration != integration_id
+                or (row_video_sha is not None and row_video_sha != identity.get("video_sha256"))
+                or not isinstance(provider_id, str)
+                or not PROVIDER_ID.fullmatch(provider_id)):
+            continue
+        try:
+            row_caption = _caption(row)
+        except ValueError:
+            continue
+        if hashlib.sha256(row_caption.encode("utf-8")).hexdigest() != identity.get("caption_sha256"):
+            continue
+        try:
+            state = adapter.find_post([row], provider_id, identity["platform"])
+        except (RuntimeError, ValueError):
+            continue
+        if (state.get("state") != "PUBLISHED"
+                or not adapter._valid_public_url(identity["platform"], state.get("post_url"))):
+            continue
+        matches[provider_id] = row
+    if len(matches) != 1:
+        return None
+    provider_id, row = next(iter(matches.items()))
+    selected_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
+    return ({
+        "caption_sha256": identity["caption_sha256"],
+        "slot": identity["slot"],
+        "provider_video_sha256": (
+            selected_video_sha if selected_video_sha == identity.get("video_sha256") else None
+        ),
+        "remote_effect_locator": {
+            "source": "postiz_public_v1_posts",
+            "post_id": provider_id,
+            "integration_id": integration_id,
+            "caption_sha256": identity["caption_sha256"],
+            "slot": identity["slot"],
+        },
+    }, provider_id)
 
 
 def _rows(payload: Any) -> list[dict[str, Any]]:
@@ -293,12 +419,7 @@ def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> 
 def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
                        expected_caption_sha256: str | None = None) -> dict[str, Any]:
     row = _postiz_post(provider_id, api_key)
-    postiz_path = ROOT / "skills/video/lm-distribution/postiz_video.py"
-    spec = importlib.util.spec_from_file_location("life_manager_postiz_video", postiz_path)
-    if spec is None or spec.loader is None:
-        raise ValueError("Postiz adapter unavailable")
-    adapter = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(adapter)
+    adapter = _load_postiz_video_adapter()
     state = adapter.find_post([row], provider_id, identity["platform"])
     if state.get("state") != "PUBLISHED":
         raise ValueError("Postiz post is not published")
@@ -319,7 +440,8 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         raise ValueError("Postiz video hash mismatch")
     provider_content = {"caption_sha256": identity["caption_sha256"]}
     local_content: dict[str, Any] = {}
-    for key in ("video_sha256", "media_sha256", "pack_sha256", "media_order_sha256"):
+    for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256",
+                "media_order_sha256"):
         if key in identity:
             local_content[key] = identity[key]
     if provider_video_sha is not None:
@@ -343,6 +465,8 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
         raise ValueError("identity_missing_or_invalid")
     local = _local_receipt(identity, ledger)
     if local is None:
+        local = _remote_video_receipt(identity, ledger, api_key)
+    if local is None:
         raise ValueError("receipt_missing_or_ambiguous")
     receipt, provider_id = local
     readback = _provider_readback(
@@ -350,6 +474,10 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
     )
     if readback.get("account_id") != identity.get("account_id"):
         raise ValueError("provider_readback_not_exact")
+    if receipt.get("remote_effect_locator") is not None:
+        readback["remote_effect_locator"] = receipt["remote_effect_locator"]
+    if receipt.get("provider_video_sha256") == identity.get("video_sha256"):
+        readback["content"]["video_sha256"] = identity["video_sha256"]
     proof = {
         "owner_id": owner_id,
         "occurrence_id": occurrence_id,
@@ -397,6 +525,14 @@ def reconcile_provider_effect(
         latest.update(build_official_proof(identity, ledger, api_key))
     except (OSError, RuntimeError, ValueError, KeyError, ImportError):
         return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
+    if _local_receipt(identity, ledger) is None:
+        try:
+            _persist_recovered_distribution_row(identity, latest, ledger)
+        except (OSError, RuntimeError, ValueError, KeyError, ImportError) as exc:
+            return _inconclusive(
+                owner_id, occurrence_id,
+                f"provider_receipt_persist_failed:{type(exc).__name__}:{exc}",
+            )
 
     def official_readback() -> dict[str, Any]:
         proof = build_official_proof(identity, ledger, api_key)
@@ -432,6 +568,58 @@ def _ledger_for_identity(identity: dict[str, Any], data_dir: Path, tenant_id: st
     )
 
 
+def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
+                                ledger: Path) -> dict[str, Any]:
+    provider_id = proof.get("provider_receipt_id")
+    readback = proof.get("provider_readback")
+    if (proof.get("verified") is not True or proof.get("identity") != identity
+            or not isinstance(provider_id, str) or not PROVIDER_ID.fullmatch(provider_id)
+            or not isinstance(readback, dict)
+            or readback.get("provider") != "postiz"
+            or readback.get("state") != "PUBLISHED"
+            or readback.get("post_id") != provider_id
+            or readback.get("account_id") != identity.get("account_id")
+            or readback.get("integration_ref") != identity.get("integration_ref")
+            or readback.get("local_content", {}).get("video_sha256") != identity.get("video_sha256")
+            or readback.get("local_content", {}).get("caption_sha256") != identity.get("caption_sha256")
+            or not isinstance(readback.get("public_url"), str)):
+        raise ValueError("recovered Postiz receipt does not match the exact identity")
+    data_root = ledger.expanduser().resolve().parents[5]
+    return {
+        "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "platform": identity["platform"],
+        "status": "published",
+        "product_id": identity["product_id"],
+        "creative_id": identity["creative_id"],
+        "video_path": str(data_root / "objects" / "sha256" / str(identity["video_sha256"])),
+        "video_sha256": identity["video_sha256"],
+        "caption_path": str(data_root / "objects" / "sha256" / str(identity["caption_sha256"])),
+        "caption_sha256": identity["caption_sha256"],
+        "public_url": readback["public_url"],
+        "provider_id": provider_id,
+        "route": "postiz",
+        "provider_cost_usd": None,
+        "logged_out_readback": None,
+        "migration_date": None,
+        "provider_reconciled": True,
+        "format_id": identity["format_id"],
+        "form": identity["form"],
+        "locale": identity["locale"],
+        "slot": identity["slot"],
+        "account_id": identity["account_id"],
+        "integration_ref": identity["integration_ref"],
+        "remote_effect_locator": readback.get("remote_effect_locator"),
+    }
+
+
+def _persist_recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
+                                        ledger: Path) -> None:
+    append_distribution_row(ledger, _recovered_distribution_row(identity, proof, ledger))
+    stored = _local_receipt(identity, ledger)
+    if stored is None or stored[1] != proof.get("provider_receipt_id"):
+        raise ValueError("recovered Postiz receipt was not durable in the distribution ledger")
+
+
 def reconcile_pending_owner(
     *, owner_id: str, identity_dir: Path, data_dir: Path, tenant_id: str,
     admission_db: Path, api_key: str, apply: bool,
@@ -464,7 +652,10 @@ def reconcile_pending_owner(
                 break
             inspected += 1
             ledger = _ledger_for_identity(identity, data_dir, tenant_id)
-            if ledger is None or _local_receipt(identity, ledger) is None:
+            if ledger is None:
+                continue
+            if (_local_receipt(identity, ledger) is None
+                    and identity.get("product_id") not in EBOOK_TOKEN_PREFIXES):
                 continue
             result = reconcile_provider_effect(
                 identity, ledger, owner_id, occurrence_id,
@@ -518,7 +709,7 @@ def main(argv: list[str] | None = None) -> int:
             data_dir=args.data_dir,
             tenant_id=args.tenant_id,
             admission_db=args.admission_db,
-            api_key=os.environ.get("POSTIZ_API_KEY", ""),
+            api_key=os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""),
             apply=args.resolve,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
@@ -533,7 +724,7 @@ def main(argv: list[str] | None = None) -> int:
         result = reconcile_provider_effect(
             identity, args.ledger, args.owner_id, args.occurrence_id,
             state=state, effect_unknown=effect_unknown,
-            api_key=os.environ.get("POSTIZ_API_KEY", ""), apply=args.resolve,
+            api_key=os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""), apply=args.resolve,
             admission_db=args.admission_db,
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

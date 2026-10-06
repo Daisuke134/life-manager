@@ -45,15 +45,16 @@ shared engine. **Do not copy or re-implement it. Copy a manifest.**
 - **Poison detection only on day3+ accounts** (a young account failing instagrapi is expected,
   not poison — don't false-cook it).
 
-## One lane: agent-owned (Postiz cancelled 2026-07)
+## Owner-scoped publishing routes
 
-There is NO second lane. The Postiz subscription is cancelled from 2026-07, so every
-marketing loop — current (capafy, clip, video, slideshow) and future (reelclaw, larry,
-honne) — runs on THIS engine: the agent creates and owns the account, warms it per the
-recipe, and posts through `poster.py`'s instagrapi session. Human credentials and
-third-party posting SaaS are forbidden everywhere, for every product.
+The manifest and warmup instructions in this README describe the legacy
+agent-owned Instagram route: the loop owns its account and posts through
+`poster.py`'s saved instagrapi session. Life Manager Product Loop publishers may
+explicitly use the shared Postiz publication adapter when their registry owner
+declares a Postiz integration. Keep each owner on its declared route; never mix
+or silently switch providers.
 
-| `MKT_CONTENT_ADAPTER` | Instagram media | `poster.py` route |
+| Legacy `MKT_CONTENT_ADAPTER` | Instagram media | `poster.py` route |
 |---|---|---|
 | `faceless-video` | Reel | instagrapi `clip_upload` |
 | `clip-cut` | Reel | instagrapi `clip_upload` |

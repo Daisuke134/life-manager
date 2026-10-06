@@ -12,12 +12,20 @@
 ## 範囲と担当
 
 - eBook checkout/webhook/PDF fulfillmentは anicca-products の既存Stripe・Netlify・Supabase・Resend経路を使う。
-- eBookとCapafyのcreative・投稿ownerはLife Managerの既存Marketing Engine、account registry、publication adapterへ接続する。OpenClawにschedulerを追加しない。
+- eBookとCapafyのcreative・投稿ownerはLife Managerの既存Marketing Engine、account registry、publication adapterへ接続する。旧OpenClaw schedulerは再有効化しない。
 - eBook marketingは既存の本人所有Instagram/TikTok accountだけを使う。registryとprovider readbackでidentity・good-standingを確認できないaccountは使わず、代替accountも作らない。
 - Capafyは既存の life-manager-capafy-ig Postiz laneを唯一のpublish ownerにする。Capafy product code・価格・listing・account lifecycleは変更しない。
-- Daisが直接編集したcopyや投稿を、確認なく書き換え・公開しない。通常の技術判断やloop内部のmarketing creativeは既存ownerの権限内で進める。
+- eBook向けsystem-generated baseline creativeは、ユーザーが委任したeBook marketingのstanding policy内で配信する。対象product、locale、既存account、approved claims、CTA/token、renderer、media formatを決定的に検査し、Daisが直接編集したcopyは明示確認なしに変更・公開しない。
 
-## 現状（2026-10-06 04:15 JST Product PR readback / Capafy 04:06 JST runtime readback）
+### Rendererと配信契約
+
+- English `ebook-en-anicca-monk`は既存のHeyGen CLIを使い、Marketing Engineのapproved baseline scriptをAvatar IVで映像化する。HeyGenのfreeform script writerに商品claimを作らせない。avatar/voice IDは既存のAnicca monk素材を使い、API render receiptと費用readbackを保存する。
+- Japanese `ebook-ja-watercolor`はWatercolor Monk Factoryの既存Kling scene 02–10/12/13を使い、Life Manager所有のversioned asset rootへ一度コピーしてSHA-256で検証する。distribution実行時に旧factory checkoutやOpenClaw sourceへアクセスしない。コピーした映像へMarketing Engineの日本語baseline scriptを既存のローカル音声・caption rendererで合わせる。FFmpegにlibass subtitles filterがないhostでは、Pillowで日本語caption overlayを作り、FFmpegの`overlay` filterで焼き付ける。両rendererは同じMarketing Engineのscript・product/slot receipt・campaign token契約を使う。
+- 各localeはpackのAsia/Tokyo slotsで毎日3本を生成する。1 product/slotにつきrenderは1回とし、同じ動画をそのslotに属する全active Postiz targetへ配る。owner occurrenceごとの投稿effectは最大1件。
+- Japanese Instagram/TikTokはactive targetとして登録済み。English packは既存TikTok integrationを参照するが、現在は`provider_disabled` hold中でactive targetではない。English Instagramはdedicated account未登録のため追加・流用しない。投稿前にPostiz integrationのidentity/enabled readbackを行い、disabledまたは不一致ならeffectを発生させない。
+- HeyGenはrender前後のwallet readbackを各render receiptへ記録する。walletを読めないrunはcreate前に止める。create後にcost/deltaが確定できないrunはreceiptをreconciliation holdに置き、次のrenderを始めない。既存のHeyGen auto-reload設定を変更しない。
+
+## 現状（2026-10-06 14:05 JST refresh）
 
 ### eBook商品・売上経路
 
@@ -31,9 +39,23 @@
 
 ### eBook marketing
 
-- Marketing Engineの`ebook_runner.py`はrender receiptとpublication intentを作るが、intentは`awaiting_visual_approval`で、live eBook publication ownerはloop registryにない。
+- `main`/installed releaseにはlive eBook publisher ownerがまだない。feature branch `feat/ebook-publisher-source-20261006`にはEN HeyGen TikTok、JA Watercolor TikTok、JA Watercolor Instagramの3 ownerと各localeの3 daily slotがある。PR #6729はOPENで、sourceはproduction release/applyされていない。実行順の正本はunified SSOT。
+- 日本語`watercolor-monk` sourceはFactoryのscene 02–10/12/13をLife Manager外部asset rootへ一度コピーし、11個のSHA-256を検証する。local preview `ebook-run.8fb24a21e077a2a9c210ac0f`は720×1280、H.264/AAC、11.933秒で完成し、実際の水彩sceneと字幕を確認した。これはlocal previewであり投稿ではない。
+- HeyGen sourceはAvatar IV createごとにwalletを前後readbackし、USD差額とauto-reload状態をeffect receiptへ保存する。wallet readbackなし・threshold以下・未解決の先行effectでは新規createを止める。CLI v0.5.0の過去readbackはwallet USD 12.30、auto-reload USD 10、threshold USD 5、enabled。live EN renderはまだなく、実動画単価は未測定。
+- Watercolorのlocal previewはrun `ebook-run.8fb24a21e077a2a9c210ac0f`（20:00 JST pack slot）で完成した。asset pack `watercolor-mark-factory-v1`、manifest SHA `b68216830c5be7b4969caaec095f8376d03af06cc4b90494c71f10aea0b1d06e`、H.264/AAC 720×1280、11.933秒、caption renderer `pillow-overlay`、output SHA `56b25dc8d052326fabcbb4b1f588917146374a0dbb9619ce20e66695daa795ab`。Receiptは`external_effects=[]`、Postiz callは0。実フレーム確認で既存の水彩Kling sceneと日本語captionを確認した。これはdirty worktreeからのlocal previewで、公開投稿やproduction releaseではない。
+- 標準`/opt/homebrew/bin/ffmpeg`は`subtitles` filterがなく`overlay`はある。`ffmpeg-full 9.0.1`は`libx265.216`を要求するがhostには`.217`のみあり起動しないため、production pathでは標準FFmpeg+Pillow overlayを使う。libassのないhostでもPillow/日本語font/overlayが揃わない場合は`setup_required`でfail-closedする。
+- Last authenticated Postiz `GET /public/v1/integrations` readback (2026-10-06 14:02 JST) returned 31 integrations: 30 enabled / 1 disabled. English `Monk Anicca` TikTok `cmo5rwq2p00twn10yrsdglng3` was disabled; Japanese `obou` Instagram `cmooplxmu04tpmd0y4h3cpk33` and TikTok `cmo5s4edx00vgn10ygnu34a0n` were enabled; English Instagram was unregistered. A refresh attempt at 14:49 JST returned HTTP 401 because this session has no Postiz API key; the registered daily-driver CDP endpoint `:9222/json/version` returned HTTP 404. No newer authenticated readback is available. Keep English held until its exact integration reads `disabled=false` and a no-cost slot is verified.
+- Checkout/PDF gate refresh (2026-10-06 14:49 JST): Product PR #420 remains OPEN at head `85116e29aceb3d951e65f125fb3473fcb17d2b99`; production migration/RPC/schema-cache readback is still absent. Public `/monk` and `/achan` pages load and show purchase CTAs plus an instant-PDF promise, but that is not a delivery receipt. The latest main Netlify deploy run `37398436701` failed while fetching Google Fonts in `app/comedy/ja/page.tsx`; no current production fulfillment proof exists. Do not publish either locale until the deployed Checkout/PDF route is verified.
+- cleanupはDaisの指示でowner `life-manager-disk-cleanup`をstopし、同じlaunchd label `ai.anicca.life-manager-disk-cleanup`をdisabledにした。readbackは`launchd_state=disabled`, `pid=null`。このrefresh時のData volume free spaceは5.6 GiBで11 GiB floor未満だが、cleanupを再起動しない。
 - Cross-repo source contractはgolden vector `creative.contract.1`で固定した: EN `ee_hcp4v5pifa2ovj47rsir`、JA `ej_cs6k5hu42kvx65x66imw`。Life Managerの`stage_intents`からProduct `/go`, `utm_campaign`, Checkout metadata、webhook durable receipt、locale PDF payloadまで同じJP tokenを使うlocal integration probeがPASS（provider callsはfake、production effect 0）。PR #6704のLife Manager testはmainへmerge済み。Productの対応testsはPR #420 head `85116e29`にあり、PRはOPEN。
 - 既存account registryでは`instagram.obou_anicca`のPostiz routeが`route_ready=true`と読み戻されている（02:15 JST）。これはroute設定の証拠であり、現アカウントの本人所有・good-standing・Instagram側の投稿receiptの証拠ではない。EN packはTikTokのみ、JA packはTikTokとInstagram integrationを登録している。pack登録だけではprovider login/statusを証明しない。
+- 2026-10-06 JSTの旧factory readback: `~/.openclaw/cron/jobs.json`にあるmonk/watercolor/eBook関連cron 10件はすべてdisabled。OpenClaw GatewayのLaunchAgentは未導入で、`127.0.0.1:18789`はconnection refused。旧factory source/stateはprotected・dirtyなので変更しない。旧価格（$17/¥1,980）と`/jp` routeは現行販売契約として流用しない。
+- 現行eBook social routeの状態: JA TikTok `tiktok.obou_anicca` とInstagram `instagram.obou_anicca` はregistry上approved_activeだが、公式account/good-standing readbackは未取得。Shared mobile destination contractは両integrationをmobile scope外としてholdしているため、eBook専用targetを明示的に登録してから使う。EN TikTok `tiktok.monk_anicca` は`disabled_verified`、EN Instagramはsetup-required。新規accountは作らない。
+- `effect_unknown` recovery contract: identity sidecarからofficial Postiz lookupへ到達でき、local published rowが無くても回復できる。integration・exact caption hash・slot window・published public URLが全て一致する候補が一件だけの場合に限り、provider receiptを`distribution.jsonl`へdurableに記録してからeffect fenceを解決する。候補なし・複数候補・不一致ではfenceを保持する。同一slotのreplayは保存済みreceiptを再利用し、provider publish callを追加しない。
+
+### 運用cursor
+
+- 実行順・現在状態・容量/readback evidenceの正本は `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`。
 
 ### Capafy Instagram marketing
 
@@ -51,8 +73,13 @@
 ~~~mermaid
 flowchart LR
   CONTENT["ebook source + verified claims"] --> ENGINE["Marketing Engine render receipt"]
-  ENGINE --> INTENT["publication intent: awaiting_visual_approval"]
-  INTENT -. "live eBook owner not registered" .-> STOP["no eBook post receipt"]
+  ENGINE --> PREVIEW["JA local Watercolor preview; 11 pinned scenes; external effects 0"]
+  ENGINE --> SOURCE["three account-scoped publisher owners in feature branch"]
+  SOURCE -. "PR #6729 open; not on main/release" .-> NORUNTIME["no production cadence or post receipt"]
+  SOURCE --> EN["EN HeyGen Avatar IV → existing TikTok integration"]
+  SOURCE --> JA["JA Watercolor → existing TikTok + Instagram integrations"]
+  EN -. "last official readback: disabled; no fresh authorized readback" .-> ENHOLD["effect-free hold"]
+  JA -. "Checkout/PDF production receipt absent" .-> JAHOLD["no public post"]
   TOKEN["ee_/ej_ campaign token"] --> GO["/go click receipt"]
   GO --> CHECKOUT["PR #419 checkout + Stripe metadata: main"]
   CHECKOUT --> WH["PR #420 webhook/PDF/shared subscriber RPC: source ready, not merged"]
@@ -66,13 +93,22 @@ flowchart LR
 ~~~mermaid
 flowchart LR
   subgraph E["1. eBookを先に完走"]
-    SRC["原文・検証済みclaim"] --> RENDER["Marketing Engine render receipt"]
-    RENDER --> CAMP["creative id + ee_/ej_ campaign token"]
-    CAMP --> OWNER["本人所有accountをregistry/providerで確認"]
-    OWNER --> VISUAL["exact asset hash + existing visual approval"]
-    VISUAL --> POST["単一のeBook publication owner"]
-    POST --> PRECEIPT["Instagram/TikTok provider receipt"]
-    PRECEIPT --> GO["/go/<token> click receipt"]
+    ENBASE["EN baseline + approved claims"] --> ENLOCK["EN product/slot lock"]
+    ENLOCK --> WALLET1["HeyGen wallet pre-read"]
+    WALLET1 --> HEYGEN["HeyGen CLI Avatar IV"]
+    JABASE["JA baseline + approved claims"] --> JALOCK["JA product/slot lock"]
+    JALOCK --> ASSET["11 existing Factory Kling scenes; copied once to LM asset root + SHA-256 verified"]
+    ASSET --> WATERCOLOR["local Japanese voice + Watercolor render; Pillow overlay fallback when libass is absent"]
+    HEYGEN --> WALLET2["HeyGen wallet post-read + exact delta"]
+    WALLET2 --> ENRENDER["EN render receipt; hold if cost unknown"]
+    WATERCOLOR --> JARENDER["JA render receipt"]
+    ENRENDER --> ENPOST["ebook-en-tiktok-daily: 08:00 / 14:00 / 21:00 JST"]
+    JARENDER --> JAPOST["ebook-ja TikTok + Instagram: 07:00 / 12:30 / 20:00 JST"]
+    ENPOST -. "Postiz integration disabled; no channel slot confirmed" .-> ENHOLD["EN effect-free hold"]
+    ENPOST --> ENRECEIPT["Postiz receipt + public URL"]
+    JAPOST --> JARECEIPT["Postiz receipts + public URLs"]
+    ENRECEIPT --> GO["/go/<ee_/ej_ token> click receipt"]
+    JARECEIPT --> GO
     GO --> PAGE["/monk または /achan"]
     PAGE --> CHECKOUT["Stripe one-time Checkout + attribution metadata"]
     CHECKOUT --> HOOK["署名検証 + durable webhook receipt"]
@@ -98,7 +134,8 @@ flowchart LR
   end
   MRR --> CFO["既存CFO: period・currency・cost・settlementを照合"]
   ORDERS --> CFO
-  GATE["account identity + good standing + effect_unknown解消"] --> OWNER
+  GATE["account identity + enabled Postiz route + effect_unknown解消 + live checkout/PDF"] --> ENPOST
+  GATE --> JAPOST
   GATE --> ACCOUNT
   PAID -->|first paid + matching PDF receipt| DEMO
 ~~~
@@ -135,7 +172,7 @@ sequenceDiagram
 4. Letter/TegamiのsubscriptionはDB generationをStripe GET前に予約し、最新generationだけを適用する。trial/accessはpaid MRRと区別する。MRRは初回invoice.paidとactive paid stateを確認して数える。
 5. subscribersのemail一意性をproduction schemaで確認する。unique constraintが無ければ、lead-magnetとStripe webhookの全subscriber writerを同じDB-owned normalized-email upsert/lockへ寄せてからtrafficを拡大する。
 6. lead-magnetのDay-0 senderもverified production senderを使い、subscriber writeの失敗を見てから送信する。無料signupをpaid subscriber/MRRとして数えない。
-7. distributionは既存ownerとprovider receiptを使い、effect_unknown occurrenceをreadbackなしに再送しない。1 accountにpublish ownerは一つだけ。
+7. eBook distributionは既存のMarketing Video Publication Adapterを使い、one render receiptをproduct/slotで共有する。JAはWatercolor Monk Factoryの11 scene assetsをLife Manager asset rootでSHA-256検証して使う。ENはrender前後wallet readbackをreceiptに結び、cost unknown時は次のrenderを止める。account別publisher ownerは1 occurrenceにつき1 provider effectとし、effect_unknownはreadbackなしに再送しない。system-generated baseline copyのみstanding policy内で配信し、Daisが直接編集したcopyは確認なしに使わない。
 8. 既存の本人所有accountと公開statusを照合する。challenge_requiredの場合はchallenge typeを実画面で確認し、既存の認証済みchallenge pathだけを使って、解決後に期待accountとprovider stateまでreadbackする。identity/appeal/suspensionはCAPTCHA solverで回避しない。
 9. Capafy marketingは公開中listingと実際の入出力に基づくoriginal Reelを使う。product/listing/account lifecycle codeは別担当の所有に残す。
 10. Capafyのct click、売上、refund、fee、実費、payout、bank receiptを分ける。providerがpost単位注文を返さない場合はcampaign-level correlationと明記し、銀行着金なしにnet contributionを確定しない。

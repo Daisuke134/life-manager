@@ -23,12 +23,12 @@ and converge on the same state, evidence, and human-readable reporting contracts
 Manager never guarantees wealth or investment returns, and it never reports an attempted action as completed
 without a receipt.
 
-## The 14 main product loops
+## The 15 main product loops
 
-Life Manager has fourteen user-facing product loops. A product loop is a capability,
+Life Manager has fifteen user-facing product loops. A product loop is a capability,
 not necessarily one process: the lifecycle registry contains the smaller
 application, browser-owner, reporting, healthcheck, and reconciliation jobs that
-implement and support these 14 loops.
+implement and support these 15 loops.
 
 Loops 1–3 form the **Human Gig Work** family. Life Manager automates discovery,
 screening, application, negotiation, delivery support, reconciliation, and
@@ -49,8 +49,9 @@ an interview, approval, or final delivery.
 | 10 | Connector | `life-manager-connector-native` | Finds eligible events, applies, verifies registration, and reports Calendar and Telegram receipts |
 | 11 | Self-Build / Product Improvement | `life-manager-selfbuild`, `life-manager-dev` | Turns verified user feedback and product evidence into reviewed Life Manager improvements; Cloud is a host for loops, not a separate Product Loop |
 | 12 | Mobile App Loops | Anicca iOS, Honne, and the other `life-manager-anicca-*` / `life-manager-honne-*` product jobs | Runs the owned mobile-app lifecycle: create the product account and app, build and sign releases, publish them, continuously improve the apps, distribute marketing content through Postiz or a native provider adapter, measure outcomes, and feed verified revenue back into CFO. Today the repository owns the shared product-aware marketing, distribution, measurement, and receipt path; app creation, signing, release, and iteration are still being unified into the same end-to-end loop. |
-| 13 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Operates Capafy's separate product, sales, outcome, and audience-growth workflows |
-| 14 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
+| 13 | eBook | `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | Publishes attributed Japanese eBook campaigns through existing accounts; checkout and delivery remain distinct receipts |
+| 14 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Operates Capafy's separate product, sales, outcome, and audience-growth workflows |
+| 15 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
 
 ### Setup and start truth
 
@@ -68,14 +69,16 @@ an interview, approval, or final delivery.
 | Connector | Calendar/Telegram and event-provider login when required | `./install.sh connector` |
 | Self-Build / Product Improvement | Repository access plus the configured development agent and review credentials | Managed registry jobs; public guided installer pending |
 | Mobile App Loops | No existing app required; connect Apple/Postiz/RevenueCat only when the generated product reaches those stages | Shared marketing jobs exist; zero-to-App-Store app-factory installer pending |
+| eBook | Existing checkout and PDF-delivery route; verify the existing Japanese Postiz account before publishing | Japanese account-scoped registry owners; publication remains gated on official account and production checkout readback |
 | Capafy | Capafy account/API credential and publication profile | Registry jobs; public guided installer pending |
 | CFO | Credentials for only the financial sources the user connects | `bash skills/cfo/run.sh` for one finite pass |
 
-The ebook products share the same repository-owned script ledger, publication
-intent, Postiz adapter, receipt, attribution, CFO, and Telegram path. Japanese
-ebook creative uses the `watercolor-monk` renderer. English Anicca Monk creative
-uses the official HeyGen CLI through the checked-in `heygen-avatar-iv` adapter;
-it never calls OmniAvatar or source code under an external checkout. A clean host
+The eBook products share the repository-owned script ledger, Postiz publication
+adapter, provider receipt, and campaign attribution path. Japanese creative uses
+the local `watercolor-monk` renderer. English Anicca Monk creative uses the
+official HeyGen CLI through the checked-in `heygen-avatar-iv` adapter, but its
+publishing route remains setup-required until an existing owned account and cost
+cap are verified. It never calls OmniAvatar or source code under an external checkout. A clean host
 that has not configured the private HeyGen avatar ID, voice ID, and CLI login gets
 an explicit `setup_required` receipt with no provider effect. Those values and the
 HeyGen session remain private host or tenant state and are never committed.
@@ -302,7 +305,7 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-The default installer does not silently start all 14 product loops. Each provider-backed loop remains
+The default installer does not silently start all 15 product loops. Each provider-backed loop remains
 `setup_required` until its account, credentials, KYC or browser login is configured. Guided installers currently
 exist for `./install.sh coconala`, `connector`, `fundraiser`, and `job-hunter`; the README catalog states the current
 boundary for the other product loops.
@@ -414,7 +417,7 @@ Hermes, another checkout, or a worktree. Portability is still capability-specifi
 macOS is the verified full local supervisor/browser host today, while Linux and
 Windows supervisor adapters and several public guided installers remain unfinished.
 The Cloud surface runs without the user's local device, but it currently hosts only
-the loops listed as Cloud-supported rather than silently claiming all 14.
+the loops listed as Cloud-supported rather than silently claiming all 15.
 
 | Path | Role | What it is not |
 |---|---|---|

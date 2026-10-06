@@ -1,0 +1,18 @@
+{
+  "schema_version": "marketing.ebook-watercolor-assets.v1",
+  "pack_id": "watercolor-mark-factory-v1",
+  "source": "anicca-watercolor-monk-factory cached Kling scenes",
+  "clips": [
+    {"factory_scene_id": "02", "path": "watercolor-monk/clips/scene-02.mp4", "sha256": "d9f283c93d153a3d4b890a711ec9fc3bc712428581090674dc6461dcb17e39ea", "bytes": 6210876},
+    {"factory_scene_id": "03", "path": "watercolor-monk/clips/scene-03.mp4", "sha256": "d54f0807a5bb8806b4808671f1d15f79101f77fb178c87e620dfed3ff4276f37", "bytes": 3841303},
+    {"factory_scene_id": "04", "path": "watercolor-monk/clips/scene-04.mp4", "sha256": "259cd0793cf42443a628748e16496813fb9c82ba241d805be7e33585198e9961", "bytes": 4710020},
+    {"factory_scene_id": "05", "path": "watercolor-monk/clips/scene-05.mp4", "sha256": "a3a2ec9a9b79f565bb953b773c06cb38ce5f759cdb328c4ae357f7636dda43f7", "bytes": 6464663},
+    {"factory_scene_id": "06", "path": "watercolor-monk/clips/scene-06.mp4", "sha256": "69ff4d1deadfd316a77571814e1549d3eafefcb5ee01f5e61a606b58eb56ebc8", "bytes": 2080077},
+    {"factory_scene_id": "07", "path": "watercolor-monk/clips/scene-07.mp4", "sha256": "217116469b084951305ca83b80e3ae17d1feca892cc1ed304deaf05ab0a92a5e", "bytes": 7130207},
+    {"factory_scene_id": "08", "path": "watercolor-monk/clips/scene-08.mp4", "sha256": "1c4353470a93b8cb2927956170c2bc0dcdebc9fb43682e72192fb6699893abe5", "bytes": 6692732},
+    {"factory_scene_id": "09", "path": "watercolor-monk/clips/scene-09.mp4", "sha256": "5fbffd08d5f4abeb15bb7e036bcfd5f8af09b3698956c9ec5c9ceed4187ff6ec", "bytes": 3599582},
+    {"factory_scene_id": "10", "path": "watercolor-monk/clips/scene-10.mp4", "sha256": "2ed8e0b23f25f0bfff64ea7fef6d55d7cfcce0fa06479014683f4e214e832655", "bytes": 2725975},
+    {"factory_scene_id": "12", "path": "watercolor-monk/clips/scene-12.mp4", "sha256": "322b32f510f360fe0c7ec4acdbf800c8b0e184be6bed0b76065c26dd9128ea69", "bytes": 2176000},
+    {"factory_scene_id": "13", "path": "watercolor-monk/clips/scene-13.mp4", "sha256": "46d69ad6e61ba7c1a8ab816d3fe39f9095d262ce9da8ec8e8b4cca74023682b2", "bytes": 3179536}
+  ]
+}
