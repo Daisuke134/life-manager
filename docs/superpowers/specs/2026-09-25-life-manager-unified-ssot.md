@@ -9725,3 +9725,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - rootがLuna作業中のtest差分をread-only照合し、fixtureがApple Identifier=親app ID、UPC/SKU=購読IDという実報告と逆の配置を検出。raw FINANCIAL現物はApple Identifier6762049696/UPC空/Vendor Identifier ai.anicca.app.ios.yearly.b、DETAILは同Apple Identifier/SKU ai.anicca.app.ios.yearly.b。このfixtureのまま実装しても実報告を取り込めないのでLunaへ訂正し、担当が誤読を認め修正着手。
 - production codeは未編集で、誤形fixtureで成功を判定していない。公式relationshipのgroup→subscription ID→productIdとlinks.self親appを結合し、safe列だけの同形fixtureでREDを再実行する。
 - detailのpreamble3行/Transaction+Settlement header/dated行1/後続別集計footer、aggregate footer3行をsecretless fixtureで再現し、前置Start Dateをdetail headerと誤判定せずfooterを売上rowにしない。追加の架空商品・外部作用なし。current17を維持しsource受入前の誤りを解消する。
+
+
+### 773. 同形ASC回帰REDとInvestment数量・価格join
+
+- Lunaは訂正したsecretless同形fixtureを再実行。summary header/data/footer3、detail preamble3/header/data/footer別表、文字列SKUと購読Apple Identifierを現物に一致させた。focused3testはRED:normalizer未実装AttributeError、integrationは新packet env未使用で旧receipt3/期待1。ここから最小normalizer/wire実装を進める。REDをsource完成や収益証明にしない。
+- root独立項目18の既存private原応答をorder IDで照合。直近buy/sell各orderにfill1/fee1、filled_at/qty/avgpriceがactivityと一致。原source SHAを付けinvestment-current-order-fill-fee-join.jsonへ保存。P&L/bankarrivalはfalseではなく未検証フラグ、金額計算・外部provider操作0。
+- current17維持。残りはASC sourceGREEN/finance fresh review/統合/実入力接続/自然report、18は正規入力結合/精算実費/review。確認済み観測を再提出・再取引へ戻さない。
