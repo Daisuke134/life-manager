@@ -697,12 +697,16 @@ def read_only_inventory(*, state_path: Path = DEFAULT_STATE_PATH, browser_factor
     """
     browser = page = None
     logged_in = False
+    account_diagnostic: Optional[dict[str, object]] = None
     result = _failed("observer_unavailable")
     try:
         verified_proposals = _verified_proposals(Path(state_path))
         with application_tick.account_lock(Path(state_path).with_name("preflight.json")):
             browser, page = application_tick._open_owned_page(browser_factory)
-            if not application_tick._production_account_ready(page):
+            account_diagnostic = application_tick._production_account_diagnostic(
+                page, solve_aws_waf=False
+            )
+            if account_diagnostic["ready"] is not True:
                 raise SourceFailure("account_unavailable")
             logged_in = True
             result = _read_surfaces(page, verified_proposals, [])
@@ -714,6 +718,8 @@ def read_only_inventory(*, state_path: Path = DEFAULT_STATE_PATH, browser_factor
     finally:
         if not _cleanup(page, browser):
             result = _failed("cleanup_failed", logged_in)
+    if account_diagnostic is not None and account_diagnostic["ready"] is not True:
+        result["account_diagnostic"] = account_diagnostic
     return result
 
 
@@ -766,7 +772,17 @@ def preflight(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optiona
     for index in (1, 2):
         inventory = read_only_inventory(state_path=state_path, browser_factory=browser_factory)
         if not inventory.get("ok"):
-            return {"ok": False, "atom": "ELZ-L01", "status": "FAIL", "failed_read": index, "error": inventory.get("error"), "logged_in": inventory.get("logged_in", False)}
+            result = {
+                "ok": False,
+                "atom": "ELZ-L01",
+                "status": "FAIL",
+                "failed_read": index,
+                "error": inventory.get("error"),
+                "logged_in": inventory.get("logged_in", False),
+            }
+            if "account_diagnostic" in inventory:
+                result["account_diagnostic"] = inventory["account_diagnostic"]
+            return result
         reads.append(inventory)
     digests = [_digest(read) for read in reads]
     identical = digests[0] == digests[1]
