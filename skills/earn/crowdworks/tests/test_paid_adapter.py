@@ -415,14 +415,34 @@ def test_paid_handoff_maps_only_a_funded_contract_with_official_terms_and_price(
     assert bundle["handoff"]["status"] == "funded"
 
 
-def test_paid_handoff_fails_closed_when_price_or_terms_are_missing():
+@pytest.mark.parametrize(("field", "value", "error_detail"), [
+    ("price_minor", None, "crowdworks_paid_handoff_unavailable_price_minor"),
+    ("price_minor", 0, "crowdworks_paid_handoff_unavailable_price_minor"),
+    ("contract_terms_sha256", None,
+     "crowdworks_paid_handoff_unavailable_contract_terms_sha256"),
+    ("contract_terms_sha256", "x" * 64,
+     "crowdworks_paid_handoff_unavailable_contract_terms_sha256"),
+])
+def test_paid_handoff_identifies_missing_or_invalid_price_and_official_terms(
+        field, value, error_detail):
     module = load()
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
-    with pytest.raises(RuntimeError, match="crowdworks_paid_handoff_unavailable"):
+
+    contract = {
+        **funded(),
+        "provider_state": "funded",
+        "price_minor": 50000,
+        "currency": "JPY",
+        "contract_terms_sha256": "a" * 64,
+    }
+    contract[field] = value
+
+    with pytest.raises(RuntimeError) as error:
         adapter.paid_handoff("63570481", {
-            "contract": {**funded(), "provider_state": "funded"},
+            "contract": contract,
             "observed_at": "2026-09-29T00:00:00Z",
         })
+    assert str(error.value) == error_detail
 
 
 def test_funded_contract_without_labeled_official_application_date_waits_truthfully():

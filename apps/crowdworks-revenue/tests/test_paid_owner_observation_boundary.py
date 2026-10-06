@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[3]
 OWNER = ROOT / "skills/earn/crowdworks/scripts/paid-owner"
@@ -86,7 +88,14 @@ def test_inventory_observation_failure_is_retryable_without_provider_effect(tmp_
     assert "--owner crowdworks-revenue-paid" in args_file.read_text(encoding="utf-8")
 
 
-def test_pre_effect_handoff_observation_failure_is_retryable(tmp_path: Path):
+@pytest.mark.parametrize(("error_detail", "pre_effect", "expected_returncode"), [
+    ("crowdworks_paid_handoff_unavailable_price_minor", True, 75),
+    ("crowdworks_paid_handoff_unavailable_contract_terms_sha256", True, 75),
+    ("crowdworks_paid_handoff_unavailable_price_minor", False, 1),
+    ("crowdworks_paid_handoff_unavailable_contract_terms_sha256", False, 1),
+])
+def test_field_specific_handoff_failures_are_retryable_only_with_pre_effect_proof(
+        tmp_path: Path, error_detail: str, pre_effect: bool, expected_returncode: int):
     fake_owner, _ = _fake_tree(
         tmp_path,
         {
@@ -99,16 +108,17 @@ def test_pre_effect_handoff_observation_failure_is_retryable(tmp_path: Path):
                 "status": "failed",
                 "effect": 0,
                 "failed": 1,
-                "pre_effect": True,
-                "error_detail": "crowdworks_paid_handoff_unavailable",
+                "pre_effect": pre_effect,
+                "error_detail": error_detail,
             }],
         },
     )
     args_file = tmp_path / "reconcile.args"
     result = _run(fake_owner, tmp_path / "state", args_file)
 
-    assert result.returncode == 75
-    assert "--owner crowdworks-revenue-paid" in args_file.read_text(encoding="utf-8")
+    assert result.returncode == expected_returncode
+    if pre_effect:
+        assert "--owner crowdworks-revenue-paid" in args_file.read_text(encoding="utf-8")
 
 
 def test_item_failure_after_mutation_is_not_downgraded_to_retryable(tmp_path: Path):
