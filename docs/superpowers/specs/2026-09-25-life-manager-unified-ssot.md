@@ -4900,7 +4900,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17の残る操作は①稼働中release-reconcilerの終端を確認（main64895457由来ALL immutableはcurrent非切替で作成済み）、②CFO新source/公式ASC packet入力は反映済み。残る同source自然レポートでASC receipt1・Mobile MRR・二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
+現在17はmain64895457のCFO自然run/同occurrence送信receiptとmobile USD20.34表示を確認済み。残る操作は①固定RC snapshot依存をCFO-owned公式MRR更新へ置換、②同source自然runで持続鮮度・ASC receipt/RC二重計上防止・不足coverage保持をreadbackすること。PR6786のCI10項目とfresh source reviewはPASS、main統合済み。source修正・独立source review・関連50+38+27/表示9/構造contractは完了済みなので再実装しない。銀行着金・全社利益・全期間coverageは別の未確認条件として保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -9933,3 +9933,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - show-transactionsで09-27〜10-06/limit100/sortdescは成功/0rows（当該scopeだけ）。鮮度境界の追加観測として既定3months/最新1を取得、07-06〜10-06/total167/returned1/latest2026-08-25T00:00:00+09:00。休眠/未同期のどちらかは断定しない。私的merchant/口座番号/名称は保存・表示せずprivate moneytree-recent-transaction-scope-readback.json/mode600。
 - 新login/connector追加/資金移動/ledger write0。残23は銀行側updated-atまたは同期公式readback、個人と会社cashの分離。欠損を0、古い最後の取引を現在残高証明、個人balanceをcompany runwayへ変換しない。
 - 実費adapterはinvoice lineのexplicit job/document/line→canonical loop joinsを要求し、shared managerというrepo/名前だけでCFOへ全額押込まない。20帰属不足と17新source自然readbackを保持、独立した既存23読取だけを進めた。
+
+
+### 801. CFO自然新MRR表示PASSと持続更新の最小修正
+
+- CFO自然run18dc08129497d5f8-11380/2026-10-06T19:40:37.948400Z/exit0/installed6489/effectunknownfalse。同occurrenceのreport19:40:31.563Z/sent/provider104566、会社MRR未確認と確認済みmobile-appsUSD20.34を分離表示。root手動send0。private cfo-main648-natural-mrr-report-readback.json。ASCreceiptの同runprivate traceはmessageのみからは未証明なのでroot限定probeを自然全proofへ代用しない。
+- producer marketing-metrics-dailyは実loaded82d31995/idle/effectunknowntrue、保存最新10-05のRCdataはapp_id/chartsのみでcurrency/revenue_definition無し。CFO固定current-mrr snapshotは継続更新未完。mobile lane fenceを解放・acquisition実装重複・無根拠applyしない。AGMSG CFO ownerへ新自然receiptと未完を報告。
+- bounded修正の目的:既存CFO pass内のoptional live MRR readerで公式options1+6app MRR GETだけを取得し既存consumerへ渡す。sourcehelpers revenuecat_app_filter/latest_complete_chart_points/MRR definition/hashを再利用、producer source編集/新scheduler/商品料金/購読/マーケ投稿無し。API失敗はunknown、古い値のfreshen/RCflowをsettledへ代用しない。credentialsはprivate SSOT既存RCrecord、project/app bindingsは既存配置。
+- acceptance:6app exactfilter/currency/definition/envelopehash、incomplete latest日除外、取得失敗/credential不在/不正scopeはgap、ASC rawpacket receiptとMrrを分離/二重計上0、optional flag無しは既存path、旧静的snapshotを成功値として残さない。最新main専用worktree/Luna6maxがCFO3files責任、rootがSSOT/review/統合。current17のsource持続更新と自然証明を完了させ、既存29順は維持。
