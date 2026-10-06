@@ -9387,3 +9387,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 案件18211957のsource-receipt.json全14ファイルをkey metadataで照合。画面取得/納品観測のreceiptでありprovider_cost_usd/invoice_id/paid_receipt/amount_minor keys無し。この確認範囲だけでfinancial sourceではないと分類し、全金融証拠の不在へ一般化しない。
 - CFO既存usage_files経路のagent-usage.jsonl 5本、計33702行をread-only照合し案件ID文字列一致0。hf-gig-paid-directの300usage eventsに費用fieldはあるがrun/occurrence/project/order/session join fields無し（task_label/task_classのみ）。Paid latest itemはtalkroom_id/evidence_pathsを持ちusage event_idを持たない。時刻近似だけで案件実費に割り当てない。案件実費はunknownで保持。証拠private coconala-18211957-actual-usage-coverage.json。
 - current cursor2.2の振込取得は公式ALB取得境界の診断待ち。独立2.4は実行ID→usage eventの既存伝播経路をsourceから確認する段階。必要な再開証拠は公式振込/銀行receipt、案件fee明細、案件にsource-boundされたusage/invoice。外部送信/振込/金融ledger writes0。主29順序、SelfBuild25/Lancers26〜28の後段を保持。
+
+
+### 731. 案件18211957の保存usageは実請求ではない
+
+- Paidのrunner呼出しはproject-root配下のevidence-dirを渡す。現agent_runnerのusage event_idはSHA256(evidence_dir:attempt)先頭24文字で、同evidence-dir再使用時にidentityが衝突し得る。現sourceだけで過去runのID生成規則へ一般化しない。
+- 案件内attempts.jsonlの10実行をread-only照合。6実行cost_basis=api_equivalent_estimate、4実行unavailable。見積値はactual billed/paid receiptではないため案件利益へ加算しない。保存stdout_path/attemptから10identityを導出し既存5usage logsと照合したが一致0。これは実行/費用0の証拠ではない。証拠private coconala-18211957-derived-usage-join.json。
+- 主項目2のfinanceDoneはHOLD。振込/feeはALB403取得境界、実費は案件bound公式請求不足。3〜5も同Coconala browser取得境界に依存するので、独立した既存順序6 Mercor旧応募33812の公式readback準備へ進む。順序変更/完了扱いではなく保留を保持した独立作業。
+- Mercor skill/canonical application-ownerを確認。ownerはapplication effect/認証writebackを含むので診断目的で実行しない。まず旧intent/listing identityと既存公式snapshot/read-only取得経路を照合し、旧resource_effect_unknownのfenceを証拠なしに解除しない。AGMSG既存lm inboxは新着無し。送信/応募/振込/本番設定変更0。
