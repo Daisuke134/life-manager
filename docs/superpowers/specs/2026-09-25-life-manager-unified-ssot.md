@@ -9949,3 +9949,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 部分spawnの同boot task PID42117/42357は実在/cwd一致/model+max flags確認、native threadは未作成/sourceclean。標準despawnはplacement無しで不可。自身のunique boot argvを再検証してこの2processだけSIGTERM、両missing確認。共通app-server/Mac/loginwindow/他owner停止0。重複writerを重ねない。
 - 同promptを明示gpt-6-luna/maxの有限codex execへ渡しhandle8114継続。thread.started/commandeventsと担当messageでGitroot/branch/remote/mergebase/source-boundary確認を取得、実着手を確認。sourceownershipはCFO3filesのみ、producer/acquisition/本番/SSOT編集禁止。AGMSG ownidentity/readiness/reportはchildから確認、placementの偽修復無し。
 - skill Brainstormingの承認待ち指示は現No-humanと矛盾し上位現指示を採用。boundeddesign/§801受入を先に提示・保存し、追加承認質問無し。rootは同source編集せず結果/検証/reviewを担当。current17は持続source更新を完走し、自然20.34表示の既Doneを再作業へ戻さない。
+
+
+### 803. Luna実装のGit metadata sandbox境界を修正
+
+- finiteexec8114はexit0/未実装でterminal。workerはworktree lease lockの共通.git/worktrees metadata書込がworkspace-write sandboxでOperation not permittedと確定し、clean/base6489/lease未作成/source変更0をAGMSG ready/blockerで報告。観測timeoutで再起動したのではない。
+- 依頼済みのworktree lease/commit/pushに必要なGit操作を可能にするため、同gpt6-luna/max/approvalnever/専用3file scopeのfiniteexecをdanger-full-accessで再開handle23227。他者source/共有checkout/acquisition/本番/実API/SSOT編集禁止を維持、既旧writerterminalを確認して重複writer0。旧世代fallback/新provider設定0。
+- AGMSGで変更理由と未編集確認を報告、rootは同sourceへ編集せず実装結果を待つ。scope/§801受入は不変。current17の持続MRR readerを最小RED→GREEN→sourcepush→review→自然更新まで完走する。
