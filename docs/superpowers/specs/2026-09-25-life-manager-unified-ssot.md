@@ -9451,3 +9451,11 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 具体的候補は40753447「Website for modern style portfolio site -- 2」と40753376「High-Converting Product Landing Page」。handle40059 exit0、UTC16:03:13.839803、両公式details HTTP200/Project ID一致/募集残期間表示、PHP/WordPress等・Elementor/CRO等のskill tags。詳細要件/実費/応募可能control/account identityはまだ未確定。private freelancer-two-project-readiness.json。budgetは表示見積で売上ではない。
 - crwlで公式 https://developers.freelancer.com/docs/api-overview/types-of-integrations を取得。Automatic Biddersは禁止対象、agency自身用internal toolの例外承認は場合により存在。現private authorizationsにFreelancer receipt無し。一般応募権限をAPI自動入札例外の証拠に代用せず、browser経由で既存gateを迂回しない。文書scopeはAPI integrationであり、全手動応募禁止へ一般化しない。
 - cursor8次はdashboard email verificationの実control/公式receiptと2案件の完全要件を取得する。応募は実要件/必要資格/automation承認境界を照合後。公開案件が存在すること・login成功は応募/受注/収益の証拠ではない。主29順序・前段保留保持。応募/返信/価格/出品/振込/本番loop変更0。
+
+
+### 739. Freelancer応募フォーム表示とverification誤認を訂正
+
+- 2候補40753447/40753376の公式要件を取得しprivate freelancer-project-requirements-private.jsonへ保存。40753447はEC全体/checkout/tax/shipping/inventory/SEO/launch support、40753376はsingle-scroll landing/product carousel/testimonials/payment handoff/responsive/source/update instructions。まだ受注/履行/利益ではない。requirementsはProject Details〜Skills Requiredを対象とし他参加者コメントを要件に混ぜない。
+- 初回verification control取得は有料Verified営業messageまで広く取得してしまった。不要なprivate message出力を完了証拠に使わず、以降control labels/状態のみへ縮小。営業Verified badgeをemail認証必須条件へ混同しない。
+- handle78427 exit0、UTC2026-10-06T16:04:22.264462、dashboard「Already Verified」、案件40753376本文「Email verified」、bid amount/days/proposal/milestone inputsとPlace Bid buttonの表示を確認。先行button/body取得はhydration前の観測だったためbid action false/email noticeだけを応募不可へ採用しない。現メール未確認はblockerから除外。private freelancer-bid-control-boundary.json。クリック/応募0。
+- cursor8残は費用/適格性と既存自動化許可境界。公式API automatic bidder例外receipt無しは保持し、UI送信で迂回しない。低予算40753376に採算ありとは未判定、scope/fee/実費を照合前に価格/納期を約束しない。主29相対順序/2〜7保留/SelfBuild後段保持。
