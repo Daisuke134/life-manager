@@ -9132,3 +9132,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - fresh Sol6.1medium actual_current_mrr_reviewは上記限定でpolicySHIP。focused受入は実5.66秒差PASS、ちょうど24h境界、24h+1us/future+1us拒否、1件25h古いmixed6製品拒否、他provider/loop/balance/financial旧gate維持。既存specのfresh/fail-closed目的を保ちながら実逐次取得との不整合を修復する。
 - 最新main3ae4176e由来専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/lm-mobile-mrr-freshness-20261006、branch fix/lm-mobile-mrr-freshness-20261006、lease codex-money-printer-mrr-freshness/24h。Luna6max所有はskills/cfo/economic_attribution.py/adapters/capafy_mobile.pyと既存対応tests（必要schemaはrootへ相談、新schema/configは既定不要）。rootはSSOT/受入/freshreview/CI/main/actualreadbackを所有。
 - source/runtime/projection受入は未完。現在cursor1/残29/相対順序、旧senderのunknown保護、SelfBuild25/Lancers26〜28の後段を維持する。
+
+### 697. 実RevenueCat入力によるMRR鮮度修復候補の確認
+
+- 実API保存入力 `~/.local/state/life-manager/state/cli-observability-20261006/cfo-actual-current-mrr-input.json` の6商品分を、専用branch `fix/lm-mobile-mrr-freshness-20261006` の修復候補adapterとcentral projectionへ通した。provider I/O・外部effect・canonical ledger書込は0。観測時刻/hashを変更せず、snapshot_at `2026-10-06T10:41:16.952030Z`、latest complete period `2026-10-05` を保持した。
+- 実入力replay結果はMobile MRR `verified / USD 20.34`、RevenueCat MRR coverage complete。会社MRRはunknown、ASC historical/trailing financial coverageはgapのまま。年額proceeds・入金・利益への置換はしない。保存証拠 `cfo-mrr-freshness-actual-replay.json`。これは取得済み実入力へのsource候補検証であり、本番loaded/natural成果ではない。
+- 実装は指定4 CFO filesのみ。focusedテストGREEN、全体テストでsparse checkout不足によるproducer integration failureを検出し、既存ファイル取得後に再確認する。schema parityの既存差分も今回変更との因果を分けて確認中。commit/push・fresh read-only review・CI・main統合・immutable反映は未完。
+- §217の残29/current1・相対順序は不変。独立したCFO原因修復を進めても、既存有償案件の納品・精算をDoneにはしない。mock商品制作は再開しない。
