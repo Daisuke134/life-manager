@@ -9976,3 +9976,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - cursor17のLuna/max担当 lm-cfo-mrr-live-1007 が専用branch fix/cfo-current-mrr-readback-20261007 にreader・loop_pnl接続・回帰testを実装中。primaryは同じsourceを編集しない。options1回+6app exact filter MRR取得、live時のstatic RC MRR除外とASC保持、明示過去snapshotに現在値を混ぜない接続を実差分で確認。
 - primaryがdate参照不具合を発見して担当へ連絡し、dt.dateへの修正を確認。新機能7tests GREEN後、primary独立実行の python3 -m unittest skills.cfo.test_revenuecat_readback skills.cfo.test_loop_pnl skills.cfo.test_capafy_mobile_attribution skills.cfo.test_economic_attribution は122/122 PASS。これは隔離source検証で、公式API取得・本番鮮度・利益の証明ではない。
 - sourceはまだ未commit/未push。scope/hash/実main経路の追加確認、fresh read-only review、source commit/push・CI/main・immutable反映・自然readbackが残る。現在cursor17、既存相対順と前段保留、SelfBuild25/Lancers26〜28を保持。
+
+
+### 805. 新CFO readerのRevenueCat公式API実接続を確認
+
+- cursor17の追加focused testは10/10 PASS。fresh gpt-6.1-sol/medium read-only source reviewを有限独立session handle84885で開始。Luna実装handle23227はliveのまま、重複source編集なし。
+- primaryのread-only実API probeは2026-10-06T20:23:17.681921Zに完了。private SSOTの既存credential/既存projectを新readerに渡し、6app全available、既存adapterでsubscription_snapshot6件へ変換。USD20.34が1件、explicit USD0が5件。これはMRRだけで、settled receipt・銀行着金・利益ではない。
+- 証拠private cfo-mrr-live-reader-official-readback.json、SHA4e12cb080749cd0d2295e4a81fe3aedea9960c443dfaa806488eefb8211dd529。実API取得にmockを代用せず、API設定/購読/価格/本番loop変更0。未commit sourceのprobeであり、最終source SHAに結び付けたreview/本番自然実行は未完。
