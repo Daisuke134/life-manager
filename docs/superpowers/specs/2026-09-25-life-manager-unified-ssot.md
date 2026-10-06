@@ -4891,7 +4891,7 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 
 #### 現在の詰まり（今回のCLI readbackで確認）
 
-- Coconala：registered browserと既存orders-only CLIで公式受注route HTTP403/coverage incomplete。表示CAPTCHA・login redirectなし。現受注件数/待返信/納品状態はunknown。Storefrontの現在購入経路も未確認。過去3件/公開20件を現状へ代用しない。§703。
+- Coconala：以前の受注/売上403後、同registered profileで公開top/revenue比較はHTTP200へ復帰し、current revenue parserで18211957の1明細を取得（§724）。恒久403とは固定しない。銀行receipt/fee/実費と全履歴・現在の受注/購入導線は未確認。過去件数を現在値へしない。
 - CrowdWorks Paid：価格取得不具合はmain4429と公式3readbackで解消。64033100は採用応募フォームであり、サービス成果物の納品と混同しない。63942104/63989657の実要件とbound receiptを取得中。63826932/63819060の旧結果照合待ちは再送しない。正式納品・入金は未確認。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
 - CFO：旧3ae再適用はrelease-reconcilerのrun43699と確認済み。その後rootのsafe preflightは13:12:55 UTCにPASSし、公式GUI printで実loaded argvとplistが57e09ccf一致、current2cf94f43を確認した。57eは4bのdescendantでMRR24h修復を含む。旧版へ戻った状態は現blockerから除く。公式データ接続・自然集計/レポートは未完。競合再applyなし。§707。
@@ -9335,3 +9335,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - legacyrevenue_collectorをsource/caller確認したが、append mode・振込申請・銀行変更・CFOledger writeは実行0。見つからないページ/同URL403を受取0の成功として扱わない。証拠 `coconala-current-revenue-route.json`、own pageとleaseを終了、外部effect0。
 - 受注と売上の異なる公式route両方で403を確認。vendor認証不良・アクセス制限・ブラウザfingerprint原因はまだ断定せず、表示challenge無しにsolver taskを作らない。再開条件はregistered正規accountのrevenue route HTTP200/expectedcontainer/同18211957明細とpayout/costのsource。現在2は未完、unknown財務を0やsettledにしない。
 - このvendor依存だけで全channelを止めず、アクセス境界診断と独立source取得を進める。主29順序/SelfBuild25/Lancers26〜28は維持。
+
+### 724. 正規Coconala売上route復帰・対象明細取得
+
+- registered coconala:kosuke/既存gig lock、profile/auth設定変更なしで公開top→revenueを比較。2026-10-06T15:09:16〜17Zに両HTTP200、revenueSetCookie存在（値非出力）、login/CAPTCHA/WAF header表示なし。直前403を永続vendor拒否や認証失敗と断定しない。navigation順との因果は未証明。証拠 `coconala-public-private-route-comparison.json`。
+- 同じ正規経路でcurrentrevenue GET run8272はexit0。15:12:18.206181Z、HTTP200/expectedcontainertrue/loginfalse、取得bodyhashd6d00fa749419bd08134b06332eeae3bee9ffcde11b953f7de95a0cf2f5cf499。既存pureparserに渡し1row/18211957 identity1、close表示09/27 03:00を取得。client名/title/回答値/credentialをpacketへ複製せず、必要fieldsのみprivate保持。
+- parserのjpy表示はplatformrevenue rowの観測であり、rawcolumnのnet/gross定義・actualfee・銀行入金・profitを追加確認前に認定しない。payout_requestedfalseは表示token不在であり銀行未入金の証明ではない。1row取得を全28履歴や全periodの売上0/全件completeにしない。金融高リスク結論を更新する時はfresh reviewでsourcebindingを確認する。
+- 証拠 `coconala-current-order-revenue-readback.json`。外部send/ledger/CFOwrite/transfer/account/profile設定変更0、ownpageclose/lease解放。current2のアクセス境界は復帰確認、fee/bank/actualcost joinは未完。次は同案件payout/費用sourceを閉じる。
