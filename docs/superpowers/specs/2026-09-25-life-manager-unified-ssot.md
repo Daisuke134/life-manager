@@ -9264,3 +9264,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Luna/maxは逆向き/同居税矛盾5caseのRED→GREENを確認。clone primaryの税抜/税別をJSとPython両方で拒否し、旧注記P1修正も維持。147 adapter＋shared test_contracts.py11件PASS、rootも合計158件PASSを再実行。loop-contract/diffcheck PASS。修正commit4220d8d543を同PR6781へpush。最終独立review/CI/main/actualreadbackは未完。
 - base由来OSS 3iconsは画像そのものを消さず、既存declaredAssetDigests契約に従うhash宣言を追加する。専用最新main由来worktree/branch `fix/lm-capafy-source-assets-20261006`、所有は新規 `skills/capafy/catalog/source-assets.json` 1fileだけ。実商品iconのrelative path/sha256/roleを宣言し、SourceProofで同bytesを確認する。guard/baseline/pricing/catalog listings/画像bytes/本番を変更しない。既存Luna/max有限runへ分離して依頼しrootが統合。
 - canonical asset宣言は現在のCIを通すための必要最小source修復であり、新tool/商品/販売企画ではない。Capafy ownerへのsendは返答なし、同じ既存sourceファイルを触らず新規manifest1fileの所有を明記。Rootの現在cursor1.1/主29順序は不変。
+
+### 713. canonical icon宣言1fileをOSS PASSでpush
+
+- Luna/maxは新規source-assets.jsonだけを作成。rootでversion1/3assets/relativepath/role agent_icon/actual SHA一致を確認。既存画像3filesとverifier/baseline/pricing/listings/runtimeは不変更。rootがindexへstage後、既存node scripts/verify-oss-self-contained.mjsはPASS、diffcheck PASS。外部effect0。
+- source commit `99657d44433eaa40d069a8091b3836d9950c15e0` を専用branchfix/lm-capafy-source-assets-20261006へpush、remote一致/clean。PR6782作成、通常CIは未完。source metadata1fileなので追加の新QAを作らず、既存hash/OSS検証を受入根拠とする。
+- CrowdWorks4220d8d543の最終tax解消fresh Sol6.1/medium read-only run1589が進行中。asset PRをmainへ統合後、CrowdWorks branchを最新mainへ更新してCI再検証する。current1.1/残29順序不変、actualreadback/納品は未完。
