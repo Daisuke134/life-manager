@@ -377,20 +377,20 @@ Expected: pause/resume/disconnect report only verified persisted state and all f
 - An exact selected account readback of `MISSING` or `EXPIRED` reports an actionable Calendar state. The user-initiated start may bind one unique exact-uid ACTIVE account or begin fresh OAuth; it never enables the stale account.
 - Network/5xx failures, ownership or ID mismatch, and contradictory/unknown status remain unavailable and fail closed. Those outcomes never initiate OAuth, bind an account, or PATCH the provider.
 
-- [ ] **Step 5: Add failing expired/missing binding recovery cases**
+- [x] **Step 5: Add failing expired/missing binding recovery cases**
 
 Cover exact MISSING and EXPIRED status with actionable Today/Calendar UI, one exact ACTIVE account recovery, fresh OAuth when no ACTIVE account exists, zero stale-account enable PATCH, and unchanged fail-closed behavior for network/5xx/owner/ID/unknown-status failures. Exercise the real Composio status helper.
 
-- [ ] **Step 6: Run the focused suite and confirm the new cases fail**
+- [x] **Step 6: Run the focused suite and confirm the new cases fail**
 
 Run: `node --test lib/panel-api.test.js lib/web-calendar.test.js lib/web-travel.test.js lib/web-page.test.js test/scheduler.test.js lib/transport/calendar-composio.test.js`.
 Expected: current EXPIRED/404 readback aborts before the actionable recovery and status path.
 
-- [ ] **Step 7: Keep safe status resolution separate from enable permission**
+- [x] **Step 7: Keep safe status resolution separate from enable permission**
 
 Map only exact selected-account 404 to MISSING and exact EXPIRED provider state to EXPIRED. Allow those states to enter user-initiated recovery/OAuth without enabling the old account. Preserve no-effect behavior for unknown, ownership, account-ID, and network failures.
 
-- [ ] **Step 8: Rerun focused tests and commit**
+- [x] **Step 8: Rerun focused tests and commit**
 
 Run the same focused suite. Expected: stale accounts offer a usable reauthorization path, unknown outcomes remain fenced, and no stale account is re-enabled.
 
