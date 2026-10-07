@@ -55,6 +55,9 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - A10 natural report acceptance is still open. Branch `fix/cfo-telegram-runtime-receipt-20261007` has a pushed source change (`b63e42f27f4bacfbe4f194b1e1cb66c5639c559c`) for occurrence-bound Telegram receipt hints, but no PR, review, main merge, or production load has been verified. A future seven-day natural run must reconcile the full report hash, provider message receipt, and runtime event before the report is called delivered.
 - A read-only search of Gmail at 14:21Z for Google payment-received/success/confirmation terms returned 0 messages in that bounded query. The invoice PDF does not say paid; the matching bank card notice lacks posted/settled wording and invoice/account binding. Treat payment settlement as unknown, not unpaid or zero.
 
+- The latest direct read-only `loop_pnl.py --date 2026-10-07 --json` projection completed at `2026-10-07T15:00:58Z` with exit 0 and no stderr. Historical, trailing, and MRR company status are all `unknown`; currency totals are `{}`; all 18/18 loops are unknown; gaps are 173/173/29. This one-off projection is not a scheduled/natural CFO report receipt and does not establish an October 7 one-day P&L or zero revenue/cost.
+- PR #6915 is draft/open. The latest existing CI run before this update (#37640558443, pre-update SHA `d410085e`) had one failing unrelated `Loop control contracts` test, `test_pressure_measurement_uses_parsed_bin_closure_with_tabs`: `cut-loop-release` reports commit `e85b6f64` is pushed but not on `origin/main`; other reported checks passed. Do not weaken or bypass the test; rerun checks on the new spec commit and keep it unmerged until required checks pass.
+
 ## 3. Accounting ownership
 
 Every financial row has exactly one `owner`:
@@ -195,13 +198,13 @@ Telephony, paid model calls, and user-requested external actions remain separate
 
 This section defines phase scope and acceptance intent, not the live TODO order or completion status. The unified SSOT is the sole source for the active cursor and remaining work.
 
-### CFO-first execution priority (user-requested; canonical SSOT sync pending)
+### CFO-first execution priority
 
 This active goal is the **business CFO**: actual revenue and actual costs for every canonical business agent/loop, followed by a reliable report. It is not the personal Moneytree rail or the Life Manager Cloud cost-reduction project. Active completion order is **A5 → A6 → A8 → A9 → A10**:
 
 1. **A5 — per-agent/loop cost visibility:** expose usage, estimate, actual, and unknown by provider and runtime job/agent ID, mapped product loop, or explicit shared/control/platform owner using existing identifiers and report surfaces. Warnings remain warning-only; do not add a global hard cap or silently stop work.
 2. **A6 — Google billed actuals:** the official Cost Table CSV and invoice identity are captured. Reconcile invoice period, project, service, SKU, tax, credits, and currency against Monitoring estimates. Attribute invoice costs to a runtime job/agent or product loop only when provider/occurrence evidence supports it; otherwise show the amount in an explicit shared/unattributed bucket. Keep invoice-billed expense separate from posted/paid cash settlement.
-3. **A8 — full business coverage:** keep the verified exact 18 product-loop/B7 ID set; update the stale SSOT 14-loop count after its lease is released. Join each product loop's gross/settled revenue, refunds, fees, billed provider/API costs, subscriptions, and infrastructure costs by period/currency and official receipt. Map all 186 runtime jobs: 111 catalog-owned jobs to product loops and 75 control/platform/shared jobs to receipt-backed product-loop allocations or explicit company overhead. Preserve direct versus shared cost; do not convert estimates or missing values to actual/zero.
+3. **A8 — full business coverage:** keep the verified exact 18 product-loop/B7 ID set, now recorded in the candidate unified SSOT in this branch. Join each product loop's gross/settled revenue, refunds, fees, billed provider/API costs, subscriptions, and infrastructure costs by period/currency and official receipt. Map all 186 runtime jobs: 111 catalog-owned jobs to product loops and 75 control/platform/shared jobs to receipt-backed product-loop allocations or explicit company overhead. Preserve direct versus shared cost; do not convert estimates or missing values to actual/zero.
 4. **A9 — usable CFO report:** reuse the existing CLI/report surface to show each product loop's gross revenue, refund/fees, settled revenue, billed expense, posted cash paid when proven, net contribution, and MRR separately; show cost-bearing runtime jobs under their mapped loop or shared/control/platform owner. Include period, currency, receipt, freshness, and coverage. Company totals must reconcile to source rows.
 5. **A10 — natural acceptance:** observe seven consecutive days and read back every canonical product-loop row plus the disposition of every runtime job's cost. Company totals must include business-loop expense and control/platform/shared overhead. Missing categories remain explicitly unknown with an owner/next action; do not claim a complete CFO or $10k MRR from partial coverage.
 
@@ -209,7 +212,7 @@ This active goal is the **business CFO**: actual revenue and actual costs for ev
 
 **A7 Moneytree is deferred by the user and is not part of this completion gate. Do not call the Moneytree plugin, attempt login/reconnect, or spend time on personal-bank data in this work. Existing Moneytree values in this document are historical observations only; they are not refreshed or presented as current. One bounded read-only account/transaction check was mistakenly made at 2026-10-07T14:21Z despite the updated goal explicitly deferring A7; it caused no writes or transfers, does not complete A7, and must not be repeated.
 
-This records the requested priority, **not** a new active cursor. The latest merged main SSOT still has the previous order and cursor `A4.1`; its separate worktree remains under an active owner lease. Do not edit that worktree or claim its canonical order has changed. The SSOT owner must reconcile the new A5→A6→A8→A9→A10 order after the lease is safely released.
+The candidate unified SSOT in this branch now records the order and cursor `A5`. The last verified `origin/main` still has cursor `A4.1`; main changes only after this PR merges. This is a source/spec update, not a claim that production or main has moved.
 
 ### A0 — Spec and ownership
 
