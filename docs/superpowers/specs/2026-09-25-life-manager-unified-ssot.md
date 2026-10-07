@@ -4927,7 +4927,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 15 | Fundraiserの旧申請provider/account/intentと公式結果を照合し、対応が解決してから適格な未送信申請を進める。結果未確認の再申請なし | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
 | 17 | 次の自然eligible CFO occurrenceで保存されたsidecar JSONと同run送信receiptを照合する。capacity busy時は自然eligibilityを待ち、手動wake/replayしない | source・139 tests・review・CI・main merge・immutable release・CFO target applyは完了。apply直後のrunは`resource_capacity_busy`で外部effect前にdefer、sidecar無し。完了には公式取得tuple・原report SHA・正規receipt identity・currency/settlementのoccurrence別保存、native report IDの未確認表示、RevenueCat同期間join/二重計上0、mobile lane重複なしが必要。 |
-| 18 | Investmentの既存10/01 BTC/USDC買い・売り注文について、確認済みFILL/CFEEを維持し、取得済み開始NAV/2注文照合を保持し、同じ確定終端NAV・activity/transferの期間完全性・資産別settlement/USD換算・実行owner receiptを確認して同注文へ結合する。口座全体NAV差額をこのpairの利益へ代用しない | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
+| 18 | Investmentの既存10/01 BTC/USDC買い・売り注文を、更新した公式FILL/CFEE・10/01開始NAV・10/07 00:00Z終端NAV・期間activity/transfer coverage・手数料USD評価・実行owner receipt・CFO normalized outcomeへ結合する | 開始/終端NAVと2 FILL/2 pair feesの一致は限定確認。09/30 fee2件・全口座過去FILL8件・owner receipt・fee USD valuation・normalized outcomeはHOLD。NAV差やSep transferをpair profitにしない。paper/live区別、既存cap。新規trade・資金移動・cap変更0。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
 | 21 | 19と20の同期間・同通貨の実収益/実費を使って、loop別と全体のnet marginを計算する | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
@@ -10179,3 +10179,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - source main3aa/immutable/target load gatesはPASS。RunAtLoadで起動した最初のnew-SHA occurrenceはhost admissionがbusyのためRevenueCat取得・report effect前にdeferした。admissionのmanual wake/replayはしない。次のscheduled natural eligible CFO runだけを観測し、occurrence別JSONと同run report delivery receiptを照合する。
 - §217の既定どおりcursor17は未完で固定。自然run待ちの間は次の独立read-only項目18（10/01 investmentの既存FILL/CFEE・開始NAV・終端NAV・settlement/owner receipt join）を進める。売買・資金移動・cap変更はしない。17を完了扱いせず、18以後の相対順も変えない。
 - 項目18で`run.py --help`を実行したところ、helpではなく一度だけ投資runnerが起動した。`mode=unknown`・`investment_mode_invalid`をstart段階で検出し、broker API/注文へ進まず`effect=none`でblockedしたが、Telegram blocker通知を1件送信した。local outbox receiptはevent `alpaca-failure:2026-10-07T00:26:50.144274Z` / provider message ID104783 / delivered 00:26:51.069832Z。公式Telegram履歴で同時刻のmessage ID107432を確認し、本文SHA256`25dea4f5d3929a6644eef29cb2e8830209780f7f0b0914eb9ade8f85e24318e0`がoutboxと一致。ID体系の差を混同せず、再通知・再送0。これは収益/投資成果に数えない。
+
+
+### 832. Investment row18 official refresh後も期間損益はHOLD
+
+- Existing Alpaca CLI pinned version0.0.14・credential SSOTを使い、live accountに対する`account activity`、`account portfolio`、wallet-transfersのGETだけを実行。order submit/cancel、資金移動、run.py loop起動0。`investment-period-official-readonly-refresh-20261007T004334Z.json` はmode600、SHA256`3dbd989be7d343d11b5b1ace198097b7a6270e72c3f95e56abf925cc2bf2e372`、5 GET。
+- Period Oct1 00:00Z–Oct7 00:00Zの1page each: FILL2、CFEE4、CSD/CSW 0 rows、wallet transfer total1 (USDC COMPLETE、created Sep9; period外)。2 FILLは既存order listとprior joinの2件へ一致し、各orderにfee1件。CFEE追加2件はdate09/30。`net_amount=0`をfee zeroにしない。
+- 1Min continuous portfolio historyのOct6 23:50–Oct7 00:00Zでは11点、正確なterminal point 00:00Z NAV66.47。既存開始点はOct1 00:00Z NAV66.54。差分はperiod profitではない。owner run/occurrence receiptの検索は2 orderともmatch 0。手数料のUSD根拠・CFEE date/settlement帰属・全account P&Lは未確定。
+- Fresh gpt-6.1-sol/medium read-only reviewはrow18 HOLD。期限内source endpointsはlimited complete、既存2-order FILL/CFEE join限定PASS、historical 09/30 fees / outside-period USDC transfer / past FILL8 / owner binding / fee USD valuation / normalized outcome不足を確認。`read_live_performance_snapshot`は2注文FILL/CFEEだけに対し全口座NAV差額とstarting NAV=0を使うため、source bugを直すまで算出P&Lを採用しない。
+- Row18の残りは、同2 orderのexecution owner receipt/run binding、10/01 pair feesと09/30 CFEEのofficial settlement-period所属、BTC/USDC fee USD valuation根拠、coverage-complete normalized outcome。既存取引・cap内read-only確認のみ。新規売買・口座入出金・再通知なし。current cursor17、順序変更0。
