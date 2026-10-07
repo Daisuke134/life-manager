@@ -3862,23 +3862,23 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 
 ## Host disk recovery incident
 
-目的: Mac のディスク逼迫の主因を観測し、未使用で再生成可能な出力を回収し、cleanup の実稼働と容量不足の誤成功を修正する。
-範囲: host inventory、所有者が確認できる stale process/cache、既存 disk cleanup owner。認証、memory、state JSONL、使用中 release と他者の編集を保護する。
-受け入れ: 空き容量の前後、正確な回収対象、cleanup scheduled receipt、誤成功の focused regression、source/main/release evidence。再発しないという無期限の保証は行わない。
-観測: Data volume の空き約 1.5 GiB、ゾンビ状態0、cleanup の過去 receipt は ULTRA/zero reclaim を ok=true としている。GUI preflight PASS だが cleanup label 未ロード。
-TODO: [進行中] 最大容量familyの診断と安全回収 → [未完] exact cleanup failureの最小修正 → [未完] source acceptance/merge/immutable release → [未完] natural receiptと空き容量readback。
-現在cursor: 大容量familyの計測、既存allowlist governorのowner lock下での回収。既存business TODOの順序は変更しない。
+目的: Macの容量逼迫を診断・安全回収し、既存cleanupの稼働と管理下の有限ジョブの容量ガードを修復する。
+範囲: metadata census、未使用と確認できる再生成物、既存disk cleanup owner。認証・memory・state JSONL・使用中release・他者の編集を保護する。OS/interactive clientのquotaや無期限の無障害保証は対象外とする。
 
-Host recovery追加条件: 単発回収だけで完了にせず、既存5分cleanup + 同じgovernor/同じstate lockの60秒watchdogをimmutable sourceへ接続する。watchdogの旧無条件rm/強制worktree unlock経路を置換する。共有runnerのscratch/admissionがENOSPCでもdirect governorは1MiB receipt reserveを使って回収できる。候補の固定順budget starvationをdurable cursorで修正する。
-確認済み障害: main cleanupとemergency guardはlaunchd disabled。main cleanupをsafe enable/startで復旧し、run `18dc2aedb58ab548-42604` はscratch 107件を回収した。旧terminalのULTRA/CRITICAL容量不足でok=trueとなる判定は修正中。
-安全回収: governorがstale updater1件を同一性確認後SIGTERMし、2380146999 bytesのallowlisted cacheを回収。起動Simulator0のためApple simctlでdyld_shared_cacheを除去した。後続dfで空き約6.7GiB。memory/session/credentials/state JSONLを削除していない。
-計測の限界: user Libraryの多数のTCC保護rootはsudoもOperation not permitted/timeoutである。unknownを0に置換しない。homeのその他約200root、Applications、Homebrew、Developer、var/db等をbounded計測。長時間止まった自分のdu probeだけSIGTERMした。
-現在cursor: workerの誤成功/cursor/fallback source fix → focused acceptance → main/release → target idle apply → primary+watchdog natural receipt。追加のshared disk admission診断を並行する。
+| TODO | 状態 | 証拠・境界 |
+|---|---|---|
+| host census/安全回収 | 部分完了 | Data空き初期約2GiB。stale updater1件を同一性確認後SIGTERM、allowlisted cache2380146999 bytes、起動Simulator0を確認してApple dyld cacheを回収。空きは最大約6.7GiB、継続writeで約1.6GiBへ戻る。TCC保護rootはsudoもpermission/timeout、unknownを0にしない |
+| cleanup source repair | 完了 | PR #6858、main `d6f5d8f724ba584f0a5fddd19f8bb3e0aa3ce673`。容量未達/unknownのfalse success、候補starvation、df512/1024単位差、cursor ENOSPCでsweep0、terminal reserve消費を修正 |
+| source acceptance | 完了 | full focused352+7subtests、runtime unittest785、Node15、最終ENOSPC修正後185+5subtests、contracts、OSS境界、gitleaks、CI10項目、fresh Sol review ship |
+| main/immutable release | 完了 | `/Users/anicca/loops/releases/20261007T164053-d6f5d8f7`。main由来、current/loaded argv readback |
+| finite producer guard | 部分完了 | 149対象をowner lock/loaded-idle/pending保持で確認。初回93変更/15変更不要。最終installed code readback117新guard/32旧。未claim・同policyのLancers reservation1件は既存opt-inでFIFOを保持して更新。ebook-jaは反映済み確認 |
+| main cleanup/watchdog | 完了 | 5分主labelと60秒com watchdogをenabled/loaded。同じimmutable governor/state/flock。旧watchdogの無条件rm/強制unlock経路はscheduled ownerから外す |
+| natural receipt/readback | 部分完了 | 主cleanup observed07:52:29Z、watchdog07:54:42Z: errors0/protected deletions0、capacity_recovery=unmet、exit1、cursor start0→2を確認。finite exact-owner自然terminal20件でdisk_headroom_low/not_applicableを確認 |
+| 回復床11GiB/全guard | 未完 | 117/149のみ導入確認、空き約1.6GiB。28ownerのeffect_unknown、legacy/incomplete policy、resource class drift、unloaded等は保持。source/CLI0/過去receiptを本番復旧PASSに置換しない |
 
-共有producer予防gate: source診断でlm_loop_runにはdisk checkがなく、既存disk_admissionは一部wrapperだけ/default512MiB。従って今回の再発防止には既存memory pre-enqueue gateと同じ形で11GiBのdisk preflightを接続する必要がある。CONTROL_PLANE_SAFETY_LOOPSはbypassしcleanupを継続、現在実行中のownerは停止せず新しいfinite producerだけeffect dispatch前にdeferする。既存queue/fenceを削除/書換せず、新しいquota frameworkは作らない。受け入れはlow-diskのprovider dispatch0、cleanup bypass、normal headroomの既存経路、typed deferred receipt、main由来production自然run。
+稼働中ownerは一括停止しない。finiteの11GiB checkはpre-enqueue/post-claimでchild0、予約は既存60秒defer、未起動claimはrequeue/reserve=false、control/continuous共有pathはbypassする。individual legacy512MiB contractは保持し、shared gateはenv0でも11GiBを下げられない。
 
-容量報告の別障害: host_inventoryはmacOSの`df -P` (512-blocks)を1024倍しており、実245GBのdiskを490GBと報告する。実df -kPとAPFS readbackで2倍差を確認。df -kPへ単位を固定し既存1024-block fixtureに回帰を追加する。governorのshutil.disk_usageは正常であり、このreport不具合とgovernorの判定を混同しない。
-source/運用の未完境界: 空きは約6GiBで11GiB未回復。session DBのfree pagesはほぼ0で、VACUUMによる有意回収はない。全dependency bundleにはproduction/source参照があり削除不可。唯一のmerged/clean/expired lease worktree候補にもopen reference1件あり保護する。TCCのunknown rootsはunknownのまま残す。
+緊急`state/disk-writers.stop`はowner_id=`host-disk-recovery-installing`、next_action=`install_and_verify_all_finite_disk_guards_before_arming_recovery`で保持する。全対象finiteの導入確認前にrecovery owner/next_actionへ戻さない。foreign/unknown/unsafe/identity変化の旗は削除しない。必要なsource導入を確認後、11GiB以上なら既存のexact-owner finalizerが解除する。
 
-共通gateの最終範囲: 11GiBを下げられない定数をmanaged finite runnerへ適用する。既存individual disk_admission wrapperの既定512MiB/env contractは、継続ownerやdirect callerへの副作用を避けるため維持する。shared gateはwrapper env=0でも11GiBのままである。常駐ownerの開始経路とcontrol-plane safetyは共通gateをbypassする。managed外のinteractive client/OS writerの容量上限を今回実装したと主張しない。
-検証/反映cursor: source branchのstage1 `c282bd4179...`はpush済み。stage2はpre-enqueue/post-claimのprovider child0、unknown→not_applicable、既存reservation解放+60秒cooldownをfocused確認し、subprocess testのhealthy disk fixtureを整える。旧watchdogはsafe bootout/disableし、旧無条件削除を止める。新templateのimmutable render/readbackは未完である。
+owner/evidence: primary `/root`、source worker `cleanup_fix`、fresh reviewers `disk_review`/`disk_review_final`/`disk_ship_review`。runtime証拠は `/Users/anicca/.local/state/life-manager/evidence/host-disk-*`、main/watchdogログとhost `last-receipt.json`。credentialsを含む内容はGitへ保存しない。
+現在cursor: 主/watchdogの継続自然回収とnew guardを維持する。残るold ownerはexact official/pre-effect proofなしでfence解除・再送しない。class drift/legacyのowner契約を診断し、自然idleかつ合法なsource反映だけ進める。11GiB未回復とTCC/使用中/protected領域の容量不足を未解決として扱う。
