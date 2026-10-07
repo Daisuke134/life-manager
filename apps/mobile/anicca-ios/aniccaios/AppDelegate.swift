@@ -100,18 +100,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        defer { completionHandler() }
+        let content = response.notification.request.content
+        let quoteID = content.userInfo["quoteId"] as? String
+        let alertBody = content.body
 
-        let userInfo = response.notification.request.content.userInfo
-
-        // v1.8.7: Affirmation quote tap (remote APNs) → scroll Feed to that quote.
-        // If quoteId is missing/unknown the Feed simply opens at the top (graceful).
-        if let quoteId = userInfo["quoteId"] as? String, !quoteId.isEmpty {
-            NotificationCenter.default.post(
-                name: .aniccaScrollToQuote,
-                object: nil,
-                userInfo: ["quoteId": quoteId]
-            )
+        Task { @MainActor in
+            QuoteNavigationCoordinator.shared.request(quoteID: quoteID, alertBody: alertBody)
+            completionHandler()
         }
     }
 
