@@ -259,6 +259,8 @@ PRICE_CARDS_JS = r"""
 # single source of truth both directions (cp1_agent.py prices <-> drive_cp1.py).
 CYCLE_LABEL = {"day": "Daily", "week": "Weekly", "month": "Monthly", "year": "Yearly"}
 LABEL_CYCLE = {label: cycle for cycle, label in CYCLE_LABEL.items()}
+# The console renders Japanese labels when the session locale is ja (2026-10-07).
+LABEL_CYCLE.update({"日次": "day", "週次": "week", "月次": "month", "年次": "year"})
 
 
 def _as_float(value):
