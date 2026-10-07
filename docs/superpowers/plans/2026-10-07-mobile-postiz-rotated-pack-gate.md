@@ -66,6 +66,7 @@
 
 - [x] Focused acceptance 70/70, full `npm test` 1,455/1,455, `lm-loop-contract`, diff-check, required CI and fresh read-only review passed; PR #6867 merged at main `62ebd9b1b7dff499099ce62231435c902c04427d`.
 - [ ] Wait for the separate host-disk owner to verify all 149 finite guards and a natural recovery receipt of at least 11 GiB. The current `disk-writers.stop` is owned by `host-disk-recovery-installing`; last cleanup result is `capacity_recovery=unmet` with about 2.9 GiB free. Do not bypass it or build/apply a release while the floor is unmet.
+- [ ] JP1 still runs old SHA `d6f5d8f724ba584f0a5fddd19f8bb3e0aa3ce673` and reports 3,466 effect-unknown occurrences. Latest attempt got `provider_readback_not_exact` for the old occurrence, then hit the local publication fence before Postiz dispatch. Preserve all unknowns; after the host gate clears, apply the new release and verify one distinct natural slot with exact Postiz receipt/replay-zero.
 - [ ] Cut an immutable release from merged `origin/main`.
 - [ ] Read back the JP1 owner lock, loaded-idle state, admission identity, lane manifest, and `launchctl-safe` GUI preflight. Apply the release only to `life-manager-anicca-jp1-tiktok` via the targeted `LIFE_MANAGER_APPLY_TARGET` path.
 - [ ] Wait for the next natural Asia/Tokyo slot. Require a terminal pass, exact Postiz `PUBLISHED` readback for `@anicca.jpx` / integration `cmlrv8jq000hun60yy57eaptx`, matching media/caption identity, and replay-zero. Keep the old unknown occurrence unchanged.
