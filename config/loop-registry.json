@@ -860,9 +860,7 @@
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
-        "calendar_interval": {
-          "Minute": 41
-        }
+        "start_interval_seconds": 900
       },
       "cleanup": {
         "max_age_days": 14,
