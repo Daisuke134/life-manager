@@ -123,10 +123,15 @@ function fakeSupa(storedRow) {
     if (url.includes("/rpc/")) {
       const body = JSON.parse(opts.body);
       rpcCalls.push({ url, body });
-      if (url.endsWith("/rpc/resume_lm_web_billing_automation")
-        && state?.web_automation_resume_pending && state.web_automation_user_paused !== true) {
-        state.web_automation_resume_pending = false;
-        state.web_billing_revision = Number(state.web_billing_revision || 0) + 1;
+      if (url.endsWith("/rpc/resume_lm_web_billing_automation")) {
+        if (!state || state.telegram_chat_id !== null
+          || body.p_calendar_account_id !== state.calendar_connected_account_id) {
+          return { ok: true, json: async () => false };
+        }
+        if (state.web_automation_resume_pending && state.web_automation_user_paused !== true) {
+          state.web_automation_resume_pending = false;
+          state.web_billing_revision = Number(state.web_billing_revision || 0) + 1;
+        }
       }
       return { ok: true, json: async () => true };
     }
@@ -137,6 +142,17 @@ function fakeSupa(storedRow) {
       patches.push({ url, body: patch });
       const parsed = new URL(url);
       if (parsed.searchParams.has("web_billing_revision")) {
+        const matchesFence = (column) => {
+          const predicate = parsed.searchParams.get(column);
+          if (predicate === null) return true;
+          if (predicate === "is.null") return state && state[column] == null;
+          if (predicate.startsWith("eq.")) return state && String(state[column] ?? "") === predicate.slice(3);
+          return false;
+        };
+        if (!state || !["telegram_chat_id", "stripe_customer_id", "stripe_subscription_id",
+          "calendar_provider", "calendar_connected_account_id"].every(matchesFence)) {
+          return { ok: true, status: 200, json: async () => [] };
+        }
         const expectedRevision = Number(parsed.searchParams.get("web_billing_revision").replace(/^eq\./, ""));
         if (!state || Number(state.web_billing_revision || 0) !== expectedRevision) {
           return { ok: true, status: 200, json: async () => [] };
@@ -151,11 +167,30 @@ function fakeSupa(storedRow) {
   };
   return { f, patches, rpcCalls, row: () => state };
 }
-const deps = (supa, notify) => ({ supaUrl: "http://s", supaKey: "k", fetchImpl: supa.f, notify });
+const deps = (supa, notify) => ({
+  supaUrl: "http://s", supaKey: "k", fetchImpl: supa.f, notify,
+  retrieveSubscription: async (subscriptionId) => {
+    const row = supa.row();
+    if (!row) return null;
+    return {
+      id: subscriptionId,
+      customer: row.stripe_customer_id || "cus_web",
+      created: toEpoch(row.web_subscription_created_at) || 90,
+      status: row.plan_status || null,
+      current_period_end: toEpoch(row.current_period_end) || 0,
+      trial_end: toEpoch(row.trial_expires_at),
+      default_payment_method: row.web_trial_payment_method_present === true ? "pm_saved" : null,
+      cancel_at_period_end: row.web_billing_cancel_at_period_end === true,
+      latest_invoice: row.web_subscription_latest_invoice_id || null,
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" },
+    };
+  },
+});
 const WEB_UID = "lm_11111111-1111-4111-8111-111111111111";
 const webBillingRow = (overrides = {}) => ({
   uid: WEB_UID, telegram_chat_id: null,
   web_first_travel_at: "2030-01-01T00:00:00.000Z",
+  calendar_provider: "composio_gcal",
   calendar_connected_account_id: "ca-selected-123",
   stripe_customer_id: "cus_web", stripe_subscription_id: "sub_web",
   web_billing_revision: 0, web_automation_resume_pending: false,
@@ -206,6 +241,20 @@ test("FIND-007: a FRESH checkout (no prior event) still provisions (first event 
     data: { object: { client_reference_id: "u1", customer: "cus", subscription: "sub", payment_status: "paid" } } }, deps(s));
   assert.strictEqual(r.action, "provision");
   assert.strictEqual(s.patches[0].body.paid, true);
+});
+test("Web tenant checkout cannot fall through to legacy billing when product metadata is absent or wrong", async () => {
+  for (const metadata of [undefined, { lm_product: "other_product" }]) {
+    const s = fakeSupa(webBillingRow({ paid: false, plan_status: "trialing" }));
+    const result = await applyBilling({ id: "evt_checkout_without_web_product", type: "checkout.session.completed", created: 500,
+      data: { object: { client_reference_id: WEB_UID, customer: "cus_web", subscription: "sub_new",
+        payment_status: "no_payment_required", ...(metadata ? { metadata } : {}) } } }, deps(s));
+
+    assert.equal(result.action, "web-checkout-product-mismatch");
+    assert.equal(s.row().paid, false);
+    assert.equal(s.row().plan_status, "trialing");
+    assert.equal(s.row().stripe_subscription_id, "sub_web");
+    assert.equal(s.patches.length, 0);
+  }
 });
 test("applyBilling subscription active → provision; canceled → deprovision", async () => {
   const row = { uid: "u1", stripe_event_at: new Date(50 * 1000).toISOString() };
@@ -328,7 +377,7 @@ test("old paid invoice evidence cannot activate a newer active subscription invo
   const oldInvoice = await applyBilling(webInvoiceEvent("evt_old_paid_late", "invoice.paid", 300,
     { id: "in_old" }), deps(s));
 
-  assert.equal(oldInvoice.paid, false);
+  assert.equal(oldInvoice.action, "stale-invoice");
   assert.equal(s.row().paid, false);
   assert.equal(s.row().web_invoice_id, "in_old");
   assert.equal(s.row().web_subscription_latest_invoice_id, "in_latest");
@@ -344,11 +393,45 @@ test("a delayed old invoice cannot regrant an active subscription with a differe
   const result = await applyBilling(webInvoiceEvent("evt_old_invoice_paid", "invoice.paid", 200,
     { id: "in_old", amount_paid: 2900 }), deps(s));
 
-  assert.equal(result.paid, false);
+  assert.equal(result.action, "stale-invoice");
   assert.equal(s.row().paid, false);
-  assert.equal(s.row().web_invoice_paid, true);
-  assert.equal(s.row().web_invoice_id, "in_old");
+  assert.equal(s.row().web_invoice_paid, false);
+  assert.equal(s.row().web_invoice_id, "in_previous");
   assert.equal(s.row().web_subscription_latest_invoice_id, "in_latest");
+});
+
+test("a paid current invoice wins over older invoice events with arbitrary IDs and delivery order", async () => {
+  const older = webInvoiceEvent("evt_z_old", "invoice.paid", 200, { id: "in_old" });
+  const latest = webInvoiceEvent("evt_a_latest", "invoice.paid", 200, { id: "in_latest" });
+  const oldAtNextSecond = webInvoiceEvent("evt_z_old_later", "invoice.paid", 201, { id: "in_old" });
+  const current = { id: "sub_web", customer: "cus_web", created: 90, status: "active",
+    current_period_end: 900000, latest_invoice: "in_latest",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+  const run = async (events, latestAtStart = "in_latest") => {
+    const s = fakeSupa(webBillingRow({ paid: false, plan_status: "active",
+      web_subscription_event_at: new Date(100_000).toISOString(),
+      web_subscription_event_priority: 70, web_subscription_event_id: "evt_active",
+      web_subscription_latest_invoice_id: latestAtStart,
+      web_invoice_event_at: new Date(100_000).toISOString(), web_invoice_event_priority: 50,
+      web_invoice_event_id: "evt_prior_failed", web_invoice_id: "in_prior",
+      web_invoice_subscription_id: "sub_web", web_invoice_paid: false, web_invoice_amount_paid: 0 }));
+    const dependencies = { ...deps(s), retrieveSubscription: async () => current };
+    for (const event of events) await applyBilling(event, dependencies);
+    return s.row();
+  };
+
+  for (const events of [[older, latest], [latest, older], [latest, oldAtNextSecond]]) {
+    const row = await run(events);
+    assert.equal(row.web_subscription_latest_invoice_id, "in_latest");
+    assert.equal(row.web_invoice_id, "in_latest");
+    assert.equal(row.paid, true);
+    assert.equal(webTravelEntitled(row, Date.now()), true);
+  }
+
+  const invoiceBeforeSubscription = await run([latest], "in_old");
+  assert.equal(invoiceBeforeSubscription.web_subscription_latest_invoice_id, "in_latest");
+  assert.equal(invoiceBeforeSubscription.web_invoice_id, "in_latest");
+  assert.equal(invoiceBeforeSubscription.paid, true);
 });
 test("a late event from a prior canceled Web subscription cannot replace the paid restart", async () => {
   const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
@@ -460,7 +543,11 @@ test("a delayed paid invoice cannot replace a newer past_due subscription state"
     web_subscription_event_priority: 50,
     web_subscription_event_id: "evt_past_due",
   }));
-  const invoice = await applyBilling(webInvoiceEvent("evt_old_paid", "invoice.paid", 100), deps(s));
+  const invoice = await applyBilling(webInvoiceEvent("evt_old_paid", "invoice.paid", 100), {
+    ...deps(s), retrieveSubscription: async () => ({ id: "sub_web", customer: "cus_web", created: 90,
+      status: "past_due", latest_invoice: "in_evt_old_paid",
+      metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } }),
+  });
   assert.equal(invoice.paid, false);
   assert.equal(s.row().plan_status, "past_due");
   assert.equal(s.row().paid, false);
@@ -470,11 +557,16 @@ test("a delayed paid invoice cannot replace a newer past_due subscription state"
 test("paid invoice after past_due waits for the active subscription event before resuming", async () => {
   const s = fakeSupa(webBillingRow({
     paid: false, plan_status: "past_due",
+    web_subscription_latest_invoice_id: "in_evt_paid_2",
     web_subscription_event_at: new Date(200_000).toISOString(),
     web_subscription_event_priority: 50,
     web_subscription_event_id: "evt_past_due_2",
   }));
-  const invoice = await applyBilling(webInvoiceEvent("evt_paid_2", "invoice.paid", 201), deps(s));
+  const invoice = await applyBilling(webInvoiceEvent("evt_paid_2", "invoice.paid", 201), {
+    ...deps(s), retrieveSubscription: async () => ({ id: "sub_web", customer: "cus_web", created: 90,
+      status: "past_due", latest_invoice: "in_evt_paid_2",
+      metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } }),
+  });
   assert.equal(invoice.paid, false);
   assert.equal(s.row().plan_status, "past_due");
   const active = await applyBilling(webSubscriptionEvent("evt_active_after_payment", 202, {
@@ -651,7 +743,12 @@ test("invoice payment after scheduled cancellation keeps Calendar entitlement pa
     status: "trialing", trial_end: 700000, default_payment_method: "pm_saved",
     cancel_at_period_end: true,
   }), deps(s));
-  const invoice = await applyBilling(webInvoiceEvent("invoice_after_cancel", "invoice.paid", 101), deps(s));
+  const invoice = await applyBilling(webInvoiceEvent("invoice_after_cancel", "invoice.paid", 101), {
+    ...deps(s), retrieveSubscription: async () => ({ id: "sub_web", customer: "cus_web", created: 90,
+      status: "trialing", trial_end: 700000, default_payment_method: "pm_saved",
+      cancel_at_period_end: true, latest_invoice: "in_invoice_after_cancel",
+      metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } }),
+  });
   assert.equal(invoice.paid, false);
   assert.equal(s.row().web_billing_cancel_at_period_end, true);
   assert.equal(s.row().web_invoice_paid, true);
@@ -885,10 +982,11 @@ test("same-second invoice recovery does not activate a non-current invoice", asy
   const result = await applyBilling(webInvoiceEvent("evt_paid_recovery", "invoice.paid", 100,
     { id: "in_recovery" }), { ...deps(s), retrieveSubscription: async () => current });
 
-  assert.equal(result.paid, false);
+  assert.equal(result.action, "stale-invoice");
+  assert.equal(s.patches.length, 0);
   assert.equal(s.row().plan_status, "past_due");
   assert.equal(s.row().paid, false);
-  assert.equal(s.row().web_invoice_paid, true);
+  assert.equal(s.row().web_invoice_paid, undefined);
 });
 
 test("invoice recovery readback failure leaves billing entitlement unchanged for retry", async () => {
@@ -947,7 +1045,7 @@ test("same-second paid invoice suppression checks Stripe before ignoring past_du
   assert.equal(s.row().paid, false);
 });
 
-test("competing Web subscription writes use atomic revision CAS and cannot restore access after cancellation", async () => {
+test("competing Web subscription writes re-read revisions and cannot restore access after cancellation", async () => {
   const s = fakeSupa(webBillingRow());
   const trial = webSubscriptionEvent("evt_trial_race", 100, {
     status: "trialing", trial_end: 700000, default_payment_method: "pm_saved",
@@ -956,16 +1054,58 @@ test("competing Web subscription writes use atomic revision CAS and cannot resto
     status: "trialing", trial_end: 700000, default_payment_method: "pm_saved",
     cancel_at_period_end: true,
   });
+  const dependencies = { ...deps(s), retrieveSubscription: async () => ({
+    id: "sub_web", customer: "cus_web", created: 90, status: "trialing", trial_end: 700000,
+    default_payment_method: "pm_saved", cancel_at_period_end: true,
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" },
+  }) };
   const raced = await Promise.allSettled([
-    applyBilling(trial, deps(s)),
-    applyBilling(cancel, deps(s)),
+    applyBilling(trial, dependencies),
+    applyBilling(cancel, dependencies),
   ]);
-  assert.ok(raced.some((result) => result.status === "rejected"), "losing CAS must cause Stripe retry");
-  await applyBilling(cancel, deps(s));
-  await applyBilling(trial, deps(s));
+  assert.ok(raced.every((result) => result.status === "fulfilled"), "one failed CAS is re-read and re-evaluated");
+  await applyBilling(cancel, dependencies);
+  await applyBilling(trial, dependencies);
   assert.equal(s.row().web_billing_cancel_at_period_end, true);
   assert.equal(s.row().paid, false);
   assert.equal(s.row().plan_status, "trialing");
+});
+
+test("Web billing CAS re-reads tenant and Calendar bindings changed without a revision", async () => {
+  const event = webSubscriptionEvent("evt_trial_binding_race", 100, {
+    status: "trialing", trial_end: 700000, default_payment_method: "pm_saved",
+  });
+  const telegramBound = fakeSupa(webBillingRow());
+  let telegramMutation = false;
+  const telegramFetch = async (url, options = {}) => {
+    if (options.method === "PATCH" && url.includes("web_billing_revision") && !telegramMutation) {
+      telegramBound.row().telegram_chat_id = "chat-1";
+      telegramMutation = true;
+    }
+    return telegramBound.f(url, options);
+  };
+  const tenantResult = await applyBilling(event, { ...deps(telegramBound), fetchImpl: telegramFetch });
+  assert.equal(telegramMutation, true);
+  assert.equal(tenantResult.action, "web-tenant-mismatch");
+  assert.equal(telegramBound.row().telegram_chat_id, "chat-1");
+  assert.equal(telegramBound.row().web_subscription_event_id, undefined);
+  assert.equal(telegramBound.row().web_automation_resume_pending, false);
+  assert.equal(telegramBound.rpcCalls.length, 0);
+
+  const rebound = fakeSupa(webBillingRow());
+  let calendarMutation = false;
+  const calendarFetch = async (url, options = {}) => {
+    if (options.method === "PATCH" && url.includes("web_billing_revision") && !calendarMutation) {
+      rebound.row().calendar_connected_account_id = "ca-new-account";
+      calendarMutation = true;
+    }
+    return rebound.f(url, options);
+  };
+  await applyBilling(event, { ...deps(rebound), fetchImpl: calendarFetch });
+  assert.equal(calendarMutation, true);
+  assert.equal(rebound.row().calendar_connected_account_id, "ca-new-account");
+  assert.equal(rebound.row().web_subscription_event_id, "evt_trial_binding_race");
+  assert.deepEqual(rebound.rpcCalls.map((call) => call.body.p_calendar_account_id), ["ca-new-account"]);
 });
 test("Web invoice payment evidence pauses or resumes without rewriting Stripe subscription status", async () => {
   const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,

@@ -130,6 +130,7 @@ async function rpc(name, body, opts = {}) {
   if (!response.ok) {
     const failure = await response.json().catch(() => null);
     const message = String(failure && failure.message || "");
+    if (message.includes("billing_required")) throw webError(409, "billing_required");
     if (message.includes("calendar_account_changed")) throw webError(409, "calendar_account_changed");
     if (message.includes("calendar_disconnect_pending")) throw webError(409, "disconnect_pending");
     if (message.includes("calendar_enable_pending")) throw webError(409, "calendar_enable_pending");

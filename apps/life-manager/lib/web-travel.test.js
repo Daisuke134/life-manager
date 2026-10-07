@@ -877,6 +877,28 @@ test("resume cannot enable Calendar reads before a verified paid trial or active
   assert.deepEqual(f.controlRpcCalls, []);
 });
 
+test("resume maps an entitlement change observed under the database row lock to billing_required", async () => {
+  const f = fixture();
+  Object.assign(f.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active",
+    paid: true, plan_status: "active" });
+  const serviceFetch = f.opts.fetchImpl;
+  f.opts.fetchImpl = async (url, options = {}) => {
+    if (String(url).endsWith("/rpc/control_lm_web_travel")
+      && JSON.parse(options.body || "{}").p_action === "resume") {
+      return { ok: false, status: 400, json: async () => ({ message: "billing_required" }) };
+    }
+    return serviceFetch(url, options);
+  };
+
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(JSON.parse(response.body).error, "billing_required");
+  assert.equal(f.preference.daily_automation_enabled, false);
+});
+
 test("resume is rejected while Calendar enable readback is pending", async () => {
   const f = fixture();
   Object.assign(f.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active", paid: true, plan_status: "active" });
@@ -1224,6 +1246,14 @@ test("Web billing resume intent is consumed atomically and manual pause invalida
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.control_lm_web_travel/i);
   const controlsSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.control_lm_web_travel"),
     sql.indexOf("REVOKE ALL ON FUNCTION public.control_lm_web_travel"));
+  const resumeBillingGate = controlsSql.slice(controlsSql.indexOf("IF p_action = 'resume' AND"),
+    controlsSql.indexOf("IF p_action IN ('pause', 'disconnect_begin')"));
+  assert.match(resumeBillingGate, /web_billing_cancel_at_period_end IS DISTINCT FROM false/i);
+  assert.match(resumeBillingGate, /plan_status NOT IN \('active', 'trialing'\)/i);
+  assert.match(resumeBillingGate, /paid IS DISTINCT FROM true/i);
+  assert.match(resumeBillingGate, /web_trial_payment_method_present IS DISTINCT FROM true/i);
+  assert.match(resumeBillingGate, /trial_expires_at\s*<=\s*now\(\)/i);
+  assert.match(resumeBillingGate, /RAISE EXCEPTION 'billing_required'/i);
   const pauseSql = controlsSql.slice(controlsSql.indexOf("IF p_action IN ('pause', 'initial_scan_pause')"),
     controlsSql.indexOf("ELSIF p_action = 'disconnect_begin'"));
   assert.match(pauseSql, /daily_automation_enabled\s*=\s*false/i);

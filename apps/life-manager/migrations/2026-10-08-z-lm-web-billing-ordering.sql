@@ -52,6 +52,20 @@ BEGIN
     RAISE EXCEPTION 'calendar_account_changed';
   END IF;
 
+  IF p_action = 'resume' AND (
+    user_row.web_billing_cancel_at_period_end IS DISTINCT FROM false
+    OR user_row.plan_status IS NULL
+    OR user_row.plan_status NOT IN ('active', 'trialing')
+    OR user_row.plan_status = 'active' AND user_row.paid IS DISTINCT FROM true
+    OR user_row.plan_status = 'trialing' AND (
+      user_row.web_trial_payment_method_present IS DISTINCT FROM true
+      OR user_row.trial_expires_at IS NULL
+      OR user_row.trial_expires_at <= now()
+    )
+  ) THEN
+    RAISE EXCEPTION 'billing_required';
+  END IF;
+
   IF p_action IN ('disconnect_begin', 'disconnect_finish') AND p_calendar_account_id IS NULL THEN
     RAISE EXCEPTION 'calendar_not_connected';
   END IF;
