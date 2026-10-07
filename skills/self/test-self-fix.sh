@@ -247,7 +247,9 @@ LOOP_INPUT="owned-runtime-test-$(basename "$D_RUNTIME")"
 LOOP_CANONICAL="${LOOP_INPUT}-loop"
 SOCK="/tmp/anicca-selffix-$LOOP_CANONICAL-tmux.sock"
 prepare_self_fix_home "$TEST_HOME" "$((16*1024*1024*1024))"
-mkdir -p "$TEST_HOME/ignored-state"
+SERVER_HOST_STATE="$TEST_HOME/server-state"
+CALLER_HOST_STATE="$TEST_HOME/caller-state"
+mkdir -p "$SERVER_HOST_STATE" "$CALLER_HOST_STATE"
 mkdir -p "$D_RUNTIME/server-tmp" "$D_RUNTIME/server-npm" "$D_RUNTIME/server-node" \
   "$D_RUNTIME/audit-tmp" "$D_RUNTIME/audit-npm" "$D_RUNTIME/audit-node"
 env -i HOME="$TEST_HOME" PATH="$PATH" TERM=xterm TMPDIR="$D_RUNTIME/server-tmp" \
@@ -256,14 +258,14 @@ env -i HOME="$TEST_HOME" PATH="$PATH" TERM=xterm TMPDIR="$D_RUNTIME/server-tmp" 
 tmux -S "$SOCK" set-environment -g LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP 1
 tmux -S "$SOCK" set-environment -g LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK 1
 tmux -S "$SOCK" set-environment -g LIFE_MANAGER_DISK_HEADROOM_KIB 1
-tmux -S "$SOCK" set-environment -g LIFE_MANAGER_HOST_STATE_DIR "$TEST_HOME/ignored-state"
+tmux -S "$SOCK" set-environment -g LIFE_MANAGER_HOST_STATE_DIR "$SERVER_HOST_STATE"
 (
   unset SELF_FIX_DRYRUN AGENT_WIRING_PROBE_ONLY
   export HOME="$TEST_HOME" LIFE_MANAGER_REPO="$TEST_REPO"
   export TMPDIR="$D_RUNTIME/audit-tmp" NPM_CONFIG_CACHE="$D_RUNTIME/audit-npm"
   export NODE_COMPILE_CACHE="$D_RUNTIME/audit-node"
   export LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP=1 LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK=1
-  export LIFE_MANAGER_DISK_HEADROOM_KIB=1 LIFE_MANAGER_HOST_STATE_DIR="$TEST_HOME/ignored-state"
+  export LIFE_MANAGER_DISK_HEADROOM_KIB=1 LIFE_MANAGER_HOST_STATE_DIR="$CALLER_HOST_STATE"
   /bin/bash "$SF" "$LOOP_INPUT" 'fixture-only blocker'
 )
 WAIT_RUNTIME=0
@@ -291,7 +293,7 @@ if [ -f "$TEST_HOME/observed-runtime.env" ]; then
   eq "detached runner does not inherit stop-flag ignore" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^IGNORE_DISK_WRITERS_STOP=//p')" unset
   eq "detached runner does not inherit pressure-flag ignore" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^IGNORE_DISK_PRESSURE_BLOCK=//p')" unset
   eq "detached runner does not inherit lowered threshold" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^DISK_HEADROOM_KIB=//p')" unset
-  eq "detached runner preserves configured host namespace" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^HOST_STATE_DIR=//p')" "$TEST_HOME/ignored-state"
+  eq "detached runner uses caller host namespace over tmux server namespace" "$(printf '%s\n' "$OBSERVED_RUNTIME" | sed -n 's/^HOST_STATE_DIR=//p')" "$CALLER_HOST_STATE"
   a "browser ensure does not inherit stop-flag ignore" "$(cat "$TEST_HOME/ensure-browser.env")" 'IGNORE_DISK_WRITERS_STOP=unset'
   a "browser ensure does not inherit pressure-flag ignore" "$(cat "$TEST_HOME/ensure-browser.env")" 'IGNORE_DISK_PRESSURE_BLOCK=unset'
   a "browser ensure does not inherit lowered threshold" "$(cat "$TEST_HOME/ensure-browser.env")" 'DISK_HEADROOM_KIB=unset'

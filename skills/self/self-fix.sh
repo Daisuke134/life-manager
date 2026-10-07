@@ -77,9 +77,11 @@ sys.path.insert(0, str(repo_root))
 reason = None
 available = None
 required = None
+host_state_dir = None
 try:
     from runtime.host import disk_admission
     host_state = disk_admission._host_state_dir()
+    host_state_dir = str(host_state.absolute())
     if not host_state.is_dir() or host_state.is_symlink():
         raise OSError("host state directory unavailable")
     required_bytes = disk_admission.RECOVERY_FLOOR_BYTES
@@ -101,7 +103,7 @@ else:
     elif available < required:
         reason = "disk_headroom_low"
 result = {"status": "deferred" if reason else "admitted", "available_bytes": available,
-          "required_bytes": required, "reason": reason}
+          "required_bytes": required, "reason": reason, "host_state_dir": host_state_dir}
 print(json.dumps(result, sort_keys=True, separators=(",", ":")))
 raise SystemExit(75 if reason else 0)
 PY
@@ -112,6 +114,11 @@ sf_require_disk_admission() {
   if ! gate_result="$(sf_disk_admission_probe)"; then
     [ -n "$gate_result" ] || gate_result='{"status":"deferred","reason":"disk_policy_unavailable"}'
     echo "self-fix[$LOOP] deferred before heavy work: $gate_result"
+    exit 75
+  fi
+  HOST_STATE_DIR_FOR_CHILD="$(printf '%s' "$gate_result" | python3 -c 'import json,sys; value=json.load(sys.stdin).get("host_state_dir"); print(value if isinstance(value,str) else "")')"
+  if [ -z "$HOST_STATE_DIR_FOR_CHILD" ]; then
+    echo "self-fix[$LOOP] deferred before heavy work: disk_policy_unavailable (host state path missing)"
     exit 75
   fi
 }
@@ -237,8 +244,9 @@ printf -v LOOP_Q '%q' "$LOOP"
 printf -v ESCALATION_REASON_Q '%q' "SelfFix code repair"
 printf -v PROMPT_FILE_Q '%q' "$PROMPT_FILE"
 printf -v LOG_Q '%q' "$LOG"
+printf -v HOST_STATE_DIR_Q '%q' "$HOST_STATE_DIR_FOR_CHILD"
 tmux -S "$SOCK" new-session -d -s "$SESSION" \
-  "unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_DISK_HEADROOM_KIB; exec /usr/bin/env TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class self-fix-code-agent --escalation-reason $ESCALATION_REASON_Q --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
+  "unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_DISK_HEADROOM_KIB; exec /usr/bin/env LIFE_MANAGER_HOST_STATE_DIR=$HOST_STATE_DIR_Q TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class self-fix-code-agent --escalation-reason $ESCALATION_REASON_Q --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
 date +%s > "$STARTMARK"
 echo "$(date '+%F %T') self-fix[$LOOP] SPAWNED (self-fix-code-agent): ${BLOCKER:0:90}" >> "$LOG"
 echo "self-fix[$LOOP] spawned (self-fix-code-agent, detached). result→$RESULT log→$LOG evidence→$EVIDENCE_DIR"
