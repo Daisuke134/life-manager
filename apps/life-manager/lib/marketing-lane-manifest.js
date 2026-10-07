@@ -12,7 +12,7 @@ const LANE_STATES = new Set(["production-armed", "shadow", "default-off", "disab
 const ACCOUNT = /^@?[A-Za-z0-9._-]{1,80}$/;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const LOCALE = /^[a-z]{2}(?:-[A-Z]{2})?$/;
-const PRODUCTS = new Set(["honne-ai", "anicca"]);
+const PRODUCTS = new Set(["honne-ai", "anicca", "ebook-en", "ebook-ja"]);
 
 function invalid(message = "marketing lane manifest invalid") {
   throw new Error(message);

@@ -147,9 +147,14 @@ reviewing the current tree and its recent source changes. Then origin/main
 advanced to `a77ce93ffea90598a65de4b1fcb3edb8bf1a788e`, editing
 `inventory_status.py` and its test inside the same root. The tracked count
 remained 242 and the exact evidence hash changed to
-`d5946679ecf2405bc291550f8de4880d5f13de02f4fd858278c154f21c91a043`; the
-baseline was refreshed to this current merge tree. The manifest and verifier
-are unchanged; this records the accepted current state and does not claim
+`d5946679ecf2405bc291550f8de4880d5f13de02f4fd858278c154f21c91a043`. Main
+advanced again to `84261ec74ebd13f8e49753c48c741cccafcf8863` with further edits
+to that inventory status source/test. The root still contains 242 tracked
+files; its exact hash is now
+`f2dde0db2faef66a490cb43420b956c5472a9b567b5c7fc930d0e1755b3907c1`, and the
+baseline entry was refreshed to that merge tree. The source manifest still
+declares 241 files, so the provenance mismatch remains. The manifest and
+verifier are unchanged; this records the accepted current state, not a claim
 that the manifest inventory was repaired.
 
 The baseline still matches only `manifest_inventory_mismatch` at
