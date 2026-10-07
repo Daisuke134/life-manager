@@ -422,13 +422,13 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | # | Task | 完了条件（公式 readback） | 状態 |
 |---|---|---|---|
-| N1 | 注文 0 の切り分け: 売れた 4 本と競合（HookAce・Video Hook Forensics 等）の Capafy 内検索・カテゴリ順位を毎日記録し、9/29 前後の版更新・無料トライアル廃止との対応を見る | 0 の原因が 1 つに絞れる（または棄却が記録される） | 未着手 |
-| N2 | 審査枠を空ける: 却下中の Marketing Strategist（9563867391、30日 −$16.45）と Customer Renewal Evidence Brief（4973250899）を取り下げる（#6594 の release 反映後） | Capafy API で 2 本 offline、枠 3/5 以下 | 未着手 |
+| N1 | 注文 0 の切り分け: 売れた 4 本と競合（HookAce・Video Hook Forensics 等）の Capafy 内検索・カテゴリ順位を毎日記録し、9/29 前後の版更新・無料トライアル廃止との対応を見る | 0 の原因が 1 つに絞れる（または棄却が記録される） | ✅ 原因特定（2026-10-07）: buyer ページの「セキュリティスキャン 注意」= catalog の test/ を同梱した 2 本だけ（hook-lab・marketing-strategist）。他 7 本と HookAce は「通常」。Hook Lab は閲覧数そのまま・有料注文 約1/日 → 9/30 から 0。修正 #6809 `c0da6b38`（test/ を同梱しない＋価格・モデル据え置きの Hook Lab 再提出）。完了判定: Hook Lab が「通常」表示＋有料注文の再開 |
+| N2 | 審査枠を空ける: 却下中の Marketing Strategist（9563867391、30日 −$16.45）と Customer Renewal Evidence Brief（4973250899）を取り下げる（#6594 の release 反映後） | Capafy API で 2 本 offline、枠 3/5 以下 | 自然解消（10/06 21:24 JST）: 審査中 1・却下 1、枠に空き。Marketing Strategist は DeepSeek 版を審査中 |
 | N3 | ディスク満杯で工場が落ちる（10/06 06:23Z `OSError: [Errno 28] No space left on device`、`duplicate_gate.py`） | 次の自然 run が ENOSPC なしで終わる | 未着手（F4 と同じ根） |
 | N4 | 宣伝ループの今日の失敗（10/06 10:15 `model pass exit=1`、未公開） | 次の自然 run で記事 HTTP 200＋X published | 未着手 |
 | N5 | 売れない agent は書き直さず、勝った型（hook/台本・金融/スポーツ追跡）を学びを入れた新 agent として出す（#11・#13 に合流） | 新 agent の 30日注文 > 0 | 工場で継続 |
 
-**現在のカーソル（2026-10-06）:** N1。並行: N2・N3（N1 と独立、同じ枠・同じディスクを使わない）。
+**現在のカーソル（2026-10-07）:** N1 の本番確認（Hook Lab 再提出 → 承認 → スキャン「通常」→ 有料注文）。並行: N3・N4。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -482,3 +482,5 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
   - 9/29 に起きたこと: Hook Lab v1.0.3（DeepSeek）承認 03:23Z、v1.0.4 承認 09:10Z（Gmail `from:capafy.ai`）、v1.0.5 承認 10/06 02:01Z。価格は変わっていない（P-12・#6200・E1 実測 = 月$9.99 のまま）。仮説: (1) 短期間の版更新で検索・棚の露出が落ちた、(2) 無料トライアル廃止で入口が消えた（全期間 69/101 がトライアル）、(3) 9/30〜10/04 の外部宣伝停止（外部の成約はもともとほぼ 0 で弱い）。棄却: 価格変更（変えていない）、市場全体の減少（競合は増加）、12 本の退役（10/04、0 の開始より後）。
   - 注文単位の履歴は無い: Capafy API は日別合計のみ、メールは agent ごとの初回販売だけ（最新 2026-09-27 07:06 JST YouTube Script Writer $1.99）。
   - **順序変更（Dais 2026-10-06「売れて利益の出ている物を何度も変えない」）**: 理由 = 0 の開始が売れ筋への版更新の連続と重なり、原因が分からないまま値上げ・カード変更を重ねると前後比較もできなくなる。旧順序: #5 E1b（売れ筋 3 本の値上げ）→ #6 → #7 D1（Hook Lab カード）→ … 新順序: **N1 原因の切り分け → N2 枠を空ける → N3 ディスク → N4 宣伝の失敗 → N5 新 agent（勝った型）** → #6 → #11〜#20。#5・#7・#9 は売れた 4 本について凍結。カーソル → N1。
+- 2026-10-07 JST **N1 原因特定**: 仮説を順に棄却した。(a) 価格変更（10/06 朝まで日$1.99/週$4.99/月$9.99 のまま）、(b) 市場全体の減少（競合は増加）、(c) 検索露出の低下（「hook lab」「hook」「tiktok script」「slide maker」で自分たちが 1 位）、(d) 閲覧の減少（traffic-sources v2 の日別: Hook Lab 9/21〜10/06 で 1 日 4〜18 view、9/30 前後で変化なし。ストア全体は 9/30 394・10/01 550 view）、(e) 無料トライアル廃止（9/21 以降トライアル 0 件）、(f) 購入可否・isMain（全 agent canBuy=True、HookAce も isMain なし）。残った差分: buyer ページの「セキュリティスキャン」が Hook Lab と Marketing Strategist だけ「注意」、tiktok/youtube/slide/ad・shorts・reels hook lab と HookAce は「通常」。この 2 本だけが catalog に `test/` を持ち、`publish_prepare.sh` の `cp -R` で同梱されていた（Hook Lab の test/ は 9/28 #6078 で追加 → 9/29 の v1.0.3/v1.0.4 から同梱）。Hook Lab の有料注文は 9/21〜29 に 1 日 1 件前後 → 9/30 から 0。修正 #6809 `c0da6b38`: test/ を同梱しない（全 agent に効く）、Hook Lab を同じ価格・同じモデルで再提出（LISTING の価格表を本番の日/週/月に固定）。他 3 本の 7 日 0 件は 30 日で 1〜4 件の低頻度のため偶然の範囲。
+- 2026-10-06 22:xx JST **凍結の本番反映**: #6773 `2cf94f43`（売れた 4 本の UPDATE.json 削除＋利益の出ている agent は値上げしない）。capafy-loop-daily は release `3aaabcca` で稼働（2cf94f43 を含む、rc=0 を確認）。ただし値上げは 10/06 朝に既に承認済み（Hook Lab 日$3.99/週$9.99/月$19.99、TikTok 日$2.99/週$5.99/月$19.99、YouTube 週$9.99/月$9.99/年$99.99）。戻すとさらに変更が増えるので据え置き、`capafy-listing-changes.jsonl` に記録して 14 日比較。
