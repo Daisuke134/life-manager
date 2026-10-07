@@ -57,27 +57,52 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 - Do not add a chat interface, app-store client, employee/staff feature, background GPS, generic calendar replacement, or factory dashboard to the first version.
 - Keep the existing aniccaai.com marketing surface separate from the Railway product route. Its current source is the active `Daisuke134/anicca-products` repo at `apps/landing`; its Netlify config uses that directory as the build base and `Netlify Deploy (Landing)` watches its `apps/landing/**` path. The `apps/landing` subset in this Life Manager repo is used for backend contract tests and has diverged from the live source; do not edit it as a substitute for the public route. After Railway `/lm` sign-in and price/cost are verified, update the anicca-products source and read back its successful Netlify deploy and public route handoff to the exact Railway `/lm` origin.
 
-### 初回体験の決定案（2026-10-07）
+### UI/UX仕様の明確化（2026-10-07）
 
-約束する価値は「イベント通知では遅い。移動時間をカレンダーに確保して、出発時刻を先に分かるようにする」。新規利用者はブラウザから始め、Telegramの導入を求めない。
+**商品を二つの画面に分けて考える。** `https://aniccaai.com/lm` は説明と集客をするmarketing page、Railwayの`/lm`はサインイン後に予定を見るproduct appである。現状はmarketing pageがTelegramへ送り、product appの未ログイン画面は「予定に合わせた出発時刻を確認」とGoogle sign-inを表示する。公開CTAだけがproduct appにつながっていない。
 
-1. `/lm` で「予定に遅れる痛み」、合成データによるカレンダーのBefore/After例、料金を見せ、CTAは「Webで始める」一つにする。
-2. Googleアカウントでサインインする。次にCalendarアクセスの許可を別途求めることを説明する。
-3. Google Calendarを接続し、選択した同じアカウントがACTIVEとreadbackできた後にだけ「接続済み」と表示する。
-4. 自宅または基点の住所を一つ入力する。電話番号、スタッフ、Gmail、現在地、Telegramは求めない。
-5. セットアップ後、次の対象予定、ルート所要時間、作成したTravel block、計算済み出発時刻を表示する。予定に場所がない場合は、画面内で理由と次の操作を示す。
-6. ダッシュボードは出発時刻を最初に示し、Calendar接続状態、一時停止、再開、切断を用意する。Travel blockはGoogle Calendar既定の通知設定に従う。通知設定が確認できない場合、通知を約束しない。
+**初版の対象ユーザー:** 自分で予定を管理し、対面の顧客・現場訪問がある一人利用者（例: consultant、freelancer、field sales）。これは検証する対象仮説であり、全員向けと断定しない。
 
-狭い画面を優先し、サブスクリプションは一つにする。最初の出発時刻を見せる前に、チャット/Webの選択、チーム設定、汎用AIマネージャーの説明を挟まない。
+**「staff」の意味:** 前案のstaffは、従業員招待やチームアカウント機能を指していた。初版には含めず、スタッフ欄・招待ボタン・チーム料金を画面に出さない。利用者一人のCalendarを接続する。
+
+| 画面 | 見た目と表示内容 | 利用者の操作と次の状態 |
+|---|---|---|
+| 1. Marketing `/lm` | Life Managerの名前、痛みを一文で説明、対面予定に「移動なし」と「出発時刻+Travel block」を並べる短い例、**現在価格 `$29/月`**、CTA「Webで始める」一つ。Telegram CTAは初版公開時に差し替える。 | CTAでRailway `/lm`へ移動。価格は現在の$29/月を維持し、別priceを作らない。 |
+| 2. Web sign-in | 実装済みの画面を基準に、見出し「予定に合わせた出発時刻を確認」、説明「Google カレンダーと接続して、次の予定に間に合う出発時刻を確認できます。」、ボタン「Google で続ける」。 | Googleアカウントで本人確認する。これはCalendar権限の付与とは別の手順で、Telegramアプリは必要ない。 |
+| 3. Calendar接続 | 状態カード「Google カレンダー / 未接続」、見出し「Google カレンダーを接続」、目的を「予定の場所と時間を読み、移動時間を予定として追加するため」と説明、ボタン「Google カレンダーを接続」。 | Google Calendar権限を明示的に許可。選んだ同じaccountのACTIVE readback後に「接続済み」と表示する。失敗時は「接続できません。もう一度お試しください」と再試行を表示。 |
+| 4. 基点住所 | 進捗「設定 2 / 2」、見出し「いつもの出発場所を入力」、一つの住所欄「自宅または基点の住所」、短い説明「移動時間の計算に使います」、ボタン「保存して予定を確認」。 | 住所を保存し初回syncを開始する。電話、現在地、Gmail、staff、チーム情報は聞かない。 |
+| 5. 今日のDashboard | 上部に大きな緑の「次の出発」時刻。例: **14:15**、その下に「移動時間の予定: 40分」。次カードに「15:00 顧客との打ち合わせ」と場所。Calendar status、pause/resume、disconnectを下部に置く。 | 利用者は出発時刻とCalendar上のTravel blockを見て行動する。Travel blockには既定のGoogle Calendar通知設定が適用され、画面に「通知はGoogle カレンダーのデフォルトリマインダー設定に従います」と表示する。 |
+| 6. 場所なし・同期待ち | 場所なしなら「この予定には場所がありません。Google カレンダーで場所を追加してください。」と「今日を更新」。sync中なら「Travelの確認中」と「今日を更新」。 | 必要な入力がない予定は変更せず、確認できない出発時刻を確定表示しない。 |
+| 7. Plan/checkout | セットアップ後、未課金accountには既存UIのボタン「プランを確認」を表示し、現在のStripe Payment Linkへ進む。価格は**$29/月**。現行UIはtrial終了日・初回charge日を見せていない。 | Stripe checkoutとapp側3日trialのcharge時点が一致するまで、free trialや初回課金日を広告・表示しない。WB-11で一致させ、利用者が支払い前に条件を読めるようにする。 |
+
+初回利用者の画面順は以下。Google sign-inとCalendar permissionは別段階であり、その間に機能一覧やstaff登録を挟まない。
+
+```mermaid
+flowchart TD
+    A[aniccaai.com/lm<br/>痛みの例 + 現在価格 $29/月<br/>Webで始める] --> B[Railway /lm<br/>Googleで続ける]
+    B --> C[Google sign-in<br/>本人確認]
+    C --> D[Google Calendar接続<br/>権限許可 + ACTIVE確認]
+    D --> E[基点住所を1つ保存]
+    E --> F[初回sync]
+    F --> G{次の対面予定に場所がある?}
+    G -- ない --> H[場所を追加する案内<br/>未確認の予定は変更しない]
+    G -- ある --> I[ルート時間 + 既存5分buffer]
+    I --> J[CalendarへTravel blockを作成<br/>出発時刻に合わせる]
+    J --> K[Dashboard<br/>出発時刻 → 予定 → 移動時間]
+    K --> L[一時停止 / 再開 / Calendar切断]
+    K --> M[未課金なら既存$29/月のStripe checkout]
+```
+
+**画面に置かないもの:** staff招待、チーム管理、電話番号、Telegram開始ボタン、Gmail、現在地追跡、一般的なAIチャット、Factory dashboard。既存$29/月は維持し、競合の$5価格に合わせるための値下げや新しい$36年額priceは行わない。
 
 ## Price, Marketing, and Profit
 
 - **公開offerのreadback（2026-10-07）:** `https://aniccaai.com/lm` は「Calendar × Telegram」と表示し、主要CTAをTelegramへ送り、$29/月を掲示する。Telegramのルート通知と任意の電話を説明しており、目標のbrowser-first signupと一致していない。
 - **Stripe catalogのreadback（2026-10-07）:** 確認対象のlive `Anicca Life Manager`商品にはpriceが2件（active $29/月と$20/月、inactive priceは0件）。この2 priceには全statusでsubscriptionがなく、確認対象商品のrecurring MRRは$0。2026-10-06の前回official readbackではStripe `trial_period_days`が空で、Web setupはapp entitlementを3日で開始する。Stripe checkoutとapp trialの条件が一致する証拠はまだない。
 - **Life Manager全体の利用料推定（2026-09-07 01:21 UTC〜2026-10-07 01:21 UTC）:** append-onlyの`lm_api_cost`台帳はprovider利用料推定$68.786544、その他の推定$0.306765、30日合計$69.093309（約$2.30/日）を記録する。Life Managerの6 tenant分であり、Web customer分ではない。provider利用48,524件のうち3件は推定額なし。この集計は請求書、Web別原価、顧客あたり平均ではない。Composio、hosting、Stripe fee/refund/settlement、marketing費は含まれない。
-- **推奨する価格test:** Travel専用の単一プランを**$5/月または$36/年**で試す。現在のAddTravelTimeは$5/月・$36/年、14日間・カード不要のtrialを掲示し、DOFOTTとTravelSyncにも近い価格帯がある。これはpositioning仮説であり、live価格の承認や競合profitの証拠ではない。14日・カード不要trialはStripe checkout、app entitlement、解約、公開copyの条件を一致させてから使う。Web identity実装ではStripe価格を変更しない。
-- $5/月なら月額subscriber 2,000人で$10,000 gross MRR。$36/年なら年間subscriber 3,334人で年額売上を12分割した約$10,002 MRR。現在の$29/月なら345人で$10,005、$20/月なら500人で$10,000となる。これはgrossの算術でありforecastやnet profitではない。月$10,000のnet contributionに必要な人数は、顧客あたり原価、返金、決済fee、hosting、獲得費を測るまで不明。Life Manager Cloudの$10K MRR目標はgross MRR、net contributionは別指標として扱う。
-- **初期marketing:** 用意済みのorganic配信ペース（Instagram demo Reel週2本、founder-led X週3本、高意図SEO記事月2本）を使う。sourceからpaidまでのCACを計測できるまでは有料広告を出さない。現在のmarketing spend自体は未確認。signupからStripe checkoutまで全linkにsource attributionを付け、landing訪問 → Google sign-in → Calendar ACTIVE → home保存 → Travel block確定 → checkout → settled subscriptionを計測する。
+- **価格決定:** 公開offerと現行Stripe checkoutの**$29/月を維持する**。以前の$5/月・$36/年案は競合価格から出した私の余計な提案として撤回する。既存catalogにある$20/月priceは現行公開page/Payment Linkで使わず、Stripe catalogの価格も増減しない。競合価格はpositioning比較にだけ使い、値下げ根拠にしない。
+- $29/月で$10,000 gross MRRを超えるには**345人のactive paid subscribers**（$10,005 gross MRR）が必要。これはfee/cost控除前であり、net profitの達成数ではない。1%/3%/5%のvisit-to-paid conversionは計画用の仮定で、それぞれ34,500/11,500/6,900 qualified landing visitsが必要になる。実際のconversionは未計測なので、source attributionとpaid invoiceから実績を計測して仮定を更新する。これらの仮定はforecast扱いしない。net contribution $10,000に必要な人数はWeb別変動費、refund、payment fee、hosting、CACを測るまで不明。
+- **初期marketing:** 「イベント通知では遅い。移動時間をカレンダーに確保し、いつ出るか先に分かる」を訴求する。初期audienceは対面予定が定期的にあるconsultant/freelancer/field salesの仮説。週2 Instagram demo Reel、週3 founder-led X、月2 high-intent SEOで開始し、source→signup→Calendar ACTIVE→基点保存→初回Travel block→checkout→paid invoiceを計測する。現在のmarketing spendは未確認。paid CACを測るまでは有料広告を出さない。
 - Reuse existing product marketing copy and the shared marketing engine's content-manifest idea. Do not activate its private Instagram automation route; actual account operation must use the registered CloakBrowser direct-CDP route.
 - gross MRRと月次contributionを分けて報告する。contributionの基準はpaid invoice/chargeの控除前金額とし、refundとStripe feeを一度だけ控除する。payout/settlementはnet receiptとの照合に使い、そこからrefund/feeを再控除しない。その後、同じ期間のroute/provider・Composio・hosting・attributed marketing spendを控除する。repo内のfounder申告historical revenueをこの商品のprofit証拠に使わない。
 
