@@ -5016,6 +5016,24 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertEqual(proof["proof_type"], "pre_effect")
         self.assertEqual(proof["blocker"], "entrypoint_exit_1")
 
+    def test_ebook_local_publication_fence_refusal_is_pre_effect(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
+            "marketing publication effect fenced",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["proof_type"], "pre_effect")
+        self.assertEqual(proof["blocker"], "entrypoint_exit_1")
+
+        rows[1]["evidence_refs"].append("lm-effect://postiz/posts/external-effect")
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "effect_ref_present")
+
     def test_ebook_pre_effect_uses_exact_occurrence_without_claim_uri(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
         rows[1]["evidence_refs"] = [
