@@ -702,6 +702,13 @@ TODO（何を・どう直すか）
 | L13 | リジェクトを読んで直し、再申請する | DONE (branch `fix/line-sticker-reject-fix-20261007`): `creators_readback.py` がリジェクト時にメッセージセンター（`/message/` → `/message/detail/<id>`）から実際の却下理由を読み `rejection_message`/`rejected_at` を保存。新規 `line_sticker_resubmit.py` が却下理由を model（`agent_runner.py`、`marketing-agent`）に渡し、閉じたアクション集合 `leave_features`/`retitle`/`retag`/`cannot_fix` から1つを選ばせ、そのアクションだけをコードが実行（特集を「参加しない」に変更/タイトルにキャラ名付記/タグ再選定）してから `同意します`→OK で再リクエスト。プロダクトごと自動再リクエスト上限2回、再リクエスト後に公式ページが「審査待ち/審査中」を読み返すまで成功と記録しない（effect fence）。LINE側の日次リクエスト上限（モーダルの `N/30` 表記）を検知したら送信前に停止。`cannot_fix` は理由を記録して `line_sticker_notify.notify` で `factory-events.jsonl` に通知。テスト `tests/test_line_sticker_resubmit.py`（9件、アクション分岐・上限2回・readback必須をカバー）。既存 113件 + 新規9件 = 122件 all green（`~/.local/share/life-manager/venv/bin/python -m unittest discover -s skills/earn/line-sticker/tests`）、`./bin/lm-loop-contract` PASS（`line-sticker-readback-hourly` の `effect_class` を `none`→`publish`、`resource_class` を `deterministic`→`browser` に修正、同ジョブはカタログ未マッピングのため recovery_classes 整合は対象外）。48067450 の実例（2026-10-06 14:21 特集枚数不足）は本人が手動で直した後の状態のため、この変更のライブ再現検証は未実施（次にリジェクトが発生した際の自然 wake で readback 経由の実地確認が残課題）。 |
 | L14 | 1 回の起動で 1 セットを申請まで（Dais 2026-10-07「1 段ずつではなく出荷まで」） | DONE: #6835 起動 15 分ごと、#6837 `factory.run()` が submitted まで進め続ける（submit の sub-state も進捗がある限り継続）、日次上限 24、runtime 5400s。release `e757f0f4` に apply。天井は Creators Market の審査リクエスト 30 回/日 |
 | L15 | README のエージェント一覧に登録 | DONE: #6840 `product-loop-catalog` に `line-sticker`、README/README.ja を「16 main agents」に（#15 LINE Sticker）。誰の端末でも動く guided installer は未 |
+| L16 | 成功者との差分を埋める（2026-10-07 時点の比較。根拠: LINE STORE top_creators 上位 35 件・20 作者の調査） | 下の L17〜L22 が残り。工場（作る→申請）は自動で回る: 2026-10-07 だけで 7 セット申請、シリーズ化・タイトルの型・文字/長さ制約・リジェクト自動修正まで本番稼働 |
+| L17 | 集客をキャラの日常投稿として毎日続け、フォロワーを増やす（上位作者はほぼ全員 SNS でキャラの日常を投稿し、そのフォロワーが買う） | **cursor**。現状 IG `@stardust_doubutsu` 1 アカウント、リール 3 本、フォロワー 0、1 日 6 枠。足りないもの: ①投稿内容が「スタンプの見本」だけで、キャラの日常・季節ネタ・漫画など上位作者の型になっていない ②フォロー/いいね等の交流（warmer の day3+ engagement）が未稼働 ③TikTok / X のキャラ専用アカウントが無い ④bio にストア URL（新規アカウントのため数日後に追加）|
+| L18 | 売上・分配額を毎日読んで、売れたキャラ・テーマの続編を優先する（上位作者は反応のあった系統を伸ばす） | 未。Creators Market「売上・統計情報」の readback と、planner に売上を渡す配線が無い。catalog の financial adapter も missing |
+| L19 | 静止スタンプ（¥120/¥190）の量産ラインを足す（上位 35 件の 60% は静止、価格帯も静止が中心） | 未。今は動くスタンプ（¥250）だけ。静止は動画生成が不要なので 1 セットの原価がほぼ画像代だけ |
+| L20 | 文字入り版を別 SKU で出す（上位作者は同じキャラで文字あり・文字なしを並行販売） | 未。今は文字なしだけ |
+| L21 | 1 キャラのシリーズ本数を上位作者並みに増やす（5〜36 セット/作者） | 進行中: planner が `series_of` で続編を選ぶ（カワウソ vol.2・vol.3 済み）。売上データ（L18）が入るまでは販売中キャラ優先 |
+| L22 | fleet apply が使用中の常駐ブラウザを再起動しない | 未（共有の仕組み）。2026-10-07 10:00Z にタグ付け中のブラウザが再起動された。工場側は画像/タグの再試行で吸収済み、根本はオーケストレーターに agmsg で依頼済み |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
