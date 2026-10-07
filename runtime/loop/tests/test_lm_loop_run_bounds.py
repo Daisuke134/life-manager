@@ -27,7 +27,7 @@ from runtime.loop.lm_loop_run import (
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _heartbeat_loop, _run_admitted, _run_entrypoint,
     _run_entrypoint_with_stderr_capture, _runtime_limit,
-    _sqlite_database_busy,
+    _proven_pre_effect_failure, _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
     build_loop_command,
     main as lm_loop_run_main,
@@ -1637,9 +1637,58 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
         "apps/life-manager/scripts/mobile-app",
     })
     assert "apps/life-manager/scripts/ebook-distribute-daily.sh" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert "apps/life-manager/scripts/mobile-app" in PRE_EFFECT_HINT_ENTRYPOINTS
     assert {"ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"} <= PRE_EFFECT_HINT_LOOP_IDS
     assert observed["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
         tmp_path / "entrypoint-result.json")
+
+
+def test_mobile_publish_failure_after_hint_clear_keeps_unknown_effect_fence(tmp_path):
+    claim = tmp_path / "claim-mobile"
+    claim.write_text(json.dumps({
+        "occurrence_id": "life-manager-honne-ja:run-1",
+    }))
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        assert hint.is_file(), "mobile publisher must begin with a fail-closed no-effect marker"
+        assert json.loads(hint.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0,
+        }
+        hint.unlink()
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "postiz", "resource_class": "agent",
+            "admission_class": "revenue", "effect_class": "publish",
+            "entrypoint": "apps/life-manager/scripts/mobile-app",
+        }, "life-manager-honne-ja", {}, tmp_path / "mobile-receipt",
+            occurrence_id="life-manager-honne-ja:run-1") == 1
+
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
+
+
+def test_pre_effect_hint_fails_closed_when_absent_or_malformed(tmp_path):
+    absent = tmp_path / "absent.json"
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("not-json\n", encoding="utf-8")
+    malformed.chmod(0o600)
+
+    assert _proven_pre_effect_failure(absent) is False
+    assert _proven_pre_effect_failure(malformed) is False
 
 
 def _write_effect_result(path, **overrides):
