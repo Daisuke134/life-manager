@@ -36,17 +36,23 @@ from runtime.loop.runtime_event import build_runtime_event
 
 
 _PROTOCOL_PATCHER = None
+_DISK_PATCHER = None
 
 
 def setup_module():
-    global _PROTOCOL_PATCHER
+    global _PROTOCOL_PATCHER, _DISK_PATCHER
     _PROTOCOL_PATCHER = patch(
         "runtime.loop.lm_loop_run.durable_protocol_version", return_value=2,
     )
     _PROTOCOL_PATCHER.start()
+    _DISK_PATCHER = patch(
+        "runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3,
+    )
+    _DISK_PATCHER.start()
 
 
 def teardown_module():
+    _DISK_PATCHER.stop()
     _PROTOCOL_PATCHER.stop()
 
 
@@ -941,6 +947,10 @@ def test_memory_admission_exit_is_deferred_not_failed():
         False, True, "host_admission_deferred:resource_capacity_busy")
     assert _terminal_outcome(124, host_deferred="memory_headroom_low") == (
         False, True, "host_admission_deferred:memory_headroom_low")
+    assert _terminal_outcome(75, host_deferred="disk_headroom_low") == (
+        False, True, "host_admission_deferred:disk_headroom_low")
+    assert _terminal_outcome(75, host_deferred="disk_headroom_unavailable") == (
+        False, True, "host_admission_deferred:disk_headroom_unavailable")
     assert _terminal_outcome(75) == (False, False, "entrypoint_exit_75")
     assert _terminal_outcome(1) == (False, False, "entrypoint_exit_1")
 
@@ -2674,6 +2684,128 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
 
 
+def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
+    floor = 11 * 1024**3
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_KIB": "0"}),
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor - 1) as disk,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(tmp_path / "claim", "acquired")) as claim,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    disk.assert_called_once_with(receipt.parent)
+    enqueue.assert_not_called(); claim.assert_not_called(); run_child.assert_not_called()
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    deferred = json.loads(receipt.read_text())
+    assert deferred["status"] == "deferred"
+    assert deferred["effect"] == 0
+    assert deferred["reason"] == "disk_headroom_low"
+    assert deferred["available_bytes"] == floor - 1
+    assert deferred["required_bytes"] == floor
+
+
+def test_unavailable_disk_measurement_defers_before_queue(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=None) as disk,
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(tmp_path / "claim", "acquired")) as claim,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    disk.assert_called_once_with(receipt.parent)
+    enqueue.assert_not_called(); claim.assert_not_called(); run_child.assert_not_called()
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    deferred = json.loads(receipt.read_text())
+    assert deferred["reason"] == "disk_headroom_unavailable"
+    assert deferred["effect"] == 0
+    assert deferred["required_bytes"] == 11 * 1024**3
+
+
+def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
+    floor = 11 * 1024**3
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    claim = tmp_path / "claim"
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor) as disk,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")) as acquire,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
+
+    assert disk.call_args_list == [call(receipt.parent), call(receipt.parent)]
+    enqueue.assert_called_once(); acquire.assert_called_once(); run_child.assert_called_once()
+
+
+def test_disk_drop_after_claim_requeues_without_provider_dispatch(tmp_path):
+    floor = 11 * 1024**3
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    claim = tmp_path / "claim"
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes",
+                side_effect=[floor, floor - 1]) as disk,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    assert disk.call_args_list == [call(receipt.parent), call(receipt.parent)]
+    release.assert_called_once_with(claim, requeue=True, reserve=False)
+    dispatch.assert_not_called(); run_child.assert_not_called()
+    deferred = json.loads(receipt.read_text())
+    assert deferred["reason"] == "disk_headroom_low"
+    assert deferred["available_bytes"] == floor - 1
+    assert deferred["required_bytes"] == floor
+
+
+def test_control_and_continuous_owner_bypass_disk_preflight(tmp_path):
+    control_entry = {"cadence": {"start_interval_seconds": 60},
+                     "provider_route": "deterministic", "effect_class": "none"}
+    continuous_entry = {"cadence": {"keep_alive": True},
+                        "provider_route": "shared-agent-runner", "effect_class": "application"}
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes",
+                side_effect=AssertionError("exempt owner must bypass disk preflight")) as disk,
+          patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource"),
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run_child):
+        assert _run_admitted(["/bin/true"], control_entry, "life-manager-disk-cleanup",
+                             {}, tmp_path / "control.json") == 0
+        assert _run_admitted(["/bin/true"], continuous_entry, "continuous-owner",
+                             {}, tmp_path / "continuous.json") == 0
+
+    disk.assert_not_called()
+    assert run_child.call_count == 2
+
+
 def test_post_claim_memory_deferral_requeues_without_dispatch(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
@@ -3171,6 +3303,8 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
     }
     runner = (
         "import os,pathlib,sys; "
+        "from runtime.loop import lm_loop_run; "
+        "lm_loop_run.disk_free_bytes=lambda _path:16*1024**3; "
         "from runtime.loop.lm_loop_run import _run_admitted; "
         f"entry={entry!r}; command=[sys.executable,'-c',{child!r}]; "
         f"sys.exit(_run_admitted(command,entry,'example',os.environ.copy(),"

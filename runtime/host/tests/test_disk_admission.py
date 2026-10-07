@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,10 @@ def isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("LIFE_MANAGER_HOST_STATE_DIR", str(host_state))
     monkeypatch.setenv("LIFE_MANAGER_PRODUCER_STATE_DIR", str(producer_state))
     monkeypatch.setenv("LIFE_MANAGER_DISK_HEADROOM_KIB", "0")
+    healthy = 16 * 1024**3
+    monkeypatch.setattr(shutil, "disk_usage", lambda _path: SimpleNamespace(
+        total=healthy, used=0, free=healthy,
+    ))
     for key in (
         "GIG_DISK_HEADROOM_KIB", "GIG_HOST_STATE_DIR", "GIG_STATE_DIR",
         "OPENCLAW_STATE_DIR", "DISK_CONTROL_STATE_DIR",
@@ -47,6 +53,37 @@ def test_defaults_are_life_manager_owned(monkeypatch: pytest.MonkeyPatch, tmp_pa
     guard = load_guard()
     assert guard._host_state_dir() == home / ".local/state/life-manager/state"
     assert guard._state_dir() == home / ".local/state/life-manager"
+
+
+def test_disk_free_bytes_measures_the_requested_receipt_volume(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+):
+    path = tmp_path / "receipt-volume"
+    calls = []
+    guard = load_guard()
+    monkeypatch.setattr(guard.shutil, "disk_usage", lambda actual: (
+        calls.append(actual) or SimpleNamespace(total=100, used=40, free=60)
+    ))
+
+    assert guard.disk_free_bytes(path) == 60
+    assert calls == [path]
+
+
+@pytest.mark.parametrize("free_bytes", (None, -1, True, "unknown", "missing"))
+def test_disk_free_bytes_returns_unavailable_for_invalid_measurements(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, free_bytes,
+):
+    guard = load_guard()
+    if free_bytes is None:
+        monkeypatch.setattr(guard.shutil, "disk_usage", lambda _path: (_ for _ in ()).throw(OSError()))
+    elif free_bytes == "missing":
+        monkeypatch.setattr(guard.shutil, "disk_usage", lambda _path: SimpleNamespace())
+    else:
+        monkeypatch.setattr(guard.shutil, "disk_usage", lambda _path: SimpleNamespace(
+            total=100, used=40, free=free_bytes,
+        ))
+
+    assert guard.disk_free_bytes(tmp_path) is None
 
 
 @pytest.mark.parametrize(

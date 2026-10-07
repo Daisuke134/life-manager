@@ -44,6 +44,13 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
   advances atomically under the governor's singleton lock before each bounded
   sweep, so an early slow or open candidate cannot consume every wake.
+- The shared runner defers new finite data-plane wakes below 11 GiB, measuring
+  the volume that contains the host-admission receipt before queueing and again
+  after claim before child dispatch. Control-plane safety loops and continuous
+  owners bypass this gate. It releases any prior reservation through the
+  existing defer path and never stops a running owner. Its fixed 11 GiB floor
+  is independent of the individual-wrapper `LIFE_MANAGER_DISK_HEADROOM_KIB`
+  setting.
 - Every pass atomically writes `host-inventory.json` with local mount sizes
   converted from `df -kP` 1 KiB block counts to bytes and bounded owner-family
   metadata. The hourly/full compatibility pass may run a

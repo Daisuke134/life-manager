@@ -240,6 +240,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch("runtime.loop.loop_cleanup.cleanup_run_root",
                            side_effect=AssertionError("wake-path cleanup")),
                 mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
+                mock.patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3),
                 mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
                 mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                            return_value=(root / "ticket", "ready")),
@@ -346,6 +347,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch.dict(os.environ, {"HOME": str(home)}),
                 mock.patch("runtime.loop.lm_loop_run.process_start", return_value="start"),
                 mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
+                mock.patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3),
                 mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
                 mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                            return_value=(root / "ticket", "ready")),
@@ -894,8 +896,13 @@ class LoopCleanupTest(unittest.TestCase):
                 "provider_route": "deterministic"}}}
             (root / "config").mkdir(); (root / "config/loop-registry.json").write_text(json.dumps(registry))
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            command = (
+                "from runtime.loop import lm_loop_run; "
+                "lm_loop_run.disk_free_bytes = lambda _path: 16 * 1024**3; "
+                f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
+            )
             result = subprocess.run(
-                [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
+                [sys.executable, "-c", command],
                 cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home),
                     "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000",
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission")},
@@ -937,8 +944,13 @@ class LoopCleanupTest(unittest.TestCase):
                 "LIFE_MANAGER_REPO": "source-sentinel",
                 "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
             }
+            command = (
+                "from runtime.loop import lm_loop_run; "
+                "lm_loop_run.disk_free_bytes = lambda _path: 16 * 1024**3; "
+                f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
+            )
             result = subprocess.run(
-                [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
+                [sys.executable, "-c", command],
                 cwd=Path(__file__).parents[3], env=environment, check=False)
 
             self.assertEqual(result.returncode, 0)
