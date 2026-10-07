@@ -237,6 +237,36 @@ test("Kanji-number and municipality-scoped addresses use only GSI before Google 
   }
 });
 
+test("kana municipality names and spaces stay on GSI before Google fallback", async (t) => {
+  const queries = ["渋谷区 神南", "さいたま市浦和区高砂", "つくば市吾妻"];
+  for (const [index, query] of queries.entries()) {
+    await t.test(query, async () => {
+      const result = await runGeocode({
+        query,
+        tenantId: `tenant-admin-address-${index}`,
+        gsi: [gsiFeature(query, [181, 35.661])],
+      });
+
+      assert.equal(result.requests.length, 1);
+      assert.equal(result.requests[0].url.hostname, "msearch.gsi.go.jp");
+      assert.equal(result.googleCalls, 1);
+      assert.equal(result.events.some((event) => event.provider === "openpoi"), false);
+      assert.equal(result.events.find((event) => event.provider === "gsi")?.failureClass, "invalid_coordinates");
+    });
+  }
+});
+
+test("a Kanji numeral followed by a lexical Han character remains an OpenPOI place name", async () => {
+  const query = "三番瀬海浜公園";
+  const result = await runGeocode({ query, openpoi: { suggestions: [poiCandidate(query)] } });
+
+  assert.equal(result.result.provider, "openpoi");
+  assert.equal(result.googleCalls, 0);
+  assert.equal(result.requests.length, 1);
+  assert.equal(result.requests[0].url.hostname, "api.openpoiapi.com");
+  assert.equal(result.events.some((event) => event.provider === "gsi"), false);
+});
+
 test("an OpenPOI name with two exact suggestions remains ambiguous and falls back once", async () => {
   const query = "東京駅";
   const first = poiCandidate(query, { lat: 35.699383927107796, lng: 139.77333040976976 });
