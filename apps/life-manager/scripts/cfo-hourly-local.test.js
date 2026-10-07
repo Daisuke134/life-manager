@@ -8,7 +8,391 @@ const test = require("node:test");
 
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
-const { agentReceiptPathsFromEnv, affiliateReadbackPathFromEnv, runHourlyCfo } = require("./cfo-hourly-local.js");
+const { MONEYTREE_OBSERVATION } = require("../lib/moneytree-local-adapter.js");
+const { createMoneytreeObservationStore } = require("../lib/moneytree-observation-store.js");
+const {
+  agentReceiptPathsFromEnv, affiliateReadbackPathFromEnv, collectCfoProjection, runHourlyCfo,
+} = require("./cfo-hourly-local.js");
+const { runResultCfo } = require("./cfo-result-local.js");
+
+function businessTable(reportingDate) {
+  return {
+    reporting_date: reportingDate,
+    timezone: "Asia/Tokyo",
+    rows: [{ loop_id: "capafy", revenue: { status: "unknown", reason: "no_receipt" } }],
+  };
+}
+
+function fakePython(root, table) {
+  const tablePath = path.join(root, "business.json");
+  const callsPath = path.join(root, "business-calls.jsonl");
+  const pythonBin = path.join(root, "python");
+  fs.writeFileSync(tablePath, JSON.stringify(table));
+  fs.writeFileSync(pythonBin, `#!/usr/bin/env node
+const fs = require("node:fs");
+fs.appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({
+  args: process.argv.slice(2), marker: process.env.CFO_TEST_MARKER,
+}) + "\\n");
+process.stdout.write(fs.readFileSync(${JSON.stringify(tablePath)}, "utf8"));
+`, { mode: 0o700 });
+  return { pythonBin, callsPath };
+}
+
+function observedRows(rows, tool, payloadHash, query = {}) {
+  Object.defineProperty(rows, MONEYTREE_OBSERVATION, {
+    enumerable: false,
+    value: Object.freeze({
+      provider: "moneytree", mcp_server: "codex_apps", tool,
+      retrieved_at: "2026-10-07T07:00:00.000Z", payload_sha256: payloadHash,
+      ...(tool === "moneytree.show-transactions" ? {
+        query_start_date: query.startDate, query_end_date: query.endDate,
+        provider_total_count: query.providerTotalCount ?? rows.length,
+        returned_count: rows.length, limit: query.limit ?? 1000,
+      } : {}),
+    }),
+  });
+  return rows;
+}
+
+function collectorFixture(root, {
+  date = "2026-10-07", rowsForWindow = () => [], providerCounts = [], failWindow = null,
+} = {}) {
+  const business = businessTable(date);
+  const python = fakePython(root, business);
+  const counters = { accountReads: 0, transactionReads: 0, ranges: [] };
+  const accounts = observedRows([{
+    name: "三菱UFJ銀行 普通", balance_jpy: 42000, observed_at: "2026-10-07T07:00:00.000Z",
+  }], "moneytree.show-accounts", "a".repeat(64));
+  const options = {
+    stateDir: root,
+    pythonBin: python.pythonBin,
+    env: { ...process.env, CFO_TEST_MARKER: "preserved" },
+    now: new Date("2026-10-07T07:30:00.000Z"),
+    readAccounts: async () => { counters.accountReads += 1; return accounts; },
+    readTransactions: async ({ startDate, endDate, limit }) => {
+      const index = counters.transactionReads++;
+      counters.ranges.push({ startDate, endDate });
+      if (index === failWindow) throw new Error("fixture Moneytree unavailable");
+      const rows = rowsForWindow({ index, startDate, endDate });
+      return observedRows(rows, "moneytree.show-transactions", String(index + 1).repeat(64), {
+        startDate, endDate, limit, providerTotalCount: providerCounts[index] ?? rows.length,
+      });
+    },
+    moneytreeEvidenceStore: createMoneytreeObservationStore({
+      directoryPath: path.join(root, "evidence", "moneytree"),
+    }),
+  };
+  return { business, python, counters, options };
+}
+
+test("collectCfoProjection preserves business data and binds Moneytree evidence", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-collect-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const date = "2026-10-07";
+  const business = businessTable(date);
+  const python = fakePython(root, business);
+  const accountRead = observedRows([{
+    name: "三菱UFJ銀行 普通", balance_jpy: 42000, observed_at: "2026-10-07T07:00:00.000Z",
+  }], "moneytree.show-accounts", "a".repeat(64));
+  let accountReads = 0;
+  const ranges = [];
+  const result = await collectCfoProjection(date, {
+    stateDir: root,
+    pythonBin: python.pythonBin,
+    env: { ...process.env, CFO_TEST_MARKER: "preserved" },
+    readAccounts: async () => { accountReads += 1; return accountRead; },
+    readTransactions: async ({ startDate, endDate, limit }) => {
+      ranges.push({ startDate, endDate });
+      return observedRows([], "moneytree.show-transactions", String(ranges.length).repeat(64), { startDate, endDate, limit });
+    },
+    moneytreeEvidenceStore: createMoneytreeObservationStore({
+      directoryPath: path.join(root, "evidence", "moneytree"),
+    }),
+  });
+
+  const { personal_moneytree: personal, ...businessResult } = result;
+  assert.deepEqual(businessResult, business);
+  assert.equal(accountReads, 1);
+  assert.equal(ranges.length, 5);
+  assert.equal(personal.windows.length, 5);
+  assert.ok(personal.windows.every((window) => window.evidence_ref.startsWith("moneytree-observation://sha256/")));
+  assert.equal(fs.readdirSync(path.join(root, "evidence", "moneytree")).length, 5);
+  const [collectorCall] = fs.readFileSync(python.callsPath, "utf8").trim().split("\n").map(JSON.parse);
+  assert.deepEqual(collectorCall.args.slice(1), ["--date", date, "--json"]);
+  assert.equal(collectorCall.marker, "preserved");
+});
+
+test("Moneytree reads cover inclusive bounded windows and dedupe boundary rows", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-windows-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const duplicate = { id: "tx-boundary", occurred_at: "2025-10-08", amount_jpy: -1000, category: "食費", merchant: "Market" };
+  const fixture = collectorFixture(root, {
+    providerCounts: [2, 2, 1001, 0, 1],
+    rowsForWindow: ({ index }) => [
+      [duplicate, { id: "tx-before-range", occurred_at: "2025-10-01", amount_jpy: -900, category: "食費", merchant: "Old Market" }],
+      [duplicate, { id: "tx-feb", occurred_at: "2026-02-02", amount_jpy: -200, category: "交通", merchant: "Train" }],
+      [{ id: "tx-may", occurred_at: "2026-05-03", amount_jpy: -300, category: "食費", merchant: "Market" }],
+      [],
+      [{ id: "tx-latest", occurred_at: "2026-10-07", amount_jpy: 50000, category: "給与", merchant: "Salary" }],
+    ][index],
+  });
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  const personal = result.personal_moneytree;
+
+  assert.deepEqual(fixture.counters.ranges, [
+    { startDate: "2025-10-07", endDate: "2026-01-06" },
+    { startDate: "2026-01-07", endDate: "2026-04-06" },
+    { startDate: "2026-04-07", endDate: "2026-07-06" },
+    { startDate: "2026-07-07", endDate: "2026-10-06" },
+    { startDate: "2026-10-07", endDate: "2026-10-07" },
+  ]);
+  assert.equal(personal.status, "partial");
+  assert.equal(personal.windows[0].coverage_status, "partial");
+  assert.equal(personal.windows[0].range_mismatch_count, 1);
+  assert.equal(personal.windows[1].range_mismatch_count, 1);
+  assert.equal(personal.windows[2].coverage_status, "partial");
+  assert.equal(personal.latest_transaction_date, "2026-10-07");
+  assert.equal(personal.monthly.find((month) => month.month === "2025-10").expense_jpy, 1000);
+});
+
+test("inclusive Moneytree chunks stay within three months at month-end and leap day", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-date-edges-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const cases = [
+    ["2026-03-31", [
+      ["2025-03-31", "2025-06-29"], ["2025-06-30", "2025-09-29"],
+      ["2025-09-30", "2025-12-29"], ["2025-12-30", "2026-03-29"], ["2026-03-30", "2026-03-31"],
+    ]],
+    ["2024-02-29", [
+      ["2023-02-28", "2023-05-27"], ["2023-05-28", "2023-08-27"],
+      ["2023-08-28", "2023-11-27"], ["2023-11-28", "2024-02-27"], ["2024-02-28", "2024-02-29"],
+    ]],
+  ];
+  for (const [index, [date, expected]] of cases.entries()) {
+    const caseRoot = path.join(root, String(index));
+    fs.mkdirSync(caseRoot);
+    const fixture = collectorFixture(caseRoot, { date });
+    await collectCfoProjection(date, fixture.options);
+    assert.deepEqual(fixture.counters.ranges.map(({ startDate, endDate }) => [startDate, endDate]), expected);
+  }
+});
+
+test("Moneytree window excludes a report-period row returned outside its requested dates", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-window-bounds-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root, {
+    rowsForWindow: ({ index }) => index === 3 ? [
+      { id: "tx-wrong-window", occurred_at: "2026-02-03", amount_jpy: -900, category: "食費", merchant: "Market" },
+    ] : [],
+  });
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  const february = result.personal_moneytree.monthly.find((month) => month.month === "2026-02");
+
+  assert.equal(february.expense_jpy, null);
+  assert.equal(february.coverage_status, "unknown");
+  assert.equal(result.personal_moneytree.windows[3].range_mismatch_count, 1);
+  assert.equal(result.personal_moneytree.windows[3].coverage_status, "partial");
+});
+
+test("Moneytree without provider sync keeps freshness and empty flows unknown", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-empty-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root);
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  const personal = result.personal_moneytree;
+
+  assert.equal(personal.status, "partial");
+  assert.equal(personal.provider_sync_at, null);
+  assert.equal(personal.freshness_status, "unknown");
+  assert.equal(personal.latest_transaction_date, null);
+  assert.equal(personal.windows.length, 5);
+  assert.ok(personal.windows.every((window) => window.coverage_status === "unknown"));
+  assert.equal(personal.monthly.length, 13);
+  assert.ok(personal.monthly.every((month) => month.coverage_status === "unknown"
+    && month.income_jpy === null && month.expense_jpy === null && month.cash_movement_jpy === null));
+});
+
+test("Moneytree transfers are excluded and repeated merchants stay candidates", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-categories-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root, {
+    rowsForWindow: ({ index }) => index !== 3 ? [] : [
+      { id: "tx-transfer", occurred_at: "2026-10-01", amount_jpy: -2000, category: "振替", merchant: "RAW_TRANSFER_DESC", transfer_id: "transfer" },
+      { id: "tx-card", occurred_at: "2026-10-01", amount_jpy: -5400, category: "カード返済", merchant: "RAW_CARD_DESC", transfer_id: "card" },
+      { id: "tx-atm", occurred_at: "2026-10-01", amount_jpy: -10000, category: "ATM引き出し", merchant: "RAW_ATM_DESC", transfer_id: "atm" },
+      { id: "tx-sub-1", occurred_at: "2026-08-05", amount_jpy: -1000, category: "娯楽", merchant: "Video Service" },
+      { id: "tx-sub-2", occurred_at: "2026-09-05", amount_jpy: -1200, category: "娯楽", merchant: "Video Service" },
+    ],
+  });
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  const personal = result.personal_moneytree;
+  const october = personal.monthly.find((month) => month.month === "2026-10");
+
+  assert.equal(october.expense_jpy, null);
+  assert.equal(october.cash_movement_jpy, -17400);
+  assert.deepEqual(personal.recurring_charge_candidates.map(({ merchant, month_count, total_observed_jpy }) => ({
+    merchant, month_count, total_observed_jpy,
+  })), [{ merchant: "Video Service", month_count: 2, total_observed_jpy: 2200 }]);
+  assert.match(personal.recurring_charge_candidates[0].evidence_refs[0], /^moneytree-observation:\/\/sha256\/[a-f0-9]{64}$/);
+  const storedCache = fs.readFileSync(path.join(root, "personal-moneytree-snapshot.json"), "utf8");
+  assert.doesNotMatch(storedCache, /RAW_TRANSFER_DESC|RAW_CARD_DESC|RAW_ATM_DESC/);
+});
+
+test("Moneytree window failure preserves business and successful observations", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-failure-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root, { failWindow: 1 });
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  const { personal_moneytree: personal, ...businessResult } = result;
+
+  assert.deepEqual(businessResult, fixture.business);
+  assert.equal(personal.status, "partial");
+  assert.equal(personal.freshness_status, "unknown");
+  assert.equal(personal.windows.length, 5);
+  assert.equal(personal.windows[1].coverage_status, "unknown");
+  assert.equal(personal.windows[1].evidence_ref, null);
+  assert.equal(personal.windows[1].error_class, "Error");
+  assert.ok(personal.windows[0].evidence_ref);
+  assert.ok(personal.windows[2].evidence_ref);
+  assert.ok(personal.balances[0].evidence_ref);
+  assert.equal(fixture.counters.transactionReads, 5);
+  assert.equal(fs.existsSync(path.join(root, "personal-moneytree-snapshot.json")), false);
+});
+
+test("Moneytree cache reuses a recent snapshot and never upgrades stale data", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-cache-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const first = collectorFixture(root);
+  const firstResult = await collectCfoProjection("2026-10-07", first.options);
+  const cachePath = path.join(root, "personal-moneytree-snapshot.json");
+  assert.equal(fs.statSync(cachePath).mode & 0o777, 0o600);
+
+  const recent = collectorFixture(root);
+  recent.options.now = new Date("2026-10-07T08:30:00.000Z");
+  const recentResult = await collectCfoProjection("2026-10-07", recent.options);
+  assert.deepEqual(recentResult.personal_moneytree, firstResult.personal_moneytree);
+  assert.equal(recent.counters.accountReads, 0);
+  assert.equal(recent.counters.transactionReads, 0);
+  assert.equal(recentResult.personal_moneytree.freshness_status, "unknown");
+
+  const nextDate = collectorFixture(root, { date: "2026-10-08" });
+  nextDate.options.now = new Date("2026-10-07T08:30:00.000Z");
+  const nextDateResult = await collectCfoProjection("2026-10-08", nextDate.options);
+  assert.equal(nextDateResult.personal_moneytree.range_end, "2026-10-08");
+  assert.equal(nextDate.counters.accountReads, 1);
+  assert.equal(nextDate.counters.transactionReads, 5);
+
+  const mismatchFailure = collectorFixture(root, { date: "2026-10-09" });
+  mismatchFailure.options.now = new Date("2026-10-08T09:30:00.000Z");
+  mismatchFailure.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
+  const mismatchResult = await collectCfoProjection("2026-10-09", mismatchFailure.options);
+  assert.equal(mismatchResult.personal_moneytree.status, "unavailable");
+  assert.equal(mismatchResult.personal_moneytree.range_end, "2026-10-09");
+  assert.deepEqual(mismatchResult.personal_moneytree.balances, []);
+
+  const expired = collectorFixture(root, { date: "2026-10-08" });
+  expired.options.now = new Date("2026-10-09T08:30:00.000Z");
+  expired.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
+  const staleResult = await collectCfoProjection("2026-10-08", expired.options);
+  assert.equal(staleResult.personal_moneytree.status, "stale");
+  assert.equal(staleResult.personal_moneytree.freshness_status, "stale");
+  assert.equal(staleResult.personal_moneytree.refresh_windows.length, 5);
+  assert.ok(staleResult.personal_moneytree.refresh_windows.every((window) => window.error_class === "Error"));
+});
+
+test("Moneytree cache write failure preserves fresh receipt-backed observations", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-cache-write-fail-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root);
+  const cachePath = path.join(root, "personal-moneytree-snapshot.json");
+  const renameSync = fs.renameSync;
+  fs.renameSync = function (source, target) {
+    if (target === cachePath) throw new Error("fixture cache write failure");
+    return renameSync.call(fs, source, target);
+  };
+  let result;
+  try {
+    result = await collectCfoProjection("2026-10-07", fixture.options);
+  } finally {
+    fs.renameSync = renameSync;
+  }
+
+  assert.equal(result.personal_moneytree.status, "partial");
+  assert.equal(result.personal_moneytree.cache_status, "write_failed");
+  assert.equal(result.personal_moneytree.cache_error_class, "Error");
+  assert.equal(result.personal_moneytree.balances[0].balance_jpy, 42000);
+  assert.ok(result.personal_moneytree.windows.every((window) => window.evidence_ref));
+  assert.equal(fs.existsSync(cachePath), false);
+});
+
+test("future and noncanonical cache timestamps are rejected, not shown stale", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-cache-invalid-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root);
+  fixture.options.now = new Date("2026-10-07T23:00:00.000Z");
+  fixture.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
+  for (const cached_at of ["2026-10-08T00:00:00.000Z", 0, "2026-02-30T00:00:00.000Z"]) {
+    fs.writeFileSync(path.join(root, "personal-moneytree-snapshot.json"), JSON.stringify({
+      schema_version: 1,
+      cached_at,
+      personal_moneytree: {
+        schema_version: 1, owner: "dais_personal", status: "observed",
+        range_start: "2025-10-07", range_end: "2026-10-07",
+        freshness_status: "unknown", balances: [{ institution: "MUFG", balance_jpy: 999999 }],
+      },
+    }), { mode: 0o600 });
+
+    const result = await collectCfoProjection("2026-10-07", fixture.options);
+    assert.equal(result.personal_moneytree.status, "unavailable", `cached_at=${String(cached_at)}`);
+    assert.deepEqual(result.personal_moneytree.balances, [], `cached_at=${String(cached_at)}`);
+  }
+});
+
+test("B7 pending retry reuses the frozen Moneytree report without recollecting", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-b7-retry-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root);
+  const messages = [];
+  let collectCalls = 0;
+  let notifyCalls = 0;
+  const options = {
+    stateDir: root,
+    subjectId: "dais-personal-test",
+    reportEmail: "owner@example.test",
+    occurrenceId: "life-manager-cfo-hourly:personal-run-1",
+    env: { LIFE_MANAGER_RELEASE_SHA: "a".repeat(40) },
+    now: "2026-10-07T08:00:00.000Z",
+    collect: async (date) => {
+      collectCalls += 1;
+      return collectCfoProjection(date, fixture.options);
+    },
+    notify: async (input) => {
+      messages.push(input);
+      notifyCalls += 1;
+      return notifyCalls === 1
+        ? { delivery: "pending", provider_message_id: null }
+        : { delivery: "delivered", provider_message_id: "personal-report-receipt" };
+    },
+  };
+
+  await assert.rejects(runResultCfo(options), /cfo_provider_receipt_missing/);
+  assert.match(messages[0].message, /個人 Moneytree/);
+  const retried = await runResultCfo({
+    ...options, occurrenceId: "life-manager-cfo-hourly:personal-run-2", now: "2026-10-07T09:00:00.000Z",
+  });
+
+  assert.equal(retried.status, "sent");
+  assert.equal(messages.length, 2);
+  assert.equal(messages[1].message, messages[0].message);
+  assert.equal(collectCalls, 1);
+  assert.equal(fixture.counters.accountReads, 1);
+  assert.equal(fixture.counters.transactionReads, 5);
+});
 
 function revenue(overrides = {}) {
   const subjectId = overrides.subject_id || "dais-local";

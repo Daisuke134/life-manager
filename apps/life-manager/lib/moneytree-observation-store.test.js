@@ -9,9 +9,10 @@ const {
   buildMoneytreeObservation, createMoneytreeObservationStore,
 } = require("./moneytree-observation-store.js");
 
-const read = (tool, digest) => ({
+const read = (tool, digest, metadata = {}) => ({
   provider: "moneytree", mcp_server: "codex_apps", tool,
   retrieved_at: "2026-09-07T08:00:00.000Z", payload_sha256: digest.repeat(64),
+  ...metadata,
 });
 
 test("stores a private immutable receipt binding both authenticated reads to normalized rows", (t) => {
@@ -21,7 +22,10 @@ test("stores a private immutable receipt binding both authenticated reads to nor
   const observation = buildMoneytreeObservation({
     accounts: [{ id: "account-1", balance_jpy: 42 }], transactions: [],
     accountRead: read("moneytree.show-accounts", "a"),
-    transactionRead: read("moneytree.show-transactions", "b"),
+    transactionRead: read("moneytree.show-transactions", "b", {
+      query_start_date: "2026-09-01", query_end_date: "2026-09-30",
+      provider_total_count: 0, returned_count: 0, limit: 1000,
+    }),
     observedAt: "2026-09-07T08:01:00.000Z",
   });
   assert.equal(store.record(observation), observation.evidence_ref);
@@ -33,6 +37,29 @@ test("stores a private immutable receipt binding both authenticated reads to nor
   assert.equal(saved.provider, "moneytree");
   assert.equal(saved.account_count, 1);
   assert.equal(Object.hasOwn(saved, "accounts"), false);
+});
+
+test("receipt digest binds transaction query range and coverage counts", () => {
+  const build = (metadata) => buildMoneytreeObservation({
+    accounts: [], transactions: [],
+    accountRead: read("moneytree.show-accounts", "a"),
+    transactionRead: read("moneytree.show-transactions", "b", metadata),
+    observedAt: "2026-09-07T08:01:00.000Z",
+  });
+  const range = {
+    query_start_date: "2026-09-01", query_end_date: "2026-09-30",
+    provider_total_count: 0, returned_count: 0, limit: 1000,
+  };
+  const baseline = build(range);
+
+  assert.notEqual(build({ ...range, query_start_date: "2026-08-01" }).evidence_ref, baseline.evidence_ref);
+  assert.notEqual(build({ ...range, provider_total_count: 1 }).evidence_ref, baseline.evidence_ref);
+  assert.notEqual(build({ ...range, limit: 500 }).evidence_ref, baseline.evidence_ref);
+  assert.deepEqual(baseline.document.reads[1], {
+    provider: "moneytree", mcp_server: "codex_apps", tool: "moneytree.show-transactions",
+    retrieved_at: "2026-09-07T08:00:00.000Z", payload_sha256: "b".repeat(64),
+    ...range,
+  });
 });
 
 test("rejects missing or forged connector provenance", () => {
