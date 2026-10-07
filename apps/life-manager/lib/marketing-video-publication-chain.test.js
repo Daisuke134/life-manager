@@ -43,6 +43,7 @@ function options(overrides = {}) {
     productId: "honne-ai",
     approvalRef: `object://sha256/${APPROVAL_HASH}`,
     instagramProfileRef: "profile://instagram/honne-ai-ja",
+    instagramIntegrationRef: "integration://postiz/instagram/honne-ai-ja",
     postizTokenRef: "secret://postiz/api-key",
     tiktokIntegrationRef: "integration://postiz/tiktok/honne-ai-ja",
     ...overrides,
@@ -57,6 +58,13 @@ test("one generic video generation receipt fans out to independent Instagram and
     "platform://instagram",
     "platform://tiktok",
   ]);
+  assert.deepEqual(
+    jobs.map((job) => job.input_refs.instagram_integration_ref || job.input_refs.tiktok_integration_ref),
+    [
+      "integration://postiz/instagram/honne-ai-ja",
+      "integration://postiz/tiktok/honne-ai-ja",
+    ],
+  );
   assert.ok(jobs.every((job) => (
     job.tenant_id === "tenant-a"
     && job.input_refs.product_ref === "product://honne-ai"

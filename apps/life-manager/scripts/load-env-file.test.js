@@ -126,11 +126,11 @@ test("all Postiz marketing launchers require the key before doing work", () => {
   }
 });
 
-test("JA main TikTok boot executes the Larry carousel owner", () => {
+test("JA main TikTok boot uses the rotating Larry carousel owner", () => {
   const item = require("../config/mobile-app-loops.json").loops["life-manager-anicca-main-tiktok"];
   assert.deepEqual(item, {
     product_id: "anicca-ios",
-    runner: "anicca-larry-ja-canary.js",
+    runner: "anicca-larry-ja-rotating.js",
     action: "run-ja-main-tiktok-production",
   });
 });
