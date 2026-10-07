@@ -3656,6 +3656,19 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
   10. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runとofficial source receiptをreadbackする。
       14-loop financial view、Moneytree freshness、RevenueCat、Google actual-vs-estimate、total expense/net/unknown/report receipt、replay-zeroを確認する。
 
+### 2026-10-07 JST — A3 migration実適用とreadback（A3.4未完）
+
+- この追記は上記の古い「credential不明・migration未適用」というA3 probe記録を上書きする。
+- 既存Supabase accountを利用し、新規account/tokenは作成していない。private credential SSOTの`supabase-life-manager-production` entryはmode `600`で、9項目（URL/ref/org、Management access token、anon/publishable、service-role/secret、login password）がruntime envとすべて一致することを値を表示せず確認した。
+- Supabase CLI default profileのorganization一覧は0件、API Keys readは403だった。一方、private SSOTの既存Management credentialによる対象project GETはHTTP 200、`ACTIVE_HEALTHY`、project/org一致を返した。
+- 公式`POST /v1/projects/{ref}/database/migrations`はHTTP 200でA3 migrationを適用し、migration historyからname=`2026-10-06-lm-geocode-cache`、version=`20261006235109`をreadbackした。
+- PostgREST OpenAPIはHTTP 200・124 pathsでget/upsert RPCが公開された。存在しないtenant/digestへのservice-role getはHTTP 200・0 rows、anon getはHTTP 401だった。
+- Management APIの`read_only:true` SELECTでtable exists、RLS enabled、service-role get/upsert EXECUTE、anon/authenticated get/upsert拒否を確認した。upsertは呼ばずproduction test/cache rowを作成していない。
+- Railway production `life-call`はSHA `64895457b7232a954f2f4492073b867009b6da85`でRUNNING、loaded sourceにはgeocode-cache get/set wiringがある。migrationのためのservice restart、route実行、Google billable request、Calendar/Telegram effectは行っていない。
+- A3.1 access、A3.2 apply、A3.3 schema/RPC/RLS/ACL readbackは完了。process restart後の自然route/cache-hit/replay-zeroを示すA3.4は未検証。
+- **cursor/order:** 次は既存の`A4.1`。現行順序`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`は変えない。A3 applyはDaisの明示依頼によるA6前の一回の例外実行であり、全体TODOを並べ替えない。
+- A3.4はA6で有意なsettled Google Geocoding spendまたはprocess restart後の重複callが確認された場合に限り再開する。synthetic rowや比較目的の追加provider callは作らず、自然なroute occurrenceと既存process lifecycleで確認する。
+
 
 ## 公開ハーネスへの移行 — HM lane
 
