@@ -4230,6 +4230,26 @@ flowchart LR
 1. release-reconciler occurrence `18dc5c3b8b23cd60-88270`の終端とapply-lock ownerをreadbackする。終端後、cleanup ownerの次のeligible passでfree space `>=2 GiB`, errors 0, protected deletions 0を確認し、free-space再低下のwriterを追加観測する。無差別削除やfloor overrideはしない。
 2. JA 07:00、EN 08:00の次slotからexact Postiz receipt/public URLをoccurrenceへ結合する。EnglishではHeyGen video SHAとwallet costも照合する。9 target-posts/dayは目標で、実測達成扱いはしない。
 
+### eBook Monk live delivery and capacity cursor — 2026-10-08 07:14 JST
+
+この節がeBookの最新cursorであり、06:34のcapacity/reconciler snapshotを置き換える。全社・mobileの他laneのTODO順は変えない。
+
+**TODO順変更:** 旧順=`release-reconciler終端→cleanup receipt→JA 07:00/EN 08:00の自然投稿readback`。新順=`復旧したJA 07:00の公式receiptを記録→EN 08:00の自然投稿とHeyGen cost→残りJA/EN slotを日次で照合→capacityのfresh cleanup receipt→PR #420 production readback/DDL→paid Checkout/PDF→Letter/Tegami cohort→Capafy Instagram`。理由: JA 07:00の2件は既に公式公開確認済みで、次の未実行targetはEN 08:00。現在cursor=`2026-10-08 07:14 JST、JA 07:00は2/2公開済み、EN 08:00は未実行`。
+
+**Monk route / provider proof:** Postizの現行3 targetはEnglish TikTok `@monk_anicca`、Japanese TikTok `@obou_anicca`、Japanese Instagram `@obou.anicca`。英語ルートはHeyGen Avatar IV、日本語2ルートはWatercolor Mark Factoryを使う。10/8 07:00 JSTの初回owner runはJA TikTok `18dc5e45d2cbb658-55237`とJA Instagram `18dc5e45d34f0788-55236`が両方`exit=75 / host_admission_deferred:resource_capacity_busy / effect_status=not_applicable`でPostiz dispatch前に延期された。TikTokは07:04、Instagramは07:05 JSTに、**同じoccurrence ID**を登録済みowner reconciliationがそれぞれPostiz `PUBLISHED`へ照合し、同一IDが一度だけreceiptになった。TikTok receipt `cmuynjaq808iblc0yd2396uhg`、Instagram receipt `cmuynjkih08ihlc0y38o87z0n`。両方とも`official_readback_ref=postiz://posts/<id>`、admissionは`released / effect_unknown=0`。`mobile-postiz-provider-reconcile.py`の公式proofはPostiz状態`PUBLISHED`、integration/profile、caption hashを一致させない限りpassしない。これは当日投稿2件の証拠であり、他slotの達成や恒久cadenceの証拠ではない。
+
+**後続capacity readback:** 07:07 JSTの別owner wakes（JA Instagram `18dc5eaa4419da38-82314`、JA TikTok `18dc5eaa8ee82ab0-83055`）は`exit=75 / host_admission_deferred:disk_headroom_low / effect_status=not_applicable`で、投稿のprovider callはない。10/8 07:14 JSTのreadbackでは`df -Pk` Available `2,355,700 KiB`、`shutil.disk_usage.free=2,411,773,952` bytes（2 GiB floor以上）、`disk-writers.stop`は存在せず、disk-cleanup ownerは07:11:56 JSTにexit 0。後続のeBook owner statusは再びblockerなし。従って07:07時点のheadroom拒否は現在のactive fenceではない。cleanup ownerのexit 0だけではerrors/protected-deletionsのfresh countsを証明しないため、`last-receipt.json`の古い値を最新結果として使わない。07:07 occurrenceのavailable/required bytesはterminal eventに記録されていない。次の同種deferralでは同一時刻のdisk-admission receiptとwriter/capacity readbackを保存する。
+
+**当日配信数とDaisの作業:** 07:14 JST時点のunique PUBLISHED countは2/9（JA TikTok 1/3、JA Instagram 1/3、EN TikTok 0/3）。既存3 Postiz integrationの再接続・再認証は不要。English Instagramは現行3-target計画に含まれず、追加する場合だけ専用integration接続が必要。
+
+**残りAtomic TODO（eBook順序）:**
+
+1. **08:00 JST EN TikTok:** `ebook-en-tiktok-daily`の同一occurrenceにPostiz `PUBLISHED` receipt/public URLを結合し、HeyGen video SHAとwallet before/afterのactual render costを読む。07:14 JSTでは08:00 slot前で未実行。ownerの`marketingVideoDueSlot()`は最初のslot前に`null`を返して`no_due_slot`で終わるため、off-slotの手動起動は投稿にならない。既存のeffect/dedupe経路を迂回せず、単発成功だけを3/day継続の証明にしない。
+2. **今日の残り6 slot:** JA TikTok/Instagramの12:30・20:00、EN TikTokの14:00・21:00を各target・各JST日で照合する。07:00と併せた目標は9 unique published posts/day。ownerがresource/disk admissionで延期された場合は、同じno-effect occurrenceを登録ownerで再開し、provider effectが不明になった時は公式receipt前に再送しない。
+3. **capacity持続性:** 2 GiB以上のfresh headroomを維持し、cleanup ownerのreceiptからerrors=0/protected_deletions=0を読む。07:07の一時的disk拒否の正確な使用量が取れていないため、再発時にdisk-admission receiptと同時刻の容量writerを記録する。global concurrencyやdisk floorを根拠なしに緩めない。
+4. **販売境界:** anicca-products PR #420はOPEN（head `e22509d3cb84e0ba99867f31879d3d1aa8da38f4`、Landing CI success）。fresh manual production workflowでSupabase project refとaggregate countsを確認し、target一致とreview後にDDL/schema/ACL、natural paid Checkout、Stripe receipt、locale PDF delivery、refund/fee/settlement/replay-zeroを閉じる。one-time `$10.99` / `¥1,580`はMRRに数えない。
+5. **継続売上とCapafy:** user-initiated Letter/Tegami recurring CTAの14日cohortとsettled net MRRを確認し、その後にCapafy Instagram marketing laneを進める。USD 10,000 verified net MRRは未達の目標。
+
 ### 2026-10-08 JST — Gig atomic cursor
 
 **現在のGig cursor: 1（L9-07 Coconala Storefront）。** これはGig lane内のcursorであり、全社laneの順序は変えない。CFO A5–A10は別owner。最新runtime/source証拠は[Gig readback spec](2026-10-08-gig-paid-context-ref-boundary.md)に記録する。
