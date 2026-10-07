@@ -1,21 +1,19 @@
-# ローカルLife ManagerのOpenClaw移行実行計画
+# ローカルLife ManagerのOpenClawハーネス移行実行計画
 
-> 実行時は superpowers:executing-plans を使用。今回の依頼は設計/TODO更新であり、本番実装・切替を実施したとは扱わない。
+> 実行はsuperpowers:executing-plans。採用調査ではなく作成・接続・検証・切替・旧ハーネス退役の計画。
 
-**Goal:** ローカル16能力を保ち、現行とOpenClawの適した既存機能を再利用し、不要な置換を避ける。
-**Architecture:** Life Manager CLI・domain policy/effect/financeを保持。最初default-off、各ownerで採用/保持判断→必要なengine接続→自然確認→必要なschedule移管→自然確認、最後に未参照旧runtimeを退役。
-**Tech Stack:** pinned OpenClaw/GatewayClient/diagnostics-otel、既存Python runtimeとlaunchctl-safe。
-**Spec:** `docs/superpowers/specs/2026-10-07-main-agents-readiness.md`
+**Goal:** 全agent harnessをOpenClawへ移し、既存業務を維持する。
+**Architecture:** Life Manager CLIをfacadeとして保持。OpenClawが全agent/session/schedule/recovery/trace、CodexがChatGPT accountで推論、既存workerが制作/販売/応募/収支とdomain guardを担当する。
+**Tech Stack:** pinned OpenClaw/GatewayClient/native Codex plugin/diagnostics-otel、既存domain Python/Node、既存OS supervisor。
+**Spec:** docs/superpowers/specs/2026-10-07-main-agents-readiness.md
 
-TODOの本文はSpec内のOC/P/A/C/S/V/F atomのみを参照し、別の実行順を作らない。状態/cursorは統一SSOTのみ。manifestは実行interfaceの機械表現であり状態表ではない。
+1. OC/NC/MI/Cで共通接続と直接callerを実装・private fixture GREEN。
+2. Pで各商品の既存worker/tool binding fileを実装。これは探索ではない。
+3. Aで対象idle/pending無しのengineを一件ずつ新経路へ。
+4. 次の自然仕事を確認後、Sで旧future wake停止→新cron enabledを一件ずつ実行。
+5. Vで各商品すべての自然結果/公式receiptを保存。
+6. Fでlocal installer/docsと旧harness参照0/final acceptanceを完了。
 
-Global constraints: production shadow effect0、唯一scheduler、旧仕事drain、scope別fence、同model/account、caller v2 task identity、run単位claim解放、別owner不変更、公式readback。
-Review focus: multi-task idempotency衝突、native tools迂回、ACK喪失、wrapper死後のrun、scheduler二重起動、Gateway timeout時の他owner停止。
+正確なファイル/関数/入力契約/検証/依存はspec内全223atomとmanifest。状態は統一SSOTだけ。旧harnessは未移行とrollbackの一時経路で、最終保持はしない。
 
-Node atomsは対象既存/new test fileを`node --test`、Python atomsは対象focused pytest/unittestでRED→minimal GREEN。source acceptanceは既存loop/CLI contractsとsecret/OSS gatesを含む。自然runはsource acceptanceと分離してVへ保存する。
-
-推論はChatGPT account接続native Codexのみ。NC-01〜04とMI-01/02を依存DAGに従って実施。現在対象は16能力/110job、全215atomはspecを参照。
-
-Native CodexはUnix/user scopeの既存ChatGPT accountを利用。NC-04はendpoint attach-onlyを優先。MI-01画像入力、MI-02owned thread forkを必須対応に追加し、旧仕事をunsupportedのまま完了扱いしない。
-
-retain_existingは正当な最終構成。cron全92件の移管と全管理経路のOpenClaw化を完了gateにしない。A/Sはreuse_openclawの場合だけ切替、deferは未完として残す。
+共通制約:同ChatGPT native account、production shadow effect0、唯一scheduler、旧仕事drain、同task再送0、run単位claim解放、別owner/Gateway全体停止0、公式結果確認、data/auth不変更。

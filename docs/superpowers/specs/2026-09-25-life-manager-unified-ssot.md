@@ -3911,3 +3911,9 @@ source/運用の未完境界: 空きは約6GiBで11GiB未回復。session DBのf
 共通gateの最終範囲: 11GiBを下げられない定数をmanaged finite runnerへ適用する。既存individual disk_admission wrapperの既定512MiB/env contractは、継続ownerやdirect callerへの副作用を避けるため維持する。shared gateはwrapper env=0でも11GiBのままである。常駐ownerの開始経路とcontrol-plane safetyは共通gateをbypassする。managed外のinteractive client/OS writerの容量上限を今回実装したと主張しない。
 検証/反映cursor: source branchのstage1 `c282bd4179...`はpush済み。stage2はpre-enqueue/post-claimのprovider child0、unknown→not_applicable、既存reservation解放+60秒cooldownをfocused確認し、subprocess testのhealthy disk fixtureを整える。旧watchdogはsafe bootout/disableし、旧無条件削除を止める。新templateのimmutable render/readbackは未完である。
 
+
+## ローカルOpenClawハーネス移行の確定
+
+Daisの最新指定は全agent harnessをOpenClawへ移すこと。部分採用/retainを完成形にする前段の記述は失効し、移行中とrollback以外に旧harnessを残さない。残る商品worker/注文/収支/domain guardは業務機能で、旧harnessではない。新旧の採用判断・検索を実行TODOから除去し、全223atomを作成/接続/テスト/対象handoff/自然確認/退役へ統一。[spec](2026-10-07-main-agents-readiness.md)と[execution plan](../plans/2026-10-07-openclaw-full-cutover.md)が本文。
+
+旧順序=component判断→必要なA/S、新順序=OC/NC/MI/C共通接続→P商品binding実装→A engine→S schedule→V自然結果→F旧harness削除。現在cursor=OC-001、実装未着手。対象は最新catalog全業務（18分類111job、93finite/18continuous）。推論は既存ChatGPT native Codexのみ。active/queued/unknown対象は待機、他ownerを止めず、Gateway全体stopや同作用再送で切替を進めない。他lane/稼働effect変更なし。
