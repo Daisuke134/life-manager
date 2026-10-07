@@ -43,7 +43,7 @@ def test_losing_money_queues_model_switch_when_not_already_cheap():
     decisions = module.decide_actions(rows, server("hook"), CATALOG, BANDS, {})
 
     finding = decisions[0]["findings"][0]
-    assert finding["action"] == "queue_update"
+    assert finding["action"] == "report_only"
     assert finding["update"]["target_model_id"] == "deepseek/deepseek-v4.1-flash"
     assert finding["update"]["agent_id"] == "hook"
     assert finding["update"]["from_version_id"] == "v1"
@@ -85,7 +85,7 @@ def test_underpriced_download_queues_reprice():
     decisions = module.decide_actions(rows, server("jh"), CATALOG, BANDS, {})
 
     finding = decisions[0]["findings"][0]
-    assert finding["action"] == "queue_update"
+    assert finding["action"] == "report_only"
     assert finding["update"]["target_one_time_fee"] == "9.99"
 
 
@@ -336,3 +336,13 @@ def test_profitable_seller_is_frozen_no_reprice_queued():
 
     assert decisions[0]["findings"][0] == {"rule": "underpriced", "action": "skip",
                                             "reason": "profitable_seller_frozen"}
+
+
+def test_frozen_agent_gets_no_decision_at_all():
+    # Dais 2026-10-07: Hook Lab is restored to its exact selling state and frozen.
+    module = load_module()
+    rows = [row("hook", "Hook Lab", net=19.91, cost=20.31)]
+
+    decisions = module.decide_actions(rows, server("hook"), CATALOG, BANDS, {}, frozen_ids={"hook"})
+
+    assert decisions[0]["findings"] == [{"rule": "frozen", "action": "skip", "reason": "dais_frozen"}]
