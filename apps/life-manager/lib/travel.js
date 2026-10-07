@@ -14,6 +14,7 @@ const {
 const {
   makeSupabaseGeocodeStore, addressDigest, isValidGeocode, GEOCODE_SUCCESS_TTL_MS,
 } = require("./geocode-cache.js");
+const { resolveFreeGeocode } = require("./free-geocode.js");
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
 const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
@@ -312,13 +313,21 @@ async function directionsMinutesGoogle(src, dst, mapsKey, departAtMs = Date.now(
 const _geoMemo = new Map();
 const _geoInFlight = new Map();
 
-function geocodeStoreFor(options = {}) {
+function geocodeStoreFor(options = {}, usage = {}) {
   if (Object.hasOwn(options, "_geocodeCacheStore")) return options._geocodeCacheStore || null;
   const supaUrl = options.supaUrl || process.env.SUPABASE_URL;
   const supaKey = options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supaUrl || !supaKey) return null;
   return makeSupabaseGeocodeStore({
     supaUrl, supaKey, fetchImpl: options._cacheFetch || global.fetch,
+    timeoutMs: options._geocodeCacheTimeoutMs,
+    onObservation: (observation) => emitUsage(options, {
+      tenantId: String(usage.tenantId || "anonymous"), provider: "supabase",
+      feature: "geocode_cache", operation: observation.operation,
+      outcome: observation.outcome, failureClass: observation.failureClass,
+      providerUnits: observation.providerUnits, providerUnit: "request", estimatedCostUsd: 0,
+      meta: eventVersionMeta(usage),
+    }),
   });
 }
 
@@ -344,7 +353,21 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
   const tenantId = String(usage.tenantId || "anonymous");
   const options = usage.options || {};
   const supaKey = options.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const store = geocodeStoreFor(options);
+  const free = await resolveFreeGeocode(addr, {
+    tenantId,
+    fetchImpl: options._freeGeocodeFetch || global.fetch,
+    timeoutMs: options._freeGeocodeTimeoutMs,
+    onObservation: (observation) => emitUsage(options, {
+      tenantId, provider: observation.provider, feature: "geocoding",
+      operation: observation.operation, outcome: observation.outcome,
+      failureClass: observation.failureClass,
+      providerUnits: observation.providerUnits, providerUnit: "request", estimatedCostUsd: 0,
+      cacheHit: observation.outcome === "cache_hit",
+      meta: eventVersionMeta(usage),
+    }),
+  });
+  if (free.candidate) return free.candidate;
+  const store = geocodeStoreFor(options, usage);
   const memoKey = geocodeMemoKey(tenantId, addr, store ? supaKey : null);
   const memo = _geoMemo.get(memoKey);
   if (memo && typeof memo === "object" && Object.hasOwn(memo, "value")) {
@@ -381,7 +404,8 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
         : isValidGeocode(candidate) ? null : "invalid_coordinates";
       const value = failureClass ? null : candidate;
       await emitUsage(options, { tenantId, provider: "google_maps",
-        feature: "geocoding", outcome: value ? "success" : "failure", failureClass,
+        feature: "geocoding", operation: "Geocoding",
+        outcome: value ? "success" : "failure", failureClass,
         providerUnits: 1, providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
         meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...eventVersionMeta(usage) } });
       const computedAt = Date.now();
@@ -390,7 +414,8 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
       return value;
     } catch {
       await emitUsage(options, { tenantId, provider: "google_maps",
-        feature: "geocoding", outcome: "failure", failureClass: "network", providerUnits: 1,
+        feature: "geocoding", operation: "Geocoding",
+        outcome: "failure", failureClass: "network", providerUnits: 1,
         providerUnit: "request", estimatedCostUsd: GOOGLE_GEOCODING_EST_USD,
         meta: { sku: "Geocoding", pricing_basis: "list_price_after_free_cap", ...eventVersionMeta(usage) } });
       _geoMemo.set(memoKey, { value: null, computedAt: Date.now(), failureClass: "network" });
@@ -533,6 +558,20 @@ function routeDurationSeconds(route) {
   return Number.isFinite(seconds) ? seconds : null;
 }
 
+function freeGeocodeSource(geo) {
+  if (!geo || !["gsi", "openpoi"].includes(geo.provider)) return null;
+  return {
+    provider: geo.provider,
+    operation: geo.operation,
+    source: geo.source,
+    sourceRecord: geo.sourceRecord,
+    licenses: geo.licenses,
+    attributions: geo.attributions,
+    attributionUrl: geo.attributionUrl,
+    sourceUrl: geo.sourceUrl,
+  };
+}
+
 // C2/C3 WIRE: return a provider-fact-preserving structured route. Transit is attempted first for
 // Japan endpoints; unusable/error output calls the Google fallback once, sequentially. The cache
 // stores the final route under a tenant + provider/anchor scoped key.
@@ -589,6 +628,12 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
   const [srcGeo, dstGeo] = await Promise.all([
     srcLiteral || geocode(src, mapsKey, usage), dstLiteral || geocode(dst, mapsKey, usage),
   ]);
+  const fromSource = freeGeocodeSource(srcGeo);
+  const toSource = freeGeocodeSource(dstGeo);
+  const geocodeSources = {
+    ...(fromSource ? { origin: fromSource } : {}),
+    ...(toSource ? { destination: toSource } : {}),
+  };
   const query = wallAnchor(call.anchorAtMs, call.timezone, call.nowMs, call.departureMode);
   const routeMode = srcGeo && dstGeo && chooseRouter(srcGeo, dstGeo) === "transit" ? "transit" : "google";
   const google = async () => {
@@ -609,6 +654,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
     } catch { return cacheFailure("network"); }
   };
   const compute = async () => {
+    let result = null;
     if (routeMode === "transit") {
       let plan = null;
       const controller = typeof AbortController === "function" ? new AbortController() : null;
@@ -631,8 +677,8 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
       try { plan = await Promise.race([transitPromise, timeoutPromise]); }
       finally { clearTimeout(timer); }
       const parsed = plan && parseTransitPlan(plan, { anchorType: query.type, anchorSecs: query.anchorSecs });
-      if (parsed && Number.isFinite(routeDurationSeconds(parsed))) return parsed;
-      if (!transitDiagnostics.fallbackReason) {
+      if (parsed && Number.isFinite(routeDurationSeconds(parsed))) result = parsed;
+      if (!result && !transitDiagnostics.fallbackReason) {
         const unanchored = plan && parseTransitPlan(plan);
         const hasValidJourney = unanchored && unanchored.serviceDate && unanchored.timezone
           && Number.isFinite(routeDurationSeconds(unanchored));
@@ -641,7 +687,9 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
         transitDiagnostics.fallbackReason = noRoute ? "transit_no_route" : "transit_invalid_response";
       }
     }
-    return google(); // non-JP/unresolvable or Transit failure → exactly one Google fallback
+    if (!result) result = await google(); // non-JP/unresolvable or Transit failure → one Google fallback
+    if (routeDurationSeconds(result) == null || Object.keys(geocodeSources).length === 0) return result;
+    return { ...result, geocodeSources };
   };
   const context = {
     provider: routeMode,
@@ -680,7 +728,36 @@ async function directionsMinutes(src, dst, mapsKey, anchorAtMs = null, nowMs = D
   return minutesFromSeconds(routeDurationSeconds(route));
 }
 
-async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId) {
+function travelEventDescription(route) {
+  const base = "Auto-inserted by Life Manager — adjust if the route is wrong.";
+  const rawSources = route && route.geocodeSources && Object.values(route.geocodeSources);
+  const seen = new Set();
+  const sources = (Array.isArray(rawSources) ? rawSources : []).filter((source) => {
+    if (!source || !["gsi", "openpoi"].includes(source.provider)) return false;
+    const key = JSON.stringify([source.provider, source.source, source.licenses, source.attributions,
+      source.attributionUrl, source.sourceUrl]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (!sources.length) return base;
+  const lines = [base, "", "位置情報の出典:"];
+  for (const source of sources) {
+    const provider = source.provider === "gsi" ? "国土地理院" : "OpenPOI";
+    const link = source.attributionUrl || source.sourceUrl;
+    lines.push(`${provider}${link ? ` — ${link}` : ""}`);
+    if (source.attributions && source.attributions.length) {
+      lines.push(`データ帰属: ${source.attributions.join("; ")}`);
+    }
+    if (source.licenses && source.licenses.length) {
+      lines.push(`ライセンス: ${source.licenses.join("; ")}`);
+    }
+    if (source.sourceUrl && source.sourceUrl !== link) lines.push(`データ配信元: ${source.sourceUrl}`);
+  }
+  return lines.join("\n");
+}
+
+async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId, route) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const hours = Math.floor((arriveMs - leaveMs) / 3600000);
   const minutes = Math.round(((arriveMs - leaveMs) % 3600000) / 60000);
@@ -690,7 +767,7 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     event_duration_hour: hours, event_duration_minutes: Math.min(59, minutes),
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
     send_updates: "none", exclude_organizer: true, create_meeting_room: false,
-    description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+    description: travelEventDescription(route),
   };
   let result;
   try {
@@ -892,7 +969,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             let goClaimed = false;
             try { goClaimed = await claimTravel(uid, evKey, "go", supaUrl, supaKey); } catch { goClaimed = false; }
             if (goClaimed) {
-              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId);
+              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal,
+                gmailAccountId, expectedCalendarAccountId, route);
               write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
               if (write.status === "created") {
                 inserted++;
@@ -972,12 +1050,21 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       returnAllowanceState.receipt = receipt && receipt.reservationToken ? receipt : null;
       returnAllowanceState.blocked = !receipt || receipt.allowed !== true;
     }
-    const retMins = returnAllowanceState.blocked ? null
-      : await directionsFn(venue, home, mapsKey, ev.endMs, nowMs, /* departureMode= */ true, {
+    const returnRouteOptions = {
       uid, timezone: routeTimezone, supaUrl, supaKey, eventId: evKey, purpose: "return",
       _allowanceState: returnAllowanceState, _reserveManagedAction, _releaseManagedAction,
       _routeCache,
-    });
+    };
+    let retRoute = null;
+    let retMins = null;
+    if (!returnAllowanceState.blocked && routeFn) {
+      try { retRoute = await routeFn(venue, home, mapsKey, ev.endMs, nowMs, true, returnRouteOptions); }
+      catch { retRoute = null; }
+      if (routeDurationSeconds(retRoute) == null) retRoute = null;
+      if (retRoute) retMins = minutesFromSeconds(routeDurationSeconds(retRoute));
+    } else if (!returnAllowanceState.blocked) {
+      retMins = await directionsFn(venue, home, mapsKey, ev.endMs, nowMs, true, returnRouteOptions);
+    }
     if (retMins == null) {
       skipped++;
       await releaseAllowance(evKey, returnAllowanceState);
@@ -989,7 +1076,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     let returnClaimed = false;
     try { returnClaimed = await claimTravel(uid, evKey, "return", supaUrl, supaKey); } catch { returnClaimed = false; }
     if (returnClaimed) {
-      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId);
+      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal,
+        gmailAccountId, expectedCalendarAccountId, retRoute);
       write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
       if (write.status === "created") {
         inserted++;

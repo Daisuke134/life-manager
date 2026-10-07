@@ -264,3 +264,68 @@ test("failed provider responses never return or persist coordinates from their b
     globalThis.fetch = oldFetch;
   }
 });
+
+test("Supabase geocode cache RPCs bound a never-resolving injected fetch", async () => {
+  const observations = [];
+  const store = makeSupabaseGeocodeStore({
+    supaUrl: SUPA_URL,
+    supaKey: SUPA_KEY,
+    fetchImpl: () => new Promise(() => {}),
+    timeoutMs: 5,
+    onObservation: async (observation) => { observations.push(observation); },
+  });
+  const pending = Promise.all([
+    store.get("tenant-timeout", "google_maps", "cache timeout fixture"),
+    store.set("tenant-timeout", "google_maps", "cache timeout fixture", { lat: 35.681, lon: 139.767 }),
+  ]);
+  const result = await Promise.race([
+    pending,
+    new Promise((resolve) => setTimeout(() => resolve("cache-rpc-hung"), 100)),
+  ]);
+  assert.deepEqual(result, [null, false]);
+  assert.deepEqual(observations.map(({ operation, outcome, failureClass, providerUnits }) =>
+    ({ operation, outcome, failureClass, providerUnits })), [
+    { operation: "lm_geocode_cache_get", outcome: "failure", failureClass: "timeout", providerUnits: 1 },
+    { operation: "lm_geocode_cache_upsert", outcome: "failure", failureClass: "timeout", providerUnits: 1 },
+  ]);
+});
+
+test("a never-resolving injected cache fetch does not block Google geocode fallback", async () => {
+  const oldFetch = globalThis.fetch;
+  let googleCalls = 0;
+  const usageEvents = [];
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /maps\.googleapis\.com\/maps\/api\/geocode\/json/);
+    googleCalls += 1;
+    return successfulGeocode();
+  };
+  try {
+    const request = geocodeAddress("cache hang fallback unique fixture", MAPS_KEY, {
+      tenantId: "tenant-cache-hang",
+      options: {
+        supaUrl: SUPA_URL,
+        supaKey: SUPA_KEY,
+        _cacheFetch: () => new Promise(() => {}),
+        _geocodeCacheTimeoutMs: 5,
+        _recordUsageEvent: async (event) => { usageEvents.push(event); return true; },
+      },
+      eventVersion: "c".repeat(64),
+    });
+    const result = await Promise.race([
+      request,
+      new Promise((resolve) => setTimeout(() => resolve("geocode-fallback-hung"), 100)),
+    ]);
+    assert.deepEqual(result, { lat: 35.681, lon: 139.767 });
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+  assert.equal(googleCalls, 1);
+  const cacheEvents = usageEvents.filter((event) => event.provider === "supabase");
+  assert.deepEqual(cacheEvents.map((event) => [event.operation, event.outcome, event.failureClass,
+    event.providerUnits, event.estimatedCostUsd]), [
+    ["lm_geocode_cache_get", "failure", "timeout", 1, 0],
+    ["lm_geocode_cache_upsert", "failure", "timeout", 1, 0],
+  ]);
+  assert.ok(cacheEvents.every((event) => event.meta.event_version === "c".repeat(64)));
+  assert.equal(JSON.stringify(usageEvents).includes("cache hang fallback unique fixture"), false);
+});
