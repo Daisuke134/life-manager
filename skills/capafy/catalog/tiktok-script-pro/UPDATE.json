@@ -1,0 +1,8 @@
+{
+  "agent_id": "2844813315",
+  "from_version_id": "2107021916364492800",
+  "target_model_id": "anthropic/claude-sonnet-5",
+  "icon_sha256": "95722625c05372a57596ce92da2c502595cfeb6bee3f3f161275c7667f003352",
+  "reason": "2026_10_07_back_to_sonnet_as_in_selling_period_live_prices_kept",
+  "dais_approved_exception": "2026-10-07 Dais: put the four former sellers back on Sonnet (5.5 not on Capafy -> Sonnet 5); prices unchanged except YouTube year cap 8640->720 to stop a loss"
+}
