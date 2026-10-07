@@ -50,7 +50,7 @@ LIST_HEADER = "出品サービス一覧"
 SERVICE_SCOPE_HEADINGS = ("サービス内容", "購入にあたってのお願い")
 PUBLIC_SERVICE_PAGE_EXPRESSION = (
     "JSON.stringify({text:document.body ? document.body.innerText.slice(0,120000) : '',"
-    "scope:(()=>{const sections=document.querySelectorAll('#serviceContentsSummary');"
+    "scope:(()=>{const sections=document.querySelectorAll('.c-serviceContentsSummary');"
     "return sections.length===1 ? sections[0].innerText : null})()})"
 )
 MAX_PAGES = 10  # bounded: the platform's own listing cap is 20, ~10 cards/page
