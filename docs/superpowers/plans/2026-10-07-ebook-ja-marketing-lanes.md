@@ -37,8 +37,9 @@
 - Test: `runtime/loop/tests/test_lm_loop_apply.py`
 - Owner reconcile: `bin/lm-loop pre-effect-reconcile`
 
-- [ ] `marketing publication effect fenced` の日本語eBook occurrenceが `no_pre_effect_terminal` になるREDテストを書く。
-- [ ] この完全一致エラーだけを既知pre-effectに追加する。共有ledgerのenqueue/claim拒否はPostiz呼び出しより前であることを既存コードで確認する。
+- [x] `marketing publication effect fenced` の日本語eBook occurrenceが `no_pre_effect_terminal` になるREDテストを書く。
+- [x] この完全一致エラーを日本語Instagram/TikTok ownerだけに許可する。英語ownerはHeyGen呼び出しがgateより先に起こり得るため未解決のまま保つ。
+- [x] 日本語用テストGREEN、英語用テストは拒否を確認。共有ledgerのenqueue/claim拒否はPostiz呼び出しより前であることを既存コードで確認する。
 - [ ] テストGREEN後、該当runのenqueue refusalとjobs/receipts不在を確認し、fresh official Postiz GETが0件である証拠を保存する。
 - [ ] `lm-loop pre-effect-reconcile ebook-ja-instagram-daily --dry-run` が該当IDをprovableと返すことを確認し、同じowner経路で解決する。
 

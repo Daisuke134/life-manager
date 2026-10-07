@@ -65,14 +65,16 @@ EBOOK_DISTRIBUTION_LOOP_IDS = frozenset({
     "ebook-ja-instagram-daily",
     "ebook-ja-tiktok-daily",
 })
-# These exact eBook entrypoint failures occur before any provider dispatch:
-# missing runtime inputs, or the shared local publication ledger rejecting
-# enqueue/claim before the Postiz adapter can upload or publish.
-EBOOK_PRE_EFFECT_ENTRYPOINT_ERRORS = frozenset({
+# These runtime-input failures happen before rendering or provider dispatch.
+EBOOK_RUNTIME_ENV_PRE_EFFECT_ERRORS = frozenset({
     "LM_DATA_DIR is required",
     "LM_RUNTIME_TENANT_ID is required",
-    "marketing publication effect fenced",
 })
+EBOOK_JA_PUBLICATION_LOOP_IDS = frozenset({
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
+})
+EBOOK_JA_LOCAL_PUBLICATION_FENCE_ERROR = "marketing publication effect fenced"
 PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
     FUNDRAISER_PRE_EFFECT_BLOCKER,
 })
@@ -166,6 +168,15 @@ def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
 
 
 def _is_ebook_pre_effect_entrypoint_terminal(entry: dict, row: dict) -> bool:
+    error_detail = row.get("error_detail")
+    known_runtime_input_failure = error_detail in EBOOK_RUNTIME_ENV_PRE_EFFECT_ERRORS
+    # Japanese Watercolor rendering is local. The exact ledger refusal occurs
+    # at enqueue/claim before Postiz dispatch. Do not extend this proof to the
+    # English owner: its HeyGen render may call the provider before the ledger.
+    japanese_ledger_refusal = (
+        row.get("loop_id") in EBOOK_JA_PUBLICATION_LOOP_IDS
+        and error_detail == EBOOK_JA_LOCAL_PUBLICATION_FENCE_ERROR
+    )
     return (
         row.get("loop_id") in EBOOK_DISTRIBUTION_LOOP_IDS
         and entry.get("entrypoint") == EBOOK_DISTRIBUTION_ENTRYPOINT
@@ -175,7 +186,7 @@ def _is_ebook_pre_effect_entrypoint_terminal(entry: dict, row: dict) -> bool:
         and row.get("effect_status") == "unknown"
         and row.get("blocker") == "entrypoint_exit_1"
         and row.get("error_class") == "entrypoint_exit_1"
-        and row.get("error_detail") in EBOOK_PRE_EFFECT_ENTRYPOINT_ERRORS
+        and (known_runtime_input_failure or japanese_ledger_refusal)
     )
 
 
