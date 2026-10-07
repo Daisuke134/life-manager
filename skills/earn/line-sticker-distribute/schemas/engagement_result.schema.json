@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "line-sticker-distribute day-3+ engagement result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "likes_done", "follows_done", "ban_signal_seen", "summary"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "blocked", "error"]
+    },
+    "likes_done": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "follows_done": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ban_signal_seen": {
+      "type": "boolean",
+      "description": "true if the page showed any ig-account-warmer ban-signal text (e.g. action blocked / challenge / identity confirmation) and the agent stopped."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Short safe summary of what was observed/done. Never includes credentials or private account content."
+    }
+  }
+}

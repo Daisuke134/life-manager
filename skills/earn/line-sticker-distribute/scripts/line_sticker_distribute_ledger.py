@@ -42,6 +42,28 @@ def is_published(ledger_path: Path, key: str) -> bool:
     return bool(entry and entry.get("status") == "published")
 
 
+def already_attempted(ledger_path: Path, key: str) -> bool:
+    """True if any entry (any status) already exists for this key -- used by the engagement
+    and bio-link one-per-day/one-time steps, which must not retry within the same idempotency
+    window even after a non-published outcome (ig-account-warmer precedent: warm.py is one
+    session/day regardless of result, never hammering the same day again)."""
+    return key in load(ledger_path)
+
+
+def recent_content_types(ledger_path: Path, lane_id: str, limit: int = 2) -> list[str]:
+    """The last `limit` content_type values this lane actually posted/attempted, most
+    recent first -- fed back into the next caption_compose call so the model avoids
+    repeating the same format on consecutive slots (content_type rotation)."""
+    data = load(ledger_path)
+    prefix = f"{lane_id}-"
+    entries = [
+        (key[len(prefix):], entry) for key, entry in data.items()
+        if key.startswith(prefix) and isinstance(entry, dict) and entry.get("content_type")
+    ]
+    entries.sort(key=lambda item: item[0], reverse=True)
+    return [entry["content_type"] for _, entry in entries[:limit]]
+
+
 def record(ledger_path: Path, key: str, entry: dict) -> dict:
     ledger_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     data = load(ledger_path)

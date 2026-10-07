@@ -426,3 +426,43 @@ were each a brand-new character, which is the opposite of what the market reward
   `deps.character_image` — zero image-generation cost for every sequel. All judgment (which
   character, which theme, whether to start a new flagship) stays in the planner's prompt via
   `runtime/agent-runner/agent_runner.py`, per `skills/building-agents/SKILL.md`.
+
+## Social formats copied from top creators (2026-10-07)
+
+Evidence for SSOT row L17 (`skills/earn/line-sticker-distribute`, IG `@stardust_doubutsu`): read-only
+inspection of LINE STORE `top_creators` (`https://store.line.me/stickershop/showcase/top_creators/ja`)
+author pages plus their public X profiles, no login. Time-boxed to the accounts that were reachable
+without authenticated X search (the daily-driver CDP had no logged-in `x.com` tab at research time);
+3 accounts across 2 character franchises, both well inside the top-35 animated list:
+
+- `@skmr_29` (sakumaru, creator of うさまる "Usamaru" -- `うさまるスタンプリタ〜ンズ４` product
+  36491635, author id 6608), 302.2K followers, 6,923 posts. Pattern: near-daily short posts that are
+  almost always just ONE new character illustration + a one-line caption ("みてほしいだけ", a lone
+  "moon" emoji, "うさまるさんぽ"), i.e. the character's daily life/mood, not a sticker showcase. The
+  newest sticker set's announcement is pinned, phrased as a seasonal hook ("ほんのり秋を感じる
+  ラインナップです"). Separate posts tie into real calendar events (a limited LINE-official-account
+  collab sticker campaign with an explicit deadline, an in-person exhibition/pop-up with its own
+  ticket link). A second, brand-controlled account (`@usamaru_ten`, exhibition account, 5,680
+  followers) exists purely for a physical-event funnel, separate from the daily-life account.
+- `@MOCHINYAMI` (もちにゃみ, a chubby-cat character), 69.8K followers, 817 posts. Pattern: the
+  character speaks in first person in its own invented pronoun ("わたくち"), posts are 2-4 short
+  beats (e.g. a monthly wallpaper giveaway tied to the season -- "みんな、10月の待ち受けだよ！
+  たい焼きが美味しい季節だね" -- then a line about what the character is doing, then a warm
+  closing line "いつもありがとう"), heavy but consistent emoji use, and real-world pop-up store
+  announcements (SHIBUYA109) with reservation links. Bio links straight to its Instagram.
+
+Concrete, reusable takeaways (basis for the rotation below):
+1. Format: character daily-life/mood moment (a single relatable beat, often first-person voice), or a
+   2-4 beat mini-story/reaction, not a product/sticker-sample reel.
+2. Cadence: near-daily, sometimes multiple/day for event pushes.
+3. Hook/caption style: short (1-2 lines), warm/relatable tone, heavy-but-tasteful emoji, often a
+   direct one-line seasonal or calendar tie-in (month, weather, a food associated with the season).
+4. Store/bio linking: the new-set announcement is pinned/prominent with a direct link; the account
+   bio carries the durable link (store/author page or an Instagram handle), not every post.
+5. Engagement: both accounts clearly participate in the surrounding fan community (replies,
+   event/pop-up posts that invite real-world and online interaction) rather than only broadcasting.
+
+This directly matches the SSOT L17 gap list (daily-life format missing / no follow-like engagement /
+no bio link yet) and is the basis for the per-slot content rotation and the engagement/bio-link gates
+implemented in `skills/earn/line-sticker-distribute/` (2026-10-07,
+`feat/line-sticker-daily-life-20261007`).
