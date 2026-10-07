@@ -51,6 +51,11 @@ allow-listed regenerable artifact after an open-path probe confirms
   existing defer path and never stops a running owner. Its fixed 11 GiB floor
   is independent of the individual-wrapper `LIFE_MANAGER_DISK_HEADROOM_KIB`
   setting.
+- After the final post-inventory capacity readback reaches 11 GiB, the governor
+  removes `disk-writers.stop` only when its same-UID 0600 regular file still has
+  the exact `host-disk-recovery` owner, `disk_headroom_low` reason, required
+  bytes, and recovery action. Low/unknown capacity, foreign or malformed
+  content, unsafe file type, and changed identity preserve the guard.
 - Every pass atomically writes `host-inventory.json` with local mount sizes
   converted from `df -kP` 1 KiB block counts to bytes and bounded owner-family
   metadata. The hourly/full compatibility pass may run a

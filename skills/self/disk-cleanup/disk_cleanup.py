@@ -491,6 +491,64 @@ class HostDiskGovernor:
             filename="candidate-cursor.json",
         )
 
+    def _clear_disk_writers_stop(self, free_after: object) -> dict[str, str]:
+        guard = self.state_dir / "disk-writers.stop"
+        try:
+            initial = guard.lstat()
+        except FileNotFoundError:
+            return {"status": "absent"}
+        except OSError:
+            return {"status": "preserved", "reason": "read_failed"}
+        if not isinstance(free_after, int) or isinstance(free_after, bool):
+            return {"status": "preserved", "reason": "capacity_unavailable"}
+        if free_after < RECOVERY_FLOOR_BYTES:
+            return {"status": "preserved", "reason": "recovery_floor_not_met"}
+        if (not stat.S_ISREG(initial.st_mode) or initial.st_uid != os.getuid()
+                or stat.S_IMODE(initial.st_mode) != 0o600 or initial.st_nlink != 1):
+            return {"status": "preserved", "reason": "unsafe_file"}
+
+        def fingerprint(info: os.stat_result) -> tuple[int, ...]:
+            return (
+                info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_nlink,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns,
+            )
+
+        descriptor = -1
+        try:
+            descriptor = os.open(guard, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            opened = os.fstat(descriptor)
+            if fingerprint(opened) != fingerprint(initial):
+                return {"status": "preserved", "reason": "identity_changed"}
+            if opened.st_size > 4096:
+                return {"status": "preserved", "reason": "invalid_receipt"}
+            with os.fdopen(descriptor, "rb") as handle:
+                descriptor = -1
+                raw = handle.read(4097)
+            if len(raw) > 4096:
+                return {"status": "preserved", "reason": "invalid_receipt"}
+            value = json.loads(raw)
+            if not isinstance(value, dict):
+                return {"status": "preserved", "reason": "invalid_receipt"}
+            if value.get("owner_id") != "host-disk-recovery":
+                return {"status": "preserved", "reason": "owner_mismatch"}
+            if value.get("reason") != "disk_headroom_low":
+                return {"status": "preserved", "reason": "reason_mismatch"}
+            if (value.get("required_bytes") != RECOVERY_FLOOR_BYTES
+                    or value.get("next_action") != "restore_capacity_and_install_shared_disk_gate"):
+                return {"status": "preserved", "reason": "guard_contract_mismatch"}
+            current = guard.lstat()
+            if fingerprint(current) != fingerprint(opened):
+                return {"status": "preserved", "reason": "identity_changed"}
+            guard.unlink()
+            return {"status": "cleared"}
+        except FileNotFoundError:
+            return {"status": "preserved", "reason": "identity_changed"}
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return {"status": "preserved", "reason": "read_or_unlink_failed"}
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+
     def _usage(self) -> tuple[int, int]:
         usage = shutil.disk_usage("/System/Volumes/Data" if Path("/System/Volumes/Data").exists() else "/")
         return usage.free, usage.total
@@ -1442,10 +1500,21 @@ class HostDiskGovernor:
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             result["inventory_error"] = type(exc).__name__
+        try:
+            free_after, _ = self.usage()
+        except Exception as exc:
+            free_after = None
+            result["free_after_error_class"] = type(exc).__name__
+        if isinstance(free_after, bool) or not isinstance(free_after, int) or free_after < 0:
+            free_after = None
+            result["free_after_error_class"] = "invalid_measurement"
+        result["free_before"] = free_before
+        result["free_after"] = free_after
+        # main() holds the singleton governor lock across cleanup and this exact-owner finalizer.
+        result["disk_writers_stop"] = self._clear_disk_writers_stop(free_after)
         result["capacity_recovery"] = _capacity_recovery(result)
         result["ok"] = _cleanup_terminal_ok(result)
         self._receipt(result)
-        result["free_before"] = free_before
         return result
 
     def run_canary(self, path: Path) -> dict[str, object]:

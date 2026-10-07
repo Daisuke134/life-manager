@@ -2008,6 +2008,123 @@ def test_run_once_never_blocks_producers_even_below_eleven_gib(tmp_path: Path, m
     assert receipt["capacity_recovery"] == expected_capacity
 
 
+def _write_disk_writers_guard(path: Path, owner_id: str) -> None:
+    path.write_text(json.dumps({
+        "owner_id": owner_id,
+        "reason": "disk_headroom_low",
+        "required_bytes": 11 * GiB,
+        "next_action": "restore_capacity_and_install_shared_disk_gate",
+    }) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
+def _run_disk_cleanup_once(tmp_path: Path, state: Path, monkeypatch, usage) -> dict:
+    temporary = tmp_path / "tmp"
+    temporary.mkdir()
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 0, "root_count": 0, "gaps": []}},
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=state,
+        lsof=lambda _path: "confirmed-closed",
+        usage=usage,
+    )
+    assert governor.acquire_lock()
+    try:
+        return governor.run_once()
+    finally:
+        governor.release_lock()
+
+
+def test_run_once_clears_matching_disk_writers_guard_at_recovery_floor(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    guard = state / "disk-writers.stop"
+    _write_disk_writers_guard(guard, "host-disk-recovery")
+    result = _run_disk_cleanup_once(
+        tmp_path, state, monkeypatch, lambda: (11 * GiB, 100 * GiB)
+    )
+
+    assert not guard.exists()
+    assert result["free_after"] == 11 * GiB
+    assert result["capacity_recovery"]["status"] == "met"
+    assert result["disk_writers_stop"] == {"status": "cleared"}
+    receipt = json.loads((state / "last-receipt.json").read_text())
+    assert receipt["free_after"] == 11 * GiB
+    assert receipt["ok"] is True
+    assert receipt["disk_writers_stop"] == {"status": "cleared"}
+
+
+def test_run_once_remeasures_after_inventory_and_preserves_guard_below_floor(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    guard = state / "disk-writers.stop"
+    _write_disk_writers_guard(guard, "host-disk-recovery")
+    free_samples = iter((11 * GiB, 11 * GiB, 11 * GiB, 11 * GiB - 1))
+    result = _run_disk_cleanup_once(
+        tmp_path, state, monkeypatch,
+        lambda: (next(free_samples), 100 * GiB),
+    )
+
+    assert guard.exists()
+    assert result["free_after"] == 11 * GiB - 1
+    assert result["capacity_recovery"]["status"] == "unmet"
+    assert result["ok"] is False
+    assert result["disk_writers_stop"] == {
+        "status": "preserved",
+        "reason": "recovery_floor_not_met",
+    }
+    receipt = json.loads((state / "last-receipt.json").read_text())
+    assert receipt["free_after"] == 11 * GiB - 1
+    assert receipt["ok"] is False
+
+
+@pytest.mark.parametrize(
+    "replacement_mode",
+    ("foreign_owner", "changed_identity"),
+)
+def test_run_once_preserves_foreign_or_replaced_disk_writers_guard(
+    tmp_path: Path, monkeypatch, replacement_mode: str
+) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    guard = state / "disk-writers.stop"
+    owner = "other-owner" if replacement_mode == "foreign_owner" else "host-disk-recovery"
+    _write_disk_writers_guard(guard, owner)
+    replacement = state / "replacement.json"
+    _write_disk_writers_guard(replacement, "other-owner")
+    if replacement_mode == "changed_identity":
+        original_open = os.open
+        swapped = False
+
+        def replace_before_guard_open(path, flags, *args, **kwargs):
+            nonlocal swapped
+            if not swapped and isinstance(path, (str, os.PathLike)) and Path(path) == guard:
+                os.replace(replacement, guard)
+                swapped = True
+            return original_open(path, flags, *args, **kwargs)
+
+        monkeypatch.setattr(disk_cleanup.os, "open", replace_before_guard_open)
+    result = _run_disk_cleanup_once(
+        tmp_path, state, monkeypatch, lambda: (12 * GiB, 100 * GiB)
+    )
+
+    assert guard.exists()
+    assert json.loads(guard.read_text())["owner_id"] == "other-owner"
+    assert result["disk_writers_stop"]["status"] == "preserved"
+    assert result["disk_writers_stop"]["reason"] == (
+        "owner_mismatch" if replacement_mode == "foreign_owner" else "identity_changed"
+    )
+
+
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
     tmp_path: Path, monkeypatch
 ) -> None:
