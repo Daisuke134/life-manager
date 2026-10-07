@@ -116,6 +116,12 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - A dry-run of the existing CrowdWorks Application CLI checked 14 occurrences and returned all 14 as `provider_browser_busy`, `resolved=[]`, `next_action=retry_after_provider_browser`. No proposal page was read and no `--resolve` was used. Reply's existing browser owner remains loaded-running; do not treat its 260 historical occurrence references as people awaiting replies.
 - Fresh Lancers `lm-loop status` has Application 151, Negotiate 197, Paid 17, Storefront 1, Telegram report 1, and Work-sync 0 admission `effect_unknown` references. These are execution records, not bids/orders or waiting users. Application/Negotiate/Storefront/Report/Work-sync remain disk-fenced; Paid reports `entrypoint_exit_1` / `official_readback_required` and is not a pass. Browser owner is loaded-running/exit 78. Rows 25–27 remain at their last known `waiting_external`; no authentication, solver, proposal, or retry was performed.
 
+## 2026-10-08 05:16 JST Coconala Paid natural terminal
+
+- `hf-gig-paid-direct`'s latest terminal at `2026-10-07T20:16:11Z` is `status=pass` / `exit_code=0` / `effect=not_applicable`; `provider_receipt_id` and `official_readback_ref` are both null. This is an owner/process pass with no external effect, not a paid order, delivery, or revenue receipt.
+- The owner process remains `loaded-running` in the latest status snapshot. BrowserGuard was unheld in one readback while the registered Paid wrapper was still alive, so no second Coconala browser navigation was started. The old Storefront effect-unknown fence remains held.
+- The latest direct free-space sample is 1222784 KiB, below the shared 2 GiB host floor; `lm-loop doctor` still reports `ok=false` for the separate retired Capafy installed label. No source release or owner apply/restart occurred.
+
 ## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
 
 - Read-only `coconala_outcomes.py` returned `status=waiting`: historical local receipt counters are application 1,209, negotiation 364, and listing mutation 39; paid delivery is 0 and bank-arrival receipt is absent. The first three are cumulative counters with no date filter, not today's applications, current public listing count, sale count, or settled cash. Do not treat the listing counter as storefront demand.
