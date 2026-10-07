@@ -4945,8 +4945,8 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         }]
         return base + list(extra)
 
-    def _ebook_pre_effect_claim(self, error_detail="LM_DATA_DIR is required"):
-        owner = "ebook-ja-tiktok-daily"
+    def _ebook_pre_effect_claim(self, error_detail="LM_DATA_DIR is required",
+                                owner="ebook-ja-tiktok-daily"):
         occurrence = f"{owner}:slot-20261006-2000"
         owner_run_id = occurrence.split(":", 1)[1]
         execution_run_id = "execution-20261006-2009"
@@ -5033,6 +5033,17 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         )
         self.assertIsNone(proof)
         self.assertEqual(reason, "effect_ref_present")
+
+    def test_english_heygen_fence_refusal_is_not_pre_effect(self):
+        owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
+            "marketing publication effect fenced",
+            owner="ebook-en-tiktok-daily",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "no_pre_effect_terminal")
 
     def test_ebook_pre_effect_uses_exact_occurrence_without_claim_uri(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
