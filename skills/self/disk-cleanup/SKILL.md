@@ -33,8 +33,20 @@ allow-listed regenerable artifact after an open-path probe confirms
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - Pressure is asserted below 11 GiB and is not cleared until the recovery floor
   is reached; the 20 GiB threshold starts preventive containment.
-- Every pass atomically writes `host-inventory.json`: local `df` mounts and
-  bounded owner-family metadata. The hourly/full compatibility pass may run a
+- The central cleanup terminal reports capacity recovery separately from
+  deletion outcomes: integer `free_after` must meet the existing 11 GiB floor;
+  a shortfall is `unmet`, and missing or invalid capacity is `unknown`. These
+  statuses do not replace `errors` or `protected_deletions`.
+- The direct governor CLI stores the same capacity status and `ok` in its pass
+  receipt and exits nonzero for unmet or unknown capacity, deletion errors, or
+  protected deletions. A busy singleton lock reports `cleanup_lock_busy` with
+  unknown capacity and exits 75 without running cleanup.
+- Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
+  advances atomically under the governor's singleton lock before each bounded
+  sweep, so an early slow or open candidate cannot consume every wake.
+- Every pass atomically writes `host-inventory.json` with local mount sizes
+  converted from `df -kP` 1 KiB block counts to bytes and bounded owner-family
+  metadata. The hourly/full compatibility pass may run a
   timeout-bounded `du` probe for allow-listed families; gaps are recorded as
   unknown and never become deletion candidates. The fallback adapter keeps a
   separate `cleanup-full-pass.at` marker so one bounded full cleanup occurs at
@@ -59,6 +71,12 @@ legacy hourly label is only a compatibility trigger: the guard's
 `cleanup-full-pass.at` marker (or explicit `EMERGENCY_GUARD_FULL_PASS=1`) opts
 into the bounded full pass so deferred worktree inspection is not permanently
 skipped.
+
+The `com.anicca.disk-watchdog` template is a 60-second recovery label that calls
+the same released `disk_cleanup.py` directly with the shared host `state_dir`.
+Both labels use the governor's single lock and 1 MiB receipt reserve; the
+watchdog adds no second deletion implementation. Its output goes to
+`life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.
 
 Run the tests with:
 

@@ -33,6 +33,18 @@ def fake_runner(argv: list[str], *, timeout: float) -> subprocess.CompletedProce
     return subprocess.CompletedProcess(argv, 0, "8\t%s\n" % argv[-1], "")
 
 
+def test_df_uses_kilobyte_blocks_matching_byte_parser() -> None:
+    calls: list[list[str]] = []
+
+    def runner(argv: list[str], *, timeout: float) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return fake_runner(argv, timeout=timeout)
+
+    host_inventory._mounts(run=runner)
+
+    assert [argv for argv in calls if argv[0].endswith("/df")] == [["/bin/df", "-kP"]]
+
+
 def test_fast_inventory_is_atomic_and_records_coverage_gaps(tmp_path: Path) -> None:
     (tmp_path / "Projects").mkdir()
     state = tmp_path / "state"

@@ -40,6 +40,7 @@ SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS = 5
 SPARKLE_UPDATER_POLL_SECONDS = 0.1
 CANONICAL_LABEL = "ai.anicca.life-manager-disk-cleanup"
 THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSURE"), (3 * GiB, "CRITICAL"))
+RECOVERY_FLOOR_BYTES = next(floor for floor, tier in THRESHOLDS if tier == "PREVENTIVE")
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 # A release is ~1.2GiB, so unbounded generations fill the disk on their own.
@@ -88,6 +89,24 @@ def classify_tier(free_bytes: int) -> str:
         if free_bytes >= floor:
             return tier
     return "ULTRA"
+
+
+def _capacity_recovery(result: object) -> dict[str, str | int]:
+    free_after = result.get("free_after") if isinstance(result, dict) else None
+    if not isinstance(free_after, int) or isinstance(free_after, bool):
+        status = "unknown"
+    else:
+        status = "met" if free_after >= RECOVERY_FLOOR_BYTES else "unmet"
+    return {"status": status, "recovery_floor_bytes": RECOVERY_FLOOR_BYTES}
+
+
+def _cleanup_terminal_ok(result: object) -> bool:
+    return (
+        isinstance(result, dict)
+        and result.get("errors") == 0
+        and result.get("protected_deletions") == 0
+        and _capacity_recovery(result)["status"] == "met"
+    )
 
 
 def _session_recovery_receipt() -> dict[str, object]:
@@ -419,6 +438,7 @@ class HostDiskGovernor:
         self.lock_dir = self.state_dir / ".life-manager-disk-cleanup.lock"
         self._lock_fd: int | None = None
         self.full_inventory_marker = self.state_dir / "host-inventory-full.at"
+        self.candidate_cursor_path = self.state_dir / "candidate-cursor.json"
         self.lsof = lsof
         self.usage = usage or self._usage
         self.clock = clock
@@ -450,6 +470,26 @@ class HostDiskGovernor:
         temporary = self.full_inventory_marker.with_name(f".{self.full_inventory_marker.name}.tmp")
         temporary.write_text(str(int(time.time())) + "\n")
         os.replace(temporary, self.full_inventory_marker)
+
+    def _candidate_start_index(self, candidate_count: int) -> int:
+        if candidate_count <= 0:
+            return 0
+        try:
+            cursor = json.loads(self.candidate_cursor_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return 0
+        if not isinstance(cursor, dict) or cursor.get("schema_version") != 1:
+            return 0
+        next_index = cursor.get("next_index")
+        if isinstance(next_index, bool) or not isinstance(next_index, int) or next_index < 0:
+            return 0
+        return next_index % candidate_count
+
+    def _persist_candidate_cursor(self, next_index: int) -> None:
+        self._receipt(
+            {"schema_version": 1, "next_index": next_index},
+            filename="candidate-cursor.json",
+        )
 
     def _usage(self) -> tuple[int, int]:
         usage = shutil.disk_usage("/System/Volumes/Data" if Path("/System/Volumes/Data").exists() else "/")
@@ -1332,6 +1372,8 @@ class HostDiskGovernor:
                 "free_after": free_before,
                 "preserved_reasons": {"gui-bootstrap-health-failure": 1},
             }
+            result["capacity_recovery"] = _capacity_recovery(result)
+            result["ok"] = _cleanup_terminal_ok(result)
             self._receipt(result)
             return result
         updater_recovery = {
@@ -1349,11 +1391,24 @@ class HostDiskGovernor:
             recovery = self._reconcile_stale_sparkle_updaters(sparkle_root)
             for key in updater_recovery:
                 updater_recovery[key] += recovery[key]
+        candidates = self.discover_candidates()
+        candidate_count = len(candidates)
+        candidate_start = self._candidate_start_index(candidate_count)
+        candidate_next = (candidate_start + 1) % candidate_count if candidate_count else 0
+        if candidate_count:
+            # main() holds the singleton governor lock across this durable advance and sweep.
+            self._persist_candidate_cursor(candidate_next)
+            candidates = candidates[candidate_start:] + candidates[:candidate_start]
         result = self.sweep(
-            self.discover_candidates(),
+            candidates,
             write_receipt=False,
             deadline=deadline,
         )
+        result["candidate_rotation"] = {
+            "candidate_count": candidate_count,
+            "start_index": candidate_start,
+            "next_index": candidate_next,
+        }
         result["updater_recovery"] = updater_recovery
         result["errors"] += updater_recovery["errors"]
         # Cleanup must never pause revenue loops. Remove the retired shared
@@ -1387,6 +1442,8 @@ class HostDiskGovernor:
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             result["inventory_error"] = type(exc).__name__
+        result["capacity_recovery"] = _capacity_recovery(result)
+        result["ok"] = _cleanup_terminal_ok(result)
         self._receipt(result)
         result["free_before"] = free_before
         return result
@@ -1527,13 +1584,28 @@ def main() -> int:
         )
     governor = HostDiskGovernor(home=args.home, state_dir=args.state_dir)
     if not governor.acquire_lock():
-        return 0
-    try:
-        result = governor.run_canary(args.canary) if args.canary else governor.run_once()
+        result = {
+            "ok": False,
+            "status": "deferred",
+            "reason": "cleanup_lock_busy",
+            "effect": 0,
+            "readback": 0,
+            "capacity_recovery": _capacity_recovery({}),
+        }
         print(json.dumps(result, sort_keys=True))
+        return 75
+    try:
+        if args.canary:
+            result = governor.run_canary(args.canary)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        result = governor.run_once()
+        result["capacity_recovery"] = _capacity_recovery(result)
+        result["ok"] = _cleanup_terminal_ok(result)
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result["ok"] else 1
     finally:
         governor.release_lock()
-    return 0
 
 
 if __name__ == "__main__":

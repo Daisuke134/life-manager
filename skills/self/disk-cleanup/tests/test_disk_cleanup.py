@@ -1659,6 +1659,83 @@ def test_cli_candidate_is_rejected(tmp_path: Path) -> None:
     assert "--candidate is disabled" in result.stderr or "--candidate is disabled" in result.stdout
 
 
+@pytest.mark.parametrize(
+    "cleanup_result,capacity_status,expected_returncode",
+    (
+        ({"errors": 0, "protected_deletions": 0, "free_after": 6 * GiB}, "unmet", 1),
+        ({"errors": 0, "protected_deletions": 0}, "unknown", 1),
+        ({"errors": 1, "protected_deletions": 0, "free_after": 12 * GiB}, "met", 1),
+        ({"errors": 0, "protected_deletions": 1, "free_after": 12 * GiB}, "met", 1),
+        ({"errors": 0, "protected_deletions": 0, "free_after": 11 * GiB}, "met", 0),
+    ),
+)
+def test_cli_outcome_tracks_capacity_and_cleanup_errors(
+    tmp_path: Path, monkeypatch, capsys, cleanup_result: dict,
+    capacity_status: str, expected_returncode: int,
+) -> None:
+    class FakeGovernor:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def acquire_lock(self) -> bool:
+            return True
+
+        def run_once(self) -> dict:
+            return dict(cleanup_result)
+
+        def release_lock(self) -> None:
+            pass
+
+    monkeypatch.setattr(disk_cleanup, "HostDiskGovernor", FakeGovernor)
+    monkeypatch.setattr(
+        disk_cleanup.sys,
+        "argv",
+        ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(tmp_path / "state")],
+    )
+
+    assert disk_cleanup.main() == expected_returncode
+    output = json.loads(capsys.readouterr().out)
+    assert output["ok"] is (expected_returncode == 0)
+    assert output["capacity_recovery"] == {
+        "status": capacity_status,
+        "recovery_floor_bytes": 11 * GiB,
+    }
+    assert output.get("errors", 0) == cleanup_result.get("errors", 0)
+    assert output.get("protected_deletions", 0) == cleanup_result.get("protected_deletions", 0)
+
+
+def test_cli_reports_busy_lock_without_running_a_cleanup(tmp_path: Path, monkeypatch, capsys) -> None:
+    class FakeGovernor:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def acquire_lock(self) -> bool:
+            return False
+
+        def run_once(self) -> dict:
+            raise AssertionError("busy owner must not run cleanup")
+
+        def release_lock(self) -> None:
+            raise AssertionError("busy owner has no lock to release")
+
+    monkeypatch.setattr(disk_cleanup, "HostDiskGovernor", FakeGovernor)
+    monkeypatch.setattr(
+        disk_cleanup.sys,
+        "argv",
+        ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(tmp_path / "state")],
+    )
+
+    assert disk_cleanup.main() == 75
+    output = json.loads(capsys.readouterr().out)
+    assert output["reason"] == "cleanup_lock_busy"
+    assert output["capacity_recovery"] == {
+        "status": "unknown",
+        "recovery_floor_bytes": 11 * GiB,
+    }
+    assert output["ok"] is False
+    assert not (tmp_path / "state" / "last-receipt.json").exists()
+
+
 def test_lock_is_atomic(tmp_path: Path) -> None:
     first = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
     second = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
@@ -1922,9 +1999,13 @@ def test_run_once_never_blocks_producers_even_below_eleven_gib(tmp_path: Path, m
         usage=lambda: (11 * GiB - 1, 100 * GiB),
     )
 
-    governor.run_once()
+    result = governor.run_once()
 
     assert not pressure.exists()
+    expected_capacity = {"status": "unmet", "recovery_floor_bytes": 11 * GiB}
+    assert result["capacity_recovery"] == expected_capacity
+    receipt = json.loads((state / "last-receipt.json").read_text())
+    assert receipt["capacity_recovery"] == expected_capacity
 
 
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
@@ -1971,6 +2052,64 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
     assert candidate.exists()
     assert result["preserved_reasons"] == {"probe-budget-exhausted": 1}
     assert not (tmp_path / "state" / "host-inventory-full.at").exists()
+
+
+def test_run_once_rotates_candidate_start_after_budget_exhaustion(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state = tmp_path / "state"
+    temporary = tmp_path / "tmp"
+    temporary.mkdir()
+    candidates = []
+    for index in range(4):
+        path = temporary / f"cfo-budget-{index}"
+        path.mkdir()
+        (path / "payload").write_text("x")
+        candidates.append({
+            "path": path,
+            "class": "ephemeral",
+            "owner": "temporary-run",
+            "discovery": "allowlisted",
+        })
+
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(disk_cleanup, "GOVERNOR_BUDGET_SECONDS", 6)
+    monkeypatch.setattr(disk_cleanup, "LSOF_TIMEOUT_SECONDS", 0)
+    monkeypatch.setattr(disk_cleanup, "POST_SWEEP_RESERVE_SECONDS", 0)
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 0, "root_count": 0, "gaps": []}},
+    )
+
+    clock = [0.0]
+    visited = []
+
+    def consume_run_budget(path: Path) -> str:
+        visited.append(path.name)
+        clock[0] += 6
+        return "confirmed-closed"
+
+    rotations = []
+    for _ in range(3):
+        governor = HostDiskGovernor(
+            home=tmp_path,
+            state_dir=state,
+            lsof=consume_run_budget,
+            usage=lambda: (12 * GiB, 100 * GiB),
+            clock=lambda: clock[0],
+        )
+        monkeypatch.setattr(governor, "discover_candidates", lambda: candidates)
+        result = governor.run_once()
+        assert result["preserved_reasons"] == {"probe-budget-exhausted": 4}
+        rotations.append(result.get("candidate_rotation"))
+
+    assert visited == ["cfo-budget-0", "cfo-budget-1", "cfo-budget-2"]
+    assert rotations == [
+        {"candidate_count": 4, "start_index": 0, "next_index": 1},
+        {"candidate_count": 4, "start_index": 1, "next_index": 2},
+        {"candidate_count": 4, "start_index": 2, "next_index": 3},
+    ]
 
 
 def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monkeypatch) -> None:

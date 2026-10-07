@@ -50,9 +50,45 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertEqual(command[-1], '/state/life-manager')
 
     def test_host_cleanup_error_cannot_be_reported_as_success(self):
-        self.assertFalse(host_cleanup_ok(0, {"errors": 1, "protected_deletions": 0}))
-        self.assertFalse(host_cleanup_ok(0, {"errors": 0, "protected_deletions": 1}))
-        self.assertTrue(host_cleanup_ok(0, {"errors": 0, "protected_deletions": 0}))
+        recovery_floor = 11 * 1024**3
+        self.assertFalse(host_cleanup_ok(0, {
+            "errors": 1, "protected_deletions": 0, "free_after": recovery_floor,
+        }))
+        self.assertFalse(host_cleanup_ok(0, {
+            "errors": 0, "protected_deletions": 1, "free_after": recovery_floor,
+        }))
+        self.assertTrue(host_cleanup_ok(0, {
+            "errors": 0, "protected_deletions": 0, "free_after": recovery_floor,
+        }))
+
+    def test_host_cleanup_requires_capacity_recovery_floor(self):
+        incident_receipt = {
+            "tier": "ULTRA",
+            "free_after": 626_888_704,
+            "reclaimed": 8_071,
+            "errors": 0,
+            "protected_deletions": 0,
+        }
+        self.assertFalse(host_cleanup_ok(0, incident_receipt))
+        self.assertTrue(host_cleanup_ok(0, {
+            "errors": 0, "protected_deletions": 0, "free_after": 11 * 1024**3,
+        }))
+
+    def test_host_cleanup_missing_or_invalid_capacity_readback_fails_closed(self):
+        receipts = (
+            {"errors": 0, "protected_deletions": 0},
+            {"errors": 0, "protected_deletions": 0, "free_after": None},
+            {"errors": 0, "protected_deletions": 0, "free_after": True},
+            {"errors": 0, "protected_deletions": 0, "free_after": "11811160064"},
+            {
+                "errors": 0,
+                "protected_deletions": 0,
+                "free_after": 11 * 1024**3 - 1,
+            },
+        )
+        for receipt in receipts:
+            with self.subTest(receipt=receipt):
+                self.assertFalse(host_cleanup_ok(0, receipt))
 
     def test_host_cleanup_missing_readback_preserves_typed_failure(self):
         ok, result = host_cleanup_readback(1, "")
@@ -62,12 +98,54 @@ class LoopCleanupTest(unittest.TestCase):
             "returncode": 1,
         })
 
-    def test_host_cleanup_valid_readback_keeps_existing_result(self):
+    def test_host_cleanup_valid_readback_keeps_receipt_and_reports_recovery(self):
+        recovery_floor = 11 * 1024**3
+        receipt = {
+            "errors": 0,
+            "protected_deletions": 0,
+            "free_after": recovery_floor,
+        }
         ok, result = host_cleanup_readback(
-            0, '{"errors":0,"protected_deletions":0}\n'
+            0, json.dumps(receipt) + "\n"
         )
         self.assertTrue(ok)
-        self.assertEqual(result, {"errors": 0, "protected_deletions": 0})
+        self.assertEqual(result, {
+            **receipt,
+            "capacity_recovery": {
+                "status": "met",
+                "recovery_floor_bytes": recovery_floor,
+            },
+        })
+
+    def test_host_cleanup_missing_capacity_readback_is_reported_as_unknown(self):
+        receipt = {"errors": 0, "protected_deletions": 0}
+        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
+        self.assertFalse(ok)
+        self.assertEqual(result["capacity_recovery"], {
+            "status": "unknown",
+            "recovery_floor_bytes": 11 * 1024**3,
+        })
+        self.assertEqual(result["errors"], 0)
+        self.assertEqual(result["protected_deletions"], 0)
+
+    def test_host_cleanup_capacity_failure_preserves_delete_errors_and_receipt(self):
+        receipt = {
+            "tier": "ULTRA",
+            "free_after": 626_888_704,
+            "reclaimed": 8_071,
+            "errors": 1,
+            "protected_deletions": 0,
+        }
+        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
+        self.assertFalse(ok)
+        self.assertEqual(result, {
+            **receipt,
+            "capacity_recovery": {
+                "status": "unmet",
+                "recovery_floor_bytes": 11 * 1024**3,
+            },
+        })
+
     def test_loop_cleanup_preserves_active_unmarked_and_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); old = completed(root, "old"); active = completed(root, "active")
@@ -770,6 +848,25 @@ class LoopCleanupTest(unittest.TestCase):
             (agents/'ai.anicca.job.plist').write_bytes(plistlib.dumps({
                 'Label':'ai.anicca.job','ProgramArguments':[str(entry)]}))
             self.assertEqual(loaded_release_roots(agents,releases),{release.resolve()})
+
+    def test_com_disk_watchdog_release_is_discovered_as_protected(self):
+        import plistlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            releases = root / "releases"
+            release = releases / ("20260101T000000-" + "b" * 8)
+            entry = release / "skills/self/disk-cleanup/disk_cleanup.py"
+            entry.parent.mkdir(parents=True)
+            entry.write_text("x")
+            agents = root / "agents"
+            agents.mkdir()
+            (agents / "unrelated.plist").write_bytes(plistlib.dumps([]))
+            (agents / "com.anicca.disk-watchdog.plist").write_bytes(plistlib.dumps({
+                "Label": "com.anicca.disk-watchdog",
+                "ProgramArguments": ["/usr/bin/python3", str(entry), "--home", "/Users/test"],
+            }))
+
+            self.assertEqual(loaded_release_roots(agents, releases), {release.resolve()})
 
     def test_open_process_release_is_discovered_as_protected(self):
         with tempfile.TemporaryDirectory() as directory:
