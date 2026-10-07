@@ -196,8 +196,26 @@ async def _tag_all(page: Page, item: dict, tags: dict) -> None:
         await page.wait_for_timeout(1500)
 
 
+IN_REVIEW = ("審査待ち", "審査中", "審査処理中")
+
+
+def _mark_requested(item: dict, observed: str) -> dict:
+    return dict(item, state="review_requested", state_observed=observed,
+                review_requested_at=datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+
+async def _review_status(page: Page) -> str | None:
+    body = await page.inner_text("body")
+    status = body[body.find("ステータス"):][:40]
+    return next((s for s in IN_REVIEW if s in status), None)
+
+
 async def _request_review(page: Page, item: dict) -> dict:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}")
+    # Idempotent: a request that already went through (e.g. readback missed it last wake) is done.
+    already = await _review_status(page)
+    if already:
+        return _mark_requested(item, already)
     await page.locator("a:visible", has_text="リクエスト").first.click(timeout=15000)  # <a> without href has no link role
     await page.wait_for_timeout(500)
     agree = page.get_by_text("同意します", exact=True)
@@ -206,14 +224,14 @@ async def _request_review(page: Page, item: dict) -> dict:
     ok_buttons = page.get_by_role("button", name="OK", exact=True)
     visible = [button for button in await ok_buttons.all() if await button.is_visible() and await button.is_enabled()]
     await visible[-1].click()
-    await page.wait_for_timeout(2000)
-    body = await page.inner_text("body")
-    item = dict(item)
-    if "審査待ち" in body:
-        item["state"] = "review_requested"
-        item["review_requested_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        item["state_observed"] = "審査待ち"
-    return item
+    # The status flips a few seconds after OK (2s missed it live 2026-10-07); reload and poll.
+    for _ in range(10):
+        await page.wait_for_timeout(2000)
+        await _goto(page, f"{BASE}/sticker/{item['product_id']}")
+        observed = await _review_status(page)
+        if observed:
+            return _mark_requested(item, observed)
+    return dict(item)
 
 
 async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: Path, selection: dict) -> dict:

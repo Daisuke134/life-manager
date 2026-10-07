@@ -38,5 +38,48 @@ class InlineTitleError(unittest.TestCase):
         self.assertFalse(MODULE._is_title_taken(["必須項目です"]))
 
 
+
+class _FakePage:
+    def __init__(self, body):
+        self.body = body
+        self.clicked = False
+
+    async def inner_text(self, selector):
+        return self.body
+
+    def locator(self, *a, **k):
+        raise AssertionError("must not click リクエスト when already in review")
+
+
+class RequestReviewIsIdempotent(unittest.TestCase):
+    def test_already_in_review_is_marked_without_clicking(self) -> None:
+        import asyncio
+        page = _FakePage("アイテム管理 ステータス 審査待ち 編集に戻す")
+        original_goto = MODULE._goto
+
+        async def no_goto(page, url):
+            return None
+
+        MODULE._goto = no_goto
+        try:
+            out = asyncio.run(MODULE._request_review(page, {"product_id": "1", "state": "tagged"}))
+        finally:
+            MODULE._goto = original_goto
+        self.assertEqual(out["state"], "review_requested")
+        self.assertEqual(out["state_observed"], "審査待ち")
+
+    def test_review_processing_counts_as_in_review(self) -> None:
+        import asyncio
+        # Live 2026-10-07: approved-in-processing items show 審査処理中.
+        self.assertEqual(asyncio.run(MODULE._review_status(_FakePage("ステータス\n審査処理中\n表示情報"))), "審査処理中")
+        import creators_readback
+        self.assertIn("審査処理中", creators_readback.STATUSES)
+
+    def test_status_ignores_words_outside_the_status_field(self) -> None:
+        import asyncio
+        page = _FakePage("お知らせ 審査中のアイテムについて ステータス リジェクト")
+        self.assertIsNone(asyncio.run(MODULE._review_status(page)))
+
+
 if __name__ == "__main__":
     unittest.main()
