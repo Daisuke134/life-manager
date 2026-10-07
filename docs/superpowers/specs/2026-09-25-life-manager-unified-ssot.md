@@ -3839,3 +3839,7 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 本番移行はNo-Go、価値比較の設計はGo。Life Manager CLIと既存15の業務/state/effect/receiptを維持。旧順序=MA-01→MA-23→復旧→MX。新順序=MV-01→MV-04で便益判定、MAの必要な復旧は独立継続、Go対象だけMXへ進む。理由:Daisが耐久性・拡張性・観測性の実改善がない移行は不要と明示したため。現在cursor=MV-01（実比較未着手）。外部進行effect・他業務laneは変更しない。
 
 正本仕様: [主要15ローカル仕様](2026-10-07-main-agents-readiness.md)。[価値比較の4atomic TODO](../plans/2026-10-07-local-harness-value.md)。finite execはOTel exporterを起動しない。CLI互換13fakecasesは改善証明ではない。旧Gateway全面案/HM/HAは過去案で未有効。
+
+## ローカルハーネスの実コード判断
+
+Daisはソースから構造選定を行うよう明示。OpenClaw公開tagのcron receipt/recovery/settlement/OTel/sessionを実読し、[source比較](../../research/2026-10-07-local-harness-source-judgment.md)へ記録。LM CLI/host admission/業務state/effect fence/公式readbackを保持し、OpenClawはagent execution/session/traceへ部分接続する設計適合あり。cron全面置換は不採用。40pair/20%は旧性能定量化案で、構造選定の必須gateではない。旧順序=MV-01→MV-04、新順序=source-fit確定→必要な部分接続contract→対象自然run。理由:コードで分かる機能差を実測待ちにしないため。現在cursor=部分接続contract、未実装。稼働owner/effectと他laneは変更しない。

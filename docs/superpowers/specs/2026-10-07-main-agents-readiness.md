@@ -16,9 +16,9 @@ Daisが求める対象はローカルLife Managerの主要15の商品・業務�
 
 ## 単一推奨
 
-OpenClawをモデル・tool実行エンジンの比較候補とする設計。採用は実測便益がある場合だけ行う。初回は既存runner内部の有限 `openclaw agent exec` を使う。OpenClaw gateway/cronへ全体のschedule/stateを移す設計にはしない。現行backendを稼働させたまま、新backendはdefault off、限定owner/taskで検証する。
+OpenClawをエージェント実行・session・内部traceに部分利用する設計。構造的適合は実コードで判断し、速度・費用などの定量値は別に確認する。初回は既存runner内部の有限 `openclaw agent exec` を使う。OpenClaw gateway/cronへ全体のschedule/stateを移す設計にはしない。現行backendを稼働させたまま、新backendはdefault off、限定owner/taskで検証する。
 
-これは条件付きの目標設計であり、本番OpenClaw切替は未実施。現時点の判断は本番移行No-Go、価値比較のみGo。native account/model/tool/schema/budget/費用の互換が成立しないownerは現行経路を維持する。既存決定的jobにはモデルを追加しない。
+これは条件付きの目標設計であり、本番OpenClaw切替は未実施。コード比較による判断はagent実行/session/traceの部分利用に設計適合あり、cron/host admission/effect全面置換は不採用。本番切替は未実施。native account/model/tool/schema/budget/費用の互換が成立しないownerは現行経路を維持する。既存決定的jobにはモデルを追加しない。
 
 ## アーキテクチャ
 
@@ -93,15 +93,15 @@ pinned `v2026.9.8` の公式OTel setupによると、Gatewayと設定済み`agen
 
 `agent exec --state-dir`はretained stateのexclusive writer ownershipが必要で、Gatewayまたは別execが同stateを所有すると拒否する。15商品で同じretained stateを共有して並列性能が増すとは扱わない。保持するsessionを使う場合はowner別の専用stateと所有権を検証する。state保存だけを商取引のexactly-once保証にしない。
 
-### Go/No-Go（設計上の採用基準、実測値ではない）
+### 性能比較の旧提案（構造選定の前提ではない）
 
 baselineとcandidateを同host・同model/account・同tool・同task・同budgetで比較する。診断/制作taskは固定10cases×4反復の40 paired runs、case orderを交互にし全失敗と欠測を含めて保存する。provider最小単位/spend-capが不明なら実課金比較は実行せずmissingとして残す。外部effectは隔離fixtureと既存公式receiptで検証し本番の破壊試験・再送をしない。
 
 必須: source contract PASS、候補が新しく生む外部作用重複/欠落0、receipt/run相関欠測0、成功率・総費用・p95実行時間・throughputがbaselineより悪化しない、同じhost budget/admission上限内。故障fixtureは断線・timeout・process中断・state lock競合・tool error・cleanup errorを使い、モデル成功自己申告を検証receiptへ代用しない。
 
-さらに次の便益の少なくとも1つを証明する: (a)同一故障caseの復旧時間中央値20%以上短縮、(b)同じ失敗caseをroot causeまで辿る診断時間中央値20%以上短縮、(c)同じhost枠の正しく完了したjob/hourが20%以上増加、(d)機能を保ち新增adapter等を含めて自作production codeの正味削減が正、かつ利用者の運用手順が増えない。数値は採用判断用に固定した設計閾値であり、達成済の結果ではない。小標本の合格を全15/全負荷の保証に一般化しない。
+性能の定量化を行う場合の比較例: (a)同一故障caseの復旧時間中央値20%以上短縮、(b)同じ失敗caseをroot causeまで辿る診断時間中央値20%以上短縮、(c)同じhost枠の正しく完了したjob/hourが20%以上増加、(d)機能を保ち新增adapter等を含めて自作production codeの正味削減が正、かつ利用者の運用手順が増えない。数値は採用判断用に固定した設計閾値であり、達成済の結果ではない。小標本の合格を全15/全負荷の保証に一般化しない。
 
-どれも成立しなければ現行を維持し、互換PASSだけを理由に切り替えない。既存gateway全面案は便益が実証された場合の後続候補で、現在の推奨として有効化しない。
+この40pair/20%案を、ソースから構造選定できない理由や必須採用gateにはしない。共通trace/sessionの機能適合はコードで判断する。互換PASSだけを理由に販売ownerを切り替えない。既存gateway全面案は便益が実証された場合の後続候補で、現在の推奨として有効化しない。
 
 best=同じ仕事で復旧/診断/保守またはthroughputが改善し、その対象だけ採用。base=CLI adapterの互換は成立するが便益未証明なので現行継続。worst=追加layerで費用・latency・RSS・lock競合が増え候補を棄却。最有力の反証筋は、Gatewayへ運用責任を移すことで自作運用codeを大きく削れること。ただし移管の便益・安全は未証明。
 
@@ -112,3 +112,11 @@ best=同じ仕事で復旧/診断/保守またはthroughputが改善し、その
 正本cursorは統一SSOT。検証MA-01〜21の残条件を閉じ、source不具合だけ修正atomへ昇格する。本番移行は便益判定までNo-Go。価値判定MV-01〜04を優先し、runner実装を行う場合のatomは既存MX計画のdecode_envelope→write_caller_result→project_usage→build_command→private retry settings→select_engine→既存runner接続。publisher/scheduler/stateを同時変更しない。
 
 参照: [復旧検証plan](../plans/2026-10-07-main-agents-readiness.md)、[有限runner atom](../plans/2026-10-07-harness-first-cutover.md)、[現状監査](../../research/2026-10-07-main-agents-readiness.md)。
+
+## 実コード比較による設計判断
+
+[コード比較](../../research/2026-10-07-local-harness-source-judgment.md)にfile/function/branchを記録した。OpenClawのcron receipt、stale run CAS修復、historyによる完了復元、runner settlement、FIFO枠を実読。LMのSQLite/claim/heartbeatと同等の部分も多く、収益優先/共有browser admissionと公式readback effect fenceはLMを保持する方が適する。
+
+具体的な共通基盤の利点は、tool/model lifecycleをparent/runへ結ぶOTel spanとsession/recovery owner contract。観測性を利用する入口はGatewayまたはagent --local、diagnostics-otelを限定設定する。Gatewayを利用しても業務cron authorityはLMのままにし、二重scheduleを作らない。全business model/toolを同時変更しない。有限exec初回案は互換診断のみで、要求された共通観測の最終接続とは区別する。
+
+設計の採用理由はsource適合で説明できる。復旧速度・処理量・利益の数値や全業務のcutover互換はこのsource比較では断定しない。本番の全面harness置換は不採用、部分接続のsource acceptanceと自然runを残す。

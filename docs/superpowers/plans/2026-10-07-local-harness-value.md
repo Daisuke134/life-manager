@@ -1,5 +1,6 @@
 # ローカルLife Managerのハーネス採用価値を判定する原子的計画
 
+> 性能を定量化する旧比較案。40pair/20%を構造選定の必須gateにしない。現在のコード判断は [source比較](../../research/2026-10-07-local-harness-source-judgment.md)とローカル仕様を参照。
 > 実行時は `superpowers:executing-plans`。今回の成果は仕様・計画まで。本番変更・有料比較の実行をこの文書作成で許可されたと扱わない。
 
 **Goal:** 現行と同じ業務を保ち、OpenClawに実測便益がある場合だけ移行する。
