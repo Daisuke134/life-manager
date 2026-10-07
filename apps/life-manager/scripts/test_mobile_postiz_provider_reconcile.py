@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import sqlite3
 from pathlib import Path
 
 
@@ -12,6 +13,21 @@ reconcile = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(reconcile)
 import distribute
+
+
+def test_auto_owner_reconcile_fails_closed_when_an_unknown_receipt_is_unresolved(monkeypatch, capsys):
+    owner = "life-manager-anicca-buddha-tiktok"
+
+    for result, expected_exit in [
+        ({"status": "no_match", "owner_id": owner, "inspected": 1}, 1),
+        ({"status": "no_match", "owner_id": owner, "inspected": 0}, 1),
+        ({"status": "inconclusive", "owner_id": owner, "reason": "provider_readback_not_exact"}, 1),
+        ({"status": "clean", "owner_id": owner, "inspected": 0}, 0),
+        ({"status": "resolved", "owner_id": owner, "occurrence_id": f"{owner}:run"}, 0),
+    ]:
+        monkeypatch.setattr(reconcile, "reconcile_pending_owner", lambda **_kwargs: result)
+        assert reconcile.main(["--auto-owner", owner, "--tenant-id", "dais-local", "--resolve"]) == expected_exit
+        assert json.loads(capsys.readouterr().out) == result
 
 
 def test_product_scoped_flat_distribution_row_matches_without_product_field(tmp_path):
@@ -68,6 +84,13 @@ def test_pending_owner_expands_tilde_identity_directory(tmp_path, monkeypatch):
     identity_path = identity_dir / "run-1.jsonl"
     identity_path.write_text(json.dumps({"occurrence_id": occurrence_id}) + "\n", encoding="utf-8")
     identity_path.chmod(0o600)
+    admission_db = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute("CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)")
+        connection.execute(
+            "INSERT INTO occurrences VALUES (?, ?, 'claimed', 1)",
+            ("ebook-ja-instagram-daily", occurrence_id),
+        )
     seen = []
     monkeypatch.setattr(
         reconcile,
@@ -80,7 +103,7 @@ def test_pending_owner_expands_tilde_identity_directory(tmp_path, monkeypatch):
         identity_dir=Path("~/.local/state/life-manager/ebook/effect-identities"),
         data_dir=tmp_path / "data",
         tenant_id="dais-local",
-        admission_db=tmp_path / "admission.sqlite3",
+        admission_db=admission_db,
         api_key="unused",
         apply=False,
     )
@@ -404,6 +427,12 @@ def test_pending_owner_persists_remote_receipt_before_resolving_missing_local_ro
         "local_content": {"caption_sha256": caption_sha, "video_sha256": video_sha},
     }
     admission_db = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute("CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)")
+        connection.execute(
+            "INSERT INTO occurrences VALUES (?, ?, 'claimed', 1)",
+            ("ebook-ja-instagram-daily", identity["occurrence_id"]),
+        )
     monkeypatch.setattr(reconcile, "_authoritative_admission_db", lambda: admission_db.resolve())
     monkeypatch.setattr(reconcile, "_admission_state", lambda *_args: ("claimed", 1))
     listing_reads = []
@@ -419,6 +448,11 @@ def test_pending_owner_persists_remote_receipt_before_resolving_missing_local_ro
         assert reconcile._local_receipt(identity, ledger) is not None
         assert reconcile._local_receipt(identity, ledger)[1] == "post-123"
         kwargs["official_readback"]()
+        with sqlite3.connect(admission_db) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='released', effect_unknown=0 WHERE owner_id=? AND occurrence_id=?",
+                ("ebook-ja-instagram-daily", identity["occurrence_id"]),
+            )
         return True
 
     monkeypatch.setattr(reconcile, "resolve_unknown_occurrence", resolve_unknown_occurrence)
@@ -452,7 +486,7 @@ def test_pending_owner_persists_remote_receipt_before_resolving_missing_local_ro
         api_key="test-only",
         apply=True,
     )
-    assert replay["status"] == "resolved"
+    assert replay["status"] == "clean"
     rows = reconcile._safe_jsonl(ledger)
     assert rows is not None and len(rows) == 1
     assert len(listing_reads) == 1

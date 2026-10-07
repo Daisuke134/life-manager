@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const { JA_LANE, EN_SLIDESHOW_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
@@ -120,13 +121,130 @@ test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REP
   assert.equal(retry.selected.packRef, second.selected.packRef);
 });
 
+test("resolveLarryJaSlot skips content rotation when this integration already published the exact due slot", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT, GEMINI_API_KEY: "fixture" };
+  const slot = "2026-09-28T01:30:00.000Z";
+  const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
+  writeDistributionLedger(dataDir, [{
+    effect_key: `marketing:carousel:anicca-ios:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${slotHash}`,
+    job_id: "published-slot-job",
+    receipt: {
+      kind: "marketing_native_carousel_distribution",
+      status: "published",
+      integration_ref: EN_SLIDESHOW_TIKTOK_LANE.integrationRef,
+      pack_sha256: "a".repeat(64),
+      published_at: NOW,
+      provider_post_id: "postiz-slot-publication-1",
+      provider_reconciled: true,
+    },
+  }]);
+  let generations = 0;
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => NOW,
+    slot,
+    lane: EN_SLIDESHOW_TIKTOK_LANE,
+    productionSlots: ["09:00", "15:00", "21:00"],
+    generateCandidates: async () => {
+      generations += 1;
+      return [{ packRef: `object://sha256/${"d".repeat(64)}`, familyId: "fresh" }];
+    },
+  });
+
+  assert.deepEqual(result, {
+    slot,
+    selected: null,
+    alreadyPublished: true,
+    providerPostId: "postiz-slot-publication-1",
+  });
+  assert.equal(generations, 0);
+});
+
+test("resolveLarryJaSlot rechecks the slot after generation finishes", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT, GEMINI_API_KEY: "fixture" };
+  const slot = "2026-09-28T01:30:00.000Z";
+  const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
+  const generated = { packRef: `object://sha256/${"e".repeat(64)}`, familyId: "fresh" };
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => NOW,
+    slot,
+    lane: EN_SLIDESHOW_TIKTOK_LANE,
+    productionSlots: ["09:00", "15:00", "21:00"],
+    generateCandidates: async () => {
+      writeDistributionLedger(dataDir, [{
+        effect_key: `marketing:carousel:anicca-ios:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${slotHash}`,
+        job_id: "concurrent-publisher-slot-job",
+        receipt: {
+          kind: "marketing_native_carousel_distribution",
+          status: "published",
+          integration_ref: EN_SLIDESHOW_TIKTOK_LANE.integrationRef,
+          pack_sha256: "a".repeat(64),
+          published_at: NOW,
+          provider_post_id: "postiz-concurrent-slot-1",
+          provider_reconciled: true,
+        },
+      }]);
+      return [generated];
+    },
+  });
+
+  assert.deepEqual(result, {
+    slot,
+    selected: null,
+    alreadyPublished: true,
+    providerPostId: "postiz-concurrent-slot-1",
+  });
+});
+
+test("standalone slide-pack CLI exits safely instead of exporting a pack for an already-published slot", (t) => {
+  const dataDir = tempDataDir(t);
+  const slot = "2026-09-28T01:30:00.000Z";
+  const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
+  writeDistributionLedger(dataDir, [{
+    effect_key: `marketing:carousel:anicca-ios:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${slotHash}`,
+    job_id: "published-cli-slot-job",
+    receipt: {
+      kind: "marketing_native_carousel_distribution",
+      status: "published",
+      integration_ref: JA_LANE.integrationRef,
+      pack_sha256: "a".repeat(64),
+      published_at: NOW,
+      provider_reconciled: true,
+    },
+  }]);
+  const script = path.join(__dirname, "generate-larry-slide-pack.js");
+  const result = spawnSync(process.execPath, [script, slot], {
+    cwd: path.resolve(__dirname, "../../.."),
+    env: { ...process.env, LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 75, result.stderr);
+  assert.match(result.stderr, /already published/i);
+  assert.equal(result.stdout, "");
+});
+
 test("readPostedHistory maps carousel distribution receipts to packRef/postedAt", (t) => {
   const dataDir = tempDataDir(t);
   const hash = crypto.createHash("sha256").update("x").digest("hex");
   const file = path.join(dataDir, "ledger.jsonl");
-  fs.writeFileSync(file, `${JSON.stringify({ receipt: { kind: "marketing_native_carousel_distribution", status: "published", pack_sha256: hash, published_at: NOW } })}\n`);
+  const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
+  const integrationRef = "integration://postiz/instagram/cmq3sq7mc000eqp0y7azfm8yk";
+  fs.writeFileSync(file, `${JSON.stringify({
+    effect_key: `marketing:carousel:anicca-ios:creative:${hash}:${"b".repeat(64)}:${"c".repeat(64)}:${slotHash}`,
+      receipt: { kind: "marketing_native_carousel_distribution", status: "published", integration_ref: integrationRef, pack_sha256: hash, published_at: NOW, provider_post_id: "postiz-history-1", provider_reconciled: true },
+  })}\n`);
   const history = readPostedHistory(file);
-  assert.deepEqual(history, [{ packRef: `object://sha256/${hash}`, postedAt: NOW }]);
+  assert.deepEqual(history, [{
+    packRef: `object://sha256/${hash}`,
+    postedAt: NOW,
+    integrationRef,
+    slotHash,
+    providerPostId: "postiz-history-1",
+  }]);
 });
 
 test("MIN_DAYS_BETWEEN_REPEAT is at least a week (per spec: never repeat within N days)", () => {

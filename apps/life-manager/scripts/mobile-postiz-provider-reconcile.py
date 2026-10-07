@@ -76,6 +76,20 @@ def _authoritative_admission_db() -> Path:
     return Path(_resource_admission._durable_paths()[3]).expanduser().resolve()
 
 
+def _pending_unknown_count(admission_db: Path, owner_id: str) -> int | None:
+    try:
+        database = admission_db.expanduser().resolve()
+        with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) FROM occurrences WHERE owner_id=? "
+                "AND state IN ('claimed','released') AND effect_unknown=1",
+                (owner_id,),
+            ).fetchone()
+    except (OSError, sqlite3.Error):
+        return None
+    return int(row[0]) if row else None
+
+
 def _request_json(url: str, api_key: str) -> Any:
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("Postiz API key unavailable")
@@ -668,6 +682,11 @@ def reconcile_pending_owner(
     """Resolve at most one exact historical Postiz occurrence for this owner."""
     if not ID.fullmatch(owner_id):
         return _inconclusive(owner_id, "", "owner_id_invalid")
+    pending_count = _pending_unknown_count(admission_db, owner_id)
+    if pending_count is None:
+        return _inconclusive(owner_id, "", "admission_pending_read_failed")
+    if pending_count == 0:
+        return {"status": "clean", "owner_id": owner_id, "reason": "no_pending_effects", "inspected": 0}
     identity_dir = identity_dir.expanduser()
     try:
         candidates = sorted(identity_dir.iterdir(), key=lambda item: item.name)
@@ -706,6 +725,19 @@ def reconcile_pending_owner(
             )
             result = {**result, "inspected": inspected}
             if result.get("status") != "inconclusive":
+                if apply and result.get("status") == "resolved":
+                    remaining = _pending_unknown_count(admission_db, owner_id)
+                    if remaining is None:
+                        return _inconclusive(owner_id, occurrence_id, "admission_pending_read_failed_after_resolve")
+                    if remaining > 0:
+                        return {
+                            "status": "pending_after_resolve",
+                            "owner_id": owner_id,
+                            "occurrence_id": occurrence_id,
+                            "provider_receipt_id": result.get("provider_receipt_id"),
+                            "pending_count": remaining,
+                            "inspected": inspected,
+                        }
                 return result
             last_inconclusive = result
         if limit_reached:
@@ -774,7 +806,11 @@ def main(argv: list[str] | None = None) -> int:
             apply=args.resolve,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0
+        if result.get("status") in {"clean", "resolved"}:
+            return 0
+        if not args.resolve and result.get("status") == "ready":
+            return 0
+        return 1
     if not all((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
         parser.error("exact reconciliation requires --identity, --ledger, --owner-id and --occurrence-id")
     identity = read_identity(args.identity, args.owner_id, args.occurrence_id)
