@@ -88,15 +88,22 @@
 - Create: apps/life-manager/lib/web-billing.test.js
 - Modify: apps/life-manager/lib/billing.js
 - Modify: apps/life-manager/lib/billing.test.js
+- Modify: apps/life-manager/lib/web-travel.js
+- Modify: apps/life-manager/lib/web-travel.test.js
+- Modify: apps/life-manager/scheduler.js
+- Modify: apps/life-manager/test/scheduler.test.js
 - Modify: apps/life-manager/server.js
 - Modify: apps/life-manager/lib/web-page.js
-- Test: apps/life-manager/lib/stripe-webhook-signature.test.js
+- Modify/Test: apps/life-manager/lib/stripe-webhook-signature.js and apps/life-manager/lib/stripe-webhook-signature.test.js
+- Test: apps/life-manager/lib/web-page.test.js
 
 **Interfaces:**
 - createWebTrialCheckout(uid, user, opts) returns { url, trialEnd }, uses only the configured existing $29/month price, collects a payment method, starts a seven-day subscription trial, and uses a verified Web uid for Stripe correlation.
 - Checkout is unavailable until the initial Calendar scan has confirmed a Travel block; a uid with a prior or canceled trial cannot receive another trial.
 - The webhook grants Web automation only for a valid trialing subscription with a retained payment method or a verified paid invoice. Web past_due, cancellation, and failed payment pause future Calendar work; Telegram grace behavior remains unchanged.
 - A customer-portal session lets a user cancel/manage billing without a Life Manager dashboard. No Life Manager trial-ending reminder email is sent.
+- The scheduled travel path rejects unpaid, expired-trial, canceled, or failed-payment Web tenants before Calendar event reads; the one-time pre-trial scan and Telegram behavior remain unchanged.
+- A live Stripe API key can never verify a webhook with the test-mode endpoint secret.
 
 - [ ] Step 1: Add failing Checkout tests for the existing price, seven-day trial, required payment method, exact uid metadata, blocked zero-block users, and idempotent repeated requests.
 - [ ] Step 2: Add failing webhook tests for trial activation, paid invoice, payment failure, cancellation, duplicate/out-of-order events, Web past-due pause, and unchanged Telegram grace.
