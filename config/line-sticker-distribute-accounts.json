@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "timezone": "Asia/Tokyo",
+  "_comment": "line-sticker-distribute sell loop targets. ONLY dedicated sticker-character accounts belong here (never an existing Anicca/Honne/eBook brand integration -- Dais 2026-10-07). Empty accounts = no-op, not an error: the loop waits for Dais to add a dedicated Postiz integration_id here once one is connected.",
+  "accounts": []
+}
