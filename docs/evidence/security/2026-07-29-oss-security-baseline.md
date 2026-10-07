@@ -133,3 +133,22 @@ Only this exact fingerprint is added to `.gitleaksignore`:
 `d5ce0d1302e206a5df3744ed998901d069d610f9:docs/evidence/main-agents/health.json:generic-api-key:7757`.
 The current-tree scan and full-history scan remain enabled; a new value at a
 different commit, path, rule, or line is still detected.
+
+## Addendum 2026-10-07 — refresh one existing OSS inventory exception
+
+PR #6823's full repository check reported one existing
+`manifest_inventory_mismatch` for `skills/capafy-autopublish`. The source
+manifest still declares 241 files while the current tracked root has 242, so
+the manifest mapping itself remains a known mismatch. The existing baseline
+entry for this exact code and path was refreshed from evidence hash
+`645a77c780a26baa215b2c2003bd88594cf4f8a37a9668c9de120a3d5de2f948` to
+`7619a21b30f651d7c8f62102e785ff4a8992807fabfa6ff053b4f44a9f47ed5e` after
+reviewing the current tree and its recent source changes. The manifest and
+verifier are unchanged; this records the accepted current state and does not
+claim that the manifest inventory was repaired.
+
+The baseline still matches only `manifest_inventory_mismatch` at
+`skills/capafy-autopublish` with that exact tracked-tree hash. The verifier
+returns no current violations, and its existing 12 tests pass. A further tree
+change produces a different hash and fails again; other violation codes,
+paths, and source roots remain unsuppressed.
