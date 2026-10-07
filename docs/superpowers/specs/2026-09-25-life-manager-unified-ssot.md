@@ -3860,3 +3860,6 @@ Host recovery追加条件: 単発回収だけで完了にせず、既存5分clea
 
 容量報告の別障害: host_inventoryはmacOSの`df -P` (512-blocks)を1024倍しており、実245GBのdiskを490GBと報告する。実df -kPとAPFS readbackで2倍差を確認。df -kPへ単位を固定し既存1024-block fixtureに回帰を追加する。governorのshutil.disk_usageは正常であり、このreport不具合とgovernorの判定を混同しない。
 source/運用の未完境界: 空きは約6GiBで11GiB未回復。session DBのfree pagesはほぼ0で、VACUUMによる有意回収はない。全dependency bundleにはproduction/source参照があり削除不可。唯一のmerged/clean/expired lease worktree候補にもopen reference1件あり保護する。TCCのunknown rootsはunknownのまま残す。
+
+共通gateの最終範囲: 11GiBを下げられない定数をmanaged finite runnerへ適用する。既存individual disk_admission wrapperの既定512MiB/env contractは、継続ownerやdirect callerへの副作用を避けるため維持する。shared gateはwrapper env=0でも11GiBのままである。常駐ownerの開始経路とcontrol-plane safetyは共通gateをbypassする。managed外のinteractive client/OS writerの容量上限を今回実装したと主張しない。
+検証/反映cursor: source branchのstage1 `c282bd4179...`はpush済み。stage2はpre-enqueue/post-claimのprovider child0、unknown→not_applicable、既存reservation解放+60秒cooldownをfocused確認し、subprocess testのhealthy disk fixtureを整える。旧watchdogはsafe bootout/disableし、旧無条件削除を止める。新templateのimmutable render/readbackは未完である。
