@@ -53,6 +53,11 @@ esac
 set -euo pipefail
 case "$1" in
   */mobile-app-command.js)
+    if [[ -e "$LIFE_MANAGER_RESULT_HINT_PATH" ]]; then
+      printf 'resolve:hint-present\\n' >> "$CALLS"
+    else
+      printf 'resolve:hint-absent\\n' >> "$CALLS"
+    fi
     printf 'test-runner.js\\tpublish\\tproduct\\torigin\\tworkspace\\n'
     ;;
   */mobile-effect-result.js)
@@ -95,7 +100,7 @@ def test_reconcile_failure_preserves_no_publish_hint_and_skips_runner(tmp_path):
     assert calls.read_text(encoding="utf-8").splitlines() == ["reconcile"]
 
 
-def test_successful_reconcile_clears_hint_before_runner_starts(tmp_path):
+def test_successful_reconcile_keeps_hint_through_resolution_then_clears_before_runner(tmp_path):
     result, hint, calls = _run_mobile_app(
         tmp_path, reconcile_status=0, runner_status=1,
     )
@@ -103,5 +108,5 @@ def test_successful_reconcile_clears_hint_before_runner_starts(tmp_path):
     assert result.returncode == 1
     assert not hint.exists()
     assert calls.read_text(encoding="utf-8").splitlines() == [
-        "reconcile", "runner:hint-absent", "runner",
+        "reconcile", "resolve:hint-present", "runner:hint-absent", "runner",
     ]
