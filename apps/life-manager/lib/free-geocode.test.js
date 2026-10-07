@@ -251,7 +251,7 @@ test("recognized Japanese facility names still use OpenPOI Suggest", async (t) =
 test("arbitrary Japanese labels bypass OpenPOI and use one Google geocode", async (t) => {
   for (const [index, query] of [
     "自宅", "実家", "友達の家", "会社", "会場", "東京展示会場",
-    "友達の家の会場", "自宅ビル", "友達の家のホテル",
+    "友達の家の会場", "自宅ビル", "自宅会場", "友達の家のホテル",
   ].entries()) {
     await t.test(query, async () => {
       const result = await runGeocode({
