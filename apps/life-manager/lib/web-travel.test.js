@@ -382,7 +382,8 @@ test("uncertain Calendar write is not recorded as first value", async () => {
 });
 
 test("repeated initial setup reuses the confirmed Travel block and keeps one scan receipt", async () => {
-  const f = fixture();
+  const funnelEvents = [];
+  const f = fixture({ recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; } });
   const request = {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
   };
@@ -396,6 +397,10 @@ test("repeated initial setup reuses the confirmed Travel block and keeps one sca
   assert.ok(f.row.web_first_travel_at);
   assert.equal(f.row.trial_expires_at, null);
   assert.equal(f.preference.daily_automation_enabled, false);
+  assert.deepEqual(funnelEvents, [{
+    eventName: "first_travel_block", uid: UID, sourceObjectId: UID, attribution: {},
+    occurredAt: f.row.web_first_travel_at,
+  }]);
 });
 
 test("initial scan stays pending and offers no trial if the Travel popup reminder is not read back", async () => {

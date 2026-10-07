@@ -80,7 +80,8 @@ function createCheckout(...args) {
 
 test("Web Checkout uses the existing $29 monthly price and never resumes automation before Stripe confirmation", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
-  const f = fixture();
+  const funnelEvents = [];
+  const f = fixture({ opts: { recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; } } });
   const user = { uid: UID, subject: UID.slice(3), csrf: "server-verified" };
   const result = await createCheckout(UID, user, f.opts);
   const request = f.calls.checkouts[0];
@@ -100,6 +101,9 @@ test("Web Checkout uses the existing $29 monthly price and never resumes automat
   assert.equal(request.params.cancel_url, "https://life.example/lm?checkout=cancelled");
   assert.match(request.requestOptions.idempotencyKey, /^lm-web-trial-/);
   assert.deepEqual(f.calls.controlActions, []);
+  assert.deepEqual(funnelEvents, [{
+    eventName: "checkout_created", uid: UID, sourceObjectId: "cs_test_once", attribution: {},
+  }]);
 });
 
 test("Web Checkout rejects zero-block, active, and past-due users before Stripe", async () => {

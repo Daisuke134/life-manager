@@ -271,6 +271,7 @@ test("OAuth start keeps the PKCE verifier cookie separate from the authenticated
 
 test("ignores client tenant fields and derives lm uid from subject", async () => {
   const events = [];
+  const funnelEvents = [];
   const client = authClient({
     events,
     exchange: async (_code, cookies) => {
@@ -284,7 +285,10 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   });
   const db = makeRestFetch();
   const res = makeResponse();
-  const fixture = authOptions(client, { fetch: db.fetch });
+  const fixture = authOptions(client, {
+    fetch: db.fetch,
+    recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
+  });
   const req = callbackRequest({
     query: "&uid=lm_attacker&email=attacker%40example.test&chat_id=999&paid=true",
     body: { uid: "lm_body_attacker", chat_id: "998", paid: true },
@@ -305,6 +309,9 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   assert.notEqual(fixture.calls[0].key, SERVICE_KEY);
   assert.equal(db.rows.length, 1);
   assert.deepEqual(db.rows[0], { uid: WEB_UID, telegram_chat_id: null });
+  assert.deepEqual(funnelEvents, [{
+    eventName: "google_authenticated", uid: WEB_UID, sourceObjectId: WEB_UID, attribution: {},
+  }]);
 
   const resolveEvents = [];
   const resolveClient = authClient({ events: resolveEvents });

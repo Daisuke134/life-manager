@@ -1067,6 +1067,7 @@ test("callback rejects missing, malformed, or ambiguous state before claim", asy
 
 test("callback claims once, checks exact ACTIVE owner, and reads back the binding", async () => {
   const calls = [];
+  const funnelEvents = [];
   const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
   const store = {
     async claimWebOAuthAccount(scope, hash) {
@@ -1089,6 +1090,7 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
       }
       return { ok: true, json: async () => [{ ...row }] };
     },
+    recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
     calendarEventsImpl: async () => { throw new Error("callback must not read Calendar events"); },
   }));
   assert.equal(response.status, 303);
@@ -1108,10 +1110,13 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
     p_expected_calendar_account_id: null,
   });
   assert.equal(calls[4][0], "GET", "binding is independently read back after the atomic write");
+  assert.deepEqual(funnelEvents, [{
+    eventName: "calendar_active", uid: UID, sourceObjectId: UID, attribution: {},
+  }]);
 });
 
 test("callback replay does not repeat provider read or lm_users mutation", async () => {
-  let claims = 0, providers = 0, writes = 0, reads = 0;
+  let claims = 0, providers = 0, writes = 0, reads = 0, funnelWrites = 0;
   const row = { uid: UID, telegram_chat_id: null, calendar_provider: null, calendar_connected_account_id: null };
   const opts = options({
     webCalendarStore: { claimWebOAuthAccount: async () => ++claims === 1 ? "ca-selected" : null },
@@ -1123,6 +1128,10 @@ test("callback replay does not repeat provider read or lm_users mutation", async
         row.calendar_connected_account_id = "ca-selected";
         return { ok: true, json: async () => true };
       }
+      if (String(url).includes("/lm_web_funnel_events")) {
+        funnelWrites++;
+        return { ok: true, status: 201, json: async () => [] };
+      }
       reads++;
       return { ok: true, json: async () => [{ ...row }] };
     },
@@ -1131,7 +1140,7 @@ test("callback replay does not repeat provider read or lm_users mutation", async
   const replay = await call("GET", `/lm/oauth/calendar/callback?state=${STATE}`, opts);
   assert.equal(first.status, 303);
   assert.equal(replay.status, 403);
-  assert.deepEqual([claims, providers, writes, reads], [2, 1, 1, 2]);
+  assert.deepEqual([claims, providers, writes, reads, funnelWrites], [2, 1, 1, 2, 1]);
 });
 
 test("SQL keeps Web NULL scope separate from existing non-null Telegram scope", () => {

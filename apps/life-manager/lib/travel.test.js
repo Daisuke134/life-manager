@@ -246,6 +246,26 @@ const GO_TRAVEL_OPTIONS = {
   _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
 };
 
+test("unroutable venue fallback passes the exact tenant and usage writer to the location agent", async () => {
+  await withTravelClaimStore(async () => {
+    let resolveOptions = null;
+    const usageWriter = async () => true;
+    await fillTravel("tenant-web-route-fallback", {
+      ...GO_TRAVEL_OPTIONS,
+      calendar: makeUnknownGoCalendar(),
+      geminiKey: "fixture-gemini-key",
+      _directionsMinutes: async () => null,
+      _agentResolveLocation: async (_event, options) => {
+        resolveOptions = options;
+        return { kind: "ask" };
+      },
+      _recordUsageEvent: usageWriter,
+    });
+    assert.equal(resolveOptions.uid, "tenant-web-route-fallback");
+    assert.equal(resolveOptions.recordUsageEvent, usageWriter);
+  });
+});
+
 test("keeps GO claim after an unknown create result and does not replay the Calendar write", async () => {
   await withTravelClaimStore(async ({ claims, deletes }) => {
     const calendar = makeUnknownGoCalendar();

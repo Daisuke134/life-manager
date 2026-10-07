@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LEGACY_MIGRATION="$ROOT_DIR/migrations/2026-07-18-lm-api-cost.sql"
 APPEND_ONLY_MIGRATION="$ROOT_DIR/migrations/2026-10-06-lm-api-cost-append-only.sql"
-for migration in "$LEGACY_MIGRATION" "$APPEND_ONLY_MIGRATION"; do
+FUNNEL_MIGRATION="$ROOT_DIR/migrations/2026-10-08-zz-lm-web-funnel-events.sql"
+for migration in "$LEGACY_MIGRATION" "$APPEND_ONLY_MIGRATION" "$FUNNEL_MIGRATION"; do
   if [[ ! -f "$migration" ]]; then
     printf 'missing migration: %s\n' "$migration" >&2
     exit 1
@@ -100,6 +101,8 @@ BASELINE_UPDATE="$(scalar "SET ROLE service_role; UPDATE public.lm_api_cost SET 
 
 "${PSQL[@]}" -f "$APPEND_ONLY_MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$APPEND_ONLY_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$FUNNEL_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$FUNNEL_MIGRATION" >/dev/null
 
 assert_scalar "service_role SELECT/INSERT only" t "SELECT has_table_privilege('service_role', 'public.lm_api_cost', 'SELECT') AND has_table_privilege('service_role', 'public.lm_api_cost', 'INSERT') AND NOT has_table_privilege('service_role', 'public.lm_api_cost', 'UPDATE') AND NOT has_table_privilege('service_role', 'public.lm_api_cost', 'DELETE') AND NOT has_table_privilege('service_role', 'public.lm_api_cost', 'TRUNCATE') AND NOT has_table_privilege('service_role', 'public.lm_api_cost', 'REFERENCES') AND NOT has_table_privilege('service_role', 'public.lm_api_cost', 'TRIGGER');"
 assert_scalar "service_role identity sequence grants" t "SELECT has_sequence_privilege('service_role', 'public.lm_api_cost_id_seq', 'USAGE') AND has_sequence_privilege('service_role', 'public.lm_api_cost_id_seq', 'SELECT') AND NOT has_sequence_privilege('service_role', 'public.lm_api_cost_id_seq', 'UPDATE');"
@@ -129,4 +132,19 @@ expect_error_contains "table owner TRUNCATE trigger" "lm_api_cost is append-only
 
 assert_scalar "original and service_role rows remain unchanged" t "SELECT count(*) = 2 AND count(*) FILTER (WHERE uid = 'tenant-a' AND kind = 'before_append_only' AND meta = '{\"evidence\":\"original\"}'::jsonb) = 1 AND count(*) FILTER (WHERE uid = 'tenant-b' AND kind = 'after_append_only') = 1 FROM public.lm_api_cost;"
 
-printf '%s\n' 'lm-api-cost-append-only-postgres: PASS baseline_update=allowed service_role_select_insert=1 mutation_acl=denied owner_row_guards=1 owner_truncate_guard=1 browser_roles=denied rows_preserved=1 migration_rerun=1'
+assert_scalar "Web funnel service_role SELECT/INSERT only" t "SELECT has_table_privilege('service_role', 'public.lm_web_funnel_events', 'SELECT') AND has_table_privilege('service_role', 'public.lm_web_funnel_events', 'INSERT') AND NOT has_table_privilege('service_role', 'public.lm_web_funnel_events', 'UPDATE') AND NOT has_table_privilege('service_role', 'public.lm_web_funnel_events', 'DELETE') AND NOT has_table_privilege('service_role', 'public.lm_web_funnel_events', 'TRUNCATE') AND NOT has_table_privilege('service_role', 'public.lm_web_funnel_events', 'REFERENCES') AND NOT has_table_privilege('service_role', 'public.lm_web_funnel_events', 'TRIGGER');"
+assert_scalar "Web funnel RLS and append-only triggers" t "SELECT relrowsecurity AND (SELECT count(*) FROM pg_trigger WHERE tgrelid = 'public.lm_web_funnel_events'::regclass AND NOT tgisinternal AND tgname IN ('lm_web_funnel_events_guard', 'lm_web_funnel_events_truncate_guard')) = 2 FROM pg_class WHERE oid = 'public.lm_web_funnel_events'::regclass;"
+for browser_role in anon authenticated; do
+  assert_scalar "$browser_role has no Web funnel privileges" t "SELECT NOT (has_table_privilege('$browser_role', 'public.lm_web_funnel_events', 'SELECT') OR has_table_privilege('$browser_role', 'public.lm_web_funnel_events', 'INSERT') OR has_table_privilege('$browser_role', 'public.lm_web_funnel_events', 'UPDATE') OR has_table_privilege('$browser_role', 'public.lm_web_funnel_events', 'DELETE') OR has_table_privilege('$browser_role', 'public.lm_web_funnel_events', 'TRUNCATE'));"
+  expect_error_contains "$browser_role Web funnel SELECT" "permission denied for table lm_web_funnel_events" "SET ROLE $browser_role; SELECT * FROM public.lm_web_funnel_events;"
+  expect_error_contains "$browser_role Web funnel INSERT" "permission denied for table lm_web_funnel_events" "SET ROLE $browser_role; INSERT INTO public.lm_web_funnel_events(event_id, event_name) VALUES ('browser', 'landing_view');"
+done
+SERVICE_FUNNEL_INSERT="$(scalar "SET ROLE service_role; INSERT INTO public.lm_web_funnel_events(event_id, event_name, attribution) VALUES ('view-test', 'landing_view', '{\"utm_source\":\"test\"}'::jsonb) RETURNING event_id;")"
+[[ "$SERVICE_FUNNEL_INSERT" == "view-test" ]]
+assert_scalar "service_role funnel event readback" 1 "SET ROLE service_role; SELECT count(*) FROM public.lm_web_funnel_events WHERE event_id = 'view-test' AND event_name = 'landing_view';"
+expect_error_contains "service_role Web funnel UPDATE" "permission denied for table lm_web_funnel_events" "SET ROLE service_role; UPDATE public.lm_web_funnel_events SET event_name = 'refund_recorded' WHERE event_id = 'view-test';"
+expect_error_contains "table owner Web funnel UPDATE trigger" "lm_web_funnel_events is append-only" "UPDATE public.lm_web_funnel_events SET event_name = 'refund_recorded' WHERE event_id = 'view-test';"
+expect_error_contains "table owner Web funnel DELETE trigger" "lm_web_funnel_events is append-only" "DELETE FROM public.lm_web_funnel_events WHERE event_id = 'view-test';"
+expect_error_contains "table owner Web funnel TRUNCATE trigger" "lm_web_funnel_events is append-only" "TRUNCATE public.lm_web_funnel_events;"
+
+printf '%s\n' 'lm-api-cost-append-only-postgres: PASS provider_costs=append_only web_funnel=append_only service_role_select_insert=1 browser_roles=denied migration_rerun=1'
