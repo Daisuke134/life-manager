@@ -1029,8 +1029,9 @@
   "decision": {
     "default_fake_runtime": "HOLD: with no session override, a disconnected stream triggered 5 of 8 same-model retries and exceeded agent exec --timeout 10; helper-owned outer deadline stopped it at 30.46s with exit 143",
     "private_project_override": "PASS for fake runtime only: projectSettingsPolicy trusted plus private .openclaw/settings.json retry.provider.maxRetries=0 yields one fake request, zero retries, timeout exit2 within 9.48s, and successful same-state recovery",
-    "native_or_production_migration": "HOLD: caller workdir implications, owner provisioning, stdout/result_path/usage adapter integration, and provider/account parity remain unmeasured",
-    "supported_storage_path": "global <agentDir>/settings.json exists in package storage code, but no public global file writer/CLI path was exercised; the tested project file is safe only inside the private fixture"
+    "native_or_production_migration": "HOLD: source adapter integration and same native account/model/effort/tools/rollout-budget, real provider costs and business outcomes remain unmeasured; no production activation",
+    "supported_storage_path": "PASS for private fake builtin runtime: attempt-4 exercised <private-state>/agents/main/agent/settings.json retry.provider.maxRetries=0 plus agents.defaults.embeddedAgent.projectSettingsPolicy=ignore; repo/release project file not written; native/backend/account parity remains unmeasured",
+    "private_global_override": "PASS for fake runtime only: request1/retry0/8839ms/timeout exit2 and next invocation exit0/lock recovery/survivors0"
   },
   "settings_storage_source": {
     "manager_create": "dist/resource-loader-CFBQ8DO5.mjs:1771-1780 SettingsManager.create(cwd, agentDir) loads global and project scopes",
@@ -1040,11 +1041,21 @@
     "merge_order": "global settings -> project settings -> runtime overrides (dist/resource-loader-CFBQ8DO5.mjs:1842-1843)",
     "retry_getter": "settings.retry.provider.maxRetries (dist/resource-loader-CFBQ8DO5.mjs:2052-2057)",
     "default_agent_dir": "<stateDir>/agents/<agentId>/agent; default state dir ~/.openclaw; OPENCLAW_STATE_DIR can override (docs/concepts/multi-agent.md:53-57; dist/agent-scope-config-Dm6T00l4.mjs:493-498)",
-    "probe_global_settings_accessed": false,
-    "probe_global_settings_modified": false,
     "project_file_private_fixture_only": true,
     "production_workdir_warning": "A project settings file would live in the caller cwd; for repo/release workdir keep it out of source by using an owner-controlled agentDir/state file if the primary adopts this route. No such production file was read or written.",
-    "global_agentdir_file_public_write_contract": "path is supported by package storage; exact global settings writer/CLI contract not established in this probe"
+    "global_agentdir_file_public_write_contract": "Private operator-created settings file format and CLI read path were exercised in attempt-4. No existing global profile or public CLI settings writer was used or claimed.",
+    "prior_attempt_2_3_scope": {
+      "probe_global_settings_accessed": false,
+      "probe_global_settings_modified": false,
+      "global_agentdir_file_public_write_contract": "path is supported by package storage; exact global settings writer/CLI contract not established in this probe"
+    },
+    "attempt_4_scope": {
+      "private_global_settings_file_created_and_read": true,
+      "existing_global_profile_or_settings_accessed": false,
+      "existing_global_profile_or_settings_modified": false,
+      "project_settings_policy": "ignore",
+      "private_project_settings_present": false
+    }
   },
   "private_helper_hashes": {
     "probe_openclaw.py": "3fb256d23319b1951489a30be53cbcc40b27a875e9464b42a12bdf17a0b66324",

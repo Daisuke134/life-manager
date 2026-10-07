@@ -82,3 +82,5 @@ default-config disconnectは最大8retry設定下で5requests、timeout10秒を�
 fresh contextのgpt-6.1-sol/mediumがsource分類/17hash/4configuredbaseline/fake9+2casesと報告を照合し、報告・MX計画について限定PASS、全収益cutoverはHOLDと判定した。唯一の文書混線指摘（旧HA plan/cursorが直読でactiveに見える）をMX入口参照へ訂正した。source・credential・provider・GUI操作は検証者も未実施。
 
 追加attempt-4は`<private-state>/agents/main/agent/settings.json`のretry.provider.maxRetries=0と、public key `agents.defaults.embeddedAgent.projectSettingsPolicy=ignore`を使用。caller cwdにprojectsettings無し。disconnectはrequest1/retry0/8.839秒/timeout2、次invokeはexit0/lock再取得/survivor0。nativeaccount/model/backendとproduction経済成果はこのfake13casesでも未証明。native parityに進む前にactive legacyを止めない。
+
+追加global配置のreport/MX/specも独立read-only検証で一致を確認。集約JSONに残った旧attempt-2/3のglobal未実測フラグをprior scopeとして分離し、aggregate判定はprivateglobal fakePASS/nativeproduction未測定へ訂正した。新しい試験は追加せず、13casesの証拠を統一した。
