@@ -53,15 +53,15 @@
 ### HA-004 — buildRunIdentity(request, agentId) -> {sessionKey,idempotencyKey}
 
 - [ ] **対象:** `runtime/openclaw/protocol.mjs`
-  **変更:** 設計のsha256式を実装。sessionKeyはagent:<agentId>:lm:<owner+occurrence hash>。idempotencyKeyはrelease+owner+occurrence+task_class hash。
-  **検証・完了:** tests/protocol.test.mjs:同入力同key、prompt変更だけではkey不変、ownerまたはoccurrence変更は別key。
+  **変更:** hash入力はNodeのJSON.stringify配列をUTF-8化する。sessionKey=agent:<agentId>:lm:<sha256([owner_id,occurrence_id])>、idempotencyKey=sha256([release_sha,owner_id,occurrence_id,task_class])。コロン区切りの文字列連結は使わない。
+  **検証・完了:** tests/protocol.test.mjs:同入力同key、prompt変更だけではkey不変、owner/occurrence変更は別key。owner=a:b/occurrence=c と owner=a/occurrence=b:c は別session/idempotency。
   **依存:** HA-003。
 
 ### HA-005 — load_dispatch(root: Path, owner_id: str, occurrence_id: str) -> dict | None
 
 - [ ] **対象:** `runtime/openclaw/dispatch_store.py`
-  **変更:** <root>/<sha256(owner:occurrence)>.jsonを読む。exact DispatchRecord fields/phaseをvalidate。不存在はNone、壊れたrecordはValueError、別owner/occurrenceは拒否。
-  **検証・完了:** tests/test_dispatch_store.py:欠落None、foreign owner拒否、corrupt JSONでunknownを成功へ変換しない。
+  **変更:** DispatchRecordのpathはsha256(json.dumps([owner_id,occurrence_id],ensure_ascii=False,separators=(",",":")))のUTF-8を使い、NodeのHA-004と一致させる。<root>/<hash>.jsonのexact fields/phaseをvalidate。不在None、corrupt ValueError、foreign identity拒否。
+  **検証・完了:** tests/test_dispatch_store.py:コロン境界2fixtureは別path、Node/Python hash一致、欠落None、foreign/corrupt拒否。
   **依存:** HA-004。
 
 ### HA-006 — save_dispatch(root: Path, record: dict) -> Path

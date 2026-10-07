@@ -131,7 +131,7 @@ OpenClawのpersonal-agent benchmarkは運用smokeとして参考にするが、�
 
 `RunRequest`: version=1、owner_id/occurrence_id/run_idは`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`、release_shaは40hex、promptはtrim後16字以上、schemaはJSON object、workdirは絶対path、timeout_secondsは正整数、task_class/model/provider/effortはcallerの設定。effect_mode=`read_only|brokered`。owner mapはrequest ownerをキーに既存registryを参照する。
 
-`sessionKey = 'agent:' + agentId + ':lm:' + sha256(owner_id + ':' + occurrence_id)`、`idempotencyKey = sha256(release_sha + ':' + owner_id + ':' + occurrence_id + ':' + task_class)`。hash対象へsecret/promptを含めない。accepted runId喪失時は新idempotencyKeyを作らずunknownを記録し、同じsession/occurrenceをread-only照合する。
+`sessionKey = 'agent:' + agentId + ':lm:' + sha256(JSON.stringify([owner_id, occurrence_id]))`、`idempotencyKey = sha256(JSON.stringify([release_sha, owner_id, occurrence_id, task_class]))`。hash対象へsecret/promptを含めない。Pythonはjson.dumps(values, ensure_ascii=False, separators=(",",":"))のUTF-8 bytesを使う。コロンを含むIDでもtuple境界を保持する。accepted runId喪失時は新idempotencyKeyを作らずunknownを記録し、同じsession/occurrenceをread-only照合する。
 
 RPC submitは`client.request('agent', {message,agentId,sessionKey,idempotencyKey,deliver:false,timeout:timeout_seconds}, {expectFinal:false})`。waitは`client.request('agent.wait',{runId,timeoutMs:1000})`、cancelは`client.request('sessions.abort',{key:sessionKey,runId,agentId})`。abort成功ACKだけを停止proofにせず、run terminal・session activeRunIds・owned processesのcleanupを確認する。SDK内部の再接続で新agent dispatchを作らない。
 
