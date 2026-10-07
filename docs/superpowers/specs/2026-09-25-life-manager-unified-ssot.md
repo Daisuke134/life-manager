@@ -3716,16 +3716,16 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - A3 migrationの実適用は完了済みだが、A3.4のrestart後natural route/cache-hit/replay-zeroは未検証。現在のCFO完了gateではなく、Cloud節約laneへ送る。
 - A4のfree laneもCFO完了後へ送る。A3.4はA6で確認済みのsettled costまたはprocess再起動後の重複callから費用対効果が確認できた場合だけ再開する。
 - **coverage baseline:** product-loop catalogと最新B7 projectionのloop IDは18/18で一致する。runtime registryは186 jobsで、111 jobsはcatalogに一意に紐づき、残る75 jobsはcontrol/platform/shared（35/14/26）。sharedにはrevenue/growth jobsも含むため、costを捨てず、loop帰属または会社overheadとして証拠付きで出す。
-- **最新のread-only projection:** `2026-10-07T15:00:58Z`の`loop_pnl.py`結果はhistorical/trailing/MRRすべて`unknown`、通貨total `{}`、18/18 loops unknown、gapは173/173/29。これは一回のprojectionであり、natural daily report receipt、10月7日一日分のP&L、実売上0円の証明ではない。
+- **最新のread-only projection:** `reporting_date=2026-10-08`、`snapshot_at=2026-10-07T15:30:17Z`、`trailing_start=2026-09-07T15:30:17Z`。historical/trailing/MRRはすべて`unknown`、通貨total `{}`、18/18 loops unknown、gapは173/173/29。これはsnapshot projectionであり、`--date`は日次receiptをfilterしないため、10月8日の日次P&Lや実売上0円の証明ではない。
 - **A5 spend policy:** spend/usage/unknownの可視化と事前warningのみを行う。
 - 機能を無言で止めるglobal hard cap、推測金額による自動cutoff、未知費用を0にする処理は作らない。
 - 将来、非必須callを抑止する場合も、理由・対象・fallback・再開条件を同じrun reportに出す。
 - core travel/calendar UXを費用しきい値だけで停止しない。
 - **Atomic remaining TODO — active order:**
   1. **A5 Per-agent/loop cost visibility:** 既存`lm_api_cost.meta.runtime_trace`の`loop_id`/`owner_id`でprovider/SKU/operation別usage、estimate、billed actual、unknownを集計し、`run_id`/`occurrence_id`/`release_sha`でtrace可能にする。current A5 PR #6827のperiod-summary SQLはprovider/SKU/operation/unitだけで集計し、このnested traceを落とすため未達。trace欠損はunknown/unattributedとして残す。現在のusage-event契約に`job_id`は無いため、job単位の帰属は別receiptが実証する場合だけ行い、IDを推測・捏造しない。warning-onlyを保ち、global hard capや無言の停止は作らない。
-  2. **A6 Google billed-actual close:** 公式2026-09 Cost Table CSVとinvoice identityは取得済みで、billed totalは¥27,889。残りはproject/SKU/service/期間、tax/credit/roundingとMonitoring estimateを照合し、provider/occurrence evidenceがある時だけjob/agent/loopへ割り当てる。payment settlementはunknownのまま分離する。境界を跨ぐCSV行があるためtrailing 30-day actualは未確定。
+  2. **A6 Google billed-actual close:** 公式2026-09 Cost Table CSVとinvoice identityは取得済みで、billed totalは¥27,889。残りはproject/SKU/service/期間、tax/credit/roundingとMonitoring estimateを照合し、provider/occurrence evidenceがある時だけjob/agent/loopへ割り当てる。現行`actual_cost` adapterはinvoiceをreceipt化する際に`status=paid/settled`と`paid_at`を必須にするため、支払未確認のGoogle billはB7のsettled costにならない。invoice billed expenseとして別表示し、cash-paidはreceiptが出るまでunknownにする。境界を跨ぐCSV行があるためtrailing 30-day actualは未確定。
   3. **A8 18-loop/186-job business coverage:** 18 loopすべてについて公式settled revenue、refund、fee、provider/API/cloud/subscription費用をperiod/currency/receiptでjoinする。186 runtime jobsすべてをloopまたはshared/control/platform overheadに分類する。欠落・stale・未確認はunknownとし、0に置き換えない。Moneytreeは入力しない。
-  4. **A9 CFO report:** 既存CLI/report surfaceでagent/job/loop別およびcompany合計のgross/settled revenue、refund/fees、billed expense、cash-paid（証拠がある場合のみ）、net contribution、MRRを別々に表示する。period/currency/source receipt/freshness/coverage/unknownを含め、合計をsource rowsへ照合する。
+  4. **A9 CFO report:** agent/loop別およびcompany合計のgross/settled revenue、refund/fees、billed expense、cash-paid（証拠がある場合のみ）、net contributionを、実際のAsia/Tokyo日次window・month-to-date・trailing・MRR別に表示する。period/currency/source receipt/freshness/coverage/unknownを含め、合計をsource rowsへ照合する。現行`loop_pnl.py --date`は`reporting_date`ラベルだけを変え、日次receiptをfilterしない。日次windowで集計する実装と`skills/cfo/SKILL.md`の訂正が完了するまで、このCLIを「その日のP&L」と呼ばない。
   5. **A10 natural acceptance:** 7日連続の自然runで18/18 loop rows、186/186 runtime-job cost disposition、company revenue/expense/net、report delivery receipt/readback、source freshness、unknown owner/action、replay-zeroを照合する。partial coverageから「CFO complete」や$10k MRR達成を宣言しない。
 
 - **Deferred outside this CFO gate:** A7 Moneytreeは今回対象外。plugin read/login/reconnectをしない。A4.1→A4.2→A4.3のfree-provider/Cloud savingsはA10後に再開する。A3.4もA10後、A6 evidenceから節約価値が確認できた場合だけ再開する。
