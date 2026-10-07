@@ -309,18 +309,18 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 11:48 JST live readback）
+### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 12:52 JST live readback）
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧 `capafy-ig-marketing-daily` | `unloaded` on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. The active 2026-10-05 fence `capafy-ig-marketing-daily:18db7caff1178a88-68028` remains unresolved. Its registered read-only reconciler, with CDP auto-login disabled, returns `active_ig_handle_unresolvable`; it cannot identify an eligible account, so there is no provider media readback or receipt. | Exact authenticated account identity and complete own-media readback for the old fence; keep it held and do not retry. |
-| New `life-manager-capafy-ig` | `unloaded` on release `cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4` at ~11:39 JST. Three effect-unknown occurrences were each checked against the official Postiz listing after the 35m10s buffer and resolved no-effect: `18dc1c3fbe14a460-80152` at 11:25:42, `18dc1cde11218670-10497` at 11:37:13, and `18dc1d75cc4922b8-71732` at 11:47:56 JST. Their receipts are `postiz-listing-empty` for integration `cmuuycr5402uzqw0yhanqggo9`; there is no active fence for this owner. The latest explicit entrypoint error is `LM_CAPAFY_IG_PACK_REF is required`. | Keep this owner unloaded until the eBook first paid+PDF gate, then apply only after an approved pack ref and one-canary/24h frequency gate are set. |
-| Postiz identity | Official `GET /public/v1/integrations` at 11:14 JST returns Instagram `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`; it matches the configured Capafy integration ID. This proves the Postiz route is enabled, not native account ownership or good standing. | Keep account identity/good-standing verification as a separate gate. |
-| eBook → Capafy order | No natural paid eBook Checkout plus matching PDF delivery receipt is recorded. D5 has not started; both marketing owners are unloaded. | Preserve the eBook-first gate; once met, run one Capafy canary then measure 14 days. |
+| 旧 `capafy-ig-marketing-daily` | Persistent launchd `disabled=true`, installed on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. The active 2026-10-05 fence `capafy-ig-marketing-daily:18db7caff1178a88-68028` remains unresolved. Its registered read-only reconciler returns `active_ig_handle_unresolvable`; no eligible authenticated account/media readback exists. | Exact owned Instagram identity and complete own-media readback for the old fence; keep disabled and do not retry. |
+| New `life-manager-capafy-ig` | Persistent launchd `disabled=true`, installed on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Three prior occurrences were verified no-effect and resolved with official Postiz no-match receipts. Latest explicit entrypoint failure is `LM_CAPAFY_IG_PACK_REF is required`; no active admission fence remains. | Keep disabled until eBook first paid+PDF gate, then set one approved pack ref and one-canary/24h frequency gate before enabling. |
+| Postiz identity | Official Postiz GET at 12:52 JST returns Instagram `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`, matching the configured ID. Current day Postiz listing has zero posts for this integration. This proves route enablement, not native account ownership or good standing. | Keep account identity/good-standing as a separate gate. |
+| eBook → Capafy order | No natural paid eBook Checkout plus matching PDF delivery receipt is recorded. D5 has not started. | Preserve the eBook-first gate; once met, run one Capafy canary then measure 14 days. |
 
-**2026-10-07 11:48 JST refresh:** official Postiz listing readbacks proved no post for all three exact new-owner occurrences and each effect fence was safely resolved; the old direct publisher fence remains unresolved because its saved account inventory has no resolvable eligible handle. Both publisher launchd labels are now unloaded until the eBook-first gate; no D5 publish occurred. The enabled Postiz integration contradicts the old source comment that `@capafy.hooklab` is not connected; the current runtime blocker is the missing approved pack reference. The Postiz account row is not a native Instagram good-standing receipt, and no CAPTCHA/challenge screen was observed.
+**2026-10-07 12:52 JST refresh:** a plain `bootout` let release reconciliation reload the new Postiz owner, so both marketing labels are now persistently disabled in the user Aqua domain; `lm-loop status` reads `disabled` and `launchctl print-disabled` confirms both labels. Three exact new-owner occurrences were closed no-effect by official Postiz listing. The old direct-publisher fence remains unresolved because its saved account inventory has no eligible handle. Postiz integration is enabled, but native Instagram account ownership/good-standing is not confirmed. No CAPTCHA/challenge screen was observed.
 
 **担当境界とmarketing gate**
 
@@ -336,8 +336,8 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 **eBook初回receipt後のmarketing手順**
 
 1. eBookの自然なpaid Checkout receiptと一致するPDF delivery receiptがあることを統合SSOTで確認します。14日eBook測定を並行で開始します。
-2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`はhandle unresolvedのためheld。new ownerの`18dc1c3fbe14a460-80152`、`18dc1cde11218670-10497`、`18dc1d75cc4922b8-71732`はそれぞれPostiz no-effect receiptでclosed済み。両ownerはeBook gateまでunloadedにし、old fenceの正確なInstagram readbackなしに再起動しません。
-3. Life Manager側のInstagram marketing ownerは両方unloaded。eBook gate後に新Postiz ownerを一つだけapplyし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
+2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`はhandle unresolvedのためheld。new Postiz ownerの3 exact occurrenceはofficial no-effect readbackでclosed済み。両labelはlaunchd disabledのまま保持し、old fenceの正確なInstagram readbackなしに再有効化しません。
+3. Life Manager側のInstagram marketing ownersは両方disabled。eBook gate後に新Postiz ownerを一つだけenable/applyし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
 4. Postiz integration `cmuuycr5402uzqw0yhanqggo9`は`capafy.hooklab` / `disabled=false`で設定IDとも一致します。native account identity/good-standingを別readbackで確認し、成立しなければlaneをheldにしてaccountを作りません。
 5. 初期canaryを24時間に1回以下で配信できることを確認します。現在のregistry scheduleは1日3回なので、marketing owner側でfrequency gateを設定して読み戻すまで公開配信を開始しません。
 6. 必要なPostiz integrationと承認済みpack/media/Instagram approval refをcredential値なしで確認します。現状のownerは`LM_CAPAFY_IG_PACK_REF is required`でentrypoint失敗するため、eBook gate後に承認済みpack refを接続し、公開中・利益のあるskillの実例と`ct=capafy-reel-<slug>`でdry-runします。
