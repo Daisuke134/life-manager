@@ -109,3 +109,27 @@ Only the 15 exact commit/path/rule/line fingerprints are added to
 `.gitleaksignore`. The current-tree scan, full-history scan and detection of
 any new value at another location remain enabled. No credential rotation is
 indicated for these localization keys.
+
+## Addendum 2026-10-07 — generated runtime occurrence identifier
+
+The full-history scan reported one `generic-api-key` finding in commit
+`d5ce0d1302e206a5df3744ed998901d069d610f9`, at
+`docs/evidence/main-agents/health.json:7757`. The matched field is
+`jobs[154].diagnostic.occurrence_id`. Its value is exactly the same row's
+`owner_id + ":" + run_id`; `owner_id` also matches `job_id`. The introducing
+commit's runtime code constructs `run_id` from `time.time_ns()` and the process
+ID, then constructs `occurrence_id` from the loop ID and run ID; the health
+projection copies that field. A fresh read-only review and a local shape/hash
+check confirmed this generation path without printing the value.
+
+The commit is reachable from `docs/main-agents-readiness` only; it is not an
+ancestor of current `main`, the PR #6823 base, or its head, and PR #6823 does
+not change the finding file. The CI full-history scan explicitly uses
+`--log-opts=--all`, so the unrelated branch finding blocked the CFO PR. This is
+a generated execution identifier, not an authentication credential. No
+credential rotation is indicated.
+
+Only this exact fingerprint is added to `.gitleaksignore`:
+`d5ce0d1302e206a5df3744ed998901d069d610f9:docs/evidence/main-agents/health.json:generic-api-key:7757`.
+The current-tree scan and full-history scan remain enabled; a new value at a
+different commit, path, rule, or line is still detected.
