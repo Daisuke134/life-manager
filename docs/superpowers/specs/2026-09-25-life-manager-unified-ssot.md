@@ -4932,7 +4932,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 20 | row19と同じ30日窓のprovider/tool/browser/cloud actual invoice・paid receipt・usageを取得し、Google/API費を利用先loopへ帰属する | 最新窓へ同一B6 candidateをread-only再投影:cost receipt0、`unverified_receipt` gap2。Google CSVはservice/SKU明細を含むが部分期間のみ。9/08–9/30の確実な7usage行は丸め後`¥176`。23行は9/08より前に開始して対象期間へまたがり、9/07の時刻境界は日付粒度で分割できない。10月明細はない。loop配賦・original provider/payment binding不足。BigQuery export未接続、Railway/DOもperiod/receipt/loop配賦未完。 |
 | 21 | 19と20の同期間・同通貨の実収益/実費を使って、loop別と全体のnet marginを計算する | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
 | 22 | Mobileを含む継続課金の公式snapshotを集計し、loop別/会社全体のMRRと未取得sourceを表示する | 年額/買い切り/開発者収益/着金/利益を分離。 |
-| 23 | Moneytree等の既存残高CLIで公式残高と更新時刻を取得し、個人cashと会社cashを分離する | 公式残高と観測鮮度。last-knownを現在値にしない。 |
+| 23 | Moneytree公式`show-accounts`から口座ごとの残高を取得し、個人cashと会社cashの所有範囲を分けて記録する | 2026-10-07T02:21:16Zのread-only取得でbank account1・investment account0、JPY `current_balance`項目1件を確認。provider as-of時刻と口座別所有者を応答から確認できないため、個人readbackを会社現金へ含めない。sanitized private evidenceは§838。会社cashの公式sourceとownership/read timestampの不足が残る。 |
 | 24 | 20の実費と23の最新残高を使って、会社のrunwayを計算する | 同期間cost coverage、欠損はunknown。 |
 | 25 | SelfBuild recovery処理の成功済み復旧IDを照合し、同じ復旧が再実行される不具合を修復する | 成功済み復旧の再実行防止、必要最小tests/freshreview/main/immutable/自然recovery/replay-zero。先頭へ戻さない。 |
 | 26 | Lancersの既存CAPTCHA solver task/接続エラーを確認し、同じtaskを重複作成せず公式CLI取得を復旧する | 未解決のAWS WAF HTTP405/solver API errorを後段で再開。既存pending task状態を再利用し重複task作成を防ぐ。正規guardと同CLIで取得成功を確認。 |
@@ -10241,3 +10241,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 既存Investment owner state `/Users/anicca/.local/state/life-manager/alpaca-investment-live` 47 filesと`/Users/anicca/.local/state/life-manager/alpaca-investment` 28 filesをorder IDでread-only検索。FILL2件のorder IDはどちらにもmatchしなかった。これはこの2 directory内の検索結果で、receiptの一般的な不存在を示さない。新規provider GETや注文操作はしていない。
 - 4 CFEEすべてAPI `net_amount`は`0`、qtyは負数、priceは正数。公式[Account Activities schema](https://docs.alpaca.markets/docs/account-activities)はNTAの`net_amount`を活動に関連する金額、`date`を発生日または関連取引のsettlement日と定義する。公式schemaにCFEE `price`の通貨・換算単位はなく、raw net_amountのゼロも実費ゼロを証明しない。そこでCFEEをUSD換算せず、09/30分のperiod帰属も確定しない。
 - 次の作業は(1)Investment ownerの同一FILL order IDsに結び付く公式execution receiptを確認、(2)feeの通貨/価格単位とsettlement期間の公式根拠を取得、(3)開始/終了NAV・全期間transfer/fee coverageと合わせてpair単位のCFO normalized outcomeを再計算すること。揃うまではprofit/netをHOLDし、NAV差・`qty×price`推定値・broker cashを会社利益や銀行着金にしない。新規trade・資金移動・cap変更0。
+
+
+### 838. Moneytree個人口座を再取得したが、会社cashとの結合は未完
+
+- Official connector `moneytree.show-accounts`を2026-10-07T02:21:16Zにread-only実行。structured responseはbank group1・bank account1・investment account0、JPY `current_balance` field1件を返し、値は前回last-knownと一致。provider自身のas-of timestampは応答に無く、口座名/番号はevidenceへ保存しない。取引履歴・振込・その他write0。
+- sanitized private artifact `/Users/anicca/.local/state/life-manager/cli-observability-20261007/moneytree-personal-balance-20261007T022116Z.json` はmode600/SHA256`4cd564ca609c013eb9295aec04cf8e9618ca2cf111a275f90cff8daa5dc2a997`。source response SHAとprovider as-ofは未取得。前のartifactがbank groupとchild accountを両方数えた誤りはcorrection record `/Users/anicca/.local/state/life-manager/cli-observability-20261007/moneytree-balance-correction-20261007T022116Z.json` mode600/SHA256`48bf6c504e81e7d26a85c43410fe98a3f7d20b3f112ae7b9d1dd6b698c3dbb9a`へ記録し、旧`account_count=2`を撤回した。
+- この結果は個人Moneytree observationとして分ける。会社cash、bank payoutまたはrunwayへ昇格しない。row23の残作業は(1)銀行accountのownership/scope確認、(2)会社cashを示す公式account readback sourceの取得、(3)source update timeを結んでpersonal/company cashを分けること。
