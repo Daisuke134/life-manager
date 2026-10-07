@@ -564,7 +564,7 @@ async function applyBilling(event, deps) {
       && row.web_invoice_subscription_id === p.subscriptionId && row.web_invoice_paid === true
       && row.web_billing_cancel_at_period_end !== true
       && toEpoch(row.web_invoice_event_at) === toEpoch(p.created);
-    if (paidLatestInvoiceThisSecond) {
+    if (paidLatestInvoiceThisSecond && !reconciledSubscriptionSnapshot) {
       return { action: "past-due-superseded-by-paid-invoice", uid: row.uid, paid: row.paid === true };
     }
     const trialing = p.status === "trialing";

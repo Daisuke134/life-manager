@@ -729,6 +729,28 @@ test("same-second latest-invoice changes reconcile to Stripe even when the new e
   }
 });
 
+test("a same-second Stripe past_due snapshot overrides the paid-invoice stale-event shortcut", async () => {
+  const s = fakeSupa(webBillingRow({ paid: true, plan_status: "active",
+    web_subscription_event_at: new Date(100_000).toISOString(),
+    web_subscription_event_priority: 70, web_subscription_event_id: "evt_active",
+    web_subscription_latest_invoice_id: "in_current",
+    web_invoice_event_at: new Date(100_000).toISOString(), web_invoice_event_priority: 70,
+    web_invoice_event_id: "evt_invoice_paid", web_invoice_id: "in_current",
+    web_invoice_subscription_id: "sub_web", web_invoice_paid: true, web_invoice_amount_paid: 2900 }));
+  let snapshotReads = 0;
+  const current = { id: "sub_web", customer: "cus_web", created: 90,
+    status: "past_due", latest_invoice: "in_current",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+
+  await applyBilling(webSubscriptionEvent("evt_past_due_current", 100, {
+    status: "past_due", latest_invoice: "in_current",
+  }), { ...deps(s), retrieveSubscription: async () => { snapshotReads++; return current; } });
+
+  assert.equal(snapshotReads, 1);
+  assert.equal(s.row().plan_status, "past_due");
+  assert.equal(s.row().paid, false);
+});
+
 test("same-second trial-end shortening converges to Stripe's current expiry", async () => {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const currentTrialEnd = nowSeconds + 2 * 24 * 60 * 60;
