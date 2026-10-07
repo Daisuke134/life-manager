@@ -3568,6 +3568,8 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 
 - **A4 gate:** オンボーディング実験は、公開中6アプリすべてがASC first-time download 100件/日（直近7日平均）に達するまで保留する。distribution中のbaseline計測は続ける。Anicca 1本の達成だけで全app gateを完了にしない。
 
+- **Postiz per-post API live readback（2026-10-07 17:54 JST）:** screenshotのpost ID `cmundfqss0h4amt0ylmbowu7t`を`GET /public/v1/analytics/post/{postId}?date=7`でread-only照合し、HTTP 200でViews 205 / Reach 167 / Saves 0 / Likes 1 / Comments 0 / Shares 0を得た。responseにImpressions labelはないため、205 viewsは実測、Impressionsはこのresponseではunavailable。既存Instagram adapterもImpressionsを`metric_not_supported`にしており、ここは0ではない。Postiz公式docsはaccount analytics対応が34 platform中10、per-post analyticsが11であり、提供fieldはplatform依存、空payloadも有り得ると説明する。[per-post analytics API](https://docs.postiz.com/public-api/analytics/post)・[platform metric coverage](https://docs.postiz.com/general/analytics)。
+
 ### Dais指定のWeb-first Life Manager Travel Product — 現在の最優先cursor
 
 - **GitHub位置情報追加調査（gh）:** [Safari Track issue 18](https://github.com/nbarrett/safari-track/issues/18)は、iOSがバックグラウンドのPWA GPSを止めるためCapacitorネイティブ殻へ移行した実例。[GeoTracker-Apple-Automation](https://github.com/makiisthenes/GeoTracker-Apple-Automation)と[ShortcutsAPI](https://github.com/gavinsawyer/shortcuts-api)は、利用者がShortcuts内で位置automationを手動設定する必要がある。[icloud-location](https://github.com/jimmystridh/icloud-location)はMITだがAppleの非公開・非サポートWeb API、Apple account/trusted session/2FAに依存。[google-maps-location-sharing](https://github.com/davenicoll/google-maps-location-sharing)も公式APIなしとREADMEに明記し、HARからGoogle session cookieを取り出してinternal endpointを呼ぶ。どれもCalendarだけを接続するWeb顧客向け依存には採用しない。
