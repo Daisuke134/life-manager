@@ -65,6 +65,8 @@ EXACT_CACHE_ROOTS = {
     "burrito-cache": "Library/Caches/burrito_file_cache",
     "codex-cache": "Library/Caches/Codex",
     "codex-runtime-cache": ".cache/codex-runtimes",
+    # Camoufox's downloaded SDK (not a profile) lives at platformdirs.user_cache_dir("camoufox").
+    "camoufox-sdk-cache": "Library/Caches/camoufox",
     # Camofox is an optional, checksum-pinned fallback fetched by
     # skills/camofox-browser/fetch.sh.  The complete tree is disposable:
     # fetch.sh recreates it before use and the runtime never stores provider
