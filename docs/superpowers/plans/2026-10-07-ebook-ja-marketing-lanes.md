@@ -29,14 +29,19 @@
 
 ---
 
-### Task 1: 先行失敗を公式readbackで照合
+### Task 1: 既知のローカル拒否をpre-effectとして照合
 
 **Files:**
 - Runtime state: `~/.local/state/life-manager/ebook/events.jsonl`
-- Owner reconcile: `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`
+- Modify: `runtime/loop/lm_loop.py`
+- Test: `runtime/loop/tests/test_lm_loop_apply.py`
+- Owner reconcile: `bin/lm-loop pre-effect-reconcile`
 
-- [ ] 対象の日本語Instagram/TikTok occurrenceをそれぞれowner指定で公式readbackする。
-- [ ] 公式Postiz証拠がpre-effectを確定した場合だけresolveする。結果がunknownのままなら次の投稿を起動しない。
+- [x] `marketing publication effect fenced` の日本語eBook occurrenceが `no_pre_effect_terminal` になるREDテストを書く。
+- [x] この完全一致エラーを日本語Instagram/TikTok ownerだけに許可する。英語ownerはHeyGen呼び出しがgateより先に起こり得るため未解決のまま保つ。
+- [x] 日本語用テストGREEN、英語用テストは拒否を確認。共有ledgerのenqueue/claim拒否はPostiz呼び出しより前であることを既存コードで確認する。
+- [ ] テストGREEN後、該当runのenqueue refusalとjobs/receipts不在を確認し、fresh official Postiz GETが0件である証拠を保存する。
+- [ ] `lm-loop pre-effect-reconcile ebook-ja-instagram-daily --dry-run` が該当IDをprovableと返すことを確認し、同じowner経路で解決する。
 
 ### Task 2: TDDでeBook商品をmanifestへ許可
 
@@ -50,8 +55,8 @@
 
 - [ ] `closed production fence` 下で、正確なeBook Instagram/TikTok laneがenqueueできる回帰テストを書く。各laneの `target_daily_limit` は3、canary状態は未検証と明示する。
 - [ ] `node --test --test-name-pattern="eBook Japan lanes" apps/life-manager/lib/marketing-local-ledger.test.js` を実行し、`ebook-ja` が未知の商品として拒否されるREDを確認する。
-- [ ] `PRODUCTS` に `ebook-en` と `ebook-ja` を追加する最小変更を行う。
-- [ ] `node --test apps/life-manager/lib/marketing-local-ledger.test.js apps/life-manager/lib/marketing-lane-manifest.test.js` を実行してGREENを確認する。
+- [x] `PRODUCTS` に `ebook-en` と `ebook-ja` を追加する最小変更を行う。
+- [x] `node --test apps/life-manager/lib/marketing-local-ledger.test.js apps/life-manager/lib/marketing-lane-manifest.test.js` — 44/44 PASS。
 
 ### Task 3: 仕様を実測に揃える
 
@@ -59,16 +64,16 @@
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 - Modify: `docs/superpowers/specs/2026-07-29-life-manager-finance-marketing-platform-design.md`
 
-- [ ] 20:00待ちを即時kickへ入れ替えた理由、旧順序、新順序、現在cursorを同じ差分に記録する。
-- [ ] 「即時kickstart」は明示指示がある場合に今すぐownerを起動する運用規則として記録し、通常cadenceの検証と分離する。
-- [ ] eBook日本語Instagram/TikTokを0/day hold一覧から外し、`ebook-ja` が共有manifestで許可される契約を記す。
+- [x] 20:00待ちを即時kickへ入れ替えた理由、旧順序、新順序、現在cursorを同じ差分に記録する。
+- [x] 「即時kickstart」は明示指示がある場合に今すぐownerを起動する運用規則として記録し、通常cadenceの検証と分離する。
+- [x] eBook日本語Instagram/TikTokを0/day hold一覧から外し、`ebook-en` / `ebook-ja` が共有manifestで許可される契約を記す。
 - [ ] 実行結果、receipt、public URLが得られるまで未完として記録する。
 
 ### Task 4: main統合とimmutable release
 
-- [ ] focused test、`git diff --check`、必要なLoop Control CIを通す。
-- [ ] task専用branchをcommit/pushし、PRをmainへ統合する。
-- [ ] pushed main由来releaseを作り、日本語ownerだけを新SHAへtarget-applyしてloaded argv/SHAをreadbackする。
+- [x] focused test、`git diff --check`、Loop Control CIを通す。既存mainと同じOSS inventory/Gitleaks baseline failureを確認する。
+- [x] PR #6842をmainへ統合し、main SHA `84261ec74ebd13f8e49753c48c741cccafcf8863` 由来release `20261007T152543-84261ec7` を作成する。
+- [ ] pending admission解決後、日本語ownerだけを新SHAへtarget-applyしてloaded argv/SHAをreadbackする。
 
 ### Task 5: 日本語2レーンのみをmanifestへ昇格
 
