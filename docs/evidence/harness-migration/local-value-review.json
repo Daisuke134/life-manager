@@ -2,8 +2,8 @@
   "schema": "life-manager.harness-value-review.v1",
   "scope": "local_life_manager_main_15_product_agents",
   "production_adoption": "no_go",
-  "reason": "measured_benefit_not_established",
-  "comparison_design": "ready",
+  "reason": "production_integration_not_implemented",
+  "comparison_design": "optional_performance_quantification",
   "finite_cli_compatibility": "limited_fake_pass",
   "durability_improvement": null,
   "scalability_improvement": null,
@@ -24,5 +24,8 @@
     "https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/opentelemetry/setup.md",
     "https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/embedding.md"
   ],
-  "next_atom": "MV-01"
+  "next_atom": "MV-01",
+  "source_architecture_fit": "selective_agent_session_trace",
+  "full_cron_admission_effect_replacement": "not_recommended",
+  "source_judgment_ref": "docs/research/2026-10-07-local-harness-source-judgment.md"
 }

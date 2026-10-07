@@ -2,7 +2,7 @@
 
 ## 結論と証拠の限界
 
-**現在の判断: 本番移行No-Go、OpenClawの価値比較はGo。** 対象はローカルLife Manager主要15エージェント。Life Manager CLI、商品/業務、state/effect/receiptを保つ。初回finite execは低影響の比較入口であり、耐久性・拡張性・観測性の向上を証明しない。実測改善が無ければ移行しない。
+**現在のコード判断: OpenClawのagent実行/session/traceへの部分利用に設計適合あり。cron/host admission/effectの全面置換は不採用、本番切替は未実施。** 対象はローカルLife Manager主要15エージェント。Life Manager CLI、商品/業務、state/effect/receiptを保つ。初回finite execは低影響の比較入口であり、耐久性・拡張性・観測性の向上を証明しない。機能差は[実コード比較](2026-10-07-local-harness-source-judgment.md)で判断し、速度/費用の定量化と分ける。
 
 下の比較表とGateway常駐案は候補能力と過去設計の調査記録。常駐/scheduler/session全面移行を現在の確定推奨として扱わない。現行の正本判断は[ローカル仕様](../superpowers/specs/2026-10-07-main-agents-readiness.md)と[価値比較](../superpowers/plans/2026-10-07-local-harness-value.md)。`agent exec`はOTelをexportしないことを公開tagで確認。CLI互換13fakecasesを品質/耐久性/費用改善の証拠にしない。
 
