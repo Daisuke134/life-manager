@@ -1050,5 +1050,91 @@
     "probe_openclaw.py": "3fb256d23319b1951489a30be53cbcc40b27a875e9464b42a12bdf17a0b66324",
     "probe_retry_override.py": "d122c4eabb3596069101fd42e7f5621c84a52e39d469b9bf5cc6245b706a59e2"
   },
-  "raw_logs_shared": false
+  "raw_logs_shared": false,
+  "retry_global_override": {
+    "status": "PASS",
+    "attempt_id": "attempt-4",
+    "runtime": "OpenClaw 2026.9.8 private package; Node 24.16.0; fake fixture provider via loopback-only sandbox-exec",
+    "project_settings_policy": "agents.defaults.embeddedAgent.projectSettingsPolicy=ignore",
+    "retry_setting": "retry.provider.maxRetries=0",
+    "settings_file": "<private>/state/agents/main/agent/settings.json",
+    "settings_file_sha256": "562490ff2868b555cfda9d7db07ec8daf9f0acb6753f655bde057cc46a7d9766",
+    "project_settings_file_present": false,
+    "cli_timeout_seconds": 10,
+    "outer_safety_deadline_seconds": 30,
+    "outer_safety_guard_used": false,
+    "external_model_calls": 0,
+    "production_mutations": 0,
+    "settings_global_or_project_existing_user_files_touched": false,
+    "checks": {
+      "global_settings_file_at_expected_private_agent_dir": true,
+      "project_settings_file_absent": true,
+      "project_settings_policy_ignore": true,
+      "one_fake_request_and_zero_same_model_retries": true,
+      "cli_deadline_terminal_without_outer_guard": true,
+      "process_groups_reaped": true,
+      "same_state_lock_reacquired": true,
+      "resource_floor_preserved": true
+    },
+    "decision_scope": "fake-only retry setting and process cleanup; no account/model/backend or production parity claim",
+    "source_refs": {
+      "settings_storage": "dist/resource-loader-CFBQ8DO5.mjs:1704-1709, 1771-1780, 1842-1843, 2052-2057",
+      "agent_dir_resolution": "dist/agent-scope-config-Dm6T00l4.mjs:493-498; docs/concepts/multi-agent.md:53-57",
+      "state_dir_override": "dist/state-dir-CfAW6S2K.mjs:18-30",
+      "project_policy_implementation": "dist/builtin-openclaw-DEib7rq9.mjs:15573-15595",
+      "project_policy_schema": "dist/types.openclaw-R0XDvekS.d.ts:7491-7493"
+    },
+    "cases": [
+      {
+        "run_id": "07549a91-a017-4910-87bd-d3d76f35daac",
+        "owner_id": "oneshot-compat-probe",
+        "occurrence_id": "fake-provider:01-disconnect",
+        "release_sha": "fc23bc864e4553c2d215e479eeec47b67a0bf943",
+        "exit_code": 2,
+        "duration_ms": 8839,
+        "effect": {
+          "external_count": 0,
+          "private_fixture_write_count": 0
+        },
+        "error_class": "timeout",
+        "signal_sent": null,
+        "guard_reason": null,
+        "readback": {
+          "ok": false,
+          "status": "timeout",
+          "fake_provider_requests": 1,
+          "same_model_retry_events": 0,
+          "child_process_group_survivors": 0,
+          "usage_is_simulated": true,
+          "minimum_free_disk_bytes": 2536644608,
+          "minimum_memory_free_percent": 35
+        }
+      },
+      {
+        "run_id": "d0f8d10d-e5ca-40d9-87b8-8c07f737b785",
+        "owner_id": "oneshot-compat-probe",
+        "occurrence_id": "fake-provider:02-final_text",
+        "release_sha": "fc23bc864e4553c2d215e479eeec47b67a0bf943",
+        "exit_code": 0,
+        "duration_ms": 5922,
+        "effect": {
+          "external_count": 0,
+          "private_fixture_write_count": 0
+        },
+        "error_class": null,
+        "signal_sent": null,
+        "guard_reason": null,
+        "readback": {
+          "ok": true,
+          "status": "ok",
+          "fake_provider_requests": 1,
+          "same_model_retry_events": 0,
+          "child_process_group_survivors": 0,
+          "usage_is_simulated": true,
+          "minimum_free_disk_bytes": 2524950528,
+          "minimum_memory_free_percent": 34
+        }
+      }
+    ]
+  }
 }

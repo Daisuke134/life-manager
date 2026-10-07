@@ -42,8 +42,8 @@ stdout envelopeをcaller resultと混同、usage欠測を0計上、cleanup不確
 
 ### MX-04b — private instance retry settings
 
-- [ ] `runtime/agent-runner/openclaw_exec.py`に `prepare_instance_settings(instance_agent_dir: Path) -> Path`を追加。public global agentDir/settings.jsonのcontractでoperator-owned private instanceにだけretry.provider.maxRetries=0を0600 atomic保存。既存global/profileやcaller.workdir/.openclawへ書かない。project/runtime overrideがretryを増やす場合はparity mismatchでcandidate拒否する。
-  Test `test_openclaw_exec.py::test_private_retry_policy`: private保存だけ、repo/release workdir不変更、effective maxRetries0/readback、modelが変更したpolicyでenable拒否。projectsettings位置でのfake再試験はrequest1/retry0を確認済みだが、globalinstance配置/nativebackendは別proof。依存MX-04。
+- [ ] `runtime/agent-runner/openclaw_exec.py`に `prepare_instance_settings(instance_agent_dir: Path) -> Path`を追加。public global agentDir/settings.jsonのcontractでoperator-owned private instanceにだけretry.provider.maxRetries=0を0600 atomic保存。既存global/profileやcaller.workdir/.openclawへ書かない。configはagents.defaults.embeddedAgent.projectSettingsPolicy=ignoreを明示してproject settingsを無視し、runtime overrideがretryを増やす場合はparity mismatchでcandidate拒否する。
+  Test `test_openclaw_exec.py::test_private_retry_policy`: private保存だけ、repo/release workdir不変更、effective maxRetries0/readback、modelが変更したpolicyでenable拒否。privateprojectとprivateglobalinstanceの両配置でrequest1/retry0を確認済み。global+ignoreのdisconnectは8.839秒/timeout2/nextinvoke成功/survivor0。nativebackendは別proof。依存MX-04。
 
 ### MX-05 — owner/task selector, default off
 

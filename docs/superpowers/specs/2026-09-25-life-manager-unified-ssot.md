@@ -3814,3 +3814,5 @@ Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planと�
 MX readiness: source65rows分類とconfigured release関連17hash一致を確認。fake builtinでstdout prefix/outer envelope/usage変換不足、8retry default、10秒deadline超過が既知となった。既存はCodex/Claude CLIを既に使うため、移行だけを目的に収益ownerを止めない。全収益production cutover=HOLD、同native account/model/tools/rollout-budget/retry/cleanup parityが揃うまでcandidate default-off。
 
 private配布物probe: baseline9cases＋retry0 override2cases。defaultdisconnectHOLD、overrideのboundedfake recoveryPASS（1request/0retry/9.48秒）、native/business parity未測定。realmodelcalls0/prodmutations0。MX-04bを初回adapter順に追加。旧HA80/gateway/cron/cloudはinactiveのまま。
+
+retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2casesもPASS（disconnect1request/0retry/8.839秒、次invoke成功、survivor0）。fakeruntime合計13cases。MX-04bの配置は実測済み、native/backend/account/economicsは別unmeasured。

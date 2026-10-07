@@ -40,7 +40,7 @@ flowchart LR
 | usageが未認識 | current extract_provider_usage(openclaw)はunavailable/null | usage.input/output/total/cacheを明示projection。欠測を0にしない |
 | finiteCLIとgatewayRPCのlifetime差 | agent execはcleanup後終了、RPC ACKは終了前 | 初回はfiniteCLIを既存process supervisor内で使う。gateway claim transferを抱き合わせない |
 | timeout/cleanup失敗後の再実行で二重effect |既存fallbackはCodex event形、candidateは別envelope | 新backendはprocess開始後の不明/timeout/cleanup_errorで別harnessへ同occurrenceをfallbackしない |
-| builtin runtimeのretry/deadlineが前提と異なる | default fake disconnectで5requests/30.46秒、retry0 overrideで1request/9.48秒/timeout2 | public session settings retry.provider.maxRetries=0をprivatefixtureで確認。native parityとproduction設定配置は未測定、outer guardを維持 |
+| builtin runtimeのretry/deadlineが前提と異なる | default fake disconnectで5requests/30.46秒、retry0 overrideで1request/9.48秒/timeout2 | public session settings retry.provider.maxRetries=0をprivatefixtureで確認。private global instance配置も追加fake試験で確認。native parityは未測定、outer guardを維持 |
 | tool/credential/scopeを一緒に変える危険 |長い売買promptは既存CLIのshell/CDP/scriptを前提 | 初回publisher/既存scriptsは変更せず、tool-lessから検証。native/tool parityが未証明のownerはcandidate disabled |
 | 旧model/account/backendが曖昧 |source configと4configured flags | businessモデル/アカウントを同時変更しない。新API課金へ黙って切替えない |
 | Node25はtargetpackage非対応 |公開engines | private/immutable Node24.16を使用、global runtime upgradeなし |
@@ -75,8 +75,10 @@ source scopeと既知integration問題の整理=PASS。default-off finite adapte
 
 default-config disconnectは最大8retry設定下で5requests、timeout10秒を越えouter30秒で143。public設定`agents.defaults.embeddedAgent.projectSettingsPolicy=trusted`と、private cwdの`.openclaw/settings.json`に`retry.provider.maxRetries=0`を置いた限定再試験はrequest1/retry0、9.48秒でtimeout2、nextinvoke成功/lock再取得/survivor0。**default-configはHOLD、override限定fake-runtimeはPASS、native/account/business parityは未測定。**
 
-設定ファイルの読込元はglobal `<agentDir>/settings.json`とproject `<cwd>/.openclaw/settings.json`。mergeはglobal→project→runtime overrides。本番repo/releaseへproject設定をその場で書く方法は採用しない。operator-owned private agentDirのpublic settings contractで制御し、sourceだけで確定した配置とfakeで測ったproject配置を区別する。nativeやrealaccountへ設定がeffectiveかはMX parity recordで確認する。
+設定ファイルの読込元はglobal `<agentDir>/settings.json`とproject `<cwd>/.openclaw/settings.json`。mergeはglobal→project→runtime overrides。本番repo/releaseへproject設定をその場で書く方法は採用しない。operator-owned private agentDirのpublic settings contractで制御し、sourceだけの想定とfakeで実測した配置を区別する。global instance配置は追加attempt-4で実測し、projectSettingsPolicy=ignoreと組み合わせた。nativeやrealaccountへ設定がeffectiveかはMX parity recordで確認する。
 
 ## 独立read-only検証
 
 fresh contextのgpt-6.1-sol/mediumがsource分類/17hash/4configuredbaseline/fake9+2casesと報告を照合し、報告・MX計画について限定PASS、全収益cutoverはHOLDと判定した。唯一の文書混線指摘（旧HA plan/cursorが直読でactiveに見える）をMX入口参照へ訂正した。source・credential・provider・GUI操作は検証者も未実施。
+
+追加attempt-4は`<private-state>/agents/main/agent/settings.json`のretry.provider.maxRetries=0と、public key `agents.defaults.embeddedAgent.projectSettingsPolicy=ignore`を使用。caller cwdにprojectsettings無し。disconnectはrequest1/retry0/8.839秒/timeout2、次invokeはexit0/lock再取得/survivor0。nativeaccount/model/backendとproduction経済成果はこのfake13casesでも未証明。native parityに進む前にactive legacyを止めない。
