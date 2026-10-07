@@ -4164,8 +4164,32 @@ flowchart LR
 #### Superseding mobile TODO order
 
 1. Rebase and push PR #6969 on latest main 4b274127, then require every new-head repository check to PASS and merge the EN2 source route.
-2. Wait for the existing capacity owner to return a safe receipt at or above 2 GiB with zero errors/protected deletions. Re-read the apply lock and owner-idle state, cut one main-derived immutable release, then enable one new route at a time: prioritize Anicca EN2; apply Monk's already-merged route only when its owner/lock is eligible. Read back loaded SHA/argv/state and the first exact-integration natural PUBLISHED receipt for each.
+2. Keep the existing capacity owner on its registered cadence and restore a fresh safe receipt at or above 2 GiB with zero errors/protected deletions. Monk's three eBook owners are now loaded on `4b274127`; do not reapply them. Verify Monk's next exact-integration natural Postiz receipt. Apply Anicca EN2 only after its PR merges and its owner/lock is eligible.
 3. Map the four remaining enabled held profiles (@anicca.comedy, @anicca.daily, @aniccajp, @aniccajp2) to existing products/templates and independent owners. Keep disabled @anicca.jp8 and profiles without integrations held. Achieve three official PUBLISHED receipts per enabled account per JST day. Reconcile historical effect_unknown one occurrence at a time; preserve replay-zero.
 4. Restore fresh per-post views/engagement and campaign-link receipts; join creatives to ASC impressions/product-page views/first-time downloads, RevenueCat paid/trial/renewal/refund/MRR, and Mixpanel onboarding cohorts. Keep unavailable fields distinct from zero.
 5. In parallel, complete Apple trusted-device verification on the existing App Store Connect session. Verify the exact Xcode Cloud GitHub source grant for Daisuke134/anicca-products; only after a run resolves a source commit and no run is active, allow one Archive run. Use build 391 only if it is still unused at preflight, otherwise choose the next unused build. Verify VALID, encryption, anicca-beta, Beta App Review, and exact join link; then test the real APNs body/quoteId/locale from cold-start and background on that installed build. Do not claim the live issue fixed before this test.
 6. Keep distribution the main growth lever and reach 100 ASC first-time downloads/day/app on a trailing 7-day average, Anicca first. Refine one onboarding/paywall hypothesis at a time only after that acquisition gate; use ASO only if aligned ASC metrics show a store-page bottleneck. USD 10,000 same-period verified net MRR remains a goal, not an achieved result.
+
+### eBook Monk factory current cursor — 2026-10-08 05:57 JST
+
+この追記はeBookの04:55 cursorとmobile 05:40 readback内のMonk runtime状態を置き換える。全社・mobileの他laneのTODO順は変更しない。
+
+**TODO順変更:** 旧順=`PR #6971 merge → main release → English owner apply → Postiz receipt → checkout/PDF → Letter/Tegami → Capafy Instagram`。新順=`host capacity cleanupの根本原因特定と回復 → 3 eBook ownerの次の自然slot receiptとHeyGen cost readback → PR #420のproduction project/readbackとDDL → natural paid Checkout/PDF → Letter/Tegami 14日cohort → Capafy Instagram`。理由: Monkのsource修正はmainへ入り、current releaseに含まれ、3 ownerへのapplyも成功したため、次の不足は配信実績とshared capacityの安定性になった。現在cursor=`cleanup occurrence 18dc5acaf161e4a8-62729の終端receiptを照合しつつ、次の07:00 JST/08:00 JSTの自然postを同一integration・occurrenceへ結合する`。
+
+**Source / immutable release / owner apply:** PR #6971はmerge commit `ca14073d7499ee6092c9ee291c8f4b4c8cb48499`でmainに統合済み。最新source mainとcurrent releaseは`4b274127b3a2d0c5dad3dae92a21cbbb78c2b811`（`/Users/anicca/loops/releases/20261008T053429-4b274127`）。`lm-loop status`は`ebook-en-tiktok-daily`、`ebook-ja-tiktok-daily`、`ebook-ja-instagram-daily`すべて`loaded-idle` / installed SHA `4b274127`を返した。release-reconcilerのapply記録は各owner `rc=0, changed=1`（2026-10-07 20:49:56–20:50:04 UTC）。英語の古い`provider_disabled` holdは現行source/releaseで解消されている。
+
+**Postiz official GET（2026-10-08 05:56 JST）:** private readback artifactは`~/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-monk-20261007T205623Z.json`。English TikTok `@monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`)、Japanese TikTok `@obou_anicca` (`cmo5s4edx00vgn10ygnu34a0n`)、Japanese Instagram `@obou.anicca` (`cmooplxmu04tpmd0y4h3cpk33`) は3件とも存在し`disabled=false`。10/7 JSTのPostiz inventoryにはeBook対象3行（日本語TikTok 2、日本語Instagram 1、English TikTok 0）。10/8 JSTは05:56時点で対象投稿0件。これは最初のJA 07:00枠・EN 08:00枠より前なのでmissではない。各destinationは1日3 slot、合計9 target-posts/dayが目標で、現状の達成証拠ではない。
+
+**Renderer path readback:** owner sourceのEnglish `ebook-en` pathはHeyGen Avatar IV (`heygen_candidate.render`)で、現在のHeyGen CLI wallet GETはUSD 12.30、Auto ReloadはUSD 5 threshold / USD 10 reload。まだEnglish render/cost receiptとEnglish Postiz postはない。Japanese `ebook-ja` pathはWatercolor Mark Factory (`watercolor_candidate.render`)で、`watercolor-mark-factory-v1` の11 clip全てmanifest hash一致・missing/mismatch 0。日本語の保存済みrender receipt 2件はこのpackを参照する。これはrenderer/source readinessであり、Englishの自然render成功や3/day継続の証明ではない。
+
+**Shared host capacity:** 2026-10-08 05:56 JSTのreadbackはData volume free `1,051,836,416` bytesで、2 GiB recovery floor未達。disk-cleanup ownerを`launchctl-safe kickstart`で一度実行したが、最新occurrence `life-manager-disk-cleanup:18dc5acaf161e4a8-62729` は`entrypoint_exit_1` / `next_action=reconcile_owner`。同時刻のhost-cleanup reportは`errors=0`, `protected_deletions=0`, `reclaimed=6,405` bytes, `inventory_gaps=23`, `disk_writers_stop=absent`, floor=`unmet`。読み取り専用process/file observationではCodex app-server配下のSQLiteが約214 MB増加した8分間があり、これは確認したwrite sourceの一つだが、全容量減少の唯一原因とは未確定。Codex app-serverをrestartせず、SQLiteやprotected pathを削除せず、ownerのsafe cleanupとwrite-source診断を続ける。
+
+**Daisの作業:** 既存3 eBook routeのPostiz再接続は不要。English Instagram専用integrationは未登録で、英語版をInstagramにも配信する場合に限りDaisが専用English Instagram accountをPostizへ接続する。今の3-target計画には不要。
+
+**Atomic TODO:**
+
+1. 最新disk-cleanup receiptのcapacity結果を照合し、allowlisted cleanup ownerと発生元readbackでfree spaceを2 GiB以上へ回復する。inventory gapsと`disk_writers_stop=absent`を解消する根拠を得る。手動の無差別削除、床override、Codex app-server停止はしない。
+2. 既にloadedしたownerを使い、次の自然slotを一件ずつ確認する。JA 07:00、12:30、20:00 JST、EN 08:00、14:00、21:00 JST。各postの同一occurrenceでPostiz receipt/公開先を読み、EnglishはHeyGen video SHA・wallet before/after costを結合する。現行targetは9/day、10/7の実績は3、10/8は05:56時点で0。
+3. PR #420はOPEN、Landing CIはPASS。fresh manual workflowでproduction Supabase project refとaggregate countsをreadbackし、exact target一致・fresh SQL review後に限ってDDL/schema/ACLを反映する。
+4. 同じ自然購入でStripe paid receipt→locale PDF delivery→refund/fee/settlement/replay-zeroを確認する。one-time `$10.99` / `¥1,580`をMRRに数えない。
+5. 購入後にuser-initiated Letter/Tegami recurring CTAと14日cohortを計測し、settled recurring receiptからnet MRRを計算する。確認後にCapafy Instagram laneへ進む。
