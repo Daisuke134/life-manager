@@ -4916,8 +4916,8 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 2 | Coconala案件18211957の売上行を、現行の振込・手数料・案件実費記録へ照合する | 10/04 official finance page readbackはHTTP200だが、parsed private snapshotは1行（closed 09/27）、`payout_requested=false`、coverage incomplete、settled net profit未確認、provider receipt IDなし。納品を再実行せず、現行の支払/手数料/実費receiptと不足物を確定する。資金移動なし。§865 |
 | 3（公開面確認済み） | Coconala商品4313100「Webサイトの画像差し替えと公開表示確認」の公式商品ページと購入CTAを確認する | 10/07のpublic crawlで掲載文・購入CTA・基本価格を確認。表示上の販売1件・待ち0人。アクセスを止めるpublic-page blockerなし。これは新規注文・現行checkout完了・着金の証明ではない。§867 |
 | 4（実コスト待ち） | Coconala商品4313100の掲載条件を実際のofferと照合し、実注文のscope・必要入力・納品物・実費を結ぶ | 掲載文は1ページ最大3画像、表示/リンク確認、軽微な文言1か所、対象URL/画像/位置/希望納期を明記。複数ページ/大幅変更/機能追加は見積り相談。基本¥3,000、追加画像¥500。実注文別のtool/time costはreceiptなしでunknown。価格変更・mock注文/制作なし。§867 |
-| 5 | Coconala新着問い合わせCLIを取得し、実際に返信が必要なthreadを特定して返信する（thread ID未特定、依頼が無ければ待機） | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
-| 6 | Mercor旧応募occurrence18d6f9cb5bdaef98-33812の結果を公式応募記録へ照合し、停止解消後に未送信の適合listingを選んで応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
+| 5（waiting_external） | Coconalaの返信待ちthreadをfreshなdirect-inbox head receiptで特定し、明確な返信だけ既存ownerから処理する | 11:18Z reply-detector runは`entrypoint_exit_10`/receiptなし。`coconala/reply/latest.json`は07:49Z時点の194件/12 pendingで古く、現行待ちの証拠ではない。browser ownerは`coconala:kosuke unreachable`、disk-writers gateも有効。別collectorを重ねず、fresh official headが得られるまで待機。§868 |
+| 6（waiting_external） | Mercor旧応募occurrence18d6f9cb5bdaef98-33812の公式結果を照合し、unknown解消後に限り適合・未送信listingを選ぶ | 11:23Z application runは`resource_effect_unknown`/provider receiptなし。登録済み`mercor:dais` identityはあるが、参照先`mercor-revenue-browser`はloop registryに存在しない。既存の専用owner経路を復元し公式履歴を照合するまで再応募しない。§868 |
 | 7 | Coconala募集案件CLIから条件の合う未提案案件IDを選び、既存供給loopで提案する（案件ID未選定） | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
 | 8 | Freelancerの最低20USD条件と許可された応募手段を確認し、条件成立時だけ未応募案件IDを選んで応募する。残高0のため勝手なtop-upなし、認証復旧は再実行しない | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
 | 9 | Upworkの公式automation制限解除証拠を確認する。解除証拠が得られた場合だけ既存CLIで適合案件を選び提案する。現在はUI自動化を再開しない | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
@@ -10505,6 +10505,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - At about 11:21Z, the public rendered page `https://coconala.com/services/4313100` showed the service title, description, purchase CTA, base price ¥3,000, displayed sales count 1, and waiting count 0. No listing/access repair was needed. `scrapy fetch` of static HTML did not expose the CTA href; no checkout was opened and no order was placed.
 - The same public description specifies up to three image swaps on one page, post-publish display and destination-link checks, one minor text edit, buyer inputs (page URL, image, placement explanation, due date), and quotes for multi-page/major redesign/functionality work; an extra image is ¥500. These are published offer terms, not proof of a current order or actual per-order cost.
+
+
+### 868. 2026-10-07 Coconala inbox and Mercor result are not safe to retry
+
+- Coconala `hf-gig-reply-detector` run `18dc3afc8db7c398-53990` failed at 11:18:38Z with `entrypoint_exit_10`, effect `not_applicable`, no provider receipt/readback. Its loaded owner process remains live, while `latest.json` is 2026-10-07T07:49:35Z and shows 194 observed/12 pending; that snapshot is stale and does not prove any current buyer is waiting. The reply log records repeated `coconala:kosuke unreachable after guarded startup`; do not attach a second collector. The active `disk-writers.stop` marker is owned by `host-disk-recovery-installing`, reason `disk_headroom_low`, next action to verify all finite guards.
+- Mercor `mercor-revenue-application` latest status at 11:23:23Z is run `18dc3b87150aaa38-92352`, `resource_effect_unknown`, provider receipt null. `mercor:dais` is registered, but its target owner `mercor-revenue-browser` is absent from the current loop registry. Do not resubmit the old application until owner routing and official history are restored.
 
 
 ### 865. 2026-10-07 Coconala finance evidence is old and incomplete
