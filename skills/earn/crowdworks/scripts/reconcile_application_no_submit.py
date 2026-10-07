@@ -10,7 +10,7 @@ transaction, in-window proposal, or incomplete/unordered inventory.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -18,17 +18,20 @@ import re
 import sqlite3
 import sys
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from runtime.host.resource_admission import (resolve_pre_effect_occurrence,
-                                            resolve_unknown_occurrence)
+                                             resolve_unknown_occurrence,
+                                             state_root as resource_admission_state_root)
 from reconcile_reply_no_send import (ADMISSION_DB, JST, MINUTE, SAFE_ID, SLACK,
                                      ProviderBrowserBusy, _json, _events, _overlaps,
                                      _provider_lease, _window)
 
 OWNER = "crowdworks-revenue-application"
 SENDER = "Kaito｜AI自動化"
+SENDER_ID = "7145638"
 
 
 def _minute(value: str) -> float | None:
@@ -37,22 +40,77 @@ def _minute(value: str) -> float | None:
 
 
 def evaluate(state_root: Path, occurrences: list[str],
-             proposals: list[tuple[int, str]] | None
+             proposals: list[tuple[int, str] | dict[str, Any]] | None
              ) -> dict[str, tuple[dict[str, Any] | None, str]]:
     rows = _events(state_root, OWNER)
     receipts = [json.loads(line) for line in
                 (state_root / "application-receipts.jsonl").read_text(encoding="utf-8").splitlines()
                 if line.strip()]
     pending = (_json(state_root / "application-transaction.json") or {}).get("pending")
-    timeline = None if proposals is None else [(pid, _minute(m)) for pid, m in
-                                               sorted(proposals, reverse=True)]
-    ordered = timeline is not None and all(
-        a[1] is not None and b[1] is not None and a[1] >= b[1]
-        for a, b in zip(timeline, timeline[1:])) and all(t is not None for _, t in timeline)
+    timeline, ordered = _timeline(proposals)
     result = {}
     for occurrence in occurrences:
         result[occurrence] = _prove(occurrence, rows, receipts, pending, timeline, ordered)
     return result
+
+
+def _timeline(proposals):
+    if proposals is None:
+        return None, False
+    timeline = []
+    try:
+        for proposal in proposals:
+            if isinstance(proposal, dict):
+                pid = proposal.get("proposal_id")
+                timestamp = proposal.get("first_message_timestamp")
+                readback = proposal
+            else:
+                pid, timestamp = proposal
+                readback = None
+            if type(pid) is not int or pid < 1:
+                return None, False
+            timeline.append((pid, _minute(timestamp), readback))
+    except (TypeError, ValueError):
+        return None, False
+    timeline.sort(key=lambda row: row[0], reverse=True)
+    ordered = all(a[1] is not None and b[1] is not None and a[1] >= b[1]
+                  for a, b in zip(timeline, timeline[1:]))
+    ordered = ordered and all(minute is not None for _, minute, _ in timeline)
+    return timeline, ordered
+
+
+def _proposal_evidence(readback, proposal_id):
+    if not isinstance(readback, dict) or readback.get("proposal_id") != proposal_id:
+        return None
+    proposal_url = readback.get("proposal_url")
+    parsed_url = urlsplit(proposal_url if isinstance(proposal_url, str) else "")
+    proposal_path = re.fullmatch(r"/proposals/(\d+)/?", parsed_url.path)
+    seller = readback.get("seller_identity")
+    profile_url = seller.get("profile_url") if isinstance(seller, dict) else None
+    profile = urlsplit(profile_url if isinstance(profile_url, str) else "")
+    timestamp = readback.get("first_message_timestamp")
+    minute = _minute(timestamp) if isinstance(timestamp, str) else None
+    observed_at = readback.get("observed_at")
+    try:
+        observed = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if (parsed_url.scheme != "https" or parsed_url.hostname != "crowdworks.jp"
+            or proposal_path is None or int(proposal_path.group(1)) != proposal_id
+            or not isinstance(seller, dict) or seller.get("display_name") != SENDER
+            or profile.scheme != "https" or profile.hostname != "crowdworks.jp"
+            or profile.path.rstrip("/") != f"/public/employees/{SENDER_ID}"
+            or minute is None or observed.tzinfo is None
+            or readback.get("first_message_minute") != datetime.fromtimestamp(
+                minute, JST).isoformat(timespec="minutes")):
+        return None
+    return {
+        "proposal_url": proposal_url,
+        "seller_identity": {"display_name": SENDER, "profile_url": profile_url},
+        "first_message_timestamp": timestamp,
+        "first_message_minute": readback["first_message_minute"],
+        "observed_at": observed.isoformat(),
+    }
 
 
 def _prove(occurrence, rows, receipts, pending, timeline, ordered):
@@ -78,32 +136,39 @@ def _prove(occurrence, rows, receipts, pending, timeline, ordered):
                 or not str(bound[0].get("application_external_id", "")).isdigit()):
             return None, "application_receipt_bound"
         proposal_id = int(bound[0]["application_external_id"])
-        match = next(((pid, minute) for pid, minute in timeline if pid == proposal_id), None)
+        match = next((row for row in timeline if row[0] == proposal_id), None)
         if match is None:
             return None, "application_receipt_proposal_missing"
-        _, minute = match
+        _, minute, readback = match
         if minute < window[0] or minute + 60 > window[1]:
             return None, "application_receipt_window_mismatch"
+        evidence = _proposal_evidence(readback, proposal_id)
+        if evidence is None:
+            return None, "application_receipt_readback_incomplete"
         return {
             "owner_id": OWNER, "occurrence_id": occurrence, "verified": True,
             "proof_type": "official_effect", "provider_receipt_id": f"proposal:{proposal_id}",
             "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/{run_id}/{proposal_id}",
-            "application_external_id": str(proposal_id), "window": list(window),
+            "application_external_id": str(proposal_id), "window": list(window), **evidence,
         }, "ok"
     if not timeline or timeline[-1][1] + 60 >= window[0] - SLACK:
         return None, "proposal_readback_incomplete"
-    for pid, minute in timeline:
+    for pid, minute, _ in timeline:
         if _overlaps(minute, window):
             return None, f"proposal_in_window:{pid}"
-    before = next(pid for pid, minute in timeline if minute + 60 < window[0] - SLACK)
+    before = next(pid for pid, minute, _ in timeline if minute + 60 < window[0] - SLACK)
+    before_row = next(row for row in timeline if row[0] == before)
     digest = hashlib.sha256(json.dumps({"window": window, "latest_before": before},
                                        sort_keys=True).encode()).hexdigest()[:16]
-    return {
+    proof = {
         "owner_id": OWNER, "occurrence_id": occurrence, "verified": True,
         "proof_type": "pre_effect",
         "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/{run_id}/{digest}",
         "window": list(window), "latest_proposal_before_window": before,
-    }, "ok"
+    }
+    if evidence := _proposal_evidence(before_row[2], before):
+        proof.update(evidence)
+    return proof, "ok"
 
 
 def recorded_proposals(state_root: Path) -> set[int]:
@@ -118,7 +183,7 @@ def recorded_proposals(state_root: Path) -> set[int]:
 
 def read_proposals_with_lease(
     state_root: Path, oldest_needed: float, recorded: set[int]
-) -> tuple[list[tuple[int, str]] | None, str]:
+) -> tuple[list[dict[str, Any]] | None, str]:
     """Read proposal pages without queueing behind an active revenue owner."""
     try:
         with _provider_lease(state_root):
@@ -136,7 +201,7 @@ def read_proposals_with_lease(
 
 
 def read_proposals(page: Any, oldest_needed: float,
-                   recorded: set[int] = frozenset()) -> list[tuple[int, str]] | None:
+                   recorded: set[int] = frozenset()) -> list[dict[str, Any]] | None:
     """Newest-first proposals with their first-message minute, or None if unreadable.
 
     CrowdWorks' list omits some proposals (5 of 224 receipted ones were absent on
@@ -160,13 +225,31 @@ def read_proposals(page: Any, oldest_needed: float,
         page.goto(f"https://crowdworks.jp/proposals/{pid}", wait_until="domcontentloaded",
                   timeout=30_000)
         page.wait_for_timeout(1200)
-        first = page.locator('div[class*="_messageItem_"]').first
-        sender = first.locator('a[class*="_senderName_"]').first.text_content() or ""
-        minute = first.locator("time").first.get_attribute("datetime") or ""
-        if sender.strip() != SENDER or _minute(minute) is None:
+        actual_url = urlsplit(page.url)
+        displayed = re.fullmatch(r"/proposals/(\d+)/?", actual_url.path)
+        if (actual_url.scheme != "https" or actual_url.hostname != "crowdworks.jp"
+                or displayed is None or int(displayed.group(1)) != pid):
             return None
-        result.append((pid, minute))
-        if _minute(minute) < oldest_needed:
+        first = page.locator('div[class*="_messageItem_"]').first
+        sender_link = first.locator('a[class*="_senderName_"]').first
+        sender = (sender_link.text_content() or "").strip()
+        profile_url = urljoin("https://crowdworks.jp", sender_link.get_attribute("href") or "")
+        profile = urlsplit(profile_url)
+        timestamp = first.locator("time").first.get_attribute("datetime") or ""
+        minute = _minute(timestamp)
+        if (sender != SENDER or profile.scheme != "https"
+                or profile.hostname != "crowdworks.jp"
+                or profile.path.rstrip("/") != f"/public/employees/{SENDER_ID}"
+                or minute is None):
+            return None
+        result.append({
+            "proposal_id": pid, "proposal_url": page.url,
+            "seller_identity": {"display_name": sender, "profile_url": profile_url},
+            "first_message_timestamp": timestamp,
+            "first_message_minute": datetime.fromtimestamp(minute, JST).isoformat(timespec="minutes"),
+            "observed_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if minute < oldest_needed:
             break
     return result
 
@@ -178,7 +261,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolve", action="store_true")
     args = parser.parse_args(argv)
     state_root = args.state_root.expanduser().resolve()
-    with sqlite3.connect(f"file:{args.admission_db.expanduser()}?mode=ro", uri=True) as db:
+    admission_db = args.admission_db.expanduser().resolve()
+    resolver_db = (resource_admission_state_root() / "admission-v2.sqlite3").resolve()
+    if args.resolve and admission_db != resolver_db:
+        print(json.dumps({"owner_id": OWNER, "checked": 0, "resolved": [],
+                          "fenced": {}, "error": "admission_database_mismatch"},
+                         ensure_ascii=False, sort_keys=True))
+        return 75
+    with sqlite3.connect(f"file:{admission_db}?mode=ro", uri=True) as db:
         occurrences = [r[0] for r in db.execute(
             "SELECT occurrence_id FROM occurrences WHERE owner_id=? AND state='claimed' "
             "AND effect_unknown=1 ORDER BY queued_at", (OWNER,))]

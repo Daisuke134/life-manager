@@ -22,6 +22,7 @@ def load():
 
 
 def setup(tmp_path, receipts=(), pending=None):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     rows = [
         {"loop_id": OWNER, "run_id": "exec-9", "timestamp": "2026-09-20T03:00:00+00:00",
          "phase": "execute", "status": "running"},
@@ -97,44 +98,155 @@ def test_readback_defers_when_provider_browser_is_busy(monkeypatch, tmp_path):
     assert reason == "provider_browser_busy"
 
 
+def test_read_proposals_rejects_redirect_to_another_proposal():
+    module = load()
+
+    class Node:
+        first = None
+
+        def __init__(self):
+            self.first = self
+
+        def locator(self, _selector):
+            return self
+
+        def text_content(self):
+            return "Kaito｜AI自動化"
+
+        def get_attribute(self, name):
+            return {
+                "datetime": "2026年09月20日 12:02",
+                "href": "/public/employees/7145638",
+            }.get(name)
+
+    class ProposalPage:
+        def __init__(self, displayed_id):
+            self.displayed_id = displayed_id
+            self.url = ""
+
+        def goto(self, url, **_kwargs):
+            self.url = (f"https://crowdworks.jp/proposals/{self.displayed_id}"
+                        if url.endswith("/proposals/401") else url)
+
+        def wait_for_timeout(self, _milliseconds):
+            return None
+
+        def eval_on_selector_all(self, _selector, _expression):
+            return (["https://crowdworks.jp/proposals/401"]
+                    if "?page=1" in self.url else [])
+
+        def locator(self, _selector):
+            return Node()
+
+    assert module.read_proposals(ProposalPage(402), 0.0) is None
+    proposals = module.read_proposals(ProposalPage(401), 0.0)
+    assert proposals is not None and len(proposals) == 1
+    assert {key: value for key, value in proposals[0].items() if key != "observed_at"} == {
+        "proposal_id": 401,
+        "proposal_url": "https://crowdworks.jp/proposals/401",
+        "seller_identity": {
+            "display_name": "Kaito｜AI自動化",
+            "profile_url": "https://crowdworks.jp/public/employees/7145638",
+        },
+        "first_message_timestamp": "2026年09月20日 12:02",
+        "first_message_minute": "2026-09-20T12:02+09:00",
+    }
+    assert proposals[0]["observed_at"].endswith("+00:00")
+
+
 def test_exact_verified_receipt_reconciles_effect_only_after_opt_in(tmp_path, monkeypatch, capsys):
     module = load()
+    from runtime.host import resource_admission
+
+    state_root = tmp_path / "application-state"
+    admission_root = tmp_path / "admission-root"
+    admission_root.mkdir()
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
     receipt = {
         "record_type": "application_receipt", "platform": "crowdworks",
         "status": "verified", "occurrence_id": OCC,
         "application_external_id": "401",
     }
-    setup(tmp_path, receipts=[receipt])
-    admission_db = tmp_path / "admission.sqlite3"
-    with sqlite3.connect(admission_db) as db:
-        db.execute("CREATE TABLE occurrences (occurrence_id TEXT, owner_id TEXT, state TEXT, effect_unknown INTEGER, queued_at TEXT)")
-        db.execute("INSERT INTO occurrences VALUES (?, ?, 'claimed', 1, '2026-09-20T03:00:00Z')",
-                   (OCC, OWNER))
+    setup(state_root, receipts=[receipt])
+    other = f"{OWNER}:run-2"
+    admission_db = admission_root / "admission-v2.sqlite3"
+    with resource_admission._database(admission_db) as db:
+        for index, occurrence in enumerate((OCC, other), start=1):
+            db.execute("""INSERT INTO occurrences(
+                occurrence_id, owner_id, resource_class, admission_class, base_priority,
+                queued_at, state, sequence, effect_unknown
+            ) VALUES (?, ?, 'agent', 'revenue', 'revenue', ?, 'claimed', NULL, 1)""",
+                       (occurrence, OWNER, float(index)))
 
+    proposal = {
+        "proposal_id": 401,
+        "proposal_url": "https://crowdworks.jp/proposals/401",
+        "seller_identity": {
+            "display_name": "Kaito｜AI自動化",
+            "profile_url": "https://crowdworks.jp/public/employees/7145638",
+        },
+        "first_message_timestamp": "2026年09月20日 12:02",
+        "first_message_minute": "2026-09-20T12:02+09:00",
+        "observed_at": "2026-10-08T10:00:00+00:00",
+    }
     monkeypatch.setattr(module, "read_proposals_with_lease",
-                        lambda *_args, **_kwargs: ([(401, "2026年09月20日 12:02")] + BEFORE, "ok"))
-    from runtime.host import resource_admission
-    close_calls = []
-
-    def close(owner, occurrence, expected_state=None, proof_check=None):
-        close_calls.append((owner, occurrence, expected_state, proof_check))
-        return True
-
-    monkeypatch.setattr(resource_admission, "_close_unknown_occurrence", close)
-    dry_run = module.main(["--state-root", str(tmp_path), "--admission-db", str(admission_db)])
+                        lambda *_args, **_kwargs: ([proposal] + BEFORE, "ok"))
+    dry_run = module.main(["--state-root", str(state_root), "--admission-db", str(admission_db)])
     report = json.loads(capsys.readouterr().out)
     assert dry_run == 0
     assert report["resolved"] == [{"occurrence_id": OCC, "dry_run": True,
                                    "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/run-1/401"}]
-    assert close_calls == []
-    assert not (tmp_path / "reconciliation").exists()
+    assert report["fenced"] == {other: "claim_run_unavailable"}
+    assert not (state_root / "reconciliation").exists()
+    with sqlite3.connect(admission_db) as db:
+        assert db.execute("SELECT state, effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (OCC,)).fetchone() == ("claimed", 1)
 
-    resolved = module.main(["--state-root", str(tmp_path), "--admission-db", str(admission_db),
+    resolved = module.main(["--state-root", str(state_root), "--admission-db", str(admission_db),
                             "--resolve"])
     report = json.loads(capsys.readouterr().out)
     assert resolved == 0
     assert report["resolved"] == [{"occurrence_id": OCC,
                                    "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/run-1/401"}]
-    assert close_calls == [(OWNER, OCC, "claimed", None)]
-    reconciliation = json.loads((tmp_path / "reconciliation" / "application-effect-run-1.json").read_text())
+    assert report["fenced"] == {other: "claim_run_unavailable"}
+    with sqlite3.connect(admission_db) as db:
+        assert db.execute("SELECT state, effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (OCC,)).fetchone() == ("released", 0)
+        assert db.execute("SELECT state, effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (other,)).fetchone() == ("claimed", 1)
+    reconciliation = json.loads((state_root / "reconciliation" / "application-effect-run-1.json").read_text())
     assert reconciliation["provider_receipt_id"] == "proposal:401"
+    assert reconciliation["proposal_url"] == proposal["proposal_url"]
+    assert reconciliation["seller_identity"] == proposal["seller_identity"]
+    assert reconciliation["first_message_timestamp"] == proposal["first_message_timestamp"]
+    assert reconciliation["first_message_minute"] == proposal["first_message_minute"]
+    assert reconciliation["observed_at"] == proposal["observed_at"]
+
+
+def test_resolve_rejects_admission_db_different_from_resolver_db(tmp_path, monkeypatch, capsys):
+    module = load()
+    state_root = tmp_path / "state"
+    setup(state_root, receipts=[{
+        "record_type": "application_receipt", "platform": "crowdworks",
+        "status": "verified", "occurrence_id": OCC,
+        "application_external_id": "401",
+    }])
+    resolver_root = tmp_path / "resolver-root"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(resolver_root))
+    read_db = tmp_path / "read-only.sqlite3"
+    with sqlite3.connect(read_db) as db:
+        db.execute("CREATE TABLE occurrences (occurrence_id TEXT, owner_id TEXT, state TEXT, effect_unknown INTEGER, queued_at TEXT)")
+        db.execute("INSERT INTO occurrences VALUES (?, ?, 'claimed', 1, '2026-09-20T03:00:00Z')",
+                   (OCC, OWNER))
+    provider_reads = []
+    monkeypatch.setattr(module, "read_proposals_with_lease", lambda *_args: (
+        provider_reads.append(True) or ([(401, "2026年09月20日 12:02")] + BEFORE, "ok")))
+
+    result = module.main(["--state-root", str(state_root), "--admission-db", str(read_db),
+                          "--resolve"])
+    report = json.loads(capsys.readouterr().out)
+    assert result == 75
+    assert report["error"] == "admission_database_mismatch"
+    assert provider_reads == []
+    assert not (state_root / "reconciliation").exists()
+    assert not (resolver_root / "admission-v2.sqlite3").exists()
