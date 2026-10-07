@@ -109,10 +109,64 @@ def _fetch_otp(gmail_account: str, timeout: int = 150, poll: int = 8) -> str | N
     return None
 
 
+_CONSENT_CHECK_JS = (
+    "(function(){const ds=[...document.querySelectorAll('div[role=dialog]')];"
+    "const d=ds.find(x=>(x.textContent||'').includes('次の項目に同意が必要です'));"
+    "if(!d)return 'none';"
+    "const boxes=[...d.querySelectorAll('input[type=checkbox]')];"
+    "boxes.forEach(b=>{if(!b.checked)b.click();});"
+    "const agree=[...d.querySelectorAll('[role=button]')].find(x=>(x.textContent||'').trim()==='同意する');"
+    "if(agree){agree.click();return 'agreed';}"
+    "return 'no-agree-btn';})()"
+)
+_CONSENT_CLOSE_JS = (
+    "(function(){const b=[...document.querySelectorAll('[role=button],button')]"
+    ".find(x=>(x.textContent||'').trim()==='閉じる');if(b){b.click();return 'closed';}return 'no-close';})()"
+)
+
+
+def _eval_js(tid: str, js_source: str, *, cdp_host: str, cdp_port: str) -> str:
+    script = Path("/tmp") / f".lsd-eval-{os.getpid()}-{id(js_source) & 0xFFFF}.js"
+    script.write_text(js_source, encoding="utf-8")
+    try:
+        return _cdp(["eval", tid, str(script)], cdp_host=cdp_host, cdp_port=cdp_port)
+    finally:
+        script.unlink(missing_ok=True)
+
+
+def _dismiss_consent_interstitial(
+    tid: str, *, cdp_host: str, cdp_port: str, eval_fn=None,
+) -> bool:
+    """Instagram sometimes shows a GDPR-style "Instagramを利用するには次の項目に
+    同意が必要です" modal (4 required toggles + 同意する) that covers the whole
+    page -- including the account's own profile. document.body.innerText still
+    contains the obscured "プロフィールを編集" text behind it, so
+    _ensure_logged_in's already-logged-in check passes while every click past
+    it lands on the dialog's backdrop. This was the actual root cause of every
+    "file chooser load failed" run: the real composer never opened (confirmed
+    live 2026-10-07 against @stardust_doubutsu and via the failed runs'
+    1-composer.png / 2-loadfail.png screenshots, which show this exact dialog,
+    not the composer). Toggling the 4 required checkboxes and clicking
+    同意する dismisses it for the rest of the browser profile's session.
+    eval_fn(js_source) -> raw JSON string is injectable for tests; defaults to
+    a real CDP eval call against tid.
+    """
+    if eval_fn is None:
+        eval_fn = lambda js_source: _eval_js(tid, js_source, cdp_host=cdp_host, cdp_port=cdp_port)
+    outcome = eval_fn(_CONSENT_CHECK_JS).strip().strip('"')
+    if outcome != "agreed":
+        return False
+    time.sleep(2)
+    eval_fn(_CONSENT_CLOSE_JS)
+    time.sleep(1)
+    return True
+
+
 def _ensure_logged_in(tid: str, *, cdp_host: str, cdp_port: str, creds: dict) -> None:
     handle = creds["username"]
     _cdp(["nav", tid, f"https://www.instagram.com/{handle}/"], cdp_host=cdp_host, cdp_port=cdp_port)
     time.sleep(3)
+    _dismiss_consent_interstitial(tid, cdp_host=cdp_host, cdp_port=cdp_port)
     page_text = _cdp(["text", tid], cdp_host=cdp_host, cdp_port=cdp_port)
     if "プロフィールを編集" in page_text or "Edit profile" in page_text:
         return  # already the right account's own profile page
@@ -224,7 +278,16 @@ def publish(
         if live:
             args.append("--live")
         env = {**os.environ, "CDP_HOST": cdp_host, "CDP_PORT": cdp_port}
-        done = subprocess.run(args, capture_output=True, text=True, timeout=180, env=env)
+        # post_reel.py's own internal waits can total far more than 180s on a --live
+        # run: up to 100s waiting for the video to load, ~25s clicking through the
+        # cover/trim step, then (live only) up to 340s polling the profile for the
+        # new reel href to reconcile (range(20) * (12s sleep + nav + 5s settle)).
+        # A 180s subprocess timeout killed a confirmed-live run here on 2026-10-07
+        # (TimeoutExpired fired after シェア had already been clicked -- the reel
+        # published on Instagram's side, but this process never saw the receipt and
+        # crashed instead of returning it). 540s covers the measured worst case with
+        # headroom.
+        done = subprocess.run(args, capture_output=True, text=True, timeout=540, env=env)
         try:
             result = json.loads(done.stdout.strip().splitlines()[-1])
         except (ValueError, IndexError):
