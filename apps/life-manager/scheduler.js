@@ -11,6 +11,7 @@ const crypto = require("crypto");
 const { fetchUpcomingEvents } = require("./lib/events.js");
 const { schedulerCohortFilter, isCallablePhone } = require("./lib/user-selector.js");
 const { DEFAULTS: RUNTIME_DEFAULTS, readRuntimePreferences } = require("./lib/runtime-preferences.js");
+const { webTravelEntitled } = require("./lib/billing.js");
 const { shouldWake, isHelperBlock } = require("./lib/wake-filter.js");
 const { mentalUserOnce, resolveSleepTarget } = require("./lib/mental-runtime.js");
 const { mentalV1UserOnce } = require("./lib/mental-v1-runtime.js");
@@ -105,7 +106,7 @@ async function supaUsers() {
   const { url, key } = SUPA();
   if (!url || !key) return [];
   const base = `${url}/rest/v1/lm_users?${schedulerCohortFilter()}`;
-  const cols = "uid,name,phone,paid,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_trial_payment_method_present,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   // FAIL-SAFE: try WITH wake_policy; if the column is missing (PostgREST 400) fall back to the base
   // columns rather than returning [] — a missing column must NOT silently disable wakes fleet-wide.
@@ -1217,7 +1218,11 @@ const TRAVEL_TICK_MS = 30 * 60 * 1000;
 const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function travelUserOnce(u, deps = {}) {
-  if (u && u.daily_automation_enabled === false) return;
+  const webUid = WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""));
+  const initialWebScan = deps.initialScan === true && webUid && u && u.telegram_chat_id === null;
+  const nowMs = deps.nowMs === undefined ? Date.now() : Number(deps.nowMs);
+  if (webUid && u && u.telegram_chat_id === null && !initialWebScan && !webTravelEntitled(u, nowMs)) return;
+  if (u && u.daily_automation_enabled === false && !initialWebScan) return;
   const apiKey = deps.apiKey || process.env.COMPOSIO_API_KEY;
   const mapsKey = deps.mapsKey || process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY;
   const geminiKey = deps.geminiKey || process.env.GEMINI_API_KEY; // agentic resolve of room-name / unroutable locations
@@ -1227,7 +1232,7 @@ async function travelUserOnce(u, deps = {}) {
   const supaKey = deps.supaKey !== undefined ? deps.supaKey : configuredSupa.key;
   try {
     let expectedCalendarAccountId;
-    if (WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""))) {
+    if (webUid) {
       if (u.telegram_chat_id === null) {
         const resolveActive = deps.resolveActiveWebCalendarImpl
           || require("./lib/web-calendar.js").resolveActiveWebCalendar;
@@ -1239,8 +1244,12 @@ async function travelUserOnce(u, deps = {}) {
           && u.expectedCalendarAccountId !== active.accountId) return;
         const readControlState = deps.readWebTravelControlStateImpl
           || require("./lib/runtime-preferences.js").readWebTravelControlState;
-        const controlState = await readControlState(u.uid, { supaUrl, supaKey, fetchImpl: deps.fetchImpl });
-        if (!controlState || controlState.dailyAutomationEnabled !== true
+        const controlState = await readControlState(u.uid, { supaUrl, supaKey,
+          fetchImpl: deps.fetchImpl, expectedCalendarAccountId: active.accountId, nowMs });
+        const automationAllowed = initialWebScan
+          ? controlState && controlState.dailyAutomationEnabled === false && controlState.initialScanAllowed === true
+          : controlState && controlState.dailyAutomationEnabled === true && controlState.billingEntitled === true;
+        if (!automationAllowed
           || controlState.disconnectPending !== false || controlState.enablePending !== false) return;
         expectedCalendarAccountId = active.accountId;
       } else if (u.telegram_chat_id === undefined) {
@@ -1250,9 +1259,10 @@ async function travelUserOnce(u, deps = {}) {
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
       timezone: u.call_time_zone,
-      nowMs: deps.nowMs === undefined ? Date.now() : deps.nowMs,
+      nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
       expectedCalendarAccountId,
+      allowWebInitialScan: initialWebScan,
       _directionsMinutes: deps.directionsMinutes,
       _reserveManagedAction: deps.reserveManagedAction || (deps.fillTravel ? undefined : reserveManagedAction),
       _completeManagedAction: deps.completeManagedAction || (deps.fillTravel ? undefined : completeManagedAction),
@@ -1265,7 +1275,7 @@ async function travelUserOnce(u, deps = {}) {
       for (const report of r.outboundReports || []) {
         try {
           await (deps.sendMessage || sendMessage)(telegramToken, u.telegram_chat_id,
-            formatTravelAutofillMessage(report, deps.nowMs === undefined ? Date.now() : deps.nowMs));
+            formatTravelAutofillMessage(report, nowMs));
         } catch (error) {
           console.error(`[travel] uid=${u.uid.slice(0, 12)} report send failed: ${error && error.message}`);
         }
@@ -1297,8 +1307,19 @@ function startTravelLoop() {
 // email via Resend); replies arrive on webhooks (/telegram, /inbound-email), not polled here ──
 const ASK_TICK_MS = 20 * 60 * 1000;
 
+// Routing is limited to a verified/available channel. The model still decides whether a
+// clarification is needed; a Web-only tenant has no email fallback until a message channel exists.
+function questionChannelForUser(u) {
+  if (!u) return null;
+  if (u.telegram_chat_id) return "telegram";
+  if (WEB_TRAVEL_UID_RE.test(String(u.uid || ""))) return null;
+  return u.email ? "email" : null;
+}
+
 async function askUserOnce(u) {
   if (u && (u.daily_automation_enabled === false || u.notifications_enabled === false)) return;
+  const channel = questionChannelForUser(u);
+  if (!channel) return;
   const composioKey = process.env.COMPOSIO_API_KEY;
   const resendKey = process.env.RESEND_API_KEY;                            // our-domain email send
   const mapsKey = process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY; // Places grounding
@@ -1310,15 +1331,16 @@ async function askUserOnce(u) {
   if (!u.telegram_chat_id && !u.email) return;
   try {
     const r = await askTick(u.uid, {
-      composioKey, userEmail: u.email, resendKey,
+      composioKey, userEmail: channel === "email" ? u.email : null, resendKey,
       supaUrl, supaKey, mapsKey, geminiKey, home: u.home_address,
-      telegramChatId: u.telegram_chat_id, telegramToken,
+      telegramChatId: channel === "telegram" ? u.telegram_chat_id : null,
+      telegramToken: channel === "telegram" ? telegramToken : null,
       gmailAccountId: u.gmail_account_id,
       unipileToken: process.env.UNIPILE_TOKEN,
       unipileDsn: process.env.UNIPILE_DSN,
     });
     if (r.autofilled || r.asked || r.resolved)
-      console.log(`[ask] uid=${u.uid.slice(0, 12)} autofilled=${r.autofilled} asked=${r.asked} resolved=${r.resolved} via=${u.telegram_chat_id ? "tg" : "email"}`);
+      console.log(`[ask] uid=${u.uid.slice(0, 12)} autofilled=${r.autofilled} asked=${r.asked} resolved=${r.resolved} via=${channel}`);
   } catch (e) { console.error(`[ask] uid=${u.uid.slice(0, 12)} err ${e.message}`); }
 }
 
@@ -1399,7 +1421,7 @@ const listPaidUsers = supaUsers;
 async function getUserByUid(uid) {
   const { url, key } = SUPA();
   if (!url || !key || !uid) return null;
-  const cols = "uid,name,phone,paid,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_trial_payment_method_present,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const base = `${url}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&${schedulerCohortFilter()}`;
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   let r = await fetch(`${base}&select=${cols},wake_policy`, { headers: hdr });
@@ -1418,7 +1440,7 @@ module.exports = {
   // the wake loop's own per-user budget — exported so a revert to the shared 90s is test-caught
   WAKE_USER_TIMEOUT_MS,
   // per-user single-invocation functions (for Inngest fan-out + testing)
-  wakeUserOnce, reminderUserOnce, travelUserOnce, askUserOnce,
+  wakeUserOnce, reminderUserOnce, travelUserOnce, askUserOnce, questionChannelForUser,
   // the two halves of the old wakeUserOnce — separate timers drive them (spec §3.1 method A)
   wakeCallOnce, organsUserOnce,
   REMINDER_TIMEOUT_MS,

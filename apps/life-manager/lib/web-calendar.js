@@ -486,7 +486,7 @@ async function handleCallback(scope, req, res, opts, url) {
   }
   if (status !== "ACTIVE") return sendText(res, 403, "calendar connection not verified");
   await persistCalendarBinding(scope.uid, accountId, provider, binding);
-  res.writeHead(303, { Location: "/lm", "cache-control": "no-store", "referrer-policy": "no-referrer" });
+  res.writeHead(303, { Location: "/lm?initial_scan=1", "cache-control": "no-store", "referrer-policy": "no-referrer" });
   res.end();
 }
 

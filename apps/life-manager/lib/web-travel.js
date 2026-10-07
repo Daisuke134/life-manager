@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const { resolveWebUser } = require("./web-auth.js");
+const { webTravelEntitled, webTrialEligible, webPaidCheckoutEligible } = require("./billing.js");
 const { assertWebUserUnbound } = require("./web-calendar.js");
 const { readWebTravelControlState } = require("./runtime-preferences.js");
 const { isTravel, listEvents7d, travelDecision } = require("./travel.js");
@@ -11,7 +12,7 @@ const TODAY_PATH = "/api/lm-web/today";
 const CONTROL_PATH = "/api/lm-web/travel/control";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{3,128}$/;
-const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid";
+const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid,plan_status,web_trial_payment_method_present,web_billing_cancel_at_period_end,stripe_customer_id,stripe_subscription_id,current_period_end,web_initial_scan_completed_at,web_first_travel_at";
 
 function requestUrl(req) {
   try { return new URL(req.url || "/", "http://life-manager.local"); }
@@ -129,9 +130,11 @@ async function rpc(name, body, opts = {}) {
   if (!response.ok) {
     const failure = await response.json().catch(() => null);
     const message = String(failure && failure.message || "");
+    if (message.includes("billing_required")) throw webError(409, "billing_required");
     if (message.includes("calendar_account_changed")) throw webError(409, "calendar_account_changed");
     if (message.includes("calendar_disconnect_pending")) throw webError(409, "disconnect_pending");
     if (message.includes("calendar_enable_pending")) throw webError(409, "calendar_enable_pending");
+    if (message.includes("calendar_operation_pending")) throw webError(409, "calendar_operation_pending");
     if (message.includes("home_required")) throw webError(409, "home_required");
     if (message.includes("calendar_not_connected")) throw webError(409, "calendar_not_connected");
     throw webError(502, "setup_unavailable");
@@ -143,24 +146,88 @@ function firstValue(value) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function completeWebTravelSetup(uid, homeAddress, opts = {}) {
-  const address = normalizeHomeAddress(homeAddress);
-  if (!address) throw webError(400, "invalid_home_address");
-  if (!WEB_UID_RE.test(String(uid || ""))) throw webError(401, "unauthorized");
-
-  const activeCalendar = await readActiveCalendarUser(uid, opts);
-  if (activeCalendar.status !== "ACTIVE") throw webError(409, "calendar_not_active");
-
-  const result = firstValue(await rpc("complete_lm_web_travel_setup", {
+async function recordWebInitialScan(uid, accountId, completedAt, firstTravelAt, opts = {}) {
+  const result = firstValue(await rpc("record_lm_web_initial_scan", {
     p_uid: uid,
-    p_home_address: address,
-    p_calendar_account_id: activeCalendar.row.calendar_connected_account_id,
+    p_calendar_account_id: accountId,
+    p_completed_at: completedAt,
+    p_first_travel_at: firstTravelAt,
   }, opts));
-  const trialExpiresAt = typeof result === "string" ? result : result && result.trial_expires_at;
-  if (typeof trialExpiresAt !== "string" || !Number.isFinite(Date.parse(trialExpiresAt))) {
-    throw webError(502, "setup_readback_unavailable");
+  if (result !== true) throw webError(502, "initial_scan_write_unconfirmed");
+  await assertUnbound(uid, opts);
+  const row = await readWebUserRow(uid, opts);
+  if (row.calendar_provider !== "composio_gcal" || row.calendar_connected_account_id !== accountId
+    || !row.web_initial_scan_completed_at
+    || firstTravelAt && !row.web_first_travel_at) {
+    throw webError(502, "initial_scan_readback_unavailable");
   }
-  return { trialExpiresAt };
+  return row;
+}
+
+async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
+  if (!WEB_UID_RE.test(String(uid || ""))) throw webError(401, "unauthorized");
+  const active = await readActiveCalendarUser(uid, opts);
+  if (active.status !== "ACTIVE") throw webError(409, "calendar_not_active");
+  const initialRow = active.row;
+  const rescanAllowed = runOptions.rescan === true
+    && !initialRow.web_first_travel_at
+    && !initialRow.stripe_subscription_id
+    && initialRow.paid !== true
+    && !initialRow.trial_expires_at
+    && !initialRow.plan_status;
+  if (initialRow.web_initial_scan_completed_at && !rescanAllowed) {
+    const snapshot = await buildTodaySnapshot(uid, opts);
+    return Object.assign(snapshot, {
+      scanState: initialRow.web_first_travel_at ? "complete" : "zero_blocks",
+      checkoutAvailable: webTrialEligible(initialRow),
+    });
+  }
+  if (initialRow.stripe_subscription_id && initialRow.paid === true) {
+    return Object.assign(await buildTodaySnapshot(uid, opts), { scanState: "already_subscribed", checkoutAvailable: false });
+  }
+
+  const paused = await applyWebTravelControl(uid, initialRow.calendar_connected_account_id, "initial_scan_pause", opts);
+  if (paused.disconnectPending) throw webError(409, "disconnect_pending");
+  if (paused.enablePending) throw webError(409, "calendar_enable_pending");
+
+  const current = await readActiveCalendarUser(uid, opts);
+  if (current.status !== "ACTIVE"
+    || current.row.calendar_connected_account_id !== initialRow.calendar_connected_account_id) {
+    throw webError(409, "calendar_account_changed");
+  }
+  await assertUnbound(uid, opts);
+  const travelResult = await travelOwnerOnce({
+    uid,
+    home_address: current.row.home_address || null,
+    call_time_zone: null,
+    daily_automation_enabled: false,
+    call_enabled: false,
+    notifications_enabled: false,
+    telegram_chat_id: null,
+    expectedCalendarAccountId: current.row.calendar_connected_account_id,
+  }, opts, { initialScan: true });
+
+  const snapshot = await buildTodaySnapshot(uid, opts);
+  if (travelResult == null || snapshot.calendarState !== "connected"
+    || snapshot.setupState === "sync_pending"
+    || travelResult.inserted > 0 && snapshot.confirmedTravelBlockCount === 0) {
+    return Object.assign(snapshot, { scanState: "pending", checkoutAvailable: false });
+  }
+
+  const completedAt = new Date(opts.nowMs == null ? Date.now() : opts.nowMs).toISOString();
+  const firstTravelAt = snapshot.confirmedTravelBlockCount > 0
+    ? initialRow.web_first_travel_at || completedAt : null;
+  const row = await recordWebInitialScan(uid, current.row.calendar_connected_account_id,
+    completedAt, firstTravelAt, opts);
+  const offerAvailable = Boolean(row.web_first_travel_at && !row.stripe_subscription_id);
+  return Object.assign(snapshot, {
+    setupState: row.web_first_travel_at ? "trial_offer" : "no_eligible_events",
+    initialScanCompletedAt: row.web_initial_scan_completed_at,
+    firstTravelAt: row.web_first_travel_at,
+    scanState: row.web_first_travel_at ? "complete" : "zero_blocks",
+    checkoutAvailable: offerAvailable,
+    syncState: syncState(snapshot, travelResult),
+  });
 }
 
 function eventSnapshot(event) {
@@ -186,6 +253,25 @@ function matchingTravelBlocks(events, event) {
     && String(candidate.location || "").replace(/\s+/g, "").toLowerCase() === location);
 }
 
+function hasDeparturePopupReminder(event) {
+  return Boolean(event && event.reminders && event.reminders.useDefault === false
+    && Array.isArray(event.reminders.overrides)
+    && event.reminders.overrides.some((reminder) => reminder && reminder.method === "popup" && reminder.minutes === 0));
+}
+
+function confirmedTravelBlockCount(events, nowMs) {
+  const blocks = new Set();
+  for (const event of events) {
+    if (event.startMs < nowMs || isTravel(event.summary) || !event.location) continue;
+    const matches = matchingTravelBlocks(events, event);
+    if (matches.length !== 1) continue;
+    const block = matches[0];
+    if (!hasDeparturePopupReminder(block)) continue;
+    blocks.add(block.id || `${block.startMs}:${block.endMs}:${block.location || ""}`);
+  }
+  return blocks.size;
+}
+
 function validEventTimeZone(value) {
   if (typeof value !== "string") return null;
   const timezone = value.trim();
@@ -208,13 +294,56 @@ function baseSnapshot(row, setupState, calendarState) {
     departureAt: null,
     displayTimeZone: null,
     missingLocationCount: 0,
+    initialScanCompletedAt: row && row.web_initial_scan_completed_at || null,
+    firstTravelAt: row && row.web_first_travel_at || null,
+    confirmedTravelBlockCount: 0,
+    scanState: null,
+    checkoutAvailable: false,
+    subscriptionCheckoutAvailable: false,
     trialExpiresAt: row && row.trial_expires_at || null,
     paid: row && typeof row.paid === "boolean" ? row.paid : null,
+    planStatus: row && row.plan_status || null,
+    stripeCustomerId: row && row.stripe_customer_id || null,
+    stripeSubscriptionId: row && row.stripe_subscription_id || null,
   };
 }
 
 async function buildTodaySnapshot(uid, opts = {}) {
   if (!WEB_UID_RE.test(String(uid || ""))) throw webError(401, "unauthorized");
+  const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
+  const firstRow = await readWebUserRow(uid, opts);
+  await assertUnbound(uid, opts);
+  if (firstRow.web_first_travel_at && !webTrialEligible(firstRow) && !webTravelEntitled(firstRow, nowMs)) {
+    const snapshot = Object.assign(baseSnapshot(firstRow, "billing_inactive", "connected"),
+      await readWebAutomationPreference(uid, opts));
+    snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(firstRow);
+    return snapshot;
+  }
+  if (firstRow.web_first_travel_at) {
+    let active;
+    try { active = await readActiveCalendarUser(uid, opts); }
+    catch (error) {
+      if (error && error.code === "calendar_status_unavailable") {
+        return Object.assign(baseSnapshot(error.userRow, "sync_pending", "unavailable"),
+          await readWebAutomationPreference(uid, opts));
+      }
+      throw error;
+    }
+    const preference = await readWebAutomationPreference(uid, opts);
+    if (active.status !== "ACTIVE") {
+      return Object.assign(baseSnapshot(active.row, "needs_calendar", "action_required"), preference);
+    }
+    const trialEligible = webTrialEligible(active.row);
+    const entitled = webTravelEntitled(active.row, nowMs);
+    const setupState = trialEligible ? "trial_offer"
+      : entitled ? String(active.row.plan_status || "").toLowerCase() === "trialing" ? "trial_active" : "subscribed"
+        : "billing_inactive";
+    const snapshot = Object.assign(baseSnapshot(active.row, setupState, "connected"), preference);
+    snapshot.scanState = "complete";
+    snapshot.checkoutAvailable = trialEligible;
+    snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(active.row);
+    return snapshot;
+  }
   let current;
   try { current = await readActiveCalendarUser(uid, opts); }
   catch (error) {
@@ -230,7 +359,6 @@ async function buildTodaySnapshot(uid, opts = {}) {
     return Object.assign(baseSnapshot(row, "needs_calendar", "action_required"), preference);
   }
 
-  const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
   // The selected account's exact ACTIVE result above is still current only if its marker is unchanged.
   // Re-read that row and run Task 2's NULL-Telegram check immediately before the Calendar event read.
   const beforeReadRow = await readWebUserRow(uid, opts);
@@ -262,19 +390,33 @@ async function buildTodaySnapshot(uid, opts = {}) {
   snapshot.travelBlock = eventSnapshot(travel);
   snapshot.departureAt = travel && Number.isFinite(travel.startMs) ? new Date(travel.startMs).toISOString() : null;
   snapshot.displayTimeZone = validEventTimeZone(nextEvent && nextEvent.timezone);
+  snapshot.confirmedTravelBlockCount = confirmedTravelBlockCount(ordered, nowMs);
   const sevenDaysLater = nowMs + 7 * 86400_000;
   snapshot.missingLocationCount = ordered.filter((event) => event.startMs >= nowMs
     && event.startMs <= sevenDaysLater
     && !isTravel(event.summary)
     && !String(event.location || "").trim()).length;
 
-  const home = String(beforeReadRow.home_address || "").trim();
-  if (matches.length > 1) snapshot.setupState = "sync_pending";
-  else if (!home) snapshot.setupState = "needs_home";
+  if (matches.length > 1 || matches.length === 1 && !hasDeparturePopupReminder(matches[0])) snapshot.setupState = "sync_pending";
   else if (nextEvent && nextEvent.location) {
-    const before = ordered.filter((event) => event.startMs < nextEvent.startMs && !isTravel(event.summary)).at(-1) || null;
-    if (travelDecision(nextEvent, before, home).insert && !travel) snapshot.setupState = "sync_pending";
+    const previous = ordered.filter((event) => event.startMs < nextEvent.startMs && !isTravel(event.summary)).at(-1) || null;
+    if (travelDecision(nextEvent, previous, String(beforeReadRow.home_address || "").trim()).insert && !travel) {
+      snapshot.setupState = "sync_pending";
+    }
   }
+  if (snapshot.setupState !== "sync_pending" && !beforeReadRow.web_initial_scan_completed_at) snapshot.setupState = "needs_initial_scan";
+  else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_first_travel_at
+    && !webTrialEligible(beforeReadRow) && !webTravelEntitled(beforeReadRow, nowMs)) snapshot.setupState = "billing_inactive";
+  else if (snapshot.setupState !== "sync_pending" && webTravelEntitled(beforeReadRow, nowMs)
+    && String(beforeReadRow.plan_status || "").toLowerCase() === "trialing") snapshot.setupState = "trial_active";
+  else if (snapshot.setupState !== "sync_pending" && webTravelEntitled(beforeReadRow, nowMs)) snapshot.setupState = "subscribed";
+  else if (snapshot.setupState !== "sync_pending" && webTrialEligible(beforeReadRow)) snapshot.setupState = "trial_offer";
+  else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_initial_scan_completed_at) snapshot.setupState = "no_eligible_events";
+  else if (snapshot.setupState !== "sync_pending") snapshot.setupState = "needs_initial_scan";
+  snapshot.scanState = beforeReadRow.web_initial_scan_completed_at
+    ? beforeReadRow.web_first_travel_at ? "complete" : "zero_blocks" : "not_started";
+  snapshot.checkoutAvailable = webTrialEligible(beforeReadRow);
+  snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(beforeReadRow);
   return snapshot;
 }
 
@@ -292,9 +434,21 @@ function syncState(snapshot, travelResult) {
   return snapshot.setupState === "ready" ? "no_travel_needed" : "sync_pending";
 }
 
-async function travelOwnerOnce(user, opts = {}) {
+async function travelOwnerOnce(user, opts = {}, runOptions = {}) {
   const run = opts.travelUserOnceImpl || require("../scheduler.js").travelUserOnce;
-  return run(user);
+  const env = opts.env || process.env;
+  return run(user, {
+    initialScan: runOptions.initialScan === true,
+    apiKey: opts.composioKey || env.COMPOSIO_API_KEY,
+    mapsKey: opts.mapsKey || env.LIFE_MAPS_KEY || env.GOOGLE_API_KEY,
+    geminiKey: opts.geminiKey || env.GEMINI_API_KEY,
+    supaUrl: opts.supaUrl,
+    supaKey: opts.supaKey,
+    fetchImpl: opts.fetchImpl || opts.fetch,
+    env,
+    nowMs: opts.nowMs,
+    calendar: opts.calendar,
+  });
 }
 
 function selectedWebCalendarAccount(row) {
@@ -320,7 +474,7 @@ async function applyWebTravelControl(uid, accountId, action, opts = {}) {
   const expectedAccountId = action === "disconnect_finish" ? null : accountId;
   const expectedPending = action === "disconnect_begin" ? true
     : action === "disconnect_finish" || action === "resume" ? false : null;
-  const expectedEnablePending = action === "pause" ? null : false;
+  const expectedEnablePending = action === "pause" || action === "initial_scan_pause" ? null : false;
   if (selectedWebCalendarAccount(row) !== expectedAccountId
     || preference.dailyAutomationEnabled !== (action === "resume")
     || expectedPending !== null && preference.disconnectPending !== expectedPending
@@ -338,19 +492,20 @@ async function applyWebTravelControl(uid, accountId, action, opts = {}) {
 async function controlWebTravel(uid, action, opts = {}) {
   await assertUnbound(uid, opts);
   let row = await readWebUserRow(uid, opts);
+  if (action === "resume" && !webTravelEntitled(row, opts.nowMs == null ? Date.now() : opts.nowMs)) {
+    throw webError(409, "billing_required");
+  }
   let accountId = selectedWebCalendarAccount(row);
   const preference = await readWebAutomationPreference(uid, opts);
 
   if (action === "resume") {
     if (preference.disconnectPending === true) throw webError(409, "disconnect_pending");
     if (preference.enablePending === true) throw webError(409, "calendar_enable_pending");
-    if (!String(row.home_address || "").trim()) throw webError(409, "home_required");
     const active = await readActiveCalendarUser(uid, opts);
     if (active.status !== "ACTIVE" || selectedWebCalendarAccount(active.row) !== accountId) {
       throw webError(409, "calendar_not_active");
     }
     row = active.row;
-    if (!String(row.home_address || "").trim()) throw webError(409, "home_required");
     await assertUnbound(uid, opts);
     const current = await readWebUserRow(uid, opts);
     if (selectedWebCalendarAccount(current) !== accountId) throw webError(409, "calendar_account_changed");
@@ -410,6 +565,9 @@ async function handleWebTravelRequest(req, res, opts = {}) {
   try { body = await (opts.readJsonImpl || panelApi().readJson)(req); }
   catch (error) { return sendJson(res, error && error.status === 413 ? 413 : 400, { error: "invalid_json" }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return sendJson(res, 400, { error: "invalid_json" });
+  if (url.pathname === SETUP_PATH && body.rescan !== undefined && typeof body.rescan !== "boolean") {
+    return sendJson(res, 400, { error: "invalid_rescan_action" });
+  }
 
   if (url.pathname === CONTROL_PATH) {
     if (Object.keys(body).length !== 1 || !["pause", "resume", "disconnect"].includes(body.action)) {
@@ -425,41 +583,7 @@ async function handleWebTravelRequest(req, res, opts = {}) {
   }
 
   try {
-    const homeAddress = normalizeHomeAddress(body.homeAddress);
-    if (!homeAddress) throw webError(400, "invalid_home_address");
-    await completeWebTravelSetup(uid, homeAddress, opts);
-
-    // Confirm the selected account is still ACTIVE after the atomic setup transition, then use the
-    // existing shared owner once. A second exact read below decides whether any helper is reportable.
-    let activeForSync;
-    try { activeForSync = await readActiveCalendarUser(uid, opts); }
-    catch (error) {
-      if (!error || error.code !== "calendar_status_unavailable") throw error;
-    }
-    const { row, status } = activeForSync || {};
-    let travelResult = null;
-    if (status === "ACTIVE") {
-      await assertUnbound(uid, opts);
-      const preference = await readWebAutomationPreference(uid, opts);
-      const storedHomeAddress = normalizeHomeAddress(row.home_address);
-      if (preference.dailyAutomationEnabled === true && preference.disconnectPending !== true
-        && preference.enablePending !== true && storedHomeAddress) {
-        try {
-          travelResult = await travelOwnerOnce({
-            uid,
-            home_address: storedHomeAddress,
-            call_time_zone: null,
-            daily_automation_enabled: preference.dailyAutomationEnabled,
-            call_enabled: false,
-            notifications_enabled: false,
-            telegram_chat_id: null,
-            expectedCalendarAccountId: row.calendar_connected_account_id,
-          }, opts);
-        } catch { /* the strict post-run Calendar read remains the success boundary */ }
-      }
-    }
-    const snapshot = await buildTodaySnapshot(uid, opts);
-    return sendJson(res, 200, { ...snapshot, syncState: syncState(snapshot, travelResult) });
+    return sendJson(res, 200, await runInitialWebTravelScan(uid, opts, { rescan: body.rescan === true }));
   } catch (error) {
     const status = Number.isInteger(error && error.status) ? error.status : 502;
     return sendJson(res, status, { error: status < 500 ? error.code : "setup_unavailable" });
@@ -471,6 +595,6 @@ module.exports = {
   SETUP_PATH,
   TODAY_PATH,
   buildTodaySnapshot,
-  completeWebTravelSetup,
   handleWebTravelRequest,
+  runInitialWebTravelScan,
 };
