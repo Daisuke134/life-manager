@@ -143,7 +143,7 @@
 - [x] Step 4 (GREEN): Add Places metering/cap and thread uid through the existing route fallback. Extend the Maps SKU allowlist and pricing version without changing Calendar or Stripe entitlement behavior.
 - [x] Step 5 (RED/GREEN): Add the append-only funnel migration and instrument `landing_view`, `google_connect_start`, `google_authenticated`, `calendar_active`, `first_travel_block`, `checkout_created`, `trial_started`, `paid_invoice`, `cancellation_requested`, `subscription_canceled`, and successful `refund_recorded`. No IP, user-agent, event titles, addresses, Gmail, or raw URLs are recorded.
 - [x] Step 6 (source): Implement a read-only report over Web users, funnel events, usage rows, current Stripe subscriptions, and attributable Stripe balance transactions. D7/D30 are labeled current paid-subscription retention; provider actuals and unallocated hosting/marketing remain null.
-- [ ] Step 7: Run all focused source suites, migration/ACL checks, synthetic report/Stripe tests, browser onboarding E2E, and `git diff --check`. Apply the migration only from a merged main release, then read back production schema and exercise TEST-mode Stripe lifecycle. Keep the live price and live charge unchanged.
+- [~] Step 7: Source acceptance passes 238/238 focused tests, synthetic browser onboarding E2E at 390x844/1440x900, `node --check` on changed JavaScript, and `git diff --check`. Remaining: test migration/ACL on the target project after merge, run the report against read-only production data, refresh live Stripe/Composio readbacks, and exercise TEST-mode refund/trial lifecycle. No live price or live charge changed in WB-12 source work.
 
 ## After this source plan
 
