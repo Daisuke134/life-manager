@@ -26,6 +26,56 @@ function economicField(scope, field) {
   }
   return entries.length ? entries.join(" / ") : null;
 }
+function jpy(value) {
+  return Number.isSafeInteger(value) ? `¥${value.toLocaleString("ja-JP")}` : "未確認";
+}
+function renderPersonalMoneytree(personal) {
+  if (!personal || personal.owner !== "dais_personal") return "";
+  const lines = [
+    "個人 Moneytree（会社P&Lには合算しない）",
+    `状態: ${personal.status || "unknown"} | freshness: ${personal.freshness_status || "unknown"} (provider sync: 未確認)`,
+  ];
+  if (Array.isArray(personal.balances) && personal.balances.length) {
+    for (const balance of personal.balances) {
+      lines.push(`残高（最終観測）: ${balance.institution} ${jpy(balance.balance_jpy)} (${balance.observed_at || "観測時刻未確認"})`);
+    }
+  } else {
+    lines.push("残高: 未確認");
+  }
+  const windows = Array.isArray(personal.windows) ? personal.windows : [];
+  const complete = windows.filter((window) => window.coverage_status === "complete").length;
+  lines.push(`取引coverage: ${windows.length ? `${complete}/${windows.length} windows complete` : "未確認"} (${personal.range_start || "?"}..${personal.range_end || "?"})`);
+  if (Array.isArray(personal.monthly) && personal.monthly.length) {
+    for (const month of personal.monthly) {
+      lines.push(`${month.month}: 収入 ${jpy(month.income_jpy)} / 支出（観測小計） ${jpy(month.expense_jpy)} / 現金移動 ${jpy(month.cash_movement_jpy)}`);
+      for (const category of month.categories || []) {
+        const observed = [
+          category.income_jpy !== null ? `収入 ${jpy(category.income_jpy)}` : null,
+          category.expense_jpy !== null ? `支出 ${jpy(category.expense_jpy)}` : null,
+          category.cash_movement_jpy !== null ? `現金移動 ${jpy(category.cash_movement_jpy)}` : null,
+        ].filter(Boolean);
+        if (observed.length) lines.push(`  ${category.category}: ${observed.join(" / ")}`);
+      }
+    }
+  } else {
+    lines.push("取引集計: 未確認");
+  }
+  lines.push(`最新取引: ${personal.latest_transaction_date || "未確認"}`);
+  const candidates = Array.isArray(personal.recurring_charge_candidates)
+    ? personal.recurring_charge_candidates : [];
+  if (candidates.length) {
+    lines.push(`定期支出候補（未確認）: ${candidates.map(candidate => (
+      `${candidate.merchant} ${candidate.month_count}か月 ${jpy(candidate.total_observed_jpy)}`
+    )).join(" / ")}`);
+  } else {
+    lines.push("定期支出候補: 未確認");
+  }
+  return lines.join("\n");
+}
+function appendPersonalMoneytree(message, personal) {
+  const section = renderPersonalMoneytree(personal);
+  return section ? `${message}\n\n${section}` : message;
+}
 function economicLoops(projection, window) {
   return projection?.[window]?.loops && typeof projection[window].loops === "object"
     ? projection[window].loops : {};
@@ -90,7 +140,9 @@ function renderResultSummary(table) {
   if (!table || !/^\d{4}-\d{2}-\d{2}$/.test(table.reporting_date)) {
     throw new Error("cfo_result_table_invalid");
   }
-  if (table.economic_attribution) return renderEconomicSummary(table, table.economic_attribution);
+  if (table.economic_attribution) {
+    return appendPersonalMoneytree(renderEconomicSummary(table, table.economic_attribution), table.personal_moneytree);
+  }
   if (!Array.isArray(table.rows)) throw new Error("cfo_result_table_invalid");
   const totals = new Map();
   const known = [];
@@ -158,6 +210,6 @@ function renderResultSummary(table) {
   if (known.length) lines.push(known.join(" | "));
   if (unknown.length) lines.push(`未確認: ${[...new Set(unknown)].join(", ")}`);
   lines.push("投資は実現損益。他は売上。API価格換算は請求額ではありません。トークン数・定額契約の日割り: 未確認。");
-  return lines.join("\n");
+  return appendPersonalMoneytree(lines.join("\n"), table.personal_moneytree);
 }
 module.exports = { renderResultSummary, decimalUnits, decimalText };

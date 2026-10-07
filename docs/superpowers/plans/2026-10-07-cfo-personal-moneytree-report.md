@@ -67,16 +67,16 @@
 - On a Moneytree/evidence error, `collectCfoProjection` preserves the business table and sets personal status to unavailable; it does not throw.
 - `renderResultSummary(table)` appends a personal section only when `personal_moneytree` exists. Snapshots without that field keep their exact existing message.
 
-- [ ] **Step 1: Write `collectCfoProjection preserves business data and binds Moneytree evidence`**; literal business-table fields remain unchanged while each personal window is paired with its receipt.
-- [ ] **Step 2: Write `Moneytree reads cover four bounded windows and dedupe boundary rows`**; assert the four literal ranges, no duplicate transaction IDs, returned-vs-total counts, and visible gap state on an incomplete chunk.
-- [ ] **Step 3: Write `Moneytree periods without provider sync remain unknown, not zero`**; assert `provider_sync_at === null`, `freshness_status === "unknown"`, latest transaction date is retained, and zero-row flow amounts are null.
-- [ ] **Step 4: Write `Moneytree transfers are excluded and recurring charges remain candidates`**; assert transfer/card repayment/ATM rows do not enter expense totals and a repeated merchant is shown only as an observed candidate.
-- [ ] **Step 5: Write `Moneytree failure preserves business data and legacy rendering`**; assert read/evidence failure leaves the business projection intact and a projection without `personal_moneytree` renders exactly as before.
-- [ ] **Step 6: Write `Moneytree cache reuses a same-day snapshot and never upgrades stale data`**; assert one provider read within the 24-hour cache window and freshness stays unknown.
-- [ ] **Step 7: Run `node --test apps/life-manager/scripts/cfo-hourly-local.test.js apps/life-manager/lib/cfo-result-summary.test.js`; verify the new assertions fail for the missing behavior.**
-- [ ] **Step 8: Implement `collectCfoProjection(date, options)` and pass it through `runResultCfo({collect})`.** Preserve the exact business `loop_pnl.py` args/environment/timeout; read accounts once and transaction chunks serially; hash-bind each window receipt; dedupe rows; cache only the minimized summary for 24 hours.
-- [ ] **Step 9: Render balances as provider-reported/freshness-unknown, empty periods as unknown, observed category totals as partial, and recurring charges as candidates only.**
-- [ ] **Step 10: Exercise real `runResultCfo` pending/retry with an injected notifier; verify one frozen message and no recollect/resend.**
+- [x] **Step 1: Write `collectCfoProjection preserves business data and binds Moneytree evidence`**; literal business-table fields remain unchanged while each personal window is paired with its receipt.
+- [x] **Step 2: Write `Moneytree reads cover four bounded windows and dedupe boundary rows`**; assert the four literal ranges, no duplicate transaction IDs, returned-vs-total counts, and visible gap state on an incomplete chunk.
+- [x] **Step 3: Write `Moneytree periods without provider sync remain unknown, not zero`**; assert `provider_sync_at === null`, `freshness_status === "unknown"`, latest transaction date is retained, and zero-row flow amounts are null.
+- [x] **Step 4: Write `Moneytree transfers are excluded and recurring charges remain candidates`**; assert transfer/card repayment/ATM rows do not enter expense totals and a repeated merchant is shown only as an observed candidate.
+- [x] **Step 5: Write `Moneytree failure preserves business data and legacy rendering`**; assert read/evidence failure leaves the business projection intact and a projection without `personal_moneytree` renders exactly as before.
+- [x] **Step 6: Write `Moneytree cache reuses a same-day snapshot and never upgrades stale data`**; assert one provider read within the 24-hour cache window and freshness stays unknown.
+- [x] **Step 7: Run `node --test apps/life-manager/scripts/cfo-hourly-local.test.js apps/life-manager/lib/cfo-result-summary.test.js`; verify the new assertions fail for the missing behavior.**
+- [x] **Step 8: Implement `collectCfoProjection(date, options)` and pass it through `runResultCfo({collect})`.** Preserve the exact business `loop_pnl.py` args/environment/timeout; read accounts once and transaction chunks serially; hash-bind each window receipt; dedupe rows; cache only the minimized summary for 24 hours.
+- [x] **Step 9: Render balances as provider-reported/freshness-unknown, empty periods as unknown, observed category totals as partial, and recurring charges as candidates only.**
+- [x] **Step 10: Exercise real `runResultCfo` pending/retry with an injected notifier; verify one frozen message and no recollect/resend.**
 - [ ] **Step 11: Run focused tests and commit the task.**
 
 ### Task 3: Verify source and report contracts
@@ -92,3 +92,4 @@
 - The existing `runResultCfo.collect` seam composes a separate personal projection into the B7 snapshot and message hash without editing `cfo-result-local.js` or changing delivery idempotency.
 - The current mainline cursor remains A4.1; this is a parallel, explicitly partial A7/A9 implementation slice. It does not claim A4 completion, current bank freshness, verified subscription contracts, or production acceptance.
 - Task 1 verification: the adapter tests first failed on the three intended behaviors, then passed after the minimal adapter change. The related ingest test had an unrelated stale literal (`15`) after main commit `6c5240d70e` expanded the catalog to 18 loops; its expected count now reflects the current contract. Adapter + ingest tests pass 15/15.
+- Task 2 verification: four serial three-month reads bind count coverage and immutable receipt refs; repeated transaction IDs are deduped; absent provider sync and empty flows stay unknown; transfers are excluded and repeated merchants remain unverified candidates; a 24-hour cache reuses only the minimized projection and expired data becomes stale on read failure. The B7 pending retry reuses the exact same message without recollecting. The focused acceptance command passed 69/69.

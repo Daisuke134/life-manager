@@ -1,11 +1,15 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
-const { createMoneytreeObservationStore } = require("../lib/moneytree-observation-store.js");
+const moneytree = require("../lib/moneytree-local-adapter.js");
+const {
+  buildMoneytreeObservation, createMoneytreeObservationStore,
+} = require("../lib/moneytree-observation-store.js");
 const { ingestFinancialRecords, splitPaths } = require("../lib/financial-manager-ingest.js");
 const {
   runFinancialManager,
@@ -84,6 +88,261 @@ function writeSnapshot(file, value) {
       if (!error || error.code !== "ENOENT") throw error;
     }
   }
+}
+
+const PERSONAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MONEYTREE_TRANSACTION_LIMIT = 1000;
+const CASH_MOVEMENT_CATEGORIES = new Set(["振替", "カード返済", "ATM引き出し"]);
+
+function isoDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)
+    || new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value) {
+    throw new Error("CFO report date invalid");
+  }
+  return value;
+}
+
+function shiftMonths(value, amount) {
+  const [year, month, day] = isoDate(value).split("-").map(Number);
+  const first = new Date(Date.UTC(year, month - 1 + amount, 1));
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(day, lastDay));
+  return first.toISOString().slice(0, 10);
+}
+
+function shiftDays(value, amount) {
+  const date = new Date(`${isoDate(value)}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+function moneytreeWindows(reportDate) {
+  const start = shiftMonths(reportDate, -12);
+  const windows = [];
+  let windowStart = start;
+  for (let index = 0; index < 4; index += 1) {
+    const windowEnd = index === 3 ? reportDate : shiftDays(shiftMonths(windowStart, 3), -1);
+    windows.push({ startDate: windowStart, endDate: windowEnd });
+    windowStart = shiftDays(windowEnd, 1);
+  }
+  return windows;
+}
+
+function readPersonalCache(file, now) {
+  try {
+    const cached = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (cached?.schema_version !== 1 || !cached.personal_moneytree
+      || cached.personal_moneytree.owner !== "dais_personal") return null;
+    const age = now.getTime() - Date.parse(cached.cached_at);
+    return {
+      personal: cached.personal_moneytree,
+      fresh: Number.isFinite(age) && age >= 0 && age < PERSONAL_CACHE_TTL_MS,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function unavailablePersonal(date, status = "unavailable") {
+  const [rangeStart, rangeEnd] = [shiftMonths(date, -12), date];
+  return {
+    schema_version: 1, owner: "dais_personal", status,
+    observed_at: null, provider_sync_at: null,
+    freshness_status: status === "stale" ? "stale" : "unknown",
+    range_start: rangeStart, range_end: rangeEnd, windows: [], balances: [],
+    latest_transaction_date: null, monthly: [], recurring_charge_candidates: [],
+  };
+}
+
+function addObservedAmount(target, field, amount) {
+  const next = (target[field] ?? 0) + amount;
+  if (!Number.isSafeInteger(next)) throw new Error("Moneytree total is unsafe");
+  target[field] = next;
+}
+
+function normalizedMerchant(value) {
+  if (typeof value !== "string") return null;
+  const label = value.normalize("NFKC").replace(/\d{7,}/g, "[番号]").replace(/\s+/g, " ").trim();
+  return label && !label.includes("@") ? label.slice(0, 80) : null;
+}
+
+function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
+  const unique = new Map();
+  for (const item of windowsWithRows) {
+    for (const transaction of item.transactions) {
+      if (!transaction || typeof transaction.id !== "string" || !transaction.id
+        || !Number.isSafeInteger(transaction.amount_jpy)
+        || !Number.isFinite(Date.parse(transaction.occurred_at))) {
+        throw new Error("Moneytree normalized transaction invalid");
+      }
+      if (!unique.has(transaction.id)) unique.set(transaction.id, transaction);
+    }
+  }
+
+  const months = new Map();
+  const recurring = new Map();
+  let latestTransactionDate = null;
+  for (const transaction of unique.values()) {
+    const date = new Date(transaction.occurred_at).toISOString().slice(0, 10);
+    if (!latestTransactionDate || date > latestTransactionDate) latestTransactionDate = date;
+    const month = date.slice(0, 7);
+    if (!months.has(month)) months.set(month, {
+      month, income_jpy: null, expense_jpy: null, cash_movement_jpy: null, categoryMap: new Map(),
+    });
+    const summary = months.get(month);
+    const category = String(transaction.category || "未分類").trim() || "未分類";
+    if (!summary.categoryMap.has(category)) summary.categoryMap.set(category, {
+      category, income_jpy: null, expense_jpy: null, cash_movement_jpy: null,
+    });
+    const categorySummary = summary.categoryMap.get(category);
+    const transfer = Boolean(transaction.transfer_id) || CASH_MOVEMENT_CATEGORIES.has(category);
+    if (transfer) {
+      addObservedAmount(summary, "cash_movement_jpy", transaction.amount_jpy);
+      addObservedAmount(categorySummary, "cash_movement_jpy", transaction.amount_jpy);
+    } else if (transaction.amount_jpy >= 0) {
+      addObservedAmount(summary, "income_jpy", transaction.amount_jpy);
+      addObservedAmount(categorySummary, "income_jpy", transaction.amount_jpy);
+    } else {
+      const amount = Math.abs(transaction.amount_jpy);
+      addObservedAmount(summary, "expense_jpy", amount);
+      addObservedAmount(categorySummary, "expense_jpy", amount);
+      const merchant = normalizedMerchant(transaction.merchant);
+      if (merchant) {
+        if (!recurring.has(merchant)) recurring.set(merchant, { months: new Set(), total_observed_jpy: 0 });
+        const candidate = recurring.get(merchant);
+        candidate.months.add(month);
+        candidate.total_observed_jpy += amount;
+        if (!Number.isSafeInteger(candidate.total_observed_jpy)) throw new Error("Moneytree recurring total is unsafe");
+      }
+    }
+  }
+
+  const balances = accounts.map((account) => {
+    if (typeof account.name !== "string" || !account.name.trim() || !Number.isSafeInteger(account.balance_jpy)) {
+      throw new Error("Moneytree normalized account invalid");
+    }
+    return { institution: account.name.trim(), balance_jpy: account.balance_jpy, observed_at: account.observed_at };
+  });
+  return {
+    schema_version: 1,
+    owner: "dais_personal",
+    status: windowsWithRows.every((item) => item.coverage_status === "complete") ? "observed" : "partial",
+    observed_at: windowsWithRows.map((item) => item.observed_at).filter(Boolean).sort().at(-1) || null,
+    provider_sync_at: null,
+    freshness_status: "unknown",
+    range_start: shiftMonths(reportDate, -12),
+    range_end: reportDate,
+    windows: windowsWithRows.map(({ startDate, endDate, provider_total_count, returned_count, limit, coverage_status, evidence_ref }) => ({
+      query_start_date: startDate, query_end_date: endDate,
+      provider_total_count, returned_count, limit, coverage_status, evidence_ref,
+    })),
+    balances,
+    latest_transaction_date: latestTransactionDate,
+    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).map(({ categoryMap, ...month }) => ({
+      ...month,
+      categories: [...categoryMap.values()].sort((a, b) => a.category.localeCompare(b.category)),
+    })),
+    recurring_charge_candidates: [...recurring.entries()]
+      .filter(([, candidate]) => candidate.months.size >= 2)
+      .map(([merchant, candidate]) => ({
+        merchant, month_count: candidate.months.size, total_observed_jpy: candidate.total_observed_jpy,
+      }))
+      .sort((a, b) => a.merchant.localeCompare(b.merchant)),
+  };
+}
+
+async function readPersonalMoneytree(date, options, now, stateDir) {
+  const cacheFile = path.join(stateDir, "personal-moneytree-snapshot.json");
+  const cached = readPersonalCache(cacheFile, now);
+  if (cached?.fresh) return cached.personal;
+
+  try {
+    const readAccounts = options.readAccounts || moneytree.readAccounts;
+    const readTransactions = options.readTransactions || moneytree.readTransactions;
+    const accounts = await readAccounts(options.moneytreeOptions || {});
+    if (!Array.isArray(accounts)) throw new Error("Moneytree account read invalid");
+    const accountRead = accounts[moneytree.MONEYTREE_OBSERVATION];
+    const evidenceStore = options.moneytreeEvidenceStore || createMoneytreeObservationStore({
+      directoryPath: path.join(stateDir, "evidence", "moneytree"),
+    });
+    const windowsWithRows = [];
+    for (const { startDate, endDate } of moneytreeWindows(date)) {
+      const transactions = await readTransactions({
+        startDate, endDate, limit: MONEYTREE_TRANSACTION_LIMIT, ...(options.moneytreeOptions || {}),
+      });
+      if (!Array.isArray(transactions)) throw new Error("Moneytree transaction read invalid");
+      const transactionRead = transactions[moneytree.MONEYTREE_OBSERVATION];
+      if (transactionRead?.query_start_date !== startDate || transactionRead?.query_end_date !== endDate
+        || transactionRead?.returned_count !== transactions.length) {
+        throw new Error("Moneytree transaction coverage metadata invalid");
+      }
+      const observedAt = [accountRead?.retrieved_at, transactionRead?.retrieved_at]
+        .filter((value) => Number.isFinite(Date.parse(value))).sort().at(-1);
+      const receipt = buildMoneytreeObservation({
+        accounts, transactions, accountRead, transactionRead, observedAt,
+      });
+      const evidenceRef = evidenceStore.record(receipt);
+      const providerTotal = transactionRead.provider_total_count;
+      const limit = transactionRead.limit;
+      const coverageStatus = Number.isSafeInteger(providerTotal)
+        && providerTotal === transactions.length && Number.isSafeInteger(limit)
+        && transactions.length < limit ? "complete" : "partial";
+      const read = {
+        startDate, endDate,
+        provider_total_count: Number.isSafeInteger(providerTotal) ? providerTotal : null,
+        returned_count: transactions.length,
+        limit: Number.isSafeInteger(limit) ? limit : null,
+        coverage_status: coverageStatus,
+        evidence_ref: evidenceRef,
+        observed_at: observedAt,
+      };
+      windowsWithRows.push({ ...read, transactions });
+    }
+    const personal = projectPersonalTransactions(accounts, windowsWithRows, date);
+    writeSnapshot(cacheFile, { schema_version: 1, cached_at: now.toISOString(), personal_moneytree: personal });
+    return personal;
+  } catch {
+    if (cached?.personal) return { ...cached.personal, status: "stale", freshness_status: "stale" };
+    return unavailablePersonal(date);
+  }
+}
+
+function collectBusinessTable(date, options) {
+  const script = options.loopPnlScript || path.resolve(__dirname, "../../../skills/cfo/loop_pnl.py");
+  const args = [script, "--date", date, "--json"];
+  if (options.snapshotAt) args.push("--snapshot-at", String(options.snapshotAt));
+  if (options.trailingStart) args.push("--trailing-start", String(options.trailingStart));
+  const collectorEnv = { ...(options.env || process.env) };
+  if (options.capafyAnalyticsPath) collectorEnv.LM_CFO_CAPAFY_ANALYTICS = String(options.capafyAnalyticsPath);
+  if (options.mobileAppsBusinessOutcomesPath) collectorEnv.LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES = String(options.mobileAppsBusinessOutcomesPath);
+  if (options.affiliateReadbackPath) collectorEnv.LM_CFO_AFFILIATE_READBACK = String(options.affiliateReadbackPath);
+  if (Array.isArray(options.agentReceiptPaths) && options.agentReceiptPaths.length) {
+    collectorEnv.LM_CFO_AGENT_ECONOMY_RECEIPTS = options.agentReceiptPaths.join(path.delimiter);
+  }
+  if (Array.isArray(options.marketplaceReceiptPaths) && options.marketplaceReceiptPaths.length) {
+    collectorEnv.LM_CFO_MARKETPLACE_RECEIPTS = options.marketplaceReceiptPaths.join(path.delimiter);
+  }
+  const result = spawnSync(options.pythonBin || "python3", args, {
+    encoding: "utf8", timeout: 120_000, env: collectorEnv,
+  });
+  if (result.error || result.status !== 0) throw new Error("CFO business source read failed");
+  const table = JSON.parse(result.stdout);
+  if (!table || typeof table !== "object" || Array.isArray(table) || table.reporting_date !== date) {
+    throw new Error("CFO business source date mismatch");
+  }
+  return table;
+}
+
+async function collectCfoProjection(date, options = {}) {
+  date = isoDate(date);
+  if (typeof options.stateDir !== "string" || !options.stateDir.trim()) throw new Error("CFO state directory invalid");
+  const stateDir = path.resolve(options.stateDir);
+  if (stateDir === path.parse(stateDir).root) throw new Error("CFO state directory invalid");
+  const now = new Date(options.now || new Date());
+  if (!Number.isFinite(now.getTime())) throw new Error("CFO clock invalid");
+  const business = collectBusinessTable(date, options);
+  const personal = await readPersonalMoneytree(date, options, now, stateDir);
+  return { ...business, personal_moneytree: personal };
 }
 
 async function runHourlyCfo(options = {}) {
@@ -183,11 +442,17 @@ async function main(env = process.env) {
     || path.join(os.homedir(), ".local/state/life-manager/life-manager-cfo-hourly");
   try {
     const { runResultCfo } = require("./cfo-result-local.js");
+    const pythonBin = env.CFO_PYTHON_BIN || "python3";
+    const agentReceiptPaths = agentReceiptPathsFromEnv(env);
+    const marketplaceReceiptPaths = splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS);
+    const capafyAnalyticsPath = capafyAnalyticsPathFromEnv(env);
+    const mobileAppsBusinessOutcomesPath = mobileAppsBusinessOutcomesPathFromEnv(env);
+    const affiliateReadbackPath = affiliateReadbackPathFromEnv(env);
     const result = await runResultCfo({
       stateDir,
       subjectId: env.LM_CFO_SUBJECT_ID || env.LM_CFO_UID || env.LM_UID,
       occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
-      pythonBin: env.CFO_PYTHON_BIN || "python3",
+      pythonBin,
       reportChannel: env.LM_CFO_REPORT_CHANNEL || "email",
       reportCadence: env.LM_CFO_REPORT_CADENCE || "hourly",
       reportEmail: env.LM_CFO_REPORT_EMAIL,
@@ -195,11 +460,15 @@ async function main(env = process.env) {
       database: env.CFO_TELEGRAM_OUTBOX || path.join(stateDir, "telegram-outbox.sqlite3"),
       chatId: env.TELEGRAM_ALERT_CHAT_ID || env.LM_CFO_TELEGRAM_CHAT_ID || env.LM_ADMIN_TELEGRAM_CHAT_ID,
       envFile: env.LIFE_MANAGER_ENV_FILE || path.join(os.homedir(), ".local/state/life-manager/.env"),
-      agentReceiptPaths: agentReceiptPathsFromEnv(env),
-      marketplaceReceiptPaths: splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS),
-      capafyAnalyticsPath: capafyAnalyticsPathFromEnv(env),
-      mobileAppsBusinessOutcomesPath: mobileAppsBusinessOutcomesPathFromEnv(env),
-      affiliateReadbackPath: affiliateReadbackPathFromEnv(env),
+      agentReceiptPaths,
+      marketplaceReceiptPaths,
+      capafyAnalyticsPath,
+      mobileAppsBusinessOutcomesPath,
+      affiliateReadbackPath,
+      collect: (date) => collectCfoProjection(date, {
+        stateDir, pythonBin, env, agentReceiptPaths, marketplaceReceiptPaths,
+        capafyAnalyticsPath, mobileAppsBusinessOutcomesPath, affiliateReadbackPath,
+      }),
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return ["sent", "quiet"].includes(result.status) ? 0 : 1;
@@ -216,6 +485,6 @@ if (require.main === module) main().then((code) => { process.exitCode = code; })
 
 module.exports = {
   agentReceiptPathsFromEnv, capafyAnalyticsPathFromEnv, mobileAppsBusinessOutcomesPathFromEnv,
-  affiliateReadbackPathFromEnv,
+  affiliateReadbackPathFromEnv, collectCfoProjection,
   main, runHourlyCfo,
 };
