@@ -125,7 +125,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### OC-008 — submitRun(client, request, identity, agentId) -> Promise<{runId}>
 
-- [ ] `runtime/openclaw/gateway-client.mjs` — agent RPCにmessage/agentId/sessionKey/idempotencyKey/deliver:false/timeoutのみ渡す。expectFinal:false。未受領timeoutはdispatch_unknown。自身でagentを再callしない。 requestにMI-01で検証したimagesがある場合だけapproved attachments={type:image,mimeType,fileName,content:base64}をagent RPCへ追加する。任意model supplied attachmentやraw pathを渡さない。
+- [ ] `runtime/openclaw/gateway-client.mjs` — agent RPCにmessage/agentId/sessionKey/idempotencyKey/deliver:false/timeoutを基本fieldsとして渡す。expectFinal:false。未受領timeoutはdispatch_unknown。自身でagentを再callしない。 requestにMI-01で検証したimagesがある場合だけapproved attachments={type:image,mimeType,fileName,content:base64}をagent RPCへ追加する。任意model supplied attachmentやraw pathを渡さない。
 - 完了条件: tests/gateway-client.test.mjs: params完全一致、ack喪失でagent request count=1。 approved image fixture wire一致、image無し従来argv/RPC不変、path/bytes log0。
 - 依存: OC-007
 

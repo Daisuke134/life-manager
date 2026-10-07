@@ -14,6 +14,6 @@ Review focus: multi-task idempotency衝突、native tools迂回、ACK喪失、wr
 
 Node atomsは対象既存/new test fileを`node --test`、Python atomsは対象focused pytest/unittestでRED→minimal GREEN。source acceptanceは既存loop/CLI contractsとsecret/OSS gatesを含む。自然runはsource acceptanceと分離してVへ保存する。
 
-推論はChatGPT account接続native Codexのみ。NC-01〜03をOC-014/033の前提として実施。現在対象は16能力/110job、全215atomはspecを参照。
+推論はChatGPT account接続native Codexのみ。NC-01〜04とMI-01/02を依存DAGに従って実施。現在対象は16能力/110job、全215atomはspecを参照。
 
 Native CodexはUnix/user scopeの既存ChatGPT accountを利用。NC-04はendpoint attach-onlyを優先。MI-01画像入力、MI-02owned thread forkを必須対応に追加し、旧仕事をunsupportedのまま完了扱いしない。
