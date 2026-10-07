@@ -4,7 +4,7 @@
 
 **Goal:** 既に登録済みの日本語eBook Instagram/TikTokレーンを共有公開ゲートへ通し、既存owner経由で各1回の即時投稿を公式readbackで確認する。
 
-**Architecture:** `config/marketing-destinations.json` の正確なeBook宛先を維持し、共有manifestの許可商品に `ebook-ja` を追加する。失敗済みoccurrenceをPostiz公式readbackで照合し、最新integration一覧とmanifest writerで日本語2レーンだけをproduction targetへ移す。グローバル公開fenceはclosedのまま保つ。
+**Architecture:** `config/marketing-destinations.json` の正確なeBook宛先を維持し、共有manifestの許可商品に `ebook-en` と `ebook-ja` を追加する。失敗済みoccurrenceをPostiz公式readbackで照合し、最新integration一覧とmanifest writerで日本語2レーンだけをproduction targetへ移す。英語ownerはPostiz disabledのままにし、グローバル公開fenceはclosedのまま保つ。
 
 **Tech Stack:** Node.js、`node:test`、Life Manager `lm-loop`、Postiz公式readback。
 
@@ -38,7 +38,7 @@
 - [ ] 対象の日本語Instagram/TikTok occurrenceをそれぞれowner指定で公式readbackする。
 - [ ] 公式Postiz証拠がpre-effectを確定した場合だけresolveする。結果がunknownのままなら次の投稿を起動しない。
 
-### Task 2: TDDで `ebook-ja` をmanifestへ許可
+### Task 2: TDDでeBook商品をmanifestへ許可
 
 **Files:**
 - Modify: `apps/life-manager/lib/marketing-lane-manifest.js`
@@ -50,7 +50,7 @@
 
 - [ ] `closed production fence` 下で、正確なeBook Instagram/TikTok laneがenqueueできる回帰テストを書く。各laneの `target_daily_limit` は3、canary状態は未検証と明示する。
 - [ ] `node --test --test-name-pattern="eBook Japan lanes" apps/life-manager/lib/marketing-local-ledger.test.js` を実行し、`ebook-ja` が未知の商品として拒否されるREDを確認する。
-- [ ] `PRODUCTS` に `ebook-ja` を追加する最小変更を行う。
+- [ ] `PRODUCTS` に `ebook-en` と `ebook-ja` を追加する最小変更を行う。
 - [ ] `node --test apps/life-manager/lib/marketing-local-ledger.test.js apps/life-manager/lib/marketing-lane-manifest.test.js` を実行してGREENを確認する。
 
 ### Task 3: 仕様を実測に揃える

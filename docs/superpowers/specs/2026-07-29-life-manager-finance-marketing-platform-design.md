@@ -2002,10 +2002,12 @@ includes:
 
 The Japanese eBook targets `@obou.anicca` (Instagram) and `@obou_anicca`
 (TikTok) are separate product routes already bound in
-`config/marketing-destinations.json`. The shared lane manifest also accepts
-`ebook-ja`; the live production manifest must move only these two exact
-integrations from `hold` to their configured target lanes before publication.
-Until that state readback passes, both remain operationally blocked.
+`config/marketing-destinations.json`. The shared lane manifest accepts both
+`ebook-en` and `ebook-ja`. Only the two exact Japanese integrations move from
+`hold` to their configured target lanes in this recovery. The English
+`@monk_anicca` integration remains held while Postiz reports it disabled.
+Until the Japanese state readback passes, those routes remain operationally
+blocked.
 
 An enabled Postiz connection in this hold list is routing configuration only.
 It is not permission to publish. `@aniccaaffirmation` is a high-value research
