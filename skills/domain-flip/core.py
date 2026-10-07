@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from typing import Any
 
 
-INITIAL_CAP_EUR = Decimal("100.00")
+INITIAL_CAP_USD = Decimal("4.99")
 MAX_ACTIVE_HOLDINGS = 4
 MAX_PURCHASES_PER_PASS = 1
 AUTORENEW = "off"
@@ -69,7 +69,7 @@ def evaluate_purchase(
     portfolio: dict[str, Any],
     evidence: dict[str, Any],
 ) -> dict[str, Any]:
-    """Return a deterministic, EUR-denominated acquisition decision.
+    """Return a deterministic acquisition decision with EUR and USD reservations.
 
     `conditional_net_eur` is the margin if the minimum accepted sale completes.
     It deliberately contains no modeled sale probability or expected profit.
@@ -87,6 +87,7 @@ def evaluate_purchase(
         "reason_codes": reasons,
         "conditional_net_eur": None,
         "maximum_loss_eur": None,
+        "maximum_loss_usd": None,
         "autorenew": AUTORENEW,
     }
     if invalid_input:
@@ -110,7 +111,10 @@ def evaluate_purchase(
         and _refs(quote.get("fx_evidence_refs"))
         and _decimal(quote.get("final_charge_eur")) is not None
     )
-    if funding.get("currency") != "EUR" or (quote_currency != "EUR" and not fx_valid):
+    # Domain-flip only accepts EUR quotes until the user's USD cap has a single
+    # directly auditable charge currency; foreign price normalization can never
+    # lower a reservation through a second, inconsistent FX basis.
+    if funding.get("currency") != "EUR" or quote_currency != "EUR":
         _append_reason(reasons, "currency_mismatch")
 
     source_type = funding.get("source_type")
@@ -128,13 +132,32 @@ def evaluate_purchase(
         _append_reason(reasons, "business_balance_unverified")
 
     cap = _decimal(funding.get("lifetime_cap_eur"))
+    cap_usd = _decimal(funding.get("lifetime_cap_usd"))
+    funding_receipt_usd = _decimal(funding.get("funding_receipt_usd"))
+    funding_receipt_eur = _decimal(funding.get("funding_receipt_eur"))
     owner_funded = _decimal(funding.get("owner_funded_total_eur"))
     remaining = _decimal(funding.get("remaining_eur"))
-    if (cap is None or owner_funded is None or remaining is None
-            or cap < 0 or owner_funded < 0 or remaining < 0):
+    funding_receipt_id = funding.get("funding_receipt_id")
+    funding_fx_valid = (
+        funding.get("fx_verified") is True
+        and funding_receipt_usd is not None and funding_receipt_usd > 0
+        and funding_receipt_eur is not None and funding_receipt_eur > 0
+        and funding.get("fx_basis_receipt_id") == funding_receipt_id
+        and _refs(funding.get("fx_evidence_refs"))
+    )
+    if not funding_fx_valid:
+        _append_reason(reasons, "funding_fx_unverified")
+    if (cap is None or owner_funded is None or remaining is None or cap_usd is None
+            or funding_receipt_usd is None or funding_receipt_eur is None
+            or cap < 0 or cap_usd < 0
+            or funding_receipt_usd <= 0 or funding_receipt_eur <= 0
+            or owner_funded < 0 or remaining < 0):
         _append_reason(reasons, "funding_invalid")
-    elif (cap > INITIAL_CAP_EUR or owner_funded > INITIAL_CAP_EUR
-          or owner_funded > cap or remaining > owner_funded):
+    elif (cap_usd > INITIAL_CAP_USD or owner_funded > cap
+          or cap_usd > funding_receipt_usd or cap > funding_receipt_eur
+          or remaining > owner_funded
+          or (funding_fx_valid and cap * funding_receipt_usd > cap_usd * funding_receipt_eur)
+          or (funding_fx_valid and owner_funded * funding_receipt_usd > cap_usd * funding_receipt_eur)):
         _append_reason(reasons, "lifetime_cap_exceeded")
 
     if funding.get("automatic_refill_enabled") is not False:
@@ -146,7 +169,9 @@ def evaluate_purchase(
     active_holdings = portfolio.get("active_holdings")
     acquisitions = portfolio.get("acquisitions_this_pass")
     committed_loss = _decimal(portfolio.get("committed_loss_eur", "0"))
-    if committed_loss is None or committed_loss < 0:
+    committed_loss_usd = _decimal(portfolio.get("committed_loss_usd", "0"))
+    if (committed_loss is None or committed_loss < 0
+            or committed_loss_usd is None or committed_loss_usd < 0):
         _append_reason(reasons, "portfolio_invalid")
     if type(active_holdings) is not int or active_holdings < 0:
         _append_reason(reasons, "portfolio_invalid")
@@ -254,11 +279,18 @@ def evaluate_purchase(
         model_cost = values["model_cost"]
         infra_cost = values["infra_cost"]
         maximum_loss = registration + renewal + tax + payout_fee + fx_fee + model_cost + infra_cost
+        maximum_loss_usd = (
+            (maximum_loss * funding_receipt_usd / funding_receipt_eur).quantize(
+                Decimal("0.01"), rounding=ROUND_CEILING
+            )
+            if funding_fx_valid else None
+        )
         conditional_net = (
             minimum_sale - (minimum_sale * fee_rate) - tax - payout_fee - fx_fee
             - registration - renewal - model_cost - infra_cost
         )
         result["maximum_loss_eur"] = maximum_loss
+        result["maximum_loss_usd"] = maximum_loss_usd
         result["conditional_net_eur"] = conditional_net
         if minimum_sale <= 0:
             _append_reason(reasons, "minimum_sale_price_invalid")
@@ -271,6 +303,14 @@ def evaluate_purchase(
         if (cap is not None and committed_loss is not None
                 and committed_loss + maximum_loss > cap):
             _append_reason(reasons, "lifetime_cap_exceeded")
+        if (maximum_loss_usd is not None and cap_usd is not None
+                and committed_loss_usd is not None
+                and committed_loss_usd + maximum_loss_usd > min(cap_usd, INITIAL_CAP_USD)):
+            _append_reason(reasons, "lifetime_cap_exceeded")
+        if (maximum_loss_usd is not None and remaining is not None
+                and funding_receipt_usd is not None and funding_receipt_eur is not None
+                and maximum_loss_usd * funding_receipt_eur > remaining * funding_receipt_usd):
+            _append_reason(reasons, "funding_insufficient")
 
     result["eligible"] = not reasons
     return result

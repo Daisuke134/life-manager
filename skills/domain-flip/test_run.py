@@ -7,7 +7,6 @@ import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -40,16 +39,22 @@ def context(run_id: str = "run-1"):
     }
 
 
-def business_funding(remaining: str = "100.00"):
+def business_funding(remaining: str = "4.53"):
     return {
         "source_type": "business_dedicated",
         "source_owner_id": "domain-flip",
         "source_verified": True,
         "currency": "EUR",
-        "lifetime_cap_eur": "100.00",
-        "owner_funded_total_eur": "100.00",
+        "lifetime_cap_eur": "4.53",
+        "owner_funded_total_eur": "4.53",
         "remaining_eur": remaining,
+        "lifetime_cap_usd": "4.99",
+        "funding_receipt_usd": "4.99",
+        "funding_receipt_eur": "4.53",
+        "fx_verified": True,
         "funding_receipt_id": "funding-1",
+        "fx_basis_receipt_id": "funding-1",
+        "fx_evidence_refs": ["domain-flip://funding/funding-1/fx"],
         "balance_readback_verified": True,
         "balance_provider_receipt_id": "balance-readback-1",
         "balance_readback_at": datetime.now(timezone.utc).isoformat(),
@@ -91,8 +96,8 @@ def quote():
         "provider": "openprovider",
         "available": True,
         "currency": "EUR",
-        "registration_cost_eur": "10.00",
-        "renewal_cost_eur": "10.00",
+        "registration_cost_eur": "0.25",
+        "renewal_cost_eur": "0.25",
         "provider_receipt_id": None,
         "readback_verified": True,
         "evidence_refs": ["openprovider://price/novara.si"],
@@ -235,7 +240,7 @@ class HighCostRegistrar(FakeRegistrar):
     def quote_create(self, domain, funding_fx_basis=None):
         self.read_calls.append(("quote", domain))
         result = quote()
-        result.update(domain=domain, registration_cost_eur="40.00", renewal_cost_eur="10.00")
+        result.update(domain=domain, registration_cost_eur="0.76", renewal_cost_eur="0.76")
         result["evidence_refs"] = [f"openprovider://price/{domain}"]
         return result
 
@@ -252,17 +257,17 @@ class RealisticRegistrar(FakeRegistrar):
     def quote_create(self, domain, funding_fx_basis=None):
         row = quote()
         row["available"] = None
-        row["registration_amount"] = Decimal("10.00")
-        row["renewal_amount"] = Decimal("10.00")
+        row["registration_amount"] = Decimal("0.25")
+        row["renewal_amount"] = Decimal("0.25")
         row.pop("evidence_refs")
         row["readback_payloads"] = {
             "create": {
                 "code": 0, "is_premium": False, "is_promotion": False,
-                "price": {"currency": "EUR", "amount": "10.00"},
+                "price": {"currency": "EUR", "amount": "0.25"},
             },
             "renew": {
                 "code": 0, "is_premium": False, "is_promotion": False,
-                "price": {"currency": "EUR", "amount": "10.00"},
+                "price": {"currency": "EUR", "amount": "0.25"},
             },
         }
         return row
@@ -374,6 +379,7 @@ def seed_listed_holding(
     registration_readback = {"owner_handle_fingerprint": owner_handle_fingerprint}
     if reserve_loss:
         registration_readback["maximum_loss_eur"] = "20.00"
+        registration_readback["maximum_loss_usd"] = "22.00"
     registration["readback"] = registration_readback
     run.append_event(state_root, registration)
     registration_readback = event_for(
@@ -554,6 +560,7 @@ def test_reconciled_registration_without_listing_dispatch_still_reads_all_provid
     dispatch["readback"] = {
         "owner_handle_fingerprint": owner_handle_fingerprint,
         "maximum_loss_eur": "20.00",
+        "maximum_loss_usd": "22.00",
     }
     run.append_event(tmp_path, dispatch)
 
@@ -692,7 +699,7 @@ def test_effect_unknown_candidate_does_not_starve_known_holding_monitor(tmp_path
         "domain-flip:unknown-run", effect="effect_unknown", phase="registration-dispatch",
         candidate_id="alpha.si",
     )
-    unknown["readback"] = {"maximum_loss_eur": "20.00"}
+    unknown["readback"] = {"maximum_loss_eur": "20.00", "maximum_loss_usd": "22.00"}
     run.append_event(tmp_path, unknown)
     registrar = FakeRegistrar()
     registrar.registered_domain = "beta.si"
@@ -1017,7 +1024,7 @@ def test_model_choice_cannot_bypass_purchase_policy(tmp_path):
     result = run.run_once(
         state_root=tmp_path,
         context=context(),
-        funding=business_funding(remaining="1.00"),
+        funding=business_funding(remaining="0.10"),
         registrant=verified_registrant(),
         registrar=registrar,
         sedo=sedo_client,
@@ -1032,6 +1039,32 @@ def test_model_choice_cannot_bypass_purchase_policy(tmp_path):
     assert "funding_insufficient" in result["reason_codes"]
     assert registrar.register_calls == 0
     assert sedo_client.insert_calls == 0
+
+
+def test_default_paid_reviewer_is_not_invoked_without_cost_reservation(monkeypatch, tmp_path):
+    registrar = FakeRegistrar()
+    monkeypatch.setattr(
+        run, "_run_agent_review",
+        lambda *_args, **_kwargs: pytest.fail("unreserved paid reviewer must not run"),
+        raising=False,
+    )
+
+    result = run.run_once(
+        state_root=tmp_path,
+        context=context(),
+        funding=business_funding(),
+        registrant=verified_registrant(),
+        registrar=registrar,
+        sedo=FakeSedo(),
+        rights_searcher=FakeRights(),
+        market_evidence=market_evidence(),
+        fee_evidence=fee_evidence(),
+        candidate_names=["novara.si"],
+    )
+
+    assert result["status"] == "scout_only"
+    assert "review_cost_unverified" in result["reason_codes"]
+    assert registrar.register_calls == 0
 
 
 def test_owner_persists_and_attaches_real_provider_readbacks(tmp_path):
@@ -1060,43 +1093,6 @@ def test_owner_persists_and_attaches_real_provider_readbacks(tmp_path):
     evidence_dir = tmp_path / "evidence" / "run-1" / "novara"
     assert (evidence_dir / "openprovider-availability.json").stat().st_mode & 0o777 == 0o600
     assert (evidence_dir / "openprovider-price-readbacks.json").stat().st_mode & 0o777 == 0o600
-
-
-def test_standard_review_runner_artifacts_are_ephemeral_until_validation(tmp_path, monkeypatch):
-    evidence_dir = tmp_path / "evidence"
-    evidence_dir.mkdir(mode=0o700)
-    raw_review = {
-        "action": "register",
-        "selected_domain": "novara.si",
-        "listing_price_eur": "500.00",
-        "minimum_accepted_price_eur": "300.00",
-        "rights_risk": "clear",
-        "reason": "private@example.test",
-        "evidence_refs": ["euipo://trademark-search/novara"],
-    }
-
-    def fake_subprocess_run(command, **_kwargs):
-        runner_dir = Path(command[command.index("--evidence-dir") + 1])
-        runner_dir.mkdir(mode=0o700, exist_ok=True)
-        result_path = runner_dir / "attempt-01.result.json"
-        run._write_private_json(result_path, raw_review)
-        run._write_private_json(runner_dir / "summary.json", {"result_path": str(result_path)})
-        (runner_dir / "attempt-01.stdout.log").write_text("private@example.test", encoding="utf-8")
-        (runner_dir / "attempt-01.stderr.log").write_text("private@example.test", encoding="utf-8")
-        return SimpleNamespace(returncode=0, stdout="{}", stderr="")
-
-    monkeypatch.setattr(run.subprocess, "run", fake_subprocess_run)
-
-    returned = run._run_agent_review({"candidate": {"domain": "novara.si"}}, evidence_dir)
-
-    assert returned["reason"] == "private@example.test"
-    persisted = "\n".join(
-        path.read_text(encoding="utf-8", errors="replace")
-        for path in evidence_dir.rglob("*") if path.is_file()
-    )
-    assert "private@example.test" not in persisted
-    assert not list(evidence_dir.glob(".candidate-review-*"))
-    assert not (evidence_dir / "review.json").exists()
 
 
 def test_changed_provider_contact_keeps_candidate_scout_only(tmp_path):
@@ -1593,7 +1589,7 @@ def test_prior_purchase_reservations_enforce_cumulative_cap(tmp_path):
     sedo_client = FakeSedo()
     shared = {
         "state_root": tmp_path,
-        "funding": business_funding(remaining="100.00"),
+        "funding": business_funding(remaining="4.53"),
         "registrant": verified_registrant(),
         "registrar": registrar,
         "sedo": sedo_client,
@@ -1640,6 +1636,28 @@ def test_missing_prior_reservation_fails_closed(tmp_path):
     assert result["status"] == "scout_only"
     assert "cap_reservation_evidence_missing" in result["reason_codes"]
     assert registrar.register_calls == 0
+
+
+def test_registered_holding_without_dispatch_reservation_fails_closed(tmp_path):
+    reconciled = event_for(
+        "domain-flip:reconciled-run", effect="verified", phase="registration-reconciled",
+        candidate_id="held.si",
+    )
+    reconciled.update(
+        command="get_domain",
+        provider_receipt_id="123",
+        readback={
+            "provider": "openprovider", "domain": "held.si", "status": "active",
+            "readback_verified": True, "owner_handle_fingerprint": "a" * 64,
+        },
+    )
+    run.append_event(tmp_path, reconciled)
+
+    state = run._history_state(run.read_events(tmp_path), "new-run")
+
+    assert state["active_holdings"] == 1
+    assert state["committed_loss_eur"] is None
+    assert state["committed_loss_usd"] is None
 
 
 def test_sedo_listing_is_pending_until_provider_readback(tmp_path):

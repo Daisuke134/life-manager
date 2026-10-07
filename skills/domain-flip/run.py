@@ -11,7 +11,6 @@ import re
 import stat
 import subprocess
 import sys
-import tempfile
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -22,7 +21,6 @@ from typing import Any, Callable, Iterator
 SKILL_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SKILL_DIR.parents[1]
 DEFAULT_STATE_ROOT = Path.home() / ".local/state/life-manager/domain-flip"
-AGENT_RUNNER = REPO_ROOT / "runtime/agent-runner/agent_runner.py"
 REVIEW_SCHEMA = SKILL_DIR / "candidate-review.schema.json"
 _REQUIRED_EVENT_FIELDS = {
     "candidate_id", "run_id", "owner_id", "occurrence_id", "release_sha",
@@ -58,7 +56,7 @@ _SAFE_READBACK_KEYS = {
     "readback_verified", "provider_receipt_id", "owner_handle_fingerprint",
     "contact_fingerprint", "mail_verified",
     "activation_date", "expiration_date", "renewal_date", "registration_cost_eur",
-    "renewal_cost_eur", "final_charge_eur", "maximum_loss_eur", "min_price_eur",
+    "renewal_cost_eur", "final_charge_eur", "maximum_loss_eur", "maximum_loss_usd", "min_price_eur",
     "minimum_accepted_price_eur", "registration_amount", "renewal_amount",
     "model_cost_eur", "infra_cost_eur",
     "fx_verified", "fx_basis_receipt_id",
@@ -266,7 +264,7 @@ def _valid_readback(value: Any) -> bool:
                 return False
         elif key in {"registration_amount", "renewal_amount", "registration_cost_eur",
                      "renewal_cost_eur", "final_charge_eur",
-                     "maximum_loss_eur", "min_price_eur", "minimum_accepted_price_eur",
+                     "maximum_loss_eur", "maximum_loss_usd", "min_price_eur", "minimum_accepted_price_eur",
                      "model_cost_eur", "infra_cost_eur", "price"}:
             if not _valid_decimal_amount(item):
                 return False
@@ -405,7 +403,8 @@ def generate_candidate_name(run_id: str) -> str:
 
 def _history_state(events: list[dict[str, Any]], run_id: str) -> dict[str, Any]:
     domain_state: dict[str, str] = {}
-    reservations: dict[str, Decimal] = {}
+    reservations_eur: dict[str, Decimal] = {}
+    reservations_usd: dict[str, Decimal] = {}
     acquisitions = 0
     invalid_reservation = False
     for event in events:
@@ -415,22 +414,28 @@ def _history_state(events: list[dict[str, Any]], run_id: str) -> dict[str, Any]:
         if event["command"] == "register" and event["phase"] == "registration-dispatch":
             if event["effect"] in {"pending", "effect_unknown", "submitted", "verified"}:
                 readback = event.get("readback") or {}
-                amount = readback.get("maximum_loss_eur") if isinstance(readback, dict) else None
-                if amount is None:
-                    if domain not in reservations:
+                amount_eur = readback.get("maximum_loss_eur") if isinstance(readback, dict) else None
+                amount_usd = readback.get("maximum_loss_usd") if isinstance(readback, dict) else None
+                if amount_eur is None or amount_usd is None:
+                    if domain not in reservations_eur or domain not in reservations_usd:
                         invalid_reservation = True
                 else:
                     try:
-                        reservation = Decimal(str(amount))
-                        if not reservation.is_finite() or reservation < 0:
+                        reservation_eur = Decimal(str(amount_eur))
+                        reservation_usd = Decimal(str(amount_usd))
+                        if (not reservation_eur.is_finite() or reservation_eur < 0
+                                or not reservation_usd.is_finite() or reservation_usd < 0):
                             raise ValueError("reservation_invalid")
-                        reservations[domain] = reservation
+                        reservations_eur[domain] = reservation_eur
+                        reservations_usd[domain] = reservation_usd
                     except Exception:
                         invalid_reservation = True
             elif event["effect"] == "none":
-                reservations.pop(domain, None)
+                reservations_eur.pop(domain, None)
+                reservations_usd.pop(domain, None)
         elif event["phase"] in {"registration-rejected", "registration-reconcile-no-effect"}:
-            reservations.pop(domain, None)
+            reservations_eur.pop(domain, None)
+            reservations_usd.pop(domain, None)
         if event["phase"] in {"registration-dispatch", "listing-dispatch", "registration-readback", "listing-readback"} and event["effect"] in {"pending", "effect_unknown"}:
             domain_state[domain] = "unknown"
         elif event["phase"] == "registration-rejected":
@@ -441,13 +446,17 @@ def _history_state(events: list[dict[str, Any]], run_id: str) -> dict[str, Any]:
             domain_state[domain] = "held"
     held = {domain for domain, state in domain_state.items() if state in {"unknown", "held"}}
     unknown = {domain for domain, state in domain_state.items() if state == "unknown"}
-    committed_loss = None if invalid_reservation else sum(reservations.values(), Decimal("0.00"))
+    if any(domain not in reservations_eur or domain not in reservations_usd for domain in held):
+        invalid_reservation = True
+    committed_loss_eur = None if invalid_reservation else sum(reservations_eur.values(), Decimal("0.00"))
+    committed_loss_usd = None if invalid_reservation else sum(reservations_usd.values(), Decimal("0.00"))
     return {
         "active_holdings": len(held),
         "active_domains": sorted(held),
         "acquisitions_this_pass": acquisitions,
         "effect_unknown_domains": sorted(unknown),
-        "committed_loss_eur": None if committed_loss is None else format(committed_loss, "f"),
+        "committed_loss_eur": None if committed_loss_eur is None else format(committed_loss_eur, "f"),
+        "committed_loss_usd": None if committed_loss_usd is None else format(committed_loss_usd, "f"),
     }
 
 
@@ -895,49 +904,6 @@ def _validate_review(review: Any, domain: str, allowed_refs: set[str]) -> dict[s
     return review
 
 
-def _run_agent_review(packet: dict[str, Any], evidence_dir: Path) -> dict[str, Any]:
-    prompt = {
-        "instruction": (
-            "Review this original sci-fi-era .si domain candidate for a conservative resale listing. "
-            "Use only the supplied evidence refs. Return exactly the required JSON schema. "
-            "Choose skip when evidence is incomplete or rights risk is not clear. "
-            "This read-only reviewer cannot authorize registration or override deterministic policy."
-        ),
-        "candidate_packet": packet,
-    }
-    with tempfile.TemporaryDirectory(prefix=".candidate-review-", dir=evidence_dir) as scratch:
-        runner_dir = Path(scratch)
-        completed = subprocess.run(
-            [
-                sys.executable, str(AGENT_RUNNER), "--task-class", "diagnostic-agent",
-                "--prompt-stdin", "--schema", str(REVIEW_SCHEMA),
-                "--evidence-dir", str(runner_dir), "--task-label", "domain-flip-candidate-review",
-                "--loop", "domain-flip", "--workdir", str(REPO_ROOT),
-                "--timeout-seconds", "300", "--read-only",
-            ],
-            input=json.dumps(prompt, sort_keys=True, separators=(",", ":")),
-            capture_output=True,
-            text=True,
-            timeout=330,
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise RuntimeError("reviewer_failed")
-        summary_path = runner_dir / "summary.json"
-        if not summary_path.is_file() or summary_path.is_symlink():
-            raise RuntimeError("reviewer_result_missing")
-        summary = _private_json(summary_path)
-        result_path = Path(str(summary.get("result_path") or "")).resolve()
-        try:
-            result_path.relative_to(runner_dir.resolve())
-        except ValueError:
-            raise RuntimeError("reviewer_result_unowned") from None
-        review = _private_runner_json(result_path, runner_dir)
-        if not isinstance(review, dict):
-            raise RuntimeError("reviewer_result_invalid")
-        return review
-
-
 def _preflight_credentials(client: Any) -> str | None:
     if client is None:
         return "provider_credentials_missing"
@@ -971,20 +937,34 @@ def _valid_business_funding(funding: Any) -> bool:
             or not funding.get("balance_provider_receipt_id")
             or not isinstance(funding.get("funding_receipt_id"), str)
             or not funding.get("funding_receipt_id")
+            or funding.get("fx_verified") is not True
+            or funding.get("fx_basis_receipt_id") != funding.get("funding_receipt_id")
+            or not isinstance(funding.get("fx_evidence_refs"), list)
+            or not funding.get("fx_evidence_refs")
+            or not all(_valid_evidence_ref(ref) for ref in funding.get("fx_evidence_refs", []))
             or type(funding.get("top_up_count")) is not int
             or funding["top_up_count"] < 0 or funding["top_up_count"] > 1):
         return False
     try:
         cap = Decimal(str(funding["lifetime_cap_eur"]))
+        cap_usd = Decimal(str(funding["lifetime_cap_usd"]))
+        receipt_usd = Decimal(str(funding["funding_receipt_usd"]))
+        receipt_eur = Decimal(str(funding["funding_receipt_eur"]))
         funded = Decimal(str(funding["owner_funded_total_eur"]))
         remaining = Decimal(str(funding["remaining_eur"]))
         timestamp = datetime.fromisoformat(str(funding["balance_readback_at"]).replace("Z", "+00:00"))
     except (KeyError, ValueError, TypeError, ArithmeticError):
         return False
     now = datetime.now(timezone.utc)
-    if (timestamp.tzinfo is None or not all(value.is_finite() for value in (cap, funded, remaining))
-            or min(cap, funded, remaining) < 0 or cap > core.INITIAL_CAP_EUR
-            or funded > cap or remaining > funded):
+    if (timestamp.tzinfo is None
+            or not all(value.is_finite() for value in
+                       (cap, cap_usd, receipt_usd, receipt_eur, funded, remaining))
+            or min(cap, cap_usd, funded, remaining) < 0
+            or receipt_usd <= 0 or receipt_eur <= 0):
+        return False
+    if (cap_usd > min(core.INITIAL_CAP_USD, receipt_usd)
+            or cap > receipt_eur or cap * receipt_usd > cap_usd * receipt_eur
+            or funded > cap or funded * receipt_usd > cap_usd * receipt_eur or remaining > funded):
         return False
     age = now - timestamp.astimezone(timezone.utc)
     return timedelta(minutes=-5) <= age <= timedelta(hours=24)
@@ -1234,8 +1214,14 @@ def _run_once(
             "sale_fee_evidence": fees_safe,
         }
         _write_private_json(evidence_dir / "fee-readback.json", fees_safe)
+        if reviewer is None:
+            return _append_simple(
+                root, context, domain, reason="review_cost_unverified",
+                next_action="verify_zero_marginal_review_cost_or_reserve_within_usd_cap",
+                refs=sorted(allowed_refs),
+            )
         try:
-            review_raw = reviewer(packet) if reviewer is not None else _run_agent_review(packet, evidence_dir)
+            review_raw = reviewer(packet)
         except Exception as error:
             code = str(getattr(error, "code", "reviewer_failed"))
             return _append_simple(root, context, domain, reason="reviewer_failed",
@@ -1308,6 +1294,7 @@ def _run_once(
                    "model_cost_eur": str(fees["measured_model_cost_eur"]),
                    "infra_cost_eur": str(fees["measured_infra_cost_eur"]),
                    "maximum_loss_eur": str(decision["maximum_loss_eur"]),
+                   "maximum_loss_usd": str(decision["maximum_loss_usd"]),
                },
                evidence_refs=sorted(allowed_refs), exit_code=None,
                next_action="official_readback")

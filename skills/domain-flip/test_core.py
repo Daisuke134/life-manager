@@ -24,14 +24,20 @@ def purchase_inputs():
         "readback_verified": True,
         "evidence_refs": ["lm-domain-flip://readbacks/openprovider-price-quote-1"],
         "currency": "EUR",
-        "registration_cost_eur": "10.00",
-        "renewal_cost_eur": "10.00",
+        "registration_cost_eur": "1.00",
+        "renewal_cost_eur": "1.00",
     }
     funding = {
         "currency": "EUR",
-        "lifetime_cap_eur": "100.00",
-        "owner_funded_total_eur": "100.00",
-        "remaining_eur": "100.00",
+        "lifetime_cap_eur": "4.53",
+        "owner_funded_total_eur": "4.53",
+        "remaining_eur": "4.53",
+        "lifetime_cap_usd": "4.99",
+        "funding_receipt_usd": "4.99",
+        "funding_receipt_eur": "4.53",
+        "fx_verified": True,
+        "fx_basis_receipt_id": "funding-1",
+        "fx_evidence_refs": ["domain-flip://funding/funding-1/fx"],
         "source_type": "business_dedicated",
         "source_owner_id": "domain-flip",
         "source_verified": True,
@@ -45,6 +51,7 @@ def purchase_inputs():
         "active_holdings": 0,
         "acquisitions_this_pass": 0,
         "committed_loss_eur": "0.00",
+        "committed_loss_usd": "0.00",
         "effect_unknown_domains": [],
     }
     evidence = {
@@ -157,12 +164,13 @@ def test_purchase_obeys_total_cap_and_one_per_pass():
     decision = core.evaluate_purchase(*args)
 
     assert decision["eligible"] is True
-    assert decision["conditional_net_eur"] == Decimal("379.99")
-    assert decision["maximum_loss_eur"] == Decimal("20.01")
+    assert decision["conditional_net_eur"] == Decimal("397.99")
+    assert decision["maximum_loss_eur"] == Decimal("2.01")
+    assert decision["maximum_loss_usd"] == Decimal("2.22")
     assert decision["autorenew"] == "off"
     assert "expected_profit_eur" not in decision
 
-    args[2]["remaining_eur"] = "20.00"
+    args[2]["remaining_eur"] = "1.00"
     capped = core.evaluate_purchase(*args)
     assert capped["eligible"] is False
     assert "funding_insufficient" in capped["reason_codes"]
@@ -194,14 +202,77 @@ def test_purchase_obeys_total_cap_and_one_per_pass():
 
 def test_purchase_reserves_all_fixed_costs_against_the_cap():
     args = purchase_inputs()
-    args[2]["remaining_eur"] = "22.00"
+    args[2]["remaining_eur"] = "4.00"
     args[4]["fees"].update(tax_eur="0.50", payout_fee_eur="0.50", fx_fee_eur="1.00")
 
     decision = core.evaluate_purchase(*args)
 
     assert decision["eligible"] is False
-    assert decision["maximum_loss_eur"] == Decimal("22.01")
+    assert decision["maximum_loss_eur"] == Decimal("4.01")
     assert "funding_insufficient" in decision["reason_codes"]
+
+
+def test_purchase_reserves_cumulative_spend_under_strict_usd_cap():
+    args = purchase_inputs()
+    args[1].update(registration_cost_eur="1.00", renewal_cost_eur="1.00")
+    args[2].update(
+        lifetime_cap_eur="4.53",
+        owner_funded_total_eur="4.53",
+        remaining_eur="4.53",
+        lifetime_cap_usd="4.99",
+        funding_receipt_usd="4.99",
+        funding_receipt_eur="4.53",
+        fx_verified=True,
+        fx_basis_receipt_id="funding-1",
+        fx_evidence_refs=["domain-flip://funding/funding-1/fx"],
+    )
+    args[3]["committed_loss_usd"] = "0.00"
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is True
+    assert decision["maximum_loss_usd"] == Decimal("2.22")
+    args[2]["usd_per_eur"] = "0.01"
+    assert core.evaluate_purchase(*args)["maximum_loss_usd"] == Decimal("2.22")
+
+    args[2]["fx_verified"] = False
+    missing_fx_attestation = core.evaluate_purchase(*args)
+    assert missing_fx_attestation["eligible"] is False
+    assert "funding_fx_unverified" in missing_fx_attestation["reason_codes"]
+
+    args[2]["fx_verified"] = True
+    args[2]["fx_basis_receipt_id"] = "other-funding"
+    mismatched_fx = core.evaluate_purchase(*args)
+    assert mismatched_fx["eligible"] is False
+    assert "funding_fx_unverified" in mismatched_fx["reason_codes"]
+
+    args[2]["fx_basis_receipt_id"] = "funding-1"
+    args[3]["committed_loss_usd"] = "2.78"
+    over_cap = core.evaluate_purchase(*args)
+    assert over_cap["eligible"] is False
+    assert "lifetime_cap_exceeded" in over_cap["reason_codes"]
+
+
+def test_funding_cap_must_remain_strictly_below_five_usd():
+    args = purchase_inputs()
+    args[1].update(registration_cost_eur="1.00", renewal_cost_eur="1.00")
+    args[2].update(
+        lifetime_cap_eur="4.54",
+        owner_funded_total_eur="4.54",
+        remaining_eur="4.54",
+        lifetime_cap_usd="5.00",
+        funding_receipt_usd="5.00",
+        funding_receipt_eur="4.54",
+        fx_verified=True,
+        fx_basis_receipt_id="funding-1",
+        fx_evidence_refs=["domain-flip://funding/funding-1/fx"],
+    )
+    args[3]["committed_loss_usd"] = "0.00"
+
+    decision = core.evaluate_purchase(*args)
+
+    assert decision["eligible"] is False
+    assert "lifetime_cap_exceeded" in decision["reason_codes"]
 
 
 def test_purchase_requires_fresh_matching_provider_contact_readback():
@@ -292,14 +363,14 @@ def test_currency_mismatch_blocks_purchase():
         fx_verified=True,
         fx_basis_receipt_id="funding-1",
         fx_evidence_refs=["lm-domain-flip://funding/funding-1/fx"],
-        final_charge_eur="10.50",
-        renewal_cost_eur="10.50",
+        final_charge_eur="0.50",
+        renewal_cost_eur="0.50",
     )
     args[2]["funding_receipt_id"] = "funding-1"
     converted = core.evaluate_purchase(*args)
 
-    assert converted["eligible"] is True
-    assert converted["maximum_loss_eur"] == Decimal("21.01")
+    assert converted["eligible"] is False
+    assert "currency_mismatch" in converted["reason_codes"]
 
 
 def test_effect_unknown_fences_same_domain():
