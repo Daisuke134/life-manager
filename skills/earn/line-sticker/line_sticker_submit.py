@@ -83,14 +83,25 @@ def _fit(text: str, limit: int) -> str:
     for marks in ("。.!！?？", " 、,"):
         idx = max(cut.rfind(m) for m in marks)
         if idx >= len(cut) // 2:
-            return cut[: idx + 1].rstrip(" 、,")
-    return cut
+            return cut[: idx + 1].rstrip(" 、,&-:;・")
+    return cut.rstrip(" 、,&-:;・")
+
+
+_ASCII_PUNCT = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+                               "\u2013": "-", "\u2014": "-", "\u2026": "..."})
+
+
+def _clean(text: str) -> str:
+    """Creators Market rejects some characters (利用できない文字; live 2026-10-07 set-008 had '’').
+    Use ASCII punctuation and drop emoji/pictographs the form refuses."""
+    text = text.translate(_ASCII_PUNCT)
+    return "".join(ch for ch in text if not (unicodedata.category(ch) == "So" or ord(ch) >= 0x1F000)).strip()
 
 
 def _fit_listing(listing: dict) -> dict:
-    """Clamp model-written copy to Creators Market's width-counted limits before filling the form."""
-    titles = {k: _fit(v, LIMIT_TITLE) for k, v in listing["title"].items()}
-    descs = {k: _fit(v, DESC_MAX) for k, v in listing.get("description", {}).items()}
+    """Clamp model-written copy to Creators Market's character set and width-counted limits."""
+    titles = {k: _fit(_clean(v), LIMIT_TITLE) for k, v in listing["title"].items()}
+    descs = {k: _fit(_clean(v), DESC_MAX) for k, v in listing.get("description", {}).items()}
     if titles == listing["title"] and descs == listing.get("description", {}):
         return listing
     return dict(listing, title=titles, description=descs)

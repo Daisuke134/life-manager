@@ -122,3 +122,14 @@ class FitListing(unittest.TestCase):
     def test_short_listing_is_untouched(self) -> None:
         listing = {"title": {"en": "Mochi Hamster"}, "description": {"en": "Cute."}}
         self.assertEqual(MODULE._fit_listing(listing), listing)
+
+
+class CleanCharacters(unittest.TestCase):
+    def test_curly_quote_and_emoji_are_normalised(self) -> None:
+        out = MODULE._fit_listing({"title": {"en": "Animated! Mofutan’s Life \U0001F9A6"}, "description": {"en": "Hi…"}})
+        self.assertEqual(out["title"]["en"], "Animated! Mofutan's Life")
+        self.assertEqual(out["description"]["en"], "Hi...")
+
+    def test_cut_title_does_not_end_on_a_connector(self) -> None:
+        out = MODULE._fit_listing({"title": {"en": "Animated! Mofutan's Polite Family & Oshi Life"}, "description": {}})
+        self.assertEqual(out["title"]["en"], "Animated! Mofutan's Polite Family")
