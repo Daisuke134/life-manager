@@ -106,7 +106,7 @@ async function supaUsers() {
   const { url, key } = SUPA();
   if (!url || !key) return [];
   const base = `${url}/rest/v1/lm_users?${schedulerCohortFilter()}`;
-  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_trial_payment_method_present,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   // FAIL-SAFE: try WITH wake_policy; if the column is missing (PostgREST 400) fall back to the base
   // columns rather than returning [] — a missing column must NOT silently disable wakes fleet-wide.
@@ -1421,7 +1421,7 @@ const listPaidUsers = supaUsers;
 async function getUserByUid(uid) {
   const { url, key } = SUPA();
   if (!url || !key || !uid) return null;
-  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_trial_payment_method_present,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const base = `${url}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&${schedulerCohortFilter()}`;
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   let r = await fetch(`${base}&select=${cols},wake_policy`, { headers: hdr });

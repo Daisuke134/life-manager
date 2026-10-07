@@ -78,7 +78,7 @@ function createCheckout(...args) {
   return webBilling.createWebCheckoutSession(...args);
 }
 
-test("Web Checkout uses the existing $29 monthly price, seven-day card trial, and verified uid", async () => {
+test("Web Checkout uses the existing $29 monthly price and never resumes automation before Stripe confirmation", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
   const f = fixture();
   const user = { uid: UID, subject: UID.slice(3), csrf: "server-verified" };
@@ -99,7 +99,7 @@ test("Web Checkout uses the existing $29 monthly price, seven-day card trial, an
   assert.match(request.params.success_url, /^https:\/\/life\.example\/lm\?checkout=success/);
   assert.equal(request.params.cancel_url, "https://life.example/lm?checkout=cancelled");
   assert.match(request.requestOptions.idempotencyKey, /^lm-web-trial-/);
-  assert.deepEqual(f.calls.controlActions, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
+  assert.deepEqual(f.calls.controlActions, []);
 });
 
 test("Web Checkout rejects zero-block, active, and past-due users before Stripe", async () => {
@@ -107,7 +107,8 @@ test("Web Checkout rejects zero-block, active, and past-due users before Stripe"
   for (const overrides of [
     { web_first_travel_at: null },
     { stripe_subscription_id: "sub_active", plan_status: "active", paid: true },
-    { stripe_subscription_id: "sub_trial", plan_status: "trialing", paid: true },
+    { stripe_subscription_id: "sub_trial", plan_status: "trialing", paid: false,
+      web_trial_payment_method_present: true, trial_expires_at: "2030-01-08T00:00:00.000Z" },
     { stripe_subscription_id: "sub_past_due", plan_status: "past_due", paid: false },
   ]) {
     const f = fixture(overrides);

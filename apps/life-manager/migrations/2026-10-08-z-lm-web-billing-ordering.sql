@@ -5,6 +5,8 @@ ALTER TABLE public.lm_users
   ADD COLUMN IF NOT EXISTS web_billing_revision bigint NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS web_billing_cancel_at_period_end boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS web_automation_resume_pending boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS web_automation_user_paused boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS web_trial_payment_method_present boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS web_subscription_created_at timestamptz,
   ADD COLUMN IF NOT EXISTS web_subscription_event_at timestamptz,
   ADD COLUMN IF NOT EXISTS web_subscription_event_priority smallint,
@@ -60,6 +62,13 @@ BEGIN
   IF p_action IN ('pause', 'disconnect_begin') THEN
     UPDATE public.lm_users
        SET web_automation_resume_pending = false,
+           web_automation_user_paused = true,
+           web_billing_revision = web_billing_revision + 1,
+           updated_at = now()
+     WHERE uid = p_uid AND telegram_chat_id IS NULL;
+  ELSIF p_action = 'resume' THEN
+    UPDATE public.lm_users
+       SET web_automation_user_paused = false,
            web_billing_revision = web_billing_revision + 1,
            updated_at = now()
      WHERE uid = p_uid AND telegram_chat_id IS NULL;
@@ -147,6 +156,14 @@ BEGIN
     RAISE EXCEPTION 'calendar_account_changed';
   END IF;
   IF user_row.web_automation_resume_pending IS DISTINCT FROM true THEN RETURN true; END IF;
+  IF user_row.web_automation_user_paused IS TRUE THEN
+    UPDATE public.lm_users
+       SET web_automation_resume_pending = false,
+           web_billing_revision = web_billing_revision + 1,
+           updated_at = now()
+     WHERE uid = p_uid AND telegram_chat_id IS NULL;
+    RETURN true;
+  END IF;
   IF user_row.calendar_enable_pending THEN RAISE EXCEPTION 'calendar_enable_pending'; END IF;
 
   SELECT * INTO preference_row
@@ -164,17 +181,23 @@ BEGIN
     RETURN true;
   END IF;
 
-  IF user_row.paid IS DISTINCT FROM true
-     OR user_row.web_billing_cancel_at_period_end IS DISTINCT FROM false
+  IF user_row.web_billing_cancel_at_period_end IS DISTINCT FROM false
      OR user_row.plan_status IS NULL
      OR user_row.plan_status NOT IN ('active', 'trialing')
      OR (user_row.plan_status = 'trialing'
-       AND (user_row.trial_expires_at IS NULL OR user_row.trial_expires_at <= now())) THEN
+       AND (user_row.web_trial_payment_method_present IS DISTINCT FROM true
+         OR user_row.trial_expires_at IS NULL OR user_row.trial_expires_at <= now())) THEN
     UPDATE public.lm_users
        SET web_automation_resume_pending = false,
            web_billing_revision = web_billing_revision + 1,
            updated_at = now()
      WHERE uid = p_uid AND telegram_chat_id IS NULL;
+    RETURN true;
+  END IF;
+
+  -- An active subscription created from a paid Checkout can precede its invoice.paid webhook.
+  -- Keep the intent pending, but do not enable automation until that exact invoice is verified.
+  IF user_row.plan_status = 'active' AND user_row.paid IS DISTINCT FROM true THEN
     RETURN true;
   END IF;
 

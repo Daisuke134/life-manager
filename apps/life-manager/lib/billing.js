@@ -191,7 +191,7 @@ async function unclaimEvent(eventId, supaUrl, supaKey, fetchImpl) {
 async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
   const f = fetchImpl || fetch;
   if (!supaUrl || !supaKey || !customerId) return null;
-  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
+  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_automation_user_paused,web_trial_payment_method_present,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
   const r = await f(
     `${supaUrl}/rest/v1/lm_users?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=${cols}`,
     { headers: hdr(supaKey) },
@@ -208,7 +208,7 @@ async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
 async function userByUid(uid, supaUrl, supaKey, fetchImpl) {
   const f = fetchImpl || fetch;
   if (!supaUrl || !supaKey || !uid) return null;
-  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
+  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_automation_user_paused,web_trial_payment_method_present,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
   const r = await f(
     `${supaUrl}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=${cols}`,
     { headers: hdr(supaKey) },
@@ -270,24 +270,11 @@ function webPaidCheckoutEligible(row) {
 }
 
 function webTravelEntitled(row, nowMs = Date.now()) {
-  if (!isWebTravelUser(row) || row.paid !== true) return false;
+  if (!isWebTravelUser(row) || row.web_billing_cancel_at_period_end === true) return false;
   const status = String(row.plan_status || "").trim().toLowerCase();
-  if (status === "active") return true;
-  return status === "trialing" && toEpoch(row.trial_expires_at) > Math.floor(Number(nowMs) / 1000);
-}
-
-async function resumeWebAutomation(uid, row, supaUrl, supaKey, fetchImpl) {
-  const accountId = String(row && row.calendar_connected_account_id || "");
-  if (!accountId || !supaUrl || !supaKey) return false;
-  const f = fetchImpl || fetch;
-  const response = await f(`${String(supaUrl).replace(/\/$/, "")}/rest/v1/rpc/control_lm_web_travel`, {
-    method: "POST",
-    headers: hdr(supaKey, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ p_uid: uid, p_calendar_account_id: accountId, p_action: "resume" }),
-  }).catch(() => null);
-  if (!response || !response.ok) return false;
-  const value = await response.json().catch(() => null);
-  return value === true || Array.isArray(value) && value[0] === true;
+  if (status === "active") return row.paid === true;
+  return status === "trialing" && row.web_trial_payment_method_present === true
+    && toEpoch(row.trial_expires_at) > Math.floor(Number(nowMs) / 1000);
 }
 
 async function resumeWebBillingAutomation(uid, row, supaUrl, supaKey, fetchImpl) {
@@ -311,7 +298,8 @@ function subscriptionStateConflictsWithRow(p, row) {
   const cancellationRequested = p.cancelAtPeriodEnd === true || p.cancelAt > 0
     || ["canceled", "unpaid", "incomplete_expired"].includes(status);
   return status !== String(row && row.plan_status || "").toLowerCase()
-    || cancellationRequested !== (row && row.web_billing_cancel_at_period_end === true);
+    || cancellationRequested !== (row && row.web_billing_cancel_at_period_end === true)
+    || status === "trialing" && p.hasPaymentMethod !== (row && row.web_trial_payment_method_present === true);
 }
 
 async function readCurrentSubscription(p, event, deps) {
@@ -469,11 +457,12 @@ async function applyBilling(event, deps) {
     if (web) {
       if (isStaleWebBillingEvent(p, row, "invoice")) {
         const nowMs = deps && deps.nowMs != null ? Number(deps.nowMs) : Date.now();
-        if (row.web_automation_resume_pending === true && webTravelEntitled(row, nowMs)) {
+        if (row.web_automation_resume_pending === true && row.web_automation_user_paused !== true
+          && webTravelEntitled(row, nowMs)) {
           if (!(await resumeWebBillingAutomation(row.uid, row, supaUrl, supaKey, fetchImpl))) {
             throw new Error("web automation retry failed");
           }
-          return { action: "web-automation-resumed", uid: row.uid, paid: true, status: row.plan_status };
+          return { action: "web-automation-resumed", uid: row.uid, paid: row.paid === true, status: row.plan_status };
         }
         return { action: "stale-invoice", uid: row.uid };
       }
@@ -483,15 +472,18 @@ async function applyBilling(event, deps) {
       const terminalPriorStatus = ["canceled", "unpaid", "incomplete_expired"].includes(currentPlanStatus);
       const cancellationFence = row.web_billing_cancel_at_period_end === true || terminalPriorStatus;
       const invoicePaid = p.status === "paid" && amountPaid > 0;
+      const latestInvoicePaid = invoicePaid && p.invoiceId
+        && p.invoiceId === row.web_subscription_latest_invoice_id;
       // Invoice events update payment evidence only. The subscription stream owns plan_status; an older
       // paid invoice must not overwrite a newer past_due/canceled state.
-      const sameSecondRecovery = invoicePaid && currentPlanStatus === "past_due"
-        && p.invoiceId && p.invoiceId === row.web_subscription_latest_invoice_id
+      const sameSecondRecovery = latestInvoicePaid && currentPlanStatus === "past_due"
         && toEpoch(row.web_subscription_event_at) === toEpoch(p.created);
-      const trialConverted = invoicePaid && currentPlanStatus === "trialing"
-        && p.invoiceId && p.invoiceId === row.web_subscription_latest_invoice_id
+      const trialConverted = latestInvoicePaid && currentPlanStatus === "trialing"
         && toEpoch(row.trial_expires_at) > 0 && toEpoch(p.created) >= toEpoch(row.trial_expires_at);
-      const activationConfirmed = currentPlanStatus === "active" || sameSecondRecovery || trialConverted;
+      const activationConfirmed = (latestInvoicePaid && currentPlanStatus === "active")
+        || sameSecondRecovery || trialConverted;
+      const nowMs = deps && deps.nowMs != null ? Number(deps.nowMs) : Date.now();
+      const wasEntitled = webTravelEntitled(row, nowMs);
       const patch = {
         stripe_customer_id: p.customerId || row.stripe_customer_id,
         stripe_subscription_id: p.subscriptionId,
@@ -507,12 +499,17 @@ async function applyBilling(event, deps) {
         ...(sameSecondRecovery || trialConverted ? {
           plan_status: "active",
           trial_expires_at: null,
+          web_trial_payment_method_present: false,
         } : {}),
       };
+      patch.web_automation_resume_pending = row.web_automation_user_paused !== true
+        && !cancellationFence
+        && (row.web_automation_resume_pending === true || patch.paid && !wasEntitled);
       if (!(await patchWebBilling(row, patch, supaUrl, supaKey, fetchImpl))) {
         throw new Error("web invoice atomic patch conflicted");
       }
-      if (row.web_automation_resume_pending === true && patch.paid
+      if (patch.web_automation_resume_pending
+        && webTravelEntitled({ ...row, ...patch }, nowMs)
         && !(await resumeWebBillingAutomation(row.uid, row, supaUrl, supaKey, fetchImpl))) {
         throw new Error("web automation invoice activation failed");
       }
@@ -550,12 +547,13 @@ async function applyBilling(event, deps) {
     }
     if (!replacingSubscription && !reconciledSubscriptionSnapshot && isStaleWebBillingEvent(p, row, "subscription")) {
       const nowMs = deps && deps.nowMs != null ? Number(deps.nowMs) : Date.now();
-      const retryAutomation = row.web_automation_resume_pending === true && webTravelEntitled(row, nowMs);
+      const retryAutomation = row.web_automation_resume_pending === true
+        && row.web_automation_user_paused !== true && webTravelEntitled(row, nowMs);
       if (retryAutomation) {
         if (!(await resumeWebBillingAutomation(row.uid, row, supaUrl, supaKey, fetchImpl))) {
           throw new Error("web automation retry failed");
         }
-        return { action: "web-automation-resumed", uid: row.uid, paid: true, status: row.plan_status };
+        return { action: "web-automation-resumed", uid: row.uid, paid: row.paid === true, status: row.plan_status };
       }
       return { action: "stale", customerId: p.customerId };
     }
@@ -570,13 +568,24 @@ async function applyBilling(event, deps) {
     const trialing = p.status === "trialing";
     const trialEnd = trialing && p.trialEnd > 0 ? isoOrNull(p.trialEnd) : null;
     const cancellationRequested = p.cancelAtPeriodEnd === true || p.cancelAt > 0 || p.status === "canceled";
+    const trialPaymentMethodPresent = Boolean(trialing && p.hasPaymentMethod && trialEnd && !cancellationRequested);
     const invoicePaid = Boolean(!replacingSubscription
       && p.latestInvoiceId && row.web_invoice_id === p.latestInvoiceId
       && row.web_invoice_subscription_id === p.subscriptionId
       && row.web_invoice_paid === true && Number(row.web_invoice_amount_paid) > 0);
-    const paid = trialing
-      ? Boolean(p.hasPaymentMethod && trialEnd && !cancellationRequested)
-      : p.status === "active" && invoicePaid && !cancellationRequested;
+    const paid = p.status === "active" && invoicePaid && !cancellationRequested;
+    const trialEntitled = trialPaymentMethodPresent;
+    const subscriptionEntitled = trialEntitled || paid;
+    const nowMs = deps && deps.nowMs != null ? Number(deps.nowMs) : Date.now();
+    const wasEntitled = webTravelEntitled(row, nowMs);
+    const shouldRequestResume = p.eventType === "customer.subscription.created" && !cancellationRequested
+      && (trialEntitled || p.status === "active")
+      || !wasEntitled && subscriptionEntitled;
+    const revokeResumeIntent = cancellationRequested || row.web_automation_user_paused === true
+      || ["past_due", "unpaid", "incomplete", "incomplete_expired"].includes(String(p.status || "").toLowerCase())
+      || trialing && !trialEntitled;
+    const resumeIntentPending = !revokeResumeIntent
+      && (row.web_automation_resume_pending === true || shouldRequestResume);
     const patch = {
       stripe_customer_id: p.customerId || row.stripe_customer_id,
       stripe_subscription_id: p.subscriptionId,
@@ -584,6 +593,7 @@ async function applyBilling(event, deps) {
       plan_status: p.status || null,
       current_period_end: isoOrNull(p.currentPeriodEnd),
       trial_expires_at: trialEnd,
+      web_trial_payment_method_present: trialPaymentMethodPresent,
       stripe_event_at: isoOrNull(p.created),
       web_billing_cancel_at_period_end: cancellationRequested,
       web_subscription_event_at: isoOrNull(p.created),
@@ -591,11 +601,9 @@ async function applyBilling(event, deps) {
       web_subscription_event_id: p.eventId,
       web_subscription_created_at: p.subscriptionCreated ? isoOrNull(p.subscriptionCreated) : row.web_subscription_created_at || null,
       web_subscription_latest_invoice_id: p.latestInvoiceId,
-      ...(p.eventType === "customer.subscription.created"
-        ? { web_automation_resume_pending: paid }
-        : cancellationRequested || !paid ? { web_automation_resume_pending: false } : {}),
+      web_automation_resume_pending: resumeIntentPending,
       ...(replacingSubscription ? {
-        web_automation_resume_pending: p.eventType === "customer.subscription.created" && paid,
+        web_automation_resume_pending: resumeIntentPending,
         web_invoice_event_at: null,
         web_invoice_event_priority: null,
         web_invoice_event_id: null,
@@ -608,12 +616,11 @@ async function applyBilling(event, deps) {
     if (!(await patchWebBilling(row, patch, supaUrl, supaKey, fetchImpl))) {
       throw new Error("web subscription atomic patch conflicted");
     }
-    const resumePending = patch.web_automation_resume_pending === true || row.web_automation_resume_pending === true;
-    if (resumePending && paid
+    if (patch.web_automation_resume_pending === true && subscriptionEntitled
       && !(await resumeWebBillingAutomation(row.uid, row, supaUrl, supaKey, fetchImpl))) {
       throw new Error("web automation activation failed");
     }
-    return { action: paid ? "provision" : "deprovision", uid: row.uid, paid, status: p.status };
+    return { action: subscriptionEntitled ? "provision" : "deprovision", uid: row.uid, paid, status: p.status };
   }
 
   // Legacy subscription behavior remains shared with Telegram, including past_due grace.
@@ -644,7 +651,6 @@ module.exports = {
   webTrialEligible,
   webPaidCheckoutEligible,
   webTravelEntitled,
-  resumeWebAutomation,
   parseStripeEvent,
   isStale,
   toEpoch,

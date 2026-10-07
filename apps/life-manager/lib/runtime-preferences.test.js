@@ -86,6 +86,7 @@ test("Web control state returns the exact Calendar enable claim and database tim
   });
   assert.match(queries[0].searchParams.get("select"), /calendar_enable_claim_id/);
   assert.match(queries[0].searchParams.get("select"), /calendar_enable_claimed_at/);
+  assert.match(queries[0].searchParams.get("select"), /web_trial_payment_method_present/);
 });
 
 test("Web control state fails closed when a pending Calendar claim has no valid owner metadata", async () => {
@@ -147,7 +148,8 @@ test("Web control state returns current paid entitlement for pre-Calendar and wr
     uid, telegram_chat_id: null, calendar_enable_pending: false,
     calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected-123",
     web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub_web",
-    paid: true, plan_status: "active", trial_expires_at: null, web_billing_cancel_at_period_end: false,
+    paid: true, plan_status: "active", trial_expires_at: null, web_trial_payment_method_present: false,
+    web_billing_cancel_at_period_end: false,
   };
   const preference = { daily_automation_enabled: true, calendar_disconnect_pending: false };
   const result = await readWebTravelControlState(uid, {
@@ -158,6 +160,27 @@ test("Web control state returns current paid entitlement for pre-Calendar and wr
       ? rows([user])() : rows([preference])(),
   });
   assert.equal(result.billingEntitled, true);
+
+  Object.assign(user, { paid: false, plan_status: "trialing",
+    trial_expires_at: "2030-01-02T00:00:00.000Z", web_trial_payment_method_present: true });
+  const trial = await readWebTravelControlState(uid, {
+    ...SUPA,
+    expectedCalendarAccountId: "ca-selected-123",
+    nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
+    fetchImpl: async (url) => new URL(String(url)).pathname.endsWith("/lm_users")
+      ? rows([user])() : rows([preference])(),
+  });
+  assert.equal(trial.billingEntitled, true);
+
+  user.web_trial_payment_method_present = false;
+  const trialWithoutCard = await readWebTravelControlState(uid, {
+    ...SUPA,
+    expectedCalendarAccountId: "ca-selected-123",
+    nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
+    fetchImpl: async (url) => new URL(String(url)).pathname.endsWith("/lm_users")
+      ? rows([user])() : rows([preference])(),
+  });
+  assert.equal(trialWithoutCard.billingEntitled, false);
 
   user.paid = false;
   user.plan_status = "past_due";

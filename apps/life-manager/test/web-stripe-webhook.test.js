@@ -27,6 +27,8 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
     web_billing_revision: 0,
     web_billing_cancel_at_period_end: false,
     web_automation_resume_pending: false,
+    web_automation_user_paused: false,
+    web_trial_payment_method_present: false,
     web_subscription_created_at: null,
     daily_automation_enabled: false,
     web_subscription_event_at: null,
@@ -83,7 +85,11 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
       assert.equal(body.p_uid, UID);
       assert.equal(body.p_calendar_account_id, "ca-test-123");
       if (resumeFailures-- > 0) return json(503, { message: "temporary resume failure" });
-      if (row.web_automation_resume_pending) {
+      const trialEntitled = row.plan_status === "trialing" && row.web_trial_payment_method_present === true
+        && Date.parse(row.trial_expires_at) > Date.now();
+      const paidEntitled = row.plan_status === "active" && row.paid === true;
+      if (row.web_automation_resume_pending && !row.web_automation_user_paused
+        && (trialEntitled || paidEntitled) && row.web_billing_cancel_at_period_end !== true) {
         row.web_automation_resume_pending = false;
         row.web_billing_revision++;
         row.daily_automation_enabled = true;
@@ -134,8 +140,9 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
 
     assert.deepEqual(responses, [500, 500, 500, 200]);
     assert.equal(row.web_billing_revision, 2);
-    assert.equal(row.paid, true);
+    assert.equal(row.paid, false);
     assert.equal(row.plan_status, "trialing");
+    assert.equal(row.web_trial_payment_method_present, true);
     assert.equal(row.web_subscription_event_id, event.id);
     assert.equal(row.web_automation_resume_pending, false);
     assert.equal(row.daily_automation_enabled, true);
@@ -145,6 +152,7 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
     // The user-facing pause RPC clears the activation intent while holding the lm_users row lock.
     row.web_billing_revision++;
     row.web_automation_resume_pending = false;
+    row.web_automation_user_paused = true;
     row.daily_automation_enabled = false;
     assert.equal((await send()).status, 200);
     assert.equal(resumeCalls, 2);

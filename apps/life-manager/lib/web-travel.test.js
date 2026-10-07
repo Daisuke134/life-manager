@@ -299,8 +299,8 @@ test("expired legacy Web trial stops Calendar reads but leaves paid restart avai
 test("saved Travel offer and active subscription screens do not reread Calendar events", async () => {
   for (const [setupState, billing] of [
     ["trial_offer", { stripe_subscription_id: null, paid: false, plan_status: null }],
-    ["trial_active", { stripe_subscription_id: "sub-trial", paid: true, plan_status: "trialing",
-      trial_expires_at: "2030-01-08T00:00:00.000Z" }],
+    ["trial_active", { stripe_subscription_id: "sub-trial", paid: false, plan_status: "trialing",
+      web_trial_payment_method_present: true, trial_expires_at: "2030-01-08T00:00:00.000Z" }],
     ["subscribed", { stripe_subscription_id: "sub-paid", paid: true, plan_status: "active" }],
   ]) {
     let eventReads = 0;
@@ -1159,6 +1159,8 @@ test("Web initial-scan migration records only exact-tenant scan state and does n
 test("Web billing resume intent is consumed atomically and manual pause invalidates it", () => {
   const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-08-z-lm-web-billing-ordering.sql"), "utf8");
   assert.match(sql, /ADD COLUMN IF NOT EXISTS web_automation_resume_pending boolean NOT NULL DEFAULT false/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS web_automation_user_paused boolean NOT NULL DEFAULT false/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS web_trial_payment_method_present boolean NOT NULL DEFAULT false/i);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS web_subscription_created_at timestamptz/i);
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.resume_lm_web_billing_automation/i);
   const resumeSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.resume_lm_web_billing_automation"),
@@ -1166,6 +1168,8 @@ test("Web billing resume intent is consumed atomically and manual pause invalida
   assert.match(resumeSql, /telegram_chat_id IS NULL[\s\S]*FOR UPDATE/i);
   assert.match(resumeSql, /web_automation_resume_pending/i);
   assert.match(resumeSql, /paid IS DISTINCT FROM true/i);
+  assert.match(resumeSql, /web_trial_payment_method_present IS DISTINCT FROM true/i);
+  assert.match(resumeSql, /web_automation_user_paused IS TRUE/i);
   assert.match(resumeSql, /trial_expires_at/i);
   assert.match(resumeSql, /web_billing_cancel_at_period_end IS DISTINCT FROM false/i);
   assert.match(resumeSql, /daily_automation_enabled\s*=\s*true/i);
@@ -1178,4 +1182,6 @@ test("Web billing resume intent is consumed atomically and manual pause invalida
   const pauseSql = controlsSql.slice(controlsSql.indexOf("IF p_action = 'pause'"), controlsSql.indexOf("ELSIF p_action = 'disconnect_begin'"));
   assert.match(pauseSql, /daily_automation_enabled\s*=\s*false/i);
   assert.match(controlsSql, /IF p_action IN \('pause', 'disconnect_begin'\)[\s\S]*web_automation_resume_pending\s*=\s*false[\s\S]*web_billing_revision\s*=\s*web_billing_revision\s*\+\s*1/i);
+  assert.match(controlsSql, /IF p_action IN \('pause', 'disconnect_begin'\)[\s\S]*web_automation_user_paused\s*=\s*true/i);
+  assert.match(controlsSql, /IF p_action = 'resume'[\s\S]*web_automation_user_paused\s*=\s*false/i);
 });

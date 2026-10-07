@@ -50,7 +50,7 @@ async function startServer() {
             ? { setupState: "no_eligible_events", calendarState: "connected", paid: false,
                 checkoutAvailable: false, confirmedTravelBlockCount: 0, scanState: "zero_blocks" }
             : state.trialActive
-              ? { setupState: "trial_active", calendarState: "connected", paid: true, planStatus: "trialing" }
+              ? { setupState: "trial_active", calendarState: "connected", paid: false, planStatus: "trialing" }
               : { setupState: "trial_offer", calendarState: "connected", paid: false, checkoutAvailable: true,
                   confirmedTravelBlockCount: 1, firstTravelAt: "2030-01-01T00:00:00.000Z" };
       const html = renderWebPage({

@@ -39,7 +39,7 @@ async function readWebTravelControlState(uid, opts = {}) {
   const userUrl = new URL(`${base}/rest/v1/lm_users`);
   userUrl.searchParams.set("uid", `eq.${uid}`);
   userUrl.searchParams.set("telegram_chat_id", "is.null");
-  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at,web_initial_scan_completed_at,web_first_travel_at,stripe_subscription_id,trial_expires_at,plan_status,paid,web_billing_cancel_at_period_end");
+  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at,web_initial_scan_completed_at,web_first_travel_at,stripe_subscription_id,trial_expires_at,plan_status,paid,web_trial_payment_method_present,web_billing_cancel_at_period_end");
   userUrl.searchParams.set("limit", "2");
   const userResponse = await fetchImpl(userUrl.toString(), { headers }).catch(() => null);
   if (!userResponse || !userResponse.ok) return null;

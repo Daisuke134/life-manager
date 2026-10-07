@@ -2,7 +2,7 @@
 
 const crypto = require("node:crypto");
 const { resolveWebUser } = require("./web-auth.js");
-const { webTrialEligible, webPaidCheckoutEligible, resumeWebAutomation } = require("./billing.js");
+const { webTrialEligible, webPaidCheckoutEligible } = require("./billing.js");
 
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHECKOUT_PATH = "/api/lm-web/checkout";
@@ -149,11 +149,6 @@ async function createWebCheckoutSession(uid, user, opts = {}) {
   catch { throw webError(502, "checkout_unavailable"); }
   const url = validStripeUrl(session && session.url, "checkout.stripe.com");
   if (!url) throw webError(502, "checkout_unavailable");
-  const supaUrl = String(opts.supaUrl || envFor(opts).SUPABASE_URL || "").replace(/\/$/, "");
-  const supaKey = String(opts.supaKey || envFor(opts).SUPABASE_SERVICE_ROLE_KEY || "").trim();
-  if (!await resumeWebAutomation(uid, row, supaUrl, supaKey, opts.fetchImpl)) {
-    throw webError(502, "billing_unavailable");
-  }
   return { url, trialEnd, trialEligible };
 }
 

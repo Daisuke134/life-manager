@@ -170,7 +170,8 @@ test("Web unpaid, past-due, and expired-trial tenants stop before Calendar reads
   for (const state of [
     { paid: false, plan_status: "canceled", trial_expires_at: null },
     { paid: false, plan_status: "past_due", trial_expires_at: null },
-    { paid: true, plan_status: "trialing", trial_expires_at: "2029-12-31T23:59:59.000Z" },
+    { paid: false, plan_status: "trialing", trial_expires_at: "2029-12-31T23:59:59.000Z",
+      web_trial_payment_method_present: true },
   ]) {
     let calendarReads = 0;
     await travelUserOnce({ uid, telegram_chat_id: null, daily_automation_enabled: true,
@@ -189,7 +190,7 @@ test("current card-backed Web trial remains eligible until trial_expires_at", as
   const calendarExpectedIds = [];
   await travelUserOnce({
     uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
-    daily_automation_enabled: true, paid: true, plan_status: "trialing",
+    daily_automation_enabled: true, paid: false, plan_status: "trialing", web_trial_payment_method_present: true,
     web_first_travel_at: "2029-12-01T00:00:00.000Z",
     trial_expires_at: "2030-01-02T00:00:00.000Z",
   }, {
@@ -214,7 +215,8 @@ test("Inngest user reload includes the Web billing expiry fields used by travel 
     urls.push(url);
     if (url.pathname.endsWith("/lm_users")) return { ok: true, json: async () => [{
       uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
-      web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: true, plan_status: "trialing",
+      web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: false, plan_status: "trialing",
+      web_trial_payment_method_present: true,
       trial_expires_at: "2030-01-08T00:00:00.000Z", calendar_provider: "composio_gcal",
     }] };
     if (url.pathname.endsWith("/lm_panel_preferences")) return { ok: true, json: async () => [{
@@ -226,7 +228,7 @@ test("Inngest user reload includes the Web billing expiry fields used by travel 
   try {
     const row = await scheduler.getUserByUid("lm_11111111-1111-4111-8111-111111111111");
     const userSelect = urls.find((url) => url.pathname.endsWith("/lm_users")).searchParams.get("select");
-    for (const field of ["web_first_travel_at", "plan_status", "trial_expires_at"]) {
+    for (const field of ["web_first_travel_at", "plan_status", "trial_expires_at", "web_trial_payment_method_present"]) {
       assert.ok(userSelect.split(",").includes(field), `${field} must reach the per-user travel gate`);
       assert.equal(row[field] != null, true);
     }

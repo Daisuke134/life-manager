@@ -186,7 +186,7 @@ test("zero-block state shows a rescan action but no trial checkout", () => {
 test("trial-active state confirms automation without rendering a daily dashboard", () => {
   const html = visibleHtml(renderWebPage({
     user,
-    snapshot: snapshot({ setupState: "trial_active", paid: true, planStatus: "trialing", checkoutAvailable: false }),
+    snapshot: snapshot({ setupState: "trial_active", paid: false, planStatus: "trialing", checkoutAvailable: false }),
   }));
 
   assert.match(html, /Google Calendarに接続しました/);
