@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "reason"],
+  "properties": {
+    "action": {"type": "string", "enum": ["leave_features", "retitle", "retag", "cannot_fix"]},
+    "reason": {"type": "string"}
+  }
+}
