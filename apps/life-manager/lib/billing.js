@@ -308,15 +308,15 @@ async function readCurrentSubscription(p, event, deps) {
   const retrieve = deps && deps.retrieveSubscription
     || deps && deps.stripe && deps.stripe.subscriptions && deps.stripe.subscriptions.retrieve
       && ((subscriptionId) => deps.stripe.subscriptions.retrieve(subscriptionId));
-  if (typeof retrieve !== "function") throw new Error("same-second Web subscription conflict requires Stripe readback");
+  if (typeof retrieve !== "function") throw new Error("Web subscription conflict requires Stripe readback");
   let snapshot;
   try { snapshot = await retrieve(p.subscriptionId); }
-  catch { throw new Error("same-second Web subscription Stripe readback failed"); }
+  catch { throw new Error("Web subscription Stripe readback failed"); }
   const snapshotCustomerId = typeof snapshot?.customer === "string"
     ? snapshot.customer : snapshot?.customer?.id || null;
   if (!snapshot || snapshot.id !== p.subscriptionId
     || p.customerId && snapshotCustomerId !== p.customerId) {
-    throw new Error("same-second Web subscription Stripe readback did not match");
+    throw new Error("Web subscription Stripe readback did not match");
   }
   const latestInvoice = typeof snapshot.latest_invoice === "string"
     ? snapshot.latest_invoice : snapshot.latest_invoice && snapshot.latest_invoice.id || null;
@@ -368,8 +368,14 @@ async function applyBilling(event, deps) {
       const replacingSubscription = Boolean(p.subscriptionId && currentSubscriptionId
         && p.subscriptionId !== currentSubscriptionId);
       if (replacingSubscription && !priorInactive) return { action: "stale-web-checkout-subscription", uid: p.uid };
-      if (replacingSubscription && !isLaterWebEvent(p, row, "subscription")) {
-        return { action: "stale-web-checkout-subscription", uid: p.uid };
+      if (replacingSubscription) {
+        p = await readCurrentSubscription(p, event, deps);
+        const incomingSubscriptionCreated = Number(p.subscriptionCreated) || 0;
+        const currentSubscriptionCreated = toEpoch(row.web_subscription_created_at);
+        if (!incomingSubscriptionCreated || currentSubscriptionCreated
+          && incomingSubscriptionCreated <= currentSubscriptionCreated) {
+          return { action: "stale-web-checkout-subscription", uid: p.uid };
+        }
       }
       if (p.subscriptionId && currentSubscriptionId === p.subscriptionId && priorInactive) {
         return { action: "stale-web-checkout", uid: p.uid };
@@ -383,7 +389,7 @@ async function applyBilling(event, deps) {
         patch.trial_expires_at = null;
         patch.web_billing_cancel_at_period_end = false;
         patch.web_automation_resume_pending = false;
-        patch.web_subscription_created_at = null;
+        patch.web_subscription_created_at = isoOrNull(p.subscriptionCreated);
         patch.web_subscription_event_at = null;
         patch.web_subscription_event_priority = null;
         patch.web_subscription_event_id = null;
@@ -478,10 +484,21 @@ async function applyBilling(event, deps) {
         && p.invoiceId === row.web_subscription_latest_invoice_id;
       // Invoice events update payment evidence only. The subscription stream owns plan_status; an older
       // paid invoice must not overwrite a newer past_due/canceled state.
-      const sameSecondRecovery = latestInvoicePaid && currentPlanStatus === "past_due"
+      const sameSecondRecoveryCandidate = latestInvoicePaid && currentPlanStatus === "past_due"
         && toEpoch(row.web_subscription_event_at) === toEpoch(p.created);
-      const trialConverted = latestInvoicePaid && currentPlanStatus === "trialing"
+      const trialConvertedCandidate = latestInvoicePaid && currentPlanStatus === "trialing"
         && toEpoch(row.trial_expires_at) > 0 && toEpoch(p.created) >= toEpoch(row.trial_expires_at);
+      let currentSubscriptionSnapshot = null;
+      if (sameSecondRecoveryCandidate || trialConvertedCandidate) {
+        currentSubscriptionSnapshot = await readCurrentSubscription(p, event, deps);
+      }
+      const currentInvoiceConfirmed = currentSubscriptionSnapshot
+        && currentSubscriptionSnapshot.status === "active"
+        && currentSubscriptionSnapshot.latestInvoiceId === p.invoiceId
+        && currentSubscriptionSnapshot.cancelAtPeriodEnd !== true
+        && !(currentSubscriptionSnapshot.cancelAt > 0);
+      const sameSecondRecovery = sameSecondRecoveryCandidate && currentInvoiceConfirmed;
+      const trialConverted = trialConvertedCandidate && currentInvoiceConfirmed;
       const activationConfirmed = (latestInvoicePaid && currentPlanStatus === "active")
         || sameSecondRecovery || trialConverted;
       const nowMs = deps && deps.nowMs != null ? Number(deps.nowMs) : Date.now();
@@ -565,7 +582,8 @@ async function applyBilling(event, deps) {
       && row.web_billing_cancel_at_period_end !== true
       && toEpoch(row.web_invoice_event_at) === toEpoch(p.created);
     if (paidLatestInvoiceThisSecond && !reconciledSubscriptionSnapshot) {
-      return { action: "past-due-superseded-by-paid-invoice", uid: row.uid, paid: row.paid === true };
+      p = await readCurrentSubscription(p, event, deps);
+      reconciledSubscriptionSnapshot = true;
     }
     const trialing = p.status === "trialing";
     const trialEnd = trialing && p.trialEnd > 0 ? isoOrNull(p.trialEnd) : null;

@@ -12,7 +12,7 @@ const TODAY_PATH = "/api/lm-web/today";
 const CONTROL_PATH = "/api/lm-web/travel/control";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{3,128}$/;
-const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid,plan_status,web_trial_payment_method_present,stripe_customer_id,stripe_subscription_id,current_period_end,web_initial_scan_completed_at,web_first_travel_at";
+const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid,plan_status,web_trial_payment_method_present,web_billing_cancel_at_period_end,stripe_customer_id,stripe_subscription_id,current_period_end,web_initial_scan_completed_at,web_first_travel_at";
 
 function requestUrl(req) {
   try { return new URL(req.url || "/", "http://life-manager.local"); }

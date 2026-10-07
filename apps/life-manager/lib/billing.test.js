@@ -361,6 +361,37 @@ test("a late event from a prior canceled Web subscription cannot replace the pai
   assert.equal(r.action, "stale-subscription-id");
   assert.equal(s.patches.length, 0);
 });
+test("Web checkout replacement compares the Stripe subscription creation time", async () => {
+  const checkout = (id, subscriptionId, created) => ({ id, type: "checkout.session.completed", created,
+    data: { object: { client_reference_id: WEB_UID, customer: "cus_web", subscription: subscriptionId,
+      payment_status: "no_payment_required", metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } } } });
+  const current = (subscriptionId, created) => ({ id: subscriptionId, customer: "cus_web", created,
+    status: "trialing", trial_end: 900000, default_payment_method: "pm_saved",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } });
+  const row = webBillingRow({ stripe_subscription_id: "sub_current", plan_status: "canceled", paid: false,
+    web_subscription_created_at: new Date(200_000).toISOString(),
+    web_subscription_event_at: new Date(250_000).toISOString(), web_subscription_event_id: "evt_current_cancel" });
+
+  const older = fakeSupa(row);
+  let olderReads = 0;
+  const stale = await applyBilling(checkout("evt_old_checkout", "sub_old", 400), {
+    ...deps(older), retrieveSubscription: async () => { olderReads++; return current("sub_old", 100); },
+  });
+  assert.equal(stale.action, "stale-web-checkout-subscription");
+  assert.equal(olderReads, 1);
+  assert.equal(older.row().stripe_subscription_id, "sub_current");
+  assert.equal(older.patches.length, 0);
+
+  const newer = fakeSupa(row);
+  let newerReads = 0;
+  const linked = await applyBilling(checkout("evt_new_checkout", "sub_new", 400), {
+    ...deps(newer), retrieveSubscription: async () => { newerReads++; return current("sub_new", 300); },
+  });
+  assert.equal(linked.action, "link-web-checkout");
+  assert.equal(newerReads, 1);
+  assert.equal(newer.row().stripe_subscription_id, "sub_new");
+  assert.equal(newer.row().plan_status, "incomplete");
+});
 test("Web trial cancellation request pauses automation before the Stripe trial ends", async () => {
   const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
     web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
@@ -809,19 +840,111 @@ test("same-second paid invoice and past_due update preserve the confirmed recove
   const pastDueFirst = fakeSupa(webBillingRow({ paid: false, plan_status: "past_due",
     web_subscription_event_at: new Date(99_000).toISOString(), web_subscription_event_id: "evt_prior",
     web_subscription_latest_invoice_id: "in_recovery" }));
-  await applyBilling(pastDue, deps(pastDueFirst));
-  await applyBilling(invoice, deps(pastDueFirst));
+  const activeSnapshot = { id: "sub_web", customer: "cus_web", created: 90, status: "active",
+    current_period_end: 900000, latest_invoice: "in_recovery",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+  const withActiveSnapshot = (s) => ({ ...deps(s), retrieveSubscription: async () => activeSnapshot });
+  await applyBilling(pastDue, withActiveSnapshot(pastDueFirst));
+  await applyBilling(invoice, withActiveSnapshot(pastDueFirst));
   assert.equal(pastDueFirst.row().plan_status, "active");
   assert.equal(pastDueFirst.row().paid, true);
 
   const invoiceFirst = fakeSupa(webBillingRow({ paid: false, plan_status: "active",
     web_subscription_event_at: new Date(99_000).toISOString(), web_subscription_event_id: "evt_prior",
     web_subscription_latest_invoice_id: "in_recovery" }));
-  await applyBilling(invoice, deps(invoiceFirst));
-  const ignoredPastDue = await applyBilling(pastDue, deps(invoiceFirst));
-  assert.equal(ignoredPastDue.action, "past-due-superseded-by-paid-invoice");
+  await applyBilling(invoice, withActiveSnapshot(invoiceFirst));
+  const recovered = await applyBilling(pastDue, withActiveSnapshot(invoiceFirst));
+  assert.equal(recovered.paid, true);
   assert.equal(invoiceFirst.row().plan_status, "active");
   assert.equal(invoiceFirst.row().paid, true);
+});
+
+test("same-second paid invoice recovery requires Stripe to confirm an active subscription", async () => {
+  const s = fakeSupa(webBillingRow({ paid: false, plan_status: "past_due",
+    web_subscription_event_at: new Date(100_000).toISOString(), web_subscription_latest_invoice_id: "in_recovery" }));
+  let reads = 0;
+  const current = { id: "sub_web", customer: "cus_web", created: 90, status: "past_due",
+    latest_invoice: "in_recovery", metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+
+  const result = await applyBilling(webInvoiceEvent("evt_paid_recovery", "invoice.paid", 100,
+    { id: "in_recovery" }), { ...deps(s), retrieveSubscription: async () => { reads++; return current; } });
+
+  assert.equal(reads, 1);
+  assert.equal(result.paid, false);
+  assert.equal(s.row().plan_status, "past_due");
+  assert.equal(s.row().paid, false);
+  assert.equal(s.row().web_invoice_paid, true);
+});
+
+test("same-second invoice recovery does not activate a non-current invoice", async () => {
+  const s = fakeSupa(webBillingRow({ paid: false, plan_status: "past_due",
+    web_subscription_event_at: new Date(100_000).toISOString(), web_subscription_latest_invoice_id: "in_recovery" }));
+  const current = { id: "sub_web", customer: "cus_web", created: 90, status: "active",
+    latest_invoice: "in_later", metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+
+  const result = await applyBilling(webInvoiceEvent("evt_paid_recovery", "invoice.paid", 100,
+    { id: "in_recovery" }), { ...deps(s), retrieveSubscription: async () => current });
+
+  assert.equal(result.paid, false);
+  assert.equal(s.row().plan_status, "past_due");
+  assert.equal(s.row().paid, false);
+  assert.equal(s.row().web_invoice_paid, true);
+});
+
+test("invoice recovery readback failure leaves billing entitlement unchanged for retry", async () => {
+  const row = webBillingRow({ paid: false, plan_status: "past_due",
+    web_subscription_event_at: new Date(100_000).toISOString(), web_subscription_latest_invoice_id: "in_recovery" });
+  const s = fakeSupa(row);
+
+  await assert.rejects(applyBilling(webInvoiceEvent("evt_paid_recovery", "invoice.paid", 100,
+    { id: "in_recovery" }), { ...deps(s), retrieveSubscription: async () => { throw new Error("offline"); } }),
+  /Stripe readback failed/);
+
+  assert.equal(s.patches.length, 0);
+  assert.equal(s.row().plan_status, "past_due");
+  assert.equal(s.row().paid, false);
+});
+
+test("paid invoice at trial expiry does not convert until Stripe reports active", async () => {
+  const trialEnd = new Date(200_000).toISOString();
+  const s = fakeSupa(webBillingRow({ paid: false, plan_status: "trialing",
+    trial_expires_at: trialEnd, web_trial_payment_method_present: true,
+    web_subscription_latest_invoice_id: "in_trial_end" }));
+  let reads = 0;
+  const current = { id: "sub_web", customer: "cus_web", created: 90, status: "trialing",
+    trial_end: 200, default_payment_method: "pm_saved", latest_invoice: "in_trial_end",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+
+  const result = await applyBilling(webInvoiceEvent("evt_trial_end_paid", "invoice.paid", 200,
+    { id: "in_trial_end" }), { ...deps(s), retrieveSubscription: async () => { reads++; return current; } });
+
+  assert.equal(reads, 1);
+  assert.equal(result.paid, false);
+  assert.equal(s.row().plan_status, "trialing");
+  assert.equal(s.row().trial_expires_at, trialEnd);
+  assert.equal(s.row().web_trial_payment_method_present, true);
+  assert.equal(s.row().paid, false);
+});
+
+test("same-second paid invoice suppression checks Stripe before ignoring past_due", async () => {
+  const s = fakeSupa(webBillingRow({ paid: true, plan_status: "active",
+    web_subscription_event_at: new Date(99_000).toISOString(),
+    web_subscription_latest_invoice_id: "in_current",
+    web_invoice_event_at: new Date(100_000).toISOString(), web_invoice_id: "in_current",
+    web_invoice_subscription_id: "sub_web", web_invoice_paid: true, web_invoice_amount_paid: 2900 }));
+  let reads = 0;
+  const current = { id: "sub_web", customer: "cus_web", created: 90, status: "past_due",
+    latest_invoice: "in_current", metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+
+  const result = await applyBilling(webSubscriptionEvent("evt_past_due_after_paid", 100,
+    { status: "past_due", latest_invoice: "in_current" }), {
+    ...deps(s), retrieveSubscription: async () => { reads++; return current; },
+  });
+
+  assert.equal(reads, 1);
+  assert.equal(result.paid, false);
+  assert.equal(s.row().plan_status, "past_due");
+  assert.equal(s.row().paid, false);
 });
 
 test("competing Web subscription writes use atomic revision CAS and cannot restore access after cancellation", async () => {

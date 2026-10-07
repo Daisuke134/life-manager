@@ -75,6 +75,7 @@ function fixture(overrides = {}) {
     home_address: null,
     trial_expires_at: null,
     paid: false,
+    web_billing_cancel_at_period_end: false,
     web_initial_scan_completed_at: null,
     web_first_travel_at: null,
     web_automation_user_paused: false,
@@ -150,7 +151,9 @@ function fixture(overrides = {}) {
     if (requestUrl.pathname.endsWith("/lm_users")) {
       sequence.push("user_row");
       assert.equal((requestUrl.searchParams.get("select") || "").includes("call_time_zone"), false);
-      return { ok: true, status: 200, json: async () => row.telegram_chat_id == null ? [{ ...row }] : [] };
+      const fields = new Set((requestUrl.searchParams.get("select") || "").split(","));
+      const selectedRow = Object.fromEntries(Object.entries(row).filter(([field]) => fields.has(field)));
+      return { ok: true, status: 200, json: async () => row.telegram_chat_id == null ? [selectedRow] : [] };
     }
     if (requestUrl.pathname.endsWith("/lm_panel_preferences")) {
       sequence.push("preference_read");
@@ -315,6 +318,27 @@ test("saved Travel offer and active subscription screens do not reread Calendar 
     assert.equal(snapshot.setupState, setupState);
     assert.equal(eventReads, 0);
   }
+});
+
+test("scheduled cancellation is reflected by the Web screen entitlement", async () => {
+  let eventReads = 0;
+  const f = fixture({ listEvents7dImpl: async () => { eventReads++; return [event()]; } });
+  Object.assign(f.row, {
+    web_initial_scan_completed_at: "2030-01-01T00:00:00.000Z",
+    web_first_travel_at: "2030-01-01T00:00:00.000Z",
+    stripe_subscription_id: "sub-trial",
+    plan_status: "trialing",
+    web_trial_payment_method_present: true,
+    trial_expires_at: "2030-01-08T00:00:00.000Z",
+    web_billing_cancel_at_period_end: true,
+  });
+
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.setupState, "billing_inactive");
+  assert.equal(snapshot.checkoutAvailable, false);
+  assert.equal(snapshot.subscriptionCheckoutAvailable, false);
+  assert.equal(eventReads, 0);
 });
 
 test("zero-block initial scan is recorded without a first Travel timestamp or trial", async () => {
