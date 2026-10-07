@@ -269,6 +269,18 @@ def publish(
     tid = None
     try:
         tid = _cdp(["new", "https://www.instagram.com/"], cdp_host=cdp_host, cdp_port=cdp_port)
+        # Root cause (2026-10-07, measured): under launchd a tab has no real OS
+        # window focus, so Chromium throttles it as a background/occluded tab
+        # (rAF, timers, the upload/encode pipeline). post_reel.py's own compiled
+        # bytecode never calls bring_front/focus, so 3 of 4 natural runs reached
+        # "shared-unconfirmed" -- the share click fired but the reel never showed
+        # up in the profile-href poll before the budget ran out. The identical
+        # call made interactively (real window focused) always finished. cdp.py's
+        # `focus` command (Page.bringToFront + Emulation.setFocusEmulationEnabled
+        # + Page.setWebLifecycleState('active')) is the sibling fix
+        # ig-account-warmer already uses for this exact "background tab" class of
+        # problem; apply it to every new tab before any other step.
+        _cdp(["focus", tid], cdp_host=cdp_host, cdp_port=cdp_port)
         _ensure_logged_in(tid, cdp_host=cdp_host, cdp_port=cdp_port, creds=creds)
 
         poster = POST_REEL_PY if POST_REEL_PY.is_file() else POST_REEL_PYC
