@@ -9,6 +9,7 @@ struct FeedRootView: View {
     @StateObject private var themeStore = ThemeStore()
     @StateObject private var likedStore = LikedQuotesStore()
     @ObservedObject private var appState = AppState.shared
+    @StateObject private var quoteNavigation = QuoteNavigationCoordinator.shared
     @Environment(\.openURL) private var openURL
     @State private var quotes: [Quote] = []
     @State private var currentIndex: Int = 0
@@ -70,6 +71,13 @@ struct FeedRootView: View {
             if quotes.isEmpty {
                 quotes = QuoteProvider.shared.all()
             }
+            applyPendingQuoteNavigation()
+        }
+        .onChange(of: quoteNavigation.pendingRequest) { _ in
+            applyPendingQuoteNavigation()
+        }
+        .onChange(of: quotes) { _ in
+            applyPendingQuoteNavigation()
         }
         .sheet(isPresented: $showSettings) {
             if #available(iOS 16.0, *) {
@@ -89,12 +97,11 @@ struct FeedRootView: View {
                 .navigationViewStyle(.stack)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .aniccaScrollToQuote)) { note in
-            guard let qid = note.userInfo?["quoteId"] as? String else { return }
-            if let idx = quotes.firstIndex(where: { $0.id == qid }) {
-                withAnimation { currentIndex = idx }
-            }
-        }
+    }
+
+    private func applyPendingQuoteNavigation() {
+        guard let index = quoteNavigation.resolveIndex(in: quotes) else { return }
+        withAnimation { currentIndex = index }
     }
 
     private var billingIssueBanner: some View {
@@ -154,10 +161,4 @@ struct FeedRootView: View {
         }
         .accessibilityIdentifier(identifier)
     }
-}
-
-extension Notification.Name {
-    /// Posted when a notification is tapped or `anicca://quote/<id>` is opened.
-    /// userInfo: ["quoteId": "qNNN"]
-    static let aniccaScrollToQuote = Notification.Name("AniccaScrollToQuote")
 }

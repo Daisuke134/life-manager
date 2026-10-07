@@ -31,11 +31,7 @@ struct aniccaiosApp: App {
                     if url.host == "quote" {
                         let qid = url.lastPathComponent
                         if !qid.isEmpty && qid != "quote" {
-                            NotificationCenter.default.post(
-                                name: .aniccaScrollToQuote,
-                                object: nil,
-                                userInfo: ["quoteId": qid]
-                            )
+                            QuoteNavigationCoordinator.shared.request(quoteID: qid, alertBody: nil)
                         }
                         return
                     }
