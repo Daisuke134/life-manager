@@ -47,7 +47,12 @@ STATE_DIR = Path(os.environ.get("GIG_STATE_DIR", str(Path.home() / "gig")))
 LISTINGS_URL = "https://coconala.com/mypage/services_lists"
 CARD_DELIMITER = "編集する 公開設定 シェア"
 LIST_HEADER = "出品サービス一覧"
-SERVICE_SCOPE_END = "ココナラの安心保証"
+SERVICE_SCOPE_HEADINGS = ("サービス内容", "購入にあたってのお願い")
+PUBLIC_SERVICE_PAGE_EXPRESSION = (
+    "JSON.stringify({text:document.body ? document.body.innerText.slice(0,120000) : '',"
+    "scope:(()=>{const sections=document.querySelectorAll('#serviceContentsSummary');"
+    "return sections.length===1 ? sections[0].innerText : null})()})"
+)
 MAX_PAGES = 10  # bounded: the platform's own listing cap is 20, ~10 cards/page
 IDENTITY = "coconala:kosuke"
 BROWSER_GUARD = os.path.expanduser("~/.config/ai/bin/browser-guard.sh")
@@ -129,11 +134,14 @@ def parse_sales_count(rendered_text: str) -> int | None:
     return int(match.group(1).replace(",", "").replace("，", "")) if match else None
 
 
-def extract_public_service_scope(rendered_text: str) -> str | None:
-    """Keep only this service's official page section, never recommendations/profile."""
-    if rendered_text.count(SERVICE_SCOPE_END) != 1:
+def extract_public_service_scope(scope_text: str) -> str | None:
+    """Accept only the unique service container with its required headings in order."""
+    lines = [line.strip() for line in (scope_text or "").splitlines()]
+    positions = [[index for index, line in enumerate(lines) if line == heading]
+                 for heading in SERVICE_SCOPE_HEADINGS]
+    if any(len(found) != 1 for found in positions) or positions[0][0] >= positions[1][0]:
         return None
-    scope = rendered_text.split(SERVICE_SCOPE_END, 1)[0].strip()
+    scope = scope_text.strip()
     return scope or None
 
 
@@ -466,10 +474,10 @@ async def _fetch_category(
             data = await _eval_json(
                 ws_url,
                 url,
-                "JSON.stringify({text:document.body ? document.body.innerText.slice(0,120000) : ''})",
+                PUBLIC_SERVICE_PAGE_EXPRESSION,
             )
             text = str(data.get("text") or "")
-            scope = extract_public_service_scope(text) or ""
+            scope = extract_public_service_scope(str(data.get("scope") or "")) or ""
             if scope:
                 break
             if attempt < 2:
@@ -492,11 +500,18 @@ async def _fetch_category(
             deadline = asyncio.get_event_loop().time() + 15
             await _wait_for_load(ws, deadline, cid)
             r = await _call(ws, "Runtime.evaluate", {
-                "expression": "document.body ? document.body.innerText.slice(0,3000) : ''",
+                "expression": PUBLIC_SERVICE_PAGE_EXPRESSION,
                 "returnByValue": True,
             }, cid)
-            text = r.get("result", {}).get("result", {}).get("value", "") or ""
-    scope = extract_public_service_scope(text) or ""
+            raw = r.get("result", {}).get("result", {}).get("value", "") or ""
+            try:
+                data = json.loads(raw)
+            except (TypeError, json.JSONDecodeError):
+                data = {}
+            if not isinstance(data, dict):
+                data = {}
+            text = str(data.get("text") or "")
+            scope = extract_public_service_scope(str(data.get("scope") or "")) or ""
     return {
         "category": parse_category_breadcrumb(text), "sales_count": parse_sales_count(text),
         "public_url": url, "public_text": scope,

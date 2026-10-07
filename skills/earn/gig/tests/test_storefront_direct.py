@@ -1191,6 +1191,126 @@ def test_service_contract_requires_exact_coconala_heading_lines():
             raise AssertionError(f"near-match public text accepted: {text!r}")
 
 
+def test_public_service_contract_uses_dom_scope_for_all_current_listings(monkeypatch):
+    import asyncio
+    from contextlib import asynccontextmanager
+
+    import cdp_nav_snapshot
+
+    # IDs from the 2026-10-08 official inventory readback; content below is synthetic and
+    # follows only the observed DOM order so this test does not copy listing text.
+    service_ids = (
+        "4409818", "4397249", "4391607", "4389152", "4389027", "4388669", "4388574",
+        "4387924", "4386009", "4371816", "4355225", "4330368", "4313386", "4313100",
+        "4312985", "4308502", "4302213", "4244912", "4244910", "4244556",
+    )
+    assert len(service_ids) == 20
+    dom_scope_present = {"value": True}
+
+    scope = (
+        "サービス内容\n説明テキスト\n購入にあたってのお願い\n確認事項\n"
+        "有料オプション\n追加内容"
+    )
+    page_text = (
+        "ホーム\nIT\nプログラミング\n出品タイトル\nキャッチ\n評価 -\n"
+        "ココナラの安心保証\n" + scope +
+        "\n販売実績 8 件\nプロフィール\nprofile marker\n"
+        "おすすめサービス\nrecommendation marker"
+    )
+    ws_expressions = []
+    cdp_expressions = []
+
+    async def evaluate_json(_ws_url, _url, expression):
+        ws_expressions.append(expression)
+        return {"text": page_text, "scope": scope if dom_scope_present["value"] else None}
+
+    async def wait_for_load(*_args):
+        return None
+
+    async def send(_payload):
+        return None
+
+    async def call(_ws, method, params, _cid):
+        if method == "Runtime.evaluate":
+            expression = params["expression"]
+            cdp_expressions.append(expression)
+            if "#serviceContentsSummary" in expression:
+                value = json.dumps({
+                    "text": page_text,
+                    "scope": scope if dom_scope_present["value"] else None,
+                }, ensure_ascii=False)
+            else:
+                value = page_text
+            return {"result": {"result": {"value": value}}}
+        return {}
+
+    @asynccontextmanager
+    async def hidden_page_target(_url):
+        yield "ws://fixture"
+
+    @asynccontextmanager
+    async def cdp_session(_ws_url):
+        yield SimpleNamespace(send=send)
+
+    monkeypatch.setattr(listing_inventory, "_eval_json", evaluate_json)
+    monkeypatch.setattr(listing_inventory, "_wait_for_load", wait_for_load)
+    monkeypatch.setattr(listing_inventory, "_call", call)
+    monkeypatch.setattr(listing_inventory, "_cdp_session", cdp_session)
+    monkeypatch.setattr(cdp_nav_snapshot, "hidden_page_target", hidden_page_target)
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://test-only")
+
+    async def check_all_services():
+        for service_id in service_ids:
+            observations = (
+                await listing_inventory._fetch_category(None, service_id, ws_url="ws://fixture"),
+                await listing_inventory._fetch_category("http://fixture", service_id),
+            )
+            for observation in observations:
+                assert observation["public_text"] == scope
+                assert observation["category"] == "IT/プログラミング"
+                assert observation["sales_count"] == 8
+                assert "profile marker" not in observation["public_text"]
+                assert "recommendation marker" not in observation["public_text"]
+                source = _official_source(service_id)
+                source.update(observation)
+                direct._service_contract(source, "2026-10-08T00:00:00+00:00")
+
+    asyncio.run(check_all_services())
+
+    assert len(ws_expressions) == len(cdp_expressions) == 20
+    assert all("#serviceContentsSummary" in expression for expression in ws_expressions)
+    assert all("#serviceContentsSummary" in expression for expression in cdp_expressions)
+    assert all("sections.length===1" in expression for expression in ws_expressions)
+    assert all("sections.length===1" in expression for expression in cdp_expressions)
+
+    async def reject_missing_dom_scope():
+        dom_scope_present["value"] = False
+        return (
+            await listing_inventory._fetch_category(None, service_ids[0], ws_url="ws://fixture"),
+            await listing_inventory._fetch_category("http://fixture", service_ids[0]),
+        )
+
+    for observation in asyncio.run(reject_missing_dom_scope()):
+        assert observation["public_text"] == ""
+        source = _official_source(service_ids[0])
+        source.update(observation)
+        with pytest.raises(RuntimeError, match="^official_service_contract_invalid$"):
+            direct._service_contract(source, "2026-10-08T00:00:00+00:00")
+
+
+def test_public_service_scope_requires_unique_ordered_headings():
+    valid = "サービス内容\n説明\n購入にあたってのお願い\n確認\n有料オプション\n追加"
+    assert listing_inventory.extract_public_service_scope(valid) == valid
+
+    invalid_scopes = (
+        "サービス内容\n説明",
+        "サービス内容\n説明\nサービス内容\n購入にあたってのお願い",
+        "購入にあたってのお願い\n確認\nサービス内容",
+        "サービス内容\n購入にあたってのお願い\n確認\n購入にあたってのお願い",
+    )
+    assert all(listing_inventory.extract_public_service_scope(text) is None for text in invalid_scopes)
+
+
 def test_exact_faq_is_the_only_seller_field_and_public_delta():
     question, answer = direct._split_faq("よくある質問\n\nQ. 何を準備しますか？\nA. 対象画像をご共有ください。")
     base = [{"name": "data[Service][overview]", "value": "same", "checked": False}]
