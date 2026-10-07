@@ -285,6 +285,28 @@ test("Calendar return automatically runs one initial scan with an empty request 
   assert.deepEqual(client.replacements, ["/lm"]);
 });
 
+test("zero-block rescan button sends an explicit rescan action", async () => {
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({
+      setupState: "no_eligible_events", firstTravelAt: null,
+      confirmedTravelBlockCount: 0, checkoutAvailable: false, scanState: "zero_blocks",
+    }),
+  });
+  const client = mountClient(page, {
+    "/api/lm-web/setup": { setupState: "trial_offer", checkoutAvailable: true },
+  });
+  const button = { dataset: { action: "rescan" }, disabled: false };
+
+  await client.handlers.click({ target: { closest: () => button } });
+
+  const setup = client.requests.find((request) => request.path === "/api/lm-web/setup");
+  assert.equal(setup.init.method, "POST");
+  assert.equal(setup.init.headers["x-lm-web-csrf"], user.csrf);
+  assert.deepEqual(JSON.parse(setup.init.body), { rescan: true });
+  assert.deepEqual(client.redirects, ["/lm"]);
+});
+
 test("the signed-out CTA preserves one source UTM through the auth start URL", async () => {
   const page = renderWebPage({});
   const client = mountClient(page, {}, "https://life.example/lm?utm_source=ig&utm_campaign=founder-diary");

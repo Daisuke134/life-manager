@@ -109,7 +109,7 @@ test("Web control state fails closed when a pending Calendar claim has no valid 
   assert.equal(result, null);
 });
 
-test("Web control state grants initial-scan write only for the exact unscanned unpaid Calendar", async () => {
+test("Web control state permits an explicit rescan only while no first Travel value or subscription exists", async () => {
   const uid = "lm_11111111-1111-4111-8111-111111111111";
   const accountId = "ca-selected-123";
   const result = await readWebTravelControlState(uid, {
@@ -125,9 +125,11 @@ test("Web control state grants initial-scan write only for the exact unscanned u
         calendar_enable_pending: false,
         calendar_enable_claim_id: null,
         calendar_enable_claimed_at: null,
-        web_initial_scan_completed_at: null,
+        web_initial_scan_completed_at: "2030-01-01T08:00:00.000Z",
         web_first_travel_at: null,
         stripe_subscription_id: null,
+        trial_expires_at: null,
+        plan_status: null,
         paid: false,
       }])();
       return rows([{ daily_automation_enabled: false, calendar_disconnect_pending: false }])();

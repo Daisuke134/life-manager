@@ -163,12 +163,18 @@ async function recordWebInitialScan(uid, accountId, completedAt, firstTravelAt, 
   return row;
 }
 
-async function runInitialWebTravelScan(uid, opts = {}) {
+async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
   if (!WEB_UID_RE.test(String(uid || ""))) throw webError(401, "unauthorized");
   const active = await readActiveCalendarUser(uid, opts);
   if (active.status !== "ACTIVE") throw webError(409, "calendar_not_active");
   const initialRow = active.row;
-  if (initialRow.web_initial_scan_completed_at) {
+  const rescanAllowed = runOptions.rescan === true
+    && !initialRow.web_first_travel_at
+    && !initialRow.stripe_subscription_id
+    && initialRow.paid !== true
+    && !initialRow.trial_expires_at
+    && !initialRow.plan_status;
+  if (initialRow.web_initial_scan_completed_at && !rescanAllowed) {
     const snapshot = await buildTodaySnapshot(uid, opts);
     return Object.assign(snapshot, {
       scanState: initialRow.web_first_travel_at ? "complete" : "zero_blocks",
@@ -558,6 +564,9 @@ async function handleWebTravelRequest(req, res, opts = {}) {
   try { body = await (opts.readJsonImpl || panelApi().readJson)(req); }
   catch (error) { return sendJson(res, error && error.status === 413 ? 413 : 400, { error: "invalid_json" }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return sendJson(res, 400, { error: "invalid_json" });
+  if (url.pathname === SETUP_PATH && body.rescan !== undefined && typeof body.rescan !== "boolean") {
+    return sendJson(res, 400, { error: "invalid_rescan_action" });
+  }
 
   if (url.pathname === CONTROL_PATH) {
     if (Object.keys(body).length !== 1 || !["pause", "resume", "disconnect"].includes(body.action)) {
@@ -573,7 +582,7 @@ async function handleWebTravelRequest(req, res, opts = {}) {
   }
 
   try {
-    return sendJson(res, 200, await runInitialWebTravelScan(uid, opts));
+    return sendJson(res, 200, await runInitialWebTravelScan(uid, opts, { rescan: body.rescan === true }));
   } catch (error) {
     const status = Number.isInteger(error && error.status) ? error.status : 502;
     return sendJson(res, status, { error: status < 500 ? error.code : "setup_unavailable" });

@@ -233,6 +233,41 @@ test("initial Web setup accepts no home and does not start a trial or recurring 
   assert.equal(f.travelCalls, 1);
 });
 
+test("zero-block setup can explicitly rescan after the user adds a location and then offer trial", async () => {
+  let f;
+  let addTravel = false;
+  let scans = 0;
+  f = fixture({ travelUserOnceImpl: async (_user, deps) => {
+    scans++;
+    assert.equal(deps.initialScan, true);
+    if (!addTravel) return { inserted: 0, outboundReports: [] };
+    f.events.push(travelBlock());
+    return { inserted: 1, outboundReports: [{ eventId: "event-1",
+      leaveMs: Date.parse("2030-01-01T09:35:00+09:00"),
+      arriveMs: Date.parse("2030-01-01T10:00:00+09:00") }] };
+  } });
+  const first = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: {},
+  });
+  assert.equal(JSON.parse(first.body).scanState, "zero_blocks");
+  assert.ok(f.row.web_initial_scan_completed_at);
+  assert.equal(f.row.web_first_travel_at, null);
+  assert.equal(scans, 1);
+
+  addTravel = true;
+  f.row.home_address = "Home";
+  const second = await call(f, "POST", "/api/lm-web/setup", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { rescan: true },
+  });
+  const result = JSON.parse(second.body);
+  assert.equal(second.status, 200);
+  assert.equal(result.scanState, "complete");
+  assert.equal(result.checkoutAvailable, true);
+  assert.ok(f.row.web_first_travel_at);
+  assert.equal(scans, 2);
+  assert.equal(f.scanRpcCalls.length, 2);
+});
+
 test("billing-inactive Web page avoids further Calendar event reads", async () => {
   let eventReads = 0;
   const f = fixture({ listEvents7dImpl: async () => { eventReads++; return [event()]; } });

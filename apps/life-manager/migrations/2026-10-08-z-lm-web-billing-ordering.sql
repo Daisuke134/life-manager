@@ -7,9 +7,11 @@ ALTER TABLE public.lm_users
   ADD COLUMN IF NOT EXISTS web_subscription_event_at timestamptz,
   ADD COLUMN IF NOT EXISTS web_subscription_event_priority smallint,
   ADD COLUMN IF NOT EXISTS web_subscription_event_id text,
+  ADD COLUMN IF NOT EXISTS web_subscription_latest_invoice_id text,
   ADD COLUMN IF NOT EXISTS web_invoice_event_at timestamptz,
   ADD COLUMN IF NOT EXISTS web_invoice_event_priority smallint,
   ADD COLUMN IF NOT EXISTS web_invoice_event_id text,
+  ADD COLUMN IF NOT EXISTS web_invoice_id text,
   ADD COLUMN IF NOT EXISTS web_invoice_subscription_id text,
   ADD COLUMN IF NOT EXISTS web_invoice_paid boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS web_invoice_amount_paid bigint;

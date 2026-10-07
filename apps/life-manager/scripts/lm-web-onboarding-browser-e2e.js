@@ -9,7 +9,7 @@ const CHROME = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Conten
 const USER = { uid: "lm_123e4567-e89b-12d3-a456-426614174000", csrf: "e2e-csrf" };
 const trialOffer = { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" };
 const state = { authenticated: false, calendarConnected: false, scanComplete: false, trialActive: false,
-  calendarStarts: 0, scans: 0, checkouts: 0 };
+  travelReady: false, calendarStarts: 0, scans: 0, checkouts: 0 };
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { "cache-control": "no-store", ...headers });
@@ -40,12 +40,15 @@ async function startServer() {
       return send(res, 303, "", { location: "/lm?start_calendar=1" });
     }
     if (url.pathname === "/lm") {
-      const snapshot = !state.authenticated
-        ? null
-        : !state.calendarConnected
-          ? { setupState: "needs_calendar", calendarState: "action_required", checkoutAvailable: false }
-          : !state.scanComplete
-            ? { setupState: "needs_initial_scan", calendarState: "connected", checkoutAvailable: false }
+    const snapshot = !state.authenticated
+      ? null
+      : !state.calendarConnected
+        ? { setupState: "needs_calendar", calendarState: "action_required", checkoutAvailable: false }
+        : !state.scanComplete
+          ? { setupState: "needs_initial_scan", calendarState: "connected", checkoutAvailable: false }
+          : !state.travelReady
+            ? { setupState: "no_eligible_events", calendarState: "connected", paid: false,
+                checkoutAvailable: false, confirmedTravelBlockCount: 0, scanState: "zero_blocks" }
             : state.trialActive
               ? { setupState: "trial_active", calendarState: "connected", paid: true, planStatus: "trialing" }
               : { setupState: "trial_offer", calendarState: "connected", paid: false, checkoutAvailable: true,
@@ -67,10 +70,17 @@ async function startServer() {
     }
     if (url.pathname === "/api/lm-web/setup" && req.method === "POST") {
       const body = await readBody(req);
-      assert.deepEqual(body, {});
+      if (body.rescan === true) {
+        assert.equal(state.scanComplete, true);
+        assert.equal(state.travelReady, false);
+        state.travelReady = true;
+      } else {
+        assert.deepEqual(body, {});
+        state.scanComplete = true;
+      }
       state.scans++;
-      state.scanComplete = true;
-      return json(res, { setupState: "trial_offer", scanState: "complete", checkoutAvailable: true });
+      return json(res, { setupState: state.travelReady ? "trial_offer" : "no_eligible_events",
+        scanState: state.travelReady ? "complete" : "zero_blocks", checkoutAvailable: state.travelReady });
     }
     if (url.pathname === "/api/lm-web/checkout" && req.method === "POST") {
       const body = await readBody(req);
@@ -131,12 +141,17 @@ async function assertNoHorizontalOverflow(page) {
     await page.waitForURL("https://accounts.google.com/e2e-calendar-consent");
     process.stdout.write("stage synthetic Calendar consent\n");
     await page.getByRole("button", { name: "Calendar権限を許可" }).click();
-    process.stdout.write("stage initial scan\n");
+    process.stdout.write("stage initial zero-block scan\n");
+    await page.getByRole("heading", { name: "Calendarに接続しました" }).waitFor();
+    await page.getByRole("button", { name: "Calendarをもう一度確認" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "7日間の無料トライアルを始める" }).count(), 0);
+    await page.getByRole("button", { name: "Calendarをもう一度確認" }).click();
+    process.stdout.write("stage explicit zero-block rescan\n");
     await page.getByRole("heading", { name: "移動時間はCalendarに自動登録済みです" }).waitFor();
     await page.getByRole("button", { name: "7日間の無料トライアルを始める" }).waitFor();
     await assertNoHorizontalOverflow(page);
     assert.equal(state.calendarStarts, 1);
-    assert.equal(state.scans, 1);
+    assert.equal(state.scans, 2);
 
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await desktop.goto(base + "/lm");
@@ -154,7 +169,7 @@ async function assertNoHorizontalOverflow(page) {
 
     process.stdout.write(JSON.stringify({
       result: "PASS",
-      flow: ["Calendar CTA", "mock Google consent", "initial Calendar scan", "combined trial offer", "mock Stripe checkout", "trial-active confirmation"],
+      flow: ["Calendar CTA", "mock Google consent", "zero-block scan", "explicit rescan", "combined trial offer", "mock Stripe checkout", "trial-active confirmation"],
       viewports: ["390x844", "1440x900"],
       calendarStarts: state.calendarStarts,
       scans: state.scans,

@@ -38,7 +38,7 @@ async function readWebTravelControlState(uid, opts = {}) {
   const userUrl = new URL(`${base}/rest/v1/lm_users`);
   userUrl.searchParams.set("uid", `eq.${uid}`);
   userUrl.searchParams.set("telegram_chat_id", "is.null");
-  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at,web_initial_scan_completed_at,web_first_travel_at,stripe_subscription_id,paid");
+  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at,web_initial_scan_completed_at,web_first_travel_at,stripe_subscription_id,trial_expires_at,plan_status,paid");
   userUrl.searchParams.set("limit", "2");
   const userResponse = await fetchImpl(userUrl.toString(), { headers }).catch(() => null);
   if (!userResponse || !userResponse.ok) return null;
@@ -81,9 +81,10 @@ async function readWebTravelControlState(uid, opts = {}) {
   const initialScanAllowed = Boolean(opts.expectedCalendarAccountId
     && user.calendar_provider === "composio_gcal"
     && user.calendar_connected_account_id === opts.expectedCalendarAccountId
-    && !user.web_initial_scan_completed_at
     && !user.web_first_travel_at
     && !user.stripe_subscription_id
+    && !user.trial_expires_at
+    && !user.plan_status
     && user.paid !== true
     && preference.daily_automation_enabled === false
     && preference.calendar_disconnect_pending === false
