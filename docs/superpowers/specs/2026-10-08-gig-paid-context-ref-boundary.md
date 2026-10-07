@@ -122,6 +122,12 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - The owner process remains `loaded-running` in the latest status snapshot. BrowserGuard was unheld in one readback while the registered Paid wrapper was still alive, so no second Coconala browser navigation was started. The old Storefront effect-unknown fence remains held.
 - The latest direct free-space sample is 1222784 KiB, below the shared 2 GiB host floor; `lm-loop doctor` still reports `ok=false` for the separate retired Capafy installed label. No source release or owner apply/restart occurred.
 
+## 2026-10-08 05:28 JST main / immutable release / owner SHA recheck
+
+- Fresh `origin/main=9a03ac5b28e2b338ca417377d7e2dbe511c37bcd`; current immutable `~/loops/current` points to `/Users/anicca/loops/releases/20261008T050600-3dbfc5ac`, SHA `3dbfc5ac049429661851b129847abcb1489c8d42`. Main contains CrowdWorks Reply DB-guard PR #6970 (`1b4d984e`), but this release predates it.
+- Loaded owners are mixed: Coconala Apply/Storefront and CrowdWorks Application/Reply report `3dbfc5ac`; Coconala Paid is still loaded from `8dc06549` and `loaded-running`. This status does not prove provider effect or payment; Paid's latest terminal has no receipt. Do not force owner convergence while the doctor gate is red.
+- `df -k /Users/anicca/gig` reports 1128408 KiB free, below 2 GiB. Disk-cleanup's latest terminal remains `entrypoint_exit_1` / `reconcile_owner`; `lm-loop doctor` remains `ok=false` with the separate retired Capafy installed label. No manual apply/restart, provider action, or fence resolution was run.
+
 ## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
 
 - Read-only `coconala_outcomes.py` returned `status=waiting`: historical local receipt counters are application 1,209, negotiation 364, and listing mutation 39; paid delivery is 0 and bank-arrival receipt is absent. The first three are cumulative counters with no date filter, not today's applications, current public listing count, sale count, or settled cash. Do not treat the listing counter as storefront demand.
