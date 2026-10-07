@@ -126,6 +126,28 @@ test("Web travel proceeds after the persisted exact account passes the ACTIVE ga
   assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
 });
 
+test("one-shot Web scan passes its narrow Calendar write allowance through travel", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let calendarOptions;
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    daily_automation_enabled: false, web_initial_scan_completed_at: null,
+    stripe_subscription_id: null, paid: false }, {
+    initialScan: true,
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: false,
+      disconnectPending: false, enablePending: false, initialScanAllowed: true }),
+    fillTravel: async (_uid, options) => {
+      calendarOptions = options;
+      return { inserted: 0, outboundReports: [] };
+    },
+  });
+
+  assert.equal(calendarOptions.expectedCalendarAccountId, "ca-selected");
+  assert.equal(calendarOptions.allowWebInitialScan, true);
+});
+
 test("Web unpaid, past-due, and expired-trial tenants stop before Calendar reads", async () => {
   const { travelUserOnce } = require("../scheduler.js");
   const uid = "lm_11111111-1111-4111-8111-111111111111";
@@ -220,9 +242,11 @@ test("Web initial scan bypasses daily automation only for the exact active accou
       dailyAutomationEnabled: false,
       disconnectPending: false,
       enablePending: false,
+      initialScanAllowed: true,
     }),
     fillTravel: async (_uid, options) => {
       calendarExpectedIds.push(options.expectedCalendarAccountId);
+      assert.equal(options.allowWebInitialScan, true);
       assert.equal(options.home, null);
       return { inserted: 1, outboundReports: [] };
     },
@@ -275,7 +299,7 @@ test("Web control-state reader does not default a missing preference row to enab
     },
   });
 
-  assert.deepEqual(result, { dailyAutomationEnabled: null, disconnectPending: false, enablePending: false });
+  assert.deepEqual(result, { dailyAutomationEnabled: null, disconnectPending: false, enablePending: false, initialScanAllowed: false });
 });
 
 test("Web travel refuses to switch account after the caller's ACTIVE check", async () => {

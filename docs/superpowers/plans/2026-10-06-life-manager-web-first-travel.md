@@ -136,3 +136,15 @@
 ## After this source plan
 
 Continue the canonical SSOT cursor: complete safe Google signup/Calendar E2E with a dedicated test identity; pass source acceptance/review/CI and merge; apply only a main-derived immutable Railway release; verify /lm, Stripe test/live settings, and official readbacks; update the separate anicca-products landing; create/warm the dedicated Life Manager Cloud social accounts; then activate the existing marketing assets through one measured owner. Keep public posting disabled until the end-to-end onboarding and billing path is verified.
+
+### Task 3 corrective gate after fresh read-only review
+
+The review reopened Task 3; previous test results did not exercise the real initial-scan transport or all Stripe event orders. Current order:
+
+- [x] Add failing tests for the pre-trial initial Travel write reaching the exact active Google Calendar only while the persisted one-shot scan is still eligible and disconnect/enable fences are clear; confirm they fail before the fix.
+- [x] Add failing billing tests for $0 `invoice.paid`, paid-invoice/subscription-update reordering, cancellation followed by invoice payment, equal-second precedence, and competing webhook writes; confirm they fail before the fix.
+- [x] Implement the smallest source and additive Supabase migration: exact-account one-shot initial-scan allowance; separate positive-invoice evidence and durable cancellation intent; deterministic event ordering; atomic revision compare-and-swap so losing webhook writes return 5xx for Stripe retry.
+- [~] Focused onboarding/billing/scheduler suites pass (164 tests) and synthetic browser E2E passes at 390x844/1440x900. Repeat Stripe TEST-mode Checkout/Portal and webhook-delivery/readback against this corrected code; the earlier test-mode checkout preceded this correction.
+- [ ] Obtain a fresh read-only review and CI before reopening WB-12.
+
+Current cursor: repeat Stripe TEST-mode verification → fresh read-only review → CI; WB-12 remains next after those source gates.

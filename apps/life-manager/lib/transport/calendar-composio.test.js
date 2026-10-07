@@ -82,6 +82,36 @@ test("Web Calendar event listing remains available while automation is paused", 
   assert.equal(f.controlReads.length, 0);
 });
 
+test("Web first Travel write reaches the exact account only with persisted one-shot scan eligibility", async () => {
+  const allowed = fixture({ dailyAutomationEnabled: false, disconnectPending: false,
+    enablePending: false, initialScanAllowed: true });
+  const created = await allowed.calendar.createEvent(UID, { summary: "[Travel] first value" }, {
+    expectedCalendarAccountId: ACCOUNT_ID,
+    allowWebInitialScan: true,
+  });
+  assert.equal(created.effect, "created");
+  assert.equal(allowed.providerCalls.length, 1);
+  assert.match(allowed.providerCalls[0].path, /GOOGLECALENDAR_CREATE_EVENT/);
+
+  const blocked = fixture({ dailyAutomationEnabled: false, disconnectPending: false,
+    enablePending: false, initialScanAllowed: false });
+  const rejected = await blocked.calendar.createEvent(UID, { summary: "[Travel] first value" }, {
+    expectedCalendarAccountId: ACCOUNT_ID,
+    allowWebInitialScan: true,
+  });
+  assert.equal(rejected.effect, "no_effect");
+  assert.equal(blocked.providerCalls.length, 0);
+
+  const disconnecting = fixture({ dailyAutomationEnabled: false, disconnectPending: true,
+    enablePending: false, initialScanAllowed: true });
+  const fenced = await disconnecting.calendar.createEvent(UID, { summary: "[Travel] first value" }, {
+    expectedCalendarAccountId: ACCOUNT_ID,
+    allowWebInitialScan: true,
+  });
+  assert.equal(fenced.effect, "no_effect");
+  assert.equal(disconnecting.providerCalls.length, 0);
+});
+
 test("Web Travel reminder writes use Calendar proxy and verify the exact popup reminder", async () => {
   const calls = [];
   const calendar = makeComposioCalendar({

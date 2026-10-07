@@ -102,9 +102,12 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
     let state = null;
     try {
       const readState = opts.readWebTravelControlStateImpl || readWebTravelControlState;
-      state = await readState(uid, { supaUrl: opts.supaUrl, supaKey: opts.supaKey, fetchImpl: opts.fetchImpl });
+      state = await readState(uid, { supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+        fetchImpl: opts.fetchImpl, expectedCalendarAccountId: opts.expectedCalendarAccountId });
     } catch { /* unknown Web controls fail closed before provider mutation */ }
-    if (!state || state.dailyAutomationEnabled !== true
+    const oneShotInitialScan = effectAwareCreate && opts.allowWebInitialScan === true
+      && state && state.initialScanAllowed === true && state.dailyAutomationEnabled === false;
+    if (!state || (state.dailyAutomationEnabled !== true && !oneShotInitialScan)
       || state.disconnectPending !== false || state.enablePending !== false) {
       if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
       throw new Error("web calendar automation is paused or pending");
@@ -180,8 +183,10 @@ function makeComposioCalendar(opts = {}) {
       meta: { provider: "composio", operation: String(tool), tool, outcome, runtime_trace: trace },
     });
   });
-  const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId, effectAwareCreate = false) => {
-    const operationOpts = expectedCalendarAccountId == null ? opts : { ...opts, expectedCalendarAccountId };
+  const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId,
+    effectAwareCreate = false, extraOpts = {}) => {
+    const operationOpts = { ...opts, ...extraOpts,
+      ...(expectedCalendarAccountId == null ? {} : { expectedCalendarAccountId }) };
     const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
     const trace = runtimeTrace({ tenantId: uid }, runtimeEnv);
     const recordOutcome = async (outcome) => {
@@ -255,7 +260,8 @@ function makeComposioCalendar(opts = {}) {
           body: reminderEvent,
         } : args;
         return withCreateEffect(await execute(tool, uid, request,
-          operationOpts.expectedCalendarAccountId, true));
+          operationOpts.expectedCalendarAccountId, true,
+          { allowWebInitialScan: operationOpts.allowWebInitialScan === true }));
       } catch { return withCreateEffect({ effect: "unknown", result: { successful: false } }); }
     },
     async patchEvent(uid, args, operationOpts = {}) {

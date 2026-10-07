@@ -1244,9 +1244,10 @@ async function travelUserOnce(u, deps = {}) {
           && u.expectedCalendarAccountId !== active.accountId) return;
         const readControlState = deps.readWebTravelControlStateImpl
           || require("./lib/runtime-preferences.js").readWebTravelControlState;
-        const controlState = await readControlState(u.uid, { supaUrl, supaKey, fetchImpl: deps.fetchImpl });
+        const controlState = await readControlState(u.uid, { supaUrl, supaKey,
+          fetchImpl: deps.fetchImpl, expectedCalendarAccountId: active.accountId });
         const automationAllowed = initialWebScan
-          ? controlState && controlState.dailyAutomationEnabled === false
+          ? controlState && controlState.dailyAutomationEnabled === false && controlState.initialScanAllowed === true
           : controlState && controlState.dailyAutomationEnabled === true;
         if (!automationAllowed
           || controlState.disconnectPending !== false || controlState.enablePending !== false) return;
@@ -1261,6 +1262,7 @@ async function travelUserOnce(u, deps = {}) {
       nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
       expectedCalendarAccountId,
+      allowWebInitialScan: initialWebScan,
       _directionsMinutes: deps.directionsMinutes,
       _reserveManagedAction: deps.reserveManagedAction || (deps.fillTravel ? undefined : reserveManagedAction),
       _completeManagedAction: deps.completeManagedAction || (deps.fillTravel ? undefined : completeManagedAction),

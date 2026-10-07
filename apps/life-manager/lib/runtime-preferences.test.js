@@ -79,6 +79,7 @@ test("Web control state returns the exact Calendar enable claim and database tim
     dailyAutomationEnabled: false,
     disconnectPending: false,
     enablePending: true,
+    initialScanAllowed: false,
     enableClaimId: claimId,
     enableClaimedAt: claimedAt,
   });
@@ -106,4 +107,32 @@ test("Web control state fails closed when a pending Calendar claim has no valid 
   });
 
   assert.equal(result, null);
+});
+
+test("Web control state grants initial-scan write only for the exact unscanned unpaid Calendar", async () => {
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const accountId = "ca-selected-123";
+  const result = await readWebTravelControlState(uid, {
+    ...SUPA,
+    expectedCalendarAccountId: accountId,
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url));
+      if (parsed.pathname.endsWith("/lm_users")) return rows([{
+        uid,
+        telegram_chat_id: null,
+        calendar_provider: "composio_gcal",
+        calendar_connected_account_id: accountId,
+        calendar_enable_pending: false,
+        calendar_enable_claim_id: null,
+        calendar_enable_claimed_at: null,
+        web_initial_scan_completed_at: null,
+        web_first_travel_at: null,
+        stripe_subscription_id: null,
+        paid: false,
+      }])();
+      return rows([{ daily_automation_enabled: false, calendar_disconnect_pending: false }])();
+    },
+  });
+
+  assert.equal(result.initialScanAllowed, true);
 });

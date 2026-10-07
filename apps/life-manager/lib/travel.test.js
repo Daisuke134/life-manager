@@ -144,11 +144,13 @@ test("Travel event uses one five-minute buffer and safe attendee/meeting default
   };
   await fillTravel("uid-1", {
     mapsKey: "fixture-map-key", home: "Home", nowMs, calendar, expectedCalendarAccountId: "ca-expected",
+    allowWebInitialScan: true,
     _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
   });
   assert.equal(created.length, 1);
   assert.equal(eventReadOptions.expectedCalendarAccountId, "ca-expected");
   assert.equal(created[0].options.expectedCalendarAccountId, "ca-expected");
+  assert.equal(created[0].options.allowWebInitialScan, true);
   assert.equal(Date.parse(`${created[0].args.start_datetime}Z`), startsAt - 25 * 60_000);
   assert.equal(created[0].args.event_duration_hour, 0);
   assert.equal(created[0].args.event_duration_minutes, 25);

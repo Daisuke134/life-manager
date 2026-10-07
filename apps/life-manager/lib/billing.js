@@ -41,6 +41,7 @@ function parseStripeEvent(event) {
   if (type === "checkout.session.completed") {
     return {
       kind: "checkout",
+      eventId: event.id || null,
       uid: o.client_reference_id || metadata.lm_uid || null,
       customerId: o.customer || null,
       subscriptionId: o.subscription || null,
@@ -54,6 +55,7 @@ function parseStripeEvent(event) {
       .map((item) => Number(item && item.current_period_end) || 0);
     return {
       kind: "subscription",
+      eventId: event.id || null,
       customerId: o.customer || null,
       subscriptionId: o.id || null,
       status: o.status || null,
@@ -77,10 +79,13 @@ function parseStripeEvent(event) {
       ? parentDetails.metadata : {};
     return {
       kind: "invoice",
+      eventId: event.id || null,
       customerId: o.customer || null,
       subscriptionId,
       status: type === "invoice.paid" ? "paid" : "payment_failed",
       billingReason: o.billing_reason || null,
+      amountPaid: o.amount_paid == null || !Number.isFinite(Number(o.amount_paid)) ? null : Number(o.amount_paid),
+      amountDue: o.amount_due == null || !Number.isFinite(Number(o.amount_due)) ? null : Number(o.amount_due),
       uid: metadata.lm_uid || parentMetadata.lm_uid || null,
       isWebTravel: metadata.lm_product === "life_manager_web_travel"
         || parentMetadata.lm_product === "life_manager_web_travel",
@@ -97,6 +102,31 @@ function parseStripeEvent(event) {
 function isStale(incomingCreated, storedRow) {
   if (!storedRow || !storedRow.stripe_event_at) return false;
   return toEpoch(incomingCreated) < toEpoch(storedRow.stripe_event_at);
+}
+
+function webEventPriority(p, lane) {
+  if (lane === "invoice") return p.status === "payment_failed" ? 50 : 40;
+  const status = String(p.status || "").toLowerCase();
+  if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") return 60;
+  if (p.cancelAtPeriodEnd === true || p.cancelAt > 0) return 55;
+  if (status === "past_due") return 50;
+  if (status === "trialing") return 30;
+  if (status === "active") return 20;
+  return 10;
+}
+
+function isStaleWebBillingEvent(p, row, lane) {
+  const at = row && row[`web_${lane}_event_at`];
+  if (!at) return false;
+  const incomingAt = toEpoch(p.created);
+  const storedAt = toEpoch(at);
+  if (incomingAt !== storedAt) return incomingAt < storedAt;
+  const priority = webEventPriority(p, lane);
+  const storedPriority = Number(row[`web_${lane}_event_priority`]) || 0;
+  if (priority !== storedPriority) return priority < storedPriority;
+  const eventId = String(p.eventId || "");
+  const storedId = String(row[`web_${lane}_event_id`] || "");
+  return !eventId || eventId.localeCompare(storedId) <= 0;
 }
 
 // ── Supabase IO (service-role). All accept an injectable fetch for testing. ──────────────────────────
@@ -133,7 +163,7 @@ async function unclaimEvent(eventId, supaUrl, supaKey, fetchImpl) {
 async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
   const f = fetchImpl || fetch;
   if (!supaUrl || !supaKey || !customerId) return null;
-  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at";
+  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
   const r = await f(
     `${supaUrl}/rest/v1/lm_users?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=${cols}`,
     { headers: hdr(supaKey) },
@@ -149,7 +179,7 @@ async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
 async function userByUid(uid, supaUrl, supaKey, fetchImpl) {
   const f = fetchImpl || fetch;
   if (!supaUrl || !supaKey || !uid) return null;
-  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at";
+  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
   const r = await f(
     `${supaUrl}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=${cols}`,
     { headers: hdr(supaKey) },
@@ -169,6 +199,23 @@ async function patchUser(filter, patch, supaUrl, supaKey, fetchImpl) {
     body: JSON.stringify(patch),
   }).catch(() => null);
   return !!r && (r.status === 204 || r.status === 200);
+}
+
+async function patchWebBilling(row, patch, supaUrl, supaKey, fetchImpl) {
+  const f = fetchImpl || fetch;
+  if (!supaUrl || !supaKey) return true;
+  const revision = Number(row && row.web_billing_revision || 0);
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("invalid Web billing revision");
+  const url = `${supaUrl}/rest/v1/lm_users?uid=eq.${encodeURIComponent(row.uid)}&web_billing_revision=eq.${revision}`;
+  const r = await f(url, {
+    method: "PATCH",
+    headers: hdr(supaKey, { "Content-Type": "application/json", Prefer: "return=representation" }),
+    body: JSON.stringify({ ...patch, web_billing_revision: revision + 1 }),
+  }).catch(() => null);
+  if (!r || !r.ok) throw new Error("Web billing atomic patch failed");
+  const rows = await r.json().catch(() => null);
+  if (!Array.isArray(rows) || rows.length !== 1) return false;
+  return true;
 }
 
 const isoOrNull = (epochSecs) => (epochSecs ? new Date(epochSecs * 1000).toISOString() : null);
@@ -234,25 +281,47 @@ async function applyBilling(event, deps) {
     // FIND-007: guard the checkout branch by event.created too (same as subscription) — a late/out-of-order
     // checkout must NOT clobber a fresher applied state (downgrade an active payer, or regress stripe_event_at).
     const row = await userByUid(p.uid, supaUrl, supaKey, fetchImpl);
-    if (isStale(p.created, row)) return { action: "stale-checkout", uid: p.uid };
     if (p.isWebTravel) {
       if (!isWebTravelUser(row)) return { action: "orphan-web-checkout", uid: p.uid };
       if (row.stripe_customer_id && p.customerId && row.stripe_customer_id !== p.customerId) {
         return { action: "customer-mismatch", uid: p.uid };
       }
+      const currentSubscriptionId = String(row.stripe_subscription_id || "");
+      const priorStatus = String(row.plan_status || "").toLowerCase();
+      const priorInactive = ["canceled", "unpaid", "incomplete_expired"].includes(priorStatus);
+      const replacingSubscription = Boolean(p.subscriptionId && currentSubscriptionId
+        && p.subscriptionId !== currentSubscriptionId);
+      if (replacingSubscription && !priorInactive) return { action: "stale-web-checkout-subscription", uid: p.uid };
+      if (p.subscriptionId && currentSubscriptionId === p.subscriptionId && priorInactive) {
+        return { action: "stale-web-checkout", uid: p.uid };
+      }
       const patch = {};
       if (p.customerId) patch.stripe_customer_id = p.customerId;
       if (p.subscriptionId) patch.stripe_subscription_id = p.subscriptionId;
-      const status = String(row.plan_status || "").toLowerCase();
-      if (!(row.paid === true && ["trialing", "active"].includes(status))) {
+      if (replacingSubscription) {
+        patch.paid = false;
+        patch.plan_status = "incomplete";
+        patch.trial_expires_at = null;
+        patch.web_billing_cancel_at_period_end = false;
+        patch.web_subscription_event_at = null;
+        patch.web_subscription_event_priority = null;
+        patch.web_subscription_event_id = null;
+        patch.web_invoice_event_at = null;
+        patch.web_invoice_event_priority = null;
+        patch.web_invoice_event_id = null;
+        patch.web_invoice_subscription_id = null;
+        patch.web_invoice_paid = false;
+        patch.web_invoice_amount_paid = null;
+      } else if (!currentSubscriptionId && !priorStatus && row.paid !== true) {
         patch.paid = false;
         patch.plan_status = "incomplete";
       }
-      if (Object.keys(patch).length && !(await patchUser(`uid=eq.${encodeURIComponent(p.uid)}`, patch, supaUrl, supaKey, fetchImpl))) {
-        throw new Error("web checkout link patch failed");
+      if (Object.keys(patch).length && !(await patchWebBilling(row, patch, supaUrl, supaKey, fetchImpl))) {
+        throw new Error("web checkout atomic patch conflicted");
       }
       return { action: "link-web-checkout", uid: p.uid, paid: row.paid === true };
     }
+    if (isStale(p.created, row)) return { action: "stale-checkout", uid: p.uid };
     // FIND-003: only provision when the session is actually paid. An 'unpaid' checkout links the customer
     // but must NOT grant access — the subsequent subscription.* event sets the real status.
     const paid = p.paymentStatus === "paid" || p.paymentStatus === "no_payment_required";
@@ -285,17 +354,48 @@ async function applyBilling(event, deps) {
     if (!p.subscriptionId || (p.subscriptionId !== currentSubscriptionId && !canLinkWebSubscription)) {
       return { action: "stale-invoice-subscription", uid: row.uid };
     }
+    if (web) {
+      if (isStaleWebBillingEvent(p, row, "invoice")) return { action: "stale-invoice", uid: row.uid };
+      const amountPaid = Number(p.amountPaid) || 0;
+      if (p.status === "paid" && amountPaid <= 0) return { action: "zero-dollar-invoice", uid: row.uid };
+      const replacingSubscription = p.subscriptionId !== currentSubscriptionId;
+      const terminalPriorStatus = ["canceled", "unpaid", "incomplete_expired"]
+        .includes(String(row.plan_status || "").toLowerCase());
+      const cancellationFence = !replacingSubscription
+        && (row.web_billing_cancel_at_period_end === true || terminalPriorStatus);
+      const invoicePaid = p.status === "paid" && amountPaid > 0;
+      const patch = {
+        stripe_customer_id: p.customerId || row.stripe_customer_id,
+        stripe_subscription_id: p.subscriptionId,
+        paid: invoicePaid && !cancellationFence,
+        plan_status: p.status === "payment_failed" ? "past_due" : "active",
+        trial_expires_at: null,
+        stripe_event_at: isoOrNull(p.created),
+        web_billing_cancel_at_period_end: replacingSubscription ? false
+          : row.web_billing_cancel_at_period_end === true || terminalPriorStatus,
+        web_invoice_event_at: isoOrNull(p.created),
+        web_invoice_event_priority: webEventPriority(p, "invoice"),
+        web_invoice_event_id: p.eventId,
+        web_invoice_subscription_id: p.subscriptionId,
+        web_invoice_paid: invoicePaid,
+        web_invoice_amount_paid: invoicePaid ? amountPaid : 0,
+        ...(replacingSubscription ? {
+          web_subscription_event_at: null,
+          web_subscription_event_priority: null,
+          web_subscription_event_id: null,
+        } : {}),
+      };
+      if (!(await patchWebBilling(row, patch, supaUrl, supaKey, fetchImpl))) {
+        throw new Error("web invoice atomic patch conflicted");
+      }
+      return { action: invoicePaid ? "invoice-paid" : "invoice-failed", uid: row.uid, paid: patch.paid };
+    }
     if (isStale(p.created, row)) return { action: "stale-invoice", uid: row.uid };
     const paid = p.status === "paid";
     const patch = {
-      paid: web ? paid : paid || row.paid === true,
-      plan_status: paid ? "active" : web ? "past_due" : row.plan_status || "past_due",
+      paid: paid || row.paid === true,
+      plan_status: paid ? "active" : row.plan_status || "past_due",
       stripe_event_at: isoOrNull(p.created),
-      ...(web ? {
-        stripe_customer_id: p.customerId || row.stripe_customer_id,
-        stripe_subscription_id: p.subscriptionId,
-        trial_expires_at: null,
-      } : {}),
     };
     if (!(await patchUser(`uid=eq.${encodeURIComponent(row.uid)}`, patch, supaUrl, supaKey, fetchImpl))) {
       throw new Error("invoice patch failed");
@@ -305,6 +405,7 @@ async function applyBilling(event, deps) {
 
   if (!web && p.isWebTravel) return { action: "web-tenant-mismatch", uid: row.uid };
   if (web && !row.web_first_travel_at) return { action: "web-first-travel-required", uid: row.uid };
+  if (web && !p.subscriptionId) return { action: "missing-web-subscription-id", uid: row.uid };
   if (web && row.stripe_subscription_id && p.subscriptionId !== row.stripe_subscription_id) {
     const priorStatus = String(row.plan_status || "").toLowerCase();
     const priorInactive = ["canceled", "unpaid", "incomplete_expired"].includes(priorStatus);
@@ -312,16 +413,20 @@ async function applyBilling(event, deps) {
       || Boolean(p.customerId && row.stripe_customer_id && p.customerId === row.stripe_customer_id);
     if (!priorInactive || !sameWebTenant) return { action: "stale-subscription-id", uid: row.uid };
   }
-  if (isStale(p.created, row)) return { action: "stale", customerId: p.customerId };
+  if (!web && isStale(p.created, row)) return { action: "stale", customerId: p.customerId };
 
   if (web) {
+    if (isStaleWebBillingEvent(p, row, "subscription")) return { action: "stale", customerId: p.customerId };
+    const replacingSubscription = Boolean(row.stripe_subscription_id
+      && p.subscriptionId !== row.stripe_subscription_id);
     const trialing = p.status === "trialing";
     const trialEnd = trialing && p.trialEnd > 0 ? isoOrNull(p.trialEnd) : null;
-    const cancellationRequested = p.cancelAtPeriodEnd === true || p.cancelAt > 0;
+    const cancellationRequested = p.cancelAtPeriodEnd === true || p.cancelAt > 0 || p.status === "canceled";
+    const invoicePaid = !replacingSubscription
+      && row.web_invoice_subscription_id === p.subscriptionId && row.web_invoice_paid === true;
     const paid = trialing
       ? Boolean(p.hasPaymentMethod && trialEnd && !cancellationRequested)
-      : p.status === "active" && row.paid === true
-        && String(row.plan_status || "").toLowerCase() === "active" && !cancellationRequested;
+      : p.status === "active" && invoicePaid && !cancellationRequested;
     const patch = {
       stripe_customer_id: p.customerId || row.stripe_customer_id,
       stripe_subscription_id: p.subscriptionId,
@@ -330,9 +435,21 @@ async function applyBilling(event, deps) {
       current_period_end: isoOrNull(p.currentPeriodEnd),
       trial_expires_at: trialEnd,
       stripe_event_at: isoOrNull(p.created),
+      web_billing_cancel_at_period_end: cancellationRequested,
+      web_subscription_event_at: isoOrNull(p.created),
+      web_subscription_event_priority: webEventPriority(p, "subscription"),
+      web_subscription_event_id: p.eventId,
+      ...(replacingSubscription ? {
+        web_invoice_event_at: null,
+        web_invoice_event_priority: null,
+        web_invoice_event_id: null,
+        web_invoice_subscription_id: null,
+        web_invoice_paid: false,
+        web_invoice_amount_paid: null,
+      } : {}),
     };
-    if (!(await patchUser(`uid=eq.${encodeURIComponent(row.uid)}`, patch, supaUrl, supaKey, fetchImpl))) {
-      throw new Error("web subscription patch failed");
+    if (!(await patchWebBilling(row, patch, supaUrl, supaKey, fetchImpl))) {
+      throw new Error("web subscription atomic patch conflicted");
     }
     if (p.eventType === "customer.subscription.created" && paid
       && !(await resumeWebAutomation(row.uid, row, supaUrl, supaKey, fetchImpl))) {

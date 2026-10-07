@@ -687,7 +687,7 @@ async function directionsMinutes(src, dst, mapsKey, anchorAtMs = null, nowMs = D
   return minutesFromSeconds(routeDurationSeconds(route));
 }
 
-async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId) {
+async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const hours = Math.floor((arriveMs - leaveMs) / 3600000);
   const minutes = Math.round(((arriveMs - leaveMs) % 3600000) / 60000);
@@ -705,7 +705,7 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
   let result;
   try {
     result = expectedCalendarAccountId
-      ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId })
+      ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId, allowWebInitialScan: allowWebInitialScan === true })
       : await cal.createEvent(uid, eventArgs);
   } catch { result = null; }
   const status = result?.effect === "no_effect" ? "no_effect"
@@ -799,7 +799,7 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId, expectedCalendarAccountId } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
@@ -905,7 +905,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             let goClaimed = false;
             try { goClaimed = await claimTravel(uid, evKey, "go", supaUrl, supaKey); } catch { goClaimed = false; }
             if (goClaimed) {
-              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId);
+              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan);
               write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
               if (write.status === "created") {
                 inserted++;
@@ -1002,7 +1002,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     let returnClaimed = false;
     try { returnClaimed = await claimTravel(uid, evKey, "return", supaUrl, supaKey); } catch { returnClaimed = false; }
     if (returnClaimed) {
-      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId);
+      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan);
       write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
       if (write.status === "created") {
         inserted++;
