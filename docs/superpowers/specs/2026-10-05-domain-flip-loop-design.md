@@ -1,7 +1,7 @@
 # .si ドメイン再販 Product Loop 設計
 
-状態: source-only PR #6935（USD cap、registrar/Sedo adapters、CFO adapter）が `ca60f0d68d7f506a36433dc7f8430cf870b8eab1` でmainへ統合済み。本番にdomain-flip owner/jobはなく、Product Loop catalog/registry/CFO接続は未完了。購入上限は累積総費用 USD 4.99。
-2026-10-07T15:42Z read-only snapshot: latest `origin/main` は `ca60f0d68d7f506a36433dc7f8430cf870b8eab1`。`lm-loop status all` にdomain-flip行は0件。専用state/event ledgerはなく、credential SSOTはmode 0600でOpenprovider/Sedo/EUIPO key件数が各0。`business-outcomes.jsonl`は140行でdomain-flip行0件。専用business balanceのfresh readbackなし（business-inventoryの最新snapshotは2026-08-08）。Life Managerにはこのloopの販売・入金・利益receiptがない。外部seller accountの活動は未確認。follow-up PR #6937 (`9915551c92`) はOPENでPII-shape check PASS、Python/loop-control/gitleaks/TruffleHogは未完了。
+状態: source-only PR #6935（USD cap、registrar/Sedo adapters、CFO adapter）が `ca60f0d68d7f506a36433dc7f8430cf870b8eab1` でmainへ統合済み。合成test fixtureのPII-shape修正PR #6937も `2501a44ccd954907afbde09b3155d176f3cd95e3` でmainへ統合され、全CI checkがPASS。本番にdomain-flip owner/jobはなく、Product Loop catalog/registry/CFO接続は未完了。購入上限は累積総費用 USD 4.99。
+2026-10-07T15:58Z read-only snapshot: latest `origin/main` は `28912a224bb2dc2dfb8ac5a2c21e20052b9ea4ce`。`lm-loop status all` とmainのcatalog/registryにdomain-flip行は0件。専用state/event ledgerはなく、credential SSOTはmode 0600でOpenprovider/Sedo/EUIPO key件数が各0。`business-outcomes.jsonl`は140行でdomain-flip行0件。専用business balanceのfresh readbackなし（business-inventoryの最新snapshotは2026-08-08）。Life Managerにはこのloopの販売・入金・利益receiptがない。外部seller accountの活動は未確認。
 
 ## 1. 目的と完了条件
 
@@ -90,17 +90,17 @@ source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専
 
 ### 結果
 
-現時点ではLife Manager経由でdomain-flipを販売しておらず、同loopの売上・利益は計上されていない。確認範囲はcurrent `lm-loop` status、最新mainのregistry/catalog、専用private state、CFO記録と `business-outcomes.jsonl`。credential未設定のため、独立したSedo seller accountに別途売却があるかは断定しない。専用事業残高もfresh readbackがなく、古いbusiness-inventory snapshotから購入資金があるとは判断しない。出品価格、offer、parking収入はdomain saleの売上に数えない。Register.siの現行公開ページは登録・更新のregistrar向け料金を年10 EUR（VAT別）とし、小売価格はregistrarが決めると明記する。標準卸料金だけでUSD 4.99枠を超えるため、実購入には総費用が上限内のfresh promotional quoteが必要。
+現時点ではLife Manager経由でdomain-flipを販売しておらず、同loopの売上・利益は計上されていない。確認範囲はcurrent `lm-loop` status、最新mainのregistry/catalog、専用private state、CFO記録と `business-outcomes.jsonl`。credential未設定のため、独立したSedo seller accountに別途売却があるかは断定しない。専用事業残高もfresh readbackがなく、古いbusiness-inventory snapshotから購入資金があるとは判断しない。出品価格、offer、parking収入はdomain saleの売上に数えない。Register.siの現行公開ページは登録・更新のregistrar向け料金を年10 EUR（VAT別）とし、小売価格はregistrarが決めると明記する。Hostinger公式の`.si`小売ページは初年度USD 11.99、更新USD 16.99を表示し、初年度だけでもcapを超える。これは全registrar価格の証明ではないが、USD 4.99以下の条件を満たす公式見積りはまだ確認できない。
 
 ### 残TODO（この順）
 
-TODO順序変更: 旧順序はTask 5の共有統合→contract/PR→資金確認→provider/rights準備→release→売却readback。USD 5未満という直接指示で旧100 EUR上限が無効になり、Register.siの標準registrar向け料金も年10 EURで上限を超えるため、先に決定的policyを直した。reviewで既定model呼出しの未予約コスト、CFOのzero-category coverage不足、mutable sale_idの重複経路が見つかったため、review cost gate、全COUNTED_CATEGORIES coverage、不変buyer receipt ID、厳密なsnapshot境界を先行し、source-only PR #6935をmainへ統合した。そのPRのPII-shape CIは合成test fixtureを検出したため、allowlistを変えずfollow-up PR #6937で記述を修正した。新順序はfollow-up CI完了→専用balance/sub-cap quote→provider/rights/payout access→shared integration/contract/PR/release/natural pass→実売却/net照合。現在cursorはPR #6937の残checks完了とmerge。
+TODO順序変更: 旧順序はTask 5の共有統合→contract/PR→資金確認→provider/rights準備→release→売却readback。USD 5未満という直接指示で旧100 EUR上限が無効になり、Register.siの標準registrar向け料金も年10 EURで上限を超えるため、先に決定的policyを直した。reviewで既定model呼出しの未予約コスト、CFOのzero-category coverage不足、mutable sale_idの重複経路が見つかったため、review cost gate、全COUNTED_CATEGORIES coverage、不変buyer receipt ID、厳密なsnapshot境界を先行し、source-only PR #6935をmainへ統合した。合成test fixtureの修正PR #6937も全CI PASSでmainへ統合した。新順序は専用balance/sub-cap quote→provider/rights/payout access→shared integration/contract/PR/release/natural pass→実売却/net照合。現在cursorはshared filesのlease状況を確認しつつ、専用残高・credentials・review cost evidenceの不足を自分の範囲で解消する。
 
 1. [完了] USD 4.99 cap、receipt記録額からのFX換算、EUR/USD累積reservation、非EUR quote拒否をpolicy/run event/spec/testsへ反映し、source-only PR #6935をmainへ統合する。
 2. [完了] 独立CFO adapterは不変buyer receipt ID、必須sale proof、domain一致費用、gross-to-payout reconciliation、全COUNTED_CATEGORIESのzero-cost coverage、strict snapshot境界を検証する。historical B0 projection netはfixture上でEUR 404となる。shared CFO/registry/catalog/SSOT接続はowner lease確認後に行う。
-3. [進行中] GitHub PII-shape checkがtest fixture内の合成郵便番号形状を検出した。follow-up PR #6937では値をruntimeで組み立て、allowlistを変更せずrepo全体scanをcleanにし、PII-shape checkもPASS。Python/loop-control/gitleaks/TruffleHog check完了後にmergeする。
+3. [完了] 合成test fixture内のpostal shapeをruntime string constructionへ変え、allowlistを変更せず全repo scan clean。follow-up PR #6937でPII、Python、loop-control、gitleaks、TruffleHogを含む全CIがPASSしmainへmerge。
 4. [未完了] 専用事業残高のowner/currency/available amount、USD/EUR funding receiptと24時間以内の公式balance readback、review費用ゼロまたは事前予約額を確認する。今回のlive readbackでは専用balance/stateがなく、credential SSOTのOpenprovider/Sedo/EUIPO keyも各0件。個人資金は使わない。
-5. 総予約費用がUSD 4.99以下となるEUR registrar quote、Openprovider/Sedo access、登録者・email-only WHOIS条件、許可済みEUIPO rights evidence、Sedo seller/payout readback pathを整える。標準卸料金が上限を超えるため、条件に合う小売quote receiptがない限り購入しない。
+5. 総予約費用がUSD 4.99以下となるEUR registrar quote、Openprovider/Sedo access、登録者・email-only WHOIS条件、許可済みEUIPO rights evidence、Sedo seller/payout readback pathを整える。標準registrar向け卸料金は年10 EUR（VAT別）、Hostinger公式初年度価格はUSD 11.99のため、cap内のfresh quoteがない限り購入しない。
 6. shared CFO/registry/catalog/SSOT接続は各owner lease解放後に行い、focused acceptance、`./bin/lm-loop-contract`、PR/CI/main統合、main由来immutable releaseとowner限定の自然passを完了する。
 7. buyer settlement、登録者移転、seller payout、受取口座入金、saleに紐付く全費用控除後の正のnet、replay-zeroを同一売却に結び付ける。これが揃うまでgoalは完了にしない。
 
@@ -110,6 +110,7 @@ TODO順序変更: 旧順序はTask 5の共有統合→contract/PR→資金確認
 
 - Register.si registration/transfer rules: https://www.register.si/ and https://www.register.si/splosni-pogoji/
 - Register.si registrar tariff: https://www.register.si/cenik-za-registrarje/
+- Hostinger .si retail pricing: https://www.hostinger.com/tld/si-domain
 - Register.si ADR/rights process: https://www.register.si/en/adr-procedure-guidelines/
 - Openprovider API getting started and REST schema: https://developer.openprovider.com/get-started.html and https://developer.openprovider.com/data/swagger.json
 - EUIPO Trademark Search API and security: https://dev.euipo.europa.eu/product/trademark-search_110/api/trademark-search and https://dev.euipo.europa.eu/security
