@@ -197,7 +197,7 @@
       "job_ids": ["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly"],
       "name": "LINE Sticker",
       "description": "Design original animated LINE stickers end to end, submit a finished set to LINE Creators Market about every hour, and read review and sales status back.",
-      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner"],
+      "recovery_classes": ["continuous_service", "external_effect_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time"],"sources":{"funnel":{"adapter":"line-creators-market-readback","implementation":"implemented"},"financial":{"adapter":"line-creators-market-payout","implementation":"missing"},"cost":{"adapter":"line-sticker-factory-cost","implementation":"missing"}}},
       "requirements": ["line_creators_account", "publication_profile", "public_guided_installer"],
       "hosts": {
