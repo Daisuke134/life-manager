@@ -111,7 +111,6 @@ test("an exact GSI address candidate preserves house-number precision and avoids
 test("captured A4.1 provider fixtures reject coarse and ambiguous results before one Google fallback", async (t) => {
   const expectedFailures = {
     "gsi-full-address": "precision_loss",
-    "openpoi-broad-search": "no_results",
     "openpoi-station-suggest": "ambiguous",
     "openpoi-branch-not-found": "no_results",
   };
@@ -133,6 +132,23 @@ test("captured A4.1 provider fixtures reject coarse and ambiguous results before
         expectedFailures[fixture.id]);
     });
   }
+});
+
+test("the captured generic brand search bypasses OpenPOI without an exact facility name", async () => {
+  const fixture = geocodeFixtures.cases.find((item) => item.id === "openpoi-broad-search");
+  const result = await runGeocode({
+    query: fixture.request.q,
+    tenantId: "tenant-fixture-generic-brand-search",
+    openpoi: {
+      count: fixture.response.count,
+      truncated: fixture.response.truncated,
+      suggestions: fixture.response.captured_results,
+    },
+  });
+
+  assert.equal(result.requests.length, 0);
+  assert.equal(result.googleCalls, 1);
+  assert.equal(result.events.some((event) => event.provider === "openpoi"), false);
 });
 
 test("captured truncated GSI response is ambiguous for an address-shaped query", async () => {
@@ -214,6 +230,41 @@ test("a named place with a prefecture and ward still uses OpenPOI Suggest", asyn
   assert.equal(result.requests[0].url.pathname, "/v1/suggest");
 });
 
+test("recognized Japanese facility names still use OpenPOI Suggest", async (t) => {
+  for (const [index, query] of ["東京駅", "渋谷ヒカリエ", "浅草寺"].entries()) {
+    await t.test(query, async () => {
+      const result = await runGeocode({
+        query,
+        tenantId: `tenant-known-facility-${index}`,
+        openpoi: { suggestions: [poiCandidate(query)] },
+      });
+
+      assert.equal(result.result.provider, "openpoi");
+      assert.equal(result.googleCalls, 0);
+      assert.equal(result.requests.length, 1);
+      assert.equal(result.requests[0].url.hostname, "api.openpoiapi.com");
+      assert.equal(result.requests[0].url.pathname, "/v1/suggest");
+    });
+  }
+});
+
+test("arbitrary Japanese labels bypass OpenPOI and use one Google geocode", async (t) => {
+  for (const [index, query] of ["自宅", "実家", "友達の家", "会社"].entries()) {
+    await t.test(query, async () => {
+      const result = await runGeocode({
+        query,
+        tenantId: `tenant-private-label-${index}`,
+        openpoi: { suggestions: [poiCandidate(query)] },
+      });
+
+      assert.deepEqual(result.result, { lat: 35.680, lon: 139.760 });
+      assert.equal(result.googleCalls, 1);
+      assert.equal(result.requests.length, 0);
+      assert.equal(result.events.some((event) => event.provider === "openpoi" || event.provider === "gsi"), false);
+    });
+  }
+});
+
 test("Kanji-number and municipality-scoped addresses use only GSI before Google fallback", async (t) => {
   const queries = [
     "渋谷区神南一丁目十九番十一号",
@@ -280,8 +331,8 @@ test("an OpenPOI name with two exact suggestions remains ambiguous and falls bac
 
 test("OpenPOI missing license or attribution provenance is rejected", async (t) => {
   const cases = [
-    { name: "missing licenses", candidate: poiCandidate("出典不足会場", { licenses: [] }) },
-    { name: "missing attributions", candidate: poiCandidate("帰属不足会場", { attributions: [] }) },
+    { name: "missing licenses", candidate: poiCandidate("出典不足ヒカリエ", { licenses: [] }) },
+    { name: "missing attributions", candidate: poiCandidate("帰属不足浅草寺", { attributions: [] }) },
   ];
   for (const scenario of cases) {
     await t.test(scenario.name, async () => {
@@ -296,7 +347,7 @@ test("OpenPOI missing license or attribution provenance is rejected", async (t) 
 });
 
 test("OpenPOI Apache-2.0 records are rejected until a NOTICE is available", async () => {
-  const candidate = poiCandidate("Apache対象会場", { licenses: ["Apache-2.0"] });
+  const candidate = poiCandidate("Apache対象浅草寺", { licenses: ["Apache-2.0"] });
   const result = await runGeocode({ query: candidate.name, openpoi: { suggestions: [candidate] } });
 
   assert.equal(result.googleCalls, 1);
@@ -305,8 +356,8 @@ test("OpenPOI Apache-2.0 records are rejected until a NOTICE is available", asyn
 
 test("OpenPOI invalid and out-of-Japan coordinates are rejected", async (t) => {
   const scenarios = [
-    { name: "invalid coordinate", candidate: poiCandidate("座標不正会場", { lat: 91, lng: 139.7 }) },
-    { name: "outside Japan", candidate: poiCandidate("日本国外会場", { lat: 40.7, lng: -74.0 }) },
+    { name: "invalid coordinate", candidate: poiCandidate("座標不正ヒカリエ", { lat: 91, lng: 139.7 }) },
+    { name: "outside Japan", candidate: poiCandidate("日本国外浅草寺", { lat: 40.7, lng: -74.0 }) },
   ];
   for (const scenario of scenarios) {
     await t.test(scenario.name, async () => {
@@ -330,7 +381,7 @@ test("zero free-provider results fall back to exactly one Google geocode", async
 
 test("free-provider timeout falls back to exactly one Google geocode", async () => {
   const result = await runGeocode({
-    query: "タイムアウト会場",
+    query: "タイムアウト東京駅",
     timeoutMs: 5,
     freeFetch: async () => new Promise(() => {}),
   });
@@ -340,7 +391,7 @@ test("free-provider timeout falls back to exactly one Google geocode", async () 
 });
 
 test("free candidate cache preserves provenance and isolates tenant plus normalized query", async () => {
-  const query = "free-cache対象会場";
+  const query = "free-cache対象会場ヒカリエ";
   const poi = { suggestions: [poiCandidate(query)] };
   const originalFetch = globalThis.fetch;
   let providerCalls = 0;
@@ -365,7 +416,7 @@ test("free candidate cache preserves provenance and isolates tenant plus normali
 });
 
 test("free-provider usage has operation, request/result, zero estimate, and no raw query", async () => {
-  const query = "usage-private会場";
+  const query = "usage-private会場ヒカリエ";
   const result = await runGeocode({ query, openpoi: { suggestions: [poiCandidate(query)] } });
 
   assert.equal(result.events.length, 1);
