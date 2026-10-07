@@ -4937,10 +4937,10 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 22 | Mobileを含む継続課金の公式snapshotを集計し、loop別/会社全体のMRRと未取得sourceを表示する | 年額/買い切り/開発者収益/着金/利益を分離。 |
 | 23 | Moneytree公式`show-accounts`から口座ごとの残高を取得し、個人cashと会社cashの所有範囲を分けて記録する | 2026-10-07T05:53:52Zのread-only `show-accounts`はJPY totalBalance 504302・accountCount 1を返したが、provider as-ofとowner fieldはない。同期/口座ownerが不明なので会社cashに含めない。同時刻帯の10/01–10/07 `show-transactions`はtotalCount 0・returned 0（Google請求支払の不存在を証明しない）。会社cashの公式sourceとownership/read timestampの不足が残る。 |
 | 24 | 20の実費と23の最新残高を使って、会社のrunwayを計算する | 同期間cost coverage、欠損はunknown。 |
-| 25 | Lancers専用profileのログイン状態を所有browser loop経由で復旧し、公式dashboard/proposal historyを読み戻す。solver stale-task fixはmainにあり、pending taskは1件を維持する。login route中にtask追加・応募・返信をしない。旧unknown proposalは公式履歴照合まで再送しない | 10:54Z latest natural app runはexit1/effect unknown/provider receiptなし。後続のread-only preflightは`account_unavailable`/`logged_in=false`。登録profileは`lancers-revenue-browser`がloaded-runningで所有し、手動browser attachは拒否された。solver stateはpending 1件。user alertはrun IDなしでこの発生へ未相関。owner経由のsession復旧→dashboard/proposal history readback→unknown occurrence照合→guard許可後のnatural run。§855–857/863 |
-| 26 | Lancers既存商品一覧から販売する商品IDを特定し、公式公開/購入導線の故障を修復する（商品ID未選定） | 既存listingの現公開/購入経路をCLI等既存観測で確認し、購入を止める故障だけ修復。 |
+| 25（waiting_external・今回はskip） | Lancers専用profileのログイン状態を所有browser loop経由で復旧し、公式dashboard/proposal historyを読み戻す。ユーザー指示により今回はこのlaneをskipし、再認証・solver・応募・返信を試さない。 | 10:54Z latest natural app runはexit1/effect unknown/provider receiptなし。後続のread-only preflightは`account_unavailable`/`logged_in=false`。登録profileは`lancers-revenue-browser`がloaded-runningで所有し、手動browser attachは拒否された。solver stateはpending 1件。user alertはrun IDなしでこの発生へ未相関。完了ではなくwaiting_external。§855–857/863 |
+| 26（waiting_external・今回はskip） | Lancers既存商品一覧から販売する商品IDを特定し、公式公開/購入導線の故障を修復する（商品ID未選定） | row25と同じ専用profileの認証gate。公開・購入状態を未確認のまま完了扱いせず、今回は照会も再試行もしない。 |
 
-| 27 | Lancersの公式募集一覧から条件の合う未応募案件IDを選び、既存応募loopで応募する（案件ID未選定） | 既存応募loop/cap内の同案件公式応募記録。 |
+| 27（waiting_external・今回はskip） | Lancersの公式募集一覧から条件の合う未応募案件IDを選び、既存応募loopで応募する（案件ID未選定） | row25と同じ専用profileの認証gate。今回は一覧取得・応募をしない。 |
 | 28 | SelfBuild recovery処理の成功済み復旧IDを照合し、同一復旧が重複実行される自動修復不具合を最小修正・検証する。これは他の収益loop（Lancersを含む）の修理/実行が完了またはwaiting_externalで記録された後だけ着手する | 成功済み復旧IDの再実行0、focused regression test PASS、必要なsource review/CI/main/immutable/natural recovery/replay-zero。SelfBuildは収益loop修理より前へ戻さない。
 | 29 | 1〜28の公式応募・販売・納品・精算・実費の証拠をSSOTへ結合し、未達と外部依存を引き継ぐ | 実応募/販売/納品/精算/利益の証拠と保留台帳。未達を全体Doneにしない。 |
 #### 納品・精算の対象と現在cursor
@@ -10484,4 +10484,4 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - The latest natural application status at 2026-10-07T10:54:04Z is run `18dc39eb7aa22fd0-10006`, occurrence `lancers-revenue-application:18db9b3c006ebb00-28819`, exit 1, effect unknown, provider receipt null, installed release `a1dcdfbfc31603a606a51fe08d0544885ed4842a`.
 - A separate read-only `work_sync.py --json --preflight` returned `failed_read=1`, `account_unavailable`, `logged_in=false`; it performed no application or reply. The user alert `lancers_http_error` has no run ID and is not proven to be this occurrence.
 - `lancers-revenue-browser` is loaded-running and owns the registered `lancers:dais` profile; `browser-owner` refused manual attach with `browser_profile_owned`. The WAF solver state still has one pending task. Do not take the profile, add a solver task, submit, or reply.
-- Next: restore the existing session through the registered browser owner; then read the official dashboard and proposal history, reconcile the unknown occurrence, and resume only when the existing owner guard permits. Use the solver only if that owned session presents a supported live CAPTCHA/WAF challenge.
+- Dais directed to skip Lancers and continue with the next non-Lancers item. Rows25–27 are `waiting_external`, not complete; no more session, solver, storefront, or application attempts in this pass. Keep the single pending solver task unchanged.
