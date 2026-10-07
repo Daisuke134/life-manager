@@ -15,7 +15,7 @@
 - ソース変更は最新 `origin/main` 基点の専用worktreeで行う。
 - Postizへの直接投稿を使わず、既存のeBook owner経路を使う。
 - `effect_status=unknown` は同一occurrenceの公式readbackが済むまで再実行しない。
-- 対象は `@obou.anicca` Instagram と `@obou_anicca` TikTok のみ。英語 `@monk_anicca` はdisabledのまま別TODOとする。
+- 対象は `@obou.anicca` Instagram と `@obou_anicca` TikTok。英語 `@monk_anicca` は別laneで、2026-10-08 17:26Zのofficial readbackでは既存Postiz integrationがenabledだが、English ownerはdisabled・旧SHAであり、HeyGen render costも未計測。
 - 両レーンの予定は毎日07:00、12:30、20:00 JST。予定時刻は投稿実績として扱わない。
 - 外部投稿の完了条件は各Postiz receiptとnative public URL。1回の成功から毎日の継続成功を推定しない。
 - 公開済みreceiptのrouteを直す時はPostiz readbackを使い、同じslotを再投稿しない。
@@ -90,7 +90,8 @@
 - [x] Japanese Instagramを起動。receipt `cmuxrfync00igs40yv54ve5yh` と公開URL `https://www.instagram.com/reel/DeLxu4Kihsg/` が記録され、Postiz adapterが`PUBLISHED`を読み戻す。
 - [x] Instagram occurrence `ebook-ja-instagram-daily:18dc2b149c572198-58370` を既存Postiz readbackで解決する。再投稿なし。
 - [ ] 旧releaseは同じslotの保存済みreceiptを再利用してroute検証に失敗し、追加のowner failureを記録する。distribution ledgerにはInstagram投稿が1件だけで、これらの再試行はPostizへ送らない。route正規化を含む新releaseでownerをPASSにする。
-- [ ] 別アカウントへ進み、English Postiz integrationの状態を確認する。現状`@monk_anicca`はdisabledのため、正確なintegrationの再接続が必要。別アカウントへ迂回しない。
+- [x] English Postiz routeをofficial APIで再確認する。`cmo5rwq2p00twn10yrsdglng3` (`Monk Anicca`) は`disabled=false`、全31 integrations中30件enabled。既存integrationをそのまま使い、新規channelや課金は不要。これはEnglish ownerや投稿のreadbackではない。証拠: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-live-20261007T172623Z.json`。
+- [ ] HeyGenのwalletはUSD 12.30、Auto Reload有効（USD 5 threshold / USD 10 reload）。render-cost receiptはない。English ownerは`launchd_state=disabled`で旧release SHA `d6f5d8f724ba584f0a5fddd19f8bb3e0aa3ce673`を指すため、費用をreadbackしてから最新main-derived releaseへtarget-applyする。証拠: `/Users/anicca/.local/state/life-manager/ebook/evidence/heygen-wallet-readback-20261007T172623Z.json`。
 - [ ] Japaneseの自然cadenceを07:00/12:30/20:00 JSTで追跡する。次アカウントを始める条件にはせず、各occurrenceのreceiptで実績を記録する。
 
 ### Task 7: Postiz route metadataの修復

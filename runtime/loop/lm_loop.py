@@ -225,7 +225,11 @@ def _is_ebook_verified_no_effect_terminal(entry: dict, row: dict) -> bool:
         and row.get("status") == "pass"
         and row.get("effect_class") == "none"
         and row.get("effect_status") == "not_applicable"
+        and row.get("provider_receipt_id") is None
+        and row.get("official_readback_ref") is None
         and row.get("blocker") is None
+        and not any(isinstance(ref, str) and ref.startswith("postiz://posts/")
+                    for ref in refs)
         and len(no_effect_refs) == 1
         and no_effect_refs[0] in {
             f"lm-no-effect://{loop_id}/{occurrence_id}/setup_required",
