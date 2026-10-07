@@ -1764,11 +1764,11 @@ def test_cli_candidate_is_rejected(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "cleanup_result,capacity_status,expected_returncode",
     (
-        ({"errors": 0, "protected_deletions": 0, "free_after": 6 * GiB}, "unmet", 1),
+        ({"errors": 0, "protected_deletions": 0, "free_after": 2 * GiB - 1}, "unmet", 1),
         ({"errors": 0, "protected_deletions": 0}, "unknown", 1),
         ({"errors": 1, "protected_deletions": 0, "free_after": 12 * GiB}, "met", 1),
         ({"errors": 0, "protected_deletions": 1, "free_after": 12 * GiB}, "met", 1),
-        ({"errors": 0, "protected_deletions": 0, "free_after": 11 * GiB}, "met", 0),
+        ({"errors": 0, "protected_deletions": 0, "free_after": 2 * GiB}, "met", 0),
     ),
 )
 def test_cli_outcome_tracks_capacity_and_cleanup_errors(
@@ -1800,7 +1800,7 @@ def test_cli_outcome_tracks_capacity_and_cleanup_errors(
     assert output["ok"] is (expected_returncode == 0)
     assert output["capacity_recovery"] == {
         "status": capacity_status,
-        "recovery_floor_bytes": 11 * GiB,
+        "recovery_floor_bytes": 2 * GiB,
     }
     assert output.get("errors", 0) == cleanup_result.get("errors", 0)
     assert output.get("protected_deletions", 0) == cleanup_result.get("protected_deletions", 0)
@@ -1832,7 +1832,7 @@ def test_cli_reports_busy_lock_without_running_a_cleanup(tmp_path: Path, monkeyp
     assert output["reason"] == "cleanup_lock_busy"
     assert output["capacity_recovery"] == {
         "status": "unknown",
-        "recovery_floor_bytes": 11 * GiB,
+        "recovery_floor_bytes": 2 * GiB,
     }
     assert output["ok"] is False
     assert not (tmp_path / "state" / "last-receipt.json").exists()
@@ -2084,7 +2084,7 @@ def test_run_once_records_inventory_summary(tmp_path: Path, monkeypatch) -> None
     assert receipt["inventory_roots"] == 2
 
 
-def test_run_once_never_blocks_producers_even_below_eleven_gib(tmp_path: Path, monkeypatch) -> None:
+def test_run_once_reports_unmet_below_shared_recovery_floor(tmp_path: Path, monkeypatch) -> None:
     state = tmp_path / "state"
     state.mkdir()
     pressure = state / "disk-pressure.block"
@@ -2098,13 +2098,13 @@ def test_run_once_never_blocks_producers_even_below_eleven_gib(tmp_path: Path, m
         home=tmp_path,
         state_dir=state,
         lsof=lambda _path: "confirmed-closed",
-        usage=lambda: (11 * GiB - 1, 100 * GiB),
+        usage=lambda: (2 * GiB - 1, 100 * GiB),
     )
 
     result = governor.run_once()
 
     assert not pressure.exists()
-    expected_capacity = {"status": "unmet", "recovery_floor_bytes": 11 * GiB}
+    expected_capacity = {"status": "unmet", "recovery_floor_bytes": 2 * GiB}
     assert result["capacity_recovery"] == expected_capacity
     receipt = json.loads((state / "last-receipt.json").read_text())
     assert receipt["capacity_recovery"] == expected_capacity
@@ -2114,7 +2114,7 @@ def _write_disk_writers_guard(path: Path, owner_id: str) -> None:
     path.write_text(json.dumps({
         "owner_id": owner_id,
         "reason": "disk_headroom_low",
-        "required_bytes": 11 * GiB,
+        "required_bytes": 2 * GiB,
         "next_action": "restore_capacity_and_install_shared_disk_gate",
     }) + "\n", encoding="utf-8")
     path.chmod(0o600)
@@ -2150,15 +2150,15 @@ def test_run_once_clears_matching_disk_writers_guard_at_recovery_floor(
     guard = state / "disk-writers.stop"
     _write_disk_writers_guard(guard, "host-disk-recovery")
     result = _run_disk_cleanup_once(
-        tmp_path, state, monkeypatch, lambda: (11 * GiB, 100 * GiB)
+        tmp_path, state, monkeypatch, lambda: (2 * GiB, 100 * GiB)
     )
 
     assert not guard.exists()
-    assert result["free_after"] == 11 * GiB
+    assert result["free_after"] == 2 * GiB
     assert result["capacity_recovery"]["status"] == "met"
     assert result["disk_writers_stop"] == {"status": "cleared"}
     receipt = json.loads((state / "last-receipt.json").read_text())
-    assert receipt["free_after"] == 11 * GiB
+    assert receipt["free_after"] == 2 * GiB
     assert receipt["ok"] is True
     assert receipt["disk_writers_stop"] == {"status": "cleared"}
 
@@ -2170,14 +2170,14 @@ def test_run_once_remeasures_after_inventory_and_preserves_guard_below_floor(
     state.mkdir()
     guard = state / "disk-writers.stop"
     _write_disk_writers_guard(guard, "host-disk-recovery")
-    free_samples = iter((11 * GiB, 11 * GiB, 11 * GiB, 11 * GiB - 1))
+    free_samples = iter((2 * GiB, 2 * GiB, 2 * GiB, 2 * GiB - 1))
     result = _run_disk_cleanup_once(
         tmp_path, state, monkeypatch,
         lambda: (next(free_samples), 100 * GiB),
     )
 
     assert guard.exists()
-    assert result["free_after"] == 11 * GiB - 1
+    assert result["free_after"] == 2 * GiB - 1
     assert result["capacity_recovery"]["status"] == "unmet"
     assert result["ok"] is False
     assert result["disk_writers_stop"] == {
@@ -2185,7 +2185,7 @@ def test_run_once_remeasures_after_inventory_and_preserves_guard_below_floor(
         "reason": "recovery_floor_not_met",
     }
     receipt = json.loads((state / "last-receipt.json").read_text())
-    assert receipt["free_after"] == 11 * GiB - 1
+    assert receipt["free_after"] == 2 * GiB - 1
     assert receipt["ok"] is False
 
 
@@ -2388,7 +2388,7 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
     tmp_path: Path, monkeypatch
 ) -> None:
     governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
-        tmp_path, monkeypatch, free_bytes=6 * GiB,
+        tmp_path, monkeypatch, free_bytes=2 * GiB - 1,
     )
     original_mkstemp = disk_cleanup.tempfile.mkstemp
     failures = {".candidate-cursor.json.": 2, ".last-receipt.json.": 1}
@@ -2481,7 +2481,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
-        tmp_path, monkeypatch, free_bytes=6 * GiB,
+        tmp_path, monkeypatch, free_bytes=2 * GiB - 1,
     )
     reserve = state / ".receipt-reserve"
     governor._receipt_reserve()
@@ -2532,7 +2532,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     assert reserve_at_sweep == [True]
     assert candidate.exists()
     assert result["protected_deletions"] == 0
-    assert result["free_after"] == 6 * GiB
+    assert result["free_after"] == 2 * GiB - 1
     assert result["capacity_recovery"]["status"] == "unmet"
     assert result["ok"] is False
     assert result["candidate_rotation"]["cursor_persistence"]["errors"][0] == {
