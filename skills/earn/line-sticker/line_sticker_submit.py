@@ -66,6 +66,36 @@ def _title_units(text: str) -> int:
     return sum(2 if unicodedata.east_asian_width(ch) in ("F", "W", "A") else 1 for ch in text)
 
 
+# Description limit, same width counting (160 units; measured live 2026-10-07 set-007).
+DESC_MAX = 158
+LIMIT_TITLE = 40
+
+
+def _fit(text: str, limit: int) -> str:
+    if _title_units(text) <= limit:
+        return text
+    cut = ""
+    for ch in text:
+        if _title_units(cut + ch) > limit:
+            break
+        cut += ch
+    # Prefer ending on a sentence, else a word boundary.
+    for marks in ("。.!！?？", " 、,"):
+        idx = max(cut.rfind(m) for m in marks)
+        if idx >= len(cut) // 2:
+            return cut[: idx + 1].rstrip(" 、,")
+    return cut
+
+
+def _fit_listing(listing: dict) -> dict:
+    """Clamp model-written copy to Creators Market's width-counted limits before filling the form."""
+    titles = {k: _fit(v, LIMIT_TITLE) for k, v in listing["title"].items()}
+    descs = {k: _fit(v, DESC_MAX) for k, v in listing.get("description", {}).items()}
+    if titles == listing["title"] and descs == listing.get("description", {}):
+        return listing
+    return dict(listing, title=titles, description=descs)
+
+
 def _retitle(listing: dict) -> dict | None:
     name = listing.get("character_name") or ""
     if not name:
@@ -88,6 +118,7 @@ class TitleTaken(RuntimeError):
 
 
 async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
+    listing = _fit_listing(listing)
     saves: list = []
     page.on("response", lambda r: saves.append(r) if r.request.method == "POST" and r.url.endswith("/api/v2/sticker") else None)
     await _goto(page, f"{BASE}/sticker/create")
