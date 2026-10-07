@@ -7,6 +7,7 @@ const {
   captureWebAttribution,
   consumeWebAttribution,
 } = require("./web-attribution.js");
+const { recordWebFunnelEvent } = require("./web-funnel-events.js");
 
 const WEB_AUTH_COOKIE = "lm-web-auth";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -489,12 +490,14 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       anonKey: opts.anonKey || envFor(opts).SUPABASE_ANON_KEY,
       fetch: opts.fetch,
     });
+    let firstTouch = {};
     const firstTouchCookie = attributionCookie(req, opts);
     if (firstTouchCookie.present) {
       const attribution = consumeWebAttribution(firstTouchCookie.value, attributionSecret(opts));
       if (!attribution) {
         clearCookie(res, opts, WEB_ATTRIBUTION_COOKIE);
       } else {
+        firstTouch = attribution;
         try {
           const stored = await storeWebFirstTouch(uid, attribution, {
             env: envFor(opts),
@@ -508,6 +511,14 @@ async function handleWebAuthRequest(req, res, opts = {}) {
         }
       }
     }
+    try {
+      const record = opts.recordWebFunnelEventImpl || recordWebFunnelEvent;
+      await record({ eventName: "google_authenticated", uid, sourceObjectId: uid, attribution: firstTouch }, {
+        supaUrl: requiredSupabaseUrl(opts),
+        supaKey: requiredServiceRoleKey(opts),
+        fetchImpl: opts.fetch,
+      });
+    } catch { /* funnel telemetry must not block a verified Google sign-in */ }
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
     sendRedirect(res, "/lm?start_calendar=1");
   } catch (error) {

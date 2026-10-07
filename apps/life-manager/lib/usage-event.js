@@ -6,7 +6,7 @@ const { recordCost } = require("./ledger.js");
 const OUTCOMES = new Set(["success", "failure", "cache_hit"]);
 const SECRET_KEY = /(api[_-]?key|authorization|credential|password|secret|token)/i;
 const META_ENUMS = {
-  sku: ["Geocoding", "Directions", "Routes: Compute Routes Pro"],
+  sku: ["Geocoding", "Directions", "Routes: Compute Routes Pro", "Places - Text Search"],
   pricing_basis: ["list_price_after_free_cap", "list_price_after_free_rpd", "unavailable"],
   route_mode: ["transit", "google"],
   fallback_reason: ["transit_no_route", "transit_provider_4xx", "transit_provider_5xx",
@@ -154,7 +154,7 @@ function normalizeUsageEvent(event = {}, runtimeEnv = {}) {
   const estimateStatus = cacheHit ? "not_applicable"
     : (estUsd == null ? "unavailable" : (meta.estimate_status || "estimated"));
   const pricingVersion = Object.hasOwn(meta, "pricing_version") ? meta.pricing_version : ({
-    google_maps: "lm-google-maps-estimate-2026-09-06-v1",
+    google_maps: "lm-google-maps-estimate-2026-10-08-v1",
     gemini: "lm-gemini-estimate-2026-10-06-v1",
     google_search_grounding: "lm-gemini-estimate-2026-10-06-v1",
   })[provider] || null;

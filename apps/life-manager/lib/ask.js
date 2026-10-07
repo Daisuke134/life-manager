@@ -26,6 +26,10 @@ const { interpretCalendarEvent, PLACE_QUESTION } = require("./calendar-interpret
 const { recordUsageEvent } = require("./usage-event.js");
 const { geminiUsageEvents } = require("./gemini-usage.js");
 
+const MAX_PLACES_SEARCHES_PER_EVENT = 3;
+const PLACES_TEXT_SEARCH_ESTIMATED_USD = 0.04;
+const GOOGLE_MAPS_PRICING_VERSION = "lm-google-maps-estimate-2026-10-08-v1";
+
 async function recordGeminiUsage(response, context = {}) {
   const injected = context.recordUsageEvent;
   if (!injected && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)) return;
@@ -165,16 +169,61 @@ function closedOnlineAskMessage(event, interpretation, replyToken) {
 // NOTE: this legacy endpoint requires the key as a query param (no header alternative; the v1 API that
 // supports header-auth is not enabled on this GCP project). The key is a Maps-restricted browser key,
 // not a secret credential, and we never log this URL — see SECURITY note at the call site.
-async function placesSearch(query, mapsKey) {
+async function placesSearch(query, mapsKey, context = {}) {
   if (!mapsKey || !query) return [];
+  let results = [];
+  let usageEvent;
   try {
     // No hardcoded language/region — this must work for ANY user worldwide. Places returns each
     // venue's address in its own locale; the agent adds geographic context (the user's home city) to
     // its query itself when it needs to disambiguate.
     const r = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
     const j = await r.json();
-    return (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" }));
-  } catch { return []; }
+    const billableSuccess = r.ok === true && ["OK", "ZERO_RESULTS"].includes(j.status);
+    usageEvent = {
+      tenantId: context.uid || "unknown",
+      provider: "google_maps",
+      feature: context.feature || "ask_resolve_location",
+      operation: "places_text_search_legacy",
+      outcome: billableSuccess ? "success" : "failure",
+      failureClass: billableSuccess ? null : (r.ok === true ? "places_api_error" : `provider_${Math.floor(Number(r.status) / 100)}xx`),
+      providerUnits: billableSuccess ? 1 : null,
+      providerUnit: "request",
+      estimatedCostUsd: billableSuccess ? PLACES_TEXT_SEARCH_ESTIMATED_USD : null,
+      meta: {
+        sku: "Places - Text Search",
+        pricing_basis: billableSuccess ? "list_price_after_free_cap" : "unavailable",
+        pricing_version: GOOGLE_MAPS_PRICING_VERSION,
+        ...(!billableSuccess ? { estimate_status: "unavailable" } : {}),
+      },
+    };
+    results = billableSuccess
+      ? (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" }))
+      : [];
+  } catch {
+    usageEvent = {
+      tenantId: context.uid || "unknown",
+      provider: "google_maps",
+      feature: context.feature || "ask_resolve_location",
+      operation: "places_text_search_legacy",
+      outcome: "failure",
+      failureClass: "network_or_response",
+      providerUnits: null,
+      providerUnit: "request",
+      estimatedCostUsd: null,
+      meta: {
+        sku: "Places - Text Search",
+        pricing_basis: "unavailable",
+        pricing_version: GOOGLE_MAPS_PRICING_VERSION,
+        estimate_status: "unavailable",
+      },
+    };
+  }
+  const write = context.recordUsageEvent || recordUsageEvent;
+  if (usageEvent) {
+    try { await write(usageEvent); } catch { /* cost logging must not block location resolution */ }
+  }
+  return results;
 }
 
 // The agent's two tools: it searches Places (as many queries as it wants), then submits its verdict.
@@ -182,7 +231,7 @@ const RESOLVE_TOOLS = [{
   functionDeclarations: [
     {
       name: "places_search",
-      description: "Search Google Places for a real-world venue and get its exact address. Use it (try query variations: bare name, name+area, English/Japanese) to find where an event takes place.",
+      description: "Search Google Places for a real-world venue and get its exact address. Try up to three distinct queries (bare name, name+area, English/Japanese) to find where an event takes place.",
       parameters: { type: "OBJECT", properties: { query: { type: "STRING", description: "Place name or keywords, e.g. '松竹芸能養成所 東京' or 'JETRO Innovation Garden 赤坂'." } }, required: ["query"] },
     },
     {
@@ -250,6 +299,7 @@ Event description: ${JSON.stringify(event.description || "")}
 Start: ${JSON.stringify((event.start || {}).dateTime || "")}
 User's home address: ${JSON.stringify(home || "")}` }],
   }];
+  let placesSearchCount = 0;
   for (let turn = 0; turn < 5; turn++) {
     const j = await geminiRaw({ contents, tools: RESOLVE_TOOLS, generationConfig: { temperature: 0 } }, geminiKey,
       { tenantId: uid, feature: "ask_resolve_location", recordUsageEvent: usageWriter });
@@ -269,7 +319,12 @@ User's home address: ${JSON.stringify(home || "")}` }],
         return { kind: "ask" };
       }
       if (c.name === "places_search") {
-        const res = await placesSearch((c.args || {}).query || "", mapsKey);
+        const res = placesSearchCount < MAX_PLACES_SEARCHES_PER_EVENT
+          ? await placesSearch((c.args || {}).query || "", mapsKey, {
+            uid, feature: "ask_resolve_location", recordUsageEvent: usageWriter,
+          })
+          : [];
+        if (placesSearchCount < MAX_PLACES_SEARCHES_PER_EVENT && (c.args || {}).query) placesSearchCount++;
         responses.push({ functionResponse: { name: "places_search", response: { results: res } } });
       }
     }
