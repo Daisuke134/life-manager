@@ -31,6 +31,7 @@ function buildVideoPublicationJobsFromGeneration(receipt, options = {}) {
     captionRef: options.captionRef || receipt.copy_ref,
     approvalRef: options.approvalRef,
     instagramProfileRef: options.instagramProfileRef,
+    instagramIntegrationRef: options.instagramIntegrationRef,
     postizTokenRef: options.postizTokenRef,
     tiktokIntegrationRef: options.tiktokIntegrationRef,
   };

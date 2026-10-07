@@ -12,20 +12,28 @@ const {
   loadMarketingDestinationContract,
   validateMarketingDestinationContract,
 } = require("./marketing-destination-contract.js");
+const {
+  EN_AFFIRMATION_LANE,
+  EN_AFFIRMATION_TIKTOK_LANE,
+  EN_SLIDESHOW_TIKTOK_LANE,
+  JA_MAIN_TIKTOK_LANE,
+  JA_JP1_TIKTOK_LANE,
+  JA_BUDDHA_TIKTOK_LANE,
+} = require("./marketing-native-carousel-publication-adapter.js");
 
 const CONTRACT = path.resolve(__dirname, "../../../config/marketing-destinations.json");
 
 test("the marketing destination SSOT fixes every retained route and every non-target connection", () => {
   const value = loadMarketingDestinationContract(CONTRACT);
-  assert.equal(value.targets.length, 17);
-  assert.equal(value.holds.filter((row) => row.integration_id).length, 13);
+  assert.equal(value.targets.length, 19);
+  assert.equal(value.targets.filter((row) => ["anicca", "honne-ai"].includes(row.product_id)).length, 17);
+  assert.equal(value.targets.filter((row) => row.product_id === "ebook-ja").length, 2);
+  assert.equal(value.holds.length, 13);
+  assert.equal(value.holds.filter((row) => row.integration_id).length, 11);
   assert.equal(value.holds.filter((row) => row.integration_id === null).length, 2);
   assert.ok(value.targets.every((row) => row.cadence_jst.length === 3));
-  assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca"), false);
-  assert.equal(
-    value.holds.some((row) => row.postiz_profile === "@obou.anicca" && row.reason === "ebook_account_out_of_mobile_scope"),
-    true,
-  );
+  assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id !== "ebook-ja"), false);
+  assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id === "ebook-ja"), true);
   assert.deepEqual(
     value.targets
       .filter((row) => ["cmp9pedr700ttqh0yj8o57fog", "cmn8ycvtn02djqx0ytuisn9mw"].includes(row.integration_id))
@@ -56,7 +64,7 @@ test("a target without an exact pack, form, cadence, label, or entrypoint fails 
 test("the loop registry exactly matches the destination SSOT labels, entrypoints, and cadences", () => {
   const contract = loadMarketingDestinationContract(CONTRACT);
   const registry = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../config/loop-registry.json"), "utf8"));
-  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 17);
+  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 19);
   const candidate = structuredClone(registry);
   candidate.loops[contract.targets[0].loop_name].cadence.calendar_interval[0].Minute = 1;
   assert.throws(() => auditMarketingDestinationRegistry(contract, candidate), /cadence/i);
@@ -90,4 +98,33 @@ test("the JA Larry lane is the gate-approved lane (rotation, not a single pinned
   const contract = loadMarketingDestinationContract(CONTRACT);
   const lane = contract.targets.find((row) => row.lane_id === "anicca-ios-ja-larry-instagram");
   assert.equal(lane.approved_pack_ref, GATE_APPROVED);
+});
+
+test("every rotating Anicca carousel lane delegates fresh-pack approval to the per-job gate", () => {
+  const contract = loadMarketingDestinationContract(CONTRACT);
+  const rotating = [
+    EN_AFFIRMATION_LANE,
+    EN_AFFIRMATION_TIKTOK_LANE,
+    EN_SLIDESHOW_TIKTOK_LANE,
+    JA_MAIN_TIKTOK_LANE,
+    JA_JP1_TIKTOK_LANE,
+    JA_BUDDHA_TIKTOK_LANE,
+  ].filter((lane) => lane.rotationEnabled === true);
+
+  assert.equal(rotating.length, 6);
+  for (const lane of rotating) {
+    const target = findMarketingDestinationTarget(contract, {
+      jobProductId: lane.productId,
+      locale: lane.locale,
+      platform: lane.platform,
+      integrationId: lane.integrationId,
+      jobFormatId: lane.formatId,
+      mediaForm: lane.form,
+    });
+    assert.ok(target, `${lane.name} has an exact destination`);
+    assert.equal(target.approved_pack_ref, GATE_APPROVED, `${lane.name} accepts only gate-approved rotated packs`);
+  }
+  const staticTarget = contract.targets.find((row) => row.lane_id === "anicca-ios-en-card-instagram");
+  assert.ok(staticTarget);
+  assert.match(staticTarget.approved_pack_ref, /^object:\/\/sha256\//);
 });

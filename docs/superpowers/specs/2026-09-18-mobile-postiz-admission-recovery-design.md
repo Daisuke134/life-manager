@@ -68,7 +68,7 @@ The occurrence-isolation source gate is pushed at `a82085698e`. Shared admission
 
 PR #5765 merged at `ac2d9b26d1d808a5f5cca40791c8b15a9e2d8df1`. Latest-main immutable release `87aa9d11fbd8b6eff6cf4bed119635471e037aa8` contains the source gate. The first targeted canary apply correctly made no launchd or provider change: one attempt serialized behind the Paid owner's shared control lock, and the next exposed a remaining deploy-plane mismatch, `admission rebind refused: effect_unknown`. The rebind path still assumed owner-wide effects even though the runner was occurrence-scoped. The follow-up keeps every historical unknown row intact, changes only the canonical Mobile publish queue's persisted `effect_scope`, and leaves claimed non-unknown work plus every default owner fail-closed. A regression test migrates a pre-fix queue with an old unknown and proves that only its different queued occurrence can subsequently claim.
 
-## Current diagnosis and release gate
+## Prior diagnosis and release gate (2026-09-23)
 
 - Read-only SQLite still finds exactly 17 Mobile/Honne `effect_unknown=1` occurrences: 14 `released` and 3 `claimed`. Their exact identity sidecars do not exist, so none can be truthfully cleared.
 - All 17 loaded owners stop before provider execution with `host_admission_deferred:resource_effect_unknown`; OBOU remains intentionally unloaded.
@@ -82,3 +82,13 @@ PR #5765 merged at `ac2d9b26d1d808a5f5cca40791c8b15a9e2d8df1`. Latest-main immut
 - Enabling the held OBOU ebook account.
 - Replacing Postiz, changing account IDs, changing cadence, or moving runtime state into the repository.
 - Treating all 66 system-wide unknown occurrences as mobile work. Each owner remains separately scoped.
+
+## Latest publication readback and rotation gate (2026-10-07)
+
+- The current `config/marketing-destinations.json` contains 19 target lanes: 17 Mobile/Honne and two eBook lanes owned separately; 13 other connected integrations remain held. The 19 targets each retain three Asia/Tokyo daily slots.
+- The Postiz reconciliation window 2026-09-29–2026-10-07 contains 211 `PUBLISHED` posts and 16 `ERROR` posts. This is a partial route failure, not a Postiz-wide outage. Anicca's newer ReelClaw receipts continue through 2026-10-07, while the JP1/Larry and slideshow format receipts stop on 2026-09-28.
+- Between 2026-09-29 and 2026-10-07 06:56 UTC, the local publication-fence refusal ledger records 15,723 `marketing-native-carousel-publication` enqueue refusals and 20 `marketing-video-publication` refusals. They all report `production manifest owns cadence`; no Postiz request is dispatched for a refused job.
+- Six Anicca native-carousel lanes generate a fresh pack for each slot and have `rotationEnabled`. The destination contract pins each to an old `approved_pack_ref` hash, while only the legacy JA Larry Instagram lane uses the supported `gate-approved` sentinel. A temporary, read-only fixture confirms the pinned pack can enter the closed production lane, a new pack hash is rejected at enqueue, and the same target accepts the new pack when set to `gate-approved`. This does not bypass `marketing-slide-pack-gate` or the adapter's exact pack/media/caption/account/integration approval checks.
+- The separate video publication-chain test also exposed a platform-identity wiring bug: an explicit Instagram integration passed in options was dropped, so both fanout jobs reused the TikTok integration and the duplicate guard treated them as one account. The chain now preserves the explicit Instagram ref; it does not invent an Instagram integration when none is configured.
+- JP1's unresolved historical occurrence `life-manager-anicca-jp1-tiktok:18d93079c413bdd8-4465` returns `provider_readback_not_exact` and has no provider receipt reference. Keep this effect unknown; do not clear or replay it.
+- Current cursor: set `gate-approved` on the six rotation-enabled Anicca destinations only, keep cadence/account/provider IDs and the 13 holds unchanged, then deploy JP1 alone for its next natural slot. Require terminal success, an exact official Postiz receipt, and replay-zero before staging the other five lanes. eBook's two target lanes remain in their separate owner task.
