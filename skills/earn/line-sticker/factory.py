@@ -43,6 +43,10 @@ STAGES = ("plan", "character", "clips", "apng", "select", "package", "submit", "
 DEFAULT_STATE_ROOT = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager"))) / "line-sticker"
 DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "24"))
 DEFAULT_MAX_USD_PER_SET = Decimal(os.environ.get("LINE_STICKER_MAX_USD_PER_SET", "4"))
+# Stop starting new sets while spend not yet recovered by sales exceeds this (revenue must beat
+# spend; production reopens automatically as sales.json shows revenue).
+DEFAULT_MAX_UNRECOVERED_USD = Decimal(os.environ.get("LINE_STICKER_MAX_UNRECOVERED_USD", "40"))
+JPY_PER_USD = Decimal("150")
 JST = datetime.timezone(datetime.timedelta(hours=9))
 EVENTS_LOG_NAME = "factory-events.jsonl"
 
@@ -168,6 +172,7 @@ class Deps:
     notify: Callable[[Path, dict], None] = field(default=lambda set_dir, payload: None)
     max_usd_per_set: Decimal = DEFAULT_MAX_USD_PER_SET
     max_sets_per_day: int = DEFAULT_MAX_SETS_PER_DAY
+    max_unrecovered_usd: Decimal = DEFAULT_MAX_UNRECOVERED_USD
 
 
 def _prior_set_facts(state_root: Path) -> list[dict]:
@@ -330,6 +335,16 @@ STAGE_RUNNERS = {
 # Wake entry point
 # --------------------------------------------------------------------------------------
 
+def unrecovered_spend_usd(state_root: Path) -> Decimal:
+    """All set spend minus known LINE sales (sales.json); unknown sales count as nothing."""
+    spend = sum((Decimal(str((_read_json(p) or {}).get("cost_usd") or "0"))
+                 for p in state_root.glob("set-*/stage.json")), Decimal("0"))
+    revenue_jpy = sum((Decimal(str(row["sales_jpy"]))
+                       for row in (_read_json(state_root / "sales.json") or {}).get("products", [])
+                       if isinstance(row.get("sales_jpy"), (int, float))), Decimal("0"))
+    return spend - revenue_jpy / JPY_PER_USD
+
+
 def wake(state_root: Path, deps: Deps) -> dict:
     """Advance exactly one stage of exactly one set. Returns a small report dict."""
     set_dir = newest_open_set(state_root)
@@ -337,6 +352,10 @@ def wake(state_root: Path, deps: Deps) -> dict:
         started = sets_started_today(state_root)
         if started >= deps.max_sets_per_day:
             return {"action": "skip", "reason": "daily_cap_reached", "started_today": started}
+        unrecovered = unrecovered_spend_usd(state_root)
+        if unrecovered > deps.max_unrecovered_usd:
+            append_event(state_root, {"status": "unrecovered_spend_cap", "unrecovered_usd": str(unrecovered)})
+            return {"action": "skip", "reason": "unrecovered_spend_cap", "unrecovered_usd": str(unrecovered)}
         number = next_set_number(state_root)
         set_dir = state_root / f"set-{number:03d}"
         set_dir.mkdir(parents=True, exist_ok=True)
