@@ -142,9 +142,9 @@ Continue the canonical SSOT cursor: complete safe Google signup/Calendar E2E wit
 The review reopened Task 3; previous test results did not exercise the real initial-scan transport or all Stripe event orders. Current order:
 
 - [x] Add failing tests for the pre-trial initial Travel write reaching the exact active Google Calendar only while the persisted one-shot scan is still eligible and disconnect/enable fences are clear; confirm they fail before the fix.
-- [x] Add failing billing tests for $0 `invoice.paid`, paid-invoice/subscription-update reordering, cancellation followed by invoice payment, equal-second precedence, and competing webhook writes; confirm they fail before the fix.
-- [x] Implement the smallest source and additive Supabase migration: exact-account one-shot initial-scan allowance; separate positive-invoice evidence and durable cancellation intent; deterministic event ordering; atomic revision compare-and-swap so losing webhook writes return 5xx for Stripe retry.
-- [~] Focused onboarding/billing/scheduler suites pass (164 tests) and synthetic browser E2E passes at 390x844/1440x900. Repeat Stripe TEST-mode Checkout/Portal and webhook-delivery/readback against this corrected code; the earlier test-mode checkout preceded this correction.
+- [x] Add failing billing tests for $0 `invoice.paid`, invoice/subscription reordering, cancellation and late invoice, `past_due` plus delayed/renewal invoices, equal-second precedence, competing webhook writes, and automation-RPC retry; confirm they fail before the fix.
+- [x] Implement the smallest source and additive Supabase migration: exact-account one-shot initial-scan allowance; positive invoice evidence without rewriting subscription status; durable cancellation intent; deterministic per-stream ordering; atomic revision compare-and-swap; replay-safe automation resume.
+- [~] Focused onboarding/billing/scheduler suites pass (168 tests) and synthetic browser E2E passes at 390x844/1440x900. Repeat Stripe TEST-mode Checkout/Portal and webhook payload/readback against this corrected code; the earlier test-mode checkout preceded these corrections.
 - [ ] Obtain a fresh read-only review and CI before reopening WB-12.
 
 Current cursor: repeat Stripe TEST-mode verification → fresh read-only review → CI; WB-12 remains next after those source gates.

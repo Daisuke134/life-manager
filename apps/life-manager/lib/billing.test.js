@@ -5,7 +5,7 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const {
   entitlementFor, parseStripeEvent, isStale, toEpoch,
-  claimEvent, unclaimEvent, applyBilling,
+  claimEvent, unclaimEvent, applyBilling, webPaidCheckoutEligible,
 } = require("./billing.js");
 
 // ── entitlementFor: the fixed Stripe status → entitlement table (REQ-38) ──────
@@ -355,6 +355,65 @@ test("paid invoice evidence survives a later-created active subscription event d
   assert.equal(s.row().trial_expires_at, null);
 });
 
+test("a delayed paid invoice cannot replace a newer past_due subscription state", async () => {
+  const pastDueAt = new Date(200_000).toISOString();
+  const s = fakeSupa(webBillingRow({
+    paid: false, plan_status: "past_due",
+    web_subscription_event_at: pastDueAt,
+    web_subscription_event_priority: 50,
+    web_subscription_event_id: "evt_past_due",
+  }));
+  const invoice = await applyBilling(webInvoiceEvent("evt_old_paid", "invoice.paid", 100), deps(s));
+  assert.equal(invoice.paid, false);
+  assert.equal(s.row().plan_status, "past_due");
+  assert.equal(s.row().paid, false);
+  assert.equal(s.row().web_invoice_paid, true);
+});
+
+test("paid invoice after past_due waits for the active subscription event before resuming", async () => {
+  const s = fakeSupa(webBillingRow({
+    paid: false, plan_status: "past_due",
+    web_subscription_event_at: new Date(200_000).toISOString(),
+    web_subscription_event_priority: 50,
+    web_subscription_event_id: "evt_past_due_2",
+  }));
+  const invoice = await applyBilling(webInvoiceEvent("evt_paid_2", "invoice.paid", 201), deps(s));
+  assert.equal(invoice.paid, false);
+  assert.equal(s.row().plan_status, "past_due");
+  const active = await applyBilling(webSubscriptionEvent("evt_active_after_payment", 202, {
+    status: "active", current_period_end: 900000,
+  }), deps(s));
+  assert.equal(active.paid, true);
+  assert.equal(s.row().plan_status, "active");
+  assert.equal(s.row().paid, true);
+});
+
+test("same trial webhook retry resumes automation after its billing write already succeeded", async () => {
+  const s = fakeSupa(webBillingRow());
+  const trialEnd = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+  const event = {
+    id: "evt_trial_resume_retry", type: "customer.subscription.created", created: 100,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "trialing", trial_end: trialEnd,
+      default_payment_method: "pm_saved",
+      metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } } },
+  };
+  let failResume = true;
+  const fetchImpl = async (url, init = {}) => {
+    if (String(url).includes("/rpc/control_lm_web_travel") && failResume) {
+      failResume = false;
+      return { ok: false, status: 503, json: async () => ({ message: "temporary" }) };
+    }
+    return s.f(url, init);
+  };
+  await assert.rejects(applyBilling(event, { ...deps(s), fetchImpl }));
+  assert.equal(s.row().paid, true);
+  assert.equal(s.row().plan_status, "trialing");
+
+  const retried = await applyBilling(event, { ...deps(s), fetchImpl });
+  assert.equal(retried.action, "web-automation-resumed");
+  assert.equal(s.rpcCalls.length, 1);
+});
+
 test("invoice payment after scheduled cancellation keeps Calendar entitlement paused", async () => {
   const s = fakeSupa(webBillingRow({
     paid: true, plan_status: "trialing", trial_expires_at: "2030-01-08T00:00:00.000Z",
@@ -368,6 +427,16 @@ test("invoice payment after scheduled cancellation keeps Calendar entitlement pa
   assert.equal(s.row().web_billing_cancel_at_period_end, true);
   assert.equal(s.row().web_invoice_paid, true);
   assert.equal(s.row().paid, false);
+});
+
+test("late invoice on a fully canceled subscription preserves immediate paid-restart eligibility", async () => {
+  const s = fakeSupa(webBillingRow({ paid: false, plan_status: "canceled",
+    web_billing_cancel_at_period_end: true }));
+  await applyBilling(webInvoiceEvent("evt_late_after_cancel", "invoice.paid", 101), deps(s));
+  assert.equal(s.row().plan_status, "canceled");
+  assert.equal(s.row().paid, false);
+  assert.equal(s.row().web_billing_cancel_at_period_end, true);
+  assert.equal(webPaidCheckoutEligible(s.row()), true);
 });
 
 test("same-second cancellation wins over a paid invoice in either delivery order", async () => {
@@ -404,7 +473,7 @@ test("competing Web subscription writes use atomic revision CAS and cannot resto
   assert.equal(s.row().paid, false);
   assert.equal(s.row().plan_status, "trialing");
 });
-test("applyBilling Web paid invoice activates while failed invoice pauses immediately", async () => {
+test("Web invoice payment evidence pauses or resumes without rewriting Stripe subscription status", async () => {
   const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
     web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
     stripe_subscription_id: "sub_web", stripe_event_at: new Date(50_000).toISOString(), paid: true, plan_status: "active" };
@@ -413,28 +482,37 @@ test("applyBilling Web paid invoice activates while failed invoice pauses immedi
     data: { object: { customer: "cus_web", subscription: "sub_web", status: "paid",
       amount_paid: 2900, amount_due: 2900, billing_reason: "subscription_cycle" } } }, deps(paidStore));
   assert.equal(paid.paid, true);
-  assert.equal(paidStore.patches[0].body.plan_status, "active");
+  assert.equal(paidStore.patches[0].body.plan_status, undefined);
 
   const failedStore = fakeSupa(row);
   const failed = await applyBilling({ id: "failed", type: "invoice.payment_failed", created: 100,
     data: { object: { customer: "cus_web", parent: { subscription_details: { subscription: "sub_web" } } } } }, deps(failedStore));
   assert.equal(failed.paid, false);
   assert.equal(failedStore.patches[0].body.paid, false);
-  assert.equal(failedStore.patches[0].body.plan_status, "past_due");
+  assert.equal(failedStore.patches[0].body.plan_status, undefined);
+  assert.equal(failedStore.patches[0].body.web_invoice_paid, false);
 });
-test("paid invoice can link a new no-trial subscription after the prior Web subscription was canceled", async () => {
+test("paid invoice can link a no-trial restart, then the active subscription confirms access", async () => {
   const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
-    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", calendar_connected_account_id: "ca-selected-123", stripe_customer_id: "cus_web",
     stripe_subscription_id: "sub_canceled", stripe_event_at: new Date(50_000).toISOString(),
     paid: false, plan_status: "canceled" };
   const s = fakeSupa(row);
-  const r = await applyBilling({ id: "e", type: "invoice.paid", created: 100,
+  const invoice = await applyBilling({ id: "e", type: "invoice.paid", created: 100,
     data: { object: { customer: "cus_web", parent: { subscription_details: {
       subscription: "sub_restarted", metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" },
     } }, status: "paid", amount_paid: 2900, amount_due: 2900, billing_reason: "subscription_create" } } }, deps(s));
-  assert.equal(r.action, "invoice-paid");
+  assert.equal(invoice.action, "invoice-paid");
   assert.equal(s.patches[0].body.stripe_subscription_id, "sub_restarted");
-  assert.equal(s.patches[0].body.paid, true);
+  assert.equal(s.patches[0].body.paid, false);
+  assert.equal(s.row().plan_status, "incomplete");
+
+  const active = await applyBilling({ id: "subscription-active", type: "customer.subscription.created", created: 101,
+    data: { object: { id: "sub_restarted", customer: "cus_web", status: "active", current_period_end: 900000,
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(active.paid, true);
+  assert.equal(s.row().plan_status, "active");
+  assert.equal(s.row().paid, true);
 });
 test("applyBilling unknown event type → ignored, no write", async () => {
   const s = fakeSupa(null);

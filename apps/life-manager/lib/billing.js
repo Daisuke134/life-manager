@@ -1,8 +1,9 @@
 "use strict";
 // HARD-3 billing lifecycle. Stripe webhook is the only writer of lm_users.paid.
 // Telegram keeps its subscription-status mapping and past_due grace. Web Travel requires a card-backed trial
-// or a paid invoice; payment failure, scheduled cancellation, and expiry stop Calendar work. Events are
-// deduplicated in lm_stripe_events and ordered by event.created.
+// or positive paid-invoice evidence plus an active subscription; payment failure, scheduled cancellation,
+// and expiry stop Calendar work. Web invoice and subscription streams have independent cursors and a row
+// revision CAS; Telegram retains the shared event.created cursor.
 
 // PROVISION statuses: active + trialing are in good standing; past_due keeps access during the grace window
 // (Stripe keeps retrying payment) while we send a dunning notice. Everything else = no access.
@@ -37,7 +38,7 @@ function parseStripeEvent(event) {
   const type = event && event.type;
   const o = (event && event.data && event.data.object) || {};
   const metadata = o.metadata && typeof o.metadata === "object" ? o.metadata : {};
-  const created = (event && event.created) || 0; // event-level Unix seconds — the staleness ordering key
+  const created = (event && event.created) || 0; // event-level Unix seconds; Web orders invoice/subscription lanes separately
   if (type === "checkout.session.completed") {
     return {
       kind: "checkout",
@@ -95,10 +96,7 @@ function parseStripeEvent(event) {
   return null; // unknown type → caller acks 200 with no side effect
 }
 
-// isStale(incomingCreated, storedRow) → true when this event is OLDER (by event.created) than the last event
-// we applied for this user. Keyed on event.created — the only monotonic ordering Stripe guarantees — so an
-// immediate cancel (which may carry a current_period_end ≤ the active one) STILL applies. No stored row /
-// no stored timestamp → first event → never stale.
+// isStale is the legacy Telegram/global Stripe ordering guard. Web billing uses the per-stream guard below.
 function isStale(incomingCreated, storedRow) {
   if (!storedRow || !storedRow.stripe_event_at) return false;
   return toEpoch(incomingCreated) < toEpoch(storedRow.stripe_event_at);
@@ -364,13 +362,12 @@ async function applyBilling(event, deps) {
       const cancellationFence = !replacingSubscription
         && (row.web_billing_cancel_at_period_end === true || terminalPriorStatus);
       const invoicePaid = p.status === "paid" && amountPaid > 0;
+      // Invoice events update payment evidence only. The subscription stream owns plan_status; an older
+      // paid invoice must not overwrite a newer past_due/canceled state.
       const patch = {
         stripe_customer_id: p.customerId || row.stripe_customer_id,
         stripe_subscription_id: p.subscriptionId,
-        paid: invoicePaid && !cancellationFence,
-        plan_status: p.status === "payment_failed" ? "past_due" : "active",
-        trial_expires_at: null,
-        stripe_event_at: isoOrNull(p.created),
+        paid: invoicePaid && String(row.plan_status || "").toLowerCase() === "active" && !cancellationFence,
         web_billing_cancel_at_period_end: replacingSubscription ? false
           : row.web_billing_cancel_at_period_end === true || terminalPriorStatus,
         web_invoice_event_at: isoOrNull(p.created),
@@ -380,6 +377,7 @@ async function applyBilling(event, deps) {
         web_invoice_paid: invoicePaid,
         web_invoice_amount_paid: invoicePaid ? amountPaid : 0,
         ...(replacingSubscription ? {
+          plan_status: "incomplete",
           web_subscription_event_at: null,
           web_subscription_event_priority: null,
           web_subscription_event_id: null,
@@ -416,7 +414,20 @@ async function applyBilling(event, deps) {
   if (!web && isStale(p.created, row)) return { action: "stale", customerId: p.customerId };
 
   if (web) {
-    if (isStaleWebBillingEvent(p, row, "subscription")) return { action: "stale", customerId: p.customerId };
+    if (isStaleWebBillingEvent(p, row, "subscription")) {
+      const nowMs = deps && deps.nowMs != null ? Number(deps.nowMs) : Date.now();
+      const retryAutomation = p.eventType === "customer.subscription.created"
+        && row.web_subscription_event_id === p.eventId
+        && row.stripe_subscription_id === p.subscriptionId
+        && webTravelEntitled(row, nowMs);
+      if (retryAutomation) {
+        if (!(await resumeWebAutomation(row.uid, row, supaUrl, supaKey, fetchImpl))) {
+          throw new Error("web automation retry failed");
+        }
+        return { action: "web-automation-resumed", uid: row.uid, paid: true, status: row.plan_status };
+      }
+      return { action: "stale", customerId: p.customerId };
+    }
     const replacingSubscription = Boolean(row.stripe_subscription_id
       && p.subscriptionId !== row.stripe_subscription_id);
     const trialing = p.status === "trialing";
