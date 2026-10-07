@@ -122,6 +122,44 @@ test("successful geocodes expire after 24 hours", async () => {
   assert.equal(providerCalls, 2);
 });
 
+test("geocode cache GET parses its row while a successful 204 upsert needs no response body", async () => {
+  const oldNow = Date.now;
+  Date.now = () => 1_000;
+  let jsonCalls = 0;
+  const store = makeSupabaseGeocodeStore({
+    supaUrl: SUPA_URL,
+    supaKey: SUPA_KEY,
+    timeoutMs: 25,
+    fetchImpl: async (url) => {
+      if (String(url).endsWith("lm_geocode_cache_get")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => {
+            jsonCalls += 1;
+            return [{ lat: 35.681, lon: 139.767, computed_at: new Date(1_000).toISOString(), ttl_secs: 86_400 }];
+          },
+        };
+      }
+      if (String(url).endsWith("lm_geocode_cache_upsert")) {
+        return { ok: true, status: 204, json: async () => { throw new Error("204 response has no JSON body"); } };
+      }
+      throw new Error("unexpected geocode cache RPC");
+    },
+  });
+  try {
+    assert.deepEqual(await store.get("tenant-void-upsert", "google_maps", "fixture address"), {
+      value: { lat: 35.681, lon: 139.767 }, computedAt: 1_000, ttlMs: 86_400_000,
+    });
+    assert.equal(await store.set("tenant-void-upsert", "google_maps", "fixture address", {
+      lat: 35.681, lon: 139.767,
+    }, 1_000), true);
+  } finally {
+    Date.now = oldNow;
+  }
+  assert.equal(jsonCalls, 1);
+});
+
 test("persistent geocode keys isolate both tenant and provider", async () => {
   const oldNow = Date.now;
   Date.now = () => 1_000;
@@ -263,4 +301,69 @@ test("failed provider responses never return or persist coordinates from their b
   } finally {
     globalThis.fetch = oldFetch;
   }
+});
+
+test("Supabase geocode cache RPCs bound a never-resolving injected fetch", async () => {
+  const observations = [];
+  const store = makeSupabaseGeocodeStore({
+    supaUrl: SUPA_URL,
+    supaKey: SUPA_KEY,
+    fetchImpl: () => new Promise(() => {}),
+    timeoutMs: 5,
+    onObservation: async (observation) => { observations.push(observation); },
+  });
+  const pending = Promise.all([
+    store.get("tenant-timeout", "google_maps", "cache timeout fixture"),
+    store.set("tenant-timeout", "google_maps", "cache timeout fixture", { lat: 35.681, lon: 139.767 }),
+  ]);
+  const result = await Promise.race([
+    pending,
+    new Promise((resolve) => setTimeout(() => resolve("cache-rpc-hung"), 100)),
+  ]);
+  assert.deepEqual(result, [null, false]);
+  assert.deepEqual(observations.map(({ operation, outcome, failureClass, providerUnits }) =>
+    ({ operation, outcome, failureClass, providerUnits })), [
+    { operation: "lm_geocode_cache_get", outcome: "failure", failureClass: "timeout", providerUnits: 1 },
+    { operation: "lm_geocode_cache_upsert", outcome: "failure", failureClass: "timeout", providerUnits: 1 },
+  ]);
+});
+
+test("a never-resolving injected cache fetch does not block Google geocode fallback", async () => {
+  const oldFetch = globalThis.fetch;
+  let googleCalls = 0;
+  const usageEvents = [];
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /maps\.googleapis\.com\/maps\/api\/geocode\/json/);
+    googleCalls += 1;
+    return successfulGeocode();
+  };
+  try {
+    const request = geocodeAddress("cache hang fallback unique fixture", MAPS_KEY, {
+      tenantId: "tenant-cache-hang",
+      options: {
+        supaUrl: SUPA_URL,
+        supaKey: SUPA_KEY,
+        _cacheFetch: () => new Promise(() => {}),
+        _geocodeCacheTimeoutMs: 5,
+        _recordUsageEvent: async (event) => { usageEvents.push(event); return true; },
+      },
+      eventVersion: "c".repeat(64),
+    });
+    const result = await Promise.race([
+      request,
+      new Promise((resolve) => setTimeout(() => resolve("geocode-fallback-hung"), 100)),
+    ]);
+    assert.deepEqual(result, { lat: 35.681, lon: 139.767 });
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+  assert.equal(googleCalls, 1);
+  const cacheEvents = usageEvents.filter((event) => event.provider === "supabase");
+  assert.deepEqual(cacheEvents.map((event) => [event.operation, event.outcome, event.failureClass,
+    event.providerUnits, event.estimatedCostUsd]), [
+    ["lm_geocode_cache_get", "failure", "timeout", 1, 0],
+    ["lm_geocode_cache_upsert", "failure", "timeout", 1, 0],
+  ]);
+  assert.ok(cacheEvents.every((event) => event.meta.event_version === "c".repeat(64)));
+  assert.equal(JSON.stringify(usageEvents).includes("cache hang fallback unique fixture"), false);
 });
