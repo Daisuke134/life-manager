@@ -1,5 +1,8 @@
 # Capafy BEST PRACTICES — the "brain" (proven across 13 live listings, 2026-06-25→27)
 
+> **Dais 2026-10-07 (overrides every rule below):** never change an already-published Agent — no reprice, no model switch, no card/description/package update, whether it sells or not. Put the effort into shipping NEW Agents built on the winners' pattern (correct files, no security-scan warning, successful-seller pricing). Only an UPDATE.json carrying `dais_approved_exception` may ship; `inventory_status.py` enforces this.
+
+
 This is the knowledge that makes a listing **profitable AND rejection-proof**. Every rule here is
 backed by real winner data (read via `vendor/capafy-user`) or a real publish/rejection we lived through.
 `lint_listing.py` enforces the hard ones deterministically.

@@ -43,7 +43,7 @@ def test_losing_money_queues_model_switch_when_not_already_cheap():
     decisions = module.decide_actions(rows, server("hook"), CATALOG, BANDS, {})
 
     finding = decisions[0]["findings"][0]
-    assert finding["action"] == "queue_update"
+    assert finding["action"] == "report_only"
     assert finding["update"]["target_model_id"] == "deepseek/deepseek-v4.1-flash"
     assert finding["update"]["agent_id"] == "hook"
     assert finding["update"]["from_version_id"] == "v1"
@@ -85,7 +85,7 @@ def test_underpriced_download_queues_reprice():
     decisions = module.decide_actions(rows, server("jh"), CATALOG, BANDS, {})
 
     finding = decisions[0]["findings"][0]
-    assert finding["action"] == "queue_update"
+    assert finding["action"] == "report_only"
     assert finding["update"]["target_one_time_fee"] == "9.99"
 
 
