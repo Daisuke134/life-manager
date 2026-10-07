@@ -1,0 +1,76 @@
+{
+  "schema": "life-manager.launchd-control-plane-preflight.v1",
+  "recorded_at": "2026-10-07T07:21:54.792520+00:00",
+  "status": "pass",
+  "mutation_allowed": true,
+  "errors": [],
+  "observations": {
+    "uid": {
+      "argv": [
+        "/usr/bin/id",
+        "-u"
+      ],
+      "returncode": 0,
+      "stdout": "501",
+      "stderr": ""
+    },
+    "username": {
+      "argv": [
+        "/usr/bin/id",
+        "-un"
+      ],
+      "returncode": 0,
+      "stdout": "anicca",
+      "stderr": ""
+    },
+    "directory_services": {
+      "argv": [
+        "/usr/bin/dscl",
+        ".",
+        "-read",
+        "/Users/anicca",
+        "UniqueID"
+      ],
+      "returncode": 0,
+      "stdout": "UniqueID: 501",
+      "stderr": ""
+    },
+    "managername": {
+      "argv": [
+        "/bin/launchctl",
+        "managername"
+      ],
+      "returncode": 0,
+      "stdout": "Aqua",
+      "stderr": ""
+    },
+    "manageruid": {
+      "argv": [
+        "/bin/launchctl",
+        "manageruid"
+      ],
+      "returncode": 0,
+      "stdout": "501",
+      "stderr": ""
+    },
+    "managerpid": {
+      "argv": [
+        "/bin/launchctl",
+        "managerpid"
+      ],
+      "returncode": 0,
+      "stdout": "1",
+      "stderr": ""
+    },
+    "gui_domain": {
+      "argv": [
+        "/bin/launchctl",
+        "print",
+        "gui/501"
+      ],
+      "returncode": 0,
+      "stdout": "gui/501 = {",
+      "stderr": ""
+    }
+  }
+}

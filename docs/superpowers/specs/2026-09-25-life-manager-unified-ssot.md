@@ -3871,3 +3871,9 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 ## ローカルハーネスの実コード判断
 
 Daisはソースから構造選定を行うよう明示。OpenClaw公開tagのcron receipt/recovery/settlement/OTel/sessionを実読し、[source比較](../../research/2026-10-07-local-harness-source-judgment.md)へ記録。LM CLI/host admission/業務state/effect fence/公式readbackを保持し、OpenClawはagent execution/session/traceへ部分接続する設計適合あり。cron全面置換は不採用。40pair/20%は旧性能定量化案で、構造選定の必須gateではない。旧順序=MV-01→MV-04、新順序=source-fit確定→必要な部分接続contract→対象自然run。理由:コードで分かる機能差を実測待ちにしないため。現在cursor=部分接続contract、未実装。稼働owner/effectと他laneは変更しない。
+
+## ローカルOpenClaw最大再利用・既存業務保全
+
+旧順序=部分接続contract/MX・MV候補。新順序=OC共通契約とNC Codex-only→P16能力coverage/C直接境界→A engine一件ずつ→S92有限schedule一件ずつ→V16自然成果→F旧未参照runtime整理。理由:DaisがOpenClaw最大再利用と最後までatomic TODO、既存業務保全を指定したため。215atomの本文は[更新仕様](2026-10-07-main-agents-readiness.md)、機械interfaceは[manifest](../../research/openclaw-full-cutover-atoms.json)。状態正本は本SSOTだけ。現在cursor=OC-001、実装未着手。baselineは16能力/110job/92finite/18continuous、source/healthの読み取りだけ実施。main-derived package・sdk互換・native Codex account/制限turnを先に確認する。推論は既存ChatGPT account接続Codexのみ、API-key/他LLM fallbackなし。画像/動画等既存商品toolは今回変更しない。他業務lane/進行effectの中断・再送は0。
+
+Native CodexはUnix/user scopeの既存ChatGPT accountを利用。NC-04はendpoint attach-onlyを優先。MI-01画像入力、MI-02owned thread forkを必須対応に追加し、旧仕事をunsupportedのまま完了扱いしない。

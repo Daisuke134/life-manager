@@ -1,0 +1,3029 @@
+{
+  "schema": "lm.openclaw-cutover-baseline.v1",
+  "source_sha": "dabed95a6ea408e2de9dbf98b36bfc36deb2b1a5",
+  "recorded_at": "2026-10-07T07:21:58.980570+00:00",
+  "product_count": 16,
+  "job_count": 110,
+  "continuous_count": 18,
+  "finite_count": 92,
+  "health_summary": {
+    "effect_unknown": 5,
+    "failed": 26,
+    "healthy": 14,
+    "human_required": 0,
+    "running": 15,
+    "safely_fenced": 50,
+    "telemetry_gap": 0,
+    "total": 110
+  },
+  "control_plane": "pass",
+  "production_mutations": 0,
+  "jobs": [
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-apply-direct",
+      "entrypoint": "runtime/loop/entry_dispatch.py",
+      "entrypoint_sha256": "791856b323521af283c0a63c4d0db2c3a009565845577f6f798447bd0f91511b",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "hf-gig-apply-direct:18dc2e4e25fe66b8-61878",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-apply-evidence-gc",
+      "entrypoint": "skills/earn/gig/scripts/evidence_gc.py",
+      "entrypoint_sha256": "820eaaa758fcf406d0104591345cbc5aee1356ce521f26c4f7b4c06e00780af9",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 21600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "hf-gig-apply-evidence-gc:18dc25b00b9b59a8-61001",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-browser",
+      "entrypoint": "skills/earn/gig/scripts/launch_gig_browser.sh",
+      "entrypoint_sha256": "626d8054fa1fc48523e1b155ff268078e8139f7bdf5d764bdb435a21cf70c24e",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "20163",
+        "last_exit": "-15",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "hf-gig-browser:18dc24b5c78f90d0-20163",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-daily-report",
+      "entrypoint": "skills/earn/gig/gig_daily_report.sh",
+      "entrypoint_sha256": "2b8f5a75d2ed284a8d51fb5b3660cd042034ca82370f9a84311389d6ff7d9dff",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 9,
+          "Minute": 7
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "hf-gig-daily-report:18dc17382fc84fd8-2524",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-paid-direct",
+      "entrypoint": "skills/earn/gig/scripts/paid-direct-owner",
+      "entrypoint_sha256": "9629702c12a9f6a06235e4f0040177b493b320112b0c3655dfcc12c02ae6b6b2",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "hf-gig-paid-direct:18dc2e4602cb38e0-59432",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-reply-detector",
+      "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
+      "entrypoint_sha256": "d51a7fdc02e65278f4feaa6e01fdd58f6f7a044b9b4ae088461c88cd51a883e8",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "hf-gig-reply-detector:18dbf0d796dccdc0-4814",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-coconala",
+      "owner_id": "hf-gig-storefront-direct",
+      "entrypoint": "runtime/loop/entry_dispatch.py",
+      "entrypoint_sha256": "791856b323521af283c0a63c4d0db2c3a009565845577f6f798447bd0f91511b",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "hf-gig-storefront-direct:18dc2e5426fc8a30-63378",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-application",
+      "entrypoint": "skills/earn/lancers/scripts/application-owner",
+      "entrypoint_sha256": "ac24ead3e6c8186063ea37f946fb2c4b27e655a29fdc357371a0f54b5a91b079",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "lancers-revenue-application:18dc2e57c8b55fe8-64264",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-browser",
+      "entrypoint": "skills/earn/lancers/scripts/browser-owner",
+      "entrypoint_sha256": "c61a776171e7023f2cab5e7ab2fec310aef0c87411f31b69acdf0bef860056d3",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "18129",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "lancers-revenue-browser:18dc24aa5c548128-18129",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-negotiate",
+      "entrypoint": "skills/earn/lancers/scripts/negotiate-owner",
+      "entrypoint_sha256": "d69660a8e787905b36ae875e7fe7ed78c64568cdb42f48b909f31ec24749a620",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "64712",
+        "last_exit": "1",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "lancers-revenue-negotiate:18dc2220b55f47a8-6081",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-paid",
+      "entrypoint": "skills/earn/lancers/scripts/paid-owner",
+      "entrypoint_sha256": "b7f7904893224921cc8899454643e3468dfbc405ff2eaaa020311fb6656ee842",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "lancers-revenue-paid:18dc2e143035f950-46701",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-storefront",
+      "entrypoint": "skills/earn/lancers/scripts/storefront-owner",
+      "entrypoint_sha256": "a692e4227edd3383dcc3c0b1cde96faf12cc2ea119758e5cfd827bf90b9a872c",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 1800
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "lancers-revenue-storefront:18dc2c70421bd798-14029",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-telegram-report",
+      "entrypoint": "skills/earn/lancers/scripts/telegram-report-owner",
+      "entrypoint_sha256": "61fe8e2d10071114f9ad7f129c32e5e2b06e62fde02f805364377bedc3e37478",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "lancers-revenue-telegram-report:18dc2e2e983aa7e8-52540",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-lancers",
+      "owner_id": "lancers-revenue-work-sync",
+      "entrypoint": "skills/earn/lancers/scripts/work-sync-owner",
+      "entrypoint_sha256": "c51be262cbe54bacaa4f9271dbebf3f230c50ecaca621ad5814901bd85e5bcdf",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "lancers-revenue-work-sync:18dc0229dbf0f090-95783",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-crowdworks",
+      "owner_id": "crowdworks-revenue-application",
+      "entrypoint": "skills/earn/crowdworks/scripts/application-owner",
+      "entrypoint_sha256": "887fe355dfa1f260d870c11c3cbdb08e65a517fdaaf2f8dcf0c9e0203144fb76",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "39cd535e09f25c8ac42b461bddbad10469398520"
+      },
+      "occurrence_id": "crowdworks-revenue-application:18dc055479d264b0-25883",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_75",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-crowdworks",
+      "owner_id": "crowdworks-revenue-browser",
+      "entrypoint": "skills/earn/crowdworks/scripts/browser-owner",
+      "entrypoint_sha256": "8bc238a107e0aab48b289d132c56adbcee2f84d7af4c9123473c6bfe83854931",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "61552",
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "crowdworks-revenue-browser:18dc2bee4a403338-61552",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-crowdworks",
+      "owner_id": "crowdworks-revenue-paid",
+      "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
+      "entrypoint_sha256": "de6f8d5ca87a606b75c487282cd86571faca13572b53c2a9e2f211368529af84",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "crowdworks-revenue-paid:18dc2e5176e53fb8-62399",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_75",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-crowdworks",
+      "owner_id": "crowdworks-revenue-reply",
+      "entrypoint": "skills/earn/crowdworks/scripts/reply-owner",
+      "entrypoint_sha256": "cfa8d7a114a955428f5b0c3be5db79a131580200cca12da137ec1bd978ef5d2d",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "49700",
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "crowdworks-revenue-reply:3fedf0d41a58179a21317fa5",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "gig-crowdworks",
+      "owner_id": "crowdworks-revenue-report",
+      "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
+      "entrypoint_sha256": "0c1b2837d4ba7b8591e3f2617d124b7c249f3b258d354978ddd14fb9e509a662",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "crowdworks-revenue-report:18dc2e47eae5e750-60027",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-claim-loop",
+      "entrypoint": "skills/writer-agent/scripts/claim-loop-owner",
+      "entrypoint_sha256": "ec018ad3743ea2777dd196e113653e9aaf586f8cecc11a9187989b7dc653383e",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-claim-loop:18dc2dcffbe05108-23832",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-craft-train",
+      "entrypoint": "skills/writer-agent/scripts/craft-train-owner",
+      "entrypoint_sha256": "7510f0ff448fa386995da629be66e300b113ccc2473ea236eb94358cdc60f116",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 23,
+          "Minute": 10
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-craft-train:18dbfc98f9efb180-89167",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-money-sync",
+      "entrypoint": "skills/writer-agent/scripts/money-sync-owner",
+      "entrypoint_sha256": "3ca09419e08957d7938878ef226b47dac2d5428e4dc062793e6a869163013db3",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-money-sync:18dc2e2e615572d0-52476",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-opportunity-discovery",
+      "entrypoint": "skills/writer-agent/scripts/opportunity-discovery-owner",
+      "entrypoint_sha256": "51320e3f961db97389d8529f088f7a8ac1feca8792b1bb113ff7ec67ed919596",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 86400
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-opportunity-discovery:18dc2470b9eefc58-8029",
+      "last_terminal_result": "blocked",
+      "error_class": "apply_lock_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-opportunity-response",
+      "entrypoint": "skills/writer-agent/scripts/opportunity-response-owner",
+      "entrypoint_sha256": "39f1effa0e28844b49a7d53861ecbb1f268356ef0a27a8649393dd6c85968585",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-opportunity-response:18dc2d98aab11e20-11548",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-report",
+      "entrypoint": "skills/writer-agent/scripts/writer-report-owner",
+      "entrypoint_sha256": "57e624917e50e1946e5e523a03795bc4fb1dd6bbd21e497480f7228538ea0ce5",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-report:18dc2e3683a948e0-55208",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "writer",
+      "owner_id": "writer-sales-measure",
+      "entrypoint": "skills/writer-agent/scripts/writer-sales-measure-worker.sh",
+      "entrypoint_sha256": "6204f346c0e41364dc16e5641a3f5c14bee63e4f5917f5a41754affbd7a7ae43",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 3600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "writer-sales-measure:18dc2d0c97cfb078-66827",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "affiliate",
+      "owner_id": "affiliate-browser",
+      "entrypoint": "skills/affiliate/scripts/local-browser",
+      "entrypoint_sha256": "eebbe752323561a928ea58604c080231a805ea714981956ec17d69dfd0477929",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "66993",
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "affiliate-browser:18dc283de4765478-66993",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "affiliate",
+      "owner_id": "affiliate-composition",
+      "entrypoint": "skills/affiliate/affiliate",
+      "entrypoint_sha256": "4a2079ede0611d4ec27ec8267fe518f1f4941048a469c83cdc7c0107d1b0601c",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "affiliate-composition:18dc2e3d4da236b0-56948",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "affiliate",
+      "owner_id": "affiliate-impact-browser",
+      "entrypoint": "skills/affiliate/scripts/local-browser",
+      "entrypoint_sha256": "eebbe752323561a928ea58604c080231a805ea714981956ec17d69dfd0477929",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "66307",
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "affiliate-impact-browser:18dc2839855e8978-66307",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "affiliate",
+      "owner_id": "affiliate-loop",
+      "entrypoint": "skills/affiliate/affiliate",
+      "entrypoint_sha256": "4a2079ede0611d4ec27ec8267fe518f1f4941048a469c83cdc7c0107d1b0601c",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "78",
+        "installed_release_sha": "1f1725f9f3c2970e00c7c43ca268a39dcc85037e"
+      },
+      "occurrence_id": "affiliate-loop:18dc2e32d7333a60-53867",
+      "last_terminal_result": "blocked",
+      "error_class": "apply_lock_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "affiliate",
+      "owner_id": "affiliate-source-refresh",
+      "entrypoint": "skills/affiliate/affiliate",
+      "entrypoint_sha256": "4a2079ede0611d4ec27ec8267fe518f1f4941048a469c83cdc7c0107d1b0601c",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "affiliate-source-refresh:18d75c81ca2cd998-42104",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "affiliate",
+      "owner_id": "affiliate-x-browser",
+      "entrypoint": "skills/affiliate/scripts/local-browser",
+      "entrypoint_sha256": "eebbe752323561a928ea58604c080231a805ea714981956ec17d69dfd0477929",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "67736",
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "affiliate-x-browser:18dc28420cd90e98-67736",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "investment",
+      "owner_id": "alpaca-investment-paper",
+      "entrypoint": "skills/alpaca-investment/run.py",
+      "entrypoint_sha256": "f00b1d6f83b1711c4f5ec397e986626538c29356a4221a00c1dae8db94f76b3b",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "1f1725f9f3c2970e00c7c43ca268a39dcc85037e"
+      },
+      "occurrence_id": "alpaca-investment-paper:18dc2de4bfc44458-29956",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "investment",
+      "owner_id": "alpaca-investment-live",
+      "entrypoint": "skills/alpaca-investment/run.py",
+      "entrypoint_sha256": "f00b1d6f83b1711c4f5ec397e986626538c29356a4221a00c1dae8db94f76b3b",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "disabled",
+        "pid": null,
+        "last_exit": null,
+        "installed_release_sha": "4121f44751c9f99d52cd6df0df78571c9d56da11"
+      },
+      "occurrence_id": "alpaca-investment-live:18da19a286f2bd88-21702",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "investment",
+      "owner_id": "investment-cross-venue-report",
+      "entrypoint": "apps/life-manager/investment-core/cross_venue_run.py",
+      "entrypoint_sha256": "1bbdb732800f5b88bb20e04e10d7de6fee17b85a4843c52c7632492455ad4a1d",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 86400
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "investment-cross-venue-report:18dc2da6b10b84f0-13906",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "investment",
+      "owner_id": "investment-strategy-validation",
+      "entrypoint": "skills/alpaca-investment/validation_runner.py",
+      "entrypoint_sha256": "5ec5c2c885145b14c4a766ad44f64f83a9349bdb9d59d935cd9e4808f448ecd7",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Weekday": 2,
+          "Hour": 14,
+          "Minute": 30
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "investment-strategy-validation:18dc101a94d06430-49126",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "agent-economy-loop",
+      "entrypoint": "skills/agent-economy/launch.sh",
+      "entrypoint_sha256": "9fd18c9407c102770094eed9855f7cc45bd66517b3cc5d4ced4ce2edca71da21",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "44823",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "agent-economy-loop:18dc2550aeccaf60-44823",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "citizen-refill",
+      "entrypoint": "bin/citizen-refill-launchd",
+      "entrypoint_sha256": "d4eb4e78e2c90cb41c9161267c2b3625f4c316c02dd19a62ef6f18461598193e",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 3600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "1f1725f9f3c2970e00c7c43ca268a39dcc85037e"
+      },
+      "occurrence_id": "citizen-refill:18dc2e3bdb2f67c0-56491",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "life-manager-x402-ledger",
+      "entrypoint": "apps/life-manager/scripts/x402-sale-ledger-boot.sh",
+      "entrypoint_sha256": "57fa780d3346b17eb26b1fad55f015239a4084456af29f6435c5f50ffd25fcbd",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-x402-ledger:18dc2e57fb6bfeb0-64363",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "sol-funding",
+      "entrypoint": "skills/earn/sol-funding-owner",
+      "entrypoint_sha256": "ab0fa9fd6bc7b0581c3a6eb393a9a68d5a4da0a1b68cbcec9dc412bbe3e38457",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "sol-funding:18dc2e4c952561b0-61505",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "the402-provider",
+      "entrypoint": "skills/earn/x402-sell/the402-boot.sh",
+      "entrypoint_sha256": "aab98d94e60f5d2a3e0ea4439cae3c60e873fb26ec522c6baecdf87ab89a5189",
+      "effect_class": "money",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "46598",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "the402-provider:18dc255a03c72168-46598",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "the402-worker",
+      "entrypoint": "skills/earn/x402-sell/the402-worker-boot.sh",
+      "entrypoint_sha256": "3ed8a738665fc7ad759c39165decf9397b1193f27f20a45aefc49f7e24aebd02",
+      "effect_class": "money",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "47164",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "the402-worker:18dc255d13092b28-47164",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-acquisition-controller",
+      "entrypoint": "skills/earn/x402-sell/acquisition-controller-boot.sh",
+      "entrypoint_sha256": "abeb2e11d4ebbde658e4dfa3fa1eae970de1e384f6ef92c6e9be9faf5cbaca56",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-acquisition-controller:18dc2e2f2d647268-52809",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-claude-p",
+      "entrypoint": "skills/earn/x402-sell/serve-claude-p-boot.sh",
+      "entrypoint_sha256": "6347b4a2eceb97983018d489473db1c458b660ee152c27778a171b30ab07d536",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "48166",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-claude-p:18dc2561bccff700-48166",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-experiment-franklin1",
+      "entrypoint": "skills/earn/x402-sell/experiment-tick.mjs",
+      "entrypoint_sha256": "c558ac51020e7c6a122c14b84b849837d680fdd6003c0493153100f9383a78b2",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-experiment-franklin1:18dc2e3d93602810-57054",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-franklin1",
+      "entrypoint": "skills/earn/x402-sell/serve-franklin1-boot.sh",
+      "entrypoint_sha256": "96a4a3a37eabc0730115a2662802c6219a4c0a87fadc9439522517ea93820689",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "50733",
+        "last_exit": "143",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-franklin1:18dc29c471fd47c0-50733",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-franklin2",
+      "entrypoint": "skills/earn/x402-sell/serve-franklin2-boot.sh",
+      "entrypoint_sha256": "481cb03af95c301dff5c313e2e9abc68a4edc8f7de9bb0622c083ffb7a892f4e",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "2373",
+        "last_exit": "143",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-franklin2:18dc2c5c08f02118-2373",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-inflow-watch",
+      "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+      "entrypoint_sha256": "6b7279379cf527bb28ef3ca5c7e6fa4fbddf34038bce1a99422c68b048350c01",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Minute": 5
+          },
+          {
+            "Minute": 35
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-inflow-watch:18dc2d6ed8dcb838-2378",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-inflow-watch-claude-p",
+      "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+      "entrypoint_sha256": "6b7279379cf527bb28ef3ca5c7e6fa4fbddf34038bce1a99422c68b048350c01",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Minute": 5
+          },
+          {
+            "Minute": 35
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-inflow-watch-claude-p:18dc2d6ed8a550a0-2379",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-inflow-watch-franklin1",
+      "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+      "entrypoint_sha256": "6b7279379cf527bb28ef3ca5c7e6fa4fbddf34038bce1a99422c68b048350c01",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Minute": 5
+          },
+          {
+            "Minute": 35
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-inflow-watch-franklin1:18dc2d6ed8997578-2382",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-inflow-watch-franklin2",
+      "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+      "entrypoint_sha256": "6b7279379cf527bb28ef3ca5c7e6fa4fbddf34038bce1a99422c68b048350c01",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Minute": 5
+          },
+          {
+            "Minute": 35
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-inflow-watch-franklin2:18dc2d6ed8aa9060-2385",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-research-serve",
+      "entrypoint": "skills/earn/x402-sell/serve-mainnet-boot.sh",
+      "entrypoint_sha256": "189282e6cdb7cea8297bb47416c61e4d0e493bf0403dd5434d9a72a60b06c958",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "49403",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-research-serve:18dc25671e409170-49403",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-sale-observer",
+      "entrypoint": "skills/earn/x402-sell/sale-observer-boot.sh",
+      "entrypoint_sha256": "bef1b4f403b5b7689640d8d70188abaee41b897f042025b3e5dbdbb67410ac2b",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-sale-observer:18dc2e2ca9cc3938-52071",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-seller-8404",
+      "entrypoint": "skills/earn/x402-sell/seller-boot-v2.sh",
+      "entrypoint_sha256": "b8f8c34fe7999f5bca415abb75e660e1237c738b98b052399294d95cd3cfd59b",
+      "effect_class": "money",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "49526",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-seller-8404:18dc2567dee1f400-49526",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "agent-economy",
+      "owner_id": "x402-settlement-recorder",
+      "entrypoint": "skills/earn/x402-sell/settlement-recorder-boot.sh",
+      "entrypoint_sha256": "a36f6bae71e5e727c6108248b1fdd926357e7716e5fa6e16dd21799837826797",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "x402-settlement-recorder:18dc2e2e8c6509e0-52513",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "job-search-daily",
+      "entrypoint": "apps/job-search-loop/scripts/run-daily.sh",
+      "entrypoint_sha256": "c2705c1b4ee7f025e472e9fba1802004bbec1cf6c93758f5ab396e37b58daf20",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 1800
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "job-search-daily:18dc2d44d11393d0-82639",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_fifo_wait",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "job-search-health",
+      "entrypoint": "apps/job-search-loop/scripts/run-health.sh",
+      "entrypoint_sha256": "d864802ec0a2771ecfcbc016d608701a7d3d99cedaef619b4e520d0c6e0e8f83",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "job-search-health:18dc2e3cfd838080-56809",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "job-search-inbox",
+      "entrypoint": "apps/job-search-loop/scripts/run-inbox.sh",
+      "entrypoint_sha256": "b1344f179fd437f3cedab760c93348a9380713d1b70f6a0302be3469ed14b3fd",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "job-search-inbox:18dc2e4550aeb1f0-59292",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "job-search-learning",
+      "entrypoint": "apps/job-search-loop/scripts/run-learning.sh",
+      "entrypoint_sha256": "c099db3098e46dc9f7e44e69615968fc9fd7e2cbe2da9e120f84d2f904f1e7f1",
+      "effect_class": "application",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 9,
+          "Minute": 15
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "job-search-learning:18dc24543879ffb8-2368",
+      "last_terminal_result": "blocked",
+      "error_class": "apply_lock_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "mercor-revenue-application",
+      "entrypoint": "skills/earn/mercor/scripts/application-owner",
+      "entrypoint_sha256": "52cb23bcc26892f56c6c3ea647bd8d4e4625cb75f25e29f958d8366bbc1596ca",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "mercor-revenue-application:18dc2e418f6f22c0-58259",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "mercor-revenue-paid",
+      "entrypoint": "skills/earn/mercor/scripts/paid-owner",
+      "entrypoint_sha256": "43abe6f27e0fb8d5ed07ffe738948c92c5e51c2896e553090a1b2738185fa142",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "39cd535e09f25c8ac42b461bddbad10469398520"
+      },
+      "occurrence_id": "mercor-revenue-paid:18dc2e48563362d0-60176",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "job-hunter",
+      "owner_id": "mercor-revenue-reply",
+      "entrypoint": "skills/earn/mercor/scripts/reply-owner",
+      "entrypoint_sha256": "38565d102c91ead8d7c817ff5bd138189cb7604afdcb9478f572ea2aa4e54438",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "mercor-revenue-reply:18dc2e460627f0a0-59450",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "fundraiser",
+      "owner_id": "fundraiser",
+      "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+      "entrypoint_sha256": "c9c47b585616b42157b4255b7764909186ffe2c3517772aa771d4b84ec2b5519",
+      "effect_class": "application",
+      "cadence": {
+        "start_interval_seconds": 3600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "fundraiser:18dc2d52d30bec88-87350",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "connector",
+      "owner_id": "life-manager-connector-native",
+      "entrypoint": "skills/connector/run.sh",
+      "entrypoint_sha256": "647a5cd503d47e932cb2af956aaf8af8afee278cbdf2233c98a538d97fa4a293",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 1800
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-connector-native:18dc2df108e4d308-31024",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "self-build",
+      "owner_id": "life-manager-dev",
+      "entrypoint": "apps/life-manager/scripts/life-manager-dev-daily.js",
+      "entrypoint_sha256": "862f0d207df1410550e362948be4c84a030588e701b1baf5a25da7d44bf3bc69",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 4,
+          "Minute": 10
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-dev:18dbaccadb9e8738-622",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "self-build",
+      "owner_id": "life-manager-recovery-supervisor",
+      "entrypoint": "runtime/loop/recovery-supervisor-cli.mjs",
+      "entrypoint_sha256": "12cdd73c67cfbdbda2bb95ba5da79d707a459d92c9f7833e8182a4989220e366",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-recovery-supervisor:18dc2e4fa2f18898-61947",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "self-build",
+      "owner_id": "life-manager-selfbuild",
+      "entrypoint": "skills/life-manager/self-build-daily.sh",
+      "entrypoint_sha256": "52fba6464e43bb2e0349dd403eccf28873e87711248aff2d5b084423a064c781",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 4,
+          "Minute": 10
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-selfbuild:18dbc09cc3cfd568-34562",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "self-build",
+      "owner_id": "self-improve-evolve",
+      "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+      "entrypoint_sha256": "d7790faaebdc0f6d02fa403fa020f4a4e371f0aa4ee54e67a6bfe19fe06ea57d",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 21600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "self-improve-evolve:18dada88ff71d8a0-38326",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-affirmation-youtube",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 15
+          },
+          {
+            "Hour": 14,
+            "Minute": 15
+          },
+          {
+            "Hour": 20,
+            "Minute": 15
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-affirmation-youtube:18dbdb754d049e48-59289",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-ai-youtube",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 45
+          },
+          {
+            "Hour": 13,
+            "Minute": 15
+          },
+          {
+            "Hour": 19,
+            "Minute": 45
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-ai-youtube:18dc24e1713253e0-26545",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-buddha-tiktok",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 0
+          },
+          {
+            "Hour": 13,
+            "Minute": 0
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "2e87d30d24b95c7c51e49861bc18a62b97c0b4c2"
+      },
+      "occurrence_id": "life-manager-anicca-buddha-tiktok:18dc2a54e5ddce68-3010",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-en-affirmation-instagram",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 10,
+            "Minute": 0
+          },
+          {
+            "Hour": 15,
+            "Minute": 0
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-en-affirmation-instagram:18dc1ada2f0934e0-81457",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-en-affirmation-tiktok",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 9,
+            "Minute": 15
+          },
+          {
+            "Hour": 14,
+            "Minute": 15
+          },
+          {
+            "Hour": 20,
+            "Minute": 15
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "64893",
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-en-affirmation-tiktok:18dc2a5db7ceeaf8-4264",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-en-card-instagram",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 45
+          },
+          {
+            "Hour": 12,
+            "Minute": 45
+          },
+          {
+            "Hour": 21,
+            "Minute": 30
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-en-card-instagram:18dc18cac9ee7478-94293",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-en-slideshow-tiktok",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 9,
+            "Minute": 0
+          },
+          {
+            "Hour": 15,
+            "Minute": 0
+          },
+          {
+            "Hour": 21,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-en-slideshow-tiktok:18dc1a01c574c748-43889",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-en-widget-instagram",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 30
+          },
+          {
+            "Hour": 9,
+            "Minute": 30
+          },
+          {
+            "Hour": 19,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-en-widget-instagram:18dc1d7603845770-71778",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-he",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 15
+          },
+          {
+            "Hour": 13,
+            "Minute": 45
+          },
+          {
+            "Hour": 18,
+            "Minute": 15
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-he:18dbdb0df739bc30-42549",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-ja-widget-instagram",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 5
+          },
+          {
+            "Hour": 13,
+            "Minute": 5
+          },
+          {
+            "Hour": 18,
+            "Minute": 20
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-ja-widget-instagram:18dc136708f77c78-98207",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-jp1-tiktok",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 6,
+            "Minute": 30
+          },
+          {
+            "Hour": 12,
+            "Minute": 0
+          },
+          {
+            "Hour": 18,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-jp1-tiktok:18dc2763770e57a8-35415",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-jp4",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 9,
+            "Minute": 15
+          },
+          {
+            "Hour": 15,
+            "Minute": 15
+          },
+          {
+            "Hour": 20,
+            "Minute": 45
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-jp4:18dc2ab4b7757d68-31820",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_control_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-larry-ja-instagram",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 10,
+            "Minute": 30
+          },
+          {
+            "Hour": 16,
+            "Minute": 30
+          },
+          {
+            "Hour": 22,
+            "Minute": 30
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-larry-ja-instagram:18dc1bedf1afd7d8-64814",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-main-instagram",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 10
+          },
+          {
+            "Hour": 13,
+            "Minute": 10
+          },
+          {
+            "Hour": 19,
+            "Minute": 10
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-main-instagram:18dc13e6f4763480-16392",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-anicca-main-tiktok",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 0
+          },
+          {
+            "Hour": 16,
+            "Minute": 0
+          },
+          {
+            "Hour": 22,
+            "Minute": 37
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-anicca-main-tiktok:18dbfba3f6d567b0-52077",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-daily",
+      "entrypoint": "skills/life-manager/life-manager-daily.sh",
+      "entrypoint_sha256": "659fe09b31b0abc502dd684e2cf1b69fee99cc39a38d59bfcb853209029167e4",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 10,
+          "Minute": 15
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "36881e439c04368837aa89e43aebcd9e3deac950"
+      },
+      "occurrence_id": null,
+      "last_terminal_result": "blocked",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-daily-driver",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "entrypoint_sha256": "3856240e98e786350c503fa9eb9db47ec956ed7787748df124eece949cdf5558",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "21558",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-daily-driver:18dc2709dbe1d470-21558",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-honne-en",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 0
+          },
+          {
+            "Hour": 11,
+            "Minute": 0
+          },
+          {
+            "Hour": 20,
+            "Minute": 30
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-honne-en:18dc233ff7c098e8-49836",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-honne-ja",
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "entrypoint_sha256": "f1f7d1c6a3262e09f45f1db9d24fdb0ca0e60dc32cd268974c7d0df779635331",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 30
+          },
+          {
+            "Hour": 12,
+            "Minute": 30
+          },
+          {
+            "Hour": 21,
+            "Minute": 30
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-honne-ja:18dbf36d8c614d60-67513",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-instagram-metrics",
+      "entrypoint": "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+      "entrypoint_sha256": "90b3fb2831a25a5966874eb21d51d8d26a0ed48d7c3fdec6612fd434a863c2e5",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 1800
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "9a76dcc87dfe2e24958ef19f6a69f871df4dbef1"
+      },
+      "occurrence_id": "life-manager-instagram-metrics:18dc2d8f153daad8-10416",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_control_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "life-manager-tiktok-metrics",
+      "entrypoint": "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+      "entrypoint_sha256": "3db724311098666898d723dfb0e96e18741720262fa1f9d9d0b8b69397c41e4e",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 1800
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-tiktok-metrics:18dc2d1969994ef0-68362",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "mobile-apps",
+      "owner_id": "tiktok-browser",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "entrypoint_sha256": "3856240e98e786350c503fa9eb9db47ec956ed7787748df124eece949cdf5558",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "66196",
+        "last_exit": "1",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "tiktok-browser:18dc2838a8d041b8-66196",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "ebook",
+      "owner_id": "ebook-en-tiktok-daily",
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "entrypoint_sha256": "ab845c0361e13d5870894a593d6a615c93e117cbae918919a0f678ae6c79171c",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 8,
+            "Minute": 0
+          },
+          {
+            "Hour": 14,
+            "Minute": 0
+          },
+          {
+            "Hour": 21,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "disabled",
+        "pid": null,
+        "last_exit": null,
+        "installed_release_sha": "2e87d30d24b95c7c51e49861bc18a62b97c0b4c2"
+      },
+      "occurrence_id": "ebook-en-tiktok-daily:18dc12f7871e51a0-84837",
+      "last_terminal_result": "blocked",
+      "error_class": "apply_lock_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "ebook",
+      "owner_id": "ebook-ja-instagram-daily",
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "entrypoint_sha256": "ab845c0361e13d5870894a593d6a615c93e117cbae918919a0f678ae6c79171c",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 0
+          },
+          {
+            "Hour": 12,
+            "Minute": 30
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "1",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "ebook-ja-instagram-daily:18dc2b149c572198-58370",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "ebook",
+      "owner_id": "ebook-ja-tiktok-daily",
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "entrypoint_sha256": "ab845c0361e13d5870894a593d6a615c93e117cbae918919a0f678ae6c79171c",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 7,
+            "Minute": 0
+          },
+          {
+            "Hour": 12,
+            "Minute": 30
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "64800",
+        "last_exit": "0",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "ebook-ja-tiktok-daily:18dc2e4bb51486c8-61285",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": true,
+      "provider_receipt_present": true,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-browser",
+      "entrypoint": "skills/capafy-autopublish/scripts/browser-owner",
+      "entrypoint_sha256": "bf3cddb288689c6058c3a69edded468b8b0674ba48d392d41deeded1ffd2dd40",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "1856",
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "capafy-browser:18dc2c5b651ed3e0-1856",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-distribute-daily",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
+      "entrypoint_sha256": "51ca165f733e92a245ae2757ec68fe0176743d7b44a4259abf12a28d1517ccbb",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 1,
+            "Minute": 15
+          },
+          {
+            "Hour": 4,
+            "Minute": 15
+          },
+          {
+            "Hour": 7,
+            "Minute": 15
+          },
+          {
+            "Hour": 10,
+            "Minute": 15
+          },
+          {
+            "Hour": 13,
+            "Minute": 15
+          },
+          {
+            "Hour": 16,
+            "Minute": 15
+          },
+          {
+            "Hour": 19,
+            "Minute": 15
+          },
+          {
+            "Hour": 22,
+            "Minute": 15
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "143",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "capafy-distribute-daily:18dc2dffdbee7cc8-42971",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_143",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-goal-monitor",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
+      "entrypoint_sha256": "2c8686a2f1a16007c8a0af053a01fbbbc3fb4004677fcb04a65579c5159bbfdf",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 9,
+          "Minute": 30
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "capafy-goal-monitor:18dc1e6d6e0a7758-18111",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-goal-monitor-daily-close",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
+      "entrypoint_sha256": "2c8686a2f1a16007c8a0af053a01fbbbc3fb4004677fcb04a65579c5159bbfdf",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 23,
+          "Minute": 50
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "capafy-goal-monitor-daily-close:18dbfe94d9acb730-78459",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-goal-monitor-hourly",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
+      "entrypoint_sha256": "2c8686a2f1a16007c8a0af053a01fbbbc3fb4004677fcb04a65579c5159bbfdf",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 7
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "4edb2c406745e9f6b5964d8e5095e604845bd985"
+      },
+      "occurrence_id": "capafy-goal-monitor-hourly:18dc2d8aaa7c1c60-10021",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_control_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-ig-account-manager",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-ig-account-manager.sh",
+      "entrypoint_sha256": "9e6673c9b67c37ac257cb7aa18e0ff70818cf7a4d0c31eb77f26dc1237cc3430",
+      "effect_class": "account_mutation",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "a77ce93ffea90598a65de4b1fcb3edb8bf1a788e"
+      },
+      "occurrence_id": "capafy-ig-account-manager:18dc2e2e77c35898-52499",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-ig-marketing-daily",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh",
+      "entrypoint_sha256": "bd56500003dfba47c64aeff6d2bcd9b3b230057f990e0cff4e5046949d551162",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 3600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "disabled",
+        "pid": null,
+        "last_exit": null,
+        "installed_release_sha": "2e87d30d24b95c7c51e49861bc18a62b97c0b4c2"
+      },
+      "occurrence_id": "capafy-ig-marketing-daily:18dc1d1db6d4df60-34612",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-loop-daily",
+      "entrypoint": "skills/self/capafy-loop/capafy-loop-daily.sh",
+      "entrypoint_sha256": "5f5f03b7b80a8da47fdf70331cb00a784daddf9c3f415bce31ad655af827c52d",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "eb00f8cd7af0e806574b5291b2a357a594a23a98"
+      },
+      "occurrence_id": "capafy-loop-daily:18dc2dd9e46a7d00-26669",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-loop-healthcheck",
+      "entrypoint": "skills/self/capafy-loop/capafy-loop-healthcheck.sh",
+      "entrypoint_sha256": "68d67b92d910ce352c244fd8fabe936f06e68252d4a355bbc9bca2c8903f2a3f",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "1f1725f9f3c2970e00c7c43ca268a39dcc85037e"
+      },
+      "occurrence_id": "capafy-loop-healthcheck:18dc2dfa6c7d1750-38771",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "capafy-outcome-monitor",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-outcome-monitor.sh",
+      "entrypoint_sha256": "bcfa4b0902d15f95b3f156d7a5f723dd7149282fdee96a06b3b2bf25d5a82c51",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "1f1725f9f3c2970e00c7c43ca268a39dcc85037e"
+      },
+      "occurrence_id": "capafy-outcome-monitor:18dc2e565904dd78-64045",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "capafy",
+      "owner_id": "life-manager-capafy-ig",
+      "entrypoint": "apps/life-manager/scripts/capafy-ig-reel",
+      "entrypoint_sha256": "444869001b03a4374119cd02eb9f049a44691f736c0faedc5b277266ae8b298b",
+      "effect_class": "publish",
+      "cadence": {
+        "calendar_interval": [
+          {
+            "Hour": 9,
+            "Minute": 0
+          },
+          {
+            "Hour": 14,
+            "Minute": 0
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          }
+        ]
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "disabled",
+        "pid": null,
+        "last_exit": null,
+        "installed_release_sha": "2e87d30d24b95c7c51e49861bc18a62b97c0b4c2"
+      },
+      "occurrence_id": "life-manager-capafy-ig:18dc1ed1e8e06910-41770",
+      "last_terminal_result": "fail",
+      "error_class": "entrypoint_exit_1",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "line-sticker",
+      "owner_id": "line-creators-browser",
+      "entrypoint": "skills/earn/line-sticker/scripts/browser-owner",
+      "entrypoint_sha256": "422226be9178444b3834d7f195c2734eb39bc7464da25cf493e47c63068f5e55",
+      "effect_class": "none",
+      "cadence": {
+        "keep_alive": true
+      },
+      "continuous": true,
+      "current_snapshot": {
+        "launchd_state": "loaded-running",
+        "pid": "17395",
+        "last_exit": "78",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "line-creators-browser:18dc24a73b2ad158-17395",
+      "last_terminal_result": "running",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "line-sticker",
+      "owner_id": "line-sticker-factory-hourly",
+      "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
+      "entrypoint_sha256": "6b8ffa80b2af0f1d49a614b92aff4aa341e7828404dbeb2f26d0d1b629a23f97",
+      "effect_class": "publish",
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "1f1725f9f3c2970e00c7c43ca268a39dcc85037e"
+      },
+      "occurrence_id": "line-sticker-factory-hourly:18dc2d237d986f30-70211",
+      "last_terminal_result": "pass",
+      "error_class": null,
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "line-sticker",
+      "owner_id": "line-sticker-readback-hourly",
+      "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
+      "entrypoint_sha256": "05edfa3a56251f73776d5bf77bacbdff10f22852848d275499d1f6e717c5854d",
+      "effect_class": "none",
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 23
+        }
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "0",
+        "installed_release_sha": "e757f0f4404cbf215d89b48030194b8e75471b79"
+      },
+      "occurrence_id": "line-sticker-readback-hourly:18dc2b24363d39f0-65497",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "cfo",
+      "owner_id": "life-manager-cfo-hourly",
+      "entrypoint": "skills/cfo/run.sh",
+      "entrypoint_sha256": "8de6dc3e705c3cfbe67b1d2fa3c8fa5cc932743d04c1dcc89e03caa264dba6de",
+      "effect_class": "message",
+      "cadence": {
+        "start_interval_seconds": 3600
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "d4e4d6917770aadd343b8760255409a7a56370d1"
+      },
+      "occurrence_id": "life-manager-cfo-hourly:18dc2cff07ca60e8-65252",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "cfo",
+      "owner_id": "life-manager-financial-report",
+      "entrypoint": "apps/life-manager/scripts/financial-report-boot.sh",
+      "entrypoint_sha256": "b6e7f6d1bafa40d30972978d4ed9ade6886b5c8be03e8214be38979f69a981c4",
+      "effect_class": "none",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-financial-report:18dc2e3e083cdfc0-57191",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    },
+    {
+      "product_loop_id": "cfo",
+      "owner_id": "life-manager-payout",
+      "entrypoint": "apps/life-manager/scripts/payout-boot.sh",
+      "entrypoint_sha256": "f424f01d00e19f2e47cffc3cfc6ea13f597626a725aaaeaf6e8a703a13593167",
+      "effect_class": "money",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "continuous": false,
+      "current_snapshot": {
+        "launchd_state": "loaded-idle",
+        "pid": null,
+        "last_exit": "75",
+        "installed_release_sha": "034d46e8c267eb477ad2b79e48e28ba0f66b7fe6"
+      },
+      "occurrence_id": "life-manager-payout:18dc2e2e0d061ec8-52390",
+      "last_terminal_result": "blocked",
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "readback_present": false,
+      "provider_receipt_present": false,
+      "model_call_coverage": "requires_call_closure_audit",
+      "new_route_enabled": false
+    }
+  ]
+}
