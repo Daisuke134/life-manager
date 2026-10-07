@@ -2,9 +2,9 @@
 
 > **For agentic workers:** Use the TDD steps below in this worktree. Promote only through main and an immutable release.
 
-**Goal:** Restore three natural daily posts on every configured Mobile/Honne target lane with distinct, per-job-approved creative variants, while preserving unresolved publication effects.
+**Goal:** Restore three natural daily posts on every configured Mobile/Honne target lane by varying slide text over the existing approved backgrounds, while preserving unresolved publication effects.
 
-**Architecture:** Keep Postiz, account/integration IDs, and all three Asia/Tokyo slots. Set `approved_pack_ref=gate-approved` only for the six rotation-enabled Anicca native-carousel destinations; the existing slide-pack gate and `assertApproval` continue to verify the exact pack, media, caption, account, and integration for each post. Deploy one lane as a natural canary before staging the other five.
+**Architecture:** Keep Postiz, account/integration IDs, and all three Asia/Tokyo slots. Reuse the cached approved backgrounds and generate fresh text/caption variants; the internal pack hash updates automatically. Set `approved_pack_ref=gate-approved` only for the six rotation-enabled Anicca native-carousel destinations; the existing slide-pack gate and `assertApproval` continue to verify each post's exact pack, ordered media, caption, account, and integration. Deploy one lane as a natural canary before staging the other five.
 
 **Tech Stack:** Node.js tests, JSON destination contract, existing Mobile Postiz adapters, `lm-loop`, immutable release tooling.
 
