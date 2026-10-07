@@ -214,36 +214,30 @@
   Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-all-routes-20261006T221403.json`.
 - [x] Integrations GET at 22:11:40 JST confirms Japanese TikTok/Instagram enabled, English TikTok disabled, and English Instagram unregistered.
   Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-integrations-20261006T221140.json`.
-- [ ] Run `lm-loop doctor` from the latest main-derived release and confirm zero missing/unmanaged/retired labels. The selected
-  57e release currently returns `ok=false` because live retired label `ai.anicca.provision-browser.capafy.kosuke` is PID 91210.
-  It belongs to the separate Capafy owner; do not stop/reload it from this eBook task.
-- [ ] After doctor passes, apply `ebook-ja-instagram-daily`, `ebook-ja-tiktok-daily`, and `ebook-en-tiktok-daily` one at a time
-  under each owner lock, only while idle. Read back each install receipt, release SHA, argv, state path, and rollback receipt.
-- [ ] Allow the next natural Japanese 07:00 JST occurrence; verify official Postiz receipts and public URLs for Instagram and
-  TikTok. The failed 20:00 slot is verified no-effect and must not be replayed.
-- [ ] Re-enable the existing English TikTok integration through the Postiz Calendar channel menu: use Enable/Disable, and use Reconnect with the same Monk Anicca account only if Postiz shows an authorization marker. Official instructions: https://docs.postiz.com/general/channels/manage.
-  The public API/CLI references expose no existing-channel toggle. The current direct daily-driver `:9222/json/version` read returned HTTP 404; complete the UI action when the registered session is available, then verify `disabled=false`. Do not create another channel, add Instagram, or upgrade Postiz.
-- [ ] Keep the intended three daily slots per locale: English 08:00/14:00/21:00 JST; Japanese 07:00/12:30/20:00 JST. Japanese
-  shares each Watercolor video across TikTok and Instagram; each owner still requires its own provider receipt/public URL.
-- [ ] Continue per-occurrence Postiz readback and replay-zero. A schedule, HeyGen CLI completion, Watercolor render, or QA CTA
-  click is not a public post or a sale.
-- [ ] Continue Product PR #420's DDL hardening through an authorized Supabase management route; read back tables/RPC signatures/ACLs/schema cache before merging the migration. The current one-time eBook main flow uses existing Checkout metadata and direct PDF email fulfillment; PR #420's new receipt/subscription tables are separate hardening.
-- [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence only after durable receipt readback; record refunds, fees, and measured costs. Do not self-purchase.
+- [x] 2026-10-07 production GET readback: checkout handler returns `405`; English PDF returns `200 application/pdf` (72,621 bytes); Japanese PDF returns `200 application/pdf` (383,818 bytes).
+- [x] 2026-10-07 live release/owner readback: main `a4a3837dc7b2557c8a6a7d0dee42ddf492748217`; selected release `20261007T110053-2e87d30d` / SHA `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Doctor is `ok=false` only for active retired Capafy label `ai.anicca.provision-browser.capafy.kosuke` PID 8198; missing/unmanaged are empty. All three eBook owners remain loaded-idle on `3aaabcca69ddf4752b516df44a669f1f88350d6b`, with launchd ProgramArguments still pointing to that release. `LM_EBOOK_PUBLISHING_ENABLED=true`.
+- [x] Fresh Postiz official GET at 2026-10-07 11:43 JST returned zero eBook posts for the current JST day. Japanese TikTok `obou_anicca` and Instagram `obou.anicca` are enabled; English TikTok `monk_anicca` is disabled; English Instagram is unregistered. Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-ebook-live-20261007T024324Z.json`.
+- [x] `lm-loop pre-effect-reconcile --dry-run` for all three eBook owners returned `resolved=[]`, `unprovable=[]`.
+- [ ] Allow the next natural Japanese 12:30 JST occurrence on the already-loaded release; verify separate Postiz receipts and public URLs for TikTok and Instagram. Do not manually kick or replay an occurrence.
+- [ ] Re-enable the existing English TikTok integration through Postiz Calendar; use Reconnect only if Postiz shows an authorization marker. Public API/CLI exposes no existing-channel toggle. The registered daily-driver `127.0.0.1:9222/json/version` currently returns HTTP 404. Verify `disabled=false` before allowing English render/publish; do not add an Instagram route or create another account.
+- [ ] Resolve the Capafy-owned active retired label through its owner without stopping/reloading it. Then pass doctor and target-apply the three eBook owners one at a time to the selected main-derived release; read back install receipt, SHA, argv, state path, and rollback receipt.
+- [ ] Keep the intended three daily slots per locale: English 08:00/14:00/21:00 JST; Japanese 07:00/12:30/20:00 JST. Each public post requires its own Postiz receipt and public URL; a schedule, HeyGen CLI completion, Watercolor render, or preview is not a post.
+- [ ] Product PR #420 remains OPEN at `85116e29aceb3d951e65f125fb3473fcb17d2b99`; current checks pass. Supabase CLI has no linked project; repository secrets contain only public anon key/URL, so the DDL-capable route and post-migration tables/RPC/ACL/schema-cache readback remain unresolved. The current one-time flow remains checkout metadata plus direct PDF email fulfillment.
+- [ ] Record a natural paid Checkout with matching locale PDF delivery under the same product/campaign occurrence after durable receipt readback; record fees/refunds/costs. Do not self-purchase.
 - [ ] Start the 14-day eBook measurement after that matched receipt and keep it running during later Capafy work.
 
-- Current cursor (2026-10-06 22:20 JST): PR #6771 is merged; release 57e remains selected; PR #6767 is merged at `99ba53b3fc9ad0c15b3eaa8dc92dd1415e8fe3a0`; current main is `fe74b69d2b9691721c018c9f4bc61c139cf23ed1`.
-  No eBook owner is applied to 57e. Doctor is blocked by live retired Capafy label PID 91210. The three owners remain on 345fe64f, loaded-idle. JA Instagram and EN TikTok fail pre-effect with `LM_RUNTIME_TENANT_ID is required`; the exact JA TikTok `LM_DATA_DIR` occurrence is reconciled.
-  Latest Postiz readbacks show zero posts on all three eBook routes, Japanese TikTok/Instagram enabled, and English TikTok disabled. Old order was English reconnect before Japanese receipt readback; current order verifies the next Japanese receipt first, then English UI re-enable.
-  First the Capafy owner must reconcile its retired label; next cut from latest main, pass doctor, apply owners one at a time, and read the natural Japanese post receipts. Then enable the English TikTok channel in Postiz UI and verify its English natural posts.
+- **Cursor authority:** the current order and cursor live only in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; this plan records Task 6 acceptance details.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 
-- [ ] Start only after Task 6 records one natural eBook paid Checkout receipt and its matching PDF delivery receipt.
-- [ ] Continue eBook 14-day measurement in parallel; it is not a Capafy start gate after that first complete receipt.
-- [ ] Reconcile both existing Capafy publisher effects by official readback before any retry. Latest 2026-10-06 06:56 JST status: old owner remains effect-unknown with active fence `18db7caff1178a88-68028`; latest occurrence `18dbbe2a2b66f258-49164` exited 75 with no receipt/readback. New owner remains installed at `4eb6bbba`; latest occurrence `18dbc04f9ffa3f18-5828` exited 1 (`capafy ig reel loop requires node`) with effect unknown and no receipt/readback. Do not retry either lane before exact official readback.
-- [ ] The Node/Python launchd lookup repair is already in Life Manager main at `9e3fb448b6` (PR #6663); build and load a current main-derived immutable release only after the eBook start gate. Verify account identity/status and Postiz integration through provider readback; current source comment says `@capafy.hooklab` is not connected.
-- [ ] Follow the single source of Capafy marketing order in `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`, Task D5: use one Life Manager Instagram owner; enforce at most one canary per 24 hours; publish one Reel with provider receipt; join `ct` clicks to available paid-order/payout evidence; measure 14 days.
-- [ ] Keep the work limited to Capafy Instagram marketing. Do not change Capafy product, listing, pricing, or account-lifecycle code owned by the other developer. Do not switch to TikTok/YouTube or create a replacement account.
-- [ ] Runtime errors do not prove that a CAPTCHA exists; no authenticated challenge screen was observed in the latest refresh. If a supported challenge is actually present, use the registered challenge path and read back account identity/provider state afterward. Identity, suspension, or appeal screens stay in the provider's official process.
+- [ ] Start only after Task 6 records one natural paid eBook Checkout and its matching PDF delivery receipt; no such receipt is recorded.
+- [ ] Continue the eBook 14-day measurement in parallel after that gate.
+- [x] Official Postiz integration GET at 2026-10-07 11:14 JST finds `capafy.hooklab` Instagram integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`, matching the configured ID. This verifies the Postiz route, not native account ownership or good standing.
+- [x] Three new-owner occurrences (`18dc1c3fbe14a460-80152`, `18dc1cde11218670-10497`, `18dc1d75cc4922b8-71732`) were each verified no-effect and resolved using official Postiz no-match receipts after the 35m10s buffer. Both Capafy marketing owners are now unloaded, preserving the eBook-first gate.
+- [ ] Old direct owner `capafy-ig-marketing-daily` remains unloaded with active fence `18db7caff1178a88-68028`; its exact read-only reconciler returns `active_ig_handle_unresolvable`, so no Instagram media readback exists. Do not restart it or retry this fence.
+- [ ] The new Postiz owner previously failed with `LM_CAPAFY_IG_PACK_REF is required`. Keep it unloaded until the eBook paid+PDF gate; then configure one approved pack and enforce one canary per 24 hours. Registry schedule currently has three daily slots, so verify the frequency gate before a canary.
+- [ ] Verify native `capafy.hooklab` account ownership/good-standing separately; an enabled Postiz integration does not prove it.
+- [ ] Follow `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`, Task D5, for the sole Instagram publisher, one-canary/24h rule, receipt/URL, `ct` conversion join, and 14-day measurement.
+- [ ] Keep Capafy product/listing/account-lifecycle work with its existing owner. No authenticated CAPTCHA or challenge screen is currently observed; use only the registered official challenge flow if one appears.
 
 **Economic target math (not a forecast):** 1,002 paid active subscriptions at $9.99/month are about $10,000 gross MRR before fees/refunds/cost. A one-time eBook order is never MRR. Capafy acceptance remains the existing 30-day banked-net contribution definition.
