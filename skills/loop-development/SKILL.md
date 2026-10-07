@@ -201,10 +201,13 @@ then escalated. No second scheduler or provider-specific retry loop is added.
   Revenue, expense and balance facts must use the shared financial/CFO event
   contract. External effects must produce a shared receipt plus provider-owned
   readback. Do not implement these separately inside a loop.
-- OpenClaw, Hermes, another checkout, a worktree or a home-directory source tree
-  may not be a Local or Cloud runtime dependency. An external service such as
-  Postiz remains allowed only behind a repository-owned provider adapter; its
-  source code is not imported at runtime.
+- Third-party harnesses use a repository-owned adapter and exact locked packages
+  in the main-derived immutable dependency bundle. Follow the active migration
+  spec before enabling a new backend. Never depend on another checkout, a task
+  worktree, a home-directory source tree, an unowned global gateway/profile, or
+  floating package versions. Existing provider accounts, effect owners, receipts,
+  admission and scheduler remain authoritative during a backend-only migration.
+  External services such as Postiz remain behind repository-owned provider adapters.
 - Add a loop with one registry row and one tested repository-relative
   entrypoint. Use `runtime/loop/entry_dispatch.py` when argv is required.
 - Model work goes through `runtime/agent-runner/agent_runner.py` with a task

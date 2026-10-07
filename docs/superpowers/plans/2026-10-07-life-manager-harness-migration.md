@@ -1,17 +1,19 @@
-# Life Managerハーネス移行 — ファイル・関数単位の実行計画
+# Life Managerハーネス移行 — 後続architecture候補（初回はinactive）
+
+> **初回実装入口は[MX first-cutover plan](2026-10-07-harness-first-cutover.md)。収益保全のため、このgateway/broker/cronの80atomは初回に実行しない。**
 
 > 実行agentは`superpowers:executing-plans`を読む。コード実装は`gpt-6-luna / max`、計画・検証は`gpt-6.1-sol / medium`。各atomは一つの関数・設定箇所・受け入れrecordを変更する。code atomは記載testをRED→最小実装→GREENとして同じ契約で完了する。source-only commit/push/PRは関連atomのまとまりで行い、技術受け入れ後にだけpromotion atomへ進む。
 
 **目的:** OpenClawへagent executionを段階移行するため、実装者がファイル・API・contract・assertionを決め直さず着手できる作業へ分解する。
 **構成:** 公式GatewayClient、既存Python admission/fence、owner-bound plugin、既存runner互換。初期cronはdisabled。単一ownerの自然実行後にscheduleを移行する。
 **技術:** openclaw2026.9.8、gateway-client/protocol2026.8.1、Node24.16以上の対応LTS、Python既存runtime。
-**設計:** [移行設計](../specs/2026-10-07-life-manager-harness-migration-design.md)。**状態正本:** 統合SSOTのHA lane。
+**設計:** [移行設計](../specs/2026-10-07-life-manager-harness-migration-design.md)。**現在の状態正本:** 統合SSOTのMX lane。HA laneはinactive参照。
 
 ## 前版の訂正と実行範囲
 
-旧HM-00〜17はroadmapだった。『互換APIを決める』『適切なtoolsを接続する』『残ownerを移す』の中に未確定の仕事があり、90checkboxという数だけでatomicと呼べない。本版はその実行手順を置換し、設計末尾にtype・RPC・key・status契約を固定した。旧HM IDはtraceability用の成果区分として残し、HA IDが実行atomとなる。
+旧HM-00〜17はroadmapだった。『互換APIを決める』『適切なtoolsを接続する』『残ownerを移す』の中に未確定の仕事があり、90checkboxという数だけでatomicと呼べない。本版はその実行手順を置換し、設計末尾にtype・RPC・key・status契約を固定した。旧HM/HA IDはtraceability用の歴史的成果区分として残す。現在の実行atomはMX first-cutover planだけ。
 
-今は計画作成のみ。全atom未着手、最初の実装atomはHA-001。OSS/cloud配布atomは`条件付き`であり、仮定が採用されるまで実装cursorへ入れない。実装開始、本番切替、公開、hosted service開始、資金支出は本依頼に含まない。
+今は計画作成のみ。HA全atomはinactive参照。現在の実装入口はMX first-cutover planとSSOT MX lane。OSS/cloud配布atomは`条件付き`であり、仮定が採用されるまで実装cursorへ入れない。実装開始、本番切替、公開、hosted service開始、資金支出は本依頼に含まない。
 
 互換/fail-closedの外部実装を実測前に成功と断定しない。HA-012/026は具体入力・assertion付きの実行可能な契約テストで、FAIL時は後続activation禁止。未知APIを実装者へ選ばせるtaskではない。全販売toolが既にportableだという意味でもない。
 

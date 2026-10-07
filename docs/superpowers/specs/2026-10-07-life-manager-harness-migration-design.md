@@ -154,3 +154,27 @@ Tool brokerの接続は未指定socketではなく固定Python scriptへのstdin
 継承できるmodel claimはresource_class=agentだけ。Capafyのdeterministic claimやPromptBaseのbrowser claimをmodel枠と扱わない。別resourceのparentがある場合、元owner policyを保つm:<owner JSON配列hash>というbookkeeping resource ownerでagent枠を取得し、元商品owner/occurrenceへjoinする。同一ownerのqueueを別resourceで上書きしない。agent継承では二重claimしない。
 
 new engineの分岐位置は既存runnerのtoken-budget/provider-lease/evidence-capacity preflightより後、candidate for-loopより前とする。既存TokenBudgetLedger.reserve/settleをnewrouteでも使い、blockedでmodel開始0、欠測で予約保持、同一occurrence再開で二重予約なしを検証する。claimは同時実行枠、token budgetは支出制御であり別契約。provider leaseもupstream停止proof前に解放しない。
+
+## 実装前の移行readiness監査 — 今回の範囲
+
+Daisは稼働・収益経路を壊さず、実装開始後に初めて見つかる接続問題を先に解消することを求める。今回はsource/caller/state/復旧/費用境界のread-only監査と、fake provider・私有stateのみの互換probe、設計/計画の更新を行う。実業務、provider/browser、credential、launchd、稼働gateway、scheduler、production stateは変更しない。収益が既にあるという利用者の前提を守り、別の売上auditへscopeを拡大しない。
+
+完了は、既知の設計blocker・ownerごとのactual caller・初回に維持する境界・switch/rollback条件・なお未測定のruntime条件を具体的に記録し、full migration readyとfirst slice readyを分けて判定すること。全未知ゼロや無停止を実装前に保証しない。
+
+既存loop-development skillの『OpenClaw, Hermes ... may not be a Local or Cloud runtime dependency』は今回の公開harness移行検討と矛盾するためDaisの明示依頼を優先する。ただし既存default gateway/profile/別checkoutへ依存せず、repo-owned adapter/lockfile/main-derived dependency bundleのsource boundaryを保つ。
+
+## 初回移行の縮小 — 既存収益経路を維持する正本
+
+readiness source監査により、初回接続点をgateway RPCではなく**finite CLI `openclaw agent exec`**へ変更する。共通runnerのprocess supervisor、token budget、provider lease、schema validation、result_path/summary、既存scheduler/entrypoint/publisher/receipt/ledgerを維持する。モデル・アカウント・backendも同時変更しない。初回にlm_loop_run.pyのresource ownership transfer、新broker、tool全面書換、cron移管、state migration、OSS/cloud配布を実装しない。旧gateway/HA1〜80は後続architecture候補としてinactive参照にする。
+
+CLI stdoutはcaller resultではなくenvelopeなので、ok=true/status=ok/exit0を確認しfinalを既存schemaへ通して同result_pathへ保存する。usageとcost basisは明示projection。process-start後のtimeout/disconnect/cleanup_errorから同occurrenceを別harnessへ自動fallbackしない。native account/tool/rollout-budget/image/resumeのparityが証明されないtaskclassはlegacyを維持する。
+
+source分類はshared route65のうち24 actual shared、7別/条件付き、34非モデル/guard。[readiness report](../../research/2026-10-07-harness-transition-readiness.md)とfirst-cutoverの[MX plan](../plans/2026-10-07-harness-first-cutover.md)を実行入口とする。旧80atomを最初から順番に実行しない。
+
+finiteCLI probeはstdoutに[state/agent-db]前置きlogを観測した。pure JSON前提を撤回し、MX decoderはtop-level JSON documentsのうちenvelope形に一致する候補を一つだけ抽出する。multiple candidatesは拒否し、nested JSONを別候補と数えない。finalだけをcaller schemaへ戻す。
+
+現行shared runnerは既製Codex/Claude CLIを既に使う。初回をdefault-off finite adapterへ縮小するのは独自LLM loopを新しく作るためではなく、既存保護境界を保って外部harness比較を可能にするため。fake builtin probeはsame-model8retryのdefaultと、timeout10秒でもdisconnect時にouter30秒までprocessが残る差を確認した。native Codexに同じ挙動と断定しないが、retry/budget/cancel parityが無いtaskclassはactivationしない。全収益production移行はHOLD、既存を維持する。
+
+実配布物privatefake runtimeはnormal/write/non-replay/timeout/cancel/lock-recoveryを観測。stdout診断prefixとenvelope/usage adapter問題を確定。default8retryではdisconnectがCLI deadlineを超えたが、public session settingsのretry.provider.maxRetries=0をprivateprojectに指定した試験はrequest1/retry0/9.48秒/timeout2/cleanup後nextinvoke成功。private instance settings制御をMX-04bへ追加し、prod repo/releaseへproject設定を書かない。globalinstance配置は追加fake試験で確認、nativeaccount/backend parityは未測定、全収益cutoverはHOLD。
+
+retry制御のprivateglobalinstance配置も実測。public config agents.defaults.embeddedAgent.projectSettingsPolicy=ignore、privateState/agents/main/agent/settings.jsonのretry.provider.maxRetries=0により、caller workspaceにprojectsettingsを書かずrequest1/retry0/deadline内/cleanup後再取得を確認。MX-04bの配置は推測ではない。実account/tool/nativebudgetは未証明のためproductioncutoverHOLD。
