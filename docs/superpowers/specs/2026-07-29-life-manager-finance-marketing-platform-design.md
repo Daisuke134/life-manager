@@ -413,13 +413,14 @@ cannot supersede that provider/video lineage, so this is a code and durable
 state repair, not a profile-URL correction.
 
 Current not-yet-classified mobile inventory remains `0/day` until handled one
-account at a time:
+account at a time. The Japanese eBook profiles `@obou.anicca` and
+`@obou_anicca` belong to the separate `ebook-ja` product and are governed by
+the eBook SSOT, not this mobile inventory:
 
-- Instagram: `@anicca.affirmation`, `@anicca.bochi`, and `@obou.anicca`.
+- Instagram: `@anicca.affirmation` and `@anicca.bochi`.
 - TikTok: `@anicca_buddha`, `@anicca_slideshow`, `@anicca.comedy`,
   `@anicca.daily`, `@anicca.jp8`, `@anicca.jpx`, `@aniccaaffirmation`,
-  `@aniccaen2`, `@aniccajp`, `@aniccajp2`, `@monk_anicca`,
-  `@obou_anicca`.
+  `@aniccaen2`, `@aniccajp`, `@aniccajp2`, and `@monk_anicca`.
 - YouTube: `@anicca-affirmation-video`, `@anicca-ai`, and owner-skipped
   `@anicca-jp`. Only the last remains the one allowed YouTube skip.
 
@@ -1756,8 +1757,8 @@ slots per day in their plists and in `config/marketing-destinations.json`.
 Browser readback fixes two provider aliases: Postiz `@anicca.affirmation` owns
 native Instagram `@anicca.ios`, and Postiz `@anicca.jp1` owns native Instagram
 `@anicca.ios.jp`. Instagram `@obou.anicca` belongs only to the separate Japanese
-ebook lane and is a 0/day mobile-app hold. Instagram `@anicca.en` describes the
-Anicca personalized self-care App Store product and is never an ebook account.
+eBook lane and is not a mobile-app lane. Instagram `@anicca.en` describes the
+Anicca personalized self-care App Store product and is never an eBook account.
 The schedule definition is present, but publication is not healthy: ten labels
 have `runs=0` / never exited; EN Card Instagram, EN Slideshow TikTok, and Honne
 JA each have one run with exit 1. A plist or calendar is not a post receipt.
@@ -1987,7 +1988,7 @@ six-frame render audit plus a dedicated Postiz carousel publication contract.
 It has not passed the real provider effect, direct-native-artifact, replay,
 Telegram, or metric-source canary gates.
 
-Every other live Postiz TikTok/Instagram/YouTube integration has a target
+Every other live mobile-app Postiz TikTok/Instagram/YouTube integration has a target
 cadence of **0/day** until a later atomic classification binds it to a product,
 locale, renderer, approved pack, campaign, and metric source. This explicit hold
 includes:
@@ -1995,9 +1996,16 @@ includes:
 - TikTok: `@aniccaaffirmation`, `@aniccaen2` (measured dead),
   `@monk_anicca` (provider-disabled), `@anicca.daily`, `@anicca_slideshow`,
   `@aniccajp`, `@anicca.jp8` (measured dead), `@aniccajp2`, `@anicca.jpx`
-  (measured dead), `@obou_anicca`, `@anicca_buddha`, and `@anicca.comedy`.
-- Instagram: `@anicca.affirmation`, `@obou.anicca`, and `@anicca.bochi`.
+  (measured dead), `@anicca_buddha`, and `@anicca.comedy`.
+- Instagram: `@anicca.affirmation` and `@anicca.bochi`.
 - YouTube: `@anicca-ai` and `@anicca-affirmation-video`.
+
+The Japanese eBook targets `@obou.anicca` (Instagram) and `@obou_anicca`
+(TikTok) are separate product routes already bound in
+`config/marketing-destinations.json`. The shared lane manifest also accepts
+`ebook-ja`; the live production manifest must move only these two exact
+integrations from `hold` to their configured target lanes before publication.
+Until that state readback passes, both remain operationally blocked.
 
 An enabled Postiz connection in this hold list is routing configuration only.
 It is not permission to publish. `@aniccaaffirmation` is a high-value research
