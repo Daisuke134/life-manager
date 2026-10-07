@@ -3918,7 +3918,7 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 | natural receipt/readback | 容量・cleanup確認完了 | 新版へのapply後に両labelの自然実行exit0、host receipt capacity_recovery=met/errors0/protected_deletions0。既存shared guardは逼迫中にexact-owner自然terminal20件でdisk_headroom_low/not_applicableを確認 |
 | 全finite導入/安全停止解除 | 未完 | 28旧sourceを保持。26ownerのeffect_unknown、稼働中のCoconala返信owner、未起動等を無証拠で解除・中断しない。返信ownerは実際に送信するためregistry effect_classをmessageへ訂正し、noneとしてfenceを消さない |
 
-緊急state/disk-writers.stopはowner_id=host-disk-recovery-installing、next_action=install_and_verify_all_finite_disk_guards_before_arming_recoveryで保持する。容量回復だけで全guard導入や制限解除へ置換しない。foreign/unknown/unsafe/identity変化の旗は削除しない。次回Simulator test/Previewはランタイムの再downloadが必要で、source/SDK/device dataは保持する。
+緊急state/disk-writers.stopはowner_id=host-disk-recovery-installing、next_action=install_and_verify_all_finite_disk_guards_before_arming_recoveryで保持する。容量回復だけで全guard導入や制限解除へ置換しない。foreign/unknown/unsafe/identity変化の旗は削除しない。iOS Simulatorはアプリ出荷に必要な稼働資源としてruntime/image/device data/dyld cacheをcleanup対象から除外する。未起動や閉じた状態は不要の証拠にしない。前回取り外したiOS26.5を復元し、simctl availabilityとbootを確認する。source/SDK/device dataを保持し、容量不足は別の未使用再生成物の回収と新規producer延期で扱う。
 owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol reviewers disk_policy_review/self_fix_gate_review。証拠は /Users/anicca/.local/state/life-manager/evidence/host-disk-* とcleanupログ。既存doctorのretired installed label ai.anicca.provision-browser.capafy.kosukeは残存し、missing/unmanaged0からdoctor全PASSを主張しない。
 現在cursor: 自然監視と回復容量を維持する。旧ownerの外部作用はexact official/pre-effect proofなしで解除・再送しない。処理中の返信ownerは自然terminalとclaim/effect readbackを確認後に対象限定source applyする。source worktreeはmemoryを含むためlockedで保持し、削除しない。
 
@@ -3933,3 +3933,5 @@ owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol revie
 - RED→GREENのself-fix fake integrationはbelow-floor/unknown/stop flagをchild0で拒否し、pure probesのeffect0とheld marker不変、pass pathのrunner環境からdisk bypass envが除かれることを検証する。Camoufox SDKの正確なcache rootは閉じた候補だけ削除可能、open lsofは保持する。registry・rendered fixture・GC・sparse reserve predicateとCIをsource証明とし、本番容量・natural agent run・外部message effectの証明と区別する。
 
 ランタイム回収の境界: 唯一のiOS26.5（UUID DE67D494-A483-40A1-B6D3-916A7C13D2D9、23F77、lastUsedAt 2026-10-05T06:12:47Z、asset allocated約7.91GiB）を未起動・active build無しでnative除去する。2日前に使われているため恒久不要とは判定しない。次回Simulator test/Preview前に`xcodebuild -downloadPlatform iOS -buildVersion 26.5`で再downloadが必要。source/SDK/device dataとmemory入りgig旧releaseは保持する。
+
+Simulator復元の実行計画: 当前Data空き約12GiB、installed runtime0を確認する。unused artifactのowner/reference/open-fileを先に検証し、Simulator復元の必要容量を確保する。Apple native xcodebuild downloadPlatformでarm64 iOS26.5を復元し、既存deviceのavailability/bootとfresh容量を確認する。cleanupはSimulatorを削除せず、source・認証・memory・state JSONL・使用中releaseを保持する。全guard残件28はcurrent readbackで再分類し、fenceを無証拠で解除しない。現在cursor: 未参照再生成物の容量確保→native runtime復元→cleanup除外と自然監視readback。

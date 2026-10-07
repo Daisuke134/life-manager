@@ -30,6 +30,7 @@ allow-listed regenerable artifact after an open-path probe confirms
 - `sweep()` accepts only candidates carrying internal allow-list discovery proof
   for the exact regenerable families; the CLI `--candidate` escape hatch is
   rejected so an arbitrary path cannot be promoted by an operator flag.
+- iOS Simulator is required for app shipping. Preserve installed runtimes/images, CoreSimulator devices/data, and dyld caches; an unbooted or closed simulator is not a cleanup candidate. Restore a missing runtime rather than deleting another shipping resource.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - Pressure is asserted below 11 GiB and is not cleared until the recovery floor
   is reached; the 20 GiB threshold starts preventive containment.
