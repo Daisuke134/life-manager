@@ -10,6 +10,7 @@ import shutil
 import stat
 import time
 from pathlib import Path
+from typing import Callable
 
 
 PROTECTED_NAME = re.compile(r"receipt|ledger|credential|session|wallet|payment", re.I)
@@ -151,6 +152,44 @@ def _valid_release(path: Path) -> bool:
     return isinstance(value.get("sha"), str) and bool(re.fullmatch(r"[0-9a-f]{40}", value["sha"]))
 
 
+def _release_immutable_store_probe(
+    path: Path,
+    *,
+    deadline: float | None = None,
+    clock: Callable[[], float] | None = None,
+) -> str | None:
+    """Preserve memory/state JSONL paths; fail closed on probe errors or deadlines."""
+    clock = clock or time.monotonic
+    errors: list[OSError] = []
+    try:
+        for current, directories, files in os.walk(
+            path, topdown=True, followlinks=False, onerror=errors.append
+        ):
+            if errors:
+                return "descendant_probe_error"
+            if deadline is not None and clock() >= deadline:
+                return "probe-budget-exhausted"
+            current_path = Path(current)
+            if current_path.name == "memory" or "memory" in directories:
+                return "protected_descendant"
+            if current_path.name == "state" and any(name.endswith(".jsonl") for name in files):
+                return "protected_descendant"
+            for name in directories:
+                if deadline is not None and clock() >= deadline:
+                    return "probe-budget-exhausted"
+                if name != "state":
+                    continue
+                try:
+                    info = (current_path / name).lstat()
+                except OSError:
+                    return "descendant_probe_error"
+                if stat.S_ISLNK(info.st_mode):
+                    return "protected_descendant"
+    except OSError:
+        return "descendant_probe_error"
+    return "descendant_probe_error" if errors else None
+
+
 def gc_releases(releases_root: Path, current: Path, *, keep: int,
                 protected: set[Path]) -> dict[str, int]:
     result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
@@ -169,6 +208,11 @@ def gc_releases(releases_root: Path, current: Path, *, keep: int,
         result["evaluated_releases"] += 1
         if path.resolve() in protected:
             result["preserved_releases"] += 1
+            continue
+        store_state = _release_immutable_store_probe(path)
+        if store_state is not None:
+            result["preserved_releases"] += 1
+            result["errors"] += store_state == "descendant_probe_error"
             continue
         try:
             candidates.append((path.stat().st_mtime, path))

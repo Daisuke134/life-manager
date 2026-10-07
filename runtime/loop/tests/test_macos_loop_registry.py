@@ -1070,6 +1070,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
             row["entrypoint"],
             "skills/earn/marketing-engine/intel/weekly-review-owner",
         )
+        self.assertEqual(row["effect_class"], "message")
+        self.assertEqual(row["resource_class"], "agent")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertEqual(row["priority"], "support")
 
     def test_hf_gig_paid_direct_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -1455,6 +1459,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row["browser_identity"], "coconala:kosuke")
                 self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
+        self.assertEqual(registry["loops"]["hf-gig-reply-detector"]["effect_class"], "message")
 
     def test_lancers_and_crowdworks_browser_action_lanes_declare_provider_identity_join(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

@@ -6,6 +6,7 @@ import stat
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -1591,6 +1592,51 @@ def test_read_only_release_export_is_still_reclaimable(tmp_path: Path) -> None:
     assert result["errors"] == 0
 
 
+def test_release_retention_preserves_memory_and_state_jsonl_but_reclaims_plain_release(
+    tmp_path: Path,
+) -> None:
+    releases = tmp_path / "loops" / "releases"
+    releases.mkdir(parents=True)
+    memory_release = releases / "20260828T010101-aaaaaaaa"
+    state_release = releases / "20260829T010101-bbbbbbbb"
+    dependency_release = releases / "20260830T010101-cccccccc"
+    plain_release = releases / "20260831T010101-dddddddd"
+    current_release = releases / "20260901T010101-eeeeeeee"
+    for index, path in enumerate((memory_release, state_release, dependency_release, plain_release, current_release)):
+        path.mkdir()
+        (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
+    (memory_release / "memory").mkdir()
+    (memory_release / "memory" / "owner.md").write_text("private memory")
+    state = state_release / "nested" / "state"
+    state.mkdir(parents=True)
+    (state / "events.jsonl").write_text("{}\n")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "owner.md").write_text("keep target")
+    (dependency_release / "node_modules").symlink_to(outside)
+    (plain_release / "bin").mkdir()
+    (plain_release / "bin" / "loop.sh").write_text("#!/bin/sh\n")
+    (tmp_path / "loops" / "current").symlink_to(current_release)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [item for item in governor.discover_candidates() if item["owner"] == "release-retention"]
+    result = governor.sweep(candidates)
+
+    assert memory_release.exists()
+    assert state_release.exists()
+    assert not dependency_release.exists()
+    assert not plain_release.exists()
+    assert current_release.exists()
+    assert (outside / "owner.md").exists()
+    assert result["preserved_reasons"] == {"protected_descendant": 2}
+    assert result["errors"] == 0
+
+
 def test_release_named_only_by_a_launchd_plist_is_preserved(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
@@ -2782,18 +2828,31 @@ def _seed_receipt_reserve(state: Path) -> Path:
     return reserve
 
 
-def test_receipt_reserve_rejects_sparse_file_with_nonzero_blocks(tmp_path: Path) -> None:
+def test_receipt_reserve_rebuilds_when_allocated_blocks_are_insufficient(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     state = tmp_path / "state"
     state.mkdir()
     reserve = state / ".receipt-reserve"
-    with reserve.open("wb") as stream:
-        stream.truncate(1024 * 1024)
-        stream.seek(0)
-        stream.write(b"x")
+    reserve.write_bytes(b"x" * (1024 * 1024))
     reserve.chmod(0o600)
-    sparse_before = reserve.stat()
-    assert sparse_before.st_blocks > 0
-    assert sparse_before.st_blocks * 512 < 1024 * 1024
+    real_lstat = Path.lstat
+    full = real_lstat(reserve)
+    underallocated = SimpleNamespace(
+        st_mode=full.st_mode,
+        st_size=full.st_size,
+        st_blocks=1,
+    )
+    lstat_calls = 1
+
+    def report_underallocated_once(path: Path):
+        nonlocal lstat_calls
+        if path == reserve and lstat_calls:
+            lstat_calls -= 1
+            return underallocated
+        return real_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", report_underallocated_once)
 
     HostDiskGovernor(home=tmp_path, state_dir=state)._receipt({"value": "new"})
 
