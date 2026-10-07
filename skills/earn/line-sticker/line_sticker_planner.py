@@ -58,11 +58,16 @@ vol./数字を付ける。テーマは頻度順に 汎用日常返事 → 敬語
 家族・推し活 を優先する。
 
 既存セットの事実（新しいセットを計画する前に必ず読む。set=ディレクトリ名、
-state_observed=LINE Creators Marketで最後に確認した公式状態、例: 販売中/審査待ち/リジェクト）:
+state_observed=LINE Creators Marketで最後に確認した公式状態、例: 販売中/審査待ち/リジェクト、
+sales_jpy=LINE Creators Marketの公式売上・統計情報/送金申請ページで確認した累計売上（分配額の
+速報値、円）。null は「まだ確認できていない」という意味で0円ではない）:
 {json.dumps(prior_facts, ensure_ascii=False, indent=1)}
 
 まず series_of を決める:
-- 既存キャラクター（できれば state_observed が「販売中」のもの）の続編を強く優先する。
+- sales_jpy が数値（nullでない）のセットが1つでもあれば、その中で売上が最も大きいキャラクターの
+  続編を最優先する。実際に売れている実績は、state_observedだけの判断より優先する。
+- sales_jpy がまだどのセットもnullの場合（売上データがまだ無い）は、既存キャラクター（できれば
+  state_observed が「販売中」のもの）の続編を強く優先する。
 - 続編にする場合: series_of にそのセットのset名（例: "set-003"）を入れ、character_id と
   character_prompt はそのキャラクターの説明（character_description）を引き継ぐ。続編では画像を
   再利用するため character_prompt は画像生成に使われないが、記録としてそのキャラクターの見た目を
