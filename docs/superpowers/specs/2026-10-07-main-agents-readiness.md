@@ -77,6 +77,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 
 
+
 ## 原子的TODO（状態/cursorの唯一の正本は統一SSOT）
 
 全215atom。target/symbol/change/check/dependencyを固定。
@@ -131,7 +132,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### OC-009 — waitRun(client, runId) -> Promise<object>
 
-- [ ] `runtime/openclaw/gateway-client.mjs` — agent.waitへ{runId,timeoutMs:1000}を渡す。RPC未知field/未知statusはprovider_status_unknown。terminal判定はpinした配布contractのstatusだけを使う。
+- [ ] `runtime/openclaw/gateway-client.mjs` — agent.waitへ{runId,timeoutMs:1000}を渡す。RPC未知field/未知statusはprovider_status_unknown。terminal判定はpinした配布contractのstatusだけを使う。 pinned agent.waitのterminalReply/terminalReceiptは終了証拠として取り、返答本文が4096文字にcapされることを考慮する。raw finalの完全なJSONが無い時にtruncated本文を成功結果へ変換しない。
 - 完了条件: tests/gateway-client.test.mjs:同runIdを照合、timeoutをsuccess扱いしない、foreign runId拒否。
 - 依存: OC-008
 
@@ -233,7 +234,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### OC-026 — write_artifact(binding: dict, relative_path: str, content: str) -> dict
 
-- [ ] `runtime/openclaw/tool_broker.py` — trusted binding.workspace配下のrelative pathだけへUTF-8成果物を書く。absolute/..、symlink parent、.git、credential/config/state領域を拒否。最大1MiB。temp write/fsync/replaceし{artifact_ref,sha256,bytes}を返す。canonical catalog/production sourceを直接書かない。
+- [ ] `runtime/openclaw/tool_broker.py` — trusted binding.workspace配下のrelative pathだけへUTF-8成果物を書く。absolute/..、symlink parent、.git、credential/config/state領域を拒否。最大1MiB。temp write/fsync/replaceし{artifact_ref,sha256,bytes}を返す。canonical catalog/production sourceを直接書かない。 relative_path=caller-result.jsonの場合はbindingのcaller schemaをvalidateし、全JSONを同task private workspaceへatomic保存してSHA/owner/occurrence/task/upstream runのartifact receiptを返す。modelのreceipt文章を公式provider proofにしない。
 - 完了条件: tests/test_tool_broker.py:4成果物SKILL.md/LISTING.md/icon.svg/evidence/verified-demonstration.mdをprivateworkspaceに作れる。../、symlink、1MiB超過はwrite0。
 - 依存: OC-024
 
@@ -257,8 +258,8 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### OC-030 — normalizeOutcome(raw, request) -> RunOutcome
 
-- [ ] `runtime/openclaw/result.mjs` — HA-012で固定したpayloadのfinal JSONを取得し、release-ownedPythonのschema_validate.pyへstdinでinstance/schemaを渡す。valid=falseならfailed。usage/cost欠測はnull。tool receiptはbroker証拠のみからjoinし、LLM textを公式receiptへ変換しない。
-- 完了条件: tests/result.test.mjs:invalid JSON/schemaはfailed、fake final receiptを採用しない、token欠測null。
+- [ ] `runtime/openclaw/result.mjs` — normalizeOutcomeは当該binding/taskのfresh caller-result.json+host artifact receiptを優先してschema検証する。無ければpinned terminalReplyの完全なvisible textだけを検証。terminalReplyは4096文字capであり、truncation/JSON不正/別task/古いfileはfailedまたはpendingにする。モデルに必要なlm_artifactの結果保存契約をhost promptへ追加。result_path/summaryは既存形へ戻し、domain tool effectのverifiedは公式readbackだけ。
+- 完了条件: result.test.mjs:10000文字JSONはfull artifactから通る、4096文字に切れたterminalReplyのみは拒否、old/foreign task artifact拒否、小さいJSONは既存schema通過、broker公式receipt以外でeffect verified0。
 - 依存: OC-012, OC-025, OC-029
 
 ### OC-031 — project_usage(raw: dict, identity: dict) -> dict

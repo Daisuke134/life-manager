@@ -1,5 +1,6 @@
 # Life Manager用エージェントハーネス比較
 
+> 現在の実行設計は [ローカル最大再利用仕様](../superpowers/specs/2026-10-07-main-agents-readiness.md)。最新対象は16能力/110job。ChatGPT account接続native Codexのみ。OpenClaw cronへの移管は既存LM admission/effect/readbackを通すcommand payloadのowner別handoffで行い、下記の無条件なcron全面置換案とは区別する。
 ## 結論と証拠の限界
 
 **現在のコード判断: OpenClawのagent実行/session/traceへの部分利用に設計適合あり。cron/host admission/effectの全面置換は不採用、本番切替は未実施。** 対象はローカルLife Manager主要15エージェント。Life Manager CLI、商品/業務、state/effect/receiptを保つ。初回finite execは低影響の比較入口であり、耐久性・拡張性・観測性の向上を証明しない。機能差は[実コード比較](2026-10-07-local-harness-source-judgment.md)で判断し、速度/費用の定量化と分ける。
