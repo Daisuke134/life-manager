@@ -218,6 +218,34 @@ def test_ebook_child_environment_exposes_renderers_only_to_ebook_lanes():
     assert base["PATH"] == inherited_path
 
 
+def test_english_ebook_child_environment_sets_scoped_heygen_cli_path(tmp_path):
+    inherited_path = os.pathsep.join(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
+    base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    english = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+
+    assert english["LIFE_MANAGER_HEYGEN"] == str(tmp_path / ".local/bin/heygen")
+    assert english["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+
+    english_override = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily",
+        {**base, "LIFE_MANAGER_HEYGEN": "/opt/custom/heygen"},
+        home=tmp_path,
+    )
+    assert english_override["LIFE_MANAGER_HEYGEN"] == "/opt/custom/heygen"
+
+    japanese = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+    assert "LIFE_MANAGER_HEYGEN" not in japanese
+    assert japanese["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path,
+    ) == base
+
+
 def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
     private = tmp_path / ".local/share/anicca"
     private.mkdir(parents=True)

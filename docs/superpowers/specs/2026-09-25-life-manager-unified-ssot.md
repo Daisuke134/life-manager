@@ -4269,6 +4269,53 @@ flowchart LR
 
 L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序に従って着手する。案件proposal額・出品実績表示・process passはsettled revenueではない。全社settlement joinとMRR/netはCFO ownerの担当。
 
+### 2026-10-08 07:52 JST — eBook Monk host-capacity regression cursor
+
+この追記はeBookの07:14 JST cursorだけを置き換える。GitHub上の3 Postiz接続や07:00 JSTの公開receiptに変更はない。全社・Gigその他のTODO順も変更しない。
+
+**TODO順変更:** 旧順=`08:00 EN receipt→残り6 slot→capacity receipt→PR #420/Checkout/PDF→Letter/Tegami→Capafy Instagram`。新順=`host capacityを2 GiB以上へ戻しfresh receiptを取得→queued no-effect ownerを再開→08:00 EN receipt/cost→残りslot→販売経路→recurring cohort→Capafy Instagram`。理由: 07:51 JSTにJA Instagram ownerが再びdisk admissionでdeferされ、07:52 JSTのfilesystem freeがguard閾値未満となったため、次の投稿より先にheadroom回復が必要。現在cursor=`07:52 JST、07:00のJA 2投稿はPUBLISHED、capacityは未回復、EN 08:00は未実行`。
+
+**公開済みreceipt（維持）:** JA TikTok `ebook-ja-tiktok-daily:18dc5e45d2cbb658-55237`→Postiz `cmuynjaq808iblc0yd2396uhg`、JA Instagram `ebook-ja-instagram-daily:18dc5e45d34f0788-55236`→`cmuynjkih08ihlc0y38o87z0n`。両方とも同一occurrenceのofficial readbackで`PUBLISHED`、`effect_unknown=0`。本日unique publishedは2/9。英語routeはPostiz再接続不要だが、10/8 English receiptはまだない。
+
+**現在のblocker:** 07:52 JST `df -Pk` Available `241,816 KiB`、`shutil.disk_usage.free=247,619,584` bytes（約236 MiB）で、disk guard既定512 MiB未満。JA Instagram occurrence `18dc6115c6bafef0-13209`は`exit=75 / host_admission_deferred:disk_headroom_low / effect_status=not_applicable`、Postiz provider call/receiptなし。disk-writers stop flagは存在しない。07:00 published receiptは変化しないが、次slotへの継続は未確認。
+
+**cleanup / writer evidence:** 登録cleanup ownerの07:25 passはfree `449,400,832→817,033,216` bytes、reclaimed `339,756,944`、errors/protected deletions 0、2 GiB floor未達。07:35、07:43、07:49のpassは各およそ6.4 KiBのみreclaimし、fast inventoryで`inventory_gaps=23`、preserved=`open 4 / protected_descendant 2`、floor unmet。最新receipt `2026-10-07T22:49:01Z`後のfreeはさらに`247,619,584` bytesまで落ちた。07:32の20-second bounded full inventoryは`coverage.complete=false`、22 gaps、major root size probesはbudget-exhaustedでwriterを特定できない。8-second disk-I/O sampleは約6.9 MBのwriteだけを観測し、1.9 GB burstの原因を識別しなかった。APFS local snapshotは確認されない。
+
+`life-manager-disk-cleanup` LaunchAgentは`StartInterval=300` / `ThrottleInterval=300`。07:38 runは`exit=78 / apply_lock_busy`、07:49 runは`exit=1 / recovery_floor_unmet`。07:52のlaunchd stateは`spawn scheduled`、last exit 1。07:54前後の次のregistered runで、full-inventory interval到来後の`inventory_mode=full`とfresh receiptを確認する。pending start要求を重ねず、ownerのreceipt/launchd終端前にcleanupを直接実行しない。active release-reconcilerは監視のみで、停止・再起動しない。
+
+**残りAtomic TODO（eBook）:**
+
+1. **次のcleanup owner wake:** `free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`のfresh receiptを取得する。full inventoryのgapとwriter rootを読む。既知のregenerable候補だけをregistered cleanup ownerに処理させ、unknown/open/protected dataを削除しない。
+2. **queued publication:** capacityが回復したら、同一no-effect occurrenceをowner経由で再開し、公式Postiz receiptを照合する。effect不明はreceipt前に再送しない。
+3. **今日の残り7 slot:** EN TikTok 08:00/14:00/21:00、JA TikTok/Instagram各12:30/20:00。英語は同一occurrenceでPostiz `PUBLISHED`、public URL、HeyGen video SHA、wallet render costを結ぶ。今日のtargetは9 unique posts、現在2。
+4. anicca-products PR #420のfresh manual production Supabase project/count readbackと対象一致後のDDL/schema/ACL、natural paid Checkout→Stripe→locale PDF→refund/fees/settlement/replay-zeroを閉じる。one-time `$10.99` / `¥1,580`はMRRではない。
+5. Letter/Tegami recurring CTAの14日cohortとsettled net MRRを確認し、その後にCapafy Instagram marketing laneへ進む。USD 10,000 verified net MRRは未達目標。
+
+**Daisの作業:** 既存3 Postiz integrationの再接続/再認証は不要。現在のblockerはホスト容量とcleanup owner eligibilityで、アカウント接続作業ではない。
+
+### eBook Monk live delivery cursor — 2026-10-08 08:23 JST
+
+この節がeBookの現在cursorで、07:52 JSTのcapacity snapshotとTODO順を置き換える。Gig・他laneの順序は変えない。
+
+**TODO順変更:** 旧順=`capacity回復→queued owner再開→EN投稿→残slot→Checkout/PDF→recurring cohort`。新順=`English ownerへHeyGen CLI pathを限定注入→main由来releaseをowner apply→同じ08:00 slotをowner経由で即実行・公式readback→12:30以降の全slotを照合→capacity writer調査→Checkout/PDF→Letter/Tegami cohort→Capafy Instagram`。理由: 08:20 JSTのcapacityは2 GiB床以上で、今のEnglish停止原因がCLI pathのowner環境漏れと特定できた。`marketingVideoDueSlot()`は08:00から14:00まで同じ08:00 slotを返すため、修正版apply後に登録ownerを一度起動して当日slotを回収できる。現在cursor=`08:23 JST、JA 07:00は2/2 published、EN 08:00はCLI setup failure、次にowner環境を修正して同slotを回収`。
+
+**公式配信readback（08:23 JST）:** Postiz `GET /integrations`でEnglish TikTok `Monk Anicca / @monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`)、JA TikTok `@obou_anicca` (`cmo5s4edx00vgn10ygnu34a0n`)、JA Instagram `@obou.anicca` (`cmooplxmu04tpmd0y4h3cpk33`) はすべて`disabled=false`。10/8 JST 00:00–08:23の公式`GET /posts`は対象投稿5行中、eBookのPUBLISHEDはJA TikTok `cmuynjaq808iblc0yd2396uhg`とJA Instagram `cmuynjkih08ihlc0y38o87z0n`の2件。English Monk投稿は0件。今日の達成は2/9（JA TikTok 1/3、JA Instagram 1/3、EN TikTok 0/3）。「Monk Kanika」は登録上の別routeではなく、ここでは`Monk Anicca / @monk_anicca`を指すものとして照合した。
+
+**停止原因:** Englishの最新receipt `ebook-run.571924dc4e4867349fc6fd13`は08:00 slotで`state=setup_required`, `missing=["heygen_cli"]`, `external_effects=[]`。Postiz投稿・HeyGen動画作成とも発生していない。実行ホストには`~/.local/bin/heygen`が存在し、HeyGenの公式wallet GETも成功（USD 12.30、Auto Reload有効・threshold USD 5 / amount USD 10）。English LaunchAgentには`PATH`と`LIFE_MANAGER_HEYGEN`がなく、`runtime/loop/lm_loop_run.py::_child_environment_for_owner()`はeBook child PATHへ`/opt/homebrew/bin`だけを追加するため、`~/.local/bin/heygen`が見えない。修正はEnglish ownerだけに`LIFE_MANAGER_HEYGEN=<home>/.local/bin/heygen`を渡し、一般PATHや他ownerを広げない。回帰testと実装計画は`docs/superpowers/plans/2026-10-08-ebook-heygen-cli-runtime.md`。
+
+**host / effect state:** 08:20:59 JSTの`df -Pk /` Availableは`2,496,860 KiB`（約2.38 GiB）で2 GiB floor以上。従って容量とPostiz再接続は現在のEnglish blockerではない。ownerは08:21 JSTに`entrypoint_exit_1`を記録したが、現在の`admission_effect_unknown=false`で、`pre-effect-reconcile --dry-run`も`resolved=[] / unprovable=[]`。08:00 run receiptの`external_effects=[]`とPostiz公式一覧のEnglish 0件を根拠に、修正版ownerの同slot実行を許可する。HeyGen動画SHA・wallet before/after actual render cost・Postiz PUBLISHED/public URLは成功後に同一occurrenceへ結ぶ。
+
+**残りAtomic TODO（eBook順序）:**
+
+1. `docs/superpowers/plans/2026-10-08-ebook-heygen-cli-runtime.md`に従い、English ownerだけへ明示CLI pathを渡す回帰testと修正を追加し、専用PRをmainへ統合する。
+2. main由来immutable releaseで`ebook-en-tiktok-daily`だけapplyする。08:00–14:00は同じdue slotなので登録ownerを一度実行し、PUBLISHED/public URLとHeyGen video SHA・actual wallet costを公式readbackする。直接Postiz APIで投稿しない。
+3. 08:00 EN回収後の残り6 slotを照合する: JA TikTok/Instagram各12:30・20:00、EN TikTok 14:00・21:00。targetは各account 3/day、計9 unique published posts（08:23現在は2/9、未実行7 slot）。延期時はno-effect occurrenceをowner経由で再開し、effect不明は公式readback前に再送しない。
+4. 2 GiB床をregistered cleanup ownerで維持しながら、残るinventory gapsとwriter sourceを確認する。capacityが床以上の間は投稿修正より先にcleanupを割り込ませない。unknown/open/protected dataの削除やfloor overrideはしない。
+5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→refund/fees/settlement/replay-zeroを完了する。one-time `$10.99` / `¥1,580`はMRRに含めない。
+6. Letter/Tegami recurring CTAの14日cohortとsettled net MRRを検証し、その後Capafy Instagram laneへ進む。USD 10,000 verified net MRRは未達目標。
+
+**Daisの作業:** いま必要な再接続・再認証・手動設定はない。実装とowner環境修正はLife Manager側で行う。
+
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
 **現在のGig cursor: 1（L9-07 Coconala Storefront parser修正）。** 全社lane/platform順序は変更しない。PR #6985は`1c0c9120`でmainへ統合済みだが、公式live inventoryで`public_text`空・contract 0/20となったためlive acceptanceは未達。原因は`#serviceContentsSummary`がナビ見出しで、本文はuniqueな`.c-serviceContentsSummary` wrapperにあること。これを正しいselectorとしてRED/GREEN testで修正する。

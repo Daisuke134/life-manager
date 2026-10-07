@@ -152,13 +152,21 @@ def _child_environment_for_owner(
     )
     environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
 
-    # eBook renderers discover ffmpeg, ffprobe, heygen, and fontconfig through
-    # PATH. launchd's default PATH omits Homebrew binaries.
+    # eBook renderers discover ffmpeg, ffprobe, and fontconfig through PATH.
+    # launchd's default PATH omits Homebrew binaries.
     if loop_id in EBOOK_POSTIZ_LOOP_IDS:
         inherited_path = environment.get("PATH") or os.defpath
         path_entries = inherited_path.split(os.pathsep)
         if "/opt/homebrew/bin" not in path_entries:
             environment["PATH"] = os.pathsep.join(("/opt/homebrew/bin", inherited_path))
+
+    # The HeyGen CLI is installed under the user's local bin, which is
+    # intentionally not added to every eBook owner's PATH.
+    if (loop_id == "ebook-en-tiktok-daily"
+            and not str(environment.get("LIFE_MANAGER_HEYGEN", "")).strip()):
+        environment["LIFE_MANAGER_HEYGEN"] = str(
+            (home or Path.home()).expanduser() / ".local/bin/heygen"
+        )
 
     # Ignore any inherited alias. The credential SSOT is the only source for eBook
     # publisher authentication. Do not even pass it to the child while publishing
