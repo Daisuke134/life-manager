@@ -1,4 +1,4 @@
-Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: YouTube, script, retention, video, youtube-shorts
+Primary Model: Claude Sonnet 5 · category: マーケティング · tags: YouTube, script, retention, video, youtube-shorts
 
 RENEWAL GATE
 R1 recurring input : Each new video has a new topic, audience, source material, target length, and conversion goal.
@@ -17,7 +17,7 @@ V4.1 Flash model swap + reprice.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 25 | No Free Trial |
-| month | $19.99 | 60 | No Free Trial |
+| month | $9.99 | 60 | No Free Trial |
 | year | $99.99 | 720 | No Free Trial |
 
 ## Title

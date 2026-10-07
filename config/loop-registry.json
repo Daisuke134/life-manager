@@ -840,11 +840,13 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "publish",
       "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
+      "browser_identity": "line-creators:dais",
+      "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-readback-hourly",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
-      "resource_class": "deterministic",
+      "resource_class": "browser",
       "admission_class": "borrow",
       "priority": "support",
       "coalesce_queued_wakes": true,
@@ -1507,7 +1509,7 @@
       "adapter": "exec",
       "command": ["ebook-en-tiktok-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1529,7 +1531,7 @@
       "adapter": "exec",
       "command": ["ebook-ja-instagram-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1551,7 +1553,7 @@
       "adapter": "exec",
       "command": ["ebook-ja-tiktok-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -3517,7 +3519,6 @@
       "browser_identity": "interactive:dais",
       "browser_target_owner": "promptbase-loop-daily",
       "label": "ai.anicca.promptbase-loop-daily",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 900,

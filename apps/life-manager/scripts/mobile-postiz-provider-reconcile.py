@@ -492,6 +492,20 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
     return proof
 
 
+def verify_official_postiz_receipt(
+    identity: dict[str, Any], ledger: Path, api_key: str,
+) -> dict[str, Any]:
+    """Read the exact Postiz post without changing admission state."""
+    owner_id = str(identity.get("loop_id", ""))
+    occurrence_id = str(identity.get("occurrence_id", ""))
+    if not api_key.strip():
+        return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
+    try:
+        return {"status": "ready", **build_official_proof(identity, ledger, api_key)}
+    except (OSError, RuntimeError, ValueError, KeyError, ImportError):
+        return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
+
+
 def reconcile_provider_effect(
     identity: dict[str, Any], ledger: Path, owner_id: str, occurrence_id: str,
     *, state: str | None, effect_unknown: int | None, api_key: str,
@@ -627,6 +641,7 @@ def reconcile_pending_owner(
     """Resolve at most one exact historical Postiz occurrence for this owner."""
     if not ID.fullmatch(owner_id):
         return _inconclusive(owner_id, "", "owner_id_invalid")
+    identity_dir = identity_dir.expanduser()
     try:
         candidates = sorted(identity_dir.iterdir(), key=lambda item: item.name)
     except OSError:
@@ -699,7 +714,26 @@ def main(argv: list[str] | None = None) -> int:
         default=Path.home() / ".local/state/life-manager/host-admission/resources/admission-v2.sqlite3",
     )
     parser.add_argument("--resolve", action="store_true", help="clear only after the fresh official proof")
+    parser.add_argument(
+        "--verify-only", action="store_true",
+        help="read the exact Postiz post without resolving admission state",
+    )
     args = parser.parse_args(argv)
+    if args.verify_only:
+        if args.resolve or args.auto_owner:
+            parser.error("--verify-only requires exact identity arguments and cannot resolve")
+        if not all((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
+            parser.error("--verify-only requires --identity, --ledger, --owner-id and --occurrence-id")
+        identity = read_identity(args.identity, args.owner_id, args.occurrence_id)
+        if identity is None:
+            result = _inconclusive(args.owner_id, args.occurrence_id, "identity_missing_or_invalid")
+        else:
+            result = verify_official_postiz_receipt(
+                identity, args.ledger,
+                os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""),
+            )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0 if result["status"] == "ready" else 1
     if args.auto_owner:
         if any((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
             parser.error("--auto-owner cannot be combined with exact reconciliation arguments")

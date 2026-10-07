@@ -1,4 +1,4 @@
-Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: slides, presentation, deck
+Primary Model: Claude Sonnet 5 · category: 生産性 · tags: slides, presentation, deck
 
 RENEWAL GATE
 R1 recurring input : Each new deck has new source content, audience, and occasion.

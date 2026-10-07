@@ -1,4 +1,4 @@
-Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: tiktok, script, hooks, short-form, reels
+Primary Model: Claude Sonnet 5 · category: マーケティング · tags: tiktok, script, hooks, short-form, reels
 
 RENEWAL GATE
 R1 recurring input : Each new video has a new topic, trend, product, or idea.
@@ -14,9 +14,9 @@ DeepSeek V4.1 Flash model swap + reprice.
 ## week $4.99/month $9.99 on Sonnet.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $9.99 | 25 | No Free Trial |
+| day | $2.99 | 10 | No Free Trial |
+| week | $5.99 | 25 | No Free Trial |
 | month | $19.99 | 60 | No Free Trial |
-| year | $99.99 | 720 | No Free Trial |
 
 ## Title
 TikTok Script Pro — Hook-First Short Videos

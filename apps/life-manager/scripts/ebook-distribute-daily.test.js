@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { APPROVED_CLAIMS, JOBS, approvedBaselineScript, run, selectTarget } = require("./ebook-distribute-daily.js");
+const { APPROVED_CLAIMS, JOBS, approvedBaselineScript, normalizePostizInstagramReceiptRoute, run, selectTarget, verifyLegacyPostizReceipt } = require("./ebook-distribute-daily.js");
 const { buildMarketingVideoPublicationJob } = require("../lib/marketing-video-publication-adapter.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
@@ -102,6 +102,151 @@ test("English owner returns a typed no-effect hold while Postiz keeps its integr
   assert.equal(result.reason, "provider_disabled");
   assert.equal(result.effect, 0);
   assert.equal(fs.existsSync(dataDir), false);
+});
+
+test("an idempotent Instagram replay normalizes only an exact Postiz readback", () => {
+  const ownerId = "ebook-ja-instagram-daily";
+  const occurrenceId = `${ownerId}:run-1`;
+  const integrationId = "cmooplxmu04tpmd0y4h3cpk33";
+  const integrationRef = `integration://postiz/instagram/${integrationId}`;
+  const videoSha256 = "a".repeat(64);
+  const captionSha256 = "b".repeat(64);
+  const publicUrl = "https://www.instagram.com/reel/abc123";
+  const job = buildMarketingVideoPublicationJob({
+    tenantId: "dais-local",
+    productId: "ebook-ja",
+    formatId: "ebook-watercolor",
+    form: "ebook-reflection-reel",
+    locale: "ja",
+    slot: "2026-10-07T03:30:00.000Z",
+    creativeId: "baseline.ebook-ja.d3.s2-20261007T033000000Z",
+    platform: "instagram",
+    videoRef: `object://sha256/${videoSha256}`,
+    captionRef: `object://sha256/${captionSha256}`,
+    approvalRef: `object://sha256/${"c".repeat(64)}`,
+    instagramProfileRef: "profile://instagram/obou.anicca",
+    postizTokenRef: "secret://postiz/api-key",
+    instagramIntegrationRef: integrationRef,
+    slotScopedEffect: true,
+  });
+  const legacy = {
+    schema_version: 1,
+    kind: "marketing_video_distribution",
+    status: "published",
+    product_id: "ebook-ja",
+    format_id: "ebook-watercolor",
+    form: "ebook-reflection-reel",
+    locale: "ja",
+    slot: "2026-10-07T03:30:00.000Z",
+    creative_id: "baseline.ebook-ja.d3.s2-20261007T033000000Z",
+    platform: "instagram",
+    video_sha256: videoSha256,
+    caption_sha256: captionSha256,
+    public_url: publicUrl,
+    provider_post_id: "postiz-ig-1",
+    provider_route: "instagram_file_script",
+    provider_reconciled: true,
+    published_at: "2026-10-07T07:03:41.088Z",
+  };
+  const context = {
+    ownerId,
+    occurrenceId,
+    jobId: job.job_id,
+    effectKey: job.effect_key,
+    platform: "instagram",
+    integrationId,
+    accountId: "@obou.anicca",
+  };
+  const identity = {
+    loop_id: ownerId,
+    occurrence_id: occurrenceId,
+    job_id: job.job_id,
+    effect_key: job.effect_key,
+    product_id: legacy.product_id,
+    format_id: legacy.format_id,
+    form: legacy.form,
+    locale: legacy.locale,
+    platform: legacy.platform,
+    creative_id: legacy.creative_id,
+    slot: legacy.slot,
+    integration_ref: integrationRef,
+    account_id: context.accountId,
+    video_sha256: videoSha256,
+    caption_sha256: captionSha256,
+  };
+  const proof = {
+    status: "ready",
+    owner_id: ownerId,
+    occurrence_id: occurrenceId,
+    verified: true,
+    proof_kind: "postiz_official_readback",
+    provider_receipt_id: legacy.provider_post_id,
+    identity,
+    provider_readback: {
+      provider: "postiz",
+      state: "PUBLISHED",
+      post_id: legacy.provider_post_id,
+      public_url: publicUrl,
+      account_id: context.accountId,
+      integration_ref: integrationRef,
+      local_content: { video_sha256: videoSha256, caption_sha256: captionSha256 },
+    },
+  };
+  const normalize = normalizePostizInstagramReceiptRoute;
+  const result = typeof normalize === "function"
+    ? normalize(legacy, context, proof)
+    : undefined;
+
+  assert.equal(result?.provider_route, "postiz");
+  if (typeof normalize === "function") {
+    assert.equal(legacy.provider_route, "instagram_file_script");
+    assert.equal(
+      normalize(legacy, { ...context, integrationId: "" }, proof).provider_route,
+      "instagram_file_script",
+    );
+    assert.equal(
+      normalize(legacy, context, {
+        ...proof,
+        identity: { ...identity, integration_ref: "integration://postiz/instagram/another" },
+      }).provider_route,
+      "instagram_file_script",
+    );
+    assert.equal(
+      normalize(legacy, context, {
+        ...proof,
+        provider_readback: { ...proof.provider_readback, post_id: "another-post" },
+      }).provider_route,
+      "instagram_file_script",
+    );
+    assert.strictEqual(normalize(legacy, { ...context, platform: "tiktok" }, proof), legacy);
+  }
+});
+
+test("legacy Postiz proof uses a read-only owner reconciler command", () => {
+  const proof = { status: "ready", provider: "postiz" };
+  const verify = verifyLegacyPostizReceipt;
+  const result = typeof verify === "function" ? verify({
+    root: "/release",
+    python: "/python3",
+    apiKey: "test-only",
+    dataDir: "/state",
+    tenantId: "dais-local",
+    ownerId: "ebook-ja-instagram-daily",
+    occurrenceId: "ebook-ja-instagram-daily:run-1",
+    identityPath: "/state/identity.jsonl",
+    ledgerPath: "/state/distribution.jsonl",
+    env: { HOME: "/home/test", PATH: "/bin" },
+    runner(command, args, options) {
+      assert.equal(command, "/python3");
+      assert.equal(args[0], "/release/apps/life-manager/scripts/mobile-postiz-provider-reconcile.py");
+      assert.equal(args[1], "--verify-only");
+      assert.equal(options.env.POSTIZ_API_KEY, "test-only");
+      assert.equal(options.env.LM_RUNTIME_TENANT_ID, "dais-local");
+      return { status: 0, stdout: JSON.stringify(proof) };
+    },
+  }) : undefined;
+
+  assert.deepEqual(result, proof);
 });
 
 test("each eBook publication occurrence owns exactly one provider platform effect", () => {
