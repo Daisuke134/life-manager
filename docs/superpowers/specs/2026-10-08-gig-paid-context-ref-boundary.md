@@ -39,10 +39,11 @@ gig ownerの契約完了は、同一のfunded contract/occurrenceに結びつい
 - 掲載、応募receipt、買い手向け納品receipt、検収、売上settlementは別の証拠です。gross、残高通知、画面の販売表示をsettled netとして扱いません。
 - 他ownerのlease/profile、共有checkout、顧客project stateは切替・編集・再起動しません。
 
-## 2026-10-08 03:12 JSTのCoconala readbackとproof契約
+## 2026-10-08 03:18 JSTのCoconala readbackとproof契約
 
 - 現在の`origin/main`は`541d8466`、immutable current releaseは`20261008T024154-64c078b3`で、owner適用は未収束です。`lm-loop health --json`は186 jobs中、healthy 22 / running 25 / failed 54 / safely_fenced 73 / effect_unknown 9 / telemetry_gap 3。Coconala Paidは`apply_lock_busy`、Storefrontは`resource_effect_unknown`でprovider receiptなしです。
 - `listing_inventory.py collect`の02:55 JST公式seller-list readbackは20件すべて`公開中`。service `4313100`は¥3,000でseller inventoryの`sales_count=0`。既出public service pageの販売表示1件と不一致なので、販売・settlementは`unknown`のままです。
 - 旧runtime run `18d8d288748508e8-23902`のreportは別occurrence `hf-gig-storefront-direct:18d8d2334ab70e80-9111`をclaimし、次run `18d8d2b3f46565c8-28218`のreportは`hf-gig-storefront-direct:18d8d288748508e8-23902`をclaimします。旧stdout pass lineにはruntime run/claimed-occurrence IDがありません。時間窓だけで別runの`pending/effect=0`行を選ぶ解除はしません。
 - pre-effect proofは同一のrequested occurrenceについて、runtime reportの`owner_id`/`loop_id`/`occurrence_id`、正確な`lm-occurrence://.../claim`、storefront stdoutの`runtime_run_id`と`runtime_occurrence_id`、host admissionのowner/state/effect_unknownを全て一致させます。`official_inventory_empty_or_invalid`は`pending/pass`、`official_service_contract_invalid`は`failed/fail`との対応と`effect=0/actionable=0/readback=0`を要求し、旧receiptにidentity fieldsが無ければ`HELD`を維持します。
-- この証拠契約のsource変更は専用gig worktreeでfocused testsがPASSしています。fresh read-only reviewは未完、main merge/release/production fence解決は未実施です。
+- `latest.json`は02:47:59 JSTの`pending/observed=3/actionable=1/effect=0/readback=2`から更新されていません。03:14 JSTのPaid runtime eventは`pass/effect=not_applicable`でもprovider receipt/readbackがなく、対象project lockも保持中です。納品・検収・settlementは未完です。
+- exact run/occurrence bindingのsource修正はbranch `fix/gig-storefront-inventory-pre-effect-proof-20261008`でlocal tests 17+56 PASS、PII scan/diff check PASS、fresh read-only review SHIPです。旧2 occurrenceは新helperのlocal dry-runでも`HELD`のままです。PR #6958はCI実行中で、main merge/release/production resolutionは未実施です。
