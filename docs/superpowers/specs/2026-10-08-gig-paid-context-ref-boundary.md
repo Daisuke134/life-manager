@@ -13,15 +13,15 @@ gig ownerの契約完了は、同一のfunded contract/occurrenceに結びつい
 ## 前段のsource変更
 
 - PR #6936のPaid context reference境界修正とPR #6945のUpwork CDP endpoint修正はmainへ統合済みです。PR #6945は`scout.py`が`CLOAK_CDP_BASE_URL`を使う修正で、focused testは2/2でした。
-- 現在の`origin/main`は`6c9a34c163`。immutable current releaseは`20261008T015349-c5c4d791`で、mainと同じSHAではありません。source mergeはproduction loadや自然runの証拠ではありません。
+- `origin/main`とcurrent symlinkは`6c9a34c163` / `20261008T022813-6c9a34c1`で一致します。ただしownerごとのpromotionは未収束です。02:39 JSTのreadbackではCoconala Paid/Browser、CrowdWorks Application、Lancers Work-sync、Mercor Replyが旧`c5c4d791`、一部ownerは`6c9a34c1`でした。`life-manager-release-reconciler`は`entrypoint_exit_75` / `reconcile_owner`、`life-manager-disk-cleanup`は`apply_lock_busy`です。強制apply/restartせず、各ownerのnatural terminal後に既存reconcilerの収束をreadbackします。
 
-## 2026-10-08 02:37 JSTのreadback
+## 2026-10-08 02:41 JSTのreadback
 
-- `lm-loop health --json`: 186 jobs中、healthy 41 / running 25 / failed 34 / safely_fenced 74 / effect_unknown 9 / telemetry_gap 3。状態は自然wakeで変わるため、owner別の次の操作前に再readbackします。
+- `lm-loop health --json`（02:37 JST）: 186 jobs中、healthy 41 / running 25 / failed 34 / safely_fenced 74 / effect_unknown 9 / telemetry_gap 3。02:41 JSTの`df -Pk /`は空き2.51 GiB。状態は自然wakeで変わるため、owner別の次の操作前に再readbackします。
 - product-loop catalogに管理登録されるgig loopはCoconala 7、Lancers 7、CrowdWorks 5、Mercor 3です。FreelancerとUpworkのmanaged product loopはありません。現行4 loopのcloud availabilityはすべて`setup_required`です。
 - Coconala Paid ownerのoccurrence `798461c1a4ebdc8d0db12669`は02:30 JSTに`phase=report`, `status=pass`, `effect=not_applicable`で、provider receipt/readbackなしでした。02:32 JSTの公式talkroom readbackでは1件が¥9,000・「取引中／進行中」。parserは既存artifactの買い手可視化とその後の買い手返信を観測し、feedbackを`revision`に分類しました。正式納品receiptはなく、`formal_delivery_confirmed=false`です。よって契約は未納品で、settled revenueではありません。対象projectの`.paid-effect-owner.lock`を`paid_direct.py` processが保持中のため、既存ownerのstateや納品物は編集しません。受注一覧snapshotは3件を観測していますが、一覧上の各`status`は`unknown`です。
 - 公開中[Coconala service page](https://coconala.com/services/4313100)はreadback時に販売実績1件を表示しました。これは掲載・表示実績であり、このturnの新規購入、検収、settlementのreceiptではありません。
-- 最新owner statusでは、Coconala Applyは02:35 JSTに`resource_effect_unknown`、Storefrontは02:37 JSTに`disk_headroom_low`でeffect前hold。Lancers Storefrontは`resource_effect_unknown`。CrowdWorks Applicationはprocess passだが`effect_status=unknown`、Paidは`entrypoint_exit_75` / `official_readback_required`。Mercor Applicationは`resource_effect_unknown`。provider receipt/readbackは未結合です。新しいpre-effect holdで古いeffect fenceが自動解除されたとは扱わず、無差別restart・再送もしません。
+- 最新owner statusでは、Coconala Apply/Storefrontはrelease `6c9a34c1`で`resource_effect_unknown`、Paid/Browserは旧releaseでloaded-running。Lancers Application/Negotiateは新releaseでも`disk_headroom_low`、Paidは`entrypoint_exit_1`かつ`effect_unknown`、Storefrontも`effect_unknown`。CrowdWorks Paid/Replyは新releaseで`entrypoint_exit_75` / `official_readback_required`、Applicationは旧releaseで`effect_status=unknown`。Mercor Applicationは新releaseのまま`unloaded`かつ`resource_effect_unknown`、Paidは`resource_effect_unknown`、Replyは旧releaseです。provider receipt/readbackは未結合です。新しいpre-effect holdで古いeffect fenceが自動解除されたとは扱わず、無差別restart・再送もしません。
 - LancersのWAF worktreeは`lm-cfo-observability-1002`のactive leaseです。担当外として維持します。AGMSG inboxに新着はありません。open PR #6485/#6338/#4813などは以前のsource課題であり、現在のproduction receiptの代用ではありません。
 - Upwork公式[Project Catalog作成ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)とFreelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定額サービス掲載面の存在を示します。Upwork `Project Dashboard`は02:35 JSTにログイン・verification誘導なしで読め、「Drafts (0)」とProject Catalog UIは表示されましたが、公開listing件数は見えず`unknown`です。Freelancerのaccount-bound auth/listing inventoryも未確認です。公式機能の存在を自アカウントの出品状態と混同しません。
 
