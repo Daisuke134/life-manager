@@ -21,6 +21,19 @@ function instant(value, label) {
   return parsed.toISOString();
 }
 
+function transactionCalendarDate(value) {
+  const text = String(value || "");
+  const date = text.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(text))) {
+    throw new Error("Moneytree transaction date is invalid");
+  }
+  const calendarDay = new Date(`${date}T00:00:00.000Z`);
+  if (!Number.isFinite(calendarDay.getTime()) || calendarDay.toISOString().slice(0, 10) !== date) {
+    throw new Error("Moneytree transaction date is invalid");
+  }
+  return date;
+}
+
 function hash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -137,7 +150,7 @@ function normalizeTransactions(toolResult) {
       source_ref: `moneytree:${createHash("sha256").update(`source:${key}`).digest("hex")}`,
       account_id: `moneytree:${createHash("sha256").update(String(row.account_id)).digest("hex").slice(0, 24)}`,
       amount_jpy: row.amount_in_base ?? row.amount,
-      occurred_at: row.date,
+      occurred_at: transactionCalendarDate(row.date),
       merchant: row.description,
       category: row.category_name || "未分類",
     };

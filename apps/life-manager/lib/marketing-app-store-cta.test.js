@@ -56,7 +56,8 @@ test("buildMarketingCtaCaptionRef writes a new content object distinct from the 
   });
   assert.notEqual(result, baseCaptionRef);
   const caption = fs.readFileSync(objectStore.resolve(result), "utf8");
-  assert.equal(caption, "affirmation hook\n\n#anicca\n\nGet the app → https://apps.apple.com/app/id6755129214\n");
+  assert.equal(caption, "affirmation hook\n\n#anicca\n\nGet the app → https://apps.apple.com/app/id6755129214");
+  assert.equal(caption.endsWith("\n"), false);
 });
 
 test("appStoreUrl matches the App Store Connect app ids for both products", () => {

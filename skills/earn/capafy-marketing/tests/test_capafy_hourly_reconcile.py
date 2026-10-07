@@ -18,6 +18,13 @@ def load_module():
     return module
 
 
+@pytest.fixture(autouse=True)
+def isolate_served_model_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    path = tmp_path / "capafy-served-models.json"
+    monkeypatch.setenv("CAPAFY_SERVED_MODELS", str(path))
+    return path
+
+
 def live_payloads() -> dict:
     return {
         "account": {"code": 0, "data": {"email": "owner@example.com"}},
@@ -242,6 +249,58 @@ def test_money_mode_is_read_only_and_keeps_subscription_mrr_unknown(
     assert shown["usage"]["requests"] == 1
     assert shown["usage"]["estimated_model_cost_usd"] == "0.00"
     assert shown["openrouter_host_key_calendar_month_usage_usd"] == "2.50"
+
+
+def test_live_money_mode_does_not_write_served_model_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    isolate_served_model_cache: Path,
+) -> None:
+    module = load_module()
+    payloads = live_payloads()
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+
+    def get(path: str, _token: str) -> dict:
+        if path == "/agent/account":
+            return payloads["account"]
+        if path == "/agent/agents":
+            return payloads["inventory"]
+        if path.startswith("/agent/sales/trend?"):
+            return payloads["sales"]
+        if path == "/agent/developer/payout-info":
+            return payloads["payout"]
+        if path == "/agent/refund/developer/list":
+            return payloads["refunds"]
+        if path.startswith("/app/developer/settlement-statement/"):
+            return payloads["statements"]
+        if path.startswith("/agent/agents/"):
+            return {"code": 0, "data": {"model": "Claude Sonnet 4.6"}}
+        return {"code": 0, "data": {}}
+
+    def post(path: str, _token: str, _body: dict) -> dict:
+        return {
+            "/app/sales/clickhouse/trend": payloads["seller_sales"],
+            "/app/sales/clickhouse/ranking": payloads["seller_ranking"],
+            "/app/realtime-revenue/clickhouse/trend": payloads["creator_earnings"],
+            "/app/realtime-revenue/clickhouse/comparison": payloads["earnings_ranking"],
+            "/app/unit-sales/clickhouse/trend": payloads["unit_sales"],
+            "/app/unit-sales/clickhouse/ranking": payloads["unit_sales"],
+        }.get(path, {"code": 0, "data": {}})
+
+    monkeypatch.setattr(module, "_get", get)
+    monkeypatch.setattr(module, "_post", post)
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: payloads["usage_requests"])
+    monkeypatch.setattr(module, "_openrouter_data", lambda *_args: {})
+    output = tmp_path / "money-readback.json"
+
+    module.main(["--money", "--json", "--output", str(output), "--observed-at", "2026-09-17T00:00:00Z"])
+
+    shown = json.loads(capsys.readouterr().out)
+    assert shown["kind"] == "capafy_money_readback"
+    assert not isolate_served_model_cache.exists()
+    assert not output.exists()
 
 
 def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:

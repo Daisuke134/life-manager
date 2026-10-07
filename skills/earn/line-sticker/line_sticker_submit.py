@@ -66,6 +66,47 @@ def _title_units(text: str) -> int:
     return sum(2 if unicodedata.east_asian_width(ch) in ("F", "W", "A") else 1 for ch in text)
 
 
+# Description limit, same width counting (160 units; measured live 2026-10-07 set-007).
+DESC_MAX = 158
+LIMIT_TITLE = 40
+
+
+def _fit(text: str, limit: int) -> str:
+    if _title_units(text) <= limit:
+        return text
+    cut = ""
+    for ch in text:
+        if _title_units(cut + ch) > limit:
+            break
+        cut += ch
+    # Prefer ending on a sentence, else a word boundary.
+    for marks in ("。.!！?？", " 、,"):
+        idx = max(cut.rfind(m) for m in marks)
+        if idx >= len(cut) // 2:
+            return cut[: idx + 1].rstrip(" 、,&-:;・")
+    return cut.rstrip(" 、,&-:;・")
+
+
+_ASCII_PUNCT = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+                               "\u2013": "-", "\u2014": "-", "\u2026": "..."})
+
+
+def _clean(text: str) -> str:
+    """Creators Market rejects some characters (利用できない文字; live 2026-10-07 set-008 had '’').
+    Use ASCII punctuation and drop emoji/pictographs the form refuses."""
+    text = text.translate(_ASCII_PUNCT)
+    return "".join(ch for ch in text if not (unicodedata.category(ch) == "So" or ord(ch) >= 0x1F000)).strip()
+
+
+def _fit_listing(listing: dict) -> dict:
+    """Clamp model-written copy to Creators Market's character set and width-counted limits."""
+    titles = {k: _fit(_clean(v), LIMIT_TITLE) for k, v in listing["title"].items()}
+    descs = {k: _fit(_clean(v), DESC_MAX) for k, v in listing.get("description", {}).items()}
+    if titles == listing["title"] and descs == listing.get("description", {}):
+        return listing
+    return dict(listing, title=titles, description=descs)
+
+
 def _retitle(listing: dict) -> dict | None:
     name = listing.get("character_name") or ""
     if not name:
@@ -88,6 +129,7 @@ class TitleTaken(RuntimeError):
 
 
 async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
+    listing = _fit_listing(listing)
     saves: list = []
     page.on("response", lambda r: saves.append(r) if r.request.method == "POST" and r.url.endswith("/api/v2/sticker") else None)
     await _goto(page, f"{BASE}/sticker/create")
@@ -234,6 +276,19 @@ async def _request_review(page: Page, item: dict) -> dict:
     return dict(item)
 
 
+async def _idempotent_step(step, item: dict, next_state: str) -> dict:
+    """Run an overwrite-only step (image upload, tagging). A failure here cannot leave a partial
+    external effect worth fencing, so keep the state and let the next launch redo it instead of
+    crashing into an unknown-effect fence (a fleet apply restarted the browser mid-tagging live
+    2026-10-07 10:00Z)."""
+    try:
+        await step()
+    except Exception as exc:  # noqa: BLE001 - any browser failure means "redo next launch"
+        print(json.dumps({"retry_step": next_state, "error": str(exc)[:300]}, ensure_ascii=False), file=sys.stderr)
+        return dict(item)
+    return dict(item, state=next_state)
+
+
 async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: Path, selection: dict) -> dict:
     async with async_playwright() as playwright:
         browser = await playwright.chromium.connect_over_cdp(cdp)
@@ -250,18 +305,17 @@ async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: P
                         raise
                     return await _create_item(page, retitled, selection)
             if item.get("state") == "metadata_saved":
-                await _upload_images(page, item, package_dir)
-                item = dict(item, state="images_uploaded")
-                return item
+                return await _idempotent_step(lambda: _upload_images(page, item, package_dir), item, "images_uploaded")
             if item.get("state") == "images_uploaded":
-                await _tag_all(page, item, tags)
-                item = dict(item, state="tagged")
-                return item
+                return await _idempotent_step(lambda: _tag_all(page, item, tags), item, "tagged")
             if item.get("state") == "tagged":
                 return await _request_review(page, item)
             return item
         finally:
-            await page.close()
+            try:
+                await page.close()
+            except Exception:  # noqa: BLE001 - the browser may already be gone
+                pass
 
 
 def submit(set_dir: Path, item: dict, listing: dict, tags: dict) -> dict:

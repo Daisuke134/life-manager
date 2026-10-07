@@ -62,7 +62,9 @@ def test_dry_run_exits_zero_and_writes_ledger(tmp_path: Path) -> None:
     (entry,) = ledger.values()
     assert entry["status"] == "dry_run"
     assert entry["capafy_skill"] in {"hook-lab", "slide-maker"}
-    assert "ct=capafy-distribute-" in entry["cta_url"]
+    # Capafy only attributes ct values registered as promotion links in the
+    # console (2026-10-07); these are the ones issued for the sellers.
+    assert entry["cta_url"].endswith(("ct=hooklab_blog", "ct=slides_blog"))
 
 
 def test_second_dry_run_same_day_is_a_no_op_and_does_not_rewrite_the_pick(tmp_path: Path) -> None:

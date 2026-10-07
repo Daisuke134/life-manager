@@ -111,6 +111,18 @@ CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${CAPAFY_CT}"
 # traffic-sources dashboard reports aniccaai.com-article visits and X-post
 # visits as two separate rows instead of merging them under one token.
 X_CT="capafy-x-${CAPAFY_SKILL_SLUG}"
+# Capafy attributes only ct values registered as promotion links in the seller
+# console (新しいプロモーションリンク), and it rewrites/truncates the name it is given:
+# "capafy-distribute-hook-lab" became ct=capafy_distribute_hook_l, so none of the
+# unregistered tokens above ever showed up in traffic sources. These are the ct
+# values Capafy issued on 2026-10-07; add a pair here when a new skill is promoted.
+case "$CAPAFY_SKILL_SLUG" in
+  hook-lab) CAPAFY_CT=hooklab_blog; X_CT=hooklab_x ;;
+  tiktok-script-pro) CAPAFY_CT=tiktok_blog; X_CT=tiktok_x ;;
+  youtube-script-writer) CAPAFY_CT=youtube_blog; X_CT=youtube_x ;;
+  slide-maker) CAPAFY_CT=slides_blog; X_CT=slides_x ;;
+esac
+CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${CAPAFY_CT}"
 X_CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${X_CT}"
 
 # The aniccaai.com blog slug is derived from date+skill (not the title), so
