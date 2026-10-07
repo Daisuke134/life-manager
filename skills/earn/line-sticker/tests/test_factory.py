@@ -130,6 +130,33 @@ class FullRunSubmit(unittest.TestCase):
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
 
 
+class UnrecoveredSpendCap(unittest.TestCase):
+    def _seed(self, state_root, costs, sales):
+        for i, cost in enumerate(costs, 1):
+            d = state_root / f"set-{i:03d}"
+            d.mkdir(parents=True)
+            MODULE._atomic_write_json(d / "stage.json", {"stage": "submitted", "cost_usd": str(cost)})
+            MODULE._atomic_write_json(d / "creators-item.json", {"product_id": str(100 + i)})
+        MODULE._atomic_write_json(state_root / "sales.json", {"products": [
+            {"product_id": str(100 + i), "sales_jpy": s} for i, s in enumerate(sales, 1)]})
+
+    def test_no_new_set_while_spend_minus_revenue_exceeds_the_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            self._seed(state_root, [30, 15], [0, None])
+            report = MODULE.wake(state_root, _fake_deps(max_sets_per_day=50, max_unrecovered_usd=MODULE.Decimal("40")))
+            self.assertEqual(report["reason"], "unrecovered_spend_cap")
+            self.assertFalse((state_root / "set-003").exists())
+
+    def test_revenue_reopens_production(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            self._seed(state_root, [30, 15], [1500, None])  # 1500 JPY = 10 USD recovered
+            report = MODULE.wake(state_root, _fake_deps(max_sets_per_day=50, max_unrecovered_usd=MODULE.Decimal("40")))
+            self.assertNotEqual(report.get("reason"), "unrecovered_spend_cap")
+            self.assertTrue((state_root / "set-003").exists())
+
+
 class DailyCap(unittest.TestCase):
     def test_no_new_set_once_daily_cap_reached(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
