@@ -3839,3 +3839,13 @@ MX readiness: source65rows分類とconfigured release関連17hash一致を確認
 private配布物probe: baseline9cases＋retry0 override2cases。defaultdisconnectHOLD、overrideのboundedfake recoveryPASS（1request/0retry/9.48秒）、native/business parity未測定。realmodelcalls0/prodmutations0。MX-04bを初回adapter順に追加。旧HA80/gateway/cron/cloudはinactiveのまま。
 
 retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2casesもPASS（disconnect1request/0retry/8.839秒、次invoke成功、survivor0）。fakeruntime合計13cases。MX-04bの配置は実測済み、native/backend/account/economicsは別unmeasured。
+
+
+## Host disk recovery incident
+
+目的: Mac のディスク逼迫の主因を観測し、未使用で再生成可能な出力を回収し、cleanup の実稼働と容量不足の誤成功を修正する。
+範囲: host inventory、所有者が確認できる stale process/cache、既存 disk cleanup owner。認証、memory、state JSONL、使用中 release と他者の編集を保護する。
+受け入れ: 空き容量の前後、正確な回収対象、cleanup scheduled receipt、誤成功の focused regression、source/main/release evidence。再発しないという無期限の保証は行わない。
+観測: Data volume の空き約 1.5 GiB、ゾンビ状態0、cleanup の過去 receipt は ULTRA/zero reclaim を ok=true としている。GUI preflight PASS だが cleanup label 未ロード。
+TODO: [進行中] 最大容量familyの診断と安全回収 → [未完] exact cleanup failureの最小修正 → [未完] source acceptance/merge/immutable release → [未完] natural receiptと空き容量readback。
+現在cursor: 大容量familyの計測、既存allowlist governorのowner lock下での回収。既存business TODOの順序は変更しない。
