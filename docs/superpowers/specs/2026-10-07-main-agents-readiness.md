@@ -1,10 +1,18 @@
-# ローカルLife Manager — OpenClawを最大限再利用する移行仕様
+# ローカルLife Manager — 優れた既存機能を再利用する移行仕様
 
 ## 目的と現在の対象
 
-ローカルで動くLife Managerを保ち、独自の一般agent実行・session・cron・traceをOpenClawの実装へ寄せる。Life Manager CLI、商品、顧客、注文、制作資産、アカウント、公式receipt、純収支を維持する。最新mainは16能力/110jobs（LINE Sticker追加）、92有限jobと18continuous service。過去15/107の監査は履歴で、今の完了分母にしない。
+ローカルで動くLife Managerを保ち、現行とOpenClawの実装を機能ごとに比較して、より適した既存実装を再利用する。OpenClaw採用量や移行件数を成果指標にしない。Life Manager CLI、商品、顧客、注文、制作資産、アカウント、公式receipt、純収支を維持する。最新mainは16能力/110jobs（LINE Sticker追加）、92有限jobと18continuous service。過去15/107の監査は履歴で、今の完了分母にしない。
 
 今回の依頼はspec/TODO更新。runtimeの実装、install/apply/start/stop、provider mutationは実施しない。以下は実装から最後の退役までの実行仕様であり、実施済みではない。
+
+## 再利用の判断基準
+
+目的は新しい仕組みを増やすことでも、既存実装をすべて置換することでもない。①既存LMで十分な機能は保持、②OpenClawが適する共通機能は公式API/pluginを再利用、③必要な接着だけ追加、④実際に置き換わって参照0になった重複だけ削除する。
+
+session/traceの共通管理はOpenClawが有力。商品の業務、予算/収益優先、effect/readback、CFOは現行を保持。cronとsubagentは用途と利点がある場合だけ採用する。既存の良い実装をOpenClawに合わせて書き直すことや、現行を残すこと自体を失敗にしない。
+
+component/jobのdecisionはreuse_openclaw|retain_existing|defer。source根拠・便益・維持する契約・退役対象を記録する。deferは未完、retain_existingは正当な完了。source acceptance/自然結果/唯一schedulerの条件はどちらにも適用する。原子的TODOの移管操作はdecisionがreuse_openclawの場合のみ実行する。
 
 ## 最終アーキテクチャ
 
@@ -23,7 +31,7 @@ flowchart TD
   B[OS supervisor: Gateway・18browser等service] --> O
 ```
 
-OpenClawはnative Codexのモデル実行、context/session、skills/subagent機構、定期wake、run history、復旧、OTelを担当する。自作のcron/session DB、model/tool trace exporter、子agent frameworkを増やさない。cron command payloadなら決定的な仕事をモデルなしで呼べる。92有限jobは安全契約成立後に一件ずつOpenClaw cronへ移す。18continuous browser等とGateway自体はOS supervisorの責任で、無限model推論へ変えない。
+OpenClawはnative Codexのモデル実行、context/session、skills/subagent機構、定期wake、run history、復旧、OTelを担当する。自作のcron/session DB、model/tool trace exporter、子agent frameworkを増やさない。cron command payloadなら決定的な仕事をモデルなしで呼べる。92有限jobは一件ずつschedule判断を記録する。現行の方が適するjobは現行を保持し、OpenClaw cronに利点があるjobだけ安全契約成立後に移す。18continuous browser等とGateway自体はOS supervisorの責任で、無限model推論へ変えない。
 
 Life Managerは商品の業務、収益優先/共有browser枠、spend cap、外部effectと公式receipt/純収益を担当する。これらは独自ハーネスの再発明ではなく、OpenClawから呼ぶdomain policy/tools。既存API/ledger/readbackを使い、同じ機能を別実装で複製しない。
 
@@ -54,9 +62,9 @@ stable owner sessionを標準とし、fresh reviewはtask別session。stateとar
 
 ## 完了の定義
 
-16能力/110jobsの実source呼出がcovered。必要なmodel境界はOpenClaw、specialized Gemini image/FAL/build/決定的処理は既存tool、18continuousはnative service。92finiteのschedule ownerはOpenClaw cronへ一件ずつ移管済み。全jobの自然run/readbackと必要な成果・費用が結合し、移行で増えた重複/欠落0。未知または旧model routeが残れば全移行完了とはしない。
+16能力/110jobsの実source呼出がcovered。推論はChatGPT account接続native Codexのみ。採用した管理境界はOpenClaw、保持した境界は既存Codex経路で、specialized Gemini image/FAL/build/決定的処理は既存tool、18continuousはnative service。92finiteのschedule判断が記録済みで、採用したauthorityだけが稼働している。全92件のcron移管は完了条件にしない。全jobの自然run/readbackと必要な成果・費用が結合し、移行で増えた重複/欠落0。未知の必要契約が残れば完了にしない。一方、根拠を記録してretainと決めた既存Codex route/schedulerは正常な最終構成であり未完ではない。
 
-最後に参照0の独自runtime分岐だけを削除する。OpenClawが使うCodex/Claude binaries、OS services、LM admission/effect/financeを削除しない。local clean-user導入とrollback手順が成立したmainを成果とする。OS対応をOpenClaw対応だけから推定しない。Cloud製品やLinux/Windows全業務の新実装はこのlocal成果に混ぜない。
+最後に参照0の独自runtime分岐だけを削除する。OpenClawが使うCodex binaries、OS services、LM admission/effect/financeを削除しない。local clean-user導入とrollback手順が成立したmainを成果とする。OS対応をOpenClaw対応だけから推定しない。Cloud製品やLinux/Windows全業務の新実装はこのlocal成果に混ぜない。
 
 ## 推論モデル・認証の固定条件
 
@@ -78,9 +86,11 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 
 
+
+
 ## 原子的TODO（状態/cursorの唯一の正本は統一SSOT）
 
-全215atom。target/symbol/change/check/dependencyを固定。
+全215atomは検証・必要な接続・条件付き切替・整理の手順。全部の置換を強制するリストではない。
 
 ### OC-001 — dependencies
 
@@ -414,7 +424,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-01 — owners for gig-coconala
 
-- [ ] `config/openclaw-routes.json` — P-01のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-01のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-01, OC-049, OC-052
 
@@ -426,7 +436,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-02 — owners for gig-lancers
 
-- [ ] `config/openclaw-routes.json` — P-02のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-02のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-02, OC-049, OC-052
 
@@ -438,7 +448,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-03 — owners for gig-crowdworks
 
-- [ ] `config/openclaw-routes.json` — P-03のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-03のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-03, OC-049, OC-052
 
@@ -450,7 +460,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-04 — owners for writer
 
-- [ ] `config/openclaw-routes.json` — P-04のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-04のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-04, OC-049, OC-052
 
@@ -462,7 +472,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-05 — owners for affiliate
 
-- [ ] `config/openclaw-routes.json` — P-05のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-05のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-05, OC-049, OC-052
 
@@ -474,7 +484,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-06 — owners for investment
 
-- [ ] `config/openclaw-routes.json` — P-06のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-06のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-06, OC-049, OC-052
 
@@ -486,7 +496,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-07 — owners for agent-economy
 
-- [ ] `config/openclaw-routes.json` — P-07のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-07のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-07, OC-049, OC-052
 
@@ -498,7 +508,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-08 — owners for job-hunter
 
-- [ ] `config/openclaw-routes.json` — P-08のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-08のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-08, OC-049, OC-052
 
@@ -510,7 +520,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-09 — owners for fundraiser
 
-- [ ] `config/openclaw-routes.json` — P-09のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-09のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-09, OC-049, OC-052
 
@@ -522,7 +532,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-10 — owners for connector
 
-- [ ] `config/openclaw-routes.json` — P-10のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-10のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-10, OC-049, OC-052
 
@@ -534,7 +544,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-11 — owners for self-build
 
-- [ ] `config/openclaw-routes.json` — P-11のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-11のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-11, OC-049, OC-052
 
@@ -546,7 +556,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-12 — owners for mobile-apps
 
-- [ ] `config/openclaw-routes.json` — P-12のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-12のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-12, OC-049, OC-052
 
@@ -558,7 +568,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-13 — owners for ebook
 
-- [ ] `config/openclaw-routes.json` — P-13のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-13のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-13, OC-049, OC-052
 
@@ -570,7 +580,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-14 — owners for capafy
 
-- [ ] `config/openclaw-routes.json` — P-14のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-14のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-14, OC-049, OC-052
 
@@ -582,7 +592,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-15 — owners for line-sticker
 
-- [ ] `config/openclaw-routes.json` — P-15のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-15のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-15, OC-049, OC-052
 
@@ -594,7 +604,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### A-16 — owners for cfo
 
-- [ ] `config/openclaw-routes.json` — P-16のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
+- [ ] `config/openclaw-routes.json` — 当該owner/taskの管理境界decisionを記録。既存ChatGPT Codex経路が適している場合はretain_existingとして保持し、二重管理なしを検証。reuse_openclawの場合だけ以下を有効化。 P-16のcoverage_passとChatGPT Codex native accountと承認済modelの確認が成立したowner/taskだけengine=openclawへ設定。18continuousはnative_service、specialized media APIは既存tool。sharedモデル以外の直接境界は下のC taskを先に修正。schedulerはここではlegacyのまま。各ownerのmain release反映はloaded-idle/pending無し時だけ一件ずつ。未合格ownerは現行のまま、group移行完了にしない。
 - 完了条件: routes test、source acceptance→main-derived release→target idle apply→次の自然model呼出でschema/trace/usageを確認。他owner/source/state不変。
 - 依存: P-16, OC-049, OC-052
 
@@ -648,650 +658,650 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### S-hf-gig-apply-direct — unique wake authority for hf-gig-apply-direct
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-apply-direct.json` — OC-045/046をowner=hf-gig-apply-direct,entrypoint=runtime/loop/entry_dispatch.py,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-apply-direct.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=hf-gig-apply-direct,entrypoint=runtime/loop/entry_dispatch.py,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-01
 
 ### S-hf-gig-apply-evidence-gc — unique wake authority for hf-gig-apply-evidence-gc
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-apply-evidence-gc.json` — OC-045/046をowner=hf-gig-apply-evidence-gc,entrypoint=skills/earn/gig/scripts/evidence_gc.py,cadence={"start_interval_seconds": 21600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-apply-evidence-gc.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=hf-gig-apply-evidence-gc,entrypoint=skills/earn/gig/scripts/evidence_gc.py,cadence={"start_interval_seconds": 21600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-01
 
 ### S-hf-gig-daily-report — unique wake authority for hf-gig-daily-report
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-daily-report.json` — OC-045/046をowner=hf-gig-daily-report,entrypoint=skills/earn/gig/gig_daily_report.sh,cadence={"calendar_interval": {"Hour": 9, "Minute": 7}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-daily-report.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=hf-gig-daily-report,entrypoint=skills/earn/gig/gig_daily_report.sh,cadence={"calendar_interval": {"Hour": 9, "Minute": 7}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-01
 
 ### S-hf-gig-paid-direct — unique wake authority for hf-gig-paid-direct
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-paid-direct.json` — OC-045/046をowner=hf-gig-paid-direct,entrypoint=skills/earn/gig/scripts/paid-direct-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-paid-direct.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=hf-gig-paid-direct,entrypoint=skills/earn/gig/scripts/paid-direct-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-01
 
 ### S-hf-gig-reply-detector — unique wake authority for hf-gig-reply-detector
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-reply-detector.json` — OC-045/046をowner=hf-gig-reply-detector,entrypoint=skills/earn/gig/scripts/coconala-reply-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-reply-detector.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=hf-gig-reply-detector,entrypoint=skills/earn/gig/scripts/coconala-reply-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-01
 
 ### S-hf-gig-storefront-direct — unique wake authority for hf-gig-storefront-direct
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-storefront-direct.json` — OC-045/046をowner=hf-gig-storefront-direct,entrypoint=runtime/loop/entry_dispatch.py,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/hf-gig-storefront-direct.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=hf-gig-storefront-direct,entrypoint=runtime/loop/entry_dispatch.py,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-01
 
 ### S-lancers-revenue-application — unique wake authority for lancers-revenue-application
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-application.json` — OC-045/046をowner=lancers-revenue-application,entrypoint=skills/earn/lancers/scripts/application-owner,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-application.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=lancers-revenue-application,entrypoint=skills/earn/lancers/scripts/application-owner,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-02
 
 ### S-lancers-revenue-negotiate — unique wake authority for lancers-revenue-negotiate
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-negotiate.json` — OC-045/046をowner=lancers-revenue-negotiate,entrypoint=skills/earn/lancers/scripts/negotiate-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-negotiate.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=lancers-revenue-negotiate,entrypoint=skills/earn/lancers/scripts/negotiate-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-02
 
 ### S-lancers-revenue-paid — unique wake authority for lancers-revenue-paid
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-paid.json` — OC-045/046をowner=lancers-revenue-paid,entrypoint=skills/earn/lancers/scripts/paid-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-paid.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=lancers-revenue-paid,entrypoint=skills/earn/lancers/scripts/paid-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-02
 
 ### S-lancers-revenue-storefront — unique wake authority for lancers-revenue-storefront
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-storefront.json` — OC-045/046をowner=lancers-revenue-storefront,entrypoint=skills/earn/lancers/scripts/storefront-owner,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-storefront.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=lancers-revenue-storefront,entrypoint=skills/earn/lancers/scripts/storefront-owner,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-02
 
 ### S-lancers-revenue-telegram-report — unique wake authority for lancers-revenue-telegram-report
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-telegram-report.json` — OC-045/046をowner=lancers-revenue-telegram-report,entrypoint=skills/earn/lancers/scripts/telegram-report-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-telegram-report.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=lancers-revenue-telegram-report,entrypoint=skills/earn/lancers/scripts/telegram-report-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-02
 
 ### S-lancers-revenue-work-sync — unique wake authority for lancers-revenue-work-sync
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-work-sync.json` — OC-045/046をowner=lancers-revenue-work-sync,entrypoint=skills/earn/lancers/scripts/work-sync-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/lancers-revenue-work-sync.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=lancers-revenue-work-sync,entrypoint=skills/earn/lancers/scripts/work-sync-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-02
 
 ### S-crowdworks-revenue-application — unique wake authority for crowdworks-revenue-application
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-application.json` — OC-045/046をowner=crowdworks-revenue-application,entrypoint=skills/earn/crowdworks/scripts/application-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-application.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=crowdworks-revenue-application,entrypoint=skills/earn/crowdworks/scripts/application-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-03
 
 ### S-crowdworks-revenue-paid — unique wake authority for crowdworks-revenue-paid
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-paid.json` — OC-045/046をowner=crowdworks-revenue-paid,entrypoint=skills/earn/crowdworks/scripts/paid-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-paid.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=crowdworks-revenue-paid,entrypoint=skills/earn/crowdworks/scripts/paid-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-03
 
 ### S-crowdworks-revenue-reply — unique wake authority for crowdworks-revenue-reply
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-reply.json` — OC-045/046をowner=crowdworks-revenue-reply,entrypoint=skills/earn/crowdworks/scripts/reply-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-reply.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=crowdworks-revenue-reply,entrypoint=skills/earn/crowdworks/scripts/reply-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-03
 
 ### S-crowdworks-revenue-report — unique wake authority for crowdworks-revenue-report
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-report.json` — OC-045/046をowner=crowdworks-revenue-report,entrypoint=skills/earn/crowdworks/scripts/report-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-report.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=crowdworks-revenue-report,entrypoint=skills/earn/crowdworks/scripts/report-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-03
 
 ### S-writer-claim-loop — unique wake authority for writer-claim-loop
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-claim-loop.json` — OC-045/046をowner=writer-claim-loop,entrypoint=skills/writer-agent/scripts/claim-loop-owner,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-claim-loop.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-claim-loop,entrypoint=skills/writer-agent/scripts/claim-loop-owner,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-writer-craft-train — unique wake authority for writer-craft-train
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-craft-train.json` — OC-045/046をowner=writer-craft-train,entrypoint=skills/writer-agent/scripts/craft-train-owner,cadence={"calendar_interval": {"Hour": 23, "Minute": 10}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-craft-train.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-craft-train,entrypoint=skills/writer-agent/scripts/craft-train-owner,cadence={"calendar_interval": {"Hour": 23, "Minute": 10}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-writer-money-sync — unique wake authority for writer-money-sync
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-money-sync.json` — OC-045/046をowner=writer-money-sync,entrypoint=skills/writer-agent/scripts/money-sync-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-money-sync.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-money-sync,entrypoint=skills/writer-agent/scripts/money-sync-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-writer-opportunity-discovery — unique wake authority for writer-opportunity-discovery
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-opportunity-discovery.json` — OC-045/046をowner=writer-opportunity-discovery,entrypoint=skills/writer-agent/scripts/opportunity-discovery-owner,cadence={"start_interval_seconds": 86400}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-opportunity-discovery.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-opportunity-discovery,entrypoint=skills/writer-agent/scripts/opportunity-discovery-owner,cadence={"start_interval_seconds": 86400}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-writer-opportunity-response — unique wake authority for writer-opportunity-response
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-opportunity-response.json` — OC-045/046をowner=writer-opportunity-response,entrypoint=skills/writer-agent/scripts/opportunity-response-owner,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-opportunity-response.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-opportunity-response,entrypoint=skills/writer-agent/scripts/opportunity-response-owner,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-writer-report — unique wake authority for writer-report
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-report.json` — OC-045/046をowner=writer-report,entrypoint=skills/writer-agent/scripts/writer-report-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-report.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-report,entrypoint=skills/writer-agent/scripts/writer-report-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-writer-sales-measure — unique wake authority for writer-sales-measure
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-sales-measure.json` — OC-045/046をowner=writer-sales-measure,entrypoint=skills/writer-agent/scripts/writer-sales-measure-worker.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/writer-sales-measure.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=writer-sales-measure,entrypoint=skills/writer-agent/scripts/writer-sales-measure-worker.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-04
 
 ### S-affiliate-composition — unique wake authority for affiliate-composition
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/affiliate-composition.json` — OC-045/046をowner=affiliate-composition,entrypoint=skills/affiliate/affiliate,cadence={"start_interval_seconds": 600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/affiliate-composition.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=affiliate-composition,entrypoint=skills/affiliate/affiliate,cadence={"start_interval_seconds": 600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-05
 
 ### S-affiliate-loop — unique wake authority for affiliate-loop
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/affiliate-loop.json` — OC-045/046をowner=affiliate-loop,entrypoint=skills/affiliate/affiliate,cadence={"start_interval_seconds": 600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/affiliate-loop.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=affiliate-loop,entrypoint=skills/affiliate/affiliate,cadence={"start_interval_seconds": 600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-05
 
 ### S-affiliate-source-refresh — unique wake authority for affiliate-source-refresh
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/affiliate-source-refresh.json` — OC-045/046をowner=affiliate-source-refresh,entrypoint=skills/affiliate/affiliate,cadence={"start_interval_seconds": 600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/affiliate-source-refresh.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=affiliate-source-refresh,entrypoint=skills/affiliate/affiliate,cadence={"start_interval_seconds": 600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-05
 
 ### S-alpaca-investment-paper — unique wake authority for alpaca-investment-paper
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/alpaca-investment-paper.json` — OC-045/046をowner=alpaca-investment-paper,entrypoint=skills/alpaca-investment/run.py,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/alpaca-investment-paper.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=alpaca-investment-paper,entrypoint=skills/alpaca-investment/run.py,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-06
 
 ### S-alpaca-investment-live — unique wake authority for alpaca-investment-live
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/alpaca-investment-live.json` — OC-045/046をowner=alpaca-investment-live,entrypoint=skills/alpaca-investment/run.py,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/alpaca-investment-live.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=alpaca-investment-live,entrypoint=skills/alpaca-investment/run.py,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-06
 
 ### S-investment-cross-venue-report — unique wake authority for investment-cross-venue-report
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/investment-cross-venue-report.json` — OC-045/046をowner=investment-cross-venue-report,entrypoint=apps/life-manager/investment-core/cross_venue_run.py,cadence={"start_interval_seconds": 86400}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/investment-cross-venue-report.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=investment-cross-venue-report,entrypoint=apps/life-manager/investment-core/cross_venue_run.py,cadence={"start_interval_seconds": 86400}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-06
 
 ### S-investment-strategy-validation — unique wake authority for investment-strategy-validation
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/investment-strategy-validation.json` — OC-045/046をowner=investment-strategy-validation,entrypoint=skills/alpaca-investment/validation_runner.py,cadence={"calendar_interval": {"Weekday": 2, "Hour": 14, "Minute": 30}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/investment-strategy-validation.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=investment-strategy-validation,entrypoint=skills/alpaca-investment/validation_runner.py,cadence={"calendar_interval": {"Weekday": 2, "Hour": 14, "Minute": 30}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-06
 
 ### S-citizen-refill — unique wake authority for citizen-refill
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/citizen-refill.json` — OC-045/046をowner=citizen-refill,entrypoint=bin/citizen-refill-launchd,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/citizen-refill.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=citizen-refill,entrypoint=bin/citizen-refill-launchd,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-life-manager-x402-ledger — unique wake authority for life-manager-x402-ledger
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-x402-ledger.json` — OC-045/046をowner=life-manager-x402-ledger,entrypoint=apps/life-manager/scripts/x402-sale-ledger-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-x402-ledger.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-x402-ledger,entrypoint=apps/life-manager/scripts/x402-sale-ledger-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-sol-funding — unique wake authority for sol-funding
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/sol-funding.json` — OC-045/046をowner=sol-funding,entrypoint=skills/earn/sol-funding-owner,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/sol-funding.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=sol-funding,entrypoint=skills/earn/sol-funding-owner,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-acquisition-controller — unique wake authority for x402-acquisition-controller
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-acquisition-controller.json` — OC-045/046をowner=x402-acquisition-controller,entrypoint=skills/earn/x402-sell/acquisition-controller-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-acquisition-controller.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-acquisition-controller,entrypoint=skills/earn/x402-sell/acquisition-controller-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-experiment-franklin1 — unique wake authority for x402-experiment-franklin1
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-experiment-franklin1.json` — OC-045/046をowner=x402-experiment-franklin1,entrypoint=skills/earn/x402-sell/experiment-tick.mjs,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-experiment-franklin1.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-experiment-franklin1,entrypoint=skills/earn/x402-sell/experiment-tick.mjs,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-inflow-watch — unique wake authority for x402-inflow-watch
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch.json` — OC-045/046をowner=x402-inflow-watch,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-inflow-watch,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-inflow-watch-claude-p — unique wake authority for x402-inflow-watch-claude-p
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-claude-p.json` — OC-045/046をowner=x402-inflow-watch-claude-p,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-claude-p.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-inflow-watch-claude-p,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-inflow-watch-franklin1 — unique wake authority for x402-inflow-watch-franklin1
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-franklin1.json` — OC-045/046をowner=x402-inflow-watch-franklin1,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-franklin1.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-inflow-watch-franklin1,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-inflow-watch-franklin2 — unique wake authority for x402-inflow-watch-franklin2
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-franklin2.json` — OC-045/046をowner=x402-inflow-watch-franklin2,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-franklin2.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-inflow-watch-franklin2,entrypoint=skills/earn/x402-sell/watch-inflow.sh,cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-sale-observer — unique wake authority for x402-sale-observer
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-sale-observer.json` — OC-045/046をowner=x402-sale-observer,entrypoint=skills/earn/x402-sell/sale-observer-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-sale-observer.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-sale-observer,entrypoint=skills/earn/x402-sell/sale-observer-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-x402-settlement-recorder — unique wake authority for x402-settlement-recorder
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-settlement-recorder.json` — OC-045/046をowner=x402-settlement-recorder,entrypoint=skills/earn/x402-sell/settlement-recorder-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/x402-settlement-recorder.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=x402-settlement-recorder,entrypoint=skills/earn/x402-sell/settlement-recorder-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-07
 
 ### S-job-search-daily — unique wake authority for job-search-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-daily.json` — OC-045/046をowner=job-search-daily,entrypoint=apps/job-search-loop/scripts/run-daily.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=job-search-daily,entrypoint=apps/job-search-loop/scripts/run-daily.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-job-search-health — unique wake authority for job-search-health
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-health.json` — OC-045/046をowner=job-search-health,entrypoint=apps/job-search-loop/scripts/run-health.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-health.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=job-search-health,entrypoint=apps/job-search-loop/scripts/run-health.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-job-search-inbox — unique wake authority for job-search-inbox
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-inbox.json` — OC-045/046をowner=job-search-inbox,entrypoint=apps/job-search-loop/scripts/run-inbox.sh,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-inbox.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=job-search-inbox,entrypoint=apps/job-search-loop/scripts/run-inbox.sh,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-job-search-learning — unique wake authority for job-search-learning
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-learning.json` — OC-045/046をowner=job-search-learning,entrypoint=apps/job-search-loop/scripts/run-learning.sh,cadence={"calendar_interval": {"Hour": 9, "Minute": 15}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/job-search-learning.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=job-search-learning,entrypoint=apps/job-search-loop/scripts/run-learning.sh,cadence={"calendar_interval": {"Hour": 9, "Minute": 15}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-mercor-revenue-application — unique wake authority for mercor-revenue-application
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/mercor-revenue-application.json` — OC-045/046をowner=mercor-revenue-application,entrypoint=skills/earn/mercor/scripts/application-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/mercor-revenue-application.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=mercor-revenue-application,entrypoint=skills/earn/mercor/scripts/application-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-mercor-revenue-paid — unique wake authority for mercor-revenue-paid
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/mercor-revenue-paid.json` — OC-045/046をowner=mercor-revenue-paid,entrypoint=skills/earn/mercor/scripts/paid-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/mercor-revenue-paid.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=mercor-revenue-paid,entrypoint=skills/earn/mercor/scripts/paid-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-mercor-revenue-reply — unique wake authority for mercor-revenue-reply
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/mercor-revenue-reply.json` — OC-045/046をowner=mercor-revenue-reply,entrypoint=skills/earn/mercor/scripts/reply-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/mercor-revenue-reply.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=mercor-revenue-reply,entrypoint=skills/earn/mercor/scripts/reply-owner,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-08
 
 ### S-fundraiser — unique wake authority for fundraiser
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/fundraiser.json` — OC-045/046をowner=fundraiser,entrypoint=skills/fundraiser-agent/runtime/run.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/fundraiser.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=fundraiser,entrypoint=skills/fundraiser-agent/runtime/run.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-09
 
 ### S-life-manager-connector-native — unique wake authority for life-manager-connector-native
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-connector-native.json` — OC-045/046をowner=life-manager-connector-native,entrypoint=skills/connector/run.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-connector-native.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-connector-native,entrypoint=skills/connector/run.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-10
 
 ### S-life-manager-dev — unique wake authority for life-manager-dev
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-dev.json` — OC-045/046をowner=life-manager-dev,entrypoint=apps/life-manager/scripts/life-manager-dev-daily.js,cadence={"calendar_interval": {"Hour": 4, "Minute": 10}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-dev.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-dev,entrypoint=apps/life-manager/scripts/life-manager-dev-daily.js,cadence={"calendar_interval": {"Hour": 4, "Minute": 10}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-11
 
 ### S-life-manager-recovery-supervisor — unique wake authority for life-manager-recovery-supervisor
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-recovery-supervisor.json` — OC-045/046をowner=life-manager-recovery-supervisor,entrypoint=runtime/loop/recovery-supervisor-cli.mjs,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-recovery-supervisor.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-recovery-supervisor,entrypoint=runtime/loop/recovery-supervisor-cli.mjs,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-11
 
 ### S-life-manager-selfbuild — unique wake authority for life-manager-selfbuild
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-selfbuild.json` — OC-045/046をowner=life-manager-selfbuild,entrypoint=skills/life-manager/self-build-daily.sh,cadence={"calendar_interval": {"Hour": 4, "Minute": 10}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-selfbuild.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-selfbuild,entrypoint=skills/life-manager/self-build-daily.sh,cadence={"calendar_interval": {"Hour": 4, "Minute": 10}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-11
 
 ### S-self-improve-evolve — unique wake authority for self-improve-evolve
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/self-improve-evolve.json` — OC-045/046をowner=self-improve-evolve,entrypoint=skills/earn/marketing-engine/report/scheduled_runner.py,cadence={"start_interval_seconds": 21600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/self-improve-evolve.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=self-improve-evolve,entrypoint=skills/earn/marketing-engine/report/scheduled_runner.py,cadence={"start_interval_seconds": 21600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-11
 
 ### S-life-manager-anicca-affirmation-youtube — unique wake authority for life-manager-anicca-affirmation-youtube
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-affirmation-youtube.json` — OC-045/046をowner=life-manager-anicca-affirmation-youtube,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 15}, {"Hour": 14, "Minute": 15}, {"Hour": 20, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-affirmation-youtube.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-affirmation-youtube,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 15}, {"Hour": 14, "Minute": 15}, {"Hour": 20, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-ai-youtube — unique wake authority for life-manager-anicca-ai-youtube
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-ai-youtube.json` — OC-045/046をowner=life-manager-anicca-ai-youtube,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 45}, {"Hour": 13, "Minute": 15}, {"Hour": 19, "Minute": 45}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-ai-youtube.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-ai-youtube,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 45}, {"Hour": 13, "Minute": 15}, {"Hour": 19, "Minute": 45}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-buddha-tiktok — unique wake authority for life-manager-anicca-buddha-tiktok
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-buddha-tiktok.json` — OC-045/046をowner=life-manager-anicca-buddha-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 13, "Minute": 0}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-buddha-tiktok.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-buddha-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 13, "Minute": 0}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-en-affirmation-instagram — unique wake authority for life-manager-anicca-en-affirmation-instagram
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-affirmation-instagram.json` — OC-045/046をowner=life-manager-anicca-en-affirmation-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 10, "Minute": 0}, {"Hour": 15, "Minute": 0}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-affirmation-instagram.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-en-affirmation-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 10, "Minute": 0}, {"Hour": 15, "Minute": 0}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-en-affirmation-tiktok — unique wake authority for life-manager-anicca-en-affirmation-tiktok
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-affirmation-tiktok.json` — OC-045/046をowner=life-manager-anicca-en-affirmation-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 9, "Minute": 15}, {"Hour": 14, "Minute": 15}, {"Hour": 20, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-affirmation-tiktok.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-en-affirmation-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 9, "Minute": 15}, {"Hour": 14, "Minute": 15}, {"Hour": 20, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-en-card-instagram — unique wake authority for life-manager-anicca-en-card-instagram
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-card-instagram.json` — OC-045/046をowner=life-manager-anicca-en-card-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 45}, {"Hour": 12, "Minute": 45}, {"Hour": 21, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-card-instagram.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-en-card-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 45}, {"Hour": 12, "Minute": 45}, {"Hour": 21, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-en-slideshow-tiktok — unique wake authority for life-manager-anicca-en-slideshow-tiktok
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-slideshow-tiktok.json` — OC-045/046をowner=life-manager-anicca-en-slideshow-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 9, "Minute": 0}, {"Hour": 15, "Minute": 0}, {"Hour": 21, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-slideshow-tiktok.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-en-slideshow-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 9, "Minute": 0}, {"Hour": 15, "Minute": 0}, {"Hour": 21, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-en-widget-instagram — unique wake authority for life-manager-anicca-en-widget-instagram
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-widget-instagram.json` — OC-045/046をowner=life-manager-anicca-en-widget-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 30}, {"Hour": 9, "Minute": 30}, {"Hour": 19, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-widget-instagram.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-en-widget-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 30}, {"Hour": 9, "Minute": 30}, {"Hour": 19, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-he — unique wake authority for life-manager-anicca-he
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-he.json` — OC-045/046をowner=life-manager-anicca-he,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 15}, {"Hour": 13, "Minute": 45}, {"Hour": 18, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-he.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-he,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 15}, {"Hour": 13, "Minute": 45}, {"Hour": 18, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-ja-widget-instagram — unique wake authority for life-manager-anicca-ja-widget-instagram
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-ja-widget-instagram.json` — OC-045/046をowner=life-manager-anicca-ja-widget-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 5}, {"Hour": 13, "Minute": 5}, {"Hour": 18, "Minute": 20}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-ja-widget-instagram.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-ja-widget-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 5}, {"Hour": 13, "Minute": 5}, {"Hour": 18, "Minute": 20}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-jp1-tiktok — unique wake authority for life-manager-anicca-jp1-tiktok
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-jp1-tiktok.json` — OC-045/046をowner=life-manager-anicca-jp1-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 6, "Minute": 30}, {"Hour": 12, "Minute": 0}, {"Hour": 18, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-jp1-tiktok.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-jp1-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 6, "Minute": 30}, {"Hour": 12, "Minute": 0}, {"Hour": 18, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-jp4 — unique wake authority for life-manager-anicca-jp4
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-jp4.json` — OC-045/046をowner=life-manager-anicca-jp4,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 9, "Minute": 15}, {"Hour": 15, "Minute": 15}, {"Hour": 20, "Minute": 45}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-jp4.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-jp4,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 9, "Minute": 15}, {"Hour": 15, "Minute": 15}, {"Hour": 20, "Minute": 45}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-larry-ja-instagram — unique wake authority for life-manager-anicca-larry-ja-instagram
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-larry-ja-instagram.json` — OC-045/046をowner=life-manager-anicca-larry-ja-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 10, "Minute": 30}, {"Hour": 16, "Minute": 30}, {"Hour": 22, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-larry-ja-instagram.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-larry-ja-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 10, "Minute": 30}, {"Hour": 16, "Minute": 30}, {"Hour": 22, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-main-instagram — unique wake authority for life-manager-anicca-main-instagram
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-main-instagram.json` — OC-045/046をowner=life-manager-anicca-main-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 10}, {"Hour": 13, "Minute": 10}, {"Hour": 19, "Minute": 10}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-main-instagram.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-main-instagram,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 10}, {"Hour": 13, "Minute": 10}, {"Hour": 19, "Minute": 10}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-anicca-main-tiktok — unique wake authority for life-manager-anicca-main-tiktok
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-main-tiktok.json` — OC-045/046をowner=life-manager-anicca-main-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 16, "Minute": 0}, {"Hour": 22, "Minute": 37}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-main-tiktok.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-anicca-main-tiktok,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 16, "Minute": 0}, {"Hour": 22, "Minute": 37}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-daily — unique wake authority for life-manager-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-daily.json` — OC-045/046をowner=life-manager-daily,entrypoint=skills/life-manager/life-manager-daily.sh,cadence={"calendar_interval": {"Hour": 10, "Minute": 15}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-daily,entrypoint=skills/life-manager/life-manager-daily.sh,cadence={"calendar_interval": {"Hour": 10, "Minute": 15}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-honne-en — unique wake authority for life-manager-honne-en
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-honne-en.json` — OC-045/046をowner=life-manager-honne-en,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 11, "Minute": 0}, {"Hour": 20, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-honne-en.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-honne-en,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 11, "Minute": 0}, {"Hour": 20, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-honne-ja — unique wake authority for life-manager-honne-ja
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-honne-ja.json` — OC-045/046をowner=life-manager-honne-ja,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 30}, {"Hour": 12, "Minute": 30}, {"Hour": 21, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-honne-ja.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-honne-ja,entrypoint=apps/life-manager/scripts/mobile-app,cadence={"calendar_interval": [{"Hour": 8, "Minute": 30}, {"Hour": 12, "Minute": 30}, {"Hour": 21, "Minute": 30}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-instagram-metrics — unique wake authority for life-manager-instagram-metrics
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-instagram-metrics.json` — OC-045/046をowner=life-manager-instagram-metrics,entrypoint=apps/life-manager/scripts/instagram-metrics-production-boot.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-instagram-metrics.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-instagram-metrics,entrypoint=apps/life-manager/scripts/instagram-metrics-production-boot.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-life-manager-tiktok-metrics — unique wake authority for life-manager-tiktok-metrics
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-tiktok-metrics.json` — OC-045/046をowner=life-manager-tiktok-metrics,entrypoint=apps/life-manager/scripts/tiktok-metrics-production-boot.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-tiktok-metrics.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-tiktok-metrics,entrypoint=apps/life-manager/scripts/tiktok-metrics-production-boot.sh,cadence={"start_interval_seconds": 1800}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-12
 
 ### S-ebook-en-tiktok-daily — unique wake authority for ebook-en-tiktok-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/ebook-en-tiktok-daily.json` — OC-045/046をowner=ebook-en-tiktok-daily,entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 21, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/ebook-en-tiktok-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=ebook-en-tiktok-daily,entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 21, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-13
 
 ### S-ebook-ja-instagram-daily — unique wake authority for ebook-ja-instagram-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/ebook-ja-instagram-daily.json` — OC-045/046をowner=ebook-ja-instagram-daily,entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 12, "Minute": 30}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/ebook-ja-instagram-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=ebook-ja-instagram-daily,entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 12, "Minute": 30}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-13
 
 ### S-ebook-ja-tiktok-daily — unique wake authority for ebook-ja-tiktok-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/ebook-ja-tiktok-daily.json` — OC-045/046をowner=ebook-ja-tiktok-daily,entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 12, "Minute": 30}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/ebook-ja-tiktok-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=ebook-ja-tiktok-daily,entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 12, "Minute": 30}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-13
 
 ### S-capafy-distribute-daily — unique wake authority for capafy-distribute-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-distribute-daily.json` — OC-045/046をowner=capafy-distribute-daily,entrypoint=skills/earn/capafy-marketing/capafy-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 1, "Minute": 15}, {"Hour": 4, "Minute": 15}, {"Hour": 7, "Minute": 15}, {"Hour": 10, "Minute": 15}, {"Hour": 13, "Minute": 15}, {"Hour": 16, "Minute": 15}, {"Hour": 19, "Minute": 15}, {"Hour": 22, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-distribute-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-distribute-daily,entrypoint=skills/earn/capafy-marketing/capafy-distribute-daily.sh,cadence={"calendar_interval": [{"Hour": 1, "Minute": 15}, {"Hour": 4, "Minute": 15}, {"Hour": 7, "Minute": 15}, {"Hour": 10, "Minute": 15}, {"Hour": 13, "Minute": 15}, {"Hour": 16, "Minute": 15}, {"Hour": 19, "Minute": 15}, {"Hour": 22, "Minute": 15}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-goal-monitor — unique wake authority for capafy-goal-monitor
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor.json` — OC-045/046をowner=capafy-goal-monitor,entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh,cadence={"calendar_interval": {"Hour": 9, "Minute": 30}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-goal-monitor,entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh,cadence={"calendar_interval": {"Hour": 9, "Minute": 30}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-goal-monitor-daily-close — unique wake authority for capafy-goal-monitor-daily-close
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor-daily-close.json` — OC-045/046をowner=capafy-goal-monitor-daily-close,entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh,cadence={"calendar_interval": {"Hour": 23, "Minute": 50}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor-daily-close.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-goal-monitor-daily-close,entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh,cadence={"calendar_interval": {"Hour": 23, "Minute": 50}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-goal-monitor-hourly — unique wake authority for capafy-goal-monitor-hourly
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor-hourly.json` — OC-045/046をowner=capafy-goal-monitor-hourly,entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh,cadence={"calendar_interval": {"Minute": 7}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor-hourly.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-goal-monitor-hourly,entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh,cadence={"calendar_interval": {"Minute": 7}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-ig-account-manager — unique wake authority for capafy-ig-account-manager
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-ig-account-manager.json` — OC-045/046をowner=capafy-ig-account-manager,entrypoint=skills/earn/capafy-marketing/capafy-ig-account-manager.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-ig-account-manager.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-ig-account-manager,entrypoint=skills/earn/capafy-marketing/capafy-ig-account-manager.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-ig-marketing-daily — unique wake authority for capafy-ig-marketing-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-ig-marketing-daily.json` — OC-045/046をowner=capafy-ig-marketing-daily,entrypoint=skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-ig-marketing-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-ig-marketing-daily,entrypoint=skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-loop-daily — unique wake authority for capafy-loop-daily
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-loop-daily.json` — OC-045/046をowner=capafy-loop-daily,entrypoint=skills/self/capafy-loop/capafy-loop-daily.sh,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-loop-daily.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-loop-daily,entrypoint=skills/self/capafy-loop/capafy-loop-daily.sh,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-loop-healthcheck — unique wake authority for capafy-loop-healthcheck
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-loop-healthcheck.json` — OC-045/046をowner=capafy-loop-healthcheck,entrypoint=skills/self/capafy-loop/capafy-loop-healthcheck.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-loop-healthcheck.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-loop-healthcheck,entrypoint=skills/self/capafy-loop/capafy-loop-healthcheck.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-capafy-outcome-monitor — unique wake authority for capafy-outcome-monitor
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-outcome-monitor.json` — OC-045/046をowner=capafy-outcome-monitor,entrypoint=skills/earn/capafy-marketing/capafy-outcome-monitor.sh,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/capafy-outcome-monitor.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=capafy-outcome-monitor,entrypoint=skills/earn/capafy-marketing/capafy-outcome-monitor.sh,cadence={"start_interval_seconds": 60}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-life-manager-capafy-ig — unique wake authority for life-manager-capafy-ig
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-capafy-ig.json` — OC-045/046をowner=life-manager-capafy-ig,entrypoint=apps/life-manager/scripts/capafy-ig-reel,cadence={"calendar_interval": [{"Hour": 9, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-capafy-ig.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-capafy-ig,entrypoint=apps/life-manager/scripts/capafy-ig-reel,cadence={"calendar_interval": [{"Hour": 9, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 20, "Minute": 0}]}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-14
 
 ### S-line-sticker-factory-hourly — unique wake authority for line-sticker-factory-hourly
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/line-sticker-factory-hourly.json` — OC-045/046をowner=line-sticker-factory-hourly,entrypoint=skills/earn/line-sticker/line-sticker-factory.sh,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/line-sticker-factory-hourly.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=line-sticker-factory-hourly,entrypoint=skills/earn/line-sticker/line-sticker-factory.sh,cadence={"start_interval_seconds": 900}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-15
 
 ### S-line-sticker-readback-hourly — unique wake authority for line-sticker-readback-hourly
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/line-sticker-readback-hourly.json` — OC-045/046をowner=line-sticker-readback-hourly,entrypoint=skills/earn/line-sticker/line-sticker-readback.sh,cadence={"calendar_interval": {"Minute": 23}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/line-sticker-readback-hourly.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=line-sticker-readback-hourly,entrypoint=skills/earn/line-sticker/line-sticker-readback.sh,cadence={"calendar_interval": {"Minute": 23}}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-15
 
 ### S-life-manager-cfo-hourly — unique wake authority for life-manager-cfo-hourly
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-cfo-hourly.json` — OC-045/046をowner=life-manager-cfo-hourly,entrypoint=skills/cfo/run.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-cfo-hourly.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-cfo-hourly,entrypoint=skills/cfo/run.sh,cadence={"start_interval_seconds": 3600}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-16
 
 ### S-life-manager-financial-report — unique wake authority for life-manager-financial-report
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-financial-report.json` — OC-045/046をowner=life-manager-financial-report,entrypoint=apps/life-manager/scripts/financial-report-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-financial-report.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-financial-report,entrypoint=apps/life-manager/scripts/financial-report-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-16
 
 ### S-life-manager-payout — unique wake authority for life-manager-payout
 
-- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-payout.json` — OC-045/046をowner=life-manager-payout,entrypoint=apps/life-manager/scripts/payout-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
+- [ ] `docs/evidence/openclaw-cutover/schedulers/life-manager-payout.json` — 先に当該ownerのschedule判断とsource根拠を同targetへ記録。retain_existingなら旧schedulerを維持し唯一authorityを検証してこのatomを完了、deferなら未完。reuse_openclawの場合のみ以下の移管を実行。 OC-045/046をowner=life-manager-payout,entrypoint=apps/life-manager/scripts/payout-boot.sh,cadence={"start_interval_seconds": 300}で実行。新cron disabled→旧owner active/queued/unknown drain→旧future wake停止→新cron有効→唯一authority readbackを同fileへ。OpenClaw command payloadから既存wrapperを呼び、retryが新LM occurrenceを作っても旧owner effect_unknown/未確認receiptを先にreconcileする。Mobile occurrence scopeの取りこぼしもowner-level migration gateで防ぐ。source契約に失敗なら旧schedulerを維持しS未完。
 - 完了条件: 対象owner旧future wake0、新cron1、旧state/receipt/profile一致、同provider mutation重複0。rollbackはOC-047。
 - 依存: OC-046, A-16
 
 ### V-01 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/gig-coconala-natural.json` — ['hf-gig-apply-direct', 'hf-gig-apply-evidence-gc', 'hf-gig-browser', 'hf-gig-daily-report', 'hf-gig-paid-direct', 'hf-gig-reply-detector', 'hf-gig-storefront-direct']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/gig-coconala-natural.json` — ['hf-gig-apply-direct', 'hf-gig-apply-evidence-gc', 'hf-gig-browser', 'hf-gig-daily-report', 'hf-gig-paid-direct', 'hf-gig-reply-detector', 'hf-gig-storefront-direct']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-01, S-hf-gig-apply-direct, S-hf-gig-apply-evidence-gc, S-hf-gig-daily-report, S-hf-gig-paid-direct, S-hf-gig-reply-detector, S-hf-gig-storefront-direct
 
 ### V-02 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/gig-lancers-natural.json` — ['lancers-revenue-application', 'lancers-revenue-browser', 'lancers-revenue-negotiate', 'lancers-revenue-paid', 'lancers-revenue-storefront', 'lancers-revenue-telegram-report', 'lancers-revenue-work-sync']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/gig-lancers-natural.json` — ['lancers-revenue-application', 'lancers-revenue-browser', 'lancers-revenue-negotiate', 'lancers-revenue-paid', 'lancers-revenue-storefront', 'lancers-revenue-telegram-report', 'lancers-revenue-work-sync']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-02, S-lancers-revenue-application, S-lancers-revenue-negotiate, S-lancers-revenue-paid, S-lancers-revenue-storefront, S-lancers-revenue-telegram-report, S-lancers-revenue-work-sync
 
 ### V-03 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/gig-crowdworks-natural.json` — ['crowdworks-revenue-application', 'crowdworks-revenue-browser', 'crowdworks-revenue-paid', 'crowdworks-revenue-reply', 'crowdworks-revenue-report']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/gig-crowdworks-natural.json` — ['crowdworks-revenue-application', 'crowdworks-revenue-browser', 'crowdworks-revenue-paid', 'crowdworks-revenue-reply', 'crowdworks-revenue-report']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-03, S-crowdworks-revenue-application, S-crowdworks-revenue-paid, S-crowdworks-revenue-reply, S-crowdworks-revenue-report
 
 ### V-04 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/writer-natural.json` — ['writer-claim-loop', 'writer-craft-train', 'writer-money-sync', 'writer-opportunity-discovery', 'writer-opportunity-response', 'writer-report', 'writer-sales-measure']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/writer-natural.json` — ['writer-claim-loop', 'writer-craft-train', 'writer-money-sync', 'writer-opportunity-discovery', 'writer-opportunity-response', 'writer-report', 'writer-sales-measure']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-04, S-writer-claim-loop, S-writer-craft-train, S-writer-money-sync, S-writer-opportunity-discovery, S-writer-opportunity-response, S-writer-report, S-writer-sales-measure
 
 ### V-05 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/affiliate-natural.json` — ['affiliate-browser', 'affiliate-composition', 'affiliate-impact-browser', 'affiliate-loop', 'affiliate-source-refresh', 'affiliate-x-browser']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/affiliate-natural.json` — ['affiliate-browser', 'affiliate-composition', 'affiliate-impact-browser', 'affiliate-loop', 'affiliate-source-refresh', 'affiliate-x-browser']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-05, S-affiliate-composition, S-affiliate-loop, S-affiliate-source-refresh
 
 ### V-06 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/investment-natural.json` — ['alpaca-investment-paper', 'alpaca-investment-live', 'investment-cross-venue-report', 'investment-strategy-validation']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/investment-natural.json` — ['alpaca-investment-paper', 'alpaca-investment-live', 'investment-cross-venue-report', 'investment-strategy-validation']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-06, S-alpaca-investment-paper, S-alpaca-investment-live, S-investment-cross-venue-report, S-investment-strategy-validation
 
 ### V-07 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/agent-economy-natural.json` — ['agent-economy-loop', 'citizen-refill', 'life-manager-x402-ledger', 'sol-funding', 'the402-provider', 'the402-worker', 'x402-acquisition-controller', 'x402-claude-p', 'x402-experiment-franklin1', 'x402-franklin1', 'x402-franklin2', 'x402-inflow-watch', 'x402-inflow-watch-claude-p', 'x402-inflow-watch-franklin1', 'x402-inflow-watch-franklin2', 'x402-research-serve', 'x402-sale-observer', 'x402-seller-8404', 'x402-settlement-recorder']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/agent-economy-natural.json` — ['agent-economy-loop', 'citizen-refill', 'life-manager-x402-ledger', 'sol-funding', 'the402-provider', 'the402-worker', 'x402-acquisition-controller', 'x402-claude-p', 'x402-experiment-franklin1', 'x402-franklin1', 'x402-franklin2', 'x402-inflow-watch', 'x402-inflow-watch-claude-p', 'x402-inflow-watch-franklin1', 'x402-inflow-watch-franklin2', 'x402-research-serve', 'x402-sale-observer', 'x402-seller-8404', 'x402-settlement-recorder']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-07, S-citizen-refill, S-life-manager-x402-ledger, S-sol-funding, S-x402-acquisition-controller, S-x402-experiment-franklin1, S-x402-inflow-watch, S-x402-inflow-watch-claude-p, S-x402-inflow-watch-franklin1, S-x402-inflow-watch-franklin2, S-x402-sale-observer, S-x402-settlement-recorder
 
 ### V-08 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/job-hunter-natural.json` — ['job-search-daily', 'job-search-health', 'job-search-inbox', 'job-search-learning', 'mercor-revenue-application', 'mercor-revenue-paid', 'mercor-revenue-reply']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/job-hunter-natural.json` — ['job-search-daily', 'job-search-health', 'job-search-inbox', 'job-search-learning', 'mercor-revenue-application', 'mercor-revenue-paid', 'mercor-revenue-reply']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-08, S-job-search-daily, S-job-search-health, S-job-search-inbox, S-job-search-learning, S-mercor-revenue-application, S-mercor-revenue-paid, S-mercor-revenue-reply
 
 ### V-09 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/fundraiser-natural.json` — ['fundraiser']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/fundraiser-natural.json` — ['fundraiser']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-09, S-fundraiser
 
 ### V-10 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/connector-natural.json` — ['life-manager-connector-native']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/connector-natural.json` — ['life-manager-connector-native']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-10, S-life-manager-connector-native
 
 ### V-11 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/self-build-natural.json` — ['life-manager-dev', 'life-manager-recovery-supervisor', 'life-manager-selfbuild', 'self-improve-evolve']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/self-build-natural.json` — ['life-manager-dev', 'life-manager-recovery-supervisor', 'life-manager-selfbuild', 'self-improve-evolve']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-11, S-life-manager-dev, S-life-manager-recovery-supervisor, S-life-manager-selfbuild, S-self-improve-evolve
 
 ### V-12 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/mobile-apps-natural.json` — ['life-manager-anicca-affirmation-youtube', 'life-manager-anicca-ai-youtube', 'life-manager-anicca-buddha-tiktok', 'life-manager-anicca-en-affirmation-instagram', 'life-manager-anicca-en-affirmation-tiktok', 'life-manager-anicca-en-card-instagram', 'life-manager-anicca-en-slideshow-tiktok', 'life-manager-anicca-en-widget-instagram', 'life-manager-anicca-he', 'life-manager-anicca-ja-widget-instagram', 'life-manager-anicca-jp1-tiktok', 'life-manager-anicca-jp4', 'life-manager-anicca-larry-ja-instagram', 'life-manager-anicca-main-instagram', 'life-manager-anicca-main-tiktok', 'life-manager-daily', 'life-manager-daily-driver', 'life-manager-honne-en', 'life-manager-honne-ja', 'life-manager-instagram-metrics', 'life-manager-tiktok-metrics', 'tiktok-browser']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/mobile-apps-natural.json` — ['life-manager-anicca-affirmation-youtube', 'life-manager-anicca-ai-youtube', 'life-manager-anicca-buddha-tiktok', 'life-manager-anicca-en-affirmation-instagram', 'life-manager-anicca-en-affirmation-tiktok', 'life-manager-anicca-en-card-instagram', 'life-manager-anicca-en-slideshow-tiktok', 'life-manager-anicca-en-widget-instagram', 'life-manager-anicca-he', 'life-manager-anicca-ja-widget-instagram', 'life-manager-anicca-jp1-tiktok', 'life-manager-anicca-jp4', 'life-manager-anicca-larry-ja-instagram', 'life-manager-anicca-main-instagram', 'life-manager-anicca-main-tiktok', 'life-manager-daily', 'life-manager-daily-driver', 'life-manager-honne-en', 'life-manager-honne-ja', 'life-manager-instagram-metrics', 'life-manager-tiktok-metrics', 'tiktok-browser']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-12, S-life-manager-anicca-affirmation-youtube, S-life-manager-anicca-ai-youtube, S-life-manager-anicca-buddha-tiktok, S-life-manager-anicca-en-affirmation-instagram, S-life-manager-anicca-en-affirmation-tiktok, S-life-manager-anicca-en-card-instagram, S-life-manager-anicca-en-slideshow-tiktok, S-life-manager-anicca-en-widget-instagram, S-life-manager-anicca-he, S-life-manager-anicca-ja-widget-instagram, S-life-manager-anicca-jp1-tiktok, S-life-manager-anicca-jp4, S-life-manager-anicca-larry-ja-instagram, S-life-manager-anicca-main-instagram, S-life-manager-anicca-main-tiktok, S-life-manager-daily, S-life-manager-honne-en, S-life-manager-honne-ja, S-life-manager-instagram-metrics, S-life-manager-tiktok-metrics
 
 ### V-13 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/ebook-natural.json` — ['ebook-en-tiktok-daily', 'ebook-ja-instagram-daily', 'ebook-ja-tiktok-daily']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/ebook-natural.json` — ['ebook-en-tiktok-daily', 'ebook-ja-instagram-daily', 'ebook-ja-tiktok-daily']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-13, S-ebook-en-tiktok-daily, S-ebook-ja-instagram-daily, S-ebook-ja-tiktok-daily
 
 ### V-14 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/capafy-natural.json` — ['capafy-browser', 'capafy-distribute-daily', 'capafy-goal-monitor', 'capafy-goal-monitor-daily-close', 'capafy-goal-monitor-hourly', 'capafy-ig-account-manager', 'capafy-ig-marketing-daily', 'capafy-loop-daily', 'capafy-loop-healthcheck', 'capafy-outcome-monitor', 'life-manager-capafy-ig']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/capafy-natural.json` — ['capafy-browser', 'capafy-distribute-daily', 'capafy-goal-monitor', 'capafy-goal-monitor-daily-close', 'capafy-goal-monitor-hourly', 'capafy-ig-account-manager', 'capafy-ig-marketing-daily', 'capafy-loop-daily', 'capafy-loop-healthcheck', 'capafy-outcome-monitor', 'life-manager-capafy-ig']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-14, S-capafy-distribute-daily, S-capafy-goal-monitor, S-capafy-goal-monitor-daily-close, S-capafy-goal-monitor-hourly, S-capafy-ig-account-manager, S-capafy-ig-marketing-daily, S-capafy-loop-daily, S-capafy-loop-healthcheck, S-capafy-outcome-monitor, S-life-manager-capafy-ig
 
 ### V-15 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/line-sticker-natural.json` — ['line-creators-browser', 'line-sticker-factory-hourly', 'line-sticker-readback-hourly']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/line-sticker-natural.json` — ['line-creators-browser', 'line-sticker-factory-hourly', 'line-sticker-readback-hourly']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-15, S-line-sticker-factory-hourly, S-line-sticker-readback-hourly
 
 ### V-16 — all product owners natural readback
 
-- [ ] `docs/evidence/openclaw-cutover/products/cfo-natural.json` — ['life-manager-cfo-hourly', 'life-manager-financial-report', 'life-manager-payout']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。
-- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、旧epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
+- [ ] `docs/evidence/openclaw-cutover/products/cfo-natural.json` — ['life-manager-cfo-hourly', 'life-manager-financial-report', 'life-manager-payout']の次の自然occurrenceをjoinしてsource/release/upstream session/run/task、同account/model/tool、trace、effect/readback/costを保存。browser continuousは同owner health/endpoint/lease、決定的jobはmodel calls0。販売/応募/制作等のstage別official receiptを確認し、sale無しを不具合にしない。unknownを0やverifiedにせず未完としてresolver cursorを記録。 retain_existing対象はbaselineとの差分で既存稼働維持を確認する。移行前からの失敗/未確認は解決済にせず既存cursorを維持し、新しい置換や範囲外修正の完了gateへ拡大しない。
+- 完了条件: catalog owner集合完全一致、migrationが新しく作ったmissed/duplicate effect0、退役済epochへのdispatch0、必要なreceipt結合欠測0。fixture成功でこのfileをPASSにしない。
 - 依存: A-16, S-life-manager-cfo-hourly, S-life-manager-financial-report, S-life-manager-payout
 
 ### F-01 — local OpenClaw package/profile setup
@@ -1314,7 +1324,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### F-04 — remove only unreferenced legacy routing
 
-- [ ] `runtime/agent-runner/agent_runner.py` — 全16 V PASS後、参照0の独自model lifecycle/legacy routingだけを削除。OpenClawが利用するnative Codex/Claude dependenciesやLM admission/effect/financeは削除しない。
+- [ ] `runtime/agent-runner/agent_runner.py` — 全16 Vの採用/保持判断と自然結果がPASSした後、参照0の独自model lifecycle/legacy routingだけを削除。OpenClawが利用するnative Codex/Claude dependenciesやLM admission/effect/financeは削除しない。
 - 完了条件: 全caller closure参照0、既存source acceptance＋natural records一致。
 - 依存: F-03
 
@@ -1332,7 +1342,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### F-07 — final product/job reconciliation
 
-- [ ] `docs/evidence/openclaw-cutover/final.json` — 16group/110job/92finite/18continuousの全P/A/S/V、source main、loaded/runtime、trace、receipt、旧future wake0、rollback可能性、local installerを照合。不明/旧経路残りがあれば全移行完了としない。
+- [ ] `docs/evidence/openclaw-cutover/final.json` — 16group/110job/92finite/18continuousの全P/A/S/V、source main、loaded/runtime、trace、receipt、退役を決めた旧future wake0、rollback可能性、local installerを照合。不明/deferがあれば完了としない。記録済retain_existingの旧経路は正常な最終構成として認める。
 - 完了条件: 自然結果110のcoverage/同identity、未測定performanceを改善数値へ換算しない。
 - 依存: F-06
 

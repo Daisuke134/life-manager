@@ -2,8 +2,8 @@
 
 > 実行時は superpowers:executing-plans を使用。今回の依頼は設計/TODO更新であり、本番実装・切替を実施したとは扱わない。
 
-**Goal:** ローカル16能力を保ち、OpenClawの既製agent/session/cron/traceを最大限再利用する。
-**Architecture:** Life Manager CLI・domain policy/effect/financeを保持。最初default-off、各ownerでengine→自然確認→schedule→自然確認、最後に未参照旧runtimeを退役。
+**Goal:** ローカル16能力を保ち、現行とOpenClawの適した既存機能を再利用し、不要な置換を避ける。
+**Architecture:** Life Manager CLI・domain policy/effect/financeを保持。最初default-off、各ownerで採用/保持判断→必要なengine接続→自然確認→必要なschedule移管→自然確認、最後に未参照旧runtimeを退役。
 **Tech Stack:** pinned OpenClaw/GatewayClient/diagnostics-otel、既存Python runtimeとlaunchctl-safe。
 **Spec:** `docs/superpowers/specs/2026-10-07-main-agents-readiness.md`
 
@@ -17,3 +17,5 @@ Node atomsは対象既存/new test fileを`node --test`、Python atomsは対象f
 推論はChatGPT account接続native Codexのみ。NC-01〜04とMI-01/02を依存DAGに従って実施。現在対象は16能力/110job、全215atomはspecを参照。
 
 Native CodexはUnix/user scopeの既存ChatGPT accountを利用。NC-04はendpoint attach-onlyを優先。MI-01画像入力、MI-02owned thread forkを必須対応に追加し、旧仕事をunsupportedのまま完了扱いしない。
+
+retain_existingは正当な最終構成。cron全92件の移管と全管理経路のOpenClaw化を完了gateにしない。A/Sはreuse_openclawの場合だけ切替、deferは未完として残す。

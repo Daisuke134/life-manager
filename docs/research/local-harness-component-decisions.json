@@ -1,0 +1,50 @@
+{
+  "schema": "lm.harness-reuse-decisions.v1",
+  "scope": "local_life_manager",
+  "components": [
+    {
+      "component": "inference",
+      "decision": "retain_existing",
+      "implementation": "ChatGPT-account-connected native Codex",
+      "reason": "user model/account constraint"
+    },
+    {
+      "component": "session_management",
+      "decision": "reuse_openclaw",
+      "implementation": "official Codex/session integration",
+      "reason": "common session lifecycle and owned-thread fork; runtime acceptance pending"
+    },
+    {
+      "component": "observability",
+      "decision": "reuse_openclaw",
+      "implementation": "diagnostics-otel",
+      "reason": "standard model/tool lifecycle spans; no custom exporter"
+    },
+    {
+      "component": "scheduler",
+      "decision": "retain_existing",
+      "implementation": "current supervisor/cadence initially",
+      "reason": "owner-specific reuse decision before any transfer; all 92 migrations not required"
+    },
+    {
+      "component": "business_recipes",
+      "decision": "retain_existing",
+      "implementation": "current product tools/workflows",
+      "reason": "working business behavior is preserved"
+    },
+    {
+      "component": "admission_effect_finance",
+      "decision": "retain_existing",
+      "implementation": "existing resource admission/fence/readback/CFO",
+      "reason": "revenue/browser policy and official effect guarantees"
+    },
+    {
+      "component": "subagents",
+      "decision": "defer",
+      "implementation": "OpenClaw official mechanism when useful",
+      "reason": "not required to add roles or parallelism without a task benefit"
+    }
+  ],
+  "production_mutations": 0,
+  "implementation_complete": false
+}

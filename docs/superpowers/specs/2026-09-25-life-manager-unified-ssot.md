@@ -3877,3 +3877,7 @@ Daisはソースから構造選定を行うよう明示。OpenClaw公開tagのcr
 旧順序=部分接続contract/MX・MV候補。新順序=OC共通契約とNC Codex-only→P16能力coverage/C直接境界→A engine一件ずつ→S92有限schedule一件ずつ→V16自然成果→F旧未参照runtime整理。理由:DaisがOpenClaw最大再利用と最後までatomic TODO、既存業務保全を指定したため。215atomの本文は[更新仕様](2026-10-07-main-agents-readiness.md)、機械interfaceは[manifest](../../research/openclaw-full-cutover-atoms.json)。状態正本は本SSOTだけ。現在cursor=OC-001、実装未着手。baselineは16能力/110job/92finite/18continuous、source/healthの読み取りだけ実施。main-derived package・sdk互換・native Codex account/制限turnを先に確認する。推論は既存ChatGPT account接続Codexのみ、API-key/他LLM fallbackなし。画像/動画等既存商品toolは今回変更しない。他業務lane/進行effectの中断・再送は0。
 
 Native CodexはUnix/user scopeの既存ChatGPT accountを利用。NC-04はendpoint attach-onlyを優先。MI-01画像入力、MI-02owned thread forkを必須対応に追加し、旧仕事をunsupportedのまま完了扱いしない。
+
+## ローカルハーネス再利用方針の明確化
+
+Daisは既存の良い実装を保ち、OpenClawの方が適する共通機能を再利用することを指定。OpenClaw使用量・全92cron移管・全管理経路置換を成果条件にしない。reuse_openclaw/retain_existing/deferを記録し、retainは正当な最終構成、deferは未完。旧順序=無条件A/S全体移管、新順序=component判断→必要な共通接続→owner判断→必要なA/Sのみ→V自然結果→参照0の重複整理。現在cursor=component判断（記録済）、次の実装cursor=OC-001。実装未着手。推論はChatGPT account接続Codexのみ、CLIと既存業務・auth/effectは保持。他lane/稼働effectを変更しない。
