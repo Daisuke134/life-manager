@@ -1599,10 +1599,15 @@ def test_release_retention_preserves_memory_and_state_jsonl_but_reclaims_plain_r
     releases.mkdir(parents=True)
     memory_release = releases / "20260828T010101-aaaaaaaa"
     state_release = releases / "20260829T010101-bbbbbbbb"
-    dependency_release = releases / "20260830T010101-cccccccc"
-    plain_release = releases / "20260831T010101-dddddddd"
-    current_release = releases / "20260901T010101-eeeeeeee"
-    for index, path in enumerate((memory_release, state_release, dependency_release, plain_release, current_release)):
+    dangling_memory_release = releases / "20260830T010101-cccccccc"
+    dangling_state_release = releases / "20260831T010101-dddddddd"
+    dependency_release = releases / "20260901T010101-eeeeeeee"
+    plain_release = releases / "20260902T010101-ffffffff"
+    current_release = releases / "20260903T010101-00000000"
+    for index, path in enumerate((
+        memory_release, state_release, dangling_memory_release, dangling_state_release,
+        dependency_release, plain_release, current_release,
+    )):
         path.mkdir()
         (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
     (memory_release / "memory").mkdir()
@@ -1610,12 +1615,21 @@ def test_release_retention_preserves_memory_and_state_jsonl_but_reclaims_plain_r
     state = state_release / "nested" / "state"
     state.mkdir(parents=True)
     (state / "events.jsonl").write_text("{}\n")
+    (dangling_memory_release / "memory").symlink_to(
+        tmp_path / "missing-memory", target_is_directory=True
+    )
+    dangling_state = dangling_state_release / "nested"
+    dangling_state.mkdir()
+    (dangling_state / "state").symlink_to(
+        tmp_path / "missing-state", target_is_directory=True
+    )
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "owner.md").write_text("keep target")
     (dependency_release / "node_modules").symlink_to(outside)
     (plain_release / "bin").mkdir()
     (plain_release / "bin" / "loop.sh").write_text("#!/bin/sh\n")
+    (plain_release / "memory").write_text("ordinary file")
     (tmp_path / "loops" / "current").symlink_to(current_release)
     governor = HostDiskGovernor(
         home=tmp_path,
@@ -1629,11 +1643,13 @@ def test_release_retention_preserves_memory_and_state_jsonl_but_reclaims_plain_r
 
     assert memory_release.exists()
     assert state_release.exists()
+    assert dangling_memory_release.exists()
+    assert dangling_state_release.exists()
     assert not dependency_release.exists()
     assert not plain_release.exists()
     assert current_release.exists()
     assert (outside / "owner.md").exists()
-    assert result["preserved_reasons"] == {"protected_descendant": 2}
+    assert result["preserved_reasons"] == {"protected_descendant": 4}
     assert result["errors"] == 0
 
 

@@ -174,10 +174,10 @@ def _release_immutable_store_probe(
                 return "protected_descendant"
             if current_path.name == "state" and any(name.endswith(".jsonl") for name in files):
                 return "protected_descendant"
-            for name in directories:
+            for name in directories + files:
                 if deadline is not None and clock() >= deadline:
                     return "probe-budget-exhausted"
-                if name != "state":
+                if name not in {"memory", "state"}:
                     continue
                 try:
                     info = (current_path / name).lstat()

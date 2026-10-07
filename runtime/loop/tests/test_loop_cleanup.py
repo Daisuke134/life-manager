@@ -204,9 +204,14 @@ class LoopCleanupTest(unittest.TestCase):
             releases.mkdir()
             memory_release = releases / "20260101T000000-aaaaaaaa"
             state_release = releases / "20260102T000000-bbbbbbbb"
-            dependency_release = releases / "20260103T000000-cccccccc"
-            plain_release = releases / "20260104T000000-dddddddd"
-            for index, path in enumerate((memory_release, state_release, dependency_release, plain_release)):
+            dangling_memory_release = releases / "20260103T000000-cccccccc"
+            dangling_state_release = releases / "20260104T000000-dddddddd"
+            dependency_release = releases / "20260105T000000-eeeeeeee"
+            plain_release = releases / "20260106T000000-ffffffff"
+            for index, path in enumerate((
+                memory_release, state_release, dangling_memory_release,
+                dangling_state_release, dependency_release, plain_release,
+            )):
                 path.mkdir()
                 (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
             (memory_release / "memory").mkdir()
@@ -214,12 +219,21 @@ class LoopCleanupTest(unittest.TestCase):
             state = state_release / "nested" / "state"
             state.mkdir(parents=True)
             (state / "events.jsonl").write_text("{}\n")
+            (dangling_memory_release / "memory").symlink_to(
+                Path(directory) / "missing-memory", target_is_directory=True
+            )
+            dangling_state = dangling_state_release / "nested"
+            dangling_state.mkdir()
+            (dangling_state / "state").symlink_to(
+                Path(directory) / "missing-state", target_is_directory=True
+            )
             outside = Path(directory) / "outside"
             outside.mkdir()
             (outside / "owner.md").write_text("keep target")
             (dependency_release / "node_modules").symlink_to(outside)
             (plain_release / "bin").mkdir()
             (plain_release / "bin" / "loop.sh").write_text("#!/bin/sh\n")
+            (plain_release / "memory").write_text("ordinary file")
 
             agents = Path(directory) / "agents"
             agents.mkdir()
@@ -239,11 +253,13 @@ class LoopCleanupTest(unittest.TestCase):
 
             self.assertTrue(memory_release.exists())
             self.assertTrue(state_release.exists())
+            self.assertTrue(dangling_memory_release.exists())
+            self.assertTrue(dangling_state_release.exists())
             self.assertFalse(dependency_release.exists())
             self.assertFalse(plain_release.exists())
             self.assertTrue((outside / "owner.md").exists())
             self.assertEqual(result["removed_releases"], 2)
-            self.assertEqual(result["preserved_releases"], 2)
+            self.assertEqual(result["preserved_releases"], 4)
             self.assertEqual(result["errors"], 0)
             self.assertEqual(result["protected_release_count"], 0)
 
