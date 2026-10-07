@@ -156,6 +156,8 @@ The Web-first landing and production data path are live. Continue the canonical 
 - [x] Preserve existing non-Web `lm_users` rows and route the verified Google subject to a stable, separate Web-only UID whenever the canonical UID has a non-null `telegram_chat_id`. Callback and later session resolution both choose the same UID; the old row is read-only.
 - [x] Return OAuth failures to `/lm?auth_error=connection` and show a retry message in the existing signed-out page; Safari no longer receives a plain-text body to download as `callback.txt`.
 - [x] Verify callback tenant selection and retry state with focused tests and the synthetic browser flow: Web/auth/Calendar/billing suites pass 127/127; browser flow passes at 390x844 and 1440x900. Production proof still requires a dedicated test identity; do not sign into or read a personal Google Calendar.
+- [x] Deploy and read back the public failure path: PR #6995 merged as `3f1bd81a77b9001284678888b641aaedb1e3e497`; Railway `life-call` deployment `a973d8c1-3930-4e07-a0a5-6b0c25e72a62` and `/health` both report that SHA. `/lm?auth_error=connection` displays the retry copy, OAuth start returns 302 to Supabase, and a no-code callback returns 302 to the retry page without a text response.
+- [ ] Verify one successful production Google callback using a dedicated test identity when available. No personal Google account or Calendar was used for this release.
 
 ### Task 3 corrective gate after fresh read-only review
 
