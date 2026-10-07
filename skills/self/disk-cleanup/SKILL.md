@@ -31,10 +31,10 @@ allow-listed regenerable artifact after an open-path probe confirms
   for the exact regenerable families; the CLI `--candidate` escape hatch is
   rejected so an arbitrary path cannot be promoted by an operator flag.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
-- Pressure is asserted below 11 GiB and is not cleared until the recovery floor
+- Pressure is asserted below 2 GiB and is not cleared until the recovery floor
   is reached; the 20 GiB threshold starts preventive containment.
 - The central cleanup terminal reports capacity recovery separately from
-  deletion outcomes: integer `free_after` must meet the existing 11 GiB floor;
+  deletion outcomes: integer `free_after` must meet the existing 2 GiB floor;
   a shortfall is `unmet`, and missing or invalid capacity is `unknown`. These
   statuses do not replace `errors` or `protected_deletions`.
 - The direct governor CLI stores the same capacity status and `ok` in its pass
@@ -44,17 +44,17 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
   advances atomically under the governor's singleton lock; if disk exhaustion
   prevents that metadata write, the in-memory rotation still sweeps and retries
-  the cursor once only after the sweep's fresh free-space reading meets 11 GiB.
+  the cursor once only after the sweep's fresh free-space reading meets 2 GiB.
   Cursor writes do not consume the terminal receipt reserve, and the receipt
   records cursor-write failures separately from deletion errors.
-- The shared runner defers new finite data-plane wakes below 11 GiB, measuring
+- The shared runner defers new finite data-plane wakes below 2 GiB, measuring
   the volume that contains the host-admission receipt before queueing and again
   after claim before child dispatch. Control-plane safety loops and continuous
   owners bypass this gate. It releases any prior reservation through the
-  existing defer path and never stops a running owner. Its fixed 11 GiB floor
+  existing defer path and never stops a running owner. Its fixed 2 GiB floor
   is independent of the individual-wrapper `LIFE_MANAGER_DISK_HEADROOM_KIB`
   setting.
-- After the final post-inventory capacity readback reaches 11 GiB, the governor
+- After the final post-inventory capacity readback reaches 2 GiB, the governor
   removes `disk-writers.stop` only when its same-UID 0600 regular file still has
   the exact `host-disk-recovery` owner, `disk_headroom_low` reason, required
   bytes, and recovery action. Low/unknown capacity, foreign or malformed
