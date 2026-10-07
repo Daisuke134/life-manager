@@ -62,6 +62,14 @@ function readbackFiles(stateDir) {
   return fs.existsSync(directory) ? fs.readdirSync(directory).filter(name => name.endsWith(".json")) : [];
 }
 
+function writePrivateJson(file, value) {
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  const body = `${JSON.stringify(value)}\n`;
+  fs.writeFileSync(file, body, { mode: 0o600 });
+  fs.chmodSync(file, 0o600);
+  return body;
+}
+
 test("new occurrence persists the normalized B7 source bound to its delivered report receipt", async t => {
   const { options, messages } = setup(t);
   const table = b7Table("2026-09-30");
@@ -92,6 +100,8 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   assert.equal(snapshot.projectionSha256, crypto.createHash("sha256").update(canonicalJson(table)).digest("hex"));
   assert.equal(snapshot.messageSha256, crypto.createHash("sha256").update(messages[0].message).digest("hex"));
   assert.equal(snapshot.status, "sent");
+  assert.equal(snapshot.sourceProvenance.status, "unavailable");
+  assert.equal(snapshot.sourceProvenance.reason, "asc_packet_path_missing");
   assert.equal(snapshot.providerMessageId, "provider-message-1");
   assert.equal(snapshot.resolutionKind, "sent");
   assert.equal(snapshot.deliveryOccurrenceId, options.occurrenceId);
@@ -100,6 +110,214 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.doesNotMatch(fs.readFileSync(file, "utf8"), /fixture-secret|do-not-save|API_TOKEN|Authorization|owner@example\.test/);
   assert.doesNotMatch(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"), /fixture-secret|do-not-save/);
+});
+
+function writeMobileProvenanceFixture(options, { mutatePacket, mutateMobile } = {}) {
+  const financialSha = "f".repeat(64);
+  const detailSha = "d".repeat(64);
+  const relationshipsSha = "b".repeat(64);
+  const packet = {
+    schema_version: 1,
+    observed_at: "2026-09-30T11:59:00.000Z",
+    financial: {
+      metadata: { reportType: "FINANCIAL", regionCode: "ZZ", reportDate: "2026-12", vendorNumber: "private-vendor",
+        filePath: "/private/financial.gz", decompressed: true, decompressedPath: "/private/financial.tsv",
+        fileSize: 20, decompressedSize: 100 },
+      artifact_path: "/private/financial.tsv", artifact_sha256: financialSha,
+      period: { start: "08/30/2026", end: "09/26/2026" },
+    },
+    detail: {
+      metadata: { reportType: "FINANCE_DETAIL", regionCode: "Z1", reportDate: "2026-12", vendorNumber: "private-vendor",
+        filePath: "/private/detail.gz", decompressed: true, decompressedPath: "/private/detail.tsv",
+        fileSize: 20, decompressedSize: 100 },
+      artifact_path: "/private/detail.tsv", artifact_sha256: detailSha,
+      period: { start: "08/30/2026", end: "09/26/2026" },
+    },
+    relationships: { artifact_path: "/private/relationships.json", artifact_sha256: relationshipsSha },
+  };
+  const packetPath = path.join(options.stateDir, "asc-input", "asc-financial-packet.json");
+  const receiptId = `app-store-connect-financial:normalized:${detailSha}:12`;
+  const revenuecatRows = [];
+  const revenuecatSnapshots = [];
+  for (let index = 0; index < 6; index++) {
+    const productId = `product-${index + 1}`;
+    const businessDate = `2026-09-${String(25 + index).padStart(2, "0")}`;
+    const observedAt = `${businessDate}T00:00:00.000Z`;
+    const evidenceSha256 = crypto.createHash("sha256").update(`revenuecat:${productId}:${businessDate}`).digest("hex");
+    const querySha256 = crypto.createHash("sha256").update(`query:${productId}`).digest("hex");
+    const chartResponseSha256 = crypto.createHash("sha256").update(`chart:${productId}`).digest("hex");
+    revenuecatRows.push({
+      product_id: productId, availability: "available", reason: null, observed_at: observedAt,
+      query_scope: { chart: "mrr", chart_endpoint: "/v2/projects/{project_id}/charts/mrr",
+        options_endpoint: "/v2/projects/{project_id}/charts/mrr/options", project_id_sha256: "c".repeat(64),
+        start_date: "2026-09-10", end_date: "2026-09-30", resolution: "daily",
+        filters: [{ name: "app_id", values: [productId] }] },
+      query_sha256: querySha256, evidence_sha256: evidenceSha256, chart_response_sha256: chartResponseSha256,
+    });
+    revenuecatSnapshots.push({
+      schema_version: 1, record_type: "subscription_snapshot", snapshot_id: `revenuecat:${productId}:mrr:${businessDate}`,
+      subscription_id: `revenuecat:${productId}:mrr`, product_loop_id: "mobile-apps", provider: "revenuecat",
+      currency: "USD", normalized_monthly_amount: "20.34", normalization_basis: "provider_monthly",
+      status: "active", observed_at: observedAt, verification_state: "verified",
+      evidence_refs: [`revenuecat://charts/mrr/${productId}/${businessDate}/${evidenceSha256}`],
+    });
+  }
+  const ascReceipt = {
+    schema_version: 1, record_type: "receipt", provider: "app-store-connect-financial",
+    product_loop_id: "mobile-apps", receipt_id: receiptId, currency: "JPY",
+    occurred_at: "2026-09-12T00:00:00Z", settled_at: "2026-09-12T00:00:00Z",
+    verification_state: "verified", revenue_class: "other_recurring",
+    evidence_refs: [
+      `appstoreconnect://financial-reports/sha256/${financialSha}#rows/1`,
+      `appstoreconnect://finance-detail/sha256/${detailSha}#row/12`,
+      `appstoreconnect://subscription-relationships/sha256/${relationshipsSha}#data/1`,
+      `appstoreconnect://subscription-relationships/sha256/${relationshipsSha}#included/1`,
+    ],
+    components: [{ category: "settled_external_revenue", amount: "4250" }],
+  };
+  const mobileReadback = {
+    schema_version: 1, owner_id: "life-manager-cfo-hourly", run_id: "run-1",
+    occurrence_id: options.occurrenceId, release_sha: "a".repeat(40), live_readback_enabled: true,
+    revenuecat: {
+      started_at: "2026-09-30T11:58:00.000Z", completed_at: "2026-09-30T11:59:00.000Z",
+      latest_observed_at: "2026-09-30T00:00:00.000Z", availability: "available", rows: revenuecatRows,
+    },
+    mobile_records: [...revenuecatSnapshots, ascReceipt],
+    projection: { duplicate_receipts: [], coverage: {}, mobile_mrr: { status: "verified", amounts: { USD: "20.34" } } },
+  };
+  mutatePacket?.(packet);
+  mutateMobile?.(mobileReadback);
+  const packetText = writePrivateJson(packetPath, packet);
+  options.env = { ...options.env, LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET: packetPath };
+  const mobilePath = path.join(options.stateDir, "mobile-readbacks", `${options.occurrenceId}.json`);
+  const mobileText = writePrivateJson(mobilePath, mobileReadback);
+  return { packet, packetText, mobileReadback, mobileText, financialSha, detailSha, relationshipsSha, receiptId };
+}
+
+test("B7 snapshot joins the official ASC packet and same-occurrence RevenueCat readback", async t => {
+  const { options } = setup(t);
+  const table = b7Table("2026-09-30");
+  options.collect = async () => table;
+  const fixture = writeMobileProvenanceFixture(options);
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  const provenance = snapshot.sourceProvenance;
+  assert.equal(provenance.status, "verified");
+  assert.equal(provenance.occurrenceId, options.occurrenceId);
+  assert.equal(provenance.asc.packetSha256, crypto.createHash("sha256").update(fixture.packetText).digest("hex"));
+  assert.equal(provenance.asc.observedAt, fixture.packet.observed_at);
+  assert.deepEqual(provenance.asc.financial, {
+    reportType: "FINANCIAL", regionCode: "ZZ", reportDate: "2026-12",
+    sourcePeriod: { start: "08/30/2026", end: "09/26/2026" },
+    period: { start: "2026-08-30", end: "2026-09-26" }, artifactSha256: fixture.financialSha,
+    nativeReportId: { status: "not_returned", endpoint: "GET /v1/financeReports" },
+  });
+  assert.deepEqual(provenance.asc.detail, {
+    reportType: "FINANCE_DETAIL", regionCode: "Z1", reportDate: "2026-12",
+    sourcePeriod: { start: "08/30/2026", end: "09/26/2026" },
+    period: { start: "2026-08-30", end: "2026-09-26" }, artifactSha256: fixture.detailSha,
+    nativeReportId: { status: "not_returned", endpoint: "GET /v1/financeReports" },
+  });
+  assert.equal(provenance.asc.relationshipsSha256, fixture.relationshipsSha);
+  assert.deepEqual(provenance.asc.receipts, [{
+    receiptId: fixture.receiptId, currency: "JPY", occurredAt: "2026-09-12T00:00:00Z",
+    settledAt: "2026-09-12T00:00:00Z", category: "settled_external_revenue",
+  }]);
+  assert.equal(provenance.revenuecat.status, "available");
+  assert.equal(provenance.revenuecat.snapshotCount, 6);
+  assert.equal(provenance.revenuecat.matchedSnapshotCount, 6);
+  assert.deepEqual(provenance.revenuecat.currencies, ["USD"]);
+  const rawRc = fixture.mobileReadback.revenuecat.rows[0];
+  assert.deepEqual(provenance.revenuecat.snapshots[0], {
+    productIdSha256: crypto.createHash("sha256").update(rawRc.product_id).digest("hex"),
+    businessDate: "2026-09-25", evidenceSha256: rawRc.evidence_sha256,
+    querySha256: rawRc.query_sha256, chartResponseSha256: rawRc.chart_response_sha256,
+    observedAt: rawRc.observed_at, currency: "USD",
+  });
+  assert.equal(provenance.revenuecat.observedAtStart, "2026-09-25T00:00:00.000Z");
+  assert.equal(provenance.revenuecat.observedAtEnd, "2026-09-30T00:00:00.000Z");
+  assert.equal(provenance.revenuecat.mobileReadbackSha256, crypto.createHash("sha256").update(fixture.mobileText).digest("hex"));
+  assert.equal(provenance.duplicateReceiptCount, 0);
+  assert.equal(snapshot.sourceProvenanceSha256,
+    crypto.createHash("sha256").update(canonicalJson(provenance)).digest("hex"));
+  const resultState = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"));
+  assert.equal(resultState.b7ReadbackRef.sourceProvenanceSha256, snapshot.sourceProvenanceSha256);
+  const stored = fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8");
+  assert.doesNotMatch(stored, /private-vendor|private-subscription|product-[1-6]|\/private\//);
+});
+
+test("ASC packet in a non-private parent directory cannot be marked verified", async t => {
+  const { options } = setup(t);
+  options.collect = async () => b7Table("2026-09-30");
+  writeMobileProvenanceFixture(options);
+  fs.chmodSync(path.join(options.stateDir, "asc-input"), 0o755);
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(snapshot.sourceProvenance.status, "unavailable");
+  assert.equal(snapshot.sourceProvenance.reason, "asc_packet_unavailable");
+});
+
+test("same-count RevenueCat summaries require exact product, time, availability and evidence matches", async t => {
+  const mutations = [
+    ["product identity", row => { row.product_id = "unrelated-product"; }],
+    ["provider availability", row => { row.availability = "unavailable"; }],
+    ["observation time", row => { row.observed_at = "2026-09-25T00:01:00.000Z"; }],
+    ["evidence hash", row => { row.evidence_sha256 = "0".repeat(64); }],
+  ];
+  for (const [name, mutateRow] of mutations) {
+    const { options } = setup(t);
+    options.collect = async () => b7Table("2026-09-30");
+    writeMobileProvenanceFixture(options, { mutateMobile: mobile => mutateRow(mobile.revenuecat.rows[0]) });
+
+    await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+    const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+    assert.equal(snapshot.sourceProvenance.status, "partial", name);
+    assert.equal(snapshot.sourceProvenance.reason, "revenuecat_snapshot_identity_mismatch", name);
+    assert.equal(snapshot.sourceProvenance.revenuecat.matchedSnapshotCount, 5, name);
+  }
+});
+
+test("noncanonical ASC receipt IDs and evidence refs are not persisted", async t => {
+  const mutations = [
+    ["receipt ID", receipt => { receipt.receipt_id = `private-canary:${receipt.receipt_id}`; }],
+    ["evidence reference", receipt => { receipt.evidence_refs[0] = `private-canary:${receipt.evidence_refs[0]}`; }],
+  ];
+  for (const [name, mutateReceipt] of mutations) {
+    const { options } = setup(t);
+    options.collect = async () => b7Table("2026-09-30");
+    writeMobileProvenanceFixture(options, { mutateMobile: mobile => {
+      mutateReceipt(mobile.mobile_records.find(row => row.provider === "app-store-connect-financial"));
+    } });
+
+    await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+    const file = readbackFile(options.stateDir, options.occurrenceId);
+    const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(snapshot.sourceProvenance.status, "partial", name);
+    assert.equal(snapshot.sourceProvenance.reason, "asc_receipt_evidence_mismatch", name);
+    assert.deepEqual(snapshot.sourceProvenance.asc.receipts, [], name);
+    assert.doesNotMatch(fs.readFileSync(file, "utf8"), /private-canary/, name);
+  }
+});
+
+test("duplicate ASC receipts prevent verified provenance", async t => {
+  const { options } = setup(t);
+  options.collect = async () => b7Table("2026-09-30");
+  writeMobileProvenanceFixture(options, { mutateMobile: mobile => {
+    mobile.projection.duplicate_receipts = [{ provider: "app-store-connect-financial", receipt_id: "duplicate" }];
+  } });
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(snapshot.sourceProvenance.status, "partial");
+  assert.equal(snapshot.sourceProvenance.reason, "duplicate_receipts_present");
+  assert.equal(snapshot.sourceProvenance.duplicateReceiptCount, 1);
 });
 
 test("orphan B7 snapshot recovers after pending state rename failure without recollecting", async t => {
@@ -144,6 +362,7 @@ test("orphan B7 snapshot recovers after pending state rename failure without rec
     path: `b7-readbacks/${options.occurrenceId}.json`,
     projectionSha256: crypto.createHash("sha256").update(canonicalJson(table)).digest("hex"),
     messageSha256: crypto.createHash("sha256").update(messages[0].message).digest("hex"),
+    sourceProvenanceSha256: JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8")).sourceProvenanceSha256,
   });
 });
 
