@@ -113,7 +113,7 @@ flowchart LR
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
-現在の cursor: **7-0（Lancers 5605912、Dais の承諾待ち）と 5-11 / 5-12 を並行**
+履歴: この時点のT7 cursorは **7-0（Lancers 5605912）と 5-11 / 5-12 の並行**だった。これは過去のsnapshotであり現行Gig cursorではない。最新のGig cursorは本書末尾「2026-10-08 JST — Gig atomic cursor」を参照する。
 
 T5 の途中経過（2026-09-25 19:00 JST）:
 - 観測1: `life-manager-recovery-supervisor` は release 287d で毎 wake exit 1 になっていた。原因は、旧 release の intent を正しく `blocked: release_sha_mismatch` にした結果まで失敗として数えていたこと。#5879 で、この理由の blocked は exit 0 にした。他の理由の blocked は今までどおり exit 1。
@@ -4229,3 +4229,21 @@ flowchart LR
 
 1. release-reconciler occurrence `18dc5c3b8b23cd60-88270`の終端とapply-lock ownerをreadbackする。終端後、cleanup ownerの次のeligible passでfree space `>=2 GiB`, errors 0, protected deletions 0を確認し、free-space再低下のwriterを追加観測する。無差別削除やfloor overrideはしない。
 2. JA 07:00、EN 08:00の次slotからexact Postiz receipt/public URLをoccurrenceへ結合する。EnglishではHeyGen video SHAとwallet costも照合する。9 target-posts/dayは目標で、実測達成扱いはしない。
+
+### 2026-10-08 JST — Gig atomic cursor
+
+**現在のGig cursor: 1（L9-07 Coconala Storefront）。** これはGig lane内のcursorであり、全社laneの順序は変えない。CFO A5–A10は別owner。最新runtime/source証拠は[Gig readback spec](2026-10-08-gig-paid-context-ref-boundary.md)に記録する。
+
+1. Coconala Storefront parser修正 `d017c50b` のPR/CI/mergeを完了する。source suite 58/58 PASS・read-only review PASSは実測済みだが、PR/mergeは未完了。
+2. `hf-gig-storefront-direct:18d8d288748508e8-23902`を同一occurrenceの公式receiptまたは受理可能なpre-effect terminalで照合する。証拠が無ければeffect fenceを保持し、timestampや近接sidecarからbindingを作らず、独立する有償案件へ進む。
+3. Coconala Storefrontをread-onlyで再取得し、現行20サービスの契約・公開状態を確認する。現行listing表示、公開履歴、購入、settlementを別々に記録する。
+4. 既存有償案件`18180857`の現在のtalkroom状態を再readbackする。revisionが継続中なら、その契約revisionを完成し、formal delivery→buyer acceptance→provider settlement/payout→duplicate-zeroを同一project/occurrenceへ結ぶ。`18211957`は前回公式readbackで取引完了済みで、必要時以外はseller actionを追加しない。
+5. Coconala Apply→Negotiate/Reply→Paidをowner/occurrenceごとに修復し、新規案件はfresh eligible inventoryとofficial proposal/thread receiptを確認してから一度だけ進める。human-requiredは保留する。
+6. Lancers（L9-08）を診断する。rows 25–27は`waiting_external`のまま維持し、この3行への再認証・CAPTCHA/solver・応募・retryはしない。他のeligible storefront/application/work-sync/paid itemだけを個別にreadbackする。
+7. CrowdWorks（L9-09）を1 occurrenceずつreconcileし、Google Form・interview・exam・identity確認を`human_required`で保留する。storefront capabilityと公開状態を確認してから応募へ進む。
+8. Job Hunter/Mercor（L9-10）をjob IDでdiscovery→fit→application→reply→funded workへ結ぶ。human-requiredのjobはskipし、公式receiptを要求する。
+9. Upworkで現行account-bound authとProject Catalog inventoryを読み、Storefrontを整えてからeligible apply→negotiation→funded contract→delivery→payoutを接続する。disabled legacy loopをowner/auth/inventoryなしに起動しない。
+10. Freelancerで現行account-bound authとServices inventoryを読み、supported Storefrontから整える。自動bidはprovider明示のautomation authorization receiptがある時だけ。funded contract/milestoneなしにeffectful ownerを起動しない。
+11. 対象プラットフォームごとにmain由来loaded SHA、連続する自然Storefront/Application/Reply/Paid occurrence、provider公式receipt、settlement/fee/cost、replay-zeroを確認して初めて24/7完了とする。登録・loaded・passのみを収益としない。
+
+L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序に従って着手する。案件proposal額・出品実績表示・process passはsettled revenueではない。全社settlement joinとMRR/netはCFO ownerの担当。
