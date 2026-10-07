@@ -3858,3 +3858,27 @@ MX readiness: source65rows分類とconfigured release関連17hash一致を確認
 private配布物probe: baseline9cases＋retry0 override2cases。defaultdisconnectHOLD、overrideのboundedfake recoveryPASS（1request/0retry/9.48秒）、native/business parity未測定。realmodelcalls0/prodmutations0。MX-04bを初回adapter順に追加。旧HA80/gateway/cron/cloudはinactiveのまま。
 
 retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2casesもPASS（disconnect1request/0retry/8.839秒、次invoke成功、survivor0）。fakeruntime合計13cases。MX-04bの配置は実測済み、native/backend/account/economicsは別unmeasured。
+
+
+## Host disk recovery incident
+
+目的: Mac のディスク逼迫の主因を観測し、未使用で再生成可能な出力を回収し、cleanup の実稼働と容量不足の誤成功を修正する。
+範囲: host inventory、所有者が確認できる stale process/cache、既存 disk cleanup owner。認証、memory、state JSONL、使用中 release と他者の編集を保護する。
+受け入れ: 空き容量の前後、正確な回収対象、cleanup scheduled receipt、誤成功の focused regression、source/main/release evidence。再発しないという無期限の保証は行わない。
+観測: Data volume の空き約 1.5 GiB、ゾンビ状態0、cleanup の過去 receipt は ULTRA/zero reclaim を ok=true としている。GUI preflight PASS だが cleanup label 未ロード。
+TODO: [進行中] 最大容量familyの診断と安全回収 → [未完] exact cleanup failureの最小修正 → [未完] source acceptance/merge/immutable release → [未完] natural receiptと空き容量readback。
+現在cursor: 大容量familyの計測、既存allowlist governorのowner lock下での回収。既存business TODOの順序は変更しない。
+
+Host recovery追加条件: 単発回収だけで完了にせず、既存5分cleanup + 同じgovernor/同じstate lockの60秒watchdogをimmutable sourceへ接続する。watchdogの旧無条件rm/強制worktree unlock経路を置換する。共有runnerのscratch/admissionがENOSPCでもdirect governorは1MiB receipt reserveを使って回収できる。候補の固定順budget starvationをdurable cursorで修正する。
+確認済み障害: main cleanupとemergency guardはlaunchd disabled。main cleanupをsafe enable/startで復旧し、run `18dc2aedb58ab548-42604` はscratch 107件を回収した。旧terminalのULTRA/CRITICAL容量不足でok=trueとなる判定は修正中。
+安全回収: governorがstale updater1件を同一性確認後SIGTERMし、2380146999 bytesのallowlisted cacheを回収。起動Simulator0のためApple simctlでdyld_shared_cacheを除去した。後続dfで空き約6.7GiB。memory/session/credentials/state JSONLを削除していない。
+計測の限界: user Libraryの多数のTCC保護rootはsudoもOperation not permitted/timeoutである。unknownを0に置換しない。homeのその他約200root、Applications、Homebrew、Developer、var/db等をbounded計測。長時間止まった自分のdu probeだけSIGTERMした。
+現在cursor: workerの誤成功/cursor/fallback source fix → focused acceptance → main/release → target idle apply → primary+watchdog natural receipt。追加のshared disk admission診断を並行する。
+
+共有producer予防gate: source診断でlm_loop_runにはdisk checkがなく、既存disk_admissionは一部wrapperだけ/default512MiB。従って今回の再発防止には既存memory pre-enqueue gateと同じ形で11GiBのdisk preflightを接続する必要がある。CONTROL_PLANE_SAFETY_LOOPSはbypassしcleanupを継続、現在実行中のownerは停止せず新しいfinite producerだけeffect dispatch前にdeferする。既存queue/fenceを削除/書換せず、新しいquota frameworkは作らない。受け入れはlow-diskのprovider dispatch0、cleanup bypass、normal headroomの既存経路、typed deferred receipt、main由来production自然run。
+
+容量報告の別障害: host_inventoryはmacOSの`df -P` (512-blocks)を1024倍しており、実245GBのdiskを490GBと報告する。実df -kPとAPFS readbackで2倍差を確認。df -kPへ単位を固定し既存1024-block fixtureに回帰を追加する。governorのshutil.disk_usageは正常であり、このreport不具合とgovernorの判定を混同しない。
+source/運用の未完境界: 空きは約6GiBで11GiB未回復。session DBのfree pagesはほぼ0で、VACUUMによる有意回収はない。全dependency bundleにはproduction/source参照があり削除不可。唯一のmerged/clean/expired lease worktree候補にもopen reference1件あり保護する。TCCのunknown rootsはunknownのまま残す。
+
+共通gateの最終範囲: 11GiBを下げられない定数をmanaged finite runnerへ適用する。既存individual disk_admission wrapperの既定512MiB/env contractは、継続ownerやdirect callerへの副作用を避けるため維持する。shared gateはwrapper env=0でも11GiBのままである。常駐ownerの開始経路とcontrol-plane safetyは共通gateをbypassする。managed外のinteractive client/OS writerの容量上限を今回実装したと主張しない。
+検証/反映cursor: source branchのstage1 `c282bd4179...`はpush済み。stage2はpre-enqueue/post-claimのprovider child0、unknown→not_applicable、既存reservation解放+60秒cooldownをfocused確認し、subprocess testのhealthy disk fixtureを整える。旧watchdogはsafe bootout/disableし、旧無条件削除を止める。新templateのimmutable render/readbackは未完である。

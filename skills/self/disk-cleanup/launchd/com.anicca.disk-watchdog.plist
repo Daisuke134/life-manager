@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.anicca.disk-watchdog</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>__LIFE_MANAGER_ROOT__/skills/self/disk-cleanup/disk_cleanup.py</string>
+    <string>--home</string>
+    <string>__HOME__</string>
+    <string>--state-dir</string>
+    <string>__HOME__/.local/state/life-manager/state</string>
+  </array>
+  <key>StartInterval</key><integer>60</integer>
+  <key>RunAtLoad</key><true/>
+  <key>ThrottleInterval</key><integer>60</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>__HOME__/.local/state/life-manager/life-manager-disk-cleanup/logs/watchdog.out.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/.local/state/life-manager/life-manager-disk-cleanup/logs/watchdog.err.log</string>
+</dict></plist>
