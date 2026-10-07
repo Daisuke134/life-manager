@@ -19,20 +19,20 @@ struct QuoteNavigationCoordinatorTests {
         )
 
         let feedAfterColdStart = QuoteNavigationCoordinator(defaults: defaults, storageKey: storageKey)
-        #expect(feedAfterColdStart.resolveIndex(in: []) == nil)
+        #expect(feedAfterColdStart.resolveQuote(in: []) == nil)
         #expect(feedAfterColdStart.pendingRequest?.quoteID == "q001")
 
         let quotes = [
             Quote(id: "q001", text: "I am committed to becoming who I am meant to be."),
             Quote(id: "q007", text: "I am exactly where I need to be in my journey."),
         ]
-        #expect(feedAfterColdStart.resolveIndex(in: quotes) == 1)
+        #expect(feedAfterColdStart.resolveQuote(in: quotes) == quotes[1])
         #expect(feedAfterColdStart.pendingRequest == nil)
         #expect(defaults.data(forKey: storageKey) == nil)
     }
 
-    @Test("An alert body absent from this locale falls back to the canonical quote ID")
-    func unknownLocalizedAlertBodyFallsBackToQuoteID() {
+    @Test("An alert body absent from the catalog is shown instead of a conflicting quote ID")
+    func unknownAlertBodyTakesPrecedenceOverConflictingQuoteID() {
         let suiteName = "QuoteNavigationCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -41,7 +41,10 @@ struct QuoteNavigationCoordinatorTests {
         coordinator.request(quoteID: "q001", alertBody: "A different affirmation not in this catalog.")
 
         let quotes = [Quote(id: "q001", text: "I am committed to becoming who I am meant to be.")]
-        #expect(coordinator.resolveIndex(in: quotes) == 0)
+        #expect(coordinator.resolveQuote(in: quotes) == Quote(
+            id: "notification:q001",
+            text: "A different affirmation not in this catalog."
+        ))
         #expect(coordinator.pendingRequest == nil)
     }
 
@@ -58,7 +61,7 @@ struct QuoteNavigationCoordinatorTests {
             Quote(id: "q001", text: "First affirmation."),
             Quote(id: "q007", text: "Exact deep-link destination."),
         ]
-        #expect(coordinator.resolveIndex(in: quotes) == 1)
+        #expect(coordinator.resolveQuote(in: quotes) == quotes[1])
         #expect(coordinator.pendingRequest == nil)
     }
 }
