@@ -41,7 +41,7 @@ import seedance_set  # noqa: E402
 
 STAGES = ("plan", "character", "clips", "apng", "select", "package", "submit", "submitted")
 DEFAULT_STATE_ROOT = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager"))) / "line-sticker"
-DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "2"))
+DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "12"))
 DEFAULT_MAX_USD_PER_SET = Decimal(os.environ.get("LINE_STICKER_MAX_USD_PER_SET", "4"))
 JST = datetime.timezone(datetime.timedelta(hours=9))
 EVENTS_LOG_NAME = "factory-events.jsonl"
