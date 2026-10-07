@@ -101,9 +101,57 @@ test("English owner returns a typed no-effect hold while Postiz keeps its integr
   assert.equal(result.state, "setup_required");
   assert.equal(result.reason, "provider_disabled");
   assert.equal(result.effect, 0);
-  assert.equal(fs.existsSync(dataDir), false);
+  const hintPath = env.LIFE_MANAGER_RESULT_HINT_PATH;
+  assert.equal(fs.existsSync(hintPath), true);
+  if (fs.existsSync(hintPath)) {
+    assert.deepEqual(JSON.parse(fs.readFileSync(hintPath, "utf8")), {
+      schema_version: 1,
+      kind: "life_manager_no_effect_result",
+      status: "verified_no_effect",
+      effect: 0,
+      owner_id: "ebook-en-tiktok-daily",
+      occurrence_id: "ebook-en-tiktok-daily:run-1",
+      reason: "setup_required",
+    });
+  }
 });
 
+test('off-slot Japanese TikTok persists an exact no-effect hint before renderer or Postiz', async () => {
+  const dataDir = path.join(os.tmpdir(), `ebook-ja-no-slot-${process.pid}-${Date.now()}`);
+  const ownerId = 'ebook-ja-tiktok-daily';
+  const occurrenceId = `${ownerId}:run-off-slot`;
+  const hintPath = path.join(dataDir, 'entrypoint-result.json');
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: hintPath,
+    LM_DATA_DIR: dataDir,
+    LM_RUNTIME_TENANT_ID: 'dais-local',
+    LM_EBOOK_PUBLISHING_ENABLED: 'true',
+  };
+
+  const result = await run([ownerId], {
+    env,
+    nowMs: Date.parse('2026-10-08T00:33:17+09:00'),
+  });
+
+  assert.equal(result.state, 'no_due_slot');
+  assert.equal(result.effect, 0);
+  assert.equal(fs.existsSync(hintPath), true);
+  if (fs.existsSync(hintPath)) {
+    assert.deepEqual(JSON.parse(fs.readFileSync(hintPath, 'utf8')), {
+      schema_version: 1,
+      kind: 'life_manager_no_effect_result',
+      status: 'verified_no_effect',
+      effect: 0,
+      owner_id: ownerId,
+      occurrence_id: occurrenceId,
+      reason: 'no_due_slot',
+    });
+  }
+  fs.rmSync(dataDir, { recursive: true, force: true });
+});
 test("an idempotent Instagram replay normalizes only an exact Postiz readback", () => {
   const ownerId = "ebook-ja-instagram-daily";
   const occurrenceId = `${ownerId}:run-1`;

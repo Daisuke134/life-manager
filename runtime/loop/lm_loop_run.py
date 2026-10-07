@@ -83,6 +83,7 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
 })
+NO_EFFECT_RESULT_HINT_ENTRYPOINT = "apps/life-manager/scripts/ebook-distribute-daily.sh"
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -828,8 +829,7 @@ def _proven_pre_effect_failure(path: Path) -> bool:
         return False
 
 
-def _verified_effect_result(path: Path, loop_id: str,
-                            occurrence_id: str) -> tuple[str, str] | None:
+def _read_private_result_hint(path: Path) -> dict | None:
     descriptor = -1
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
@@ -850,14 +850,22 @@ def _verified_effect_result(path: Path, loop_id: str,
         value = json.loads(data)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
+    return value if isinstance(value, dict) else None
+
+
+def _verified_effect_result(path: Path, loop_id: str,
+                            occurrence_id: str) -> tuple[str, str] | None:
+    value = _read_private_result_hint(path)
     expected_fields = {
         "schema_version", "kind", "status", "effect", "owner_id",
         "occurrence_id", "provider", "provider_receipt_id", "effect_status",
     }
     if (not isinstance(value, dict) or set(value) != expected_fields
+            or type(value.get("schema_version")) is not int
             or value.get("schema_version") != 1
             or value.get("kind") != "life_manager_effect_result"
             or value.get("status") != "verified_effect"
+            or type(value.get("effect")) is not int
             or value.get("effect") != 1
             or value.get("owner_id") != loop_id
             or value.get("occurrence_id") != occurrence_id
@@ -870,16 +878,44 @@ def _verified_effect_result(path: Path, loop_id: str,
     return value["effect_status"], f"postiz://posts/{receipt_id}"
 
 
+def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
+                               entrypoint: str) -> tuple[str, str] | None:
+    if entrypoint != NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+        return None
+    value = _read_private_result_hint(path)
+    expected_fields = {
+        "schema_version", "kind", "status", "effect", "owner_id",
+        "occurrence_id", "reason",
+    }
+    if (not isinstance(value, dict) or set(value) != expected_fields
+            or type(value.get("schema_version")) is not int
+            or value.get("schema_version") != 1
+            or value.get("kind") != "life_manager_no_effect_result"
+            or value.get("status") != "verified_no_effect"
+            or type(value.get("effect")) is not int
+            or value.get("effect") != 0
+            or value.get("owner_id") != loop_id
+            or value.get("occurrence_id") != occurrence_id
+            or not isinstance(value.get("reason"), str)
+            or value.get("reason") not in {"setup_required", "no_due_slot"}):
+        return None
+    return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
+
+
 def _apply_verified_effect_result(
         event: dict, result: tuple[str, str] | None) -> dict:
     updated = dict(event)
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
-        updated["effect_status"] = result[0]
-        receipt_id = result[1].rsplit("/", 1)[-1]
-        if "provider_receipt_id" in updated:
-            updated["provider_receipt_id"] = receipt_id
-            updated["official_readback_ref"] = result[1]
+        if result[0] == "not_applicable":
+            updated["effect_class"] = "none"
+            updated["effect_status"] = "not_applicable"
+        else:
+            updated["effect_status"] = result[0]
+            receipt_id = result[1].rsplit("/", 1)[-1]
+            if "provider_receipt_id" in updated:
+                updated["provider_receipt_id"] = receipt_id
+                updated["official_readback_ref"] = result[1]
         if result[1] not in updated["evidence_refs"]:
             updated["evidence_refs"].append(result[1])
     return validate_runtime_event(updated)
@@ -1584,8 +1620,13 @@ def main(argv: list[str] | None = None) -> int:
         if (return_code == 0
                 and entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
                 and claimed_occurrence_id is not None):
-            effect_result = _verified_effect_result(
-                scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id)
+            hint_path = scratch / "entrypoint-result.json"
+            if entry.get("entrypoint") == NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+                effect_result = _verified_no_effect_result(
+                    hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
+            if effect_result is None:
+                effect_result = _verified_effect_result(
+                    hint_path, loop_id, claimed_occurrence_id)
         effect_identity_ref = None
         effect_identity_status = None
         if entry.get("effect_class") != "none" and return_code != 0:

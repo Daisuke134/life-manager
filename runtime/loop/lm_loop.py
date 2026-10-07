@@ -19,6 +19,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from runtime.loop.macos_launchd_inventory import extract_release, parse_disabled, parse_loaded
 from runtime.loop.macos_loop_registry import (
@@ -75,6 +76,25 @@ EBOOK_JA_PUBLICATION_LOOP_IDS = frozenset({
     "ebook-ja-tiktok-daily",
 })
 EBOOK_JA_LOCAL_PUBLICATION_FENCE_ERROR = "marketing publication effect fenced"
+# Exact immutable release/source pair for the off-slot no-op incident.
+# This proves only that this release returned before provider work.
+EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS = {
+    "49aab2f193d7cd5c2361ad958c2f6fb7f15c7845": {
+        "owner_id": "ebook-ja-tiktok-daily",
+        "release_name": "20261007T232327-49aab2f1",
+        "entrypoint_sha256": "3240c05e7bca3dc3def17436cf5c2e0a1064d4d9501da7993b8f7dd7ecd18722",
+        "pack_file": "ebook-ja-watercolor.json",
+        "pack_sha256": "040ec1538e0aa75af4dd11d86737d3b332dd57e9ad0a9aacd14f73abcf936906",
+        "occurrence_id": "ebook-ja-tiktok-daily:18dc492a23932638-97151",
+        "start_run_id": "18dc492a23932638-97151",
+        "start_event_id": "a99a2ae69df1ae7015ee6c9d",
+        "start_timestamp": "2026-10-07T15:33:17.137149+00:00",
+        "terminal_run_id": "18dc494334713e40-66205",
+        "terminal_event_id": "0d424e04211c1e60ad2d561a",
+        "terminal_timestamp": "2026-10-07T15:35:08.651045+00:00",
+        "first_slot_jst": "07:00",
+    },
+}
 PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
     FUNDRAISER_PRE_EFFECT_BLOCKER,
 })
@@ -190,11 +210,114 @@ def _is_ebook_pre_effect_entrypoint_terminal(entry: dict, row: dict) -> bool:
     )
 
 
+def _is_ebook_verified_no_effect_terminal(entry: dict, row: dict) -> bool:
+    loop_id = row.get("loop_id")
+    occurrence_id = row.get("occurrence_id")
+    refs = row.get("evidence_refs") or []
+    no_effect_refs = [ref for ref in refs
+                      if isinstance(ref, str) and ref.startswith("lm-no-effect://")]
+    return (
+        loop_id in EBOOK_DISTRIBUTION_LOOP_IDS
+        and entry.get("entrypoint") == EBOOK_DISTRIBUTION_ENTRYPOINT
+        and entry.get("effect_class") == "publish"
+        and row.get("owner_id") == loop_id
+        and isinstance(occurrence_id, str)
+        and row.get("status") == "pass"
+        and row.get("effect_class") == "none"
+        and row.get("effect_status") == "not_applicable"
+        and row.get("blocker") is None
+        and len(no_effect_refs) == 1
+        and no_effect_refs[0] in {
+            f"lm-no-effect://{loop_id}/{occurrence_id}/setup_required",
+            f"lm-no-effect://{loop_id}/{occurrence_id}/no_due_slot",
+        }
+    )
+
+
+def _ebook_legacy_no_due_proof(entry: dict, row: dict) -> dict | None:
+    loop_id = row.get("loop_id")
+    occurrence_id = row.get("occurrence_id")
+    release_sha = row.get("release_sha")
+    proof_spec = EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS.get(release_sha)
+    refs = row.get("evidence_refs") or []
+    if (not isinstance(proof_spec, dict)
+            or proof_spec.get("owner_id") != loop_id
+            or loop_id not in EBOOK_DISTRIBUTION_LOOP_IDS
+            or not isinstance(occurrence_id, str)
+            or not occurrence_id.startswith(f"{loop_id}:")
+            or occurrence_id != proof_spec.get("occurrence_id")
+            or entry.get("entrypoint") != EBOOK_DISTRIBUTION_ENTRYPOINT
+            or entry.get("effect_class") != "publish"
+            or row.get("phase") != "report"
+            or row.get("status") != "pass"
+            or row.get("effect_class") != "publish"
+            or row.get("effect_status") != "unknown"
+            or row.get("blocker") is not None
+            or row.get("run_id") != proof_spec.get("terminal_run_id")
+            or row.get("event_id") != proof_spec.get("terminal_event_id")
+            or row.get("timestamp") != proof_spec.get("terminal_timestamp")
+            or row.get("provider_receipt_id") is not None
+            or row.get("official_readback_ref") is not None
+            or any(isinstance(ref, str) and ref.startswith("lm-effect://") for ref in refs)):
+        return None
+    try:
+        releases_root = ROOT.parent
+        release_root = releases_root / proof_spec["release_name"]
+        if (release_root.parent != releases_root or not release_root.is_dir()
+                or release_root.is_symlink()):
+            return None
+        manifest = json.loads((release_root / "RELEASE.json").read_text(encoding="utf-8"))
+        if manifest.get("sha") != release_sha:
+            return None
+        source = release_root / "apps/life-manager/scripts/ebook-distribute-daily.js"
+        if hashlib.sha256(source.read_bytes()).hexdigest() != proof_spec.get("entrypoint_sha256"):
+            return None
+        pack_path = (release_root / "skills/earn/marketing-engine/registry/ebook-packs"
+                     / proof_spec["pack_file"])
+        pack_bytes = pack_path.read_bytes()
+        if hashlib.sha256(pack_bytes).hexdigest() != proof_spec.get("pack_sha256"):
+            return None
+        pack = json.loads(pack_bytes)
+        slots = pack.get("slots_jst")
+        if slots != [proof_spec.get("first_slot_jst"), "12:30", "20:00"]:
+            return None
+        slot_minutes = []
+        for slot in slots:
+            match = re.fullmatch(r"([01][0-9]|2[0-3]):([0-5][0-9])", str(slot))
+            if not match:
+                return None
+            slot_minutes.append(int(match.group(1)) * 60 + int(match.group(2)))
+        timestamp = datetime.fromisoformat(str(row["timestamp"]).replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            return None
+        local = timestamp.astimezone(ZoneInfo("Asia/Tokyo"))
+        if local.hour * 60 + local.minute >= min(slot_minutes):
+            return None
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return {
+        "reason": "no_due_slot",
+        "release_sha": release_sha,
+        "entrypoint_sha256": proof_spec["entrypoint_sha256"],
+        "run_timestamp": timestamp.isoformat(),
+        "timezone": "Asia/Tokyo",
+        "first_slot_minutes": min(slot_minutes),
+    }
+
+
+def _is_ebook_legacy_no_due_terminal(entry: dict, row: dict) -> bool:
+    return _ebook_legacy_no_due_proof(entry, row) is not None
+
+
 def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
     if (row.get("status") == "blocked"
             and row.get("blocker") in PRE_EFFECT_ADMISSION_BLOCKERS):
         return True
     if _is_ebook_pre_effect_entrypoint_terminal(entry, row):
+        return True
+    if _is_ebook_verified_no_effect_terminal(entry, row):
+        return True
+    if _is_ebook_legacy_no_due_terminal(entry, row):
         return True
     # fundraiser's exit 75 is emitted only by the disk/CDP preflight in
     # run.sh, before run_agent.sh can open an application or dispatch a
@@ -427,6 +550,8 @@ def _pre_effect_occurrence_proof(
     if len(terminals) != 1:
         return None, "no_pre_effect_terminal"
     terminal = terminals[0]
+    verified_no_effect_terminal = _is_ebook_verified_no_effect_terminal(entry, terminal)
+    legacy_no_due_proof = _ebook_legacy_no_due_proof(entry, terminal)
     terminal_run_id = terminal.get("run_id")
     if claim_runs and terminal_run_id not in claim_runs:
         return None, "terminal_not_claiming_run"
@@ -440,10 +565,28 @@ def _pre_effect_occurrence_proof(
         start = None
     else:
         return None, "unexpected_events"
+    if legacy_no_due_proof is not None and start is not None:
+        proof_spec = EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS[terminal["release_sha"]]
+        if start.get("release_sha") != terminal.get("release_sha"):
+            return None, "legacy_release_mismatch"
+        if (start.get("occurrence_id") != proof_spec["occurrence_id"]
+                or start.get("run_id") != proof_spec["start_run_id"]
+                or start.get("event_id") != proof_spec["start_event_id"]
+                or start.get("timestamp") != proof_spec["start_timestamp"]):
+            return None, "legacy_start_mismatch"
+        start_at = datetime.fromisoformat(start["timestamp"]).astimezone(ZoneInfo("Asia/Tokyo"))
+        first_hour, first_minute = map(int, proof_spec["first_slot_jst"].split(":"))
+        if start_at.hour * 60 + start_at.minute >= first_hour * 60 + first_minute:
+            return None, "legacy_start_not_pre_effect"
+    elif legacy_no_due_proof is not None:
+        return None, "legacy_start_missing"
     terminal_summary_ref = f"lm-loop://{loop_id}/{terminal_run_id}/summary.json"
     if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
             and not _is_ebook_pre_effect_entrypoint_terminal(entry, terminal)
-            or terminal.get("effect_status") != "unknown"
+            and not verified_no_effect_terminal
+            and legacy_no_due_proof is None
+            or (terminal.get("effect_status") != "unknown"
+                and not verified_no_effect_terminal)
             or terminal_summary_ref not in (terminal.get("evidence_refs") or [])):
         return None, "terminal_not_pre_effect"
     proof_evidence_refs = []
@@ -472,6 +615,11 @@ def _pre_effect_occurrence_proof(
         "evidence_refs": proof_evidence_refs,
         "blocker": terminal["blocker"],
     }
+    if legacy_no_due_proof is not None:
+        proof["no_effect_proof"] = legacy_no_due_proof
+        if start is not None:
+            proof["no_effect_proof"]["start_run_id"] = start.get("run_id")
+            proof["no_effect_proof"]["start_timestamp"] = start.get("timestamp")
     return proof, "ok"
 
 

@@ -1714,8 +1714,16 @@ def test_verified_mobile_effect_result_requires_exact_private_identity(tmp_path)
     _write_effect_result(hint)
 
     assert _verified_effect_result(
-        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+       hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
     ) == ("reconciled", "postiz://posts/postiz-post-1")
+    _write_effect_result(hint, schema_version=True)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+    _write_effect_result(hint, effect=True)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
 
     _write_effect_result(hint, occurrence_id="life-manager-honne-ja:other")
     assert _verified_effect_result(
@@ -1742,6 +1750,84 @@ def test_verified_mobile_effect_result_rejects_symlink_and_unknown_fields(tmp_pa
     assert _verified_effect_result(
         malformed, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
     ) is None
+
+
+def _write_no_effect_result(path, **overrides):
+    value = {
+        'schema_version': 1,
+        'kind': 'life_manager_no_effect_result',
+        'status': 'verified_no_effect',
+        'effect': 0,
+        'owner_id': 'ebook-ja-tiktok-daily',
+        'occurrence_id': 'ebook-ja-tiktok-daily:run-off-slot',
+        'reason': 'no_due_slot',
+    }
+    value.update(overrides)
+    path.write_text(json.dumps(value) + '\n', encoding='utf-8')
+    path.chmod(0o600)
+    return value
+
+
+def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(tmp_path):
+    hint = tmp_path / 'entrypoint-result.json'
+    _write_no_effect_result(hint)
+    reader = getattr(loop_runner, '_verified_no_effect_result', None)
+    assert callable(reader)
+    if not callable(reader):
+        return
+
+    entrypoint = 'apps/life-manager/scripts/ebook-distribute-daily.sh'
+    expected = (
+        'not_applicable',
+        'lm-no-effect://ebook-ja-tiktok-daily/ebook-ja-tiktok-daily:run-off-slot/no_due_slot',
+    )
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                 'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+    _write_no_effect_result(hint, schema_version=True)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, effect=False)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, reason=[])
+    try:
+        invalid_reason = reader(hint, 'ebook-ja-tiktok-daily',
+                                'ebook-ja-tiktok-daily:run-off-slot', entrypoint)
+    except TypeError as error:
+        assert False, f'array reason must fail closed without raising: {error}'
+    assert invalid_reason is None
+
+    _write_no_effect_result(hint, occurrence_id='ebook-ja-tiktok-daily:other')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, reason='arbitrary')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', 'apps/life-manager/scripts/mobile-app') is None
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
+    hint.chmod(0o600)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+
+
+def test_verified_no_effect_result_marks_the_terminal_as_no_effect():
+    owner = 'ebook-ja-tiktok-daily'
+    occurrence = f'{owner}:run-off-slot'
+    ref = f'lm-no-effect://{owner}/{occurrence}/no_due_slot'
+    event = build_runtime_event(
+        loop_id=owner, domain='growth', run_id='run-off-slot',
+        release_sha='a' * 40, provider='postiz', profile_alias=None,
+        effect_class='publish', succeeded=True, blocker=None,
+        claimed_occurrence_id=occurrence,
+    )
+
+    updated = _apply_verified_effect_result(event, ('not_applicable', ref))
+
+    assert updated['effect_class'] == 'none'
+    assert updated['effect_status'] == 'not_applicable'
+    assert updated['evidence_refs'][-1] == ref
 
 
 def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
