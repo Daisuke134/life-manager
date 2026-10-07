@@ -181,6 +181,25 @@ class SeriesSequel(unittest.TestCase):
             receipt = json.loads((new_dir / "char-ref.receipt.json").read_text())
             self.assertEqual(receipt, {"reused": True, "source_set": "set-001"})
 
+    def test_unusable_series_of_falls_back_to_generation(self) -> None:
+        # A model-named set that is missing, lacks reference art, or escapes state_root must not
+        # wedge the character stage on every wake; it generates a fresh character instead.
+        for series_of in ("set-009", "../set-001", "set-001"):
+            with tempfile.TemporaryDirectory() as tmp:
+                state_root = Path(tmp)
+                (state_root / "set-001").mkdir()  # exists but has no reference art
+                new_dir = state_root / "set-002"
+                new_dir.mkdir()
+                MODULE._atomic_write_json(new_dir / "plan-draft.json", {
+                    "theme": "敬語", "series_of": series_of,
+                    "character_id": "char-test-001", "character_prompt": "a test mascot",
+                    "motions": [], "listing": {"title": {"ja": "t", "en": "t"}, "description": {"ja": "d", "en": "d"}},
+                })
+                calls = []
+                deps = _fake_deps(character_image=lambda set_dir, plan: calls.append(set_dir))
+                self.assertEqual(MODULE.run_character(new_dir, state_root, deps), "clips")
+                self.assertEqual(calls, [new_dir], series_of)
+
     def test_prior_set_facts_feed_the_planner(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state_root = Path(tmp)

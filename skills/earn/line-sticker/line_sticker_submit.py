@@ -52,6 +52,23 @@ async def _goto(page: Page, url: str) -> None:
     await _close_modals(page)
 
 
+def _is_title_taken(errors: list[str]) -> bool:
+    return any("既に存在するタイトル" in e or "title already exists" in e.lower() for e in errors)
+
+
+def _retitle(listing: dict) -> dict | None:
+    name = listing.get("character_name") or ""
+    if not name:
+        return None
+    titles = {lang: f"{title} ({name})"[:40] for lang, title in listing["title"].items()}
+    return dict(listing, title=titles)
+
+
+async def _visible_errors(page) -> list[str]:
+    return await page.evaluate("""() => [...document.querySelectorAll("[class*=rror], .mdTxtError")]
+        .filter(e => e.offsetParent && e.innerText.trim()).map(e => e.innerText.trim().slice(0, 120))""")
+
+
 class TitleTaken(RuntimeError):
     """Creators Market titles are unique per language across all creators."""
 
@@ -80,7 +97,16 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     await _select_taste_character_campaign(page, selection)
     await page.evaluate("document.querySelector('input[type=submit].mdBtn').click()")
     # The page keeps several hidden confirm dialogs; only the visible "OK" belongs to this save.
-    await page.locator("button:visible", has_text="OK").last.click(timeout=15000)
+    ok_button = page.locator("button:visible", has_text="OK").last
+    try:
+        await ok_button.wait_for(timeout=15000)
+    except Exception as exc:
+        # No confirm dialog means client-side validation stopped the save; nothing was sent.
+        errors = await _visible_errors(page)
+        if _is_title_taken(errors):
+            raise TitleTaken("; ".join(errors)) from exc
+        raise RuntimeError(f"save_dialog_missing errors={errors[:5]}") from exc
+    await ok_button.click()
     # "/sticker/*" also matches the create page itself; only a numeric item id proves the save.
     try:
         await page.wait_for_url(re.compile(re.escape(BASE) + r"/sticker/\d+/?$"), timeout=30000)
@@ -90,8 +116,7 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
             if "title already exists" in detail:
                 raise TitleTaken(detail) from exc
             raise RuntimeError(f"create_rejected status={saves[-1].status} detail={detail}") from exc
-        errors = await page.evaluate("""() => [...document.querySelectorAll("[class*=rror], .mdTxtError")]
-            .filter(e => e.offsetParent && e.innerText.trim()).map(e => e.innerText.trim().slice(0, 120))""")
+        errors = await _visible_errors(page)
         raise RuntimeError(f"create_not_saved url={page.url} errors={errors[:5]}") from exc
     product_id = page.url.rstrip("/").rsplit("/", 1)[-1]
     return {
@@ -122,7 +147,16 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}/image")
     await page.select_option("#number_of_images", "24")
-    await page.locator("button:visible", has_text="OK").last.click(timeout=15000)
+    ok_button = page.locator("button:visible", has_text="OK").last
+    try:
+        await ok_button.wait_for(timeout=15000)
+    except Exception as exc:
+        # No confirm dialog means client-side validation stopped the save; nothing was sent.
+        errors = await _visible_errors(page)
+        if _is_title_taken(errors):
+            raise TitleTaken("; ".join(errors)) from exc
+        raise RuntimeError(f"save_dialog_missing errors={errors[:5]}") from exc
+    await ok_button.click()
     await page.wait_for_timeout(500)
     await page.locator("input[type=file]").first.set_input_files(str(package_dir / "submission.zip"))
     await page.wait_for_timeout(20000)
@@ -177,15 +211,12 @@ async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: P
             if not item:
                 try:
                     return await _create_item(page, listing, selection)
-                except TitleTaken as taken:
-                    # Retry once with the character's own name so the title is distinctive.
-                    language = "en" if "English" in str(taken) else "ja"
-                    name = listing.get("character_name") or ""
-                    if not name:
+                except TitleTaken:
+                    # Retry once with the character's own name so both titles are distinctive.
+                    retitled = _retitle(listing)
+                    if retitled is None:
                         raise
-                    listing = dict(listing, title=dict(listing["title"]))
-                    listing["title"][language] = f"{listing['title'][language]} ({name})"[:40]
-                    return await _create_item(page, listing, selection)
+                    return await _create_item(page, retitled, selection)
             if item.get("state") == "metadata_saved":
                 await _upload_images(page, item, package_dir)
                 item = dict(item, state="images_uploaded")
