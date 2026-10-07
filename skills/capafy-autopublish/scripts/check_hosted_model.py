@@ -41,6 +41,7 @@ import urllib.request
 # rarely change; a shared import would require packaging this as a module).
 MODEL_IDS = {
     "Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
+    "Claude Sonnet 5.5": "anthropic/claude-sonnet-5.5",
     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
 }
 
