@@ -4914,8 +4914,8 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 |---|---|---|
 | 1（条件付き保留） | CrowdWorksの通常サービス契約ID・指定成果物・期限が確認された場合に限り、その契約を履行・納品する。64033100・63989657・63942104は採用応募/選考なのでこの納品対象から除く | 金額取得修復と3候補分類は完了済み。残る開始条件は適格な実サービス契約ID・成果物・期限の確定、完了条件はその契約の公式納品記録。TikTok/NPO追跡は除外。 |
 | 2 | Coconala案件18211957の売上行を、現行の振込・手数料・案件実費記録へ照合する | 10/04 official finance page readbackはHTTP200だが、parsed private snapshotは1行（closed 09/27）、`payout_requested=false`、coverage incomplete、settled net profit未確認、provider receipt IDなし。納品を再実行せず、現行の支払/手数料/実費receiptと不足物を確定する。資金移動なし。§865 |
-| 3 | Coconala商品4313100「Webサイトの画像差し替えと公開表示確認」の公式商品ページ・購入導線を確認し、アクセスを止める原因を修復する | 既存商品/購入経路の現公式状態。古いreply保留を公開・販売全体のgateにしない。 |
-| 4 | Coconala商品4313100の現在の販売説明を既存offer contractと照合し、対象範囲・必要入力・納品物・実費を確定する | 実際に販売・履行できる既存商品、その説明・受け入れ条件・実費。未依頼のmock/demo制作を前提にしない。価格/paywall変更を追加しない。 |
+| 3（公開面確認済み） | Coconala商品4313100「Webサイトの画像差し替えと公開表示確認」の公式商品ページと購入CTAを確認する | 10/07のpublic crawlで掲載文・購入CTA・基本価格を確認。表示上の販売1件・待ち0人。アクセスを止めるpublic-page blockerなし。これは新規注文・現行checkout完了・着金の証明ではない。§867 |
+| 4（実コスト待ち） | Coconala商品4313100の掲載条件を実際のofferと照合し、実注文のscope・必要入力・納品物・実費を結ぶ | 掲載文は1ページ最大3画像、表示/リンク確認、軽微な文言1か所、対象URL/画像/位置/希望納期を明記。複数ページ/大幅変更/機能追加は見積り相談。基本¥3,000、追加画像¥500。実注文別のtool/time costはreceiptなしでunknown。価格変更・mock注文/制作なし。§867 |
 | 5 | Coconala新着問い合わせCLIを取得し、実際に返信が必要なthreadを特定して返信する（thread ID未特定、依頼が無ければ待機） | 最新buyer発言と必要行動をCLIで確認、同案件の返信/契約記録。誰も待っていないとは未確認で断定しない。 |
 | 6 | Mercor旧応募occurrence18d6f9cb5bdaef98-33812の結果を公式応募記録へ照合し、停止解消後に未送信の適合listingを選んで応募する | 既存応募経路の公式記録。本人必須の条件は明示し、他channelを止めない。 |
 | 7 | Coconala募集案件CLIから条件の合う未提案案件IDを選び、既存供給loopで提案する（案件ID未選定） | 既存供給loopの公式提案記録。旧unknown effectの再送なし。 |
@@ -10499,6 +10499,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - `LIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourly bin/lm-loop apply --loaded-idle-only` returned `ok=true`, `changed=false`, release `80ea586cfa61b50d360f3627cc13320731efaf6d`. A subsequent `lm-loop status` readback confirms the CFO label is loaded-idle on that SHA. No manual wake or report send was requested.
 - The latest natural attempt at 2026-10-07T11:12:01Z was `host_admission_deferred:resource_capacity_busy`, effect `not_applicable`, provider receipt absent. The latest successful B7 remains the 09:00Z occurrence in §860. The next eligible natural run is expected to expose the current B0 `missing_category.category` values; until that readback, the 09:00Z 162/158 reason counts remain the latest evidence.
+
+
+### 867. 2026-10-07 Coconala service 4313100 public offer readback
+
+- At about 11:21Z, the public rendered page `https://coconala.com/services/4313100` showed the service title, description, purchase CTA, base price ¥3,000, displayed sales count 1, and waiting count 0. No listing/access repair was needed. `scrapy fetch` of static HTML did not expose the CTA href; no checkout was opened and no order was placed.
+- The same public description specifies up to three image swaps on one page, post-publish display and destination-link checks, one minor text edit, buyer inputs (page URL, image, placement explanation, due date), and quotes for multi-page/major redesign/functionality work; an extra image is ¥500. These are published offer terms, not proof of a current order or actual per-order cost.
 
 
 ### 865. 2026-10-07 Coconala finance evidence is old and incomplete
