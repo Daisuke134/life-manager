@@ -895,7 +895,8 @@
       "label": "ai.anicca.line-sticker-distribute",
       "log_root": "~/.local/state/life-manager/line-sticker-distribute/logs",
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/line-sticker-distribute"
+      "state_root": "~/.local/state/life-manager/line-sticker-distribute",
+      "system_role": "shared"
     },
     "line-creators-browser": {
       "adapter": "exec",

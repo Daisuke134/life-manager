@@ -109,13 +109,21 @@ def build_caption(
     use_cases: list[str],
     store_url: str,
     hashtags: list[str],
+    include_link: bool = True,
 ) -> str:
-    if not store_url.startswith("https://"):
+    """include_link=False drops the store URL line entirely (Dais 2026-10-07:
+    a brand-new account's first days carry no outbound link, only
+    "LINEスタンプで『<title>』と検索")."""
+    if include_link and not store_url.startswith("https://"):
         raise ValueError("store_url must be an https URL")
-    lines = [hook, f"「{title_ja}」をLINEスタンプで検索"]
+    if include_link:
+        lines = [hook, f"「{title_ja}」をLINEスタンプで検索"]
+    else:
+        lines = [hook, f"LINEスタンプで『{title_ja}』と検索"]
     if use_cases:
         lines.append("・".join(use_cases))
-    lines.append(store_url)
+    if include_link:
+        lines.append(store_url)
     lines.append(" ".join(hashtags))
     return "\n".join(lines)
 
@@ -130,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--task-label", required=True)
     parser.add_argument("--state-root", required=True)
     parser.add_argument("--hook", default=None, help="skip the agent_runner call (tests / dry-run)")
+    parser.add_argument("--no-link", action="store_true", help="drop the store URL (new accounts)")
     args = parser.parse_args(argv)
 
     clip_order = [c for c in args.clip_order.split(",") if c]
@@ -141,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     caption = build_caption(
         hook=hook, title_ja=args.title_ja, use_cases=use_cases,
-        store_url=args.store_url, hashtags=hashtags,
+        store_url=args.store_url, hashtags=hashtags, include_link=not args.no_link,
     )
     print(json.dumps({"caption": caption, "hook": hook, "hashtags": hashtags}, ensure_ascii=False))
     return 0

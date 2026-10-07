@@ -83,6 +83,19 @@ class CaptionIncludesStoreUrlTest(unittest.TestCase):
         for tag in tags:
             self.assertNotIn(" ", tag)
 
+    def test_include_link_false_omits_the_store_url(self):
+        store_url = "https://store.line.me/stickershop/product/48077815/ja"
+        caption = caption_compose.build_caption(
+            hook="テストフック", title_ja="毎日使えるカワウソスタンプ", use_cases=[],
+            store_url=store_url, hashtags=["#LINEスタンプ"], include_link=False,
+        )
+        self.assertNotIn(store_url, caption)
+        self.assertIn("LINEスタンプで『毎日使えるカワウソスタンプ』と検索", caption)
+        # a missing/non-https store_url is fine when no link is requested
+        caption_compose.build_caption(
+            hook="h", title_ja="t", use_cases=[], store_url="", hashtags=["#x"], include_link=False,
+        )
+
 
 class LedgerFenceTest(unittest.TestCase):
     def test_duplicate_post_for_same_slot_is_blocked(self):
@@ -107,6 +120,55 @@ class LedgerFenceTest(unittest.TestCase):
             slot_at = due_slot.due_slot_iso(now, "UTC", ["00:00"])
             ledger.record(ledger_path, f"lane-a-{slot_at}", {"status": "published"})
             self.assertIsNone(distribute.find_due_account(accounts, ledger_path, now))
+
+
+class TransportValidationTest(unittest.TestCase):
+    def test_browser_reel_requires_handle_and_browser_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "accounts.json"
+            config_path.write_text(json.dumps({
+                "schema_version": 1, "timezone": "Asia/Tokyo",
+                "accounts": [{
+                    "lane_id": "x", "platform": "instagram", "transport": "browser_reel",
+                    "cadence_jst": ["08:00"],
+                }],
+            }), encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                distribute.load_accounts(config_path)
+
+    def test_postiz_still_requires_integration_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "accounts.json"
+            config_path.write_text(json.dumps({
+                "schema_version": 1, "timezone": "Asia/Tokyo",
+                "accounts": [{"lane_id": "x", "platform": "tiktok", "cadence_jst": ["08:00"]}],
+            }), encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                distribute.load_accounts(config_path)
+
+    def test_valid_browser_reel_account_loads_with_defaults(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "accounts.json"
+            config_path.write_text(json.dumps({
+                "schema_version": 1, "timezone": "Asia/Tokyo",
+                "accounts": [{
+                    "lane_id": "x", "platform": "instagram", "transport": "browser_reel",
+                    "handle": "stardust_doubutsu", "browser_identity": "instagram:capafy-provision",
+                    "link_in_caption": False, "cadence_jst": ["08:00"],
+                }],
+            }), encoding="utf-8")
+            accounts = distribute.load_accounts(config_path)
+            self.assertEqual(accounts[0]["transport"], "browser_reel")
+            self.assertFalse(accounts[0]["link_in_caption"])
+
+    def test_real_shipped_accounts_config_loads_cleanly(self):
+        repo_root = Path(__file__).resolve().parents[4]
+        real_config = repo_root / "config" / "line-sticker-distribute-accounts.json"
+        accounts = distribute.load_accounts(real_config)
+        for account in accounts:
+            self.assertIn(account["transport"], ("postiz", "browser_reel"))
+            self.assertNotIn(account.get("handle"), (None, "anicca.jp8", "aniccajp", "aniccajp2",
+                                                       "anicca.bochi"))
 
 
 class EmptyAccountsIsNoOpTest(unittest.TestCase):

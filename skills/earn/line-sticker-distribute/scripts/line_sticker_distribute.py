@@ -6,12 +6,19 @@ accounts.json), checks whether this wake is at or after that account's next
 due cadence_jst slot and whether that slot has not already posted (per-slot
 ledger fence). Picks the first due+unposted account, renders one short
 vertical video from an on-sale sticker set's clips, composes a caption
-(hook via agent_runner, everything else deterministic), and posts it through
-the shared skills/video/lm-distribution/postiz_video.py Postiz client, which
-owns the create->poll->PUBLISHED readback and the official receipt. An empty
-accounts list is a no-op, not an error -- Dais adds a dedicated Postiz
-integration_id here once one exists; see AGENTS.md rule 9 and the 2026-10-07
-course correction: NEVER a shared Anicca/Honne/eBook brand integration.
+(hook via agent_runner, everything else deterministic), and publishes it
+through one of two transports selected per account ("transport" field,
+default "postiz"):
+  - "postiz": the shared skills/video/lm-distribution/postiz_video.py
+    client (create -> poll -> PUBLISHED readback, official receipt).
+  - "browser_reel": browser_reel_publish.py drives
+    ~/.agents/skills/ig-reels-poster directly over CloakBrowser for an
+    account whose Postiz channel slot is unavailable (workspace channel
+    limit, 2026-10-07) -- readback is the Reel URL post_reel.py confirms on
+    the profile.
+An empty accounts list is a no-op, not an error -- Dais adds a dedicated
+target here once one exists; see AGENTS.md rule 9 and the 2026-10-07 course
+correction: NEVER a shared Anicca/Honne/eBook brand integration.
 """
 from __future__ import annotations
 
@@ -27,6 +34,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[3]
 sys.path.insert(0, str(SCRIPT_DIR))
 
+import browser_reel_publish  # noqa: E402
 import caption_compose  # noqa: E402
 import due_slot  # noqa: E402
 import line_sticker_distribute_ledger as ledger  # noqa: E402
@@ -51,13 +59,25 @@ def load_accounts(config_path: Path) -> list[dict]:
     timezone_name = config.get("timezone", "Asia/Tokyo")
     for account in accounts:
         if not isinstance(account, dict) or not all(
-            isinstance(account.get(field), str) and account[field]
-            for field in ("lane_id", "platform", "integration_id")
+            isinstance(account.get(field), str) and account[field] for field in ("lane_id", "platform")
         ):
-            raise RuntimeError("each account needs lane_id, platform, integration_id")
+            raise RuntimeError("each account needs lane_id, platform")
+        transport = account.setdefault("transport", "postiz")
+        if transport == "postiz":
+            if not isinstance(account.get("integration_id"), str) or not account["integration_id"]:
+                raise RuntimeError(f"account {account['lane_id']} (postiz) needs integration_id")
+        elif transport == "browser_reel":
+            if not all(
+                isinstance(account.get(field), str) and account[field]
+                for field in ("handle", "browser_identity")
+            ):
+                raise RuntimeError(f"account {account['lane_id']} (browser_reel) needs handle, browser_identity")
+        else:
+            raise RuntimeError(f"account {account['lane_id']} has an unknown transport: {transport}")
         if not isinstance(account.get("cadence_jst"), list) or not account["cadence_jst"]:
             raise RuntimeError(f"account {account.get('lane_id')} needs a non-empty cadence_jst")
         account.setdefault("timezone", timezone_name)
+        account.setdefault("link_in_caption", True)
     return accounts
 
 
@@ -122,6 +142,7 @@ def run_pass(
         use_cases=caption_compose.use_cases_for(clip_order),
         store_url=chosen["store_url"],
         hashtags=caption_compose.pick_hashtags(chosen["character_name"], seed_index),
+        include_link=account["link_in_caption"],
     )
     caption_path = run_dir / "caption.txt"
     caption_path.write_text(caption_result, encoding="utf-8")
@@ -140,35 +161,51 @@ def run_pass(
             "video_path": str(video_path), "video_size_bytes": video_path.stat().st_size,
         }
 
-    api_key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
-    if not api_key:
-        raise RuntimeError("POSTIZ_API_KEY is unavailable")
     title = chosen["title_ja"][:100]
-    done = subprocess.run(
-        [sys.executable, str(POSTIZ_VIDEO), "--video", str(video_path),
-         "--caption-file", str(caption_path), "--integration", account["integration_id"],
-         "--title", title, "--platform", account["platform"]],
-        env={**os.environ, "POSTIZ_API_KEY": api_key},
-        capture_output=True, text=True, timeout=400,
-    )
-    try:
-        receipt = json.loads(done.stdout.strip().splitlines()[-1]) if done.stdout.strip() else {}
-    except (ValueError, IndexError):
-        receipt = {}
+    transport = account["transport"]
+    if transport == "postiz":
+        api_key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
+        if not api_key:
+            raise RuntimeError("POSTIZ_API_KEY is unavailable")
+        done = subprocess.run(
+            [sys.executable, str(POSTIZ_VIDEO), "--video", str(video_path),
+             "--caption-file", str(caption_path), "--integration", account["integration_id"],
+             "--title", title, "--platform", account["platform"]],
+            env={**os.environ, "POSTIZ_API_KEY": api_key},
+            capture_output=True, text=True, timeout=400,
+        )
+        try:
+            receipt = json.loads(done.stdout.strip().splitlines()[-1]) if done.stdout.strip() else {}
+        except (ValueError, IndexError):
+            receipt = {}
+        error_detail = receipt.get("error") or done.stderr[-500:]
+        published = (
+            done.returncode == 0 and receipt.get("reconciled") is True and receipt.get("state") == "PUBLISHED"
+        )
+        post_url = receipt.get("post_url")
+    elif transport == "browser_reel":
+        receipt = browser_reel_publish.publish(
+            video=video_path, caption_file=caption_path, handle=account["handle"],
+            browser_identity=account["browser_identity"], live=True,
+        )
+        error_detail = receipt.get("error")
+        published = receipt.get("outcome") == "published" and bool(receipt.get("post_url"))
+        post_url = receipt.get("post_url")
+    else:
+        raise RuntimeError(f"unknown transport: {transport}")
     video_path.unlink(missing_ok=True)  # disk is near-full; keep only the caption + receipt
 
-    if done.returncode == 0 and receipt.get("reconciled") is True and receipt.get("state") == "PUBLISHED":
+    if published:
         ledger.record(ledger_path, key, {
             "status": "published", "slot_at": slot_at, "set_id": chosen["set_id"],
-            "post_id": receipt.get("post_id"), "post_url": receipt.get("post_url"),
+            "post_id": receipt.get("post_id"), "post_url": post_url,
         })
         return {"state": "published", "account": account["lane_id"], **receipt}
 
     ledger.record(ledger_path, key, {
-        "status": "failed", "slot_at": slot_at, "set_id": chosen["set_id"],
-        "reason": receipt.get("error") or done.stderr[-500:],
+        "status": "failed", "slot_at": slot_at, "set_id": chosen["set_id"], "reason": error_detail,
     })
-    raise RuntimeError(f"postiz publish did not reconcile: {receipt}")
+    raise RuntimeError(f"{transport} publish did not reconcile: {receipt}")
 
 
 def main(argv: list[str] | None = None) -> int:

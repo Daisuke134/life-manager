@@ -1,6 +1,16 @@
 {
   "schema_version": 1,
   "timezone": "Asia/Tokyo",
-  "_comment": "line-sticker-distribute sell loop targets. ONLY dedicated sticker-character accounts belong here (never an existing Anicca/Honne/eBook brand integration -- Dais 2026-10-07). Empty accounts = no-op, not an error: the loop waits for Dais to add a dedicated Postiz integration_id here once one is connected.",
-  "accounts": []
+  "_comment": "line-sticker-distribute sell loop targets. ONLY dedicated sticker-character accounts belong here (never an existing Anicca/Honne/eBook brand integration -- Dais 2026-10-07). transport defaults to 'postiz' (integration_id required); 'browser_reel' drives ~/.agents/skills/ig-reels-poster over CloakBrowser directly for an account whose Postiz channel slot is unavailable (handle + browser_identity required). link_in_caption defaults to true; set false for a brand-new account's first days (no outbound link yet).",
+  "accounts": [
+    {
+      "lane_id": "stardust-doubutsu-instagram",
+      "platform": "instagram",
+      "transport": "browser_reel",
+      "handle": "stardust_doubutsu",
+      "browser_identity": "instagram:capafy-provision",
+      "link_in_caption": false,
+      "cadence_jst": ["08:15", "11:15", "13:15", "17:15", "20:15", "22:45"]
+    }
+  ]
 }

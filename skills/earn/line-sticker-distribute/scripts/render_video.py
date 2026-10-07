@@ -12,6 +12,12 @@ ffmpeg's `overlay` filter: this host's ffmpeg build has no drawtext
 (libfreetype not compiled in), so overlay+PNG is the native-tool substitute
 rather than adding a new dependency. Kept small (no audio track, 720x1280,
 crf 30) because the host disk is near-full.
+
+The build loop's clips/*.mp4 (fal-ai/bytedance/seedance image-to-video
+outputs) are rendered on a flat green-screen background (confirmed by
+sampling: ~RGB(8,235,8)), not the sticker's own transparent background --
+`colorkey` removes it here so the sticker appears to float on our pastel
+canvas instead of showing green.
 """
 from __future__ import annotations
 
@@ -46,14 +52,17 @@ def _text_png(text: str, *, width: int, font_size: int, path: Path) -> None:
 
 
 def build_filter_complex(clip_count: int, overlay_heights: list[int]) -> str:
+    bg_hex = f"0x{PASTEL_BG[0]:02X}{PASTEL_BG[1]:02X}{PASTEL_BG[2]:02X}"
     chains = []
     for i in range(clip_count):
+        chains.append(f"color=c={bg_hex}:s={CANVAS_W}x{CANVAS_H}:d={CLIP_SECONDS}:r={FPS}[bg{i}]")
         chains.append(
-            f"[{i}:v]trim=duration={CLIP_SECONDS},setpts=PTS-STARTPTS,"
+            f"[{i}:v]trim=duration={CLIP_SECONDS},setpts=PTS-STARTPTS,fps={FPS},"
+            f"colorkey=0x00FF00:0.30:0.12,"
             f"scale={CANVAS_W}:{CANVAS_W}:force_original_aspect_ratio=decrease,"
-            f"pad={CANVAS_W}:{CANVAS_H}:(ow-iw)/2:(oh-ih)/2:color=0x{PASTEL_BG[0]:02X}{PASTEL_BG[1]:02X}{PASTEL_BG[2]:02X},"
-            f"setsar=1,fps={FPS}[base{i}]"
+            f"format=yuva420p[sprite{i}]"
         )
+        chains.append(f"[bg{i}][sprite{i}]overlay=(W-w)/2:(H-h)/2:format=auto,setsar=1[base{i}]")
         title_input = clip_count + i
         chains.append(f"[base{i}][{title_input}:v]overlay=(W-w)/2:80[v{i}]")
     end_input = clip_count * 2
