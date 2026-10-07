@@ -243,6 +243,41 @@ echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKIL
 # X post runs here, outside the agent (same move as daily_loop.sh's prepare: the
 # agent's per-command timeout killed the up-to-10-min Postiz readback, h21 x=failed).
 CAPTION_FILE="$RUN_DIR/x-caption.txt"
+# Article publish fallback, same move as the X post below: capafy_free_article.py
+# polls the live page for up to 15 min while the GitHub Actions deploy runs, and
+# the agent runner's own 15 min budget expired mid-poll (2026-10-08 h06: draft
+# written, no receipt, nothing published). If a draft exists and the slot is not
+# published yet, finish the publish here. Re-running is idempotent: an already
+# committed page is only re-pushed.
+python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >/dev/null 2>&1
+if [ "$?" -eq 0 ] && [ -s "$RUN_DIR/article-en.md" ] && [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
+  PUB_OUT="$(python3 "$SELF_DIR/capafy_free_article.py" publish \
+    --draft-file "$RUN_DIR/article-en.md" --slug "$FREE_ARTICLE_SLUG" --cta-url "$CTA_URL" \
+    --landing-root "$ARTICLE_SELF_OWNED_LANDING_ROOT" --remote "$ARTICLE_SELF_OWNED_REMOTE" \
+    --branch "$ARTICLE_SELF_OWNED_BRANCH" --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \
+    --date "$JST_DATE" 2>>"$LOG" | tail -1)" || true
+  echo "capafy-distribute-daily: wrapper publish fallback: ${PUB_OUT:0:300}" >>"$LOG"
+  PUB_OUT="$PUB_OUT" LEDGER="$LEDGER" SLOT="$SLOT" SKILL="$CAPAFY_SKILL_SLUG" CTA="$CTA_URL" XCTA="$X_CTA_URL" \
+  DRAFT="$RUN_DIR/article-en.md" CAPTION_FILE="$CAPTION_FILE" LEDGER_TOOL="$SELF_DIR/capafy_distribute_ledger.py" \
+  python3 - <<'PY' >>"$LOG" 2>&1 || true
+import json, os, subprocess, sys
+try:
+    out = json.loads(os.environ.get("PUB_OUT") or "{}")
+except ValueError:
+    out = {}
+ok = out.get("status") == "published" and out.get("url")
+entry = {"status": "published" if ok else "blocked", "capafy_skill": os.environ["SKILL"],
+         "cta_url": os.environ["CTA"], "x_cta_url": os.environ["XCTA"], "publisher": "wrapper_fallback",
+         "destinations": {"aniccaai": {"status": "published", "url": out["url"]} if ok
+                          else {"status": "blocked", "reason": "capafy_free_article.py did not confirm the live page"}}}
+subprocess.run([sys.executable, os.environ["LEDGER_TOOL"], "record", "--ledger", os.environ["LEDGER"],
+                "--date", os.environ["SLOT"], "--json", json.dumps(entry)], check=True)
+cap = os.environ["CAPTION_FILE"]
+if ok and not (os.path.exists(cap) and os.path.getsize(cap)):
+    title = next((l[2:].strip() for l in open(os.environ["DRAFT"], encoding="utf-8") if l.startswith("# ")), "")
+    open(cap, "w", encoding="utf-8").write(f"{title}\n{out['url']}\nTry it on Capafy: {os.environ['XCTA']}\n")
+PY
+fi
 if [ -s "$CAPTION_FILE" ] && [ -n "${POSTIZ_X_INTEGRATION_ID:-}" ]; then
   X_OUT="$(python3 "$SELF_DIR/capafy_x_post.py" --caption "$(cat "$CAPTION_FILE")" \
     --integration-id "$POSTIZ_X_INTEGRATION_ID" 2>>"$LOG" | tail -1)" || true
