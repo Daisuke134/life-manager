@@ -3891,3 +3891,6 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 
 owner/evidence: primary `/root`、source worker `cleanup_fix`、fresh reviewers `disk_review`/`disk_review_final`/`disk_ship_review`。runtime証拠は `/Users/anicca/.local/state/life-manager/evidence/host-disk-*`、main/watchdogログとhost `last-receipt.json`。credentialsを含む内容はGitへ保存しない。
 現在cursor: 主/watchdogの継続自然回収とnew guardを維持する。残るold ownerはexact official/pre-effect proofなしでfence解除・再送しない。class drift/legacyのowner契約を診断し、自然idleかつ合法なsource反映だけ進める。11GiB未回復とTCC/使用中/protected領域の容量不足を未解決として扱う。
+
+Host disk recovery 継続: Data空き2.8GiB、finite guard118/149。起動Simulator0・実行中xcodebuild/Simulator/swift/flutter0だが、simdiskimagedがiOS26.5のdyld cacheを再生成することを観測。唯一のruntime（UUID DE67D494-A483-40A1-B6D3-916A7C13D2D9、build23F77、lastUsedAt 2026-10-05T06:12:47Z、asset allocated約7.91GiB）をApple native `simctl runtime delete`で取り外す。source/SDK/device dataは保持し、次回simtest/Previewには`xcodebuild -downloadPlatform iOS -buildVersion 26.5`で復元が必要。恒久不要とは判定しない。fresh read-only reviewで未起動/active build無し/native teardown経路を確認する。gigの旧releaseはmemoryとkeep markerのため削除しない。
+継続の完了条件: fresh Data空き11GiB以上、複数自然cleanup receiptのcapacity_recovery=met、guard残件の合法な反映またはeffect保護の具体的状態を確認する。現在cursorはnative runtime removalとfresh capacity readback。
