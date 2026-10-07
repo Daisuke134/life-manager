@@ -195,6 +195,23 @@ def test_ebook_child_environment_does_not_inject_key_while_publish_flag_is_close
     assert child["KEEP"] == "value"
 
 
+def test_ebook_child_environment_exposes_renderers_only_to_ebook_lanes():
+    inherited_path = "/usr/bin:/bin:/usr/sbin:/sbin"
+    base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    for owner in (
+        "ebook-en-tiktok-daily",
+        "ebook-ja-tiktok-daily",
+        "ebook-ja-instagram-daily",
+    ):
+        child = loop_runner._child_environment_for_owner(owner, base)
+        assert child["PATH"] == f"/opt/homebrew/bin:{inherited_path}"
+
+    sibling = loop_runner._child_environment_for_owner("article-daily", base)
+    assert sibling["PATH"] == inherited_path
+    assert base["PATH"] == inherited_path
+
+
 def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
     private = tmp_path / ".local/share/anicca"
     private.mkdir(parents=True)
