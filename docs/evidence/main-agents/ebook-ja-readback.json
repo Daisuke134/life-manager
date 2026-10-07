@@ -1,0 +1,26 @@
+[
+  {
+    "owner_id": "ebook-ja-tiktok-daily",
+    "status": "no_match",
+    "reason": "exact_identity_sidecar_unavailable",
+    "inspected": 0,
+    "read_only": true,
+    "provider_mutations": 0,
+    "checked_at": "2026-10-07T01:45:32.271051+00:00",
+    "tenant_configured": true,
+    "tenant_source": "runtime/loop/lm_loop_run.py::_child_environment_for_owner",
+    "provider_query_performed": false
+  },
+  {
+    "owner_id": "ebook-ja-instagram-daily",
+    "status": "no_match",
+    "reason": "exact_identity_sidecar_unavailable",
+    "inspected": 0,
+    "read_only": true,
+    "provider_mutations": 0,
+    "checked_at": "2026-10-07T01:45:32.274726+00:00",
+    "tenant_configured": true,
+    "tenant_source": "runtime/loop/lm_loop_run.py::_child_environment_for_owner",
+    "provider_query_performed": false
+  }
+]

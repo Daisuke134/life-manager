@@ -3824,3 +3824,5 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 旧順序=MX-01→MX-12。新順序=MA-01→MA-23→必要な復旧source atom→MX再評価。現在cursor=MA-01、未着手。変更理由: DaisがREADMEの主要能力をまず動かすことと、実装前の原因確定を優先した。内部runner分類は能力の稼働証明ではない。MX/HAは未有効、他laneのeffectと順序を変更しない。
 
 正本: [spec](2026-10-07-main-agents-readiness.md)、[atomic plan](../plans/2026-10-07-main-agents-readiness.md)、[監査](../../research/2026-10-07-main-agents-readiness.md)。107jobのsource存在/106loaded一致を確認。業務成果・入金の全件検証とsource修正計画の確定は未完了。
+
+主要15検証laneの対象をローカルLife Managerに限定する。Cloud Travel `/lm` の設計・UX・認証は別laneで、この移行の成果条件にしない。目標は既存owner/scheduler/業務state/effect/receiptを保ったOpenClaw有限exec導入。通常UXは既存CLI/Telegramを維持。主要15の新Web操作画面を移行TODOへ追加しない。current cursor=MA-01、他lane不変更。
