@@ -6,6 +6,8 @@ specとwriting-plansはmainに存在する。今回の目的は既知の接続�
 
 ## 結論
 
+現行の共通runnerは既にCodex/Claudeの既製CLIを呼ぶ。独自部分は主にjob lifecycle/budget/lease/effect/readbackであり、全収益agentが自作のLLM tool loopで動くという前提は正しくない。このため新harnessへの全面置換自体を成果にせず、利益ownerの変更を最小にする。
+
 **前版の『gateway・工具体系・scheduler・stateを一緒に移す』構成は簡単な差替えではない。初回は既存scheduler/entrypoints/state/tools/model/account/外部effect ownerを残し、共通runnerの有限CLI backendだけをowner/task限定で替える。** 公開CLIのagent execを第一接続点とし、Gateway RPC/新broker/cron移行・OSS/cloud・self-improve変更は後続の独立案件へ外す。既存loopが自然に回る間、candidateはdefault disabledのまま検証する。
 
 ```mermaid
@@ -38,6 +40,7 @@ flowchart LR
 | usageが未認識 | current extract_provider_usage(openclaw)はunavailable/null | usage.input/output/total/cacheを明示projection。欠測を0にしない |
 | finiteCLIとgatewayRPCのlifetime差 | agent execはcleanup後終了、RPC ACKは終了前 | 初回はfiniteCLIを既存process supervisor内で使う。gateway claim transferを抱き合わせない |
 | timeout/cleanup失敗後の再実行で二重effect |既存fallbackはCodex event形、candidateは別envelope | 新backendはprocess開始後の不明/timeout/cleanup_errorで別harnessへ同occurrenceをfallbackしない |
+| builtin runtimeのretry/deadlineが前提と異なる | default fake disconnectで5requests/30.46秒、retry0 overrideで1request/9.48秒/timeout2 | public session settings retry.provider.maxRetries=0をprivatefixtureで確認。native parityとproduction設定配置は未測定、outer guardを維持 |
 | tool/credential/scopeを一緒に変える危険 |長い売買promptは既存CLIのshell/CDP/scriptを前提 | 初回publisher/既存scriptsは変更せず、tool-lessから検証。native/tool parityが未証明のownerはcandidate disabled |
 | 旧model/account/backendが曖昧 |source configと4configured flags | businessモデル/アカウントを同時変更しない。新API課金へ黙って切替えない |
 | Node25はtargetpackage非対応 |公開engines | private/immutable Node24.16を使用、global runtime upgradeなし |
@@ -59,3 +62,21 @@ fake probeはCLIの入出力・tool実行・timeout/cancel/cleanupを検証で�
 5. tool-lessが成立してから1収益ownerを同じ手順で拡張する。外部effect unknownのoccurrenceは両backendでfencedのままreconcileする。購入や売上が一時的に無いことをadapter成功と混同しない。
 
 一括切替の停止時間や実装工数は未実測。『絶対無停止』『未知ゼロ』『すぐ全移行』とは保証しない。計画の変更点を小さくし、失敗を収益ownerの切替前に検出する構成を採る。
+
+## 現時点の判定
+
+source scopeと既知integration問題の整理=PASS。default-off finite adapterのMX-01〜08設計=限定ready。**全収益ownerのproduction cutover=HOLD**。fake成功だけではsame-native account/model/tool/rollout budgetが未証明であり、実測builtin retry/deadlineの差もある。『スムーズで簡単』『これ以上finding無し』と保証する根拠はない。収益保全の単一推奨は、現行を動かしたままcandidateを隔離検証し、既知gateが揃ったtool-less一件だけ切り替えること。
+
+## 実配布物で行った隔離runtime試験
+
+[JSON証拠](../evidence/harness-migration/2026-10-07-oneshot-preflight.json): OpenClaw2026.9.8 / Node24.16.0 / darwin-arm64。fresh HOME/state/fixture、fake API key、OS sandboxで指定loopback port以外のnetworkを拒否。globalNode/OpenClaw/gateway/profile/credential/browserへ変更なし。real model calls0、production mutations0。本体388955824bytesのpackageとdependencyを私有installしNode/SHA/package integrityを固定した。
+
+正常exit0、工具write1回、二回目invocationで旧tool再実行無し、timeoutexit2、SIGTERM143、後続state lock再取得を確認。いずれもchild process group survivor0。usageはfake37/4/41などのsimulated値であり、実費・実provider receiptではない。
+
+default-config disconnectは最大8retry設定下で5requests、timeout10秒を越えouter30秒で143。public設定`agents.defaults.embeddedAgent.projectSettingsPolicy=trusted`と、private cwdの`.openclaw/settings.json`に`retry.provider.maxRetries=0`を置いた限定再試験はrequest1/retry0、9.48秒でtimeout2、nextinvoke成功/lock再取得/survivor0。**default-configはHOLD、override限定fake-runtimeはPASS、native/account/business parityは未測定。**
+
+設定ファイルの読込元はglobal `<agentDir>/settings.json`とproject `<cwd>/.openclaw/settings.json`。mergeはglobal→project→runtime overrides。本番repo/releaseへproject設定をその場で書く方法は採用しない。operator-owned private agentDirのpublic settings contractで制御し、sourceだけで確定した配置とfakeで測ったproject配置を区別する。nativeやrealaccountへ設定がeffectiveかはMX parity recordで確認する。
+
+## 独立read-only検証
+
+fresh contextのgpt-6.1-sol/mediumがsource分類/17hash/4configuredbaseline/fake9+2casesと報告を照合し、報告・MX計画について限定PASS、全収益cutoverはHOLDと判定した。唯一の文書混線指摘（旧HA plan/cursorが直読でactiveに見える）をMX入口参照へ訂正した。source・credential・provider・GUI操作は検証者も未実施。

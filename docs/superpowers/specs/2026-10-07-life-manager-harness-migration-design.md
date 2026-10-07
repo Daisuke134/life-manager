@@ -172,3 +172,7 @@ CLI stdoutはcaller resultではなくenvelopeなので、ok=true/status=ok/exit
 source分類はshared route65のうち24 actual shared、7別/条件付き、34非モデル/guard。[readiness report](../../research/2026-10-07-harness-transition-readiness.md)とfirst-cutoverの[MX plan](../plans/2026-10-07-harness-first-cutover.md)を実行入口とする。旧80atomを最初から順番に実行しない。
 
 finiteCLI probeはstdoutに[state/agent-db]前置きlogを観測した。pure JSON前提を撤回し、MX decoderはtop-level JSON documentsのうちenvelope形に一致する候補を一つだけ抽出する。multiple candidatesは拒否し、nested JSONを別候補と数えない。finalだけをcaller schemaへ戻す。
+
+現行shared runnerは既製Codex/Claude CLIを既に使う。初回をdefault-off finite adapterへ縮小するのは独自LLM loopを新しく作るためではなく、既存保護境界を保って外部harness比較を可能にするため。fake builtin probeはsame-model8retryのdefaultと、timeout10秒でもdisconnect時にouter30秒までprocessが残る差を確認した。native Codexに同じ挙動と断定しないが、retry/budget/cancel parityが無いtaskclassはactivationしない。全収益production移行はHOLD、既存を維持する。
+
+実配布物privatefake runtimeはnormal/write/non-replay/timeout/cancel/lock-recoveryを観測。stdout診断prefixとenvelope/usage adapter問題を確定。default8retryではdisconnectがCLI deadlineを超えたが、public session settingsのretry.provider.maxRetries=0をprivateprojectに指定した試験はrequest1/retry0/9.48秒/timeout2/cleanup後nextinvoke成功。private instance settings制御をMX-04bへ追加し、prod repo/releaseへproject設定を書かない。globalinstance/nativeaccount配置は未測定、全収益cutoverはHOLD。

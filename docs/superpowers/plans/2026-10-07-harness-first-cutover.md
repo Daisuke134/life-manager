@@ -12,7 +12,7 @@
 - scheduler/registry cadence、publisher/readback、credential/browser profile、mutable state、CFO、model/account/backendを変更しない。
 - 全candidateはdefault legacy。image/repair/resume/未検証native budget/tool parityはlegacyに固定する。
 - sourceに新gateway daemon、再起動supervisor、HTTP/RPC dispatch store、新model semaphoreを作らない。既存run_provider_processの所有process group内で有限childを起動する。
-- 同一入力JSON schema、timeout、token budget、selected account/effortを保持。APIキー課金へ黙ってfallbackしない。
+- 同一入力JSON schema、timeout、token budget、selected account/effortを保持。APIキー課金へ黙ってfallbackしない。builtin fake probeはinternal同modelretry8とCLI deadline超過を観測したため、outer run_provider_process deadline/PGID cleanupを維持し、retry/budget parityをactivation前に検証する。
 - processが始まった後の不確実な失敗はsame-occurrence fallback/replayを禁止。rollbackはfuture wakeのselectorだけ、pending/running/unknownはdrain/readback先行。
 - source focused acceptance→PR/CI/main→immutable release→target loaded-idle apply→自然run。試験はfake/private state、production故意kill無し。
 
@@ -40,10 +40,15 @@ stdout envelopeをcaller resultと混同、usage欠測を0計上、cleanup不確
 - [ ] 同moduleに `build_command(node: Path, entry: Path, config_path: Path, workdir: Path, model: str, effort: str, timeout_seconds: int) -> list[str]`を追加。argvは[node, entry, agent, exec, --config, config_path, --message-file, -, --json, --cwd, workdir, --model, model, --thinking, effort, --timeout, seconds]。prompt/keyをargvへ置かず、configはpinned instance config。--auth-env-onlyと--configを混ぜない。Node/entryはimmutable bundle絶対pathでglobalPATHへfallbackしない。
   Test `test_openclaw_exec.py::test_exact_finite_argv`: argv完全一致、secret/prompt文字列なし、relative/executable missing拒否。config/model/backend/accountはMX-09 parityが成立した値だけ使う。依存MX-01。
 
+### MX-04b — private instance retry settings
+
+- [ ] `runtime/agent-runner/openclaw_exec.py`に `prepare_instance_settings(instance_agent_dir: Path) -> Path`を追加。public global agentDir/settings.jsonのcontractでoperator-owned private instanceにだけretry.provider.maxRetries=0を0600 atomic保存。既存global/profileやcaller.workdir/.openclawへ書かない。project/runtime overrideがretryを増やす場合はparity mismatchでcandidate拒否する。
+  Test `test_openclaw_exec.py::test_private_retry_policy`: private保存だけ、repo/release workdir不変更、effective maxRetries0/readback、modelが変更したpolicyでenable拒否。projectsettings位置でのfake再試験はrequest1/retry0を確認済みだが、globalinstance配置/nativebackendは別proof。依存MX-04。
+
 ### MX-05 — owner/task selector, default off
 
 - [ ] 同moduleに `select_engine(owner_id: str | None, task_class: str, config: dict) -> str`を追加。config.openclaw_exec_routes[owner][task_class]はenabled/parity_evidence_ref付き。default/unknown/unsupported/image/resume/repairはlegacy。allowlistは移行対象を限定するdeployment selectorで、skill能力判定ではない。
-  Test `test_openclaw_exec.py::test_default_off_and_unsupported`:既存routes全legacy、selected verified diagnosticだけcandidate、unknownowner/未証明parityはlegacy。依存MX-04。
+  Test `test_openclaw_exec.py::test_default_off_and_unsupported`:既存routes全legacy、selected verified diagnosticだけcandidate、unknownowner/未証明parityはlegacy。依存MX-04b。
 
 ### MX-06 — integrate command generation, preserve process ownership
 
@@ -58,12 +63,12 @@ stdout envelopeをcaller resultと混同、usage欠測を0計上、cleanup不確
 ### MX-08 — prohibit unsafe cross-harness fallback
 
 - [ ] Modify `agent_runner.py::run()` のfallback判定だけ。candidate subprocess開始後のtimeout/disconnect/cleanup_failed/JSON欠落はunknown-after-startとして同occurrenceの次candidateへ進まない。明確なprelaunch failureだけ既存policyに沿ってlegacyへ戻せる。CLI errorからeffect=0を推測しない。
-  Test `test_openclaw_exec_route.py::test_no_fallback_after_start`: sentinelwrite1後timeout/disconnectでsecondchild0、start前executable_missingはnoeffect proof付き、processgroup childrenをreapできなければfence。依存MX-07。
+  Test `test_openclaw_exec_route.py::test_no_fallback_after_start`: sentinelwrite1後timeout/disconnectでsecondchild0、internal model retriesを隠れた無料callと扱わずbudget/totalattemptへjoin、start前executable_missingはnoeffect proof付き、processgroup childrenをreapできなければfence。依存MX-07。
 
 ### MX-09 — same native account/model/budget/tool parity record
 
 - [ ] Create `docs/evidence/harness-migration/native-parity.json`。source provider/profile/model/effort/rollout-budget/featuresと、candidateのpublic config/native runtime readbackを照合する。real credentials値を保存/複製しない。API-key fake probeでnative Codex同account互換をPASSにしない。境界ごとconfirmed/unsupported/unmeasuredを記録し、全required field confirmedのtaskclassだけMX-05へeligible。
-  Verificationはsource exact selected candidateとaccount/backend/model/tool/rollout capのreadback。native rollout-budget/image/resumeの非対応はlegacyを保持するので収益ownerを止めない。既存live owner/profileのleaseがある時は取り上げない。依存MX-08。
+  Verificationはsource exact selected candidateとaccount/backend/model/tool/rollout capのreadback。native rollout-budget/image/resume、内部retry upper bound/deadline/終了処理の非対応はlegacyを保持するので収益ownerを止めない。builtin fake結果をnative Codex同account経路へ転写しない。既存live owner/profileのleaseがある時は取り上げない。依存MX-08。
 
 ### MX-10 — isolated task comparison, only supported taskclass
 
@@ -82,4 +87,4 @@ stdout envelopeをcaller resultと混同、usage欠測を0計上、cleanup不確
 
 ## 実行可否の境界
 
-MX-01〜08は現在のsourceと公開CLI入出力の契約で実装可能なadapter単位。MX-09〜12は実証recordを作るoperation/verification atomsであり、parity結果を実装前から成功と断定しない。未測定のreal account/tool/rollout budgetがある間、candidateはdefault-offで収益経路を維持する。full migrationや売上維持の保証とfirst-adapter実装可能性を混同しない。
+MX-01〜08（MX-04bを含む）は現在のsourceと公開CLI入出力の契約で実装可能なadapter単位。MX-09〜12は実証recordを作るoperation/verification atomsであり、parity結果を実装前から成功と断定しない。未測定のreal account/tool/rollout budgetがある間、candidateはdefault-offで収益経路を維持する。full migrationや売上維持の保証とfirst-adapter実装可能性を混同しない。

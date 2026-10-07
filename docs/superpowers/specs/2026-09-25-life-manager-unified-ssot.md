@@ -3675,7 +3675,7 @@ Daisの依頼範囲は比較調査・設計・原子的実行計画まで。本�
 
 - [x] **HM-D0: 調査・設計・計画。** [比較](../../research/2026-10-07-agent-harness-comparison.md)、[設計](2026-10-07-life-manager-harness-migration-design.md)、[実行計画](../plans/2026-10-07-life-manager-harness-migration.md)。単一推奨=OpenClaw2026.9.8の専用profileへ段階移行。候補実務benchmarkは未実施で、採用判定はHM-06。既存installed OpenClaw2026.6.1/5agentとNode25を直接更新しない。
 
-**実装cursor=HA-001（未着手、実装開始は今回の依頼範囲外）。** 新規laneのため旧順序はなし。新順序はHM-00→HM-17。理由は、配布版互換・effect safety・task/cost比較を先に成立させ、read-only canaryと1ownerの自然実行から拡大するため。他laneの順序は据え置く。各ownerのwave順変更は同じ差分に理由・旧順・新順・cursorを記録する。
+**旧HA実装cursorはinactive。現在cursorは末尾MX laneを参照。** 新規laneのため旧順序はなし。新順序はHM-00→HM-17。理由は、配布版互換・effect safety・task/cost比較を先に成立させ、read-only canaryと1ownerの自然実行から拡大するため。他laneの順序は据え置く。各ownerのwave順変更は同じ差分に理由・旧順・新順・cursorを記録する。
 
 | 状態 | ID | 原子的成果 | 依存 | 完了証拠 |
 |---|---|---|---|---|
@@ -3705,7 +3705,7 @@ HM-17の外部購入待ちはHM-16の技術移行を未完へ戻す条件にし�
 
 Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planとして扱わない。旧HMは成果roadmapの参照だけ。ファイル・関数・assertion付きの[改訂計画](../plans/2026-10-07-life-manager-harness-migration.md)と[atom manifest](../../research/harness-atomic-tasks.json)が実行内容を定義する。state/cursorはこのSSOTだけ。
 
-現在cursor=HA-001、全atom未着手。旧実行順=HM-00→HM-17、新順=HA manifestのdependsによるtopological順。理由は、未確定判断をphaseに埋めず関数単位の変更と検証へ分けるため。他業務laneは変更しない。末尾11配布atomは条件付き、未有効。
+旧HAはinactive。現在cursorは末尾MX laneを参照。旧実行順=HM-00→HM-17、新順=HA manifestのdependsによるtopological順。理由は、未確定判断をphaseに埋めず関数単位の変更と検証へ分けるため。他業務laneは変更しない。末尾11配布atomは条件付き、未有効。
 
 - [ ] **HA-001** `runtime/openclaw/package.json` — dependencies
 - [ ] **HA-002** `runtime/openclaw/paths.mjs` — resolveHarnessPaths(env, homedir) -> HarnessPaths
@@ -3799,6 +3799,7 @@ Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planと�
 - [ ] MX-02 `openclaw_exec.py::write_caller_result` — 同schema/result_pathへ保存
 - [ ] MX-03 `openclaw_exec.py::project_usage` — missingとcost basis保持
 - [ ] MX-04 `openclaw_exec.py::build_command` — pinned有限CLI argv
+- [ ] MX-04b `openclaw_exec.py::prepare_instance_settings` — privateinstance retry0、repo/globalprofile不変更
 - [ ] MX-05 `openclaw_exec.py::select_engine` — owner/task限定defaultlegacy
 - [ ] MX-06 `agent_runner.py::command_for` — 同process supervisorへ接続
 - [ ] MX-07 `agent_runner.py::run` completion boundary — 同summary/event
@@ -3809,3 +3810,7 @@ Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planと�
 - [ ] MX-12 `first-cutover.json` — sameoccurrence/rollback/他owner不変
 
 全移行ready/売上継続保証は未判定。今回はpreimplementation source/fake runtime監査であり、activationは未実施。
+
+MX readiness: source65rows分類とconfigured release関連17hash一致を確認。fake builtinでstdout prefix/outer envelope/usage変換不足、8retry default、10秒deadline超過が既知となった。既存はCodex/Claude CLIを既に使うため、移行だけを目的に収益ownerを止めない。全収益production cutover=HOLD、同native account/model/tools/rollout-budget/retry/cleanup parityが揃うまでcandidate default-off。
+
+private配布物probe: baseline9cases＋retry0 override2cases。defaultdisconnectHOLD、overrideのboundedfake recoveryPASS（1request/0retry/9.48秒）、native/business parity未測定。realmodelcalls0/prodmutations0。MX-04bを初回adapter順に追加。旧HA80/gateway/cron/cloudはinactiveのまま。
