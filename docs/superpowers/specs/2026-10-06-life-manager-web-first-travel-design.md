@@ -158,7 +158,7 @@ Draft X hooks, for internal review only:
 - “I used to check Calendar, then Maps, then Calendar again because I was scared of missing the moment to leave. Life Manager puts the trip into Calendar for me.”
 - “Connect Google Calendar once. Life Manager fills eligible travel blocks automatically; your Calendar stays the screen you already use.”
 
-Draft Remotion demos use synthetic Calendar events: show repeated Calendar/Maps checking, one “Google Calendarに接続” action, then a 15:00 event with a 40-minute route and 5-minute buffer becoming a 14:15 Travel block. Do not show a daily dashboard or web chat. Keep publication closed until the one-action Calendar flow, first helper, $29 Checkout terms, and source attribution are read back. Link every campaign to its channel/source and measure Calendar connection, confirmed Travel helper, checkout, paid invoice, and retention.
+Draft Remotion demos use synthetic Calendar events: show the one-time setup screen with one “Connect Google Calendar” button, a visible tap, Google's account/Calendar consent handoff, then the connected Calendar schedule. Show a prior in-person event ending at 14:00 in Roppongi as the route origin, then a 15:00 Shibuya meeting 40 minutes away; with the 5-minute buffer, the helper starts at 14:15. Do not show a daily dashboard or web chat. Keep publication closed until the one-action Calendar flow, first helper, $29 Checkout terms, and source attribution are read back. Link every campaign to its channel/source and measure Calendar connection, confirmed Travel helper, checkout, paid invoice, and retention.
 
 ## Factory Gate
 

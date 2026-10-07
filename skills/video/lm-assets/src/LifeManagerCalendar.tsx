@@ -64,7 +64,20 @@ export const LifeManagerCalendar: React.FC = () => {
   const { fps } = useVideoConfig();
   const frameAt = (seconds: number) => Math.round(seconds * fps);
   const lift = spring({ frame, fps, config: { damping: 200 } }) * -8;
-  const connected = spring({ frame: frame - frameAt(4.2), fps, config: { damping: 180 } });
+  const connected = spring({ frame: frame - frameAt(5.2), fps, config: { damping: 180 } });
+  const consent = interpolate(frame, [frameAt(3.5), frameAt(3.75), frameAt(4.95), frameAt(5.2)], [0, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const setupOpacity = (1 - consent) * (1 - connected);
+  const tap = interpolate(frame, [frameAt(3.0), frameAt(3.2), frameAt(3.45), frameAt(3.7)], [0, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const buttonPress = interpolate(frame, [frameAt(3.25), frameAt(3.38), frameAt(3.62)], [1, 0.96, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   const travel = spring({ frame: frame - frameAt(7.0), fps, config: { damping: 170 } });
   const outro = interpolate(frame, [frameAt(11.5), frameAt(12.4)], [0, 1], {
     extrapolateLeft: "clamp",
@@ -85,17 +98,105 @@ export const LifeManagerCalendar: React.FC = () => {
       <div style={{ position: "absolute", top: 470 }}>
         <Phone lift={lift}>
           <div style={{ display: "flex", justifyContent: "space-between", color: MUTED, fontSize: 24, marginBottom: 42 }}>
-            <span>09:41</span><span>Calendar</span><span>●●●</span>
+            <span>09:41</span><span>{frame < frameAt(3.5) ? "aniccaai.com/lm" : frame < frameAt(5.2) ? "Google" : "Calendar"}</span><span>●●●</span>
           </div>
-          <div style={{ fontSize: 34, color: MUTED, marginBottom: 10 }}>WEDNESDAY · OCT 7</div>
-          <div style={{ fontSize: 49, fontWeight: 800, marginBottom: 28 }}>Your schedule</div>
-          <CalendarEvent time="09:30" title="Design review" place="Online" />
-          <div style={{ display: "flex", alignItems: "center", gap: 22, margin: "0 0 10px" }}>
-            <div style={{ width: 92, color: MUTED, fontSize: 27 }}>15:00</div>
-            <div style={{ flex: 1, height: 2, background: LINE }} />
+          <div style={{ opacity: connected }}>
+            <div style={{ fontSize: 34, color: MUTED, marginBottom: 10 }}>WEDNESDAY · OCT 7</div>
+            <div style={{ fontSize: 49, fontWeight: 800, marginBottom: 28 }}>Your schedule</div>
+            <CalendarEvent time="13:00" title="Previous meeting" place="Roppongi · ends 14:00" />
+            <div style={{ display: "flex", alignItems: "center", gap: 22, margin: "0 0 10px" }}>
+              <div style={{ width: 92, color: MUTED, fontSize: 27 }}>15:00</div>
+              <div style={{ flex: 1, height: 2, background: LINE }} />
+            </div>
+            <TravelBlock progress={travel} />
+            <CalendarEvent time="15:00" title="Client meeting" place="Shibuya · in person" />
           </div>
-          <TravelBlock progress={travel} />
-          <CalendarEvent time="15:00" title="Client meeting" place="Shibuya · in person" />
+          <div
+            style={{
+              position: "absolute",
+              left: 40,
+              right: 40,
+              top: 92,
+              bottom: 38,
+              opacity: setupOpacity,
+              background: "#0D1826",
+              border: "1px solid #31445D",
+              borderRadius: 28,
+              padding: "46px 34px",
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              zIndex: 3,
+            }}
+          >
+            <div style={{ color: BLUE, fontSize: 26, fontWeight: 800, letterSpacing: 3 }}>LIFE MANAGER</div>
+            <div style={{ color: FG, fontSize: 39, lineHeight: 1.15, fontWeight: 800, marginTop: 30 }}>
+              Let your Calendar plan the trip.
+            </div>
+            <div style={{ color: MUTED, fontSize: 26, lineHeight: 1.35, marginTop: 22 }}>
+              Connect once. Your Calendar stays your daily screen.
+            </div>
+            <div
+              style={{
+                marginTop: 42,
+                width: "100%",
+                borderRadius: 22,
+                background: BLUE,
+                color: INK,
+                padding: "25px 16px",
+                boxSizing: "border-box",
+                fontSize: 29,
+                fontWeight: 800,
+                transform: `scale(${buttonPress})`,
+              }}
+            >
+              Connect Google Calendar
+            </div>
+            <div style={{ color: MUTED, fontSize: 22, marginTop: 20 }}>One-time setup · No daily app</div>
+            <div
+              style={{
+                position: "absolute",
+                right: 122,
+                bottom: 563,
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                border: "4px solid #FFFFFF",
+                boxShadow: "0 0 0 8px rgba(102,168,255,.35)",
+                opacity: tap,
+                transform: `scale(${interpolate(tap, [0, 1], [1.2, 0.82])})`,
+              }}
+            />
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              left: 40,
+              right: 40,
+              top: 92,
+              bottom: 38,
+              opacity: consent,
+              background: "#0D1826",
+              border: "1px solid #31445D",
+              borderRadius: 28,
+              padding: "46px 34px",
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              zIndex: 4,
+            }}
+          >
+            <div style={{ width: 76, height: 76, borderRadius: 22, background: "#FFFFFF", color: "#4285F4", fontSize: 52, fontWeight: 800, lineHeight: "76px" }}>G</div>
+            <div style={{ color: FG, fontSize: 37, fontWeight: 800, marginTop: 32 }}>Google account</div>
+            <div style={{ color: MUTED, fontSize: 25, lineHeight: 1.35, marginTop: 14 }}>Choose your account and allow Calendar access.</div>
+            <div style={{ marginTop: 38, width: "100%", borderRadius: 20, background: "#E8F0FE", color: "#174EA6", padding: "23px 16px", boxSizing: "border-box", fontSize: 27, fontWeight: 700 }}>Continue with Google</div>
+          </div>
           <div
             style={{
               position: "absolute",
@@ -111,6 +212,7 @@ export const LifeManagerCalendar: React.FC = () => {
               display: "flex",
               alignItems: "center",
               gap: 16,
+              zIndex: 5,
             }}
           >
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: GREEN, color: INK, textAlign: "center", lineHeight: "28px", fontSize: 20, fontWeight: 900 }}>✓</div>
