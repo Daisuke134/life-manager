@@ -2,6 +2,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import sqlite3
 import sys
 from datetime import datetime
 import pytest
@@ -195,3 +196,47 @@ def test_seller_is_our_profile_link_and_zero_sellers_fail_closed(tmp_path):
     marker(tmp_path, [FAILED])
     buyer_only = [{"role": "buyer", "sent_at": "2026年09月20日 11:00"}]
     assert prove(module, tmp_path, {"b": buyer_only}) == (None, "seller_identity_unverified:b")
+
+
+def test_resolve_does_not_release_in_different_resolver_database(monkeypatch, tmp_path):
+    module = load()
+    from runtime.host import resource_admission
+
+    def seed_database(root, occurrences):
+        monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(root))
+        for occurrence in occurrences:
+            database, _ = resource_admission.enqueue_durable(
+                "browser", OWNER, admission_class="revenue", occurrence_id=occurrence)
+            assert database is not None
+        database = root / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='claimed', effect_unknown=1 WHERE owner_id=?",
+                (OWNER,),
+            )
+            connection.execute("UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (OWNER,))
+        return database
+
+    read_root = tmp_path / "selected-db"
+    resolver_root = tmp_path / "resolver-db"
+    selected_db = seed_database(read_root, [OCC])
+    unrelated = f"{OWNER}:unrelated"
+    resolver_db = seed_database(resolver_root, [OCC, unrelated])
+
+    state_root = tmp_path / "reply-state"
+    state_root.mkdir()
+    events(state_root)
+    marker(state_root, [SAFE])
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(resolver_root))
+    try:
+        result = module.main([
+            "--state-root", str(state_root), "--all-fenced", "--admission-db", str(selected_db),
+            "--resolve",
+        ])
+    except SystemExit as error:
+        result = error.code
+
+    assert set(module.fenced_occurrences(selected_db)) == {OCC}
+    assert set(module.fenced_occurrences(resolver_db)) == {OCC, unrelated}
+    assert result != 0
+    assert not (state_root / "reconciliation").exists()

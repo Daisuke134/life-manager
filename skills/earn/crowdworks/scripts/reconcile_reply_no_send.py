@@ -29,7 +29,8 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from runtime.host.resource_admission import resolve_pre_effect_occurrence
+from runtime.host.resource_admission import (resolve_pre_effect_occurrence,
+                                             state_root as admission_state_root)
 
 OWNER = "crowdworks-revenue-reply"
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
@@ -279,6 +280,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolve", action="store_true",
                         help="release each proven claimed occurrence")
     args = parser.parse_args(argv)
+    if args.all_fenced and args.resolve:
+        selected_database = args.admission_db.expanduser().resolve()
+        resolver_database = (admission_state_root() / "admission-v2.sqlite3").expanduser().resolve()
+        if selected_database != resolver_database:
+            parser.error("--resolve requires --admission-db to match the resolver database")
     state_root = args.state_root.expanduser().resolve()
     occurrences = list(args.occurrence)
     if args.all_fenced:
