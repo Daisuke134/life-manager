@@ -6,7 +6,7 @@ Keep paid fulfillment inside the contract project while allowing its context com
 
 ## Evidence
 
-The 2026-10-07 Coconala Paid run for talkroom `18180857` stopped before any external effect with `compiled source reference escapes project`. Its compiled context contained four `.venv/bin/python*` symlinks under `delivery/runtime/` resolving to the system Python installation.
+An observed Coconala Paid run stopped before any external effect with `compiled source reference escapes project`. Its compiled context contained four `.venv/bin/python*` symlinks under `delivery/runtime/` resolving to the system Python installation.
 
 ## Acceptance
 
@@ -33,8 +33,8 @@ The 2026-10-07 Coconala Paid run for talkroom `18180857` stopped before any exte
 
 ## Production readback
 
-- PR #6932 merged as `599dcf62a167c853e252e64d68128f3d36b8da32`. Main-derived immutable release `6ce816a9d152a40aeaf8c89eae68fb5f60d6b5cd` was created and targeted to `hf-gig-paid-direct`.
-- Natural occurrence `hf-gig-paid-direct:18dc48f2effab020-41557` loaded that release and passed the former context-compile failure. It then stopped in `paid-work-decision` because the configured escalation model provider reported capacity unavailable; `effect=0`, no provider message or delivery receipt.
+- The source fix merged to main; a main-derived immutable release was created and targeted to `hf-gig-paid-direct`.
+- The first natural run on that release passed the former context-compile failure. It then stopped in `paid-work-decision` because the configured escalation model provider reported capacity unavailable; effect/readback remained zero and no provider message was sent.
 - Current lane remains incomplete: Coconala Apply/Storefront and Lancers Storefront are effect-fenced; CrowdWorks/Mercor have official-readback gates. Freelancer remains retired and Upwork remains an external browser owner. The canonical TODO order is unchanged.
 
 TODO ordering remains owned by `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`.
