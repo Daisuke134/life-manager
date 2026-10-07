@@ -231,7 +231,7 @@ test("a named place with a prefecture and ward still uses OpenPOI Suggest", asyn
 });
 
 test("recognized Japanese facility names still use OpenPOI Suggest", async (t) => {
-  for (const [index, query] of ["東京駅", "渋谷ヒカリエ", "浅草寺"].entries()) {
+  for (const [index, query] of ["東京駅", "渋谷ヒカリエ", "浅草寺", "東京展示ビル"].entries()) {
     await t.test(query, async () => {
       const result = await runGeocode({
         query,
@@ -249,7 +249,10 @@ test("recognized Japanese facility names still use OpenPOI Suggest", async (t) =
 });
 
 test("arbitrary Japanese labels bypass OpenPOI and use one Google geocode", async (t) => {
-  for (const [index, query] of ["自宅", "実家", "友達の家", "会社"].entries()) {
+  for (const [index, query] of [
+    "自宅", "実家", "友達の家", "会社", "会場", "東京展示会場",
+    "友達の家の会場", "自宅ビル", "友達の家のホテル",
+  ].entries()) {
     await t.test(query, async () => {
       const result = await runGeocode({
         query,

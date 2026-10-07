@@ -9,7 +9,7 @@ const NOW = Date.parse("2030-01-01T08:00:00+09:00");
 const START = Date.parse("2030-01-01T10:00:00+09:00");
 const END = Date.parse("2030-01-01T11:00:00+09:00");
 const poiCandidate = {
-  name: "ルートcache対象会場",
+  name: "ルートcache対象ビル",
   address: "東京都 fixture",
   lat: 35.659,
   lng: 139.700,
@@ -87,7 +87,7 @@ async function createTravelEvent(route) {
   const event = {
     id: "fixture-travel-event",
     summary: "会議",
-    location: "ルート対象会場",
+    location: "ルート対象ビル",
     start: { dateTime: new Date(START).toISOString(), timeZone: "Asia/Tokyo" },
     end: { dateTime: new Date(END).toISOString(), timeZone: "Asia/Tokyo" },
   };

@@ -11,7 +11,8 @@ const OPENPOI_ATTRIBUTION_URL = "https://openpoiapi.com/attribution.html";
 const FREE_GEOCODE_TIMEOUT_MS = 2500;
 const FREE_GEOCODE_SUCCESS_TTL_MS = 24 * 60 * 60_000;
 const FREE_GEOCODE_FAILURE_TTL_MS = 2 * 60_000;
-const JAPANESE_POI_SUFFIX = /(?:駅|寺|神社|ホテル|店|ビル|館|大学|空港|公園|美術館|博物館|病院|会館|役所|タワー|ヒカリエ|会場)$/u;
+const JAPANESE_POI_SUFFIX = /(?:駅|寺|神社|ホテル|店|ビル|館|大学|空港|公園|美術館|博物館|病院|会館|役所|タワー|ヒカリエ)$/u;
+const PRIVATE_HOME_HINT = /(?:自宅|実家|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]{1,8}の家)/u;
 const freeCache = new Map();
 const freeInFlight = new Map();
 
@@ -78,8 +79,10 @@ function preservesAddressPrecision(query, title) {
 }
 
 function providerForQuery(query) {
+  const normalized = normalizeAddress(query).replace(/\s+/gu, "");
+  if (PRIVATE_HOME_HINT.test(normalized)) return null;
   if (isJapaneseAddress(query)) return { provider: "gsi", operation: "AddressSearch" };
-  if (isJapaneseText(query) && JAPANESE_POI_SUFFIX.test(normalizeAddress(query).replace(/\s+/gu, ""))) {
+  if (isJapaneseText(normalized) && JAPANESE_POI_SUFFIX.test(normalized)) {
     return { provider: "openpoi", operation: "Suggest" };
   }
   return null;
