@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import re
+import unicodedata
 import json
 import subprocess
 import sys
@@ -56,11 +57,24 @@ def _is_title_taken(errors: list[str]) -> bool:
     return any("既に存在するタイトル" in e or "title already exists" in e.lower() for e in errors)
 
 
+# Creators Market allows 40 units and counts a full-width character as 2 (measured live 2026-10-07:
+# a 35-character title with 16 full-width characters was rejected as over 40).
+TITLE_MAX = 38
+
+
+def _title_units(text: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(ch) in ("F", "W", "A") else 1 for ch in text)
+
+
 def _retitle(listing: dict) -> dict | None:
     name = listing.get("character_name") or ""
     if not name:
         return None
-    titles = {lang: f"{title} ({name})"[:40] for lang, title in listing["title"].items()}
+    fallback = {"en": f"{name} Stickers", "ja": f"{name}のスタンプ"}
+    titles = {}
+    for lang, title in listing["title"].items():
+        candidate = f"{title} ({name})"
+        titles[lang] = candidate if _title_units(candidate) <= TITLE_MAX else fallback.get(lang, name)
     return dict(listing, title=titles)
 
 

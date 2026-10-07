@@ -17,9 +17,15 @@ class Retitle(unittest.TestCase):
         listing = {"character_name": "Stardust Penguin",
                    "title": {"ja": "ふわふわペンギンの気持ちスタンプ", "en": "Fluffy Penguin Feelings Stickers"}}
         out = MODULE._retitle(listing)
-        self.assertEqual(out["title"]["ja"], "ふわふわペンギンの気持ちスタンプ (Stardust Penguin)")
-        self.assertEqual(out["title"]["en"], "Fluffy Penguin Feelings Stickers (Stardust Penguin)"[:40])
+        self.assertEqual(out["title"]["ja"], "Stardust Penguinのスタンプ")  # full-width counts 2: 51 > 40
+        # 51 chars would break Creators Market's 40-char limit (live 2026-10-07 06:23Z): name-led instead.
+        self.assertEqual(out["title"]["en"], "Stardust Penguin Stickers")
+        self.assertTrue(all(MODULE._title_units(t) <= MODULE.TITLE_MAX for t in out["title"].values()))
         self.assertEqual(listing["title"]["ja"], "ふわふわペンギンの気持ちスタンプ")  # input untouched
+
+    def test_short_titles_keep_the_original_with_the_name(self) -> None:
+        out = MODULE._retitle({"character_name": "Pip", "title": {"ja": "もちハム", "en": "Mochi Hamster"}})
+        self.assertEqual(out["title"], {"ja": "もちハム (Pip)", "en": "Mochi Hamster (Pip)"})
 
     def test_no_character_name_means_no_retry(self) -> None:
         self.assertIsNone(MODULE._retitle({"title": {"ja": "a", "en": "b"}}))
