@@ -80,6 +80,7 @@
 - [x] Runner-level regression test reproduced the old failure as `marketing liveness ref is invalid`, then passed with one mocked Postiz publish and one mocked liveness receipt; replay produced zero additional provider or Telegram calls. The canary suite now passes 16/16.
 - [x] Fresh independent read-only review passed the exact CTA fix and the JP1 receipt. The reviewer confirmed the exact JP1 PUBLISHED post and six remote media hashes/order; it did not resolve any other occurrence.
 - [x] After the runner-level test: canary 16/16; full `npm test` exit 0; `./bin/lm-loop-contract` reports 18 catalog loops, 186 registry jobs, 111 mapped jobs, zero errors; `git diff --check` passes.
+- [x] PR's first `OSS self-contained boundary` run exposed a stale main-branch 242-file digest for `skills/capafy-autopublish` (changed in merged #6902). Updated only the root inventory digest in `docs/manifests/oss-merge-1-sources.json`; the local canonical verifier now returns `{"ok":true,"violations":[]}`.
 - [ ] Commit/push, pass PR checks, merge to main, and cut a full main-derived immutable release.
 - [ ] Apply only to `life-manager-anicca-en-affirmation-tiktok`. On the next natural 09:15 JST slot, require exact PUBLISHED receipt, valid liveness outcome, local receipt, and replay-zero. Do not clear the other historical unknown occurrences.
 
