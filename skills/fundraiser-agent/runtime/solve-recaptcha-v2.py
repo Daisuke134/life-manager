@@ -133,7 +133,7 @@ def solve_aws_waf_task(
         cost = _cost(response.get("cost"))
         if response.get("errorId"):
             error_code = response.get("errorCode")
-            definitive = error_code in {"ERROR_TASK_TIMEOUT", "ERROR_TASKID_INVALID", "ERROR_CAPTCHA_UNSOLVABLE"}
+            definitive = error_code in {"ERROR_TASK_TIMEOUT", "ERROR_TASKID_INVALID", "ERROR_CAPTCHA_UNSOLVABLE", "ERROR_TASK_NOT_FOUND"}
             code = "CAPSOLVER_NO_CREDITS" if error_code == "ERROR_ZERO_BALANCE" else "CAPSOLVER_API_ERROR"
             raise CapSolverError(code, task_id=task_id, status="failed" if definitive else "processing",
                                  cost=cost, definitive=definitive)
