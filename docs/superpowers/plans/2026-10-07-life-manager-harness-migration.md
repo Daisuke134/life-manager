@@ -123,7 +123,7 @@
 ### HA-014 — buildGatewayConfig({paths,port,agentId,modelRoute,effectMode}) -> object
 
 - [ ] **対象:** `runtime/openclaw/profile.mjs`
-  **変更:** gateway local loopback/token、agents.entries.<agentId>.workspace=専用dir、global maxConcurrent=2、cron.enabled=false。tools allow=lm_read/lm_effectのうちeffectModeが許すものだけ。shell/browser/message/sessions_spawn/native MCPとfallbackは初版disabled。credentialsはSecretRef。
+  **変更:** gateway local loopback/token、agents.entries.<agentId>.workspace=専用dir、global maxConcurrent=2、cron.enabled=false。tools allow=lm_read/lm_artifact/lm_effectのうちeffectModeが許すものだけ。shell/browser/message/sessions_spawn/native MCPとfallbackは初版disabled。credentialsはSecretRef。 lm_artifactはprivate workspace出力のみで、read_onlyでも利用可能。remote writeはlm_effectだけ。
   **検証・完了:** tests/profile.test.mjs:read_onlyではlm_effectなし、cronfalse、ambient account/credential valueなし。公開CLI config validateで通過。
   **依存:** HA-013。
 
@@ -179,14 +179,14 @@
 ### HA-022 — manifest.tools
 
 - [ ] **対象:** `runtime/openclaw/plugin/openclaw.plugin.json`
-  **変更:** lm_read/lm_effectをmanifestへ宣言。owner binding endpointとinstance idのconfigSchemaをclosed schemaにする。secret文字列/任意commandはconfigSchemaへ持たない。
+  **変更:** lm_read/lm_artifact/lm_effectをmanifestへ宣言。owner binding endpointとinstance idのconfigSchemaをclosed schemaにする。secret文字列/任意commandはconfigSchemaへ持たない。
   **検証・完了:** tests/plugin.test.mjs:tool宣言と実登録一致、unknown config field拒否。
   **依存:** HA-014。
 
 ### HA-023 — default plugin register(api)
 
 - [ ] **対象:** `runtime/openclaw/plugin/index.mjs`
-  **変更:** definePluginEntryでapi.registerTool(contextVersion:2)を登録。ctx.agentId/sessionKey/instanceにbindしたbrokerだけへrequest。ownerをmodel paramsから採らない。invokeごとにassertInvocationCurrentを確認。
+  **変更:** definePluginEntryで3toolをcontextVersion:2で登録する。create(ctx)はctx.agentId/sessionKeyに一致するoperator BindingRecordだけをlookupし、固定Python/runtime/openclaw/tool_broker.py --invoke-stdinへ{binding_ref,tool_name,arguments}をstdinで渡す。shell:false、source-owned絶対script、callerからcommand/owner/credentialを受けない。assertInvocationCurrentを各call前に確認し、subprocess envへgateway/provider secretsを継承しない。
   **検証・完了:** tests/plugin.test.mjs:偽owner paramsはauthority変更なし、stale invocationのprovider call0。
   **依存:** HA-022。
 
@@ -204,382 +204,396 @@
   **検証・完了:** tests/test_tool_broker.py:unknown/fenceなし/leaseなしwrite0、same occurrence fakewrite1・same receipt。
   **依存:** HA-024。
 
-### HA-026 — testModelAndToolAdmissionFailClosed()
+### HA-026 — write_artifact(binding: dict, relative_path: str, content: str) -> dict
+
+- [ ] **対象:** `runtime/openclaw/tool_broker.py`
+  **変更:** trusted binding.workspace配下のrelative pathだけへUTF-8成果物を書く。absolute/..、symlink parent、.git、credential/config/state領域を拒否。最大1MiB。temp write/fsync/replaceし{artifact_ref,sha256,bytes}を返す。canonical catalog/production sourceを直接書かない。
+  **検証・完了:** tests/test_tool_broker.py:4成果物SKILL.md/LISTING.md/icon.svg/evidence/verified-demonstration.mdをprivateworkspaceに作れる。../、symlink、1MiB超過はwrite0。
+  **依存:** HA-024。
+
+### HA-027 — main(argv: list[str], stdin: TextIO) -> int
+
+- [ ] **対象:** `runtime/openclaw/tool_broker.py`
+  **変更:** --invoke-stdinだけ受付。packetは{binding_ref,tool_name,arguments} closed schema。operator dispatchRoot内のBindingRecordをmode/owner/claim/actual parent PID・start identityと照合し、lm_read→invoke_read、lm_artifact→write_artifact、lm_effect→invoke_effectへdispatchする。model supplied owner/claimを採用しない。stdoutはsanitized JSON、unknown/errorはtyped resultと非zero。
+  **検証・完了:** tests/test_tool_broker.py:foreign binding/parent mismatch/unknown tool/secret markerでeffect0、固定invoke packetが通る。shell command文字列は受けない。
+  **依存:** HA-025, HA-026。
+
+### HA-028 — testModelAndToolAdmissionFailClosed()
 
 - [ ] **対象:** `runtime/openclaw/tests/native-boundary.test.mjs`
   **変更:** 配布版でplugin missing/timeout、native shell/MCP/HTTP、cron/direct RPC、subagentの5迂回をfake provider相手にprobeする。一般prompt hookだけで強制保証しない。
-  **検証・完了:** node --test runtime/openclaw/tests/native-boundary.test.mjs。claimなしmodel call0、broker外write0。どちらか失敗ならeffect_modeはread_onlyのまま、HA-057以後は未着手。
-  **依存:** HA-025, HA-012, HA-021。
+  **検証・完了:** node --test runtime/openclaw/tests/native-boundary.test.mjs。claimなしmodel call0、broker外write0。どちらか失敗ならeffect_modeはread_onlyのまま、HA-059以後は未着手。
+  **依存:** HA-025, HA-012, HA-021, HA-027。
 
-### HA-027 — validate_result(instance: object, schema: dict) -> dict
+### HA-029 — validate_result(instance: object, schema: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/schema_validate.py`
   **変更:** 既存jsonschema==4.26.0のvalidators.validator_for(schema)でschemaをcheck_schemaし結果をvalidate。stdinは{instance,schema}、stdoutは{valid:true}または{valid:false,error_class:schema_invalid|result_invalid}だけ。値やschema全文をstderrへ出さない。
   **検証・完了:** tests/test_schema_validate.py:additionalProperties:false拒否、required不足拒否、draft選択、fake secret markerを出力しない。
   **依存:** HA-003。
 
-### HA-028 — normalizeOutcome(raw, request) -> RunOutcome
+### HA-030 — normalizeOutcome(raw, request) -> RunOutcome
 
 - [ ] **対象:** `runtime/openclaw/result.mjs`
   **変更:** HA-012で固定したpayloadのfinal JSONを取得し、release-ownedPythonのschema_validate.pyへstdinでinstance/schemaを渡す。valid=falseならfailed。usage/cost欠測はnull。tool receiptはbroker証拠のみからjoinし、LLM textを公式receiptへ変換しない。
   **検証・完了:** tests/result.test.mjs:invalid JSON/schemaはfailed、fake final receiptを採用しない、token欠測null。
-  **依存:** HA-012, HA-025, HA-027。
+  **依存:** HA-012, HA-025, HA-029。
 
-### HA-029 — project_usage(raw: dict, identity: dict) -> dict
+### HA-031 — project_usage(raw: dict, identity: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/telemetry.py`
   **変更:** existing agent-usage fieldsへinput/output/cached/retry/subagent tokensをproject。cost_basisはprovider_reported/api_equivalent_estimate/unknownを分離。runId重複を二重計上しない。
   **検証・完了:** tests/test_telemetry.py:retry usage含む、欠測null、同run二重charge0、fake secret marker非露出。
-  **依存:** HA-028。
+  **依存:** HA-030。
 
-### HA-030 — project_runtime_event(outcome: dict, identity: dict) -> dict
+### HA-032 — project_runtime_event(outcome: dict, identity: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/telemetry.py`
   **変更:** 既存runtime_event.build_runtime_event/validate_runtime_eventを利用しrun/owner/occurrence/releaseをjoin。error_class/retryable/next_action/receipt/readbackを保持。
   **検証・完了:** tests/test_telemetry.py:既存validator通過、release欠落でsuccess不可、unknown effect維持。
-  **依存:** HA-029。
+  **依存:** HA-031。
 
-### HA-031 — main(argv, stdin, deps) -> Promise<number>
+### HA-033 — main(argv, stdin, deps) -> Promise<number>
 
 - [ ] **対象:** `runtime/openclaw/cli.mjs`
-  **変更:** --request-stdinまたは--request-file、--outcome-fileを解析。validate→durable prepared→claim→sent→agent ACK保存→wait→schema結果→event/receipt保存→stop proof→releaseの順で実行。exit success0/failed1/input2/pending75。
+  **変更:** --request-stdinまたは--request-file、--outcome-fileを解析。validate→durable prepared→claim→sent→agent ACK保存→wait→schema結果→event/receipt保存→stop proof→releaseの順で実行。exit success0/failed1/input2/pending75。 dispatch送信前にBindingRecordを0600でatomic保存する。fields={owner_id,occurrence_id,session_key,workspace,claim_ref,gateway_pid,gateway_start,allowed_tools}。pathはdispatchRoot/<identityhash>.binding.json、workspaceはrequest.workdir、allowed_toolsはeffect_modeからoperatorが固定。
   **検証・完了:** tests/cli.test.mjs:正常fixture各呼出順、ack喪失でsent1/dispatch0追加、timeoutでunknown。
-  **依存:** HA-003, HA-004, HA-006, HA-008, HA-009, HA-010, HA-011, HA-020, HA-028, HA-030, HA-026。
+  **依存:** HA-003, HA-004, HA-006, HA-008, HA-009, HA-010, HA-011, HA-020, HA-030, HA-032, HA-028。
 
-### HA-032 — run_openclaw(parsed, prompt: str, schema: dict, config: dict) -> int
+### HA-034 — run_openclaw(parsed, prompt: str, schema: dict, config: dict) -> int
 
 - [ ] **対象:** `runtime/openclaw/runner_adapter.py`
   **変更:** 既存runner argsをRunRequestへ写しnode cliをstdin JSONで呼ぶ。outcomeをexisting summaryのversion/status/route/attempt_count/result_path/selected_*へproject。image/codex-resumeは初版unsupportedでprovider開始前に明示失敗。
   **検証・完了:** tests/test_runner_adapter.py:既存run_agent consumerがsummaryを読める、unknown75、unsupported image dispatch0。
-  **依存:** HA-031。
+  **依存:** HA-033。
 
-### HA-033 — run() の parsed入力validate後・candidate起動前
+### HA-035 — run() の parsed入力validate後・candidate起動前
 
 - [ ] **対象:** `runtime/agent-runner/agent_runner.py`
-  **変更:** config.harness_routes[trusted owner].engine=openclawでenabled=trueの時だけHA-032へ委譲。ownerはLIFE_MANAGER_LOOP_ID、short --loopをauthorityにしない。disable/defaultは現行候補chain。
+  **変更:** config.harness_routes[trusted owner].engine=openclawでenabled=trueの時だけHA-034へ委譲。ownerはLIFE_MANAGER_LOOP_ID、short --loopをauthorityにしない。disable/defaultは現行候補chain。
   **検証・完了:** runtime/agent-runner/tests/test_openclaw_route.py:default legacy、eligible ownerだけnew、env owner欠落時newに入らない。
-  **依存:** HA-032, HA-021。
+  **依存:** HA-034, HA-021。
 
-### HA-034 — test_ack_loss_preserves_claim()
+### HA-036 — test_ack_loss_preserves_claim()
 
 - [ ] **対象:** `runtime/openclaw/tests/test_recovery.py`
   **変更:** 送信→ACK前crash fixture。sent recordが残り、同occurrence再開はreconcileのみ、新RPC agent0・claim保持をassert。
   **検証・完了:** python3 -m pytest runtime/openclaw/tests/test_recovery.py::test_ack_loss_preserves_claim -q。
-  **依存:** HA-033。
+  **依存:** HA-035。
 
-### HA-035 — test_provider_success_receipt_gap()
+### HA-037 — test_provider_success_receipt_gap()
 
 - [ ] **対象:** `runtime/openclaw/tests/test_recovery.py`
   **変更:** fake provider成功→receipt保存前crash fixture。readbackで同receipt復元、provider write1、retry追加0をassert。
   **検証・完了:** python3 -m pytest runtime/openclaw/tests/test_recovery.py::test_provider_success_receipt_gap -q。
-  **依存:** HA-034。
+  **依存:** HA-036。
 
-### HA-036 — test_terminal_replay_zero()
+### HA-038 — test_terminal_replay_zero()
 
 - [ ] **対象:** `runtime/openclaw/tests/test_recovery.py`
   **変更:** terminal保存済みoccurrenceを再投入。existing result/refを返しmodel/provider/toolの追加call0をassert。
   **検証・完了:** python3 -m pytest runtime/openclaw/tests/test_recovery.py::test_terminal_replay_zero -q。
-  **依存:** HA-035。
+  **依存:** HA-037。
 
-### HA-037 — 固定canary request
+### HA-039 — 固定canary request
 
 - [ ] **対象:** `runtime/openclaw/fixtures/read-only-request.json`
   **変更:** owner_id=harness-readonly-canary、occurrence_id=fixture-001、effect_mode=read_only、task_class=repeatable-agent、timeout_seconds=60、schema={type:object,required:[status,count],properties:{status:{const:success},count:{const:1}},additionalProperties:false}。model/providerはprivate fixture configに渡しsourceへcredentialを入れない。
   **検証・完了:** tests/canary.test.mjs:validateRunRequest通過、fake modelの返答{status:success,count:1}、effect0。
-  **依存:** HA-036。
+  **依存:** HA-038。
 
-### HA-038 — main(argv) -> int
+### HA-040 — main(argv) -> int
 
 - [ ] **対象:** `apps/life-manager/scripts/harness-readonly-canary.py`
-  **変更:** release-rootのNode cliへHA-037を入力。workdir/evidence-dirはprivatecanaryroot、release SHAはloaded env。production source/catalogをwriteしない。
+  **変更:** release-rootのNode cliへHA-039を入力。workdir/evidence-dirはprivatecanaryroot、release SHAはloaded env。production source/catalogをwriteしない。
   **検証・完了:** runtime/openclaw/tests/test_canary.py:caller pathsrelease相対、effect0、event same occurrence。
-  **依存:** HA-037。
+  **依存:** HA-039。
 
-### HA-039 — loops.harness-readonly-canary
+### HA-041 — loops.harness-readonly-canary
 
 - [ ] **対象:** `config/loop-registry.json`
   **変更:** entrypoint=apps/life-manager/scripts/harness-readonly-canary.py、adapter=python、domain=system、effect_class=none、provider_route=deterministic、resource_class=agent、admission_class=borrow、priority=support、cadence.start_interval_seconds=300、private state/logroot、system_role=controlを追加。
   **検証・完了:** ./bin/lm-loop-contractでPASS。public installerのdefault enabled対象に入れない。
-  **依存:** HA-038。
+  **依存:** HA-040。
 
-### HA-040 — source acceptance receipt
+### HA-042 — source acceptance receipt
 
 - [ ] **対象:** `docs/evidence/harness-migration/first-source-acceptance.json`
   **変更:** HA-001〜038のfocused node/Pythonテストとloop-contract結果、source SHA、SDK/gateway/Nodeの版を記録する。mock成功をproduction成功と書かない。
   **検証・完了:** node --test runtime/openclaw/tests/*.test.mjs; python3 -m pytest runtime/openclaw/tests runtime/agent-runner/tests/test_openclaw_route.py runtime/loop/tests/test_openclaw_resource_lifetime.py -q; ./bin/lm-loop-contract。
-  **依存:** HA-039。
+  **依存:** HA-041。
 
-### HA-041 — read-only自然occurrence receipt
+### HA-043 — read-only自然occurrence receipt
 
 - [ ] **対象:** `docs/evidence/harness-migration/readonly-natural.json`
-  **変更:** HA-040のPR/main/release後、harness-readonly-canaryだけloaded-idle applyする。自然due1件のloaded argv/SHA、terminal、trace/cost、external writes0を記録する。他gateway/ownerはapplyしない。
+  **変更:** HA-042のPR/main/release後、harness-readonly-canaryだけloaded-idle applyする。自然due1件のloaded argv/SHA、terminal、trace/cost、external writes0を記録する。他gateway/ownerはapplyしない。
   **検証・完了:** bin/lm-loop status --explain harness-readonly-canaryのowner/version/terminalとsame-occurrence evidence照合。GUI preflight不可時はmutationせずそのpreconditionを記録。
-  **依存:** HA-040。
+  **依存:** HA-042。
 
-### HA-042 — main() の mode/role/engine対応
+### HA-044 — main() の mode/role/engine対応
 
 - [ ] **対象:** `skills/writer-agent/runtime/shared-model-runner.py`
   **変更:** legacy image/repair/resumeのunsupportedをnewengineで先に拒否し、通常agent/judgeだけ既存RUNNER経由で同schemaを維持。直接新CLIを呼ぶ第二実装を作らない。
   **検証・完了:** runtime/openclaw/tests/test_writer_route.py:agent/judgeの既存format維持、vision/repair/resumeはsource eligibility=false。
-  **依存:** HA-033。
+  **依存:** HA-035。
 
-### HA-043 — 3固定task cases
+### HA-045 — 3固定task cases
 
 - [ ] **対象:** `apps/life-manager/eval/harness-migration/cases.jsonl`
   **変更:** read-only inventory、Capafy offline 4artifacts、ack-loss prefixの3ケースを固定seed/hashで保存。実platform/canonical catalogへのwriteはない。
   **検証・完了:** tests/eval.test.mjs:case ID唯一、3casesちょうど、run budgetとmodel固定、holdout write不可。
-  **依存:** HA-040。
+  **依存:** HA-042。
 
-### HA-044 — evaluateHarnessPair({base,candidate,cases,budget,seed}) -> report
+### HA-046 — evaluateHarnessPair({base,candidate,cases,budget,seed}) -> report
 
 - [ ] **対象:** `apps/life-manager/eval/harness-migration/run.js`
   **変更:** 同3cases/model/tool/budgetを2harnessで実行し安全、task成功数、総observed cost、RSSを比較する。既存LM-EAB economic scorerへfinancial inputだけ委譲。採用はcost<=base、task>=base、safety allPASS、RSS host capacity内。
   **検証・完了:** run.test.js:cost増/欠測、receipt偽造、同task不一致でHOLD、全条件でSHIP。
-  **依存:** HA-043, HA-042。
+  **依存:** HA-045, HA-044。
 
-### HA-045 — 採用判定
+### HA-047 — 採用判定
 
 - [ ] **対象:** `docs/evidence/harness-migration/adoption.json`
-  **変更:** HA-044の実reportにbase/model/tools/cost basis/evidence refsを保存する。未知費用ならHOLD。SHIPの場合だけ後続enabled selectorへ進む。
+  **変更:** HA-046の実reportにbase/model/tools/cost basis/evidence refsを保存する。未知費用ならHOLD。SHIPの場合だけ後続enabled selectorへ進む。
   **検証・完了:** 同3casesのreceipt・費用をreportと再照合。公開benchmark点数は入力に使わない。
-  **依存:** HA-044, HA-041。
+  **依存:** HA-046, HA-043。
 
-### HA-046 — validate_owner_route(owner_id: str, route: dict, registry: dict) -> dict
+### HA-048 — validate_owner_route(owner_id: str, route: dict, registry: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/owner_routes.py`
-  **変更:** owner存在、source callerがrunner seamを通ること、taskclass/image/repair/resume/effect adapterの実装coverage、model/provider保持、HA-045 SHIPを検証。どれか未確認ならactivationを拒否する。
+  **変更:** owner存在、source callerがrunner seamを通ること、taskclass/image/repair/resume/effect adapterの実装coverage、model/provider保持、HA-047 SHIPを検証。どれか未確認ならactivationを拒否する。
   **検証・完了:** tests/test_owner_routes.py:caller未対応/env owner欠落/coverageunknown/leaseactiveでenabled拒否。
-  **依存:** HA-045。
+  **依存:** HA-047。
 
-### HA-047 — capafy_readback(binding, arguments) -> dict
+### HA-049 — capafy_readback(binding, arguments) -> dict
 
 - [ ] **対象:** `runtime/openclaw/tool_broker.py`
   **変更:** bindingのownerをcapafy-loop-dailyへ固定。handler引数は{}または{agent_id:string}のみ。既存vendor/capafy-publisher/packager.pyを固定cwdでpublish-list、指定IDならpublish-remote-status --agent-id <ID>として呼ぶ。reconcile_ledger.main()はledgerへwriteするのでread-only handlerから呼ばない。
   **検証・完了:** tests/test_capafy_handler.py:fake公式readbackをjoin、401と検索エラーを混同しない、foreign ownercall0。
-  **依存:** HA-046, HA-024。
+  **依存:** HA-048, HA-024。
 
-### HA-048 — capafy_publish(binding, arguments) -> dict
+### HA-050 — capafy_publish(binding, arguments) -> dict
 
 - [ ] **対象:** `runtime/openclaw/tool_broker.py`
   **変更:** 初版はCP1完了済みagentだけを対象にする。引数={agent_id,skill_name,listing_path,agent_version_id}をclosed schemaで検証しlisting_pathはowner workspace内に限定。既存scripts/publish_finish.shの4positional argsへ委譲し、CP1未確認/CAP_FULL/unknownでは起動0。新しいdraft作成やCP1の別実装はこのhandlerに混ぜない。
   **検証・完了:** tests/test_capafy_handler.py:cap full0、unknown0、sameoccurrence1receipt、provider success前後crash回帰。
-  **依存:** HA-047, HA-025。
+  **依存:** HA-049, HA-025。
 
-### HA-049 — harness_routes.capafy-loop-daily
+### HA-051 — harness_routes.capafy-loop-daily
 
 - [ ] **対象:** `runtime/agent-runner/config.json`
-  **変更:** HA-046 validationとHA-048が成立してからengine=openclaw、enabled=true、allowed_task_classes=[repeatable-agent,application-lane-agent]を設定。許可される販売行為はCP1完了済みagentのfinishだけ。新規draft/CP1作成を要求する既存promptはcoverage falseのままlegacyへ残す。
+  **変更:** HA-048 validationとHA-050が成立してからengine=openclaw、enabled=true、allowed_task_classes=[repeatable-agent,application-lane-agent]を設定。許可される販売行為はCP1完了済みagentのfinishだけ。新規draft/CP1作成を要求する既存promptはcoverage falseのままlegacyへ残す。
   **検証・完了:** test_openclaw_route.py:capafy-loop-dailyだけnew、同model/provider保持、defaultdisabled。
-  **依存:** HA-048。
+  **依存:** HA-050。
 
-### HA-050 — RUN_AGENT呼出env
+### HA-052 — RUN_AGENT呼出env
 
 - [ ] **対象:** `skills/self/capafy-loop/capafy-loop-daily.sh`
   **変更:** shared RUN_AGENTを維持し、trusted entrypoint envのLIFE_MANAGER_LOOP_ID=capafy-loop-dailyをnewrouteの呼出時に明示。CAP_FULL/offline cadence/ledger/bodyは変更しない。
   **検証・完了:** runtime/openclaw/tests/test_capafy_caller.py:全RUN_AGENT呼出のowner一致、cap/cadence/source artifactsの既存focused regression。
-  **依存:** HA-049。
+  **依存:** HA-051。
 
-### HA-051 — Capafy自然成果receipt
+### HA-053 — Capafy自然成果receipt
 
 - [ ] **対象:** `docs/evidence/harness-migration/capafy-natural.json`
-  **変更:** HA-050 source acceptance→main/release→owner限定apply。自然offline4成果物と、既存CP1完了済みagentの正当なfinishについて公式receipt/費用/trace/duplicate0を保存。新規draft/CP1のcoverageは未達と表示しCapafy全業務移行完了にはしない。cap満杯ならpublish未達を保持。
+  **変更:** HA-052 source acceptance→main/release→owner限定apply。自然offline4成果物と、既存CP1完了済みagentの正当なfinishについて公式receipt/費用/trace/duplicate0を保存。新規draft/CP1のcoverageは未達と表示しCapafy全業務移行完了にはしない。cap満杯ならpublish未達を保持。
   **検証・完了:** bin/lm-loop status --explain capafy-loop-daily、既存公式readback、sameoccurrence cost/refをjoin。buyer購入は技術移行gateにしない。
-  **依存:** HA-050, HA-041。
+  **依存:** HA-052, HA-043。
 
-### HA-052 — prepare_transfer(owner_id: str, target: str, expected_sha: str) -> dict
+### HA-054 — prepare_transfer(owner_id: str, target: str, expected_sha: str) -> dict
 
 - [ ] **対象:** `runtime/openclaw/schedule_transfer.py`
   **変更:** owner/release/lease/running/unknownを確認。target enumlegacy/openclaw。旧wakeを凍結してdrain後、新cronをdisabledで登録しreceiptを保存する。公開配布でcron強制admission未検証ならtargetopenclaw拒否。
   **検証・完了:** tests/test_schedule_transfer.py:active/unknown/foreignleaseで旧owner変更0、prepared途中crashで二重enabled0。
-  **依存:** HA-051, HA-046。
+  **依存:** HA-053, HA-048。
 
-### HA-053 — commit_transfer(prepared: dict) -> dict
+### HA-055 — commit_transfer(prepared: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/schedule_transfer.py`
-  **変更:** receiptのexpected owner/sha/epoch一致を確認し旧schedule退役→newenabled→readback。retryで二重作成しない。model-start claim/heartbeat/cleanupが強制されることはHA-026を再実行し必要条件にする。
+  **変更:** receiptのexpected owner/sha/epoch一致を確認し旧schedule退役→newenabled→readback。retryで二重作成しない。model-start claim/heartbeat/cleanupが強制されることはHA-028を再実行し必要条件にする。
   **検証・完了:** tests/test_schedule_transfer.py:old-disabled直後crash、新enabled直後crashの両方でauthority<=1・job喪失0。
-  **依存:** HA-052。
+  **依存:** HA-054。
 
-### HA-054 — rollback_transfer(receipt: dict) -> dict
+### HA-056 — rollback_transfer(receipt: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/schedule_transfer.py`
   **変更:** new wakeを止めrunをdrain、unknownを保持、旧main由来release/scheduleだけrestore。credential/session/ledgerの巻戻しなし。
   **検証・完了:** tests/test_schedule_transfer.py:unknownoccurrence再送0、旧owner再開1、foreignservice untouched。
-  **依存:** HA-053。
+  **依存:** HA-055。
 
-### HA-055 — 唯一のscheduler receipt
+### HA-057 — 唯一のscheduler receipt
 
 - [ ] **対象:** `docs/evidence/harness-migration/capafy-schedule.json`
-  **変更:** HA-052〜053source/main/release後にcapafy-loop-daily1件の転送を実行し、新cronの次due自然occurrence1件と旧wake0を記録する。
-  **検証・完了:** source SHA/loaded/oldretired/newenabled/next occurrenceが一致。HA-026不合格なら実行せずHOLD。
-  **依存:** HA-054。
+  **変更:** HA-054〜053source/main/release後にcapafy-loop-daily1件の転送を実行し、新cronの次due自然occurrence1件と旧wake0を記録する。
+  **検証・完了:** source SHA/loaded/oldretired/newenabled/next occurrenceが一致。HA-028不合格なら実行せずHOLD。
+  **依存:** HA-056。
 
-### HA-056 — build_owner_inventory(registry_path: Path, catalog_path: Path, tracked_files: list[str]) -> list[dict]
+### HA-058 — build_owner_inventory(registry_path: Path, catalog_path: Path, tracked_files: list[str]) -> list[dict]
 
 - [ ] **対象:** `runtime/openclaw/owner_inventory.py`
   **変更:** registry ownerとcataloggroup、shared runnerのsource literal caller、nested wrappersをjoinする。全184をagent消費者と推定しない。各rowにcaller_path/symbol/taskclass/handlercoverage/eligibility/evidenceを入れる。
   **検証・完了:** tests/test_owner_inventory.py:deterministic nested capafy/promptbase検出、read-only supportのfalsepositiveなし、caller未確認eligibilityfalse。
-  **依存:** HA-046。
+  **依存:** HA-048。
 
-### HA-057 — _claude(prompt, system) の subprocess env
+### HA-059 — _claude(prompt, system) の subprocess env
 
 - [ ] **対象:** `skills/earn/promptbase/scripts/gen_examples.py`
   **変更:** MODEL_RUNNERは既存Writer model-runner.shを維持。subprocess envへLIFE_MANAGER_LOOP_ID=promptbase-loop-dailyを明示し、SYSTEM INSTRUCTIONS/BUYER PROMPT区分と{text:string} output schemaを保つ。publish.py/ledgerは変更しない。
   **検証・完了:** tests/test_promptbase_caller.py: owner一致、2prompt section保持、textのJSON unwrap不変、example generationでplatform write0。
-  **依存:** HA-056, HA-042。
+  **依存:** HA-058, HA-044。
 
-### HA-058 — harness_routes.promptbase-loop-daily
+### HA-060 — harness_routes.promptbase-loop-daily
 
 - [ ] **対象:** `runtime/agent-runner/config.json`
-  **変更:** PromptBase工具coverageがHA-046でverifiedになった時だけownerrouteをenabled。未実装publisher handlerではenabledfalseを固定。
+  **変更:** PromptBase工具coverageがHA-048でverifiedになった時だけownerrouteをenabled。未実装publisher handlerではenabledfalseを固定。
   **検証・完了:** test_owner_routes.py:handler未登録でenable拒否、owner一致のverifiedcoverageだけ許可。
-  **依存:** HA-057。
-
-### HA-059 — trusted ownerの伝播
-
-- [ ] **対象:** `skills/writer-agent/runtime/shared-model-runner.py`
-  **変更:** ARTICLE_MODEL_ROLEからownerを作らずLIFE_MANAGER_LOOP_IDをrunnerへ保持。agent/judgeだけeligible、repair/vision/codexresumeはHA-042の明示unsupported。
-  **検証・完了:** tests/test_writer_route.py:article-daily/agentjudgeのactor保持、別ownerへ上書き不可。
-  **依存:** HA-042, HA-056。
-
-### HA-060 — harness_routes.article-daily
-
-- [ ] **対象:** `runtime/agent-runner/config.json`
-  **変更:** HA-046でWriterpublish/readbackのcoverageがverifiedの時だけagent/judgeをenabled。read-only judge成功をWriter公開成功へ転写しない。
-  **検証・完了:** test_owner_routes.py:publication adapter欠落でenable拒否、vision/resumeはlegacy route保持。
   **依存:** HA-059。
 
-### HA-061 — judgeCandidate({baseReport,candidateReport,holdoutHash}) -> {verdict,reasons}
+### HA-061 — trusted ownerの伝播
+
+- [ ] **対象:** `skills/writer-agent/runtime/shared-model-runner.py`
+  **変更:** ARTICLE_MODEL_ROLEからownerを作らずLIFE_MANAGER_LOOP_IDをrunnerへ保持。agent/judgeだけeligible、repair/vision/codexresumeはHA-044の明示unsupported。
+  **検証・完了:** tests/test_writer_route.py:article-daily/agentjudgeのactor保持、別ownerへ上書き不可。
+  **依存:** HA-044, HA-058。
+
+### HA-062 — harness_routes.article-daily
+
+- [ ] **対象:** `runtime/agent-runner/config.json`
+  **変更:** HA-048でWriterpublish/readbackのcoverageがverifiedの時だけagent/judgeをenabled。read-only judge成功をWriter公開成功へ転写しない。
+  **検証・完了:** test_owner_routes.py:publication adapter欠落でenable拒否、vision/resumeはlegacy route保持。
+  **依存:** HA-061。
+
+### HA-063 — judgeCandidate({baseReport,candidateReport,holdoutHash}) -> {verdict,reasons}
 
 - [ ] **対象:** `apps/life-manager/eval/harness-migration/gate.js`
   **変更:** safety全件PASS、task成功>=base、knownfailure1件改善、cost<=base、holdout hash不変をAND判定。unknown costはHOLD。既存agent-contract/economic-autonomyのgateを再利用。
   **検証・完了:** gate.test.js:同dataset汚染・costnull・receipt偽造・課題変更でHOLD、全条件SHIP。
-  **依存:** HA-044。
+  **依存:** HA-046。
 
-### HA-062 — record_canary_application() の候補gate
+### HA-064 — record_canary_application() の候補gate
 
 - [ ] **対象:** `skills/writer-agent/scripts/writer_learning_worker.py`
-  **変更:** 既存canary適用recordへHA-061 report SHA/parent/holdout hashを照合する分岐を追加する。既存offline/close-canary/promotionを維持しSHIPだけ既存候補受付へ渡す。marketing scheduled_runnerは実際にwritebackをquarantineしているので別の直接昇格分岐を捏造して変更しない。
+  **変更:** 既存canary適用recordへHA-063 report SHA/parent/holdout hashを照合する分岐を追加する。既存offline/close-canary/promotionを維持しSHIPだけ既存候補受付へ渡す。marketing scheduled_runnerは実際にwritebackをquarantineしているので別の直接昇格分岐を捏造して変更しない。
   **検証・完了:** runtime/openclaw/tests/test_learning_gate.py:既存record_canary_applicationをimportしreport missing/HOLD/parent mismatchは受付0、SHIP一致1。
-  **依存:** HA-061。
+  **依存:** HA-063。
 
-### HA-063 — repair evidence envelope
+### HA-065 — repair evidence envelope
 
 - [ ] **対象:** `runtime/loop/recovery-supervisor.mjs`
   **変更:** OpenClaw upstream run/session/trace refsをexisting repair intent evidenceへ追加する。Self-Build/Symphony既存executorを維持し別codingharnessを作らない。
   **検証・完了:** 既存recovery-supervisor関連test:before/after occurrenceと修正commit/readback欠落ならrepairedfalse。
-  **依存:** HA-030, HA-055。
+  **依存:** HA-032, HA-057。
 
-### HA-064 — 自然コード修復1件のreceipt
+### HA-066 — 自然コード修復1件のreceipt
 
 - [ ] **対象:** `docs/evidence/harness-migration/self-heal.json`
   **変更:** noeffect/ownerlocal実障害1件を既存Self-Buildで修正し、修正commit/main/release/after自然run/公式readbackを保存する。restart/issueだけでは未達。
   **検証・完了:** 同failure prefixの回帰PASSとbefore/after別occurrence、duplicate0。
-  **依存:** HA-063。
+  **依存:** HA-065。
 
-### HA-065 — 評価済候補1件のreceipt
+### HA-067 — 評価済候補1件のreceipt
 
 - [ ] **対象:** `docs/evidence/harness-migration/self-improve.json`
-  **変更:** HA-061/061でSHIPの1skillをmain/releaseし、owner自然runのtask/cost/receiptをparentと比較する。劣化時はHA-054rollbackを実行。
+  **変更:** HA-063/061でSHIPの1skillをmain/releaseし、owner自然runのtask/cost/receiptをparentと比較する。劣化時はHA-056rollbackを実行。
   **検証・完了:** fixed holdout改善、knownfailure改善、costbasis同一、naturalreadback欠測なし。
-  **依存:** HA-062, HA-064。
+  **依存:** HA-064, HA-066。
 
-### HA-066 — 未参照legacy routeの削除
+### HA-068 — 未参照legacy routeの削除
 
 - [ ] **対象:** `runtime/agent-runner/agent_runner.py`
-  **変更:** HA-056 inventoryでsourcecaller0かつloaded/natural移行済みのlegacy provider分岐だけ削る。未対応vision/repair/resumeとdomainfence/CFO/admissionは保持。
+  **変更:** HA-058 inventoryでsourcecaller0かつloaded/natural移行済みのlegacy provider分岐だけ削る。未対応vision/repair/resumeとdomainfence/CFO/admissionは保持。
   **検証・完了:** 既存runnerfocused testsとloop-contract、削除symbolへのrg参照0。残legacyがある場合full migration完了にしない。
-  **依存:** HA-065, HA-060, HA-058。
+  **依存:** HA-067, HA-062, HA-060。
 
-### HA-067 — 全owner受け入れ照合
+### HA-069 — 全owner受け入れ照合
 
 - [ ] **対象:** `docs/evidence/harness-migration/final-acceptance.json`
-  **変更:** HA-056全eligible rowにsource commit/release/loaded/scheduler/natural/toolreceipt/costをjoin。欠けたrowはmissing対象と次probeを残す。全owner技術migrationと商品収益の判定を分ける。
+  **変更:** HA-058全eligible rowにsource commit/release/loaded/scheduler/natural/toolreceipt/costをjoin。欠けたrowはmissing対象と次probeを残す。全owner技術migrationと商品収益の判定を分ける。
   **検証・完了:** source/loaded一致、duplicateeffect0、旧agentwake0、全eligible rowのrequired evidenceあり。
-  **依存:** HA-066。
+  **依存:** HA-068。
 
-### HA-068 — inspectHost({platform,env,which}) -> CapabilityReport（条件付き配布）
+### HA-070 — inspectHost({platform,env,which}) -> CapabilityReport（条件付き配布）
 
 - [ ] **対象:** `runtime/openclaw/doctor.mjs`
   **変更:** Nodeversion、python3/bash、dockerを検出。mac/linuxnativeはsupported、win32native販売toolはunsupported_host、WSL2/DockerはLinuxadapterへ。model/platform credentialは設定名の有無だけ返し値は返さない。
   **検証・完了:** tests/doctor.test.mjs:mac/linux/win32/WSL fixture、iOS/Androidはcontrolleronly、未設定機能はmissing理由。
   **依存:** HA-002。
 
-### HA-069 — resolveSecretRef(ref, credentialFile) -> string（条件付き配布）
+### HA-071 — resolveSecretRef(ref, credentialFile) -> string（条件付き配布）
 
 - [ ] **対象:** `runtime/openclaw/credentials.mjs`
   **変更:** 一意SSOTのservice/keyをruntimeだけで読む。symlink/ownership/mode不正を拒否。OpenClaw configにはSecretRefだけ、値をconfig/log/返答へ保存しない。
   **検証・完了:** tests/credentials.test.mjs:fake keyはsecret-free config、repo内source不読、別tenant mount拒否。
-  **依存:** HA-068, HA-014。
+  **依存:** HA-070, HA-014。
 
-### HA-070 — frozen dependencies section（条件付き配布）
+### HA-072 — frozen dependencies section（条件付き配布）
 
 - [ ] **対象:** `install.sh`
   **変更:** LIFE_MANAGER_INSTALL_HARNESS=1の場合のみruntime/openclawでnpm ciを実行しdoctorでhost能力を表示する。default0で現行install動作維持。global npm/openclaw/Nodeのupgradeなし。
   **検証・完了:** test/install-isolation.test.mjs:HAinstall0でextra calls0、1で専用pathのみ、existing user config不変更。
-  **依存:** HA-069, HA-001。
+  **依存:** HA-071, HA-001。
 
-### HA-071 — single-tenant Linux runtime image（条件付き配布）
+### HA-073 — single-tenant Linux runtime image（条件付き配布）
 
 - [ ] **対象:** `runtime/openclaw/Dockerfile`
   **変更:** Node24.16系Linuxbase、Python3/bashとlocked runtime dependencies、runtime/openclaw npm ci。同一repo sourceをcopy、non-root実行、外部LM_DATA_DIR volume、credentialはsecret mount。Dais HOME/browser/accountをcopyしない。
   **検証・完了:** docker buildのsource/lock確認、fake credential mountでcanary1run、image layersにfake secret markerなし。
-  **依存:** HA-070, HA-040。
+  **依存:** HA-072, HA-042。
 
-### HA-072 — lm instance service（条件付き配布）
+### HA-074 — lm instance service（条件付き配布）
 
 - [ ] **対象:** `runtime/openclaw/compose.yaml`
   **変更:** private network、loopback-only publicport、data volume、read-onlycredential secret、healthcheckはreadiness RPCのみ、restart policyはprocess failureに限定。固定Daispathsやregistry全ownerのautoenableなし。
   **検証・完了:** docker compose config通過、stop/startでsame session/readback、reboot recoveryfixtureでsend1回。
-  **依存:** HA-071。
+  **依存:** HA-073。
 
-### HA-073 — portable acceptance matrix（条件付き配布）
+### HA-075 — portable acceptance matrix（条件付き配布）
 
 - [ ] **対象:** `.github/workflows/harness-portability.yml`
   **変更:** ubuntu-latest/macos-latestでpaths/protocol/result/client fake testsとNode24.16。Windowsはcorefake testsだけ、販売tool supportはWSL2/Linuxcontainerのみと明示。secretsやliveproviderを使わない。
   **検証・完了:** matrix3platform allPASS、cloudsingletenantcontainerfixturePASS、live effects0。
-  **依存:** HA-072。
+  **依存:** HA-074。
 
-### HA-074 — ACTIVE_ROOTSに含まれるruntime/openclawの検査（条件付き配布）
+### HA-076 — ACTIVE_ROOTSに含まれるruntime/openclawの検査（条件付き配布）
 
 - [ ] **対象:** `scripts/verify-oss-self-contained.mjs`
   **変更:** 既存runtime rootのscannerを利用し新packageのlock/relativeentrypoints/外部HOME依存をcoverageへ加える。大量baseline例外を追加しない。
   **検証・完了:** node --test test/oss-self-contained.test.mjs; npm run verify:oss。新Daispath/ambientprofile依存でFAIL。
-  **依存:** HA-073。
+  **依存:** HA-075。
 
-### HA-075 — OpenClaw/client/protocol notices（条件付き配布）
+### HA-077 — OpenClaw/client/protocol notices（条件付き配布）
 
 - [ ] **対象:** `THIRD_PARTY_NOTICES.md`
   **変更:** 固定packageversionとMITlicense noticeを追加。OpenClawは正常npm依存で再配布しdistfiles選択vendorをしない。Mastra ee codeやhostedLangSmithを必要dependencyとしない。
   **検証・完了:** pinversionとlicense本文/NOTICEの照合。
-  **依存:** HA-074。
-
-### HA-076 — portable installation/capability table（条件付き配布）
-
-- [ ] **対象:** `README.md`
-  **変更:** nativeMac/Linux、WindowsWSL2/Docker、cloudsingletenant、スマホcontrollerを区別。本人のprovider/platformsetup必要、freecompute/全商品自動有効の約束なし。Docker/CLIのexact commandをHA-070〜071から記載。
-  **検証・完了:** 新READMEの各commandがfreshfixtureで実行済、対応表とdoctor result一致。
-  **依存:** HA-075。
-
-### HA-077 — 同じ配布境界の日本語手順（条件付き配布）
-
-- [ ] **対象:** `README.ja.md`
-  **変更:** HA-076と同じversion/command/能力表を日本語で記す。actualsecret/既存Daisbrowser移行を手順に含めない。
-  **検証・完了:** 対応OS/credential/volume/defaultdisabledが英語READMEと一致。
   **依存:** HA-076。
 
-### HA-078 — clean-user/cloudsource acceptance（条件付き配布）
+### HA-078 — portable installation/capability table（条件付き配布）
+
+- [ ] **対象:** `README.md`
+  **変更:** nativeMac/Linux、WindowsWSL2/Docker、cloudsingletenant、スマホcontrollerを区別。本人のprovider/platformsetup必要、freecompute/全商品自動有効の約束なし。Docker/CLIのexact commandをHA-072〜071から記載。
+  **検証・完了:** 新READMEの各commandがfreshfixtureで実行済、対応表とdoctor result一致。
+  **依存:** HA-077。
+
+### HA-079 — 同じ配布境界の日本語手順（条件付き配布）
+
+- [ ] **対象:** `README.ja.md`
+  **変更:** HA-078と同じversion/command/能力表を日本語で記す。actualsecret/既存Daisbrowser移行を手順に含めない。
+  **検証・完了:** 対応OS/credential/volume/defaultdisabledが英語READMEと一致。
+  **依存:** HA-078。
+
+### HA-080 — clean-user/cloudsource acceptance（条件付き配布）
 
 - [ ] **対象:** `docs/evidence/harness-migration/portable-acceptance.json`
   **変更:** 異なるfakeHOME2個とLinuxcontainer2cellで、owner同名でもstate/session/credential非共有を実測。iOS/Androidで実行できるとは記さない。source packaging成立だけ記録し公開/deploy/支払はしない。
   **検証・完了:** same-owner crosscell leakage0、credential/tracefake marker露出0、one effectfakewrite percell、fresh install/restart結果。
-  **依存:** HA-077。
+  **依存:** HA-079。
 
 ## 全ownerの切替を一つのTODOにしない
 
-[owner activation map](../../research/harness-owner-activation-map.json)は現行shared-agent-runner routeの各entrypointを列挙する。ただしregistryのrouteだけではcaller内部が共有runnerへ到達する証明ではないため、全行`route_enabled=false`で固定する。HA-056がnested callerを含む実sourcecoverageを作る。
+[owner activation map](../../research/harness-owner-activation-map.json)は現行shared-agent-runner routeの各entrypointを列挙する。ただしregistryのrouteだけではcaller内部が共有runnerへ到達する証明ではないため、全行`route_enabled=false`で固定する。HA-058がnested callerを含む実sourcecoverageを作る。
 
-残ownerに対して必要なのは、特定entrypoint内の特定caller、使用taskclass、呼ぶpublisher/readback handlerを名指した追加atomである。まだ読んでいないcallerを『既存handlerを接続』という万能TODOにして実行可能と偽らない。初版でsourceを確認したcallerはCapafy、PromptBase、Writer。Capafy公開handlerはCP1完了済みfinishに限定し、各商品の未実装工具coverageはfalseにする。残り全商品の切替仕様はcoverage一覧の未確認箇所が確定してから該当関数ごとに追加する。ここは**全移行のsource設計未完部分**であり、HA-067の全移行完了を現時点で保証しない。
+残ownerに対して必要なのは、特定entrypoint内の特定caller、使用taskclass、呼ぶpublisher/readback handlerを名指した追加atomである。まだ読んでいないcallerを『既存handlerを接続』という万能TODOにして実行可能と偽らない。初版でsourceを確認したcallerはCapafy、PromptBase、Writer。Capafy公開handlerはCP1完了済みfinishに限定し、各商品の未実装工具coverageはfalseにする。残り全商品の切替仕様はcoverage一覧の未確認箇所が確定してから該当関数ごとに追加する。ここは**全移行のsource設計未完部分**であり、HA-069の全移行完了を現時点で保証しない。
 
 ## 初回にそのまま実行する順序
 

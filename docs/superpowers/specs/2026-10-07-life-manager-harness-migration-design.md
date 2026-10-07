@@ -148,3 +148,5 @@ plugin一般hookのtimeoutはfail-openになるsurfaceがあるため、before_p
 `HarnessPaths`はpaths.mjsの5absolute paths（stateRoot/configPath/dispatchRoot/workspaceRoot/credentialFile）。`GatewayHandle`はchild PID/start identity/client/instance id、`StopProof`はinstance id/PID/start identity/stopped boolean/terminal refs。これらはoperatorだけが作る。
 
 初版で実装指定できるのはread-only共通接続と、CapafyのCP1完了済みagentのfinish handlerである。Capafy新規draft/CP1、各商品の未確認publisher/toolはcoverage=falseとし、この計画で全販売機能を移行できるとは主張しない。残りはowner activation mapの個々のsource coverageを確認して別atomを追加する。
+
+Tool brokerの接続は未指定socketではなく固定Python scriptへのstdin JSONとする。pluginはtrusted BindingRecordをagentId/sessionKeyでlookupし、modelへbinding_refやoperator secretを返さない。BindingRecordはoperator dispatch前に0600で保存し、workspace/claim/gateway PID/start identityを持つ。CLI brokerは実parent PID/start identityも照合する。read_onlyはremote write禁止を意味し、private workspaceへの成果物保存はlm_artifactで許可する。一般shell/file工具やproduction catalogへ直接writeしない。
