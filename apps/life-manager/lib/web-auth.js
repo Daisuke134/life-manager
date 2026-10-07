@@ -1,6 +1,6 @@
 "use strict";
 
-const { createHmac } = require("node:crypto");
+const { createHash, createHmac } = require("node:crypto");
 const {
   WEB_ATTRIBUTION_COOKIE,
   WEB_ATTRIBUTION_MAX_AGE_SECONDS,
@@ -142,6 +142,16 @@ function uidForSubject(subject) {
   return `lm_${value}`;
 }
 
+function separateWebUidForSubject(subject) {
+  const value = String(subject || "");
+  uidForSubject(value);
+  const hex = createHash("sha256").update(`life-manager:web-tenant:v1\0${value}`).digest("hex").slice(0, 32).split("");
+  hex[12] = "8";
+  hex[16] = (Number.parseInt(hex[16], 16) & 0x3 | 0x8).toString(16);
+  const uuid = `${hex.slice(0, 8).join("")}-${hex.slice(8, 12).join("")}-${hex.slice(12, 16).join("")}-${hex.slice(16, 20).join("")}-${hex.slice(20, 32).join("")}`;
+  return `lm_${uuid}`;
+}
+
 function createWebCsrfToken(uid, secret) {
   const tenantUid = String(uid || "");
   const key = String(secret || "");
@@ -242,7 +252,8 @@ async function resolveWebUser(req, res, opts = {}) {
     const user = result && result.data && result.data.user;
     if (!user || result.error) return null;
     const subject = String(user.id || "");
-    const uid = uidForSubject(subject);
+    const uid = await resolveWebTenantUid(subject, opts);
+    if (!uid) return null;
     const secret = csrfSecret(opts);
     if (!secret) return null;
     return { uid, subject, email: user.email || null, csrf: createWebCsrfToken(uid, secret) };
@@ -269,22 +280,33 @@ async function readWebUserRow(uid, opts, root, key) {
   return rows[0] || null;
 }
 
-function rejectTelegramBound(row) {
-  if (row && row.telegram_chat_id != null && String(row.telegram_chat_id).trim() !== "") {
-    const error = new Error("Telegram-bound uid cannot start a Web session");
-    error.code = "telegram_bound";
+async function resolveWebTenantUid(subject, opts = {}) {
+  const canonicalUid = uidForSubject(subject);
+  const root = requiredSupabaseUrl(opts);
+  const key = requiredServiceRoleKey(opts);
+  const canonicalRow = await readWebUserRow(canonicalUid, opts, root, key);
+  if (!canonicalRow) return canonicalUid;
+  if (canonicalRow.telegram_chat_id === null) return canonicalUid;
+
+  const separateUid = separateWebUidForSubject(subject);
+  const separateRow = await readWebUserRow(separateUid, opts, root, key);
+  return separateRow && separateRow.telegram_chat_id === null ? separateUid : null;
+}
+
+function rejectNonWebRow(row) {
+  if (row && row.telegram_chat_id !== null) {
+    const error = new Error("Web uid is not an unbound tenant");
+    error.code = "web_tenant_bound";
     throw error;
   }
 }
 
-async function ensureWebUser(uid, opts = {}) {
-  const tenantUid = String(uid || "");
-  if (!WEB_UID_RE.test(tenantUid)) throw new Error("verified Web uid is required");
-  const root = requiredSupabaseUrl(opts);
-  const key = requiredServiceRoleKey(opts);
-  const existing = await readWebUserRow(tenantUid, opts, root, key);
-  rejectTelegramBound(existing);
-  if (existing) return;
+async function ensureWebUserRow(uid, opts, root, key, knownRow) {
+  const existing = knownRow === undefined ? await readWebUserRow(uid, opts, root, key) : knownRow;
+  if (existing) {
+    rejectNonWebRow(existing);
+    return uid;
+  }
 
   const fetchImpl = opts.fetch || globalThis.fetch;
   const inserted = await fetchImpl(`${root}/rest/v1/lm_users?on_conflict=uid`, {
@@ -293,12 +315,33 @@ async function ensureWebUser(uid, opts = {}) {
       "content-type": "application/json",
       Prefer: "resolution=ignore-duplicates,return=minimal",
     }),
-    body: JSON.stringify({ uid: tenantUid }),
+    body: JSON.stringify({ uid }),
   });
   if (!inserted || !inserted.ok) throw new Error("Web user insert failed");
-  const readback = await readWebUserRow(tenantUid, opts, root, key);
+  const readback = await readWebUserRow(uid, opts, root, key);
   if (!readback) throw new Error("Web user insert readback unavailable");
-  rejectTelegramBound(readback);
+  rejectNonWebRow(readback);
+  return uid;
+}
+
+async function ensureWebUser(uid, opts = {}) {
+  const supplied = String(uid || "");
+  const subject = supplied.startsWith("lm_") ? supplied.slice(3) : supplied;
+  const canonicalUid = uidForSubject(subject);
+  const root = requiredSupabaseUrl(opts);
+  const key = requiredServiceRoleKey(opts);
+  const canonicalRow = await readWebUserRow(canonicalUid, opts, root, key);
+  if (canonicalRow && canonicalRow.telegram_chat_id !== null) {
+    return ensureWebUserRow(separateWebUidForSubject(subject), opts, root, key);
+  }
+
+  try {
+    return await ensureWebUserRow(canonicalUid, opts, root, key, canonicalRow);
+  } catch (error) {
+    // A Telegram onboarding can create the canonical row between our read and insert.
+    if (!error || error.code !== "web_tenant_bound") throw error;
+    return ensureWebUserRow(separateWebUidForSubject(subject), opts, root, key);
+  }
 }
 
 function requestPath(req) {
@@ -353,6 +396,10 @@ function sendText(res, status, text) {
 function sendRedirect(res, location) {
   res.writeHead(302, { location, "cache-control": "no-store", "content-length": "0" });
   res.end();
+}
+
+function redirectToConnectionError(res) {
+  sendRedirect(res, "/lm?auth_error=connection");
 }
 
 function clearCookie(res, opts, name) {
@@ -441,7 +488,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       }
       sendRedirect(res, redirect);
     } catch {
-      sendText(res, 503, "Web sign-in unavailable");
+      redirectToConnectionError(res);
     }
     return;
   }
@@ -449,16 +496,16 @@ async function handleWebAuthRequest(req, res, opts = {}) {
   const query = requestQuery(req);
   const code = String(query.get("code") || "");
   if (!code) {
-    sendText(res, 400, "Web sign-in unavailable");
+    redirectToConnectionError(res);
     return;
   }
   try {
     if (!hasPkceVerifier(req, opts)) {
-      sendText(res, 400, "Web sign-in unavailable");
+      redirectToConnectionError(res);
       return;
     }
   } catch {
-    sendText(res, 400, "Web sign-in unavailable");
+    redirectToConnectionError(res);
     return;
   }
 
@@ -471,7 +518,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     sessionMayExist = Boolean(exchange && exchange.data && exchange.data.session);
     if (!exchange || exchange.error || !sessionMayExist) {
       clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
-      sendText(res, 401, "Web sign-in unavailable");
+      redirectToConnectionError(res);
       return;
     }
 
@@ -479,11 +526,10 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     const user = verified && verified.data && verified.data.user;
     if (!verified || verified.error || !user) {
       await clearWebSession(client, req, res, opts);
-      sendText(res, 401, "Web sign-in unavailable");
+      redirectToConnectionError(res);
       return;
     }
-    const uid = uidForSubject(user.id);
-    await ensureWebUser(uid, {
+    const uid = await ensureWebUser(user.id, {
       env: envFor(opts),
       supabaseUrl: requiredSupabaseUrl(opts),
       serviceRoleKey: requiredServiceRoleKey(opts),
@@ -523,8 +569,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     sendRedirect(res, "/lm?start_calendar=1");
   } catch (error) {
     if (sessionMayExist && client) await clearWebSession(client, req, res, opts);
-    const status = error && error.code === "telegram_bound" ? 403 : 503;
-    sendText(res, status, "Web sign-in unavailable");
+    redirectToConnectionError(res);
   }
 }
 
@@ -534,4 +579,5 @@ module.exports = {
   ensureWebUser,
   handleWebAuthRequest,
   resolveWebUser,
+  separateWebUidForSubject,
 };

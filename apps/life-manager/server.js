@@ -542,9 +542,12 @@ const server = http.createServer(async (req, res) => {
     }
     let checkoutPending = false;
     try { checkoutPending = new URL(req.url || "/lm", LM_PANEL_BASE || "https://aniccaai.com").searchParams.get("checkout") === "success"; } catch {}
+    let authError = "";
+    try { authError = new URL(req.url || "/lm", LM_PANEL_BASE || "https://aniccaai.com").searchParams.get("auth_error") === "connection" ? "connection" : ""; } catch {}
     const trialEnd = snapshot && snapshot.checkoutAvailable ? trialEndFor(Date.now()) : null;
     const html = renderWebPage({
       user,
+      authError,
       snapshot,
       trialOffer: trialEnd ? { firstChargeAt: new Date(trialEnd * 1000).toISOString(), timezone: "Asia/Tokyo" } : null,
       customerPortalAvailable: Boolean(snapshot && snapshot.stripeCustomerId),
@@ -563,8 +566,9 @@ const server = http.createServer(async (req, res) => {
       void recordWebFunnelRequest(req.url, { method: req.method, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
     }
     handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
-      if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
-      res.end("Web sign-in unavailable");
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(302, { location: "/lm?auth_error=connection", "cache-control": "no-store", "content-length": "0" });
+      res.end();
     });
     return;
   }

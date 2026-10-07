@@ -55,6 +55,7 @@ async function startServer() {
                   confirmedTravelBlockCount: 1, firstTravelAt: "2030-01-01T00:00:00.000Z" };
       const html = renderWebPage({
         user: state.authenticated ? USER : null,
+        authError: url.searchParams.get("auth_error") === "connection" ? "connection" : "",
         snapshot,
         trialOffer: state.scanComplete ? trialOffer : null,
         customerPortalAvailable: state.trialActive,
@@ -133,8 +134,12 @@ async function assertNoHorizontalOverflow(page) {
       await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body });
     });
 
+    process.stdout.write("stage OAuth retry notice\n");
+    await page.goto(base + "/lm?auth_error=connection");
+    await page.getByRole("alert").getByText("Google Calendarとの接続を完了できませんでした。もう一度接続してください。").waitFor();
+    assert.doesNotMatch(await page.locator("body").innerText(), /callback\.txt|Web sign-in unavailable/i);
+    await assertNoHorizontalOverflow(page);
     process.stdout.write("stage signed-out page\n");
-    await page.goto(base + "/lm");
     await assertNoHorizontalOverflow(page);
     await page.getByRole("link", { name: "Google Calendarに接続" }).click();
     process.stdout.write("stage Calendar OAuth start\n");
@@ -169,7 +174,7 @@ async function assertNoHorizontalOverflow(page) {
 
     process.stdout.write(JSON.stringify({
       result: "PASS",
-      flow: ["Calendar CTA", "mock Google consent", "zero-block scan", "explicit rescan", "combined trial offer", "mock Stripe checkout", "trial-active confirmation"],
+      flow: ["OAuth retry notice", "Calendar CTA", "mock Google consent", "zero-block scan", "explicit rescan", "combined trial offer", "mock Stripe checkout", "trial-active confirmation"],
       viewports: ["390x844", "1440x900"],
       calendarStarts: state.calendarStarts,
       scans: state.scans,

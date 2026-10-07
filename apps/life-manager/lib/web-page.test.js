@@ -102,6 +102,15 @@ test("signed-out page starts with one Google Calendar connection CTA instead of 
   assert.doesNotMatch(html, /telegram/i);
 });
 
+test("signed-out page presents an OAuth retry message without exposing a raw callback response", () => {
+  const html = visibleHtml(renderWebPage({ authError: "connection" }));
+  assert.match(html, /Google Calendarとの接続を完了できませんでした/);
+  assert.match(html, /もう一度接続してください/);
+  assert.match(html, /href="\/auth\/google"/);
+  assert.match(html, /role="alert"/);
+  assert.doesNotMatch(html, /callback\.txt|Web sign-in unavailable/i);
+});
+
 test("connected state and seven-day trial offer share one screen with exact $29 terms", () => {
   const html = renderWebPage({
     user,
