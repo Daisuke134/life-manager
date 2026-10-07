@@ -5017,22 +5017,24 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertEqual(proof["blocker"], "entrypoint_exit_1")
 
     def test_ebook_local_publication_fence_refusal_is_pre_effect(self):
-        owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
-            "marketing publication effect fenced",
-        )
-        proof, reason = lm_loop._pre_effect_occurrence_proof(
-            owner, entry, occurrence, "claimed", rows,
-        )
-        self.assertEqual(reason, "ok")
-        self.assertEqual(proof["proof_type"], "pre_effect")
-        self.assertEqual(proof["blocker"], "entrypoint_exit_1")
+        for owner_id in ("ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"):
+            owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
+                "marketing publication effect fenced",
+                owner=owner_id,
+            )
+            proof, reason = lm_loop._pre_effect_occurrence_proof(
+                owner, entry, occurrence, "claimed", rows,
+            )
+            self.assertEqual(reason, "ok", owner_id)
+            self.assertEqual(proof["proof_type"], "pre_effect", owner_id)
+            self.assertEqual(proof["blocker"], "entrypoint_exit_1", owner_id)
 
-        rows[1]["evidence_refs"].append("lm-effect://postiz/posts/external-effect")
-        proof, reason = lm_loop._pre_effect_occurrence_proof(
-            owner, entry, occurrence, "claimed", rows,
-        )
-        self.assertIsNone(proof)
-        self.assertEqual(reason, "effect_ref_present")
+            rows[1]["evidence_refs"].append("lm-effect://postiz/posts/external-effect")
+            proof, reason = lm_loop._pre_effect_occurrence_proof(
+                owner, entry, occurrence, "claimed", rows,
+            )
+            self.assertIsNone(proof, owner_id)
+            self.assertEqual(reason, "effect_ref_present", owner_id)
 
     def test_english_heygen_fence_refusal_is_not_pre_effect(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
