@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from skills._shared.telegram import load_config
+from skills._shared.telegram import _split_text, load_config
 
 
 def test_alert_chat_id_is_the_portable_default(tmp_path: Path) -> None:
@@ -22,3 +22,14 @@ def test_explicit_chat_id_wins_over_alert_chat_id(tmp_path: Path) -> None:
     )
 
     assert load_config(environ={}, env_file=env_file) == ("test-token", "primary")
+
+
+def test_split_text_preserves_the_delimiter_used_as_the_chunk_boundary() -> None:
+    for delimiter in ("\n", " "):
+        message = "a" * 3844 + delimiter + "b" * 3790
+
+        chunks = _split_text(message)
+
+        assert len(chunks) == 2
+        assert all(len(chunk) <= 4000 for chunk in chunks)
+        assert "".join(chunks) == message
