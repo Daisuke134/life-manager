@@ -161,7 +161,42 @@ ASC currently lists GitHub Cloud and repository `Daisuke134/anicca-products`; re
 
 ## Remaining atomic TODOs
 
-Growth measurement and distribution are independent of the Xcode Cloud recovery, so these two lanes can progress in parallel. Distribution remains the first revenue-growth lever; the TestFlight lane remains the release cursor.
+Growth measurement and distribution are independent of the Xcode Cloud recovery, so these lanes can progress in parallel. Distribution remains the first revenue-growth lever; the TestFlight lane remains the release cursor. Native notification quote continuity is an additional independent app-correctness lane and must not wait on Postiz owner state to begin source repair.
+
+### P0 — restore the configured publication path safely
+
+1. **Finish the current owner run:** the 2026-10-08 00:00 JST `lm-loop status` reports release-reconciler `loaded-running / entrypoint_exit_143 / reconcile_owner`, and disk-cleanup `loaded-idle / entrypoint_exit_1 / reconcile_owner`. The active release reconcile shell uses `20261007T234624-3fc761fb`. Direct `df` after removing this task's generated DerivedData shows 5,720,832 KiB free, still below the 11 GiB recovery floor; the latest receipt has 23 inventory gaps and `disk-writers.stop=absent`. Resolve this owner/status discrepancy to a terminal receipt, then read back the host owner, stop state, installed SHA, and complete finite-guard inventory. Do not start another apply or infer that an absent stop flag means the owner cleared it.
+2. **Repair the disk-gate mismatch:** the cleanup governor still requires 11 GiB while PR #6926 lowered runner/central floors to 2 GiB. Align the source contract and prove the actual immutable release plus required runtime fits; do not claim 2 GiB is sufficient without measurement or bypass the gate.
+3. **Refresh and close TikTok publication effects:** the last complete aggregate was 21,347 unknown attempts at 22:58 JST; the 23:46 owner readback still has five native carousel owners unloaded and four video owners idle with `admission_effect_unknown=true`. Reconcile each only from an exact provider receipt matching account, integration, slot, caption, and media identity. Keep no-match/inconclusive occurrences fenced.
+4. **Apply the merged repair safely:** after the disk owner is clear and exact effects are reconciled, cut a main-derived immutable release. Target-apply stopped owners through the existing owner path, one at a time; begin with the planned natural canary and require loaded SHA, official `PUBLISHED` receipt, durable local receipt, and replay-zero before continuing.
+5. **Restore the daily distribution target:** reach three `PUBLISHED` receipts per Asia/Tokyo day on each of the 10 configured TikTok targets, then verify all 19 configured targets at 57/day. Preserve the 13 holds. Current all-target baseline is 42/57 (TikTok 21/30, Instagram 15/21, YouTube 6/6).
+
+### Current publication baseline — 2026-10-07 23:46 JST
+
+The fresh official Postiz readback at 23:46 JST returned 46 posts for the day. Exact joins from the 19 configured target `integration_id`s show 42/57 `PUBLISHED`: Instagram 15/21, TikTok 21/30, and YouTube 6/6. Account-specific deficit is 22 slots across Instagram and TikTok. TikTok is not healthy: 7 of 10 targets are below three posts, 3 are at zero, and 14 account-specific slots are missing. `@anicca_buddha` has 8 posts from one 20:00 slot, so its five over-quota posts do not offset other accounts' deficits.
+
+| TikTok target | Published today | Target | Status |
+|---|---:|---:|---|
+| `@aniccaaffirmation` | 1 | 3 | short 2 |
+| `@anicca_slideshow` | 3 | 3 | met |
+| `@anicca.he` | 2 | 3 | short 1 |
+| `@anicca.jp4` | 2 | 3 | short 1 |
+| `@anicca.jp` | 0 | 3 | zero |
+| `@anicca.jpx` | 0 | 3 | zero |
+| `@anicca_buddha` | 8 | 3 | 5 over; do not count against other accounts |
+| `@honne_reveal` | 0 | 3 | zero |
+| `@honnevideo` | 3 | 3 | met |
+| `@obou_anicca` | 2 | 3 | short 1 |
+
+Postiz reports 17 connected TikTok integrations (16 enabled, 1 disabled), while the canonical target registry has 10 TikTok targets and 13 held integrations across platforms. Use the target registry, not the raw integration count, as the posting denominator.
+
+Production has not loaded the merged PR #6917 source fix. At 23:46 JST the five native-carousel TikTok owners are unloaded with `admission_effect_unknown=true`; HE, JP4, Honne EN, and Honne JA remain idle with the same unresolved effect fence. The eBook JA TikTok owner is loaded-idle with no unknown effect, but is 2/3 for today. The TikTok metrics owner remains deferred on disk admission. Do not manually post or retry these slots until the exact owner/provider receipt says no duplicate effect can occur.
+
+The current disk receipt reports the 11,811,160,064-byte recovery floor as unmet (free-after 6,370,832,384 bytes, 23 inventory gaps), even though `disk-writers.stop` is absent. The release reconciler is still running, so absence of the flag is not accepted as an owner clear or permission to start another apply.
+
+### Day rollover — 2026-10-08 00:00 JST
+
+Official Postiz readback at 00:00:37 JST has 0/30 TikTok `PUBLISHED` in the new JST day. The earliest configured TikTok slot is 06:30 JST (`@anicca.jpx`), so no target slot is due yet. Keep yesterday's 21/30 result and 14 account-specific shortfall in its 2026-10-07 window; do not carry it into October 8.
 
 ### Growth lane — distribution first, measurements in the same flow
 
@@ -179,9 +214,11 @@ Growth measurement and distribution are independent of the Xcode Cloud recovery,
 10. **Keep ASO deferred unless data points there:** do not run keyword changes or screenshot treatments now. After all six published apps reach the distribution gate, if aligned ASC data shows the App Store product page is the bottleneck, run one screenshot hypothesis and wait for Apple's experiment result/confidence readback.
 11. **Prove $10,000 net MRR and factory readiness:** join same-period Apple proceeds/refunds/fees/bank settlement and actual app/provider/acquisition costs with RevenueCat subscriptions and measured churn. Done only when Anicca's net contribution is positive and USD 10,000 net MRR is source-backed. Then repeat the recipe across the other five published apps before expanding the factory target to USD 100,000 and USD 10,000,000/month.
 
-### App correctness lane — notification quote continuity
+### App correctness lane — notification quote continuity (parallel source cursor)
 
-- [ ] **Make a tapped affirmation notification open the same quote.** The current source reads `quoteId` in `AppDelegate.userNotificationCenter(_:didReceive:)` and immediately posts `.aniccaScrollToQuote`; `FeedRootView` loads its quote array in `.onAppear` and searches that array once in `.onReceive`, silently doing nothing if the ID is not present yet. Existing `NotificationHotfixTests` cover notification cadence, while Maestro `06-apns-problem-nudge-card.yaml` covers a different problem-nudge flow. This is a concrete cold-start/load-order failure path, but the actual APNs payload and installed 1.9.4 binary have not been read back, so it is not yet the confirmed production root cause. First capture one notification's visible body, canonical `quoteId`, locale, and installed app version; then preserve the pending quote ID until feed data is ready or repair the sending payload if it is wrong. Done when cold-start and background taps show the same canonical quote and localized text as the notification, with a regression test and Maestro evidence. A native client fix requires a new TestFlight build before it is reported as live.
+- [ ] **RED/GREEN the pending-route fix:** candidate source on branch `docs/anicca-notification-quote-and-growth-20261007` now persists the tapped request and visible alert body, waits for Feed data, prefers a unique exact/body-contained local quote match, and falls back to stable `quoteId` for locale/version differences. Coordinator and representative SwiftUI/AppDelegate call sites typecheck against the iOS 26.5 SDK; the standalone runtime harness passes. Main still has the one-shot event/drop path; candidate source is not merged.
+- [ ] **Regression/build proof:** the repository regression tests cover notification received before Feed appears, Feed data not ready yet, body/ID disagreement, localized body fallback, and ordinary ID-only deep links. `swiftc -frontend -parse` and the focused harness pass. Xcode `test` and `build-for-testing` both stop before compile because they report `iOS 26.5 is not installed`; do not download the runtime until the host disk owner restores safe capacity. Existing `NotificationHotfixTests` cover cadence, while Maestro `06-apns-problem-nudge-card.yaml` covers a different problem-nudge flow.
+- [ ] **Production readback:** capture one actual APNs notification's visible body, `quoteId`, locale, and installed app version; then tap it from cold-start and background states. The actual APNs payload and installed 1.9.4 binary have not been read back, so the current one-shot race is a proven source failure path, not yet the confirmed cause of this exact user report. If payload text is not in the app's local quote catalog, repair the sender's `quoteId`/body pairing. A native client change requires a new TestFlight build; mark the issue fixed only after the exact build shows the same quote and localized text as the notification.
 
 ### TestFlight lane — current release blocker
 
