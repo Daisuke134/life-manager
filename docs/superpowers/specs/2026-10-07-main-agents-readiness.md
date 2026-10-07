@@ -16,7 +16,7 @@ Daisが求める対象はローカルLife Managerの主要15の商品・業務�
 
 ## 単一推奨
 
-OpenClawをエージェント実行・session・内部traceに部分利用する設計。構造的適合は実コードで判断し、速度・費用などの定量値は別に確認する。初回は既存runner内部の有限 `openclaw agent exec` を使う。OpenClaw gateway/cronへ全体のschedule/stateを移す設計にはしない。現行backendを稼働させたまま、新backendはdefault off、限定owner/taskで検証する。
+OpenClawをエージェント実行・session・内部traceに部分利用する設計。構造的適合は実コードで判断し、速度・費用などの定量値は別に確認する。最終接続の単一推奨はLife Manager専用のローカルGatewayとdiagnostics-otel。既存runner内の有限 `openclaw agent exec` は既に行った互換診断の入口であり、session/traceを活用する最終architectureではない。OpenClaw gateway/cronへ全体のschedule/stateを移す設計にはしない。現行backendを稼働させたまま、新backendはdefault off、限定owner/taskで検証する。
 
 これは条件付きの目標設計であり、本番OpenClaw切替は未実施。コード比較による判断はagent実行/session/traceの部分利用に設計適合あり、cron/host admission/effect全面置換は不採用。本番切替は未実施。native account/model/tool/schema/budget/費用の互換が成立しないownerは現行経路を維持する。既存決定的jobにはモデルを追加しない。
 
@@ -109,7 +109,7 @@ best=同じ仕事で復旧/診断/保守またはthroughputが改善し、その
 
 ## 原子的実行順
 
-正本cursorは統一SSOT。検証MA-01〜21の残条件を閉じ、source不具合だけ修正atomへ昇格する。本番移行は便益判定までNo-Go。価値判定MV-01〜04を優先し、runner実装を行う場合のatomは既存MX計画のdecode_envelope→write_caller_result→project_usage→build_command→private retry settings→select_engine→既存runner接続。publisher/scheduler/stateを同時変更しない。
+正本cursorは統一SSOT。検証MA-01〜21の残条件を閉じ、source不具合だけ修正atomへ昇格する。source-fitにより部分利用を設計選定する。本番変更の前にGateway/RPCのclaim lifetime・同一owner/session・tool fence・trace joinのcontractを確定する。既存の有限exec互換診断用atomはMX計画のdecode_envelope→write_caller_result→project_usage→build_command→private retry settings→select_engine→既存runner接続。publisher/scheduler/stateを同時変更しない。
 
 参照: [復旧検証plan](../plans/2026-10-07-main-agents-readiness.md)、[有限runner atom](../plans/2026-10-07-harness-first-cutover.md)、[現状監査](../../research/2026-10-07-main-agents-readiness.md)。
 

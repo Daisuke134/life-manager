@@ -20,7 +20,7 @@ LM全体のharnessをOpenClaw cronへ全面置換する設計は採らない。L
 
 ## 設計への反映
 
-CLIはLife Managerのまま。LM scheduler→host admission→OpenClaw agent/session execution→既存業務tool→LM effect/readback→収支の順。観測性を使う対象はdiagnostics-otel対応のGatewayまたはagent --localで接続する。最初のtool-less有限execはschema等の互換検証としてのみ使う。OpenClaw cronは業務のschedule authorityにしない。
+CLIはLife Managerのまま。LM scheduler→host admission→OpenClaw agent/session execution→既存業務tool→LM effect/readback→収支の順。単一推奨はLife Manager専用のローカルGatewayとdiagnostics-otel。agent --localもOTel対応の候補だが、sessionを共通管理する最終接続にはGatewayを選ぶ。最初のtool-less有限execはschema等の互換検証としてのみ使う。OpenClaw cronは業務のschedule authorityにしない。
 
 sourceで判定した設計適合はPASS（部分利用）。全面置換は不採用。実接続のcontract/claim lifetime/tool scopeは実装前acceptanceが必要。本番切替は未実施。40pair/20%閾値は性能比較の旧提案で、構造選定の前提やユーザーに要求する作業にはしない。
 
