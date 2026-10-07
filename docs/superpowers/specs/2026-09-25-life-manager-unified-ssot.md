@@ -3881,17 +3881,17 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 
 | TODO | 状態 | 証拠・境界 |
 |---|---|---|
-| host census/安全回収 | 容量回復完了、census一部未確認 | Data空き約2.8GiB→約13GiB。起動Simulator/active build0を確認し、Apple native runtime deleteでiOS26.5を除去、runtime list空とcache生成PID終了を確認。native log erase --ttlで短期OS診断ログを回収。TCC gapは保持 |
-| cleanup source repair | 完了 | PR #6858でfalse success/候補starvation/df単位/ENOSPC境界/shared11GiB gate、PR #6877でGC2経路のmemory/state JSONLとdangling protected symlink保護を修復。普通のmemoryファイルと無関係なdependency symlinkは回収可能、targetは保持 |
-| source acceptance | 完了 | runtime unittest787/cleanup128/Node15、最終dangling修正後affected164+5subtests、CI10項目PASS、fresh Sol review ship。source証明と本番容量を区別 |
-| main/immutable release | 完了 | main 0bc17613b3f76f88d85732f22ea20683b2ff7e39、/Users/anicca/loops/releases/20261007T180829-0bc17613。cleanup主label/watchdog/週次ownerのinstalledとloaded argvを確認 |
+| host census/安全回収 | 容量回復完了、census一部未確認 | Data空き約2.8GiB→一度約13GiB、その後自己修復のSDK downloadで約8.9GiBへ低下。終了したrunのrunner/groupと同run envを持つ孤児Nodeを対象限定TERMし、closed SDK/配布ZIPを回収して約12.3GiBへ回復。起動Simulator/active build0を確認し、Apple native runtime deleteでiOS26.5を除去、runtime list空とcache生成PID終了を確認。native log erase --ttlで短期OS診断ログを回収。TCC gapは保持 |
+| cleanup source repair | 完了 | PR #6858でfalse success/候補starvation/df単位/ENOSPC境界/shared11GiB gate、PR #6877でGC2経路のmemory/state JSONLとdangling protected symlink保護を修復。普通のmemoryファイルと無関係なdependency symlinkは回収可能、targetは保持。PR #6891で自己修復のbrowser前/pre-spawn gateと正規host namespace継承、Camoufox SDK exact-rootを修復 |
+| source acceptance | 完了 | runtime unittest787/cleanup128/Node15、最終dangling修正後affected164+5subtests、CI10項目PASS、fresh Sol review ship。自己修復shell94/disk cleanup+admission122、最終CI10PASS/fresh review ship。source証明と本番容量を区別 |
+| main/immutable release | 完了 | main 8eb1585ee4534f52dbf5192252bda27388543d61、/Users/anicca/loops/releases/20261007T190835-8eb1585e。cleanup主label/watchdog/healthobserverは同releaseへ反映、週次ownerは0bc17613で新guard確認 |
 | finite producer guard | 部分完了 | installed source121/149（unloadedの新版を含む）。LINE queue/queued occurrenceだけdeterministic→browserへ移行、FIFO545176とIDを保持しtarget apply成功。週次ownerのagent/borrow/support補完は既存DBpolicyと一致しtarget apply成功 |
-| main cleanup/watchdog | 完了 | 5分主labelと60秒watchdogが新immutable governor/state/flockを共有。旧無条件rm/強制unlock経路はscheduled ownerから外す。新GC前は既存manifestへmemory入り23releaseをpin |
+| main cleanup/watchdog | 完了 | 5分主labelと60秒watchdogが新immutable governor/state/flockを共有。旧無条件rm/強制unlock経路はscheduled ownerから外す。新GC前は既存manifestへmemory入り23releaseをpin。自己修復source修正中に止めたhealthobserverを復帰し、held Reddit agentは再開しない |
 | natural receipt/readback | 容量・cleanup確認完了 | 新版へのapply後に両labelの自然実行exit0、host receipt capacity_recovery=met/errors0/protected_deletions0。既存shared guardは逼迫中にexact-owner自然terminal20件でdisk_headroom_low/not_applicableを確認 |
 | 全finite導入/安全停止解除 | 未完 | 28旧sourceを保持。26ownerのeffect_unknown、稼働中のCoconala返信owner、未起動等を無証拠で解除・中断しない。返信ownerは実際に送信するためregistry effect_classをmessageへ訂正し、noneとしてfenceを消さない |
 
 緊急state/disk-writers.stopはowner_id=host-disk-recovery-installing、next_action=install_and_verify_all_finite_disk_guards_before_arming_recoveryで保持する。容量回復だけで全guard導入や制限解除へ置換しない。foreign/unknown/unsafe/identity変化の旗は削除しない。次回Simulator test/Previewはランタイムの再downloadが必要で、source/SDK/device dataは保持する。
-owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol reviewer disk_policy_review。証拠は /Users/anicca/.local/state/life-manager/evidence/host-disk-* とcleanupログ。既存doctorのretired installed label ai.anicca.provision-browser.capafy.kosukeは残存し、missing/unmanaged0からdoctor全PASSを主張しない。
+owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol reviewers disk_policy_review/self_fix_gate_review。証拠は /Users/anicca/.local/state/life-manager/evidence/host-disk-* とcleanupログ。既存doctorのretired installed label ai.anicca.provision-browser.capafy.kosukeは残存し、missing/unmanaged0からdoctor全PASSを主張しない。
 現在cursor: 自然監視と回復容量を維持する。旧ownerの外部作用はexact official/pre-effect proofなしで解除・再送しない。処理中の返信ownerは自然terminalとclaim/effect readbackを確認後に対象限定source applyする。source worktreeはmemoryを含むためlockedで保持し、削除しない。
 
 ### 実装の受入境界
@@ -3899,8 +3899,9 @@ owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol revie
 - 週次ownerは`lm intel gap --telegram`を呼び、既存の`message / shared-agent-runner`を保持する。runnerとDBの`agent / borrow / support`に欠落3fieldを合わせ、entrypoint・route・FIFO・effectを変更しない。
 - Coconala返信ownerは`reply_kernel`と`coconala_reply_adapter.mutate`で返信・見積もりを送るため、registryの`none`を`message`へ訂正する。実際の送信fenceをno-effectとして解除しない。
 - GC2経路は入れ子の`memory` directory、`state/*.jsonl`、同名のdangling symlinkを保持する。検査errorはfail-closed。普通の`memory` fileと無関係なdependency symlinkは削除可能で、そのtargetを辿らない。
-- Self-fix disk bypass: the old immutable self-fix entrypoint called `ensure_browser.sh` before any shared admission check, then created evidence temp/cache roots and spawned a detached model agent while `disk-writers.stop` was set. The observed run created a 1,289,764,864-byte `camoufox.zip` plus an expanded browser and moved free space from 13 GiB to 10.5 GiB. Before code, the source plan is: keep every pure probe effect-free; fail closed on the shared 11 GiB floor and host stop flags before browser setup and again before marker/temp/agent spawn; use the shared admission module's same configured host-state namespace; clear only disk-ignore and low-threshold overrides from the heavy child environment; and stop on a `HELD_EFFECT_UNKNOWN` result prefix without rewriting/cleaning it or replaying without official readback.
-- Camoufox SDK cache: official package install path resolves to `~/Library/Caches/camoufox`, distinct from protected `~/.cloak` profiles. Add only this exact regenerable SDK root to the existing closed-path governor allowlist, using existing lsof/identity behavior; do not admit profiles or mutable session state.
+- 自己修復の旧経路はstop flagを無視してbrowser setupと重いmodel agentを起動する。修正版は共有11GiB床とstop flagをbrowser前/pre-spawnで確認し、親が確定したhost namespaceをshell escapeしてdetached childへ明示する。pure probeは副作用0、ignore/低閾値overrideは引き継がない。HELD_EFFECT_UNKNOWNはexit75でmarker不変、公式readback無しで再送しない。
+- Camoufox SDKはLibrary/Caches/camoufoxの正確な再生成可能rootだけを既存lsof/identity検査付き候補へ加える。保護された.cloak/profile/sessionは対象外。
+- 実機ではroot所有のstop flagを維持したままignore=1/threshold=0を渡してもheavy setup前にexit75、canary marker新規作成0。Reddit held markerのhash不変とreplay0を確認する。停止したrunの外部作用はunknown/provider receipt無しのまま保持する。
 - RED→GREENのself-fix fake integrationはbelow-floor/unknown/stop flagをchild0で拒否し、pure probesのeffect0とheld marker不変、pass pathのrunner環境からdisk bypass envが除かれることを検証する。Camoufox SDKの正確なcache rootは閉じた候補だけ削除可能、open lsofは保持する。registry・rendered fixture・GC・sparse reserve predicateとCIをsource証明とし、本番容量・natural agent run・外部message effectの証明と区別する。
 
 ランタイム回収の境界: 唯一のiOS26.5（UUID DE67D494-A483-40A1-B6D3-916A7C13D2D9、23F77、lastUsedAt 2026-10-05T06:12:47Z、asset allocated約7.91GiB）を未起動・active build無しでnative除去する。2日前に使われているため恒久不要とは判定しない。次回Simulator test/Preview前に`xcodebuild -downloadPlatform iOS -buildVersion 26.5`で再downloadが必要。source/SDK/device dataとmemory入りgig旧releaseは保持する。
