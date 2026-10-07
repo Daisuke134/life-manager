@@ -142,3 +142,18 @@ test("does not present partial provider estimates as a complete spend total", ()
   assert.equal(result.costs.providerEstimateUnknownRows, 1);
   assert.equal(result.costs.providerEstimateComplete, false);
 });
+
+test("does not report zero balance net when Stripe balance transaction reads are incomplete", () => {
+  const result = reportModule.buildWebFunnelReport({
+    events: [], users: [], providerCosts: [], subscriptions: [], balanceTransactions: [],
+    stripeFeesComplete: false, stripePayoutsComplete: false, nowMs: NOW, periodDays: 30,
+  });
+
+  assert.equal(result.costs.stripeFeesUsd, null);
+  assert.deepEqual(result.stripeCash, {
+    paidInvoiceUsd: 0,
+    balanceAvailableNetUsd: null,
+    balancePendingNetUsd: null,
+    paidPayoutNetUsd: null,
+  });
+});

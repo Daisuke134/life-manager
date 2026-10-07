@@ -273,9 +273,9 @@ function buildWebFunnelReport(input = {}) {
     },
     stripeCash: {
       paidInvoiceUsd: Number(paidInvoiceUsd.toFixed(2)),
-      balanceAvailableNetUsd: Number((balanceAvailableNetCents / 100).toFixed(2)),
-      balancePendingNetUsd: Number((balancePendingNetCents / 100).toFixed(2)),
-      paidPayoutNetUsd: stripePayoutsComplete ? Number((paidPayoutNetCents / 100).toFixed(2)) : null,
+      balanceAvailableNetUsd: stripeFeesComplete ? Number((balanceAvailableNetCents / 100).toFixed(2)) : null,
+      balancePendingNetUsd: stripeFeesComplete ? Number((balancePendingNetCents / 100).toFixed(2)) : null,
+      paidPayoutNetUsd: stripeFeesComplete && stripePayoutsComplete ? Number((paidPayoutNetCents / 100).toFixed(2)) : null,
     },
     metricDefinitions: {
       landingViews: "request count, not unique people",

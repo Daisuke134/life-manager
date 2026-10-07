@@ -69,6 +69,7 @@ async function stripeFeeRows(stripe, usersByCustomer, startSec) {
   } catch {
     return { rows, complete: false, payoutsComplete: false };
   }
+  const rowByTransactionId = new Map();
   for (const transaction of transactions) {
     if (!["charge", "refund"].includes(transaction.type)) continue;
     let source = transaction.source && typeof transaction.source === "object" ? transaction.source : null;
@@ -103,9 +104,7 @@ async function stripeFeeRows(stripe, usersByCustomer, startSec) {
     }
     const uid = customerId && usersByCustomer.get(customerId);
     if (!uid) continue;
-    const payoutValue = transaction.payout;
-    const payoutId = typeof payoutValue === "string" ? payoutValue : payoutValue && payoutValue.id || null;
-    rows.push({
+    const row = {
       uid,
       fee: transaction.fee,
       amount: transaction.amount,
@@ -113,23 +112,46 @@ async function stripeFeeRows(stripe, usersByCustomer, startSec) {
       currency: transaction.currency,
       status: transaction.status,
       type: transaction.type,
-      payout_id: payoutId,
+      payout_id: null,
+      payout_status: null,
       created: new Date(Number(transaction.created) * 1000).toISOString(),
-    });
+    };
+    rows.push(row);
+    if (transaction.id) rowByTransactionId.set(String(transaction.id), row);
+    else payoutsComplete = false;
   }
-  const payoutIds = [...new Set(rows.map((row) => row.payout_id).filter(Boolean))];
-  const payoutStatuses = new Map();
-  for (const payoutId of payoutIds) {
+  if (!rows.length) return { rows, complete, payoutsComplete };
+  const payouts = await stripePages(stripe.payouts.list.bind(stripe.payouts), {
+    created: { gte: startSec }, limit: 100,
+  }).catch(() => {
+    payoutsComplete = false;
+    return [];
+  });
+  for (const payout of payouts) {
+    if (!payout || typeof payout.id !== "string" || typeof payout.status !== "string") {
+      payoutsComplete = false;
+      continue;
+    }
+    let payoutTransactions;
     try {
-      const payout = await stripe.payouts.retrieve(payoutId);
-      if (!payout || payout.id !== payoutId || typeof payout.status !== "string") {
+      payoutTransactions = await stripePages(stripe.balanceTransactions.list.bind(stripe.balanceTransactions), {
+        payout: payout.id, limit: 100,
+      });
+    } catch {
+      payoutsComplete = false;
+      continue;
+    }
+    for (const payoutTransaction of payoutTransactions) {
+      const row = payoutTransaction && payoutTransaction.id && rowByTransactionId.get(String(payoutTransaction.id));
+      if (!row) continue;
+      if (row.payout_id && row.payout_id !== payout.id) {
         payoutsComplete = false;
         continue;
       }
-      payoutStatuses.set(payoutId, payout.status);
-    } catch { payoutsComplete = false; }
+      row.payout_id = payout.id;
+      row.payout_status = payout.status;
+    }
   }
-  for (const row of rows) row.payout_status = row.payout_id ? payoutStatuses.get(row.payout_id) || null : null;
   return { rows, complete, payoutsComplete };
 }
 

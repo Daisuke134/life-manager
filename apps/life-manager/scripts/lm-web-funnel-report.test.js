@@ -11,15 +11,22 @@ test("refund balance transaction resolves its customer through the charge and re
   const stripe = {
     balanceTransactions: {
       async list(params) {
+        if (params.payout) {
+          calls.push(["balance_transactions_by_payout", params]);
+          return { has_more: false, data: [{ id: "txn_refund" }] };
+        }
         calls.push(["balance_transactions", params]);
         return { has_more: false, data: [{
           id: "txn_refund", type: "refund", source: { id: "re_web", customer: null, charge: "ch_web" },
-          amount: -500, fee: 0, net: -500, currency: "usd", status: "available", payout: "po_web", created: 1_893_456_000,
+          amount: -500, fee: 0, net: -500, currency: "usd", status: "available", created: 1_893_456_000,
         }] };
       },
     },
     charges: { async retrieve(id) { calls.push(["charge", id]); return { id, customer: "cus_web" }; } },
-    payouts: { async retrieve(id) { calls.push(["payout", id]); return { id, status: "paid" }; } },
+    payouts: { async list(params) {
+      calls.push(["payouts", params]);
+      return { has_more: false, data: [{ id: "po_web", status: "paid" }] };
+    } },
   };
 
   const result = await stripeFeeRows(stripe, new Map([["cus_web", UID]]), 1_893_000_000);
@@ -38,7 +45,9 @@ test("refund balance transaction resolves its customer through the charge and re
     payout_status: "paid",
     created: "2030-01-01T00:00:00.000Z",
   }]);
-  assert.deepEqual(calls.map(([kind]) => kind), ["balance_transactions", "charge", "payout"]);
+  assert.deepEqual(calls.map(([kind]) => kind), ["balance_transactions", "charge", "payouts", "balance_transactions_by_payout"]);
+  const payoutTransactionsCall = calls.find(([kind]) => kind === "balance_transactions_by_payout");
+  assert.equal(payoutTransactionsCall[1].payout, "po_web");
 });
 
 test("report reads invoice history outside the current window to distinguish first sale from renewal", async () => {
