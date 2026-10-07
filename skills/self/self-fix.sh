@@ -2,15 +2,13 @@
 LIFE_MANAGER_REPO="${LIFE_MANAGER_REPO:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null)}"
 [ -n "$LIFE_MANAGER_REPO" ] || { echo "LIFE_MANAGER_REPO could not be resolved" >&2; exit 2; }
 export LIFE_MANAGER_REPO
+SELF_FIX_RELEASE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 RUN_AGENT="$LIFE_MANAGER_REPO/skills/earn/marketing-engine/run_agent.sh"
 if [ "${AGENT_WIRING_PROBE_ONLY:-0}" = "1" ]; then
   printf '{"task_class":"self-fix-code-agent","runner":"%s"}\n' "$RUN_AGENT"
   exit 0
 fi
-
-# The browser is shared with the other money loops: heal it, restore the logins, collect stray tabs.
-bash "$LIFE_MANAGER_REPO/skills/browser/ensure_browser.sh" || echo "WARN: browser not recovered"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 # self-fix.sh — TRUE autonomous self-heal launcher (no human, no "file issue and wait"). When a loop hits a
@@ -47,13 +45,79 @@ if [ "${1:-}" = "--blocker-changed" ]; then sf_blocker_changed "${2:-}" "${3:-}"
 # anti-fake verifier reads. Idempotent: strip a trailing -loop then re-add it.
 LOOP="${1:?loop name}"; LOOP="${LOOP%-loop}-loop"; BLOCKER="${2:?blocker+hint}"
 SOCK="/tmp/anicca-selffix-$LOOP-tmux.sock"; SESSION="anicca-selffix-$LOOP"
-STATE="$HOME/.local/state/life-manager/state"; mkdir -p "$STATE"
-LOG="$HOME/.local/state/life-manager/logs/self-fix-$LOOP.log"; mkdir -p "$(dirname "$LOG")"
+STATE="$HOME/.local/state/life-manager/state"
+LOG="$HOME/.local/state/life-manager/logs/self-fix-$LOOP.log"
 RESULT="$STATE/.self-fix-$LOOP.result"       # the fixer writes SUCCESS/FAIL + evidence here (FIND-003)
 STARTMARK="$STATE/.self-fix-$LOOP.started"    # epoch when the current fixer was spawned (FIND-005 stale-guard)
 BLOCKER_FILE="$STATE/.self-fix-$LOOP.blocker" # FIND-036: blocker text of the run $RESULT concluded for
 # FIND-028 test seam: print the normalized identity + derived paths and exit BEFORE any tmux/side-effect.
 if [ "${SELF_FIX_DRYRUN:-}" = "1" ]; then printf 'LOOP=%s SESSION=%s SOCK=%s RESULT=%s\n' "$LOOP" "$SESSION" "$SOCK" "$RESULT"; exit 0; fi
+
+# An uncertain provider result is a fence, never a fresh-spawn signal. Preserve the marker and evidence until
+# the owning provider path supplies exact official readback.
+if [ -f "$RESULT" ] && grep -q '^HELD_EFFECT_UNKNOWN' "$RESULT" 2>/dev/null; then
+  echo "self-fix[$LOOP] HELD_EFFECT_UNKNOWN — preserve marker and do not respawn"
+  exit 75
+fi
+
+# Keep this pure: use the shared admission policy and measurement without invoking disk_headroom_ok(), which
+# writes producer receipts. Verify the configured host state root exists first so the shared probe will not
+# bootstrap a missing directory around an unavailable gate.
+sf_disk_admission_probe() {
+  PYTHONDONTWRITEBYTECODE=1 python3 - "$SELF_FIX_RELEASE_ROOT" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1])
+for name in ("LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP", "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK"):
+    os.environ.pop(name, None)
+sys.path.insert(0, str(repo_root))
+reason = None
+available = None
+required = None
+try:
+    from runtime.host import disk_admission
+    host_state = disk_admission._host_state_dir()
+    if not host_state.is_dir() or host_state.is_symlink():
+        raise OSError("host state directory unavailable")
+    required_bytes = disk_admission.RECOVERY_FLOOR_BYTES
+    policy_gate = disk_admission._producer_gate()
+    available_bytes = disk_admission.disk_free_bytes(host_state)
+except Exception:
+    reason = "disk_policy_unavailable"
+else:
+    if isinstance(required_bytes, int) and not isinstance(required_bytes, bool) and required_bytes > 0:
+        required = required_bytes
+    if isinstance(available_bytes, int) and not isinstance(available_bytes, bool) and available_bytes >= 0:
+        available = available_bytes
+    if required is None:
+        reason = "disk_policy_unavailable"
+    elif policy_gate is not None:
+        reason = policy_gate[0]
+    elif available is None:
+        reason = "disk_headroom_unavailable"
+    elif available < required:
+        reason = "disk_headroom_low"
+result = {"status": "deferred" if reason else "admitted", "available_bytes": available,
+          "required_bytes": required, "reason": reason}
+print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+raise SystemExit(75 if reason else 0)
+PY
+}
+
+sf_require_disk_admission() {
+  local gate_result
+  if ! gate_result="$(sf_disk_admission_probe)"; then
+    [ -n "$gate_result" ] || gate_result='{"status":"deferred","reason":"disk_policy_unavailable"}'
+    echo "self-fix[$LOOP] deferred before heavy work: $gate_result"
+    exit 75
+  fi
+}
+
+sf_require_disk_admission
+mkdir -p "$STATE" "$(dirname "$LOG")"
 MAX_FIXER_MIN=180                             # FIND-023: a fixer older than 3h is presumed hung → kill+respawn. Set
                                               # ABOVE any legitimate fix duration (a real fix rarely needs >3h) so the
                                               # 6h audit re-invocation cannot kill an in-progress long fix; only a
@@ -118,6 +182,12 @@ if ! tmux -S "$SOCK" has-session -t "$SESSION" 2>/dev/null && [ -f "$RESULT" ] &
   fi
 fi
 
+# The browser is shared with the other money loops: heal it, restore the logins, collect stray tabs.
+(
+  unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_DISK_HEADROOM_KIB
+  bash "$LIFE_MANAGER_REPO/skills/browser/ensure_browser.sh"
+) || echo "WARN: browser not recovered"
+
 # FIND-033 (life-manager-loop 3-day outage, 2026-07-10): a near-full disk stops swap from growing, which
 # surfaces as fork() failures for every fresh spawn — including this fixer's own tmux/claude spawn below.
 # Without this, self-fix keeps respawning fixers that die before they can even diagnose anything (observed:
@@ -125,6 +195,9 @@ fi
 # hc_reclaim_disk_if_low in healthcheck-lib.sh for the full rationale and the excluded (approval-needed) paths.
 # shellcheck source=healthcheck-lib.sh
 . "$LIFE_MANAGER_REPO/skills/self/healthcheck-lib.sh" 2>/dev/null && hc_reclaim_disk_if_low
+
+# Browser/cache setup can consume disk after the first gate; remeasure before marker, temp, or agent writes.
+sf_require_disk_admission
 
 # FIND-003/004: the fixer MUST verify a real side-effect, commit in the CORRECT repo (the one the edited file lives
 # in — discovered via git rev-parse, NOT guessed), and write a result marker the caller/healthcheck can check.
@@ -165,7 +238,7 @@ printf -v ESCALATION_REASON_Q '%q' "SelfFix code repair"
 printf -v PROMPT_FILE_Q '%q' "$PROMPT_FILE"
 printf -v LOG_Q '%q' "$LOG"
 tmux -S "$SOCK" new-session -d -s "$SESSION" \
-  "exec /usr/bin/env TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class self-fix-code-agent --escalation-reason $ESCALATION_REASON_Q --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
+  "unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_DISK_HEADROOM_KIB; exec /usr/bin/env TMPDIR=$TMPDIR_Q NPM_CONFIG_CACHE=$NPM_CONFIG_CACHE_Q NODE_COMPILE_CACHE=$NODE_COMPILE_CACHE_Q /bin/bash $RUN_AGENT_Q --task-class self-fix-code-agent --escalation-reason $ESCALATION_REASON_Q --evidence-dir $EVIDENCE_DIR_Q --task-label $TASK_LABEL_Q --loop $LOOP_Q < $PROMPT_FILE_Q >> $LOG_Q 2>&1"
 date +%s > "$STARTMARK"
 echo "$(date '+%F %T') self-fix[$LOOP] SPAWNED (self-fix-code-agent): ${BLOCKER:0:90}" >> "$LOG"
 echo "self-fix[$LOOP] spawned (self-fix-code-agent, detached). result→$RESULT log→$LOG evidence→$EVIDENCE_DIR"
