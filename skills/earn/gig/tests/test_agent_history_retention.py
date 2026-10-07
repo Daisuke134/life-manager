@@ -76,6 +76,76 @@ def test_context_read_receipt_aggregates_many_refs_and_trajectory_reads(tmp_path
     assert repeat["receipt_sha256"] == receipt["receipt_sha256"]
 
 
+def test_refs_skip_external_venv_python_symlinks_without_dropping_internal_sources(tmp_path, monkeypatch):
+    compiler = load("project_context_compiler")
+    root = tmp_path / "project"
+    root.mkdir()
+    write_json(root / "state.json", {"request_id": "req-1", "talkroom_id": "room-1"})
+    internal = root / "delivery" / "source.json"
+    write_json(internal, {"source": "inside project"})
+    internal_link = root / "delivery" / "internal-link.json"
+    internal_link.symlink_to(internal)
+    external = tmp_path / "system" / "python3.14"
+    external.parent.mkdir()
+    external.write_bytes(b"runtime executable")
+    external.chmod(0o755)
+    external_link = root / "delivery" / "runtime" / "owner" / ".venv" / "bin" / "python3.14"
+    external_link.parent.mkdir(parents=True)
+    external_link.symlink_to(external)
+
+    bytes_sha = compiler._bytes_sha
+
+    def assert_project_local_before_read(path):
+        assert path.resolve().is_relative_to(root.resolve())
+        return bytes_sha(path)
+
+    monkeypatch.setattr(compiler, "_bytes_sha", assert_project_local_before_read)
+    refs = compiler._refs(root)
+    paths = {row["path"] for row in refs}
+
+    assert "state.json" in paths
+    assert "delivery/source.json" in paths
+    assert "delivery/internal-link.json" in paths
+    assert "delivery/runtime/owner/.venv/bin/python3.14" not in paths
+
+
+def test_refs_fail_closed_on_external_customer_source_symlink(tmp_path, monkeypatch):
+    compiler = load("project_context_compiler")
+    root = tmp_path / "project"
+    root.mkdir()
+    write_json(root / "state.json", {"request_id": "req-1", "talkroom_id": "room-1"})
+    external = tmp_path / "private" / "live-buyer-reply.json"
+    write_json(external, {"buyer_reply": "must not be silently omitted"})
+    (root / "requirements").mkdir()
+    (root / "requirements" / "live-buyer-reply.json").symlink_to(external)
+
+    bytes_sha = compiler._bytes_sha
+
+    def assert_project_local_before_read(path):
+        assert path.resolve().is_relative_to(root.resolve())
+        return bytes_sha(path)
+
+    monkeypatch.setattr(compiler, "_bytes_sha", assert_project_local_before_read)
+    with pytest.raises(ValueError, match="source reference escapes project"):
+        compiler._refs(root)
+
+
+def test_paid_context_snapshot_rejects_external_read_first_path(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    outside = tmp_path / "private" / "buyer-reply.json"
+    write_json(outside, {"buyer_reply": "must stay outside project"})
+    context = root / "current.json"
+    write_json(context, {
+        "source_refs": [],
+        "combined_context": {"read_these_first": ["../private/buyer-reply.json"]},
+    })
+
+    with pytest.raises(ValueError, match="compiled read path escapes project"):
+        paid._context_input_snapshot(root, context)
+
+
 @pytest.mark.parametrize("marker", [
     "delivery/paid-tool-requests.json",
     "context/paid-tool-results.json",
