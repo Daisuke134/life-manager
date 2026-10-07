@@ -1,0 +1,62 @@
+[
+  {
+    "name": "langgraph",
+    "sha": "3a1796ecf072b9f3bb429d5835179c15e92d719a",
+    "remote": "https://github.com/langchain-ai/langgraph.git"
+  },
+  {
+    "name": "crewAI",
+    "sha": "e836a191cfe524feb519c6952a458c9f1e1ff0ef",
+    "remote": "https://github.com/crewAIInc/crewAI.git"
+  },
+  {
+    "name": "openclaw",
+    "sha": "45228e1aeed6c31adbeb6383512609c3dd1dfdf3",
+    "remote": "https://github.com/openclaw/openclaw.git"
+  },
+  {
+    "name": "mastra",
+    "sha": "49b9bc8dd8838f7759cddcab4201c14f97db82d0",
+    "remote": "https://github.com/mastra-ai/mastra.git"
+  },
+  {
+    "name": "agent-framework",
+    "sha": "279d97f75cb2e7eee885dcdc2c741ef7361ee903",
+    "remote": "https://github.com/microsoft/agent-framework.git"
+  },
+  {
+    "name": "sdk-typescript",
+    "sha": "5a02cb820d1f77aa991fe8ad746077ac56884797",
+    "remote": "https://github.com/temporalio/sdk-typescript.git"
+  },
+  {
+    "name": "hermes-agent",
+    "sha": "59a3866ea5a07290afd9a1d137d52d679b77f3ab",
+    "remote": "https://github.com/NousResearch/hermes-agent.git"
+  },
+  {
+    "name": "hermes-agent-self-evolution",
+    "sha": "0a929e3aa20e15cf04dc7c28492a7d41a5139125",
+    "remote": "https://github.com/NousResearch/hermes-agent-self-evolution.git"
+  },
+  {
+    "name": "openai-agents-js",
+    "sha": "d8fa6c35b51deb5b0b4761fd1c6dda45879d52df",
+    "remote": "https://github.com/openai/openai-agents-js.git"
+  },
+  {
+    "name": "pi-mono",
+    "sha": "eb326d265ae0b88489a6d10319307780df827cdf",
+    "remote": "https://github.com/badlogic/pi-mono.git"
+  },
+  {
+    "name": "deepagents",
+    "sha": "bbae958439826bc3823a4cf5ea7a6b9fb6e70025",
+    "remote": "https://github.com/langchain-ai/deepagents.git"
+  },
+  {
+    "name": "deepagentsjs",
+    "sha": "b448f220866bbb5d41924dfdbb1e0079c3b11838",
+    "remote": "https://github.com/langchain-ai/deepagentsjs.git"
+  }
+]

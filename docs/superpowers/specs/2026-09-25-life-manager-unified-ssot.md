@@ -410,12 +410,13 @@ B. ディスク（10GB 以上）
 - [ ] B3 空き 10GB 以上を 1 時間保つことを確認
 
 C. モバイルアプリ
-- [ ] C1 A2 投稿ごとの計測を再開（tiktok-metrics が 9/27 から止まっている原因を直す）→ post-metrics.jsonl に今日の行が入ることを確認
-- [ ] C2 投稿ごとの「再生 → プロフィール → ストア → インストール」を 1 表にして毎日出す
-- [ ] C3 A3 ASO: 売れているアプリの検索語・スクショ・説明文を調べ、アニッチャと本音 AI に当てる（App Store Connect で反映を確認）
-- [ ] C4 A4 課金: 新規 4 人・有料 0 人の原因を RevenueCat と課金画面で調べ、売れているアプリの型に合わせて直す
-- [ ] C5 A5 工場の未公開 4 本（BreathReset / SleepRitual / Desk Stretch Timer / Micro Mood）の止まっている理由を ASC で確かめ、直して審査提出
-- [ ] C6 Anicca iOS の Instagram 投稿 ERROR を直す
+- [ ] C1 A1 実投稿の重複停止を証明する（#6127 source/release fixはmain済みだが、最新の7日自然投稿でcaption/slide hashの重複ゼロは未確認。YouTube Daily Affirmationは別pipeline）
+- [ ] C2 A2 distribution: existing 17 mobile lanesを維持し、app×channel tracked linkを付けてAniccaの100 ASC first-time downloads/day/app（7日平均）を目指す。全6 public appsでの目標は600/day。viewsをinstall/userと数えない。
+- [ ] C3 A2 measurement/post health: native metricsのfresh writebackを復旧し、Anicca Postiz `ERROR` 21件（Instagram cards 19、別Instagram 1、TikTok 1）のofficial effect/error stateを分類してowner-local repairする。effect state不明の投稿をblind replayしない。
+- [ ] C4 A2 app metrics: ASC acquisitionをpublic 6 appsへ拡張し、CFO RevenueCat bindingsとASC published IDsを正確に照合する。legacy 4商品のzeroesをDhamma/Sleep Reset/STUDIO CHERIE/Thankfulへ割り当てない。daily readbackにsocial→click→ASC impression/page view/download→RC trial/active MRRとfreshness/unknownを残す。
+- [ ] C5 A4 in-app/onboarding: 6 public appsすべてがper-app distribution targetを満たした後、まずAniccaのMixpanel distinct-user install cohortをRevenueCat entitlement/Apple evidenceへ結び、1つのonboarding/paywall changeを測る。client `purchase_completed`はsettled paidと扱わず、trial/restore/refund/D7/D30を同じcohortで読む。
+- [ ] C6 A3 ASOは当面保留。distribution target後、ASC dataがstore-page conversion bottleneckを示す場合だけ1 screenshot/PPO hypothesisを試す。keywordsや複数treatmentを並行しない。
+- [ ] C7 A5 アプリ本体・factory: Aniccaのpositive net contribution/$10k verified net MRRを同期間receiptとactual costで証明してから他5 public appsへ展開する。
 
 D. connector
 - [ ] D1 自動のカレンダー登録が Google Calendar に入ることを自然実行で確認
@@ -451,7 +452,7 @@ Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook
 
 集客は全商品に共通のエンジン（Dais 2026-09-28）: 記事・SEO・SNS・自社メディアの仕組みを一度完成させれば、Capafy Skill・PromptBase・既存/新規モバイルアプリ・Web アプリ・Life Manager・電子書籍（Anicca monk factory）のどれにも使える。売上が少ない原因は全商品で「distribution（集客）」が先。
 
-モバイルアプリの TODO（Capafy の後。この順。Dais 2026-09-28）: 順番は 集客 → オンボーディング（場所ごとの指標）→ 課金 → アプリの中身。アプリ自体の改善や審査対応は後。Anicca 1.9.5 の再提出はしない。
+モバイルアプリの TODO（Capafyの後。この順。2026-10-07更新）: 旧順序はA1重複投稿ガード→A2 distribution→A3 ASO→A4 onboarding→A5 app/factory。新順序はA1自然投稿の重複ゼロ確認→A2 tracked distribution・100 first-time downloads/day/app→A2 app/ASC/RevenueCat metrics coverage→6公開appすべて達成後にA4 in-app cohort/onboarding（Anicca first）→A3 ASOはstore-page bottleneckをASCが示した場合のみ→A5 positive unit economics/app factory。順序変更理由はDaisが現時点でdistributionと計測に集中し、ASOを同時に実験しないよう指定したこと、および約97.9kのAnicca social account-viewsに対しASCの最新値が3 downloads/2日で、post→install attributionが欠けること。計測baselineは配信と並行し、creative/ASO/onboarding experimentsは同時に走らせない。Aniccaを先に100/dayのtrailing 7-day averageへ到達させ、その後残る5公開appへ適用し、6件すべての目標は600/dayとする。オンボーディング検証は6件すべてのdistribution target達成後。Anicca 1.9.5の再提出はしない。
 - A1 🔧 同じ文面の繰り返し投稿を止める（2026-09-29 着手・#6127 merge・release 11056150 を 6 lane に反映）。原因: apps/life-manager/lib/marketing-native-carousel-publication-adapter.js の各 lane（EN affirmation IG/TikTok・EN slideshow・JA main・JA buddha・jp1）が 1 組の packRef/captionRef に固定され selectMarketingNativeCarouselLane() がそれ以外を拒否していた。修正: Larry JA の生成パイプラインを lane 引数化して 5 lane に適用、7 日内の caption/スライド文字 hash 重複を投稿前に止める共通 guard。費用は背景使い回し・文字のみ生成で 1 組ほぼ $0（上限 $0.30）。完了の証拠: 次の投稿（Affirmation Girl 14:15 JST 以降）が Postiz で過去と違う文面であること。YouTube Daily Affirmation App は別パイプライン（honne-ja-cycle の selectHook）で未対応。元の記録:実測（Postiz 公式 API、2026-09-25〜28 の 146 投稿）: TikTok Affirmation Girl 9 投稿で文面 2 種、TikTok anicca 7→2、TikTok アニッチャ iOS 9→2、TikTok アニッチャ お笑い 7→2、Instagram anicca 7→2、YouTube Daily Affirmation App 9→2（本音翻訳は 9→9 で毎回違う）。原因: 毎回新しい文字を作る仕組み（#6049〜#6058）は Larry JA の 1 lane にだけ入り、他の lane は少数の固定の文面・スライドを使い回している（スライド画像内の文字の重複は直す時に lane ごとに確定する）。直し方: Larry JA と同じ「背景は使い回し・文字は毎回生成・7 日内の再利用禁止・自動 gate・指標で型を選ぶ」を全 lane に広げ、Postiz の投稿本文とスライドの hash で同一アカウント内の重複を投稿前に止める。
 - A2 投稿 → App Store の流れを測る（アカウント・投稿ごとの再生 → プロフィール → ストア → install）。今は SNS 経由の install がほぼ 0。
 - A3 ASO（App Store の検索で見つかる言葉・スクリーンショット・説明文）。
@@ -3512,6 +3513,20 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - **Onboarding evidence:** Mixpanel latest read (2026-10-06)は2,790 events、最終UTC日はpartial。`purchase_completed` 206 events / 5 distinct IDsは支払い数ではない。RevenueCat entitlementとApple financial rowへjoinするまでpaid conversion/revenueに使わない。Mixpanel SDK既存のため、新analytics vendor導入よりuser/cohort joinと欠損計測を優先する。
 - **残TODO（2 lane並行、lane内順序厳守）:** Growth lane: (1) Mobile-metrics ownerが残る4公開appのASC request/report mappingをreadbackし6/6 aligned-date coverageを作る; (2) social/article assetごとにApple campaign/Custom Product Page linkを作る; (3) tracking付きdistributionを公開してASC readback; (4) distinct-user Mixpanel funnelをRevenueCat/Apple receiptへjoin; (5) PostHog image maskingとevent privacyをreadback; (6) traffic後に1仮説のPPO; (7) matched cohortでonboarding/paywall testとtrial/purchase/restore/refund/D7/D30を読む; (8) same-period settled proceeds/refund/fee/bank/actual acquisition-provider costでAnicca netを算出; (9) repeatable positive unit economics後に他5公開appへ複製。TestFlight lane: (1) #803 failed source fetchのworkflow/repository/main/grant boundaryを診断; (2) Apple公式接続でgrantを修復・readback; (3) build未使用と正確なmain SHA/version/buildをpreflight; (4) replacementを1回だけ起動しsource/archive/VALID/encryptionを確認; (5) `anicca-beta` + Beta App Review + exact public linkをreadback; (6) exact TestFlight binaryでMaestro onboarding/soft-paywall close/sandbox purchase/restore/entitlementを記録しCloud Life Manager Telegramへの配信receiptを確認する。%/unknownを0やsettled revenueにしない。
 
+### 2026-10-07 JST — Mobile distribution baseline and 100/day cursor
+
+- このreadbackは上記10/07の古いmobile snapshotのPostiz/Mixpanel値とgrowth cursorを置き換える。§84-Aの全体優先順は変更しない。CFO/mobile-metricsのlocked worktreeには触れず、ここはmobile-growthの順序と証拠を記録する。TestFlightのXcode Cloud修復は独立laneで、marketing distributionを止めない。
+- **目標定義:** `100 users/day`を、ASCの**first-time downloads** 100/日/アプリ・trailing 7-day averageと定義する。Aniccaを先に到達させ、その後残る5 public appsへ適用する。全6件で600 downloads/dayは算術上の目標であり予測ではない。現Anicca baseline 3 downloads / 2 data days = 1.5/day、わずか2日分なので安定率とは呼ばない。
+- **実配信:** Postiz APIの過去約30日の`PUBLISHED` receiptはAnicca 605（IG251 / TikTok248 / YouTube106）、Honne 80（TikTok）。Aniccaに`ERROR`が21件（IG cards lane19、別IG1、TikTok1）あり、詳細provider errorはまだ分類していない。Postizの31 integrations中、Anicca/Honneに紐づくactive targetは17 lane（Anicca15、Honne2）。投稿量はあるが、投稿数はユーザー獲得数ではない。
+- **配信面の実測（Postiz rolling 30-day account metrics）:** Anicca IGはviews 70,804 / reach 2,584 / likes 231 / saves 88 / shares 22 / comments 0（複数accountの和で重複排除なし）、Anicca TikTokはviews 27,123（他のengagement fieldは取得不可）、Honne TikTokはviews 6,040（他field取得不可）。Anicca YouTubeの2 accountはPostiz `views` fieldが未返却で、0とはしない。これらとASCの2日間downloadsはwindowもidentityも結ばれていないため、view-to-install率やplatform winnerは算出しない。
+- **CTAとcampaign join:** AniccaのInstagram 251件とTikTok248件はcaption中にApp Store URL/`ct`/UTMを含む投稿0。profile/bio URLのreadbackは未実施。Anicca YouTubeは52/106がapp ID `6755129214`を含むが、Apple `ct`/UTMは0。Honne TikTokは29/80にapp ID `6759667221`と`ct`があるが、29件すべて同じtokenで投稿単位の切り分けはできない。Honne ASC campaign countsは`campaign_not_observed_or_privacy_threshold`で、install attributionはunknown。Anicca X target accountの投稿は0件、他のconnected X accountの25件はAnicca/Honneへ未対応。Anicca-specific SEO/Search Console impression・click・App Store install joinも未確認。
+- **app acquisition / RevenueCat:** live ASC readerはAniccaとHonneのみ。Aniccaは10/04–05に3 first-time downloads / 25 unique impressions / 0 product-page views (12% descriptive, small sample)。Honneは10/02–05で1 / 114 / 0だがdownload/engagement processing datesが10/04・10/06と異なる。RevenueCat official MRR reader（10/07 08:28 JST）は最新complete 10/05で6 product IDsを取得: Anicca USD20.34 (5 active), Honne USD0, legacy BreathCalm Test / SleepRitual / DeskStretch / MicroMood USD0。ASC public6アプリとの共通はAnicca/Honneのみ。公開中Dhamma, Sleep Reset, STUDIO CHERIE, ThankfulのRevenueCat MRRはunknown。ReaderのUSD20.34はactive paid subscription MRRでsettled net revenueではない。
+- **in-app analytics:** Mixpanel official export 9/08–10/06 UTCは2,813 events、最終日partial。version/buildは1.9.4/390が2,793 events、1.9.3/370が12、1.6.3/332が6、metadata unknownが2。key events: onboarding_started129/29 distinct IDs、step_advanced594/21、completed53/18、paywall_primer499/24、plan_selection216/20、purchase_completed206/5、onboarding_paywall_purchased6/1、trial_started0、rc_initial_purchase_event1/1。9/08–9/29 start cohort, full7d window: 20 users→14 first step→12 complete→12 paywall→2 purchase_completed→1 onboarding_paywall_purchased→0 trial→0 rc_initial_purchase_event。2,813 events全体は`distinct_id`ありだが`$user_id`は182 eventのみ、purchase_completedに`$user_id`は0、campaign/UTM event propertiesは0。よってMixpanel cohortはinstall cohortでも支払い証明でもなく、user→RevenueCat joinも不完全。Mixpanel SDK/credentialは既存なので新analytics vendorを追加しない。PostHog event/runtime readbackは未取得、source configはimages unmaskedのため、mask readback前にsession replayを拡大しない。
+- **durable freshness:** `metrics/<account>` social snapshotsの最新は主accountで2026-09-30、mobile product daily owner reportsは2026-09-07、weekly summaryは2026-W37、persisted ASC/RevenueCat coverageは9/26、persisted ASC acquisition report-dayは10/03。これはdirect Postiz/ASC/RevenueCat/Mixpanel readsの鮮度とは別。Daily reporting persistence is stale;その原因をまだ特定していない。既存Postiz native-metrics 6h/24h/72h/7d collector、ASC collector、RevenueCat/CFO reader、summary pipelineを再利用する。
+- **TODO順（§84-A全体順序は変更せず、mobile lane内はA1→A2→A4→A3 conditional→A5）:** (1) A1の7-day fresh natural postでcaption/slide duplicate-zeroを照合し、YouTube別pipelineも確認。(2) A2のnative-metrics writebackとdaily summaryのfreshnessを復旧し、Anicca/Honneのprofile/bio linkとchannel-level campaign URLをreadback、Anicca 21 error投稿をexact provider stateで安全にclose。(3) Mobile-metrics ownerがASC acquisitionをpublic 6 appsへ広げ、CFO readerの6 legacy/live bindingsをcurrent public IDsと区別して不足4 mappingを特定する。(4) 既存distributionをtracked linksで継続し、Aniccaをfirst-time downloads 100/day 7-day averageへ。追加account/posting-volume増加はview totalsだけで決めない。(5) target後にA4 Mixpanel distinct-user install cohortでonboarding/paywallを1つだけtestし、RC entitlement/Apple receiptとD7/D30を読む。(6) A3 ASOはaligned ASC dataがstore-page bottleneckを示す時だけ1 screenshot/PPO test。(7) A5 same-period settled proceeds/refunds/fees/bank/actual marketing-provider costsでnet MRRを出し、$10k net MRR達成後に他5 public apps・factoryへ展開する。TestFlight laneは独立に継続する。詳細なatomic Done条件は[ANICCA iOS TestFlight and mobile growth](2026-10-05-anicca-ios-testflight-release.md)に置く。
+
+- **A4 gate:** オンボーディング実験は、公開中6アプリすべてがASC first-time download 100件/日（直近7日平均）に達するまで保留する。distribution中のbaseline計測は続ける。Anicca 1本の達成だけで全app gateを完了にしない。
+
 ### Dais指定のWeb-first Life Manager Travel Product — 現在の最優先cursor
 
 - **優先変更:** 旧グローバル順序は§84-AのPromptBase P5c → Capafy L9-01 → Writer/Ebook/Affiliate → Mobile Apps → Connector → Fundraiser → Paid contract work → Self-Build → Investment → CFO → TaskMarket/BlockRun → Cloud/self-funding。§84-Aの各外部effectは中断・再送せず、同じprovider ownerが継続する。CFO専用TODOは最新mainの順序を維持し、このWeb priority changeでは並べ替えない。
@@ -3641,41 +3656,34 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
   10. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runとofficial source receiptをreadbackする。
       14-loop financial view、Moneytree freshness、RevenueCat、Google actual-vs-estimate、total expense/net/unknown/report receipt、replay-zeroを確認する。
 
-### 2026-10-07 JST — A3 Supabase permission probe
 
-- **Scope:** このprobeはA3の対象解決とManagement API access確認だけを行い、CFO mainline cursor=`A4.1`を変更しない。
-- Railway production `life-call`の`SUPABASE_URL`から対象Supabase project refを特定したが、refは公開SSOTに保存しない。
-- 現在のSupabase CLI profileで`supabase orgs list --output json`を実行した結果、可視organizationは0件だった。
-- 同profileから対象projectへの`supabase projects api-keys`はHTTP 403 `account does not have the necessary privileges`で失敗した。
-- このendpointはAPI Keys readであり、403だけでは`database_migrations_write`が無いことを証明しない。
-- `SUPABASE_ACCESS_TOKEN`と`SUPABASE_DB_PASSWORD`はshell environmentに無い。
-- production `life-call`のSupabase関連variableはruntime用`SUPABASE_URL`と`SUPABASE_SERVICE_ROLE_KEY`のみであり、他の非Supabase variableとは区別する。
-- private credential SSOTのSupabase項目にもruntime用`api_key`のみがあり、Management PATまたはSupabase direct database credentialは確認できない。
-- `SUPABASE_SERVICE_ROLE_KEY`はSupabase Management API tokenではないため、migration authorizationに流用しない。
-- 既存`interactive:dais` browser profileからDashboardを開いたread-only probeは`/dashboard/sign-in`へredirectしたため、既存Dashboard sessionは利用できなかった。
-- Supabase Management API用の接続toolはこのsessionに無く、current CLI tokenを任意endpointへ渡す安全な公式CLI subcommandも確認できていない。
-- したがって`POST /v1/projects/{ref}/database/migrations`によるA3 migration write permissionは未検査のままで、migration applyもproduction DDL/data/provider writeも0件である。
-- browser probeの一時CDP contextとidentity leaseはdispose/releaseし、他のbrowser profileやtabは変更していない。
-- **確定した次の必要条件:** project owner/adminが、現在のSupabase identityを対象projectでmigrationを実行できるroleへ追加するか、そのroleが許す範囲で対象project限定の`Migrations: Read-write` tokenを用意する。
-- scoped tokenの`Migrations: Read-write`はaccount roleを拡張しないため、role不足とtoken scope不足は分けてreadbackする。
-- authorized Management tokenが利用可能になった時だけ公式migration endpointへA3 SQLを送り、migration history・private table・RPC・ACL・PostgREST schemaをreadbackする。
-- owner access/scopeの確認後にmigration write probeとapplyを行い、403の推測やruntime keyの流用で再試行しない。
+## 公開ハーネスへの移行 — HM lane
 
-### 2026-10-07 JST — A3 correct credential apply/readback; runtime acceptance remains
+Daisの依頼範囲は比較調査・設計・原子的実行計画まで。本番切替・認証・state変更・新harnessでの実業務はこの依頼では未着手。別laneのcurrent cursorと稼働effectを変更しない。
 
-- この追記は直前の「credential不明・migration POST未実行」というprobe結果を上書きする。
-- Daisが添付したSupabase画面には既存GitHub-authenticated accountのorganization一覧が表示され、新規Supabase accountは作成していない。
-- local private credential SSOTの`supabase-life-manager-production` entryはmode `600`で、access token、anon/publishable key、service-role/secret key、login password、URL/ref/orgの9項目が既存runtime envと一致することを値を出さずに確認した。
-- Supabase CLI default profileの`orgs list`は0件、API Keys readは403であり、このprofileは正しいcredentialとして使わない。
-- SSOT内の既存Management credentialによるtarget project GETはHTTP 200、`ACTIVE_HEALTHY`、project ref/org一致を返した。
-- 公式`POST /v1/projects/{ref}/database/migrations`はHTTP 200を返し、A3 migrationを適用した。
-- 公式migration history GETはname=`2026-10-06-lm-geocode-cache`、version=`20261006235109`をreadbackした。
-- PostgREST OpenAPI GETはHTTP 200・124 pathsで、get/upsert RPCの両方が公開された。
-- 合成の存在しないtenant/digestに対するservice-role get RPCはHTTP 200・0 rowsであり、anon roleの同RPCはHTTP 401だった。
-- 公式Management APIの`read_only:true` SELECTはtable exists、RLS enabled、service-role get/upsert EXECUTE true、anon/authenticated get/upsert EXECUTE falseを返した。
-- `upsert` RPCはread-only verificationで実行せず、production test row・cache rowを作成していない。
-- Railway production `life-call`はSHA `64895457b7232a954f2f4492073b867009b6da85`でRUNNINGであり、そのloaded sourceにgeocode-cache get/set wiringがある。
-- migration applyのためのservice restart、route実行、Google billable request、Calendar/Telegram effectは0件である。
-- **A3 stage:** A3.1 access、A3.2 apply、A3.3 schema/RPC/RLS/ACL readbackは完了し、A3.4のprocess再起動をまたぐ自然route/cache-hit/replay-zeroは未検証である。
-- **TODO/cursor:** 現行SSOTのmainline=`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`を維持し、現在cursorは`A4.1`とする。migration applyはDaisの明示依頼によりA6より先に行った一回の実行であり、全体TODOを並べ替えない。
-- A3.4のnatural acceptanceはA6でGeocodingの有意なsettled spendまたはrestart後の重複callを確認した場合に再開する。synthetic row・比較目的の追加provider call・Google billable requestを作らず、自然なroute occurrenceと既存process lifecycleでcache hit/replay-zeroをreadbackする。
+- [x] **HM-D0: 調査・設計・計画。** [比較](../../research/2026-10-07-agent-harness-comparison.md)、[設計](2026-10-07-life-manager-harness-migration-design.md)、[実行計画](../plans/2026-10-07-life-manager-harness-migration.md)。単一推奨=OpenClaw2026.9.8の専用profileへ段階移行。候補実務benchmarkは未実施で、採用判定はHM-06。既存installed OpenClaw2026.6.1/5agentとNode25を直接更新しない。
+
+**実装cursor=HM-00（未着手）。** 新規laneのため旧順序はなし。新順序はHM-00→HM-17。理由は、配布版互換・effect safety・task/cost比較を先に成立させ、read-only canaryと1ownerの自然実行から拡大するため。他laneの順序は据え置く。各ownerのwave順変更は同じ差分に理由・旧順・新順・cursorを記録する。
+
+| 状態 | ID | 原子的成果 | 依存 | 完了証拠 |
+|---|---|---|---|---|
+| 未着手 | HM-00 | nested callerまで含むowner inventory/baselineを固定 | HM-D0 | version/occurrence/cost basis付きinventory |
+| 未着手 | HM-01 | 配布版互換・専用Node/profileを隔離確認 | HM-00 | exact package/integrity/API probe |
+| 未着手 | HM-02 | runner契約互換のoperator bridge | HM-01 | schema/ack喪失/再送0のfocused tests |
+| 未着手 | HM-03 | owner工具/fence/native bypass拒否 | HM-02 | foreign/effect_unknown/duplicate tests |
+| 未着手 | HM-04 | trace/usage/receiptのsame-occurrence join | HM-03 | export欠測・cost unknown・secret非露出 |
+| 未着手 | HM-05 | 5 crash境界の復旧/replay-zero | HM-04 | fake provider/state recovery結果 |
+| 未着手 | HM-06 | 現行との制作task/cost比較・採用判定 | HM-05 | 共通admission、安全全PASS、task成功>=base、総費用<=base、RSSはhost許容内 |
+| 未着手 | HM-07 | 新harnessの自然read-only canary | HM-06 | main release/loaded/natural/trace |
+| 未着手 | HM-08 | scheduler所有権移行/rollback | HM-07 | 新旧authority<=1、旧wake0 |
+| 未着手 | HM-09 | Capafy制作/販売owner1件移行 | HM-08 | 正当な自然成果/公式receipt/費用 |
+| 未着手 | HM-10 | inventory順に残owner移行 | HM-09 | 各owner source/release/natural/readback |
+| 未着手 | HM-11 | 自己所有コード修復1件を実証 | HM-10 | before/after occurrence/code/receipt |
+| 未着手 | HM-12 | 固定holdoutを既存evalへ接続 | HM-11 | reproducible task/business score |
+| 未着手 | HM-13 | 評価済skill/prompt改善1件昇格 | HM-12 | base/candidate/費用/natural evidence |
+| 未着手 | HM-14 | 実測容量と収益配分 | HM-13 | queue/RSS/cost/cap evidence |
+| 未着手 | HM-15 | 不要な自作runner/agent cron退役 | HM-14 | caller0/削除差分/natural evidence |
+| 未着手 | HM-16 | 全owner技術移行の完了判定 | HM-15 | joined final-acceptance |
+| 未着手 | HM-17 | 各販売agentの経済成果をCFO照合 | HM-16 | sale/settlement/actual-cost/純利益 |
+
+HM-17の外部購入待ちはHM-16の技術移行を未完へ戻す条件にしない。経済成果は公式証拠が揃うまで未達/unknown。planのcheckboxは手順であり、状態とcursorはこの表だけが正本。
