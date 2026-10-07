@@ -34,7 +34,8 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - The source cause for the one-day date shift is confirmed: Moneytree provides a Japan calendar date with a `+09:00` offset, but the adapter/collector path treated it as an instant and converted it to UTC before extracting `YYYY-MM-DD`. PR #6910 merged to main as `d950731b`; it preserves the provider calendar date and bumps the 24-hour projection-cache envelope to v3 so an old UTC-shifted v2 snapshot is not reused. Focused tests reproduce a report-window-start exclusion and a month-start expense shift. Candidate release `20261007T213624-d950731b` was cut without activating `current`; the CFO label remains loaded at SHA `80ea586c`, so the fix is not yet live. The current `lm-loop doctor` readback still fails on unrelated retired label `ai.anicca.provision-browser.capafy.kosuke`; no target apply/restart was performed. The current 13 production range mismatches and date cursor remain unverified until a post-release natural report readback.
 - In that report, company historical/trailing/MRR status is `unknown`, with 173/168/26 coverage gaps across 18 loops. Historical and trailing company revenue, cost, and net are null; company MRR currencies are empty. The only verified per-loop MRR is `mobile-apps` at USD 20.34; this is subscription MRR, not settled revenue or profit. The historical window has no start date, so this snapshot does not establish last-month company revenue.
 - An independent read-only reaggregation confirms the 173/168/26 gap counts from all 18 per-loop rows and matches the company-level aggregates. Historical gaps: 162 `missing_category` (all 9 required counted categories across 18 loops), 5 stale readbacks, 3 unverified receipts, and one each for unconnected source, missing coverage, and read failure. Trailing gaps: 158 `missing_category` (four categories have 17 loop gaps each; the other five have 18), 5 stale readbacks, 2 unverified receipts, and one each for unconnected source, missing coverage, and read failure. MRR gaps: 19 `missing_category` (17 explicitly identify category `mrr`; 2 omit the category field), 2 stale readbacks, 2 unverified receipts, and one each for unconnected source, missing coverage, and read failure. These are missing or unverified coverage, not zero revenue or zero cost.
-- The canonical SSOT describes a 14-loop financial target, while the latest B7 report snapshot has 18 per-loop rows. The inventory crosswalk is unresolved. A8 must reconcile the current agent registry/catalog against report rows and explain extras, missing agents, or duplicates before claiming “every agent covered”; do not select 14 or 18 by assumption.
+- Current product-loop catalog contains 18 unique business loop IDs, and the latest B7 `historical`, `trailing`, and `mrr` loop-key sets each match that catalog exactly. The SSOT's older 14-loop count is stale; this is not a B7-versus-catalog row mismatch. The runtime registry contains 186 job IDs: 111 are uniquely referenced by product-loop `job_ids`, and 75 are not product-loop jobs but are role-classified as `control` (35), `platform` (14), or `shared` (26). Some `shared` jobs produce revenue or growth activity, so their costs must remain in company expense rather than being omitted. A8 must update the stale SSOT count after its lease is released, preserve the 18 business P&Ls, and account for all 186 runtime jobs either through a receipt-backed product-loop join or an explicit shared/control/platform cost bucket; do not create 186 revenue owners.
+- Catalog-declared source wiring across those 18 loops is financial-revenue `implemented` 4 / `partial` 4 / `missing` 8 / `not_applicable` 2, and cost `implemented` 4 / `partial` 5 / `missing` 7 / `not_applicable` 2. These catalog labels do not prove current receipts or actual production coverage; B7 coverage gaps remain the acceptance evidence.
 
 ### Code gaps
 
@@ -47,9 +48,10 @@ The report is not complete when a local calculation succeeds. It is complete onl
 ### Business CFO progress refresh — 2026-10-07 23:25 JST
 
 - The active business-CFO order is `A5 → A6 → A8 → A9 → A10`; Moneytree is deferred, and Cloud route/geocoding work is outside this CFO completion lane. The canonical unified SSOT still shows cursor `A4.1` under another owner’s lease; this design/handover update does not claim the canonical cursor changed.
-- A5 is owned in `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-a5-cost-visibility-20261007`, branch `feat/cfo-a5-cost-visibility-20261007`, HEAD `980fe86791247fac29b614a0d5da0957e901e087`, active lease owner `codex-cfo-a5`. PR #6827 remains draft. Its current period-summary implementation groups provider/SKU/operation/unit but does not expose `agent_id` or `loop_id`, so it does not yet satisfy the user’s per-agent/per-loop CFO requirement. The task-1 SQL contract report is 5/5 PASS and no production migration/deploy has occurred. Latest CI has two repository-wide failures: `manifest_inventory_mismatch skills/capafy-autopublish` and a Gitleaks `generic-api-key` pattern at `docs/evidence/main-agents/health.json:7757`; the A5 worktree is untouched.
-- A6’s CSV capture and invoice identity/amount join are now confirmed from the private artifacts above. Remaining A6 work is the period/SKU/project comparison with Monitoring, payment-settlement proof, and receipt-backed project/service-to-agent/loop attribution. In the saved reconciliation, only 7 complete in-window usage rows total ¥176.231293; 23 rows cross the period start, 13 ended before it, no October usage rows are present, and the project-to-loop mapping is unproven. Do not divide cross-boundary rows or label the full invoice settled expense.
-- The latest B7 report remains for period `2026-10-07:11`; its local snapshot is `sent`, but the matching runtime event has no provider receipt or official readback. The latest `lm-loop status` at 14:09:58Z is run `18dc449e696e1f68-12572`, installed release `2d3b4260`, `apply_lock_busy`/exit 78/effect `not_applicable`; last successful report event is 11:59:28Z. Company revenue/cost/net remain null; B7 has 18 report rows versus 14 canonical targets, 173 historical and 168 trailing coverage gaps, and only `mobile-apps` MRR USD 20.34 verified. This is subscription MRR, not settled company revenue or profit.
+- A5 is owned in `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-a5-cost-visibility-20261007`, branch `feat/cfo-a5-cost-visibility-20261007`, HEAD `980fe86791247fac29b614a0d5da0957e901e087`, active lease owner `codex-cfo-a5`. PR #6827 remains draft. Its period-summary SQL groups provider/SKU/operation/unit and does not select or group `agent_id`, `loop_id`, or `job_id`; the panel therefore cannot yet show per-agent/per-loop spend. The task-1 SQL contract report is 5/5 PASS and no production migration/deploy has occurred. Latest CI has two repository-wide failures: `manifest_inventory_mismatch skills/capafy-autopublish` and a Gitleaks `generic-api-key` pattern at `docs/evidence/main-agents/health.json:7757`; the A5 worktree is untouched.
+- A6's CSV capture and invoice identity/amount join are confirmed from the private artifacts above. An independent read-only reviewer recomputed the row math and period split. For trailing window `2026-09-07`–`2026-10-07`, the invoice CSV has 7 fully in-window usage rows totaling ¥176.231293, 23 rows crossing the start boundary totaling ¥25,161.479233, 13 pre-window rows totaling ¥16.740725, and zero October rows. These partitions reconcile to the invoice-month usage total; the full trailing-30-day amount is not proven because cross-boundary rows cannot be apportioned. PDF/CSV/current billing-account identity matches and billed total is ¥27,889; posted payment and payer settlement remain unknown. `project_loop_mapping_proven=false`, so service/project invoice charges are not yet per-agent costs. A billed invoice is an expense fact; posted cash payment is a separate fact. Do not divide boundary rows or claim the invoice was paid.
+- The latest B7 report remains for period `2026-10-07:11`; its local snapshot is `sent`, but the matching runtime event has no provider receipt or official readback. The latest recorded `lm-loop status` at 14:09:58Z is run `18dc449e696e1f68-12572`, installed release `2d3b4260`, `apply_lock_busy`/exit 78/effect `not_applicable`; last successful report event is 11:59:28Z. Company revenue/cost/net remain null; B7 has 18 loop rows whose IDs exactly match the 18 product-loop catalog entries, 173 historical and 168 trailing coverage gaps, and only `mobile-apps` MRR USD 20.34 verified. The SSOT's 14-loop count is stale. This is subscription MRR, not settled company revenue or profit.
+- Runtime ownership crosswalk is exact for 111 catalog-listed job IDs, with no duplicates or missing registry IDs. The other 75 of 186 jobs have system roles control/platform/shared (35/14/26); the `shared` group includes revenue/growth jobs, so their costs cannot be dropped. Direct per-job cost and explicit company overhead are still not shown together in the CFO report.
 - A10 natural report acceptance is still open. Branch `fix/cfo-telegram-runtime-receipt-20261007` has a pushed source change (`b63e42f27f4bacfbe4f194b1e1cb66c5639c559c`) for occurrence-bound Telegram receipt hints, but no PR, review, main merge, or production load has been verified. A future seven-day natural run must reconcile the full report hash, provider message receipt, and runtime event before the report is called delivered.
 - A read-only search of Gmail at 14:21Z for Google payment-received/success/confirmation terms returned 0 messages in that bounded query. The invoice PDF does not say paid; the matching bank card notice lacks posted/settled wording and invoice/account binding. Treat payment settlement as unknown, not unpaid or zero.
 
@@ -197,11 +199,11 @@ This section defines phase scope and acceptance intent, not the live TODO order 
 
 This active goal is the **business CFO**: actual revenue and actual costs for every canonical business agent/loop, followed by a reliable report. It is not the personal Moneytree rail or the Life Manager Cloud cost-reduction project. Active completion order is **A5 → A6 → A8 → A9 → A10**:
 
-1. **A5 — per-agent/loop cost visibility:** expose usage, estimate, actual, and unknown by provider and canonical agent/loop using existing identifiers and report surfaces. Warnings remain warning-only; do not add a global hard cap or silently stop work.
-2. **A6 — Google actuals:** capture the official Cost Table CSV and reconcile invoice period, project, service, SKU, tax, credits, and currency against Monitoring estimates. Join invoice costs to an agent/loop only when provider/occurrence evidence supports it; otherwise show the amount in an explicit shared/unattributed bucket, not as guessed per-agent spend.
-3. **A8 — full business coverage:** first reconcile the agent registry/catalog to B7 report rows (14 canonical targets versus 18 observed rows currently disagree). Then join each agent/loop's settled revenue, refunds, fees, provider/API costs, subscriptions, and infrastructure costs by period/currency and official receipt. Preserve direct versus shared cost; do not convert estimates or missing values to actual/zero.
-4. **A9 — usable CFO report:** reuse the existing CLI/report surface to show each agent and loop's gross revenue, refund/fees, settled revenue, direct costs, shared/unattributed costs, net contribution, and MRR separately, with period, currency, receipt, freshness, and coverage state. Company totals must reconcile to the source rows.
-5. **A10 — natural acceptance:** observe seven consecutive days and read back every canonical agent/loop row and its source evidence. Missing categories must remain explicitly unknown with an owner/next action; do not claim a complete CFO or $10k MRR from partial coverage.
+1. **A5 — per-agent/loop cost visibility:** expose usage, estimate, actual, and unknown by provider and runtime job/agent ID, mapped product loop, or explicit shared/control/platform owner using existing identifiers and report surfaces. Warnings remain warning-only; do not add a global hard cap or silently stop work.
+2. **A6 — Google billed actuals:** the official Cost Table CSV and invoice identity are captured. Reconcile invoice period, project, service, SKU, tax, credits, and currency against Monitoring estimates. Attribute invoice costs to a runtime job/agent or product loop only when provider/occurrence evidence supports it; otherwise show the amount in an explicit shared/unattributed bucket. Keep invoice-billed expense separate from posted/paid cash settlement.
+3. **A8 — full business coverage:** keep the verified exact 18 product-loop/B7 ID set; update the stale SSOT 14-loop count after its lease is released. Join each product loop's gross/settled revenue, refunds, fees, billed provider/API costs, subscriptions, and infrastructure costs by period/currency and official receipt. Map all 186 runtime jobs: 111 catalog-owned jobs to product loops and 75 control/platform/shared jobs to receipt-backed product-loop allocations or explicit company overhead. Preserve direct versus shared cost; do not convert estimates or missing values to actual/zero.
+4. **A9 — usable CFO report:** reuse the existing CLI/report surface to show each product loop's gross revenue, refund/fees, settled revenue, billed expense, posted cash paid when proven, net contribution, and MRR separately; show cost-bearing runtime jobs under their mapped loop or shared/control/platform owner. Include period, currency, receipt, freshness, and coverage. Company totals must reconcile to source rows.
+5. **A10 — natural acceptance:** observe seven consecutive days and read back every canonical product-loop row plus the disposition of every runtime job's cost. Company totals must include business-loop expense and control/platform/shared overhead. Missing categories remain explicitly unknown with an owner/next action; do not claim a complete CFO or $10k MRR from partial coverage.
 
 **Deferred, after the business CFO block:** A4.1→A4.2→A4.3 (free-geocoding optimization); A3.4 remains conditional on A6 evidence of material settled Geocoding cost or duplicate calls after process restart. This matches the measured September bill, where Places cost more than Geocoding. Do not start or prioritize these Cloud savings tasks before A10.
 
@@ -256,7 +258,7 @@ Implementation boundary for A3:
 
 ### A5 — Budget governor
 
-- expose daily/monthly usage, estimate, actual, and unknown states by provider and canonical agent/loop with warnings only;
+- expose daily/monthly usage, estimate, billed/actual, and unknown states by provider and runtime job/agent plus product loop with warnings only;
 - do not add a global hard cap or silently stop core provider work when a threshold is reached;
 - preserve essential cached reads;
 - emit budget transition observations and Life Manager-owned warnings.
@@ -264,10 +266,11 @@ Implementation boundary for A3:
 ### A6 — Official Google billing reconciliation
 
 - collect intramonth Monitoring usage estimates;
-- import Cost table CSV settlement rows;
+- import official Cost Table CSV billed-usage rows, credits, tax, and rounding adjustments;
 - join SKU/project/service rows to provider cost events;
 - attribute to an agent/loop only with receipt-backed evidence; keep unsupported shared cost visible as shared/unattributed;
-- show estimate-versus-settled variance.
+- show estimate-versus-billed variance;
+- keep invoice-billed expense separate from posted/paid cash settlement; a missing payment receipt does not erase billed expense or prove it was paid.
 
 ### A7 — Personal CFO rail (deferred by user; out of current acceptance)
 
@@ -277,9 +280,10 @@ Implementation boundary for A3:
 
 ### A8 — Revenue and expense coverage
 
-- reconcile the canonical agent registry/catalog to every reported agent/loop row before claiming full coverage;
-- connect every settled business revenue rail and every business expense source for each canonical agent/loop;
+- preserve the verified exact 18 product-loop/B7 ID set, then update the stale SSOT 14-loop count after lease release;
+- connect every settled business revenue rail and every billed/paid business expense source for each canonical agent/loop;
 - join actual receipts by period/currency/owner; show missing `agent_id`/`loop_id`, unsupported allocation, or unavailable source explicitly as a coverage gap;
+- map all 186 runtime jobs to one of the 18 product loops or explicit control/platform/shared company overhead, preserving source receipts and avoiding duplicate allocations;
 - detect subscriptions and merchant categories;
 - reconcile internal transfers;
 - compute per-agent/loop and company 1/3/12-month totals without double-counting transfers or settlements.
@@ -287,7 +291,7 @@ Implementation boundary for A3:
 ### A9 — Report surfaces
 
 - build the deterministic daily/weekly snapshot;
-- render per-agent, per-loop, and company revenue/cost/net/MRR in the existing CLI/report surface;
+- render per-product-loop and company revenue/cost/net/MRR in the existing CLI/report surface, with cost-bearing runtime-job attribution available under each loop or shared/control/platform bucket;
 - show direct cost separately from shared/unattributed cost, and settled values separately from estimates;
 - include period, currency, receipt reference, freshness, and coverage/unknown state for every row;
 - verify displayed totals reconcile to the underlying source-backed rows.
@@ -298,7 +302,7 @@ Implementation boundary for A3:
 - run one cloud canary;
 - observe seven consecutive days;
 - verify available official Google billing, revenue, and expense readbacks;
-- verify every canonical business agent/loop appears and source totals reconcile; the 14-versus-18 row mismatch must be resolved;
+- verify all 18 canonical business agent/loop rows and all runtime-job costs are represented by receipt-backed loop allocation or explicit shared/control/platform overhead; source totals reconcile;
 - close only when every missing source/attribution is explicit and no partial value is represented as zero or as a complete CFO result.
 
 ## 10. Status ownership
