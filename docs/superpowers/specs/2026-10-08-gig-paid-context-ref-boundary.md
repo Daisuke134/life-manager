@@ -26,12 +26,12 @@ An observed Coconala Paid run stopped before any external effect with `compiled 
 
 ## 現在のギグ担当lane readback（参照。正本の順番は統合SSOT）
 
-- 確認時刻は2026-10-08 01:46 JST。最新immutable main releaseは`c5c4d791`。`hf-gig-paid-direct`は`0de29b35`をロード済みだが、自然runは`host_admission_deferred:disk_headroom_low`、`effect=not_applicable`、receipt/readbackなし。`df -Pk /`の空きは約1.26 GiB。別ownerのdisk-cleanup loopも`entrypoint_exit_1`で、別worktree leaseが有効なため、ここからhost stateやそのworktreeを変更しない。
+- 確認時刻は2026-10-08 02:09 JST。最新immutable main releaseは`c5c4d791`。`hf-gig-paid-direct`は`c5c4d791`をロード済みだが、自然runは`host_admission_deferred:disk_headroom_low`、`effect=not_applicable`、receipt/readbackなし。`df -Pk /`の空きは約1.12 GiB。別ownerのdisk-cleanup loopも`entrypoint_exit_1`で、別worktree leaseが有効なため、ここからhost stateやそのworktreeを変更しない。
 - `~/gig/evidence/paid-direct-live/latest.json`の01:37 JST readbackは`status=pending`、`observed=3`、`actionable=1`、`effect=0`、`readback=2`、`failed=0`。00:47 JST reportの`failed_step=remote_builder`と00:57 JSTのread-only DM preflight timeout（`dm_collection_unavailable`, returncode 124）は、その後のreportでまだ更新されていない。納品・入金は確認されていない。
 - 公開中[Coconala service page](https://coconala.com/services/4313100)は¥3,000、表示販売実績1件。これは掲載面が存在する証拠であり、Storefront loopの実行、新規販売、settlementの証拠ではない。`hf-gig-apply-direct`と`hf-gig-storefront-direct`には既存effect-unknown fenceが残り、`hf-gig-apply-reconcile`のprocess passだけでは解除できない。
 - 現行mainのproduct-loop catalogはCoconala、Lancers、CrowdWorks、Mercorの4 loop。Freelancer/Upworkにmanaged product loopはない。Upwork公式Project CatalogとFreelancer公式Freelancer Servicesは定額サービス掲載面を持つ（[Upwork公式ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)、[Freelancer公式FAQ](https://www.freelancer.com/faq/topic.php?id=52)）。これはstorefront機能の証拠で、当アカウントの掲載・購入・入金を示すreadbackではない。
 - Upworkの既存9233 Chromiumは`ai.anicca.provision-browser.upwork.dais` labelとowner receiptで稼働中。current mainには別の`upwork-revenue-browser` jobはなく、重複ownerを追加しない。`upwork:dais` identity lease経由でProject Dashboardを読んだ結果、login/verification redirectなしでProject Catalog UIを確認したがlisting card/countは取得できず、掲載状態はunknown。掲載・応募・返信・決済effectは0。
-- PR #6945はhead `d12f02c0`で更新済み。差分は`scout.py`がregistered identityの`CLOAK_CDP_BASE_URL`を使うfixとspec/testだけで、duplicate browser-owner追加は含まない。現在はrequired checks待ち。
+- PR #6945はhead `3e30f3e1`で更新済み。差分は`scout.py`がregistered identityの`CLOAK_CDP_BASE_URL`を使うfixとspec/testだけで、duplicate browser-owner追加は含まない。required checksは一部pendingのため統合しない。
 - Lancers rows 25–27は`waiting_external`を維持し、認証・solver・応募を再試行しない。CrowdWorksにはStorefront loopがなく、CrowdWorks/Mercorの既存Application/Paidにはowner別のofficial-readback/effect-fenceが残る。
 - 4つの既存gig product loopはすべてcloud availabilityが`setup_required`。現在の状態から24/7 cloud稼働を主張しない。
 - この参照laneはgig platformだけを扱う。CFO A5–A10、CAPFY、SelfBuildは別ownerの範囲。reply-only/回答だけの作業は進めず、特定のfunded contractを進めるのに必要な顧客連絡のみ対象にする。
