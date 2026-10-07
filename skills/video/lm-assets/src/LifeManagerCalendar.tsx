@@ -83,7 +83,7 @@ export const LifeManagerCalendar: React.FC = () => {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const hook = frame < frameAt(5.5)
+  const hook = frame < frameAt(8.0)
     ? "15:00 meeting.\n40 minutes away."
     : "The trip is already\nin your Calendar.";
 
