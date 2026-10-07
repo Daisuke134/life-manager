@@ -139,6 +139,11 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - `df -k /Users/anicca/gig` reports 513636 KiB available: 10652 KiB below the Gig browser's 524288 KiB floor and below the shared 2 GiB floor. Disk-cleanup's latest terminal is exit 1 / `reconcile_owner`; `lm-loop doctor` remains false because `ai.anicca.provision-browser.capafy.kosuke` is still installed as a retired label.
 - Latest admission `effect_unknown` occurrence counts are Coconala Apply 1 / Storefront 1 / Paid 0; CrowdWorks Application 14 / Paid 30 / Reply 260; Lancers Application 151 / Negotiate 197 / Paid 17 / Storefront 1 / Telegram report 1 / Work-sync 0; Mercor Application/Paid/Reply 1 each. These count execution fences, not buyers, bids, orders, messages, or revenue. No owner apply/restart, provider read, or fence resolution was performed in this refresh.
 
+## 2026-10-08 05:53 JST persisted Coconala storefront inventory
+
+- The existing `listing_inventory.py collect --out` readback is now persisted at `~/gig/evidence/storefront-inventory-readback-20261008/listings.json` (directory mode 700), with its fit-context file beside it. It contains the exact 20 live service IDs needed to reconcile the local ledger; this supersedes the earlier stdout-only aggregate snapshot.
+- The saved official inventory still shows 20 public listings and `sales_count=0` for all 20. Ledger comparison remains published 10, live 20, 12 live IDs never recorded as published, and 2 ledger-only. No service was edited, created, or retired. BrowserGuard status after the collector is holder-empty with collisions 0.
+
 ## 2026-10-08 05:51 JST Coconala Paid subtask evidence
 
 - The Paid direct failed occurrence is `hf-gig-paid-direct:18dc584c1a404080-87507` / talkroom `18180857`, `failed_step=remote_builder`, outer `effect=0`, and no Coconala provider receipt. The runner returned `status=ok`, but `business_outcome.required_effect_satisfied=false`, `required_output_satisfied=false`, and one work item remained.
