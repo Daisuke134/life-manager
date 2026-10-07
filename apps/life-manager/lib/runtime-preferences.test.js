@@ -80,6 +80,7 @@ test("Web control state returns the exact Calendar enable claim and database tim
     disconnectPending: false,
     enablePending: true,
     initialScanAllowed: false,
+    billingEntitled: false,
     enableClaimId: claimId,
     enableClaimedAt: claimedAt,
   });
@@ -137,4 +138,34 @@ test("Web control state permits an explicit rescan only while no first Travel va
   });
 
   assert.equal(result.initialScanAllowed, true);
+  assert.equal(result.billingEntitled, false);
+});
+
+test("Web control state returns current paid entitlement for pre-Calendar and write gates", async () => {
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const user = {
+    uid, telegram_chat_id: null, calendar_enable_pending: false,
+    calendar_provider: "composio_gcal", calendar_connected_account_id: "ca-selected-123",
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub_web",
+    paid: true, plan_status: "active", trial_expires_at: null, web_billing_cancel_at_period_end: false,
+  };
+  const preference = { daily_automation_enabled: true, calendar_disconnect_pending: false };
+  const result = await readWebTravelControlState(uid, {
+    ...SUPA,
+    expectedCalendarAccountId: "ca-selected-123",
+    nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
+    fetchImpl: async (url) => new URL(String(url)).pathname.endsWith("/lm_users")
+      ? rows([user])() : rows([preference])(),
+  });
+  assert.equal(result.billingEntitled, true);
+
+  user.paid = false;
+  user.plan_status = "past_due";
+  const pastDue = await readWebTravelControlState(uid, {
+    ...SUPA,
+    expectedCalendarAccountId: "ca-selected-123",
+    fetchImpl: async (url) => new URL(String(url)).pathname.endsWith("/lm_users")
+      ? rows([user])() : rows([preference])(),
+  });
+  assert.equal(pastDue.billingEntitled, false);
 });

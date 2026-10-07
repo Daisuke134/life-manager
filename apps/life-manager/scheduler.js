@@ -1245,10 +1245,10 @@ async function travelUserOnce(u, deps = {}) {
         const readControlState = deps.readWebTravelControlStateImpl
           || require("./lib/runtime-preferences.js").readWebTravelControlState;
         const controlState = await readControlState(u.uid, { supaUrl, supaKey,
-          fetchImpl: deps.fetchImpl, expectedCalendarAccountId: active.accountId });
+          fetchImpl: deps.fetchImpl, expectedCalendarAccountId: active.accountId, nowMs });
         const automationAllowed = initialWebScan
           ? controlState && controlState.dailyAutomationEnabled === false && controlState.initialScanAllowed === true
-          : controlState && controlState.dailyAutomationEnabled === true;
+          : controlState && controlState.dailyAutomationEnabled === true && controlState.billingEntitled === true;
         if (!automationAllowed
           || controlState.disconnectPending !== false || controlState.enablePending !== false) return;
         expectedCalendarAccountId = active.accountId;

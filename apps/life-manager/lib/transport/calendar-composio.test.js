@@ -9,6 +9,7 @@ const UID = "lm_11111111-1111-4111-8111-111111111111";
 const ACCOUNT_ID = "ca-selected-123";
 
 function fixture(controlState) {
+  controlState = { billingEntitled: true, ...controlState };
   const providerCalls = [];
   const controlReads = [];
   const fetchImpl = async (url, init = {}) => {
@@ -112,13 +113,23 @@ test("Web first Travel write reaches the exact account only with persisted one-s
   assert.equal(disconnecting.providerCalls.length, 0);
 });
 
+test("Web Calendar write is blocked when latest persisted billing entitlement ended", async () => {
+  const f = fixture({ dailyAutomationEnabled: true, billingEntitled: false,
+    disconnectPending: false, enablePending: false });
+  const result = await f.calendar.createEvent(UID, { summary: "[Travel] next event" }, {
+    expectedCalendarAccountId: ACCOUNT_ID,
+  });
+  assert.equal(result.effect, "no_effect");
+  assert.equal(f.providerCalls.length, 0);
+});
+
 test("Web Travel reminder writes use Calendar proxy and verify the exact popup reminder", async () => {
   const calls = [];
   const calendar = makeComposioCalendar({
     apiKey: "provider-key",
     supaUrl: "https://supabase.example",
     supaKey: "service-role-key",
-    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, billingEntitled: true, disconnectPending: false, enablePending: false }),
     fetchImpl: async (url, init = {}) => {
       const parsed = new URL(String(url));
       if (parsed.hostname === "supabase.example" && parsed.pathname.endsWith("/lm_users")) {
@@ -215,6 +226,11 @@ test("getCalendar passes the production Supabase config to real Web control read
           telegram_chat_id: null,
           calendar_provider: "composio_gcal",
           calendar_connected_account_id: ACCOUNT_ID,
+          web_first_travel_at: "2030-01-01T00:00:00.000Z",
+          trial_expires_at: null,
+          plan_status: "active",
+          paid: true,
+          web_billing_cancel_at_period_end: false,
           calendar_enable_pending: controlState.enablePending,
           calendar_enable_claim_id: controlState.enablePending ? "d901bdde-e5ce-4c7c-9b73-6d9f8fc24e2f" : null,
           calendar_enable_claimed_at: controlState.enablePending ? "2030-01-01T07:00:00.000Z" : null,

@@ -117,7 +117,9 @@ function webEventPriority(p, lane, row) {
     && row.web_invoice_paid === true && toEpoch(row.web_invoice_event_at) === toEpoch(p.created);
   if (status === "past_due") return paidInvoiceThisSecond ? 10 : 60;
   if (status === "trialing") return 40;
-  if (status === "active") return paidInvoiceThisSecond ? 70 : 20;
+  // Active subscription status alone still grants no access without invoice evidence; ranking it above
+  // same-second past_due preserves the state until a possible T+1 paid invoice arrives.
+  if (status === "active") return 70;
   return 10;
 }
 
@@ -159,7 +161,10 @@ async function claimEvent(eventId, type, supaUrl, supaKey, fetchImpl) {
     headers: hdr(supaKey, { "Content-Type": "application/json", Prefer: "return=minimal" }),
     body: JSON.stringify({ event_id: eventId, type }),
   }).catch(() => null);
-  return !!r && r.status === 201;
+  if (!r) throw new Error("Stripe event claim store unavailable");
+  if (r.status === 201) return true;
+  if (r.status === 409) return false;
+  throw new Error("Stripe event claim failed");
 }
 
 // unclaimEvent: DELETE the claim so a Stripe redelivery re-processes (used when the write failed). Returns
@@ -183,8 +188,9 @@ async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
     `${supaUrl}/rest/v1/lm_users?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=${cols}`,
     { headers: hdr(supaKey) },
   ).catch(() => null);
-  if (!r || !r.ok) return null;
-  const d = await r.json().catch(() => []);
+  if (!r || !r.ok) throw new Error("billing user lookup failed");
+  const d = await r.json().catch(() => null);
+  if (!Array.isArray(d)) throw new Error("billing user lookup response invalid");
   return Array.isArray(d) && d[0] ? d[0] : null;
 }
 
@@ -199,8 +205,9 @@ async function userByUid(uid, supaUrl, supaKey, fetchImpl) {
     `${supaUrl}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=${cols}`,
     { headers: hdr(supaKey) },
   ).catch(() => null);
-  if (!r || !r.ok) return null;
-  const d = await r.json().catch(() => []);
+  if (!r || !r.ok) throw new Error("billing user lookup failed");
+  const d = await r.json().catch(() => null);
+  if (!Array.isArray(d)) throw new Error("billing user lookup response invalid");
   return Array.isArray(d) && d[0] ? d[0] : null;
 }
 

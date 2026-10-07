@@ -1,4 +1,5 @@
 "use strict";
+const { webTravelEntitled } = require("./billing.js");
 
 // spec §5.2.1 — the phone is OPT-IN. Measured, it reached a human 3 times against 17 voicemails, and
 // Telegram is what actually pushes someone out the door, so a user who has expressed no preference
@@ -38,7 +39,7 @@ async function readWebTravelControlState(uid, opts = {}) {
   const userUrl = new URL(`${base}/rest/v1/lm_users`);
   userUrl.searchParams.set("uid", `eq.${uid}`);
   userUrl.searchParams.set("telegram_chat_id", "is.null");
-  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at,web_initial_scan_completed_at,web_first_travel_at,stripe_subscription_id,trial_expires_at,plan_status,paid");
+  userUrl.searchParams.set("select", "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,calendar_enable_pending,calendar_enable_claim_id,calendar_enable_claimed_at,web_initial_scan_completed_at,web_first_travel_at,stripe_subscription_id,trial_expires_at,plan_status,paid,web_billing_cancel_at_period_end");
   userUrl.searchParams.set("limit", "2");
   const userResponse = await fetchImpl(userUrl.toString(), { headers }).catch(() => null);
   if (!userResponse || !userResponse.ok) return null;
@@ -65,11 +66,14 @@ async function readWebTravelControlState(uid, opts = {}) {
   const preferences = await preferenceResponse.json().catch(() => null);
   if (!Array.isArray(preferences)) return null;
   if (preferences.length === 0) {
+    const user = users[0];
     return {
       dailyAutomationEnabled: null,
       disconnectPending: false,
-      enablePending: users[0].calendar_enable_pending,
+      enablePending: user.calendar_enable_pending,
       initialScanAllowed: false,
+      billingEntitled: user.web_billing_cancel_at_period_end !== true
+        && webTravelEntitled(user, opts.nowMs == null ? Date.now() : opts.nowMs),
       ...enableClaim,
     };
   }
@@ -78,6 +82,8 @@ async function readWebTravelControlState(uid, opts = {}) {
     || typeof preferences[0].calendar_disconnect_pending !== "boolean") return null;
   const user = users[0];
   const preference = preferences[0];
+  const billingEntitled = user.web_billing_cancel_at_period_end !== true
+    && webTravelEntitled(user, opts.nowMs == null ? Date.now() : opts.nowMs);
   const initialScanAllowed = Boolean(opts.expectedCalendarAccountId
     && user.calendar_provider === "composio_gcal"
     && user.calendar_connected_account_id === opts.expectedCalendarAccountId
@@ -94,6 +100,7 @@ async function readWebTravelControlState(uid, opts = {}) {
     disconnectPending: preference.calendar_disconnect_pending,
     enablePending: user.calendar_enable_pending,
     initialScanAllowed,
+    billingEntitled,
     ...enableClaim,
   };
 }

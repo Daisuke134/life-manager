@@ -120,7 +120,7 @@ test("Web travel proceeds after the persisted exact account passes the ACTIVE ga
     apiKey: "provider-key",
     mapsKey: "maps-key",
     resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
-    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, billingEntitled: true, disconnectPending: false, enablePending: false }),
     fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
   });
   assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
@@ -148,6 +148,21 @@ test("one-shot Web scan passes its narrow Calendar write allowance through trave
   assert.equal(calendarOptions.allowWebInitialScan, true);
 });
 
+test("Web scheduler rechecks billing after ACTIVE lookup before Calendar reads", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  let calendarCalls = 0;
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    daily_automation_enabled: true, web_first_travel_at: "2030-01-01T00:00:00.000Z",
+    paid: true, plan_status: "active" }, {
+    apiKey: "provider-key", mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, billingEntitled: false,
+      disconnectPending: false, enablePending: false }),
+    fillTravel: async () => { calendarCalls++; return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.equal(calendarCalls, 0);
+});
+
 test("Web unpaid, past-due, and expired-trial tenants stop before Calendar reads", async () => {
   const { travelUserOnce } = require("../scheduler.js");
   const uid = "lm_11111111-1111-4111-8111-111111111111";
@@ -162,7 +177,7 @@ test("Web unpaid, past-due, and expired-trial tenants stop before Calendar reads
       web_first_travel_at: "2029-12-01T00:00:00.000Z", ...state }, {
       apiKey: "provider-key", mapsKey: "maps-key", nowMs,
       resolveActiveWebCalendarImpl: async () => { calendarReads++; return { accountId: "ca-selected" }; },
-      readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+      readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, billingEntitled: true, disconnectPending: false, enablePending: false }),
       fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
     });
     assert.equal(calendarReads, 0, `${state.plan_status} must be gated before provider reads`);
@@ -180,7 +195,7 @@ test("current card-backed Web trial remains eligible until trial_expires_at", as
   }, {
     apiKey: "provider-key", mapsKey: "maps-key", nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
     resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
-    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, billingEntitled: true, disconnectPending: false, enablePending: false }),
     fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
   });
   assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
@@ -259,14 +274,15 @@ test("Web travel rereads persisted controls after ACTIVE await before entering f
   const { travelUserOnce } = require("../scheduler.js");
   const order = [];
   let fillCalls = 0;
-  const preference = { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false };
+  const preference = { dailyAutomationEnabled: true, billingEntitled: true,
+    disconnectPending: false, enablePending: false };
   await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true,
     web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: true, plan_status: "active" }, {
     apiKey: "provider-key",
     mapsKey: "maps-key",
     resolveActiveWebCalendarImpl: async () => {
       order.push("active");
-      preference.dailyAutomationEnabled = false;
+      preference.billingEntitled = false;
       return { accountId: "ca-selected" };
     },
     readWebTravelControlStateImpl: async (uid) => {
@@ -299,7 +315,8 @@ test("Web control-state reader does not default a missing preference row to enab
     },
   });
 
-  assert.deepEqual(result, { dailyAutomationEnabled: null, disconnectPending: false, enablePending: false, initialScanAllowed: false });
+  assert.deepEqual(result, { dailyAutomationEnabled: null, disconnectPending: false, enablePending: false,
+    initialScanAllowed: false, billingEntitled: false });
 });
 
 test("Web travel refuses to switch account after the caller's ACTIVE check", async () => {

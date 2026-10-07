@@ -103,11 +103,13 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
     try {
       const readState = opts.readWebTravelControlStateImpl || readWebTravelControlState;
       state = await readState(uid, { supaUrl: opts.supaUrl, supaKey: opts.supaKey,
-        fetchImpl: opts.fetchImpl, expectedCalendarAccountId: opts.expectedCalendarAccountId });
+        fetchImpl: opts.fetchImpl, expectedCalendarAccountId: opts.expectedCalendarAccountId, nowMs: opts.nowMs });
     } catch { /* unknown Web controls fail closed before provider mutation */ }
     const oneShotInitialScan = effectAwareCreate && opts.allowWebInitialScan === true
       && state && state.initialScanAllowed === true && state.dailyAutomationEnabled === false;
-    if (!state || (state.dailyAutomationEnabled !== true && !oneShotInitialScan)
+    const automatedBillingIsActive = state && state.dailyAutomationEnabled === true
+      && state.billingEntitled === true;
+    if (!state || (!automatedBillingIsActive && !oneShotInitialScan)
       || state.disconnectPending !== false || state.enablePending !== false) {
       if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
       throw new Error("web calendar automation is paused or pending");

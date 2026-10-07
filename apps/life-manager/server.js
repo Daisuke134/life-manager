@@ -90,7 +90,7 @@ const { handleBrowserTaskMessage } = require("./lib/browser-task-intake.js");
 const { completeBrowserHandoff, startBrowserJobLoop } = require("./lib/browser-job-runtime.js");
 const { startInvestmentDryRunLoop } = require("./lib/investment-dry-run.js");
 const { makeSteelCdpClient } = require("./lib/steel-cdp-client.js");
-const { claimEvent, unclaimEvent, applyBilling } = require("./lib/billing.js");
+const { claimEvent, unclaimEvent, applyBilling, parseStripeEvent } = require("./lib/billing.js");
 const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
 const { recordCost } = require("./lib/ledger.js");
@@ -1615,8 +1615,27 @@ const server = http.createServer(async (req, res) => {
         console.error("[stripe] bad signature", e.message);
         res.writeHead(400); res.end("invalid signature"); return; // REQ-35: reject, no billing side effect
       }
-      const claimed = await claimEvent(event.id, event.type, SUPA_URL, SUPA_KEY); // REQ-36 idempotency
-      if (!claimed) { res.writeHead(200); res.end("duplicate"); return; }         // duplicate delivery → ack, no re-apply
+      let claimed;
+      try { claimed = await claimEvent(event.id, event.type, SUPA_URL, SUPA_KEY); }
+      catch (error) {
+        console.error("[stripe] claim failed", error.message);
+        res.writeHead(500); res.end("claim failed"); return;
+      }
+      if (!claimed) {
+        // Web billing writes are CAS-protected/idempotent. Replay a duplicate Web event so an earlier
+        // claim whose DB read/apply failed can recover even if its unclaim request also failed.
+        const parsed = parseStripeEvent(event);
+        if (!parsed || !parsed.isWebTravel) { res.writeHead(200); res.end("duplicate"); return; }
+        try {
+          const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, notify: dunningNotify });
+          console.log("[stripe] duplicate Web event reconciled", event.type, JSON.stringify(result));
+          res.writeHead(200); res.end("reconciled");
+        } catch (error) {
+          console.error("[stripe] duplicate Web apply failed", error.message);
+          res.writeHead(500); res.end("apply failed");
+        }
+        return;
+      }
       try {
         const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, notify: dunningNotify });
         console.log("[stripe]", event.type, JSON.stringify(result));

@@ -105,6 +105,8 @@ test("claimEvent: 201 → true; 409 → false; no creds → true", async () => {
   assert.strictEqual(await claimEvent("e1", "t", "http://s", "k", f), true);
   assert.strictEqual(await claimEvent("e1", "t", "http://s", "k", f), false);
   assert.strictEqual(await claimEvent("e1", "t", "", "", null), true);
+  await assert.rejects(claimEvent("e2", "t", "http://s", "k", async () => ({ status: 503 })), /claim failed/);
+  await assert.rejects(claimEvent("e3", "t", "http://s", "k", async () => { throw new Error("offline"); }), /store unavailable/);
 });
 test("unclaimEvent: DELETE → true; failure → false (caller logs RECONCILE)", async () => {
   assert.strictEqual(await unclaimEvent("e1", "http://s", "k", async () => ({ status: 204 })), true);
@@ -220,6 +222,14 @@ test("applyBilling orphan customer (no row) → no-op, no throw", async () => {
   const r = await applyBilling({ id: "e", type: "customer.subscription.updated", created: 100,
     data: { object: { id: "sub", customer: "cus_unknown", status: "active" } } }, deps(s));
   assert.strictEqual(r.action, "orphan-subscription"); assert.strictEqual(s.patches.length, 0);
+});
+test("Web billing user-store failure throws so the webhook can unclaim and retry", async () => {
+  const event = webSubscriptionEvent("evt_db_down", 100, { status: "trialing", trial_end: 900000,
+    default_payment_method: "pm_saved" });
+  await assert.rejects(applyBilling(event, {
+    supaUrl: "http://s", supaKey: "k",
+    fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({}) }),
+  }), /billing user lookup failed/);
 });
 test("applyBilling past_due → paid=true (grace) + dunning notify fired once", async () => {
   const row = { uid: "u1", stripe_event_at: new Date(50 * 1000).toISOString() };
@@ -476,6 +486,26 @@ test("same-second subscription recovery uses a stable event-ID tie-breaker in ei
       web_subscription_latest_invoice_id: "in_same_second" }));
     for (const event of events) await applyBilling(event, deps(s));
     assert.equal(s.row().plan_status, "active");
+    assert.equal(s.row().paid, true);
+  }
+});
+
+test("same-second active status waits safely for the paid invoice delivered one second later", async () => {
+  const pastDue = webSubscriptionEvent("evt_a_past_due_delayed_invoice", 100, {
+    status: "past_due", latest_invoice: "in_delayed_recovery",
+  });
+  const active = webSubscriptionEvent("evt_z_active_delayed_invoice", 100, {
+    status: "active", current_period_end: 900000, latest_invoice: "in_delayed_recovery",
+  });
+  const invoice = webInvoiceEvent("evt_delayed_recovery_paid", "invoice.paid", 101,
+    { id: "in_delayed_recovery" });
+  for (const events of [[pastDue, active], [active, pastDue]]) {
+    const s = fakeSupa(webBillingRow({ paid: false, plan_status: "past_due",
+      web_subscription_event_at: new Date(99_000).toISOString(), web_subscription_event_id: "evt_before" }));
+    for (const event of events) await applyBilling(event, deps(s));
+    assert.equal(s.row().plan_status, "active");
+    assert.equal(s.row().paid, false, "active status alone is not payment evidence");
+    await applyBilling(invoice, deps(s));
     assert.equal(s.row().paid, true);
   }
 });
