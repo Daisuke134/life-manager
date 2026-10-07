@@ -10321,6 +10321,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Installed skills/earn/lancers/scripts/status.pyは特定HTTP statusをlancers_http_errorへ一般化しresponse status/bodyを保存しないため、最新alert/statusだけではWAF 405・CAPTCHA・別HTTP failureを区別できない。過去recovery intentにはhold_effect_unknown, official_readback_required_before_retry, mutates_external_effect=false, retryable=falseがある。
 - これは後段row26の最新証拠であり、current cursor17もrow25 SelfBuild前という実行順も変えない。row26では既存公式CLIで対象effectを照合してから応募経路を試す。数値HTTP statusがCAPTCHA/human verificationを示し同じ状態が続く場合はsolver taskを重複作成・反復せずwaiting_externalを記録してrow27へ進む。未知effectを無確認で再送しない。
 - 2026-10-07T05:36Zのread-only `bin/lm-loop status lancers-revenue-application --explain` は、直近attempt 05:35:11.770Z / run `18dc287bf8224a20-87983` / release `034d46e8c267eb477ad2b79e48e28ba0f66b7fe6` / exit1 `entrypoint_exit_1` / effect unknown / provider receipt null / `retryable=false` / `official_readback_required`を返した。statusに示された未解決claim occurrenceは`18db860059bb1150-79553`。145はeffect_unknown occurrenceの表示数で、応募・未返信proposalの件数ではない。CLI outputにHTTP status/bodyはなく、原因分類には届かない。今回も応募・手動wake・再送はしていない。
+- current run IDの検索では対象state rootのplain-text evidenceから一致したのは`events.jsonl`のみで、run別`summary.json`は確認できなかった。`application.err.log` / `application.out.log`の最終更新は2026-09-01で、今回run ID・数値HTTP status・CAPTCHA/WAFの記録はない。古いログを10/07の診断に流用しない。
 
 ### 845. Google Cloud請求書の同一性は確認、決済と対象30日実費は未確定
 
