@@ -3791,7 +3791,7 @@ English owner `ebook-en-tiktok-daily`は`launchd_state=disabled`で、plistは�
 - Management APIの`read_only:true` SELECTでtable exists、RLS enabled、service-role get/upsert EXECUTE、anon/authenticated get/upsert拒否を確認した。upsertは呼ばずproduction test/cache rowを作成していない。
 - Railway production `life-call`はSHA `64895457b7232a954f2f4492073b867009b6da85`でRUNNING、loaded sourceにはgeocode-cache get/set wiringがある。migrationのためのservice restart、route実行、Google billable request、Calendar/Telegram effectは行っていない。
 - A3.1 access、A3.2 apply、A3.3 schema/RPC/RLS/ACL readbackは完了。process restart後の自然route/cache-hit/replay-zeroを示すA3.4は未検証。
-- **cursor/order:** 旧order=`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`。新order=`A5→A6→A8→A9→A10`。変更理由は、business CFOの全agent/loop revenue・cost coverageを先に完成し、Moneytree personal railは除外、Cloud/free-geocoding savingsは後回しにするDaisの指示。現在cursor=`A5`。このbranchのSSOT候補に記録し、`origin/main`のcursor変更はPR merge後に確認する。
+- **cursor/order merge readback:** 旧order=`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`から、新order=`A5→A6→A8→A9→A10`へ変更した記録はPR #6915として2026-10-08 00:59 JSTにmain commit `9bfd654a16a15ff994bef2932c768c092342481d`へ統合済みで、merge時cursor=`A5`。変更理由は、business CFOの全agent/loop revenue・cost coverageを先に完成し、Moneytree personal railを除外、Cloud/free-geocoding savingsを後回しにするDaisの指示。A3.4とA4.1→A4.2→A4.3はA10後のCloud savings laneであり、production completionは別途確認する。
 - A7 Moneytreeは今回のbusiness-CFO acceptanceから外し、pluginを呼ばない。A4.1→A4.2→A4.3およびA3.4はA10後へ送る。A3.4はA6 evidenceで有意なsettled Geocoding spendまたはprocess restart後の重複callによる費用対効果が確認された場合だけ再開する。synthetic rowや比較目的の追加provider callは作らず、自然なroute occurrenceと既存process lifecycleで確認する。
 
 
