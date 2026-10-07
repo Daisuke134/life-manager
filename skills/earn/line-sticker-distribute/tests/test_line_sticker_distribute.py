@@ -121,6 +121,42 @@ class LedgerFenceTest(unittest.TestCase):
             ledger.record(ledger_path, f"lane-a-{slot_at}", {"status": "published"})
             self.assertIsNone(distribute.find_due_account(accounts, ledger_path, now))
 
+    def test_find_due_account_backs_off_after_a_recent_failure(self):
+        """Root cause (2026-10-07, @stardust_doubutsu 20:18 JST slot): a
+        browser_reel share can hang on Instagram's side and never reconcile
+        (reached=shared-unconfirmed). Instagram readback 28min and even
+        several hours later still showed no new reel -- a real, if
+        intermittent, publish failure, not just a slow one. Retrying the
+        exact same lane/slot again seconds later (every launchd wake inside
+        the same ~2.5h cadence window) hammers a brand-new account with
+        repeated real share attempts. A short cooldown after a failed
+        attempt gives Instagram's own processing room before the next try,
+        without blocking the slot past its cadence window."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "ledger.json"
+            accounts = [{
+                "lane_id": "lane-a", "platform": "instagram", "transport": "browser_reel",
+                "handle": "x", "browser_identity": "instagram:x",
+                "cadence_jst": ["00:00"], "timezone": "UTC",
+            }]
+            from datetime import datetime, timedelta, timezone
+            now = datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)
+            slot_at = due_slot.due_slot_iso(now, "UTC", ["00:00"])
+            key = f"lane-a-{slot_at}"
+            ledger.record(ledger_path, key, {
+                "status": "failed", "reason": "browser_reel publish did not reconcile",
+                "attempted_at": now.isoformat(),
+            })
+            # immediately after the failure: still in cooldown, not due again
+            self.assertIsNone(distribute.find_due_account(accounts, ledger_path, now))
+            just_inside_cooldown = now + timedelta(minutes=distribute.RETRY_COOLDOWN_MINUTES - 1)
+            self.assertIsNone(distribute.find_due_account(accounts, ledger_path, just_inside_cooldown))
+            # once the cooldown has elapsed, the same still-unpublished slot is due again
+            past_cooldown = now + timedelta(minutes=distribute.RETRY_COOLDOWN_MINUTES + 1)
+            due = distribute.find_due_account(accounts, ledger_path, past_cooldown)
+            self.assertIsNotNone(due)
+            self.assertEqual(due[2], key)
+
 
 class TransportValidationTest(unittest.TestCase):
     def test_browser_reel_requires_handle_and_browser_identity(self):
