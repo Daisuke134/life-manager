@@ -77,6 +77,7 @@ function fixture(overrides = {}) {
     paid: false,
     web_initial_scan_completed_at: null,
     web_first_travel_at: null,
+    web_automation_user_paused: false,
   };
   const events = [event()];
   const calendarReads = [];
@@ -115,13 +116,13 @@ function fixture(overrides = {}) {
       if (body.p_uid !== UID || body.p_calendar_account_id !== (row.calendar_connected_account_id || null)) {
         return { ok: false, status: 400, json: async () => ({ message: "calendar_account_changed" }) };
       }
-      if (body.p_action === "pause" && !preference) {
+      if (body.p_action === "pause" && !preference || body.p_action === "initial_scan_pause" && !preference) {
         preference = { call_enabled: false, notifications_enabled: false, daily_automation_enabled: false, calendar_disconnect_pending: false };
       } else if (body.p_action === "disconnect_begin" && !preference) {
         preference = { call_enabled: false, notifications_enabled: false, daily_automation_enabled: false, calendar_disconnect_pending: true };
       } else if (!preference) {
         return { ok: false, status: 400, json: async () => ({ message: "preference_missing" }) };
-      } else if (body.p_action === "pause") preference.daily_automation_enabled = false;
+      } else if (body.p_action === "pause" || body.p_action === "initial_scan_pause") preference.daily_automation_enabled = false;
       else if (body.p_action === "resume") {
         if (preference.calendar_disconnect_pending) {
           return { ok: false, status: 400, json: async () => ({ message: "calendar_disconnect_pending" }) };
@@ -138,6 +139,8 @@ function fixture(overrides = {}) {
         preference.calendar_disconnect_pending = false;
       } else if (body.p_action === "disconnect") preference.daily_automation_enabled = false;
       else return { ok: false, status: 400, json: async () => ({ message: "invalid_action" }) };
+      if (body.p_action === "pause" || body.p_action === "disconnect_begin") row.web_automation_user_paused = true;
+      else if (body.p_action === "resume") row.web_automation_user_paused = false;
       if (body.p_action === "disconnect" || body.p_action === "disconnect_finish") {
         row.calendar_provider = null;
         row.calendar_connected_account_id = null;
@@ -464,7 +467,7 @@ test("initial scan stays fenced during pending Calendar enable", async () => {
   assert.equal(f.scanRpcCalls.length, 0);
 });
 
-test("initial scan rechecks the selected ACTIVE Calendar after pausing automation", async () => {
+test("initial scan pauses automation without recording an explicit user pause", async () => {
   const f = fixture();
   f.preference.daily_automation_enabled = true;
   let statusReads = 0;
@@ -481,8 +484,12 @@ test("initial scan rechecks the selected ACTIVE Calendar after pausing automatio
   assert.equal(response.status, 200);
   assert.equal(statusReads >= 2, true);
   assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.row.web_automation_user_paused, false);
   assert.equal(f.travelCalls, 1);
   assert.equal(f.travelExpectedAccountIds[0], "ca-selected-123");
+  assert.deepEqual(f.controlRpcCalls[0], {
+    p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "initial_scan_pause",
+  });
 });
 
 test("no-home onboarding stays on the one-time scan path and locationless events get no guessed block", async () => {
@@ -738,7 +745,7 @@ test("travel controls reject Telegram-bound users", async () => {
   assert.deepEqual(f.disconnectCalls, []);
 });
 
-test("pause changes only persisted daily automation preference", async () => {
+test("pause records explicit user intent and pauses daily automation", async () => {
   const f = fixture();
   f.row.home_address = "自宅住所";
   f.preference.daily_automation_enabled = true;
@@ -749,11 +756,23 @@ test("pause changes only persisted daily automation preference", async () => {
 
   assert.equal(response.status, 200);
   assert.equal(f.preference.daily_automation_enabled, false);
+  assert.equal(f.row.web_automation_user_paused, true);
   assert.equal(f.row.home_address, before.home_address);
   assert.equal(f.row.trial_expires_at, before.trial_expires_at);
   assert.equal(f.row.calendar_connected_account_id, before.calendar_connected_account_id);
   assert.deepEqual(f.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "pause" }]);
   assert.deepEqual(JSON.parse(response.body), { dailyAutomationEnabled: false, disconnectPending: false, enablePending: false, calendarBound: true });
+});
+
+test("internal initial-scan pause is not callable through the user control endpoint", async () => {
+  const f = fixture();
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "initial_scan_pause" },
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(f.controlRpcCalls.length, 0);
+  assert.equal(f.row.web_automation_user_paused, false);
 });
 
 test("Today keeps exact MISSING and EXPIRED Calendar bindings actionable", async () => {
@@ -798,6 +817,7 @@ test("resume allows no saved home but requires the exact selected ACTIVE Calenda
   assert.equal(noHomeResponse.status, 200);
   assert.equal(noHome.row.home_address, null);
   assert.equal(noHome.preference.daily_automation_enabled, true);
+  assert.equal(noHome.row.web_automation_user_paused, false);
   assert.deepEqual(noHome.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
 
   const inactive = fixture({ composioCalendarAccountStatusImpl: async () => "DISABLED" });
@@ -816,6 +836,7 @@ test("resume allows no saved home but requires the exact selected ACTIVE Calenda
   });
   assert.equal(activeResponse.status, 200);
   assert.equal(active.preference.daily_automation_enabled, true);
+  assert.equal(active.row.web_automation_user_paused, false);
   assert.deepEqual(active.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
   assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false, calendarBound: true });
 });
@@ -1179,9 +1200,11 @@ test("Web billing resume intent is consumed atomically and manual pause invalida
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.control_lm_web_travel/i);
   const controlsSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.control_lm_web_travel"),
     sql.indexOf("REVOKE ALL ON FUNCTION public.control_lm_web_travel"));
-  const pauseSql = controlsSql.slice(controlsSql.indexOf("IF p_action = 'pause'"), controlsSql.indexOf("ELSIF p_action = 'disconnect_begin'"));
+  const pauseSql = controlsSql.slice(controlsSql.indexOf("IF p_action IN ('pause', 'initial_scan_pause')"),
+    controlsSql.indexOf("ELSIF p_action = 'disconnect_begin'"));
   assert.match(pauseSql, /daily_automation_enabled\s*=\s*false/i);
   assert.match(controlsSql, /IF p_action IN \('pause', 'disconnect_begin'\)[\s\S]*web_automation_resume_pending\s*=\s*false[\s\S]*web_billing_revision\s*=\s*web_billing_revision\s*\+\s*1/i);
   assert.match(controlsSql, /IF p_action IN \('pause', 'disconnect_begin'\)[\s\S]*web_automation_user_paused\s*=\s*true/i);
+  assert.match(controlsSql, /'initial_scan_pause'/i);
   assert.match(controlsSql, /IF p_action = 'resume'[\s\S]*web_automation_user_paused\s*=\s*false/i);
 });

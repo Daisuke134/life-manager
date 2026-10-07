@@ -299,7 +299,9 @@ function subscriptionStateConflictsWithRow(p, row) {
     || ["canceled", "unpaid", "incomplete_expired"].includes(status);
   return status !== String(row && row.plan_status || "").toLowerCase()
     || cancellationRequested !== (row && row.web_billing_cancel_at_period_end === true)
-    || status === "trialing" && p.hasPaymentMethod !== (row && row.web_trial_payment_method_present === true);
+    || status === "trialing" && p.hasPaymentMethod !== (row && row.web_trial_payment_method_present === true)
+    || (p.latestInvoiceId || null) !== (row && row.web_subscription_latest_invoice_id || null)
+    || status === "trialing" && toEpoch(p.trialEnd) !== toEpoch(row && row.trial_expires_at);
 }
 
 async function readCurrentSubscription(p, event, deps) {

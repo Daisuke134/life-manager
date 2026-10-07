@@ -185,7 +185,7 @@ async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
     return Object.assign(await buildTodaySnapshot(uid, opts), { scanState: "already_subscribed", checkoutAvailable: false });
   }
 
-  const paused = await applyWebTravelControl(uid, initialRow.calendar_connected_account_id, "pause", opts);
+  const paused = await applyWebTravelControl(uid, initialRow.calendar_connected_account_id, "initial_scan_pause", opts);
   if (paused.disconnectPending) throw webError(409, "disconnect_pending");
   if (paused.enablePending) throw webError(409, "calendar_enable_pending");
 
@@ -473,7 +473,7 @@ async function applyWebTravelControl(uid, accountId, action, opts = {}) {
   const expectedAccountId = action === "disconnect_finish" ? null : accountId;
   const expectedPending = action === "disconnect_begin" ? true
     : action === "disconnect_finish" || action === "resume" ? false : null;
-  const expectedEnablePending = action === "pause" ? null : false;
+  const expectedEnablePending = action === "pause" || action === "initial_scan_pause" ? null : false;
   if (selectedWebCalendarAccount(row) !== expectedAccountId
     || preference.dailyAutomationEnabled !== (action === "resume")
     || expectedPending !== null && preference.disconnectPending !== expectedPending

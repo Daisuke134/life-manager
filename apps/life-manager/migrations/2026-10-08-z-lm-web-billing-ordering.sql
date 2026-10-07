@@ -32,7 +32,7 @@ DECLARE
   preference_row public.lm_panel_preferences%ROWTYPE;
   changed integer;
 BEGIN
-  IF p_action IS NULL OR p_action NOT IN ('pause', 'resume', 'disconnect_begin', 'disconnect_finish') THEN
+  IF p_action IS NULL OR p_action NOT IN ('pause', 'initial_scan_pause', 'resume', 'disconnect_begin', 'disconnect_finish') THEN
     RAISE EXCEPTION 'invalid_action';
   END IF;
 
@@ -74,7 +74,7 @@ BEGIN
      WHERE uid = p_uid AND telegram_chat_id IS NULL;
   END IF;
 
-  IF p_action = 'pause' THEN
+  IF p_action IN ('pause', 'initial_scan_pause') THEN
     INSERT INTO public.lm_panel_preferences(
       uid, call_enabled, notifications_enabled, daily_automation_enabled, calendar_disconnect_pending
     ) VALUES (p_uid, false, false, false, false)

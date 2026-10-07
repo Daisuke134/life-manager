@@ -701,6 +701,60 @@ test("same-second subscription recovery reconciles to the current Stripe status 
   }
 });
 
+test("same-second latest-invoice changes reconcile to Stripe even when the new event ID sorts older", async () => {
+  const old = webSubscriptionEvent("evt_z_old_invoice", 100, {
+    created: 90, status: "active", latest_invoice: "in_old", current_period_end: 900000,
+  });
+  const newer = webSubscriptionEvent("evt_a_new_invoice", 100, {
+    created: 90, status: "active", latest_invoice: "in_new", current_period_end: 900000,
+  });
+  const current = { id: "sub_web", customer: "cus_web", created: 90,
+    status: "active", current_period_end: 900000, latest_invoice: "in_new",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+
+  for (const events of [[newer, old], [old, newer]]) {
+    const s = fakeSupa(webBillingRow({ paid: true, plan_status: "active",
+      web_subscription_created_at: new Date(90_000).toISOString(),
+      web_subscription_event_at: new Date(100_000).toISOString(),
+      web_subscription_event_priority: 70, web_subscription_event_id: "evt_z_prior",
+      web_subscription_latest_invoice_id: "in_old",
+      web_invoice_event_at: new Date(99_000).toISOString(), web_invoice_id: "in_old",
+      web_invoice_subscription_id: "sub_web", web_invoice_paid: true, web_invoice_amount_paid: 2900 }));
+    let reads = 0;
+    const dependencies = { ...deps(s), retrieveSubscription: async () => { reads++; return current; } };
+    for (const event of events) await applyBilling(event, dependencies);
+    assert.equal(s.row().web_subscription_latest_invoice_id, "in_new");
+    assert.equal(s.row().paid, false);
+    assert.equal(reads > 0, true);
+  }
+});
+
+test("same-second trial-end shortening converges to Stripe's current expiry", async () => {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const currentTrialEnd = nowSeconds + 2 * 24 * 60 * 60;
+  const staleTrialEnd = nowSeconds + 7 * 24 * 60 * 60;
+  const s = fakeSupa(webBillingRow({ paid: false, plan_status: "trialing",
+    web_trial_payment_method_present: true,
+    trial_expires_at: new Date(currentTrialEnd * 1000).toISOString(),
+    web_subscription_created_at: new Date(90_000).toISOString(),
+    web_subscription_event_at: new Date(100_000).toISOString(),
+    web_subscription_event_priority: 40, web_subscription_event_id: "evt_z_long_trial",
+  }));
+  let reads = 0;
+  const current = { id: "sub_web", customer: "cus_web", created: 90,
+    status: "trialing", trial_end: currentTrialEnd, default_payment_method: "pm_saved",
+    metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } };
+  const result = await applyBilling(webSubscriptionEvent("evt_a_stale_long_trial", 100, {
+    created: 90, status: "trialing", trial_end: staleTrialEnd, default_payment_method: "pm_saved",
+  }), { ...deps(s), retrieveSubscription: async () => { reads++; return current; } });
+
+  assert.equal(result.paid, false);
+  assert.equal(s.row().trial_expires_at, new Date(currentTrialEnd * 1000).toISOString());
+  assert.equal(webTravelEntitled(s.row(), currentTrialEnd * 1000 - 1000), true);
+  assert.equal(webTravelEntitled(s.row(), (currentTrialEnd + 1) * 1000), false);
+  assert.equal(reads, 1);
+});
+
 test("same-second active status waits safely for the paid invoice delivered one second later", async () => {
   const pastDue = webSubscriptionEvent("evt_a_past_due_delayed_invoice", 100, {
     status: "past_due", latest_invoice: "in_delayed_recovery",
