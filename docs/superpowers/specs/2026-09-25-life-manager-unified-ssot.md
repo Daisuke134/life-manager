@@ -4267,3 +4267,13 @@ flowchart LR
 11. 対象プラットフォームごとにmain由来loaded SHA、連続する自然Storefront/Application/Reply/Paid occurrence、provider公式receipt、settlement/fee/cost、replay-zeroを確認して初めて24/7完了とする。登録・loaded・passのみを収益としない。
 
 L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序に従って着手する。案件proposal額・出品実績表示・process passはsettled revenueではない。全社settlement joinとMRR/netはCFO ownerの担当。
+
+### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
+
+**現在のGig cursor: 1（L9-07 Coconala Storefront parser修正）。** 全社lane/platform順序は変更しない。PR #6985は`1c0c9120`でmainへ統合済みだが、公式live inventoryで`public_text`空・contract 0/20となったためlive acceptanceは未達。原因は`#serviceContentsSummary`がナビ見出しで、本文はuniqueな`.c-serviceContentsSummary` wrapperにあること。これを正しいselectorとしてRED/GREEN testで修正する。
+
+1. `fix/coconala-service-summary-dom-20261008`で実DOMと同じnavigation-ID/body-class形状の回帰testを追加し、本文selectorを修正する。merged PR #6985を成功扱いにしない。
+2. browser/host capacity floorの回復後、main由来修正版で公式20出品を再取得し、全20件の本文とservice contract PASSを確認する。出品は編集しない。
+3. `hf-gig-storefront-direct:18d8d288748508e8-23902`は同一occurrenceの公式receiptかaccepted pre-effect terminalが無い限り保持する。current ownerはdisk admissionでdeferされ、effectは発生せずreceiptもない。Capacity/doctor blockerを別ownerのgateなしに迂回しない。
+4. Coconala既存Paid obligationはrevision中・formal delivery未確認で、最新buyer follow-upが未回答。TikTok Business Suiteの本文は読み取れたが、campaign-wide inbox reply countはSheet行へ完全joinできていない。未送信の旧answer draftは「返信0件」と断定するため再利用しない。正確なrecipient/Sheet reconciliation後にpaid owner経由で一度だけ回答し、revision→formal delivery→buyer acceptance→payout→replay-zeroを閉じる。
+5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancerを実行する。Lancers rows 25–27は`waiting_external`のままauth/solver/proposal/retryを行わない。enabled ownersの24/7自然receiptとsettlement/fee/costが揃うまでGig完了としない。L9-11 Self-Buildは全Gig完了後。
