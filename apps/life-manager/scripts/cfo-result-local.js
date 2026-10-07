@@ -8,6 +8,7 @@ const { renderResultSummary } = require("../lib/cfo-result-summary.js");
 
 const OCCURRENCE_ID = /^life-manager-cfo-hourly:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
+const RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 
 function occurrenceId(value) {
   const text = String(value || "").trim();
@@ -17,6 +18,127 @@ function occurrenceId(value) {
 
 function messageSha256(message) {
   return crypto.createHash("sha256").update(String(message), "utf8").digest("hex");
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+  if (typeof value === "number" && Number.isFinite(value)) return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  throw new Error("cfo_b7_projection_invalid");
+}
+
+function b7Identity(value, env) {
+  const separator = value.indexOf(":");
+  const releaseSha = String(env?.LIFE_MANAGER_RELEASE_SHA || "").trim();
+  if (separator < 1 || !RELEASE_SHA.test(releaseSha)) throw new Error("cfo_b7_identity_invalid");
+  return {
+    ownerId: value.slice(0, separator),
+    runId: value.slice(separator + 1),
+    releaseSha,
+  };
+}
+
+function b7ReadbackLocation(stateDir, value, createDirectory) {
+  const stateStat = fs.lstatSync(stateDir);
+  if (stateStat.isSymbolicLink() || !stateStat.isDirectory()) throw new Error("cfo_b7_readback_path_invalid");
+  const stateRoot = fs.realpathSync(stateDir);
+  const directory = path.join(stateRoot, "b7-readbacks");
+  if (createDirectory) {
+    try { fs.mkdirSync(directory, { mode: 0o700 }); } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+  const directoryStat = fs.lstatSync(directory);
+  if (directoryStat.isSymbolicLink() || !directoryStat.isDirectory()
+    || fs.realpathSync(directory) !== directory) throw new Error("cfo_b7_readback_path_invalid");
+  const directoryFlags = fs.constants.O_RDONLY | (fs.constants.O_DIRECTORY || 0) | (fs.constants.O_NOFOLLOW || 0);
+  const directoryFd = fs.openSync(directory, directoryFlags);
+  try {
+    if (!fs.fstatSync(directoryFd).isDirectory()) throw new Error("cfo_b7_readback_path_invalid");
+    fs.fchmodSync(directoryFd, 0o700);
+  } finally { fs.closeSync(directoryFd); }
+  const file = path.resolve(directory, `${value}.json`);
+  if (path.dirname(file) !== directory || path.relative(stateRoot, directory) !== "b7-readbacks") {
+    throw new Error("cfo_b7_readback_path_invalid");
+  }
+  return { directory, file, relativePath: `b7-readbacks/${value}.json` };
+}
+
+function b7SnapshotStat(file) {
+  try {
+    const stat = fs.lstatSync(file);
+    if (stat.isSymbolicLink() || !stat.isFile() || (stat.mode & 0o777) !== 0o600) {
+      throw new Error("cfo_b7_readback_path_invalid");
+    }
+    return stat;
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function writeB7Snapshot(stateDir, value, snapshot, create) {
+  const location = b7ReadbackLocation(stateDir, value, true);
+  const existing = b7SnapshotStat(location.file);
+  if (create ? existing : !existing) throw new Error(create ? "cfo_b7_snapshot_exists" : "cfo_b7_snapshot_missing");
+  const temporary = path.join(location.directory, `.${value}.${crypto.randomUUID()}.tmp`);
+  let descriptor;
+  try {
+    descriptor = fs.openSync(temporary, "wx", 0o600);
+    fs.fchmodSync(descriptor, 0o600);
+    fs.writeFileSync(descriptor, `${JSON.stringify(snapshot)}\n`, "utf8");
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    const beforeRename = b7SnapshotStat(location.file);
+    if (create ? beforeRename : !beforeRename) throw new Error(create ? "cfo_b7_snapshot_exists" : "cfo_b7_snapshot_missing");
+    fs.renameSync(temporary, location.file);
+    const directoryFd = fs.openSync(location.directory,
+      fs.constants.O_RDONLY | (fs.constants.O_DIRECTORY || 0) | (fs.constants.O_NOFOLLOW || 0));
+    try { fs.fsyncSync(directoryFd); } finally { fs.closeSync(directoryFd); }
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    try { fs.unlinkSync(temporary); } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  return location;
+}
+
+function readB7Snapshot(stateDir, reference, pending) {
+  const sourceOccurrenceId = occurrenceId(pending.occurrenceId);
+  const location = b7ReadbackLocation(stateDir, sourceOccurrenceId, false);
+  if (!reference || reference.path !== location.relativePath
+    || !SHA256.test(String(reference.projectionSha256 || ""))
+    || reference.messageSha256 !== pending.messageSha256
+    || messageSha256(pending.message) !== pending.messageSha256) throw new Error("cfo_b7_snapshot_invalid");
+  const stat = b7SnapshotStat(location.file);
+  if (!stat) throw new Error("cfo_b7_snapshot_missing");
+  const descriptor = fs.openSync(location.file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+  let snapshot;
+  try {
+    const opened = fs.fstatSync(descriptor);
+    if (!opened.isFile() || (opened.mode & 0o777) !== 0o600) throw new Error("cfo_b7_readback_path_invalid");
+    snapshot = JSON.parse(fs.readFileSync(descriptor, "utf8"));
+  } finally { fs.closeSync(descriptor); }
+  const separator = sourceOccurrenceId.indexOf(":");
+  let projectionSha;
+  try { projectionSha = crypto.createHash("sha256").update(canonicalJson(snapshot.projection), "utf8").digest("hex"); }
+  catch { throw new Error("cfo_b7_snapshot_invalid"); }
+  if (!snapshot || snapshot.schemaVersion !== 1 || !["pending", "sent"].includes(snapshot.status)
+    || snapshot.ownerId !== sourceOccurrenceId.slice(0, separator)
+    || snapshot.runId !== sourceOccurrenceId.slice(separator + 1)
+    || snapshot.occurrenceId !== sourceOccurrenceId || !RELEASE_SHA.test(String(snapshot.releaseSha || ""))
+    || snapshot.reportingPeriod?.key !== pending.periodKey
+    || snapshot.messageSha256 !== pending.messageSha256
+    || snapshot.projectionSha256 !== reference.projectionSha256
+    || projectionSha !== snapshot.projectionSha256) throw new Error("cfo_b7_snapshot_invalid");
+  if (snapshot.status === "sent" && (!snapshot.providerMessageId || !snapshot.sentAt
+    || !["sent", "duplicate"].includes(snapshot.resolutionKind))) throw new Error("cfo_b7_snapshot_invalid");
+  return snapshot;
 }
 
 function validateStoredResult(value) {
@@ -77,6 +199,18 @@ async function runResultCfo(options) {
   if (pending && now.getTime() - Date.parse(pending.createdAt) >= 23 * 60 * 60 * 1000) {
     throw new Error("cfo_pending_receipt_requires_reconcile");
   }
+  const newSourceIdentity = pending ? null : b7Identity(currentOccurrenceId, options.env || process.env);
+  let sourceSnapshot = pending?.b7ReadbackRef ? readB7Snapshot(stateDir, pending.b7ReadbackRef, pending) : null;
+  if (sourceSnapshot?.status === "sent") {
+    const recovered = { ...pending, status: "sent", occurrenceId: currentOccurrenceId,
+      resolutionKind: sourceSnapshot.resolutionKind, providerMessageId: sourceSnapshot.providerMessageId,
+      sentAt: sourceSnapshot.sentAt };
+    persist(recovered);
+    const duplicate = sourceSnapshot.resolutionKind === "duplicate";
+    return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
+      reportingDate: pending.reportingDate, delivered: !duplicate,
+      providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: sourceSnapshot.resolutionKind };
+  }
   if (!pending) {
     let table;
     if (options.collect) table = await options.collect(date);
@@ -101,11 +235,27 @@ async function runResultCfo(options) {
       table = JSON.parse(result.stdout);
     }
     if (table.reporting_date !== date) throw new Error("cfo_source_date_mismatch");
-    const message = renderResultSummary(table);
+    let projection;
+    try { projection = JSON.parse(JSON.stringify(table)); } catch { throw new Error("cfo_b7_projection_invalid"); }
+    if (!projection || typeof projection !== "object" || Array.isArray(projection)) throw new Error("cfo_b7_projection_invalid");
+    const message = renderResultSummary(projection);
     const messageSha256Value = messageSha256(message);
+    let projectionSha256;
+    try { projectionSha256 = crypto.createHash("sha256").update(canonicalJson(projection), "utf8").digest("hex"); }
+    catch { throw new Error("cfo_b7_projection_invalid"); }
+    const reportingPeriod = {
+      key: periodKey, reportingDate: projection.reporting_date, timezone: projection.timezone || "Asia/Tokyo",
+      snapshotAt: projection.snapshot_at || projection.economic_attribution?.snapshot_at || null,
+      trailingStart: projection.trailing_start || projection.economic_attribution?.trailing_start || null,
+    };
+    sourceSnapshot = { schemaVersion: 1, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
+      reportingPeriod, projection, projectionSha256, messageSha256: messageSha256Value,
+      status: "pending", createdAt: now.toISOString() };
+    const sourceLocation = writeB7Snapshot(stateDir, currentOccurrenceId, sourceSnapshot, true);
+    const b7ReadbackRef = { path: sourceLocation.relativePath, projectionSha256, messageSha256: messageSha256Value };
     pending = { status: "pending", subjectId, periodKey, reportingDate: date, channel: destination.channel, recipientHash,
       eventKey: `cfo-result:${options.subjectId}:${destination.channel}:${periodKey}`, message,
-      messageSha256: messageSha256Value, occurrenceId: currentOccurrenceId, createdAt: now.toISOString() };
+      messageSha256: messageSha256Value, occurrenceId: currentOccurrenceId, createdAt: now.toISOString(), b7ReadbackRef };
     persist(pending);
   }
   const delivery = await (options.notify || (input => notifyCfoReport(input, options)))({
@@ -117,9 +267,18 @@ async function runResultCfo(options) {
   }
   const duplicate = delivery.attempted === 0;
   const resolutionKind = duplicate ? "duplicate" : "sent";
+  const sentAt = now.toISOString();
+  if (sourceSnapshot) {
+    const sourceOccurrenceId = sourceSnapshot.occurrenceId;
+    sourceSnapshot = { ...sourceSnapshot, status: "sent", resolutionKind,
+      providerMessageId: String(delivery.provider_message_id), sentAt,
+      deliveryOccurrenceId: currentOccurrenceId,
+      deliveryRunId: currentOccurrenceId.slice(currentOccurrenceId.indexOf(":") + 1) };
+    writeB7Snapshot(stateDir, sourceOccurrenceId, sourceSnapshot, false);
+  }
   persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
     messageSha256: pending.messageSha256 || messageSha256(pending.message),
-    resolutionKind, providerMessageId: String(delivery.provider_message_id), sentAt: now.toISOString() });
+    resolutionKind, providerMessageId: String(delivery.provider_message_id), sentAt });
   return {
     status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
     reportingDate: pending.reportingDate, delivered: !duplicate,

@@ -1,6 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -12,11 +13,183 @@ function setup(t) {
   const messages = [];
   const options = { stateDir, subjectId: "owner", reportEmail: "owner@example.test",
     occurrenceId: "life-manager-cfo-hourly:run-1",
+    env: { LIFE_MANAGER_RELEASE_SHA: "a".repeat(40), API_TOKEN: "fixture-secret",
+      Authorization: "Bearer fixture-secret" },
     collect: async date => ({ reporting_date: date, rows: [{ loop_id: "capafy",
       revenue: { status: "verified", amounts: { USD: value }, receipts: ["receipt:1"] } }] }),
     notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "id" }; } };
   return { options, messages, change: v => { value = v; } };
 }
+
+function b7Table(reportingDate) {
+  const snapshotAt = `${reportingDate}T12:00:00.000Z`;
+  const trailingStart = "2026-08-31T12:00:00.000Z";
+  return {
+    reporting_date: reportingDate,
+    timezone: "Asia/Tokyo",
+    snapshot_at: snapshotAt,
+    trailing_start: trailingStart,
+    economic_attribution: {
+      snapshot_at: snapshotAt,
+      trailing_start: trailingStart,
+      historical: { company: { status: "unknown" }, loops: {
+        capafy: { status: "unknown", coverage_gaps: [{ reason: "missing_coverage" }] },
+      } },
+      trailing: { company: { status: "unknown" }, loops: {
+        capafy: { status: "unknown", coverage_gaps: [{ reason: "stale_readback" }] },
+      } },
+      mrr: { company: { status: "unknown" }, loops: {} },
+      runway: { status: "unknown" },
+      duplicate_receipts: [],
+    },
+  };
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function readbackFile(stateDir, occurrenceId) {
+  return path.join(stateDir, "b7-readbacks", `${occurrenceId}.json`);
+}
+
+function readbackFiles(stateDir) {
+  const directory = path.join(stateDir, "b7-readbacks");
+  return fs.existsSync(directory) ? fs.readdirSync(directory).filter(name => name.endsWith(".json")) : [];
+}
+
+test("new occurrence persists the normalized B7 source bound to its delivered report receipt", async t => {
+  const { options, messages } = setup(t);
+  const table = b7Table("2026-09-30");
+  options.collect = async () => table;
+  options.notify = async input => {
+    messages.push(input);
+    return { delivery: "delivered", provider_message_id: "provider-message-1", raw: { Authorization: "do-not-save" } };
+  };
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const file = readbackFile(options.stateDir, options.occurrenceId);
+  const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.deepEqual(snapshot.projection, table);
+  assert.equal(snapshot.ownerId, "life-manager-cfo-hourly");
+  assert.equal(snapshot.runId, "run-1");
+  assert.equal(snapshot.occurrenceId, options.occurrenceId);
+  assert.equal(snapshot.releaseSha, "a".repeat(40));
+  assert.deepEqual(snapshot.reportingPeriod, {
+    key: "2026-09-30:12", reportingDate: "2026-09-30", timezone: "Asia/Tokyo",
+    snapshotAt: table.snapshot_at, trailingStart: table.trailing_start,
+  });
+  assert.equal(snapshot.projectionSha256, crypto.createHash("sha256").update(canonicalJson(table)).digest("hex"));
+  assert.equal(snapshot.messageSha256, crypto.createHash("sha256").update(messages[0].message).digest("hex"));
+  assert.equal(snapshot.status, "sent");
+  assert.equal(snapshot.providerMessageId, "provider-message-1");
+  assert.equal(snapshot.resolutionKind, "sent");
+  assert.equal(snapshot.deliveryOccurrenceId, options.occurrenceId);
+  assert.ok(snapshot.sentAt);
+  assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  assert.doesNotMatch(fs.readFileSync(file, "utf8"), /fixture-secret|do-not-save|API_TOKEN|Authorization/);
+  assert.doesNotMatch(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"), /fixture-secret|do-not-save/);
+});
+
+test("pending notification keeps its B7 source pending and retry reuses it without recollecting", async t => {
+  const { options, messages, change } = setup(t);
+  const table = b7Table("2026-09-30");
+  let collects = 0;
+  options.collect = async () => { collects += 1; return table; };
+  let attempts = 0;
+  const beforeNotify = [];
+  options.notify = async input => {
+    messages.push(input);
+    const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+    beforeNotify.push({ status: snapshot.status, messageSha256: snapshot.messageSha256 });
+    return ++attempts === 1
+      ? { delivery: "pending", provider_message_id: null }
+      : { delivery: "delivered", provider_message_id: "provider-message-2", attempted: 0 };
+  };
+
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
+  const file = readbackFile(options.stateDir, options.occurrenceId);
+  const pending = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(pending.status, "pending");
+  assert.equal(pending.providerMessageId, undefined);
+  assert.equal(pending.resolutionKind, undefined);
+  change("999");
+  const retryOccurrence = "life-manager-cfo-hourly:retry-run";
+  assert.equal((await runResultCfo({ ...options, occurrenceId: retryOccurrence,
+    now: "2026-09-30T13:00:00Z" })).status, "quiet");
+
+  const resolved = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(collects, 1);
+  assert.deepEqual(beforeNotify, [
+    { status: "pending", messageSha256: resolved.messageSha256 },
+    { status: "pending", messageSha256: resolved.messageSha256 },
+  ]);
+  assert.deepEqual(resolved.projection, table);
+  assert.equal(resolved.occurrenceId, options.occurrenceId);
+  assert.equal(resolved.runId, "run-1");
+  assert.equal(resolved.deliveryOccurrenceId, retryOccurrence);
+  assert.equal(resolved.deliveryRunId, "retry-run");
+  assert.equal(resolved.status, "sent");
+  assert.equal(resolved.providerMessageId, "provider-message-2");
+  assert.equal(resolved.resolutionKind, "duplicate");
+  assert.equal(messages[0].message, messages[1].message);
+  assert.equal(messages[0].eventKey, messages[1].eventKey);
+});
+
+test("same-period duplicate creates no new B7 source snapshot", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "sent");
+  assert.equal((await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:run-2",
+    now: "2026-09-30T12:00:00Z" })).status, "quiet");
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+  assert.deepEqual(readbackFiles(options.stateDir), [`${options.occurrenceId}.json`]);
+});
+
+test("legacy pending delivery without a source snapshot retries without inventing one", async t => {
+  const { options, messages } = setup(t);
+  const date = "2026-09-30";
+  const now = new Date("2026-09-30T12:00:00Z");
+  const destinationHash = crypto.createHash("sha256").update(options.reportEmail).digest("hex");
+  const message = "legacy pending report";
+  fs.writeFileSync(path.join(options.stateDir, "last-result-report.json"), JSON.stringify({
+    status: "pending", subjectId: options.subjectId, periodKey: `${date}:12`, reportingDate: date,
+    channel: "email", recipientHash: destinationHash, eventKey: "legacy-event", message,
+    messageSha256: crypto.createHash("sha256").update(message).digest("hex"),
+    occurrenceId: options.occurrenceId, createdAt: now.toISOString(),
+  }));
+  let collects = 0;
+
+  assert.equal((await runResultCfo({ ...options, now, collect: async () => { collects += 1; return b7Table(date); },
+    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "legacy-id" }; } })).status, "sent");
+
+  assert.equal(collects, 0);
+  assert.equal(messages[0].message, message);
+  assert.deepEqual(readbackFiles(options.stateDir), []);
+});
+
+test("B7 readback directory symlink is rejected before notification", async t => {
+  const { options } = setup(t);
+  const outside = path.join(options.stateDir, "outside");
+  fs.mkdirSync(outside);
+  fs.symlinkSync(outside, path.join(options.stateDir, "b7-readbacks"), "dir");
+  let notified = false;
+
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z",
+    notify: async () => { notified = true; return { delivery: "delivered", provider_message_id: "id" }; } }),
+  /cfo_b7_readback_path_invalid/);
+
+  assert.equal(notified, false);
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
 test("hourly report has one receipt per hour, reflects new income next hour", async t => {
   const { options, messages, change } = setup(t);
   const first = await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
@@ -27,8 +200,10 @@ test("hourly report has one receipt per hour, reflects new income next hour", as
   assert.match(firstState.messageSha256, /^[a-f0-9]{64}$/);
   assert.equal(firstState.resolutionKind, "sent");
   change("2");
-  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:57:00Z" })).status, "quiet");
-  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T13:00:00Z" })).status, "sent");
+  assert.equal((await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:run-2",
+    now: "2026-09-30T12:57:00Z" })).status, "quiet");
+  assert.equal((await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:run-3",
+    now: "2026-09-30T13:00:00Z" })).status, "sent");
   assert.equal(messages.length, 2); assert.match(messages[1].message, /USD 2/);
   assert.notEqual(messages[0].eventKey, messages[1].eventKey);
 });
