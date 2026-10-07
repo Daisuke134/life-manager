@@ -17,8 +17,8 @@ const {
 
 const observedAt = "2026-09-07T06:00:00.000Z";
 
-test("normalizeAccounts preserves the bank label without account identifiers", () => {
-  const [account] = normalizeAccounts({ structuredContent: { data: {
+test("normalizeAccounts preserves safe institution labels without account identifiers", () => {
+  const [account, secondAccount] = normalizeAccounts({ structuredContent: { data: {
     baseCurrency: "JPY",
     accountGroups: {
       banks: [{
@@ -26,10 +26,16 @@ test("normalizeAccounts preserves the bank label without account identifiers", (
         institutionName: "三菱UFJ銀行",
         accounts: [{
           id: "provider-account-id-901",
-          nickname: "普通",
+          nickname: "普通 1234567",
           account_number: "1234567",
           account_subtype: "ordinary",
           current_balance_in_base: 26800,
+        }, {
+          id: "provider-account-id-902",
+          institution_account_name: "当座",
+          account_number: "7654321",
+          account_subtype: "checking",
+          current_balance_in_base: 10000,
         }],
       }],
       investments: [],
@@ -37,9 +43,11 @@ test("normalizeAccounts preserves the bank label without account identifiers", (
   } } }, observedAt);
 
   assert.equal(account.name, "三菱UFJ銀行 普通");
+  assert.equal(secondAccount.name, "三菱UFJ銀行 当座");
   for (const identifier of ["provider-bank-key-501", "provider-account-id-901", "1234567"]) {
     assert.equal(account.name.includes(identifier), false);
   }
+  assert.equal(secondAccount.name.includes("7654321"), false);
 });
 
 test("Moneytree balances and transactions project to distinct personal FinancialRecords", () => {

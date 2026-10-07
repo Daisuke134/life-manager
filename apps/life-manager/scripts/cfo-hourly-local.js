@@ -117,18 +117,18 @@ function shiftDays(value, amount) {
 }
 
 function moneytreeWindows(reportDate) {
-  const start = shiftMonths(reportDate, -12);
   const windows = [];
-  let windowStart = start;
-  for (let index = 0; index < 4; index += 1) {
-    const windowEnd = index === 3 ? reportDate : shiftDays(shiftMonths(windowStart, 3), -1);
+  let windowStart = shiftMonths(reportDate, -12);
+  while (windowStart <= reportDate) {
+    const maxInclusiveEnd = shiftDays(shiftMonths(windowStart, 3), -1);
+    const windowEnd = maxInclusiveEnd < reportDate ? maxInclusiveEnd : reportDate;
     windows.push({ startDate: windowStart, endDate: windowEnd });
     windowStart = shiftDays(windowEnd, 1);
   }
   return windows;
 }
 
-function readPersonalCache(file, now) {
+function readPersonalCache(file, now, reportDate) {
   try {
     const cached = JSON.parse(fs.readFileSync(file, "utf8"));
     if (cached?.schema_version !== 1 || !cached.personal_moneytree
@@ -136,7 +136,9 @@ function readPersonalCache(file, now) {
     const age = now.getTime() - Date.parse(cached.cached_at);
     return {
       personal: cached.personal_moneytree,
-      fresh: Number.isFinite(age) && age >= 0 && age < PERSONAL_CACHE_TTL_MS,
+      fresh: Number.isFinite(age) && age >= 0 && age < PERSONAL_CACHE_TTL_MS
+        && cached.personal_moneytree.range_start === shiftMonths(reportDate, -12)
+        && cached.personal_moneytree.range_end === reportDate,
     };
   } catch {
     return null;
@@ -166,6 +168,25 @@ function normalizedMerchant(value) {
   return label && !label.includes("@") ? label.slice(0, 80) : null;
 }
 
+function monthsInRange(startDate, endDate) {
+  const months = [];
+  let cursor = `${startDate.slice(0, 7)}-01`;
+  const last = `${endDate.slice(0, 7)}-01`;
+  while (cursor <= last) {
+    months.push(cursor.slice(0, 7));
+    const [year, month] = cursor.split("-").map(Number);
+    cursor = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+  }
+  return months;
+}
+
+function monthOverlapsWindow(month, window) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const first = `${month}-01`;
+  const last = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  return window.startDate <= last && window.endDate >= first;
+}
+
 function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
   const unique = new Map();
   for (const item of windowsWithRows) {
@@ -175,21 +196,35 @@ function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
         || !Number.isFinite(Date.parse(transaction.occurred_at))) {
         throw new Error("Moneytree normalized transaction invalid");
       }
-      if (!unique.has(transaction.id)) unique.set(transaction.id, transaction);
+      if (!unique.has(transaction.id)) {
+        unique.set(transaction.id, { transaction, evidence_refs: new Set(), window_statuses: new Set() });
+      }
+      const entry = unique.get(transaction.id);
+      if (item.evidence_ref) entry.evidence_refs.add(item.evidence_ref);
+      entry.window_statuses.add(item.coverage_status);
     }
   }
 
-  const months = new Map();
+  const months = new Map(monthsInRange(shiftMonths(reportDate, -12), reportDate).map((month) => {
+    const overlappingWindows = windowsWithRows.filter((window) => monthOverlapsWindow(month, window));
+    return [month, {
+      month, income_jpy: null, expense_jpy: null, cash_movement_jpy: null,
+      categoryMap: new Map(), hasTransactions: false,
+      window_statuses: overlappingWindows.map((window) => window.coverage_status),
+      evidence_refs: new Set(overlappingWindows.map((window) => window.evidence_ref).filter(Boolean)),
+    }];
+  }));
   const recurring = new Map();
   let latestTransactionDate = null;
-  for (const transaction of unique.values()) {
+  for (const { transaction, evidence_refs: transactionEvidenceRefs, window_statuses: transactionStatuses } of unique.values()) {
     const date = new Date(transaction.occurred_at).toISOString().slice(0, 10);
     if (!latestTransactionDate || date > latestTransactionDate) latestTransactionDate = date;
     const month = date.slice(0, 7);
-    if (!months.has(month)) months.set(month, {
-      month, income_jpy: null, expense_jpy: null, cash_movement_jpy: null, categoryMap: new Map(),
-    });
     const summary = months.get(month);
+    if (!summary) throw new Error("Moneytree transaction is outside its requested range");
+    summary.hasTransactions = true;
+    for (const receipt of transactionEvidenceRefs) summary.evidence_refs.add(receipt);
+    summary.window_statuses.push(...transactionStatuses);
     const category = String(transaction.category || "未分類").trim() || "未分類";
     if (!summary.categoryMap.has(category)) summary.categoryMap.set(category, {
       category, income_jpy: null, expense_jpy: null, cash_movement_jpy: null,
@@ -208,44 +243,63 @@ function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
       addObservedAmount(categorySummary, "expense_jpy", amount);
       const merchant = normalizedMerchant(transaction.merchant);
       if (merchant) {
-        if (!recurring.has(merchant)) recurring.set(merchant, { months: new Set(), total_observed_jpy: 0 });
+        if (!recurring.has(merchant)) recurring.set(merchant, {
+          months: new Set(), total_observed_jpy: 0, evidence_refs: new Set(),
+        });
         const candidate = recurring.get(merchant);
         candidate.months.add(month);
         candidate.total_observed_jpy += amount;
+        for (const receipt of transactionEvidenceRefs) candidate.evidence_refs.add(receipt);
         if (!Number.isSafeInteger(candidate.total_observed_jpy)) throw new Error("Moneytree recurring total is unsafe");
       }
     }
   }
 
-  const balances = accounts.map((account) => {
+  const accountEvidenceRef = windowsWithRows.find((window) => window.evidence_ref)?.evidence_ref || null;
+  const balances = accountEvidenceRef ? accounts.map((account) => {
     if (typeof account.name !== "string" || !account.name.trim() || !Number.isSafeInteger(account.balance_jpy)) {
       throw new Error("Moneytree normalized account invalid");
     }
-    return { institution: account.name.trim(), balance_jpy: account.balance_jpy, observed_at: account.observed_at };
-  });
+    return {
+      institution: account.name.trim(), balance_jpy: account.balance_jpy,
+      observed_at: account.observed_at, evidence_ref: accountEvidenceRef,
+    };
+  }) : [];
+  const hasReceipt = windowsWithRows.some((window) => Boolean(window.evidence_ref));
+  const allComplete = windowsWithRows.length > 0
+    && windowsWithRows.every((window) => window.coverage_status === "complete");
   return {
     schema_version: 1,
     owner: "dais_personal",
-    status: windowsWithRows.every((item) => item.coverage_status === "complete") ? "observed" : "partial",
+    status: allComplete ? "observed" : hasReceipt ? "partial" : "unavailable",
     observed_at: windowsWithRows.map((item) => item.observed_at).filter(Boolean).sort().at(-1) || null,
     provider_sync_at: null,
     freshness_status: "unknown",
     range_start: shiftMonths(reportDate, -12),
     range_end: reportDate,
-    windows: windowsWithRows.map(({ startDate, endDate, provider_total_count, returned_count, limit, coverage_status, evidence_ref }) => ({
+    account_evidence_ref: accountEvidenceRef,
+    windows: windowsWithRows.map(({ startDate, endDate, provider_total_count, returned_count, limit, coverage_status, evidence_ref, error_class }) => ({
       query_start_date: startDate, query_end_date: endDate,
-      provider_total_count, returned_count, limit, coverage_status, evidence_ref,
+      provider_total_count, returned_count, limit, coverage_status, evidence_ref, error_class: error_class || null,
     })),
     balances,
     latest_transaction_date: latestTransactionDate,
-    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).map(({ categoryMap, ...month }) => ({
-      ...month,
-      categories: [...categoryMap.values()].sort((a, b) => a.category.localeCompare(b.category)),
-    })),
+    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).map((month) => {
+      const { categoryMap, hasTransactions, window_statuses: statuses, evidence_refs: refs, ...summary } = month;
+      const status = !hasTransactions ? "unknown"
+        : statuses.length && statuses.every((value) => value === "complete") ? "observed" : "partial";
+      return {
+        ...summary,
+        coverage_status: status,
+        evidence_refs: [...refs].sort(),
+        categories: [...categoryMap.values()].sort((a, b) => a.category.localeCompare(b.category)),
+      };
+    }),
     recurring_charge_candidates: [...recurring.entries()]
       .filter(([, candidate]) => candidate.months.size >= 2)
       .map(([merchant, candidate]) => ({
         merchant, month_count: candidate.months.size, total_observed_jpy: candidate.total_observed_jpy,
+        evidence_refs: [...candidate.evidence_refs].sort(),
       }))
       .sort((a, b) => a.merchant.localeCompare(b.merchant)),
   };
@@ -253,7 +307,7 @@ function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
 
 async function readPersonalMoneytree(date, options, now, stateDir) {
   const cacheFile = path.join(stateDir, "personal-moneytree-snapshot.json");
-  const cached = readPersonalCache(cacheFile, now);
+  const cached = readPersonalCache(cacheFile, now, date);
   if (cached?.fresh) return cached.personal;
 
   try {
@@ -267,42 +321,68 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
     });
     const windowsWithRows = [];
     for (const { startDate, endDate } of moneytreeWindows(date)) {
-      const transactions = await readTransactions({
-        startDate, endDate, limit: MONEYTREE_TRANSACTION_LIMIT, ...(options.moneytreeOptions || {}),
-      });
-      if (!Array.isArray(transactions)) throw new Error("Moneytree transaction read invalid");
-      const transactionRead = transactions[moneytree.MONEYTREE_OBSERVATION];
-      if (transactionRead?.query_start_date !== startDate || transactionRead?.query_end_date !== endDate
-        || transactionRead?.returned_count !== transactions.length) {
-        throw new Error("Moneytree transaction coverage metadata invalid");
+      try {
+        const transactions = await readTransactions({
+          startDate, endDate, limit: MONEYTREE_TRANSACTION_LIMIT, ...(options.moneytreeOptions || {}),
+        });
+        if (!Array.isArray(transactions)) throw new Error("Moneytree transaction read invalid");
+        const transactionRead = transactions[moneytree.MONEYTREE_OBSERVATION];
+        if (transactionRead?.query_start_date !== startDate || transactionRead?.query_end_date !== endDate
+          || transactionRead?.returned_count !== transactions.length) {
+          throw new Error("Moneytree transaction coverage metadata invalid");
+        }
+        const observedAt = [accountRead?.retrieved_at, transactionRead?.retrieved_at]
+          .filter((value) => Number.isFinite(Date.parse(value))).sort().at(-1);
+        const receipt = buildMoneytreeObservation({
+          accounts, transactions, accountRead, transactionRead, observedAt,
+        });
+        const evidenceRef = evidenceStore.record(receipt);
+        const providerTotal = transactionRead.provider_total_count;
+        const limit = transactionRead.limit;
+        const complete = Number.isSafeInteger(providerTotal) && providerTotal === transactions.length
+          && Number.isSafeInteger(limit) && transactions.length < limit;
+        const coverageStatus = !Number.isSafeInteger(providerTotal) ? "unknown"
+          : providerTotal === 0 && transactions.length === 0 ? "unknown"
+            : complete ? "complete" : "partial";
+        windowsWithRows.push({
+          startDate, endDate,
+          provider_total_count: Number.isSafeInteger(providerTotal) ? providerTotal : null,
+          returned_count: transactions.length,
+          limit: Number.isSafeInteger(limit) ? limit : null,
+          coverage_status: coverageStatus,
+          evidence_ref: evidenceRef,
+          observed_at: observedAt,
+          error_class: null,
+          transactions,
+        });
+      } catch (error) {
+        windowsWithRows.push({
+          startDate, endDate, provider_total_count: null, returned_count: null,
+          limit: MONEYTREE_TRANSACTION_LIMIT, coverage_status: "unknown", evidence_ref: null,
+          observed_at: null, error_class: error?.name || "Error", transactions: [],
+        });
       }
-      const observedAt = [accountRead?.retrieved_at, transactionRead?.retrieved_at]
-        .filter((value) => Number.isFinite(Date.parse(value))).sort().at(-1);
-      const receipt = buildMoneytreeObservation({
-        accounts, transactions, accountRead, transactionRead, observedAt,
-      });
-      const evidenceRef = evidenceStore.record(receipt);
-      const providerTotal = transactionRead.provider_total_count;
-      const limit = transactionRead.limit;
-      const coverageStatus = Number.isSafeInteger(providerTotal)
-        && providerTotal === transactions.length && Number.isSafeInteger(limit)
-        && transactions.length < limit ? "complete" : "partial";
-      const read = {
-        startDate, endDate,
-        provider_total_count: Number.isSafeInteger(providerTotal) ? providerTotal : null,
-        returned_count: transactions.length,
-        limit: Number.isSafeInteger(limit) ? limit : null,
-        coverage_status: coverageStatus,
-        evidence_ref: evidenceRef,
-        observed_at: observedAt,
-      };
-      windowsWithRows.push({ ...read, transactions });
     }
     const personal = projectPersonalTransactions(accounts, windowsWithRows, date);
-    writeSnapshot(cacheFile, { schema_version: 1, cached_at: now.toISOString(), personal_moneytree: personal });
+    const cacheable = windowsWithRows.every((window) => Boolean(window.evidence_ref));
+    if (cacheable) {
+      writeSnapshot(cacheFile, { schema_version: 1, cached_at: now.toISOString(), personal_moneytree: personal });
+    }
+    if (!windowsWithRows.some((window) => window.evidence_ref) && cached?.personal) {
+      return {
+        ...cached.personal, status: "stale", freshness_status: "stale",
+        refresh_windows: personal.windows,
+      };
+    }
     return personal;
-  } catch {
-    if (cached?.personal) return { ...cached.personal, status: "stale", freshness_status: "stale" };
+  } catch (error) {
+    if (cached?.personal) return {
+      ...cached.personal, status: "stale", freshness_status: "stale",
+      refresh_windows: moneytreeWindows(date).map(({ startDate, endDate }) => ({
+        query_start_date: startDate, query_end_date: endDate,
+        coverage_status: "unknown", evidence_ref: null, error_class: error?.name || "Error",
+      })),
+    };
     return unavailablePersonal(date);
   }
 }

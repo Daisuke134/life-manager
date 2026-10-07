@@ -116,16 +116,23 @@ test("verified loop MRR stays visible while company and unknown loop MRR stay un
 });
 
 test("personal Moneytree balances and observed spending stay separate from company economics", () => {
+  const receiptRef = `moneytree-observation://sha256/${"a".repeat(64)}`;
   const personal = {
     schema_version: 1, owner: "dais_personal", status: "partial",
     observed_at: "2026-10-07T07:00:00.000Z", provider_sync_at: null,
     freshness_status: "unknown", range_start: "2025-10-07", range_end: "2026-10-07",
-    windows: [{ coverage_status: "complete" }, { coverage_status: "partial" }],
-    balances: [{ institution: "三菱UFJ銀行 普通", balance_jpy: 42000, observed_at: "2026-10-07T07:00:00.000Z" }],
+    windows: [
+      { coverage_status: "complete", evidence_ref: receiptRef },
+      { coverage_status: "partial", evidence_ref: receiptRef },
+    ],
+    balances: [{ institution: "三菱UFJ銀行 普通", balance_jpy: 42000,
+      observed_at: "2026-10-07T07:00:00.000Z", evidence_ref: receiptRef }],
     monthly: [{ month: "2026-09", income_jpy: null, expense_jpy: 1000, cash_movement_jpy: null,
+      coverage_status: "observed", evidence_refs: [receiptRef],
       categories: [{ category: "娯楽", expense_jpy: 1000 }] }],
     latest_transaction_date: "2026-09-05",
-    recurring_charge_candidates: [{ merchant: "Video Service", month_count: 2, total_observed_jpy: 2200 }],
+    recurring_charge_candidates: [{ merchant: "Video Service", month_count: 2, total_observed_jpy: 2200,
+      evidence_refs: [receiptRef] }],
   };
   const text = renderResultSummary({
     ...table([row("capafy", "verified", { USD: "5" })]), personal_moneytree: personal,
@@ -137,6 +144,7 @@ test("personal Moneytree balances and observed spending stay separate from compa
   assert.match(text, /三菱UFJ銀行 普通.*¥42,000/);
   assert.match(text, /2026-09.*収入 未確認.*支出.*¥1,000/);
   assert.match(text, /定期支出候補.*Video Service.*2か月.*¥2,200/);
+  assert.match(text, /receipt: moneytree-observation:\/\/sha256\//);
   assert.match(text, /USD 5/);
   assert.doesNotMatch(text, /差引:.*個人/);
 });
@@ -154,6 +162,28 @@ test("personal Moneytree with no observed flow never renders missing amounts as 
   assert.match(text, /個人 Moneytree/);
   assert.match(text, /残高: 未確認/);
   assert.match(text, /取引集計: 未確認/);
+  assert.doesNotMatch(text, /¥0/);
+});
+
+test("empty Moneytree months remain visible as unknown with their source receipt", () => {
+  const receiptRef = `moneytree-observation://sha256/${"b".repeat(64)}`;
+  const text = renderResultSummary({
+    ...table([row("capafy", "unverified")]),
+    personal_moneytree: {
+      schema_version: 1, owner: "dais_personal", status: "partial",
+      observed_at: "2026-10-07T07:00:00.000Z", provider_sync_at: null,
+      freshness_status: "unknown", range_start: "2025-10-07", range_end: "2026-10-07",
+      windows: [{ query_start_date: "2025-10-07", query_end_date: "2026-01-06",
+        provider_total_count: 0, returned_count: 0, limit: 1000,
+        coverage_status: "unknown", evidence_ref: receiptRef }],
+      balances: [],
+      monthly: [{ month: "2025-10", income_jpy: null, expense_jpy: null,
+        cash_movement_jpy: null, coverage_status: "unknown", evidence_refs: [receiptRef], categories: [] }],
+      latest_transaction_date: null, recurring_charge_candidates: [],
+    },
+  });
+  assert.match(text, /2025-10 \(unknown\): 収入 未確認 \/ 支出（観測小計） 未確認/);
+  assert.match(text, /window 2025-10-07\.\.2026-01-06: unknown \(0\/0\) receipt: moneytree-observation/);
   assert.doesNotMatch(text, /¥0/);
 });
 

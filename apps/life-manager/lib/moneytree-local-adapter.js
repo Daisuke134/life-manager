@@ -102,13 +102,17 @@ function normalizeAccounts(toolResult, observedAt) {
   if (!data || data.baseCurrency !== "JPY") throw new Error("Moneytree JPY account data is unavailable");
   observedAt = instant(observedAt, "Moneytree account observation");
   const groups = [...(data.accountGroups?.banks || []), ...(data.accountGroups?.investments || [])];
+  const safeLabelPart = (value) => {
+    if (typeof value !== "string" || value.includes("@")) return "";
+    return value.normalize("NFKC").replace(/(?:\d[\d\s-]*\d|\d)/g, " ")
+      .replace(/[\s._:-]+$/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+  };
   return groups.flatMap((group) => (group.accounts || []).map((account) => {
     const balance = account.current_balance_in_base ?? account.current_balance;
     const key = `${group.institutionKey}:${account.id}`;
-    const name = [group.institutionName, account.nickname]
-      .filter((part) => typeof part === "string" && part.trim())
-      .map((part) => part.trim())
-      .join(" ");
+    const name = [safeLabelPart(group.institutionName),
+      safeLabelPart(account.nickname || account.institution_account_name)]
+      .filter(Boolean).join(" ");
     return validateFinancialRecord("account", {
       id: `moneytree:${createHash("sha256").update(key).digest("hex").slice(0, 24)}`,
       source: "moneytree",

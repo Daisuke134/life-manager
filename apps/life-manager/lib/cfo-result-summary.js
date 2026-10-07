@@ -37,7 +37,7 @@ function renderPersonalMoneytree(personal) {
   ];
   if (Array.isArray(personal.balances) && personal.balances.length) {
     for (const balance of personal.balances) {
-      lines.push(`残高（最終観測）: ${balance.institution} ${jpy(balance.balance_jpy)} (${balance.observed_at || "観測時刻未確認"})`);
+      lines.push(`残高（最終観測）: ${balance.institution} ${jpy(balance.balance_jpy)} (${balance.observed_at || "観測時刻未確認"}) receipt: ${balance.evidence_ref || "未取得"}`);
     }
   } else {
     lines.push("残高: 未確認");
@@ -45,14 +45,29 @@ function renderPersonalMoneytree(personal) {
   const windows = Array.isArray(personal.windows) ? personal.windows : [];
   const complete = windows.filter((window) => window.coverage_status === "complete").length;
   lines.push(`取引coverage: ${windows.length ? `${complete}/${windows.length} windows complete` : "未確認"} (${personal.range_start || "?"}..${personal.range_end || "?"})`);
+  for (const window of windows) {
+    const start = window.query_start_date || "?";
+    const end = window.query_end_date || "?";
+    const total = window.provider_total_count === null || window.provider_total_count === undefined
+      ? "未確認" : window.provider_total_count;
+    const returned = window.returned_count === null || window.returned_count === undefined
+      ? "未確認" : window.returned_count;
+    const failure = window.error_class ? ` error: ${window.error_class}` : "";
+    lines.push(`window ${start}..${end}: ${window.coverage_status || "unknown"} (${returned}/${total}) receipt: ${window.evidence_ref || "未取得"}${failure}`);
+  }
+  for (const window of personal.refresh_windows || []) {
+    lines.push(`refresh window ${window.query_start_date}..${window.query_end_date}: ${window.coverage_status || "unknown"} receipt: ${window.evidence_ref || "未取得"} error: ${window.error_class || "unknown"}`);
+  }
   if (Array.isArray(personal.monthly) && personal.monthly.length) {
     for (const month of personal.monthly) {
-      lines.push(`${month.month}: 収入 ${jpy(month.income_jpy)} / 支出（観測小計） ${jpy(month.expense_jpy)} / 現金移動 ${jpy(month.cash_movement_jpy)}`);
+      const receipts = Array.isArray(month.evidence_refs) && month.evidence_refs.length
+        ? month.evidence_refs.join(", ") : "未取得";
+      lines.push(`${month.month} (${month.coverage_status || "unknown"}): 収入 ${jpy(month.income_jpy)} / 支出（観測小計） ${jpy(month.expense_jpy)} / 現金移動 ${jpy(month.cash_movement_jpy)} receipt: ${receipts}`);
       for (const category of month.categories || []) {
         const observed = [
-          category.income_jpy !== null ? `収入 ${jpy(category.income_jpy)}` : null,
-          category.expense_jpy !== null ? `支出 ${jpy(category.expense_jpy)}` : null,
-          category.cash_movement_jpy !== null ? `現金移動 ${jpy(category.cash_movement_jpy)}` : null,
+          Number.isSafeInteger(category.income_jpy) ? `収入 ${jpy(category.income_jpy)}` : null,
+          Number.isSafeInteger(category.expense_jpy) ? `支出 ${jpy(category.expense_jpy)}` : null,
+          Number.isSafeInteger(category.cash_movement_jpy) ? `現金移動 ${jpy(category.cash_movement_jpy)}` : null,
         ].filter(Boolean);
         if (observed.length) lines.push(`  ${category.category}: ${observed.join(" / ")}`);
       }
@@ -65,7 +80,7 @@ function renderPersonalMoneytree(personal) {
     ? personal.recurring_charge_candidates : [];
   if (candidates.length) {
     lines.push(`定期支出候補（未確認）: ${candidates.map(candidate => (
-      `${candidate.merchant} ${candidate.month_count}か月 ${jpy(candidate.total_observed_jpy)}`
+      `${candidate.merchant} ${candidate.month_count}か月 ${jpy(candidate.total_observed_jpy)} receipt: ${(candidate.evidence_refs || []).join(", ") || "未取得"}`
     )).join(" / ")}`);
   } else {
     lines.push("定期支出候補: 未確認");

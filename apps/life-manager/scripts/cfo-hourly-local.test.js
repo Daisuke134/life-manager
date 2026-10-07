@@ -113,26 +113,27 @@ test("collectCfoProjection preserves business data and binds Moneytree evidence"
   const { personal_moneytree: personal, ...businessResult } = result;
   assert.deepEqual(businessResult, business);
   assert.equal(accountReads, 1);
-  assert.equal(ranges.length, 4);
-  assert.equal(personal.windows.length, 4);
+  assert.equal(ranges.length, 5);
+  assert.equal(personal.windows.length, 5);
   assert.ok(personal.windows.every((window) => window.evidence_ref.startsWith("moneytree-observation://sha256/")));
-  assert.equal(fs.readdirSync(path.join(root, "evidence", "moneytree")).length, 4);
+  assert.equal(fs.readdirSync(path.join(root, "evidence", "moneytree")).length, 5);
   const [collectorCall] = fs.readFileSync(python.callsPath, "utf8").trim().split("\n").map(JSON.parse);
   assert.deepEqual(collectorCall.args.slice(1), ["--date", date, "--json"]);
   assert.equal(collectorCall.marker, "preserved");
 });
 
-test("Moneytree reads cover four bounded windows and dedupe boundary rows", async (t) => {
+test("Moneytree reads cover inclusive bounded windows and dedupe boundary rows", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-windows-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const duplicate = { id: "tx-boundary", occurred_at: "2025-10-08", amount_jpy: -1000, category: "食費", merchant: "Market" };
   const fixture = collectorFixture(root, {
-    providerCounts: [1, 2, 1001, 1],
+    providerCounts: [1, 2, 1001, 0, 1],
     rowsForWindow: ({ index }) => [
       [duplicate],
       [duplicate, { id: "tx-feb", occurred_at: "2026-02-02", amount_jpy: -200, category: "交通", merchant: "Train" }],
       [{ id: "tx-may", occurred_at: "2026-05-03", amount_jpy: -300, category: "食費", merchant: "Market" }],
-      [{ id: "tx-latest", occurred_at: "2026-10-05", amount_jpy: 50000, category: "給与", merchant: "Salary" }],
+      [],
+      [{ id: "tx-latest", occurred_at: "2026-10-07", amount_jpy: 50000, category: "給与", merchant: "Salary" }],
     ][index],
   });
 
@@ -143,12 +144,35 @@ test("Moneytree reads cover four bounded windows and dedupe boundary rows", asyn
     { startDate: "2025-10-07", endDate: "2026-01-06" },
     { startDate: "2026-01-07", endDate: "2026-04-06" },
     { startDate: "2026-04-07", endDate: "2026-07-06" },
-    { startDate: "2026-07-07", endDate: "2026-10-07" },
+    { startDate: "2026-07-07", endDate: "2026-10-06" },
+    { startDate: "2026-10-07", endDate: "2026-10-07" },
   ]);
   assert.equal(personal.status, "partial");
   assert.equal(personal.windows[2].coverage_status, "partial");
-  assert.equal(personal.latest_transaction_date, "2026-10-05");
+  assert.equal(personal.latest_transaction_date, "2026-10-07");
   assert.equal(personal.monthly.find((month) => month.month === "2025-10").expense_jpy, 1000);
+});
+
+test("inclusive Moneytree chunks stay within three months at month-end and leap day", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-date-edges-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const cases = [
+    ["2026-03-31", [
+      ["2025-03-31", "2025-06-29"], ["2025-06-30", "2025-09-29"],
+      ["2025-09-30", "2025-12-29"], ["2025-12-30", "2026-03-29"], ["2026-03-30", "2026-03-31"],
+    ]],
+    ["2024-02-29", [
+      ["2023-02-28", "2023-05-27"], ["2023-05-28", "2023-08-27"],
+      ["2023-08-28", "2023-11-27"], ["2023-11-28", "2024-02-27"], ["2024-02-28", "2024-02-29"],
+    ]],
+  ];
+  for (const [index, [date, expected]] of cases.entries()) {
+    const caseRoot = path.join(root, String(index));
+    fs.mkdirSync(caseRoot);
+    const fixture = collectorFixture(caseRoot, { date });
+    await collectCfoProjection(date, fixture.options);
+    assert.deepEqual(fixture.counters.ranges.map(({ startDate, endDate }) => [startDate, endDate]), expected);
+  }
 });
 
 test("Moneytree without provider sync keeps freshness and empty flows unknown", async (t) => {
@@ -159,11 +183,15 @@ test("Moneytree without provider sync keeps freshness and empty flows unknown", 
   const result = await collectCfoProjection("2026-10-07", fixture.options);
   const personal = result.personal_moneytree;
 
-  assert.equal(personal.status, "observed");
+  assert.equal(personal.status, "partial");
   assert.equal(personal.provider_sync_at, null);
   assert.equal(personal.freshness_status, "unknown");
   assert.equal(personal.latest_transaction_date, null);
-  assert.deepEqual(personal.monthly, []);
+  assert.equal(personal.windows.length, 5);
+  assert.ok(personal.windows.every((window) => window.coverage_status === "unknown"));
+  assert.equal(personal.monthly.length, 13);
+  assert.ok(personal.monthly.every((month) => month.coverage_status === "unknown"
+    && month.income_jpy === null && month.expense_jpy === null && month.cash_movement_jpy === null));
 });
 
 test("Moneytree transfers are excluded and repeated merchants stay candidates", async (t) => {
@@ -185,25 +213,34 @@ test("Moneytree transfers are excluded and repeated merchants stay candidates", 
 
   assert.equal(october.expense_jpy, null);
   assert.equal(october.cash_movement_jpy, -17400);
-  assert.deepEqual(personal.recurring_charge_candidates, [
-    { merchant: "Video Service", month_count: 2, total_observed_jpy: 2200 },
-  ]);
+  assert.deepEqual(personal.recurring_charge_candidates.map(({ merchant, month_count, total_observed_jpy }) => ({
+    merchant, month_count, total_observed_jpy,
+  })), [{ merchant: "Video Service", month_count: 2, total_observed_jpy: 2200 }]);
+  assert.match(personal.recurring_charge_candidates[0].evidence_refs[0], /^moneytree-observation:\/\/sha256\/[a-f0-9]{64}$/);
   const storedCache = fs.readFileSync(path.join(root, "personal-moneytree-snapshot.json"), "utf8");
   assert.doesNotMatch(storedCache, /RAW_TRANSFER_DESC|RAW_CARD_DESC|RAW_ATM_DESC/);
 });
 
-test("Moneytree failure preserves business data and marks personal data unavailable", async (t) => {
+test("Moneytree window failure preserves business and successful observations", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-failure-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const fixture = collectorFixture(root, { failWindow: 0 });
+  const fixture = collectorFixture(root, { failWindow: 1 });
 
   const result = await collectCfoProjection("2026-10-07", fixture.options);
   const { personal_moneytree: personal, ...businessResult } = result;
 
   assert.deepEqual(businessResult, fixture.business);
-  assert.equal(personal.status, "unavailable");
+  assert.equal(personal.status, "partial");
   assert.equal(personal.freshness_status, "unknown");
-  assert.deepEqual(personal.balances, []);
+  assert.equal(personal.windows.length, 5);
+  assert.equal(personal.windows[1].coverage_status, "unknown");
+  assert.equal(personal.windows[1].evidence_ref, null);
+  assert.equal(personal.windows[1].error_class, "Error");
+  assert.ok(personal.windows[0].evidence_ref);
+  assert.ok(personal.windows[2].evidence_ref);
+  assert.ok(personal.balances[0].evidence_ref);
+  assert.equal(fixture.counters.transactionReads, 5);
+  assert.equal(fs.existsSync(path.join(root, "personal-moneytree-snapshot.json")), false);
 });
 
 test("Moneytree cache reuses a recent snapshot and never upgrades stale data", async (t) => {
@@ -222,11 +259,21 @@ test("Moneytree cache reuses a recent snapshot and never upgrades stale data", a
   assert.equal(recent.counters.transactionReads, 0);
   assert.equal(recentResult.personal_moneytree.freshness_status, "unknown");
 
-  const expired = collectorFixture(root, { failWindow: 0 });
-  expired.options.now = new Date("2026-10-08T08:30:00.000Z");
-  const staleResult = await collectCfoProjection("2026-10-07", expired.options);
+  const nextDate = collectorFixture(root, { date: "2026-10-08" });
+  nextDate.options.now = new Date("2026-10-07T08:30:00.000Z");
+  const nextDateResult = await collectCfoProjection("2026-10-08", nextDate.options);
+  assert.equal(nextDateResult.personal_moneytree.range_end, "2026-10-08");
+  assert.equal(nextDate.counters.accountReads, 1);
+  assert.equal(nextDate.counters.transactionReads, 5);
+
+  const expired = collectorFixture(root, { date: "2026-10-08" });
+  expired.options.now = new Date("2026-10-09T08:30:00.000Z");
+  expired.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
+  const staleResult = await collectCfoProjection("2026-10-08", expired.options);
   assert.equal(staleResult.personal_moneytree.status, "stale");
   assert.equal(staleResult.personal_moneytree.freshness_status, "stale");
+  assert.equal(staleResult.personal_moneytree.refresh_windows.length, 5);
+  assert.ok(staleResult.personal_moneytree.refresh_windows.every((window) => window.error_class === "Error"));
 });
 
 test("B7 pending retry reuses the frozen Moneytree report without recollecting", async (t) => {
@@ -267,7 +314,7 @@ test("B7 pending retry reuses the frozen Moneytree report without recollecting",
   assert.equal(messages[1].message, messages[0].message);
   assert.equal(collectCalls, 1);
   assert.equal(fixture.counters.accountReads, 1);
-  assert.equal(fixture.counters.transactionReads, 4);
+  assert.equal(fixture.counters.transactionReads, 5);
 });
 
 function revenue(overrides = {}) {
