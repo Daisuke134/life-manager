@@ -33,7 +33,7 @@ REPO = Path(__file__).resolve().parents[3]
 GUARD = REPO / "skills" / "browser" / "browser-guard.sh"
 IDENTITY = "line-creators:dais"
 LEDGER = Path.home() / ".local" / "state" / "life-manager" / "line-sticker" / "readback.jsonl"
-STATUSES = ("編集中", "審査待ち", "審査中", "承認", "リジェクト", "販売中", "販売停止", "販売開始待ち")
+STATUSES = ("編集中", "審査待ち", "審査中", "審査処理中", "承認", "リジェクト", "販売中", "販売停止", "販売開始待ち")
 MESSAGE_FOOTER = "このメッセージに返信することはできません。"
 
 
