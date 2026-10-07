@@ -41,15 +41,15 @@
 - Consumes: GSI GeoJSON `properties.title` and `[longitude, latitude]`; OpenPOI `/v1/search` and `/v1/suggest` response fields `count`, `results`/`suggestions`, `name`, `address`, `lat`, `lng`, `level`, `source`, `licenses`, and `attributions`.
 - Produces: a dated fixture matrix for A4.2 adapter tests; no runtime API or provider-selection behavior.
 
-- [ ] **Step 1: Write `geocode-free-candidates.test.js` first.** Load the named JSON fixture and assert the known-address precision loss, GSI ambiguity, OpenPOI conflicting exact-name coordinates, broad/unmatched result, zero-result/timeout, dataset freshness, and attribution-array invariants using literal expected values.
-- [ ] **Step 2: Verify RED.** Run `node --test apps/life-manager/lib/geocode-free-candidates.test.js`. The test may map only `ENOENT` to `{schema_version: 0, cases: []}`; other read/parse errors must still throw.
+- [x] **Step 1: Write `geocode-free-candidates.test.js` first.** Load the named JSON fixture and assert the known-address precision loss, GSI ambiguity, OpenPOI conflicting exact-name coordinates, broad/unmatched result, zero-result/timeout, dataset freshness, and attribution-array invariants using literal expected values.
+- [x] **Step 2: Verify RED.** Run `node --test apps/life-manager/lib/geocode-free-candidates.test.js`. The test may map only `ENOENT` to `{schema_version: 0, cases: []}`; other read/parse errors must still throw.
   **Expected:** assertion FAIL on the missing fixture's `schema_version` (0, expected 1), not a test-run error.
-- [ ] **Step 3: Add the minimal fixture.** Include the 2026-10-07 GSI full-address/ambiguous/no-result samples; OpenPOI broad search, station suggestions, branch no-result, dataset release/cadence, and a clearly labeled synthetic timeout case. Keep each included POI's complete observed license and attribution arrays.
-- [ ] **Step 4: Verify GREEN.** Run `node --test apps/life-manager/lib/geocode-free-candidates.test.js`.
+- [x] **Step 3: Add the minimal fixture.** Include the 2026-10-07 GSI full-address/ambiguous/no-result samples; OpenPOI broad search, station suggestions, branch no-result, dataset release/cadence, and a clearly labeled synthetic timeout case. Keep each included POI's complete observed license and attribution arrays.
+- [x] **Step 4: Verify GREEN.** Run `node --test apps/life-manager/lib/geocode-free-candidates.test.js`.
   **Expected:** all fixture contract tests pass without network access.
-- [ ] **Step 5: Run the focused regression.** Run `node --test apps/life-manager/lib/geocode-free-candidates.test.js apps/life-manager/lib/geocode-cache.test.js`.
+- [x] **Step 5: Run the focused regression.** Run `node --test apps/life-manager/lib/geocode-free-candidates.test.js apps/life-manager/lib/geocode-cache.test.js`.
   **Expected:** all fixture and existing geocode-cache tests pass; no production source file changed.
-- [ ] **Step 6: Review diff and commit Task 1.** Run `git diff --check`; confirm the fixture contains no credentials or personal calendar data; commit the plan, fixture, and test.
+- [x] **Step 6: Review diff and commit Task 1.** Run `git diff --check`; confirm the fixture contains no credentials or personal calendar data; commit the plan, fixture, and test.
 
 ### Task 2: Advance the canonical A4.1 cursor
 
