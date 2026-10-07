@@ -1,5 +1,7 @@
 # Life Manager Web-First Travel Implementation Plan
 
+> **Superseded for future UX/billing work:** this earlier task plan still assumes a required home address, a dashboard, and a three-day app trial. Do not execute its remaining UI/billing steps as written. The current product behavior and ordered TODO are in `../specs/2026-10-06-life-manager-web-first-travel-design.md` and `../specs/2026-09-25-life-manager-unified-ssot.md`; refresh this plan after WB-03 before implementation continues.
+
 > **For agentic workers:** Use `superpowers:subagent-driven-development` to execute the tasks in order. Keep one owner per worktree and lease. Do not modify production state from a feature worktree.
 
 **Goal:** Let a customer use Life Manager from a browser, connect Google Calendar, enter a home location, and see the shared travel engine add a correctly timed Travel block without Telegram.
