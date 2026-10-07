@@ -287,6 +287,52 @@ test("Moneytree cache reuses a recent snapshot and never upgrades stale data", a
   assert.ok(staleResult.personal_moneytree.refresh_windows.every((window) => window.error_class === "Error"));
 });
 
+test("Moneytree cache write failure preserves fresh receipt-backed observations", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-cache-write-fail-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root);
+  const cachePath = path.join(root, "personal-moneytree-snapshot.json");
+  const renameSync = fs.renameSync;
+  fs.renameSync = function (source, target) {
+    if (target === cachePath) throw new Error("fixture cache write failure");
+    return renameSync.call(fs, source, target);
+  };
+  let result;
+  try {
+    result = await collectCfoProjection("2026-10-07", fixture.options);
+  } finally {
+    fs.renameSync = renameSync;
+  }
+
+  assert.equal(result.personal_moneytree.status, "partial");
+  assert.equal(result.personal_moneytree.cache_status, "write_failed");
+  assert.equal(result.personal_moneytree.cache_error_class, "Error");
+  assert.equal(result.personal_moneytree.balances[0].balance_jpy, 42000);
+  assert.ok(result.personal_moneytree.windows.every((window) => window.evidence_ref));
+  assert.equal(fs.existsSync(cachePath), false);
+});
+
+test("future or invalid cache timestamps are rejected, not shown stale", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-cache-invalid-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root);
+  fixture.options.now = new Date("2026-10-07T23:00:00.000Z");
+  fixture.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
+  fs.writeFileSync(path.join(root, "personal-moneytree-snapshot.json"), JSON.stringify({
+    schema_version: 1,
+    cached_at: "2026-10-08T00:00:00.000Z",
+    personal_moneytree: {
+      schema_version: 1, owner: "dais_personal", status: "observed",
+      range_start: "2025-10-07", range_end: "2026-10-07",
+      freshness_status: "unknown", balances: [{ institution: "MUFG", balance_jpy: 999999 }],
+    },
+  }), { mode: 0o600 });
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  assert.equal(result.personal_moneytree.status, "unavailable");
+  assert.deepEqual(result.personal_moneytree.balances, []);
+});
+
 test("B7 pending retry reuses the frozen Moneytree report without recollecting", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-b7-retry-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

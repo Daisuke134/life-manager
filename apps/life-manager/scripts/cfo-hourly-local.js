@@ -136,9 +136,10 @@ function readPersonalCache(file, now, reportDate) {
     if (cached.personal_moneytree.range_start !== shiftMonths(reportDate, -12)
       || cached.personal_moneytree.range_end !== reportDate) return null;
     const age = now.getTime() - Date.parse(cached.cached_at);
+    if (!Number.isFinite(age) || age < 0) return null;
     return {
       personal: cached.personal_moneytree,
-      fresh: Number.isFinite(age) && age >= 0 && age < PERSONAL_CACHE_TTL_MS,
+      fresh: age < PERSONAL_CACHE_TTL_MS,
     };
   } catch {
     return null;
@@ -385,7 +386,12 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
     const personal = projectPersonalTransactions(accounts, windowsWithRows, date);
     const cacheable = windowsWithRows.every((window) => Boolean(window.evidence_ref));
     if (cacheable) {
-      writeSnapshot(cacheFile, { schema_version: 1, cached_at: now.toISOString(), personal_moneytree: personal });
+      try {
+        writeSnapshot(cacheFile, { schema_version: 1, cached_at: now.toISOString(), personal_moneytree: personal });
+      } catch (error) {
+        personal.cache_status = "write_failed";
+        personal.cache_error_class = error?.name || "Error";
+      }
     }
     if (!windowsWithRows.some((window) => window.evidence_ref) && cached?.personal) {
       return {

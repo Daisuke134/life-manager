@@ -35,6 +35,9 @@ function renderPersonalMoneytree(personal) {
     "個人 Moneytree（会社P&Lには合算しない）",
     `状態: ${personal.status || "unknown"} | freshness: ${personal.freshness_status || "unknown"} (provider sync: 未確認)`,
   ];
+  if (personal.cache_status === "write_failed") {
+    lines.push(`snapshot cache: write_failed (${personal.cache_error_class || "unknown"})`);
+  }
   if (Array.isArray(personal.balances) && personal.balances.length) {
     for (const balance of personal.balances) {
       lines.push(`残高（最終観測）: ${balance.institution} ${jpy(balance.balance_jpy)} (${balance.observed_at || "観測時刻未確認"}) receipt: ${balance.evidence_ref || "未取得"}`);
