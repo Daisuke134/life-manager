@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const { resolveWebUser } = require("./web-auth.js");
+const { webTravelEntitled, webTrialEligible, webPaidCheckoutEligible } = require("./billing.js");
 const { assertWebUserUnbound } = require("./web-calendar.js");
 const { readWebTravelControlState } = require("./runtime-preferences.js");
 const { isTravel, listEvents7d, travelDecision } = require("./travel.js");
@@ -11,7 +12,7 @@ const TODAY_PATH = "/api/lm-web/today";
 const CONTROL_PATH = "/api/lm-web/travel/control";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{3,128}$/;
-const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid,plan_status,stripe_subscription_id,current_period_end,web_initial_scan_completed_at,web_first_travel_at";
+const SERVICE_FIELDS = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,home_address,trial_expires_at,paid,plan_status,stripe_customer_id,stripe_subscription_id,current_period_end,web_initial_scan_completed_at,web_first_travel_at";
 
 function requestUrl(req) {
   try { return new URL(req.url || "/", "http://life-manager.local"); }
@@ -171,7 +172,7 @@ async function runInitialWebTravelScan(uid, opts = {}) {
     const snapshot = await buildTodaySnapshot(uid, opts);
     return Object.assign(snapshot, {
       scanState: initialRow.web_first_travel_at ? "complete" : "zero_blocks",
-      checkoutAvailable: Boolean(initialRow.web_first_travel_at && !initialRow.stripe_subscription_id),
+      checkoutAvailable: webTrialEligible(initialRow),
     });
   }
   if (initialRow.stripe_subscription_id && initialRow.paid === true) {
@@ -245,6 +246,12 @@ function matchingTravelBlocks(events, event) {
     && String(candidate.location || "").replace(/\s+/g, "").toLowerCase() === location);
 }
 
+function hasDeparturePopupReminder(event) {
+  return Boolean(event && event.reminders && event.reminders.useDefault === false
+    && Array.isArray(event.reminders.overrides)
+    && event.reminders.overrides.some((reminder) => reminder && reminder.method === "popup" && reminder.minutes === 0));
+}
+
 function confirmedTravelBlockCount(events, nowMs) {
   const blocks = new Set();
   for (const event of events) {
@@ -252,6 +259,7 @@ function confirmedTravelBlockCount(events, nowMs) {
     const matches = matchingTravelBlocks(events, event);
     if (matches.length !== 1) continue;
     const block = matches[0];
+    if (!hasDeparturePopupReminder(block)) continue;
     blocks.add(block.id || `${block.startMs}:${block.endMs}:${block.location || ""}`);
   }
   return blocks.size;
@@ -284,15 +292,51 @@ function baseSnapshot(row, setupState, calendarState) {
     confirmedTravelBlockCount: 0,
     scanState: null,
     checkoutAvailable: false,
+    subscriptionCheckoutAvailable: false,
     trialExpiresAt: row && row.trial_expires_at || null,
     paid: row && typeof row.paid === "boolean" ? row.paid : null,
     planStatus: row && row.plan_status || null,
+    stripeCustomerId: row && row.stripe_customer_id || null,
     stripeSubscriptionId: row && row.stripe_subscription_id || null,
   };
 }
 
 async function buildTodaySnapshot(uid, opts = {}) {
   if (!WEB_UID_RE.test(String(uid || ""))) throw webError(401, "unauthorized");
+  const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
+  const firstRow = await readWebUserRow(uid, opts);
+  await assertUnbound(uid, opts);
+  if (firstRow.web_first_travel_at && !webTrialEligible(firstRow) && !webTravelEntitled(firstRow, nowMs)) {
+    const snapshot = Object.assign(baseSnapshot(firstRow, "billing_inactive", "connected"),
+      await readWebAutomationPreference(uid, opts));
+    snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(firstRow);
+    return snapshot;
+  }
+  if (firstRow.web_first_travel_at) {
+    let active;
+    try { active = await readActiveCalendarUser(uid, opts); }
+    catch (error) {
+      if (error && error.code === "calendar_status_unavailable") {
+        return Object.assign(baseSnapshot(error.userRow, "sync_pending", "unavailable"),
+          await readWebAutomationPreference(uid, opts));
+      }
+      throw error;
+    }
+    const preference = await readWebAutomationPreference(uid, opts);
+    if (active.status !== "ACTIVE") {
+      return Object.assign(baseSnapshot(active.row, "needs_calendar", "action_required"), preference);
+    }
+    const trialEligible = webTrialEligible(active.row);
+    const entitled = webTravelEntitled(active.row, nowMs);
+    const setupState = trialEligible ? "trial_offer"
+      : entitled ? String(active.row.plan_status || "").toLowerCase() === "trialing" ? "trial_active" : "subscribed"
+        : "billing_inactive";
+    const snapshot = Object.assign(baseSnapshot(active.row, setupState, "connected"), preference);
+    snapshot.scanState = "complete";
+    snapshot.checkoutAvailable = trialEligible;
+    snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(active.row);
+    return snapshot;
+  }
   let current;
   try { current = await readActiveCalendarUser(uid, opts); }
   catch (error) {
@@ -308,7 +352,6 @@ async function buildTodaySnapshot(uid, opts = {}) {
     return Object.assign(baseSnapshot(row, "needs_calendar", "action_required"), preference);
   }
 
-  const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
   // The selected account's exact ACTIVE result above is still current only if its marker is unchanged.
   // Re-read that row and run Task 2's NULL-Telegram check immediately before the Calendar event read.
   const beforeReadRow = await readWebUserRow(uid, opts);
@@ -347,7 +390,7 @@ async function buildTodaySnapshot(uid, opts = {}) {
     && !isTravel(event.summary)
     && !String(event.location || "").trim()).length;
 
-  if (matches.length > 1) snapshot.setupState = "sync_pending";
+  if (matches.length > 1 || matches.length === 1 && !hasDeparturePopupReminder(matches[0])) snapshot.setupState = "sync_pending";
   else if (nextEvent && nextEvent.location) {
     const previous = ordered.filter((event) => event.startMs < nextEvent.startMs && !isTravel(event.summary)).at(-1) || null;
     if (travelDecision(nextEvent, previous, String(beforeReadRow.home_address || "").trim()).insert && !travel) {
@@ -356,17 +399,17 @@ async function buildTodaySnapshot(uid, opts = {}) {
   }
   if (snapshot.setupState !== "sync_pending" && !beforeReadRow.web_initial_scan_completed_at) snapshot.setupState = "needs_initial_scan";
   else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_first_travel_at
-    && beforeReadRow.stripe_subscription_id && beforeReadRow.paid !== true) snapshot.setupState = "billing_inactive";
-  else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_first_travel_at && beforeReadRow.paid === true
+    && !webTrialEligible(beforeReadRow) && !webTravelEntitled(beforeReadRow, nowMs)) snapshot.setupState = "billing_inactive";
+  else if (snapshot.setupState !== "sync_pending" && webTravelEntitled(beforeReadRow, nowMs)
     && String(beforeReadRow.plan_status || "").toLowerCase() === "trialing") snapshot.setupState = "trial_active";
-  else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_first_travel_at && beforeReadRow.paid === true) snapshot.setupState = "subscribed";
-  else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_first_travel_at) snapshot.setupState = "trial_offer";
+  else if (snapshot.setupState !== "sync_pending" && webTravelEntitled(beforeReadRow, nowMs)) snapshot.setupState = "subscribed";
+  else if (snapshot.setupState !== "sync_pending" && webTrialEligible(beforeReadRow)) snapshot.setupState = "trial_offer";
   else if (snapshot.setupState !== "sync_pending" && beforeReadRow.web_initial_scan_completed_at) snapshot.setupState = "no_eligible_events";
   else if (snapshot.setupState !== "sync_pending") snapshot.setupState = "needs_initial_scan";
   snapshot.scanState = beforeReadRow.web_initial_scan_completed_at
     ? beforeReadRow.web_first_travel_at ? "complete" : "zero_blocks" : "not_started";
-  snapshot.checkoutAvailable = Boolean(beforeReadRow.web_first_travel_at
-    && !beforeReadRow.stripe_subscription_id && beforeReadRow.paid !== true);
+  snapshot.checkoutAvailable = webTrialEligible(beforeReadRow);
+  snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(beforeReadRow);
   return snapshot;
 }
 
@@ -442,6 +485,9 @@ async function applyWebTravelControl(uid, accountId, action, opts = {}) {
 async function controlWebTravel(uid, action, opts = {}) {
   await assertUnbound(uid, opts);
   let row = await readWebUserRow(uid, opts);
+  if (action === "resume" && !webTravelEntitled(row, opts.nowMs == null ? Date.now() : opts.nowMs)) {
+    throw webError(409, "billing_required");
+  }
   let accountId = selectedWebCalendarAccount(row);
   const preference = await readWebAutomationPreference(uid, opts);
 

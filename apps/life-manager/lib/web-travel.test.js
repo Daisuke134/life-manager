@@ -59,6 +59,7 @@ function travelBlock() {
     location: "渋谷ヒカリエ",
     start: { dateTime: "2030-01-01T09:35:00+09:00", timeZone: "Asia/Tokyo" },
     end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
   };
 }
 
@@ -232,6 +233,52 @@ test("initial Web setup accepts no home and does not start a trial or recurring 
   assert.equal(f.travelCalls, 1);
 });
 
+test("billing-inactive Web page avoids further Calendar event reads", async () => {
+  let eventReads = 0;
+  const f = fixture({ listEvents7dImpl: async () => { eventReads++; return [event()]; } });
+  f.row.web_initial_scan_completed_at = "2030-01-01T00:00:00.000Z";
+  f.row.web_first_travel_at = "2030-01-01T00:00:00.000Z";
+  f.row.stripe_subscription_id = "sub-canceled";
+  f.row.paid = false;
+  f.row.plan_status = "canceled";
+
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.setupState, "billing_inactive");
+  assert.equal(eventReads, 0);
+  assert.equal(snapshot.subscriptionCheckoutAvailable, true);
+});
+
+test("expired legacy Web trial stops Calendar reads but leaves paid restart available", async () => {
+  let eventReads = 0;
+  const f = fixture({ listEvents7dImpl: async () => { eventReads++; return [event()]; } });
+  f.row.web_initial_scan_completed_at = "2029-12-01T00:00:00.000Z";
+  f.row.web_first_travel_at = "2029-12-01T00:00:00.000Z";
+  f.row.trial_expires_at = "2029-12-04T00:00:00.000Z";
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+  assert.equal(snapshot.setupState, "billing_inactive");
+  assert.equal(snapshot.subscriptionCheckoutAvailable, true);
+  assert.equal(eventReads, 0);
+});
+
+test("saved Travel offer and active subscription screens do not reread Calendar events", async () => {
+  for (const [setupState, billing] of [
+    ["trial_offer", { stripe_subscription_id: null, paid: false, plan_status: null }],
+    ["trial_active", { stripe_subscription_id: "sub-trial", paid: true, plan_status: "trialing",
+      trial_expires_at: "2030-01-08T00:00:00.000Z" }],
+    ["subscribed", { stripe_subscription_id: "sub-paid", paid: true, plan_status: "active" }],
+  ]) {
+    let eventReads = 0;
+    const f = fixture({ listEvents7dImpl: async () => { eventReads++; return [event()]; } });
+    f.row.web_initial_scan_completed_at = "2030-01-01T00:00:00.000Z";
+    f.row.web_first_travel_at = "2030-01-01T00:00:00.000Z";
+    Object.assign(f.row, billing);
+    const snapshot = await buildTodaySnapshot(UID, f.opts);
+    assert.equal(snapshot.setupState, setupState);
+    assert.equal(eventReads, 0);
+  }
+});
+
 test("zero-block initial scan is recorded without a first Travel timestamp or trial", async () => {
   const f = fixture({
     travelUserOnceImpl: async (_user, _deps) => ({ inserted: 0, verified: 0, outboundReports: [] }),
@@ -287,6 +334,20 @@ test("repeated initial setup reuses the confirmed Travel block and keeps one sca
   assert.ok(f.row.web_first_travel_at);
   assert.equal(f.row.trial_expires_at, null);
   assert.equal(f.preference.daily_automation_enabled, false);
+});
+
+test("initial scan stays pending and offers no trial if the Travel popup reminder is not read back", async () => {
+  const f = fixture();
+  const block = travelBlock();
+  delete block.reminders;
+  f.events.push(block);
+  f.opts.travelUserOnceImpl = async () => ({ inserted: 1, outboundReports: [] });
+
+  const result = await runInitialWebTravelScan(UID, f.opts);
+
+  assert.equal(result.scanState, "pending");
+  assert.equal(result.checkoutAvailable, false);
+  assert.equal(f.row.web_first_travel_at, null);
 });
 
 test("setup ignores client-controlled address and billing fields", async () => {
@@ -695,6 +756,7 @@ test("Today keeps exact MISSING and EXPIRED Calendar bindings actionable", async
 
 test("resume allows no saved home but requires the exact selected ACTIVE Calendar account", async () => {
   const noHome = fixture();
+  Object.assign(noHome.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active", paid: true, plan_status: "active" });
   const noHomeResponse = await call(noHome, "POST", "/api/lm-web/travel/control", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
   });
@@ -704,6 +766,7 @@ test("resume allows no saved home but requires the exact selected ACTIVE Calenda
   assert.deepEqual(noHome.controlRpcCalls, [{ p_uid: UID, p_calendar_account_id: "ca-selected-123", p_action: "resume" }]);
 
   const inactive = fixture({ composioCalendarAccountStatusImpl: async () => "DISABLED" });
+  Object.assign(inactive.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active", paid: true, plan_status: "active" });
   const inactiveResponse = await call(inactive, "POST", "/api/lm-web/travel/control", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
   });
@@ -712,6 +775,7 @@ test("resume allows no saved home but requires the exact selected ACTIVE Calenda
   assert.deepEqual(inactive.controlRpcCalls, []);
 
   const active = fixture();
+  Object.assign(active.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active", paid: true, plan_status: "active" });
   const activeResponse = await call(active, "POST", "/api/lm-web/travel/control", {
     origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
   });
@@ -721,8 +785,21 @@ test("resume allows no saved home but requires the exact selected ACTIVE Calenda
   assert.deepEqual(JSON.parse(activeResponse.body), { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false, calendarBound: true });
 });
 
+test("resume cannot enable Calendar reads before a verified paid trial or active subscription", async () => {
+  let statusReads = 0;
+  const f = fixture({ composioCalendarAccountStatusImpl: async () => { statusReads++; return "ACTIVE"; } });
+  const response = await call(f, "POST", "/api/lm-web/travel/control", {
+    origin: ORIGIN, contentType: "application/json", csrf: "csrf-token", body: { action: "resume" },
+  });
+  assert.equal(response.status, 409);
+  assert.equal(JSON.parse(response.body).error, "billing_required");
+  assert.equal(statusReads, 0);
+  assert.deepEqual(f.controlRpcCalls, []);
+});
+
 test("resume is rejected while Calendar enable readback is pending", async () => {
   const f = fixture();
+  Object.assign(f.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active", paid: true, plan_status: "active" });
   f.row.home_address = "自宅住所";
   markEnablePending(f.row);
 
@@ -803,6 +880,7 @@ test("Today reports persisted pause state and exact binding presence", async () 
 
 test("concurrent resume is rejected while disconnect is waiting on provider confirmation", async () => {
   const f = fixture();
+  Object.assign(f.row, { web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_subscription_id: "sub-active", paid: true, plan_status: "active" });
   f.row.home_address = "自宅住所";
   f.preference.daily_automation_enabled = true;
   let providerStarted;

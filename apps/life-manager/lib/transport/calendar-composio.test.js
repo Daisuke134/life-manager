@@ -82,6 +82,53 @@ test("Web Calendar event listing remains available while automation is paused", 
   assert.equal(f.controlReads.length, 0);
 });
 
+test("Web Travel reminder writes use Calendar proxy and verify the exact popup reminder", async () => {
+  const calls = [];
+  const calendar = makeComposioCalendar({
+    apiKey: "provider-key",
+    supaUrl: "https://supabase.example",
+    supaKey: "service-role-key",
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+    fetchImpl: async (url, init = {}) => {
+      const parsed = new URL(String(url));
+      if (parsed.hostname === "supabase.example" && parsed.pathname.endsWith("/lm_users")) {
+        return { ok: true, status: 200, json: async () => [{ uid: UID, telegram_chat_id: null,
+          calendar_provider: "composio_gcal", calendar_connected_account_id: ACCOUNT_ID }] };
+      }
+      if (parsed.hostname === "supabase.example" && parsed.pathname.endsWith("/lm_panel_preferences")) {
+        return { ok: true, status: 200, json: async () => [{ daily_automation_enabled: true,
+          calendar_disconnect_pending: false }] };
+      }
+      calls.push({ url: parsed.toString(), body: JSON.parse(init.body || "{}") });
+      assert.match(parsed.pathname, /\/api\/v3\.1\/tools\/execute\/proxy$/);
+      return { ok: true, status: 200, json: async () => ({
+        status: 200,
+        data: { id: "gcal-event-1", reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] } },
+      }) };
+    },
+    recordCall: async () => true,
+  });
+
+  const result = await calendar.createEvent(UID, {
+    summary: "[Travel] Home→Office",
+    start_datetime: "2030-01-01T00:00:00",
+    event_duration_minutes: 25,
+    location: "Office",
+    description: "Auto travel block",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  }, { expectedCalendarAccountId: ACCOUNT_ID });
+
+  assert.equal(result.effect, "created");
+  assert.equal(result.successful, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.endpoint, "https://www.googleapis.com/calendar/v3/calendars/primary/events");
+  assert.equal(calls[0].body.method, "POST");
+  assert.equal(calls[0].body.connected_account_id, ACCOUNT_ID);
+  assert.deepEqual(calls[0].body.body.reminders, { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
+  assert.equal(calls[0].body.parameters[0].value, "none");
+});
+
 test("Composio calls with no verified unit rate are stored as unknown, not free", async () => {
   const env = new Map(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
     .map((name) => [name, process.env[name]]));

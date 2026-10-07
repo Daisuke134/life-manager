@@ -157,6 +157,13 @@ async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { stri
     location: e.location || "",
     startIso: (e.start || {}).dateTime || "",
     timezone: (e.start || {}).timeZone || e.timeZone || e.timezone || "",
+    reminders: e.reminders && typeof e.reminders === "object" ? {
+      useDefault: e.reminders.useDefault === true,
+      overrides: Array.isArray(e.reminders.overrides) ? e.reminders.overrides
+        .filter((reminder) => reminder && typeof reminder === "object")
+        .map((reminder) => ({ method: reminder.method || "",
+          minutes: reminder.minutes == null ? null : Number(reminder.minutes) })) : [],
+    } : null,
     startMs: Date.parse((e.start || {}).dateTime || ""),
     endMs: Date.parse((e.end || {}).dateTime || ""),
   })).filter((e) => Number.isFinite(e.startMs));
@@ -691,6 +698,9 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
     send_updates: "none", exclude_organizer: true, create_meeting_room: false,
     description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+    ...(expectedCalendarAccountId ? {
+      reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    } : {}),
   };
   let result;
   try {
@@ -702,7 +712,8 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     : result?.effect === "unknown" || result?.successful !== true ? "unknown" : "created";
   const startMs = Date.parse(`${eventArgs.start_datetime}Z`);
   const endMs = startMs + (hours * 60 + eventArgs.event_duration_minutes) * 60000;
-  return { status, summary: eventArgs.summary, startMs, endMs, destination: dstAddr };
+  return { status, summary: eventArgs.summary, startMs, endMs, destination: dstAddr,
+    reminders: eventArgs.reminders || null };
 }
 
 async function reconcileTravelBlock(uid, apiKey, nowMs, calendar, gmailAccountId, expectedCalendarAccountId, write) {
@@ -714,7 +725,9 @@ async function reconcileTravelBlock(uid, apiKey, nowMs, calendar, gmailAccountId
     const normalize = (value) => String(value || "").replace(/\s+/g, "").toLowerCase();
     const matches = events.filter((event) => event.summary === write.summary
       && event.startMs === write.startMs && event.endMs === write.endMs
-      && normalize(event.location) === normalize(write.destination));
+      && normalize(event.location) === normalize(write.destination)
+      && (!write.reminders || event.reminders && event.reminders.useDefault === false
+        && event.reminders.overrides.some((reminder) => reminder.method === "popup" && reminder.minutes === 0)));
     return matches.length === 1 ? { ...write, status: "verified" } : write;
   } catch { return write; }
 }

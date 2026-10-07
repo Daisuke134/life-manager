@@ -45,6 +45,29 @@ test("parseStripeEvent: deleted → canceled; unknown → null", () => {
   assert.strictEqual(parseStripeEvent({ id: "e", type: "customer.subscription.deleted", data: { object: { status: "canceled" } } }).status, "canceled");
   assert.strictEqual(parseStripeEvent({ id: "x", type: "ping", data: { object: {} } }), null);
 });
+test("parseStripeEvent: Web trial includes uid, trial end, and retained payment method", () => {
+  const p = parseStripeEvent({ id: "e", type: "customer.subscription.created", created: 1700000005,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "trialing", trial_end: 1700604800,
+      default_payment_method: "pm_saved", metadata: { lm_uid: "lm_11111111-1111-4111-8111-111111111111", lm_product: "life_manager_web_travel" } } } });
+  assert.deepStrictEqual([p.uid, p.trialEnd, p.hasPaymentMethod, p.isWebTravel],
+    ["lm_11111111-1111-4111-8111-111111111111", 1700604800, true, true]);
+});
+test("parseStripeEvent: scheduled cancellation is distinct from trialing status", () => {
+  const p = parseStripeEvent({ id: "e", type: "customer.subscription.updated", created: 1700000010,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "trialing", trial_end: 1700604800,
+      default_payment_method: "pm_saved", cancel_at_period_end: true,
+      metadata: { lm_uid: "lm_11111111-1111-4111-8111-111111111111", lm_product: "life_manager_web_travel" } } } });
+  assert.equal(p.status, "trialing");
+  assert.equal(p.cancelAtPeriodEnd, true);
+});
+test("parseStripeEvent: invoice payment outcomes include subscription identity", () => {
+  const paid = parseStripeEvent({ id: "e1", type: "invoice.paid", created: 1700000010,
+    data: { object: { customer: "cus_web", subscription: "sub_web", status: "paid", billing_reason: "subscription_cycle" } } });
+  const failed = parseStripeEvent({ id: "e2", type: "invoice.payment_failed", created: 1700000020,
+    data: { object: { customer: "cus_web", parent: { subscription_details: { subscription: "sub_web" } } } } });
+  assert.deepStrictEqual([paid.kind, paid.status, paid.subscriptionId], ["invoice", "paid", "sub_web"]);
+  assert.deepStrictEqual([failed.kind, failed.status, failed.subscriptionId], ["invoice", "payment_failed", "sub_web"]);
+});
 
 // ── isStale: out-of-order guard keyed on event.created (REQ-39, FIND-002) ──────
 test("isStale: older created → stale; newer/equal → fresh", () => {
@@ -86,9 +109,13 @@ test("unclaimEvent: DELETE → true; failure → false (caller logs RECONCILE)",
 // ── applyBilling: the orchestration core (REQ-37/38/39/40, FIND-004) ──────
 // fakeSupa: routes PostgREST calls; GET lm_users?stripe_customer_id → storedRow; PATCH → records patch.
 function fakeSupa(storedRow) {
-  const patches = [];
+  const patches = [], rpcCalls = [];
   const f = async (url, opts) => {
     const method = opts && opts.method;
+    if (url.includes("/rpc/")) {
+      rpcCalls.push({ url, body: JSON.parse(opts.body) });
+      return { ok: true, json: async () => true };
+    }
     if (!method && url.includes("select=")) // a GET lookup (userByCustomer or userByUid)
       return { ok: true, json: async () => (storedRow ? [storedRow] : []) };
     if (method === "PATCH" && url.includes("lm_users?uid=eq.")) {
@@ -96,7 +123,7 @@ function fakeSupa(storedRow) {
     }
     return { ok: false, status: 404, json: async () => [] };
   };
-  return { f, patches };
+  return { f, patches, rpcCalls };
 }
 const deps = (supa, notify) => ({ supaUrl: "http://s", supaKey: "k", fetchImpl: supa.f, notify });
 
@@ -164,6 +191,120 @@ test("applyBilling past_due → paid=true (grace) + dunning notify fired once", 
     data: { object: { id: "sub", customer: "cus", status: "past_due", current_period_end: 999 } } }, deps(s, (uid) => dunned.push(uid)));
   assert.strictEqual(r.paid, true); assert.strictEqual(s.patches[0].body.plan_status, "past_due");
   assert.deepStrictEqual(dunned, ["u1"]);
+});
+test("applyBilling Web trial requires a saved payment method and activates automation on created", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", calendar_connected_account_id: "ca-selected-123",
+    stripe_event_at: null, paid: false };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "customer.subscription.created", created: 100,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "trialing", trial_end: 700000,
+      default_payment_method: "pm_saved", metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(r.paid, true);
+  assert.equal(s.patches[0].body.stripe_customer_id, "cus_web");
+  assert.equal(s.patches[0].body.trial_expires_at, new Date(700000 * 1000).toISOString());
+  assert.equal(s.rpcCalls[0].body.p_action, "resume");
+});
+test("applyBilling Web trial without a saved payment method stays unpaid", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", calendar_connected_account_id: "ca-selected-123", paid: false };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "customer.subscription.created", created: 100,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "trialing", trial_end: 700000,
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(r.paid, false);
+  assert.equal(s.patches[0].body.paid, false);
+  assert.equal(s.rpcCalls.length, 0);
+});
+test("Web Checkout completion links Stripe ids in pending state without granting entitlement", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_event_at: null, paid: false, plan_status: null };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "checkout.session.completed", created: 100,
+    data: { object: { client_reference_id: row.uid, customer: "cus_web", subscription: "sub_web",
+      payment_status: "no_payment_required", metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(r.action, "link-web-checkout");
+  assert.deepEqual(s.patches[0].body, {
+    stripe_customer_id: "cus_web", stripe_subscription_id: "sub_web", paid: false, plan_status: "incomplete",
+  });
+});
+test("late Web Checkout completion cannot downgrade an already verified trial", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    stripe_subscription_id: "sub_web", stripe_event_at: new Date(100_000).toISOString(),
+    paid: true, plan_status: "trialing" };
+  const s = fakeSupa(row);
+  await applyBilling({ id: "e", type: "checkout.session.completed", created: 200,
+    data: { object: { client_reference_id: row.uid, customer: "cus_web", subscription: "sub_web",
+      payment_status: "paid", metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(s.patches[0].body.paid, undefined);
+  assert.equal(s.patches[0].body.plan_status, undefined);
+});
+test("Web subscription active does not grant access until a paid invoice is verified", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    stripe_subscription_id: "sub_web", stripe_event_at: new Date(50_000).toISOString(), paid: false, plan_status: "trialing" };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "customer.subscription.updated", created: 100,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "active", current_period_end: 999,
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(r.paid, false);
+  assert.equal(s.patches[0].body.paid, false);
+});
+test("a late event from a prior canceled Web subscription cannot replace the paid restart", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    stripe_subscription_id: "sub_new", stripe_event_at: new Date(200_000).toISOString(), paid: true, plan_status: "active" };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "customer.subscription.deleted", created: 300,
+    data: { object: { id: "sub_old", customer: "cus_web", status: "canceled",
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(r.action, "stale-subscription-id");
+  assert.equal(s.patches.length, 0);
+});
+test("Web trial cancellation request pauses automation before the Stripe trial ends", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    stripe_subscription_id: "sub_web", stripe_event_at: new Date(50_000).toISOString(), paid: true, plan_status: "trialing" };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "customer.subscription.updated", created: 100,
+    data: { object: { id: "sub_web", customer: "cus_web", status: "trialing", trial_end: 700000,
+      default_payment_method: "pm_saved", cancel_at_period_end: true,
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(s));
+  assert.equal(r.paid, false);
+  assert.equal(s.patches[0].body.paid, false);
+  assert.equal(s.rpcCalls.length, 0);
+});
+test("applyBilling Web paid invoice activates while failed invoice pauses immediately", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    stripe_subscription_id: "sub_web", stripe_event_at: new Date(50_000).toISOString(), paid: true, plan_status: "active" };
+  const paidStore = fakeSupa(row);
+  const paid = await applyBilling({ id: "paid", type: "invoice.paid", created: 100,
+    data: { object: { customer: "cus_web", subscription: "sub_web", status: "paid", billing_reason: "subscription_cycle" } } }, deps(paidStore));
+  assert.equal(paid.paid, true);
+  assert.equal(paidStore.patches[0].body.plan_status, "active");
+
+  const failedStore = fakeSupa(row);
+  const failed = await applyBilling({ id: "failed", type: "invoice.payment_failed", created: 100,
+    data: { object: { customer: "cus_web", parent: { subscription_details: { subscription: "sub_web" } } } } }, deps(failedStore));
+  assert.equal(failed.paid, false);
+  assert.equal(failedStore.patches[0].body.paid, false);
+  assert.equal(failedStore.patches[0].body.plan_status, "past_due");
+});
+test("paid invoice can link a new no-trial subscription after the prior Web subscription was canceled", async () => {
+  const row = { uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", stripe_customer_id: "cus_web",
+    stripe_subscription_id: "sub_canceled", stripe_event_at: new Date(50_000).toISOString(),
+    paid: false, plan_status: "canceled" };
+  const s = fakeSupa(row);
+  const r = await applyBilling({ id: "e", type: "invoice.paid", created: 100,
+    data: { object: { customer: "cus_web", parent: { subscription_details: {
+      subscription: "sub_restarted", metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" },
+    } }, status: "paid", billing_reason: "subscription_create" } } }, deps(s));
+  assert.equal(r.action, "invoice-paid");
+  assert.equal(s.patches[0].body.stripe_subscription_id, "sub_restarted");
+  assert.equal(s.patches[0].body.paid, true);
 });
 test("applyBilling unknown event type → ignored, no write", async () => {
   const s = fakeSupa(null);

@@ -96,7 +96,8 @@ test("Web travel skips Calendar work unless the persisted account is currently A
   const uid = "lm_11111111-1111-4111-8111-111111111111";
   for (const [accountState, accountId] of [["inactive", "ca-disabled"], ["rebound", "ca-replaced"]]) {
     let guardCalls = 0, calendarReads = 0;
-    await travelUserOnce({ uid, telegram_chat_id: null, calendar_connected_account_id: accountId, daily_automation_enabled: true }, {
+    await travelUserOnce({ uid, telegram_chat_id: null, calendar_connected_account_id: accountId, daily_automation_enabled: true,
+      web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: true, plan_status: "active" }, {
       apiKey: "provider-key",
       mapsKey: "maps-key",
       resolveActiveWebCalendarImpl: async (verifiedUid) => {
@@ -114,7 +115,8 @@ test("Web travel skips Calendar work unless the persisted account is currently A
 test("Web travel proceeds after the persisted exact account passes the ACTIVE gate", async () => {
   const { travelUserOnce } = require("../scheduler.js");
   const calendarExpectedIds = [];
-  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true }, {
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: true, plan_status: "active" }, {
     apiKey: "provider-key",
     mapsKey: "maps-key",
     resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
@@ -122,6 +124,81 @@ test("Web travel proceeds after the persisted exact account passes the ACTIVE ga
     fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
   });
   assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
+});
+
+test("Web unpaid, past-due, and expired-trial tenants stop before Calendar reads", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const nowMs = Date.parse("2030-01-01T00:00:00.000Z");
+  for (const state of [
+    { paid: false, plan_status: "canceled", trial_expires_at: null },
+    { paid: false, plan_status: "past_due", trial_expires_at: null },
+    { paid: true, plan_status: "trialing", trial_expires_at: "2029-12-31T23:59:59.000Z" },
+  ]) {
+    let calendarReads = 0;
+    await travelUserOnce({ uid, telegram_chat_id: null, daily_automation_enabled: true,
+      web_first_travel_at: "2029-12-01T00:00:00.000Z", ...state }, {
+      apiKey: "provider-key", mapsKey: "maps-key", nowMs,
+      resolveActiveWebCalendarImpl: async () => { calendarReads++; return { accountId: "ca-selected" }; },
+      readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+      fillTravel: async () => { calendarReads++; return { inserted: 0, outboundReports: [] }; },
+    });
+    assert.equal(calendarReads, 0, `${state.plan_status} must be gated before provider reads`);
+  }
+});
+
+test("current card-backed Web trial remains eligible until trial_expires_at", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const calendarExpectedIds = [];
+  await travelUserOnce({
+    uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    daily_automation_enabled: true, paid: true, plan_status: "trialing",
+    web_first_travel_at: "2029-12-01T00:00:00.000Z",
+    trial_expires_at: "2030-01-02T00:00:00.000Z",
+  }, {
+    apiKey: "provider-key", mapsKey: "maps-key", nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
+    fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
+});
+
+test("Inngest user reload includes the Web billing expiry fields used by travel entitlement", async () => {
+  const scheduler = require("../scheduler.js");
+  const names = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
+  const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const originalFetch = global.fetch;
+  const urls = [];
+  process.env.SUPABASE_URL = "https://supabase.example";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-fixture";
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    urls.push(url);
+    if (url.pathname.endsWith("/lm_users")) return { ok: true, json: async () => [{
+      uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+      web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: true, plan_status: "trialing",
+      trial_expires_at: "2030-01-08T00:00:00.000Z", calendar_provider: "composio_gcal",
+    }] };
+    if (url.pathname.endsWith("/lm_panel_preferences")) return { ok: true, json: async () => [{
+      uid: "lm_11111111-1111-4111-8111-111111111111", daily_automation_enabled: true,
+      call_enabled: false, notifications_enabled: false, call_time_zone: "Asia/Tokyo",
+    }] };
+    return { ok: false, json: async () => [] };
+  };
+  try {
+    const row = await scheduler.getUserByUid("lm_11111111-1111-4111-8111-111111111111");
+    const userSelect = urls.find((url) => url.pathname.endsWith("/lm_users")).searchParams.get("select");
+    for (const field of ["web_first_travel_at", "plan_status", "trial_expires_at"]) {
+      assert.ok(userSelect.split(",").includes(field), `${field} must reach the per-user travel gate`);
+      assert.equal(row[field] != null, true);
+    }
+  } finally {
+    global.fetch = originalFetch;
+    for (const [name, value] of Object.entries(before)) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
 });
 
 test("Web initial scan bypasses daily automation only for the exact active account", async () => {
@@ -159,7 +236,8 @@ test("Web travel rereads persisted controls after ACTIVE await before entering f
   const order = [];
   let fillCalls = 0;
   const preference = { dailyAutomationEnabled: true, disconnectPending: false, enablePending: false };
-  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true }, {
+  await travelUserOnce({ uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null, daily_automation_enabled: true,
+    web_first_travel_at: "2030-01-01T00:00:00.000Z", paid: true, plan_status: "active" }, {
     apiKey: "provider-key",
     mapsKey: "maps-key",
     resolveActiveWebCalendarImpl: async () => {

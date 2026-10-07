@@ -55,6 +55,7 @@ const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panel
 const { handleWebAuthRequest, resolveWebUser } = require("./lib/web-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
+const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
 const { renderWebPage } = require("./lib/web-page.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
@@ -100,7 +101,9 @@ const { planProductOnboarding } = require("./lib/product-onboarding.js");
 const { ingestMentalOutcome } = require("./lib/mental-outcome-http.js");
 const { enqueueJob } = require("./lib/runtime-job-store.js");
 const { createAgentEconomyControlStore, economyReply } = require("./lib/agent-economy-control.js");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"); // apiKey unused by constructEvent
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
+  apiVersion: "2026-09-30.endive",
+}); // apiKey unused by constructEvent
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
@@ -524,9 +527,15 @@ const server = http.createServer(async (req, res) => {
         };
       }
     }
+    let checkoutPending = false;
+    try { checkoutPending = new URL(req.url || "/lm", LM_PANEL_BASE || "https://aniccaai.com").searchParams.get("checkout") === "success"; } catch {}
+    const trialEnd = snapshot && snapshot.checkoutAvailable ? trialEndFor(Date.now()) : null;
     const html = renderWebPage({
       user,
       snapshot,
+      trialOffer: trialEnd ? { firstChargeAt: new Date(trialEnd * 1000).toISOString(), timezone: "Asia/Tokyo" } : null,
+      customerPortalAvailable: Boolean(snapshot && snapshot.stripeCustomerId),
+      checkoutPending,
     });
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
@@ -562,6 +571,19 @@ const server = http.createServer(async (req, res) => {
     }).catch(() => {
       if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "travel_unavailable" }));
+    });
+    return;
+  }
+  if (path === "/api/lm-web/checkout" || path === "/api/lm-web/billing/portal") {
+    handleWebBillingRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY,
+      composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+      stripeClient: stripe,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "billing_unavailable" }));
     });
     return;
   }

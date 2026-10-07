@@ -8,7 +8,26 @@ const { runtimeTrace, usageRuntimeEnv } = require("../usage-event.js");
 const { readWebTravelControlState, resolveSupabaseServiceConfig } = require("../runtime-preferences.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
+const COMPOSIO_PROXY_EXEC = "https://backend.composio.dev/api/v3.1/tools/execute/proxy";
+const WEB_REMINDER_CREATE_TOOL = "GOOGLECALENDAR_CREATE_EVENT_WITH_REMINDER";
+const GOOGLE_CALENDAR_EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function googleEventFromComposio(args = {}) {
+  const startText = String(args.start_datetime || "");
+  const startMs = Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(startText) ? startText : `${startText}Z`);
+  const durationMs = ((Number(args.event_duration_hour) || 0) * 60
+    + (Number(args.event_duration_minutes) || 0)) * 60000;
+  if (!Number.isFinite(startMs) || durationMs <= 0 || !args.reminders) return null;
+  return {
+    summary: String(args.summary || ""),
+    start: { dateTime: new Date(startMs).toISOString(), timeZone: "UTC" },
+    end: { dateTime: new Date(startMs + durationMs).toISOString(), timeZone: "UTC" },
+    location: String(args.location || ""),
+    description: String(args.description || ""),
+    reminders: args.reminders,
+  };
+}
 
 async function selectedAccountId(uid, apiKey, opts = {}) {
   if (opts.expectedCalendarAccountId != null) {
@@ -71,6 +90,7 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
 }
 
 async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCreate = false) {
+  const proxyCreate = tool === WEB_REMINDER_CREATE_TOOL;
   let connectedAccountId;
   try { connectedAccountId = await selectedAccountId(uid, apiKey, opts); }
   catch (error) {
@@ -93,15 +113,36 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
   let result;
   let response;
   try {
-    response = await (opts.fetchImpl || fetch)(`${COMPOSIO_EXEC}/${tool}`, {
+    const requestBody = proxyCreate
+      ? { ...args, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}) }
+      : { user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args };
+    response = await (opts.fetchImpl || fetch)(proxyCreate ? COMPOSIO_PROXY_EXEC : `${COMPOSIO_EXEC}/${tool}`, {
       method: "POST",
       headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args }),
+      body: JSON.stringify(requestBody),
     });
   } catch (error) {
     await recordOutcome("unknown");
     if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
     throw error;
+  }
+  if (proxyCreate) {
+    let proxied;
+    try { proxied = await response.json(); }
+    catch {
+      await recordOutcome("unknown");
+      return { effect: "unknown", result: { successful: false } };
+    }
+    const upstreamStatus = Number(proxied && proxied.status) || 0;
+    if (upstreamStatus >= 400 && upstreamStatus < 500) {
+      await recordOutcome("failure");
+      return { effect: "no_effect", result: { successful: false } };
+    }
+    const data = proxied && proxied.data && typeof proxied.data === "object" ? proxied.data : null;
+    const successful = response.ok === true && (upstreamStatus === 0 || upstreamStatus >= 200 && upstreamStatus < 300)
+      && Boolean(data && data.id);
+    await recordOutcome(successful ? "success" : "unknown");
+    return { effect: successful ? "created" : "unknown", result: { successful, data } };
   }
   const status = Number.isInteger(response?.status) ? response.status : null;
   if (effectAwareCreate && status !== null && status >= 400 && status < 500) {
@@ -204,7 +245,16 @@ function makeComposioCalendar(opts = {}) {
     async createEvent(uid, args, operationOpts = {}) {
       if (!key) return withCreateEffect({ effect: "no_effect", result: { successful: false } });
       try {
-        return withCreateEffect(await execute("GOOGLECALENDAR_CREATE_EVENT", uid, args,
+        const reminderEvent = args && args.reminders && operationOpts.expectedCalendarAccountId
+          ? googleEventFromComposio(args) : null;
+        const tool = reminderEvent ? WEB_REMINDER_CREATE_TOOL : "GOOGLECALENDAR_CREATE_EVENT";
+        const request = reminderEvent ? {
+          endpoint: GOOGLE_CALENDAR_EVENTS_ENDPOINT,
+          method: "POST",
+          parameters: [{ name: "sendUpdates", value: String(args.send_updates || "none"), in: "query" }],
+          body: reminderEvent,
+        } : args;
+        return withCreateEffect(await execute(tool, uid, request,
           operationOpts.expectedCalendarAccountId, true));
       } catch { return withCreateEffect({ effect: "unknown", result: { successful: false } }); }
     },

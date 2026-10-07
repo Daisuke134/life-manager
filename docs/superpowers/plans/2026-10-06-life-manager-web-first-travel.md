@@ -90,6 +90,9 @@
 - Modify: apps/life-manager/lib/billing.test.js
 - Modify: apps/life-manager/lib/web-travel.js
 - Modify: apps/life-manager/lib/web-travel.test.js
+- Modify: apps/life-manager/lib/travel.js
+- Modify/Test: apps/life-manager/lib/travel.test.js
+- Modify/Test: apps/life-manager/lib/transport/calendar-composio.js and apps/life-manager/lib/transport/calendar-composio.test.js
 - Modify: apps/life-manager/scheduler.js
 - Modify: apps/life-manager/test/scheduler.test.js
 - Modify: apps/life-manager/server.js
@@ -103,13 +106,14 @@
 - The webhook grants Web automation only for a valid trialing subscription with a retained payment method or a verified paid invoice. Web past_due, cancellation, and failed payment pause future Calendar work; Telegram grace behavior remains unchanged.
 - A customer-portal session lets a user cancel/manage billing without a Life Manager dashboard. No Life Manager trial-ending reminder email is sent.
 - The scheduled travel path rejects unpaid, expired-trial, canceled, or failed-payment Web tenants before Calendar event reads; the one-time pre-trial scan and Telegram behavior remain unchanged.
+- Web Travel events set a zero-minute Google Calendar popup reminder, and the initial scan only counts a confirmed Travel block after its reminder is read back. The official Composio `GOOGLECALENDAR_CREATE_EVENT` schema has no `reminders` field, so the Web-only event write uses Composio's authenticated proxy against the same exact connected account; it never extracts or stores Google's OAuth token. This makes the post-onboarding notification claim match the event we create.
 - A live Stripe API key can never verify a webhook with the test-mode endpoint secret.
 
-- [ ] Step 1: Add failing Checkout tests for the existing price, first seven-day trial, required payment method, exact uid metadata, blocked zero-block/active users, no-trial paid restart after trial/cancellation, and idempotent repeated requests.
-- [ ] Step 2: Add failing webhook tests for trial activation, paid invoice, payment failure, cancellation, duplicate/out-of-order events, Web past-due pause, and unchanged Telegram grace.
-- [ ] Step 3: Run focused billing tests and confirm these Web-specific behaviors are missing.
-- [ ] Step 4: Implement Checkout, portal, webhook reconciliation, and the scheduled-travel entitlement gate.
-- [ ] Step 5: Run focused billing/web tests with Stripe test-mode fixtures and a browser Checkout flow; verify no live charge.
+- [x] Step 1: Add failing Checkout tests for the existing price, first seven-day trial, required payment method, exact uid metadata, blocked zero-block/active users, no-trial paid restart after trial/cancellation, and idempotent repeated requests.
+- [x] Step 2: Add failing webhook tests for trial activation, paid invoice, payment failure, cancellation reservation, duplicate/out-of-order events, Web past-due pause, and unchanged Telegram grace.
+- [x] Step 3: Run focused billing tests and confirm these Web-specific behaviors are missing.
+- [x] Step 4: Implement Checkout, portal, webhook reconciliation, Web card/trial/cancel entitlement, pending-return UI, no-trial paid restart, both scheduled-travel entitlement gates, and proxy-written zero-minute Calendar popup reminders.
+- [x] Step 5: Run focused billing/web tests, synthetic desktop/mobile browser E2E, real Stripe test-mode Checkout/card collection/Subscription readback/Portal UI, then cancel/expire the test artifacts. No live charge occurred.
 
 ### Task 4: Funnel, cost, and revenue evidence
 

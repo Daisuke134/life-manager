@@ -15,7 +15,8 @@ function firstChargeDate(trialOffer = {}) {
   const timezone = String(trialOffer.timezone || "Asia/Tokyo");
   try {
     return new Intl.DateTimeFormat("ja-JP", {
-      year: "numeric", month: "long", day: "numeric", timeZone: timezone,
+      year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
+      hourCycle: "h23", timeZoneName: "short", timeZone: timezone,
     }).format(date);
   } catch {
     return "";
@@ -36,9 +37,18 @@ function portalMarkup(available) {
   return `<button type="button" class="button secondary" data-action="billing-portal">サブスクリプションを管理</button>`;
 }
 
+function checkoutPendingMarkup() {
+  return `<section class="card" aria-live="polite"><h1>お申し込みを確認しています</h1><p>Stripeでのカード登録を確認しています。反映後にもう一度このページを開くと状態を表示します。</p><a class="text-link" href="/lm">状態を再確認</a></section>`;
+}
+
 function pageState(snapshot, model = {}) {
   if (!snapshot || snapshot.setupState === "sync_pending" && snapshot.calendarState === "unavailable") {
     return `<section class="card"><h1>Calendarの接続を確認しています</h1><p>接続状態を読み込めません。しばらくしてからページを再読み込みしてください。</p></section>`;
+  }
+
+  if (model.checkoutPending === true && snapshot.stripeSubscriptionId
+    && (!snapshot.planStatus || snapshot.planStatus === "incomplete")) {
+    return checkoutPendingMarkup();
   }
 
   if (snapshot.setupState === "needs_calendar") {
@@ -54,6 +64,7 @@ function pageState(snapshot, model = {}) {
   }
 
   if (snapshot.setupState === "trial_offer") {
+    if (model.checkoutPending === true) return checkoutPendingMarkup();
     const offer = model.trialOffer || {};
     const chargeDate = firstChargeDate(offer);
     const messagesUrl = validMessagesUrl(model.messagesContactUrl);
@@ -74,7 +85,10 @@ function pageState(snapshot, model = {}) {
   }
 
   if (snapshot.setupState === "billing_inactive") {
-    return `<section class="card"><h1>自動Travelは停止しています</h1><p>お支払いを確認できないため、新しい移動時間の登録を停止しました。既存のCalendar予定は残っています。</p>${portalMarkup(model.customerPortalAvailable === true)}</section>`;
+    const restart = snapshot.subscriptionCheckoutAvailable === true
+      ? `<p>この再開には無料トライアルは適用されません。開始時に$29/月を請求し、その後は解約まで毎月自動更新します。</p><button class="button" type="button" data-action="checkout">月額$29で再開する</button>`
+      : "";
+    return `<section class="card"><h1>自動Travelは停止しています</h1><p>解約手続き中、またはお支払い状態を確認できないため、新しい移動時間の登録を停止しました。既存のCalendar予定は残っています。</p>${restart}${portalMarkup(model.customerPortalAvailable === true)}</section>`;
   }
 
   return `<section class="card"><h1>Calendarの状態を確認しています</h1><p>状態を確認できません。あとで再読み込みしてください。</p></section>`;

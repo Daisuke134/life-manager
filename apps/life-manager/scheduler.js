@@ -11,6 +11,7 @@ const crypto = require("crypto");
 const { fetchUpcomingEvents } = require("./lib/events.js");
 const { schedulerCohortFilter, isCallablePhone } = require("./lib/user-selector.js");
 const { DEFAULTS: RUNTIME_DEFAULTS, readRuntimePreferences } = require("./lib/runtime-preferences.js");
+const { webTravelEntitled } = require("./lib/billing.js");
 const { shouldWake, isHelperBlock } = require("./lib/wake-filter.js");
 const { mentalUserOnce, resolveSleepTarget } = require("./lib/mental-runtime.js");
 const { mentalV1UserOnce } = require("./lib/mental-v1-runtime.js");
@@ -105,7 +106,7 @@ async function supaUsers() {
   const { url, key } = SUPA();
   if (!url || !key) return [];
   const base = `${url}/rest/v1/lm_users?${schedulerCohortFilter()}`;
-  const cols = "uid,name,phone,paid,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   // FAIL-SAFE: try WITH wake_policy; if the column is missing (PostgREST 400) fall back to the base
   // columns rather than returning [] — a missing column must NOT silently disable wakes fleet-wide.
@@ -1219,6 +1220,8 @@ const WEB_TRAVEL_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[
 async function travelUserOnce(u, deps = {}) {
   const webUid = WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""));
   const initialWebScan = deps.initialScan === true && webUid && u && u.telegram_chat_id === null;
+  const nowMs = deps.nowMs === undefined ? Date.now() : Number(deps.nowMs);
+  if (webUid && u && u.telegram_chat_id === null && !initialWebScan && !webTravelEntitled(u, nowMs)) return;
   if (u && u.daily_automation_enabled === false && !initialWebScan) return;
   const apiKey = deps.apiKey || process.env.COMPOSIO_API_KEY;
   const mapsKey = deps.mapsKey || process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY;
@@ -1255,7 +1258,7 @@ async function travelUserOnce(u, deps = {}) {
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
       timezone: u.call_time_zone,
-      nowMs: deps.nowMs === undefined ? Date.now() : deps.nowMs,
+      nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
       expectedCalendarAccountId,
       _directionsMinutes: deps.directionsMinutes,
@@ -1270,7 +1273,7 @@ async function travelUserOnce(u, deps = {}) {
       for (const report of r.outboundReports || []) {
         try {
           await (deps.sendMessage || sendMessage)(telegramToken, u.telegram_chat_id,
-            formatTravelAutofillMessage(report, deps.nowMs === undefined ? Date.now() : deps.nowMs));
+            formatTravelAutofillMessage(report, nowMs));
         } catch (error) {
           console.error(`[travel] uid=${u.uid.slice(0, 12)} report send failed: ${error && error.message}`);
         }
@@ -1416,7 +1419,7 @@ const listPaidUsers = supaUsers;
 async function getUserByUid(uid) {
   const { url, key } = SUPA();
   if (!url || !key || !uid) return null;
-  const cols = "uid,name,phone,paid,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const base = `${url}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&${schedulerCohortFilter()}`;
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   let r = await fetch(`${base}&select=${cols},wake_policy`, { headers: hdr });

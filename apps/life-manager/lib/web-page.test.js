@@ -115,13 +115,53 @@ test("connected state and seven-day trial offer share one screen with exact $29 
   assert.match(visible, /本日のお支払いは\$0です/);
   assert.match(visible, /7日間/);
   assert.match(visible, /2030年1月8日/);
+  assert.match(visible, /9:00/);
   assert.match(visible, /\$29\/月/);
   assert.match(visible, /カード登録が必要/);
   assert.match(visible, /その後は解約まで毎月自動更新/);
-  assert.match(visible, /請求を避けるには2030年1月8日までに解約/);
+  assert.match(visible, /請求を避けるには2030年1月8日.*9:00.*までに解約/);
   assert.match(visible, /7日間の無料トライアルを始める/);
   assert.doesNotMatch(visible, /lm-dashboard|今日の予定|次の出発|homeAddress|chat thread/i);
   assert.doesNotMatch(visible, /Messages|sms:/i);
+});
+
+test("returning from Stripe shows a pending state without a second checkout button", () => {
+  const html = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    checkoutPending: true,
+  }));
+  assert.match(html, /お申し込みを確認しています/);
+  assert.doesNotMatch(html, /data-action="checkout"/);
+});
+
+test("successful Checkout return waits for the webhook when only the session link is stored", () => {
+  for (const planStatus of [null, "incomplete"]) {
+    const html = visibleHtml(renderWebPage({
+      user,
+      snapshot: snapshot({ setupState: "billing_inactive", stripeSubscriptionId: "sub-pending", planStatus }),
+      checkoutPending: true,
+    }));
+    assert.match(html, /お申し込みを確認しています/);
+    assert.doesNotMatch(html, /data-action="checkout"|月額\$29で再開する/);
+  }
+});
+
+test("the trial action calls the server Checkout and redirects only to Stripe", async () => {
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+  });
+  const client = mountClient(page, {
+    "/api/lm-web/checkout": { url: "https://checkout.stripe.com/c/pay/cs_test_123" },
+  });
+  const button = { dataset: { action: "checkout" }, disabled: false };
+  await client.handlers.click({ target: { closest: () => button } });
+  assert.equal(client.requests[0].path, "/api/lm-web/checkout");
+  assert.equal(client.requests[0].init.headers["x-lm-web-csrf"], user.csrf);
+  assert.deepEqual(JSON.parse(client.requests[0].init.body), {});
+  assert.deepEqual(client.redirects, ["https://checkout.stripe.com/c/pay/cs_test_123"]);
 });
 
 test("zero-block state shows a rescan action but no trial checkout", () => {
@@ -153,6 +193,46 @@ test("trial-active state confirms automation without rendering a daily dashboard
   assert.match(html, /移動時間はCalendarに自動登録されます/);
   assert.match(html, /このページは閉じても大丈夫です/);
   assert.doesNotMatch(html, /lm-dashboard|今日の予定|次の出発|homeAddress|data-action="checkout"/);
+});
+
+test("active and billing-inactive states can open Stripe's customer portal", async () => {
+  for (const setupState of ["trial_active", "billing_inactive"]) {
+    const page = renderWebPage({
+      user,
+      snapshot: snapshot({ setupState, paid: setupState === "trial_active", planStatus: setupState === "trial_active" ? "trialing" : "canceled" }),
+      customerPortalAvailable: true,
+    });
+    const visible = visibleHtml(page);
+    assert.match(visible, /サブスクリプションを管理/);
+    const client = mountClient(page, {
+      "/api/lm-web/billing/portal": { url: "https://billing.stripe.com/p/session/test" },
+    });
+    const button = { dataset: { action: "billing-portal" }, disabled: false };
+    await client.handlers.click({ target: { closest: () => button } });
+    assert.equal(client.requests[0].path, "/api/lm-web/billing/portal");
+    assert.deepEqual(client.redirects, ["https://billing.stripe.com/p/session/test"]);
+  }
+});
+
+test("billing-inactive state explains scheduled cancellation without deleting existing blocks", () => {
+  const html = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "billing_inactive", paid: false, planStatus: "trialing" }),
+  }));
+  assert.match(html, /解約手続き中/);
+  assert.match(html, /既存のCalendar予定は残っています/);
+});
+
+test("billing-inactive legacy or canceled customer can restart at $29 without another trial", () => {
+  const html = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "billing_inactive", paid: false,
+      planStatus: "canceled", subscriptionCheckoutAvailable: true }),
+  }));
+  assert.match(html, /この再開には無料トライアルは適用されません/);
+  assert.match(html, /開始時に\$29\/月を請求/);
+  assert.match(html, /data-action="checkout"/);
+  assert.match(html, /月額\$29で再開する/);
 });
 
 test("verified Messages contact link is omitted unless the server supplies one", () => {
