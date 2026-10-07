@@ -29,6 +29,11 @@ from typing import Callable
 
 from host_inventory import FULL_INVENTORY_BUDGET_SECONDS, collect_host_inventory
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+from runtime.loop.loop_cleanup import _release_immutable_store_probe
+
 GiB = 1024**3
 FULL_INVENTORY_INTERVAL_SECONDS = 3600
 GOVERNOR_BUDGET_SECONDS = 90
@@ -1185,6 +1190,14 @@ class HostDiskGovernor:
             if not path.exists() or path.is_symlink():
                 preserve("path_missing_or_symlink")
                 continue
+            if item.get("owner") == "release-retention":
+                store_state = _release_immutable_store_probe(
+                    path, deadline=deadline, clock=self.clock
+                )
+                if store_state is not None:
+                    result["errors"] += store_state == "descendant_probe_error"
+                    preserve(store_state)
+                    continue
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
                 preserve("probe-budget-exhausted")
                 continue

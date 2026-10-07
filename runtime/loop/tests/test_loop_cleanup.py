@@ -198,6 +198,71 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertFalse(stale.exists())
             self.assertEqual(result["errors"], 0)
 
+    def test_release_gc_preserves_memory_and_state_jsonl_but_removes_plain_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"
+            releases.mkdir()
+            memory_release = releases / "20260101T000000-aaaaaaaa"
+            state_release = releases / "20260102T000000-bbbbbbbb"
+            dangling_memory_release = releases / "20260103T000000-cccccccc"
+            dangling_state_release = releases / "20260104T000000-dddddddd"
+            dependency_release = releases / "20260105T000000-eeeeeeee"
+            plain_release = releases / "20260106T000000-ffffffff"
+            for index, path in enumerate((
+                memory_release, state_release, dangling_memory_release,
+                dangling_state_release, dependency_release, plain_release,
+            )):
+                path.mkdir()
+                (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
+            (memory_release / "memory").mkdir()
+            (memory_release / "memory" / "owner.md").write_text("private memory")
+            state = state_release / "nested" / "state"
+            state.mkdir(parents=True)
+            (state / "events.jsonl").write_text("{}\n")
+            (dangling_memory_release / "memory").symlink_to(
+                Path(directory) / "missing-memory", target_is_directory=True
+            )
+            dangling_state = dangling_state_release / "nested"
+            dangling_state.mkdir()
+            (dangling_state / "state").symlink_to(
+                Path(directory) / "missing-state", target_is_directory=True
+            )
+            outside = Path(directory) / "outside"
+            outside.mkdir()
+            (outside / "owner.md").write_text("keep target")
+            (dependency_release / "node_modules").symlink_to(outside)
+            (plain_release / "bin").mkdir()
+            (plain_release / "bin" / "loop.sh").write_text("#!/bin/sh\n")
+            (plain_release / "memory").write_text("ordinary file")
+
+            agents = Path(directory) / "agents"
+            agents.mkdir()
+            protected_file = Path(directory) / "protected-releases.json"
+            protected_file.write_text("[]")
+            with (
+                mock.patch.dict(os.environ, {
+                    "LIFE_MANAGER_PROTECTED_RELEASES": str(protected_file),
+                }),
+                mock.patch(
+                    "runtime.loop.central_cleanup.open_release_roots", return_value=set()
+                ),
+            ):
+                result = release_gc(
+                    releases, Path(directory) / "current", agents, keep=0
+                )
+
+            self.assertTrue(memory_release.exists())
+            self.assertTrue(state_release.exists())
+            self.assertTrue(dangling_memory_release.exists())
+            self.assertTrue(dangling_state_release.exists())
+            self.assertFalse(dependency_release.exists())
+            self.assertFalse(plain_release.exists())
+            self.assertTrue((outside / "owner.md").exists())
+            self.assertEqual(result["removed_releases"], 2)
+            self.assertEqual(result["preserved_releases"], 4)
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["protected_release_count"], 0)
+
     def test_business_wake_builds_command_without_scanning_run_tree(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1038,7 +1103,12 @@ class LoopCleanupTest(unittest.TestCase):
                 'Label':'ai.anicca.job',
                 'ProgramArguments':[str(paths[0]/'bin/lm-loop-run')],
             }))
-            result=release_gc(releases,current,agents,keep=1)
+            protected_file = root / "protected-releases.json"
+            protected_file.write_text("[]")
+            with mock.patch.dict(os.environ, {
+                "LIFE_MANAGER_PROTECTED_RELEASES": str(protected_file),
+            }):
+                result=release_gc(releases,current,agents,keep=1)
             self.assertTrue(paths[0].exists())
             self.assertFalse(paths[1].exists())
             self.assertTrue(paths[3].exists())
@@ -1054,9 +1124,16 @@ class LoopCleanupTest(unittest.TestCase):
                 os.utime(path, (index, index)); paths.append(path)
             current = root / "current"; current.symlink_to(paths[3])
             agents = root / "agents"; agents.mkdir()
-            with mock.patch(
-                "runtime.loop.central_cleanup.open_release_roots",
-                return_value={paths[0].resolve()},
+            protected_file = root / "protected-releases.json"
+            protected_file.write_text("[]")
+            with (
+                mock.patch.dict(os.environ, {
+                    "LIFE_MANAGER_PROTECTED_RELEASES": str(protected_file),
+                }),
+                mock.patch(
+                    "runtime.loop.central_cleanup.open_release_roots",
+                    return_value={paths[0].resolve()},
+                ),
             ):
                 result = release_gc(releases, current, agents, keep=1)
             self.assertTrue(paths[0].exists())

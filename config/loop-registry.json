@@ -1726,7 +1726,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "message",
       "reconcile_queued_release": true,
       "command": [],
       "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
@@ -3309,7 +3309,10 @@
       "label": "ai.anicca.marketing-weekly-review",
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/marketing-weekly-review/logs",
+      "admission_class": "borrow",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/marketing-weekly-review"
     },
     "mercor-revenue-application": {
