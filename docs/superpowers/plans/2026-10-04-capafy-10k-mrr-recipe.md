@@ -316,18 +316,18 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 13:19 JST live readback）
+### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 18:38 JST runtime refresh; provider GET last at 13:19 JST）
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧 `capafy-ig-marketing-daily` | Persistent launchd `disabled=true`, installed on previous release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Active 2026-10-05 fence `capafy-ig-marketing-daily:18db7caff1178a88-68028` remains unresolved. The read-only reconciler returns `active_ig_handle_unresolvable`; no eligible authenticated account/media readback exists. | Exact owned Instagram identity and complete own-media readback; keep disabled and do not retry. |
-| New `life-manager-capafy-ig` | Persistent launchd `disabled=true`, installed on previous release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. No active admission fence remains. Latest explicit entrypoint failure is `LM_CAPAFY_IG_PACK_REF is required`. | Keep disabled until eBook first paid+PDF gate, then set one approved pack ref and one-canary/24h gate before enabling. |
-| Postiz identity | Official Postiz GET at 13:19 JST returns `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`, matching the configured ID; current-day Capafy Instagram post count is 0. Route enablement does not prove native account ownership or good standing. | Verify native account identity/good-standing separately. |
+| 旧 `capafy-ig-marketing-daily` | At 18:38 JST persistent launchd is `disabled=true`, still on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Runtime status reports `host_admission_deferred:resource_effect_unknown`, `admission_effect_unknown=true`, no provider receipt/readback; latest blocked occurrence is `capafy-ig-marketing-daily:18dc1d1db6d4df60-34612`. The older active fence `18db7caff1178a88-68028` remains unresolved and the read-only reconciler previously returned `active_ig_handle_unresolvable`. | Exact owned Instagram identity and complete own-media readback; keep disabled and do not retry. |
+| New `life-manager-capafy-ig` | At 18:38 JST persistent launchd is `disabled=true`, still on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Latest runtime status is `entrypoint_exit_1`, no receipt/readback, `admission_effect_unknown=false`. The last explicit diagnostic (13:19 JST) was `LM_CAPAFY_IG_PACK_REF is required`. | Keep disabled until eBook first paid+PDF gate, then set one approved pack ref and one-canary/24h gate before enabling. |
+| Postiz identity | The last official Postiz GET at 13:19 JST returned `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`, matching the configured ID; current-day post count was 0. This was not re-read at 18:38 JST. Route enablement does not prove native account ownership or good standing. | Re-read Postiz and verify native account identity/good-standing before enabling. |
 | eBook → Capafy order | No natural paid eBook Checkout plus matching PDF delivery receipt is recorded. D5 has not started; both marketing publishers are disabled. | Preserve the eBook-first gate; once met, run one Capafy canary then measure 14 days. |
 
-**2026-10-07 13:19 JST refresh:** both publisher labels remain persistently disabled in Aqua. The new Postiz owner has no active admission fence, but its latest explicit failure requires `LM_CAPAFY_IG_PACK_REF`; the old direct-publisher fence remains unresolved because its saved account inventory has no eligible handle. The current Postiz integration contradicts the old source comment that `@capafy.hooklab` is not connected; the route is enabled, while native account ownership/good-standing remains unverified. No D5 publish or authenticated CAPTCHA/challenge is observed.
+**2026-10-07 18:38 JST runtime refresh:** both publisher labels remain disabled on release `2e87d30d`. The old direct-publisher lane still has `admission_effect_unknown=true` and no receipt/readback; keep the fence closed. The new Postiz owner has no effect-unknown fence but remains disabled after `entrypoint_exit_1`; its last explicit diagnostic requires `LM_CAPAFY_IG_PACK_REF`. The last official Postiz readback (13:19 JST) showed the configured integration enabled; that provider state and native account ownership/good-standing have not been refreshed since then. No D5 publish or authenticated CAPTCHA/challenge is observed. The eBook paid Checkout plus matching PDF receipt gate is still open, so Capafy D5 has not started.
 
 **担当境界とmarketing gate**
 
