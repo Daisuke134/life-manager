@@ -15,7 +15,7 @@
       "job_ids": ["hf-gig-apply-direct", "hf-gig-apply-evidence-gc", "hf-gig-browser", "hf-gig-daily-report", "hf-gig-paid-direct", "hf-gig-reply-detector", "hf-gig-storefront-direct"],
       "name": "Gig — Coconala",
       "description": "Find, apply, negotiate, deliver, reconcile, and report Coconala work.",
-      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "model", "read_only_external_owner"],
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"coconala-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
       "requirements": ["coconala_account", "work_profile", "telegram"],
       "hosts": {
