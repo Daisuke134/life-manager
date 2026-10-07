@@ -4354,6 +4354,60 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 4. Coconala既存Paid obligationはrevision中・formal delivery未確認で、最新buyer follow-upが未回答。TikTok Business Suiteの本文は読み取れたが、campaign-wide inbox reply countはSheet行へ完全joinできていない。未送信の旧answer draftは「返信0件」と断定するため再利用しない。正確なrecipient/Sheet reconciliation後にpaid owner経由で一度だけ回答し、revision→formal delivery→buyer acceptance→payout→replay-zeroを閉じる。
 5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancerを実行する。Lancers rows 25–27は`waiting_external`のままauth/solver/proposal/retryを行わない。enabled ownersの24/7自然receiptとsettlement/fee/costが揃うまでGig完了としない。L9-11 Self-Buildは全Gig完了後。
 
+### 2026-10-08 07:54 JST — Gig cursor after parser merge
+
+**現在のGig cursor: 2（Coconala 20件live inventory acceptance）。** Source fix PR #6989は`076c5be8`でmainへ統合済み、focused suite 58/58 PASS・独立review PASS。しかしimmutable currentは`1c0c9120`のままで、Coconala ownerの最新wakeは`disk_headroom_low`。host freeは245,284 KiBでbrowser floor未達、registered Coconala browserもunreachable。disk-cleanup ownerは`entrypoint_exit_1`/`reconcile_owner`、doctor gateは別ownerのretired labelでfalse。容量・doctor/effect gateを迂回しない。
+
+1. Host floor/browserが回復した後、main由来corrected collectorで公式20 servicesを一度取得し、本文非空・service contract 20/20 PASSを確認する。
+2. Old Storefront `effect_unknown` occurrenceはsame-occurrence official receipt/pre-effect proofがなければheldのままにし、parser fixのみでreleaseしない。
+3. Live acceptance後にtargeted immutable release/owner convergenceが許される状態か確認し、natural Storefront outcomeとprovider listing readbackを結ぶ。
+4. Coconala Paidは現行revisionが未納品。Business Suite inbox textはreadableだが、exact campaign-wide reply countとSheet rowのjoinが残る。未送信の「zero replies」draftは使わず、正確なinbox/Sheet readback後にpaid ownerから一度だけ回答し、revision→formal delivery→acceptance→payout→replay-zeroを閉じる。
+5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer。Lancers rows 25–27は`waiting_external`のまま再認証・solver・応募をしない。全Gig ownerの24/7自然receiptとsettled fee/costが揃ってからL9-11 Self-Buildへ進む。
+
+**L9-08並行read-only baseline (2026-10-08 07:56 JST, cursor unchanged):** Lancers Application/Negotiate/Paid/Work-sync/Telegram Report are deferred by `disk_headroom_low`; Storefront remains `resource_effect_unknown`; selected owners have no provider receipts/readbacks. Browser `loaded-running` does not prove an application, contract, or earnings. Keep rows 25–27 `waiting_external` and do not retry auth/solver/proposals.
+
+### 2026-10-08 08:08 JST — Gig cursor after host capacity recovery
+
+このreadbackは07:54 JSTの容量不足記録を更新する。Gig/全社TODO順は変更しない。Coconala body selector修正はPR #6989でmain（`076c5be8`）へ統合済みで、source実装は完了している。
+
+- `/`の空き容量は約2.61 GiBで2 GiB床を超え、`coconala:kosuke`はHTTP 200で到達可能。ただし自然実行中の`hf-gig-paid-direct`が同一profile leaseを保持している。23:05Zのowner readbackはcapacity admission defer・`effect=not_applicable`・receiptなしで、processはその後も実行中。二つ目のbrowser作業を重ねず、stop/kill/restartもしない。
+- `current` symlinkはmain由来release`076c5be8`を指すが、`hf-gig-storefront-direct`のinstalled SHAは引き続き`1c0c9120`。したがってsource fixはreleaseに含まれる一方、Storefront ownerのlive acceptanceは未完了。歴史的なStorefront `effect_unknown` occurrenceも`no_pre_effect_terminal`のまま保持する。
+- Storefrontの最新wake `hf-gig-storefront-direct:18dc61ece6507358-81255`は`host_admission_deferred:resource_effect_unknown`でprovider call前に止まり、receipt/readbackなし。これは旧fenceを守る停止であり、再試行可能扱いで解除しない。`pre-effect-reconcile --dry-run`でも旧occurrence `18d8d288748508e8-23902`は`no_pre_effect_terminal`として`resolved=[]`。
+- `lm-loop doctor --json`は187 registry entries、missing entrypoint 0、unmanaged labels 0だが、Gig外ownerのretired labelが残るため`ok=false`。このlabelをGig担当で変更せず、registry gateが解消するまでrelease applyをしない。
+
+**現在のGig cursor: L9-07 Coconala Storefront / atom 2.1（公式live inventory acceptance）。**
+
+1. 現在のPaid ownerが自然terminalに達して共有browser leaseを解放するのを待つ。ownerやbrowserを停止・再起動しない。
+2. lease解放後、main由来の修正済みcollectorで公式20サービスを一度だけreadし、本文非空・service contract 20/20を確認する。listingは変更しない。
+3. 旧Storefront effect fenceは同一occurrenceの公式receiptまたは受理可能なpre-effect terminalが得られた時だけreconcileする。証拠が無ければheldのままにする。
+4. 全registry doctorとeffect gateが許す状態になってから、currentにあるmain由来`076c5be8` releaseを対象ownerへ反映し、loaded SHA・自然Storefront結果・公式listing readbackを結ぶ。
+5. Coconalaの既存Paid obligationは契約単位で完了し、Coconala Apply→Negotiate/Reply→Paidをofficial receiptとreplay-zeroまで進める。買い手へのeffectはexact inbox/ledger確認後に一度だけ行う。
+6. 次にLancers（rows 25–27は`waiting_external`のまま。再認証・solver・proposal・retryをせず、これらを後続platformの停止条件にしない）→ CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer。各platformは公式Storefront/readinessを先に確認し、その後eligible Apply→Negotiate→Paidをつなぐ。
+7. 有効ownerごとに24/7自然occurrence、公式receipt、settlement/fee/cost、replay-zeroを確認する。全Gig laneが閉じた後にのみL9-11 Self-Buildへ進む。
+
+### 2026-10-08 08:12 JST — Coconala live acceptance and Paid cursor
+
+このreadbackは08:08 JSTのGig cursorを更新する。全社lane順序は変えない。
+
+- 修正済みmain sourceでの公式seller inventoryは20件取得、全20件`公開中`、本文空欄0、`_service_contract` 20/20 PASS。表示salesは20件すべて0で、新規購入・settlementの証拠ではない。
+- inventoryとpublication ledgerの照合はlive 20件に対し`shuppin_published`記録10件、liveだが記録のないlisting 12件、ledger-only 2件。欠落イベントを推定補完しない。
+- `current` symlinkは`076c5be8`を指すが、Storefront ownerはまだ`1c0c9120`。latest Storefront wake `18dc61ece6507358-81255`は`host_admission_deferred:resource_effect_unknown`でprovider call前に停止、receipt/readbackなし。旧occurrence `18d8d288748508e8-23902`のdry-runは`resolved=[]` / `no_pre_effect_terminal`、専用checkerは`HELD` / `stdout_runtime_binding_invalid`。effect fenceを保持する。
+- `lm-loop doctor --json`はmissing entrypoint 0・unmanaged label 0だが、Gig外retired labelにより`ok=false`。別ownerのlabelを変更せず、これをrelease applyの外部gateとして残す。
+- 23:11ZのCoconala selected-talkroom official readbackはHTTP 200・coverage complete。既存案件は`取引中`/`進行中`、feedback stage `revision`、買い手feedbackへのseller回答なし、`formal_delivery_confirmed=false`。このturnでは返信・納品を送っていない。
+- CrowdWorksのapplication-proof修正は別worktreeのactive leaseで進行中。owner作業を重ねず、そのmerge/runtime状態はL9-09開始時に再readする。
+
+**TODO順変更:** 旧順=`Coconala inventory PASS → old Storefront fence → Storefront owner apply/natural run → 既存Coconala Paid obligation`。新順=`Coconala inventory PASS → old fenceはHELDのまま保持 → 既存Coconala Paidの証拠joinとrevision/final delivery → Storefront owner gateが解消したらapply/natural run → Coconala Apply/Negotiate`。理由: 現在の20 listingは公開済みだが新しいStorefront effectはfencedで、global doctorもGig外要因でfalse。一方、既存Paid案件は公式にrevision中・未納品と確認でき、正確な返信証拠を揃えれば決済まで進められる独立収益作業である。これに続くplatform順序は維持する。
+
+**現在のGig cursor: L9-07 Coconala existing Paid / exact reply-evidence join。**
+
+1. 対象campaignのTikTok Business Suite inboxと送信Sheetの公式行をrecipient単位でjoinし、送信数・返信数を確定する。古い「返信0件」draftは使わず、join完了まで買い手へ返答しない。
+2. join済み事実だけでPaid owner経由の返信を一度行い、provider receiptとthread readbackを保存する。
+3. 契約revisionを完了し、formal delivery receipt→buyer acceptance→Coconala settlement/payout→replay-zeroを同一契約/occurrenceで確認する。
+4. Storefront fenceはexact receiptまたは受理可能なpre-effect proofが見つからない限りheld。publication ledgerのlive 20 / recorded 10 / missing 12 / ledger-only 2も厳密な証拠で照合し、推測補完しない。global doctorがPASSした後、currentの`076c5be8`を対象ownerへ反映し、自然Storefront結果・購入・settlementを別々にreadbackする。
+5. Coconalaのfresh eligible案件でApply→Negotiate/Reply→Paidをreceiptとreplay-zeroまでつなぐ。
+6. 次にLancers（rows 25–27は`waiting_external`。再認証・solver・proposal・retryを行わず、後続platformを止めない）→ CrowdWorks（別ownerのproof修正を再利用）→ Job Hunter/Mercor → Upwork → Freelancer。各platformはsupported Storefront/auth状態を先に確認し、その後eligible Apply→Negotiate→Paidを行う。
+7. 各enabled ownerの自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを確認する。全Gig lane完了後にのみL9-11 Self-Buildへ進む。
+
 ### 2026-10-08 08:23 JST — Mobile distribution and notification cursor
 
 この節はmobileの05:51以降の状態とTODO順を置き換える。全社§84-Aの順序は変更しない。
@@ -4381,3 +4435,52 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 6. AniccaをASC first-time downloads 100件/dayのtrailing 7-day averageへ先に伸ばし、その後に残りpublic appsへ展開する。ユーザー提供の10/7週次レポート値（Anicca MRR USD 20.34、28日売上 USD 32.56、28日DL 37 / Honne MRR USD 0、28日DL 8）はreport snapshotとして保持し、settled net revenueの証明とは分ける。
 7. ANICCAのTestFlight run #804のsourceCommit解決を待つ。failならrun/action/log readbackでGitHub source grantを診断してから1回ずつ修復・再実行する。build 391がASCに現れVALID processingとbeta groupを確認後、同buildをdeviceへinstallし、実APNs通知のbody/quoteId/localeでcold-startとbackgroundをMaestro録画する。正しい同一quoteが表示された後にのみlink/videoを成功証拠にする。
 8. Aniccaの100 first-time downloads/day gateの後にMixpanel/PostHog cohortを見てonboarding/paywallを一仮説ずつ改善する。提供画面の「プラン読み込み失敗」は未解決の購入信頼性incidentとして追跡し、ASOはASCがstore-page conversion bottleneckを示した時だけ行う。USD 10,000のverified net MRRはsettled receipts/refunds/fees/actual costsの同期間照合前は未達の事業目標。
+
+### 2026-10-08 08:48 JST — Gig owners, TikTok readback, and remaining platform gates
+
+この節は08:12 JSTのGig cursorを更新する。全社順序とSelfBuildの後置は維持する。
+
+- **Coconala Paid owner:** 23:41Z時点の`hf-gig-paid-direct`は`disk_headroom_low` / `effect=not_applicable` / receiptなしで、project lockを保持している。直前のremote owner結果も`required_effect_satisfied=false`・`required_output_satisfied=false`で、TikTok inbox本文を取得できず未完了。lockが解放されるまでproject、Sheet、inboxを読み書きせず、同じcampaignを二重に実行しない。
+- **Inbox reader:** 現行readback helperの固定8秒待ちはiframe shellのみを取得し、`conversation_contents_readable=false`になる。guard付きの後続read-only観測では同一origin frameが遅れてhydrateしconversation listを表示したが、画面全体のcoverage・会話ごとの送受信方向・Sheet recipientとの全件joinは未証明。Google Sheets公式readbackの日付欄は送信receiptではない。replies 0/正確な返信数を推定しない。
+- **CrowdWorks:** Application/negotiation source reconciliationは別worktreeのactive leaseで進行中。最新Application/Paid runtimeは`entrypoint_exit_75` / `effect=unknown` / receiptなしで、Replyもverified receiptなし。owner sourceを編集せず、merge後に各ownerのofficial readbackを再確認する。
+- **Mercor:** Application/Paid/Replyに`resource_effect_unknown` fencesが残る。Mercorの公式home/apps画面の読み取りだけでは旧occurrenceへのbindingはできず、pre-effect dry-runもresolve 0。応募・返信を再試行せず、exact official receiptが取れるまで保持する。
+- **Upwork:** 公式Project List readbackは`Drafts 0`・`Under Review 0`を示し、active catalog listingは観測されなかった。公式[automation policy](https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly)は未承認のscriptによるdata collection/actionをbotとして扱い、制限や停止の可能性を示す。公式[API key requirements](https://support.upwork.com/hc/en-us/articles/115015857647-Request-an-API-key-from-Upwork)はAPIをpersonal/internal useに限定しcommercial useを非対応とする。従ってこのcommercial Gig laneではbrowser automation・scraping・automated proposalを停止し、Upworkを24/7 automated earning loopとして数えない。API keyは未確認。
+- **Freelancer:** 公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)はpredefined service storefrontの存在を確認する。一方、ローカルには過去のpublish stateが`publish_uncertain`/`provider_rate_limited`として残るだけで、現在のofficial listing receipt・account-bound authenticationは未確認。`freelancer-actions.public.json`のaction statusも`unknown`、automatic biddingはprovider approvalなしでは不可。古いpublishを再送せず、account-bound official Services inventoryが得られるまでpublic service状態をunknownのままにする。
+
+**TODO順/cursor:** Coconala paid contractは別ownerが動作中のため、旧cursor=`こちらでTikTok/Sheet reply joinを実行`から新cursor=`active ownerがnatural terminalに達してlockを解放→同一occurrenceの公式readbackを確認→読取helperのhydration待ちを修正してexact reply join`へ移す。理由はproject lockと最新disk admission deferが継続しており、同時編集・二重sendを避けるため。current cursor=`L9-07 Coconala Paid owner terminal/readback`。
+
+### Gig laneの残りatomic TODO
+
+1. Coconala Paid ownerの自然terminalとproject lock解放を待ち、同一occurrenceのsend/result/official receiptを確認する。`pass`単体・ローカルeffect ledger・Sheet日付は送信receiptとして数えない。
+2. lock解放後、8秒固定readerをconversation-list ready＋安定状態までbounded pollする実装に直し、公式inbox readbackを再取得する。Sheet recipientと送信receipt・inbound replyをexact joinし、joinが完全でなければ買い手へ数を断定しない。
+3. exact join後にだけPaid ownerから一度返信し、contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceへ結ぶ。
+4. Coconala Storefrontは20件公開・contract 20/20確認済み。残るのはold effect fence (`stdout_runtime_binding_invalid`)、publication ledger mismatch、Storefront ownerのold installed SHA、global doctorの外部label gate。証拠で閉じるまでlisting mutation/applyをしない。
+5. Coconala fresh eligible work→Apply→Negotiate/Reply→Paidを進める。Lancers rows 25–27は`waiting_external`のまま飛ばし、認証・solver・proposal・retryをしない。
+6. CrowdWorksは別ownerのactive source repairを再利用し、merge後にApplication/Paid/Replyのunknown occurrencesをofficial readbackで個別reconcileする。Mercorのeffect-unknown fencesも同様に保持し、official receipt前に再応募しない。
+7. Upworkのautomated storefront/applyは公式policy上このcommercial laneでは実行しない。Freelancerは既存uncertain publishのexact official stateを取得し、account-bound authとprovider-approved automation scopeが証明されるまでpublish/bidを再試行しない。
+8. 許可されたplatformだけでmain-derived ownerの自然24/7 occurrence、provider receipt、settlement/fee/cost、replay-zeroを確認する。全Gig lane完了後にのみL9-11 SelfBuildへ進む。
+
+### 2026-10-08 08:48 JST — Gig owner locks and shared capacity cursor
+
+このreadbackは08:48 JST時点のowner/runtime状態を記録する。Gigの次cursorとSelfBuildの後置は維持する。
+
+- `/`のfree spaceは`2,067,940 KiB`で2 GiB floorを下回る。Registered cleanup ownerは`entrypoint_exit_1` / `reconcile_owner`、Cleanup source worktreeにはactive leaseがある。別ownerのworktreeやcleanup stateを変更しない。
+- `hf-gig-paid-direct`はproject lockを保持したまま`disk_headroom_low`でdeferされ、最新readbackは`effect=not_applicable`・provider receiptなし。直前remote outcomeもrequired effect/output未達で、現行Coconala Paid契約の返信・納品・購入者受入は確認できない。owner終了とlock解放前に同じproject/Sheet/inboxへ触れない。
+- TikTok inbox readerの固定8秒取得は空のframe snapshotを返す。guard付きのread-only probeではより長い待機後にconversation listがhydrateしたが、current viewのlistはcampaign全体のcoverage証拠ではない。Google Sheetのrecipient/date列もprovider message receiptではないため、inbound reply countを推定しない。Inbox本文・handle・個別recipientはprivate evidenceに留める。
+- CrowdWorksのApplication proof修正は別ownerのactive lease。最新Application/Paidは`entrypoint_exit_75` / `effect=unknown` / receiptなし、Replyもofficial receiptなし。変更を重ねず、owner merge後にreadbackする。
+- Mercor Application/Paid/Replyのhistorical effect fencesは継続し、fresh account page readbackだけではexact old occurrenceに結べない。新しいapplication/replyは送らない。
+- Upwork公式[bot policy](https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly)は未承認automationでのrequest/data collectionを制限対象とする。公式[API request requirements](https://support.upwork.com/hc/en-us/articles/115015857647-Request-an-API-key-from-Upwork)はAPIのcommercial useをサポートしないと明記する。Project ListはDrafts 0 / Under Review 0を表示し、active catalog itemは観測されない。追加browser automation、scraping、automated proposalは行わない。
+- Freelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)はpredefined-service storefrontを提供する。ローカルに過去のuncertain/rate-limited publish状態はあるがcurrent provider receiptはない。既存profile/local traceはaccount-bound authenticationや現在のservice公開を証明しない。全actionはunknown、automatic biddingは[provider integration approval](https://developers.freelancer.com/docs/api-overview/types-of-integrations)なしに有効化しない。
+
+**現在cursor:** L9-07 Coconala Paid ownerの自然terminal / lock release / exact readback。以後のplatform実行は、上記の別owner leaseとprovider authorizationに従う。
+
+### Remaining atomic Gig TODO
+
+1. Coconala Paid ownerとshared disk cleanup ownerの自然終端を待つ。lock解放後に同一Coconala occurrenceの結果とofficial receiptを読む。process pass、local `sent` ledger、Sheet dateは単独では送信証明にしない。
+2. Coconala Inbox helperの固定待機を、conversation-list-readyかつ連続して安定した場合だけreadback成功とするbounded waitへ直し、公式inboxとfull Sheet rangeを再取得する。Exact recipient→official send receipt→inbound reply join後にのみ返信数を回答し、一度だけPaid owner経由で返す。
+3. Existing Coconala contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceで閉じる。
+4. Coconala Storefront 20/20 live inventoryはPASS済み。旧effect fence、publication ledger差、Storefront owner SHA、global doctor gateをexact evidenceで閉じた後だけ`076c5be8`をtarget ownerに反映し、natural Storefront outcome/purchase/settlementを分けてreadする。
+5. Coconala fresh eligible workのApply→Negotiate/Reply→Paidを進める。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryを行わず後続platformを止めない。
+6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
+7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
+8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
