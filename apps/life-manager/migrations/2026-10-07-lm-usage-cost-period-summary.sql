@@ -1,4 +1,4 @@
--- COST-02: bounded, service-role-only cost summary by provider, SKU, and operation.
+-- COST-02: bounded, service-role-only cost summary by provider, SKU, operation, and unit.
 CREATE OR REPLACE FUNCTION public.lm_usage_cost_period_summary(
   p_period_start timestamptz,
   p_period_end timestamptz,
@@ -7,6 +7,7 @@ CREATE OR REPLACE FUNCTION public.lm_usage_cost_period_summary(
   provider text,
   sku text,
   operation text,
+  unit text,
   event_count bigint,
   request_count bigint,
   cache_hit_count bigint,
@@ -66,6 +67,7 @@ AS $$
     provider,
     sku,
     operation,
+    unit,
     count(*)::bigint AS event_count,
     count(*) FILTER (WHERE unit = 'request' AND NOT cache_hit)::bigint AS request_count,
     count(*) FILTER (WHERE cache_hit)::bigint AS cache_hit_count,
@@ -81,8 +83,8 @@ AS $$
       WHERE billing_status = 'not_applicable' AND actual_usd = 0
     )::bigint AS not_applicable_count
   FROM classified_events
-  GROUP BY provider, sku, operation
-  ORDER BY provider, sku, operation;
+  GROUP BY provider, sku, operation, unit
+  ORDER BY provider, sku, operation, unit;
 $$;
 
 REVOKE ALL ON FUNCTION public.lm_usage_cost_period_summary(timestamptz, timestamptz, text)

@@ -18,6 +18,7 @@
 - Scope every summary query to the authenticated tenant and a bounded period; expose no raw prompt, address, coordinate, credential, or provider error payload.
 - Reuse the existing panel and append-only ledger; do not add a new CLI, scheduler, loop, or state store.
 - Use Asia/Tokyo day and month-to-date boundaries; state explicitly when a summary source is unavailable.
+- Preserve small USD values to at least 8 fractional digits so positive API-price estimates are never rendered as `$0.00`.
 
 ## Working Order and Ownership
 
@@ -29,7 +30,9 @@
 
 - A missing or unavailable RPC is shown as unknown/unavailable, never an empty verified-zero period.
 - An estimate of zero is valid only when its event carries explicit estimated/not-applicable status; null, missing, malformed, or unavailable estimates remain unknown.
+- A positive estimate below one cent remains visibly nonzero at the panel boundary.
 - Only `billing_status=settled` rows contribute settled actual cost; not-applicable cache hits are not unknown expense.
+- Quantities with different units (`request`, `tokens`, `grounded_prompt`, `seconds_proxy`) are never summed into one displayed total.
 - Tenant and period filters apply inside SQL, not only in UI projection.
 - Provider/SKU/operation labels are bounded and safe; no raw event metadata reaches the browser.
 
@@ -43,13 +46,13 @@
 
 **Interfaces:**
 - Produces service-role-only RPC `lm_usage_cost_period_summary(p_period_start timestamptz, p_period_end timestamptz, p_tenant_id text)`.
-- Returns provider/SKU/operation group, event/request and cache counts, provider units, nullable estimated and settled USD totals, unknown-estimate and unknown-actual event counts, and not-applicable count.
+- Returns provider/SKU/operation/unit groups, event/request and cache counts, provider units, nullable estimated and settled USD totals, unknown-estimate and unknown-actual event counts, and not-applicable count.
 - `sum(est_usd)` remains NULL when no event has a known estimate; actual is summed only for valid settled rows.
 
-- [ ] Write migration-contract tests for tenant/period predicates, provider/SKU/operation dimensions, estimate/actual/unknown fields, and service-role-only grants.
+- [ ] Write migration-contract tests for tenant/period predicates, provider/SKU/operation/unit dimensions, estimate/actual/unknown fields, and service-role-only grants.
 - [ ] Run the migration tests and confirm they fail on the missing period-summary RPC.
 - [ ] Add the additive RPC without changing or dropping the existing `lm_usage_cost_summary` function.
-- [ ] Run migration-contract tests and verify the new SQL remains tenant/period bounded and unknown-safe.
+- [ ] Run migration-contract tests and verify the new SQL remains tenant/period bounded, unit-separated, and unknown-safe.
 
 ### Task 2: Read and project daily/month-to-date summaries
 
@@ -57,18 +60,17 @@
 - Modify: `apps/life-manager/lib/panel-api.js`
 - Modify: `apps/life-manager/lib/panel-presentation.js`
 - Test: `apps/life-manager/lib/panel-api.test.js`
-- Create: `apps/life-manager/lib/panel-presentation.test.js`
 
 **Interfaces:**
 - The authenticated `ledger(uid, opts)` calls the summary RPC for today and month-to-date using Asia/Tokyo bounds and `p_tenant_id=uid`.
-- The panel DTO has separate `daily` and `monthly` period records, each with status, exact period bounds, sanitized provider/SKU/operation groups, and explicit estimate/actual/unknown counts.
+- The panel DTO has separate `daily` and `monthly` period records, each with status, exact period bounds, sanitized provider/SKU/operation/unit groups, and explicit estimate/actual/unknown counts.
 - RPC failure returns an unavailable summary state while preserving the existing ledger; it never fabricates zero rows or a zero cost.
 
 - [ ] Write API tests for tenant scoping, day/month boundaries, one summarized group, unavailable RPC, and actual-versus-estimate separation.
 - [ ] Run the API test and confirm it fails because the ledger does not call the period-summary RPC.
 - [ ] Implement the bounded calls and project only the allowlisted summary fields.
-- [ ] Add presentation tests for unavailable, verified-empty, estimated, settled, and partial-unknown periods.
-- [ ] Run API and presentation tests; verify no raw event metadata is returned.
+- [ ] In the same panel API contract test, verify presentation for unavailable, verified-empty, estimated, settled, and partial-unknown periods.
+- [ ] Run the API contract tests; verify no raw event metadata is returned.
 
 ### Task 3: Render the existing Ledger summary
 
@@ -78,16 +80,16 @@
 
 **Interfaces:**
 - Extend the exact ledger payload validator for the new `api_cost` summary fields and existing estimate/actual status fields.
-- Render separate `今日` and `今月` tables with provider/SKU, request/unit counts, estimated cost, settled actual or `未確認`, and coverage gaps.
+- Render separate `今日` and `今月` tables with provider/SKU/operation/unit, request/unit counts, at-least-8-decimal estimated and settled USD cost, `未確認` values, and coverage gaps.
 - Show that the warning threshold is not configured pending A6; no threshold state stops travel or Calendar behavior.
 
-- [ ] Add panel contract tests that the real projected ledger fields pass validation and appear in rendered output.
+- [ ] Add panel contract tests that projected fields pass validation, summaries appear in rendered output, and a positive sub-cent estimate stays visibly nonzero.
 - [ ] Run the UI tests and confirm the old validator rejects status/summary fields.
 - [ ] Update the exact-key validator and render both periods with unknown values visibly distinct from zero.
 - [ ] Run UI tests and the relevant panel privacy harness.
 
 ### Task 4: Acceptance and handoff
 
-- [ ] Run `node --test apps/life-manager/lib/usage-summary-migration.test.js apps/life-manager/lib/panel-api.test.js apps/life-manager/lib/panel-presentation.test.js apps/life-manager/lib/panel-ui.test.js`.
+- [ ] Run `node --test apps/life-manager/lib/usage-summary-migration.test.js apps/life-manager/lib/panel-api.test.js apps/life-manager/lib/panel-ui.test.js`.
 - [ ] Run `git diff --check` and inspect the complete diff for tenant isolation, raw data, hard caps, and incorrect zero/settlement claims.
 - [ ] Commit and push this worktree's branch. Keep the PR draft until canonical cursor/order and A4.2/A4.3 promotion dependencies are resolved.

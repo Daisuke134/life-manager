@@ -43,17 +43,19 @@ test("COST-02 period summary is bounded to one tenant and a half-open period", (
   assert.doesNotMatch(sql, /p_tenant_id\s+IS\s+NULL|OR\s+uid\s*=\s*p_tenant_id/i);
 });
 
-test("COST-02 groups provider, SKU, and operation with event, request, cache, and unit counts", () => {
+test("COST-02 groups provider, SKU, operation, and unit with event, request, and cache counts", () => {
   const sql = periodSummarySql();
   const columns = periodSummaryColumns(sql);
-  for (const field of ["provider", "sku", "operation", "event_count", "request_count",
+  for (const field of ["provider", "sku", "operation", "unit", "event_count", "request_count",
     "cache_hit_count", "cache_miss_count", "provider_units"]) {
     assert.match(columns, new RegExp(`\\b${field}\\b`, "i"));
   }
   assert.match(sql, /meta\s*->>\s*'provider'/i);
   assert.match(sql, /meta\s*->>\s*'sku'/i);
   assert.match(sql, /meta\s*->>\s*'operation'/i);
-  assert.match(sql, /GROUP BY[\s\S]*provider[\s\S]*sku[\s\S]*operation/i);
+  assert.match(sql, /SELECT\s+provider,\s*sku,\s*operation,\s*unit,\s*count\(\*\)::bigint\s+AS event_count/i);
+  assert.match(sql, /GROUP BY\s+provider,\s*sku,\s*operation,\s*unit\b/i);
+  assert.match(sql, /ORDER BY\s+provider,\s*sku,\s*operation,\s*unit\b/i);
   assert.match(sql, /sum\(quantity\)/i);
   assert.match(sql, /cache_hit/i);
 });

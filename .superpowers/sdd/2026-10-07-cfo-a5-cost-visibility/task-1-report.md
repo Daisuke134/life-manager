@@ -17,3 +17,10 @@ PASS. Added the service-role-only `lm_usage_cost_period_summary(p_period_start t
 ## Concerns
 
 - The migration was not applied to a database, and no production database or deployment was touched. PostgreSQL execution is therefore not covered by this static migration-contract test.
+
+## Fix round 1 — preserve provider unit
+
+- Ruling: include `unit` in the returned and grouped dimensions because real producers emit request, token, grounded-prompt, and seconds-proxy quantities. Without it, `provider_units` can add unlike units. Cost if wrong: the dashboard would display semantically invalid usage totals.
+- RED: the updated `COST-02 groups provider, SKU, operation, and unit...` contract test failed because the RPC result columns lacked `unit`.
+- GREEN: `node --test apps/life-manager/lib/usage-summary-migration.test.js` — 5 passed, 0 failed.
+- `git diff --check` passed. No PostgreSQL apply, provider call, or deployment occurred.
