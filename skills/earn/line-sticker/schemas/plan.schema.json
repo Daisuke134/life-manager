@@ -1,9 +1,10 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["theme", "character_id", "character_prompt", "motions", "listing"],
+  "required": ["theme", "series_of", "character_id", "character_prompt", "motions", "listing"],
   "properties": {
     "theme": {"type": "string"},
+    "series_of": {"type": ["string", "null"]},
     "character_id": {"type": "string"},
     "character_prompt": {"type": "string"},
     "motions": {
