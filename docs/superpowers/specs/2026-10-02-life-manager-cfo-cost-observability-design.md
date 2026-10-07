@@ -34,6 +34,7 @@ The report is not complete when a local calculation succeeds. It is complete onl
 - The source cause for the one-day date shift is confirmed: Moneytree provides a Japan calendar date with a `+09:00` offset, but the adapter/collector path treated it as an instant and converted it to UTC before extracting `YYYY-MM-DD`. PR #6910 merged to main as `d950731b`; it preserves the provider calendar date and bumps the 24-hour projection-cache envelope to v3 so an old UTC-shifted v2 snapshot is not reused. Focused tests reproduce a report-window-start exclusion and a month-start expense shift. Candidate release `20261007T213624-d950731b` was cut without activating `current`; the CFO label remains loaded at SHA `80ea586c`, so the fix is not yet live. The current `lm-loop doctor` readback still fails on unrelated retired label `ai.anicca.provision-browser.capafy.kosuke`; no target apply/restart was performed. The current 13 production range mismatches and date cursor remain unverified until a post-release natural report readback.
 - In that report, company historical/trailing/MRR status is `unknown`, with 173/168/26 coverage gaps across 18 loops. Historical and trailing company revenue, cost, and net are null; company MRR currencies are empty. The only verified per-loop MRR is `mobile-apps` at USD 20.34; this is subscription MRR, not settled revenue or profit. The historical window has no start date, so this snapshot does not establish last-month company revenue.
 - An independent read-only reaggregation confirms the 173/168/26 gap counts from all 18 per-loop rows and matches the company-level aggregates. Historical gaps: 162 `missing_category` (all 9 required counted categories across 18 loops), 5 stale readbacks, 3 unverified receipts, and one each for unconnected source, missing coverage, and read failure. Trailing gaps: 158 `missing_category` (four categories have 17 loop gaps each; the other five have 18), 5 stale readbacks, 2 unverified receipts, and one each for unconnected source, missing coverage, and read failure. MRR gaps: 19 `missing_category` (17 explicitly identify category `mrr`; 2 omit the category field), 2 stale readbacks, 2 unverified receipts, and one each for unconnected source, missing coverage, and read failure. These are missing or unverified coverage, not zero revenue or zero cost.
+- The canonical SSOT describes a 14-loop financial target, while the latest B7 report snapshot has 18 per-loop rows. The inventory crosswalk is unresolved. A8 must reconcile the current agent registry/catalog against report rows and explain extras, missing agents, or duplicates before claiming “every agent covered”; do not select 14 or 18 by assumption.
 
 ### Code gaps
 
@@ -185,11 +186,19 @@ This section defines phase scope and acceptance intent, not the live TODO order 
 
 ### CFO-first execution priority (user-requested; canonical SSOT sync pending)
 
-Prioritize the financial close before the free-geocoding optimization: **A5 → A6 → A7 (bounded, non-blocking) → A8 → A9 → A10 → A4.1 → A4.2 → A4.3 → A3.4 conditional**. The reason is to establish actual Life Manager revenue and total cost before optimizing one provider lane; the September Cost Table readback shows Places is a larger Google service cost than Geocoding. A4's behavior and accepted user experience do not change; its implementation is deferred until the CFO block is delivered. A3.4 remains conditional on A6 evidence of material settled Geocoding cost or duplicate calls after process restart.
+This active goal is the **business CFO**: actual revenue and actual costs for every canonical business agent/loop, followed by a reliable report. It is not the personal Moneytree rail or the Life Manager Cloud cost-reduction project. Active completion order is **A5 → A6 → A8 → A9 → A10**:
 
-Moneytree is a bounded best-effort input, not a gate for business CFO coverage: use an already available connection for a read-only balance/transaction/freshness check. If it is unavailable, stale, or incomplete after that attempt, keep the personal-finance fields explicitly partial/unknown and continue A8/A9/A10. Do not spend the CFO lane on repeated login, reconnect, or recovery attempts. Do not convert missing data into zero or claim the personal CFO view is complete.
+1. **A5 — per-agent/loop cost visibility:** expose usage, estimate, actual, and unknown by provider and canonical agent/loop using existing identifiers and report surfaces. Warnings remain warning-only; do not add a global hard cap or silently stop work.
+2. **A6 — Google actuals:** capture the official Cost Table CSV and reconcile invoice period, project, service, SKU, tax, credits, and currency against Monitoring estimates. Join invoice costs to an agent/loop only when provider/occurrence evidence supports it; otherwise show the amount in an explicit shared/unattributed bucket, not as guessed per-agent spend.
+3. **A8 — full business coverage:** first reconcile the agent registry/catalog to B7 report rows (14 canonical targets versus 18 observed rows currently disagree). Then join each agent/loop's settled revenue, refunds, fees, provider/API costs, subscriptions, and infrastructure costs by period/currency and official receipt. Preserve direct versus shared cost; do not convert estimates or missing values to actual/zero.
+4. **A9 — usable CFO report:** reuse the existing CLI/report surface to show each agent and loop's gross revenue, refund/fees, settled revenue, direct costs, shared/unattributed costs, net contribution, and MRR separately, with period, currency, receipt, freshness, and coverage state. Company totals must reconcile to the source rows.
+5. **A10 — natural acceptance:** observe seven consecutive days and read back every canonical agent/loop row and its source evidence. Missing categories must remain explicitly unknown with an owner/next action; do not claim a complete CFO or $10k MRR from partial coverage.
 
-This records the requested priority, **not** a new active cursor. At the latest main readback, the unified SSOT still says cursor `A4.1` and retains the previous order. Its worktree is under an active owner lease, so only that owner can record the canonical TODO/cursor change after safely reconciling the lease. Do not treat this design note as proof that the SSOT order has already changed.
+**Deferred, after the business CFO block:** A4.1→A4.2→A4.3 (free-geocoding optimization); A3.4 remains conditional on A6 evidence of material settled Geocoding cost or duplicate calls after process restart. This matches the measured September bill, where Places cost more than Geocoding. Do not start or prioritize these Cloud savings tasks before A10.
+
+**A7 Moneytree is deferred by the user and is not part of this completion gate.** Do not call the Moneytree plugin, attempt login/reconnect, or spend time on personal-bank data in this work. Existing Moneytree values in this document are historical observations only; they are not refreshed or presented as current. The personal CFO rail can remain a separate backlog item.
+
+This records the requested priority, **not** a new active cursor. The latest merged main SSOT still has the previous order and cursor `A4.1`; its separate worktree remains under an active owner lease. Do not edit that worktree or claim its canonical order has changed. The SSOT owner must reconcile the new A5→A6→A8→A9→A10 order after the lease is safely released.
 
 ### A0 — Spec and ownership
 
@@ -238,7 +247,7 @@ Implementation boundary for A3:
 
 ### A5 — Budget governor
 
-- expose daily/monthly usage, estimate, actual, and unknown states with warnings only;
+- expose daily/monthly usage, estimate, actual, and unknown states by provider and canonical agent/loop with warnings only;
 - do not add a global hard cap or silently stop core provider work when a threshold is reached;
 - preserve essential cached reads;
 - emit budget transition observations and Life Manager-owned warnings.
@@ -248,31 +257,31 @@ Implementation boundary for A3:
 - collect intramonth Monitoring usage estimates;
 - import Cost table CSV settlement rows;
 - join SKU/project/service rows to provider cost events;
+- attribute to an agent/loop only with receipt-backed evidence; keep unsupported shared cost visible as shared/unattributed;
 - show estimate-versus-settled variance.
 
-### A7 — Personal CFO rail
+### A7 — Personal CFO rail (deferred by user; out of current acceptance)
 
-- use an already available Moneytree connection for a bounded, read-only MUFG balance/transaction/freshness check;
-- if access is unavailable or the data is stale/incomplete, record the exact coverage gap and continue business CFO work without repeated auth/reconnect attempts;
-- normalize JPY/original currency/FX provenance;
-- reject stale balances as current;
-- when source data is available, read back the balance and transaction cursor independently.
+- do not perform Moneytree reads, authorization, reconnect, or recovery in the current business-CFO work;
+- retain historical Moneytree observations as stale; do not use them as a current balance or business revenue/expense input;
+- resume this personal-finance rail only as a separate future task.
 
 ### A8 — Revenue and expense coverage
 
-- connect every available settled business revenue rail and business expense source;
-- connect available personal bank/card rails, while keeping inaccessible or stale sources explicitly partial/unknown rather than blocking business coverage;
+- reconcile the canonical agent registry/catalog to every reported agent/loop row before claiming full coverage;
+- connect every settled business revenue rail and every business expense source for each canonical agent/loop;
+- join actual receipts by period/currency/owner; show missing `agent_id`/`loop_id`, unsupported allocation, or unavailable source explicitly as a coverage gap;
 - detect subscriptions and merchant categories;
 - reconcile internal transfers;
-- compute 1/3/12-month totals.
+- compute per-agent/loop and company 1/3/12-month totals without double-counting transfers or settlements.
 
 ### A9 — Report surfaces
 
 - build the deterministic daily/weekly snapshot;
-- send Telegram report with freshness and receipts;
-- render the same snapshot in the panel;
-- test that Life Manager-owned report and panel totals are identical;
-- show business revenue/expense/net and MRR separately from personal balance, with source freshness and partial/unknown coverage visible.
+- render per-agent, per-loop, and company revenue/cost/net/MRR in the existing CLI/report surface;
+- show direct cost separately from shared/unattributed cost, and settled values separately from estimates;
+- include period, currency, receipt reference, freshness, and coverage/unknown state for every row;
+- verify displayed totals reconcile to the underlying source-backed rows.
 
 ### A10 — Natural-run acceptance
 
@@ -280,8 +289,8 @@ Implementation boundary for A3:
 - run one cloud canary;
 - observe seven consecutive days;
 - verify available official Google billing, revenue, and expense readbacks;
-- verify Moneytree readback when available; if unavailable, pass only with an explicit personal-finance partial/unknown state while business CFO coverage remains sourced;
-- close only when missing source coverage is visible and never represented as zero.
+- verify every canonical business agent/loop appears and source totals reconcile; the 14-versus-18 row mismatch must be resolved;
+- close only when every missing source/attribution is explicit and no partial value is represented as zero or as a complete CFO result.
 
 ## 10. Status ownership
 
