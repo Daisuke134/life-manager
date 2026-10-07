@@ -25,6 +25,7 @@ FREE_TRIAL = re.compile(r"free[\s_-]+trial\s+(\d+)\s*h\s*/\s*(\d+)\s*requests?",
 MODEL_IDS = {
     "Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
     "Claude Sonnet 5.5": "anthropic/claude-sonnet-5.5",
+    "Claude Sonnet 5": "anthropic/claude-sonnet-5",
     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
 }
 # E (2026-09-28): Hook Lab (agent 8123079349, Sonnet-hosted) measured ~45k input
@@ -33,7 +34,7 @@ MODEL_IDS = {
 # huge and then gets echoed back into the next turn's history on a multi-turn card,
 # compounding input size run over run. Existing online agents (Hook Lab included)
 # keep their already-published CP2 config; only NEW skills get the lower ceiling.
-HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "Claude Sonnet 5.5": 8192, "DeepSeek V4.1 Flash": 8192}
+HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "Claude Sonnet 5.5": 8192, "Claude Sonnet 5": 8192, "DeepSeek V4.1 Flash": 8192}
 
 
 def main():
