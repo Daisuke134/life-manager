@@ -30,6 +30,7 @@ allow-listed regenerable artifact after an open-path probe confirms
 - `sweep()` accepts only candidates carrying internal allow-list discovery proof
   for the exact regenerable families; the CLI `--candidate` escape hatch is
   rejected so an arbitrary path cannot be promoted by an operator flag.
+- iOS Simulatorはアプリ出荷に必要な資源として、runtime/image・CoreSimulator device/data・dyld cacheを保持する。未起動や閉じた状態を不要の証拠にしない。欠落runtimeを復元し、別の未使用再生成物とproducer延期で容量を確保する。
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - Pressure is asserted below 11 GiB and is not cleared until the recovery floor
   is reached; the 20 GiB threshold starts preventive containment.
