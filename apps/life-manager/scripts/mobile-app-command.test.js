@@ -14,7 +14,7 @@ const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
-  assert.equal(Object.keys(manifest.loops).length, 17); // obou-instagram retired (ebook account, out of mobile scope)
+  assert.equal(Object.keys(manifest.loops).length, 18); // obou-instagram retired (ebook account, out of mobile scope)
   assert.deepEqual(
     new Set(products.products.map((item) => item.product_id)),
     new Set(Object.values(manifest.loops).map((item) => item.product_id)),
@@ -47,6 +47,13 @@ test("all mobile publication loops share one command and one manifest", () => {
       assert.ok(fs.existsSync(path.join(root, resolved.source.canonical_source_rel, "BenYinFanYiAI.xcodeproj", "project.pbxproj")));
     }
   }
+});
+
+test("the EN2 TikTok account resolves to the shared Anicca iOS carousel runner", () => {
+  const resolved = resolveMobileAppLoop("life-manager-anicca-en2-affirmation-tiktok");
+  assert.equal(resolved.productId, "anicca-ios");
+  assert.equal(path.basename(resolved.runner), "anicca-larry-ja-rotating.js");
+  assert.equal(resolved.action, "run-en2-affirmation-tiktok-production");
 });
 
 test("retired per-lane boot wrappers are absent", () => {
