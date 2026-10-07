@@ -50,7 +50,7 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertEqual(command[-1], '/state/life-manager')
 
     def test_host_cleanup_error_cannot_be_reported_as_success(self):
-        recovery_floor = 11 * 1024**3
+        recovery_floor = 2 * 1024**3
         self.assertFalse(host_cleanup_ok(0, {
             "errors": 1, "protected_deletions": 0, "free_after": recovery_floor,
         }))
@@ -71,7 +71,7 @@ class LoopCleanupTest(unittest.TestCase):
         }
         self.assertFalse(host_cleanup_ok(0, incident_receipt))
         self.assertTrue(host_cleanup_ok(0, {
-            "errors": 0, "protected_deletions": 0, "free_after": 11 * 1024**3,
+            "errors": 0, "protected_deletions": 0, "free_after": 2 * 1024**3,
         }))
 
     def test_host_cleanup_missing_or_invalid_capacity_readback_fails_closed(self):
@@ -79,11 +79,11 @@ class LoopCleanupTest(unittest.TestCase):
             {"errors": 0, "protected_deletions": 0},
             {"errors": 0, "protected_deletions": 0, "free_after": None},
             {"errors": 0, "protected_deletions": 0, "free_after": True},
-            {"errors": 0, "protected_deletions": 0, "free_after": "11811160064"},
+            {"errors": 0, "protected_deletions": 0, "free_after": "2147483648"},
             {
                 "errors": 0,
                 "protected_deletions": 0,
-                "free_after": 11 * 1024**3 - 1,
+                "free_after": 2 * 1024**3 - 1,
             },
         )
         for receipt in receipts:
@@ -99,7 +99,7 @@ class LoopCleanupTest(unittest.TestCase):
         })
 
     def test_host_cleanup_valid_readback_keeps_receipt_and_reports_recovery(self):
-        recovery_floor = 11 * 1024**3
+        recovery_floor = 2 * 1024**3
         receipt = {
             "errors": 0,
             "protected_deletions": 0,
@@ -123,7 +123,7 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(result["capacity_recovery"], {
             "status": "unknown",
-            "recovery_floor_bytes": 11 * 1024**3,
+            "recovery_floor_bytes": 2 * 1024**3,
         })
         self.assertEqual(result["errors"], 0)
         self.assertEqual(result["protected_deletions"], 0)
@@ -142,7 +142,7 @@ class LoopCleanupTest(unittest.TestCase):
             **receipt,
             "capacity_recovery": {
                 "status": "unmet",
-                "recovery_floor_bytes": 11 * 1024**3,
+                "recovery_floor_bytes": 2 * 1024**3,
             },
         })
 
