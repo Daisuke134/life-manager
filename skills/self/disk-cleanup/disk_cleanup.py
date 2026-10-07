@@ -45,7 +45,7 @@ SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS = 5
 SPARKLE_UPDATER_POLL_SECONDS = 0.1
 CANONICAL_LABEL = "ai.anicca.life-manager-disk-cleanup"
 THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSURE"), (3 * GiB, "CRITICAL"))
-RECOVERY_FLOOR_BYTES = next(floor for floor, tier in THRESHOLDS if tier == "PREVENTIVE")
+RECOVERY_FLOOR_BYTES = 2 * GiB
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 # A release is ~1.2GiB, so unbounded generations fill the disk on their own.
