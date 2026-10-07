@@ -35,6 +35,29 @@ async function recordGeminiUsage(response, context = {}) {
   }
 }
 
+async function recordPlacesUsage(usageWriter, tenantId, outcome, failureClass = null) {
+  if (!usageWriter && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)) return;
+  const write = usageWriter || recordUsageEvent;
+  try {
+    await write({
+      tenantId,
+      provider: "google_maps",
+      feature: "ask_resolve_location",
+      operation: "places_text_search",
+      outcome,
+      providerUnits: 1,
+      providerUnit: "request",
+      estimatedCostUsd: null,
+      failureClass,
+      meta: {
+        estimate_status: "unavailable",
+        pricing_basis: "unavailable",
+        pricing_version: null,
+      },
+    });
+  } catch { /* usage recording must not change location resolution */ }
+}
+
 // Raw Gemini generateContent. Key goes in the x-goog-api-key HEADER, never the URL (so it can't leak
 // into logs/referrers). Returns the parsed response, or {} on failure.
 async function geminiRaw(body, geminiKey, context = {}) {
@@ -165,14 +188,24 @@ function closedOnlineAskMessage(event, interpretation, replyToken) {
 // NOTE: this legacy endpoint requires the key as a query param (no header alternative; the v1 API that
 // supports header-auth is not enabled on this GCP project). The key is a Maps-restricted browser key,
 // not a secret credential, and we never log this URL — see SECURITY note at the call site.
-async function placesSearch(query, mapsKey) {
+async function placesSearch(query, mapsKey, { tenantId, recordUsageEvent: usageWriter } = {}) {
   if (!mapsKey || !query) return [];
+  let r;
+  let j;
   try {
     // No hardcoded language/region — this must work for ANY user worldwide. Places returns each
     // venue's address in its own locale; the agent adds geographic context (the user's home city) to
     // its query itself when it needs to disambiguate.
-    const r = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
-    const j = await r.json();
+    r = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${mapsKey}`);
+    j = await r.json();
+  } catch {
+    await recordPlacesUsage(usageWriter, tenantId, "failure", "transport");
+    return [];
+  }
+  const completed = r.ok !== false && (j?.status === "OK" || j?.status === "ZERO_RESULTS");
+  await recordPlacesUsage(usageWriter, tenantId, completed ? "success" : "failure",
+    completed ? null : "provider");
+  try {
     return (j.results || []).slice(0, 5).map((p) => ({ name: p.name || "", address: p.formatted_address || "" }));
   } catch { return []; }
 }
@@ -269,7 +302,8 @@ User's home address: ${JSON.stringify(home || "")}` }],
         return { kind: "ask" };
       }
       if (c.name === "places_search") {
-        const res = await placesSearch((c.args || {}).query || "", mapsKey);
+        const res = await placesSearch((c.args || {}).query || "", mapsKey,
+          { tenantId: uid, recordUsageEvent: usageWriter });
         responses.push({ functionResponse: { name: "places_search", response: { results: res } } });
       }
     }
