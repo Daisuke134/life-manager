@@ -694,11 +694,13 @@ TODO（何を・どう直すか）
 | L05b | 振込に必要な基本情報と送金先口座を登録する | DONE 2026-10-06: 名前欄「いりや/成田いりや」を本名（成田 大祐）に修正、電話・住所を `~/.config/anicca/job-search/profile.json` から入力、送金先 = 三菱UFJ 青山通 普通（ココナラ登録口座から取得、credential SSOT `bank-payout-dais`）。公式画面で「未登録」表示が消えたことを readback。送金可能額 ¥0（分配 ¥1,000 超で送金申請可、年 5 万円超はマイナンバー提出が必要） |
 | L06 | 審査結果を読む（`creators_readback.py`） → 却下なら直して再申請 → 承認後にリリースし、LINE STORE の公開 URL を確認 | 一部 DONE: 48077815（カワウソ）承認・販売中 `https://line.me/S/sticker/37112188`、プレミアム参加中。却下時の自動修正は L13 |
 | L07 | 毎時 owner を main 由来の immutable release で入れる（1 wake = 1 set の 1 stage、plan→…→submitted、日次上限・cost cap・submit fence） | DONE: #6667 merge、自然 wake で set-004（48085257）と set-005（制作完了）を無人で進めた。set-005 submit は 2 回 effect_unknown（①primary の手動確認がタブ 27 枚を残し接続 timeout ②タイトル重複が画面上の検証で弾かれ OK 待ち timeout）。両方とも公式一覧で商品未作成を確認し `resolve_pre_effect_occurrence` で解除、receipt は `~/.local/state/life-manager/line-sticker/reconciliation/` |
-| L08 | 集客（キャラ専用 SNS で動くスタンプを毎日投稿 + ストア URL、`ct=` 付き。兄弟 = `capafy-distribute-daily` の Postiz 投稿） | **cursor**。Postiz 接続 30 件は全て Anicca 系でスタンプ用キャラのアカウントが無い。上位作者は SNS でキャラの日常を投稿してフォロワーが買う |
+| L08 | 集客（スタンプ専用アカウントだけで、動くスタンプの縦動画を 1 日 6 本/アカウント投稿。Anicca 系アカウントは客層が混ざるので使わない＝Dais 2026-10-07） | **cursor**。専用 IG `@stardust_doubutsu` を 2026-10-07 作成（Gmail `daisukenarita53+stardust2303`、icon/bio VERIFY ok、day1 passive warmup 済み、credential SSOT `instagram`）。Postiz は channel 上限（"Payment Required — maximum number of channels"）で追加不可のため、販売 loop `line-sticker-distribute`（#6839）は browser 直投稿（`ig-reels-poster`）経路で実装中。新規アカウントなので最初はキャプションにリンクを入れず「LINEスタンプで『<title>』と検索」 |
 | L09 | `line-creators:dais` に keep_alive の browser owner（`line-creators-browser`、port 9231） | DONE: #6774 merge `fc9aff0c`、release `20261007T102656-c0da6b38` を apply、guard が `:9231` を解決し creator.line.me ログイン済みを readback。手動起動時の古い `DevToolsActivePort` は削除 |
 | L10 | 成功者のシリーズ型を写す（キャラ固定・テーマ別続編、「動く！<キャラ>の<シーン>」） | DONE: 2026-10-06 LINE STORE top_creators 調査で上位 20 作者全員が同一キャラのシリーズ 5〜36 セット、単発 0。#6813 `528542f8` で planner が `series_of` を判断し参照画像を再利用。#6816 で不正な `series_of` は新規生成へ fallback |
 | L11 | LINE Creators の session を切らさない | DONE: #6812 `e1b8ebc6` `session_vault_tick.sh` に line-creators block（status で port 解決、ログイン中だけ dump、切れたら vault restore→失敗時のみ通知）。session-vault ラベルへの apply は次の release で |
-| L12 | タイトル重複で submit が止まらない | #6816: 画面上の「既に存在するタイトル」を TitleTaken として扱い、両言語タイトルにキャラ名を付けて 1 回再試行 |
+| L12 | タイトル重複で submit が止まらない | DONE: #6816 画面上の重複エラーを TitleTaken に、#6848 Creators Market は全角を 2 と数える 40 上限なので、`<title> (<name>)` が 38 単位を超えたら `<name> Stickers` / `<name>のスタンプ` にする（set-005 のデータで保存確認ダイアログまで live 確認） |
+| L14 | 1 回の起動で 1 セットを申請まで（Dais 2026-10-07「1 段ずつではなく出荷まで」） | DONE: #6835 起動 15 分ごと、#6837 `factory.run()` が submitted まで進め続ける（submit の sub-state も進捗がある限り継続）、日次上限 24、runtime 5400s。release `e757f0f4` に apply。天井は Creators Market の審査リクエスト 30 回/日 |
+| L15 | README のエージェント一覧に登録 | DONE: #6840 `product-loop-catalog` に `line-sticker`、README/README.ja を「16 main agents」に（#15 LINE Sticker）。誰の端末でも動く guided installer は未 |
 | L13 | リジェクトを読んで直し、再申請する | 未。readback は `リジェクト` を記録するだけ。メッセージセンターの理由を model が読み、設定（特集・タグ・タイトル）で直せるものは直して再リクエスト |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
