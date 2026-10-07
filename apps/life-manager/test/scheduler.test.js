@@ -42,6 +42,55 @@ test("late tick scheduler surface has no mail sender dependency", () => {
   assert.doesNotMatch(lateTickSource, /sendLateNotice|noticeOpts|RESEND_API_KEY/);
 });
 
+test("Web-only location questions have no email fallback", () => {
+  const { questionChannelForUser } = require("../scheduler.js");
+  assert.equal(typeof questionChannelForUser, "function");
+  assert.equal(questionChannelForUser({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    email: "calendar-owner@example.test",
+  }), null);
+  assert.equal(questionChannelForUser({ uid: "legacy-user", telegram_chat_id: "123", email: "user@example.test" }), "telegram");
+  assert.equal(questionChannelForUser({ uid: "legacy-user", telegram_chat_id: null, email: "user@example.test" }), "email");
+});
+
+test("Web-only ask loop performs no Calendar or email request without a linked message channel", async () => {
+  const { askUserOnce } = require("../scheduler.js");
+  const before = Object.fromEntries([
+    "COMPOSIO_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "GEMINI_API_KEY", "LIFE_MAPS_KEY", "RESEND_API_KEY",
+  ].map((key) => [key, process.env[key]]));
+  const originalFetch = global.fetch;
+  const calls = [];
+  Object.assign(process.env, {
+    COMPOSIO_API_KEY: "fixture-composio",
+    SUPABASE_URL: "https://supabase.example",
+    SUPABASE_SERVICE_ROLE_KEY: "fixture-service-role",
+    GEMINI_API_KEY: "fixture-gemini",
+    LIFE_MAPS_KEY: "fixture-maps",
+    RESEND_API_KEY: "fixture-resend",
+  });
+  global.fetch = async (url) => {
+    calls.push(String(url));
+    return { ok: true, status: 200, json: async () => [] };
+  };
+  try {
+    await askUserOnce({
+      uid: "lm_11111111-1111-4111-8111-111111111111",
+      telegram_chat_id: null,
+      email: "calendar-owner@example.test",
+      daily_automation_enabled: true,
+      notifications_enabled: true,
+    });
+    assert.deepEqual(calls, []);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(before)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("Web travel skips Calendar work unless the persisted account is currently ACTIVE", async () => {
   const { travelUserOnce } = require("../scheduler.js");
   const uid = "lm_11111111-1111-4111-8111-111111111111";
@@ -72,6 +121,36 @@ test("Web travel proceeds after the persisted exact account passes the ACTIVE ga
     readWebTravelControlStateImpl: async () => ({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false }),
     fillTravel: async (_uid, options) => { calendarExpectedIds.push(options.expectedCalendarAccountId); return { inserted: 0, outboundReports: [] }; },
   });
+  assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
+});
+
+test("Web initial scan bypasses daily automation only for the exact active account", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const calendarExpectedIds = [];
+  await travelUserOnce({
+    uid,
+    telegram_chat_id: null,
+    daily_automation_enabled: false,
+    home_address: null,
+    expectedCalendarAccountId: "ca-selected",
+  }, {
+    initialScan: true,
+    apiKey: "provider-key",
+    mapsKey: "maps-key",
+    resolveActiveWebCalendarImpl: async () => ({ accountId: "ca-selected" }),
+    readWebTravelControlStateImpl: async () => ({
+      dailyAutomationEnabled: false,
+      disconnectPending: false,
+      enablePending: false,
+    }),
+    fillTravel: async (_uid, options) => {
+      calendarExpectedIds.push(options.expectedCalendarAccountId);
+      assert.equal(options.home, null);
+      return { inserted: 1, outboundReports: [] };
+    },
+  });
+
   assert.deepEqual(calendarExpectedIds, ["ca-selected"]);
 });
 

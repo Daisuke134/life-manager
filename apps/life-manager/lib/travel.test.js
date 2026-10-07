@@ -42,10 +42,10 @@ test("home → real venue → INSERT, origin=home", () => {
   assert.equal(d.origin, HOME);
 });
 
-test("back-to-back: prev ends ≤90min before, different place → origin=prev (office→home travel)", () => {
+test("back-to-back: prev ends ≤90min before, different place → origin=prev with no saved home", () => {
   const prev = { location: "MUIT 生駒", endMs: ms(17) };
   const ev = { summary: "😴 Sleep", location: HOME, startMs: ms(18) }; // 60min after prev
-  const d = travelDecision(ev, prev, HOME);
+  const d = travelDecision(ev, prev, "");
   assert.equal(d.insert, true);          // genuine travel home from the office
   assert.equal(d.origin, "MUIT 生駒");
 });
