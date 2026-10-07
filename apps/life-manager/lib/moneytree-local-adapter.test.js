@@ -229,11 +229,12 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   assert.equal(fs.readFileSync(log, "utf8"), "exited\n");
 });
 
-test("Moneytree transfer, card repayment, and ATM withdrawal categories are not consumption", () => {
+test("Moneytree transfers, card repayments, and ATM withdrawals or deposits are not income or consumption", () => {
   const transactions = normalizeTransactions({ structuredContent: { data: { transactions: [
     { id: "tx-transfer", account_id: "account-1", amount: -1200, date: "2026-09-01", description: "振替", category_name: "振替" },
     { id: "tx-card-repayment", account_id: "account-1", amount: -5400, date: "2026-09-02", description: "カード返済", category_name: "カード返済" },
     { id: "tx-atm-withdrawal", account_id: "account-1", amount: -10000, date: "2026-09-03", description: "ATM引き出し", category_name: "ATM引き出し" },
+    { id: "tx-atm-deposit", account_id: "account-1", amount: 20000, date: "2026-09-04", description: "ATM入金", category_name: "ATM入金" },
   ] } } });
   const records = transactions.map((transaction) => transactionToFinancialRecord(transaction, {
     subjectId: "user-1",
@@ -244,6 +245,7 @@ test("Moneytree transfer, card repayment, and ATM withdrawal categories are not 
     { kind: "transfer", direction: "debit" },
     { kind: "transfer", direction: "debit" },
     { kind: "transfer", direction: "debit" },
+    { kind: "transfer", direction: "credit" },
   ]);
   assert.equal(records.some(({ kind }) => kind === "personal_expense"), false);
 });

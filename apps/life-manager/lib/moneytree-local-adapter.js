@@ -141,7 +141,7 @@ function normalizeTransactions(toolResult) {
       merchant: row.description,
       category: row.category_name || "未分類",
     };
-    if (["振替", "カード返済", "ATM引き出し"].includes(row.category_name)) {
+    if (["振替", "カード返済", "ATM引き出し", "ATM入金"].includes(row.category_name)) {
       transaction.transfer_id = `moneytree:${row.id}`;
     }
     return validateFinancialRecord("transaction", transaction);

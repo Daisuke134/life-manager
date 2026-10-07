@@ -92,7 +92,7 @@ function writeSnapshot(file, value) {
 
 const PERSONAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MONEYTREE_TRANSACTION_LIMIT = 1000;
-const CASH_MOVEMENT_CATEGORIES = new Set(["振替", "カード返済", "ATM引き出し"]);
+const CASH_MOVEMENT_CATEGORIES = new Set(["振替", "カード返済", "ATM引き出し", "ATM入金"]);
 
 function isoDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -131,7 +131,7 @@ function moneytreeWindows(reportDate) {
 function readPersonalCache(file, now, reportDate) {
   try {
     const cached = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (cached?.schema_version !== 1 || !cached.personal_moneytree
+    if (cached?.schema_version !== 2 || !cached.personal_moneytree
       || cached.personal_moneytree.owner !== "dais_personal") return null;
     if (cached.personal_moneytree.range_start !== shiftMonths(reportDate, -12)
       || cached.personal_moneytree.range_end !== reportDate) return null;
@@ -390,7 +390,7 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
     const cacheable = windowsWithRows.every((window) => Boolean(window.evidence_ref));
     if (cacheable) {
       try {
-        writeSnapshot(cacheFile, { schema_version: 1, cached_at: now.toISOString(), personal_moneytree: personal });
+        writeSnapshot(cacheFile, { schema_version: 2, cached_at: now.toISOString(), personal_moneytree: personal });
       } catch (error) {
         personal.cache_status = "write_failed";
         personal.cache_error_class = error?.name || "Error";
