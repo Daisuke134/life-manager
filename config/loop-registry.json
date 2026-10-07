@@ -854,7 +854,7 @@
     },
     "line-sticker-factory-hourly": {
       "priority": "revenue",
-      "resource_class": "browser",
+      "resource_class": "agent",
       "admission_class": "revenue",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
