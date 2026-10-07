@@ -49,7 +49,7 @@
 - [x] **Step 4: Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js`; confirm the new assertions fail.**
 - [x] **Step 5: Add the safe institution label, bounded query metadata, and non-consumption classification; never store account numbers/provider IDs.**
 - [x] **Step 6: Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js`; confirm all adapter tests pass.**
-- [ ] **Step 7: Commit the task.**
+- [x] **Step 7: Commit the task.**
 
 ### Task 2: Add the personal snapshot to the existing B7 report
 
