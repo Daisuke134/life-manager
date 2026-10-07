@@ -858,3 +858,15 @@ def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) ->
     plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
 
     assert module.drop_profitable_updates([approved, plain], path=analytics) == [approved]
+
+
+def test_frozen_agents_are_never_updated_without_exception(tmp_path) -> None:
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": []}))
+    frozen = tmp_path / "FROZEN.json"
+    frozen.write_text(json.dumps({"agent_ids": ["hook"]}))
+    plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
+    approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "x"}}
+
+    assert module.drop_profitable_updates([plain, approved], path=analytics, frozen_path=frozen) == [approved]
