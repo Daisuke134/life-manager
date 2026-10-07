@@ -215,9 +215,9 @@
 
 - [ ] Start only after Task 6 records a natural paid eBook Checkout and its matching PDF delivery receipt; no such receipt is recorded.
 - [ ] Continue the eBook 14-day measurement in parallel after that gate.
-- [x] Official Postiz GET at 2026-10-07 13:19 JST confirms `capafy.hooklab` Instagram integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`; same readback has zero Capafy Instagram posts for the current JST day. This proves route state, not native account ownership or good standing.
-- [ ] Old direct publisher `capafy-ig-marketing-daily` remains launchd-disabled with active fence `18db7caff1178a88-68028`; its read-only reconciler returns `active_ig_handle_unresolvable`, so no authenticated media readback exists. Keep it disabled; do not retry.
-- [x] New Postiz publisher `life-manager-capafy-ig` remains launchd-disabled; no active admission fence remains. Its latest explicit entrypoint error was `LM_CAPAFY_IG_PACK_REF is required`.
+- [x] Fresh official Postiz GET at 2026-10-08 17:57Z confirms `capafy.hooklab` Instagram integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`; Oct8 JST post count is 0. This proves route state, not native account ownership or good standing. Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-capafy-instagram-20261007T175738Z.json`.
+- [ ] Current read-only owner status at 2026-10-08 02:57 JST: old direct publisher `capafy-ig-marketing-daily` remains launchd-disabled with active fence `18db7caff1178a88-68028`; adapter reason is `active_ig_handle_unresolvable`, verified=false. Keep it disabled; do not retry. Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/capafy-instagram-owner-readback-20261007T180529Z.json`.
+- [x] New Postiz publisher `life-manager-capafy-ig` remains launchd-disabled with no active admission fence. Its latest explicit entrypoint error was `LM_CAPAFY_IG_PACK_REF is required`; no current publish or receipt exists.
 - [ ] Keep the new owner disabled until the eBook paid+PDF gate; then configure one approved pack and enforce one canary per 24 hours. Registry schedule currently has three daily slots, so verify frequency gate before publishing.
 - [ ] Verify native `capafy.hooklab` account ownership/good-standing separately; an enabled Postiz integration does not prove it.
 - [ ] Follow Task D5 in `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md` for the single Instagram owner, one-canary/24h rule, receipt/URL, `ct` conversion join, and 14-day measurement.
