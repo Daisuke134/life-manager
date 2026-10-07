@@ -474,10 +474,7 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
     receipt = await ActionExecutor(session).execute(cursor.handle, action)
     after = await builder.build(cursor.handle)
     parsed_after_url = urlparse(after.url)
-    if parsed_after_url.scheme != "https" or not parsed_after_url.hostname:
-        raise RuntimeError(
-            "post-action browser context no longer exposes an absolute HTTPS page"
-        )
+    valid_after_url = parsed_after_url.scheme == "https" and bool(parsed_after_url.hostname)
     chain = evidence.read_chain(row["application_id"])
     evidence_receipt = evidence.append(
         StepEvidenceV1(
@@ -495,16 +492,27 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
         RowCheckpointV1(
             1,
             row["application_id"],
-            "acting" if remaining else "checkpointed",
+            "acting" if remaining and valid_after_url else "checkpointed",
             cursor.handle.page_marker,
             cursor.handle.generation,
             after.content_sha256,
             (*prior_hashes, receipt.receipt_sha256),
-            remaining,
-            after.url,
+            remaining if valid_after_url else 0,
+            after.url if valid_after_url else "",
         )
     )
     _record_decision(decision_signature)
+    if not valid_after_url:
+        _write_terminal_failure_marker()
+        return {
+            "status": "transport_failed",
+            "error_class": "post_action_context_unavailable",
+            "retryable": False,
+            "next_action": "preserve the action receipt and do not replay this target in the current wake",
+            "action_receipt_sha256": receipt.receipt_sha256,
+            "evidence_sha256": evidence_receipt.evidence_sha256,
+            "checkpoint_sha256": checkpoint_receipt.checkpoint_sha256,
+        }
     return {
         "status": "acted",
         "action": {

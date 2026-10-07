@@ -19,7 +19,7 @@ def _run(script_args, env):
     )
 
 
-def test_prepare_and_verified_record_advance_the_occurrence_marker(tmp_path):
+def test_prepare_claim_and_verified_record_advance_the_occurrence_marker(tmp_path):
     occurrence_id = "fundraiser:marker-test"
     marker = tmp_path / "effect-marker.json"
     marker.write_text(json.dumps({
@@ -58,6 +58,14 @@ def test_prepare_and_verified_record_advance_the_occurrence_marker(tmp_path):
         "--expected-context-version", "ctx-1", "--expected-context-digest", "digest-1",
     ], env)
     assert prepared.returncode == 0, prepared.stderr
+    assert json.loads(marker.read_text())["phase"] == "pre_effect"
+
+    claimed = _run([
+        "--claim-effect", "--draft", str(draft), "--ledger", str(ledger),
+        "--applications-dir", str(applications),
+        "--expected-context-version", "ctx-1", "--expected-context-digest", "digest-1",
+    ], env)
+    assert claimed.returncode == 0, claimed.stderr
     assert json.loads(marker.read_text())["phase"] == "effect_attempted"
 
     data = json.loads(draft.read_text())

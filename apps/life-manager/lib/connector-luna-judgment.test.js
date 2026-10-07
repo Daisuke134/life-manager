@@ -81,7 +81,7 @@ test("Connector judgment accepts only a Terra-pinned structured runner result", 
   const { input, value } = await fixture();
   const result = await runConnectorLunaJudgment(input, {
     runAgentRunner: async ({ prompt, schema }) => ({
-      summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" },
+      summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" },
       value, prompt, schema,
     }),
   });
@@ -98,7 +98,7 @@ test("Connector judgment rejects fallback models and unverified profiles", async
   }), /Connector Luna judgment unavailable/);
   await assert.rejects(runConnectorLunaJudgment({ ...input, profile: { ...input.profile } }, {
     runAgentRunner: async () => ({
-      summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value,
+      summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value,
     }),
   }), /Connector Luna judgment unavailable/);
 });
@@ -127,7 +127,7 @@ test("local runner pins Codex Terra and enforces timeout cancellation and token 
       return {
         status: 0,
         stdout: JSON.stringify({
-          status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra", result_path: resultPath,
+          status: "success", selected_provider: "codex", selected_model: "gpt-6-luna", result_path: resultPath,
         }),
         stderr: "",
       };
@@ -136,7 +136,7 @@ test("local runner pins Codex Terra and enforces timeout cancellation and token 
   });
   assert.deepEqual(result.value, { ranked_events: [] });
   assert.equal(invocation.command, "python3");
-  assert.deepEqual(invocation.args.slice(0, 3), [path.join(root, "agent_runner.py"), "--task-class", "repeatable-agent"]);
+  assert.deepEqual(invocation.args.slice(0, 3), [path.join(root, "agent_runner.py"), "--task-class", "connector-agent"]);
   assert.equal(invocation.options.env.AGENT_RUNNER_PROVIDER, undefined);
   assert.equal(invocation.options.env.ANICCA_BUDGET_REQUIRED, "1");
   assert.equal(invocation.options.env.ANICCA_BUDGET_SCOPE_ID, "connector-step-target-1");
@@ -157,7 +157,7 @@ test("local runner pins Codex Terra and enforces timeout cancellation and token 
     spawnSync: invocation && (() => ({
       status: 0,
       stdout: JSON.stringify({
-        status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra",
+        status: "success", selected_provider: "codex", selected_model: "gpt-6-luna",
         result_path: path.join(evidenceDir, "attempt-01.result.json"),
       }),
       stderr: "",
@@ -173,14 +173,14 @@ test("local browser runner supplies the required explicit escalation reason", as
   await runLocalAgentRunner({
     prompt: "x".repeat(200),
     schema: { type: "object", properties: { control: { type: "string" } }, required: ["control"] },
-    taskClass: "browser-lane-agent", timeoutMs: 30_000, evidenceDir,
+    taskClass: "connector-agent", timeoutMs: 30_000, evidenceDir,
     repoRoot: path.resolve(__dirname, "../../.."), runnerPath: path.join(root, "agent_runner.py"),
   }, {
     spawnSync: (_command, suppliedArgs) => {
       args = suppliedArgs;
       const resultPath = path.join(evidenceDir, "attempt-01.result.json");
       fs.writeFileSync(resultPath, JSON.stringify({ control: "continue_button" }), { mode: 0o600 });
-      return { status: 0, stdout: JSON.stringify({ status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra", result_path: resultPath }), stderr: "" };
+      return { status: 0, stdout: JSON.stringify({ status: "success", selected_provider: "codex", selected_model: "gpt-6-luna", result_path: resultPath }), stderr: "" };
     },
     isRunnerFile: () => true,
   });
@@ -219,7 +219,7 @@ test("Luna creates the preference ranking before goal and serendipity judgment",
     runAgentRunner: async ({ prompt }) => {
       calls.push(prompt);
       return {
-        summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" },
+        summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" },
         value: calls.length === 1 ? preferenceValue : value,
       };
     },

@@ -152,7 +152,8 @@ if [[ "$NEW_COUNT" == "0" && "$PENDING_PREP_COUNT" == "0" ]]; then
 fi
 set +e
 "$JOB_SEARCH_PYTHON" "$JOB_SEARCH_RUNNER" \
-  --task-class composition-agent \
+  --task-class job-hunter-agent \
+  --escalation-reason "Job Hunter inbox processing and candidate follow-up with existing receipts" \
   --prompt-stdin \
   --schema "$JOB_SEARCH_APP_ROOT/schemas/inbox-pass-result.v1.schema.json" \
   --evidence-dir "$EVIDENCE" \

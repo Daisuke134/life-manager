@@ -1166,6 +1166,11 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
         if not resume_session_id:
             command.append("--ephemeral")
         command.extend(["--model", model, "-c", f'model_reasoning_effort="{effort}"'])
+        service_tier = candidate.get("service_tier")
+        if service_tier is not None:
+            if not isinstance(service_tier, str) or not service_tier.strip():
+                raise ValueError("codex service_tier must be non-empty text")
+            command.extend(["-c", f"service_tier={json.dumps(service_tier)}"])
         model_provider = provider_config.get("model_provider")
         if model_provider:
             if not isinstance(model_provider, str):
@@ -1478,6 +1483,11 @@ def run() -> int:
             task_config["candidates"], config.get("providers", {})
         )
         for candidate in candidates:
+            service_tier = candidate.get("service_tier")
+            if service_tier is not None and (
+                not isinstance(service_tier, str) or not service_tier.strip()
+            ):
+                raise ValueError("candidate service_tier must be non-empty text")
             if "timeout_seconds" not in candidate:
                 continue
             candidate_timeout = candidate["timeout_seconds"]

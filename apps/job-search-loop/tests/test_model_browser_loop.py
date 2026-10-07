@@ -806,7 +806,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 "/python3",
                 "/runtime/agent_runner.py",
                 "--task-class",
-                "browser-lane-agent",
+                "job-hunter-agent",
                 "--escalation-reason",
                 "repeated browser form completion abandoned before provider terminal outcome",
                 "--timeout-seconds",

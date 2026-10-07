@@ -69,7 +69,7 @@ function runChild(command, args, options, deps) {
 async function runLocalAgentRunner(input = {}, deps = {}) {
   try {
     const prompt = String(input.prompt == null ? "" : input.prompt);
-    const taskClass = input.taskClass == null ? "repeatable-agent" : String(input.taskClass);
+    const taskClass = input.taskClass == null ? "connector-agent" : String(input.taskClass);
     const schema = input.schema;
     const timeoutMs = Number(input.timeoutMs);
     const signal = input.signal;
@@ -84,7 +84,7 @@ async function runLocalAgentRunner(input = {}, deps = {}) {
     if (
       prompt.trim().length < 100 || prompt.length > 100_000
       || !schema || typeof schema !== "object" || Array.isArray(schema)
-      || !["repeatable-agent", "browser-lane-agent"].includes(taskClass)
+      || taskClass !== "connector-agent"
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 900_000
       || (signal != null && (typeof signal !== "object" || typeof signal.aborted !== "boolean"))
       || ((tokenBudget == null) !== (budgetScopeId === ""))
@@ -105,14 +105,11 @@ async function runLocalAgentRunner(input = {}, deps = {}) {
       "--prompt-stdin",
       "--schema", schemaPath,
       "--evidence-dir", evidenceDir,
-      "--task-label", taskClass === "browser-lane-agent"
-        ? "connector-event-application" : "connector-event-judgment",
+      "--task-label", String(input.taskLabel || "connector-event-judgment"),
       "--loop", "connector",
       "--workdir", repoRoot,
       "--timeout-seconds", String(Math.ceil(timeoutMs / 1_000)),
-      ...(taskClass === "browser-lane-agent" ? [
-        "--escalation-reason", "unknown event registration UI requires bounded visual judgment",
-      ] : []),
+      "--escalation-reason", "Connector Luma judgment and registration work with existing event and receipt fences",
       ...(readOnly ? ["--read-only"] : []),
     ];
     const env = { ...process.env };
@@ -136,7 +133,7 @@ async function runLocalAgentRunner(input = {}, deps = {}) {
     if (
       !summary || summary.status !== "success"
       || summary.selected_provider !== "codex"
-      || summary.selected_model !== "gpt-5.6-terra"
+      || summary.selected_model !== "gpt-6-luna"
     ) unavailable();
     const resultPath = containedFile(evidenceDir, summary.result_path);
     let value;
@@ -175,7 +172,7 @@ async function runConnectorLunaJudgment(input = {}, deps = {}) {
         !result || !result.summary
         || result.summary.status !== "success"
         || result.summary.selected_provider !== "codex"
-        || result.summary.selected_model !== "gpt-5.6-terra"
+        || result.summary.selected_model !== "gpt-6-luna"
       ) unavailable();
       return result.value;
     };
