@@ -865,7 +865,7 @@ class LoopCleanupTest(unittest.TestCase):
             (agents / "unrelated.plist").write_bytes(plistlib.dumps([]))
             (agents / "com.anicca.disk-watchdog.plist").write_bytes(plistlib.dumps({
                 "Label": "com.anicca.disk-watchdog",
-                "ProgramArguments": ["/usr/bin/python3", str(entry), "--home", "/Users/test"],
+                "ProgramArguments": ["/usr/bin/python3", str(entry), "--home", str(root / "home")],
             }))
 
             self.assertEqual(loaded_release_roots(agents, releases), {release.resolve()})

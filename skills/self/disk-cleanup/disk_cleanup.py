@@ -486,10 +486,9 @@ class HostDiskGovernor:
         return next_index % candidate_count
 
     def _persist_candidate_cursor(self, next_index: int) -> None:
-        self._receipt(
-            {"schema_version": 1, "next_index": next_index},
-            filename="candidate-cursor.json",
-        )
+        payload = {"schema_version": 1, "next_index": next_index}
+        data = (json.dumps(payload, sort_keys=True) + "\n").encode("utf-8")
+        self._atomic_receipt_write(data, self.candidate_cursor_path)
 
     def _clear_disk_writers_stop(self, free_after: object) -> dict[str, str]:
         guard = self.state_dir / "disk-writers.stop"
@@ -1082,7 +1081,9 @@ class HostDiskGovernor:
                 raise _ReceiptAtomicFailure(exc) from exc
         self._fsync_receipt_parent(target.parent)
 
-    def _receipt(self, payload: dict, filename: str = "last-receipt.json") -> None:
+    def _receipt(
+        self, payload: dict, filename: str = "last-receipt.json"
+    ) -> dict[str, object] | None:
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
@@ -1100,7 +1101,19 @@ class HostDiskGovernor:
             self._atomic_receipt_write(data, target)
         except _ReceiptAtomicFailure as failure:
             raise failure.error
-        self._receipt_reserve(recreate=True)
+        try:
+            self._receipt_reserve(recreate=True)
+        except OSError as exc:
+            if filename != "last-receipt.json" or exc.errno != errno.ENOSPC:
+                raise
+            return {
+                "status": "committed_reserve_missing",
+                "stage": "reserve_recreate_after_commit",
+                "error_class": type(exc).__name__,
+                "errno": exc.errno,
+                "next_action": "retry_on_next_run",
+            }
+        return None
 
     def _canary_receipt(self, payload: dict[str, object]) -> None:
         """Keep the initial effect and the immediate replay in one receipt."""
@@ -1437,7 +1450,9 @@ class HostDiskGovernor:
             }
             result["capacity_recovery"] = _capacity_recovery(result)
             result["ok"] = _cleanup_terminal_ok(result)
-            self._receipt(result)
+            receipt_status = self._receipt(result)
+            if receipt_status is not None:
+                result["receipt_persistence"] = receipt_status
             return result
         updater_recovery = {
             "observed": 0,
@@ -1561,7 +1576,9 @@ class HostDiskGovernor:
         result["disk_writers_stop"] = self._clear_disk_writers_stop(free_after)
         result["capacity_recovery"] = _capacity_recovery(result)
         result["ok"] = _cleanup_terminal_ok(result)
-        self._receipt(result)
+        receipt_status = self._receipt(result)
+        if receipt_status is not None:
+            result["receipt_persistence"] = receipt_status
         return result
 
     def run_canary(self, path: Path) -> dict[str, object]:

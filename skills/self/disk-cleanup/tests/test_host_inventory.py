@@ -178,7 +178,7 @@ def test_inventory_excludes_devfs_and_autofs_from_local_writable_mounts(tmp_path
                 "Filesystem 1024-blocks Used Available Capacity Mounted on\n"
                 "/dev/root 100 40 60 40% /\n"
                 "devfs 20 4 16 20% /dev\n"
-                "map 30 4 26 14% /Users/test\n",
+                "map 30 4 26 14% /auto/test-user\n",
                 "",
             )
         if argv[0].endswith("/mount"):
@@ -187,7 +187,7 @@ def test_inventory_excludes_devfs_and_autofs_from_local_writable_mounts(tmp_path
                 0,
                 "/dev/root on / (apfs, local)\n"
                 "devfs on /dev (devfs, local)\n"
-                "map auto_home on /Users/test (autofs, automounted)\n",
+                "map auto_home on /auto/test-user (autofs, automounted)\n",
                 "",
             )
         return subprocess.CompletedProcess(argv, 0, "8\t%s\n" % argv[-1], "")
@@ -201,7 +201,7 @@ def test_inventory_excludes_devfs_and_autofs_from_local_writable_mounts(tmp_path
     assert payload["coverage"]["local_writable_mounts"] == ["/"]
     mounts = {mount["mount"]: mount for mount in payload["mounts"]}
     assert mounts["/dev"]["local"] is True
-    assert mounts["/Users/test"]["local"] is False
+    assert mounts["/auto/test-user"]["local"] is False
 
 
 def test_inventory_parses_mount_and_df_paths_with_spaces(tmp_path: Path) -> None:

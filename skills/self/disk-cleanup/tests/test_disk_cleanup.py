@@ -2322,7 +2322,7 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
     assert governor._receipt_reserve_valid(state / ".receipt-reserve")
 
 
-def test_cursor_reserve_recreate_enospc_retries_after_recovery_and_saves_receipt(
+def test_cursor_atomic_enospc_retries_after_recovery_and_saves_receipt(
     tmp_path: Path, monkeypatch
 ) -> None:
     governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
@@ -2340,16 +2340,6 @@ def test_cursor_reserve_recreate_enospc_retries_after_recovery_and_saves_receipt
             )
         real_atomic_write(data, target)
 
-    real_reserve = governor._receipt_reserve
-    reserve_recreate_failed = False
-
-    def fail_first_reserve_recreate(*, recreate: bool = False) -> None:
-        nonlocal reserve_recreate_failed
-        if recreate and not reserve_recreate_failed:
-            reserve_recreate_failed = True
-            raise OSError(errno.ENOSPC, "injected reserve recreation exhaustion")
-        real_reserve(recreate=recreate)
-
     original_mkstemp = disk_cleanup.tempfile.mkstemp
     terminal_receipt_failure = 1
 
@@ -2361,7 +2351,6 @@ def test_cursor_reserve_recreate_enospc_retries_after_recovery_and_saves_receipt
         return original_mkstemp(*args, **kwargs)
 
     monkeypatch.setattr(governor, "_atomic_receipt_write", fail_first_cursor_write)
-    monkeypatch.setattr(governor, "_receipt_reserve", fail_first_reserve_recreate)
     monkeypatch.setattr(disk_cleanup.tempfile, "mkstemp", fail_terminal_receipt_once)
     try:
         result = governor.run_once()
@@ -2384,6 +2373,83 @@ def test_cursor_reserve_recreate_enospc_retries_after_recovery_and_saves_receipt
     }
     assert json.loads((state / "last-receipt.json").read_text())["ok"] is True
     assert governor._receipt_reserve_valid(state / ".receipt-reserve")
+
+
+def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
+        tmp_path, monkeypatch, free_bytes=6 * GiB,
+    )
+    reserve = state / ".receipt-reserve"
+    governor._receipt_reserve()
+    reserve_at_sweep = []
+    counted_sweep = governor.sweep
+
+    def record_reserve_then_sweep(*args, **kwargs):
+        reserve_at_sweep.append(governor._receipt_reserve_valid(reserve))
+        return counted_sweep(*args, **kwargs)
+
+    monkeypatch.setattr(governor, "sweep", record_reserve_then_sweep)
+    real_atomic_write = governor._atomic_receipt_write
+    terminal_write_failed = False
+
+    def fail_cursor_and_terminal_once(data: bytes, target: Path) -> None:
+        nonlocal terminal_write_failed
+        if target.name == "candidate-cursor.json":
+            raise disk_cleanup._ReceiptAtomicFailure(
+                OSError(errno.ENOSPC, "candidate cursor staging exhausted")
+            )
+        if target.name == "last-receipt.json" and not terminal_write_failed:
+            terminal_write_failed = True
+            raise disk_cleanup._ReceiptAtomicFailure(
+                OSError(errno.ENOSPC, "terminal receipt staging exhausted")
+            )
+        real_atomic_write(data, target)
+
+    real_receipt_reserve = governor._receipt_reserve
+
+    def fail_postcommit_reserve_recreate(*, recreate: bool = False) -> None:
+        if recreate:
+            raise OSError(errno.ENOSPC, "receipt reserve recreation exhausted")
+        real_receipt_reserve(recreate=recreate)
+
+    monkeypatch.setattr(governor, "_atomic_receipt_write", fail_cursor_and_terminal_once)
+    monkeypatch.setattr(governor, "_receipt_reserve", fail_postcommit_reserve_recreate)
+    governor.release_lock()
+    monkeypatch.setattr(disk_cleanup, "HostDiskGovernor", lambda **_kwargs: governor)
+    monkeypatch.setattr(
+        disk_cleanup.sys,
+        "argv",
+        ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(state)],
+    )
+    assert disk_cleanup.main() == 1
+    result = json.loads(capsys.readouterr().out)
+
+    assert sweep_calls == [1]
+    assert reserve_at_sweep == [True]
+    assert candidate.exists()
+    assert result["protected_deletions"] == 0
+    assert result["free_after"] == 6 * GiB
+    assert result["capacity_recovery"]["status"] == "unmet"
+    assert result["ok"] is False
+    assert result["candidate_rotation"]["cursor_persistence"]["errors"][0] == {
+        "stage": "before_sweep",
+        "error_class": "OSError",
+        "errno": errno.ENOSPC,
+        "next_action": "continue_sweep_then_retry_once_after_recovery",
+    }
+    receipt = json.loads((state / "last-receipt.json").read_text())
+    assert receipt["capacity_recovery"]["status"] == "unmet"
+    assert receipt["ok"] is False
+    assert result["receipt_persistence"] == {
+        "status": "committed_reserve_missing",
+        "stage": "reserve_recreate_after_commit",
+        "error_class": "OSError",
+        "errno": errno.ENOSPC,
+        "next_action": "retry_on_next_run",
+    }
+    assert not reserve.exists()
 
 
 def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monkeypatch) -> None:
