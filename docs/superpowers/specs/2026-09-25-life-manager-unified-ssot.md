@@ -10442,3 +10442,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 10:28:44Z Lancers application run `18dc3889e7e5cd58-20292` / occurrence `lancers-revenue-application:18db9826037b3710-96419` remains exit1/effect unknown/provider receipt null. At readback the owner is loaded-running on installed release `0bc17613b3f76f88d85732f22ea20683b2ff7e39`; current immutable release symlink points to `20261007T192549-a1dcdfbf`, which contains the merged stale-task fix.
 - `aws-waf-solver.json` is still one pending task; no duplicate was created. Target apply returned `changed=false/skipped=pending-admission`; do not clear this fence manually. Latest work-sync read reaches a login route, so the next gate is restoration of the existing authenticated profile, then official proposal history for the old unknown occurrence. Only after that may the owner apply and naturally confirm dashboard HTTP200.
+
+
+### 858. 2026-10-07 official Investment order re-readback
+
+- 10:35Z Alpaca live read-only CLI lookup by the two existing client_order_ids found both official BTC/USDC orders as `filled`. The returned `filled_qty` and `filled_avg_price` match the private 10/01 binding packet; provider mutations 0. Client IDs and order IDs remain only in the mode-0600 private packet.
+- This re-confirms official order existence and fill values, but does not create the missing Life Manager execution-intent/occurrence receipt. `alpaca-investment-live` remains `disabled`; its latest historical event is 2026-09-30 occurrence `alpaca-investment-live:18da19a286f2bd88-21702`, `resource_effect_unknown`, with no provider receipt. Do not enable or trade.
+- CFEE currency/unit and 09/30 fee-period attribution remain unverified, so no pair P&L is calculated. Row18 remains open; the next read-only join is the owner receipt and complete period activity/transfer coverage, followed by fee semantics.
