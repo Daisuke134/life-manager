@@ -4,15 +4,11 @@
 
 **Goal:** Reduce avoidable Google Geocoding requests in Japan without changing travel UX, accepting ambiguous coordinates, or losing source attribution.
 
-**Problem:** The existing Travel flow resolves uncached locations with Google Geocoding. That can create avoidable paid geocoding requests. Replacing it blindly with a free source risks coarse or ambiguous coordinates, privacy leakage, missing attribution, and a stalled route if a cache RPC hangs.
-
-**A4.2 To-Be user experience:** This is a behind-the-scenes change inside the existing Cloud Travel flow, not a new website/onboarding UI. Users continue to enter a home location and put event locations in Google Calendar; they do not select a geocoding provider or answer a new question. Japanese address-shaped input may use a precise GSI candidate, and a specific Japanese facility name may use an exact OpenPOI candidate. If accepted, the same Transit-first route and Travel Calendar helper appear, with a source/attribution line in the helper description and no Google Geocoding call. If a candidate is ambiguous, coarse, invalid, private/free-form, timed out, or unavailable, the existing Google Geocoding fallback runs once. Non-Japan, Transit, and Google route behavior remain unchanged. This can reduce Geocoding charges but does not replace Google Directions or establish actual savings before production billing readback. The separate Web-first Cloud onboarding UX is specified in `docs/superpowers/specs/2026-10-06-life-manager-web-first-travel-design.md`.
-
 **Architecture:** Keep the current transit-first route flow. For Japanese address-shaped queries, try GSI AddressSearch; for Japanese named-place queries, try OpenPOI Suggest. Accept only one exact, valid candidate with required provenance. Otherwise fall through once to the existing Google Geocoding path. Keep free-provider results process-local so license/attribution metadata is not lost in the coordinate-only Supabase geocode table. Bound cache RPCs and fail open.
 
 **Tech Stack:** Existing Node.js `fetch`, `AbortController`, `node:test`, current geocode and route caches.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`, CFO A4.2.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`, CFO A4.2. Cloud UX reference: `docs/superpowers/specs/2026-10-06-life-manager-web-first-travel-design.md`.
 
 ## Problem This Plan Solves
 
@@ -35,7 +31,7 @@ The existing Travel flow can call paid Google Geocoding for uncached home/event 
 
 ## Current Status
 
-- A4.2 source and regression tests are pushed through `5ab934a5ca6f7d52428e45ae115aa50812978e4b` and `ec7165eaccf91bcf27f148c5390ea1c3ec8bba39`; the branch is synchronized with latest `origin/main` `e1b8ebc6` at merge commit `bcb6160310`.
+- A4.2 source and regression tests are pushed through `5ab934a5ca6f7d52428e45ae115aa50812978e4b` and `ec7165eaccf91bcf27f148c5390ea1c3ec8bba39`; the branch is synchronized with latest `origin/main` `a4a3837d` at merge commit `0b84a5c1a7`.
 - Independent read-only review passes the source/privacy fixes. The only remaining source-plan task is Task 6: record A4.1/A4.2 evidence in the canonical SSOT after its active owner releases the lease. The canonical cursor is still `A4.1`; this branch has not advanced it.
 - Delivery hold: the latest `OSS self-contained boundary` CI reports `manifest_inventory_mismatch` for `skills/capafy-autopublish`. `origin/main` commit `c0da6b382c` changes files under that root without changing `docs/manifests/oss-merge-1-sources.json`; this PR diff touches neither. Re-run CI after the upstream baseline is corrected; keep this PR draft until both this gate and Task 6 clear.
 
