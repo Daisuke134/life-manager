@@ -244,7 +244,11 @@ def drop_profitable_updates(updates, path=None):
                 protected.add(str(row.get("agent_id") or "").strip())
         except (TypeError, ValueError, AttributeError):
             continue
-    return [u for u in updates if str(u.get("agent_id") or "").strip() not in protected]
+    # A Dais-approved one-off (2026-10-07: strip test/ from Hook Lab to clear the
+    # buyer-facing security-scan warning, same price and model) is the only bypass.
+    return [u for u in updates
+            if str(u.get("agent_id") or "").strip() not in protected
+            or (u.get("update_request") or {}).get("dais_approved_exception")]
 
 
 def update_priority_key(revenue_by_agent):

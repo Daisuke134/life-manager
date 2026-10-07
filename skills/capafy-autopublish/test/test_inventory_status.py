@@ -846,3 +846,15 @@ def test_profitable_sellers_are_never_updated(tmp_path) -> None:
     kept = module.drop_profitable_updates(updates, path=analytics)
 
     assert [u["agent_id"] for u in kept] == ["bleed", "zero"]
+
+
+def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) -> None:
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "hook", "stats_30d_orders": 9, "profit_30d_actual_usd": "13.90"},
+    ]}))
+    approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "2026-10-07"}}
+    plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
+
+    assert module.drop_profitable_updates([approved, plain], path=analytics) == [approved]
