@@ -19,9 +19,8 @@
 
 ## Current Status
 
-- A4.2 implementation is pushed at `4f86d8f04b507e28dad9284716a7c595a2874491`. A fresh review found that generic suffix `会場` can admit private labels such as `友達の家の会場`; this is the remaining source correction.
-- The remaining source task is to allow only specific facility-name suffixes and fail closed for generic venue/private-location labels. Other Japanese free-form labels retain the existing Google path.
-- After that correction, the only remaining plan task is Task 6: record A4.1/A4.2 evidence in the canonical SSOT after its active owner releases the lease. The canonical cursor is still `A4.1`; it has not been advanced by this branch.
+- A4.2 source and regression tests are pushed through `5ab934a5ca6f7d52428e45ae115aa50812978e4b` and `ec7165eaccf91bcf27f148c5390ea1c3ec8bba39`; the branch is synchronized with `origin/main` at merge commit `8ce48613e3fa08426687f64b9440a84fbb2fc468`.
+- Independent read-only review passes the source/privacy fixes. Only Task 6 remains: record A4.1/A4.2 evidence in the canonical SSOT after its active owner releases the lease. The canonical cursor is still `A4.1`; this branch has not advanced it.
 
 ## Acceptance Criteria
 
@@ -47,7 +46,7 @@
 
 - [x] Add the smallest provider adapter using the fixture-observed GSI and OpenPOI response shapes; enforce bounded requests and strict eligibility.
 - [x] Integrate it before existing Google Geocoding, retaining provider-separated tenant/query cache keys and complete candidate provenance.
-- [ ] Limit OpenPOI dispatch to specific facility-name suffixes; generic venue labels and private/home hints bypass it.
+- [x] Limit OpenPOI dispatch to specific facility-name suffixes; generic venue labels and private/home hints bypass it.
 - [x] Add focused usage tests proving accepted-free `Google Geocoding=0`, each rejected candidate produces exactly one Google geocode, and event usage metadata contains no raw location.
 
 ### Task 3: Bound geocode cache RPCs
