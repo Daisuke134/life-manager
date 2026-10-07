@@ -1155,3 +1155,27 @@ test("Web initial-scan migration records only exact-tenant scan state and does n
   assert.doesNotMatch(legacySetupSql, /trial_expires_at\s*=\s*coalesce\s*\([^;]*3 days/i);
   assert.doesNotMatch(legacySetupSql, /ON CONFLICT\s*\(uid\)\s*DO UPDATE SET[\s\S]*daily_automation_enabled\s*=\s*true/i);
 });
+
+test("Web billing resume intent is consumed atomically and manual pause invalidates it", () => {
+  const sql = fs.readFileSync(path.join(__dirname, "../migrations/2026-10-08-z-lm-web-billing-ordering.sql"), "utf8");
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS web_automation_resume_pending boolean NOT NULL DEFAULT false/i);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS web_subscription_created_at timestamptz/i);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.resume_lm_web_billing_automation/i);
+  const resumeSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.resume_lm_web_billing_automation"),
+    sql.indexOf("REVOKE ALL ON FUNCTION public.resume_lm_web_billing_automation"));
+  assert.match(resumeSql, /telegram_chat_id IS NULL[\s\S]*FOR UPDATE/i);
+  assert.match(resumeSql, /web_automation_resume_pending/i);
+  assert.match(resumeSql, /paid IS DISTINCT FROM true/i);
+  assert.match(resumeSql, /trial_expires_at/i);
+  assert.match(resumeSql, /web_billing_cancel_at_period_end IS DISTINCT FROM false/i);
+  assert.match(resumeSql, /daily_automation_enabled\s*=\s*true/i);
+  assert.match(resumeSql, /web_automation_resume_pending\s*=\s*false/i);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.resume_lm_web_billing_automation[^;]* TO service_role/i);
+
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.control_lm_web_travel/i);
+  const controlsSql = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.control_lm_web_travel"),
+    sql.indexOf("REVOKE ALL ON FUNCTION public.control_lm_web_travel"));
+  const pauseSql = controlsSql.slice(controlsSql.indexOf("IF p_action = 'pause'"), controlsSql.indexOf("ELSIF p_action = 'disconnect_begin'"));
+  assert.match(pauseSql, /daily_automation_enabled\s*=\s*false/i);
+  assert.match(controlsSql, /IF p_action IN \('pause', 'disconnect_begin'\)[\s\S]*web_automation_resume_pending\s*=\s*false[\s\S]*web_billing_revision\s*=\s*web_billing_revision\s*\+\s*1/i);
+});

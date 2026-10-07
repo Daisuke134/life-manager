@@ -1627,7 +1627,7 @@ const server = http.createServer(async (req, res) => {
         const parsed = parseStripeEvent(event);
         if (!parsed || !parsed.isWebTravel) { res.writeHead(200); res.end("duplicate"); return; }
         try {
-          const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, notify: dunningNotify });
+          const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
           console.log("[stripe] duplicate Web event reconciled", event.type, JSON.stringify(result));
           res.writeHead(200); res.end("reconciled");
         } catch (error) {
@@ -1637,7 +1637,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       try {
-        const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, notify: dunningNotify });
+        const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
         console.log("[stripe]", event.type, JSON.stringify(result));
         res.writeHead(200); res.end("ok");
       } catch (e) {

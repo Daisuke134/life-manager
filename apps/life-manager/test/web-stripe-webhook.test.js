@@ -26,6 +26,9 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
     trial_expires_at: null,
     web_billing_revision: 0,
     web_billing_cancel_at_period_end: false,
+    web_automation_resume_pending: false,
+    web_subscription_created_at: null,
+    daily_automation_enabled: false,
     web_subscription_event_at: null,
     web_subscription_event_priority: null,
     web_subscription_event_id: null,
@@ -75,12 +78,16 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
       Object.assign(row, body);
       return json(200, [{ uid: row.uid }]);
     }
-    if (url.pathname === "/rest/v1/rpc/control_lm_web_travel" && req.method === "POST") {
+    if (url.pathname === "/rest/v1/rpc/resume_lm_web_billing_automation" && req.method === "POST") {
       resumeCalls++;
       assert.equal(body.p_uid, UID);
       assert.equal(body.p_calendar_account_id, "ca-test-123");
-      assert.equal(body.p_action, "resume");
       if (resumeFailures-- > 0) return json(503, { message: "temporary resume failure" });
+      if (row.web_automation_resume_pending) {
+        row.web_automation_resume_pending = false;
+        row.web_billing_revision++;
+        row.daily_automation_enabled = true;
+      }
       return json(200, true);
     }
     return json(404, { message: "unexpected endpoint" });
@@ -126,12 +133,22 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
     for (let i = 0; i < 4; i++) responses.push((await send()).status);
 
     assert.deepEqual(responses, [500, 500, 500, 200]);
-    assert.equal(row.web_billing_revision, 1);
+    assert.equal(row.web_billing_revision, 2);
     assert.equal(row.paid, true);
     assert.equal(row.plan_status, "trialing");
     assert.equal(row.web_subscription_event_id, event.id);
+    assert.equal(row.web_automation_resume_pending, false);
+    assert.equal(row.daily_automation_enabled, true);
     assert.equal(eventIds.has(event.id), true);
     assert.equal(resumeCalls, 2);
+
+    // The user-facing pause RPC clears the activation intent while holding the lm_users row lock.
+    row.web_billing_revision++;
+    row.web_automation_resume_pending = false;
+    row.daily_automation_enabled = false;
+    assert.equal((await send()).status, 200);
+    assert.equal(resumeCalls, 2);
+    assert.equal(row.daily_automation_enabled, false);
   } finally {
     if (appServer && appServer.listening) await new Promise((resolve) => appServer.close(resolve));
     await new Promise((resolve) => supabase.close(resolve));
