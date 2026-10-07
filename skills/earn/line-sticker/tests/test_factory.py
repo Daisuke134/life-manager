@@ -104,6 +104,18 @@ class FullRun(unittest.TestCase):
             self.assertEqual(MODULE.run(state_root, deps)["action"], "skip")
 
 
+class SubmittedCleanup(unittest.TestCase):
+    def test_submitted_set_drops_candidates_but_keeps_package_and_clips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            set_dir = state_root / "set-001"
+            self.assertEqual(MODULE.read_stage(set_dir), "submitted")
+            self.assertFalse((set_dir / "candidates").exists())
+            self.assertTrue((set_dir / "package").exists())
+            self.assertTrue((set_dir / "clips").exists())  # distribute renders from selected clips
+
+
 class FullRunSubmit(unittest.TestCase):
     def test_run_keeps_going_through_submit_sub_states(self) -> None:
         states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
