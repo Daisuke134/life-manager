@@ -214,6 +214,29 @@ test("a named place with a prefecture and ward still uses OpenPOI Suggest", asyn
   assert.equal(result.requests[0].url.pathname, "/v1/suggest");
 });
 
+test("Kanji-number and municipality-scoped addresses use only GSI before Google fallback", async (t) => {
+  const queries = [
+    "渋谷区神南一丁目十九番十一号",
+    "渋谷区神南",
+    "東京都渋谷区神南一丁目十九番十一号 神南ビル",
+  ];
+  for (const [index, query] of queries.entries()) {
+    await t.test(query, async () => {
+      const result = await runGeocode({
+        query,
+        tenantId: `tenant-kanji-address-${index}`,
+        gsi: [gsiFeature(query, [181, 35.661])],
+      });
+
+      assert.equal(result.requests.length, 1);
+      assert.equal(result.requests[0].url.hostname, "msearch.gsi.go.jp");
+      assert.equal(result.googleCalls, 1);
+      assert.equal(result.events.some((event) => event.provider === "openpoi"), false);
+      assert.equal(result.events.find((event) => event.provider === "gsi")?.failureClass, "invalid_coordinates");
+    });
+  }
+});
+
 test("an OpenPOI name with two exact suggestions remains ambiguous and falls back once", async () => {
   const query = "東京駅";
   const first = poiCandidate(query, { lat: 35.699383927107796, lng: 139.77333040976976 });

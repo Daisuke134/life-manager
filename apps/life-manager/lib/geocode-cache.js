@@ -22,7 +22,7 @@ function addressDigest({ tenantId, provider, address, digestKey }) {
     .digest("hex");
 }
 
-async function boundedRpc(fetchImpl, url, init, timeoutMs) {
+async function boundedRpc(fetchImpl, url, init, timeoutMs, { parseJson = true } = {}) {
   const controller = typeof AbortController === "function" ? new AbortController() : null;
   let timer;
   const request = Promise.resolve().then(async () => {
@@ -32,7 +32,7 @@ async function boundedRpc(fetchImpl, url, init, timeoutMs) {
       return { failureClass: Number.isFinite(status) && status >= 400 && status < 500 ? "provider_4xx"
         : Number.isFinite(status) && status >= 500 ? "provider_5xx" : "network" };
     }
-    if (typeof response.json !== "function") return { response };
+    if (!parseJson || typeof response.json !== "function") return { response };
     try { return { response, body: await response.json() }; }
     catch { return { failureClass: "invalid_response" }; }
   }).catch(() => ({ failureClass: "network" }));
@@ -117,7 +117,7 @@ function makeSupabaseGeocodeStore({
             p_computed_at: new Date(computedAt).toISOString(),
             p_ttl_secs: GEOCODE_SUCCESS_TTL_MS / 1000,
           }),
-        }, requestTimeoutMs);
+        }, requestTimeoutMs, { parseJson: false });
         const ok = !result.failureClass && Boolean(result.response && result.response.ok === true);
         if (!ok) await notify(onObservation, {
           operation: "lm_geocode_cache_upsert", outcome: "failure", result: "failure",

@@ -28,9 +28,10 @@ function isJapaneseAddress(value) {
   if (!query || !isJapaneseText(query)) return false;
   if (/\d{3}-?\d{4}/u.test(query)) return true;
   if (/\d+\s*[-‐‑‒–—−－]\s*\d+/u.test(query)) return true;
-  if (/\d+\s*(?:丁目|番地|番|号)/u.test(query)) return true;
+  if (/(?:\d+|[〇零一二三四五六七八九十百千]+)\s*(?:丁目|番地|番|号)/u.test(query)) return true;
   if (JAPANESE_POI_SUFFIX.test(query)) return false;
-  return /^(?:北海道|東京都|(?:京都|大阪)府|[\u4e00-\u9fff]{2,3}県).*(?:市|区|町|村)/u.test(query);
+  if (/^(?:北海道|東京都|(?:京都|大阪)府|[\u4e00-\u9fff]{2,3}県).*(?:市|区|町|村)/u.test(query)) return true;
+  return /^[\p{Script=Han}]{1,8}(?:市|区|町|村)(?:[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}0-9０-９]+)?$/u.test(query);
 }
 
 function kanjiNumber(value) {

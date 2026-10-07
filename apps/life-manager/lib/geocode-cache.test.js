@@ -122,6 +122,44 @@ test("successful geocodes expire after 24 hours", async () => {
   assert.equal(providerCalls, 2);
 });
 
+test("geocode cache GET parses its row while a successful 204 upsert needs no response body", async () => {
+  const oldNow = Date.now;
+  Date.now = () => 1_000;
+  let jsonCalls = 0;
+  const store = makeSupabaseGeocodeStore({
+    supaUrl: SUPA_URL,
+    supaKey: SUPA_KEY,
+    timeoutMs: 25,
+    fetchImpl: async (url) => {
+      if (String(url).endsWith("lm_geocode_cache_get")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => {
+            jsonCalls += 1;
+            return [{ lat: 35.681, lon: 139.767, computed_at: new Date(1_000).toISOString(), ttl_secs: 86_400 }];
+          },
+        };
+      }
+      if (String(url).endsWith("lm_geocode_cache_upsert")) {
+        return { ok: true, status: 204, json: async () => { throw new Error("204 response has no JSON body"); } };
+      }
+      throw new Error("unexpected geocode cache RPC");
+    },
+  });
+  try {
+    assert.deepEqual(await store.get("tenant-void-upsert", "google_maps", "fixture address"), {
+      value: { lat: 35.681, lon: 139.767 }, computedAt: 1_000, ttlMs: 86_400_000,
+    });
+    assert.equal(await store.set("tenant-void-upsert", "google_maps", "fixture address", {
+      lat: 35.681, lon: 139.767,
+    }, 1_000), true);
+  } finally {
+    Date.now = oldNow;
+  }
+  assert.equal(jsonCalls, 1);
+});
+
 test("persistent geocode keys isolate both tenant and provider", async () => {
   const oldNow = Date.now;
   Date.now = () => 1_000;
