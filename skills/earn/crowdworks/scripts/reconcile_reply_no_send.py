@@ -284,7 +284,10 @@ def main(argv: list[str] | None = None) -> int:
         selected_database = args.admission_db.expanduser().resolve()
         resolver_database = (admission_state_root() / "admission-v2.sqlite3").expanduser().resolve()
         if selected_database != resolver_database:
-            parser.error("--resolve requires --admission-db to match the resolver database")
+            print(json.dumps({"owner_id": OWNER, "checked": 0, "resolved": [],
+                              "fenced": {}, "error": "resolver_database_mismatch"},
+                             ensure_ascii=False, sort_keys=True))
+            return 75
     state_root = args.state_root.expanduser().resolve()
     occurrences = list(args.occurrence)
     if args.all_fenced:

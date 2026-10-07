@@ -198,7 +198,7 @@ def test_seller_is_our_profile_link_and_zero_sellers_fail_closed(tmp_path):
     assert prove(module, tmp_path, {"b": buyer_only}) == (None, "seller_identity_unverified:b")
 
 
-def test_resolve_does_not_release_in_different_resolver_database(monkeypatch, tmp_path):
+def test_resolve_reports_database_mismatch_without_side_effects(monkeypatch, tmp_path, capsys):
     module = load()
     from runtime.host import resource_admission
 
@@ -223,11 +223,39 @@ def test_resolve_does_not_release_in_different_resolver_database(monkeypatch, tm
     unrelated = f"{OWNER}:unrelated"
     resolver_db = seed_database(resolver_root, [OCC, unrelated])
 
+    proof = {"owner_id": OWNER, "occurrence_id": OCC, "verified": True,
+             "proof_type": "pre_effect", "evidence_ref": "test://pre-effect"}
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(resolver_root))
+    assert module.resolve_pre_effect_occurrence(
+        OWNER, OCC, pre_effect_readback=lambda: proof, expected_state="claimed")
+    assert set(module.fenced_occurrences(selected_db)) == {OCC}
+    assert set(module.fenced_occurrences(resolver_db)) == {unrelated}
+    with sqlite3.connect(resolver_db) as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='claimed', effect_unknown=1 WHERE occurrence_id=?",
+            (OCC,),
+        )
+
+    def admission_snapshot(database):
+        with sqlite3.connect(database) as connection:
+            return (
+                connection.execute("SELECT * FROM occurrences ORDER BY occurrence_id").fetchall(),
+                connection.execute("SELECT * FROM priorities ORDER BY owner_id").fetchall(),
+            )
+
+    before = (admission_snapshot(selected_db), admission_snapshot(resolver_db))
+
     state_root = tmp_path / "reply-state"
     state_root.mkdir()
     events(state_root)
-    marker(state_root, [SAFE])
-    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(resolver_root))
+    marker(state_root, [FAILED])
+    provider_reads = []
+
+    def unexpected_provider_readback(_state_root):
+        provider_reads.append(True)
+        raise AssertionError("database mismatch must stop before provider readback")
+
+    monkeypatch.setattr(module, "_provider_lease", unexpected_provider_readback)
     try:
         result = module.main([
             "--state-root", str(state_root), "--all-fenced", "--admission-db", str(selected_db),
@@ -236,7 +264,14 @@ def test_resolve_does_not_release_in_different_resolver_database(monkeypatch, tm
     except SystemExit as error:
         result = error.code
 
+    output = capsys.readouterr().out
+    assert output.strip(), "database mismatch must emit a JSON report on stdout"
+    report = json.loads(output)
+    assert result == 75
+    assert report.get("error_class") == "resolver_database_mismatch" or report.get(
+        "error") == "resolver_database_mismatch"
+    assert provider_reads == []
+    assert (admission_snapshot(selected_db), admission_snapshot(resolver_db)) == before
     assert set(module.fenced_occurrences(selected_db)) == {OCC}
     assert set(module.fenced_occurrences(resolver_db)) == {OCC, unrelated}
-    assert result != 0
     assert not (state_root / "reconciliation").exists()
