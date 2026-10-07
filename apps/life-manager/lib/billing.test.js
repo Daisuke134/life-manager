@@ -256,6 +256,27 @@ test("Web tenant checkout cannot fall through to legacy billing when product met
     assert.equal(s.patches.length, 0);
   }
 });
+test("pre-Travel Web tenants cannot be activated by metadata-free subscription or invoice events", async () => {
+  const s = fakeSupa(webBillingRow({ web_first_travel_at: null, stripe_subscription_id: null,
+    paid: false, plan_status: null }));
+  const subscription = { id: "evt_early_subscription", type: "customer.subscription.created", created: 100,
+    data: { object: { id: "sub_early", customer: "cus_web", status: "active",
+      metadata: { lm_uid: WEB_UID } } } };
+  const invoice = webInvoiceEvent("evt_early_invoice", "invoice.paid", 101, {
+    id: "in_early", subscription: "sub_early",
+    parent: { subscription_details: { subscription: "sub_early", metadata: { lm_uid: WEB_UID } } },
+  });
+
+  const subscriptionResult = await applyBilling(subscription, deps(s));
+  const invoiceResult = await applyBilling(invoice, deps(s));
+
+  assert.equal(subscriptionResult.action, "web-first-travel-required");
+  assert.equal(invoiceResult.action, "web-first-travel-required");
+  assert.equal(s.patches.length, 0);
+  assert.equal(s.row().stripe_subscription_id, null);
+  assert.equal(s.row().plan_status, null);
+  assert.equal(s.row().paid, false);
+});
 test("applyBilling subscription active → provision; canceled → deprovision", async () => {
   const row = { uid: "u1", stripe_event_at: new Date(50 * 1000).toISOString() };
   let s = fakeSupa(row);

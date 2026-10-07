@@ -275,8 +275,12 @@ async function patchWebBillingOrRetry(event, row, patch, deps) {
 
 const isoOrNull = (epochSecs) => (epochSecs ? new Date(epochSecs * 1000).toISOString() : null);
 
+function isWebOnlyUser(row) {
+  return Boolean(row && row.telegram_chat_id === null);
+}
+
 function isWebTravelUser(row) {
-  return Boolean(row && row.telegram_chat_id === null && row.web_first_travel_at);
+  return isWebOnlyUser(row) && Boolean(row.web_first_travel_at);
 }
 
 function webTrialEligible(row) {
@@ -462,8 +466,10 @@ async function applyBilling(event, deps) {
 
   const row = await rowForEvent(p, supaUrl, supaKey, fetchImpl);
   if (!row || !row.uid) return { action: `orphan-${p.kind}`, customerId: p.customerId };
-  const web = isWebTravelUser(row);
-  if (p.isWebTravel && !web) return { action: "web-tenant-mismatch", uid: p.uid || null };
+  const webOnlyUser = isWebOnlyUser(row);
+  if (webOnlyUser && !row.web_first_travel_at) return { action: "web-first-travel-required", uid: row.uid };
+  if (p.isWebTravel && !webOnlyUser) return { action: "web-tenant-mismatch", uid: p.uid || null };
+  const web = webOnlyUser && Boolean(row.web_first_travel_at);
   if (row.stripe_customer_id && p.customerId && row.stripe_customer_id !== p.customerId) {
     return { action: "customer-mismatch", uid: row.uid };
   }
