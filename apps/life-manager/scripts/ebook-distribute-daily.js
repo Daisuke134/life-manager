@@ -121,6 +121,25 @@ function writeEffectResult(publication) {
   });
 }
 
+function writeNoEffectResult(env, ownerId, reason) {
+  const file = required(env.LIFE_MANAGER_RESULT_HINT_PATH, "Life Manager result hint path");
+  const configuredOwner = required(env.LIFE_MANAGER_LOOP_ID, "Life Manager loop ID");
+  const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
+  if (configuredOwner !== ownerId || !occurrenceId.startsWith(`${ownerId}:`)
+      || !["setup_required", "no_due_slot"].includes(reason)) {
+    throw new Error("eBook no-effect result identity is invalid");
+  }
+  atomicJson(file, {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: ownerId,
+    occurrence_id: occurrenceId,
+    reason,
+  });
+}
+
 function selectTarget({ root, pack, ownerId, platform, accountId }) {
   const lane = JOBS[ownerId];
   if (!lane || lane.productId !== pack?.product_id || lane.platform !== platform
@@ -393,11 +412,15 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     root, pack, ownerId, platform: lane.platform, accountId: lane.accountId,
   });
   if (setup_required) {
+    writeNoEffectResult(env, ownerId, "setup_required");
     return { state: "setup_required", reason: setup_reason, owner_id: ownerId, effect: 0 };
   }
   const slotAt = marketingVideoDueSlot(deps.nowMs == null ? Date.now() : deps.nowMs,
     "Asia/Tokyo", pack.slots_jst);
-  if (!slotAt) return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
+  if (!slotAt) {
+    writeNoEffectResult(env, ownerId, "no_due_slot");
+    return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
+  }
 
   if (env.LM_EBOOK_PUBLISHING_ENABLED !== "true") {
     throw new Error("eBook publication readiness gate is closed");

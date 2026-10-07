@@ -5047,6 +5047,241 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertIsNone(proof)
         self.assertEqual(reason, "no_pre_effect_terminal")
 
+    def test_ebook_verified_no_due_terminal_proves_only_the_exact_occurrence(self):
+        owner = 'ebook-ja-tiktok-daily'
+        occurrence = f'{owner}:slot-20261008-0030'
+        run_id = 'execution-20261008-0033'
+        summary_ref = f'lm-loop://{owner}/{run_id}/summary.json'
+        claim_ref = f'lm-occurrence://{owner}/slot-20261008-0030/claim'
+        no_effect_ref = f'lm-no-effect://{owner}/{occurrence}/no_due_slot'
+        entry = {
+            'effect_class': 'publish',
+            'entrypoint': 'apps/life-manager/scripts/ebook-distribute-daily.sh',
+            'state_root': '/private/state/ebook',
+        }
+        terminal = {
+            'loop_id': owner, 'run_id': run_id, 'occurrence_id': occurrence,
+            'owner_id': owner,
+            'phase': 'report', 'status': 'pass', 'effect_class': 'none',
+            'effect_status': 'not_applicable', 'blocker': None,
+            'evidence_refs': [summary_ref, claim_ref, no_effect_ref],
+            'event_id': 'a' * 24, 'timestamp': '2026-10-07T15:33:18+00:00',
+        }
+
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, 'claimed', [terminal],
+        )
+        self.assertEqual(reason, 'ok')
+        self.assertEqual(proof['proof_type'], 'pre_effect')
+        self.assertEqual(proof['occurrence_id'], occurrence)
+        self.assertEqual(proof['evidence_refs'], [f'lm-event://{owner}/{run_id}/' + 'a' * 24])
+
+        contradictory_terminals = [
+            {**terminal, 'provider_receipt_id': 'post-1'},
+            {**terminal, 'official_readback_ref': 'postiz://posts/post-1'},
+            {**terminal, 'evidence_refs': [
+                *terminal['evidence_refs'], 'postiz://posts/post-1',
+            ]},
+        ]
+        for contradictory in contradictory_terminals:
+            proof, reason = lm_loop._pre_effect_occurrence_proof(
+                owner, entry, occurrence, 'claimed', [contradictory],
+            )
+            self.assertIsNone(proof)
+            self.assertEqual(reason, 'no_pre_effect_terminal')
+
+        terminal['evidence_refs'][-1] = f'lm-no-effect://{owner}/{owner}:other/no_due_slot'
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, 'claimed', [terminal],
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, 'no_pre_effect_terminal')
+
+
+    def test_ebook_legacy_offslot_unknown_is_pre_effect_only_for_exact_occurrence_release_and_runs(self):
+        owner = 'ebook-ja-tiktok-daily'
+        occurrence = f'{owner}:18dc492a23932638-97151'
+        start_run = occurrence.split(':', 1)[1]
+        terminal_run = '18dc494334713e40-66205'
+        release_sha = '49aab2f193d7cd5c2361ad958c2f6fb7f15c7845'
+        entrypoint = 'apps/life-manager/scripts/ebook-distribute-daily.sh'
+        entry = {'effect_class': 'publish', 'entrypoint': entrypoint,
+                 'state_root': '/private/state/ebook'}
+        proof_map = getattr(lm_loop, 'EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS', None)
+        self.assertIsNotNone(proof_map)
+        if proof_map is None:
+            return
+        proof_spec = proof_map[release_sha]
+        self.assertEqual(proof_spec.get('entrypoint_sha256'),
+                         '3240c05e7bca3dc3def17436cf5c2e0a1064d4d9501da7993b8f7dd7ecd18722')
+        self.assertEqual(proof_spec.get('occurrence_id'), occurrence)
+        self.assertEqual(proof_spec.get('start_run_id'), start_run)
+        self.assertEqual(proof_spec.get('terminal_run_id'), terminal_run)
+        self.assertEqual(proof_spec.get('start_event_id'), 'a99a2ae69df1ae7015ee6c9d')
+        self.assertEqual(proof_spec.get('terminal_event_id'), '0d424e04211c1e60ad2d561a')
+        self.assertEqual(proof_spec.get('pack_sha256'),
+                         '040ec1538e0aa75af4dd11d86737d3b332dd57e9ad0a9aacd14f73abcf936906')
+        self.assertEqual(proof_spec.get('first_slot_jst'), '07:00')
+
+        start_timestamp = '2026-10-07T15:33:17.137149+00:00'
+        terminal_timestamp = '2026-10-07T15:35:08.651045+00:00'
+        summary_ref = f'lm-loop://{owner}/{terminal_run}/summary.json'
+        claim_ref = f'lm-occurrence://{owner}/{start_run}/claim'
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            release_root = temp_root / '20261007T232327-49aab2f1'
+            source = release_root / 'apps/life-manager/scripts/ebook-distribute-daily.js'
+            source.parent.mkdir(parents=True)
+            source_bytes = b'approved off-slot entrypoint fixture'
+            source.write_bytes(source_bytes)
+            source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+            manifest_path = release_root / 'RELEASE.json'
+            manifest_path.write_text(json.dumps({'sha': release_sha}), encoding='utf-8')
+            decoy_release = temp_root / 'another-build-49aab2f1'
+            decoy_release.mkdir()
+            (decoy_release / 'RELEASE.json').write_text(json.dumps({'sha': 'b' * 40}), encoding='utf-8')
+            pack_path = release_root / 'skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json'
+            pack_path.parent.mkdir(parents=True)
+            pack_value = {'slots_jst': ['07:00', '12:30', '20:00']}
+            pack_path.write_text(json.dumps(pack_value), encoding='utf-8')
+            fixture_proofs = {release_sha: {
+                'owner_id': owner,
+                'occurrence_id': occurrence,
+                'release_name': '20261007T232327-49aab2f1',
+                'entrypoint_sha256': source_sha,
+                'pack_file': 'ebook-ja-watercolor.json',
+                'pack_sha256': hashlib.sha256(pack_path.read_bytes()).hexdigest(),
+                'start_run_id': start_run,
+                'start_event_id': 'a' * 24,
+                'start_timestamp': start_timestamp,
+                'terminal_run_id': terminal_run,
+                'terminal_event_id': 'b' * 24,
+                'terminal_timestamp': terminal_timestamp,
+                'first_slot_jst': '07:00',
+            }}
+            rows = [
+                {
+                    'loop_id': owner, 'owner_id': owner, 'run_id': start_run,
+                    'occurrence_id': occurrence, 'phase': 'execute', 'status': 'running',
+                    'effect_class': 'publish', 'effect_status': 'started', 'blocker': None,
+                    'release_sha': release_sha,
+                    'evidence_refs': [f'lm-loop://{owner}/{start_run}/summary.json'],
+                    'event_id': 'a' * 24, 'timestamp': start_timestamp,
+                },
+                {
+                    'loop_id': owner, 'owner_id': owner, 'run_id': terminal_run,
+                    'occurrence_id': occurrence, 'phase': 'report', 'status': 'pass',
+                    'effect_class': 'publish', 'effect_status': 'unknown', 'blocker': None,
+                    'provider_receipt_id': None, 'official_readback_ref': None,
+                    'release_sha': release_sha, 'evidence_refs': [summary_ref, claim_ref],
+                    'event_id': 'b' * 24, 'timestamp': terminal_timestamp,
+                },
+            ]
+            with (
+                patch.object(lm_loop, 'ROOT', temp_root / 'current'),
+                patch.object(lm_loop, 'EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS', fixture_proofs),
+            ):
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertEqual(reason, 'ok')
+                self.assertEqual(proof['occurrence_id'], occurrence)
+                self.assertEqual(proof['no_effect_proof']['reason'], 'no_due_slot')
+
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', [rows[1]],
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'legacy_start_missing')
+
+                fake_occurrence = f'{owner}:not-the-incident'
+                fake_start = {**rows[0], 'occurrence_id': fake_occurrence}
+                fake_terminal = {
+                    **rows[1],
+                    'occurrence_id': fake_occurrence,
+                    'evidence_refs': [
+                        summary_ref,
+                        f'lm-occurrence://{owner}/not-the-incident/claim',
+                    ],
+                }
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, fake_occurrence, 'claimed', [fake_start, fake_terminal],
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+
+                pack_path.write_text(json.dumps({'slots_jst': ['23:59']}), encoding='utf-8')
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+                pack_path.write_text(json.dumps(pack_value), encoding='utf-8')
+
+                rows[1]['run_id'] = 'different-run'
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+                rows[1]['run_id'] = terminal_run
+                rows[1]['event_id'] = 'c' * 24
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+                rows[1]['event_id'] = 'b' * 24
+
+                rows[0]['event_id'] = 'c' * 24
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'legacy_start_mismatch')
+                rows[0]['event_id'] = 'a' * 24
+
+                rows[1]['timestamp'] = '2026-10-10T15:35:08.651045+00:00'
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+                rows[1]['timestamp'] = terminal_timestamp
+
+                rows[0]['release_sha'] = 'b' * 40
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'legacy_release_mismatch')
+                rows[0]['release_sha'] = release_sha
+
+                rows[0]['timestamp'] = '2026-10-07T22:01:00+00:00'
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'legacy_start_mismatch')
+                rows[0]['timestamp'] = start_timestamp
+
+                manifest_path.write_text(json.dumps({'sha': 'b' * 40}), encoding='utf-8')
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+                manifest_path.write_text(json.dumps({'sha': release_sha}), encoding='utf-8')
+
+                source.write_bytes(b'changed immutable source fixture')
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, 'no_pre_effect_terminal')
+                source.write_bytes(source_bytes)
+
+
     def test_ebook_pre_effect_uses_exact_occurrence_without_claim_uri(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim()
         rows[1]["evidence_refs"] = [

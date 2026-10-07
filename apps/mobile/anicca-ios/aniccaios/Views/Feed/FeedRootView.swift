@@ -100,7 +100,14 @@ struct FeedRootView: View {
     }
 
     private func applyPendingQuoteNavigation() {
-        guard let index = quoteNavigation.resolveIndex(in: quotes) else { return }
+        guard let quote = quoteNavigation.resolveQuote(in: quotes) else { return }
+        let index: Int
+        if let existingIndex = quotes.firstIndex(where: { $0.id == quote.id }) {
+            index = existingIndex
+        } else {
+            quotes.append(quote)
+            index = quotes.count - 1
+        }
         withAnimation { currentIndex = index }
     }
 

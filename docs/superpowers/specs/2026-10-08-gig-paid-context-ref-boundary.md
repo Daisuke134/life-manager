@@ -1,50 +1,34 @@
-# Gig paid context reference boundary
+# ギグ契約・Storefront lane readback
 
-## Goal
+> 参照用の状態証拠です。全体TODOと実行順の唯一の正本は
+> [`2026-09-25-life-manager-unified-ssot.md`](2026-09-25-life-manager-unified-ssot.md) です。
+> この文書は別のTODO・順序を作りません。
 
-Keep paid fulfillment inside the contract project while allowing its context compiler to ignore only the known virtual-environment interpreter symlinks under `delivery/runtime/`. Other external source symlinks must fail closed. The `paid_direct.py` consumer must also reject external `read_these_first` paths.
+## 担当範囲と完了条件
 
-## Evidence
+Coconala、Lancers、CrowdWorks、Mercorの既存gig ownerと、将来のUpwork・Freelancer接続を扱います。CFO A5–A10、CAPFY、SelfBuild、他ownerのブラウザ・state・loopは担当外です。Lancers rows 25–27は`waiting_external`を維持し、認証・solver・応募を再試行しません。回答だけの作業も対象外です。
 
-An observed Coconala Paid run stopped before any external effect with `compiled source reference escapes project`. Its compiled context contained four `.venv/bin/python*` symlinks under `delivery/runtime/` resolving to the system Python installation.
+gig ownerの契約完了は、同一のfunded contract/occurrenceに結びついた要件・納品物hash・provider正式納品receipt・買い手検収・platform settlement/fee readback・replay-zeroが揃った時だけです。会社横断CFO joinはCFO ownerの担当です。Storefrontは公式の掲載状態と購入readbackを別々に扱い、掲載中だけで販売・入金とは判定しません。24/7はboundedな自然wakeとdurable stateで進捗する運用を指し、loop登録・loaded表示だけでは稼働完了としません。
 
-## Acceptance
+## 前段のsource変更
 
-- `_refs()` excludes only `delivery/runtime/*/.venv/bin/python*` interpreter symlinks whose resolved target is an executable Python runtime, before hashing them.
-- Any other external source symlink fails compilation; it is not silently omitted.
-- Ordinary project files remain in `source_refs`.
-- The consumer rejects explicitly supplied external source and `read_these_first` references.
-- This patch changes reference indexing only; it does not edit contract files, browser state, or provider state.
+- PR #6936のPaid context reference境界修正とPR #6945のUpwork CDP endpoint修正はmainへ統合済みです。PR #6945は`scout.py`が`CLOAK_CDP_BASE_URL`を使う修正で、focused testは2/2でした。
+- `origin/main`とcurrent symlinkは`6c9a34c163` / `20261008T022813-6c9a34c1`で一致します。ただしownerごとのpromotionは未収束です。02:39 JSTのreadbackではCoconala Paid/Browser、CrowdWorks Application、Lancers Work-sync、Mercor Replyが旧`c5c4d791`、一部ownerは`6c9a34c1`でした。`life-manager-release-reconciler`は`entrypoint_exit_75` / `reconcile_owner`、`life-manager-disk-cleanup`は`apply_lock_busy`です。強制apply/restartせず、各ownerのnatural terminal後に既存reconcilerの収束をreadbackします。
 
-## Progress
+## 2026-10-08 02:41 JSTのreadback
 
-- The production context had 11,234 references; exactly four escaped the project after symlink resolution, all `.venv/bin/python*` aliases under `delivery/runtime/`.
-- The initial test failed at the external target read. Review then found that broadly skipping outside symlinks could omit customer inputs and that `read_these_first` lacked a consumer-side boundary check.
-- The corrected code skips only executable Python symlink aliases under `delivery/runtime/*/.venv/bin`, fails compilation on other external source symlinks, and rejects external `read_these_first` paths. Internal file references and internal symlinks remain supported.
-- Fresh read-only review passed after the correction with no remaining findings.
-- Verification: 6 focused tests passed; the consumer boundary rejects external references; `lm-loop-contract` passes for 18 product loops / 186 registry jobs; `git diff --check` passes. Provider/browser mutation: 0.
+- `lm-loop health --json`（02:37 JST）: 186 jobs中、healthy 41 / running 25 / failed 34 / safely_fenced 74 / effect_unknown 9 / telemetry_gap 3。02:41 JSTの`df -Pk /`は空き2.51 GiB。状態は自然wakeで変わるため、owner別の次の操作前に再readbackします。
+- product-loop catalogに管理登録されるgig loopはCoconala 7、Lancers 7、CrowdWorks 5、Mercor 3です。FreelancerとUpworkのmanaged product loopはありません。現行4 loopのcloud availabilityはすべて`setup_required`です。
+- Coconala Paid ownerのoccurrence `798461c1a4ebdc8d0db12669`は02:30 JSTに`phase=report`, `status=pass`, `effect=not_applicable`で、provider receipt/readbackなしでした。02:32 JSTの公式talkroom readbackでは1件が¥9,000・「取引中／進行中」。parserは既存artifactの買い手可視化とその後の買い手返信を観測し、feedbackを`revision`に分類しました。正式納品receiptはなく、`formal_delivery_confirmed=false`です。よって契約は未納品で、settled revenueではありません。対象projectの`.paid-effect-owner.lock`を`paid_direct.py` processが保持中のため、既存ownerのstateや納品物は編集しません。受注一覧snapshotは3件を観測していますが、一覧上の各`status`は`unknown`です。
+- 公開中[Coconala service page](https://coconala.com/services/4313100)はreadback時に販売実績1件を表示しました。これは掲載・表示実績であり、このturnの新規購入、検収、settlementのreceiptではありません。
+- `lm-loop pre-effect-reconcile hf-gig-storefront-direct --dry-run`はoccurrence `hf-gig-storefront-direct:18d8d288748508e8-23902`を`no_pre_effect_terminal`で未証明と返しました。dry-runでfence変更はありません。公開listingの存在だけではこのeffectとの同一性を証明できず、provider receiptか同一occurrenceの完全なpre-effect evidenceが得られるまで再作成・再編集しません。
+- 最新owner statusでは、Coconala Apply/Storefrontはrelease `6c9a34c1`で`resource_effect_unknown`、Paid/Browserは旧releaseでloaded-running。Lancers Application/Negotiateは新releaseでも`disk_headroom_low`、Paidは`entrypoint_exit_1`かつ`effect_unknown`、Storefrontも`effect_unknown`。CrowdWorks Paid/Replyは新releaseで`entrypoint_exit_75` / `official_readback_required`、Applicationは旧releaseで`effect_status=unknown`。Mercor Applicationは新releaseのまま`unloaded`かつ`resource_effect_unknown`、Paidは`resource_effect_unknown`、Replyは旧releaseです。provider receipt/readbackは未結合です。新しいpre-effect holdで古いeffect fenceが自動解除されたとは扱わず、無差別restart・再送もしません。
+- LancersのWAF worktreeは`lm-cfo-observability-1002`のactive leaseです。担当外として維持します。AGMSG inboxに新着はありません。open PR #6485/#6338/#4813などは以前のsource課題であり、現在のproduction receiptの代用ではありません。
+- Upwork公式[Project Catalog作成ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)とFreelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定額サービス掲載面の存在を示します。Upwork `Project Dashboard`は02:35 JSTにログイン・verification誘導なしで読め、「Drafts (0)」とProject Catalog UIは表示されましたが、公開listing件数は見えず`unknown`です。Freelancerのaccount-bound auth/listing inventoryも未確認です。公式機能の存在を自アカウントの出品状態と混同しません。
 
-## 現在のギグ担当lane readback（参照。正本の順番は統合SSOT）
+## 証拠境界
 
-- 確認時刻は2026-10-08 00:47–00:56 JST。paid context境界修正はmainへ統合済み。最新immutable main releaseは`2501a44ccd954907afbde09b3155d176f3cd95e3`だが、`hf-gig-paid-direct`はまだ`6ce816a9d152a40aeaf8c89eae68fb5f60d6b5cd`をロードしており、自然run中のためtarget applyしていない。
-- `~/gig/evidence/paid-direct-live/latest.json`の00:47 JST readbackは`failed_step=remote_builder`、`observed=3`、`actionable=1`、`effect=0`、`readback=2`、`failed=1`。15:51Zのruntime eventは`host_admission_deferred:resource_capacity_busy`、`effect=not_applicable`、receipt/readbackなし。成功・納品・入金を示さない。
-- 公開中[Coconala service page](https://coconala.com/services/4313100)は00:46 JSTのreadbackで¥3,000、表示販売実績1件。これは掲載面が存在する証拠であり、Storefront loopの実行、新規販売、settlementの証拠ではない。`hf-gig-apply-direct`と`hf-gig-storefront-direct`には既存effect-unknown fenceが残り、`hf-gig-apply-reconcile`のprocess passだけでは解除できない。
-- 現行product-loop catalogはCoconala、Lancers、CrowdWorks、Mercorの4 loop。Freelancer/Upworkにmanaged product loopはない。Upworkの旧browser-owner branchはlease期限切れでPR未作成のため、そのworktreeを編集しない。Upwork公式Project Catalogには定額サービス掲載面がある（[公式ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)）。
-- Lancers rows 25–27は`waiting_external`を維持し、認証・solver・応募を再試行しない。CrowdWorksにはStorefront loopがなく、CrowdWorks/Mercorの既存Application/Paidにはowner別のofficial-readback/effect-fenceが残る。
-- 4つの既存gig product loopはすべてcloud availabilityが`setup_required`。現在の状態から24/7 cloud稼働を主張しない。
-- この参照laneはgig platformだけを扱う。CFO A5–A10、CAPFY、SelfBuildは別ownerの範囲。reply-only/回答だけの作業は進めず、特定のfunded contractを進めるのに必要な顧客連絡のみ対象にする。
-
-## Remaining（gig担当lane内。統合SSOTの全体順序は変更しない）
-
-1. `hf-gig-paid-direct`の現在runがterminalになり`loaded-idle`へ戻った後、最新main releaseをこのownerだけへ`--loaded-idle-only`で適用し、loaded SHAを確認する。その次の自然runで、修正済みcontext compilerを通過したか、`remote_builder`の理由とeffect/readbackを確認する。provider容量が再現する場合は既存fallback policyをreadbackしてから判断し、手動wakeしない。
-2. Coconala Applyの既存fenceについて、同一occurrenceのdurable run→pass linkageと公式応募履歴を結合する。結び付きを証明できなければfenceを保持し、再応募しない。
-3. 2が安全に閉じた後、既存Coconala Storefront ownerの自然runと公式listing readbackを確認する。公開中listingを重複作成しない。
-4. Lancers rows 25–27は`waiting_external`のまま飛ばし、active ownerのWAF worktreeへ介入しない。CAPTCHAが続く場合も再試行しない。
-5. CrowdWorks/Mercorは既存ownerのleaseと最新公式readbackを引き継ぎ、funded contractに結び付くApplication→必要なNegotiate→Paid/deliveryだけを閉じる。effect-unknownは公式証拠なしに再送しない。
-6. Freelancer/Upworkは既存adapter・retired labels・Upwork browser-owner差分を読み、他ownerのlease解放後にfresh-main worktreeで不足するmanaged ownerだけを実装する。account-bound inventory、funded contract、公式receiptが揃うまでprovider mutationしない。
-7. Storefrontが使える各platformの掲載・公開readbackを整え、既存host/setup契約でcloud availabilityを有効化する。自然runとprovider readbackが揃うまで24/7とは数えない。
-8. 各platformでbuyer-visible納品、settlement、fee/actual cost、重複0を同一contract/occurrenceに結び、残る`unknown`を実データで解消する。その後に限り後段のSelfBuild cursorへ進む。
-
-統合SSOT writerのleaseが有効なため、この変更ではcanonical SSOTを編集しない。lease解放後、上記のギグ証拠だけをSSOT writerへ渡し、正本へ反映する。
-
-TODO ordering remains owned by `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`.
+- `loaded` / `running` / process `pass`は契約応募・返信・納品・支払いを証明しません。
+- `effect_unknown`は同じ外部effectを再実行する許可ではありません。receiptまたはno-effectの公式証拠が同一occurrenceに結びつくまでfenceを保持します。
+- 掲載、応募receipt、買い手向け納品receipt、検収、売上settlementは別の証拠です。gross、残高通知、画面の販売表示をsettled netとして扱いません。
+- 他ownerのlease/profile、共有checkout、顧客project stateは切替・編集・再起動しません。

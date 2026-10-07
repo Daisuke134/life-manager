@@ -35,8 +35,9 @@ EXCERPT = 6000  # keep each page small — the model needs the signal, not the w
 
 
 def _browser_ws():
+    base = os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222").rstrip("/")
     data = json.loads(
-        urllib.request.urlopen("http://localhost:9222/json/version", timeout=8).read()
+        urllib.request.urlopen(f"{base}/json/version", timeout=8).read()
     )
     return data["webSocketDebuggerUrl"]
 
