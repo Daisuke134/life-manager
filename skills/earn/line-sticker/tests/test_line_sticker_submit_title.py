@@ -103,3 +103,22 @@ class IdempotentSteps(unittest.TestCase):
 
         out = asyncio.run(MODULE._idempotent_step(ok, {"state": "metadata_saved"}, "images_uploaded"))
         self.assertEqual(out["state"], "images_uploaded")
+
+
+class FitListing(unittest.TestCase):
+    def test_long_english_description_is_cut_at_a_sentence_within_160(self) -> None:
+        # Live 2026-10-07 11:31Z set-007: a 188-char en description hit 160文字まで入力可能です.
+        desc = ("Pokata the otter is ready for every autumn and winter occasion, from Halloween and "
+                "Christmas to New Year. Send seasonal greetings and everyday feelings with big, cute motions.")
+        out = MODULE._fit_listing({"title": {"en": "T", "ja": "た"}, "description": {"en": desc, "ja": "せつめい"}})
+        self.assertLessEqual(MODULE._title_units(out["description"]["en"]), MODULE.DESC_MAX)
+        self.assertTrue(out["description"]["en"].endswith("."))
+
+    def test_japanese_description_counts_full_width_as_two(self) -> None:
+        desc = "かわいい" * 30  # 120 chars = 240 units
+        out = MODULE._fit_listing({"title": {"ja": "た"}, "description": {"ja": desc}})
+        self.assertLessEqual(MODULE._title_units(out["description"]["ja"]), MODULE.DESC_MAX)
+
+    def test_short_listing_is_untouched(self) -> None:
+        listing = {"title": {"en": "Mochi Hamster"}, "description": {"en": "Cute."}}
+        self.assertEqual(MODULE._fit_listing(listing), listing)
