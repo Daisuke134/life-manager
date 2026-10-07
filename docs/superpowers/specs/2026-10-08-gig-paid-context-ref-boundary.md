@@ -13,7 +13,7 @@ gig ownerの契約完了は、同一のfunded contract/occurrenceに結びつい
 ## 前段のsource変更
 
 - PR #6936のPaid context reference境界修正とPR #6945のUpwork CDP endpoint修正はmainへ統合済みです。PR #6945は`scout.py`が`CLOAK_CDP_BASE_URL`を使う修正で、focused testは2/2でした。
-- `origin/main`とcurrent symlinkは`6c9a34c163` / `20261008T022813-6c9a34c1`で一致します。ただしownerごとのpromotionは未収束です。02:39 JSTのreadbackではCoconala Paid/Browser、CrowdWorks Application、Lancers Work-sync、Mercor Replyが旧`c5c4d791`、一部ownerは`6c9a34c1`でした。`life-manager-release-reconciler`は`entrypoint_exit_75` / `reconcile_owner`、`life-manager-disk-cleanup`は`apply_lock_busy`です。強制apply/restartせず、各ownerのnatural terminal後に既存reconcilerの収束をreadbackします。
+- 03:12 JSTの再readbackでは`origin/main=541d8466`、current symlinkは`20261008T024154-64c078b3`です。owner promotionは未収束で、Coconala Paid/Apply/Storefrontはrelease `64c078b3`上のprocess/host fencesが残ります。全体healthは186 jobs中healthy 22 / running 25 / failed 54 / safely_fenced 73 / effect_unknown 9 / telemetry_gap 3でした。強制apply/restartせず、各ownerのnatural terminal後に既存reconcilerの収束をreadbackします。
 
 ## 2026-10-08 02:41 JSTのreadback
 
@@ -26,9 +26,23 @@ gig ownerの契約完了は、同一のfunded contract/occurrenceに結びつい
 - LancersのWAF worktreeは`lm-cfo-observability-1002`のactive leaseです。担当外として維持します。AGMSG inboxに新着はありません。open PR #6485/#6338/#4813などは以前のsource課題であり、現在のproduction receiptの代用ではありません。
 - Upwork公式[Project Catalog作成ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)とFreelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定額サービス掲載面の存在を示します。Upwork `Project Dashboard`は02:35 JSTにログイン・verification誘導なしで読め、「Drafts (0)」とProject Catalog UIは表示されましたが、公開listing件数は見えず`unknown`です。Freelancerのaccount-bound auth/listing inventoryも未確認です。公式機能の存在を自アカウントの出品状態と混同しません。
 
+## 2026-10-08 02:55–03:20 JST Coconala storefront再確認
+
+- `listing_inventory.py collect`の公式seller-list readbackは20件すべて`公開中`。service `4313100`は¥3,000、seller inventoryの`sales_count=0`でした。以前のpublic service-page readbackは販売実績1件を表示しました。2つのreadbackが不一致なので、この数値を販売・settlementとして採用せず`unknown`を維持します。
+- `18d8d288748508e8-23902`のruntime reportはoccurrence `18d8d2334ab70e80-9111`をclaimし、次run `18d8d2b3f46565c8-28218`のreportはoccurrence `18d8d288748508e8-23902`をclaimします。過去stdout receiptにrun ID/claimed-occurrence IDが無いため、時刻だけではどちらのoccurrenceにも結び付けません。local helper dry-runはこの2件とも`HELD`です。production fenceは変更していません。
+- 今後のpre-effect proofは、requested occurrenceに一致する唯一のruntime report、そのreportのexact `lm-occurrence://.../claim`、同じ`runtime_run_id`と`runtime_occurrence_id`を含むStorefront stdout receipt、host admissionのowner/stateを揃えます。同一occurrenceに複数のreportがあればholdし、旧receiptにidentity fieldsが無い場合もholdします。`official_inventory_empty_or_invalid`は`pending/pass`、`official_service_contract_invalid`は`failed/fail`に厳密対応し、両方ともeffect/actionable/readbackが0であることを要求します。
+
 ## 証拠境界
 
 - `loaded` / `running` / process `pass`は契約応募・返信・納品・支払いを証明しません。
 - `effect_unknown`は同じ外部effectを再実行する許可ではありません。receiptまたはno-effectの公式証拠が同一occurrenceに結びつくまでfenceを保持します。
 - 掲載、応募receipt、買い手向け納品receipt、検収、売上settlementは別の証拠です。gross、残高通知、画面の販売表示をsettled netとして扱いません。
 - 他ownerのlease/profile、共有checkout、顧客project stateは切替・編集・再起動しません。
+
+## 2026-10-08 03:12 JSTのCoconala readbackとproof契約
+
+- 現在の`origin/main`は`541d8466`、immutable current releaseは`20261008T024154-64c078b3`で、owner適用は未収束です。`lm-loop health --json`は186 jobs中、healthy 22 / running 25 / failed 54 / safely_fenced 73 / effect_unknown 9 / telemetry_gap 3。Coconala Paidは`apply_lock_busy`、Storefrontは`resource_effect_unknown`でprovider receiptなしです。
+- `listing_inventory.py collect`の02:55 JST公式seller-list readbackは20件すべて`公開中`。service `4313100`は¥3,000でseller inventoryの`sales_count=0`。既出public service pageの販売表示1件と不一致なので、販売・settlementは`unknown`のままです。
+- 旧runtime run `18d8d288748508e8-23902`のreportは別occurrence `hf-gig-storefront-direct:18d8d2334ab70e80-9111`をclaimし、次run `18d8d2b3f46565c8-28218`のreportは`hf-gig-storefront-direct:18d8d288748508e8-23902`をclaimします。旧stdout pass lineにはruntime run/claimed-occurrence IDがありません。時間窓だけで別runの`pending/effect=0`行を選ぶ解除はしません。
+- pre-effect proofは同一のrequested occurrenceについて、runtime reportの`owner_id`/`loop_id`/`occurrence_id`、正確な`lm-occurrence://.../claim`、storefront stdoutの`runtime_run_id`と`runtime_occurrence_id`、host admissionのowner/state/effect_unknownを全て一致させます。`official_inventory_empty_or_invalid`は`pending/pass`、`official_service_contract_invalid`は`failed/fail`との対応と`effect=0/actionable=0/readback=0`を要求し、旧receiptにidentity fieldsが無ければ`HELD`を維持します。
+- この証拠契約のsource変更は専用gig worktreeでfocused testsがPASSしています。fresh read-only reviewは未完、main merge/release/production fence解決は未実施です。

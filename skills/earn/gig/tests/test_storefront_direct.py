@@ -39,6 +39,22 @@ def test_lease_command_budget_includes_bounded_batch_recovery(monkeypatch, tmp_p
     assert observed["timeout"] == direct.LEASE_COMMAND_TIMEOUT_SECONDS == 160
 
 
+def test_storefront_receipt_carries_exact_runtime_run_and_occurrence(monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "hf-gig-storefront-direct")
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "runtime-run-1")
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID", "hf-gig-storefront-direct:claimed-occurrence-1",
+    )
+
+    row = direct._receipt(
+        "storefront-direct-pass-1", status="pending",
+        reason="official_inventory_empty_or_invalid",
+    )
+
+    assert row["runtime_run_id"] == "runtime-run-1"
+    assert row["runtime_occurrence_id"] == "hf-gig-storefront-direct:claimed-occurrence-1"
+
+
 def test_storefront_proposal_runner_class_is_accepted_and_toolless(tmp_path):
     runner_dir = SCRIPTS.parents[3] / "runtime/agent-runner"
     sys.path.insert(0, str(runner_dir))
