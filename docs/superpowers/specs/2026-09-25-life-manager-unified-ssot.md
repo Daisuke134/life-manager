@@ -4237,7 +4237,7 @@ flowchart LR
 1. Coconala Storefront parser修正 `d017c50b` のPR/CI/mergeを完了する。source suite 58/58 PASS・read-only review PASSは実測済みだが、PR/mergeは未完了。
 2. `hf-gig-storefront-direct:18d8d288748508e8-23902`を同一occurrenceの公式receiptまたは受理可能なpre-effect terminalで照合する。証拠が無ければeffect fenceを保持し、timestampや近接sidecarからbindingを作らず、独立する有償案件へ進む。
 3. Coconala Storefrontをread-onlyで再取得し、現行20サービスの契約・公開状態を確認する。現行listing表示、公開履歴、購入、settlementを別々に記録する。
-4. 既存有償案件`18180857`の現在のtalkroom状態を再readbackする。revisionが継続中なら、その契約revisionを完成し、formal delivery→buyer acceptance→provider settlement/payout→duplicate-zeroを同一project/occurrenceへ結ぶ。`18211957`は前回公式readbackで取引完了済みで、必要時以外はseller actionを追加しない。
+4. 既存有償案件`18180857`は`2026-10-07T22:19:49Z`の公式readbackで`取引中`/`進行中`、revision、formal delivery未確認。買い手の「返信0件か・送信方法は何か」という最新質問はseller未回答。`hf-gig-paid-direct`が`loaded-running`でproject lock保持中のため、自然terminal後に同じoccurrenceの結果とTikTok/Sheets公式証拠を確認し、検証済み件数で一度だけ回答する。その後、契約revision→formal delivery→buyer acceptance→provider settlement/payout→duplicate-zeroを同一project/occurrenceへ結ぶ。lock保持中は返信・納品・project編集を重ねない。`18211957`は前回公式readbackで取引完了済みで、必要時以外はseller actionを追加しない。
 5. Coconala Apply→Negotiate/Reply→Paidをowner/occurrenceごとに修復し、新規案件はfresh eligible inventoryとofficial proposal/thread receiptを確認してから一度だけ進める。human-requiredは保留する。
 6. Lancers（L9-08）を診断する。rows 25–27は`waiting_external`のまま維持し、この3行への再認証・CAPTCHA/solver・応募・retryはしない。他のeligible storefront/application/work-sync/paid itemだけを個別にreadbackする。
 7. CrowdWorks（L9-09）を1 occurrenceずつreconcileし、Google Form・interview・exam・identity確認を`human_required`で保留する。storefront capabilityと公開状態を確認してから応募へ進む。
