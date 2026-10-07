@@ -78,6 +78,44 @@ function writeLanePolicy(dataDir, laneState) {
   writeMarketingLaneManifest(manifest, { dataDir });
 }
 
+function writeEbookJapanLanePolicy(dataDir, route) {
+  const lane = {
+    id: route.integrationId,
+    provider: "postiz",
+    platform: route.platform,
+    profile: route.profile,
+    account: route.laneId,
+    product_id: "ebook-ja",
+    locale: "ja",
+    disabled: false,
+    verified: true,
+    owner: "life-manager",
+    lane_state: "production-armed",
+    disposition: "target",
+    renderer: "watercolor-monk",
+    format: "ebook-watercolor",
+    approved_pack: "ebook-ja-watercolor.json",
+    canary_state: "authorized-canary-pending",
+    target_daily_limit: 3,
+  };
+  const manifest = createMarketingLaneManifest({
+    tenant_id: "dais-local",
+    integrations: [lane],
+    holds: [{
+      integration_id: `held-${route.platform}-other`,
+      platform: route.platform,
+      account: "@unclassified",
+      provider: "postiz",
+      provider_disabled: false,
+      owner: "life-manager",
+      disposition: "hold",
+      target_daily_limit: 0,
+      verified: true,
+    }],
+  }, { tenantId: "dais-local", assignments: [lane] });
+  writeMarketingLaneManifest(manifest, { dataDir });
+}
+
 test("local ledger uses the portable runtime data root and rejects legacy roots", () => {
   const home = tempDataDir();
   const ledger = createMarketingLocalLedger({ env: { HOME: home, LM_DATA_DIR: "" } });
@@ -307,6 +345,61 @@ test("an armed integration rejects content from the wrong product format family"
     (error) => error.code === "MARKETING_PUBLICATION_EFFECT_FENCED",
   );
   assert.equal(await ledger.readJob({ tenantId: "dais-local", jobId: "publication-job" }), null);
+});
+
+test("closed production fence admits the two configured eBook Japan lanes at three per day", async () => {
+  const routes = [
+    {
+      platform: "instagram",
+      laneId: "ebook-ja-instagram",
+      integrationId: "cmooplxmu04tpmd0y4h3cpk33",
+      profile: "@obou.anicca",
+    },
+    {
+      platform: "tiktok",
+      laneId: "ebook-ja-tiktok",
+      integrationId: "cmo5s4edx00vgn10ygnu34a0n",
+      profile: "@obou_anicca",
+    },
+  ];
+
+  for (const route of routes) {
+    const dataDir = tempDataDir();
+    const marketingDir = path.join(dataDir, "marketing");
+    fs.mkdirSync(marketingDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(marketingDir, "publication-effect-fence.json"), `${JSON.stringify({
+      schema_version: 1,
+      state: "closed",
+      reason: "production manifest owns cadence",
+    })}\n`, { mode: 0o600 });
+    writeEbookJapanLanePolicy(dataDir, route);
+
+    const value = job({
+      job_id: `ebook-ja-${route.platform}-publication`,
+      loop_id: "marketing.video.publish",
+      effect_key: `marketing:video:ebook-ja:${route.platform}:one-canary`,
+      available_at: "2026-08-26T01:31:00.000Z",
+      input_refs: {
+        product_ref: "product://ebook-ja",
+        format_ref: "format://ebook-watercolor",
+        form_ref: "form://ebook-reflection-reel",
+        locale_ref: "locale://ja",
+        platform_ref: `platform://${route.platform}`,
+        pack_ref: "object://sha256/040ec1538e0aa75af4dd11d86737d3b332dd57e9ad0a9aacd14f73abcf936906",
+        [`${route.platform}_integration_ref`]: `integration://postiz/${route.platform}/${route.integrationId}`,
+      },
+    });
+    const ledger = createMarketingLocalLedger({ dataDir, now: () => "2026-08-26T01:31:00.000Z" });
+
+    assert.equal((await ledger.enqueueJob(value)).created, true, route.platform);
+    assert.equal((await ledger.claimJob({
+      tenantId: "dais-local",
+      jobId: value.job_id,
+      capability: "marketing.video.publish",
+      workerId: `ebook-ja-${route.platform}-canary`,
+      leaseSeconds: 30,
+    })).status, "running", route.platform);
+  }
 });
 
 test("open publication fence still requires the exact armed Life Manager lane at enqueue and claim", async () => {
