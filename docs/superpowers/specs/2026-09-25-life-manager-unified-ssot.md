@@ -4,7 +4,7 @@
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 
-**現在の残TODO・実行順・cursorの正本は§217。実行cursorは17。前段の保留は未完のまま保持し、SelfBuildは25、Lancersは26〜28で扱う。**
+**現在の残TODO・実行順・cursorの正本は§217。実行cursorは17。Lancersの25〜27は今回は`waiting_external`でskip、SelfBuildは28（他の収益loopの処理後）、最終証拠結合は29。前段の保留は完了扱いしない。**
 **読み方：旧A番号・旧3〜53は履歴照合用。優先順位変更前の未完業務成果は§464に保持する。過去節のcursorを現在位置として使わない。**
 
 設計の詳細は次の資料を参照する。現在のTODO・実行順・状態の正本はこの文書の§217だけとする。
@@ -4913,7 +4913,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 順序 | 残作業 | 完了を示す成果 |
 |---|---|---|
 | 1（条件付き保留） | CrowdWorksの通常サービス契約ID・指定成果物・期限が確認された場合に限り、その契約を履行・納品する。64033100・63989657・63942104は採用応募/選考なのでこの納品対象から除く | 金額取得修復と3候補分類は完了済み。残る開始条件は適格な実サービス契約ID・成果物・期限の確定、完了条件はその契約の公式納品記録。TikTok/NPO追跡は除外。 |
-| 2 | Coconala案件18211957の売上行を、現行の振込・手数料・案件実費記録へ照合する | 10/04 official finance page readbackはHTTP200だが、parsed private snapshotは1行（closed 09/27）、`payout_requested=false`、coverage incomplete、settled net profit未確認、provider receipt IDなし。納品を再実行せず、現行の支払/手数料/実費receiptと不足物を確定する。資金移動なし。§865 |
+| 2 | Coconala案件18211957の売上行を、現行の振込・手数料・案件実費記録へ照合する | 10/04 official finance page readbackはHTTP200だが、parsed private snapshotは1行（closed 09/27）、`payout_requested=false`、coverage incomplete、settled net profit未確認、provider receipt IDなし。納品を再実行せず、現行の支払/手数料/実費receiptと不足物を確定する。資金移動なし。§870 |
 | 3（公開面確認済み） | Coconala商品4313100「Webサイトの画像差し替えと公開表示確認」の公式商品ページと購入CTAを確認する | 10/07のpublic crawlで掲載文・購入CTA・基本価格を確認。表示上の販売1件・待ち0人。アクセスを止めるpublic-page blockerなし。これは新規注文・現行checkout完了・着金の証明ではない。§867 |
 | 4（実コスト待ち） | Coconala商品4313100の掲載条件を実際のofferと照合し、実注文のscope・必要入力・納品物・実費を結ぶ | 掲載文は1ページ最大3画像、表示/リンク確認、軽微な文言1か所、対象URL/画像/位置/希望納期を明記。複数ページ/大幅変更/機能追加は見積り相談。基本¥3,000、追加画像¥500。実注文別のtool/time costはreceiptなしでunknown。価格変更・mock注文/制作なし。§867 |
 | 5（waiting_external） | Coconalaの返信待ちthreadをfreshなdirect-inbox head receiptで特定し、明確な返信だけ既存ownerから処理する | 11:18Z reply-detector runは`entrypoint_exit_10`/receiptなし。`coconala/reply/latest.json`は07:49Z時点の194件/12 pendingで古く、現行待ちの証拠ではない。browser ownerは`coconala:kosuke unreachable`、disk-writers gateも有効。別collectorを重ねず、fresh official headが得られるまで待機。§868 |
@@ -4928,13 +4928,13 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
 | 15 | Fundraiserの旧申請provider/account/intentと公式結果を照合し、対応が解決してから適格な未送信申請を進める。結果未確認の再申請なし | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | CFO natural occurrence 18dc33b392579e28-4134の公式Telegram配信・本文hash・B7 receiptは一致確認済みだが、runtime eventはeffect unknown/provider_receipt_id null、admissionはreleased/effect_unknown 0で不一致。CFO ownerのevent/readback経路を追跡し、既存receiptを同一occurrenceへcanonicalに結び直す最小source修正とfocused testを行い、次の自然run/readbackで閉じる。過去occurrenceは再送・手編集しない | 確認済み: B7同一occurrence sidecar、providerMessageId104939、本文SHA、ASC tuple/raw SHA/native ID not_returned、RevenueCat 6 snapshots、duplicateReceiptCount 0。未完: runtime receipt/effect statusとの同一occurrence一致。target apply後statusはloaded SHA `80ea586c`; 最新11:12Z runは`resource_capacity_busy`でprovider前deferし、新しい送信はない。ASC source period freshnessと会社全体のcoverage gapはrow19〜24で扱い、未確認を0にしない。§864/866 |
+| 17 | CFOのnatural occurrence `18dc3d714ac5bed8-93074`で、`sent` sidecar・runtime journal・公式Telegram historyが一致しない境界を解消する。過去reportは再送しない。 | 11:59Z runtime statusはexit0/passだが`effect=unknown`/`provider_receipt_id=null`。同一run/occurrence/releaseのB7 sidecarは`sent`とprovider message IDあり。宛先hashに一致するTelegram history 15件にはそのIDがなく、本文hash readbackも未成立。送信を再実行せず、source ownerがruntime receiptとprovider readbackを正規に結び、focused testと次のnatural occurrenceで一致を確認する。詳細§872。 |
 
 | 18 | Investmentの10/01 BTC/USDC注文を公式FILL/CFEE・owner receipt・期間transfer coverageに結び、手数料根拠が揃った時だけpair net outcomeを算出する | 11:05Z official GETは8件（FILL4/CFEE4）。10/01のFILL2/CFEE2はmode-600 packetの2注文と一致。09/30のFILL2/CFEE2は別注文でowner packetと未結合。CFEEはcurrency USDだが`net_amount=0`、公式docsにCFEE換算式なしのため費用/P&Lへ使わない。transfer GETは1件COMPLETE（09/09、対象期間外）。既存start/end NAV・注文readback・owner receipt gapは§837/846/858/859、最新証拠は§864。取引/送金0。 |
-| 19 | 30日窓`[2026-09-07T09:00:10Z, 2026-10-07T09:00:10Z)`の18 product loopについて、公式revenue/refund/fee receiptsとsource coverageを結ぶ。CFO aggregatorは別枠 | 最新成功B7 snapshotはhistorical/trailingとも18/18 unknown、gap 173/168。理由はmissing_category 162/158、stale_readback 5/5、unverified_receipt 3/2、source_unconnected 1/1、missing_coverage 1/1、read_failed 1/1。duplicate receipts 0。Coconala source_unconnectedの既存finance readbackは10/04観測の1行・payout未要求・coverage incompleteで、現窓のsettled receiptではない。B7 last success 09:00Z; 11:12Z attemptはprovider前capacity defer。CFOは最新main `80ea586c`をloaded、次の自然projectionでgap category明細を再確認する。§860/864–866 |
-| 20 | 19と同じ30日窓のprovider/tool/browser/cloud費用を公式receiptとusageで確認し、loopへ帰属する | B6 candidateはcost receipt 0/gap 2。Google 2026-09のPDF/CSVは請求番号・ID・billing account・JPY・¥27,889が一致。支払receipt/posted bank joinは未確認。gcloud現況はopen account 1・linked projects 4、9月CSVはproject 4（共通3、CSVのみ1・費用列0円、現行linkのみ1）。現行一覧は9月のlink履歴ではなく、費用欠損の証明にはならない。次は①Google公式payment receiptと請求充当、②会社負担ならposted bank transactionとの照合、③row19の30日usageとproject/service→loop owner根拠を取得。未確認費用はunknownのまま。BigQuery export/課金設定は変更しない。§845/862 |
+| 19 | 30日窓`[2026-09-07T11:58:35Z, 2026-10-07T11:58:35Z)`の18 product loopについて、公式revenue/refund/fee receiptsとsource coverageを結ぶ。CFO aggregatorは別枠 | 11:59Z B7 snapshotはhistorical/trailingとも18/18 unknown、coverage gap 173/168、duplicate receipts 0。理由はmissing_category 162/158、stale_readback 5/5、unverified_receipt 3/2、source_unconnected 1/1、missing_coverage 1/1、read_failed 1/1。Coconalaは10/04の不完全な1行で現窓のsettlementではない。runtime eventのreceipt不一致はrow17。§860/872 |
+| 20 | 19と同じ30日窓のprovider/tool/browser/cloud費用を公式receiptとusageで確認し、loopへ帰属する | B6 candidateはcost receipt 0/gap 2。Google 2026-09のPDF/CSV・Google Paymentsの請求通知・MUFG Visa debit利用通知はprovider/日付/¥27,889で整合するが、支払完了statusとposted bank transactionは未確認。10/02のMoneytree expense readbackは全口座0件で、通知を否定しない。gcloud現況はopen account 1・linked projects 4、9月CSVはproject 4（共通3、CSVのみ1・費用列0円、現行linkのみ1）。現行一覧は9月のlink履歴ではなく、費用欠損の証明にはならない。次は①Google公式payment statusまたはposted bank transactionで請求充当を確認、②row19の30日usageとproject/service→loop owner根拠を取得。未確認費用はunknownのまま。BigQuery export/課金設定は変更しない。§845/862/871 |
 | 21 | 19と20の同期間・同通貨の実収益/実費を使って、loop別と全体のnet marginを計算する | 同期間・通貨・二重計上0の利益表。費用unknownなら利益を捏造しない。 |
-| 22 | Mobileを含む継続課金の公式snapshotを集計し、loop別/会社全体のMRRと未取得sourceを表示する | 年額/買い切り/開発者収益/着金/利益を分離。 |
+| 22 | Mobileを含む継続課金の公式snapshotを集計し、loop別/会社全体のMRRと未取得sourceを表示する | 11:59Z B7はcompany MRR 17/18 unknown・1 verified、company status unknown、runway unknown。Mobile sidecarは10 records、RevenueCat 6 USD snapshots、mobile MRR status verified/USD、重複0。ASCは1 receiptだがfinancial report ID not_returned、period 2026-08-30–09-26。observed RevenueCatをASC settled proceeds・会社全体MRR・利益へ読み替えない。§872 |
 | 23 | Moneytree公式`show-accounts`から口座ごとの残高を取得し、個人cashと会社cashの所有範囲を分けて記録する | 2026-10-07T05:53:52Zのread-only `show-accounts`はJPY totalBalance 504302・accountCount 1を返したが、provider as-ofとowner fieldはない。同期/口座ownerが不明なので会社cashに含めない。同時刻帯の10/01–10/07 `show-transactions`はtotalCount 0・returned 0（Google請求支払の不存在を証明しない）。会社cashの公式sourceとownership/read timestampの不足が残る。 |
 | 24 | 20の実費と23の最新残高を使って、会社のrunwayを計算する | 同期間cost coverage、欠損はunknown。 |
 | 25（waiting_external・今回はskip） | Lancers専用profileのログイン状態を所有browser loop経由で復旧し、公式dashboard/proposal historyを読み戻す。ユーザー指示により今回はこのlaneをskipし、再認証・solver・応募・返信を試さない。 | 10:54Z latest natural app runはexit1/effect unknown/provider receiptなし。後続のread-only preflightは`account_unavailable`/`logged_in=false`。登録profileは`lancers-revenue-browser`がloaded-runningで所有し、手動browser attachは拒否された。solver stateはpending 1件。user alertはrun IDなしでこの発生へ未相関。完了ではなくwaiting_external。§855–857/863 |
@@ -10520,7 +10520,22 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - Provider mutations 0. Hook Lab real cost, matching order receipts, and net profit remain `unknown`.
 
 
-### 865. 2026-10-07 Coconala finance evidence is old and incomplete
+### 870. 2026-10-07 Coconala finance evidence is old and incomplete
 
 - The private finance readback observed at 2026-10-04T04:34:30Z reports the official page at HTTP 200 and one parsed row, closed 2026-09-27. That row has `payout_requested=false`; the receipt says `coverage_complete=false`, `settled_netprofit_confirmed=false`, `raw_body_saved=false`, and no provider receipt ID.
 - B7 currently emits `source_unconnected` for `gig-coconala`/`marketplace-financial-record`; the incomplete private row is not configured as the current marketplace readback. Do not connect it as complete settled revenue. Obtain a current-period source with payout, fee/refund, and bank/settlement evidence before joining it to B7.
+
+
+### 871. 2026-10-07 Google Cloud invoice and matching debit notification; posted transaction unverified
+
+- Gmail readback found the official Google Payments invoice notice and MUFG Visa debit usage notice, both dated 2026-10-02 JST. The messages align on Google Cloud and ¥27,889; Google email SPF/DKIM/DMARC and MUFG DKIM checks pass. No message/account identifiers or raw email body are copied here.
+- Google says the invoice is available and the balance is charged automatically; that is not a final payment receipt. MUFG's message is a card-usage notification, not a posted statement row. Moneytree `show-transactions` for 2026-10-02, expense-only across connected accounts, returned `totalCount=0`. That absence neither disproves the notice nor proves nonpayment.
+- Keep payment settlement and statement posting unverified. Next for row20: obtain the official Google payment status or posted MUFG transaction that applies this charge to the invoice, then join official September project/service usage to a Life Manager loop owner. Provider/billing configuration changes remain out of scope.
+
+
+### 872. 2026-10-07 latest CFO occurrence has a provider-history mismatch
+
+- Read-only `lm-loop status life-manager-cfo-hourly --json` observed run/occurrence `18dc3d714ac5bed8-93074`, release `80ea586cfa61b50d360f3627cc13320731efaf6d`, at `2026-10-07T11:59:28Z`: exit 0/pass and failure layer clean, but runtime `effect_status=unknown`, `provider_receipt_id=null`, and no official readback reference.
+- The B7 and mobile sidecars match that same run, occurrence, and release. B7 records `status=sent`, Telegram channel, delivery run/occurrence match, and a provider message ID. Its 11:58:35Z projection reports 18/18 revenue loops unknown, gaps 173 historical/168 trailing, duplicate receipts 0; company MRR is 17 unknown/1 verified and runway unknown. RevenueCat has 6 verified USD snapshots; ASC has one receipt, but the financial report ID was not returned and its source period is 2026-08-30–09-26. The `sourceProvenance.status=verified` field does not prove net profit or close the runtime receipt mismatch.
+- Read-only `tg_user.py` dialog lookup matched the redacted sidecar recipient hash to one existing dialog. Its 15-message history did not contain the sidecar provider message ID; therefore official chat readback and message-body hash are not confirmed. The local `sent` sidecar alone is not sufficient. No report was resent or manually edited.
+- Resume the existing CFO owner’s runtime receipt/readback wiring and verify the same provider message ID and body hash against the next natural occurrence. Keep historical revenue, MRR, settlement, cash, net margin, and runway unknown where the receipts do not support them.
