@@ -345,6 +345,11 @@ def _append_success(
     logged_out = adapter_result.get("logged_out_readback")
     migration_date = adapter_result.get("migration_date")
     provider_reconciled = adapter_result.get("reconciled") is True
+    default_route = (
+        "postiz" if platform == "instagram" and config.instagram_integration.strip()
+        else "instagram_file_script" if platform == "instagram"
+        else "postiz"
+    )
     if route == "direct_browser" and not (
         provider_cost == 0
         and logged_out is True
@@ -363,7 +368,7 @@ def _append_success(
         "caption_sha256": caption_hash,
         "public_url": public_url,
         "provider_id": provider_id,
-        "route": route or ("instagram_file_script" if platform == "instagram" else "postiz"),
+        "route": route or default_route,
         "provider_cost_usd": provider_cost,
         "logged_out_readback": logged_out,
         "migration_date": migration_date,
