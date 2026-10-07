@@ -491,3 +491,52 @@ def test_pending_owner_persists_remote_receipt_before_resolving_missing_local_ro
     ))
     published = distribute.distribute_platform(config, "instagram")
     assert published["provider_post_id"] == "post-123"
+
+
+def test_jp1_readback_matches_postiz_profile_separately_from_native_handle(monkeypatch):
+    integration_id = "cmlrv8jq000hun60yy57eaptx"
+    provider_id = "cmukc2o0j069ipr0y2gduabj9"
+    base_caption = "口癖5選"
+    final_caption = base_caption + "\n\nアプリはプロフィールのリンクから\n"
+    identity = {
+        "platform": "tiktok",
+        "integration_ref": f"integration://postiz/tiktok/{integration_id}",
+        "account_id": "@anicca.jp1",
+        "caption_sha256": hashlib.sha256(base_caption.encode()).hexdigest(),
+        "video_sha256": None,
+    }
+    provider_row = {
+        "id": provider_id,
+        "state": "PUBLISHED",
+        "releaseURL": "https://www.tiktok.com/@anicca.jpx",
+        "releaseId": "p_pub_url~v2.123",
+        "integration": {"id": integration_id},
+        "content": final_caption,
+        "settings": json.dumps({
+            "__type": "tiktok",
+            "title": "口癖5選",
+            "content_posting_method": "DIRECT_POST",
+        }),
+    }
+
+    def request_json(url: str, _api_key: str):
+        if url.endswith("/integrations"):
+            return {"integrations": [{
+                "id": integration_id,
+                "identifier": "tiktok",
+                "profile": "anicca.jpx",
+            }]}
+        return {"posts": [provider_row]}
+
+    monkeypatch.setattr(reconcile, "_request_json", request_json)
+    readback = reconcile._provider_readback(
+        identity,
+        provider_id,
+        "test-only",
+        hashlib.sha256(final_caption.encode()).hexdigest(),
+    )
+
+    assert readback["state"] == "PUBLISHED"
+    assert readback["account_id"] == "@anicca.jp1"
+    assert readback["postiz_profile"] == "@anicca.jpx"
+    assert readback["integration_ref"] == identity["integration_ref"]

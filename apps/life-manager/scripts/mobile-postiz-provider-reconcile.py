@@ -373,6 +373,30 @@ def _integration(integration_id: str, platform: str, api_key: str) -> str:
     return profile
 
 
+def _expected_postiz_profile(identity: dict[str, Any]) -> str:
+    manifest_path = ROOT / "config/marketing-destinations.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("marketing destination manifest unavailable") from exc
+    targets = manifest.get("targets") if isinstance(manifest, dict) else None
+    if not isinstance(targets, list):
+        raise ValueError("marketing destination targets unavailable")
+    integration_id = str(identity["integration_ref"]).rsplit("/", 1)[-1]
+    matches = [target for target in targets if isinstance(target, dict)
+               and target.get("integration_id") == integration_id]
+    if not matches:
+        return str(identity["account_id"])
+    if (len(matches) != 1
+            or matches[0].get("platform") != identity.get("platform")
+            or matches[0].get("native_handle") != identity.get("account_id")):
+        raise ValueError("Postiz destination native account mismatch")
+    profile = _account(matches[0].get("postiz_profile"))
+    if profile is None:
+        raise ValueError("Postiz destination profile is missing")
+    return profile
+
+
 def _caption(row: dict[str, Any]) -> str:
     value = row.get("content")
     if not isinstance(value, str):
@@ -428,7 +452,9 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
     expected_integration_id = identity["integration_ref"].rsplit("/", 1)[-1]
     if integration_id != expected_integration_id:
         raise ValueError("Postiz post integration mismatch")
-    account_id = _integration(str(integration_id), identity["platform"], api_key)
+    postiz_profile = _integration(str(integration_id), identity["platform"], api_key)
+    if postiz_profile != _expected_postiz_profile(identity):
+        raise ValueError("Postiz integration profile mismatch")
     caption = _caption(row)
     caption_sha = hashlib.sha256(caption.encode("utf-8")).hexdigest()
     if caption_sha != (expected_caption_sha256 or identity["caption_sha256"]):
@@ -451,7 +477,8 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         "state": "PUBLISHED",
         "post_id": provider_id,
         "public_url": state.get("post_url"),
-        "account_id": account_id,
+        "account_id": identity["account_id"],
+        "postiz_profile": postiz_profile,
         "integration_ref": identity["integration_ref"],
         "content": provider_content,
         "local_content": local_content,

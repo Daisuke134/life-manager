@@ -49,6 +49,12 @@ def write_identity(path: Path, value: dict) -> None:
     path.chmod(0o600)
 
 
+def product_scoped_ledger(tmp_path: Path, product_id: str) -> Path:
+    ledger = tmp_path / product_id / "distribution.jsonl"
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    return ledger
+
+
 def write_video_ledger(path: Path, *, provider_id: str = "post-1") -> None:
     path.write_text(json.dumps({
         "status": "published",
@@ -142,7 +148,7 @@ def write_carousel_ledger(path: Path, value: dict) -> None:
 def test_build_proof_requires_official_post_and_integration_identity(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     responses = provider_rows()
@@ -168,7 +174,7 @@ def test_provider_hashes_absent_from_get_are_local_evidence_not_provider_content
         tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     responses = provider_rows()
@@ -198,7 +204,7 @@ def test_standalone_cli_help_bootstraps_repository_imports_without_pythonpath() 
 def test_apply_returns_the_fresh_exact_proof_only_after_resolver_accepts(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     responses = provider_rows()
@@ -233,7 +239,7 @@ def test_apply_without_an_authoritative_admission_db_is_held(
         tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     monkeypatch.setattr(module, "resolve_unknown_occurrence", lambda **_: (_ for _ in ()).throw(AssertionError("must not resolve")))
@@ -252,7 +258,7 @@ def test_non_authoritative_admission_db_is_rejected_before_provider_readback(
         tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "actual.sqlite3")
@@ -272,7 +278,7 @@ def test_non_authoritative_admission_db_is_rejected_before_provider_readback(
 def test_same_platform_different_account_is_inconclusive_and_never_resolves(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     responses = provider_rows(account="@other-account")
@@ -301,7 +307,7 @@ def test_apply_resolves_claimed_occurrence_with_exact_proof_after_liveness_gate(
         tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     responses = provider_rows()
@@ -336,7 +342,7 @@ def test_claimed_occurrence_stays_held_when_liveness_gate_rejects(
         tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     responses = provider_rows()
@@ -361,7 +367,7 @@ def test_claimed_occurrence_stays_held_when_liveness_gate_rejects(
 def test_receipt_from_a_different_slot_is_not_an_exact_effect_join(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     row = json.loads(ledger.read_text(encoding="utf-8"))
@@ -387,7 +393,7 @@ def test_receipt_without_slot_or_wrapped_identity_is_not_an_exact_effect_join(
         tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "honne-ai")
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
     row = json.loads(ledger.read_text(encoding="utf-8"))
@@ -410,7 +416,7 @@ def test_unscoped_carousel_receipt_cannot_join_another_slot_occurrence(
     module = load_module()
     value = carousel_identity()
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "anicca-ios")
     write_identity(sidecar, value)
     write_carousel_ledger(ledger, value)
     monkeypatch.setattr(module, "_request_json", lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")))
@@ -641,7 +647,7 @@ def write_cta_carousel_ledger(path: Path, value: dict, cta_sha256: str | None) -
 
 def cta_proof(module, tmp_path: Path, monkeypatch, *, provider_caption: str, receipt_cta_sha256: str | None):
     sidecar = tmp_path / "identity.jsonl"
-    ledger = tmp_path / "distribution.jsonl"
+    ledger = product_scoped_ledger(tmp_path, "anicca-ios")
     value = carousel_identity()
     write_identity(sidecar, value)
     write_cta_carousel_ledger(ledger, value, receipt_cta_sha256)
