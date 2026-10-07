@@ -109,15 +109,15 @@ def _split_text(text: str, limit: int = TEXT_CHUNK_LIMIT) -> list[str]:
     chunks: list[str] = []
     remaining = text
     while len(remaining) > limit:
-        split_at = remaining.rfind("\n", 0, limit + 1)
+        split_at = remaining.rfind("\n", 0, limit)
         if split_at < limit // 2:
-            split_at = remaining.rfind(" ", 0, limit + 1)
+            split_at = remaining.rfind(" ", 0, limit)
         if split_at < limit // 2:
-            split_at = limit
-        chunks.append(remaining[:split_at])
-        remaining = remaining[split_at:]
-        if remaining.startswith("\n") or remaining.startswith(" "):
-            remaining = remaining[1:]
+            end = limit
+        else:
+            end = split_at + 1
+        chunks.append(remaining[:end])
+        remaining = remaining[end:]
     if remaining:
         chunks.append(remaining)
     return chunks

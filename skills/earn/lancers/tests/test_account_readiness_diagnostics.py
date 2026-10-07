@@ -718,3 +718,37 @@ def test_browser_guard_acquires_and_releases_only_its_own_holder(monkeypatch, tm
     assert acquire_env["AI_BROWSER_HOLDER_PID"] == str(os.getpid())
     assert release_env["AI_BROWSER_HOLDER_PID"] == str(os.getpid())
     assert acquire_env["AI_BROWSER_HOLDER_START"] == release_env["AI_BROWSER_HOLDER_START"]
+
+
+def test_not_found_waf_task_is_cleared_without_recreating_in_same_run(tmp_path, monkeypatch):
+    module = _module().application_tick
+    solver = module._capsolver
+    monkeypatch.setattr(solver, "api_key", lambda: "fixture-api-key")
+    calls = []
+
+    def fake_post(path, payload, *, timeout=30):
+        calls.append((path, payload))
+        return {"errorId": 1, "errorCode": "ERROR_TASK_NOT_FOUND"}
+
+    monkeypatch.setattr(solver, "post", fake_post)
+    state_path = tmp_path / "aws-waf-solver.json"
+    state_path.write_text(json.dumps({
+        "record_type": "lancers_aws_waf_task.v1",
+        "status": "pending",
+        "task_id": "stale-task",
+    }))
+
+    class ChallengePage:
+        url = DASHBOARD_URL
+
+        def evaluate(self, _script):
+            return {
+                "gokuProps": {"key": "fixture-key", "iv": "fixture-iv", "context": "fixture-context"},
+                "challengeJS": "https://token.awswaf.com/challenge.js",
+            }
+
+    result = module._solve_aws_waf_challenge(ChallengePage(), {"http_status": 405}, state_path)
+
+    assert calls == [("/getTaskResult", {"clientKey": "fixture-api-key", "taskId": "stale-task"})]
+    assert result["aws_waf"]["status"] == "failed"
+    assert not state_path.exists()

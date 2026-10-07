@@ -34,6 +34,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
+from runtime.host.disk_admission import RECOVERY_FLOOR_BYTES, disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -148,6 +149,14 @@ def _child_environment_for_owner(
         Path(home or Path.home()).expanduser() / ".local/state/life-manager"
     )
     environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
+
+    # eBook renderers discover ffmpeg, ffprobe, heygen, and fontconfig through
+    # PATH. launchd's default PATH omits Homebrew binaries.
+    if loop_id in EBOOK_POSTIZ_LOOP_IDS:
+        inherited_path = environment.get("PATH") or os.defpath
+        path_entries = inherited_path.split(os.pathsep)
+        if "/opt/homebrew/bin" not in path_entries:
+            environment["PATH"] = os.pathsep.join(("/opt/homebrew/bin", inherited_path))
 
     # Ignore any inherited alias. The credential SSOT is the only source for eBook
     # publisher authentication. Do not even pass it to the child while publishing
@@ -693,6 +702,29 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
+    try:
+        available = disk_free_bytes(receipt_parent)
+    except Exception:
+        available = None
+    if isinstance(available, bool) or not isinstance(available, int) or available < 0:
+        reason = "disk_headroom_unavailable"
+        available_bytes = None
+    elif available < RECOVERY_FLOOR_BYTES:
+        reason = "disk_headroom_low"
+        available_bytes = available
+    else:
+        return None
+    return {
+        "status": "deferred",
+        "effect": 0,
+        "reason": reason,
+        "phase": phase,
+        "available_bytes": available_bytes,
+        "required_bytes": RECOVERY_FLOOR_BYTES,
+    }
+
+
 def _sqlite_database_busy(error: sqlite3.OperationalError) -> bool:
     code = getattr(error, "sqlite_errorcode", None)
     if isinstance(code, int):
@@ -1208,11 +1240,34 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     try:
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous[signum] = signal.signal(signum, interrupt_wait)
+        try:
+            durable = durable_protocol_version() == 2
+        except (OSError, RuntimeError, sqlite3.Error):
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_unavailable"})
+            return 75
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue")
+        if interrupted:
+            if durable:
+                try:
+                    defer_durable_resource(loop_id)
+                except (OSError, RuntimeError, sqlite3.Error):
+                    pass
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if disk_deferred is not None:
+            if durable:
+                try:
+                    defer_durable_resource(loop_id, cooldown_seconds=60)
+                except (OSError, RuntimeError, sqlite3.Error):
+                    pass
+            _atomic_json(receipt, disk_deferred)
+            return 75
         resource_class = _resource_class(entry)
         admission_class = _admission_class(entry)
         queue_priority = _queue_priority(entry)
         try:
-            durable = durable_protocol_version() == 2
             enqueue_kwargs = {"admission_class": admission_class}
             if queue_priority is not None:
                 enqueue_kwargs["priority"] = queue_priority
@@ -1224,11 +1279,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["allow_no_effect_recovery"] = True
             if admission_effect_scope(entry) == "occurrence":
                 enqueue_kwargs["effect_scope"] = "occurrence"
-            ticket, admission_reason = (
-                _admission_with_retry(lambda: enqueue_durable_resource(
-                        resource_class, loop_id, **enqueue_kwargs)
-                ) if durable else (None, "legacy")
-            )
+            ticket, admission_reason = _admission_with_retry(
+                lambda: enqueue_durable_resource(resource_class, loop_id, **enqueue_kwargs)
+            ) if durable else (None, "legacy")
         except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
@@ -1302,6 +1355,14 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim")
+        if interrupted:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if disk_deferred is not None:
+            _atomic_json(receipt, disk_deferred)
+            return 75
         available = memory_free_percent()
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,

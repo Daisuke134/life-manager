@@ -161,6 +161,10 @@ mkdir -p "$WS/skills"
 chmod -R u+w "$WS/skills/$SKILL_NAME" 2>/dev/null || true
 rm -rf "$WS/skills/$SKILL_NAME" 2>/dev/null
 cp -R "$SKILL_DIR" "$WS/skills/$SKILL_NAME" || die "clean-WS copy failed"
+# Catalog test/ fixtures are not part of the product; shipping them flipped the
+# buyer-facing security scan to 注意 (2026-10-07, hook-lab + marketing-strategist).
+chmod -R u+w "$WS/skills/$SKILL_NAME" 2>/dev/null || true
+rm -rf "$WS/skills/$SKILL_NAME/test"
 
 # run_online packaging scans the clean runtime, not the operator's ~/.openclaw.
 # Give that runtime one explicit hosted provider contract.  Keep only an env

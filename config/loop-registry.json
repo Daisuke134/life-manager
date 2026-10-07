@@ -840,29 +840,28 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "publish",
       "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
+      "browser_identity": "line-creators:dais",
+      "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-readback-hourly",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
-      "resource_class": "deterministic",
+      "resource_class": "browser",
       "admission_class": "borrow",
       "priority": "support",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/line-sticker",
-      "system_role": "shared"
+      "state_root": "~/.local/state/life-manager/line-sticker"
     },
     "line-sticker-factory-hourly": {
       "priority": "revenue",
-      "resource_class": "browser",
+      "resource_class": "agent",
       "admission_class": "revenue",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
-        "calendar_interval": {
-          "Minute": 41
-        }
+        "start_interval_seconds": 900
       },
       "cleanup": {
         "max_age_days": 14,
@@ -872,13 +871,57 @@
       "effect_class": "publish",
       "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
       "browser_identity": "line-creators:dais",
-      "browser_target_owner": "line-sticker-factory-hourly",
+      "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-factory-hourly",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
       "provider_route": "deterministic",
-      "runtime_timeout_seconds": 1800,
+      "runtime_timeout_seconds": 5400,
       "state_root": "~/.local/state/life-manager/line-sticker"
+    },
+    "line-sticker-distribute": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "entrypoint": "skills/earn/line-sticker-distribute/line-sticker-distribute.sh",
+      "label": "ai.anicca.line-sticker-distribute",
+      "log_root": "~/.local/state/life-manager/line-sticker-distribute/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/line-sticker-distribute",
+      "system_role": "shared"
+    },
+    "line-creators-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9231,
+        "profile": "~/.cloak/profiles/line-creators"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/line-sticker/scripts/browser-owner",
+      "label": "ai.anicca.line-creators-browser",
+      "log_root": "~/.local/state/life-manager/line-creators-browser/logs",
+      "provider_route": "deterministic",
+      "resource_class": "browser",
+      "state_root": "~/.local/state/life-manager/line-creators-browser"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {
@@ -1466,7 +1509,7 @@
       "adapter": "exec",
       "command": ["ebook-en-tiktok-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1488,7 +1531,7 @@
       "adapter": "exec",
       "command": ["ebook-ja-instagram-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1510,7 +1553,7 @@
       "adapter": "exec",
       "command": ["ebook-ja-tiktok-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1683,7 +1726,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "message",
       "reconcile_queued_release": true,
       "command": [],
       "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
@@ -3266,7 +3309,10 @@
       "label": "ai.anicca.marketing-weekly-review",
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/marketing-weekly-review/logs",
+      "admission_class": "borrow",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/marketing-weekly-review"
     },
     "mercor-revenue-application": {
@@ -3476,7 +3522,6 @@
       "browser_identity": "interactive:dais",
       "browser_target_owner": "promptbase-loop-daily",
       "label": "ai.anicca.promptbase-loop-daily",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 900,

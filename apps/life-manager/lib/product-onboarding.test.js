@@ -34,11 +34,11 @@ function healthyFoundationRuntimeRows(catalog, releaseSha) {
   })));
 }
 
-test("one catalog describes all 15 public product loops on Local and Cloud", () => {
+test("one catalog describes all 18 public product loops on Local and Cloud", () => {
   const catalog = readProductLoopCatalog();
-  assert.equal(catalog.loops.length, 15);
+  assert.equal(catalog.loops.length, 18);
   assert.deepEqual(catalog.host_requirements, { local: ["telegram_credentials"], cloud: [] });
-  assert.equal(new Set(catalog.loops.map((loop) => loop.id)).size, 15);
+  assert.equal(new Set(catalog.loops.map((loop) => loop.id)).size, 18);
   for (const loop of catalog.loops) {
     assert.ok(loop.description.length > 20, loop.id);
     assert.ok(loop.hosts.local, `${loop.id} local`);
@@ -52,9 +52,9 @@ test("one catalog describes all 15 public product loops on Local and Cloud", () 
   }
 });
 
-test("the same fifteen-loop catalog owns exact economic source declarations", () => {
+test("the same eighteen-loop catalog owns exact economic source declarations", () => {
   const catalog = readProductLoopCatalog();
-  assert.equal(catalog.loops.length, 15);
+  assert.equal(catalog.loops.length, 18);
   for (const loop of catalog.loops) {
     assert.deepEqual(Object.keys(loop.economic).sort(), ["revenue_classes", "role", "sources"]);
     assert.deepEqual(Object.keys(loop.economic.sources).sort(), ["cost", "financial", "funnel"]);
@@ -115,7 +115,7 @@ test("the catalog loads from the standalone Cloud application artifact", (t) => 
   fs.copyFileSync(path.join(ROOT, "apps/life-manager/config/product-loop-catalog.json"),
     path.join(root, "config/product-loop-catalog.json"));
   const packaged = require(path.join(root, "lib/product-onboarding.js"));
-  assert.equal(packaged.readProductLoopCatalog().loops.length, 15);
+  assert.equal(packaged.readProductLoopCatalog().loops.length, 18);
   assert.equal(packaged.planProductOnboarding({
     host: "cloud", selected_loop_ids: ["agent-economy"],
   }).loops[0].state, "ready_to_start");
@@ -211,7 +211,7 @@ test("completion manifest covers every catalog loop and never treats unknown as 
   });
 
   assert.equal(manifest.schema_version, "product.loop.completion.v1");
-  assert.equal(manifest.loops.length, 15);
+  assert.equal(manifest.loops.length, 18);
   assert.equal(manifest.unknown_count, 1);
   assert.equal(manifest.completion, false);
   assert.deepEqual(manifest.loops[0].job_ids, catalog.loops[0].job_ids);
@@ -227,8 +227,8 @@ test("default product observations make unsupported hosts explicit and never inv
     runtime_rows: [],
   });
 
-  assert.equal(observations.length, 15);
-  assert.equal(new Set(observations.map((observation) => observation.id)).size, 15);
+  assert.equal(observations.length, 18);
+  assert.equal(new Set(observations.map((observation) => observation.id)).size, 18);
   assert.equal(observations.every((observation) => observation.official_receipt !== true), true);
   assert.equal(observations.every((observation) => observation.replay_zero !== true), true);
   assert.equal(observations.find((observation) => observation.id === "gig-lancers").state,
@@ -718,7 +718,7 @@ test("cloud promotion gate blocks a verified row without runtime evidence", () =
   assert.equal(gate.decision, "block");
 });
 
-test("cloud promotion gate rejects a fifteen-row manifest with fabricated loop identities", () => {
+test("cloud promotion gate rejects a eighteen-row manifest with fabricated loop identities", () => {
   const releaseSha = "b".repeat(40);
   const gate = evaluateCloudPromotionGate({
     release_sha: releaseSha,
@@ -735,7 +735,7 @@ test("cloud promotion gate rejects a fifteen-row manifest with fabricated loop i
       release_sha: releaseSha,
       completion: true,
       unknown_count: 0,
-      loops: Array.from({ length: 15 }, (_, index) => ({
+      loops: Array.from({ length: 18 }, (_, index) => ({
         id: `fabricated-loop-${index}`,
         state: "setup_required",
         resource_class: "agent",
@@ -1090,7 +1090,7 @@ test("completion is true only when every loop is verified or explicitly unsuppor
   assert.equal(manifest.completion, true);
   assert.equal(manifest.unknown_count, 0);
   assert.equal(manifest.counts.verified, 1);
-  assert.equal(manifest.counts.not_applicable, 14);
+  assert.equal(manifest.counts.not_applicable, 17);
 });
 
 test("completion manifest CLI writes a private deterministic projection", () => {
@@ -1275,7 +1275,7 @@ test("completion manifest CLI builds a safe baseline when only runtime status is
 
   assert.equal(result.status, 0, result.stderr);
   const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-  assert.equal(manifest.loops.length, 15);
+  assert.equal(manifest.loops.length, 18);
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "blocked");
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "setup_required");
   assert.equal(manifest.completion, false);
@@ -1306,8 +1306,8 @@ test("healthy no-revenue runtime passes foundation while commercial completion s
   assert.equal(evaluateLocalCompletionGate(commercial).decision, "block");
   assert.equal(evaluateLocalFoundationGate(foundation).decision, "pass");
   assert.equal(foundation.schema_version, "product.loop.foundation.v1");
-  assert.equal(foundation.loops.length, 15);
-  assert.equal(foundation.counts.healthy, 15);
+  assert.equal(foundation.loops.length, 18);
+  assert.equal(foundation.counts.healthy, 18);
   assert.equal(foundation.completion, true);
   assert.equal(foundation.loops.every((loop) => loop.reason === null
     && loop.next_action === null), true);

@@ -82,7 +82,9 @@ function buildMarketingCtaCaption(baseCaption, { productId, platform, locale }) 
 // own data directory) so this stays agnostic of any one script's layout.
 function buildMarketingCtaCaptionRef({ objectStore, workspaceDir, baseCaptionRef, productId, platform, locale }) {
   const baseCaption = fs.readFileSync(objectStore.resolve(baseCaptionRef), "utf8");
-  const caption = buildMarketingCtaCaption(baseCaption, { productId, platform, locale });
+  // Video publication uses postiz_video.read_caption(), which strips edge whitespace.
+  // Store the exact on-wire caption so identity and provider hashes stay aligned.
+  const caption = buildMarketingCtaCaption(baseCaption, { productId, platform, locale }).trim();
   fs.mkdirSync(workspaceDir, { recursive: true, mode: 0o700 });
   const candidate = path.join(workspaceDir, `.marketing-cta-${process.pid}-${crypto.randomUUID()}.txt`);
   fs.writeFileSync(candidate, caption, { mode: 0o600, flag: "wx" });

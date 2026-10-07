@@ -118,6 +118,20 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
 
+    def test_ebook_postiz_reconcilers_use_owner_identity_dir(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        identity_dir = "~/.local/state/life-manager/ebook/effect-identities"
+        for loop_id in (
+            "ebook-en-tiktok-daily",
+            "ebook-ja-instagram-daily",
+            "ebook-ja-tiktok-daily",
+        ):
+            with self.subTest(loop_id=loop_id):
+                argv = registry["loops"][loop_id]["effect_reconcile"]["argv"]
+                self.assertIn("--identity-dir", argv)
+                index = argv.index("--identity-dir")
+                self.assertEqual(argv[index + 1], identity_dir)
+
     def test_writer_jobs_declare_existing_admission_and_coalescing_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in (
@@ -1056,6 +1070,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
             row["entrypoint"],
             "skills/earn/marketing-engine/intel/weekly-review-owner",
         )
+        self.assertEqual(row["effect_class"], "message")
+        self.assertEqual(row["resource_class"], "agent")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertEqual(row["priority"], "support")
 
     def test_hf_gig_paid_direct_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -1107,6 +1125,34 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "cdp_port": 9227,
             "profile": "~/.local/state/anicca/lancers/browser-profile",
         })
+
+    def test_line_creators_browser_declares_browser_resource_class(self):
+        # Sibling of lancers-revenue-browser (2026-10-06): line-sticker-factory-hourly
+        # had no keep_alive owner for identity line-creators:dais and stalled at
+        # stage=submit for 15 hourly wakes with "CDP endpoint unavailable". This is
+        # the missing *-browser owner every other revenue site already has.
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-creators-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["cadence"], {"keep_alive": True})
+        self.assertEqual(row["entrypoint"], "skills/earn/line-sticker/scripts/browser-owner")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9231,
+            "profile": "~/.cloak/profiles/line-creators",
+        })
+
+    def test_line_sticker_factory_browser_target_owner_is_not_self_referential(self):
+        # Regression for the self-reference bug: browser_target_owner pointed at
+        # line-sticker-factory-hourly itself instead of a real browser owner, so no
+        # process ever held identity line-creators:dais.
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-sticker-factory-hourly"]
+        self.assertEqual(row["browser_identity"], "line-creators:dais")
+        self.assertEqual(row["browser_target_owner"], "line-creators-browser")
+        self.assertNotEqual(row["browser_target_owner"], "line-sticker-factory-hourly")
+        self.assertEqual(
+            registry["loops"][row["browser_target_owner"]]["resource_class"], "browser",
+        )
 
     def test_hf_gig_browser_declares_browser_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -1413,6 +1459,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row["browser_identity"], "coconala:kosuke")
                 self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
+        self.assertEqual(registry["loops"]["hf-gig-reply-detector"]["effect_class"], "message")
 
     def test_lancers_and_crowdworks_browser_action_lanes_declare_provider_identity_join(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

@@ -227,6 +227,45 @@ def load_revenue_by_agent(path=None):
         return {}
 
 
+FROZEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "capafy", "FROZEN.json")
+
+
+def load_frozen_ids(path=None):
+    """Agent ids Dais froze (skills/capafy/FROZEN.json). Unreadable file = none frozen
+    beyond the profit guard; the file is in-repo and lint-checked by tests."""
+    try:
+        return {str(a).strip() for a in json.load(open(path or FROZEN_PATH, encoding="utf-8")).get("agent_ids") or []}
+    except Exception:
+        return set()
+
+
+def drop_profitable_updates(updates, path=None, frozen_path=None):
+    """Dais 2026-10-07: never ship a new version of an Agent that is selling at a
+    profit (30d orders > 0 and actual 30d profit > 0). The 9/29 and 10/06 version
+    updates to Hook Lab preceded its paid orders stopping. Updates that stop a
+    loss (profit <= 0) still ship. Unreadable analytics keeps every update out:
+    an unknown profit is not permission to touch a seller."""
+    try:
+        rows = json.load(open(path or ANALYTICS_PATH, encoding="utf-8")).get("per_skill_rows") or []
+    except Exception:
+        return []
+    protected = set(load_frozen_ids(frozen_path))
+    for row in rows:
+        try:
+            if float(row.get("stats_30d_orders") or 0) > 0 and float(row.get("profit_30d_actual_usd") or 0) > 0:
+                protected.add(str(row.get("agent_id") or "").strip())
+        except (TypeError, ValueError, AttributeError):
+            continue
+    # A Dais-approved one-off (2026-10-07: strip test/ from Hook Lab to clear the
+    # buyer-facing security-scan warning, same price and model) is the only bypass.
+    # Dais 2026-10-07 (second ruling): no automated change to ANY published Agent,
+    # selling or not -- price raises on Agents with zero sales for a week made no
+    # sense. The factory ships new Agents instead. Only an UPDATE.json carrying
+    # dais_approved_exception (an explicit Dais request) may ship.
+    del protected
+    return [u for u in updates if (u.get("update_request") or {}).get("dais_approved_exception")]
+
+
 def update_priority_key(revenue_by_agent):
     """Order queued same-Agent updates by 30d revenue descending (highest-demand
     update ships first when a review slot is free), agent_id ascending to break
@@ -702,7 +741,7 @@ def main():
     ]
     v = allocate_action(
         normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
-        updates=update_items, stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
+        updates=drop_profitable_updates(update_items), stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
 
     v.update({

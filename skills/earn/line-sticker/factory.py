@@ -12,15 +12,19 @@ its product_id/url are durable there, and a later wake resumes from that item (r
 page back) instead of creating a new one. The set only reaches the terminal "submitted"
 stage once creators-item.json records state "review_requested".
 
-All judgment (theme/character/motion plan, 24-of-30 selection, listing copy, tags) is
-delegated to the model via ``deps.planner`` / ``deps.selector``; this module is bookkeeping,
-API plumbing and browser steps only.
+All judgment (series-of-existing-character vs new flagship, theme/character/motion plan,
+24-of-30 selection, listing copy, tags) is delegated to the model via ``deps.planner`` /
+``deps.selector``; this module is bookkeeping, API plumbing and browser steps only. The one
+exception is mechanical: when the plan names ``series_of``, the character stage copies that
+prior set's reference art instead of generating a new one (zero image cost).
 """
 from __future__ import annotations
 
 import datetime
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -37,7 +41,7 @@ import seedance_set  # noqa: E402
 
 STAGES = ("plan", "character", "clips", "apng", "select", "package", "submit", "submitted")
 DEFAULT_STATE_ROOT = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager"))) / "line-sticker"
-DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "2"))
+DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "24"))
 DEFAULT_MAX_USD_PER_SET = Decimal(os.environ.get("LINE_STICKER_MAX_USD_PER_SET", "4"))
 JST = datetime.timezone(datetime.timedelta(hours=9))
 EVENTS_LOG_NAME = "factory-events.jsonl"
@@ -166,13 +170,34 @@ class Deps:
     max_sets_per_day: int = DEFAULT_MAX_SETS_PER_DAY
 
 
-def _prior_listings(state_root: Path) -> list[dict]:
-    listings = []
+def _prior_set_facts(state_root: Path) -> list[dict]:
+    """Series-planning context for the planner: one row per prior set, naming its character,
+    theme and latest official LINE Creators Market status so the model can judge a sequel vs a
+    new flagship (judgment stays in the prompt, not here)."""
+    sales_by_product_id = {
+        row["product_id"]: row["sales_jpy"]
+        for row in (_read_json(state_root / "sales.json") or {}).get("products", [])
+    }
+    facts = []
     for set_dir in list_set_dirs(state_root):
+        draft = _read_json(set_dir / "plan-draft.json")
         listing = _read_json(set_dir / "listing.json")
-        if listing:
-            listings.append(listing)
-    return listings
+        item = _read_json(set_dir / "creators-item.json")
+        if draft is None and listing is None:
+            continue
+        product_id = (item or {}).get("product_id")
+        facts.append({
+            "set": set_dir.name,
+            "character_id": (draft or {}).get("character_id"),
+            "character_description": (draft or {}).get("character_prompt"),
+            "theme": (draft or {}).get("theme"),
+            "title": (listing or {}).get("title"),
+            "state_observed": (item or {}).get("state_observed"),
+            # Official cumulative sales (JPY) from sales_readback.py's daily readback, keyed by
+            # product_id. None means unknown (not yet observed), never a silent 0.
+            "sales_jpy": sales_by_product_id.get(product_id) if product_id else None,
+        })
+    return facts
 
 
 # --------------------------------------------------------------------------------------
@@ -180,17 +205,26 @@ def _prior_listings(state_root: Path) -> list[dict]:
 # --------------------------------------------------------------------------------------
 
 def run_plan(set_dir: Path, state_root: Path, deps: Deps) -> str:
-    plan = deps.planner(set_dir, _prior_listings(state_root))
+    plan = deps.planner(set_dir, _prior_set_facts(state_root))
     _atomic_write_json(set_dir / "plan-draft.json", plan)
     _atomic_write_json(set_dir / "listing.json", plan["listing"])
     return "character"
 
 
-def run_character(set_dir: Path, deps: Deps) -> str:
+def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
     plan_draft = _read_json(set_dir / "plan-draft.json")
     if plan_draft is None:
         raise RuntimeError("missing plan-draft.json for character stage")
-    deps.character_image(set_dir, plan_draft)
+    series_of = plan_draft.get("series_of")
+    source_dir = state_root / series_of if isinstance(series_of, str) and re.fullmatch(r"set-\d{3}", series_of) else None
+    # A missing/unsafe/incomplete sequel source falls back to a fresh character instead of wedging this stage.
+    if source_dir and (source_dir / "char-ref.png").is_file() and (source_dir / "ref-padded.png").is_file():
+        # Sequel of an existing character: reuse its reference art, zero image cost.
+        shutil.copy2(source_dir / "char-ref.png", set_dir / "char-ref.png")
+        shutil.copy2(source_dir / "ref-padded.png", set_dir / "ref-padded.png")
+        _atomic_write_json(set_dir / "char-ref.receipt.json", {"reused": True, "source_set": series_of})
+    else:
+        deps.character_image(set_dir, plan_draft)
     seedance_plan = {
         "reference": "ref-padded.png",
         "motions": [
@@ -266,6 +300,15 @@ def run_submit(set_dir: Path, deps: Deps) -> str:
     item = deps.submit(set_dir, item, listing, tags)
     _atomic_write_json(set_dir / "creators-item.json", item)
     if item.get("state") == "review_requested":
+        # Submitted: drop intermediates that nothing reads again so sets do not fill the host disk.
+        # Keep package/, the character art (sequels reuse it), candidates-sheet.png (retag) and the
+        # 24 selected clips/*.mp4 (line-sticker-distribute renders posts from them).
+        shutil.rmtree(set_dir / "candidates", ignore_errors=True)
+        chosen = set((_read_json(set_dir / "select.json") or {}).get("order", []))
+        if chosen:
+            for clip in (set_dir / "clips").glob("*.mp4"):
+                if clip.stem not in chosen:
+                    clip.unlink(missing_ok=True)
         deps.notify(set_dir, {"product_id": item.get("product_id"), "title_ja": listing.get("title", {}).get("ja"),
                                "cost_usd": (_read_json(set_dir / "stage.json") or {}).get("cost_usd")})
         return "submitted"
@@ -274,7 +317,7 @@ def run_submit(set_dir: Path, deps: Deps) -> str:
 
 STAGE_RUNNERS = {
     "plan": lambda set_dir, state_root, deps: run_plan(set_dir, state_root, deps),
-    "character": lambda set_dir, state_root, deps: run_character(set_dir, deps),
+    "character": lambda set_dir, state_root, deps: run_character(set_dir, state_root, deps),
     "clips": lambda set_dir, state_root, deps: run_clips(set_dir, deps),
     "apng": lambda set_dir, state_root, deps: run_apng(set_dir, deps),
     "select": lambda set_dir, state_root, deps: run_select(set_dir, state_root, deps),
@@ -355,10 +398,27 @@ def production_deps() -> Deps:
     )
 
 
+def run(state_root: Path, deps: Deps) -> dict:
+    """Drive one set from wherever it is all the way to submitted in a single launch.
+
+    Stops on submitted, on skip/noop/halt, or on a retry (an external wait such as missing clips
+    or a failed package) so a stuck stage never spins.
+    """
+    while True:
+        item_path = (newest_open_set(state_root) or state_root) / "creators-item.json"
+        before = (_read_json(item_path) or {}).get("state")
+        report = wake(state_root, deps)
+        # The submit stage moves through several browser sub-states (metadata -> images -> tags ->
+        # review request); keep going while each call makes progress.
+        progressed = report.get("stage") == "submit" and (_read_json(item_path) or {}).get("state") != before
+        if report.get("next_stage") == "submitted" or (report.get("action") != "advanced" and not progressed):
+            return report
+
+
 def main() -> int:
     state_root = DEFAULT_STATE_ROOT
     deps = production_deps()
-    report = wake(state_root, deps)
+    report = run(state_root, deps)
     print(json.dumps(report, ensure_ascii=False))
     return 0
 

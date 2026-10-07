@@ -17,7 +17,7 @@ import factory as MODULE  # noqa: E402
 
 def _plan(set_dir, prior):
     return {
-        "theme": "test", "character_id": "char-test-001", "character_prompt": "a test mascot",
+        "theme": "test", "series_of": None, "character_id": "char-test-001", "character_prompt": "a test mascot",
         "motions": [{"id": f"m{i}", "prompt": f"motion {i}"} for i in range(30)],
         "listing": {"title": {"ja": "テスト", "en": "Test"}, "description": {"ja": "説明", "en": "desc"}},
     }
@@ -76,6 +76,58 @@ class OneStagePerWake(unittest.TestCase):
             self.assertEqual(report["action"], "retry")
             self.assertEqual(report["stage"], "clips")
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "clips")
+
+
+class FullRun(unittest.TestCase):
+    def test_one_run_takes_a_new_set_all_the_way_to_submitted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+            self.assertEqual(report["action"], "advanced")
+            self.assertEqual(report["next_stage"], "submitted")
+            self.assertFalse((state_root / "set-002").exists())  # next set waits for the next run
+
+    def test_run_stops_on_retry_instead_of_spinning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_deps(clips_runner=lambda set_dir, plan: (set_dir / "clips").mkdir(exist_ok=True))
+            report = MODULE.run(state_root, deps)
+            self.assertEqual(report["action"], "retry")
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "clips")
+
+    def test_run_respects_daily_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_deps(max_sets_per_day=1)
+            MODULE.run(state_root, deps)
+            self.assertEqual(MODULE.run(state_root, deps)["action"], "skip")
+
+
+class SubmittedCleanup(unittest.TestCase):
+    def test_submitted_set_drops_candidates_but_keeps_package_and_clips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            set_dir = state_root / "set-001"
+            self.assertEqual(MODULE.read_stage(set_dir), "submitted")
+            self.assertFalse((set_dir / "candidates").exists())
+            self.assertTrue((set_dir / "package").exists())
+            self.assertTrue((set_dir / "clips").exists())  # distribute renders from selected clips
+
+
+class FullRunSubmit(unittest.TestCase):
+    def test_run_keeps_going_through_submit_sub_states(self) -> None:
+        states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
+
+        def staged_submit(set_dir, item, listing, tags):
+            return {"product_id": "123", "url": "u", "state": next(states)}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(submit=staged_submit))
+            self.assertEqual(report["next_stage"], "submitted")
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
 
 
 class DailyCap(unittest.TestCase):
@@ -150,6 +202,122 @@ class SubmitFence(unittest.TestCase):
             report = MODULE.wake(state_root, deps)
             self.assertEqual(seen_items, [{"product_id": "555", "url": "https://example.test/sticker/555", "state": "images_uploaded"}])
             self.assertEqual(report["next_stage"], "submitted")
+
+
+class SeriesSequel(unittest.TestCase):
+    def test_series_of_copies_reference_and_skips_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            (source_dir / "char-ref.png").write_bytes(b"source-char-ref")
+            (source_dir / "ref-padded.png").write_bytes(b"source-ref-padded")
+
+            new_dir = state_root / "set-002"
+            new_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(new_dir / "plan-draft.json", {
+                "theme": "敬語・仕事", "series_of": "set-001",
+                "character_id": "char-test-001", "character_prompt": "a test mascot",
+                "motions": [{"id": f"m{i}", "prompt": f"motion {i}"} for i in range(30)],
+                "listing": {"title": {"ja": "テスト2", "en": "Test2"}, "description": {"ja": "説明", "en": "desc"}},
+            })
+
+            def fail_if_called(set_dir, plan):
+                raise AssertionError("character_image must not be called for a series sequel")
+
+            deps = _fake_deps(character_image=fail_if_called)
+            next_stage = MODULE.run_character(new_dir, state_root, deps)
+            self.assertEqual(next_stage, "clips")
+            self.assertEqual((new_dir / "char-ref.png").read_bytes(), b"source-char-ref")
+            self.assertEqual((new_dir / "ref-padded.png").read_bytes(), b"source-ref-padded")
+            receipt = json.loads((new_dir / "char-ref.receipt.json").read_text())
+            self.assertEqual(receipt, {"reused": True, "source_set": "set-001"})
+
+    def test_unusable_series_of_falls_back_to_generation(self) -> None:
+        # A model-named set that is missing, lacks reference art, or escapes state_root must not
+        # wedge the character stage on every wake; it generates a fresh character instead.
+        for series_of in ("set-009", "../set-001", "set-001"):
+            with tempfile.TemporaryDirectory() as tmp:
+                state_root = Path(tmp)
+                (state_root / "set-001").mkdir()  # exists but has no reference art
+                new_dir = state_root / "set-002"
+                new_dir.mkdir()
+                MODULE._atomic_write_json(new_dir / "plan-draft.json", {
+                    "theme": "敬語", "series_of": series_of,
+                    "character_id": "char-test-001", "character_prompt": "a test mascot",
+                    "motions": [], "listing": {"title": {"ja": "t", "en": "t"}, "description": {"ja": "d", "en": "d"}},
+                })
+                calls = []
+                deps = _fake_deps(character_image=lambda set_dir, plan: calls.append(set_dir))
+                self.assertEqual(MODULE.run_character(new_dir, state_root, deps), "clips")
+                self.assertEqual(calls, [new_dir], series_of)
+
+    def test_prior_set_facts_feed_the_planner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(source_dir / "plan-draft.json", {
+                "theme": "毎日リアクション", "series_of": None,
+                "character_id": "char-otter-001", "character_prompt": "a stardust otter",
+                "motions": [], "listing": {"title": {"ja": "x", "en": "x"}, "description": {"ja": "x", "en": "x"}},
+            })
+            MODULE._atomic_write_json(source_dir / "listing.json", {"title": {"ja": "毎日使えるカワウソ", "en": "Otter"}})
+            MODULE._atomic_write_json(source_dir / "creators-item.json", {"state_observed": "販売中"})
+            MODULE.write_stage(source_dir, "submitted")
+
+            seen = {}
+
+            def capturing_planner(set_dir, prior_facts):
+                seen["facts"] = prior_facts
+                return _plan(set_dir, prior_facts)
+
+            deps = _fake_deps(planner=capturing_planner)
+            MODULE.wake(state_root, deps)  # starts set-002, runs plan stage
+            self.assertEqual(seen["facts"], [{
+                "set": "set-001", "character_id": "char-otter-001",
+                "character_description": "a stardust otter", "theme": "毎日リアクション",
+                "title": {"ja": "毎日使えるカワウソ", "en": "Otter"}, "state_observed": "販売中",
+                "sales_jpy": None,
+            }])
+
+    def test_prior_set_facts_include_known_sales_and_leave_unknown_unset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(source_dir / "plan-draft.json", {
+                "theme": "毎日リアクション", "series_of": None,
+                "character_id": "char-otter-001", "character_prompt": "a stardust otter",
+                "motions": [], "listing": {"title": {"ja": "x", "en": "x"}, "description": {"ja": "x", "en": "x"}},
+            })
+            MODULE._atomic_write_json(source_dir / "listing.json", {"title": {"ja": "毎日使えるカワウソ", "en": "Otter"}})
+            MODULE._atomic_write_json(source_dir / "creators-item.json", {
+                "state_observed": "販売中", "product_id": "48077815",
+            })
+            MODULE._atomic_write_json(state_root / "sales.json", {
+                "observed_at": "2026-10-07T00:00:00+00:00",
+                "products": [{"product_id": "48077815", "title_ja": "毎日使えるカワウソ", "sales_jpy": 0}],
+            })
+
+            facts = MODULE._prior_set_facts(state_root)
+            self.assertEqual(facts[0]["sales_jpy"], 0)
+
+            # A tracked set with no matching sales.json row (product never readback yet) stays
+            # unknown, never silently 0.
+            other_dir = state_root / "set-002"
+            other_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(other_dir / "plan-draft.json", {
+                "theme": "敬語", "series_of": None, "character_id": "char-bear-001",
+                "character_prompt": "a bear", "motions": [],
+                "listing": {"title": {"ja": "y", "en": "y"}, "description": {"ja": "y", "en": "y"}},
+            })
+            MODULE._atomic_write_json(other_dir / "listing.json", {"title": {"ja": "敬語クマ", "en": "Bear"}})
+            MODULE._atomic_write_json(other_dir / "creators-item.json", {
+                "state_observed": "審査待ち", "product_id": "99999999",
+            })
+            facts = MODULE._prior_set_facts(state_root)
+            self.assertIsNone(facts[1]["sales_jpy"])
 
 
 class CostCap(unittest.TestCase):

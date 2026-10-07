@@ -6,14 +6,57 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const {
+  MONEYTREE_OBSERVATION,
   accountToFinancialRecord,
   normalizeAccounts,
   normalizeTransactions,
   readAccounts,
+  readTransactions,
   transactionToFinancialRecord,
 } = require("./moneytree-local-adapter.js");
 
 const observedAt = "2026-09-07T06:00:00.000Z";
+
+test("normalizeAccounts preserves safe institution labels without account identifiers", () => {
+  const [account, secondAccount, thirdAccount] = normalizeAccounts({ structuredContent: { data: {
+    baseCurrency: "JPY",
+    accountGroups: {
+      banks: [{
+        institutionKey: "provider-bank-key-501",
+        institutionName: "三菱UFJ銀行",
+        accounts: [{
+          id: "provider-account-id-901",
+          nickname: "普通 1234567",
+          account_number: "1234567",
+          account_subtype: "ordinary",
+          current_balance_in_base: 26800,
+        }, {
+          id: "provider-account-id-902",
+          institution_account_name: "当座",
+          account_number: "7654321",
+          account_subtype: "checking",
+          current_balance_in_base: 10000,
+        }, {
+          id: "provider-account-id-903",
+          nickname: "owner＠example.test",
+          account_number: "9988776",
+          account_subtype: "ordinary",
+          current_balance_in_base: 500,
+        }],
+      }],
+      investments: [],
+    },
+  } } }, observedAt);
+
+  assert.equal(account.name, "三菱UFJ銀行 普通");
+  assert.equal(secondAccount.name, "三菱UFJ銀行 当座");
+  assert.equal(thirdAccount.name, "三菱UFJ銀行");
+  assert.equal(thirdAccount.name.includes("example.test"), false);
+  for (const identifier of ["provider-bank-key-501", "provider-account-id-901", "1234567"]) {
+    assert.equal(account.name.includes(identifier), false);
+  }
+  assert.equal(secondAccount.name.includes("7654321"), false);
+});
 
 test("Moneytree balances and transactions project to distinct personal FinancialRecords", () => {
   const [account] = normalizeAccounts({ structuredContent: { data: {
@@ -94,6 +137,117 @@ test("Moneytree records become verified only with an attached observation receip
   assert.equal(record.verification.status, "verified");
   assert.deepEqual(record.verification.evidence_refs, [evidenceRef]);
   assert.equal(record.verification.observed_at, "2026-09-07T06:01:00.000Z");
+});
+
+test("readTransactions records requested range and returned coverage", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "moneytree-app-server-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const log = path.join(root, "lifecycle.log");
+  const request = path.join(root, "request.json");
+  const fake = path.join(root, "fake-codex");
+  fs.writeFileSync(fake, `#!/usr/bin/env node
+const fs = require("node:fs");
+const readline = require("node:readline");
+const log = ${JSON.stringify(log)};
+const request = ${JSON.stringify(request)};
+process.on("SIGTERM", () => setTimeout(() => {
+  fs.appendFileSync(log, "exited\\n"); process.exit(0);
+}, 50));
+readline.createInterface({ input: process.stdin }).on("line", (line) => {
+  const message = JSON.parse(line);
+  if (message.id === 1) process.stdout.write(JSON.stringify({ id: 1, result: {} }) + "\\n");
+  if (message.id === 2) process.stdout.write(JSON.stringify({ id: 2, result: { thread: { id: "thread-1" } } }) + "\\n");
+  if (message.id === 3) {
+    fs.writeFileSync(request, JSON.stringify(message.params.arguments));
+    process.stdout.write(JSON.stringify({ id: 3, result: {
+      isError: false,
+      structuredContent: { data: {
+        startDate: "2026-08-01",
+        endDate: "2026-08-31",
+        totalCount: 4,
+        transactions: [
+          { id: "provider-transaction-id-001", account_id: "provider-account-id-017", amount: -1200, date: "2026-08-30", description: "RAW_TRANSACTION_PAYLOAD_MARKER", category_name: "食費" },
+          { id: "provider-transaction-id-002", account_id: "provider-account-id-017", amount: 45000, date: "2026-08-12", description: "給料", category_name: "給与" }
+        ]
+      } }
+    } }) + "\\n");
+  }
+});
+`, { mode: 0o700 });
+
+  const records = await readTransactions({
+    startDate: "2026-08-01",
+    endDate: "2026-08-31",
+    limit: 17,
+    codexBin: fake,
+    cwd: root,
+    timeoutMs: 1_000,
+  });
+  const observation = records[MONEYTREE_OBSERVATION];
+
+  assert.equal(records.length, 2);
+  assert.deepEqual({
+    query_start_date: observation.query_start_date,
+    query_end_date: observation.query_end_date,
+    provider_total_count: observation.provider_total_count,
+    returned_count: observation.returned_count,
+    limit: observation.limit,
+  }, {
+    query_start_date: "2026-08-01",
+    query_end_date: "2026-08-31",
+    provider_total_count: 4,
+    returned_count: 2,
+    limit: 17,
+  });
+  assert.deepEqual(Object.keys(observation).sort(), [
+    "limit",
+    "mcp_server",
+    "payload_sha256",
+    "provider",
+    "provider_total_count",
+    "query_end_date",
+    "query_start_date",
+    "returned_count",
+    "retrieved_at",
+    "tool",
+  ].sort());
+  assert.match(observation.payload_sha256, /^[a-f0-9]{64}$/);
+  assert.equal(JSON.stringify(observation).includes("provider-transaction-id-001"), false);
+  assert.equal(JSON.stringify(observation).includes("provider-account-id-017"), false);
+  assert.equal(JSON.stringify(observation).includes("RAW_TRANSACTION_PAYLOAD_MARKER"), false);
+  for (const rawField of ["query", "arguments", "key", "api_key", "payload", "transactions"]) {
+    assert.equal(Object.hasOwn(observation, rawField), false);
+  }
+  assert.deepEqual(JSON.parse(fs.readFileSync(request, "utf8")), {
+    locale: "ja",
+    start_date: "2026-08-01",
+    end_date: "2026-08-31",
+    limit: 17,
+    sort_key: "date",
+    sort_order: "desc",
+  });
+  assert.equal(fs.readFileSync(log, "utf8"), "exited\n");
+});
+
+test("Moneytree transfers, card repayments, and ATM withdrawals or deposits are not income or consumption", () => {
+  const transactions = normalizeTransactions({ structuredContent: { data: { transactions: [
+    { id: "tx-transfer", account_id: "account-1", amount: -1200, date: "2026-09-01", description: "振替", category_name: "振替" },
+    { id: "tx-card-repayment", account_id: "account-1", amount: -5400, date: "2026-09-02", description: "カード返済", category_name: "カード返済" },
+    { id: "tx-atm-withdrawal", account_id: "account-1", amount: -10000, date: "2026-09-03", description: "ATM引き出し", category_name: "ATM引き出し" },
+    { id: "tx-atm-deposit", account_id: "account-1", amount: 20000, date: "2026-09-04", description: "ATM入金", category_name: "ATM入金" },
+  ] } } });
+  const records = transactions.map((transaction) => transactionToFinancialRecord(transaction, {
+    subjectId: "user-1",
+    recordedAt: observedAt,
+  }));
+
+  assert.deepEqual(records.map(({ kind, direction }) => ({ kind, direction })), [
+    { kind: "transfer", direction: "debit" },
+    { kind: "transfer", direction: "debit" },
+    { kind: "transfer", direction: "debit" },
+    { kind: "transfer", direction: "credit" },
+  ]);
+  assert.equal(records.some(({ kind }) => kind === "personal_expense"), false);
 });
 
 test("Moneytree read waits until its app-server process has exited", async (t) => {

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import hashlib
+import csv
+import gzip
 import importlib.util
+import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -152,6 +155,304 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             snapshot_at=snapshot_at,
             trailing_start=TRAILING_START,
         )
+
+    def make_mobile_financial_packet(
+        self, directory, *, relation_app_id=None, include_mapping=True,
+        corrupt_financial_sha=False, corrupt_detail_sha=False, duplicate_summary=False,
+        detail_period_end="09/26/2026", detail_quantity="1", detail_amount="4250.00",
+    ):
+        directory = Path(directory)
+        relation_app_id = relation_app_id or adapter.MOBILE_PRODUCT_BINDINGS[
+            "anicca-ios"
+        ]["asc_app_id"]
+        financial_path = directory / "financial.tsv"
+        detail_path = directory / "detail.tsv"
+        relationships_path = directory / "relationships.json"
+        summary = {
+            "Start Date": "08/30/2026", "End Date": "09/26/2026",
+            "UPC": "", "ISRC/ISBN": "", "Vendor Identifier": "com.fixture.app.ios.yearly.b",
+            "Quantity": "1", "Partner Share": "4250.00",
+            "Extended Partner Share": "4250.00", "Partner Share Currency": "JPY",
+            "Sales or Return": "S", "Apple Identifier": "fixture-subscription-1",
+            "Product Type Identifier": "IAY", "Country Of Sale": "JP",
+        }
+        financial_columns = [
+            "Start Date", "End Date", "UPC", "ISRC/ISBN", "Vendor Identifier",
+            "Quantity", "Partner Share", "Extended Partner Share",
+            "Partner Share Currency", "Sales or Return", "Apple Identifier",
+            "Product Type Identifier", "Country Of Sale",
+        ]
+        detail = {
+            "Transaction Date": "09/12/2026", "Settlement Date": "09/12/2026",
+            "Apple Identifier": "fixture-subscription-1", "SKU": "com.fixture.app.ios.yearly.b",
+            "Product Type Identifier": "IAY", "Country of Sale": "JP",
+            "Quantity": detail_quantity, "Partner Share": detail_amount,
+            "Extended Partner Share": detail_amount, "Partner Share Currency": "JPY",
+            "Sale or Return": "S",
+        }
+        detail_columns = list(detail)
+
+        def write_tsv(path, columns, rows, *, preamble=(), footer=()):
+            with path.open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
+                for line in preamble:
+                    writer.writerow(line)
+                writer.writerow(columns)
+                for row in rows:
+                    writer.writerow([row.get(column, "") for column in columns])
+                for line in footer:
+                    writer.writerow(line)
+            return path.read_bytes()
+
+        financial_bytes = write_tsv(
+            financial_path, financial_columns,
+            [summary, *([dict(summary)] if duplicate_summary else [])],
+            footer=(
+                ("Total_Rows", "1"),
+                ("Country Of Sale", "End Date", "UPC", "ISRC/ISBN", "Vendor Identifier"),
+                ("JP", "2026-12", "", "", "com.fixture.app.ios.yearly.b"),
+            ),
+        )
+        detail_bytes = write_tsv(
+            detail_path, detail_columns, [detail],
+            preamble=(
+                ("Start Date", "End Date"),
+                ("Report Date", "2026-12"),
+                ("Vendor Number", "fixture-vendor"),
+            ),
+            footer=(
+                ("Country Of Sale", "Quantity", "Extended Partner Share", "Partner Share Currency"),
+                ("JP", "1", "4250.00", "JPY"),
+            ),
+        )
+        financial_gzip_path = financial_path.with_suffix(".tsv.gz")
+        detail_gzip_path = detail_path.with_suffix(".tsv.gz")
+        financial_gzip = gzip.compress(financial_bytes, mtime=0)
+        detail_gzip = gzip.compress(detail_bytes, mtime=0)
+        financial_gzip_path.write_bytes(financial_gzip)
+        detail_gzip_path.write_bytes(detail_gzip)
+        relationships = {
+            "links": {
+                "self": (
+                    "https://api.appstoreconnect.apple.com/v1/apps/"
+                    f"{relation_app_id}/subscriptionGroups?limit=200"
+                ),
+            },
+            "data": [{
+                "id": "fixture-group-1", "type": "subscriptionGroups",
+                "relationships": {"subscriptions": {"data": ([{
+                    "id": "fixture-subscription-1", "type": "subscriptions",
+                }] if include_mapping else [])}},
+            }],
+            "included": ([{
+                "id": "fixture-subscription-1", "type": "subscriptions",
+                "attributes": {"productId": "com.fixture.app.ios.yearly.b"},
+            }] if include_mapping else []),
+        }
+        relationship_bytes = json.dumps(
+            relationships, sort_keys=True, separators=(",", ":"),
+        ).encode()
+        relationships_path.write_bytes(relationship_bytes)
+
+        def metadata(report_type, region_code, path, payload):
+            return {
+                "vendorNumber": "fixture-vendor", "reportType": report_type,
+                "regionCode": region_code, "reportDate": "2026-12",
+                "filePath": str(path.with_suffix(".tsv.gz")),
+                "fileSize": len(financial_gzip if report_type == "FINANCIAL" else detail_gzip),
+                "decompressed": True, "decompressedPath": str(path),
+                "decompressedSize": len(payload),
+            }
+
+        financial_sha = hashlib.sha256(financial_bytes).hexdigest()
+        if corrupt_financial_sha:
+            financial_sha = "0" * 64
+        detail_sha = hashlib.sha256(detail_bytes).hexdigest()
+        if corrupt_detail_sha:
+            detail_sha = "0" * 64
+        return {
+            "schema_version": 1, "observed_at": "2026-10-06T17:41:29Z",
+            "financial": {
+                "metadata": metadata("FINANCIAL", "ZZ", financial_path, financial_bytes),
+                "artifact_path": str(financial_path),
+                "artifact_sha256": financial_sha,
+                "period": {"start": "08/30/2026", "end": "09/26/2026"},
+            },
+            "detail": {
+                "metadata": metadata("FINANCE_DETAIL", "Z1", detail_path, detail_bytes),
+                "artifact_path": str(detail_path),
+                "artifact_sha256": detail_sha,
+                "period": {"start": "08/30/2026", "end": detail_period_end},
+            },
+            "relationships": {
+                "artifact_path": str(relationships_path),
+                "artifact_sha256": hashlib.sha256(relationship_bytes).hexdigest(),
+            },
+        }
+
+    def test_mobile_financial_packet_emits_one_replay_stable_receipt_and_gap(self):
+        module = self.require_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            once = module.adapt_mobile_financial_packet(
+                packet, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+            replay = module.adapt_mobile_financial_packet(
+                packet, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+        self.assertEqual(once, replay)
+        receipts = [row for row in once if row["record_type"] == "receipt"]
+        self.assertEqual(len(receipts), 1)
+        receipt = receipts[0]
+        self.assertEqual(receipt["provider"], "app-store-connect-financial")
+        self.assertEqual(receipt["currency"], "JPY")
+        self.assertEqual(receipt["occurred_at"], "2026-09-12T00:00:00.000000Z")
+        self.assertEqual(receipt["settled_at"], "2026-09-12T00:00:00.000000Z")
+        self.assertEqual(receipt["components"], [{
+            "category": "settled_external_revenue", "amount": "4250",
+        }])
+        self.assertTrue(receipt["receipt_id"].startswith(
+            "app-store-connect-financial:normalized:",
+        ))
+        detail_sha = packet["detail"]["artifact_sha256"]
+        financial_sha = packet["financial"]["artifact_sha256"]
+        self.assertEqual(receipt["receipt_id"],
+                         f"app-store-connect-financial:normalized:{detail_sha}:5")
+        self.assertIn(
+            f"appstoreconnect://financial-reports/sha256/{financial_sha}#rows/2",
+            receipt["evidence_refs"],
+        )
+        self.assertIn(
+            f"appstoreconnect://finance-detail/sha256/{detail_sha}#row/5",
+            receipt["evidence_refs"],
+        )
+        self.assertTrue(all("report_id" not in row for row in once))
+        self.assertEqual({
+            row["projection"] for row in once
+            if row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["coverage_state"] == "gap"
+        }, {"historical", "trailing"})
+        self.assertFalse(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["coverage_state"] == "complete"
+            for row in once
+        ))
+        projected = contract.project(
+            [*once, *replay], snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projected["duplicate_receipts"], [{
+            "provider": "app-store-connect-financial",
+            "receipt_id": receipt["receipt_id"],
+        }])
+
+    def test_mobile_financial_packet_rejects_unmapped_wrong_app_hash_and_aggregate_mismatch(self):
+        module = self.require_adapter()
+        cases = (
+            {"include_mapping": False},
+            {"relation_app_id": "9999999999"},
+            {"corrupt_financial_sha": True},
+            {"corrupt_detail_sha": True},
+            {"duplicate_summary": True},
+            {"detail_period_end": "09/25/2026"},
+            {"detail_quantity": "2"},
+            {"detail_amount": "4251.00"},
+        )
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temp_dir:
+                packet = self.make_mobile_financial_packet(temp_dir, **case)
+                records = module.adapt_mobile_financial_packet(
+                    packet, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+                self.assertTrue(any(
+                    row["record_type"] == "coverage"
+                    and row["source_id"] == "app-store-connect-financial"
+                    and row["coverage_state"] == "gap"
+                    for row in records
+                ))
+
+    def test_collect_b7_financial_packet_uses_official_receipt_without_legacy_asc_rows(self):
+        module = self.require_adapter()
+        from skills.cfo import loop_pnl
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            packet_path = Path(temp_dir) / "packet.json"
+            packet_path.write_text(json.dumps(packet))
+            business_rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+            for row in business_rows:
+                row["sources"].pop("app_store_financial", None)
+                revenuecat = row["sources"]["revenuecat"]["data"]
+                revenuecat.setdefault("charts", {})["revenue"] = {
+                    "latest_complete": {"Revenue": {
+                        "period": "2026-09-12", "value": "4250", "incomplete": False,
+                    }},
+                }
+            business_path = Path(temp_dir) / "business-outcomes.json"
+            business_path.write_text(json.dumps(business_rows))
+            records = loop_pnl.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={
+                    "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(business_path),
+                    "LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET": str(packet_path),
+                },
+            )
+
+        receipts = [row for row in records if row["record_type"] == "receipt"
+                    and row["product_loop_id"] == "mobile-apps"]
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(receipts[0]["components"], [{
+            "category": "settled_external_revenue", "amount": "4250",
+        }])
+        self.assertTrue(receipts[0]["receipt_id"].startswith(
+            "app-store-connect-financial:normalized:",
+        ))
+        self.assertFalse(any(row["provider"] == "revenuecat" for row in receipts))
+        self.assertEqual({
+            row["projection"] for row in records
+            if row["record_type"] == "coverage"
+            and row.get("source_id") == "app-store-connect-financial"
+        }, {"historical", "trailing"})
+        self.assertFalse(any(
+            row["record_type"] == "coverage"
+            and row.get("source_id") == "app-store-connect-financial"
+            and row["coverage_state"] == "complete"
+            for row in records
+        ))
+
+    def test_collect_b7_rejects_mixed_legacy_and_financial_packet_inputs(self):
+        module = self.require_adapter()
+        from skills.cfo import loop_pnl
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            packet_path = Path(temp_dir) / "packet.json"
+            packet_path.write_text(json.dumps(packet))
+            business_rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+            business_path = Path(temp_dir) / "business-outcomes.json"
+            business_path.write_text(json.dumps(business_rows))
+            records = loop_pnl.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={
+                    "LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES": str(business_path),
+                    "LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET": str(packet_path),
+                },
+            )
+
+        self.assertFalse(any(
+            row["record_type"] == "receipt"
+            and row["provider"] == "app-store-connect-financial"
+            and row["product_loop_id"] == "mobile-apps"
+            for row in records
+        ))
+        mixed_gaps = [
+            row for row in records if row["record_type"] == "coverage"
+            and row.get("source_id") == "app-store-connect-financial"
+        ]
+        self.assertEqual({row["reason"] for row in mixed_gaps}, {"unverified_receipt"})
+        self.assertEqual({row["projection"] for row in mixed_gaps}, {"historical", "trailing"})
 
     def test_capafy_settled_order_separates_immutable_payment_and_fee(self):
         records = self.adapt_capafy("capafy-settled.json")

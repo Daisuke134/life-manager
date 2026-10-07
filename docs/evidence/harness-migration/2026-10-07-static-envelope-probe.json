@@ -1,0 +1,19 @@
+{
+  "probe_kind": "static_fixture_against_current_runner",
+  "candidate_cli_envelope_source": "openclaw/docs/cli/agent.md v2026.9.8",
+  "legacy_direct_parse_is_requested_result": false,
+  "legacy_direct_status": "ok",
+  "requested_status": "success",
+  "legacy_usage_measurement": "unavailable",
+  "legacy_input_tokens": null,
+  "required_adapter": [
+    "extract envelope.final",
+    "require ok=true and status=ok and exit_code=0",
+    "validate final with existing caller schema",
+    "normalize usage.input/output/total without inventing missing values",
+    "treat costUsd as reported pricing estimate unless authoritative bill exists",
+    "do not fallback after process started on ambiguous failure"
+  ],
+  "external_model_calls": 0,
+  "production_mutations": 0
+}

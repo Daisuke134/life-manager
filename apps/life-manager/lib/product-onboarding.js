@@ -132,7 +132,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
   if (value?.schema_version !== 1 || !value.host_requirements
     || !Array.isArray(value.host_requirements.local) || !Array.isArray(value.host_requirements.cloud)
-    || !Array.isArray(value.loops) || value.loops.length !== 15) {
+    || !Array.isArray(value.loops) || value.loops.length !== 18) {
     throw new Error("product loop catalog invalid");
   }
   const recoveryContract = validateRecoveryContract(value.recovery_contract);
@@ -365,7 +365,7 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
     || cloudManifest.host !== "cloud" || cloudManifest.release_sha !== releaseSha) {
     reasons.push("cloud_manifest_invalid");
   } else {
-    if (!Array.isArray(cloudManifest.loops) || cloudManifest.loops.length !== 15) {
+    if (!Array.isArray(cloudManifest.loops) || cloudManifest.loops.length !== 18) {
       reasons.push("cloud_manifest_loop_count_mismatch");
     } else {
       const actualIds = cloudManifest.loops.map((loop) => loop && loop.id);

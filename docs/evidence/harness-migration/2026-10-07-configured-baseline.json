@@ -1,0 +1,161 @@
+{
+  "release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+  "audit_source_sha": "c32f8ad86ca5de711bc9041740921e85265e0f44",
+  "source_matches": [
+    {
+      "path": "runtime/loop/brain.mjs",
+      "release_hash": "1b9b7499eab6c7334693f2be021f9d61e97e3e728c90aefe94d58498c0542019",
+      "audit_hash": "1b9b7499eab6c7334693f2be021f9d61e97e3e728c90aefe94d58498c0542019",
+      "equal": true
+    },
+    {
+      "path": "runtime/loop/config.mjs",
+      "release_hash": "6010fb1e70aba5e801260c0a336e100e91688f8a6a827fd9f5478adaadd02d8c",
+      "audit_hash": "6010fb1e70aba5e801260c0a336e100e91688f8a6a827fd9f5478adaadd02d8c",
+      "equal": true
+    },
+    {
+      "path": "runtime/agent-runner/agent_runner.py",
+      "release_hash": "7ea7f29bfaa2457c06e595398f9e2518015f20e48ff106df2fdab3024e96955a",
+      "audit_hash": "7ea7f29bfaa2457c06e595398f9e2518015f20e48ff106df2fdab3024e96955a",
+      "equal": true
+    },
+    {
+      "path": "runtime/agent-runner/config.json",
+      "release_hash": "f9db5f94a3aa340c5686d4c51131cf313cabe685acf49621c72f8c6a0a5c05d3",
+      "audit_hash": "f9db5f94a3aa340c5686d4c51131cf313cabe685acf49621c72f8c6a0a5c05d3",
+      "equal": true
+    },
+    {
+      "path": "skills/writer-agent/runtime/model-runner.sh",
+      "release_hash": "9eb68dff30fffe5cbb587325253c3925601857ed86dc4c5b65f918bc16934515",
+      "audit_hash": "9eb68dff30fffe5cbb587325253c3925601857ed86dc4c5b65f918bc16934515",
+      "equal": true
+    },
+    {
+      "path": "skills/writer-agent/runtime/shared-model-runner.py",
+      "release_hash": "d1203fab91ed35e53e69ca0ceb5edf2bcd1f3faf4c65ce12c66347410d51b1c4",
+      "audit_hash": "d1203fab91ed35e53e69ca0ceb5edf2bcd1f3faf4c65ce12c66347410d51b1c4",
+      "equal": true
+    },
+    {
+      "path": "skills/writer-agent/article-daily.sh",
+      "release_hash": "f2651c9f112a63b788a58a68418d1b7a645f5ae366695e60b88720470e46f6eb",
+      "audit_hash": "f2651c9f112a63b788a58a68418d1b7a645f5ae366695e60b88720470e46f6eb",
+      "equal": true
+    },
+    {
+      "path": "skills/writer-agent/scripts/writer-runtime-env.sh",
+      "release_hash": "4ac6ab4611d5376b1bf44f79878008dc8df55b233c7bc87cf5ef63c6f36e4421",
+      "audit_hash": "4ac6ab4611d5376b1bf44f79878008dc8df55b233c7bc87cf5ef63c6f36e4421",
+      "equal": true
+    },
+    {
+      "path": "skills/self/capafy-loop/capafy-loop-daily.sh",
+      "release_hash": "5f5f03b7b80a8da47fdf70331cb00a784daddf9c3f415bce31ad655af827c52d",
+      "audit_hash": "5f5f03b7b80a8da47fdf70331cb00a784daddf9c3f415bce31ad655af827c52d",
+      "equal": true
+    },
+    {
+      "path": "skills/earn/promptbase/daily.sh",
+      "release_hash": "08863d177ef291737f6594fbe4a7676a129a56399fb58a94ae6b183157ca82ec",
+      "audit_hash": "08863d177ef291737f6594fbe4a7676a129a56399fb58a94ae6b183157ca82ec",
+      "equal": true
+    },
+    {
+      "path": "skills/earn/promptbase/scripts/gen_examples.py",
+      "release_hash": "86ca6ec55a7cee5776f36e317fa5a09b0f94c9e68e788292ae811ff8d0f16826",
+      "audit_hash": "86ca6ec55a7cee5776f36e317fa5a09b0f94c9e68e788292ae811ff8d0f16826",
+      "equal": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/run_agent.sh",
+      "release_hash": "9060c051cc27f28882257dbaafe32d64cdddd98fd03d9dfe86ef9040bf1c55cf",
+      "audit_hash": "9060c051cc27f28882257dbaafe32d64cdddd98fd03d9dfe86ef9040bf1c55cf",
+      "equal": true
+    },
+    {
+      "path": "skills/agent-economy/launch.sh",
+      "release_hash": "9fd18c9407c102770094eed9855f7cc45bd66517b3cc5d4ced4ce2edca71da21",
+      "audit_hash": "9fd18c9407c102770094eed9855f7cc45bd66517b3cc5d4ced4ce2edca71da21",
+      "equal": true
+    },
+    {
+      "path": "runtime/anicca-daemon.sh",
+      "release_hash": "90b61a7bf84645d25612ea8ff6eb562de2d782f508c4a4b938acdaf659032a0a",
+      "audit_hash": "90b61a7bf84645d25612ea8ff6eb562de2d782f508c4a4b938acdaf659032a0a",
+      "equal": true
+    },
+    {
+      "path": "config/loop-registry.json",
+      "release_hash": "29862cc29c584a88e6d5f3302cb2e0b16fe3fc8033fcf67dab3b26e171a8263d",
+      "audit_hash": "29862cc29c584a88e6d5f3302cb2e0b16fe3fc8033fcf67dab3b26e171a8263d",
+      "equal": true
+    },
+    {
+      "path": "bin/lm-loop-run",
+      "release_hash": "3be5c0bd224e20abd106f4a74f0c9ced3f74daf0e01ea725c1eaba50cd154a51",
+      "audit_hash": "3be5c0bd224e20abd106f4a74f0c9ced3f74daf0e01ea725c1eaba50cd154a51",
+      "equal": true
+    },
+    {
+      "path": "runtime/loop/lm_loop.py",
+      "release_hash": "f51563a71dcf018ab70ca9cce7f66c0f26b3a2bc4b6aa50f7d1b983c4b843e5f",
+      "audit_hash": "f51563a71dcf018ab70ca9cce7f66c0f26b3a2bc4b6aa50f7d1b983c4b843e5f",
+      "equal": true
+    }
+  ],
+  "configured_plists": [
+    {
+      "owner_id": "article-daily",
+      "evidence_class": "configured_plist_not_loaded_argv",
+      "release_argument_match": true,
+      "safe_flags": {
+        "ARTICLE_PROVIDER": "codex"
+      },
+      "override_presence": {
+        "ARTICLE_MODEL_RUNNER": false,
+        "ARTICLE_CODEX_BIN": false,
+        "ARTICLE_CLAUDE_BIN": false
+      }
+    },
+    {
+      "owner_id": "capafy-loop-daily",
+      "evidence_class": "configured_plist_not_loaded_argv",
+      "release_argument_match": true,
+      "safe_flags": {},
+      "override_presence": {
+        "ARTICLE_MODEL_RUNNER": false,
+        "ARTICLE_CODEX_BIN": false,
+        "ARTICLE_CLAUDE_BIN": false
+      }
+    },
+    {
+      "owner_id": "promptbase-loop-daily",
+      "evidence_class": "configured_plist_not_loaded_argv",
+      "release_argument_match": true,
+      "safe_flags": {},
+      "override_presence": {
+        "ARTICLE_MODEL_RUNNER": false,
+        "ARTICLE_CODEX_BIN": false,
+        "ARTICLE_CLAUDE_BIN": false
+      }
+    },
+    {
+      "owner_id": "agent-economy-loop",
+      "evidence_class": "configured_plist_not_loaded_argv",
+      "release_argument_match": true,
+      "safe_flags": {
+        "ANICCA_BRAIN": "codex"
+      },
+      "override_presence": {
+        "ARTICLE_MODEL_RUNNER": false,
+        "ARTICLE_CODEX_BIN": false,
+        "ARTICLE_CLAUDE_BIN": false
+      }
+    }
+  ],
+  "loaded_argv_env_verified": false,
+  "business_revenue_audited": false,
+  "production_mutations": 0
+}

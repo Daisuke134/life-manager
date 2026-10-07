@@ -115,6 +115,27 @@ class DistributionTests(unittest.TestCase):
         self.assertIn(str(self.root / "settings.json"), calls[0]["argv"])
         self.assertEqual(result["creative_id"], "A03")
 
+    def test_instagram_postiz_integration_is_recorded_as_postiz(self):
+        postiz = executable(
+            self.root / "postiz_video.py",
+            "#!/usr/bin/env python3\n"
+            "import json,sys\n"
+            "assert sys.argv[sys.argv.index('--integration') + 1] == 'integration-test-1'\n"
+            "print(json.dumps({'state':'PUBLISHED','post_url':'https://www.instagram.com/reel/IGPOSTIZ/','post_id':'postiz-ig-1','reconciled':True}))\n",
+        )
+        config = self.build_config(
+            instagram_integration="integration-test-1",
+            postiz_adapter=postiz,
+        )
+
+        result = lm_distribution.distribute_platform(config, "instagram")
+        row = json.loads(self.ledger.read_text(encoding="utf-8").splitlines()[0])
+
+        self.assertEqual(result["provider_route"], "postiz")
+        self.assertEqual(row["route"], "postiz")
+        self.assertEqual(row["provider_id"], "postiz-ig-1")
+        self.assertTrue(row["provider_reconciled"])
+
     def test_ledger_binds_both_public_urls_to_identical_hash_contract(self):
         self.run_distribution()
         rows = [json.loads(line) for line in self.ledger.read_text().splitlines()]

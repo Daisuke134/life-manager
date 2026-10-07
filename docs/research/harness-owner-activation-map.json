@@ -1,0 +1,981 @@
+{
+  "base_sha": "f22ee02b4fc9321056b330966759ff9e16cf9998",
+  "note": "These registry routes are candidates, not proof that their callers reach the runner. No route is enabled by this plan. Nested deterministic callers are handled by HA-055 inventory.",
+  "owners": [
+    {
+      "owner_id": "affiliate-browser",
+      "entrypoint": "skills/affiliate/scripts/local-browser",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "affiliate-impact-browser",
+      "entrypoint": "skills/affiliate/scripts/local-browser",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "affiliate-x-browser",
+      "entrypoint": "skills/affiliate/scripts/local-browser",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "agent-economy-loop",
+      "entrypoint": "skills/agent-economy/launch.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "agentmail-nudge",
+      "entrypoint": "runtime/agentmail/nudge-tick.sh",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "agentmail-replier",
+      "entrypoint": "runtime/agentmail/replier-tick.sh",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "agentmail-webhook",
+      "entrypoint": "runtime/agentmail/launch.sh",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "alpaca-investment-live",
+      "entrypoint": "skills/alpaca-investment/run.py",
+      "effect_class": "money",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "alpaca-investment-paper",
+      "entrypoint": "skills/alpaca-investment/run.py",
+      "effect_class": "money",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-audit-7day",
+      "entrypoint": "skills/writer-agent/scripts/audit-7day.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-daily",
+      "entrypoint": "skills/writer-agent/article-daily.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-healthcheck",
+      "entrypoint": "skills/writer-agent/article-healthcheck.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-learn-whitelist",
+      "entrypoint": "skills/writer-agent/scripts/learn-whitelist.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-repair-candidate",
+      "entrypoint": "skills/writer-agent/scripts/article-repair-candidate.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-resume",
+      "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-self-improve",
+      "entrypoint": "skills/writer-agent/scripts/self-improve.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "article-zenn-retry",
+      "entrypoint": "skills/writer-agent/scripts/zenn-deferred-worker.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "bounty-core-healthcheck",
+      "entrypoint": "skills/bounty/bounty-healthcheck.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "capafy-distribute-daily",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "capafy-ig-account-manager",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-ig-account-manager.sh",
+      "effect_class": "account_mutation",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "capafy-ig-marketing-daily",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "ceo-runner",
+      "entrypoint": "bin/ceo-run.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "claude-projects-backup",
+      "entrypoint": "skills/_shared/claude-projects-backup.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "f7-silence-check",
+      "entrypoint": "skills/anicca-core/scripts/f7-silence-check.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "fundraiser",
+      "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+      "effect_class": "application",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "hf-bounty-daily",
+      "entrypoint": "skills/bounty/bounty-cli.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "hf-gig-apply-direct",
+      "entrypoint": "runtime/loop/entry_dispatch.py",
+      "effect_class": "application",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "hf-gig-reply-detector",
+      "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "hf-reddit-loop-daily",
+      "entrypoint": "skills/reddit/reddit-loop-daily.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "hf-reddit-loop-healthcheck",
+      "entrypoint": "skills/reddit/reddit-loop-healthcheck.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "image-claude-p",
+      "entrypoint": "skills/earn/x402-sell/image-claude-p-boot.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "investment-cross-venue-report",
+      "entrypoint": "apps/life-manager/investment-core/cross_venue_run.py",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "lateness-heartbeat",
+      "entrypoint": "skills/anicca-life-manager/scripts/run.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "life-manager-daily-driver",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "lm-recording-store",
+      "entrypoint": "skills/life-manager-video/run-store-recordings.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-dashboard",
+      "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-metrics",
+      "entrypoint": "marketing/engine/bin/marketing-metrics-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-metrics-daily",
+      "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-mine-daily",
+      "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-owner-events",
+      "entrypoint": "skills/earn/marketing-engine/report/events-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-score-daily",
+      "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "marketing-weekly-review",
+      "entrypoint": "skills/earn/marketing-engine/intel/weekly-review-owner",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "mcp-claude-p",
+      "entrypoint": "skills/earn/x402-sell/mcp-claude-p-boot.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "mercor-revenue-application",
+      "entrypoint": "skills/earn/mercor/scripts/application-owner",
+      "effect_class": "application",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "mercor-revenue-reply",
+      "entrypoint": "skills/earn/mercor/scripts/reply-owner",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "pm-decision-loop",
+      "entrypoint": "skills/earn/polymarket-trade/run_decision_loop.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "realtime-guide",
+      "entrypoint": "skills/anicca-life-manager/scripts/realtime_guide.py",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "sbi-usdc-monitor",
+      "entrypoint": "skills/sbi-usdc-monitor/scripts/run.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "self-improve-evolve",
+      "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "stripe-revenue-listener",
+      "entrypoint": "skills/stripe-revenue-listener/scripts/listen.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "stripe-revenue-poller",
+      "entrypoint": "skills/stripe-revenue-poller/scripts/poll.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "tiktok-browser",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "warmup-flip-daily",
+      "entrypoint": "skills/anicca-warmup-flip/scripts/run.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-claim-loop",
+      "entrypoint": "skills/writer-agent/scripts/claim-loop-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-craft-train",
+      "entrypoint": "skills/writer-agent/scripts/craft-train-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-money-sync",
+      "entrypoint": "skills/writer-agent/scripts/money-sync-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-opportunity-discovery",
+      "entrypoint": "skills/writer-agent/scripts/opportunity-discovery-owner",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-opportunity-response",
+      "entrypoint": "skills/writer-agent/scripts/opportunity-response-owner",
+      "effect_class": "application",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-report",
+      "entrypoint": "skills/writer-agent/scripts/writer-report-owner",
+      "effect_class": "message",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "writer-sales-measure",
+      "entrypoint": "skills/writer-agent/scripts/writer-sales-measure-worker.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "x-repost",
+      "entrypoint": "skills/x-repost/x-repost-en-cli.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "x-repost-ja-pass",
+      "entrypoint": "skills/x-repost/x-repost-ja-cli.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "x-tweeter",
+      "entrypoint": "skills/x-tweeter/x-tweeter-cli.sh",
+      "effect_class": "publish",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "x402-claude-p",
+      "entrypoint": "skills/earn/x402-sell/serve-claude-p-boot.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    },
+    {
+      "owner_id": "x402-inflow-watch-claude-p",
+      "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+      "effect_class": "none",
+      "state": "coverage_unverified",
+      "route_enabled": false,
+      "required_evidence": [
+        "caller reaches shared runner",
+        "trusted owner propagated",
+        "task classes supported",
+        "all invoked provider handlers verified",
+        "natural receipt/cost",
+        "scheduler transfer proof"
+      ]
+    }
+  ]
+}

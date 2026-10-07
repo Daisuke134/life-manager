@@ -46,13 +46,13 @@
 - **量産の禁止**（https://capafy.ai/developer/doc/4.2）: "Do not mass-upload large numbers of Agents with near-identical functionality or minimal variations to dominate search results. This behavior is treated as cheating; the related Agents will be removed and the Publisher account may be warned or suspended." → 既存の Hook Lab 派生 9 本はこの危険域。複製（C3）は「入力・出力・使う場面が本当に違う物」だけにし、近い派生は統合・退役させる（C4）。
 - **却下理由 2.2 Information accuracy**（同 4.2）: 2.2.1 説明どおりの機能、2.2.2 カテゴリとタグの一致、2.2.3 "The Base Model field must accurately reflect the LLM the Agent currently uses." → Marketing Strategist（モデル変更版 v1.0.2）は 2.2.3 のずれが第一仮説。
 - **Agent Card**（同 4.2）: Details に sample input/output・Capabilities・Use Cases・FAQ を推奨。金融系は「専門的な投資助言ではない」免責と元本喪失のリスク表示が必須。
-- **手数料と精算**（https://capafy.ai/developer/doc/3.2）: Subscription Payout = 支払額 − Platform Sandbox Fee − Platform Fee。Sandbox Fee（On-Demand）は月 $2.00・週 $0.50・日 $0.07。Download は Sandbox Fee なし。売上は 7 日の dispute window の後に月次精算の対象、翌月 1 日に明細、条件を満たせば 15 日以降に振込。→ 9 月明細 $59.00 は 10/15 以降の振込が A2 の最初の着金確認点。日額プランは Sandbox Fee の比率が高い（$1.99/日なら 3.5%）ので、月額・週額を主にする。
+- **手数料と精算**（https://capafy.ai/developer/doc/3.2、2026-10-07 再取得）: Subscription の計算基準は `Net Transaction Amount − Platform Sandbox Fee`、Platform Fee はその基準の20%。On-Demand の Sandbox Fee は月$2.00・週$0.50・日$0.07。Download はSandbox Feeなし。Subscription payout は `(Net Transaction Amount − Sandbox Fee) × 80%`。売上は7日dispute windowの後に月次精算対象、翌月1日に明細、条件を満たせば15日以降に振込。日額プランはSandbox Feeの比率が高いため、月額・週額を主にする。
 
-**$10k MRR の算数:** 手取り 80% として、平均 $9.99/月のサブスクなら有料会員 約 1,250 人。CloneCut 型の勝者 1 本（$19.99/月 × 600 人）＋中堅 10 本（$9.99 × 50 人）でも届く。今は月 $66 の手取り（目標の 0.66%）。
+**Capafyの$10k/月の算数（On-Demand sandbox、model cost/refund/tax/cash timing前。予測ではない）:** $9.99/月ならsandbox $2.00を引いた$7.99に20% feeを適用し、publisher payoutは約$6.39/active subscriber-month。$10,000 payoutには約1,565 active subscriber-monthsが必要。$19.99/月ならpayoutは約$14.39、必要数は約695。$29.99/月ならpayoutは約$22.39、必要数は約447。銀行着金ベースの$10k目標はmodel cost、refund、dispute、settlement timingを加味するため、実際の必要数はさらに多い。旧い「$9.99×80%=約1,250人」の算数はSandbox Feeを無視していたため無効。これはeBookの$10k MRRとは別の目標である。
 
 ## 0.2 単位経済（2026-10-04 実測。agent 別 30日、出所: `capafy-skill-analytics.json` per_skill_rows、公開価格は `capafy-market-agents-20261003.json`）
 
-| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 手数料後 | モデル代 | 利益 |
+| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 20% feeのみの推定（sandbox除外） | モデル代 | 利益 |
 |---|---|---|---|---|---|---|
 | Hook Lab 8123079349 | DeepSeek | 日$1.99/週$4.99/月$9.99 | $24.89 | $19.91 | $0.34 | **+$19.57** |
 | Slide Maker 8828622062 | DeepSeek | 週$9.99/月$24.99 | $19.98 | $15.98 | $0.00 | **+$15.98** |
@@ -63,10 +63,17 @@
 | Contract Red Flags 8416888650 | Sonnet 4.6 | — | $0 | $0 | $1.59 | **-$1.59** |
 
 - DeepSeek の agent は原価がほぼ 0（Hook Lab 11 注文で $0.34）。赤字は Sonnet の 3 本だけで、合計 -$22.96/30日。
+- 上表の「20% feeのみの推定」はSandbox Feeを含まない上限値であり、subscriptionのpayoutやbanked netとして使わない。実行モード別Sandbox Feeと個別orderのmodeをjoinできるまで、実利益の正本はfresh provider payout/cost readbackとする。
 - 後ろの 2 本は repo catalog に無いため、`capafy_daily_decision.py` rule 1 が毎日 `skip no_catalog_match`（2026-10-03 の記録）。誰も止めていない。
 - 市場の勝者（同 sweep）: 高いモデルの勝者は高価格＋少ない回数上限で黒字にしている（Ocup Football Sonnet 4.6 週$14.99/月$29.99・月27回、HookAce Sonnet 5 週$9.99/月$19.99・月25回、Odeo Maker Opus 4.8 週$19.99/月$29.99・月10回）。安いモデルの勝者も価格は下げない（Serenity Stock Tracker・Alpha Consensus は DeepSeek で週$9.99/月$19.99/年$99.99・月40回）。→ 勝者は「市場価格は守る、高いモデルなら回数を絞る」。価格を下げて売る勝者はいない（無料 download の集客用は別枠）。
 - 自社: モデルは既に安い（DeepSeek）が、売れ筋 3 本の公開価格は市場の下 25%（月$12.99）未満の $9.99。catalog の LISTING は値上げ済み（Hook Lab 日$3.99/週$9.99/月$19.99/年$99.99）だが本番に届いていない。
-- 手取りの目安（推定、doc 3.2 の式: 支払額 − Sandbox Fee − Platform Fee 20%）: 月$9.99 ≈ $5.99、月$19.99 ≈ $13.99。同じ 1 人で手取り 2.3 倍。
+- 旧手取り推定（月$9.99=$5.99、月$19.99=$13.99）は20% feeをSandbox Fee控除前の全額に適用していたため置換済み。On-Demand計算は月$9.99≈$6.39、月$19.99≈$14.39。
+
+## 0.3 2026-10-07 fresh運営snapshot
+
+- Capafy analytics observed at `2026-10-07T02:57:21Z`: last-30-day gross $65.80, last-7-day gross $0.00, measured AI cost $34.23, after-cost profit $18.41. Payout balance $59.00, pending $0.00, confirmed balance $17.18, paid out $0.00. The $18.41 is measured profit, not banked payout.
+- Fresh market sweep `capafy-market-agents-20261006.json` contains 852 agents. Its `salesVolume` snapshot leaders include Ocup Football Analysis 3,088, Serenity Stock Tracker 1,845, HookAce 948, and Odeo Maker 704; these are marketplace counts, not monthly recurring revenue. Capafy’s public earn page currently names KOL Hunter Pro as a $10,000+/mo example, but this is a publisher-page claim, not our settled result.
+- Instagram remains unproven as a sales channel: the latest official Postiz readback at 13:19 JST showed zero Capafy Instagram posts. The integration was enabled, but native ownership/good-standing was not verified. The old direct owner is disabled with an unresolved effect fence, and the new owner is disabled. D5 remains one canary per 24 hours after the eBook paid+PDF gate; it does not currently authorize three posts per day.
 
 ## 1. 足りないもの（To-Be との差）
 
@@ -309,22 +316,23 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-06 04:06 JST latest runtime readback）
+### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 19:00 JST runtime refresh; provider GET last at 13:19 JST）
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧capafy-ig-marketing-daily | 04:06 JST `lm-loop status <owner> --json`: managed/loaded-idle、current snapshot SHA `a09d0ad40b4eddfcaa65ca03b9804604ba692557`。latest occurrence `capafy-ig-marketing-daily:18dbb79dd35998c8-25553` used event SHA `d091b3bd58aa5f27dbee19c2eab12311b3b0597e` and exited 75 / `host_admission_deferred:resource_effect_unknown`; receipt/readbackなし。active fence `18db7caff1178a88-68028` remains; adapter diagnosis is `active_ig_handle_unresolvable`. | occurrence/fenceの公式provider readback、重複publisher解消、account identity/status。effectを照合するまで再送しない。 |
-| 新life-manager-capafy-ig | 04:06 JST `status <owner> --json`: managed/loaded-idle、installed SHA `4eb6bbbaeb9a8368895e6391e34e8c895908b0ec`。latest occurrence `life-manager-capafy-ig:18dbb7007d247380-97286` failed with `capafy ig reel loop requires node`, effect unknown, provider state `adapter_not_run_yet`, receipt/readbackなし。 | current occurrence/fenceのofficial provider readback、既存account/Postiz identity、frequency gate、provider post receipt。effect readbackがない間は再送しない。 |
-| eBook → Capafyの実行順 | eBook ownerは未実装。Task 5のsource-only ownerをDDL待ち中に作り、Dais指定順どおり初回paid+PDF receiptの後にCapafy Instagramを始める。 | eBook Task 6の同一product/campaign/occurrenceのpaid-session/PDF receipt後にD5開始 |
+| 旧 `capafy-ig-marketing-daily` | At 19:00 JST persistent launchd is `disabled=true`, still on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Runtime status reports `host_admission_deferred:resource_effect_unknown`, `admission_effect_unknown=true`, no provider receipt/readback; the unresolved fence is `capafy-ig-marketing-daily:18db7caff1178a88-68028`. The latest blocked occurrence remains `18dc1d1db6d4df60-34612`; the read-only reconciler previously returned `active_ig_handle_unresolvable`. | Exact owned Instagram identity and complete own-media readback; keep disabled and do not retry. |
+| New `life-manager-capafy-ig` | At 19:00 JST persistent launchd is `disabled=true`, still on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Latest runtime status remains `entrypoint_exit_1`, no receipt/readback, `admission_effect_unknown=false`. The last explicit diagnostic (13:19 JST) was `LM_CAPAFY_IG_PACK_REF is required`. | Keep disabled until eBook first paid+PDF gate, then set one approved pack ref and one-canary/24h gate before enabling. |
+| Postiz identity | The last official Postiz GET at 13:19 JST returned `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`, matching the configured ID; current-day post count was 0. This was not re-read at 19:00 JST. Route enablement does not prove native account ownership or good standing. | Re-read Postiz and verify native account identity/good-standing before enabling. |
+| eBook → Capafy order | No natural paid eBook Checkout plus matching PDF delivery receipt is recorded. D5 has not started; both marketing publishers are disabled. | Preserve the eBook-first gate; once met, run one Capafy canary then measure 14 days. |
 
-**2026-10-06 04:06 JST refresh:** official `lm-loop status` readback shows both owners loaded-idle with unresolved publish effects and no provider receipt/readback. The old owner remains fenced because its Instagram handle cannot be resolved. The new owner failed before its provider adapter because the installed release could not resolve Node. Life Manager main already contains the Node/Python launchd lookup repair at `9e3fb448b6` (PR #6663), but the installed new-owner SHA remains `4eb6bbba`; applying an updated immutable release belongs after the eBook first-receipt gate. The 02:15 `instagram.obou_anicca` Postiz route readback does not prove Capafy account ownership or good standing. No authenticated challenge screen was inspected in this readback; these runtime errors are not CAPTCHA evidence. Do not retry either occurrence.
+**2026-10-07 19:00 JST runtime refresh:** both publisher labels remain disabled on release `2e87d30d`. The old direct-publisher lane still has `admission_effect_unknown=true` for `18db7caff1178a88-68028` and no receipt/readback; keep the fence closed. The new Postiz owner has no effect-unknown fence but remains disabled after `entrypoint_exit_1`; its last explicit diagnostic requires `LM_CAPAFY_IG_PACK_REF`. The last official Postiz readback (13:19 JST) showed the configured integration enabled; that provider state and native account ownership/good-standing have not been refreshed since then. No D5 publish or authenticated CAPTCHA/challenge is observed. The eBook paid Checkout plus matching PDF receipt gate is still open, so Capafy D5 has not started.
 
 **担当境界とmarketing gate**
 
 - Capafyの商品・listing・account-lifecycleの実装は別担当が所有します。PR #6631の`life-manager-capafy-ig` Postiz skeletonを使い、このmarketing計画からCapafy開発コードを変更しません。
-- 現行Life Manager source routeは`config/loop-registry.json`の`life-manager-capafy-ig` → `apps/life-manager/scripts/capafy-ig-reel` → Postizです。entrypointは`LM_POSTIZ_API_KEY`と`CAPAFY_IG_POSTIZ_INTEGRATION_ID`を要求し、reconcilerはPostiz post listingをofficial receiptにします。source commentでは`@capafy.hooklab`はPostiz未接続です。`capafy-marketing/SKILL.md`のB4 browser-direct案は同skill内でまだ実装されておらず、このownerの実行経路ではありません。単一owner/routeを公式statusで確かめ、Postiz・browser-direct・旧instagrapiをfallback/二重投稿に使いません。
+- 現行Life Manager source routeは`config/loop-registry.json`の`life-manager-capafy-ig` → `apps/life-manager/scripts/capafy-ig-reel` → Postizです。entrypointは`LM_POSTIZ_API_KEY`と`CAPAFY_IG_POSTIZ_INTEGRATION_ID`を要求し、reconcilerはPostiz post listingをofficial receiptにします。2026-10-07 13:19 JSTの公式GETでは`@capafy.hooklab`のPostiz integrationが有効です（`cmuuycr5402uzqw0yhanqggo9`）。このsource commentは古く、integration enabledだけではnative account ownership/good-standingは証明しません。`capafy-marketing/SKILL.md`のB4 browser-direct案は同skill内でまだ実装されておらず、このownerの実行経路ではありません。単一owner/routeを公式statusで確かめ、Postiz・browser-direct・旧instagrapiをfallback/二重投稿に使いません。
 - IG投稿ownerは`life-manager-capafy-ig`だけにします。旧`capafy-ig-marketing-daily`と新laneの各effect-unknown occurrenceを公式readbackで閉じる前に再送せず、二重publisherも許可しません。readbackできない場合は両方から公開しません。
 - 現行Postiz laneは1日3回ですが、初期canaryは24時間に1回を上限とします。lane側で投稿slotを抑制できると別担当の開発者が確認するまで、live scheduleを開始しません。
 - `@capafy.hooklab`とregistry/Postiz integrationのidentityを公式account statusで照合し、現在ユーザー所有でgood-standingのIGだけを使います。Challenge/制限は公式status/appealで処理し、別account作成、automated likes/follows、anti-detection、proxy/fingerprint回避をしません。
@@ -335,11 +343,11 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 **eBook初回receipt後のmarketing手順**
 
 1. eBookの自然なpaid Checkout receiptと一致するPDF delivery receiptがあることを統合SSOTで確認します。14日eBook測定を並行で開始します。
-2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`、latest old occurrence `capafy-ig-marketing-daily:18dbb79dd35998c8-25553`、latest new occurrence `life-manager-capafy-ig:18dbb7007d247380-97286`をowner別にofficial provider readbackします。readbackがない間はどちらも再送しません。
-3. Life Manager側のInstagram marketing ownerを一つだけ認識可能にし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
-4. 既存ユーザー所有IGのidentity/good-standing statusと対応するPostiz integrationを確認します。既存ownerを検証できなければlaneをheldにし、accountを作りません。
+2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`はhandle unresolvedのためheld。new Postiz ownerはdisabledでactive fenceなし。old fenceの正確なInstagram readbackとeBook paid+PDF gateなしにどちらも再有効化しません。
+3. Life Manager側のInstagram marketing ownersは両方disabled。eBook gate後に新Postiz ownerを一つだけenable/applyし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
+4. Postiz integration `cmuuycr5402uzqw0yhanqggo9`は`capafy.hooklab` / `disabled=false`で設定IDとも一致します。native account identity/good-standingを別readbackで確認し、成立しなければlaneをheldにしてaccountを作りません。
 5. 初期canaryを24時間に1回以下で配信できることを確認します。現在のregistry scheduleは1日3回なので、marketing owner側でfrequency gateを設定して読み戻すまで公開配信を開始しません。
-6. 必要なPostiz integrationと承認済みpack/media/Instagram approval refをcredential値なしで確認します。公開中・利益のあるskillのLISTING.mdにある実際のinput/outputと`ct=capafy-reel-<slug>`を使ってdry-runします。
+6. 必要なPostiz integrationと承認済みpack/media/Instagram approval refをcredential値なしで確認します。現状のownerは`LM_CAPAFY_IG_PACK_REF is required`でentrypoint失敗するため、eBook gate後に承認済みpack refを接続し、公開中・利益のあるskillの実例と`ct=capafy-reel-<slug>`でdry-runします。
 7. canaryは唯一のregistered ownerから一件公開します。Postiz/Instagram receiptと公開Reel URLを記録し、旧instagrapi publisherをfallbackにしません。
 8. そのoccurrenceのCT clicks、Capafy有料注文、返金、platform/sandbox fee、実際のmodel/video費、出金、銀行着金を照合します。viewsやprofile opensはreach指標であり売上ではありません。
 9. 24時間に1投稿で14日測定します。有料成約が0ならcreative要素を一つ変えて次の14日を試し、その期間も注文0なら経路を止めます。TikTok/YouTubeはこのCapafy Instagram workstreamの対象外です。
@@ -399,11 +407,11 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | 2 | 1 | B2 却下理由 / 重複の関門 / C1・C2 勝ち棚 | 却下 2 本が under_review → online、次の新規が上位棚 | source ✅、自然 run 待ち |
 | 3 | 1 | retry を売上順に（#6566） | 本番 plist が `4b0a1ae1` 以降の release | ✅ 本番（release `1b3191a7` 以降、現在 `82d31995`） |
 | 4 | 1 | **E1a 価格の照合と CP1 で毎回価格を設定**（#6569 `342ffefb`） | 値上げ提出のログに `PRICING_MATCH`（`PRICE_MISMATCH_WARNING` が出ない） | ✅ 本番。最初の値上げ提出で `PRICING_MATCH` を確認する |
-| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | **枠待ち**: 審査枠 5/5 が 10/04 16:26 から不動。#6594 で 2 本を RETIRED.json → release 反映後にコンソールで取り下げて 2 枠空ける |
+| 5 | 1 | **E1b 売れ筋 3 本を市場価格へ**（UPDATE.json を公開版に合わせ、TikTok・YouTube の価格表を日$2.99/週$5.99/月$19.99/年$99.99 に、#6569） | 市場 API の billing が LISTING どおり | **凍結（Dais 2026-10-06）**: 売れた 4 本（Hook Lab・Slide Maker・TikTok Script Pro・YouTube Script Writer）は注文が戻るまで価格・モデル・カードを変えない。再開は N1 で原因が出た後、1 本 1 変更・14 日比較 |
 | 6 | 1 | B1 Marketing Strategist DeepSeek 版の承認 | Capafy API で DeepSeek 版 online、Sonnet 版が売り場から消える | retry 順は売上順（#6566）だが枠 5/5 で未実行 |
-| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | source ✅ #6572 `57c179fc`（見本・FAQ・タグ5、題名は不変）。値上げ更新と同時に出る＝枠待ち |
+| 7 | 2 見つけてもらう | **D1 Hook Lab の題名・タグ・カード**（検索 1,503 view・成約 0.2%） | 新カード online、14 日後の検索成約率を成績表で比較 | **凍結（#5 と同じ）**: source ✅ #6572 `57c179fc` は提出しない |
 | 8 | 2 | D2 プロフィール | https://capafy.ai/publisher/Anicca に新 bio | ✅ 公開ページで新 bio を目視確認（2026-10-04）。残り: リンク欄（タイトル必須）、主力をプロフィール上位に出す方法 |
-| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。値上げ更新と同時に出る |
+| 9 | 2 | D4 最初のレビューと注文（hot 欄に載る条件を観測し、規約内の方法で） | 売れ筋 3 本に rating/review ≥ 1、hot 掲載 | source ✅ 売れ筋 3 本の出力末尾に評価のお願い 1 行（見返り・点数指定なし、#6573）。**凍結（#5 と同じ）**: 売れた 4 本の新版を出さない |
 | 10 | 2 | 前後 14 日比較の仕組み（成績表に「変更日」と前後の検索 view・成約・手取り） | 成績表に比較行が出る | ✅ 本番（#6574）。変更ログ `capafy-listing-changes.jsonl` への記入は値上げが online になった日から |
 | 11 | 3 勝てる棚で数 → **月 $1k** | C3 売れた物の派生（入力・出力・場面が本当に違う物だけ、規約 4.2） | 派生が online、親子の 30日注文を記録 | ✅ source+本番（#6575 `26dd2de7`）: 親は 30日注文≥3 かつ売上>0、子 2 本以上が親未満なら停止。本番データ: Hook Lab=停止、TikTok/YouTube=派生候補 1 件ずつ |
 | 12 | 3 | C4 売れない 46 本の整理（書き直し 1 回 → 30 日で 0 注文なら非公開、catalog 外 2 本は catalog 再作成→モデル切替） | 非公開・統合の数と空いた枠 | 一部 ✅: 未出品 Hook Lab 派生 5 本を catalog-hold へ（#6576）、売上 0 の学術・Humanizer 12 本を RETIRED.json（#6577、工場の自動再出品から除外）→ 管理画面で公開停止、Capafy API で 12 本 offline を確認。残り: その他の売上 0 agent（書き直し 1 回 → 30 日） |
@@ -418,7 +426,17 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
 **順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
-**現在のカーソル（2026-10-05 10:0x）:** #5（審査枠を空ける: release 反映→2 本取り下げ）。並行: TikTok/YouTube のカード改善（#7 の横展開、値上げ更新に同梱されるので枠が空く前に入れる）。
+**2026-10-06 の追加項目（表の #1〜#20 より先に、この順で実行）:**
+
+| # | Task | 完了条件（公式 readback） | 状態 |
+|---|---|---|---|
+| N1 | 注文 0 の切り分け: 売れた 4 本と競合（HookAce・Video Hook Forensics 等）の Capafy 内検索・カテゴリ順位を毎日記録し、9/29 前後の版更新・無料トライアル廃止との対応を見る | 0 の原因が 1 つに絞れる（または棄却が記録される） | ✅ 原因特定（2026-10-07）: buyer ページの「セキュリティスキャン 注意」= catalog の test/ を同梱した 2 本だけ（hook-lab・marketing-strategist）。他 7 本と HookAce は「通常」。Hook Lab は閲覧数そのまま・有料注文 約1/日 → 9/30 から 0。修正 #6809 `c0da6b38`（test/ を同梱しない＋価格・モデル据え置きの Hook Lab 再提出）。完了判定: Hook Lab が「通常」表示＋有料注文の再開 |
+| N2 | 審査枠を空ける: 却下中の Marketing Strategist（9563867391、30日 −$16.45）と Customer Renewal Evidence Brief（4973250899）を取り下げる（#6594 の release 反映後） | Capafy API で 2 本 offline、枠 3/5 以下 | 自然解消（10/06 21:24 JST）: 審査中 1・却下 1、枠に空き。Marketing Strategist は DeepSeek 版を審査中 |
+| N3 | ディスク満杯で工場が落ちる（10/06 06:23Z `OSError: [Errno 28] No space left on device`、`duplicate_gate.py`） | 次の自然 run が ENOSPC なしで終わる | 一部: 10/07 空き 640MiB→1.6GiB（自分の統合済み worktree 2 本・使われていない simulator を削除）。新しい再発源: `hf-reddit-loop-daily` が run ごとに loop-tmp へ camoufox.zip（819MB）を再取得（verify-loops-audit と同じ型）。Data 219.5GB のうち実測できたのは ~93GB、残りは TCC で計測不可の領域。恒久対策は F4（codex-money-printer）|
+| N4 | 宣伝ループの今日の失敗（10/06 10:15 `model pass exit=1`、未公開） | 次の自然 run で記事 HTTP 200＋X published | 稼働中: 10/07 は 5 回中 4 回公開。`model pass exit=1` は成功時も出る既知の値（スクリプト内コメント）。失敗は 07:15 の 1 回（モデルが何も書かずに終了、ディスク満杯の時間帯）|
+| N5 | 売れない agent は書き直さず、勝った型（hook/台本・金融/スポーツ追跡）を学びを入れた新 agent として出す（#11・#13 に合流） | 新 agent の 30日注文 > 0 | 工場で継続 |
+
+**現在のカーソル（2026-10-07）:** N1 の本番確認（Hook Lab 再提出 → 承認 → スキャン「通常」→ 有料注文）。並行: N3・N4。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -466,3 +484,19 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 - 2026-10-05 12:5x JST **全体計画**: Capafy 単独の天井（市場全体の累計販売 16,656、出品者 1 位 3,801）から、$10k は Capafy・PromptBase・自社 Stripe・他の売り場の足し算とした。正本 `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。
 - 2026-10-05 13:0x JST **ディスク満杯の原因**: `verify-loops-audit/loop-tmp` に終了済み run の一時ディレクトリ 29 個・4.2GiB（1 run 最大 1.2GiB）。削除で空き 268MiB→4.5GiB。恒久修正は F4（codex-money-printer）へ依頼。
+- 2026-10-06 16:xx JST **実測（read-only）と順序変更**:
+  - 売上: 9/30〜10/06 の 7 日連続で全 agent の注文 0（`capafy-skill-analytics.json` observed 2026-10-06T06:27Z の `daily_revenue_trend_last_30d`）。全期間 101 件（有料 32・無料トライアル 69）、gross $102.75、creator earnings $76.18、出金待ち $59.00、着金 $0。売上がある agent は 52 本中 6 本: Hook Lab $34.88・Slide Maker $19.98・TikTok Script Pro $15.96・Marketing Strategist $13.98（30日 −$16.45、Sonnet）・Academic Humanizer $9.99・YouTube Script Writer $7.96。
+  - 市場は動いている: 2026-09-29 → 10-05 の sweep 比較で 803 本中 48 本の salesVolume が増加（HookAce 877→936、Video Hook Forensics 860→921、Serenity 1,681→1,827）。同期間の Hook Lab は 12→12。→ 0 は Capafy 全体の客減りではなく自分たちの側の問題。
+  - 9/29 に起きたこと: Hook Lab v1.0.3（DeepSeek）承認 03:23Z、v1.0.4 承認 09:10Z（Gmail `from:capafy.ai`）、v1.0.5 承認 10/06 02:01Z。価格は変わっていない（P-12・#6200・E1 実測 = 月$9.99 のまま）。仮説: (1) 短期間の版更新で検索・棚の露出が落ちた、(2) 無料トライアル廃止で入口が消えた（全期間 69/101 がトライアル）、(3) 9/30〜10/04 の外部宣伝停止（外部の成約はもともとほぼ 0 で弱い）。棄却: 価格変更（変えていない）、市場全体の減少（競合は増加）、12 本の退役（10/04、0 の開始より後）。
+  - 注文単位の履歴は無い: Capafy API は日別合計のみ、メールは agent ごとの初回販売だけ（最新 2026-09-27 07:06 JST YouTube Script Writer $1.99）。
+  - **順序変更（Dais 2026-10-06「売れて利益の出ている物を何度も変えない」）**: 理由 = 0 の開始が売れ筋への版更新の連続と重なり、原因が分からないまま値上げ・カード変更を重ねると前後比較もできなくなる。旧順序: #5 E1b（売れ筋 3 本の値上げ）→ #6 → #7 D1（Hook Lab カード）→ … 新順序: **N1 原因の切り分け → N2 枠を空ける → N3 ディスク → N4 宣伝の失敗 → N5 新 agent（勝った型）** → #6 → #11〜#20。#5・#7・#9 は売れた 4 本について凍結。カーソル → N1。
+- 2026-10-07 JST **N1 原因特定**: 仮説を順に棄却した。(a) 価格変更（10/06 朝まで日$1.99/週$4.99/月$9.99 のまま）、(b) 市場全体の減少（競合は増加）、(c) 検索露出の低下（「hook lab」「hook」「tiktok script」「slide maker」で自分たちが 1 位）、(d) 閲覧の減少（traffic-sources v2 の日別: Hook Lab 9/21〜10/06 で 1 日 4〜18 view、9/30 前後で変化なし。ストア全体は 9/30 394・10/01 550 view）、(e) 無料トライアル廃止（9/21 以降トライアル 0 件）、(f) 購入可否・isMain（全 agent canBuy=True、HookAce も isMain なし）。残った差分: buyer ページの「セキュリティスキャン」が Hook Lab と Marketing Strategist だけ「注意」、tiktok/youtube/slide/ad・shorts・reels hook lab と HookAce は「通常」。この 2 本だけが catalog に `test/` を持ち、`publish_prepare.sh` の `cp -R` で同梱されていた（Hook Lab の test/ は 9/28 #6078 で追加 → 9/29 の v1.0.3/v1.0.4 から同梱）。Hook Lab の有料注文は 9/21〜29 に 1 日 1 件前後 → 9/30 から 0。修正 #6809 `c0da6b38`: test/ を同梱しない（全 agent に効く）、Hook Lab を同じ価格・同じモデルで再提出（LISTING の価格表を本番の日/週/月に固定）。他 3 本の 7 日 0 件は 30 日で 1〜4 件の低頻度のため偶然の範囲。
+- 2026-10-06 22:xx JST **凍結の本番反映**: #6773 `2cf94f43`（売れた 4 本の UPDATE.json 削除＋利益の出ている agent は値上げしない）。capafy-loop-daily は release `3aaabcca` で稼働（2cf94f43 を含む、rc=0 を確認）。ただし値上げは 10/06 朝に既に承認済み（Hook Lab 日$3.99/週$9.99/月$19.99、TikTok 日$2.99/週$5.99/月$19.99、YouTube 週$9.99/月$9.99/年$99.99）。戻すとさらに変更が増えるので据え置き、`capafy-listing-changes.jsonl` に記録して 14 日比較。
+- 2026-10-07 JST **宣伝の計測（読み取り）**: `ct=` 付きの Capafy URL を開くと buyer ページが `POST /pulse/pulse` に `{"behavior":"utm_ct_visit","ct":"capafy-distribute-slide-maker",...}` を送る（計測の仕組みは動く）。それでも traffic-sources v2 の ct 行は 30 日・7 日とも「marke」1 行・0 view で、`capafy-distribute-*`・`capafy-x-*` は一度も出ない = 記事約 15 本と X からの Capafy への来訪は 0。一方 `ai_overview`（Google の AI 概要）は 30 日で Hook Lab 343・TikTok 357・YouTube 51 view と、外部で実際に効いている唯一の経路。次: aniccaai.com の記事は「人が来ない」ので本数を増やさず、AI 概要に拾われる Capafy の listing 文面（質問に答える形・具体例）と、送客力のある外部経路（勝者の型 = 既存の観客）を検討する。
+- 2026-10-07 JST **buyer ページの比較**: HookAce の料金は日/週/月ではなく「月額 3 段（10 回 $14.99・30 回 $29.99・120 回 $89.99）」。評価 4.3・販売 954・出品者 bio に YouTube 80 万・TikTok 28 万。
+- 2026-10-07 16:xx JST **Capafy 公式 growth ページ（https://capafy.ai/developer/growth、ログイン後に読み取り）= 成功者の宣伝の型**:
+  - 実例 3 件はすべて短尺動画（TikTok / Instagram Reels / YouTube Shorts）: Ocup Analysis（Otata）200K+ 再生・1,000+ サブスク注文・$4,200+、Serenity Stock Tracker（Lucas）200K+ 再生・300+ 注文・$5,000+、Listful（Amazon 画像）132K+ 再生・70+ 注文・$1,000+。Otata は 6 本の動画で 7 日に注文 13,900% 増。
+  - 台本は 3 段: (1) 最初の 3 秒のフック（対比・悩み・サスペンス、一番強い結果から）→ (2) 機能デモ（実データ・実操作・完成物を見せる）→ (3) 「Capafy で『<Agent 名>』と検索」と言い切る（検索結果から購入ページへ直行）。アイデアが無ければ似た AI 製品の伸びた動画の DNA（フック・撮り方・結果の見せ方・CTA）を書き出して真似る。
+  - 我々の現状との差: 宣伝は aniccaai.com 記事＋X（ct 経由の来訪 0）、Instagram は 8/24 から 0 本。成功者の型（短尺動画＋名前検索 CTA）を一度も実行していない。→ D5（Instagram, 担当: codex-money-printer）の creative はこの 3 段台本を正本にし、CTA は `ct=` リンクより「Capafy で <名前> を検索」を主にする（検索経由が計測上も最大の流入源）。TikTok / Shorts も同じ台本で横展開する。
+- 2026-10-07 16:xx JST **売上停止の主因（訂正）**: 9/29 の #6153 `1abb1ae845` で売れていた 4 本（Hook Lab・TikTok・YouTube・Slide Maker）を Sonnet → DeepSeek に切替。buyer ページに「パブリッシャー提供 DeepSeek V4.1 Flash」と表示され、翌 9/30 から 4 本とも有料注文 0（traffic-sources v2 日別）。市場の売上は Sonnet 系が大半（Sonnet 4.6 3,687 件・Sonnet 5 1,135 件 vs DeepSeek 2,526 件だが 24 本中 2 本に集中）。Dais 承認で 4 本を Claude Sonnet 5 に戻す（Capafy に Sonnet 5.5 の表示選択肢が無い）: #6861 Hook Lab、#6862 3 本。価格は本番のまま（YouTube の年 cap 8640→720 のみ、満額利用で赤字のため）。4 本は FROZEN.json。審査枠 6/5（下書き 3・却下 1）のため 3 本は枠待ち、Capafy サポートに削除を依頼（2026-10-07）。
+- 2026-10-07 19:3x JST **売れていた 4 本を Sonnet 5 に戻して審査提出（Capafy API readback: 4 本とも status=1・isConfirmedSkills=1・isConfirmedConfigKeys=1）**: Hook Lab v1.0.6（17:47 run、test/ 無し、日$3.99/週$9.99/月$19.99）、TikTok Script Pro v1.0.4（19:03、日$2.99/週$5.99/月$19.99）、Slide Maker v1.0.3（19:20、週$9.99/月$24.99）、YouTube Script Writer v1.0.5（19:30、週$9.99/月$9.99/年$99.99、CP1 で年 cap 720 を入力し PRICES_MATCH 3。API の billing は審査中のため旧版の 8640 を表示中＝承認後に確認）。途中で直した工場の穴: (1) Capafy の表示モデルに Sonnet 5.5 が無い → Sonnet 5、(2) 更新下書きは価格カードが空で始まるのに CP1 エージェントが `missing` で停止 → CP1_AGENTIC.md に入力手順、(3) 再ログイン後に管理画面が日本語化し期間ラベルが 週次/月次 → 価格ゲートが全プラン missing と誤判定 → `cp1_agent.py` の LABEL_CYCLE に日本語、(4) 管理画面ブラウザの DevToolsActivePort が 09:52 の孤児ヘルパーの古いポートのまま → 孤児を止めて古いファイルを除去、(5) 停止した run の effect fence → `capafy_factory_fence_reconcile.py` の公式 readback（effected=false）で解除。次: 承認後に buyer ページの「セキュリティスキャン」表示と有料注文の再開を確認。

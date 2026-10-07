@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Hourly read-only readback of one LINE Creators Market sticker item.
+"""Hourly readback of one LINE Creators Market sticker item.
 
 Leases the line-creators:dais browser, reads the item's official status and purchase URL, confirms
-the public LINE STORE page once approved, and appends one JSON line to the state ledger. It never
-edits, submits, or releases anything; a missing session is reported as needs_login, never as zero.
+the public LINE STORE page once approved, and appends one JSON line to the state ledger. On
+リジェクト (rejected) it also reads the real rejection message from the product's メッセージセンター
+and, for that case only, hands off to ``line_sticker_resubmit`` -- the model decides a typed fix
+from a closed action set and this module records whatever that returns. Every other status stays
+read-only; a missing session is reported as needs_login, never as zero.
 
     creators_readback.py --item-file ~/.local/state/life-manager/line-sticker/set-002/creators-item.json
 """
@@ -15,15 +18,43 @@ import datetime
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from playwright.async_api import Page, async_playwright
+
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+
+import line_sticker_resubmit  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[3]
 GUARD = REPO / "skills" / "browser" / "browser-guard.sh"
 IDENTITY = "line-creators:dais"
 LEDGER = Path.home() / ".local" / "state" / "life-manager" / "line-sticker" / "readback.jsonl"
-STATUSES = ("編集中", "審査待ち", "審査中", "承認", "リジェクト", "販売中", "販売停止", "販売開始待ち")
+STATUSES = ("編集中", "審査待ち", "審査中", "審査処理中", "承認", "リジェクト", "販売中", "販売停止", "販売開始待ち")
+MESSAGE_FOOTER = "このメッセージに返信することはできません。"
+
+
+async def _fetch_rejection_message(page: Page, item: dict) -> str | None:
+    creator_base = item["url"].split("/sticker/")[0]
+    await page.goto(f"{creator_base}/message/", wait_until="domcontentloaded", timeout=60000)
+    await page.wait_for_timeout(2000)
+    title_ja = item.get("title_ja") or ""
+    rows = await page.evaluate(
+        """(title) => [...document.querySelectorAll('a[href*="/message/detail/"]')]
+            .filter(a => !title || a.innerText.includes(title))
+            .map(a => a.getAttribute('href'))""",
+        title_ja,
+    )
+    if not rows:
+        return None
+    await page.goto(f"{creator_base}{rows[0]}", wait_until="domcontentloaded", timeout=60000)
+    await page.wait_for_timeout(1500)
+    body = await page.inner_text("body")
+    match = re.search(r"\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}\n(.*?)" + re.escape(MESSAGE_FOOTER), body, re.S)
+    return match.group(1).strip() if match else None
 
 
 async def read(cdp: str, item: dict) -> dict:
@@ -42,6 +73,9 @@ async def read(cdp: str, item: dict) -> dict:
             match = re.search(r"https://line\.me/S/sticker/\d+", body) or re.search(r"https://store\.line\.me/stickershop/product/\d+", body)
             result = {"status": status, "purchase_url": match.group(0) if match else None,
                       "reason": after[:300] if status == "リジェクト" else None}
+            if status == "リジェクト":
+                result["rejection_message"] = await _fetch_rejection_message(page, item)
+                result["rejected_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             if result["purchase_url"]:
                 store = f"https://store.line.me/stickershop/product/{item['product_id']}/ja"
                 await page.goto(store, wait_until="domcontentloaded", timeout=60000)
@@ -74,8 +108,16 @@ def main() -> None:
         ledger.write(json.dumps(row, ensure_ascii=False) + "\n")
     if result.get("status") != item.get("state_observed"):
         item["state_observed"] = result.get("status")
-        item.update({k: v for k, v in result.items() if k in ("purchase_url", "store_url", "store_public") and v})
+        item.update({k: v for k, v in result.items()
+                     if k in ("purchase_url", "store_url", "store_public", "rejection_message", "rejected_at") and v})
         args.item_file.write_text(json.dumps(item, ensure_ascii=False, indent=1))
+    if result.get("status") == "リジェクト" and result.get("rejection_message"):
+        fixed = line_sticker_resubmit.resubmit(args.item_file.parent, item, result["rejection_message"])
+        if fixed != item:
+            args.item_file.write_text(json.dumps(fixed, ensure_ascii=False, indent=1))
+            row["resubmit"] = {k: v for k, v in fixed.items()
+                               if k in ("resubmit_decision", "resubmit_decision_reason", "state",
+                                        "auto_resubmit_count", "resubmit_block_reason")}
     print(json.dumps(row, ensure_ascii=False))
 
 
