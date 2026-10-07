@@ -86,3 +86,17 @@ OpenClaw、Deep Agents、LangGraph、Hermes core、OpenAI JS、Pi、MAF、CrewAI
 fresh contextの`gpt-6.1-sol / medium`によるread-only敵対的検証は、初回HOLD（HIGH: 新cron/HTTPのmodel claim lifetime未定義、MEDIUM: 費用採用条件の不一致）だった。commit `8812de3f2ee886e353113118c12e9e16a08982e7`で共通admission/claim transfer/停止proof後releaseと、同task総費用<=base/RSS host許容内を設計・計画・SSOTへ統一。再検証はこの2件の文書修正についてPASS。実装・本番・収益のPASSではない。
 
 local relative links、HM-00〜17の18 taskとSSOT対応、90 checkbox手順、12 source SHA、source-boundary、diff whitespaceを確認した。今回のruntime/provider/browser/business mutationは未実施。Gitの文書commit/push/PR統合だけを実施する。
+
+## 条件付きOSS/端末/cloudとatomic計画の再評価
+
+Daisは配布を仮定として追加した。公開の決定ではない。**24時間の販売agent fleetという現在の目的では推奨はOpenClawのまま。** MIT、公式embedding、public GatewayClient、Docker/self-host対応があり、他社SDKへ変えることだけがportabilityではない。pure SDKとしてagent loopだけを組み込む目的ではDeep Agents JSが有力対案だが、今回のscheduler/session/復旧も含む要求を優先する。Mastraも対案として保持する。
+
+追加一次資料: [embedding](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/embedding.md)、[Gateway client](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/clients.md)、[Docker](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/install/docker.md)、[tenant cells](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/multi-tenant-hosting.md)。npm metadataでroot2026.9.8、client/protocol2026.8.1の公開とentrypointを確認。wire v4はpackage versionと別で、組合せを実測前に互換と断定しない。
+
+公開tagのpackages/gateway-protocol/src/schema/agent.ts、schema/sessions.ts、packages/gateway-client/src/client.tsを読み、RPC agent/agent.wait/sessions.abort、idempotencyKey、client.request optionsを固定。現行sourceのruntime/loop/lm_loop_run.py::_run_admitted、PromptBase scripts/gen_examples.py::_claude、Writer shared-model-runner.py::main、writer_learning_worker.py::record_canary_applicationも確認し、計画の対象symbolを訂正した。
+
+「誰でも」は本人のaccounts/credentialsを設定して実行できる意味。macOS/Linux native、Windowsは初版WSL2/Docker、スマホはcontroller、cloudはsingle-tenant cell。OpenClaw nativeWindows対応とLife Manager全商品のtool対応は別。複数userを一つのgateway/sessionIDで隔離したとは扱わない。
+
+前版18task/90checkboxはphase内部に未確定API/handler判断を残しており、全移行を実装できるatomic計画とは呼べなかった。[改訂plan](../superpowers/plans/2026-10-07-life-manager-harness-migration.md)と[78 atom manifest](harness-atomic-tasks.json)はファイル/関数/引数/結果/assertionを持つ。最初の共通接続sliceは具体化、未確認owner/tool coverageはfalseで[個別entrypoint一覧](harness-owner-activation-map.json)へ残す。全販売機能の移行source設計はまだ未完であり、78という数を全実装可能性の証明にしない。
+
+best=同package/cellを端末とcloudへ配布し既製常駐資産を再利用。base=対応OS/機能を明示しuser個別credentialのself-host cellで運用。worst=互換/native/tool/admissionや費用条件が成立せずactivation禁止、pure SDK対案を比較し直す。最大の反証筋は、商品内部SDKとしてのembed負担がOpenClawのsidecar/IPCよりDeep Agents JSで小さくなること。実務比較は未実施。
