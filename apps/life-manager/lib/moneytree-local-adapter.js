@@ -103,8 +103,10 @@ function normalizeAccounts(toolResult, observedAt) {
   observedAt = instant(observedAt, "Moneytree account observation");
   const groups = [...(data.accountGroups?.banks || []), ...(data.accountGroups?.investments || [])];
   const safeLabelPart = (value) => {
-    if (typeof value !== "string" || value.includes("@")) return "";
-    return value.normalize("NFKC").replace(/(?:\d[\d\s-]*\d|\d)/g, " ")
+    if (typeof value !== "string") return "";
+    const normalized = value.normalize("NFKC");
+    if (normalized.includes("@")) return "";
+    return normalized.replace(/(?:\d[\d\s-]*\d|\d)/g, " ")
       .replace(/[\s._:-]+$/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
   };
   return groups.flatMap((group) => (group.accounts || []).map((account) => {

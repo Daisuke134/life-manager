@@ -127,9 +127,9 @@ test("Moneytree reads cover inclusive bounded windows and dedupe boundary rows",
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const duplicate = { id: "tx-boundary", occurred_at: "2025-10-08", amount_jpy: -1000, category: "食費", merchant: "Market" };
   const fixture = collectorFixture(root, {
-    providerCounts: [1, 2, 1001, 0, 1],
+    providerCounts: [2, 2, 1001, 0, 1],
     rowsForWindow: ({ index }) => [
-      [duplicate],
+      [duplicate, { id: "tx-before-range", occurred_at: "2025-10-01", amount_jpy: -900, category: "食費", merchant: "Old Market" }],
       [duplicate, { id: "tx-feb", occurred_at: "2026-02-02", amount_jpy: -200, category: "交通", merchant: "Train" }],
       [{ id: "tx-may", occurred_at: "2026-05-03", amount_jpy: -300, category: "食費", merchant: "Market" }],
       [],
@@ -148,6 +148,9 @@ test("Moneytree reads cover inclusive bounded windows and dedupe boundary rows",
     { startDate: "2026-10-07", endDate: "2026-10-07" },
   ]);
   assert.equal(personal.status, "partial");
+  assert.equal(personal.windows[0].coverage_status, "partial");
+  assert.equal(personal.windows[0].range_mismatch_count, 1);
+  assert.equal(personal.windows[1].range_mismatch_count, 1);
   assert.equal(personal.windows[2].coverage_status, "partial");
   assert.equal(personal.latest_transaction_date, "2026-10-07");
   assert.equal(personal.monthly.find((month) => month.month === "2025-10").expense_jpy, 1000);
@@ -265,6 +268,14 @@ test("Moneytree cache reuses a recent snapshot and never upgrades stale data", a
   assert.equal(nextDateResult.personal_moneytree.range_end, "2026-10-08");
   assert.equal(nextDate.counters.accountReads, 1);
   assert.equal(nextDate.counters.transactionReads, 5);
+
+  const mismatchFailure = collectorFixture(root, { date: "2026-10-09" });
+  mismatchFailure.options.now = new Date("2026-10-08T09:30:00.000Z");
+  mismatchFailure.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
+  const mismatchResult = await collectCfoProjection("2026-10-09", mismatchFailure.options);
+  assert.equal(mismatchResult.personal_moneytree.status, "unavailable");
+  assert.equal(mismatchResult.personal_moneytree.range_end, "2026-10-09");
+  assert.deepEqual(mismatchResult.personal_moneytree.balances, []);
 
   const expired = collectorFixture(root, { date: "2026-10-08" });
   expired.options.now = new Date("2026-10-09T08:30:00.000Z");

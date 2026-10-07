@@ -18,7 +18,7 @@ const {
 const observedAt = "2026-09-07T06:00:00.000Z";
 
 test("normalizeAccounts preserves safe institution labels without account identifiers", () => {
-  const [account, secondAccount] = normalizeAccounts({ structuredContent: { data: {
+  const [account, secondAccount, thirdAccount] = normalizeAccounts({ structuredContent: { data: {
     baseCurrency: "JPY",
     accountGroups: {
       banks: [{
@@ -36,6 +36,12 @@ test("normalizeAccounts preserves safe institution labels without account identi
           account_number: "7654321",
           account_subtype: "checking",
           current_balance_in_base: 10000,
+        }, {
+          id: "provider-account-id-903",
+          nickname: "owner＠example.test",
+          account_number: "9988776",
+          account_subtype: "ordinary",
+          current_balance_in_base: 500,
         }],
       }],
       investments: [],
@@ -44,6 +50,8 @@ test("normalizeAccounts preserves safe institution labels without account identi
 
   assert.equal(account.name, "三菱UFJ銀行 普通");
   assert.equal(secondAccount.name, "三菱UFJ銀行 当座");
+  assert.equal(thirdAccount.name, "三菱UFJ銀行");
+  assert.equal(thirdAccount.name.includes("example.test"), false);
   for (const identifier of ["provider-bank-key-501", "provider-account-id-901", "1234567"]) {
     assert.equal(account.name.includes(identifier), false);
   }

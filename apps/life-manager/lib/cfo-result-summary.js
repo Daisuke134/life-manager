@@ -53,7 +53,9 @@ function renderPersonalMoneytree(personal) {
     const returned = window.returned_count === null || window.returned_count === undefined
       ? "未確認" : window.returned_count;
     const failure = window.error_class ? ` error: ${window.error_class}` : "";
-    lines.push(`window ${start}..${end}: ${window.coverage_status || "unknown"} (${returned}/${total}) receipt: ${window.evidence_ref || "未取得"}${failure}`);
+    const mismatch = Number.isSafeInteger(window.range_mismatch_count) && window.range_mismatch_count > 0
+      ? ` range-mismatch: ${window.range_mismatch_count}` : "";
+    lines.push(`window ${start}..${end}: ${window.coverage_status || "unknown"} (${returned}/${total}) receipt: ${window.evidence_ref || "未取得"}${mismatch}${failure}`);
   }
   for (const window of personal.refresh_windows || []) {
     lines.push(`refresh window ${window.query_start_date}..${window.query_end_date}: ${window.coverage_status || "unknown"} receipt: ${window.evidence_ref || "未取得"} error: ${window.error_class || "unknown"}`);

@@ -133,12 +133,12 @@ function readPersonalCache(file, now, reportDate) {
     const cached = JSON.parse(fs.readFileSync(file, "utf8"));
     if (cached?.schema_version !== 1 || !cached.personal_moneytree
       || cached.personal_moneytree.owner !== "dais_personal") return null;
+    if (cached.personal_moneytree.range_start !== shiftMonths(reportDate, -12)
+      || cached.personal_moneytree.range_end !== reportDate) return null;
     const age = now.getTime() - Date.parse(cached.cached_at);
     return {
       personal: cached.personal_moneytree,
-      fresh: Number.isFinite(age) && age >= 0 && age < PERSONAL_CACHE_TTL_MS
-        && cached.personal_moneytree.range_start === shiftMonths(reportDate, -12)
-        && cached.personal_moneytree.range_end === reportDate,
+      fresh: Number.isFinite(age) && age >= 0 && age < PERSONAL_CACHE_TTL_MS,
     };
   } catch {
     return null;
@@ -218,6 +218,7 @@ function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
   let latestTransactionDate = null;
   for (const { transaction, evidence_refs: transactionEvidenceRefs, window_statuses: transactionStatuses } of unique.values()) {
     const date = new Date(transaction.occurred_at).toISOString().slice(0, 10);
+    if (date < shiftMonths(reportDate, -12) || date > reportDate) continue;
     if (!latestTransactionDate || date > latestTransactionDate) latestTransactionDate = date;
     const month = date.slice(0, 7);
     const summary = months.get(month);
@@ -278,9 +279,10 @@ function projectPersonalTransactions(accounts, windowsWithRows, reportDate) {
     range_start: shiftMonths(reportDate, -12),
     range_end: reportDate,
     account_evidence_ref: accountEvidenceRef,
-    windows: windowsWithRows.map(({ startDate, endDate, provider_total_count, returned_count, limit, coverage_status, evidence_ref, error_class }) => ({
+    windows: windowsWithRows.map(({ startDate, endDate, provider_total_count, returned_count, limit, coverage_status, evidence_ref, error_class, range_mismatch_count }) => ({
       query_start_date: startDate, query_end_date: endDate,
       provider_total_count, returned_count, limit, coverage_status, evidence_ref, error_class: error_class || null,
+      range_mismatch_count: Number.isSafeInteger(range_mismatch_count) ? range_mismatch_count : null,
     })),
     balances,
     latest_transaction_date: latestTransactionDate,
@@ -331,6 +333,22 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
           || transactionRead?.returned_count !== transactions.length) {
           throw new Error("Moneytree transaction coverage metadata invalid");
         }
+        for (const transaction of transactions) {
+          if (!transaction || typeof transaction.id !== "string" || !transaction.id
+            || !Number.isSafeInteger(transaction.amount_jpy)
+            || !Number.isFinite(Date.parse(transaction.occurred_at))) {
+            throw new Error("Moneytree normalized transaction invalid");
+          }
+        }
+        const rangeStart = shiftMonths(date, -12);
+        let rangeMismatchCount = 0;
+        const inRangeTransactions = transactions.filter((transaction) => {
+          const transactionDate = new Date(transaction.occurred_at).toISOString().slice(0, 10);
+          const inReportPeriod = transactionDate >= rangeStart && transactionDate <= date;
+          const inRequestedWindow = transactionDate >= startDate && transactionDate <= endDate;
+          if (!inReportPeriod || !inRequestedWindow) rangeMismatchCount += 1;
+          return inReportPeriod;
+        });
         const observedAt = [accountRead?.retrieved_at, transactionRead?.retrieved_at]
           .filter((value) => Number.isFinite(Date.parse(value))).sort().at(-1);
         const receipt = buildMoneytreeObservation({
@@ -343,7 +361,7 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
           && Number.isSafeInteger(limit) && transactions.length < limit;
         const coverageStatus = !Number.isSafeInteger(providerTotal) ? "unknown"
           : providerTotal === 0 && transactions.length === 0 ? "unknown"
-            : complete ? "complete" : "partial";
+            : complete && rangeMismatchCount === 0 ? "complete" : "partial";
         windowsWithRows.push({
           startDate, endDate,
           provider_total_count: Number.isSafeInteger(providerTotal) ? providerTotal : null,
@@ -353,13 +371,14 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
           evidence_ref: evidenceRef,
           observed_at: observedAt,
           error_class: null,
-          transactions,
+          range_mismatch_count: rangeMismatchCount,
+          transactions: inRangeTransactions,
         });
       } catch (error) {
         windowsWithRows.push({
           startDate, endDate, provider_total_count: null, returned_count: null,
           limit: MONEYTREE_TRANSACTION_LIMIT, coverage_status: "unknown", evidence_ref: null,
-          observed_at: null, error_class: error?.name || "Error", transactions: [],
+          observed_at: null, error_class: error?.name || "Error", range_mismatch_count: null, transactions: [],
         });
       }
     }
