@@ -20,6 +20,7 @@ from runtime.loop.lm_loop_run import (
     ADMISSION_CONTROL_RETRY_DELAY_SECONDS,
     ENTRYPOINT_STDERR_TAIL_MAX_BYTES,
     EFFECT_RESULT_HINT_ENTRYPOINTS,
+    EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS,
     PRE_EFFECT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_LOOP_IDS,
     _apply_verified_effect_result,
@@ -1642,6 +1643,51 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
         tmp_path / "entrypoint-result.json")
 
 
+def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
+    def observed_env(loop_id, entrypoint, run_id):
+        claim = tmp_path / f"claim-{run_id}"
+        claim.write_text(json.dumps({"occurrence_id": f"{loop_id}:{run_id}"}))
+        observed = {}
+
+        def run_child(*_args, **kwargs):
+            observed.update(kwargs["env"])
+            kwargs["on_started"](4242)
+            return 0
+
+        with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+              patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                    return_value=(tmp_path / f"ticket-{run_id}", "ready")),
+              patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                    return_value=(claim, "acquired")),
+              patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+              patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+              patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+              patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+            assert _run_admitted(["/bin/true"], {
+                "cadence": {"start_interval_seconds": 60},
+                "provider_route": "deterministic", "resource_class": "deterministic",
+                "admission_class": "borrow", "effect_class": "message",
+                "entrypoint": entrypoint,
+            }, loop_id, {}, tmp_path / f"receipt-{run_id}",
+                occurrence_id=f"{loop_id}:{run_id}") == 0
+        return observed
+
+    cfo = observed_env(
+        "life-manager-cfo-hourly", "skills/cfo/run.sh", "cfo-run-1")
+    assert cfo["LIFE_MANAGER_LOOP_ID"] == "life-manager-cfo-hourly"
+    assert cfo["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
+        tmp_path / "entrypoint-result.json")
+    assert EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS == {
+        "life-manager-cfo-hourly": "skills/cfo/run.sh",
+    }
+
+    sibling = observed_env("other-loop", "skills/cfo/run.sh", "sibling-run")
+    assert "LIFE_MANAGER_RESULT_HINT_PATH" not in sibling
+    wrong_entrypoint = observed_env(
+        "life-manager-cfo-hourly", "skills/cfo/other.sh", "wrong-entrypoint")
+    assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_entrypoint
+
+
 def _write_effect_result(path, **overrides):
     value = {
         "schema_version": 1,
@@ -1692,6 +1738,51 @@ def test_verified_mobile_effect_result_rejects_symlink_and_unknown_fields(tmp_pa
     _write_effect_result(malformed, unexpected=True)
     assert _verified_effect_result(
         malformed, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+
+
+def test_verified_cfo_telegram_effect_result_uses_message_receipt_ref(tmp_path):
+    hint = tmp_path / "entrypoint-result.json"
+    _write_effect_result(
+        hint,
+        owner_id="life-manager-cfo-hourly",
+        occurrence_id="life-manager-cfo-hourly:telegram-run-1",
+        provider="telegram",
+        provider_receipt_id="9142",
+        effect_status="verified",
+    )
+
+    assert _verified_effect_result(
+        hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:telegram-run-1",
+        entrypoint="skills/cfo/run.sh",
+    ) == ("verified", "telegram://messages/9142")
+
+    event = build_runtime_event(
+        loop_id="life-manager-cfo-hourly", domain="financial", run_id="telegram-run-1",
+        release_sha="a" * 40, provider="deterministic", profile_alias=None,
+        effect_class="message", succeeded=True, blocker=None,
+        claimed_occurrence_id="life-manager-cfo-hourly:telegram-run-1",
+    )
+    upgraded = _apply_verified_effect_result(
+        event, ("verified", "telegram://messages/9142"),
+    )
+    assert upgraded["provider"] == "telegram"
+    assert upgraded["provider_receipt_id"] == "9142"
+    assert upgraded["official_readback_ref"] == "telegram://messages/9142"
+    assert "telegram://messages/9142" in upgraded["evidence_refs"]
+
+    assert _verified_effect_result(
+        hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:telegram-run-1",
+        entrypoint="skills/cfo/other.sh",
+    ) is None
+    assert _verified_effect_result(
+        hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:other-run",
+        entrypoint="skills/cfo/run.sh",
+    ) is None
+    _write_effect_result(hint, provider_receipt_id="bad/receipt")
+    assert _verified_effect_result(
+        hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:telegram-run-1",
+        entrypoint="skills/cfo/run.sh",
     ) is None
 
 

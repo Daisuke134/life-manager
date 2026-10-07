@@ -82,6 +82,9 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
 })
+EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
+    "life-manager-cfo-hourly": "skills/cfo/run.sh",
+}
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -828,7 +831,16 @@ def _proven_pre_effect_failure(path: Path) -> bool:
 
 
 def _verified_effect_result(path: Path, loop_id: str,
-                            occurrence_id: str) -> tuple[str, str] | None:
+                            occurrence_id: str, *,
+                            entrypoint: str | None = None) -> tuple[str, str] | None:
+    if loop_id == "life-manager-cfo-hourly":
+        if entrypoint != EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
+            return None
+        expected_provider = "telegram"
+    else:
+        if entrypoint is not None and entrypoint not in EFFECT_RESULT_HINT_ENTRYPOINTS:
+            return None
+        expected_provider = "postiz"
     descriptor = -1
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
@@ -860,13 +872,20 @@ def _verified_effect_result(path: Path, loop_id: str,
             or value.get("effect") != 1
             or value.get("owner_id") != loop_id
             or value.get("occurrence_id") != occurrence_id
-            or value.get("provider") != "postiz"
+            or value.get("provider") != expected_provider
             or value.get("effect_status") not in {"verified", "reconciled"}):
         return None
     receipt_id = value.get("provider_receipt_id")
     if not isinstance(receipt_id, str) or not SAFE_RUN_ID.fullmatch(receipt_id):
         return None
+    if expected_provider == "telegram":
+        return value["effect_status"], f"telegram://messages/{receipt_id}"
     return value["effect_status"], f"postiz://posts/{receipt_id}"
+
+
+def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
+    return (entrypoint in EFFECT_RESULT_HINT_ENTRYPOINTS
+            or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
 
 
 def _apply_verified_effect_result(
@@ -875,6 +894,9 @@ def _apply_verified_effect_result(
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
         updated["effect_status"] = result[0]
+        provider = result[1].partition("://")[0]
+        if provider in {"postiz", "telegram"}:
+            updated["provider"] = provider
         receipt_id = result[1].rsplit("/", 1)[-1]
         if "provider_receipt_id" in updated:
             updated["provider_receipt_id"] = receipt_id
@@ -1230,7 +1252,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     previous = {}
     pre_effect_hint_allowed = (entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
                                 or loop_id in PRE_EFFECT_HINT_LOOP_IDS)
-    effect_result_hint_allowed = entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
+    entrypoint = entry.get("entrypoint")
+    effect_result_hint_allowed = _effect_result_hint_allowed(loop_id, entrypoint)
     hint_allowed = pre_effect_hint_allowed or effect_result_hint_allowed
 
     def interrupt_wait(_signum, _frame):
@@ -1581,10 +1604,11 @@ def main(argv: list[str] | None = None) -> int:
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         effect_result = None
         if (return_code == 0
-                and entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
+                and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
                 and claimed_occurrence_id is not None):
             effect_result = _verified_effect_result(
-                scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id)
+                scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id,
+                entrypoint=entry.get("entrypoint"))
         effect_identity_ref = None
         effect_identity_status = None
         if entry.get("effect_class") != "none" and return_code != 0:
