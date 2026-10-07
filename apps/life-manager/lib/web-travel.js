@@ -5,6 +5,7 @@ const { resolveWebUser } = require("./web-auth.js");
 const { webTravelEntitled, webTrialEligible, webPaidCheckoutEligible } = require("./billing.js");
 const { assertWebUserUnbound } = require("./web-calendar.js");
 const { readWebTravelControlState } = require("./runtime-preferences.js");
+const { recordWebFunnelEvent } = require("./web-funnel-events.js");
 const { isTravel, listEvents7d, travelDecision } = require("./travel.js");
 
 const SETUP_PATH = "/api/lm-web/setup";
@@ -219,6 +220,15 @@ async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
     ? initialRow.web_first_travel_at || completedAt : null;
   const row = await recordWebInitialScan(uid, current.row.calendar_connected_account_id,
     completedAt, firstTravelAt, opts);
+  if (row.web_first_travel_at) {
+    try {
+      const record = opts.recordWebFunnelEventImpl || recordWebFunnelEvent;
+      await record({
+        eventName: "first_travel_block", uid, sourceObjectId: uid, attribution: {},
+        occurredAt: row.web_first_travel_at,
+      }, { supaUrl: opts.supaUrl, supaKey: opts.supaKey, fetchImpl: opts.fetchImpl });
+    } catch { /* funnel telemetry must not block a confirmed Calendar result */ }
+  }
   const offerAvailable = Boolean(row.web_first_travel_at && !row.stripe_subscription_id);
   return Object.assign(snapshot, {
     setupState: row.web_first_travel_at ? "trial_offer" : "no_eligible_events",

@@ -56,6 +56,9 @@ const { handleWebAuthRequest, resolveWebUser } = require("./lib/web-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
 const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
+const {
+  recordWebFunnelRefund, recordWebFunnelRequest, webFunnelEventFromStripe,
+} = require("./lib/web-funnel-events.js");
 const { renderWebPage } = require("./lib/web-page.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
@@ -496,6 +499,25 @@ function ctxFromReq(req) {
     voiceReservation };
 }
 
+const STRIPE_REFUND_EVENTS = new Set(["refund.created", "refund.updated"]);
+
+async function recordStripeWebRefundEvent(event) {
+  return recordWebFunnelRefund(event, { stripeClient: stripe, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+}
+
+async function recordStripeWebFunnelEvent(event, billingResult) {
+  if (STRIPE_REFUND_EVENTS.has(event && event.type)) return recordStripeWebRefundEvent(event);
+  const parsed = parseStripeEvent(event);
+  if (!parsed) return true;
+  const funnelEvent = webFunnelEventFromStripe(event, {
+    ...parsed,
+    uid: billingResult && billingResult.uid || parsed.uid,
+  });
+  return funnelEvent
+    ? recordWebFunnelEvent(funnelEvent, { supaUrl: SUPA_URL, supaKey: SUPA_KEY })
+    : true;
+}
+
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
   if (path === "/lm") {
@@ -504,6 +526,7 @@ const server = http.createServer(async (req, res) => {
       res.end("Method not allowed");
       return;
     }
+    void recordWebFunnelRequest(req.url, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
     let user = null;
     let snapshot = null;
     try { user = await resolveWebUser(req, res, { publicOrigin: LM_PANEL_BASE }); } catch {}
@@ -546,6 +569,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/auth/google" || path === "/auth/google/callback") {
+    if (path === "/auth/google") {
+      void recordWebFunnelRequest(req.url, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+    }
     handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
       if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
       res.end("Web sign-in unavailable");
@@ -1625,9 +1651,12 @@ const server = http.createServer(async (req, res) => {
         // Web billing writes are CAS-protected/idempotent. Replay a duplicate Web event so an earlier
         // claim whose DB read/apply failed can recover even if its unclaim request also failed.
         const parsed = parseStripeEvent(event);
-        if (!parsed || !parsed.isWebTravel) { res.writeHead(200); res.end("duplicate"); return; }
+        const isRefund = STRIPE_REFUND_EVENTS.has(event.type);
+        if (!isRefund && (!parsed || !parsed.isWebTravel)) { res.writeHead(200); res.end("duplicate"); return; }
         try {
-          const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
+          const result = isRefund ? { action: "refund-observed" }
+            : await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
+          if (!await recordStripeWebFunnelEvent(event, result)) throw new Error("Web funnel receipt write failed");
           console.log("[stripe] duplicate Web event reconciled", event.type, JSON.stringify(result));
           res.writeHead(200); res.end("reconciled");
         } catch (error) {
@@ -1637,7 +1666,9 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       try {
-        const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
+        const result = STRIPE_REFUND_EVENTS.has(event.type) ? { action: "refund-observed" }
+          : await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
+        if (!await recordStripeWebFunnelEvent(event, result)) throw new Error("Web funnel receipt write failed");
         console.log("[stripe]", event.type, JSON.stringify(result));
         res.writeHead(200); res.end("ok");
       } catch (e) {

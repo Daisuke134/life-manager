@@ -119,19 +119,31 @@
 
 **Files:**
 - Reuse: apps/life-manager/lib/web-attribution.js
-- Modify only if needed: apps/life-manager/lib/usage-event.js and apps/life-manager/lib/ledger.js
-- Create only if no existing read-only reporter provides the same measures: apps/life-manager/scripts/lm-web-funnel-report.js
-- Test: focused existing Web attribution/cost tests plus one new report test if a new reporter is required
+- Modify: apps/life-manager/lib/ask.js, apps/life-manager/lib/travel.js, apps/life-manager/lib/usage-event.js
+- Create: apps/life-manager/lib/web-funnel-events.js
+- Create: apps/life-manager/lib/web-funnel-events.test.js
+- Create: apps/life-manager/lib/web-funnel-report.js
+- Create: apps/life-manager/lib/web-funnel-report.test.js
+- Create: apps/life-manager/migrations/2026-10-08-zz-lm-web-funnel-events.sql
+- Modify: apps/life-manager/server.js, apps/life-manager/lib/web-auth.js, apps/life-manager/lib/web-calendar.js, apps/life-manager/lib/web-travel.js, apps/life-manager/lib/web-billing.js for server-side funnel events
+- Create: apps/life-manager/scripts/lm-web-funnel-report.js
+- Test: apps/life-manager/lib/ask-usage.test.js, apps/life-manager/lib/usage-event.test.js, apps/life-manager/lib/travel.test.js, apps/life-manager/lib/web-auth.test.js, apps/life-manager/lib/web-calendar.test.js, apps/life-manager/lib/web-travel.test.js, apps/life-manager/lib/web-billing.test.js
 
 **Interfaces:**
-- Group acquisition by the signed first-touch UTM, then count Google auth, Calendar ACTIVE, first Travel block, Checkout, trialing, first paid invoice, renewal, cancellation, refund, and D7/D30 retention.
-- Report gross MRR separately from Stripe-net receipts and contribution after refunds, Stripe fees, route/provider, hosting, and attributed marketing spend.
+- Places lookup accepts tenant uid and an optional usage writer, records one privacy-safe provider-usage row per billable success, and makes at most three Places Text Search calls per Calendar event. It never records the query, event title, address, or response text.
+- The funnel event writer accepts an allowlisted lifecycle event, bounded first-touch UTM values, an optional opaque Web uid, an optional provider-object/event id, and optional amount/currency; it writes append-only rows to `lm_web_funnel_events` with service-role access only.
+- The report joins anonymous landing/connect counts to Web users, Stripe events/subscriptions/invoices/refunds, and per-user `lm_api_cost` estimates. It separates estimated provider cost from verified Stripe fees/refunds and labels unavailable marketing/hosting allocations as unavailable.
+- Group acquisition by signed first-touch UTM; count Google auth, Calendar ACTIVE, first Travel block, Checkout creation, trialing, positive first paid invoice, renewals, cancellations, refunds, and mature D7/D30 retention. Stripe is the billing source of truth; Checkout redirects and trial rows are not paid revenue.
+- Report gross MRR separately from settled receipts, refunds, Stripe fees, estimated route/provider cost, hosting, and attributed marketing spend.
 - Do not infer a paid customer from a trial or a Stripe checkout redirect.
 
-- [ ] Step 1: Read the existing attribution and cost rows and identify any missing funnel event before adding schema.
-- [ ] Step 2: Add the smallest failing focused test only if the current records cannot produce the required metric.
-- [ ] Step 3: Implement a read-only report using existing ledgers first; add no second scheduler or user-facing dashboard.
-- [ ] Step 4: Run the focused reporter tests and compare the output with Stripe test-mode and synthetic Calendar receipts.
+- [x] Step 1: Read the current records. `lm_users` holds first-touch UTM and current Calendar/billing state; `lm_api_cost` holds tenant provider estimates; `lm_stripe_events` has only Stripe event id/type/receive time. No persistent Web page-view/connect-start events or historical invoice/refund attribution exists.
+- [x] Step 2: Verify Google Maps and Gemini list prices from official documentation. A successful Places Text Search (Legacy) request estimates $0.040 after free caps ($0.032 base + $0.003 Contact Data + $0.005 Atmosphere Data; Basic Data is unlimited). Keep estimates labeled estimated; do not claim provider-bill actuals from list price.
+- [x] Step 3 (RED): Focused tests fail on the missing 3-call Places cap, tenant usage event, route-fallback uid propagation, funnel event writer, lifecycle hooks, Stripe event mapping, and read-only report.
+- [x] Step 4 (GREEN): Add Places metering/cap and thread uid through the existing route fallback. Extend the Maps SKU allowlist and pricing version without changing Calendar or Stripe entitlement behavior.
+- [x] Step 5 (RED/GREEN): Add the append-only funnel migration and instrument `landing_view`, `google_connect_start`, `google_authenticated`, `calendar_active`, `first_travel_block`, `checkout_created`, `trial_started`, `paid_invoice`, `cancellation_requested`, `subscription_canceled`, and successful `refund_recorded`. No IP, user-agent, event titles, addresses, Gmail, or raw URLs are recorded.
+- [x] Step 6 (source): Implement a read-only report over Web users, funnel events, usage rows, current Stripe subscriptions, and attributable Stripe balance transactions. D7/D30 are labeled current paid-subscription retention; provider actuals and unallocated hosting/marketing remain null.
+- [ ] Step 7: Run all focused source suites, migration/ACL checks, synthetic report/Stripe tests, browser onboarding E2E, and `git diff --check`. Apply the migration only from a merged main release, then read back production schema and exercise TEST-mode Stripe lifecycle. Keep the live price and live charge unchanged.
 
 ## After this source plan
 

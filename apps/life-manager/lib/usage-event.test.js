@@ -35,7 +35,7 @@ test("normalizes a tenant/provider/feature usage event without customer billing"
       currency: "USD",
       actual_usd: null,
       billing_status: "estimated",
-      pricing_version: "lm-google-maps-estimate-2026-09-06-v1",
+      pricing_version: "lm-google-maps-estimate-2026-10-08-v1",
       estimate_status: "estimated",
       feature: "travel_route",
       outcome: "failure",
@@ -111,7 +111,7 @@ test("rejects missing dimensions, invalid outcomes, and secret-shaped metadata",
 
 test("accepts the exact provider metadata enums and scalar types", () => {
   const enums = {
-    sku: ["Geocoding", "Directions", "Routes: Compute Routes Pro"],
+    sku: ["Geocoding", "Directions", "Routes: Compute Routes Pro", "Places - Text Search"],
     pricing_basis: ["list_price_after_free_cap", "list_price_after_free_rpd", "unavailable"],
     route_mode: ["transit", "google"],
     fallback_reason: ["transit_no_route", "transit_provider_4xx", "transit_provider_5xx",

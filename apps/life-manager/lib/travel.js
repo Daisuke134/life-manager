@@ -799,7 +799,7 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _recordUsageEvent, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
@@ -873,7 +873,9 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
           // silent skip — never-late beats clean code. (Lazy require avoids any load-order coupling.)
           try {
             const agentResolveLocation = _agentResolveLocation || require("./ask.js").agentResolveLocation;
-            const res = await agentResolveLocation(ev, { home, mapsKey, geminiKey });
+            const res = await agentResolveLocation(ev, {
+              home, mapsKey, geminiKey, uid, recordUsageEvent: _recordUsageEvent,
+            });
             if (res && res.kind === "online") {
               skipped++;
               await releaseAllowance(evKey, allowanceState);
