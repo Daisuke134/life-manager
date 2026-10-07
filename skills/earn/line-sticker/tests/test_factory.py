@@ -78,6 +78,46 @@ class OneStagePerWake(unittest.TestCase):
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "clips")
 
 
+class FullRun(unittest.TestCase):
+    def test_one_run_takes_a_new_set_all_the_way_to_submitted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+            self.assertEqual(report["action"], "advanced")
+            self.assertEqual(report["next_stage"], "submitted")
+            self.assertFalse((state_root / "set-002").exists())  # next set waits for the next run
+
+    def test_run_stops_on_retry_instead_of_spinning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_deps(clips_runner=lambda set_dir, plan: (set_dir / "clips").mkdir(exist_ok=True))
+            report = MODULE.run(state_root, deps)
+            self.assertEqual(report["action"], "retry")
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "clips")
+
+    def test_run_respects_daily_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_deps(max_sets_per_day=1)
+            MODULE.run(state_root, deps)
+            self.assertEqual(MODULE.run(state_root, deps)["action"], "skip")
+
+
+class FullRunSubmit(unittest.TestCase):
+    def test_run_keeps_going_through_submit_sub_states(self) -> None:
+        states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
+
+        def staged_submit(set_dir, item, listing, tags):
+            return {"product_id": "123", "url": "u", "state": next(states)}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(submit=staged_submit))
+            self.assertEqual(report["next_stage"], "submitted")
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+
+
 class DailyCap(unittest.TestCase):
     def test_no_new_set_once_daily_cap_reached(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -180,6 +220,25 @@ class SeriesSequel(unittest.TestCase):
             self.assertEqual((new_dir / "ref-padded.png").read_bytes(), b"source-ref-padded")
             receipt = json.loads((new_dir / "char-ref.receipt.json").read_text())
             self.assertEqual(receipt, {"reused": True, "source_set": "set-001"})
+
+    def test_unusable_series_of_falls_back_to_generation(self) -> None:
+        # A model-named set that is missing, lacks reference art, or escapes state_root must not
+        # wedge the character stage on every wake; it generates a fresh character instead.
+        for series_of in ("set-009", "../set-001", "set-001"):
+            with tempfile.TemporaryDirectory() as tmp:
+                state_root = Path(tmp)
+                (state_root / "set-001").mkdir()  # exists but has no reference art
+                new_dir = state_root / "set-002"
+                new_dir.mkdir()
+                MODULE._atomic_write_json(new_dir / "plan-draft.json", {
+                    "theme": "敬語", "series_of": series_of,
+                    "character_id": "char-test-001", "character_prompt": "a test mascot",
+                    "motions": [], "listing": {"title": {"ja": "t", "en": "t"}, "description": {"ja": "d", "en": "d"}},
+                })
+                calls = []
+                deps = _fake_deps(character_image=lambda set_dir, plan: calls.append(set_dir))
+                self.assertEqual(MODULE.run_character(new_dir, state_root, deps), "clips")
+                self.assertEqual(calls, [new_dir], series_of)
 
     def test_prior_set_facts_feed_the_planner(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

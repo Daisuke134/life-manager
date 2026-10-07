@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""browser_reel_publish.py -- post a Reel via ~/.agents/skills/ig-reels-poster
+(CloakBrowser-direct, no Postiz) for a dedicated sticker account whose Postiz
+channel slot is unavailable (Dais 2026-10-07: Postiz workspace hit its
+channel limit for @stardust_doubutsu, "Payment Required").
+
+Flow per call:
+  1. lease the account's browser identity via skills/browser/browser-guard.sh
+     (same lease contract every other loop uses for a shared CloakBrowser).
+  2. open a fresh tab, confirm the account logged in on this tab is the
+     target handle; if not (this browser profile hosts several sequentially
+     created accounts and only remembers the most recent login), log in with
+     the stored creds (~/.cloak/ig-<handle>.json) and read the email OTP via
+     `gog gmail` (same technique as
+     ~/.agents/skills/ig-reels-poster/scripts/ensure_post_context.py's
+     fetch_verify_code -- copied in miniature here rather than reusing that
+     module, since its create_context_tab() targets a different
+     incognito-per-account browser shape and 404s against this shared
+     single-context provisioning profile).
+  3. call ig-reels-poster's post_reel against that tid (source .py if present,
+     else the still-working compiled .pyc -- see PR notes).
+  4. close the tab, release the lease, return the parsed JSON result.
+"""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+BROWSER_GUARD = REPO_ROOT / "skills/browser/browser-guard.sh"
+CDP_PY = Path("~/.claude/skills/ig-account-create/scripts/cdp.py").expanduser()
+POST_REEL_PY = Path("~/.agents/skills/ig-reels-poster/scripts/post_reel.py").expanduser()
+POST_REEL_PYC = Path(
+    "~/.agents/skills/ig-reels-poster/scripts/__pycache__/post_reel.cpython-314.pyc"
+).expanduser()
+PY314 = "/opt/homebrew/bin/python3.14"
+PY3 = sys.executable
+
+
+class BrowserReelError(RuntimeError):
+    pass
+
+
+def _cdp(tid_cmd: list[str], *, cdp_host: str, cdp_port: str, timeout: int = 60) -> str:
+    env = {**os.environ, "CDP_HOST": cdp_host, "CDP_PORT": cdp_port}
+    done = subprocess.run(
+        [PY3, str(CDP_PY), *tid_cmd], capture_output=True, text=True, timeout=timeout, env=env,
+    )
+    if done.returncode != 0:
+        raise BrowserReelError(f"cdp.py {tid_cmd[0]} failed: {done.stderr[-500:]}")
+    return done.stdout.strip()
+
+
+def _lease(identity: str) -> str:
+    done = subprocess.run(
+        [str(BROWSER_GUARD), "acquire", identity], capture_output=True, text=True, timeout=30,
+    )
+    if done.returncode != 0:
+        raise BrowserReelError(f"browser lease unavailable for {identity}: {done.stdout}{done.stderr}")
+    return done.stdout.strip()  # http://host:port
+
+
+def _release(identity: str) -> None:
+    subprocess.run([str(BROWSER_GUARD), "release", identity], capture_output=True, text=True, timeout=30)
+
+
+def _fetch_otp(gmail_account: str, timeout: int = 150, poll: int = 8) -> str | None:
+    deadline = time.time() + timeout
+    queries = [
+        'in:anywhere subject:"Verify your profile" newer_than:1h',
+        'in:anywhere subject:"is your Instagram code" newer_than:1h',
+    ]
+    seen = set()
+    while time.time() < deadline:
+        for query in queries:
+            done = subprocess.run(
+                ["gog", "gmail", "search", "--account", gmail_account, "--json", "--limit", "3", query],
+                capture_output=True, text=True, timeout=30,
+            )
+            try:
+                threads = json.loads(done.stdout).get("threads", [])
+            except (ValueError, AttributeError):
+                threads = []
+            for thread in threads:
+                thread_id = thread.get("id")
+                if not thread_id or thread_id in seen:
+                    continue
+                seen.add(thread_id)
+                read = subprocess.run(
+                    ["gog", "gmail", "read", "--account", gmail_account, "--json", thread_id],
+                    capture_output=True, text=True, timeout=30,
+                )
+                try:
+                    import base64
+                    payload = json.loads(read.stdout)
+                    body_b64 = payload["thread"]["messages"][0]["payload"]["body"]["data"]
+                    html = base64.urlsafe_b64decode(body_b64 + "===").decode("utf-8", errors="ignore")
+                    match = re.search(r"\b\d{6}\b", html)
+                    if match:
+                        return match.group(0)
+                except (KeyError, ValueError, IndexError):
+                    continue
+        time.sleep(poll)
+    return None
+
+
+def _ensure_logged_in(tid: str, *, cdp_host: str, cdp_port: str, creds: dict) -> None:
+    handle = creds["username"]
+    _cdp(["nav", tid, f"https://www.instagram.com/{handle}/"], cdp_host=cdp_host, cdp_port=cdp_port)
+    time.sleep(3)
+    page_text = _cdp(["text", tid], cdp_host=cdp_host, cdp_port=cdp_port)
+    if "プロフィールを編集" in page_text or "Edit profile" in page_text:
+        return  # already the right account's own profile page
+
+    # Not logged in as this handle: reach the username/password login form.
+    _cdp(
+        ["nav", tid, "https://www.instagram.com/accounts/login/?force_authentication=1"],
+        cdp_host=cdp_host, cdp_port=cdp_port,
+    )
+    time.sleep(3)
+    other_profile_js = Path("/tmp") / f".lsd-other-profile-{os.getpid()}.js"
+    other_profile_js.write_text(
+        "(function(){const els=Array.from(document.querySelectorAll('*'));"
+        "const t=els.find(e=>e.children.length===0&&e.textContent&&"
+        "e.textContent.trim()==='別のプロフィールを使用');if(t){t.click();return 'clicked';}"
+        "return 'already-on-login-form';})()",
+        encoding="utf-8",
+    )
+    _cdp(["eval", tid, str(other_profile_js)], cdp_host=cdp_host, cdp_port=cdp_port)
+    other_profile_js.unlink(missing_ok=True)
+    time.sleep(2)
+
+    fill_js = Path("/tmp") / f".lsd-fill-login-{os.getpid()}.js"
+    fill_js.write_text(
+        "(function(){const inputs=Array.from(document.querySelectorAll('input'));"
+        "const user=inputs.find(i=>i.type==='text'||i.name==='username');"
+        "const pass=inputs.find(i=>i.type==='password');"
+        "function setVal(el,val){const setter=Object.getOwnPropertyDescriptor("
+        "window.HTMLInputElement.prototype,'value').set;setter.call(el,val);"
+        "el.dispatchEvent(new Event('input',{bubbles:true}));}"
+        f"setVal(user,{json.dumps(handle)});setVal(pass,{json.dumps(creds['pw'])});"
+        "return 'filled';})()",
+        encoding="utf-8",
+    )
+    _cdp(["eval", tid, str(fill_js)], cdp_host=cdp_host, cdp_port=cdp_port)
+    fill_js.unlink(missing_ok=True)
+    time.sleep(1)
+
+    click_login_js = Path("/tmp") / f".lsd-click-login-{os.getpid()}.js"
+    click_login_js.write_text(
+        "(function(){const btns=Array.from(document.querySelectorAll('button, div[role=\"button\"]'));"
+        "const b=btns.find(x=>x.textContent&&x.textContent.trim()==='ログイン');"
+        "if(b){b.click();return 'clicked';}return 'not_found';})()",
+        encoding="utf-8",
+    )
+    _cdp(["eval", tid, str(click_login_js)], cdp_host=cdp_host, cdp_port=cdp_port)
+    click_login_js.unlink(missing_ok=True)
+    time.sleep(6)
+
+    page_text = _cdp(["text", tid], cdp_host=cdp_host, cdp_port=cdp_port)
+    if "コードを入力" in page_text or "コード" in page_text and "メールをご確認" in page_text:
+        gmail_account = creds["email"].split("+", 1)[0] + "@" + creds["email"].split("@", 1)[1]
+        code = _fetch_otp(gmail_account)
+        if not code:
+            raise BrowserReelError(f"email OTP for {handle} did not arrive in time")
+        otp_js = Path("/tmp") / f".lsd-otp-{os.getpid()}.js"
+        otp_js.write_text(
+            "(function(){const inputs=Array.from(document.querySelectorAll('input'));"
+            "const field=inputs.find(i=>i.offsetParent!==null);"
+            "function setVal(el,val){const setter=Object.getOwnPropertyDescriptor("
+            "window.HTMLInputElement.prototype,'value').set;setter.call(el,val);"
+            "el.dispatchEvent(new Event('input',{bubbles:true}));}"
+            f"if(field){{setVal(field,{json.dumps(code)});return 'filled';}}return 'not_found';}})()",
+            encoding="utf-8",
+        )
+        _cdp(["eval", tid, str(otp_js)], cdp_host=cdp_host, cdp_port=cdp_port)
+        otp_js.unlink(missing_ok=True)
+        time.sleep(1)
+        click_next_js = Path("/tmp") / f".lsd-click-next-{os.getpid()}.js"
+        click_next_js.write_text(
+            "(function(){const btns=Array.from(document.querySelectorAll('button, div[role=\"button\"]'));"
+            "const b=btns.find(x=>x.textContent&&x.textContent.trim()==='次へ');"
+            "if(b){b.click();return 'clicked';}return 'not_found';})()",
+            encoding="utf-8",
+        )
+        _cdp(["eval", tid, str(click_next_js)], cdp_host=cdp_host, cdp_port=cdp_port)
+        click_next_js.unlink(missing_ok=True)
+        time.sleep(6)
+
+    _cdp(["nav", tid, f"https://www.instagram.com/{handle}/"], cdp_host=cdp_host, cdp_port=cdp_port)
+    time.sleep(3)
+    page_text = _cdp(["text", tid], cdp_host=cdp_host, cdp_port=cdp_port)
+    if "プロフィールを編集" not in page_text and "Edit profile" not in page_text:
+        raise BrowserReelError(f"could not confirm login as {handle} after the login flow")
+
+
+def publish(
+    *, video: Path, caption_file: Path, handle: str, browser_identity: str, live: bool,
+) -> dict:
+    creds_path = Path(f"~/.cloak/ig-{handle}.json").expanduser()
+    if not creds_path.is_file():
+        raise BrowserReelError(f"no stored IG credentials for {handle} at {creds_path}")
+    creds = json.loads(creds_path.read_text(encoding="utf-8"))
+
+    endpoint = _lease(browser_identity)
+    match = re.fullmatch(r"https?://([^:/]+):(\d+)", endpoint)
+    if not match:
+        raise BrowserReelError(f"unexpected browser lease endpoint: {endpoint}")
+    cdp_host, cdp_port = match.group(1), match.group(2)
+    tid = None
+    try:
+        tid = _cdp(["new", "https://www.instagram.com/"], cdp_host=cdp_host, cdp_port=cdp_port)
+        _ensure_logged_in(tid, cdp_host=cdp_host, cdp_port=cdp_port, creds=creds)
+
+        poster = POST_REEL_PY if POST_REEL_PY.is_file() else POST_REEL_PYC
+        interpreter = PY3 if poster == POST_REEL_PY else PY314
+        args = [interpreter, str(poster), "--video", str(video), "--caption-file", str(caption_file),
+                "--handle", handle, "--tid", tid]
+        if live:
+            args.append("--live")
+        env = {**os.environ, "CDP_HOST": cdp_host, "CDP_PORT": cdp_port}
+        done = subprocess.run(args, capture_output=True, text=True, timeout=180, env=env)
+        try:
+            result = json.loads(done.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            result = {}
+        if done.returncode != 0 and not result:
+            raise BrowserReelError(f"post_reel failed: {done.stderr[-1000:]}")
+        return result
+    finally:
+        if tid:
+            _cdp(["close", tid], cdp_host=cdp_host, cdp_port=cdp_port)
+        _release(browser_identity)

@@ -46,13 +46,13 @@
 - **量産の禁止**（https://capafy.ai/developer/doc/4.2）: "Do not mass-upload large numbers of Agents with near-identical functionality or minimal variations to dominate search results. This behavior is treated as cheating; the related Agents will be removed and the Publisher account may be warned or suspended." → 既存の Hook Lab 派生 9 本はこの危険域。複製（C3）は「入力・出力・使う場面が本当に違う物」だけにし、近い派生は統合・退役させる（C4）。
 - **却下理由 2.2 Information accuracy**（同 4.2）: 2.2.1 説明どおりの機能、2.2.2 カテゴリとタグの一致、2.2.3 "The Base Model field must accurately reflect the LLM the Agent currently uses." → Marketing Strategist（モデル変更版 v1.0.2）は 2.2.3 のずれが第一仮説。
 - **Agent Card**（同 4.2）: Details に sample input/output・Capabilities・Use Cases・FAQ を推奨。金融系は「専門的な投資助言ではない」免責と元本喪失のリスク表示が必須。
-- **手数料と精算**（https://capafy.ai/developer/doc/3.2）: Subscription Payout = 支払額 − Platform Sandbox Fee − Platform Fee。Sandbox Fee（On-Demand）は月 $2.00・週 $0.50・日 $0.07。Download は Sandbox Fee なし。売上は 7 日の dispute window の後に月次精算の対象、翌月 1 日に明細、条件を満たせば 15 日以降に振込。→ 9 月明細 $59.00 は 10/15 以降の振込が A2 の最初の着金確認点。日額プランは Sandbox Fee の比率が高い（$1.99/日なら 3.5%）ので、月額・週額を主にする。
+- **手数料と精算**（https://capafy.ai/developer/doc/3.2、2026-10-07 再取得）: Subscription の計算基準は `Net Transaction Amount − Platform Sandbox Fee`、Platform Fee はその基準の20%。On-Demand の Sandbox Fee は月$2.00・週$0.50・日$0.07。Download はSandbox Feeなし。Subscription payout は `(Net Transaction Amount − Sandbox Fee) × 80%`。売上は7日dispute windowの後に月次精算対象、翌月1日に明細、条件を満たせば15日以降に振込。日額プランはSandbox Feeの比率が高いため、月額・週額を主にする。
 
-**$10k MRR の算数:** 手取り 80% として、平均 $9.99/月のサブスクなら有料会員 約 1,250 人。CloneCut 型の勝者 1 本（$19.99/月 × 600 人）＋中堅 10 本（$9.99 × 50 人）でも届く。今は月 $66 の手取り（目標の 0.66%）。
+**Capafyの$10k/月の算数（On-Demand sandbox、model cost/refund/tax/cash timing前。予測ではない）:** $9.99/月ならsandbox $2.00を引いた$7.99に20% feeを適用し、publisher payoutは約$6.39/active subscriber-month。$10,000 payoutには約1,565 active subscriber-monthsが必要。$19.99/月ならpayoutは約$14.39、必要数は約695。$29.99/月ならpayoutは約$22.39、必要数は約447。銀行着金ベースの$10k目標はmodel cost、refund、dispute、settlement timingを加味するため、実際の必要数はさらに多い。旧い「$9.99×80%=約1,250人」の算数はSandbox Feeを無視していたため無効。これはeBookの$10k MRRとは別の目標である。
 
 ## 0.2 単位経済（2026-10-04 実測。agent 別 30日、出所: `capafy-skill-analytics.json` per_skill_rows、公開価格は `capafy-market-agents-20261003.json`）
 
-| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 手数料後 | モデル代 | 利益 |
+| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 20% feeのみの推定（sandbox除外） | モデル代 | 利益 |
 |---|---|---|---|---|---|---|
 | Hook Lab 8123079349 | DeepSeek | 日$1.99/週$4.99/月$9.99 | $24.89 | $19.91 | $0.34 | **+$19.57** |
 | Slide Maker 8828622062 | DeepSeek | 週$9.99/月$24.99 | $19.98 | $15.98 | $0.00 | **+$15.98** |
@@ -63,10 +63,17 @@
 | Contract Red Flags 8416888650 | Sonnet 4.6 | — | $0 | $0 | $1.59 | **-$1.59** |
 
 - DeepSeek の agent は原価がほぼ 0（Hook Lab 11 注文で $0.34）。赤字は Sonnet の 3 本だけで、合計 -$22.96/30日。
+- 上表の「20% feeのみの推定」はSandbox Feeを含まない上限値であり、subscriptionのpayoutやbanked netとして使わない。実行モード別Sandbox Feeと個別orderのmodeをjoinできるまで、実利益の正本はfresh provider payout/cost readbackとする。
 - 後ろの 2 本は repo catalog に無いため、`capafy_daily_decision.py` rule 1 が毎日 `skip no_catalog_match`（2026-10-03 の記録）。誰も止めていない。
 - 市場の勝者（同 sweep）: 高いモデルの勝者は高価格＋少ない回数上限で黒字にしている（Ocup Football Sonnet 4.6 週$14.99/月$29.99・月27回、HookAce Sonnet 5 週$9.99/月$19.99・月25回、Odeo Maker Opus 4.8 週$19.99/月$29.99・月10回）。安いモデルの勝者も価格は下げない（Serenity Stock Tracker・Alpha Consensus は DeepSeek で週$9.99/月$19.99/年$99.99・月40回）。→ 勝者は「市場価格は守る、高いモデルなら回数を絞る」。価格を下げて売る勝者はいない（無料 download の集客用は別枠）。
 - 自社: モデルは既に安い（DeepSeek）が、売れ筋 3 本の公開価格は市場の下 25%（月$12.99）未満の $9.99。catalog の LISTING は値上げ済み（Hook Lab 日$3.99/週$9.99/月$19.99/年$99.99）だが本番に届いていない。
-- 手取りの目安（推定、doc 3.2 の式: 支払額 − Sandbox Fee − Platform Fee 20%）: 月$9.99 ≈ $5.99、月$19.99 ≈ $13.99。同じ 1 人で手取り 2.3 倍。
+- 旧手取り推定（月$9.99=$5.99、月$19.99=$13.99）は20% feeをSandbox Fee控除前の全額に適用していたため置換済み。On-Demand計算は月$9.99≈$6.39、月$19.99≈$14.39。
+
+## 0.3 2026-10-07 fresh運営snapshot
+
+- Capafy analytics observed at `2026-10-07T02:57:21Z`: last-30-day gross $65.80, last-7-day gross $0.00, measured AI cost $34.23, after-cost profit $18.41. Payout balance $59.00, pending $0.00, confirmed balance $17.18, paid out $0.00. The $18.41 is measured profit, not banked payout.
+- Fresh market sweep `capafy-market-agents-20261006.json` contains 852 agents. Its `salesVolume` snapshot leaders include Ocup Football Analysis 3,088, Serenity Stock Tracker 1,845, HookAce 948, and Odeo Maker 704; these are marketplace counts, not monthly recurring revenue. Capafy’s public earn page currently names KOL Hunter Pro as a $10,000+/mo example, but this is a publisher-page claim, not our settled result.
+- Instagram remains unproven as a sales channel: the latest official Postiz readback at 13:19 JST showed zero Capafy Instagram posts. The integration was enabled, but native ownership/good-standing was not verified. The old direct owner is disabled with an unresolved effect fence, and the new owner is disabled. D5 remains one canary per 24 hours after the eBook paid+PDF gate; it does not currently authorize three posts per day.
 
 ## 1. 足りないもの（To-Be との差）
 
@@ -309,23 +316,23 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 ---
 
-### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 11:48 JST live readback）
+### Task D5: Capafy Instagram marketing — Postiz ownerを一つにする（2026-10-07 13:19 JST live readback）
 
 **read-only state**
 
 | 経路 | 状態 | 完了に必要な読み戻し |
 |---|---|---|
-| 旧 `capafy-ig-marketing-daily` | `unloaded` on release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. The active 2026-10-05 fence `capafy-ig-marketing-daily:18db7caff1178a88-68028` remains unresolved. Its registered read-only reconciler, with CDP auto-login disabled, returns `active_ig_handle_unresolvable`; it cannot identify an eligible account, so there is no provider media readback or receipt. | Exact authenticated account identity and complete own-media readback for the old fence; keep it held and do not retry. |
-| New `life-manager-capafy-ig` | `unloaded` on release `cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4` at ~11:39 JST. Three effect-unknown occurrences were each checked against the official Postiz listing after the 35m10s buffer and resolved no-effect: `18dc1c3fbe14a460-80152` at 11:25:42, `18dc1cde11218670-10497` at 11:37:13, and `18dc1d75cc4922b8-71732` at 11:47:56 JST. Their receipts are `postiz-listing-empty` for integration `cmuuycr5402uzqw0yhanqggo9`; there is no active fence for this owner. The latest explicit entrypoint error is `LM_CAPAFY_IG_PACK_REF is required`. | Keep this owner unloaded until the eBook first paid+PDF gate, then apply only after an approved pack ref and one-canary/24h frequency gate are set. |
-| Postiz identity | Official `GET /public/v1/integrations` at 11:14 JST returns Instagram `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`; it matches the configured Capafy integration ID. This proves the Postiz route is enabled, not native account ownership or good standing. | Keep account identity/good-standing verification as a separate gate. |
-| eBook → Capafy order | No natural paid eBook Checkout plus matching PDF delivery receipt is recorded. D5 has not started; both marketing owners are unloaded. | Preserve the eBook-first gate; once met, run one Capafy canary then measure 14 days. |
+| 旧 `capafy-ig-marketing-daily` | Persistent launchd `disabled=true`, installed on previous release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. Active 2026-10-05 fence `capafy-ig-marketing-daily:18db7caff1178a88-68028` remains unresolved. The read-only reconciler returns `active_ig_handle_unresolvable`; no eligible authenticated account/media readback exists. | Exact owned Instagram identity and complete own-media readback; keep disabled and do not retry. |
+| New `life-manager-capafy-ig` | Persistent launchd `disabled=true`, installed on previous release `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`. No active admission fence remains. Latest explicit entrypoint failure is `LM_CAPAFY_IG_PACK_REF is required`. | Keep disabled until eBook first paid+PDF gate, then set one approved pack ref and one-canary/24h gate before enabling. |
+| Postiz identity | Official Postiz GET at 13:19 JST returns `capafy.hooklab`, integration `cmuuycr5402uzqw0yhanqggo9`, `disabled=false`, matching the configured ID; current-day Capafy Instagram post count is 0. Route enablement does not prove native account ownership or good standing. | Verify native account identity/good-standing separately. |
+| eBook → Capafy order | No natural paid eBook Checkout plus matching PDF delivery receipt is recorded. D5 has not started; both marketing publishers are disabled. | Preserve the eBook-first gate; once met, run one Capafy canary then measure 14 days. |
 
-**2026-10-07 11:48 JST refresh:** official Postiz listing readbacks proved no post for all three exact new-owner occurrences and each effect fence was safely resolved; the old direct publisher fence remains unresolved because its saved account inventory has no resolvable eligible handle. Both publisher launchd labels are now unloaded until the eBook-first gate; no D5 publish occurred. The enabled Postiz integration contradicts the old source comment that `@capafy.hooklab` is not connected; the current runtime blocker is the missing approved pack reference. The Postiz account row is not a native Instagram good-standing receipt, and no CAPTCHA/challenge screen was observed.
+**2026-10-07 13:19 JST refresh:** both publisher labels remain persistently disabled in Aqua. The new Postiz owner has no active admission fence, but its latest explicit failure requires `LM_CAPAFY_IG_PACK_REF`; the old direct-publisher fence remains unresolved because its saved account inventory has no eligible handle. The current Postiz integration contradicts the old source comment that `@capafy.hooklab` is not connected; the route is enabled, while native account ownership/good-standing remains unverified. No D5 publish or authenticated CAPTCHA/challenge is observed.
 
 **担当境界とmarketing gate**
 
 - Capafyの商品・listing・account-lifecycleの実装は別担当が所有します。PR #6631の`life-manager-capafy-ig` Postiz skeletonを使い、このmarketing計画からCapafy開発コードを変更しません。
-- 現行Life Manager source routeは`config/loop-registry.json`の`life-manager-capafy-ig` → `apps/life-manager/scripts/capafy-ig-reel` → Postizです。entrypointは`LM_POSTIZ_API_KEY`と`CAPAFY_IG_POSTIZ_INTEGRATION_ID`を要求し、reconcilerはPostiz post listingをofficial receiptにします。2026-10-07 11:14 JSTの公式GETでは`@capafy.hooklab`のPostiz integrationが有効です（`cmuuycr5402uzqw0yhanqggo9`）。このsource commentは古く、integration enabledだけではnative account ownership/good-standingは証明しません。`capafy-marketing/SKILL.md`のB4 browser-direct案は同skill内でまだ実装されておらず、このownerの実行経路ではありません。単一owner/routeを公式statusで確かめ、Postiz・browser-direct・旧instagrapiをfallback/二重投稿に使いません。
+- 現行Life Manager source routeは`config/loop-registry.json`の`life-manager-capafy-ig` → `apps/life-manager/scripts/capafy-ig-reel` → Postizです。entrypointは`LM_POSTIZ_API_KEY`と`CAPAFY_IG_POSTIZ_INTEGRATION_ID`を要求し、reconcilerはPostiz post listingをofficial receiptにします。2026-10-07 13:19 JSTの公式GETでは`@capafy.hooklab`のPostiz integrationが有効です（`cmuuycr5402uzqw0yhanqggo9`）。このsource commentは古く、integration enabledだけではnative account ownership/good-standingは証明しません。`capafy-marketing/SKILL.md`のB4 browser-direct案は同skill内でまだ実装されておらず、このownerの実行経路ではありません。単一owner/routeを公式statusで確かめ、Postiz・browser-direct・旧instagrapiをfallback/二重投稿に使いません。
 - IG投稿ownerは`life-manager-capafy-ig`だけにします。旧`capafy-ig-marketing-daily`と新laneの各effect-unknown occurrenceを公式readbackで閉じる前に再送せず、二重publisherも許可しません。readbackできない場合は両方から公開しません。
 - 現行Postiz laneは1日3回ですが、初期canaryは24時間に1回を上限とします。lane側で投稿slotを抑制できると別担当の開発者が確認するまで、live scheduleを開始しません。
 - `@capafy.hooklab`とregistry/Postiz integrationのidentityを公式account statusで照合し、現在ユーザー所有でgood-standingのIGだけを使います。Challenge/制限は公式status/appealで処理し、別account作成、automated likes/follows、anti-detection、proxy/fingerprint回避をしません。
@@ -336,8 +343,8 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 **eBook初回receipt後のmarketing手順**
 
 1. eBookの自然なpaid Checkout receiptと一致するPDF delivery receiptがあることを統合SSOTで確認します。14日eBook測定を並行で開始します。
-2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`はhandle unresolvedのためheld。new ownerの`18dc1c3fbe14a460-80152`、`18dc1cde11218670-10497`、`18dc1d75cc4922b8-71732`はそれぞれPostiz no-effect receiptでclosed済み。両ownerはeBook gateまでunloadedにし、old fenceの正確なInstagram readbackなしに再起動しません。
-3. Life Manager側のInstagram marketing ownerは両方unloaded。eBook gate後に新Postiz ownerを一つだけapplyし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
+2. old active fence `capafy-ig-marketing-daily:18db7caff1178a88-68028`はhandle unresolvedのためheld。new Postiz ownerはdisabledでactive fenceなし。old fenceの正確なInstagram readbackとeBook paid+PDF gateなしにどちらも再有効化しません。
+3. Life Manager側のInstagram marketing ownersは両方disabled。eBook gate後に新Postiz ownerを一つだけenable/applyし、loaded SHA/argvとeffect fenceを照合します。Capafy product/listing/account-lifecycle codeには触れません。
 4. Postiz integration `cmuuycr5402uzqw0yhanqggo9`は`capafy.hooklab` / `disabled=false`で設定IDとも一致します。native account identity/good-standingを別readbackで確認し、成立しなければlaneをheldにしてaccountを作りません。
 5. 初期canaryを24時間に1回以下で配信できることを確認します。現在のregistry scheduleは1日3回なので、marketing owner側でfrequency gateを設定して読み戻すまで公開配信を開始しません。
 6. 必要なPostiz integrationと承認済みpack/media/Instagram approval refをcredential値なしで確認します。現状のownerは`LM_CAPAFY_IG_PACK_REF is required`でentrypoint失敗するため、eBook gate後に承認済みpack refを接続し、公開中・利益のあるskillの実例と`ct=capafy-reel-<slug>`でdry-runします。

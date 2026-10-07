@@ -199,12 +199,12 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
     monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
     items = module.ready_inventory()
-    request = next(item for item in items if item["feature"] == "catalog:marketing-strategist")
-    assert request["update_request"]["agent_id"] == "9563867391"
+    request = next(item for item in items if item["feature"] == "catalog:hook-lab")
+    assert request["update_request"]["agent_id"] == "8123079349"
     assert request["icon"].endswith("icon.webp")
     others = [item for item in items
               if item.get("update_request") and item is not request]
-    rows = [agent("9563867391", "online", name=request["title"],
+    rows = [agent("8123079349", "online", name=request["title"],
                   latestAgentVersionId=request["update_request"]["from_version_id"]),
             *[agent(item["update_request"]["agent_id"], "online", name=item["title"],
                     latestAgentVersionId="stale-" + item["update_request"]["from_version_id"])
@@ -215,7 +215,7 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert decision["action"] == "update_existing"
-    assert decision["item"]["agent_id"] == "9563867391"
+    assert decision["item"]["agent_id"] == "8123079349"
 
     monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
     module.main()
@@ -830,3 +830,44 @@ def test_retired_draft_is_not_resumed(monkeypatch, tmp_path, capsys) -> None:
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
 
     assert decision.get("action") != "resume_draft"
+
+
+def test_profitable_sellers_are_never_updated(tmp_path) -> None:
+    # Dais 2026-10-07: never touch an Agent that is selling at a profit.
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "hook", "stats_30d_orders": 9, "profit_30d_actual_usd": "13.90"},
+        {"agent_id": "bleed", "stats_30d_orders": 2, "profit_30d_actual_usd": "-16.45"},
+        {"agent_id": "zero", "stats_30d_orders": 0, "profit_30d_actual_usd": "0.00"},
+    ]}))
+    updates = [{"agent_id": a, "update_request": {"from_version_id": "v"}} for a in ("hook", "bleed", "zero")]
+
+    kept = module.drop_profitable_updates(updates, path=analytics)
+
+    # Dais 2026-10-07: no change to any published Agent, selling or not.
+    assert kept == []
+
+
+def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) -> None:
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "hook", "stats_30d_orders": 9, "profit_30d_actual_usd": "13.90"},
+    ]}))
+    approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "2026-10-07"}}
+    plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
+
+    assert module.drop_profitable_updates([approved, plain], path=analytics) == [approved]
+
+
+def test_frozen_agents_are_never_updated_without_exception(tmp_path) -> None:
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": []}))
+    frozen = tmp_path / "FROZEN.json"
+    frozen.write_text(json.dumps({"agent_ids": ["hook"]}))
+    plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
+    approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "x"}}
+
+    assert module.drop_profitable_updates([plain, approved], path=analytics, frozen_path=frozen) == [approved]

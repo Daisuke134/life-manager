@@ -109,3 +109,56 @@ Only the 15 exact commit/path/rule/line fingerprints are added to
 `.gitleaksignore`. The current-tree scan, full-history scan and detection of
 any new value at another location remain enabled. No credential rotation is
 indicated for these localization keys.
+
+## Addendum 2026-10-07 — generated runtime occurrence identifier
+
+The full-history scan reported one `generic-api-key` finding in commit
+`d5ce0d1302e206a5df3744ed998901d069d610f9`, at
+`docs/evidence/main-agents/health.json:7757`. The matched field is
+`jobs[154].diagnostic.occurrence_id`. Its value is exactly the same row's
+`owner_id + ":" + run_id`; `owner_id` also matches `job_id`. The introducing
+commit's runtime code constructs `run_id` from `time.time_ns()` and the process
+ID, then constructs `occurrence_id` from the loop ID and run ID; the health
+projection copies that field. A fresh read-only review and a local shape/hash
+check confirmed this generation path without printing the value.
+
+The commit is reachable from `docs/main-agents-readiness` only; it is not an
+ancestor of current `main`, the PR #6823 base, or its head, and PR #6823 does
+not change the finding file. The CI full-history scan explicitly uses
+`--log-opts=--all`, so the unrelated branch finding blocked the CFO PR. This is
+a generated execution identifier, not an authentication credential. No
+credential rotation is indicated.
+
+Only this exact fingerprint is added to `.gitleaksignore`:
+`d5ce0d1302e206a5df3744ed998901d069d610f9:docs/evidence/main-agents/health.json:generic-api-key:7757`.
+The current-tree scan and full-history scan remain enabled; a new value at a
+different commit, path, rule, or line is still detected.
+
+## Addendum 2026-10-07 — refresh one existing OSS inventory exception
+
+PR #6823's full repository check reported one existing
+`manifest_inventory_mismatch` for `skills/capafy-autopublish`. The source
+manifest still declares 241 files while the current tracked root has 242, so
+the manifest mapping itself remains a known mismatch. The existing baseline
+entry for this exact code and path was refreshed from evidence hash
+`645a77c780a26baa215b2c2003bd88594cf4f8a37a9668c9de120a3d5de2f948` to
+`7619a21b30f651d7c8f62102e785ff4a8992807fabfa6ff053b4f44a9f47ed5e` after
+reviewing the current tree and its recent source changes. Then origin/main
+advanced to `a77ce93ffea90598a65de4b1fcb3edb8bf1a788e`, editing
+`inventory_status.py` and its test inside the same root. The tracked count
+remained 242 and the exact evidence hash changed to
+`d5946679ecf2405bc291550f8de4880d5f13de02f4fd858278c154f21c91a043`. Main
+advanced again to `84261ec74ebd13f8e49753c48c741cccafcf8863` with further edits
+to that inventory status source/test. The root still contains 242 tracked
+files; its exact hash is now
+`f2dde0db2faef66a490cb43420b956c5472a9b567b5c7fc930d0e1755b3907c1`, and the
+baseline entry was refreshed to that merge tree. The source manifest still
+declares 241 files, so the provenance mismatch remains. The manifest and
+verifier are unchanged; this records the accepted current state, not a claim
+that the manifest inventory was repaired.
+
+The baseline still matches only `manifest_inventory_mismatch` at
+`skills/capafy-autopublish` with that exact tracked-tree hash. The verifier
+returns no current violations after the refresh, and its existing 12 tests
+pass. A further tree change produces a different hash and fails again; other
+violation codes, paths, and source roots remain unsuppressed.

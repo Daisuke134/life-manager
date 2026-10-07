@@ -182,7 +182,7 @@ def catalog_children_titles(catalog_by_title, parent_dir_name):
 # Decision engine (pure, fixture-testable).
 # ---------------------------------------------------------------------------
 
-def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, views):
+def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, views, frozen_ids=None):
     """One decision dict per skill in analytics_rows. Never mutates input."""
     bands = (price_bands or {}).get("bands") or {}
     rows_by_name = {r.get("name"): r for r in (analytics_rows or [])}
@@ -211,6 +211,11 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
             "stats_30d_orders": orders, "views_30d": agent_views,
             "findings": [],
         }
+        if agent_id in (frozen_ids or set()):
+            # Dais 2026-10-07: a frozen Agent gets no automated change of any kind.
+            decision["findings"].append({"rule": "frozen", "action": "skip", "reason": "dais_frozen"})
+            decisions.append(decision)
+            continue
 
         # 1. Losing money.
         losing = cost is not None and cost > 0 and (
@@ -231,7 +236,7 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
                 })
             else:
                 decision["findings"].append({
-                    "rule": "losing_money", "action": "queue_update",
+                    "rule": "losing_money", "action": "report_only",  # Dais 2026-10-07: never change a published Agent automatically
                     "update": {
                         "agent_id": agent_id,
                         "from_version_id": str(server.get("latestAgentVersionId") or ""),
@@ -263,7 +268,7 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
                     decision["findings"].append({"rule": "underpriced", "action": "skip", "reason": "no_server_match"})
                 else:
                     decision["findings"].append({
-                        "rule": "underpriced", "action": "queue_update",
+                        "rule": "underpriced", "action": "report_only",  # Dais 2026-10-07: never change a published Agent automatically
                         "update": {
                             "agent_id": agent_id,
                             "from_version_id": str(server.get("latestAgentVersionId") or ""),
@@ -456,7 +461,11 @@ def main():
         ranked = top_uncovered_categories(market_agents, covered_tokens)
         opportunity = ranked[0] if ranked else None
 
-    decisions = decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, views)
+    try:
+        frozen_ids = {str(a) for a in json.loads((REPO_ROOT / "skills/capafy/FROZEN.json").read_text()).get("agent_ids") or []}
+    except (OSError, ValueError):
+        frozen_ids = set()
+    decisions = decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, views, frozen_ids=frozen_ids)
 
     queued = 0
     for dec in decisions:
