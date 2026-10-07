@@ -10245,6 +10245,6 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 ### 838. Moneytree個人口座を再取得したが、会社cashとの結合は未完
 
-- Official connector `moneytree.show-accounts`を2026-10-07T02:21:16Zにread-only実行。structured responseはbank group1・bank account1・investment account0、JPY `current_balance` field1件を返し、値は前回last-knownと一致。provider自身のas-of timestampは応答に無く、口座名/番号はevidenceへ保存しない。取引履歴・振込・その他write0。
+- Official connector `moneytree.show-accounts`を2026-10-07T02:21:16Zにread-only実行。structured responseはbank group1・bank account1・investment account0、JPY `current_balance` field1件を返した。provider自身のas-of timestampは応答に無く、口座名/番号はevidenceへ保存しない。取引履歴・振込・その他write0。
 - sanitized private artifact `/Users/anicca/.local/state/life-manager/cli-observability-20261007/moneytree-personal-balance-20261007T022116Z.json` はmode600/SHA256`4cd564ca609c013eb9295aec04cf8e9618ca2cf111a275f90cff8daa5dc2a997`。source response SHAとprovider as-ofは未取得。前のartifactがbank groupとchild accountを両方数えた誤りはcorrection record `/Users/anicca/.local/state/life-manager/cli-observability-20261007/moneytree-balance-correction-20261007T022116Z.json` mode600/SHA256`48bf6c504e81e7d26a85c43410fe98a3f7d20b3f112ae7b9d1dd6b698c3dbb9a`へ記録し、旧`account_count=2`を撤回した。
 - この結果は個人Moneytree observationとして分ける。会社cash、bank payoutまたはrunwayへ昇格しない。row23の残作業は(1)銀行accountのownership/scope確認、(2)会社cashを示す公式account readback sourceの取得、(3)source update timeを結んでpersonal/company cashを分けること。
