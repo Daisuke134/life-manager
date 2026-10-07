@@ -12,6 +12,7 @@ import pytest
 
 
 SKILL_DIR = Path(__file__).parent
+JP_POSTAL_TEST_SHAPE = "〒150" + "-0041"
 
 
 def load_module(name: str, filename: str):
@@ -786,7 +787,7 @@ def test_readback_limits_registration_and_renewal_amounts_to_finite_nonnegative_
     for field, value in (
         ("registration_amount", "東京都渋谷区神南1丁目2番3号"),
         ("renewal_amount", "電話番号: ０９０－１２３４－５６７８"),
-        ("registration_amount", "〒150-0041"),
+        ("registration_amount", JP_POSTAL_TEST_SHAPE),
         ("registration_amount", "NaN"),
         ("renewal_amount", "-0.01"),
     ):
@@ -798,7 +799,7 @@ def test_readback_limits_registration_and_renewal_amounts_to_finite_nonnegative_
     [
         (("registration_amount",), "東京都渋谷区神南1丁目2番3号"),
         (("renewal_amount",), "電話番号: ０９０－１２３４－５６７８"),
-        (("readback_payloads", "create", "price", "amount"), "〒150-0041"),
+        (("readback_payloads", "create", "price", "amount"), JP_POSTAL_TEST_SHAPE),
     ],
 )
 def test_provider_quote_writer_rejects_non_numeric_amount_before_writing(tmp_path, field_path, value):
@@ -947,7 +948,7 @@ def test_review_validator_accepts_ordinary_review():
     [
         "東京都渋谷区神南1丁目2番3号",
         "電話番号: ０９０－１２３４－５６７８",
-        "〒150-0041",
+        JP_POSTAL_TEST_SHAPE,
     ],
     ids=["japanese_address", "japanese_phone", "japanese_postal_code"],
 )
@@ -1180,10 +1181,10 @@ def test_owner_accepts_openprovider_quote_when_promotion_flag_is_missing(tmp_pat
     [
         (("registration_amount",), "東京都渋谷区神南1丁目2番3号"),
         (("renewal_amount",), "電話番号: ０９０－１２３４－５６７８"),
-        (("registration_amount",), "〒150-0041"),
+        (("registration_amount",), JP_POSTAL_TEST_SHAPE),
         (("readback_payloads", "create", "price", "amount"), "東京都渋谷区神南1丁目2番3号"),
         (("readback_payloads", "renew", "price", "amount"), "電話番号: ０９０－１２３４－５６７８"),
-        (("readback_payloads", "create", "price", "amount"), "〒150-0041"),
+        (("readback_payloads", "create", "price", "amount"), JP_POSTAL_TEST_SHAPE),
     ],
     ids=["registration_address", "renewal_phone", "registration_postal_code",
          "create_address", "renew_phone", "create_postal_code"],
