@@ -7,6 +7,11 @@
       "sha256": "71fd45e7303c4c87fa86c6ee0c532e09419a9123b0806b9e4572e34ba679176f"
     },
     {
+      "path": "skills/capafy/catalog/marketing-strategist/icon.webp",
+      "role": "agent_icon",
+      "sha256": "5a1006789b42b933f02cbe72bd737340e120d6bb46a154066e6adbbea421c7b7"
+    },
+    {
       "path": "skills/capafy/catalog/slide-maker/icon.webp",
       "role": "agent_icon",
       "sha256": "a78b25c0ea13f98ecdf4579e376f4c168cbb9d37ef6489bf622e62d7d5e93364"

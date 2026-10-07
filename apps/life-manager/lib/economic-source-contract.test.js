@@ -122,7 +122,7 @@ test("coverage exposes every catalog loop without leaking receipt or evidence re
 
   assert.equal(coverage.schema_version, 1);
   assert.equal(coverage.subject_id, "tenant-a");
-  assert.equal(coverage.loops.length, 16);
+  assert.equal(coverage.loops.length, 18);
   assert.equal(Object.isFrozen(coverage), true);
   assert.equal(Object.isFrozen(coverage.loops), true);
   const affiliate = coverage.loops.find((loop) => loop.product_loop_id === "affiliate");
