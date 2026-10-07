@@ -268,8 +268,7 @@ def test_resolve_reports_database_mismatch_without_side_effects(monkeypatch, tmp
     assert output.strip(), "database mismatch must emit a JSON report on stdout"
     report = json.loads(output)
     assert result == 75
-    assert report.get("error_class") == "resolver_database_mismatch" or report.get(
-        "error") == "resolver_database_mismatch"
+    assert report.get("error_class") == "resolver_database_mismatch"
     assert provider_reads == []
     assert (admission_snapshot(selected_db), admission_snapshot(resolver_db)) == before
     assert set(module.fenced_occurrences(selected_db)) == {OCC}
