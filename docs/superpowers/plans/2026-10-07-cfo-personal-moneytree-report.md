@@ -86,9 +86,9 @@
 
 ### Task 3: Verify source and report contracts
 
-- [ ] Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js apps/life-manager/lib/moneytree-observation-store.test.js apps/life-manager/lib/financial-manager-ingest.test.js apps/life-manager/scripts/cfo-hourly-local.test.js apps/life-manager/lib/cfo-result-summary.test.js apps/life-manager/scripts/cfo-result-local.test.js`.
-- [ ] Run `git diff --check`, `bash scripts/verify-source-boundary.sh`, and `./bin/lm-loop-contract`.
-- [ ] Review for PII/secret leakage and verify business totals, MRR, runway, provider routing, registry, cadence, and B7-owned source files are unchanged.
+- [x] Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js apps/life-manager/lib/moneytree-observation-store.test.js apps/life-manager/lib/financial-manager-ingest.test.js apps/life-manager/scripts/cfo-hourly-local.test.js apps/life-manager/lib/cfo-result-summary.test.js apps/life-manager/scripts/cfo-result-local.test.js` — 77/77 pass after merging latest main.
+- [x] Run `git diff --check`, `bash scripts/verify-source-boundary.sh`, and `./bin/lm-loop-contract` — pass.
+- [x] Review for PII/secret leakage and verify business totals, MRR, runway, provider routing, registry, cadence, and B7-owned source files are unchanged; no personal report fields enter company totals and B7-owned files remain outside this branch diff.
 - [ ] Commit/push and open a draft PR. Production acceptance remains separate: main-derived immutable release, existing owner apply, natural scheduled report, and source receipt/readback.
 
 ## Execution Notes
@@ -100,3 +100,4 @@
 - Task 2 verification: up to five serial inclusive windows never exceed three calendar months and bind range/count metadata into immutable receipts; repeated transaction IDs are deduped; out-of-range days are excluded and mark their query window partial; zero-row months and absent sync stay unknown; per-window failures preserve other windows; transfers are excluded and repeated merchants remain unverified candidates; the 24-hour cache is report-range-specific. Balances, period totals, candidates, and windows include receipt refs. B7 pending retry reuses the exact same message without recollecting.
 - Fresh-review fix pass: receipt digests bind query range/count/limit; failed windows remain visible while later windows continue; empty months render as unknown with receipts; NFKC-normalized email-like and digit-bearing nicknames are omitted; displayed personal amounts expose receipt refs; mismatched-range cache entries are discarded; cache-write failures do not hide fresh observations.
 - Final-review follow-up: filter transactions to the exact requested query-window dates, not only the overall report period; accept cache timestamps only as canonical UTC ISO strings with exact parse/serialize round-trip, rejecting numeric, normalized invalid-calendar, and future timestamps.
+- Latest-main integration: merge `origin/main` through `098a39b680bdbf715c269047d416acf3cefeabf0`; no code conflict. The canonical unified SSOT cursor remains `A4.1`; this A7 branch does not edit that shared file or advance its cursor.
