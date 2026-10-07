@@ -4,7 +4,7 @@
 
 **Goal:** 既に登録済みの日本語eBook Instagram/TikTokレーンを共有公開ゲートへ通し、既存owner経由で各1回の即時投稿を公式readbackで確認する。
 
-**Architecture:** `config/marketing-destinations.json` の正確なeBook宛先を維持し、共有manifestの許可商品に `ebook-en` と `ebook-ja` を追加する。失敗済みoccurrenceをPostiz公式readbackで照合し、最新integration一覧とmanifest writerで日本語2レーンだけをproduction targetへ移す。英語ownerはPostiz disabledのままにし、グローバル公開fenceはclosedのまま保つ。
+**Architecture:** `config/marketing-destinations.json` の正確な宛先と共有manifestを維持する。Instagramのintegrationが指定されている場合はdistribution workerがPostizへ投稿し、`provider_route=postiz` を記録する。実際のPostiz readbackに成功した投稿を、route metadataの既定値だけでunknown effectにしない。
 
 **Tech Stack:** Node.js、`node:test`、Life Manager `lm-loop`、Postiz公式readback。
 
@@ -18,6 +18,8 @@
 - 対象は `@obou.anicca` Instagram と `@obou_anicca` TikTok のみ。英語 `@monk_anicca` はdisabledのまま別TODOとする。
 - 両レーンの予定は毎日07:00、12:30、20:00 JST。予定時刻は投稿実績として扱わない。
 - 外部投稿の完了条件は各Postiz receiptとnative public URL。1回の成功から毎日の継続成功を推定しない。
+- 公開済みreceiptのrouteを直す時はPostiz readbackを使い、同じslotを再投稿しない。
+- eBook ownerのstate rootは`0700`を維持し、fence reconcilerはそのownerの`effect-identities`を読む。
 
 ## Review Focus
 
@@ -83,7 +85,53 @@
 
 ### Task 6: 即時投稿と公式確認
 
-- [ ] fresh read-only reviewでowner SHA、manifest、先行effectの解決、今日のPostiz一覧を確認する。
-- [ ] 2つの日本語ownerを今すぐ各1回kickする。現行schedulerが最新dueの12:30 slotを選ぶことを記録する。
-- [ ] Postiz receiptと各アカウントのnative public URLを取得し、別々に成功を記録する。
-- [ ] その後の自然cadenceを7:00/12:30/20:00 JSTで追跡する。単発投稿だけを毎日継続の証拠にしない。
+- [x] fresh read-only reviewでowner SHA、manifest、今日のPostiz対象投稿0件を確認する。
+- [x] Japanese TikTokを起動。Postiz receipt `cmuxrb6du00eeqh0yp4al5n67` と公開URL `https://www.tiktok.com/@obou_anicca/video/7693816142606960646` を確認する。
+- [x] Japanese Instagramを起動。receipt `cmuxrfync00igs40yv54ve5yh` と公開URL `https://www.instagram.com/reel/DeLxu4Kihsg/` が記録され、Postiz adapterが`PUBLISHED`を読み戻す。
+- [x] Instagram occurrence `ebook-ja-instagram-daily:18dc2b149c572198-58370` を既存Postiz readbackで解決する。再投稿なし。
+- [ ] 旧releaseは同じslotの保存済みreceiptを再利用してroute検証に失敗し、追加のowner failureを記録する。distribution ledgerにはInstagram投稿が1件だけで、これらの再試行はPostizへ送らない。route正規化を含む新releaseでownerをPASSにする。
+- [ ] 別アカウントへ進み、English Postiz integrationの状態を確認する。現状`@monk_anicca`はdisabledのため、正確なintegrationの再接続が必要。別アカウントへ迂回しない。
+- [ ] Japaneseの自然cadenceを07:00/12:30/20:00 JSTで追跡する。次アカウントを始める条件にはせず、各occurrenceのreceiptで実績を記録する。
+
+### Task 7: Postiz route metadataの修復
+
+**Files:**
+- Modify: `skills/video/lm-distribution/distribute.py`
+- Test: `skills/video/tests/test_lm_distribution.py`
+- Modify: `apps/life-manager/scripts/ebook-distribute-daily.js`
+- Test: `apps/life-manager/scripts/ebook-distribute-daily.test.js`
+- Update: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
+
+**Interfaces:**
+- `distribute_platform(config, "instagram")` が `config.instagram_integration` を受け取る時は `config.postiz_adapter` を呼び、ledger receiptの`route`を`postiz`にする。
+- integrationがない既存Instagram file-script経路は`instagram_file_script`を維持する。
+- eBook ownerは、完全一致するPostiz integrationの下で公式readback済みの既存Instagram receiptが`instagram_file_script`と記録されていても、再投稿せず`postiz` routeとして同じslotを完了できる。
+
+- [x] `test_instagram_postiz_integration_is_recorded_as_postiz` を追加し、fake Postiz adapterの`PUBLISHED`/URL/post ID/`reconciled=true`でledger routeを確認する。
+- [x] `python3 -m unittest discover -s skills/video/tests -p test_lm_distribution.py` のREDで`instagram_file_script`誤記を確認する。
+- [x] route defaultを実際に選んだadapterから決める。明示されたadapter routeは保持する。
+- [x] distribution tests 41/41、Postiz provider tests 24/24、`git diff --check` PASS。
+- [x] `test_legacy_instagram_postiz_receipt_is_normalized_for_idempotent_owner_replay` を追加する。exact Instagram integrationと`provider_reconciled=true`の時だけlegacy routeを`postiz`へ正規化する。
+- [x] Node REDでlegacy receiptが拒否されることを確認する。
+- [x] ownerで選択したexact Postiz integrationと公式`PUBLISHED` readbackの条件で、legacy routeをnormalizeしてから既存receipt検証・result writeを行う。Node tests 8/8 PASS。
+- [ ] main由来branchでcommit/push/PR/mergeし、immutable releaseに反映する。Instagramを再投稿せず、同じslotの既存receiptから成功報告する。
+- [ ] main由来branchでcommit/push/PR/mergeし、immutable releaseに反映する。Instagramを再投稿せず、既存のPostiz readbackを使ってunknown effectを解決する。
+
+### Task 8: eBook effect identityの保存と読戻し
+
+**Files:**
+- Modify: `config/loop-registry.json`
+- Test: `runtime/loop/tests/test_macos_loop_registry.py`
+
+**Interfaces:**
+- `ebook-en-tiktok-daily`、`ebook-ja-instagram-daily`、`ebook-ja-tiktok-daily` の各`effect_reconcile.argv`は `--identity-dir ~/.local/state/life-manager/ebook/effect-identities` を渡す。
+- eBookの`state_root`は`~/.local/state/life-manager/ebook`で、runtime identity writerが必要とするdirectory modeは`0700`。
+
+- [x] `test_ebook_postiz_reconcilers_use_owner_identity_dir` を追加し、上記3 ownerのreconciler commandが同じowner identity directoryを渡すことを確認する。
+- [x] REDで3 ownerともidentity directoryを指定していないと確認する。
+- [x] 3つのexact eBook ownerに`--identity-dir`を加え、`runtime/loop/tests/fixtures/macos-loop-jobs.json`を正規rendererで再生成する。
+- [x] Registry tests 136/136、`./bin/lm-loop-contract` PASS。
+- [x] eBook state rootを`0700`へ修正し、exact Postiz official GETで最初のInstagram occurrenceをresolveする。
+- [ ] main由来releaseを適用後、same-slot owner reportがPASSになり、admissionにunknownがないことを確認する。
+
+**順序変更・現在cursor:** 旧順序は1件目のInstagram readback解決後に次アカウントへ進む。新順序はroute誤記、same-slot receipt再利用、effect identityのmode/path不整合をまとめて直し、latest-main releaseを反映してInstagram ownerをPASSにしてから英語アカウントを再接続する。理由は、公式Postiz投稿1件を旧releaseが毎回`instagram_file_script`と誤認し、同じslotの再試行をreport failureにしているため。現在はPR作成、fresh review、CI、merge、release、targeted apply待ち。

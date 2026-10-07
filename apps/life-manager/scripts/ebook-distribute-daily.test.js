@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { APPROVED_CLAIMS, JOBS, approvedBaselineScript, run, selectTarget } = require("./ebook-distribute-daily.js");
+const { APPROVED_CLAIMS, JOBS, approvedBaselineScript, normalizePostizInstagramReceiptRoute, run, selectTarget } = require("./ebook-distribute-daily.js");
 const { buildMarketingVideoPublicationJob } = require("../lib/marketing-video-publication-adapter.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
@@ -102,6 +102,33 @@ test("English owner returns a typed no-effect hold while Postiz keeps its integr
   assert.equal(result.reason, "provider_disabled");
   assert.equal(result.effect, 0);
   assert.equal(fs.existsSync(dataDir), false);
+});
+
+test("an idempotent Instagram replay normalizes only a readback-confirmed Postiz receipt", () => {
+  const legacy = {
+    platform: "instagram",
+    provider_route: "instagram_file_script",
+    provider_reconciled: true,
+    provider_post_id: "postiz-ig-1",
+  };
+  const normalize = normalizePostizInstagramReceiptRoute;
+  const result = typeof normalize === "function"
+    ? normalize(legacy, "instagram", "cmooplxmu04tpmd0y4h3cpk33")
+    : undefined;
+
+  assert.equal(result?.provider_route, "postiz");
+  if (typeof normalize === "function") {
+    assert.equal(legacy.provider_route, "instagram_file_script");
+    assert.equal(
+      normalize(legacy, "instagram", "").provider_route,
+      "instagram_file_script",
+    );
+    assert.equal(
+      normalize({ ...legacy, provider_reconciled: false }, "instagram", "cmooplxmu04tpmd0y4h3cpk33").provider_route,
+      "instagram_file_script",
+    );
+    assert.strictEqual(normalize(legacy, "tiktok", "cmooplxmu04tpmd0y4h3cpk33"), legacy);
+  }
 });
 
 test("each eBook publication occurrence owns exactly one provider platform effect", () => {

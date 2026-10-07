@@ -118,6 +118,20 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
 
+    def test_ebook_postiz_reconcilers_use_owner_identity_dir(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        identity_dir = "~/.local/state/life-manager/ebook/effect-identities"
+        for loop_id in (
+            "ebook-en-tiktok-daily",
+            "ebook-ja-instagram-daily",
+            "ebook-ja-tiktok-daily",
+        ):
+            with self.subTest(loop_id=loop_id):
+                argv = registry["loops"][loop_id]["effect_reconcile"]["argv"]
+                self.assertIn("--identity-dir", argv)
+                index = argv.index("--identity-dir")
+                self.assertEqual(argv[index + 1], identity_dir)
+
     def test_writer_jobs_declare_existing_admission_and_coalescing_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in (

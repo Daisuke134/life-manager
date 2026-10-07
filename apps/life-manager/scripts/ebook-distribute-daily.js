@@ -276,6 +276,20 @@ async function executeJob(store, job, workerId, handler) {
   return { ...receipt, created: queued.created };
 }
 
+function normalizePostizInstagramReceiptRoute(receipt, platform, integrationId) {
+  if (
+    platform === "instagram"
+    && typeof integrationId === "string"
+    && integrationId.trim()
+    && receipt?.platform === "instagram"
+    && receipt.provider_route === "instagram_file_script"
+    && receipt.provider_reconciled === true
+  ) {
+    return { ...receipt, provider_route: "postiz" };
+  }
+  return receipt;
+}
+
 async function run(argv = process.argv.slice(2), deps = {}) {
   const env = deps.env || process.env;
   const ownerId = required(env.LIFE_MANAGER_LOOP_ID || argv[0], "eBook owner ID");
@@ -417,8 +431,11 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     accountResolver: () => target.postiz_profile,
     ledgerPath: () => ledgerPath,
   });
-  const publication = await executeJob(store, job, ownerId,
+  const storedPublication = await executeJob(store, job, ownerId,
     (claimed) => publicationAdapter.execute(claimed));
+  const publication = normalizePostizInstagramReceiptRoute(
+    storedPublication, lane.platform, integrationId,
+  );
   const publicUrl = String(publication?.public_url || "");
   const tiktokPrefix = `https://www.tiktok.com/@${account.native_handle}/video/`;
   const directAccountUrl = lane.platform === "tiktok"
@@ -456,4 +473,11 @@ if (require.main === module) {
     });
 }
 
-module.exports = { APPROVED_CLAIMS, JOBS, approvedBaselineScript, run, selectTarget };
+module.exports = {
+  APPROVED_CLAIMS,
+  JOBS,
+  approvedBaselineScript,
+  normalizePostizInstagramReceiptRoute,
+  run,
+  selectTarget,
+};
