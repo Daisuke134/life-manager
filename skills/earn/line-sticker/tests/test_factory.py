@@ -78,6 +78,46 @@ class OneStagePerWake(unittest.TestCase):
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "clips")
 
 
+class FullRun(unittest.TestCase):
+    def test_one_run_takes_a_new_set_all_the_way_to_submitted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+            self.assertEqual(report["action"], "advanced")
+            self.assertEqual(report["next_stage"], "submitted")
+            self.assertFalse((state_root / "set-002").exists())  # next set waits for the next run
+
+    def test_run_stops_on_retry_instead_of_spinning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_deps(clips_runner=lambda set_dir, plan: (set_dir / "clips").mkdir(exist_ok=True))
+            report = MODULE.run(state_root, deps)
+            self.assertEqual(report["action"], "retry")
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "clips")
+
+    def test_run_respects_daily_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_deps(max_sets_per_day=1)
+            MODULE.run(state_root, deps)
+            self.assertEqual(MODULE.run(state_root, deps)["action"], "skip")
+
+
+class FullRunSubmit(unittest.TestCase):
+    def test_run_keeps_going_through_submit_sub_states(self) -> None:
+        states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
+
+        def staged_submit(set_dir, item, listing, tags):
+            return {"product_id": "123", "url": "u", "state": next(states)}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(submit=staged_submit))
+            self.assertEqual(report["next_stage"], "submitted")
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+
+
 class DailyCap(unittest.TestCase):
     def test_no_new_set_once_daily_cap_reached(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

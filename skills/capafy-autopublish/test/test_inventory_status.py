@@ -830,3 +830,31 @@ def test_retired_draft_is_not_resumed(monkeypatch, tmp_path, capsys) -> None:
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
 
     assert decision.get("action") != "resume_draft"
+
+
+def test_profitable_sellers_are_never_updated(tmp_path) -> None:
+    # Dais 2026-10-07: never touch an Agent that is selling at a profit.
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "hook", "stats_30d_orders": 9, "profit_30d_actual_usd": "13.90"},
+        {"agent_id": "bleed", "stats_30d_orders": 2, "profit_30d_actual_usd": "-16.45"},
+        {"agent_id": "zero", "stats_30d_orders": 0, "profit_30d_actual_usd": "0.00"},
+    ]}))
+    updates = [{"agent_id": a, "update_request": {"from_version_id": "v"}} for a in ("hook", "bleed", "zero")]
+
+    kept = module.drop_profitable_updates(updates, path=analytics)
+
+    assert [u["agent_id"] for u in kept] == ["bleed", "zero"]
+
+
+def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) -> None:
+    module = load_module()
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "hook", "stats_30d_orders": 9, "profit_30d_actual_usd": "13.90"},
+    ]}))
+    approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "2026-10-07"}}
+    plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
+
+    assert module.drop_profitable_updates([approved, plain], path=analytics) == [approved]

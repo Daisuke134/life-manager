@@ -41,7 +41,7 @@ import seedance_set  # noqa: E402
 
 STAGES = ("plan", "character", "clips", "apng", "select", "package", "submit", "submitted")
 DEFAULT_STATE_ROOT = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager"))) / "line-sticker"
-DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "12"))
+DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "24"))
 DEFAULT_MAX_USD_PER_SET = Decimal(os.environ.get("LINE_STICKER_MAX_USD_PER_SET", "4"))
 JST = datetime.timezone(datetime.timedelta(hours=9))
 EVENTS_LOG_NAME = "factory-events.jsonl"
@@ -381,10 +381,27 @@ def production_deps() -> Deps:
     )
 
 
+def run(state_root: Path, deps: Deps) -> dict:
+    """Drive one set from wherever it is all the way to submitted in a single launch.
+
+    Stops on submitted, on skip/noop/halt, or on a retry (an external wait such as missing clips
+    or a failed package) so a stuck stage never spins.
+    """
+    while True:
+        item_path = (newest_open_set(state_root) or state_root) / "creators-item.json"
+        before = (_read_json(item_path) or {}).get("state")
+        report = wake(state_root, deps)
+        # The submit stage moves through several browser sub-states (metadata -> images -> tags ->
+        # review request); keep going while each call makes progress.
+        progressed = report.get("stage") == "submit" and (_read_json(item_path) or {}).get("state") != before
+        if report.get("next_stage") == "submitted" or (report.get("action") != "advanced" and not progressed):
+            return report
+
+
 def main() -> int:
     state_root = DEFAULT_STATE_ROOT
     deps = production_deps()
-    report = wake(state_root, deps)
+    report = run(state_root, deps)
     print(json.dumps(report, ensure_ascii=False))
     return 0
 

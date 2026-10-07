@@ -143,12 +143,17 @@ the manifest mapping itself remains a known mismatch. The existing baseline
 entry for this exact code and path was refreshed from evidence hash
 `645a77c780a26baa215b2c2003bd88594cf4f8a37a9668c9de120a3d5de2f948` to
 `7619a21b30f651d7c8f62102e785ff4a8992807fabfa6ff053b4f44a9f47ed5e` after
-reviewing the current tree and its recent source changes. The manifest and
-verifier are unchanged; this records the accepted current state and does not
-claim that the manifest inventory was repaired.
+reviewing the current tree and its recent source changes. Then origin/main
+advanced to `a77ce93ffea90598a65de4b1fcb3edb8bf1a788e`, editing
+`inventory_status.py` and its test inside the same root. The tracked count
+remained 242 and the exact evidence hash changed to
+`d5946679ecf2405bc291550f8de4880d5f13de02f4fd858278c154f21c91a043`; the
+baseline was refreshed to this current merge tree. The manifest and verifier
+are unchanged; this records the accepted current state and does not claim
+that the manifest inventory was repaired.
 
 The baseline still matches only `manifest_inventory_mismatch` at
 `skills/capafy-autopublish` with that exact tracked-tree hash. The verifier
-returns no current violations, and its existing 12 tests pass. A further tree
-change produces a different hash and fails again; other violation codes,
-paths, and source roots remain unsuppressed.
+returns no current violations after the refresh, and its existing 12 tests
+pass. A further tree change produces a different hash and fails again; other
+violation codes, paths, and source roots remain unsuppressed.

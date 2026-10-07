@@ -875,7 +875,7 @@
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
       "provider_route": "deterministic",
-      "runtime_timeout_seconds": 1800,
+      "runtime_timeout_seconds": 5400,
       "state_root": "~/.local/state/life-manager/line-sticker"
     },
     "line-creators-browser": {
