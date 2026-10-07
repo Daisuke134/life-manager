@@ -3789,3 +3789,23 @@ Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planと�
 - [ ] **HA-080** `docs/evidence/harness-migration/portable-acceptance.json` — clean-user/cloudsource acceptance（条件付き、未有効）
 
 最初の共通接続sliceは具体化。未確認owner/tool coverageはfalse、全商品の移行source設計は未完。文書PASSから全移行完了・配布決定・本番安全を推測しない。
+
+
+### 初回切替を有限CLI backendへ縮小 — MX lane
+
+現在cursor=MX-01、未着手。旧実行順=HA-001→HA-080、新順=MX-01→MX-12。変更理由: userが既存収益経路を壊さない移行を優先し、actual source分類とCLI契約監査によりgateway/scheduler/state/tools同時変更が初回に不要と判明したため。HA全80atom/OSS配布は後続inactive候補にし、他業務lane・進行中effectを変えない。[readiness](../../research/2026-10-07-harness-transition-readiness.md)、[MX plan](../plans/2026-10-07-harness-first-cutover.md)が初回入口。
+
+- [ ] MX-01 `openclaw_exec.py::decode_envelope` — finalとenvelopeを分離
+- [ ] MX-02 `openclaw_exec.py::write_caller_result` — 同schema/result_pathへ保存
+- [ ] MX-03 `openclaw_exec.py::project_usage` — missingとcost basis保持
+- [ ] MX-04 `openclaw_exec.py::build_command` — pinned有限CLI argv
+- [ ] MX-05 `openclaw_exec.py::select_engine` — owner/task限定defaultlegacy
+- [ ] MX-06 `agent_runner.py::command_for` — 同process supervisorへ接続
+- [ ] MX-07 `agent_runner.py::run` completion boundary — 同summary/event
+- [ ] MX-08 `agent_runner.py::run` fallback boundary — start後再送禁止
+- [ ] MX-09 `native-parity.json` — sameaccount/model/budget/tool実証
+- [ ] MX-10 `finite-cli-comparison.json` — 同task/cost、安全比較
+- [ ] MX-11 `config.json` owner/task selector — tool-less一件自然canary
+- [ ] MX-12 `first-cutover.json` — sameoccurrence/rollback/他owner不変
+
+全移行ready/売上継続保証は未判定。今回はpreimplementation source/fake runtime監査であり、activationは未実施。

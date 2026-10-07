@@ -162,3 +162,13 @@ Daisは稼働・収益経路を壊さず、実装開始後に初めて見つか�
 完了は、既知の設計blocker・ownerごとのactual caller・初回に維持する境界・switch/rollback条件・なお未測定のruntime条件を具体的に記録し、full migration readyとfirst slice readyを分けて判定すること。全未知ゼロや無停止を実装前に保証しない。
 
 既存loop-development skillの『OpenClaw, Hermes ... may not be a Local or Cloud runtime dependency』は今回の公開harness移行検討と矛盾するためDaisの明示依頼を優先する。ただし既存default gateway/profile/別checkoutへ依存せず、repo-owned adapter/lockfile/main-derived dependency bundleのsource boundaryを保つ。
+
+## 初回移行の縮小 — 既存収益経路を維持する正本
+
+readiness source監査により、初回接続点をgateway RPCではなく**finite CLI `openclaw agent exec`**へ変更する。共通runnerのprocess supervisor、token budget、provider lease、schema validation、result_path/summary、既存scheduler/entrypoint/publisher/receipt/ledgerを維持する。モデル・アカウント・backendも同時変更しない。初回にlm_loop_run.pyのresource ownership transfer、新broker、tool全面書換、cron移管、state migration、OSS/cloud配布を実装しない。旧gateway/HA1〜80は後続architecture候補としてinactive参照にする。
+
+CLI stdoutはcaller resultではなくenvelopeなので、ok=true/status=ok/exit0を確認しfinalを既存schemaへ通して同result_pathへ保存する。usageとcost basisは明示projection。process-start後のtimeout/disconnect/cleanup_errorから同occurrenceを別harnessへ自動fallbackしない。native account/tool/rollout-budget/image/resumeのparityが証明されないtaskclassはlegacyを維持する。
+
+source分類はshared route65のうち24 actual shared、7別/条件付き、34非モデル/guard。[readiness report](../../research/2026-10-07-harness-transition-readiness.md)とfirst-cutoverの[MX plan](../plans/2026-10-07-harness-first-cutover.md)を実行入口とする。旧80atomを最初から順番に実行しない。
+
+finiteCLI probeはstdoutに[state/agent-db]前置きlogを観測した。pure JSON前提を撤回し、MX decoderはtop-level JSON documentsのうちenvelope形に一致する候補を一つだけ抽出する。multiple candidatesは拒否し、nested JSONを別候補と数えない。finalだけをcaller schemaへ戻す。

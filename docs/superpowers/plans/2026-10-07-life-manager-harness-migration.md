@@ -1,4 +1,6 @@
-# Life Managerハーネス移行 — ファイル・関数単位の実行計画
+# Life Managerハーネス移行 — 後続architecture候補（初回はinactive）
+
+> **初回実装入口は[MX first-cutover plan](2026-10-07-harness-first-cutover.md)。収益保全のため、このgateway/broker/cronの80atomは初回に実行しない。**
 
 > 実行agentは`superpowers:executing-plans`を読む。コード実装は`gpt-6-luna / max`、計画・検証は`gpt-6.1-sol / medium`。各atomは一つの関数・設定箇所・受け入れrecordを変更する。code atomは記載testをRED→最小実装→GREENとして同じ契約で完了する。source-only commit/push/PRは関連atomのまとまりで行い、技術受け入れ後にだけpromotion atomへ進む。
 
