@@ -3849,3 +3849,11 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 観測: Data volume の空き約 1.5 GiB、ゾンビ状態0、cleanup の過去 receipt は ULTRA/zero reclaim を ok=true としている。GUI preflight PASS だが cleanup label 未ロード。
 TODO: [進行中] 最大容量familyの診断と安全回収 → [未完] exact cleanup failureの最小修正 → [未完] source acceptance/merge/immutable release → [未完] natural receiptと空き容量readback。
 現在cursor: 大容量familyの計測、既存allowlist governorのowner lock下での回収。既存business TODOの順序は変更しない。
+
+Host recovery追加条件: 単発回収だけで完了にせず、既存5分cleanup + 同じgovernor/同じstate lockの60秒watchdogをimmutable sourceへ接続する。watchdogの旧無条件rm/強制worktree unlock経路を置換する。共有runnerのscratch/admissionがENOSPCでもdirect governorは1MiB receipt reserveを使って回収できる。候補の固定順budget starvationをdurable cursorで修正する。
+確認済み障害: main cleanupとemergency guardはlaunchd disabled。main cleanupをsafe enable/startで復旧し、run `18dc2aedb58ab548-42604` はscratch 107件を回収した。旧terminalのULTRA/CRITICAL容量不足でok=trueとなる判定は修正中。
+安全回収: governorがstale updater1件を同一性確認後SIGTERMし、2380146999 bytesのallowlisted cacheを回収。起動Simulator0のためApple simctlでdyld_shared_cacheを除去した。後続dfで空き約6.7GiB。memory/session/credentials/state JSONLを削除していない。
+計測の限界: user Libraryの多数のTCC保護rootはsudoもOperation not permitted/timeoutである。unknownを0に置換しない。homeのその他約200root、Applications、Homebrew、Developer、var/db等をbounded計測。長時間止まった自分のdu probeだけSIGTERMした。
+現在cursor: workerの誤成功/cursor/fallback source fix → focused acceptance → main/release → target idle apply → primary+watchdog natural receipt。追加のshared disk admission診断を並行する。
+
+共有producer予防gate: source診断でlm_loop_runにはdisk checkがなく、既存disk_admissionは一部wrapperだけ/default512MiB。従って今回の再発防止には既存memory pre-enqueue gateと同じ形で11GiBのdisk preflightを接続する必要がある。CONTROL_PLANE_SAFETY_LOOPSはbypassしcleanupを継続、現在実行中のownerは停止せず新しいfinite producerだけeffect dispatch前にdeferする。既存queue/fenceを削除/書換せず、新しいquota frameworkは作らない。受け入れはlow-diskのprovider dispatch0、cleanup bypass、normal headroomの既存経路、typed deferred receipt、main由来production自然run。
