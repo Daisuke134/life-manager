@@ -92,6 +92,11 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - Lancers rows 25–27 retain their last known `waiting_external` state. No authentication, solver, application, or retry was performed. The separate Lancers WAF worktree remains owned by `lm-cfo-observability-1002`; the host disk-cleanup worktree remains owned by its current lease holder. AGMSG roster registration for `lm-gig-contract-owner-1007` has no placement record, so it does not prove a live pane or active execution.
 - `lm-loop doctor` is not globally clean: 186 registry entries, missing entrypoints 0, unmanaged labels 0, and one installed retired label, `ai.anicca.provision-browser.capafy.kosuke` (outside this Gig lane). No unrelated owner was changed.
 
+## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
+
+- Read-only `coconala_outcomes.py` returned `status=waiting`: historical local receipt counters are application 1,209, negotiation 364, and listing mutation 39; paid delivery is 0 and bank-arrival receipt is absent. The first three are cumulative counters with no date filter, not today's applications, current public listing count, sale count, or settled cash. Do not treat the listing counter as storefront demand.
+- CrowdWorks Application fix PR [#6967](https://github.com/Daisuke134/life-manager/pull/6967) was open at head `9bb6002047283bf9bcad896f59b08f8dd87642a1` against `839db69f3144ca355c89165fb6c79108e9a8e518`. Fresh read-only review returned SHIP; local focused tests were 9/9. No production reconciliation was run.
+
 ## 2026-10-08 04:47 JST host gate recheck
 
 - `df -k /Users/anicca/gig` reports 243060 KiB available, below the Gig browser's 524288 KiB admission floor. `life-manager-disk-cleanup` and `life-manager-release-reconciler` both report exit 1 / `reconcile_owner`; no second cleanup/apply was started and neither owner's lease/worktree was changed. Gig restarts would immediately hit the same admission guard, so keep the current loops loaded-idle and fenced until the existing owner produces a fresh successful receipt.
@@ -122,7 +127,18 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - The owner process remains `loaded-running` in the latest status snapshot. BrowserGuard was unheld in one readback while the registered Paid wrapper was still alive, so no second Coconala browser navigation was started. The old Storefront effect-unknown fence remains held.
 - The latest direct free-space sample is 1222784 KiB, below the shared 2 GiB host floor; `lm-loop doctor` still reports `ok=false` for the separate retired Capafy installed label. No source release or owner apply/restart occurred.
 
-## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
+## 2026-10-08 05:28 JST main / immutable release / owner SHA recheck
 
-- Read-only `coconala_outcomes.py` returned `status=waiting`: historical local receipt counters are application 1,209, negotiation 364, and listing mutation 39; paid delivery is 0 and bank-arrival receipt is absent. The first three are cumulative counters with no date filter, not today's applications, current public listing count, sale count, or settled cash. Do not treat the listing counter as storefront demand.
-- CrowdWorks Application fix PR [#6967](https://github.com/Daisuke134/life-manager/pull/6967) is open at head `9bb6002047283bf9bcad896f59b08f8dd87642a1` against `839db69f3144ca355c89165fb6c79108e9a8e518`. Fresh read-only review returned SHIP; local focused tests are 9/9. At 04:45 JST, Loop-control, secret-scan, and Python test checks are still pending; no merge, release, or production reconciliation has occurred.
+- Fresh `origin/main=9a03ac5b28e2b338ca417377d7e2dbe511c37bcd`; current immutable `~/loops/current` points to `/Users/anicca/loops/releases/20261008T050600-3dbfc5ac`, SHA `3dbfc5ac049429661851b129847abcb1489c8d42`. Main contains CrowdWorks Reply DB-guard PR #6970 (`1b4d984e`), but this release predates it.
+- Loaded owners are mixed: Coconala Apply/Storefront and CrowdWorks Application/Reply report `3dbfc5ac`; Coconala Paid is still loaded from `8dc06549` and `loaded-running`. This status does not prove provider effect or payment; Paid's latest terminal has no receipt. Do not force owner convergence while the doctor gate is red.
+- `df -k /Users/anicca/gig` reports 1128408 KiB free, below 2 GiB. Disk-cleanup's latest terminal remains `entrypoint_exit_1` / `reconcile_owner`; `lm-loop doctor` remains `ok=false` with the separate retired Capafy installed label. No manual apply/restart, provider action, or fence resolution was run.
+
+## 2026-10-08 05:28 JST Coconala Paid remote-builder failure detail
+
+- Natural occurrence `hf-gig-paid-direct:18dc584c1a404080-87507` failed at `remote_builder` / `entrypoint_exit_1`, with outer `effect=not_applicable` and no Coconala provider receipt. The last local state for talkroom `18180857` was updated at `2026-10-07T20:11:28Z`, showed `transaction_state=取引中` and `formal_delivery_confirmed=false`; it is not a fresh official order readback.
+- The remote task result said `authenticated=true`, but `required_effect_satisfied=false`, `required_output_satisfied=false`, and one unit of work remained. Its two recorded TikTok send attempts were both `effect=0` / `exact_readback=false` / `retry_safe=true`: `composer_recipient_binding_failed` and `recipient_message_route_unavailable`. No TikTok message send is evidenced. Do not retry either candidate or claim the Coconala order delivered; verify the current exact buyer/order state and recipient route before another effect.
+
+## 2026-10-08 05:39 JST release / owner convergence refresh
+
+- Fresh `origin/main=4b274127b3a2d0c5dad3dae92a21cbbb78c2b811`; selected immutable release is `/Users/anicca/loops/releases/20261008T053429-4b274127` with the same SHA. No selected Gig owner reports that SHA loaded yet: Coconala Apply/Storefront, CrowdWorks, Lancers, and Mercor owners remain on `3dbfc5ac`; Coconala Paid remains on `8dc06549`; Coconala Reply Detector remains on `cecffc9`. This is a mixed loaded-owner state; do not claim that merging/cutting a release applies it.
+- Free space is 551900 KiB (about 539 MiB): only about 27 MiB above the Gig browser's 512 MiB guard and still below the shared 2 GiB floor. Current natural Application/Reply/Storefront attempts remain `host_admission_deferred:disk_headroom_low`. Disk-cleanup remains exit 1 / `reconcile_owner`; `lm-loop doctor` remains `ok=false` due to the separate installed retired Capafy label. No manual apply, restart, or fence resolution was performed.
