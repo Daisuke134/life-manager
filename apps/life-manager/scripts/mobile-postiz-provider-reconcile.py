@@ -248,6 +248,21 @@ def _stored_caption(identity: dict[str, Any], ledger: Path) -> str | None:
         return None
 
 
+def _video_caption_normalization(
+    identity: dict[str, Any], expected_caption: str | None, provider_caption: str,
+) -> str | None:
+    """Recognize only the video sender's verified one-terminal-LF trim."""
+    if (identity.get("video_sha256") is None
+            or not isinstance(expected_caption, str)
+            or hashlib.sha256(expected_caption.encode("utf-8")).hexdigest()
+            != identity.get("caption_sha256")
+            or not expected_caption.endswith("\n")
+            or expected_caption[:-1] != expected_caption.strip()
+            or expected_caption[:-1] != provider_caption):
+        return None
+    return "video_terminal_lf_removed"
+
+
 def _load_postiz_video_adapter():
     postiz_path = ROOT / "skills/video/lm-distribution/postiz_video.py"
     spec = importlib.util.spec_from_file_location("life_manager_postiz_video", postiz_path)
@@ -282,7 +297,7 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
     payload = _request_json(f"{POSTIZ_V1}/posts?{query}", api_key)
     integration_id = str(identity["integration_ref"]).rsplit("/", 1)[-1]
     adapter = _load_postiz_video_adapter()
-    matches: dict[str, dict[str, Any]] = {}
+    matches: dict[str, tuple[dict[str, Any], str | None, str]] = {}
     for row in _rows(payload):
         nested = row.get("integration")
         row_integration = nested.get("id") if isinstance(nested, dict) else row.get("integrationId")
@@ -297,7 +312,10 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
             row_caption = _caption(row)
         except ValueError:
             continue
-        if hashlib.sha256(row_caption.encode("utf-8")).hexdigest() != identity.get("caption_sha256"):
+        provider_caption_sha256 = hashlib.sha256(row_caption.encode("utf-8")).hexdigest()
+        caption_normalization = _video_caption_normalization(identity, caption, row_caption)
+        if (provider_caption_sha256 != identity.get("caption_sha256")
+                and caption_normalization is None):
             continue
         try:
             state = adapter.find_post([row], provider_id, identity["platform"])
@@ -306,24 +324,30 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
         if (state.get("state") != "PUBLISHED"
                 or not adapter._valid_public_url(identity["platform"], state.get("post_url"))):
             continue
-        matches[provider_id] = row
+        matches[provider_id] = (row, caption_normalization, provider_caption_sha256)
     if len(matches) != 1:
         return None
-    provider_id, row = next(iter(matches.items()))
+    provider_id, (row, caption_normalization, provider_caption_sha256) = next(iter(matches.items()))
     selected_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
+    remote_effect_locator = {
+        "source": "postiz_public_v1_posts",
+        "post_id": provider_id,
+        "integration_id": integration_id,
+        "caption_sha256": identity["caption_sha256"],
+        "slot": identity["slot"],
+    }
+    if caption_normalization is not None:
+        remote_effect_locator.update({
+            "caption_normalization": caption_normalization,
+            "provider_caption_sha256": provider_caption_sha256,
+        })
     return ({
         "caption_sha256": identity["caption_sha256"],
         "slot": identity["slot"],
         "provider_video_sha256": (
             selected_video_sha if selected_video_sha == identity.get("video_sha256") else None
         ),
-        "remote_effect_locator": {
-            "source": "postiz_public_v1_posts",
-            "post_id": provider_id,
-            "integration_id": integration_id,
-            "caption_sha256": identity["caption_sha256"],
-            "slot": identity["slot"],
-        },
+        "remote_effect_locator": remote_effect_locator,
     }, provider_id)
 
 
@@ -455,7 +479,8 @@ def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> 
 
 
 def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
-                       expected_caption_sha256: str | None = None) -> dict[str, Any]:
+                       expected_caption_sha256: str | None = None,
+                       expected_caption_text: str | None = None) -> dict[str, Any]:
     row = _postiz_post(provider_id, api_key)
     adapter = _load_postiz_video_adapter()
     state = adapter.find_post([row], provider_id, identity["platform"])
@@ -471,9 +496,18 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         raise ValueError("Postiz integration profile mismatch")
     caption = _caption(row)
     caption_sha = hashlib.sha256(caption.encode("utf-8")).hexdigest()
-    if caption_sha != (expected_caption_sha256 or identity["caption_sha256"]):
-        raise ValueError("Postiz caption hash mismatch")
-    if caption_sha != identity["caption_sha256"] and not _ends_with_known_cta(caption):
+    expected_caption_sha = expected_caption_sha256 or identity["caption_sha256"]
+    caption_normalization = None
+    if caption_sha != expected_caption_sha:
+        if expected_caption_sha == identity.get("caption_sha256"):
+            caption_normalization = _video_caption_normalization(
+                identity, expected_caption_text, caption,
+            )
+        if caption_normalization is None:
+            raise ValueError("Postiz caption hash mismatch")
+    if (caption_sha != identity["caption_sha256"]
+            and not _ends_with_known_cta(caption)
+            and caption_normalization is None):
         raise ValueError("Postiz caption CTA suffix is not a known App Store CTA")
     provider_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
     if provider_video_sha is not None and provider_video_sha != identity.get("video_sha256"):
@@ -486,7 +520,7 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
             local_content[key] = identity[key]
     if provider_video_sha is not None:
         provider_content["video_sha256"] = provider_video_sha
-    return {
+    readback = {
         "provider": "postiz",
         "state": "PUBLISHED",
         "post_id": provider_id,
@@ -497,6 +531,18 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         "content": provider_content,
         "local_content": local_content,
     }
+    if caption_normalization is not None and expected_caption_text is not None:
+        local_wire_caption_sha256 = hashlib.sha256(
+            expected_caption_text[:-1].encode("utf-8"),
+        ).hexdigest()
+        if local_wire_caption_sha256 != caption_sha:
+            raise ValueError("Postiz normalized caption does not match local wire text")
+        readback.update({
+            "caption_normalization": caption_normalization,
+            "provider_caption_sha256": caption_sha,
+            "local_wire_caption_sha256": local_wire_caption_sha256,
+        })
+    return readback
 
 
 def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -> dict[str, Any]:
@@ -510,8 +556,12 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
     if local is None:
         raise ValueError("receipt_missing_or_ambiguous")
     receipt, provider_id = local
+    expected_caption_text = (
+        _stored_caption(identity, ledger) if identity.get("video_sha256") is not None else None
+    )
     readback = _provider_readback(
         identity, provider_id, api_key, _final_caption_sha256(identity, receipt),
+        expected_caption_text,
     )
     if readback.get("account_id") != identity.get("account_id"):
         raise ValueError("provider_readback_not_exact")
