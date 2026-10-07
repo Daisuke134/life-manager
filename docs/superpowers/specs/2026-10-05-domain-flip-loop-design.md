@@ -1,7 +1,7 @@
 # .si ドメイン再販 Product Loop 設計
 
 状態: source-only PR #6935（USD cap、registrar/Sedo adapters、CFO adapter）が `ca60f0d68d7f506a36433dc7f8430cf870b8eab1` でmainへ統合済み。本番にdomain-flip owner/jobはなく、Product Loop catalog/registry/CFO接続は未完了。購入上限は累積総費用 USD 4.99。
-2026-10-07T15:39Z read-only snapshot: latest `origin/main` は `ca60f0d68d7f506a36433dc7f8430cf870b8eab1`。`lm-loop status all` にdomain-flip行は0件。専用state/event ledgerはなく、credential SSOTはmode 0600でOpenprovider/Sedo/EUIPO key件数が各0。`business-outcomes.jsonl`は140行でdomain-flip行0件。専用business balanceのfresh readbackなし（business-inventoryの最新snapshotは2026-08-08）。Life Managerにはこのloopの販売・入金・利益receiptがない。外部seller accountの活動は未確認。
+2026-10-07T15:42Z read-only snapshot: latest `origin/main` は `ca60f0d68d7f506a36433dc7f8430cf870b8eab1`。`lm-loop status all` にdomain-flip行は0件。専用state/event ledgerはなく、credential SSOTはmode 0600でOpenprovider/Sedo/EUIPO key件数が各0。`business-outcomes.jsonl`は140行でdomain-flip行0件。専用business balanceのfresh readbackなし（business-inventoryの最新snapshotは2026-08-08）。Life Managerにはこのloopの販売・入金・利益receiptがない。外部seller accountの活動は未確認。follow-up PR #6937 (`9915551c92`) はOPENでPII-shape check PASS、Python/loop-control/gitleaks/TruffleHogは未完了。
 
 ## 1. 目的と完了条件
 
@@ -94,11 +94,11 @@ source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専
 
 ### 残TODO（この順）
 
-TODO順序変更: 旧順序はTask 5の共有統合→contract/PR→資金確認→provider/rights準備→release→売却readback。USD 5未満という直接指示で旧100 EUR上限が無効になり、Register.siの標準registrar向け料金も年10 EURで上限を超えるため、先に決定的policyを直した。レビューでは既定model呼出しの未予約コスト、CFOのzero-category coverage不足、mutable sale_idの重複経路が見つかったため、review cost gate、全COUNTED_CATEGORIES coverage、不変buyer receipt ID、厳密なsnapshot境界を先行し、source-only PR #6935をmainへ統合した。そのPRのPII-shape CIは合成テスト郵便番号literalを検出したため、allowlistを使わずfollow-upで形状を除く。新順序はPII-shape修正とCI完了→専用balance/sub-cap quoteとreview-cost予算→provider/rights/payout access→shared integration/contract/PR/release/natural pass→実売却/net照合。現在cursorは合成test fixture修正のcommit/push/CI。
+TODO順序変更: 旧順序はTask 5の共有統合→contract/PR→資金確認→provider/rights準備→release→売却readback。USD 5未満という直接指示で旧100 EUR上限が無効になり、Register.siの標準registrar向け料金も年10 EURで上限を超えるため、先に決定的policyを直した。reviewで既定model呼出しの未予約コスト、CFOのzero-category coverage不足、mutable sale_idの重複経路が見つかったため、review cost gate、全COUNTED_CATEGORIES coverage、不変buyer receipt ID、厳密なsnapshot境界を先行し、source-only PR #6935をmainへ統合した。そのPRのPII-shape CIは合成test fixtureを検出したため、allowlistを変えずfollow-up PR #6937で記述を修正した。新順序はfollow-up CI完了→専用balance/sub-cap quote→provider/rights/payout access→shared integration/contract/PR/release/natural pass→実売却/net照合。現在cursorはPR #6937の残checks完了とmerge。
 
 1. [完了] USD 4.99 cap、receipt記録額からのFX換算、EUR/USD累積reservation、非EUR quote拒否をpolicy/run event/spec/testsへ反映し、source-only PR #6935をmainへ統合する。
 2. [完了] 独立CFO adapterは不変buyer receipt ID、必須sale proof、domain一致費用、gross-to-payout reconciliation、全COUNTED_CATEGORIESのzero-cost coverage、strict snapshot境界を検証する。historical B0 projection netはfixture上でEUR 404となる。shared CFO/registry/catalog/SSOT接続はowner lease確認後に行う。
-3. [進行中] GitHub PII-shape checkがdomain-flip test fixture内の合成郵便番号literalを検出した。follow-up branchでは値をruntimeで組み立て、allowlistを変更せずrepo全体scanをcleanにした。commit/pushとCI再確認を行う。
+3. [進行中] GitHub PII-shape checkがtest fixture内の合成郵便番号形状を検出した。follow-up PR #6937では値をruntimeで組み立て、allowlistを変更せずrepo全体scanをcleanにし、PII-shape checkもPASS。Python/loop-control/gitleaks/TruffleHog check完了後にmergeする。
 4. [未完了] 専用事業残高のowner/currency/available amount、USD/EUR funding receiptと24時間以内の公式balance readback、review費用ゼロまたは事前予約額を確認する。今回のlive readbackでは専用balance/stateがなく、credential SSOTのOpenprovider/Sedo/EUIPO keyも各0件。個人資金は使わない。
 5. 総予約費用がUSD 4.99以下となるEUR registrar quote、Openprovider/Sedo access、登録者・email-only WHOIS条件、許可済みEUIPO rights evidence、Sedo seller/payout readback pathを整える。標準卸料金が上限を超えるため、条件に合う小売quote receiptがない限り購入しない。
 6. shared CFO/registry/catalog/SSOT接続は各owner lease解放後に行い、focused acceptance、`./bin/lm-loop-contract`、PR/CI/main統合、main由来immutable releaseとowner限定の自然passを完了する。
