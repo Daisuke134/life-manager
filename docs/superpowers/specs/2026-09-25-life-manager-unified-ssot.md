@@ -4432,3 +4432,28 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 6. CrowdWorksは別ownerのactive source repairを再利用し、merge後にApplication/Paid/Replyのunknown occurrencesをofficial readbackで個別reconcileする。Mercorのeffect-unknown fencesも同様に保持し、official receipt前に再応募しない。
 7. Upworkのautomated storefront/applyは公式policy上このcommercial laneでは実行しない。Freelancerは既存uncertain publishのexact official stateを取得し、account-bound authとprovider-approved automation scopeが証明されるまでpublish/bidを再試行しない。
 8. 許可されたplatformだけでmain-derived ownerの自然24/7 occurrence、provider receipt、settlement/fee/cost、replay-zeroを確認する。全Gig lane完了後にのみL9-11 SelfBuildへ進む。
+
+### 2026-10-08 08:48 JST — Gig owner locks and shared capacity cursor
+
+このreadbackは08:48 JST時点のowner/runtime状態を記録する。Gigの次cursorとSelfBuildの後置は維持する。
+
+- `/`のfree spaceは`2,067,940 KiB`で2 GiB floorを下回る。Registered cleanup ownerは`entrypoint_exit_1` / `reconcile_owner`、Cleanup source worktreeにはactive leaseがある。別ownerのworktreeやcleanup stateを変更しない。
+- `hf-gig-paid-direct`はproject lockを保持したまま`disk_headroom_low`でdeferされ、最新readbackは`effect=not_applicable`・provider receiptなし。直前remote outcomeもrequired effect/output未達で、現行Coconala Paid契約の返信・納品・購入者受入は確認できない。owner終了とlock解放前に同じproject/Sheet/inboxへ触れない。
+- TikTok inbox readerの固定8秒取得は空のframe snapshotを返す。guard付きのread-only probeではより長い待機後にconversation listがhydrateしたが、current viewのlistはcampaign全体のcoverage証拠ではない。Google Sheetのrecipient/date列もprovider message receiptではないため、inbound reply countを推定しない。Inbox本文・handle・個別recipientはprivate evidenceに留める。
+- CrowdWorksのApplication proof修正は別ownerのactive lease。最新Application/Paidは`entrypoint_exit_75` / `effect=unknown` / receiptなし、Replyもofficial receiptなし。変更を重ねず、owner merge後にreadbackする。
+- Mercor Application/Paid/Replyのhistorical effect fencesは継続し、fresh account page readbackだけではexact old occurrenceに結べない。新しいapplication/replyは送らない。
+- Upwork公式[bot policy](https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly)は未承認automationでのrequest/data collectionを制限対象とする。公式[API request requirements](https://support.upwork.com/hc/en-us/articles/115015857647-Request-an-API-key-from-Upwork)はAPIのcommercial useをサポートしないと明記する。Project ListはDrafts 0 / Under Review 0を表示し、active catalog itemは観測されない。追加browser automation、scraping、automated proposalは行わない。
+- Freelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)はpredefined-service storefrontを提供する。ローカルに過去のuncertain/rate-limited publish状態はあるがcurrent provider receiptはない。既存profile/local traceはaccount-bound authenticationや現在のservice公開を証明しない。全actionはunknown、automatic biddingは[provider integration approval](https://developers.freelancer.com/docs/api-overview/types-of-integrations)なしに有効化しない。
+
+**現在cursor:** L9-07 Coconala Paid ownerの自然terminal / lock release / exact readback。以後のplatform実行は、上記の別owner leaseとprovider authorizationに従う。
+
+### Remaining atomic Gig TODO
+
+1. Coconala Paid ownerとshared disk cleanup ownerの自然終端を待つ。lock解放後に同一Coconala occurrenceの結果とofficial receiptを読む。process pass、local `sent` ledger、Sheet dateは単独では送信証明にしない。
+2. Coconala Inbox helperの固定待機を、conversation-list-readyかつ連続して安定した場合だけreadback成功とするbounded waitへ直し、公式inboxとfull Sheet rangeを再取得する。Exact recipient→official send receipt→inbound reply join後にのみ返信数を回答し、一度だけPaid owner経由で返す。
+3. Existing Coconala contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceで閉じる。
+4. Coconala Storefront 20/20 live inventoryはPASS済み。旧effect fence、publication ledger差、Storefront owner SHA、global doctor gateをexact evidenceで閉じた後だけ`076c5be8`をtarget ownerに反映し、natural Storefront outcome/purchase/settlementを分けてreadする。
+5. Coconala fresh eligible workのApply→Negotiate/Reply→Paidを進める。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryを行わず後続platformを止めない。
+6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
+7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
+8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
