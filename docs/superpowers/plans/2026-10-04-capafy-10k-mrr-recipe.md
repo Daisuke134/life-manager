@@ -46,13 +46,13 @@
 - **量産の禁止**（https://capafy.ai/developer/doc/4.2）: "Do not mass-upload large numbers of Agents with near-identical functionality or minimal variations to dominate search results. This behavior is treated as cheating; the related Agents will be removed and the Publisher account may be warned or suspended." → 既存の Hook Lab 派生 9 本はこの危険域。複製（C3）は「入力・出力・使う場面が本当に違う物」だけにし、近い派生は統合・退役させる（C4）。
 - **却下理由 2.2 Information accuracy**（同 4.2）: 2.2.1 説明どおりの機能、2.2.2 カテゴリとタグの一致、2.2.3 "The Base Model field must accurately reflect the LLM the Agent currently uses." → Marketing Strategist（モデル変更版 v1.0.2）は 2.2.3 のずれが第一仮説。
 - **Agent Card**（同 4.2）: Details に sample input/output・Capabilities・Use Cases・FAQ を推奨。金融系は「専門的な投資助言ではない」免責と元本喪失のリスク表示が必須。
-- **手数料と精算**（https://capafy.ai/developer/doc/3.2）: Subscription Payout = 支払額 − Platform Sandbox Fee − Platform Fee。Sandbox Fee（On-Demand）は月 $2.00・週 $0.50・日 $0.07。Download は Sandbox Fee なし。売上は 7 日の dispute window の後に月次精算の対象、翌月 1 日に明細、条件を満たせば 15 日以降に振込。→ 9 月明細 $59.00 は 10/15 以降の振込が A2 の最初の着金確認点。日額プランは Sandbox Fee の比率が高い（$1.99/日なら 3.5%）ので、月額・週額を主にする。
+- **手数料と精算**（https://capafy.ai/developer/doc/3.2、2026-10-07 再取得）: Subscription の計算基準は `Net Transaction Amount − Platform Sandbox Fee`、Platform Fee はその基準の20%。On-Demand の Sandbox Fee は月$2.00・週$0.50・日$0.07。Download はSandbox Feeなし。Subscription payout は `(Net Transaction Amount − Sandbox Fee) × 80%`。売上は7日dispute windowの後に月次精算対象、翌月1日に明細、条件を満たせば15日以降に振込。日額プランはSandbox Feeの比率が高いため、月額・週額を主にする。
 
-**$10k MRR の算数:** 手取り 80% として、平均 $9.99/月のサブスクなら有料会員 約 1,250 人。CloneCut 型の勝者 1 本（$19.99/月 × 600 人）＋中堅 10 本（$9.99 × 50 人）でも届く。今は月 $66 の手取り（目標の 0.66%）。
+**Capafyの$10k/月の算数（On-Demand sandbox、model cost/refund/tax/cash timing前。予測ではない）:** $9.99/月ならsandbox $2.00を引いた$7.99に20% feeを適用し、publisher payoutは約$6.39/active subscriber-month。$10,000 payoutには約1,565 active subscriber-monthsが必要。$19.99/月ならpayoutは約$14.39、必要数は約695。$29.99/月ならpayoutは約$22.39、必要数は約447。銀行着金ベースの$10k目標はmodel cost、refund、dispute、settlement timingを加味するため、実際の必要数はさらに多い。旧い「$9.99×80%=約1,250人」の算数はSandbox Feeを無視していたため無効。これはeBookの$10k MRRとは別の目標である。
 
 ## 0.2 単位経済（2026-10-04 実測。agent 別 30日、出所: `capafy-skill-analytics.json` per_skill_rows、公開価格は `capafy-market-agents-20261003.json`）
 
-| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 手数料後 | モデル代 | 利益 |
+| agent | モデル | 公開中の価格（10/03） | 30日 売上 | 20% feeのみの推定（sandbox除外） | モデル代 | 利益 |
 |---|---|---|---|---|---|---|
 | Hook Lab 8123079349 | DeepSeek | 日$1.99/週$4.99/月$9.99 | $24.89 | $19.91 | $0.34 | **+$19.57** |
 | Slide Maker 8828622062 | DeepSeek | 週$9.99/月$24.99 | $19.98 | $15.98 | $0.00 | **+$15.98** |
@@ -63,10 +63,17 @@
 | Contract Red Flags 8416888650 | Sonnet 4.6 | — | $0 | $0 | $1.59 | **-$1.59** |
 
 - DeepSeek の agent は原価がほぼ 0（Hook Lab 11 注文で $0.34）。赤字は Sonnet の 3 本だけで、合計 -$22.96/30日。
+- 上表の「20% feeのみの推定」はSandbox Feeを含まない上限値であり、subscriptionのpayoutやbanked netとして使わない。実行モード別Sandbox Feeと個別orderのmodeをjoinできるまで、実利益の正本はfresh provider payout/cost readbackとする。
 - 後ろの 2 本は repo catalog に無いため、`capafy_daily_decision.py` rule 1 が毎日 `skip no_catalog_match`（2026-10-03 の記録）。誰も止めていない。
 - 市場の勝者（同 sweep）: 高いモデルの勝者は高価格＋少ない回数上限で黒字にしている（Ocup Football Sonnet 4.6 週$14.99/月$29.99・月27回、HookAce Sonnet 5 週$9.99/月$19.99・月25回、Odeo Maker Opus 4.8 週$19.99/月$29.99・月10回）。安いモデルの勝者も価格は下げない（Serenity Stock Tracker・Alpha Consensus は DeepSeek で週$9.99/月$19.99/年$99.99・月40回）。→ 勝者は「市場価格は守る、高いモデルなら回数を絞る」。価格を下げて売る勝者はいない（無料 download の集客用は別枠）。
 - 自社: モデルは既に安い（DeepSeek）が、売れ筋 3 本の公開価格は市場の下 25%（月$12.99）未満の $9.99。catalog の LISTING は値上げ済み（Hook Lab 日$3.99/週$9.99/月$19.99/年$99.99）だが本番に届いていない。
-- 手取りの目安（推定、doc 3.2 の式: 支払額 − Sandbox Fee − Platform Fee 20%）: 月$9.99 ≈ $5.99、月$19.99 ≈ $13.99。同じ 1 人で手取り 2.3 倍。
+- 旧手取り推定（月$9.99=$5.99、月$19.99=$13.99）は20% feeをSandbox Fee控除前の全額に適用していたため置換済み。On-Demand計算は月$9.99≈$6.39、月$19.99≈$14.39。
+
+## 0.3 2026-10-07 fresh運営snapshot
+
+- Capafy analytics observed at `2026-10-07T02:57:21Z`: last-30-day gross $65.80, last-7-day gross $0.00, measured AI cost $34.23, after-cost profit $18.41. Payout balance $59.00, pending $0.00, confirmed balance $17.18, paid out $0.00. The $18.41 is measured profit, not banked payout.
+- Fresh market sweep `capafy-market-agents-20261006.json` contains 852 agents. Its `salesVolume` snapshot leaders include Ocup Football Analysis 3,088, Serenity Stock Tracker 1,845, HookAce 948, and Odeo Maker 704; these are marketplace counts, not monthly recurring revenue. Capafy’s public earn page currently names KOL Hunter Pro as a $10,000+/mo example, but this is a publisher-page claim, not our settled result.
+- Instagram remains unproven as a sales channel: the latest official Postiz readback at 13:19 JST showed zero Capafy Instagram posts. The integration was enabled, but native ownership/good-standing was not verified. The old direct owner is disabled with an unresolved effect fence, and the new owner is disabled. D5 remains one canary per 24 hours after the eBook paid+PDF gate; it does not currently authorize three posts per day.
 
 ## 1. 足りないもの（To-Be との差）
 
