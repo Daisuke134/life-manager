@@ -33,7 +33,7 @@ function required(value, label) {
 function campaignCaptionRef(objectStore, dataDir, copyRef, campaignUrl) {
   let url; try { url = new URL(required(campaignUrl, "Honne EN campaign URL")); } catch { throw new Error("Honne EN campaign URL is invalid"); }
   if (url.protocol !== "https:" || url.hostname !== "apps.apple.com" || !/\/id6759667221$/.test(url.pathname) || url.searchParams.get("pt") !== "93486075" || url.searchParams.get("ct") !== "honne_en_base_20260823" || url.username || url.password || url.hash) throw new Error("Honne EN campaign URL is invalid");
-  const caption = `${fs.readFileSync(objectStore.resolve(copyRef), "utf8").trimEnd()}\n\n${url.href}\n`; const workspace = path.join(dataDir, "tenants/dais-local/marketing/video-generation"); fs.mkdirSync(workspace, { recursive: true, mode: 0o700 }); const candidate = path.join(workspace, `.honne-en-campaign-${process.pid}.txt`); fs.writeFileSync(candidate, caption, { mode: 0o600, flag: "wx" }); try { return objectStore.import(candidate).ref; } finally { fs.unlinkSync(candidate); }
+  const caption = `${fs.readFileSync(objectStore.resolve(copyRef), "utf8").trim()}\n\n${url.href}`; const workspace = path.join(dataDir, "tenants/dais-local/marketing/video-generation"); fs.mkdirSync(workspace, { recursive: true, mode: 0o700 }); const candidate = path.join(workspace, `.honne-en-campaign-${process.pid}.txt`); fs.writeFileSync(candidate, caption, { mode: 0o600, flag: "wx" }); try { return objectStore.import(candidate).ref; } finally { fs.unlinkSync(candidate); }
 }
 
 function parseArgs(argv) {

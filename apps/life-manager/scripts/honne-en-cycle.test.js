@@ -14,7 +14,8 @@ const SLOT = "2026-08-21T11:30:00.000Z";
 test("Honne EN campaign caption preserves the exact Apple campaign link", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-honne-campaign-")); const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const copy = path.join(dataDir, "copy.txt"); fs.writeFileSync(copy, "same hook\n\n#honne\n"); const copyRef = objectStore.import(copy).ref;
   const campaignUrl = "https://apps.apple.com/app/id6759667221?pt=93486075&ct=honne_en_base_20260823&mt=8"; const result = campaignCaptionRef(objectStore, dataDir, copyRef, campaignUrl); const caption = fs.readFileSync(objectStore.resolve(result), "utf8");
-  assert.equal(caption, `same hook\n\n#honne\n\n${campaignUrl}\n`); assert.notEqual(result, copyRef);
+  assert.equal(caption, `same hook\n\n#honne\n\n${campaignUrl}`); assert.notEqual(result, copyRef);
+  assert.equal(caption.endsWith("\n"), false);
   assert.throws(() => campaignCaptionRef(objectStore, dataDir, copyRef, campaignUrl.replace("6759667221", "6755129214")), /campaign URL is invalid/);
 });
 
