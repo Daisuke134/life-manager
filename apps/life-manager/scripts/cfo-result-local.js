@@ -193,7 +193,11 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
 
 function readB7Snapshot(stateDir, reference, pending) {
   const sourceOccurrenceId = occurrenceId(pending.occurrenceId);
-  const stored = readB7SnapshotFile(stateDir, sourceOccurrenceId, false);
+  let stored;
+  try { stored = readB7SnapshotFile(stateDir, sourceOccurrenceId, false); } catch (error) {
+    if (error.code === "ENOENT") throw new Error("cfo_b7_snapshot_missing");
+    throw error;
+  }
   const { location, snapshot } = stored;
   if (!reference || reference.path !== location.relativePath
     || !SHA256.test(String(reference.projectionSha256 || ""))
@@ -263,11 +267,15 @@ async function runResultCfo(options) {
   if (pending && (pending.channel !== destination.channel || pending.recipientHash !== recipientHash)) {
     throw new Error("cfo_pending_destination_changed");
   }
-  if (pending && now.getTime() - Date.parse(pending.createdAt) >= 23 * 60 * 60 * 1000) {
-    throw new Error("cfo_pending_receipt_requires_reconcile");
-  }
   const newSourceIdentity = pending ? null : b7Identity(currentOccurrenceId, options.env || process.env);
-  let sourceSnapshot = pending?.b7ReadbackRef ? readB7Snapshot(stateDir, pending.b7ReadbackRef, pending) : null;
+  let sourceSnapshot = null;
+  let sourceSnapshotMissing = false;
+  if (pending?.b7ReadbackRef) {
+    try { sourceSnapshot = readB7Snapshot(stateDir, pending.b7ReadbackRef, pending); } catch (error) {
+      if (error.message !== "cfo_b7_snapshot_missing") throw error;
+      sourceSnapshotMissing = true;
+    }
+  }
   if (!pending) {
     const orphan = readB7SnapshotFile(stateDir, currentOccurrenceId, true);
     if (orphan) {
@@ -303,6 +311,10 @@ async function runResultCfo(options) {
       reportingDate: pending.reportingDate, delivered: !duplicate,
       providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: sourceSnapshot.resolutionKind };
   }
+  if (pending && now.getTime() - Date.parse(pending.createdAt) >= 23 * 60 * 60 * 1000) {
+    throw new Error("cfo_pending_receipt_requires_reconcile");
+  }
+  if (sourceSnapshotMissing) throw new Error("cfo_b7_snapshot_missing");
   if (!pending) {
     let table;
     if (options.collect) table = await options.collect(date);

@@ -147,6 +147,53 @@ test("orphan B7 snapshot recovers after pending state rename failure without rec
   });
 });
 
+test("late pending retry restores a sent sidecar receipt after sent-state rename failure", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  let notifyCalls = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  options.notify = async input => {
+    messages.push(input);
+    notifyCalls += 1;
+    return { delivery: "delivered", provider_message_id: "sent-before-state-crash" };
+  };
+
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const sidecarFile = readbackFile(options.stateDir, options.occurrenceId);
+  const renameSync = fs.renameSync;
+  let reportRenames = 0;
+  fs.renameSync = function (source, target) {
+    if (target === reportFile && ++reportRenames === 2) {
+      throw new Error("injected sent state rename failure");
+    }
+    return renameSync.call(fs, source, target);
+  };
+  try {
+    await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /injected sent state rename failure/);
+  } finally {
+    fs.renameSync = renameSync;
+  }
+
+  assert.equal(reportRenames, 2);
+  assert.equal(collects, 1);
+  assert.equal(notifyCalls, 1);
+  assert.equal(JSON.parse(fs.readFileSync(reportFile, "utf8")).status, "pending");
+  const sentSource = JSON.parse(fs.readFileSync(sidecarFile, "utf8"));
+  assert.equal(sentSource.status, "sent");
+  assert.equal(sentSource.providerMessageId, "sent-before-state-crash");
+
+  const recovered = await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:late-retry",
+    now: "2026-10-01T12:01:00Z" });
+  assert.equal(recovered.status, "sent");
+  assert.equal(recovered.providerMessageId, "sent-before-state-crash");
+  assert.equal(collects, 1);
+  assert.equal(notifyCalls, 1);
+  const finalState = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  assert.equal(finalState.status, "sent");
+  assert.equal(finalState.providerMessageId, "sent-before-state-crash");
+  assert.equal(finalState.occurrenceId, "life-manager-cfo-hourly:late-retry");
+});
+
 test("sent orphan snapshot restores its receipt without recollecting or notifying", async t => {
   const { options, messages } = setup(t);
   let collects = 0;
@@ -231,6 +278,21 @@ test("pending notification keeps its B7 source pending and retry reuses it witho
   assert.equal(resolved.resolutionKind, "duplicate");
   assert.equal(messages[0].message, messages[1].message);
   assert.equal(messages[0].eventKey, messages[1].eventKey);
+});
+
+test("stale pending snapshot without a sent receipt remains fenced", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  options.notify = async input => { messages.push(input); return { delivery: "pending" }; };
+
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
+  await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:stale-retry",
+    now: "2026-10-01T12:00:00Z" }), /cfo_pending_receipt_requires_reconcile/);
+
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+  assert.equal(JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8")).status, "pending");
 });
 
 test("same-period duplicate creates no new B7 source snapshot", async t => {
