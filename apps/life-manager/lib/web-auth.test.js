@@ -332,7 +332,7 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   assert.deepEqual(resolveEvents.map(([name]) => name), ["getUser"]);
 });
 
-test("refuses Web session for Telegram-bound uid without changing row", async () => {
+test("keeps Telegram-bound row separate and starts Web in its own stable tenant", async () => {
   const existing = {
     uid: WEB_UID,
     telegram_chat_id: "telegram-chat-77",
@@ -361,22 +361,47 @@ test("refuses Web session for Telegram-bound uid without changing row", async ()
   const fixture = authOptions(client, { fetch: db.fetch });
   await handleWebAuthRequest(callbackRequest({ cookie: "lm-web-auth.3=old-session-3; lm-web-auth-code-verifier=pkce-verifier; unrelated-cookie=request-value" }), res, fixture.options);
 
-  assert.equal(res.statusCode, 403);
-  assert.notEqual(res.getHeader("location"), "/lm");
-  assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession", "getUser", "signOut"]);
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?start_calendar=1");
+  assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession", "getUser"]);
   assert.deepEqual(db.rows[0], before);
-  assert.equal(db.calls.filter((call) => call.method === "POST").length, 0);
-  assertAuthCookiesCleared(res, ["lm-web-auth.0", "lm-web-auth.1", "lm-web-auth.3"]);
+  assert.equal(db.rows.length, 2);
+  const webRow = db.rows.find((row) => row.uid !== WEB_UID);
+  assert.ok(webRow);
+  assert.match(webRow.uid, /^lm_[0-9a-f-]{36}$/i);
+  assert.equal(webRow.telegram_chat_id, null);
+  assert.equal(finalCookieValue(res, "lm-web-auth"), "temporary-session-0");
   assert.equal(finalCookieValue(res, "unrelated-cookie"), "preserve-after-rejection");
 
   const directDb = makeRestFetch([existing]);
-  await assert.rejects(ensureWebUser(WEB_UID, {
+  const resolvedUid = await ensureWebUser(WEB_UID, {
     supabaseUrl: SUPABASE_URL,
     serviceRoleKey: SERVICE_KEY,
     fetch: directDb.fetch,
-  }), /telegram-bound/i);
+  });
+  assert.notEqual(resolvedUid, WEB_UID);
+  assert.equal(directDb.rows.length, 2);
   assert.deepEqual(directDb.rows[0], before);
-  assert.equal(directDb.calls.filter((call) => call.method === "POST").length, 0);
+
+  const resolveClient = authClient();
+  const resolveFixture = authOptions(resolveClient, { fetch: db.fetch });
+  const resolved = await resolveWebUser({
+    method: "GET",
+    url: "/api/lm-web/calendar/status",
+    headers: { cookie: "lm-web-auth=existing-session" },
+  }, makeResponse(), { ...resolveFixture.options, csrfSecret: "csrf-secret" });
+  assert.equal(resolved.uid, webRow.uid);
+  assert.equal(resolved.subject, SUBJECT);
+});
+
+test("OAuth failures return to the Web page instead of a downloadable text response", async () => {
+  const client = authClient();
+  const res = makeResponse();
+  await handleWebAuthRequest({ method: "GET", url: "/auth/google/callback", headers: { host: "life-manager.example.test" } }, res, authOptions(client).options);
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
+  assert.equal(res.getHeader("content-type"), undefined);
+  assert.equal(res.body, "");
 });
 
 test("existing unbound rows are kept as-is and new rows use insert-only conflict-ignore", async () => {
