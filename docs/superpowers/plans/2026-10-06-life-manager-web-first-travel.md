@@ -124,6 +124,7 @@
 - Create: apps/life-manager/lib/web-funnel-events.test.js
 - Create: apps/life-manager/lib/web-funnel-report.js
 - Create: apps/life-manager/lib/web-funnel-report.test.js
+- Create: apps/life-manager/scripts/lm-web-funnel-report.test.js
 - Create: apps/life-manager/migrations/2026-10-08-zz-lm-web-funnel-events.sql
 - Modify: apps/life-manager/server.js, apps/life-manager/lib/web-auth.js, apps/life-manager/lib/web-calendar.js, apps/life-manager/lib/web-travel.js, apps/life-manager/lib/web-billing.js for server-side funnel events
 - Create: apps/life-manager/scripts/lm-web-funnel-report.js
@@ -132,9 +133,10 @@
 **Interfaces:**
 - Places lookup accepts tenant uid and an optional usage writer, records one privacy-safe provider-usage row per billable success, and makes at most three Places Text Search calls per Calendar event. It never records the query, event title, address, or response text.
 - The funnel event writer accepts an allowlisted lifecycle event, bounded first-touch UTM values, an optional opaque Web uid, an optional provider-object/event id, and optional amount/currency; it writes append-only rows to `lm_web_funnel_events` with service-role access only.
-- The report joins anonymous landing/connect counts to Web users, Stripe events/subscriptions/invoices/refunds, and per-user `lm_api_cost` estimates. It separates estimated provider cost from verified Stripe fees/refunds and labels unavailable marketing/hosting allocations as unavailable.
+- The report joins anonymous landing/connect counts to Web users, Stripe events/subscriptions/invoices/refunds, Stripe Balance Transactions/payout statuses, and per-user `lm_api_cost` estimates. MRR requires both a current active Stripe subscription and webhook-verified `lm_users.paid=true`, `plan_status=active`, and matching subscription id; a trial counts only while the row is trialing, unexpired, and card-backed. The first positive invoice uses retained all-time invoice history, so renewals from earlier cohorts stay renewals.
+- It separates paid invoice amount, Stripe-balance available/pending net, Stripe-paid-payout net, refunds, attributable charge/refund fees, and provider estimates. Stripe payout status does not prove bank credit. Partial or missing provider estimates, hosting, and marketing spend stay visibly unknown.
 - Group acquisition by signed first-touch UTM; count Google auth, Calendar ACTIVE, first Travel block, Checkout creation, trialing, positive first paid invoice, renewals, cancellations, refunds, and mature D7/D30 retention. Stripe is the billing source of truth; Checkout redirects and trial rows are not paid revenue.
-- Report gross MRR separately from settled receipts, refunds, Stripe fees, estimated route/provider cost, hosting, and attributed marketing spend.
+- Report gross MRR separately from paid invoice receipts, Stripe-balance available/pending values, paid payout net, refunds, attributable Stripe fees, estimated route/provider cost, hosting, and attributed marketing spend.
 - Do not infer a paid customer from a trial or a Stripe checkout redirect.
 
 - [x] Step 1: Read the current records. `lm_users` holds first-touch UTM and current Calendar/billing state; `lm_api_cost` holds tenant provider estimates; `lm_stripe_events` has only Stripe event id/type/receive time. No persistent Web page-view/connect-start events or historical invoice/refund attribution exists.
@@ -142,8 +144,8 @@
 - [x] Step 3 (RED): Focused tests fail on the missing 3-call Places cap, tenant usage event, route-fallback uid propagation, funnel event writer, lifecycle hooks, Stripe event mapping, and read-only report.
 - [x] Step 4 (GREEN): Add Places metering/cap and thread uid through the existing route fallback. Extend the Maps SKU allowlist and pricing version without changing Calendar or Stripe entitlement behavior.
 - [x] Step 5 (RED/GREEN): Add the append-only funnel migration and instrument `landing_view`, `google_connect_start`, `google_authenticated`, `calendar_active`, `first_travel_block`, `checkout_created`, `trial_started`, `paid_invoice`, `cancellation_requested`, `subscription_canceled`, and successful `refund_recorded`. No IP, user-agent, event titles, addresses, Gmail, or raw URLs are recorded.
-- [x] Step 6 (source): Implement a read-only report over Web users, funnel events, usage rows, current Stripe subscriptions, and attributable Stripe balance transactions. D7/D30 are labeled current paid-subscription retention; provider actuals and unallocated hosting/marketing remain null.
-- [~] Step 7: Source acceptance passes 238/238 focused tests, synthetic browser onboarding E2E at 390x844/1440x900, `node --check` on changed JavaScript, and `git diff --check`. Remaining: test migration/ACL on the target project after merge, run the report against read-only production data, refresh live Stripe/Composio readbacks, and exercise TEST-mode refund/trial lifecycle. No live price or live charge changed in WB-12 source work.
+- [x] Step 6 (source): Implement a read-only report over Web users, funnel events, all-time paid-invoice history, usage rows, current Stripe subscriptions, and attributable balance transactions/payout status. D7/D30 are labeled current webhook-verified paid-subscription retention; provider totals with missing estimates and unallocated hosting/marketing remain null.
+- [~] Step 7: Source acceptance passes 243/243 focused tests, local PostgreSQL migration/ACL/append-only integration, synthetic browser onboarding E2E at 390x844/1440x900, `node --check` on changed JavaScript, and `git diff --check`. Remaining after merge: apply the migration from the main release and read back production schema/ACL, run the report against read-only production data, refresh live Stripe/Composio readbacks, and exercise TEST-mode refund/trial lifecycle. No live price or live charge changed in WB-12 source work.
 
 ## After this source plan
 

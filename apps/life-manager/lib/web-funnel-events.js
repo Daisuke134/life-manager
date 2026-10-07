@@ -79,7 +79,8 @@ async function recordWebFunnelEvent(event, opts = {}) {
   }
 }
 
-function webFunnelEventForRequest(requestUrl) {
+function webFunnelEventForRequest(requestUrl, method = "GET") {
+  if (String(method || "GET").toUpperCase() !== "GET") return null;
   let url;
   try { url = new URL(String(requestUrl || "/"), "https://aniccaai.com"); }
   catch { return null; }
@@ -99,14 +100,15 @@ function webFunnelEventFromStripe(event, parsed) {
     ...(occurredAt ? { occurredAt } : {}),
   };
   if (parsed.kind === "subscription") {
-    if (parsed.status === "trialing") {
-      return { ...common, eventName: "trial_started", sourceObjectId: parsed.subscriptionId };
-    }
     if (parsed.eventType === "customer.subscription.updated" && parsed.cancelAtPeriodEnd === true) {
       return { ...common, eventName: "cancellation_requested", sourceObjectId: parsed.subscriptionId };
     }
     if (parsed.eventType === "customer.subscription.deleted" || parsed.status === "canceled") {
       return { ...common, eventName: "subscription_canceled", sourceObjectId: parsed.subscriptionId };
+    }
+    const cardBackedTrial = parsed.hasPaymentMethod === true || parsed.cardBackedTrial === true;
+    if (parsed.status === "trialing" && cardBackedTrial) {
+      return { ...common, eventName: "trial_started", sourceObjectId: parsed.subscriptionId };
     }
     return null;
   }
@@ -123,6 +125,29 @@ function webFunnelEventFromStripe(event, parsed) {
     };
   }
   return null;
+}
+
+async function recordWebFunnelStripeEvent(event, parsed, billingResult, opts = {}) {
+  if (event && ["refund.created", "refund.updated"].includes(event.type)) {
+    return recordWebFunnelRefund(event, opts);
+  }
+  if (!parsed) return true;
+  const funnelEvent = webFunnelEventFromStripe(event, {
+    ...parsed,
+    uid: billingResult && billingResult.uid || parsed.uid,
+    cardBackedTrial: parsed.hasPaymentMethod === true
+      || billingResult && billingResult.status === "trialing"
+        && billingResult.action === "provision" && billingResult.paid === false,
+  });
+  if (!funnelEvent) return true;
+  const write = opts.recordWebFunnelEventImpl || recordWebFunnelEvent;
+  try {
+    return (await write(funnelEvent, {
+      supaUrl: opts.supaUrl,
+      supaKey: opts.supaKey,
+      fetchImpl: opts.fetchImpl,
+    })) !== false;
+  } catch { return false; }
 }
 
 function webFunnelEventFromRefund(event, uid) {
@@ -192,12 +217,13 @@ async function recordWebFunnelRefund(event, opts = {}) {
 }
 
 async function recordWebFunnelRequest(requestUrl, opts = {}) {
-  const event = webFunnelEventForRequest(requestUrl);
-  return event ? recordWebFunnelEvent(event, opts) : false;
+  const { method = "GET", ...recordOptions } = opts;
+  const event = webFunnelEventForRequest(requestUrl, method);
+  return event ? recordWebFunnelEvent(event, recordOptions) : false;
 }
 
 module.exports = {
   WEB_FUNNEL_EVENTS, normalizeWebFunnelEvent, recordWebFunnelEvent,
   webFunnelEventForRequest, recordWebFunnelRequest, webFunnelEventFromStripe,
-  webFunnelEventFromRefund, recordWebFunnelRefund,
+  webFunnelEventFromRefund, recordWebFunnelRefund, recordWebFunnelStripeEvent,
 };

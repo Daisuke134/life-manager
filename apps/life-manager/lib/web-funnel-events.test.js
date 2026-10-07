@@ -100,6 +100,8 @@ test("server request funnel events retain only the exact landing and connect UTM
     attribution: { utm_source: "instagram", utm_campaign: "founder-story" },
   });
   assert.equal(funnelEvents.webFunnelEventForRequest("/auth/google/callback?code=private"), null);
+  assert.equal(funnelEvents.webFunnelEventForRequest("/auth/google", "POST"), null);
+  assert.equal(funnelEvents.webFunnelEventForRequest("/lm", "POST"), null);
   assert.equal(funnelEvents.webFunnelEventForRequest("/unknown?utm_source=x"), null);
 });
 
@@ -111,11 +113,15 @@ test("Stripe webhook mappings capture Web trial, paid invoice, and cancellation 
     data: { object: { metadata: { lm_uid: UID, lm_product: "life_manager_web_travel" } } },
   };
   const trial = { ...base, id: "evt_trial", type: "customer.subscription.created",
-    data: { object: { ...base.data.object, id: "sub_web", status: "trialing" } } };
+    data: { object: { ...base.data.object, id: "sub_web", status: "trialing", default_payment_method: "pm_saved" } } };
   assert.deepEqual(funnelEvents.webFunnelEventFromStripe(trial, parseStripeEvent(trial)), {
     eventName: "trial_started", uid: UID, sourceObjectId: "sub_web", sourceEventId: "evt_trial",
     attribution: {}, occurredAt: "2030-01-01T00:00:00.000Z",
   });
+  const noCardTrial = { ...trial, id: "evt_trial_no_card", data: { object: {
+    ...trial.data.object, default_payment_method: null,
+  } } };
+  assert.equal(funnelEvents.webFunnelEventFromStripe(noCardTrial, parseStripeEvent(noCardTrial)), null);
 
   const paid = { ...base, id: "evt_invoice", type: "invoice.paid", data: { object: {
     ...base.data.object, id: "in_web", amount_paid: 2900, currency: "usd",
@@ -135,6 +141,27 @@ test("Stripe webhook mappings capture Web trial, paid invoice, and cancellation 
   } } }, parseStripeEvent({ ...paid, id: "evt_zero", data: { object: {
     ...paid.data.object, amount_paid: 0,
   } } })), null);
+});
+
+test("trial-period cancellation maps to cancellation and the Stripe writer persists lifecycle events", async () => {
+  assert.equal(typeof funnelEvents.recordWebFunnelStripeEvent, "function");
+  const { parseStripeEvent } = require("./billing.js");
+  const event = {
+    id: "evt_trial_cancel", type: "customer.subscription.updated", created: 1_893_456_000,
+    data: { object: {
+      id: "sub_trial", status: "trialing", cancel_at_period_end: true,
+      metadata: { lm_uid: UID, lm_product: "life_manager_web_travel" },
+    } },
+  };
+  const rows = [];
+  const recorded = await funnelEvents.recordWebFunnelStripeEvent(event, parseStripeEvent(event), { uid: UID }, {
+    recordWebFunnelEventImpl: async (row) => { rows.push(row); return true; },
+  });
+  assert.equal(recorded, true);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].eventName, "cancellation_requested");
+  assert.equal(rows[0].sourceObjectId, "sub_trial");
+  assert.equal(rows[0].sourceEventId, "evt_trial_cancel");
 });
 
 test("refund webhook mapping records only a succeeded refund for an exact Web uid", () => {

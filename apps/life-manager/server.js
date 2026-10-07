@@ -57,7 +57,7 @@ const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
 const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
 const {
-  recordWebFunnelRefund, recordWebFunnelRequest, webFunnelEventFromStripe,
+  recordWebFunnelRequest, recordWebFunnelStripeEvent,
 } = require("./lib/web-funnel-events.js");
 const { renderWebPage } = require("./lib/web-page.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
@@ -501,21 +501,11 @@ function ctxFromReq(req) {
 
 const STRIPE_REFUND_EVENTS = new Set(["refund.created", "refund.updated"]);
 
-async function recordStripeWebRefundEvent(event) {
-  return recordWebFunnelRefund(event, { stripeClient: stripe, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
-}
-
 async function recordStripeWebFunnelEvent(event, billingResult) {
-  if (STRIPE_REFUND_EVENTS.has(event && event.type)) return recordStripeWebRefundEvent(event);
   const parsed = parseStripeEvent(event);
-  if (!parsed) return true;
-  const funnelEvent = webFunnelEventFromStripe(event, {
-    ...parsed,
-    uid: billingResult && billingResult.uid || parsed.uid,
+  return recordWebFunnelStripeEvent(event, parsed, billingResult, {
+    stripeClient: stripe, supaUrl: SUPA_URL, supaKey: SUPA_KEY,
   });
-  return funnelEvent
-    ? recordWebFunnelEvent(funnelEvent, { supaUrl: SUPA_URL, supaKey: SUPA_KEY })
-    : true;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -526,7 +516,7 @@ const server = http.createServer(async (req, res) => {
       res.end("Method not allowed");
       return;
     }
-    void recordWebFunnelRequest(req.url, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+    void recordWebFunnelRequest(req.url, { method: req.method, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
     let user = null;
     let snapshot = null;
     try { user = await resolveWebUser(req, res, { publicOrigin: LM_PANEL_BASE }); } catch {}
@@ -570,7 +560,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (path === "/auth/google" || path === "/auth/google/callback") {
     if (path === "/auth/google") {
-      void recordWebFunnelRequest(req.url, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+      void recordWebFunnelRequest(req.url, { method: req.method, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
     }
     handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
       if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });

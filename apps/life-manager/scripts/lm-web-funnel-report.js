@@ -59,14 +59,15 @@ async function stripePages(list, params) {
 async function stripeFeeRows(stripe, usersByCustomer, startSec) {
   const rows = [];
   let complete = true;
-  if (!usersByCustomer.size) return { rows, complete };
+  let payoutsComplete = true;
+  if (!usersByCustomer.size) return { rows, complete, payoutsComplete };
   let transactions;
   try {
     transactions = await stripePages(stripe.balanceTransactions.list.bind(stripe.balanceTransactions), {
       created: { gte: startSec }, limit: 100, expand: ["data.source"],
     });
   } catch {
-    return { rows, complete: false };
+    return { rows, complete: false, payoutsComplete: false };
   }
   for (const transaction of transactions) {
     if (!["charge", "refund"].includes(transaction.type)) continue;
@@ -82,19 +83,54 @@ async function stripeFeeRows(stripe, usersByCustomer, startSec) {
         continue;
       }
     }
-    const customerValue = source && source.customer;
-    const customerId = typeof customerValue === "string" ? customerValue : customerValue && customerValue.id;
+    let customerValue = source && source.customer;
+    let customerId = typeof customerValue === "string" ? customerValue : customerValue && customerValue.id;
+    const sourceCharge = source && source.charge;
+    const chargeId = typeof sourceCharge === "string" ? sourceCharge : sourceCharge && sourceCharge.id;
+    if (!customerId && chargeId) {
+      try {
+        const charge = await stripe.charges.retrieve(chargeId);
+        customerValue = charge && charge.customer;
+        customerId = typeof customerValue === "string" ? customerValue : customerValue && customerValue.id;
+      } catch {
+        complete = false;
+        continue;
+      }
+    }
+    if (!customerId) {
+      complete = false;
+      continue;
+    }
     const uid = customerId && usersByCustomer.get(customerId);
     if (!uid) continue;
+    const payoutValue = transaction.payout;
+    const payoutId = typeof payoutValue === "string" ? payoutValue : payoutValue && payoutValue.id || null;
     rows.push({
       uid,
       fee: transaction.fee,
+      amount: transaction.amount,
+      net: transaction.net,
       currency: transaction.currency,
       status: transaction.status,
+      type: transaction.type,
+      payout_id: payoutId,
       created: new Date(Number(transaction.created) * 1000).toISOString(),
     });
   }
-  return { rows, complete };
+  const payoutIds = [...new Set(rows.map((row) => row.payout_id).filter(Boolean))];
+  const payoutStatuses = new Map();
+  for (const payoutId of payoutIds) {
+    try {
+      const payout = await stripe.payouts.retrieve(payoutId);
+      if (!payout || payout.id !== payoutId || typeof payout.status !== "string") {
+        payoutsComplete = false;
+        continue;
+      }
+      payoutStatuses.set(payoutId, payout.status);
+    } catch { payoutsComplete = false; }
+  }
+  for (const row of rows) row.payout_status = row.payout_id ? payoutStatuses.get(row.payout_id) || null : null;
+  return { rows, complete, payoutsComplete };
 }
 
 async function runWebFunnelReport({ env = process.env, fetchImpl = fetch, stripeClient, nowMs = Date.now(), periodDays = 30 } = {}) {
@@ -102,12 +138,17 @@ async function runWebFunnelReport({ env = process.env, fetchImpl = fetch, stripe
   const stripe = stripeClient || new Stripe(settings.stripeKey);
   const startIso = new Date(nowMs - periodDays * 86400000).toISOString();
   const users = await getRows("lm_users", {
-    select: "uid,telegram_chat_id,web_first_touch,web_first_travel_at,web_initial_scan_completed_at,plan_status,paid,trial_expires_at,web_billing_cancel_at_period_end,stripe_customer_id,stripe_subscription_id",
+    select: "uid,telegram_chat_id,web_first_touch,web_first_travel_at,web_initial_scan_completed_at,plan_status,paid,trial_expires_at,web_trial_payment_method_present,web_billing_cancel_at_period_end,stripe_customer_id,stripe_subscription_id",
     telegram_chat_id: "is.null",
   }, { ...settings, fetchImpl });
   const events = await getRows("lm_web_funnel_events", {
     select: "event_id,event_name,uid,source_object_id,source_event_id,attribution,amount_usd,currency,billing_reason,occurred_at",
     occurred_at: `gte.${startIso}`,
+    order: "occurred_at.asc",
+  }, { ...settings, fetchImpl });
+  const paidInvoiceHistory = await getRows("lm_web_funnel_events", {
+    select: "event_id,event_name,uid,source_object_id,amount_usd,currency,occurred_at",
+    event_name: "eq.paid_invoice",
     order: "occurred_at.asc",
   }, { ...settings, fetchImpl });
   const uids = users.map((user) => user.uid).filter((uid) => /^lm_[0-9a-f-]{36}$/i.test(String(uid || "")));
@@ -127,10 +168,16 @@ async function runWebFunnelReport({ env = process.env, fetchImpl = fetch, stripe
   const usersByCustomer = new Map(users
     .filter((user) => user.stripe_customer_id)
     .map((user) => [String(user.stripe_customer_id), String(user.uid)]));
-  const feeResult = await stripeFeeRows(stripe, usersByCustomer, Math.floor((nowMs - periodDays * 86400000) / 1000));
+  const hasWebBillingEvidence = subscriptions.some((subscription) =>
+    subscription && subscription.metadata && subscription.metadata.lm_product === "life_manager_web_travel")
+    || paidInvoiceHistory.length > 0
+    || events.some((event) => event.event_name === "refund_recorded");
+  const feeResult = usersByCustomer.size
+    ? await stripeFeeRows(stripe, usersByCustomer, Math.floor((nowMs - periodDays * 86400000) / 1000))
+    : { rows: [], complete: !hasWebBillingEvidence, payoutsComplete: !hasWebBillingEvidence };
   return buildWebFunnelReport({
-    events, users, providerCosts, subscriptions, balanceTransactions: feeResult.rows,
-    stripeFeesComplete: feeResult.complete, nowMs, periodDays,
+    events, paidInvoiceHistory, users, providerCosts, subscriptions, balanceTransactions: feeResult.rows,
+    stripeFeesComplete: feeResult.complete, stripePayoutsComplete: feeResult.payoutsComplete, nowMs, periodDays,
   });
 }
 

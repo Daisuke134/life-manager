@@ -52,6 +52,22 @@ function eventAttribution(event, usersByUid) {
   return normalizedAttribution(usersByUid.get(String(event.uid || ""))?.web_first_touch);
 }
 
+function firstPaidInvoiceByUid(events, usersByUid) {
+  const rows = (Array.isArray(events) ? events : [])
+    .filter((event) => event && event.event_name === "paid_invoice"
+      && String(event.currency || "").toLowerCase() === "usd"
+      && finite(event.amount_usd) > 0
+      && usersByUid.has(String(event.uid || ""))
+      && event.source_object_id);
+  rows.sort((a, b) => (eventTime(a) || 0) - (eventTime(b) || 0));
+  const first = new Map();
+  for (const row of rows) {
+    const uid = String(row.uid);
+    if (!first.has(uid)) first.set(uid, String(row.source_object_id));
+  }
+  return first;
+}
+
 function addEventCount(bucket, event, usersByUid, uidSets) {
   const uid = String(event.uid || "");
   switch (event.event_name) {
@@ -65,7 +81,7 @@ function addEventCount(bucket, event, usersByUid, uidSets) {
     case "paid_invoice": {
       const invoiceId = String(event.source_object_id || event.event_id || "");
       if (!invoiceId || String(event.currency || "").toLowerCase() !== "usd") break;
-      uidSets.paidInvoices.set(invoiceId, { uid, time: eventTime(event), amount: finite(event.amount_usd) || 0 });
+      uidSets.paidInvoices.set(invoiceId, { uid, time: eventTime(event), amount: finite(event.amount_usd) || 0, sourceObjectId: invoiceId });
       break;
     }
     case "cancellation_requested": if (uid) uidSets.cancelRequests.add(uid); break;
@@ -108,6 +124,7 @@ function buildWebFunnelReport(input = {}) {
   const users = (Array.isArray(input.users) ? input.users : [])
     .filter((user) => user && WEB_UID_RE.test(String(user.uid || "")) && user.telegram_chat_id == null);
   const usersByUid = new Map(users.map((user) => [String(user.uid), user]));
+  const firstPaidInvoiceIds = firstPaidInvoiceByUid(input.paidInvoiceHistory || input.events, usersByUid);
   const events = (Array.isArray(input.events) ? input.events : [])
     .filter((event) => event && inPeriod(eventTime(event), startMs, nowMs))
     .filter((event) => event.uid == null || usersByUid.has(String(event.uid)));
@@ -138,18 +155,13 @@ function buildWebFunnelReport(input = {}) {
     bucket.checkoutSessions = sets.checkouts.size;
     bucket.trialStartedUsers = sets.trials.size;
     bucket.paidInvoices = sets.paidInvoices.size;
-    const invoicesByUid = new Map();
+    const firstPaid = new Set();
     for (const invoice of sets.paidInvoices.values()) {
       if (!invoice.uid) continue;
-      const rows = invoicesByUid.get(invoice.uid) || [];
-      rows.push(invoice);
-      invoicesByUid.set(invoice.uid, rows);
+      if (firstPaidInvoiceIds.get(invoice.uid) === String(invoice.sourceObjectId)) firstPaid.add(invoice.uid);
+      else bucket.renewalInvoices++;
     }
-    for (const rows of invoicesByUid.values()) {
-      rows.sort((a, b) => (a.time || 0) - (b.time || 0));
-      bucket.firstPaidUsers++;
-      bucket.renewalInvoices += Math.max(0, rows.length - 1);
-    }
+    bucket.firstPaidUsers = firstPaid.size;
     bucket.cancellationRequests = sets.cancelRequests.size;
     bucket.canceledUsers = sets.canceled.size;
     bucket.refundsUsd = Number(bucket.refundsUsd.toFixed(2));
@@ -168,9 +180,17 @@ function buildWebFunnelReport(input = {}) {
   for (const subscription of Array.isArray(input.subscriptions) ? input.subscriptions : []) {
     const metadata = subscription && subscription.metadata || {};
     const uid = String(metadata.lm_uid || "");
-    if (!usersByUid.has(uid) || metadata.lm_product !== "life_manager_web_travel") continue;
-    if (subscription.status === "trialing") { activeTrials++; continue; }
+    const user = usersByUid.get(uid);
+    if (!user || metadata.lm_product !== "life_manager_web_travel") continue;
+    if (subscription.status === "trialing") {
+      if (user.plan_status === "trialing" && user.paid !== true
+        && user.web_trial_payment_method_present === true
+        && Date.parse(String(user.trial_expires_at || "")) > nowMs
+        && user.stripe_subscription_id === subscription.id) activeTrials++;
+      continue;
+    }
     if (subscription.status !== "active") continue;
+    if (user.paid !== true || user.plan_status !== "active" || user.stripe_subscription_id !== subscription.id) continue;
     const amount = monthlyAmount(subscription);
     if (amount == null) continue;
     grossMrrUsd += amount;
@@ -188,7 +208,8 @@ function buildWebFunnelReport(input = {}) {
     };
   }
 
-  let providerEstimatedUsd = 0;
+  let providerEstimatedKnownUsd = 0;
+  let providerEstimateUnknownRows = 0;
   let providerActualUsd = 0;
   let providerActualComplete = true;
   let providerCostRows = 0;
@@ -197,18 +218,35 @@ function buildWebFunnelReport(input = {}) {
     if (row.kind && row.kind !== "provider_usage") continue;
     providerCostRows++;
     const estimate = finite(row.est_usd);
-    if (estimate != null && estimate >= 0) providerEstimatedUsd += estimate;
+    if (estimate != null && estimate >= 0) providerEstimatedKnownUsd += estimate;
+    else providerEstimateUnknownRows++;
     const actual = finite(row.meta && row.meta.actual_usd);
     if (actual == null) providerActualComplete = false;
     else if (actual >= 0) providerActualUsd += actual;
   }
   let stripeFeesUsd = 0;
   const stripeFeesComplete = input.stripeFeesComplete !== false;
+  let balanceAvailableNetCents = 0;
+  let balancePendingNetCents = 0;
+  let paidPayoutNetCents = 0;
+  let stripePayoutsComplete = input.stripePayoutsComplete !== false;
+  let paidInvoiceUsd = 0;
+  for (const event of events) {
+    const amount = finite(event.amount_usd);
+    if (event.event_name === "paid_invoice" && String(event.currency || "").toLowerCase() === "usd" && amount != null && amount > 0) {
+      paidInvoiceUsd += amount;
+    }
+  }
   for (const row of Array.isArray(input.balanceTransactions) ? input.balanceTransactions : []) {
     if (!usersByUid.has(String(row.uid || "")) || String(row.currency || "").toLowerCase() !== "usd"
       || !inPeriod(row.created, startMs, nowMs)) continue;
     const fee = finite(row.fee);
     if (fee != null) stripeFeesUsd += fee / 100;
+    const net = finite(row.net);
+    if (net != null && row.status === "available") balanceAvailableNetCents += net;
+    if (net != null && row.status === "pending") balancePendingNetCents += net;
+    if (row.payout_id && !row.payout_status) stripePayoutsComplete = false;
+    if (net != null && row.payout_status === "paid") paidPayoutNetCents += net;
   }
 
   return {
@@ -222,18 +260,33 @@ function buildWebFunnelReport(input = {}) {
     },
     retention: { d7: retention(7), d30: retention(30) },
     costs: {
-      providerEstimatedUsd: Number(providerEstimatedUsd.toFixed(6)),
+      providerEstimatedUsd: providerCostRows > 0 && providerEstimateUnknownRows === 0
+        ? Number(providerEstimatedKnownUsd.toFixed(6)) : null,
+      providerEstimatedKnownUsd: Number(providerEstimatedKnownUsd.toFixed(6)),
+      providerEstimateUnknownRows,
+      providerEstimateComplete: providerCostRows > 0 && providerEstimateUnknownRows === 0,
       providerActualUsd: providerCostRows > 0 && providerActualComplete ? Number(providerActualUsd.toFixed(6)) : null,
       stripeFeesUsd: stripeFeesComplete ? Number(stripeFeesUsd.toFixed(2)) : null,
       hostingUsd: null,
       marketingUsd: null,
       netContributionUsd: null,
     },
+    stripeCash: {
+      paidInvoiceUsd: Number(paidInvoiceUsd.toFixed(2)),
+      balanceAvailableNetUsd: Number((balanceAvailableNetCents / 100).toFixed(2)),
+      balancePendingNetUsd: Number((balancePendingNetCents / 100).toFixed(2)),
+      paidPayoutNetUsd: stripePayoutsComplete ? Number((paidPayoutNetCents / 100).toFixed(2)) : null,
+    },
     metricDefinitions: {
       landingViews: "request count, not unique people",
       googleAuthenticatedUsers: "distinct Web uid in the period",
-      firstPaidUsers: "distinct Web uid with at least one positive USD invoice in the period",
+      firstPaidUsers: "distinct Web uid whose first-ever positive USD invoice occurred in the period",
+      renewalInvoices: "positive USD invoices after the first-ever invoice, classified using retained invoice history",
       retention: "matured first-Travel cohort with a currently active paid Stripe subscription",
+      balanceAvailableNetUsd: "Stripe balance transactions with status=available; this is not a bank payout receipt",
+      balancePendingNetUsd: "Stripe balance transactions with status=pending",
+      stripeFeesUsd: "fees on Web-linked charge/refund BalanceTransactions; other account-level or FX fees are not allocated",
+      paidPayoutNetUsd: "net value of Web-linked balance transactions whose Stripe payout status is paid; bank receipt is not independently verified",
       providerActualUsd: "null when any provider usage row lacks an actual bill amount",
       netContributionUsd: "null until hosting, marketing, provider actuals, and settled Stripe fees are attributable",
     },
