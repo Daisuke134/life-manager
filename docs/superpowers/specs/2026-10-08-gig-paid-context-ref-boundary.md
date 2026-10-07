@@ -81,7 +81,7 @@ gig ownerの契約完了は、同一のfunded contract/occurrenceに結びつい
 
 ## 2026-10-08 04:42 JST latest Gig runtime refresh
 
-This is evidence only. The sole TODO/order source remains `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; its Gig cursor is still `L9-07 Coconala`.
+This is evidence only. The sole TODO/order source remains `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`. For this user-directed Gig lane, the next platform in the SSOT's named sequence is `L9-07 Coconala`; this does not reset or replace the overall cursor tracked by the canonical SSOT.
 
 - Fresh Git readback: `origin/main=839db69f3144ca355c89165fb6c79108e9a8e518`. The Coconala Apply, Storefront, and Paid owners are loaded from release `8dc0654954964071e83cf9c68a67846c6422e1a9`, but each latest natural attempt is fenced with exit 75 / `host_admission_deferred:disk_headroom_low`. Storefront retains `hf-gig-storefront-direct:18d8d288748508e8-23902`; Apply retains `hf-gig-apply-direct:18dadcd76d9c61b0-37711`. Paid has no admission effect-unknown occurrence, but its latest run has no provider receipt.
 - The current `gig_disk_guard.py` preflight returned `available_bytes=266928128`, `required_bytes=536870912`, `reason=disk_headroom_low`, `effect=0`, `readback=0`. The failed observation was written to `~/gig/state/disk-headroom.json`. `hf-gig-browser` remains `entrypoint_exit_1` / `reconcile_owner`; its 512 MiB code gate rejects the measured host capacity. No browser or provider action followed.
@@ -91,6 +91,11 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - The last Coconala listing readback remains 20 public services with `sales_count=0`; the local ledger showed 10 published, 12 live IDs absent, and 2 ledger-only. This is inventory mismatch, not sales or settlement. Talkroom `18211957` still has only the stale 2026-09-22 snapshot and is absent from the 2026-10-07 open-order list; its current delivery, acceptance, and payout state is unknown.
 - Lancers rows 25–27 retain their last known `waiting_external` state. No authentication, solver, application, or retry was performed. The separate Lancers WAF worktree remains owned by `lm-cfo-observability-1002`; the host disk-cleanup worktree remains owned by its current lease holder. AGMSG roster registration for `lm-gig-contract-owner-1007` has no placement record, so it does not prove a live pane or active execution.
 - `lm-loop doctor` is not globally clean: 186 registry entries, missing entrypoints 0, unmanaged labels 0, and one installed retired label, `ai.anicca.provision-browser.capafy.kosuke` (outside this Gig lane). No unrelated owner was changed.
+
+## 2026-10-08 04:47 JST host gate recheck
+
+- `df -k /Users/anicca/gig` reports 243060 KiB available, below the Gig browser's 524288 KiB admission floor. `life-manager-disk-cleanup` and `life-manager-release-reconciler` both report exit 1 / `reconcile_owner`; no second cleanup/apply was started and neither owner's lease/worktree was changed. Gig restarts would immediately hit the same admission guard, so keep the current loops loaded-idle and fenced until the existing owner produces a fresh successful receipt.
+- Freelancer's expected OAuth file `~/.config/anicca/gig/freelancer-oauth2.json` is absent. The stale legacy labels and missing product-loop rows remain the only current local evidence; no provider account page was opened, so authenticated state and any existing storefront remain unknown.
 
 ## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
 
