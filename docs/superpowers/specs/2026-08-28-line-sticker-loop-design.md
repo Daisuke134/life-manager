@@ -399,3 +399,30 @@ now automates the same path for every future set, in `skills/earn/line-sticker/f
 - **Not built in this pass**: an `effect_reconcile` fence script (promptbase has one; this loop's
   submit fence lives entirely in `creators-item.json.state` and was judged sufficient for one
   single-tenant browser identity) and X-side marketing for new sets (row L08 in the unified SSOT).
+
+## Series strategy (2026-10-06)
+
+Evidence: a 2026-10-06 sweep of LINE STORE `top_creators` (including the animated filter), 20/20
+top authors across the top 35 listings, shows every one of them sells a numbered **series** of one
+character (5–36 sets each); zero one-off characters appear in the top 35. Animated sets price at
+¥250. Titles follow "動く！"/"うごく" as a prefix, "`<キャラ>`の`<シーン>`" as the body, and
+`vol.`/a number for sequels. Themes rank by frequency: 汎用日常返事, 敬語・仕事, 季節イベント
+(年末年始 など), 家族・推し活. The factory's own first four sets (カワウソ 48077815 approved and
+on sale, もちハム 48067450 and リス 48085257 both in review, ペンギン set-005 about to submit)
+were each a brand-new character, which is the opposite of what the market rewards.
+
+- `line_sticker_planner.planner()` now receives `_prior_set_facts()` from `factory.py`: one row per
+  prior `set-NNN/` naming `set`, `character_id`, `character_description` (the prior
+  `character_prompt`), `theme`, `listing.title`, and the latest official
+  `creators-item.json.state_observed` (e.g. 販売中/審査待ち/リジェクト). The prompt (not code) states
+  the series evidence above and instructs the model to prefer a sequel of an existing character —
+  especially one already 販売中 — over a new flagship, naming the chosen set in a new `series_of`
+  field (`schemas/plan.schema.json`, nullable string) or `null` only when a new character is
+  clearly justified. Sequel motions must fit the new theme and must not repeat that character's
+  earlier sets' motions/theme.
+- `factory.run_character()` is mechanical bookkeeping only: when `plan-draft.json.series_of` names a
+  prior set, it copies that set's `char-ref.png` and `ref-padded.png` into the new set and writes
+  `char-ref.receipt.json: {"reused": true, "source_set": "<set-NNN>"}` instead of calling
+  `deps.character_image` — zero image-generation cost for every sequel. All judgment (which
+  character, which theme, whether to start a new flagship) stays in the planner's prompt via
+  `runtime/agent-runner/agent_runner.py`, per `skills/building-agents/SKILL.md`.

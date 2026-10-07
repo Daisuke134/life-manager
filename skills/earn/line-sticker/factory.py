@@ -12,15 +12,18 @@ its product_id/url are durable there, and a later wake resumes from that item (r
 page back) instead of creating a new one. The set only reaches the terminal "submitted"
 stage once creators-item.json records state "review_requested".
 
-All judgment (theme/character/motion plan, 24-of-30 selection, listing copy, tags) is
-delegated to the model via ``deps.planner`` / ``deps.selector``; this module is bookkeeping,
-API plumbing and browser steps only.
+All judgment (series-of-existing-character vs new flagship, theme/character/motion plan,
+24-of-30 selection, listing copy, tags) is delegated to the model via ``deps.planner`` /
+``deps.selector``; this module is bookkeeping, API plumbing and browser steps only. The one
+exception is mechanical: when the plan names ``series_of``, the character stage copies that
+prior set's reference art instead of generating a new one (zero image cost).
 """
 from __future__ import annotations
 
 import datetime
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -166,13 +169,26 @@ class Deps:
     max_sets_per_day: int = DEFAULT_MAX_SETS_PER_DAY
 
 
-def _prior_listings(state_root: Path) -> list[dict]:
-    listings = []
+def _prior_set_facts(state_root: Path) -> list[dict]:
+    """Series-planning context for the planner: one row per prior set, naming its character,
+    theme and latest official LINE Creators Market status so the model can judge a sequel vs a
+    new flagship (judgment stays in the prompt, not here)."""
+    facts = []
     for set_dir in list_set_dirs(state_root):
+        draft = _read_json(set_dir / "plan-draft.json")
         listing = _read_json(set_dir / "listing.json")
-        if listing:
-            listings.append(listing)
-    return listings
+        item = _read_json(set_dir / "creators-item.json")
+        if draft is None and listing is None:
+            continue
+        facts.append({
+            "set": set_dir.name,
+            "character_id": (draft or {}).get("character_id"),
+            "character_description": (draft or {}).get("character_prompt"),
+            "theme": (draft or {}).get("theme"),
+            "title": (listing or {}).get("title"),
+            "state_observed": (item or {}).get("state_observed"),
+        })
+    return facts
 
 
 # --------------------------------------------------------------------------------------
@@ -180,17 +196,25 @@ def _prior_listings(state_root: Path) -> list[dict]:
 # --------------------------------------------------------------------------------------
 
 def run_plan(set_dir: Path, state_root: Path, deps: Deps) -> str:
-    plan = deps.planner(set_dir, _prior_listings(state_root))
+    plan = deps.planner(set_dir, _prior_set_facts(state_root))
     _atomic_write_json(set_dir / "plan-draft.json", plan)
     _atomic_write_json(set_dir / "listing.json", plan["listing"])
     return "character"
 
 
-def run_character(set_dir: Path, deps: Deps) -> str:
+def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
     plan_draft = _read_json(set_dir / "plan-draft.json")
     if plan_draft is None:
         raise RuntimeError("missing plan-draft.json for character stage")
-    deps.character_image(set_dir, plan_draft)
+    series_of = plan_draft.get("series_of")
+    if series_of:
+        # Sequel of an existing character: reuse its reference art, zero image cost.
+        source_dir = state_root / series_of
+        shutil.copy2(source_dir / "char-ref.png", set_dir / "char-ref.png")
+        shutil.copy2(source_dir / "ref-padded.png", set_dir / "ref-padded.png")
+        _atomic_write_json(set_dir / "char-ref.receipt.json", {"reused": True, "source_set": series_of})
+    else:
+        deps.character_image(set_dir, plan_draft)
     seedance_plan = {
         "reference": "ref-padded.png",
         "motions": [
@@ -274,7 +298,7 @@ def run_submit(set_dir: Path, deps: Deps) -> str:
 
 STAGE_RUNNERS = {
     "plan": lambda set_dir, state_root, deps: run_plan(set_dir, state_root, deps),
-    "character": lambda set_dir, state_root, deps: run_character(set_dir, deps),
+    "character": lambda set_dir, state_root, deps: run_character(set_dir, state_root, deps),
     "clips": lambda set_dir, state_root, deps: run_clips(set_dir, deps),
     "apng": lambda set_dir, state_root, deps: run_apng(set_dir, deps),
     "select": lambda set_dir, state_root, deps: run_select(set_dir, state_root, deps),

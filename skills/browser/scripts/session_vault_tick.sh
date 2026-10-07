@@ -165,3 +165,47 @@ print('1' if d.get('ok') else '')
     fi
   fi
 fi
+
+# line-creators browser (line-creators:dais, owner line-creators-browser): the LINE sticker factory,
+# its review readback and payout all run through this profile. Same shape as the gig block: resolve
+# the port with `status` (never take the lease), dump, warm an authed page; a dead session is
+# restored from its own vault first (no password relogin), and only alerts if that fails.
+if [ -x "$GIG_GUARD" ]; then
+  LC_PORT="$("$GIG_GUARD" status line-creators:dais 2>/dev/null | python3 -c "
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: sys.exit(0)
+for row in d.get('identities', []):
+    if row.get('identity') == 'line-creators:dais' and row.get('reachable') and row.get('port'):
+        print(row['port']); break
+" 2>/dev/null || true)"
+  if [ -n "$LC_PORT" ]; then
+    LC_VAULT="$HOME/.cloak/vault/line-creators"
+    LC_URL="https://creator.line.me/my/"
+    lc_dead() {
+      printf '%s' "$1" | python3 -c "
+import json,sys
+try: d = json.load(sys.stdin)
+except Exception: sys.exit(0)
+print(','.join(p['url'] for p in d.get('pages', []) if p.get('logged_out')))
+" 2>/dev/null || true
+    }
+    LC_OUT="$(SESSION_VAULT_PORT="$LC_PORT" SESSION_VAULT_DIR="$LC_VAULT" python3 "$V" keepalive "$LC_URL" || true)"
+    echo "$LC_OUT"
+    if [ -z "$(lc_dead "$LC_OUT")" ]; then
+      log "line-creators browser: dump into $LC_VAULT"
+      SESSION_VAULT_PORT="$LC_PORT" SESSION_VAULT_DIR="$LC_VAULT" python3 "$V" dump || true
+    else
+      log "line-creators browser: session dead, restoring from $LC_VAULT"
+      SESSION_VAULT_PORT="$LC_PORT" SESSION_VAULT_DIR="$LC_VAULT" python3 "$V" restore || true
+      LC_OUT="$(SESSION_VAULT_PORT="$LC_PORT" SESSION_VAULT_DIR="$LC_VAULT" python3 "$V" keepalive "$LC_URL" || true)"
+      if [ -n "$(lc_dead "$LC_OUT")" ]; then
+        telegram_notify "session_vault keepalive: LINE Creators browser (line-creators:dais :$LC_PORT) is logged out and the vault restore did not bring it back. The sticker factory cannot submit and review readback stops until it is logged in again." || true
+      else
+        log "line-creators browser: restored from vault"
+      fi
+    fi
+  else
+    log "line-creators browser: line-creators:dais not reachable, skipping this tick"
+  fi
+fi

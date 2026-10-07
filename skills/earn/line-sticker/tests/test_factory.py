@@ -17,7 +17,7 @@ import factory as MODULE  # noqa: E402
 
 def _plan(set_dir, prior):
     return {
-        "theme": "test", "character_id": "char-test-001", "character_prompt": "a test mascot",
+        "theme": "test", "series_of": None, "character_id": "char-test-001", "character_prompt": "a test mascot",
         "motions": [{"id": f"m{i}", "prompt": f"motion {i}"} for i in range(30)],
         "listing": {"title": {"ja": "テスト", "en": "Test"}, "description": {"ja": "説明", "en": "desc"}},
     }
@@ -150,6 +150,64 @@ class SubmitFence(unittest.TestCase):
             report = MODULE.wake(state_root, deps)
             self.assertEqual(seen_items, [{"product_id": "555", "url": "https://example.test/sticker/555", "state": "images_uploaded"}])
             self.assertEqual(report["next_stage"], "submitted")
+
+
+class SeriesSequel(unittest.TestCase):
+    def test_series_of_copies_reference_and_skips_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            (source_dir / "char-ref.png").write_bytes(b"source-char-ref")
+            (source_dir / "ref-padded.png").write_bytes(b"source-ref-padded")
+
+            new_dir = state_root / "set-002"
+            new_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(new_dir / "plan-draft.json", {
+                "theme": "敬語・仕事", "series_of": "set-001",
+                "character_id": "char-test-001", "character_prompt": "a test mascot",
+                "motions": [{"id": f"m{i}", "prompt": f"motion {i}"} for i in range(30)],
+                "listing": {"title": {"ja": "テスト2", "en": "Test2"}, "description": {"ja": "説明", "en": "desc"}},
+            })
+
+            def fail_if_called(set_dir, plan):
+                raise AssertionError("character_image must not be called for a series sequel")
+
+            deps = _fake_deps(character_image=fail_if_called)
+            next_stage = MODULE.run_character(new_dir, state_root, deps)
+            self.assertEqual(next_stage, "clips")
+            self.assertEqual((new_dir / "char-ref.png").read_bytes(), b"source-char-ref")
+            self.assertEqual((new_dir / "ref-padded.png").read_bytes(), b"source-ref-padded")
+            receipt = json.loads((new_dir / "char-ref.receipt.json").read_text())
+            self.assertEqual(receipt, {"reused": True, "source_set": "set-001"})
+
+    def test_prior_set_facts_feed_the_planner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(source_dir / "plan-draft.json", {
+                "theme": "毎日リアクション", "series_of": None,
+                "character_id": "char-otter-001", "character_prompt": "a stardust otter",
+                "motions": [], "listing": {"title": {"ja": "x", "en": "x"}, "description": {"ja": "x", "en": "x"}},
+            })
+            MODULE._atomic_write_json(source_dir / "listing.json", {"title": {"ja": "毎日使えるカワウソ", "en": "Otter"}})
+            MODULE._atomic_write_json(source_dir / "creators-item.json", {"state_observed": "販売中"})
+            MODULE.write_stage(source_dir, "submitted")
+
+            seen = {}
+
+            def capturing_planner(set_dir, prior_facts):
+                seen["facts"] = prior_facts
+                return _plan(set_dir, prior_facts)
+
+            deps = _fake_deps(planner=capturing_planner)
+            MODULE.wake(state_root, deps)  # starts set-002, runs plan stage
+            self.assertEqual(seen["facts"], [{
+                "set": "set-001", "character_id": "char-otter-001",
+                "character_description": "a stardust otter", "theme": "毎日リアクション",
+                "title": {"ja": "毎日使えるカワウソ", "en": "Otter"}, "state_observed": "販売中",
+            }])
 
 
 class CostCap(unittest.TestCase):

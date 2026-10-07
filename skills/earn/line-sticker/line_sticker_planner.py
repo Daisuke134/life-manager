@@ -48,27 +48,52 @@ def _run_agent(*, prompt: str, schema: Path, evidence_dir: Path, task_label: str
     return json.loads(result_path.read_text(encoding="utf-8"))
 
 
-def planner(set_dir: Path, prior_listings: list[dict]) -> dict:
-    prior_titles = [listing.get("title", {}) for listing in prior_listings]
-    prompt = f"""あなたはLINE Creators Marketで売れている「動くスタンプ」の企画者。hoko525のような、
-オリジナルの可愛いマスコットキャラクターが大きく動くアニメスタンプを1セット企画する。
+def _build_plan_prompt(prior_facts: list[dict]) -> str:
+    return f"""あなたはLINE Creators Marketで売れている「動くスタンプ」の企画者。
+
+市場調査（2026-10-06, LINE STORE top_creators上位35件、動く系含む）: 上位の作者は例外なく既存
+キャラクターのシリーズ（1キャラにつき5〜36セット）を売っている。単発の新キャラクターは上位35件に
+一つも無い。タイトルは「動く！」/「うごく」を先頭に付け「<キャラ名>の<シーン>」の形、続編には
+vol./数字を付ける。テーマは頻度順に 汎用日常返事 → 敬語・仕事 → 季節イベント（年末年始など） →
+家族・推し活 を優先する。
+
+既存セットの事実（新しいセットを計画する前に必ず読む。set=ディレクトリ名、
+state_observed=LINE Creators Marketで最後に確認した公式状態、例: 販売中/審査待ち/リジェクト）:
+{json.dumps(prior_facts, ensure_ascii=False, indent=1)}
+
+まず series_of を決める:
+- 既存キャラクター（できれば state_observed が「販売中」のもの）の続編を強く優先する。
+- 続編にする場合: series_of にそのセットのset名（例: "set-003"）を入れ、character_id と
+  character_prompt はそのキャラクターの説明（character_description）を引き継ぐ。続編では画像を
+  再利用するため character_prompt は画像生成に使われないが、記録としてそのキャラクターの見た目を
+  書く。motions とテーマはそのキャラクターの過去セット（theme/motions）と重複しない新しいシーンに
+  する。
+- 新キャラクターを立てる方が明らかに良い場合（例: 既存キャラクターが一つも販売中でない、過去の
+  テーマを使い切った）だけ series_of を null にし、新しい character_id / character_prompt を
+  企画する。
 
 要件:
-- character_id: このキャラクター固有の短い英数字スラッグ（例: char-foo-001）。
-- character_prompt: 画像生成モデルに渡す英語プロンプト。オリジナルでシンプルな可愛いマスコット、
-  背景は完全な単色クロマグリーン#00FF00で画面全体を埋める、キャラクター自体に緑色を一切使わない、
-  文字・ロゴ・透かしなし、という条件を明記する。
+- series_of: 続編なら既存セットのset名の文字列、新キャラクターなら null。
+- theme: 今回のセットのテーマを一言で（上の頻度順を優先）。
+- character_id: このキャラクター固有の短い英数字スラッグ（例: char-foo-001）。続編なら既存のものを
+  そのまま使う。
+- character_prompt: 画像生成モデルに渡す英語プロンプト。新キャラクターの場合はオリジナルでシンプルな
+  可愛いマスコット、背景は完全な単色クロマグリーン#00FF00で画面全体を埋める、キャラクター自体に
+  緑色を一切使わない、文字・ロゴ・透かしなし、という条件を明記する。
 - motions: ちょうど30個。毎日のチャットで使う意図（ありがとう・OK・ごめん・おやすみ・笑う・泣く・
   怒る・眠い・驚く・大好き・がんばる 等）を幅広くカバーし、各motionは一言はっきり分かる大きな動き。
   各要素は id（短い英数字スラッグ、重複不可）と prompt（Seedance画像to動画モデル向けの英語の動き指示、
   キャラクターが何をするか明確に）。表情のピークが遅いmotionは start を1.0程度にしてよい（省略可、
   省略時は0.0扱い）。
-- listing: title/description を日本語・英語の両方で。説明は「24種類、毎日使える、文字なしなので
-  誰にでも送れる」という趣旨を含める。
-
-既存セットのタイトル（これらとテーマ・キャラクターを必ず変える）: {json.dumps(prior_titles, ensure_ascii=False)}
+- listing: title/description を日本語・英語の両方で。タイトルは「動く！」/「うごく」+
+  「<キャラ名>の<シーン>」パターンに従い、続編なら vol./数字を付ける。説明は「24種類、毎日使える、
+  文字なしなので誰にでも送れる」という趣旨を含める。
 
 JSON Schemaに厳密に従ったJSONだけを返す。"""
+
+
+def planner(set_dir: Path, prior_facts: list[dict]) -> dict:
+    prompt = _build_plan_prompt(prior_facts)
     with tempfile.TemporaryDirectory(prefix=".plan-", dir=set_dir) as tmp:
         return _run_agent(prompt=prompt, schema=HERE / "schemas/plan.schema.json",
                            evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-plan-{set_dir.name}")
