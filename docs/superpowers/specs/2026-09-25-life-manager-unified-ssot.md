@@ -3725,40 +3725,23 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - Google Routesの既存Transit-first/Google fallback条件は変えない。
 - 入力欄・Calendar動作・出発時刻/route表示に新しい手順を足さない。
 - 各sourceのrequest count/provider/result quality/fallback reason/estimated costを記録し、安いsourceの誤位置でUXを悪化させない。
-- **順序変更:** 旧order=`A3→A4→A5→A6→A7→A8→A9→A10`。
-- 新mainline=`A4→A5→A6→A7→A8→A9→A10`。
-- A3はA6後の条件付き再開とし、Google Geocodingのsettled costまたはprocess再起動後の重複requestに十分な節約効果があればA7前へ戻す。
-- A3のDB許可待ちは通常UXやA4を止めず、A4のfree laneとA6のSKU別実請求が先に価値と投資効果を示すため順序を変えた。
-- 現在cursor=`A4.1`。
+- **最新のCFO優先順:** 旧order=`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`。新order=`A5→A6→A8→A9→A10`。変更理由は、各business agent/loopの実売上・実費・純貢献を把握するCFOを先に完成させ、Moneytree個人会計は時間がかかるため今回の対象外、Cloud/geocoding節約はCFO完了後へ送るため。現在cursor=`A5`。この順序変更は本SSOTの他laneや稼働中effectを変更しない。
+- A3 migrationの実適用は完了済みだが、A3.4のrestart後natural route/cache-hit/replay-zeroは未検証。現在のCFO完了gateではなく、Cloud節約laneへ送る。
+- A4のfree laneもCFO完了後へ送る。A3.4はA6で確認済みのsettled costまたはprocess再起動後の重複callから費用対効果が確認できた場合だけ再開する。
+- **coverage baseline:** product-loop catalogと最新B7 projectionのloop IDは18/18で一致する。runtime registryは186 jobsで、111 jobsはcatalogに一意に紐づき、残る75 jobsはcontrol/platform/shared（35/14/26）。sharedにはrevenue/growth jobsも含むため、costを捨てず、loop帰属または会社overheadとして証拠付きで出す。
+- **最新のread-only projection:** `reporting_date=2026-10-08`、`snapshot_at=2026-10-07T15:30:17Z`、`trailing_start=2026-09-07T15:30:17Z`。historical/trailing/MRRはすべて`unknown`、通貨total `{}`、18/18 loops unknown、gapは173/173/29。これはsnapshot projectionであり、`--date`は日次receiptをfilterしないため、10月8日の日次P&Lや実売上0円の証明ではない。
 - **A5 spend policy:** spend/usage/unknownの可視化と事前warningのみを行う。
 - 機能を無言で止めるglobal hard cap、推測金額による自動cutoff、未知費用を0にする処理は作らない。
 - 将来、非必須callを抑止する場合も、理由・対象・fallback・再開条件を同じrun reportに出す。
 - core travel/calendar UXを費用しきい値だけで停止しない。
 - **Atomic remaining TODO — active order:**
-  1. **A4.1 Free lane:** fixtureでGSIの住所、OpenPOIの名前付き施設候補を既知住所/POI/曖昧/未検出/timeoutに対して評価し、productionで比較目的の二重provider callをしない。
-     GSI rate/SLAと各data attributionを確認し、低品質候補は採用しない。
-  2. **A4.2 Fallback/observability:** 既存route UXを保ったまま無料候補→適格性検査→必要時のみGoogle Geocodingの順に接続する。
-     Transit-firstを維持し、Google routeへ進む既存条件（非日本・座標未解決・Transit失敗）を変えない。
-     cache keyはtenant/provider/正規化queryで分け、異なるsourceの座標・費用帰属を混ぜない。
-     cache RPCはbounded timeoutでfail-openする。
-     provider/SKU/request/result/fallback/estimated costを記録する。
-     accepted free resultではGoogle Geocoding call 0、曖昧query/provider failureではGoogle Geocoding fallbackを正確に1回とするfocused testを追加する。
-  3. **A4.3 Natural readback:** main由来releaseの自然runで国内address/POI、曖昧query、provider停止時の旧来同等calendar/route UX、attribution、fallback理由、重複0をreadbackする。
-     無料sourceを無制限または常時稼働と仮定しない。
-  4. **A5 Warning-only cost visibility:** provider daily/monthly usage、estimate、actual/unknownを既存CLI/panelへ出す。
-     Google請求との比較後にwarning値を定め、spend到達だけでcore travel/calendarを自動停止しない。
-  5. **A6 Google billing:** Monitoring usageと公式Cost Table CSVをproject/SKU/service/期間で照合する。
-     estimateとsettled bill、credit/tax/currency、coverage gapを分ける。
-     CSVが未取得でも独立なA7は止めず、実請求はunknownのまま残す。
-  6. **A3 conditional gate:** A6でGoogle Geocodingの有意なsettled spendまたはrestart後の重複callを確認した時だけA3.1 access→A3.2 official migration apply→A3.3 schema/RPC/ACL readback→A3.4 restart後natural replay-zeroを行う。
-     条件を満たさなければA3を延期し、cache migrationを成果の必須条件にしない。
-  7. **A7 Personal CFO:** MoneytreeからMUFG balanceと全transactions/subscriptionsをread-onlyで取得する。
-     freshness cursor/dedupe/source receiptを付けてLife Managerへ取り込み、資金移動はしない。
-  8. **A8 Business coverage:** 全14 loopのsettled revenue/refund/feeと銀行・card/subscription/provider/cloud expenseを期間/通貨/owner/official receiptでjoinする。
-     transferを除外し、欠落`loop_id`/actualはunknown/unattributedとする。
-  9. **A9 Report:** 既存CLI/panelでloop/platform/company別revenue/expense/net/MRR/runway、bank balance、freshness/coverage/estimate-vs-settled/unknownを同一期間に表示する。
-  10. **A10 Natural acceptance:** local close/cloud canary後、7日間の自然runとofficial source receiptをreadbackする。
-      14-loop financial view、Moneytree freshness、RevenueCat、Google actual-vs-estimate、total expense/net/unknown/report receipt、replay-zeroを確認する。
+  1. **A5 Per-agent/loop cost visibility:** 既存`lm_api_cost.meta.runtime_trace`の`loop_id`/`owner_id`でprovider/SKU/operation別usage、estimate、billed actual、unknownを集計し、`run_id`/`occurrence_id`/`release_sha`でtrace可能にする。current A5 PR #6827のperiod-summary SQLはprovider/SKU/operation/unitだけで集計し、このnested traceを落とすため未達。trace欠損はunknown/unattributedとして残す。現在のusage-event契約に`job_id`は無いため、job単位の帰属は別receiptが実証する場合だけ行い、IDを推測・捏造しない。warning-onlyを保ち、global hard capや無言の停止は作らない。
+  2. **A6 Google billed-actual close:** 公式2026-09 Cost Table CSVとinvoice identityは取得済みで、billed totalは¥27,889。残りはproject/SKU/service/期間、tax/credit/roundingとMonitoring estimateを照合し、provider/occurrence evidenceがある時だけjob/agent/loopへ割り当てる。現行`actual_cost` adapterはinvoiceをreceipt化する際に`status=paid/settled`と`paid_at`を必須にするため、支払未確認のGoogle billはB7のsettled costにならない。invoice billed expenseとして別表示し、cash-paidはreceiptが出るまでunknownにする。境界を跨ぐCSV行があるためtrailing 30-day actualは未確定。
+  3. **A8 18-loop/186-job business coverage:** 18 loopすべてについて公式settled revenue、refund、fee、provider/API/cloud/subscription費用をperiod/currency/receiptでjoinする。186 runtime jobsすべてをloopまたはshared/control/platform overheadに分類する。欠落・stale・未確認はunknownとし、0に置き換えない。Moneytreeは入力しない。
+  4. **A9 CFO report:** agent/loop別およびcompany合計のgross/settled revenue、refund/fees、billed expense、cash-paid（証拠がある場合のみ）、net contributionを、実際のAsia/Tokyo日次window・month-to-date・trailing・MRR別に表示する。period/currency/source receipt/freshness/coverage/unknownを含め、合計をsource rowsへ照合する。現行`loop_pnl.py --date`は`reporting_date`ラベルだけを変え、日次receiptをfilterしない。日次windowで集計する実装と`skills/cfo/SKILL.md`の訂正が完了するまで、このCLIを「その日のP&L」と呼ばない。
+  5. **A10 natural acceptance:** 7日連続の自然runで18/18 loop rows、186/186 runtime-job cost disposition、company revenue/expense/net、report delivery receipt/readback、source freshness、unknown owner/action、replay-zeroを照合する。partial coverageから「CFO complete」や$10k MRR達成を宣言しない。
+
+- **Deferred outside this CFO gate:** A7 Moneytreeは今回対象外。plugin read/login/reconnectをしない。A4.1→A4.2→A4.3のfree-provider/Cloud savingsはA10後に再開する。A3.4もA10後、A6 evidenceから節約価値が確認できた場合だけ再開する。
 
 ### 2026-10-07 JST — A3 migration実適用とreadback（A3.4未完）
 
@@ -3770,8 +3753,8 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - Management APIの`read_only:true` SELECTでtable exists、RLS enabled、service-role get/upsert EXECUTE、anon/authenticated get/upsert拒否を確認した。upsertは呼ばずproduction test/cache rowを作成していない。
 - Railway production `life-call`はSHA `64895457b7232a954f2f4492073b867009b6da85`でRUNNING、loaded sourceにはgeocode-cache get/set wiringがある。migrationのためのservice restart、route実行、Google billable request、Calendar/Telegram effectは行っていない。
 - A3.1 access、A3.2 apply、A3.3 schema/RPC/RLS/ACL readbackは完了。process restart後の自然route/cache-hit/replay-zeroを示すA3.4は未検証。
-- **cursor/order:** 次は既存の`A4.1`。現行順序`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`は変えない。A3 applyはDaisの明示依頼によるA6前の一回の例外実行であり、全体TODOを並べ替えない。
-- A3.4はA6で有意なsettled Google Geocoding spendまたはprocess restart後の重複callが確認された場合に限り再開する。synthetic rowや比較目的の追加provider callは作らず、自然なroute occurrenceと既存process lifecycleで確認する。
+- **cursor/order:** 旧order=`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`。新order=`A5→A6→A8→A9→A10`。変更理由は、business CFOの全agent/loop revenue・cost coverageを先に完成し、Moneytree personal railは除外、Cloud/free-geocoding savingsは後回しにするDaisの指示。現在cursor=`A5`。このbranchのSSOT候補に記録し、`origin/main`のcursor変更はPR merge後に確認する。
+- A7 Moneytreeは今回のbusiness-CFO acceptanceから外し、pluginを呼ばない。A4.1→A4.2→A4.3およびA3.4はA10後へ送る。A3.4はA6 evidenceで有意なsettled Geocoding spendまたはprocess restart後の重複callによる費用対効果が確認された場合だけ再開する。synthetic rowや比較目的の追加provider callは作らず、自然なroute occurrenceと既存process lifecycleで確認する。
 
 
 ## 公開ハーネスへの移行 — HM lane
