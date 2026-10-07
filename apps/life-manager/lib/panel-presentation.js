@@ -15,6 +15,8 @@ const SAFE_TIMELINE_SENTENCE = "予定の詳細を安全に表示できず、次
 const CONNECTION_NAMES = Object.freeze(["calendar", "telegram", "location", "call", "email", "wallet"]);
 const CONNECTION_STATES = new Set(["connected", "action_required", "error", "unavailable"]);
 const CONTROL_NAMES = Object.freeze(["delegation", "physical_automation", "mental_automation", "financial_automation"]);
+const API_COST_UNITS = new Set(["request", "tokens", "grounded_prompt", "seconds_proxy"]);
+const SAFE_API_COST_LABEL = /^[A-Za-z0-9][A-Za-z0-9 .:_/-]{0,127}$/;
 
 class PanelSectionUnavailableError extends Error {
   constructor(section) {
@@ -193,6 +195,145 @@ function ledgerItem(row, label) {
   };
 }
 
+function safeApiCostLabel(value) {
+  return typeof value === "string"
+    && SAFE_API_COST_LABEL.test(value)
+    && !containsSensitiveDisplayValue(value);
+}
+
+function apiCostCount(value) {
+  if (typeof value === "string" && !/^\d+$/.test(value)) return null;
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
+function apiCostDecimal(value) {
+  if (value == null) return null;
+  const source = typeof value === "number" && Number.isFinite(value)
+    ? String(value) : typeof value === "string" ? value.trim() : "";
+  if (source.length === 0 || source.length > 100
+    || !/^\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(source)) return undefined;
+  const [mantissa, exponentText] = source.toLowerCase().split("e");
+  if (exponentText == null) return source;
+  const exponent = Number(exponentText);
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 80) return undefined;
+  const [whole, fraction = ""] = mantissa.split(".");
+  const digits = `${whole}${fraction}`;
+  const decimalPosition = whole.length + exponent;
+  if (decimalPosition <= 0) return `0.${"0".repeat(-decimalPosition)}${digits}`;
+  if (decimalPosition >= digits.length) return `${digits}${"0".repeat(decimalPosition - digits.length)}`;
+  return `${digits.slice(0, decimalPosition)}.${digits.slice(decimalPosition)}`;
+}
+
+function emptyApiCostCounts() {
+  return {
+    event_count: 0,
+    request_count: 0,
+    cache_hit_count: 0,
+    cache_miss_count: 0,
+    estimated_event_count: 0,
+    settled_event_count: 0,
+    unknown_estimate_event_count: 0,
+    unknown_actual_event_count: 0,
+    not_applicable_count: 0,
+  };
+}
+
+function projectApiCostGroup(row) {
+  if (!record(row)) return null;
+  const sku = row.sku == null ? "unknown" : row.sku;
+  if (!safeApiCostLabel(row.provider)
+    || !safeApiCostLabel(sku)
+    || !safeApiCostLabel(row.operation)
+    || !API_COST_UNITS.has(row.unit)) return null;
+  const eventCount = apiCostCount(row.event_count);
+  const requestCount = apiCostCount(row.request_count);
+  const cacheHitCount = apiCostCount(row.cache_hit_count);
+  const cacheMissCount = apiCostCount(row.cache_miss_count);
+  const unknownEstimateCount = apiCostCount(row.unknown_estimate_event_count);
+  const unknownActualCount = apiCostCount(row.unknown_actual_event_count);
+  const notApplicableCount = apiCostCount(row.not_applicable_count);
+  const providerUnits = apiCostDecimal(row.provider_units);
+  const estimatedCost = apiCostDecimal(row.estimated_cost_usd);
+  const settledCost = apiCostDecimal(row.settled_cost_usd);
+  if ([eventCount, requestCount, cacheHitCount, cacheMissCount, unknownEstimateCount,
+    unknownActualCount, notApplicableCount].some((value) => value == null)
+    || providerUnits === undefined || estimatedCost === undefined || settledCost === undefined
+    || eventCount === 0
+    || requestCount > eventCount
+    || (row.unit !== "request" && requestCount !== 0)
+    || cacheHitCount + cacheMissCount !== eventCount
+    || unknownEstimateCount > eventCount
+    || unknownActualCount + notApplicableCount > eventCount) return null;
+
+  const estimatedEventCount = eventCount - unknownEstimateCount;
+  const settledEventCount = eventCount - unknownActualCount - notApplicableCount;
+  if ((estimatedEventCount === 0) !== (estimatedCost === null)
+    || (settledEventCount === 0) !== (settledCost === null)) return null;
+  const estimateStatus = unknownEstimateCount === 0 ? "estimated"
+    : estimatedEventCount === 0 ? "unknown" : "partial";
+  const actualStatus = settledEventCount > 0
+    ? (unknownActualCount > 0 ? "partial" : "settled")
+    : unknownActualCount > 0 ? "unknown" : "not_applicable";
+  return {
+    provider: row.provider,
+    sku,
+    operation: row.operation,
+    unit: row.unit,
+    event_count: eventCount,
+    request_count: requestCount,
+    cache_hit_count: cacheHitCount,
+    cache_miss_count: cacheMissCount,
+    provider_units: providerUnits,
+    estimated_cost_usd: estimatedCost,
+    settled_cost_usd: settledCost,
+    estimate_status: estimateStatus,
+    actual_status: actualStatus,
+    unknown_estimate_event_count: unknownEstimateCount,
+    unknown_actual_event_count: unknownActualCount,
+    not_applicable_count: notApplicableCount,
+  };
+}
+
+function projectApiCostPeriod(candidate) {
+  if (!record(candidate)
+    || typeof candidate.period_start !== "string"
+    || typeof candidate.period_end !== "string"
+    || !Number.isFinite(Date.parse(candidate.period_start))
+    || !Number.isFinite(Date.parse(candidate.period_end))) fail("ledger");
+  const period = {
+    period_start: candidate.period_start,
+    period_end: candidate.period_end,
+  };
+  const unavailable = () => ({
+    status: "unavailable", ...period, counts: null, groups: null,
+  });
+  if (candidate.status === "unavailable" && candidate.rows === null) return unavailable();
+  if (candidate.status === "verified_empty" && Array.isArray(candidate.rows)
+    && candidate.rows.length === 0) {
+    return { status: "verified_empty", ...period, counts: emptyApiCostCounts(), groups: [] };
+  }
+  if (candidate.status !== "available" || !Array.isArray(candidate.rows)
+    || candidate.rows.length === 0) return unavailable();
+  const groups = candidate.rows.map(projectApiCostGroup);
+  if (groups.some((group) => group === null)) return unavailable();
+  const counts = emptyApiCostCounts();
+  for (const group of groups) {
+    counts.event_count += group.event_count;
+    counts.request_count += group.request_count;
+    counts.cache_hit_count += group.cache_hit_count;
+    counts.cache_miss_count += group.cache_miss_count;
+    counts.estimated_event_count += group.event_count - group.unknown_estimate_event_count;
+    counts.settled_event_count += group.event_count - group.unknown_actual_event_count - group.not_applicable_count;
+    counts.unknown_estimate_event_count += group.unknown_estimate_event_count;
+    counts.unknown_actual_event_count += group.unknown_actual_event_count;
+    counts.not_applicable_count += group.not_applicable_count;
+  }
+  if (Object.values(counts).some((value) => !Number.isSafeInteger(value))) return unavailable();
+  return { status: "available", ...period, counts, groups };
+}
+
 function financialLabel(row) {
   const labels = {
     financial_external_income: "外部収益",
@@ -268,9 +409,14 @@ function projectLedger(candidate) {
   if (
     !record(candidate)
     || !Array.isArray(candidate.apiCostEntries)
+    || !record(candidate.apiCostPeriods)
     || !Array.isArray(candidate.financialEntries)
     || !Array.isArray(candidate.reportReceipts)
   ) fail("ledger");
+  const periods = {
+    daily: projectApiCostPeriod(candidate.apiCostPeriods.daily),
+    monthly: projectApiCostPeriod(candidate.apiCostPeriods.monthly),
+  };
   const apiItems = candidate.apiCostEntries.map((row) => ledgerItem(row, "API利用料"));
   const financialItems = candidate.financialEntries.map((row) => ledgerItem(row, financialLabel(row)));
   let total = 0;
@@ -315,6 +461,7 @@ function projectLedger(candidate) {
       actual_status: actualStatus,
       unknown_actual_entries: unknownActualEntries,
       items: apiItems,
+      periods,
     },
     financial: {
       no_data: financialItems.length === 0,

@@ -654,6 +654,218 @@ test("PANEL-8h: emitted loader applies closed validators and shared secret patte
   assert.doesNotMatch(html, /response\.statusText|response\.text\(\)|JSON\.stringify\(data\)/);
 });
 
+function emittedLedgerBrowser() {
+  const html = renderPanelPage();
+  const script = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/)[1];
+  const sharedStart = script.indexOf("const panelEndpoints = Object.freeze(");
+  const sharedEnd = script.indexOf("function validateTimelineData(data)", sharedStart);
+  const ledgerStart = script.indexOf("function validLedgerItem(item)");
+  const ledgerEnd = script.indexOf("function validateGatesData(data)", ledgerStart);
+  const renderStart = script.indexOf("function renderLedger(data)");
+  const renderEnd = script.indexOf("const gateLabels", renderStart);
+  const loadStart = script.indexOf("async function loadPanelSection(name)");
+  const loadEnd = script.indexOf("let moneyPrinterRefresh", loadStart);
+  assert.ok(sharedStart >= 0 && sharedEnd > sharedStart);
+  assert.ok(ledgerStart >= 0 && ledgerEnd > ledgerStart);
+  assert.ok(renderStart >= 0 && renderEnd > renderStart);
+  assert.ok(loadStart >= 0 && loadEnd > loadStart);
+
+  let responseBody = null;
+  let rendered = null;
+  const requests = [];
+  const sandbox = {
+    URL,
+    fetch: async (path, options) => {
+      requests.push({ path, options });
+      return { ok: true, status: 200, json: async () => responseBody };
+    },
+    markLoaded: (name, body) => { rendered = { name, body }; },
+    window: { location: { reload() {} } },
+  };
+  const source = [
+    script.slice(sharedStart, sharedEnd),
+    script.slice(ledgerStart, ledgerEnd),
+    script.slice(renderStart, renderEnd),
+    "const renderers = Object.freeze({ ledger: renderLedger });",
+    script.slice(loadStart, loadEnd),
+    "globalThis.__validateLedgerData = validateLedgerData; globalThis.__loadPanelSection = loadPanelSection;",
+  ].join("\n");
+  vm.runInNewContext(source, sandbox);
+  return {
+    validate: (data) => sandbox.__validateLedgerData(data),
+    async load(data) {
+      responseBody = data;
+      rendered = null;
+      await sandbox.__loadPanelSection("ledger");
+      return { ...rendered, request: requests.at(-1) };
+    },
+  };
+}
+
+function task2LedgerDto() {
+  return {
+    api_cost: {
+      no_data: true,
+      total: "金額不明",
+      estimate_status: "unknown",
+      unknown_estimate_entries: 0,
+      actual_status: "unknown",
+      unknown_actual_entries: 0,
+      items: [],
+      periods: {
+        daily: {
+          status: "available",
+          period_start: "2026-10-06T15:00:00.000Z",
+          period_end: "2026-10-07T15:00:00.000Z",
+          counts: {
+            event_count: 9,
+            request_count: 2,
+            cache_hit_count: 1,
+            cache_miss_count: 8,
+            estimated_event_count: 5,
+            settled_event_count: 6,
+            unknown_estimate_event_count: 4,
+            unknown_actual_event_count: 3,
+            not_applicable_count: 0,
+          },
+          groups: [
+            {
+              provider: "OpenAI", sku: "gpt-test", operation: "responses", unit: "request",
+              event_count: 2, request_count: 2, cache_hit_count: 0, cache_miss_count: 2,
+              provider_units: "2", estimated_cost_usd: "0.00000001", settled_cost_usd: "0.000000005",
+              estimate_status: "estimated", actual_status: "settled",
+              unknown_estimate_event_count: 0, unknown_actual_event_count: 0, not_applicable_count: 0,
+            },
+            {
+              provider: "DeepSeek", sku: "flash-test", operation: "completion", unit: "tokens",
+              event_count: 2, request_count: 0, cache_hit_count: 0, cache_miss_count: 2,
+              provider_units: "256", estimated_cost_usd: null, settled_cost_usd: "0.0000005",
+              estimate_status: "unknown", actual_status: "settled",
+              unknown_estimate_event_count: 2, unknown_actual_event_count: 0, not_applicable_count: 0,
+            },
+            {
+              provider: "Google", sku: "grounded-test", operation: "ground", unit: "grounded_prompt",
+              event_count: 4, request_count: 0, cache_hit_count: 1, cache_miss_count: 3,
+              provider_units: "10.5", estimated_cost_usd: "0.0000000123", settled_cost_usd: "0.00000009",
+              estimate_status: "partial", actual_status: "partial",
+              unknown_estimate_event_count: 1, unknown_actual_event_count: 2, not_applicable_count: 0,
+            },
+            {
+              provider: "Anthropic", sku: "unknown-test", operation: "completion", unit: "seconds_proxy",
+              event_count: 1, request_count: 0, cache_hit_count: 0, cache_miss_count: 1,
+              provider_units: "5.2", estimated_cost_usd: null, settled_cost_usd: null,
+              estimate_status: "unknown", actual_status: "unknown",
+              unknown_estimate_event_count: 1, unknown_actual_event_count: 1, not_applicable_count: 0,
+            },
+          ],
+        },
+        monthly: {
+          status: "verified_empty",
+          period_start: "2026-10-01T15:00:00.000Z",
+          period_end: "2026-10-07T15:00:00.000Z",
+          counts: {
+            event_count: 0,
+            request_count: 0,
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            estimated_event_count: 0,
+            settled_event_count: 0,
+            unknown_estimate_event_count: 0,
+            unknown_actual_event_count: 0,
+            not_applicable_count: 0,
+          },
+          groups: [],
+        },
+      },
+    },
+    financial: { no_data: true, items: [] },
+    reports: { daily: null, weekly: null },
+  };
+}
+
+function emittedPanelActionCommand() {
+  const script = renderPanelPage().match(/<script>\s*([\s\S]*?)\s*<\/script>/)[1];
+  const start = script.indexOf("function commandForAction(action, button)");
+  const end = script.indexOf("async function runControlAction(button)", start);
+  assert.ok(start >= 0 && end > start);
+  const sandbox = { window: { location: {} } };
+  vm.runInNewContext(`${script.slice(start, end)}\nglobalThis.__commandForAction = commandForAction;`, sandbox);
+  return sandbox.__commandForAction;
+}
+
+test("PANEL-A5: browser accepts the Task 2 ledger DTO and renders separate daily/monthly cost tables", async () => {
+  const browser = emittedLedgerBrowser();
+  const result = await browser.load(task2LedgerDto());
+
+  assert.equal(result.name, "ledger");
+  assert.equal(result.request.path, "/api/panel/ledger");
+  assert.equal(result.request.options.credentials, "same-origin");
+  assert.equal(result.request.options.headers.Accept, "application/json");
+  assert.match(result.body, /data-api-cost-period="daily"/);
+  assert.match(result.body, /data-api-cost-period="monthly"/);
+  assert.equal((result.body.match(/<table/g) || []).length, 2);
+  for (const label of ["今日", "今月", "OpenAI", "gpt-test", "responses", "request", "DeepSeek", "Google", "Anthropic"]) {
+    assert.ok(result.body.includes(label), `rendered ledger should include ${label}`);
+  }
+  assert.match(result.body, /USD 0\.00000001/);
+  assert.match(result.body, /USD 0\.000000005/);
+  assert.match(result.body, /推定 一部未確認/);
+  assert.match(result.body, /確定 一部未確認/);
+  assert.match(result.body, /確定済み/);
+  assert.match(result.body, /未確認/);
+  assert.match(result.body, /記録なし（照会済み）/);
+  assert.doesNotMatch(result.body, /USD 0\.00000000(?![0-9])/);
+  assert.match(result.body, /警告閾値: 未設定（A6で設定予定）/);
+});
+
+test("PANEL-A5: browser renders normalized unknown SKU as 未確認", async () => {
+  const browser = emittedLedgerBrowser();
+  const dto = task2LedgerDto();
+  dto.api_cost.periods.daily.groups[3].sku = "unknown";
+
+  const result = await browser.load(dto);
+
+  assert.match(result.body, /<td>Anthropic<\/td><td>未確認<\/td><td>completion<\/td>/);
+  assert.doesNotMatch(result.body, /<td>Anthropic<\/td><td>unknown<\/td>/);
+});
+
+test("PANEL-A5: unavailable summaries stay unknown and the unset warning threshold leaves travel/Calendar actions available", async () => {
+  const browser = emittedLedgerBrowser();
+  const dto = task2LedgerDto();
+  dto.api_cost.periods.daily = {
+    ...dto.api_cost.periods.daily,
+    status: "unavailable",
+    counts: null,
+    groups: null,
+  };
+  const result = await browser.load(dto);
+  assert.match(result.body, /集計を取得できません/);
+  assert.match(result.body, /金額と利用量は未確認です/);
+  assert.doesNotMatch(result.body, /data-api-cost-period="daily"[\s\S]*?event_count[^<]*0/);
+  assert.match(result.body, /警告閾値: 未設定（A6で設定予定）/);
+
+  const commandForAction = emittedPanelActionCommand();
+  assert.deepEqual(commandForAction("connect-calendar", {}), { type: "connection.start", provider: "calendar" });
+  assert.deepEqual(commandForAction("wake_policy", { value: "travel-only" }), {
+    type: "setting.set", setting: "wake_policy", value: "travel-only",
+  });
+  assert.match(renderPanelPage(), /data-panel-section="timeline"/);
+});
+
+test("PANEL-A5: browser ledger validator rejects malformed summary keys, states, and cost values", () => {
+  const browser = emittedLedgerBrowser();
+  for (const mutate of [
+    (dto) => { dto.api_cost.periods.daily.unprojected = true; },
+    (dto) => { dto.api_cost.periods.daily.status = "zero_by_default"; },
+    (dto) => { dto.api_cost.periods.daily.groups[0].estimated_cost_usd = "NaN"; },
+    (dto) => { dto.api_cost.periods.daily.groups[0].actual_status = "unknown"; },
+  ]) {
+    const invalid = structuredClone(task2LedgerDto());
+    mutate(invalid);
+    assert.throws(() => browser.validate(invalid), /invalid ledger payload/);
+  }
+});
+
 test("PANEL-8h: money-printer refresh rejects failed reloads and recovers on the next refresh", async () => {
   const html = renderPanelPage();
   const script = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/)[1];
