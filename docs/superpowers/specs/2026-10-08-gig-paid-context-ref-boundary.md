@@ -26,8 +26,15 @@ The 2026-10-07 Coconala Paid run for talkroom `18180857` stopped before any exte
 
 ## Remaining
 
-1. Commit/push and pass PR checks.
-2. After merge, wait for the main-derived release and targeted `hf-gig-paid-direct` natural run; confirm the context compiles and re-evaluate any later paid-work gate without bypassing it.
-3. Update the canonical unified SSOT after its active writer releases that file; do not change the global TODO order for this local source fix.
+1. Wait for the next natural `paid-work-decision` run after provider capacity recovers. Do not change the Life Manager business-loop model route here.
+2. Keep the old Coconala Apply occurrence fenced until a durable run→pass link is found; existing exact-ID readbacks alone do not prove that link.
+3. Resume Coconala Storefront only after that Apply fence is safely resolved. Lancers Storefront and CrowdWorks/Mercor Apply/Paid retain their current owner/readback gates.
+4. Update the canonical unified SSOT after its active writer releases that file; do not change the global TODO order for this local source fix.
+
+## Production readback
+
+- PR #6932 merged as `599dcf62a167c853e252e64d68128f3d36b8da32`. Main-derived immutable release `6ce816a9d152a40aeaf8c89eae68fb5f60d6b5cd` was created and targeted to `hf-gig-paid-direct`.
+- Natural occurrence `hf-gig-paid-direct:18dc48f2effab020-41557` loaded that release and passed the former context-compile failure. It then stopped in `paid-work-decision` because the configured escalation model provider reported capacity unavailable; `effect=0`, no provider message or delivery receipt.
+- Current lane remains incomplete: Coconala Apply/Storefront and Lancers Storefront are effect-fenced; CrowdWorks/Mercor have official-readback gates. Freelancer remains retired and Upwork remains an external browser owner. The canonical TODO order is unchanged.
 
 TODO ordering remains owned by `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`.
