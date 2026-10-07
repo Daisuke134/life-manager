@@ -36,26 +36,26 @@
 - Produces: `LIFE_MANAGER_HEYGEN` for `ebook-en-tiktok-daily` only when no nonempty override is supplied.
 - Pre-flight: no shared interfaces.
 
-- [ ] **Step 1: Write the failing regression test**
+- [x] **Step 1: Write the failing regression test**
 
 Add `test_english_ebook_child_environment_sets_scoped_heygen_cli_path` asserting that the English owner receives the literal `<tmp_path>/.local/bin/heygen`, that its `PATH` does not gain `.local/bin`, that the Japanese owner has no `LIFE_MANAGER_HEYGEN`, and that an explicit English override remains unchanged.
 
-- [ ] **Step 2: Run the test to verify RED**
+- [x] **Step 2: Run the test to verify RED**
 
 Run: `python3 -m pytest runtime/loop/tests/test_lm_loop_run_bounds.py::test_english_ebook_child_environment_sets_scoped_heygen_cli_path -q`
 
 Expected: FAIL because `LIFE_MANAGER_HEYGEN` is absent for the English owner.
 
-- [ ] **Step 3: Implement the minimal environment binding**
+- [x] **Step 3: Implement the minimal environment binding**
 
 Set `LIFE_MANAGER_HEYGEN` to `(home or Path.home()) / ".local/bin/heygen"` only for `ebook-en-tiktok-daily` and only when the inherited value is empty. Do not widen `PATH`.
 
-- [ ] **Step 4: Run focused verification**
+- [x] **Step 4: Run focused verification**
 
 Run: `python3 -m pytest runtime/loop/tests/test_lm_loop_run_bounds.py -q`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the source and regression test**
+- [x] **Step 5: Commit the source and regression test**
 
-Commit the focused code/test diff on a main-derived feature branch, then open the PR for the canonical owner-release path in the spec.
+Commit the focused code/test diff on the existing main-derived eBook task branch and update PR #6990. Reuse this task worktree and PR because they already own the same eBook Monk goal; after CI passes, merge and follow the canonical owner-release path in the spec.
