@@ -509,7 +509,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       }
     }
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
-    sendRedirect(res, "/lm");
+    sendRedirect(res, "/lm?start_calendar=1");
   } catch (error) {
     if (sessionMayExist && client) await clearWebSession(client, req, res, opts);
     const status = error && error.code === "telegram_bound" ? 403 : 503;

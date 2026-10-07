@@ -76,10 +76,10 @@
 - A successful Calendar callback starts the one-time scan automatically. The client may show only an in-place loading state while that request runs.
 - renderWebPage(model) renders the signed-out CTA, scan/loading, compact zero-block state, combined connected/trial offer, or trial-active confirmation; it never renders the old dashboard.
 
-- [ ] Step 1: Add failing page/auth/calendar tests for the exact CTA, automatic Calendar OAuth continuation, automatic first scan, combined offer, zero-block state without Checkout, and absence of dashboard/home-address/chat UI.
-- [ ] Step 2: Run those focused tests and confirm the expected states are missing.
-- [ ] Step 3: Implement the single-action flow and server-rendered states. Keep the optional Messages link hidden until its recipient and response owner are verified.
-- [ ] Step 4: Run the focused auth/calendar/page tests at mobile and desktop viewport sizes in the browser harness.
+- [x] Step 1: Add failing page/auth/calendar tests for the exact CTA, automatic Calendar OAuth continuation, automatic first scan, combined offer, zero-block state without Checkout, Messages visibility, and absence of dashboard/home-address/chat UI.
+- [x] Step 2: Run those focused tests and confirm the expected states are missing.
+- [x] Step 3: Implement the single-action flow and server-rendered states. Keep the optional Messages link hidden until its recipient and response owner are verified.
+- [x] Step 4: Run the focused auth/calendar/page tests at mobile and desktop viewport sizes in the browser harness.
 
 ### Task 3: Card-required seven-day Stripe trial and subscription lifecycle
 

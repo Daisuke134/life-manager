@@ -527,7 +527,6 @@ const server = http.createServer(async (req, res) => {
     const html = renderWebPage({
       user,
       snapshot,
-      stripePaymentLink: process.env.LM_STRIPE_PAYMENT_LINK || process.env.STRIPE_PAYMENT_LINK,
     });
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
