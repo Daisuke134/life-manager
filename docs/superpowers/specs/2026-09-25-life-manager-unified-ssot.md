@@ -4894,13 +4894,13 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 - Coconala：以前の受注/売上403後、同registered profileで公開top/revenue比較はHTTP200へ復帰し、current revenue parserで18211957の1明細を取得（§724）。恒久403とは固定しない。銀行receipt/fee/実費と全履歴・現在の受注/購入導線は未確認。過去件数を現在値へしない。
 - CrowdWorks Paid：価格取得不具合はmain4429と公式3readbackで解消。64033100は採用応募フォームであり、サービス成果物の納品と混同しない。63942104/63989657も採用選考と分類済み。通常サービスの納品対象は未確定。63826932/63819060の旧結果照合待ちは再送しない。正式納品・入金は未確認。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
-- CFO：main1305の公式MRR取得/自然送信104639とsource側のoccurrence別保存修正は確認済み。related tests 139/139・fresh read-only review SHIP・GitHub CI success後、PR #6800をmain `3aaabcca69ddf4752b516df44a669f1f88350d6b`へ統合した。CodeRabbitはOSS repositoryのmanual-review skip。main由来immutable buildは別の既存builderが進行中。CFO限定反映・修正SHAの自然occurrence保存と同一送信receipt照合は未完。
+- CFO：main1305の公式MRR取得/自然送信104639とsource側occurrence保存修正は確認済み。related tests 139/139・fresh review SHIP・GitHub CI success後、PR #6800をmain `3aaabcca69ddf4752b516df44a669f1f88350d6b`へ統合。immutable release `20261007T090901-3aaabcca`を検証しCFO labelだけtarget apply済み。修正SHAの自然occurrence JSONと同一送信receipt照合は未完。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
 - 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。この集約は過去観測で、現在cursorは下記実行表を参照する。残29の相対順序、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17はmain1305c07f5eでCFO live MRR取得を反映済み、133tests/fresh sourceSHIP/全CI/自然送信104639まで確認済み。ASC apps list24・獲得4CSV・追加observerのASC receipt1/RC MRR6/RC settled0も確認済み。自然runの証拠保存sourceはcommit `3346c7b2`・`68725963`・`8495535d07`、fixture補正は`bccc7979324c59b5606bb7e6a45af79fa0ad296d`。PR #6800はmain merge commit `3aaabcca69ddf4752b516df44a669f1f88350d6b`へ統合済み。残る操作は同main SHAの既存immutable build結果のreadback→CFO限定反映→次の自然occurrence JSONと同run送信receiptの照合。追加observerを自然runそのものへ代用しない。完了済みの取得・送信・MRR source修復を再実行TODOへ戻さない。銀行/会社利益/全期間coverageの不足は残18〜24へ保持する。
+現在17はmain1305c07f5eでCFO live MRR取得を反映済み、133tests/fresh sourceSHIP/全CI/自然送信104639まで確認済み。ASC apps list24・獲得4CSV・追加observerのASC receipt1/RC MRR6/RC settled0も確認済み。occurrence保存sourceはcommit `3346c7b2`・`68725963`・`8495535d07`、fixture補正は`bccc7979324c59b5606bb7e6a45af79fa0ad296d`。PR #6800 merge `3aaabcca69dd`、immutable release `20261007T090901-3aaabcca`、CFO target applyはPASS。apply直後の自然wakeはcapacity busyでexit75、RevenueCat取得より前にdeferし、新sidecarはまだ保存されていない。次の自然eligible occurrence JSONと同run送信receiptを照合する。追加observerや旧releaseの104639/104777を新SHAの証拠へ代用しない。銀行/会社利益/全期間coverageの不足は残18〜24へ保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -4926,7 +4926,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
 | 15 | Fundraiserの旧申請provider/account/intentと公式結果を照合し、対応が解決してから適格な未送信申請を進める。結果未確認の再申請なし | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | main `3aaabcca69dd`の既存immutable buildを検証→CFOだけtargeted apply→次の自然occurrence JSONと同run送信receiptを照合する | PR・139関連tests・fresh review・GitHub CIは完了。完了には公式取得tuple・原report SHA・正規receipt identity・currency/settlementのoccurrence別保存、native report IDの未確認表示、RevenueCat同期間join/二重計上0、mobile lane実装の重複なしが必要。 |
+| 17 | 次の自然eligible CFO occurrenceで保存されたsidecar JSONと同run送信receiptを照合する。capacity busy時は自然eligibilityを待ち、手動wake/replayしない | source・139 tests・review・CI・main merge・immutable release・CFO target applyは完了。apply直後のrunは`resource_capacity_busy`で外部effect前にdefer、sidecar無し。完了には公式取得tuple・原report SHA・正規receipt identity・currency/settlementのoccurrence別保存、native report IDの未確認表示、RevenueCat同期間join/二重計上0、mobile lane重複なしが必要。 |
 | 18 | Investmentの既存10/01 BTC/USDC買い・売り注文について、確認済みFILL/CFEEを維持し、取得済み開始NAV/2注文照合を保持し、同じ確定終端NAV・activity/transferの期間完全性・資産別settlement/USD換算・実行owner receiptを確認して同注文へ結合する。口座全体NAV差額をこのpairの利益へ代用しない | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
@@ -10164,9 +10164,17 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - current cursor 17、順序変更0。前段1–16と後段18–29は完了扱いしない。source branch/レビュー/CIはsource gateであり、live report、会社MRR、settled profit、全CFO完了の証拠ではない。
 
 
-### 830. merged CFO sourceのimmutable release builderをreadback中
+### 830. merged CFO sourceをimmutable化しCFO ownerへ反映
 
-- PR #6800 merge main `3aaabcca69ddf4752b516df44a669f1f88350d6b`。現在のproduction `current`はまだ`/Users/anicca/loops/releases/20261007T073840-cd9626fa`。CFOは`loaded-idle`、直近occurrence `life-manager-cfo-hourly:18dc16142f5b2450-32271` はhost admission `resource_capacity_busy`、exit75、effect none、next action `retry_after_eligibility`。手動wake/restart/retryはしない。
-- Read-only process/lock readbackで`/Users/anicca/loops/.release-cut.lock` owner PID53765がmain merge SHA向け`cut-loop-release.sh`を実行中。重複release buildを起動せず、完了後にRELEASE.json/current pointer/SHAを確認する。`disk-pressure.block`とhost-wide `.apply.lock`は不在、free space約1.4GiB。sourceのtargeted applyは未実施。
+- PR #6800 merge main `3aaabcca69ddf4752b516df44a669f1f88350d6b`。immutable release `/Users/anicca/loops/releases/20261007T090901-3aaabcca` のRELEASE.json.sha/current/origin main一致、`skills/cfo/loop_pnl.py` git blob一致、mode read-onlyを確認。
+- `LIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourly lm-loop apply --loaded-idle-only` は`ok=true/changed=true`。plist/launchd-safe/status readbackはCFO label argvとinstalled release SHAが`3aaabcca69dd`で一致。fresh launchctl-safe preflight PASS（UID501/DS501/Aqua/gui501）。reconcilerは別label `ai.anicca.lancers-revenue-telegram-report` をper-label lockで処理中だった。CFO別lockは空き、同じownerへの二重applyは0。
 - `lm-loop doctor --json`はexit1だが、missing_entrypoints=0 / unmanaged_labels=[] / registry_entries=184、原因はCFO外のretired installed label `ai.anicca.provision-browser.capafy.kosuke` 1件。別ownerのlabelには触れない。merged sourceは`./bin/lm-loop-contract` PASS（catalog15 / registry184 / mapped107 / shared IDs0）。
-- release確認後、`LIFE_MANAGER_APPLY_TARGET=life-manager-cfo-hourly`のowner限定apply前にGUI/Directory Services/UID・manager・launchd-safe preflight、CFO loaded-idle、host-wide apply lockを再readbackする。apply後はplist/loaded SHA/stateを一致確認し、再送せず次の自然occurrenceのsidecar JSONと同run公式report deliveryを照合する。current cursor 17維持。
+- 同occurrence `life-manager-cfo-hourly:18dc17841f8510d8-13951` は2026-10-07T00:23:28.150Zに`host_admission_deferred:resource_capacity_busy`、exit75、effect `not_applicable`、provider receipt/ref null。RevenueCat読取前にdeferし、`mobile-readbacks/`には既存`current-mrr.json`のみ、新sidecarなし。pre-effect-reconcile dry-runは`resolved=[]/unprovable=[]`。
+- preapply旧SHA occurrence `18dc16b8cc145d58-53576` のruntime eventはeffect unknown/provider receipt nullだが、同一occurrenceの`last-result-report.json`はstatus sent/providerMessageId104777/period `2026-10-07:00`。この証拠は旧SHAのreport receiptとしてのみ扱い、再送しない。new SHA側のacceptanceには代用しない。
+- corrected apply-lock readback: `.apply.lock`は通常ファイルであり、先のisdir判定は無効。最新lsofでactive holder無し、release reconciler自身は稼働中。disk-pressure.blockは不在。current cursor 17維持。
+
+
+### 831. CFO自然readbackはcapacity eligibility待ち、次の独立財務証拠へ
+
+- source main3aa/immutable/target load gatesはPASS。RunAtLoadで起動した最初のnew-SHA occurrenceはhost admissionがbusyのためRevenueCat取得・report effect前にdeferした。admissionのmanual wake/replayはしない。次のscheduled natural eligible CFO runだけを観測し、occurrence別JSONと同run report delivery receiptを照合する。
+- §217の既定どおりcursor17は未完で固定。自然run待ちの間は次の独立read-only項目18（10/01 investmentの既存FILL/CFEE・開始NAV・終端NAV・settlement/owner receipt join）を進める。売買・資金移動・cap変更はしない。17を完了扱いせず、18以後の相対順も変えない。
