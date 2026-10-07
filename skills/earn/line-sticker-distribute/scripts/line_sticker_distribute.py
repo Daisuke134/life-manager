@@ -23,7 +23,7 @@ correction: NEVER a shared Anicca/Honne/eBook brand integration.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -46,6 +46,15 @@ DEFAULT_ACCOUNTS_CONFIG = REPO_ROOT / "config/line-sticker-distribute-accounts.j
 DEFAULT_LINE_STICKER_STATE_ROOT = Path("~/.local/state/life-manager/line-sticker").expanduser()
 DEFAULT_STATE_ROOT = Path("~/.local/state/life-manager/line-sticker-distribute").expanduser()
 CLIP_COUNT = 4
+# A browser_reel share can hang on Instagram's side and never reconcile
+# (reached=shared-unconfirmed) without any error -- confirmed 2026-10-07
+# against @stardust_doubutsu's 20:18 JST slot: Instagram readback still
+# showed no new reel 28min later. Each launchd wake re-tries the same
+# still-open slot (it stays due until the next cadence_jst entry), so
+# without a cooldown a flaky share gets retried with a brand-new real
+# post attempt every ~15-30min inside one cadence window. This cooldown
+# gives Instagram's own processing room before the next attempt.
+RETRY_COOLDOWN_MINUTES = 20
 
 
 def load_accounts(config_path: Path) -> list[dict]:
@@ -82,13 +91,19 @@ def load_accounts(config_path: Path) -> list[dict]:
 
 
 def find_due_account(accounts: list[dict], ledger_path: Path, now: datetime) -> tuple[dict, str, str] | None:
-    """First (account, slot_at, key) whose slot is due now and not yet posted."""
+    """First (account, slot_at, key) whose slot is due now, not yet posted, and
+    (if a previous attempt for this exact slot failed) past its retry cooldown."""
+    data = ledger.load(ledger_path)
     for account in accounts:
         slot_at = due_slot.due_slot_iso(now, account["timezone"], account["cadence_jst"])
         if slot_at is None:
             continue
         key = f"{account['lane_id']}-{slot_at}"
-        if ledger.is_published(ledger_path, key):
+        entry = data.get(key)
+        if entry and entry.get("status") == "published":
+            continue
+        attempted_at = entry.get("attempted_at") if entry else None
+        if attempted_at and now - datetime.fromisoformat(attempted_at) < timedelta(minutes=RETRY_COOLDOWN_MINUTES):
             continue
         return account, slot_at, key
     return None
@@ -117,7 +132,10 @@ def run_pass(
         pick_set.load_on_sale_sets(line_sticker_state_root), seed_key=key,
     )
     if chosen is None:
-        entry = {"status": "blocked", "reason": "no_sets_on_sale", "slot_at": slot_at}
+        entry = {
+            "status": "blocked", "reason": "no_sets_on_sale", "slot_at": slot_at,
+            "attempted_at": now.isoformat(),
+        }
         ledger.record(ledger_path, key, entry)
         return {"state": "blocked", "reason": "no_sets_on_sale", "account": account["lane_id"]}
     clip_order = pick_set.choose_clip_order(chosen["clip_ids"], key, CLIP_COUNT)
@@ -204,6 +222,7 @@ def run_pass(
 
     ledger.record(ledger_path, key, {
         "status": "failed", "slot_at": slot_at, "set_id": chosen["set_id"], "reason": error_detail,
+        "attempted_at": now.isoformat(),
     })
     raise RuntimeError(f"{transport} publish did not reconcile: {receipt}")
 
