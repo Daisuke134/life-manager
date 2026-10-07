@@ -4105,3 +4105,45 @@ The subsequent reviews identified and fixed WB-11 lifecycle gaps: old invoices c
 - **WB-11追加修正のローカルacceptance:** `billing.test.js`等の関連source/webhook/Calendar/scheduler suite 156/156、auth/tenant suite 20/20、PII shape scan clean、`git diff --check` clean。`scripts/lm-web-onboarding-browser-e2e.js` は390x844・1440x900でPASS（synthetic Google consent・Calendar・Stripeのみ）。実Google/Calendar、Stripe hosted CheckoutのCAPTCHA通過、本番課金は未実施。**現在cursor=`branch push → exact-head fresh review → PR CI`**。
 - **追加fresh reviewの指摘と修正cursor（2026-10-08）:** Web tenantでmetadata欠落Checkoutがlegacy `no_payment_required→paid`経路へ落ちる、別invoice IDの同秒イベントがevent-ID順で最新invoice証拠を消す、billing revisionだけではTelegram/customer/subscription/Calendar rebind競合を防げない、手動resume RPCがrow lock後にbillingを再確認しない、の4件を追加修正。Checkoutは保存tenantで分類、positive invoiceはStripe current subscription/latest_invoice/cancel状態をreadback、CASは旧binding値をfenceして0-row後にfresh rowで一度だけ再判定、手動resumeはDB lock内でentitlementを再検査する。**現在cursor=`最新diff push → fresh review → current-head PR CI`**。
 - **追加修正のlocal acceptance:** billing/Calendar/webhook/scheduler suite 160/160、auth/tenant suite 20/20、PII scan clean、browser E2E PASS（390x844・1440x900、synthetic providerのみ）。実Google/Calendar、hosted Stripe CheckoutのCAPTCHA通過、live chargeは未実施。既存$29 USD/月価格を保持。最後のlive MRR readbackは$0。
+### eBook Monk factory current cursor (2026-10-08 04:55 JST)
+
+この節はeBookの03:50 JST時点のcursorを置き換える。全体の他laneの順序は変更しない。旧eBook順は (1) 次slotのpostとHeyGen費用、(2) PR #420 legacy-access修正とNetlify/Supabase target確認、(3) paid Checkout/PDF、(4) 任意のLetter/Tegami CTAと14日cohort、(5) Capafy Instagram。新順は (1) 読み取り専用のPostiz occurrence/fence照合と、English Monk TikTokの誤ったローカルhold修正、(2) main releaseからEnglish ownerだけを反映し3つの登録先をowner経由でkickstart、同occurrenceのPostiz receipt/公開URLとHeyGen初回費用を読む、(3) PR #420の最新race/logging findingsを修正してmerge、Netlify production Supabase project refと集計値を確定、(4) 対象が意図したSupabase projectと一致した場合だけDDL・schema/ACLをreadback、(5) 自然paid Checkout/PDF、(6) Letter/Tegami subscription CTA・14日cohort、(7) その後Capafy Instagram。理由はPostiz上の英語アカウントが現在enabledなのにcanonical destinationだけがdisabled扱いで、投稿が止まっているため。日本語2 ownerの未確定履歴は先に正確に照合し、曖昧なeffectを再送しない。
+
+**実測（Postiz公式GET、2026-10-08 04:54 JST）**: `/public/v1/integrations` はEnglish TikTok `@monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`)、Japanese TikTok `@obou_anicca` (`cmo5s4edx00vgn10ygnu34a0n`)、Japanese Instagram `@obou.anicca` (`cmooplxmu04tpmd0y4h3cpk33`) の3件すべて `disabled=false`。`/posts` の同一JST日付窓は10月7日に`PUBLISHED` 3件（英語TikTok 0、日本語TikTok 2、日本語Instagram 1）、10月8日は04:54時点で0件。これはPostiz投稿inventoryの事実であり、現在の3/日 cadenceや全3 ownerの成功証明ではない。10月7日の投稿は未解決occurrenceとのcaption/hash照合が済むまで、それらのreceiptとして流用しない。
+
+**設定の食い違い**: production release `8dc0654954964071e83cf9c68a67846c6422e1a9` の`config/marketing-destinations.json`はEnglish TikTokを`provider_disabled` / `target_daily_limit=0`としてholdし、account registryも`disabled_verified`。同じintegrationの現行Postiz GETはenabled。これはprovider再接続待ちではなく、自所有のsource設定holdが古い状態。現在の有効なdestinationは日本語TikTokとInstagramの2つ。English Instagramは専用account/integrationが未登録。
+
+**Owner/fence readback**: 3 ownerはrelease `8dc06549`でloaded-idle。English TikTokの最終attemptは`apply_lock_busy`（2026-10-06T23:00Z）、effect `not_applicable`、receiptなし。日本語TikTokのhealth projectionは`effect_unknown` / receiptなしだが、occurrence `ebook-ja-tiktok-daily:18dc492a23932638-97151` のowner proofは`reason=no_due_slot`, `verified=true`, `resolution=RESOLVED`。このproofとhealth projectionの不一致は、履歴を成功に数えずcursorに残す。日本語Instagramの最終attempt `ebook-ja-instagram-daily:18dc3a40a9c673c0-23029` は`host_admission_deferred:resource_effect_unknown`でprovider call前に停止、receiptなし。いずれのhistoryも「今投稿済み」を示さない。
+
+```mermaid
+flowchart LR
+  EN[English approved pack / HeyGen Avatar IV] --> E[English TikTok owner]
+  JA[Japanese approved pack / Watercolor Mark Factory] --> JT[Japanese TikTok owner]
+  JA --> JI[Japanese Instagram owner]
+  E --> G[Destination + due-slot + identity/idempotency gates]
+  JT --> G
+  JI --> G
+  G --> P[Postiz API]
+  P --> R[Native PUBLISHED receipt + public URL]
+  R --> C[Attributed owned checkout]
+  C --> S[Stripe payment + locale PDF delivery]
+  S --> L[Optional Letter/Tegami recurring subscription]
+  L --> M[Settled MRR, refunds, fees, actual cost, 14-day cohort]
+```
+
+**Atomic cursor**:
+
+1. Focused testsでEnglish `@monk_anicca`をenabled destinationとして登録し、`provider_disabled` holdを削除、account statusを`approved_active`へ修正する。日本語2 laneは変えない。READMEのeBook owner/setup表も実態にそろえる。
+2. source acceptance後、PR/CI/merge、main由来immutable release、English ownerだけtarget apply。適用前にhost apply lock、owner idle、admission stateを読み、既存effect fenceを迂回しない。
+3. slot owner経由の次eligible postを受け、各targetでPostiz `PUBLISHED`、provider receipt、同一occurrenceの公開URLを読む。HeyGen wallet delta/render-cost receiptも同じEnglish occurrenceに結合し、3 targets × 3 JST slots/day = 9/dayを実測する。単発receiptだけで永続cadence完了とはしない。
+4. PR #420はlegacy holdのsource fixの後、fresh reviewer指摘の顧客subscription raceとinvalid `SUPABASE_URL`のworkflow log露出を修正し、manual workflowでproject refおよびpaid/no-pointer集計だけをreadbackする。Netlify targetが正本と一致する前にproduction DDLを適用しない。
+5. paid Checkout→Stripe receipt→locale PDF deliveryを同じ注文で結び、返金・fee・settlementと再送0を読む。eBookの$10.99/¥1,580はone-time売上でMRRに算入しない。$10k MRRはuser-initiated Letter/Tegamiのsettled recurring receipts、refund/fee/actual costを14日cohortで確認してから評価する。
+6. 上記eBook checkout/fulfillmentが自然購入で成立してからCapafy Instagram marketing laneへ進む。
+
+**Daisの作業**: 現在の3経路（English TikTok + Japanese TikTok/Instagram）のPostiz接続操作は不要。English Instagramも配信対象にする場合に限り、Daisが専用English Instagram accountをPostizへ接続する。既存`anicca.en`を流用しない。
+
+**Source acceptance（2026-10-08 05:08 JST）**: TDDのREDはdestination contract `19 !== 20`とaccount route blockerで確認。更新後は`marketing-destination-contract.test.js` 8/8、`test_route_status.py` 4/4、JSON parse、`git diff --check`、source-boundary checkがPASS。Fresh read-only reviewはCritical/Important 0。作業branch `fix/ebook-monk-marketing-unblock-20261008` はorigin/main `3dbfc5ac049429661851b129847abcb1489c8d42`由来でPR #6971をopenした。full-checkout CI待ちで、source changeはまだmain/release前。現在のproduction release `8dc06549`は未変更なので、本番ではEnglish TikTok holdが残り、8日分Postiz inventoryもこの時点では0件。次cursorはfull-checkout CI→PR merge→main由来release→English ownerだけapply→natural-slot receipt。Sparse worktreeのrepo-wide runtime testsは未選択の別moduleを参照して失敗したため結果をcode regressionとして扱わない。full-checkout CIをmerge前のsource gateにする。
+
+同時点のread-only `lm-loop doctor`は`missing_entrypoints=0`、`unmanaged_labels=0`で、`ok=false`の理由は既知retired label `ai.anicca.provision-browser.capafy.kosuke`のみ。Data volumeは約2.3 GiBまで回復したが、disk-cleanup ownerの最新receiptは11 GiB recovery target未達で、production apply時はhost admissionを再readbackする。
+
+- **Web-first cursor更新（2026-10-08、上記Web lane記録を置換）:** fresh rereadで追加発見したscan前Web Subscription/Invoice legacy課金経路も閉じ、tenant identity判定を`telegram_chat_id IS NULL`、初回Travel eligibilityを`web_first_travel_at`に分離した。Checkout metadata欠落・別productは拒否し、Subscription/Invoiceはscan前なら無書込みで`web-first-travel-required`を返す。旧order=`WB-11追加修正→focused/full acceptance→fresh review→PR CI→source promotion→WB-12→WB-06/07→WB-13→WB-14→WB-15`、新orderは同じ。理由はWB-11 reviewで追加Importantが見つかり、販売前アクセス制御を確定してから費用計測・OAuth・公開CTAへ進むため。**現在cursor=`final source acceptance → commit/push → latest-head read-only review → latest-head CI`**。現在のsource/browser acceptanceはbilling/Calendar/webhook/scheduler 161/161、auth/tenant 20/20、PII scan clean、390x844/1440x900 synthetic browser E2E PASS。Google実Calendar、hosted Checkout CAPTCHA通過、live chargeは未確認。既存$29/monthは維持。最後のofficial live MRRは$0。
