@@ -3662,6 +3662,19 @@ def _receipt(pass_id: str, *, status: str, reason: str | None = None, **counts: 
         "duplicate": 0,
         **counts,
     }
+    runtime_loop_id = os.environ.get("LIFE_MANAGER_LOOP_ID", "")
+    runtime_run_id = os.environ.get("LIFE_MANAGER_RUN_ID", "")
+    runtime_occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+    occurrence_prefix = "hf-gig-storefront-direct:"
+    if (runtime_loop_id == "hf-gig-storefront-direct"
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", runtime_run_id)
+            and runtime_occurrence_id.startswith(occurrence_prefix)
+            and re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}",
+                runtime_occurrence_id.removeprefix(occurrence_prefix),
+            )):
+        row["runtime_run_id"] = runtime_run_id
+        row["runtime_occurrence_id"] = runtime_occurrence_id
     return row
 
 
