@@ -141,11 +141,11 @@
   **検証・完了:** tests/supervisor.test.mjs:foreign signal0、child不明ならstopped=false、単なるWS closeはproofにならない。
   **依存:** HA-015。
 
-### HA-017 — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None) -> dict
+### HA-017 — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None, registry_entry: dict) -> dict
 
 - [ ] **対象:** `runtime/openclaw/admission.py`
-  **変更:** 既存resource_admission.enqueue_durable/claim_durableをresource_class=agentで使う。継承claimは同owner/occurrenceを照合して二重claimしない。authoritative値はhost envから。
-  **検証・完了:** tests/test_admission.py: nested broker claim count1、foreign claim拒否、capacity busyでmodel starts0。
+  **変更:** registry_entryはimmutable registryのtrusted owner row。継承claimは同owner/occurrenceかつresource_class=agentの場合だけ再利用する。deterministic/browser claimをmodel枠として借りない。この場合はresource_owner_id=m:<sha256(JSON配列[owner_id])>としてagent専用claimをenqueue_durable/claim_durableで追加し、admission_class/priorityは元rowを保持する。parent claimは変更しない。返却ModelClaimに元owner_idとresource_owner_id/refを含める。
+  **検証・完了:** tests/test_admission.py:agent継承はclaim1、deterministic/browser継承は追加agent枠1、same-owner queueの別resource衝突なし、元priority保持、foreign claim拒否、capacitybusyでmodel starts0。
   **依存:** HA-006。
 
 ### HA-018 — bind_execution(claim_ref: Path, gateway_pid: int) -> None
@@ -214,7 +214,7 @@
 ### HA-027 — main(argv: list[str], stdin: TextIO) -> int
 
 - [ ] **対象:** `runtime/openclaw/tool_broker.py`
-  **変更:** --invoke-stdinだけ受付。packetは{binding_ref,tool_name,arguments} closed schema。operator dispatchRoot内のBindingRecordをmode/owner/claim/actual parent PID・start identityと照合し、lm_read→invoke_read、lm_artifact→write_artifact、lm_effect→invoke_effectへdispatchする。model supplied owner/claimを採用しない。stdoutはsanitized JSON、unknown/errorはtyped resultと非zero。
+  **変更:** --invoke-stdinだけ受付。packetは{binding_ref,tool_name,arguments} closed schema。operator dispatchRoot内のBindingRecordをmode/owner/claim/actual parent PID・start identityと照合し、lm_read→invoke_read、lm_artifact→write_artifact、lm_effect→invoke_effectへdispatchする前にtool_name∈binding.allowed_toolsとeffect_modeとの整合を検証する。read_onlyのlm_effectはprovider開始前に拒否する。model supplied owner/claimを採用しない。stdoutはsanitized JSON、unknown/errorはtyped resultと非zero。
   **検証・完了:** tests/test_tool_broker.py:foreign binding/parent mismatch/unknown tool/secret markerでeffect0、固定invoke packetが通る。shell command文字列は受けない。 read_only bindingへのlm_effect packetはprovider開始0。
   **依存:** HA-025, HA-026。
 

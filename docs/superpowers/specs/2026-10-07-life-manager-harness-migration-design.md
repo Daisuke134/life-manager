@@ -139,7 +139,7 @@ RPC submitは`client.request('agent', {message,agentId,sessionKey,idempotencyKey
 
 `RunOutcome`: `{status:'success'|'failed'|'pending'|'effect_unknown',result:null|object,upstream_run_id:null|string,evidence_refs:string[],usage:{input_tokens:null|integer,output_tokens:null|integer,provider_cost_usd:null|number,cost_basis:string},error_class:null|string,next_action:null|string}`。既存runner summaryへprojectし、schema成功だけでtool effectをverifiedにしない。
 
-`ModelClaim`: `{ref:string,owner_id:string,occurrence_id:string,execution_pid:integer,execution_start:string,state:'active'|'resource_effect_unknown'|'released'}`。既存claim pathを信頼できるenv/host APIで渡す。modelがclaim_ref/ownerを指定した工具requestはauthorityへ使わない。
+`ModelClaim`: `{ref:string,owner_id:string,resource_owner_id:string,occurrence_id:string,execution_pid:integer,execution_start:string,state:'active'|'resource_effect_unknown'|'released'}`。既存claim pathを信頼できるenv/host APIで渡す。modelがclaim_ref/ownerを指定した工具requestはauthorityへ使わない。
 
 plugin一般hookのtimeoutはfail-openになるsurfaceがあるため、before_prompt_buildだけをadmissionの強制保証にしない。public gatewayの初期cronはdisabled、agent dispatchはoperator bridgeだけ。native tool経路とmodel-start admissionのfail-closed検証に不合格ならeffectを有効化しない。schedule移行は検証済み契約成立後の別atomとする。
 
@@ -150,3 +150,5 @@ plugin一般hookのtimeoutはfail-openになるsurfaceがあるため、before_p
 初版で実装指定できるのはread-only共通接続と、CapafyのCP1完了済みagentのfinish handlerである。Capafy新規draft/CP1、各商品の未確認publisher/toolはcoverage=falseとし、この計画で全販売機能を移行できるとは主張しない。残りはowner activation mapの個々のsource coverageを確認して別atomを追加する。
 
 Tool brokerの接続は未指定socketではなく固定Python scriptへのstdin JSONとする。pluginはtrusted BindingRecordをagentId/sessionKeyでlookupし、modelへbinding_refやoperator secretを返さない。BindingRecordはoperator dispatch前に0600で保存し、workspace/claim/gateway PID/start identity/effect_mode/allowed_toolsを持つ。workspaceはoperatorがpaths.workspaceRoot/<identityhash>/へ0700で作成・ownership/symlink検証して固定し、request.workdirとは分離する。request.workdirはreadonly参照元でありartifact root/native cwdに使わない。CLI brokerは実parent PID/start identity、tool_name membership、effect_modeとの整合もdispatch前に照合する。read_only bindingのlm_effectはprovider開始前に拒否する。read_onlyはremote write禁止を意味し、private workspaceへの成果物保存はlm_artifactで許可する。一般shell/file工具やproduction catalogへ直接writeしない。
+
+継承できるmodel claimはresource_class=agentだけ。Capafyのdeterministic claimやPromptBaseのbrowser claimをmodel枠と扱わない。別resourceのparentがある場合、元owner policyを保つm:<owner JSON配列hash>というbookkeeping resource ownerでagent枠を取得し、元商品owner/occurrenceへjoinする。同一ownerのqueueを別resourceで上書きしない。agent継承では二重claimしない。

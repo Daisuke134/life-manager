@@ -102,3 +102,5 @@ Daisは配布を仮定として追加した。公開の決定ではない。**24
 best=同package/cellを端末とcloudへ配布し既製常駐資産を再利用。base=対応OS/機能を明示しuser個別credentialのself-host cellで運用。worst=互換/native/tool/admissionや費用条件が成立せずactivation禁止、pure SDK対案を比較し直す。最大の反証筋は、商品内部SDKとしてのembed負担がOpenClawのsidecar/IPCよりDeep Agents JSで小さくなること。実務比較は未実施。
 
 改訂計画はfresh read-only `gpt-6.1-sol / medium`で初期RPC/既存targetを再検証した。確認API・対象symbolはsourceと一致。1件のhash境界衝突（a:b/cとa/b:c）をHOLD findingとして受け、commit0a008ea16cでNode JSON.stringify配列とPythonの同じcompact JSON/UTF8へ統一。独立probeで両tupleの不一致とJS/Python一致を確認し、当該修正だけPASS。全80atomの実装や本番成功の判定ではない。manifest/render一致・80依存DAG・SSOT対応・local links・source-boundary・diff whitespaceも確認した。
+
+追加interface検証では、artifact workspaceへREPO_ROOTを流用する矛盾とBindingRecordのeffect_mode不足を指摘され、b9fd71d8f5でprivate artifact root/mode/membership assertionへ修正した。独立再検証はこの2件についてPASS。さらにsource rowのCapafy=deterministic/PromptBase=browserをmodel claimとして借りないことをHA-017へ明記し、別bookkeeping ownerのagent枠・priority保持・queue非上書きを検証条件にした。

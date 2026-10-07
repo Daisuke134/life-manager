@@ -3711,7 +3711,7 @@ Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planと�
 - [ ] **HA-014** `runtime/openclaw/profile.mjs` — buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object
 - [ ] **HA-015** `runtime/openclaw/supervisor.mjs` — startGateway({nodeExecutable,paths,env,config}, deps) -> Promise<GatewayHandle>
 - [ ] **HA-016** `runtime/openclaw/supervisor.mjs` — stopGateway(handle, {drainTimeoutMs:5000}) -> Promise<StopProof>
-- [ ] **HA-017** `runtime/openclaw/admission.py` — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None) -> dict
+- [ ] **HA-017** `runtime/openclaw/admission.py` — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None, registry_entry: dict) -> dict
 - [ ] **HA-018** `runtime/openclaw/admission.py` — bind_execution(claim_ref: Path, gateway_pid: int) -> None
 - [ ] **HA-019** `runtime/openclaw/admission.py` — heartbeat_model(claim_ref: Path) -> bool
 - [ ] **HA-020** `runtime/openclaw/admission.py` — release_model(claim_ref: Path, stop_proof: dict, effect_state: str) -> dict
