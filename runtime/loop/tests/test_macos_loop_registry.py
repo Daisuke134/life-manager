@@ -1108,6 +1108,34 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "profile": "~/.local/state/anicca/lancers/browser-profile",
         })
 
+    def test_line_creators_browser_declares_browser_resource_class(self):
+        # Sibling of lancers-revenue-browser (2026-10-06): line-sticker-factory-hourly
+        # had no keep_alive owner for identity line-creators:dais and stalled at
+        # stage=submit for 15 hourly wakes with "CDP endpoint unavailable". This is
+        # the missing *-browser owner every other revenue site already has.
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-creators-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["cadence"], {"keep_alive": True})
+        self.assertEqual(row["entrypoint"], "skills/earn/line-sticker/scripts/browser-owner")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9231,
+            "profile": "~/.cloak/profiles/line-creators",
+        })
+
+    def test_line_sticker_factory_browser_target_owner_is_not_self_referential(self):
+        # Regression for the self-reference bug: browser_target_owner pointed at
+        # line-sticker-factory-hourly itself instead of a real browser owner, so no
+        # process ever held identity line-creators:dais.
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-sticker-factory-hourly"]
+        self.assertEqual(row["browser_identity"], "line-creators:dais")
+        self.assertEqual(row["browser_target_owner"], "line-creators-browser")
+        self.assertNotEqual(row["browser_target_owner"], "line-sticker-factory-hourly")
+        self.assertEqual(
+            registry["loops"][row["browser_target_owner"]]["resource_class"], "browser",
+        )
+
     def test_hf_gig_browser_declares_browser_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["hf-gig-browser"]
