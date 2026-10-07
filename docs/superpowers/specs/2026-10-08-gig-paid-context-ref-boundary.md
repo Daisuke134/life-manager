@@ -139,6 +139,12 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - `df -k /Users/anicca/gig` reports 513636 KiB available: 10652 KiB below the Gig browser's 524288 KiB floor and below the shared 2 GiB floor. Disk-cleanup's latest terminal is exit 1 / `reconcile_owner`; `lm-loop doctor` remains false because `ai.anicca.provision-browser.capafy.kosuke` is still installed as a retired label.
 - Latest admission `effect_unknown` occurrence counts are Coconala Apply 1 / Storefront 1 / Paid 0; CrowdWorks Application 14 / Paid 30 / Reply 260; Lancers Application 151 / Negotiate 197 / Paid 17 / Storefront 1 / Telegram report 1 / Work-sync 0; Mercor Application/Paid/Reply 1 each. These count execution fences, not buyers, bids, orders, messages, or revenue. No owner apply/restart, provider read, or fence resolution was performed in this refresh.
 
+## 2026-10-08 05:51 JST Coconala Paid subtask evidence
+
+- The Paid direct failed occurrence is `hf-gig-paid-direct:18dc584c1a404080-87507` / talkroom `18180857`, `failed_step=remote_builder`, outer `effect=0`, and no Coconala provider receipt. The runner returned `status=ok`, but `business_outcome.required_effect_satisfied=false`, `required_output_satisfied=false`, and one work item remained.
+- Two recorded TikTok subtask attempts (`kazu-vlog-send`, `wai-send`) are both `effect=0`, `exact_readback=false`, and `retry_safe=true`, with `composer_recipient_binding_failed` and `recipient_message_route_unavailable`. No TikTok message send is evidenced. This is a route/recipient gate in the paid deliverable, not a completed Coconala delivery.
+- The last local state for `18180857` is stale (updated `2026-10-07T20:11:28Z`) and says transaction in progress with `formal_delivery_confirmed=false`. No fresh official Coconala order readback was obtained in this turn; do not report it as currently awaiting a seller reply or as delivered. Refresh the exact order state before completing any remaining buyer work.
+
 ## 2026-10-08 05:28 JST Coconala Paid remote-builder failure detail
 
 - Natural occurrence `hf-gig-paid-direct:18dc584c1a404080-87507` failed at `remote_builder` / `entrypoint_exit_1`, with outer `effect=not_applicable` and no Coconala provider receipt. The last local state for talkroom `18180857` was updated at `2026-10-07T20:11:28Z`, showed `transaction_state=取引中` and `formal_delivery_confirmed=false`; it is not a fresh official order readback.
