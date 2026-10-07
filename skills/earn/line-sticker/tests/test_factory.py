@@ -104,6 +104,18 @@ class FullRun(unittest.TestCase):
             self.assertEqual(MODULE.run(state_root, deps)["action"], "skip")
 
 
+class SubmittedCleanup(unittest.TestCase):
+    def test_submitted_set_drops_candidates_but_keeps_package_and_clips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            set_dir = state_root / "set-001"
+            self.assertEqual(MODULE.read_stage(set_dir), "submitted")
+            self.assertFalse((set_dir / "candidates").exists())
+            self.assertTrue((set_dir / "package").exists())
+            self.assertTrue((set_dir / "clips").exists())  # distribute renders from selected clips
+
+
 class FullRunSubmit(unittest.TestCase):
     def test_run_keeps_going_through_submit_sub_states(self) -> None:
         states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
@@ -266,7 +278,46 @@ class SeriesSequel(unittest.TestCase):
                 "set": "set-001", "character_id": "char-otter-001",
                 "character_description": "a stardust otter", "theme": "毎日リアクション",
                 "title": {"ja": "毎日使えるカワウソ", "en": "Otter"}, "state_observed": "販売中",
+                "sales_jpy": None,
             }])
+
+    def test_prior_set_facts_include_known_sales_and_leave_unknown_unset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(source_dir / "plan-draft.json", {
+                "theme": "毎日リアクション", "series_of": None,
+                "character_id": "char-otter-001", "character_prompt": "a stardust otter",
+                "motions": [], "listing": {"title": {"ja": "x", "en": "x"}, "description": {"ja": "x", "en": "x"}},
+            })
+            MODULE._atomic_write_json(source_dir / "listing.json", {"title": {"ja": "毎日使えるカワウソ", "en": "Otter"}})
+            MODULE._atomic_write_json(source_dir / "creators-item.json", {
+                "state_observed": "販売中", "product_id": "48077815",
+            })
+            MODULE._atomic_write_json(state_root / "sales.json", {
+                "observed_at": "2026-10-07T00:00:00+00:00",
+                "products": [{"product_id": "48077815", "title_ja": "毎日使えるカワウソ", "sales_jpy": 0}],
+            })
+
+            facts = MODULE._prior_set_facts(state_root)
+            self.assertEqual(facts[0]["sales_jpy"], 0)
+
+            # A tracked set with no matching sales.json row (product never readback yet) stays
+            # unknown, never silently 0.
+            other_dir = state_root / "set-002"
+            other_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(other_dir / "plan-draft.json", {
+                "theme": "敬語", "series_of": None, "character_id": "char-bear-001",
+                "character_prompt": "a bear", "motions": [],
+                "listing": {"title": {"ja": "y", "en": "y"}, "description": {"ja": "y", "en": "y"}},
+            })
+            MODULE._atomic_write_json(other_dir / "listing.json", {"title": {"ja": "敬語クマ", "en": "Bear"}})
+            MODULE._atomic_write_json(other_dir / "creators-item.json", {
+                "state_observed": "審査待ち", "product_id": "99999999",
+            })
+            facts = MODULE._prior_set_facts(state_root)
+            self.assertIsNone(facts[1]["sales_jpy"])
 
 
 class CostCap(unittest.TestCase):
