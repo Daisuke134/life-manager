@@ -166,6 +166,13 @@ needed first) and can still be fixed because the card is still editable.
    - `typeinto` the correct value into that card's price/Request-Limit input (never
      `fill` — see the measured React-state gotcha above).
    - Re-run `prices` and repeat until it prints `PRICES_MATCH`. Only then proceed.
+   - `<cycle>: missing` means that plan card has not been entered on this new
+     version yet (a same-Agent update draft starts with no saved billing). It is
+     the normal starting state, not a reason to stop: open 価格設定, add / switch a
+     card to that Period, `typeinto` its price and Request Limit from TARGET
+     PRICING, then re-run `prices`. Stopping on a mismatch leaves the draft
+     occupying a review slot and the update never ships (2026-10-07: TikTok
+     Script Pro update stopped on `day: missing; week: missing; month: missing`).
 9. Click **下書きを保存** (save draft) → then **提出を確認** (confirm). Read the shot:
    you want the 「カードを保存しました」 card-done page.
 10. Verify server-side: `packager.py publish-remote-status --agent-id <ID>` →
