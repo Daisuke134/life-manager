@@ -3876,37 +3876,29 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 
 ## Host disk recovery incident
 
-目的: Macの容量逼迫を診断・安全回収し、既存cleanupの稼働と管理下の有限ジョブの容量ガードを修復する。
-範囲: metadata census、未使用と確認できる再生成物、既存disk cleanup owner。認証・memory・state JSONL・使用中release・他者の編集を保護する。OS/interactive clientのquotaや無期限の無障害保証は対象外とする。
+目的: Macの容量逼迫を安全回収し、既存cleanupの稼働と管理下の有限ジョブの容量ガードを修復する。
+範囲: metadata census、未使用の再生成物、既存disk cleanup owner。認証・memory・state JSONL・使用中release・他者の編集を保護する。アクセス未許可のTCC領域を未確認として保持し、無期限の無障害や全owner正常稼働を主張しない。
 
 | TODO | 状態 | 証拠・境界 |
 |---|---|---|
-| host census/安全回収 | 部分完了 | Data空き初期約2GiB。stale updater1件を同一性確認後SIGTERM、allowlisted cache2380146999 bytes、起動Simulator0を確認してApple dyld cacheを回収。空きは最大約6.7GiB、継続writeで約1.6GiBへ戻る。TCC保護rootはsudoもpermission/timeout、unknownを0にしない |
-| cleanup source repair | 完了 | PR #6858、main `d6f5d8f724ba584f0a5fddd19f8bb3e0aa3ce673`。容量未達/unknownのfalse success、候補starvation、df512/1024単位差、cursor ENOSPCでsweep0、terminal reserve消費を修正 |
-| source acceptance | 完了 | full focused352+7subtests、runtime unittest785、Node15、最終ENOSPC修正後185+5subtests、contracts、OSS境界、gitleaks、CI10項目、fresh Sol review ship |
-| main/immutable release | 完了 | `/Users/anicca/loops/releases/20261007T164053-d6f5d8f7`。main由来、current/loaded argv readback |
-| finite producer guard | 部分完了 | 149対象をowner lock/loaded-idle/pending保持で確認。初回93変更/15変更不要。最終installed code readback117新guard/32旧。未claim・同policyのLancers reservation1件は既存opt-inでFIFOを保持して更新。ebook-jaは反映済み確認 |
-| main cleanup/watchdog | 完了 | 5分主labelと60秒com watchdogをenabled/loaded。同じimmutable governor/state/flock。旧watchdogの無条件rm/強制unlock経路はscheduled ownerから外す |
-| natural receipt/readback | 部分完了 | 主cleanup observed07:52:29Z、watchdog07:54:42Z: errors0/protected deletions0、capacity_recovery=unmet、exit1、cursor start0→2を確認。finite exact-owner自然terminal20件でdisk_headroom_low/not_applicableを確認 |
-| 回復床11GiB/全guard | 未完 | 117/149のみ導入確認、空き約1.6GiB。28ownerのeffect_unknown、legacy/incomplete policy、resource class drift、unloaded等は保持。source/CLI0/過去receiptを本番復旧PASSに置換しない |
+| host census/安全回収 | 容量回復完了、census一部未確認 | Data空き約2.8GiB→約13GiB。起動Simulator/active build0を確認し、Apple native runtime deleteでiOS26.5を除去、runtime list空とcache生成PID終了を確認。native log erase --ttlで短期OS診断ログを回収。TCC gapは保持 |
+| cleanup source repair | 完了 | PR #6858でfalse success/候補starvation/df単位/ENOSPC境界/shared11GiB gate、PR #6877でGC2経路のmemory/state JSONLとdangling protected symlink保護を修復。普通のmemoryファイルと無関係なdependency symlinkは回収可能、targetは保持 |
+| source acceptance | 完了 | runtime unittest787/cleanup128/Node15、最終dangling修正後affected164+5subtests、CI10項目PASS、fresh Sol review ship。source証明と本番容量を区別 |
+| main/immutable release | 完了 | main 0bc17613b3f76f88d85732f22ea20683b2ff7e39、/Users/anicca/loops/releases/20261007T180829-0bc17613。cleanup主label/watchdog/週次ownerのinstalledとloaded argvを確認 |
+| finite producer guard | 部分完了 | installed source121/149（unloadedの新版を含む）。LINE queue/queued occurrenceだけdeterministic→browserへ移行、FIFO545176とIDを保持しtarget apply成功。週次ownerのagent/borrow/support補完は既存DBpolicyと一致しtarget apply成功 |
+| main cleanup/watchdog | 完了 | 5分主labelと60秒watchdogが新immutable governor/state/flockを共有。旧無条件rm/強制unlock経路はscheduled ownerから外す。新GC前は既存manifestへmemory入り23releaseをpin |
+| natural receipt/readback | 容量・cleanup確認完了 | 新版へのapply後に両labelの自然実行exit0、host receipt capacity_recovery=met/errors0/protected_deletions0。既存shared guardは逼迫中にexact-owner自然terminal20件でdisk_headroom_low/not_applicableを確認 |
+| 全finite導入/安全停止解除 | 未完 | 28旧sourceを保持。26ownerのeffect_unknown、稼働中のCoconala返信owner、未起動等を無証拠で解除・中断しない。返信ownerは実際に送信するためregistry effect_classをmessageへ訂正し、noneとしてfenceを消さない |
 
-稼働中ownerは一括停止しない。finiteの11GiB checkはpre-enqueue/post-claimでchild0、予約は既存60秒defer、未起動claimはrequeue/reserve=false、control/continuous共有pathはbypassする。individual legacy512MiB contractは保持し、shared gateはenv0でも11GiBを下げられない。
+緊急state/disk-writers.stopはowner_id=host-disk-recovery-installing、next_action=install_and_verify_all_finite_disk_guards_before_arming_recoveryで保持する。容量回復だけで全guard導入や制限解除へ置換しない。foreign/unknown/unsafe/identity変化の旗は削除しない。次回Simulator test/Previewはランタイムの再downloadが必要で、source/SDK/device dataは保持する。
+owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol reviewer disk_policy_review。証拠は /Users/anicca/.local/state/life-manager/evidence/host-disk-* とcleanupログ。既存doctorのretired installed label ai.anicca.provision-browser.capafy.kosukeは残存し、missing/unmanaged0からdoctor全PASSを主張しない。
+現在cursor: 自然監視と回復容量を維持する。旧ownerの外部作用はexact official/pre-effect proofなしで解除・再送しない。処理中の返信ownerは自然terminalとclaim/effect readbackを確認後に対象限定source applyする。source worktreeはmemoryを含むためlockedで保持し、削除しない。
 
-緊急`state/disk-writers.stop`はowner_id=`host-disk-recovery-installing`、next_action=`install_and_verify_all_finite_disk_guards_before_arming_recovery`で保持する。全対象finiteの導入確認前にrecovery owner/next_actionへ戻さない。foreign/unknown/unsafe/identity変化の旗は削除しない。必要なsource導入を確認後、11GiB以上なら既存のexact-owner finalizerが解除する。
+### 実装の受入境界
 
-owner/evidence: primary `/root`、source worker `cleanup_fix`、fresh reviewers `disk_review`/`disk_review_final`/`disk_ship_review`。runtime証拠は `/Users/anicca/.local/state/life-manager/evidence/host-disk-*`、main/watchdogログとhost `last-receipt.json`。credentialsを含む内容はGitへ保存しない。
-現在cursor: 主/watchdogの継続自然回収とnew guardを維持する。残るold ownerはexact official/pre-effect proofなしでfence解除・再送しない。class drift/legacyのowner契約を診断し、自然idleかつ合法なsource反映だけ進める。11GiB未回復とTCC/使用中/protected領域の容量不足を未解決として扱う。
+- 週次ownerは`lm intel gap --telegram`を呼び、既存の`message / shared-agent-runner`を保持する。runnerとDBの`agent / borrow / support`に欠落3fieldを合わせ、entrypoint・route・FIFO・effectを変更しない。
+- Coconala返信ownerは`reply_kernel`と`coconala_reply_adapter.mutate`で返信・見積もりを送るため、registryの`none`を`message`へ訂正する。実際の送信fenceをno-effectとして解除しない。
+- GC2経路は入れ子の`memory` directory、`state/*.jsonl`、同名のdangling symlinkを保持する。検査errorはfail-closed。普通の`memory` fileと無関係なdependency symlinkは削除可能で、そのtargetを辿らない。
+- RED→GREENのregistry・rendered fixture・GC・sparse reserve predicateとCIをsource証明とし、本番容量・自然run・外部message effectの証明と区別する。
 
-### Pre-implementation plan: marketing-weekly-review registry policy
-
-- Evidence: `skills/earn/marketing-engine/intel/weekly-review-owner` calls `lm intel gap --telegram`; its existing policy is `effect_class=message` and `provider_route=shared-agent-runner`. The runner resolves that route to `resource_class=agent` and defaults this non-revenue wake to `admission_class=borrow`; the read-only host admission DB already identifies this owner as `agent / borrow / support`.
-- Plan: add only `resource_class=agent`, `admission_class=borrow`, and `priority=support` to this registry row, assert them and the unchanged message effect in its existing registry test, and regenerate its byte-stable rendered fixture. Preserve its entrypoint, route, and durable admission state.
-- Effect classification: `hf-gig-reply-detector` declares `effect_class=none`, but `coconala-reply-owner` reaches `reply_kernel` and `coconala_reply_adapter.mutate`, which sends replies and estimates. Change only this registry classification to `message`, pin it in the existing Coconala registry test, and regenerate the same rendered fixture so release policy cannot clear message fences as no-effect.
-- Safety acceptance: before a policy apply can make an old release unreferenced, both central release GC and the host governor preserve any release containing a `memory` directory or `state/*.jsonl`, including nested paths. A symlink at a protected `memory`/`state` path or an inspection error fails closed; an unrelated dependency symlink is unlinked without following its target so it does not pin an otherwise reclaimable release.
-- Acceptance boundary: the focused registry test fails while any of the three policy fields are absent or the reply owner is classified as `none`; it passes after policy matches existing owner identities and effects. Rendered fixture matches registry; focused GC tests prove protected paths and ordinary release deletion; registry validation and `git diff --check` pass. This is source acceptance only, not proof of disk capacity recovery, a natural run, or a message effect. No provider, production state, or launchd changes.
-
-Host disk recovery 継続: Data空き2.8GiB、finite guard118/149。起動Simulator0・実行中xcodebuild/Simulator/swift/flutter0だが、simdiskimagedがiOS26.5のdyld cacheを再生成することを観測。唯一のruntime（UUID DE67D494-A483-40A1-B6D3-916A7C13D2D9、build23F77、lastUsedAt 2026-10-05T06:12:47Z、asset allocated約7.91GiB）をApple native `simctl runtime delete`で取り外す。source/SDK/device dataは保持し、次回simtest/Previewには`xcodebuild -downloadPlatform iOS -buildVersion 26.5`で復元が必要。恒久不要とは判定しない。fresh read-only reviewで未起動/active build無し/native teardown経路を確認する。gigの旧releaseはmemoryとkeep markerのため削除しない。
-継続の完了条件: fresh Data空き11GiB以上、複数自然cleanup receiptのcapacity_recovery=met、guard残件の合法な反映またはeffect保護の具体的状態を確認する。現在cursorはnative runtime removalとfresh capacity readback。
-
-Host disk recovery 実測更新: Apple native runtime removal完了、runtime list空・cache生成PID終了。OS native `log erase --ttl`もexit0。Data空き約13.2GiB、main cleanup自然08:41:41Zとwatchdog複数自然runでcapacity_recovery=met/errors0/protected_deletions0。LINE ownerは未claim/unknown/予約0をowner+control lock下で再確認し、queue/queued occurrenceのresource_classだけbrowserへ合わせ、FIFO sequence545176とoccurrence IDを保持。targeted default applyは62ebd9b1へchanged=true、provider replay0。installed source guard120/149を確認（unloadedの新sourceを含み、loaded/natural全149の証明とは区別する）。
-現在cursor: source PR #6877の独立review/CI/merge→main由来immutable release→cleanup2経路とtyped週次ownerへ対象限定反映。返信ownerは実送信を含みrunningなので途中停止しない。26ownerのeffect_unknownとunloadedは保持し、緊急installing flagは全guard未確認のため解除しない。旧SSOT内の11GiB未回復表示はこの容量回復実測で置換する。TCC未読取領域を0にせず、全owner正常復旧や無期限の無障害は主張しない。
+ランタイム回収の境界: 唯一のiOS26.5（UUID DE67D494-A483-40A1-B6D3-916A7C13D2D9、23F77、lastUsedAt 2026-10-05T06:12:47Z、asset allocated約7.91GiB）を未起動・active build無しでnative除去する。2日前に使われているため恒久不要とは判定しない。次回Simulator test/Preview前に`xcodebuild -downloadPlatform iOS -buildVersion 26.5`で再downloadが必要。source/SDK/device dataとmemory入りgig旧releaseは保持する。
