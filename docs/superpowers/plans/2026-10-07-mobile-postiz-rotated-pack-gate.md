@@ -64,7 +64,7 @@
 
 ### Task 4: Promote JP1 as the first canary
 
-- [ ] Push the branch and open a PR. Wait for focused acceptance and required checks before merging.
+- [x] Push the branch and open PR #6867. Focused acceptance and required checks are in progress; do not merge until they and the fresh read-only review pass.
 - [ ] Cut an immutable release from merged `origin/main`.
 - [ ] Read back the JP1 owner lock, loaded-idle state, admission identity, lane manifest, and `launchctl-safe` GUI preflight. Apply the release only to `life-manager-anicca-jp1-tiktok` via the targeted `LIFE_MANAGER_APPLY_TARGET` path.
 - [ ] Wait for the next natural Asia/Tokyo slot. Require a terminal pass, exact Postiz `PUBLISHED` readback for `@anicca.jpx` / integration `cmlrv8jq000hun60yy57eaptx`, matching media/caption identity, and replay-zero. Keep the old unknown occurrence unchanged.
