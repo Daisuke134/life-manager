@@ -4894,13 +4894,13 @@ Daisの最新指示に従い、既存CLIで現在の実案件・注文・精算�
 - Coconala：以前の受注/売上403後、同registered profileで公開top/revenue比較はHTTP200へ復帰し、current revenue parserで18211957の1明細を取得（§724）。恒久403とは固定しない。銀行receipt/fee/実費と全履歴・現在の受注/購入導線は未確認。過去件数を現在値へしない。
 - CrowdWorks Paid：価格取得不具合はmain4429と公式3readbackで解消。64033100は採用応募フォームであり、サービス成果物の納品と混同しない。63942104/63989657も採用選考と分類済み。通常サービスの納品対象は未確定。63826932/63819060の旧結果照合待ちは再送しない。正式納品・入金は未確認。
 - Mercor：応募ownerはresource_effect_unknownで停止。原因対象は旧occurrence `mercor-revenue-application:18d6f9cb5bdaef98-33812` 1件。最新run49153は応募前にblocked。既存intentと同対象の公式application記録を照合し、確認なしに再応募しない。
-- CFO：main1305の公式MRR取得/自然送信104639は確認済み。残る詰まりは同自然occurrenceの取得query/hash/time・ASC/RC分離/coverageの保存証拠不足。§824の最小保存修正をLuna担当が専用branchで進める。旧版反映原因や完了sourceの再調査はしない。
+- CFO：main1305の公式MRR取得/自然送信104639とsource側のoccurrence別保存修正は確認済み。related tests 139/139・fresh read-only review SHIP後、PR #6800をmain向けに作成した。最新readbackは7 checks PASS・2 checks pending・1 OSS manual-review skip、失敗0。merge・immutable release・CFO限定反映・修正SHAの自然occurrence保存と同一送信receipt照合は未完。
 - 財務成果：公式実入力の限定Mobile MRR USD20.34と会社全体のMRR/入金/利益は別。14loopのsettled receipt・実費・最新残高のcoverageは未完。欠損を0へしない。
 - 根拠はprivate `cli-observability-20261006/chat-status-{crowdworks-revenue-paid,mercor-revenue-application,life-manager-cfo-hourly}.json`、既存business output、Coconala公式receipt。この集約は過去観測で、現在cursorは下記実行表を参照する。残29の相対順序、SelfBuild25/Lancers26〜28、TikTok/NPOと旧Coconala12一括照合の延期を維持する。
 
 #### 残作業の実行表（収益行動中心・未完のみ）
 
-現在17はmain1305c07f5eでCFO live MRR取得を反映済み、133tests/fresh sourceSHIP/全CI/自然送信104639まで確認済み。ASC apps list24・獲得4CSV・追加observerのASC receipt1/RC MRR6/RC settled0も確認済み。残る操作は§824の自然run取得/同集計をoccurrence別private JSONへ保存する最小修正、同SHAのreview/CI/main/immutable、次の自然run JSONと同run送信receiptの照合だけ。追加observerを自然runそのものへ代用しない。現在のLuna担当は専用branch fix/cfo-mobile-natural-evidence-20261007、base1305、実handleで稼働確認済み。完了済みの取得・送信・MRR source修復を再実行TODOへ戻さない。銀行/会社利益/全期間coverageの不足は残18〜24へ保持する。
+現在17はmain1305c07f5eでCFO live MRR取得を反映済み、133tests/fresh sourceSHIP/全CI/自然送信104639まで確認済み。ASC apps list24・獲得4CSV・追加observerのASC receipt1/RC MRR6/RC settled0も確認済み。自然runの証拠保存sourceはcommit `3346c7b2`・`68725963`・`8495535d07`、fixture補正は`bccc7979324c59b5606bb7e6a45af79fa0ad296d`。PR #6800のsource gateはrelated139/139・fresh SHIP、最新GitHub readbackは7 PASS・2 pending・1 manual-review skip。残る操作はCI完了→main統合→main由来immutable releaseのCFO限定反映→修正SHAでの次の自然occurrence JSONと同run送信receiptの照合。追加observerを自然runそのものへ代用しない。完了済みの取得・送信・MRR source修復を再実行TODOへ戻さない。銀行/会社利益/全期間coverageの不足は残18〜24へ保持する。
 
 現在の実行cursor：17（Mobileの公式readbackをCFOへ接続し、不足証拠を照合）。15は旧申請identity/readback不足、16は現在のCloud契約・請求source不足を保留し、独立した既存順序17へ進む。前段を全完了とは扱わない。1は通常サービス契約未確定、2〜10の不足は各証拠節の保留として残す。11はHook Labの自然販売促進を公式readback済みだが注文・精算・実費未確認、12は既存Writer購入導線と限定Stripe記録を確認済みだが旧publish binding・金融成果未完、13はPartnerStack認証/期間限定report取得済みだがtax/provider・旧fence未完。14はSVG正式納品を公式submission/artifact/成功txで確認済み、受賞・精算・実費は待ち。相対順序を変えず、外部待ちの間に次の独立項目を進める。最新の具体的証拠は§753〜§758を参照。
 
@@ -4926,7 +4926,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
 | 15 | Fundraiserの旧申請provider/account/intentと公式結果を照合し、対応が解決してから適格な未送信申請を進める。結果未確認の再申請なし | 既存build/sell/申請cursorに対応する公式受領・結果。本人手続きを偽らない。 |
 | 16 | Cloudの既存サービス一覧・契約・usageを取得し、収益に接続するサービスIDの次の契約/請求作業を実行する（ID未選定） | 実契約/実行/請求/usageを同期間で結合。無収益の容量増強を追加しない。 |
-| 17 | 稼働中Lunaの自然run観測保存修正を完了→focused検証/fresh review/commit-push/CI→main immutableのCFO限定反映→次の自然occurrenceのJSONと送信receiptを照合する | 公式取得tuple・原report SHA・正規receipt identity・currency/settlementを保存し、native report IDは非返却/未確認と区別する。RevenueCat同期間join/二重計上0、mobile lane実装の重複なし。 |
+| 17 | PR #6800の全CI成功後にmainへ統合→main由来immutable releaseへCFO限定反映→次の自然occurrenceのJSONと同run送信receiptを照合する | source修正・139関連tests・fresh reviewは完了、CIは進行中。完了には公式取得tuple・原report SHA・正規receipt identity・currency/settlementのoccurrence別保存、native report IDの未確認表示、RevenueCat同期間join/二重計上0、mobile lane実装の重複なしが必要。 |
 | 18 | Investmentの既存10/01 BTC/USDC買い・売り注文について、確認済みFILL/CFEEを維持し、取得済み開始NAV/2注文照合を保持し、同じ確定終端NAV・activity/transferの期間完全性・資産別settlement/USD換算・実行owner receiptを確認して同注文へ結合する。口座全体NAV差額をこのpairの利益へ代用しない | paper/live区別・既存cap・公式position/trade/cost。新資金移動/設計外tradeを追加しない。 |
 | 19 | CFOの14loopについて対象期間を確定し、同期間の公式売上・返金・手数料receiptを一覧化する | 公式receiptsとsource coverage。欠損はunknownを残す。 |
 | 20 | 同じ14loop・同じ期間のprovider/tool/browser/cloud請求とusageを取得し、Google/API費を利用先へ帰属する | inference/tool/browser/cloudのinvoice/usage、Google/API費の帰属とbefore/after。 |
@@ -10153,3 +10153,12 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 本番CFO plist/.envにLIFE_MANAGER_OWNER_IDは無い一方、lm_loop_runはnative childへCFO LOOP_ID/RUN_ID/OCCURRENCE_ID/RELEASE_ROOTを供給しruntime event owner_id=loop_idと定義する。live flag/loop/run/exact occurrence一致時だけ canonical owner fallbackを許可、他loop/malformed/mismatched identityはno-write。
 - sidecar query-scopeはreader由来endpoint=optionsの誤表記を直し、actual chart path /options pathを別記、project ID raw値なしのsha256、期間/resolution/exact app filterとscope hashを保存。provider reasonはfixed allowlist、credential/Authorization/full env/signedURLは記録しない。既存input/static/offline/report cadence/economic projectionは保持。
 - 新しいprimary RED→GREEN境界testsとprimary独立の4suite 137/137 PASS、diffcheck PASS。fresh gpt-6.1-sol/medium source反証review handle8653は進行中。次はreview受入/PR CI/main/latest immutable/targeted apply/自然occurrence JSON+delivery readback。source/API/provider/send main変更は0。cursor17保持。
+
+
+### 829. CFO occurrence別証拠sourceをPR #6800で検証中
+
+- RevenueCat live readと自然証拠保存をnative CFO contextへgateするsource変更を`fix/cfo-mobile-natural-evidence-20261007`から継承し、古い3テストfixtureだけを隔離修正した。production guardは変更していない。最終branch/worktreeは`fix/cfo-mobile-natural-evidence-20261007-fixtures` / `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-mobile-natural-evidence-fixtures-20261007`、HEAD `bccc7979324c59b5606bb7e6a45af79fa0ad296d`。main baseは`f22ee02b4fc9321056b330966759ff9e16cf9998`の子孫で、branch remote SHA一致・clean。
+- focused CFO関連4suiteは139/139 PASS。`py_compile`、`git diff --check`、`scripts/verify-source-boundary.sh`もPASS。fresh gpt-6.1-sol/medium read-only final reviewはSHIP/findings 0。native occurrence/coalescing経路とテストfixture整合を確認した。
+- PR #6800 `fix(cfo): persist native mobile evidence per occurrence` をmain向けに作成。最新GitHub readbackでは10 checksのうち7 PASS・2 pending（Loop control contracts、TruffleHog）、残り1はOSS repo用manual review skip。CI失敗0。CI完了・merge・immutable release・CFOだけの反映は未達。
+- sourceはASC acquisition実装に触れていない。main1305の既存report/delivery・natural send 104639は前期間の証拠であり、新しいsidecarのproduction自然occurrence readbackの代用にしない。main統合後、CFO ownerの自然wakeに保存された同occurrence JSONとそのrunのofficial delivery receiptを照合し、RC/ASC分離・unknown保持・二重計上0を確認する。
+- current cursor 17、順序変更0。前段1–16と後段18–29は完了扱いしない。source branch/レビュー/CIはsource gateであり、live report、会社MRR、settled profit、全CFO完了の証拠ではない。
