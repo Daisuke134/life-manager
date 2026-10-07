@@ -133,6 +133,12 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - Loaded owners are mixed: Coconala Apply/Storefront and CrowdWorks Application/Reply report `3dbfc5ac`; Coconala Paid is still loaded from `8dc06549` and `loaded-running`. This status does not prove provider effect or payment; Paid's latest terminal has no receipt. Do not force owner convergence while the doctor gate is red.
 - `df -k /Users/anicca/gig` reports 1128408 KiB free, below 2 GiB. Disk-cleanup's latest terminal remains `entrypoint_exit_1` / `reconcile_owner`; `lm-loop doctor` remains `ok=false` with the separate retired Capafy installed label. No manual apply/restart, provider action, or fence resolution was run.
 
+## 2026-10-08 05:46 JST owner convergence / capacity refresh
+
+- `origin/main=636cbe1683736fa7e5bd7b79cbe91d28fc0f66c3`; selected immutable release remains `4b274127b3a2d0c5dad3dae92a21cbbb78c2b811`. Most observed Coconala, Lancers, CrowdWorks, and Mercor owners are loaded from `4b274127`; `hf-gig-reply-detector` is still on `cecffc9`. Their latest effectful attempts are disk-fenced; `hf-gig-browser` is loaded-idle/exit 1 and the CrowdWorks/Lancers browser owners are loaded-running/exit 78.
+- `df -k /Users/anicca/gig` reports 513636 KiB available: 10652 KiB below the Gig browser's 524288 KiB floor and below the shared 2 GiB floor. Disk-cleanup's latest terminal is exit 1 / `reconcile_owner`; `lm-loop doctor` remains false because `ai.anicca.provision-browser.capafy.kosuke` is still installed as a retired label.
+- Latest admission `effect_unknown` occurrence counts are Coconala Apply 1 / Storefront 1 / Paid 0; CrowdWorks Application 14 / Paid 30 / Reply 260; Lancers Application 151 / Negotiate 197 / Paid 17 / Storefront 1 / Telegram report 1 / Work-sync 0; Mercor Application/Paid/Reply 1 each. These count execution fences, not buyers, bids, orders, messages, or revenue. No owner apply/restart, provider read, or fence resolution was performed in this refresh.
+
 ## 2026-10-08 05:28 JST Coconala Paid remote-builder failure detail
 
 - Natural occurrence `hf-gig-paid-direct:18dc584c1a404080-87507` failed at `remote_builder` / `entrypoint_exit_1`, with outer `effect=not_applicable` and no Coconala provider receipt. The last local state for talkroom `18180857` was updated at `2026-10-07T20:11:28Z`, showed `transaction_state=取引中` and `formal_delivery_confirmed=false`; it is not a fresh official order readback.
