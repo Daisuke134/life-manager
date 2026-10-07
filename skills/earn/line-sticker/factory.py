@@ -300,6 +300,15 @@ def run_submit(set_dir: Path, deps: Deps) -> str:
     item = deps.submit(set_dir, item, listing, tags)
     _atomic_write_json(set_dir / "creators-item.json", item)
     if item.get("state") == "review_requested":
+        # Submitted: drop intermediates that nothing reads again so sets do not fill the host disk.
+        # Keep package/, the character art (sequels reuse it), candidates-sheet.png (retag) and the
+        # 24 selected clips/*.mp4 (line-sticker-distribute renders posts from them).
+        shutil.rmtree(set_dir / "candidates", ignore_errors=True)
+        chosen = set((_read_json(set_dir / "select.json") or {}).get("order", []))
+        if chosen:
+            for clip in (set_dir / "clips").glob("*.mp4"):
+                if clip.stem not in chosen:
+                    clip.unlink(missing_ok=True)
         deps.notify(set_dir, {"product_id": item.get("product_id"), "title_ja": listing.get("title", {}).get("ja"),
                                "cost_usd": (_read_json(set_dir / "stage.json") or {}).get("cost_usd")})
         return "submitted"
