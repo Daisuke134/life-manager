@@ -2461,6 +2461,28 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
+    "life-manager-anicca-en2-affirmation-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "cadence": {
+        "calendar_interval": [
+          { "Hour": 9, "Minute": 30 },
+          { "Hour": 14, "Minute": 30 },
+          { "Hour": 20, "Minute": 30 }
+        ]
+      },
+      "cleanup": { "max_age_days": 14, "max_runs": 100 },
+      "domain": "growth",
+      "effect_class": "publish",
+      "adapter": "exec",
+      "command": ["life-manager-anicca-en2-affirmation-tiktok"],
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "label": "ai.anicca.life-manager-anicca-en2-affirmation-tiktok",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager"
+    },
     "life-manager-anicca-jp1-tiktok": {
       "priority": "revenue",
       "resource_class": "agent",

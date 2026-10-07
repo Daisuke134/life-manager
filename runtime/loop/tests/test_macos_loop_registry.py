@@ -653,7 +653,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             loop_id for loop_id, row in registry["loops"].items()
             if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
         ]
-        assert len(mobile_ids) == 17  # obou-instagram retired: ebook account, out of mobile scope
+        assert len(mobile_ids) == 18  # 17 existing mobile owners plus the EN2 TikTok owner
         for loop_id in mobile_ids:
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]

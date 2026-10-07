@@ -28,6 +28,7 @@ const {
   JA_LARRY_PRODUCTION_SLOTS,
   EN_AFFIRMATION_PRODUCTION_SLOTS,
   EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+  EN2_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
   EN_SLIDESHOW_PRODUCTION_SLOTS,
   JA_MAIN_TIKTOK_PRODUCTION_SLOTS,
   JA_JP1_TIKTOK_PRODUCTION_SLOTS,
@@ -37,6 +38,7 @@ const {
   JA_LANE,
   EN_AFFIRMATION_LANE,
   EN_AFFIRMATION_TIKTOK_LANE,
+  EN2_AFFIRMATION_TIKTOK_LANE,
   EN_SLIDESHOW_TIKTOK_LANE,
   JA_MAIN_TIKTOK_LANE,
   JA_JP1_TIKTOK_LANE,
@@ -86,6 +88,9 @@ async function runAniccaEnAffirmationInstagramRotatingCanary(argv = [], deps = {
 async function runAniccaEnAffirmationTikTokRotatingCanary(argv = [], deps = {}) {
   return runRotatingCarouselCanary(argv, { action: "run-en-affirmation-tiktok-production", lane: EN_AFFIRMATION_TIKTOK_LANE, productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, deps });
 }
+async function runAniccaEn2AffirmationTikTokRotatingCanary(argv = [], deps = {}) {
+  return runRotatingCarouselCanary(argv, { action: "run-en2-affirmation-tiktok-production", lane: EN2_AFFIRMATION_TIKTOK_LANE, productionSlots: EN2_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, deps });
+}
 async function runAniccaEnSlideshowTikTokRotatingCanary(argv = [], deps = {}) {
   return runRotatingCarouselCanary(argv, { action: "run-en-slideshow-tiktok-production", lane: EN_SLIDESHOW_TIKTOK_LANE, productionSlots: EN_SLIDESHOW_PRODUCTION_SLOTS, deps });
 }
@@ -103,6 +108,7 @@ const RUNNERS_BY_ACTION = Object.freeze({
   "run-ja-larry-production": runAniccaLarryJaRotatingCanary,
   "run-en-affirmation-production": runAniccaEnAffirmationInstagramRotatingCanary,
   "run-en-affirmation-tiktok-production": runAniccaEnAffirmationTikTokRotatingCanary,
+  "run-en2-affirmation-tiktok-production": runAniccaEn2AffirmationTikTokRotatingCanary,
   "run-en-slideshow-tiktok-production": runAniccaEnSlideshowTikTokRotatingCanary,
   "run-ja-main-tiktok-production": runAniccaMainTikTokRotatingCanary,
   "run-ja-jp1-tiktok-production": runAniccaJp1TikTokRotatingCanary,
@@ -124,6 +130,7 @@ module.exports = {
   runAniccaLarryJaRotatingCanary,
   runAniccaEnAffirmationInstagramRotatingCanary,
   runAniccaEnAffirmationTikTokRotatingCanary,
+  runAniccaEn2AffirmationTikTokRotatingCanary,
   runAniccaEnSlideshowTikTokRotatingCanary,
   runAniccaMainTikTokRotatingCanary,
   runAniccaJp1TikTokRotatingCanary,
