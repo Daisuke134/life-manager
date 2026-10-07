@@ -77,7 +77,7 @@
 - [x] **Step 8: Implement `collectCfoProjection(date, options)` and pass it through `runResultCfo({collect})`.** Preserve the exact business `loop_pnl.py` args/environment/timeout; read accounts once and transaction chunks serially; hash-bind each window receipt; dedupe rows; cache only the minimized summary for 24 hours.
 - [x] **Step 9: Render balances as provider-reported/freshness-unknown, empty periods as unknown, observed category totals as partial, and recurring charges as candidates only.**
 - [x] **Step 10: Exercise real `runResultCfo` pending/retry with an injected notifier; verify one frozen message and no recollect/resend.**
-- [ ] **Step 11: Run focused tests and commit the task.**
+- [x] **Step 11: Run focused tests and commit the task.**
 
 ### Task 3: Verify source and report contracts
 
