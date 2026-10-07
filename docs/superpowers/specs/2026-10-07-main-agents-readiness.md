@@ -39,7 +39,7 @@ flowchart TD
   L --> LM
 ```
 
-- 管理者は目標・優先度・予算・商品状態を所有。15の商品エージェントは担当商品を制作し販売する能力で、内部owner/jobは分けたまま。
+- 管理者は目標・優先度・予算・商品状態を所有。15の商品・業務エージェントは担当業務を遂行する能力で、内部owner/jobは分けたまま。
 - 常駐するのはschedulerと必要なservice。モデルは仕事が来た時だけ有限実行し、結果を保存して終了する。24/7は継続して仕事を受けて再開できる意味で、15モデルの無限推論ではない。
 - OpenClawはLLM+context+toolの実行を所有する。Life Managerは事業目的、wake、owner、予算、正本state、外部effect/receipt、純収支を所有する。二重scheduler、二重ledger、二重effect ownerを作らない。
 - browserは既存identity/lease/direct CDP経路を利用。OpenClawのnative toolからfenceや既存browser ownerを迂回できる段階では販売ownerを有効化しない。
