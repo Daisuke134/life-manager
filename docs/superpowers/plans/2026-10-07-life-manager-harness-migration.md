@@ -120,10 +120,10 @@
   **検証・完了:** tests/environment.test.mjs:fixture arbitrary AWS_SECRET/X private変数なし、旧OPENCLAW_STATE_DIR不継承、4preset完全一致。
   **依存:** HA-002, HA-012。
 
-### HA-014 — buildGatewayConfig({paths,port,agentId,modelRoute,effectMode}) -> object
+### HA-014 — buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object
 
 - [ ] **対象:** `runtime/openclaw/profile.mjs`
-  **変更:** gateway local loopback/token、agents.entries.<agentId>.workspace=専用dir、global maxConcurrent=2、cron.enabled=false。tools allow=lm_read/lm_artifact/lm_effectのうちeffectModeが許すものだけ。shell/browser/message/sessions_spawn/native MCPとfallbackは初版disabled。credentialsはSecretRef。 lm_artifactはprivate workspace出力のみで、read_onlyでも利用可能。remote writeはlm_effectだけ。
+  **変更:** gateway local loopback/token、agents.entries.<agentId>.workspace=operatorが作るpaths.workspaceRoot/<identityhash>/のartifactWorkspace、global maxConcurrent=2、cron.enabled=false。tools allow=lm_read/lm_artifact/lm_effectのうちeffectModeが許すものだけ。shell/browser/message/sessions_spawn/native MCPとfallbackは初版disabled。credentialsはSecretRef。 lm_artifactはprivate workspace出力のみで、read_onlyでも利用可能。remote writeはlm_effectだけ。
   **検証・完了:** tests/profile.test.mjs:read_onlyではlm_effectなし、cronfalse、ambient account/credential valueなし。公開CLI config validateで通過。
   **依存:** HA-013。
 
@@ -215,7 +215,7 @@
 
 - [ ] **対象:** `runtime/openclaw/tool_broker.py`
   **変更:** --invoke-stdinだけ受付。packetは{binding_ref,tool_name,arguments} closed schema。operator dispatchRoot内のBindingRecordをmode/owner/claim/actual parent PID・start identityと照合し、lm_read→invoke_read、lm_artifact→write_artifact、lm_effect→invoke_effectへdispatchする。model supplied owner/claimを採用しない。stdoutはsanitized JSON、unknown/errorはtyped resultと非zero。
-  **検証・完了:** tests/test_tool_broker.py:foreign binding/parent mismatch/unknown tool/secret markerでeffect0、固定invoke packetが通る。shell command文字列は受けない。
+  **検証・完了:** tests/test_tool_broker.py:foreign binding/parent mismatch/unknown tool/secret markerでeffect0、固定invoke packetが通る。shell command文字列は受けない。 read_only bindingへのlm_effect packetはprovider開始0。
   **依存:** HA-025, HA-026。
 
 ### HA-028 — testModelAndToolAdmissionFailClosed()
@@ -256,8 +256,8 @@
 ### HA-033 — main(argv, stdin, deps) -> Promise<number>
 
 - [ ] **対象:** `runtime/openclaw/cli.mjs`
-  **変更:** --request-stdinまたは--request-file、--outcome-fileを解析。validate→durable prepared→claim→sent→agent ACK保存→wait→schema結果→event/receipt保存→stop proof→releaseの順で実行。exit success0/failed1/input2/pending75。 dispatch送信前にBindingRecordを0600でatomic保存する。fields={owner_id,occurrence_id,session_key,workspace,claim_ref,gateway_pid,gateway_start,allowed_tools}。pathはdispatchRoot/<identityhash>.binding.json、workspaceはrequest.workdir、allowed_toolsはeffect_modeからoperatorが固定。
-  **検証・完了:** tests/cli.test.mjs:正常fixture各呼出順、ack喪失でsent1/dispatch0追加、timeoutでunknown。
+  **変更:** --request-stdinまたは--request-file、--outcome-fileを解析。validate→durable prepared→claim→sent→agent ACK保存→wait→schema結果→event/receipt保存→stop proof→releaseの順で実行。exit success0/failed1/input2/pending75。 dispatch送信前にBindingRecordを0600でatomic保存する。fields={owner_id,occurrence_id,session_key,workspace,claim_ref,gateway_pid,gateway_start,effect_mode,allowed_tools}。pathはdispatchRoot/<identityhash>.binding.json、workspaceはpaths.workspaceRoot/<identityhash>/へoperatorが0700で作りownership/symlinkを検証して固定。request.workdirはreadonly参照元としてだけ保持し、artifact書込root/native cwdには使わない、allowed_toolsはeffect_modeからoperatorが固定。
+  **検証・完了:** tests/cli.test.mjs:正常fixture各呼出順、ack喪失でsent1/dispatch0追加、timeoutでunknown。 request.workdirがREPO_ROOTでもartifactWorkspaceはその外のprivate path、source write0。
   **依存:** HA-003, HA-004, HA-006, HA-008, HA-009, HA-010, HA-011, HA-020, HA-030, HA-032, HA-028。
 
 ### HA-034 — run_openclaw(parsed, prompt: str, schema: dict, config: dict) -> int
