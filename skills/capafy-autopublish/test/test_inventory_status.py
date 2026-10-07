@@ -199,12 +199,12 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
     monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
     items = module.ready_inventory()
-    request = next(item for item in items if item["feature"] == "catalog:marketing-strategist")
-    assert request["update_request"]["agent_id"] == "9563867391"
+    request = next(item for item in items if item["feature"] == "catalog:hook-lab")
+    assert request["update_request"]["agent_id"] == "8123079349"
     assert request["icon"].endswith("icon.webp")
     others = [item for item in items
               if item.get("update_request") and item is not request]
-    rows = [agent("9563867391", "online", name=request["title"],
+    rows = [agent("8123079349", "online", name=request["title"],
                   latestAgentVersionId=request["update_request"]["from_version_id"]),
             *[agent(item["update_request"]["agent_id"], "online", name=item["title"],
                     latestAgentVersionId="stale-" + item["update_request"]["from_version_id"])
@@ -215,7 +215,7 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert decision["action"] == "update_existing"
-    assert decision["item"]["agent_id"] == "9563867391"
+    assert decision["item"]["agent_id"] == "8123079349"
 
     monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
     module.main()
@@ -845,7 +845,8 @@ def test_profitable_sellers_are_never_updated(tmp_path) -> None:
 
     kept = module.drop_profitable_updates(updates, path=analytics)
 
-    assert [u["agent_id"] for u in kept] == ["bleed", "zero"]
+    # Dais 2026-10-07: no change to any published Agent, selling or not.
+    assert kept == []
 
 
 def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) -> None:

@@ -258,9 +258,12 @@ def drop_profitable_updates(updates, path=None, frozen_path=None):
             continue
     # A Dais-approved one-off (2026-10-07: strip test/ from Hook Lab to clear the
     # buyer-facing security-scan warning, same price and model) is the only bypass.
-    return [u for u in updates
-            if str(u.get("agent_id") or "").strip() not in protected
-            or (u.get("update_request") or {}).get("dais_approved_exception")]
+    # Dais 2026-10-07 (second ruling): no automated change to ANY published Agent,
+    # selling or not -- price raises on Agents with zero sales for a week made no
+    # sense. The factory ships new Agents instead. Only an UPDATE.json carrying
+    # dais_approved_exception (an explicit Dais request) may ship.
+    del protected
+    return [u for u in updates if (u.get("update_request") or {}).get("dais_approved_exception")]
 
 
 def update_priority_key(revenue_by_agent):

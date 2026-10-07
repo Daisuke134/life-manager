@@ -236,7 +236,7 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
                 })
             else:
                 decision["findings"].append({
-                    "rule": "losing_money", "action": "queue_update",
+                    "rule": "losing_money", "action": "report_only",  # Dais 2026-10-07: never change a published Agent automatically
                     "update": {
                         "agent_id": agent_id,
                         "from_version_id": str(server.get("latestAgentVersionId") or ""),
@@ -268,7 +268,7 @@ def decide_actions(analytics_rows, server_by_id, catalog_by_title, price_bands, 
                     decision["findings"].append({"rule": "underpriced", "action": "skip", "reason": "no_server_match"})
                 else:
                     decision["findings"].append({
-                        "rule": "underpriced", "action": "queue_update",
+                        "rule": "underpriced", "action": "report_only",  # Dais 2026-10-07: never change a published Agent automatically
                         "update": {
                             "agent_id": agent_id,
                             "from_version_id": str(server.get("latestAgentVersionId") or ""),
