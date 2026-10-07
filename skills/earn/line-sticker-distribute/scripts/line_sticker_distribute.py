@@ -36,6 +36,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import browser_reel_publish  # noqa: E402
 import caption_compose  # noqa: E402
+import date_gate  # noqa: E402
 import due_slot  # noqa: E402
 import line_sticker_distribute_ledger as ledger  # noqa: E402
 import pick_set  # noqa: E402
@@ -87,7 +88,20 @@ def load_accounts(config_path: Path) -> list[dict]:
             raise RuntimeError(f"account {account.get('lane_id')} needs a non-empty cadence_jst")
         account.setdefault("timezone", timezone_name)
         account.setdefault("link_in_caption", True)
+        if "link_in_caption_from" in account and not isinstance(account["link_in_caption_from"], str):
+            raise RuntimeError(f"account {account['lane_id']} link_in_caption_from must be a date string")
     return accounts
+
+
+def resolve_link_in_caption(account: dict, now: datetime) -> bool:
+    """link_in_caption becomes date-based once link_in_caption_from is set (Dais 2026-10-07:
+    a brand-new account carries no outbound link for its first days; from that date on, the
+    store link is allowed again). link_in_caption_from, when present, takes priority over the
+    static link_in_caption default."""
+    link_from = account.get("link_in_caption_from")
+    if isinstance(link_from, str) and link_from:
+        return date_gate.is_on_or_after(now, account["timezone"], link_from)
+    return bool(account["link_in_caption"])
 
 
 def find_due_account(accounts: list[dict], ledger_path: Path, now: datetime) -> tuple[dict, str, str] | None:
@@ -140,27 +154,36 @@ def run_pass(
         return {"state": "blocked", "reason": "no_sets_on_sale", "account": account["lane_id"]}
     clip_order = pick_set.choose_clip_order(chosen["clip_ids"], key, CLIP_COUNT)
 
+    if caption_hook_override:
+        plan = {"hook": caption_hook_override, "content_type": "showcase", "beat_texts": []}
+    else:
+        plan = caption_compose.call_agent_runner(
+            title_ja=chosen["title_ja"],
+            use_cases=caption_compose.use_cases_for(clip_order),
+            clip_count=len(clip_order),
+            recent_content_types=ledger.recent_content_types(ledger_path, account["lane_id"]),
+            task_label=f"line-sticker-distribute-{account['lane_id']}",
+            state_root=state_root,
+        )
+
     run_dir = state_root / "runs" / key.replace(":", "-")
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     video_path = run_dir / "video.mp4"
     render_video.render(
         [Path(chosen["clips_dir"]) / f"{clip_id}.mp4" for clip_id in clip_order],
         chosen["title_ja"], chosen["store_url"], video_path,
+        beat_texts=plan["beat_texts"] or None,
     )
 
     seed_index = pick_set.deterministic_index(key, 6)
+    include_link = resolve_link_in_caption(account, now)
     caption_result = caption_compose.build_caption(
-        hook=caption_hook_override or caption_compose.call_agent_runner(
-            title_ja=chosen["title_ja"],
-            use_cases=caption_compose.use_cases_for(clip_order),
-            task_label=f"line-sticker-distribute-{account['lane_id']}",
-            state_root=state_root,
-        ),
+        hook=plan["hook"],
         title_ja=chosen["title_ja"],
         use_cases=caption_compose.use_cases_for(clip_order),
         store_url=chosen["store_url"],
         hashtags=caption_compose.pick_hashtags(chosen["character_name"], seed_index),
-        include_link=account["link_in_caption"],
+        include_link=include_link,
     )
     caption_path = run_dir / "caption.txt"
     caption_path.write_text(caption_result, encoding="utf-8")
@@ -169,6 +192,7 @@ def run_pass(
         entry = {
             "status": "dry_run", "slot_at": slot_at, "set_id": chosen["set_id"],
             "clip_order": clip_order, "caption": caption_result,
+            "content_type": plan["content_type"],
             "video_size_bytes": video_path.stat().st_size,
         }
         ledger.record(ledger_path, key, entry)
@@ -176,6 +200,7 @@ def run_pass(
             "state": "dry_run", "account": account["lane_id"], "slot_at": slot_at,
             "set_id": chosen["set_id"], "store_url": chosen["store_url"],
             "clip_order": clip_order, "caption": caption_result,
+            "content_type": plan["content_type"],
             "video_path": str(video_path), "video_size_bytes": video_path.stat().st_size,
         }
 
@@ -216,13 +241,14 @@ def run_pass(
     if published:
         ledger.record(ledger_path, key, {
             "status": "published", "slot_at": slot_at, "set_id": chosen["set_id"],
+            "content_type": plan["content_type"],
             "post_id": receipt.get("post_id"), "post_url": post_url,
         })
-        return {"state": "published", "account": account["lane_id"], **receipt}
+        return {"state": "published", "account": account["lane_id"], "content_type": plan["content_type"], **receipt}
 
     ledger.record(ledger_path, key, {
         "status": "failed", "slot_at": slot_at, "set_id": chosen["set_id"], "reason": error_detail,
-        "attempted_at": now.isoformat(),
+        "content_type": plan["content_type"], "attempted_at": now.isoformat(),
     })
     raise RuntimeError(f"{transport} publish did not reconcile: {receipt}")
 

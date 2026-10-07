@@ -66,6 +66,17 @@ class PlanPrompt(unittest.TestCase):
         prompt = MODULE._build_plan_prompt([])
         self.assertIn("series_of", prompt)
 
+    def test_prompt_tells_the_model_to_prefer_the_best_selling_character_once_sales_exist(self) -> None:
+        prior_facts = [
+            {"set": "set-003", "character_id": "char-otter-001", "character_description": "an otter",
+             "theme": "毎日リアクション", "title": {"ja": "カワウソ"}, "state_observed": "販売中", "sales_jpy": 1200},
+            {"set": "set-004", "character_id": "char-bear-001", "character_description": "a bear",
+             "theme": "敬語", "title": {"ja": "クマ"}, "state_observed": "販売中", "sales_jpy": 0},
+        ]
+        prompt = MODULE._build_plan_prompt(prior_facts)
+        self.assertIn("sales_jpy", prompt)
+        self.assertIn("売上が最も大きいキャラクター", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
