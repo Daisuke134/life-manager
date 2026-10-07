@@ -64,17 +64,17 @@ legacy pathは混在期間のrollback/互換入口だけ。移行済みownerの�
 
 `HarnessResult`: `{status, run_id, upstream_run_ref, session_ref, result_path, usage, effect_status, provider_receipt_id, official_readback_ref, evidence_refs, error_class, retryable, next_action}`。statusは`success|failure|pending|interrupted|effect_unknown`。result_pathは既存schemaを通ったJSONのみ。usageはprovider readbackが無ければunknown。`effect_status`とreceiptは業務brokerが確定し、modelのfinal textやHTTP200から成功を推測しない。
 
-operator transportはprivate loopbackのOpenResponses `POST /v1/responses`を第一候補とし、ownerとoccurrenceの固定session keyを指定する。gateway bearerはfull operatorであるためoperator bridgeだけがprivate SSOTから実行時取得する。agentのenv/tool result/logへ渡さない。requestを送る前に既存occurrence authorityへdispatch-startedを記録する。受領IDを失うtimeout/crashは再POSTせず`dispatch_unknown`とし、original session/run/receiptをread-only照合する。gateway内のidempotencyと業務fenceを確認できない場合、canaryの実effectを有効にしない。
+operator transportはprivate loopbackの公式GatewayClient/WebSocket RPCとし、ownerとoccurrenceの固定session key/idempotencyKeyを指定する。gateway credentialはoperator bridgeだけがprivate SSOTから実行時取得する。agentのenv/tool result/logへ渡さない。requestを送る前に既存occurrence authorityへdispatch-startedを記録する。受領IDを失うtimeout/crashは再POSTせず`dispatch_unknown`とし、original session/run/receiptをread-only照合する。gateway内のidempotencyと業務fenceを確認できない場合、canaryの実effectを有効にしない。
 
 `invoke_tool(owner_id, occurrence_id, tool_name, arguments)`は既存owner限定のschemaを受ける。tool名は実装済みtoolsの名前を広告するもので、skill inventoryを能力admission whitelistにしない。外部effect前に既存policy/lease/reserve/fenceを確認し、結果を同じoccurrenceへ戻す。任意shell、native MCP、browser HTTPなどの別経路からfenceを迂回できないことを実装テストする。制作に必要なshell/codeは隔離worktree内に限定し、secret/network/effect authorityは渡さない。
 
 ### 推論admissionの唯一のauthority
 
-scheduler authorityとmodel admissionは別契約。OpenClaw独自cron枠だけではLife Manager全体の枠を保証しない。HTTP、cron、retry、subagentの全推論はmodel開始前に既存`runtime/host/resource_admission.py`の同一global authorityでreserve/claimする。nested業務brokerは取得済みclaimを参照し、同じ枠を再claimしない。subagentが親と同時推論する場合は追加model枠を取得し、親のclaimを子へ複製して並列上限を抜けない。
+scheduler authorityとmodel admissionは別契約。OpenClaw独自cron枠だけではLife Manager全体の枠を保証しない。RPC、cron、retry、subagentの全推論はmodel開始前に既存`runtime/host/resource_admission.py`の同一global authorityでreserve/claimする。nested業務brokerは取得済みclaimを参照し、同じ枠を再claimしない。subagentが親と同時推論する場合は追加model枠を取得し、親のclaimを子へ複製して並列上限を抜けない。
 
 legacy wrapper経由のclaimはgateway run受領時に同一occurrenceのexecution ownerへdurable transferし、transfer完了を記録する。`runtime/loop/lm_loop_run.py`の子PID終了/finally releaseに委ねる現行契約を新routeだけ変更する。OpenClaw cronから始まるrunはpluginのbefore-model入口で同じclaimを取得する。各runのheartbeatは実際のupstream execution identityにbindし、wrapper PIDだけで生存判定しない。
 
-HTTP caller消失、heartbeat expiry、cancel timeoutでは、native推論・工具・childrenの停止/terminalをreadbackするまでclaim/capacityを再利用しない。確認不能はdurable resource-effect-unknown fenceを維持し、勝手にstale枠を掃除しない。gateway pluginにbefore-model admissionとterminal/cancel readbackを実装できない配布版は採用HOLDとする。終了時は工具結果/receiptを保存後に同じauthorityで一度だけreleaseする。
+RPC caller消失、heartbeat expiry、cancel timeoutでは、native推論・工具・childrenの停止/terminalをreadbackするまでclaim/capacityを再利用しない。確認不能はdurable resource-effect-unknown fenceを維持し、勝手にstale枠を掃除しない。gateway pluginにbefore-model admissionとterminal/cancel readbackを実装できない配布版は採用HOLDとする。終了時は工具結果/receiptを保存後に同じauthorityで一度だけreleaseする。
 
 採用比較は同じ3case/model/tools/budgetで総model/tool観測費用<=base、task成功数>=base、安全case全PASSを満たすこと。RSSはHM-00で記録する既存host admissionの許容capacity内を条件にし、base RSSと増分を報告する。メモリがbaseを超えることだけでは棄却せず、host上限超過・費用増・admission不成立でHOLDとする。subscription実費割当が不明なら採用費用判定をunknownとして保留する。
 
@@ -127,7 +127,7 @@ OpenClawのpersonal-agent benchmarkは運用smokeとして参考にするが、�
 
 ### 初回実装を固定する契約
 
-前のHTTP候補transportは、実行可能な初版では**公式WebSocket GatewayClient**へ変更する。HTTP bearerのscope縮小を独自実装しない。Gatewayはinstance-owned loopback、portはconfigで指定、secretはoperatorだけに渡す。直下を`runtime/openclaw/`とし、Node ES modulesとPython既存host adapterを使う。
+初版transportは**公式WebSocket GatewayClient**とする。HTTP bearerのscope縮小を独自実装しない。Gatewayはinstance-owned loopback、portはconfigで指定、secretはoperatorだけに渡す。直下を`runtime/openclaw/`とし、Node ES modulesとPython既存host adapterを使う。
 
 `RunRequest`: version=1、owner_id/occurrence_id/run_idは`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`、release_shaは40hex、promptはtrim後16字以上、schemaはJSON object、workdirは絶対path、timeout_secondsは正整数、task_class/model/provider/effortはcallerの設定。effect_mode=`read_only|brokered`。owner mapはrequest ownerをキーに既存registryを参照する。
 
@@ -144,3 +144,7 @@ RPC submitは`client.request('agent', {message,agentId,sessionKey,idempotencyKey
 plugin一般hookのtimeoutはfail-openになるsurfaceがあるため、before_prompt_buildだけをadmissionの強制保証にしない。public gatewayの初期cronはdisabled、agent dispatchはoperator bridgeだけ。native tool経路とmodel-start admissionのfail-closed検証に不合格ならeffectを有効化しない。schedule移行は検証済み契約成立後の別atomとする。
 
 **計画の訂正:** 前版18task/90checkboxはroadmapとしては読めるが、互換API・工具binding・host切替を実装者へ残すため、全移行をそのまま実行できるatomic planではなかった。現在の[計画](../plans/2026-10-07-life-manager-harness-migration.md)はファイル/関数単位へ置換する。conditional配布atomsは未有効であり、実装/本番操作は未着手。
+
+`HarnessPaths`はpaths.mjsの5absolute paths（stateRoot/configPath/dispatchRoot/workspaceRoot/credentialFile）。`GatewayHandle`はchild PID/start identity/client/instance id、`StopProof`はinstance id/PID/start identity/stopped boolean/terminal refs。これらはoperatorだけが作る。
+
+初版で実装指定できるのはread-only共通接続と、CapafyのCP1完了済みagentのfinish handlerである。Capafy新規draft/CP1、各商品の未確認publisher/toolはcoverage=falseとし、この計画で全販売機能を移行できるとは主張しない。残りはowner activation mapの個々のsource coverageを確認して別atomを追加する。
