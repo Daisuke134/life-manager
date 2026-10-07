@@ -31,7 +31,7 @@ An observed Coconala Paid run stopped before any external effect with `compiled 
 - 公開中[Coconala service page](https://coconala.com/services/4313100)は¥3,000、表示販売実績1件。これは掲載面が存在する証拠であり、Storefront loopの実行、新規販売、settlementの証拠ではない。`hf-gig-apply-direct`と`hf-gig-storefront-direct`には既存effect-unknown fenceが残り、`hf-gig-apply-reconcile`のprocess passだけでは解除できない。
 - 現行mainのproduct-loop catalogはCoconala、Lancers、CrowdWorks、Mercorの4 loop。Freelancer/Upworkにmanaged product loopはない。Upwork公式Project CatalogとFreelancer公式Freelancer Servicesは定額サービス掲載面を持つ（[Upwork公式ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)、[Freelancer公式FAQ](https://www.freelancer.com/faq/topic.php?id=52)）。これはstorefront機能の証拠で、当アカウントの掲載・購入・入金を示すreadbackではない。
 - Upworkの既存9233 Chromiumは`ai.anicca.provision-browser.upwork.dais` labelとowner receiptで稼働中。current mainには別の`upwork-revenue-browser` jobはなく、重複ownerを追加しない。`upwork:dais` identity lease経由でProject Dashboardを読んだ結果、login/verification redirectなしでProject Catalog UIを確認したがlisting card/countは取得できず、掲載状態はunknown。掲載・応募・返信・決済effectは0。
-- remote PR #6945は旧headのままで、既存provision-browserと重複するbrowser-owner追加を含む。force-pushとPR closeはGitHub Internal Server Errorで失敗したため統合しない。local replacement branchには`scout.py`のregistered `CLOAK_CDP_BASE_URL`対応だけを残し、GitHub writeが復旧した後に別PRとして出す。
+- PR #6945はhead `d12f02c0`で更新済み。差分は`scout.py`がregistered identityの`CLOAK_CDP_BASE_URL`を使うfixとspec/testだけで、duplicate browser-owner追加は含まない。現在はrequired checks待ち。
 - Lancers rows 25–27は`waiting_external`を維持し、認証・solver・応募を再試行しない。CrowdWorksにはStorefront loopがなく、CrowdWorks/Mercorの既存Application/Paidにはowner別のofficial-readback/effect-fenceが残る。
 - 4つの既存gig product loopはすべてcloud availabilityが`setup_required`。現在の状態から24/7 cloud稼働を主張しない。
 - この参照laneはgig platformだけを扱う。CFO A5–A10、CAPFY、SelfBuildは別ownerの範囲。reply-only/回答だけの作業は進めず、特定のfunded contractを進めるのに必要な顧客連絡のみ対象にする。
@@ -41,7 +41,7 @@ An observed Coconala Paid run stopped before any external effect with `compiled 
 1. disk-cleanup ownerがheadroomを回復した後、Coconala Paidの次の自然runでcontext compileとbuyer-visible delivery gateを確認する。手動wake、browser restart、任意削除、別ownerのworktree編集をしない。
 2. Coconala Applyの既存fenceについて、同一occurrenceのdurable run→pass linkageと公式応募履歴を結合する。結び付きを証明できなければfenceを保持し、再応募しない。
 3. 2が安全に閉じた後、既存Coconala Storefront ownerの自然runと公式listing readbackを確認する。公開中listingを重複作成しない。
-4. GitHub writeが復旧したら、local `fix/scout-registered-cdp-20261008`をnew PRとしてpushし、required checks後に統合する。旧PR #6945はcloseし、重複browser ownerを含むheadはmergeしない。既存9233 provision-browserは二重起動せず、Project Dashboardのlisting status/countを改めて確定する。
+4. PR #6945のrequired checksを通してmainへ統合する。その後、既存9233 provision-browser identity leaseを使ってProject Dashboardのlisting status/countを読み直す。existing provision-browser ownerを二重起動しない。掲載状態がunknownの間は公開・価格変更をしない。
 5. Freelancer Servicesのaccount-bound listing/inventoryを確認し、既存adapterとmanaged ownerが不足する部分だけを実装する。listing copy/pricingは既存成果物と市場readbackから作り、settlement evidenceなしに売上扱いしない。
 6. Lancers rows 25–27は`waiting_external`のまま飛ばし、active ownerのWAF worktreeへ介入しない。CAPTCHAが続く場合も再試行しない。
 7. CrowdWorks/Mercorは既存ownerのleaseと最新公式readbackを引き継ぎ、funded contractに結び付くApplication→必要なNegotiate→Paid/deliveryだけを閉じる。effect-unknownは公式証拠なしに再送しない。
