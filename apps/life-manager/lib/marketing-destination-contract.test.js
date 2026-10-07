@@ -25,13 +25,20 @@ const CONTRACT = path.resolve(__dirname, "../../../config/marketing-destinations
 
 test("the marketing destination SSOT fixes every retained route and every non-target connection", () => {
   const value = loadMarketingDestinationContract(CONTRACT);
-  assert.equal(value.targets.length, 19);
+  assert.equal(value.targets.length, 20);
   assert.equal(value.targets.filter((row) => ["anicca", "honne-ai"].includes(row.product_id)).length, 17);
-  assert.equal(value.targets.filter((row) => row.product_id === "ebook-ja").length, 2);
-  assert.equal(value.holds.length, 13);
-  assert.equal(value.holds.filter((row) => row.integration_id).length, 11);
+  assert.equal(value.targets.filter((row) => row.product_id.startsWith("ebook-")).length, 3);
+  assert.equal(value.holds.length, 12);
+  assert.equal(value.holds.filter((row) => row.integration_id).length, 10);
   assert.equal(value.holds.filter((row) => row.integration_id === null).length, 2);
   assert.ok(value.targets.every((row) => row.cadence_jst.length === 3));
+  const englishMonk = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
+  assert.deepEqual(
+    [englishMonk.native_handle, englishMonk.integration_id, englishMonk.renderer_id,
+      englishMonk.cadence_jst],
+    ["@monk_anicca", "cmo5rwq2p00twn10yrsdglng3", "heygen-avatar-iv", ["08:00", "14:00", "21:00"]],
+  );
+  assert.equal(value.holds.some((row) => row.integration_id === "cmo5rwq2p00twn10yrsdglng3"), false);
   assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id !== "ebook-ja"), false);
   assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id === "ebook-ja"), true);
   assert.deepEqual(
@@ -64,7 +71,7 @@ test("a target without an exact pack, form, cadence, label, or entrypoint fails 
 test("the loop registry exactly matches the destination SSOT labels, entrypoints, and cadences", () => {
   const contract = loadMarketingDestinationContract(CONTRACT);
   const registry = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../config/loop-registry.json"), "utf8"));
-  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 19);
+  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 20);
   const candidate = structuredClone(registry);
   candidate.loops[contract.targets[0].loop_name].cadence.calendar_interval[0].Minute = 1;
   assert.throws(() => auditMarketingDestinationRegistry(contract, candidate), /cadence/i);

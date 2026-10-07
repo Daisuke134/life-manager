@@ -4093,3 +4093,44 @@ This incident note supersedes the previous host free-space number; no package or
 5. Drive Anicca first to 100 ASC first-time downloads/day on a trailing 7-day average, then repeat for each of the other five public apps. Only after the acquisition baseline is reliable, run one onboarding/paywall hypothesis at a time; use ASO only if aligned ASC evidence shows a product-page conversion bottleneck.
 6. Notification release is a separate correctness lane: first restore safe local disk headroom and resolve the Xcode Cloud canonical-source/project/grant mismatch; then build one unused number from main, verify the exact TestFlight group/link, capture one real APNs body/`quoteId`/locale, and prove the same quote opens on cold-start and background. If the exact binary still shows a different quote, inspect/fix the sender payload mapping. Do not report live-fixed before this readback.
 7. Prove USD 10,000 same-period net MRR from settled receipts, refunds, Apple fees, and actual costs before scaling the recipe into a factory. This is a goal, not current revenue or forecast.
+
+### eBook Monk factory current cursor (2026-10-08 04:55 JST)
+
+この節はeBookの03:50 JST時点のcursorを置き換える。全体の他laneの順序は変更しない。旧eBook順は (1) 次slotのpostとHeyGen費用、(2) PR #420 legacy-access修正とNetlify/Supabase target確認、(3) paid Checkout/PDF、(4) 任意のLetter/Tegami CTAと14日cohort、(5) Capafy Instagram。新順は (1) 読み取り専用のPostiz occurrence/fence照合と、English Monk TikTokの誤ったローカルhold修正、(2) main releaseからEnglish ownerだけを反映し3つの登録先をowner経由でkickstart、同occurrenceのPostiz receipt/公開URLとHeyGen初回費用を読む、(3) PR #420の最新race/logging findingsを修正してmerge、Netlify production Supabase project refと集計値を確定、(4) 対象が意図したSupabase projectと一致した場合だけDDL・schema/ACLをreadback、(5) 自然paid Checkout/PDF、(6) Letter/Tegami subscription CTA・14日cohort、(7) その後Capafy Instagram。理由はPostiz上の英語アカウントが現在enabledなのにcanonical destinationだけがdisabled扱いで、投稿が止まっているため。日本語2 ownerの未確定履歴は先に正確に照合し、曖昧なeffectを再送しない。
+
+**実測（Postiz公式GET、2026-10-08 04:54 JST）**: `/public/v1/integrations` はEnglish TikTok `@monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`)、Japanese TikTok `@obou_anicca` (`cmo5s4edx00vgn10ygnu34a0n`)、Japanese Instagram `@obou.anicca` (`cmooplxmu04tpmd0y4h3cpk33`) の3件すべて `disabled=false`。`/posts` の同一JST日付窓は10月7日に`PUBLISHED` 3件（英語TikTok 0、日本語TikTok 2、日本語Instagram 1）、10月8日は04:54時点で0件。これはPostiz投稿inventoryの事実であり、現在の3/日 cadenceや全3 ownerの成功証明ではない。10月7日の投稿は未解決occurrenceとのcaption/hash照合が済むまで、それらのreceiptとして流用しない。
+
+**設定の食い違い**: production release `8dc0654954964071e83cf9c68a67846c6422e1a9` の`config/marketing-destinations.json`はEnglish TikTokを`provider_disabled` / `target_daily_limit=0`としてholdし、account registryも`disabled_verified`。同じintegrationの現行Postiz GETはenabled。これはprovider再接続待ちではなく、自所有のsource設定holdが古い状態。現在の有効なdestinationは日本語TikTokとInstagramの2つ。English Instagramは専用account/integrationが未登録。
+
+**Owner/fence readback**: 3 ownerはrelease `8dc06549`でloaded-idle。English TikTokの最終attemptは`apply_lock_busy`（2026-10-06T23:00Z）、effect `not_applicable`、receiptなし。日本語TikTokのhealth projectionは`effect_unknown` / receiptなしだが、occurrence `ebook-ja-tiktok-daily:18dc492a23932638-97151` のowner proofは`reason=no_due_slot`, `verified=true`, `resolution=RESOLVED`。このproofとhealth projectionの不一致は、履歴を成功に数えずcursorに残す。日本語Instagramの最終attempt `ebook-ja-instagram-daily:18dc3a40a9c673c0-23029` は`host_admission_deferred:resource_effect_unknown`でprovider call前に停止、receiptなし。いずれのhistoryも「今投稿済み」を示さない。
+
+```mermaid
+flowchart LR
+  EN[English approved pack / HeyGen Avatar IV] --> E[English TikTok owner]
+  JA[Japanese approved pack / Watercolor Mark Factory] --> JT[Japanese TikTok owner]
+  JA --> JI[Japanese Instagram owner]
+  E --> G[Destination + due-slot + identity/idempotency gates]
+  JT --> G
+  JI --> G
+  G --> P[Postiz API]
+  P --> R[Native PUBLISHED receipt + public URL]
+  R --> C[Attributed owned checkout]
+  C --> S[Stripe payment + locale PDF delivery]
+  S --> L[Optional Letter/Tegami recurring subscription]
+  L --> M[Settled MRR, refunds, fees, actual cost, 14-day cohort]
+```
+
+**Atomic cursor**:
+
+1. Focused testsでEnglish `@monk_anicca`をenabled destinationとして登録し、`provider_disabled` holdを削除、account statusを`approved_active`へ修正する。日本語2 laneは変えない。READMEのeBook owner/setup表も実態にそろえる。
+2. source acceptance後、PR/CI/merge、main由来immutable release、English ownerだけtarget apply。適用前にhost apply lock、owner idle、admission stateを読み、既存effect fenceを迂回しない。
+3. slot owner経由の次eligible postを受け、各targetでPostiz `PUBLISHED`、provider receipt、同一occurrenceの公開URLを読む。HeyGen wallet delta/render-cost receiptも同じEnglish occurrenceに結合し、3 targets × 3 JST slots/day = 9/dayを実測する。単発receiptだけで永続cadence完了とはしない。
+4. PR #420はlegacy holdのsource fixの後、fresh reviewer指摘の顧客subscription raceとinvalid `SUPABASE_URL`のworkflow log露出を修正し、manual workflowでproject refおよびpaid/no-pointer集計だけをreadbackする。Netlify targetが正本と一致する前にproduction DDLを適用しない。
+5. paid Checkout→Stripe receipt→locale PDF deliveryを同じ注文で結び、返金・fee・settlementと再送0を読む。eBookの$10.99/¥1,580はone-time売上でMRRに算入しない。$10k MRRはuser-initiated Letter/Tegamiのsettled recurring receipts、refund/fee/actual costを14日cohortで確認してから評価する。
+6. 上記eBook checkout/fulfillmentが自然購入で成立してからCapafy Instagram marketing laneへ進む。
+
+**Daisの作業**: 現在の3経路（English TikTok + Japanese TikTok/Instagram）のPostiz接続操作は不要。English Instagramも配信対象にする場合に限り、Daisが専用English Instagram accountをPostizへ接続する。既存`anicca.en`を流用しない。
+
+**Source acceptance（2026-10-08 05:08 JST）**: TDDのREDはdestination contract `19 !== 20`とaccount route blockerで確認。更新後は`marketing-destination-contract.test.js` 8/8、`test_route_status.py` 4/4、JSON parse、`git diff --check`、source-boundary checkがPASS。Fresh read-only reviewはCritical/Important 0。作業branch `fix/ebook-monk-marketing-unblock-20261008` はorigin/main `3dbfc5ac049429661851b129847abcb1489c8d42`由来で、source changeはまだPR/merge/release前。現在のproduction release `8dc06549`は未変更なので、本番ではEnglish TikTok holdが残り、8日分Postiz inventoryもこの時点では0件。次cursorはfull-checkout CI→PR merge→main由来release→English ownerだけapply→natural-slot receipt。Sparse worktreeのrepo-wide runtime testsは未選択の別moduleを参照して失敗したため結果をcode regressionとして扱わない。full-checkout CIをmerge前のsource gateにする。
+
+同時点のread-only `lm-loop doctor`は`missing_entrypoints=0`、`unmanaged_labels=0`で、`ok=false`の理由は既知retired label `ai.anicca.provision-browser.capafy.kosuke`のみ。Data volumeは約2.3 GiBまで回復したが、disk-cleanup ownerの最新receiptは11 GiB recovery target未達で、production apply時はhost admissionを再readbackする。
