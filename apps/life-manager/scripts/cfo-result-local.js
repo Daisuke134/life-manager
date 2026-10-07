@@ -41,6 +41,28 @@ function b7Identity(value, env) {
   };
 }
 
+function resultEventKey(subjectId, channel, periodKey) {
+  return `cfo-result:${subjectId}:${channel}:${periodKey}`;
+}
+
+function reportingPeriodFor(projection, periodKey) {
+  return {
+    key: periodKey,
+    reportingDate: projection.reporting_date,
+    timezone: projection.timezone || "Asia/Tokyo",
+    snapshotAt: projection.snapshot_at || projection.economic_attribution?.snapshot_at || null,
+    trailingStart: projection.trailing_start || projection.economic_attribution?.trailing_start || null,
+  };
+}
+
+function b7Reference(location, snapshot) {
+  return {
+    path: location.relativePath,
+    projectionSha256: snapshot.projectionSha256,
+    messageSha256: snapshot.messageSha256,
+  };
+}
+
 function b7ReadbackLocation(stateDir, value, createDirectory) {
   const stateStat = fs.lstatSync(stateDir);
   if (stateStat.isSymbolicLink() || !stateStat.isDirectory()) throw new Error("cfo_b7_readback_path_invalid");
@@ -108,15 +130,17 @@ function writeB7Snapshot(stateDir, value, snapshot, create) {
   return location;
 }
 
-function readB7Snapshot(stateDir, reference, pending) {
-  const sourceOccurrenceId = occurrenceId(pending.occurrenceId);
-  const location = b7ReadbackLocation(stateDir, sourceOccurrenceId, false);
-  if (!reference || reference.path !== location.relativePath
-    || !SHA256.test(String(reference.projectionSha256 || ""))
-    || reference.messageSha256 !== pending.messageSha256
-    || messageSha256(pending.message) !== pending.messageSha256) throw new Error("cfo_b7_snapshot_invalid");
+function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
+  let location;
+  try { location = b7ReadbackLocation(stateDir, sourceOccurrenceId, false); } catch (error) {
+    if (allowMissing && error.code === "ENOENT") return null;
+    throw error;
+  }
   const stat = b7SnapshotStat(location.file);
-  if (!stat) throw new Error("cfo_b7_snapshot_missing");
+  if (!stat) {
+    if (allowMissing) return null;
+    throw new Error("cfo_b7_snapshot_missing");
+  }
   const descriptor = fs.openSync(location.file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
   let snapshot;
   try {
@@ -124,20 +148,62 @@ function readB7Snapshot(stateDir, reference, pending) {
     if (!opened.isFile() || (opened.mode & 0o777) !== 0o600) throw new Error("cfo_b7_readback_path_invalid");
     snapshot = JSON.parse(fs.readFileSync(descriptor, "utf8"));
   } finally { fs.closeSync(descriptor); }
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)
+    || !snapshot.projection || typeof snapshot.projection !== "object" || Array.isArray(snapshot.projection)
+    || !snapshot.reportingPeriod || typeof snapshot.reportingPeriod !== "object" || Array.isArray(snapshot.reportingPeriod)) {
+    throw new Error("cfo_b7_snapshot_invalid");
+  }
   const separator = sourceOccurrenceId.indexOf(":");
   let projectionSha;
-  try { projectionSha = crypto.createHash("sha256").update(canonicalJson(snapshot.projection), "utf8").digest("hex"); }
-  catch { throw new Error("cfo_b7_snapshot_invalid"); }
-  if (!snapshot || snapshot.schemaVersion !== 1 || !["pending", "sent"].includes(snapshot.status)
+  let renderedMessage;
+  try {
+    projectionSha = crypto.createHash("sha256").update(canonicalJson(snapshot.projection), "utf8").digest("hex");
+    renderedMessage = renderResultSummary(snapshot.projection);
+  } catch { throw new Error("cfo_b7_snapshot_invalid"); }
+  if (snapshot.schemaVersion !== 2 || !["pending", "sent"].includes(snapshot.status)
     || snapshot.ownerId !== sourceOccurrenceId.slice(0, separator)
     || snapshot.runId !== sourceOccurrenceId.slice(separator + 1)
     || snapshot.occurrenceId !== sourceOccurrenceId || !RELEASE_SHA.test(String(snapshot.releaseSha || ""))
-    || snapshot.reportingPeriod?.key !== pending.periodKey
+    || snapshot.projection.reporting_date !== snapshot.reportingPeriod.reportingDate
+    || canonicalJson(snapshot.reportingPeriod) !== canonicalJson(reportingPeriodFor(snapshot.projection, snapshot.reportingPeriod.key))
+    || !SHA256.test(String(snapshot.projectionSha256 || "")) || projectionSha !== snapshot.projectionSha256
+    || !SHA256.test(String(snapshot.messageSha256 || ""))
+    || messageSha256(renderedMessage) !== snapshot.messageSha256
+    || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(snapshot.subjectId || "")
+    || typeof snapshot.channel !== "string" || !snapshot.channel
+    || !SHA256.test(String(snapshot.recipientHash || ""))
+    || snapshot.eventKey !== resultEventKey(snapshot.subjectId, snapshot.channel, snapshot.reportingPeriod.key)
+    || !Number.isFinite(Date.parse(snapshot.createdAt))) throw new Error("cfo_b7_snapshot_invalid");
+  if (snapshot.status === "sent") {
+    let deliveryOccurrence;
+    try { deliveryOccurrence = occurrenceId(snapshot.deliveryOccurrenceId); }
+    catch { throw new Error("cfo_b7_snapshot_invalid"); }
+    const deliverySeparator = deliveryOccurrence.indexOf(":");
+    if (typeof snapshot.providerMessageId !== "string" || !snapshot.providerMessageId
+      || !Number.isFinite(Date.parse(snapshot.sentAt)) || !["sent", "duplicate"].includes(snapshot.resolutionKind)
+      || deliveryOccurrence.slice(0, deliverySeparator) !== snapshot.ownerId
+      || snapshot.deliveryRunId !== deliveryOccurrence.slice(deliverySeparator + 1)) {
+      throw new Error("cfo_b7_snapshot_invalid");
+    }
+  } else if (snapshot.providerMessageId !== undefined || snapshot.sentAt !== undefined
+    || snapshot.resolutionKind !== undefined || snapshot.deliveryOccurrenceId !== undefined
+    || snapshot.deliveryRunId !== undefined) throw new Error("cfo_b7_snapshot_invalid");
+  return { location, snapshot };
+}
+
+function readB7Snapshot(stateDir, reference, pending) {
+  const sourceOccurrenceId = occurrenceId(pending.occurrenceId);
+  const stored = readB7SnapshotFile(stateDir, sourceOccurrenceId, false);
+  const { location, snapshot } = stored;
+  if (!reference || reference.path !== location.relativePath
+    || !SHA256.test(String(reference.projectionSha256 || ""))
+    || reference.messageSha256 !== pending.messageSha256
+    || messageSha256(pending.message) !== pending.messageSha256
+    || snapshot.reportingPeriod.key !== pending.periodKey
     || snapshot.messageSha256 !== pending.messageSha256
-    || snapshot.projectionSha256 !== reference.projectionSha256
-    || projectionSha !== snapshot.projectionSha256) throw new Error("cfo_b7_snapshot_invalid");
-  if (snapshot.status === "sent" && (!snapshot.providerMessageId || !snapshot.sentAt
-    || !["sent", "duplicate"].includes(snapshot.resolutionKind))) throw new Error("cfo_b7_snapshot_invalid");
+    || snapshot.subjectId !== pending.subjectId || snapshot.channel !== pending.channel
+    || snapshot.recipientHash !== pending.recipientHash || snapshot.eventKey !== pending.eventKey
+    || snapshot.projectionSha256 !== reference.projectionSha256) throw new Error("cfo_b7_snapshot_invalid");
   return snapshot;
 }
 
@@ -166,6 +232,7 @@ async function runResultCfo(options) {
   const cadence = options.reportCadence || "hourly";
   if (!["hourly", "daily"].includes(cadence)) throw new Error("cfo_cadence_invalid");
   const periodKey = cadence === "hourly" ? `${date}:${now.toISOString().slice(11, 13)}` : date;
+  const eventKey = resultEventKey(subjectId, destination.channel, periodKey);
   const stateDir = path.resolve(options.stateDir);
   const file = path.join(stateDir, "last-result-report.json");
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
@@ -201,6 +268,31 @@ async function runResultCfo(options) {
   }
   const newSourceIdentity = pending ? null : b7Identity(currentOccurrenceId, options.env || process.env);
   let sourceSnapshot = pending?.b7ReadbackRef ? readB7Snapshot(stateDir, pending.b7ReadbackRef, pending) : null;
+  if (!pending) {
+    const orphan = readB7SnapshotFile(stateDir, currentOccurrenceId, true);
+    if (orphan) {
+      const { location, snapshot } = orphan;
+      if (snapshot.ownerId !== newSourceIdentity.ownerId || snapshot.runId !== newSourceIdentity.runId
+        || snapshot.releaseSha !== newSourceIdentity.releaseSha
+        || snapshot.reportingPeriod.key !== periodKey || snapshot.reportingPeriod.reportingDate !== date
+        || snapshot.subjectId !== subjectId || snapshot.channel !== destination.channel
+        || snapshot.recipientHash !== recipientHash || snapshot.eventKey !== eventKey
+        || (snapshot.status === "sent" && (snapshot.deliveryOccurrenceId !== currentOccurrenceId
+          || snapshot.deliveryRunId !== newSourceIdentity.runId))) throw new Error("cfo_b7_snapshot_invalid");
+      pending = { status: "pending", subjectId, periodKey, reportingDate: date,
+        channel: destination.channel, recipientHash, eventKey,
+        message: renderResultSummary(snapshot.projection), messageSha256: snapshot.messageSha256,
+        occurrenceId: currentOccurrenceId, createdAt: snapshot.createdAt,
+        b7ReadbackRef: b7Reference(location, snapshot) };
+      sourceSnapshot = snapshot;
+      if (snapshot.status === "pending") {
+        if (now.getTime() - Date.parse(snapshot.createdAt) >= 23 * 60 * 60 * 1000) {
+          throw new Error("cfo_pending_receipt_requires_reconcile");
+        }
+        persist(pending);
+      }
+    }
+  }
   if (sourceSnapshot?.status === "sent") {
     const recovered = { ...pending, status: "sent", occurrenceId: currentOccurrenceId,
       resolutionKind: sourceSnapshot.resolutionKind, providerMessageId: sourceSnapshot.providerMessageId,
@@ -243,18 +335,15 @@ async function runResultCfo(options) {
     let projectionSha256;
     try { projectionSha256 = crypto.createHash("sha256").update(canonicalJson(projection), "utf8").digest("hex"); }
     catch { throw new Error("cfo_b7_projection_invalid"); }
-    const reportingPeriod = {
-      key: periodKey, reportingDate: projection.reporting_date, timezone: projection.timezone || "Asia/Tokyo",
-      snapshotAt: projection.snapshot_at || projection.economic_attribution?.snapshot_at || null,
-      trailingStart: projection.trailing_start || projection.economic_attribution?.trailing_start || null,
-    };
-    sourceSnapshot = { schemaVersion: 1, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
+    const reportingPeriod = reportingPeriodFor(projection, periodKey);
+    sourceSnapshot = { schemaVersion: 2, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
+      subjectId, channel: destination.channel, recipientHash, eventKey,
       reportingPeriod, projection, projectionSha256, messageSha256: messageSha256Value,
       status: "pending", createdAt: now.toISOString() };
     const sourceLocation = writeB7Snapshot(stateDir, currentOccurrenceId, sourceSnapshot, true);
-    const b7ReadbackRef = { path: sourceLocation.relativePath, projectionSha256, messageSha256: messageSha256Value };
+    const b7ReadbackRef = b7Reference(sourceLocation, sourceSnapshot);
     pending = { status: "pending", subjectId, periodKey, reportingDate: date, channel: destination.channel, recipientHash,
-      eventKey: `cfo-result:${options.subjectId}:${destination.channel}:${periodKey}`, message,
+      eventKey, message,
       messageSha256: messageSha256Value, occurrenceId: currentOccurrenceId, createdAt: now.toISOString(), b7ReadbackRef };
     persist(pending);
   }

@@ -80,6 +80,11 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   assert.equal(snapshot.runId, "run-1");
   assert.equal(snapshot.occurrenceId, options.occurrenceId);
   assert.equal(snapshot.releaseSha, "a".repeat(40));
+  assert.equal(snapshot.subjectId, options.subjectId);
+  assert.equal(snapshot.channel, "email");
+  assert.equal(snapshot.recipientHash, crypto.createHash("sha256").update(options.reportEmail).digest("hex"));
+  assert.equal(snapshot.eventKey, "cfo-result:owner:email:2026-09-30:12");
+  assert.equal(Object.hasOwn(snapshot, "recipient"), false);
   assert.deepEqual(snapshot.reportingPeriod, {
     key: "2026-09-30:12", reportingDate: "2026-09-30", timezone: "Asia/Tokyo",
     snapshotAt: table.snapshot_at, trailingStart: table.trailing_start,
@@ -93,8 +98,94 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   assert.ok(snapshot.sentAt);
   assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
   assert.equal(fs.statSync(file).mode & 0o777, 0o600);
-  assert.doesNotMatch(fs.readFileSync(file, "utf8"), /fixture-secret|do-not-save|API_TOKEN|Authorization/);
+  assert.doesNotMatch(fs.readFileSync(file, "utf8"), /fixture-secret|do-not-save|API_TOKEN|Authorization|owner@example\.test/);
   assert.doesNotMatch(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"), /fixture-secret|do-not-save/);
+});
+
+test("orphan B7 snapshot recovers after pending state rename failure without recollecting", async t => {
+  const { options, messages } = setup(t);
+  const table = b7Table("2026-09-30");
+  let collects = 0;
+  let successfulNotifies = 0;
+  options.collect = async () => { collects += 1; return table; };
+  options.notify = async input => {
+    messages.push(input);
+    successfulNotifies += 1;
+    return { delivery: "delivered", provider_message_id: "recovered-after-crash" };
+  };
+
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const renameSync = fs.renameSync;
+  let failedPendingRename = false;
+  fs.renameSync = function (source, target) {
+    if (!failedPendingRename && target === reportFile) {
+      failedPendingRename = true;
+      throw new Error("injected pending state rename failure");
+    }
+    return renameSync.call(fs, source, target);
+  };
+  try {
+    await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /injected pending state rename failure/);
+  } finally {
+    fs.renameSync = renameSync;
+  }
+
+  assert.equal(failedPendingRename, true);
+  assert.equal(collects, 1);
+  assert.equal(successfulNotifies, 0);
+  assert.equal(JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8")).status, "pending");
+
+  const recovered = await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  assert.equal(recovered.status, "sent");
+  assert.equal(collects, 1);
+  assert.equal(successfulNotifies, 1);
+  assert.equal(messages.length, 1);
+  assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, "utf8")).b7ReadbackRef, {
+    path: `b7-readbacks/${options.occurrenceId}.json`,
+    projectionSha256: crypto.createHash("sha256").update(canonicalJson(table)).digest("hex"),
+    messageSha256: crypto.createHash("sha256").update(messages[0].message).digest("hex"),
+  });
+});
+
+test("sent orphan snapshot restores its receipt without recollecting or notifying", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  assert.equal((await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" })).status, "sent");
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  fs.unlinkSync(reportFile);
+
+  await assert.rejects(runResultCfo({ ...options, env: { ...options.env, LIFE_MANAGER_RELEASE_SHA: "b".repeat(40) },
+    now: "2026-09-30T12:00:00Z" }), /cfo_b7_snapshot_invalid/);
+  await assert.rejects(runResultCfo({ ...options, reportEmail: "other@example.test",
+    now: "2026-09-30T12:00:00Z" }), /cfo_b7_snapshot_invalid/);
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+
+  const recovered = await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  assert.equal(recovered.status, "sent");
+  assert.equal(recovered.providerMessageId, "id");
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+  assert.equal(JSON.parse(fs.readFileSync(reportFile, "utf8")).providerMessageId, "id");
+});
+
+test("orphan snapshot with a changed projection fails closed before recollecting", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  fs.unlinkSync(path.join(options.stateDir, "last-result-report.json"));
+  const file = readbackFile(options.stateDir, options.occurrenceId);
+  const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  snapshot.projection.economic_attribution.trailing.loops.capafy.coverage_gaps[0].reason = "changed";
+  fs.writeFileSync(file, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /cfo_b7_snapshot_invalid/);
+
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+  assert.equal(fs.existsSync(path.join(options.stateDir, "last-result-report.json")), false);
 });
 
 test("pending notification keeps its B7 source pending and retry reuses it without recollecting", async t => {
