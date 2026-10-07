@@ -10384,6 +10384,7 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 ### 850. 2026-10-07最新readbackと実行順の修正
 
+- CFO source laneはworktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-mobile-natural-evidence-20261007`、branch `fix/cfo-mobile-natural-evidence-20261007`、lease owner `lm-cfo-evidence-1007`が2026-10-07T23:31:22Zまで保有。row17の同一source範囲へ重複編集せず、このownerの結果を待つ。
 - 09:00:16ZのCFO自然occurrenceは`life-manager-cfo-hourly:18dc33b392579e28-4134`、run `18dc33b392579e28-4134`、release `62ebd9b1b7dff499099ce62231435c902c04427d`でexit 0。B7 sidecarは同じowner/run/release/occurrenceで`status=sent`、providerMessageId `104939`、delivery occurrence/runも一致し、本文SHA-256は`86cf11f5f2046f264a1e1db1bfaae8a939b39ad8e317afb9f8841953300308e7`。Life Manager bot会話の公式履歴から同じ本文を読み戻し、hash一致を確認した。
 - 同occurrenceのsource provenanceは`verified`、ASCはreceipt 1件/JPY（financial report source period 2026-08-30〜2026-09-26、raw artifact SHAあり、API応答にnative report IDなしを`not_returned`で記録）、RevenueCatはverified snapshot 6件/USD、`duplicateReceiptCount=0`。RevenueCat readbackは09:00Z、ASC packet観測は10/06 17:41Zで期間の鮮度差が残る。
 - ただしruntimeはmessage effect=`unknown`、`provider_receipt_id=null`のまま。読み取り専用`effect_reconcile.py`は`inconclusive/occurrence_not_effect_unknown`を返す。admission rowは既に`released`/`effect_unknown=0`なので、再送やruntime stateの手編集はしない。公式の同一本文配信証拠とruntime/admission receipt状態の差をcanonical owner経路で閉じるまでrow17は未完。
