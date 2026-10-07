@@ -95,8 +95,8 @@
     {
       "target": "runtime/openclaw/gateway-client.mjs",
       "symbol": "submitRun(client, request, identity, agentId) -> Promise<{runId}>",
-      "change": "agent RPCにmessage/agentId/sessionKey/idempotencyKey/deliver:false/timeoutのみ渡す。expectFinal:false。未受領timeoutはdispatch_unknown。自身でagentを再callしない。",
-      "checks": "tests/gateway-client.test.mjs: params完全一致、ack喪失でagent request count=1。",
+      "change": "agent RPCにmessage/agentId/sessionKey/idempotencyKey/deliver:false/timeoutのみ渡す。expectFinal:false。未受領timeoutはdispatch_unknown。自身でagentを再callしない。 requestにMI-01で検証したimagesがある場合だけapproved attachments={type:image,mimeType,fileName,content:base64}をagent RPCへ追加する。任意model supplied attachmentやraw pathを渡さない。",
+      "checks": "tests/gateway-client.test.mjs: params完全一致、ack喪失でagent request count=1。 approved image fixture wire一致、image無し従来argv/RPC不変、path/bytes log0。",
       "kind": "code",
       "id": "OC-008",
       "depends": [
@@ -433,7 +433,7 @@
       "target": "runtime/openclaw/runner_adapter.py",
       "symbol": "run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int",
       "change": "run_openclawは既存parsed.imageとcodex_resume_session_idをMI-01/02のapproved referenceへ変換してRunRequest v2へ渡す。usage/schema/result_path/lease/token budget契約を維持。対応が未証明の時だけsource-controlled legacyを選び、全移行完了にしない。画像やresumeを永久unsupportedのまま終わらせない。",
-      "checks": "tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、unsupported imageでdispatch0。",
+      "checks": "tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、未証明・不正imageでdispatch0。",
       "kind": "code",
       "id": "OC-034",
       "depends": [

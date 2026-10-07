@@ -76,9 +76,10 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 
 
+
 ## 原子的TODO（状態/cursorの唯一の正本は統一SSOT）
 
-全215atom。target/symbol/change/check/dependencyを固定。未知のものは旧経路を維持し未完として扱う。
+全215atom。target/symbol/change/check/dependencyを固定。
 
 ### OC-001 — dependencies
 
@@ -124,8 +125,8 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 
 ### OC-008 — submitRun(client, request, identity, agentId) -> Promise<{runId}>
 
-- [ ] `runtime/openclaw/gateway-client.mjs` — agent RPCにmessage/agentId/sessionKey/idempotencyKey/deliver:false/timeoutのみ渡す。expectFinal:false。未受領timeoutはdispatch_unknown。自身でagentを再callしない。
-- 完了条件: tests/gateway-client.test.mjs: params完全一致、ack喪失でagent request count=1。
+- [ ] `runtime/openclaw/gateway-client.mjs` — agent RPCにmessage/agentId/sessionKey/idempotencyKey/deliver:false/timeoutのみ渡す。expectFinal:false。未受領timeoutはdispatch_unknown。自身でagentを再callしない。 requestにMI-01で検証したimagesがある場合だけapproved attachments={type:image,mimeType,fileName,content:base64}をagent RPCへ追加する。任意model supplied attachmentやraw pathを渡さない。
+- 完了条件: tests/gateway-client.test.mjs: params完全一致、ack喪失でagent request count=1。 approved image fixture wire一致、image無し従来argv/RPC不変、path/bytes log0。
 - 依存: OC-007
 
 ### OC-009 — waitRun(client, runId) -> Promise<object>
@@ -281,7 +282,7 @@ native Codexのtools.allowによるrestricted-turn機構を使い、LM approved 
 ### OC-034 — run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int
 
 - [ ] `runtime/openclaw/runner_adapter.py` — run_openclawは既存parsed.imageとcodex_resume_session_idをMI-01/02のapproved referenceへ変換してRunRequest v2へ渡す。usage/schema/result_path/lease/token budget契約を維持。対応が未証明の時だけsource-controlled legacyを選び、全移行完了にしない。画像やresumeを永久unsupportedのまま終わらせない。
-- 完了条件: tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、unsupported imageでdispatch0。
+- 完了条件: tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、未証明・不正imageでdispatch0。
 - 依存: OC-033, MI-01, MI-02
 
 ### OC-035 — run() の evidence/lease/token-budget preflight後・candidate for-loop前
