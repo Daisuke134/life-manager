@@ -198,12 +198,15 @@
 - [x] Re-enable and target-apply Japanese TikTok and Instagram owners on release 034d. Install events: TikTok `ba116325c518c2a8221986b0`; Instagram `16fecb7164c5bd5494492b16`. Both read back loaded-idle on exact SHA/argv.
 - [ ] Allow the next natural Japanese 20:00 JST occurrence; verify separate Postiz receipts and public URLs. Do not manually kick or replay the failed 12:30 slot.
 - [x] Correct the browser endpoint diagnosis: `127.0.0.1:9222/json/version` returns 404, but BrowserGuard resolves registered `interactive:dais` to `http://[::1]:9222` (HTTP 200, unique UUID, no collision). Postiz UI opens logged out at `platform.postiz.com`; Google sign-in reaches passkey challenge `/v3/signin/challenge/pk`. One `Try another way` selection did not advance. No channel setting or post changed, and no CAPTCHA appeared.
+- [x] MRR bridge source audit against anicca-products main `97b811aeb5121e05dea7612720326839ba94c5a3` plus live `/monk` and `/letter` page reads: `/monk` uses one-time `mode=payment`, offers only a free 3-day letter signup, and its eBook delivery email contains the PDF link but no paid Letter/Tegami CTA. `/letter` is $9.99/month with a 14-day trial and `/tegami` uses `mode=subscription` at ¥980/month. The Letter welcome email cross-sells the eBook in the opposite direction.
 - [ ] Authenticate the existing Postiz workspace normally, then read the Monk Anicca TikTok integration and verify `disabled=false` and an available no-cost channel slot. Keep the English owner disabled until that readback succeeds; the 14:00 slot was missed while the owner was disabled.
 - [ ] Reconcile the prior HeyGen wallet/render cost receipt before any new render. After the Postiz route is enabled and cost is reconciled, target-apply the English owner to release 034d and allow only the next natural 21:00 JST slot.
 - [ ] Resolve global doctor health by coordinating the separate Capafy retired browser label PID 8198; this does not block the currently loaded eBook owners.
 - [ ] Verify the intended three daily slots per locale through provider receipts and public URLs.
 - [ ] Product PR #420 remains OPEN; checks pass, but Supabase CLI has no linked project and repository secrets contain only public anon key/URL. DDL route plus post-migration schema/RPC/ACL and durable receipt readback remain unresolved.
-- [ ] Record a natural paid Checkout with matching locale PDF delivery after durable receipt readback; then start the 14-day receipt-based measurement and continue Capafy D5 only after the paid+PDF gate.
+- [ ] Record a natural paid Checkout with matching locale PDF delivery after durable receipt readback.
+- [ ] Add an optional, tracked Letter/Tegami subscription CTA to the eBook buyer's delivery/follow-up. Keep enrollment user-initiated; verify a Stripe subscription receipt and active subscriber state.
+- [ ] Start the 14-day receipt-based cohort measurement with one-time eBook sales and paid active subscriptions counted separately. Continue Capafy D5 only after the existing paid+PDF gate.
 
 - **Cursor authority:** the current order and cursor live only in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; this plan records Task 6 acceptance details.
 
