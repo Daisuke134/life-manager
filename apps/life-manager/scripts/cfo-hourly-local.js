@@ -135,7 +135,10 @@ function readPersonalCache(file, now, reportDate) {
       || cached.personal_moneytree.owner !== "dais_personal") return null;
     if (cached.personal_moneytree.range_start !== shiftMonths(reportDate, -12)
       || cached.personal_moneytree.range_end !== reportDate) return null;
-    const age = now.getTime() - Date.parse(cached.cached_at);
+    if (typeof cached.cached_at !== "string") return null;
+    const cachedAt = Date.parse(cached.cached_at);
+    if (!Number.isFinite(cachedAt) || new Date(cachedAt).toISOString() !== cached.cached_at) return null;
+    const age = now.getTime() - cachedAt;
     if (!Number.isFinite(age) || age < 0) return null;
     return {
       personal: cached.personal_moneytree,
@@ -348,7 +351,7 @@ async function readPersonalMoneytree(date, options, now, stateDir) {
           const inReportPeriod = transactionDate >= rangeStart && transactionDate <= date;
           const inRequestedWindow = transactionDate >= startDate && transactionDate <= endDate;
           if (!inReportPeriod || !inRequestedWindow) rangeMismatchCount += 1;
-          return inReportPeriod;
+          return inReportPeriod && inRequestedWindow;
         });
         const observedAt = [accountRead?.retrieved_at, transactionRead?.retrieved_at]
           .filter((value) => Number.isFinite(Date.parse(value))).sort().at(-1);

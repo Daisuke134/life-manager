@@ -178,6 +178,24 @@ test("inclusive Moneytree chunks stay within three months at month-end and leap 
   }
 });
 
+test("Moneytree window excludes a report-period row returned outside its requested dates", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-window-bounds-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = collectorFixture(root, {
+    rowsForWindow: ({ index }) => index === 3 ? [
+      { id: "tx-wrong-window", occurred_at: "2026-02-03", amount_jpy: -900, category: "食費", merchant: "Market" },
+    ] : [],
+  });
+
+  const result = await collectCfoProjection("2026-10-07", fixture.options);
+  const february = result.personal_moneytree.monthly.find((month) => month.month === "2026-02");
+
+  assert.equal(february.expense_jpy, null);
+  assert.equal(february.coverage_status, "unknown");
+  assert.equal(result.personal_moneytree.windows[3].range_mismatch_count, 1);
+  assert.equal(result.personal_moneytree.windows[3].coverage_status, "partial");
+});
+
 test("Moneytree without provider sync keeps freshness and empty flows unknown", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-empty-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -312,25 +330,27 @@ test("Moneytree cache write failure preserves fresh receipt-backed observations"
   assert.equal(fs.existsSync(cachePath), false);
 });
 
-test("future or invalid cache timestamps are rejected, not shown stale", async (t) => {
+test("future and noncanonical cache timestamps are rejected, not shown stale", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-personal-cache-invalid-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const fixture = collectorFixture(root);
   fixture.options.now = new Date("2026-10-07T23:00:00.000Z");
   fixture.options.readAccounts = async () => { throw new Error("fixture Moneytree unavailable"); };
-  fs.writeFileSync(path.join(root, "personal-moneytree-snapshot.json"), JSON.stringify({
-    schema_version: 1,
-    cached_at: "2026-10-08T00:00:00.000Z",
-    personal_moneytree: {
-      schema_version: 1, owner: "dais_personal", status: "observed",
-      range_start: "2025-10-07", range_end: "2026-10-07",
-      freshness_status: "unknown", balances: [{ institution: "MUFG", balance_jpy: 999999 }],
-    },
-  }), { mode: 0o600 });
+  for (const cached_at of ["2026-10-08T00:00:00.000Z", 0, "2026-02-30T00:00:00.000Z"]) {
+    fs.writeFileSync(path.join(root, "personal-moneytree-snapshot.json"), JSON.stringify({
+      schema_version: 1,
+      cached_at,
+      personal_moneytree: {
+        schema_version: 1, owner: "dais_personal", status: "observed",
+        range_start: "2025-10-07", range_end: "2026-10-07",
+        freshness_status: "unknown", balances: [{ institution: "MUFG", balance_jpy: 999999 }],
+      },
+    }), { mode: 0o600 });
 
-  const result = await collectCfoProjection("2026-10-07", fixture.options);
-  assert.equal(result.personal_moneytree.status, "unavailable");
-  assert.deepEqual(result.personal_moneytree.balances, []);
+    const result = await collectCfoProjection("2026-10-07", fixture.options);
+    assert.equal(result.personal_moneytree.status, "unavailable", `cached_at=${String(cached_at)}`);
+    assert.deepEqual(result.personal_moneytree.balances, [], `cached_at=${String(cached_at)}`);
+  }
 });
 
 test("B7 pending retry reuses the frozen Moneytree report without recollecting", async (t) => {
