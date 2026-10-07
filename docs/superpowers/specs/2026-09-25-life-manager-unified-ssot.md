@@ -4937,7 +4937,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 22 | Mobileを含む継続課金の公式snapshotを集計し、loop別/会社全体のMRRと未取得sourceを表示する | 年額/買い切り/開発者収益/着金/利益を分離。 |
 | 23 | Moneytree公式`show-accounts`から口座ごとの残高を取得し、個人cashと会社cashの所有範囲を分けて記録する | 2026-10-07T05:53:52Zのread-only `show-accounts`はJPY totalBalance 504302・accountCount 1を返したが、provider as-ofとowner fieldはない。同期/口座ownerが不明なので会社cashに含めない。同時刻帯の10/01–10/07 `show-transactions`はtotalCount 0・returned 0（Google請求支払の不存在を証明しない）。会社cashの公式sourceとownership/read timestampの不足が残る。 |
 | 24 | 20の実費と23の最新残高を使って、会社のrunwayを計算する | 同期間cost coverage、欠損はunknown。 |
-| 25 | Lancersの既存login sessionを復旧し、公式dashboard/proposal historyを読み戻す。stale solver fixはmain merge済み。pending solver taskは1件だけ保持し、login route中の追加task・応募・返信をしない。旧unknown proposalは公式履歴照合まで再送しない | 10:22Z work_syncはHTTP200/login route/`final_route_mismatch`/submitted null。10:25:21Z latest natural application run `18dc385a525885c0-1495` / occurrence `lancers-revenue-application:18db97a91c67d490-70634` はexit1/effect unknown/receiptなし、status readback時はloaded-running。solver stateはpending/task ID 1件。target applyは`pending-admission`でskip、installed SHAは旧`0bc17613b3f76f88d85732f22ea20683b2ff7e39`。no new task/reply/proposal by this agent. §854–856 |
+| 25 | Lancersの既存login sessionを復旧し、公式dashboard/proposal historyを読み戻す。solver stale-task fixはmainにあり、pending taskは1件を維持する。login route中にtask追加・応募・返信をしない。旧unknown proposalは公式履歴照合まで再送しない | 10:28:44Z latest natural app run `18dc3889e7e5cd58-20292` / occurrence `lancers-revenue-application:18db9826037b3710-96419` はexit1/effect unknown/provider receiptなし、owner loaded-running。installed SHA `0bc17613b3f76f88d85732f22ea20683b2ff7e39`。global current release `a1dcdfbf`には修正あり。solver stateはpending/task_idあり1件。applyはpending-admissionでskip。再開はexisting authenticated session復旧→official proposal readback→owner apply gate解除→natural HTTP200。§855–857 |
 | 26 | Lancers既存商品一覧から販売する商品IDを特定し、公式公開/購入導線の故障を修復する（商品ID未選定） | 既存listingの現公開/購入経路をCLI等既存観測で確認し、購入を止める故障だけ修復。 |
 
 | 27 | Lancersの公式募集一覧から条件の合う未応募案件IDを選び、既存応募loopで応募する（案件ID未選定） | 既存応募loop/cap内の同案件公式応募記録。 |
@@ -10436,3 +10436,9 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - 10:25:21Z latest natural application run is `18dc385a525885c0-1495`, occurrence `lancers-revenue-application:18db97a91c67d490-70634`, exit1/effect unknown/provider receipt null. Readback shows installed SHA `0bc17613b3f76f88d85732f22ea20683b2ff7e39`; this owner has not loaded release `fae7ba16` because targeted apply was skipped for `pending-admission`.
 - `aws-waf-solver.json` remains one `pending` task with task ID present. The 10:22Z work-sync read returned login route/HTTP200 and did not submit. No additional solver task, application, or reply was made. Resume after authenticated profile readback and the outstanding proposal-history effect reconciliation; only then retry target apply when its admission gate allows.
+
+
+### 857. 2026-10-07 latest loaded SHA and pending task
+
+- 10:28:44Z Lancers application run `18dc3889e7e5cd58-20292` / occurrence `lancers-revenue-application:18db9826037b3710-96419` remains exit1/effect unknown/provider receipt null. At readback the owner is loaded-running on installed release `0bc17613b3f76f88d85732f22ea20683b2ff7e39`; current immutable release symlink points to `20261007T192549-a1dcdfbf`, which contains the merged stale-task fix.
+- `aws-waf-solver.json` is still one pending task; no duplicate was created. Target apply returned `changed=false/skipped=pending-admission`; do not clear this fence manually. Latest work-sync read reaches a login route, so the next gate is restoration of the existing authenticated profile, then official proposal history for the old unknown occurrence. Only after that may the owner apply and naturally confirm dashboard HTTP200.
