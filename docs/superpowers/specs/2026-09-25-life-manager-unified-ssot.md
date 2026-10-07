@@ -10178,3 +10178,4 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - source main3aa/immutable/target load gatesはPASS。RunAtLoadで起動した最初のnew-SHA occurrenceはhost admissionがbusyのためRevenueCat取得・report effect前にdeferした。admissionのmanual wake/replayはしない。次のscheduled natural eligible CFO runだけを観測し、occurrence別JSONと同run report delivery receiptを照合する。
 - §217の既定どおりcursor17は未完で固定。自然run待ちの間は次の独立read-only項目18（10/01 investmentの既存FILL/CFEE・開始NAV・終端NAV・settlement/owner receipt join）を進める。売買・資金移動・cap変更はしない。17を完了扱いせず、18以後の相対順も変えない。
+- 項目18で`run.py --help`を実行したところ、helpではなく一度だけ投資runnerが起動した。`mode=unknown`・`investment_mode_invalid`をstart段階で検出し、broker API/注文へ進まず`effect=none`でblockedしたが、Telegram blocker通知を1件送信した。local outbox receiptはevent `alpaca-failure:2026-10-07T00:26:50.144274Z` / provider message ID104783 / delivered 00:26:51.069832Z。公式Telegram履歴で同時刻のmessage ID107432を確認し、本文SHA256`25dea4f5d3929a6644eef29cb2e8830209780f7f0b0914eb9ade8f85e24318e0`がoutboxと一致。ID体系の差を混同せず、再通知・再送0。これは収益/投資成果に数えない。
