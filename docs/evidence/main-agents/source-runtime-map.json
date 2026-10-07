@@ -1,0 +1,3351 @@
+[
+  {
+    "product_loop_id": "gig-coconala",
+    "name": "Gig — Coconala",
+    "jobs": [
+      {
+        "job_id": "hf-gig-apply-direct",
+        "run_id": "18dc1b68efa4ced8-38672",
+        "occurrence_id": "hf-gig-apply-direct:18dc1b68efa4ced8-38672",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:49.431564+00:00",
+          "last_success": "2026-10-03T00:32:40.045125+00:00",
+          "last_effect": "2026-10-07T01:34:49.310399+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "runtime/loop/entry_dispatch.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "hf-gig-apply-evidence-gc",
+        "run_id": "18dc0be8ea6e1198-88495",
+        "occurrence_id": "hf-gig-apply-evidence-gc:18dc0be8ea6e1198-88495",
+        "event_release_sha": "64895457b7232a954f2f4492073b867009b6da85",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T20:50:50.615924+00:00",
+          "last_success": "2026-10-06T20:50:50.615924+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/gig/scripts/evidence_gc.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "hf-gig-browser",
+        "run_id": "18dc17a9f6f26f50-18783",
+        "occurrence_id": "hf-gig-browser:18dc17a9f6f26f50-18783",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:26:10.549476+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/gig/scripts/launch_gig_browser.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "hf-gig-daily-report",
+        "run_id": "18dc17382fc84fd8-2524",
+        "occurrence_id": "hf-gig-daily-report:18dc17382fc84fd8-2524",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:18:13.506946+00:00",
+          "last_success": "2026-10-07T00:18:13.506946+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/gig/gig_daily_report.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "hf-gig-paid-direct",
+        "run_id": "18dc1b73f5eeb2a8-41320",
+        "occurrence_id": "hf-gig-paid-direct:18dc1b73f5eeb2a8-41320",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_control_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:56.730134+00:00",
+          "last_success": "2026-10-06T19:36:10.300077+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/gig/scripts/paid-direct-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "hf-gig-reply-detector",
+        "run_id": "18dc1b6ff62ec9a0-40795",
+        "occurrence_id": "hf-gig-reply-detector:18dc1b6ff62ec9a0-40795",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_control_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:58.255697+00:00",
+          "last_success": "2026-10-07T01:34:57.972882+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "hf-gig-storefront-direct",
+        "run_id": "18dc1b7a92ec6220-42172",
+        "occurrence_id": "hf-gig-storefront-direct:18dc1b7a92ec6220-42172",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:54.905602+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:36:05.113646+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "runtime/loop/entry_dispatch.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "retainer"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "coconala-funnel-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "implemented"
+        },
+        "cost": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "implemented"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "coconala"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "gig-lancers",
+    "name": "Gig — Lancers",
+    "jobs": [
+      {
+        "job_id": "lancers-revenue-application",
+        "run_id": "18dc1b7b22afdd88-42255",
+        "occurrence_id": "lancers-revenue-application:18dc1b7b22afdd88-42255",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:56.224018+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:36:07.477693+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/application-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "lancers-revenue-browser",
+        "run_id": "18dc17ac0468b318-18890",
+        "occurrence_id": "lancers-revenue-browser:18dc17ac0468b318-18890",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:26:19.366726+00:00",
+          "last_success": "2026-10-06T13:34:13.768231+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/browser-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "lancers-revenue-negotiate",
+        "run_id": "18dc1b6c4cd9b200-39921",
+        "occurrence_id": "lancers-revenue-negotiate:18dc0b1af627cae8-92099",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:17.383969+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:35:03.758595+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/negotiate-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "lancers-revenue-paid",
+        "run_id": "18dc1b4f3fc7dd20-27840",
+        "occurrence_id": "lancers-revenue-paid:18dc1b4f3fc7dd20-27840",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:33:04.330238+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:32:58.997557+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/paid-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "lancers-revenue-storefront",
+        "run_id": "18dc1aa6964e6c30-71403",
+        "occurrence_id": "lancers-revenue-storefront:18dc1aa6964e6c30-71403",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:20:54.672299+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:20:54.592783+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/storefront-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "lancers-revenue-telegram-report",
+        "run_id": "18dc1b5d721b5c58-34262",
+        "occurrence_id": "lancers-revenue-telegram-report:18dc1b5d721b5c58-34262",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:00.519655+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:33:59.970042+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/telegram-report-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "lancers-revenue-work-sync",
+        "run_id": "18dc1b6aee07d1e0-39467",
+        "occurrence_id": "lancers-revenue-work-sync:18dbf39232d477c0-73625",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "reconcile_owner",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:13.019351+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/lancers/scripts/work-sync-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "retainer"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "lancers-funnel-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "implemented"
+        },
+        "cost": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "implemented"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "gig-crowdworks",
+    "name": "Gig — CrowdWorks",
+    "jobs": [
+      {
+        "job_id": "crowdworks-revenue-application",
+        "run_id": "18dc1b6ec48609f0-40513",
+        "occurrence_id": "crowdworks-revenue-application:18dbf0ce41c9c6c0-2648",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_75",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:25.651778+00:00",
+          "last_success": "2026-10-07T01:34:02.161488+00:00",
+          "last_effect": "2026-10-07T01:35:14.374094+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/crowdworks/scripts/application-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "crowdworks-revenue-browser",
+        "run_id": "18dc17a215a84990-17860",
+        "occurrence_id": "crowdworks-revenue-browser:18dc17a215a84990-17860",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:25:36.715419+00:00",
+          "last_success": "2026-10-04T23:53:53.530842+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/crowdworks/scripts/browser-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "crowdworks-revenue-paid",
+        "run_id": "18dc1b7dedec11e0-42528",
+        "occurrence_id": "crowdworks-revenue-paid:18dc1b7dedec11e0-42528",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:56.586932+00:00",
+          "last_success": "2026-10-06T22:13:01.642820+00:00",
+          "last_effect": "2026-10-07T01:36:19.580247+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "crowdworks-revenue-reply",
+        "run_id": "18dc1b59e09266a8-32453",
+        "occurrence_id": "crowdworks-revenue-reply:18dc0101d3f98150-58310",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "phase": "report",
+        "error_class": "entrypoint_exit_75",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:33:59.383111+00:00",
+          "last_success": "2026-10-07T01:29:26.585418+00:00",
+          "last_effect": "2026-10-07T01:33:59.383111+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/crowdworks/scripts/reply-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "crowdworks-revenue-report",
+        "run_id": "18dc1b6533514610-37192",
+        "occurrence_id": "crowdworks-revenue-report:18dc1b6533514610-37192",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:33.310250+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:34:33.267410+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "retainer"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "crowdworks-funnel-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "implemented"
+        },
+        "cost": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "implemented"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "writer",
+    "name": "Writer",
+    "jobs": [
+      {
+        "job_id": "writer-claim-loop",
+        "run_id": "18dc1b5e7d8c3070-34702",
+        "occurrence_id": "writer-claim-loop:18dc1b5e7d8c3070-34702",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:20.501058+00:00",
+          "last_success": "2026-10-07T01:34:20.501058+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/claim-loop-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "writer-craft-train",
+        "run_id": "18dbfc98f9efb180-89167",
+        "occurrence_id": "writer-craft-train:18dbfc98f9efb180-89167",
+        "event_release_sha": "4429dfb454ef58f7dd4d52d4410e90f058da17a4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T16:10:19.534303+00:00",
+          "last_success": "2026-10-06T16:10:19.534303+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/craft-train-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "writer-money-sync",
+        "run_id": "18dc1b5db9f4fde0-34367",
+        "occurrence_id": "writer-money-sync:18dc1b5db9f4fde0-34367",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:04.467190+00:00",
+          "last_success": "2026-10-07T00:17:37.956118+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/money-sync-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "writer-opportunity-discovery",
+        "run_id": "18dc178423183a18-13978",
+        "occurrence_id": "writer-opportunity-discovery:18dc178423183a18-13978",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "apply_lock_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:23:28.079447+00:00",
+          "last_success": "2026-10-06T15:40:01.386422+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/opportunity-discovery-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "writer-opportunity-response",
+        "run_id": "18dc1ad47536e2d8-80691",
+        "occurrence_id": "writer-opportunity-response:18dc1ad47536e2d8-80691",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:24:11.706871+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:24:11.607828+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/opportunity-response-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "writer-report",
+        "run_id": "18dc1b6ac56b80d8-39344",
+        "occurrence_id": "writer-report:18dc1b6ac56b80d8-39344",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:57.669120+00:00",
+          "last_success": "2026-10-05T20:12:11.724449+00:00",
+          "last_effect": "2026-10-07T01:34:57.195023+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/writer-report-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "writer-sales-measure",
+        "run_id": "18dc1967df7eb620-20600",
+        "occurrence_id": "writer-sales-measure:18dc1967df7eb620-20600",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:58:05.959139+00:00",
+          "last_success": "2026-10-07T00:09:59.733969+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/writer-agent/scripts/writer-sales-measure-worker.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "retainer",
+        "subscription"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "writer-demand-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "writer-money-sync",
+          "implementation": "partial"
+        },
+        "cost": {
+          "adapter": "writer-money-sync",
+          "implementation": "partial"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "affiliate",
+    "name": "Affiliate",
+    "jobs": [
+      {
+        "job_id": "affiliate-browser",
+        "run_id": "18dc19231b3896d0-8940",
+        "occurrence_id": "affiliate-browser:18dc19231b3896d0-8940",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:53:10.374670+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/affiliate/scripts/local-browser",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "affiliate-composition",
+        "run_id": "18dc1b4801520310-23655",
+        "occurrence_id": "affiliate-composition:18dc1b4801520310-23655",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:32:28.945621+00:00",
+          "last_success": "2026-10-07T00:11:34.915809+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/affiliate/affiliate",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "affiliate-impact-browser",
+        "run_id": "18dc1924155a24a8-9093",
+        "occurrence_id": "affiliate-impact-browser:18dc1924155a24a8-9093",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:53:14.589461+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/affiliate/scripts/local-browser",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "affiliate-loop",
+        "run_id": "18dc1b685dc16170-38475",
+        "occurrence_id": "affiliate-loop:18dc1b685dc16170-38475",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:46.918452+00:00",
+          "last_success": "2026-09-24T11:15:48.206566+00:00",
+          "last_effect": "2026-10-07T01:34:46.860856+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/affiliate/affiliate",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "affiliate-source-refresh",
+        "run_id": "18dc1b48d3abe560-24180",
+        "occurrence_id": "affiliate-source-refresh:18dc1b48d3abe560-24180",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:32:36.928465+00:00",
+          "last_success": "2026-10-07T00:17:50.156578+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/affiliate/affiliate",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "affiliate-x-browser",
+        "run_id": "18dc1924eed4fe60-9291",
+        "occurrence_id": "affiliate-x-browser:18dc1924eed4fe60-9291",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:53:18.250764+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/affiliate/scripts/local-browser",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "recurring_usage"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "affiliate-money-funnel",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "affiliate-commission-financial-record",
+          "implementation": "missing"
+        },
+        "cost": {
+          "adapter": "affiliate-cost-financial-record",
+          "implementation": "missing"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "investment",
+    "name": "Investment",
+    "jobs": [
+      {
+        "job_id": "alpaca-investment-paper",
+        "run_id": "18dc1b6cf53f0260-40105",
+        "occurrence_id": "alpaca-investment-paper:18dc1b6cf53f0260-40105",
+        "event_release_sha": "c0da6b382caf6c0ead86db8798d9c43712c4c222",
+        "installed_release_sha": "c0da6b382caf6c0ead86db8798d9c43712c4c222",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:06.686248+00:00",
+          "last_success": "2026-10-04T07:32:54.537284+00:00",
+          "last_effect": "2026-10-07T01:35:06.592962+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/alpaca-investment/run.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "alpaca-investment-live",
+        "run_id": "18da19a286f2bd88-21702",
+        "occurrence_id": "alpaca-investment-live:18da19a286f2bd88-21702",
+        "event_release_sha": "592c98cbc69fb3bbb6eb4216e672c040c736052c",
+        "installed_release_sha": "4121f44751c9f99d52cd6df0df78571c9d56da11",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-09-30T12:39:50.060181+00:00",
+          "last_success": "2026-09-29T21:03:06.239669+00:00",
+          "last_effect": "2026-09-30T12:39:47.705829+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/alpaca-investment/run.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": null,
+        "loaded_readback_rc": 113,
+        "loaded_argv_matches_configured": null
+      },
+      {
+        "job_id": "investment-cross-venue-report",
+        "run_id": "18dbdf1209b7fbd0-99273",
+        "occurrence_id": "investment-cross-venue-report:18dbdf1209b7fbd0-99273",
+        "event_release_sha": "0ba957af5405bfbea5f1d6e9ce6ca78deb66b421",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T07:09:05.465268+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T07:09:05.442924+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/investment-core/cross_venue_run.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "investment-strategy-validation",
+        "run_id": "18dc11000b140788-10601",
+        "occurrence_id": "investment-strategy-validation:18dc101a94d06430-49126",
+        "event_release_sha": "1305c07f5e4c6d6ede9b5bdfbef752a107421f0f",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T22:28:47.433637+00:00",
+          "last_success": "2026-10-06T22:24:41.692448+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/alpaca-investment/validation_runner.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "investment",
+      "revenue_classes": [
+        "realized_investment"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "investment-order-reconciliation",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "investment-financial-record",
+          "implementation": "partial"
+        },
+        "cost": {
+          "adapter": "investment-financial-record",
+          "implementation": "partial"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "python3",
+          "skills/alpaca-investment/run.py"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "agent-economy",
+    "name": "Agent Economy",
+    "jobs": [
+      {
+        "job_id": "agent-economy-loop",
+        "run_id": "18dc17cf25328218-25467",
+        "occurrence_id": "agent-economy-loop:18dc17cf25328218-25467",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:28:50.263908+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/agent-economy/launch.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "citizen-refill",
+        "run_id": "18dc19f38652f9f8-41179",
+        "occurrence_id": "citizen-refill:18dc19f38652f9f8-41179",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:08:05.933527+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "bin/citizen-refill-launchd",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-x402-ledger",
+        "run_id": "18dc1b5db36f8710-34357",
+        "occurrence_id": "life-manager-x402-ledger:18dc1b5db36f8710-34357",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:08.500293+00:00",
+          "last_success": "2026-10-07T00:08:13.058600+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/x402-sale-ledger-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "sol-funding",
+        "run_id": "18dc1b7a92ec6608-42158",
+        "occurrence_id": "sol-funding:18dc1b7a92ec6608-42158",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:54.552182+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:36:05.113695+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/sol-funding-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "the402-provider",
+        "run_id": "18dc17d1cd365320-26000",
+        "occurrence_id": "the402-provider:18dc17d1cd365320-26000",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "started",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:29:01.661388+00:00",
+          "last_success": "2026-10-06T18:38:18.043060+00:00",
+          "last_effect": "2026-10-07T00:29:01.661388+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/the402-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "the402-worker",
+        "run_id": "18dc17d2b3879910-26124",
+        "occurrence_id": "the402-worker:18dc17d2b3879910-26124",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "started",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:29:05.524782+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T00:29:05.524782+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/the402-worker-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-acquisition-controller",
+        "run_id": "18dc1b5df5b2efe0-34446",
+        "occurrence_id": "x402-acquisition-controller:18dc1b5df5b2efe0-34446",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:06.496498+00:00",
+          "last_success": "2026-10-07T01:23:59.991085+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/acquisition-controller-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-claude-p",
+        "run_id": "18dc17d57d468020-26538",
+        "occurrence_id": "x402-claude-p:18dc17d57d468020-26538",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:29:17.500294+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/serve-claude-p-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-experiment-franklin1",
+        "run_id": "18dc1b5d9ce7a4f0-34324",
+        "occurrence_id": "x402-experiment-franklin1:18dc1b5d9ce7a4f0-34324",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:01.983946+00:00",
+          "last_success": "2026-10-07T00:07:54.644819+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/experiment-tick.mjs",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-franklin1",
+        "run_id": "18dc17d66d1aec80-26631",
+        "occurrence_id": "x402-franklin1:18dc17d66d1aec80-26631",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:29:21.524215+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/serve-franklin1-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-franklin2",
+        "run_id": "18dc1b68259b8280-38415",
+        "occurrence_id": "x402-franklin2:18dc1b68259b8280-38415",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:45.924081+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/serve-franklin2-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-inflow-watch",
+        "run_id": "18dc1b6c9c134fc0-39992",
+        "occurrence_id": "x402-inflow-watch:18dc1b6c9c134fc0-39992",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:06.949657+00:00",
+          "last_success": "2026-10-07T00:18:01.972882+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-inflow-watch-claude-p",
+        "run_id": "18dc1b6c9be7d6d8-39991",
+        "occurrence_id": "x402-inflow-watch-claude-p:18dc1b6c9be7d6d8-39991",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:06.103795+00:00",
+          "last_success": "2026-10-07T00:17:56.894185+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-inflow-watch-franklin1",
+        "run_id": "18dc1b6c9bd763e8-39994",
+        "occurrence_id": "x402-inflow-watch-franklin1:18dc1b6c9bd763e8-39994",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:06.668622+00:00",
+          "last_success": "2026-10-07T00:17:58.035676+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-inflow-watch-franklin2",
+        "run_id": "18dc1b6c9bd30e88-39995",
+        "occurrence_id": "x402-inflow-watch-franklin2:18dc1b6c9bd30e88-39995",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:06.291468+00:00",
+          "last_success": "2026-10-07T00:17:54.316582+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-research-serve",
+        "run_id": "18dc17d8892dba68-27125",
+        "occurrence_id": "x402-research-serve:18dc17d8892dba68-27125",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:29:30.645140+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/serve-mainnet-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-sale-observer",
+        "run_id": "18dc1b5dff1dcf78-34491",
+        "occurrence_id": "x402-sale-observer:18dc1b5dff1dcf78-34491",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:04.778443+00:00",
+          "last_success": "2026-10-07T00:07:36.783330+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/sale-observer-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-seller-8404",
+        "run_id": "18dc17d8c6311130-27204",
+        "occurrence_id": "x402-seller-8404:18dc17d8c6311130-27204",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "started",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:29:31.646348+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T00:29:31.646348+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/seller-boot-v2.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "x402-settlement-recorder",
+        "run_id": "18dc1b5d740baef0-34275",
+        "occurrence_id": "x402-settlement-recorder:18dc1b5d740baef0-34275",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:01.351075+00:00",
+          "last_success": "2026-10-07T00:05:41.518877+00:00",
+          "last_effect": "2026-10-07T01:34:00.061077+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/x402-sell/settlement-recorder-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "recurring_usage"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "agent-economy-revenue-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "agent-economy-financial-record",
+          "implementation": "implemented"
+        },
+        "cost": {
+          "adapter": "x402-cost-observer",
+          "implementation": "implemented"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh"
+        ]
+      },
+      "cloud": {
+        "availability": "guided",
+        "command": [
+          "/start"
+        ]
+      }
+    }
+  },
+  {
+    "product_loop_id": "job-hunter",
+    "name": "Job Hunter",
+    "jobs": [
+      {
+        "job_id": "job-search-daily",
+        "run_id": "18dc1ab51b6a39e0-74322",
+        "occurrence_id": "job-search-daily:18dc1ab51b6a39e0-74322",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:21:59.975338+00:00",
+          "last_success": "2026-10-06T23:41:24.027487+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/job-search-loop/scripts/run-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "job-search-health",
+        "run_id": "18dc1b5d5853cc10-34218",
+        "occurrence_id": "job-search-health:18dc1b5d5853cc10-34218",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:33:59.754070+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:33:59.552410+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/job-search-loop/scripts/run-health.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "job-search-inbox",
+        "run_id": "18dc1ac43d1d0ce8-77501",
+        "occurrence_id": "job-search-inbox:18dc1ac43d1d0ce8-77501",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:23:02.729158+00:00",
+          "last_success": "2026-10-07T00:14:27.099807+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/job-search-loop/scripts/run-inbox.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "job-search-learning",
+        "run_id": "18dc1775770c96c8-11893",
+        "occurrence_id": "job-search-learning:18dc1775770c96c8-11893",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "apply_lock_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:22:25.064209+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T00:15:06.007530+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/job-search-loop/scripts/run-learning.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "mercor-revenue-application",
+        "run_id": "18dc1b88766426c0-44092",
+        "occurrence_id": "mercor-revenue-application:18dc1b88766426c0-44092",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:37:13.065699+00:00",
+          "last_success": "2026-09-20T08:17:33.450025+00:00",
+          "last_effect": "2026-10-07T01:37:04.731329+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/mercor/scripts/application-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "mercor-revenue-paid",
+        "run_id": "18dc1b5d9ebd18a0-34325",
+        "occurrence_id": "mercor-revenue-paid:18dc1b5d9ebd18a0-34325",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:34:01.313535+00:00",
+          "last_success": "2026-10-04T19:16:44.090861+00:00",
+          "last_effect": "2026-10-07T01:34:00.729051+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/mercor/scripts/paid-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "mercor-revenue-reply",
+        "run_id": "18dc1b8932ea09b8-44144",
+        "occurrence_id": "mercor-revenue-reply:18dc1b8932ea09b8-44144",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:37:13.122092+00:00",
+          "last_success": "2026-10-03T15:17:45.009153+00:00",
+          "last_effect": "2026-10-07T01:37:07.885270+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/mercor/scripts/reply-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "retainer"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "job-hunter-funnel-receipt",
+          "implementation": "partial"
+        },
+        "financial": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "partial"
+        },
+        "cost": {
+          "adapter": "marketplace-financial-record",
+          "implementation": "partial"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "job-hunter"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "fundraiser",
+    "name": "Fundraiser",
+    "jobs": [
+      {
+        "job_id": "fundraiser",
+        "run_id": "18dc19ada0a28990-31494",
+        "occurrence_id": "fundraiser:18dc19ada0a28990-31494",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "application",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:03:05.407896+00:00",
+          "last_success": "2026-09-29T04:39:52.679916+00:00",
+          "last_effect": "2026-10-07T01:03:05.314070+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "financing",
+      "revenue_classes": [
+        "fundraising"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "fundraiser-application-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "fundraiser-financial-record",
+          "implementation": "missing"
+        },
+        "cost": {
+          "adapter": "fundraiser-financial-record",
+          "implementation": "missing"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "fundraiser"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "connector",
+    "name": "Connector",
+    "jobs": [
+      {
+        "job_id": "life-manager-connector-native",
+        "run_id": "18dc1ad910bb9cb8-81355",
+        "occurrence_id": "life-manager-connector-native:18dc1ad910bb9cb8-81355",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:25:30.350018+00:00",
+          "last_success": "2026-10-07T01:25:30.350018+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/connector/run.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "non_economic",
+      "revenue_classes": [],
+      "sources": {
+        "funnel": {
+          "adapter": null,
+          "implementation": "not_applicable"
+        },
+        "financial": {
+          "adapter": null,
+          "implementation": "not_applicable"
+        },
+        "cost": {
+          "adapter": null,
+          "implementation": "not_applicable"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "connector"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "self-build",
+    "name": "Self-Build / Product Improvement",
+    "jobs": [
+      {
+        "job_id": "life-manager-dev",
+        "run_id": "18dc17b23c11c5b0-20307",
+        "occurrence_id": "life-manager-dev:18db99f933628468-67009",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:26:51.969760+00:00",
+          "last_success": "2026-10-07T00:26:51.969760+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/life-manager-dev-daily.js",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-recovery-supervisor",
+        "run_id": "18dc1b5c81719e98-33802",
+        "occurrence_id": "life-manager-recovery-supervisor:18dc1b5c81719e98-33802",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:27.275410+00:00",
+          "last_success": "2026-10-07T01:34:26.720245+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "runtime/loop/recovery-supervisor-cli.mjs",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-selfbuild",
+        "run_id": "18dc17b3961ecea8-20534",
+        "occurrence_id": "life-manager-selfbuild:18dbbff6ce19a7c0-87701",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:27:18.452669+00:00",
+          "last_success": "2026-10-07T00:27:18.452669+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/life-manager/self-build-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "self-improve-evolve",
+        "run_id": "18dc172f99792550-81152",
+        "occurrence_id": "self-improve-evolve:18dacde5128db860-5315",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:17:27.921843+00:00",
+          "last_success": "2026-10-07T00:17:27.921843+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "subscription",
+        "recurring_usage"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "stripe-subscription-receipt",
+          "implementation": "partial"
+        },
+        "financial": {
+          "adapter": "stripe-financial-record",
+          "implementation": "missing"
+        },
+        "cost": {
+          "adapter": "life-manager-cost-financial-record",
+          "implementation": "missing"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "mobile-apps",
+    "name": "Mobile App Loops",
+    "jobs": [
+      {
+        "job_id": "life-manager-anicca-affirmation-youtube",
+        "run_id": "18dc14f8b8eb0630-66399",
+        "occurrence_id": "life-manager-anicca-affirmation-youtube:18dbd9dfdf5f95f0-91182",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:37:15.300040+00:00",
+          "last_success": "2026-10-06T23:35:48.621043+00:00",
+          "last_effect": "2026-10-06T23:36:50.308941+00:00",
+          "last_receipt": "2026-10-06T23:35:48.621043+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-ai-youtube",
+        "run_id": "18dc14d828eedce8-60986",
+        "occurrence_id": "life-manager-anicca-ai-youtube:18dc0d2a7d5cc8b8-36689",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:34:38.063712+00:00",
+          "last_success": "2026-10-06T23:34:05.352014+00:00",
+          "last_effect": "2026-10-06T23:34:30.432130+00:00",
+          "last_receipt": "2026-10-06T23:34:05.352014+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-buddha-tiktok",
+        "run_id": null,
+        "occurrence_id": null,
+        "event_release_sha": null,
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": null,
+        "error_class": null,
+        "next_action": null,
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": null,
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-en-affirmation-instagram",
+        "run_id": "18dc1b691d1573e0-38716",
+        "occurrence_id": "life-manager-anicca-en-affirmation-instagram:18dbd1e994ff7190-44951",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:37:03.397142+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:37:03.397142+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-en-affirmation-tiktok",
+        "run_id": "18dc1b6ac3b49978-39334",
+        "occurrence_id": "life-manager-anicca-en-affirmation-tiktok:18dc18162788e588-37004",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:03.855927+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:34:57.162018+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-en-card-instagram",
+        "run_id": "18dc1b65e0948378-37433",
+        "occurrence_id": "life-manager-anicca-en-card-instagram:18dc16ff02993790-72569",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": "cmuxbtnlv0lemrz0yrigbew6e",
+        "official_readback_ref": "postiz://posts/cmuxbtnlv0lemrz0yrigbew6e",
+        "effect_class": "publish",
+        "effect_status": "reconciled",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:06.284765+00:00",
+          "last_success": "2026-10-07T01:34:50.715723+00:00",
+          "last_effect": "2026-10-07T01:35:06.284765+00:00",
+          "last_receipt": "2026-10-07T01:34:50.715723+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-en-slideshow-tiktok",
+        "run_id": "18dc1b87b55f2830-43818",
+        "occurrence_id": "life-manager-anicca-en-slideshow-tiktok:18dc1b87b55f2830-43818",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_control_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:37:11.721635+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:37:01.673304+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-en-widget-instagram",
+        "run_id": "18dc1b6ab4f85a28-39304",
+        "occurrence_id": "life-manager-anicca-en-widget-instagram:18dbe86dced359c8-45030",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": "cmuxdgcr30m5mrz0yos8o47zs",
+        "official_readback_ref": "postiz://posts/cmuxdgcr30m5mrz0yos8o47zs",
+        "effect_class": "publish",
+        "effect_status": "reconciled",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:14.492348+00:00",
+          "last_success": "2026-10-07T01:35:14.492348+00:00",
+          "last_effect": "2026-10-07T01:35:14.492348+00:00",
+          "last_receipt": "2026-10-07T01:35:14.492348+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-he",
+        "run_id": "18dc109a59c70918-94044",
+        "occurrence_id": "life-manager-anicca-he:18dbd9e3b81e09a0-91769",
+        "event_release_sha": "1305c07f5e4c6d6ede9b5bdfbef752a107421f0f",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T22:16:48.536974+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T22:16:46.919146+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-ja-widget-instagram",
+        "run_id": "18dc14d348cc7688-60288",
+        "occurrence_id": "life-manager-anicca-ja-widget-instagram:18dbe6da9420ba80-71657",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:34:25.542727+00:00",
+          "last_success": "2026-10-06T23:33:51.228290+00:00",
+          "last_effect": "2026-10-06T23:34:09.572156+00:00",
+          "last_receipt": "2026-10-06T23:33:51.228290+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-jp1-tiktok",
+        "run_id": "18dc0e6ee1b9c758-79299",
+        "occurrence_id": "life-manager-anicca-jp1-tiktok:18dbe69b9886a768-62079",
+        "event_release_sha": "1305c07f5e4c6d6ede9b5bdfbef752a107421f0f",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_75",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T21:37:31.676095+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T21:37:01.191291+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-jp4",
+        "run_id": "18dc182706fd5e50-58325",
+        "occurrence_id": "life-manager-anicca-jp4:18dbf00620b65390-66198",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": "cmuxcwwdg0lwvrz0yvrfxyvl3",
+        "official_readback_ref": "postiz://posts/cmuxcwwdg0lwvrz0yvrfxyvl3",
+        "effect_class": "publish",
+        "effect_status": "reconciled",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:36:48.934796+00:00",
+          "last_success": "2026-10-07T00:36:48.934796+00:00",
+          "last_effect": "2026-10-07T00:36:48.934796+00:00",
+          "last_receipt": "2026-10-07T00:36:48.934796+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-larry-ja-instagram",
+        "run_id": "18dc1b677e918818-38172",
+        "occurrence_id": "life-manager-anicca-larry-ja-instagram:18dbf59b0a464ee0-91656",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:35:13.480853+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:35:13.480853+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-main-instagram",
+        "run_id": "18dc14d5825cb898-60548",
+        "occurrence_id": "life-manager-anicca-main-instagram:18dbec61d3ba2a00-65655",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:34:25.536161+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T23:34:19.084682+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-anicca-main-tiktok",
+        "run_id": "18dc12f7871e78b0-84838",
+        "occurrence_id": "life-manager-anicca-main-tiktok:18dc12f7871e78b0-84838",
+        "event_release_sha": "1305c07f5e4c6d6ede9b5bdfbef752a107421f0f",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_control_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:00:57.567773+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T23:00:06.450115+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-daily",
+        "run_id": "18dc1a55569dfa98-57471",
+        "occurrence_id": null,
+        "event_release_sha": "36881e439c04368837aa89e43aebcd9e3deac950",
+        "installed_release_sha": "36881e439c04368837aa89e43aebcd9e3deac950",
+        "phase": "report",
+        "error_class": null,
+        "next_action": null,
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:15:05.644464+00:00",
+          "last_success": "2026-09-17T19:35:10.031837+00:00",
+          "last_effect": "2026-10-07T01:15:05.615880+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/life-manager/life-manager-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-daily-driver",
+        "run_id": "18dc194ba53953b0-15690",
+        "occurrence_id": "life-manager-daily-driver:18dc194ba53953b0-15690",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:56:04.475255+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/browser/owned-persistent-context",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-honne-en",
+        "run_id": null,
+        "occurrence_id": null,
+        "event_release_sha": null,
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": null,
+        "error_class": null,
+        "next_action": null,
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": null,
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-honne-ja",
+        "run_id": "18dc14d15a35fdd8-59899",
+        "occurrence_id": "life-manager-honne-ja:18dba3e3a0d812f8-90566",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:34:25.611935+00:00",
+          "last_success": "2026-10-06T23:33:53.233402+00:00",
+          "last_effect": "2026-10-06T23:34:01.268618+00:00",
+          "last_receipt": "2026-10-06T23:33:53.233402+00:00"
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-instagram-metrics",
+        "run_id": "18dc1b858e915fb8-43402",
+        "occurrence_id": "life-manager-instagram-metrics:18dc1b858e915fb8-43402",
+        "event_release_sha": "9a76dcc87dfe2e24958ef19f6a69f871df4dbef1",
+        "installed_release_sha": "9a76dcc87dfe2e24958ef19f6a69f871df4dbef1",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:54.564194+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:36:52.278611+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-tiktok-metrics",
+        "run_id": "18dc1ab2cb607560-74045",
+        "occurrence_id": "life-manager-tiktok-metrics:18dc1ab2cb607560-74045",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:21:47.307399+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:21:47.109194+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "tiktok-browser",
+        "run_id": "18dc1923502ce0f8-8962",
+        "occurrence_id": "tiktok-browser:18dc1923502ce0f8-8962",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:53:11.258053+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/browser/owned-persistent-context",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "subscription",
+        "one_time",
+        "recurring_usage"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "revenuecat-funnel-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "app-store-financial-record",
+          "implementation": "missing"
+        },
+        "cost": {
+          "adapter": "mobile-product-cost-financial-record",
+          "implementation": "missing"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "node",
+          "apps/life-manager/scripts/mobile-product-bootstrap.js",
+          "--opportunity-file",
+          "opportunity.json"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "ebook",
+    "name": "eBook",
+    "jobs": [
+      {
+        "job_id": "ebook-en-tiktok-daily",
+        "run_id": "18dc12f7871e51a0-84837",
+        "occurrence_id": "ebook-en-tiktok-daily:18dc12f7871e51a0-84837",
+        "event_release_sha": "1305c07f5e4c6d6ede9b5bdfbef752a107421f0f",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "apply_lock_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T23:00:06.158315+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T13:41:39.655096+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "ebook-ja-instagram-daily",
+        "run_id": "18dbf5c21db2d968-98849",
+        "occurrence_id": "ebook-ja-instagram-daily:18dbf5ba8d1c2fc8-97357",
+        "event_release_sha": "345fe64f5cfffa10e108404f70aec1d84414db1c",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T14:04:52.053371+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T14:04:50.904171+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "ebook-ja-tiktok-daily",
+        "run_id": "18dbed42cb3677a8-24373",
+        "occurrence_id": "ebook-ja-tiktok-daily:18dbed383f505970-22876",
+        "event_release_sha": "3ae4176e074e3640f89587d0d6ceb9c574ca98c5",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T11:29:09.516695+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-06T11:29:07.994559+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "one_time",
+        "subscription"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "ebook-checkout-attribution",
+          "implementation": "partial"
+        },
+        "financial": {
+          "adapter": "ebook-financial-record",
+          "implementation": "missing"
+        },
+        "cost": {
+          "adapter": "ebook-render-cost",
+          "implementation": "partial"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "capafy",
+    "name": "Capafy",
+    "jobs": [
+      {
+        "job_id": "capafy-browser",
+        "run_id": "18dc1b8c819c5b30-44728",
+        "occurrence_id": "capafy-browser:18dc1b8c819c5b30-44728",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "execute",
+        "error_class": null,
+        "next_action": "monitor_running",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:37:22.139170+00:00",
+          "last_success": "2026-10-07T01:37:16.870467+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/capafy-autopublish/scripts/browser-owner",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-distribute-daily",
+        "run_id": "18dc1a596b16be98-58136",
+        "occurrence_id": "capafy-distribute-daily:18dc1a596b16be98-58136",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:22:02.070471+00:00",
+          "last_success": "2026-10-07T01:22:02.070471+00:00",
+          "last_effect": "2026-10-07T01:15:23.154465+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-goal-monitor",
+        "run_id": "18dc17e07d7eadf0-27992",
+        "occurrence_id": "capafy-goal-monitor:18dc17e07d7eadf0-27992",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:30:05.646760+00:00",
+          "last_success": null,
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-goal-monitor-daily-close",
+        "run_id": "18dbfe94d9acb730-78459",
+        "occurrence_id": "capafy-goal-monitor-daily-close:18dbfe94d9acb730-78459",
+        "event_release_sha": "4429dfb454ef58f7dd4d52d4410e90f058da17a4",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-06T16:46:37.466340+00:00",
+          "last_success": "2026-10-06T16:46:37.466340+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-goal-monitor-hourly",
+        "run_id": "18dc19e5770f5af8-38770",
+        "occurrence_id": "capafy-goal-monitor-hourly:18dc19e5770f5af8-38770",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:07:05.371861+00:00",
+          "last_success": "2026-10-07T00:27:44.093893+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-ig-account-manager",
+        "run_id": "18dc1b73f5ec0af8-41287",
+        "occurrence_id": "capafy-ig-account-manager:18dc1b73f5ec0af8-41287",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_control_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "account_mutation",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:34.108157+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:35:36.695881+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-ig-account-manager.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-ig-marketing-daily",
+        "run_id": "18dc19d7758715a8-36582",
+        "occurrence_id": "capafy-ig-marketing-daily:18dc19d7758715a8-36582",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:06:05.057998+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:06:04.987549+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-loop-daily",
+        "run_id": "18dc19fd7f54d8b0-43114",
+        "occurrence_id": "capafy-loop-daily:18dc19fd7f54d8b0-43114",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:33:03.757496+00:00",
+          "last_success": "2026-10-07T01:18:02.800626+00:00",
+          "last_effect": "2026-10-07T01:33:03.757496+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/self/capafy-loop/capafy-loop-daily.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-loop-healthcheck",
+        "run_id": "18dc1b7699a067a0-41635",
+        "occurrence_id": "capafy-loop-healthcheck:18dc1b7699a067a0-41635",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": null,
+        "next_action": "none",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:11.097958+00:00",
+          "last_success": "2026-10-07T01:36:11.097958+00:00",
+          "last_effect": null,
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/self/capafy-loop/capafy-loop-healthcheck.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "capafy-outcome-monitor",
+        "run_id": "18dc1b7a92ec6dd8-42179",
+        "occurrence_id": "capafy-outcome-monitor:18dc1b7a92ec6dd8-42179",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_effect_unknown",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:50.959401+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-07T01:36:05.113738+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/earn/capafy-marketing/capafy-outcome-monitor.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-capafy-ig",
+        "run_id": "18dc1aeebb7e21d8-85071",
+        "occurrence_id": "life-manager-capafy-ig:18dc19bc48ae8a18-32792",
+        "event_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "installed_release_sha": "cd9626fadb3251cd3c8cfe4da9a4e8c6a1a267b4",
+        "phase": "report",
+        "error_class": "entrypoint_exit_1",
+        "next_action": "official_readback_required",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:26:06.410231+00:00",
+          "last_success": "2026-10-06T17:16:02.655667+00:00",
+          "last_effect": "2026-10-07T01:26:04.454320+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/capafy-ig-reel",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "customer_revenue",
+      "revenue_classes": [
+        "subscription",
+        "one_time",
+        "recurring_usage"
+      ],
+      "sources": {
+        "funnel": {
+          "adapter": "capafy-company-receipt",
+          "implementation": "implemented"
+        },
+        "financial": {
+          "adapter": "capafy-financial-record",
+          "implementation": "missing"
+        },
+        "cost": {
+          "adapter": "capafy-financial-record",
+          "implementation": "missing"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  },
+  {
+    "product_loop_id": "cfo",
+    "name": "CFO",
+    "jobs": [
+      {
+        "job_id": "life-manager-cfo-hourly",
+        "run_id": "18dc1958f6515e98-18701",
+        "occurrence_id": "life-manager-cfo-hourly:18dc1958f6515e98-18701",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "message",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T00:57:01.796842+00:00",
+          "last_success": "2026-10-07T00:09:05.417619+00:00",
+          "last_effect": "2026-10-07T00:57:01.681587+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "skills/cfo/run.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-financial-report",
+        "run_id": "18dc1b7fb9d6fa08-42731",
+        "occurrence_id": "life-manager-financial-report:18dc1b7fb9d6fa08-42731",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "none",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:36:55.288118+00:00",
+          "last_success": null,
+          "last_effect": "2026-10-02T17:19:05.620990+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/financial-report-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      },
+      {
+        "job_id": "life-manager-payout",
+        "run_id": "18dc1b518ae36ca0-29126",
+        "occurrence_id": "life-manager-payout:18dc1b518ae36ca0-29126",
+        "event_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "installed_release_sha": "3aaabcca69ddf4752b516df44a669f1f88350d6b",
+        "phase": "report",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "next_action": "retry_after_eligibility",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "effect_class": "money",
+        "effect_status": "not_applicable",
+        "health_clocks": {
+          "last_attempt": "2026-10-07T01:33:09.992670+00:00",
+          "last_success": "2026-10-07T01:03:02.117932+00:00",
+          "last_effect": "2026-10-07T01:33:08.839459+00:00",
+          "last_receipt": null
+        },
+        "registered": true,
+        "entrypoint": "apps/life-manager/scripts/payout-boot.sh",
+        "entrypoint_exists": true,
+        "configured_entrypoint_matches_main": true,
+        "loaded_readback_rc": 0,
+        "loaded_argv_matches_configured": true
+      }
+    ],
+    "economic": {
+      "role": "aggregator",
+      "revenue_classes": [],
+      "sources": {
+        "funnel": {
+          "adapter": null,
+          "implementation": "not_applicable"
+        },
+        "financial": {
+          "adapter": null,
+          "implementation": "not_applicable"
+        },
+        "cost": {
+          "adapter": null,
+          "implementation": "not_applicable"
+        }
+      }
+    },
+    "hosts": {
+      "local": {
+        "availability": "guided",
+        "command": [
+          "bash",
+          "skills/cfo/run.sh"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  }
+]

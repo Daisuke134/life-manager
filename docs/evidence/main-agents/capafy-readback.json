@@ -1,0 +1,15 @@
+{
+  "read_only": true,
+  "provider_mutations": 0,
+  "owner_id": "capafy-loop-daily",
+  "occurrence_id": "capafy-loop-daily:18dc19fd7f54d8b0-43114",
+  "checked_at": "2026-10-07T01:45:22.720162+00:00",
+  "official_list_ok": true,
+  "agent_count": 53,
+  "response_sha256": "ca7bbec00a4f977eaa5dd9f94b4400e912632706e0de71cfc01430bb928c51e7",
+  "snapshot_present": true,
+  "snapshot_ok": true,
+  "changed_versions_since_snapshot": 0,
+  "same_occurrence_proven": false,
+  "reason": "no_changed_version_or_snapshot_not_available"
+}
