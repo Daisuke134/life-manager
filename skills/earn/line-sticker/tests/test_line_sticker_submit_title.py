@@ -68,6 +68,13 @@ class RequestReviewIsIdempotent(unittest.TestCase):
         self.assertEqual(out["state"], "review_requested")
         self.assertEqual(out["state_observed"], "審査待ち")
 
+    def test_review_processing_counts_as_in_review(self) -> None:
+        import asyncio
+        # Live 2026-10-07: approved-in-processing items show 審査処理中.
+        self.assertEqual(asyncio.run(MODULE._review_status(_FakePage("ステータス\n審査処理中\n表示情報"))), "審査処理中")
+        import creators_readback
+        self.assertIn("審査処理中", creators_readback.STATUSES)
+
     def test_status_ignores_words_outside_the_status_field(self) -> None:
         import asyncio
         page = _FakePage("お知らせ 審査中のアイテムについて ステータス リジェクト")

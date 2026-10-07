@@ -196,7 +196,7 @@ async def _tag_all(page: Page, item: dict, tags: dict) -> None:
         await page.wait_for_timeout(1500)
 
 
-IN_REVIEW = ("審査待ち", "審査中")
+IN_REVIEW = ("審査待ち", "審査中", "審査処理中")
 
 
 def _mark_requested(item: dict, observed: str) -> dict:
