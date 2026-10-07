@@ -25,15 +25,15 @@ The existing Travel flow can call paid Google Geocoding for uncached home/event 
 ## Execution Order and Ownership
 
 - The canonical SSOT currently has cursor `A4.1`, and its existing TODO order is `A4.1 → A4.2 → A4.3 → A5 → A6 → A3 conditional → A7 → A8 → A9 → A10`.
-- A4.1 fixture evidence and focused tests are complete on this branch. Recording that evidence and advancing the shared cursor is deferred while owner `lm-cfo-observability-1002` holds the active SSOT lease through `2026-10-08T00:02:50Z`.
+- A4.1 fixture evidence and focused tests are complete on this branch. Current readback confirms owner `lm-cfo-observability-1002` still holds the active managed-worktree lease for `cfo-mobile-evidence-ssot-20261007` through `2026-10-08T00:02:50Z`; that worktree has a staged edit to the same canonical SSOT. This is an internal write-coordination guard, not an A4.2 product dependency, and the canonical file remains untouched here.
 - User direction is to continue available work rather than wait on that shared-file write. Therefore this branch implements and tests A4.2 next; the shared SSOT update remains last and must record both A4.1 evidence and A4.2 source evidence in one owner-safe update. This does not claim the canonical cursor has advanced.
 - Do not edit the leased SSOT from another worktree/branch, steal the lease, deploy/restart production, query real calendar data, or send real user locations to candidate providers during tests.
 
 ## Current Status
 
-- A4.2 source and regression tests are pushed through `5ab934a5ca6f7d52428e45ae115aa50812978e4b` and `ec7165eaccf91bcf27f148c5390ea1c3ec8bba39`; the branch is synchronized with latest `origin/main` `a4a3837d` at merge commit `0b84a5c1a7`.
-- Independent read-only review passes the source/privacy fixes. The only remaining source-plan task is Task 6: record A4.1/A4.2 evidence in the canonical SSOT after its active owner releases the lease. The canonical cursor is still `A4.1`; this branch has not advanced it.
-- Delivery hold: the latest `OSS self-contained boundary` CI reports `manifest_inventory_mismatch` for `skills/capafy-autopublish`. `origin/main` commit `c0da6b382c` changes files under that root without changing `docs/manifests/oss-merge-1-sources.json`; this PR diff touches neither. Re-run CI after the upstream baseline is corrected; keep this PR draft until both this gate and Task 6 clear.
+- A4.2 source and regression tests are pushed through `5ab934a5ca6f7d52428e45ae115aa50812978e4b` and `ec7165eaccf91bcf27f148c5390ea1c3ec8bba39`; the branch is synchronized with `origin/main` `a4a3837d` at merge commit `0b84a5c1a7`.
+- Independent read-only review passes the source/privacy fixes. The canonical cursor remains `A4.1`; this branch has not edited or advanced the leased SSOT. Once the lease is released, record A4.1 fixture evidence and A4.2 implementation/test evidence together, then advance the cursor to `A4.2` without claiming production natural-run acceptance.
+- Latest PR #6803 readback at `2026-10-07T02:29Z`: `OSS self-contained boundary` and `gitleaks` fail, `Loop control contracts` is pending, and the other reported checks pass. The OSS check reports `manifest_inventory_mismatch` for `skills/capafy-autopublish`; `origin/main` commit `c0da6b382c` changed files under that root without updating `docs/manifests/oss-merge-1-sources.json`, while this PR diff touches neither. The cause of the current gitleaks failure is not yet established. Keep the PR draft until failures are understood/resolved and the canonical evidence update is safely recorded.
 
 ## Acceptance Criteria
 
@@ -81,7 +81,7 @@ The existing Travel flow can call paid Google Geocoding for uncached home/event 
 ### Task 6: Record A4.1/A4.2 evidence in the canonical SSOT after lease release
 
 - [ ] Re-read current `origin/main`, owner/lease, cursor, and any intervening SSOT edits.
-- [ ] Record A4.1 fixture findings and A4.2 source-test findings without claiming production natural readback; preserve the established TODO order and set cursor according to merged source status.
+- [ ] Record A4.1 fixture findings and A4.2 source-test findings without claiming production natural readback; preserve the established TODO order and advance the cursor from `A4.1` to `A4.2` in the same update.
 - [ ] Run the required source-boundary check, commit/push, and merge only after the shared owner has released the file and the update is based on latest main.
 
 ## Review Focus
