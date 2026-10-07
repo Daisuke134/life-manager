@@ -4278,3 +4278,13 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 3. `hf-gig-storefront-direct:18d8d288748508e8-23902`は同一occurrenceの公式receiptかaccepted pre-effect terminalが無い限り保持する。current ownerはdisk admissionでdeferされ、effectは発生せずreceiptもない。Capacity/doctor blockerを別ownerのgateなしに迂回しない。
 4. Coconala既存Paid obligationはrevision中・formal delivery未確認で、最新buyer follow-upが未回答。TikTok Business Suiteの本文は読み取れたが、campaign-wide inbox reply countはSheet行へ完全joinできていない。未送信の旧answer draftは「返信0件」と断定するため再利用しない。正確なrecipient/Sheet reconciliation後にpaid owner経由で一度だけ回答し、revision→formal delivery→buyer acceptance→payout→replay-zeroを閉じる。
 5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancerを実行する。Lancers rows 25–27は`waiting_external`のままauth/solver/proposal/retryを行わない。enabled ownersの24/7自然receiptとsettlement/fee/costが揃うまでGig完了としない。L9-11 Self-Buildは全Gig完了後。
+
+### 2026-10-08 07:54 JST — Gig cursor after parser merge
+
+**現在のGig cursor: 2（Coconala 20件live inventory acceptance）。** Source fix PR #6989は`076c5be8`でmainへ統合済み、focused suite 58/58 PASS・独立review PASS。しかしimmutable currentは`1c0c9120`のままで、Coconala ownerの最新wakeは`disk_headroom_low`。host freeは245,284 KiBでbrowser floor未達、registered Coconala browserもunreachable。disk-cleanup ownerは`entrypoint_exit_1`/`reconcile_owner`、doctor gateは別ownerのretired labelでfalse。容量・doctor/effect gateを迂回しない。
+
+1. Host floor/browserが回復した後、main由来corrected collectorで公式20 servicesを一度取得し、本文非空・service contract 20/20 PASSを確認する。
+2. Old Storefront `effect_unknown` occurrenceはsame-occurrence official receipt/pre-effect proofがなければheldのままにし、parser fixのみでreleaseしない。
+3. Live acceptance後にtargeted immutable release/owner convergenceが許される状態か確認し、natural Storefront outcomeとprovider listing readbackを結ぶ。
+4. Coconala Paidは現行revisionが未納品。Business Suite inbox textはreadableだが、exact campaign-wide reply countとSheet rowのjoinが残る。未送信の「zero replies」draftは使わず、正確なinbox/Sheet readback後にpaid ownerから一度だけ回答し、revision→formal delivery→acceptance→payout→replay-zeroを閉じる。
+5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer。Lancers rows 25–27は`waiting_external`のまま再認証・solver・応募をしない。全Gig ownerの24/7自然receiptとsettled fee/costが揃ってからL9-11 Self-Buildへ進む。
