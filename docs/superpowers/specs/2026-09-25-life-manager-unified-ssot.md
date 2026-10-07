@@ -3728,8 +3728,8 @@ Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planと�
 - [ ] **HA-031** `runtime/openclaw/telemetry.py` — project_usage(raw: dict, identity: dict) -> dict
 - [ ] **HA-032** `runtime/openclaw/telemetry.py` — project_runtime_event(outcome: dict, identity: dict) -> dict
 - [ ] **HA-033** `runtime/openclaw/cli.mjs` — main(argv, stdin, deps) -> Promise<number>
-- [ ] **HA-034** `runtime/openclaw/runner_adapter.py` — run_openclaw(parsed, prompt: str, schema: dict, config: dict) -> int
-- [ ] **HA-035** `runtime/agent-runner/agent_runner.py` — run() の parsed入力validate後・candidate起動前
+- [ ] **HA-034** `runtime/openclaw/runner_adapter.py` — run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int
+- [ ] **HA-035** `runtime/agent-runner/agent_runner.py` — run() の evidence/lease/token-budget preflight後・candidate for-loop前
 - [ ] **HA-036** `runtime/openclaw/tests/test_recovery.py` — test_ack_loss_preserves_claim()
 - [ ] **HA-037** `runtime/openclaw/tests/test_recovery.py` — test_provider_success_receipt_gap()
 - [ ] **HA-038** `runtime/openclaw/tests/test_recovery.py` — test_terminal_replay_zero()

@@ -422,9 +422,9 @@
     {
       "id": "HA-034",
       "target": "runtime/openclaw/runner_adapter.py",
-      "symbol": "run_openclaw(parsed, prompt: str, schema: dict, config: dict) -> int",
-      "change": "既存runner argsをRunRequestへ写しnode cliをstdin JSONで呼ぶ。outcomeをexisting summaryのversion/status/route/attempt_count/result_path/selected_*へproject。image/codex-resumeは初版unsupportedでprovider開始前に明示失敗。",
-      "checks": "tests/test_runner_adapter.py:既存run_agent consumerがsummaryを読める、unknown75、unsupported image dispatch0。",
+      "symbol": "run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int",
+      "change": "RunRequestをstdinでNode cliへ渡し既存summary形式へproject。dispatch recordがterminal/unknownなら再予約/再dispatchをしない。最初のdispatch前に既存TokenBudgetLedger.reserveへbudget_contextのevent_id/loop/scope_id/daily_scope/day/reservation_tokens/pass_limit/daily_limitを渡す。blockedなら75/model開始0。retry/subagent込みのprovider-reported総usageでsettleし、欠測はreservationを保持して0精算しない。image/codex-resumeは事前unsupported。",
+      "checks": "tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、unsupported imageでdispatch0。",
       "depends": [
         "HA-033"
       ],
@@ -434,9 +434,9 @@
     {
       "id": "HA-035",
       "target": "runtime/agent-runner/agent_runner.py",
-      "symbol": "run() の parsed入力validate後・candidate起動前",
-      "change": "config.harness_routes[trusted owner].engine=openclawでenabled=trueの時だけHA-034へ委譲。ownerはLIFE_MANAGER_LOOP_ID、short --loopをauthorityにしない。disable/defaultは現行候補chain。",
-      "checks": "runtime/agent-runner/tests/test_openclaw_route.py:default legacy、eligible ownerだけnew、env owner欠落時newに入らない。",
+      "symbol": "run() の evidence/lease/token-budget preflight後・candidate for-loop前",
+      "change": "config.harness_routes[trusted LIFE_MANAGER_LOOP_ID].engine=openclawでenabledtrueだけHA-034へ委譲する。現行budget解析・provider lease・evidence capacityを通した後、既存budget_ledger/limit/day/scope変数からbudget_contextを渡す。newrouteが全upstream停止proofを得るまでprovider leaseを解放しない。default/disabledは現行candidate for-loopへ。short --loopをauthorityにしない。",
+      "checks": "runtime/agent-runner/tests/test_openclaw_route.py:defaultlegacy、eligibleownerだけnew、空ownernew0、token/evidence/provider-lease preflightを迂回しない、未停止でlease release0。",
       "depends": [
         "HA-034",
         "HA-021"

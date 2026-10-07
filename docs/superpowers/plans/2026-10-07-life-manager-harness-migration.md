@@ -260,18 +260,18 @@
   **検証・完了:** tests/cli.test.mjs:正常fixture各呼出順、ack喪失でsent1/dispatch0追加、timeoutでunknown。 request.workdirがREPO_ROOTでもartifactWorkspaceはその外のprivate path、source write0。
   **依存:** HA-003, HA-004, HA-006, HA-008, HA-009, HA-010, HA-011, HA-020, HA-030, HA-032, HA-028。
 
-### HA-034 — run_openclaw(parsed, prompt: str, schema: dict, config: dict) -> int
+### HA-034 — run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int
 
 - [ ] **対象:** `runtime/openclaw/runner_adapter.py`
-  **変更:** 既存runner argsをRunRequestへ写しnode cliをstdin JSONで呼ぶ。outcomeをexisting summaryのversion/status/route/attempt_count/result_path/selected_*へproject。image/codex-resumeは初版unsupportedでprovider開始前に明示失敗。
-  **検証・完了:** tests/test_runner_adapter.py:既存run_agent consumerがsummaryを読める、unknown75、unsupported image dispatch0。
+  **変更:** RunRequestをstdinでNode cliへ渡し既存summary形式へproject。dispatch recordがterminal/unknownなら再予約/再dispatchをしない。最初のdispatch前に既存TokenBudgetLedger.reserveへbudget_contextのevent_id/loop/scope_id/daily_scope/day/reservation_tokens/pass_limit/daily_limitを渡す。blockedなら75/model開始0。retry/subagent込みのprovider-reported総usageでsettleし、欠測はreservationを保持して0精算しない。image/codex-resumeは事前unsupported。
+  **検証・完了:** tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、unsupported imageでdispatch0。
   **依存:** HA-033。
 
-### HA-035 — run() の parsed入力validate後・candidate起動前
+### HA-035 — run() の evidence/lease/token-budget preflight後・candidate for-loop前
 
 - [ ] **対象:** `runtime/agent-runner/agent_runner.py`
-  **変更:** config.harness_routes[trusted owner].engine=openclawでenabled=trueの時だけHA-034へ委譲。ownerはLIFE_MANAGER_LOOP_ID、short --loopをauthorityにしない。disable/defaultは現行候補chain。
-  **検証・完了:** runtime/agent-runner/tests/test_openclaw_route.py:default legacy、eligible ownerだけnew、env owner欠落時newに入らない。
+  **変更:** config.harness_routes[trusted LIFE_MANAGER_LOOP_ID].engine=openclawでenabledtrueだけHA-034へ委譲する。現行budget解析・provider lease・evidence capacityを通した後、既存budget_ledger/limit/day/scope変数からbudget_contextを渡す。newrouteが全upstream停止proofを得るまでprovider leaseを解放しない。default/disabledは現行candidate for-loopへ。short --loopをauthorityにしない。
+  **検証・完了:** runtime/agent-runner/tests/test_openclaw_route.py:defaultlegacy、eligibleownerだけnew、空ownernew0、token/evidence/provider-lease preflightを迂回しない、未停止でlease release0。
   **依存:** HA-034, HA-021。
 
 ### HA-036 — test_ack_loss_preserves_claim()
