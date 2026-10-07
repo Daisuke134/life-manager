@@ -21,17 +21,17 @@ The report is not complete when a local calculation succeeds. It is complete onl
 
 ### Evidence
 
-- The September 2026 Google Cloud invoice was ¥27,889 including tax (¥25,354 before tax).
-- Read-only Cloud Monitoring counts for the linked projects were 25,526 Geocoding calls, 15,092 Directions calls, 6,510 Places Text Search calls, and 21,796 Gemini GenerateContent calls.
-- Token and current public pricing produced a pre-tax estimate close to ¥25,354. This is a diagnostic estimate, not the settled SKU receipt; the Google Cloud Cost table CSV remains the settlement authority.
-- Moneytree Web readback showed one MUFG ordinary JPY account with last-known balance ¥504,302. Its last successful aggregation was 2026-08-26 and its connection state is `auth.creds.invalid` since 2026-08-28. The balance is stale and must not be reported as today's fresh balance.
+- The official September 2026 Google Cloud Cost Table CSV reports ¥27,889 including tax: ¥25,354 invoice-rounded usage subtotal plus ¥2,535 tax. Its unrounded usage total is ¥25,354.451251 with a -¥0.451251 rounding adjustment. This is billed invoice evidence, not proof that payment settled. Source: [Google Cloud Cost Table](https://docs.cloud.google.com/billing/docs/how-to/cost-table).
+- The CSV's rounded service-cost rows are Places API ¥9,420, Geocoding API ¥7,493, Gemini API ¥5,159, Directions API ¥3,271, and Cloud KMS ¥10. These displayed rows total ¥25,353 because row rounding differs by ¥1 from the invoice subtotal; do not present their sum as the invoice amount. A displayed ¥0 row is not proof of zero unrounded cost.
+- Read-only `serviceruntime.googleapis.com/api/request_count` Monitoring observations were Geocoding 22,348, Places 6,580, and Directions 15,092 over `2026-08-31T00:00:00Z`–`2026-10-01T00:00:00Z` (31 days). This interval is not the September invoice period, and request counts are not SKU billable quantities or loop attribution. The Google CSV reports 19,403 Geocoding requests and 14,105 Directions requests; the difference is unresolved, not evidence of free errors or overbilling. Source: [Cloud Monitoring time-series API](https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/list).
+- A Moneytree read returned one MUFG JPY savings balance of ¥504,302, but no upstream sync timestamp; the latest transaction date was 2026-08-25 and a September transaction query returned no rows. Treat the balance as last-known with freshness unknown, not today's confirmed balance or September spending of ¥0.
 
 ### Code gaps
 
-- The current financial report reads `lm_users.agent_wallet_address`, the agent earnings ledger, and `lm_api_cost.est_usd`; it does not read Dais's bank or card accounts.
-- The current report treats provider cost rows as estimated API costs; it does not join a settled Google invoice or a Moneytree transaction source.
-- The existing geocode memo is checked but successful results are not persisted, allowing repeated paid requests.
-- The existing provider-cost-guard plan defines persistent caches, cost events, budgets, and a seven-day observation gate, but its implementation tasks are not complete on `main`.
+- Mainline now has a Moneytree projection in the CFO report source path, but a successful natural report receipt/readback containing a fresh MUFG balance is not yet verified. The last-known balance above cannot satisfy that acceptance.
+- The report still lacks a verified join from the official Google invoice's project/SKU/service rows to the specific provider operations, Life Manager loops, and report receipt. Monitoring counts alone cannot fill that join.
+- A persistent geocode cache is wired into the production source, but the post-restart natural route/cache-hit/replay-zero acceptance is unverified. Free-provider fallback is a separate route optimization; it does not prove end-to-end cost reduction until its code is integrated and its natural UX/readback is observed.
+- Cost visibility and spend policy must keep actual invoice charges, estimates, and unknown attribution separate. A Google invoice total is not yet a measured per-loop cost or a daily CFO report receipt.
 
 ## 3. Accounting ownership
 
@@ -166,6 +166,8 @@ Telephony, paid model calls, and user-requested external actions remain separate
 4. Keep the existing Japan transit provider primary with cache, bounded timeout, fallback, and a visible unofficial-data warning.
 5. Evaluate OSRM/Valhalla self-hosting for driving routes and OpenTripPlanner self-hosting for scheduled transit only after the current route cache and budget gates are measured.
 6. Keep Google as an explicit, budget-authorized fallback rather than the scheduler default.
+
+**A4.2 scope:** this is a behind-the-scenes geocoding fallback for eligible Japanese address/facility lookups, not a new CFO screen and not a replacement for every Google API. An exact, attributable free result can avoid a Google Geocoding request; an ambiguous, invalid, or unavailable result keeps the existing route UX and falls back to Google Geocoding once. It does not replace Google Places, Directions/Routes, or Gemini, and the September bill shows Places—not Geocoding—as the largest individual service. Therefore A4.2 can reduce only its eligible Geocoding share; the remaining Google services need their own usage attribution and optimization.
 
 ## 9. Delivery scope by design phase
 
