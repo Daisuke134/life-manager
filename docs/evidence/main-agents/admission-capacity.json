@@ -1,0 +1,47 @@
+{
+  "schema": "life-manager.main-agent-admission-observation.v1",
+  "owner_id": "life-manager-cfo-hourly",
+  "requested_occurrence_id": "life-manager-cfo-hourly:18dc1958f6515e98-18701",
+  "read_only": true,
+  "loaded_env_allowlist": {
+    "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS": "3"
+  },
+  "policy": {
+    "resource_class": "deterministic",
+    "admission_class": "borrow",
+    "priority": "support"
+  },
+  "observation": {
+    "live_claims": {
+      "agent_revenue": 2,
+      "deterministic_revenue": 2
+    },
+    "active_reservations": {
+      "agent_revenue": 3
+    },
+    "total_available": {
+      "occupied": 7,
+      "limit": 8,
+      "passes": true
+    },
+    "class_available": {
+      "occupied": 2,
+      "limit": 2,
+      "passes": false
+    },
+    "borrow_floor": {
+      "occupied": 0,
+      "limit": 5,
+      "passes": true
+    }
+  },
+  "verdict": "current_class_limit_blocks_borrow",
+  "past_occurrence_cause_verified": false,
+  "capacity_increase_justified": false,
+  "limitations": [
+    "past_decision_occupancy_snapshot_missing",
+    "filesystem_claims_and_database_not_locked_as_single_snapshot",
+    "current_cfo_queue_empty"
+  ],
+  "production_mutations": 0
+}

@@ -25,7 +25,7 @@ capacity待ちと故障の混同、exit0と業務成果の混同、古いrelease
 
 ### MA-01 — capacity待ちの条件を1件確定する
 
-- [ ] `docs/evidence/main-agents/admission-capacity.json` を作る。
+- [ ] `docs/evidence/main-agents/admission-capacity.json` を同一occurrenceの判断証拠で補完する（現在のclass比較は取得済み、過去判定と変更要否は未完了）。
 - 入力: `life-manager-cfo-hourly:18dc1958f6515e98-18701`、loaded serviceのcapacity envの許可キーだけ、read-only admission DBの同時刻claim/reservation/queue。
 - 参照関数: `runtime/host/resource_admission.py::_limits/_capacity_available/_durable_capacity`。
 - 出力: total/class/revenue-floor/legacy fenceそれぞれの実値と、通らない比較式を1つ確定。DB読み取りはmode=ro、現行writerを呼ばない。

@@ -47,3 +47,5 @@ best: capacity待ちとaccount/readback不足だけなら既存運用の対象�
 自分が間違うとしたら最有力の筋: snapshotが保守的に古い結果を保持しており、公式readbackではすでに多くが解決済み。
 
 次のatomic cursorは計画のMA-01。この監査を「すべて検証済み」「即実装可能」と報告しない。
+
+追加観測: CFOはtotal7<8で空き、deterministic2<2が偽、borrow floor0<5が真。現在class上限がborrow CFOを制限する。過去occurrenceの判定時snapshotはなく、現queueは0。容量増加が必要とは判定しない。`admission-capacity.json`を参照。
