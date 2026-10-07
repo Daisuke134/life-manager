@@ -122,7 +122,27 @@ def _json(path: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _is_runtime_interpreter_symlink(root: Path, path: Path, resolved: Path) -> bool:
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        return False
+    if (not path.is_symlink() or len(parts) != 6
+            or parts[:2] != ("delivery", "runtime")
+            or parts[3:5] != (".venv", "bin")):
+        return False
+    alias = parts[5]
+    if not (alias in {"python", "python3", "𝜋thon"} or alias.startswith("python3.")):
+        return False
+    try:
+        return (resolved.is_file() and resolved.name.startswith("python")
+                and bool(resolved.stat().st_mode & 0o111))
+    except OSError:
+        return False
+
+
 def _refs(root: Path) -> list[dict[str, Any]]:
+    root = root.resolve()
     refs: list[dict[str, Any]] = []
     candidates = [root / "state.json", root / "events.jsonl"]
     for dirname in SOURCE_DIRS:
@@ -132,7 +152,17 @@ def _refs(root: Path) -> list[dict[str, Any]]:
     for path in sorted(set(candidates)):
         if not path.is_file():
             continue
-        size, sha = _bytes_sha(path)
+        try:
+            resolved = path.resolve(strict=True)
+        except (OSError, RuntimeError) as error:
+            raise ValueError("source reference resolution failed") from error
+        if not resolved.is_relative_to(root):
+            if _is_runtime_interpreter_symlink(root, path, resolved):
+                continue
+            raise ValueError("source reference escapes project")
+        if not resolved.is_file():
+            continue
+        size, sha = _bytes_sha(resolved)
         reference = {
             "path": str(path.relative_to(root)),
             "bytes": size,
