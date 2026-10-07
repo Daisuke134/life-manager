@@ -153,9 +153,9 @@ The Web-first landing and production data path are live. Continue the canonical 
 
 ### Web OAuth callback screenshot regression
 
-- [ ] Preserve existing Telegram-bound `lm_users` rows and route the verified Google subject to a stable, separate Web-only UID when the canonical UID is already Telegram-bound.
-- [ ] Return OAuth failures to `/lm?auth_error=connection` and show a retry message in the existing signed-out page; Safari must not download `callback.txt`.
-- [ ] Verify callback tenant selection and retry state with focused tests and the synthetic browser flow. Production proof must use a dedicated test identity; do not sign into or read a personal Google Calendar.
+- [x] Preserve existing non-Web `lm_users` rows and route the verified Google subject to a stable, separate Web-only UID whenever the canonical UID has a non-null `telegram_chat_id`. Callback and later session resolution both choose the same UID; the old row is read-only.
+- [x] Return OAuth failures to `/lm?auth_error=connection` and show a retry message in the existing signed-out page; Safari no longer receives a plain-text body to download as `callback.txt`.
+- [x] Verify callback tenant selection and retry state with focused tests and the synthetic browser flow: Web/auth/Calendar/billing suites pass 127/127; browser flow passes at 390x844 and 1440x900. Production proof still requires a dedicated test identity; do not sign into or read a personal Google Calendar.
 
 ### Task 3 corrective gate after fresh read-only review
 
