@@ -850,8 +850,7 @@
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/line-sticker",
-      "system_role": "shared"
+      "state_root": "~/.local/state/life-manager/line-sticker"
     },
     "line-sticker-factory-hourly": {
       "priority": "revenue",
@@ -872,7 +871,6 @@
       "browser_identity": "line-creators:dais",
       "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-factory-hourly",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 5400,
@@ -899,8 +897,7 @@
       "log_root": "~/.local/state/life-manager/line-creators-browser/logs",
       "provider_route": "deterministic",
       "resource_class": "browser",
-      "state_root": "~/.local/state/life-manager/line-creators-browser",
-      "system_role": "shared"
+      "state_root": "~/.local/state/life-manager/line-creators-browser"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {

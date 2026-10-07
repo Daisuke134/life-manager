@@ -1,10 +1,10 @@
-# Capafy Listing — Hook Lab (live Agent 8123079349; 2026-10-07 Sonnet 4.6 as in the 9/20–9/29 selling period, profitable prices, no test/)
+# Capafy Listing — Hook Lab (live Agent 8123079349; 2026-10-07 Claude Sonnet 5.5 (Dais 2026-10-07; $2/$10 per M on OpenRouter, cheaper than Sonnet 4.6), profitable prices, no test/)
 
-agentType: run_online · Primary Model: Claude Sonnet 4.6 · category: マーケティング · tags: video,hook,tiktok,reels,youtube-shorts
-LLM Config (CP2): OpenRouter, anthropic/claude-sonnet-4.6, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
+agentType: run_online · Primary Model: Claude Sonnet 5.5 · category: マーケティング · tags: video,hook,tiktok,reels,youtube-shorts
+LLM Config (CP2): OpenRouter, anthropic/claude-sonnet-5.5, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
 WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. v1.0.3 (DeepSeek) approved 2026-09-29. 2026-09-29 reprice: copy HookAce (868 sold, week $9.99 / month $19.99) per the Capafy market sweep; day $3.99 matches TikTok Scripts / SEO Content Writer day band. 2026-09-29: added a required yearly plan (policy: always a year row, no free trial) at $99.99, matching "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales) — this UPDATE is still in draft (status=0, not yet submitted), so the pricing table is safe to extend.
 
-## 2026-10-07 (Dais): Sonnet 4.6 as in the 9/20–9/29 selling period, priced above the old $1.99/$4.99/$9.99 so every plan is profitable at ~$0.15/request (= the live billing). Frozen in skills/capafy/FROZEN.json. — Dais 2026-10-06: do not reprice a selling Agent. Only change in this update: test/ no longer packaged (security scan 注意).
+## 2026-10-07 (Dais): Claude Sonnet 5.5, priced above the old $1.99/$4.99/$9.99 so every plan is profitable at ~$0.15/request (= the live billing). Frozen in skills/capafy/FROZEN.json. — Dais 2026-10-06: do not reprice a selling Agent. Only change in this update: test/ no longer packaged (security scan 注意).
 
 ## Pricing
 | cycle | price | cap | trial |
