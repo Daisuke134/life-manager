@@ -23,6 +23,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -207,9 +208,10 @@ def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
     if plan_draft is None:
         raise RuntimeError("missing plan-draft.json for character stage")
     series_of = plan_draft.get("series_of")
-    if series_of:
+    source_dir = state_root / series_of if isinstance(series_of, str) and re.fullmatch(r"set-\d{3}", series_of) else None
+    # A missing/unsafe/incomplete sequel source falls back to a fresh character instead of wedging this stage.
+    if source_dir and (source_dir / "char-ref.png").is_file() and (source_dir / "ref-padded.png").is_file():
         # Sequel of an existing character: reuse its reference art, zero image cost.
-        source_dir = state_root / series_of
         shutil.copy2(source_dir / "char-ref.png", set_dir / "char-ref.png")
         shutil.copy2(source_dir / "ref-padded.png", set_dir / "ref-padded.png")
         _atomic_write_json(set_dir / "char-ref.receipt.json", {"reused": True, "source_set": series_of})

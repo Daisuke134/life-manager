@@ -18,12 +18,12 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 
 ## Product Flow
 
-1. The visitor opens the hosted Railway /lm route and chooses Continue with Google.
+1. The visitor discovers Life Manager through social/search, opens the public aniccaai.com/lm landing page, and chooses Start on the web. The CTA hands off to the hosted Railway /lm app.
 2. Supabase Auth verifies the Google identity and returns to the server-owned callback. The server resumes or creates the corresponding existing lm_users row.
 3. The user explicitly grants Google Calendar access through the existing Composio-managed Calendar connection. The page shows connected only after the selected account is read back as ACTIVE and bound to the same uid.
 4. The user enters one usual starting location. Calendar, home location, and first sync are the only required setup steps. Phone, calls, Telegram, Gmail, live location, and staff are not required.
-5. The existing travel owner runs for this uid. It uses the shared route calculation and durable lm_travel_log claim; the page shows the next appointment, route duration, travel block, and computed departure time.
-6. Web users have calls disabled and no Telegram delivery. A Calendar Travel event uses the user's Google Calendar default reminder settings. The UI states this dependency and never claims that Life Manager has changed the user's device-notification settings.
+5. The existing travel owner runs for this uid. It uses the shared route calculation and durable lm_travel_log claim; the conversation sends a concise message with the next appointment, route duration, Travel block, and computed departure time.
+6. Web users have calls disabled and no Telegram delivery. The signed-in product opens one conversation thread, not a dashboard. A Calendar Travel event uses the user's Google Calendar default reminder settings; the UI states this dependency and never claims that Life Manager changed the user's device-notification settings.
 
 ## Shared Implementation and Tenant State
 
@@ -37,7 +37,7 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 - A Web-only tenant (Web UUID uid plus `telegram_chat_id IS NULL`) is Travel-only. The legacy `tick`/`organsUserOnce` path skips it before upcoming/history Calendar reads or other non-Travel organs; `travelTick` is its only scheduled Calendar consumer. Existing Telegram tenants keep the legacy organ path.
 - Before scheduled Calendar event access for a Web uid, re-read the current user row, require `telegram_chat_id IS NULL`, and verify that the exact selected account is still ACTIVE. Preserve the existing Telegram scheduler path.
 - Carry that verified account ID through the Web travel run. Each Calendar transport call must reject if the current NULL-Telegram row no longer selects that exact ID; it must never silently switch to another account mid-run.
-- After the Web travel owner confirms the exact account ACTIVE, it re-reads persisted automation and Calendar operation state before entering `fillTravel`. The Calendar transport rechecks that state immediately before Web create/patch dispatch; its control-state reader resolves Supabase URL/key the same way as the bound-account lookup on the normal `getCalendar` path. Event reads remain available to the dashboard while automation is paused.
+- After the Web travel owner confirms the exact account ACTIVE, it re-reads persisted automation and Calendar operation state before entering `fillTravel`. The Calendar transport rechecks that state immediately before Web create/patch dispatch; its control-state reader resolves Supabase URL/key the same way as the bound-account lookup on the normal `getCalendar` path. Read-only chat status remains available while automation is paused.
 
 ## Travel Calendar Effect
 
@@ -45,16 +45,20 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 - The Travel helper starts at the calculated departure instant and uses the user's default Calendar reminders. Google Calendar's API inherits the calendar's default reminders when an event does not override them. If readback shows that no reminder applies, the UI does not claim an alert is configured.
 - Every created Travel event explicitly sets send_updates=none, exclude_organizer=true, and create_meeting_room=false. The event has no attendees, no Meet link, and no invitation emails.
 - Repeated onboarding or scheduler evaluation relies on the existing unique (uid,event_key,leg) claim. Release it only when no provider write was dispatched or the Composio endpoint explicitly rejects the HTTP request with 4xx; after dispatch, a network/5xx/unreadable response or a 2xx `successful:false` result is effect-unknown. Retain that claim and reconcile through strict Calendar readback. Resolve it only when exactly one event matches the expected summary exactly, `startMs`/`endMs` exactly, and destination after whitespace removal plus lowercasing; if the readback is missing, failed, or ambiguous, keep the claim fenced and do not replay. A readback proves the helper exists but is not a create receipt, so do not report `travel_added` without a confirmed create response.
-- Missing event location or missing home location leaves that event unchanged and explains the missing input in the Web view. Web-only users receive no Telegram location question.
+- Missing event location or missing home location leaves that event unchanged and explains the missing input in the Web conversation. Web-only users receive no Telegram location question.
 
-## Web Interface
+## Web Chat Interface
 
-- The route is server-rendered HTML/CSS using the existing raw Node service and the visual direction of the approved UX mock: departure time first, travel block and appointment beneath it, responsive at phone width.
-- Display appointment and departure in the appointment's explicit IANA timezone; when it is absent, use the browser's local timezone. The helper's UTC storage timezone must not become the display timezone.
-- Logged-out view has one Google sign-in action. Onboarding exposes Calendar connection and one home-location input. The signed-in view shows today's next departure, the associated appointment, travel duration, Calendar connection status, the count of locationless non-Travel events in the upcoming seven-day Calendar window, and pause/resume/disconnect actions.
-- When the locationless count is nonzero, show an existing same-origin Today refresh action with the count notice, including when the next appointment itself already has a location.
+- The public marketing page lives at aniccaai.com/lm; its main CTA hands off to the existing Railway `/lm` app. Keep these two surfaces visually and technically distinct.
+- Telegram already has a conversation UI. The current Railway app renders `dashboardMarkup` after sign-in; the Web conversation described here is the target and is not live yet. WB-10 includes replacing that signed-in dashboard before promoting the Web route.
+- The app is server-rendered HTML/CSS using the existing raw Node service. The logged-out screen has one Google sign-in action. Calendar permission and one home/base address are the only setup inputs; there is no separate Life Manager password form.
+- After setup, show a single mobile-first conversation thread, not a dashboard or calendar board. The agent's first message states the next departure, event, route duration, and whether the Travel block was confirmed. Keep a single message composer for follow-up questions.
+- Display appointment and departure in the appointment's explicit IANA timezone; when absent, use browser-local time. The helper's UTC storage timezone must not become the display timezone.
+- If event details do not establish whether a meeting is online or in-person, the agent uses the available Calendar context and asks the user a short question in the thread. It must not request Gmail access to resolve ordinary Travel questions. Do not hardcode this judgment with a keyword/regex list.
+- If an event's online/in-person status is unclear, the agent asks in the thread. If the user confirms an in-person event but Calendar has no location, ask them to add it in Google Calendar and refresh; do not show a confirmed departure or create a Travel block until the location is read back. A paused or uncertain Calendar state is reported honestly in the chat. Pause/resume/disconnect live in a small conversation settings menu; do not add a dashboard.
+- The Calendar Travel event uses the user's default reminder. The conversation explains that the Calendar app delivers the actual reminder; the web chat itself is not represented as a push notification unless a push channel is explicitly added and read back.
 - Pause changes only Web daily automation on an existing preference row; before onboarding has created the row, pause/disconnect/calendar-enable may seed safe defaults with calls, notifications, and automation disabled. Resume requires a saved home and the exact selected Calendar account to be ACTIVE. Disconnect atomically pauses automation and sets a Web-only disconnect-pending fence before provider I/O. A durable Calendar-enable claim serializes re-enable against disconnect: disconnect cannot begin while enable is claimed, and start/callback/binding writes are refused while disconnect is pending. Each enable claim stores a server-generated UUID plus database claim time; only the matching UUID can finish or release it. A known no-effect failure before the provider enable PATCH clears only its matching claim and does not alter the saved daily-automation preference. While pending, transport writes are fenced; after a no-effect release the exact DISABLED account still fails the scheduled owner's ACTIVE gate. A post-dispatch timeout, network/5xx failure, or unreadable result keeps the claim. Composio enable GET/PATCH/readback calls time out after 20 seconds; after a 120-second claim lease, user-start may recover only after exact selected-account status readback: exact ACTIVE finishes the old claim, exact DISABLED atomically rotates the claim UUID before one retry, and exact MISSING/EXPIRED clears the stale claim before the existing user-initiated reauthorization path. Unknown/network/ownership/ID-mismatch states remain fenced and never trigger provider mutation. Resume and setup are rejected while either Calendar operation is pending; immediate setup travel runs only when persisted automation is enabled and both pending flags are false. Every Calendar enable/disable helper verifies the returned account ID equals the selected ID before PATCH. Web enable PATCH is allowed only after the same exact account returns explicit `INACTIVE`/`DISABLED` state with disabled flags; expired, missing, or contradictory states cause no Web PATCH to the stale account. Clear the exact local binding and disconnect fence only after readback proves the selected account ID, owner, Google Calendar toolkit, and explicit disabled state. If Web disable readback is unknown, do not PATCH `enabled:true` to restore the account; retain the pause, binding, and fence for retry. Preserve existing Telegram status and rollback behavior.
-- Do not add a chat interface, app-store client, employee/staff feature, background GPS, generic calendar replacement, or factory dashboard to the first version.
+- Keep the conversation thread as the only Life Manager screen after onboarding; do not add a dashboard. Do not add an app-store client, employee/staff feature, background GPS, generic calendar replacement, or factory UI to the first version.
 - Keep the existing aniccaai.com marketing surface separate from the Railway product route. Its current source is the active `Daisuke134/anicca-products` repo at `apps/landing`; its Netlify config uses that directory as the build base and `Netlify Deploy (Landing)` watches its `apps/landing/**` path. The `apps/landing` subset in this Life Manager repo is used for backend contract tests and has diverged from the live source; do not edit it as a substitute for the public route. After Railway `/lm` sign-in and price/cost are verified, update the anicca-products source and read back its successful Netlify deploy and public route handoff to the exact Railway `/lm` origin.
 
 ### UI/UX仕様の明確化（2026-10-07）
@@ -71,9 +75,10 @@ The new Web identity is a verified Supabase Auth Google user. The Railway server
 | 2. Web sign-in | 実装済みの画面を基準に、見出し「予定に合わせた出発時刻を確認」、説明「Google カレンダーと接続して、次の予定に間に合う出発時刻を確認できます。」、ボタン「Google で続ける」。 | Googleアカウントで本人確認する。これはCalendar権限の付与とは別の手順で、Telegramアプリは必要ない。 |
 | 3. Calendar接続 | 状態カード「Google カレンダー / 未接続」、見出し「Google カレンダーを接続」、目的を「予定の場所と時間を読み、移動時間を予定として追加するため」と説明、ボタン「Google カレンダーを接続」。 | Google Calendar権限を明示的に許可。選んだ同じaccountのACTIVE readback後に「接続済み」と表示する。失敗時は「接続できません。もう一度お試しください」と再試行を表示。 |
 | 4. 基点住所 | 進捗「設定 2 / 2」、見出し「いつもの出発場所を入力」、一つの住所欄「自宅または基点の住所」、短い説明「移動時間の計算に使います」、ボタン「保存して予定を確認」。 | 住所を保存し初回syncを開始する。電話、現在地、Gmail、staff、チーム情報は聞かない。 |
-| 5. 今日のDashboard | 上部に大きな緑の「次の出発」時刻。例: **14:15**、その下に「移動時間の予定: 40分」。次カードに「15:00 顧客との打ち合わせ」と場所。Calendar status、pause/resume、disconnectを下部に置く。 | 利用者は出発時刻とCalendar上のTravel blockを見て行動する。Travel blockには既定のGoogle Calendar通知設定が適用され、画面に「通知はGoogle カレンダーのデフォルトリマインダー設定に従います」と表示する。 |
-| 6. 場所なし・同期待ち | 場所なしなら「この予定には場所がありません。Google カレンダーで場所を追加してください。」と「今日を更新」。sync中なら「Travelの確認中」と「今日を更新」。 | 必要な入力がない予定は変更せず、確認できない出発時刻を確定表示しない。 |
-| 7. Plan/checkout | セットアップ後、未課金accountには既存UIのボタン「プランを確認」を表示し、現在のStripe Payment Linkへ進む。価格は**$29/月**。現行UIはtrial終了日・初回charge日を見せていない。 | Stripe checkoutとapp側3日trialのcharge時点が一致するまで、free trialや初回課金日を広告・表示しない。WB-11で一致させ、利用者が支払い前に条件を読めるようにする。 |
+| 5. 会話画面 | Dashboardや予定一覧は作らず、メッセージスレッドだけを表示する。例: 「次の予定は15:00です。移動40分と5分の余裕を見て、14:15に出発します。Travel blockをCalendarに追加しました。」 | 利用者はメッセージを読み、必要なら同じスレッドで質問する。出発時刻の通知そのものはTravel blockに設定されたGoogle Calendar既定reminderが担う。 |
+| 6. 不明な予定 | 次の予定がオンラインか対面かCalendar情報だけで分からない時は、会話で「オンライン」「対面」のQuick Replyを出す。対面なのに場所がCalendarにない場合は、Google Calendarへ場所を追加して「更新」を押すよう案内する。 | 「オンライン」なら移動なしと伝え、Travel blockを作らない。「対面」でも場所がCalendarから確定するまでは出発時刻を確定表示せず、Travel blockを作らない。Gmailの読み取り権限は求めない。 |
+| 7. 状態と設定 | 会話内の小さな「設定」メニューにCalendar接続状態、自動Travelの一時停止/再開、接続解除を置く。 | sync中や権限不明はメッセージで状態を説明し、未確認の出発時刻を確定したように表示しない。 |
+| 8. Plan/checkout | セットアップ後、未課金accountには既存UIのボタン「プランを確認」を表示し、現在のStripe Payment Linkへ進む。価格は**$29/月**。現行UIはtrial終了日・初回charge日を見せていない。 | Stripe checkoutとapp側3日trialのcharge時点が一致するまで、free trialや初回課金日を広告・表示しない。WB-11で一致させ、利用者が支払い前に条件を読めるようにする。 |
 
 初回利用者の画面順は以下。Google sign-inとCalendar permissionは別段階であり、その間に機能一覧やstaff登録を挟まない。
 
@@ -84,16 +89,30 @@ flowchart TD
     C --> D[Google Calendar接続<br/>権限許可 + ACTIVE確認]
     D --> E[基点住所を1つ保存]
     E --> F[初回sync]
-    F --> G{次の対面予定に場所がある?}
-    G -- ない --> H[場所を追加する案内<br/>未確認の予定は変更しない]
-    G -- ある --> I[ルート時間 + 既存5分buffer]
+    F --> G{Calendar情報で<br/>オンライン/対面と場所が分かる?}
+    G -- はい・対面 --> I[ルート時間 + 既存5分buffer]
+    G -- オンライン --> K[会話スレッド<br/>移動なし・状態・出発要約]
+    G -- 不明 --> H[会話で確認<br/>オンラインか対面かを質問]
+    H -- オンライン --> K
+    H -- 対面・場所あり --> I
+    H -- 対面・場所なし --> H2[Calendarに場所を追加して更新する案内<br/>未確認中は出発時刻を確定表示しない]
+    H2 --> F
     I --> J[CalendarへTravel blockを作成<br/>出発時刻に合わせる]
-    J --> K[Dashboard<br/>出発時刻 → 予定 → 移動時間]
-    K --> L[一時停止 / 再開 / Calendar切断]
-    K --> M[未課金なら既存$29/月のStripe checkout]
+    J --> K
+    J --> L[Calendar既定reminderで出発通知]
+    K --> M[設定メニュー<br/>一時停止 / 再開 / 切断]
+    K --> N[未課金なら既存$29/月のStripe checkout]
 ```
 
-**画面に置かないもの:** staff招待、チーム管理、電話番号、Telegram開始ボタン、Gmail、現在地追跡、一般的なAIチャット、Factory dashboard。既存$29/月は維持し、競合の$5価格に合わせるための値下げや新しい$36年額priceは行わない。
+**Dashboardを作らない。** Google Calendarが予定とTravel blockの一覧を表示するため、Life Manager側は会話スレッドに出発要約と必要な質問だけを出す。画面に置かないものはstaff招待、チーム管理、電話番号、Telegram開始ボタン、Gmail inbox、現在地追跡、汎用AIチャット、Factory dashboard。既存$29/月は維持し、競合の$5価格に合わせた値下げや$36年額priceの新設はしない。
+
+### ChannelとCloudの段階拡張
+
+- **新規利用者の標準入口:** Web onboardingとWeb会話スレッド。Life Manager用の別パスワードは作らないが、Googleによる本人確認とCalendar権限許可は必要。現在の実装はGoogle sign-in後にCalendar consentを別に求める。
+- **既存利用者:** Telegram botは既存アカウントのために維持し、新規Web利用者にTelegram installを要求しない。同じCloud tenant、Calendar、Travel ownerを使い、チャンネルごとにTravelロジックを複製しない。
+- **iMessage:** 個人のMessagesアプリをbot化する方式は選ばない。Apple Messages for BusinessはApple-approved MSP、business登録、内部test、Experience Review、営業時間内のlive agentを求める。自動botのみの運用はできず、未購読のmarketing/outboundも送れないため、初版の必須channelにしない。iPhone利用者の実需が確認でき、有人対応条件を満たせる段階でchannel adapterとして再評価する。[Apple onboarding](https://register.apple.com/resources/messages/messaging-documentation/) と [Apple channel policies](https://register.apple.com/resources/messages/messaging-documentation/policies)を参照。
+- **プライバシー:** 旅行の判断にはGoogle Calendarだけを使い、Gmail inbox scopeを求めない。Emailを将来の通知先に選ぶ場合も、送信先アドレスだけで始め、mailbox readは別の明示opt-inにする。
+- **製品範囲:** local Life Managerのfull loopsはlocal productとして維持する。CloudはTravelから開始し、支払いや継続利用の実測に応じてschedule、オンライン/対面確認、他の個人向け機能を一つずつ追加する。Money Printerや社内revenue loopを一括でconsumer Cloudへ移さない。
 
 ## Price, Marketing, and Profit
 
@@ -102,7 +121,8 @@ flowchart TD
 - **Life Manager全体の利用料推定（2026-09-07 01:21 UTC〜2026-10-07 01:21 UTC）:** append-onlyの`lm_api_cost`台帳はprovider利用料推定$68.786544、その他の推定$0.306765、30日合計$69.093309（約$2.30/日）を記録する。Life Managerの6 tenant分であり、Web customer分ではない。provider利用48,524件のうち3件は推定額なし。この集計は請求書、Web別原価、顧客あたり平均ではない。Composio、hosting、Stripe fee/refund/settlement、marketing費は含まれない。
 - **価格決定:** 公開offerと現行Stripe checkoutの**$29/月を維持する**。以前の$5/月・$36/年案は競合価格から出した私の余計な提案として撤回する。既存catalogにある$20/月priceは現行公開page/Payment Linkで使わず、Stripe catalogの価格も増減しない。競合価格はpositioning比較にだけ使い、値下げ根拠にしない。
 - $29/月で$10,000 gross MRRを超えるには**345人のactive paid subscribers**（$10,005 gross MRR）が必要。これはfee/cost控除前であり、net profitの達成数ではない。1%/3%/5%のvisit-to-paid conversionは計画用の仮定で、それぞれ34,500/11,500/6,900 qualified landing visitsが必要になる。実際のconversionは未計測なので、source attributionとpaid invoiceから実績を計測して仮定を更新する。これらの仮定はforecast扱いしない。net contribution $10,000に必要な人数はWeb別変動費、refund、payment fee、hosting、CACを測るまで不明。
-- **初期marketing:** 「イベント通知では遅い。移動時間をカレンダーに確保し、いつ出るか先に分かる」を訴求する。初期audienceは対面予定が定期的にあるconsultant/freelancer/field salesの仮説。週2 Instagram demo Reel、週3 founder-led X、月2 high-intent SEOで開始し、source→signup→Calendar ACTIVE→基点保存→初回Travel block→checkout→paid invoiceを計測する。現在のmarketing spendは未確認。paid CACを測るまでは有料広告を出さない。
+- **Marketing状態（2026-10-07 readback）:** `/en`はLife Manager全体のumbrellaページ、`/lm`はTravel専用ページだが、後者のCTAはまだTelegramを指す。`/socials`は現在`loading…`を返す。`/dashboard.json`は2026-06-05更新、social snapshotは2026-06-04で古く、表示された$548支出はClaude/ChatGPT/living/Apify/Postiz等を含む混合合計でLife Manager marketing費ではない。`@anicca.ai`のpublic profile fetchは「Profile isn't available」を返したが、これはbanの証明ではない。現在のInstagram statusとLife Manager marketing spendはunknown。公式accountのstatusを確かめるまでは新規アカウントを作らない。
+- **初期marketing:** 「イベント通知では遅い。移動時間をカレンダーに確保し、いつ出るか先に分かる」を訴求する。初期audienceは対面予定が定期的にあるconsultant/freelancer/field salesの仮説。週2本の9:16 demo videoをInstagram Reels/TikTokへ同じassetでcross-postし、週3 founder-led X、月2 high-intent SEOで始める。例は合成Calendar dataにして実利用者の予定名や住所を公開しない。source→signup→Calendar ACTIVE→基点保存→初回Travel block→checkout→paid invoiceを計測する。現在のmarketing spendとpaid CACは未確認。browser signup・checkout・source attributionが正常にreadbackされ、organic funnelの基準値が出た後、明示されたspend cap内で小さなpaid acquisition実験を行いCACを測る。CAC・継続率・settled contributionが成立するまで広告を拡大しない。
 - Reuse existing product marketing copy and the shared marketing engine's content-manifest idea. Do not activate its private Instagram automation route; actual account operation must use the registered CloakBrowser direct-CDP route.
 - gross MRRと月次contributionを分けて報告する。contributionの基準はpaid invoice/chargeの控除前金額とし、refundとStripe feeを一度だけ控除する。payout/settlementはnet receiptとの照合に使い、そこからrefund/feeを再控除しない。その後、同じ期間のroute/provider・Composio・hosting・attributed marketing spendを控除する。repo内のfounder申告historical revenueをこの商品のprofit証拠に使わない。
 
@@ -124,7 +144,7 @@ Qualitative pain evidence is consistent but anecdotal. In a [2024 r/productivity
 | Product comparisons | Commercial | best Google Calendar travel time app; travel time apps for Google Calendar comparison; AddTravelTime alternative; DOFOTT alternative; TravelSync alternative; AddTravelTime vs DOFOTT; Google Calendar vs Apple Calendar travel time; Google Maps calendar travel-time automation; best calendar app with travel time; calendar departure alert vs travel block | 3, after price/cost proof |
 | In-person professional use | Commercial / informational | travel time calendar for consultants; calendar travel blocks for field sales; automatic drive time for client visits; travel time planning app for contractors; appointment calendar for service businesses; Google Calendar travel time for freelancers; travel blocks for on-site meetings; route planner that syncs with calendar; prevent overlapping client appointments and travel; calendar travel time for personal appointments | 3, validate ICP |
 
-**First content queue.** Keep the existing month-one cadence: two Instagram demo Reels/week, three founder-led X posts/week, and two high-intent SEO articles/month. Start with two article outlines: (1) “How to add travel time to Google Calendar” — explain the manual Maps-to-Calendar path as a research hypothesis, verify the current Google UI before publication, then show how an automatic travel block changes the schedule; (2) “Why a calendar reminder can be on time and still leave you late” — explain event time versus departure time without relying on unsourced statistics. Hold a comparison article until the public offer and same-period cost are known.
+**First content queue.** Use two 9:16 synthetic-calendar demos/week and cross-post the same edit to Instagram Reels and TikTok; add three founder-led X posts/week and two high-intent SEO articles/month. Start with two article outlines: (1) “How to add travel time to Google Calendar” — explain the manual Maps-to-Calendar path as a research hypothesis, verify the current Google UI before publication, then show how an automatic travel block changes the schedule; (2) “Why a calendar reminder can be on time and still leave you late” — explain event time versus departure time without relying on unsourced statistics. Hold a comparison article until the public offer and same-period cost are known.
 
 Draft X hooks, for internal review only:
 
@@ -146,7 +166,7 @@ Do not implement app-generation automation yet. Start a separate Web App Factory
 4. Home location is validated and saved. No phone, Telegram, Gmail, or call opt-in is required; Web user calls are off.
 5. First setup runs the shared travel owner and creates at most one Travel helper for each eligible event. Departure time matches the shared calculation and one 5-minute buffer.
 6. New Travel events send no attendee emails, add no organizer attendee, and request no Meet link. Calendar's default reminder behavior is read back and described truthfully.
-7. The dashboard renders the departure first, then its appointment and Travel helper at mobile and desktop widths, using one correct display timezone; missing location and Calendar authorization are actionable, and locationless upcoming events are counted.
+7. After onboarding, a responsive conversation shows the next departure, its appointment/location, travel duration, and whether the Travel block was confirmed. No dashboard or event board is shown. Missing location, Calendar permission, and unclear online/in-person status are handled as short contextual messages; times use the appointment's correct display timezone.
 8. Pause/resume/disconnect controls use the verified Web identity and CSRF fence. Resume requires saved home plus exact ACTIVE Calendar binding; disconnect pauses, changes only the selected provider account, and clears its binding only after exact owner/toolkit/account-ID disabled readback. A UUID-owned, leased enable claim prevents reconnect/disconnect overlap; only exact ACTIVE readback or known no-effect may clear its matching claim, stale recovery requires exact provider status, and uncertain dispatch is not replayed before lease recovery. Enable PATCH requires explicit disabled status on the exact selected account; uncertain Web disconnect readback never triggers rollback enable; setup, callback binding, and immediate Travel dispatch honor saved pause and pending state.
 9. Repeat onboarding, OAuth callback, and scheduler replay produce no duplicate Calendar helper. Unknown create outcomes retain the claim and require strict readback before any resolution. Existing Telegram auth, call consent, and existing-user behavior pass their current contracts.
 10. Stripe subscription changes are accepted only through the existing webhook. The public price and terms match the official Stripe catalog before launch.
