@@ -174,6 +174,10 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
     """Series-planning context for the planner: one row per prior set, naming its character,
     theme and latest official LINE Creators Market status so the model can judge a sequel vs a
     new flagship (judgment stays in the prompt, not here)."""
+    sales_by_product_id = {
+        row["product_id"]: row["sales_jpy"]
+        for row in (_read_json(state_root / "sales.json") or {}).get("products", [])
+    }
     facts = []
     for set_dir in list_set_dirs(state_root):
         draft = _read_json(set_dir / "plan-draft.json")
@@ -181,6 +185,7 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
         item = _read_json(set_dir / "creators-item.json")
         if draft is None and listing is None:
             continue
+        product_id = (item or {}).get("product_id")
         facts.append({
             "set": set_dir.name,
             "character_id": (draft or {}).get("character_id"),
@@ -188,6 +193,9 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
             "theme": (draft or {}).get("theme"),
             "title": (listing or {}).get("title"),
             "state_observed": (item or {}).get("state_observed"),
+            # Official cumulative sales (JPY) from sales_readback.py's daily readback, keyed by
+            # product_id. None means unknown (not yet observed), never a silent 0.
+            "sales_jpy": sales_by_product_id.get(product_id) if product_id else None,
         })
     return facts
 
