@@ -132,6 +132,10 @@ async function stripeFeeRows(stripe, usersByCustomer, startSec) {
       payoutsComplete = false;
       continue;
     }
+    if (payout.automatic !== true || payout.reconciliation_status !== "completed") {
+      payoutsComplete = false;
+      continue;
+    }
     let payoutTransactions;
     try {
       payoutTransactions = await stripePages(stripe.balanceTransactions.list.bind(stripe.balanceTransactions), {
