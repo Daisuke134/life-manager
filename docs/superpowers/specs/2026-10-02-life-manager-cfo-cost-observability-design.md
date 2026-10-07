@@ -183,6 +183,14 @@ Telephony, paid model calls, and user-requested external actions remain separate
 
 This section defines phase scope and acceptance intent, not the live TODO order or completion status. The unified SSOT is the sole source for the active cursor and remaining work.
 
+### CFO-first execution priority (user-requested; canonical SSOT sync pending)
+
+Prioritize the financial close before the free-geocoding optimization: **A5 → A6 → A7 (bounded, non-blocking) → A8 → A9 → A10 → A4.1 → A4.2 → A4.3 → A3.4 conditional**. The reason is to establish actual Life Manager revenue and total cost before optimizing one provider lane; the September Cost Table readback shows Places is a larger Google service cost than Geocoding. A4's behavior and accepted user experience do not change; its implementation is deferred until the CFO block is delivered. A3.4 remains conditional on A6 evidence of material settled Geocoding cost or duplicate calls after process restart.
+
+Moneytree is a bounded best-effort input, not a gate for business CFO coverage: use an already available connection for a read-only balance/transaction/freshness check. If it is unavailable, stale, or incomplete after that attempt, keep the personal-finance fields explicitly partial/unknown and continue A8/A9/A10. Do not spend the CFO lane on repeated login, reconnect, or recovery attempts. Do not convert missing data into zero or claim the personal CFO view is complete.
+
+This records the requested priority, **not** a new active cursor. At the latest main readback, the unified SSOT still says cursor `A4.1` and retains the previous order. Its worktree is under an active owner lease, so only that owner can record the canonical TODO/cursor change after safely reconciling the lease. Do not treat this design note as proof that the SSOT order has already changed.
+
 ### A0 — Spec and ownership
 
 - approve this design;
@@ -230,10 +238,10 @@ Implementation boundary for A3:
 
 ### A5 — Budget governor
 
-- implement pure daily/monthly budget states;
-- gate nonessential provider work;
+- expose daily/monthly usage, estimate, actual, and unknown states with warnings only;
+- do not add a global hard cap or silently stop core provider work when a threshold is reached;
 - preserve essential cached reads;
-- emit budget transition observations and Telegram warnings.
+- emit budget transition observations and Life Manager-owned warnings.
 
 ### A6 — Official Google billing reconciliation
 
@@ -244,16 +252,16 @@ Implementation boundary for A3:
 
 ### A7 — Personal CFO rail
 
-- restore Moneytree MUFG authorization;
-- read accounts, transactions, and refresh timestamps read-only;
+- use an already available Moneytree connection for a bounded, read-only MUFG balance/transaction/freshness check;
+- if access is unavailable or the data is stale/incomplete, record the exact coverage gap and continue business CFO work without repeated auth/reconnect attempts;
 - normalize JPY/original currency/FX provenance;
 - reject stale balances as current;
-- read back the same balance and transaction cursor independently.
+- when source data is available, read back the balance and transaction cursor independently.
 
 ### A8 — Revenue and expense coverage
 
-- connect every settled revenue rail;
-- connect every personal bank/card rail;
+- connect every available settled business revenue rail and business expense source;
+- connect available personal bank/card rails, while keeping inaccessible or stale sources explicitly partial/unknown rather than blocking business coverage;
 - detect subscriptions and merchant categories;
 - reconcile internal transfers;
 - compute 1/3/12-month totals.
@@ -263,15 +271,17 @@ Implementation boundary for A3:
 - build the deterministic daily/weekly snapshot;
 - send Telegram report with freshness and receipts;
 - render the same snapshot in the panel;
-- test that Telegram and panel totals are identical.
+- test that Life Manager-owned report and panel totals are identical;
+- show business revenue/expense/net and MRR separately from personal balance, with source freshness and partial/unknown coverage visible.
 
 ### A10 — Natural-run acceptance
 
 - run one local daily close;
 - run one cloud canary;
 - observe seven consecutive days;
-- verify official Moneytree, Google billing, revenue, and expense readbacks;
-- close only when all required numbers are either fresh and sourced or explicitly partial with an owner-visible blocker.
+- verify available official Google billing, revenue, and expense readbacks;
+- verify Moneytree readback when available; if unavailable, pass only with an explicit personal-finance partial/unknown state while business CFO coverage remains sourced;
+- close only when missing source coverage is visible and never represented as zero.
 
 ## 10. Status ownership
 
