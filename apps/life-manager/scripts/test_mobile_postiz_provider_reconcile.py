@@ -58,6 +58,37 @@ def test_product_scoped_flat_distribution_row_matches_without_product_field(tmp_
     assert local[1] == "post-123"
 
 
+def test_pending_owner_expands_tilde_identity_directory(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    identity_dir = home / ".local/state/life-manager/ebook/effect-identities"
+    identity_dir.mkdir(parents=True)
+    occurrence_id = "ebook-ja-instagram-daily:run-1"
+    identity_path = identity_dir / "run-1.jsonl"
+    identity_path.write_text(json.dumps({"occurrence_id": occurrence_id}) + "\n", encoding="utf-8")
+    identity_path.chmod(0o600)
+    seen = []
+    monkeypatch.setattr(
+        reconcile,
+        "_valid_identity",
+        lambda _identity, owner, occurrence: (seen.append((owner, occurrence)) or False),
+    )
+
+    result = reconcile.reconcile_pending_owner(
+        owner_id="ebook-ja-instagram-daily",
+        identity_dir=Path("~/.local/state/life-manager/ebook/effect-identities"),
+        data_dir=tmp_path / "data",
+        tenant_id="dais-local",
+        admission_db=tmp_path / "admission.sqlite3",
+        api_key="unused",
+        apply=False,
+    )
+
+    assert result["status"] == "no_match"
+    assert seen == [("ebook-ja-instagram-daily", occurrence_id)]
+
+
 def test_official_postiz_readback_recovers_post_missing_from_local_distribution_ledger(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     video_bytes = b"reconciled English/Japanese video bytes"
@@ -127,6 +158,52 @@ def test_official_postiz_readback_recovers_post_missing_from_local_distribution_
     assert proof["proof_kind"] == "postiz_official_readback"
     assert proof["provider_readback"]["account_id"] == "@obou.anicca"
     assert proof["provider_readback"]["remote_effect_locator"]["caption_sha256"] == caption_sha
+
+
+def test_verify_only_cli_returns_exact_postiz_proof_without_resolving(tmp_path, monkeypatch, capsys):
+    owner_id = "ebook-ja-instagram-daily"
+    occurrence_id = f"{owner_id}:run-1"
+    integration_ref = "integration://postiz/instagram/cmooplxmu04tpmd0y4h3cpk33"
+    identity = {"loop_id": owner_id, "occurrence_id": occurrence_id}
+    proof = {
+        "owner_id": owner_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_kind": "postiz_official_readback",
+        "provider_receipt_id": "post-123",
+        "identity": identity,
+        "provider_readback": {
+            "provider": "postiz",
+            "state": "PUBLISHED",
+            "post_id": "post-123",
+            "public_url": "https://www.instagram.com/reel/abc123",
+            "account_id": "@obou.anicca",
+            "integration_ref": integration_ref,
+        },
+    }
+    monkeypatch.setattr(reconcile, "read_identity", lambda *_args: identity)
+    monkeypatch.setattr(reconcile, "build_official_proof", lambda *_args: proof)
+    monkeypatch.setattr(
+        reconcile,
+        "resolve_unknown_occurrence",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("verify-only must not resolve")),
+    )
+    monkeypatch.setenv("POSTIZ_API_KEY", "test-only")
+    try:
+        code = reconcile.main([
+            "--verify-only",
+            "--identity", str(tmp_path / "identity.jsonl"),
+            "--ledger", str(tmp_path / "distribution.jsonl"),
+            "--owner-id", owner_id,
+            "--occurrence-id", occurrence_id,
+        ])
+    except SystemExit as exc:
+        code = exc.code
+
+    assert code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "ready"
+    assert output["provider_readback"]["integration_ref"] == integration_ref
 
 
 def test_real_postiz_readback_carries_local_caption_hash_into_recovery_row(tmp_path, monkeypatch):

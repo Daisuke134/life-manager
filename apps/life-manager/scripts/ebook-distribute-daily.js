@@ -8,6 +8,7 @@ const { spawnSync } = require("node:child_process");
 
 const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
+const { writeMarketingEffectIdentity } = require("../lib/marketing-effect-identity.js");
 const {
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,
@@ -276,18 +277,98 @@ async function executeJob(store, job, workerId, handler) {
   return { ...receipt, created: queued.created };
 }
 
-function normalizePostizInstagramReceiptRoute(receipt, platform, integrationId) {
-  if (
-    platform === "instagram"
-    && typeof integrationId === "string"
-    && integrationId.trim()
-    && receipt?.platform === "instagram"
+function normalizePostizInstagramReceiptRoute(receipt, context, proof) {
+  const identity = proof?.identity;
+  const readback = proof?.provider_readback;
+  const localContent = readback?.local_content;
+  const integrationRef = context?.platform === "instagram" && context.integrationId
+    ? `integration://postiz/instagram/${context.integrationId}`
+    : "";
+  const exactProof = Boolean(
+    receipt
+    && context?.platform === "instagram"
+    && receipt.platform === "instagram"
     && receipt.provider_route === "instagram_file_script"
-    && receipt.provider_reconciled === true
-  ) {
-    return { ...receipt, provider_route: "postiz" };
+    && integrationRef
+    && proof?.status === "ready"
+    && proof.verified === true
+    && proof.proof_kind === "postiz_official_readback"
+    && proof.owner_id === context.ownerId
+    && proof.occurrence_id === context.occurrenceId
+    && proof.provider_receipt_id === receipt.provider_post_id
+    && identity?.loop_id === context.ownerId
+    && identity.occurrence_id === context.occurrenceId
+    && identity.job_id === context.jobId
+    && identity.effect_key === context.effectKey
+    && identity.product_id === receipt.product_id
+    && identity.format_id === receipt.format_id
+    && identity.form === receipt.form
+    && identity.locale === receipt.locale
+    && identity.platform === receipt.platform
+    && identity.creative_id === receipt.creative_id
+    && identity.slot === receipt.slot
+    && identity.integration_ref === integrationRef
+    && identity.account_id === context.accountId
+    && identity.video_sha256 === receipt.video_sha256
+    && identity.caption_sha256 === receipt.caption_sha256
+    && readback?.provider === "postiz"
+    && readback.state === "PUBLISHED"
+    && readback.post_id === receipt.provider_post_id
+    && readback.public_url === receipt.public_url
+    && readback.account_id === context.accountId
+    && readback.integration_ref === integrationRef
+    && localContent?.video_sha256 === receipt.video_sha256
+    && localContent.caption_sha256 === receipt.caption_sha256
+  );
+  return exactProof
+    ? { ...receipt, provider_route: "postiz", provider_reconciled: true }
+    : receipt;
+}
+
+function verifyLegacyPostizReceipt({
+  root,
+  python,
+  apiKey,
+  dataDir,
+  tenantId,
+  ownerId,
+  occurrenceId,
+  identityPath,
+  ledgerPath,
+  env = process.env,
+  runner = spawnSync,
+}) {
+  if (!path.isAbsolute(String(identityPath || ""))) return null;
+  const script = path.join(root, "apps/life-manager/scripts/mobile-postiz-provider-reconcile.py");
+  const result = runner(python, [
+    script,
+    "--verify-only",
+    "--identity", identityPath,
+    "--ledger", ledgerPath,
+    "--owner-id", ownerId,
+    "--occurrence-id", occurrenceId,
+  ], {
+    cwd: root,
+    env: {
+      HOME: env.HOME || "",
+      PATH: env.PATH || "",
+      LANG: env.LANG || "C.UTF-8",
+      LC_ALL: env.LC_ALL || "",
+      TMPDIR: env.TMPDIR || "/tmp",
+      POSTIZ_API_KEY: apiKey,
+      LM_RUNTIME_TENANT_ID: tenantId,
+      LM_DATA_DIR: dataDir,
+    },
+    encoding: "utf8",
+    timeout: 240 * 1000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0) return null;
+  try {
+    return JSON.parse(String(result.stdout || "").trim());
+  } catch {
+    return null;
   }
-  return receipt;
 }
 
 async function run(argv = process.argv.slice(2), deps = {}) {
@@ -431,11 +512,51 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     accountResolver: () => target.postiz_profile,
     ledgerPath: () => ledgerPath,
   });
-  const storedPublication = await executeJob(store, job, ownerId,
-    (claimed) => publicationAdapter.execute(claimed));
-  const publication = normalizePostizInstagramReceiptRoute(
-    storedPublication, lane.platform, integrationId,
-  );
+  let publication = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
+  if (!publication) {
+    publication = await executeJob(store, job, ownerId,
+      (claimed) => publicationAdapter.execute(claimed));
+  } else if (lane.platform === "instagram"
+      && publication.provider_route === "instagram_file_script") {
+    const identityPath = String(env.LIFE_MANAGER_EFFECT_IDENTITY_PATH || "").trim();
+    const identityWritten = identityPath && writeMarketingEffectIdentity({
+      jobId: job.job_id,
+      effectKey: job.effect_key,
+      productId: lane.productId,
+      formatId: lane.formatId,
+      form: lane.form,
+      locale: lane.locale,
+      platform: lane.platform,
+      creativeId: publicationId,
+      slot: slotAt,
+      integrationRef,
+      accountId: target.postiz_profile,
+      videoSha256: video.sha256,
+      captionSha256: captionObject.sha256,
+    });
+    const proof = identityWritten ? verifyLegacyPostizReceipt({
+      root,
+      python: env.LM_PYTHON,
+      apiKey,
+      dataDir,
+      tenantId,
+      ownerId,
+      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
+      identityPath,
+      ledgerPath,
+      env,
+    }) : null;
+    publication = normalizePostizInstagramReceiptRoute(publication, {
+      ownerId,
+      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
+      jobId: job.job_id,
+      effectKey: job.effect_key,
+      productId: lane.productId,
+      platform: lane.platform,
+      integrationId,
+      accountId: target.postiz_profile,
+    }, proof);
+  }
   const publicUrl = String(publication?.public_url || "");
   const tiktokPrefix = `https://www.tiktok.com/@${account.native_handle}/video/`;
   const directAccountUrl = lane.platform === "tiktok"
@@ -478,6 +599,7 @@ module.exports = {
   JOBS,
   approvedBaselineScript,
   normalizePostizInstagramReceiptRoute,
+  verifyLegacyPostizReceipt,
   run,
   selectTarget,
 };

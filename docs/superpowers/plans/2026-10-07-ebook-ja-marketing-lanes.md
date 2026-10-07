@@ -100,38 +100,42 @@
 - Test: `skills/video/tests/test_lm_distribution.py`
 - Modify: `apps/life-manager/scripts/ebook-distribute-daily.js`
 - Test: `apps/life-manager/scripts/ebook-distribute-daily.test.js`
+- Modify: `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`
+- Test: `apps/life-manager/scripts/test_mobile_postiz_provider_reconcile.py`
 - Update: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
 **Interfaces:**
 - `distribute_platform(config, "instagram")` が `config.instagram_integration` を受け取る時は `config.postiz_adapter` を呼び、ledger receiptの`route`を`postiz`にする。
 - integrationがない既存Instagram file-script経路は`instagram_file_script`を維持する。
-- eBook ownerは、完全一致するPostiz integrationの下で公式readback済みの既存Instagram receiptが`instagram_file_script`と記録されていても、再投稿せず`postiz` routeとして同じslotを完了できる。
+- eBook ownerは、owner/occurrence/job/slot/hash/account/integration/post ID/public URLが一致するfresh official Postiz proofを取得した時だけ、既存Instagram receiptのlegacy routeを`postiz`へ正規化する。再投稿しない。
 
 - [x] `test_instagram_postiz_integration_is_recorded_as_postiz` を追加し、fake Postiz adapterの`PUBLISHED`/URL/post ID/`reconciled=true`でledger routeを確認する。
 - [x] `python3 -m unittest discover -s skills/video/tests -p test_lm_distribution.py` のREDで`instagram_file_script`誤記を確認する。
 - [x] route defaultを実際に選んだadapterから決める。明示されたadapter routeは保持する。
 - [x] distribution tests 41/41、Postiz provider tests 24/24、`git diff --check` PASS。
-- [x] `test_legacy_instagram_postiz_receipt_is_normalized_for_idempotent_owner_replay` を追加する。exact Instagram integrationと`provider_reconciled=true`の時だけlegacy routeを`postiz`へ正規化する。
+- [x] `an idempotent Instagram replay normalizes only an exact Postiz readback` を追加する。exact official proofがreceipt identity/account/integration/post ID/URL/hashesと一致した場合だけlegacy routeを`postiz`へ正規化する。
 - [x] Node REDでlegacy receiptが拒否されることを確認する。
-- [x] ownerで選択したexact Postiz integrationと公式`PUBLISHED` readbackの条件で、legacy routeをnormalizeしてから既存receipt検証・result writeを行う。Node tests 8/8 PASS。
-- [ ] main由来branchでcommit/push/PR/mergeし、immutable releaseに反映する。Instagramを再投稿せず、同じslotの既存receiptから成功報告する。
-- [ ] main由来branchでcommit/push/PR/mergeし、immutable releaseに反映する。Instagramを再投稿せず、既存のPostiz readbackを使ってunknown effectを解決する。
+- [x] legacy receiptを再利用する時はowner identityを生成し、`mobile-postiz-provider-reconcile.py --verify-only` のfresh exact Postiz GETが一致した後にだけrouteをnormalizeする。Node tests 9/9 PASS。
+- [x] `verify-only` CLI testはresolved stateを変えず、exact Postiz proofを返す。owner identity pathの`~`展開testもPASS。
+- [ ] main由来branchをpush/mergeし、immutable releaseへ反映する。fresh read-only Postiz GETで同じslotの既存receiptを完全照合し、ownerをPASSにする。投稿は再作成しない。
 
 ### Task 8: eBook effect identityの保存と読戻し
 
 **Files:**
 - Modify: `config/loop-registry.json`
 - Test: `runtime/loop/tests/test_macos_loop_registry.py`
+- Modify: `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`
+- Test: `apps/life-manager/scripts/test_mobile_postiz_provider_reconcile.py`
 
 **Interfaces:**
 - `ebook-en-tiktok-daily`、`ebook-ja-instagram-daily`、`ebook-ja-tiktok-daily` の各`effect_reconcile.argv`は `--identity-dir ~/.local/state/life-manager/ebook/effect-identities` を渡す。
 - eBookの`state_root`は`~/.local/state/life-manager/ebook`で、runtime identity writerが必要とするdirectory modeは`0700`。
 
-- [x] `test_ebook_postiz_reconcilers_use_owner_identity_dir` を追加し、上記3 ownerのreconciler commandが同じowner identity directoryを渡すことを確認する。
-- [x] REDで3 ownerともidentity directoryを指定していないと確認する。
+- [x] `test_ebook_postiz_reconcilers_use_owner_identity_dir` と `test_pending_owner_expands_tilde_identity_directory` を追加する。
+- [x] REDで3 ownerともidentity directoryを指定していないこと、およびtilde pathが展開されずidentity scanが空になることを確認する。
 - [x] 3つのexact eBook ownerに`--identity-dir`を加え、`runtime/loop/tests/fixtures/macos-loop-jobs.json`を正規rendererで再生成する。
-- [x] Registry tests 136/136、`./bin/lm-loop-contract` PASS。
+- [x] Reconciler tilde/read-only proof tests 7/7 PASS。Registry tests 136/136、`./bin/lm-loop-contract` PASS。
 - [x] eBook state rootを`0700`へ修正し、exact Postiz official GETで最初のInstagram occurrenceをresolveする。
 - [ ] main由来releaseを適用後、same-slot owner reportがPASSになり、admissionにunknownがないことを確認する。
 
-**順序変更・現在cursor:** 旧順序は1件目のInstagram readback解決後に次アカウントへ進む。新順序はroute誤記、same-slot receipt再利用、effect identityのmode/path不整合をまとめて直し、latest-main releaseを反映してInstagram ownerをPASSにしてから英語アカウントを再接続する。理由は、公式Postiz投稿1件を旧releaseが毎回`instagram_file_script`と誤認し、同じslotの再試行をreport failureにしているため。現在はPR作成、fresh review、CI、merge、release、targeted apply待ち。
+**順序変更・現在cursor:** 旧順序は1件目のInstagram readback解決後に次アカウントへ進む。新順序はroute誤記、same-slot receipt再利用、effect identityのmode/path不整合を直し、fresh exact Postiz readbackで同一integrationとreceiptを結合してからlatest-main releaseを反映する。理由は、公式Postiz投稿1件を旧releaseが毎回`instagram_file_script`と誤認し、同じslotの再試行をreport failureにしているため。現在はPRのfresh review/CI結果を受けて必要なfixを反映し、merge/release/apply後にInstagram ownerをPASSにしてから英語へ進む。
