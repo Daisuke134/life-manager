@@ -43,33 +43,19 @@ charts remain observations; they do not become settled revenue receipts.
 The pass is single-writer: do not run another CFO, `cfo-daily`, or financial-report loop against the
 same snapshot/delivery tables.
 
-## Per-loop daily P&L (read-only)
+## Economic attribution CLI (no send/pay; optional evidence write)
 
-`python3 skills/cfo/loop_pnl.py [--date YYYY-MM-DD] [--json]` prints revenue, refunds, cost and net
-for each of the 14 Product Loops in `apps/life-manager/config/product-loop-catalog.json` for one
-Asia/Tokyo day. It only reads; it never sends, pays or writes state.
+`python3 skills/cfo/loop_pnl.py [--date YYYY-MM-DD] [--snapshot-at RFC3339] [--trailing-start RFC3339] [--json]` projects B7 receipts and coverage for all 18 Product Loops in `apps/life-manager/config/product-loop-catalog.json`. `--date` sets only the Asia/Tokyo `reporting_date` label; it does not filter receipts to that day. `snapshot_at` bounds the historical/as-of view and `trailing_start` bounds the trailing view; MRR is an as-of snapshot. Do not present this output as one-day revenue, cost, or net.
 
-- Every number is a sum of entries carrying an official id (`alpaca:activity:*`, `stripe:txn_*`,
-  `base:<tx>:<logIndex>`, `lancers:<receipt_id>`, `agent-usage:<event_id>`). `0` means the owning
-  source was read for that day and had no entries. `unverified` means no source, a missing
-  credential, or a failed read; its reason is printed and net becomes `unverified`.
-- Sources: Alpaca live account activities (FIFO realized P&L + fees), Stripe live balance
-  transactions (`self-build`; needs an `sk_live_`/`rk_live_` key in the credential SSOT), USDC
-  `transferWithAuthorization` transfers on Base for the x402 wallets named by `x402-sell` state
-  (own-to-own excluded), marketplace-core `payment_received` ledger rows, and agent-runner
-  `agent-usage.jsonl` `provider_cost_usd`.
-- `USD_API_EQUIV` is the runner's API-price estimate, not a provider bill. Currencies are never
-  converted. `*` marks a cost that excludes usage events lacking a cost value.
+- The B7 adapters cover Capafy/mobile, Stripe, affiliate, marketplace, Agent Economy/investment, actual-cost readback, and Writer. This projection does not read Moneytree or personal bank balances.
+- Each verified amount must be supported by official receipt evidence. `status=zero` is valid only when required source coverage is complete and there are no qualifying receipts; `status=unknown` or coverage gaps are not zero. Empty currency totals mean no verified total, not `$0`.
+- It does not send messages, publish, or pay. When `LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK=1` and a valid managed occurrence context is present, it performs a RevenueCat read and persists a mode-0600 occurrence evidence file under `CFO_STATE_DIR/mobile-readbacks`. A run with that mode must not be described as no-write.
+- `USD_API_EQUIV` is an estimate, not a provider bill. Currencies are never converted.
 - Tests: `python3 -m unittest skills/cfo/test_loop_pnl.py` (fixtures in `fixtures/loop_pnl/`).
 
-## Minimal result report (September 30, 2026)
+## Historical result note (September 30, 2026; not current)
 
-The local CLI now uses `cfo-result-local.js` and the read-only `loop_pnl.py` collector, not personal
-Moneytree balances. It checks all catalog loops and reports today's receipt-backed income by loop,
-with an explicit partial subtotal and unknown sources. Missing/stale data never becomes zero.
-Investment is realized P&L, other loops are revenue; no claim of net profit is made. Unknown app
-currency is shown separately and excluded from currency totals. Personal assets and raw errors are
-not pushed.
+This dated note is a historical example, not evidence of current revenue or a complete daily report. Do not infer today's income, all-loop coverage, or profit from it. Personal Moneytree balances are outside this business projection; missing/stale sources remain unknown rather than zero.
 
 - `LM_CFO_REPORT_CHANNEL=email` is the default. Set `LM_CFO_REPORT_EMAIL` to the owner's address
   and supply `RESEND_API_KEY`. Explicit `telegram` uses the existing receipt-backed outbox. No

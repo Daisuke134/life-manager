@@ -65,6 +65,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
+    "apps/life-manager/scripts/mobile-app",
     "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
