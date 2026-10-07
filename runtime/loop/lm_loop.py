@@ -65,9 +65,13 @@ EBOOK_DISTRIBUTION_LOOP_IDS = frozenset({
     "ebook-ja-instagram-daily",
     "ebook-ja-tiktok-daily",
 })
-EBOOK_RUNTIME_ENV_PRE_EFFECT_ERRORS = frozenset({
+# These exact eBook entrypoint failures occur before any provider dispatch:
+# missing runtime inputs, or the shared local publication ledger rejecting
+# enqueue/claim before the Postiz adapter can upload or publish.
+EBOOK_PRE_EFFECT_ENTRYPOINT_ERRORS = frozenset({
     "LM_DATA_DIR is required",
     "LM_RUNTIME_TENANT_ID is required",
+    "marketing publication effect fenced",
 })
 PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
     FUNDRAISER_PRE_EFFECT_BLOCKER,
@@ -161,7 +165,7 @@ def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
             os.close(descriptor)
 
 
-def _is_ebook_runtime_env_pre_effect_terminal(entry: dict, row: dict) -> bool:
+def _is_ebook_pre_effect_entrypoint_terminal(entry: dict, row: dict) -> bool:
     return (
         row.get("loop_id") in EBOOK_DISTRIBUTION_LOOP_IDS
         and entry.get("entrypoint") == EBOOK_DISTRIBUTION_ENTRYPOINT
@@ -171,7 +175,7 @@ def _is_ebook_runtime_env_pre_effect_terminal(entry: dict, row: dict) -> bool:
         and row.get("effect_status") == "unknown"
         and row.get("blocker") == "entrypoint_exit_1"
         and row.get("error_class") == "entrypoint_exit_1"
-        and row.get("error_detail") in EBOOK_RUNTIME_ENV_PRE_EFFECT_ERRORS
+        and row.get("error_detail") in EBOOK_PRE_EFFECT_ENTRYPOINT_ERRORS
     )
 
 
@@ -179,7 +183,7 @@ def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
     if (row.get("status") == "blocked"
             and row.get("blocker") in PRE_EFFECT_ADMISSION_BLOCKERS):
         return True
-    if _is_ebook_runtime_env_pre_effect_terminal(entry, row):
+    if _is_ebook_pre_effect_entrypoint_terminal(entry, row):
         return True
     # fundraiser's exit 75 is emitted only by the disk/CDP preflight in
     # run.sh, before run_agent.sh can open an application or dispatch a
@@ -415,7 +419,7 @@ def _pre_effect_occurrence_proof(
     terminal_run_id = terminal.get("run_id")
     if claim_runs and terminal_run_id not in claim_runs:
         return None, "terminal_not_claiming_run"
-    if (_is_ebook_runtime_env_pre_effect_terminal(entry, terminal)
+    if (_is_ebook_pre_effect_entrypoint_terminal(entry, terminal)
             and terminal_run_id not in claim_runs
             and terminal.get("occurrence_id") != occurrence_id):
         return None, "ebook_claim_missing"
@@ -427,7 +431,7 @@ def _pre_effect_occurrence_proof(
         return None, "unexpected_events"
     terminal_summary_ref = f"lm-loop://{loop_id}/{terminal_run_id}/summary.json"
     if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
-            and not _is_ebook_runtime_env_pre_effect_terminal(entry, terminal)
+            and not _is_ebook_pre_effect_entrypoint_terminal(entry, terminal)
             or terminal.get("effect_status") != "unknown"
             or terminal_summary_ref not in (terminal.get("evidence_refs") or [])):
         return None, "terminal_not_pre_effect"
