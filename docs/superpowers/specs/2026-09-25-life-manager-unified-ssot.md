@@ -3660,3 +3660,22 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 - scoped tokenの`Migrations: Read-write`はaccount roleを拡張しないため、role不足とtoken scope不足は分けてreadbackする。
 - authorized Management tokenが利用可能になった時だけ公式migration endpointへA3 SQLを送り、migration history・private table・RPC・ACL・PostgREST schemaをreadbackする。
 - owner access/scopeの確認後にmigration write probeとapplyを行い、403の推測やruntime keyの流用で再試行しない。
+
+### 2026-10-07 JST — A3 correct credential apply/readback; runtime acceptance remains
+
+- この追記は直前の「credential不明・migration POST未実行」というprobe結果を上書きする。
+- Daisが添付したSupabase画面には既存GitHub-authenticated accountのorganization一覧が表示され、新規Supabase accountは作成していない。
+- local private credential SSOTの`supabase-life-manager-production` entryはmode `600`で、access token、anon/publishable key、service-role/secret key、login password、URL/ref/orgの9項目が既存runtime envと一致することを値を出さずに確認した。
+- Supabase CLI default profileの`orgs list`は0件、API Keys readは403であり、このprofileは正しいcredentialとして使わない。
+- SSOT内の既存Management credentialによるtarget project GETはHTTP 200、`ACTIVE_HEALTHY`、project ref/org一致を返した。
+- 公式`POST /v1/projects/{ref}/database/migrations`はHTTP 200を返し、A3 migrationを適用した。
+- 公式migration history GETはname=`2026-10-06-lm-geocode-cache`、version=`20261006235109`をreadbackした。
+- PostgREST OpenAPI GETはHTTP 200・124 pathsで、get/upsert RPCの両方が公開された。
+- 合成の存在しないtenant/digestに対するservice-role get RPCはHTTP 200・0 rowsであり、anon roleの同RPCはHTTP 401だった。
+- 公式Management APIの`read_only:true` SELECTはtable exists、RLS enabled、service-role get/upsert EXECUTE true、anon/authenticated get/upsert EXECUTE falseを返した。
+- `upsert` RPCはread-only verificationで実行せず、production test row・cache rowを作成していない。
+- Railway production `life-call`はSHA `64895457b7232a954f2f4492073b867009b6da85`でRUNNINGであり、そのloaded sourceにgeocode-cache get/set wiringがある。
+- migration applyのためのservice restart、route実行、Google billable request、Calendar/Telegram effectは0件である。
+- **A3 stage:** A3.1 access、A3.2 apply、A3.3 schema/RPC/RLS/ACL readbackは完了し、A3.4のprocess再起動をまたぐ自然route/cache-hit/replay-zeroは未検証である。
+- **TODO/cursor:** 現行SSOTのmainline=`A4.1→A4.2→A4.3→A5→A6→A3 conditional→A7→A8→A9→A10`を維持し、現在cursorは`A4.1`とする。migration applyはDaisの明示依頼によりA6より先に行った一回の実行であり、全体TODOを並べ替えない。
+- A3.4のnatural acceptanceはA6でGeocodingの有意なsettled spendまたはrestart後の重複callを確認した場合に再開する。synthetic row・比較目的の追加provider call・Google billable requestを作らず、自然なroute occurrenceと既存process lifecycleでcache hit/replay-zeroをreadbackする。
