@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import sqlite3
 import sys
 
 
@@ -94,3 +95,46 @@ def test_readback_defers_when_provider_browser_is_busy(monkeypatch, tmp_path):
     proposals, reason = module.read_proposals_with_lease(tmp_path, 0.0, set())
     assert proposals is None
     assert reason == "provider_browser_busy"
+
+
+def test_exact_verified_receipt_reconciles_effect_only_after_opt_in(tmp_path, monkeypatch, capsys):
+    module = load()
+    receipt = {
+        "record_type": "application_receipt", "platform": "crowdworks",
+        "status": "verified", "occurrence_id": OCC,
+        "application_external_id": "401",
+    }
+    setup(tmp_path, receipts=[receipt])
+    admission_db = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(admission_db) as db:
+        db.execute("CREATE TABLE occurrences (occurrence_id TEXT, owner_id TEXT, state TEXT, effect_unknown INTEGER, queued_at TEXT)")
+        db.execute("INSERT INTO occurrences VALUES (?, ?, 'claimed', 1, '2026-09-20T03:00:00Z')",
+                   (OCC, OWNER))
+
+    monkeypatch.setattr(module, "read_proposals_with_lease",
+                        lambda *_args, **_kwargs: ([(401, "2026年09月20日 12:02")] + BEFORE, "ok"))
+    from runtime.host import resource_admission
+    close_calls = []
+
+    def close(owner, occurrence, expected_state=None, proof_check=None):
+        close_calls.append((owner, occurrence, expected_state, proof_check))
+        return True
+
+    monkeypatch.setattr(resource_admission, "_close_unknown_occurrence", close)
+    dry_run = module.main(["--state-root", str(tmp_path), "--admission-db", str(admission_db)])
+    report = json.loads(capsys.readouterr().out)
+    assert dry_run == 0
+    assert report["resolved"] == [{"occurrence_id": OCC, "dry_run": True,
+                                   "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/run-1/401"}]
+    assert close_calls == []
+    assert not (tmp_path / "reconciliation").exists()
+
+    resolved = module.main(["--state-root", str(tmp_path), "--admission-db", str(admission_db),
+                            "--resolve"])
+    report = json.loads(capsys.readouterr().out)
+    assert resolved == 0
+    assert report["resolved"] == [{"occurrence_id": OCC,
+                                   "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/run-1/401"}]
+    assert close_calls == [(OWNER, OCC, "claimed", None)]
+    reconciliation = json.loads((tmp_path / "reconciliation" / "application-effect-run-1.json").read_text())
+    assert reconciliation["provider_receipt_id"] == "proposal:401"

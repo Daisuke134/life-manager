@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""Close Application fences only when official CrowdWorks readback shows no proposal.
+"""Reconcile Application fences from exact CrowdWorks proposal readback.
 
-An Application run's only provider effect is submitting a proposal. The run
-that claimed the occurrence (``lm-occurrence://<owner>/<run>/claim``) bounds
-the window. CrowdWorks' proposal list plus every receipted proposal id cover
-the proposals we sent (the pending marker is written before the submit click,
-so an unreceipted submission stays pending); each proposal page opens
-with our proposal message, whose minute is the submission time. Proposal ids
-are issued in time order, so reading newest first until one predates the window
-covers it. A proposal minute in the window, a receipt bound to the occurrence,
-a pending transaction, or an incomplete/unordered readback keeps the fence.
+The run that claimed an occurrence bounds its window. A verified receipt bound
+to that occurrence resolves only when a fresh proposal-page readback confirms
+the same ID and its full minute is inside the claim window. Without that proof,
+the existing no-submit rules keep the fence for any bound receipt, pending
+transaction, in-window proposal, or incomplete/unordered inventory.
 """
 from __future__ import annotations
 
@@ -25,7 +21,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from runtime.host.resource_admission import resolve_pre_effect_occurrence
+from runtime.host.resource_admission import (resolve_pre_effect_occurrence,
+                                            resolve_unknown_occurrence)
 from reconcile_reply_no_send import (ADMISSION_DB, JST, MINUTE, SAFE_ID, SLACK,
                                      ProviderBrowserBusy, _json, _events, _overlaps,
                                      _provider_lease, _window)
@@ -65,14 +62,34 @@ def _prove(occurrence, rows, receipts, pending, timeline, ordered):
     window, reason = _window(rows, run_id, None, owner=OWNER)
     if window is None:
         return None, reason
-    if any(r.get("occurrence_id") == occurrence for r in receipts):
-        return None, "application_receipt_bound"
+    bound = [r for r in receipts if isinstance(r, dict)
+             and r.get("occurrence_id") == occurrence]
     if pending:
         return None, "application_transaction_pending"
     if timeline is None:
         return None, "proposal_readback_incomplete"
     if not ordered:
         return None, "proposal_order_unverified"
+    if bound:
+        if (len(bound) != 1
+                or bound[0].get("record_type") != "application_receipt"
+                or bound[0].get("platform") != "crowdworks"
+                or bound[0].get("status") != "verified"
+                or not str(bound[0].get("application_external_id", "")).isdigit()):
+            return None, "application_receipt_bound"
+        proposal_id = int(bound[0]["application_external_id"])
+        match = next(((pid, minute) for pid, minute in timeline if pid == proposal_id), None)
+        if match is None:
+            return None, "application_receipt_proposal_missing"
+        _, minute = match
+        if minute < window[0] or minute + 60 > window[1]:
+            return None, "application_receipt_window_mismatch"
+        return {
+            "owner_id": OWNER, "occurrence_id": occurrence, "verified": True,
+            "proof_type": "official_effect", "provider_receipt_id": f"proposal:{proposal_id}",
+            "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/{run_id}/{proposal_id}",
+            "application_external_id": str(proposal_id), "window": list(window),
+        }, "ok"
     if not timeline or timeline[-1][1] + 60 >= window[0] - SLACK:
         return None, "proposal_readback_incomplete"
     for pid, minute in timeline:
@@ -190,6 +207,21 @@ def main(argv: list[str] | None = None) -> int:
         elif not args.resolve:
             report["resolved"].append({"occurrence_id": occurrence, "dry_run": True,
                                        "evidence_ref": proof["evidence_ref"]})
+        elif proof["proof_type"] == "official_effect":
+            receipt = state_root / "reconciliation" / (
+                f"application-effect-{occurrence[len(OWNER) + 1:]}.json")
+            receipt.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            receipt.write_text(json.dumps({"schema_version": 1, "receipt_type":
+                                           "CROWDWORKS_APPLICATION_RECEIPT_READBACK", **proof},
+                                          sort_keys=True) + "\n", encoding="utf-8")
+            receipt.chmod(0o600)
+            if resolve_unknown_occurrence(OWNER, occurrence,
+                                          official_readback=lambda p=proof: p,
+                                          expected_state="claimed"):
+                report["resolved"].append({"occurrence_id": occurrence,
+                                           "evidence_ref": proof["evidence_ref"]})
+            else:
+                report["fenced"][occurrence] = "close_rejected"
         else:
             receipt = state_root / "reconciliation" / (
                 f"application-no-submit-{occurrence[len(OWNER) + 1:]}.json")
