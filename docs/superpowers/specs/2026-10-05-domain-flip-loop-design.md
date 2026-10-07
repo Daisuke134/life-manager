@@ -1,7 +1,7 @@
 # .si ドメイン再販 Product Loop 設計
 
-状態: 設計承認済み。Task 1–4のsourceは `feat/domain-flip-owner-20261005` にpush済みだが、main未統合・PRなし。本番にdomain-flip owner/jobはなく、アカウント作成、登録、出品、購入、売上は未確認。
-2026-10-06T12:46Z read-only snapshot: latest `origin/main` は `57e09ccf0d5ba84eadf7fabcfff9120ac3aff2e1`。`lm-loop status all` にdomain-flip行は0件。mainのregistry/catalogに登録なし。専用state/event ledgerなし。credential SSOTのOpenprovider/Sedo/EUIPO key件数は各0、provider browser mappingも0。Life Managerにはこのloopの販売・入金・利益receiptがない。外部seller accountの状態は認証情報がないため未確認。
+状態: 設計承認済み。Task 1–4のsourceは `feat/domain-flip-owner-20261005` にpush済みだが、main未統合・PRなし。本番にdomain-flip owner/jobはなく、Life Manager経由の登録・出品・購入記録はない。外部seller accountの活動は未確認。
+2026-10-07T14:27Z read-only snapshot: latest `origin/main` は `49aab2f193d7cd5c2361ad958c2f6fb7f15c7845`。`lm-loop status all` にdomain-flip行は0件。mainのregistry/catalogに登録なし。専用state/event ledgerなし。credential SSOTのOpenprovider/Sedo/EUIPO key件数は各0、provider browser mappingも0。専用business balanceのfresh readbackなし（business-inventoryにdomain-flip所有の行はなく、最新snapshotは2026-08-08）。Life Managerにはこのloopの販売・入金・利益receiptがない。外部seller accountの状態は認証情報がないため未確認。
 
 ## 1. 目的と完了条件
 
@@ -86,17 +86,17 @@ source実装後も、登録業者API・.si quote・Sedo seller/payout flow・専
 
 選定registrarの現行API/termsとSedoのseller listing/payout契約を一次資料で確定し、無理に複数provider対応へ広げない。Daisの明示指示により書面レビュー待ちは置かず、この設計からimplementation planを作って続行する。既存runtimeに1つのownerを追加し、product-loop-catalogにもdomain-flipを登録して、CFOの投資収益・actual-cost readbackへ結合する。現在別作業が所有するCFO/registry/SSOTファイルは、そのleaseが終了するまで変更しない。新Product Loop Contract gateとmoney-owner effect reconciliationを通す。
 
-## 9. 2026-10-06現在の結果と残TODO
+## 9. 2026-10-07現在の結果と残TODO
 
 ### 結果
 
-現時点ではLife Manager経由でdomain-flipを販売しておらず、同loopの売上・利益は計上されていない。確認範囲はcurrent `lm-loop` status、最新mainのregistry/catalog、専用private state、CFO記録と `business-outcomes.jsonl`。credential未設定のため、独立したSedo seller accountに別途売却があるかは断定しない。出品価格、offer、parking収入はdomain saleの売上に数えない。
+現時点ではLife Manager経由でdomain-flipを販売しておらず、同loopの売上・利益は計上されていない。確認範囲はcurrent `lm-loop` status、最新mainのregistry/catalog、専用private state、CFO記録と `business-outcomes.jsonl`。credential未設定のため、独立したSedo seller accountに別途売却があるかは断定しない。専用事業残高もfresh readbackがなく、古いbusiness-inventory snapshotから購入資金があるとは判断しない。出品価格、offer、parking収入はdomain saleの売上に数えない。
 
 ### 残TODO（この順）
 
-1. Task 5: CFO attribution adapter、Product Loop catalog、loop registry、canonical unified SSOTのcursorを結ぶ。canonical SSOTの別worktree/lease所有を確認してから変更する。
+1. Task 5: CFO attribution adapter、Product Loop catalog、loop registry、canonical unified SSOTのcursorを結ぶ。現在 `skills/cfo/loop_pnl.py` とcanonical SSOTは別worktreeのactive lease範囲なので、ownerが変更をpush/解放するまで触れない。
 2. focused CFO testsと `./bin/lm-loop-contract` を通し、read-only review、PR、CI、main統合を完了する。
-3. 専用事業残高のowner/currency/available amount/capを公式readbackで確認する。取得上限は既割当の `domain-flip` business balanceから生涯100 EUR相当。個人資金の補填はしない。
+3. 専用事業残高のowner/currency/available amount/capをfresh official readbackで確認する。取得上限は既割当の `domain-flip` business balanceから生涯100 EUR相当。個人資金の補填はしない。
 4. Openprovider/Sedo access、登録者・email-only WHOIS条件、許可済みEUIPO rights evidence、Sedo seller/payout readback pathを整える。未確認のcredentialやEUIPO本人確認書類は作成・送信しない。
 5. main由来immutable releaseを作り、ownerを限定applyした後、loaded SHA/argv/envと自然passを確認する。条件不足時は購入0件を維持する。
 6. buyer settlement、登録者移転、seller payout、受取口座入金、全費用控除後の正のnet、replay-zeroを同一売却に結び付ける。これが揃うまでgoalは完了にしない。
