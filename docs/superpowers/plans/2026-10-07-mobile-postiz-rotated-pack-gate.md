@@ -62,18 +62,19 @@
 - [x] Run destination-contract, local-ledger, native-carousel, video-chain, and launcher tests: 70/70 pass. Full `npm test` passes 1,455/1,455.
 - [x] Run `git diff --check` and `./bin/lm-loop-contract` (18 catalog loops, 186 registry jobs, 111 mapped jobs, zero errors).
 
-### Task 4: Promote JP1 as the first canary
+### Task 4: Repair the Postiz profile/native-handle join, then canary the next TikTok slot
 
-- [x] Focused acceptance 70/70, full `npm test` 1,455/1,455, `lm-loop-contract`, diff-check, required CI and fresh read-only review passed; PR #6867 merged at main `62ebd9b1b7dff499099ce62231435c902c04427d`.
-- [ ] Wait for the separate host-disk owner to verify all 149 finite guards and clear its exact stop flag. Readback at 17:47 JST was 120/149 guards, 13.46 GiB free, flag still present; a different `lm-loop apply` for release `62ebd9b1` is active. Do not start a competing apply or clear the flag manually.
-- [ ] JP1 still runs old SHA `d6f5d8f724ba584f0a5fddd19f8bb3e0aa3ce673` and reports 3,466 effect-unknown occurrences. Latest attempt got `provider_readback_not_exact` for the old occurrence, then hit the local publication fence before Postiz dispatch. Preserve all unknowns; after the host gate clears, apply the new release and verify one distinct natural slot with exact Postiz receipt/replay-zero.
-- [ ] 18:00 JST natural slot remained unpublished: `resource_capacity_busy` pre-effect, then an inconclusive old-effect readback and local publication fence; no Postiz receipt. Latest status lists 3,468 effect-unknown references, which are not a post count. Keep them fenced and wait for the host gate plus a new main-derived release before the JP1 canary.
-- [ ] Cut an immutable release from merged `origin/main`.
-- [ ] Read back the JP1 owner lock, loaded-idle state, admission identity, lane manifest, and `launchctl-safe` GUI preflight. Apply the release only to `life-manager-anicca-jp1-tiktok` via the targeted `LIFE_MANAGER_APPLY_TARGET` path.
-- [ ] Wait for the next natural Asia/Tokyo slot. Require a terminal pass, exact Postiz `PUBLISHED` readback for `@anicca.jpx` / integration `cmlrv8jq000hun60yy57eaptx`, matching media/caption identity, and replay-zero. Keep the old unknown occurrence unchanged.
+- [x] The rotation and video-integration source fix passed acceptance and review; PR #6867 is merged at main `62ebd9b1b7dff499099ce62231435c902c04427d`.
+- [x] Main-derived immutable release `67ec029d47a54013ca5838786680c4a700fd5291` contains the six `gate-approved` routes. A loaded-idle, owner-targeted apply to `life-manager-anicca-jp1-tiktok` succeeded and loaded SHA now matches `67ec029d`; the global `disk-writers.stop` remains owned by host recovery and was not cleared.
+- [x] Official Postiz `GET /public/v1/posts` for 2026-10-07 JST returned 21 rows below the 100-row limit; 17 were `PUBLISHED` across 19 active targets. TikTok had 6 `PUBLISHED` posts across 10 targets, with 6 accounts at zero; no account reached 3/day.
+- [x] Root cause isolated for old JP1 readback: the local receipt and Postiz detail agree on provider post ID, integration, PUBLISHED state, CTA-adjusted caption hash, and local six-image/order hashes. Postiz `/integrations` returns configured `postiz_profile=@anicca.jpx`, while the source identity's `account_id` is the manifest `native_handle=@anicca.jp1`. `mobile-postiz-provider-reconcile.py` compares these different fields and incorrectly rejects the receipt.
+- [ ] Add a RED regression test for the JP1 destination mapping, then make reconciliation compare the official profile with the matching destination's `postiz_profile` and bind `identity.account_id` to its `native_handle`. Reject wrong platform, integration, native handle, or unexpected profile.
+- [ ] Run the focused Python tests, the relevant native-carousel and publication-contract tests, `./bin/lm-loop-contract`, `npm test`, and `git diff --check`; push and merge only after acceptance/review.
+- [ ] Cut a current-main immutable release. The canary order changes from JP1-first to `@aniccaaffirmation` TikTok because its next natural slot is 20:15 JST while JP1's 18:00 slot has passed. Apply only `life-manager-anicca-en-affirmation-tiktok` when loaded-idle; if 20:15 is missed, use its next 09:15 JST natural slot.
+- [ ] Require exact Postiz `PUBLISHED` receipt for `@aniccaaffirmation` / `cmp93bkpu01uvoh0yd3aj560g`, matching identity and replay-zero. Keep the 18:00 JP1 occurrence fenced; use the corrected owner-bound resolver to validate its historical receipt before any next JP1 publication.
 
-### Task 5: Stage the remaining five rotation-enabled lanes
+### Task 5: Stage the other five rotating lanes and restore 3/day TikTok cadence
 
-- [ ] Only after the JP1 canary passes, apply the same immutable release one loaded-idle owner at a time to EN affirmation Instagram/TikTok, EN slideshow TikTok, JA main TikTok, and JA Buddha TikTok.
-- [ ] Verify each natural receipt against its exact account and integration. Preserve three scheduled slots/day and require distinct approved packs.
-- [ ] Read one complete Asia/Tokyo day of official receipts for all 17 Mobile/Honne targets. A lane below three published receipts remains a named shortfall; scheduled or queued posts do not count as published.
+- [ ] Only after the first TikTok canary passes, apply the same immutable release one loaded-idle owner at a time to EN affirmation Instagram, EN slideshow TikTok, JA main TikTok, JP1 TikTok, and JA Buddha TikTok.
+- [ ] For each target, reconcile prior effects against its exact Postiz integration/profile, then verify the next distinct natural slot by official receipt. Keep the six configured media hashes/order and all three JST slots; do not replay ambiguous slots.
+- [ ] Restore each of the 10 active TikTok targets to three `PUBLISHED` receipts per Asia/Tokyo day. Continue with the 7 Instagram and 2 YouTube active targets, then verify all 19 active targets (17 Mobile/Honne plus two eBook owners). A shortfall remains named; queued/scheduled posts do not count. Keep the 13 held integrations held.
