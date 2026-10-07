@@ -4317,6 +4317,33 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** いま必要な再接続・再認証・手動設定はない。実装とowner環境修正はLife Manager側で行う。
 
+### eBook Monk post-merge / host-capacity cursor — 2026-10-08 08:42 JST
+
+この節がeBookの最新cursorで、08:23 JSTのTODO順と容量評価を置き換える。GitHub/mainのsource fixはmergedだが、production release/applyはまだ行っていない。
+
+**TODO順変更:** 旧順=`English CLI修正をmainへmerge→release/apply→08:00 EN回収→残りslot`。新順=`cleanup ownerのfresh floor-met receiptと同時刻dfを確認→active release-reconcilerの終端とhost apply lock解放を確認→main由来immutable release→ebook-en owner限定apply→同じ08:00 slotをowner経由で再開・公式readback→12:30以降のslot→Checkout/PDF→Letter/Tegami cohort→Capafy Instagram`。理由: source修正はmainに入ったが、08:41 JSTのEnglish owner wakeは`disk_headroom_low`でeffect前に延期された。cleanup ownerは08:42 JSTにnatural passで2 GiB床を回復した一方、release-reconcilerは現在loaded-runningのためapplyを重ねない。`marketingVideoDueSlot()`は08:00–14:00に同じ08:00 due slotを返す。現在cursor=`08:42 JST、source fix merged、capacity receipt met、release-reconciler running、EN 08:00未投稿`。
+
+**main / loaded release:** PR #6990は全required CI PASSとfresh reviewのCritical/Importantなしを確認後、merge commit `f5395fd88d033fa94ae8366470d46d0b635e57d7`でmainへ統合済み。sourceはEnglish ownerにだけ`LIFE_MANAGER_HEYGEN=<home>/.local/bin/heygen`を明示し、一般PATHを拡張しない。productionでloadedなのはまだrelease `076c5be87c7ba76da6e6ba7d1a4b508e7d492ddd`なので、修正は未配備・未実行。
+
+**最新English occurrence:** `ebook-en-tiktok-daily:18dc63c84ddcd570-96779`は08:41:03 JSTに`exit=75 / host_admission_deferred:disk_headroom_low / effect_status=not_applicable`。`admission_effect_unknown=false`、Postiz/HeyGen dispatchなし。08:00 slotは未投稿のままで、同じowner slotを再開できる時間帯だが、production release/applyとrunは容量gate後に行う。
+
+**capacity evidence:** 08:41 JSTのcleanup owner natural run `life-manager-disk-cleanup:18dc63c7ca4c0078-95164`は08:42:14 JSTに`exit=0`。fresh receipt `observed_at=2026-10-07T23:41:52Z`は`free_after=2,342,494,208` bytes、2 GiB floor=`met`、`errors=0`、`protected_deletions=0`、`inventory_gaps=23`、`reclaimed=2,320,641,192` bytes、`disk_writers_stop=absent`。08:42:38 JSTの`df -Pk /` Availableは`2,282,876 KiB`（約2.18 GiB）でfloor以上。cleanup ownerはloaded-idle / `next_action=none`。floorは回復したがmarginは約185 MiBで、先行して起きた1.3 GB級の急落writerは未特定なので次のcleanup receiptも監視する。
+
+**release/apply競合:** `life-manager-release-reconciler`は08:42 JSTにloaded-running PID `58399`、直近terminal record `entrypoint_exit_143` / `reconcile_owner`。別release/applyを始めない。自然終端後にexact owner状態とhost-wide apply lockをreadbackし、lockがfreeの場合だけtarget owner applyへ進む。停止・再起動はしない。
+
+**Postiz official GET（08:41 JST）:** English TikTok `Monk Anicca / @monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`)、JA TikTok `@obou_anicca` (`cmo5s4edx00vgn10ygnu34a0n`)、JA Instagram `@obou.anicca` (`cmooplxmu04tpmd0y4h3cpk33`) はすべて`disabled=false`。10/8 JST 00:00–08:41の投稿一覧は5行、eBookのPUBLISHEDはJA TikTok `cmuynjaq808iblc0yd2396uhg`とJA Instagram `cmuynjkih08ihlc0y38o87z0n`のみ。English Monkは0件。現状2/9（各JA account 1/3、EN 0/3）。Postiz再接続・再認証は不要。
+
+**残りAtomic TODO（eBook順序）:**
+
+1. `life-manager-release-reconciler`のnatural terminalとhost-wide apply lock解放を確認する。現在loaded-runningなので停止・並行applyはしない。
+2. lockがfreeなら`origin/main=f5395fd8`から完全immutable releaseを切り、`ebook-en-tiktok-daily`だけをapplyする。installed SHA/argv/statusをreadbackしてから登録ownerを一度実行し、08:00 EN slotを再開する。Postizへの直接投稿はしない。
+3. 同一occurrenceでPostiz `PUBLISHED`/public URL、HeyGen video SHA、wallet before/after costを照合する。現在の投稿数は2/9。続けてJA TikTok/Instagram各12:30・20:00、EN TikTok 14:00・21:00を確認し、9 unique posts/dayを目指す。effect不明は公式readback前に再送しない。
+4. 2 GiB floor met/errors 0/protected deletions 0のfresh cleanup receiptを維持し、inventory gaps 23と容量急落writerを追う。unknown/open/protected dataの削除やfloor overrideはしない。
+5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→refund/fees/settlement/replay-zeroを完了する。one-time `$10.99` / `¥1,580`はMRRに含めない。
+6. Letter/Tegami recurring CTAの14日cohortとsettled net MRRを検証し、その後Capafy Instagram laneへ進む。USD 10,000 verified net MRRは未達目標。
+
+**Daisの作業:** 既存3 Postiz integrationもHeyGen認証も接続済み。再接続・再認証・手動設定は不要。Life Manager側でrelease-reconcilerの自然終端とhost apply lock解放を確認し、target ownerのrelease/applyへ進む。
+
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
 **現在のGig cursor: 1（L9-07 Coconala Storefront parser修正）。** 全社lane/platform順序は変更しない。PR #6985は`1c0c9120`でmainへ統合済みだが、公式live inventoryで`public_text`空・contract 0/20となったためlive acceptanceは未達。原因は`#serviceContentsSummary`がナビ見出しで、本文はuniqueな`.c-serviceContentsSummary` wrapperにあること。これを正しいselectorとしてRED/GREEN testで修正する。
