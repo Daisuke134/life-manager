@@ -14,6 +14,18 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`, CFO A4.2.
 
+## Problem This Plan Solves
+
+The existing Travel flow can call paid Google Geocoding for uncached home/event locations. Free Japanese sources may avoid that geocoding charge for some locations, but a coarse or ambiguous point can make the user miss an appointment; provider errors must not break the existing route flow. OpenPOI also logs search query text and requires attribution/license handling, while the coordinate-only persistent cache cannot safely retain its full provenance. The goal is to reduce avoidable Google **Geocoding** requests without claiming savings for Google Directions/Routes or accepting a bad route.
+
+## To-Be User Experience
+
+- The user keeps the same Calendar event location and saved home/base input. There is no geocoder selection screen, new question, or changed route workflow.
+- For a Japanese address-shaped location, Life Manager may try GSI; for a specifically recognized Japanese facility name, it may try OpenPOI. The user sees the same Transit-first route and Travel Calendar helper if a unique, precise, attributable candidate is accepted.
+- If a free candidate is coarse, ambiguous, invalid, private/free-form, unavailable, or times out, the existing Google Geocoding fallback runs once. Existing non-Japan, Transit-failure, and Google Directions/Routes behavior remains unchanged.
+- A free-source helper adds source/license attribution to its description. A4.2 does not otherwise change the user-facing Calendar or dashboard screens. Raw location/query text is not placed in usage telemetry.
+- The broader Cloud Web-first journey (public landing → browser sign-in → Calendar consent → one home/base input → next-departure dashboard) is specified separately in `docs/superpowers/specs/2026-10-06-life-manager-web-first-travel-design.md`. A4.2 does not implement that signup flow; the public landing still hands off to Telegram until WB-14 is completed.
+
 ## Execution Order and Ownership
 
 - The canonical SSOT currently has cursor `A4.1`, and its existing TODO order is `A4.1 → A4.2 → A4.3 → A5 → A6 → A3 conditional → A7 → A8 → A9 → A10`.
