@@ -50,6 +50,32 @@
       }
     },
     {
+      "id": "gig-mercor",
+      "job_ids": ["mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
+      "name": "Gig — Mercor",
+      "description": "Apply to suitable Mercor contract work, answer replies, and record paid outcomes.",
+      "recovery_classes": ["external_effect_owner", "read_only_external_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"mercor-funnel-receipt","implementation":"partial"},"financial":{"adapter":"marketplace-financial-record","implementation":"partial"},"cost":{"adapter":"marketplace-financial-record","implementation":"partial"}}},
+      "requirements": ["mercor_account", "work_profile", "public_guided_installer"],
+      "hosts": {
+        "local": {"availability": "setup_required", "command": null},
+        "cloud": {"availability": "setup_required", "command": null}
+      }
+    },
+    {
+      "id": "promptbase",
+      "job_ids": ["promptbase-loop-daily"],
+      "name": "PromptBase",
+      "description": "Build and publish prompt listings on PromptBase with real examples, and read sales back.",
+      "recovery_classes": ["external_effect_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time"],"sources":{"funnel":{"adapter":"promptbase-sales-readback","implementation":"partial"},"financial":{"adapter":"promptbase-sales-readback","implementation":"missing"},"cost":{"adapter":"promptbase-sales-readback","implementation":"missing"}}},
+      "requirements": ["promptbase_account", "publication_profile", "public_guided_installer"],
+      "hosts": {
+        "local": {"availability": "setup_required", "command": null},
+        "cloud": {"availability": "setup_required", "command": null}
+      }
+    },
+    {
       "id": "writer",
       "job_ids": ["writer-claim-loop", "writer-craft-train", "writer-money-sync", "writer-opportunity-discovery", "writer-opportunity-response", "writer-report", "writer-sales-measure"],
       "name": "Writer",
@@ -103,10 +129,10 @@
     },
     {
       "id": "job-hunter",
-      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning", "mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
+      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning"],
       "name": "Job Hunter",
       "description": "Discover and submit qualified job applications, then reconcile confirmations and replies.",
-      "recovery_classes": ["deterministic", "external_effect_owner", "read_only_external_owner"],
+      "recovery_classes": ["deterministic", "external_effect_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"job-hunter-funnel-receipt","implementation":"partial"},"financial":{"adapter":"marketplace-financial-record","implementation":"partial"},"cost":{"adapter":"marketplace-financial-record","implementation":"partial"}}},
       "requirements": ["resume", "job_preferences", "gmail", "telegram", "provider_logins"],
       "hosts": {

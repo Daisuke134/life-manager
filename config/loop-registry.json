@@ -3519,7 +3519,6 @@
       "browser_identity": "interactive:dais",
       "browser_target_owner": "promptbase-loop-daily",
       "label": "ai.anicca.promptbase-loop-daily",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 900,
