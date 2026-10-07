@@ -151,6 +151,12 @@
 
 The Web-first landing and production data path are live. Continue the canonical SSOT cursor at WB-15: locate and reuse the existing Life Manager marketing loop, accounts, assets and metrics; then activate one measured owner. Dais's requested initial cadence is 24 distinct X posts/day, two distinct 9:16 videos/day, one carousel/day and three original Japanese articles/day. Route each CTA through a unique UTM or Writer receipt, preserve provider publication receipts, and track page landing, Calendar connection, confirmed Travel blocks, card-backed trial, paid invoice, cancellation and refund separately. Google sign-in and Calendar consent remain uncompleted in production because personal Google/Calendar access is not authorized; the OAuth start redirect and synthetic consent flow pass, and the marketing copy does not claim a completed user connection. Stripe-verified $10K MRR remains the final goal, not an achieved result.
 
+### Web OAuth callback screenshot regression
+
+- [x] Preserve existing non-Web `lm_users` rows and route the verified Google subject to a stable, separate Web-only UID whenever the canonical UID has a non-null `telegram_chat_id`. Callback and later session resolution both choose the same UID; the old row is read-only.
+- [x] Return OAuth failures to `/lm?auth_error=connection` and show a retry message in the existing signed-out page; Safari no longer receives a plain-text body to download as `callback.txt`.
+- [x] Verify callback tenant selection and retry state with focused tests and the synthetic browser flow: Web/auth/Calendar/billing suites pass 127/127; browser flow passes at 390x844 and 1440x900. Production proof still requires a dedicated test identity; do not sign into or read a personal Google Calendar.
+
 ### Task 3 corrective gate after fresh read-only review
 
 The review reopened Task 3; previous test results did not exercise the real initial-scan transport or all Stripe event orders. Current order:

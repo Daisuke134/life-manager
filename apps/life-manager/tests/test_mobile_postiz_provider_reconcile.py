@@ -460,6 +460,8 @@ def test_owner_reconcile_skips_unjoined_history_and_resolves_one_exact_receipt(
     )
     monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
     monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "admission.sqlite3")
+    pending_counts = iter((1, 0))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: next(pending_counts, 0))
     resolved = []
 
     def resolver(**kwargs):
@@ -490,6 +492,7 @@ def test_owner_reconcile_keeps_unjoined_unknown_without_provider_request(
     identity_dir.mkdir()
     write_identity(identity_dir / "unknown.jsonl", identity())
     monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: 1)
     monkeypatch.setattr(
         module, "_request_json",
         lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")),
@@ -534,6 +537,8 @@ def test_owner_reconcile_applies_bound_after_owner_filter(
             else ("released", 0)
         ),
     )
+    pending_counts = iter((1, 0))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: next(pending_counts, 0))
     monkeypatch.setattr(module, "_ledger_for_identity", lambda *_: tmp_path / "ledger")
     monkeypatch.setattr(module, "_local_receipt", lambda *_: {"provider_id": "post-1"})
     calls = []
@@ -578,6 +583,8 @@ def test_owner_reconcile_continues_after_inconclusive_exact_candidate(
     write_identity(identity_dir / "a.jsonl", first)
     write_identity(identity_dir / "b.jsonl", second)
     monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
+    pending_counts = iter((2, 0))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: next(pending_counts, 0))
     monkeypatch.setattr(module, "_ledger_for_identity", lambda *_: tmp_path / "ledger")
     monkeypatch.setattr(module, "_local_receipt", lambda *_: {"provider_id": "post-1"})
     calls = []

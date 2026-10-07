@@ -215,7 +215,10 @@ function renderWebPage(model = {}) {
   </style>`;
 
   if (!user) {
-    return `<!doctype html><html lang="ja"><head>${head}</head><body><main class="shell"><p class="brand">Life Manager</p><section class="card"><h1>予定への移動時間を、自動でCalendarへ</h1><p class="lead">出発時刻を何度も調べなくても、予定に間に合う移動時間をCalendarに追加します。</p><a id="lm-sign-in" class="button" href="/auth/google">Google Calendarに接続</a><p class="muted">Googleアカウントの確認とCalendarの権限許可が必要です。Life ManagerはGmailを読みません。</p></section></main><script>${CLIENT_SCRIPT}</script></body></html>`;
+    const authError = model.authError === "connection"
+      ? `<p class="feedback" role="alert">Google Calendarとの接続を完了できませんでした。もう一度接続してください。</p>`
+      : "";
+    return `<!doctype html><html lang="ja"><head>${head}</head><body><main class="shell"><p class="brand">Life Manager</p><section class="card">${authError}<h1>予定への移動時間を、自動でCalendarへ</h1><p class="lead">出発時刻を何度も調べなくても、予定に間に合う移動時間をCalendarに追加します。</p><a id="lm-sign-in" class="button" href="/auth/google">Google Calendarに接続</a><p class="muted">Googleアカウントの確認とCalendarの権限許可が必要です。Life ManagerはGmailを読みません。</p></section></main><script>${CLIENT_SCRIPT}</script></body></html>`;
   }
 
   const snapshotValue = model.snapshot || {};
