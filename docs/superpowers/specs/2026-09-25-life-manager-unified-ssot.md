@@ -4288,3 +4288,5 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 3. Live acceptance後にtargeted immutable release/owner convergenceが許される状態か確認し、natural Storefront outcomeとprovider listing readbackを結ぶ。
 4. Coconala Paidは現行revisionが未納品。Business Suite inbox textはreadableだが、exact campaign-wide reply countとSheet rowのjoinが残る。未送信の「zero replies」draftは使わず、正確なinbox/Sheet readback後にpaid ownerから一度だけ回答し、revision→formal delivery→acceptance→payout→replay-zeroを閉じる。
 5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer。Lancers rows 25–27は`waiting_external`のまま再認証・solver・応募をしない。全Gig ownerの24/7自然receiptとsettled fee/costが揃ってからL9-11 Self-Buildへ進む。
+
+**L9-08並行read-only baseline (2026-10-08 07:56 JST, cursor unchanged):** Lancers Application/Negotiate/Paid/Work-sync/Telegram Report are deferred by `disk_headroom_low`; Storefront remains `resource_effect_unknown`; selected owners have no provider receipts/readbacks. Browser `loaded-running` does not prove an application, contract, or earnings. Keep rows 25–27 `waiting_external` and do not retry auth/solver/proposals.

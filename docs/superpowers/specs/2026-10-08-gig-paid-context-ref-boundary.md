@@ -267,3 +267,7 @@ This supersedes the earlier statement that the merged parser repair had a matchi
 3. **Coconala Storefront owner:** after source/live acceptance, and only when the host/doctor/effect gates permit, verify the main-derived loaded SHA and a natural owner terminal plus official listing readback. Separate published listing, purchase, settlement, and sales-page counters.
 4. **Coconala Paid:** reconcile the current buyer thread with authenticated inbox and exact ledger rows, then use the paid owner to send one factually checked answer. Do not use the stale zero-reply draft. Complete the existing revision, formal delivery, acceptance, settlement/payout, and replay-zero afterward.
 5. Continue Coconala Apply → Negotiate/Reply → Paid; then Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer. Keep Lancers rows 25–27 `waiting_external` without authentication/solver/proposal/retry. Verify 24/7 natural receipts and economics for enabled owners; Self-Build stays after the entire Gig lane.
+
+### Lancers read-only baseline — 2026-10-08 07:56 JST (cursor unchanged)
+
+Current `lm-loop status` shows Lancers Application, Negotiate, Paid, Work-sync, and Telegram Report deferred by `disk_headroom_low`; Storefront remains `resource_effect_unknown`; selected owners have no provider receipts/readbacks. The browser is `loaded-running`, which is not proof of an application or earnings. Rows 25–27 remain `waiting_external` with no auth/solver/proposal/retry.
