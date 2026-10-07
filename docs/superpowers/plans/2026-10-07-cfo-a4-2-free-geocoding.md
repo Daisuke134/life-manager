@@ -19,8 +19,8 @@
 
 ## Current Status
 
-- A4.2 source implementation is pushed at commit `7356bcf1cc963c1049701d82763a50059468b7be`; independent read-only review passes.
-- The remaining source task is Task 2's OpenPOI privacy-dispatch correction: only recognized Japanese facility-name suffixes are sent to OpenPOI; other Japanese free-form labels bypass it and follow the existing Google path.
+- A4.2 implementation is pushed at `4f86d8f04b507e28dad9284716a7c595a2874491`. A fresh review found that generic suffix `会場` can admit private labels such as `友達の家の会場`; this is the remaining source correction.
+- The remaining source task is to allow only specific facility-name suffixes and fail closed for generic venue/private-location labels. Other Japanese free-form labels retain the existing Google path.
 - After that correction, the only remaining plan task is Task 6: record A4.1/A4.2 evidence in the canonical SSOT after its active owner releases the lease. The canonical cursor is still `A4.1`; it has not been advanced by this branch.
 
 ## Acceptance Criteria
@@ -29,7 +29,7 @@
 - A GSI candidate is accepted only when the response has exactly one valid point and its normalized title exactly preserves the query's address precision.
 - An OpenPOI candidate is accepted only when exactly one suggestion exactly matches the normalized place name, coordinates are valid and in Japan, and complete non-empty `licenses` and `attributions` arrays are present. Reject records carrying `Apache-2.0` until the required Foursquare NOTICE is present in developer documentation.
 - Address-shaped inputs are never sent to OpenPOI. Provider requests contain only the location string, never calendar title, description, attendee, event ID, or account data.
-- OpenPOI is used only for recognized Japanese facility-name queries; arbitrary Japanese labels such as `自宅` or `友達の家` bypass it and retain the existing Google path.
+- OpenPOI is used only for specific recognized Japanese facility names; generic labels such as `会場`, personal/home labels, and arbitrary Japanese text bypass it and retain the existing Google path.
 - Accepted free candidates cause exactly zero Google Geocoding requests. Ambiguous, unmatched, malformed, timed-out, or unavailable free-provider results cause exactly one existing Google Geocoding fallback per unresolved location.
 - Free-provider cache keys are tenant/provider/normalized-query scoped; free-provider cache entries retain provenance. The coordinate-only persistent cache is not used for free-provider results.
 - Geocode cache RPC timeout/failure does not prevent the provider fallback path from running.
@@ -47,7 +47,7 @@
 
 - [x] Add the smallest provider adapter using the fixture-observed GSI and OpenPOI response shapes; enforce bounded requests and strict eligibility.
 - [x] Integrate it before existing Google Geocoding, retaining provider-separated tenant/query cache keys and complete candidate provenance.
-- [ ] Limit OpenPOI dispatch to recognized facility-name suffixes; bypass it for unclassified free-form location labels.
+- [ ] Limit OpenPOI dispatch to specific facility-name suffixes; generic venue labels and private/home hints bypass it.
 - [x] Add focused usage tests proving accepted-free `Google Geocoding=0`, each rejected candidate produces exactly one Google geocode, and event usage metadata contains no raw location.
 
 ### Task 3: Bound geocode cache RPCs
