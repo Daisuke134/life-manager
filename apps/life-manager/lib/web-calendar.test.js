@@ -1092,7 +1092,7 @@ test("callback claims once, checks exact ACTIVE owner, and reads back the bindin
     calendarEventsImpl: async () => { throw new Error("callback must not read Calendar events"); },
   }));
   assert.equal(response.status, 303);
-  assert.equal(response.headers.Location, "/lm");
+  assert.equal(response.headers.Location, "/lm?initial_scan=1");
   assert.equal(response.headers["cache-control"], "no-store");
   assert.equal(calls[0][0], "claim");
   assert.deepEqual(calls[0][1], { uid: UID });

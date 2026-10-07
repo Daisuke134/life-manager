@@ -292,7 +292,7 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   await handleWebAuthRequest(req, res, fixture.options);
 
   assert.equal(res.statusCode, 302);
-  assert.equal(res.getHeader("location"), "/lm");
+  assert.equal(res.getHeader("location"), "/lm?start_calendar=1");
   assert.equal(finalCookieValue(res, "lm-web-auth"), "verified-session");
   assert.equal(finalCookieValue(res, "lm-web-auth-code-verifier"), "");
   assert.equal(finalCookieValue(res, "unrelated-cookie"), "preserve");
