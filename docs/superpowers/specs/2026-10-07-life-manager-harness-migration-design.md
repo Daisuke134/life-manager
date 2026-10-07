@@ -154,3 +154,11 @@ Tool brokerの接続は未指定socketではなく固定Python scriptへのstdin
 継承できるmodel claimはresource_class=agentだけ。Capafyのdeterministic claimやPromptBaseのbrowser claimをmodel枠と扱わない。別resourceのparentがある場合、元owner policyを保つm:<owner JSON配列hash>というbookkeeping resource ownerでagent枠を取得し、元商品owner/occurrenceへjoinする。同一ownerのqueueを別resourceで上書きしない。agent継承では二重claimしない。
 
 new engineの分岐位置は既存runnerのtoken-budget/provider-lease/evidence-capacity preflightより後、candidate for-loopより前とする。既存TokenBudgetLedger.reserve/settleをnewrouteでも使い、blockedでmodel開始0、欠測で予約保持、同一occurrence再開で二重予約なしを検証する。claimは同時実行枠、token budgetは支出制御であり別契約。provider leaseもupstream停止proof前に解放しない。
+
+## 実装前の移行readiness監査 — 今回の範囲
+
+Daisは稼働・収益経路を壊さず、実装開始後に初めて見つかる接続問題を先に解消することを求める。今回はsource/caller/state/復旧/費用境界のread-only監査と、fake provider・私有stateのみの互換probe、設計/計画の更新を行う。実業務、provider/browser、credential、launchd、稼働gateway、scheduler、production stateは変更しない。収益が既にあるという利用者の前提を守り、別の売上auditへscopeを拡大しない。
+
+完了は、既知の設計blocker・ownerごとのactual caller・初回に維持する境界・switch/rollback条件・なお未測定のruntime条件を具体的に記録し、full migration readyとfirst slice readyを分けて判定すること。全未知ゼロや無停止を実装前に保証しない。
+
+既存loop-development skillの『OpenClaw, Hermes ... may not be a Local or Cloud runtime dependency』は今回の公開harness移行検討と矛盾するためDaisの明示依頼を優先する。ただし既存default gateway/profile/別checkoutへ依存せず、repo-owned adapter/lockfile/main-derived dependency bundleのsource boundaryを保つ。
