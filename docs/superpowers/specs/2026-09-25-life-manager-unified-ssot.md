@@ -10449,3 +10449,10 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 - 10:35Z Alpaca live read-only CLI lookup by the two existing client_order_ids found both official BTC/USDC orders as `filled`. The returned `filled_qty` and `filled_avg_price` match the private 10/01 binding packet; provider mutations 0. Client IDs and order IDs remain only in the mode-0600 private packet.
 - This re-confirms official order existence and fill values, but does not create the missing Life Manager execution-intent/occurrence receipt. `alpaca-investment-live` remains `disabled`; its latest historical event is 2026-09-30 occurrence `alpaca-investment-live:18da19a286f2bd88-21702`, `resource_effect_unknown`, with no provider receipt. Do not enable or trade.
 - CFEE currency/unit and 09/30 fee-period attribution remain unverified, so no pair P&L is calculated. Row18 remains open; the next read-only join is the owner receipt and complete period activity/transfer coverage, followed by fee semantics.
+
+
+### 859. 2026-10-07 Investment owner receipt remains unbound
+
+- 10:35Z official Alpaca CLI GET by the two existing client_order_ids found both 10/01 BTC/USDC orders as `filled`; filled quantities and average prices match the mode-0600 binding packet. Provider mutations 0. No local order IDs or client IDs are repeated here.
+- Read-only admission DB lookup for `alpaca-investment-live:18da19a286f2bd88-21702` found no occurrence row. The owner remains disabled and its historical runtime event still has effect unknown/provider receipt null; the canonical `effect_reconcile.py --readback-only` therefore cannot bind that event. The two official fills do not prove which owner created them.
+- Fresh official [Alpaca Account Activities documentation](https://docs.alpaca.markets/us/docs/account-activities) identifies FILL `order_id` and NTA `date`/`net_amount`, and labels CFEE as a crypto fee, but provides no CFEE `price` currency/unit conversion contract. Keep fee amount, pair P&L, owner attribution, and settlement `unknown`; no trade, transfer, label enable, or ledger write.
