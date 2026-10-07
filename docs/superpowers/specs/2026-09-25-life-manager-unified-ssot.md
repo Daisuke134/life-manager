@@ -4213,3 +4213,17 @@ flowchart LR
 3. PR #420はOPEN、Landing CIはPASS。fresh manual workflowでproduction Supabase project refとaggregate countsをreadbackし、exact target一致・fresh SQL review後に限ってDDL/schema/ACLを反映する。
 4. 同じ自然購入でStripe paid receipt→locale PDF delivery→refund/fee/settlement/replay-zeroを確認する。one-time `$10.99` / `¥1,580`をMRRに数えない。
 5. 購入後にuser-initiated Letter/Tegami recurring CTAと14日cohortを計測し、settled recurring receiptからnet MRRを計算する。確認後にCapafy Instagram laneへ進む。
+
+### eBook Monk capacity/reconciler live delta — 2026-10-08 06:34 JST
+
+この追記は06:15 cursorのcapacityとreconciler状態だけを置き換える。Postiz integration、renderer、configured slotsは同じsnapshotのまま。
+
+- `origin/main=09fc450c`、current code release=`baacb4d3`。3 eBook ownerは`loaded-idle`、installed SHA `baacb4d3`、`admission_effect_unknown=false`。過去の`apply_lock_busy`/`host_admission_deferred`はhistoryで、current active fenceではない。
+- Latest live artifact: `~/.local/state/life-manager/ebook/evidence/ebook-postmerge-live-readback-20261007T213419Z.json`。06:34 JSTのData volume freeは`1,755,561,984` bytes（約1.64 GiB）、2 GiB recovery floor未達。cleanup occurrence `life-manager-disk-cleanup:18dc5cbd62919468-62309` は`entrypoint_exit_1` / `reconcile_owner`。06:13のfloor-met receipt後に容量が再低下した。
+- 06:31の別readbackではcleanup wakeが`apply_lock_busy`、同時にrelease-reconcilerがloaded-runningだった。これはlock contentionの相関であり、lock ownerの根本原因はまだ特定できていない。cleanup/release-reconcilerを重ねてkickstart・停止せず、現runの終端とlock解放をreadbackしてからregistered cleanup ownerを再試行する。
+- 10/8 eBook post countは06:12 JST時点0で、JA 07:00/EN 08:00 slot前。今のaccount接続操作は不要。
+
+**Atomic cursor:**
+
+1. release-reconciler occurrence `18dc5c3b8b23cd60-88270`の終端とapply-lock ownerをreadbackする。終端後、cleanup ownerの次のeligible passでfree space `>=2 GiB`, errors 0, protected deletions 0を確認し、free-space再低下のwriterを追加観測する。無差別削除やfloor overrideはしない。
+2. JA 07:00、EN 08:00の次slotからexact Postiz receipt/public URLをoccurrenceへ結合する。EnglishではHeyGen video SHAとwallet costも照合する。9 target-posts/dayは目標で、実測達成扱いはしない。
