@@ -1,8 +1,8 @@
 {
   "agent_id": "8123079349",
   "from_version_id": "2106921306758606848",
-  "target_model_id": "deepseek/deepseek-v4.1-flash",
+  "target_model_id": "anthropic/claude-sonnet-5.5",
   "icon_sha256": "71fd45e7303c4c87fa86c6ee0c532e09419a9123b0806b9e4572e34ba679176f",
-  "reason": "2026_10_07_repackage_without_test_dir_security_scan_caution_same_price_same_model",
-  "dais_approved_exception": "2026-10-07 Dais: remove the security-scan warning only; no price/model/text change"
+  "reason": "2026_10_07_sonnet_5_5_profitable_prices_no_test_dir",
+  "dais_approved_exception": "2026-10-07 Dais: Claude Sonnet 5.5, price above the old price, remove the security-scan warning"
 }
