@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  RUNNERS_BY_ACTION,
   runAniccaLarryJaRotatingCanary,
   runAniccaEnAffirmationTikTokRotatingCanary,
   runAniccaBuddhaTikTokRotatingCanary,
@@ -88,6 +89,31 @@ test("runAniccaEnAffirmationTikTokRotatingCanary feeds EN_AFFIRMATION_TIKTOK_LAN
   assert.equal(runCall.deps.env[EN_AFFIRMATION_TIKTOK_LANE.packEnv], SELECTED.packRef);
   assert.equal(runCall.deps.env[EN_AFFIRMATION_TIKTOK_LANE.captionEnv], SELECTED.captionRef);
   assert.equal(runCall.deps.env.LM_ANICCA_LARRY_JA_PACK_REF, undefined);
+});
+
+test("the EN2 action rotates the shared affirmation template for its exact integration and slots", async () => {
+  const action = "run-en2-affirmation-tiktok-production";
+  const runner = RUNNERS_BY_ACTION[action];
+  assert.equal(typeof runner, "function");
+  let resolveCall = null;
+  let runCall = null;
+  const result = await runner([action], {
+    env: { LM_DATA_DIR: "/tmp/x", LM_RUNTIME_TENANT_ID: "dais-local" },
+    resolveLarryJaSlot: (input) => { resolveCall = input; return { slot: SLOT, selected: SELECTED }; },
+    runAniccaCarouselCanary: async (argv, deps) => { runCall = { argv, deps }; return { argv }; },
+  });
+  assert.deepEqual({
+    integrationId: resolveCall.lane.integrationId,
+    accountId: resolveCall.lane.accountId,
+    productionSlots: resolveCall.productionSlots,
+  }, {
+    integrationId: "cmlt171eq04d9r00yzzceb6bw",
+    accountId: "@aniccaen2",
+    productionSlots: ["09:30", "14:30", "20:30"],
+  });
+  assert.deepEqual(result, { argv: [action, "--slot", SLOT] });
+  assert.equal(runCall.deps.env[EN_AFFIRMATION_TIKTOK_LANE.packEnv], SELECTED.packRef);
+  assert.equal(runCall.deps.env[EN_AFFIRMATION_TIKTOK_LANE.mediaEnv], JSON.stringify(SELECTED.mediaRefs));
 });
 
 test("runAniccaBuddhaTikTokRotatingCanary rejects any command other than run-ja-buddha-tiktok-production", async () => {

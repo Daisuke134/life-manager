@@ -439,6 +439,12 @@ test("EN slideshow TikTok command selects only its immutable lane", () => {
   assert.throws(() => runAniccaEnSlideshowTikTokCanary(["run-en-affirmation", "--slot", SLOT], {}), /accepts only/i);
 });
 
+test("EN2 TikTok production command accepts only its exact due slot shape", () => {
+  const command = "run-en2-affirmation-tiktok-production";
+  assert.deepEqual(parseArgs([command]), { command, slot: null });
+  assert.deepEqual(parseArgs([command, "--slot", SLOT]), { command, slot: SLOT });
+});
+
 test("TikTok Postiz liveness accepts the exact CTA-adjusted caption hash", () => {
   const lane = { platform: "tiktok" };
   const baseCaptionSha = "a".repeat(64);
