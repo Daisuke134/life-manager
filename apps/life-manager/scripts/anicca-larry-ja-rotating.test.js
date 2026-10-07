@@ -105,10 +105,16 @@ test("the EN2 action rotates the shared affirmation template for its exact integ
   assert.deepEqual({
     integrationId: resolveCall.lane.integrationId,
     accountId: resolveCall.lane.accountId,
+    lane: resolveCall.lane.lane,
+    workerLabel: resolveCall.lane.workerLabel,
+    rotationEnabled: resolveCall.lane.rotationEnabled,
     productionSlots: resolveCall.productionSlots,
   }, {
     integrationId: "cmlt171eq04d9r00yzzceb6bw",
     accountId: "@aniccaen2",
+    lane: "anicca-en2-affirmation-tiktok",
+    workerLabel: "anicca-en2-affirmation-tiktok-canary",
+    rotationEnabled: true,
     productionSlots: ["09:30", "14:30", "20:30"],
   });
   assert.deepEqual(result, { argv: [action, "--slot", SLOT] });

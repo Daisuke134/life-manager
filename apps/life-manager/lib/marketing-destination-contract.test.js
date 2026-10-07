@@ -68,6 +68,8 @@ test("enabled @aniccaen2 resolves to one Anicca iOS English affirmation route wi
     account: target.native_handle,
     format: target.job_format_id,
     mediaForm: target.media_form,
+    approvedPack: target.approved_pack,
+    approvedPackRef: target.approved_pack_ref,
     loop: target.loop_name,
     cadence: target.cadence_jst,
   }, {
@@ -76,6 +78,8 @@ test("enabled @aniccaen2 resolves to one Anicca iOS English affirmation route wi
     account: "@aniccaen2",
     format: "larry",
     mediaForm: "affirmation-carousel",
+    approvedPack: "anicca-ios-larry-affirmation-en-tiktok.pack.json",
+    approvedPackRef: "gate-approved",
     loop: "life-manager-anicca-en2-affirmation-tiktok",
     cadence: ["09:30", "14:30", "20:30"],
   });
