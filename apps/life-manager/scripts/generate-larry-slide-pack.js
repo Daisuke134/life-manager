@@ -9,13 +9,14 @@
 // anicca-larry-ja-canary.js -- the canary itself is untouched, so its
 // existing (heavily tested) validation still runs unchanged at publish time.
 //
-// ponytail: no daemon, no lock file. Reads/writes plain JSON files under
-// LM_DATA_DIR; run it right before each slot (cron/launchd), not
-// continuously. Two concurrent runs for the same slot could pick the same
-// candidate -- harmless, because the publication job's own effect_key dedup
-// prevents a double post either way (see marketing-slide-pack-rotation.js).
+// ponytail: no daemon. Reads/writes plain JSON files under LM_DATA_DIR. The
+// managed owner serializes runs; this resolver checks the durable distribution
+// ledger before and after generation so an already-published slot cannot rotate
+// to another pack. The content-scoped effect_key only deduplicates identical
+// packs; it is not the slot fence.
 
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const path = require("node:path");
 
 const { createContentObjectStore } = require("../lib/content-object-store.js");
@@ -60,7 +61,22 @@ function readPostedHistory(file) {
   if (!fs.existsSync(file)) return [];
   return fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     .filter((row) => row && row.receipt && row.receipt.pack_sha256 && row.receipt.published_at)
-    .map((row) => ({ packRef: `object://sha256/${row.receipt.pack_sha256}`, postedAt: row.receipt.published_at }));
+    .map((row) => {
+      const effectParts = String(row.effect_key || "").split(":");
+      const slotHash = effectParts.length === 8
+        && effectParts[0] === "marketing"
+        && effectParts[1] === "carousel"
+        && /^[0-9a-f]{64}$/.test(effectParts[7])
+        ? effectParts[7]
+        : null;
+      return {
+        packRef: `object://sha256/${row.receipt.pack_sha256}`,
+        postedAt: row.receipt.published_at,
+        integrationRef: row.receipt.integration_ref || null,
+        slotHash,
+        providerPostId: row.receipt.provider_post_id || null,
+      };
+    });
 }
 
 function readCreativeMetricsForFamilies(dataDir, candidates) {
@@ -83,6 +99,16 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
   const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots) || nowIso;
+  const distributionLedger = distributionLedgerPath(dataDir, tenantId, lane.productId);
+  const initialPostedHistory = readPostedHistory(distributionLedger);
+  const slotHash = crypto.createHash("sha256").update(dueSlot).digest("hex");
+  const alreadyPublished = (history) => history.find(
+    (row) => row.integrationRef === lane.integrationRef && row.slotHash === slotHash,
+  );
+  const initialSlotReceipt = alreadyPublished(initialPostedHistory);
+  if (initialSlotReceipt) {
+    return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: initialSlotReceipt.providerPostId };
+  }
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
   const workspaceDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, ".workspace");
@@ -90,7 +116,6 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const pool = poolPath(dataDir, tenantId, lane.productId, lane.lane);
   let candidates = readPool(pool);
 
-  const initialPostedHistory = readPostedHistory(distributionLedgerPath(dataDir, tenantId, lane.productId));
   const available = selectSlidePack({ candidates, postedHistory: initialPostedHistory, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
   // Total inventory can exceed the warm-up floor while every pack is still
   // inside the no-repeat window. Refill once through the same gated factory.
@@ -127,7 +152,11 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     }
   }
 
-  const postedHistory = readPostedHistory(distributionLedgerPath(dataDir, tenantId, lane.productId));
+  const postedHistory = readPostedHistory(distributionLedger);
+  const slotReceipt = alreadyPublished(postedHistory);
+  if (slotReceipt) {
+    return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: slotReceipt.providerPostId };
+  }
   const metrics = readCreativeMetricsForFamilies(dataDir, candidates);
   const selected = selectSlidePack({ candidates, postedHistory, metrics, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
   if (!selected) {
@@ -137,7 +166,12 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
 }
 
 if (require.main === module) {
-  resolveLarryJaSlot({ slot: process.argv[2] || null }).then(({ slot, selected }) => {
+  resolveLarryJaSlot({ slot: process.argv[2] || null }).then(({ slot, selected, alreadyPublished }) => {
+    if (alreadyPublished) {
+      process.stderr.write(`slot already published: ${slot}\n`);
+      process.exitCode = 75;
+      return;
+    }
     process.stdout.write([
       `export LM_ANICCA_LARRY_JA_PACK_REF='${selected.packRef}'`,
       `export LM_ANICCA_LARRY_JA_MEDIA_REFS='${JSON.stringify(selected.mediaRefs)}'`,

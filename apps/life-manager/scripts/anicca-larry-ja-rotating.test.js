@@ -51,6 +51,22 @@ test("runAniccaLarryJaRotatingCanary propagates a rotation resolution failure in
   }), /no unposted candidate available/);
 });
 
+test("rotating runner skips the canary when the current slot already has a verified publication", async () => {
+  let canaryCalls = 0;
+  const result = await runAniccaEnAffirmationTikTokRotatingCanary(["run-en-affirmation-tiktok-production"], {
+    env: { LM_DATA_DIR: "/tmp/x", LM_RUNTIME_TENANT_ID: "dais-local" },
+    resolveLarryJaSlot: () => ({ slot: SLOT, selected: null, alreadyPublished: true, providerPostId: "postiz-slot-1" }),
+    runAniccaCarouselCanary: () => { canaryCalls += 1; throw new Error("must not publish a second pack in the same slot"); },
+  });
+
+  assert.deepEqual(result, {
+    status: "already_published",
+    slot: SLOT,
+    publication: { created: false, provider_post_id: "postiz-slot-1", provider_reconciled: true },
+  });
+  assert.equal(canaryCalls, 0);
+});
+
 // Root-cause regression coverage: the same rotating wrapper function that
 // fixed JA Larry Instagram must also drive the other previously-repeating
 // lanes, feeding each its OWN env var names (lane.packEnv/mediaEnv/
