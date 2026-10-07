@@ -2222,11 +2222,168 @@ def test_run_once_rotates_candidate_start_after_budget_exhaustion(
         rotations.append(result.get("candidate_rotation"))
 
     assert visited == ["cfo-budget-0", "cfo-budget-1", "cfo-budget-2"]
+    persisted_cursor = {"status": "persisted", "errors": []}
     assert rotations == [
-        {"candidate_count": 4, "start_index": 0, "next_index": 1},
-        {"candidate_count": 4, "start_index": 1, "next_index": 2},
-        {"candidate_count": 4, "start_index": 2, "next_index": 3},
+        {
+            "candidate_count": 4,
+            "start_index": 0,
+            "next_index": 1,
+            "cursor_persistence": persisted_cursor,
+        },
+        {
+            "candidate_count": 4,
+            "start_index": 1,
+            "next_index": 2,
+            "cursor_persistence": persisted_cursor,
+        },
+        {
+            "candidate_count": 4,
+            "start_index": 2,
+            "next_index": 3,
+            "cursor_persistence": persisted_cursor,
+        },
     ]
+
+
+def _make_cursor_enospc_governor(tmp_path: Path, monkeypatch, free_bytes: int):
+    state = tmp_path / "state"
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "cfo-cursor-enospc"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_text("keep")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 0, "root_count": 0, "gaps": []}},
+    )
+    candidates = [{
+        "path": candidate,
+        "class": "ephemeral",
+        "owner": "temporary-run",
+        "discovery": "allowlisted",
+    }]
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=state,
+        lsof=lambda _path: "open",
+        usage=lambda: (free_bytes, 100 * GiB),
+    )
+    monkeypatch.setattr(governor, "discover_candidates", lambda: candidates)
+    sweep_calls = []
+    real_sweep = governor.sweep
+
+    def counted_sweep(*args, **kwargs):
+        sweep_calls.append(1)
+        return real_sweep(*args, **kwargs)
+
+    monkeypatch.setattr(governor, "sweep", counted_sweep)
+    assert governor.acquire_lock()
+    return governor, state, candidate, sweep_calls
+
+
+def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
+    tmp_path: Path, monkeypatch
+) -> None:
+    governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
+        tmp_path, monkeypatch, free_bytes=6 * GiB,
+    )
+    original_mkstemp = disk_cleanup.tempfile.mkstemp
+    failures = {".candidate-cursor.json.": 2, ".last-receipt.json.": 1}
+
+    def fail_cursor_and_terminal_once(*args, **kwargs):
+        prefix = kwargs.get("prefix", "")
+        if failures.get(prefix, 0):
+            failures[prefix] -= 1
+            raise OSError(errno.ENOSPC, "injected receipt tempfile exhaustion")
+        return original_mkstemp(*args, **kwargs)
+
+    monkeypatch.setattr(disk_cleanup.tempfile, "mkstemp", fail_cursor_and_terminal_once)
+    try:
+        result = governor.run_once()
+    finally:
+        governor.release_lock()
+
+    assert sweep_calls == [1]
+    assert candidate.exists()
+    assert result["protected_deletions"] == 0
+    assert result["ok"] is False
+    cursor = result["candidate_rotation"]["cursor_persistence"]
+    assert cursor["status"] == "failed"
+    assert cursor["errors"][0] == {
+        "stage": "before_sweep",
+        "error_class": "OSError",
+        "errno": errno.ENOSPC,
+        "next_action": "continue_sweep_then_retry_once_after_recovery",
+    }
+    receipt = json.loads((state / "last-receipt.json").read_text())
+    assert receipt["ok"] is False
+    assert receipt["capacity_recovery"]["status"] == "unmet"
+    assert governor._receipt_reserve_valid(state / ".receipt-reserve")
+
+
+def test_cursor_reserve_recreate_enospc_retries_after_recovery_and_saves_receipt(
+    tmp_path: Path, monkeypatch
+) -> None:
+    governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
+        tmp_path, monkeypatch, free_bytes=12 * GiB,
+    )
+    real_atomic_write = governor._atomic_receipt_write
+    cursor_write_failed = False
+
+    def fail_first_cursor_write(data: bytes, target: Path) -> None:
+        nonlocal cursor_write_failed
+        if target.name == "candidate-cursor.json" and not cursor_write_failed:
+            cursor_write_failed = True
+            raise disk_cleanup._ReceiptAtomicFailure(
+                OSError(errno.ENOSPC, "injected candidate cursor exhaustion")
+            )
+        real_atomic_write(data, target)
+
+    real_reserve = governor._receipt_reserve
+    reserve_recreate_failed = False
+
+    def fail_first_reserve_recreate(*, recreate: bool = False) -> None:
+        nonlocal reserve_recreate_failed
+        if recreate and not reserve_recreate_failed:
+            reserve_recreate_failed = True
+            raise OSError(errno.ENOSPC, "injected reserve recreation exhaustion")
+        real_reserve(recreate=recreate)
+
+    original_mkstemp = disk_cleanup.tempfile.mkstemp
+    terminal_receipt_failure = 1
+
+    def fail_terminal_receipt_once(*args, **kwargs):
+        nonlocal terminal_receipt_failure
+        if kwargs.get("prefix") == ".last-receipt.json." and terminal_receipt_failure:
+            terminal_receipt_failure -= 1
+            raise OSError(errno.ENOSPC, "injected last receipt tempfile exhaustion")
+        return original_mkstemp(*args, **kwargs)
+
+    monkeypatch.setattr(governor, "_atomic_receipt_write", fail_first_cursor_write)
+    monkeypatch.setattr(governor, "_receipt_reserve", fail_first_reserve_recreate)
+    monkeypatch.setattr(disk_cleanup.tempfile, "mkstemp", fail_terminal_receipt_once)
+    try:
+        result = governor.run_once()
+    finally:
+        governor.release_lock()
+
+    assert sweep_calls == [1]
+    assert candidate.exists()
+    assert result["protected_deletions"] == 0
+    assert result["free_after"] == 12 * GiB
+    assert result["capacity_recovery"]["status"] == "met"
+    assert result["ok"] is True
+    cursor = result["candidate_rotation"]["cursor_persistence"]
+    assert cursor["status"] == "persisted_after_retry"
+    assert cursor["errors"][0] == {
+        "stage": "before_sweep",
+        "error_class": "OSError",
+        "errno": errno.ENOSPC,
+        "next_action": "continue_sweep_then_retry_once_after_recovery",
+    }
+    assert json.loads((state / "last-receipt.json").read_text())["ok"] is True
+    assert governor._receipt_reserve_valid(state / ".receipt-reserve")
 
 
 def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monkeypatch) -> None:

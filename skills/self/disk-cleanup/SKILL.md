@@ -42,8 +42,10 @@ allow-listed regenerable artifact after an open-path probe confirms
   protected deletions. A busy singleton lock reports `cleanup_lock_busy` with
   unknown capacity and exits 75 without running cleanup.
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
-  advances atomically under the governor's singleton lock before each bounded
-  sweep, so an early slow or open candidate cannot consume every wake.
+  advances atomically under the governor's singleton lock; if disk exhaustion
+  prevents that metadata write, the in-memory rotation still sweeps and retries
+  the cursor once only after the sweep's fresh free-space reading meets 11 GiB.
+  The receipt records cursor-write failures separately from deletion errors.
 - The shared runner defers new finite data-plane wakes below 11 GiB, measuring
   the volume that contains the host-admission receipt before queueing and again
   after claim before child dispatch. Control-plane safety loops and continuous

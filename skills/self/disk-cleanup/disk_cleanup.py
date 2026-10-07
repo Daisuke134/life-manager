@@ -1005,7 +1005,12 @@ class HostDiskGovernor:
 
     @contextmanager
     def _staged_receipt_file(self, data: bytes, parent: Path, prefix: str, *, retryable: bool = False):
-        fd, temporary_name = tempfile.mkstemp(prefix=prefix, suffix=".tmp", dir=str(parent))
+        try:
+            fd, temporary_name = tempfile.mkstemp(prefix=prefix, suffix=".tmp", dir=str(parent))
+        except OSError as exc:
+            if retryable:
+                raise _ReceiptAtomicFailure(exc) from exc
+            raise
         temporary = Path(temporary_name)
         try:
             os.fchmod(fd, 0o600)
@@ -1453,19 +1458,61 @@ class HostDiskGovernor:
         candidate_count = len(candidates)
         candidate_start = self._candidate_start_index(candidate_count)
         candidate_next = (candidate_start + 1) % candidate_count if candidate_count else 0
+        cursor_errors: list[dict[str, object]] = []
+        cursor_status = "not_needed"
         if candidate_count:
-            # main() holds the singleton governor lock across this durable advance and sweep.
-            self._persist_candidate_cursor(candidate_next)
             candidates = candidates[candidate_start:] + candidates[:candidate_start]
+            # Cursor persistence is useful for fairness but must not block recovery
+            # when the filesystem is too full to stage its atomic receipt.
+            try:
+                self._persist_candidate_cursor(candidate_next)
+            except Exception as exc:
+                error = exc.error if isinstance(exc, _ReceiptAtomicFailure) else exc
+                cursor_errors.append(
+                    {
+                        "stage": "before_sweep",
+                        "error_class": type(error).__name__,
+                        "errno": getattr(error, "errno", None),
+                        "next_action": "continue_sweep_then_retry_once_after_recovery",
+                    }
+                )
+                cursor_status = "failed"
+            else:
+                cursor_status = "persisted"
         result = self.sweep(
             candidates,
             write_receipt=False,
             deadline=deadline,
         )
+        if cursor_errors:
+            free_after_sweep = result.get("free_after")
+            if (
+                isinstance(free_after_sweep, int)
+                and not isinstance(free_after_sweep, bool)
+                and free_after_sweep >= RECOVERY_FLOOR_BYTES
+            ):
+                try:
+                    self._persist_candidate_cursor(candidate_next)
+                except Exception as exc:
+                    error = exc.error if isinstance(exc, _ReceiptAtomicFailure) else exc
+                    cursor_errors.append(
+                        {
+                            "stage": "after_sweep_retry",
+                            "error_class": type(error).__name__,
+                            "errno": getattr(error, "errno", None),
+                            "next_action": "retry_on_next_run",
+                        }
+                    )
+                else:
+                    cursor_status = "persisted_after_retry"
         result["candidate_rotation"] = {
             "candidate_count": candidate_count,
             "start_index": candidate_start,
             "next_index": candidate_next,
+            "cursor_persistence": {
+                "status": cursor_status,
+                "errors": cursor_errors,
+            },
         }
         result["updater_recovery"] = updater_recovery
         result["errors"] += updater_recovery["errors"]
