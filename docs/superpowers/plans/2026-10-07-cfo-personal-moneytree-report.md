@@ -43,12 +43,12 @@
 - Consumes: Moneytree group `institutionName`, account `nickname`/`institution_account_name`, and transaction query metadata.
 - Produces: normalized account `name` such as `三菱UFJ銀行 普通`; transaction observation metadata `{query_start_date,query_end_date,provider_total_count,returned_count,limit}`; categories `振替`, `カード返済`, and `ATM引き出し` are cash movements, not consumption; never account number or provider account ID.
 
-- [ ] **Step 1: Write `normalizeAccounts preserves the bank label without account identifiers`** with literal `三菱UFJ銀行 普通` and assert the account number is absent.
-- [ ] **Step 2: Write `readTransactions records requested range and returned coverage`** with literal range/count values and assert they appear in the adapter observation metadata.
-- [ ] **Step 3: Write `Moneytree transfer, card repayment, and ATM withdrawal categories are not consumption`**; assert each becomes an unallocated cash movement, not personal expense.
-- [ ] **Step 4: Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js`; confirm the new assertions fail.**
-- [ ] **Step 5: Add the safe institution label, bounded query metadata, and non-consumption classification; never store account numbers/provider IDs.**
-- [ ] **Step 6: Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js`; confirm all adapter tests pass.**
+- [x] **Step 1: Write `normalizeAccounts preserves the bank label without account identifiers`** with literal `三菱UFJ銀行 普通` and assert the account number is absent.
+- [x] **Step 2: Write `readTransactions records requested range and returned coverage`** with literal range/count values and assert they appear in the adapter observation metadata.
+- [x] **Step 3: Write `Moneytree transfer, card repayment, and ATM withdrawal categories are not consumption`**; assert each becomes an unallocated cash movement, not personal expense.
+- [x] **Step 4: Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js`; confirm the new assertions fail.**
+- [x] **Step 5: Add the safe institution label, bounded query metadata, and non-consumption classification; never store account numbers/provider IDs.**
+- [x] **Step 6: Run `node --test apps/life-manager/lib/moneytree-local-adapter.test.js`; confirm all adapter tests pass.**
 - [ ] **Step 7: Commit the task.**
 
 ### Task 2: Add the personal snapshot to the existing B7 report
@@ -91,3 +91,4 @@
 - The live release calls `cfo-hourly-local.main`, which chooses the business-only `runResultCfo` path. The Moneytree-enabled `runHourlyCfo` exists but is not called by `main`.
 - The existing `runResultCfo.collect` seam composes a separate personal projection into the B7 snapshot and message hash without editing `cfo-result-local.js` or changing delivery idempotency.
 - The current mainline cursor remains A4.1; this is a parallel, explicitly partial A7/A9 implementation slice. It does not claim A4 completion, current bank freshness, verified subscription contracts, or production acceptance.
+- Task 1 verification: the adapter tests first failed on the three intended behaviors, then passed after the minimal adapter change. The related ingest test had an unrelated stale literal (`15`) after main commit `6c5240d70e` expanded the catalog to 18 loops; its expected count now reflects the current contract. Adapter + ingest tests pass 15/15.

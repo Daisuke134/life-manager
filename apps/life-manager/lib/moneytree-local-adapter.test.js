@@ -146,7 +146,9 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     process.stdout.write(JSON.stringify({ id: 3, result: {
       isError: false,
       structuredContent: { data: {
-        total_count: 4,
+        startDate: "2026-08-01",
+        endDate: "2026-08-31",
+        totalCount: 4,
         transactions: [
           { id: "provider-transaction-id-001", account_id: "provider-account-id-017", amount: -1200, date: "2026-08-30", description: "RAW_TRANSACTION_PAYLOAD_MARKER", category_name: "食費" },
           { id: "provider-transaction-id-002", account_id: "provider-account-id-017", amount: 45000, date: "2026-08-12", description: "給料", category_name: "給与" }
