@@ -3857,3 +3857,6 @@ Host recovery追加条件: 単発回収だけで完了にせず、既存5分clea
 現在cursor: workerの誤成功/cursor/fallback source fix → focused acceptance → main/release → target idle apply → primary+watchdog natural receipt。追加のshared disk admission診断を並行する。
 
 共有producer予防gate: source診断でlm_loop_runにはdisk checkがなく、既存disk_admissionは一部wrapperだけ/default512MiB。従って今回の再発防止には既存memory pre-enqueue gateと同じ形で11GiBのdisk preflightを接続する必要がある。CONTROL_PLANE_SAFETY_LOOPSはbypassしcleanupを継続、現在実行中のownerは停止せず新しいfinite producerだけeffect dispatch前にdeferする。既存queue/fenceを削除/書換せず、新しいquota frameworkは作らない。受け入れはlow-diskのprovider dispatch0、cleanup bypass、normal headroomの既存経路、typed deferred receipt、main由来production自然run。
+
+容量報告の別障害: host_inventoryはmacOSの`df -P` (512-blocks)を1024倍しており、実245GBのdiskを490GBと報告する。実df -kPとAPFS readbackで2倍差を確認。df -kPへ単位を固定し既存1024-block fixtureに回帰を追加する。governorのshutil.disk_usageは正常であり、このreport不具合とgovernorの判定を混同しない。
+source/運用の未完境界: 空きは約6GiBで11GiB未回復。session DBのfree pagesはほぼ0で、VACUUMによる有意回収はない。全dependency bundleにはproduction/source参照があり削除不可。唯一のmerged/clean/expired lease worktree候補にもopen reference1件あり保護する。TCCのunknown rootsはunknownのまま残す。
