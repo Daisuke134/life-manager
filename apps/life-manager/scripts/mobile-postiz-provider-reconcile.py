@@ -263,6 +263,85 @@ def _video_caption_normalization(
     return "video_terminal_lf_removed"
 
 
+def _native_carousel_pack_title(identity: dict[str, Any], ledger: Path) -> str:
+    pack_sha = str(identity.get("pack_sha256", ""))
+    if not HASH.fullmatch(pack_sha):
+        raise ValueError("native carousel pack hash is invalid")
+    data_root = ledger.expanduser().resolve().parents[5]
+    path = data_root / "objects" / "sha256" / pack_sha
+    info = path.lstat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+            or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600
+            or info.st_size > 1024 * 1024):
+        raise ValueError("native carousel pack object is unsafe")
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(descriptor, "rb") as handle:
+        payload = handle.read(1024 * 1024 + 1)
+    if len(payload) > 1024 * 1024 or hashlib.sha256(payload).hexdigest() != pack_sha:
+        raise ValueError("native carousel pack object hash mismatch")
+    pack = json.loads(payload.decode("utf-8"))
+    slides = pack.get("slides") if isinstance(pack, dict) else None
+    if not isinstance(slides, list) or len(slides) != 6 or not isinstance(slides[0], dict):
+        raise ValueError("native carousel pack slides are invalid")
+    title = slides[0].get("text")
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("native carousel pack title is missing")
+    return title
+
+
+def _is_native_carousel_identity(identity: dict[str, Any]) -> bool:
+    return (
+        identity.get("product_id") == "anicca-ios"
+        and identity.get("platform") == "tiktok"
+        and identity.get("video_sha256") is None
+        and isinstance(identity.get("media_sha256"), list)
+        and len(identity["media_sha256"]) == 6
+    )
+
+
+def _native_carousel_image_hashes(row: dict[str, Any], identity: dict[str, Any]) -> list[str]:
+    images = row.get("image")
+    if isinstance(images, str):
+        images = json.loads(images)
+    expected = identity.get("media_sha256")
+    if (not isinstance(expected, list) or len(expected) != 6
+            or not isinstance(images, list) or len(images) != len(expected)):
+        raise ValueError("Postiz carousel image list is invalid")
+    hashes: list[str] = []
+    for image in images:
+        url = image.get("path") if isinstance(image, dict) else None
+        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+        if (parsed is None or parsed.scheme != "https" or parsed.hostname != "uploads.postiz.com"
+                or parsed.username or parsed.password or parsed.port):
+            raise ValueError("Postiz carousel image URL is not allowlisted")
+        request = urllib.request.Request(url, headers={"Accept": "image/*"})
+        digest = hashlib.sha256()
+        size = 0
+        with urllib.request.urlopen(request, timeout=30) as response:
+            final = urllib.parse.urlsplit(response.geturl())
+            if final.scheme != "https" or final.hostname != "uploads.postiz.com":
+                raise ValueError("Postiz carousel image redirected outside allowlist")
+            if not str(response.headers.get("Content-Type", "")).lower().startswith("image/"):
+                raise ValueError("Postiz carousel media is not an image")
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > 20 * 1024 * 1024:
+                    raise ValueError("Postiz carousel image exceeds size bound")
+                digest.update(chunk)
+        hashes.append(digest.hexdigest())
+    if hashes != expected:
+        raise ValueError("Postiz carousel image bytes or order mismatch")
+    order_hash = hashlib.sha256(
+        json.dumps(hashes, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if order_hash != identity.get("media_order_sha256"):
+        raise ValueError("Postiz carousel image order hash mismatch")
+    return hashes
+
+
 def _load_postiz_video_adapter():
     postiz_path = ROOT / "skills/video/lm-distribution/postiz_video.py"
     spec = importlib.util.spec_from_file_location("life_manager_postiz_video", postiz_path)
@@ -349,6 +428,131 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
         ),
         "remote_effect_locator": remote_effect_locator,
     }, provider_id)
+
+
+def _native_carousel_slot_is_unique(
+    identity: dict[str, Any], identity_dir: Path, ledger: Path,
+    published_at: datetime, provider_caption: str, provider_title: str,
+) -> bool:
+    identity_dir = identity_dir.expanduser()
+    try:
+        sidecars = sorted(identity_dir.glob("*.jsonl"), key=lambda item: item.name)
+    except OSError:
+        return False
+    if not sidecars:
+        return False
+    occurrence_id = str(identity.get("occurrence_id", ""))
+    owner_id = str(identity.get("loop_id", ""))
+    published_utc = published_at.astimezone(timezone.utc)
+    for sidecar in sidecars:
+        rows = _safe_jsonl(sidecar)
+        if rows is None:
+            return False
+        for other in rows:
+            other_occurrence = str(other.get("occurrence_id", ""))
+            other_owner = str(other.get("loop_id", ""))
+            if (other_occurrence == occurrence_id
+                    or not _valid_identity(other, other_owner, other_occurrence)
+                    or other.get("platform") != identity.get("platform")
+                    or other.get("platform") != "tiktok"
+                    or other.get("video_sha256") is not None
+                    or other.get("account_id") != identity.get("account_id")
+                    or other.get("integration_ref") != identity.get("integration_ref")
+                    or not isinstance(other.get("media_sha256"), list)
+                    or len(other["media_sha256"]) != 6
+                    or other.get("media_sha256") != identity.get("media_sha256")
+                    or other.get("media_order_sha256") != identity.get("media_order_sha256")
+                    or not _native_carousel_caption_matches(provider_caption, other)):
+                continue
+            try:
+                other_title = _native_carousel_pack_title(other, ledger)
+                other_slot = datetime.fromisoformat(str(other["slot"]).replace("Z", "+00:00"))
+            except (OSError, KeyError, IndexError, TypeError, ValueError):
+                return False
+            if other_title != provider_title:
+                continue
+            if (other_slot.tzinfo is None
+                    or abs((other_slot.astimezone(timezone.utc) - published_utc).total_seconds()) <= 15 * 60):
+                return False
+    return True
+
+
+def _remote_native_carousel_receipt(
+    identity: dict[str, Any], ledger: Path, api_key: str,
+) -> tuple[dict[str, Any], str] | None:
+    if not _is_native_carousel_identity(identity):
+        return None
+    title = _native_carousel_pack_title(identity, ledger)
+    try:
+        slot = datetime.fromisoformat(str(identity["slot"]).replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        return None
+    if slot.tzinfo is None:
+        return None
+    slot_utc = slot.astimezone(timezone.utc)
+    start = (slot_utc - timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+    end = (slot_utc + timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+    query = urllib.parse.urlencode({"startDate": start, "endDate": end, "limit": "100"})
+    rows = _rows(_request_json(f"{POSTIZ_V1}/posts?{query}", api_key))
+    if len(rows) >= 100:
+        return None
+    integration_id = str(identity["integration_ref"]).rsplit("/", 1)[-1]
+    caption_candidates: list[tuple[dict[str, Any], str, str, datetime]] = []
+    for row in rows:
+        nested = row.get("integration")
+        row_integration = nested.get("id") if isinstance(nested, dict) else row.get("integrationId")
+        provider_id = row.get("id")
+        if (row.get("state") != "PUBLISHED" or row_integration != integration_id
+                or not isinstance(provider_id, str) or not PROVIDER_ID.fullmatch(provider_id)):
+            continue
+        try:
+            published_at = datetime.fromisoformat(str(row["publishDate"]).replace("Z", "+00:00"))
+            caption = _caption(row)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (published_at.tzinfo is None
+                or abs((published_at.astimezone(timezone.utc) - slot_utc).total_seconds()) > 15 * 60):
+            continue
+        caption_sha = hashlib.sha256(caption.encode("utf-8")).hexdigest()
+        allowed_caption = _native_carousel_caption_matches(caption, identity)
+        if allowed_caption:
+            caption_candidates.append((row, provider_id, caption, caption_sha, published_at))
+    if len(caption_candidates) != 1:
+        return None
+    _, provider_id, caption, caption_sha, published_at = caption_candidates[0]
+    readback = _provider_readback(
+        identity, provider_id, api_key, caption_sha,
+        expected_pack_title=title,
+    )
+    receipt = {
+        "schema_version": 1,
+        "kind": "marketing_native_carousel_distribution",
+        "status": "published",
+        "product_id": identity["product_id"],
+        "format_id": identity["format_id"],
+        "form": identity["form"],
+        "locale": identity["locale"],
+        "platform": identity["platform"],
+        "account_id": identity["account_id"],
+        "integration_ref": identity["integration_ref"],
+        "creative_id": identity["creative_id"],
+        "pack_sha256": identity["pack_sha256"],
+        "media_sha256": identity["media_sha256"],
+        "media_order_sha256": identity["media_order_sha256"],
+        "caption_sha256": identity["caption_sha256"],
+        "caption_with_cta_sha256": caption_sha,
+        "provider_post_id": provider_id,
+        "provider_reconciled": True,
+        "public_url": None,
+        "provider_state": readback["provider_state"],
+        "provider_integration_id": readback["provider_integration_id"],
+        "provider_content_sha256": readback["provider_content_sha256"],
+        "provider_title": readback["provider_title"],
+        "provider_posting_method": readback["provider_posting_method"],
+        "provider_release_id": readback["provider_release_id"],
+        "published_at": readback["published_at"],
+    }
+    return receipt, provider_id
 
 
 def _rows(payload: Any) -> list[dict[str, Any]]:
@@ -462,6 +666,18 @@ def _ends_with_known_cta(caption: str) -> bool:
     return any(caption.endswith(f"\n\n{line}\n") for line in _KNOWN_CTA_LINES)
 
 
+def _native_carousel_caption_matches(caption: str, identity: dict[str, Any]) -> bool:
+    if hashlib.sha256(caption.encode("utf-8")).hexdigest() == identity.get("caption_sha256"):
+        return True
+    for line in _KNOWN_CTA_LINES:
+        suffix = f"\n\n{line}\n"
+        if (caption.endswith(suffix)
+                and hashlib.sha256(caption[:-len(suffix)].encode("utf-8")).hexdigest()
+                == identity.get("caption_sha256")):
+            return True
+    return False
+
+
 def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> str:
     """Hash of the caption actually sent to Postiz.
 
@@ -480,7 +696,8 @@ def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> 
 
 def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
                        expected_caption_sha256: str | None = None,
-                       expected_caption_text: str | None = None) -> dict[str, Any]:
+                       expected_caption_text: str | None = None,
+                       expected_pack_title: str | None = None) -> dict[str, Any]:
     row = _postiz_post(provider_id, api_key)
     adapter = _load_postiz_video_adapter()
     state = adapter.find_post([row], provider_id, identity["platform"])
@@ -520,6 +737,44 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
             local_content[key] = identity[key]
     if provider_video_sha is not None:
         provider_content["video_sha256"] = provider_video_sha
+    native_photo = (
+        identity.get("platform") == "tiktok"
+        and identity.get("video_sha256") is None
+        and isinstance(identity.get("media_sha256"), list)
+    )
+    native_photo_details: dict[str, Any] = {}
+    if native_photo:
+        settings = row.get("settings")
+        if isinstance(settings, str):
+            settings = json.loads(settings)
+        if (not isinstance(settings, dict) or not isinstance(expected_pack_title, str)
+                or settings.get("title") != expected_pack_title
+                or settings.get("content_posting_method") != "DIRECT_POST"
+                or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", str(row.get("releaseId", "")))
+                or state.get("post_url") is not None):
+            raise ValueError("Postiz native carousel publication metadata mismatch")
+        remote_media = _native_carousel_image_hashes(row, identity)
+        provider_content["media_sha256"] = remote_media
+        provider_content["media_order_sha256"] = identity["media_order_sha256"]
+        try:
+            published_at = datetime.fromisoformat(str(row["publishDate"]).replace("Z", "+00:00"))
+            slot_at = datetime.fromisoformat(str(identity["slot"]).replace("Z", "+00:00"))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("Postiz native carousel publish time is invalid") from exc
+        if (published_at.tzinfo is None or slot_at.tzinfo is None
+                or abs((published_at - slot_at).total_seconds()) > 15 * 60):
+            raise ValueError("Postiz native carousel publish time does not match slot")
+        native_photo_details = {
+            "provider_state": state["state"],
+            "provider_integration_id": str(integration_id),
+            "provider_content_sha256": caption_sha,
+            "provider_caption_sha256": caption_sha,
+            "provider_title": settings["title"],
+            "provider_posting_method": settings["content_posting_method"],
+            "provider_release_id": row["releaseId"],
+            "published_at": published_at.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "_verified_caption_text": caption,
+        }
     readback = {
         "provider": "postiz",
         "state": "PUBLISHED",
@@ -530,6 +785,7 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         "integration_ref": identity["integration_ref"],
         "content": provider_content,
         "local_content": local_content,
+        **native_photo_details,
     }
     if caption_normalization is not None and expected_caption_text is not None:
         local_wire_caption_sha256 = hashlib.sha256(
@@ -545,14 +801,22 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
     return readback
 
 
-def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -> dict[str, Any]:
+def build_official_proof(
+    identity: dict[str, Any], ledger: Path, api_key: str,
+    *, identity_dir: Path | None = None,
+) -> dict[str, Any]:
     owner_id = str(identity.get("loop_id", ""))
     occurrence_id = str(identity.get("occurrence_id", ""))
     if not _valid_identity(identity, owner_id, occurrence_id):
         raise ValueError("identity_missing_or_invalid")
+    native_carousel = _is_native_carousel_identity(identity)
+    expected_pack_title = _native_carousel_pack_title(identity, ledger) if native_carousel else None
     local = _local_receipt(identity, ledger)
     if local is None:
-        local = _remote_video_receipt(identity, ledger, api_key)
+        if native_carousel:
+            local = _remote_native_carousel_receipt(identity, ledger, api_key)
+        if local is None:
+            local = _remote_video_receipt(identity, ledger, api_key)
     if local is None:
         raise ValueError("receipt_missing_or_ambiguous")
     receipt, provider_id = local
@@ -561,10 +825,24 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
     )
     readback = _provider_readback(
         identity, provider_id, api_key, _final_caption_sha256(identity, receipt),
-        expected_caption_text,
+        expected_caption_text, expected_pack_title,
     )
     if readback.get("account_id") != identity.get("account_id"):
         raise ValueError("provider_readback_not_exact")
+    if native_carousel:
+        if identity_dir is None:
+            raise ValueError("native carousel identity directory unavailable")
+        try:
+            published_at = datetime.fromisoformat(str(readback["published_at"]).replace("Z", "+00:00"))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("native carousel publish time unavailable") from exc
+        provider_caption = readback.pop("_verified_caption_text", None)
+        if (published_at.tzinfo is None or not isinstance(provider_caption, str)
+                or not _native_carousel_slot_is_unique(
+                    identity, identity_dir, ledger, published_at, provider_caption,
+                    str(readback.get("provider_title") or ""),
+                )):
+            raise ValueError("native carousel candidate is shared with another slot identity")
     if receipt.get("remote_effect_locator") is not None:
         readback["remote_effect_locator"] = receipt["remote_effect_locator"]
     if receipt.get("provider_video_sha256") == identity.get("video_sha256"):
@@ -585,6 +863,7 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
 
 def verify_official_postiz_receipt(
     identity: dict[str, Any], ledger: Path, api_key: str,
+    *, identity_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Read the exact Postiz post without changing admission state."""
     owner_id = str(identity.get("loop_id", ""))
@@ -592,7 +871,7 @@ def verify_official_postiz_receipt(
     if not api_key.strip():
         return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
     try:
-        return {"status": "ready", **build_official_proof(identity, ledger, api_key)}
+        return {"status": "ready", **build_official_proof(identity, ledger, api_key, identity_dir=identity_dir)}
     except (OSError, RuntimeError, ValueError, KeyError, ImportError):
         return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
 
@@ -601,6 +880,7 @@ def reconcile_provider_effect(
     identity: dict[str, Any], ledger: Path, owner_id: str, occurrence_id: str,
     *, state: str | None, effect_unknown: int | None, api_key: str,
     apply: bool = False, admission_db: Path | None = None,
+    identity_dir: Path | None = None,
 ) -> dict[str, Any]:
     if owner_id != identity.get("loop_id") or occurrence_id != identity.get("occurrence_id"):
         return _inconclusive(owner_id, occurrence_id, "identity_occurrence_mismatch")
@@ -618,7 +898,7 @@ def reconcile_provider_effect(
         return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
     if not apply:
         try:
-            return {"status": "ready", **build_official_proof(identity, ledger, api_key)}
+            return {"status": "ready", **build_official_proof(identity, ledger, api_key, identity_dir=identity_dir)}
         except (OSError, RuntimeError, ValueError, KeyError, ImportError):
             return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
     latest: dict[str, Any] = {}
@@ -627,7 +907,7 @@ def reconcile_provider_effect(
     # resolver calls the callback again, so the mutation is preceded by a fresh
     # official readback even if the provider changed between the two reads.
     try:
-        latest.update(build_official_proof(identity, ledger, api_key))
+        latest.update(build_official_proof(identity, ledger, api_key, identity_dir=identity_dir))
     except (OSError, RuntimeError, ValueError, KeyError, ImportError):
         return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
     if _local_receipt(identity, ledger) is None:
@@ -640,7 +920,7 @@ def reconcile_provider_effect(
             )
 
     def official_readback() -> dict[str, Any]:
-        proof = build_official_proof(identity, ledger, api_key)
+        proof = build_official_proof(identity, ledger, api_key, identity_dir=identity_dir)
         latest.update(proof)
         return proof
 
@@ -650,9 +930,9 @@ def reconcile_provider_effect(
             official_readback=official_readback, expected_state=state,
         )
     except (OSError, RuntimeError, ValueError, sqlite3.Error, ImportError):
-        return _inconclusive(owner_id, occurrence_id, "resolve_rejected")
+        return {**_inconclusive(owner_id, occurrence_id, "resolve_rejected"), "resolution_attempted": True}
     if not changed:
-        return _inconclusive(owner_id, occurrence_id, "resolve_rejected")
+        return {**_inconclusive(owner_id, occurrence_id, "resolve_rejected"), "resolution_attempted": True}
     return {"status": "resolved", **latest}
 
 
@@ -685,8 +965,54 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
             or readback.get("post_id") != provider_id
             or readback.get("account_id") != identity.get("account_id")
             or readback.get("integration_ref") != identity.get("integration_ref")
-            or readback.get("local_content", {}).get("video_sha256") != identity.get("video_sha256")
-            or readback.get("local_content", {}).get("caption_sha256") != identity.get("caption_sha256")
+            or readback.get("local_content", {}).get("caption_sha256") != identity.get("caption_sha256")):
+        raise ValueError("recovered Postiz receipt does not match the exact identity")
+    if _is_native_carousel_identity(identity):
+        content = readback.get("content")
+        if (readback.get("public_url") is not None
+                or readback.get("local_content", {}).get("pack_sha256") != identity.get("pack_sha256")
+                or readback.get("local_content", {}).get("media_sha256") != identity.get("media_sha256")
+                or readback.get("local_content", {}).get("media_order_sha256") != identity.get("media_order_sha256")
+                or not isinstance(content, dict)
+                or content.get("media_sha256") != identity.get("media_sha256")
+                or content.get("media_order_sha256") != identity.get("media_order_sha256")
+                or readback.get("provider_state") != "PUBLISHED"
+                or readback.get("provider_integration_id") != identity["integration_ref"].rsplit("/", 1)[-1]
+                or readback.get("provider_caption_sha256") != readback.get("provider_content_sha256")
+                or not isinstance(readback.get("provider_title"), str)
+                or readback.get("provider_posting_method") != "DIRECT_POST"
+                or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", str(readback.get("provider_release_id", "")))):
+            raise ValueError("recovered native carousel receipt does not match the exact identity")
+        receipt = {
+            "schema_version": 1,
+            "kind": "marketing_native_carousel_distribution",
+            "status": "published",
+            "product_id": identity["product_id"],
+            "format_id": identity["format_id"],
+            "form": identity["form"],
+            "locale": identity["locale"],
+            "platform": identity["platform"],
+            "account_id": identity["account_id"],
+            "integration_ref": identity["integration_ref"],
+            "creative_id": identity["creative_id"],
+            "pack_sha256": identity["pack_sha256"],
+            "media_sha256": identity["media_sha256"],
+            "media_order_sha256": identity["media_order_sha256"],
+            "caption_sha256": identity["caption_sha256"],
+            "caption_with_cta_sha256": readback["provider_caption_sha256"],
+            "provider_post_id": provider_id,
+            "provider_reconciled": True,
+            "public_url": None,
+            "provider_state": readback["provider_state"],
+            "provider_integration_id": readback["provider_integration_id"],
+            "provider_content_sha256": readback["provider_content_sha256"],
+            "provider_title": readback["provider_title"],
+            "provider_posting_method": readback["provider_posting_method"],
+            "provider_release_id": readback["provider_release_id"],
+            "published_at": readback["published_at"],
+        }
+        return {"effect_key": identity["effect_key"], "job_id": identity["job_id"], "receipt": receipt}
+    if (readback.get("local_content", {}).get("video_sha256") != identity.get("video_sha256")
             or not isinstance(readback.get("public_url"), str)):
         raise ValueError("recovered Postiz receipt does not match the exact identity")
     data_root = ledger.expanduser().resolve().parents[5]
@@ -766,14 +1092,18 @@ def reconcile_pending_owner(
             if ledger is None:
                 continue
             if (_local_receipt(identity, ledger) is None
-                    and identity.get("product_id") not in EBOOK_TOKEN_PREFIXES):
+                    and identity.get("product_id") not in EBOOK_TOKEN_PREFIXES
+                    and not _is_native_carousel_identity(identity)):
                 continue
             result = reconcile_provider_effect(
                 identity, ledger, owner_id, occurrence_id,
                 state=state, effect_unknown=effect_unknown, api_key=api_key,
                 apply=apply, admission_db=admission_db,
+                identity_dir=identity_dir,
             )
             result = {**result, "inspected": inspected}
+            if result.get("resolution_attempted") is True:
+                return result
             if result.get("status") != "inconclusive":
                 if apply and result.get("status") == "resolved":
                     remaining = _pending_unknown_count(admission_db, owner_id)
@@ -840,6 +1170,7 @@ def main(argv: list[str] | None = None) -> int:
             result = verify_official_postiz_receipt(
                 identity, args.ledger,
                 os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""),
+                identity_dir=args.identity.expanduser().parent,
             )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0 if result["status"] == "ready" else 1
@@ -873,6 +1204,7 @@ def main(argv: list[str] | None = None) -> int:
             state=state, effect_unknown=effect_unknown,
             api_key=os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""), apply=args.resolve,
             admission_db=args.admission_db,
+            identity_dir=args.identity.expanduser().parent,
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if result["status"] in {"ready", "resolved"} else 1
