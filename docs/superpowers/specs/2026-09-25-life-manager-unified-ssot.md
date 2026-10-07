@@ -4922,7 +4922,7 @@ Daisの今回の明示指示で旧「Coconala過去保留の照合→monitor/監
 | 8 | Freelancerの最低20USD条件と許可された応募手段を確認し、条件成立時だけ未応募案件IDを選んで応募する。残高0のため勝手なtop-upなし、認証復旧は再実行しない | 現登録owner/有効化状態をCLIで確認して既存設計内で進める。disabledを稼働中にしない。 |
 | 9 | Upworkの公式automation制限解除証拠を確認する。解除証拠が得られた場合だけ既存CLIで適合案件を選び提案する。現在はUI自動化を再開しない | 現account-bound owner/有効化状態と公式proposal記録。設計外のaccount操作を追加しない。 |
 | 10 | Coconala storefrontの実注文をCLIで検出した時に、その注文IDの商品条件で履行・納品する（現注文ID未確認、注文無しなら制作しない） | 注文scope/商品version/実成果物/同注文の公式納品・精算。注文無しで架空の履行を作らない。 |
-| 11 | Capafy Hook Lab（8123079349）の実注文・売上・精算と実費を公式CLIで取得して結合する。自然販売促進は確認済みなので再実行を残作業にしない | 既存build/sell ownerによる実販売行動・注文/精算/費用。monitorだけを収益と扱わない。 |
+| 11 | Capafy Hook Lab（8123079349）の実売上・精算と実費を公式記録へ結合する。自然販売促進は確認済みなので再実行を残作業にしない | 10/07 official stats GET（USD）は09/08–10/07 settled sales 8件/$14.38、10/01–10/07 0件/$0.00。account payoutはbalance $59.00（confirmed $17.18/pending $0）、paid out $0。account残高をHook Lab利益にしない。実費/positive net profit未結合。§869 |
 | 12 | Writer xcta4の記事購入/アーカイブ購読の実決済をStripe公式記録へ照合し、旧article-daily occurrenceと公開receiptの対応を解決する。購入導線確認は済み | 実商品と既存公開/販売経路の記録。改善experiment待ちを販売全体のgateにしない。 |
 | 13 | Affiliateの既存program別conversion/commissionレポートを取得し、成約のあるprogram・取引IDを精算へ照合する（取引ID未選定） | 許可済み既存運用のconversion/commission/settlementと実費。 |
 | 14（受賞待ち） | TaskMarket SVG案件0x47ba360a…4920d86b2のsubmission e0a72f43-10c1-4003-a7c7-a7649c68da1cについて、締切後のaward・settlementと実費を公式記録へ照合する | SVG制作・正式納品は§758の限定Done。同案件を再制作/再提出しない。受賞・報酬・利益は未確認、表示賞金を収益にしない。 |
@@ -10511,6 +10511,13 @@ Railway公式invoiceの取得・明細計算は§277で限定確認済み。API 
 
 - Coconala `hf-gig-reply-detector` run `18dc3afc8db7c398-53990` failed at 11:18:38Z with `entrypoint_exit_10`, effect `not_applicable`, no provider receipt/readback. Its loaded owner process remains live, while `latest.json` is 2026-10-07T07:49:35Z and shows 194 observed/12 pending; that snapshot is stale and does not prove any current buyer is waiting. The reply log records repeated `coconala:kosuke unreachable after guarded startup`; do not attach a second collector. The active `disk-writers.stop` marker is owned by `host-disk-recovery-installing`, reason `disk_headroom_low`, next action to verify all finite guards.
 - Mercor `mercor-revenue-application` latest status at 11:23:23Z is run `18dc3b87150aaa38-92352`, `resource_effect_unknown`, provider receipt null. `mercor:dais` is registered, but its target owner `mercor-revenue-browser` is absent from the current loop registry. Do not resubmit the old application until owner routing and official history are restored.
+
+
+### 869. 2026-10-07 Capafy Hook Lab settled-sales and account-payout readback
+
+- At 11:37:55Z, official Capafy API `GET /agent/agent/8123079349/stats` returned USD settled stats for 2026-09-08–2026-10-07: 8 sales / $14.38; for 2026-10-01–2026-10-07: 0 / $0.00. The endpoint is settled-only; it may lag gross sales during the refund window.
+- `GET /agent/developer/payout-info` returned USD account balances: payout balance $59.00, confirmed $17.18, pending $0.00, total paid out $0.00. These are account-level amounts, not Hook Lab profit or bank settlement.
+- Provider mutations 0. Hook Lab real cost, matching order receipts, and net profit remain `unknown`.
 
 
 ### 865. 2026-10-07 Coconala finance evidence is old and incomplete
