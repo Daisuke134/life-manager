@@ -83,3 +83,23 @@ class RequestReviewIsIdempotent(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IdempotentSteps(unittest.TestCase):
+    def test_failed_overwrite_step_keeps_state_for_a_redo(self) -> None:
+        import asyncio
+
+        async def boom():
+            raise RuntimeError("Target page, context or browser has been closed")
+
+        out = asyncio.run(MODULE._idempotent_step(boom, {"state": "images_uploaded"}, "tagged"))
+        self.assertEqual(out["state"], "images_uploaded")
+
+    def test_successful_step_advances(self) -> None:
+        import asyncio
+
+        async def ok():
+            return None
+
+        out = asyncio.run(MODULE._idempotent_step(ok, {"state": "metadata_saved"}, "images_uploaded"))
+        self.assertEqual(out["state"], "images_uploaded")

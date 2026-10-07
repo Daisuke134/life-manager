@@ -234,6 +234,19 @@ async def _request_review(page: Page, item: dict) -> dict:
     return dict(item)
 
 
+async def _idempotent_step(step, item: dict, next_state: str) -> dict:
+    """Run an overwrite-only step (image upload, tagging). A failure here cannot leave a partial
+    external effect worth fencing, so keep the state and let the next launch redo it instead of
+    crashing into an unknown-effect fence (a fleet apply restarted the browser mid-tagging live
+    2026-10-07 10:00Z)."""
+    try:
+        await step()
+    except Exception as exc:  # noqa: BLE001 - any browser failure means "redo next launch"
+        print(json.dumps({"retry_step": next_state, "error": str(exc)[:300]}, ensure_ascii=False), file=sys.stderr)
+        return dict(item)
+    return dict(item, state=next_state)
+
+
 async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: Path, selection: dict) -> dict:
     async with async_playwright() as playwright:
         browser = await playwright.chromium.connect_over_cdp(cdp)
@@ -250,18 +263,17 @@ async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: P
                         raise
                     return await _create_item(page, retitled, selection)
             if item.get("state") == "metadata_saved":
-                await _upload_images(page, item, package_dir)
-                item = dict(item, state="images_uploaded")
-                return item
+                return await _idempotent_step(lambda: _upload_images(page, item, package_dir), item, "images_uploaded")
             if item.get("state") == "images_uploaded":
-                await _tag_all(page, item, tags)
-                item = dict(item, state="tagged")
-                return item
+                return await _idempotent_step(lambda: _tag_all(page, item, tags), item, "tagged")
             if item.get("state") == "tagged":
                 return await _request_review(page, item)
             return item
         finally:
-            await page.close()
+            try:
+                await page.close()
+            except Exception:  # noqa: BLE001 - the browser may already be gone
+                pass
 
 
 def submit(set_dir: Path, item: dict, listing: dict, tags: dict) -> dict:
