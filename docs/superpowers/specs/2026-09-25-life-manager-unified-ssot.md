@@ -3828,8 +3828,14 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 
 ## README主要15エージェントの復旧前検証
 
-旧順序=MX-01→MX-12。新順序=MA-01→MA-23→必要な復旧source atom→MX再評価。現在cursor=MA-01、未着手。変更理由: DaisがREADMEの主要能力をまず動かすことと、実装前の原因確定を優先した。内部runner分類は能力の稼働証明ではない。MX/HAは未有効、他laneのeffectと順序を変更しない。
+旧順序=MX-01→MX-12。新順序=MA-01→MA-23→必要な復旧source atom→MX再評価。MA検証cursor=MA-01、未着手。ローカル移行の現在cursorはMV-01。変更理由: DaisがREADMEの主要能力をまず動かすことと、実装前の原因確定を優先した。内部runner分類は能力の稼働証明ではない。MX/HAは未有効、他laneのeffectと順序を変更しない。
 
 正本: [spec](2026-10-07-main-agents-readiness.md)、[atomic plan](../plans/2026-10-07-main-agents-readiness.md)、[監査](../../research/2026-10-07-main-agents-readiness.md)。107jobのsource存在/106loaded一致を確認。業務成果・入金の全件検証とsource修正計画の確定は未完了。
 
-主要15検証laneの対象をローカルLife Managerに限定する。Cloud Travel `/lm` の設計・UX・認証は別laneで、この移行の成果条件にしない。目標は既存owner/scheduler/業務state/effect/receiptを保ったOpenClaw有限exec導入。通常UXは既存CLI/Telegramを維持。主要15の新Web操作画面を移行TODOへ追加しない。current cursor=MA-01、他lane不変更。
+主要15検証laneの対象をローカルLife Managerに限定する。Cloud Travel `/lm` の設計・UX・認証は別laneで、この移行の成果条件にしない。目標は既存owner/scheduler/業務state/effect/receiptを保ったOpenClaw有限exec導入。通常UXは既存CLI/Telegramを維持。主要15の新Web操作画面を移行TODOへ追加しない。current cursorはローカル採用価値laneのMV-01、他lane不変更。
+
+## ローカルハーネスの採用価値
+
+本番移行はNo-Go、価値比較の設計はGo。Life Manager CLIと既存15の業務/state/effect/receiptを維持。旧順序=MA-01→MA-23→復旧→MX。新順序=MV-01→MV-04で便益判定、MAの必要な復旧は独立継続、Go対象だけMXへ進む。理由:Daisが耐久性・拡張性・観測性の実改善がない移行は不要と明示したため。現在cursor=MV-01（実比較未着手）。外部進行effect・他業務laneは変更しない。
+
+正本仕様: [主要15ローカル仕様](2026-10-07-main-agents-readiness.md)。[価値比較の4atomic TODO](../plans/2026-10-07-local-harness-value.md)。finite execはOTel exporterを起動しない。CLI互換13fakecasesは改善証明ではない。旧Gateway全面案/HM/HAは過去案で未有効。

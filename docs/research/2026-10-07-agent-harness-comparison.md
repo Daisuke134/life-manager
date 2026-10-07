@@ -2,9 +2,9 @@
 
 ## 結論と証拠の限界
 
-**設計推奨: OpenClawを常駐・スケジュール・セッション・観測基盤にし、Life Managerは商品の制作・販売ツール、外部作用のfence、金銭証拠の正本を所有する。** 各販売エージェントは独立したidentity/session/workspaceを持ち、switchboardは有限のwakeで配分する。24時間稼働は常時推論を意味しない。
+**現在の判断: 本番移行No-Go、OpenClawの価値比較はGo。** 対象はローカルLife Manager主要15エージェント。Life Manager CLI、商品/業務、state/effect/receiptを保つ。初回finite execは低影響の比較入口であり、耐久性・拡張性・観測性の向上を証明しない。実測改善が無ければ移行しない。
 
-これは一次資料と実装による適合性判断。候補をLife Managerの実業務で走らせた比較benchmark、障害注入、本番性能・利益の証明は未実施。推奨の公開版は`openclaw@2026.9.8`、release commitは`fc23bc864e4553c2d215e479eeec47b67a0bf943`。採用判定は計画HM-01〜HM-06の隔離検証で行う。最新mainの機能と公開パッケージの挙動を同一視しない。
+下の比較表とGateway常駐案は候補能力と過去設計の調査記録。常駐/scheduler/session全面移行を現在の確定推奨として扱わない。現行の正本判断は[ローカル仕様](../superpowers/specs/2026-10-07-main-agents-readiness.md)と[価値比較](../superpowers/plans/2026-10-07-local-harness-value.md)。`agent exec`はOTelをexportしないことを公開tagで確認。CLI互換13fakecasesを品質/耐久性/費用改善の証拠にしない。
 
 ## 調査方法
 
@@ -37,7 +37,7 @@ GitHubは`gh search repos`、`gh api`、浅いclone。Web発見はDuckDuckGo HTM
 
 | 候補 | 再利用できるもの | 耐久性・24時間運用 | 評価・改善・観測 | Life Managerへの判断 |
 |---|---|---|---|---|
-| **OpenClaw** | gateway、multi-agent、skills、native Codex、cron、session、tool/plugin | SQLiteのschedule/run receipts、owner判定、復旧・catch-up、concurrency制御。一般tool作用のexactly-onceは保証しない | diagnostics-otel、mock personal-agent benchmark、skill-workshop、dreaming。販売評価・自律コード昇格は別 | **第一推奨**。既存CLI/provider経路を生かしつつ自作の常駐機構を減らせる。既存gateway/profileを奪わない |
+| **OpenClaw** | gateway、multi-agent、skills、native Codex、cron、session、tool/plugin | SQLiteのschedule/run receipts、owner判定、復旧・catch-up、concurrency制御。一般tool作用のexactly-onceは保証しない | diagnostics-otel、mock personal-agent benchmark、skill-workshop、dreaming。販売評価・自律コード昇格は別 | **比較候補**。常駐機構を実際に削除できるかは未証明。既存gateway/profileを奪わない |
 | **Deep Agents JS + LangGraph** | planning、filesystem、隔離subagent、skills、summarization、backend | 永続checkpointerを渡す。MemorySaverのみではprocess crashを越えない。scheduler/worker運用は別途必要 | LangSmith統合。trace/evalサービスの利用条件・費用はOSS libraryと別 | 長い制作の最有力対案。全社常駐基盤としてはschedulerを別に作る/運用する負担が残る |
 | **Hermes** | 常駐gateway、cron、SQLite sessions、memory、skills、terminal backend、複数provider | profile別cron、並列pool、tick lock、pending occurrenceとexecution ledgerを持つ。全tool作用のexactly-once証明ではない | skill学習。OTelはplugin経路。別self-evolution repoはGEPAでskill改善を実装、tool/prompt/code/continuousはREADMEではplanned | 第二の常駐候補。skills改善が主目的なら強い。現在のCLI境界・domain契約を移す適合作業は残る |
 | **OpenAI Agents JS** | agent loop、handoffs、guardrails、MCP、tracing、RunState、session interface | 状態serialize/resumeはあるがfleet scheduler/daemonを内包しない。JS内蔵sessionはMemory/OpenAI Conversations、SQLite自動組込と呼ばない | OpenAI tracingとcustom processors。tracesはtask成功や自己改善の証明ではない | 最小SDKとして有力。全fleet置換には周辺実装が増える |
@@ -69,7 +69,7 @@ OpenClaw、Deep Agents、LangGraph、Hermes core、OpenAI JS、Pi、MAF、CrewAI
 
 ## 判断の比較と反証条件
 
-1. **OpenClawへ段階移行（推奨）:** 常駐・session・scheduler・tracesを既製品へ寄せる。販売者としては担当商品とworkspaceが長期に維持され、待ち時間には推論費用を使わず、復旧で同じ注文を二重処理しないのが利点。最大の負担は既存CLI schema/event/admissionと新gatewayを結ぶ薄いadapter。
+1. **OpenClawへ段階移行（過去候補、現在未採用）:** 常駐・session・scheduler・tracesを既製品へ寄せる。販売者としては担当商品とworkspaceが長期に維持され、待ち時間には推論費用を使わず、復旧で同じ注文を二重処理しないのが利点。最大の負担は既存CLI schema/event/admissionと新gatewayを結ぶ薄いadapter。
 2. **Deep Agents JSをrunner内に埋め込む:** domain/control planeをほぼ保持でき、長期制作は強い。棄却案の最強論拠は、既存の証拠境界を最小差分で保ちつつ良いturn engineだけ借りられること。今回は自作の常駐・coordination負担をより減らす目的を優先する。
 3. **OpenAI JS + Temporalを全社基盤にする:** 数日・数週の契約lifecycleと多host queueには適する。今は新service/DB/workerとexperimental integrationを同時導入する負担が大きい。
 
@@ -89,7 +89,7 @@ local relative links、HM-00〜17の18 taskとSSOT対応、90 checkbox手順、1
 
 ## 条件付きOSS/端末/cloudとatomic計画の再評価
 
-Daisは配布を仮定として追加した。公開の決定ではない。**24時間の販売agent fleetという現在の目的では推奨はOpenClawのまま。** MIT、公式embedding、public GatewayClient、Docker/self-host対応があり、他社SDKへ変えることだけがportabilityではない。pure SDKとしてagent loopだけを組み込む目的ではDeep Agents JSが有力対案だが、今回のscheduler/session/復旧も含む要求を優先する。Mastraも対案として保持する。
+Daisは配布を仮定として追加した。公開の決定ではない。**OSS配布の候補としてOpenClawを保持するが、実測便益がない限り採用しない。** MIT、公式embedding、public GatewayClient、Docker/self-host対応があり、他社SDKへ変えることだけがportabilityではない。pure SDKとしてagent loopだけを組み込む目的ではDeep Agents JSが有力対案だが、今回のscheduler/session/復旧も含む要求を優先する。Mastraも対案として保持する。
 
 追加一次資料: [embedding](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/embedding.md)、[Gateway client](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/clients.md)、[Docker](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/install/docker.md)、[tenant cells](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/gateway/multi-tenant-hosting.md)。npm metadataでroot2026.9.8、client/protocol2026.8.1の公開とentrypointを確認。wire v4はpackage versionと別で、組合せを実測前に互換と断定しない。
 

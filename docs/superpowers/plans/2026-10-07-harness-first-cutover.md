@@ -1,5 +1,6 @@
 # Life Manager — 既存runner内の最初のharness切替計画
 
+> 条件付きの実装参照。本番採用は実測便益が成立するまでNo-Go。[価値比較plan](2026-10-07-local-harness-value.md)を先に読む。finite execの互換だけで採用しない。
 > 実行workerは`superpowers:executing-plans`を読む。実装=gpt-6-luna/max、計画・検証=gpt-6.1-sol/medium。今回の依頼はreadiness監査までで、以下は未着手。状態正本は統合SSOTのMX lane。
 
 **目的:** 既存収益ownerのschedule/state/publisherを変えず、有限CLI backendを差し替えるための最小adapterを実装する。
