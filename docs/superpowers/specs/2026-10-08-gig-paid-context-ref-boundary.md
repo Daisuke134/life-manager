@@ -100,7 +100,12 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 ## 2026-10-08 04:49 JST Freelancer / Upwork account-bound setup map
 
 - The browser registry maps Upwork to identity `upwork:dais` and profile `~/.cloak/profiles/gig-upwork`, but its `life-manager-upwork-browser` owner label is retired; that profile directory exists and `~/.cloak/vault/gig-upwork/auth-state.json` does not. No Upwork account page was opened, so this proves a configured path, not a current login or Project Catalog listing.
-- Freelancer has no browser identity entry. Candidate profile directories `freelancer-daily-driver` and `gig-freelancer-r1` exist, but `~/.config/anicca/gig/freelancer-oauth2.json` and the checked Freelancer vault-state file are absent. No account page or submit path was opened. Require fresh account-bound auth/readback and the provider's explicit automatic-bid authorization before registering a live owner.
+- Freelancer has no browser identity entry. Candidate profile directories `freelancer-daily-driver` and `gig-freelancer-r1` exist, but `~/.config/anicca/gig/freelancer-oauth2.json`, `~/.cloak/vault/freelancer-daily-driver/auth-state.json`, and `~/.cloak/vault/gig-freelancer-r1/auth-state.json` are absent. No account page or submit path was opened. Require fresh account-bound auth/readback and the provider's explicit automatic-bid authorization before registering a live owner.
+
+## 2026-10-08 04:50 JST CrowdWorks source integration / production gate
+
+- PR [#6967](https://github.com/Daisuke134/life-manager/pull/6967) merged as `1a40e010d9c2205e052a6a8b4e8a94ac998d1b74`; `origin/main` now contains the application-receipt reconciler fix. The installed immutable release remains `20261008T034242-8dc06549` / SHA `8dc0654954964071e83cf9c68a67846c6422e1a9`, so the fix is not yet running in production.
+- Latest disk readback is 240664 KiB free, below the Gig 512 MiB floor. `lm-loop doctor` is `ok=false` with missing entrypoints 0, unmanaged labels 0, and the separate retired installed label `ai.anicca.provision-browser.capafy.kosuke`. No release cut, owner apply/restart, browser readback, or production reconciliation was attempted. Resume only after the existing host owner restores safe headroom and the registry doctor gate is clean.
 
 ## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
 
