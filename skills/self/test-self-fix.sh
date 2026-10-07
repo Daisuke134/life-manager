@@ -76,7 +76,7 @@ import os
 import stat
 from pathlib import Path
 
-RECOVERY_FLOOR_BYTES = 11 * 1024**3
+RECOVERY_FLOOR_BYTES = 2 * 1024**3
 _POLICY_FLAGS = (
     ("disk-writers.stop", "disk_writers_stop"),
     ("disk-pressure.block", "disk_pressure_block"),

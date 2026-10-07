@@ -2685,7 +2685,7 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
 
 
 def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
-    floor = 11 * 1024**3
+    floor = 2 * 1024**3
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
@@ -2734,11 +2734,11 @@ def test_unavailable_disk_measurement_defers_before_queue(tmp_path):
     deferred = json.loads(receipt.read_text())
     assert deferred["reason"] == "disk_headroom_unavailable"
     assert deferred["effect"] == 0
-    assert deferred["required_bytes"] == 11 * 1024**3
+    assert deferred["required_bytes"] == 2 * 1024**3
 
 
 def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
-    floor = 11 * 1024**3
+    floor = 2 * 1024**3
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
@@ -2759,7 +2759,7 @@ def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
 
 
 def test_disk_drop_after_claim_requeues_without_provider_dispatch(tmp_path):
-    floor = 11 * 1024**3
+    floor = 2 * 1024**3
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
