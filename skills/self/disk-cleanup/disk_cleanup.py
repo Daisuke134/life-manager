@@ -40,6 +40,7 @@ SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS = 5
 SPARKLE_UPDATER_POLL_SECONDS = 0.1
 CANONICAL_LABEL = "ai.anicca.life-manager-disk-cleanup"
 THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSURE"), (3 * GiB, "CRITICAL"))
+RECOVERY_FLOOR_BYTES = next(floor for floor, tier in THRESHOLDS if tier == "PREVENTIVE")
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 # A release is ~1.2GiB, so unbounded generations fill the disk on their own.
@@ -88,6 +89,24 @@ def classify_tier(free_bytes: int) -> str:
         if free_bytes >= floor:
             return tier
     return "ULTRA"
+
+
+def _capacity_recovery(result: object) -> dict[str, str | int]:
+    free_after = result.get("free_after") if isinstance(result, dict) else None
+    if not isinstance(free_after, int) or isinstance(free_after, bool):
+        status = "unknown"
+    else:
+        status = "met" if free_after >= RECOVERY_FLOOR_BYTES else "unmet"
+    return {"status": status, "recovery_floor_bytes": RECOVERY_FLOOR_BYTES}
+
+
+def _cleanup_terminal_ok(result: object) -> bool:
+    return (
+        isinstance(result, dict)
+        and result.get("errors") == 0
+        and result.get("protected_deletions") == 0
+        and _capacity_recovery(result)["status"] == "met"
+    )
 
 
 def _session_recovery_receipt() -> dict[str, object]:
@@ -419,6 +438,7 @@ class HostDiskGovernor:
         self.lock_dir = self.state_dir / ".life-manager-disk-cleanup.lock"
         self._lock_fd: int | None = None
         self.full_inventory_marker = self.state_dir / "host-inventory-full.at"
+        self.candidate_cursor_path = self.state_dir / "candidate-cursor.json"
         self.lsof = lsof
         self.usage = usage or self._usage
         self.clock = clock
@@ -450,6 +470,83 @@ class HostDiskGovernor:
         temporary = self.full_inventory_marker.with_name(f".{self.full_inventory_marker.name}.tmp")
         temporary.write_text(str(int(time.time())) + "\n")
         os.replace(temporary, self.full_inventory_marker)
+
+    def _candidate_start_index(self, candidate_count: int) -> int:
+        if candidate_count <= 0:
+            return 0
+        try:
+            cursor = json.loads(self.candidate_cursor_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return 0
+        if not isinstance(cursor, dict) or cursor.get("schema_version") != 1:
+            return 0
+        next_index = cursor.get("next_index")
+        if isinstance(next_index, bool) or not isinstance(next_index, int) or next_index < 0:
+            return 0
+        return next_index % candidate_count
+
+    def _persist_candidate_cursor(self, next_index: int) -> None:
+        payload = {"schema_version": 1, "next_index": next_index}
+        data = (json.dumps(payload, sort_keys=True) + "\n").encode("utf-8")
+        self._atomic_receipt_write(data, self.candidate_cursor_path)
+
+    def _clear_disk_writers_stop(self, free_after: object) -> dict[str, str]:
+        guard = self.state_dir / "disk-writers.stop"
+        try:
+            initial = guard.lstat()
+        except FileNotFoundError:
+            return {"status": "absent"}
+        except OSError:
+            return {"status": "preserved", "reason": "read_failed"}
+        if not isinstance(free_after, int) or isinstance(free_after, bool):
+            return {"status": "preserved", "reason": "capacity_unavailable"}
+        if free_after < RECOVERY_FLOOR_BYTES:
+            return {"status": "preserved", "reason": "recovery_floor_not_met"}
+        if (not stat.S_ISREG(initial.st_mode) or initial.st_uid != os.getuid()
+                or stat.S_IMODE(initial.st_mode) != 0o600 or initial.st_nlink != 1):
+            return {"status": "preserved", "reason": "unsafe_file"}
+
+        def fingerprint(info: os.stat_result) -> tuple[int, ...]:
+            return (
+                info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_nlink,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns,
+            )
+
+        descriptor = -1
+        try:
+            descriptor = os.open(guard, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            opened = os.fstat(descriptor)
+            if fingerprint(opened) != fingerprint(initial):
+                return {"status": "preserved", "reason": "identity_changed"}
+            if opened.st_size > 4096:
+                return {"status": "preserved", "reason": "invalid_receipt"}
+            with os.fdopen(descriptor, "rb") as handle:
+                descriptor = -1
+                raw = handle.read(4097)
+            if len(raw) > 4096:
+                return {"status": "preserved", "reason": "invalid_receipt"}
+            value = json.loads(raw)
+            if not isinstance(value, dict):
+                return {"status": "preserved", "reason": "invalid_receipt"}
+            if value.get("owner_id") != "host-disk-recovery":
+                return {"status": "preserved", "reason": "owner_mismatch"}
+            if value.get("reason") != "disk_headroom_low":
+                return {"status": "preserved", "reason": "reason_mismatch"}
+            if (value.get("required_bytes") != RECOVERY_FLOOR_BYTES
+                    or value.get("next_action") != "restore_capacity_and_install_shared_disk_gate"):
+                return {"status": "preserved", "reason": "guard_contract_mismatch"}
+            current = guard.lstat()
+            if fingerprint(current) != fingerprint(opened):
+                return {"status": "preserved", "reason": "identity_changed"}
+            guard.unlink()
+            return {"status": "cleared"}
+        except FileNotFoundError:
+            return {"status": "preserved", "reason": "identity_changed"}
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return {"status": "preserved", "reason": "read_or_unlink_failed"}
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
 
     def _usage(self) -> tuple[int, int]:
         usage = shutil.disk_usage("/System/Volumes/Data" if Path("/System/Volumes/Data").exists() else "/")
@@ -907,7 +1004,12 @@ class HostDiskGovernor:
 
     @contextmanager
     def _staged_receipt_file(self, data: bytes, parent: Path, prefix: str, *, retryable: bool = False):
-        fd, temporary_name = tempfile.mkstemp(prefix=prefix, suffix=".tmp", dir=str(parent))
+        try:
+            fd, temporary_name = tempfile.mkstemp(prefix=prefix, suffix=".tmp", dir=str(parent))
+        except OSError as exc:
+            if retryable:
+                raise _ReceiptAtomicFailure(exc) from exc
+            raise
         temporary = Path(temporary_name)
         try:
             os.fchmod(fd, 0o600)
@@ -979,7 +1081,9 @@ class HostDiskGovernor:
                 raise _ReceiptAtomicFailure(exc) from exc
         self._fsync_receipt_parent(target.parent)
 
-    def _receipt(self, payload: dict, filename: str = "last-receipt.json") -> None:
+    def _receipt(
+        self, payload: dict, filename: str = "last-receipt.json"
+    ) -> dict[str, object] | None:
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
@@ -997,7 +1101,19 @@ class HostDiskGovernor:
             self._atomic_receipt_write(data, target)
         except _ReceiptAtomicFailure as failure:
             raise failure.error
-        self._receipt_reserve(recreate=True)
+        try:
+            self._receipt_reserve(recreate=True)
+        except OSError as exc:
+            if filename != "last-receipt.json" or exc.errno != errno.ENOSPC:
+                raise
+            return {
+                "status": "committed_reserve_missing",
+                "stage": "reserve_recreate_after_commit",
+                "error_class": type(exc).__name__,
+                "errno": exc.errno,
+                "next_action": "retry_on_next_run",
+            }
+        return None
 
     def _canary_receipt(self, payload: dict[str, object]) -> None:
         """Keep the initial effect and the immediate replay in one receipt."""
@@ -1332,7 +1448,11 @@ class HostDiskGovernor:
                 "free_after": free_before,
                 "preserved_reasons": {"gui-bootstrap-health-failure": 1},
             }
-            self._receipt(result)
+            result["capacity_recovery"] = _capacity_recovery(result)
+            result["ok"] = _cleanup_terminal_ok(result)
+            receipt_status = self._receipt(result)
+            if receipt_status is not None:
+                result["receipt_persistence"] = receipt_status
             return result
         updater_recovery = {
             "observed": 0,
@@ -1349,11 +1469,66 @@ class HostDiskGovernor:
             recovery = self._reconcile_stale_sparkle_updaters(sparkle_root)
             for key in updater_recovery:
                 updater_recovery[key] += recovery[key]
+        candidates = self.discover_candidates()
+        candidate_count = len(candidates)
+        candidate_start = self._candidate_start_index(candidate_count)
+        candidate_next = (candidate_start + 1) % candidate_count if candidate_count else 0
+        cursor_errors: list[dict[str, object]] = []
+        cursor_status = "not_needed"
+        if candidate_count:
+            candidates = candidates[candidate_start:] + candidates[:candidate_start]
+            # Cursor persistence is useful for fairness but must not block recovery
+            # when the filesystem is too full to stage its atomic receipt.
+            try:
+                self._persist_candidate_cursor(candidate_next)
+            except Exception as exc:
+                error = exc.error if isinstance(exc, _ReceiptAtomicFailure) else exc
+                cursor_errors.append(
+                    {
+                        "stage": "before_sweep",
+                        "error_class": type(error).__name__,
+                        "errno": getattr(error, "errno", None),
+                        "next_action": "continue_sweep_then_retry_once_after_recovery",
+                    }
+                )
+                cursor_status = "failed"
+            else:
+                cursor_status = "persisted"
         result = self.sweep(
-            self.discover_candidates(),
+            candidates,
             write_receipt=False,
             deadline=deadline,
         )
+        if cursor_errors:
+            free_after_sweep = result.get("free_after")
+            if (
+                isinstance(free_after_sweep, int)
+                and not isinstance(free_after_sweep, bool)
+                and free_after_sweep >= RECOVERY_FLOOR_BYTES
+            ):
+                try:
+                    self._persist_candidate_cursor(candidate_next)
+                except Exception as exc:
+                    error = exc.error if isinstance(exc, _ReceiptAtomicFailure) else exc
+                    cursor_errors.append(
+                        {
+                            "stage": "after_sweep_retry",
+                            "error_class": type(error).__name__,
+                            "errno": getattr(error, "errno", None),
+                            "next_action": "retry_on_next_run",
+                        }
+                    )
+                else:
+                    cursor_status = "persisted_after_retry"
+        result["candidate_rotation"] = {
+            "candidate_count": candidate_count,
+            "start_index": candidate_start,
+            "next_index": candidate_next,
+            "cursor_persistence": {
+                "status": cursor_status,
+                "errors": cursor_errors,
+            },
+        }
         result["updater_recovery"] = updater_recovery
         result["errors"] += updater_recovery["errors"]
         # Cleanup must never pause revenue loops. Remove the retired shared
@@ -1387,8 +1562,23 @@ class HostDiskGovernor:
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             result["inventory_error"] = type(exc).__name__
-        self._receipt(result)
+        try:
+            free_after, _ = self.usage()
+        except Exception as exc:
+            free_after = None
+            result["free_after_error_class"] = type(exc).__name__
+        if isinstance(free_after, bool) or not isinstance(free_after, int) or free_after < 0:
+            free_after = None
+            result["free_after_error_class"] = "invalid_measurement"
         result["free_before"] = free_before
+        result["free_after"] = free_after
+        # main() holds the singleton governor lock across cleanup and this exact-owner finalizer.
+        result["disk_writers_stop"] = self._clear_disk_writers_stop(free_after)
+        result["capacity_recovery"] = _capacity_recovery(result)
+        result["ok"] = _cleanup_terminal_ok(result)
+        receipt_status = self._receipt(result)
+        if receipt_status is not None:
+            result["receipt_persistence"] = receipt_status
         return result
 
     def run_canary(self, path: Path) -> dict[str, object]:
@@ -1527,13 +1717,28 @@ def main() -> int:
         )
     governor = HostDiskGovernor(home=args.home, state_dir=args.state_dir)
     if not governor.acquire_lock():
-        return 0
-    try:
-        result = governor.run_canary(args.canary) if args.canary else governor.run_once()
+        result = {
+            "ok": False,
+            "status": "deferred",
+            "reason": "cleanup_lock_busy",
+            "effect": 0,
+            "readback": 0,
+            "capacity_recovery": _capacity_recovery({}),
+        }
         print(json.dumps(result, sort_keys=True))
+        return 75
+    try:
+        if args.canary:
+            result = governor.run_canary(args.canary)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        result = governor.run_once()
+        result["capacity_recovery"] = _capacity_recovery(result)
+        result["ok"] = _cleanup_terminal_ok(result)
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result["ok"] else 1
     finally:
         governor.release_lock()
-    return 0
 
 
 if __name__ == "__main__":

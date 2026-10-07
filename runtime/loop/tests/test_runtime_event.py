@@ -171,6 +171,18 @@ class RuntimeEventTest(unittest.TestCase):
         )
         self.assertEqual(event["effect_status"], "not_applicable")
 
+    def test_disk_headroom_defer_has_no_external_effect(self):
+        for reason in ("disk_headroom_low", "disk_headroom_unavailable"):
+            with self.subTest(reason=reason):
+                event = build_runtime_event(
+                    loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+                    provider="deterministic", profile_alias=None, effect_class="application",
+                    succeeded=False, deferred=True,
+                    blocker=f"host_admission_deferred:{reason}",
+                )
+                self.assertEqual(event["status"], "blocked")
+                self.assertEqual(event["effect_status"], "not_applicable")
+
     def test_effect_unknown_defer_stays_unknown(self):
         event = build_runtime_event(
             loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
