@@ -3676,7 +3676,7 @@ Daisの依頼範囲は比較調査・設計・原子的実行計画まで。本�
 
 - [x] **HM-D0: 調査・設計・計画。** [比較](../../research/2026-10-07-agent-harness-comparison.md)、[設計](2026-10-07-life-manager-harness-migration-design.md)、[実行計画](../plans/2026-10-07-life-manager-harness-migration.md)。単一推奨=OpenClaw2026.9.8の専用profileへ段階移行。候補実務benchmarkは未実施で、採用判定はHM-06。既存installed OpenClaw2026.6.1/5agentとNode25を直接更新しない。
 
-**実装cursor=HM-00（未着手）。** 新規laneのため旧順序はなし。新順序はHM-00→HM-17。理由は、配布版互換・effect safety・task/cost比較を先に成立させ、read-only canaryと1ownerの自然実行から拡大するため。他laneの順序は据え置く。各ownerのwave順変更は同じ差分に理由・旧順・新順・cursorを記録する。
+**実装cursor=HA-001（未着手、実装開始は今回の依頼範囲外）。** 新規laneのため旧順序はなし。新順序はHM-00→HM-17。理由は、配布版互換・effect safety・task/cost比較を先に成立させ、read-only canaryと1ownerの自然実行から拡大するため。他laneの順序は据え置く。各ownerのwave順変更は同じ差分に理由・旧順・新順・cursorを記録する。
 
 | 状態 | ID | 原子的成果 | 依存 | 完了証拠 |
 |---|---|---|---|---|
@@ -3700,3 +3700,93 @@ Daisの依頼範囲は比較調査・設計・原子的実行計画まで。本�
 | 未着手 | HM-17 | 各販売agentの経済成果をCFO照合 | HM-16 | sale/settlement/actual-cost/純利益 |
 
 HM-17の外部購入待ちはHM-16の技術移行を未完へ戻す条件にしない。経済成果は公式証拠が揃うまで未達/unknown。planのcheckboxは手順であり、状態とcursorはこの表だけが正本。
+
+
+### HM計画のatomic訂正 — HA lane
+
+Daisの指摘により、旧HM-00〜17/90checkboxを実行可能atomic planとして扱わない。旧HMは成果roadmapの参照だけ。ファイル・関数・assertion付きの[改訂計画](../plans/2026-10-07-life-manager-harness-migration.md)と[atom manifest](../../research/harness-atomic-tasks.json)が実行内容を定義する。state/cursorはこのSSOTだけ。
+
+現在cursor=HA-001、全atom未着手。旧実行順=HM-00→HM-17、新順=HA manifestのdependsによるtopological順。理由は、未確定判断をphaseに埋めず関数単位の変更と検証へ分けるため。他業務laneは変更しない。末尾11配布atomは条件付き、未有効。
+
+- [ ] **HA-001** `runtime/openclaw/package.json` — dependencies
+- [ ] **HA-002** `runtime/openclaw/paths.mjs` — resolveHarnessPaths(env, homedir) -> HarnessPaths
+- [ ] **HA-003** `runtime/openclaw/protocol.mjs` — validateRunRequest(value) -> frozen RunRequest
+- [ ] **HA-004** `runtime/openclaw/protocol.mjs` — buildRunIdentity(request, agentId) -> {sessionKey,idempotencyKey}
+- [ ] **HA-005** `runtime/openclaw/dispatch_store.py` — load_dispatch(root: Path, owner_id: str, occurrence_id: str) -> dict | None
+- [ ] **HA-006** `runtime/openclaw/dispatch_store.py` — save_dispatch(root: Path, record: dict) -> Path
+- [ ] **HA-007** `runtime/openclaw/gateway-client.mjs` — connectGateway({url,token,onEvent}, Client=GatewayClient) -> Promise<Client>
+- [ ] **HA-008** `runtime/openclaw/gateway-client.mjs` — submitRun(client, request, identity, agentId) -> Promise<{runId}>
+- [ ] **HA-009** `runtime/openclaw/gateway-client.mjs` — waitRun(client, runId) -> Promise<object>
+- [ ] **HA-010** `runtime/openclaw/gateway-client.mjs` — abortRun(client, {runId,sessionKey,agentId}) -> Promise<object>
+- [ ] **HA-011** `runtime/openclaw/gateway-client.mjs` — readSession(client, {sessionKey,agentId}) -> Promise<object>
+- [ ] **HA-012** `runtime/openclaw/tests/release-contract.test.mjs` — testPinnedGatewayContract()
+- [ ] **HA-013** `runtime/openclaw/environment.mjs` — buildGatewayEnv(env, paths, secretValues) -> object
+- [ ] **HA-014** `runtime/openclaw/profile.mjs` — buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object
+- [ ] **HA-015** `runtime/openclaw/supervisor.mjs` — startGateway({nodeExecutable,paths,env,config}, deps) -> Promise<GatewayHandle>
+- [ ] **HA-016** `runtime/openclaw/supervisor.mjs` — stopGateway(handle, {drainTimeoutMs:5000}) -> Promise<StopProof>
+- [ ] **HA-017** `runtime/openclaw/admission.py` — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None, registry_entry: dict) -> dict
+- [ ] **HA-018** `runtime/openclaw/admission.py` — bind_execution(claim_ref: Path, gateway_pid: int) -> None
+- [ ] **HA-019** `runtime/openclaw/admission.py` — heartbeat_model(claim_ref: Path) -> bool
+- [ ] **HA-020** `runtime/openclaw/admission.py` — release_model(claim_ref: Path, stop_proof: dict, effect_state: str) -> dict
+- [ ] **HA-021** `runtime/loop/lm_loop_run.py` — _run_admitted() の finally release分岐
+- [ ] **HA-022** `runtime/openclaw/plugin/openclaw.plugin.json` — manifest.tools
+- [ ] **HA-023** `runtime/openclaw/plugin/index.mjs` — default plugin register(api)
+- [ ] **HA-024** `runtime/openclaw/tool_broker.py` — invoke_read(binding: dict, tool_name: str, arguments: dict) -> dict
+- [ ] **HA-025** `runtime/openclaw/tool_broker.py` — invoke_effect(binding: dict, tool_name: str, arguments: dict) -> dict
+- [ ] **HA-026** `runtime/openclaw/tool_broker.py` — write_artifact(binding: dict, relative_path: str, content: str) -> dict
+- [ ] **HA-027** `runtime/openclaw/tool_broker.py` — main(argv: list[str], stdin: TextIO) -> int
+- [ ] **HA-028** `runtime/openclaw/tests/native-boundary.test.mjs` — testModelAndToolAdmissionFailClosed()
+- [ ] **HA-029** `runtime/openclaw/schema_validate.py` — validate_result(instance: object, schema: dict) -> dict
+- [ ] **HA-030** `runtime/openclaw/result.mjs` — normalizeOutcome(raw, request) -> RunOutcome
+- [ ] **HA-031** `runtime/openclaw/telemetry.py` — project_usage(raw: dict, identity: dict) -> dict
+- [ ] **HA-032** `runtime/openclaw/telemetry.py` — project_runtime_event(outcome: dict, identity: dict) -> dict
+- [ ] **HA-033** `runtime/openclaw/cli.mjs` — main(argv, stdin, deps) -> Promise<number>
+- [ ] **HA-034** `runtime/openclaw/runner_adapter.py` — run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int
+- [ ] **HA-035** `runtime/agent-runner/agent_runner.py` — run() の evidence/lease/token-budget preflight後・candidate for-loop前
+- [ ] **HA-036** `runtime/openclaw/tests/test_recovery.py` — test_ack_loss_preserves_claim()
+- [ ] **HA-037** `runtime/openclaw/tests/test_recovery.py` — test_provider_success_receipt_gap()
+- [ ] **HA-038** `runtime/openclaw/tests/test_recovery.py` — test_terminal_replay_zero()
+- [ ] **HA-039** `runtime/openclaw/fixtures/read-only-request.json` — 固定canary request
+- [ ] **HA-040** `apps/life-manager/scripts/harness-readonly-canary.py` — main(argv) -> int
+- [ ] **HA-041** `config/loop-registry.json` — loops.harness-readonly-canary
+- [ ] **HA-042** `docs/evidence/harness-migration/first-source-acceptance.json` — source acceptance receipt
+- [ ] **HA-043** `docs/evidence/harness-migration/readonly-natural.json` — read-only自然occurrence receipt
+- [ ] **HA-044** `skills/writer-agent/runtime/shared-model-runner.py` — main() の mode/role/engine対応
+- [ ] **HA-045** `apps/life-manager/eval/harness-migration/cases.jsonl` — 3固定task cases
+- [ ] **HA-046** `apps/life-manager/eval/harness-migration/run.js` — evaluateHarnessPair({base,candidate,cases,budget,seed}) -> report
+- [ ] **HA-047** `docs/evidence/harness-migration/adoption.json` — 採用判定
+- [ ] **HA-048** `runtime/openclaw/owner_routes.py` — validate_owner_route(owner_id: str, route: dict, registry: dict) -> dict
+- [ ] **HA-049** `runtime/openclaw/tool_broker.py` — capafy_readback(binding, arguments) -> dict
+- [ ] **HA-050** `runtime/openclaw/tool_broker.py` — capafy_publish(binding, arguments) -> dict
+- [ ] **HA-051** `runtime/agent-runner/config.json` — harness_routes.capafy-loop-daily
+- [ ] **HA-052** `skills/self/capafy-loop/capafy-loop-daily.sh` — RUN_AGENT呼出env
+- [ ] **HA-053** `docs/evidence/harness-migration/capafy-natural.json` — Capafy自然成果receipt
+- [ ] **HA-054** `runtime/openclaw/schedule_transfer.py` — prepare_transfer(owner_id: str, target: str, expected_sha: str) -> dict
+- [ ] **HA-055** `runtime/openclaw/schedule_transfer.py` — commit_transfer(prepared: dict) -> dict
+- [ ] **HA-056** `runtime/openclaw/schedule_transfer.py` — rollback_transfer(receipt: dict) -> dict
+- [ ] **HA-057** `docs/evidence/harness-migration/capafy-schedule.json` — 唯一のscheduler receipt
+- [ ] **HA-058** `runtime/openclaw/owner_inventory.py` — build_owner_inventory(registry_path: Path, catalog_path: Path, tracked_files: list[str]) -> list[dict]
+- [ ] **HA-059** `skills/earn/promptbase/scripts/gen_examples.py` — _claude(prompt, system) の subprocess env
+- [ ] **HA-060** `runtime/agent-runner/config.json` — harness_routes.promptbase-loop-daily
+- [ ] **HA-061** `skills/writer-agent/runtime/shared-model-runner.py` — trusted ownerの伝播
+- [ ] **HA-062** `runtime/agent-runner/config.json` — harness_routes.article-daily
+- [ ] **HA-063** `apps/life-manager/eval/harness-migration/gate.js` — judgeCandidate({baseReport,candidateReport,holdoutHash}) -> {verdict,reasons}
+- [ ] **HA-064** `skills/writer-agent/scripts/writer_learning_worker.py` — record_canary_application() の候補gate
+- [ ] **HA-065** `runtime/loop/recovery-supervisor.mjs` — repair evidence envelope
+- [ ] **HA-066** `docs/evidence/harness-migration/self-heal.json` — 自然コード修復1件のreceipt
+- [ ] **HA-067** `docs/evidence/harness-migration/self-improve.json` — 評価済候補1件のreceipt
+- [ ] **HA-068** `runtime/agent-runner/agent_runner.py` — 未参照legacy routeの削除
+- [ ] **HA-069** `docs/evidence/harness-migration/final-acceptance.json` — 全owner受け入れ照合
+- [ ] **HA-070** `runtime/openclaw/doctor.mjs` — inspectHost({platform,env,which}) -> CapabilityReport（条件付き、未有効）
+- [ ] **HA-071** `runtime/openclaw/credentials.mjs` — resolveSecretRef(ref, credentialFile) -> string（条件付き、未有効）
+- [ ] **HA-072** `install.sh` — frozen dependencies section（条件付き、未有効）
+- [ ] **HA-073** `runtime/openclaw/Dockerfile` — single-tenant Linux runtime image（条件付き、未有効）
+- [ ] **HA-074** `runtime/openclaw/compose.yaml` — lm instance service（条件付き、未有効）
+- [ ] **HA-075** `.github/workflows/harness-portability.yml` — portable acceptance matrix（条件付き、未有効）
+- [ ] **HA-076** `scripts/verify-oss-self-contained.mjs` — ACTIVE_ROOTSに含まれるruntime/openclawの検査（条件付き、未有効）
+- [ ] **HA-077** `THIRD_PARTY_NOTICES.md` — OpenClaw/client/protocol notices（条件付き、未有効）
+- [ ] **HA-078** `README.md` — portable installation/capability table（条件付き、未有効）
+- [ ] **HA-079** `README.ja.md` — 同じ配布境界の日本語手順（条件付き、未有効）
+- [ ] **HA-080** `docs/evidence/harness-migration/portable-acceptance.json` — clean-user/cloudsource acceptance（条件付き、未有効）
+
+最初の共通接続sliceは具体化。未確認owner/tool coverageはfalse、全商品の移行source設計は未完。文書PASSから全移行完了・配布決定・本番安全を推測しない。
