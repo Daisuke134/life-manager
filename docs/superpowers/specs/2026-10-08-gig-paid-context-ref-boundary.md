@@ -97,6 +97,11 @@ This is evidence only. The sole TODO/order source remains `docs/superpowers/spec
 - `df -k /Users/anicca/gig` reports 243060 KiB available, below the Gig browser's 524288 KiB admission floor. `life-manager-disk-cleanup` and `life-manager-release-reconciler` both report exit 1 / `reconcile_owner`; no second cleanup/apply was started and neither owner's lease/worktree was changed. Gig restarts would immediately hit the same admission guard, so keep the current loops loaded-idle and fenced until the existing owner produces a fresh successful receipt.
 - Freelancer's expected OAuth file `~/.config/anicca/gig/freelancer-oauth2.json` is absent. The stale legacy labels and missing product-loop rows remain the only current local evidence; no provider account page was opened, so authenticated state and any existing storefront remain unknown.
 
+## 2026-10-08 04:49 JST Freelancer / Upwork account-bound setup map
+
+- The browser registry maps Upwork to identity `upwork:dais` and profile `~/.cloak/profiles/gig-upwork`, but its `life-manager-upwork-browser` owner label is retired; that profile directory exists and `~/.cloak/vault/gig-upwork/auth-state.json` does not. No Upwork account page was opened, so this proves a configured path, not a current login or Project Catalog listing.
+- Freelancer has no browser identity entry. Candidate profile directories `freelancer-daily-driver` and `gig-freelancer-r1` exist, but `~/.config/anicca/gig/freelancer-oauth2.json` and the checked Freelancer vault-state file are absent. No account page or submit path was opened. Require fresh account-bound auth/readback and the provider's explicit automatic-bid authorization before registering a live owner.
+
 ## 2026-10-08 04:45 JST Coconala receipt summary / CrowdWorks source PR
 
 - Read-only `coconala_outcomes.py` returned `status=waiting`: historical local receipt counters are application 1,209, negotiation 364, and listing mutation 39; paid delivery is 0 and bank-arrival receipt is absent. The first three are cumulative counters with no date filter, not today's applications, current public listing count, sale count, or settled cash. Do not treat the listing counter as storefront demand.
