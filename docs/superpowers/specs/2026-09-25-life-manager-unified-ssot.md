@@ -4505,3 +4505,15 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 5. TikTok metrics ownerのunknown/freshnessを回復し、Postiz/providerから取れるper-post views/engagementを固定時点で取得してcreative text/account/tracking linkに結ぶ。ASC first-time downloads/product-page metrics、RevenueCat subscription/refund/MRR、Mixpanel/PostHog onboarding funnelを同じcampaign/cohortに結ぶ。未提供指標を0扱いしない。
 6. 08:22時点のXcode Cloud #804はPENDINGでsource SHAなし。run/action readbackでsource checkout progressを監視し、失敗時はworkflow/repository permissionの正確な診断を先に行う。二重buildを作らない。VALID build 391と実APNs notification tapのMaestro recordingを確認後のみ同quote表示をfixed扱いしTestFlight linkを共有する。
 7. distributionを優先してAnicca ASC first-time downloads 100/day (trailing 7-day average)へ伸ばし、続いて他public appsを1つずつ行う。その後だけMixpanel/PostHog cohortでonboarding/paywallを一仮説ずつ改善し、ASOはASC evidenceがstore-page bottleneckを示す場合だけ実施する。$10,000 same-period verified net MRRはsettled receipt/refund/fee/actual-cost join後にのみ達成扱いする。
+
+### 2026-10-08 08:43 JST — Mobile owner convergence follow-up
+
+この節は08:35のpost-merge mobile runtime cursorを置き換える。全社§84-Aの順序は変更しない。
+
+**TODO順変更:** 旧順=`PR #6993 merge → release reconciler terminal → owner readback → exact receipt resolve`。新順=`current release reconciler/PID 58399 terminal → all mobile owners loaded SHA + current capacity/admission readback → exact per-occurrence reconcile → owner-by-owner 3/day → metric/attribution joins → acquisition → onboarding/paywall`。理由: source mergeは完了したが、mobile ownersはまだ旧SHAで、release reconcilerが再びrunningになった。現在cursor=`run 18dc...-38644 の自然terminalとowner convergence readback`。別apply/kickstartを重ねない。
+
+**main/runtime差分:** PR #6993は`e5e2fb7f59f2f9833fef2810d5b0cf99a4401f87`でmainへmerge済み。08:43 JSTの`lm-loop status`ではrelease reconcilerはloaded-running PID `58399` / installed SHA `e5e2fb7f` / `next_action=reconcile_owner`。TikTok ownersはmain以前のSHAに分かれ、Anicca EN/EN2/slideshow/Buddha/JP1/JP4/Honne EN/eBook EN/eBook JA/metricsは`076c5be8`、Anicca main/HE/Honne JAは`1c0c9120`。Anicca main ownerはloaded-running PID `82243`。effect_unknown refsはAnicca EN 4,268、EN2 0、slideshow 4,123、Buddha 3,993、JP1 3,500、main 4,207、HE 408、JP4 149、Honne EN 896、Honne JA 224、eBook EN 0、eBook JA 1、TikTok metrics 1。publish/eBook refs合計21,769とmetrics 1はoccurrence履歴でありPUBLISHED投稿数ではない。ownerを手動stop/restart/applyしない。
+
+**Capacity/投稿:** 08:30:41 JSTのcleanup receiptは2 GiB floor met、`free_after=2,561,708,032` bytes、errors 0、protected_deletions 0、inventory_gaps 23。08:43 `df -Pk /` Availableは`2,288,704 KiB`。JP1のlast owner blockerは`host_admission_deferred:disk_headroom_low`だが、cleanup receipt後の自然retry/readbackはまだない。TikTok公式Postiz GETは08:34:37 JST時点で10/7 `21/48`、10/8 partial `1/48`（`@obou_anicca`のみ）。
+
+**通知/ASC lane:** 08:34 JSTのASC readbackでXcode Cloud #804はPENDING、sourceCommit空、build 391なし。`asc xcode-cloud doctor --wait --skip-logs --timeout 60s`もPENDING timeoutで、action/log/artifactは0。#804を再送しない。実APNs payloadと利用者buildのMaestro証拠が揃うまで通知quote fixをTestFlight live successと扱わない。
