@@ -4,14 +4,15 @@
 
 **Scope:** English eBook distribution only. Capafy remains with its separate owner. Keep English TikTok and Japanese eBook owners separate. Do not publish a different clip as the Hadrian video. Do not buy a HeyGen plan unless a later production-cost check shows it is needed.
 
-**Current evidence (rechecked 2026-10-08):**
+**Current evidence (rechecked 2026-10-09):**
 
 - HeyGen official `video get db2dab0924e19b88c14e03a6a7849069` returns `completed` (13.4008 seconds). The matching local MP4 exists at `~/.local/state/life-manager/marketing/ebook/renders/ebook-run.571924dc4e4867349fc6fd13.mp4`, is 1080×1920 H.264, and has SHA-256 `132d9b326059f9b74d6020e4bca50f0a77d2f2f5ca0595d2f2feb56449c12183`.
 - That MP4 is **not verified as the requested Hadrian clip**. Its script-ledger hook is “When a mistake follows you” and its body does not identify Hadrian. The four local eBook runs and their script records contain no Hadrian/Adrian item. HeyGen `video list --limit 100` currently returns zero rows. Do not publish this MP4 under the Hadrian request.
 - Postiz official `GET /public/v1/integrations` returned HTTP 200, 31 integrations, and 9 Instagram integrations; none is the English Monk account. The dedicated account registry remains `setup_required` with `publisher_integration_id=null`.
 - The credential SSOT entry for `instagram-english-monk` matches the intended `monk_anicca` handle but remains `phone_verification_pending`. The visible Instagram signup page is still at `/accounts/emailsignup/` and shows a phone prompt; no CAPTCHA is present. The prior SMS path failed macOS TCC access to Messages and iPhone Mirroring required reconnecting the selected device. Do not change privacy settings or bypass verification.
-- The production runtime reports `ebook-en-instagram-daily` as an unknown loop because this new owner is not installed. The English TikTok owner is `safely_fenced` on `host_admission_deferred:disk_headroom_low`; latest host `df` shows only `210,436 KiB` free, below the 2 GiB admission floor. Preserve open/protected paths and do not stop or restart the active release reconciler.
-- PR #7173 contains the dedicated Instagram owner and passed its required checks on the previous head. After the local latest-main merge, focused acceptance passes Node 20/20, Python 4/4, loop contract 18 loops/188 registry jobs, and `git diff --check`. Push the refreshed head and obtain new-head checks/review before merge. Its production integration and owner remain uninstalled.
+- The production runtime reports `ebook-en-instagram-daily` as an unknown loop because this new owner is not installed. Its source registry row is `priority=revenue`; latest-main `runtime/loop/lm_loop_run.py` therefore applies a 512 MiB runner floor. Host `df` most recently shows `1,715,424 KiB` free (about 1.64 GiB), so the new Instagram owner clears that floor once a main-derived release is installed. The currently installed older release `25bee172` still fences the separate English TikTok owner on its old 2 GiB rule; do not change that owner's policy as part of this Instagram task.
+- The old release reconciler is still running. Its latest readback is an `entrypoint_exit_1` whose recorded detail is `fleet-apply` cooldown (`coalesced`, 1,800-second minimum) plus “self-handoff helper already loaded” for release `25bee172`. Leave it to its natural cycle; do not stop/restart it. The disk-cleanup owner also has a latest `entrypoint_exit_1` with no provider effect. A 2 GiB cleanup is not a prerequisite for the new revenue-priority Instagram owner.
+- PR #7173 contains the dedicated Instagram owner and passed its required checks on the previous head. After latest-main sync, focused acceptance passes Node 20/20, Python 4/4, runtime loop bounds 138/138, loop contract 18 loops/188 registry jobs, and `git diff --check`. The refreshed head is pushed; its new-head CI is pending. The production integration and owner remain uninstalled.
 - Last verified Stripe readback (19:37 JST) showed `/monk` at `$10.99` one-time, Daily Anicca Letter at `$9.99/month`, and 0 active paid subscriptions. This is historical, not a current readback. At that price 1,002 active subscribers yield `$10,009.98` gross MRR before fees/refunds; one-time eBook orders do not count as MRR.
 - The user authorized a HeyGen monthly plan if needed. It is not needed to post the already completed MP4, so no purchase was made. Reassess only after the exact asset, target account, and recurring video cost are known.
 
@@ -24,7 +25,7 @@ flowchart LR
   C --> D[Account warmup complete]
   D --> E[Enabled matching Postiz integration]
   E --> F[English Instagram owner, 08:00 / 14:00 / 21:00 JST]
-  H[Host admission at 2 GiB] --> F
+  H[Revenue owner admission at 512 MiB] --> F
   F --> G[PUBLISHED receipt + native Reel URL]
   G --> I[/monk: $10.99 one-time eBook]
   I --> J[Paid order + matching PDF receipt]
@@ -33,7 +34,7 @@ flowchart LR
   L --> M[MRR ledger: 1,002 active subscribers ≈ $10K gross]
 ```
 
-The one-time eBook is an acquisition purchase; only active paid Letter subscriptions count toward MRR. Current status: the exact Hadrian clip and Instagram route are unresolved, and disk admission is below its floor.
+The one-time eBook is an acquisition purchase; only active paid Letter subscriptions count toward MRR. Current status: the exact Hadrian clip and Instagram route are unresolved. Current free space clears the new revenue-owner floor; the installed release still needs to include that policy and the new owner.
 
 ## Atomic TODO
 
@@ -66,11 +67,11 @@ Order update: old order=`verify Instagram → connect Postiz → add owner → p
 - Read back `/public/v1/integrations`; require the matching Instagram profile, stable integration ID, and `disabled=false`; update the single account registry row and English eBook pack with that ID.
 - **Completion evidence:** Postiz official GET and the registry point to the same English Monk profile and enabled integration.
 
-### 5. Restore host admission and apply the owner
+### 5. Install the owner on the current revenue admission policy
 
-- Use the canonical disk-cleanup governor; require at least 2 GiB free, zero cleanup errors, zero protected deletions, and a passing host admission. Preserve open and protected paths.
-- Build/apply only a main-derived immutable release and only `ebook-en-instagram-daily` when its lock is free; verify loaded SHA and argv. Do not stop or restart the active release reconciler.
-- **Completion evidence:** installed release SHA/argv match `main`, owner health is eligible, and disk admission is clear.
+- Build/apply only a main-derived immutable release containing the `priority=revenue` 512 MiB floor and only `ebook-en-instagram-daily` when its lock is free; verify loaded SHA and argv. Current free space is about 1.64 GiB, above that owner floor. Do not delete open/protected paths or stop/restart the active release reconciler.
+- Let the existing release reconciler make its next natural attempt after the recorded coalescing window; resolve any fresh exact failure through its owner path.
+- **Completion evidence:** installed release SHA/argv match `main`, the owner is registered and eligible, and host admission reports no deferral. The 2 GiB legacy English TikTok fence is separate.
 
 ### 6. Publish the exact Hadrian video once
 
@@ -86,4 +87,4 @@ Order update: old order=`verify Instagram → connect Postiz → add owner → p
 
 ## Current cursor
 
-`push the latest-main-synced PR #7173 head and pass new-head CI/review → merge the English Instagram owner → identify the exact unpublished Hadrian clip (current completed English clip does not match) → finish owner phone verification and warmup → bind Postiz to that exact profile → recover disk admission and apply the main-derived owner → publish once with receipt → verify three natural posts/day → reconcile paid eBook/PDF and optional Letter MRR`. The English TikTok fence remains separate; do not retry it as part of Instagram work.
+`pass PR #7173 new-head CI/review and merge → identify the exact unpublished Hadrian clip (current completed English clip does not match) → finish owner phone verification and warmup → bind Postiz to that exact profile → apply the main-derived revenue-priority owner when its natural rollout is eligible → publish once with receipt → verify three natural posts/day → reconcile paid eBook/PDF and optional Letter MRR`. The English TikTok fence remains separate; do not retry it as part of Instagram work.
