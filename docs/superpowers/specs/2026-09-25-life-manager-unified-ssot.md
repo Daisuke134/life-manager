@@ -4092,6 +4092,18 @@ owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol revie
 2. With no active Xcode Cloud run, select the next unused build number (391 currently has zero ASC records), run one archive, and read back exact source SHA, `VALID` processing, encryption, beta group/review and join URL.
 3. Install that exact build, capture the actual APNs body/`quoteId`/locale, and prove the same quote opens from cold-start and background. Only then report the user-visible issue fixed or send a TestFlight link/video.
 
+### Disk cleanup watchdog and worktree preservation — current cursor
+
+**目的:** ディスク回復経路を常時動作させ、cleanupが作業中のworktreeやiOS Simulator資産を削除しない状態を作る。
+
+**確認事実:** `ai.anicca.life-manager-disk-cleanup` の最新receiptは `free_before=272,838,656` / `free_after=353,898,496` bytes、`reclaimed=6,407`、13候補中12保持（open 3 / protected descendant 9）、capacity recoveryはunmetでexit 1。60秒の `com.anicca.disk-watchdog` は削除済みimmutable release `20261007T190835-8eb1585e` を指し、`watchdog.err.log` に `can't open file` が記録されている。旧 `bin/disk-watchdog.sh` はcache/tmpの一括削除と、clean+merged+cwd不在だけを根拠にしたworktree unlock/remove/pruneを含む。後続の容量確認は約142 MiBまで低下し、pytestが一時領域を作れず停止した。closed Homebrew download cache 38,284 KiBだけを `lsof` open 0件確認後に回収し、最新Data空きは約259 MiBだが2 GiB床未達。iOS 26.5 runtimeと `AniccaGrowthTask2a` device dataは保持され、deviceはShutdown。
+
+**不変条件:** worktreeはcleanup候補にしない。active/uncertainなworktreeを削除・unlock・pruneせず、worktree retirementは [worktree lifecycle runbook](../../runbooks/worktree-lifecycle.md) の6条件をownerが同一操作で検証できるまで自動化しない。generic `/private/tmp`/`cfo-*` pathも候補にせず、exact Capafy npm cacheだけをclosed確認後に回収する。iOS Simulator runtime/image/device/data/dyld cacheも削除候補にしない。5分の `ai` ownerは管理runnerのまま保ち、60秒recovery labelだけを安定したlocal wrapper経由で現在のimmutable governorへ接続する。
+
+**TODO順序更新:** 旧cursor=`5分cleanupの2 GiB recovery契約を維持し、削除済みrelease参照の60秒watchdogを未修復のまま運用`。新cursor=`①worktree/Simulator sentinelとinstaller ownershipを検証する失敗テスト → ②旧shellをshared governor dispatcherへ置換し、install scriptは60秒watchdogだけを更新、closed Homebrew/pip/uv cacheをallowlist化 → ③focused tests・fresh read-only review・exact-head CI → ④merge後のimmutable releaseからwatchdogのみをsafe preflight付きでapply → ⑤launchd argv/readbackとnatural receiptを確認し、空き容量2 GiB以上・errors 0・protected deletions 0を確認`。理由は、現在の回復labelが存在しないreleaseを実行しておらず、旧shellのworktree判定も安全性を証明できないため。既存2 GiB producer/recovery floorはPR #6926で11 GiBから戻した契約を保持し、今回の範囲で変更しない。
+
+**完了条件:** sourceとinstalled wrapperの両方がworktree削除命令を含まず、fake active worktree/Simulator sentinelが保持される。`com.anicca.disk-watchdog` は固定古いreleaseでなく安定wrapperを起動し、そのwrapperが `~/loops/current` のimmutable governorへ委譲する。5分ownerのplist/argvは変更されない。修正版のnatural watchdog receiptが容量床・error・protected-deletion条件を満たすまで「全面修復」と扱わない。
+
 ### 2026-10-08 JST — Mobile post-merge owner and disk follow-up (03:08)
 
 この追補は直前の02:39 snapshotを置き換える。§84-Aの全社順序は維持し、mobile laneの事実と次のownerを更新する。
