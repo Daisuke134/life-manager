@@ -53,6 +53,7 @@ FONT_CANDIDATES = (
 TEXT_BAND_PX = 72  # bottom band reserved for the phrase; art shrinks into the rest
 TEXT_STROKE_PX = 6
 TEXT_MARK = {"ja": "【文字入り】", "en": " (with text)"}
+GENERIC_TITLE_SUFFIXES = ("スタンプ", " Stickers", " stickers", " Sticker")
 
 
 def _policy() -> dict:
@@ -143,7 +144,13 @@ def mark_text_listing(listing: dict) -> dict:
         if base.endswith(mark.strip()):
             titles[lang] = title
             continue
-        titles[lang] = _fit(base, TITLE_MAX - _title_units(mark)) + mark
+        limit = TITLE_MAX - _title_units(mark)
+        # Drop the generic "スタンプ"/"Stickers" tail before cutting mid-word
+        # (48156132 was filed as "...毎日返事ス【文字入り】", 2026-10-08).
+        for suffix in GENERIC_TITLE_SUFFIXES:
+            if _title_units(base) > limit and base.endswith(suffix):
+                base = base[: -len(suffix)].rstrip()
+        titles[lang] = _fit(base, limit) + mark
     return dict(listing, title=titles)
 
 
