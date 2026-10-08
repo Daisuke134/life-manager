@@ -724,7 +724,7 @@ TODO（何を・どう直すか）
 |---|---|---|---|---|
 | 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | コード本番済み（#7039）。工場が静止ラインを選んだ時点で live 証明 |
 | 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | DONE（#7046） |
-| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | コード本番済み（#7034 `1872befb`）。手動で 48137583 を 835 に参加済み |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | 48137583 が 835「冬」で却下（2026-10-08、冬の絵が 8 個に届かず）。修正: 選定が `campaign_theme_ids` を列挙し、条件個数+4 以上の時だけ参加（決定的ガード）。却下の自動再申請も 4 つの欠陥（英語タイトル照合・返信フォーム化した本文末尾・二重 URL・value 属性の無い「参加しない」）で一度も動いていなかった → 修正し、48137583 を `leave_features` で自動再申請、審査待ちを readback |
 | 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | コード本番済み（#7068、#7074 provenance 修正）。**DONE**。set-012（48151688「動く！ポンタの毎日敬語スタンプ」、24 個）を ChatGPT コマ画像→整数秒ループ APNG（#7081）で無課金生成し、自然実行で 2026-10-08 07:19Z 申請。Creators Market で「審査待ち」を readback |
 | 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 工場配線済み（静止、Pillow 描画、#7080）。自然 wake の with_text 申請 readback 待ち |
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録 |
@@ -6059,42 +6059,40 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 
 **現在cursor:** `PR #7091 remaining required CI PASS → main merge → PID 96926 natural terminal and exact phase evidence → current-main handoff receipt → eBook/fence owner convergence and exact occurrence readback → 9 unique PUBLISHED/day → paid order+PDF → paid active subscription MRR → gated Capafy canary/order readback`。Production sources/owners/posting remain unmodified by this task.
 
-### 2026-10-08 16:52 JST — source follow-ups merged; production handoff remains
+### Mobile distribution cursor
 
-この追記は16:42のhandoff snapshotと16:48のlocal revenue cursorを更新する。source修正はmainに入ったが、対象ownerへのproduction収束はまだ確認できない。
+このreadbackでmobile acquisition TODOの順序は変えず、item 1の現在証拠とcursorを更新する。
 
-**source / focused readback:**
+- Postiz公式GETは16:21 JST時点で31 integrations、TikTok 17 profiles、enabled 16 / disabled 1（`@anicca.jp8`）。10/8 JSTのunique `PUBLISHED`は9件。`@anicca.jp`と`@anicca_slideshow`が各2件、`@anicca.he`、`@anicca.jp4`、`@anicca.jpx`、`@honne_reveal`、`@obou_anicca`が各1件。`@anicca.comedy`、`@anicca.daily`、`@anicca_buddha`、`@aniccaaffirmation`、`@aniccaen2`、`@aniccajp`、`@aniccajp2`、`@honnevideo`、`@monk_anicca`は0件。enabled 16 profilesの3/day targetは48件、現時点の不足は39件。disabled profileはenable/route確認まで目標達成へ算入しない。
+- 16:21 JSTのreadbackでは`/Users/anicca/loops/current`がimmutable release `20261008T155630-6cc0c56b`、release reconcilerがloaded-runningで、直近occurrence `18dc7b67a05f8020-39546`は`entrypoint_exit_75` / `reconcile_owner`。mobile posting ownersは`8f342d8d`または`71a5f878`をloadedし、その時点のmain `c61f2c89`へ未収束。mainはその後`07aa3fb3`へ進み、mobile ownersのfresh readbackはまだない。
+- EN2の直近terminalは`life-manager-anicca-en2-affirmation-tiktok` / run `18dc78532d578968-91053` / `entrypoint_exit_1`で、stderrは`mobile app loop requires node`。`runtime/loop/lm_loop_apply.py`はmanaged runtimeを`LIFE_MANAGER_RUNTIME_NODE`と`LIFE_MANAGER_RUNTIME_PYTHON`としてplistへ設定する一方、`apps/life-manager/scripts/mobile-app`は両方を読まず、`LIFE_MANAGER_NODE` / `LIFE_MANAGER_PYTHON`とPATHだけを使う。launchd PATHにruntimeがないためrunner前に終了する。wrapperは両managed runtimeをfallbackに使うsource修正を含む。
+- Buddha ownerの直近failureは`Larry JA marketing.video.publish job is not claimable`。jobのclaimable stateとowner mappingは未解決。既存effect-unknown fenceは公式な同一投稿ID/receiptで特定できるまで保持し、再送しない。
+- `life-manager-tiktok-metrics`はoccurrence `18d9f8ffb829e890-94915`を`history_incomplete` / `no_readback_adapter`で保持する。これは後続のsocial-metrics TODOで解決し、distribution投稿と混同しない。
+- TDD回帰testは隔離PATHで両managed runtimeを渡し、修正前RED（`mobile app loop requires node`）・修正後GREEN。`mobile-app-command.test.js`は12/12、`bash -n`、`git diff --check`、`./bin/lm-loop-contract`（18 loops / 187 registry jobs / errors 0）、`runtime/loop/tests`（793/793）、`loop-adapter-registry.test.js`（15/15）がPASS。runtime suiteは既存SQLite connectionの`ResourceWarning`を出すが失敗なし。
+- Production promotion gateは未達。16:21 readbackのinstalled release `20261008T155630-6cc0c56b`に対する`lm-loop doctor`は`ok=false`で、retired installed label `ai.anicca.provision-browser.capafy.kosuke`が1件。mobile laneはこの別owner labelを変更せず、doctorがPASSするまでowner applyを行わない。
+- PR #7089の初回`OSS self-contained boundary`はmainの#7084が変更した`skills/capafy-autopublish` treeとmanifest hash不一致でFAIL。PR差分は同treeを変更しない。canonical verifier計算は245 files / SHA-256 `7d59dbe788a1edb593d16240413cdb6573e0b49b8297b63d4da539179eb61fa6`。manifestをその値へ更新し、canonical verifierとCI run `37744122051`（head `db56b9b6`）、`37745525945`（head `f4cbeb51`）は全件PASS。mainはその後`07aa3fb3`へ進み、このPR headのrequired CIはまだ取り直す必要がある。
 
-- PR #7090 `fix(fundraiser): park context between tabs`は07:45:16Zにmergeされ、`3c87f64fad`。Fundraiser `run.sh`は`CLOAK_CONTEXT_PARK_ON_IDLE=1`をexportし、context lease helperへ伝播する。PR required CI 9/9、Codex review completed。merge後にwrapper propagation / last-tab park / parked next-acquireのfocused checksを3/3 passで確認した。
-- PR #7091 `fix(reconciler): serialize self-handoff on the run lock`は07:49:20Zにmergeされ、`07aa3fb3d2`。同じ既存per-label lockをrun/handoffで共有するsourceがmainに入った。
-- PR #7090のsource worktreeは`lm-cfo-observability-1002`のactive lease下に残る。primaryからownerへlifecycle retirementを依頼済みで、こちらからworktreeを触らない。
+**現在cursor:** source fixとfocused acceptanceは完了。最新main `07aa3fb3`を同期したmerge commitでrequired CIを取り直し、全件PASS後にPR #7089をmainへ統合する。productionでは別ownerのretired labelをowner-safeに解消して`lm-loop doctor`がPASSした後だけimmutable releaseへ対象ownerを個別反映し、EN2のnatural runとPostiz receiptを確認する。残るowner/job/profileの問題を一つずつ閉じ、全enabled profileがJST日3件のunique `PUBLISHED`に達するまでitem 1を完了扱いしない。
 
-**最新read-only production状態（16:52 JST）:**
+### 2026-10-08 17:02 JST — current release updated; reconciler handoff still pending
 
-- `origin/main=07aa3fb3d2`だが`~/loops/current`は`20261008T164623-3c87f64f`。current releaseは#7091 handoff fixを含まず、対象のmain-derived release receipt/owner convergenceは未確認。
-- `life-manager-release-reconciler`は3c87 SHA / loaded-idle、natural occurrence `18dc7e6b8cbaf958-35373`は07:52:05ZにPASS。直前の旧c61 process `18dc7e43b76b4158-26121`は07:48:11Zにexit143。新main 07aaを含むcurrent release/handoff receiptを待つ。manual wake/stop/restartをしない。
-- 16:52 readbackではConnector c61 / idle、Job Hunter daily c61 / idle (`apply_lock_busy`)、inbox 6cc / idle (`resource_capacity_busy`)、health c61 / idle (`resource_capacity_busy`)、Fundraiser 71a / idle（generic effect unknown、古いDeepScale/LAUNCH fence 2件）、Paid 6cc / loaded-running PID `10293`。対象loopにprovider receiptなし。
-- `lm-loop doctor`は`ok=false`、retired installed label `ai.anicca.provision-browser.capafy.kosuke`のみ残る。別owner stateであり、このlaneでは変更しない。
-- 最後のdurable claim occupancyは16:11 JSTのcap8・8 live claim・free0。16:52 health集計はclaim occupancyを返さず、8/8を現在値とは扱わない。
-- Fundraiser occurrence `18dc7bf593b9ebb0-79351`はstrict pre-effect marker proof済み。旧DeepScale `18d9b0b6311a2018-87933`、LAUNCH `18dc7222f6b5ec78-20440`、Workday Danaher `R1316263`は未解決で再送禁止。
+この追記は16:57 readbackを、最新main `864513c9a8`（PR #7094を含む）と08:02Zのproduction statusで更新する。
 
-**順序更新:** 旧順=`source context/handoff fix → doctor → release/apply → natural readback → capacity`。PR #7090/#7091でsource修正はmainへ統合しfocused regressionもPASSした。新順=`current reconciler natural handoffと07aaを含むimmutable release receipt確認 → Capafy owner-safe retired label解決/doctor PASS → shared apply lock・target admissionがfree/eligibleになってからtarget ownersを逐次反映 → 3 loop natural effect/official receipt/Telegram → old fence exact resolution・replay-zero → same-window capacity measurementと実測に基づく調整 → MX-01`。理由はcurrent release/target ownersがmainより古く、Job Hunter blockers・Fundraiser old fences・Capafy doctor gate・Paid active ownerが残るため。現在cursor=`07aaを含む自然release handoffとPID 10293のnatural terminalをread-onlyで待つ`。
+**latest read-only state:**
+
+- `~/loops/current`は`20261008T170048-864513c9`。PR #7090 Fundraiser context fixとPR #7091 self-handoff lock fixを含む。
+- `life-manager-release-reconciler`は旧SHA `3c87f64f` / loaded-running PID `58583`。最後のterminal occurrence `18dc7e6b8cbaf958-35373`は07:52:05ZにPASSだが、次のhandoffは未完了。self-handoff receiptはtarget SHA `07aa3fb3`に対し`status=failed,error=old_service_active_timeout`、`old_service_state=running` / PID `58583`、per-label run lock=`acquired`。current releaseがさらに`864513c9`へ進んだため、07aa receiptは現currentへのhandoff証明にならない。
+- FundraiserはSHA `07aa3fb3` / loaded-idle、08:01:00Zのoccurrence `18dc7f107bdc0988-59606`は`apply_lock_busy` / effect `not_applicable`。つまりcontext fixはownerにload済みだが、このrunにprovider効果はない。old DeepScale / LAUNCH fencesはcurrentのまま。Job Hunter dailyはc61 / `apply_lock_busy`、inboxは6cc / passだがprovider効果なし、healthはc61 / `resource_capacity_busy`。Connectorはc61 / idle / local deterministic passのみ。Paidは6cc / loaded-running PID `10293`。
+- `lm-loop doctor`は`ok=false`。Capafy retired label `ai.anicca.provision-browser.capafy.kosuke`とself-handoff helper `ai.anicca.life-manager-release-reconciler-self-handoff`がlisted; helper/old serviceを手動bootout・削除しない。
+- 最後のdirect durable capacity occupancyは16:11 JSTのcap8・8 live claims・free0。08:02Zのhealth summaryはoccupancyを返さないので現在値とみなさない。
+- PR #7090/#7091 source fixはmainに入り、Fundraiser park/next-acquire focused checks 3/3 PASS。merged source worktreeのowner leaseはまだactiveであり、ownerにlifecycle retirementを依頼済み。
+
+**順序更新:** 旧順=`current release更新 → handoff receipt → doctor/target apply → natural run`。新順=`old reconciler PID 58583とPaid PID 10293のnatural terminal/lock readback → source `864513c9`をtarget reconcilerへhandoffし、exact target SHA/argv receiptを確認 → helperが自然に消え、Capafy owner-safe retired labelが解決してdoctor PASS → target admission/lock freeかつowner idle/eligibleの時だけ5 target ownerを逐次apply → natural provider outcomes/Telegram/fence close/replay-zero → stable capacity compareと実測余力に基づく調整 → MX-01`。理由はcurrent releaseが864まで進んだ一方、reconcilerは3c87のPIDで動作し、07aa向けhandoffもold-service-active timeout、target ownersはc61/6cc/07aaに分散しているため。現在cursor=`PID 58583のnatural terminal後、07aa/864 handoff receiptがloaded SHAと一致することをread-onlyで確認`。
 
 **残TODO（完了まで）:**
 
-1. Release reconcilerの次natural passで`07aa3fb3d2`由来immutable releaseとcurrent-main handoff receiptを確認する。同時にPaid PID `10293`のnatural terminalとshared apply lockを監視し、停止・手動wake・重複applyをしない。
-2. Capafy ownerがretired labelをowner-safeに解決した後`lm-loop doctor` PASSを確認する。別ownerのstateは変更しない。
-3. current release / doctor / shared lock / target admissionがPASSし、対象ownerがloaded-idle/eligibleになってから、Connector、Job Hunter daily/inbox/health、Fundraiserを一つずつowner-scoped applyする。各loaded SHA/argv/envと3専用taskの`gpt-6-luna/max/fast`を確認する。
-4. ConnectorのLuma registration + Calendar + Telegram、Job Hunterの新規適格Workday application official status + Telegram、Fundraiserの新規VC/AI-AGI founder向けGmail message ID + exact Sent + Telegramを同じoccurrenceに結ぶ。manager構想とpodcast/Zoom/対面提案を保ち、human-required gateを迂回しない。
-5. Danaher `R1316263`、DeepScale、LAUNCHのold fenceを同一targetのofficial statusまたはstrict verified-pre-effect proofで解決する。未解決targetは再送しない。全receiptのoccurrence bind、duplicate-free、replay-zeroを確認し、Fundraise収入はsettlement後だけ計上する。
-6. 3 loopのnatural proof後にsame-window claim/queue/wait/CPU/RAM/diskを比較し、安定した余力が実測された場合だけcap/laneを調整する。過去の8/8 snapshotを現在値とみなさない。production gateを閉じたら本laneを完了しMX-01へ戻る。
-
-### 2026-10-08 16:57 JST — target release handoff timed out on active old service
-
-この追記は16:52のsource/release stateを更新する。
-
-**handoff readback（07:57Z）:** `~/loops/current`は`20261008T165311-07aa3fb3`。release reconcilerはSHA `3c87f64f` / loaded-running PID `58583`で、直近natural occurrence `18dc7e6b8cbaf958-35373`は07:52:05ZにPASS。self-handoff receiptはtarget SHA `07aa3fb3`へ向けて更新されたが、receipt statusは`failed` / `error=old_service_active_timeout`、`old_service_state=running` / PID `58583`、per-label run lockは`acquired`。handoff-watchはpassを続けるが、07aa loaded argvのverified receiptはまだない。`lm-loop doctor`はretired Capafy labelに加えてunmanaged helper `ai.anicca.life-manager-release-reconciler-self-handoff`を表示する。手動bootout/stop/restartやhelper削除をしない。
-
-**target owner state:** Connector c61 / idle、Job Hunter daily c61 / `apply_lock_busy`、inbox 6cc / `resource_capacity_busy`、health c61 / `resource_capacity_busy`、Fundraiser 71a / idle、Paid 6cc / loaded-running PID `10293`。3 revenue target loopにprovider receiptなし。Fundraiserのstrict pre-effect occurrenceは解決済みだが、DeepScale/LAUNCH旧2 fencesとDanaher `R1316263`は未解決。
-
-**TODO順更新:** 旧cursor=`07aa current release handoff → Capafy doctor → target apply`。新cursor=`PID 58583とhelperのnatural handoff/readback → old_service_active_timeoutの再現有無を確認し、07aa loaded SHA/argv receiptを得る → helperが自然に消えた後Capafy owner-safe retired label解決とdoctor PASS → target owner idle/admission eligible時に5 ownerを個別apply → natural provider outcome/Telegram/old fence解決/replay-zero → capacity measurement`。理由はmain source `#7091`はcurrent symlinkにあるが、self-handoff receiptがactive old service timeoutで止まり、Fundraiser/Job Hunter ownerは旧SHAのままだからである。現在cursor=`old service PID 58583のnatural terminalと07aa target receiptを待つ`。
+1. **現在cursor:** PID `58583`とPaid PID `10293`を自然terminalまで監視し、self-handoff receipt、helper state、shared run/apply lockをread-onlyで再確認する。old-service-active timeoutが再発した場合は、processが自然terminalでもloaded `state=running`に残る理由を調べる。raw launchctl、手動bootout、stop/restart、手動wake、再送をしない。
+2. helperの自然cleanup後、Capafy ownerがretired installed labelをowner-safeに解決し、`lm-loop doctor` PASSをreadbackする。別owner stateは触らない。
+3. current `864513c9`由来immutable releaseのreconciler handoffがverifiedされ、doctor/target admission/lockがPASSし、全target ownerがidleになった時だけConnector、Job Hunter daily/inbox/health、Fundraiserをowner-scopedに一つずつapplyする。loaded SHA/argv/envと`gpt-6-luna/max/fast`を確認する。
+4. ConnectorのLuma registration + Calendar + Telegram、Job Hunterの新規適格Workday application official status + Telegram、Fundraiserの新規VC/AI-AGI founder向けGmail message ID/exact Sent/Telegramをoccurrence単位で照合する。Danaher `R1316263`、DeepScale、LAUNCHは公式statusまたはstrict verified-pre-effectまでfencedにし、同targetを再送しない。manager構想/podcast/Zoom/対面提案を維持し、human-required gateを迂回しない。
+5. receiptを同じoccurrenceへ結び、重複なし・replay-zeroを確認する。Fundraise収入はsettlement後だけ実績計上。3 loop production proofの後、same-window claim/queue/wait/CPU/RAM/diskを測り、安定した余力が証明された場合だけcap/laneを変える。全gate後にlocal revenue laneを完了し、MX-01へ戻る。
