@@ -5999,6 +5999,16 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 
 **現在cursor:** merge latest main `864513c9` into the A5 branch, rerun A5 focused/privacy/OSS checks on that tree, then push. On the pushed SHA, require the full Python runtime suite and same-head CI before marking PR #6827 ready/merge. After source merge, let the self-handoff reconciler converge naturally to a main-derived release; then verify CFO owner load, admission/lock, occurrence receipt, A5 migration/RPC/panel, and continue A6→A8→A9→A10. A7 Moneytree and A3/A4 cost savings remain deferred.
 
+### 2026-10-08 17:05 JST — latest-main A5 acceptance and production gate
+
+この更新は17:01節のsource/production cursorを進める。
+
+- **A5 branch:** local HEAD `04ea1b974d1dcc563c9cb66d18ebb564a6069858` includes `origin/main=864513c9` (#7094) and the zero-estimate fix. Synchronized-tree tests: A5 `113/113`; panel privacy `api=177/browser=63/recipes=19/channels=9`; OSS verifier `ok=true` and self-contained `12/12`; registry `136 tests / 197 subtests`; Node adapter `15/15`; loop contract `ok=true` (18/187/112); `git diff --check` PASS.
+- **PR #6827:** remote is still head `bed30b56` / base `07aa3fb3`, OPEN/DRAFT, mergeable, and all required checks pass on that old head. Its loop-control job ran 801 Python tests in 188.168s and passed. Local head `04ea1b97` is not yet pushed, so it has no same-head CI/runtime evidence.
+- **Production readback (17:01 JST):** current symlink/release is `20261008T170048-864513c9`. Release reconciler remains loaded-running PID `58583` on old SHA `3c87f64f`; its last natural report `18dc7e6b8cbaf958-35373` passed at 07:52:05Z with no provider receipt, but it has not yet loaded the current SHA. CFO owner is loaded-idle on `c61f2c89`; latest occurrence `18dc7eda6ff41808-17315` at 07:57:14Z was `host_admission_deferred:resource_fifo_wait` / exit75, `effect_status=not_applicable`, receipt/readback null; `last_effect` is recorded at 07:57:08Z, so delivery is not asserted either way. Last successful CFO report remains 06:00:53Z. Disk is 3.9 GiB free / 99% used and host load is 13.91/13.65/13.22 on 10 CPUs.
+
+**現在cursor:** push local A5 head `04ea1b97`, then require full Python runtime suite and same-head CI before ready/merge. Keep PR draft until those gates pass. After merge, preserve the running reconciler and wait for natural handoff to `864513c9`; then verify CFO owner loaded SHA, free admission slot, and report receipt before A5 migration/RPC/panel readback and A6→A8→A9→A10.
+
 ### 2026-10-08 17:01 JST — A5 acceptance and live production convergence
 
 この更新は16:52節のbranch/CI/production cursorを置き換える。
