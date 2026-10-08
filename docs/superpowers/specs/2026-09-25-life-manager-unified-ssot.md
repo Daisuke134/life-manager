@@ -7328,3 +7328,13 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - The executable follow-up plan is committed in `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. The low-disk watchdog is stable and running but latest receipt is still below 2 GiB; target owners remain on the older installed release and no provider result is claimed.
 
 **現在cursor:** commit/push latest-main merge and this cursor → exact-head PR #7156 CI/fresh `ship` review → merge → revenue-floor follow-up branch and tests → immutable release/watchdog receipt → disk/admission recovery → effect readbacks and target natural outcomes → post-recovery capacity measurement.
+
+
+### 2026-10-08 23:54 JST — mixed owner-error retry guard
+
+- Fresh read-only review of PR #7156 head 73332795af31de851c227355349a0c1dea3b537a against origin/main e9fa073d83363ae828ceeacf8b529d2773f21550 returned fix-first: a budget-exceeded partial could also contain owner errors and still receive the short budget-progress retry; the legacy-state inference had the same gap. Review also found this SSOT's prior cursor/head was stale.
+- Added a regression where one owner fails, a later owner applies, and the fleet budget leaves a third owner unstarted. Before the source change, both marker-present and legacy marker-absent cases recorded the short retry. The apply and legacy inference now require errors == 0; otherwise the regular backoff and new-SHA coalesce remain active.
+- Verification after the source/test change: fleet-apply suite 34/34 PASS in 51.547s; shell syntax, source boundary, and git diff --check PASS. The new focused regression passed for marker-present and legacy marker-absent state. This is local verification; these changes are not yet on the PR head.
+- At 23:54 JST, PR #7156 still points to 73332795...; run 37795141108 has all reported checks PASS except Loop control contracts, which is still pending. Those checks do not cover the local source/test change.
+
+**現在cursor:** commit/push the mixed-error guard, regression, and this corrected cursor → fresh exact-head CI and read-only review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → disk/admission recovery → official effect readbacks and target natural outcomes → post-recovery capacity measurement.

@@ -237,10 +237,15 @@ else:
         changed = int(data.get("changed", 0) or 0)
     except (TypeError, ValueError):
         changed = 0
+    try:
+        errors = int(data.get("errors", -1))
+    except (TypeError, ValueError):
+        errors = -1
     budget_progress_continue = (
         status == "partial"
         and data.get("message") == "timed out owners: none; budget exceeded"
         and changed > 0
+        and errors == 0
         and next_retry > 0
     )
 print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}\t{int(budget_progress_continue)}")
@@ -592,7 +597,7 @@ PY
   # failure: continue on the same sha soon so the fleet converges before the next release.
   local budget_progress_continue=0
   if [ "$status" = "partial" ] && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
-    && [ "$changed" -gt 0 ]; then
+    && [ "$changed" -gt 0 ] && [ "$errors" -eq 0 ]; then
     budget_progress_continue=1
     next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
   fi
