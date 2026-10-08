@@ -845,6 +845,28 @@ def test_x_repost_uses_revenue_queue_priority_and_coalesces_when_agent_capacity_
     assert json.loads(receipt.read_text())["reason"] == "resource_capacity_busy"
 
 
+def test_cfo_report_uses_deterministic_revenue_admission_class(tmp_path):
+    registry = json.loads(
+        (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
+    )["loops"]
+    occurrence_id = "life-manager-cfo-hourly:scheduled-wake"
+    receipt = tmp_path / "receipt.json"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], registry["life-manager-cfo-hourly"],
+            "life-manager-cfo-hourly", {}, receipt, occurrence_id=occurrence_id,
+        ) == 75
+
+    enqueue.assert_called_once_with(
+        "deterministic", "life-manager-cfo-hourly", admission_class="revenue",
+        priority="revenue", occurrence_id=occurrence_id, coalesce_reserved=True,
+    )
+    run.assert_not_called()
+
+
 def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
     entry = {
         "cadence": {"start_interval_seconds": 60},

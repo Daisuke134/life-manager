@@ -283,7 +283,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["life-manager-cfo-hourly"]
         self.assertEqual(row.get("resource_class"), "deterministic")
-        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("admission_class"), "revenue")
         self.assertEqual(row.get("priority"), "revenue")
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
