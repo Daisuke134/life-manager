@@ -485,6 +485,7 @@ PY
     owner_started="$(date -u +%s)"
     owner_rc=0
     LIFE_MANAGER_RELEASE_ROOT="$release_root" LIFE_MANAGER_APPLY_TARGET="$loop_id" \
+      LIFE_MANAGER_APPLY_REQUIRE_CURRENT=1 \
       "$runtime_python" "$timeout_runner" --grace-seconds 15 "$per_owner_timeout_seconds" \
       "$release_root/bin/lm-loop" apply >"$owner_output_path" 2>&1 </dev/null || owner_rc=$?
     owner_output="$(cat "$owner_output_path")"
@@ -538,6 +539,22 @@ except (ValueError, TypeError):
     sys.exit(1)
 sys.exit(0 if result == {
     "ok": False,
+    "error": "release is no longer current",
+} else 1)
+' 2>/dev/null; then
+      release_superseded=1
+      superseding_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
+      owner_skipped=1
+      skipped=$((skipped + owner_skipped))
+      owner_skip_reason="release-superseded"
+    elif [ "$owner_rc" -eq 1 ] && printf '%s' "$owner_output" | "$runtime_python" -c '
+import json, sys
+try:
+    result = json.load(sys.stdin)
+except (ValueError, TypeError):
+    sys.exit(1)
+sys.exit(0 if result == {
+    "ok": False,
     "error": "admission rebind refused: effect_unknown",
 } else 1)
 ' 2>/dev/null; then
@@ -582,6 +599,7 @@ with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as h
 PY
 
     [ "$already_owned" -eq 1 ] && break
+    [ "$release_superseded" -eq 1 ] && break
   done <"$plan_path"
   rm -f "$plan_path"
 

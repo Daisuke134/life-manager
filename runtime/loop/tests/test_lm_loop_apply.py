@@ -81,6 +81,18 @@ class LmLoopApplyTest(unittest.TestCase):
             self.assertEqual(lm_loop.main(["apply"]), 2)
         self.assertIn("LIFE_MANAGER_APPLY_TARGET", json.loads(output.getvalue())["error"])
 
+    def test_apply_require_current_environment_reaches_live_apply(self):
+        with patch.dict(os.environ, {
+                "LIFE_MANAGER_APPLY_TARGET": "example",
+                "LIFE_MANAGER_APPLY_REQUIRE_CURRENT": "1",
+                "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(self.root / "LaunchAgents"),
+                "LIFE_MANAGER_LAUNCHCTL_SAFE": str(self.root / "bin/launchctl-safe"),
+        }, clear=True), patch.object(lm_loop, "apply_live", return_value=[]) as apply, \
+                redirect_stdout(io.StringIO()):
+            self.assertEqual(lm_loop.main(["apply"]), 0)
+        self.assertIs(apply.call_args.kwargs["require_current"], True)
+
     def test_admission_rebind_guard_promotes_explicit_revenue_owner(self):
         from runtime.host import resource_admission
 

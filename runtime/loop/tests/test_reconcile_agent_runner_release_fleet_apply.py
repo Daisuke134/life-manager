@@ -102,6 +102,20 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    supersede_before_apply)
+      if [ "$target" = "${FAKE_SUPERSEDE_LOOP_ID:-}" ] \
+        && [ ! -e "$FAKE_SUPERSEDE_MARKER" ]; then
+        : >"$FAKE_SUPERSEDE_MARKER"
+        rm -f "$FAKE_CURRENT_LINK"
+        ln -s "$FAKE_NEXT_RELEASE_ROOT" "$FAKE_CURRENT_LINK"
+        if [ "${LIFE_MANAGER_APPLY_REQUIRE_CURRENT:-0}" = "1" ]; then
+          echo '{"ok": false, "error": "release is no longer current"}'
+          exit 1
+        fi
+      fi
+      echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
+      exit 0
+      ;;
     fail_then_budget)
       if [ "$target" = "${FAKE_FAIL_LOOP_ID:-}" ]; then
         echo '{"ok": false, "error": "boom"}'
@@ -807,6 +821,52 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             latest_state = self._state(root)
             self.assertEqual(latest_state["sha"], sha2)
             self.assertEqual(latest_state["status"], "ok")
+            self.assertEqual(self._apply_call_count(calls_log), 3)
+
+    def test_current_change_before_owner_apply_refuses_stale_release_under_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            loop_ids = ("first-earn", "second-earn")
+            overrides = {
+                loop_id: {"domain": "earn", "priority": "revenue"}
+                for loop_id in loop_ids
+            }
+            release1 = self._make_release(
+                root, sha1, loop_ids=loop_ids, entry_overrides=overrides,
+            )
+            self._activate(root, release1)
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(
+                root, sha2, loop_ids=loop_ids, entry_overrides=overrides,
+            )
+            current_link = root / "loops" / "current"
+            calls_log = root / "calls.log"
+            env = self._base_env(
+                root, repo, calls_log=calls_log, apply_mode="supersede_before_apply",
+            )
+            env["FAKE_SUPERSEDE_LOOP_ID"] = "first-earn"
+            env["FAKE_CURRENT_LINK"] = str(current_link)
+            env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+            env["FAKE_SUPERSEDE_MARKER"] = str(root / "superseded.marker")
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+
+            stale = self._run(env)
+            self.assertNotEqual(stale.returncode, 0)
+            state = self._state(root)
+            self.assertEqual(state["status"], "partial")
+            self.assertEqual(state["changed"], 0)
+            self.assertEqual(state["errors"], 0)
+            self.assertEqual(state["skipped"], 1)
+            self.assertIs(state["release_superseded"], True)
+            rows = self._owners_log(root)
+            self.assertEqual(rows[-1]["reason"], "release-superseded")
+            self.assertEqual(rows[-1]["rc"], 1)
+            self.assertNotIn("target=second-earn", calls_log.read_text())
+
+            latest = self._run(env)
+            self.assertEqual(latest.returncode, 0, latest.stderr)
+            self.assertEqual(self._state(root)["sha"], sha2)
             self.assertEqual(self._apply_call_count(calls_log), 3)
 
     def _owners_log(self, root):
