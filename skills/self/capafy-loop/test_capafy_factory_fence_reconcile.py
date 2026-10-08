@@ -167,6 +167,7 @@ def test_inconclusive_too_recent_stays_fenced(tmp_path):
         resolve_pre_effect_fn=fake_resolve_pre_effect,
         evidence_dir=tmp_path / "evidence",
         now=QUEUED_AT + dt.timedelta(minutes=5),
+        run_finished_fn=lambda occurrence, queued: False,  # the run is still alive
         resolve=True,
     )
 
@@ -267,3 +268,56 @@ def test_record_snapshot_read_failure_is_recorded_not_fatal(tmp_path):
     assert written["ok"] is False
     loaded = reconciler.load_snapshot(OCCURRENCE, snapshot_dir=snapshot_dir)
     assert loaded["ok"] is False
+
+
+def _no_effect_call(tmp_path, *, age, run_finished_fn, resolved):
+    return reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: None,
+        read_publish_list_fn=lambda: _publish_list([
+            {"agent_id": "111", "updated_at": "2026-09-20T00:00:00Z", "latest_agent_version_id": "v1"}]),
+        read_remote_status_fn=lambda agent_id: {"ok": False, "reason": "unused"},
+        resolve_pre_effect_fn=lambda *a, **k: resolved.append(1) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + age,
+        run_finished_fn=run_finished_fn,
+        resolve=True,
+    )
+
+
+def test_finished_run_with_no_effect_closes_without_waiting_an_hour(tmp_path):
+    """Dais 2026-10-08: a failed run (e.g. PREPARE_FAILED, no agent spend) left the factory
+    fenced for an hour, twice in one day. Once the run process is gone the 3720s wait is moot."""
+    resolved = []
+    result = _no_effect_call(tmp_path, age=dt.timedelta(minutes=3),
+                             run_finished_fn=lambda occurrence, queued: True, resolved=resolved)
+    assert result["verified"] is True and result["effected"] is False and result["closed"] is True
+    assert resolved == [1]
+
+
+def test_running_run_still_waits_the_full_window(tmp_path):
+    resolved = []
+    result = _no_effect_call(tmp_path, age=dt.timedelta(minutes=30),
+                             run_finished_fn=lambda occurrence, queued: False, resolved=resolved)
+    assert result["verified"] is False and result["reason"].startswith("too_recent")
+    assert resolved == []
+
+
+def test_finished_run_still_needs_a_minute_for_clock_skew(tmp_path):
+    resolved = []
+    result = _no_effect_call(tmp_path, age=dt.timedelta(seconds=20),
+                             run_finished_fn=lambda occurrence, queued: True, resolved=resolved)
+    assert result["verified"] is False and resolved == []
+
+
+def test_run_finished_detects_dead_and_reused_pids():
+    queued = dt.datetime(2026, 10, 8, 5, 31, 42, tzinfo=dt.timezone.utc)
+    occ = "capafy-loop-daily:18dc77082a0f5390-59016"
+    assert reconciler.run_finished(occ, queued, process_start_fn=lambda pid: None) is True
+    later = (queued + dt.timedelta(hours=2)).astimezone().strftime("%a %b %e %H:%M:%S %Y")
+    assert reconciler.run_finished(occ, queued, process_start_fn=lambda pid: later) is True  # pid reused
+    same = queued.astimezone().strftime("%a %b %e %H:%M:%S %Y")
+    assert reconciler.run_finished(occ, queued, process_start_fn=lambda pid: same) is False  # still the run
+    assert reconciler.run_finished("capafy-loop-daily:no-pid-here", queued,
+                                   process_start_fn=lambda pid: None) is False  # unparseable: stay safe

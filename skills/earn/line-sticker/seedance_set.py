@@ -242,21 +242,34 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _clip_receipt(receipt: dict) -> dict:
+    """Provenance row for one clip. fal receipts carry request_id/sha256; chatgpt-imagegen sprite
+    sheets (L29) carry sheet_sha256 only, so derive a stable id from the sheet hash."""
+    if receipt.get("provider") == "chatgpt-imagegen":
+        sheet = receipt["sheet_sha256"]
+        return {"id": receipt["id"], "request_id": f"chatgpt:{sheet[:16]}", "sha256": sheet,
+                "estimated_usd": str(receipt.get("estimated_usd", 0))}
+    return {"id": receipt["id"], "request_id": receipt["request_id"],
+            "sha256": receipt["sha256"], "estimated_usd": str(receipt["estimated_usd"])}
+
+
+def _animation_provider(set_dir: Path, order: list[str]) -> str:
+    first = json.loads((set_dir / "clips" / f"{order[0]}.json").read_text()) if order else {}
+    return "chatgpt-imagegen" if first.get("provider") == "chatgpt-imagegen" else ENDPOINT
+
+
 def _write_provenance(set_dir: Path, plan_path: Path, out: Path, names: list[str], order: list[str]) -> None:
     assets = {name: {"sha256": _sha256_file(out / name), "intentional_alpha_holes": _hole_seeds(out / name)} for name in names}
     clip_receipts = []
     for motion_id in order:
         receipt = json.loads((set_dir / "clips" / f"{motion_id}.json").read_text())
-        clip_receipts.append({
-            "id": receipt["id"], "request_id": receipt["request_id"],
-            "sha256": receipt["sha256"], "estimated_usd": str(receipt["estimated_usd"]),
-        })
+        clip_receipts.append(_clip_receipt(receipt))
     actual_cost_usd = sum(Decimal(receipt["estimated_usd"]) for receipt in clip_receipts)
     provenance = {
         "set_id": set_dir.name,
         "character_id": CHARACTER_ID,
         "rights": "original_ai_generated",
-        "providers": {"image": IMAGE_PROVIDER, "animation": ENDPOINT},
+        "providers": {"image": IMAGE_PROVIDER, "animation": _animation_provider(set_dir, order)},
         "assets": assets,
         "generation": {
             "character_sha256": _sha256_file(set_dir / "char-ref.png"),
