@@ -36,11 +36,13 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
         'import json, os, sys\n'
         'with open(os.environ["CONTEXT_LEASE_CALLS"], "a") as f:\n'
         ' f.write(json.dumps({"argv":sys.argv[1:],"endpoint":os.environ.get("CLOAK_CDP_BASE_URL"),'
+        '"owner":os.environ.get("CLOAK_BROWSER_OWNER"),'
         '"domains":os.environ.get("CLOAK_CONTEXT_COOKIE_DOMAINS"),'
         '"holder":os.environ.get("AI_BROWSER_HOLDER_PID")})+"\\n")\n'
         'if sys.argv[1] == "acquire":\n'
+        ' target_id = None if "--context-only" in sys.argv else "seed-fundraiser"\n'
         ' print(json.dumps({"ok":True,"context_id":"ctx-fundraiser",'
-        '"target_id":"seed-fundraiser","cookies_seeded":4,'
+        '"target_id":target_id,"cookies_seeded":4,'
         '"ws":"ws://[::1]:9333/devtools/page/seed"}))\n'
         'else:\n print(json.dumps({"ok":True,"released":sys.argv[2]}))\n'
     )
@@ -62,6 +64,7 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
             "LIFE_MANAGER_BROWSER_FOUNDATION": str(foundation),
             "LIFE_MANAGER_BROWSER_RESOLVER": str(resolver),
             "LIFE_MANAGER_BROWSER_CONTEXT_LEASE": str(context_lease),
+            "LIFE_MANAGER_BROWSER_TARGET_OWNER": "",
             "CONTEXT_LEASE_CALLS": str(tmp_path / "context-lease.calls"),
             "BASH_FUNC_df%%": df_function,
             "BASH_FUNC_sleep%%": "() { :; }",
@@ -103,6 +106,12 @@ def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_
     assert lease_calls_path.exists()
     lease_calls = [json.loads(line) for line in lease_calls_path.read_text().splitlines()]
     assert [row["argv"][0] for row in lease_calls] == ["acquire", "release"]
+    assert lease_calls[0]["argv"] == [
+        "acquire", "ai.anicca.fundraiser", "about:blank", "--context-only",
+    ]
+    assert lease_calls[0]["owner"] == "ai.anicca.fundraiser"
+    prompt = (ROOT / "skills/fundraiser-agent/prompts/daily.md").read_text(encoding="utf-8")
+    assert "--owner ai.anicca.fundraiser" in prompt
     assert lease_calls[0]["endpoint"] == "http://[::1]:9333"
     assert lease_calls[0]["domains"] == "x.com,twitter.com"
     assert lease_calls[0]["holder"]

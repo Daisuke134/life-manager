@@ -57,6 +57,28 @@ class ProviderLeaseTest(unittest.TestCase):
         finally:
             os.close(descriptor)
 
+    def _write_provider_runner(self) -> Path:
+        runner = self.root / "run-provider.py"
+        runner.write_text(
+            "import os, subprocess, sys\n"
+            f"sys.path.insert(0, {str(ROOT)!r})\n"
+            "from agent_runner import ProviderLeaseBusy, run_provider_process\n"
+            "provider, started, release, home, profile_lock, policy = sys.argv[1:]\n"
+            "kwargs = {'fail_fast_home_busy': policy == 'fail_fast'}\n"
+            "if profile_lock != '-': kwargs['profile_lease_path'] = profile_lock\n"
+            "try:\n"
+            "    result = run_provider_process(\n"
+            "        [sys.executable, provider, started, release],\n"
+            "        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,\n"
+            "        timeout=10, cwd=home, input_bytes=None, stdin=subprocess.DEVNULL,\n"
+            "        env={**os.environ, 'CODEX_HOME': home}, **kwargs)\n"
+            "except ProviderLeaseBusy:\n"
+            "    raise SystemExit(75)\n"
+            "raise SystemExit(result)\n",
+            encoding="utf-8",
+        )
+        return runner
+
     def test_cleanup_error_still_releases_active_process_and_provider_lock(self):
         codex_home = self.root / "codex-home"
         codex_home.mkdir()
@@ -234,11 +256,8 @@ class ProviderLeaseTest(unittest.TestCase):
                     cwd=str(self.root),
                     input_bytes=None,
                     stdin=subprocess.DEVNULL,
-                    env={
-                        **os.environ,
-                        "CODEX_HOME": str(codex_home),
-                        "LIFE_MANAGER_CODEX_HOME_BUSY_POLICY": "fail_fast",
-                    },
+                    env={**os.environ, "CODEX_HOME": str(codex_home)},
+                    fail_fast_home_busy=True,
                 )
         finally:
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
@@ -246,6 +265,104 @@ class ProviderLeaseTest(unittest.TestCase):
 
         self.assertLess(time.monotonic() - began, 0.25)
         self.assertFalse(started.exists())
+
+    def test_profile_lease_fails_fast_across_isolated_invocation_homes(self):
+        automation_home = self.root / "acct1"
+        homes = [automation_home / "invocations" / name for name in ("first", "second")]
+        for home in homes:
+            home.mkdir(parents=True)
+        profile_lock = automation_home / ".agent-runner-profile-provider.lock"
+        started = [self.root / "first.started", self.root / "second.started"]
+        release = self.root / "release"
+        provider = self.root / "provider.py"
+        provider.write_text(
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "started, release = map(Path, sys.argv[1:])\n"
+            "started.touch()\n"
+            "while not release.exists(): time.sleep(0.01)\n",
+            encoding="utf-8",
+        )
+        runner = self._write_provider_runner()
+        first = subprocess.Popen([
+            sys.executable, str(runner), str(provider), str(started[0]), str(release),
+            str(homes[0]), str(profile_lock), "fail_fast",
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        try:
+            self._wait_for(started[0], first)
+            self.assertTrue(self._lease_is_busy(profile_lock))
+            second = subprocess.run([
+                sys.executable, str(runner), str(provider), str(started[1]), str(release),
+                str(homes[1]), str(profile_lock), "fail_fast",
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=5)
+            self.assertEqual(second.returncode, 75, second.stderr)
+            self.assertFalse(started[1].exists())
+        finally:
+            release.touch()
+        self.assertEqual(first.wait(timeout=5), 0, first.stderr.read() if first.stderr else "")
+        self.assertFalse(self._lease_is_busy(profile_lock))
+
+    def test_different_profile_leases_allow_provider_processes_to_overlap(self):
+        profiles = [self.root / name for name in ("acct1", "acct2")]
+        homes = [profile / "invocations" / "run" for profile in profiles]
+        locks = [profile / ".agent-runner-profile-provider.lock" for profile in profiles]
+        for home in homes:
+            home.mkdir(parents=True)
+        started = [self.root / "acct1.started", self.root / "acct2.started"]
+        release = self.root / "release"
+        provider = self.root / "provider.py"
+        provider.write_text(
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "started, release = map(Path, sys.argv[1:])\n"
+            "started.touch()\n"
+            "while not release.exists(): time.sleep(0.01)\n",
+            encoding="utf-8",
+        )
+        runner = self._write_provider_runner()
+        processes = []
+        try:
+            for index in range(2):
+                processes.append(subprocess.Popen([
+                    sys.executable, str(runner), str(provider), str(started[index]), str(release),
+                    str(homes[index]), str(locks[index]), "fail_fast",
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True))
+            for index, process in enumerate(processes):
+                self._wait_for(started[index], process)
+        finally:
+            release.touch()
+        for process in processes:
+            self.assertEqual(process.wait(timeout=5), 0, process.stderr.read() if process.stderr else "")
+
+    def test_inherited_home_busy_policy_does_not_change_default_wait_behavior(self):
+        codex_home = self.root / "codex-home"
+        codex_home.mkdir()
+        lock_path = codex_home / ".agent-runner-provider.lock"
+        holder = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        started = self.root / "provider.started"
+        release = self.root / "release"
+        provider = self.root / "provider.py"
+        provider.write_text(
+            "from pathlib import Path\n"
+            "import sys\n"
+            "Path(sys.argv[1]).touch()\n",
+            encoding="utf-8",
+        )
+        runner = self._write_provider_runner()
+        process = subprocess.Popen([
+            sys.executable, str(runner), str(provider), str(started), str(release),
+            str(codex_home), "-", "wait",
+        ], env={**os.environ, "LIFE_MANAGER_CODEX_HOME_BUSY_POLICY": "fail_fast"},
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        try:
+            time.sleep(0.1)
+            self.assertIsNone(process.poll(), "inherited policy made an unrelated task fail fast")
+        finally:
+            fcntl.flock(holder, fcntl.LOCK_UN)
+            os.close(holder)
+        self.assertEqual(process.wait(timeout=5), 0, process.stderr.read() if process.stderr else "")
+        self.assertTrue(started.exists())
 
     def test_stable_provider_completion_fallback_is_sealed_to_result_path(self):
         fallback = self.root / "pass-result.json"

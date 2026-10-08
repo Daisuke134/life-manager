@@ -72,7 +72,12 @@ def test_connector_uses_task_context_without_holding_daily_driver_profile(tmp_pa
         "'ws':'ws://[::1]:9333/devtools/page/seed'}))\n"
         "else: print(json.dumps({'ok':True}))\n",
     )
-    _write(repo / "skills/browser/scripts/cdp_tab_gc.py", "raise SystemExit(0)\n")
+    gc_called = tmp_path / "global-tab-gc.called"
+    _write(
+        repo / "skills/browser/scripts/cdp_tab_gc.py",
+        "from pathlib import Path\n"
+        f"Path({str(gc_called)!r}).touch()\n",
+    )
 
     native_pass_capture = tmp_path / "native-pass.env"
     fake_node = tmp_path / "node"
@@ -106,7 +111,6 @@ def test_connector_uses_task_context_without_holding_daily_driver_profile(tmp_pa
         "LIFE_MANAGER_BROWSER_TARGET_OWNER": "life-manager-connector-native",
         "LIFE_MANAGER_BROWSER_RESOLVER": str(repo / "skills/browser/resolve_cdp_endpoint.py"),
         "LIFE_MANAGER_BROWSER_CONTEXT_LEASE": str(repo / "skills/browser/scripts/cdp_context_lease.py"),
-        "LIFE_MANAGER_BROWSER_TAB_GC": str(repo / "skills/browser/scripts/cdp_tab_gc.py"),
         "AI_BROWSER_REGISTRY": str(tmp_path / "browsers.toml"),
         "NATIVE_PASS_CAPTURE": str(native_pass_capture),
         "PROFILE_BUSY": "1" if profile_busy else "0",
@@ -132,6 +136,7 @@ def test_connector_uses_task_context_without_holding_daily_driver_profile(tmp_pa
     assert all(row["owner"] == "life-manager-connector-native" for row in rows)
     assert all(row["endpoint"] == "http://[::1]:9333" for row in rows)
     assert rows[0]["domains"] == "luma.com"
+    assert not gc_called.exists(), "Connector called an owner-wide GC outside the leased context"
     assert guard_calls.read_text().splitlines() == (
         ["acquire interactive:dais"]
         if profile_busy else ["acquire interactive:dais", "release interactive:dais"]
