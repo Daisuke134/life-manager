@@ -257,10 +257,17 @@ async function runAniccaCarouselCanary(argv = [], deps = {}) {
   const env = deps.env || process.env;
   const now = deps.now || (() => new Date().toISOString());
   const trustedNow = exactInstant(now(), `${lane.name} canary clock`);
-  if (production && !parsed.slot) {
-    const slot = marketingVideoDueSlot(Date.parse(trustedNow), "Asia/Tokyo", PRODUCTION_SLOTS[parsed.command]);
-    if (!slot) throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
-    parsed = { ...parsed, slot };
+  if (production) {
+    const dueSlot = marketingVideoDueSlot(Date.parse(trustedNow), "Asia/Tokyo", PRODUCTION_SLOTS[parsed.command]);
+    if (!dueSlot) {
+      const error = new Error(`${lane.name} production has no due slot yet`);
+      error.code = parsed.slot ? "OFF_SCHEDULE_SLOT" : "NO_DUE_SLOT";
+      throw error;
+    }
+    if (parsed.slot && parsed.slot !== dueSlot) {
+      throw Object.assign(new Error(`${lane.name} production slot does not match the current due slot`), { code: "OFF_SCHEDULE_SLOT" });
+    }
+    parsed = { ...parsed, slot: dueSlot };
   }
   const clock = () => trustedNow;
   const config = laneConfig(env, parsed, clock, lane);
@@ -369,7 +376,26 @@ function runAniccaJp1TikTokCanary(argv = [], deps = {}) {
 }
 
 if (require.main === module) {
-  runAniccaCarouselCanary(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+  const argv = process.argv.slice(2);
+  try {
+    const parsed = parseArgs(argv);
+    if (PRODUCTION_SLOTS[parsed.command]) {
+      throw new Error("production canary must run through the rotating runner");
+    }
+    runAniccaCarouselCanary(argv)
+      .then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
+      .catch((error) => {
+        if (error && error.code === "NO_DUE_SLOT") {
+          process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`);
+          return;
+        }
+        process.stderr.write(`${error.message}\n`);
+        process.exitCode = 1;
+      });
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 2;
+  }
 }
 
 module.exports = { ACCOUNT_ID, EN_AFFIRMATION_LANE, EN_AFFIRMATION_PRODUCTION_SLOTS, EN_AFFIRMATION_TIKTOK_LANE, EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN2_AFFIRMATION_TIKTOK_LANE, EN2_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN_SLIDESHOW_PRODUCTION_SLOTS, EN_SLIDESHOW_TIKTOK_LANE, INTEGRATION_REF, JA_BUDDHA_TIKTOK_PRODUCTION_SLOTS, JA_JP1_TIKTOK_LANE, JA_JP1_TIKTOK_PRODUCTION_SLOTS, JA_LARRY_PRODUCTION_SLOTS, JA_MAIN_TIKTOK_LANE, JA_MAIN_TIKTOK_PRODUCTION_SLOTS, LANE, assertProductionControls, enAffirmationProductionSlot, enSlideshowProductionSlot, isVerifiedPostizPhotoPublication, jaLarryProductionSlot, parseArgs, runAniccaCarouselCanary, runAniccaEnAffirmationInstagramCanary, runAniccaEnSlideshowTikTokCanary, runAniccaJp1TikTokCanary, runAniccaLarryJaCanary, verifyNativeObject };
