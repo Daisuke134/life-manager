@@ -394,7 +394,7 @@ def test_rebind_queued_owner_keeps_active_reservation_during_class_migration(
         replace_reserved_policy_drift=True,
     )
 
-    assert result == "reserved"
+    assert result == "resource_class_reserved"
     assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == "source-refresh"
     assert durable_rows(tmp_path, "queue")[0]["resource_class"] == "deterministic"
 

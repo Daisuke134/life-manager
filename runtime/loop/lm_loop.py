@@ -1176,6 +1176,11 @@ def _admission_rebind_guard(
         elif (result == "effect_unknown" and loaded_idle_verified
               and _resolve_pre_effect_admission_unknown(loop_id, entry)):
             result = rebind_queued_owner(loop_id, **rebind_kwargs)
+        if result == "resource_class_reserved":
+            # A class mismatch means the installed runner cannot claim this queue.
+            # Keep the old release paired with the live reservation until expiry.
+            yield "pending"
+            return
         if result == "reserved":
             if allow_reserved_release_rebind and loaded_idle_verified:
                 # The reservation names only this owner and its preserved FIFO

@@ -356,10 +356,9 @@ def rebind_queued_owner(
                 admission_class, priority_name, ADMISSION_POLICY, effect_scope,
             )
             changed = resource_class_changed or policy_changed
-            if reserved and (
-                resource_class_changed
-                or not (replace_reserved_policy_drift and policy_changed)
-            ):
+            if reserved and resource_class_changed:
+                return "resource_class_reserved"
+            if reserved and not (replace_reserved_policy_drift and policy_changed):
                 return "reserved"
             if reserved:
                 connection.execute(
