@@ -91,7 +91,7 @@ class TerraDefaultTest(unittest.TestCase):
                     ]
                 if name == "paid-decision-agent":
                     expected = [
-                        {"provider": "codex", "model": "gpt-5.6-terra",
+                        {"provider": "codex", "model": "gpt-6.1-sol",
                          "effort": "medium", "profile_alias": "acct1",
                          "fail_fast_provider_lease": True},
                     ]
@@ -123,6 +123,8 @@ class TerraDefaultTest(unittest.TestCase):
 
         self.assertTrue(task["requires_explicit_escalation"])
         self.assertEqual(task["timeout_seconds"], 900)
+        self.assertEqual(task["candidates"][0]["model"], "gpt-6.1-sol")
+        self.assertEqual(task["candidates"][0]["effort"], "medium")
         resolved = resolve_provider_profiles(task["candidates"], config["providers"])
         codex = [candidate for candidate in resolved if candidate["provider"] == "codex"]
         self.assertEqual([candidate["profile_alias"] for candidate in codex], ["acct1", "acct2"])

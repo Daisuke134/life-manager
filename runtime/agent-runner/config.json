@@ -388,7 +388,7 @@
       "candidates": [
         {
           "provider": "codex",
-          "model": "gpt-5.6-terra",
+          "model": "gpt-6.1-sol",
           "effort": "medium",
           "profile_alias": "acct1",
           "fail_fast_provider_lease": true

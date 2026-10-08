@@ -5426,12 +5426,13 @@ def test_paid_decision_contract_matches_runtime_fast_fail_route():
     route = runtime_config["task_classes"][paid.PAID_DECISION_TASK_CLASS]
     candidates = route["candidates"]
 
-    assert paid.PAID_DECISION_MODEL == "gpt-5.6-terra"
+    assert paid.PAID_DECISION_MODEL == "gpt-6.1-sol"
     assert paid.PAID_FILE_MODEL == "gpt-5.6-terra"
     assert paid.PAID_DECISION_TASK_CLASS == "paid-decision-agent"
     assert route["requires_explicit_escalation"] is True
     assert all(candidate.get("fail_fast_provider_lease") is True for candidate in candidates)
     assert ("codex", "gpt-5.6-terra") in paid.PAID_RUNNER_CANDIDATES
+    assert ("codex", "gpt-6.1-sol") in paid.PAID_RUNNER_CANDIDATES
     assert {
         (candidate["provider"], candidate["model"])
         for candidate in candidates

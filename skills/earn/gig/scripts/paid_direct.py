@@ -189,12 +189,13 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 5
 PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v25"
-PAID_DECISION_MODEL = "gpt-5.6-terra"
+PAID_DECISION_MODEL = "gpt-6.1-sol"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_DECISION_TASK_CLASS = "paid-decision-agent"
 LEGACY_PAID_DECISION_TASK_CLASS = "escalation-agent"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
 PAID_RUNNER_CANDIDATES = {
+    ("codex", "gpt-6.1-sol"),
     ("codex", "gpt-5.6-terra"),
     ("codex", "gpt-5.6-sol"),
     ("codex", "gpt-5.6-luna"),
