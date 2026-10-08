@@ -1225,6 +1225,8 @@ function renderPanelPage(options = {}) {
               : "トレース未確認";
             const traceCoverage = "linked " + group.linked_trace_event_count + "・partial "
               + group.partial_trace_event_count + "・unlinked " + group.unlinked_trace_event_count;
+            const traceCardinality = "run ID " + group.distinct_run_count + "件・occurrence ID "
+              + group.distinct_occurrence_count + "件・release SHA " + group.distinct_release_count + "件";
             return '<tr><td>' + escapeHtml(group.loop_id) + '</td><td>' + escapeHtml(group.owner_id)
               + '</td><td>' + escapeHtml(group.provider) + '</td><td>' + escapeHtml(sku)
               + '</td><td>' + escapeHtml(group.operation) + '</td><td>' + escapeHtml(group.unit)
@@ -1234,7 +1236,7 @@ function renderPanelPage(options = {}) {
               + escapeHtml(apiCostUsd(group.settled_cost_usd)) + '</td><td>推定 ' + estimateLabels[group.estimate_status]
               + '・確定 ' + actualLabels[group.actual_status] + '<br>' + escapeHtml(gaps.length ? gaps.join("・") : "未確認なし")
               + '</td><td>' + traceStatusLabels[group.trace_status] + '<br>' + escapeHtml(traceCoverage)
-              + '<br>' + escapeHtml(trace) + '</td></tr>';
+              + '<br>' + escapeHtml(traceCardinality) + '<br>' + escapeHtml(trace) + '</td></tr>';
           }).join("")
           : '<tr><td colspan="13">' + (period.status === "verified_empty"
             ? "記録なし（照会済み）"

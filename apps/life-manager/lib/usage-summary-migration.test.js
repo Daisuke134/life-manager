@@ -79,6 +79,15 @@ test("COST-02 keeps unknown costs nullable and separates settled, unknown, and n
   assert.match(sql, /not_applicable_count[\s\S]*not_applicable|not_applicable[\s\S]*not_applicable_count/i);
 });
 
+test("COST-02 a zero estimate needs explicit status even for a cache hit", () => {
+  const sql = periodSummarySql();
+  const estimateClassification = sql.match(/CASE\s+WHEN est_usd >= 0[\s\S]*?END AS estimate_known/i)?.[0];
+
+  assert.ok(estimateClassification, "SQL should classify known estimates explicitly");
+  assert.match(estimateClassification, /estimate_status IN \('estimated', 'not_applicable'\)/i);
+  assert.doesNotMatch(estimateClassification, /OR cache_hit/i);
+});
+
 test("COST-02 RPC is executable only by service_role and leaves COST-01 intact", () => {
   const sql = periodSummarySql();
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.lm_usage_cost_period_summary\(timestamptz, timestamptz, text\)\s+FROM PUBLIC, anon, authenticated/i);

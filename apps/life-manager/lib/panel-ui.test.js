@@ -897,6 +897,9 @@ test("PANEL-A5: browser renders loop/owner grouping and newest trace", async () 
   assert.match(result.body, /run-current/);
   assert.match(result.body, /managed\.loop:occ-1/);
   assert.match(result.body, /a{40}/);
+  assert.match(result.body, /run ID 1件・occurrence ID 1件・release SHA 1件/);
+  assert.match(result.body, /run ID 2件・occurrence ID 2件・release SHA 0件/);
+  assert.match(result.body, /<td>managed\.loop<\/td><td>owner-partial<\/td>/);
   assert.match(result.body, /一部未確認/);
   assert.match(result.body, /未紐付け/);
   assert.match(result.body, /unattributed/);

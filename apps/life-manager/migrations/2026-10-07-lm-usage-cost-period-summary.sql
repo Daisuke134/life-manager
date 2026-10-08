@@ -102,7 +102,7 @@ AS $$
       CASE
         WHEN est_usd >= 0
           AND estimate_status IS DISTINCT FROM 'unavailable'
-          AND (est_usd <> 0 OR estimate_status IN ('estimated', 'not_applicable') OR cache_hit)
+          AND (est_usd <> 0 OR estimate_status IN ('estimated', 'not_applicable'))
           THEN true
         ELSE false
       END AS estimate_known,

@@ -38,8 +38,8 @@
 - Quantities with different units (`request`, `tokens`, `grounded_prompt`, `seconds_proxy`) are never summed into one displayed total.
 - Tenant and period filters apply inside SQL, not only in UI projection.
 - Provider/SKU/operation labels are bounded and safe; no raw event metadata reaches the browser.
-- Partial/unlinked runtime traces remain explicitly partial/unlinked and appear in an unattributed group, never as a verified zero-cost loop.
-- A `latest_trace` anchor is not proof that every event in its group ran under that release; report distinct release/run/occurrence counts separately.
+- Partial traces remain explicitly partial. Preserve validated `loop_id`/`owner_id` attribution when present; map missing or invalid loop/owner identity to `unattributed`. Do not present partial or unlinked data as fully verified or zero-cost.
+- A `latest_trace` anchor is not proof that every event in its group ran under that release; render distinct release/run/occurrence counts separately.
 
 ---
 
@@ -110,15 +110,15 @@
 - Test: `apps/life-manager/lib/panel-ui.test.js`
 
 **Interfaces:**
-- Extend each SQL group with `loop_id` and `owner_id` alongside the existing provider/SKU/operation/unit dimensions. Missing identity projects as `unattributed`.
-- Preserve each row's existing `meta.runtime_trace` identity. The grouped DTO returns `trace_status` (`linked`, `partial`, `unlinked`), linked/partial/unlinked event counts, distinct run/occurrence/release counts, and a nullable `latest_trace` object with `run_id`, `occurrence_id`, and `release_sha`. Grouping remains by loop/owner, not by each run, so totals stay usable.
+- Extend each SQL group with `loop_id` and `owner_id` alongside the existing provider/SKU/operation/unit dimensions. Missing or invalid loop/owner identity projects as `unattributed`; partial status alone does not discard a validated loop/owner.
+- Preserve each row's existing `meta.runtime_trace` identity. The grouped DTO returns `trace_status` (`linked`, `partial`, `unlinked`), linked/partial/unlinked event counts, distinct run/occurrence/release counts, and a nullable `latest_trace` object with `run_id`, `occurrence_id`, and `release_sha`. Grouping remains by loop/owner, not by each run, so totals stay usable. Render the three distinct counts beside, not as a substitute for, the latest trace anchor.
 - `panel-api.js` already passes tenant-scoped RPC rows into the existing server projection; keep that pass-through unchanged and assert its tenant/period request arguments in tests.
 - The panel renders loop/owner and the latest trace anchor without returning raw `meta` or provider payload. Estimate, settled actual, and unknown semantics remain unchanged.
 
 - [x] Add `COST-03 period summary separates costs by runtime loop and trace` to the migration-contract tests; assert tenant/period filtering, unit separation, attribution groups, trace counts/latest anchor, and the explicit unattributed bucket.
 - [x] Run the focused migration/API tests and confirm they fail because the RPC/DTO omits runtime attribution.
 - [x] Extend the SQL RPC, API projection, and allowlisted panel DTO to project the trace fields above; reuse the existing usage-event producer, which already writes `runtime_trace`.
-- [x] Add `ledger period projection attributes cost groups and exposes only safe latest trace` and `PANEL-A5: browser renders loop/owner grouping and newest trace`; prove partial/unlinked rows stay visibly unknown/unattributed and IDs are escaped/allowlisted.
+- [x] Add `ledger period projection attributes cost groups and exposes only safe latest trace` and `PANEL-A5: browser renders loop/owner grouping and newest trace`; prove partial status stays visible, missing identity maps to `unattributed`, validated loop/owner IDs remain accurate, and IDs are escaped/allowlisted.
 - [x] Run migration/API/UI tests and the panel privacy evaluator; verify raw `meta` never reaches the browser.
 
 ### Task 6: Raise CFO's scheduling priority without reserving capacity
@@ -140,9 +140,14 @@
 ### Task 7: Sync, review, and update the existing A5 PR
 
 **Files:**
+- Modify: `apps/life-manager/migrations/2026-10-07-lm-usage-cost-period-summary.sql`
+- Modify: `apps/life-manager/lib/usage-summary-migration.test.js`
+- Modify: `apps/life-manager/lib/panel-ui.js`
+- Modify: `apps/life-manager/lib/panel-ui.test.js`
 - Modify: `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
+- [x] Add regression tests for review findings; require explicit estimate status for zero and render distinct run/occurrence/release counts. Preserve validated partial loop/owner attribution; missing loop/owner remains `unattributed`.
 - [x] Run the complete A5 focused tests plus `npm run eval:panel-privacy`, the focused registry test, and `./bin/lm-loop-contract`.
 - [ ] Run `git diff --check`, review the full branch diff for tenant isolation, privacy, trace accuracy, unit separation, and unknown-versus-zero behavior.
 - [x] Update the canonical SSOT's A5 cursor and production evidence from fresh readbacks; distinguish the older-release ENOSPC messages from the current release's in-progress apply and keep unrelated owner failures outside A5 scope.
