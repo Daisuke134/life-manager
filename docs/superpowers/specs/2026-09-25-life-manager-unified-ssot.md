@@ -4963,3 +4963,31 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
+
+### 2026-10-08 11:36 JST — eBook Monk latest cursor and atomic path
+
+この追記は11:29 JSTのeBook renderer recovery cursorを更新する。目標と理想architectureは前節のまま（英語HeyGen 3本/日、日本語Watercolor 3本/日、日本語動画を2 accountで共有し、3 account合計9件/日のPostiz `PUBLISHED` receiptを取る）。
+
+**TODO順変更:** 旧順=`旧08:00 HeyGen effectの公式照合→source repairをPR/merge→capacity/release gate→次slot`。新順=`source repairと正本specを最新mainへ統合→旧effect fenceを維持して特定可能な公式証拠を探す→capacity/doctor/release gateを解く→旧effectが安全に処理できた後の別slotで1件投稿→3 account×3件/日の自然receipt→Checkout/PDF/subscription net MRR→Capafy D5`。理由: source統合はproviderへの再送なしで完了でき、曖昧な旧effectを安全に保持したまま進められる。mergeは投稿の許可や旧effect解決を意味しない。**現在cursor:** item 1、HeyGen receipt-recovery source branchのPR/CI/merge。
+
+**最新readback（2026-10-08 11:36 JST）:**
+
+- Git: task branch `fix/ebook-heygen-receipt-recovery-20261008`をlatest `origin/main=94372580faf432189742de38cd474bfa0db6c4f0`へrebase済み。main上の差分はCapafy CP1文書1件だけで、eBook source変更と競合しない。source commitはrebase後`ebfa114edc4a4439801c7a9eb160ffe71db0eb4e`。この節を含めてfresh review→push/PR→required checks→mergeが必要。
+- Production release symlinkは`20261008T113408-94372580`。English ownerは旧SHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`をloadし、latest occurrence `18dc6ce9fd0d2660-46133`はexit 1 / `effect_status=unknown` / `next_action=official_readback_required` / provider receiptなし。11:29時点のHeyGen全video listは2 pagesで該当0件、walletはUSD 11.78（sidecar before-create USD 12.30）。wallet差額USD 0.52のitemized attributionまたは旧createのvideo IDが不足し、08:00 intentは`delivery_uncertain`のまま保持する。同じintentを再送しない。
+- Postizの最新公式readbackは11:29 JST: 既存3 integrationは有効、日本語TikTok/Instagram各1件、English 0件（2/9）。11:36時点では次slotの12:30前で、新しい投稿receiptは確認していない。接続し直す作業はない。
+- `life-manager-release-reconciler`はinstalled SHA `94372580`上でloaded-idle。直近eventは旧SHA `dbf93c31`のexit 143、次action `reconcile_owner`。同時に `lm-loop doctor` はmissing/unmanaged 0だが、別ownerのretired label `ai.anicca.provision-browser.capafy.kosuke`により`ok=false`。
+- `/`の空き容量は`858,736 KiB`（約0.82 GiB）で2 GiB floor未達。recovery receiptでfloor・errors 0・protected deletions 0をfreshに確認するまで投稿ownerを動かさない。
+- Capafy D5は別laneの後順位。first paid eBook orderと一致するPDF delivery receiptを確認してから、既存recipeのInstagram canaryを最大1件/24hで開始する。現時点でそのgateは未確認。
+
+**残りatomic TODO（この順）:**
+
+1. rebase済みsource repairをfresh read-only reviewし、専用branchをpushしてPRを作成、required CI後にmainへmergeする。これはproductionへ投稿しないsource統合。
+2. 08:00 HeyGen intentのvideo IDまたは同じcreateに紐付くitemized billing evidenceを既存の公式readback経路で探す。見つからない間は`delivery_uncertain`を保持し、同じslotをretryせず、wallet差額を売上/費用へ推定計上しない。
+3. stale Capafy provision-browser labelはそのownerの管理境界で解消する。併せてcleanup/release ownerの自然terminal、fresh cleanup receipt（2 GiB以上、errors 0、protected deletions 0）、`lm-loop doctor` PASSを読み、active apply lockがないことを確認する。別ownerのstateやbrowserは直接変更しない。
+4. main由来immutable releaseを切り、English ownerだけのloaded SHA/argv/child env scopeを確認する。旧effectが未解決なら投稿しない。
+5. 旧effectの安全なdisposition後、次の別slotで既存ownerを1回自然実行し、HeyGen video ID/status/output SHA/costとPostiz `PUBLISHED` post ID/public URLを同一occurrenceへ結ぶ。failure時は新しい証拠を追加して原因を狭める。成功1件をcadence完了としない。
+6. 自然slotで各account 3件/日、計9 unique provider receipts/dayとreplay-zeroを確認する。各投稿をclick attribution→locale Checkout→paid Stripe receipt→matching PDF deliveryへjoinする。
+7. one-time eBook決済をMRRに含めず、Letter/Tegamiのsettled recurring receiptsからrefund・fee・direct costを引いた14日cohortを計測する。USD 10,000 verified net MRRは期間一致のreceiptが揃うまで未達の目標。
+8. first paid eBook orderとmatching PDF delivery後にだけCapafy Instagram marketingを始める。identity/既存Postiz route/ownerをreadbackし、1 canary/24hと14日readbackを閉じる。
+
+**Daisの作業:** Postiz再接続・手動投稿は不要。今の阻害は旧HeyGen effect証拠、空き容量、retired label gate、source PR統合であり、英語ownerの次投稿は旧effectとproduction gateの後。

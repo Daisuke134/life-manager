@@ -224,3 +224,7 @@ Use the registered owner once for the next distinct slot. Do not retry the old 0
 - [ ] **Step 4: Continue the daily receipt check from the canonical SSOT**
 
 The target is three unique published posts per account/day (nine total), with one Japanese render shared across Japanese TikTok and Instagram. A single successful slot is not proof of recurring cadence.
+
+### Current promotion disposition — 2026-10-08 11:36 JST
+
+Task 5 source repair is committed and rebased onto `origin/main=94372580faf432189742de38cd474bfa0db6c4f0` in `fix/ebook-heygen-receipt-recovery-20261008`; the rebase changed no eBook files. Fresh branch review, push/PR, required checks, and merge remain. Current production symlink is `20261008T113408-94372580`; the English owner still loads `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf` and its latest effect is unknown with no provider receipt. The reconciler is idle after an exit-143 event. Disk availability is 858,736 KiB, below the 2 GiB floor, and `lm-loop doctor` still finds retired label `ai.anicca.provision-browser.capafy.kosuke`. Keep the 08:00 HeyGen fence; do not create or publish until the exact old effect is safely dispositioned and the host/apply gates pass.
