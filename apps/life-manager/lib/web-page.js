@@ -55,15 +55,8 @@ function pageState(snapshot, model = {}) {
     return `<section class="card"><h1>Google Calendarに接続</h1><p>予定の移動時間を自動でCalendarに登録します。</p><button class="button" type="button" data-action="calendar-start">Google Calendarに接続</button></section>`;
   }
 
-  if (snapshot.setupState === "needs_initial_scan") {
-    return `<section class="card" aria-live="polite"><h1>Calendarの予定を確認しています</h1><p>移動時間を追加できる予定を探しています。</p><div class="spinner" aria-hidden="true"></div></section>`;
-  }
-
-  if (snapshot.setupState === "no_eligible_events") {
-    return `<section class="card"><h1>Calendarに接続しました</h1><p>移動時間を追加できる予定はまだありません。</p><p class="muted">場所がない予定や出発場所が分からない予定は、誤った時間を入れないようそのままにしています。</p><button class="button secondary" type="button" data-action="rescan">Calendarをもう一度確認</button></section>`;
-  }
-
-  if (snapshot.setupState === "trial_offer") {
+  if (snapshot.setupState === "trial_offer"
+    || snapshot.checkoutAvailable === true && ["needs_initial_scan", "no_eligible_events"].includes(snapshot.setupState)) {
     if (model.checkoutPending === true) return checkoutPendingMarkup();
     const offer = model.trialOffer || {};
     const chargeDate = firstChargeDate(offer);
@@ -77,7 +70,7 @@ function pageState(snapshot, model = {}) {
     const checkoutButton = snapshot.checkoutAvailable && chargeDate
       ? `<button class="button" type="button" data-action="checkout">7日間の無料トライアルを始める</button>`
       : "";
-    return `<section class="card offer-card"><p class="eyebrow">Google Calendarに接続しました</p><h1>移動時間はCalendarに自動登録済みです</h1><p class="muted">出発時刻を忘れて予定に遅れる不安を減らします。</p><h2>7日間無料で試す</h2><p class="terms">${chargeCopy}</p><p class="muted">開始にはカード登録が必要です。トライアル終了前のメール通知は送りません。</p>${checkoutButton}${messageLink}</section>`;
+    return `<section class="card offer-card"><p class="eyebrow">Google Calendarに接続しました</p><h1>対象の予定に移動時間を自動で追加します</h1><p class="muted">Calendarを開くと、予定と出発時刻を確認できます。</p><h2>7日間無料で試す</h2><p class="terms">${chargeCopy}</p><p class="muted">開始にはカード登録が必要です。トライアル終了前のメール通知は送りません。</p>${checkoutButton}${messageLink}</section>`;
   }
 
   if (snapshot.setupState === "trial_active" || snapshot.setupState === "subscribed") {
@@ -113,9 +106,10 @@ const CLIENT_SCRIPT = String.raw`(async () => {
   const feedback = document.getElementById("lm-feedback");
   const csrf = document.querySelector('meta[name="lm-web-csrf"]')?.content || "";
 
-  async function api(path, method, body) {
+  async function api(path, method, body, options = {}) {
     const headers = { Accept: "application/json" };
     const request = { method: method || "GET", credentials: "same-origin", headers };
+    if (options.keepalive === true) request.keepalive = true;
     if (method === "POST") {
       headers["content-type"] = "application/json";
       headers["x-lm-web-csrf"] = csrf;
@@ -151,10 +145,8 @@ const CLIENT_SCRIPT = String.raw`(async () => {
     throw new Error("calendar_start_failed");
   }
 
-  async function scanCalendar(rescan) {
-    say("Calendarの予定を確認しています…");
-    await api("/api/lm-web/setup", "POST", rescan ? { rescan: true } : {});
-    window.location.assign("/lm");
+  async function startInitialProcessing() {
+    await api("/api/lm-web/setup", "POST", {}, { keepalive: true });
   }
 
   async function beginCheckout() {
@@ -183,7 +175,6 @@ const CLIENT_SCRIPT = String.raw`(async () => {
     button.disabled = true;
     try {
       if (button.dataset.action === "calendar-start") await startCalendar();
-      else if (button.dataset.action === "rescan") await scanCalendar(true);
       else if (button.dataset.action === "checkout") await beginCheckout();
       else if (button.dataset.action === "billing-portal") await openBillingPortal();
       else button.disabled = false;
@@ -200,18 +191,19 @@ const CLIENT_SCRIPT = String.raw`(async () => {
     catch { say("Calendar接続を開始できませんでした。もう一度お試しください。"); }
     return;
   }
-  if (location.searchParams.get("initial_scan") === "1" || root.dataset.setupState === "needs_initial_scan") {
+  const startInitialPass = location.searchParams.get("initial_scan") === "1"
+    || root.dataset.initialScanNeeded === "true";
+  if (location.searchParams.get("initial_scan") === "1") {
     clearQueryFlag("initial_scan");
-    try { await scanCalendar(false); }
-    catch { say("Calendarの予定を確認できませんでした。再読み込みしてもう一度お試しください。"); }
   }
+  if (startInitialPass) void startInitialProcessing().catch(() => {});
 })();`;
 
 function renderWebPage(model = {}) {
   const user = model.user && WEB_UID_RE.test(String(model.user.uid || "")) ? model.user : null;
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Life Manager</title><style>
     :root{color-scheme:light;--ink:#17231e;--muted:#65736b;--line:#dce5df;--paper:#f4f7f4;--card:#fff;--accent:#19654b}
-    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;line-height:1.55}.shell{width:min(100% - 28px,620px);margin:0 auto;padding:28px 0 44px}.brand{font-weight:700;margin:0 0 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 5px 22px #153e2410}h1,h2,p{margin-top:0}h1{font-size:clamp(1.45rem,6vw,2rem);line-height:1.2;margin-bottom:12px}h2{font-size:1.1rem;margin:22px 0 8px}.lead,.muted,.feedback{color:var(--muted)}.eyebrow{font-size:.84rem;font-weight:700;letter-spacing:.06em;color:var(--accent);margin-bottom:8px}.button{appearance:none;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;display:inline-flex;justify-content:center;align-items:center;width:100%;min-height:50px;padding:12px 18px;text-decoration:none;font:inherit;font-weight:700;margin:12px 0 4px}.button.secondary{background:#e8efea;color:var(--ink)}.button:disabled{opacity:.6;cursor:wait}.terms{font-size:.97rem}.text-link{display:block;margin-top:12px;color:var(--accent);text-align:center}.feedback{min-height:1.4em;margin:0 2px 12px}.spinner{width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:18px auto 2px}@keyframes spin{to{transform:rotate(360deg)}}@media(min-width:600px){.shell{padding-top:44px}.card{padding:32px}}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;line-height:1.55}.shell{width:min(100% - 28px,620px);margin:0 auto;padding:28px 0 44px}.brand{font-weight:700;margin:0 0 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 5px 22px #153e2410}h1,h2,p{margin-top:0}h1{font-size:clamp(1.45rem,6vw,2rem);line-height:1.2;margin-bottom:12px}h2{font-size:1.1rem;margin:22px 0 8px}.lead,.muted,.feedback{color:var(--muted)}.eyebrow{font-size:.84rem;font-weight:700;letter-spacing:.06em;color:var(--accent);margin-bottom:8px}.button{appearance:none;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;display:inline-flex;justify-content:center;align-items:center;width:100%;min-height:50px;padding:12px 18px;text-decoration:none;font:inherit;font-weight:700;margin:12px 0 4px}.button.secondary{background:#e8efea;color:var(--ink)}.button:disabled{opacity:.6;cursor:wait}.terms{font-size:.97rem}.text-link{display:block;margin-top:12px;color:var(--accent);text-align:center}.feedback{min-height:1.4em;margin:0 2px 12px}@media(min-width:600px){.shell{padding-top:44px}.card{padding:32px}}
   </style>`;
 
   if (!user) {
@@ -225,7 +217,9 @@ function renderWebPage(model = {}) {
   const state = String(snapshotValue.setupState || "sync_pending");
   const stateHtml = pageState(snapshotValue, model);
   const csrf = escapeHtml(user.csrf || "");
-  return `<!doctype html><html lang="ja"><head>${head}<meta name="lm-web-csrf" content="${csrf}"></head><body><main class="shell"><p class="brand">Life Manager</p><p id="lm-feedback" class="feedback" role="status" aria-live="polite"></p><div id="lm-flow" data-setup-state="${escapeHtml(state)}">${stateHtml}</div></main><script>${CLIENT_SCRIPT}</script></body></html>`;
+  const initialScanNeeded = snapshotValue.initialScanNeeded === true
+    && snapshotValue.calendarState === "connected";
+  return `<!doctype html><html lang="ja"><head>${head}<meta name="lm-web-csrf" content="${csrf}"></head><body><main class="shell"><p class="brand">Life Manager</p><p id="lm-feedback" class="feedback" role="status" aria-live="polite"></p><div id="lm-flow" data-setup-state="${escapeHtml(state)}" data-initial-scan-needed="${initialScanNeeded}">${stateHtml}</div></main><script>${CLIENT_SCRIPT}</script></body></html>`;
 }
 
 module.exports = { escapeHtml, renderWebPage };

@@ -9,7 +9,7 @@ const CHROME = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Conten
 const USER = { uid: "lm_123e4567-e89b-12d3-a456-426614174000", csrf: "e2e-csrf" };
 const trialOffer = { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" };
 const state = { authenticated: false, calendarConnected: false, scanComplete: false, trialActive: false,
-  travelReady: false, calendarStarts: 0, scans: 0, checkouts: 0 };
+  calendarStarts: 0, scans: 0, checkouts: 0 };
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { "cache-control": "no-store", ...headers });
@@ -44,20 +44,15 @@ async function startServer() {
       ? null
       : !state.calendarConnected
         ? { setupState: "needs_calendar", calendarState: "action_required", checkoutAvailable: false }
-        : !state.scanComplete
-          ? { setupState: "needs_initial_scan", calendarState: "connected", checkoutAvailable: false }
-          : !state.travelReady
-            ? { setupState: "no_eligible_events", calendarState: "connected", paid: false,
-                checkoutAvailable: false, confirmedTravelBlockCount: 0, scanState: "zero_blocks" }
-            : state.trialActive
-              ? { setupState: "trial_active", calendarState: "connected", paid: false, planStatus: "trialing" }
-              : { setupState: "trial_offer", calendarState: "connected", paid: false, checkoutAvailable: true,
-                  confirmedTravelBlockCount: 1, firstTravelAt: "2030-01-01T00:00:00.000Z" };
+        : state.trialActive
+          ? { setupState: "trial_active", calendarState: "connected", paid: false, planStatus: "trialing" }
+          : { setupState: "trial_offer", calendarState: "connected", paid: false, checkoutAvailable: true,
+              initialScanNeeded: !state.scanComplete, scanState: state.scanComplete ? "zero_blocks" : "not_started" };
       const html = renderWebPage({
         user: state.authenticated ? USER : null,
         authError: url.searchParams.get("auth_error") === "connection" ? "connection" : "",
         snapshot,
-        trialOffer: state.scanComplete ? trialOffer : null,
+        trialOffer: state.calendarConnected && !state.trialActive ? trialOffer : null,
         customerPortalAvailable: state.trialActive,
       });
       return send(res, 200, html, { "content-type": "text/html; charset=utf-8" });
@@ -71,17 +66,11 @@ async function startServer() {
     }
     if (url.pathname === "/api/lm-web/setup" && req.method === "POST") {
       const body = await readBody(req);
-      if (body.rescan === true) {
-        assert.equal(state.scanComplete, true);
-        assert.equal(state.travelReady, false);
-        state.travelReady = true;
-      } else {
-        assert.deepEqual(body, {});
-        state.scanComplete = true;
-      }
+      assert.deepEqual(body, {});
       state.scans++;
-      return json(res, { setupState: state.travelReady ? "trial_offer" : "no_eligible_events",
-        scanState: state.travelReady ? "complete" : "zero_blocks", checkoutAvailable: state.travelReady });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      state.scanComplete = true;
+      return json(res, { setupState: "trial_offer", scanState: "zero_blocks", checkoutAvailable: true });
     }
     if (url.pathname === "/api/lm-web/checkout" && req.method === "POST") {
       const body = await readBody(req);
@@ -145,22 +134,24 @@ async function assertNoHorizontalOverflow(page) {
     process.stdout.write("stage Calendar OAuth start\n");
     await page.waitForURL("https://accounts.google.com/e2e-calendar-consent");
     process.stdout.write("stage synthetic Calendar consent\n");
+    const setupRequest = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/lm-web/setup");
+    const setupResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/lm-web/setup");
     await page.getByRole("button", { name: "Calendar権限を許可" }).click();
-    process.stdout.write("stage initial zero-block scan\n");
-    await page.getByRole("heading", { name: "Calendarに接続しました" }).waitFor();
-    await page.getByRole("button", { name: "Calendarをもう一度確認" }).waitFor();
-    assert.equal(await page.getByRole("button", { name: "7日間の無料トライアルを始める" }).count(), 0);
-    await page.getByRole("button", { name: "Calendarをもう一度確認" }).click();
-    process.stdout.write("stage explicit zero-block rescan\n");
-    await page.getByRole("heading", { name: "移動時間はCalendarに自動登録済みです" }).waitFor();
+    process.stdout.write("stage immediate connected paywall and background zero-block pass\n");
+    await page.getByRole("heading", { name: "対象の予定に移動時間を自動で追加します" }).waitFor();
     await page.getByRole("button", { name: "7日間の無料トライアルを始める" }).waitFor();
+    await setupRequest;
+    assert.doesNotMatch(await page.locator("body").innerText(), /予定を確認しています|もう一度確認|再スキャン/);
+    assert.equal(await page.getByRole("button", { name: "Calendarをもう一度確認" }).count(), 0);
+    assert.equal(state.scans, 1);
+    assert.equal((await setupResponse).status(), 200);
     await assertNoHorizontalOverflow(page);
     assert.equal(state.calendarStarts, 1);
-    assert.equal(state.scans, 2);
+    assert.equal(state.scans, 1);
 
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await desktop.goto(base + "/lm");
-    await desktop.getByRole("heading", { name: "移動時間はCalendarに自動登録済みです" }).waitFor();
+    await desktop.getByRole("heading", { name: "対象の予定に移動時間を自動で追加します" }).waitFor();
     await assertNoHorizontalOverflow(desktop);
 
     await page.getByRole("button", { name: "7日間の無料トライアルを始める" }).click();
@@ -174,7 +165,7 @@ async function assertNoHorizontalOverflow(page) {
 
     process.stdout.write(JSON.stringify({
       result: "PASS",
-      flow: ["OAuth retry notice", "Calendar CTA", "mock Google consent", "zero-block scan", "explicit rescan", "combined trial offer", "mock Stripe checkout", "trial-active confirmation"],
+      flow: ["OAuth retry notice", "Calendar CTA", "mock Google consent", "immediate connected/paywall", "background zero-block pass", "mock Stripe checkout", "trial-active confirmation"],
       viewports: ["390x844", "1440x900"],
       calendarStarts: state.calendarStarts,
       scans: state.scans,
