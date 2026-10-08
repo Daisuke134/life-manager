@@ -7746,3 +7746,12 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 **順序更新:** 旧cursor=`protocol-lock fix → test → final review/CI`。新順=`(1) latest-main sync完了 → (2) `test_reconcile_agent_runner_release_fleet_apply.py`と`test_lm_loop_apply.py`をsync後に再実行、shell syntax/diff check → (3) merge commitをpush → (4) exact-head fresh review + required CI → (5) PR #7199 merge → (6) current `4346b61c`からのnatural release/handoffを観測し、owner SHAとfenceをreadback → (7) Job Hunter false-passを`validate_pass_result`の回帰テストで修正 → (8) 3対象の公式receipt/Telegram result → (9) 同一窓queue/capacityを測り、host cap8を実測で判断する`。理由は、最新mainが受け入れ前にさらに進んだため、完成PRをそのmain上で検証する必要があるため。
 
 **現在cursor:** 完了: latest main `ee25a794` をmergeし、sync後にfleet suite 36 passed / 14 subtests、apply suite 179 passed / 42 subtests、`bash -n`と`git diff --check`がPASS。次: merge/spec updateをpush → exact-head fresh review + CI → PR #7199 merge → natural release/owner readback → Job Hunter false-pass fix → 3 loopsのreceipt付きnatural result → capacity measurement。live reconcilerは動作中のまま保持し、`effect_unknown`を再送しない。
+
+### 2026-10-09 03:05 JST — latest-main registry fixture correction
+
+- PR #7199 final-head CI `Loop control contracts` failed only `test_production_render_matches_byte_stable_fixture`: main #7201 added the Line Sticker `effect_reconcile` registry field but did not regenerate `runtime/loop/tests/fixtures/macos-loop-jobs.json`.
+- Regenerated the byte-stable fixture from current `config/loop-registry.json` using `runtime.loop.macos_loop_registry.render_job_models`; output is 113,893 bytes. The exact failing unittest now passes, and `git diff --check` passes. No production behavior changed.
+
+**順序更新:** 旧cursor=`PR #7199 exact-head CI/review → merge`。新順=`(1) latest-main fixture correctionを含めcommit/push → (2) exact-head CIとfresh reviewを取り直す → (3) merge → (4) current=ee25 release / owner readbackと3 loop receipt → (5) Job Hunter false-pass PR #7203をmerge/releaseと合わせ、Workday same-row safe retry → (6) Fundraiser unknown fenceとConnector receiptを解決 → (7) saturation/host headroomを同一窓で再測定`。理由は、CIの唯一の失敗がmain統合で更新されたregistryとfixtureの不一致と判明したため。
+
+**現在cursor:** fixture correction + 03:04 capacity snapshotは未commit。`git diff --check`とtargeted registry test pass。次: commit/push → PR #7199 fresh review/CI → merge後natural owner reconciliation。旧reconcilerには触れず、unknown effectを再送しない。
