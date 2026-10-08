@@ -24,7 +24,7 @@ OPTIONAL_FIELDS = {
 }
 SYSTEM_ROLES = {"platform", "control", "shared"}
 EFFECT_RECONCILE_FIELDS = {"argv", "occurrence_flag", "resolve_flag", "timeout_seconds"}
-QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
+QUEUE_PRIORITIES = {"distribution", "critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
     "aa-release-reconciler-handoff",

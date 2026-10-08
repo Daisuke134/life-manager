@@ -2229,7 +2229,7 @@
       "state_root": "~/.local/state/life-manager/lateness-heartbeat"
     },
     "life-manager-anicca-en-affirmation-instagram": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2269,7 +2269,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-card-instagram": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2309,7 +2309,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-slideshow-tiktok": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2349,7 +2349,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-widget-instagram": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2389,7 +2389,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-ai-youtube": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2420,7 +2420,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-affirmation-youtube": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2451,7 +2451,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-he": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2491,7 +2491,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-ja-widget-instagram": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2531,7 +2531,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-affirmation-tiktok": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2559,7 +2559,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en2-affirmation-tiktok": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2587,7 +2587,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-jp1-tiktok": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2618,7 +2618,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-jp4": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2658,7 +2658,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-larry-ja-instagram": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2698,7 +2698,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-main-instagram": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2738,7 +2738,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-buddha-tiktok": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2769,7 +2769,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-main-tiktok": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -2996,7 +2996,7 @@
       "state_root": "~/.anicca"
     },
     "life-manager-honne-en": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {
@@ -3036,7 +3036,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-honne-ja": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
       "cadence": {

@@ -33,7 +33,7 @@ RESERVATION_LEAK_COOLDOWN_SECONDS = 60
 # ``admission_class`` remains the mixed-release capacity fence.  These
 # explicit priorities are an ordering policy for durable waiters and are
 # evaluated from persisted queue age at claim time.
-BASE_PRIORITIES = ("critical_paid", "revenue", "support")
+BASE_PRIORITIES = ("distribution", "critical_paid", "revenue", "support")
 PRIORITY_RANK = {name: rank for rank, name in enumerate(BASE_PRIORITIES)}
 PRIORITY_AGE_SECONDS = {
     "critical_paid": 5 * 60,
@@ -655,8 +655,8 @@ def _normalize_priority(priority: str | None, admission_class: str) -> str:
     value = _default_priority(admission_class) if priority is None else priority
     if value not in PRIORITY_RANK:
         raise RuntimeError("invalid queue priority")
-    if value == "critical_paid" and admission_class != "revenue":
-        raise RuntimeError("critical_paid requires revenue admission")
+    if value in {"distribution", "critical_paid"} and admission_class != "revenue":
+        raise RuntimeError(f"{value} requires revenue admission")
     return value
 
 
@@ -669,9 +669,10 @@ def _promote_queued_priority(connection: sqlite3.Connection, owner_id: str,
                   base_priority=CASE
                       WHEN base_priority IS NULL OR
                            (CASE base_priority
-                                WHEN 'critical_paid' THEN 0
-                                WHEN 'revenue' THEN 1
-                                ELSE 2 END) > ?
+                                WHEN 'distribution' THEN 0
+                                WHEN 'critical_paid' THEN 1
+                                WHEN 'revenue' THEN 2
+                                ELSE 3 END) > ?
                       THEN ? ELSE base_priority END,
                   queued_at=COALESCE(queued_at,?)
             WHERE owner_id=?""",
@@ -746,7 +747,8 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
     queued_at = row.get("queued_at")
     if not isinstance(queued_at, (int, float)) or isinstance(queued_at, bool):
         return rank
-    if now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority]:
+    if (priority in PRIORITY_AGE_SECONDS
+            and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority]):
         return PRIORITY_RANK["critical_paid"]
     return rank
 
