@@ -254,22 +254,43 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         return values.filter(Boolean).join(' ');
       };
       const isOutgoing = node => {
+        let positive = false;
+        let contradiction = false;
         let current = node;
-        for (let depth = 0; current && current !== messageList && depth < 5; depth += 1) {
-          const direction = [current.getAttribute?.('data-direction'),
-            current.getAttribute?.('data-message-direction')].map(value => String(value || '').toLowerCase());
+        for (; current && current !== messageList; current = current.parentElement) {
+          for (const raw of [current.getAttribute?.('data-direction'),
+            current.getAttribute?.('data-message-direction')]) {
+            if (raw == null || !String(raw).trim()) continue;
+            const direction = String(raw).trim().toLowerCase();
+            if (['outgoing', 'outbound', 'self', 'own', 'me'].includes(direction)) positive = true;
+            else contradiction = true;
+          }
+          const isOwn = current.getAttribute?.('data-is-own');
+          if (isOwn != null) {
+            if (['true', '1', 'yes'].includes(String(isOwn).toLowerCase())) positive = true;
+            else contradiction = true;
+          }
           const marker = [current.getAttribute?.('data-e2e'), current.className]
             .filter(Boolean).join(' ');
-          const senderHandles = [current.getAttribute?.('data-sender-handle'),
-            current.getAttribute?.('data-sender')].flatMap(value =>
-              (String(value || '').match(/@[A-Za-z0-9._-]+/g) || []).map(handle => handle.toLowerCase()));
-          if (direction.some(value => ['outgoing', 'self', 'own', 'me'].includes(value))
-              || current.getAttribute?.('data-is-own') === 'true'
-              || /(?:^|[-_ ])(?:outgoing|self|own)(?:$|[-_ ])/i.test(marker)
-              || (expectedSender && senderHandles.includes(expectedSender))) return true;
-          current = current.parentElement;
+          if (/(incoming|inbound|received)/i.test(marker)
+              || /(?:^|[-_ ])other(?:$|[-_ ])/i.test(marker)) contradiction = true;
+          if (/(outgoing|outbound|self|ownmessage)/i.test(marker)
+              || /(?:^|[-_ ])own(?:$|[-_ ])/i.test(marker)) positive = true;
+          for (const raw of [current.getAttribute?.('data-sender-handle'), current.getAttribute?.('data-sender')]) {
+            if (raw == null || !String(raw).trim()) continue;
+            const senderHandles = (String(raw).match(/@[A-Za-z0-9._-]+/g) || [])
+              .map(handle => handle.toLowerCase());
+            if (senderHandles.length) {
+              if (expectedSender && senderHandles.every(handle => handle === expectedSender)) positive = true;
+              else contradiction = true;
+            } else if (['me', 'self', 'own', 'outgoing', 'outbound'].includes(String(raw).trim().toLowerCase())) {
+              positive = true;
+            } else {
+              contradiction = true;
+            }
+          }
         }
-        return false;
+        return positive && !contradiction;
       };
       const expectedText = normalize(expected);
       const exactBubbles = bubbles.filter(node => {

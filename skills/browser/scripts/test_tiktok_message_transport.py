@@ -859,6 +859,65 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
         self.assertEqual([row["state"] for row in rows], ["attempting", "unknown"])
 
+    def test_incoming_or_conflicting_sender_marker_cannot_prove_outgoing_bubble(self):
+        payload = self.payload()
+        incoming_child = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "bubbles": [{"text": "本文", "attrs": {"data-direction": "incoming"},
+                         "parentAttrs": {"data-direction": "outgoing", "data-sender-handle": "@anicca.jp"}}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        incoming = self.send(payload, FakeCDP(before_readback_fixture=incoming_child), send=False)
+        self.assertNotEqual(incoming["status"], "deduplicated_exact_official_readback")
+        self.assertFalse(incoming["retry_safe"])
+        incoming_readback = evaluate_js_expression(expression, incoming_child)
+        self.assertFalse(incoming_readback["exact_message"])
+        self.assertFalse(incoming_readback["message_sender_proven"])
+
+        conflicting_sender = {
+            **incoming_child,
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@someone.else",
+            }, "parentAttrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }}],
+        }
+        conflict_readback = evaluate_js_expression(expression, conflicting_sender)
+        self.assertFalse(conflict_readback["exact_message"])
+        self.assertFalse(conflict_readback["message_sender_proven"])
+        conflict = self.send(payload, FakeCDP(before_readback_fixture=conflicting_sender), send=False)
+        self.assertNotEqual(conflict["status"], "deduplicated_exact_official_readback")
+        self.assertFalse(conflict["retry_safe"])
+
+        not_own = {
+            **incoming_child,
+            "bubbles": [{"text": "本文", "attrs": {"data-is-own": "false"},
+                         "parentAttrs": {"data-direction": "outgoing"}}],
+        }
+        not_own_readback = evaluate_js_expression(expression, not_own)
+        self.assertFalse(not_own_readback["message_sender_proven"])
+        not_own_result = self.send(payload, FakeCDP(before_readback_fixture=not_own), send=False)
+        self.assertNotEqual(not_own_result["status"], "deduplicated_exact_official_readback")
+        self.assertFalse(not_own_result["retry_safe"])
+
+        outgoing = {
+            **incoming_child,
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }}],
+        }
+        outgoing_readback = evaluate_js_expression(expression, outgoing)
+        self.assertTrue(outgoing_readback["exact_message"])
+        self.assertTrue(outgoing_readback["message_sender_proven"])
+        accepted = self.send(payload, FakeCDP(before_readback_fixture=outgoing), send=False)
+        self.assertEqual(accepted["status"], "deduplicated_exact_official_readback")
+
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["unknown", "sent"])
+
 
 if __name__ == "__main__":
     unittest.main()
