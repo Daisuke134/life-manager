@@ -48,6 +48,35 @@ class ParseFeatureRadio(unittest.TestCase):
         self.assertIsNone(out["deadline"])
 
 
+class DeadlineFromConditions(unittest.TestCase):
+    CONDITIONS_806 = ("【個数・金額・参加居住国】\n・個数：8-40個\n\n【審査受付期間】\n"
+                      "　2026年8月5日(水)11:00 〜 10月7日(水)10:59 (日本時間)\n　※参加状況により...\n\n【特集期間】\n"
+                      "　2026年9月16日(水)11:00 〜 10月31日(土)10:59 (日本時間)\n")
+
+    def test_the_reception_end_date_is_read_from_the_announcement_text(self) -> None:
+        # 2026-10-09: 806 (気づかい) had deadline=None, so a closed campaign counted as open.
+        self.assertEqual(MODULE.deadline_from_conditions(self.CONDITIONS_806, datetime.date(2026, 10, 9)), "2026-10-07")
+
+    def test_the_feature_period_is_not_mistaken_for_the_reception_period(self) -> None:
+        self.assertNotEqual(MODULE.deadline_from_conditions(self.CONDITIONS_806, datetime.date(2026, 10, 9)), "2026-10-31")
+
+    def test_an_end_date_without_a_year_inherits_the_year_of_the_start_date(self) -> None:
+        # "2026年8月5日 〜 10月7日" read on 2026-10-09 was rolled to 2027-10-07 and a closed
+        # campaign looked open for another year.
+        self.assertEqual(MODULE._deadline_from_period("2026年8月5日(水)11:00 〜 10月7日(水)10:59", datetime.date(2026, 10, 9)),
+                         "2026-10-07")
+
+    def test_a_range_that_crosses_the_new_year_moves_the_end_into_the_next_year(self) -> None:
+        self.assertEqual(MODULE._deadline_from_period("2026年12月5日 〜 1月8日", datetime.date(2026, 10, 9)), "2027-01-08")
+
+    def test_text_without_a_reception_period_gives_none(self) -> None:
+        self.assertIsNone(MODULE.deadline_from_conditions("個数：8-40個", datetime.date(2026, 10, 9)))
+
+    def test_a_year_qualified_end_date_is_used_as_written(self) -> None:
+        text = "【審査受付期間】\n　2026年10月2日(金)11:00 〜 2026年12月4日(金)10:59 (日本時間)\n"
+        self.assertEqual(MODULE.deadline_from_conditions(text, datetime.date(2026, 10, 9)), "2026-12-04")
+
+
 class MatchAnnounceLink(unittest.TestCase):
     def test_substring_match_finds_the_announce_href(self) -> None:
         links = [
