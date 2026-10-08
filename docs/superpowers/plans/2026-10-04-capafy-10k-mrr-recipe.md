@@ -442,6 +442,8 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | N7 | 短尺動画を Instagram へ（承認を待たない） | 投稿され注文につながる | @capafy.hooklab に Postiz 経由: Hook Lab https://www.instagram.com/reel/DeN5oujDBeC/ （11:50）、TikTok Script Pro https://www.instagram.com/reel/DeN8cAHFVWP/ （12:14）、YouTube Script Writer 17:00 予約、Slide Maker 20:00 予約。Capafy プロモーションリンク hooklab_ig / tiktok_ig / youtube_ig / slides_ig を登録し予約 2 本のキャプションに入れた。IG キャプションのリンクはタップ不可→プロフィールリンクを hooklab_ig にする（次）。自動 owner `life-manager-capafy-ig` は launchd disabled のまま |
 | N7b | aniccaai.com 記事＋X（3 時間ごと）と Telegram 報告 | 記事が公開され、リンクが Telegram に届く | 公開中（例 https://aniccaai.com/blog/capafy-hook-lab-2026-10-08-h09 ）。10/08 に配信ループへ Telegram 報告（記事・X・Capafy リンク、枠ごと 1 回）を追加 |
 | N8 | 工場・宣伝が止まらない運転 | 毎時の集計・3 時間ごとの宣伝・工場が自然に回る | 毎時確認中。ディスクは他セッションの作業で揺れる |
+| N9 | **ReelFarm の API キーがダウンロード版に同梱（セキュリティ）**: 3040652346「TikTok Slideshows via ReelFarm API」の buyer スキャン「注意」が、cron 節 2 か所に Bearer トークンがハードコードと指摘（10/08 12:50） | 同梱トークン 0 の新版が審査通過 | 次に着手。トークンの扱い（失効・再発行）は Dais 判断（運用規則で回転しない） |
+| N10 | 残りの「注意」（10/08 12:50 全 36 本スキャン: 却下 1・注意 6・結果なし 1・通常 28） | 全本「通常」 | Performance Review Writer（welcome 途中切れ）、Talent Review Deck Writer（無関係タグ calendar）、Academic Humanizer（SKILL.md 先頭メタデータの解析エラー）、Anicca Life Manager（公開キー一覧と設定の不一致）を直して再提出。Portfolio Tracker は金融分野の規則による注意で対象外 |
 
 **主指標（Dais 10/08）:** 直近 7 日の売上（`capafy-skill-analytics.json` `account_totals.last_7d`）。すべての報告の先頭に書く。10/08 時点 $0.00・0 件。30日の数字や利益で $0 の週を薄めない。今週の優先: 4 本の承認を早める → 承認と同時に短尺動画 → 赤字 3 本を止める → 新規。
 
