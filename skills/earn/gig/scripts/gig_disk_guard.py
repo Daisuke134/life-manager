@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import shutil
 import stat
 import sys
@@ -91,7 +92,7 @@ def _failure(
 
 
 def _host_state_dir() -> Path:
-    """Return the host control state without relying on a shell wrapper."""
+    """Return the configured control root; canonical roots are always checked too."""
     configured = (
         os.environ.get("GIG_HOST_STATE_DIR")
         or os.environ.get("DISK_CONTROL_STATE_DIR")
@@ -100,16 +101,43 @@ def _host_state_dir() -> Path:
     )
     if configured:
         return Path(configured).expanduser()
-    # The production sentinel and emergency guard both write here. Installers can
-    # override it above when Life Manager is used without OpenClaw.
-    return Path.home() / ".openclaw" / "state"
+    # The production sentinel and emergency guard both write here. Environment
+    # overrides remain supplemental and cannot replace this OS-account path.
+    return _canonical_host_state_dirs()[0]
+
+
+def _canonical_host_state_dirs() -> tuple[Path, ...]:
+    owner_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    homes = tuple(dict.fromkeys((owner_home, Path(os.path.expanduser("~")))))
+    return tuple(
+        path
+        for home in homes
+        for path in (
+            home / ".openclaw" / "state",
+            home / ".local" / "state" / "life-manager" / "state",
+        )
+    )
 
 
 def _producer_gate() -> tuple[str, Path] | None:
     """Read the shared Life Manager stop contract before starting a producer."""
-    host_state = _host_state_dir()
     try:
-        entry = host_state.lstat()
+        configured = _host_state_dir()
+        candidates = (*_canonical_host_state_dirs(), configured)
+    except (KeyError, OSError):
+        return "disk_policy_unavailable", Path(os.path.expanduser("~")) / ".openclaw" / "state"
+    host_states = tuple(dict.fromkeys(candidates))
+    for host_state in host_states:
+        required = host_state == configured
+        try:
+            entry = host_state.lstat()
+        except FileNotFoundError:
+            if required:
+                return "disk_policy_unavailable", host_state
+            continue
+        except OSError:
+            # A control path that cannot be read is not proof that the host is safe.
+            return "disk_policy_unavailable", host_state
         if (
             not stat.S_ISDIR(entry.st_mode)
             or host_state.is_symlink()
@@ -117,23 +145,22 @@ def _producer_gate() -> tuple[str, Path] | None:
             or entry.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
         ):
             return "disk_policy_unavailable", host_state
-        next(iter(host_state.iterdir()), None)
-    except FileNotFoundError:
-        return "disk_policy_unavailable", host_state
-    except OSError:
-        return "disk_policy_unavailable", host_state
-    for filename, reason in _POLICY_FLAGS:
-        flag = host_state / filename
         try:
-            entry = flag.lstat()
-        except FileNotFoundError:
-            continue
+            next(iter(host_state.iterdir()), None)
         except OSError:
-            # A control path that cannot be read is not proof that the host is safe.
-            return "disk_policy_unavailable", flag
-        if not stat.S_ISREG(entry.st_mode):
-            return "disk_policy_unavailable", flag
-        return reason, flag
+            return "disk_policy_unavailable", host_state
+        for filename, reason in _POLICY_FLAGS:
+            flag = host_state / filename
+            try:
+                entry = flag.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                # A control path that cannot be read is not proof that the host is safe.
+                return "disk_policy_unavailable", flag
+            if not stat.S_ISREG(entry.st_mode):
+                return "disk_policy_unavailable", flag
+            return reason, flag
     return None
 
 

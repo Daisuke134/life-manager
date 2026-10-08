@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import shutil
 import stat
 import sys
@@ -61,7 +62,15 @@ def _host_state_dir() -> Path:
     configured = os.environ.get("LIFE_MANAGER_HOST_STATE_DIR")
     if configured:
         return Path(configured).expanduser()
-    return Path.home() / ".local" / "state" / "life-manager" / "state"
+    return _canonical_host_state_dirs()[0]
+
+
+def _canonical_host_state_dirs() -> tuple[Path, Path]:
+    owner_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    return (
+        owner_home / ".local" / "state" / "life-manager" / "state",
+        owner_home / ".openclaw" / "state",
+    )
 
 
 def _ensure_host_state_dir(host_state: Path) -> bool:
@@ -143,24 +152,48 @@ def _failure(
 
 
 def _producer_gate() -> tuple[str, Path] | None:
-    host_state = _host_state_dir()
     try:
-        if not _ensure_host_state_dir(host_state):
-            return "disk_policy_unavailable", host_state
-        next(iter(host_state.iterdir()), None)
-    except OSError:
-        return "disk_policy_unavailable", host_state
-    for filename, reason in _POLICY_FLAGS:
-        flag = host_state / filename
-        try:
-            entry = flag.lstat()
-        except FileNotFoundError:
-            continue
-        except OSError:
-            return "disk_policy_unavailable", flag
-        if not stat.S_ISREG(entry.st_mode):
-            return "disk_policy_unavailable", flag
-        return reason, flag
+        configured = _host_state_dir()
+        candidates = (*_canonical_host_state_dirs(), configured)
+    except (KeyError, OSError):
+        return "disk_policy_unavailable", (
+            Path.home() / ".local" / "state" / "life-manager" / "state"
+        )
+    host_states = tuple(dict.fromkeys(candidates))
+    for host_state in host_states:
+        required = host_state == configured
+        if required:
+            if not _ensure_host_state_dir(host_state):
+                return "disk_policy_unavailable", host_state
+        else:
+            try:
+                entry = host_state.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                return "disk_policy_unavailable", host_state
+            if (
+                not stat.S_ISDIR(entry.st_mode)
+                or host_state.is_symlink()
+                or entry.st_uid != os.getuid()
+                or entry.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                return "disk_policy_unavailable", host_state
+            try:
+                next(iter(host_state.iterdir()), None)
+            except OSError:
+                return "disk_policy_unavailable", host_state
+        for filename, reason in _POLICY_FLAGS:
+            flag = host_state / filename
+            try:
+                entry = flag.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                return "disk_policy_unavailable", flag
+            if not stat.S_ISREG(entry.st_mode):
+                return "disk_policy_unavailable", flag
+            return reason, flag
     return None
 
 

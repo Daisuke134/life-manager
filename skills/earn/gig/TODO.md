@@ -32,9 +32,10 @@
   and current mutation authorization; the latest official snapshot was
   `contracts=[]`, so no owner is registered.
 - **Mercor:** preserve old fences; latest official readback has `contracts=[]`.
-- **Shared release work:** merge/release the already-pushed loop hardening,
-  recover the disk-headroom admission floor, then run the bounded no-effect
-  natural wake, official readback, crash recovery, and replay-zero. The
+- **Shared release work:** merge/release PR #7179, which removes numeric
+  disk-headroom admission floors across loops, then run the bounded no-effect
+  natural wake, official readback, crash recovery, and replay-zero. Do not wait
+  for a free-space target before an owner can run. The
   activation order remains `account-bound auth → source-complete inventory →
   funded contract/milestone → current mutation/policy receipts → one owner →
   canary/readback → payment/payout readback → crash recovery → replay-zero`.
@@ -63,9 +64,10 @@ committed and pushed on `fix/coconala-history-retry-20260924` at
 `7cdb0a8763`. The worktree is clean. No provider send, retry, credential
 creation, admission-fence mutation, or production apply occurred. Production
 still runs immutable release `d4fe081`; PR #5868 remains open, so the new code
-has not yet been runtime-verified. The remaining TODO is therefore execution,
-not another source rewrite: pass merge/release gates, wait for disk headroom,
-then take one no-effect Coconala readback before touching any other owner.
+has not yet been runtime-verified. The remaining TODO is merge/release and
+execution: pass the source gates, then take one no-effect Coconala readback.
+Free-space thresholds are not a prerequisite; record a real `ENOSPC` at the
+write that fails.
 
 ## Current cursor — 2026-09-25 08:39 JST (Coconala Paid result-write hardening)
 
@@ -3495,8 +3497,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   profile was deleted.
 - [x] Current official snapshots remain Coconala `4/0/0/3/0`, CrowdWorks
   `5/1/0/4/1`, and Lancers `0/0/0/0/0`; all observed effects are zero.
-- [ ] Restore stable host headroom above 512MiB, then rerun the official
-  Coconala Paid owner and require terminal `pass`.
+- [ ] After PR #7179 is merged and installed, rerun the official Coconala Paid
+  owner only when its provider/effect fences permit; do not require 512 MiB of
+  free space. Record any actual `ENOSPC` at the failed write.
 - [ ] Obtain explicit approval before closing orphan CrowdWorks PID `16937`
   and restarting its canonical browser owner via `./bin/lm-loop`; verify
   receipt → CDP → authenticated readback.
@@ -3517,8 +3520,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [x] Confirmed the newest CrowdWorks Paid run ended `entrypoint_exit_1` at
   browser inventory. Its event still has `effect_status=unknown`, so the
   effect fence is intentionally retained and no submission is permitted.
-- [ ] Restore stable host headroom above 512MiB, then rerun Coconala Paid to
-  terminal `pass` and reconcile the official snapshot.
+- [ ] After PR #7179 is merged and installed, rerun Coconala Paid only when its
+  provider/effect fences permit, then reconcile the official snapshot. There
+  is no 512 MiB admission requirement.
 - [ ] Obtain approval to close only orphan CrowdWorks PID `16937`, restart
   `crowdworks-revenue-browser` via `./bin/lm-loop`, and verify receipt → CDP →
   authenticated readback. Never use the fallback launcher.
@@ -3542,8 +3546,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `18d80118ccaef4a8-86867`.
 - [ ] Keep the remaining marker-less claimed fence
   `18d62cf32eb0c678-48194` until official provider/pre-effect evidence exists.
-- [ ] Restore host headroom above 512MiB, then rerun Coconala Paid to
-  terminal `pass` and reconcile the official snapshot.
+- [ ] After PR #7179 is merged and installed, rerun Coconala Paid only when its
+  provider/effect fences permit, then reconcile the official snapshot. There
+  is no 512 MiB admission requirement.
 - [ ] Obtain approval to close orphan CrowdWorks PID `16937`, restart the
   canonical browser owner through `./bin/lm-loop`, and verify receipt → CDP →
   authenticated readback.
@@ -3564,8 +3569,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Obtain approval to close only orphan CrowdWorks PID `16937`, restart
   its canonical owner via `./bin/lm-loop`, and verify receipt → CDP →
   authenticated readback.
-- [ ] Restore stable headroom above 512MiB using safe cache cleanup only, then
-  rerun Coconala Paid to terminal `pass`.
+- [ ] After PR #7179 is merged and installed, rerun Coconala Paid only when its
+  provider/effect fences permit. There is no 512 MiB admission requirement;
+  record any actual `ENOSPC` at the failed write.
 - [ ] Keep the marker-less CrowdWorks fence
   `18d62cf32eb0c678-48194` and Lancers' pre-inventory failure fenced; no retry
   or submission until official evidence is available.
@@ -4317,8 +4323,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 
 1. Keep all four fences closed until exact provider/run or pre-effect proof is
    available; release only via the supported resolver.
-2. Preserve the completed cleanup receipt and wait for stable headroom/control;
-   do not restart a live owner just because its observation is stale.
+2. Preserve the completed cleanup receipt; a numeric free-space value is not
+   an admission prerequisite. Respect explicit stop/effect controls and do not
+   restart a live owner just because its observation is stale.
 3. Promote one immutable release after the gates, canary CrowdWorks first, and
    advance each platform only with official readback and replay-zero.
 
