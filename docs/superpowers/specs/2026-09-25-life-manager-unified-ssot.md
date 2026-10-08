@@ -5824,3 +5824,18 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - 14:55 JSTのmain #7071はCapafy計画書のみを更新し、最新head `d3b0d9926961883a5b65f376ce1d25c04a788403`としてclean merge済み。`skills/capafy-autopublish` treeは変わらず、245-file inventory hashは維持。
 
 **TODO順:** current cursor=`245-file latest-main inventory hashを正本へ反映 → exact OSS verifier PASS → 最新main再fetch → spec/manifest commit+push → new-head CI全required PASS → PR #7057 merge → release reconciler natural convergence → eBook ownersとfence reconcilerのloaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due → EN old-effect/account gate → 9 unique PUBLISHED/day → paid order/PDF/subscription net MRR → Capafy automation repair/canary`。投稿数と収益の未確認を完了扱いしない。Daisの手動作業は現時点で不要。
+
+### 2026-10-08 15:27 JST — handoff watcher preempts the active fleet apply
+
+この追記はPR #7057 merge後のproduction readbackでeBook cursorを並べ替える。main `8114a31d`にはexact-occurrence routing修正が入ったが、global release handoffがowner収束を中断している。
+
+**確認した事実:**
+
+- `origin/main=71a5f878`、current immutable release `20261008T152333-71a5f878`、release reconciler current snapshotは`loaded-running` / PID `84853`。eBook EN/JA TikTok/JA Instagramと`lm-fence-reconciler`はまだSHA `8f342d8d`で、eBook claimsは`host_admission_deferred:resource_effect_unknown`のまま。
+- Release reconciler run `18dc78bd552580c0-11196` (SHA `620d941e`)はfleet owner log 26/187 rows、最後は`lancers-revenue-application`、eBook plan positions 105–107、eBook rows 0で06:15:14Zに`entrypoint_exit_143`した。fleet stateは旧SHAのままで、このrunのterminal summaryは残らない。
+- 次のrun `18dc7959bdb11c70-88792` (SHA `68b03657`)も06:22:24Zに`entrypoint_exit_143`。self-handoff receiptはtarget SHA `68b03657`のloaded argv readbackをverifiedとしているが、fleet completionは証明しない。
+- source pathでhandoff watcherは`LIFE_MANAGER_RECONCILER_HANDOFF_ONLY=1`で短命runnerを起動する。handoff-only branchは`schedule_self_handoff`へrunner自身の`$$`を渡し、helperはそのPIDの終了後に旧serviceをbootoutする。これは稼働中のrelease reconciler PIDとは別であり、active fleet processをbootoutできる。runtimeのPID不一致、26-row fleet cutoff、143 terminalが一致する。
+
+**TODO順変更:** 旧順=`exact-occurrence source merge → latest release natural fleet converge → eBook/fence owner apply → identity recovery`。新順=`active old-service PIDが残る間はbootoutしないhandoff regression testを先にREDで再現 → self-handoff helperがlaunchctl-safe readbackで実際のold-service PID/idleを確認し、activeならbounded wait、unknownならfail-closedでreceiptを残す最小修正 → focused test/bash syntax/loop contract/source review/CI → main merge → current SHA 71a5 processの自然terminalと次release handoff receiptをreadback → eBook 3 ownersとfence reconcilerをcurrent main SHAへtarget apply/readback → exact occurrence route → unique identity recovery → JP catch-up if due / EN old-effect resolution → 9 unique PUBLISHED/day → settled checkout/PDF/monthly subscription net MRR → paid-order+PDF gate後にCapafy bootstrap fix/canary`。理由: 2 consecutive reconciler runs exited143 before eBook plan positions and left owner SHA stale; latest release helper must protect an active run before fleet convergence can complete. 現在cursor=`handoff helperのactive-service protectionをTDDでREDにする`。
+
+現在、main SHA `71a5f878`のreconcilerはloaded-running。source patchは専用branchで作り、running ownerを手動停止・再起動・重複applyせず、handoff helperの次回natural loadで安全に引き継ぐ。Daisの手動操作は不要。
