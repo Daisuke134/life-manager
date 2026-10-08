@@ -1801,3 +1801,23 @@ def test_article_daily_declares_its_live_url_fence_reconcile():
     rec = registry["loops"]["article-daily"].get("effect_reconcile") or {}
     assert rec.get("argv") == ["skills/writer-agent/scripts/article_fence_reconcile.py"]
     assert rec.get("occurrence_flag") == "--occurrence" and rec.get("resolve_flag") == "--resolve"
+
+
+def test_interval_revenue_agent_loops_that_pile_up_queued_wakes_declare_coalescing():
+    """2026-10-09: 21,590 queued admission rows; lancers-revenue-application alone held 4,512 (60 s
+    interval), starving the 2-slot agent class that 18 posting loops share.  A revenue interval loop
+    with no coalescing contract adds a queued row every wake and never retires the old ones."""
+    import json
+    from pathlib import Path
+    registry = json.loads((Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text())
+    pileups = (
+        "lancers-revenue-application", "lancers-revenue-work-sync", "hf-gig-reply-detector",
+        "crowdworks-revenue-application", "lancers-revenue-negotiate", "crowdworks-revenue-reply",
+        "marketing-owner-events",
+    )
+    missing = []
+    for loop_id in pileups:
+        row = registry["loops"][loop_id]
+        if not (row.get("coalesce_reserved_wakes") is True and row.get("coalesce_queued_wakes") is True):
+            missing.append(loop_id)
+    assert missing == []

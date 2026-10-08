@@ -188,6 +188,8 @@
       "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "application",
@@ -289,6 +291,8 @@
       "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "message",
@@ -1754,6 +1758,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "domain": "earn",
       "effect_class": "message",
       "reconcile_queued_release": true,
@@ -1991,6 +1997,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "application",
@@ -2108,6 +2116,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "message",
@@ -2180,6 +2190,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "none",
@@ -3416,6 +3428,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "growth",
       "effect_class": "none",
