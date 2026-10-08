@@ -25,7 +25,8 @@ WHY THIS EXISTS (self-fix-capafy-loop, 2026-07-08):
 Server truth only (never the local ledger). Exit 0 always; verdict is on stdout as JSON and
 as a VERDICT=<state> line for cheap bash grepping.
 """
-import json, os, re, subprocess, sys
+import json
+import os, re, subprocess, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -56,10 +57,12 @@ READY_TO_PUBLISH = {"approved", "pending_online", "audit_passed_pending_online"}
 UNLISTED = {"draft", "under_review", "review_rejected"}
 REJECTED = {"review_rejected", "banned"}
 RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
-# Capafy states no limit on unlisted Agents (publisher docs, web, 2026-10-08) and held
-# 9 at once, so we do not self-limit (Dais 2026-10-08: submit as many as Capafy
-# accepts). A server refusal on create in the factory log is the only reason to cap.
-CAP = 1_000_000
+# Capafy's create endpoint refuses a 6th unlisted Agent (draft + under review + rejected).
+# 2026-10-09 00:25 JST: server list = 4 under_review + 1 review_rejected = 5, and publish-init
+# failed for every new Agent while a resumed draft still went through. Support also treats a
+# higher limit as a feature request (2026-10-08 mail). Dais 2026-10-08's rule "a server refusal
+# on create is the only reason to cap" therefore applies: cap at the real 5, override by env.
+CAP = int(os.environ.get("CAPAFY_UNLISTED_CAP", "5"))
 
 # Capafy's AI-generator stamps this exact suffix on the stub draft it creates
 # before any repo content is supplied. Must match select_publish_agent.py's
