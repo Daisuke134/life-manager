@@ -50,6 +50,64 @@ def test_a_window_that_cannot_reach_the_minimum_is_not_worth_waiting_for(tmp_pat
     assert result["basis"] == "rolling_30d_view_rate_projected_onto_window"
 
 
+def test_discretionary_mutations_wait_until_their_experiment_has_enough_exposure(tmp_path):
+    def prepare(root, views, status="known"):
+        root.mkdir()
+        analytics(root, views, status)
+        policy = root / "scorecard.json"
+        policy.write_text(json.dumps({
+            "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+            "priority_backlog": [{
+                "priority": 1, "service_id": SERVICE_ID, "field": "body", "before": 1,
+                "success_metric": "inquiries", "reason": "bounded service outcome test",
+            }],
+        }), encoding="utf-8")
+        contracts = [{"service_id": SERVICE_ID, "service_version_sha256": "a" * 64}]
+        mutation = [{
+            "service_id": SERVICE_ID, "changed_field": "body",
+            "precondition_listing_version_sha256": "a" * 64,
+            "contract_sha256": "b" * 64, "observation_window_days": 14,
+            "proposed_value": "fixed scoped result",
+        }]
+        return sd._prepare_next_hypothesis(
+            policy, root / "effects.jsonl", root / "outcomes.jsonl", contracts, 1_800_000_000,
+            mutation_contracts=mutation,
+        )
+
+    low = prepare(tmp_path / "low", 50)
+    assert low["executable"] is False
+    assert low["guard_reason"] == "metric_unmeasurable_insufficient_exposure"
+    assert low["measurement_feasibility"]["projected_window_views"] == 23
+
+    sufficient = prepare(tmp_path / "sufficient", 300)
+    assert sufficient["executable"] is True
+    assert sufficient["measurement_feasibility"]["projected_window_views"] == 140
+
+    unknown = prepare(tmp_path / "unknown", 0, status="unavailable")
+    assert unknown["executable"] is False
+    assert unknown["guard_reason"] == "measurement_exposure_unknown"
+
+
+def test_stale_offer_correction_is_not_an_exposure_gated_experiment(tmp_path):
+    analytics(tmp_path, 15)
+    policy = tmp_path / "scorecard.json"
+    policy.write_text(json.dumps({"priority_backlog": []}), encoding="utf-8")
+    contracts = [{"service_id": SERVICE_ID, "service_version_sha256": "a" * 64}]
+
+    refresh = sd._prepare_next_hypothesis(
+        policy, tmp_path / "effects.jsonl", tmp_path / "outcomes.jsonl", contracts,
+        1_800_000_000,
+        offer_refresh=[{
+            "service_id": SERVICE_ID, "family": "sns_operations",
+            "offer_field": "body", "offer_digest": "stale-offer",
+        }],
+    )
+
+    assert refresh["offer_digest"] == "stale-offer"
+    assert refresh["guard_reason"] == "proposal_contract_required"
+    assert "measurement_feasibility" not in refresh
+
+
 def test_a_listing_with_real_traffic_keeps_its_window(tmp_path):
     result = sd._measurement_feasible(analytics(tmp_path, 900), SERVICE_ID, 14, 100)
     assert result["projected_window_views"] == 420 and result["feasible"] is True

@@ -1102,10 +1102,13 @@ def test_a_service_with_an_open_experiment_is_not_selected_again(tmp_path):
     measurement window read as work. When it is the only candidate the answer is nothing.
     """
     scorecard = tmp_path / "scorecard.json"
-    scorecard.write_text(json.dumps({"priority_backlog": [
-        {"priority": 1, "service_id": "91000001", "field": "image", "before": 0,
-         "success_metric": "views_to_inquiry", "reason": "verified gap"},
-    ]}))
+    scorecard.write_text(json.dumps({
+        "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+        "priority_backlog": [{
+            "priority": 1, "service_id": "91000001", "field": "image", "before": 0,
+            "success_metric": "views_to_inquiry", "reason": "verified gap",
+        }],
+    }))
     effects = tmp_path / "effects.jsonl"
     effects.write_text(json.dumps({
         "status": "accepted", "effect": 1, "service_id": "91000001",

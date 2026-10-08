@@ -3451,6 +3451,26 @@ def _prepare_next_hypothesis(
                 != versions.get(str(candidate["service_id"]))):
             mutation_contract = None
     identity = json.dumps(candidate, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    observation_window_days = (mutation_contract or {}).get("observation_window_days")
+    if type(observation_window_days) is not int or observation_window_days not in {7, 14}:
+        observation_window_days = candidate.get("observation_window_days")
+    if type(observation_window_days) is not int or observation_window_days not in {7, 14}:
+        observation_window_days = 14
+    measurement_feasibility = _measurement_feasible(
+        effects_path.parent / "analytics.jsonl", service_id, observation_window_days,
+        int(_portfolio_policy(scorecard_path).get("minimum_views_for_measurement", 100)),
+    )
+    executable = mutation_contract is not None
+    guard_reason = None if executable else "proposal_contract_required"
+    # Correctness repairs are not experiments. For discretionary catalogue changes, refuse to
+    # spend a listing mutation when official traffic says the declared window cannot be measured.
+    if not candidate.get("compliance_repair") and not candidate.get("offer_digest"):
+        if measurement_feasibility.get("status") != "known":
+            executable = False
+            guard_reason = "measurement_exposure_unknown"
+        elif not measurement_feasibility.get("feasible"):
+            executable = False
+            guard_reason = "metric_unmeasurable_insufficient_exposure"
     return {
         "version": 1,
         "hypothesis_key": "storefront:hypothesis:v1:" + hashlib.sha256(identity.encode()).hexdigest(),
@@ -3462,8 +3482,10 @@ def _prepare_next_hypothesis(
         "before": candidate.get("before"),
         "success_metric": candidate.get("success_metric"),
         "reason": str(candidate.get("reason") or ""),
-        "executable": mutation_contract is not None,
-        "guard_reason": None if mutation_contract is not None else "proposal_contract_required",
+        "observation_window_days": observation_window_days,
+        "measurement_feasibility": measurement_feasibility,
+        "executable": executable,
+        "guard_reason": guard_reason,
         "active_experiment_key": active[0].get("experiment_key") if active else None,
         "mutation_contract_sha256": (
             mutation_contract["contract_sha256"] if mutation_contract is not None else None
