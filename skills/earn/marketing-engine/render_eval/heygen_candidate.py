@@ -104,6 +104,18 @@ def _wallet_snapshot(executor: Executor, cli: str) -> dict:
     }
 
 
+def _video_status(executor: Executor, cli: str, video_id: str) -> str:
+    result = _run(executor, [cli, "video", "get", video_id])
+    response = json.loads(result.stdout)
+    data = response.get("data", response)
+    require(isinstance(data, dict), "HeyGen video readback is invalid")
+    returned_id = str(data.get("video_id") or data.get("id") or "")
+    require(not returned_id or returned_id == video_id, "HeyGen video readback ID mismatch")
+    status = str(data.get("status") or "").strip().lower()
+    require(bool(status), "HeyGen video readback has no status")
+    return status
+
+
 def _measured_wallet_cost(before: dict, after: dict) -> dict | None:
     if before.get("currency") != "usd" or after.get("currency") != "usd":
         return None
@@ -231,6 +243,22 @@ def render(
         if output.exists():
             require(output.is_file() and not output.is_symlink() and output.stat().st_size > 0,
                     "HeyGen recovered output invalid")
+        try:
+            provider_status = _video_status(executor, config["cli"], video_id)
+        except Exception as exc:
+            _write_json(intent_path, {**intent,
+                                      "provider_status_error_class": type(exc).__name__})
+            return {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
+                    "video_id": video_id, "provider_status": intent.get("provider_status"),
+                    "error_class": type(exc).__name__, "effect_key": request_sha256,
+                    "external_effects": ["heygen_video_created"]}
+        intent = {**intent, "provider_status": provider_status}
+        _write_json(intent_path, intent)
+        if provider_status != "completed":
+            return {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
+                    "video_id": video_id, "provider_status": provider_status,
+                    "effect_key": request_sha256,
+                    "external_effects": ["heygen_video_created"]}
     else:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             json.dump({**expected, "state": "prepared", "wallet_before": wallet_before},
@@ -239,24 +267,46 @@ def render(
             handle.flush()
             os.fsync(handle.fileno())
         _write_json(intent_path, {**expected, "state": "sending", "wallet_before": wallet_before})
+        create_exit_code = 0
+        create_error_class = None
         try:
-            _clear_pre_effect_hint(os.environ if environment is None else environment)
-            created = _run(
-                executor,
-                [config["cli"], "video", "create", "-d", "-", "--wait"],
-                input_text=json.dumps(request, ensure_ascii=False),
-            )
-            response = json.loads(created.stdout)
+            try:
+                _clear_pre_effect_hint(os.environ if environment is None else environment)
+                created = _run(
+                    executor,
+                    [config["cli"], "video", "create", "-d", "-", "--wait"],
+                    input_text=json.dumps(request, ensure_ascii=False),
+                )
+                create_output = created.stdout
+            except subprocess.CalledProcessError as exc:
+                create_exit_code = int(exc.returncode)
+                create_error_class = type(exc).__name__
+                create_output = exc.stdout if exc.stdout is not None else exc.output
+                require(bool(create_output), "HeyGen create failed without a provider receipt")
+            response = json.loads(create_output)
             data = response.get("data", response)
+            require(isinstance(data, dict), "HeyGen create receipt is invalid")
             video_id = str(data.get("video_id") or "")
             require(IDENTIFIER.fullmatch(video_id) is not None, "HeyGen create receipt has no video ID")
-            require(data.get("status") == "completed", "HeyGen video did not complete")
         except BaseException:
             _write_json(intent_path, {**expected, "state": "delivery_uncertain",
                                       "wallet_before": wallet_before})
             raise
-        _write_json(intent_path, {**expected, "state": "provider_created", "video_id": video_id,
-                                  "wallet_before": wallet_before})
+        provider_status = str(data.get("status") or "").strip().lower()
+        intent = {**expected, "state": "provider_created", "video_id": video_id,
+                  "provider_status": provider_status or None, "wallet_before": wallet_before}
+        if create_exit_code:
+            intent.update({"create_exit_code": create_exit_code,
+                           "create_error_class": create_error_class})
+        _write_json(intent_path, intent)
+        if create_exit_code or provider_status != "completed":
+            pending = {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
+                       "video_id": video_id, "provider_status": provider_status or None,
+                       "effect_key": request_sha256,
+                       "external_effects": ["heygen_video_created"]}
+            if create_exit_code:
+                pending.update({"error_class": create_error_class, "exit_code": create_exit_code})
+            return pending
     if not output.exists():
         if staging.exists():
             staging.unlink()
@@ -287,7 +337,8 @@ def render(
         return {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
                 "video_id": video_id, "effect_key": request_sha256, "external_effects": []}
     receipt = _receipt(output, video_id, wallet_cost)
-    _write_json(intent_path, {**expected, "state": "completed", "video_id": video_id,
+    _write_json(intent_path, {**intent, **expected, "state": "completed", "video_id": video_id,
+                              "provider_status": provider_status,
                               "wallet_before": wallet_before, "wallet_cost": wallet_cost,
                               "output_sha256": receipt["sha256"]})
     return receipt

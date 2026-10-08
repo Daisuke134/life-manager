@@ -1132,6 +1132,90 @@ def reconcile_pending_owner(
     }
 
 
+def _identity_for_occurrence(identity_dir: Path, owner_id: str,
+                              occurrence_id: str) -> dict[str, Any] | None:
+    try:
+        sidecars = sorted(identity_dir.expanduser().glob("*.jsonl"), key=lambda item: item.name)
+    except OSError:
+        return None
+    match = None
+    for sidecar in sidecars:
+        identity = read_identity(sidecar, owner_id, occurrence_id)
+        if identity is None or identity.get("runtime_run_id") != sidecar.stem:
+            continue
+        if match is not None:
+            return None
+        match = identity
+    return match
+
+
+def reconcile_current_occurrence(
+    *, owner_id: str, occurrence_id: str, identity_dir: Path, data_dir: Path,
+    tenant_id: str, admission_db: Path, api_key: str, apply: bool,
+) -> dict[str, Any]:
+    """Reconcile only the occurrence claimed by the current runtime invocation."""
+    if (not ID.fullmatch(owner_id)
+            or not _READ_ONLY.OCCURRENCE.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(f"{owner_id}:")):
+        return _inconclusive(owner_id, occurrence_id, "runtime_occurrence_missing_or_invalid")
+
+    try:
+        state, effect_unknown = _admission_state(admission_db, owner_id, occurrence_id)
+    except (OSError, sqlite3.Error):
+        return _inconclusive(owner_id, occurrence_id, "admission_occurrence_read_failed")
+    if state in {"claimed", "released"} and effect_unknown == 0:
+        return {
+            "status": "clean",
+            "owner_id": owner_id,
+            "occurrence_id": occurrence_id,
+            "reason": "current_occurrence_clean",
+            "inspected": 0,
+        }
+    if state not in {"claimed", "released"} or effect_unknown != 1:
+        return _inconclusive(owner_id, occurrence_id, "admission_occurrence_missing_or_invalid")
+
+    identity = _identity_for_occurrence(identity_dir, owner_id, occurrence_id)
+    if identity is None:
+        return _inconclusive(owner_id, occurrence_id, "identity_missing_or_invalid")
+    ledger = _ledger_for_identity(identity, data_dir, tenant_id)
+    if ledger is None:
+        return _inconclusive(owner_id, occurrence_id, "distribution_ledger_path_invalid")
+    if (_local_receipt(identity, ledger) is None
+            and identity.get("product_id") not in EBOOK_TOKEN_PREFIXES
+            and not _is_native_carousel_identity(identity)):
+        return _inconclusive(owner_id, occurrence_id, "exact_pending_receipt_unavailable")
+    return reconcile_provider_effect(
+        identity, ledger, owner_id, occurrence_id,
+        state=state, effect_unknown=effect_unknown, api_key=api_key,
+        apply=apply, admission_db=admission_db, identity_dir=identity_dir,
+    )
+
+
+def _runtime_occurrence_scope(owner_id: str) -> tuple[str, str | None] | None:
+    """Return the current occurrence, an error reason, or None for manual CLI use."""
+    occurrence_key = "LIFE_MANAGER_OCCURRENCE_ID"
+    runtime_keys = (
+        "LIFE_MANAGER_RUN_ID", "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID",
+        "LIFE_MANAGER_RELEASE_SHA", "LIFE_MANAGER_RELEASE_ROOT",
+        "LIFE_MANAGER_EFFECT_IDENTITY_PATH", "LIFE_MANAGER_RESULT_HINT_PATH",
+    )
+    if occurrence_key not in os.environ:
+        if any(key in os.environ for key in runtime_keys):
+            return "", "runtime_occurrence_missing_or_invalid"
+        return None
+
+    occurrence_id = os.environ.get(occurrence_key, "")
+    if (not ID.fullmatch(owner_id)
+            or not _READ_ONLY.OCCURRENCE.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(f"{owner_id}:")):
+        return occurrence_id, "runtime_occurrence_missing_or_invalid"
+    for key in ("LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID"):
+        runtime_owner = os.environ.get(key)
+        if runtime_owner and runtime_owner != owner_id:
+            return occurrence_id, "runtime_occurrence_missing_or_invalid"
+    return occurrence_id, None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--identity", type=Path)
@@ -1177,15 +1261,31 @@ def main(argv: list[str] | None = None) -> int:
     if args.auto_owner:
         if any((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
             parser.error("--auto-owner cannot be combined with exact reconciliation arguments")
-        result = reconcile_pending_owner(
-            owner_id=args.auto_owner,
-            identity_dir=args.identity_dir,
-            data_dir=args.data_dir,
-            tenant_id=args.tenant_id,
-            admission_db=args.admission_db,
-            api_key=os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""),
-            apply=args.resolve,
-        )
+        api_key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
+        runtime_scope = _runtime_occurrence_scope(args.auto_owner)
+        if runtime_scope is None:
+            result = reconcile_pending_owner(
+                owner_id=args.auto_owner,
+                identity_dir=args.identity_dir,
+                data_dir=args.data_dir,
+                tenant_id=args.tenant_id,
+                admission_db=args.admission_db,
+                api_key=api_key,
+                apply=args.resolve,
+            )
+        elif runtime_scope[1] is not None:
+            result = _inconclusive(args.auto_owner, runtime_scope[0], runtime_scope[1])
+        else:
+            result = reconcile_current_occurrence(
+                owner_id=args.auto_owner,
+                occurrence_id=runtime_scope[0],
+                identity_dir=args.identity_dir,
+                data_dir=args.data_dir,
+                tenant_id=args.tenant_id,
+                admission_db=args.admission_db,
+                api_key=api_key,
+                apply=args.resolve,
+            )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         if result.get("status") in {"clean", "resolved"}:
             return 0

@@ -111,9 +111,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--slot-at", required=True)
     parser.add_argument("--state-root", required=True, type=Path)
     args = parser.parse_args(argv)
-    print(json.dumps(render_slot(product=args.product, slot_at=args.slot_at,
-                                 state_root=args.state_root),
-                     ensure_ascii=False, separators=(",", ":")))
+    try:
+        result = render_slot(product=args.product, slot_at=args.slot_at,
+                             state_root=args.state_root)
+    except Exception as exc:
+        print(json.dumps({
+            "schema_version": "marketing.ebook-render-failure.v1",
+            "error_class": type(exc).__name__,
+        }, ensure_ascii=False, separators=(",", ":")))
+        return 1
+    print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
     return 0
 
 
