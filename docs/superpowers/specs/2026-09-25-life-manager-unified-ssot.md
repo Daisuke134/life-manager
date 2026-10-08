@@ -7118,6 +7118,17 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 5. disk/admission回復後、target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送しない。
 6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
+### Marketing IntelからWriterへの記事候補連携（並列作業）
+
+**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
+
+**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
+
+**受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後、disk admissionが回復してから自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
+
+**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、外部effectやowner stateを触らない。主cursorの順序は変更しない。production反映と自然実行はdisk cleanup receipt `free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`およびadmission passの後に行う。
+
+**現在cursor:** fixture RED → 最小importerとarticle-daily接続 → focused acceptance → commit/push・PR/merge → immutable release → disk/admission回復後の自然Writer occurrence → 公開URL・公式売上readback。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
@@ -7144,3 +7155,24 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. disk/writer修正後にclaims、reservations、eligible queue age、class contention、CPU/RAM/diskと実際の有限job数を同一windowで測る。global cap 8とresident process数を区別し、class/global cap saturationが実証された場合だけ最小変更を行う。結果と経済数値を別集計する。
 
 **現在cursor:** push SSOT-only PR update → exact-head CI/fresh ship review/merge → natural immutable release and readback → exact disk writer/recovery/admission → Fundraiser official effect reconciliation → target natural outcomes → post-recovery same-window capacity/economics.
+
+
+### 2026-10-08 23:02 JST — PR cursorとlatest-main競合を更新
+
+- reviewerはhead `45a0bfefbc40d62a177767cc7b71584a5f686b73`をread-only確認し`fix-first`。その時点のCIはCodeRabbitのmanual-review-skippedだけで、前head `7866fad4`の9 checks successを新headのCI成功とは扱えない。指摘は、既にpush済みのSSOT updateをTODO 1で再度「pushする」としていたcursor stale。
+- `origin/main`はその後`be130839878c2e46bc677ee225fa19ae48785288`（PR #7158、Writer marketing importer）へ進み、PR #7156が`DIRTY`になった。normal mergeでSSOT append競合が発生したため、loop capacity sectionとmain側Marketing Intel→Writer sectionを両方保持して解消した。loop source/testに競合はない。
+- merge resolutionはworktreeへ反映済みだが、まだmerge commit/push前。PR #7156のhead/CI/reviewは最新mainを含んだ新headで再取得する。
+
+**順序更新:** TODO 1 `45a0...` SSOT update pushは完了済みへ変更。新順=`(1) main #7158と双方のSSOT追記を保ったmerge resolutionをcommit/push → (2) PR #7156の新headでmergeable・required CI・fresh review shipを取得 → (3) merge → (4) immutable release/natural fleet readback → (5) disk recovery/admission → (6) Fundraiser unknown fence → (7) target natural results → (8) post-recovery capacity measurement`。理由は、mainがbranchより先行してPRがdirtyになり、前headのCI/reviewが新baseを検証していないため。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—最新main merge resolutionを完了する。** SSOTの両追記とmainの3 Writer filesを保持してstage/commitし、`fix/loop-capacity-queue-20261008`へpushする。
+2. PR #7156が最新`origin/main`に対してmergeableになったことを確認する。正確なhead SHAでrequired CIを全passさせ、fresh read-only reviewerから`ship`を得る。どちらかのheadが変われば取り直す。
+3. `gh pr merge 7156 --admin`を先に試し、拒否されたらexact blockerを記録して通常手順を続ける。merge後はmain SHA由来immutable releaseを自然handoffさせ、reconcilerを停止せずfleet retry stateとtarget ownerのloaded SHA/admissionをreadbackする。
+4. cleanup receipt、fast/full inventory、`df`/APFS、owner/process physical I/Oを同じ時間窓で採取し、free変動の正確なwriterまたはsafe owner-owned cleanupを特定する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
+5. Fundraiserの4 unknown occurrenceを個別provider official readbackで照合する。receiptがないeffectは再送せずfenceを維持する。
+6. disk/admission回復とeffect fence解決後にConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの自然occurrenceを確認し、official result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結び付ける。
+7. disk回復後の同一windowでactive claims/reservations/eligible queue age/class contention/CPU/RAM/diskと有限jobの実並列数を測る。configured cap 8を実測と区別し、cap saturationが実証された時だけ最小変更を行う。
+
+**現在cursor:** finish normal merge with origin/main be130839 → push branch → exact-head PR mergeability/CI/fresh ship review → merge → immutable release/natural readback → disk writer recovery/admission → Fundraiser official reconciliation → target natural outcomes → post-recovery capacity/economics.
