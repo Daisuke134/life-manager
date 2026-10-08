@@ -143,3 +143,22 @@ class MarketingIntelWriterImportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MarketingIntelMustNotBreakThePaidDemandGateTests(unittest.TestCase):
+    """2026-10-09: article-daily.sh ran the importer right before `demand_authority.py --demand-mode
+    required`, which rejects any queue card that is not a paid-demand card.  Every run exited 75
+    (`Writer pending: required paid-demand claim-loop supply is not ready`) and no article shipped.
+    The importer (added 10/8, #7158) therefore stays off unless explicitly enabled."""
+
+    def test_daily_runs_the_importer_only_when_explicitly_enabled(self):
+        daily = (Path(__file__).resolve().parents[1] / "article-daily.sh").read_text(encoding="utf-8")
+        call = daily.index("scripts/import_marketing_intel.py")
+        guard = daily.rindex("ARTICLE_IMPORT_MARKETING_INTEL", 0, call)
+        self.assertLess(call - guard, 200, "the importer call must sit directly behind the opt-in guard")
+        self.assertIn('${ARTICLE_IMPORT_MARKETING_INTEL:-0}', daily)
+
+    def test_the_gate_is_still_required_and_runs_after_the_import_step(self):
+        daily = (Path(__file__).resolve().parents[1] / "article-daily.sh").read_text(encoding="utf-8")
+        self.assertIn("--demand-mode required", daily)
+        self.assertLess(daily.index("scripts/import_marketing_intel.py"), daily.index("--demand-mode required"))
