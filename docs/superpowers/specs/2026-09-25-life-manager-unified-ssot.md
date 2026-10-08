@@ -8695,6 +8695,33 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit/push final Lancers correction + status → exact-head CI/fresh review → merge #7106 → release/reconciler/queue readbacks → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:37 JST — CrowdWorks rejection status added to the final adapter pass
+
+このsnapshotは05:34のCFO status/TODOを置き換える。Money Tree/A7とCloud cost workは対象外。CFO順序`A5 → A6 → A8 → A9 → A10`は維持する。
+
+- **Latest source fix:** fresh review on head `6ef1520c` found CrowdWorks `run()` could return `ok:true` for a `provider_rejected` send. Added a RED test, then `ok` now also requires `provider_rejected==0`; JSON exposes the counter. Together with the prior Lancers fix, both custom marketplace wrappers preserve known provider rejection and report failure truthfully.
+- **Local tests:** shared/Lancers/CrowdWorks receipt Python 58/58; Lancers package tests 89/89; CFO Node 61/61; investment artifact parity 2/2; cross-venue Python 26/26; merged loop/host 61/61; mobile canary 20/20; OSS verifier, loop contract 18/188/113, and diff check PASS.
+- **PR/current remote:** head `5ae69e25` / base `724e18f0` does not include the Lancers/CrowdWorks adapter fixes. Fresh review on 5ae had one Important for Lancers; review on 6ef found one Important for CrowdWorks. Need push a new head and request one fresh full-diff review after all adapter changes.
+- **Financial truth:** production CFO's last terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt, loaded SHA `8d986ff4...`. Doctor reports unmanaged release-reconciler self-handoff. Current revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`Lancers fix → push → exact review`。新cursor=`(1) 完了: Lancers rejection flag/counter preservation → (2) 完了: CrowdWorks `ok` false when rejected (RED→GREEN) → (3) 完了: 58 shared/Lancers/CrowdWorks Python + 89 Lancers package + 61 CFO Node + 2 parity + 26 cross-venue + 61 loop/host + 20 mobile + OSS/contract → (4) current source/spec commit and push → (5) exact-head CI + one fresh review → (6) merge #7106`。理由は、2 custom marketplace adaptersが共通拒否counterを別々に失う境界と、CrowdWorksが拒否時にもsuccessを報告する境界を閉じたため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Lancers adapter forwards provider rejection as attempted/rejected and surfaces the counter.
+2. [x] CrowdWorks JSON sets `ok=false` and exposes `provider_rejected` when the shared delivery rejects.
+3. [x] Targeted shared/Lancers/CrowdWorks/CFO/investment/loop/mobile tests and OSS/contract checks pass.
+4. [ ] Commit current status and Lancers/CrowdWorks fixes; push final source branch; read back exact PR head/base.
+5. [ ] On that exact head, required CI all pass and fresh full-diff review has Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Normal owner/reconciler route: self-handoff, CFO loaded SHA/doctor, fresh queue/claim and natural terminal; no stop/restart or cap increase.
+8. [ ] CFO natural receipt-backed report with period/currency/source coverage, per-loop settlements/cost and replay-zero; totals remain unknown until verified.
+9. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 all-loop coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** source defects are fixed and locally tested; remote PR is still 5ae69e25 and lacks both custom-adapter corrections. Commit/push the final head, then run exact-head CI and fresh review. Production remains separately blocked by `resource_capacity_busy`, unmanaged release-reconciler self-handoff, and stale queue read. Use normal owner/reconciler path and natural claim drain; do not restart owners or increase caps. No verified CFO actual totals are available.
+
+**Current cursor:** commit/push latest adapter fixes + status → exact-head CI/fresh review → merge #7106 → production CFO owner/queue/receipt readback → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。

@@ -194,9 +194,11 @@ def run(*, database: Path = DATABASE, notifier: Optional[Callable[[str], SendRes
     enqueued += enqueue_wake_summary(database, now=stamp)
     send = notifier or (lambda message: delivery.send_via_shared_client(message, chat_id=TARGET))
     sent = delivery.deliver_pending(outbox, database, send)
-    return {"ok": sent.delivery_uncertain == 0 and sent.pre_send_failed == 0, "platform": "crowdworks",
+    return {"ok": sent.delivery_uncertain == 0 and sent.pre_send_failed == 0
+            and sent.provider_rejected == 0, "platform": "crowdworks",
             "enqueued": enqueued, "attempted": sent.attempted, "delivered": sent.delivered,
-            "delivery_uncertain": sent.delivery_uncertain, "pre_send_failed": sent.pre_send_failed}
+            "delivery_uncertain": sent.delivery_uncertain, "pre_send_failed": sent.pre_send_failed,
+            "provider_rejected": sent.provider_rejected}
 
 
 def main(argv: Optional[Sequence[str]] = None, *, notifier: Optional[Callable[[str], SendResult]] = None, stdout: Any = None) -> int:
