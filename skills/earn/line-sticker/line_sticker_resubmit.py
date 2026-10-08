@@ -61,8 +61,9 @@ def decide_action(set_dir: Path, rejection_message: str, item: dict, listing: di
 
 async def _leave_features(page: Page, item: dict) -> None:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}/update")
-    radio = page.locator("input[type=radio][value='on']")
-    await radio.first.locator("xpath=ancestor::label[1]").click()
+    # 参加しない has no value attribute (DOM .value reads "on", CSS [value='on'] matches nothing).
+    radio = page.locator("input[type=radio]:not([value])")
+    await radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
     assert await radio.first.is_checked()
     await page.evaluate("document.querySelector('input[data-test=btn-save]').click()")
     ok_button = page.locator("button:visible", has_text="OK").last

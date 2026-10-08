@@ -25,8 +25,8 @@ else
 fi
 lm_require_env_keys LM_POSTIZ_API_KEY
 
-NODE_BIN="${LIFE_MANAGER_NODE:-$(command -v node || true)}"
-PYTHON_BIN="${LIFE_MANAGER_PYTHON:-$(command -v python3 || true)}"
+NODE_BIN="${LIFE_MANAGER_NODE:-${LIFE_MANAGER_RUNTIME_NODE:-$(command -v node || true)}}"
+PYTHON_BIN="${LIFE_MANAGER_PYTHON:-${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v python3 || true)}}"
 [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || { printf 'mobile app loop requires node\n' >&2; exit 1; }
 [ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ] || { printf 'mobile app loop requires python3\n' >&2; exit 1; }
 

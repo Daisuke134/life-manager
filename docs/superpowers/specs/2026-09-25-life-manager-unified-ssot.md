@@ -724,7 +724,7 @@ TODO（何を・どう直すか）
 |---|---|---|---|---|
 | 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | コード本番済み（#7039）。工場が静止ラインを選んだ時点で live 証明 |
 | 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | DONE（#7046） |
-| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | コード本番済み（#7034 `1872befb`）。手動で 48137583 を 835 に参加済み |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | 48137583 が 835「冬」で却下（2026-10-08、冬の絵が 8 個に届かず）。修正: 選定が `campaign_theme_ids` を列挙し、条件個数+4 以上の時だけ参加（決定的ガード）。却下の自動再申請も 4 つの欠陥（英語タイトル照合・返信フォーム化した本文末尾・二重 URL・value 属性の無い「参加しない」）で一度も動いていなかった → 修正し、48137583 を `leave_features` で自動再申請、審査待ちを readback |
 | 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | コード本番済み（#7068、#7074 provenance 修正）。**DONE**。set-012（48151688「動く！ポンタの毎日敬語スタンプ」、24 個）を ChatGPT コマ画像→整数秒ループ APNG（#7081）で無課金生成し、自然実行で 2026-10-08 07:19Z 申請。Creators Market で「審査待ち」を readback |
 | 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 工場配線済み（静止、Pillow 描画、#7080）。自然 wake の with_text 申請 readback 待ち |
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録 |
@@ -3211,12 +3211,20 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 | R5 | 実行枠が満杯で 33 本が見送り（`resource_capacity_busy`）、22 本が `resource_effect_unknown`。負荷平均 17 | 187 本が少ない枠（agent 1・browser 1・deterministic 2〜3）を取り合う。内訳は未特定 | 未着手（下の TODO） | 🔶 |
 | R6 | 売れている agent を工場が触った | 凍結が UPDATE.json の絞り込み 1 経路にしかなく、例外メモと下書き再開が素通り | 関所 `frozen_guard.sh`（prepare/finish）＋凍結 id を引退扱い＋工場は新規のみ | ✅ |
 
+| R7 | 工場の 15 分タイマーが 1 時間以上戻り続ける（10/08 14:35〜16:38 に起動 0 回） | `release-reconciler` の「30 分はまとめる」制限が `last_status = ok` のときだけ効いた。毎回 2〜4 本のジョブが失敗して status=error・last_ok_epoch=0 のままなので一度も効かず、リリースを切るたびに約 60〜84 本を作り直し（記録 636 回）、全ジョブの StartInterval が最初に戻った | 前回の「試行」時刻でも制限（`last_attempt_epoch`）。同じ sha の失敗後の再試行は従来の backoff。テスト 29 件（新規 2、時刻のずらし方も更新）。release c61f2c89 で本番、16:22 の反映が 16:52 まで正しくまとめられたのを確認 | ✅ |
+| R8 | 新規 agent が CP2 で毎回止まる。失敗のたびに新しい下書きが増える | CP2 が workspace 項目を先に埋めて保存 → tab が有効になり 下書きを保存 が 審査に提出 に変わる → その後のモデル選択は保存されず official model=None → CP3 の関所が正しく拒否 | モデル選択を workspace 項目より先に（tab が無効な間に 下書きを保存 で永続）。順序テスト（修正を外すと失敗）。16:38 の回で official model verified True・CP1_MODEL=VERIFIED・出荷（4933688052）。初の新規出荷（7 日ぶり） | ✅ |
+| R9 | 毎日 1 回きりのループ（article-daily 06:00）が、自分のラベルの反映と重なると 78 で捨てられる | per-label の反映ロックが LOCK_NB で即 RuntimeError → exit 78 | 最大 150 秒（環境変数で変更可）5 秒間隔で待ち、それでもだめなら従来の記録。テスト 134 件（新規は修正を外すと失敗） | ✅ マージ済み（次のリリースで本番） |
+
 ### 残り（この順）
 1. R3 の自然解除を確認（15:29 の起動で effect_unknown が 0 になること）。同じ型（失敗で fence を残す）の他ループ 22 本のうち、お金に関わるものを同様に直す。
 2. R5: 負荷の内訳を測る（1 時間あたりの起動回数×所要）→ 5 分ごとの healthcheck 15 本と health 取得 9 秒の見直しから。枠の上限を上げる前に、不要な起動を減らす。
 3. R4 の残り: `skill_dir/"state"` を直書きするスクリプトを WRITER_STATE_DIR 経由へ（goodhart・rule_blame・beat_rate・claim_loop ほか）。リリース内への書き込みを検出するテストを 1 本足す。
 4. `money-liveness.json` に Mobile のレーン（honne/anicca 投稿の最新公開時刻）と Capafy の IG 投稿を足す。
 5. Writer の自然実行（10/09 06:00）で記事が出て Telegram にリンクが届くことを確認。
+6. 反映の運用: リリースは 30 分以上あけ、まとめて 1 回。工場だけ急ぐときは対象ラベルだけ `LIFE_MANAGER_APPLY_TARGET` で反映して 1 回起動。起動 0 回の時間が 30 分を超えたら見張りが検知する（money-liveness の capafy-ship 24h は粗い。工場の `daily_loop.log` 最終 done の鮮度レーンを足す）。
+7. Capafy の CLI 化の方針: 管理画面は `api.capafy.ai/app/...` の REST で動いている（カード取得 GET `/app/agents/{id}/versions/{vid}/card`、モデル一覧 GET `/app/config/llm/models/by-runtime`）。認証は画面のメモリ上の Authorization ヘッダーで、cookie だけでは 401。読み取りは 10/08 に実測で成功。書き込み（カード保存・価格・モデル・下書き削除）の REST 動詞は未確認。確認は使い捨ての下書き（工場が作るもの）で行い、売れている 4 本には使わない。判断（何を出すか・警告にどう対応するか）はエージェント、手順（保存して読み戻して確認）は CLI の動詞、に分ける。
+8. 下書き削除（サポート手順: カードの左上のバージョン番号にホバー→ゴミ箱→確認）: 10/08 に 5 件実施。3 件はエージェントごと削除、2 件（9466718786・7599205243）は未提出の v1.0.1 だけが消え、以前の公開版（status 4）が残った。作業担当が確認ダイアログを読む前に押す作りだった。以後の削除は、ダイアログ本文が「エージェント」か「バージョン」かを読んでから押す。
+9. サポートの 10/08 回答: Hook Lab・Portfolio Tracker・Performance Review Writer は手動で Benign に変更済み（出し直し不要）。要修正は Talent Review Deck Writer・Academic Humanizer（YAML 先頭の形式）と Anicca Life Manager（カードに Telegram・Gmail の設定を追記、OwnTracks を削除）。ReelFarm は Dais が解約済みと判断。枠の上限増・お試し停止は製品チームへ転送のみで時期未定。
 
 ## Dais指定のeBook → Capafy Instagram実行順
 
@@ -5957,3 +5965,128 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 5. 各loopのnatural business occurrenceを確認する。Connector=`Luma registration + Calendar event + Telegram receipt`。Job Hunter=`新規適格Workday application official status/receipt + Telegram`。Fundraiser=`新規VC/AI-AGI founderのGmail provider message ID + exact Sent + Telegram`。copyにmanager構想とpodcast/Zoom/対面の会話提案を含める。human-required gateを迂回しない。
 6. Workday Danaher `R1316263`とFundraiser旧DeepScale/LAUNCH unknownを同一targetの公式readbackまたはstrict verified-pre-effectで解決し、未解決targetは再送しない。全receiptをoccurrenceへ結び、重複なし・replay-zeroを確認する。Fundraise収入はsettlement確認後にだけ実績へ数える。
 7. loopsが自然稼働した後にcurrent-vs-baselineのsame-window claims、queue age、wait、CPU/RAM/diskを比較する。余力が実証された場合だけcap/laneを調整し、8/8やOS負荷を見ずに増枠しない。3 loopのproduction readback/replay-zeroを閉じたらこのlaneを完了し、MX-01へ戻る。
+
+### 2026-10-08 15:27 JST — handoff watcher preempts the active fleet apply
+
+この追記はPR #7057 merge後のproduction readbackでeBook cursorを並べ替える。main `8114a31d`にはexact-occurrence routing修正が入ったが、global release handoffがowner収束を中断している。
+
+**確認した事実:**
+
+- `origin/main=71a5f878`、current immutable release `20261008T152333-71a5f878`、release reconciler current snapshotは`loaded-running` / PID `84853`。eBook EN/JA TikTok/JA Instagramと`lm-fence-reconciler`はまだSHA `8f342d8d`で、eBook claimsは`host_admission_deferred:resource_effect_unknown`のまま。
+- Release reconciler run `18dc78bd552580c0-11196` (SHA `620d941e`)はfleet owner log 26/187 rows、最後は`lancers-revenue-application`、eBook plan positions 105–107、eBook rows 0で06:15:14Zに`entrypoint_exit_143`した。fleet stateは旧SHAのままで、このrunのterminal summaryは残らない。
+- 次のrun `18dc7959bdb11c70-88792` (SHA `68b03657`)も06:22:24Zに`entrypoint_exit_143`。self-handoff receiptはtarget SHA `68b03657`のloaded argv readbackをverifiedとしているが、fleet completionは証明しない。
+- source pathでhandoff watcherは`LIFE_MANAGER_RECONCILER_HANDOFF_ONLY=1`で短命runnerを起動する。handoff-only branchは`schedule_self_handoff`へrunner自身の`$$`を渡し、helperはそのPIDの終了後に旧serviceをbootoutする。これは稼働中のrelease reconciler PIDとは別であり、active fleet processをbootoutできる。runtimeのPID不一致、26-row fleet cutoff、143 terminalが一致する。
+
+**TODO順変更:** 旧順=`exact-occurrence source merge → latest release natural fleet converge → eBook/fence owner apply → identity recovery`。新順=`active old-service PIDが残る間はbootoutしないhandoff regression testを先にREDで再現 → self-handoff helperがlaunchctl-safe readbackで実際のold-service PID/idleを確認し、activeならbounded wait、unknownならfail-closedでreceiptを残す最小修正 → focused test/bash syntax/loop contract/source review/CI → main merge → current SHA 71a5 processの自然terminalと次release handoff receiptをreadback → eBook 3 ownersとfence reconcilerをcurrent main SHAへtarget apply/readback → exact occurrence route → unique identity recovery → JP catch-up if due / EN old-effect resolution → 9 unique PUBLISHED/day → settled checkout/PDF/monthly subscription net MRR → paid-order+PDF gate後にCapafy bootstrap fix/canary`。理由: 2 consecutive reconciler runs exited143 before eBook plan positions and left owner SHA stale; latest release helper must protect an active run before fleet convergence can complete. 現在cursor=`handoff helperのactive-service protectionをTDDでREDにする`。
+
+現在、main SHA `71a5f878`のreconcilerはloaded-running。source patchは専用branchで作り、running ownerを手動停止・再起動・重複applyせず、handoff helperの次回natural loadで安全に引き継ぐ。Daisの手動操作は不要。
+
+**handoff retry rule:** active-service timeout and unreadable/unknown service state write an exact failure receipt and unload only the self-handoff helper after successful preflight. The old reconciler remains loaded and untouched; the next watcher tick can retry.
+
+### 2026-10-08 15:52 JST — close the handoff race with the existing run lock
+
+このreview-driven refinementは15:27 cursorのidle-readback案を置き換える。単発のstate readbackだけでは、次のStartIntervalがbootout前に始まるTOCTOUが残る。
+
+- Independent reviewはHIGH race（2回目のidle readback後に次runが開始）とMEDIUM stale-helper retry（self-bootoutが失敗するとwatcherがloaded helperを再利用）を指摘。これを最小の既存同期で閉じる。
+- Reconciler runは`runtime/loop/lm_loop_run.py`から`_label_apply_lock_path(current, label)`のper-label exclusive `flock`を保持する。self-handoff helperも同じ`~/loops/.apply-locks/<reconciler-label>.lock`を取得し、old service bootout・target load/readbackまで保持する。新しいrunは同じ既存lockでeffectを始められない。idle Launchd readbackは追加確認として残す。
+- Lock waitは最大2400秒。設計根拠はreconciler fetch 600秒 + reconcile 300秒 + fleet apply 1200秒とgrace。timeout/unknown stateではreceiptにlock/readback状態を残し、old serviceをbootoutせずhelperだけを外す。handoff watcherはactive helperを維持し、終了済みhelperを再armできるようstale `waiting` stateを処理する。
+- 最新production readback: disk-cleanup occurrence `18dc7aeff1249248-54562`はPASS、06:46:17Z receipt時点でerrors 0。06:50Z disk freeは4,763,528 KiB。eBook 3 ownersはSHA `71a5f878` / loaded-idleだがbusiness claimsはunknownのまま。`lm-fence-reconciler`はSHA `8f342d8d`。release reconcilerはSHA `71a5f878` / loaded-running PID `84853`、前occurrenceは06:46:52Z `entrypoint_exit_1`。stop/restart/重複applyは行わない。
+
+**TODO順変更:** 旧順=`exact-occurrence release → eBook/fence owner apply → claims recovery`。新順=`RED: per-label run lockをheld中のhandoffはold serviceをbootoutせず、lock release後にだけ次へ進むtest → helper lock-holderを実装し同じ既存flockをold bootout/target readbackまで保持 → timeout時receiptとhelper self-retryを実装 → focused tests/bash syntax/loop contract → independent read-only review/CI → PR merge → current 71a processのnatural terminal/新handoff receipt → eBook/fence loaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due / EN old-effect resolution → 9 unique PUBLISHED/day → settled checkout/PDF/monthly subscription net MRR → eBook paid order+PDF後Capafy repair/canary`。理由: mainにmerge済みのoccurrence fixを含む複数のrelease reconciler runsがexit143で26/187以前に終わり、handoffが収束を阻害した。現在cursor=`existing per-label lock holderのRED test`。
+
+Daisの作業は不要。手動投稿・CAPTCHA・Postiz再接続は現在のblockingではない。
+
+### 2026-10-08 15:54 JST — reviewer refinement: serialize handoff with the run lock
+
+Fresh read-only review rejected the idle-readback-only patch: a new StartInterval occurrence can begin between the final idle observation and bootout. The earlier implementation is not merge-ready.
+
+**修正方針:** use the existing per-label `flock` from `runtime/loop/lm_loop_run.py::_label_apply_lock_path(current, label)` (`~/loops/.apply-locks/<LaunchAgent label>.lock`). The handoff helper waits for and holds this same exclusive lock across old-service idle readback and bootout, then verifies the target release before releasing it. Any newly scheduled owner run hits the existing nonblocking lock and records `apply_lock_busy` without an external effect. The wait is bounded; timeout writes a receipt and unloads only the helper. The 60-second handoff watcher distinguishes an active helper from an exited `waiting` helper and rearms the latter, so a failed helper bootout cannot silently strand future retries.
+
+**TODO順:** 旧案=`launchctl stateを2回確認 → bootout`。新案=`existing per-label lock holder RED test → helper acquires the same lock before old-service readback → hold it through bootout and target SHA/argv readback → release lock only after target is loaded → bounded timeout receipt and helper cleanup → watcher stale-helper retry test → focused tests/bash syntax/loop contract → independent review/CI → main merge → current 71a run natural terminal → eBook/fence owner target convergence → exact-claim identity recovery → JP catch-up if due / EN old-effect disposition → 9 unique PUBLISHED/day → settled checkout/PDF/monthly subscription net MRR → Capafy Bootstrap 5 and one canary after paid-order/PDF gate`。理由: two observed reconciler occurrences ended with exit143 before eBook plan positions, and the independent review proved idle-only checks leave a race. 現在cursor=`same run lockを使うhandoff testをREDで作成`。
+
+06:50Z readback: `life-manager-disk-cleanup`自然run PASS、available disk `4,763,528 KiB`; eBook owners are installed on `71a5f878` but their old business claims remain unknown; `lm-fence-reconciler` is still on `8f342d8d`. The `life-manager-release-reconciler` remains loaded-running in the current source release. No direct cleanup, loop stop/restart, or provider post was performed.
+
+### 2026-10-08 16:18 JST — handoff lock guard and retry path
+
+最新main `a02c457d`を取り込んだ専用branchでhandoffのTOCTOU修正を実装し、旧service未ロード時のrecovery経路も明示した。
+
+- `reconcile-agent-self-handoff.sh`はrelease reconcilerと同じper-label `flock`を取得し、idle/PID readback、old-service bootout、targetのloaded SHA/argv readbackが終わるまで保持する。lock timeout・未知のstateはstructured receiptを残し、old serviceには手を出さずhelperだけを外す。
+- old serviceがすでに未ロードならold bootoutを飛ばしてtargetをbootstrapする。`reconcile-agent-handoff-watch.sh`は実行中helperを保持し、終了済み`waiting` helperだけをsafeに外し、old service未ロードなら次回handoffを強制する。
+- 変更は専用source branchだけで、main/productionには未反映。source review/PR/CI/mergeは未完。
+- source evidence: handoff/watcher focused tests 11/11 pass、対象3 shell scriptsの`bash -n` PASS、`./bin/lm-loop-contract` PASS（18 catalog loops / 187 registry jobs / 112 mapped / 0 errors）、`git diff --check` PASS。
+- 最新production readback: `~/loops/current`はimmutable release `20261008T155630-6cc0c56b`。release reconciler PID `19290`は15:59 JSTからloaded-runningで、停止・再起動・applyはしていない。最後のterminal occurrence `18dc7b67a05f8020-39546`は15:58 JSTに`entrypoint_exit_75` / `next_action=reconcile_owner`。その後のPIDはまだ稼働中で、自然terminalは未確認。self-handoff receiptはtarget SHA `6cc0c56b`のloaded argv/SHAをverifiedとしているが、fleet完了の証明ではない。
+
+**原子TODO順:**
+
+1. **現在cursor — fresh read-only反証レビュー:** handoff lock取得からtarget readbackまでの競合、timeout、stale helper retry、old-service未ロードrecoveryを確認し、指摘があれば直す。
+2. sourceとSSOTを専用branchへcommit/pushし、PRのrequired CIをPASSさせてmainへ統合する。
+3. active PID `19290`の自然terminalと新しいhandoff receiptをread-onlyで確認する。現在のrunを手動停止・再起動しない。
+4. eBook EN/JA TikTok/JA Instagram ownerと`lm-fence-reconciler`のloaded SHA/argvを最新main releaseへ収束させ、exact occurrence fenceと各Postiz identityを照合する。unknown effectは公式readbackなしに再送しない。
+5. EN TikTok・JP TikTok・JP Instagramそれぞれ3件、合計9件/日のunique `PUBLISHED` receiptとnative URLを自然occurrenceで確認する。単発成功を毎日継続の証明にしない。
+6. natural paid eBook Checkout receiptとmatching PDF deliveryを結び、one-time eBook revenueとsubscription MRRを別台帳で計測する。
+7. 購入後の任意Letter/Tegami subscription導線を、ユーザー同意・active paid subscription receiptとともに確認し、paid active subscriber × 月額 − fee/refund/cost/churnでnet MRRを報告する。
+8. paid eBook + matching PDF gate後にCapafy Instagram ownerのBootstrap 5 / pack refを修復し、最大1 canary/24hでPostiz receipt/native URL/Capafy order/banked net readbackを確認する。
+
+**停止条件ではない外部cursor:** Daisの手作業は現時点で不要。CAPTCHA解除、Postiz再ログイン、手動投稿は確認済みのblockingではない。最後の既知Postiz count（14:24:50 JST eBook 2/9、Capafy 2件）以降の件数はこのreadbackでは再取得していない。
+
+### 2026-10-08 16:24 JST — reviewer gap closed; official posting and offer readback
+
+- Fresh read-only adversarial reviewはhandoff implementationをPASSと判定。唯一のLOW finding（old service unknown-state時のreceipt/bootout境界を直接テストしない）に対しregression testを追加し、対象test suiteは12/12 PASS。3 shell scripts `bash -n`、`./bin/lm-loop-contract`（18/187/112、errors 0）、`git diff --check`もPASS。
+- Official Postiz GET at 16:21 JST: `/integrations` and `/posts` both HTTP 200; integrations 31 total / 30 enabled. 00:00–16:21 JST window: English Monk TikTok 0, Japanese TikTok 1 `PUBLISHED`, Japanese Instagram 1 `PUBLISHED`, Capafy Hook Lab Instagram 2 `PUBLISHED`; all four target integrations are `disabled=false`. This confirms Postiz API state only, not repeat cadence, native account standing, checkout, or revenue.
+- Official product-page readback at 16:17 JST: `/monk` $10.99 one-time/PDF; `/letter` $9.99 monthly after a 14-day no-card trial; `/tegami` ¥980 monthly after a 14-day no-card trial. Therefore eBook orders are one-time sales; only paid active Letter/Tegami subscriptions count as subscription MRR.
+- Production release remains `20261008T155630-6cc0c56b`; release reconciler PID `19290` remains loaded-running. Last terminal occurrence `18dc7b67a05f8020-39546` is still `entrypoint_exit_75` / `reconcile_owner`; a later active natural run has no terminal proof yet. No stop/restart/apply or post occurred in this audit.
+- Owner status readback at 16:24 JST: all three eBook publishers are loaded-idle on SHA `71a5f878` but deferred by `host_admission_deferred:resource_effect_unknown`; their exact fenced occurrences diagnose `runtime_occurrence_missing_or_invalid`. `lm-fence-reconciler` is loaded-idle on old SHA `8f342d8d` with a pass, so it is not current-main convergence. Old `capafy-ig-marketing-daily` and new `life-manager-capafy-ig` are both launchd-disabled on SHA `2e87d30d`; the old lane retains occurrence `18db7caff1178a88-68028` / `active_ig_handle_unresolvable`, while the new Postiz lane has no current fenced occurrence.
+
+**現在cursorと残TODO:** `source/SSOT commit+push → PR required CI PASS → main merge → PID 19290 natural terminal + exact handoff receipt → eBook/fence owner SHA/argv convergence → exact occurrence/identity reconciliation → natural 9 unique PUBLISHED/day → paid eBook Checkout + matching PDF → consented paid subscription receipt and net MRR → after paid+PDF gate, Capafy Bootstrap 5/pack fix + max 1 canary/24h + official order/banked-net readback`。最初の原子作業はbranch commit/pushとPR source acceptance。Daisの手作業は不要。
+
+### 2026-10-08 16:29 JST — latest-main sync and natural owner readback
+
+- Source worktreeはlatest `origin/main=85f175379e`をmerge済み。merge commit `2f968d7ae6`はbranchへpush済み。handoff sourceとTODO更新自体は未commit、main/production未反映。
+- Main同期後のlocal acceptance: handoff/watcher tests 12/12 pass、対象3 scriptsの`bash -n` pass、loop contract 18/187/112 / errors 0、`git diff --check` pass。新しいmain #7085 fleet apply変更と同じfunctionのhandoff-only分岐は両方保持し、focused testsを再実行済み。
+- Official HeyGen CLI readback at 16:29 JST: `video list --title Anicca --limit 100` paginated 2 pages and returned 0 matching videos; `user me get` returned wallet USD 11.78. The balance difference from the 02:47 JST USD 12.30 snapshot cannot be attributed to this eBook render; leave its exact occurrence fenced. Product PR #420 remains `OPEN` in `anicca-products` at 16:25 JST and carries the durable eBook webhook/receipt table change; page availability alone is not a paid order or matching PDF delivery receipt.
+- `~/loops/current`は`20261008T162236-c61f2c89`。PID `19290`は16:26 JSTに自然terminal PASS (`18dc7d0e3868a110-36723`)。新しいrelease reconciler PID `43455`は同SHAでloaded-runningのため、次owner applyは待機。self-handoff receiptはまだtarget `6cc0c56b`の過去readbackで、c61/current runのhandoff receiptではない。
+- 16:28 JST owner readback: eBook EN/JA TikTok/JA InstagramはSHA `71a5f878` / loaded-idleだが3件とも`host_admission_deferred:resource_effect_unknown`; exact fenced occurrences are EN `18dc6de8dcf3a0e8-75262`, JP TikTok `18dc5e822e430b80-45345`, JP Instagram `18dc648de93a3c68-68679`, each `runtime_occurrence_missing_or_invalid`. `lm-fence-reconciler`はSHA `8f342d8d` / loaded-idle / pass。Capafy old/new ownersはSHA `2e87d30d` / disabled、old direct laneは`18db7caff1178a88-68028` `active_ig_handle_unresolvable` fenceを保持する。
+
+**現在cursor:** `fresh read-only review of latest-main-based source diff → source/SSOT commit+push → PR CI → merge → PID 43455 natural terminal + current handoff receipt → eBook/fence owner convergence and occurrence recovery → 9 unique PUBLISHED/day → paid order+PDF → paid active Letter/Tegami MRR → Capafy one-canary/24h after paid+PDF gate`。Postiz 16:21 readbackは引き続きeBook 2/9、Capafy 2 `PUBLISHED`; no new posting slot has occurred since that GET.
+
+### 2026-10-08 16:36 JST — latest terminal changed while the next run is active
+
+- Final fresh reviewerはcurrent latest-main-based source diffをPASS。source findingなし。既存Postiz UTC時刻の1日ずれは証拠JSONの`captured_at_utc`に合わせて修正済み。
+- branch baseは`origin/main=85f175379e`、sync merge `2f968d7ae6`はremote branchへpush済み。handoff source/plan/SSOT diffはまだuncommitted。main/productionには未反映。
+- Final source acceptance remains 12/12 focused tests, 3-script `bash -n`, loop contract 18/187/112 / errors0, and `git diff --check` PASS.
+- 16:34 JST readback: current release remains `20261008T162236-c61f2c89`, PID `31693` is loaded-running. Its previous terminal `18dc7d69aaf47f78-70945` ended 16:33 JST with `entrypoint_exit_1` / `reconcile_owner`; event detail records `agent-runner fleet-apply: ... coalesced` (min interval 1800s). The same source function returns 0 on coalesce, so this log tail alone does not identify the failing earlier reconcile phase. Do not stop/restart PID `31693`; inspect its next natural terminal/phase receipts before any apply.
+- eBook API readback is still 2/9 (EN0, JP TikTok1, JP Instagram1); Capafy 2 `PUBLISHED`. eBook owners remain old SHA `71a5f878` with unknown occurrence fences; Capafy owners remain disabled on `2e87d30d`. No new posting slot has occurred since the 16:21 Postiz GET.
+
+**現在cursor:** `commit/push source + SSOT → open PR and pass required CI → merge → current PID 31693 natural terminal and exact phase diagnosis → current-main handoff receipt/owner convergence → existing eBook occurrence reconciliation → next safe natural post slot → paid order+PDF → subscription net MRR → gated Capafy canary`. No Dais action is required now.
+
+### 2026-10-08 16:42 JST — PR checks and active production process
+
+- PR #7091 is `OPEN` / `MERGEABLE`, head `e0adad01b1d779c44decf4ba162d2daacdc6c14d`, base latest `main=963b047cb6`. CI readback: Agent instruction, OSS boundary, Startup context drift, PII shapes, Python syntax/unittest, Shell syntax PASS; Loop control contracts, TruffleHog, gitleaks pending; CodeRabbit skipped by this OSS repo's manual-review policy. No PR merge yet.
+- Current release is `20261008T162236-c61f2c89`; release reconciler PID `96926` remains loaded-running. Latest terminal event `18dc7da1bdc4d1b0-31693` ended 16:38 JST `entrypoint_exit_1` / `reconcile_owner`; event detail ends with the fleet-apply coalesce message. Current source returns success from that coalesce branch, so the event tail does not identify which earlier reconcile phase set the overall failure. Preserve PID and wait for its next natural terminal/phase evidence; no apply/restart.
+- `life-manager-disk-cleanup` naturally passed at 16:40 JST. `df -k /tmp` at 16:41 JST shows 5,671,864 KiB available. Earlier ENOSPC lines under the 71a5 release are historical evidence, not yet proven as the cause of the c61 occurrence.
+
+**現在cursor:** `PR #7091 remaining required CI PASS → main merge → PID 96926 natural terminal and exact phase evidence → current-main handoff receipt → eBook/fence owner convergence and exact occurrence readback → 9 unique PUBLISHED/day → paid order+PDF → paid active subscription MRR → gated Capafy canary/order readback`。Production sources/owners/posting remain unmodified by this task.
+
+### Mobile distribution cursor
+
+このreadbackでmobile acquisition TODOの順序は変えず、item 1の現在証拠とcursorを更新する。
+
+- Postiz公式GETは16:21 JST時点で31 integrations、TikTok 17 profiles、enabled 16 / disabled 1（`@anicca.jp8`）。10/8 JSTのunique `PUBLISHED`は9件。`@anicca.jp`と`@anicca_slideshow`が各2件、`@anicca.he`、`@anicca.jp4`、`@anicca.jpx`、`@honne_reveal`、`@obou_anicca`が各1件。`@anicca.comedy`、`@anicca.daily`、`@anicca_buddha`、`@aniccaaffirmation`、`@aniccaen2`、`@aniccajp`、`@aniccajp2`、`@honnevideo`、`@monk_anicca`は0件。enabled 16 profilesの3/day targetは48件、現時点の不足は39件。disabled profileはenable/route確認まで目標達成へ算入しない。
+- 16:21 JSTのreadbackでは`/Users/anicca/loops/current`がimmutable release `20261008T155630-6cc0c56b`、release reconcilerがloaded-runningで、直近occurrence `18dc7b67a05f8020-39546`は`entrypoint_exit_75` / `reconcile_owner`。mobile posting ownersは`8f342d8d`または`71a5f878`をloadedし、その時点のmain `c61f2c89`へ未収束。mainはその後`07aa3fb3`へ進み、mobile ownersのfresh readbackはまだない。
+- EN2の直近terminalは`life-manager-anicca-en2-affirmation-tiktok` / run `18dc78532d578968-91053` / `entrypoint_exit_1`で、stderrは`mobile app loop requires node`。`runtime/loop/lm_loop_apply.py`はmanaged runtimeを`LIFE_MANAGER_RUNTIME_NODE`と`LIFE_MANAGER_RUNTIME_PYTHON`としてplistへ設定する一方、`apps/life-manager/scripts/mobile-app`は両方を読まず、`LIFE_MANAGER_NODE` / `LIFE_MANAGER_PYTHON`とPATHだけを使う。launchd PATHにruntimeがないためrunner前に終了する。wrapperは両managed runtimeをfallbackに使うsource修正を含む。
+- Buddha ownerの直近failureは`Larry JA marketing.video.publish job is not claimable`。jobのclaimable stateとowner mappingは未解決。既存effect-unknown fenceは公式な同一投稿ID/receiptで特定できるまで保持し、再送しない。
+- `life-manager-tiktok-metrics`はoccurrence `18d9f8ffb829e890-94915`を`history_incomplete` / `no_readback_adapter`で保持する。これは後続のsocial-metrics TODOで解決し、distribution投稿と混同しない。
+- TDD回帰testは隔離PATHで両managed runtimeを渡し、修正前RED（`mobile app loop requires node`）・修正後GREEN。`mobile-app-command.test.js`は12/12、`bash -n`、`git diff --check`、`./bin/lm-loop-contract`（18 loops / 187 registry jobs / errors 0）、`runtime/loop/tests`（793/793）、`loop-adapter-registry.test.js`（15/15）がPASS。runtime suiteは既存SQLite connectionの`ResourceWarning`を出すが失敗なし。
+- Production promotion gateは未達。16:21 readbackのinstalled release `20261008T155630-6cc0c56b`に対する`lm-loop doctor`は`ok=false`で、retired installed label `ai.anicca.provision-browser.capafy.kosuke`が1件。mobile laneはこの別owner labelを変更せず、doctorがPASSするまでowner applyを行わない。
+- PR #7089の初回`OSS self-contained boundary`はmainの#7084が変更した`skills/capafy-autopublish` treeとmanifest hash不一致でFAIL。PR差分は同treeを変更しない。canonical verifier計算は245 files / SHA-256 `7d59dbe788a1edb593d16240413cdb6573e0b49b8297b63d4da539179eb61fa6`。manifestをその値へ更新し、canonical verifierとCI run `37744122051`（head `db56b9b6`）、`37745525945`（head `f4cbeb51`）は全件PASS。mainはその後`07aa3fb3`へ進み、このPR headのrequired CIはまだ取り直す必要がある。
+
+**現在cursor:** source fixとfocused acceptanceは完了。最新main `07aa3fb3`を同期したmerge commitでrequired CIを取り直し、全件PASS後にPR #7089をmainへ統合する。productionでは別ownerのretired labelをowner-safeに解消して`lm-loop doctor`がPASSした後だけimmutable releaseへ対象ownerを個別反映し、EN2のnatural runとPostiz receiptを確認する。残るowner/job/profileの問題を一つずつ閉じ、全enabled profileがJST日3件のunique `PUBLISHED`に達するまでitem 1を完了扱いしない。
+
+### 2026-10-08 16:53 JST — PR #7091 merged; production remains on old release
+
+- PR #7091 merged at 16:49 JST as merge commit `07aa3fb3d23987ee4b494c4e09f2e02543cc371c`. Latest-main source contains the run-lock handoff fix; required CI all passed, fresh adversarial review passed. This is source integration, not production promotion.
+- At 16:52 JST, `~/loops/current` still points to `20261008T164623-3c87f64f`, which predates the merge. Release reconciler PID `35373` is loaded-running. The prior run `18dc7e43b76b4158-26121` ended 16:48 JST with `entrypoint_exit_143` and no error_detail. The self-handoff helper service is currently absent. Do not stop/restart PID `35373` or apply owners while it is active; let the natural handoff use the new-main helper and then read its receipt.
+- eBook EN/JA TikTok/JA Instagram remain loaded-idle on SHA `71a5f878` with three `resource_effect_unknown` occurrences. `lm-fence-reconciler` remains loaded-idle on SHA `8f342d8d`. Capafy direct and Postiz automation owners remain disabled on `2e87d30d`; the old direct lane retains `active_ig_handle_unresolvable`.
+- Latest Postiz GET remains the 16:21 JST snapshot: eBook 2/9 (EN 0, JP TikTok 1, JP Instagram 1), Capafy 2 `PUBLISHED`; no later scheduled post slot has elapsed. HeyGen readback at 16:29 JST shows 0 `Anicca` videos across two pages and wallet USD 11.78; this does not resolve the older render fence. Product PR #420 is still `OPEN`.
+
+**現在cursor:** `PID 35373 natural terminal → verify new-main immutable release and self-handoff receipt → exact eBook occurrence reconciliation and target-owner SHA convergence → safe next eBook post slot → paid Checkout+matching PDF (PR #420 durable receipt gate) → paid active subscription MRR → gated Capafy canary/order readback`。Daisの手作業は現在不要。
