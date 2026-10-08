@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 
@@ -17,7 +18,9 @@ CAPACITY_STATUSES = KNOWN_STATUSES | frozenset({
     "banned", "offline", "user_offline", "user_delisted", "taken_down",
     "pending_online", "audit_passed_pending_online",
 })
-CAPAFY_REVIEW_CAP = 5
+# Capafy documents no unlisted-Agent limit (2026-10-08, publisher docs + web); the factory
+# does not self-limit. A server refusal on create is the signal to set a real number.
+CAPAFY_REVIEW_CAP = int(os.environ.get("CAPAFY_REVIEW_CAP", "1000000"))
 PLACEHOLDER_SUFFIX = " (LM generated — please review and edit before saving)"
 
 
