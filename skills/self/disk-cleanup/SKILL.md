@@ -45,8 +45,9 @@ allow-listed regenerable artifact after an open-path probe confirms
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - The 2 GiB recovery value is a cleanup diagnostic only; it does not determine
   cleanup pass/fail and does not pause producer or release loops.
-  `disk-pressure.block` is advisory. The explicit `disk-writers.stop` file
-  remains a separate hard operator control.
+  `disk-pressure.block` is advisory. Producer loops ignore only the exact
+  cleanup-owned `host-disk-recovery` / `disk_headroom_low` signal in
+  `disk-writers.stop`; other operator-authored stop records remain hard stops.
 - The central cleanup terminal reports capacity recovery separately from
   cleanup success: a nonnegative integer `free_after` is compared with the
   2 GiB diagnostic target; a shortfall is `unmet`, and missing, negative, or
@@ -65,9 +66,12 @@ allow-listed regenerable artifact after an open-path probe confirms
   Cursor writes do not consume the terminal receipt reserve, and the receipt
   records cursor-write failures separately from deletion errors.
 - The shared runner and producer wrappers do not defer a wake because free
-  bytes are low or cannot be measured. They preserve the explicit
-  `disk-writers.stop` control. A real write failure is recorded at the failing
-  operation; it is not converted into a headroom admission result.
+  bytes are low, cannot be measured, or the exact cleanup-owned low-space
+  recovery signal exists. They continue to honor other operator-authored
+  `disk-writers.stop` records. A real write failure remains an operation error,
+  not a threshold admission result. Structured `ENOSPC` receipts are guaranteed
+  only on paths that implement them; do not assume every producer classifies a
+  failed state write as `ENOSPC`.
 - After the final post-inventory capacity readback reaches 2 GiB, the governor
   removes `disk-writers.stop` only when its same-UID 0600 regular file still has
   the exact `host-disk-recovery` owner, `disk_headroom_low` reason, required

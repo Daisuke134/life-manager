@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import hashlib
 import os
-import shutil
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -70,9 +69,7 @@ def _owner_path(value: str, owner_home: Path) -> Path:
 
 def allowlisted_environment(source: dict[str, str], executable: Path) -> dict[str, str]:
     owner_home = Path(source.get("HOME") or str(Path.home())).resolve()
-    runtime_node = source.get("LIFE_MANAGER_RUNTIME_NODE") or shutil.which(
-        "node", path=source.get("PATH", "")
-    )
+    runtime_node = source.get("LIFE_MANAGER_RUNTIME_NODE")
     if not runtime_node:
         raise PinError
     try:

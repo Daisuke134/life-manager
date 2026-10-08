@@ -573,7 +573,7 @@ def _operator_brake_status(path: Path | None = None) -> str:
 def _effect_gate_reason(args: argparse.Namespace) -> str | None:
     try:
         if not disk_headroom_ok():
-            return "disk_pressure"
+            return "disk_control_unavailable"
     except Exception as error:  # fail closed when host policy is unknowable
         return f"disk_preflight_error:{type(error).__name__}"
     brake_status = _operator_brake_status(getattr(args, "operator_brake", None))

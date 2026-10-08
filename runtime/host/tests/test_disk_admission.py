@@ -22,6 +22,16 @@ def load_guard():
     return module
 
 
+def _write_cleanup_recovery_signal(path: Path) -> None:
+    path.write_text(json.dumps({
+        "owner_id": "host-disk-recovery",
+        "reason": "disk_headroom_low",
+        "required_bytes": 2 * 1024**3,
+        "next_action": "restore_capacity_and_install_shared_disk_gate",
+    }) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     home = tmp_path / "home"
@@ -102,24 +112,31 @@ def test_disk_free_bytes_returns_unavailable_for_invalid_measurements(
     assert guard.disk_free_bytes(tmp_path) is None
 
 
-@pytest.mark.parametrize(
-    ("filename", "reason"),
-    (("disk-writers.stop", "disk_writers_stop"),),
-)
-def test_policy_flags_fail_closed(
-    monkeypatch: pytest.MonkeyPatch, filename: str, reason: str,
-):
+def test_cleanup_stop_signal_does_not_block_child(monkeypatch: pytest.MonkeyPatch):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
-    host_state.joinpath(filename).write_text("blocked\n", encoding="utf-8")
-    monkeypatch.setenv("LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP", "1")
+    _write_cleanup_recovery_signal(host_state / "disk-writers.stop")
     guard = load_guard()
-    assert guard.disk_headroom_ok() is False
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 0
+    assert calls and calls[0][1] == ["/bin/true"]
+
+
+def test_operator_stop_signal_still_blocks_child(monkeypatch: pytest.MonkeyPatch):
+    host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
+    host_state.joinpath("disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
+    guard = load_guard()
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 1
+    assert calls == []
     receipt = json.loads(
         (Path(os.environ["LIFE_MANAGER_PRODUCER_STATE_DIR"])
          / "state/disk-headroom.json").read_text(encoding="utf-8")
     )
-    assert receipt["reason"] == reason
-    assert receipt["effect"] == 0
+    assert receipt["reason"] == "disk_writers_stop"
 
 
 def test_fresh_policy_directory_is_created_private(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):

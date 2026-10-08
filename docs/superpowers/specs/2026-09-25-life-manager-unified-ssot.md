@@ -7184,29 +7184,30 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **現在cursor:** guard PR exact-head CI/fresh review → merge → immutable release/natural handoff → cleanup receipt diagnostic → guarded Capafy retirement/doctor → target effects → owner natural outcomes without numeric free-space gate → same-window capacity/economics。
 
 
-### 2026-10-08 — remove numeric disk-headroom stops from all loops
+### Active contract — remove disk-headroom stops from all loops
 
 This contract supersedes every earlier or later historical cursor and TODO step in this SSOT that makes producer work wait for a numeric free-space value, including the capacity snapshots below. Those snapshots remain evidence of past state, not active execution gates.
 
-- The global loop runner previously deferred ordinary jobs below 2 GiB and selected paid jobs below 1 GiB; main later lowered `critical_paid` to 256 MiB and `revenue` to 512 MiB. Producer, Gig, and Writer wrappers add 512 MiB or measured Writer-capacity floors. Writer publication and release creation have separate numeric disk checks. These checks repeatedly defer revenue and other scheduled work.
-- **Contract:** no loop, producer wrapper, Writer publication path, or release builder defers because free space is low or cannot be measured. Keep unsafe/unreadable control state, the explicit hard `disk-writers.stop` operator control, resource/memory admission, and durable-effect fences; launchd environment variables cannot bypass that stop file. Cleanup reports the 2 GiB recovery metric separately from pass/fail: a measured shortfall alone does not make the cleanup occurrence fail, while cleanup errors, protected deletions, and a missing/invalid/unresolved explicit stop readback remain visible.
-- **Limit:** this removes disk-headroom admission stops; it cannot prevent a real write from failing with `ENOSPC`. Record that at the actual failing operation and let the next scheduled occurrence proceed. Never replay an external effect whose outcome is unknown.
+- Earlier shared producer admission used 512 MiB (`536870912` bytes). The cleanup recovery record uses 2 GiB (`2147483648` bytes) as its recovery metric and to clear its `disk-writers.stop` signal. The two values had different owners and purposes; both signals reached loop admission and could defer revenue work.
+- **Contract:** no loop, producer wrapper, Writer publication path, or release builder defers because free space is low, cannot be measured, or the exact cleanup-owned `host-disk-recovery` / `disk_headroom_low` record exists in `disk-writers.stop`. Keep other operator-authored stops, unsafe/unreadable control-state checks, resource/memory admission, and durable-effect fences. Cleanup reports its 2 GiB recovery metric separately from producer admission; errors and protected deletions remain visible.
+- **Limit:** this removes disk-headroom admission stops; it cannot prevent a real write from failing with `ENOSPC`. Treat that as an operation failure, not a threshold admission result. The shared runner's scratch-allocation path records typed retryable `ENOSPC` and the next wake proceeds; classification of other producer writes remains specific to each owner's error path. Never replay an external effect whose outcome is unknown.
 
-**順序更新:** 旧順序=`cleanupがfree_after >= 2 GiBへ戻すまで全loopをadmission待機 → release反映 → natural run`。新順序=`numeric headroom checksを全producer/release経路から除去 → focused acceptanceとfresh review → mainへ統合 → immutable releaseを通常経路で反映 → natural occurrencesを確認し、実際のENOSPCはwrite failureとして記録 → cleanupは回復指標を継続`。理由は、固定空き容量だけによる全loop停止をユーザーが明示的に廃止したため。既に実行中のownerや外部effectは中断・再送しない。
+**順序更新:** 旧順序=`cleanupがfree_after >= 2 GiBへ戻すまで全loopをadmission待機 → release反映 → natural run`。新順序=`numeric headroom checksとcleanup-owned low-space markerによるproducer blockを除去し、operator stopを維持 → focused acceptanceとfresh review → mainへ統合 → immutable releaseを通常経路で反映 → natural occurrencesを確認し、実際のENOSPCはwrite failureとして記録 → cleanupは回復指標を継続`。理由は、固定空き容量だけによる全loop停止をユーザーが明示的に廃止したため。既に実行中のownerや外部effectは中断・再送しない。
 
 **現在のproduction readback:** #7179で旧numeric floorsはmainに統合済み。旧runtimeの共通gateはsupport jobs 2 GiB、revenue 512 MiB、critical-paid 256 MiBだった。cleanupの最新直接receipt（2026-10-08 19:17:14Z）は`ok=true`、`free_after=831733760` bytes、2 GiB回復指標は`unmet`、`errors=0`、`protected_deletions=0`、`disk-writers.stop=absent`。直近outer owner terminalは`entrypoint_exit_1`で、この2つのreceiptが不一致。直近`df` snapshotは277292 KiB free。これはcleanupの回復不足でありproducer admissionではない。Affiliate `source-refresh=aba80c99` / `composition=97efe82e`は旧loaded SHAで`disk_headroom_low`、`affiliate-loop=e75c7f7a`は`resource_effect_unknown`。`~/loops/current`は`8d986ff4`、origin/mainは`af19c008`。Release reconcilerは`e1b061f1`で実行中。
 
 **残TODO（完了まで・この順）:**
 
-1. [x] shared runner、host/Gig guard、Affiliate source/composition/local owner、SelfFixからfree-space計測不能によるadmission/blockerを除去する。unsafe/unreadable control state、明示`disk-writers.stop`、memory/resource limits、effect fencesは維持する。cleanupの2 GiB指標はpass/failと分離したままにする。
-2. [x] focused acceptanceで0-byteと計測不能の両方がdispatcherを止めないこと、explicit stop・unsafe control path・effect-unknownが保持されることを確認した。scratch作成時の実`ENOSPC`も`effect_status=not_applicable`のretryable terminalとして記録し、次回wakeが進むことを確認した。別のdisk cleanup実装は変更していない。
-3. [ ] latest-main専用PRをmergeし、main由来immutable releaseとreconcilerのnatural runでAffiliate `source-refresh` / `composition`のloaded SHAを読み戻す。過去の`disk_headroom_low`履歴を新規失敗と混同しない。
-4. [ ] Xの`effect_unknown` occurrenceを公式timeline/readbackで照合し、解決根拠なしに再送しない。自然なAffiliate compositionでEnglish-first + Japanese summaryと成功事例由来のtutorial/CTA形式を読み戻す。
-5. [ ] fresh PartnerStack clicks/signups/commission/payoutと実費を照合し、承認済み報酬・settlementが確認できるまで収益を主張しない。現在の既知公式値は0 commission / $0 revenue、payout設定は未完了。
+1. [x] shared runner、host/Gig guard、Affiliate source/composition/local owner、SelfFixから数値free-space admissionを除去する。
+2. [x] Runtime、Gig、Writer、SelfFix、browser/self-build経路でcleanup-owned low-space `disk-writers.stop` markerによるadmission blockを除去し、他のoperator-authored stopを維持した。unsafe/unreadable control state、memory/resource limits、effect fencesも維持する。
+3. [ ] focused acceptanceで0-byte、計測不能、正確なcleanup-owned low-space stop recordのいずれもloop admissionを止めないことを確認する。operator-authored stop、unsafe control path、effect-unknownは保持し、scratch作成時の実`ENOSPC`はretryableな操作失敗として記録して次回wakeが進むことを確認する。
+4. [ ] latest-main専用PRをmergeし、main由来immutable releaseとreconcilerのnatural runでAffiliate `source-refresh` / `composition`のloaded SHAを読み戻す。過去の`disk_headroom_low`履歴を新規失敗と混同しない。
+5. [ ] Xの`effect_unknown` occurrenceを公式timeline/readbackで照合し、解決根拠なしに再送しない。自然なAffiliate compositionでEnglish-first + Japanese summaryと成功事例由来のtutorial/CTA形式を読み戻す。
+6. [ ] fresh PartnerStack clicks/signups/commission/payoutと実費を照合し、承認済み報酬・settlementが確認できるまで収益を主張しない。現在の既知公式値は0 commission / $0 revenue、payout設定は未完了。
 
-**完了条件:** 実行可能なloopはfree-space数値の低さ・計測不能だけではdefer/exitしない。実`ENOSPC`は書込みに失敗した処理として記録し、次回scheduled occurrenceは進む。明示stopとeffect-unknownは厳密に保持する。Affiliate収益はprovider公式commission/settlementと実費で判定する。
+**完了条件:** 実行可能なloopはfree-space数値の低さ・計測不能・cleanup-owned `disk_headroom_low` markerだけではdefer/exitしない。明示operator stopは保持する。共有runnerのscratch `ENOSPC` はretryable eventとして記録し、次回wakeで進む。他の実write failureはowner固有のerror pathに限定して扱い、全producerで同じstructured `ENOSPC`分類があるとは仮定しない。unsafe control stateとeffect-unknownは厳密に保持する。Affiliate収益はprovider公式commission/settlementと実費で判定する。
 
-**現在cursor:** shared runnerとAffiliate/Gig/SelfFixの計測不能gateを除去 → 既存acceptance/CI → merge/release → Affiliate old-ownerのnatural apply/readback → X effect reconcile → 英語記事+日本語要約を自然生成 → PartnerStack公式commission/payout readback。
+**現在cursor:** 数値free-space gatesとcleanup-owned low-space markerによるproducer blockを除去済み（operator stopは維持） → focused acceptance/CI + fresh review → merge/release → Affiliate old-ownerのnatural apply/readback → X effect reconcile → 英語記事+日本語要約を自然生成 → PartnerStack公式commission/payout readback。
 
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）

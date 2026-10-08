@@ -2138,7 +2138,7 @@ async def supervise_replies(
             outbox = ConnectorOutbox(database, manifest)
         return outbox
 
-    def headroom_available() -> bool:
+    def control_state_available() -> bool:
         try:
             return bool(disk_headroom_ok())
         except Exception:
@@ -2240,16 +2240,16 @@ async def supervise_replies(
                     pass
                 if stop.is_set():
                     break
-            if headroom_available():
+            if control_state_available():
                 try:
                     observed = await _supervisor_hook(probe)
-                    if headroom_available():
+                    if control_state_available():
                         await enqueue_head_rows(_supervisor_rows(observed))
                 except Exception:
                     # A transient probe failure leaves durable pending rows for the
                     # same pass; it must not tear down the supervised consumers.
                     pass
-                if headroom_available():
+                if control_state_available():
                     await enqueue_pending_actions()
             now = time.monotonic()
             if immediate_after_overrun:
@@ -2274,7 +2274,7 @@ async def supervise_replies(
             except asyncio.TimeoutError:
                 continue
             try:
-                if headroom_available():
+                if control_state_available():
                     ignored = close_no_contact_work(
                         work, registry_path=Path(args.no_contact_registry),
                         outbox=get_outbox(), now=int(time.time()),
@@ -2285,7 +2285,7 @@ async def supervise_replies(
                         await report_policy(report_dir / "result.json", result)
                     else:
                         result = await _supervisor_hook(worker, work)
-                    if headroom_available():
+                    if control_state_available():
                         try:
                             rebound = _supervisor_rebind_targeted_work(
                                 get_outbox(), work, result, now=int(time.time()),
@@ -2308,7 +2308,7 @@ async def supervise_replies(
             try:
                 await asyncio.wait_for(stop.wait(), timeout=delay)
             except asyncio.TimeoutError:
-                if headroom_available():
+                if control_state_available():
                     try:
                         await _supervisor_hook(reconcile)
                         delay = reconcile_seconds

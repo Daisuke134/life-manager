@@ -73,13 +73,12 @@ hc_reclaim_disk_if_low(){ return 0; }
 SH
 cat > "$TEST_REPO/runtime/host/disk_admission.py" <<'PY'
 import os
+import json
 import stat
 from pathlib import Path
 
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
-_POLICY_FLAGS = (
-    ("disk-writers.stop", "disk_writers_stop"),
-)
+_POLICY_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 
 def _host_state_dir():
     configured = os.environ.get("LIFE_MANAGER_HOST_STATE_DIR")
@@ -96,6 +95,17 @@ def _producer_gate():
             return "disk_policy_unavailable", host_state / filename
         if not stat.S_ISREG(info.st_mode):
             return "disk_policy_unavailable", host_state / filename
+        if filename == "disk-writers.stop":
+            try:
+                value = json.loads((host_state / filename).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                value = None
+            if (isinstance(value, dict)
+                    and value.get("owner_id") == "host-disk-recovery"
+                    and value.get("reason") == "disk_headroom_low"
+                    and value.get("required_bytes") == RECOVERY_FLOOR_BYTES
+                    and value.get("next_action") == "restore_capacity_and_install_shared_disk_gate"):
+                continue
         return reason, host_state / filename
     return None
 
@@ -180,12 +190,20 @@ assert_no_self_fix_attempt(){
   assert_no_self_fix_markers "$home" "$loop"
 }
 
-echo "(G) finite SelfFix admission ignores low space but honors unknown/explicit stop"
+echo "(G) finite SelfFix admission ignores low space, unknown capacity, and cleanup stop"
 GATE_FLOOR=$((11 * 1024 * 1024 * 1024))
 LOW_HOME="$D_RUNTIME/low-home"; prepare_self_fix_home "$LOW_HOME" "$((GATE_FLOOR-1))"
 : > "$LOW_HOME/.local/state/life-manager/state/disk-pressure.block"
+python3 - "$LOW_HOME/.local/state/life-manager/state/disk-writers.stop" <<'PY'
+import json, os, sys
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump({"owner_id": "host-disk-recovery", "reason": "disk_headroom_low",
+               "required_bytes": 2 * 1024**3,
+               "next_action": "restore_capacity_and_install_shared_disk_gate"}, handle)
+    handle.write("\n")
+os.chmod(sys.argv[1], 0o600)
+PY
 LOW_OUT="$(run_fake_self_fix "$LOW_HOME" gate-low \
-  LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP=1 LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK=1 \
   LIFE_MANAGER_DISK_HEADROOM_KIB=1 2>&1)"; LOW_RC=$?
 ne "low headroom does not create a disk blocker" "$LOW_OUT" 'disk_headroom_low'
 eq "low headroom still runs SelfFix" "$LOW_RC" '0'
@@ -195,6 +213,13 @@ while [ "$LOW_WAIT" -lt 100 ] && [ ! -f "$LOW_HOME/observed-runtime.env" ]; do
   LOW_WAIT=$((LOW_WAIT+1))
 done
 eq "low headroom runs the agent" "$([ -f "$LOW_HOME/observed-runtime.env" ] && echo present || echo absent)" present
+
+OPERATOR_HOME="$D_RUNTIME/operator-stop-home"; prepare_self_fix_home "$OPERATOR_HOME" "$((16*1024*1024*1024))"
+printf 'owner=operator\n' > "$OPERATOR_HOME/.local/state/life-manager/state/disk-writers.stop"
+OPERATOR_OUT="$(run_fake_self_fix "$OPERATOR_HOME" gate-operator-stop 2>&1)"; OPERATOR_RC=$?
+a "operator stop still blocks SelfFix" "$OPERATOR_OUT" 'disk_writers_stop'
+eq "operator stop exits deferred" "$OPERATOR_RC" '75'
+assert_no_self_fix_attempt "$OPERATOR_HOME" gate-operator-stop
 
 UNKNOWN_HOME="$D_RUNTIME/unknown-home"; prepare_self_fix_home "$UNKNOWN_HOME" unknown
 UNKNOWN_OUT="$(run_fake_self_fix "$UNKNOWN_HOME" gate-unknown 2>&1)"; UNKNOWN_RC=$?
@@ -206,19 +231,6 @@ while [ "$UNKNOWN_WAIT" -lt 100 ] && [ ! -f "$UNKNOWN_HOME/observed-runtime.env"
   UNKNOWN_WAIT=$((UNKNOWN_WAIT+1))
 done
 eq "unknown capacity runs the agent" "$([ -f "$UNKNOWN_HOME/observed-runtime.env" ] && echo present || echo absent)" present
-
-for flag in disk-writers.stop; do
-  FLAG_HOME="$D_RUNTIME/flag-${flag##*.}-$flag"; prepare_self_fix_home "$FLAG_HOME" "$((16*1024*1024*1024))"
-  : > "$FLAG_HOME/.local/state/life-manager/state/$flag"
-  if [ "$flag" = "disk-writers.stop" ]; then
-    ignore_name=LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP; reason=disk_writers_stop; loop=gate-stop
-  fi
-  FLAG_OUT="$(run_fake_self_fix "$FLAG_HOME" "$loop" "$ignore_name=1" \
-    LIFE_MANAGER_DISK_HEADROOM_KIB=1 2>&1)"; FLAG_RC=$?
-  a "$flag blocks despite caller ignore env" "$FLAG_OUT" "$reason"
-  eq "$flag exits deferred" "$FLAG_RC" '75'
-  assert_no_self_fix_attempt "$FLAG_HOME" "$loop"
-done
 
 DROP_HOME="$D_RUNTIME/drop-home"; prepare_self_fix_home "$DROP_HOME" "$((16*1024*1024*1024))"
 DROP_OUT="$(run_fake_self_fix "$DROP_HOME" gate-drop-after-browser \

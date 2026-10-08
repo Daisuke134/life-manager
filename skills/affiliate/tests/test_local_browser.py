@@ -35,7 +35,19 @@ keys = (
     "DISK_CONTROL_STATE_DIR", "OPENCLAW_STATE_DIR", "LIFE_MANAGER_HOST_STATE_DIR",
 )
 host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
-reason = "disk_writers_stop" if (host_state / "disk-writers.stop").is_file() else None
+stop_file = host_state / "disk-writers.stop"
+try:
+    stop_value = json.loads(stop_file.read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    stop_value = None
+cleanup_recovery = (
+    isinstance(stop_value, dict)
+    and stop_value.get("owner_id") == "host-disk-recovery"
+    and stop_value.get("reason") == "disk_headroom_low"
+    and stop_value.get("required_bytes") == 2 * 1024**3
+    and stop_value.get("next_action") == "restore_capacity_and_install_shared_disk_gate"
+)
+reason = "disk_writers_stop" if stop_file.is_file() and not cleanup_recovery else None
 record = {"argv": sys.argv, "isolated": sys.flags.isolated,
           "env": {key: os.environ[key] for key in keys if key in os.environ}}
 capture.write_text(json.dumps(record), encoding="utf-8")
@@ -182,6 +194,30 @@ class LocalBrowserPreflightTest(unittest.TestCase):
                 )
                 self.assertEqual(receipt["reason"], reason)
                 self.assertEqual(receipt["required_bytes"], 0)
+
+    def test_consumer_ignores_cleanup_recovery_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary) / "home"
+            host_state = home / ".local/state/life-manager/state"
+            lane_state = home / ".local/state/life-manager/affiliate"
+            host_state.mkdir(parents=True)
+            lane_state.mkdir(parents=True)
+            stop_file = host_state / "disk-writers.stop"
+            stop_file.write_text(json.dumps({
+                "owner_id": "host-disk-recovery",
+                "reason": "disk_headroom_low",
+                "required_bytes": 2 * 1024**3,
+                "next_action": "restore_capacity_and_install_shared_disk_gate",
+            }) + "\n", encoding="utf-8")
+            stop_file.chmod(0o600)
+            guard = self.install_guard(home)
+            capture = home / "capture.json"
+            with patch.dict(os.environ, {
+                "HOME": "/hostile/home",
+                "STUB_CAPTURE": str(capture),
+            }, clear=False):
+                self.assertTrue(MODULE._disk_preflight(home, guard))
+            self.assertFalse((lane_state / "state/disk-headroom.json").exists())
 
     def test_missing_or_unreadable_guard_has_no_browser_or_profile_effect(self) -> None:
         for unreadable in (False, True):

@@ -349,6 +349,26 @@ class MachineCapabilityInventoryTests(unittest.TestCase):
                 self.assertNotIn(forbidden, child)
             self.assertNotIn("AUTHORITY_SECRET_SENTINEL", json.dumps(child, sort_keys=True))
 
+    def test_runner_rejects_node_from_inherited_path_without_runtime_pin(self) -> None:
+        gate = self.load_module(RUNNER_GATE)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            untrusted_bin = root / "untrusted-bin"
+            untrusted_bin.mkdir()
+            node = untrusted_bin / "node"
+            node.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            node.chmod(0o755)
+            executable = root / "release" / "codex"
+            executable.parent.mkdir()
+            executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            executable.chmod(0o755)
+
+            with self.assertRaises(gate.PinError):
+                gate.allowlisted_environment(
+                    {"HOME": str(root / "owner"), "PATH": str(untrusted_bin)},
+                    executable,
+                )
+
     def test_runner_evidence_requires_private_atomic_seal(self) -> None:
         gate = self.load_module(RUNNER_GATE)
         with tempfile.TemporaryDirectory() as temporary:
