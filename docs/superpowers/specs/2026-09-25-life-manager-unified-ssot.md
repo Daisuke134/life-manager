@@ -4779,7 +4779,7 @@ PR #7042 sender-safety source fixはmerge済み（main commit `bd3ef82567e790605
 - `/Users/anicca/gig/evidence/paid-direct-live/latest.json`の非PII summaryは`status=completed`, observed3, actionable1, readback3, failed0, pending0, duplicate_dropped0。これはlocal collector summaryであり、provider receipt、buyer delivery、payoutの証拠ではない。
 - Cleanup owner PID `50217`はrelease `71a5f878`でloaded-running。直近の終端eventは06:28:19Z `apply_lock_busy`のままで、新しいcleanup receiptと2 GiB floor回復は未確認。release reconciler PID `84853`もloaded-running。
 - Disk availableは06:33Zに`1,697,728 KiB`。Admissionの最新snapshotは06:30Zで1/8 occupied、81 queued / 59 eligible。古い8/8値でいまのblockを説明しない。
-- PR #7072 head `30696dbb`のrequired CIは06:32Zに全PASS。previous-head review findingsはlatest headで未確認で、fresh read-only reviewerは継続中。CI PASS単独をmerge/production completionとしない。
+- PR #7072は06:32:50Zにhead `91555137`へ再更新。Python+unittestはPASS、Loop control / gitleaks / TruffleHogはpending、他のrequired checksはPASS。独立reviewerはhead `30696dbb`を再確認中だったため、新headのreviewは未完。CI PASS単独をmerge/production completionとしない。
 
 **現在cursor:** Paid PID `7527`とrelease reconciler PID `84853`のnatural terminal、cleanup PID `50217`のnatural terminal + cleanup receipt。三つのstateを既存ownerのrunから読み直し、止めずに進む。
 
