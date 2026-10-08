@@ -227,7 +227,9 @@ async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
     await page.locator("input[type=file]").first.set_input_files(str(package_dir / "submission.zip"))
     await page.wait_for_timeout(20000)
     body = await page.inner_text("body")
-    if "エラー" in body:
+    # Rejected slots show an English "Error" badge (live 2026-10-08); "未登録の画像" means some
+    # images did not register. Either way the upload is not done.
+    if "エラー" in body or re.search(r"\bError\b", body) or "未登録の画像" in body:
         raise RuntimeError(f"image_upload_error:{body[:300]}")
 
 
