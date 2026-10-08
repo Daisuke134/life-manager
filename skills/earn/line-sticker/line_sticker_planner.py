@@ -48,14 +48,29 @@ def _run_agent(*, prompt: str, schema: Path, evidence_dir: Path, task_label: str
     return json.loads(result_path.read_text(encoding="utf-8"))
 
 
-def _build_plan_prompt(prior_facts: list[dict]) -> str:
+def _build_plan_prompt(prior_facts: list[dict], market_items: list[dict] | None = None) -> str:
+    market_items = market_items or []
     return f"""あなたはLINE Creators Marketで売れている「動くスタンプ」の企画者。
 
-市場調査（2026-10-06, LINE STORE top_creators上位35件、動く系含む）: 上位の作者は例外なく既存
-キャラクターのシリーズ（1キャラにつき5〜36セット）を売っている。単発の新キャラクターは上位35件に
-一つも無い。タイトルは「動く！」/「うごく」を先頭に付け「<キャラ名>の<シーン>」の形、続編には
-vol./数字を付ける。テーマは頻度順に 汎用日常返事 → 敬語・仕事 → 季節イベント（年末年始など） →
-家族・推し活 を優先する。
+今日のLINE STORE上位（top_creators/new_creators、継続的に再取得される市場データ。古い場合は
+null）。各項目は product_id/title/author/price_jpy/format/sticker_count/description/
+text_or_no_text/theme/art_style/phrases/author_sets:
+{json.dumps(market_items, ensure_ascii=False, indent=1)}
+
+まず copy_target を1つ選ぶ: 上の市場データの中で、このキャラクターに当てはめて最も真似しやすい
+勝ちパターンを1件選び、product_url・theme・phrases（真似する意図/フレーズ一覧）・
+expression_style（表現スタイル）・text_or_no_text・title_pattern（タイトルの付け方）を記録する。
+真似するのは「売れ筋の企画パターン」（テーマ・文字有無・タイトルの付け方・表現の意図）であり、
+他者のキャラクター・絵・文字そのものを複製してはならない（LINEのAI/知的財産ガイドラインを守り、
+キャラクターと絵はオリジナルにする）。
+市場データが大半 static または文字入りの場合、このセットは動く・文字なしで作る（既存方針）ことを
+踏まえ、format_gap に一言でそのギャップを記録する（例: "上位は静止画・文字入りが多いが今回は
+動く・文字なしで作る"）。ギャップが無ければ null にする。
+
+既存セットの傾向（上位作者は例外なく既存キャラクターのシリーズ（1キャラにつき5〜36セット）を
+売っている。単発の新キャラクターは上位に一つも無い）: タイトルは「動く！」/「うごく」を先頭に付け
+「<キャラ名>の<シーン>」の形、続編には vol./数字を付ける。テーマは頻度順に 汎用日常返事 → 敬語・
+仕事 → 季節イベント（年末年始など） → 家族・推し活 を優先する。
 
 既存セットの事実（新しいセットを計画する前に必ず読む。set=ディレクトリ名、
 state_observed=LINE Creators Marketで最後に確認した公式状態、例: 販売中/審査待ち/リジェクト、
@@ -99,8 +114,8 @@ sales_jpy=LINE Creators Marketの公式売上・統計情報/送金申請ペー�
 JSON Schemaに厳密に従ったJSONだけを返す。"""
 
 
-def planner(set_dir: Path, prior_facts: list[dict]) -> dict:
-    prompt = _build_plan_prompt(prior_facts)
+def planner(set_dir: Path, prior_facts: list[dict], market_items: list[dict] | None = None) -> dict:
+    prompt = _build_plan_prompt(prior_facts, market_items)
     with tempfile.TemporaryDirectory(prefix=".plan-", dir=set_dir) as tmp:
         return _run_agent(prompt=prompt, schema=HERE / "schemas/plan.schema.json",
                            evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-plan-{set_dir.name}")
