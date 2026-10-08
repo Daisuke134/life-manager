@@ -430,7 +430,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | # | Task | 完了条件（公式 readback） | 状態（2026-10-08 10:xx JST） |
 |---|---|---|---|
-| N1 | 売れていた 4 本を売れていた状態に戻す: Sonnet 5・本番価格のまま・Hook Lab の test/ 除外。説明文は 1 語も変えない（変更はモデル行と価格表だけ） | Capafy API status 4（承認）→ buyer ページの「セキュリティスキャン」が通常 → 有料注文が再開 | **審査中**（10/08 10:30 JST 再確認、4 本とも status=1）。承認後に YouTube 年 cap 720 を確認 |
+| N1 | 売れていた 4 本を売れていた状態に戻す: Sonnet 5・本番価格のまま・Hook Lab の test/ 除外。説明文は 1 語も変えない（変更はモデル行と価格表だけ） | Capafy API status 4（承認）→ buyer ページの「セキュリティスキャン」が通常 → 有料注文が再開 | **審査中**（10/08 10:28 JST 再確認、4 本とも status=1）。承認後に YouTube 年 cap 720 を確認 |
 | N1b | 承認後、4 本の実モデル ID を `anthropic/claude-sonnet-5.5` に（OpenRouter: 5 と同じ $2/$10。Capafy の表示名は選択肢がないので「Claude Sonnet 5」のまま） | Capafy API の hosted model が 5.5 | 承認待ち。再審査が要るかは承認後の画面で確認 |
 | N2 | 公開済み agent を工場が勝手に変えない。自動の値上げ・モデル変更・説明の書き換えは永久禁止 | 価格・モデル・カードの自動更新が 0 件 | ✅ 本番（`dais_approved_exception` 付き UPDATE.json だけ通す・日次判断は報告のみ・FROZEN.json に 4 本） |
 | N2b | 売れない agent は 1 回だけ値下げ（Dais 10/08）: 公開 7 日・注文 0・凍結外 → 上位勢価格帯の下限へ。下限 = 手取り ≥ 上限回数 × $0.12 × 1.2。値上げはしない | 対象 agent の価格が下がり、赤字プランが 0 | 実装中（branch `capafy/auto-price-down-non-sellers`） |
@@ -443,7 +443,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | N7b | 自社メディア aniccaai.com の記事＋X（3 時間ごと） | 記事が公開され、登録 ct 経由の訪問が出る | 公開中（10/08 は h00〜h09 の 4 本 published、10/07 は h06 blocked・h15〜h21 なし）。OpenSEO のキーワード選定は writer の article-daily だけで、Capafy 記事には未適用 |
 | N8 | 工場・宣伝が止まらない運転 | 毎時の集計・3 時間ごとの宣伝・工場が自然に回る | 毎時確認中。ディスクは他セッションの作業で揺れる |
 
-**現在のカーソル（2026-10-08 10:30 JST）:** N1（審査の結果待ち）。並行: N2b・N5（実装中）、N2c（次）、N3・N4（サポート回答待ち）、N7（承認待ち）、N8（毎時確認）。順序変更の理由: Dais 10/08 指示で「売れない agent は値下げ」「Sonnet 5.5 で実行」が加わり、赤字 agent が 3 本見つかったため。旧順序 N1→N8、新順序 N1→N1b→N2b→N2c→N5→N7→N7b、N3・N4 はサポート待ちで並行。
+**現在のカーソル（2026-10-08 10:28 JST）:** N1（審査の結果待ち）。並行: N2b・N5（実装中）、N2c（次）、N3・N4（サポート回答待ち）、N7（承認待ち）、N8（毎時確認）。順序変更の理由: Dais 10/08 指示で「売れない agent は値下げ」「Sonnet 5.5 で実行」が加わり、赤字 agent が 3 本見つかったため。旧順序 N1→N8、新順序 N1→N1b→N2b→N2c→N5→N7→N7b、N3・N4 はサポート待ちで並行。
 
 
 ## 進捗ログ（実行順のカーソル）
