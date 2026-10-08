@@ -736,6 +736,7 @@ def test_a_draft_is_attempted_at_most_three_times_then_new_skills_proceed(monkey
     monkeypatch.setattr(module, "server_agents", lambda: [agent("4973250899", "draft", name=stub_name)])
 
     seen = []
+    monkeypatch.setenv("CAPAFY_COUNT_DRAFT_ATTEMPT", "1")  # only the pass's deciding call counts
     for _ in range(5):
         module.main()
         decision = json.loads(capsys.readouterr().out.splitlines()[-1])
@@ -939,3 +940,21 @@ def test_frozen_agents_are_never_updated_without_exception(tmp_path) -> None:
     approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "x"}}
 
     assert module.drop_profitable_updates([plain, approved], path=analytics, frozen_path=frozen) == [approved]
+
+
+def test_only_the_deciding_call_counts_a_draft_attempt(monkeypatch, tmp_path, capsys) -> None:
+    """A pass calls inventory_status.py three times (pre-check, decision, post-verdict). Counting every
+    call burned a draft's three attempts inside one pass (10/08: 3257394572 showed 3 after one pass)."""
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
+    stub_name = "Earnings Call Brief — Pasted Results to Questions" + module.PLACEHOLDER_SUFFIX
+    monkeypatch.setattr(module, "server_agents", lambda: [agent("4973250899", "draft", name=stub_name)])
+    monkeypatch.delenv("CAPAFY_COUNT_DRAFT_ATTEMPT", raising=False)
+    for _ in range(4):
+        module.main(); capsys.readouterr()
+    assert module.load_draft_attempts() == {}, "non-deciding calls must not count"
+    monkeypatch.setenv("CAPAFY_COUNT_DRAFT_ATTEMPT", "1")
+    module.main(); capsys.readouterr()
+    assert module.load_draft_attempts() == {"4973250899": 1}
