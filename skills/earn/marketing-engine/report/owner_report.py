@@ -1258,7 +1258,20 @@ def render_japanese(event: dict) -> str:
         age = facts.get("target_age_hours")
         if status == "measured" and facts.get("views") is not None:
             lines.append(f"📊 {product_id}の{platform}チェックポイント（{age}時間）。")
-            lines.append(f"閲覧数 {facts.get('views')}、表示回数 {facts.get('impressions')}。")
+            metrics = (
+                ("views", "閲覧数"),
+                ("impressions", "表示回数"),
+                ("reach", "リーチ"),
+                ("likes", "いいね"),
+                ("comments", "コメント"),
+                ("shares", "シェア"),
+                ("saves", "保存"),
+            )
+            rendered_metrics = [
+                f"{label} {facts[field]}" if facts.get(field) is not None else f"{label} 未取得"
+                for field, label in metrics
+            ]
+            lines.append("、".join(rendered_metrics) + "。")
         else:
             reason = facts.get("reason") or "checkpoint_missed"
             natural = _reason_text(reason)
