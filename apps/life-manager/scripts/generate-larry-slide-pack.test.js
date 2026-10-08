@@ -30,24 +30,6 @@ function fakeResolveBackground() {
   return async () => ({ file: path.join(os.tmpdir(), "generate-larry-slide-pack-fixture.png"), costUsd: 0, cached: true });
 }
 
-let copyCounter = 0;
-function fakeGenerateText() {
-  // Realistic-length fake lines (matches real Gemini output length) -- a
-  // too-short fake string is an unrepresentative edge case for the render/
-  // contrast check, not a real production scenario.
-  return async () => {
-    copyCounter += 1;
-    const n = copyCounter;
-    return {
-      text: JSON.stringify({
-        hook: `テストの見出しです${n}\n二行目もあります`,
-        body: [`ひとつめの本文です${n}`, `ふたつめの本文です${n}`, `みっつめの本文です${n}`, `よっつめの本文です${n}`],
-      }),
-      costUsd: 0.0004,
-    };
-  };
-}
-
 function makeFixtureBackgroundOnce() {
   const file = path.join(os.tmpdir(), "generate-larry-slide-pack-fixture.png");
   if (fs.existsSync(file)) return;
@@ -81,7 +63,7 @@ test("resolveLarryJaSlot generates a pool from empty and returns a candidate", {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  const { slot, selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  const { slot, selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
   assert.equal(slot, "2026-09-28T01:30:00.000Z");
   assert.match(selected.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
   assert.equal(selected.mediaRefs.length, 6);
@@ -94,10 +76,10 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
   const before = fs.readFileSync(pool, "utf8");
-  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const after = fs.readFileSync(pool, "utf8");
   assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
 });
@@ -106,25 +88,25 @@ test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REP
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  const first = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  const first = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const firstHash = /object:\/\/sha256\/([0-9a-f]{64})/.exec(first.selected.packRef)[1];
 
   writeDistributionLedger(dataDir, [
     { effect_key: "k1", job_id: "j1", receipt: { kind: "marketing_native_carousel_distribution", status: "published", pack_sha256: firstHash, published_at: NOW } },
   ]);
 
-  const second = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  const second = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   assert.notEqual(second.selected.packRef, first.selected.packRef);
 
   // Same slot retried immediately (idempotency-per-slot support): with the
   // pool/history unchanged, resolution is deterministic.
-  const retry = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  const retry = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   assert.equal(retry.selected.packRef, second.selected.packRef);
 });
 
 test("resolveLarryJaSlot skips content rotation when this integration already published the exact due slot", async (t) => {
   const dataDir = tempDataDir(t);
-  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT, GEMINI_API_KEY: "fixture" };
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const slot = "2026-09-28T01:30:00.000Z";
   const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
   writeDistributionLedger(dataDir, [{
@@ -164,7 +146,7 @@ test("resolveLarryJaSlot skips content rotation when this integration already pu
 
 test("resolveLarryJaSlot rechecks the slot after generation finishes", async (t) => {
   const dataDir = tempDataDir(t);
-  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT, GEMINI_API_KEY: "fixture" };
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const slot = "2026-09-28T01:30:00.000Z";
   const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
   const generated = { packRef: `object://sha256/${"e".repeat(64)}`, familyId: "fresh" };
@@ -265,7 +247,6 @@ test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a no
     env, now: () => NOW, slot: "2026-09-28T09:00:00.000Z",
     lane: EN_SLIDESHOW_TIKTOK_LANE,
     resolveBackground: fakeResolveBackground(),
-    generateText: fakeGenerateText(),
   });
   assert.equal(slot, "2026-09-28T09:00:00.000Z");
   assert.match(selected.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
@@ -296,7 +277,7 @@ test("resolveLarryJaSlot renders slides with the managed LIFE_MANAGER_PYTHON, no
   // Records every argv then defers to the real interpreter so rendering still succeeds.
   fs.writeFileSync(shim, `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nexec python3 "$@"\n`, { mode: 0o700 });
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT, LIFE_MANAGER_PYTHON: shim };
-  const { selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
+  const { selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
   assert.ok(selected);
   // Slide text carries a newline, so one argv record spans two lines; the shim
   // being the interpreter that rendered is what matters.
@@ -318,7 +299,7 @@ test("an exhausted pool replenishes once and never selects a recently published 
   } })));
   let generated = 0;
   const fresh = { ...candidates[0], packRef: `object://sha256/${"f".repeat(64)}` };
-  const options = { env, now: () => NOW, generateText: async () => {},
+  const options = { env, now: () => NOW,
     generateCandidates: async () => { generated += 1; return [candidates[0], fresh]; } };
   const first = await resolveLarryJaSlot(options);
   assert.equal(first.selected.packRef, fresh.packRef);
@@ -343,7 +324,7 @@ test("an exhausted pool stays failed when generation yields no fresh approved ca
   } })));
   const before = fs.readFileSync(pool, "utf8");
   let generated = 0;
-  await assert.rejects(resolveLarryJaSlot({ env, now: () => NOW, generateText: async () => {},
+  await assert.rejects(resolveLarryJaSlot({ env, now: () => NOW,
     generateCandidates: async () => { generated += 1; return candidates; },
   }), /no unposted candidate/);
   assert.equal(generated, 1, "exhausted inventory must attempt the existing factory once");
@@ -359,7 +340,7 @@ test("selection rereads publication history after the factory finishes", async (
   fs.writeFileSync(pool, JSON.stringify(old) + "\n");
   const result = await resolveLarryJaSlot({
     env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
-    generateText: async () => {}, generateCandidates: async () => {
+    generateCandidates: async () => {
       writeDistributionLedger(dataDir, [{ receipt: { pack_sha256: "a".repeat(64), published_at: NOW } }]);
       return [fresh];
     },
