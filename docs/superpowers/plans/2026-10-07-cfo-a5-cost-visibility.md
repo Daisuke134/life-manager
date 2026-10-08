@@ -151,14 +151,14 @@
 - [x] Add regression tests for review findings; require explicit estimate status for zero and render distinct run/occurrence/release counts. Preserve validated partial loop/owner attribution; missing loop/owner remains `unattributed`.
 - [x] Refresh the absorbed Capafy source inventory for merged main; run `node scripts/verify-oss-self-contained.mjs` and `node --test test/oss-self-contained.test.mjs`.
 - [x] After merging latest main `1872befb`, recompute the OSS source inventory from the merged tree and rerun its verifier plus `node --test test/oss-self-contained.test.mjs`.
-- [x] Merge latest main `68b03657` and subsequent docs-only main `b634a187`; recompute the OSS inventory from the merged tree and rerun verifier plus self-contained tests (12/12 PASS).
+- [x] Merge latest main through `55546755` (including `68b03657` and `b634a187`); recompute the OSS inventory from the merged tree and rerun verifier plus self-contained tests (12/12 PASS).
 - [x] Run the complete A5 focused tests plus `npm run eval:panel-privacy`, the focused registry test, and `./bin/lm-loop-contract`.
 - [x] Rerun the A5 focused tests (127/127), privacy evaluator, registry/loop contract, and the first full runtime suite against the merged head. The suite reached 791 tests; only the two `cut-loop-release` pressure tests failed because current commit `3f25077e` exists only locally.
 - [ ] After pushing the branch, rerun the two release-pressure tests to satisfy their remote-SHA guard, then require the complete runtime suite to pass.
-- [x] After merging latest main `b634a187`, rerun A5 focused tests (127/127), privacy evaluator, registry fixture/loop contract, OSS verifier/tests, and `git diff --check`.
+- [x] After merging latest main `55546755`, rerun A5 focused tests (127/127), privacy evaluator, registry fixture/loop contract, OSS verifier/tests, and `git diff --check`.
 - [x] Run `git diff --check` against the merged branch; full branch review still requires a fresh read-only review on the pushed head.
 - [x] Update the canonical SSOT's A5 cursor and production evidence from fresh readbacks; distinguish the older-release ENOSPC messages from the current release's in-progress apply and keep unrelated owner failures outside A5 scope.
 - [x] Fetch/merge latest `origin/main` (`1872befb`); resolve the registry fixture from merged `config/loop-registry.json`, retaining CFO `priority=revenue` and main's eBook occurrence flag.
-- [ ] Fetch/merge latest main `b634a187` (and any newer tip) before pushing the existing `feat/cfo-a5-cost-visibility-20261007` branch and updating PR #6827; keep it draft until required checks and source review pass. Rerun the two release-pressure tests after push so their remote-SHA guard can pass.
+- [ ] Fetch/merge latest main `55546755` (and any newer tip) before pushing the existing `feat/cfo-a5-cost-visibility-20261007` branch and updating PR #6827; keep it draft until required checks and source review pass. Rerun the two release-pressure tests after push so their remote-SHA guard can pass.
 - [x] On the pushed, main-synced branch, rerun `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` and `node --test apps/life-manager/lib/loop-adapter-registry.test.js`; specifically confirm the two `cut-loop-release` pressure tests no longer fail because the tested HEAD is only local.
 - [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
