@@ -94,6 +94,17 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    fail_then_budget)
+      if [ "$target" = "${FAKE_FAIL_LOOP_ID:-}" ]; then
+        echo '{"ok": false, "error": "boom"}'
+        exit 1
+      fi
+      if [ "$target" = "${FAKE_SLOW_LOOP_ID:-}" ]; then
+        sleep 2.2
+      fi
+      echo '[{"ok":true,"changed":true}]'
+      exit 0
+      ;;
   esac
 fi
 exit 0
@@ -665,6 +676,32 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                              "a new release within the min interval of the last attempt must be "
                              "coalesced even though that attempt failed")
 
+    def test_new_release_after_normal_error_keeps_min_interval_with_expired_backoff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha1))
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="fail")
+            env["LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS"] = "0"
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 1)
+            self.assertEqual(self._state(root)["status"], "error")
+
+            sha2 = self._advance_repo(repo)
+            self._activate(root, self._make_release(root, sha2))
+            second = self._run(env)
+
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(
+                self._apply_call_count(calls_log),
+                1,
+                "an ordinary error must keep the full SHA coalescing interval",
+            )
+            self.assertEqual(self._state(root)["sha"], sha1)
+
     def test_new_release_after_a_failed_apply_is_applied_once_the_interval_elapses(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -963,6 +1000,135 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             state = self._state(root)
             self.assertEqual(state["status"], "partial")
             self.assertLess(state["next_retry_epoch"], time.time() + 60)
+
+    def _run_budget_partial_short_retry_new_sha_case(self, *, legacy_state):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(
+                root,
+                sha1,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release1)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="slow_first")
+            env["FAKE_SLOW_LOOP_ID"] = "first-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            first_state = self._state(root)
+            self.assertEqual(first_state["status"], "partial")
+            self.assertEqual(first_state["changed"], 1)
+            self.assertLessEqual(first_state["next_retry_epoch"], int(time.time()))
+            self.assertEqual(first_state["message"], "timed out owners: none; budget exceeded")
+            state_path = root / "reconciler-state" / "fleet-apply-state.json"
+            if legacy_state:
+                state = json.loads(state_path.read_text())
+                state.pop("budget_progress_continue", None)
+                state_path.write_text(json.dumps(state))
+            else:
+                self.assertIs(first_state["budget_progress_continue"], True)
+
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(
+                root,
+                sha2,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release2)
+            env["FAKE_APPLY_MODE"] = "ok"
+            env.pop("FAKE_SLOW_LOOP_ID")
+
+            second = self._run(env)
+
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(
+                self._apply_call_count(calls_log),
+                3,
+                "an expired budget-progress deadline must allow the latest SHA before min interval",
+            )
+            self.assertEqual(self._state(root)["sha"], sha2)
+
+    def test_budget_partial_short_retry_allows_new_sha_before_min_interval(self):
+        for legacy_state in (False, True):
+            with self.subTest(legacy_state=legacy_state):
+                self._run_budget_partial_short_retry_new_sha_case(legacy_state=legacy_state)
+
+    def _run_budget_partial_with_owner_failure_keeps_new_sha_coalesced(self, *, legacy_state):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(
+                root,
+                sha1,
+                loop_ids=("first-earn", "second-earn", "third-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                    "third-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release1)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="fail_then_budget")
+            env["FAKE_FAIL_LOOP_ID"] = "first-earn"
+            env["FAKE_SLOW_LOOP_ID"] = "second-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+            env["LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS"] = "120"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            first_state = self._state(root)
+            self.assertEqual(first_state["status"], "partial")
+            self.assertEqual(first_state["changed"], 1)
+            self.assertEqual(first_state["errors"], 1)
+            self.assertIn("budget exceeded", first_state["message"])
+            self.assertGreater(first_state["next_retry_epoch"], int(time.time()) + 10)
+            self.assertIs(first_state["budget_progress_continue"], False)
+
+            state_path = root / "reconciler-state" / "fleet-apply-state.json"
+            if legacy_state:
+                state = json.loads(state_path.read_text())
+                state.pop("budget_progress_continue", None)
+                state_path.write_text(json.dumps(state))
+
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2, loop_ids=("first-earn",))
+            self._activate(root, release2)
+            env["FAKE_APPLY_MODE"] = "ok"
+            env.pop("FAKE_FAIL_LOOP_ID")
+            env.pop("FAKE_SLOW_LOOP_ID")
+
+            second = self._run(env)
+
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(
+                self._apply_call_count(calls_log),
+                2,
+                "a mixed owner-error/budget partial must keep the normal new-SHA coalesce",
+            )
+            self.assertEqual(self._state(root)["sha"], sha1)
+
+    def test_budget_partial_with_owner_failure_keeps_new_sha_coalesced(self):
+        for legacy_state in (False, True):
+            with self.subTest(legacy_state=legacy_state):
+                self._run_budget_partial_with_owner_failure_keeps_new_sha_coalesced(
+                    legacy_state=legacy_state
+                )
 
     def test_partial_apply_honors_backoff_before_same_release_retry(self):
         with tempfile.TemporaryDirectory() as directory:
