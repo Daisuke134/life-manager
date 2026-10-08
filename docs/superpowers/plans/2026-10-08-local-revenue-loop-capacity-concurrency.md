@@ -62,8 +62,8 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - `bash scripts/verify-source-boundary.sh`、`./bin/lm-loop-contract`、`git diff --check`をpassさせる。
 - 対象source acceptance、fresh read-only review、required CIをpassしてPRをmainへ統合する。
 - 既存source snapshot: context/CDP 21 tests、Connector wrapper 2、Fundraiser wrapper 7、Connector controller+contract 10 tests pass。`./bin/lm-loop-contract`、source-boundary、shell syntax、diff checkもpass。
-- PR #7072 (`fix/local-revenue-capacity-concurrency-20261008`) は最新main `1872befb`へrebaseし、head `66799fde`でOPEN。read-only reviewはCriticalなし、Important 2件（Fundraiser owner/context不一致、profile-level provider lease不足）、Minor 1件（継承envで対象外taskにもfail-fastが漏れる）を報告。Connector GCのcontext scopeもsource上で未解決。
-- rebase前のheadでは`test_terra_default.py`の3 task-class期待値不一致とOSS manifest不一致でCIがFAIL。manifest更新後のローカルverifierは`ok=true`。rebase後のPR headでCodeRabbitはPASSし、他CIは未報告。
+- PR #7072 (`fix/local-revenue-capacity-concurrency-20261008`) は最新main `1872befb`へrebaseし、head `fa60666e`でOPEN。read-only reviewはCriticalなし、Important 2件（Fundraiser owner/context不一致、profile-level provider lease不足）、Minor 1件（継承envで対象外taskにもfail-fastが漏れる）を報告。Connector GCのcontext scopeもsource上で未解決。
+- rebase前のheadでは`test_terra_default.py`の3 task-class期待値不一致とOSS manifest不一致でCIがFAIL。manifest更新後のローカルverifierは`ok=true`。現headではCodeRabbitとOSS boundaryはPASS、Loop control・Python syntax/unittest・secret scansは実行中。
 
 ### 6. Immutable releaseとtarget owner apply
 
