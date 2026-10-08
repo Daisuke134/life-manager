@@ -22,17 +22,25 @@ SPEC.loader.exec_module(transport)
 
 class FakeCDP:
     def __init__(self, *, identity="expected", exact_before=False, after=None, route=True,
-                 confirmed_empty=False):
+                 confirmed_empty=False, before_sequence=None, after_sequence=None):
         self.identity = identity
         self.exact_before = exact_before
         self.after = after or {
             "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
             "recipient_bound": True,
+            "frame_present": True,
+            "frame_origin": "https://www.tiktok.com",
+            "frame_path": "/messages",
+            "frame_ready_state": "complete",
             "editor_empty": True,
             "exact_message": True,
         }
         self.route = route
         self.confirmed_empty = confirmed_empty
+        self.before_sequence = list(before_sequence or [])
+        self.after_sequence = list(after_sequence or [])
+        self.before_reads = 0
+        self.after_reads = 0
         self.calls = []
 
     def new_target(self, url, owner):
@@ -63,13 +71,21 @@ class FakeCDP:
                 ),
             }
         if "TIKTOK_COMPOSER_BEFORE" in expression:
+            self.before_reads += 1
+            if self.before_sequence:
+                return self.before_sequence.pop(0)
             return {
                 "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
                 "recipient_bound": True,
+                "recipient_handles": ["@candidate"],
+                "frame_present": True,
+                "frame_origin": "https://www.tiktok.com",
+                "frame_path": "/messages",
+                "frame_ready_state": "complete",
                 "editor": True,
                 "editor_empty": True,
                 "exact_message": self.exact_before,
-                "conversation_loaded": self.confirmed_empty,
+                "conversation_loaded": True,
                 "message_count": 0 if self.confirmed_empty else None,
             }
         if "TIKTOK_FOCUS" in expression:
@@ -77,6 +93,9 @@ class FakeCDP:
         if "TIKTOK_FILLED" in expression:
             return {"text": "本文"}
         if "TIKTOK_AFTER" in expression:
+            self.after_reads += 1
+            if self.after_sequence:
+                return self.after_sequence.pop(0)
             return self.after
         raise AssertionError(expression)
 
@@ -185,12 +204,77 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertEqual(result["effect"], 0)
         self.assertFalse(any(call[0] == "insert" for call in fake.calls))
 
+    def test_waits_for_delayed_business_messages_frame_before_preflight(self):
+        loading = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": False, "frame_origin": None, "frame_path": None,
+            "frame_ready_state": "loading",
+            "recipient_bound": False, "editor": False, "editor_empty": True,
+            "exact_message": False, "conversation_loaded": False, "message_count": None,
+        }
+        ready = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": True, "frame_origin": "https://www.tiktok.com",
+            "frame_path": "/messages", "frame_ready_state": "complete",
+            "recipient_bound": True, "editor": True, "editor_empty": True,
+            "exact_message": False, "conversation_loaded": True, "message_count": 0,
+        }
+        fake = FakeCDP(before_sequence=[loading, ready, ready])
+
+        result = self.send(self.payload(), fake, send=False)
+
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["effect"], 0)
+        self.assertGreaterEqual(fake.before_reads, 3)
+        self.assertFalse(any(call[0] == "insert" for call in fake.calls))
+
+    def test_rejects_unofficial_messages_frame_before_preflight(self):
+        untrusted = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": True, "frame_origin": "https://example.com",
+            "frame_path": "/messages", "frame_ready_state": "complete",
+            "recipient_bound": True, "recipient_handles": ["@candidate"],
+            "editor": True, "editor_empty": True, "exact_message": False,
+            "conversation_loaded": True, "message_count": 0,
+        }
+        fake = FakeCDP(before_sequence=[untrusted] * transport.READBACK_MAX_ATTEMPTS)
+
+        result = self.send(self.payload(), fake, send=False)
+
+        self.assertEqual(result["status"], "composer_hydration_timeout")
+        self.assertEqual(result["effect"], 0)
+        self.assertEqual(fake.before_reads, transport.READBACK_MAX_ATTEMPTS)
+        self.assertFalse(any(call[0] == "insert" for call in fake.calls))
+
     def test_sends_once_and_requires_exact_official_readback(self):
         fake = FakeCDP()
         result = self.send(self.payload(), fake)
         self.assertEqual(result["status"], "sent_exact_official_readback")
         self.assertEqual(result["effect"], 1)
         self.assertTrue(result["exact_readback"])
+        self.assertEqual(sum(call[0] == "insert" for call in fake.calls), 1)
+        self.assertEqual(sum(call[0] == "key" for call in fake.calls), 1)
+
+    def test_waits_for_delayed_exact_post_send_readback(self):
+        not_yet_visible = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": True, "frame_origin": "https://www.tiktok.com",
+            "frame_path": "/messages", "frame_ready_state": "complete",
+            "recipient_bound": True, "editor_empty": False, "exact_message": False,
+        }
+        visible = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": True, "frame_origin": "https://www.tiktok.com",
+            "frame_path": "/messages", "frame_ready_state": "complete",
+            "recipient_bound": True, "editor_empty": True, "exact_message": True,
+        }
+        fake = FakeCDP(after_sequence=[not_yet_visible, visible, visible])
+
+        result = self.send(self.payload(), fake, send=True)
+
+        self.assertEqual(result["status"], "sent_exact_official_readback")
+        self.assertEqual(result["effect"], 1)
+        self.assertGreaterEqual(fake.after_reads, 3)
         self.assertEqual(sum(call[0] == "insert" for call in fake.calls), 1)
         self.assertEqual(sum(call[0] == "key" for call in fake.calls), 1)
 

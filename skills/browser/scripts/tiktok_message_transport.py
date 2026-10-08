@@ -25,6 +25,8 @@ import tiktok_identity_readback
 
 HANDLE = re.compile(r"@[A-Za-z0-9._-]+\Z")
 EDITOR = '[contenteditable="true"][aria-label*="メッセージ"]'
+READBACK_POLL_INTERVAL_SECONDS = 0.5
+READBACK_MAX_ATTEMPTS = 60
 
 
 def _handle(value: object, field: str) -> str:
@@ -58,6 +60,45 @@ def _message_route(value: object) -> str | None:
 
 def _text(value: object) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _official_messages_frame(value: dict) -> bool:
+    return (
+        value.get("frame_present") is True
+        and value.get("frame_origin") == "https://www.tiktok.com"
+        and value.get("frame_path") == "/messages"
+        and value.get("frame_ready_state") == "complete"
+    )
+
+
+def _poll_until_stable(cdp_client, target: str, expression: str, *, ready, terminal,
+                       wait=time.sleep, max_attempts: int = READBACK_MAX_ATTEMPTS):
+    """Poll a read-only DOM projection until it is stable or reaches a safe terminal state."""
+    previous_signature = None
+    stable_reads = 0
+    last: dict | None = None
+    for attempt in range(max_attempts):
+        value = cdp_client.evaluate(target, expression)
+        if not isinstance(value, dict) or "__error__" in value:
+            return value, attempt + 1, False
+        last = value
+        if terminal(value):
+            return value, attempt + 1, False
+        if ready(value):
+            signature = json.dumps(value, sort_keys=True, separators=(",", ":"))
+            if signature == previous_signature:
+                stable_reads += 1
+                if stable_reads >= 1:
+                    return value, attempt + 1, True
+            else:
+                stable_reads = 0
+            previous_signature = signature
+        else:
+            previous_signature = None
+            stable_reads = 0
+        if attempt + 1 < max_attempts:
+            wait(READBACK_POLL_INTERVAL_SECONDS)
+    return last, max_attempts, False
 
 
 def _base(payload: dict, project_root: Path) -> tuple[dict, str, str, str, str, str, Path]:
@@ -259,8 +300,7 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             return result
 
         cdp_client.navigate(target, route)
-        wait(7)
-        before = cdp_client.evaluate(target, f'''/* TIKTOK_COMPOSER_BEFORE */ (() => {{
+        before_expression = f'''/* TIKTOK_COMPOSER_BEFORE */ (() => {{
           const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
           const doc = frame?.contentDocument;
           const body = doc?.body?.innerText || '';
@@ -269,16 +309,48 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
           const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
           const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
           const recipientBound = handles.includes({json.dumps(candidate)});
-          return {{url: location.href, recipient_bound: recipientBound,
+          let frameUrl = null;
+          try {{ frameUrl = frame ? new URL(frame.src, location.href) : null; }} catch (_) {{}}
+          return {{url: location.href, recipient_bound: recipientBound, recipient_handles: handles,
+            frame_present: !!frame, frame_origin: frameUrl?.origin || null,
+            frame_path: frameUrl?.pathname || null, frame_ready_state: doc?.readyState || null,
             editor: !!editor, editor_empty: !editor || !(editor.innerText || '').trim(),
             exact_message: body.includes({json.dumps(message)}),
             conversation_loaded: !!messageList,
             message_count: messageList && (messageList.innerText || '').trim() ? 1 : 0}};
-        }})()''')
+        }})()'''
+        before, before_attempts, before_ready = _poll_until_stable(
+            cdp_client, target, before_expression,
+            ready=lambda row: (
+                _official_messages_frame(row)
+                and row.get("recipient_bound") is True
+                and (
+                    (row.get("editor") is True
+                     and row.get("editor_empty") is True
+                     and row.get("conversation_loaded") is True)
+                    or row.get("exact_message") is True
+                )
+            ),
+            terminal=lambda row: (
+                _official_messages_frame(row)
+                and row.get("conversation_loaded") is True
+                and bool(row.get("recipient_handles"))
+                and row.get("recipient_bound") is not True
+            ),
+            wait=wait,
+        )
+        result["pre_send_readback_attempts"] = before_attempts
         if not isinstance(before, dict) or "__error__" in before:
             result["status"] = "composer_unreadable"
             return result
         result["official_url"] = before.get("url")
+        if not before_ready:
+            result["status"] = (
+                "composer_recipient_binding_failed"
+                if before.get("recipient_handles") and before.get("recipient_bound") is not True
+                else "composer_hydration_timeout"
+            )
+            return result
         if before.get("exact_message") is True and before.get("recipient_bound") is True:
             result.update(status="deduplicated_exact_official_readback", exact_readback=True)
             if not prior or prior[-1].get("state") != "sent":
@@ -331,8 +403,7 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
                 result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
             return result
         try:
-            wait(4)
-            after = cdp_client.evaluate(target, f'''/* TIKTOK_AFTER */ (() => {{
+            after_expression = f'''/* TIKTOK_AFTER */ (() => {{
               const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
               const doc = frame?.contentDocument;
               const body = doc?.body?.innerText || '';
@@ -340,10 +411,26 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
               const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
               const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
               const recipientBound = handles.includes({json.dumps(candidate)});
+              let frameUrl = null;
+              try {{ frameUrl = frame ? new URL(frame.src, location.href) : null; }} catch (_) {{}}
               return {{url: location.href, recipient_bound: recipientBound,
+                frame_present: !!frame, frame_origin: frameUrl?.origin || null,
+                frame_path: frameUrl?.pathname || null, frame_ready_state: doc?.readyState || null,
                 editor_empty: !editor || !(editor.innerText || '').trim(),
                 exact_message: body.includes({json.dumps(message)})}};
-            }})()''')
+            }})()'''
+            after, after_attempts, after_ready = _poll_until_stable(
+                cdp_client, target, after_expression,
+                ready=lambda row: (
+                    _official_messages_frame(row)
+                    and row.get("recipient_bound") is True
+                    and row.get("editor_empty") is True
+                    and row.get("exact_message") is True
+                ),
+                terminal=lambda row: False,
+                wait=wait,
+            )
+            result["post_send_readback_attempts"] = after_attempts
         except Exception:
             result["status"] = "send_unknown_reconcile_required"
             try:
@@ -353,8 +440,11 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             return result
         if isinstance(after, dict):
             result["official_url"] = after.get("url") or result.get("official_url")
-        exact = (isinstance(after, dict) and after.get("recipient_bound") is True
-                 and after.get("editor_empty") is True and after.get("exact_message") is True)
+        exact = (isinstance(after, dict) and after_ready
+                 and _official_messages_frame(after)
+                 and after.get("recipient_bound") is True
+                 and after.get("editor_empty") is True
+                 and after.get("exact_message") is True)
         result["exact_readback"] = exact
         result["status"] = ("sent_exact_official_readback" if exact
                             else "send_unknown_reconcile_required")
