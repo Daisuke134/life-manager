@@ -172,13 +172,9 @@ async function runHonneJaCycle(argv, deps = {}) {
   const store = deps.store || createMarketingLocalLedger({ dataDir });
   const generationJob = buildMarketingVideoGenerationJob({ tenantId, productId: lane.product, formatId: lane.format, locale: lane.locale, slot, packRef, mediaRefs });
   const generationQueued = await store.enqueueJob({ jobId: generationJob.job_id, tenantId, loopId: generationJob.loop_id, capability: generationJob.capability, effectClass: generationJob.effect_class, effectKey: generationJob.effect_key, inputRefs: generationJob.input_refs, maxAttempts: generationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
-  // Fresh hook/title/description text (instead of a fixed pack string reused forever)
-  // is opt-in per lane via lane.freshHookText -- see marketing-video-generation-
-  // adapter.js's execute() for the generic mechanism this wires into. The
-  // Capafy lane (lane.contentGenerator === "capafy") plugs in its own
-  // generator instead: it rotates real capafy-skills earners and their own
-  // LISTING.md examples rather than asking Gemini for new words, and the
-  // closure below records the chosen earner's CTA url for the caption step.
+  // Fresh hook/title/description text is opt-in per lane via lane.freshHookText.
+  // Anicca uses the local deterministic copy bank; the Capafy lane keeps its
+  // own local skill/listing selector and records that earner's CTA URL.
   let capafyCtaUrl = null;
   const textGenerator = lane.contentGenerator === "capafy"
     ? (deps.textGenerator || (async (args) => {
@@ -187,7 +183,10 @@ async function runHonneJaCycle(argv, deps = {}) {
       return generated;
     }))
     : lane.freshHookText
-      ? (deps.textGenerator || ((args) => generateVideoHookText({ ...args, apiKey: required(env.GEMINI_API_KEY, "GEMINI_API_KEY") })))
+      ? (deps.textGenerator || ((args) => generateVideoHookText({
+        ...args,
+        variantSeed: `${lane.name}:${slot}`,
+      })))
       : null;
   const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir), now: () => new Date(nowMs).toISOString(), ...(textGenerator ? { textGenerator } : {}) });
   const artifact = await executeJob(store, generationJob, "honne-ja-cycle", (job) => generationAdapter.execute(job));

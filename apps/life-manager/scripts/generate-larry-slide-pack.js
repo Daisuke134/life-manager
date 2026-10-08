@@ -112,7 +112,7 @@ function readCreativeMetricsForFamilies(dataDir, candidates) {
 // lane object, so the same rotation pipeline that stopped the JA Larry
 // Instagram lane from reposting also fixes any other lane wired to it,
 // without a second implementation.
-async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateText, generateCandidates = generateSlidePackCandidates, lane = JA_LANE, productionSlots = JA_LARRY_PRODUCTION_SLOTS } = {}) {
+async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateCandidates = generateSlidePackCandidates, lane = JA_LANE, productionSlots = JA_LARRY_PRODUCTION_SLOTS } = {}) {
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
@@ -159,9 +159,8 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
       packFormat: lane.packFormat,
       form: lane.form,
       lastSlideRole: lane.lastSlideRole,
-      geminiApiKey: generateText ? env.GEMINI_API_KEY : required(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
+      variantSeed: dueSlot,
       ...(resolveBackground ? { resolveBackground } : {}),
-      ...(generateText ? { generateText } : {}),
       // launchd hands Mobile jobs the managed venv python (Pillow lives there, not in the release python).
       ...(env.LIFE_MANAGER_PYTHON ? { python: env.LIFE_MANAGER_PYTHON } : {}),
       now,
