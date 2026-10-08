@@ -22,3 +22,14 @@ efb220d2dae03e6ac5af3ae0d9f05dc062410e97f84a00e33823c8bf32fd1eb0 # jp_e164 apps/
 b3d509786c5fed92ad041fecfb095e8d340c767341dd0dac3c66aa7a65715cbe # us_e164 apps/life-manager/lib/user-selector.test.js
 f8ee8e1fa32d43b78d5aef173bf151ca1f32a3426a413c789255f9bb9618023f # jp_e164 apps/life-manager/test/wake-loop-isolation.test.js
 86999b107404d827fd0cc766b6ce6d0fff9ab75f4ae41fdb17fd02501554b985 # jp_postal skills/writer-agent/tests/test_pii_gate.py
+# Synthetic message-channel test fixtures; each fingerprint is bound to one test file and value.
+1274c727c207bce987b804d75dbe2faf124fc71e55b3f63b27a7c5bf0b83e62b # jp_e164 apps/life-manager/lib/imessage-cloud.test.js
+30391a0bf0f7bbe4e0ad3a17499645553d772c4ee2c5989a3d398e8c59fb7128 # jp_e164 apps/life-manager/test/scheduler.test.js
+35a66e6655e066675f4013a3cb8009dd3e712689750dd1a4d9b88901f9ab5261 # us_e164 apps/life-manager/lib/web-page.test.js
+5fe01a99aaad89a3ed8488ced628090974669479a50b6368a99f89917ec2d320 # jp_e164 apps/life-manager/lib/message-links.test.js
+68f5acec8a911f7720fe9422442b4c4cd4dd890f929763cada7551a2de094d33 # us_e164 apps/life-manager/lib/message-links.test.js
+78328e1134b8405ff0c1ac8279a80890ea74beb2e25c3cfc832fdfcec4aa6adc # us_e164 apps/life-manager/lib/imessage-cloud.test.js
+b28848f476d60554183fb2f8e7d26b42563225848ac04336aefa64e492e7102e # jp_e164 apps/life-manager/lib/imessage-reply.test.js
+e783d15b8cb7261441830fea4b3c6a4756bfcbbaad255f56b50070842dba2ea2 # jp_e164 apps/life-manager/lib/ask-imessage.test.js
+e9ba21b4ff441b56593afc08a80c111aa57fa3764d9305a6522380f711e6e749 # jp_e164 apps/life-manager/test/scheduler.test.js
+f070efc3b51a67f18cf7ef4b9b0cb69e9679377aa15e89b35aec849148d4093a # jp_e164 apps/life-manager/lib/message-links.test.js
