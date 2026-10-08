@@ -7513,3 +7513,12 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - PR #7185 still has base `7eda2619`; check run `37802950202` had not started its jobs at this snapshot. This cursor correction creates a new head, so the next checks and review must use the resulting pushed head.
 
 **現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; do not equate it with Capafy’s separate service cap 5.
+
+
+### 2026-10-09 00:49 JST — OSS boundary manifest aligned after main update
+
+- Exact-head run `37803106325` failed `OSS self-contained boundary` with `manifest_inventory_mismatch skills/capafy-autopublish`. This is inherited from #7183's `inventory_status.py` change: the absorbed-root manifest still had its previous inventory digest.
+- Updated only `docs/manifests/oss-merge-1-sources.json` for the same 245-file root to digest `e8c476780e9b4292a6b427767847b08a1f3c56f6c66c0e3a216aad799f3c7569`. Local `node scripts/verify-oss-self-contained.mjs` and `git diff --check` pass.
+- The old head's CI is not acceptance evidence for this manifest correction. All required checks must run on the next pushed PR #7185 head.
+
+**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; the Capafy service limit is separate.
