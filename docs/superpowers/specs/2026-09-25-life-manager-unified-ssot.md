@@ -4484,3 +4484,60 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
 7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
 8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
+### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
+
+この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
+
+**TODO順変更:** 旧順=`PR #6993 acceptance/merge → production reconciler terminal → owner readback → exact effect resolve`。新順=`稼働中release reconcilerの自然終端 → exact loaded SHA/capacity/owner readback → native photo receiptを1 occurrenceだけresolveしreplay-zero → 16 enabled TikTok accountsを3 PUBLISHED/day → post metrics/ASC/RevenueCat/Mixpanel join → Anicca acquisition → onboarding/paywall/ASO → $10k verified net MRR`。理由: PR #6993はmainへmerge済みだが、現在のloaded ownerはmerge前releaseで、release reconcilerがすでに稼働している。並列applyや手動投稿で自然実行と競合させない。現在cursor=`existing life-manager-release-reconciler run 18dc6189d27e6b68-81235 / PID 87706 のterminal readback`。
+
+**Source merge:** PR #6993 merge commitは`e5e2fb7f59f2f9833fef2810d5b0cf99a4401f87`。required Security Scan jobs（Loop control, OSS boundary, Python/unittest, PII, secrets, instruction, startup drift, shell）すべてPASS。fresh read-only review Approved。これはmain source acceptanceであり、immutable release・owner apply・provider receiptの証拠ではない。
+
+**Natural owner/capacity readback:** `life-manager-release-reconciler`は08:34 JST時点loaded-running PID `87706`、installed SHA `076c5be8`、`next_action=reconcile_owner`。main merge SHA `e5e2fb7f`はまだowner-loaded sourceとして確認されていない。Anicca JP1 ownerはloaded-idle / SHA `076c5be8`、active effect_unknown `3,500`、last admission blocker `host_admission_deferred:disk_headroom_low`。TikTok metrics ownerはSHA `076c5be8`、blocker `host_admission_deferred:resource_effect_unknown`、effect_unknown 1。08:30:41 JST cleanup receiptは2 GiB recovery floor=`met`, free_after `2,561,708,032` bytes, errors 0, protected_deletions 0, inventory_gaps 23。08:34 `df -Pk /` Available `2,415,672 KiB`。今のheadroomはfloor以上だが、自然owner statusが古いdisk deferralを示すため、registered wakeとterminal readbackを待つ。release reconcilerを並列起動/停止しない。
+
+**Distribution/TestFlight current evidence:** Postiz official GET at 08:34:37 JST remains 10/7 `21/48` and 10/8-to-time `1/48` (`@obou_anicca` 1のみ)。他accountの過剰分で帳尻を合わせない。ASC Xcode Cloud run #804 is still PENDING with empty `sourceCommit`; build 391 is absent, last VALID build 365 is expired. App source fix is merged but TestFlightには未検証。
+
+**Remaining atomic TODO:**
+
+1. `life-manager-release-reconciler`のrun `18dc6189d27e6b68-81235`を同一PID/occurrenceでterminalまでreadbackする。別apply/restartはしない。
+2. 終端後にfresh capacity receipt（free >=2 GiB, errors=0, protected_deletions=0）と全対象ownerのloaded SHA/argv/admissionを確認し、merge SHA `e5e2fb7f`をimmutable release/ownerへ反映する既存reconcilerの自然完了を確認する。
+3. 実identity directoryを使う新reconcilerで、候補共有が無いexact JP1 photo postだけを1件resolveする。provider PUBLISHED/account/integration/caption/title/media-order/time evidence、nested ledger receipt、same-event replay-zeroを確認する。残りのeffect_unknownはowner/occurrenceごとに同様に処理し、bulk clearしない。
+4. 12 source routesをowner-loaded SHAの後に自然運転し、4 enabled hold accountsを既存template/mediaで個別に有効化する。16 enabled accountsそれぞれ3 PUBLISHED/dayと3 copy variants/dayを実測し、TikTok 48/dayを確認する。disabled `@anicca.jp8`は有効化readbackまで対象外、未接続profileは接続状態が変わるまで未対象として表示する。
+5. TikTok metrics ownerのunknown/freshnessを回復し、Postiz/providerから取れるper-post views/engagementを固定時点で取得してcreative text/account/tracking linkに結ぶ。ASC first-time downloads/product-page metrics、RevenueCat subscription/refund/MRR、Mixpanel/PostHog onboarding funnelを同じcampaign/cohortに結ぶ。未提供指標を0扱いしない。
+6. 08:22時点のXcode Cloud #804はPENDINGでsource SHAなし。run/action readbackでsource checkout progressを監視し、失敗時はworkflow/repository permissionの正確な診断を先に行う。二重buildを作らない。VALID build 391と実APNs notification tapのMaestro recordingを確認後のみ同quote表示をfixed扱いしTestFlight linkを共有する。
+7. distributionを優先してAnicca ASC first-time downloads 100/day (trailing 7-day average)へ伸ばし、続いて他public appsを1つずつ行う。その後だけMixpanel/PostHog cohortでonboarding/paywallを一仮説ずつ改善し、ASOはASC evidenceがstore-page bottleneckを示す場合だけ実施する。$10,000 same-period verified net MRRはsettled receipt/refund/fee/actual-cost join後にのみ達成扱いする。
+
+### 2026-10-08 08:43 JST — Mobile owner convergence follow-up
+
+この節は08:35のpost-merge mobile runtime cursorを置き換える。全社§84-Aの順序は変更しない。
+
+**TODO順変更:** 旧順=`PR #6993 merge → release reconciler terminal → owner readback → exact receipt resolve`。新順=`current release reconciler/PID 58399 terminal → all mobile owners loaded SHA + current capacity/admission readback → exact per-occurrence reconcile → owner-by-owner 3/day → metric/attribution joins → acquisition → onboarding/paywall`。理由: source mergeは完了したが、mobile ownersはまだ旧SHAで、release reconcilerが再びrunningになった。現在cursor=`run 18dc...-38644 の自然terminalとowner convergence readback`。別apply/kickstartを重ねない。
+
+**main/runtime差分:** PR #6993は`e5e2fb7f59f2f9833fef2810d5b0cf99a4401f87`でmainへmerge済み。08:43 JSTの`lm-loop status`ではrelease reconcilerはloaded-running PID `58399` / installed SHA `e5e2fb7f` / `next_action=reconcile_owner`。TikTok ownersはmain以前のSHAに分かれ、Anicca EN/EN2/slideshow/Buddha/JP1/JP4/Honne EN/eBook EN/eBook JA/metricsは`076c5be8`、Anicca main/HE/Honne JAは`1c0c9120`。Anicca main ownerはloaded-running PID `82243`。effect_unknown refsはAnicca EN 4,268、EN2 0、slideshow 4,123、Buddha 3,993、JP1 3,500、main 4,207、HE 408、JP4 149、Honne EN 896、Honne JA 224、eBook EN 0、eBook JA 1、TikTok metrics 1。publish/eBook refs合計21,769とmetrics 1はoccurrence履歴でありPUBLISHED投稿数ではない。ownerを手動stop/restart/applyしない。
+
+**Capacity/投稿:** 08:30:41 JSTのcleanup receiptは2 GiB floor met、`free_after=2,561,708,032` bytes、errors 0、protected_deletions 0、inventory_gaps 23。08:43 `df -Pk /` Availableは`2,288,704 KiB`。JP1のlast owner blockerは`host_admission_deferred:disk_headroom_low`だが、cleanup receipt後の自然retry/readbackはまだない。TikTok公式Postiz GETは08:34:37 JST時点で10/7 `21/48`、10/8 partial `1/48`（`@obou_anicca`のみ）。
+
+**通知/ASC lane:** 08:34 JSTのASC readbackでXcode Cloud #804はPENDING、sourceCommit空、build 391なし。`asc xcode-cloud doctor --wait --skip-logs --timeout 60s`もPENDING timeoutで、action/log/artifactは0。#804を再送しない。実APNs payloadと利用者buildのMaestro証拠が揃うまで通知quote fixをTestFlight live successと扱わない。
+
+### 2026-10-08 08:58 JST — Mobile all-account delivery and quote-tap cursor
+
+この節はmobileの08:43 readbackとTODO順を置き換える。全社§84-A順序は変更しない。
+
+**TODO順変更:** 旧順=`16 enabled TikTok integrations × 3/day (48/day) → post metrics → acquisition → onboarding`。新順=`既存release reconcilerのnatural terminal/owner readback → unknown publishをexact occurrence単位でreconcile → Postiz接続済みTikTok全17 profileを3 PUBLISHED/dayへ（51/day、現在16 enabled・1 disabled）→ Postiz view/engagementとASC/RevenueCat/Mixpanelの計測join → Anicca 100 first-time downloads/day → onboarding/paywall → verified net $10k MRR`。理由: DaisはPostiz接続済みの全accountへ3回ずつ投稿するよう指示しており、今回の公式readbackではTikTok integration 17件中1件がdisabledだった。従来の48/day目標はこの接続済みaccountを除外していた。現在cursor=`life-manager-release-reconciler PID 18805の自然終端と各owner readback`。TestFlight通知laneはこれと独立して既存run #804を追跡する。
+
+**Postiz official GET（2026-10-08 08:54:32 JST、外部mutation 0）:** integrations 31、TikTok 17、TikTok enabled 16 / disabled 1。10/7 JSTは21 PUBLISHED（現行16 enabled accountの目標48に未達）。投稿accountは`@aniccaaffirmation` 1、`@anicca.jp4` 2、`@obou_anicca` 2、`@anicca_slideshow` 3、`@anicca.he` 2、`@anicca_buddha` 8、`@honnevideo` 3。残る9 enabled accountは0。`@anicca_buddha`の8件は他accountの不足を埋めない。10/8は08:54時点で`@obou_anicca` 1件のみ、他の15 enabled accountは0（当日途中のため確定日次結果ではない）。これはPUBLISHED数であり、views/engagementの値ではない。
+
+**全接続accountの対象範囲:** current source `config/marketing-destinations.json`はTikTok target 12件とhold 7件を持つ。holdにはenabledの`@anicca.comedy`、`@anicca.daily`、`@aniccajp`、`@aniccajp2`、disabledの`@anicca.jp8`、Postiz integrationが無い`@anicca.videojp`と`@anicca_girl`が含まれる。従って、既存Postiz接続済み全17件の3/day成功条件は、4 enabled holdを既存owner/templateへ追加し、`@anicca.jp8`のdisabled状態をowner経由で解消してrouteを用意した後の51 unique PUBLISHED/day。integrationのない2 profileはPostiz接続前に投稿済みとして数えない。assetを新規制作することを条件にせず、既存approved mediaに異なるcaption/hookを組み合わせる。
+
+**Owner / capacity readback（2026-10-08 08:55 JST）:** `origin/main=d03e5be37a8977d67d3ab75ac09322f00ded9be6`。release reconcilerはloaded-running PID `18805`、installed SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`next_action=reconcile_owner`、直近 occurrence `18dc640b6c4029e8-84965` は`entrypoint_exit_75`。並列apply/restartは行わない。JP1はloaded-idle / SHA `076c5be8` / `unknown_occurrences=3500` / `retry_after_eligibility`、main TikTokはloaded-idle / SHA `1c0c9120` / `unknown_occurrences=4207` / `official_readback_required`、TikTok metrics ownerはloaded-idle / SHA `076c5be8` / `unknown_occurrences=1` / `resource_effect_unknown`。occurrence refsは未解決投稿数・PUBLISHED数そのものではない。08:53 `df -Pk /`は`2,203,492 KiB` free（2 GiB床より約104 MiB上）。これはcapacity snapshotで、08:30のcleanup receipt後の新receiptや各ownerのadmission/retryを証明しない。
+
+**ANICCA notification quote tap:** app PR #423は`anicca-products/main`へmerge済み（merge commit `46c87630b03330e171ddcfd9033f5e40744fbbb0`）。sourceはAPNs表示bodyとquoteIdを保持し、Feed準備後にrouteを解決して不一致時に通知bodyを表示する。ASC Xcode Cloud run #804は08:53時点でも`PENDING`、sourceCommitなし、actions 0。GitHub provider、`anicca-products` SCM repository、`main` git reference、`Default` workflow（enabled/main）はASCから見えるため、missing repository grantとは断定できない。ASC build 391は`no build found`。修正版を含むinstalled TestFlight build、実APNs cold-start/background tapで同一quoteが表示される証拠、配布link/videoはいずれも未取得。通知tap不具合はsource上の修正候補がmainにあるが、利用者へ配布済み・解消済みとは未確認。
+
+**Remaining atomic TODO:**
+
+1. `life-manager-release-reconciler` PID `18805`の自然terminalを待ち、各mobile ownerのinstalled SHA/argv/admission/capacityを個別readbackする。unknown publish fenceがある間に新しい投稿を手動再送しない。
+2. merged PR #6993のexact native Postiz reconciliationを使い、provider account/integration/caption/title/media order/time receiptに一意に結ぶoccurrenceだけを1件ずつ処理する。nested ledger receipt、official PUBLISHED readback、same-event replay-zeroを確認し、no-match/ambiguityはholdにする。
+3. 現行Postiz接続済み17 TikTok profileを全対象としてownersへ配線する。4 enabled held profileを既存media/templateで追加し、disabled `@anicca.jp8`を安全な既存owner経由で復旧する。2 integration-absent profileは接続確認まで対象外と明示する。各profileで異なるcaption/hookを3回、unique PUBLISHED receipt 3件/account/day（合計51/day）で確認し、account間のover-postで補填しない。
+4. TikTok metrics ownerのunknownを解決し、Postiz/native APIが返すper-post views/engagementを6/24/72/168hなど固定時点で収集できるか実測する。取れない指標はunsupported/unknownのまま保持し、creative text/account/campaign linkへ結ぶ。
+5. App Store Connectのimpressions/product-page views/first-time downloads、RevenueCatのpaid/trial/renewal/refund/MRR、Mixpanel/PostHog onboarding cohortsを同一campaign/cohortへjoinする。AniccaをASC first-time downloads 100/dayのtrailing 7-day平均へ伸ばしてから、他public appsへ展開する。
+6. notification laneは既存#804のstatus/actions/sourceCommitを監視し、terminalまたは診断可能な状態になった時にexact run/repository/source原因を特定する。repositoryとmain refは存在し、source grant不足は未確定。pending runを重複起動しない。build 391がASCへ現れVALID/processableとなった後に同buildをinstallし、実APNs body/quoteId/localeのcold-start/background Maestroで表示quote一致を検証・録画する。成功後のみTestFlight link/videoを渡す。
+7. 100 first-time downloads/day gateの後にonboarding/paywallを一仮説ずつ改善し、ASCでstore-page conversion bottleneckを確認した場合だけASOを試す。USD 10,000 verified net MRRは同期間のsettled receipt/refund/fee/actual costを照合するまで未達目標として扱う。
