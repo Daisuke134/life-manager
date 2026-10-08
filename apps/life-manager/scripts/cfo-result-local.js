@@ -532,7 +532,8 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
     try { deliveryOccurrence = occurrenceId(snapshot.deliveryOccurrenceId); }
     catch { throw new Error("cfo_b7_snapshot_invalid"); }
     const deliverySeparator = deliveryOccurrence.indexOf(":");
-    if (typeof snapshot.providerMessageId !== "string" || !snapshot.providerMessageId
+    if (typeof snapshot.providerMessageId !== "string"
+      || !TELEGRAM_MESSAGE_ID.test(snapshot.providerMessageId)
       || !Number.isFinite(Date.parse(snapshot.sentAt)) || !["sent", "duplicate"].includes(snapshot.resolutionKind)
       || deliveryOccurrence.slice(0, deliverySeparator) !== snapshot.ownerId
       || snapshot.deliveryRunId !== deliveryOccurrence.slice(deliverySeparator + 1)) {

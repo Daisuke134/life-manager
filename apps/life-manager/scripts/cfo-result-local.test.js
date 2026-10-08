@@ -657,6 +657,34 @@ test("same-period replay is quiet, keeps provider receipt, and rebinds current o
   assert.equal(messages.length, 1);
 });
 
+test("cross-occurrence recovery rejects malformed sent B7 provider IDs before persisting sent", async t => {
+  const { options } = setup(t);
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  report.status = "pending";
+  delete report.resolutionKind;
+  delete report.providerMessageId;
+  delete report.sentAt;
+  delete report.deliveryCounters;
+  fs.writeFileSync(reportFile, JSON.stringify(report));
+  const snapshotFile = readbackFile(options.stateDir, options.occurrenceId);
+  const snapshot = JSON.parse(fs.readFileSync(snapshotFile, "utf8"));
+  snapshot.providerMessageId = "malformed provider id";
+  fs.writeFileSync(snapshotFile, JSON.stringify(snapshot));
+  let notifications = 0;
+
+  await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:run-2",
+    notify: async () => { notifications += 1; return { delivery: "delivered", provider_message_id: "unexpected",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; },
+    now: "2026-09-30T12:00:00Z" }), /cfo_b7_snapshot_invalid/);
+
+  const pending = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  assert.equal(pending.status, "pending");
+  assert.equal(pending.occurrenceId, options.occurrenceId);
+  assert.equal(notifications, 0);
+});
+
 test("B7 v4 with null delivery counters cannot recover as sent", async t => {
   const { options } = setup(t);
   await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });

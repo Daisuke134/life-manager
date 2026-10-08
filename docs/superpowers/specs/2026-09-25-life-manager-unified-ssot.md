@@ -7525,19 +7525,21 @@ This section supersedes the prior pending implementation cursor. The CFO busines
 
 ### CFO sent-state correction — implementation current
 
-This current entry supersedes the prior “source fails these assertions” text. CFO priority stays A5 → A6 → A8 → A9 → A10.
+This current entry supersedes the prior producer-review cursor. CFO priority stays A5 → A6 → A8 → A9 → A10; Moneytree/A7 and Cloud cost work stay outside this lane.
 
-- The source change now validates the provider receipt ID and exact sender counters before writing B7/report `sent`. Only sent `(1,1,0,0)` and duplicate `(0,0,0,0)` persist; invalid/missing counters leave both artifacts pending and throw. B7 v4 rejects null or semantically inconsistent tuples; v3 is not promoted to same-occurrence `sent`. Same-occurrence replay/duplicate stays nonzero for reconciliation; a prior delivery from another occurrence is represented as zero-counter duplicate for the current no-effect run.
-- TDD is GREEN: CFO result Node 29/29, hourly Node 26/26, `python3 -m pytest -q skills/cfo` 354 tests + 318 subtests, runtime fence focus 2/2, and `git diff --check` PASS. The new cases were RED before the producer/reader fix.
-- Latest `origin/main=ac963290ce9a13ab2da5f188c23d584b0910c58d`; it is one marketing/SSOT commit beyond local merge HEAD `43af59b7`. The source diff remains local and remote PR #7106 still points to `7131b650`; no source commit or fresh review exists for this fix yet.
-- Full runtime suite remains deferred because current free disk is below the 2 GiB operating gate; the last local run had a bytecode-build `ENOSPC`. The disk-cleanup owner still exits `entrypoint_exit_1`, while the CFO's last natural report defers before sending at `disk_headroom_low`.
+- The producer fix is pushed to PR #7106 at head `1402c84c2ca03a30a8f5ddc44666c5c62d6005d`, based on merged `origin/main=ac963290ce9a13ab2da5f188c23d584b0910c58d`. It validates new provider IDs and exact sender tuples before sent persistence; B7 v4 enforces the same tuple, and the shared outbox remains the resend fence.
+- Fresh read-only review of that exact head is **fix-first / P2**: `readB7SnapshotFile()` accepts any non-empty sent B7 `providerMessageId`. Cross-occurrence recovery then persists a sent/duplicate report without reapplying the provider-ID grammar. The reconciler later rejects malformed IDs, so no false effect proof or second provider send was demonstrated; the persisted producer state still violates validate-before-sent. Fix the shared B7 reader and add a cross-occurrence malformed-ID regression that proves report stays pending and provider is not called.
+- PR #7106 remains open/draft. CI run `37787861528` is in progress: Agent instruction, startup drift, OSS boundary, PII, shell syntax, and Python syntax/unittest pass; Loop control, gitleaks, and TruffleHog are still running. The CodeRabbit status is not a formal review.
+- Latest local focused evidence from the producer fix: result Node 29/29, hourly Node 26/26, CFO pytest 354 tests + 318 subtests, runtime fence focus 2/2, loop contract 18 loops / 187 jobs / 112 mapped / 0 errors, adapter registry 15/15, and `git diff --check` pass. Re-run relevant tests after the P2 fix. Full runtime suite remains unverified: the previous run hit `ENOSPC`; current host free space is only 188,356 KiB, below the 2 GiB operating gate.
+- Last recorded natural CFO occurrence is pre-effect deferred at `disk_headroom_low`; last recorded disk-cleanup occurrence exits `entrypoint_exit_1`. No structured cleanup receipt/admission pass is recorded. Do not infer a completed report or cost/revenue proof from the source fix.
 
 **Remaining TODO (current order):**
 
-1. Merge latest `origin/main=ac963290` and preserve the SSOT update.
-2. Commit/push this strict producer/B7 fix and tests; get new-head required CI plus fresh same-SHA read-only review.
-3. Restore host headroom through the existing cleanup owner receipt (`free_after >= 2 GiB`, errors 0, protected deletions 0) and admission pass; rerun full runtime suite without deleting user data manually.
-4. Merge only when CI/review pass, then promote via main-derived immutable release and verify a natural CFO report/readback/replay-zero.
-5. Continue A5 → A6 → A8 → A9 → A10.
+1. Add RED coverage for a malformed provider ID in a sent B7 recovered by a different occurrence; require rejection before changing pending report state or calling the provider.
+2. Enforce `TELEGRAM_MESSAGE_ID` in the common sent-B7 reader; run CFO result/hourly Node tests, CFO pytest, runtime fence focus, loop contract, adapter registry, and diff check.
+3. Commit/push the source + SSOT change; require all PR #7106 checks and a fresh same-head read-only SHIP review before merge.
+4. Recover host capacity only through the existing cleanup owner; require a structured receipt with `free_after >= 2 GiB`, zero errors, zero protected deletions, and a subsequent admission pass. Then rerun the full runtime suite.
+5. Merge after source acceptance; promote through a main-derived immutable release and verify the next eligible natural CFO occurrence's runtime/provider receipt, B7 tuple, admission, and replay-zero.
+6. Continue A5 → A6 → A8 → A9 → A10: production migration/RPC/permissions/panel; Google bill/cash/operation attribution; all-loop settled economics and 187-job classification; source-period daily/MTD/trailing/MRR; seven natural reports with full coverage.
 
-**Current cursor:** `merge latest main → commit/push source + SSOT → exact-head CI/review → structured capacity receipt/admission → full runtime suite → merge/promotion/natural readback → A5 → A6 → A8 → A9 → A10`.
+**Current cursor:** `malformed cross-occurrence B7 ID RED → shared-reader validation GREEN → focused CFO acceptance → push/exact-head CI + SHIP review → structured cleanup receipt/admission + full runtime suite → merge/release/natural CFO proof → A5 → A6 → A8 → A9 → A10`.
