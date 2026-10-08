@@ -5069,3 +5069,27 @@ PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因�
 7. click attribution→locale Checkout→settled Stripe→matching PDF→Letter/Tegami settled recurring net MRRを照合する。first paid orderとmatching PDF後にのみCapafy Instagram D5（1 canary/24h）へ進む。USD 10,000 net MRRは証拠が揃うまで目標のまま。
 
 **Daisの作業:** 再接続・手動投稿は不要。次の明確な配信点は12:30 JSTの日本語2 owner。英語はeffect照合後の別slotへ進む。
+
+### 2026-10-08 11:56 JST — eBook shared capacity recovered; next delivery cursor
+
+この節は11:53 cursorを更新する。PR branchはmain `bcfc32c2c9e49d21593fba3931dfdc7a44bd942d`までmerge commitで同期済み。latest source/spec PR #7030 head `d59746df0e23b50b14e436d68c82cc264b044d5c`はOPENで、required CIが進行中。
+
+**最新readback:**
+
+- `/Users/anicca/loops/current`と英語/日本語2 ownerはすべてrelease SHA `94372580faf432189742de38cd474bfa0db6c4f0`をload。source repairはまだmainにない。
+- cleanup owner occurrence `18dc6e2bd7705880-15358`は11:53:18 JSTにnatural pass。11:53:08 receiptは`free_after=7,753,392,128` bytes、recovery floor 2,147,483,648 met、errors 0、protected deletions 0。11:56 `df -Pk /`は7,189,760 KiB available。capacity gateは現在met。
+- release reconciler PID 80014は11:56時点でloaded-running。`lm-loop doctor`はmissing/unmanaged 0、guarded retired label `ai.anicca.provision-browser.capafy.kosuke`だけにより`ok=false`。並列apply・restartをしない。
+- English latest occurrenceは`18dc6de8dcf3a0e8-75262`（11:50 JST、exit1、effect unknown、receiptなし）。その後のHeyGen listにtitle `Anicca` videoなし、wallet USD 11.78。Postiz 11:52:35 GETは3 integration enabled、English 0、日本語TikTok 1、日本語Instagram 1（今日2/9）。08:00 English intentは引き続きunknownで再送しない。
+- 12:30 JSTが次の日本語slot。日本語effect identityは英語HeyGen fenceから独立している。owner/reconciler lockが解けたら登録済みownerの自然runとPostiz公式receiptで判定する。
+
+**現在のatomic TODO:**
+
+1. PR #7030のlatest-main head CIを全件PASSさせてmainへmergeする。
+2. release reconciler PID 80014のnatural terminalとapply-lock解放を確認する。停止・重複起動しない。
+3. 12:30 JSTに日本語TikTokとInstagramを各ownerから1回自然実行し、`PUBLISHED`、post ID、public URLを確認する。defer時は同occurrenceのadmission原因をreadbackする。
+4. guarded retired labelを既存owner経由で解消し、`lm-loop doctor` PASSを確認する。これはmain-derived source release適用の前に閉じる。
+5. English 08:00 unknown effectはvideo IDまたは同createに紐づくitemized billing recordを調べ続ける。解決前に旧intentを再送せず、別video IDだけで旧effectをclearしない。安全なdisposition後、別slotのHeyGen/Postiz receiptsを同一occurrenceへ結ぶ。
+6. 3 account×3件/日、計9 unique Postiz receiptsとreplay-zeroを自然実測し、click→locale Checkout→settled Stripe→matching PDFを計測する。Letter/Tegami subscriptionのsettled recurring receiptsから返金・fee・実費を引いて14日net MRR cohortを測る。
+7. first paid eBook orderと一致PDF receiptの後だけCapafy Instagram D5へ進み、既存identity/routeで1 canary/24hを実施する。USD 10,000 net MRRは目標であり、settled evidence前に達成扱いしない。
+
+**Daisの作業:** 再接続や手動投稿は不要。空き容量は戻った。現在の最初の公開確認対象は12:30 JSTの日本語2投稿、英語は旧effect照合の後。
