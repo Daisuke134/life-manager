@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:22 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:34 JST”.
 
 ## Global Constraints
 
@@ -134,7 +134,7 @@ PR #6999 merged as `46ec94bdea884fd7afa61e603a79fdd1b3048ef7` after a fresh inde
 ### Task 4: Reconcile the 08:00 English render without replay
 
 **Files:**
-- Read: `/Users/anicca/.local/state/life-manager/marketing/ebook/runs/ebook-run.571924dc4e4867349fc6fd13.heygen-effect.json`
+- Read: protected local HeyGen effect sidecar `ebook-run.571924dc4e4867349fc6fd13.heygen-effect.json` (private state path is not committed).
 - Production owner: `ebook-en-tiktok-daily`
 - Evidence: canonical eBook cursor in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
