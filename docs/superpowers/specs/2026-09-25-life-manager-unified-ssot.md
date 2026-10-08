@@ -4541,3 +4541,14 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 5. App Store Connectのimpressions/product-page views/first-time downloads、RevenueCatのpaid/trial/renewal/refund/MRR、Mixpanel/PostHog onboarding cohortsを同一campaign/cohortへjoinする。AniccaをASC first-time downloads 100/dayのtrailing 7-day平均へ伸ばしてから、他public appsへ展開する。
 6. notification laneは既存#804のstatus/actions/sourceCommitを監視し、terminalまたは診断可能な状態になった時にexact run/repository/source原因を特定する。repositoryとmain refは存在し、source grant不足は未確定。pending runを重複起動しない。build 391がASCへ現れVALID/processableとなった後に同buildをinstallし、実APNs body/quoteId/localeのcold-start/background Maestroで表示quote一致を検証・録画する。成功後のみTestFlight link/videoを渡す。
 7. 100 first-time downloads/day gateの後にonboarding/paywallを一仮説ずつ改善し、ASCでstore-page conversion bottleneckを確認した場合だけASOを試す。USD 10,000 verified net MRRは同期間のsettled receipt/refund/fee/actual costを照合するまで未達目標として扱う。
+
+
+### 2026-10-08 08:58 JST — capacity recovered; Paid owner still holds project lock
+
+このreadbackは08:48 JSTのcapacity状態を更新する。platform順序とL9-07 cursorは変更しない。
+
+- Disk cleanup ownerは23:57Zに`pass`、free spaceは`2,166,552 KiB`で2 GiB floorを上回る。ただしcleanup source worktreeは別ownerのactive lease中なので変更しない。
+- `hf-gig-paid-direct`は23:58Z時点で`loaded-running`・project lock保持中。latest terminalは23:41Zの`disk_headroom_low` / `effect=not_applicable` / provider receiptなしで、capacity回復後のnew terminalはまだない。自然終端とlock解放を待ち、同じbuyer project/Sheet/inboxを重ねて触らない。
+- CrowdWorks Applicationはowner runが`effect=unknown`・provider receiptなし。CrowdWorks source修正worktreeもactive lease中。Mercor Applicationも`resource_effect_unknown`・receiptなし。双方とも新たな応募・返信を再試行しない。
+
+**現在cursor:** L9-07 Coconala Paid owner natural terminal / project lock release / exact official readback。floor回復だけではPaid結果やinbox receiptの成功を意味しない。
