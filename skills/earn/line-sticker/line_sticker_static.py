@@ -133,10 +133,21 @@ JSON Schemaに厳密に従ったJSONだけを返す。stickersはちょうど{ST
 
 def _check_sticker_count(plan: dict) -> None:
     """The model decides the phrases; code owns the count. A short or duplicated plan is rejected so
-    the factory plans again instead of filing a set that top sellers' 40-sticker sets outrank."""
+    the factory plans again. An over-long one is trimmed from the tail (2026-10-09: 41 for 40 threw
+    away a whole plan), never dropping the main/tab sticker."""
     ids = [sticker["id"] for sticker in plan["stickers"]]
-    if len(ids) != STATIC_STICKER_COUNT or len(set(ids)) != len(ids):
-        raise ValueError(f"static plan needs {STATIC_STICKER_COUNT} distinct stickers, got {len(ids)} ({len(set(ids))} distinct)")
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"static plan has duplicate sticker ids ({len(ids)} given, {len(set(ids))} distinct)")
+    if len(ids) < STATIC_STICKER_COUNT:
+        raise ValueError(f"static plan needs {STATIC_STICKER_COUNT} distinct stickers, got {len(ids)}")
+    keep = {plan.get("main_id"), plan.get("tab_id")}
+    extra = len(ids) - STATIC_STICKER_COUNT
+    for sticker in reversed(list(plan["stickers"])):
+        if extra == 0:
+            break
+        if sticker["id"] not in keep:
+            plan["stickers"].remove(sticker)
+            extra -= 1
 
 
 def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[dict] | None = None) -> dict:

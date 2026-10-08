@@ -15,9 +15,12 @@ VIOLATION = {"service_id": SERVICE, "prohibited_terms": ["Googleドキュメン�
 
 def _scorecard(tmp_path: Path) -> Path:
     path = tmp_path / "scorecard.json"
-    path.write_text(json.dumps({"priority_backlog": [
-        {"service_id": "91000005", "field": "body", "success_metric": "inquiries", "reason": "gap"},
-    ]}, ensure_ascii=False), encoding="utf-8")
+    path.write_text(json.dumps({
+        "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+        "priority_backlog": [
+            {"service_id": "91000005", "field": "body", "success_metric": "inquiries", "reason": "gap"},
+        ],
+    }, ensure_ascii=False), encoding="utf-8")
     return path
 
 

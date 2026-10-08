@@ -185,11 +185,25 @@ class TextBearingVariant(unittest.TestCase):
         self.assertNotIn("ちょうど16個", prompt)
         self.assertNotIn("上位作者に多い16", prompt)
 
-    def test_a_plan_with_the_wrong_sticker_count_is_rejected(self) -> None:
-        plan = {"stickers": [{"id": f"s{i}"} for i in range(16)]}
+    def test_a_short_plan_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            STATIC._check_sticker_count(plan)
+            STATIC._check_sticker_count({"stickers": [{"id": f"s{i}"} for i in range(16)]})
         STATIC._check_sticker_count({"stickers": [{"id": f"s{i}"} for i in range(40)]})
+
+    def test_an_extra_sticker_is_trimmed_not_rejected(self) -> None:
+        # 2026-10-09: the model returned 41 for 40 and a whole free plan was thrown away.
+        plan = {"stickers": [{"id": f"s{i}"} for i in range(41)], "main_id": "s0", "tab_id": "s1"}
+        STATIC._check_sticker_count(plan)
+        self.assertEqual(len(plan["stickers"]), 40)
+        self.assertEqual(plan["stickers"][-1]["id"], "s39")
+
+    def test_trimming_never_drops_the_main_or_tab_sticker(self) -> None:
+        plan = {"stickers": [{"id": f"s{i}"} for i in range(42)], "main_id": "s41", "tab_id": "s40"}
+        STATIC._check_sticker_count(plan)
+        ids = [x["id"] for x in plan["stickers"]]
+        self.assertEqual(len(ids), 40)
+        self.assertIn("s41", ids)
+        self.assertIn("s40", ids)
 
     def test_duplicate_sticker_ids_are_rejected(self) -> None:
         with self.assertRaises(ValueError):
