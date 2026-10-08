@@ -292,10 +292,9 @@ def rebind_queued_owner(
 ) -> str:
     """Migrate one effect-free queued owner to its current registry admission policy.
 
-    Release changes can legitimately promote a pending owner from borrow/support to
-    revenue/revenue. Preserve its FIFO sequence and occurrence identity. An explicitly
-    authorized policy-drift repair may release an unclaimed reservation; claimed and
-    effect-unknown occurrences always remain fenced.
+    Release changes can promote a pending owner or change its resource class. Preserve
+    its FIFO sequence and occurrence identity. A class change never releases a live
+    reservation; claimed and owner-scoped effect-unknown occurrences remain fenced.
     """
     if (
         not owner_id
@@ -318,8 +317,8 @@ def rebind_queued_owner(
             ).fetchone()
             if queue_row is None:
                 return "not_queued"
-            if queue_row[0] != resource_class:
-                raise RuntimeError("queued owner resource class changed")
+            prior_resource_class, sequence = queue_row
+            resource_class_changed = prior_resource_class != resource_class
             connection.execute(
                 "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
             )
@@ -353,15 +352,27 @@ def rebind_queued_owner(
             ).fetchone()
             if current is None:
                 raise RuntimeError("queued owner priority row missing")
-            changed = current != (
+            policy_changed = current != (
                 admission_class, priority_name, ADMISSION_POLICY, effect_scope,
             )
-            if reserved and not (replace_reserved_policy_drift and changed):
+            changed = resource_class_changed or policy_changed
+            if reserved and (
+                resource_class_changed
+                or not (replace_reserved_policy_drift and policy_changed)
+            ):
                 return "reserved"
             if reserved:
                 connection.execute(
                     "DELETE FROM reservations WHERE owner_id=?", (owner_id,)
                 )
+            if resource_class_changed:
+                migrated = connection.execute(
+                    """UPDATE queue SET resource_class=?
+                       WHERE owner_id=? AND sequence=? AND resource_class=?""",
+                    (resource_class, owner_id, sequence, prior_resource_class),
+                ).rowcount
+                if migrated != 1:
+                    raise RuntimeError("queued owner resource class changed during rebind")
             connection.execute(
                 """UPDATE priorities
                    SET admission_class=?, admission_policy=?, base_priority=?, effect_scope=?
@@ -370,9 +381,9 @@ def rebind_queued_owner(
             )
             connection.execute(
                 """UPDATE occurrences
-                   SET admission_class=?, base_priority=?
+                   SET resource_class=?, admission_class=?, base_priority=?
                    WHERE owner_id=? AND state='queued' AND effect_unknown=0""",
-                (admission_class, priority_name, owner_id),
+                (resource_class, admission_class, priority_name, owner_id),
             )
             return "rebound" if changed else "unchanged"
     finally:
