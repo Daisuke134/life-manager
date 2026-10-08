@@ -400,7 +400,9 @@ def run_submit(set_dir: Path, deps: Deps) -> str:
             for clip in (set_dir / "clips").glob("*.mp4"):
                 if clip.stem not in chosen:
                     clip.unlink(missing_ok=True)
-        deps.notify(set_dir, {"product_id": item.get("product_id"), "title_ja": listing.get("title", {}).get("ja"),
+        deps.notify(set_dir, {"product_id": item.get("product_id"),
+                               # The submit step may retitle (duplicate title); the item holds the title actually filed.
+                               "title_ja": item.get("title_ja") or listing.get("title", {}).get("ja"),
                                "cost_usd": (_read_json(set_dir / "stage.json") or {}).get("cost_usd")})
         return "submitted"
     return "submit"
