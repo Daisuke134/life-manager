@@ -864,6 +864,42 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(state["status"], "partial")
             self.assertIn("budget exceeded", state["message"])
 
+    def test_partial_apply_honors_backoff_before_same_release_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root,
+                sha,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="slow_first")
+            env["FAKE_SLOW_LOOP_ID"] = "first-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 1)
+            first_state = self._state(root)
+            self.assertEqual(first_state["status"], "partial")
+            self.assertGreater(first_state["next_retry_epoch"], time.time())
+
+            second = self._run(env)
+            self.assertEqual(
+                self._apply_call_count(calls_log),
+                1,
+                "a partial result with a future retry time must not start another fleet apply",
+            )
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(self._state(root)["status"], "partial")
+
 
     def test_guarded_retirement_runs_before_loops_and_counts_change_or_replay(self):
         for was_loaded in (True, False):

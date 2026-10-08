@@ -4723,7 +4723,7 @@ flowchart LR
 
 **1B capacity diagnosis — 観測完了、制限自体は継続:** 2026-10-08T04:40:08Zのcleanup receiptはrecovery floor 2 GiBを満たし、`free_after=4,695,310,336` bytes、`errors=0`、`protected_deletions=0`、`inventory_gaps=23`。04:44:41Zの`df`は4,669,580 KiB free。04:47:06Zのprocess-start検証済みowner snapshotは7 live claims / total cap 8、active reservation 0、queue 81（80 eligible）だった。クラス内訳はlive agent/revenue 6＋deterministic/revenue 1、queue agent/borrow 29、agent/revenue 11（10 eligible）、browser/borrow 2、deterministic/borrow 36、deterministic/revenue 3。従ってその時点で空いていたのはglobalに1 slotだけで、次の取得可否はresource class・priority・owner lockにも依存する。`hf-gig-paid-direct`のoccurrence `18dc730817ceef28-96058` / PID `96568`はそのsnapshotでも稼働中。
 
-1. **PR #7042 — sender sourceの安全修正:** branch `fix/gig-tiktok-pre-send-guard-20261008`のsource commit `6eab61d9902e8686cdecf85a39bfbbd250721b15`は、同じ行の送信状態・recipient・matching frame・Enter直前の宛先変更をfail-closedにする。focused tests 55/55、`py_compile`、`git diff --check`、source-boundaryとfresh adversarial reviewはPASS。前remote head `7f9f62b7`のCI run `37728397316`は全checks PASS。最新main `c8ea611465412ad2dbcf3191e237a1824f97da5b`をこの専用branchへmerge済み。PR更新push後に新headのrequired CIを再確認し、PASS後にmergeする。production browser/providerへの実接続・送信は未実施。
+1. **PR #7042 — sender sourceの安全修正:** branch `fix/gig-tiktok-pre-send-guard-20261008`のsource commit `6eab61d9902e8686cdecf85a39bfbbd250721b15`は、同じ行の送信状態・recipient・matching frame・Enter直前の宛先変更をfail-closedにする。focused tests 55/55、`py_compile`、`git diff --check`、source-boundaryとfresh adversarial reviewはPASS。remote head `c4f9d04c`のCI run `37729331736`は全9 checks PASS。mainはその後`8486f4e854a0e630542aba34d31405b082cd2e45`へ進み、PR #7055の部分適用backoff修正を含む。最新mainの変更と時刻順のSSOT追記をこのbranchへ取り込む。更新push後に新headのrequired CIを再確認し、PASS後にmergeする。production browser/providerへの実接続・送信は未実施。
 2. **進行中Coconala Paid occurrence:** run `hf-gig-paid-direct:18dc730817ceef28-96058` / PID `96568`のnatural terminalを待ち、同一occurrenceの結果と公式receiptをreadbackする。現在の外部runを止めず、同じproject・browserへ再送・再起動・並行接続しない。これはPR #7042のCIと独立して監視する。
 3. **Coconala inbox join:** readerのconversation-list-readyをbounded pollingにし、安定した公式inboxとfull Sheet rangeを読む。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
 4. **既存Coconala有償契約 `18180857`:** last official readback `2026-10-07T22:19:49Z`では`取引中/進行中`で、revisionと正式納品は未確認。cursor到達時に同一talkroomのfresh official threadを読み、buyerがrevisionをまだ求めていれば要求deliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同一contract/occurrenceに結ぶ。正式納品済みならreceipt・検収・精算だけ確認する。`18211957`は取引完了のlast readbackがあり、新証拠なしにactionしない。顧客ID/本文はprivate evidenceに置く。
@@ -5559,16 +5559,98 @@ flowchart LR
 
 **Current cursor:** item 1 (TikTok distribution). Telegram link formatter is merged and loaded; fresh proof for a newly generated Telegram report is pending. At 13:25 JST, Postiz is 5/51 and the five delivered profiles each have one post.
 
-### 2026-10-08 13:47 JST — Gig capacity snapshot and OSS architecture comparison
+### 2026-10-08 13:27 JST — eBook owner apply complete; fence and Capafy automation remain
+
+PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e4cc5b9`）。この追記はmain `4dad886ca7a3798dd7ccb9879216bd93a7b25cb5`からのreadbackで、13:13の理想architectureは維持し、production cursorを更新する。
+
+**13:25–13:27 JST readback:**
+
+- Postiz公式GET（13:27:37 JST）でeBook targetは2/9のまま：EN TikTok 0、JA TikTok 1、JA Instagram 1。12:30のJP runsはpre-provider admission deferで、既存2 receiptとは別occurrence。
+- `life-manager-release-reconciler` PID 72756はrun `18dc7288225a6d08-72756`でfleet owner applyを継続中。13:27時点で153 owner result rowsあり、最後は`x-repost-ja-pass`。現在のprocess/host apply lockに重ねてapplyしない。最後に保存されたfleet summary（13:10）は`status=partial`, `changed=76`, `errors=2`, `skipped=24`, `message=budget exceeded`であり、これは進行中runのterminal summaryではない。
+- eBook EN TikTok、JA TikTok、JA Instagram ownerはすべて`loaded-idle`でimmutable release SHA `8f342d8d71396bc7e9f542ae09af9b46781ff410`にapply済み（fleet owner rowsは各`rc=0, changed=1`）。それぞれのlatest business eventは古いSHAのunknown/blocked occurrenceのままなので、loaded source更新はeffect claimの解決を意味しない。
+- `lm-fence-reconciler`はSHA `46ec94bdea884fd7afa61e603a79fdd1b3048ef7`の`loaded-idle`。13:19の自然runは`pass`だが、3つの旧occurrenceに対する最新structured callはいずれも`no_match / exact_pending_receipt_unavailable / inspected=0 / closed=false`。effect identity sidecarは存在せず、claimsは残る。
+- Capafy Postiz profile `capafy.hooklab`のintegrationは公式GETで`disabled=false`、13:25時点で今日2件`PUBLISHED`。これはeBook 2/9と混ぜない。Capafy owner `capafy-ig-marketing-daily`と`life-manager-capafy-ig`は`disabled`かつ古いSHA `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`。進行中fleet applyは両方で`Bootstrap failed: 5 (Input/output error)`を記録し、previous jobへrestoreした。provider接続/再接続ではなく、owner automation applyが未解決。既存2投稿は連続cadenceの証拠ではない。
+- current symlinkは`20261008T124623-8f342d8d`。13:20の空き容量は6,556,752 KiBで2 GiB floor超。物理disk floorは現在のprimary blockerではない。
+- 13:13時点のHeyGen公式video listはtitle `Anicca`で0件、wallet USD 11.78。English old run `18dc6de8dcf3a0e8-75262`はidentity `not_written` / `effect=unknown`のまま。EN registry `tiktok.monk_anicca=disabled_verified`も未解決。旧effectを再送しない。
+- eBookの現行pack価格（USD 10.99 / JPY 1,580）は単発売り価格。settled paid order、対応PDF receipt、月額Letter/Tegami price/subscriptionは未確認。$10,000 net MRRは目標であり、現時点の実績ではない。
+
+**TODO順変更:** 旧順=`release reconciler terminal → eBook ownersとfence reconcilerをapply → JP claim recovery → catch-up → EN effect/account → 9/day → checkout/MRR → Capafy`。新順=`現在のfleet apply runを自然terminalしlock readback → 既にapply済みの3 eBook ownersをloaded-state確認 → fence reconcilerを現行releaseへtarget apply/readback → JP old receipt identitiesをowner pathで一意recover → 12:30 catch-up判定 → EN old effectとaccount eligibilityを個別解決 → EN distinct-slot canary → 3 accounts×3 PUBLISHED/day → checkout/PDF/recurring MRR証拠 → Capafy ownerのBootstrap 5 root causeを特定し、承認済みcanary cadenceへ復旧`。理由: eBook ownersは現行sourceへ移ったがidentity claimsは残り、Capafy provider linkは健全でもlocal scheduler/applyがdisabledだった。current cursor=`release reconciler run 18dc7288225a6d08-72756のnatural terminalとapply-lock readback`。Capafyの既存2投稿から3/day cadenceを推定しない。
+
+**Remaining atomic TODO（上から順に1つずつ）:**
+
+1. release reconciler run `18dc7288225a6d08-72756`の自然terminalとfleet summaryを取得し、target/global apply lock解放をreadbackする。現在のprocessをstop/restartせず、applyを重ねない。
+2. EN TikTok、JA TikTok、JA Instagramのloaded SHA/argv/state-path/readbackを`lm-loop status`で確認する。現行source SHAは全3 ownerへapply済みだが、旧business eventは未解決のまま。
+3. `lm-fence-reconciler`をlock解放後にowner-safe target applyし、loaded SHA/argvを確認する。current exact-occurrence adapterが読み込まれた後も既存callsが`no_match`なら、同じrun/occurrenceからPostiz ID・account/integration・slot・media/caption hashesまで一意に結ぶ最小owner-path recoveryを実装し、DB/sidecarを直接編集しない。
+4. 2つのJP old PUBLISHED run (`18dc5e822e430b80-45345`, `18dc648de93a3c68-68679`)だけidentityをrecover/resolveし、公式Postiz readbackとclaim releaseを確認する。12:30 blocked runs (`18dc7047fd1a6850-93639`, `18dc7047ecc63f38-93638`)は別occurrenceとしてprovider receiptなしを維持する。
+5. JP claimsが閉じた後、既存due-slot functionでmissed 12:30がまだdueか判定し、eligibleならownerのnatural wakeでcatch-upする。TikTok/Instagram各PUBLISHED ID/URLをreadbackする。20:00まで手動で待つ・投稿することはしない。
+6. English old occurrence `18dc6de8dcf3a0e8-75262`のHeyGen video IDまたは同createのitemized billing evidenceを探し、exact dispositionする。video list 0だけでeffect unknownを解放せず、旧08:00は再送しない。
+7. `tiktok.monk_anicca`の公式publish eligibilityを確認する。canonical `approved_active`の証拠がなければexisting owned English account候補を公式確認してからregistry/packを切り替える。
+8. old English effectとeligible destinationの両方が解決後、別の英語slotをowner経由で1回実行し、HeyGen ID/status/output SHA/costとPostiz PUBLISHED ID/URLを同一occurrenceに結ぶ。
+9. eBook 3 accountsすべてで各3 unique PUBLISHED/day（合計9/day）とreplay-zeroを自然readbackする。6 videos/dayをEN 3、JP 3から配布する形を維持する。
+10. post→UTM click→locale checkout→settled Stripe order→same-order PDF receiptをjoinし、Letter/Tegami月額price・settled subscriber count・net monthly costsからnet MRRを計算する。subscriptionが存在しない場合は価格を作らず既存offerの実装/選択を行う。
+11. eBook初回paid order + 対応PDF receipt後、Capafyの2 IG ownerの`Bootstrap failed: 5` root causeをowner-safe経路で解消する。Postiz profile `capafy.hooklab`は既に接続し2件公開済みなのでreconnect/CAPTCHAから始めず、`lm-loop status`とapply logでLaunchAgent bootstrap boundaryを特定し、targeted apply/readback後に1 canary/24hを確認する。
+
+**Daisの作業:** いま必要な再接続、CAPTCHA、手動投稿はない。Capafy automationのblockingはPostiz接続ではなくlocal owner apply errorである。本人確認がproviderから明示要求された場合だけ人の操作が外部前提になる。
+
+### 2026-10-08 13:39 JST — repeated partial fleet apply ignores backoff
+
+この追記は13:27 eBook/Capafy snapshotの次cursorを更新する。latest source main at diagnosis is `e80d1a968d`; active release remains `8f342d8d`.
+
+**Root-cause evidence:**
+
+- Fleet run `18dc7288225a6d08-72756` terminaled at 13:31:59 JST with `exit=1`, `status=partial`, `changed=60`, `errors=3`, `skipped=119`, message `budget exceeded`, and `next_retry=13:43:56 JST`.
+- A new run `18dc73b6c42eb038-98716` started at 13:33 JST, before that retry time. At 13:39:36 it was still active and had recorded 170 owner apply results, most recently `marketing-owner-events`. This confirms the same release entered another fleet apply before the saved retry time.
+- Source condition in `bin/reconcile-agent-runner-release.sh::run_fleet_apply` writes `next_retry_epoch` for both `error` and `partial`, but the skip guard checks only `last_status == error`. A same-SHA `partial` state therefore bypasses its intended backoff. The current source code is the root cause of repeated fleet-wide apply; the new run began a same-SHA fleet apply before the stored 13:43:56 retry deadline.
+- This is separate from the two prior Capafy apply failures (`Bootstrap failed: 5`) and the `life-manager-instagram-metrics` failure. The backoff fix prevents an early repeated fleet sweep; it does not repair those individual owner failures.
+- The 13:32 status readback had eBook owners on SHA `8f342d8d` but `lm-fence-reconciler` still on `46ec94bd`. The active 13:33 fleet run may have changed its state later, so read its final owner row and current loaded SHA after terminal before deciding whether another target apply is needed.
+
+**TODO順変更:** 旧順=`fleet run terminal → target apply fence reconciler → identity recovery`。新順=`partial-backoff regression test → minimal backoff guard fix → merge/release → current fleet run terminal → verify no new full apply before next_retry → target fence reconciler only if still behind → identity recovery → JP catch-up → EN recovery/account eligibility → 9/day → checkout/PDF/subscription MRR → Capafy owner bootstrap recovery after the eBook revenue gate`。理由: 13:31 partial run直後の13:33 wakeが13:43:56のbackoff期限前に再びfleet applyを始め、13:39までに170 ownerを処理した。現在cursor=`regression testでpartial same-SHA stateがfuture next_retry中にapplyを開始しないことを再現`。
+
+**Remaining atomic TODO（上から順に）:**
+
+1. `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`に、同一SHA・`status=partial`・future `next_retry_epoch`なら次tickの`lm-loop apply`呼び出し数が増えないfocused regression testを追加し、現行コードで期待どおりfailすることを確認する。
+2. `bin/reconcile-agent-runner-release.sh`のguardを`error`と`partial`両方で同じSHA/backoff期間中skipする最小修正にし、focused testとloop contractをpassさせる。
+3. PR/CI/merge後、main由来releaseを自然運転でreadbackする。現在のactive runを止めたり新しいfleet applyを重ねない。`partial`の`next_retry_epoch`まで新しいfleet owner rowが増えず、再試行がbackoff後に限られることを確認する。
+4. current release reconcilerのfleet summary/owner rows/terminal eventを確認し、eBook 3 ownersがすでにSHA `8f342d8d`へ移った状態を維持する。`lm-fence-reconciler`のloaded SHAを再読し、旧SHAならshared apply lock解放後にowner限定でtarget applyする。
+5. JPの旧PUBLISHED claims `18dc5e822e430b80-45345` / `18dc648de93a3c68-68679`をreceipt/account/integration/slot/hashと一意にjoinし、owner-pathでだけresolveする。曖昧ならfenceを維持する。
+6. 12:30 JP slotがdueなら自然owner wakeでcatch-upし、各integrationの新しいPUBLISHED receiptを確認する。英語は旧HeyGen effectのexact dispositionと`disabled_verified` account gateを別々に解消してから次slotを1回実行する。
+7. eBookの9 unique PUBLISHED/day、replay-zero、post→click→settled order→matching PDF→settled monthly subscriptionのnet MRRを確認する。単発売上をMRRに足さない。
+8. Capafyの`capafy.hooklab`はPostiz接続と今日2 PUBLISHEDを確認済み。2 automation ownersはdisabledで`Bootstrap failed: 5`; eBook paid order + PDF後にこのLaunchAgent apply errorの根因をowner経路で直し、1 canary/24hの公式readbackを得る。再接続/CAPTCHAは現証拠では必要ない。
+
+### 2026-10-08 13:45 JST — partial-backoff fix is RED/GREEN; production still old
+
+この追記は13:39 cursorを更新する。回帰テストと修正はworking branch上で検証済みだが、まだmain/releaseには未反映。
+
+**Verification:**
+
+- TDD regression `test_partial_apply_honors_backoff_before_same_release_retry`は修正前に`apply_call_count=2`でfailし、guardが`partial`のfuture retryを無視することを再現した。
+- `bin/reconcile-agent-runner-release.sh`のbackoff guardをsame-SHA `error` / `partial`双方へ適用する3行差分後、focused test pass。`test_reconcile_agent_runner_release_fleet_apply.py`は27/27 pass、`bash -n`と`git diff --check`もpass。PR #7055の現在headに含むsource changeは未push。
+- productionではrun `18dc73b6c42eb038-98716`が13:44:07 JSTにterminalし、fleet summaryは`error`, `changed=6`, `errors=4`, `skipped=177`, next retry `14:06:05 JST`。その後PID 44954が新runで起動し、13:45:48にはloaded-running。変更前release SHAは`8f342d8d`。停止/restart/target applyは行わない。
+- eBook 3 ownersと`lm-fence-reconciler`はSHA `8f342d8d`で`loaded-idle`。しかしfence-reconcilerの13:39 natural run後、3 exact old claim callsは`inconclusive / runtime_occurrence_missing_or_invalid / closed=false`であり、JP/EN identitiesはまだ解決していない。
+- Postiz 13:27 GETはeBook 2/9、Capafy `capafy.hooklab` 2 PUBLISHED。Capafyの2 automation ownersはdisabledのまま、Bootstrap 5 root cause未解決。
+
+**TODO順変更:** 旧順=`partial backoff test/fix → current release run terminal → fence reconcile → identity recovery`。新順=`source test+guardをPR/CI/merge → old release runのnatural terminal → patched main releaseのnatural load/readback → partial stateではretry deadline前にfleet owner rowsが増えないことを観測 → fence adapterのruntime_occurrence_missing原因を特定 → identity recovery → JP catch-up → EN old effect/account → 9/day → eBook checkout/PDF/MRR → Capafy bootstrap recovery`。理由: focused testでsource bugは再現・修正済みだが、productionは古いSHAのまま。13:44 runはpartialではなくerrorにterminalし、retry期限を14:06:05に設定した。13:45の新runはまだloaded-running。
+
+**Remaining atomic TODO:**
+
+1. regression testと3行backoff fixを含むPR #7055のsource diffをcommit/pushし、CI/reviewをpassさせてmergeする。部分的なfleet applyを新たに手動起動しない。
+2. 現在のPID 44954 runのnatural terminalとtarget/global lock解放をreadbackする。main merge後、release reconcilerがpatched mainから新releaseをcut/loadした際のSHA/argvを確認する。
+3. 新SHA下で、`partial` fleet stateのfuture `next_retry_epoch`より前に同一SHAのfleet owner apply rowが増えないことをnatural runで確認する。既存`error` backoff時刻の14:06:05を越えるまで不用意な手動retryをしない。
+4. `lm-fence-reconciler`の既存runtime lookupが`runtime_occurrence_missing_or_invalid`となる箇所をexact occurrenceからsource/stateへ追跡する。distribution receipt、runtime occurrence、claim linkageを一意結ぶ最小owner-path recoveryを作り、直接DB/sidecar編集をしない。
+5. JP claimsがowner pathでcloseした後にだけ12:30 slotをdue判定し、eligibleなら自然catch-upする。Englishのold HeyGen effectと`disabled_verified` destinationは個別に解決し、別slotで1回publishする。
+6. 3 eBook account×3 unique PUBLISHED/day、replay-zero、settled order/PDF/monthly subscription evidenceを順に閉じる。one-time eBook saleをMRRに含めない。
+7. eBook paid order+matching PDF後、CapafyのPostiz-connected profileに対する2 disabled ownerのBootstrap 5 root causeをowner-safe apply経路で解消し、one-canary receiptと継続cadenceを分けてreadbackする。
+
+### 2026-10-08 13:53 JST — Gig capacity snapshot and OSS architecture comparison
 
 この追記はGigの容量診断だけを更新し、他レーンの順序やPR #6814の所有範囲を変更しない。source変更、global cap変更、loop起動/停止、browser/provider操作はしていない。
 
 - **現在のLM admission:** `runtime/host/resource_admission.py`のfinite-run global defaultは8。187個のLaunchAgent plistに`LIFE_MANAGER_HOST_MIN_REVENUE_RUNS=3`があり、`MAX_*` overrideはない。従ってborrowに理論上残す全体枠は5だが、borrowのclass capはagent 1 / browser 1 / deterministic 2で、通常のclass別合計は最大4。revenue側のclass capはagent 8 / browser 1 / deterministic 3。8は全体上限、5はrevenue floorから計算したborrow予算であり、両者を同じ「同時実行数」と呼ばない。
-- `lm-loop health --json`の04:41:36Z snapshotは178 jobs、last diagnosticで`resource_capacity_busy` 27、`resource_fifo_wait` 2だった。これらはjob単位の最後の状態で、試行回数ではない。04:47:06ZのPID/process-start一致live-owner snapshotは7/8 occupied（agent/revenue 6、deterministic/revenue 1）、reservation 0、durable queue 81（eligibility時刻を満たすもの80）。その時点の空きはglobalに1枠。Coconala Paid occurrence `18dc730817ceef28-96058` / PID `96568`は引き続き稼働中で、同じprojectに新しいbrowser操作を重ねない。
-- Hardware readback 04:44:41Z: 10 CPU、16 GiB RAM、memory free 42%、load average 14.29 / 15.99 / 15.92、`df` available 4,669,580 KiB。04:40:08Z cleanup receiptは2 GiB floor met、`free_after=4,695,310,336` bytes、errors 0、protected deletions 0、inventory gaps 23。CPU load averageはCPU数を上回るが、どのagent/processが原因かは未帰属であり、ここから「安全に何本まで」と断定しない。
+- `lm-loop health --json`の04:41:36Z snapshotは178 jobs、last diagnosticで`resource_capacity_busy` 27、`resource_fifo_wait` 2だった。これらはjob単位の最後の状態で、試行回数ではない。04:47:06ZのPID/process-start一致live-owner snapshotは7/8 occupied（agent/revenue 6、deterministic/revenue 1）、reservation 0、durable queue 81（eligibility時刻を満たすもの80）。04:49:52Zは8 live claims（agent/revenue 6、deterministic/revenue 2）、reservation 0、queue 78（76 eligible）。04:53:08Zは7 live claims（agent/revenue 5、deterministic/revenue 2）＋1 active reservationで8/8 occupied、queue 80（79 eligible）。次の04:53:18Z readbackではそのreservation leaseはすでに失効していた。Coconala Paid occurrence `18dc730817ceef28-96058` / PID `96568`は全readbackで稼働中。これらは数分以内に7–8/8へ変わる実測で、単一の「今何本」値は時点付きで扱う。
+- Latest hardware readback 04:49:52Z: 10 CPU、16 GiB RAM、memory free 41%、load average 13.99 / 15.68 / 15.86、`df` available 5,693,256 KiB。04:40:08Z cleanup receiptは2 GiB floor met、`free_after=4,695,310,336` bytes、errors 0、protected deletions 0、inventory gaps 23。CPU load averageはCPU数を上回るが、どのagent/processが原因かは未帰属であり、ここから「安全に何本まで」と断定しない。
 - FIFO単独の詰まりではない。admissionは`capacity_busy`と`fifo_wait`を分け、priority/ageingを使う。今回のhealth snapshotではcapacity deferralがFIFO waitより多く、durable queueの80 eligibleは「容量・class・browser lockを今すぐ獲得できる」ことを意味しない。現時点の主要な観測はglobal cap近傍の占有と長いowner runで、単純なFIFO変更やcap引上げだけでは安全な処理量を保証しない。
 - Coding agentのsession/worktree数とLife Manager runtime claim数は別物。Codex/OpenClaw agentが8人いてもLM admission枠が8増えるわけではない。独立worktreeのsource変更・fixture testsは並行できるが、browser profile/provider stateの共有操作はowner lock/admissionを通す。Mac上のCPU/RAM/disk負荷も別の上限として残る。
 - **OSS調査:** OpenClawの公式queue docsはmain laneのCPUベースconcurrencyと、親sessionごとにdefault 8のsubagent queueを説明している。OpenClaw導入でLM固有の8枠、Coconala等のbrowser identity lock、Macの物理容量は置き換わらない（[OpenClaw queue docs](https://docs.openclaw.ai/concepts/queue)）。Temporalはworker slotを固定値またはCPU/RAM使用量に応じて調整し、Workflow/Activityごとのslot supplierを持つ（[Temporal worker performance](https://docs.temporal.io/develop/worker-performance)）。Hatchetはworker slot costとgroup round-robin concurrencyで資源量・公平性を表現できる（[Hatchet concurrency](https://docs.hatchet.run/v1/concurrency)、[Hatchet slot cost](https://docs.hatchet.run/reference/python/client)）。いずれもMacの容量を自動で増やすものではない。
 - 別担当のopen PR [#6814](https://github.com/Daisuke134/life-manager/pull/6814) (`docs/main-agents-readiness`, head `343e4401`)に16-agent/110-jobを保つharness・capacity比較があり、OpenClawをagent harness、Temporalをdurable long-workflow/queue補完として評価している。Gigでは同じarchitecture設計を複製しない。現在の推奨は、8を16/40へ単純増加させず、実際の外部待機だけをdurable waitにしてcompute slotをyieldし、browser/account lock・model/CPU・deterministic/read-only・build/testを分け、実測でslotを調整すること。PR #6814のownerレビューとpilot設計がこの作業の正本。
 
-**この質問に対するlive回答:** 04:47:06Zでは8がhard cap、7がactive、1がglobal freeだった。数分前には8/8だった。5は全体上限ではなくborrow枠の理論値で、class capにより通常のborrow同時実行は最大4。loop外の独立testはLM admissionを使わないが、Mac負荷と共有provider/browser状態の制約は受ける。適切な固定同時テスト数はまだ測定されていない。
+**この質問に対するlive回答:** global hard capは8。04:53:08Zの最新完全snapshotは7 live＋1 reservationで8/8、直前04:47:06Zは7/8、04:49:52Zも8/8だった。5は全体上限ではなくborrow枠の理論値で、class capにより通常のborrow同時実行は最大4。loop外の独立testはLM admissionを使わないが、Mac負荷と共有provider/browser状態の制約は受ける。適切な固定同時テスト数はまだ測定されていない。
