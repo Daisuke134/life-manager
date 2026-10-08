@@ -3050,3 +3050,56 @@ def test_effect_fence_lookup_uses_ordered_partial_index(tmp_path):
         assert "TEMP B-TREE" not in details
     finally:
         connection.close()
+
+
+def _fenced_growth_occurrence(tmp_path, monkeypatch, owner, suffix):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    occurrence = f"{owner}:{suffix}"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable("browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+    return occurrence
+
+
+def test_unknown_occurrence_can_close_with_historical_integration_bound_postiz_no_dispatch(
+        tmp_path, monkeypatch):
+    owner = "life-manager-anicca-main-tiktok"
+    occurrence = _fenced_growth_occurrence(tmp_path, monkeypatch, owner, "postiz-no-dispatch")
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence,
+        no_dispatch_proof=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence, "verified": True,
+            "proof_type": "historical_integration_bound_no_dispatch",
+            "provider": "postiz",
+            "historical_integration_id": "cm-integration-1",
+            "evidence_ref": "postiz://posts?window=2026-10-07T01:00Z..2026-10-07T01:30Z&integration=cm-integration-1&count=0",
+        },
+    ) is True
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
+def test_postiz_no_dispatch_proof_is_rejected_without_an_integration_or_with_the_wrong_provider(
+        tmp_path, monkeypatch):
+    owner = "life-manager-anicca-main-tiktok"
+    occurrence = _fenced_growth_occurrence(tmp_path, monkeypatch, owner, "postiz-reject")
+    base = {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+            "evidence_ref": "postiz://posts?count=0"}
+    for bad in (
+        {**base, "proof_type": "historical_integration_bound_no_dispatch", "provider": "postiz"},
+        {**base, "proof_type": "historical_integration_bound_no_dispatch", "provider": "postiz",
+         "historical_integration_id": " "},
+        {**base, "proof_type": "historical_integration_bound_no_dispatch", "provider": "coconala",
+         "historical_integration_id": "cm-integration-1"},
+        {**base, "proof_type": "historical_account_bound_no_dispatch", "provider": "postiz",
+         "historical_integration_id": "cm-integration-1"},
+    ):
+        assert admission.resolve_historical_no_dispatch_occurrence(
+            owner, occurrence, no_dispatch_proof=lambda bad=bad: bad) is False
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
